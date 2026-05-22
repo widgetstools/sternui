@@ -11,6 +11,7 @@ import {
 } from "@starui/openfin-platform/config";
 import { UPLOAD_SVG } from "@starui/icons-svg/all-icons";
 import { spacing, typography } from "@starui/design-system/tokens";
+import { Input } from "@starui/ui";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -217,7 +218,7 @@ export default function ImportConfig() {
         )}
       </div>
 
-      <input
+      <Input
         ref={fileInputRef}
         type="file"
         accept=".json"

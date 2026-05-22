@@ -5,6 +5,7 @@ import {
   PopoverContent,
   PopoverTrigger,
   Button,
+  Input,
   Textarea,
 } from '@starui/grid/customizer';
 import {
@@ -194,14 +195,14 @@ export function FiltersToolbar() {
         {filters.map((f) => {
           if (renameId === f.id) {
             return (
-              <input
+              <Input
                 key={f.id}
                 ref={renameInputRef}
                 defaultValue={f.label}
                 autoFocus
-                className="ds-filter-rename-input"
+                className="ds-filter-rename-input h-7 text-[11px] shadow-none focus-visible:ring-0"
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleConfirmRename(f.id, (e.target as HTMLInputElement).value);
+                  if (e.key === 'Enter') handleConfirmRename(f.id, e.currentTarget.value);
                   if (e.key === 'Escape') setRenameId(null);
                 }}
                 onBlur={(e) => handleConfirmRename(f.id, e.target.value)}

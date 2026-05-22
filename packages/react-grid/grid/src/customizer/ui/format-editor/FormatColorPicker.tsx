@@ -337,11 +337,7 @@ export function FormatColorPicker({
 
       {/* Bottom bar: pipette + chip + hex input + clear */}
       <div className="flex items-center gap-1.5">
-        {/* Native color picker (pipette). Native <input type="color"> is
-            intentional — it surfaces the OS-native color dialog, which no
-            shadcn primitive provides. The visible chip is the <label>; the
-            input itself is transparent and absolutely positioned to catch
-            clicks. */}
+        {/* OS color dialog via shadcn Input type="color" (transparent overlay). */}
         <label
           style={{
             width: controls.xs.height,
@@ -360,11 +356,11 @@ export function FormatColorPicker({
           title="Pick any color"
         >
           <Pipette size={10} strokeWidth={1.5} className="text-white opacity-80" />
-          <input
+          <Input
             type="color"
             value={hex}
             onChange={(e) => selectPreset(e.target.value)}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            className="absolute inset-0 h-full w-full cursor-pointer border-0 p-0 opacity-0 shadow-none focus-visible:ring-0"
           />
         </label>
 

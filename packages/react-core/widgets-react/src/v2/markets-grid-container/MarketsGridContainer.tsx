@@ -29,7 +29,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, GridApi } from 'ag-grid-community';
 import { MarketsGrid } from '@starui/grid';
 import type { MarketsGridProps, MarketsGridHandle, StorageAdapterFactory } from '@starui/grid';
-import type { AppDataLookup, StorageAdapter } from '@starui/engine';
+import { traceProfile, type AppDataLookup, type StorageAdapter } from '@starui/engine';
 import {
   useDataProviderConfig,
   useResolvedCfg,
@@ -357,22 +357,24 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   const onReady = useCallback((handle: MarketsGridHandle) => {
     const k = expectedKeyRef.current;
-    if (k) {
-      setStamped({ key: k, api: handle.gridApi as unknown as GridApi<TData> });
-      // Provider column defs mount after the profile manager may have
-      // booted on the empty-state grid. Re-apply the active profile so
-      // column-customization formatters and conditional-styling rules
-      // bind to the live column set (imported Default profile, etc.).
-      const profileId = handle.profiles?.activeProfileId ?? '__default__';
-      // Defer one frame so provider column defs and the platform store tick
-      // have settled before column-customization binds formatters.
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          void handle.profiles?.loadProfile(profileId);
-        });
-      });
-    }
-    onReadyProp?.(handle);
+    // Placeholder grid (no provider / column defs yet) — skip profile
+    // reload and consumer onReady; mount #2 fires when expectedKey is set.
+    if (!k) return;
+
+    setStamped({ key: k, api: handle.gridApi as unknown as GridApi<TData> });
+    // Re-apply the boot-resolved profile once column defs exist so
+    // column-customization formatters bind to the live column set.
+    traceProfile('container.onReady', {
+      gridKey: k,
+      note: 'reload after provider column defs mount + profile boot',
+    });
+    void (async () => {
+      await handle.profiles?.whenBooted?.();
+      const profileId = handle.profiles?.getActiveProfileId?.() ?? '__default__';
+      traceProfile('container.onReady.load', { gridKey: k, activeProfileId: profileId });
+      await handle.profiles?.reloadActiveProfile?.({ traceReason: 'container.onReady' });
+      onReadyProp?.(handle);
+    })();
   }, [onReadyProp]);
 
   const liveApi = stamped && stamped.key === expectedKey ? stamped.api : null;

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Eye, EyeOff, Minus, Pipette } from 'lucide-react';
 import { FormatColorPicker } from '../format-editor';
-import { Popover, PopoverContent, PopoverTrigger } from '@starui/ui';
+import { Input, Popover, PopoverContent, PopoverTrigger, Slider } from '@starui/ui';
 
 /**
  * Cockpit compact colour field — 28px tall pill with checkerboard preview
@@ -144,7 +144,7 @@ export function CompactColorField({
         }
       />
 
-      <input
+      <Input
         type="text"
         disabled={disabled}
         placeholder={placeholder}
@@ -171,17 +171,12 @@ export function CompactColorField({
             setHexDraft(value ?? '');
           }
         }}
+        className="min-h-0 flex-1 border-0 bg-transparent p-0 font-mono text-[11px] font-medium shadow-none focus-visible:ring-0"
         style={{
           flex: 1,
           minWidth: 0,
           height: 26,
-          border: 'none',
-          background: 'transparent',
           color: hasValue ? 'var(--ds-text-primary)' : 'var(--ds-text-faint)',
-          fontFamily: 'var(--ds-font-mono)',
-          fontSize: 11,
-          fontWeight: 500,
-          outline: 'none',
           padding: 0,
           textTransform: 'uppercase',
           letterSpacing: '0.02em',
@@ -333,21 +328,16 @@ function CompactColorFieldPopover({
               {localAlpha}%
             </span>
           </div>
-          <input
-            type="range"
+          <Slider
             min={0}
             max={100}
-            value={localAlpha}
-            onChange={(e) => {
-              const next = Number(e.target.value);
+            step={1}
+            value={[localAlpha]}
+            onValueChange={([next]) => {
               setLocalAlpha(next);
               if (value) onChange(value, next);
             }}
-            style={{
-              width: '100%',
-              accentColor: 'var(--ds-accent-positive)',
-              cursor: 'pointer',
-            }}
+            className="w-full [&_[role=slider]]:border-[var(--ds-accent-positive)]"
           />
         </div>
 

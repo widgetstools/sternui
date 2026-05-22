@@ -30,13 +30,12 @@ vi.mock('@starui/engine', async () => {
       async saveGridLevelData() {}
     },
     LocalStorageBundleAdapter: class LocalStorageBundleAdapter {},
+    traceProfile: vi.fn(),
+    isProfileTraceEnabled: () => false,
   };
 });
 
-vi.mock('@starui/grid/customizer', async () => {
-  const actual: any = {};
-  return {
-    ...actual,
+vi.mock('@starui/grid/customizer', () => ({
     GridProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     useGridApi: () => null,
     useGridPlatform: () => ({}),
@@ -48,6 +47,9 @@ vi.mock('@starui/grid/customizer', async () => {
       isDirty: false,
       saveActiveProfile: vi.fn(),
       loadProfile: vi.fn(),
+      reloadActiveProfile: vi.fn(),
+      whenBooted: vi.fn(async () => {}),
+      getActiveProfileId: vi.fn(() => '__default__'),
       createProfile: vi.fn(),
       deleteProfile: vi.fn(),
       cloneProfile: vi.fn(),
@@ -56,7 +58,7 @@ vi.mock('@starui/grid/customizer', async () => {
     }),
     captureGridStateInto: vi.fn(),
     DirtyDot: () => null,
-    Input: React.forwardRef<HTMLInputElement, any>((p, ref) => (
+    Input: React.forwardRef<HTMLInputElement, React.ComponentProps<'input'>>((p, ref) => (
       <input ref={ref} {...p} />
     )),
     Popover: ({ children }: any) => <>{children}</>,
@@ -79,8 +81,7 @@ vi.mock('@starui/grid/customizer', async () => {
     gridStateModule: {},
     savedFiltersModule: {},
     toolbarVisibilityModule: {},
-  };
-});
+}));
 
 vi.mock('./useGridHost', () => ({
   useGridHost: () => ({

@@ -57,6 +57,9 @@ const mocks = vi.hoisted(() => {
       isDirty: false,
       saveActiveProfile: vi.fn(async () => {}),
       loadProfile: vi.fn(async () => {}),
+      reloadActiveProfile: vi.fn(async () => {}),
+      whenBooted: vi.fn(async () => {}),
+      getActiveProfileId: vi.fn(() => mocks.profile.activeProfileId ?? '__default__'),
       createProfile: vi.fn(async () => {}),
       deleteProfile: vi.fn(async () => {}),
       cloneProfile: vi.fn(async () => {}),
@@ -65,7 +68,11 @@ const mocks = vi.hoisted(() => {
       exportProfile: vi.fn(async () => ({ profile: { name: 'sample' } })),
       importProfile: vi.fn(async () => {}),
     },
-    api: { sizeColumnsToFit: vi.fn() } as any,
+    api: {
+      sizeColumnsToFit: vi.fn(),
+      setGridOption: vi.fn(),
+      stopEditing: vi.fn(),
+    } as any,
     captureGridStateInto: vi.fn(),
     profileSelectorPropsRef: { current: null as any },
     useGridHostInvocations: { count: 0 },
@@ -91,12 +98,17 @@ vi.mock('@starui/engine', () => ({
     async saveGridLevelData() {}
   },
   LocalStorageBundleAdapter: class LocalStorageBundleAdapter {},
+  traceProfile: vi.fn(),
+  isProfileTraceEnabled: () => false,
 }));
 
 vi.mock('@starui/grid/customizer', () => ({
   GridProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  Input: React.forwardRef<HTMLInputElement, React.ComponentProps<'input'>>((p, ref) => (
+    <input ref={ref} {...p} />
+  )),
   useGridApi: () => mocks.api,
-  useGridPlatform: () => ({ store: {} }),
+  useGridPlatform: () => ({ store: {}, api: { api: mocks.api } }),
   useModuleState: () => [undefined, vi.fn()],
   GENERAL_SETTINGS_MODULE_ID: 'general-settings',
   useProfileManager: (opts: any) => {
@@ -106,9 +118,6 @@ vi.mock('@starui/grid/customizer', () => ({
   captureGridStateInto: (...args: any[]) =>
     (mocks.captureGridStateInto as any)(...args),
   DirtyDot: () => null,
-  Input: React.forwardRef<HTMLInputElement, any>((p, ref) => (
-    <input ref={ref} {...p} />
-  )),
   Popover: ({ children }: any) => <>{children}</>,
   PopoverTrigger: ({ children }: any) => <>{children}</>,
   PopoverContent: ({ children }: any) => <>{children}</>,
@@ -143,7 +152,7 @@ vi.mock('./useGridHost', () => ({
   useGridHost: (_opts: any) => {
     mocks.useGridHostInvocations.count += 1;
     return {
-      platform: { store: {} },
+      platform: { store: {}, api: { api: mocks.api } },
       columnDefs: [],
       gridOptions: {},
       onGridReady: vi.fn(),
@@ -187,7 +196,11 @@ function resetMocks() {
   mocks.profile.discardActiveProfile = vi.fn(async () => {});
   mocks.profile.exportProfile = vi.fn(async () => ({ profile: { name: 'sample' } }));
   mocks.profile.importProfile = vi.fn(async () => {});
-  mocks.api = { sizeColumnsToFit: vi.fn() };
+  mocks.api = {
+    sizeColumnsToFit: vi.fn(),
+    setGridOption: vi.fn(),
+    stopEditing: vi.fn(),
+  };
   mocks.captureGridStateInto = vi.fn();
   mocks.profileSelectorPropsRef.current = null;
   mocks.useGridHostInvocations.count = 0;
@@ -321,7 +334,7 @@ describe('MarketsGrid — characterisation', () => {
         mocks.profileSelectorPropsRef.current.onLoad('b');
       });
 
-      expect(mocks.profile.loadProfile).toHaveBeenCalledWith('b');
+      expect(mocks.profile.loadProfile).toHaveBeenCalledWith('b', { traceReason: 'toolbar.profile-switch' });
       expect(mocks.profile.saveActiveProfile).not.toHaveBeenCalled();
       expect(mocks.captureGridStateInto).not.toHaveBeenCalled();
     });
@@ -364,7 +377,7 @@ describe('MarketsGrid — characterisation', () => {
 
       expect(mocks.captureGridStateInto).toHaveBeenCalledTimes(1);
       expect(mocks.profile.saveActiveProfile).toHaveBeenCalledTimes(1);
-      expect(mocks.profile.loadProfile).toHaveBeenCalledWith('b');
+      expect(mocks.profile.loadProfile).toHaveBeenCalledWith('b', { traceReason: 'toolbar.save-and-switch' });
 
       const captureOrder =
         mocks.captureGridStateInto.mock.invocationCallOrder[0];
@@ -392,7 +405,7 @@ describe('MarketsGrid — characterisation', () => {
       });
 
       expect(mocks.profile.discardActiveProfile).toHaveBeenCalledTimes(1);
-      expect(mocks.profile.loadProfile).toHaveBeenCalledWith('b');
+      expect(mocks.profile.loadProfile).toHaveBeenCalledWith('b', { traceReason: 'toolbar.discard-and-switch' });
       const discardOrder =
         mocks.profile.discardActiveProfile.mock.invocationCallOrder[0];
       const loadOrder = mocks.profile.loadProfile.mock.invocationCallOrder[0];

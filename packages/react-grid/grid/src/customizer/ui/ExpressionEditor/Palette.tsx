@@ -1,3 +1,4 @@
+import { Input } from '@starui/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useResolvedPortalContainer } from '../PortalContainer';
@@ -134,20 +135,12 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
         <div style={{ padding: '12px 14px 8px', borderBottom: '1px solid var(--ds-border-primary)' }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ds-text-primary)', letterSpacing: 0.3 }}>{title}</div>
           {subtitle && <div style={{ fontSize: 10, color: 'var(--ds-text-muted)', marginTop: 2 }}>{subtitle}</div>}
-          <input
+          <Input
             ref={inputRef}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder={placeholder}
-            style={{
-              marginTop: 8, width: '100%', height: 28,
-              background: 'var(--ds-surface-ground)',
-              color: 'var(--ds-text-primary)',
-              border: '1px solid var(--ds-border-primary)',
-              borderRadius: 4, padding: '0 10px',
-              fontSize: 12, outline: 'none',
-              fontFamily: "'JetBrains Mono', Menlo, monospace",
-            }}
+            className="mt-2 h-7 w-full rounded px-2.5 font-mono text-xs shadow-none focus-visible:ring-0"
           />
         </div>
         <div

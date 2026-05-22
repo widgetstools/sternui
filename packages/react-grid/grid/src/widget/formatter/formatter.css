@@ -112,16 +112,13 @@
   min-width: 8px;
 }
 
-/* Labeled cluster — subtle inset chrome groups controls by function. */
+/* Labeled cluster — caption + controls only (no inset box chrome). */
 .fx-toolbar-group {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-height: var(--fx-pill-h);
-  padding: 2px 8px 2px 6px;
-  border-radius: calc(var(--fx-radius) + 2px);
-  border: 1px solid color-mix(in srgb, var(--ds-border-primary) 85%, transparent);
-  background: color-mix(in srgb, var(--fx-bg-sunken) 72%, var(--ds-surface-primary));
+  padding: 0;
   flex-shrink: 0;
   max-width: 100%;
   min-width: 0;
@@ -159,17 +156,13 @@
   min-width: 0;
 }
 
-/* Destruct cluster — warm outline so it reads as "danger zone". */
-.fx-toolbar-group--destruct {
-  border-color: color-mix(in srgb, var(--ds-accent-negative) 28%, var(--ds-border-primary));
-  background: color-mix(in srgb, var(--ds-accent-negative) 4%, var(--fx-bg-sunken));
-}
+/* Destruct cluster — label tint only (no warm enclosure). */
 .fx-toolbar-group--destruct .fx-toolbar-group__label {
   color: color-mix(in srgb, var(--ds-accent-negative) 72%, var(--ds-text-faint));
 }
 
-/* Inside a group, modules lose outer spacing — the group chrome
-   provides the visual boundary. */
+/* Inside a group, modules lose outer spacing — the row gap + label
+   provide separation. */
 .fx-toolbar-group .fx-module {
   min-height: 0;
 }
@@ -451,9 +444,8 @@
   opacity: 1;
 }
 
-/* `.fx-split` moved to primitives.tsx as a thin re-export over
-   shadcn's `<ButtonGroup>`. The wrapper handles outer-corner radius,
-   inner-corner squaring, and the -1px gap that joins child borders. */
+/* `.fx-split` lives in primitives.tsx as a gap-spaced flex group
+   (no joined-outline chrome). */
 
 /* ─── Context strip — target/scope segments + column label + lock + history ─ */
 
@@ -504,8 +496,8 @@
   height: var(--fx-pill-h);
   padding: 0 10px;
   border-radius: var(--fx-radius);
-  background: var(--fx-bg-sunken);
-  border: 1px solid var(--ds-border-primary);
+  background: color-mix(in srgb, var(--fx-bg-sunken) 55%, transparent);
+  border: 1px solid transparent;
   font-family: var(--ds-font-mono);
   font-size: var(--fx-readout-fs);
   color: var(--ds-text-primary);
@@ -547,13 +539,12 @@
  * inline rename input. The edit pencil is muted until hover so the
  * chip stays clean when the user is just reading the active column. */
 .fx-col--editable {
-  border: 1px solid var(--ds-border-primary);
+  border: 1px solid transparent;
   cursor: text;
   padding-right: 8px;
-  transition: border-color 120ms, background 120ms;
+  transition: background 120ms;
 }
 .fx-col--editable:hover:not(:disabled) {
-  border-color: var(--ds-primary-ring);
   background: color-mix(in srgb, var(--fx-bg-sunken) 60%, var(--ds-primary-soft));
 }
 .fx-col--editable:disabled {

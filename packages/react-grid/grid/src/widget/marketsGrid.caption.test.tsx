@@ -32,18 +32,21 @@ vi.mock('@starui/engine', async () => {
     ...actual,
     MemoryAdapter: class { async loadGridLevelData() { return null; } async saveGridLevelData() {} },
     LocalStorageBundleAdapter: class LocalStorageBundleAdapter {},
+    traceProfile: vi.fn(),
+    isProfileTraceEnabled: () => false,
   };
 });
 
 // React shells from @starui/grid/customizer — hooks, panel primitives,
 // shadcn primitives, and module registry exports.
-vi.mock('@starui/grid/customizer', async () => {
-  const actual: any = {};
-  return {
-    ...actual,
+vi.mock('@starui/grid/customizer', () => ({
     GridProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     useGridApi: () => null,
-    useGridPlatform: () => ({}),
+    useGridPlatform: () => ({
+      api: {
+        api: { setGridOption: vi.fn(), stopEditing: vi.fn(), sizeColumnsToFit: vi.fn() },
+      },
+    }),
     useModuleState: () => [undefined, vi.fn()],
     GENERAL_SETTINGS_MODULE_ID: 'general-settings',
     useProfileManager: () => ({
@@ -52,6 +55,9 @@ vi.mock('@starui/grid/customizer', async () => {
       isDirty: false,
       saveActiveProfile: vi.fn(),
       loadProfile: vi.fn(),
+      reloadActiveProfile: vi.fn(),
+      whenBooted: vi.fn(async () => {}),
+      getActiveProfileId: vi.fn(() => '__default__'),
       createProfile: vi.fn(),
       deleteProfile: vi.fn(),
       cloneProfile: vi.fn(),
@@ -60,7 +66,7 @@ vi.mock('@starui/grid/customizer', async () => {
     }),
     captureGridStateInto: vi.fn(),
     DirtyDot: () => null,
-    Input: React.forwardRef<HTMLInputElement, any>((p, ref) => (
+    Input: React.forwardRef<HTMLInputElement, React.ComponentProps<'input'>>((p, ref) => (
       <input ref={ref} {...p} />
     )),
     Popover: ({ children }: any) => <>{children}</>,
@@ -83,12 +89,15 @@ vi.mock('@starui/grid/customizer', async () => {
     gridStateModule: {},
     savedFiltersModule: {},
     toolbarVisibilityModule: {},
-  };
-});
+}));
 
 vi.mock('./useGridHost', () => ({
   useGridHost: () => ({
-    platform: {},
+    platform: {
+      api: {
+        api: { setGridOption: vi.fn(), stopEditing: vi.fn(), sizeColumnsToFit: vi.fn() },
+      },
+    },
     columnDefs: [],
     gridOptions: {},
     onGridReady: vi.fn(),

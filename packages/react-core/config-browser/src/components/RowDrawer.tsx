@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Textarea } from "@starui/ui";
 import { DynamicIcon as Icon } from "@starui/config-browser/icons";
 
 type Mode = "edit" | "create";
@@ -164,25 +165,19 @@ export function RowDrawer({
         <div className="text-[10px] font-bold tracking-[0.8px] uppercase text-[var(--de-text-tertiary)]">
           JSON payload
         </div>
-        <textarea
+        <Textarea
           ref={textareaRef}
           value={jsonText}
           onChange={(e) => setJsonText(e.target.value)}
           spellCheck={false}
+          className="min-h-[240px] flex-1 resize-none font-[var(--de-mono)] text-xs leading-normal shadow-none focus-visible:ring-0"
           style={{
-            flex: 1,
-            minHeight: 240,
             width: "100%",
             padding: 10,
-            fontFamily: "var(--de-mono)",
-            fontSize: 12,
-            lineHeight: 1.5,
             background: "var(--de-bg-surface)",
             border: `1px solid ${parsedOk ? "var(--de-border)" : "var(--de-danger)"}`,
             borderRadius: "var(--de-radius-sm)",
             color: "var(--de-text)",
-            resize: "none",
-            outline: "none",
             boxSizing: "border-box",
           }}
         />

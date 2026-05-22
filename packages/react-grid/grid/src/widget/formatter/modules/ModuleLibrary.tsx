@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { ChevronDown, LayoutTemplate } from 'lucide-react';
 import { PopoverCompat as Popover, Tooltip } from '@starui/grid/customizer';
 import { TemplateManager } from '../../TemplateManager';
-import { Module, pillClasses, type Orientation } from '../primitives';
+import { Module, PillButton, type Orientation } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 export function ModuleLibrary({
@@ -84,17 +84,14 @@ export function ModuleLibrary({
           onOpenChange={setOpen}
           trigger={
             <Tooltip content="Column templates — apply, save, rename, or delete reusable styling presets">
-              <button
-                type="button"
-                className={pillClasses()}
+              <PillButton
                 aria-label="Templates"
                 data-testid="templates-menu-trigger"
                 disabled={state.disabled}
-                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
               >
                 <LayoutTemplate size={13} strokeWidth={1.75} />
                 <ChevronDown size={9} strokeWidth={2} />
-              </button>
+              </PillButton>
             </Tooltip>
           }
         >
@@ -110,7 +107,7 @@ export function ModuleLibrary({
               // eating mousedown on anything that isn't a form control
               // (otherwise the popover swallows focus and the selected
               // column context is lost). Form controls MUST be exempt,
-              // though: native <select> opens its dropdown on mousedown,
+              // though: shadcn/Radix selects open on mousedown,
               // so preventDefault here kills the dropdown — which is
               // exactly the bug where the template dropdown wouldn't
               // open from the toolbar popover while working fine in the

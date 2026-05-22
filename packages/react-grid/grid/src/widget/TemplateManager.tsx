@@ -28,7 +28,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Pencil, Plus, RotateCw, Trash2, Check, X } from 'lucide-react';
-import { GhostIconButton } from '@starui/grid/customizer';
+import { GhostIconButton, Input } from '@starui/grid/customizer';
+import { Button, cn } from '@starui/ui';
 
 // Inactive-row hover tint. Co-located here (instead of marketsGrid.css)
 // so the row + its buttons stay self-contained — the row also serves
@@ -132,36 +133,24 @@ function TemplateRow({
   const isPendingDelete = pendingDeleteId === id;
 
   return (
-    <div
+    <Button
+      type="button"
+      variant="ghost"
+      disabled={disabled}
       data-testid={testId}
       data-row-hover-target=""
       data-active={isActive ? 'true' : undefined}
-      className="ds-tpl-row"
-      role="button"
+      className={cn(
+        'ds-tpl-row relative flex h-[30px] w-full items-center gap-1.5 rounded-[2px] px-2.5 py-0',
+        'shadow-none hover:bg-transparent focus-visible:ring-0',
+        isActive && 'bg-[color-mix(in_srgb,var(--ds-primary)_10%,transparent)]',
+      )}
       tabIndex={isRenaming ? -1 : 0}
-      onClick={() => { if (!isRenaming && !isPendingDelete && !disabled) onApply(); }}
-      onKeyDown={(e) => {
-        if (isRenaming) return;
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          if (!disabled) onApply();
-        }
-      }}
+      onClick={() => { if (!isRenaming && !isPendingDelete) onApply(); }}
       style={{
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        height: 30,
-        padding: '0 6px 0 10px',
-        borderRadius: 2,
         cursor: disabled ? 'not-allowed' : 'pointer',
-        background: isActive
-          ? 'color-mix(in srgb, var(--ds-primary) 10%, transparent)'
-          : 'transparent',
         opacity: disabled ? 0.5 : 1,
         transition: 'background 120ms',
-        outline: 'none',
       }}
     >
       {/* Active accent bar */}
@@ -185,7 +174,7 @@ function TemplateRow({
 
       {/* Name — switches to input while renaming */}
       {isRenaming ? (
-        <input
+        <Input
           type="text"
           value={renameDraft}
           autoFocus
@@ -198,8 +187,8 @@ function TemplateRow({
             else if (e.key === 'Escape') { e.preventDefault(); onCancelRename(); }
           }}
           onBlur={onCommitRename}
+          className="flex-1 min-w-0 h-[22px] px-1.5 text-[11px] shadow-none focus-visible:ring-0"
           style={{
-            flex: 1, minWidth: 0, height: 22, padding: '0 6px',
             background: 'var(--ds-surface-ground)',
             border: '1px solid color-mix(in srgb, var(--ds-primary) 55%, var(--ds-border-primary))',
             borderRadius: 2,
@@ -256,18 +245,20 @@ function TemplateRow({
             </GhostIconButton>
           )}
           {isPendingDelete ? (
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={(e) => { e.stopPropagation(); onConfirmDelete(); }}
               onMouseDown={(e) => e.preventDefault()}
               data-testid={`${testId}-delete-confirm`}
               title="Click to confirm delete"
               aria-label="Confirm delete template"
-              className="inline-flex items-center justify-center gap-1 h-[22px] px-2 border border-[var(--ds-accent-negative)] rounded-[3px] bg-[color-mix(in_srgb,var(--ds-accent-negative)_18%,transparent)] text-[var(--ds-accent-negative)] text-[9px] font-bold tracking-[0.08em] uppercase cursor-pointer shrink-0"
+              className="inline-flex h-[22px] shrink-0 gap-1 rounded-[3px] border-[var(--ds-accent-negative)] bg-[color-mix(in_srgb,var(--ds-accent-negative)_18%,transparent)] px-2 text-[9px] font-bold uppercase tracking-[0.08em] text-[var(--ds-accent-negative)] shadow-none hover:bg-[color-mix(in_srgb,var(--ds-accent-negative)_24%,transparent)]"
             >
               <Trash2 size={10} strokeWidth={2.25} />
               <span>Delete</span>
-            </button>
+            </Button>
           ) : (
             <GhostIconButton
               reveal="on-row-hover"
@@ -301,7 +292,7 @@ function TemplateRow({
           <X size={11} strokeWidth={2} />
         </GhostIconButton>
       )}
-    </div>
+    </Button>
   );
 }
 
@@ -433,7 +424,7 @@ export function TemplateManager({
           Save current as new
         </div>
         <div className="flex gap-1.5">
-          <input
+          <Input
             type="text"
             value={saveName}
             onChange={(e) => onSaveNameChange(e.target.value)}
@@ -444,36 +435,27 @@ export function TemplateManager({
             onKeyDown={(e) => {
               if (e.key === 'Enter' && saveName.trim()) onSave();
             }}
-            className="flex-1 min-w-0 h-7 px-2.5 border border-border rounded-[3px] bg-background text-foreground text-[11px] outline-none"
+            className="flex-1 min-w-0 h-7 px-2.5 rounded-[3px] text-[11px] shadow-none focus-visible:ring-0"
           />
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="icon"
             disabled={disabled || !saveName.trim()}
             onClick={onSave}
             onMouseDown={(e) => e.preventDefault()}
             data-testid={`${testIdPrefix}-save-btn`}
             title="Save current state as new template"
             aria-label="Save current state as new template"
-            style={{
-              width: 28, height: 28,
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              border: `1px solid ${saveConfirmed
-                ? 'color-mix(in srgb, var(--ds-primary) 40%, transparent)'
-                : 'var(--ds-border-primary)'}`,
-              borderRadius: 2,
-              background: saveConfirmed
-                ? 'color-mix(in srgb, var(--ds-primary) 14%, transparent)'
-                : 'transparent',
-              color: saveConfirmed ? 'var(--ds-primary)' : 'var(--ds-text-secondary)',
-              cursor: disabled || !saveName.trim() ? 'not-allowed' : 'pointer',
-              opacity: disabled || !saveName.trim() ? 0.3 : 1,
-              transition: 'all 120ms',
-              padding: 0,
-              flexShrink: 0,
-            }}
+            className={cn(
+              'h-7 w-7 shrink-0 rounded-[2px] p-0 shadow-none transition-all transition-duration-[120ms]',
+              saveConfirmed
+                ? 'border-[color-mix(in_srgb,var(--ds-primary)_40%,transparent)] bg-[color-mix(in_srgb,var(--ds-primary)_14%,transparent)] text-[var(--ds-primary)]'
+                : 'border-[var(--ds-border-primary)] bg-transparent text-[var(--ds-text-secondary)]',
+            )}
           >
             {saveConfirmed ? <Check size={13} strokeWidth={2.5} /> : <Plus size={13} strokeWidth={2} />}
-          </button>
+          </Button>
         </div>
       </div>
 

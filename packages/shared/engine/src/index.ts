@@ -71,7 +71,7 @@ export {
 } from './persistence';
 
 // ─── Profile manager ────────────────────────────────────────────────────────
-export { ProfileManager } from './profiles';
+export { ProfileManager, isProfileTraceEnabled, traceProfile } from './profiles';
 export type {
   ActiveIdSource,
   ProfileManagerOptions,

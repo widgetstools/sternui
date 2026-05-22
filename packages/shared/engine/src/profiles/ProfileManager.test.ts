@@ -3,7 +3,7 @@ import { GridPlatform } from '../platform/GridPlatform';
 import { MemoryAdapter } from '../persistence/MemoryAdapter';
 import type { Module } from '../platform/types';
 import { ProfileManager } from './ProfileManager';
-import { RESERVED_DEFAULT_PROFILE_ID } from '../persistence/StorageAdapter';
+import { RESERVED_DEFAULT_PROFILE_ID, activeProfileKey } from '../persistence/StorageAdapter';
 
 /**
  * Regression tests for the two profile-management bugs that shipped in the
@@ -274,6 +274,157 @@ describe('ProfileManager — disposed-guards', () => {
     platform.store.setModuleState<StyleState>('style', () => ({ rules: ['post-dispose-edit'] }));
     await new Promise((r) => setTimeout(r, 30));
     expect(listSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('ProfileManager — whenBooted / reloadActive', () => {
+  it('whenBooted resolves after boot and reloadActive uses boot-resolved activeId', async () => {
+    const adapter = new MemoryAdapter();
+    const gridId = 'grid-when-booted';
+    const platform = new GridPlatform({ gridId, modules: [makeStyleModule()] });
+    const now = Date.now();
+    await adapter.saveProfile({
+      id: 't1',
+      gridId,
+      name: 'T1',
+      state: { style: { v: 1, data: { rules: ['from-t1'] } } },
+      createdAt: now,
+      updatedAt: now,
+    });
+    const source = {
+      read: async () => 't1',
+      write: async () => {},
+    };
+    const manager = new ProfileManager({
+      platform,
+      adapter,
+      disableAutoSave: true,
+      activeIdSource: source,
+    });
+    const booted = manager.whenBooted();
+    void manager.boot();
+    await booted;
+    expect(manager.getState().activeId).toBe('t1');
+    expect(manager.getState().isLoading).toBe(false);
+    await manager.reloadActive({ traceReason: 'test' });
+    expect(manager.getState().activeId).toBe('t1');
+    expect(platform.store.getModuleState<StyleState>('style').rules).toEqual(['from-t1']);
+  });
+
+  it('boot default fallthrough does not clobber activeIdSource pointers', async () => {
+    const adapter = new MemoryAdapter();
+    const gridId = 'grid-no-clobber';
+    const platform = new GridPlatform({ gridId, modules: [makeStyleModule()] });
+    const writes: string[] = [];
+    let readCount = 0;
+    const source = {
+      read: async () => {
+        readCount += 1;
+        // Boot + one rAF retry both miss; reloadActive re-read picks up t1.
+        return readCount <= 2 ? null : 't1';
+      },
+      write: async (id: string) => {
+        writes.push(id);
+      },
+    };
+    const now = Date.now();
+    await adapter.saveProfile({
+      id: 't1',
+      gridId,
+      name: 'T1',
+      state: { style: { v: 1, data: { rules: ['from-t1'] } } },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const manager = new ProfileManager({
+      platform,
+      adapter,
+      disableAutoSave: true,
+      activeIdSource: source,
+    });
+    await manager.boot();
+    expect(manager.getState().activeId).toBe('__default__');
+    expect(writes).toEqual([]);
+
+    await manager.reloadActive({ traceReason: 'container.onReady' });
+    expect(manager.getState().activeId).toBe('t1');
+    expect(platform.store.getModuleState<StyleState>('style').rules).toEqual(['from-t1']);
+  });
+
+  it('view-scoped activeIdSource ignores shared localStorage (multi-view OpenFin)', async () => {
+    const adapter = new MemoryAdapter();
+    const gridId = 'grid-multi-view';
+    const platform = new GridPlatform({ gridId, modules: [makeStyleModule()] });
+    const now = Date.now();
+    await adapter.saveProfile({
+      id: 't1',
+      gridId,
+      name: 'T1',
+      state: { style: { v: 1, data: { rules: ['view-a'] } } },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await adapter.saveProfile({
+      id: 't2',
+      gridId,
+      name: 'T2',
+      state: { style: { v: 1, data: { rules: ['view-b'] } } },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Simulate view B — another view already wrote t1 to shared localStorage.
+    localStorage.setItem(activeProfileKey(gridId), 't1');
+
+    const viewB = {
+      read: async () => 't2',
+      write: vi.fn(async () => {}),
+    };
+    const manager = new ProfileManager({
+      platform,
+      adapter,
+      disableAutoSave: true,
+      activeIdSource: viewB,
+    });
+    await manager.boot();
+    expect(manager.getState().activeId).toBe('t2');
+    expect(platform.store.getModuleState<StyleState>('style').rules).toEqual(['view-b']);
+    expect(viewB.write).toHaveBeenCalledWith('t2');
+  });
+
+  it('load with activeIdSource writes view pointer only, not localStorage', async () => {
+    const adapter = new MemoryAdapter();
+    const gridId = 'grid-ls-isolation';
+    const platform = new GridPlatform({ gridId, modules: [makeStyleModule()] });
+    const now = Date.now();
+    await adapter.saveProfile({
+      id: 't2',
+      gridId,
+      name: 'T2',
+      state: {},
+      createdAt: now,
+      updatedAt: now,
+    });
+    const writes: string[] = [];
+    const source = {
+      read: async () => '__default__',
+      write: async (id: string) => {
+        writes.push(id);
+      },
+    };
+    const manager = new ProfileManager({
+      platform,
+      adapter,
+      disableAutoSave: true,
+      activeIdSource: source,
+    });
+    await manager.boot();
+    writes.length = 0;
+    await manager.load('t2', { traceReason: 'test' });
+    expect(writes).toEqual(['t2']);
+    // OpenFin path must not touch shared localStorage.
+    expect(localStorage.getItem(activeProfileKey(gridId))).toBeNull();
   });
 });
 

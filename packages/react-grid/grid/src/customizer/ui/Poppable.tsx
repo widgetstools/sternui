@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { ExternalLink } from 'lucide-react';
+import { Button } from '@starui/ui';
 import { PopoutPortal } from './PopoutPortal';
 import { openFinWindowOpener } from '../../runtime/openFin.js';
 
@@ -182,16 +183,18 @@ export const Poppable = forwardRef<PoppableHandle, PoppableProps>(function Poppa
     ({ className, title: btnTitle, icon, ...rest }: PopoutButtonProps) => {
       if (popped) return null;
       return (
-        <button
+        <Button
           type="button"
-          className={className ?? 'ds-popout-btn'}
+          variant="ghost"
+          size="icon"
+          className={className ?? 'ds-popout-btn h-7 w-7 shadow-none'}
           onClick={() => setPopped(true)}
           title={btnTitle ?? 'Open in a separate window'}
           aria-label={btnTitle ?? 'Open in a separate window'}
           data-testid={rest['data-testid']}
         >
           {icon ?? <ExternalLink size={12} strokeWidth={2} />}
-        </button>
+        </Button>
       );
     },
     [popped],

@@ -4,6 +4,9 @@
  * Config import can lose to an empty `__default__` created on first grid visit,
  * or profile state may hydrate before provider column defs exist. This module
  * repairs storage when needed and forces a profile reload after the live grid mounts.
+ *
+ * Profile restore (`whenBooted` + `reloadActive`) runs in MarketsGridContainer
+ * before `onReady` reaches this module — do not duplicate reloads here.
  */
 import type { MarketsGridHandle } from '@starui/grid';
 import { LOGGED_IN_USER_ID } from '@starui/types';
@@ -14,6 +17,24 @@ import {
 
 /** Must match `useHostedIdentity` / starter JSON `appId`. */
 const HOST_APP_ID = 'TestApp';
+
+const PROFILE_TRACE_PREFIX = '[profiles:trace]';
+
+/** Local trace helper — avoids Vite optimizeDeps stale export on @starui/engine. */
+function traceProfile(phase: string, detail?: Record<string, unknown>): void {
+  if (typeof localStorage !== 'undefined') {
+    try {
+      if (localStorage.getItem('starui.profileTrace') === '0') return;
+    } catch {
+      /* ignore */
+    }
+  }
+  if (detail && Object.keys(detail).length > 0) {
+    console.log(PROFILE_TRACE_PREFIX, phase, detail);
+  } else {
+    console.log(PROFILE_TRACE_PREFIX, phase);
+  }
+}
 
 const MIN_FI_ASSIGNMENTS = 12;
 
@@ -119,35 +140,66 @@ function liveAssignmentCount(handle: MarketsGridHandle): number {
   }
 }
 
-async function reloadActiveProfile(handle: MarketsGridHandle): Promise<void> {
-  const id = handle.profiles?.activeProfileId ?? '__default__';
-  await handle.profiles?.loadProfile(id);
+const RESERVED_DEFAULT_PROFILE_ID = '__default__';
+
+function waitTwoFrames(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
 }
 
 /**
- * Re-apply FI formatting after provider column defs mount.
- * Import payload when in-memory assignments are still empty.
+ * Repair FI Default formatting when the active profile is `__default__`.
+ *
+ * Called from Blotter `onReady` after MarketsGridContainer has already
+ * booted and reloaded the active profile — only seeds storage and reloads
+ * when live assignments are still below the FI threshold.
  */
-export async function applyFiBlotterOnGridReady(handle: MarketsGridHandle): Promise<void> {
+export async function applyFiBlotterOnGridReady(
+  handle: MarketsGridHandle,
+  configManager: ConfigManagerLike,
+): Promise<void> {
   if (!handle.profiles) return;
 
-  await reloadActiveProfile(handle);
+  const activeId = handle.profiles.getActiveProfileId?.()
+    ?? handle.profiles.activeProfileId
+    ?? RESERVED_DEFAULT_PROFILE_ID;
 
-  if (liveAssignmentCount(handle) >= MIN_FI_ASSIGNMENTS) return;
+  traceProfile('fi-blotter.onGridReady', { activeProfileId: activeId });
 
-  const gridId = handle.platform.gridId ?? SCAFFOLD_BLOTTER_GRID_ID;
-  await handle.profiles.importProfile(buildFiProfileImportPayload(gridId), {
-    activate: true,
-    name: 'Default',
-  });
-  await reloadActiveProfile(handle);
-}
+  // Container reload already applied user-selected profiles.
+  if (activeId !== RESERVED_DEFAULT_PROFILE_ID) return;
 
-/** Defer until AG-Grid + platform pipeline have applied provider column defs. */
-export function scheduleFiBlotterOnGridReady(handle: MarketsGridHandle): void {
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      void applyFiBlotterOnGridReady(handle);
-    });
+  let count = liveAssignmentCount(handle);
+  if (count >= MIN_FI_ASSIGNMENTS) {
+    traceProfile('fi-blotter.skip', { reason: 'assignments-ok', assignmentCount: count });
+    return;
+  }
+
+  traceProfile('fi-blotter.default.seed', { assignmentCount: count, pass: 'initial' });
+  await ensureFiBlotterProfileRow(configManager);
+  await handle.profiles.reloadActiveProfile?.({ traceReason: 'fi-blotter.after-seed' })
+    ?? handle.profiles.loadProfile(RESERVED_DEFAULT_PROFILE_ID, { traceReason: 'fi-blotter.after-seed' });
+
+  count = liveAssignmentCount(handle);
+  if (count >= MIN_FI_ASSIGNMENTS) {
+    traceProfile('fi-blotter.default.done', { assignmentCount: count, pass: 'initial', seeded: true });
+    return;
+  }
+
+  // Column defs may still be settling — recheck once before a second reload.
+  await waitTwoFrames();
+  count = liveAssignmentCount(handle);
+  if (count >= MIN_FI_ASSIGNMENTS) {
+    traceProfile('fi-blotter.default.done', { assignmentCount: count, pass: 'deferred-count', seeded: true });
+    return;
+  }
+
+  await handle.profiles.reloadActiveProfile?.({ traceReason: 'fi-blotter.deferred-rebind' })
+    ?? handle.profiles.loadProfile(RESERVED_DEFAULT_PROFILE_ID, { traceReason: 'fi-blotter.deferred-rebind' });
+  traceProfile('fi-blotter.default.done', {
+    assignmentCount: liveAssignmentCount(handle),
+    pass: 'deferred-rebind',
+    seeded: true,
   });
 }

@@ -6,6 +6,12 @@
  * feel stays in lockstep across the two components and across future
  * additions.
  *
+ * **UI-stack carve-out (imperative, not React).** AG Grid `IFloatingFilterComp`
+ * hosts require imperative DOM with `ag-input-field-input` classes so the
+ * grid theme drives height, border, and focus ring. `@starui/ui` `Input` is
+ * React-only and cannot replace this element without breaking theme parity.
+ * This file is the sole remaining production `document.createElement('input')`.
+ *
  * **DOM mirror.** AG-Grid 35's native floating filter, simplified:
  *
  * ```

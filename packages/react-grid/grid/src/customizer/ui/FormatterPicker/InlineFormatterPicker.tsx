@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronLeft, Hash } from 'lucide-react';
+import { Button } from '@starui/ui';
 import { isValidExcelFormat } from '@starui/engine';
 import { controls, radius, spacing } from '@starui/design-system/tokens';
 import { FormatDropdown } from '../format-editor';
@@ -66,32 +67,19 @@ export function InlineFormatterPicker({
           }))}
           width={280}
           trigger={
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               title="Presets"
               data-testid={testId ? `${testId}-preset` : undefined}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: spacing[1.5],
-                width: '100%',
-                height: rowHeight,
-                padding: `0 ${spacing[2]}px 0 ${spacing[2.5]}px`,
-                background: 'var(--ds-surface-ground)',
-                border: '1px solid var(--ds-border-primary)',
-                borderRadius: radius.md,
-                color: 'var(--ds-text-primary)',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                fontSize: controls.sm.fontSize,
-                letterSpacing: '0.02em',
-              }}
+              className="flex h-[var(--ds-control-md-height,28px)] w-full items-center gap-1.5 rounded-[var(--ds-radius-md,4px)] border-[var(--ds-border-primary)] bg-[var(--ds-surface-ground)] px-2.5 py-0 font-[inherit] text-[length:var(--ds-control-sm-font-size,11px)] tracking-[0.02em] text-[var(--ds-text-primary)] shadow-none"
             >
-              <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis">
+              <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-left">
                 {activePreset?.label ?? 'Preset…'}
               </span>
               <ChevronDown size={12} strokeWidth={1.75} className="opacity-60" />
-            </button>
+            </Button>
           }
         />
 
@@ -133,19 +121,21 @@ export function InlineFormatterPicker({
 
   if (!expanded) {
     return (
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         onClick={() => setExpanded(true)}
         title="Expand format picker"
         data-testid={testId ? `${testId}-collapsed` : undefined}
-        className="inline-flex items-center gap-1.5 h-7 px-2 bg-background border border-border rounded-sm text-foreground font-sans text-[length:var(--ds-control-sm-font-size)] cursor-pointer transition-[background,border-color] duration-120"
+        className="inline-flex h-7 gap-1.5 rounded-sm border-border bg-background px-2 font-sans text-[length:var(--ds-control-sm-font-size)] text-foreground shadow-none transition-[background,border-color] transition-duration-[120ms]"
       >
         <Hash size={12} strokeWidth={1.75} className="opacity-60" />
         <span className="max-w-[140px] whitespace-nowrap overflow-hidden text-ellipsis font-mono tabular-nums">
           {triggerCaption(value, activePreset)}
         </span>
         <ChevronDown size={11} strokeWidth={1.75} className="opacity-50" />
-      </button>
+      </Button>
     );
   }
 
@@ -154,25 +144,16 @@ export function InlineFormatterPicker({
       data-testid={testId}
       className="inline-flex items-center gap-1.5 p-1 bg-[var(--ds-surface-secondary)] border border-border rounded-sm font-sans"
     >
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="icon"
         onClick={() => setExpanded(false)}
         title="Collapse"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: rowHeight,
-          height: rowHeight,
-          padding: 0,
-          background: 'transparent',
-          border: 'none',
-          color: 'var(--ds-text-muted)',
-          cursor: 'pointer',
-        }}
+        className="h-[var(--ds-control-md-height,28px)] w-[var(--ds-control-md-height,28px)] shrink-0 border-none bg-transparent p-0 text-[var(--ds-text-muted)] shadow-none hover:bg-transparent hover:text-[var(--ds-text-muted)]"
       >
         <ChevronLeft size={12} strokeWidth={1.75} />
-      </button>
+      </Button>
 
       <FormatDropdown<string>
         value={activePreset?.id ?? ''}
@@ -186,33 +167,19 @@ export function InlineFormatterPicker({
         }))}
         width={240}
         trigger={
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             title="Presets"
             data-testid={testId ? `${testId}-preset` : undefined}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: spacing[1.5],
-              height: rowHeight,
-              minWidth: 120,
-              maxWidth: 240,
-              padding: `0 ${spacing[1.5]}px 0 ${spacing[2.5]}px`,
-              background: 'var(--ds-surface-ground)',
-              border: '1px solid var(--ds-border-primary)',
-              borderRadius: radius.md,
-              color: 'var(--ds-text-primary)',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              fontSize: controls.sm.fontSize,
-              letterSpacing: '0.02em',
-            }}
+            className="inline-flex h-[var(--ds-control-md-height,28px)] min-w-[120px] max-w-[240px] items-center gap-1.5 rounded-[var(--ds-radius-md,4px)] border-[var(--ds-border-primary)] bg-[var(--ds-surface-ground)] px-2.5 py-0 font-[inherit] text-[length:var(--ds-control-sm-font-size,11px)] tracking-[0.02em] text-[var(--ds-text-primary)] shadow-none"
           >
-            <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis">
+            <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-left">
               {activePreset?.label ?? 'Preset…'}
             </span>
             <ChevronDown size={12} strokeWidth={1.75} className="opacity-60" />
-          </button>
+          </Button>
         }
       />
 

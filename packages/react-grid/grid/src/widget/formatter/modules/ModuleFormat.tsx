@@ -28,7 +28,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@starui/ui';
-import { Hair, Module, Pill, pillClasses, SplitPill } from '../primitives';
+import { Hair, Module, Pill, PillButton, SplitPill } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 const TICK_MENU = [
@@ -77,15 +77,14 @@ export function ModuleFormat({
         <DropdownMenu open={currencyOpen} onOpenChange={setCurrencyOpen}>
           <DropdownMenuTrigger asChild>
             <Tooltip content="Pick a currency (USD, EUR, GBP, JPY, basis points)">
-              <button
-                type="button"
+              <PillButton
                 disabled={fmtDisabled}
+                pillVariant="narrow"
                 aria-label="Currency menu"
-                className={pillClasses('narrow')}
                 data-testid="fmt-currency-menu"
               >
                 <ChevronDown size={9} strokeWidth={2} />
-              </button>
+              </PillButton>
             </Tooltip>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="fx-menu min-w-[160px]">
@@ -170,15 +169,14 @@ export function ModuleFormat({
         <DropdownMenu open={tickMenuOpen} onOpenChange={setTickMenuOpen}>
           <DropdownMenuTrigger asChild>
             <Tooltip content="Tick precision — choose denominator (32, 64, 128, 256)">
-              <button
-                type="button"
+              <PillButton
                 disabled={fmtDisabled}
+                pillVariant="narrow"
                 aria-label="Tick precision"
-                className={pillClasses('narrow')}
                 data-testid="fmt-tick-menu-trigger"
               >
                 <ChevronDown size={9} strokeWidth={1.75} />
-              </button>
+              </PillButton>
             </Tooltip>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="fx-menu min-w-[180px]">

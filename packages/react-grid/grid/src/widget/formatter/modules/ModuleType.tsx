@@ -16,7 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@starui/ui';
-import { Hair, Module, Pill, pillClasses } from '../primitives';
+import { Hair, Module, Pill, PillButton } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 const FONT_SIZES = [9, 10, 11, 12, 13, 14, 16, 18, 20, 24];
@@ -65,17 +65,16 @@ export function ModuleType({
       <DropdownMenu open={sizeOpen} onOpenChange={setSizeOpen}>
         <DropdownMenuTrigger asChild>
           <Tooltip content="Font size in pixels">
-            <button
+            <PillButton
               disabled={controlDisabled}
-              type="button"
-              className={pillClasses('text')}
+              pillVariant="text"
               aria-label="Font size"
               data-testid="fmt-panel-font-size"
             >
               <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fontSizeLabel}</span>
               <span style={{ opacity: 0.6, marginLeft: 2 }}>PX</span>
               <ChevronDown size={9} strokeWidth={2} style={{ marginLeft: 3 }} />
-            </button>
+            </PillButton>
           </Tooltip>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="fx-menu min-w-[120px]">

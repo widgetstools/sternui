@@ -1,3 +1,4 @@
+import { Input } from '@starui/ui';
 import { forwardRef, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 
 /**
@@ -78,7 +79,7 @@ export const IconInput = forwardRef<HTMLInputElement, IconInputProps>(function I
           {icon}
         </span>
       )}
-      <input
+      <Input
         ref={ref}
         value={draft}
         disabled={disabled}
@@ -98,7 +99,7 @@ export const IconInput = forwardRef<HTMLInputElement, IconInputProps>(function I
         data-testid={rest['data-testid']}
         aria-label={rest['aria-label']}
         className={[
-          'flex-1 min-w-0 bg-transparent border-none outline-none h-auto p-0 text-foreground text-xs',
+          'flex-1 min-w-0 h-auto min-h-0 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0',
           monospace || numeric ? 'font-mono tabular-nums' : 'font-sans',
         ].join(' ')}
         style={{ fontSize: 12 }}

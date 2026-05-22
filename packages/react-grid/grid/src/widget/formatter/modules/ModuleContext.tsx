@@ -20,7 +20,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { Tooltip } from '@starui/grid/customizer';
-import { Input } from '@starui/ui';
+import { Button, Input } from '@starui/ui';
 import {
   ColumnLabel,
   Hair,
@@ -96,9 +96,11 @@ function InlineColumnLabel({
 
   return (
     <Tooltip content={disabled ? 'Select a single column to rename' : 'Click to rename column'}>
-      <button
+      <Button
         type="button"
-        className="fx-col fx-col--editable"
+        variant="ghost"
+        size="sm"
+        className="fx-col fx-col--editable h-auto min-h-0 px-0 py-0"
         data-disabled={disabled ? 'true' : undefined}
         data-testid="formatting-col-label"
         disabled={disabled}
@@ -108,7 +110,7 @@ function InlineColumnLabel({
         <span className="fx-col__dot" aria-hidden />
         <span className="fx-col__name">{colLabel}</span>
         <Pencil size={10} strokeWidth={1.75} className="fx-col__edit" aria-hidden />
-      </button>
+      </Button>
     </Tooltip>
   );
 }

@@ -8,6 +8,7 @@ import {
   type ProfileManagerState,
   type ProfileMeta,
   type StorageAdapter,
+  traceProfile,
 } from '@starui/engine';
 import { useGridPlatform } from './GridProvider';
 
@@ -20,7 +21,13 @@ export interface UseProfileManagerResult {
    *  the Save button + triggers the unsaved-changes confirm flow on
    *  profile switch and page unload. */
   isDirty: boolean;
-  loadProfile: (id: string) => Promise<void>;
+  loadProfile: (id: string, opts?: { traceReason?: string }) => Promise<void>;
+  /** Reload the profile boot resolved — safe to call from onReady handlers. */
+  reloadActiveProfile: (opts?: { traceReason?: string }) => Promise<void>;
+  /** Resolves when boot has finished reading OpenFin customData / LS. */
+  whenBooted: () => Promise<void>;
+  /** Current active id from the manager (not a stale React snapshot). */
+  getActiveProfileId: () => string;
   saveActiveProfile: () => Promise<void>;
   /** Throw away in-memory changes and reload the active profile from
    *  disk. Used by the Discard branch of the unsaved-changes prompt. */
@@ -60,6 +67,11 @@ function getOrCreateManager(opts: ProfileManagerOptions): ProfileManager {
   if (existing) return existing;
   const manager = new ProfileManager(opts);
   MANAGERS_BY_PLATFORM.set(opts.platform, manager);
+  traceProfile('manager.create', {
+    gridId: opts.platform.gridId,
+    hasActiveIdSource: Boolean(opts.activeIdSource),
+    disableAutoSave: opts.disableAutoSave ?? false,
+  });
   // Dispose when the platform tears down — the real teardown, not the
   // StrictMode simulated one.
   opts.platform.events.on('grid:destroyed', () => {
@@ -114,7 +126,16 @@ export function useProfileManager(opts: {
   );
   const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  const loadProfile = useCallback((id: string) => manager.load(id), [manager]);
+  const loadProfile = useCallback(
+    (id: string, o?: { traceReason?: string }) => manager.load(id, o),
+    [manager],
+  );
+  const reloadActiveProfile = useCallback(
+    (o?: { traceReason?: string }) => manager.reloadActive(o),
+    [manager],
+  );
+  const whenBooted = useCallback(() => manager.whenBooted(), [manager]);
+  const getActiveProfileId = useCallback(() => manager.getState().activeId, [manager]);
   const saveActiveProfile = useCallback(() => manager.save(), [manager]);
   const discardActiveProfile = useCallback(() => manager.discard(), [manager]);
   const createProfile = useCallback(
@@ -143,6 +164,9 @@ export function useProfileManager(opts: {
       isLoading: state.isLoading,
       isDirty: state.isDirty,
       loadProfile,
+      reloadActiveProfile,
+      whenBooted,
+      getActiveProfileId,
       saveActiveProfile,
       discardActiveProfile,
       createProfile,
@@ -158,6 +182,9 @@ export function useProfileManager(opts: {
       state.isLoading,
       state.isDirty,
       loadProfile,
+      reloadActiveProfile,
+      whenBooted,
+      getActiveProfileId,
       saveActiveProfile,
       discardActiveProfile,
       createProfile,

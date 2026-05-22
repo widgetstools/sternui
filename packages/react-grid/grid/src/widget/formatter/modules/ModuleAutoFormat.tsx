@@ -9,9 +9,9 @@ import type { Orientation } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 const autoFormatPillClass = cn(
-  'h-7 gap-1.5 px-2.5 rounded-[3px] border bg-transparent shadow-none',
-  'border-primary/35 text-primary text-[10px] font-semibold uppercase tracking-[0.08em]',
-  'hover:bg-primary/10 hover:border-primary',
+  'h-7 gap-1.5 px-2.5 rounded-[3px] border border-transparent bg-transparent shadow-none',
+  'text-primary text-[10px] font-semibold uppercase tracking-[0.08em]',
+  'hover:bg-primary/10 hover:border-transparent',
   'disabled:opacity-40 disabled:hover:bg-transparent',
 );
 

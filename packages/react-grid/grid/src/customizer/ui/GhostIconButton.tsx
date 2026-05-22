@@ -1,5 +1,5 @@
 import { type ButtonHTMLAttributes, forwardRef } from 'react';
-import { cn } from '@starui/ui';
+import { Button, cn } from '@starui/ui';
 
 export type GhostIconButtonVariant = 'default' | 'accent' | 'destructive';
 export type GhostIconButtonSize = 'sm' | 'md';
@@ -87,10 +87,12 @@ export const GhostIconButton = forwardRef<HTMLButtonElement, GhostIconButtonProp
     },
     ref,
   ) => (
-    <button
+    <Button
       ref={ref}
       type={type ?? 'button'}
-      className={cn('ds-gib', className)}
+      variant="ghost"
+      size="icon"
+      className={cn('ds-gib h-[22px] w-[22px] min-h-0 min-w-[22px] p-0 shadow-none hover:bg-transparent', className)}
       data-variant={variant}
       data-size={size}
       data-reveal={reveal}
@@ -98,7 +100,7 @@ export const GhostIconButton = forwardRef<HTMLButtonElement, GhostIconButtonProp
       {...rest}
     >
       {children}
-    </button>
+    </Button>
   ),
 );
 GhostIconButton.displayName = 'GhostIconButton';

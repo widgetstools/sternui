@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import {
   MarketsGrid,
   createMarketsGridLocalStorageStorage,
@@ -14,6 +14,7 @@ import {
 } from '@starui/design-system';
 import {
   Button,
+  Input,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -68,6 +69,7 @@ export function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [pulse, setPulse] = useState<ProfilePulse>(() => readProfilePulse());
   const handleRef = useRef<MarketsGridHandle | null>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   // Pulse refreshes via grid events (subscribed in onReady) rather than
   // polling — the App tree was re-rendering every 800ms regardless, which
@@ -103,23 +105,22 @@ export function App() {
     URL.revokeObjectURL(url);
   }, []);
 
-  const handleImport = useCallback(async () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json,.json';
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const text = await file.text();
-      try {
-        JSON.parse(text);
-        localStorage.setItem(STORAGE_KEY, text);
-        window.location.reload();
-      } catch {
-        // Silent — production would surface a toast. Demo keeps deps small.
-      }
-    };
-    input.click();
+  const handleImportFile = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const text = await file.text();
+    try {
+      JSON.parse(text);
+      localStorage.setItem(STORAGE_KEY, text);
+      window.location.reload();
+    } catch {
+      // Silent — production would surface a toast. Demo keeps deps small.
+    }
+  }, []);
+
+  const handleImport = useCallback(() => {
+    importFileRef.current?.click();
   }, []);
 
   // Keyboard shortcuts: Ctrl+E export, Ctrl+I import, Ctrl+J inspector,
@@ -173,6 +174,15 @@ export function App() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[color:var(--ds-surface-ground)] text-[color:var(--ds-text-primary)]">
+      <Input
+        ref={importFileRef}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        onChange={handleImportFile}
+        aria-hidden
+        tabIndex={-1}
+      />
       <header className="relative flex h-[52px] shrink-0 items-center gap-2 border-b border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] pl-4 pr-3">
         <Brand />
         <div className="ml-2 h-6 w-px bg-[color:var(--ds-border-primary)]" />

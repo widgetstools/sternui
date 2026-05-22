@@ -352,7 +352,7 @@ export function useMarketsGridController(
         setPendingSwitch({ id });
         return;
       }
-      void profiles.loadProfile(id);
+      void profiles.loadProfile(id, { traceReason: 'toolbar.profile-switch' });
     },
     [profiles],
   );
@@ -367,7 +367,7 @@ export function useMarketsGridController(
       // the snapshot lands — otherwise a Save-then-Switch would persist
       // stale grid-state.
       await handleSaveAll();
-      await profiles.loadProfile(targetId);
+      await profiles.loadProfile(targetId, { traceReason: 'toolbar.save-and-switch' });
     } catch (err) {
       console.warn('[markets-grid] save-and-switch failed:', err);
     }
@@ -383,7 +383,7 @@ export function useMarketsGridController(
       // is technically optional since load() also replaces state, but
       // it keeps semantics clean: dirty=false is observable in between.
       await profiles.discardActiveProfile();
-      await profiles.loadProfile(targetId);
+      await profiles.loadProfile(targetId, { traceReason: 'toolbar.discard-and-switch' });
     } catch (err) {
       console.warn('[markets-grid] discard-and-switch failed:', err);
     }

@@ -38,7 +38,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@starui/ui';
-import { Hair, Module, Pill, pillClasses, SplitPill } from '../primitives';
+import { Hair, Module, Pill, PillButton, SplitPill } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 const SELECT_KINDS: ReadonlySet<CellEditorKind> = new Set([
@@ -121,15 +121,14 @@ export function ModuleEditorFilter({
         <DropdownMenu open={editorOpen} onOpenChange={setEditorOpen}>
           <DropdownMenuTrigger asChild>
             <Tooltip content="Choose cell editor type (text, number, select, date, …)">
-              <button
-                type="button"
+              <PillButton
                 disabled={moduleDisabled}
+                pillVariant="narrow"
                 aria-label="Cell editor menu"
-                className={pillClasses('narrow')}
                 data-testid="fmt-editor-menu-trigger"
               >
                 <ChevronDown size={9} strokeWidth={2} />
-              </button>
+              </PillButton>
             </Tooltip>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="fx-menu min-w-[160px]">
@@ -167,15 +166,13 @@ export function ModuleEditorFilter({
             onOpenChange={setValuesOpen}
             trigger={
               <Tooltip content="Configure editor values (static list or app-data binding)">
-                <button
-                  type="button"
+                <PillButton
+                  pillVariant="narrow"
                   aria-label="Configure editor values"
-                  className={pillClasses('narrow')}
                   data-testid="fmt-editor-values-trigger"
-                  onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                 >
                   <MoreVertical size={11} strokeWidth={2} />
-                </button>
+                </PillButton>
               </Tooltip>
             }
           >
@@ -221,15 +218,14 @@ export function ModuleEditorFilter({
         <DropdownMenu open={filterOpen} onOpenChange={setFilterOpen}>
           <DropdownMenuTrigger asChild>
             <Tooltip content="Choose filter type (text, number, or date — all add a Set filter)">
-              <button
-                type="button"
+              <PillButton
                 disabled={moduleDisabled}
+                pillVariant="narrow"
                 aria-label="Filter kind menu"
-                className={pillClasses('narrow')}
                 data-testid="fmt-filter-menu-trigger"
               >
                 <ChevronDown size={9} strokeWidth={2} />
-              </button>
+              </PillButton>
             </Tooltip>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="fx-menu min-w-[180px]">
@@ -339,26 +335,24 @@ function ValuesSourcePopover({
     >
       {/* Mode toggle row */}
       <div style={{ display: 'flex', gap: spacing[1.5] }}>
-        <button
-          type="button"
-          className={pillClasses('text')}
+        <PillButton
+          pillVariant="text"
           data-on={draftMode === 'static' ? 'true' : undefined}
-          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setDraftMode('static'); }}
-          style={{ flex: 1, justifyContent: 'center' }}
+          onMouseDown={() => setDraftMode('static')}
+          className="flex-1 justify-center"
           data-testid="fmt-editor-values-mode-static"
         >
           Static list
-        </button>
-        <button
-          type="button"
-          className={pillClasses('text')}
+        </PillButton>
+        <PillButton
+          pillVariant="text"
           data-on={draftMode === 'appdata' ? 'true' : undefined}
-          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setDraftMode('appdata'); }}
-          style={{ flex: 1, justifyContent: 'center' }}
+          onMouseDown={() => setDraftMode('appdata')}
+          className="flex-1 justify-center"
           data-testid="fmt-editor-values-mode-appdata"
         >
           App data
-        </button>
+        </PillButton>
       </div>
 
       {draftMode === 'static' && (
@@ -434,28 +428,24 @@ function ValuesSourcePopover({
       {/* Confirm / Cancel footer — explicit commit so accidental dropdown
           changes don't write to the column until the user confirms. */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: spacing[1], marginTop: spacing[0.5] }}>
-        <button
-          type="button"
-          className={pillClasses()}
+        <PillButton
           aria-label="Cancel"
           title="Cancel (Esc)"
-          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+          onMouseDown={() => onClose()}
           data-testid="fmt-editor-values-cancel"
-          style={{ color: 'var(--ds-accent-negative)' }}
+          className="text-[var(--ds-accent-negative)]"
         >
           <X size={13} strokeWidth={2.25} />
-        </button>
-        <button
-          type="button"
-          className={pillClasses()}
+        </PillButton>
+        <PillButton
           aria-label="Confirm"
           title="Confirm (Enter)"
-          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm(); }}
+          onMouseDown={() => handleConfirm()}
           data-testid="fmt-editor-values-confirm"
-          style={{ color: 'var(--ds-accent-positive)' }}
+          className="text-[var(--ds-accent-positive)]"
         >
           <Check size={13} strokeWidth={2.25} />
-        </button>
+        </PillButton>
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ import {
   sanitizeExpressionFormatters,
 } from '../security/expressionPolicy';
 import type { ExportedProfilePayload, ProfileMeta } from './types';
+import { traceProfile } from './profileTrace';
 
 /**
  * Pluggable source for the "which profile is active?" pointer.
@@ -30,7 +31,10 @@ import type { ExportedProfilePayload, ProfileMeta } from './types';
  *
  * Read-only sources are supported (return `null` from `read()`, no-op
  * `write()`). When `read()` returns `null` the manager falls through to
- * localStorage as if no source were configured.
+ * localStorage as if no source were configured — **unless** an
+ * `activeIdSource` is configured: then localStorage is ignored entirely
+ * (it is shared across OpenFin views on the same origin and would make
+ * every duplicated view show the same profile).
  */
 export interface ActiveIdSource {
   /** Override read at boot. `null` means "no override, fall through". */
@@ -120,8 +124,18 @@ export class ProfileManager {
     if (!this.activeIdSource) return null;
     try {
       const v = await this.activeIdSource.read();
-      return typeof v === 'string' && v ? v : null;
-    } catch {
+      const id = typeof v === 'string' && v ? v : null;
+      traceProfile('activeIdSource.read', {
+        gridId: this.platform.gridId,
+        activeProfileId: id,
+        source: 'activeIdSource',
+      });
+      return id;
+    } catch (err) {
+      traceProfile('activeIdSource.read.error', {
+        gridId: this.platform.gridId,
+        error: String(err),
+      });
       return null;
     }
   }
@@ -131,9 +145,136 @@ export class ProfileManager {
     if (!this.activeIdSource) return;
     try {
       await this.activeIdSource.write(id);
-    } catch {
-      /* swallow — source is best-effort, never blocks the manager */
+      traceProfile('activeIdSource.write', {
+        gridId: this.platform.gridId,
+        activeProfileId: id,
+        source: 'activeIdSource',
+      });
+    } catch (err) {
+      traceProfile('activeIdSource.write.error', {
+        gridId: this.platform.gridId,
+        activeProfileId: id,
+        error: String(err),
+      });
     }
+  }
+
+  /** Read activeIdSource with one rAF retry — OpenFin view customData can
+   *  lag behind the first boot read on placeholder-grid mounts. */
+  private async readSourceIdWithRetry(): Promise<string | null> {
+    let sourceId = await this.readSourceId();
+    if (!sourceId && this.activeIdSource) {
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => resolve());
+      });
+      if (!this.disposed) sourceId = await this.readSourceId();
+    }
+    return sourceId;
+  }
+
+  /** When an OpenFin view source is configured, the active id lives on
+   *  per-view customData — never fall back to localStorage (shared). */
+  private buildResolveCandidates(sourceId: string | null, lsId: string | null): string[] {
+    if (this.activeIdSource) {
+      return sourceId ? [sourceId] : [];
+    }
+    const candidates: string[] = [];
+    if (sourceId && sourceId !== RESERVED_DEFAULT_PROFILE_ID) candidates.push(sourceId);
+    if (lsId && lsId !== RESERVED_DEFAULT_PROFILE_ID && lsId !== sourceId) candidates.push(lsId);
+    return candidates;
+  }
+
+  /** Persist the active-id pointer — view customData in OpenFin, else LS. */
+  private async persistActivePointer(id: string): Promise<void> {
+    if (this.activeIdSource) {
+      await this.writeSourceId(id);
+    } else {
+      writeActiveId(this.platform.gridId, id);
+    }
+  }
+
+  /** Resolve which profile row to hydrate from pointer priority:
+   *  OpenFin: activeIdSource only (incl. explicit `__default__`) → Default.
+   *  Browser: activeIdSource → localStorage → Default. */
+  private async resolveActiveProfile(): Promise<{
+    resolvedId: string;
+    snapshot: ProfileSnapshot;
+    resolvedFrom: 'default' | 'activeIdSource' | 'localStorage';
+  }> {
+    const { gridId } = this.platform;
+    let def = await this.adapter.loadProfile(gridId, RESERVED_DEFAULT_PROFILE_ID);
+    if (!def) {
+      const now = Date.now();
+      def = {
+        id: RESERVED_DEFAULT_PROFILE_ID,
+        gridId,
+        name: 'Default',
+        state: {},
+        createdAt: now,
+        updatedAt: now,
+      };
+    }
+
+    const sourceId = await this.readSourceIdWithRetry();
+    const lsId = this.activeIdSource ? null : readActiveId(gridId);
+    const candidates = this.buildResolveCandidates(sourceId, lsId);
+
+    traceProfile('boot.resolve.start', {
+      gridId,
+      hasActiveIdSource: Boolean(this.activeIdSource),
+      sourceId,
+      localStorageId: lsId,
+      candidates,
+      note: this.activeIdSource
+        ? 'view-scoped pointer — localStorage ignored'
+        : sourceId === RESERVED_DEFAULT_PROFILE_ID
+          ? 'sourceId is __default__ — skipped from candidates; falls through to localStorage then Default'
+          : undefined,
+    });
+
+    let resolvedId = RESERVED_DEFAULT_PROFILE_ID;
+    let snapshot: ProfileSnapshot = def;
+    let resolvedFrom: 'default' | 'activeIdSource' | 'localStorage' = 'default';
+    for (const cand of candidates) {
+      const row = await this.adapter.loadProfile(gridId, cand);
+      if (this.disposed) return { resolvedId, snapshot, resolvedFrom };
+      if (row) {
+        resolvedId = cand;
+        snapshot = row;
+        resolvedFrom =
+          this.activeIdSource || (sourceId && cand === sourceId)
+            ? 'activeIdSource'
+            : 'localStorage';
+        break;
+      }
+      traceProfile('boot.candidate.missing', { gridId, candidateId: cand });
+    }
+
+    traceProfile('boot.resolve.done', {
+      gridId,
+      resolvedId,
+      resolvedName: snapshot.name,
+      resolvedFrom,
+      profileCount: (await this.adapter.listProfiles(gridId)).length,
+    });
+
+    return { resolvedId, snapshot, resolvedFrom };
+  }
+
+  /** Commit resolved pointers after boot/load — skip on default fallthrough
+   *  so a transient unread OpenFin customData is not clobbered to Default. */
+  private async commitActivePointers(
+    resolvedId: string,
+    resolvedFrom: 'default' | 'activeIdSource' | 'localStorage',
+  ): Promise<void> {
+    if (resolvedFrom === 'default') {
+      traceProfile('boot.resolve.pointer-unchanged', {
+        gridId: this.platform.gridId,
+        note: 'default fallthrough — preserving activeIdSource/localStorage pointers',
+      });
+      return;
+    }
+    await this.persistActivePointer(resolvedId);
   }
 
   // ─── Public API ──────────────────────────────────────────────────────────
@@ -145,6 +286,37 @@ export class ProfileManager {
 
   getState(): ProfileManagerState {
     return this.state;
+  }
+
+  /** Resolves once `boot()` has finished (success or failure). Call before
+   *  any user-triggered `load()` on mount so OpenFin `customData` /
+   *  localStorage resolution is not clobbered by a stale `__default__`
+   *  read from React state. */
+  whenBooted(): Promise<void> {
+    if (this.disposed || !this.state.isLoading) return Promise.resolve();
+    return new Promise((resolve) => {
+      const unsub = this.subscribe((s) => {
+        if (!s.isLoading) {
+          unsub();
+          resolve();
+        }
+      });
+    });
+  }
+
+  /** Await boot, re-read OpenFin customData / localStorage, then load the
+   *  resolved profile. Used from onReady after column defs mount — picks up
+   *  a workspace pointer even when an earlier placeholder-grid boot fell
+   *  through to Default without clobbering customData. */
+  async reloadActive(opts?: { traceReason?: string }): Promise<void> {
+    await this.whenBooted();
+    if (this.disposed) return;
+    const { resolvedId, resolvedFrom } = await this.resolveActiveProfile();
+    if (this.disposed) return;
+    if (resolvedFrom !== 'default' && resolvedId !== this.state.activeId) {
+      await this.commitActivePointers(resolvedId, resolvedFrom);
+    }
+    return this.load(resolvedId, opts);
   }
 
   /** Boot: ensure Default exists, resolve active id from localStorage,
@@ -186,26 +358,8 @@ export class ProfileManager {
       // view customData) → localStorage → Default. Each layer falls
       // through to the next when it has no value or points at a row
       // that no longer exists on disk.
-      const sourceId = await this.readSourceId();
+      const { resolvedId, snapshot, resolvedFrom } = await this.resolveActiveProfile();
       if (this.disposed) return;
-      const lsId = readActiveId(gridId);
-      const candidates: string[] = [];
-      if (sourceId && sourceId !== RESERVED_DEFAULT_PROFILE_ID) candidates.push(sourceId);
-      if (lsId && lsId !== RESERVED_DEFAULT_PROFILE_ID && lsId !== sourceId) candidates.push(lsId);
-      let resolvedId = RESERVED_DEFAULT_PROFILE_ID;
-      let snapshot: ProfileSnapshot = def;
-      for (const cand of candidates) {
-        const row = await this.adapter.loadProfile(gridId, cand);
-        if (this.disposed) return;
-        if (row) {
-          resolvedId = cand;
-          snapshot = row;
-          break;
-        }
-      }
-      if (resolvedId === RESERVED_DEFAULT_PROFILE_ID) {
-        writeActiveId(gridId, RESERVED_DEFAULT_PROFILE_ID);
-      }
 
       // Apply state + announce. Suppress dirty-marking while the store
       // is hydrated from the snapshot — otherwise the initial deserialize
@@ -218,8 +372,7 @@ export class ProfileManager {
         this.dirtySuppressDepth--;
       }
       this.updateState({ activeId: resolvedId, isDirty: false });
-      writeActiveId(gridId, resolvedId);
-      await this.writeSourceId(resolvedId);
+      await this.commitActivePointers(resolvedId, resolvedFrom);
       this.platform.events.emit('profile:loaded', { gridId, profileId: resolvedId });
 
       // Refresh profile list.
@@ -329,21 +482,25 @@ export class ProfileManager {
    *       order above we want a clean slate on the newly-active
    *       profile.
    */
-  async load(id: string, opts?: { skipFlush?: boolean }): Promise<void> {
+  async load(id: string, opts?: { skipFlush?: boolean; traceReason?: string }): Promise<void> {
     if (this.autoSave) {
       if (opts?.skipFlush) this.autoSave.cancelScheduled();
       else await this.autoSave.flushNow();
     }
     const { gridId } = this.platform;
+    const previousId = this.state.activeId;
     const snap = await this.adapter.loadProfile(gridId, id);
     if (!snap) throw new Error(`[profiles] No profile "${id}" for grid "${gridId}"`);
+    traceProfile('load', {
+      gridId,
+      profileId: id,
+      profileName: snap.name,
+      previousActiveId: previousId,
+      reason: opts?.traceReason ?? 'unspecified',
+    });
     // Flip BEFORE mutating so the persist callback always targets the new id.
     this.updateState({ activeId: id });
-    writeActiveId(gridId, id);
-    // Skip the await when there's no source — the async wrapper would
-    // create a microtask boundary that React uses to flush pending renders,
-    // adding ~25ms to every switch in the non-OpenFin path.
-    if (this.activeIdSource) await this.writeSourceId(id);
+    await this.persistActivePointer(id);
     // Suppress dirty-marking through resetAll + deserializeAll — we're
     // hydrating from disk, not editing.
     this.dirtySuppressDepth++;
@@ -429,8 +586,7 @@ export class ProfileManager {
     // Step 4 — flip pointer + hydrate the live store from the blank
     // snapshot. Same shape as `load()`.
     this.updateState({ activeId: id });
-    writeActiveId(gridId, id);
-    await this.writeSourceId(id);
+    await this.persistActivePointer(id);
     this.dirtySuppressDepth++;
     try {
       this.platform.resetAll();
@@ -473,8 +629,7 @@ export class ProfileManager {
       // Flip the pointer FIRST so any concurrent persist() targets
       // Default (always exists) rather than the doomed id.
       this.updateState({ activeId: RESERVED_DEFAULT_PROFILE_ID });
-      writeActiveId(gridId, RESERVED_DEFAULT_PROFILE_ID);
-      await this.writeSourceId(RESERVED_DEFAULT_PROFILE_ID);
+      await this.persistActivePointer(RESERVED_DEFAULT_PROFILE_ID);
     }
     this.autoSave?.cancelScheduled();
 
@@ -598,8 +753,7 @@ export class ProfileManager {
     // Step 4 — flip pointer + hydrate from the cloned state. Same
     // shape as create()'s activation step.
     this.updateState({ activeId: id });
-    writeActiveId(gridId, id);
-    await this.writeSourceId(id);
+    await this.persistActivePointer(id);
     this.dirtySuppressDepth++;
     try {
       this.platform.resetAll();
@@ -719,7 +873,7 @@ export class ProfileManager {
       // Same ordering as load(): flush → flip → mutate → cancel-scheduled.
       if (this.autoSave) await this.autoSave.flushNow();
       this.updateState({ activeId: id });
-      writeActiveId(gridId, id);
+      await this.persistActivePointer(id);
       this.dirtySuppressDepth++;
       try {
         this.platform.resetAll();

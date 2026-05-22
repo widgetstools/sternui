@@ -9,40 +9,31 @@
  */
 import * as React from 'react';
 import { ArrowLeftRight, X } from 'lucide-react';
-import { Button, ButtonGroup } from '@starui/ui';
+import { Button } from '@starui/ui';
 import { cn, Tooltip } from '@starui/grid/customizer';
 
 export type Orientation = 'horizontal' | 'vertical';
 
 // ─── Pill — generic toggleable button ─────────────────────────────
 //
-// `pillClasses(variant)` is exported as a shared Tailwind class chain
-// so raw `<button>` consumers (e.g. PopoverTrigger children that need
-// their own ref/onMouseDown wiring) can apply the same styling as the
-// Pill component without duplicating the class string. Both Pill and
-// every raw consumer resolve their visuals through the same chain →
-// design-system tokens → `@starui/design-system`.
+// `pillClasses(variant)` is the shared Tailwind class chain for toolbar
+// pills. `Pill` and `PillButton` both resolve through it → design-system
+// tokens → `@starui/design-system`.
 
 export function pillClasses(variant: 'icon' | 'text' | 'narrow' = 'icon'): string {
-  // Note: matches what Pill emits below. Any change here ripples to
-  // every raw `<button>` that uses it; keep in sync.
+  // Note: matches what Pill / PillButton emit. Keep in sync.
   return [
     // shadcn `<Button size="sm">` baseline equivalent.
     'inline-flex items-center justify-center whitespace-nowrap shrink-0',
-    // `border-[1.5px]` only sets border-width (Tailwind preflight
-    // gives border-style: solid by default). `border-input` then
-    // applies the pewter colour. Using the CSS `border:` shorthand
-    // would force border-color back to currentColor (= text-foreground)
-    // and shadow the colour utility — that's the bug we just fixed.
-    'h-7 rounded-[3px] border-[1.5px] border-input bg-transparent',
+    'h-7 rounded-[3px] border border-transparent bg-transparent shadow-none',
     'text-foreground text-[11px] leading-none gap-1 font-medium cursor-pointer',
     'transition-colors disabled:opacity-[0.38] disabled:cursor-not-allowed',
     // Per-variant min-width + padding + (text variant: mono font).
     variant === 'icon' && 'min-w-7 px-1.5',
     variant === 'text' && 'min-w-[30px] px-2 font-mono text-[10px] tracking-[0.04em]',
     variant === 'narrow' && 'min-w-[18px] px-[3px]',
-    // Rest hover — darken border, keep transparent fill.
-    'hover:bg-transparent hover:text-foreground hover:border-foreground/60',
+    // Rest hover — subtle fill, no box chrome.
+    'hover:bg-accent/40 hover:text-foreground hover:border-transparent',
     // Active — brand-primary fill (matches every other active CTA).
     'data-[on=true]:bg-primary data-[on=true]:text-primary-foreground data-[on=true]:border-primary',
     'data-[on=true]:hover:bg-primary data-[on=true]:hover:border-primary',
@@ -77,9 +68,8 @@ export function Pill({
   // entirely via Tailwind utilities that resolve through the
   // `@starui/design-system` token tree (no `.fx-*` CSS dependency).
   //   • size="sm" → `h-[28px]` (matches the formatter's pill rhythm)
-  //   • `border-input` → `--ds-border-secondary` (the "prominent" tier)
-  //   • `bg-primary` / `text-primary-foreground` on `data-on="true"`
-  //   • `hover:border-foreground/60` strengthens the rest border
+  //   • Rest = borderless; active = primary fill on `data-on="true"`
+  //   • Hover = subtle `bg-accent/40` only
   //
   // No tailwind/formatter.css cascade fight (the previous wrapper hit
   // `--fx-pill-h` via formatter.css but `h-auto` from Tailwind utility
@@ -109,13 +99,36 @@ export function Pill({
   return btn;
 }
 
+/** shadcn `Button` with toolbar pill styling — for triggers, menus, and
+ *  popovers that need `forwardRef` + mousedown-driven interaction. */
+export const PillButton = React.forwardRef<
+  HTMLButtonElement,
+  React.ComponentProps<typeof Button> & { pillVariant?: 'icon' | 'text' | 'narrow' }
+>(function PillButton(
+  { pillVariant = 'icon', className, onMouseDown, ...props },
+  ref,
+) {
+  return (
+    <Button
+      ref={ref}
+      type="button"
+      variant="ghost"
+      size="sm"
+      className={cn(pillClasses(pillVariant), className)}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onMouseDown?.(e);
+      }}
+      {...props}
+    />
+  );
+});
+
 // ─── SplitPill — primary action + chevron menu trigger ────────────
 //
-// Now a thin re-export over shadcn's `<ButtonGroup>`. The wrapper
-// gives every child square inner corners + a 1px negative gap so the
-// primary pill + chevron pill read as one joined control.
-// The legacy `.fx-split` CSS class is gone; consumers don't need to
-// know they're getting shadcn underneath.
+// Split controls sit side-by-side with a hairline gap — no joined
+// border chrome (ButtonGroup's shared outline read as extra enclosure).
 
 export function SplitPill({
   children,
@@ -124,7 +137,14 @@ export function SplitPill({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <ButtonGroup className={className}>{children}</ButtonGroup>;
+  return (
+    <div
+      role="group"
+      className={cn('inline-flex items-center gap-0.5', className)}
+    >
+      {children}
+    </div>
+  );
 }
 
 // ─── Hairline divider between sub-groups inside a module ──────────
@@ -275,8 +295,10 @@ export function ScopeToggle({
   testId?: string;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="sm"
       role="switch"
       aria-checked={target === 'header'}
       aria-label={`Edit ${target === 'cell' ? 'cell' : 'header'} (click to switch)`}
@@ -289,7 +311,7 @@ export function ScopeToggle({
     >
       <span>{target.toUpperCase()}</span>
       <ArrowLeftRight size={9} strokeWidth={2} className="fx-scope__swap" aria-hidden />
-    </button>
+    </Button>
   );
 }
 
@@ -335,8 +357,8 @@ export function SegmentedToggle<T extends string>({
   // focus trap can swallow click events but not mousedown). That
   // contract is incompatible with radix ToggleGroup's click-driven
   // `onValueChange`, so this primitive stays a hand-rolled radiogroup
-  // of `<button role="radio">` elements. Every visual property flows
-  // through `@starui/design-system` tokens via Tailwind utilities.
+  // of shadcn `Button` chips (`role="radio"`). Visuals flow through
+  // `@starui/design-system` tokens via Tailwind utilities.
   return (
     <div
       role="radiogroup"
@@ -348,18 +370,17 @@ export function SegmentedToggle<T extends string>({
         // chip floats inside this padding ring). Subtle muted-fill
         // background distinguishes the segmented control from
         // surrounding pills.
-        'inline-flex items-stretch h-7 p-[2px] shrink-0 isolate',
-        'rounded-md border border-border',
-        // Container fill — 6% ink tint in dark, 4% ink-on-card in light.
-        'bg-foreground/[0.06] dark:bg-foreground/[0.06]',
+        'inline-flex items-stretch h-7 shrink-0 isolate gap-0.5',
       )}
     >
       {options.map((opt) => {
         const isActive = opt.value === value;
         const btn = (
-          <button
+          <Button
             key={opt.value}
             type="button"
+            variant="ghost"
+            size="sm"
             role="radio"
             aria-checked={isActive}
             aria-label={opt.ariaLabel ?? opt.tooltip}
@@ -374,23 +395,23 @@ export function SegmentedToggle<T extends string>({
               // Option chip — fills the container vertically (h-full
               // = 22px after the container's 2px padding) and a fixed
               // 26px width gives each segment a square clickable area.
-              'inline-flex items-center justify-center w-[26px] cursor-pointer select-none',
-              'border-none bg-transparent appearance-none rounded-[3px]',
+              'inline-flex items-center justify-center w-[26px] h-full min-h-0 min-w-[26px] p-0 cursor-pointer select-none',
+              'border-none bg-transparent shadow-none rounded-[3px]',
               'transition-colors transition-shadow transition-duration-[120ms]',
               // Rest — muted icon colour.
               'text-muted-foreground',
               // Hover (not active) — strengthen to full ink.
-              'hover:text-foreground data-[active=true]:hover:text-primary-foreground',
+              'hover:bg-transparent hover:text-foreground data-[active=true]:hover:text-primary-foreground',
               // Active — brand-primary fill, primary-foreground glyph,
               // subtle inset highlight for the "lift" feel.
               'data-[active=true]:bg-primary data-[active=true]:text-primary-foreground',
               'data-[active=true]:shadow-[0_1px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.18)]',
               // Focus ring — brand outline, sits 1px outside the chip.
-              'focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary focus-visible:outline-offset-1',
+              'focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary focus-visible:outline-offset-1 focus-visible:ring-0',
             )}
           >
             {opt.icon}
-          </button>
+          </Button>
         );
         return (
           <Tooltip key={opt.value} content={opt.tooltip}>
@@ -436,8 +457,10 @@ export function TitleBar({
   return (
     <div className="fx-titlebar" data-testid={testId}>
       <span>{text}</span>
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="icon"
         className="fx-titlebar__close"
         onClick={onClose}
         aria-label="Close"
@@ -445,7 +468,7 @@ export function TitleBar({
         title="Close"
       >
         <X size={14} strokeWidth={2} />
-      </button>
+      </Button>
     </div>
   );
 }

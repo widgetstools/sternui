@@ -18,6 +18,7 @@ export {
   createMarketsGridLocalStorageStorage,
   isMarketsGridLocalStorageStorageFactory,
 } from './widget/createMarketsGridLocalStorageStorage.js';
+export { isProfileTraceEnabled, traceProfile } from '@starui/engine';
 export type {
   MarketsGridProps,
   SavedFilter,

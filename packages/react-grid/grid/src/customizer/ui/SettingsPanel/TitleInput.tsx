@@ -1,3 +1,4 @@
+import { Input } from '@starui/ui';
 import { forwardRef, type InputHTMLAttributes } from 'react';
 
 /**
@@ -18,10 +19,10 @@ export const TitleInput = forwardRef<HTMLInputElement, TitleInputProps>(function
   ref,
 ) {
   return (
-    <input
+    <Input
       ref={ref}
       className={[
-        'flex-1 min-w-0 h-8 px-2.5 border border-border rounded-sm bg-background text-foreground font-sans font-semibold outline-none transition-colors transition-duration-[120ms] focus:border-primary placeholder:text-muted-foreground placeholder:font-medium text-[length:var(--ds-font-size-sm)] tracking-tight',
+        'flex-1 min-w-0 h-8 px-2.5 rounded-sm font-sans font-semibold transition-duration-[120ms] placeholder:font-medium text-[length:var(--ds-font-size-sm)] tracking-tight shadow-none focus-visible:ring-0',
         className ?? '',
       ].join(' ')}
       style={style}

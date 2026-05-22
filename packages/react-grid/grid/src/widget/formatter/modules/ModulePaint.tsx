@@ -11,7 +11,7 @@ import {
   PopoverTrigger as RadixPopoverTrigger,
   Tooltip,
 } from '@starui/grid/customizer';
-import { Hair, Module, pillClasses } from '../primitives';
+import { Hair, Module, PillButton, pillClasses } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 export function ModulePaint({
@@ -51,15 +51,13 @@ export function ModulePaint({
       <RadixPopover open={borderOpen} onOpenChange={setBorderOpen}>
         <RadixPopoverTrigger asChild>
           <Tooltip content="Cell borders — set per-edge style, width, and colour">
-            <button
-              type="button"
+            <PillButton
               disabled={disabled}
               aria-label="Cell borders"
-              className={pillClasses()}
               onMouseDown={(e) => { e.preventDefault(); }}
             >
               <SquareDashed size={13} strokeWidth={1.75} />
-            </button>
+            </PillButton>
           </Tooltip>
         </RadixPopoverTrigger>
         <RadixPopoverContent

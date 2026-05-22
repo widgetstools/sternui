@@ -1,4 +1,5 @@
 import { Copy, Info } from 'lucide-react';
+import { Button } from '@starui/ui';
 import { FormatPopover } from '../format-editor';
 import { EXCEL_EXAMPLES } from './excelExamples';
 
@@ -26,26 +27,16 @@ export function ExcelReferencePopover({
     <FormatPopover
       width={420}
       trigger={
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="icon"
           title="Excel format reference"
           data-testid={testId}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 24,
-            height: 24,
-            padding: 0,
-            background: 'var(--ds-surface-ground)',
-            border: '1px solid var(--ds-border-secondary)',
-            borderRadius: 2,
-            color: 'var(--ds-text-muted)',
-            cursor: 'pointer',
-          }}
+          className="h-6 w-6 shrink-0 rounded-[2px] border-[var(--ds-border-secondary)] bg-[var(--ds-surface-ground)] p-0 text-[var(--ds-text-muted)] shadow-none hover:bg-[var(--ds-surface-tertiary)]"
         >
           <Info size={12} strokeWidth={1.75} />
-        </button>
+        </Button>
       }
     >
       {({ close }) => {
@@ -87,36 +78,12 @@ export function ExcelReferencePopover({
                 const copyable = !ex.format.startsWith('—');
                 return (
                   <li key={id}>
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
                       onClick={() => copyable && handleCopy(ex.format)}
                       disabled={!copyable}
-                      style={{
-                        width: '100%',
-                        display: 'grid',
-                        gridTemplateColumns: '150px 1fr auto',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '4px 6px',
-                        background: 'transparent',
-                        border: '1px solid transparent',
-                        borderRadius: 2,
-                        cursor: copyable ? 'pointer' : 'default',
-                        textAlign: 'left',
-                        color: 'var(--ds-text-primary)',
-                        fontFamily: 'inherit',
-                        fontSize: 11,
-                        transition: 'background 100ms, border-color 100ms',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (copyable) {
-                          (e.currentTarget as HTMLButtonElement).style.background =
-                            'var(--ds-surface-tertiary)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-                      }}
+                      className="h-auto w-full grid grid-cols-[150px_1fr_auto] items-center gap-2 rounded-[2px] border border-transparent bg-transparent p-1 px-1.5 text-left text-[11px] font-[inherit] text-[var(--ds-text-primary)] shadow-none hover:bg-[var(--ds-surface-tertiary)] disabled:cursor-default disabled:opacity-100"
                     >
                       <span style={{ color: 'var(--ds-text-secondary)' }}>{ex.label}</span>
                       <code
@@ -145,7 +112,7 @@ export function ExcelReferencePopover({
                           <Copy size={11} strokeWidth={1.75} style={{ opacity: 0.5 }} />
                         ) : null}
                       </span>
-                    </button>
+                    </Button>
                   </li>
                 );
               })}

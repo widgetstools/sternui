@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { cn } from '@starui/ui';
+import { Button, cn } from '@starui/ui';
 import { Tooltip } from './HoverTooltip';
 import { FormatColorPicker } from './format-editor/FormatColorPicker';
 import { FormatPopover } from './format-editor/FormatPopover';
@@ -49,22 +49,25 @@ export function ColorPickerPopover({
     <FormatPopover
       trigger={
         <Tooltip content={title}>
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             disabled={disabled}
             aria-label={title}
             className={cn(
-              triggerClassName ?? 'shrink-0 rounded-[4px] ds-tbtn transition-all duration-150 inline-flex items-center justify-center w-7 h-7',
-              disabled && 'opacity-25 pointer-events-none',
+              triggerClassName ?? 'shrink-0 rounded-[4px] ds-tbtn transition-all duration-150 inline-flex h-7 w-7 items-center justify-center shadow-none',
+              disabled && 'pointer-events-none opacity-25',
             )}
           >
             <span className="flex flex-col items-center gap-[1px]">
               {icon}
               <span
-                className="w-3.5 h-[2px] rounded-full transition-colors"
+                className="h-[2px] w-3.5 rounded-full transition-colors"
                 style={{ background: value || 'var(--ds-text-muted)' }}
               />
             </span>
-          </button>
+          </Button>
         </Tooltip>
       }
       width={240}

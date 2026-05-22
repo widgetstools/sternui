@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Check, ChevronDown, Hash, Info, X } from 'lucide-react';
+import { Button, cn } from '@starui/ui';
 import { isValidExcelFormat } from '@starui/engine';
 import { controls, radius, spacing, typography } from '@starui/design-system/tokens';
 import { FormatPopover } from '../format-editor';
@@ -56,27 +57,16 @@ export function CompactFormatterPicker({
     <FormatPopover
       width={360}
       trigger={
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           title="Value formatter"
           data-testid={testId ? `${testId}-trigger` : undefined}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: spacing[1.5],
-            height: controls.sm.height,
-            padding: `0 ${spacing[2]}px`,
-            background: 'var(--ds-surface-ground)',
-            border: `1px solid ${
-              value ? 'var(--ds-border-secondary)' : 'var(--ds-border-primary)'
-            }`,
-            borderRadius: radius.md,
-            color: value ? 'var(--ds-primary)' : 'var(--ds-text-primary)',
-            fontFamily: 'var(--ds-font-sans)',
-            fontSize: controls.sm.fontSize,
-            cursor: 'pointer',
-            transition: 'background 120ms, border-color 120ms, color 120ms',
-          }}
+          className={cn(
+            'inline-flex h-[var(--ds-control-sm-height,28px)] gap-1.5 rounded-[var(--ds-radius-md,4px)] border border-transparent px-2 font-sans text-[length:var(--ds-control-sm-font-size,11px)] shadow-none transition-[background,color] transition-duration-[120ms] hover:bg-accent/40',
+            value ? 'text-[var(--ds-primary)]' : 'text-[var(--ds-text-primary)]',
+          )}
         >
           <Hash size={12} strokeWidth={1.75} className="opacity-70" />
           <span
@@ -95,7 +85,7 @@ export function CompactFormatterPicker({
             {triggerCaption(value, activePreset)}
           </span>
           <ChevronDown size={11} strokeWidth={1.75} className="opacity-50" />
-        </button>
+        </Button>
       }
     >
       {({ close }) => (
@@ -136,8 +126,10 @@ export function CompactFormatterPicker({
           >
             {preview || '—'}
           </span>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="icon"
             onClick={() => {
               setDraftExcel('');
               onChange(undefined);
@@ -145,23 +137,10 @@ export function CompactFormatterPicker({
             disabled={!value}
             title="Clear formatter"
             data-testid={testId ? `${testId}-clear` : undefined}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: CHIP_HEIGHT,
-              height: CHIP_HEIGHT,
-              padding: 0,
-              background: 'transparent',
-              border: '1px solid var(--ds-border-secondary)',
-              borderRadius: radius.md,
-              color: value ? 'var(--ds-accent-negative)' : 'var(--ds-text-faint)',
-              cursor: value ? 'pointer' : 'default',
-              opacity: value ? 1 : 0.4,
-            }}
+            className="h-[22px] w-[22px] shrink-0 rounded-[var(--ds-radius-md,4px)] border-[var(--ds-border-secondary)] bg-transparent p-0 text-[var(--ds-accent-negative)] shadow-none disabled:text-[var(--ds-text-faint)]"
           >
             <X size={11} strokeWidth={2} />
-          </button>
+          </Button>
         </div>
 
         {/* Preset tile grid — the single scrollable region of the
@@ -180,31 +159,19 @@ export function CompactFormatterPicker({
                 {items.map((p) => {
                   const active = activePreset?.id === p.id;
                   return (
-                    <button
+                    <Button
                       key={p.id}
                       type="button"
+                      variant="outline"
                       onClick={() => pickPreset(p)}
                       title={p.hint ? `${p.label} · ${p.hint}` : p.label}
                       data-testid={testId ? `${testId}-preset-${p.id}` : undefined}
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'flex-start',
-                        gap: spacing[0.5],
-                        padding: `${spacing[1.5]}px ${spacing[2]}px`,
-                        background: active
-                          ? 'var(--ds-primary-soft)'
-                          : 'var(--ds-surface-ground)',
-                        border: `1px solid ${
-                          active ? 'var(--ds-primary)' : 'var(--ds-border-primary)'
-                        }`,
-                        borderRadius: radius.md,
-                        color: active ? 'var(--ds-primary)' : 'var(--ds-text-primary)',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        fontFamily: 'inherit',
-                        fontSize: controls.sm.fontSize,
-                      }}
+                      className={cn(
+                        'flex h-auto w-full flex-col items-start gap-0.5 rounded-[var(--ds-radius-md,4px)] px-2 py-1.5 text-left font-[inherit] text-[length:var(--ds-control-sm-font-size,11px)] shadow-none',
+                        active
+                          ? 'border-[var(--ds-primary)] bg-[var(--ds-primary-soft)] text-[var(--ds-primary)]'
+                          : 'border-[var(--ds-border-primary)] bg-[var(--ds-surface-ground)] text-[var(--ds-text-primary)]',
+                      )}
                     >
                       <span className="font-semibold leading-[1.1]">{p.label}</span>
                       {p.hint ? (
@@ -222,7 +189,7 @@ export function CompactFormatterPicker({
                           {p.hint}
                         </span>
                       ) : null}
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -250,9 +217,11 @@ export function CompactFormatterPicker({
               SYMBOL
             </Caps>
             {CURRENCY_QUICK_INSERT.map((c) => (
-              <button
+              <Button
                 key={c.symbol}
                 type="button"
+                variant="outline"
+                size="sm"
                 title={`Insert ${c.aria}`}
                 aria-label={`Insert ${c.aria}`}
                 data-testid={testId ? `${testId}-currency-${c.label.toLowerCase()}` : undefined}
@@ -261,34 +230,10 @@ export function CompactFormatterPicker({
                   setDraftExcel(next);
                   commitExcel(next);
                 }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minWidth: controls.sm.height,
-                  height: CHIP_HEIGHT,
-                  padding: `0 ${spacing[1.5]}px`,
-                  background: 'var(--ds-surface-ground)',
-                  border: '1px solid var(--ds-border-primary)',
-                  borderRadius: radius.md,
-                  color: 'var(--ds-text-primary)',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--ds-font-mono)',
-                  fontSize: controls.sm.fontSize,
-                  lineHeight: 1,
-                  transition: 'background 100ms, border-color 100ms',
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background =
-                    'var(--ds-surface-tertiary)';
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background =
-                    'var(--ds-surface-ground)';
-                }}
+                className="inline-flex h-[22px] min-w-[var(--ds-control-sm-height,28px)] rounded-[var(--ds-radius-md,4px)] border-[var(--ds-border-primary)] bg-[var(--ds-surface-ground)] px-1.5 font-mono text-[length:var(--ds-control-sm-font-size,11px)] leading-none text-[var(--ds-text-primary)] shadow-none hover:bg-[var(--ds-surface-tertiary)]"
               >
                 {c.label}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -395,30 +340,19 @@ function ApplyOrClearButton({
       ? 'var(--ds-primary)'
       : 'var(--ds-accent-negative)';
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="icon"
       onClick={onClick}
       disabled={disabled}
       title={title}
       aria-label={title}
       data-testid={rest['data-testid']}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: controls.sm.height,
-        height: controls.sm.height,
-        padding: 0,
-        background: 'transparent',
-        border: '1px solid var(--ds-border-secondary)',
-        borderRadius: radius.md,
-        color: disabled ? 'var(--ds-text-faint)' : accentColor,
-        cursor: disabled ? 'default' : 'pointer',
-        opacity: disabled ? 0.4 : 1,
-        transition: 'background 100ms, border-color 100ms, color 100ms',
-      }}
+      className="h-[var(--ds-control-sm-height,28px)] w-[var(--ds-control-sm-height,28px)] shrink-0 rounded-[var(--ds-radius-md,4px)] border-[var(--ds-border-secondary)] bg-transparent p-0 shadow-none transition-[background,border-color,color] transition-duration-[100ms] disabled:opacity-40"
+      style={{ color: disabled ? 'var(--ds-text-faint)' : accentColor }}
     >
       {icon}
-    </button>
+    </Button>
   );
 }

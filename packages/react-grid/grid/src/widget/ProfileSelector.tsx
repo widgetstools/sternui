@@ -17,6 +17,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   GhostIconButton,
+  Input,
   buttonVariants,
 } from '@starui/grid/customizer';
 
@@ -248,7 +249,7 @@ export function ProfileSelector({
 
                   {/* Name — switches to inline input while renaming */}
                   {isRenaming ? (
-                    <input
+                    <Input
                       type="text"
                       value={renameDraft}
                       autoFocus
@@ -261,6 +262,7 @@ export function ProfileSelector({
                         else if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
                       }}
                       onBlur={() => { void commitRename(); }}
+                      className="flex-1 min-w-0 h-6 text-[11px] shadow-none focus-visible:ring-0"
                       style={{
                         flex: 1, minWidth: 0, height: 22, padding: '0 6px',
                         background: 'var(--ds-surface-ground)',
@@ -423,7 +425,7 @@ export function ProfileSelector({
                 overflow: 'hidden',
               }}
             >
-              <input
+              <Input
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
@@ -431,12 +433,12 @@ export function ProfileSelector({
                 onBlur={() => setInputFocused(false)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleCreate();
-                  if (e.key === 'Escape') { setNewName(''); (e.currentTarget as HTMLInputElement).blur(); }
+                  if (e.key === 'Escape') { setNewName(''); e.currentTarget.blur(); }
                 }}
                 placeholder="New layout name"
                 autoFocus
                 data-testid="profile-name-input"
-                className="flex-1 min-w-0 h-[30px] px-2.5 bg-transparent border-none text-foreground text-[11px] outline-none tracking-[0.1px]"
+                className="flex-1 min-w-0 h-[30px] border-0 bg-transparent px-2.5 text-[11px] tracking-[0.1px] shadow-none focus-visible:ring-0"
               />
               <button
                 type="button"
@@ -502,7 +504,7 @@ export function ProfileSelector({
                 )}
                 {onImport && (
                   <>
-                    <input
+                    <Input
                       ref={fileInputRef}
                       type="file"
                       accept="application/json,.json"

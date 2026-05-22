@@ -25,13 +25,13 @@ const destructPillClass = cn(
   // Vertical orientation flips to full-width via the `vertical` class
   // appended at the call site.
   'h-7 w-7 p-0 justify-center gap-0',
-  'rounded-[3px] border bg-transparent shadow-none',
-  // Rest state — quiet destructive outline.
-  'border-destructive/35 text-destructive',
-  // Hover — strengthen destructive tone with a tinted fill.
-  'hover:bg-destructive/10 hover:border-destructive hover:text-destructive',
+  'rounded-[3px] border border-transparent bg-transparent shadow-none',
+  // Rest state — icon tint only.
+  'text-destructive',
+  // Hover — tinted fill, no box chrome.
+  'hover:bg-destructive/10 hover:border-transparent hover:text-destructive',
   // Disabled — soften.
-  'disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:border-destructive/35',
+  'disabled:opacity-40 disabled:hover:bg-transparent',
   // Confirmed (one click before destructive fires) — flip to brand
   // primary so the user sees the click registered, second click
   // commits.

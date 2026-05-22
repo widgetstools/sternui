@@ -4,6 +4,7 @@
 declare const fin: any;
 
 import { useEffect, useRef, useState } from "react";
+import { Input } from "@starui/ui";
 import { DynamicIcon as Icon } from "@starui/config-browser/icons";
 import { useConfigBrowser } from "./hooks/useConfigBrowser";
 import { TableSidebar } from "./components/TableSidebar";
@@ -264,7 +265,7 @@ export function ConfigBrowserPanel() {
             onImport={handleImportClick}
             onDeleteAll={() => setDeleteAllOpen(true)}
           />
-          <input
+          <Input
             ref={fileInputRef}
             type="file"
             accept="application/json,.json"
