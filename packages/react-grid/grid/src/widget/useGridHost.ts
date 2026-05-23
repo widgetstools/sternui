@@ -128,12 +128,19 @@ export function useGridHost(opts: {
 
   const columnDefs = useMemo(
     () => platform.transformColumnDefs(opts.baseColumnDefs),
+    // Reason: transformColumnDefs reads from platform.store (the source of
+    // truth for every module's slice). `tick` is the deliberate proxy for
+    // any store change — listing `platform.store` itself would be a stable
+    // ref the linter accepts but never re-fires the memo on store mutation.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [platform, opts.baseColumnDefs, tick],
   );
 
   const gridOptions = useMemo<Partial<GridOptions>>(
     () => platform.transformGridOptions(EMPTY_GRID_OPTIONS),
+    // Reason: same as columnDefs above — `tick` is the explicit invalidator
+    // for store-driven recomputes; EMPTY_GRID_OPTIONS is a module-scoped
+    // constant so omitting it is correct.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [platform, tick],
   );
@@ -165,6 +172,10 @@ export function useGridHost(opts: {
       (api.setGridOption as (k: string, v: unknown) => void)(key, value);
     }
     lastSynced.current = { ...prev, ...next };
+    // Reason: `gridOptions` is the value driving this effect, but its
+    // identity is gated by `tick` (same `useMemo` above) — listing both
+    // would be redundant. The linter can't see that tick→gridOptions is
+    // a 1:1 dependency, so we omit gridOptions explicitly.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [platform, tick, hostOverrideKeys]);
 

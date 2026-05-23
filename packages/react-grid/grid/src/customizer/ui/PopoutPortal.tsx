@@ -309,6 +309,10 @@ export function PopoutPortal({
       // before the window actually closes.
       scheduleDeferredClose(name);
     };
+    // Reason: one-shot popout open on mount. Every reactive prop
+    // (features, name, onWindowOpened, etc.) is captured via refs
+    // updated in their own effects above, so listing them here would
+    // tear down + reopen the popout on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

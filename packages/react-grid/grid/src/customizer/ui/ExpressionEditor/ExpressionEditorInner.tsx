@@ -126,6 +126,11 @@ export default function ExpressionEditorInner(
       editor.dispose();
       editorRef.current = null;
     };
+    // Reason: Monaco editor is a one-shot setup that must run exactly
+    // once per mount. Every reactive prop (value, suggestions, theme,
+    // onChange, etc.) is forwarded through dedicated effects below.
+    // Including them here would tear down + rebuild the Monaco instance
+    // on every keystroke — catastrophic for both UX and perf.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

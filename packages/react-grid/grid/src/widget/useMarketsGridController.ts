@@ -150,8 +150,9 @@ export function useMarketsGridController(
         onGridLevelDataLoadRef.current?.(null);
       });
     return () => { cancelled = true; };
-    // gridId is stable per-mount; we deliberately don't depend on the
-    // prop or the load-callback (both captured via refs).
+    // Reason: gridId is stable per-mount; we deliberately don't depend
+    // on the prop or the load-callback (both captured via refs). The
+    // empty deps array makes this a one-shot mount-time load.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

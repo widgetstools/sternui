@@ -353,6 +353,11 @@ export function TemplateManager({
       setRenamingId(null);
       setRenameDraft('');
     }
+    // Reason: we only want this effect to react to the SIZE of the
+    // template list changing (add/delete), not to identity churn on
+    // every individual template update. Listing `templates` (full
+    // array), `renamingId`, or `disarmDelete` would re-fire on
+    // unrelated rename / hover events and cancel an in-progress rename.
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [templates.length]);
 

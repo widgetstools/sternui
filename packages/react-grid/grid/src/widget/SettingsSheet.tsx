@@ -113,6 +113,11 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
     if (!panelModules.some((m) => m.id === activeId)) {
       setActiveId(initialModuleId ?? panelModules[0].id);
     }
+    // Reason: this effect repairs `activeId` when modules disappear
+    // (e.g. a module unregisters at runtime). It only needs to fire on
+    // module-set changes — listing `activeId` would loop (effect sets
+    // activeId → effect re-fires); listing `panelModules` (the array)
+    // would re-fire on identity churn from any module-state update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialModuleId, panelModules.length]);
 

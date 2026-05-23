@@ -118,6 +118,10 @@ export function useModuleDraft<TState, TItem>({
     const wasClean = prev !== undefined && isEqual(prev, draft);
     const committedChanged = prev === undefined || !isEqual(prev, committed);
     if (wasClean && committedChanged) setDraftState(committed);
+    // Reason: this effect's job is to detect external `committed` mutations
+    // and reset the draft when the user hadn't been editing. Listing
+    // `draft` and `prev` would re-fire on every keystroke and could clobber
+    // mid-edit state. Only the committed-side change is the real trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [committed]);
 

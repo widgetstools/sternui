@@ -380,6 +380,11 @@ export function useFormatter(): UseFormatterResult {
     if (raw === 'text' || raw === 'string') return 'string';
     if (raw === 'number' || raw === 'numeric') return 'number';
     return 'number';
+    // Reason: `platform.api.api` is read inside the callback but is a
+    // mutable ApiHub field, not a React-tracked dep. `colEventTick`
+    // increments whenever AG-Grid fires a column-related event, which
+    // is the actual invalidator — listing platform.api here would never
+    // change identity and would mask the explicit tick-based recompute.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [colIds, platform, colEventTick]);
 
