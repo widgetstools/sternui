@@ -10,7 +10,7 @@
   "dependencies": {
     "@starui/data": "file:../../../libs/starui-data-0.1.0-83c0f2d0.tgz",
     "@starui/design-system": "file:../../../libs/starui-design-system-1.0.0-e2456ffb.tgz",
-    "@starui/react-grid": "file:../../../libs/starui-react-grid-0.1.0-b9b3f8a3.tgz",
+    "@starui/react-grid": "file:../../../libs/starui-react-grid-0.1.0-aba589ae.tgz",
     "@starui/react-ui": "file:../../../libs/starui-react-ui-1.0.0-6c4543f9.tgz",
     "@starui/shared": "file:../../../libs/starui-shared-1.0.0-74872d6a.tgz",
     "@widgetstools/dock-manager-core": "^1.0.0",

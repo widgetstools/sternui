@@ -17,7 +17,7 @@
     "packages/shared/*",
     "apps/*",
     "apps/demo-apps/*",
-    "e2e-openfin"
+    "apps/legacy/*"
   ],
   "scripts": {
     "build:packages": "turbo build --filter=!./apps/**",
@@ -49,14 +49,14 @@
     "dev:openfin": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev:demo-react -- --no-open\" \"wait-on http://localhost:5190 && node tools/scripts/launch-openfin.mjs http://localhost:5190/openfin/manifest.json\"",
     "dev:openfin:markets-react": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev:markets-ui-react-reference -- --no-open\" \"wait-on http://localhost:5174 && node tools/scripts/launch-openfin.mjs http://localhost:5174/platform/manifest.fin.json\"",
     "launch:openfin": "node tools/scripts/launch-openfin.mjs",
-    "test:e2e:openfin": "npm run test:e2e -w @starui/e2e-openfin",
-    "test:e2e:openfin:cdp": "npm run test:e2e -w @starui/e2e-openfin -- specs/02-cdp-smoke.e2e.spec.ts",
+    "test:e2e:openfin": "npm run test:e2e -w @starui/e2e-openfin-vitest",
+    "test:e2e:openfin:cdp": "npm run test:e2e -w @starui/e2e-openfin-vitest -- specs/02-cdp-smoke.e2e.spec.ts",
     "propagate": "node scripts/propagate.mjs",
     "sync:app-deps": "node scripts/sync-app-tarball-deps.mjs",
     "verify:apps": "node scripts/verify-apps.mjs",
     "check:deps": "node scripts/check-package-cycles.mjs",
     "check:deps:strict": "node scripts/check-package-cycles.mjs --strict",
-    "clean": "rimraf -g node_modules packages/*/*/node_modules packages/*/*/dist apps/*/node_modules apps/demo-apps/*/node_modules .turbo"
+    "clean": "rimraf -g node_modules packages/*/*/node_modules packages/*/*/dist apps/*/node_modules apps/demo-apps/*/node_modules apps/legacy/*/node_modules .turbo"
   },
   "devDependencies": {
     "@openfin/node-adapter": "43.101.2",
