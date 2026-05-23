@@ -86,23 +86,31 @@ export function DraggableFloat({
 
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const onPointerMove = useCallback(
-    (e: PointerEvent) => {
-      const s = dragStateRef.current;
-      if (!s) return;
-      const dx = e.clientX - s.startX;
-      const dy = e.clientY - s.startY;
-      const panel = panelRef.current;
-      const w = panel?.offsetWidth ?? 800;
-      const h = panel?.offsetHeight ?? 60;
-      const maxX = Math.max(0, window.innerWidth - w);
-      const maxY = Math.max(0, window.innerHeight - h);
-      const nextX = Math.min(Math.max(0, s.originX + dx), maxX);
-      const nextY = Math.min(Math.max(0, s.originY + dy), maxY);
-      setPos({ x: nextX, y: nextY });
-    },
-    [setPos],
-  );
+  // Bridge setPos through a ref so the pointer handlers can be truly
+  // stable (deps []). Without this, parent re-renders during an active
+  // drag would refresh setPos → onPointerMove identity → tear down the
+  // ambient unmount-cleanup effect's listener bindings mid-drag (the
+  // attached window listener is the OLD identity, so removeEventListener
+  // with the NEW identity is a no-op, leaving the listener attached;
+  // the next drag start adds a second listener on top — stack of stale
+  // handlers).
+  const setPosRef = useRef(setPos);
+  useEffect(() => { setPosRef.current = setPos; }, [setPos]);
+
+  const onPointerMove = useCallback((e: PointerEvent) => {
+    const s = dragStateRef.current;
+    if (!s) return;
+    const dx = e.clientX - s.startX;
+    const dy = e.clientY - s.startY;
+    const panel = panelRef.current;
+    const w = panel?.offsetWidth ?? 800;
+    const h = panel?.offsetHeight ?? 60;
+    const maxX = Math.max(0, window.innerWidth - w);
+    const maxY = Math.max(0, window.innerHeight - h);
+    const nextX = Math.min(Math.max(0, s.originX + dx), maxX);
+    const nextY = Math.min(Math.max(0, s.originY + dy), maxY);
+    setPosRef.current({ x: nextX, y: nextY });
+  }, []);
 
   const onPointerUp = useCallback(() => {
     dragStateRef.current = null;
@@ -149,13 +157,19 @@ export function DraggableFloat({
     return () => window.removeEventListener('resize', onResize);
   }, [pos.x, pos.y, setPos]);
 
-  // Cleanup dangling listeners on unmount.
+  // Cleanup dangling listeners on unmount. Deps are intentionally empty
+  // because onPointerMove/onPointerUp above are now stable (`[]` deps)
+  // — the captured identities here always match what onPointerDownDrag
+  // attached. If we listed them, the effect would re-fire on every
+  // render and the cleanup would run unnecessarily often.
   useEffect(() => {
     return () => {
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
     };
-  }, [onPointerMove, onPointerUp]);
+    // Reason: pointer handlers are stable refs; cleanup is unmount-only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const ctxValue = useMemo<DragContext>(
     () => ({ onPointerDownDrag, onClose }),
