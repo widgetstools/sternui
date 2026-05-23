@@ -8,7 +8,7 @@ docs, tooling, and e2e tests all live at the **repo root** (`packages/`,
 
 - [`README.md`](./README.md) — quick orientation, scripts, getting started
 - [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — layer model + import rules
-- [`docs/IMPLEMENTED_FEATURES.md`](./docs/IMPLEMENTED_FEATURES.md) — kept in lockstep with code (update on every feature add/change/remove)
+- [`docs/current-features.md`](./docs/current-features.md) — granular inventory of every implemented feature in `packages/`, grouped by bucket. Kept in lockstep with code (update on every feature add/change/remove).
 
 ## Package manager
 
@@ -191,9 +191,10 @@ Run mentally before writing code for any feature add / update / remove:
 
 After every feature add / update / fix / removal:
 
-1. Update [`docs/IMPLEMENTED_FEATURES.md`](./docs/IMPLEMENTED_FEATURES.md) —
-   same commit or immediate `docs:` follow-up. Don't ask the user first;
-   just do it.
+1. Update [`docs/current-features.md`](./docs/current-features.md) — same
+   commit or immediate `docs:` follow-up. Add/edit/delete the bullets that
+   correspond to the capability you changed; keep granularity at one bullet
+   per importable thing. Don't ask the user first; just do it.
 2. Run `npx turbo typecheck build test` and ensure green.
 3. If interaction changes, add/update e2e spec under `e2e/`.
 4. Commit messages: conventional prefixes (`feat(pkg):`, `fix(pkg):`,
