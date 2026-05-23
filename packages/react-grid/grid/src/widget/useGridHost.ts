@@ -104,16 +104,26 @@ export function useGridHost(opts: {
 
   // A single "state changed" tick drives pipeline re-runs. Coalesce bursts
   // (profile deserialize touches every module) into one rAF tick per frame.
+  //
+  // Cleanup: both the store subscription AND any in-flight rAF must be
+  // released on unmount. Without the cancelAnimationFrame, a rAF scheduled
+  // by a final store mutation can fire after the component is gone and
+  // call setTick on a dead instance (logs the dev-only React "set state on
+  // unmounted component" warning + leaks the closure's `platform` ref).
   const [tick, setTick] = useState(0);
   useEffect(() => {
     let rafId = 0;
-    return platform.store.subscribe(() => {
+    const unsubscribe = platform.store.subscribe(() => {
       if (rafId) return;
       rafId = requestAnimationFrame(() => {
         rafId = 0;
         setTick((n) => n + 1);
       });
     });
+    return () => {
+      unsubscribe();
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, [platform]);
 
   const columnDefs = useMemo(
