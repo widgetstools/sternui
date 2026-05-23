@@ -16,6 +16,7 @@
     "packages/react-core/*",
     "packages/shared/*",
     "apps/*",
+    "apps/e2e/*",
     "apps/legacy/*",
     "apps/tutorials-tarball/*",
     "apps/tutorials-workspace/*"
@@ -48,6 +49,7 @@
     "dev:tutorial-mockdata-provider-workspace": "npm run dev --workspace=@starui/tutorial-mockdata-provider-workspace",
     "dev:tutorial-dataprovider-editor-workspace": "npm run dev --workspace=@starui/tutorial-dataprovider-editor-workspace",
     "dev:tutorial-stomp-workspace": "npm run dev --workspace=@starui/tutorial-stomp-workspace",
+    "dev:browser-blotter": "npm run dev --workspace=@starui/e2e-browser-blotter",
     "dev:markets-ui-react-reference": "npm run dev --workspace=@starui/markets-ui-react-reference",
     "dev:stomp": "npm run dev --workspace=@starui/stomp-view-server",
     "dev:demo": "npm run dev:demo-react",
@@ -61,7 +63,7 @@
     "verify:apps": "node scripts/verify-apps.mjs",
     "check:deps": "node scripts/check-package-cycles.mjs",
     "check:deps:strict": "node scripts/check-package-cycles.mjs --strict",
-    "clean": "rimraf -g node_modules packages/*/*/node_modules packages/*/*/dist apps/*/node_modules apps/tutorials-tarball/*/node_modules apps/tutorials-workspace/*/node_modules apps/legacy/*/node_modules .turbo"
+    "clean": "rimraf -g node_modules packages/*/*/node_modules packages/*/*/dist apps/*/node_modules apps/e2e/*/node_modules apps/tutorials-tarball/*/node_modules apps/tutorials-workspace/*/node_modules apps/legacy/*/node_modules .turbo"
   },
   "devDependencies": {
     "@openfin/node-adapter": "43.101.2",
