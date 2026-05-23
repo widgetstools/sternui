@@ -111,3 +111,101 @@ describe('applyAssignments — cellStyle emission for Excel format color tags', 
     expect((out as ColDef).cellStyle).toBe(userCellStyle);
   });
 });
+
+describe('applyAssignments — cellRendererId / cellRendererConfig emission', () => {
+  it('emits cellRenderer = id and cellRendererParams = envelope.config', () => {
+    const state: ColumnCustomizationState = {
+      assignments: {
+        status: {
+          colId: 'status',
+          cellRendererId: 'pill',
+          cellRendererConfig: {
+            kind: 'pill',
+            config: {
+              rules: [{ value: 'Filled', bg: { dark: '#22c55e' } }],
+              shape: 'pill',
+            },
+          },
+        },
+      },
+    };
+    const [out] = applyAssignments(
+      [{ colId: 'status' } as ColDef],
+      state,
+      EMPTY_TEMPLATES,
+      NOOP_ENGINE,
+    );
+    const colDef = out as ColDef;
+    expect(colDef.cellRenderer).toBe('pill');
+    expect(colDef.cellRendererParams).toEqual({
+      rules: [{ value: 'Filled', bg: { dark: '#22c55e' } }],
+      shape: 'pill',
+    });
+  });
+
+  it('cellRendererId takes precedence over cellRendererName', () => {
+    const state: ColumnCustomizationState = {
+      assignments: {
+        status: {
+          colId: 'status',
+          cellRendererName: 'legacy',
+          cellRendererId: 'heatmap',
+          cellRendererConfig: {
+            kind: 'heatmap',
+            config: {
+              colorScale: {
+                min: { dark: '#000000' },
+                max: { dark: '#ffffff' },
+              },
+            },
+          },
+        },
+      },
+    };
+    const [out] = applyAssignments(
+      [{ colId: 'status' } as ColDef],
+      state,
+      EMPTY_TEMPLATES,
+      NOOP_ENGINE,
+    );
+    expect((out as ColDef).cellRenderer).toBe('heatmap');
+  });
+
+  it('omits cellRendererParams when the envelope has no config field', () => {
+    const state: ColumnCustomizationState = {
+      assignments: {
+        status: {
+          colId: 'status',
+          cellRendererId: 'side',
+          // Existing zero-config renderer — no envelope.
+        },
+      },
+    };
+    const [out] = applyAssignments(
+      [{ colId: 'status' } as ColDef],
+      state,
+      EMPTY_TEMPLATES,
+      NOOP_ENGINE,
+    );
+    expect((out as ColDef).cellRenderer).toBe('side');
+    expect((out as ColDef).cellRendererParams).toBeUndefined();
+  });
+
+  it('falls back to cellRendererName when cellRendererId is not set', () => {
+    const state: ColumnCustomizationState = {
+      assignments: {
+        status: {
+          colId: 'status',
+          cellRendererName: 'legacyRenderer',
+        },
+      },
+    };
+    const [out] = applyAssignments(
+      [{ colId: 'status' } as ColDef],
+      state,
+      EMPTY_TEMPLATES,
+      NOOP_ENGINE,
+    );
+    expect((out as ColDef).cellRenderer).toBe('legacyRenderer');
+  });
+});

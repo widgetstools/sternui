@@ -107,6 +107,8 @@ function applyOver(
     'cellEditorParams',
     'cellEditor',
     'cellRendererName',
+    'cellRendererId',
+    'cellRendererConfig',
     'filter',
     'rowGrouping',
     'headerName',

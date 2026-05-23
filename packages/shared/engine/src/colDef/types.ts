@@ -133,6 +133,24 @@ export interface ColumnAssignment {
   cellEditorName?: string;
   cellEditorParams?: Record<string, unknown>;
   cellRendererName?: string;
+  /**
+   * Registry id of a configurable cell renderer (kept as a bare string in
+   * the engine — the concrete `CellRendererId` union lives in
+   * `@starui/design-system/cell-renderers-registry`, which the engine
+   * deliberately doesn't import). When set, the column-customization
+   * transform emits `colDef.cellRenderer = cellRendererId` AND
+   * `colDef.cellRendererParams = cellRendererConfig.config`. Takes
+   * precedence over `cellRendererName`.
+   */
+  cellRendererId?: string;
+  /**
+   * Discriminated-union config (by `kind`) for the chosen renderer.
+   * Typed as `unknown` here so the engine stays decoupled from the
+   * design-system catalogue; consumers cast to `CellRendererConfig`
+   * at the boundary (same pattern as `filter` / `rowGrouping`).
+   * JSON-serialisable so it round-trips through profile persistence.
+   */
+  cellRendererConfig?: unknown;
 
   // Rich filter config + row-grouping config — treated as opaque by the
   // template resolver (wholesale-replace, no deep merge). The concrete

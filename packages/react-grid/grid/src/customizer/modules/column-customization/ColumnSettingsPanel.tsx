@@ -39,6 +39,7 @@ import { TemplatesBand } from './editors/TemplatesBand';
 import { CellStyleBand } from './editors/CellStyleBand';
 import { HeaderStyleBand } from './editors/HeaderStyleBand';
 import { ValueFormatBand } from './editors/ValueFormatBand';
+import { CellRendererBand } from './editors/CellRendererBand';
 import {
   countOverrides,
   fromStyleEditorValue,
@@ -67,6 +68,13 @@ import {
  *                      rowGroup + rowGroupIndex, pivot + pivotIndex, aggFunc
  *                      (sum/min/max/count/avg/first/last) + CUSTOM via the
  *                      core ExpressionEngine (`SUM([value]) * 1.1`)
+ *   09 CELL EDITOR   — kind picker + values source (literal CSV or
+ *                      `{{provider.key}}` AppData binding)
+ *   10 CELL RENDERER — registered-renderer picker (Pill / Heatmap /
+ *                      Percent Bar / Trend Arrow / Sparkline / Multi-Line /
+ *                      Icon+Text / Country Flag / Rating Delta / Time-Since /
+ *                      Allocation Bar + existing zero-config built-ins),
+ *                      per-renderer config editor for the chosen kind
  *
  * Uses the draft/save pattern every v2 editor uses — every control writes
  * into a local draft; the cockpit SAVE pill commits the draft into
@@ -547,6 +555,14 @@ const ColumnSettingsEditorInner = memo(function ColumnSettingsEditorInner({
           colId={col.colId}
           value={draft.cellEditor}
           onChange={(next) => setDraft({ cellEditor: next })}
+        />
+
+        {/* ── 10 CELL RENDERER ───────────────────────────────────────────── */}
+        <CellRendererBand
+          colId={col.colId}
+          cellRendererId={draft.cellRendererId}
+          cellRendererConfig={draft.cellRendererConfig}
+          setDraft={setDraft}
         />
 
         <div style={{ height: 20 }} />

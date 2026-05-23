@@ -819,6 +819,21 @@ function applyAssignmentToColDef(
     if (resolved.cellEditorParams !== undefined) merged.cellEditorParams = resolved.cellEditorParams;
     if (resolved.cellRendererName !== undefined) merged.cellRenderer = resolved.cellRendererName;
 
+    // Registry-driven renderer (precedence: cellRendererId > cellRendererName).
+    // `cellRendererConfig` is a `{ kind, config }` envelope so it self-discriminates
+    // — we forward `.config` verbatim as `cellRendererParams`. The MarketsGrid
+    // surface spreads `cellRendererComponents` into AgGridReact's `components`
+    // map so AG Grid can resolve the id string to the class at render time.
+    if (resolved.cellRendererId !== undefined) {
+      merged.cellRenderer = resolved.cellRendererId;
+      const envelope = resolved.cellRendererConfig as
+        | { kind?: string; config?: unknown }
+        | undefined;
+      if (envelope && envelope.config !== undefined) {
+        merged.cellRendererParams = envelope.config as Record<string, unknown>;
+      }
+    }
+
     // Structured cell-editor config — read from the resolved chain
     // (template + assignment folded together) so a `cellEditor`
     // carried by a column template propagates to every column that

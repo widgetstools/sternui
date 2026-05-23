@@ -90,19 +90,64 @@
 
 #### AG Grid cell renderers
 
-- `SideCellRenderer` — Buy/Sell badges
-- `StatusBadgeRenderer` — Filled / Partial / Pending / Cancelled
-- `ColoredValueRenderer` — sign-coloured numbers
-- `OasValueRenderer` — threshold-driven (>80 = warning)
-- `SignedValueRenderer` — always-show `+/-` prefix
-- `TickerCellRenderer` — bold cyan ticker symbols
-- `RatingBadgeRenderer` — credit/risk rating badges
-- `PnlValueRenderer` — P&L colouring + formatting
-- `FilledAmountRenderer` — fill qty / % rendering
-- `BookNameRenderer` — order-book identity
-- `ChangeValueRenderer` — price/rate delta
-- `YtdValueRenderer` — year-to-date performance
-- `RfqStatusRenderer` — RFQ state
+Vanilla TS classes implementing `ICellRendererComp` — framework-agnostic
+(React + Angular), CSS-variable themed. Registered by string id in
+`cellRendererRegistry.ts` and wired into AG Grid via
+`gridOptions.components` (see `cellRendererComponents` map). The
+column-customization band 10 ("Cell Renderer") in the React grid lets
+end users pick any of these per column and author the config for the
+configurable ones.
+
+Zero-config built-ins:
+
+- `SideCellRenderer` (id `side`) — Buy/Sell badges
+- `StatusBadgeRenderer` (id `status-badge`) — Filled / Partial / Pending / Cancelled
+- `ColoredValueRenderer` (id `colored-value`) — sign-coloured numbers
+- `OasValueRenderer` (id `oas-value`) — threshold-driven (>80 = warning)
+- `SignedValueRenderer` (id `signed-value`) — always-show `+/-` prefix
+- `TickerCellRenderer` (id `ticker`) — bold cyan ticker symbols
+- `RatingBadgeRenderer` (id `rating-badge`) — credit/risk rating badges
+- `PnlValueRenderer` (id `pnl-value`) — P&L colouring + formatting
+- `FilledAmountRenderer` (id `filled-amount`) — fill qty / % rendering
+- `BookNameRenderer` (id `book-name`) — order-book identity
+- `ChangeValueRenderer` (id `change-value`) — price/rate delta
+- `YtdValueRenderer` (id `ytd-value`) — year-to-date performance
+- `RfqStatusRenderer` (id `rfq-status`) — RFQ state
+
+Configurable renderers (read `cellRendererParams` for user-authored
+config; theme-aware via `ThemeAwareColor = { dark?, light? }` slots
+with auto re-paint on `data-theme` change via `MutationObserver`):
+
+- `PillCellRenderer` (id `pill`) — exact-string-match rules
+  (value → bg / fg / border) with fallback style + pill/square shape
+- `HeatmapCellRenderer` (id `heatmap`) — numeric value → 2- or 3-stop
+  colour gradient, optional explicit domain
+- `PercentBarCellRenderer` (id `percent-bar`) — proportional horizontal
+  bar; `max` may be a literal or a sibling-field reference; optional
+  percent/value overlay
+- `TrendArrowCellRenderer` (id `trend-arrow`) — up/down/flat arrow with
+  delta value, configurable threshold dead-band and decimals
+- `SparklineCellRenderer` (id `sparkline`) — inline SVG line / area /
+  bar chart from an array-of-numbers cell value
+- `MultiLineCellRenderer` (id `multi-line`) — primary value + secondary
+  text from a sibling field (configurable size + colour)
+- `IconTextCellRenderer` (id `icon-text`) — leading or trailing icon
+  (full SVG markup resolved at write time from
+  `@starui/icons-svg/all-icons`) + cell text
+- `CountryFlagCellRenderer` (id `country-flag`) — 2-letter ISO code →
+  regional-indicator emoji flag + optional label
+- `RatingDeltaCellRenderer` (id `rating-delta`) — credit-rating cell
+  with up/down arrow vs. a previous-rating sibling field; configurable
+  ordered scale (defaults to S&P)
+- `TimeSinceCellRenderer` (id `time-since`) — auto-refreshing relative
+  time ("5m ago"); refresh cadence + future-colour override
+- `AllocationBarCellRenderer` (id `allocation-bar`) — stacked
+  horizontal bar with key→colour map and optional legend
+
+Per-renderer config types (`PillRendererConfig`,
+`HeatmapRendererConfig`, …) plus the discriminated-union
+`CellRendererConfig` envelope (`{ kind, config }`) live in
+`cellRendererRegistry.ts` and are exported from the package root.
 
 ---
 
@@ -281,7 +326,11 @@
 
 - **General settings** — grid behaviour toggles
 - **Column templates** — reusable column-state bundles
-- **Column customization** — header label, width, pin, hide, formatter, filter, row-grouping
+- **Column customization** — 10 bands per column: Header, Layout,
+  Templates, Cell Style, Header Style, Value Format, Filter,
+  Row Grouping, Cell Editor, **Cell Renderer** (band 10 — picks any
+  registered renderer from `@starui/design-system/cell-renderers-registry`
+  and authors its per-renderer config)
 - **Conditional styling** — themed style rules (dark/light)
 - **Calculated columns** — virtual cols from expressions
 - **Saved filters** — named filter-model presets

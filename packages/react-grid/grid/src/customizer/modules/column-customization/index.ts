@@ -31,7 +31,7 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
   id: COLUMN_CUSTOMIZATION_MODULE_ID,
   name: 'Column Settings',
   code: '04',
-  schemaVersion: 9,
+  schemaVersion: 10,
   dependencies: [COLUMN_TEMPLATES_MODULE_ID],
   priority: 10,
 
@@ -65,7 +65,13 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
     //     profile. v8 snapshots that carried `globalCellFormatter` lift
     //     it into the matching slot based on the template's preset:
     //     date / datetime → date slot; everything else → number slot.
-    if (fromVersion >= 1 && fromVersion <= 9) {
+    //   - schemaVersion 10 added optional `cellRendererId` +
+    //     `cellRendererConfig` to per-column assignments so the user
+    //     can pick a registered cell renderer (pill / heatmap / …)
+    //     and author its config from the column-settings UI. The
+    //     fields are additive — older snapshots load fine, the new
+    //     fields just default to `undefined`.
+    if (fromVersion >= 1 && fromVersion <= 10) {
       if (!raw || typeof raw !== 'object') {
         console.warn(
           '[column-customization]',

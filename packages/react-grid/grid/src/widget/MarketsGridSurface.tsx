@@ -21,6 +21,7 @@ import type { GridReadyEvent } from 'ag-grid-community';
 import { StreamSafeTextFloatingFilter } from './streamSafeFloatingFilter';
 import { StreamSafeNumberFloatingFilter } from './streamSafeNumberFloatingFilter';
 import { StreamSafeDateFloatingFilter } from './streamSafeDateFloatingFilter';
+import { cellRendererComponents } from '@starui/design-system';
 import type { MarketsGridProps } from './types';
 import { stripSurfaceManagedGridOptions } from './gridSurfaceOptions';
 
@@ -43,11 +44,23 @@ export interface MarketsGridSurfaceProps<TData> {
 
 const SURFACE_STYLE: CSSProperties = { flex: 1 };
 
-/** Hoisted — inline `components={{…}}` re-triggers AgGridReact sync every parent render. */
+/**
+ * Hoisted — inline `components={{…}}` re-triggers AgGridReact sync every
+ * parent render. Combines the streamSafe floating-filter components with
+ * the design-system cell-renderer registry so a colDef can reference
+ * either kind by string id (`'streamSafeText'`, `'pill'`, `'heatmap'`,
+ * `'side'`, etc.).
+ *
+ * `cellRendererComponents` is `Object.freeze`-d in the registry, so
+ * inlining it into a fresh object once is safe — AgGridReact's
+ * referential equality on the `components` prop survives subsequent
+ * renders because this object literal is hoisted to module scope.
+ */
 const STREAM_SAFE_COMPONENTS = {
   streamSafeText: StreamSafeTextFloatingFilter,
   streamSafeNumber: StreamSafeNumberFloatingFilter,
   streamSafeDate: StreamSafeDateFloatingFilter,
+  ...cellRendererComponents,
 } as const;
 
 function surfacePropsEqual<TData>(

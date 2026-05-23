@@ -14,9 +14,38 @@ export * from './tokens';
 export * from './adapters';
 export { applyTheme, getTheme, type ThemeOptions } from './applyTheme';
 export {
+  // Existing zero-config renderers
   SideCellRenderer, StatusBadgeRenderer, ColoredValueRenderer,
   OasValueRenderer, SignedValueRenderer, TickerCellRenderer,
   RatingBadgeRenderer, PnlValueRenderer, FilledAmountRenderer,
   BookNameRenderer, ChangeValueRenderer, YtdValueRenderer,
   RfqStatusRenderer,
+  // Configurable renderers (Tier 1 + 2 + FI specialised)
+  PillCellRenderer, HeatmapCellRenderer, PercentBarCellRenderer,
+  TrendArrowCellRenderer, SparklineCellRenderer, MultiLineCellRenderer,
+  IconTextCellRenderer, CountryFlagCellRenderer, RatingDeltaCellRenderer,
+  TimeSinceCellRenderer, AllocationBarCellRenderer,
 } from './cellRenderers';
+export {
+  cellRendererComponents,
+  cellRendererCatalogue,
+  cellRendererCatalogueByCategory,
+  CONFIGURABLE_RENDERER_IDS,
+  getCellRendererEntry,
+  type CellRendererId,
+  type CellRendererConfig,
+  type CellRendererCategory,
+  type CellRendererCatalogueEntry,
+  type ThemeAwareColor,
+  type PillRendererConfig,
+  type HeatmapRendererConfig,
+  type PercentBarRendererConfig,
+  type TrendArrowRendererConfig,
+  type SparklineRendererConfig,
+  type MultiLineRendererConfig,
+  type IconTextRendererConfig,
+  type CountryFlagRendererConfig,
+  type RatingDeltaRendererConfig,
+  type TimeSinceRendererConfig,
+  type AllocationBarRendererConfig,
+} from './cellRendererRegistry';

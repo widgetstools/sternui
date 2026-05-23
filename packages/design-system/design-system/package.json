@@ -56,6 +56,10 @@
     "./cell-renderers": {
       "types": "./dist/cellRenderers.d.ts",
       "import": "./dist/cellRenderers.js"
+    },
+    "./cell-renderers-registry": {
+      "types": "./dist/cellRendererRegistry.d.ts",
+      "import": "./dist/cellRendererRegistry.js"
     }
   },
   "scripts": {
