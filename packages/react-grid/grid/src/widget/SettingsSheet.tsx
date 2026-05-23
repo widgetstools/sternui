@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import './grid-chrome.css';
 import {
   type AnyModule,
@@ -121,15 +121,21 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialModuleId, panelModules.length]);
 
+  // Keydown listener is registered once per `open` flip — NOT on every
+  // `onClose` identity change. Callers often pass an inline arrow as
+  // onClose; without the ref-bridge below, the listener would tear down
+  // and re-attach on every parent render while the sheet is open.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') onCloseRef.current();
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
