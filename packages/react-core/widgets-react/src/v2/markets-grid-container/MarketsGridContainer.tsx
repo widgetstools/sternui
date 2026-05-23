@@ -366,9 +366,13 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       const profileId = handle.profiles?.activeProfileId ?? '__default__';
       // Defer one frame so provider column defs and the platform store tick
       // have settled before column-customization binds formatters.
+      // `silent: true` keeps this internal re-bind from overwriting the
+      // OpenFin workspace's `activeProfileId` customData pointer. Without
+      // it, a transient Default fallback at boot would clobber the user's
+      // saved-workspace profile selection (e.g. 'test2' → '__default__').
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          void handle.profiles?.loadProfile(profileId);
+          void handle.profiles?.loadProfile(profileId, { silent: true });
         });
       });
     }

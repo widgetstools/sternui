@@ -165,7 +165,13 @@ export class ProfileManager {
     try {
       const { gridId } = this.platform;
 
-      // Ensure the Default profile row exists.
+      // Resolve the Default profile snapshot — from disk if it exists,
+      // otherwise an in-memory blank. The Default row is NOT written at
+      // boot: a fresh MarketsGrid load must not create any persisted
+      // profile. The row materializes lazily on the user's first explicit
+      // Save (via `persistActive`'s existing Default-fallback branch),
+      // on `create()`/`clone()`/`import()`, or on any other write that
+      // routes through the adapter.
       let def = await this.adapter.loadProfile(gridId, RESERVED_DEFAULT_PROFILE_ID);
       if (this.disposed) return;
       if (!def) {
@@ -178,8 +184,6 @@ export class ProfileManager {
           createdAt: now,
           updatedAt: now,
         };
-        await this.adapter.saveProfile(def);
-        if (this.disposed) return;
       }
 
       // Resolve the id to load. Priority: activeIdSource (e.g. OpenFin
@@ -203,9 +207,18 @@ export class ProfileManager {
           break;
         }
       }
-      if (resolvedId === RESERVED_DEFAULT_PROFILE_ID) {
-        writeActiveId(gridId, RESERVED_DEFAULT_PROFILE_ID);
-      }
+      // Did we fall back to Default only because a stored candidate
+      // pointer (OpenFin customData / localStorage) didn't resolve to
+      // a row on disk? That can happen on workspace restore when
+      // ConfigService data isn't loaded yet, or transiently across
+      // BroadcastChannel races. We MUST NOT overwrite the source
+      // pointers with Default in that case — that would permanently
+      // destroy the user's "last selected" intent (e.g. workspace
+      // customData saved as `t1` becomes `__default__` on next save).
+      // Leave the pointers alone; if the row reappears later, the
+      // next boot will resolve to it.
+      const felltoDefaultFromCandidate =
+        resolvedId === RESERVED_DEFAULT_PROFILE_ID && candidates.length > 0;
 
       // Apply state + announce. Suppress dirty-marking while the store
       // is hydrated from the snapshot — otherwise the initial deserialize
@@ -218,8 +231,10 @@ export class ProfileManager {
         this.dirtySuppressDepth--;
       }
       this.updateState({ activeId: resolvedId, isDirty: false });
-      writeActiveId(gridId, resolvedId);
-      await this.writeSourceId(resolvedId);
+      if (!felltoDefaultFromCandidate) {
+        writeActiveId(gridId, resolvedId);
+        await this.writeSourceId(resolvedId);
+      }
       this.platform.events.emit('profile:loaded', { gridId, profileId: resolvedId });
 
       // Refresh profile list.
@@ -329,27 +344,45 @@ export class ProfileManager {
    *       order above we want a clean slate on the newly-active
    *       profile.
    */
-  async load(id: string, opts?: { skipFlush?: boolean }): Promise<void> {
+  async load(id: string, opts?: { skipFlush?: boolean; silent?: boolean }): Promise<void> {
     if (this.autoSave) {
       if (opts?.skipFlush) this.autoSave.cancelScheduled();
       else await this.autoSave.flushNow();
     }
     const { gridId } = this.platform;
     const snap = await this.adapter.loadProfile(gridId, id);
-    if (!snap) throw new Error(`[profiles] No profile "${id}" for grid "${gridId}"`);
+    // Default is allowed to be absent from storage — boot() doesn't
+    // pre-write it. Treat a missing Default row as a request to
+    // hydrate from a blank snapshot (state = {}) so the user can
+    // always switch back to Default even before the first Save.
+    const resolvedSnap: ProfileSnapshot | null =
+      snap ??
+      (id === RESERVED_DEFAULT_PROFILE_ID
+        ? { id, gridId, name: 'Default', state: {}, createdAt: 0, updatedAt: 0 }
+        : null);
+    if (!resolvedSnap) throw new Error(`[profiles] No profile "${id}" for grid "${gridId}"`);
     // Flip BEFORE mutating so the persist callback always targets the new id.
     this.updateState({ activeId: id });
-    writeActiveId(gridId, id);
-    // Skip the await when there's no source — the async wrapper would
-    // create a microtask boundary that React uses to flush pending renders,
-    // adding ~25ms to every switch in the non-OpenFin path.
-    if (this.activeIdSource) await this.writeSourceId(id);
+    // `silent` skips the persistence-pointer writes — used by framework
+    // re-applies (container onReady after columns mount, scaffold FI
+    // re-seed) where the "load" is just re-binding state to live columns,
+    // NOT a user action that should overwrite the OpenFin workspace's
+    // `activeProfileId` customData / localStorage pointer. Without this,
+    // a transient `Default` fallback during workspace restore destroys
+    // the user's last-selected profile pointer.
+    if (!opts?.silent) {
+      writeActiveId(gridId, id);
+      // Skip the await when there's no source — the async wrapper would
+      // create a microtask boundary that React uses to flush pending renders,
+      // adding ~25ms to every switch in the non-OpenFin path.
+      if (this.activeIdSource) await this.writeSourceId(id);
+    }
     // Suppress dirty-marking through resetAll + deserializeAll — we're
     // hydrating from disk, not editing.
     this.dirtySuppressDepth++;
     try {
       this.platform.resetAll();
-      this.platform.deserializeAll(snap.state);
+      this.platform.deserializeAll(resolvedSnap.state);
     } finally {
       this.dirtySuppressDepth--;
     }
@@ -485,22 +518,23 @@ export class ProfileManager {
       // Hydrate the store from Default. `load()` would do this but
       // we've already flipped activeId, so we inline the hydrate to
       // avoid a redundant updateState → double-notify of listeners.
+      // Default may not yet be persisted (boot doesn't pre-write it);
+      // in that case we still reset the platform store so the deleted
+      // profile's state doesn't linger on screen.
       const def = await this.adapter.loadProfile(gridId, RESERVED_DEFAULT_PROFILE_ID);
-      if (def) {
-        this.dirtySuppressDepth++;
-        try {
-          this.platform.resetAll();
-          this.platform.deserializeAll(def.state);
-        } finally {
-          this.dirtySuppressDepth--;
-        }
-        this.autoSave?.cancelScheduled();
-        this.updateState({ isDirty: false });
-        this.platform.events.emit('profile:loaded', {
-          gridId,
-          profileId: RESERVED_DEFAULT_PROFILE_ID,
-        });
+      this.dirtySuppressDepth++;
+      try {
+        this.platform.resetAll();
+        if (def) this.platform.deserializeAll(def.state);
+      } finally {
+        this.dirtySuppressDepth--;
       }
+      this.autoSave?.cancelScheduled();
+      this.updateState({ isDirty: false });
+      this.platform.events.emit('profile:loaded', {
+        gridId,
+        profileId: RESERVED_DEFAULT_PROFILE_ID,
+      });
     }
     await this.refresh();
   }
@@ -568,9 +602,17 @@ export class ProfileManager {
     } else {
       const srcSnap = await this.adapter.loadProfile(gridId, sourceId);
       if (!srcSnap) {
-        throw new Error(`[profiles] Source profile "${sourceId}" not found`);
+        // Default may not be persisted yet (boot doesn't pre-write it).
+        // Allow cloning from an ephemeral Default — the clone starts
+        // from an empty state, identical to the just-booted Default.
+        if (sourceId === RESERVED_DEFAULT_PROFILE_ID) {
+          sourceState = {};
+        } else {
+          throw new Error(`[profiles] Source profile "${sourceId}" not found`);
+        }
+      } else {
+        sourceState = srcSnap.state;
       }
-      sourceState = srcSnap.state;
     }
 
     // Step 2 — deep-copy so the clone doesn't alias the source's
@@ -621,13 +663,33 @@ export class ProfileManager {
   async export(id?: string): Promise<ExportedProfilePayload> {
     const targetId = id ?? this.state.activeId;
     await this.autoSave?.flushNow();
-    const snap = await this.adapter.loadProfile(this.platform.gridId, targetId);
-    if (!snap) throw new Error(`[profiles] No profile "${targetId}" to export`);
+    const { gridId } = this.platform;
+    const snap = await this.adapter.loadProfile(gridId, targetId);
+    // Default is allowed to be ephemeral. When the user exports it
+    // without ever saving, fall back to: the live store if Default is
+    // the active profile (export what the user sees), otherwise a
+    // blank snapshot (export the just-booted defaults).
+    const resolved: ProfileSnapshot | null =
+      snap ??
+      (targetId === RESERVED_DEFAULT_PROFILE_ID
+        ? {
+            id: targetId,
+            gridId,
+            name: 'Default',
+            state:
+              this.state.activeId === RESERVED_DEFAULT_PROFILE_ID
+                ? this.platform.serializeAll()
+                : {},
+            createdAt: 0,
+            updatedAt: 0,
+          }
+        : null);
+    if (!resolved) throw new Error(`[profiles] No profile "${targetId}" to export`);
     return {
       schemaVersion: 1,
       kind: 'gc-profile',
       exportedAt: new Date().toISOString(),
-      profile: { name: snap.name, gridId: snap.gridId, state: snap.state },
+      profile: { name: resolved.name, gridId: resolved.gridId, state: resolved.state },
     };
   }
 
@@ -750,7 +812,15 @@ export class ProfileManager {
 
   private async refresh(): Promise<void> {
     const list = await this.adapter.listProfiles(this.platform.gridId);
-    this.updateState({ profiles: list.map(toMeta).sort(byName) });
+    const profiles = list.map(toMeta);
+    // Default is conceptually always present even when not yet persisted.
+    // boot() no longer writes it; surface a synthetic meta so the selector
+    // still shows "Default" until the user's first explicit Save
+    // materializes the row.
+    if (!profiles.some((p) => p.id === RESERVED_DEFAULT_PROFILE_ID)) {
+      profiles.push(syntheticDefaultMeta());
+    }
+    this.updateState({ profiles: profiles.sort(byName) });
   }
 
   private async persistActive(state: Record<string, SerializedState>): Promise<void> {
@@ -814,6 +884,21 @@ function toMeta(snap: ProfileSnapshot): ProfileMeta {
     createdAt: snap.createdAt,
     updatedAt: snap.updatedAt,
     isDefault: snap.id === RESERVED_DEFAULT_PROFILE_ID,
+  };
+}
+
+/** Stable meta entry surfaced by `refresh()` when the Default row has
+ *  not been persisted to disk yet (boot no longer materializes it —
+ *  see the comment in `boot()` for the rationale). Uses zero timestamps
+ *  to mark the entry as ephemeral; `byName` orders Default by
+ *  `isDefault` so the date never influences sort order. */
+function syntheticDefaultMeta(): ProfileMeta {
+  return {
+    id: RESERVED_DEFAULT_PROFILE_ID,
+    name: 'Default',
+    createdAt: 0,
+    updatedAt: 0,
+    isDefault: true,
   };
 }
 

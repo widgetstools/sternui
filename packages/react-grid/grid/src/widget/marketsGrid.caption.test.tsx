@@ -88,7 +88,7 @@ vi.mock('@starui/grid/customizer', async () => {
 
 vi.mock('./useGridHost', () => ({
   useGridHost: () => ({
-    platform: {},
+    platform: { api: { api: null } },
     columnDefs: [],
     gridOptions: {},
     onGridReady: vi.fn(),

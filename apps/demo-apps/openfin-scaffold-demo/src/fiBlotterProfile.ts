@@ -1,9 +1,23 @@
 /**
- * FI blotter profile seeding + runtime re-apply for openfin-scaffold-blotter.
+ * FI blotter profile seeding for openfin-scaffold-blotter.
  *
- * Config import can lose to an empty `__default__` created on first grid visit,
- * or profile state may hydrate before provider column defs exist. This module
- * repairs storage when needed and forces a profile reload after the live grid mounts.
+ * Two surfaces:
+ *
+ *  - `ensureFiBlotterProfileRow` — seeds Dexie's bundled profile-set row
+ *    with the FI Default profile before MarketsGrid boots. Fires from
+ *    `BlotterView`'s mount effect.
+ *
+ *  - `applyFiBlotterOnGridReady` — Blotter-side onReady hook. Only fixes
+ *    the *Default* profile when its live assignments are missing (e.g.
+ *    user is on Default and the seed lost the race with column-defs
+ *    mounting). It MUST NOT touch any other profile — the
+ *    MarketsGridContainer onReady already reloads whichever profile the
+ *    user last selected, so any reload here would either duplicate that
+ *    work or override the user's choice.
+ *
+ *  The earlier `importProfile` fallback was removed: import is additive
+ *  by design and was producing duplicate "Default (imported N)" rows on
+ *  every remount (StrictMode + OpenFin reconnects + provider switches).
  */
 import type { MarketsGridHandle } from '@starui/grid';
 import { LOGGED_IN_USER_ID } from '@starui/types';
@@ -11,6 +25,8 @@ import {
   buildDefaultProfileSnapshot,
   SCAFFOLD_BLOTTER_GRID_ID,
 } from '../config/stompPositionsFiSchema.js';
+
+const RESERVED_DEFAULT_PROFILE_ID = '__default__';
 
 /** Must match `useHostedIdentity` / starter JSON `appId`. */
 const HOST_APP_ID = 'TestApp';
@@ -52,15 +68,6 @@ function countColumnCustomizationAssignments(state: Record<string, unknown> | un
 
 function profileNeedsFiSeed(profile: { state?: Record<string, unknown> } | undefined): boolean {
   return countColumnCustomizationAssignments(profile?.state) < MIN_FI_ASSIGNMENTS;
-}
-
-export function buildFiProfileImportPayload(gridId: string = SCAFFOLD_BLOTTER_GRID_ID) {
-  return {
-    schemaVersion: 1 as const,
-    kind: 'gc-profile' as const,
-    exportedAt: new Date().toISOString(),
-    profile: buildDefaultProfileSnapshot(gridId),
-  };
 }
 
 type ConfigManagerLike = {
@@ -119,35 +126,43 @@ function liveAssignmentCount(handle: MarketsGridHandle): number {
   }
 }
 
-async function reloadActiveProfile(handle: MarketsGridHandle): Promise<void> {
-  const id = handle.profiles?.activeProfileId ?? '__default__';
-  await handle.profiles?.loadProfile(id);
+function waitTwoFrames(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
 }
 
 /**
- * Re-apply FI formatting after provider column defs mount.
- * Import payload when in-memory assignments are still empty.
+ * Blotter onReady hook — only repairs the Default profile when its FI
+ * assignments are missing. Other active profiles (user-created or
+ * imported workspace profiles) are left untouched: MarketsGridContainer
+ * has already reloaded them, and overriding here would discard the
+ * user's selection.
  */
-export async function applyFiBlotterOnGridReady(handle: MarketsGridHandle): Promise<void> {
+export async function applyFiBlotterOnGridReady(
+  handle: MarketsGridHandle,
+  configManager: ConfigManagerLike,
+): Promise<void> {
   if (!handle.profiles) return;
 
-  await reloadActiveProfile(handle);
+  const activeId = handle.profiles.activeProfileId ?? RESERVED_DEFAULT_PROFILE_ID;
+  if (activeId !== RESERVED_DEFAULT_PROFILE_ID) return;
 
   if (liveAssignmentCount(handle) >= MIN_FI_ASSIGNMENTS) return;
 
-  const gridId = handle.platform.gridId ?? SCAFFOLD_BLOTTER_GRID_ID;
-  await handle.profiles.importProfile(buildFiProfileImportPayload(gridId), {
-    activate: true,
-    name: 'Default',
-  });
-  await reloadActiveProfile(handle);
-}
+  // Default is active and missing FI formatting — seed and reload.
+  // `silent: true` so this internal re-bind doesn't overwrite the
+  // OpenFin workspace's `activeProfileId` customData. Without it, a user
+  // who had a non-Default profile selected but couldn't load it (race
+  // during workspace restore) would have their pointer overwritten by
+  // Default here, permanently destroying their workspace's last
+  // selection.
+  await ensureFiBlotterProfileRow(configManager);
+  await handle.profiles.loadProfile(RESERVED_DEFAULT_PROFILE_ID, { silent: true });
+  if (liveAssignmentCount(handle) >= MIN_FI_ASSIGNMENTS) return;
 
-/** Defer until AG-Grid + platform pipeline have applied provider column defs. */
-export function scheduleFiBlotterOnGridReady(handle: MarketsGridHandle): void {
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      void applyFiBlotterOnGridReady(handle);
-    });
-  });
+  // Column defs may still be settling — wait one tick and try once more.
+  await waitTwoFrames();
+  if (liveAssignmentCount(handle) >= MIN_FI_ASSIGNMENTS) return;
+  await handle.profiles.loadProfile(RESERVED_DEFAULT_PROFILE_ID, { silent: true });
 }

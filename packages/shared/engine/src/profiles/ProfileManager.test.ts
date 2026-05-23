@@ -574,3 +574,225 @@ describe('ProfileManager — phantom-profile regressions', () => {
     manager.dispose();
   });
 });
+
+describe('ProfileManager — boot does not auto-create Default', () => {
+  it('boot() against an empty adapter does NOT call saveProfile', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const saveSpy = vi.spyOn(adapter, 'saveProfile');
+
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    expect(saveSpy).not.toHaveBeenCalled();
+    // Storage stays empty: no Default row materializes until the user saves.
+    expect(await adapter.loadProfile(platform.gridId, RESERVED_DEFAULT_PROFILE_ID)).toBeNull();
+    expect(await adapter.listProfiles(platform.gridId)).toEqual([]);
+
+    manager.dispose();
+  });
+
+  it('boot() still exposes a synthetic Default in the profiles list so the selector renders', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    const { profiles, activeId } = manager.getState();
+    expect(activeId).toBe(RESERVED_DEFAULT_PROFILE_ID);
+    expect(profiles.some((p) => p.id === RESERVED_DEFAULT_PROFILE_ID && p.isDefault)).toBe(true);
+
+    manager.dispose();
+  });
+
+  it('first explicit save materializes the Default row via persistActive', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    // Nothing on disk yet.
+    expect(await adapter.loadProfile(platform.gridId, RESERVED_DEFAULT_PROFILE_ID)).toBeNull();
+
+    // User edits + saves — Default row appears.
+    platform.store.setModuleState<StyleState>('style', () => ({ rules: ['first-save'] }));
+    await manager.save();
+
+    const row = await adapter.loadProfile(platform.gridId, RESERVED_DEFAULT_PROFILE_ID);
+    expect(row).not.toBeNull();
+    expect(row?.name).toBe('Default');
+    expect((row?.state.style as { v: number; data: StyleState } | undefined)?.data.rules).toEqual([
+      'first-save',
+    ]);
+
+    manager.dispose();
+  });
+
+  it('load(Default) hydrates a blank store even when Default has never been persisted', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    // Create a different profile, edit it — Default never touched.
+    await manager.create('Other');
+    platform.store.setModuleState<StyleState>('style', () => ({ rules: ['other-state'] }));
+
+    // Switching to Default must succeed and reset to blank.
+    await manager.load(RESERVED_DEFAULT_PROFILE_ID);
+    expect(manager.getState().activeId).toBe(RESERVED_DEFAULT_PROFILE_ID);
+    expect(platform.store.getModuleState<StyleState>('style').rules).toEqual([]);
+
+    manager.dispose();
+  });
+
+  it('remove() falling back to an unpersisted Default resets the platform store', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    // Create + activate a profile, edit it. Default is never saved.
+    await manager.create('Doomed');
+    platform.store.setModuleState<StyleState>('style', () => ({ rules: ['doomed-state'] }));
+    await manager.save();
+
+    // Delete the active profile. Should flip to Default AND clear the store.
+    await manager.remove('doomed');
+    expect(manager.getState().activeId).toBe(RESERVED_DEFAULT_PROFILE_ID);
+    expect(platform.store.getModuleState<StyleState>('style').rules).toEqual([]);
+
+    manager.dispose();
+  });
+});
+
+describe('ProfileManager — boot preserves source pointer on fallthrough', () => {
+  /**
+   * Regression for the "workspace pointer destroyed on restore" bug.
+   *
+   * Scenario: an OpenFin workspace was saved with
+   * `customData.activeProfileId = 't1'`. On restore, the view spawns
+   * with that customData, but adapter.loadProfile('t1') momentarily
+   * returns null (ConfigService cold-start race) — so boot resolves to
+   * Default. The pre-fix code unconditionally wrote the resolved id
+   * back to source/localStorage, clobbering 't1' with '__default__'
+   * permanently. After the fix, boot leaves the pointer alone when it
+   * fell through to Default because a stored candidate didn't resolve.
+   */
+
+  function makeActiveIdSource(initial: string | null) {
+    let value = initial;
+    return {
+      source: {
+        read: () => value,
+        write: (v: string) => { value = v; },
+      },
+      current: () => value,
+    };
+  }
+
+  it('does not overwrite the activeIdSource when falling through to Default from an unresolved candidate', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const { source, current } = makeActiveIdSource('t1'); // simulates restored workspace customData
+
+    const manager = new ProfileManager({
+      platform,
+      adapter,
+      disableAutoSave: true,
+      activeIdSource: source,
+    });
+
+    // T1 row does NOT exist in storage — boot must fall through to Default.
+    await manager.boot();
+
+    // Resolved to Default in memory, fine.
+    expect(manager.getState().activeId).toBe(RESERVED_DEFAULT_PROFILE_ID);
+    // CRITICAL: source pointer must still be 't1'. Overwriting it with
+    // '__default__' would destroy the workspace's "last selected" intent.
+    expect(current()).toBe('t1');
+
+    manager.dispose();
+  });
+
+  it('still writes the source pointer on a clean first-time boot (no prior candidate)', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const { source, current } = makeActiveIdSource(null); // fresh view, no prior pointer
+
+    const manager = new ProfileManager({
+      platform,
+      adapter,
+      disableAutoSave: true,
+      activeIdSource: source,
+    });
+    await manager.boot();
+
+    expect(manager.getState().activeId).toBe(RESERVED_DEFAULT_PROFILE_ID);
+    // First-time boot writes Default to source — no prior intent to preserve.
+    expect(current()).toBe(RESERVED_DEFAULT_PROFILE_ID);
+
+    manager.dispose();
+  });
+
+  it('load(id, { silent: true }) hydrates state but does NOT overwrite the source pointer', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const { source, current } = makeActiveIdSource('test2'); // user's saved workspace pointer
+
+    // Seed Default and Test2 in storage.
+    await adapter.saveProfile({
+      id: 'test2', gridId: platform.gridId, name: 'Test2',
+      state: { style: { v: 1, data: { rules: ['t2-rule'] } } } as never,
+      createdAt: Date.now(), updatedAt: Date.now(),
+    });
+
+    const manager = new ProfileManager({
+      platform, adapter, disableAutoSave: true, activeIdSource: source,
+    });
+    await manager.boot();
+
+    // After boot, Test2 resolves and is active. Source confirms.
+    expect(manager.getState().activeId).toBe('test2');
+    expect(current()).toBe('test2');
+
+    // Simulate the container's onReady re-bind: re-loads Default silently
+    // (e.g. activeId got temporarily set to Default by some other path).
+    // Source pointer must NOT change to Default — silent reloads are
+    // internal re-binds, not user-initiated profile switches.
+    await manager.load(RESERVED_DEFAULT_PROFILE_ID, { silent: true });
+    expect(manager.getState().activeId).toBe(RESERVED_DEFAULT_PROFILE_ID);
+    expect(current()).toBe('test2'); // pointer preserved
+
+    manager.dispose();
+  });
+
+  it('writes the resolved id to source when a candidate DOES resolve', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+
+    // Seed T1 in storage so the candidate resolves.
+    await adapter.saveProfile({
+      id: 't1',
+      gridId: platform.gridId,
+      name: 'T1',
+      state: {},
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    const { source, current } = makeActiveIdSource('t1');
+    const manager = new ProfileManager({
+      platform,
+      adapter,
+      disableAutoSave: true,
+      activeIdSource: source,
+    });
+    await manager.boot();
+
+    expect(manager.getState().activeId).toBe('t1');
+    expect(current()).toBe('t1');
+
+    manager.dispose();
+  });
+});

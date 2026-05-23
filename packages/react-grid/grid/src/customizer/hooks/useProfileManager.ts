@@ -20,7 +20,7 @@ export interface UseProfileManagerResult {
    *  the Save button + triggers the unsaved-changes confirm flow on
    *  profile switch and page unload. */
   isDirty: boolean;
-  loadProfile: (id: string) => Promise<void>;
+  loadProfile: (id: string, opts?: { silent?: boolean }) => Promise<void>;
   saveActiveProfile: () => Promise<void>;
   /** Throw away in-memory changes and reload the active profile from
    *  disk. Used by the Discard branch of the unsaved-changes prompt. */
@@ -114,7 +114,10 @@ export function useProfileManager(opts: {
   );
   const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  const loadProfile = useCallback((id: string) => manager.load(id), [manager]);
+  const loadProfile = useCallback(
+    (id: string, opts?: { silent?: boolean }) => manager.load(id, opts),
+    [manager],
+  );
   const saveActiveProfile = useCallback(() => manager.save(), [manager]);
   const discardActiveProfile = useCallback(() => manager.discard(), [manager]);
   const createProfile = useCallback(

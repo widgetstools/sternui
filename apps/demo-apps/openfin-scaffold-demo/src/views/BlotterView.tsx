@@ -16,8 +16,8 @@ import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
 import { useStarGridApp } from '@starui/app';
 import { dataServices } from '../dataServices.mainThread';
 import {
+  applyFiBlotterOnGridReady,
   ensureFiBlotterProfileRow,
-  scheduleFiBlotterOnGridReady,
 } from '../fiBlotterProfile.js';
 import { openProviderEditorPopout } from '../openProviderEditorPopout';
 
@@ -36,7 +36,7 @@ export default function BlotterView() {
   }, []);
 
   const onGridReady = useCallback((handle: MarketsGridHandle) => {
-    scheduleFiBlotterOnGridReady(handle);
+    void applyFiBlotterOnGridReady(handle, dataServices.configManager);
   }, []);
 
   const onEditProvider = useCallback(
