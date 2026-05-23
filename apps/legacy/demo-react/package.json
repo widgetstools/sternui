@@ -9,7 +9,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "@starui/data": "file:../../../libs/starui-data-0.1.0-83c0f2d0.tgz",
+    "@starui/data": "file:../../../libs/starui-data-0.1.0-0b3b6670.tgz",
     "@starui/design-system": "file:../../../libs/starui-design-system-1.0.0-e2456ffb.tgz",
     "@starui/react-core": "file:../../../libs/starui-react-core-1.0.0-30d66d45.tgz",
     "@starui/react-grid": "file:../../../libs/starui-react-grid-0.1.0-aba589ae.tgz",
