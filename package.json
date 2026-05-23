@@ -50,6 +50,8 @@
     "dev:tutorial-dataprovider-editor-workspace": "npm run dev --workspace=@starui/tutorial-dataprovider-editor-workspace",
     "dev:tutorial-stomp-workspace": "npm run dev --workspace=@starui/tutorial-stomp-workspace",
     "dev:browser-blotter": "npm run dev --workspace=@starui/e2e-browser-blotter",
+    "dev:openfin-workspace": "npm run dev --workspace=@starui/e2e-openfin-workspace",
+    "dev:openfin:openfin-workspace": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev:openfin-workspace\" \"wait-on http://localhost:5181 && node tools/scripts/launch-openfin.mjs http://localhost:5181/platform/manifest.fin.json\"",
     "dev:markets-ui-react-reference": "npm run dev --workspace=@starui/markets-ui-react-reference",
     "dev:stomp": "npm run dev --workspace=@starui/stomp-view-server",
     "dev:demo": "npm run dev:demo-react",
