@@ -1,5 +1,5 @@
 {
-  "name": "@starui/dataprovider-editor-starui-app",
+  "name": "@starui/tutorial-basic",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,16 +8,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@starui/data": "file:../../../libs/starui-data-0.1.0-83c0f2d0.tgz",
     "@starui/design-system": "file:../../../libs/starui-design-system-1.0.0-e2456ffb.tgz",
-    "@starui/react-core": "file:../../../libs/starui-react-core-1.0.0-30d66d45.tgz",
     "@starui/react-grid": "file:../../../libs/starui-react-grid-0.1.0-aba589ae.tgz",
     "@starui/react-ui": "file:../../../libs/starui-react-ui-1.0.0-6c4543f9.tgz",
     "@starui/shared": "file:../../../libs/starui-shared-1.0.0-74872d6a.tgz",
-    "@stomp/stompjs": "^7.3.0",
-    "@tanstack/react-query": "^5.80.0",
-    "@widgetstools/dock-manager-core": "^1.0.0",
-    "@widgetstools/react-dock-manager": "^1.0.0",
     "ag-grid-community": "35.1.0",
     "ag-grid-enterprise": "35.1.0",
     "ag-grid-react": "35.1.0",

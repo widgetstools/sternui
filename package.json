@@ -16,8 +16,8 @@
     "packages/react-core/*",
     "packages/shared/*",
     "apps/*",
-    "apps/demo-apps/*",
-    "apps/legacy/*"
+    "apps/legacy/*",
+    "apps/tutorials-tarball/*"
   ],
   "scripts": {
     "build:packages": "turbo build --filter=!./apps/**",
@@ -39,10 +39,10 @@
     "dev:demo-react": "npm run dev --workspace=@starui/demo-react",
     "dev:demo-configservice-react": "npm run dev --workspace=@starui/demo-configservice-react",
     "dev:demo-angular": "npm run start --workspace=@starui/demo-angular",
-    "dev:basic-starui-app": "npm run dev --workspace=@starui/basic-starui-app",
-    "dev:mockdata-provider-starui-app": "npm run dev --workspace=@starui/mockdata-provider-starui-app",
-    "dev:dataprovider-editor-starui-app": "npm run dev --workspace=@starui/dataprovider-editor-starui-app",
-    "dev:my-stomp-app": "npm run dev --workspace=@starui/my-stomp-app",
+    "dev:tutorial-basic": "npm run dev --workspace=@starui/tutorial-basic",
+    "dev:tutorial-mockdata-provider": "npm run dev --workspace=@starui/tutorial-mockdata-provider",
+    "dev:tutorial-dataprovider-editor": "npm run dev --workspace=@starui/tutorial-dataprovider-editor",
+    "dev:tutorial-stomp": "npm run dev --workspace=@starui/tutorial-stomp",
     "dev:markets-ui-react-reference": "npm run dev --workspace=@starui/markets-ui-react-reference",
     "dev:stomp": "npm run dev --workspace=@starui/stomp-view-server",
     "dev:demo": "npm run dev:demo-react",
@@ -56,7 +56,7 @@
     "verify:apps": "node scripts/verify-apps.mjs",
     "check:deps": "node scripts/check-package-cycles.mjs",
     "check:deps:strict": "node scripts/check-package-cycles.mjs --strict",
-    "clean": "rimraf -g node_modules packages/*/*/node_modules packages/*/*/dist apps/*/node_modules apps/demo-apps/*/node_modules apps/legacy/*/node_modules .turbo"
+    "clean": "rimraf -g node_modules packages/*/*/node_modules packages/*/*/dist apps/*/node_modules apps/tutorials-tarball/*/node_modules apps/legacy/*/node_modules .turbo"
   },
   "devDependencies": {
     "@openfin/node-adapter": "43.101.2",
