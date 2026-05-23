@@ -27,14 +27,18 @@ import type { ActiveIdSource } from '@starui/engine';
  *     workspace snapshot automatically.
  */
 export function createOpenFinViewProfileSource(): ActiveIdSource | null {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const finGlobal = (globalThis as any).fin;
-  if (!finGlobal?.me?.getOptions || !finGlobal?.me?.updateOptions) return null;
+  // `globalThis.fin` is declared by src/types/openfinRuntime.d.ts as a
+  // narrow surface — just the two `me.*` methods this module uses.
+  // Capture `me` locally so TypeScript's narrowing flows into the async
+  // closures below (it forgets the optional-chain refinement across
+  // function boundaries).
+  const me = globalThis.fin?.me;
+  if (!me?.getOptions || !me?.updateOptions) return null;
 
   return {
     async read(): Promise<string | null> {
       try {
-        const opts = await finGlobal.me.getOptions();
+        const opts = await me.getOptions();
         const id = opts?.customData?.activeProfileId;
         return typeof id === 'string' && id ? id : null;
       } catch {
@@ -43,10 +47,10 @@ export function createOpenFinViewProfileSource(): ActiveIdSource | null {
     },
     async write(id: string): Promise<void> {
       try {
-        const opts = await finGlobal.me.getOptions();
+        const opts = await me.getOptions();
         const current = (opts?.customData ?? {}) as Record<string, unknown>;
         if (current.activeProfileId === id) return;
-        await finGlobal.me.updateOptions({
+        await me.updateOptions({
           customData: { ...current, activeProfileId: id },
         });
       } catch {
