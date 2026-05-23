@@ -143,7 +143,7 @@ vi.mock('./useGridHost', () => ({
   useGridHost: (_opts: any) => {
     mocks.useGridHostInvocations.count += 1;
     return {
-      platform: { store: {} },
+      platform: { store: {}, api: { api: null } },
       columnDefs: [],
       gridOptions: {},
       onGridReady: vi.fn(),
