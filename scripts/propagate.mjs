@@ -481,6 +481,26 @@ function writeManifest(manifest) {
 // Sync apps/* package.json file: deps
 // ────────────────────────────────────────────────────────────────────────
 
+/**
+ * Apps that should NOT receive tarball-dep rewrites.
+ *
+ * Workspace-track apps (currently apps/tutorials-workspace/*) live as
+ * sibling workspaces consuming @starui/* via `"*"` deps. Rewriting their
+ * package.json to file: tarball refs would defeat the workspace-HMR
+ * purpose. Mirrors the same list in scripts/sync-app-tarball-deps.mjs.
+ *
+ * Match against the path relative to REPO_ROOT (POSIX-style), with a
+ * trailing slash on the directory.
+ */
+const TARBALL_TRACK_EXCLUDES = [
+  /^apps\/tutorials-workspace\//,
+];
+
+function isTarballTrackAppPath(appPkgPath) {
+  const rel = relative(REPO_ROOT, appPkgPath).split(/[\\/]/).join('/');
+  return !TARBALL_TRACK_EXCLUDES.some((re) => re.test(rel));
+}
+
 function findAppPackageJsons() {
   const appsDir = join(REPO_ROOT, 'apps');
   if (!isDirectory(appsDir)) return [];
@@ -489,14 +509,14 @@ function findAppPackageJsons() {
     if (!entry.isDirectory()) continue;
     const direct = join(appsDir, entry.name, 'package.json');
     if (existsSync(direct)) {
-      out.push(direct);
+      if (isTarballTrackAppPath(direct)) out.push(direct);
       continue;
     }
     const nestedRoot = join(appsDir, entry.name);
     for (const child of readdirSync(nestedRoot, { withFileTypes: true })) {
       if (!child.isDirectory()) continue;
       const nested = join(nestedRoot, child.name, 'package.json');
-      if (existsSync(nested)) out.push(nested);
+      if (existsSync(nested) && isTarballTrackAppPath(nested)) out.push(nested);
     }
   }
   return out;

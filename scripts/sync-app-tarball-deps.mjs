@@ -46,6 +46,26 @@ function buildMemberIndex(manifest) {
   return memberToBucket;
 }
 
+/**
+ * Apps whose @starui/* deps should NOT be rewritten to tarball refs.
+ *
+ * Workspace-track apps (currently apps/tutorials-workspace/*) consume the
+ * @starui/* packages directly from the npm workspaces graph via `"*"`
+ * deps. Rewriting them to `file:.../libs/...tgz` would defeat the
+ * purpose — they exist so contributors can edit @starui/* sources and
+ * see HMR in the tutorial app without a propagate cycle.
+ *
+ * Match against `relative(REPO_ROOT, dirname(appPkgPath))` (POSIX-style).
+ */
+const TARBALL_TRACK_EXCLUDES = [
+  /^apps\/tutorials-workspace\//,
+];
+
+function isTarballTrack(appPkgPath) {
+  const rel = relative(REPO_ROOT, dirname(appPkgPath)).split(sep).join('/');
+  return !TARBALL_TRACK_EXCLUDES.some((re) => re.test(`${rel}/`));
+}
+
 function findAppPackageJsons() {
   const out = [];
   function walk(dir) {
@@ -53,8 +73,9 @@ function findAppPackageJsons() {
       const p = join(dir, name);
       if (!statSync(p).isDirectory()) continue;
       const pkgPath = join(p, 'package.json');
-      if (existsSync(pkgPath)) out.push(pkgPath);
-      else walk(p);
+      if (existsSync(pkgPath)) {
+        if (isTarballTrack(pkgPath)) out.push(pkgPath);
+      } else walk(p);
     }
   }
   walk(APPS_ROOT);
