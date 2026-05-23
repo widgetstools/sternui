@@ -26,12 +26,15 @@ export {
   probeRest,
   probeMock,
   startMock,
+  createFiPositionsLargeConfig,
+  createFiPositionsSmallConfig,
   inferFields,
   type StompProbeResult,
   type StompProbeOpts,
   type RestProbeResult,
   type InferOptions,
   type MockProviderOpts,
+  type FiPositionsConfigOverrides,
 } from './runtime/providers/index.js';
 
 export {

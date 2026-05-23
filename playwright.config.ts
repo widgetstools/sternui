@@ -30,5 +30,11 @@ export default defineConfig({
       reuseExistingServer: false,
       timeout: 90_000,
     },
+    {
+      command: 'npm run dev --workspace=@starui/e2e-browser-blotter',
+      port: 5180,
+      reuseExistingServer: true,
+      timeout: 90_000,
+    },
   ],
 });
