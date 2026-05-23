@@ -49,4 +49,10 @@ export type { ProbeResult as RestProbeResult } from './transports/rest.js';
 
 export { probeMock, startMock, type MockProviderOpts } from './transports/mock.js';
 
+export {
+  createFiPositionsLargeConfig,
+  createFiPositionsSmallConfig,
+  type FiPositionsConfigOverrides,
+} from './transports/mockPresets.js';
+
 export { inferFields, type InferOptions } from './inferFields.js';
