@@ -89,6 +89,10 @@ export function FiltersToolbar() {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
+  // Stable handler reading scrollRef only — empty deps guarantee identity
+  // is constant across renders so the mount-once observer effect below
+  // never tears down + re-attaches mid-session (which would stack listeners
+  // on every drift in this callback's deps).
   const updateScrollState = useCallback(() => {
     const el = scrollRef.current;
     if (!el) {
@@ -101,6 +105,12 @@ export function FiltersToolbar() {
     setCanScrollLeft((prev) => (prev === nextLeft ? prev : nextLeft));
     setCanScrollRight((prev) => (prev === nextRight ? prev : nextRight));
   }, []);
+  // Bridge the stable callback through a ref so the observer effect can
+  // call the current implementation without listing the callback in deps.
+  // Belt-and-braces: if updateScrollState's deps ever grow, the observer
+  // effect's `[]` deps still hold and the listener never re-attaches.
+  const updateScrollStateRef = useRef(updateScrollState);
+  updateScrollStateRef.current = updateScrollState;
 
   useEffect(() => {
     updateScrollState();
@@ -109,11 +119,16 @@ export function FiltersToolbar() {
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    el.addEventListener('scroll', updateScrollState, { passive: true });
-    const ro = new ResizeObserver(updateScrollState);
+    const handler = () => updateScrollStateRef.current();
+    el.addEventListener('scroll', handler, { passive: true });
+    const ro = new ResizeObserver(handler);
     ro.observe(el);
-    return () => { el.removeEventListener('scroll', updateScrollState); ro.disconnect(); };
-  }, [updateScrollState]);
+    return () => { el.removeEventListener('scroll', handler); ro.disconnect(); };
+    // Reason: handler proxies through updateScrollStateRef so the effect
+    // owns its listeners for the entire component lifetime — listing the
+    // callback would re-attach on every render where its identity drifted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const scrollBy = useCallback((dir: number) => {
     scrollRef.current?.scrollBy({ left: dir * 150, behavior: 'smooth' });
