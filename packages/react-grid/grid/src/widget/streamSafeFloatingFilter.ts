@@ -1,8 +1,5 @@
-import type {
-  IFloatingFilterComp,
-  IFloatingFilterParams,
-} from 'ag-grid-community';
-import { buildFloatingFilterDom } from './streamSafeFloatingFilterDom';
+import type { IFloatingFilterComp } from 'ag-grid-community';
+import { BaseStreamSafeFilter } from './streamSafeFloatingFilterBase';
 
 /**
  * Focus-aware floating filter with clear-button + comma-token OR matching.
@@ -45,69 +42,10 @@ import { buildFloatingFilterDom } from './streamSafeFloatingFilterDom';
  * keep their built-in (read-only) floating filter — no clobber risk
  * there, and no typing affordance to add.
  */
-export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
-  private eGui!: HTMLDivElement;
-  private input!: HTMLInputElement;
-  private clearBtn!: HTMLButtonElement;
-  private params!: IFloatingFilterParams;
-  private debounceMs = 250;
-  private debounceHandle: ReturnType<typeof setTimeout> | null = null;
-  private syncClearVisibilityFn!: () => void;
-
-  init(params: IFloatingFilterParams): void {
-    this.params = params;
-    this.debounceMs = ((params as unknown as { debounceMs?: number }).debounceMs) ?? 250;
-    const dom = buildFloatingFilterDom({
-      placeholder: 'Filter (comma-separated)...',
-      onInput: this.onInput,
-      onClearMouseDown: this.onClearMouseDown,
-    });
-    this.eGui = dom.eGui;
-    this.input = dom.input;
-    this.clearBtn = dom.clearBtn;
-    this.syncClearVisibilityFn = dom.syncClearVisibility;
+export class StreamSafeTextFloatingFilter extends BaseStreamSafeFilter implements IFloatingFilterComp {
+  protected placeholder(): string {
+    return 'Filter (comma-separated)...';
   }
-
-  /**
-   * Called by AG-Grid when the underlying filter model changes. Skip
-   * the write while the input has focus so user typing isn't clobbered
-   * by mid-stream `applyTransactionAsync` cascades. Sync clear-button
-   * visibility too — the input's value drives whether ✕ is visible.
-   */
-  onParentModelChanged(parentModel: unknown): void {
-    if (document.activeElement === this.input) return;
-    this.input.value = parentModel == null ? '' : this.stringifyModel(parentModel);
-    this.syncClearVisibilityFn();
-  }
-
-  getGui(): HTMLElement {
-    return this.eGui;
-  }
-
-  destroy(): void {
-    if (this.debounceHandle) clearTimeout(this.debounceHandle);
-    this.input.removeEventListener('input', this.onInput);
-    this.clearBtn.removeEventListener('mousedown', this.onClearMouseDown);
-  }
-
-  private onInput = (): void => {
-    this.syncClearVisibilityFn();
-    if (this.debounceHandle) clearTimeout(this.debounceHandle);
-    this.debounceHandle = setTimeout(() => {
-      this.applyValue(this.input.value);
-    }, this.debounceMs);
-  };
-
-  private onClearMouseDown = (e: MouseEvent): void => {
-    // Prevent the button from stealing focus (would break our focus-aware
-    // skip in onParentModelChanged the next time data ticks).
-    e.preventDefault();
-    if (this.debounceHandle) clearTimeout(this.debounceHandle);
-    this.input.value = '';
-    this.syncClearVisibilityFn();
-    this.applyValue('');
-    this.input.focus();
-  };
 
   /**
    * Push the user's typed value into the parent filter.
@@ -128,90 +66,22 @@ export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
    * For standalone (non-multi) text columns, multi-token still uses
    * compound text — there's no set sub-filter to delegate to.
    */
-  private applyValue(rawValue: string): void {
+  protected applyValue(rawValue: string): void {
     const tokens = rawValue
       .split(',')
       .map((t) => t.trim())
       .filter((t) => t !== '');
 
-    const col = (this.params as unknown as {
-      column?: {
-        getColId?: () => string;
-        getColDef?: () => {
-          filter?: unknown;
-          filterParams?: { filters?: Array<{ filter?: string }> };
-        };
-      };
-    }).column;
-    const colId = col?.getColId?.();
-    const colDef = col?.getColDef?.();
-    const colFilter = colDef?.filter;
-    const isInsideMulti = colFilter === 'agMultiColumnFilter';
-    const subFilters = colDef?.filterParams?.filters ?? [];
-    const setIdx = isInsideMulti
-      ? subFilters.findIndex((f) => f?.filter === 'agSetColumnFilter')
-      : -1;
-    const textIdxInDef = isInsideMulti
-      ? subFilters.findIndex(
-          (f) => f?.filter === 'agTextColumnFilter' || f?.filter === 'agNumberColumnFilter',
-        )
-      : -1;
-    const hasSetSubFilter = setIdx >= 0;
-
-    const api = (this.params as unknown as {
-      api?: {
-        setColumnFilterModel?: (col: string, model: unknown) => Promise<void> | void;
-        getColumnFilterModel?: <T = unknown>(col: string) => T | null | undefined;
-        onFilterChanged?: () => void;
-      };
-    }).api;
-
-    // Helper: push a fully-built column-level model via the
-    // recommended v34+ api and trigger filterChanged.
-    const pushColumnModel = (model: unknown) => {
-      if (!api?.setColumnFilterModel || !colId) {
-        // Last-resort fallback to the deprecated path so older grids
-        // still work — should never run in our v35 stack.
-        this.params.parentFilterInstance((parent) => {
-          (parent as unknown as { setModel?: (m: unknown) => void }).setModel?.(model);
-        });
-        return;
-      }
-      const result = api.setColumnFilterModel(colId, model);
-      const trigger = () => api.onFilterChanged?.();
-      if (result && typeof (result as Promise<unknown>).then === 'function') {
-        (result as Promise<unknown>).then(trigger);
-      } else {
-        trigger();
-      }
-    };
-
-    // Build a multi-filter envelope with sub-filter slots set per the
-    // colDef order. Slots not provided are left null (= no filter).
-    const buildMultiEnvelope = (entries: Record<number, unknown>): unknown => {
-      const filterModels: unknown[] = [];
-      for (let i = 0; i < subFilters.length; i++) {
-        filterModels[i] = entries[i] ?? null;
-      }
-      return { filterType: 'multi', filterModels };
-    };
+    const ctx = this.getColumnContext();
+    const textIdxInDef = ctx.primaryIdx('agTextColumnFilter', 'agNumberColumnFilter');
+    const hasSetSubFilter = ctx.setIdx >= 0;
 
     // ── 0 tokens → clear everything ───────────────────────────────
     if (tokens.length === 0) {
-      if (isInsideMulti) {
-        pushColumnModel(buildMultiEnvelope({}));
+      if (ctx.isInsideMulti) {
+        this.pushColumnModel(ctx.colId, this.buildMultiEnvelope(ctx.subFilters, {}));
       } else {
-        this.params.parentFilterInstance((parent) => {
-          const p = parent as unknown as {
-            onFloatingFilterChanged?: (type: string | null, value: string | null) => void;
-            setModel?: (m: unknown) => void;
-          };
-          if (typeof p.onFloatingFilterChanged === 'function') {
-            p.onFloatingFilterChanged(null, null);
-          } else {
-            p.setModel?.(null);
-          }
-        });
+        this.pushStandaloneClear();
       }
       return;
     }
@@ -219,21 +89,24 @@ export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
     // ── 1 token → text/number sub-filter `contains`/`equals` ──────
     if (tokens.length === 1) {
       const v = tokens[0];
-      if (isInsideMulti) {
+      if (ctx.isInsideMulti) {
         // Determine text vs number from the colDef sub-filter slot.
-        const textSubFilter = textIdxInDef >= 0 ? subFilters[textIdxInDef] : undefined;
+        const textSubFilter = textIdxInDef >= 0 ? ctx.subFilters[textIdxInDef] : undefined;
         const isNumberSub = textSubFilter?.filter === 'agNumberColumnFilter';
         const filterTypeStr = isNumberSub ? 'number' : 'text';
         const op = isNumberSub ? 'equals' : 'contains';
         const filterValue = isNumberSub ? this.toNumber(v) : v;
         const slotModel = { filterType: filterTypeStr, type: op, filter: filterValue };
         // Clear set slot, plant text/number slot.
-        pushColumnModel(buildMultiEnvelope({
-          [textIdxInDef >= 0 ? textIdxInDef : 0]: slotModel,
-        }));
+        this.pushColumnModel(
+          ctx.colId,
+          this.buildMultiEnvelope(ctx.subFilters, {
+            [textIdxInDef >= 0 ? textIdxInDef : 0]: slotModel,
+          }),
+        );
       } else {
         this.params.parentFilterInstance((parent) => {
-          const p = parent as unknown as {
+          const p = parent as {
             getFilterType?: () => string;
             onFloatingFilterChanged?: (type: string | null, value: string | null) => void;
             setModel?: (m: unknown) => void;
@@ -257,11 +130,14 @@ export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
     // ── 2+ tokens ─────────────────────────────────────────────────
     // Preferred path: set sub-filter `values: [...]`. Cleaner popup,
     // no maxNumConditions cap, exact-match semantics built in.
-    if (isInsideMulti && hasSetSubFilter) {
+    if (ctx.isInsideMulti && hasSetSubFilter) {
       const setModel = { filterType: 'set', values: tokens };
       // Plant set slot, clear text slot (so the popup doesn't show
       // a stale text condition while the set is the active filter).
-      pushColumnModel(buildMultiEnvelope({ [setIdx]: setModel }));
+      this.pushColumnModel(
+        ctx.colId,
+        this.buildMultiEnvelope(ctx.subFilters, { [ctx.setIdx]: setModel }),
+      );
       return;
     }
 
@@ -278,12 +154,15 @@ export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
       operator: 'OR',
       conditions,
     };
-    if (isInsideMulti) {
-      pushColumnModel(buildMultiEnvelope({
-        [textIdxInDef >= 0 ? textIdxInDef : 0]: compoundTextModel,
-      }));
+    if (ctx.isInsideMulti) {
+      this.pushColumnModel(
+        ctx.colId,
+        this.buildMultiEnvelope(ctx.subFilters, {
+          [textIdxInDef >= 0 ? textIdxInDef : 0]: compoundTextModel,
+        }),
+      );
     } else {
-      pushColumnModel(compoundTextModel);
+      this.pushColumnModel(ctx.colId, compoundTextModel);
     }
   }
 
@@ -300,7 +179,7 @@ export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
    * list so re-focusing the input shows what the user originally
    * typed; text/number conditions render the same way.
    */
-  private stringifyModel(model: unknown): string {
+  protected stringifyModel(model: unknown): string {
     if (typeof model === 'string') return model;
     if (model && typeof model === 'object') {
       const m = model as {

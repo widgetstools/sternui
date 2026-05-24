@@ -1,8 +1,5 @@
-import type {
-  IFloatingFilterComp,
-  IFloatingFilterParams,
-} from 'ag-grid-community';
-import { buildFloatingFilterDom } from './streamSafeFloatingFilterDom';
+import type { IFloatingFilterComp } from 'ag-grid-community';
+import { BaseStreamSafeFilter } from './streamSafeFloatingFilterBase';
 
 /**
  * Stream-safe NUMBER floating filter — typeable input with parser
@@ -45,151 +42,31 @@ import { buildFloatingFilterDom } from './streamSafeFloatingFilterDom';
  * Auto-applied at the column level when the user picks the
  * `streamSafeMultiNumberColumnFilter` kind in column-customization.
  */
-export class StreamSafeNumberFloatingFilter implements IFloatingFilterComp {
-  private eGui!: HTMLDivElement;
-  private input!: HTMLInputElement;
-  private clearBtn!: HTMLButtonElement;
-  private params!: IFloatingFilterParams;
-  private debounceMs = 250;
-  private debounceHandle: ReturnType<typeof setTimeout> | null = null;
-  private syncClearVisibilityFn!: () => void;
-  /** Last user-typed value — used to render the input on refocus
-   *  when the applied model is too lossy to stringify back. */
-  private lastTyped = '';
-
-  init(params: IFloatingFilterParams): void {
-    this.params = params;
-    this.debounceMs = ((params as unknown as { debounceMs?: number }).debounceMs) ?? 250;
-    const dom = buildFloatingFilterDom({
-      placeholder: '>100, 1,2,3, 100-150, >0 and <50',
-      onInput: this.onInput,
-      onClearMouseDown: this.onClearMouseDown,
-    });
-    this.eGui = dom.eGui;
-    this.input = dom.input;
-    this.clearBtn = dom.clearBtn;
-    this.syncClearVisibilityFn = dom.syncClearVisibility;
+export class StreamSafeNumberFloatingFilter extends BaseStreamSafeFilter implements IFloatingFilterComp {
+  protected placeholder(): string {
+    return '>100, 1,2,3, 100-150, >0 and <50';
   }
 
-  onParentModelChanged(parentModel: unknown): void {
-    if (document.activeElement === this.input) return;
-    if (parentModel == null) {
-      this.input.value = '';
-      this.lastTyped = '';
-    } else {
-      // Prefer the user's last-typed string (preserves syntax like
-      // ">100 and <150"). If we have nothing typed (e.g. model came
-      // from a popup edit), fall back to a stringified summary.
-      this.input.value = this.lastTyped || stringifyNumberModel(parentModel);
-    }
-    this.syncClearVisibilityFn();
+  protected trackLastTyped(): boolean {
+    return true;
   }
-
-  getGui(): HTMLElement {
-    return this.eGui;
-  }
-
-  destroy(): void {
-    if (this.debounceHandle) clearTimeout(this.debounceHandle);
-    this.input.removeEventListener('input', this.onInput);
-    this.clearBtn.removeEventListener('mousedown', this.onClearMouseDown);
-  }
-
-  private onInput = (): void => {
-    this.syncClearVisibilityFn();
-    if (this.debounceHandle) clearTimeout(this.debounceHandle);
-    this.debounceHandle = setTimeout(() => {
-      this.lastTyped = this.input.value;
-      this.applyValue(this.input.value);
-    }, this.debounceMs);
-  };
-
-  private onClearMouseDown = (e: MouseEvent): void => {
-    e.preventDefault();
-    if (this.debounceHandle) clearTimeout(this.debounceHandle);
-    this.input.value = '';
-    this.lastTyped = '';
-    this.syncClearVisibilityFn();
-    this.applyValue('');
-    this.input.focus();
-  };
 
   /**
    * Parse the user's input and route it to the right sub-filter slot.
    * Bare-number CSV → set sub-filter (when present). Everything else
    * → number sub-filter with single or compound model.
    */
-  private applyValue(rawValue: string): void {
+  protected applyValue(rawValue: string): void {
     const trimmed = rawValue.trim();
-    const col = (this.params as unknown as {
-      column?: {
-        getColId?: () => string;
-        getColDef?: () => {
-          filter?: unknown;
-          filterParams?: { filters?: Array<{ filter?: string }> };
-        };
-      };
-    }).column;
-    const colId = col?.getColId?.();
-    const colDef = col?.getColDef?.();
-    const isInsideMulti = colDef?.filter === 'agMultiColumnFilter';
-    const subFilters = colDef?.filterParams?.filters ?? [];
-    const setIdx = isInsideMulti
-      ? subFilters.findIndex((f) => f?.filter === 'agSetColumnFilter')
-      : -1;
-    const numIdx = isInsideMulti
-      ? subFilters.findIndex(
-          (f) => f?.filter === 'agNumberColumnFilter' || f?.filter === 'agTextColumnFilter',
-        )
-      : -1;
-
-    const api = (this.params as unknown as {
-      api?: {
-        setColumnFilterModel?: (col: string, model: unknown) => Promise<void> | void;
-        onFilterChanged?: () => void;
-      };
-    }).api;
-
-    const pushColumnModel = (model: unknown) => {
-      if (!api?.setColumnFilterModel || !colId) {
-        this.params.parentFilterInstance((parent) => {
-          (parent as unknown as { setModel?: (m: unknown) => void }).setModel?.(model);
-        });
-        return;
-      }
-      const result = api.setColumnFilterModel(colId, model);
-      const trigger = () => api.onFilterChanged?.();
-      if (result && typeof (result as Promise<unknown>).then === 'function') {
-        (result as Promise<unknown>).then(trigger);
-      } else {
-        trigger();
-      }
-    };
-
-    const buildMultiEnvelope = (entries: Record<number, unknown>): unknown => {
-      const filterModels: unknown[] = [];
-      for (let i = 0; i < subFilters.length; i++) {
-        filterModels[i] = entries[i] ?? null;
-      }
-      return { filterType: 'multi', filterModels };
-    };
+    const ctx = this.getColumnContext();
+    const numIdx = ctx.primaryIdx('agNumberColumnFilter', 'agTextColumnFilter');
 
     // Empty → clear
     if (trimmed === '') {
-      if (isInsideMulti) {
-        pushColumnModel(buildMultiEnvelope({}));
+      if (ctx.isInsideMulti) {
+        this.pushColumnModel(ctx.colId, this.buildMultiEnvelope(ctx.subFilters, {}));
       } else {
-        this.params.parentFilterInstance((parent) => {
-          const p = parent as unknown as {
-            onFloatingFilterChanged?: (type: string | null, value: string | null) => void;
-            setModel?: (m: unknown) => void;
-          };
-          if (typeof p.onFloatingFilterChanged === 'function') {
-            p.onFloatingFilterChanged(null, null);
-          } else {
-            p.setModel?.(null);
-          }
-        });
+        this.pushStandaloneClear();
       }
       return;
     }
@@ -208,10 +85,13 @@ export class StreamSafeNumberFloatingFilter implements IFloatingFilterComp {
         .filter((n) => Number.isFinite(n));
       if (numbers.length === 0) {
         // Fall through to parser-based route
-      } else if (numbers.length === tokens.length && isInsideMulti && setIdx >= 0) {
+      } else if (numbers.length === tokens.length && ctx.isInsideMulti && ctx.setIdx >= 0) {
         // All tokens parse, set sub-filter available → set values path
         const setModel = { filterType: 'set', values: numbers.map((n) => String(n)) };
-        pushColumnModel(buildMultiEnvelope({ [setIdx]: setModel }));
+        this.pushColumnModel(
+          ctx.colId,
+          this.buildMultiEnvelope(ctx.subFilters, { [ctx.setIdx]: setModel }),
+        );
         return;
       } else if (numbers.length === tokens.length) {
         // All tokens parse, no set sub-filter → compound OR equals
@@ -221,10 +101,13 @@ export class StreamSafeNumberFloatingFilter implements IFloatingFilterComp {
           filter: n,
         }));
         const compound = { filterType: 'number', operator: 'OR', conditions };
-        if (isInsideMulti && numIdx >= 0) {
-          pushColumnModel(buildMultiEnvelope({ [numIdx]: compound }));
+        if (ctx.isInsideMulti && numIdx >= 0) {
+          this.pushColumnModel(
+            ctx.colId,
+            this.buildMultiEnvelope(ctx.subFilters, { [numIdx]: compound }),
+          );
         } else {
-          pushColumnModel(compound);
+          this.pushColumnModel(ctx.colId, compound);
         }
         return;
       }
@@ -241,12 +124,19 @@ export class StreamSafeNumberFloatingFilter implements IFloatingFilterComp {
       return;
     }
 
-    if (isInsideMulti) {
+    if (ctx.isInsideMulti) {
       const targetIdx = numIdx >= 0 ? numIdx : 0;
-      pushColumnModel(buildMultiEnvelope({ [targetIdx]: model }));
+      this.pushColumnModel(
+        ctx.colId,
+        this.buildMultiEnvelope(ctx.subFilters, { [targetIdx]: model }),
+      );
     } else {
-      pushColumnModel(model);
+      this.pushColumnModel(ctx.colId, model);
     }
+  }
+
+  protected stringifyModel(model: unknown): string {
+    return stringifyNumberModel(model);
   }
 }
 

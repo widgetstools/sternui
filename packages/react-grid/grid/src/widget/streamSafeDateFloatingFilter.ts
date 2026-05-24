@@ -1,8 +1,5 @@
-import type {
-  IFloatingFilterComp,
-  IFloatingFilterParams,
-} from 'ag-grid-community';
-import { buildFloatingFilterDom } from './streamSafeFloatingFilterDom';
+import type { IFloatingFilterComp, IFloatingFilterParams } from 'ag-grid-community';
+import { BaseStreamSafeFilter, readParamField } from './streamSafeFloatingFilterBase';
 
 /**
  * Stream-safe DATE floating filter — typeable input with smart parsing
@@ -80,155 +77,43 @@ import { buildFloatingFilterDom } from './streamSafeFloatingFilterDom';
  * in a column that uses `agDateColumnFilter` (or `agMultiColumnFilter`
  * with a date sub-filter).
  */
-export class StreamSafeDateFloatingFilter implements IFloatingFilterComp {
-  private eGui!: HTMLDivElement;
-  private input!: HTMLInputElement;
-  private clearBtn!: HTMLButtonElement;
-  private params!: IFloatingFilterParams;
-  private debounceMs = 250;
-  private debounceHandle: ReturnType<typeof setTimeout> | null = null;
-  private syncClearVisibilityFn!: () => void;
+export class StreamSafeDateFloatingFilter extends BaseStreamSafeFilter implements IFloatingFilterComp {
   private locale: DateLocale = 'us';
-  /** Last user-typed value — used to render the input on refocus
-   *  when the applied model is too lossy to stringify back. */
-  private lastTyped = '';
 
-  init(params: IFloatingFilterParams): void {
-    this.params = params;
-    const extras = params as unknown as {
-      debounceMs?: number;
-      dateLocale?: DateLocale;
-    };
-    this.debounceMs = extras.debounceMs ?? 250;
-    this.locale = extras.dateLocale === 'eu' ? 'eu' : 'us';
-    const dom = buildFloatingFilterDom({
-      placeholder:
-        this.locale === 'eu'
-          ? '2025, Jan 2025, >2025-01-01, 12/06/2025 to today'
-          : '2025, Jan 2025, >2025-01-01, 06/12/2025 to today',
-      onInput: this.onInput,
-      onClearMouseDown: this.onClearMouseDown,
-    });
-    this.eGui = dom.eGui;
-    this.input = dom.input;
-    this.clearBtn = dom.clearBtn;
-    this.syncClearVisibilityFn = dom.syncClearVisibility;
+  protected override onInit(params: IFloatingFilterParams): void {
+    this.locale = readParamField<DateLocale>(params, 'dateLocale') === 'eu' ? 'eu' : 'us';
   }
 
-  onParentModelChanged(parentModel: unknown): void {
-    if (document.activeElement === this.input) return;
-    if (parentModel == null) {
-      this.input.value = '';
-      this.lastTyped = '';
-    } else {
-      this.input.value = this.lastTyped || stringifyDateModel(parentModel);
-    }
-    this.syncClearVisibilityFn();
+  protected placeholder(): string {
+    return this.locale === 'eu'
+      ? '2025, Jan 2025, >2025-01-01, 12/06/2025 to today'
+      : '2025, Jan 2025, >2025-01-01, 06/12/2025 to today';
   }
 
-  getGui(): HTMLElement {
-    return this.eGui;
+  protected trackLastTyped(): boolean {
+    return true;
   }
 
-  destroy(): void {
-    if (this.debounceHandle) clearTimeout(this.debounceHandle);
-    this.input.removeEventListener('input', this.onInput);
-    this.clearBtn.removeEventListener('mousedown', this.onClearMouseDown);
+  protected stringifyModel(model: unknown): string {
+    return stringifyDateModel(model);
   }
-
-  private onInput = (): void => {
-    this.syncClearVisibilityFn();
-    if (this.debounceHandle) clearTimeout(this.debounceHandle);
-    this.debounceHandle = setTimeout(() => {
-      this.lastTyped = this.input.value;
-      this.applyValue(this.input.value);
-    }, this.debounceMs);
-  };
-
-  private onClearMouseDown = (e: MouseEvent): void => {
-    e.preventDefault();
-    if (this.debounceHandle) clearTimeout(this.debounceHandle);
-    this.input.value = '';
-    this.lastTyped = '';
-    this.syncClearVisibilityFn();
-    this.applyValue('');
-    this.input.focus();
-  };
 
   /**
    * Parse the user's input and route it to the right sub-filter slot.
    * Bare-date CSV → set sub-filter (when present). Everything else
    * → date sub-filter with single or compound model.
    */
-  private applyValue(rawValue: string): void {
+  protected applyValue(rawValue: string): void {
     const trimmed = rawValue.trim();
-    const col = (this.params as unknown as {
-      column?: {
-        getColId?: () => string;
-        getColDef?: () => {
-          filter?: unknown;
-          filterParams?: { filters?: Array<{ filter?: string }> };
-        };
-      };
-    }).column;
-    const colId = col?.getColId?.();
-    const colDef = col?.getColDef?.();
-    const isInsideMulti = colDef?.filter === 'agMultiColumnFilter';
-    const subFilters = colDef?.filterParams?.filters ?? [];
-    const setIdx = isInsideMulti
-      ? subFilters.findIndex((f) => f?.filter === 'agSetColumnFilter')
-      : -1;
-    const dateIdx = isInsideMulti
-      ? subFilters.findIndex((f) => f?.filter === 'agDateColumnFilter')
-      : -1;
-
-    const api = (this.params as unknown as {
-      api?: {
-        setColumnFilterModel?: (col: string, model: unknown) => Promise<void> | void;
-        onFilterChanged?: () => void;
-      };
-    }).api;
-
-    const pushColumnModel = (model: unknown) => {
-      if (!api?.setColumnFilterModel || !colId) {
-        this.params.parentFilterInstance((parent) => {
-          (parent as unknown as { setModel?: (m: unknown) => void }).setModel?.(model);
-        });
-        return;
-      }
-      const result = api.setColumnFilterModel(colId, model);
-      const trigger = () => api.onFilterChanged?.();
-      if (result && typeof (result as Promise<unknown>).then === 'function') {
-        (result as Promise<unknown>).then(trigger);
-      } else {
-        trigger();
-      }
-    };
-
-    const buildMultiEnvelope = (entries: Record<number, unknown>): unknown => {
-      const filterModels: unknown[] = [];
-      for (let i = 0; i < subFilters.length; i++) {
-        filterModels[i] = entries[i] ?? null;
-      }
-      return { filterType: 'multi', filterModels };
-    };
+    const ctx = this.getColumnContext();
+    const dateIdx = ctx.primaryIdx('agDateColumnFilter');
 
     // Empty → clear
     if (trimmed === '') {
-      if (isInsideMulti) {
-        pushColumnModel(buildMultiEnvelope({}));
+      if (ctx.isInsideMulti) {
+        this.pushColumnModel(ctx.colId, this.buildMultiEnvelope(ctx.subFilters, {}));
       } else {
-        this.params.parentFilterInstance((parent) => {
-          const p = parent as unknown as {
-            onFloatingFilterChanged?: (type: string | null, value: string | null) => void;
-            setModel?: (m: unknown) => void;
-          };
-          if (typeof p.onFloatingFilterChanged === 'function') {
-            p.onFloatingFilterChanged(null, null);
-          } else {
-            p.setModel?.(null);
-          }
-        });
+        this.pushStandaloneClear();
       }
       return;
     }
@@ -253,9 +138,12 @@ export class StreamSafeDateFloatingFilter implements IFloatingFilterComp {
         const isoValues = parsed
           .map((p) => (p as InstantParse).date)
           .map(toIsoDateOnly);
-        if (isInsideMulti && setIdx >= 0) {
+        if (ctx.isInsideMulti && ctx.setIdx >= 0) {
           const setModel = { filterType: 'set', values: isoValues };
-          pushColumnModel(buildMultiEnvelope({ [setIdx]: setModel }));
+          this.pushColumnModel(
+            ctx.colId,
+            this.buildMultiEnvelope(ctx.subFilters, { [ctx.setIdx]: setModel }),
+          );
           return;
         }
         const conditions = isoValues.map(
@@ -266,10 +154,13 @@ export class StreamSafeDateFloatingFilter implements IFloatingFilterComp {
           }),
         );
         const compound = { filterType: 'date', operator: 'OR' as const, conditions };
-        if (isInsideMulti && dateIdx >= 0) {
-          pushColumnModel(buildMultiEnvelope({ [dateIdx]: compound }));
+        if (ctx.isInsideMulti && dateIdx >= 0) {
+          this.pushColumnModel(
+            ctx.colId,
+            this.buildMultiEnvelope(ctx.subFilters, { [dateIdx]: compound }),
+          );
         } else {
-          pushColumnModel(compound);
+          this.pushColumnModel(ctx.colId, compound);
         }
         return;
       }
@@ -285,11 +176,14 @@ export class StreamSafeDateFloatingFilter implements IFloatingFilterComp {
       return;
     }
 
-    if (isInsideMulti) {
+    if (ctx.isInsideMulti) {
       const targetIdx = dateIdx >= 0 ? dateIdx : 0;
-      pushColumnModel(buildMultiEnvelope({ [targetIdx]: model }));
+      this.pushColumnModel(
+        ctx.colId,
+        this.buildMultiEnvelope(ctx.subFilters, { [targetIdx]: model }),
+      );
     } else {
-      pushColumnModel(model);
+      this.pushColumnModel(ctx.colId, model);
     }
   }
 }
