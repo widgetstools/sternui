@@ -175,17 +175,15 @@ export interface UseFilterModelResult {
 }
 
 /**
- * Owns saved-filter state + the wiring between AG-Grid's live filter
- * and the per-profile `saved-filters` module. Returns a stable
- * imperative surface for FiltersToolbar.
+ * Normalises the saved-filters module state into a clean SavedFilter[] +
+ * exposes a setter that re-normalises previous state for functional
+ * updates. Internal building block for useFilterModel — keeps the v1→v2
+ * shape-repair concern in one place.
  */
-export function useFilterModel(): UseFilterModelResult {
-  const platform = useGridPlatform();
-  const api = useGridApi();
-
-  // Filters live in the per-profile saved-filters module. Reading and writing
-  // through `useModuleState` is the ONLY channel — no refs, no events. The
-  // auto-save engine picks up changes and persists them on a debounce.
+function useFilterNormalization(): {
+  filters: SavedFilter[];
+  setFilters: (next: SavedFilter[] | ((prev: SavedFilter[]) => SavedFilter[])) => void;
+} {
   const [filtersState, setFiltersState] = useModuleState<SavedFiltersState>('saved-filters');
 
   // Normalize a raw record off the store: coerce `active`, default
@@ -240,18 +238,21 @@ export function useFilterModel(): UseFilterModelResult {
     [setFiltersState, normalizeFilter],
   );
 
-  // ─── Per-pill row counts ──────────────────────────────────────────────
-  //
-  // Each pill renders a small count badge showing how many rows this
-  // filter would match if applied. Computed against the live rowData by
-  // walking `api.forEachNode(...)` and running the saved filter model
-  // against each row. Recomputes on:
-  //  - the filters list changing (new pill, renamed pill — label stays;
-  //    count stays too unless the filter model changed, which it does
-  //    here because pills are immutable once captured)
-  //  - AG-Grid's `rowDataUpdated` / `modelUpdated` events (data refresh)
-  //  - `firstDataRendered` (cold-mount: data arrives after the
-  //    toolbar renders once with empty counts)
+  return { filters, setFilters };
+}
+
+/**
+ * Per-pill row counts. Each pill renders a small count badge showing
+ * how many rows this filter would match if applied. Recomputes on:
+ *  - the filters list changing (new pill, renamed pill — label stays;
+ *    count stays too unless the filter model changed, which it does
+ *    here because pills are immutable once captured)
+ *  - AG-Grid's `rowDataUpdated` / `modelUpdated` events (data refresh)
+ *  - `firstDataRendered` (cold-mount: data arrives after the
+ *    toolbar renders once with empty counts)
+ */
+function useFilterCounts(filters: readonly SavedFilter[]): Record<string, number> {
+  const platform = useGridPlatform();
   const [filterCounts, setFilterCounts] = useState<Record<string, number>>({});
   const filterCountsRef = useRef<Record<string, number>>({});
 
@@ -303,12 +304,23 @@ export function useFilterModel(): UseFilterModelResult {
     return () => { for (const d of disposers) d(); };
   }, [platform, filters]);
 
-  // `hasNewFilter` — tracks whether the live AG-Grid filter model contains
-  // something the active saved-filter pills haven't already captured. The
-  // "+" button is enabled ONLY when this is true. Without this guard, the
-  // button stays enabled as long as any filter is applied (including
-  // already-saved ones), and clicking it duplicates the active saved
-  // filter(s) into a new pill.
+  return filterCounts;
+}
+
+/**
+ * Pushes the merged active filter into AG-Grid on every relevant trigger
+ * (filter-list change, profile:loaded, firstDataRendered) and watches
+ * `filterChanged` to flag user-initiated filter drift via `hasNewFilter`.
+ *
+ * `hasNewFilter` is true when the live AG-Grid filter model contains
+ * something the active saved-filter pills haven't already captured. The
+ * "+" button is enabled ONLY when true — without this guard, the button
+ * stays enabled whenever any filter is applied (including already-saved
+ * ones) and clicking duplicates the active saved filter(s) into a new pill.
+ */
+function useFilterModelSync(filters: readonly SavedFilter[]): boolean {
+  const platform = useGridPlatform();
+  const api = useGridApi();
   const [hasNewFilter, setHasNewFilter] = useState(false);
 
   // Latest filters captured in a ref so platform-level listeners
@@ -417,6 +429,28 @@ export function useFilterModel(): UseFilterModelResult {
     );
     return () => { for (const d of disposers) d(); };
   }, [platform, filters]);
+
+  return hasNewFilter;
+}
+
+/**
+ * Owns saved-filter state + the wiring between AG-Grid's live filter
+ * and the per-profile `saved-filters` module. Returns a stable
+ * imperative surface for FiltersToolbar.
+ *
+ * Thin composition of three sibling hooks:
+ *  - useFilterNormalization → cleaned filters list + setFilters
+ *  - useFilterCounts        → per-pill row-count badges
+ *  - useFilterModelSync     → AG-Grid push/watch effects + hasNewFilter
+ *
+ * The orchestrator below adds only the imperative actions that mutate the
+ * filters list (the toolbar buttons' click handlers).
+ */
+export function useFilterModel(): UseFilterModelResult {
+  const api = useGridApi();
+  const { filters, setFilters } = useFilterNormalization();
+  const filterCounts = useFilterCounts(filters);
+  const hasNewFilter = useFilterModelSync(filters);
 
   // ─── Imperative handlers ───────────────────────────────────────────────
 
