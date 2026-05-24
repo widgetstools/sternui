@@ -828,30 +828,55 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
     // the user edits a rule.
     rebuildTriggersCache(platform.getState().rules);
 
+    // Per-step isolated teardown — any single step failing logs and lets
+    // the rest run. Without this, an exception in (say) refreshRaf cancel
+    // would skip clearing the expiryTimer, leaking a setTimeout that mutates
+    // grid state indefinitely after dispose. Per the review's instruction:
+    // never rely on disposer ordering for safety.
+    const safely = (label: string, fn: () => void): void => {
+      try {
+        fn();
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('[conditional-styling] cleanup step failed:', label, err);
+      }
+    };
+
     return () => {
-      if (refreshRaf != null && typeof window !== 'undefined') {
-        window.cancelAnimationFrame(refreshRaf);
-      }
-      if (targetedRefreshRaf != null && typeof window !== 'undefined') {
-        window.cancelAnimationFrame(targetedRefreshRaf);
-        targetedRefreshRaf = null;
-      }
-      pendingTargetedRowIds.clear();
-      pendingTargetedColIds.clear();
-      pendingTargetedFullRow = false;
-      if (expiryTimer != null) {
-        clearTimeout(expiryTimer);
-        expiryTimer = null;
-        expiryTimerFiresAt = null;
-      }
-      previousByRow.clear();
-      clearTimedRuleState();
-      for (const d of disposers) { try { d(); } catch { /* swallow */ } }
-      if (typeof document !== 'undefined') {
-        document.querySelectorAll('.ag-header-cell[class*="ds-flash-hdr-"]').forEach((el) => {
-          [...el.classList].forEach((c) => { if (c.startsWith('ds-flash-hdr-')) el.classList.remove(c); });
-        });
-      }
+      safely('cancel refreshRaf', () => {
+        if (refreshRaf != null && typeof window !== 'undefined') {
+          window.cancelAnimationFrame(refreshRaf);
+          refreshRaf = null;
+        }
+      });
+      safely('cancel targetedRefreshRaf', () => {
+        if (targetedRefreshRaf != null && typeof window !== 'undefined') {
+          window.cancelAnimationFrame(targetedRefreshRaf);
+          targetedRefreshRaf = null;
+        }
+      });
+      safely('clear pending targeted-refresh sets', () => {
+        pendingTargetedRowIds.clear();
+        pendingTargetedColIds.clear();
+        pendingTargetedFullRow = false;
+      });
+      safely('clear expiry timer', () => {
+        if (expiryTimer != null) {
+          clearTimeout(expiryTimer);
+          expiryTimer = null;
+          expiryTimerFiresAt = null;
+        }
+      });
+      safely('clear previousByRow', () => previousByRow.clear());
+      safely('clearTimedRuleState', () => clearTimedRuleState());
+      for (const d of disposers) { try { d(); } catch { /* swallow — per-disposer */ } }
+      safely('remove header flash classes', () => {
+        if (typeof document !== 'undefined') {
+          document.querySelectorAll('.ag-header-cell[class*="ds-flash-hdr-"]').forEach((el) => {
+            [...el.classList].forEach((c) => { if (c.startsWith('ds-flash-hdr-')) el.classList.remove(c); });
+          });
+        }
+      });
     };
   },
 
