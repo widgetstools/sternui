@@ -231,11 +231,19 @@ export function useMarketsGridController(
     ? { gridApi: api, platform, profiles, saveAll, ...bundleHandle }
     : null;
 
-  useImperativeHandle(
-    forwardedRef,
-    () => handleRef.current as MarketsGridHandle,
-    [api, platform, profiles],
-  );
+  // Reason: deps narrowed to `[api]` — the only field whose identity
+  // transition (null → live GridApi) needs to update the forwarded ref.
+  // `platform` is captured at mount via platformRef so it's identity-stable
+  // anyway. `profiles` is a new object reference on every ProfileManager
+  // store mutation, so listing it would rebuild the imperative handle on
+  // every save/profile-load. Consumers always consume via `onReady` (fires
+  // once, guarded by readyFiredRef) — they capture the handle by value at
+  // that moment. Profile actions on the captured handle still work because
+  // they delegate to the singleton manager via stable callbacks; live state
+  // should be read through useProfileManager (or its field selectors), not
+  // off the frozen handle snapshot.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useImperativeHandle(forwardedRef, () => handleRef.current as MarketsGridHandle, [api]);
 
   const readyFiredRef = useRef(false);
   useEffect(() => {
