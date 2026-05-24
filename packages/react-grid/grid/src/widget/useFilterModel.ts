@@ -131,6 +131,28 @@ function filterCountsEqual(
   return true;
 }
 
+/**
+ * Equality check for AG-Grid filter models. Top-level keys are column ids
+ * whose entries are filter-shape objects (operator/type/value/...). Fast
+ * path: Object.is on each entry — hits whenever sanitize/merge preserved
+ * references (the common case). Slow path: JSON compare per drifted key —
+ * O(entry size) only for the entries that actually differ.
+ */
+function filterModelsEqual(
+  a: Record<string, unknown> | null,
+  b: Record<string, unknown> | null,
+): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  const keysA = Object.keys(a);
+  if (keysA.length !== Object.keys(b).length) return false;
+  for (const k of keysA) {
+    if (Object.is(a[k], b[k])) continue;
+    if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) return false;
+  }
+  return true;
+}
+
 export interface UseFilterModelResult {
   /** Saved filter pills as normalized records. Stable identity per filters list. */
   readonly filters: readonly SavedFilter[];
@@ -316,7 +338,7 @@ export function useFilterModel(): UseFilterModelResult {
       const currentModel = sanitizeFilterModel(
         liveApi.getFilterModel() as Record<string, unknown> | null,
       );
-      if (JSON.stringify(nextModel) === JSON.stringify(currentModel)) {
+      if (filterModelsEqual(nextModel, currentModel)) {
         setHasNewFilter((prev) => (prev ? false : prev));
         return;
       }

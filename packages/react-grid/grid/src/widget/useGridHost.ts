@@ -147,7 +147,14 @@ export function useGridHost(opts: {
 
   // AG-Grid's React adapter doesn't reactively forward grid-option-shaped
   // props after mount — push via setGridOption when a key actually changes.
-  const lastSynced = useRef<Record<string, string>>({});
+  //
+  // Comparison strategy: per-key Object.is fast-path, JSON fallback only on
+  // reference miss. Modules that properly memoize their slice hit the fast
+  // path (free); modules that return new references with identical content
+  // pay the JSON cost once and then their refreshed reference is cached so
+  // the next tick is free again.
+  const lastSyncedRef = useRef<Record<string, unknown>>({});
+  const lastSyncedJson = useRef<Record<string, string>>({});
   const lastFuncSynced = useRef<Record<string, unknown>>({});
   const lastGridOptionsRef = useRef<Partial<GridOptions> | null>(null);
   useEffect(() => {
@@ -156,22 +163,27 @@ export function useGridHost(opts: {
     const api = platform.api.api;
     if (!api) return;
     if ((api as unknown as { isDestroyed?: () => boolean }).isDestroyed?.()) return;
-    const prev = lastSynced.current;
-    const next: Record<string, string> = {};
     for (const [key, value] of Object.entries(gridOptions)) {
-      const json = JSON.stringify(value) ?? 'undefined';
-      next[key] = json;
       if (INITIAL_ONLY_GRID_OPTIONS.has(key)) continue;
       if (shouldSkipGridOptionSync(key, hostOverrideKeys)) continue;
       if (containsFunction(value)) {
         if (lastFuncSynced.current[key] === value) continue;
         lastFuncSynced.current[key] = value;
-      } else if (prev[key] === json) {
-        continue;
+      } else {
+        // Fast: same reference → definitely unchanged.
+        if (Object.is(lastSyncedRef.current[key], value)) continue;
+        // Slow: reference drifted but content might still match.
+        const json = JSON.stringify(value) ?? 'undefined';
+        if (lastSyncedJson.current[key] === json) {
+          // Refresh the cached ref so the next tick hits the fast path.
+          lastSyncedRef.current[key] = value;
+          continue;
+        }
+        lastSyncedRef.current[key] = value;
+        lastSyncedJson.current[key] = json;
       }
       (api.setGridOption as (k: string, v: unknown) => void)(key, value);
     }
-    lastSynced.current = { ...prev, ...next };
     // Reason: `gridOptions` is the value driving this effect, but its
     // identity is gated by `tick` (same `useMemo` above) — listing both
     // would be redundant. The linter can't see that tick→gridOptions is
