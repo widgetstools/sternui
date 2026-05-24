@@ -11,6 +11,8 @@ import {
 } from '@starui/engine';
 import { useGridPlatform } from './GridProvider';
 
+const NOOP_UNSUBSCRIBE = () => {};
+
 export interface UseProfileManagerResult {
   activeProfileId: string;
   profiles: ProfileMeta[];
@@ -169,3 +171,66 @@ export function useProfileManager(opts: {
     ],
   );
 }
+
+/**
+ * Field-selector hooks: subscribe to ONE slice of profile-manager state via
+ * its own `useSyncExternalStore`. Consumers that only need (say) `isDirty`
+ * skip the re-render churn caused by reading the full state bundle when
+ * sibling fields (`profiles`, `activeId`) change.
+ *
+ * Requires `useProfileManager(opts)` to have been called on the same
+ * platform somewhere up the tree — typically by `MarketsGridHost`. If no
+ * manager has been initialised yet the selector returns the default-state
+ * value rather than throwing, so child components that briefly mount before
+ * the host's first commit don't tear.
+ */
+function useManagerSelector<T>(select: (state: ProfileManagerState) => T, fallback: T): T {
+  const platform = useGridPlatform();
+  const manager = MANAGERS_BY_PLATFORM.get(platform) ?? null;
+  const subscribe = useCallback(
+    (onChange: () => void) =>
+      manager ? manager.subscribe(() => onChange()) : NOOP_UNSUBSCRIBE,
+    [manager],
+  );
+  const getSnapshot = useCallback(
+    () => (manager ? select(manager.getState()) : fallback),
+    [manager, select, fallback],
+  );
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+function selectActiveId(s: ProfileManagerState): string {
+  return s.activeId;
+}
+function selectProfiles(s: ProfileManagerState): ProfileMeta[] {
+  return s.profiles;
+}
+function selectIsDirty(s: ProfileManagerState): boolean {
+  return s.isDirty;
+}
+function selectIsLoading(s: ProfileManagerState): boolean {
+  return s.isLoading;
+}
+
+const EMPTY_PROFILES: ProfileMeta[] = [];
+
+function useActiveId(): string {
+  return useManagerSelector(selectActiveId, '');
+}
+function useProfiles(): ProfileMeta[] {
+  return useManagerSelector(selectProfiles, EMPTY_PROFILES);
+}
+function useIsDirty(): boolean {
+  return useManagerSelector(selectIsDirty, false);
+}
+function useIsLoading(): boolean {
+  return useManagerSelector(selectIsLoading, true);
+}
+
+// Attach as static-style sub-hooks so consumers can write
+// `useProfileManager.useIsDirty()` etc. — narrow subscription without
+// disturbing existing `useProfileManager(opts)` callers.
+useProfileManager.useActiveId = useActiveId;
+useProfileManager.useProfiles = useProfiles;
+useProfileManager.useIsDirty = useIsDirty;
+useProfileManager.useIsLoading = useIsLoading;
