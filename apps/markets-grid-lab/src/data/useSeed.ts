@@ -62,6 +62,9 @@ export function useSeed(gridId: string, seed: TabSeed) {
           ...seed['general-settings'],
         }));
       }
+      if (seed.alerts) {
+        store.setModuleState('alerts', () => seed.alerts!);
+      }
 
       handle
         .saveAll()

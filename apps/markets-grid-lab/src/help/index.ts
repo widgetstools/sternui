@@ -8,6 +8,7 @@ import calculatedColumns from './calculated-columns.md?raw';
 import conditionalStyling from './conditional-styling.md?raw';
 import liveUpdates from './live-updates.md?raw';
 import profiles from './profiles.md?raw';
+import alerts from './alerts.md?raw';
 
 export const HELP = {
   overview,
@@ -19,4 +20,5 @@ export const HELP = {
   conditionalStyling,
   liveUpdates,
   profiles,
+  alerts,
 } as const;

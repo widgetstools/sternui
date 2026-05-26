@@ -9,6 +9,7 @@ import { ColumnGroupsTab } from './tabs/ColumnGroupsTab';
 import { CalculatedColumnsTab } from './tabs/CalculatedColumnsTab';
 import { ConditionalStylingTab } from './tabs/ConditionalStylingTab';
 import { LiveUpdatesTab } from './tabs/LiveUpdatesTab';
+import { AlertsTab } from './tabs/AlertsTab';
 import { ProfilesTab } from './tabs/ProfilesTab';
 
 interface TabEntry {
@@ -27,6 +28,7 @@ const TABS: TabEntry[] = [
   { id: 'calc',         label: 'Calculated',         hint: 'Derived virtual columns',       render: () => <CalculatedColumnsTab /> },
   { id: 'conditional',  label: 'Conditional Style',  hint: 'Expression-driven styling',     render: () => <ConditionalStylingTab /> },
   { id: 'live',         label: 'Live Updates',       hint: 'High-frequency stream',         render: () => <LiveUpdatesTab /> },
+  { id: 'alerts',       label: 'Alerts',             hint: 'Triggers, toasts, bell + OpenFin', render: () => <AlertsTab /> },
   { id: 'profiles',     label: 'Profiles',           hint: 'Pre-baked configurations',      render: () => <ProfilesTab /> },
 ];
 
