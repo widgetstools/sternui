@@ -36,5 +36,20 @@ export default defineConfig({
       reuseExistingServer: true,
       timeout: 90_000,
     },
+    {
+      // Lab app uses `STARUI_DEV_SOURCE=1` so vite resolves @starui/grid
+      // straight out of `packages/` source. `--no-open` keeps CI from
+      // popping a browser tab. `--force` clobbers any stale `.vite/deps`
+      // prebundle — required because the e2e suite often runs minutes
+      // after a fresh `npm ci`, when the optimizer prebundle would still
+      // reflect whatever subset of `@starui/grid` source happened to be on
+      // disk during the first dev start. Without it, newly-added grid
+      // modules (alerts, etc.) get silently dropped from the served bundle.
+      // Port matches `apps/markets-grid-lab/vite.config.ts`.
+      command: 'STARUI_DEV_SOURCE=1 npm run dev --workspace=@starui/markets-grid-lab -- --no-open --force',
+      port: 5300,
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
   ],
 });

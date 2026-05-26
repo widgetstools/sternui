@@ -26,8 +26,10 @@ import type {
   AlertNotification,
   AlertsState,
   AlertSeverity,
-  PlatformHandle,
+  GridPlatform,
 } from '@starui/engine';
+
+const MODULE_ID = 'alerts';
 
 interface FinGlobal {
   me?: { identity?: { uuid?: string } };
@@ -67,21 +69,16 @@ async function loadNotificationsApi(): Promise<OpenFinNotificationsApi | null> {
   }
 }
 
-export function useAlertsOpenFinBridge(
-  platform: PlatformHandle<AlertsState> | null,
-  options: { moduleId?: string } = {},
-): void {
+export function useAlertsOpenFinBridge(platform: GridPlatform | null): void {
   const seenIdsRef = useRef<Set<string>>(new Set());
   const apiRef = useRef<OpenFinNotificationsApi | null>(null);
   const registeredRef = useRef(false);
-  const platformRef = useRef(platform);
-  platformRef.current = platform;
-  const moduleId = options.moduleId ?? 'alerts';
 
   useEffect(() => {
     if (!platform) return;
     const fin = getFin();
     if (!fin) return;
+    const store = platform.store;
 
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
@@ -105,10 +102,11 @@ export function useAlertsOpenFinBridge(
 
       // Seed seenIds with whatever history already exists so a profile
       // load doesn't replay every old notification through OpenFin.
-      const initial = platform.getState().history;
-      for (const n of initial) seenIdsRef.current.add(n.id);
+      const initial = store.getModuleState<AlertsState | undefined>(MODULE_ID);
+      if (initial?.history) for (const n of initial.history) seenIdsRef.current.add(n.id);
 
-      unsubscribe = platform.subscribe((state) => {
+      unsubscribe = store.subscribeToModule<AlertsState | undefined>(MODULE_ID, (state) => {
+        if (!state) return;
         const seen = seenIdsRef.current;
         // Iterate newest → oldest; the first already-seen entry means everything
         // older has already been dispatched.
@@ -142,9 +140,7 @@ export function useAlertsOpenFinBridge(
         /* swallow */
       }
     };
-    // moduleId only used for logging — re-running effect when it changes is wasteful.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [platform, moduleId]);
+  }, [platform]);
 }
 
 async function dispatchOpenFinNotification(

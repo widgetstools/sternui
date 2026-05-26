@@ -23,7 +23,7 @@ import {
   ScrollArea,
   Separator,
 } from '@starui/ui';
-import type { AlertsState, PlatformHandle } from '@starui/engine';
+import type { AlertsState } from '@starui/engine';
 import { useOptionalGridPlatform } from '../../hooks/GridProvider';
 import { useModuleState } from '../../hooks/useModuleState';
 import { useAlertsToastBridge } from './useAlertsToastBridge';
@@ -54,17 +54,12 @@ export function AlertsBadge() {
   // (e.g. characterisation tests that mount MarketsGrid without a real
   // platform) we silently render nothing rather than crashing the toolbar.
   const platform = useOptionalGridPlatform();
-  const alertsPlatform = useMemo(
-    () =>
-      platform ? (platform as unknown as PlatformHandle<AlertsState>) : null,
-    [platform],
-  );
 
   // Bridge mounts — internal `useEffect` guards against null platform.
   // Both are no-ops when the alerts module isn't registered or when the
   // environment doesn't match (browser-only ⇒ no OpenFin dispatch).
-  useAlertsToastBridge(alertsPlatform);
-  useAlertsOpenFinBridge(alertsPlatform);
+  useAlertsToastBridge(platform);
+  useAlertsOpenFinBridge(platform);
 
   return platform ? <AlertsBadgeInner /> : null;
 }

@@ -199,7 +199,16 @@ export function staruiViteAliases(appDir) {
       }
       if (!exportEntries) {
         exportEntries = readMemberExports(entry.bucket, folder);
-        resolveRoot = installedMemberRoot(nmRoot, bucketName, bucketShort, member, folder);
+        // Under STARUI_DEV_SOURCE=1, resolve targets to the *live* package
+        // source directly. The default `installedMemberRoot` points at the
+        // bucket's snapshot under `node_modules/@starui/<bucket>/<folder>/`,
+        // which is a copy that goes stale the moment a developer adds a
+        // file to `packages/` between `npm ci` runs. Bypassing it means
+        // newly-added grid modules (alerts, etc.) load straight from source
+        // without needing to re-install.
+        resolveRoot = useDevSource
+          ? join(REPO_ROOT, 'packages', entry.bucket, folder)
+          : installedMemberRoot(nmRoot, bucketName, bucketShort, member, folder);
       }
 
       for (const [exportKey, relTarget] of Object.entries(exportEntries)) {
