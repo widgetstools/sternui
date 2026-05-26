@@ -17,6 +17,7 @@ import { installAgGridSetFilterValidateGuard } from './agGridSetFilterValidateGu
 import { type AnyModule, type StorageAdapter } from '@starui/engine';
 import {
   GridProvider,
+  alertsModule,
   calculatedColumnsModule,
   columnCustomizationModule,
   columnGroupsModule,
@@ -62,6 +63,7 @@ export const DEFAULT_MODULES: AnyModule[] = [
   calculatedColumnsModule,
   columnGroupsModule,
   conditionalStylingModule,
+  alertsModule,
   savedFiltersModule,
   toolbarVisibilityModule,
   gridStateModule,

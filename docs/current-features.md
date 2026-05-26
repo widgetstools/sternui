@@ -332,6 +332,15 @@ Per-renderer config types (`PillRendererConfig`,
   registered renderer from `@starui/design-system/cell-renderers-registry`
   and authors its per-renderer config)
 - **Conditional styling** — themed style rules (dark/light)
+- **Alerts** — expression-driven notifications (dataChange / relativeChange /
+  rowChange triggers) with toast, toolbar bell badge, and OpenFin Notification
+  Centre channels. Customizer dialog band exposes master enable, evaluation
+  mode (realtime/throttled/paused), default debounce, max notifications/sec,
+  per-channel toggles, and history limit. OpenFin channel auto-detects
+  `window.fin` and dynamic-imports `@openfin/workspace/notifications` so
+  non-OpenFin apps pay zero runtime cost. `AlertsBadge` mounts in
+  `PrimaryToolbar`; `useAlertsToastBridge` + `useAlertsOpenFinBridge`
+  auto-wire when the badge is present.
 - **Calculated columns** — virtual cols from expressions
 - **Saved filters** — named filter-model presets
 - **Toolbar visibility** — show/hide toolbar items

@@ -19,3 +19,12 @@ export function useGridPlatform(): GridPlatform {
   if (!p) throw new Error('useGridPlatform() must be used inside <GridProvider>');
   return p;
 }
+
+/**
+ * Variant that returns `null` instead of throwing when no provider is present.
+ * Use for optional widgets that may render outside the grid (e.g. toolbar
+ * decorations rendered by host shells before the grid mounts).
+ */
+export function useOptionalGridPlatform(): GridPlatform | null {
+  return useContext(Ctx);
+}
