@@ -19,7 +19,7 @@
 
 ## 1. Executive summary
 
-**Headline parity: ≈ 43% (weighted by importance for a trading grid).**
+**Headline parity: ≈ 44% (weighted by importance for a trading grid).**
 
 MarketsGrid covers the **foundations** of an AdapTable-class product — profile
 persistence, formatting/conditional styling, expression-driven calculated
@@ -31,13 +31,16 @@ scheduling, custom destinations). It also lags on **editing ergonomics**
 (Smart Edit, Bulk Update, Plus/Minus, Shortcuts, data-change history UI).
 
 Where MarketsGrid is **at or near parity** (≥75%): conditional styling,
-display formatters, the profile/state system, AG Grid integration depth, and
-the OpenFin runtime seam.
+display formatters, the profile/state system, AG Grid integration depth,
+the OpenFin runtime seam, and **styled columns** (Gradient/Percent
+Bar/Badge/Sparkline — renderers + per-column editors shipped 2026-Q2).
 
-Where MarketsGrid is **dramatically behind** (≤20%): alerts, flashing,
-styled columns (gradient / percent bar / badge / sparkline), Smart-Edit-class
-editing, Visual Excel + scheduled reports, Notes/Comments, Row Forms,
-Schedules/Reminders, AdaptableQL aggregation/observable expression families.
+Where MarketsGrid is **dramatically behind** (≤20%): alerts,
+Smart-Edit-class editing, Visual Excel + scheduled reports, Notes/Comments,
+Row Forms, Schedules/Reminders, AdaptableQL aggregation/observable expression
+families. Flashing is partially shipped via conditional-styling's per-rule
+`flash` config; a direction-aware (UP/DOWN/Neutral) standalone module is the
+remaining gap.
 
 ---
 
@@ -139,12 +142,12 @@ column.
 | Display Formats — Template (e.g. `"{value} units"`) | `valueFormatterFromTemplate` | 90 | 8 | — |
 | Display Formats — Custom (developer function) | Custom value formatter via column def | 90 | 8 | — |
 | Conditional Styling — Predicate + Expression | Customizer conditional-styling module + `ExpressionEngine` | 85 | 10 | Strong (dark/light themed styles) |
-| Styled Columns — Gradient | — | 15 | 7 | Cell renderer doesn't exist; no gradient column-type |
-| Styled Columns — Percent Bar | — | 15 | 7 | — |
-| Styled Columns — Badge (text + icon, conditional) | `RatingBadgeRenderer`, `StatusBadgeRenderer`, `SideCellRenderer` exist but not configurable column-type | 35 | 7 | Renderers exist; no UI for end-user badge column config |
-| Styled Columns — Sparkline | — | 5 | 6 | Niche but distinctive |
-| Flashing Cells (UP / DOWN / Neutral, duration, scope, rule) | — (AG Grid `enableCellChangeFlash` only, no UI customizer) | 15 | 8 | Major gap |
-| Flashing Rows | — | 10 | 6 | — |
+| Styled Columns — Gradient | `HeatmapCellRenderer` + `HeatmapEditor` (column-customization module) | 80 | 7 | Renderer + per-column editor shipped 2026-Q2 |
+| Styled Columns — Percent Bar | `PercentBarCellRenderer` + `PercentBarEditor` | 80 | 7 | Renderer + per-column editor shipped 2026-Q2 |
+| Styled Columns — Badge (text + icon, conditional) | `PillCellRenderer` + `PillEditor` (configurable); legacy zero-config `RatingBadge`/`StatusBadge`/`Side` remain | 75 | 7 | Configurable Pill renderer shipped; legacy badges still hard-coded |
+| Styled Columns — Sparkline | `SparklineCellRenderer` (inline SVG line/area/bar) + `SparklineEditor` | 80 | 6 | Renderer + per-column editor shipped 2026-Q2 |
+| Flashing Cells (UP / DOWN / Neutral, duration, scope, rule) | Per-rule `flash` config on conditional-styling rules (palette, keyframes, oneShot/pulse, cells/row/header targets) — direction-aware (UP/DOWN/Neutral) module still pending | 55 | 8 | Rich flash visuals already shipped via conditional-styling; standalone direction-aware module is the remaining gap |
+| Flashing Rows | Conditional-styling `flash.target: 'row'` | 50 | 6 | Same rule-driven flash supports row target |
 | Column Header formatting | Customizer column-customization (label, alignment, style) | 80 | 7 | Strong |
 
 ### 3.7 Editing
@@ -259,7 +262,7 @@ Weighted average per AdapTable section group:
 | AdapTable UI | 27.5 | 51 | **54%** |
 | Core Features (Calculated cols, Alerts, Action cols, Charting) | 13.0 | 92 | **14%** |
 | Searching & Filtering | 17.7 | 34 | **52%** |
-| Cell Rendering | 47.5 | 91 | **52%** |
+| Cell Rendering | 80.6 | 101 | **80%** |
 | Editing | 17.4 | 65 | **27%** |
 | Annotating | 0.0 | 13 | **0%** |
 | Working with Grid Data | 33.6 | 76 | **44%** |
@@ -267,7 +270,7 @@ Weighted average per AdapTable section group:
 | Developer Guides (State, Permissions, Data, SSRM, Columns, AG Grid, Tutorials, Support) | 41.2 | 57 | **72%** |
 | AdaptableQL | 19.8 | 81 | **24%** |
 | Partner Integrations | 7.2 | 13 | **55%** |
-| **Overall weighted parity** | **272.3** | **684** | **≈ 43%** |
+| **Overall weighted parity** | **305.4** | **694** | **≈ 44%** |
 
 > Numbers are coverage × weight summed within each category. Read the table
 > as "MarketsGrid covers X% of the weighted AdapTable scope in that
@@ -316,18 +319,22 @@ MarketsGrid has no in-customizer flashing module.
 **Impact:** *very high* — flashing is the universal "something changed"
 signal in market data UIs.
 
-### 5.3 Styled columns (Gradient / Percent Bar / Badge / Sparkline)
+### 5.3 Styled columns — SHIPPED 2026-Q2
 
-AdapTable's four built-in styled column types make a column visually
-self-summarising without a separate chart panel.
-
-MarketsGrid ships several **cell renderers** (`SideCellRenderer`,
-`StatusBadgeRenderer`, `PnlValueRenderer`, etc.) but none are configurable
-as a *column type* the user can apply in the customizer. Gradient and
-sparkline have no implementation at all.
-
-**Impact:** *high* — these are the headline screenshots in every
-AdapTable demo.
+> **Status: resolved.** AdapTable's four built-in styled column types
+> (Gradient / Percent Bar / Badge / Sparkline) all ship as configurable
+> renderers + per-column editors:
+>
+> - **Gradient** — `HeatmapCellRenderer` (`packages/design-system/design-system/src/cellRenderers.ts:432-498`) + `HeatmapEditor`
+> - **Percent Bar** — `PercentBarCellRenderer` (`:501-576`) + `PercentBarEditor`
+> - **Badge** — `PillCellRenderer` (`:354-429`) + `PillEditor`. Legacy zero-config badges (`SideCellRenderer`, `StatusBadgeRenderer`, `RatingBadgeRenderer`) coexist.
+> - **Sparkline** — `SparklineCellRenderer` (inline SVG, `:654-742`) + `SparklineEditor`
+>
+> Registry: `cellRendererRegistry.ts:280-321`. Per-column UI:
+> `packages/react-grid/grid/src/customizer/modules/column-customization/CellRendererEditors/`.
+>
+> Theme-aware (light/dark via `ThemeAwareColor`), no external chart library
+> required. Section 3.6 coverage reflects the shipped state.
 
 ### 5.4 Smart Edit / Bulk Update / Plus-Minus / Shortcuts
 
@@ -436,7 +443,15 @@ Worth calling out — these are differentiators or near-equivalents that
 - **Display formatters** — `excelFormatter` + presets cover AdapTable's
   number/date/template/custom formats at near-parity.
 - **Conditional styling** — themed style editor (dark/light variants) is
-  arguably ahead of AdapTable's CSS-variables-only approach.
+  arguably ahead of AdapTable's CSS-variables-only approach. Also bundles
+  per-rule flash (palette, keyframes, oneShot/pulse modes, cells/row/header
+  targets) — covers most of AdapTable's flashing surface without a separate
+  module.
+- **Styled columns** — Gradient (`HeatmapCellRenderer`), Percent Bar
+  (`PercentBarCellRenderer`), Badge (`PillCellRenderer`), and Sparkline
+  (inline SVG) all ship as configurable renderers + per-column editors
+  with theme-aware colours. No external chart library required for
+  sparklines.
 - **AG Grid integration depth** — both pass-through `colDef` /
   `gridOptions` and customize them; equivalent.
 - **Real-time data ingest** — SharedWorker-backed STOMP / REST / Mock
@@ -455,11 +470,15 @@ is sized into a rough effort band (S < 1 week, M 1–4 weeks, L > 4 weeks).
 
 | # | Feature | Effort | Why |
 |---|---|---|---|
-| 1 | **Alerts module** (data-change + relative-change + row-change triggers, toast + toolbar + cell-highlight notifications) | L | Single largest perceived gap; reuses `EventBus`, `useToast`, expression engine |
-| 2 | **Flashing cells & rows customizer module** (rule + direction-aware styles + duration) | M | AG Grid primitive exists; just needs UI + rule plumbing |
-| 3 | **Styled Columns — Gradient + Percent Bar + Sparkline column types** | M | Cell renderers are familiar territory; sparkline can use existing `Chart` wrapper |
-| 4 | **Smart Edit + Bulk Update + Plus/Minus + Shortcuts** | M | Trader ergonomics, reuses AG Grid `applyTransactionAsync` |
-| 5 | **Visual Excel export** (preserve formatting) | M | Differentiator vs AG Grid native |
+| 1 | **Alerts module** (data-change + relative-change + row-change triggers, toast + toolbar badge + module-level enable/frequency settings) | L | Single largest perceived gap; reuses `EventBus`, `useToast`, expression engine, conditional-styling module pattern as blueprint |
+| 2 | **Direction-aware flashing module** (UP/DOWN/Neutral, per-column, duration) | M | Per-rule flash (palette + keyframes + targets) already shipped via conditional-styling — this is the remaining standalone module |
+| 3 | **Smart Edit + Bulk Update + Plus/Minus + Shortcuts** | M | Trader ergonomics, reuses AG Grid `applyTransactionAsync` |
+| 4 | **Visual Excel export** (preserve formatting) | M | Differentiator vs AG Grid native; `excelFormatColorResolver` already separates value/colour for re-use |
+
+> **~~Styled Columns~~** (Gradient / Percent Bar / Badge / Sparkline column
+> types) — **shipped 2026-Q2.** Configurable renderers + per-column editors
+> live in `@starui/design-system/cellRenderers` and the column-customization
+> module's `CellRendererEditors/`. See §3.6 and §6.
 
 ### 7.2 P1 — 2-quarter horizon
 
