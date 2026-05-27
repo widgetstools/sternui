@@ -1,6 +1,22 @@
 import type { ColDef, ColGroupDef } from 'ag-grid-community';
 import { defaultColDef as baseDefaultColDef, fmt, pickColumns } from '../data/columns';
 import type { LabRow } from '../data/types';
+import {
+  CALCULATED_ACTIVE_PROFILE_ID,
+  CALCULATED_DEMO_PROFILES,
+} from './catalogs/calculatedCatalog';
+import {
+  CONDITIONAL_ACTIVE_PROFILE_ID,
+  CONDITIONAL_DEMO_PROFILES,
+} from './catalogs/conditionalCatalog';
+import {
+  FORMATTER_TOOLBAR_ACTIVE_PROFILE_ID,
+  FORMATTER_TOOLBAR_DEMO_PROFILES,
+} from './catalogs/formatterToolbarCatalog';
+import {
+  RENDERERS_ACTIVE_PROFILE_ID,
+  RENDERERS_DEMO_PROFILES,
+} from './catalogs/renderersCatalog';
 import type { ProfilePreset } from './types';
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -364,6 +380,145 @@ update timestamp.`,
 
 // ─── Catalogue ───────────────────────────────────────────────────────
 
+// ─── Module-state gallery presets (profile selector inside grid) ───
+
+const conditionalStylingLab: ProfilePreset = {
+  id: 'preset-conditional-lab',
+  name: 'CS rule lab',
+  tagline: `${CONDITIONAL_DEMO_PROFILES.length} conditional-styling profiles in the selector`,
+  accent: 'purple',
+  description: `# Conditional styling lab
+
+Column layout is a compact P&L + pricing slice. Use the **profile selector**
+to switch between flash, diff, row-scope, and disabled-rule curricula —
+same catalogs as the Conditional Styling tab.`,
+  buildColumns: () =>
+    pickColumns([
+      'cusip', 'ticker', 'bidPrice', 'midPrice', 'askPrice', 'lastPrice',
+      'priceChangePct', 'yieldToWorst', 'bidAskWidthBps',
+      'dailyPnL', 'unrealizedPnL', 'mtdPnL', 'ytdPnL', 'compositeRating',
+    ]),
+  demoProfiles: CONDITIONAL_DEMO_PROFILES,
+  activeDemoProfileId: CONDITIONAL_ACTIVE_PROFILE_ID,
+};
+
+const renderersLab: ProfilePreset = {
+  id: 'preset-renderers-lab',
+  name: 'Renderer lab',
+  tagline: `${RENDERERS_DEMO_PROFILES.length} cell-renderer profiles`,
+  accent: 'green',
+  description: `# Cell renderer lab
+
+Visual columns driven by **column-customization** renderer assignments.
+Use the profile selector to switch between pills, charts, P&L, and flags.`,
+  buildColumns: () =>
+    pickColumns([
+      'cusip', 'ticker', 'issuerSector', 'compositeRating',
+      'priceChangePct', 'oas', 'modifiedDuration', 'krdSparkline',
+      'marketValue', 'dailyPnL', 'lastUpdate',
+    ]),
+  demoProfiles: RENDERERS_DEMO_PROFILES,
+  activeDemoProfileId: RENDERERS_ACTIVE_PROFILE_ID,
+  defaultColDef: { ...baseDefaultColDef, autoHeight: false },
+};
+
+const formatterToolbarLab: ProfilePreset = {
+  id: 'preset-formatter-toolbar-lab',
+  name: 'Formatter toolbar lab',
+  tagline: `${FORMATTER_TOOLBAR_DEMO_PROFILES.length} pre-painted style profiles`,
+  accent: 'amber',
+  description: `# Formatter toolbar lab
+
+Wide desk layout with **showFormattingToolbar**. Profiles ship
+pre-painted cell/header styles or a blank canvas for live painting.`,
+  buildColumns: () =>
+    pickColumns([
+      'cusip', 'ticker', 'bidPrice', 'midPrice', 'askPrice',
+      'dailyPnL', 'unrealizedPnL', 'compositeRating', 'book', 'trader',
+    ]),
+  demoProfiles: FORMATTER_TOOLBAR_DEMO_PROFILES,
+  activeDemoProfileId: FORMATTER_TOOLBAR_ACTIVE_PROFILE_ID,
+  toolbars: { showFormattingToolbar: true },
+};
+
+const calculatedColumnsLab: ProfilePreset = {
+  id: 'preset-calculated-lab',
+  name: 'Calc column lab',
+  tagline: `${CALCULATED_DEMO_PROFILES.length} virtual-column profiles`,
+  accent: 'amber',
+  description: `# Calculated columns lab
+
+Research-width columns with risk + P&L inputs. Profile selector switches
+between the full 11-column expression set and focused subsets (P&L, risk,
+spreads).`,
+  buildColumns: () =>
+    pickColumns([
+      'cusip', 'ticker', 'bidPrice', 'midPrice', 'askPrice',
+      'yieldToMaturity', 'yieldToWorst', 'oas', 'benchmarkYield',
+      'modifiedDuration', 'dv01', 'cs01', 'convexity',
+      'marketValue', 'quantityFace', 'avgDailyVolume30d',
+      'dailyPnL', 'mtdPnL', 'ytdPnL',
+    ]),
+  demoProfiles: CALCULATED_DEMO_PROFILES,
+  activeDemoProfileId: CALCULATED_ACTIVE_PROFILE_ID,
+};
+
+const executionDesk: ProfilePreset = {
+  id: 'preset-execution-desk',
+  name: 'Execution desk',
+  tagline: 'Liquidity · spread · size · fast ticks',
+  accent: 'blue',
+  description: `# Execution desk
+
+Wide bid/ask/mid with spread in bps, face quantity, and ADV. Stream runs
+at 400ms so tick-flash rules (if you add CS from the module) are obvious.`,
+  buildColumns: () =>
+    pickColumns([
+      'cusip', 'ticker', 'instrumentDescription',
+      'bidPrice', 'midPrice', 'askPrice', 'lastPrice',
+      'bidAskWidthBps', 'priceChangePct',
+      'quantityFace', 'avgDailyVolume30d', 'marketValue',
+      'book', 'trader',
+    ]),
+  stream: { updateIntervalMs: 400 },
+};
+
+const creditResearch: ProfilePreset = {
+  id: 'preset-credit-research',
+  name: 'Credit research',
+  tagline: 'Ratings · spreads · curve · risk',
+  accent: 'green',
+  description: `# Credit research
+
+Issuer + rating block, spread stack (OAS, benchmark), and risk metrics
+for relative-value work. Grouped column headers mirror a research template.`,
+  buildColumns: () => {
+    const issuer: ColGroupDef<LabRow> = {
+      headerName: 'Issuer',
+      children: pickColumns(['cusip', 'ticker', 'issuerSector', 'compositeRating']),
+    };
+    const spreads: ColGroupDef<LabRow> = {
+      headerName: 'Spreads',
+      children: pickColumns(['yieldToMaturity', 'yieldToWorst', 'oas', 'benchmarkYield']),
+    };
+    const risk: ColGroupDef<LabRow> = {
+      headerName: 'Risk',
+      children: pickColumns(['modifiedDuration', 'dv01', 'cs01', 'convexity']),
+    };
+    const pnl: ColGroupDef<LabRow> = {
+      headerName: 'P&L',
+      children: pickColumns(['marketValue', 'dailyPnL', 'mtdPnL', 'ytdPnL']).map((c) => {
+        const f = c.field ?? c.colId;
+        if (f === 'dailyPnL' || f === 'mtdPnL' || f === 'ytdPnL') {
+          return { ...c, cellClassRules: PNL_RULES };
+        }
+        return c;
+      }),
+    };
+    return [issuer, spreads, risk, pnl];
+  },
+};
+
 export const PRESETS: ProfilePreset[] = [
   traderView,
   analyticsView,
@@ -373,4 +528,10 @@ export const PRESETS: ProfilePreset[] = [
   alertHeavy,
   formatterFocus,
   rendererFocus,
+  executionDesk,
+  creditResearch,
+  renderersLab,
+  formatterToolbarLab,
+  conditionalStylingLab,
+  calculatedColumnsLab,
 ];

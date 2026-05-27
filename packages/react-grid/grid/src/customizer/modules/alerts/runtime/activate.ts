@@ -5,8 +5,9 @@
  *
  * Wiring:
  *   - cellValueChanged  → evaluate dataChange + relativeChange rules
- *   - modelUpdated      → detect ROW_ADDED / ROW_REMOVED via id-set diff
- *   - rowDataUpdated    → same row-diff path (handles snapshot replaces)
+ *   - modelUpdated / rowDataUpdated
+ *       → diff cell values vs. in-memory baselines (host `rowData` stream)
+ *       → detect ROW_ADDED / ROW_REMOVED via id-set diff
  *   - platform.subscribe(rules changed) → reset dispatcher timers
  *
  * The previous-values store is per-grid, in-memory, and cleared on
@@ -16,17 +17,14 @@
  */
 
 import type { GridApi, Module, PlatformHandle } from '@starui/engine';
-import {
-  computeRelativeChange,
-  detectRowChanges,
-  evaluateDataChangeRule,
-  type AlertHit,
-  type AlertRule,
-  type AlertsState,
-  type DataChangeRule,
-  type RelativeChangeRule,
-} from '@starui/engine';
+import { detectRowChanges, type AlertsState } from '@starui/engine';
+import { getValueByPath } from '@starui/types';
 import { createAlertDispatcher } from './dispatch';
+import {
+  collectWatchedColIds,
+  evaluateCellDelta,
+  partitionEnabledRules,
+} from './evaluateCellDelta';
 import { createPreviousValuesStore } from './previousValues';
 
 function resolveRowId(node: unknown): string | null {
@@ -43,25 +41,8 @@ interface CellValueChangedEvent {
   data?: Record<string, unknown>;
 }
 
-function partitionRules(rules: ReadonlyArray<AlertRule>): {
-  dataChange: DataChangeRule[];
-  relativeChange: RelativeChangeRule[];
-  hasRowChange: boolean;
-} {
-  const dataChange: DataChangeRule[] = [];
-  const relativeChange: RelativeChangeRule[] = [];
-  let hasRowChange = false;
-  for (const r of rules) {
-    if (!r.enabled) continue;
-    if (r.trigger.kind === 'dataChange') {
-      dataChange.push(r as DataChangeRule);
-    } else if (r.trigger.kind === 'relativeChange') {
-      relativeChange.push(r as RelativeChangeRule);
-    } else {
-      hasRowChange = true;
-    }
-  }
-  return { dataChange, relativeChange, hasRowChange };
+function hasEnabledRowChangeRules(rules: ReadonlyArray<{ enabled: boolean; trigger: { kind: string } }>): boolean {
+  return rules.some((r) => r.enabled && r.trigger.kind === 'rowChange');
 }
 
 function snapshotRowIds(api: GridApi): Set<string> {
@@ -86,10 +67,70 @@ export function activateAlerts(
   const engine = platform.resources.expression();
 
   let knownRowIds: Set<string> = new Set();
+  let modelPassRaf: number | null = null;
+
+  const isEvaluationActive = (): boolean => {
+    const settings = platform.getState().settings;
+    return settings.enabled && settings.evaluationMode !== 'paused';
+  };
+
+  const processModelCellChanges = (): void => {
+    const api = platform.api.api;
+    if (!api || !isEvaluationActive()) return;
+
+    const rules = platform.getState().rules;
+    const { dataChange, relativeChange } = partitionEnabledRules(rules);
+    if (dataChange.length === 0 && relativeChange.length === 0) return;
+
+    const watchedCols = collectWatchedColIds(api, rules);
+    if (watchedCols.size === 0) return;
+
+    try {
+      api.forEachNode((node) => {
+        const rowId = resolveRowId(node);
+        if (!rowId) return;
+        const data = (node as { data?: Record<string, unknown> }).data ?? {};
+        for (const colId of watchedCols) {
+          const next = getValueByPath(data, colId);
+          const prev = prevValues.get(rowId, colId);
+          if (prev === undefined) {
+            prevValues.set(rowId, colId, next);
+            continue;
+          }
+          if (Object.is(prev, next)) continue;
+          evaluateCellDelta({
+            rowId,
+            colId,
+            prev,
+            next,
+            data,
+            rules,
+            engine,
+            dispatcher,
+            prevValues,
+          });
+        }
+      });
+    } catch {
+      /* grid mid-teardown */
+    }
+  };
+
+  const scheduleModelPass = (): void => {
+    const mode = platform.getState().settings.evaluationMode;
+    if (mode === 'throttled') {
+      if (modelPassRaf !== null) return;
+      modelPassRaf = requestAnimationFrame(() => {
+        modelPassRaf = null;
+        processModelCellChanges();
+      });
+      return;
+    }
+    processModelCellChanges();
+  };
 
   const onCellValueChanged = (evt: CellValueChangedEvent) => {
-    const settings = platform.getState().settings;
-    if (!settings.enabled || settings.evaluationMode === 'paused') return;
+    if (!isEvaluationActive()) return;
 
     const node = evt.node;
     const rowId = resolveRowId(node);
@@ -99,48 +140,42 @@ export function activateAlerts(
 
     const data = evt.data ?? (node as { data?: Record<string, unknown> }).data ?? {};
     const newValue = evt.newValue;
-    const { dataChange, relativeChange } = partitionRules(platform.getState().rules);
+    const prev = prevValues.get(rowId, colId);
 
-    // dataChange: evaluate every rule (subject to its own column-scope filter).
-    for (const rule of dataChange) {
-      const hit = evaluateDataChangeRule(
-        rule,
-        { rowId, data, changedColumn: colId, value: newValue },
-        engine,
-      );
-      if (hit) dispatcher.dispatch(rule, hit);
+    if (platform.getState().settings.evaluationMode === 'throttled') {
+      // Coalesce with the modelUpdated pass — one evaluation per frame.
+      scheduleModelPass();
+      return;
     }
 
-    // relativeChange: only rules bound to this column see this change.
-    for (const rule of relativeChange) {
-      if (rule.trigger.column !== colId) continue;
-      const prev = prevValues.get(rowId, colId);
-      const hit = computeRelativeChange(rule, rowId, prev, newValue);
-      if (hit) dispatcher.dispatch(rule, hit);
-    }
-
-    // Always update the baseline after evaluation — even if no relativeChange
-    // rule is currently bound, the next-loaded profile might add one.
-    prevValues.set(rowId, colId, newValue);
+    evaluateCellDelta({
+      rowId,
+      colId,
+      prev: prev ?? evt.oldValue,
+      next: newValue,
+      data,
+      rules: platform.getState().rules,
+      engine,
+      dispatcher,
+      prevValues,
+    });
   };
 
-  const onRowsChanged = () => {
+  const onModelUpdated = () => {
     const api = platform.api.api;
     if (!api) return;
-    const settings = platform.getState().settings;
-    if (!settings.enabled || settings.evaluationMode === 'paused') return;
 
-    const { hasRowChange } = partitionRules(platform.getState().rules);
+    const rules = platform.getState().rules;
     const next = snapshotRowIds(api);
 
-    if (hasRowChange) {
+    if (isEvaluationActive() && hasEnabledRowChangeRules(rules)) {
       const added: Array<{ id: string }> = [];
       const removed: Array<{ id: string }> = [];
       for (const id of next) if (!knownRowIds.has(id)) added.push({ id });
       for (const id of knownRowIds) if (!next.has(id)) removed.push({ id });
       if (added.length > 0 || removed.length > 0) {
-        const hits = detectRowChanges(added, removed, platform.getState().rules);
-        const rulesById = new Map(platform.getState().rules.map((r) => [r.id, r]));
+        const hits = detectRowChanges(added, removed, rules);
+        const rulesById = new Map(rules.map((r) => [r.id, r]));
         for (const hit of hits) {
           const rule = rulesById.get(hit.ruleId);
           if (rule) dispatcher.dispatch(rule, hit);
@@ -148,10 +183,10 @@ export function activateAlerts(
       }
     }
 
-    // Garbage-collect previous-value entries for vanished rows so the store
-    // doesn't grow unbounded under churn.
     for (const id of knownRowIds) if (!next.has(id)) prevValues.deleteRow(id);
     knownRowIds = next;
+
+    scheduleModelPass();
   };
 
   // Initial seeding + listener attachment, deferred until the grid is ready.
@@ -171,7 +206,7 @@ export function activateAlerts(
           const data = (node as { data?: Record<string, unknown> }).data ?? {};
           for (const c of cols) {
             const colId = c.getColId();
-            if (colId in data) prevValues.set(id, colId, data[colId]);
+            prevValues.set(id, colId, getValueByPath(data, colId));
           }
         });
       } catch {
@@ -185,8 +220,8 @@ export function activateAlerts(
       disposers.push(() => api.removeEventListener('cellValueChanged', handler));
     }),
   );
-  disposers.push(platform.api.on('modelUpdated', onRowsChanged));
-  disposers.push(platform.api.on('rowDataUpdated', onRowsChanged));
+  disposers.push(platform.api.on('modelUpdated', onModelUpdated));
+  disposers.push(platform.api.on('rowDataUpdated', onModelUpdated));
 
   // Reset dispatcher debounce timers when the rule list mutates (profile
   // switch, in-place edit). The previous-values store is preserved across
@@ -208,6 +243,10 @@ export function activateAlerts(
   };
 
   return () => {
+    if (modelPassRaf !== null) {
+      cancelAnimationFrame(modelPassRaf);
+      modelPassRaf = null;
+    }
     for (const d of disposers) {
       try {
         d();

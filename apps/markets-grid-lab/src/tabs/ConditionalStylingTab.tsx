@@ -2,23 +2,20 @@ import { useMemo } from 'react';
 import { MarketsGrid } from '@starui/grid';
 import { TabContainer } from '../components/TabContainer';
 import { defaultColDef, pickColumns } from '../data/columns';
-import { useMockStream } from '../data/useMockStream';
-import { useSeed } from '../data/useSeed';
+import { useLabRows } from '../demo/useLabRows';
+import { useLabDemoProfiles } from '../data/useLabDemoProfiles';
 import { labStorage } from '../data/storage';
 import { HELP } from '../help';
-import { CONDITIONAL_TAB_CS_RULES, HEAVY_FLASH } from '../seeds';
-
-const GRID_ID = 'lab-conditional-v6';
-
-const SEED = {
-  'conditional-styling': { rules: CONDITIONAL_TAB_CS_RULES },
-  'general-settings': HEAVY_FLASH,
-};
+import {
+  CONDITIONAL_ACTIVE_PROFILE_ID,
+  CONDITIONAL_DEMO_PROFILES,
+  CONDITIONAL_GRID_ID,
+} from '../profiles/catalogs';
 
 const FIELDS = [
   'cusip', 'ticker', 'instrumentDescription',
   'assetClass', 'issuerSector', 'currency', 'compositeRating',
-  'bidPrice', 'midPrice', 'askPrice', 'priceChangePct', 'bidAskWidthBps',
+  'bidPrice', 'midPrice', 'askPrice', 'lastPrice', 'priceChangePct', 'bidAskWidthBps',
   'yieldToMaturity', 'yieldToWorst', 'oas',
   'modifiedDuration', 'dv01',
   'marketValue',
@@ -27,20 +24,27 @@ const FIELDS = [
 ];
 
 export function ConditionalStylingTab() {
-  const rows = useMockStream('mock-positions-conditional', { rowCount: 500, updateIntervalMs: 500 });
+  const { rows } = useLabRows('conditional', 'mock-positions-conditional', {
+    rowCount: 500,
+    updateIntervalMs: 500,
+  });
   const columnDefs = useMemo(() => pickColumns(FIELDS), []);
   const memoizedDefaultColDef = useMemo(() => defaultColDef, []);
-  const onReady = useSeed(GRID_ID, SEED);
+  const onReady = useLabDemoProfiles(
+    CONDITIONAL_GRID_ID,
+    CONDITIONAL_DEMO_PROFILES,
+    CONDITIONAL_ACTIVE_PROFILE_ID,
+  );
 
   return (
     <TabContainer
       title="Conditional Styling"
-      subtitle="9 pre-seeded rules · cell + row scope · one-shot + pulse flash · indicators in 5 positions · cells/headers/both · activeDurationMs"
+      subtitle={`${CONDITIONAL_DEMO_PROFILES.length} profiles · up to 13 rules · flash · diff · row scope · indicators`}
       help={HELP.conditionalStyling}
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <MarketsGrid
-          gridId={GRID_ID}
+          gridId={CONDITIONAL_GRID_ID}
           componentName="Conditional Styling"
           rowData={rows}
           columnDefs={columnDefs}

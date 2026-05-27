@@ -334,13 +334,26 @@ Per-renderer config types (`PillRendererConfig`,
 - **Conditional styling** — themed style rules (dark/light)
 - **Alerts** — expression-driven notifications (dataChange / relativeChange /
   rowChange triggers) with toast, toolbar bell badge, and OpenFin Notification
-  Centre channels. Customizer dialog band exposes master enable, evaluation
-  mode (realtime/throttled/paused), default debounce, max notifications/sec,
-  per-channel toggles, and history limit. OpenFin channel auto-detects
+  Centre channels. Runtime evaluates on `cellValueChanged` and on
+  `modelUpdated` / `rowDataUpdated` cell diffs (host `rowData` streams).
+  Customizer dialog band exposes master enable, evaluation mode
+  (realtime/throttled/paused), default debounce, max notifications/sec,
+  per-channel toggles, and history limit. Per-rule editor uses `useModuleDraft`
+  with RESET/SAVE (same as style rules) and reuses the shared `ExpressionBand`
+  / Monaco editor for `dataChange` triggers. OpenFin channel auto-detects
   `window.fin` and dynamic-imports `@openfin/workspace/notifications` so
   non-OpenFin apps pay zero runtime cost. `AlertsBadge` mounts in
   `PrimaryToolbar`; `useAlertsToastBridge` + `useAlertsOpenFinBridge`
-  auto-wire when the badge is present.
+  auto-wire when the badge is present. Demo: `apps/markets-grid-lab`
+  (`npm run dev:markets-grid-lab`) — Overview, Conditional Styling, Calculated Columns,
+  Formatting, Column Groups, Quick Filters (saved filter pills + `FiltersToolbar`),
+  Live Updates, Alerts, Cell Renderers, and Formatter Toolbar tabs. Each feature tab ships multiple toolbar profiles (catalogs in
+  `apps/markets-grid-lab/src/profiles/catalogs/`, importable JSON under
+  `apps/markets-grid-lab/public/lab-profiles/`). **Demo console** right rail
+  (`LabScenarioRail`, `LabDemoProvider`, `useLabRows`) injects scenario patches
+  (bid spike, P&L loss, mid ticks, OAS heat, etc.) and shared stream controls
+  (pause/play, tick interval) across all grid tabs; parity doc:
+  `docs/MARKETSGRID_VS_ADAPTABLE_GAP_ANALYSIS.md` §2.
 - **Calculated columns** — virtual cols from expressions
 - **Saved filters** — named filter-model presets
 - **Toolbar visibility** — show/hide toolbar items

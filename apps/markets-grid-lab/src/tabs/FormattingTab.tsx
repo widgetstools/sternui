@@ -2,17 +2,15 @@ import { useMemo } from 'react';
 import { MarketsGrid } from '@starui/grid';
 import { TabContainer } from '../components/TabContainer';
 import { defaultColDef, pickColumns } from '../data/columns';
-import { useMockStream } from '../data/useMockStream';
-import { useSeed } from '../data/useSeed';
+import { useLabRows } from '../demo/useLabRows';
+import { useLabDemoProfiles } from '../data/useLabDemoProfiles';
 import { labStorage } from '../data/storage';
 import { HELP } from '../help';
-import { FORMATTING_CC_STATE } from '../seeds';
-
-const GRID_ID = 'lab-formatting-v6';
-
-const SEED = {
-  'column-customization': FORMATTING_CC_STATE,
-};
+import {
+  FORMATTING_ACTIVE_PROFILE_ID,
+  FORMATTING_DEMO_PROFILES,
+  FORMATTING_GRID_ID,
+} from '../profiles/catalogs';
 
 const FIELDS = [
   'cusip', 'ticker', 'instrumentDescription',
@@ -28,19 +26,26 @@ const FIELDS = [
 ];
 
 export function FormattingTab() {
-  const rows = useMockStream('mock-positions-formatting', { rowCount: 500, updateIntervalMs: 600 });
+  const { rows } = useLabRows('formatting', 'mock-positions-formatting', {
+    rowCount: 500,
+    updateIntervalMs: 600,
+  });
   const columnDefs = useMemo(() => pickColumns(FIELDS), []);
-  const onReady = useSeed(GRID_ID, SEED);
+  const onReady = useLabDemoProfiles(
+    FORMATTING_GRID_ID,
+    FORMATTING_DEMO_PROFILES,
+    FORMATTING_ACTIVE_PROFILE_ID,
+  );
 
   return (
     <TabContainer
       title="Formatting"
-      subtitle="Every formatter kind in one grid · presets, Excel format, tick (32nds), color overrides, themed headers, global number/date defaults"
+      subtitle={`${FORMATTING_DEMO_PROFILES.length} profiles · preset · Excel · tick · themed overrides · globals`}
       help={HELP.formatting}
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <MarketsGrid
-          gridId={GRID_ID}
+          gridId={FORMATTING_GRID_ID}
           componentName="Formatting"
           rowData={rows}
           columnDefs={columnDefs}

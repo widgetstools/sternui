@@ -123,10 +123,14 @@ export function useAlertsOpenFinBridge(platform: GridPlatform | null): void {
 
         // Fire in chronological order so OpenFin's notification centre shows
         // them in the same sequence the user would have seen them in-app.
+        const rulesById = new Map(state.rules.map((r) => [r.id, r]));
+
         for (let i = fresh.length - 1; i >= 0; i -= 1) {
           const n = fresh[i];
           seen.add(n.id);
           if (!enabled) continue;
+          const rule = rulesById.get(n.ruleId);
+          if (!rule?.channels.includes('openfin')) continue;
           void dispatchOpenFinNotification(apiRef.current!, n, fin);
         }
       });

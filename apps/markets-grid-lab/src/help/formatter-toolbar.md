@@ -1,64 +1,38 @@
 # Formatter Toolbar — paint cell style live
 
-The **FormattingToolbar** is a draggable floating palette wired by
-`<MarketsGrid showFormattingToolbar />`. Click any column header to
-"focus" that column, then use the toolbar to paint typography, colors,
-borders, alignment, and number/date formats. Edits flow into the
-**column-customization** module slice of the active profile.
+**Six toolbar profiles** (`lab-formatter-toolbar-v2`) pre-install
+**column-customization** overrides (typography, colours, borders, headers)
+so you can see painted cells immediately—or pick **05 · Blank canvas** and
+use only the floating palette.
 
-## Toolbar surfaces
+| Profile | Focus |
+| --- | --- |
+| **00 · Painted desk** | IDs, pricing, P&L, headers pre-styled |
+| **01 · Typography** | Bold · italic · underline samples |
+| **02 · Bid/ask borders** | Bottom borders on bid/mid/ask |
+| **03 · P&L palette** | Distinct paints on P&L columns |
+| **04 · Header row** | Header overrides on CUSIP · rating · book |
+| **05 · Blank canvas** | No overrides — paint yourself |
 
-The toolbar exposes these surfaces (from left to right on the floating
-strip):
+Import [`public/lab-profiles/formatter-toolbar/`](../../public/lab-profiles/formatter-toolbar/).
 
-- **Typography** — Bold · Italic · Underline · Strike · Font size.
-- **Alignment** — Horizontal (left / center / right) · Vertical (top /
-  middle / bottom).
-- **Colors** — Cell text + cell background + header text + header
-  background, each with a theme-aware swatch picker that writes BOTH
-  dark and light values.
-- **Borders** — Per-side (top / right / bottom / left) + all-sides
-  shortcut + clear; each side carries width, color, and style
-  (`solid`/`dashed`/`dotted`).
-- **Format** — Currency · Percent · Number · Date · Tick (bond 32nds)
-  presets, plus an Excel format-string input. Same
-  `ValueFormatterTemplate` union the Formatting tab seeds.
-- **Clear** — Removes every override on the focused column in one
-  click.
-
-## How it persists
-
-```tsx
-<MarketsGrid showFormattingToolbar … />
-```
-
-Internally the toolbar calls `useFormatter()` (a hook from
-`@starui/grid/customizer`) which dispatches to the
-`column-customization` store. The toolbar visibility itself rides the
-`toolbar-visibility` module — collapse it via the chevron button and
-the choice persists per profile.
-
-## Popout
-
-Click the popout icon on the toolbar to detach it into its own browser
-window. Useful when you want the palette beside the grid but never
-floating over it. The detach handle is built on `DraggableFloat` +
-`PoppableHandle` from `@starui/grid`.
+The **FormattingToolbar** is enabled via `<MarketsGrid showFormattingToolbar />`.
+Click a column header to focus it, then paint typography, colours, borders,
+and formatters. Edits flow into the active profile's column-customization
+slice (same persistence as the Formatting tab).
 
 ## Try this
 
-1. Click the **CUSIP** header (focuses that column).
-2. Pick a red swatch under **Colors → Cell background**.
-3. Note the colour also appears in the light-mode swatch slot — the
-   toolbar writes both themes; check by flipping dark/light.
-4. Open `Tools → Column Settings → CUSIP → Cell` — your colour appears
-   under the override editor as **data**, not a one-off style.
-5. Click **Save** on the main toolbar → reload → CUSIP stays painted.
+1. Load **00 · Painted desk** — note pre-styled CUSIP header and bid column.
+2. Switch to **05 · Blank canvas** — grid resets overrides for that profile.
+3. Focus **ticker**, pick a swatch on the floating toolbar, **Save**, reload.
 
-## Where this is wired
+Reset:
 
-- [src/tabs/FormatterToolbarTab.tsx](src/tabs/FormatterToolbarTab.tsx) —
-  just `<MarketsGrid showFormattingToolbar />` with the wide column
-  set, no seed.
-- The toolbar itself: [`@starui/grid` `FormattingToolbar`
-  export](../../packages/react-grid/grid/src/widget/FormattingToolbar.tsx).
+```js
+localStorage.removeItem('lab-demo-profiles-v2:lab-formatter-toolbar-v2');
+localStorage.removeItem('markets-grid-bundle:lab-formatter-toolbar-v2');
+```
+
+Seed: [`src/seeds/formatterToolbar.ts`](../../src/seeds/formatterToolbar.ts) ·
+catalog [`formatterToolbarCatalog.ts`](../../src/profiles/catalogs/formatterToolbarCatalog.ts).

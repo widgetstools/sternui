@@ -1,7 +1,11 @@
 # Column Groups — module-driven nested headers
 
-This tab seeds **8 column groups** through the `column-groups` module.
-Open `Tools → Column Groups` to inspect, rename, or restructure them.
+**Five toolbar profiles** (`lab-column-groups-v5`) vary which groups start
+open vs collapsed (pricing/P&L, all collapsed, identifier-only, etc.).
+Import [`public/lab-profiles/column-groups/`](../../public/lab-profiles/column-groups/).
+
+Default profile seeds **8 column groups** through the `column-groups`
+module. Open `Tools → Column Groups` to inspect, rename, or restructure.
 
 ## Seeded groups
 

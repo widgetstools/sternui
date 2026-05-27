@@ -2,9 +2,15 @@ import { useMemo } from 'react';
 import { MarketsGrid } from '@starui/grid';
 import { TabContainer } from '../components/TabContainer';
 import { defaultColDef, pickColumns } from '../data/columns';
-import { useMockStream } from '../data/useMockStream';
+import { useLabDemoProfiles } from '../data/useLabDemoProfiles';
+import { useLabRows } from '../demo/useLabRows';
 import { labStorage } from '../data/storage';
 import { HELP } from '../help';
+import {
+  FORMATTER_TOOLBAR_ACTIVE_PROFILE_ID,
+  FORMATTER_TOOLBAR_DEMO_PROFILES,
+  FORMATTER_TOOLBAR_GRID_ID,
+} from '../profiles/catalogs';
 
 const FIELDS = [
   'cusip', 'ticker', 'instrumentDescription',
@@ -18,24 +24,33 @@ const FIELDS = [
 ];
 
 export function FormatterToolbarTab() {
-  const rows = useMockStream('mock-positions-formatter-toolbar', { rowCount: 500, updateIntervalMs: 600 });
+  const { rows } = useLabRows('toolbar', 'mock-positions-formatter-toolbar', {
+    rowCount: 500,
+    updateIntervalMs: 600,
+  });
   const columnDefs = useMemo(() => pickColumns(FIELDS), []);
+  const onReady = useLabDemoProfiles(
+    FORMATTER_TOOLBAR_GRID_ID,
+    FORMATTER_TOOLBAR_DEMO_PROFILES,
+    FORMATTER_TOOLBAR_ACTIVE_PROFILE_ID,
+  );
 
   return (
     <TabContainer
       title="Formatter Toolbar"
-      subtitle="Floating palette · click a column header, then paint cell style — persisted to the active profile"
+      subtitle={`${FORMATTER_TOOLBAR_DEMO_PROFILES.length} profiles · floating palette · cell + header paint`}
       help={HELP.formatterToolbar}
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <MarketsGrid
-          gridId="lab-formatter-toolbar-v1"
+          gridId={FORMATTER_TOOLBAR_GRID_ID}
           componentName="Formatter Toolbar"
           rowData={rows}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           rowIdField="id"
           storage={labStorage}
+          onReady={onReady}
           showFormattingToolbar
           showProfileSelector
           showSaveButton

@@ -2,32 +2,37 @@ import { useMemo } from 'react';
 import { MarketsGrid } from '@starui/grid';
 import { TabContainer } from '../components/TabContainer';
 import { baseColumns, defaultColDef } from '../data/columns';
-import { useMockStream } from '../data/useMockStream';
-import { useSeed } from '../data/useSeed';
+import { useLabRows } from '../demo/useLabRows';
+import { useLabDemoProfiles } from '../data/useLabDemoProfiles';
 import { labStorage } from '../data/storage';
 import { HELP } from '../help';
-import { OVERVIEW_COLUMN_GROUPS } from '../seeds';
-
-const GRID_ID = 'lab-column-groups-v4';
-
-const SEED = {
-  'column-groups': { groups: OVERVIEW_COLUMN_GROUPS, openGroupIds: {} },
-};
+import {
+  COLUMN_GROUPS_ACTIVE_PROFILE_ID,
+  COLUMN_GROUPS_DEMO_PROFILES,
+  COLUMN_GROUPS_GRID_ID,
+} from '../profiles/catalogs';
 
 export function ColumnGroupsTab() {
-  const rows = useMockStream('mock-positions-column-groups', { rowCount: 500, updateIntervalMs: 600 });
+  const { rows } = useLabRows('groups', 'mock-positions-column-groups', {
+    rowCount: 500,
+    updateIntervalMs: 600,
+  });
   const columnDefs = useMemo(() => baseColumns, []);
-  const onReady = useSeed(GRID_ID, SEED);
+  const onReady = useLabDemoProfiles(
+    COLUMN_GROUPS_GRID_ID,
+    COLUMN_GROUPS_DEMO_PROFILES,
+    COLUMN_GROUPS_ACTIVE_PROFILE_ID,
+  );
 
   return (
     <TabContainer
       title="Column Groups"
-      subtitle="8 module-seeded groups · 4 use columnGroupShow:'open' to reveal more on expand · Pricing + P&L open by default"
+      subtitle={`${COLUMN_GROUPS_DEMO_PROFILES.length} profiles · 8 nested groups · open/closed presets`}
       help={HELP.columnGroups}
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <MarketsGrid
-          gridId={GRID_ID}
+          gridId={COLUMN_GROUPS_GRID_ID}
           componentName="Column Groups"
           rowData={rows}
           columnDefs={columnDefs}

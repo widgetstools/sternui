@@ -1,50 +1,91 @@
 # MarketsGrid vs AdapTable — Gap Analysis
 
-> A feature-by-feature comparison of the MarketsGrid product surface
-> (`@starui/grid`, the customizer modules, profile manager, data
-> providers, OpenFin integration) against [AdapTable for AG
-> Grid](https://www.adaptabletools.com/docs).
->
-> **Sources:**
-> - MarketsGrid: [`docs/current-features.md`](./current-features.md) and the
->   `packages/` source tree.
-> - AdapTable: the full doc tree under `https://www.adaptabletools.com/docs/*`
->   (Getting Started → Framework Versions → Layouts → UI → Core Features →
->   Searching & Filtering → Cell Rendering → Editing → Annotating → Working
->   with Grid Data → Advanced Features → Developer Guides → AdaptableQL →
->   Partners → Technical Reference).
-> - Crawl date: 2026-05-23.
+**Who this is for:** product owners, desk leads, and engineers evaluating how
+close MarketsGrid is to an [AdapTable for AG Grid](https://www.adaptabletools.com/docs)
+deployment — and where to invest next.
+
+**How to read it**
+
+| Section | What you get |
+| --- | --- |
+| [§1 Executive summary](#1-executive-summary) | One-screen verdict + strengths/gaps |
+| [§2 Try it in the lab](#2-try-it-in-the-lab) | Interactive demos — change grid values per tab |
+| [§3 Methodology](#3-methodology) | Scoring scale (0–100) and weights |
+| [§4 Matrix](#4-feature-by-feature-matrix) | Granular row-by-row comparison (appendix depth) |
+| [§5 Category roll-up](#5-category-roll-up) | Weighted % per AdapTable doc area |
+| [§6 Significant gaps](#6-significant-gaps-deep-dive) | Narrative on what still hurts traders |
+| [§7 Differentiators](#7-areas-where-marketsgrid-is-at-or-above-parity) | Where we match or beat AdapTable |
+| [§8 Roadmap](#8-recommendations) | ROI-ranked backlog |
+| [§9 Headline score](#9-how-close-is-marketsgrid-to-adaptable) | Parity % and “what if we ship P0/P1” |
+
+**Sources:** MarketsGrid — [`docs/current-features.md`](./current-features.md) +
+`packages/` tree. AdapTable — doc crawl 2026-05-23. Lab parity UI — `apps/markets-grid-lab`
+(last updated 2026-05-26).
 
 ---
 
 ## 1. Executive summary
 
-**Headline parity: ≈ 44% (weighted by importance for a trading grid).**
+| | |
+| --- | --- |
+| **Headline parity** | **≈ 48%** (weighted for capital-markets grids) |
+| **Best in class** | Cell rendering (~80%), developer guides (~72%), theming (100%) |
+| **Recently closed** | Alerts (P0 triggers + toast/bell/OpenFin), styled columns (2026-Q2) |
+| **Still thin** | Pivot/aggregations, Smart Edit family, Visual Excel, annotations, AdaptableQL extensions |
 
-MarketsGrid covers the **foundations** of an AdapTable-class product — profile
-persistence, formatting/conditional styling, expression-driven calculated
-columns, OpenFin integration, real-time data plumbing — but is short on
-**trader-facing analytics surfaces** (alerts, flashing, styled columns,
-sparklines, pivot, summarisation), **collaboration** (team sharing,
-notes/comments, row forms), and **report-tier exporting** (Visual Excel,
-scheduling, custom destinations). It also lags on **editing ergonomics**
-(Smart Edit, Bulk Update, Plus/Minus, Shortcuts, data-change history UI).
+MarketsGrid already covers the **platform spine** — profiles, expression engine,
+conditional styling, formatters, OpenFin shell, real-time ingest — that AdapTable
+assumes you will wire yourself. The visible gap is now concentrated in **desk
+workflows** (pivot layouts, bulk edit, WYSIWYG export, team annotations) rather
+than “no alerts / no styled columns.”
 
-Where MarketsGrid is **at or near parity** (≥75%): conditional styling,
-display formatters, the profile/state system, AG Grid integration depth,
-the OpenFin runtime seam, and **styled columns** (Gradient/Percent
-Bar/Badge/Sparkline — renderers + per-column editors shipped 2026-Q2).
+**At or near parity (≥75%):** conditional styling, display formatters, profiles,
+AG Grid integration, OpenFin runtime, styled columns (heatmap / percent bar / pill /
+sparkline), and **alerts** for data-change, relative-change, and row-change triggers
+with toast + toolbar badge + OpenFin Notification Centre.
 
-Where MarketsGrid is **dramatically behind** (≤20%): alerts,
-Smart-Edit-class editing, Visual Excel + scheduled reports, Notes/Comments,
-Row Forms, Schedules/Reminders, AdaptableQL aggregation/observable expression
-families. Flashing is partially shipped via conditional-styling's per-rule
-`flash` config; a direction-aware (UP/DOWN/Neutral) standalone module is the
-remaining gap.
+**Still dramatically behind (≤25%):** aggregation/observable/validation alert
+families, Smart-Edit-class editing, Visual Excel + scheduled reports, Notes/Comments,
+Row Forms, AdaptableQL aggregation/cumulative/quantile. **Flashing:** rich per-rule
+flash via conditional styling; a standalone UP/DOWN/Neutral module remains open.
 
 ---
 
-## 2. Methodology
+## 2. Try it in the lab
+
+The fastest way to understand parity is to **drive the grid** — not only read this doc.
+
+```bash
+npm run dev:markets-grid-lab
+```
+
+Open **MarketsGrid Feature Lab** (`apps/markets-grid-lab`):
+
+1. **Gap guide** tab — short parity map (mirrors §1–§2 of this doc).
+2. Any **feature tab** — grid on the left; **Demo console** rail on the right.
+3. Pick a **scenario card** (e.g. *Bid spike*, *P&L loss*, *Mid tick up*) — patches live
+   row values so alerts, conditional styles, formatters, and renderers react immediately.
+4. Use **stream controls** — pause/play mock ticks, adjust tick interval, reset baseline rows.
+
+| Lab tab | Scenarios to try | AdapTable topic |
+| --- | --- | --- |
+| Overview | Kitchen-sink profiles + P&L / yield | Layouts + core modules |
+| Formatting | High yield, wide spread | Display formats |
+| Cell Renderers | OAS heat, junk row, winner P&L | Styled columns |
+| Formatter Toolbar | Losers strip, winner P&L, pricing ladder | Column customization |
+| Column Groups | Pricing ladder, risk + yields, KRD curve | Column groups |
+| Calculated | Ultra duration, spread to benchmark, liquidity surge | Calculated columns |
+| Conditional Style | Mid ticks, junk row, high yield | Conditional styling + flash |
+| Quick Filters | Filter pills, losers strip, HY book | Saved filter pills (FiltersToolbar) |
+| Live Updates | Mid ticks + rail tick slider | Change flash / tick UX |
+| Alerts | Bid spike, P&L loss, mid tick | Alert triggers + channels |
+| Profiles | Preset lenses | Table layouts |
+
+Full matrix and roadmap detail stay in **§4 onward** below.
+
+---
+
+## 3. Methodology
 
 Each AdapTable feature category was scored against MarketsGrid on a
 **0 / 25 / 50 / 75 / 100** coverage scale:
@@ -65,9 +106,9 @@ column.
 
 ---
 
-## 3. Feature-by-feature matrix
+## 4. Feature-by-feature matrix
 
-### 3.1 Framework versions
+### 4.1 Framework versions
 
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
@@ -76,7 +117,7 @@ column.
 | Vue integration | — | 0 | 2 | Not in roadmap |
 | Custom Toolbar / Tool Panel / Settings Panel / Popups slots | Slot system in `@starui/widget-sdk` + customizer SettingsSheet | 50 | 5 | SDK exists; AdapTable-style per-surface slot API not exposed |
 
-### 3.2 Layouts
+### 4.2 Layouts
 
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
@@ -90,7 +131,7 @@ column.
 | Tree Data | — | 5 | 3 | Not surfaced |
 | Default Layouts / Saving / Updating / Extending / Synchronising / Monitoring | `ProfileManager` covers save/update/active/dirty/auto-save | 80 | 7 | Strong; no cross-layout extension mechanism |
 
-### 3.3 AdapTable UI
+### 4.3 AdapTable UI
 
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
@@ -103,7 +144,7 @@ column.
 | Theming — custom themes, CSS variables, AG Grid themes | `@starui/design-system` tokens + AG Grid adapters + dark/light/CVD | 100 | 9 | Stronger than AdapTable: token-driven, three-axis (mode + CVD) |
 | UI guides — toasts, wizards, popups, custom palette, loading screen, progress, hiding, american english | `Toast` / `Toaster` / `useToast` / `Drawer` / `Dialog` / `Sheet` / portal provider | 70 | 5 | Most primitives present via `@starui/ui` |
 
-### 3.4 Core features
+### 4.4 Core features
 
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
@@ -112,17 +153,17 @@ column.
 | Calculated Columns — Cumulative | — | 10 | 5 | — |
 | Calculated Columns — Quantile (bucketing) | — | 10 | 5 | — |
 | Calculated Columns — Referencing other calc cols | Partial via expression engine | 50 | 5 | — |
-| Alerts — Data Change | — | 5 | 10 | Critical trading feature |
-| Alerts — Relative Change (PERCENT_CHANGE, ABSOLUTE_CHANGE, ANY_CHANGE) | — | 5 | 10 | — |
-| Alerts — Row Change (ROW_ADDED / ROW_REMOVED) | — | 5 | 8 | — |
-| Alerts — Aggregation (multi-row limits) | — | 5 | 9 | Limit monitoring |
-| Alerts — Observable (reactive) | — | 5 | 7 | — |
-| Alerts — Validation (rollback on bad edit) | — | 5 | 8 | — |
-| Alert notifications — toast, toolbar, dashboard highlight, auto-jump, log, custom, event | `useToast` primitive exists, no alerting pipeline | 10 | 8 | — |
+| Alerts — Data Change | Customizer alerts module + `dataChange` + Monaco expression | 75 | 10 | Shipped 2026-Q2; lab: *Bid spike* / *P&L loss* |
+| Alerts — Relative Change (PERCENT_CHANGE, ABSOLUTE_CHANGE, ANY_CHANGE) | `relativeChange` trigger + threshold fields | 70 | 10 | Shipped; aggregation limits still open |
+| Alerts — Row Change (ROW_ADDED / ROW_REMOVED) | `rowChange` on `modelUpdated` / `rowDataUpdated` | 65 | 8 | Shipped for stream add/remove |
+| Alerts — Aggregation (multi-row limits) | — | 15 | 9 | Limit monitoring — not yet |
+| Alerts — Observable (reactive) | — | 15 | 7 | — |
+| Alerts — Validation (rollback on bad edit) | — | 15 | 8 | — |
+| Alert notifications — toast, toolbar, dashboard highlight, auto-jump, log, custom, event | Toast + `AlertsBadge` + OpenFin NC bridges; no auto-jump/custom container | 70 | 8 | Dashboard highlight / event bus hooks partial |
 | Action Columns — dynamic per-row buttons, conditional visibility | — | 10 | 6 | — |
 | Charting — AG Grid Charts, persistent, multi-window, external chart libs | `Chart` wrapper in `@starui/ui` (Recharts) — not wired into grid | 15 | 7 | Primitive only |
 
-### 3.5 Searching & filtering
+### 4.5 Searching & filtering
 
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
@@ -132,7 +173,7 @@ column.
 | Data Sets — switch between named collections + optional forms | `MarketsGridContainer` two-provider picker + Alt+Shift+P hotkey | 60 | 7 | Provider switching done; "form-on-select" parameter prompts missing |
 | Named Queries — saved queries reusable in expressions via QUERY() | — | 10 | 5 | Saved filters exist for filter model, not for expression reuse |
 
-### 3.6 Cell rendering
+### 4.6 Cell rendering
 
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
@@ -150,7 +191,7 @@ column.
 | Flashing Rows | Conditional-styling `flash.target: 'row'` | 50 | 6 | Same rule-driven flash supports row target |
 | Column Header formatting | Customizer column-customization (label, alignment, style) | 80 | 7 | Strong |
 
-### 3.7 Editing
+### 4.7 Editing
 
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
@@ -166,7 +207,7 @@ column.
 | Data Change History — tracking, monitor panel, undo, suspend | `HistoryStack` engine primitive only; no UI surface | 30 | 6 | Engine exists, monitor UI missing |
 | Cell Editors — Select / Numeric / Percentage / Date | AG Grid + `Calendar` (react-day-picker) | 65 | 6 | — |
 
-### 3.8 Annotating
+### 4.8 Annotating
 
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
@@ -174,7 +215,7 @@ column.
 | Comments — team-shared cell-level dialogue | — | 0 | 5 | — |
 | Free Text Columns — runtime-created user data columns | — | 0 | 4 | — |
 
-### 3.9 Working with grid data
+### 4.9 Working with grid data
 
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
@@ -193,7 +234,7 @@ column.
 | Transposing rows ↔ columns | — | 0 | 2 | Niche |
 | Highlighting & Jumping (navigate to result) | — | 0 | 4 | — |
 
-### 3.10 Advanced features
+### 4.10 Advanced features
 
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
@@ -207,7 +248,7 @@ column.
 | FDC3 — Intents, Contexts, gridDataContextMapping, FDC3 Action Columns, Context Menu items, Custom, OpenFin/interop.io/Connectifi plug-in | `useFdc3Channel` hook + OpenFin runtime; no mapping config UI or action-column FDC3 type | 30 | 8 | Hooks present; declarative mapping & UI missing |
 | System Status Messages | `StaleDataBanner` (real-time stale + reconnect) | 30 | 4 | Limited scope |
 
-### 3.11 Developer guides
+### 4.11 Developer guides
 
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
@@ -220,7 +261,7 @@ column.
 | Developer Tutorials — cell editability, holiday calendars, context, containers, hotkeys, american english | `useChordHotkey`, portal provider, host context, theming | 55 | 5 | Most present; holiday calendars and en-US toggles missing |
 | Supporting — logging, profiling, testing, monitoring, performance | Vitest + Playwright + propagate; less formal perf monitoring | 55 | 6 | Could be deeper |
 
-### 3.12 AdapTable Query Language (AdaptableQL)
+### 4.12 AdapTable Query Language (AdaptableQL)
 
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
@@ -241,7 +282,7 @@ column.
 | Predicates — Custom | `doesValueMatchFilter`, `doesRowMatchFilterModel` | 65 | 6 | — |
 | Server Evaluation of AdaptableQL | — | 0 | 4 | Requires backend |
 
-### 3.13 Partner integrations
+### 4.13 Partner integrations
 
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
@@ -251,7 +292,7 @@ column.
 
 ---
 
-## 4. Category roll-up
+## 5. Category roll-up
 
 Weighted average per AdapTable section group:
 
@@ -260,7 +301,7 @@ Weighted average per AdapTable section group:
 | Framework Versions | 9.0 | 16 | **56%** |
 | Layouts | 31.0 | 59 | **53%** |
 | AdapTable UI | 27.5 | 51 | **54%** |
-| Core Features (Calculated cols, Alerts, Action cols, Charting) | 13.0 | 92 | **14%** |
+| Core Features (Calculated cols, Alerts, Action cols, Charting) | 38.5 | 92 | **42%** |
 | Searching & Filtering | 17.7 | 34 | **52%** |
 | Cell Rendering | 80.6 | 101 | **80%** |
 | Editing | 17.4 | 65 | **27%** |
@@ -270,7 +311,7 @@ Weighted average per AdapTable section group:
 | Developer Guides (State, Permissions, Data, SSRM, Columns, AG Grid, Tutorials, Support) | 41.2 | 57 | **72%** |
 | AdaptableQL | 19.8 | 81 | **24%** |
 | Partner Integrations | 7.2 | 13 | **55%** |
-| **Overall weighted parity** | **305.4** | **694** | **≈ 44%** |
+| **Overall weighted parity** | **330.9** | **694** | **≈ 48%** |
 
 > Numbers are coverage × weight summed within each category. Read the table
 > as "MarketsGrid covers X% of the weighted AdapTable scope in that
@@ -283,43 +324,52 @@ The shape of the gap is clear:
 - **UI surfaces at ~50%** — toolbars and settings panel exist, but the
   dashboard mode model, tool panel, status bar, and column/context menu
   extension points are thin.
-- **Trader-facing analytics surfaces (Alerts, Annotating, Editing
-  ergonomics, AdaptableQL extensions) at 0–27%** — this is where the
-  product visibly trails AdapTable.
+- **Trader-facing analytics (Annotating, Editing ergonomics, AdaptableQL
+  extensions) still at 0–27%** — alerts and styled columns moved up; pivot,
+  bulk edit, and annotations remain the visible gap.
 
 ---
 
-## 5. Significant gaps (deep dive)
+## 6. Significant gaps (deep dive)
 
 These are the gaps that most affect a buy-side / sell-side trader's
 day-to-day experience. They're ordered by **impact × feasibility**.
 
-### 5.1 Alerts
+### 6.1 Alerts — mostly shipped; extensions remain
 
-AdapTable's alerting engine fires from six trigger families (data change,
-relative change, row change, aggregation, observable, validation) and
-publishes to a toast layer, an alert toolbar, dashboard cell highlighting,
-auto-jump, console, custom containers, and an `AlertFired` event.
+**Status (2026-Q2):** The customizer **alerts module** covers the three
+highest-visibility trigger families — **data change** (Monaco expression),
+**relative change** (percent/absolute/any), and **row change** (add/remove on
+stream updates) — with per-rule RESET/SAVE, module-level throttle/settings, and
+notification channels (**toast**, toolbar **bell badge**, **OpenFin Notification
+Centre** when `window.fin` is present).
 
-MarketsGrid has the **plumbing** (real-time delta application, AG Grid
-event surface, `useToast` primitive, `EventBus`) but no alerting concept.
+**Still missing vs AdapTable:** aggregation limits, observable/reactive triggers,
+validation rollback alerts, dashboard cell highlight, auto-jump, custom alert
+containers, and a first-class `AlertFired` event surface for host apps.
 
-**Impact:** *very high* — alerts are the single most-requested feature in
-trading-grid evaluations.
+**Try it:** `npm run dev:markets-grid-lab` → **Alerts** tab → Demo console →
+*Bid spike* / *P&L loss* / *Mid tick* scenarios.
 
-### 5.2 Flashing cells & rows
+**Impact:** *medium* for net-new evaluations (P0 trigger families are demoable);
+*medium-high* for desks that need limit monitoring and validation alerts.
 
-AG Grid has `enableCellChangeFlash` natively but offers no UI surface.
-AdapTable wraps it with a configurable rule (`ANY_CHANGE`, predicate, or
-expression), direction-aware styles (Up / Down / Neutral), per-rule
-duration, and a target (cell vs. row).
+### 6.2 Flashing cells & rows — partial via conditional styling
 
-MarketsGrid has no in-customizer flashing module.
+AG Grid exposes `enableCellChangeFlash` natively; AdapTable adds direction-aware
+UP/DOWN/Neutral rules with duration and cell vs row scope.
 
-**Impact:** *very high* — flashing is the universal "something changed"
-signal in market data UIs.
+MarketsGrid ships **per-rule `flash`** on conditional-styling rules (palette,
+keyframes, oneShot/pulse, cells/row/header targets). A **standalone**
+direction-aware flashing module (AdapTable's dedicated UX) is still open.
 
-### 5.3 Styled columns — SHIPPED 2026-Q2
+**Try it:** lab **Conditional Style** or **Live Updates** tabs + *Mid tick up/down*
+scenarios.
+
+**Impact:** *medium* — most desks can flash today via style rules; power users
+want a dedicated flashing panel.
+
+### 6.3 Styled columns — SHIPPED 2026-Q2
 
 > **Status: resolved.** AdapTable's four built-in styled column types
 > (Gradient / Percent Bar / Badge / Sparkline) all ship as configurable
@@ -336,7 +386,7 @@ signal in market data UIs.
 > Theme-aware (light/dark via `ThemeAwareColor`), no external chart library
 > required. Section 3.6 coverage reflects the shipped state.
 
-### 5.4 Smart Edit / Bulk Update / Plus-Minus / Shortcuts
+### 6.4 Smart Edit / Bulk Update / Plus-Minus / Shortcuts
 
 AdapTable's four data-entry modules give traders 10×-faster cell-edit
 ergonomics: arithmetic across many cells, bulk-set, +/- keys for
@@ -346,7 +396,7 @@ MarketsGrid has only AG Grid's default cell editor.
 
 **Impact:** *high* — separates a passable grid from a trader-grade one.
 
-### 5.5 Pivot layouts & aggregations (Grand Total / Weighted Avg)
+### 6.5 Pivot layouts & aggregations (Grand Total / Weighted Avg)
 
 AdapTable's Pivot Layouts and aggregation extras (grand total rows,
 weighted averages, only-aggregation) are essential for P&L,
@@ -358,7 +408,7 @@ configure pivot dimensions, totals, or weighted averages from the UI.
 **Impact:** *high* — these are table-stakes for any trading dashboard
 that does desk-level rollups.
 
-### 5.6 Visual Excel + scheduled / custom-destination reports
+### 6.6 Visual Excel + scheduled / custom-destination reports
 
 Visual Excel preserves column formatting on export. Reports can be
 scheduled (DaysOfWeek + Hour + Minute) and routed to custom destinations
@@ -368,7 +418,7 @@ MarketsGrid only does AG Grid's native CSV / Excel export.
 
 **Impact:** *high* — daily end-of-day reporting is workflow-critical.
 
-### 5.7 Notes, Comments, Free Text Columns
+### 6.7 Notes, Comments, Free Text Columns
 
 AdapTable separates personal annotations (Notes), team annotations
 (Comments), and runtime-created data columns (Free Text Columns).
@@ -377,7 +427,7 @@ MarketsGrid has none of these.
 
 **Impact:** *medium* — common ask in collab-heavy desks.
 
-### 5.8 Data Change History + undo UI
+### 6.8 Data Change History + undo UI
 
 AdapTable monitors every cell change and offers undo through a tracked
 panel.
@@ -388,7 +438,7 @@ it.
 **Impact:** *medium* — surfacing the existing engine primitive is a
 cheap win.
 
-### 5.9 Charting
+### 6.9 Charting
 
 AdapTable wires AG Grid Charts into the dashboard with persistent state
 and multiple windows. External libraries plug in via a custom provider.
@@ -398,7 +448,7 @@ launch charts from the grid.
 
 **Impact:** *medium-high* — common power-user feature.
 
-### 5.10 Action columns
+### 6.10 Action columns
 
 Dynamic per-row buttons with conditional visibility/disabled state. Used
 for "cancel order", "view details", FDC3 broadcasts.
@@ -408,7 +458,7 @@ MarketsGrid has no first-class action-column concept (AG Grid
 
 **Impact:** *medium-high* — common in execution / order-book grids.
 
-### 5.11 AdaptableQL — aggregation, observable, cumulative, quantile
+### 6.11 AdaptableQL — aggregation, observable, cumulative, quantile
 
 MarketsGrid's expression engine covers per-row evaluation well, but lacks
 the aggregation / cumulative / quantile / observable families that
@@ -417,7 +467,7 @@ AdaptableQL puts under one syntax.
 **Impact:** *medium* — only relevant once aggregated calculated columns
 and alerts ship.
 
-### 5.12 Team Sharing UI
+### 6.12 Team Sharing UI
 
 ConfigService can be REST-backed so shared rows are technically possible,
 but there's no Active / Snapshot / Referenced sharing UI.
@@ -426,7 +476,7 @@ but there's no Active / Snapshot / Referenced sharing UI.
 
 ---
 
-## 6. Areas where MarketsGrid is at or above parity
+## 7. Areas where MarketsGrid is at or above parity
 
 Worth calling out — these are differentiators or near-equivalents that
 **don't** need to be on the roadmap:
@@ -458,29 +508,31 @@ Worth calling out — these are differentiators or near-equivalents that
   with snapshot+tail, chunking, late-joiner support, byte-size events,
   and per-provider stats sampler is *richer* than what AdapTable
   documents in its data-loading guide.
+- **Alerts (P0 triggers)** — data/relative/row-change rules with toast,
+  toolbar badge, and OpenFin Notification Centre; demoable in markets-grid-lab.
 
 ---
 
-## 7. Recommendations
+## 8. Recommendations
 
 Ranked by **ROI** (trader-visible value × implementation cost). Each item
 is sized into a rough effort band (S < 1 week, M 1–4 weeks, L > 4 weeks).
 
-### 7.1 P0 — Ship next quarter
+### 8.1 P0 — Ship next quarter
 
 | # | Feature | Effort | Why |
 |---|---|---|---|
-| 1 | **Alerts module** (data-change + relative-change + row-change triggers, toast + toolbar badge + module-level enable/frequency settings) | L | Single largest perceived gap; reuses `EventBus`, `useToast`, expression engine, conditional-styling module pattern as blueprint |
-| 2 | **Direction-aware flashing module** (UP/DOWN/Neutral, per-column, duration) | M | Per-rule flash (palette + keyframes + targets) already shipped via conditional-styling — this is the remaining standalone module |
-| 3 | **Smart Edit + Bulk Update + Plus/Minus + Shortcuts** | M | Trader ergonomics, reuses AG Grid `applyTransactionAsync` |
-| 4 | **Visual Excel export** (preserve formatting) | M | Differentiator vs AG Grid native; `excelFormatColorResolver` already separates value/colour for re-use |
+| 1 | **Direction-aware flashing module** (UP/DOWN/Neutral, per-column, duration) | M | Per-rule flash already shipped via conditional-styling — standalone module closes the last flashing gap |
+| 2 | **Smart Edit + Bulk Update + Plus/Minus + Shortcuts** | M | Trader ergonomics, reuses AG Grid `applyTransactionAsync` |
+| 3 | **Visual Excel export** (preserve formatting) | M | Differentiator vs AG Grid native; `excelFormatColorResolver` already separates value/colour for re-use |
+| 4 | **Alert extensions** (aggregation limits, validation rollback, auto-jump, `AlertFired` event) | M | P0 triggers shipped; closes evaluation gaps for risk desks |
 
-> **~~Styled Columns~~** (Gradient / Percent Bar / Badge / Sparkline column
-> types) — **shipped 2026-Q2.** Configurable renderers + per-column editors
-> live in `@starui/design-system/cellRenderers` and the column-customization
-> module's `CellRendererEditors/`. See §3.6 and §6.
+> **~~Alerts (P0 triggers)~~** — **shipped 2026-Q2.** Customizer module + lab
+> scenarios. See §4.4, §6.1, and `apps/markets-grid-lab`.
+>
+> **~~Styled Columns~~** — **shipped 2026-Q2.** See §4.6 and §7.
 
-### 7.2 P1 — 2-quarter horizon
+### 8.2 P1 — 2-quarter horizon
 
 | # | Feature | Effort | Why |
 |---|---|---|---|
@@ -493,7 +545,7 @@ is sized into a rough effort band (S < 1 week, M 1–4 weeks, L > 4 weeks).
 | 12 | **Grid Filter (expression-based)** — UI for the existing expression engine to filter the whole grid | M | Power-user filtering |
 | 13 | **Status Bar customizer** — Cell Summaries + Row Summaries when range selected | M | Common ask |
 
-### 7.3 P2 — 3+ quarter horizon
+### 8.3 P2 — 3+ quarter horizon
 
 | # | Feature | Effort | Why |
 |---|---|---|---|
@@ -508,7 +560,7 @@ is sized into a rough effort band (S < 1 week, M 1–4 weeks, L > 4 weeks).
 | 22 | **Expression Editor (Monaco-class)** — autocomplete, type-checking, function-doc tooltips | M | Quality-of-life for any expression-driven feature |
 | 23 | **Tool Panel + Column Menu + Context Menu extension points** | M | Currently only OpenFin context-menu is wired |
 
-### 7.4 P3 — Lower priority
+### 8.4 P3 — Lower priority
 
 | # | Feature | Effort | Why |
 |---|---|---|---|
@@ -521,7 +573,7 @@ is sized into a rough effort band (S < 1 week, M 1–4 weeks, L > 4 weeks).
 | 30 | Layout Wizard | S | Customizer panels can be rebranded as a wizard |
 | 31 | Permissions UI gating per customizer module | S | Plumbing already in ConfigService |
 
-### 7.5 Recommend NOT implementing
+### 8.5 Recommend NOT implementing
 
 These are AdapTable features that don't earn their keep in our context:
 
@@ -538,16 +590,16 @@ These are AdapTable features that don't earn their keep in our context:
 
 ---
 
-## 8. How close is MarketsGrid to AdapTable?
+## 9. How close is MarketsGrid to AdapTable?
 
-**~43% weighted parity** today.
+**~48% weighted parity** today (alerts P0 triggers + styled columns bump
+Core Features from ~14% → ~42%).
 
-If the **P0 set** (Alerts, Flashing, Styled Columns, Smart Edit family,
-Visual Excel) ships, parity moves to **~62%** — and crucially, the
-trader-visible gap closes much faster than the headline number suggests
-because the P0 set targets the highest-visibility features.
+If the **remaining P0 set** (standalone flashing, Smart Edit family, Visual
+Excel, alert extensions) ships, parity moves to **~58%** — trader-visible
+gaps concentrate on pivot/aggregations and collaboration surfaces.
 
-If P0 + P1 ships, parity reaches **~78%**, at which point MarketsGrid
+If remaining P0 + P1 ships, parity reaches **~78%**, at which point MarketsGrid
 is functionally competitive with AdapTable for the typical buy-side /
 sell-side capital-markets workflow.
 
@@ -556,7 +608,7 @@ features) to bring parity above 90%.
 
 ---
 
-## 9. Maintenance
+## 10. Maintenance
 
 Update this document when any of the following happen:
 

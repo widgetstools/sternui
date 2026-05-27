@@ -11,7 +11,7 @@
  * `<input>`, `<select>`, or `<button>` (per CLAUDE.md UI stack rules).
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Bell, Copy, Plus, Trash2 } from 'lucide-react';
 import {
   Button,
@@ -19,7 +19,6 @@ import {
   Label,
   RadioGroup,
   RadioGroupItem,
-  ScrollArea,
   Select,
   SelectContent,
   SelectItem,
@@ -45,14 +44,18 @@ import {
   type RelativeChangeDirection,
   type RelativeChangeMode,
 } from '@starui/engine';
+import { useGridPlatform } from '../../hooks/GridProvider';
 import { useModuleState } from '../../hooks/useModuleState';
+import { useModuleDraft } from '../../hooks/useModuleDraft';
+import { useDirty } from '../../hooks/useDirty';
 import { useGridColumns } from '../../hooks/useGridColumns';
+import { RuleEditorHeader } from '../conditional-styling/editor/RuleEditorHeader';
+import { ExpressionBand } from '../conditional-styling/editor/ExpressionBand';
 import {
   Band,
   CockpitList,
   CockpitListItem,
-  PillToggleBtn,
-  PillToggleGroup,
+  LedBar,
   SubLabel,
 } from '../../ui/SettingsPanel';
 
@@ -315,9 +318,53 @@ function ChannelToggle({
   );
 }
 
+// ─── Dirty LED for the list rail ───────────────────────────────────────────
+
+function DirtyListLed({ ruleId }: { ruleId: string }) {
+  const { isDirty } = useDirty(`${MODULE_ID}:${ruleId}`);
+  if (!isDirty) return null;
+  return <LedBar amber on title="Unsaved changes" />;
+}
+
+const SEVERITIES: AlertSeverity[] = ['info', 'success', 'warning', 'critical'];
+
+// ─── Severity picker (text labels need auto width — not 28px pill toggles) ─
+
+function AlertsSeverityPicker({
+  value,
+  onChange,
+  ruleId,
+}: {
+  value: AlertSeverity;
+  onChange: (severity: AlertSeverity) => void;
+  ruleId: string;
+}) {
+  return (
+    <RadioGroup
+      value={value}
+      onValueChange={(v) => onChange(v as AlertSeverity)}
+      className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4"
+      data-testid={`alerts-severity-group-${ruleId}`}
+    >
+      {SEVERITIES.map((s) => (
+        <Label
+          key={s}
+          className="flex cursor-pointer items-center gap-2 rounded-sm border border-border px-2 py-1.5 text-xs has-[[data-state=checked]]:border-[color:var(--ds-primary)] has-[[data-state=checked]]:bg-[var(--ds-primary-soft)]"
+        >
+          <RadioGroupItem value={s} data-testid={`alerts-severity-${s}-${ruleId}`} />
+          <span className="capitalize">{s}</span>
+        </Label>
+      ))}
+    </RadioGroup>
+  );
+}
+
 // ─── List pane ─────────────────────────────────────────────────────────────
 
-export function AlertsList({ selectedId, onSelect }: ListPaneProps) {
+function AlertsRulesList({
+  selectedId,
+  onSelect,
+}: ListPaneProps) {
   const [state, setState] = useModuleState<AlertsState>(MODULE_ID);
 
   const addRule = useCallback(() => {
@@ -347,8 +394,8 @@ export function AlertsList({ selectedId, onSelect }: ListPaneProps) {
   );
 
   return (
-    <div className="ds-alerts-list flex h-full flex-col gap-2 p-2">
-      <div className="flex items-center justify-between">
+    <div className="ds-alerts-list flex min-h-0 flex-1 flex-col gap-2 p-2">
+      <div className="flex shrink-0 items-center justify-between">
         <SubLabel>Alert rules</SubLabel>
         <Button
           variant="ghost"
@@ -360,7 +407,7 @@ export function AlertsList({ selectedId, onSelect }: ListPaneProps) {
           <Plus size={14} />
         </Button>
       </div>
-      <CockpitList>
+      <CockpitList className="min-h-0 flex-1 overflow-y-auto">
         {state.rules.length === 0 ? (
           <div className="px-2 py-3 text-xs text-[color:var(--ds-text-muted)]">
             No rules yet — click <Plus className="inline" size={10} /> to create one.
@@ -381,6 +428,7 @@ export function AlertsList({ selectedId, onSelect }: ListPaneProps) {
                   aria-hidden
                 />
                 <span className="flex-1 truncate text-xs">{rule.name}</span>
+                <DirtyListLed ruleId={rule.id} />
                 <span className="text-[10px] uppercase tracking-wide opacity-70">
                   {rule.trigger.kind === 'dataChange'
                     ? 'data'
@@ -421,35 +469,40 @@ export function AlertsList({ selectedId, onSelect }: ListPaneProps) {
   );
 }
 
-// ─── Editor pane ───────────────────────────────────────────────────────────
-
-const SEVERITIES: AlertSeverity[] = ['info', 'success', 'warning', 'critical'];
-
-export function AlertsEditor({ selectedId }: EditorPaneProps) {
+export function AlertsList({ selectedId, onSelect }: ListPaneProps) {
   const [state, setState] = useModuleState<AlertsState>(MODULE_ID);
-  const columns = useGridColumns();
-  const columnIds = useMemo(
-    () => columns.map((c) => c.colId).filter((id): id is string => !!id),
-    [columns],
-  );
 
-  const rule = useMemo(
-    () => (selectedId ? state.rules.find((r) => r.id === selectedId) : undefined),
-    [state.rules, selectedId],
-  );
-
-  const updateRule = useCallback(
-    (mut: (prev: AlertRule) => AlertRule) => {
-      if (!selectedId) return;
+  const onSettingsChange = useCallback(
+    (updater: (prev: AlertsSettings) => AlertsSettings) =>
       setState((prev) => ({
         ...prev,
-        rules: prev.rules.map((r) => (r.id === selectedId ? mut(r) : r)),
-      }));
-    },
-    [selectedId, setState],
+        settings: updater(prev.settings ?? { ...DEFAULT_ALERTS_SETTINGS }),
+      })),
+    [setState],
   );
 
-  if (!rule) {
+  useEffect(() => {
+    if (!selectedId && state.rules.length > 0) {
+      onSelect(state.rules[0].id);
+    }
+  }, [selectedId, state.rules, onSelect]);
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="max-h-[min(220px,40vh)] shrink-0 overflow-y-auto border-b border-border">
+        <AlertsSettingsBand settings={state.settings} onChange={onSettingsChange} />
+      </div>
+      <AlertsRulesList selectedId={selectedId} onSelect={onSelect} gridId="" />
+    </div>
+  );
+}
+
+// ─── Editor pane ───────────────────────────────────────────────────────────
+
+export function AlertsEditor({ selectedId }: EditorPaneProps) {
+  const [state] = useModuleState<AlertsState>(MODULE_ID);
+
+  if (!selectedId) {
     return (
       <div className="flex h-full items-center justify-center p-6 text-xs text-[color:var(--ds-text-muted)]">
         Select a rule to edit, or create a new one.
@@ -457,165 +510,174 @@ export function AlertsEditor({ selectedId }: EditorPaneProps) {
     );
   }
 
+  if (!state.rules.some((r) => r.id === selectedId)) return null;
+
+  return <AlertRuleEditor ruleId={selectedId} />;
+}
+
+const AlertRuleEditor = memo(function AlertRuleEditor({ ruleId }: { ruleId: string }) {
+  const platform = useGridPlatform();
+  const engine = platform.resources.expression();
+  const columns = useGridColumns();
+  const columnIds = useMemo(
+    () => columns.map((c) => c.colId).filter((id): id is string => !!id),
+    [columns],
+  );
+  const columnsProvider = useCallback(
+    () => columns.map((c) => ({ colId: c.colId, headerName: c.headerName })),
+    [columns],
+  );
+
+  const { draft, setDraft, dirty, save, discard, missing } = useModuleDraft<
+    AlertsState,
+    AlertRule
+  >({
+    moduleId: MODULE_ID,
+    itemId: ruleId,
+    selectItem: (state) => state.rules.find((r) => r.id === ruleId),
+    commitItem: (next) => (state) => ({
+      ...state,
+      rules: state.rules.map((r) => (r.id === ruleId ? next : r)),
+    }),
+  });
+
+  if (missing || !draft) return null;
+
+  const expression =
+    draft.trigger.kind === 'dataChange' ? draft.trigger.expression : '';
+  const validation = engine.validate(expression);
+
+  const setTriggerKind = (kind: AlertRule['trigger']['kind']) => {
+    if (kind === draft.trigger.kind) return;
+    if (kind === 'dataChange') {
+      setDraft({ trigger: { kind: 'dataChange', expression: '' } });
+    } else if (kind === 'relativeChange') {
+      setDraft({
+        trigger: {
+          kind: 'relativeChange',
+          column: columnIds[0] ?? '',
+          mode: 'ANY_CHANGE',
+          direction: 'both',
+        },
+      });
+    } else {
+      setDraft({ trigger: { kind: 'rowChange', event: 'ROW_ADDED' } });
+    }
+  };
+
   return (
-    <ScrollArea className="ds-alerts-editor h-full">
-      <div className="space-y-4 p-3">
-        <Band title="Identity">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Label className="w-20 text-xs">Name</Label>
-              <Input
-                value={rule.name}
-                onChange={(e) =>
-                  updateRule((prev) => ({ ...prev, name: e.target.value }))
-                }
-                data-testid="alerts-rule-name"
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <SubLabel>Enabled</SubLabel>
-              <Switch
-                checked={rule.enabled}
-                onCheckedChange={(v) => updateRule((prev) => ({ ...prev, enabled: v }))}
-                data-testid="alerts-rule-enabled"
-              />
-            </div>
+    <div
+      data-testid="alerts-rule-editor"
+      data-rule-testid={`alerts-rule-editor-${ruleId}`}
+      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+    >
+      <RuleEditorHeader
+        testIdPrefix="alerts-rule"
+        ruleId={ruleId}
+        name={draft.name}
+        dirty={dirty}
+        onNameChange={(name) => setDraft({ name })}
+        onReset={discard}
+        onSave={save}
+      />
+
+      <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+        <Band title="Rule">
+          <div className="flex items-center justify-between py-1">
+            <SubLabel>Enabled</SubLabel>
+            <Switch
+              checked={draft.enabled}
+              onCheckedChange={(v) => setDraft({ enabled: v })}
+              data-testid={`alerts-rule-enabled-${ruleId}`}
+            />
           </div>
         </Band>
 
         <Band title="Severity">
-          <PillToggleGroup>
-            {SEVERITIES.map((s) => (
-              <PillToggleBtn
-                key={s}
-                active={rule.severity === s}
-                onClick={() => updateRule((prev) => ({ ...prev, severity: s }))}
-                data-testid={`alerts-severity-${s}`}
-                title={s}
-              >
-                {s}
-              </PillToggleBtn>
-            ))}
-          </PillToggleGroup>
+          <AlertsSeverityPicker
+            ruleId={ruleId}
+            value={draft.severity}
+            onChange={(severity) => setDraft({ severity })}
+          />
         </Band>
 
         <Band title="Trigger">
-          <Tabs
-            value={rule.trigger.kind}
-            onValueChange={(kind) => {
-              if (kind === rule.trigger.kind) return;
-              if (kind === 'dataChange') {
-                updateRule((prev) => ({
-                  ...prev,
-                  trigger: { kind: 'dataChange', expression: '' },
-                }));
-              } else if (kind === 'relativeChange') {
-                updateRule((prev) => ({
-                  ...prev,
-                  trigger: {
-                    kind: 'relativeChange',
-                    column: columnIds[0] ?? '',
-                    mode: 'ANY_CHANGE',
-                    direction: 'both',
-                  },
-                }));
-              } else {
-                updateRule((prev) => ({
-                  ...prev,
-                  trigger: { kind: 'rowChange', event: 'ROW_ADDED' },
-                }));
-              }
-            }}
-          >
+          <Tabs value={draft.trigger.kind} onValueChange={(v) => setTriggerKind(v as AlertRule['trigger']['kind'])}>
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="dataChange" data-testid="alerts-trigger-dataChange">
+              <TabsTrigger value="dataChange" data-testid={`alerts-trigger-dataChange-${ruleId}`}>
                 Expression
               </TabsTrigger>
               <TabsTrigger
                 value="relativeChange"
-                data-testid="alerts-trigger-relativeChange"
+                data-testid={`alerts-trigger-relativeChange-${ruleId}`}
               >
                 Delta
               </TabsTrigger>
-              <TabsTrigger value="rowChange" data-testid="alerts-trigger-rowChange">
+              <TabsTrigger value="rowChange" data-testid={`alerts-trigger-rowChange-${ruleId}`}>
                 Row
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="dataChange" className="space-y-2 pt-3">
-              <div className="flex flex-col gap-1">
-                <SubLabel>Boolean expression</SubLabel>
-                <Input
-                  value={rule.trigger.kind === 'dataChange' ? rule.trigger.expression : ''}
-                  placeholder="[bid] > 100"
-                  onChange={(e) =>
-                    updateRule((prev) => {
-                      if (prev.trigger.kind !== 'dataChange') return prev;
-                      return {
-                        ...prev,
-                        trigger: { ...prev.trigger, expression: e.target.value },
-                      };
-                    })
-                  }
-                  data-testid="alerts-expression-input"
-                />
-              </div>
+              <ExpressionBand
+                ruleId={ruleId}
+                expression={draft.trigger.kind === 'dataChange' ? draft.trigger.expression : ''}
+                validation={validation}
+                columnsProvider={columnsProvider}
+                expressionTestId={`alerts-rule-expression-${ruleId}`}
+                onExpressionChange={(v) => {
+                  if (draft.trigger.kind !== 'dataChange') return;
+                  setDraft({ trigger: { ...draft.trigger, expression: v } });
+                }}
+              />
               <ColumnPicker
                 label="Restrict to column (optional)"
-                value={rule.trigger.kind === 'dataChange' ? rule.trigger.column ?? '' : ''}
-                onChange={(v) =>
-                  updateRule((prev) => {
-                    if (prev.trigger.kind !== 'dataChange') return prev;
-                    const next: typeof prev.trigger = { ...prev.trigger };
-                    if (v) next.column = v;
-                    else delete next.column;
-                    return { ...prev, trigger: next };
-                  })
-                }
+                value={draft.trigger.kind === 'dataChange' ? draft.trigger.column ?? '' : ''}
+                onChange={(v) => {
+                  if (draft.trigger.kind !== 'dataChange') return;
+                  const next = { ...draft.trigger };
+                  if (v) next.column = v;
+                  else delete next.column;
+                  setDraft({ trigger: next });
+                }}
                 allowEmpty
                 columnIds={columnIds}
-                testId="alerts-datachange-column"
+                testId={`alerts-datachange-column-${ruleId}`}
               />
             </TabsContent>
 
             <TabsContent value="relativeChange" className="space-y-2 pt-3">
-              {rule.trigger.kind === 'relativeChange' ? (
+              {draft.trigger.kind === 'relativeChange' ? (
                 <RelativeChangeBody
-                  trigger={rule.trigger}
+                  trigger={draft.trigger}
                   columnIds={columnIds}
-                  onChange={(next) =>
-                    updateRule((prev) => ({ ...prev, trigger: next }))
-                  }
+                  onChange={(next) => setDraft({ trigger: next })}
                 />
               ) : null}
             </TabsContent>
 
             <TabsContent value="rowChange" className="space-y-2 pt-3">
-              {rule.trigger.kind === 'rowChange' ? (
+              {draft.trigger.kind === 'rowChange' ? (
                 <RadioGroup
-                  value={rule.trigger.event}
+                  value={draft.trigger.event}
                   onValueChange={(v) =>
-                    updateRule((prev) => {
-                      if (prev.trigger.kind !== 'rowChange') return prev;
-                      return {
-                        ...prev,
-                        trigger: {
-                          ...prev.trigger,
-                          event: v as 'ROW_ADDED' | 'ROW_REMOVED',
-                        },
-                      };
+                    setDraft({
+                      trigger: {
+                        kind: 'rowChange',
+                        event: v as 'ROW_ADDED' | 'ROW_REMOVED',
+                      },
                     })
                   }
                   className="flex flex-row gap-3"
                 >
                   <Label className="flex items-center gap-1.5 text-xs">
-                    <RadioGroupItem value="ROW_ADDED" data-testid="alerts-row-added" />
+                    <RadioGroupItem value="ROW_ADDED" data-testid={`alerts-row-added-${ruleId}`} />
                     Row added
                   </Label>
                   <Label className="flex items-center gap-1.5 text-xs">
                     <RadioGroupItem
                       value="ROW_REMOVED"
-                      data-testid="alerts-row-removed"
+                      data-testid={`alerts-row-removed-${ruleId}`}
                     />
                     Row removed
                   </Label>
@@ -629,11 +691,9 @@ export function AlertsEditor({ selectedId }: EditorPaneProps) {
           <div className="space-y-1.5">
             <SubLabel>Template — placeholders: {'{rule} {rowId} {column} {value} {prev}'}</SubLabel>
             <Input
-              value={rule.message}
-              onChange={(e) =>
-                updateRule((prev) => ({ ...prev, message: e.target.value }))
-              }
-              data-testid="alerts-message-input"
+              value={draft.message}
+              onChange={(e) => setDraft({ message: e.target.value })}
+              data-testid={`alerts-message-input-${ruleId}`}
             />
           </div>
         </Band>
@@ -650,16 +710,14 @@ export function AlertsEditor({ selectedId }: EditorPaneProps) {
                       : 'OpenFin notification centre'}
                 </SubLabel>
                 <Switch
-                  checked={rule.channels.includes(channel)}
-                  onCheckedChange={(v) =>
-                    updateRule((prev) => {
-                      const set = new Set<AlertChannel>(prev.channels);
-                      if (v) set.add(channel);
-                      else set.delete(channel);
-                      return { ...prev, channels: Array.from(set) };
-                    })
-                  }
-                  data-testid={`alerts-rule-channel-${channel}`}
+                  checked={draft.channels.includes(channel)}
+                  onCheckedChange={(v) => {
+                    const set = new Set<AlertChannel>(draft.channels);
+                    if (v) set.add(channel);
+                    else set.delete(channel);
+                    setDraft({ channels: Array.from(set) });
+                  }}
+                  data-testid={`alerts-rule-channel-${channel}-${ruleId}`}
                 />
               </div>
             ))}
@@ -672,20 +730,19 @@ export function AlertsEditor({ selectedId }: EditorPaneProps) {
             min={0}
             max={30_000}
             step={250}
-            value={rule.debounceMs ?? 0}
+            value={draft.debounceMs ?? 0}
             onChange={(v) =>
-              updateRule((prev) => ({
-                ...prev,
+              setDraft({
                 ...(v > 0 ? { debounceMs: v } : { debounceMs: undefined }),
-              }))
+              })
             }
-            testIdPrefix={`alerts-rule-debounce-${rule.id}`}
+            testIdPrefix={`alerts-rule-debounce-${ruleId}`}
           />
         </Band>
       </div>
-    </ScrollArea>
+    </div>
   );
-}
+});
 
 function RelativeChangeBody({
   trigger,
@@ -818,20 +875,25 @@ export function AlertsPanel() {
   );
 
   return (
-    <div className="ds-alerts-panel flex h-full flex-col">
-      <AlertsSettingsBand settings={state.settings} onChange={onSettingsChange} />
-      <Separator />
-      <div className="flex min-h-0 flex-1">
-        <div className="w-64 shrink-0 border-r border-[color:var(--ds-border-default)]">
-          <AlertsList
+    <div
+      data-testid="alerts-panel"
+      className="ds-alerts-panel flex min-h-0 flex-1 flex-col overflow-hidden"
+    >
+      <div className="max-h-[min(280px,38vh)] shrink-0 overflow-y-auto">
+        <AlertsSettingsBand settings={state.settings} onChange={onSettingsChange} />
+      </div>
+      <Separator className="shrink-0" />
+      <div className="flex min-h-0 flex-1 overflow-hidden border-t border-[color:var(--ds-border-default)]">
+        <aside className="flex w-64 min-h-0 shrink-0 flex-col overflow-y-auto border-r border-[color:var(--ds-border-default)]">
+          <AlertsRulesList
             gridId=""
             selectedId={selectedId}
             onSelect={setSelectedId}
           />
-        </div>
-        <div className="min-w-0 flex-1">
+        </aside>
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <AlertsEditor gridId="" selectedId={selectedId} />
-        </div>
+        </section>
       </div>
     </div>
   );

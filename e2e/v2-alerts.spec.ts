@@ -27,8 +27,8 @@ import { test, expect, type Page } from '@playwright/test';
  */
 
 const LAB_URL = 'http://localhost:5300/';
-const GRID_ID = 'lab-alerts-v1';
-const SEED_FLAG_KEY = `lab-seeded:${GRID_ID}`;
+const GRID_ID = 'lab-alerts-v2';
+const SEED_FLAG_KEY = `lab-demo-profiles-v2:${GRID_ID}`;
 
 const SEEDED_RULE_IDS = [
   'alert-bid-spike',
@@ -60,7 +60,13 @@ declare global {
 async function clearLabStorage(page: Page): Promise<void> {
   await page.evaluate((flagKey) => {
     Object.keys(localStorage)
-      .filter((k) => k.startsWith('markets-grid-bundle:lab-') || k.startsWith('gc-active-profile:lab-') || k.startsWith('lab-seeded:'))
+      .filter(
+        (k) =>
+          k.startsWith('markets-grid-bundle:lab-') ||
+          k.startsWith('gc-active-profile:lab-') ||
+          k.startsWith('lab-seeded:') ||
+          k.startsWith('lab-demo-profiles-'),
+      )
       .forEach((k) => localStorage.removeItem(k));
     localStorage.removeItem(flagKey);
   }, SEED_FLAG_KEY);
@@ -84,7 +90,7 @@ async function bootAlertsTab(page: Page): Promise<void> {
   await page.waitForSelector(`[data-grid-id="${GRID_ID}"] .ag-body-viewport .ag-row`, {
     timeout: 15_000,
   });
-  // Wait for the seed to land — useSeed writes asynchronously then saves.
+  // Wait for demo profiles to land — useLabDemoProfiles writes via setConfig.
   await page.waitForFunction(() => {
     const handle = window.__labGrid;
     if (!handle) return false;

@@ -9,6 +9,7 @@ import conditionalStyling from './conditional-styling.md?raw';
 import liveUpdates from './live-updates.md?raw';
 import profiles from './profiles.md?raw';
 import alerts from './alerts.md?raw';
+import quickFilters from './quick-filters.md?raw';
 
 export const HELP = {
   overview,
@@ -21,4 +22,5 @@ export const HELP = {
   liveUpdates,
   profiles,
   alerts,
+  quickFilters,
 } as const;

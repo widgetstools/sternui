@@ -27,7 +27,7 @@ import {
   INITIAL_ALERTS,
   type AlertsState,
 } from '@starui/engine';
-import { AlertsPanel } from './AlertsPanel';
+import { AlertsEditor, AlertsList, AlertsPanel } from './AlertsPanel';
 import { activateAlerts } from './runtime/activate';
 
 export const ALERTS_MODULE_ID = 'alerts';
@@ -60,10 +60,11 @@ export const alertsModule: Module<AlertsState> = {
 
   deserialize: (raw) => deserializeAlertsState(raw),
 
-  // Combined SettingsPanel (settings band + rule list + editor in one view)
-  // rather than the split ListPane/EditorPane master-detail layout. The
-  // AlertsSettingsBand at the top of the panel is the surface most users
-  // touch first (enable/disable, frequency), so it gets pole position.
+  // Master-detail in the settings sheet — fixed rule header + scroll body
+  // (same layout contract as Style Rules). SettingsPanel remains for hosts
+  // that mount the flat combined layout.
+  ListPane: AlertsList,
+  EditorPane: AlertsEditor,
   SettingsPanel: AlertsPanel,
 };
 

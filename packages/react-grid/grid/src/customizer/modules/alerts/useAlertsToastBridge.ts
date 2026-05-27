@@ -54,10 +54,14 @@ export function useAlertsToastBridge(platform: GridPlatform | null): void {
       const settings = state.settings;
       const channelOn = settings.enabled && settings.enabledChannels.toast;
 
+      const rulesById = new Map(state.rules.map((r) => [r.id, r]));
+
       for (let i = fresh.length - 1; i >= 0; i -= 1) {
         const n = fresh[i];
         seen.add(n.id);
         if (!channelOn) continue;
+        const rule = rulesById.get(n.ruleId);
+        if (!rule?.channels.includes('toast')) continue;
         toast({
           title: n.ruleName,
           description: n.message,

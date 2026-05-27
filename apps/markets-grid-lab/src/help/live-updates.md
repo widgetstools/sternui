@@ -1,8 +1,11 @@
 # Live Updates — flash, signal, repeat
 
-This tab is tuned for **maximum visible motion**. It pre-seeds 3
-conditional-styling rules and ratchets up the mock stream so flashes
-are obvious.
+**Four toolbar profiles** (`lab-live-v6`): flash storm (all rules), price
+tick only, P&L sign flash, big mid diff moves. Import
+[`public/lab-profiles/live-updates/`](../../public/lab-profiles/live-updates/).
+
+Tuned for **maximum visible motion** — default profile seeds four CS rules
+plus fast native cell flash (`STORM_FLASH`).
 
 ## Stream configuration
 

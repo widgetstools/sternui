@@ -2,17 +2,15 @@ import { useMemo } from 'react';
 import { MarketsGrid } from '@starui/grid';
 import { TabContainer } from '../components/TabContainer';
 import { defaultColDef, pickColumns } from '../data/columns';
-import { useMockStream } from '../data/useMockStream';
-import { useSeed } from '../data/useSeed';
+import { useLabRows } from '../demo/useLabRows';
+import { useLabDemoProfiles } from '../data/useLabDemoProfiles';
 import { labStorage } from '../data/storage';
 import { HELP } from '../help';
-import { ALERTS_TAB_STATE } from '../seeds';
-
-const GRID_ID = 'lab-alerts-v1';
-
-const SEED = {
-  alerts: ALERTS_TAB_STATE,
-};
+import {
+  ALERTS_ACTIVE_PROFILE_ID,
+  ALERTS_DEMO_PROFILES,
+  ALERTS_GRID_ID,
+} from '../profiles/catalogs';
 
 const FIELDS = [
   'cusip', 'ticker', 'instrumentDescription',
@@ -25,20 +23,23 @@ const FIELDS = [
 ];
 
 export function AlertsTab() {
-  const rows = useMockStream('mock-positions-alerts', { rowCount: 250, updateIntervalMs: 600 });
+  const { rows } = useLabRows('alerts', 'mock-positions-alerts', {
+    rowCount: 250,
+    updateIntervalMs: 600,
+  });
   const columnDefs = useMemo(() => pickColumns(FIELDS), []);
   const memoizedDefaultColDef = useMemo(() => defaultColDef, []);
-  const onReady = useSeed(GRID_ID, SEED);
+  const onReady = useLabDemoProfiles(ALERTS_GRID_ID, ALERTS_DEMO_PROFILES, ALERTS_ACTIVE_PROFILE_ID);
 
   return (
     <TabContainer
       title="Alerts"
-      subtitle="7 seeded rules · 3 trigger families · toast + bell badge + OpenFin · debounce · rate limit · live settings"
+      subtitle={`${ALERTS_DEMO_PROFILES.length} profiles · triggers · channels · debounce · rate limit`}
       help={HELP.alerts}
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <MarketsGrid
-          gridId={GRID_ID}
+          gridId={ALERTS_GRID_ID}
           componentName="Alerts"
           rowData={rows}
           columnDefs={columnDefs}

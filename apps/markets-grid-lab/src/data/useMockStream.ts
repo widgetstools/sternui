@@ -25,6 +25,9 @@ import type { LabRow, StreamOptions } from './types';
 export function useMockStream(providerId: string, opts: StreamOptions = {}): LabRow[] {
   const { rowCount = 500, updateIntervalMs = 500, enableUpdates = true } = opts;
 
+  // Hub only applies `cfg` on the *first* attach per providerId; later
+  // attaches are late-joiners. Stream tuning (interval, pause, row count)
+  // must go through `refresh({ ... })` → provider.restart(extra).
   const cfg = useMemo<MockProviderConfig>(
     () => ({
       providerType: 'mock',
@@ -36,13 +39,13 @@ export function useMockStream(providerId: string, opts: StreamOptions = {}): Lab
       // and AG-Grid's `getRowId` agree.
       keyColumn: 'id',
     }),
-    [rowCount, updateIntervalMs, enableUpdates],
+    [providerId],
   );
 
   const [rows, setRows] = useState<LabRow[]>([]);
   const rowsRef = useRef<LabRow[]>([]);
 
-  useProviderStream<LabRow>(providerId, cfg, {
+  const { refresh, status } = useProviderStream<LabRow>(providerId, cfg, {
     onDelta: (incoming, replace) => {
       rowsRef.current = replace
         ? [...incoming]
@@ -55,6 +58,11 @@ export function useMockStream(providerId: string, opts: StreamOptions = {}): Lab
       // `dataStale` prop is the canonical way to expose disconnects.
     },
   });
+
+  useEffect(() => {
+    if (status !== 'ready') return;
+    refresh({ updateIntervalMs, enableUpdates, rowCount });
+  }, [status, updateIntervalMs, enableUpdates, rowCount, refresh]);
 
   // Reset local snapshot when the provider id flips (tab change).
   useEffect(() => {

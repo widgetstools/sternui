@@ -49,6 +49,7 @@ const PANEL_TESTID_BY_MODULE_ID: Record<string, string> = {
   // (no legacy flat panel), so the wrapper here carries the back-compat
   // `cols-panel` testid the e2e helpers + docs consistently target.
   'column-customization': 'cols-panel',
+  alerts: 'alerts-panel',
 };
 
 export interface SettingsSheetProps {
@@ -406,7 +407,14 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                   <EditorPane gridId={gridId} selectedId={selectedId} />
                 </div>
               ) : LegacyPanel ? (
-                <LegacyPanel gridId={gridId} />
+                <div
+                  data-testid={PANEL_TESTID_BY_MODULE_ID[activeId] ?? undefined}
+                  className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                >
+                  <div className="ds-editor-scroll min-h-0 flex-1">
+                    <LegacyPanel gridId={gridId} />
+                  </div>
+                </div>
               ) : (
                 <div className="p-6">
                   <div className="ds-caps text-[10px] mb-1.5">

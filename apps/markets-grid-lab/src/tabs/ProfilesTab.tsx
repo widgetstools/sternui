@@ -4,9 +4,18 @@ import { MarketsGrid } from '@starui/grid';
 import { Button } from '@starui/ui';
 import { TabContainer } from '../components/TabContainer';
 import { defaultColDef } from '../data/columns';
-import { useMockStream } from '../data/useMockStream';
+import { useLabDemoProfiles } from '../data/useLabDemoProfiles';
+import { useLabRows } from '../demo/useLabRows';
 import { labStorage } from '../data/storage';
 import { HELP } from '../help';
+import {
+  CONDITIONAL_ACTIVE_PROFILE_ID,
+  CONDITIONAL_DEMO_PROFILES,
+} from '../profiles/catalogs/conditionalCatalog';
+import {
+  CALCULATED_ACTIVE_PROFILE_ID,
+  CALCULATED_DEMO_PROFILES,
+} from '../profiles/catalogs/calculatedCatalog';
 import { PRESETS } from '../profiles/presets';
 import type { ProfilePreset } from '../profiles/types';
 
@@ -75,12 +84,21 @@ function PresetGridView({
   onBack: () => void;
 }) {
   const stream = preset.stream ?? {};
-  const rows = useMockStream(`mock-positions-preset-${preset.id}`, {
+  const { rows } = useLabRows('profiles', `mock-positions-preset-${preset.id}`, {
     rowCount: stream.rowCount ?? 500,
     updateIntervalMs: stream.updateIntervalMs ?? 600,
   });
   const columnDefs = useMemo(() => preset.buildColumns(), [preset]);
   const colDefBase = preset.defaultColDef ?? defaultColDef;
+  const installDemoProfiles = useLabDemoProfiles(
+    preset.id,
+    preset.demoProfiles ?? [],
+    preset.activeDemoProfileId ?? '',
+  );
+  const onReady =
+    preset.demoProfiles && preset.demoProfiles.length > 0 && preset.activeDemoProfileId
+      ? installDemoProfiles
+      : undefined;
 
   return (
     <TabContainer
@@ -116,6 +134,7 @@ function PresetGridView({
           rowIdField="id"
           rowHeight={preset.rowHeight}
           storage={labStorage}
+          onReady={onReady}
           showFiltersToolbar={preset.toolbars?.showFiltersToolbar}
           showFormattingToolbar={preset.toolbars?.showFormattingToolbar}
           showProfileSelector

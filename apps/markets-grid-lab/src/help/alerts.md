@@ -1,5 +1,61 @@
 # Alerts — expression + delta triggers, multi-channel notifications
 
+## Run the demo
+
+From the repo root:
+
+```bash
+npm run dev:markets-grid-lab
+```
+
+Open **http://localhost:5300/**, click the **Alerts** tab, and wait a few
+seconds. The toolbar **bell** count should climb and toasts appear when
+rules like **Mid moves > 0.5%** or **Bid > $110** fire on mock ticks.
+
+### Profile selector (feature-by-feature)
+
+On first load the tab installs **9 demo profiles** into the toolbar
+**profile / layout selector** (plus **Default** with no rules). Switch
+profiles to isolate one behaviour at a time:
+
+| Profile | Focus |
+| --- | --- |
+| **00 · Full demo** | All triggers + channels (start here) |
+| **01 · Data-change** | Expression rules on bid + daily P&L |
+| **02 · Relative-change** | Mid % move threshold |
+| **03 · Row add/remove** | Row-change triggers (needs add/remove feed) |
+| **04 · Toast only** | Bottom-right toasts, badge channel off |
+| **05 · Badge only** | Bell + history, no toasts |
+| **06 · Rate limit** | Hot rules + **1** notification/sec cap |
+| **07 · Debounce** | 8s debounce on bid rule |
+| **08 · Paused** | Rules loaded; switch evaluation to **Realtime** |
+
+**Import** a profile from disk: profile menu → Import → pick a file under
+[`public/lab-profiles/alerts/`](../../public/lab-profiles/alerts/) (e.g.
+`alert-04-toast-channel.json`).
+
+**Reset** installed profiles (`gridId` `lab-alerts-v2`):
+
+```js
+localStorage.removeItem('markets-grid-bundle:lab-alerts-v2');
+localStorage.removeItem('lab-demo-profiles-v2:lab-alerts-v2');
+```
+
+Then reload the Alerts tab.
+
+Use **Tools** (settings gear) → module picker → **Alerts** to tune rules,
+debounce, rate limit, and channels. Each rule editor matches **Style Rules**:
+**RESET** / **SAVE** on the title row, and the **Expression** trigger uses the
+same Monaco expression editor (`[columnId]` syntax, column completions).
+
+The bell popover shows history; **Mark read** clears the badge without wiping entries.
+
+> Dev must use `STARUI_DEV_SOURCE=1` (the lab `dev` script sets this) so
+> Vite resolves `@starui/grid` from `packages/react-grid` source, not a
+> stale tarball.
+
+---
+
 This tab seeds **7 alert rules** under `Tools → Alerts` covering all three
 trigger families. Five fire against the mock stream; two (row-add / row-remove)
 stay disabled by default because the mock provider only updates existing

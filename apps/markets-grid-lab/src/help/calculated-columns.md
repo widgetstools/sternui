@@ -1,15 +1,19 @@
 # Calculated Columns — module-driven
 
-This tab seeds **7 virtual columns** through the `calculated-columns`
-module. Open `Tools → Calculated Columns` to inspect or edit any
-expression.
+**Five toolbar profiles** (`lab-calculated-v5`) switch between the full
+**11** virtual columns and focused subsets (P&L, risk, spreads, overview
+derivatives). Import from
+[`public/lab-profiles/calculated-columns/`](../../public/lab-profiles/calculated-columns/).
+
+Default profile **00 · All virtual** seeds every expression below.
+Open `Tools → Calculated Columns` to inspect or edit.
 
 Unlike `valueGetter`-based derived columns (which live in code), these
 columns are **profile state** — the expression is a string parsed by
 the engine at column-build time. You can author them in the UI, save
 the profile, and they ride the same persistence as any other module.
 
-## What's seeded
+## Full catalog (profile 00)
 
 | ColId | Header | Expression | Formatter |
 | --- | --- | --- | --- |
@@ -17,9 +21,12 @@ the profile, and they ride the same persistence as any other module.
 | `calc_carryRisk` | Carry/Risk | `IF([modifiedDuration] > 0, [yieldToMaturity] / [modifiedDuration], null)` | preset `number`, 2 dp |
 | `calc_dollarDur` | Dollar Dur | `[marketValue] * [modifiedDuration] / 100` | preset `currency`, 0 dp |
 | `calc_bidAskBps` | B/A bps (calc) | `([askPrice] - [bidPrice]) * 100` | preset `number`, 2 dp |
-| `calc_riskBucket` | Risk Bucket | `IF([modifiedDuration] < 3, "Short", IF([modifiedDuration] < 7, "Mid", IF([modifiedDuration] < 12, "Long", "Ultra")))` | (string, no formatter) |
+| `calc_riskBucket` | Risk Bucket | `IF([modifiedDuration] < 3, "Short", …)` | string |
 | `calc_spreadToBench` | Sprd→Bench (bps) | `([yieldToMaturity] - [benchmarkYield]) * 100` | preset `number`, 2 dp |
 | `calc_liquidityScore` | Liquidity (log) | `LOG10([avgDailyVolume30d])` | preset `number`, 2 dp |
+| `calc_pnlPctMkt` | P&L % of Mkt | `IF([marketValue] > 0, ([dailyPnL] / [marketValue]) * 100, null)` | preset `number` |
+| `calc_cs01Notional` | CS01 × Qty | `[cs01] * [quantityFace] / 1000000` | preset `currency` |
+| `calc_yieldSpread` | YTW − YTM | `[yieldToWorst] - [yieldToMaturity]` | preset `number`, 3 dp |
 
 ## Expression DSL
 
