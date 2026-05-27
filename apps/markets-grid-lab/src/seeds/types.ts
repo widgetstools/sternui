@@ -12,6 +12,7 @@ import type {
   GeneralSettingsState,
   SavedFiltersState,
 } from '@starui/grid/customizer';
+import type { AlertsState } from '@starui/engine';
 
 export interface TabSeed {
   'conditional-styling'?: ConditionalStylingState;
@@ -20,4 +21,5 @@ export interface TabSeed {
   'calculated-columns'?: CalculatedColumnsState;
   'general-settings'?: Partial<GeneralSettingsState>;
   'saved-filters'?: SavedFiltersState;
+  alerts?: AlertsState;
 }

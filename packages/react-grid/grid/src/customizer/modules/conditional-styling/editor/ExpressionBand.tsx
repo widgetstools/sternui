@@ -8,12 +8,15 @@ export const ExpressionBand = memo(function ExpressionBand({
   validation,
   columnsProvider,
   onExpressionChange,
+  expressionTestId,
 }: {
   ruleId: string;
   expression: string;
   validation: { valid: boolean; errors: ReadonlyArray<{ message: string }> };
   columnsProvider: () => Array<{ colId: string; headerName: string }>;
   onExpressionChange: (next: string) => void;
+  /** Override Monaco editor test id (default `cs-rule-expression-{ruleId}`). */
+  expressionTestId?: string;
 }) {
   return (
     <Band index="01" title="EXPRESSION">
@@ -34,7 +37,7 @@ export const ExpressionBand = memo(function ExpressionBand({
           fontSize={12}
           placeholder="[price] > 110"
           columnsProvider={columnsProvider}
-          data-testid={`cs-rule-expression-${ruleId}`}
+          data-testid={expressionTestId ?? `cs-rule-expression-${ruleId}`}
         />
       </div>
       <div
@@ -47,15 +50,15 @@ export const ExpressionBand = memo(function ExpressionBand({
         }}
       >
         TYPE{' '}
-        <code className="font-mono text-secondary normal-case">
+        <code className="font-mono normal-case text-[color:var(--ds-text-secondary)]">
           [
         </code>{' '}
         FOR COLUMNS ·{' '}
-        <code className="font-mono text-secondary normal-case">
+        <code className="font-mono normal-case text-[color:var(--ds-text-secondary)]">
           ⌘↵
         </code>{' '}
         TO SAVE · USE{' '}
-        <code className="font-mono text-secondary normal-case">
+        <code className="font-mono normal-case text-[color:var(--ds-text-secondary)]">
           data.field
         </code>{' '}
         FOR RAW

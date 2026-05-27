@@ -32,6 +32,14 @@ function resolveTypographySize(size: CapsMonoSize | number | undefined): string 
 /** Body scale for settings chrome — matches `typography.fontSize.sm` / `--ds-font-size-sm`. */
 const SETTINGS_UI_TEXT = 'text-[length:var(--ds-font-size-sm)]';
 
+/**
+ * Section band titles (`RULE`, `SEVERITY`, `GLOBAL SETTINGS`, …).
+ * Do not use Tailwind `text-secondary` — that utility maps to the `--secondary`
+ * surface token (~18% lightness in dark), not readable text.
+ */
+export const SETTINGS_SECTION_TITLE =
+  'font-semibold uppercase tracking-widest text-[color:var(--ds-text-secondary)]';
+
 // ─── Typography voices ────────────────────────────────────────────
 
 export interface CapsProps {
@@ -226,7 +234,7 @@ export function Band({ index, title, trailing, children, flush }: BandProps) {
             {index}
           </span>
         )}
-        <span className={cn('font-semibold uppercase tracking-widest text-secondary', SETTINGS_UI_TEXT)}>
+        <span className={cn(SETTINGS_SECTION_TITLE, SETTINGS_UI_TEXT)}>
           {title}
         </span>
         <span className="flex-1 h-px bg-border" />

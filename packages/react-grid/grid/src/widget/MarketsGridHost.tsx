@@ -261,7 +261,7 @@ export function MarketsGridHost<TData>({
         modules={modules}
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-        initialModuleId="conditional-styling"
+        initialModuleId="general-settings"
       />
 
       <UnsavedSwitchDialog

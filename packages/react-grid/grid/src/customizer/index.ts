@@ -306,6 +306,13 @@ export {
   type IndicatorIconDef,
 } from './modules/conditional-styling';
 export {
+  alertsModule,
+  ALERTS_MODULE_ID,
+  AlertsBadge,
+  useAlertsToastBridge,
+  useAlertsOpenFinBridge,
+} from './modules/alerts';
+export {
   calculatedColumnsModule,
   CALCULATED_COLUMNS_MODULE_ID,
   INITIAL_CALCULATED_COLUMNS,

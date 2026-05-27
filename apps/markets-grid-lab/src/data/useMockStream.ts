@@ -1,29 +1,49 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import type { GridApi } from 'ag-grid-community';
 import { useProviderStream } from '@starui/host-data-react/runtime';
 import type { MockProviderConfig } from '@starui/types';
+import { applyLabStreamDelta } from './applyLabStreamDelta';
 import { applyDelta } from './applyDelta';
+import { useDebouncedValue } from './useDebouncedValue';
 import type { LabRow, StreamOptions } from './types';
+
+export type StreamDeltaTransform = (
+  incoming: readonly LabRow[],
+) => readonly LabRow[];
+
+export interface MockStreamBindings {
+  /** Set from MarketsGrid `onReady` — ticks route through transactions once set. */
+  gridApiRef: RefObject<GridApi | null>;
+  /** Optional per-tick overlay (e.g. active demo scenario). */
+  transformDelta?: StreamDeltaTransform;
+}
+
+export interface MockStreamResult {
+  /** Initial / full-replace snapshot for `rowData` — stable between ticks. */
+  rows: LabRow[];
+  /** Live keyed snapshot for scenarios and the demo console. */
+  rowsRef: RefObject<LabRow[]>;
+  /** Row count after the last full snapshot (for demo-console display). */
+  snapshotRowCount: number;
+  /** Re-attach / restart the mock provider (e.g. after clearing a scenario). */
+  refresh: (extra?: Record<string, unknown>) => void;
+}
 
 /**
  * Subscribes to the canonical MockDataProvider hosted in the
  * data-services SharedWorker, identified by a tab-scoped `providerId`.
  *
- * Why a SharedWorker:
- *   - Data generation + the keyed row cache run off the main thread, so
- *     UI work (sorting, scrolling, paint) isn't fighting the ticker.
- *   - The hub dedupes incoming rows by `cfg.keyColumn` and emits deltas
- *     instead of full snapshots, so a tick costs O(changed rows) not
- *     O(all rows).
- *
- * The worker auto-stops a provider when no subscribers remain (i.e.
- * when the user switches tabs and Radix unmounts the inactive content).
- *
- * `providerId` is required and MUST be unique per tab — colliding ids
- * would share a single stream across tabs that may want different
- * configs.
+ * Full snapshots (`replace: true`) update React `rowData` once. Tick
+ * deltas go through `gridApi.applyTransactionAsync` so AG-Grid only
+ * repaints changed rows (cell flash, conditional styling, alerts).
  */
-export function useMockStream(providerId: string, opts: StreamOptions = {}): LabRow[] {
+export function useMockStream(
+  providerId: string,
+  opts: StreamOptions = {},
+  bindings: MockStreamBindings,
+): MockStreamResult {
   const { rowCount = 500, updateIntervalMs = 500, enableUpdates = true } = opts;
+  const { gridApiRef, transformDelta } = bindings;
 
   const cfg = useMemo<MockProviderConfig>(
     () => ({
@@ -32,35 +52,71 @@ export function useMockStream(providerId: string, opts: StreamOptions = {}): Lab
       rowCount,
       updateIntervalMs,
       enableUpdates,
-      // Must match the MarketsGrid `rowIdField` so the hub's keyed cache
-      // and AG-Grid's `getRowId` agree.
       keyColumn: 'id',
     }),
-    [rowCount, updateIntervalMs, enableUpdates],
+    // Hub ignores cfg on re-attach for an already-running providerId — only
+    // the first attach per providerId uses cfg. Runtime interval/pause/count
+    // changes are pushed via refresh() below.
+    [providerId],
   );
 
   const [rows, setRows] = useState<LabRow[]>([]);
+  const [snapshotRowCount, setSnapshotRowCount] = useState(0);
   const rowsRef = useRef<LabRow[]>([]);
+  const transformRef = useRef(transformDelta);
+  transformRef.current = transformDelta;
 
-  useProviderStream<LabRow>(providerId, cfg, {
-    onDelta: (incoming, replace) => {
-      rowsRef.current = replace
-        ? [...incoming]
-        : applyDelta(rowsRef.current, incoming, 'id');
-      setRows(rowsRef.current);
+  const runtimeRef = useRef({ rowCount, updateIntervalMs, enableUpdates });
+  runtimeRef.current = { rowCount, updateIntervalMs, enableUpdates };
+
+  const applyIncoming = useCallback(
+    (incoming: readonly LabRow[], replace: boolean) => {
+      const transform = transformRef.current;
+      const outbound = transform ? transform(incoming) : incoming;
+
+      const api = gridApiRef.current;
+      const next = applyLabStreamDelta(api, rowsRef.current, outbound, replace);
+      rowsRef.current = next;
+
+      if (replace || !api) {
+        setRows(next);
+        setSnapshotRowCount(next.length);
+      }
     },
-    onStatus: () => {
-      // Status changes (loading/ready/error) drive optional UI overlays.
-      // The lab doesn't surface a banner here — MarketsGrid's own
-      // `dataStale` prop is the canonical way to expose disconnects.
-    },
+    [gridApiRef],
+  );
+
+  const { refresh, status } = useProviderStream<LabRow>(providerId, cfg, {
+    onDelta: applyIncoming,
+    onStatus: () => {},
   });
 
-  // Reset local snapshot when the provider id flips (tab change).
+  // Debounce interval changes while the slider is dragged — each step used to
+  // call provider.restart() and replace all rowData (full grid reload).
+  const debouncedIntervalMs = useDebouncedValue(updateIntervalMs, 300);
+
+  // SharedWorker hub: subsequent attaches for the same providerId ignore cfg.
+  // Runtime interval / pause / row-count changes go through provider.restart(extra).
+  // Interval-only restarts are soft (no snapshot rebuild) in mock.ts.
+  useEffect(() => {
+    if (status !== 'ready') return;
+    const { rowCount: rc, enableUpdates: on } = runtimeRef.current;
+    refresh({ updateIntervalMs: debouncedIntervalMs, enableUpdates: on, rowCount: rc });
+  }, [status, debouncedIntervalMs, enableUpdates, rowCount, refresh]);
+
   useEffect(() => {
     rowsRef.current = [];
     setRows([]);
-  }, [providerId]);
+    setSnapshotRowCount(0);
+    const api = gridApiRef.current;
+    if (api) {
+      try {
+        api.setGridOption('rowData', []);
+      } catch {
+        /* tearing down */
+      }
+    }
+  }, [providerId, gridApiRef]);
 
-  return rows;
+  return { rows, rowsRef, snapshotRowCount, refresh };
 }

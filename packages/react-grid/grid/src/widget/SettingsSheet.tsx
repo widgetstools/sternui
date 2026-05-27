@@ -14,6 +14,8 @@ import {
   useGridPlatform,
   type PoppableHandle,
 } from '@starui/grid/customizer';
+import { Drawer, DrawerContent } from '@starui/ui';
+import { GENERAL_SETTINGS_MODULE_ID } from '../customizer/modules/general-settings';
 import {
   ChevronDown,
   GripHorizontal,
@@ -42,6 +44,7 @@ import { HelpPanel } from './HelpPanel';
  * tests keep working without having to relearn every selector.
  */
 const PANEL_TESTID_BY_MODULE_ID: Record<string, string> = {
+  'general-settings': 'go-panel',
   'conditional-styling': 'cs-panel',
   'column-groups': 'cg-panel',
   'calculated-columns': 'cc-panel',
@@ -49,7 +52,11 @@ const PANEL_TESTID_BY_MODULE_ID: Record<string, string> = {
   // (no legacy flat panel), so the wrapper here carries the back-compat
   // `cols-panel` testid the e2e helpers + docs consistently target.
   'column-customization': 'cols-panel',
+  alerts: 'alerts-panel',
 };
+
+/** Default module when the customizer opens (Grid Options). */
+export const DEFAULT_SETTINGS_MODULE_ID = GENERAL_SETTINGS_MODULE_ID;
 
 export interface SettingsSheetProps {
   modules: AnyModule[];
@@ -92,9 +99,16 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
     [modules],
   );
 
-  const [activeId, setActiveId] = useState<string>(
-    () => initialModuleId ?? panelModules[0]?.id ?? '',
+  const resolveDefaultModuleId = useCallback(
+    () =>
+      initialModuleId ??
+      panelModules.find((m) => m.id === DEFAULT_SETTINGS_MODULE_ID)?.id ??
+      panelModules[0]?.id ??
+      '',
+    [initialModuleId, panelModules],
   );
+
+  const [activeId, setActiveId] = useState<string>(resolveDefaultModuleId);
   const [maximized, setMaximized] = useState(false);
   const [moduleMenuOpen, setModuleMenuOpen] = useState(false);
   // When true, the body area renders the Help cheatsheet instead of the
@@ -108,10 +122,18 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
     setSelectedByModule((prev) => ({ ...prev, [moduleId]: id }));
   }, []);
 
+  // Each open starts on Grid Options unless the host overrides `initialModuleId`.
+  useEffect(() => {
+    if (!open) return;
+    setActiveId(resolveDefaultModuleId());
+    setHelpOpen(false);
+    setModuleMenuOpen(false);
+  }, [open, resolveDefaultModuleId]);
+
   useEffect(() => {
     if (panelModules.length === 0) return;
     if (!panelModules.some((m) => m.id === activeId)) {
-      setActiveId(initialModuleId ?? panelModules[0].id);
+      setActiveId(resolveDefaultModuleId());
     }
     // Reason: this effect repairs `activeId` when modules disappear
     // (e.g. a module unregisters at runtime). It only needs to fire on
@@ -119,7 +141,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
     // activeId → effect re-fires); listing `panelModules` (the array)
     // would re-fire on identity churn from any module-state update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialModuleId, panelModules.length]);
+  }, [activeId, panelModules.length, resolveDefaultModuleId]);
 
   // Keydown listener is registered once per `open` flip — NOT on every
   // `onClose` identity change. Callers often pass an inline arrow as
@@ -136,8 +158,6 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [open]);
-
-  if (!open) return null;
 
   const activeModule = panelModules.find((m) => m.id === activeId);
   const hasMasterDetail = Boolean(activeModule?.ListPane && activeModule?.EditorPane);
@@ -166,7 +186,9 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
     const sheetClasses = [
       'ds-sheet',
       'ds-sheet-v2',
-      'ds-popout',
+      // Inline drawer: fill the vaul panel (no centered fixed modal chrome).
+      // Popped OS window: full-viewport `.ds-popout` shell.
+      popped ? 'ds-popout' : 'ds-drawer-shell',
       maximized && !popped ? 'is-maximized' : '',
       popped ? 'is-popped' : '',
       frameless ? 'is-frameless' : '',
@@ -228,7 +250,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                 <PopoverContent
                   align="start"
                   sideOffset={6}
-                  className="ds-sheet-v2 p-1 w-[220px] bg-[var(--ds-surface-secondary)] border border-[var(--ds-border-secondary)] rounded-sm shadow-[var(--ds-elevation-overlay)]"
+                  className="ds-sheet-v2 ds-settings-module-popover p-1 w-[220px] bg-[var(--ds-surface-secondary)] border border-[var(--ds-border-secondary)] rounded-sm shadow-[var(--ds-elevation-overlay)]"
                 >
                   {panelModules.map((m) => {
                     const selected = m.id === activeId;
@@ -406,7 +428,12 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                   <EditorPane gridId={gridId} selectedId={selectedId} />
                 </div>
               ) : LegacyPanel ? (
-                <LegacyPanel gridId={gridId} />
+                // Flat panels (e.g. Grid Options) own their scroll regions —
+                // a wrapping `ds-editor-scroll` scrolls the whole panel and
+                // drags the band sidebar along with the right-hand content.
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                  <LegacyPanel gridId={gridId} />
+                </div>
               ) : (
                 <div className="p-6">
                   <div className="ds-caps text-[10px] mb-1.5">
@@ -453,46 +480,59 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
     );
   };
 
-  // ── Final render: Poppable owns the inline-vs-OS-window branching
-  // plus the `focusIfPopped` imperative handle we forward to the
-  // hosting grid via our own `ref`.
+  // ── Final render: shadcn Drawer (right rail) for inline mode;
+  // Poppable still owns the optional OS-window pop-out + focusIfPopped.
   return (
     <Poppable
       ref={ref}
       name={`ds-popout-${gridId}`}
-      // Suffix the OS window title with gridId so users with
-      // multiple grids (two-grid dashboard) can tell popout windows
-      // apart in the OS taskbar / window menu.
       title={`Grid Customizer — ${gridId}`}
       width={960}
       height={700}
-      // Frameless popout: OpenFin honors `frame: false` by dropping
-      // the OS chrome; our header strip (with `-webkit-app-region:
-      // drag`) becomes the draggable title bar. Browsers ignore
-      // this flag and always render full chrome, so our custom
-      // strip there lives under the native title bar (harmless —
-      // users just see two title bars if they squint). Matches the
-      // FormattingPropertiesPanel frameless pattern.
       frame={false}
     >
-      {({ popped, PopoutButton, close }) => (
-        <div
-          data-ds-settings=""
-          data-testid="v2-settings-sheet"
-          data-popped={popped ? 'true' : undefined}
-        >
-          {/* Backdrop only in inline mode — the OS window IS the
-              overlay when popped. */}
-          {!popped && (
+      {({ popped, PopoutButton, close }) => {
+        const sheet = buildSheet({ popped, PopoutButton, close });
+
+        if (popped) {
+          return (
             <div
-              className="ds-popout-backdrop"
-              onClick={onClose}
-              data-testid="v2-settings-overlay"
-            />
-          )}
-          {buildSheet({ popped, PopoutButton, close })}
-        </div>
-      )}
+              data-ds-settings=""
+              data-testid="v2-settings-sheet"
+              data-popped="true"
+            >
+              {sheet}
+            </div>
+          );
+        }
+
+        if (!open) return null;
+
+        return (
+          <Drawer
+            open
+            onOpenChange={(next) => {
+              if (!next) onClose();
+            }}
+            direction="right"
+            shouldScaleBackground={false}
+          >
+            <DrawerContent
+              hideHandle
+              overlayTestId="v2-settings-overlay"
+              className="ds-settings-drawer w-[min(820px,96vw)] border-l border-[color:var(--ds-border-secondary)] bg-[color:var(--ds-surface-ground)] p-0"
+            >
+              <div
+                data-ds-settings=""
+                data-testid="v2-settings-sheet"
+                className="flex h-full min-h-0 flex-col"
+              >
+                {sheet}
+              </div>
+            </DrawerContent>
+          </Drawer>
+        );
+      }}
     </Poppable>
   );
 });

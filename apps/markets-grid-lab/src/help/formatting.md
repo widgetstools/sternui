@@ -1,9 +1,12 @@
 # Formatting — Excel formatter + preset showcase
 
-This tab pre-seeds the **column-customization** module with a rich mix
-of formatter kinds. Open `Tools → Column Settings` and click any column
-to inspect or edit. The header for each column is renamed to call out
-which formatter it uses — so you can see "what" without opening "how".
+**Six toolbar profiles** (`lab-formatting-v7`) isolate Excel P&L,
+yields/spreads, pricing precision, themed overrides, and global defaults.
+Import [`public/lab-profiles/formatting/`](../../public/lab-profiles/formatting/).
+
+Profile **00 · Full showcase** pre-seeds the **column-customization**
+module with every formatter kind. Open `Tools → Column Settings` — column
+headers name the formatter in use.
 
 ## Excel format strings (`kind: 'excelFormat'`)
 

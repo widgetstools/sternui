@@ -1,6 +1,7 @@
 import type { ColDef } from 'ag-grid-community';
 import type { ReactElement } from 'react';
 import type { LabRow } from '../data/types';
+import type { LabDemoProfileEntry } from './labProfileKit';
 
 export interface ProfilePreset {
   /** Stable id — also used as the localStorage gridId for the preset's grid. */
@@ -28,4 +29,10 @@ export interface ProfilePreset {
   };
   /** Stream override — slower / faster for the preset. */
   stream?: { rowCount?: number; updateIntervalMs?: number };
+  /**
+   * Optional module-state profiles installed on first mount (same as feature
+   * tabs). `id` is used as `gridId` for localStorage scoping.
+   */
+  demoProfiles?: LabDemoProfileEntry[];
+  activeDemoProfileId?: string;
 }

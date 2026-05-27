@@ -49,6 +49,7 @@ export {
   Band,
   MetaCell,
   Stepper,
+  SETTINGS_SECTION_TITLE,
   type CapsProps,
   type MonoProps,
   type SharpBtnProps,

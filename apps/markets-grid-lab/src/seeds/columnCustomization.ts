@@ -52,13 +52,7 @@ const xlAccrued = tpl({ kind: 'excelFormat',
 const xlMaturityDate = tpl({ kind: 'excelFormat',
   format: '"📅 "yyyy-mm-dd' });
 
-// Theme-aware style override helpers.
-function bgText(bgDark: string, bgLight: string, fgDark: string, fgLight: string) {
-  return {
-    dark:  { colors: { background: bgDark, text: fgDark } },
-    light: { colors: { background: bgLight, text: fgLight } },
-  };
-}
+import { bgText } from './styleHelpers';
 
 // ─── Formatting tab — Excel + preset showcase ────────────────────────
 //

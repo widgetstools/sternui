@@ -1,87 +1,127 @@
-import { useState, type ReactElement } from 'react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@starui/ui';
+import { lazy, Suspense, useState, type ComponentType } from 'react';
+import { Tabs, TabsContent, TooltipProvider } from '@starui/ui';
+import { LabTabsNav } from './components/LabTabsNav';
 import { ThemeToggle } from './components/ThemeToggle';
-import { OverviewTab } from './tabs/OverviewTab';
-import { FormattingTab } from './tabs/FormattingTab';
-import { RenderersTab } from './tabs/RenderersTab';
-import { FormatterToolbarTab } from './tabs/FormatterToolbarTab';
-import { ColumnGroupsTab } from './tabs/ColumnGroupsTab';
-import { CalculatedColumnsTab } from './tabs/CalculatedColumnsTab';
-import { ConditionalStylingTab } from './tabs/ConditionalStylingTab';
-import { LiveUpdatesTab } from './tabs/LiveUpdatesTab';
-import { ProfilesTab } from './tabs/ProfilesTab';
+import { LabDemoProvider } from './demo/LabDemoContext';
+import { LabScenarioRail } from './demo/LabScenarioRail';
+
+const OverviewTab = lazy(() =>
+  import('./tabs/OverviewTab').then((m) => ({ default: m.OverviewTab })),
+);
+const FormattingTab = lazy(() =>
+  import('./tabs/FormattingTab').then((m) => ({ default: m.FormattingTab })),
+);
+const RenderersTab = lazy(() =>
+  import('./tabs/RenderersTab').then((m) => ({ default: m.RenderersTab })),
+);
+const FormatterToolbarTab = lazy(() =>
+  import('./tabs/FormatterToolbarTab').then((m) => ({ default: m.FormatterToolbarTab })),
+);
+const ColumnGroupsTab = lazy(() =>
+  import('./tabs/ColumnGroupsTab').then((m) => ({ default: m.ColumnGroupsTab })),
+);
+const CalculatedColumnsTab = lazy(() =>
+  import('./tabs/CalculatedColumnsTab').then((m) => ({ default: m.CalculatedColumnsTab })),
+);
+const ConditionalStylingTab = lazy(() =>
+  import('./tabs/ConditionalStylingTab').then((m) => ({ default: m.ConditionalStylingTab })),
+);
+const QuickFiltersTab = lazy(() =>
+  import('./tabs/QuickFiltersTab').then((m) => ({ default: m.QuickFiltersTab })),
+);
+const LiveUpdatesTab = lazy(() =>
+  import('./tabs/LiveUpdatesTab').then((m) => ({ default: m.LiveUpdatesTab })),
+);
+const AlertsTab = lazy(() =>
+  import('./tabs/AlertsTab').then((m) => ({ default: m.AlertsTab })),
+);
+const ProfilesTab = lazy(() =>
+  import('./tabs/ProfilesTab').then((m) => ({ default: m.ProfilesTab })),
+);
 
 interface TabEntry {
   id: string;
   label: string;
   hint: string;
-  render: () => ReactElement;
+  Component: ComponentType;
 }
 
 const TABS: TabEntry[] = [
-  { id: 'overview',     label: 'Overview',           hint: 'Full feature kitchen-sink',     render: () => <OverviewTab /> },
-  { id: 'formatting',   label: 'Formatting',         hint: 'Value formatters & types',      render: () => <FormattingTab /> },
-  { id: 'renderers',    label: 'Cell Renderers',     hint: 'Visual cell components',        render: () => <RenderersTab /> },
-  { id: 'toolbar',      label: 'Formatter Toolbar',  hint: 'Live cell-style toolbar',       render: () => <FormatterToolbarTab /> },
-  { id: 'groups',       label: 'Column Groups',      hint: 'Nested header groups',          render: () => <ColumnGroupsTab /> },
-  { id: 'calc',         label: 'Calculated',         hint: 'Derived virtual columns',       render: () => <CalculatedColumnsTab /> },
-  { id: 'conditional',  label: 'Conditional Style',  hint: 'Expression-driven styling',     render: () => <ConditionalStylingTab /> },
-  { id: 'live',         label: 'Live Updates',       hint: 'High-frequency stream',         render: () => <LiveUpdatesTab /> },
-  { id: 'profiles',     label: 'Profiles',           hint: 'Pre-baked configurations',      render: () => <ProfilesTab /> },
+  { id: 'overview', label: 'Overview', hint: 'Full feature kitchen-sink', Component: OverviewTab },
+  { id: 'formatting', label: 'Formatting', hint: 'Value formatters & types', Component: FormattingTab },
+  { id: 'renderers', label: 'Cell Renderers', hint: 'Visual cell components', Component: RenderersTab },
+  { id: 'toolbar', label: 'Formatter Toolbar', hint: 'Live cell-style toolbar', Component: FormatterToolbarTab },
+  { id: 'groups', label: 'Column Groups', hint: 'Nested header groups', Component: ColumnGroupsTab },
+  { id: 'calc', label: 'Calculated', hint: 'Derived virtual columns', Component: CalculatedColumnsTab },
+  { id: 'conditional', label: 'Conditional Style', hint: 'Expression-driven styling', Component: ConditionalStylingTab },
+  { id: 'filters', label: 'Quick Filters', hint: 'Saved filter pill buttons', Component: QuickFiltersTab },
+  { id: 'live', label: 'Live Updates', hint: 'High-frequency stream', Component: LiveUpdatesTab },
+  { id: 'alerts', label: 'Alerts', hint: 'Triggers, toasts, bell + OpenFin', Component: AlertsTab },
+  { id: 'profiles', label: 'Profiles', hint: 'Pre-baked configurations', Component: ProfilesTab },
 ];
+
+function TabFallback() {
+  return (
+    <div className="flex min-h-0 flex-1 items-center justify-center text-[13px] text-[color:var(--ds-text-secondary)]">
+      Loading tab…
+    </div>
+  );
+}
 
 export function App() {
   const [active, setActive] = useState<string>(TABS[0].id);
   const activeEntry = TABS.find((t) => t.id === active) ?? TABS[0];
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[color:var(--ds-surface-ground)] text-[color:var(--ds-text-primary)]">
-      <header className="relative flex h-14 shrink-0 items-center gap-3 border-b border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] pl-5 pr-3">
-        <div className="flex items-center gap-2">
-          <span
-            className="inline-block h-5 w-1.5 rounded-sm bg-[color:var(--ds-text-primary)]"
-            aria-hidden
-          />
-          <h1 className="text-[15px] font-semibold tracking-tight">MarketsGrid Feature Lab</h1>
-          <span className="ml-2 text-[12px] font-normal text-[color:var(--ds-text-secondary)]">
-            · {activeEntry.hint}
-          </span>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <ThemeToggle />
-        </div>
-      </header>
+    <LabDemoProvider>
+      <TooltipProvider delayDuration={250}>
+        <div className="flex h-screen w-screen flex-col overflow-hidden bg-[color:var(--ds-surface-ground)] text-[color:var(--ds-text-primary)]">
+          <header className="relative flex h-14 shrink-0 items-center gap-3 border-b border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] pl-5 pr-3">
+            <div className="flex items-center gap-2">
+              <span
+                className="inline-block h-5 w-1.5 rounded-sm bg-[color:var(--ds-text-primary)]"
+                aria-hidden
+              />
+              <h1 className="text-[15px] font-semibold tracking-tight">MarketsGrid Feature Lab</h1>
+              <span className="ml-2 text-[12px] font-normal text-[color:var(--ds-text-secondary)]">
+                · {activeEntry.hint}
+              </span>
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <ThemeToggle />
+            </div>
+          </header>
 
-      <Tabs
-        value={active}
-        onValueChange={setActive}
-        className="flex min-h-0 flex-1 flex-col overflow-hidden"
-      >
-        <div className="shrink-0 border-b border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] px-3 py-2">
-          <TabsList className="h-9 gap-1 bg-[color:var(--ds-surface-raised)] p-1">
-            {TABS.map((t) => (
-              <TabsTrigger
-                key={t.id}
-                value={t.id}
-                className="h-7 px-3 text-[12px] data-[state=active]:bg-[color:var(--ds-surface-primary)] data-[state=active]:text-[color:var(--ds-text-primary)] data-[state=active]:shadow-[var(--ds-elevation-card)]"
-              >
-                {t.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
+          <div className="flex min-h-0 flex-1 overflow-hidden">
+            <Tabs
+              value={active}
+              onValueChange={setActive}
+              className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+            >
+              <LabTabsNav
+                tabs={TABS.map(({ id, label }) => ({ id, label }))}
+                activeId={active}
+              />
 
-        {TABS.map((t) => (
-          <TabsContent
-            key={t.id}
-            value={t.id}
-            className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden p-3 data-[state=inactive]:hidden"
-          >
-            {/* Only render the active tab so each tab owns its own grid + ticker lifecycle. */}
-            {active === t.id ? t.render() : null}
-          </TabsContent>
-        ))}
-      </Tabs>
-    </div>
+              {TABS.map((t) => (
+                <TabsContent
+                  key={t.id}
+                  value={t.id}
+                  className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden p-3 data-[state=inactive]:hidden"
+                >
+                  {active === t.id ? (
+                    <Suspense fallback={<TabFallback />}>
+                      <t.Component />
+                    </Suspense>
+                  ) : null}
+                </TabsContent>
+              ))}
+            </Tabs>
+
+            <LabScenarioRail activeTab={active} />
+          </div>
+        </div>
+      </TooltipProvider>
+    </LabDemoProvider>
   );
 }

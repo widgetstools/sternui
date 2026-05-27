@@ -291,7 +291,13 @@ Per-renderer config types (`PillRendererConfig`,
 - `ProfileSelector` — switch/create/rename/delete profiles
 - `TemplateManager` — column-template library (save/apply/manage)
 - `UnsavedSwitchDialog` — guard for dirty profile switch
-- `SettingsSheet` — sidebar host for all customizer modules
+- `SettingsSheet` — shadcn right-rail `Drawer` host for all customizer modules;
+  opens on **Grid Options** (`general-settings`) by default; header module
+  dropdown (Grid Options, Alerts, Style Rules, …) portals above the drawer
+  via `.ds-settings-module-popover` / `.ds-sheet-v2` z-index in `grid-chrome.css`;
+  flat `SettingsPanel` modules (Grid Options) fill the editor pane without an
+  outer `ds-editor-scroll` so the band sidebar stays fixed while only the
+  right-hand fields scroll
 
 #### Help, status & overlays
 
@@ -332,6 +338,34 @@ Per-renderer config types (`PillRendererConfig`,
   registered renderer from `@starui/design-system/cell-renderers-registry`
   and authors its per-renderer config)
 - **Conditional styling** — themed style rules (dark/light)
+- **Alerts** — expression-driven notifications (dataChange / relativeChange /
+  rowChange triggers) with toast, toolbar bell badge, and OpenFin Notification
+  Centre channels. Runtime evaluates on `cellValueChanged` and on
+  `modelUpdated` / `rowDataUpdated` cell diffs (host `rowData` streams).
+  Customizer editor: collapsible **Global settings** band in a two-column
+  layout (Alerts + Frequency | Channels + History) plus per-rule editor with
+  fixed RESET/SAVE header (`ds-editor-header`) and scrollable rule body.
+  Per-rule editor uses `useModuleDraft` and reuses the shared `ExpressionBand`
+  / Monaco editor for `dataChange` triggers. OpenFin channel auto-detects
+  `window.fin` and dynamic-imports `@openfin/workspace/notifications` so
+  non-OpenFin apps pay zero runtime cost. `AlertsBadge` mounts in
+  `PrimaryToolbar` (shadcn `Popover` + `ScrollArea`; history list scrolls
+  with theme-aware dividers/scrollbar via `ds-sheet-v2`); `useAlertsToastBridge` + `useAlertsOpenFinBridge`
+  auto-wire when the badge is present. Demo: `apps/markets-grid-lab`
+  (`npm run dev:markets-grid-lab`) — Overview, Conditional Styling, Calculated Columns,
+  Formatting, Column Groups, Quick Filters (saved filter pills + `FiltersToolbar`),
+  Live Updates, Alerts, Cell Renderers, and Formatter Toolbar tabs. Each feature tab ships multiple toolbar profiles (catalogs in
+  `apps/markets-grid-lab/src/profiles/catalogs/`, importable JSON under
+  `apps/markets-grid-lab/public/lab-profiles/`). **Demo console** right rail
+  (`LabScenarioRail`, `LabDemoProvider`, `useLabRows`) injects scenario patches
+  (bid spike, P&L loss, mid ticks, OAS heat, etc.) and shared stream controls
+  (pause/play, tick interval) across all grid tabs;   mock ticks use
+  `applyTransactionAsync` after the initial snapshot (not per-tick `rowData`
+  swaps) via `useMockStream` / `applyLabStreamDelta`; scenario overlays apply
+  sparse field patches per tick and `clearScenario` forces a provider refresh;
+  feature tabs share `LabFeatureTab` + `labFeatureConfigs` with lazy-loaded tab
+  chunks in `App.tsx`; parity doc:
+  `docs/MARKETSGRID_VS_ADAPTABLE_GAP_ANALYSIS.md` §2.
 - **Calculated columns** — virtual cols from expressions
 - **Saved filters** — named filter-model presets
 - **Toolbar visibility** — show/hide toolbar items

@@ -14,11 +14,11 @@ export interface SubLabelProps {
 export function SubLabel({ children, style, action }: SubLabelProps) {
   return (
     <div
-      className="flex items-baseline justify-between gap-2 font-semibold uppercase text-muted-foreground mb-1.5 text-[length:var(--ds-font-size-sm)] tracking-[0.1em]"
+      className="mb-1.5 flex items-baseline justify-between gap-2 text-[length:var(--ds-font-size-sm)] font-semibold uppercase tracking-[0.1em] text-[color:var(--ds-text-muted)]"
       style={style}
     >
       <span>{children}</span>
-      {action && <span className="text-muted-foreground/60">{action}</span>}
+      {action && <span className="text-[color:var(--ds-text-faint)]">{action}</span>}
     </div>
   );
 }

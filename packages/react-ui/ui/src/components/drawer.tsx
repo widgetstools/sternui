@@ -33,23 +33,36 @@ const DrawerOverlay = React.forwardRef<
 ));
 DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName;
 
+type DrawerContentProps = React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content> & {
+  /** Optional `data-testid` on the dimmed overlay (grid customizer e2e). */
+  overlayTestId?: string;
+  /** Hide the bottom-sheet drag handle (right/top drawers). */
+  hideHandle?: boolean;
+};
+
 const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
->(({ className, children, ...props }, ref) => {
+  DrawerContentProps
+>(({ className, children, overlayTestId, hideHandle, ...props }, ref) => {
   const portalContainer = useResolvedPortalContainer();
   return (
     <DrawerPrimitive.Portal container={portalContainer}>
-      <DrawerOverlay />
+      <DrawerOverlay data-testid={overlayTestId} />
       <DrawerPrimitive.Content
         ref={ref}
         className={cn(
-          'fixed inset-x-0 bottom-0 z-[11000] mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background',
+          'fixed z-[11001] flex flex-col border bg-background',
+          'data-[vaul-drawer-direction=top]:inset-x-0 data-[vaul-drawer-direction=top]:top-0 data-[vaul-drawer-direction=top]:mb-24 data-[vaul-drawer-direction=top]:max-h-[80vh] data-[vaul-drawer-direction=top]:rounded-b-lg data-[vaul-drawer-direction=top]:border-b',
+          'data-[vaul-drawer-direction=bottom]:inset-x-0 data-[vaul-drawer-direction=bottom]:bottom-0 data-[vaul-drawer-direction=bottom]:mt-24 data-[vaul-drawer-direction=bottom]:max-h-[80vh] data-[vaul-drawer-direction=bottom]:rounded-t-lg data-[vaul-drawer-direction=bottom]:border-t',
+          'data-[vaul-drawer-direction=right]:inset-y-0 data-[vaul-drawer-direction=right]:right-0 data-[vaul-drawer-direction=right]:left-auto data-[vaul-drawer-direction=right]:h-full data-[vaul-drawer-direction=right]:w-[min(820px,96vw)] data-[vaul-drawer-direction=right]:max-w-[96vw] data-[vaul-drawer-direction=right]:rounded-none data-[vaul-drawer-direction=right]:border-l',
+          'data-[vaul-drawer-direction=left]:inset-y-0 data-[vaul-drawer-direction=left]:left-0 data-[vaul-drawer-direction=left]:right-auto data-[vaul-drawer-direction=left]:h-full data-[vaul-drawer-direction=left]:w-3/4 data-[vaul-drawer-direction=left]:max-w-sm data-[vaul-drawer-direction=left]:rounded-none data-[vaul-drawer-direction=left]:border-r',
           className
         )}
         {...props}
       >
-        <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
+        {!hideHandle ? (
+          <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
+        ) : null}
         {children}
       </DrawerPrimitive.Content>
     </DrawerPrimitive.Portal>

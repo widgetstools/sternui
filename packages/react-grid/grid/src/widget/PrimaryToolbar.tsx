@@ -29,6 +29,7 @@ import { ProfileSelector } from './ProfileSelector';
 import { EditableCaption } from './EditableCaption';
 import { AdminActionButtons } from './AdminActionButtons';
 import { GridInfoButton } from './GridInfoButton';
+import { AlertsBadge } from '../customizer/modules/alerts';
 
 export interface PrimaryToolbarProps {
   // Caption
@@ -137,6 +138,10 @@ export function PrimaryToolbar(props: PrimaryToolbarProps): ReactElement {
             <SlidersHorizontal size={14} strokeWidth={2} />
           </button>
         )}
+
+        {/* Alerts bell — auto-renders nothing if the alerts module isn't
+            registered on the active platform. Always safe to mount. */}
+        <AlertsBadge />
 
         {showProfileSelector && (
           <>

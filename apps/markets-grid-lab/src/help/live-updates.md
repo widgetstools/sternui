@@ -1,8 +1,11 @@
 # Live Updates — flash, signal, repeat
 
-This tab is tuned for **maximum visible motion**. It pre-seeds 3
-conditional-styling rules and ratchets up the mock stream so flashes
-are obvious.
+**Four toolbar profiles** (`lab-live-v6`): flash storm (all rules), price
+tick only, P&L sign flash, big mid diff moves. Import
+[`public/lab-profiles/live-updates/`](../../public/lab-profiles/live-updates/).
+
+Tuned for **maximum visible motion** — default profile seeds four CS rules
+plus fast native cell flash (`STORM_FLASH`).
 
 ## Stream configuration
 
@@ -32,14 +35,15 @@ land per second without smearing.
 
 ## How the data lands
 
-`startMock(cfg, emit)` is called once on mount. Each tick emits a
-delta of changed rows, which `applyDelta()` merges into the snapshot
-keyed by `id`. The new array reference is set as `rowData`; AG Grid
-diffs row-by-row (it uses `getRowId` to identify rows) and AG-Grid's
-built-in cell-flash AND our conditional-styling rule flashes both fire
-on every changed cell.
+`startMock(cfg, emit)` is called once on mount. The first snapshot
+sets `rowData` once. Each tick emits a delta of changed rows; the lab
+pipes those through `gridApi.applyTransactionAsync({ add, update })`
+keyed on `id`, so AG Grid only repaints dirty cells. AG-Grid's built-in
+cell-flash AND our conditional-styling rule flashes both fire on every
+changed cell.
 
-No transactions, no batching — just immutable array swaps.
+Demo-console scenarios still overlay via transactions on top of the
+same stream.
 
 ## Try this
 
