@@ -44,7 +44,7 @@ export function TabStrip({ items, value, onChange, trailing, ...rest }: TabStrip
                   ? 'text-foreground font-semibold border-b-2 border-primary'
                   : item.disabled
                     ? 'text-muted-foreground cursor-not-allowed border-b-2 border-transparent'
-                    : 'text-secondary hover:text-foreground border-b-2 border-transparent',
+                    : 'text-[color:var(--ds-text-secondary)] hover:text-foreground border-b-2 border-transparent',
               ].join(' ')}
             >
               {item.label}

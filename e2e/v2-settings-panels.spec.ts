@@ -37,6 +37,11 @@ const MODULES: Array<{ id: PanelModuleId; label: string }> = [
   { id: 'conditional-styling', label: 'Style Rules' },
 ];
 
+/** Module ids with settings UI but not yet in `PanelModuleId` (alerts). */
+const EXTRA_DROPDOWN_MODULES = [
+  { id: 'alerts', label: 'Alerts' },
+] as const;
+
 test.describe('v2 — settings panels smoke', () => {
   test.beforeEach(async ({ page }) => {
     await bootCleanDemo(page);
@@ -53,7 +58,7 @@ test.describe('v2 — settings panels smoke', () => {
   test('settings module dropdown exposes every panel', async ({ page }) => {
     await openSettingsSheet(page);
     await page.locator('[data-testid="v2-settings-module-dropdown"]').click();
-    for (const { id } of MODULES) {
+    for (const { id } of [...MODULES, ...EXTRA_DROPDOWN_MODULES]) {
       await expect(
         page.locator(`[data-testid="v2-settings-nav-menu-${id}"]`),
       ).toBeVisible();

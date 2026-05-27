@@ -111,7 +111,7 @@ export function LabScenarioRail({ activeTab }: { activeTab: string }) {
         </Button>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+      <div className="ds-scrollbar flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
         <section className="rounded-md border border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-raised)] p-3">
           <div className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-[color:var(--ds-text-secondary)]">
             <Activity size={12} />

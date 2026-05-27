@@ -65,12 +65,13 @@ export function App() {
             onValueChange={setActive}
             className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="shrink-0 border-b border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] px-3 py-2">
-              <TabsList className="h-9 flex-wrap gap-1 bg-[color:var(--ds-surface-raised)] p-1">
+            <div className="relative z-10 shrink-0 border-b border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] px-3 py-2">
+              <TabsList className="relative z-10 h-9 flex-wrap gap-1 bg-[color:var(--ds-surface-raised)] p-1">
                 {TABS.map((t) => (
                   <TabsTrigger
                     key={t.id}
                     value={t.id}
+                    data-testid={`lab-tab-${t.id}`}
                     className="h-7 px-3 text-[12px] data-[state=active]:bg-[color:var(--ds-surface-primary)] data-[state=active]:text-[color:var(--ds-text-primary)] data-[state=active]:shadow-[var(--ds-elevation-card)]"
                   >
                     {t.label}

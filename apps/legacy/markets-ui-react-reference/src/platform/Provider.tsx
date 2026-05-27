@@ -59,9 +59,11 @@ async function prefetchToolWindowChunks(): Promise<void> {
   // outside OpenFin (e.g. dev server in a plain browser tab) since the
   // notifications API isn't available there.
   if (typeof fin === "undefined") return;
+  const platformUuid = (fin as typeof import("@openfin/core").fin).me?.identity?.uuid;
+  if (!platformUuid) return;
   try {
     await Notifications.create({
-      platform: fin.me.identity.uuid,
+      platform: platformUuid,
       title: failures.length ? "Tool windows partially ready" : "Tool windows ready",
       body: `Prefetched ${fulfilled}/${entries.length} chunks in ${elapsedMs} ms`,
       toast: "transient",

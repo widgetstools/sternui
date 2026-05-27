@@ -3,7 +3,11 @@ export { useGridTheme } from './theme/index.js';
 export { FiltersToolbar, type FiltersToolbarProps } from './FiltersToolbar';
 export { FormattingToolbar } from './FormattingToolbar';
 export { DraggableFloat } from './DraggableFloat';
-export { SettingsSheet, type SettingsSheetProps } from './SettingsSheet';
+export {
+  SettingsSheet,
+  DEFAULT_SETTINGS_MODULE_ID,
+  type SettingsSheetProps,
+} from './SettingsSheet';
 export { ProfileSelector, type ProfileSelectorProps } from './ProfileSelector';
 export { HelpPanel } from './HelpPanel';
 export {

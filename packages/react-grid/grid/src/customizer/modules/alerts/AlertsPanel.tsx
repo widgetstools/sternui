@@ -1,17 +1,19 @@
 /**
- * Alerts customizer panel — list + per-rule editor + module settings band.
+ * Alerts customizer panel — rules list (left) + module settings + rule editor (right).
  *
  * Mounted three ways:
- *   - SettingsSheet auto-picks `SettingsPanel` (this file's `AlertsPanel`).
- *   - Master-detail layouts may instead use `ListPane` + `EditorPane` directly.
- *   - The settings band is reused inside the toolbar bell popover so users
- *     can mute / re-enable alerts without opening the full sheet.
+ *   - SettingsSheet uses `ListPane` + `EditorPane` (master-detail).
+ *   - `SettingsPanel` (`AlertsPanel`) is the flat combined layout fallback.
+ *   - `AlertsSettingsBand` is reused in the toolbar bell popover for quick mute.
+ *
+ * Module-level settings (enable, frequency, channels, history) live in the
+ * editor pane above the selected rule — not in the list rail.
  *
  * All form controls are shadcn primitives from `@starui/ui` — no native
  * `<input>`, `<select>`, or `<button>` (per CLAUDE.md UI stack rules).
  */
 
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Bell, Copy, Plus, Trash2 } from 'lucide-react';
 import {
   Button,
@@ -24,7 +26,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Separator,
   Slider,
   Switch,
   Tabs,
@@ -55,6 +56,7 @@ import {
   Band,
   CockpitList,
   CockpitListItem,
+  FigmaPanelSection,
   LedBar,
   SubLabel,
 } from '../../ui/SettingsPanel';
@@ -114,130 +116,150 @@ export function AlertsSettingsBand({ settings, onChange }: AlertsSettingsBandPro
     onChange((prev) => ({ ...prev, evaluationMode: mode }));
 
   return (
-    <div className="ds-alerts-settings-band">
-      <Band title="Alerts">
-        <div className="flex items-center justify-between gap-3 py-1">
-          <SubLabel>Enable alerts</SubLabel>
-          <Switch
-            checked={settings.enabled}
-            onCheckedChange={(v) => onChange((prev) => ({ ...prev, enabled: v }))}
-            aria-label="Enable alerts"
-            data-testid="alerts-enabled-switch"
-          />
-        </div>
-      </Band>
-
-      <Band title="Frequency">
-        <div className="space-y-3">
-          <div className="flex flex-col gap-1.5">
-            <SubLabel>Evaluation mode</SubLabel>
-            <RadioGroup
-              value={settings.evaluationMode}
-              onValueChange={(v) => setEvalMode(v as EvaluationMode)}
-              className="flex flex-row gap-3"
-            >
-              <Label className="flex items-center gap-1.5 text-xs">
-                <RadioGroupItem value="realtime" data-testid="alerts-mode-realtime" />
-                Realtime
-              </Label>
-              <Label className="flex items-center gap-1.5 text-xs">
-                <RadioGroupItem value="throttled" data-testid="alerts-mode-throttled" />
-                Throttled
-              </Label>
-              <Label className="flex items-center gap-1.5 text-xs">
-                <RadioGroupItem value="paused" data-testid="alerts-mode-paused" />
-                Paused
-              </Label>
-            </RadioGroup>
+    <div
+      className="ds-alerts-settings-band grid grid-cols-2 gap-x-3 gap-y-0 [&_section]:px-4"
+      data-testid="alerts-settings-band"
+    >
+      <div className="min-w-0">
+        <Band title="Alerts">
+          <div className="flex items-center justify-between gap-3 py-1">
+            <SubLabel>Enable alerts</SubLabel>
+            <Switch
+              checked={settings.enabled}
+              onCheckedChange={(v) => onChange((prev) => ({ ...prev, enabled: v }))}
+              aria-label="Enable alerts"
+              data-testid="alerts-enabled-switch"
+            />
           </div>
+        </Band>
 
-          <SliderRow
-            label="Default debounce (ms)"
-            min={0}
-            max={10_000}
-            step={100}
-            value={settings.defaultDebounceMs}
-            onChange={(v) => onChange((prev) => ({ ...prev, defaultDebounceMs: v }))}
-            testIdPrefix="alerts-debounce"
-          />
+        <Band title="Frequency">
+          <div className="space-y-3">
+            <div className="flex flex-col gap-1.5">
+              <SubLabel>Evaluation mode</SubLabel>
+              <RadioGroup
+                value={settings.evaluationMode}
+                onValueChange={(v) => setEvalMode(v as EvaluationMode)}
+                className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:gap-3"
+              >
+                <Label className="flex items-center gap-1.5 text-xs">
+                  <RadioGroupItem value="realtime" data-testid="alerts-mode-realtime" />
+                  Realtime
+                </Label>
+                <Label className="flex items-center gap-1.5 text-xs">
+                  <RadioGroupItem value="throttled" data-testid="alerts-mode-throttled" />
+                  Throttled
+                </Label>
+                <Label className="flex items-center gap-1.5 text-xs">
+                  <RadioGroupItem value="paused" data-testid="alerts-mode-paused" />
+                  Paused
+                </Label>
+              </RadioGroup>
+            </div>
 
-          <SliderRow
-            label="Max notifications / sec"
-            min={1}
-            max={50}
-            step={1}
-            value={settings.maxNotificationsPerSecond}
-            onChange={(v) =>
-              onChange((prev) => ({ ...prev, maxNotificationsPerSecond: v }))
-            }
-            testIdPrefix="alerts-rate"
-          />
-        </div>
-      </Band>
+            <SliderRow
+              label="Default debounce (ms)"
+              min={0}
+              max={10_000}
+              step={100}
+              value={settings.defaultDebounceMs}
+              onChange={(v) => onChange((prev) => ({ ...prev, defaultDebounceMs: v }))}
+              testIdPrefix="alerts-debounce"
+            />
 
-      <Band title="Channels">
-        <div className="space-y-2">
-          <ChannelToggle
-            label="Show toasts"
-            checked={settings.enabledChannels.toast}
-            onChange={(v) =>
-              onChange((prev) => ({
-                ...prev,
-                enabledChannels: { ...prev.enabledChannels, toast: v },
-              }))
-            }
-            testId="alerts-channel-toast"
-          />
-          <ChannelToggle
-            label="Show toolbar badge"
-            checked={settings.enabledChannels.badge}
-            onChange={(v) =>
-              onChange((prev) => ({
-                ...prev,
-                enabledChannels: { ...prev.enabledChannels, badge: v },
-              }))
-            }
-            testId="alerts-channel-badge"
-          />
-          <ChannelToggle
-            label={
-              openFinDetected
-                ? 'OpenFin notification centre'
-                : 'OpenFin notification centre (host not detected)'
-            }
-            checked={settings.enabledChannels.openfin}
-            onChange={(v) =>
-              onChange((prev) => ({
-                ...prev,
-                enabledChannels: { ...prev.enabledChannels, openfin: v },
-              }))
-            }
-            disabled={!openFinDetected}
-            testId="alerts-channel-openfin"
-          />
-        </div>
-      </Band>
-
-      <Band title="History">
-        <div className="flex items-center justify-between gap-3 py-1">
-          <SubLabel>Keep last N notifications</SubLabel>
-          <Input
-            type="number"
-            min={1}
-            max={5000}
-            value={settings.historyLimit}
-            onChange={(e) => {
-              const next = Number(e.target.value);
-              if (Number.isFinite(next) && next >= 1) {
-                onChange((prev) => ({ ...prev, historyLimit: Math.min(next, 5000) }));
+            <SliderRow
+              label="Max notifications / sec"
+              min={1}
+              max={50}
+              step={1}
+              value={settings.maxNotificationsPerSecond}
+              onChange={(v) =>
+                onChange((prev) => ({ ...prev, maxNotificationsPerSecond: v }))
               }
-            }}
-            className="w-24 text-right"
-            data-testid="alerts-history-limit"
-          />
-        </div>
-      </Band>
+              testIdPrefix="alerts-rate"
+            />
+          </div>
+        </Band>
+      </div>
+
+      <div className="min-w-0">
+        <Band title="Channels">
+          <div className="space-y-2">
+            <ChannelToggle
+              label="Show toasts"
+              checked={settings.enabledChannels.toast}
+              onChange={(v) =>
+                onChange((prev) => ({
+                  ...prev,
+                  enabledChannels: { ...prev.enabledChannels, toast: v },
+                }))
+              }
+              testId="alerts-channel-toast"
+            />
+            <ChannelToggle
+              label="Show toolbar badge"
+              checked={settings.enabledChannels.badge}
+              onChange={(v) =>
+                onChange((prev) => ({
+                  ...prev,
+                  enabledChannels: { ...prev.enabledChannels, badge: v },
+                }))
+              }
+              testId="alerts-channel-badge"
+            />
+            <ChannelToggle
+              label={
+                openFinDetected
+                  ? 'OpenFin notification centre'
+                  : 'OpenFin notification centre (host not detected)'
+              }
+              checked={settings.enabledChannels.openfin}
+              onChange={(v) =>
+                onChange((prev) => ({
+                  ...prev,
+                  enabledChannels: { ...prev.enabledChannels, openfin: v },
+                }))
+              }
+              disabled={!openFinDetected}
+              testId="alerts-channel-openfin"
+            />
+          </div>
+        </Band>
+
+        <Band title="History">
+          <div className="flex items-center justify-between gap-3 py-1">
+            <SubLabel>Keep last N notifications</SubLabel>
+            <Input
+              type="number"
+              min={1}
+              max={5000}
+              value={settings.historyLimit}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                if (Number.isFinite(next) && next >= 1) {
+                  onChange((prev) => ({ ...prev, historyLimit: Math.min(next, 5000) }));
+                }
+              }}
+              className="w-24 text-right"
+              data-testid="alerts-history-limit"
+            />
+          </div>
+        </Band>
+      </div>
     </div>
+  );
+}
+
+/** Module-level settings — collapsed by default to preserve rule editor space. */
+function AlertsGlobalSettingsSection({ settings, onChange }: AlertsSettingsBandProps) {
+  return (
+    <FigmaPanelSection
+      title="Global settings"
+      defaultCollapsed
+      data-testid="alerts-global-settings"
+    >
+      <AlertsSettingsBand settings={settings} onChange={onChange} />
+    </FigmaPanelSection>
   );
 }
 
@@ -470,6 +492,20 @@ function AlertsRulesList({
 }
 
 export function AlertsList({ selectedId, onSelect }: ListPaneProps) {
+  const [state] = useModuleState<AlertsState>(MODULE_ID);
+
+  useEffect(() => {
+    if (!selectedId && state.rules.length > 0) {
+      onSelect(state.rules[0].id);
+    }
+  }, [selectedId, state.rules, onSelect]);
+
+  return <AlertsRulesList selectedId={selectedId} onSelect={onSelect} gridId="" />;
+}
+
+// ─── Editor pane ───────────────────────────────────────────────────────────
+
+export function AlertsEditor({ selectedId }: EditorPaneProps) {
   const [state, setState] = useModuleState<AlertsState>(MODULE_ID);
 
   const onSettingsChange = useCallback(
@@ -481,41 +517,43 @@ export function AlertsList({ selectedId, onSelect }: ListPaneProps) {
     [setState],
   );
 
-  useEffect(() => {
-    if (!selectedId && state.rules.length > 0) {
-      onSelect(state.rules[0].id);
-    }
-  }, [selectedId, state.rules, onSelect]);
+  const ruleExists =
+    selectedId != null && state.rules.some((r) => r.id === selectedId);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="max-h-[min(220px,40vh)] shrink-0 overflow-y-auto border-b border-border">
-        <AlertsSettingsBand settings={state.settings} onChange={onSettingsChange} />
-      </div>
-      <AlertsRulesList selectedId={selectedId} onSelect={onSelect} gridId="" />
+    <div
+      data-testid="alerts-panel"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+    >
+      {ruleExists ? (
+        <AlertRuleEditor ruleId={selectedId}>
+          <AlertsGlobalSettingsSection
+            settings={state.settings}
+            onChange={onSettingsChange}
+          />
+        </AlertRuleEditor>
+      ) : (
+        <div className="ds-editor-scroll min-h-0 flex-1 overflow-y-auto">
+          <AlertsGlobalSettingsSection
+            settings={state.settings}
+            onChange={onSettingsChange}
+          />
+          <p className="px-4 py-6 text-xs text-[color:var(--ds-text-muted)]">
+            Select a rule in the list to edit its trigger, message, and channels.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── Editor pane ───────────────────────────────────────────────────────────
-
-export function AlertsEditor({ selectedId }: EditorPaneProps) {
-  const [state] = useModuleState<AlertsState>(MODULE_ID);
-
-  if (!selectedId) {
-    return (
-      <div className="flex h-full items-center justify-center p-6 text-xs text-[color:var(--ds-text-muted)]">
-        Select a rule to edit, or create a new one.
-      </div>
-    );
-  }
-
-  if (!state.rules.some((r) => r.id === selectedId)) return null;
-
-  return <AlertRuleEditor ruleId={selectedId} />;
-}
-
-const AlertRuleEditor = memo(function AlertRuleEditor({ ruleId }: { ruleId: string }) {
+const AlertRuleEditor = memo(function AlertRuleEditor({
+  ruleId,
+  children,
+}: {
+  ruleId: string;
+  children?: ReactNode;
+}) {
   const platform = useGridPlatform();
   const engine = platform.resources.expression();
   const columns = useGridColumns();
@@ -581,7 +619,8 @@ const AlertRuleEditor = memo(function AlertRuleEditor({ ruleId }: { ruleId: stri
         onSave={save}
       />
 
-      <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+      <div className="ds-editor-scroll min-h-0 flex-1 overflow-y-auto pb-4">
+        {children}
         <Band title="Rule">
           <div className="flex items-center justify-between py-1">
             <SubLabel>Enabled</SubLabel>
@@ -865,36 +904,21 @@ function ColumnPicker({
 // ─── Combined panel (settings + list + editor) ─────────────────────────────
 
 export function AlertsPanel() {
-  const [state, setState] = useModuleState<AlertsState>(MODULE_ID);
+  const [state] = useModuleState<AlertsState>(MODULE_ID);
   const [selectedId, setSelectedId] = useState<string | null>(state.rules[0]?.id ?? null);
 
-  const onSettingsChange = useCallback(
-    (updater: (prev: AlertsSettings) => AlertsSettings) =>
-      setState((prev) => ({ ...prev, settings: updater(prev.settings ?? { ...DEFAULT_ALERTS_SETTINGS }) })),
-    [setState],
-  );
-
   return (
-    <div
-      data-testid="alerts-panel"
-      className="ds-alerts-panel flex min-h-0 flex-1 flex-col overflow-hidden"
-    >
-      <div className="max-h-[min(280px,38vh)] shrink-0 overflow-y-auto">
-        <AlertsSettingsBand settings={state.settings} onChange={onSettingsChange} />
-      </div>
-      <Separator className="shrink-0" />
-      <div className="flex min-h-0 flex-1 overflow-hidden border-t border-[color:var(--ds-border-default)]">
-        <aside className="flex w-64 min-h-0 shrink-0 flex-col overflow-y-auto border-r border-[color:var(--ds-border-default)]">
-          <AlertsRulesList
-            gridId=""
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-          />
-        </aside>
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <AlertsEditor gridId="" selectedId={selectedId} />
-        </section>
-      </div>
+    <div className="ds-alerts-panel flex min-h-0 flex-1 overflow-hidden border-t border-[color:var(--ds-border-default)]">
+      <aside className="flex w-64 min-h-0 shrink-0 flex-col overflow-y-auto border-r border-[color:var(--ds-border-default)]">
+        <AlertsRulesList
+          gridId=""
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+        />
+      </aside>
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <AlertsEditor gridId="" selectedId={selectedId} />
+      </section>
     </div>
   );
 }

@@ -291,7 +291,13 @@ Per-renderer config types (`PillRendererConfig`,
 - `ProfileSelector` — switch/create/rename/delete profiles
 - `TemplateManager` — column-template library (save/apply/manage)
 - `UnsavedSwitchDialog` — guard for dirty profile switch
-- `SettingsSheet` — sidebar host for all customizer modules
+- `SettingsSheet` — shadcn right-rail `Drawer` host for all customizer modules;
+  opens on **Grid Options** (`general-settings`) by default; header module
+  dropdown (Grid Options, Alerts, Style Rules, …) portals above the drawer
+  via `.ds-settings-module-popover` / `.ds-sheet-v2` z-index in `grid-chrome.css`;
+  flat `SettingsPanel` modules (Grid Options) fill the editor pane without an
+  outer `ds-editor-scroll` so the band sidebar stays fixed while only the
+  right-hand fields scroll
 
 #### Help, status & overlays
 
@@ -336,14 +342,15 @@ Per-renderer config types (`PillRendererConfig`,
   rowChange triggers) with toast, toolbar bell badge, and OpenFin Notification
   Centre channels. Runtime evaluates on `cellValueChanged` and on
   `modelUpdated` / `rowDataUpdated` cell diffs (host `rowData` streams).
-  Customizer dialog band exposes master enable, evaluation mode
-  (realtime/throttled/paused), default debounce, max notifications/sec,
-  per-channel toggles, and history limit. Per-rule editor uses `useModuleDraft`
-  with RESET/SAVE (same as style rules) and reuses the shared `ExpressionBand`
+  Customizer editor: collapsible **Global settings** band in a two-column
+  layout (Alerts + Frequency | Channels + History) plus per-rule editor with
+  fixed RESET/SAVE header (`ds-editor-header`) and scrollable rule body.
+  Per-rule editor uses `useModuleDraft` and reuses the shared `ExpressionBand`
   / Monaco editor for `dataChange` triggers. OpenFin channel auto-detects
   `window.fin` and dynamic-imports `@openfin/workspace/notifications` so
   non-OpenFin apps pay zero runtime cost. `AlertsBadge` mounts in
-  `PrimaryToolbar`; `useAlertsToastBridge` + `useAlertsOpenFinBridge`
+  `PrimaryToolbar` (shadcn `Popover` + `ScrollArea`; history list scrolls
+  with theme-aware dividers/scrollbar via `ds-sheet-v2`); `useAlertsToastBridge` + `useAlertsOpenFinBridge`
   auto-wire when the badge is present. Demo: `apps/markets-grid-lab`
   (`npm run dev:markets-grid-lab`) — Overview, Conditional Styling, Calculated Columns,
   Formatting, Column Groups, Quick Filters (saved filter pills + `FiltersToolbar`),

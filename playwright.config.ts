@@ -13,7 +13,7 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
   webServer: [
     {
-      command: 'npm run dev --workspace=@starui/demo-react',
+      command: 'STARUI_DEV_SOURCE=1 npm run dev --workspace=@starui/demo-react',
       port: 5190,
       reuseExistingServer: true,
       timeout: 90_000,
@@ -48,7 +48,7 @@ export default defineConfig({
       // Port matches `apps/markets-grid-lab/vite.config.ts`.
       command: 'STARUI_DEV_SOURCE=1 npm run dev --workspace=@starui/markets-grid-lab -- --no-open --force',
       port: 5300,
-      reuseExistingServer: false,
+      reuseExistingServer: true,
       timeout: 120_000,
     },
   ],

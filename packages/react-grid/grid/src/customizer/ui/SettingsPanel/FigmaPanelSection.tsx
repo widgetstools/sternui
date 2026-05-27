@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { SETTINGS_SECTION_TITLE } from './Cockpit';
 
 /**
  * Numbered band section — the settings editor's section heading voice.
@@ -67,13 +68,13 @@ export function FigmaPanelSection({
         onClick={toggle}
         className="flex items-center gap-3 mb-3 cursor-pointer select-none"
       >
-        <span className="text-muted-foreground inline-flex">
+        <span className="inline-flex text-[color:var(--ds-text-muted)]">
           {isCollapsed ? <ChevronRight size={11} strokeWidth={2.25} /> : <ChevronDown size={11} strokeWidth={2.25} />}
         </span>
-        <span className="font-mono text-xs text-muted-foreground tabular-nums tracking-[0.06em]">
+        <span className="font-mono text-xs tabular-nums tracking-[0.06em] text-[color:var(--ds-text-muted)]">
           {resolvedIndex}
         </span>
-        <span className="font-semibold text-xs uppercase tracking-widest text-secondary">
+        <span className={SETTINGS_SECTION_TITLE}>
           {title}
         </span>
         <span className="flex-1 h-px bg-border" />

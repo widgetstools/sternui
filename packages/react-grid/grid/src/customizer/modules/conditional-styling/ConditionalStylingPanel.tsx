@@ -339,7 +339,7 @@ const RuleEditor = memo(function RuleEditor({
     <div
       data-testid="cs-rule-editor"
       data-rule-testid={`cs-rule-editor-${ruleId}`}
-      className="flex flex-col flex-1 min-h-0 overflow-hidden"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden"
     >
       <RuleEditorHeader
         ruleId={ruleId}

@@ -12,7 +12,7 @@
  * `Separator`) per CLAUDE.md UI rules.
  */
 
-import { useCallback, useMemo } from 'react';
+import { Fragment, useCallback, useMemo } from 'react';
 import { Bell, Check } from 'lucide-react';
 import {
   Badge,
@@ -28,6 +28,7 @@ import { useOptionalGridPlatform } from '../../hooks/GridProvider';
 import { useModuleState } from '../../hooks/useModuleState';
 import { useAlertsToastBridge } from './useAlertsToastBridge';
 import { useAlertsOpenFinBridge } from './useAlertsOpenFinBridge';
+import './AlertsBadge.css';
 
 const MODULE_ID = 'alerts';
 
@@ -116,11 +117,11 @@ function AlertsBadgeInner() {
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-80 p-0"
+        className="ds-sheet-v2 ds-alerts-popover flex w-80 flex-col overflow-hidden p-0"
         data-testid="alerts-badge-popover"
       >
-        <div className="flex items-center justify-between px-3 py-2">
-          <span className="text-xs font-medium uppercase tracking-wide opacity-80">
+        <div className="flex shrink-0 items-center justify-between px-3 py-2">
+          <span className="text-xs font-medium uppercase tracking-wide text-[color:var(--ds-text-muted)]">
             Alerts ({state.history.length})
           </span>
           <div className="flex gap-1">
@@ -144,55 +145,58 @@ function AlertsBadgeInner() {
             </Button>
           </div>
         </div>
-        <Separator />
-        <ScrollArea className="max-h-80">
+        <Separator className="ds-alerts-popover-divider" />
+        <ScrollArea className="ds-alerts-popover-scroll h-80 w-full">
           {state.history.length === 0 ? (
             <div className="px-3 py-4 text-center text-xs text-[color:var(--ds-text-muted)]">
               No alerts yet.
             </div>
           ) : (
-            <ul className="divide-y divide-[color:var(--ds-border-default)]">
-              {state.history.map((n) => (
-                <li
-                  key={n.id}
-                  className="px-3 py-2"
-                  data-testid={`alerts-notification-${n.id}`}
-                  data-read={n.read ? 'true' : 'false'}
-                >
-                  <div className="flex items-start gap-2">
-                    <Badge
-                      variant={SEVERITY_BADGE_VARIANT[n.severity] ?? 'secondary'}
-                      className="mt-0.5 text-[10px] uppercase"
-                    >
-                      {n.severity}
-                    </Badge>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="truncate text-xs font-medium">{n.ruleName}</span>
-                        <span className="shrink-0 text-[10px] opacity-60">
-                          {safeFormatTime(n.firedAt)}
-                        </span>
-                      </div>
-                      <div className="mt-0.5 break-words text-xs opacity-80">
-                        {n.message}
-                      </div>
-                      {n.rowId && (
-                        <div className="mt-1 text-[10px] uppercase tracking-wide opacity-50">
-                          row {n.rowId}
-                          {n.column ? ` · col ${n.column}` : ''}
+            <div className="flex flex-col" role="list">
+              {state.history.map((n, index) => (
+                <Fragment key={n.id}>
+                  {index > 0 ? <Separator className="ds-alerts-popover-divider" /> : null}
+                  <div
+                    role="listitem"
+                    className="px-3 py-2"
+                    data-testid={`alerts-notification-${n.id}`}
+                    data-read={n.read ? 'true' : 'false'}
+                  >
+                    <div className="flex items-start gap-2">
+                      <Badge
+                        variant={SEVERITY_BADGE_VARIANT[n.severity] ?? 'secondary'}
+                        className="mt-0.5 text-[10px] uppercase"
+                      >
+                        {n.severity}
+                      </Badge>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate text-xs font-medium">{n.ruleName}</span>
+                          <span className="shrink-0 text-[10px] text-[color:var(--ds-text-faint)]">
+                            {safeFormatTime(n.firedAt)}
+                          </span>
                         </div>
+                        <div className="mt-0.5 break-words text-xs text-[color:var(--ds-text-secondary)]">
+                          {n.message}
+                        </div>
+                        {n.rowId && (
+                          <div className="mt-1 text-[10px] uppercase tracking-wide text-[color:var(--ds-text-faint)]">
+                            row {n.rowId}
+                            {n.column ? ` · col ${n.column}` : ''}
+                          </div>
+                        )}
+                      </div>
+                      {!n.read && (
+                        <span
+                          aria-label="unread"
+                          className="ml-1 mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--ds-accent-primary)]"
+                        />
                       )}
                     </div>
-                    {!n.read && (
-                      <span
-                        aria-label="unread"
-                        className="ml-1 mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--ds-accent-primary,#3b82f6)]"
-                      />
-                    )}
                   </div>
-                </li>
+                </Fragment>
               ))}
-            </ul>
+            </div>
           )}
         </ScrollArea>
       </PopoverContent>

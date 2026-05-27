@@ -28,8 +28,10 @@ function View1() {
 
   async function showNotification() {
     if (typeof fin === "undefined") return;
+    const platformUuid = (fin as typeof import("@openfin/core").fin).me?.identity?.uuid;
+    if (!platformUuid) return;
     await Notifications.create({
-      platform: fin.me.identity.uuid,
+      platform: platformUuid,
       title: "Simple Notification",
       body: "This is a simple notification",
       toast: "transient",

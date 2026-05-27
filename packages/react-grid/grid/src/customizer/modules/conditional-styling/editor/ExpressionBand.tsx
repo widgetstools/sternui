@@ -50,15 +50,15 @@ export const ExpressionBand = memo(function ExpressionBand({
         }}
       >
         TYPE{' '}
-        <code className="font-mono text-secondary normal-case">
+        <code className="font-mono normal-case text-[color:var(--ds-text-secondary)]">
           [
         </code>{' '}
         FOR COLUMNS ·{' '}
-        <code className="font-mono text-secondary normal-case">
+        <code className="font-mono normal-case text-[color:var(--ds-text-secondary)]">
           ⌘↵
         </code>{' '}
         TO SAVE · USE{' '}
-        <code className="font-mono text-secondary normal-case">
+        <code className="font-mono normal-case text-[color:var(--ds-text-secondary)]">
           data.field
         </code>{' '}
         FOR RAW

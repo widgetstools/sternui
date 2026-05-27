@@ -21,7 +21,7 @@ export const RuleEditorHeader = memo(function RuleEditorHeader({
   testIdPrefix?: string;
 }) {
   return (
-    <div className="shrink-0 bg-background border-b border-border">
+    <div className="ds-editor-header shrink-0 bg-background border-b border-border">
       <ObjectTitleRow
         title={
           <TitleInput

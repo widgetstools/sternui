@@ -83,8 +83,7 @@ async function bootAlertsTab(page: Page): Promise<void> {
   await page.reload();
   await page.waitForLoadState('domcontentloaded');
   await page.waitForSelector('[role="tab"]', { timeout: 15_000 });
-  // Switch to the Alerts tab.
-  await page.locator('[role="tab"]', { hasText: 'Alerts' }).click();
+  await page.locator('[data-testid="lab-tab-alerts"]').click();
   // Wait for the grid to render rows.
   await page.waitForSelector(`[data-grid-id="${GRID_ID}"]`, { timeout: 15_000 });
   await page.waitForSelector(`[data-grid-id="${GRID_ID}"] .ag-body-viewport .ag-row`, {
@@ -109,8 +108,19 @@ async function openAlertsPanel(page: Page): Promise<void> {
   // Open the module-picker popover, then click the Alerts entry.
   await page.locator('[data-testid="v2-settings-module-dropdown"]').click();
   await page.locator('[data-testid="v2-settings-nav-menu-alerts"]').click();
-  // Settings band has the master enable switch — wait for it to mount.
-  await page.locator('[data-testid="alerts-enabled-switch"]').waitFor({ state: 'visible' });
+  // Editor pane mounts once a rule is selected (seeded rules auto-select).
+  await page.locator('[data-testid="alerts-rule-editor"]').waitFor({ state: 'visible' });
+}
+
+/** Global settings are collapsed by default — expand before asserting band controls. */
+async function expandAlertsGlobalSettings(page: Page): Promise<void> {
+  const section = page.locator('[data-testid="alerts-global-settings"]');
+  await section.waitFor({ state: 'visible' });
+  const enableSwitch = page.locator('[data-testid="alerts-enabled-switch"]');
+  if (!(await enableSwitch.isVisible())) {
+    await section.locator('header').click();
+  }
+  await enableSwitch.waitFor({ state: 'visible' });
 }
 
 async function closeSettingsSheet(page: Page): Promise<void> {
@@ -143,6 +153,7 @@ test.describe('v2 — alerts module (lab app)', () => {
 
   test('settings band exposes shadcn controls for frequency + channels', async ({ page }) => {
     await openAlertsPanel(page);
+    await expandAlertsGlobalSettings(page);
 
     // Master enable + evaluation mode radios.
     await expect(page.locator('[data-testid="alerts-enabled-switch"]')).toBeVisible();
@@ -167,6 +178,7 @@ test.describe('v2 — alerts module (lab app)', () => {
 
   test('OpenFin channel toggle is disabled when window.fin is absent', async ({ page }) => {
     await openAlertsPanel(page);
+    await expandAlertsGlobalSettings(page);
     // We're running in a plain browser, so window.fin is undefined → the
     // shadcn Switch carries the disabled HTML attribute.
     const openfinSwitch = page.locator('[data-testid="alerts-channel-openfin"]');
@@ -229,6 +241,7 @@ test.describe('v2 — alerts module (lab app)', () => {
 
   test('toggling settings.enabled off short-circuits new dispatches', async ({ page }) => {
     await openAlertsPanel(page);
+    await expandAlertsGlobalSettings(page);
 
     // Capture initial enabled state via the data store (Radix Switch
     // exposes `data-state` but reading from state is more deterministic).
