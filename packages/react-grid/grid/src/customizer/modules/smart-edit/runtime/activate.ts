@@ -4,6 +4,7 @@ import {
   SMART_EDIT_MODULE_ID,
   type SmartEditState,
 } from '@starui/engine';
+import { getEditJournal } from '../../../editing/editJournalScope.js';
 import { applyEdits, resolveTargetCells } from './applyEdits.js';
 
 function isEditingCell(api: GridApi): boolean {
@@ -34,7 +35,8 @@ export function activateSmartEdit(platform: PlatformHandle<SmartEditState>): () 
 
       const step = state.settings.incrementStep;
       const op = ke.key === '-' ? 'subtract' : 'add';
-      await applyEdits(api, cells, op, step);
+      const journal = state.settings.recordHistory ? getEditJournal(platform) : null;
+      await applyEdits(api, cells, op, step, { journal });
     };
 
     api.addEventListener('cellKeyDown', onCellKeyDown);

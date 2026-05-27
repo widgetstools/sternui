@@ -126,6 +126,41 @@ function SmartEditPanelInner() {
               />
             )}
           />
+          <Row
+            label="SINGLE COLUMN ONLY"
+            data-testid="se-single-column"
+            hint="AdapTable parity — one numeric column per apply"
+            control={(
+              <BoolControl
+                checked={draft.enforceSingleColumn}
+                onChange={(v) => updateSetting('enforceSingleColumn', v)}
+                testId="se-single-column-toggle"
+              />
+            )}
+          />
+          <Row
+            label="PREVIEW BEFORE APPLY"
+            data-testid="se-preview"
+            control={(
+              <BoolControl
+                checked={draft.previewBeforeApply}
+                onChange={(v) => updateSetting('previewBeforeApply', v)}
+                testId="se-preview-toggle"
+              />
+            )}
+          />
+          <Row
+            label="RECORD EDIT HISTORY"
+            data-testid="se-history"
+            hint="Enables undo via Data Change History module (Phase 3 UI)"
+            control={(
+              <BoolControl
+                checked={draft.recordHistory}
+                onChange={(v) => updateSetting('recordHistory', v)}
+                testId="se-history-toggle"
+              />
+            )}
+          />
         </Band>
       </div>
     </div>

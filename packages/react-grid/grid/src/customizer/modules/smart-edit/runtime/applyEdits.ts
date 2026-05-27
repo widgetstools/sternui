@@ -1,8 +1,12 @@
 import type { GridApi } from 'ag-grid-community';
 import {
+  applyForwardPatches,
   applyNumericOp,
+  buildPatchesFromTargets,
   collectFocusedCell,
   collectTargetCells,
+  type CellPatch,
+  type EditJournal,
   type SmartEditOp,
   type TargetCell,
 } from '@starui/engine';
@@ -14,33 +18,42 @@ export function resolveTargetCells(api: GridApi, rowIdField = 'id'): TargetCell[
   return collectFocusedCell(api as never, getRowId);
 }
 
+export function buildSmartEditPatches(
+  cells: TargetCell[],
+  op: SmartEditOp,
+  operand: number,
+): CellPatch[] {
+  return buildPatchesFromTargets(cells, (cell) => applyNumericOp(cell.value, op, operand));
+}
+
+export interface ApplyEditsOptions {
+  rowIdField?: string;
+  journal?: EditJournal | null;
+  journalLabel?: string;
+  /** When set, apply this patch list instead of computing from cells/op/operand. */
+  patches?: readonly CellPatch[];
+}
+
 export async function applyEdits(
   api: GridApi,
   cells: TargetCell[],
   op: SmartEditOp,
   operand: number,
-  rowIdField = 'id',
+  options: ApplyEditsOptions = {},
 ): Promise<number> {
-  const updatesByRowId = new Map<string, Record<string, unknown>>();
+  const rowIdField = options.rowIdField ?? 'id';
+  const patches = options.patches ?? buildSmartEditPatches(cells, op, operand);
+  if (patches.length === 0) return 0;
 
-  for (const cell of cells) {
-    const next = applyNumericOp(cell.value, op, operand);
-    if (next === null) continue;
+  await applyForwardPatches(api as never, patches, rowIdField);
 
-    let row = updatesByRowId.get(cell.rowId);
-    if (!row) {
-      const existing = api.getRowNode(cell.rowId)?.data;
-      row =
-        existing && typeof existing === 'object'
-          ? { ...(existing as Record<string, unknown>) }
-          : { [rowIdField]: cell.rowId };
-      updatesByRowId.set(cell.rowId, row);
-    }
-    row[cell.field] = next;
+  if (options.journal) {
+    options.journal.record({
+      source: 'smart-edit',
+      label: options.journalLabel ?? `${op} (${operand}) · ${patches.length} cell${patches.length === 1 ? '' : 's'}`,
+      patches,
+    });
   }
 
-  const updates = [...updatesByRowId.values()];
-  if (updates.length === 0) return 0;
-  await api.applyTransactionAsync({ update: updates });
-  return cells.length;
+  return patches.length;
 }

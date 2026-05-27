@@ -1,6 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   SMART_EDIT_MODULE_ID,
+  assertSingleColumnSelection,
+  previewPatches,
+  type CellPatch,
   type SmartEditOp,
   type SmartEditState,
 } from '@starui/engine';
@@ -13,6 +16,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  Badge,
   Button,
   Dialog,
   DialogContent,
@@ -20,14 +24,25 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@starui/ui';
+import { getEditJournal } from '../../editing/editJournalScope';
 import { useGridPlatform } from '../../hooks/GridProvider';
 import { useModuleState } from '../../hooks/useModuleState';
 import { useSmartEditSelection } from './useSmartEditSelection';
-import { applyEdits, resolveTargetCells } from './runtime/applyEdits';
+import {
+  applyEdits,
+  buildSmartEditPatches,
+  resolveTargetCells,
+} from './runtime/applyEdits';
 
 const OP_LABELS: Record<SmartEditOp, string> = {
   multiply: '×',
@@ -40,52 +55,125 @@ const OP_LABELS: Record<SmartEditOp, string> = {
 export function SmartEditToolbarBody() {
   const platform = useGridPlatform();
   const [settings] = useModuleState<SmartEditState>(SMART_EDIT_MODULE_ID);
-  const { count } = useSmartEditSelection();
+  const { count, cells } = useSmartEditSelection();
   const [operand, setOperand] = useState('1');
   const [setDialogOpen, setSetDialogOpen] = useState(false);
   const [setValue, setSetValue] = useState('');
   const [confirmOp, setConfirmOp] = useState<SmartEditOp | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [pendingOp, setPendingOp] = useState<{ op: SmartEditOp; value: number } | null>(null);
+  const [pendingPatches, setPendingPatches] = useState<CellPatch[]>([]);
 
-  const runOp = useCallback(async (op: SmartEditOp, value: number) => {
+  const columnGuard = useMemo(() => {
+    if (!settings.settings.enforceSingleColumn) return { ok: true as const };
+    return assertSingleColumnSelection(cells);
+  }, [cells, settings.settings.enforceSingleColumn]);
+
+  const journalOptions = useMemo(() => {
+    if (!settings.settings.recordHistory) return {};
+    return { journal: getEditJournal(platform) };
+  }, [platform, settings.settings.recordHistory]);
+
+  const executeApply = useCallback(async (
+    op: SmartEditOp,
+    value: number,
+    patches?: readonly CellPatch[],
+  ) => {
     const api = platform.api.api;
     if (!api || !settings.settings.enabled) return;
 
-    const cells = resolveTargetCells(api);
-    if (cells.length === 0) return;
+    const targets = resolveTargetCells(api);
+    if (targets.length === 0) return;
+
+    if (settings.settings.enforceSingleColumn) {
+      const guard = assertSingleColumnSelection(targets);
+      if (!guard.ok) return;
+    }
+
+    await applyEdits(api, targets, op, value, {
+      ...journalOptions,
+      patches,
+    });
+  }, [platform, settings.settings.enabled, settings.settings.enforceSingleColumn, journalOptions]);
+
+  const beginOp = useCallback((op: SmartEditOp, value: number) => {
+    const api = platform.api.api;
+    if (!api || !settings.settings.enabled) return;
+
+    const targets = resolveTargetCells(api);
+    if (targets.length === 0) return;
+
+    if (settings.settings.enforceSingleColumn) {
+      const guard = assertSingleColumnSelection(targets);
+      if (!guard.ok) return;
+    }
 
     if (
       settings.settings.confirmThreshold > 0 &&
-      cells.length > settings.settings.confirmThreshold
+      targets.length > settings.settings.confirmThreshold
     ) {
       setConfirmOp(op);
       return;
     }
 
-    await applyEdits(api, cells, op, value);
-  }, [platform, settings.settings.enabled, settings.settings.confirmThreshold]);
+    const patches = buildSmartEditPatches(targets, op, value);
+    if (patches.length === 0) return;
+
+    if (settings.settings.previewBeforeApply) {
+      setPendingOp({ op, value });
+      setPendingPatches(patches);
+      setPreviewOpen(true);
+      return;
+    }
+
+    void executeApply(op, value, patches);
+  }, [
+    platform,
+    settings.settings.enabled,
+    settings.settings.enforceSingleColumn,
+    settings.settings.confirmThreshold,
+    settings.settings.previewBeforeApply,
+    executeApply,
+  ]);
 
   const handleConfirm = async () => {
     const api = platform.api.api;
     if (!api || !confirmOp) return;
     const value = Number(operand);
     if (!Number.isFinite(value)) return;
-    const cells = resolveTargetCells(api);
-    await applyEdits(api, cells, confirmOp, value);
+    const targets = resolveTargetCells(api);
+    const patches = buildSmartEditPatches(targets, confirmOp, value);
+    await executeApply(confirmOp, value, patches);
     setConfirmOp(null);
   };
 
   const handleSet = async () => {
     const parsed = Number(setValue);
     if (!Number.isFinite(parsed)) return;
-    await runOp('set', parsed);
+    beginOp('set', parsed);
     setSetDialogOpen(false);
     setSetValue('');
   };
 
+  const handlePreviewApply = async () => {
+    if (!pendingOp) return;
+    const preview = previewPatches(pendingPatches);
+    const patches = preview.validPatches;
+    if (patches.length === 0) {
+      setPreviewOpen(false);
+      return;
+    }
+    await executeApply(pendingOp.op, pendingOp.value, patches);
+    setPreviewOpen(false);
+    setPendingOp(null);
+    setPendingPatches([]);
+  };
+
   if (!settings.settings.enabled) return null;
 
-  const disabled = count === 0;
+  const disabled = count === 0 || !columnGuard.ok;
   const ops = settings.settings.enabledOps;
+  const preview = pendingPatches.length > 0 ? previewPatches(pendingPatches) : null;
 
   return (
     <div className="ds-smart-edit-toolbar ds-sheet-v2" data-testid="smart-edit-toolbar">
@@ -100,13 +188,17 @@ export function SmartEditToolbarBody() {
               data-testid={`smart-edit-op-${op}`}
               onClick={() => {
                 const v = Number(operand);
-                if (Number.isFinite(v)) void runOp(op, v);
+                if (Number.isFinite(v)) beginOp(op, v);
               }}
             >
               {OP_LABELS[op]}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{op}</TooltipContent>
+          <TooltipContent>
+            {!columnGuard.ok && columnGuard.reason === 'multi-column'
+              ? 'Select cells in one column only'
+              : op}
+          </TooltipContent>
         </Tooltip>
       ))}
       {ops.includes('set') && (
@@ -130,6 +222,7 @@ export function SmartEditToolbarBody() {
       />
       <span className="ds-smart-edit-toolbar__count text-[11px] text-[color:var(--ds-text-secondary)]">
         {count} cell{count === 1 ? '' : 's'} selected
+        {!columnGuard.ok && columnGuard.reason === 'multi-column' && ' · one column only'}
       </span>
 
       <Dialog open={setDialogOpen} onOpenChange={setSetDialogOpen}>
@@ -146,6 +239,54 @@ export function SmartEditToolbarBody() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setSetDialogOpen(false)}>Cancel</Button>
             <Button onClick={() => void handleSet()} data-testid="smart-edit-set-apply">Apply</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="ds-sheet-v2 max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Preview smart edit</DialogTitle>
+          </DialogHeader>
+          {preview && (
+            <div className="max-h-[240px] overflow-y-auto">
+              <Table data-testid="smart-edit-preview-table">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Row</TableHead>
+                    <TableHead>Field</TableHead>
+                    <TableHead>Current</TableHead>
+                    <TableHead>New</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {preview.results.map(({ patch, status }) => (
+                    <TableRow key={`${patch.rowId}:${patch.field}`}>
+                      <TableCell>{patch.rowId}</TableCell>
+                      <TableCell>{patch.field}</TableCell>
+                      <TableCell>{String(patch.oldValue)}</TableCell>
+                      <TableCell>{String(patch.newValue)}</TableCell>
+                      <TableCell>
+                        <Badge variant={status === 'invalid' ? 'destructive' : 'secondary'}>
+                          {status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => void handlePreviewApply()}
+              disabled={preview?.allInvalid}
+              data-testid="smart-edit-preview-apply"
+            >
+              Apply{preview?.someInvalid ? ' valid only' : ''}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

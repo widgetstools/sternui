@@ -340,10 +340,12 @@ Per-renderer config types (`PillRendererConfig`,
 - **Conditional styling** — themed style rules (dark/light)
 - **Smart Edit** — bulk update, arithmetic across cell selections (× ÷ + −),
   toolbar **Set…** dialog, +/- keyboard increment, and K/M/B magnitude shortcuts
-  via `valueParser` on editable numeric columns. Framework-agnostic ops in
-  `@starui/engine`; React module + `SmartEditToolbar` in `@starui/grid`.
-  Opt-in via `showSmartEditToolbar` (default `false`). Settings panel module
-  `06`. Lab: **Smart Edit** tab (`lab-smart-edit`).
+  via `valueParser` on editable numeric columns. Single-column guard, optional
+  preview-before-apply, and cell-patch journal recording for undo (via shared
+  `EditJournal`). Framework-agnostic ops in `@starui/engine`; React module +
+  `SmartEditToolbar` in `@starui/grid`. Opt-in via `showSmartEditToolbar`
+  (default `false`). Settings panel module `06`. Lab: **Smart Edit** tab
+  (`lab-smart-edit`).
 - **Alerts** — expression-driven notifications (dataChange / relativeChange /
   rowChange triggers) with toast, toolbar bell badge, and OpenFin Notification
   Centre channels. Runtime evaluates on `cellValueChanged` and on
@@ -672,8 +674,11 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### History (undo/redo)
 
-- `HistoryStack` — vanilla undo/redo
+- `HistoryStack` — vanilla undo/redo (module state snapshots)
 - `HistoryStackOptions` — `maxSize`
+- **Editing core** — `EditJournal`, `CellPatch`, `buildPatchesFromTargets`,
+  `applyForwardPatches`, `previewPatches`, `assertSingleColumnSelection` —
+  cell-patch journal for row data edits (one user action = one undo step)
 
 #### Expression engine
 

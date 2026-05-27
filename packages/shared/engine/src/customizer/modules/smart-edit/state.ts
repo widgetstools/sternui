@@ -4,7 +4,7 @@
  */
 
 export const SMART_EDIT_MODULE_ID = 'smart-edit';
-export const SMART_EDIT_SCHEMA_VERSION = 1;
+export const SMART_EDIT_SCHEMA_VERSION = 2;
 
 export type SmartEditOp = 'multiply' | 'divide' | 'add' | 'subtract' | 'set';
 
@@ -19,6 +19,12 @@ export interface SmartEditSettings {
   enabledOps: SmartEditOp[];
   /** Confirm before applying ops affecting more than N cells (0 = never confirm). */
   confirmThreshold: number;
+  /** AdapTable parity: only one column per smart-edit apply. */
+  enforceSingleColumn: boolean;
+  /** Show preview table before apply (lab profiles enable this). */
+  previewBeforeApply: boolean;
+  /** Record applies in the shared edit journal for undo/redo. */
+  recordHistory: boolean;
 }
 
 export interface SmartEditState {
@@ -32,6 +38,9 @@ export const INITIAL_SMART_EDIT: SmartEditState = {
     magnitudeShortcutsEnabled: true,
     enabledOps: ['multiply', 'divide', 'add', 'subtract', 'set'],
     confirmThreshold: 50,
+    enforceSingleColumn: true,
+    previewBeforeApply: false,
+    recordHistory: true,
   },
 };
 
@@ -64,6 +73,18 @@ export function deserializeSmartEditState(raw: unknown): SmartEditState {
         typeof s.confirmThreshold === 'number' && Number.isFinite(s.confirmThreshold) && s.confirmThreshold >= 0
           ? s.confirmThreshold
           : INITIAL_SMART_EDIT.settings.confirmThreshold,
+      enforceSingleColumn:
+        typeof s.enforceSingleColumn === 'boolean'
+          ? s.enforceSingleColumn
+          : INITIAL_SMART_EDIT.settings.enforceSingleColumn,
+      previewBeforeApply:
+        typeof s.previewBeforeApply === 'boolean'
+          ? s.previewBeforeApply
+          : INITIAL_SMART_EDIT.settings.previewBeforeApply,
+      recordHistory:
+        typeof s.recordHistory === 'boolean'
+          ? s.recordHistory
+          : INITIAL_SMART_EDIT.settings.recordHistory,
     },
   };
 }

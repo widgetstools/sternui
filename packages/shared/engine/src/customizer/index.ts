@@ -64,3 +64,5 @@ export {
   type SmartEditGridReader,
   type TargetCell,
 } from './modules/smart-edit/collectTargetCells.js';
+
+export * from './modules/editing-core/index.js';
