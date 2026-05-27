@@ -25,6 +25,7 @@ import { TooltipProvider } from '@starui/ui';
 import type { AnyModule, StorageAdapter } from '@starui/engine';
 import type { AdminAction, MarketsGridHandle, MarketsGridProps } from './types';
 import { FormattingToolbar } from './FormattingToolbar';
+import { SmartEditToolbar } from './SmartEditToolbar';
 import { SettingsSheet } from './SettingsSheet';
 import { useMarketsGridController } from './useMarketsGridController';
 import { PrimaryToolbar } from './PrimaryToolbar';
@@ -50,6 +51,7 @@ export interface MarketsGridHostProps<TData> {
   showToolbar: boolean;
   showFiltersToolbar: boolean;
   showFormattingToolbar: boolean;
+  showSmartEditToolbar: boolean;
   showSaveButton: boolean;
   showSettingsButton: boolean;
   showProfileSelector: boolean;
@@ -95,6 +97,7 @@ export function MarketsGridHost<TData>({
   showToolbar,
   showFiltersToolbar,
   showFormattingToolbar,
+  showSmartEditToolbar,
   showSaveButton,
   showSettingsButton,
   showProfileSelector,
@@ -217,6 +220,15 @@ export function MarketsGridHost<TData>({
           appId={appId}
           userId={userId}
         />
+      )}
+
+      {showSmartEditToolbar && (
+        <div
+          className="shrink-0 border-b border-[color:var(--ds-border-primary)]"
+          data-testid="smart-edit-toolbar-pinned"
+        >
+          <SmartEditToolbar />
+        </div>
       )}
 
       {/* FormattingToolbar — pinned as a second toolbar row directly

@@ -31,7 +31,7 @@ deployment — and where to invest next.
 | **Headline parity** | **≈ 48%** (weighted for capital-markets grids) |
 | **Best in class** | Cell rendering (~80%), developer guides (~72%), theming (100%) |
 | **Recently closed** | Alerts (P0 triggers + toast/bell/OpenFin), styled columns (2026-Q2) |
-| **Still thin** | Pivot/aggregations, Smart Edit family, Visual Excel, annotations, AdaptableQL extensions |
+| **Still thin** | Pivot/aggregations, Visual Excel, annotations, AdaptableQL extensions |
 
 MarketsGrid already covers the **platform spine** — profiles, expression engine,
 conditional styling, formatters, OpenFin shell, real-time ingest — that AdapTable
@@ -195,10 +195,10 @@ column.
 
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
-| Smart Edit (multiply / divide / +/- across many cells) | — | 10 | 7 | — |
-| Bulk Update (set N cells to same value) | — | 10 | 7 | — |
-| Plus / Minus increment via +/- keys | — | 10 | 5 | — |
-| Shortcuts (M=million, K=thousand, etc.) | — | 5 | 6 | — |
+| Smart Edit (multiply / divide / +/- across many cells) | `@starui/engine` smart-edit module + opt-in `SmartEditToolbar` (`showSmartEditToolbar`, default off); lab **Smart Edit** tab | 75 | 7 | × ÷ + − Set, confirm threshold, keyboard +/- |
+| Bulk Update (set N cells to same value) | Smart Edit **Set…** dialog + `applyTransactionAsync` | 70 | 7 | Same module |
+| Plus / Minus increment via +/- keys | `activateSmartEdit` cellKeyDown hooks | 70 | 5 | Respects increment step in settings |
+| Shortcuts (M=million, K=thousand, etc.) | `parseMagnitudeSuffix` + colDef `valueParser` transform | 65 | 6 | K/M/B when `magnitudeShortcutsEnabled` |
 | Styling Editable / ReadOnly Cells | Customizer style editor with data-type variants | 70 | 5 | — |
 | Custom Edit Values (cell-level allowed values) | AG Grid native | 60 | 5 | — |
 | Data Validation — Pre-Edit | — | 15 | 7 | — |
@@ -392,9 +392,14 @@ AdapTable's four data-entry modules give traders 10×-faster cell-edit
 ergonomics: arithmetic across many cells, bulk-set, +/- keys for
 increments, and shortcut keys ("M" → million).
 
-MarketsGrid has only AG Grid's default cell editor.
+MarketsGrid ships the **Smart Edit** module (`smart-edit`, code `06`) in
+`@starui/engine` + `@starui/grid`: opt-in toolbar (`showSmartEditToolbar`,
+default `false`), settings panel, K/M/B magnitude parsing, confirm
+threshold, and keyboard +/- increment. Demoable in `apps/markets-grid-lab`
+→ **Smart Edit** tab (`lab-smart-edit`).
 
-**Impact:** *high* — separates a passable grid from a trader-grade one.
+**Impact:** *medium* — core trader ergonomics covered; remaining gaps are
+AdapTable-specific extras (e.g. richer shortcut vocab, pre-edit validation).
 
 ### 6.5 Pivot layouts & aggregations (Grand Total / Weighted Avg)
 
@@ -523,12 +528,14 @@ is sized into a rough effort band (S < 1 week, M 1–4 weeks, L > 4 weeks).
 | # | Feature | Effort | Why |
 |---|---|---|---|
 | 1 | **Direction-aware flashing module** (UP/DOWN/Neutral, per-column, duration) | M | Per-rule flash already shipped via conditional-styling — standalone module closes the last flashing gap |
-| 2 | **Smart Edit + Bulk Update + Plus/Minus + Shortcuts** | M | Trader ergonomics, reuses AG Grid `applyTransactionAsync` |
-| 3 | **Visual Excel export** (preserve formatting) | M | Differentiator vs AG Grid native; `excelFormatColorResolver` already separates value/colour for re-use |
-| 4 | **Alert extensions** (aggregation limits, validation rollback, auto-jump, `AlertFired` event) | M | P0 triggers shipped; closes evaluation gaps for risk desks |
+| 2 | **Visual Excel export** (preserve formatting) | M | Differentiator vs AG Grid native; `excelFormatColorResolver` already separates value/colour for re-use |
+| 3 | **Alert extensions** (aggregation limits, validation rollback, auto-jump, `AlertFired` event) | M | P0 triggers shipped; closes evaluation gaps for risk desks |
 
 > **~~Alerts (P0 triggers)~~** — **shipped 2026-Q2.** Customizer module + lab
 > scenarios. See §4.4, §6.1, and `apps/markets-grid-lab`.
+>
+> **~~Smart Edit family~~** — **shipped 2026-Q2.** Engine + grid module, opt-in
+> toolbar, lab **Smart Edit** tab. See §4.7, §6.4, and `e2e/v2-smart-edit.spec.ts`.
 >
 > **~~Styled Columns~~** — **shipped 2026-Q2.** See §4.6 and §7.
 
@@ -595,7 +602,7 @@ These are AdapTable features that don't earn their keep in our context:
 **~48% weighted parity** today (alerts P0 triggers + styled columns bump
 Core Features from ~14% → ~42%).
 
-If the **remaining P0 set** (standalone flashing, Smart Edit family, Visual
+If the **remaining P0 set** (standalone flashing, Visual
 Excel, alert extensions) ships, parity moves to **~58%** — trader-visible
 gaps concentrate on pivot/aggregations and collaboration surfaces.
 

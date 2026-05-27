@@ -10,6 +10,7 @@ import liveUpdates from './live-updates.md?raw';
 import profiles from './profiles.md?raw';
 import alerts from './alerts.md?raw';
 import quickFilters from './quick-filters.md?raw';
+import smartEdit from './smart-edit.md?raw';
 
 export const HELP = {
   overview,
@@ -23,4 +24,5 @@ export const HELP = {
   profiles,
   alerts,
   quickFilters,
+  smartEdit,
 } as const;

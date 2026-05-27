@@ -338,6 +338,12 @@ Per-renderer config types (`PillRendererConfig`,
   registered renderer from `@starui/design-system/cell-renderers-registry`
   and authors its per-renderer config)
 - **Conditional styling** — themed style rules (dark/light)
+- **Smart Edit** — bulk update, arithmetic across cell selections (× ÷ + −),
+  toolbar **Set…** dialog, +/- keyboard increment, and K/M/B magnitude shortcuts
+  via `valueParser` on editable numeric columns. Framework-agnostic ops in
+  `@starui/engine`; React module + `SmartEditToolbar` in `@starui/grid`.
+  Opt-in via `showSmartEditToolbar` (default `false`). Settings panel module
+  `06`. Lab: **Smart Edit** tab (`lab-smart-edit`).
 - **Alerts** — expression-driven notifications (dataChange / relativeChange /
   rowChange triggers) with toast, toolbar bell badge, and OpenFin Notification
   Centre channels. Runtime evaluates on `cellValueChanged` and on
@@ -354,7 +360,7 @@ Per-renderer config types (`PillRendererConfig`,
   auto-wire when the badge is present. Demo: `apps/markets-grid-lab`
   (`npm run dev:markets-grid-lab`) — Overview, Conditional Styling, Calculated Columns,
   Formatting, Column Groups, Quick Filters (saved filter pills + `FiltersToolbar`),
-  Live Updates, Alerts, Cell Renderers, and Formatter Toolbar tabs. Each feature tab ships multiple toolbar profiles (catalogs in
+  Live Updates, Alerts, Smart Edit, Cell Renderers, and Formatter Toolbar tabs. Each feature tab ships multiple toolbar profiles (catalogs in
   `apps/markets-grid-lab/src/profiles/catalogs/`, importable JSON under
   `apps/markets-grid-lab/public/lab-profiles/`). **Demo console** right rail
   (`LabScenarioRail`, `LabDemoProvider`, `useLabRows`) injects scenario patches

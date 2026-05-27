@@ -26,6 +26,7 @@ import {
   generalSettingsModule,
   gridStateModule,
   savedFiltersModule,
+  smartEditModule,
   toolbarVisibilityModule,
 } from '@starui/grid/customizer';
 import type { MarketsGridHandle, MarketsGridProps } from './types';
@@ -63,6 +64,7 @@ export const DEFAULT_MODULES: AnyModule[] = [
   calculatedColumnsModule,
   columnGroupsModule,
   conditionalStylingModule,
+  smartEditModule,
   alertsModule,
   savedFiltersModule,
   toolbarVisibilityModule,
@@ -94,6 +96,7 @@ function MarketsGridInner<TData = unknown>(
     showToolbar = true,
     showFiltersToolbar = false,
     showFormattingToolbar = false,
+    showSmartEditToolbar = false,
     showSaveButton = true,
     showSettingsButton = true,
     showProfileSelector = true,
@@ -302,6 +305,7 @@ function MarketsGridInner<TData = unknown>(
         showToolbar={showToolbar}
         showFiltersToolbar={showFiltersToolbar}
         showFormattingToolbar={showFormattingToolbar}
+        showSmartEditToolbar={showSmartEditToolbar}
         showSaveButton={showSaveButton}
         showSettingsButton={showSettingsButton}
         showProfileSelector={showProfileSelector}

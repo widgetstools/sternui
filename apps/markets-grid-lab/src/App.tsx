@@ -35,6 +35,9 @@ const LiveUpdatesTab = lazy(() =>
 const AlertsTab = lazy(() =>
   import('./tabs/AlertsTab').then((m) => ({ default: m.AlertsTab })),
 );
+const SmartEditTab = lazy(() =>
+  import('./tabs/SmartEditTab').then((m) => ({ default: m.SmartEditTab })),
+);
 const ProfilesTab = lazy(() =>
   import('./tabs/ProfilesTab').then((m) => ({ default: m.ProfilesTab })),
 );
@@ -57,6 +60,7 @@ const TABS: TabEntry[] = [
   { id: 'filters', label: 'Quick Filters', hint: 'Saved filter pill buttons', Component: QuickFiltersTab },
   { id: 'live', label: 'Live Updates', hint: 'High-frequency stream', Component: LiveUpdatesTab },
   { id: 'alerts', label: 'Alerts', hint: 'Triggers, toasts, bell + OpenFin', Component: AlertsTab },
+  { id: 'smart-edit', label: 'Smart Edit', hint: 'Bulk update & arithmetic edits', Component: SmartEditTab },
   { id: 'profiles', label: 'Profiles', hint: 'Pre-baked configurations', Component: ProfilesTab },
 ];
 

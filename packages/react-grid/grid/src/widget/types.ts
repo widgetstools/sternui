@@ -60,6 +60,8 @@ export interface MarketsGridProps<TData = unknown> {
   showFiltersToolbar?: boolean;
   /** Floating formatter toolbar (pill toggle on the filter bar). */
   showFormattingToolbar?: boolean;
+  /** Smart Edit toolbar row (bulk / arithmetic on cell selection). Defaults to `false`. */
+  showSmartEditToolbar?: boolean;
   /** Save button on the toolbar. Defaults to `true`. */
   showSaveButton?: boolean;
   /** Settings button on the toolbar. Defaults to `true`. */

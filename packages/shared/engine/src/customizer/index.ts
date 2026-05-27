@@ -52,3 +52,15 @@ export * from './modules/grid-state/helpers.js';
 export * from './modules/alerts/state.js';
 export * from './modules/alerts/evaluator.js';
 export { applyAlertTransforms, applyAlertGridOptions } from './modules/alerts/transforms.js';
+
+export * from './modules/smart-edit/state.js';
+export { applyNumericOp } from './modules/smart-edit/operations.js';
+export { parseMagnitudeSuffix } from './modules/smart-edit/parseMagnitudeSuffix.js';
+export { applySmartEditColDefTransforms } from './modules/smart-edit/transforms.js';
+export { isNumericCellDataType } from './modules/smart-edit/isNumericCellDataType.js';
+export {
+  collectTargetCells,
+  collectFocusedCell,
+  type SmartEditGridReader,
+  type TargetCell,
+} from './modules/smart-edit/collectTargetCells.js';

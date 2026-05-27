@@ -306,6 +306,12 @@ export {
   type IndicatorIconDef,
 } from './modules/conditional-styling';
 export {
+  smartEditModule,
+  SMART_EDIT_MODULE_ID,
+  SmartEditToolbarBody,
+  useSmartEditSelection,
+} from './modules/smart-edit';
+export {
   alertsModule,
   ALERTS_MODULE_ID,
   AlertsBadge,

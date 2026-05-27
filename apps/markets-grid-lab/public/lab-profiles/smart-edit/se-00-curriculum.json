@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "gc-profile",
+  "exportedAt": "2026-05-27T19:54:39.692Z",
+  "profile": {
+    "name": "00 · Curriculum",
+    "gridId": "lab-smart-edit",
+    "state": {
+      "general-settings": {
+        "v": 1,
+        "data": {
+          "cellSelection": true
+        }
+      },
+      "smart-edit": {
+        "v": 1,
+        "data": {
+          "settings": {
+            "enabled": true,
+            "incrementStep": 1,
+            "magnitudeShortcutsEnabled": true,
+            "enabledOps": [
+              "multiply",
+              "divide",
+              "add",
+              "subtract",
+              "set"
+            ],
+            "confirmThreshold": 50
+          }
+        }
+      }
+    }
+  }
+}

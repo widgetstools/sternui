@@ -40,6 +40,9 @@ export function serializeTabSeed(seed: TabSeed): Record<string, SerializedState>
   if (seed.alerts) {
     state.alerts = { v: MODULE_SCHEMA_V, data: { rules: seed.alerts.rules, settings: seed.alerts.settings } };
   }
+  if (seed['smart-edit']) {
+    state['smart-edit'] = { v: MODULE_SCHEMA_V, data: seed['smart-edit'] };
+  }
   return state;
 }
 

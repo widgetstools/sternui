@@ -27,6 +27,8 @@ import {
   OVERVIEW_GRID_ID,
   QUICK_FILTERS_DEMO_PROFILES,
   QUICK_FILTERS_GRID_ID,
+  SMART_EDIT_GRID_ID,
+  SMART_EDIT_DEMO_PROFILES,
 } from '../src/profiles/catalogs';
 import { toExportedProfilePayload } from '../src/profiles/labProfileKit';
 
@@ -44,6 +46,7 @@ const CATALOGS = [
   { folder: 'renderers', gridId: RENDERERS_GRID_ID, profiles: RENDERERS_DEMO_PROFILES },
   { folder: 'formatter-toolbar', gridId: FORMATTER_TOOLBAR_GRID_ID, profiles: FORMATTER_TOOLBAR_DEMO_PROFILES },
   { folder: 'quick-filters', gridId: QUICK_FILTERS_GRID_ID, profiles: QUICK_FILTERS_DEMO_PROFILES },
+  { folder: 'smart-edit', gridId: SMART_EDIT_GRID_ID, profiles: SMART_EDIT_DEMO_PROFILES },
 ] as const;
 
 for (const { folder, gridId, profiles } of CATALOGS) {

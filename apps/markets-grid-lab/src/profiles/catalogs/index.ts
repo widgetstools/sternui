@@ -48,3 +48,8 @@ export {
   QUICK_FILTERS_DEMO_PROFILES,
   QUICK_FILTERS_ACTIVE_PROFILE_ID,
 } from './quickFiltersCatalog';
+export {
+  SMART_EDIT_GRID_ID,
+  SMART_EDIT_DEMO_PROFILES,
+  SMART_EDIT_ACTIVE_PROFILE_ID,
+} from './smartEditCatalog';

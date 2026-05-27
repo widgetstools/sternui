@@ -53,6 +53,7 @@ const PANEL_TESTID_BY_MODULE_ID: Record<string, string> = {
   // `cols-panel` testid the e2e helpers + docs consistently target.
   'column-customization': 'cols-panel',
   alerts: 'alerts-panel',
+  'smart-edit': 'smart-edit-panel',
 };
 
 /** Default module when the customizer opens (Grid Options). */

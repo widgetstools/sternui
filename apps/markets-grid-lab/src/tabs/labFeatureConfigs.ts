@@ -34,6 +34,9 @@ import {
   RENDERERS_ACTIVE_PROFILE_ID,
   RENDERERS_DEMO_PROFILES,
   RENDERERS_GRID_ID,
+  SMART_EDIT_ACTIVE_PROFILE_ID,
+  SMART_EDIT_DEMO_PROFILES,
+  SMART_EDIT_GRID_ID,
 } from '../profiles/catalogs';
 import type { LabStreamOptions } from '../demo/types';
 
@@ -41,6 +44,7 @@ type GridChrome = Pick<
   MarketsGridProps,
   | 'showFiltersToolbar'
   | 'showFormattingToolbar'
+  | 'showSmartEditToolbar'
   | 'showProfileSelector'
   | 'showSaveButton'
   | 'showSettingsButton'
@@ -354,6 +358,36 @@ export const ALERTS_FEATURE: LabFeatureConfig = {
   stream: { rowCount: 250, updateIntervalMs: 600 },
   getColumnDefs: () => ALERTS_COLUMNS,
   grid: {
+    showProfileSelector: true,
+    showSaveButton: true,
+    showSettingsButton: true,
+  },
+};
+
+const SMART_EDIT_COLUMNS = pickColumns([
+  'cusip', 'ticker', 'quantityFace', 'midPrice', 'marketValue', 'dailyPnL',
+]).map((col) =>
+  col.field === 'quantityFace' || col.field === 'midPrice'
+    ? { ...col, editable: true, cellDataType: 'number' as const }
+    : col,
+);
+
+export const SMART_EDIT_FEATURE: LabFeatureConfig = {
+  tabId: 'smart-edit',
+  providerId: 'mock-positions-smart-edit',
+  title: 'Smart Edit',
+  subtitle: `${SMART_EDIT_DEMO_PROFILES.length} profiles · bulk update · arithmetic · +/- · K/M/B`,
+  help: HELP.smartEdit,
+  gridId: SMART_EDIT_GRID_ID,
+  componentName: 'SmartEditLab',
+  profiles: SMART_EDIT_DEMO_PROFILES,
+  activeProfileId: SMART_EDIT_ACTIVE_PROFILE_ID,
+  stream: { rowCount: 200, updateIntervalMs: 500, enableUpdates: false },
+  getColumnDefs: () => SMART_EDIT_COLUMNS,
+  grid: {
+    showSmartEditToolbar: true,
+    showFiltersToolbar: true,
+    showFormattingToolbar: false,
     showProfileSelector: true,
     showSaveButton: true,
     showSettingsButton: true,

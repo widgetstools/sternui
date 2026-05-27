@@ -54,6 +54,7 @@ export function LabFeatureTab({ config }: LabFeatureTabProps) {
           showSettingsButton={grid.showSettingsButton ?? true}
           showFiltersToolbar={grid.showFiltersToolbar}
           showFormattingToolbar={grid.showFormattingToolbar}
+          showSmartEditToolbar={grid.showSmartEditToolbar}
           sideBar={grid.sideBar}
           statusBar={grid.statusBar}
           rowHeight={grid.rowHeight}
