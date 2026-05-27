@@ -150,4 +150,30 @@ describe('mockPresets — end-to-end with startMock', () => {
     expect(nestedKeys.length).toBeGreaterThan(0);
     handle.stop();
   });
+
+  it('soft restart for interval-only changes does not replace the snapshot', async () => {
+    let scheduledMs: number | null = null;
+    const setTicker = (_cb: () => void, ms: number) => {
+      scheduledMs = ms;
+      return 'h';
+    };
+    const clearTicker = () => {};
+
+    let replaceCount = 0;
+    const emit: ProviderEmit = (msg) => {
+      if (msg.rows && msg.replace) replaceCount += 1;
+    };
+
+    const handle = startMock(createFiPositionsSmallConfig(), emit, { setTicker, clearTicker });
+    await Promise.resolve();
+    expect(replaceCount).toBe(1);
+    expect(scheduledMs).toBe(750);
+
+    handle.restart({ updateIntervalMs: 200, enableUpdates: true, rowCount: 50 });
+    await Promise.resolve();
+
+    expect(replaceCount).toBe(1);
+    expect(scheduledMs).toBe(200);
+    handle.stop();
+  });
 });

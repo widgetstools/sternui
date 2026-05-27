@@ -19,7 +19,9 @@ export interface LabScenario {
 
 export interface LabStreamHandle {
   tabId: string;
-  rows: LabRow[];
+  getRowCount: () => number;
+  /** Rows after the last full provider snapshot (stable between ticks). */
+  snapshotRowCount: number;
   paused: boolean;
   setPaused: (v: boolean) => void;
   tickMs: number;

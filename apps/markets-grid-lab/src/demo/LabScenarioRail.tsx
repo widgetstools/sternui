@@ -13,34 +13,31 @@ import { Button, Label, Slider, Switch } from '@starui/ui';
 import { scenariosForTab } from './scenarios';
 import { useLabDemoRegistry } from './LabDemoContext';
 
-const ACCENT: Record<
-  string,
-  { border: string; bg: string; dot: string }
-> = {
+const ACCENT: Record<string, { btn: string; btnActive: string; dotClass: string }> = {
   positive: {
-    border: 'var(--ds-status-success-border, var(--ds-border-primary))',
-    bg: 'var(--ds-status-success-bg, var(--ds-surface-raised))',
-    dot: 'var(--ds-status-success-fg, var(--ds-accent-positive))',
+    btn: 'border-[color:var(--ds-status-success-border)] bg-[color:var(--ds-surface-raised)]',
+    btnActive: 'border-[color:var(--ds-status-success-fg)] bg-[color:var(--ds-status-success-bg)]',
+    dotClass: 'bg-[color:var(--ds-status-success-fg)]',
   },
   negative: {
-    border: 'var(--ds-status-error-border, var(--ds-border-primary))',
-    bg: 'var(--ds-status-error-bg, var(--ds-surface-raised))',
-    dot: 'var(--ds-status-error-fg, var(--ds-accent-negative))',
+    btn: 'border-[color:var(--ds-status-error-border)] bg-[color:var(--ds-surface-raised)]',
+    btnActive: 'border-[color:var(--ds-status-error-fg)] bg-[color:var(--ds-status-error-bg)]',
+    dotClass: 'bg-[color:var(--ds-status-error-fg)]',
   },
   warning: {
-    border: 'var(--ds-status-warning-border, var(--ds-border-primary))',
-    bg: 'var(--ds-status-warning-bg, var(--ds-surface-raised))',
-    dot: 'var(--ds-status-warning-fg, var(--ds-accent-warning))',
+    btn: 'border-[color:var(--ds-status-warning-border)] bg-[color:var(--ds-surface-raised)]',
+    btnActive: 'border-[color:var(--ds-status-warning-fg)] bg-[color:var(--ds-status-warning-bg)]',
+    dotClass: 'bg-[color:var(--ds-status-warning-fg)]',
   },
   info: {
-    border: 'var(--ds-border-primary)',
-    bg: 'var(--ds-surface-raised)',
-    dot: 'var(--ds-accent-info, var(--ds-primary))',
+    btn: 'border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-raised)]',
+    btnActive: 'border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)]',
+    dotClass: 'bg-[color:var(--ds-primary)]',
   },
   neutral: {
-    border: 'var(--ds-border-primary)',
-    bg: 'var(--ds-surface-raised)',
-    dot: 'var(--ds-text-secondary)',
+    btn: 'border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-raised)]',
+    btnActive: 'border-[color:var(--ds-text-secondary)] bg-[color:var(--ds-surface-primary)]',
+    dotClass: 'bg-[color:var(--ds-text-secondary)]',
   },
 };
 
@@ -152,7 +149,7 @@ export function LabScenarioRail({ activeTab }: { activeTab: string }) {
                 />
               </div>
               <p className="text-[10px] leading-relaxed text-[color:var(--ds-text-faint)]">
-                {handle.rows.length.toLocaleString()} rows in view
+                {(handle.snapshotRowCount || handle.getRowCount()).toLocaleString()} rows in view
                 {handle.activeScenarioId ? ' · scenario overlay active' : ''}
               </p>
             </div>
@@ -186,40 +183,38 @@ export function LabScenarioRail({ activeTab }: { activeTab: string }) {
               No scripted scenarios for this tab yet.
             </p>
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex min-w-0 flex-col gap-2">
               {scenarios.map((s) => {
                 const accent = ACCENT[s.accent] ?? ACCENT.neutral;
                 const active = handle?.activeScenarioId === s.id;
                 return (
-                  <li key={s.id}>
-                    <button
+                  <li key={s.id} className="min-w-0">
+                    <Button
                       type="button"
+                      variant="outline"
                       onClick={() => handle?.applyScenario(s.id)}
                       disabled={!handle}
                       data-testid={`lab-scenario-${s.id}`}
-                      className="w-full rounded-md border p-3 text-left transition-colors hover:border-[color:var(--ds-text-secondary)] disabled:opacity-50"
-                      style={{
-                        borderColor: active ? accent.dot : accent.border,
-                        background: active ? accent.bg : 'var(--ds-surface-raised)',
-                      }}
+                      className={`h-auto w-full min-w-0 flex-col items-stretch whitespace-normal p-3 text-left hover:border-[color:var(--ds-text-secondary)] disabled:opacity-50 ${active ? accent.btnActive : accent.btn}`}
                     >
-                      <div className="mb-1 flex items-center gap-2">
+                      <div className="mb-1 flex w-full min-w-0 items-start gap-2">
                         <span
-                          className="h-1.5 w-1.5 shrink-0 rounded-full"
-                          style={{ background: accent.dot }}
+                          className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${accent.dotClass}`}
                           aria-hidden
                         />
-                        <span className="text-[12px] font-semibold">{s.title}</span>
+                        <span className="min-w-0 flex-1 text-left text-[12px] font-semibold leading-snug [overflow-wrap:anywhere]">
+                          {s.title}
+                        </span>
                         {active && (
-                          <span className="ml-auto text-[9px] uppercase tracking-wider text-[color:var(--ds-primary)]">
+                          <span className="shrink-0 text-[9px] uppercase tracking-wider text-[color:var(--ds-primary)]">
                             Active
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] leading-snug text-[color:var(--ds-text-secondary)]">
+                      <p className="w-full min-w-0 text-left text-[11px] leading-snug text-[color:var(--ds-text-secondary)] [overflow-wrap:anywhere]">
                         {s.description}
                       </p>
-                    </button>
+                    </Button>
                   </li>
                 );
               })}

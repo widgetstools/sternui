@@ -359,7 +359,12 @@ Per-renderer config types (`PillRendererConfig`,
   `apps/markets-grid-lab/public/lab-profiles/`). **Demo console** right rail
   (`LabScenarioRail`, `LabDemoProvider`, `useLabRows`) injects scenario patches
   (bid spike, P&L loss, mid ticks, OAS heat, etc.) and shared stream controls
-  (pause/play, tick interval) across all grid tabs; parity doc:
+  (pause/play, tick interval) across all grid tabs;   mock ticks use
+  `applyTransactionAsync` after the initial snapshot (not per-tick `rowData`
+  swaps) via `useMockStream` / `applyLabStreamDelta`; scenario overlays apply
+  sparse field patches per tick and `clearScenario` forces a provider refresh;
+  feature tabs share `LabFeatureTab` + `labFeatureConfigs` with lazy-loaded tab
+  chunks in `App.tsx`; parity doc:
   `docs/MARKETSGRID_VS_ADAPTABLE_GAP_ANALYSIS.md` §2.
 - **Calculated columns** — virtual cols from expressions
 - **Saved filters** — named filter-model presets

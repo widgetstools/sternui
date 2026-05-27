@@ -115,6 +115,9 @@ function startPositions(
   return {
     stop: () => stopTicker(),
     restart: (extra) => {
+      if (trySoftRuntimeRestart(extra, cfg, (next) => { cfg = next; }, stopTicker, startTicker)) {
+        return;
+      }
       stopTicker();
       cfg = applyOverlay(cfg, extra);
       emit({ rows: [], replace: true });
@@ -213,6 +216,9 @@ function startTrades(
   return {
     stop: () => stopTicker(),
     restart: (extra) => {
+      if (trySoftRuntimeRestart(extra, cfg, (next) => { cfg = next; }, stopTicker, startTicker)) {
+        return;
+      }
       stopTicker();
       cfg = applyOverlay(cfg, extra);
       emit({ rows: [], replace: true });
@@ -295,6 +301,19 @@ function startLegacy(
   return {
     stop: () => stopT(),
     restart: (extra) => {
+      const soft = trySoftRuntimeRestart(
+        extra,
+        cfg,
+        (next) => {
+          cfg = next;
+          rowCount = cfg.rowCount ?? rowCount;
+          updates = cfg.enableUpdates ?? updates;
+          interval = cfg.updateIntervalMs ?? cfg.updateInterval ?? interval;
+        },
+        stopT,
+        startT,
+      );
+      if (soft) return;
       stopT();
       cfg = applyOverlay(cfg, extra);
       rowCount = cfg.rowCount ?? rowCount;
@@ -319,6 +338,30 @@ function applyOverlay(cfg: MockProviderConfig, extra: unknown): MockProviderConf
     enableUpdates: typeof o.enableUpdates === 'boolean' ? o.enableUpdates : cfg.enableUpdates,
     dataType: (typeof o.dataType === 'string' ? o.dataType : cfg.dataType) as MockProviderConfig['dataType'],
   };
+}
+
+/** Interval / pause toggles only — no snapshot rebuild. */
+function isSoftRuntimePatch(extra: unknown, cfg: MockProviderConfig): boolean {
+  if (!extra || typeof extra !== 'object') return false;
+  const o = extra as Record<string, unknown>;
+  if ('__scenarioClear' in o || '__refresh' in o) return false;
+  if (typeof o.dataType === 'string' && o.dataType !== cfg.dataType) return false;
+  if (typeof o.rowCount === 'number' && o.rowCount !== cfg.rowCount) return false;
+  return typeof o.updateIntervalMs === 'number' || typeof o.enableUpdates === 'boolean';
+}
+
+function trySoftRuntimeRestart(
+  extra: unknown,
+  cfgIn: MockProviderConfig,
+  setCfg: (next: MockProviderConfig) => void,
+  stopTicker: () => void,
+  startTicker: () => void,
+): boolean {
+  if (!isSoftRuntimePatch(extra, cfgIn)) return false;
+  setCfg(applyOverlay(cfgIn, extra));
+  stopTicker();
+  startTicker();
+  return true;
 }
 
 /**

@@ -129,3 +129,20 @@
   letter-spacing: 0.04em;
   font-size: 11px;
 }
+
+/* Preset gallery cell-class rules (Profiles tab). */
+.lab-cell-loser {
+  color: var(--ds-status-error-fg) !important;
+  font-weight: 600;
+}
+.lab-cell-winner {
+  color: var(--ds-status-success-fg) !important;
+  font-weight: 600;
+}
+.lab-cell-warn {
+  background: color-mix(in srgb, var(--ds-status-warning-bg) 65%, transparent) !important;
+}
+.lab-cell-junk {
+  background: color-mix(in srgb, var(--ds-status-error-bg) 50%, transparent) !important;
+  font-weight: 600;
+}

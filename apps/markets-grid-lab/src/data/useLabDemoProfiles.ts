@@ -8,9 +8,12 @@ import {
 /** Bump when catalog contents change so devs get a fresh install. */
 export const LAB_DEMO_PROFILES_FLAG_VERSION = 'v2';
 
+/** In-memory guard — survives StrictMode double-mount before localStorage is set. */
+const installInFlight = new Set<string>();
+const installedMemory = new Set<string>();
+
 /**
  * Installs feature-scoped demo profiles into localStorage on first mount.
- * Replaces one-shot `useSeed` for tabs that ship a profile catalog.
  */
 export function useLabDemoProfiles(
   gridId: string,
@@ -24,7 +27,11 @@ export function useLabDemoProfiles(
       }
 
       const flagKey = `lab-demo-profiles-${LAB_DEMO_PROFILES_FLAG_VERSION}:${gridId}`;
-      if (typeof localStorage !== 'undefined' && localStorage.getItem(flagKey)) {
+      if (
+        (typeof localStorage !== 'undefined' && localStorage.getItem(flagKey))
+        || installedMemory.has(flagKey)
+        || installInFlight.has(flagKey)
+      ) {
         return;
       }
 
@@ -35,6 +42,9 @@ export function useLabDemoProfiles(
         );
         return;
       }
+
+      installInFlight.add(flagKey);
+      installedMemory.add(flagKey);
 
       const bundle = buildLabDemoBundle(gridId, profiles, activeProfileId);
       void handle
@@ -47,8 +57,12 @@ export function useLabDemoProfiles(
           }
         })
         .catch((err) => {
+          installedMemory.delete(flagKey);
           // eslint-disable-next-line no-console
           console.warn(`[lab] demo profile install failed (${gridId})`, err);
+        })
+        .finally(() => {
+          installInFlight.delete(flagKey);
         });
     },
     [gridId, profiles, activeProfileId],

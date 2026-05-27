@@ -2,6 +2,8 @@ import { useState, type ReactNode } from 'react';
 import { CircleHelp } from 'lucide-react';
 import {
   Button,
+  Card,
+  CardContent,
   Select,
   SelectContent,
   SelectItem,
@@ -9,7 +11,6 @@ import {
   SelectValue,
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from '@starui/ui';
 import { HelpSheet } from './HelpSheet';
@@ -47,7 +48,7 @@ export function TabContainer({
   const [helpOpen, setHelpOpen] = useState(false);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] shadow-[var(--ds-elevation-card)]">
+    <Card className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] p-0 shadow-[var(--ds-elevation-card)]">
       <div className="flex shrink-0 items-center gap-2 border-b border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] px-3 py-2">
         <div className="flex flex-col">
           <h2 className="text-[13px] font-semibold tracking-tight text-[color:var(--ds-text-primary)]">
@@ -77,27 +78,25 @@ export function TabContainer({
 
         <div className="ml-auto flex items-center gap-2">
           {actions}
-          <TooltipProvider delayDuration={250}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setHelpOpen(true)}
-                  aria-label="Open help"
-                  className="h-8 w-8 border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-raised)] hover:text-[color:var(--ds-text-primary)]"
-                  data-testid="tab-help"
-                >
-                  <CircleHelp size={14} strokeWidth={1.75} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Help · how this tab works</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setHelpOpen(true)}
+                aria-label="Open help"
+                className="h-8 w-8 border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-raised)] hover:text-[color:var(--ds-text-primary)]"
+                data-testid="tab-help"
+              >
+                <CircleHelp size={14} strokeWidth={1.75} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Help · how this tab works</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+      <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">{children}</CardContent>
 
       <HelpSheet
         open={helpOpen}
@@ -106,6 +105,6 @@ export function TabContainer({
         subtitle={subtitle}
         source={help}
       />
-    </div>
+    </Card>
   );
 }
