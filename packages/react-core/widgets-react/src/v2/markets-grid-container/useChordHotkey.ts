@@ -7,6 +7,8 @@
  *
  * Chord syntax: `'Shift+Ctrl+P'` → matches event with shiftKey,
  * ctrlKey, no metaKey, no altKey, and key === 'P' (case-insensitive).
+ * Letter keys also match `event.code` (`KeyP`) so macOS Option remaps
+ * (Option+Shift+P → event.key "π") still register.
  *
  * Pass a single chord or an array — useful for cross-platform toggles
  * (e.g. Alt+Shift+P on Windows/Linux and Option/Meta variants on macOS).
@@ -36,12 +38,22 @@ function parseChord(chord: string): ParsedChord {
   };
 }
 
+function keyPartMatches(ev: KeyboardEvent, expectedKey: string): boolean {
+  if (!expectedKey) return false;
+  if (ev.key.toLowerCase() === expectedKey) return true;
+  // macOS Option/Alt remaps event.key (Option+Shift+P → "π", not "p").
+  if (/^[a-z]$/.test(expectedKey) && ev.code === `Key${expectedKey.toUpperCase()}`) {
+    return true;
+  }
+  return false;
+}
+
 function matchesChord(ev: KeyboardEvent, parsed: ParsedChord): boolean {
   if (ev.shiftKey !== parsed.shift) return false;
   if (ev.ctrlKey !== parsed.ctrl) return false;
   if (ev.altKey !== parsed.alt) return false;
   if (ev.metaKey !== parsed.meta) return false;
-  return ev.key.toLowerCase() === parsed.key;
+  return keyPartMatches(ev, parsed.key);
 }
 
 export function useChordHotkey(
@@ -69,7 +81,9 @@ export function useChordHotkey(
         return;
       }
     };
-    target.addEventListener('keydown', listener);
-    return () => target.removeEventListener('keydown', listener);
+    // Capture phase so focused AG-Grid cells cannot swallow the chord via
+    // stopPropagation before it reaches a bubble listener on document.
+    target.addEventListener('keydown', listener, true);
+    return () => target.removeEventListener('keydown', listener, true);
   }, [chord, opts.target, opts.enabled]);
 }
