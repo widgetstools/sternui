@@ -989,7 +989,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Runtime architecture
 
-- `SharedWorkerDataServicesClient` — main-thread client routing events to listeners; catalog RPC (`waitForCatalogReady`, `getProviderConfig`, `listProviderConfigs`, `invalidateConfig`)
+- `SharedWorkerDataServicesClient` — main-thread client routing events to listeners; catalog RPC (`waitForCatalogReady`, `getProviderConfig`, `listProviderConfigs`, `invalidateConfig`); **Deprecated.** passing `cfg` on `attach` / `subscribe` for catalogued providers — use cfg-free attach
 - `SharedWorkerDataServicesHub` — worker state machine (providers, cache, fan-out); **`hydrateCatalog()`** preloads `ConfigCatalogCache` after ConfigManager init
 - `ConfigCatalogCache` — worker-side in-memory data-provider catalog (`loadAll`, `get`, `getProviderConfig`, `list`, `invalidate`, `upsert`); used by hub before cfg-free attach (Phase 1)
 - `AppDataMirror` — synchronous main-thread view of AppData
@@ -1108,7 +1108,8 @@ Per-renderer config types (`PillRendererConfig`,
 **Purpose:** React bindings for `@starui/host-data` — provider + focused hooks for data subscriptions.
 
 - `DataHubProvider` / `PlatformProvider` — hub-first provider; `platform` from `ensurePlatformReady()` or self-bootstrap via `bootstrapConfig` + `workerScriptUrl`
-- `DataServicesProvider` — legacy wrapper over `DataServices` bootstrap result
+- `DataServicesProvider` — legacy wrapper over `DataServices` bootstrap result; exposes `appId` + `userId` React context
+- `usePlatformIdentityOrNull()` — read bootstrap `appId`/`userId` from `DataHubProvider` / `DataServicesProvider`
 
 - `DataServicesProvider` — `configStore` calls `client.invalidateConfig()` after editor `save`/`remove`
 
@@ -1134,7 +1135,7 @@ Per-renderer config types (`PillRendererConfig`,
 #### Stream & template hooks
 
 - `useResolvedCfg(cfg)` — apply `{{name.key}}` templates, returns stable cfg
-- `useProviderStream(providerId, cfg, listener, opts?)` — auto-detaching subscription
+- `useProviderStream(providerId, cfg, listener, opts?)` — auto-detaching subscription **Deprecated.** use `useDataProvider` for catalogued providers; keep cfg only for unsaved editor drafts
   - Listener: `onDelta(rows, replace)`, `onStatus(status, error)`
   - `refresh(extra)` re-attaches with overlay
 

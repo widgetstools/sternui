@@ -3,7 +3,7 @@
  * Ported from @starui/runtime-port — no legacy imports.
  */
 
-/** Canonical logged-in user until real SSO is wired. */
+/** @deprecated Use `PlatformBootstrapConfig.userId` from `app-config.json` or OpenFin manifest `customSettings`, then `DataHubProvider` / `useUserIdFromContext`. */
 export const LOGGED_IN_USER_ID = 'dev1';
 
 export type Theme = 'light' | 'dark';

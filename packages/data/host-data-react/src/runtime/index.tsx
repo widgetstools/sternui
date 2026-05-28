@@ -45,8 +45,10 @@ import {
 export {
   DataServicesProvider,
   useUserIdFromContext,
+  usePlatformIdentityOrNull,
   type DataServicesProviderProps,
   type ContextValue,
+  type PlatformIdentity,
 } from './DataServicesProvider.js';
 export {
   DataHubProvider,
@@ -274,7 +276,10 @@ export interface ProviderStreamHandle {
 }
 
 /**
- * @deprecated Use {@link useDataProvider} — cfg-free hub attach via `IDataProvider`.
+ * @deprecated Use {@link useDataProvider} for catalogued providers — cfg-free hub
+ * attach via `IDataProvider`. Pass inline `cfg` only for editor drafts not yet
+ * saved to the catalog. Toolbar reload-from-source maps to `IDataProvider.restart()`;
+ * cache-only resync maps to `IDataProvider.refresh()`. Removed in a follow-up major.
  */
 export function useProviderStream<T = unknown>(
   providerId: string | null | undefined,

@@ -256,6 +256,45 @@ Replace hardcoded `LOGGED_IN_USER_ID` / `DEFAULT_APP_ID` in `useHostedIdentity`,
 
 ---
 
+## Migration guide (consumer apps)
+
+### Bootstrap (required once per window)
+
+1. Add `public/app-config.json` (web) or manifest `customSettings.appId` / `userId` (OpenFin).
+2. Add `src/platformBootstrap.ts` calling `ensurePlatformReady(config)`.
+3. Wrap the app in `DataHubProvider` (or call `ensurePlatformReady` before first grid mount).
+
+See [`docs/guides/platform-bootstrap-config.md`](../../guides/platform-bootstrap-config.md).
+
+### Grids and streaming UIs
+
+| Before | After |
+|--------|-------|
+| `useProviderStream(id, cfg, listener)` | `useDataProvider(id)` → `IDataProvider` events |
+| `client.subscribe(id, cfg)` for saved providers | `client.subscribe(id)` or `adapter.start()` |
+| Toolbar "refresh" via `attach(..., { extra: { __refresh } })` | `provider.restart({ __refresh })` |
+| Re-apply cached rows without reconnect | `provider.refresh()` |
+
+`IDataProvider.stop()` **detaches** this view only. Global teardown remains `client.stop(providerId)`.
+
+### Config browser / editor
+
+- After hub ready: `client.listProviderConfigs()` / `getProviderConfig(id)` — no main-thread Dexie for catalog reads.
+- Editor save: existing `DataProviderConfigStore.save()` + `invalidateConfig(id)` (unchanged).
+- Unsaved draft attach: keep `inlineCfg` / `subscribe(id, draftCfg)` until the row is saved.
+
+### Identity
+
+- Do not hardcode `LOGGED_IN_USER_ID` or `TestApp` — read from `PlatformBootstrapConfig` or `usePlatformIdentity()`.
+- `LOGGED_IN_USER_ID` in `@starui/types` is deprecated.
+
+### Deprecation timeline
+
+- **Now:** old APIs remain; JSDoc `@deprecated` on cfg-pass attach paths.
+- **Next major:** remove `useProviderStream` and cfg-required attach for catalogued providers.
+
+---
+
 ## Success criteria
 
 - [ ] Config browser / editor list providers without main-thread `DataProviderConfigStore.list` Dexie read after hub ready.

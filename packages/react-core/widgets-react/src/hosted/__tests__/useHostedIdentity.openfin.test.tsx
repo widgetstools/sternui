@@ -2,7 +2,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, renderHook, waitFor } from '@testing-library/react';
 import type { ConfigManager } from '@starui/host-config';
-import { LOGGED_IN_USER_ID } from '@starui/types';
 import { useHostedIdentity } from '../useHostedIdentity.js';
 
 afterEach(() => {
@@ -31,7 +30,7 @@ describe('useHostedIdentity — OpenFin path', () => {
     };
   });
 
-  it('reads instanceId from fin.me.getOptions().customData; appId / userId are pinned', async () => {
+  it('reads instanceId from fin.me.getOptions().customData; appId / userId from defaults', async () => {
     const { result } = renderHook(() =>
       useHostedIdentity({
         defaultInstanceId: 'fallback-instance',
@@ -43,11 +42,8 @@ describe('useHostedIdentity — OpenFin path', () => {
     );
     await waitFor(() => expect(result.current.ready).toBe(true));
     expect(result.current.identity.instanceId).toBe('OF-INSTANCE');
-    // appId / userId are single-user-pinned — customData values for
-    // them are intentionally ignored to keep persistence under one
-    // canonical (appId, userId) scope. See useHostedIdentity for why.
-    expect(result.current.identity.appId).toBe('TestApp');
-    expect(result.current.identity.userId).toBe(LOGGED_IN_USER_ID);
+    expect(result.current.identity.appId).toBe('fallback-app');
+    expect(result.current.identity.userId).toBe('fallback-user');
     expect(result.current.identity.configManager).toBe(fakeConfigManager);
   });
 });

@@ -288,6 +288,7 @@ CI runs package and consumer jobs separately; see `.github/workflows/ci.yml`.
 | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | Layer model, import boundaries |
 | [`docs/PACKAGE_ORGANIZATION.md`](./docs/PACKAGE_ORGANIZATION.md) | Ten-bucket layout |
 | [`docs/PARITY.md`](./docs/PARITY.md) | Package parity gate |
+| [`docs/guides/platform-bootstrap-config.md`](./docs/guides/platform-bootstrap-config.md) | Web `app-config.json` vs OpenFin manifest `customSettings` (`appId`, `userId`, hub bootstrap) |
 | [`docs/guides/consumer-app-sharedworker-and-tailwind.md`](./docs/guides/consumer-app-sharedworker-and-tailwind.md) | SharedWorker + Tailwind pitfalls for consumer apps |
 | [`docs/STOMP_DATAPROVIDER_MARKETSGRID_GUIDE.md`](./docs/STOMP_DATAPROVIDER_MARKETSGRID_GUIDE.md) | Fresh app + STOMP provider + MarketsGrid end-to-end |
 | [`CLAUDE.md`](./CLAUDE.md) | Agent / contributor conventions |

@@ -473,9 +473,9 @@ export async function ensurePlatformReady(
 - Modify: `packages/openfin/openfin-platform/src/registryHostEnv.ts`
 - Modify: `packages/openfin/host-openfin/src/identity.ts`
 
-- [ ] **Step 1:** `useHostedIdentity` reads `appId` / `userId` from `PlatformProvider` context (bootstrap), not `DEFAULT_APP_ID` / `LOGGED_IN_USER_ID` literals.
-- [ ] **Step 2:** Keep `instanceId` resolution from OpenFin `customData` / URL unchanged.
-- [ ] **Step 3:** Mark `LOGGED_IN_USER_ID` `@deprecated` in `@starui/types` with pointer to bootstrap.
+- [x] **Step 1:** `useHostedIdentity` reads `appId` / `userId` from `PlatformProvider` context (bootstrap), not `DEFAULT_APP_ID` / `LOGGED_IN_USER_ID` literals. ✅ Session 22
+- [x] **Step 2:** Keep `instanceId` resolution from OpenFin `customData` / URL unchanged. ✅ Session 22
+- [x] **Step 3:** Mark `LOGGED_IN_USER_ID` `@deprecated` in `@starui/types` with pointer to bootstrap. ✅ Session 22
 - [ ] **Step 4:** Commit: `refactor: consume PlatformBootstrapConfig in hosted identity`.
 
 ### Task 6.3: Tutorial HelpSheets + docs
@@ -488,9 +488,9 @@ export async function ensurePlatformReady(
 - Modify: `docs/current-features.md`
 - Modify: `README.md` (short pointer)
 
-- [ ] **Step 1:** Document manifest vs `app-config.json` in all consumer guides.
-- [ ] **Step 2:** Replace `useProviderStream` examples with `useDataProvider`.
-- [ ] **Step 3:** Update architecture diagrams (hub owns catalog; bootstrap owns identity).
+- [x] **Step 1:** Document manifest vs `app-config.json` in all consumer guides. ✅ Session 22
+- [x] **Step 2:** Replace `useProviderStream` examples with `useDataProvider`. ✅ Session 22
+- [x] **Step 3:** Update architecture diagrams (hub owns catalog; bootstrap owns identity). ✅ Session 22
 - [ ] **Step 4:** Commit: `docs: platform bootstrap + data services hub`.
 
 ---
@@ -500,8 +500,8 @@ export async function ensurePlatformReady(
 ### Task 7.1: Test matrix
 
 - [ ] **Step 1:** `npx turbo typecheck build test` — full monorepo green.
-- [ ] **Step 2:** Add integration test: two hub clients, same providerId, second cfg-free attach receives snapshot.
-- [ ] **Step 3:** Add adapter test: `refresh()` does not call transport restart (mock handle).
+- [x] **Step 2:** Add integration test: two hub clients, same providerId, second cfg-free attach receives snapshot. ✅ Session 23
+- [x] **Step 3:** Add adapter test: `refresh()` does not call transport restart (mock handle). ✅ pre-existing (`ProviderClientAdapter.test.ts`)
 - [ ] **Step 4:** Smoke `apps/markets-grid-lab` + stomp tutorial against `stomp-view-server`.
 - [ ] **Step 5:** Run targeted e2e if grid attach paths changed (`e2e/` grep `MarketsGrid`).
 
@@ -511,8 +511,8 @@ export async function ensurePlatformReady(
 - Modify: `packages/data/host-data/src/runtime/client/SharedWorkerDataServicesClient.ts`
 - Modify: `packages/data/host-data-react/src/runtime/index.tsx`
 
-- [ ] **Step 1:** JSDoc `@deprecated` on `subscribe(providerId, cfg)` when cfg exists in catalog (lint optional).
-- [ ] **Step 2:** CHANGELOG / migration section in spec doc.
+- [x] **Step 1:** JSDoc `@deprecated` on `subscribe(providerId, cfg)` when cfg exists in catalog (lint optional). ✅ Session 23
+- [x] **Step 2:** CHANGELOG / migration section in spec doc. ✅ Session 23
 - [ ] **Step 3:** Commit: `chore(host-data): deprecate cfg-required attach for catalogued providers`.
 
 ---

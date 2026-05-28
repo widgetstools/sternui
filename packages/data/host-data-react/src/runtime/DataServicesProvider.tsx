@@ -15,7 +15,19 @@ import {
   DataProviderConfigStore,
   type DataServices,
 } from '@starui/host-data/runtime';
+import { DEV_PLATFORM_BOOTSTRAP } from '@starui/host-data';
 import { LOGGED_IN_USER_ID } from '@starui/types';
+import type { ConfigManager } from '@starui/host-config';
+
+function readConfigManagerAppId(configManager: ConfigManager | undefined): string | undefined {
+  if (!configManager || typeof configManager.getAppId !== 'function') return undefined;
+  return configManager.getAppId();
+}
+
+function readConfigManagerUserId(configManager: ConfigManager | undefined): string | undefined {
+  if (!configManager || typeof configManager.getIdentity !== 'function') return undefined;
+  return configManager.getIdentity().userId;
+}
 
 export interface ContextValue {
   client: SharedWorkerDataServicesClient;
@@ -25,6 +37,12 @@ export interface ContextValue {
 
 const DataServicesContext = createContext<ContextValue | null>(null);
 const DataServicesUserIdContext = createContext<string | null>(null);
+const PlatformAppIdContext = createContext<string | null>(null);
+
+export interface PlatformIdentity {
+  appId: string;
+  userId: string;
+}
 
 export interface DataServicesProviderProps {
   /** Bootstrap result from `bootstrapDataServices(...)`. */
@@ -41,6 +59,8 @@ export interface DataServicesProviderProps {
   mode?: 'eager' | 'lazy';
   /** Session user id for AppData ownership and provider list scope. */
   userId?: string;
+  /** Deployment app id — defaults to `services.configManager.getAppId()`. */
+  appId?: string;
   children?: ReactNode;
 }
 
@@ -48,11 +68,13 @@ export function DataServicesProvider({
   services,
   mode = 'lazy',
   userId,
+  appId,
   children,
 }: DataServicesProviderProps): ReactNode {
   if (mode === 'eager') use(services.ready);
 
   const effectiveUserId = userId ?? LOGGED_IN_USER_ID;
+  const effectiveAppId = appId ?? readConfigManagerAppId(services.configManager) ?? DEV_PLATFORM_BOOTSTRAP.appId;
 
   const value = useMemo<ContextValue>(() => ({
     client: services.client,
@@ -65,9 +87,11 @@ export function DataServicesProvider({
 
   return (
     <DataServicesContext.Provider value={value}>
-      <DataServicesUserIdContext.Provider value={effectiveUserId}>
-        {children}
-      </DataServicesUserIdContext.Provider>
+      <PlatformAppIdContext.Provider value={effectiveAppId}>
+        <DataServicesUserIdContext.Provider value={effectiveUserId}>
+          {children}
+        </DataServicesUserIdContext.Provider>
+      </PlatformAppIdContext.Provider>
     </DataServicesContext.Provider>
   );
 }
@@ -90,4 +114,12 @@ export function useUserIdFromContext(): string {
     );
   }
   return ctx;
+}
+
+/** Platform bootstrap identity when inside {@link DataServicesProvider} / {@link DataHubProvider}. */
+export function usePlatformIdentityOrNull(): PlatformIdentity | null {
+  const appId = useContext(PlatformAppIdContext);
+  const userId = useContext(DataServicesUserIdContext);
+  if (appId === null || userId === null) return null;
+  return { appId, userId };
 }

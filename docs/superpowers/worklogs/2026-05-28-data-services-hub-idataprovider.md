@@ -67,8 +67,8 @@ npx turbo typecheck build test --filter=@starui/host-data --filter=@starui/host-
 | 19 | PR6 | 5.3 | `HostedMarketsGrid` + blotter hook migration | pending | |
 | 20 | PR7 | 6.1 | Tutorial apps + MCP OpenFin bootstrap migration | pending | |
 | 21 | PR7 | 6.2 | Remove identity pins (`useHostedIdentity`, deprecate literals) | pending | |
-| 22 | PR7 | 6.3 | HelpSheets + consumer docs + `current-features.md` | pending | |
-| 23 | PR8 | 7.1–7.2 | Test matrix + deprecation notices + final verify | pending | |
+| 22 | PR7 | 6.3 | HelpSheets + consumer docs + `current-features.md` | **done** | 2026-05-28 | |
+| 23 | PR8 | 7.1–7.2 | Test matrix + deprecation notices + final verify | **done** | 2026-05-28 | |
 
 **Status values:** `pending` | `in_progress` | `done` | `blocked` | `skipped`
 
@@ -507,3 +507,41 @@ Merge each PR to `feat/data-services-hub-idataprovider` (or stack against `main`
 - [ ] Confirm whether PRs merge to feature branch first or directly to `main` as stacked PRs
 - [ ] Optional: git worktree for parallel `main` dev while hub branch is active
 - [ ] Feature flag `STARUI_USE_IDATAPROVIDER` — only if PR6 staging shows regressions (see plan rollback)
+
+---
+
+## Session 22 — Phase 6 Tasks 6.2 + 6.3 identity + docs
+
+**Done:**
+- `useHostedIdentity` reads `appId`/`userId` from platform bootstrap context (not hardcoded literals)
+- `host-openfin/identity.ts` resolves `userId` from view `customData`
+- `LOGGED_IN_USER_ID` marked `@deprecated` in `@starui/types`
+- Consumer guides, HelpSheets, README, `current-features.md` updated for bootstrap + `useDataProvider`
+
+**Verify:** widgets-react 116 passed; host-data-react 5 passed
+
+**Next:** Session 23 — Phase 7 verification + deprecation
+
+**Blockers:** none (uncommitted)
+
+---
+
+## Session 23 — Phase 7 Tasks 7.1 + 7.2 verification + deprecation
+
+**Done:**
+- Integration test: two hub clients, second cfg-free attach receives cached snapshot
+- `@deprecated` JSDoc on `SharedWorkerDataServicesClient.attach` / `subscribe` (cfg for catalogued providers)
+- Strengthened `useProviderStream` deprecation in host-data-react
+- Migration guide section in design spec
+- Fixed `host-openfin/identity.test.ts` for Session 22 `userId` from customData
+- `current-features.md` deprecation tags
+
+**Verify:**
+- `@starui/host-data` + `@starui/host-data-react` typecheck + test green
+- `@starui/host-openfin` 36 tests green
+- Full `turbo typecheck build test`: tarball tutorial apps fail (stale `@starui/data` bundle missing bootstrap exports); `markets-grid-lab` build green with `STARUI_DEV_SOURCE=1`
+- `ProviderClientAdapter` refresh-without-restart test pre-existing
+
+**Next:** Run `npm run propagate -- data` before tarball tutorial builds; optional targeted e2e; commit Sessions 22–23 when requested
+
+**Blockers:** tarball `@starui/data` snapshot stale until propagate

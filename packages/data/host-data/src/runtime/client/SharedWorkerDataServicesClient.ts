@@ -151,6 +151,12 @@ export class SharedWorkerDataServicesClient {
 
   // ─── public surface ───────────────────────────────────────────
 
+  /**
+   * @deprecated For providers saved in the hub catalog, omit `cfg` and let the
+   * worker resolve from {@link getProviderConfig}. Pass `cfg` only for inline
+   * editor drafts not yet persisted. Prefer {@link subscribe} or
+   * `ProviderClientAdapter` / `useDataProvider` in React apps.
+   */
   attach<T = unknown>(
     providerId: string,
     cfg: ProviderConfig | undefined,
@@ -198,6 +204,13 @@ export class SharedWorkerDataServicesClient {
    * those two phases for the consumer so the snapshot can be awaited
    * and the live-update path doesn't have to also know about
    * `replace: true`.
+   */
+  /**
+   * @deprecated When the provider exists in the hub catalog, call
+   * `subscribe(providerId)` without `cfg`. Passing `cfg` for catalogued
+   * providers duplicates main-thread config and bypasses hub cache invalidation.
+   * Keep `cfg` only for unsaved editor drafts. Prefer `ProviderClientAdapter` or
+   * `useDataProvider` in React apps.
    */
   subscribe<T = unknown>(
     providerId: string,

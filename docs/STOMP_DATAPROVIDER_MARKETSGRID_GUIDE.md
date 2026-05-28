@@ -16,15 +16,16 @@ It mirrors the patterns used in `apps/markets-ui-react-reference`, `apps/demo-ap
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  Your React app                                                         │
 │  ┌──────────────────────┐    ┌──────────────────────────────────────┐  │
-│  │ DataServicesProvider │───▶│ HostedMarketsGrid / MarketsGridContainer│  │
-│  └──────────┬───────────┘    └──────────────────┬───────────────────┘  │
-│             │ useDataServices / dpClient         │ columnDefs, rowIdField│
+│  │ DataHubProvider      │───▶│ HostedMarketsGrid / MarketsGridContainer│  │
+│  │ (platform bootstrap) │    └──────────────────┬───────────────────┘  │
+│  └──────────┬───────────┘                       │ columnDefs, rowIdField│
+│             │ useDataProvider / hub catalog      │ attach(providerId)    │
 └─────────────┼───────────────────────────────────┼───────────────────────┘
-              │ MessagePort RPC                    │ subscribe(providerId)
+              │ MessagePort RPC                    │
               ▼                                    ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  SharedWorker — SharedWorkerDataServicesHub                             │
-│  ┌─────────────────┐   startStomp(cfg)   ┌──────────────────────────┐  │
+│  SharedWorker — SharedWorkerDataServicesHub (name: mkt-data-services:appId)│
+│  ┌─────────────────┐   catalog preload   ┌──────────────────────────┐  │
 │  │ ConfigManager   │◀── saved configs ─│ StompTransport (stomp.ts) │  │
 │  │ (IndexedDB)     │                   │  • connect WebSocket       │  │
 │  └─────────────────┘                   │  • SUB listenerTopic       │  │
@@ -37,6 +38,10 @@ It mirrors the patterns used in `apps/markets-ui-react-reference`, `apps/demo-ap
                                                          ▼
                                               STOMP broker / stomp-view-server
 ```
+
+**Identity:** `appId` + `userId` come from **`public/app-config.json`** (browser) or OpenFin manifest **`customSettings`** — not from per-view props. See [`docs/guides/platform-bootstrap-config.md`](./guides/platform-bootstrap-config.md).
+
+**Catalog:** the hub preloads saved provider configs; grids attach by `providerId` without passing full `cfg` on every subscribe.
 
 **Snapshot phase:** JSON rows accumulate until a message body matches `snapshotEndToken` (default `"Success"`). The hub emits one `replace: true` batch and sets status to `ready`.
 
@@ -134,58 +139,64 @@ Set theme on `<html data-theme="dark">` or `"light"`.
 
 ---
 
-## Step 2 — Bootstrap DataServices (SharedWorker)
+## Step 2 — Platform bootstrap (SharedWorker hub)
 
-Create `src/dataServices.ts`:
+Create **`public/app-config.json`**:
 
-```typescript
-import { bootstrapDataServicesWithWorkerAsset } from '@starui/host-data';
-import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
-
-export const dataServices = bootstrapDataServicesWithWorkerAsset(workerAssetUrl, {
-  appName: 'my-stomp-app',
-  userId: 'dev1', // must match LOGGED_IN_USER_ID in your React tree
-});
+```json
+{
+  "appId": "my-stomp-app",
+  "userId": "dev1",
+  "useRest": false
+}
 ```
 
-This returns:
+Create **`src/platformBootstrap.ts`**:
 
-| Property | Role |
-|---|---|
-| `dpClient` | Subscribe/unsubscribe to provider streams |
-| `configManager` | Low-level config persistence (IndexedDB via Dexie) |
-| `configStore` | Typed wrapper for data-provider CRUD |
-| `hub` | Direct hub access (rare; prefer `dpClient`) |
+```typescript
+import {
+  ensurePlatformReady,
+  resolvePlatformBootstrapFromJson,
+} from '@starui/host-data';
+import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
 
-The `?url` import is resolved by Vite's `staruiHostDataWorkerAssetPlugin` so the SharedWorker script is served correctly in dev and bundled in production.
+export async function initPlatformBootstrap() {
+  const config = await resolvePlatformBootstrapFromJson('/app-config.json');
+  const platform = await ensurePlatformReady(config, { workerScriptUrl: workerAssetUrl });
+  return { config, platform };
+}
+```
 
-Reference: `apps/markets-ui-react-reference/src/dataServices.mainThread.ts`.
+SharedWorker name: `mkt-data-services:${config.appId}`.
+
+Reference: `apps/tutorials-workspace/stomp/src/platformBootstrap.ts`, `apps/markets-grid-lab/src/platformBootstrap.ts`.
 
 ---
 
-## Step 3 — Wrap the app with `DataServicesProvider`
+## Step 3 — Wrap the app with `DataHubProvider`
 
 In `src/main.tsx`:
 
 ```tsx
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { DataServicesProvider } from '@starui/host-data-react/runtime';
-import { LOGGED_IN_USER_ID } from '@starui/shared-types';
-import { dataServices } from './dataServices';
+import { DataHubProvider } from '@starui/host-data-react/runtime';
 import { App } from './App';
+import { initPlatformBootstrap } from './platformBootstrap';
 import '@starui/design-system/styles.css';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <DataServicesProvider services={dataServices} userId={LOGGED_IN_USER_ID}>
-      <App />
-    </DataServicesProvider>
-  </StrictMode>,
-);
+void initPlatformBootstrap().then(({ config, platform }) => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <DataHubProvider platform={platform} userId={config.userId}>
+        <App />
+      </DataHubProvider>
+    </StrictMode>,
+  );
+});
 ```
 
-`DataServicesProvider` must wrap any component that calls `useDataServices`, `useProviderStream`, or `useDataProvidersList`.
+`DataHubProvider` must wrap any component that calls `useDataServices`, `useDataProvider`, or `useDataProvidersList`.
 
 ---
 
@@ -387,29 +398,41 @@ connect(websocketUrl)
          parse JSON row → emit { rows: [row] }  // keyed delta
 ```
 
-### Lower-level: raw `MarketsGrid` + `useProviderStream`
+### Lower-level: raw `MarketsGrid` + `useDataProvider`
 
-For a minimal panel without Hosted shell (see `apps/demo-apps/mockdata-provider-starui-app`):
+For a minimal panel without Hosted shell (see `apps/tutorials-workspace/mockdata-provider`):
 
 ```tsx
-import { MarketsGrid } from '@starui/react-grid';
-import { useProviderStream } from '@starui/host-data-react/runtime';
+import { useEffect, useState } from 'react';
+import { MarketsGrid } from '@starui/grid';
+import { useDataProvider } from '@starui/host-data-react/runtime';
 
-function StompGridPanel({ providerId, cfg }: { providerId: string; cfg: StompProviderConfig }) {
-  const { rows, status } = useProviderStream(providerId, cfg);
+function StompGridPanel({ providerId }: { providerId: string }) {
+  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
+  const { provider, status } = useDataProvider(providerId, { autoStart: true });
+
+  useEffect(() => {
+    if (!provider) return;
+    return provider.onSnapshotData((snapshot) => setRows(snapshot));
+  }, [provider]);
+
+  useEffect(() => {
+    if (!provider) return;
+    return provider.onTick((tick) => {
+      // apply add/update deltas to local row state or grid API
+    });
+  }, [provider]);
 
   return (
     <MarketsGrid
       rowData={rows}
-      columnDefs={cfg.columnDefinitions}
-      rowIdField={cfg.keyColumn!}
       loading={status !== 'ready'}
     />
   );
 }
 ```
 
-Pass the **same** `keyColumn` on `cfg` that you saved on the provider — the hub indexes its cache by that field.
+Pass the **same** `keyColumn` saved on the provider config — the hub indexes its cache by that field.
 
 ---
 
@@ -456,7 +479,9 @@ Checklist:
 
 | App | What it demonstrates |
 |---|---|
-| `apps/markets-ui-react-reference` | Production-style `HostedMarketsGrid` + `dataServices` bootstrap |
+| `apps/tutorials-workspace/stomp` | STOMP tutorial with `platformBootstrap.ts` + `DataHubProvider` |
+| `apps/markets-grid-lab` | Feature lab with platform bootstrap pilot |
+| `apps/markets-ui-react-reference` | Production-style OpenFin `HostedMarketsGrid` (legacy bootstrap being migrated) |
 | `apps/demo-apps/dataprovider-editor-starui-app` | `DataProviderEditor` + two `HostedMarketsGrid` panels |
 | `apps/demo-apps/mockdata-provider-starui-app` | Lower-level `useProviderStream` + raw `MarketsGrid` (Mock transport; same hub protocol) |
 | `apps/my-stomp-app` | End-to-end sample from this guide — seeded STOMP provider + `HostedMarketsGrid` + editor |

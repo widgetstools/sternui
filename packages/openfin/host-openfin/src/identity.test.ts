@@ -55,9 +55,7 @@ describe('resolveOpenFinIdentity', () => {
     });
 
     expect(id.appId).toBe('app-from-cd');
-    // userId is single-user-pinned — customData.userId is intentionally
-    // ignored (see runtime-port/types.ts).
-    expect(id.userId).toBe(LOGGED_IN_USER_ID);
+    expect(id.userId).toBe('u-from-cd');
     expect(id.componentType).toBe('MarketsGrid');
     expect(id.isTemplate).toBe(true);
     expect(id.singleton).toBe(false);

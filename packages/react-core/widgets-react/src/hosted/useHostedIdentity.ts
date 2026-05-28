@@ -2,8 +2,9 @@
 declare const fin: any;
 
 import { useEffect, useMemo, useState } from 'react';
+import { DEV_PLATFORM_BOOTSTRAP } from '@starui/host-data';
+import { usePlatformIdentityOrNull } from '@starui/host-data-react/runtime';
 import { createConfigServiceStorage } from '@starui/host-config';
-import { LOGGED_IN_USER_ID } from '@starui/types';
 import type {
   ConfigManager,
   HostedContext,
@@ -21,9 +22,9 @@ export interface UseHostedIdentityArgs {
    * / refresh scenarios converge on a stable id.
    */
   defaultInstanceId: string;
-  /** Default `appId` when OpenFin customData doesn't supply one. */
+  /** Default `appId` when platform bootstrap context is unavailable. */
   defaultAppId?: string;
-  /** Default `userId` when OpenFin customData doesn't supply one. */
+  /** Default `userId` when platform bootstrap context is unavailable. */
   defaultUserId?: string;
   /**
    * When true, build a ConfigService-backed StorageAdapterFactory and
@@ -59,25 +60,6 @@ export interface UseHostedIdentityResult {
    */
   ready: boolean;
 }
-
-/**
- * `appId` is single-app-pinned across the entire codebase — same
- * rationale as `userId` (see `LOGGED_IN_USER_ID`). The `defaultAppId`
- * arg below is retained on the public API for back-compat but is
- * ignored at runtime so persistence always lands under the same scope.
- * Cross-machine imports and legacy rows otherwise diverge the appId
- * between writers and readers, breaking the strict-equality ownership
- * check in `isProfileSetRow`. Replace this literal when real multi-app
- * support lands.
- */
-const DEFAULT_APP_ID = 'TestApp';
-/**
- * `userId` is single-user-pinned across the entire codebase — see
- * `LOGGED_IN_USER_ID` in `@starui/host`. The `defaultUserId`
- * arg below is retained on the public API for back-compat but is
- * ignored at runtime so persistence always lands under the same scope.
- */
-const DEFAULT_USER_ID = LOGGED_IN_USER_ID;
 
 // ─── Identity resolution helpers ─────────────────────────────────────
 
@@ -144,6 +126,16 @@ async function loadHostConfigManager(): Promise<ConfigManager | null> {
   }
 }
 
+function readConfigManagerAppId(configManager: ConfigManager | null | undefined): string | undefined {
+  if (!configManager || typeof configManager.getAppId !== 'function') return undefined;
+  return configManager.getAppId();
+}
+
+function readConfigManagerUserId(configManager: ConfigManager | null | undefined): string | undefined {
+  if (!configManager || typeof configManager.getIdentity !== 'function') return undefined;
+  return configManager.getIdentity().userId;
+}
+
 /**
  * Resolve the per-instance identity, host ConfigManager, and (optional)
  * storage factory used by hosted features such as
@@ -151,11 +143,14 @@ async function loadHostConfigManager(): Promise<ConfigManager | null> {
  * embedded in `apps/markets-ui-react-reference`'s `HostedComponent`.
  *
  *   1. **OpenFin path** — `fin.me.getOptions().customData` supplies
- *      `instanceId`, `appId`, `userId`, plus the four registered-
- *      component fields (componentType, componentSubType, isTemplate,
- *      singleton).
+ *      `instanceId` plus the four registered-component fields
+ *      (componentType, componentSubType, isTemplate, singleton).
  *   2. **Browser path** — `window.location.search`'s `?instanceId=`
  *      wins, otherwise the supplied defaults are used.
+ *   3. **`appId` / `userId`** — from {@link DataHubProvider} bootstrap
+ *      context when present; otherwise `defaultAppId` / `defaultUserId`
+ *      args, then an explicit `configManager`, then
+ *      {@link DEV_PLATFORM_BOOTSTRAP}.
  *
  * When `withStorage` is true and a ConfigManager is available, the
  * returned `identity.storage` is a wrapped `StorageAdapterFactory`
@@ -164,22 +159,16 @@ async function loadHostConfigManager(): Promise<ConfigManager | null> {
 export function useHostedIdentity(args: UseHostedIdentityArgs): UseHostedIdentityResult {
   const {
     defaultInstanceId,
-    defaultAppId = DEFAULT_APP_ID,
-    defaultUserId = DEFAULT_USER_ID,
+    defaultAppId = DEV_PLATFORM_BOOTSTRAP.appId,
+    defaultUserId = DEV_PLATFORM_BOOTSTRAP.userId,
     withStorage = false,
     configManager: configManagerOverride,
     componentName,
   } = args;
 
-  // appId / userId are pinned (see DEFAULT_APP_ID / DEFAULT_USER_ID
-  // notes above) — the args only document the seams for future SSO /
-  // multi-app work.
-  void defaultAppId;
-  void defaultUserId;
+  const platformIdentity = usePlatformIdentityOrNull();
 
   const [instanceId, setInstanceId] = useState<string | null>(null);
-  const [appId] = useState<string>(DEFAULT_APP_ID);
-  const [userId] = useState<string>(LOGGED_IN_USER_ID);
   const [resolvedConfigManager, setResolvedConfigManager] = useState<ConfigManager | null>(
     configManagerOverride ?? null,
   );
@@ -187,8 +176,20 @@ export function useHostedIdentity(args: UseHostedIdentityArgs): UseHostedIdentit
     null,
   );
 
-  // Identity resolution. appId is pinned — only instanceId and the
-  // registered-component identity are resolved from customData.
+  const appId =
+    platformIdentity?.appId
+    ?? readConfigManagerAppId(configManagerOverride)
+    ?? readConfigManagerAppId(resolvedConfigManager)
+    ?? defaultAppId;
+
+  const userId =
+    platformIdentity?.userId
+    ?? readConfigManagerUserId(configManagerOverride)
+    ?? readConfigManagerUserId(resolvedConfigManager)
+    ?? defaultUserId;
+
+  // Identity resolution. Only instanceId and registered-component
+  // metadata come from OpenFin customData / URL.
   useEffect(() => {
     let cancelled = false;
     Promise.all([

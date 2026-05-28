@@ -30,27 +30,16 @@ export interface HostEnv {
 }
 
 /**
- * Canonical user id. Single-user-pinned everywhere — see
- * `LOGGED_IN_USER_ID` in `@starui/host` (this constant must
- * match it, kept as a literal here to avoid pulling runtime-port into
- * openfin-platform's dep graph). The codebase intentionally does NOT
- * auto-generate user ids ("dev-user-001"-style randoms) and
- * customData / URL `userId` overrides are ignored at every resolution
- * site so persistence always lands under the same `(appId, userId)`
- * scope. Replace this literal the day SSO is wired in.
+ * Canonical user id when manifest / bootstrap config omits `userId`.
+ * Prefer {@link PlatformBootstrapConfig.userId} from manifest
+ * `customSettings` or web `app-config.json`.
  */
 export const DEFAULT_USER_ID = 'dev1';
 
 /**
- * Canonical app id. Single-app-pinned alongside `DEFAULT_USER_ID` so
- * every persistence site lands under the same `(appId, userId)` scope.
- * customData / URL `appId` overrides are ignored at every resolution
- * site for the same reason userId overrides are: cross-machine imports
- * and legacy rows otherwise diverge the appId between the runtime
- * caller and the realign sweep, breaking the strict-equality ownership
- * check in `isProfileSetRow`. Replace this literal when multi-app
- * support actually lands (until then, treating it as a constant
- * eliminates a whole class of "row exists but invisible" bugs).
+ * Canonical app id when manifest / bootstrap config omits `appId`.
+ * Prefer {@link PlatformBootstrapConfig.appId} from manifest
+ * `customSettings` or web `app-config.json`.
  */
 export const DEFAULT_APP_ID = 'TestApp';
 
@@ -81,15 +70,16 @@ const DEV_FALLBACK: HostEnv = {
  *   3. DEV_FALLBACK — only applies when nothing else is available.
  */
 export async function readHostEnv(): Promise<HostEnv> {
-  // 1. OpenFin — customData wins for configServiceUrl. appId / userId
-  //    are pinned to DEFAULT_APP_ID / DEFAULT_USER_ID; customData
-  //    overrides for those two are intentionally ignored.
+  // 1. OpenFin — customSettings.appId / userId for deployment identity;
+  //    configServiceUrl from customData.
   if (typeof fin !== 'undefined') {
     try {
       const opts = await fin.me.getOptions();
       const cd = opts?.customData;
       const configServiceUrl = typeof cd?.configServiceUrl === 'string' ? cd.configServiceUrl : '';
-      return { appId: DEFAULT_APP_ID, userId: DEFAULT_USER_ID, configServiceUrl };
+      const appId = typeof cd?.appId === 'string' && cd.appId.length > 0 ? cd.appId : DEFAULT_APP_ID;
+      const userId = typeof cd?.userId === 'string' && cd.userId.length > 0 ? cd.userId : DEFAULT_USER_ID;
+      return { appId, userId, configServiceUrl };
     } catch {
       return { appId: DEFAULT_APP_ID, userId: DEFAULT_USER_ID, configServiceUrl: '' };
     }

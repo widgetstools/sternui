@@ -196,7 +196,7 @@ function EditorDocs() {
           <Code>{`<DataProviderEditor userId={LOGGED_IN_USER_ID} initialProviderId={...} onClose={...} />`}</Code> from
           <Code>@starui/widgets-react/v2/provider-editor</Code>. Self-contained:
           a list sidebar (left), a tabbed form (right), create/delete dialogs.
-          Requires only <Code>{`<DataServicesProvider>`}</Code> in the tree —
+          Requires only <Code>{`<DataHubProvider>`}</Code> in the tree —
           no other context.
         </Prose>
       </Section>
@@ -212,7 +212,7 @@ function EditorDocs() {
         <Prose>
           IndexedDB database <Code>marketsui-config</Code>, table
           <Code>appConfig</Code>. Visibility: public → <Code>userId: 'system'</Code>;
-          private → <Code>userId: 'dev1'</Code> (this demo's <Code>LOGGED_IN_USER_ID</Code>).
+          private → <Code>userId: 'dev1'</Code> (from <Code>app-config.json</Code> bootstrap).
         </Prose>
         <CodeBlock>
 {`{
@@ -246,7 +246,7 @@ function HostedGridDocs() {
           <Code>{`<HostedMarketsGrid />`}</Code> from
           <Code>@starui/widgets-react/hosted</Code> is a wrapping shell
           that owns identity (instanceId / appId / userId), resolves a
-          ConfigManager, mounts <Code>{`<DataServicesProvider>`}</Code>
+          ConfigManager, mounts <Code>{`<DataHubProvider>`}</Code>
           if needed, picks an AG-Grid theme, and delegates to
           <Code>MarketsGridContainer</Code>.
         </Prose>
@@ -266,7 +266,7 @@ function HostedGridDocs() {
   defaultInstanceId="dataprovider-editor-demo-a"
   defaultUserId="dev1"
   withStorage
-  configManager={dataServices.configManager}
+  configManager={getPlatform().configManager}
   onEditProvider={(providerId) => { ... bring editor to front ... }}
   showFiltersToolbar
   showFormattingToolbar

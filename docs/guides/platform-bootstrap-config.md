@@ -110,7 +110,7 @@ import { DEV_PLATFORM_BOOTSTRAP } from '@starui/host-data';
 // { appId: 'TestApp', userId: 'dev1', useRest: false }
 ```
 
-Replace hardcoded `LOGGED_IN_USER_ID` / `DEFAULT_APP_ID` literals as apps migrate (Phase 6).
+Replace hardcoded `LOGGED_IN_USER_ID` / `DEFAULT_APP_ID` literals as apps migrate (Phase 6). **`useHostedIdentity`** and **`DataHubProvider`** now expose bootstrap `appId` / `userId` via React context; `LOGGED_IN_USER_ID` in `@starui/types` is deprecated.
 
 ---
 

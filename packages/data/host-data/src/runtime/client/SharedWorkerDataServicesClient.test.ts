@@ -72,23 +72,54 @@ interface Wiring {
   close(): void;
 }
 
-function wire(opts: { configManager?: ConfigManager } = {}): Wiring {
-  const hub = new SharedWorkerDataServicesHub({
-    ...(opts.configManager ? { configManager: opts.configManager } : {}),
-  });
-  const wiring = createInPageWiring((port) => {
+function attachPortToHub(hub: SharedWorkerDataServicesHub): (port: MessagePort) => void {
+  return (port) => {
     const portLike: PortLike = { postMessage: (m) => port.postMessage(m) };
     port.addEventListener('message', (ev: MessageEvent) => {
       if (isRequest(ev.data)) hub.handleRequest(portLike, ev.data);
       else if (isAppDataRequest(ev.data)) hub.handleAppDataRequest(portLike, ev.data);
     });
     port.start();
+  };
+}
+
+function wire(opts: { configManager?: ConfigManager } = {}): Wiring {
+  const hub = new SharedWorkerDataServicesHub({
+    ...(opts.configManager ? { configManager: opts.configManager } : {}),
   });
+  const wiring = createInPageWiring(attachPortToHub(hub));
   return {
     hub,
     client: wiring.client,
     close: () => {
       wiring.close();
+      void hub.dispose();
+    },
+  };
+}
+
+interface DualClientWiring {
+  hub: SharedWorkerDataServicesHub;
+  clientA: SharedWorkerDataServicesClient;
+  clientB: SharedWorkerDataServicesClient;
+  close(): void;
+}
+
+/** Two MessagePort clients wired to the same in-process hub (OpenFin multi-view shape). */
+function wireTwoClients(opts: { configManager?: ConfigManager } = {}): DualClientWiring {
+  const hub = new SharedWorkerDataServicesHub({
+    ...(opts.configManager ? { configManager: opts.configManager } : {}),
+  });
+  const attach = attachPortToHub(hub);
+  const wiringA = createInPageWiring(attach);
+  const wiringB = createInPageWiring(attach);
+  return {
+    hub,
+    clientA: wiringA.client,
+    clientB: wiringB.client,
+    close: () => {
+      wiringA.close();
+      wiringB.close();
       void hub.dispose();
     },
   };
@@ -496,6 +527,33 @@ describe('SharedWorkerDataServicesClient — config catalog RPC', () => {
     expect(snapshot).toEqual([{ id: 'r1' }]);
     handle.unsubscribe();
     w.close();
+  });
+
+  it('second hub client cfg-free attach receives snapshot cached by the first client', async () => {
+    const cm = stubConfigManager();
+    cm._rows.set('p1', mockProviderRow('p1'));
+    const dual = wireTwoClients({ configManager: cm });
+    await dual.hub.hydrateCatalog();
+    await dual.clientA.waitForCatalogReady();
+    await dual.clientB.waitForCatalogReady();
+
+    const primer = dual.clientA.subscribe('p1', cfg());
+    await flush();
+    controllers.get('c-1')!.emit({
+      rows: [{ id: 'r1' }, { id: 'r2' }],
+      replace: true,
+    });
+    controllers.get('c-1')!.emit({ status: 'ready' });
+    await primer.snapshot;
+
+    const late = dual.clientB.subscribe<{ id: string }>('p1');
+    const snapshot = await late.snapshot;
+    expect(snapshot).toEqual([{ id: 'r1' }, { id: 'r2' }]);
+    expect(controllers.get('c-1')!.restarts).toHaveLength(0);
+
+    primer.unsubscribe();
+    late.unsubscribe();
+    dual.close();
   });
 
   it('configStore.save() invalidates the worker catalog so getProviderConfig sees updates', async () => {

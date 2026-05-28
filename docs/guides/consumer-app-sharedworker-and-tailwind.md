@@ -21,41 +21,36 @@ repo flatten and bucket-tarball migration, and the patterns that prevent recurre
 
 ### Root causes (there were three)
 
-#### 1. Prefer the bundled worker asset (no app-local worker file)
+#### 1. Prefer platform bootstrap + bundled worker asset
 
 `@starui/host-data` ships a self-contained worker at
-`dist/assets/data-services-worker.mjs` (esbuild bundle of `defaultEntry.ts`).
-Import its URL at the **app call site** with Vite's `?url` suffix, then
-bootstrap:
+`dist/assets/data-services-worker.mjs`. Import its URL at the **app call site**
+with Vite's `?url` suffix, then call `ensurePlatformReady`:
 
 ```ts
-import { bootstrapDataServicesWithWorkerAsset } from '@starui/host-data';
+// public/app-config.json — { "appId": "my-app", "userId": "dev1", "useRest": false }
+import {
+  ensurePlatformReady,
+  resolvePlatformBootstrapFromJson,
+} from '@starui/host-data';
 import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
 
-export const dataServices = bootstrapDataServicesWithWorkerAsset(workerAssetUrl, {
-  appName: 'my-app',
-  userId: LOGGED_IN_USER_ID,
-  configServiceRestUrl, // optional — stamped as ?configServiceRestUrl=…
-});
+const config = await resolvePlatformBootstrapFromJson('/app-config.json');
+export const platform = await ensurePlatformReady(config, { workerScriptUrl: workerAssetUrl });
 ```
 
-Add to `src/vite-env.d.ts`:
+Wrap the React tree in `<DataHubProvider platform={platform} userId={config.userId}>`.
 
-```ts
-declare module '@starui/host-data/assets/data-services-worker.mjs?url' {
-  const url: string;
-  export default url;
-}
-```
+OpenFin apps use manifest `customSettings.appId` / `userId` instead — see
+[`platform-bootstrap-config.md`](./platform-bootstrap-config.md).
 
-Apps using `staruiConsumerViteConfig()` get a Vite plugin that resolves the
-`?url` import to the bundled worker file. Root `@starui/*` aliases use exact
-match so subpaths like `/assets/...` are not swallowed by the package entry.
+**Legacy:** `bootstrapDataServicesWithWorkerAsset({ appName, userId })` still works
+but is deprecated; migrate to `ensurePlatformReady`.
 
 See:
 
-- `apps/markets-ui-react-reference/src/dataServices.mainThread.ts`
-- `apps/demo-apps/mockdata-provider-starui-app/src/dataServices.ts`
+- `apps/tutorials-workspace/stomp/src/platformBootstrap.ts`
+- `apps/markets-grid-lab/src/platformBootstrap.ts`
 
 **Do not** use `createDataServicesClient()` in Vite apps — its
 `new URL(..., import.meta.url)` lives inside the library and breaks once
@@ -119,20 +114,21 @@ const staruiPartial = staruiConsumerViteConfig(appDir, { worker: true });
 ### Route layout (OpenFin tool windows)
 
 Tool routes (`/dataproviders`, `/config-browser`, `/workspace-setup`, …) should **not**
-be wrapped in `<StarGridApp>`. They only need `<DataServicesProvider>`.
+be wrapped in `<StarGridApp>`. They only need `<DataHubProvider>` (or legacy
+`<DataServicesProvider>` during migration).
 
 Grid/workspace views (`/blotters/marketsgrid`, `/views/view1`, …) keep the
-`StarGridApp` shell.
+`StarGridApp` shell under the same hub provider ancestor.
 
 ### Checklist — new app using data services
 
 1. [ ] `vite.config.ts` uses `staruiConsumerViteConfig(appDir, { worker: true })`
-2. [ ] App-local `src/sharedWorker/entry.ts` (not library `createDataServicesClient`)
-3. [ ] `new SharedWorker(new URL('./sharedWorker/entry.ts', import.meta.url), …)` in app code
-4. [ ] Worker entry calls `installSharedWorkerHub()` **before** `await configManager.init()`
-5. [ ] Stable worker `name`: `mkt-data-services:<app-id>` (same app → same worker)
+2. [ ] `public/app-config.json` with stable `appId` + `userId` (or OpenFin manifest `customSettings`)
+3. [ ] `src/platformBootstrap.ts` calls `ensurePlatformReady`
+4. [ ] `<DataHubProvider platform={...}>` wraps the app tree
+5. [ ] Stable worker `name`: `mkt-data-services:<appId>` (from bootstrap config)
 6. [ ] After library changes: `npm run propagate -- data` + clear `.vite` cache
-7. [ ] Tool routes outside `StarGridApp`; single `<DataServicesProvider>` ancestor for editors
+7. [ ] Tool routes outside `StarGridApp`; single hub provider ancestor for editors
 
 ### Debugging
 

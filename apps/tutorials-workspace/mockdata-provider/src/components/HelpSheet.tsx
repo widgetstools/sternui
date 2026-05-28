@@ -126,7 +126,7 @@ function QuickStart() {
       <Section title="The four panels" icon={<Layers size={12} strokeWidth={1.75} />}>
         <ItemRow icon={<Database size={13} strokeWidth={1.75} />} name="Provider config" desc="Pick dataType, rowCount, updateIntervalMs, and enableUpdates. Edits propagate to both grids; the JSON preview updates live." />
         <ItemRow icon={<Plug size={13} strokeWidth={1.75} />} name="Direct startMock" desc="Calls startMock(cfg, emit) directly in the same module. Simplest wiring." />
-        <ItemRow icon={<Plug size={13} strokeWidth={1.75} />} name="via DataServices" desc="Uses useProviderStream() from <DataServicesProvider>. Production wiring." />
+        <ItemRow icon={<Plug size={13} strokeWidth={1.75} />} name="via DataServices" desc="Uses useDataProvider() from DataHubProvider. Production wiring." />
         <ItemRow icon={<Columns3 size={13} strokeWidth={1.75} />} name="Live stats" desc="Rolling 5-second tick rate, row count, and last-update timestamp for each grid." />
       </Section>
 
@@ -155,7 +155,7 @@ function ProviderConfigDocs() {
       <Section title="MockProviderConfig" icon={<Database size={12} strokeWidth={1.75} />}>
         <Prose>
           The shape passed to <Code>startMock()</Code> or to
-          <Code>useProviderStream()</Code>. All fields are optional except
+          <Code>useDataProvider()</Code>. All fields are optional except
           <Code>providerType</Code>.
         </Prose>
         <CodeBlock>
@@ -257,17 +257,17 @@ function WiringDocs() {
           <CompareRow
             label="Lifecycle owner"
             direct="The panel — useEffect → startMock(cfg, emit) → cleanup calls handle.stop()"
-            ds="The hub — useProviderStream sends an `attach` request; the hub creates the provider on first attach, late-joins on subsequent ones"
+            ds="The hub — useDataProvider attaches by providerId; the hub serves catalog configs and late-joins subscribers"
           />
           <CompareRow
             label="Boot prerequisite"
             direct="None — startMock is a pure function"
-            ds="Wrap <App /> in <DataServicesProvider services={...} /> in main.tsx"
+            ds="Wrap <App /> in <DataHubProvider platform={...}> after initPlatformBootstrap() in main.tsx"
           />
           <CompareRow
             label="API surface"
             direct="startMock(cfg, emit) → ProviderHandle { stop, restart }"
-            ds="useProviderStream(providerId, cfg, { onDelta, onStatus }) → { status, error, refresh }"
+            ds="useDataProvider(providerId) → { provider, status, restart } with onSnapshotData / onTick listeners"
           />
           <CompareRow
             label="Snapshot delivery"
@@ -316,79 +316,51 @@ useEffect(() => {
 
       <Section title="DataServices panel — the actual code" icon={<Plug size={12} strokeWidth={1.75} />}>
         <Prose>
-          What <Code>DataServicesGridPanel.tsx</Code> ships. Two
-          differences from Direct: the cfg is <strong>widened with
-          keyColumn</strong>, and <code>useProviderStream</code> owns
-          the attach/detach lifecycle.
+          What <Code>DataServicesGridPanel.tsx</Code> ships. The hub path
+          attaches by <Code>providerId</Code>; cfg overrides (e.g.
+          <Code>keyColumn</Code>) can still be passed on first attach when
+          not yet in the catalog.
         </Prose>
         <CodeBlock>
-{`import { useProviderStream } from '@starui/host-data-react/runtime';
+{`import { useDataProvider } from '@starui/host-data-react/runtime';
 
-const { cfg } = useMockConfig();
-const { columnDefs, rowIdField } = columnDefsByType[cfg.dataType];
 const providerId = \`mock-\${cfg.dataType}\`;
+const { provider, status } = useDataProvider(providerId, { autoStart: true });
 
-// REQUIRED for the hub path. The SharedWorker hub dedupes its
-// row cache by cfg.keyColumn and silently drops rows that don't
-// resolve a value. Memoise so identity stays stable.
-const cfgForHub = useMemo<MockProviderConfig>(
-  () => ({ ...cfg, keyColumn: rowIdField }),
-  [cfg, rowIdField],
-);
+useEffect(() => {
+  if (!provider) return;
+  return provider.onSnapshotData((rows) => setRows([...rows]));
+}, [provider]);
 
-useProviderStream<Record<string, unknown>>(providerId, cfgForHub, {
-  onDelta: (incoming, replace) => {
-    if (replace) rowsRef.current = [...incoming];
-    else rowsRef.current = applyDelta(
-      rowsRef.current, incoming, rowIdField,
-    );
-    setRows(rowsRef.current);
-  },
-  onStatus: () => undefined,
-});`}
+useEffect(() => {
+  if (!provider) return;
+  return provider.onTick((tick) => {
+    setRows((prev) => applyDelta(prev, tick.rows, rowIdField));
+  });
+}, [provider, rowIdField]);`}
         </CodeBlock>
       </Section>
 
-      <Section title="DataServices boot — what main.tsx adds" icon={<Plug size={12} strokeWidth={1.75} />}>
+      <Section title="Platform bootstrap — what main.tsx adds" icon={<Plug size={12} strokeWidth={1.75} />}>
         <Prose>
-          The DataServices path needs a SharedWorker and a
-          <Code>{`<DataServicesProvider>`}</Code> at the root. This demo
-          constructs the worker at the call site (so Vite's worker
-          plugin can statically emit the chunk) rather than via
-          <Code>createDataServicesClient</Code>, because that library
-          shortcut points its worker URL at a <Code>.ts</Code> file
-          relative to the package's own source — which is fine when
-          the package is consumed via a workspace alias but 404s when
-          the package is installed from a tarball (the published dist
-          only ships <Code>.js</Code>).
+          The DataServices path loads <Code>public/app-config.json</Code>,
+          calls <Code>ensurePlatformReady()</Code>, and wraps the tree in
+          <Code>{`<DataHubProvider>`}</Code>. Identity (<Code>appId</Code>,
+          <Code>userId</Code>) comes from bootstrap config — not hardcoded
+          literals.
         </Prose>
         <CodeBlock>
-{`// src/sharedWorker/entry.ts — verbatim copy of the package's
-// defaultEntry, minus the REST URL plumbing (this demo is local-only).
-import { installSharedWorkerHub } from '@starui/host-data/runtime/sharedWorker';
-import { createConfigManager } from '@starui/host-config';
+{`// public/app-config.json
+{ "appId": "mockdata-provider-starui-app", "userId": "dev1", "useRest": false }
 
-const configManager = createConfigManager({});
-await configManager.init();
-await installSharedWorkerHub({ configManager });
+// src/platformBootstrap.ts
+const config = await resolvePlatformBootstrapFromJson('/app-config.json');
+const platform = await ensurePlatformReady(config, { workerScriptUrl });
 
-// src/dataServices.ts — own the SharedWorker construction.
-const worker = new SharedWorker(
-  new URL('./sharedWorker/entry.ts', import.meta.url),
-  { type: 'module', name: 'mkt-data-services:mockdata-provider-starui-app' },
-);
-
-export const dataServices = bootstrapDataServices({
-  appName: 'mockdata-provider-starui-app',
-  worker,
-  configManager,
-  userId: LOGGED_IN_USER_ID,
-});
-
-// src/main.tsx — wrap the tree.
-<DataServicesProvider services={dataServices}>
+// src/main.tsx
+<DataHubProvider platform={platform} userId={config.userId}>
   <App />
-</DataServicesProvider>`}
+</DataHubProvider>`}
         </CodeBlock>
       </Section>
 
