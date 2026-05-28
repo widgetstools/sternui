@@ -44,7 +44,7 @@ npx turbo typecheck build test --filter=@starui/host-data --filter=@starui/host-
 |---|-----|-----------|---------------------|--------|------|
 | 0 | — | Setup | Branch + worklog (this file) | **done** | 2026-05-28 |
 | 1 | PR1 | 0.1 | Finalize spec review / minor spec edits | **done** | 2026-05-28 |
-| 2 | PR1 | 0.2 | `IDataProvider` + `ProviderCapabilities` types + exports | pending | |
+| 2 | PR1 | 0.2 | `IDataProvider` + `ProviderCapabilities` types + exports | **done** | 2026-05-28 |
 | 3 | PR1b | 0.5.1 | `PlatformBootstrapConfig` type + validation tests | pending | |
 | 4 | PR1b | 0.5.2 | Web `resolvePlatformBootstrapFromJson` + guide draft | pending | |
 | 5 | PR1b | 0.5.3 | OpenFin `resolvePlatformBootstrapFromManifest` + template manifest | pending | |
@@ -130,17 +130,26 @@ Merge each PR to `feat/data-services-hub-idataprovider` (or stack against `main`
 
 ---
 
-### Session 2 — (pending)
+### Session 2 — 2026-05-28
 
 **Scope:** Task 0.2 — `IDataProvider` types  
-**Done:**  
-**Verify:**  
-**Next:** Session 3  
-**Blockers:**
+**Done:**
+
+- Added `packages/data/host-data/src/provider/ProviderCapabilities.ts`
+- Added `packages/data/host-data/src/provider/IDataProvider.ts` (`IDataProvider`, `IDataProviderFactory`, `DataServicesHubBundle`, `Unsubscribe`)
+- Added `packages/data/host-data/src/provider/index.ts` barrel
+- Exported types from `@starui/host-data` root entry
+- Updated `docs/current-features.md` provider primitives section
+
+**Verify:** `npm run typecheck --workspace=@starui/host-data` — exit 0
+
+**Next:** Session 3 — `PlatformBootstrapConfig` type + validation (Task 0.5.1) — starts PR1b
+
+**Blockers:** none
 
 ---
 
-*(Add new session log entries above this line as sessions complete.)*
+### Session 3 — (pending)
 
 ---
 

@@ -17,6 +17,15 @@
 // Runtime surface — main-thread types + helpers.
 export * from './runtime/index.js';
 
+// IDataProvider contract (Phase 0 types; adapter in Phase 3).
+export type {
+  DataServicesHubBundle,
+  IDataProvider,
+  IDataProviderFactory,
+  ProviderCapabilities,
+  Unsubscribe,
+} from './provider/index.js';
+
 // One-shot probes — pure main-thread functions for editor flows
 // (Test connection, Infer fields). Same vocabulary the streaming
 // runtime uses; calling them in-process is the design doc's

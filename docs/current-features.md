@@ -993,6 +993,10 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Provider primitives
 
+- `IDataProvider` — uniform client contract (`start` / `stop` / `refresh` / `restart`, sync getters, event registrars); **types only in Phase 0** — `ProviderClientAdapter` lands Phase 3
+- `IDataProviderFactory` — `getProvider(providerId)` factory surface
+- `DataServicesHubBundle` — hub bundle from `ensurePlatformReady` (`ready`, `stopProvider`, `dispose`)
+- `ProviderCapabilities` — streaming / realtime / refresh / restart flags per transport
 - `ProviderHandle` — `stop()` + `restart()` lifecycle
 - `ProviderEmit` — callback for rows / status / byte-size events
 - `ProviderEmitEvent` — structured event union

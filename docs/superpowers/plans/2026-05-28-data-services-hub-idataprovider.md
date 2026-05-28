@@ -117,9 +117,9 @@
 - Create: `packages/data/host-data/src/provider/ProviderCapabilities.ts`
 - Modify: `packages/data/host-data/src/index.ts` — export types only
 
-- [ ] **Step 1:** Add interface (lifecycle, sync getters, event registrars, capabilities).
-- [ ] **Step 2:** Add `IDataProviderFactory` with `getProvider(providerId: string): IDataProvider`.
-- [ ] **Step 3:** Export from `@starui/host-data`; run `npm run typecheck --workspace=@starui/host-data`.
+- [ ] **Step 1:** Add interface (lifecycle, sync getters, event registrars, capabilities). ✅ Session 2
+- [ ] **Step 2:** Add `IDataProviderFactory` with `getProvider(providerId: string): IDataProvider`. ✅ Session 2
+- [ ] **Step 3:** Export from `@starui/host-data`; run `npm run typecheck --workspace=@starui/host-data`. ✅ Session 2
 
 ```typescript
 // packages/data/host-data/src/provider/IDataProvider.ts (sketch)
