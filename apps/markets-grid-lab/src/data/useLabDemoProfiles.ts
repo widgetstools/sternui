@@ -27,11 +27,15 @@ export function useLabDemoProfiles(
       }
 
       const flagKey = `lab-demo-profiles-${LAB_DEMO_PROFILES_FLAG_VERSION}:${gridId}`;
-      if (
-        (typeof localStorage !== 'undefined' && localStorage.getItem(flagKey))
-        || installedMemory.has(flagKey)
-        || installInFlight.has(flagKey)
-      ) {
+      const seeded =
+        typeof localStorage !== 'undefined' && localStorage.getItem(flagKey) === '1';
+      if (seeded) {
+        installedMemory.add(flagKey);
+        return;
+      }
+      // Storage was cleared (e2e reset) or first visit — drop stale in-memory guard.
+      installedMemory.delete(flagKey);
+      if (installInFlight.has(flagKey)) {
         return;
       }
 

@@ -71,6 +71,8 @@ export interface MarketsGridControllerHandle {
   readonly setPendingSwitch: Dispatch<SetStateAction<{ id: string } | null>>;
   readonly handleOpenSettings: () => void;
   readonly handleToggleStyleToolbar: () => void;
+  readonly editingToolbarOpen: boolean;
+  readonly handleToggleEditingToolbar: () => void;
   readonly handleSaveAll: () => Promise<void>;
   readonly requestLoadProfile: (id: string) => void;
   readonly confirmSwitchSave: () => Promise<void>;
@@ -301,6 +303,13 @@ export function useMarketsGridController(
     setStyleToolbarOpen((p) => !p);
   }, [styleToolbarOpen]);
 
+  // Editing toolbar — same open/closed model as the formatting toolbar.
+  const [editingToolbarOpen, setEditingToolbarOpen] = useState(false);
+
+  const handleToggleEditingToolbar = useCallback(() => {
+    setEditingToolbarOpen((p) => !p);
+  }, []);
+
   const handleSaveAll = useCallback(async () => {
     // Capture native AG-Grid state (column order / widths / sort / filters /
     // pagination / selection / viewport) into the grid-state module slice
@@ -414,6 +423,8 @@ export function useMarketsGridController(
     setPendingSwitch,
     handleOpenSettings,
     handleToggleStyleToolbar,
+    editingToolbarOpen,
+    handleToggleEditingToolbar,
     handleSaveAll,
     requestLoadProfile,
     confirmSwitchSave,

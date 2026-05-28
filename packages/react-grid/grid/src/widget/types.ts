@@ -60,6 +60,14 @@ export interface MarketsGridProps<TData = unknown> {
   showFiltersToolbar?: boolean;
   /** Floating formatter toolbar (pill toggle on the filter bar). */
   showFormattingToolbar?: boolean;
+  /** Enables the editing toolbar toggle on the primary row (toolbar starts hidden). */
+  showEditingToolbar?: boolean;
+  /** @deprecated Use `showEditingToolbar` or pass as segment allow-list with other editing props. */
+  showSmartEditToolbar?: boolean;
+  /** @deprecated Use `showEditingToolbar` or pass as segment allow-list with other editing props. */
+  showBulkUpdateToolbar?: boolean;
+  /** @deprecated Use `showEditingToolbar` or pass as segment allow-list with other editing props. */
+  showEditHistoryToolbar?: boolean;
   /** Save button on the toolbar. Defaults to `true`. */
   showSaveButton?: boolean;
   /** Settings button on the toolbar. Defaults to `true`. */

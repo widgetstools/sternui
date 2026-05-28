@@ -40,6 +40,21 @@ export function serializeTabSeed(seed: TabSeed): Record<string, SerializedState>
   if (seed.alerts) {
     state.alerts = { v: MODULE_SCHEMA_V, data: { rules: seed.alerts.rules, settings: seed.alerts.settings } };
   }
+  if (seed['smart-edit']) {
+    state['smart-edit'] = { v: MODULE_SCHEMA_V, data: seed['smart-edit'] };
+  }
+  if (seed['bulk-update']) {
+    state['bulk-update'] = { v: MODULE_SCHEMA_V, data: seed['bulk-update'] };
+  }
+  if (seed['plus-minus']) {
+    state['plus-minus'] = { v: MODULE_SCHEMA_V, data: seed['plus-minus'] };
+  }
+  if (seed.shortcuts) {
+    state.shortcuts = { v: MODULE_SCHEMA_V, data: seed.shortcuts };
+  }
+  if (seed['data-change-history']) {
+    state['data-change-history'] = { v: MODULE_SCHEMA_V, data: seed['data-change-history'] };
+  }
   return state;
 }
 

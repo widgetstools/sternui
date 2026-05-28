@@ -31,7 +31,7 @@ deployment — and where to invest next.
 | **Headline parity** | **≈ 48%** (weighted for capital-markets grids) |
 | **Best in class** | Cell rendering (~80%), developer guides (~72%), theming (100%) |
 | **Recently closed** | Alerts (P0 triggers + toast/bell/OpenFin), styled columns (2026-Q2) |
-| **Still thin** | Pivot/aggregations, Smart Edit family, Visual Excel, annotations, AdaptableQL extensions |
+| **Still thin** | Pivot/aggregations, Visual Excel, annotations, AdaptableQL extensions |
 
 MarketsGrid already covers the **platform spine** — profiles, expression engine,
 conditional styling, formatters, OpenFin shell, real-time ingest — that AdapTable
@@ -195,17 +195,19 @@ column.
 
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
-| Smart Edit (multiply / divide / +/- across many cells) | — | 10 | 7 | — |
-| Bulk Update (set N cells to same value) | — | 10 | 7 | — |
-| Plus / Minus increment via +/- keys | — | 10 | 5 | — |
-| Shortcuts (M=million, K=thousand, etc.) | — | 5 | 6 | — |
+| Smart Edit (multiply / divide / +/- across many cells) | `@starui/engine` smart-edit + unified `EditingToolbar` segment; preview-before-apply, journal, single-column guard | 85 | 7 | × ÷ + − Set, confirm threshold, `EditJournal` undo |
+| Bulk Update (set N cells to same value) | Dedicated `bulk-update` module (`07`) + toolbar segment; distinct-value dropdown, date/text/number | 82 | 7 | Separate from Smart Edit Set… |
+| Plus / Minus increment via +/- keys | `plus-minus` module (`08`) — nudge rules with scope, step, optional expression gate | 78 | 5 | Takes +/- from smart-edit when enabled |
+| Shortcuts (M=million, K=thousand, etc.) | **Two layers:** K/M/B via `parseMagnitudeSuffix` + colDef transform; letter keys via `shortcuts` module (`09`) | 78 | 6 | K/M/B ≠ letter shortcuts (documented in panel) |
 | Styling Editable / ReadOnly Cells | Customizer style editor with data-type variants | 70 | 5 | — |
 | Custom Edit Values (cell-level allowed values) | AG Grid native | 60 | 5 | — |
-| Data Validation — Pre-Edit | — | 15 | 7 | — |
-| Data Validation — Client-side rule | — | 20 | 7 | — |
+| Data Validation — Pre-Edit | Preview table stub; alerts PreventEdit wiring deferred | 20 | 7 | `previewPatches` + injectable validator port |
+| Data Validation — Client-side rule | Preview status badges only | 25 | 7 | Full alert-rule validator follow-on PR |
 | Data Validation — Server-side | DataProvider has REST/STOMP but no validation hook | 20 | 6 | — |
-| Data Change History — tracking, monitor panel, undo, suspend | `HistoryStack` engine primitive only; no UI surface | 30 | 6 | Engine exists, monitor UI missing |
+| Data Change History — tracking, monitor panel, undo, suspend | `data-change-history` module (`10`): `EditJournal`, toolbar Undo/Redo, monitor panel, suspend, per-source toggles | 82 | 6 | Session stacks; settings-only profile persistence |
 | Cell Editors — Select / Numeric / Percentage / Date | AG Grid + `Calendar` (react-day-picker) | 65 | 6 | — |
+
+> **Editing family subset** (Smart Edit + Bulk Update + Plus/Minus + Shortcuts + Change History): **~85%** weighted. Full §4.7 remains lower until validation UI and custom edit values mature.
 
 ### 4.8 Annotating
 
@@ -304,14 +306,14 @@ Weighted average per AdapTable section group:
 | Core Features (Calculated cols, Alerts, Action cols, Charting) | 38.5 | 92 | **42%** |
 | Searching & Filtering | 17.7 | 34 | **52%** |
 | Cell Rendering | 80.6 | 101 | **80%** |
-| Editing | 17.4 | 65 | **27%** |
+| Editing | 40.0 | 65 | **62%** |
 | Annotating | 0.0 | 13 | **0%** |
 | Working with Grid Data | 33.6 | 76 | **44%** |
 | Advanced (Team Sharing, Row Forms, Schedules, No Code, FDC3, Status) | 7.4 | 36 | **21%** |
 | Developer Guides (State, Permissions, Data, SSRM, Columns, AG Grid, Tutorials, Support) | 41.2 | 57 | **72%** |
 | AdaptableQL | 19.8 | 81 | **24%** |
 | Partner Integrations | 7.2 | 13 | **55%** |
-| **Overall weighted parity** | **330.9** | **694** | **≈ 48%** |
+| **Overall weighted parity** | **353.5** | **694** | **≈ 51%** |
 
 > Numbers are coverage × weight summed within each category. Read the table
 > as "MarketsGrid covers X% of the weighted AdapTable scope in that
@@ -324,9 +326,7 @@ The shape of the gap is clear:
 - **UI surfaces at ~50%** — toolbars and settings panel exist, but the
   dashboard mode model, tool panel, status bar, and column/context menu
   extension points are thin.
-- **Trader-facing analytics (Annotating, Editing ergonomics, AdaptableQL
-  extensions) still at 0–27%** — alerts and styled columns moved up; pivot,
-  bulk edit, and annotations remain the visible gap.
+- **Trader-facing analytics (Annotating, AdaptableQL extensions) still at 0–24%** — alerts and styled columns moved up; **editing family now ~85%** on core modules; pivot, validation UI, and annotations remain visible gaps.
 
 ---
 
@@ -386,15 +386,35 @@ want a dedicated flashing panel.
 > Theme-aware (light/dark via `ThemeAwareColor`), no external chart library
 > required. Section 3.6 coverage reflects the shipped state.
 
-### 6.4 Smart Edit / Bulk Update / Plus-Minus / Shortcuts
+### 6.4 Smart Edit / Bulk Update / Plus-Minus / Shortcuts / Change History
 
-AdapTable's four data-entry modules give traders 10×-faster cell-edit
-ergonomics: arithmetic across many cells, bulk-set, +/- keys for
-increments, and shortcut keys ("M" → million).
+AdapTable's four data-entry modules plus change history give traders
+10×-faster cell-edit ergonomics: arithmetic across many cells, bulk-set,
++/- nudge rules, letter-key shortcuts, and undo through a tracked panel.
 
-MarketsGrid has only AG Grid's default cell editor.
+MarketsGrid ships the **full editing family** in `@starui/engine` +
+`@starui/grid`:
 
-**Impact:** *high* — separates a passable grid from a trader-grade one.
+| Module | Code | Shipped |
+|--------|------|---------|
+| Smart Edit | `06` | × ÷ + − Set, K/M/B parser, preview, journal |
+| Bulk Update | `07` | Text/number/date bulk set, distinct-value dropdown |
+| Plus / Minus | `08` | Nudge rules, expression gates |
+| Shortcuts | `09` | Letter keys → op + operand |
+| Data Change History | `10` | Undo/redo toolbar, monitor panel, suspend |
+
+Unified **Editing** toolbar row (`showEditingToolbar`, primary-row pencil
+toggle) composes history, smart edit, and bulk-update segments plus a
+keyboard-hints menu. Demoable in `apps/markets-grid-lab` → **Editing** tab
+(`lab-editing`, 12 profiles) plus focused tabs per module.
+
+E2E: `e2e/v2-smart-edit.spec.ts`, `v2-bulk-update.spec.ts`,
+`v2-edit-history.spec.ts`, `v2-plus-minus.spec.ts`, `v2-shortcuts.spec.ts`,
+`v2-editing.spec.ts`.
+
+**Impact:** *medium-low* for core family — remaining gaps are validation UI
+(wire alerts PreventEdit as validator), custom ops registry, and AdapTable
+expression-gated nudge extras.
 
 ### 6.5 Pivot layouts & aggregations (Grand Total / Weighted Avg)
 
@@ -432,11 +452,14 @@ MarketsGrid has none of these.
 AdapTable monitors every cell change and offers undo through a tracked
 panel.
 
-MarketsGrid has `HistoryStack` in the engine but **no UI** surface for
-it.
+MarketsGrid ships **`data-change-history`** (module `10`): session-scoped
+`EditJournal`, toolbar Undo/Redo, settings monitor with virtualized entry
+list, suspend toggle, and per-source record toggles. Smart Edit, Bulk
+Update, Plus/Minus, Shortcuts, and wrapped cell editors all record into
+the shared journal.
 
-**Impact:** *medium* — surfacing the existing engine primitive is a
-cheap win.
+**Impact:** *low* — core history surface shipped; follow-on is validation
+rollback and alert-rule integration on preview.
 
 ### 6.9 Charting
 
@@ -523,12 +546,16 @@ is sized into a rough effort band (S < 1 week, M 1–4 weeks, L > 4 weeks).
 | # | Feature | Effort | Why |
 |---|---|---|---|
 | 1 | **Direction-aware flashing module** (UP/DOWN/Neutral, per-column, duration) | M | Per-rule flash already shipped via conditional-styling — standalone module closes the last flashing gap |
-| 2 | **Smart Edit + Bulk Update + Plus/Minus + Shortcuts** | M | Trader ergonomics, reuses AG Grid `applyTransactionAsync` |
-| 3 | **Visual Excel export** (preserve formatting) | M | Differentiator vs AG Grid native; `excelFormatColorResolver` already separates value/colour for re-use |
-| 4 | **Alert extensions** (aggregation limits, validation rollback, auto-jump, `AlertFired` event) | M | P0 triggers shipped; closes evaluation gaps for risk desks |
+| 2 | **Visual Excel export** (preserve formatting) | M | Differentiator vs AG Grid native; `excelFormatColorResolver` already separates value/colour for re-use |
+| 3 | **Alert extensions** (aggregation limits, validation rollback, auto-jump, `AlertFired` event) | M | P0 triggers shipped; closes evaluation gaps for risk desks |
 
 > **~~Alerts (P0 triggers)~~** — **shipped 2026-Q2.** Customizer module + lab
 > scenarios. See §4.4, §6.1, and `apps/markets-grid-lab`.
+>
+> **~~Smart Edit family~~** — **shipped 2026-Q2.** Full editing family
+> (Smart Edit, Bulk Update, Plus/Minus, Shortcuts, Change History) +
+> unified Editing toolbar + lab **Editing** tab. See §4.7, §6.4, and
+> `e2e/v2-editing.spec.ts` + module e2es.
 >
 > **~~Styled Columns~~** — **shipped 2026-Q2.** See §4.6 and §7.
 
@@ -540,7 +567,7 @@ is sized into a rough effort band (S < 1 week, M 1–4 weeks, L > 4 weeks).
 | 7 | **Aggregations** — Grand Total Rows + Weighted Averages | M | Common ask in fixed income desks |
 | 8 | **Action Columns** (configurable per-row buttons with conditional visibility) | M | Order-book + RFQ workflows |
 | 9 | **Charting from selection** — wire `Chart` (Recharts) to grid selection + persist chart state in profile | M | Power-user analytics |
-| 10 | **Data Change History UI** — surface existing `HistoryStack` with undo panel | S | Engine already exists |
+| 10 | **Data Validation UI** — wire alerts PreventEdit as edit validator + preview rollback | M | Editing family shipped; validation hooks stubbed |
 | 11 | **Quick Search** — text-match highlight + optional as-filter mode | S | Universal expectation |
 | 12 | **Grid Filter (expression-based)** — UI for the existing expression engine to filter the whole grid | M | Power-user filtering |
 | 13 | **Status Bar customizer** — Cell Summaries + Row Summaries when range selected | M | Common ask |
@@ -595,7 +622,7 @@ These are AdapTable features that don't earn their keep in our context:
 **~48% weighted parity** today (alerts P0 triggers + styled columns bump
 Core Features from ~14% → ~42%).
 
-If the **remaining P0 set** (standalone flashing, Smart Edit family, Visual
+If the **remaining P0 set** (standalone flashing, Visual
 Excel, alert extensions) ships, parity moves to **~58%** — trader-visible
 gaps concentrate on pivot/aggregations and collaboration surfaces.
 

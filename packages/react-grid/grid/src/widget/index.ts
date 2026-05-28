@@ -2,6 +2,7 @@ export { MarketsGrid, DEFAULT_MODULES } from './MarketsGrid';
 export { useGridTheme } from './theme/index.js';
 export { FiltersToolbar, type FiltersToolbarProps } from './FiltersToolbar';
 export { FormattingToolbar } from './FormattingToolbar';
+export { SmartEditToolbar } from './SmartEditToolbar';
 export { DraggableFloat } from './DraggableFloat';
 export {
   SettingsSheet,

@@ -37,7 +37,7 @@ export const alertsModule: Module<AlertsState> = {
   name: 'Alerts',
   code: '05',
   schemaVersion: 1,
-  priority: 25,
+  priority: 27,
 
   getInitialState: () => ({
     rules: [],

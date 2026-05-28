@@ -27,7 +27,7 @@ export default defineConfig({
     {
       command: 'STARUI_DEV_SOURCE=1 npm run dev --workspace=@starui/markets-ui-react-reference',
       port: 5174,
-      reuseExistingServer: false,
+      reuseExistingServer: true,
       timeout: 90_000,
     },
     {

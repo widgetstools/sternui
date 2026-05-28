@@ -19,8 +19,14 @@
  *     `data-active`, with `aria-selected` falling back to a softer
  *     hover-style highlight for keyboard navigation discoverability.
  */
+import { cn } from '@starui/ui';
 import { Command as CommandPrimitive } from 'cmdk';
-import { forwardRef, type ComponentPropsWithoutRef, type ElementRef } from 'react';
+import {
+  forwardRef,
+  type ComponentPropsWithoutRef,
+  type ElementRef,
+  type ReactNode,
+} from 'react';
 
 export interface CockpitListProps
   extends Omit<ComponentPropsWithoutRef<typeof CommandPrimitive>, 'shouldFilter'> {
@@ -63,13 +69,31 @@ export interface CockpitListItemProps
    *  underlying record is disabled — preserves the existing
    *  conditional-styling rule list affordance. */
   muted?: boolean;
+  /** Two-line rail rows (title + metadata). Default single-line `h-8`. */
+  multiline?: boolean;
+}
+
+const COCKPIT_LIST_ITEM_BASE =
+  'flex w-full px-3.5 bg-transparent border-l-2 border-l-transparent text-foreground/90 text-[length:var(--ds-font-size-sm)] cursor-pointer select-none rounded-sm transition-colors data-[active=true]:bg-[var(--ds-primary-soft)] data-[active=true]:border-l-[color:var(--ds-primary)] data-[active=true]:text-foreground aria-selected:bg-muted/70 aria-selected:text-foreground data-[muted=true]:text-muted-foreground hover:bg-muted/60';
+
+const COCKPIT_LIST_ITEM_SINGLE = 'items-center gap-2.5 h-8';
+const COCKPIT_LIST_ITEM_MULTILINE =
+  'flex-col items-stretch gap-0.5 min-h-[3.25rem] h-auto py-2';
+
+/** Secondary metadata line for multiline cockpit list rows. */
+export function CockpitListItemMeta({ children }: { children: ReactNode }) {
+  return (
+    <span className="block w-full truncate text-[10px] leading-tight text-[color:var(--ds-text-muted)]">
+      {children}
+    </span>
+  );
 }
 
 export const CockpitListItem = forwardRef<
   ElementRef<typeof CommandPrimitive.Item>,
   CockpitListItemProps
 >(function CockpitListItem(
-  { value, active, muted, className, children, style, ...rest },
+  { value, active, muted, multiline, className, children, style, ...rest },
   ref,
 ) {
   return (
@@ -78,10 +102,11 @@ export const CockpitListItem = forwardRef<
       value={value}
       data-active={active ? 'true' : undefined}
       data-muted={muted ? 'true' : undefined}
-      className={
-        className ??
-        'flex items-center gap-2.5 h-8 w-full px-3.5 bg-transparent border-l-2 border-l-transparent text-foreground/90 text-[length:var(--ds-font-size-sm)] cursor-pointer select-none rounded-sm transition-colors data-[active=true]:bg-[var(--ds-primary-soft)] data-[active=true]:border-l-[color:var(--ds-primary)] data-[active=true]:text-foreground aria-selected:bg-muted/70 aria-selected:text-foreground data-[muted=true]:text-muted-foreground hover:bg-muted/60'
-      }
+      className={cn(
+        COCKPIT_LIST_ITEM_BASE,
+        multiline ? COCKPIT_LIST_ITEM_MULTILINE : COCKPIT_LIST_ITEM_SINGLE,
+        className,
+      )}
       style={style}
       {...rest}
     >
