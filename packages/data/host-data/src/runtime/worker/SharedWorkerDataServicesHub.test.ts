@@ -23,10 +23,12 @@
 
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { SharedWorkerDataServicesHub, type PortLike } from './SharedWorkerDataServicesHub';
+import { ConfigCatalogCache } from '../../hub/ConfigCatalogCache.js';
 import { registerProvider } from '../providers/registry';
 import type { ProviderEmit, ProviderHandle } from '../providers/Provider';
 import type { Event } from '../protocol';
 import type { ProviderConfig } from '@starui/types';
+import type { ConfigManager, AppConfigRow } from '@starui/host-config';
 
 interface CapturedPort extends PortLike {
   messages: Event[];
@@ -667,5 +669,142 @@ describe('SharedWorkerDataServicesHub — REST round-trip', () => {
       controllers.set((cfg as unknown as { __testKey?: string }).__testKey ?? 'default', ctrl);
       return { stop() { ctrl.stopCount += 1; }, restart(extra) { ctrl.restartLog.push(extra); } };
     });
+  });
+});
+
+function mockProviderRow(id: string, testKey = 'default'): AppConfigRow {
+  return {
+    configId: id,
+    appId: 'TestApp',
+    userId: 'system',
+    componentType: 'data-provider',
+    componentSubType: 'mock',
+    isTemplate: false,
+    displayText: id,
+    payload: {
+      providerType: 'mock',
+      keyColumn: 'id',
+      __testKey: testKey,
+      __providerMeta: { public: true },
+    },
+    createdBy: 'dev1',
+    updatedBy: 'dev1',
+    creationTime: '2026-01-01T00:00:00.000Z',
+    updatedTime: '2026-01-01T00:00:00.000Z',
+  };
+}
+
+function mockConfigManager(rows: AppConfigRow[]): ConfigManager {
+  const map = new Map(rows.map((r) => [r.configId, r]));
+  return {
+    async getAllConfigsUnfiltered() { return [...map.values()]; },
+    async getConfig(id: string) { return map.get(id); },
+  } as unknown as ConfigManager;
+}
+
+function makeAnyPort(): PortLike & { messages: unknown[] } {
+  const messages: unknown[] = [];
+  return {
+    messages,
+    postMessage(m: unknown) { messages.push(m); },
+  };
+}
+
+describe('SharedWorkerDataServicesHub — config catalog', () => {
+  it('cfg-free first attach resolves cfg from catalog and starts the provider', async () => {
+    const cache = new ConfigCatalogCache(mockConfigManager([mockProviderRow('p1')]));
+    await cache.loadAll();
+    const hub = new SharedWorkerDataServicesHub({ configCatalog: cache });
+    const port = makePort();
+
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data' });
+
+    expect(port.messages.some((m) => m.kind === 'status' && (m as { status?: string }).status === 'error')).toBe(false);
+    expect(port.messages.some((m) => m.kind === 'delta' && (m as { replace?: boolean }).replace)).toBe(true);
+  });
+
+  it('first attach without cfg or catalog entry returns error', async () => {
+    const cache = new ConfigCatalogCache(mockConfigManager([]));
+    await cache.loadAll();
+    const hub = new SharedWorkerDataServicesHub({ configCatalog: cache });
+    const port = makePort();
+
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'missing', mode: 'data' });
+
+    expect(port.messages).toHaveLength(1);
+    expect(port.messages[0]).toMatchObject({
+      kind: 'status',
+      status: 'error',
+      error: expect.stringContaining('not in catalog'),
+    });
+  });
+
+  it('hub-ready, get-config, and list-configs respond from catalog', async () => {
+    const cache = new ConfigCatalogCache(mockConfigManager([mockProviderRow('p1'), mockProviderRow('p2')]));
+    await cache.loadAll();
+    const hub = new SharedWorkerDataServicesHub({ configCatalog: cache });
+    const port = makeAnyPort();
+
+    hub.handleRequest(port, { kind: 'hub-ready', reqId: 'ready-1' });
+    hub.handleRequest(port, { kind: 'get-config', reqId: 'get-1', providerId: 'p1' });
+    hub.handleRequest(port, { kind: 'list-configs', reqId: 'list-1' });
+
+    expect(port.messages[0]).toMatchObject({ kind: 'config-snapshot', reqId: 'ready-1', ok: true, ready: true });
+    expect(port.messages[1]).toMatchObject({ kind: 'config-snapshot', reqId: 'get-1', ok: true, config: { providerId: 'p1' } });
+    expect(port.messages[2]).toMatchObject({
+      kind: 'config-snapshot',
+      reqId: 'list-1',
+      ok: true,
+      configs: expect.arrayContaining([
+        expect.objectContaining({ providerId: 'p1' }),
+        expect.objectContaining({ providerId: 'p2' }),
+      ]),
+    });
+  });
+
+  it('config-invalidate reloads an updated row from ConfigManager', async () => {
+    const rows = new Map([['p1', { ...mockProviderRow('p1'), displayText: 'Original' }]]);
+    const cm = {
+      async getAllConfigsUnfiltered() { return [...rows.values()]; },
+      async getConfig(id: string) { return rows.get(id); },
+    } as unknown as ConfigManager;
+    const cache = new ConfigCatalogCache(cm);
+    await cache.loadAll();
+    const hub = new SharedWorkerDataServicesHub({ configCatalog: cache });
+    const port = makeAnyPort();
+
+    rows.set('p1', { ...mockProviderRow('p1'), displayText: 'Updated' });
+    await cache.invalidate('p1');
+    expect(cache.get('p1')?.name).toBe('Updated');
+
+    port.messages.length = 0;
+    hub.handleRequest(port, { kind: 'get-config', reqId: 'get-2', providerId: 'p1' });
+    expect(port.messages[0]).toMatchObject({
+      kind: 'config-snapshot',
+      ok: true,
+      config: { providerId: 'p1', name: 'Updated' },
+    });
+  });
+
+  it('handleConfigInvalidate RPC reloads a single catalog row', async () => {
+    const rows = new Map([['p1', { ...mockProviderRow('p1'), displayText: 'Original' }]]);
+    const cm = {
+      async getAllConfigsUnfiltered() { return [...rows.values()]; },
+      async getConfig(id: string) { return rows.get(id); },
+    } as unknown as ConfigManager;
+    const cache = new ConfigCatalogCache(cm);
+    await cache.loadAll();
+    const hub = new SharedWorkerDataServicesHub({ configCatalog: cache });
+    const port = makeAnyPort();
+
+    rows.set('p1', { ...mockProviderRow('p1'), displayText: 'Updated' });
+    hub.handleRequest(port, { kind: 'config-invalidate', reqId: 'inv-1', providerId: 'p1' });
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    expect(port.messages.find((m) => (m as { reqId?: string }).reqId === 'inv-1')).toMatchObject({
+      kind: 'config-snapshot',
+      ok: true,
+    });
+    expect(cache.get('p1')?.name).toBe('Updated');
   });
 });

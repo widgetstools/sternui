@@ -17,6 +17,7 @@ import type { ProviderConfig } from '@starui/types';
 import type { ProviderEmit, ProviderHandle } from '../providers/Provider';
 import type { ProviderStats, ProviderStatus } from '../protocol';
 import type { ConfigManager, AppConfigRow } from '@starui/host-config';
+import { DataProviderConfigStore } from '../config/store.js';
 
 interface TestController {
   emit: ProviderEmit;
@@ -369,5 +370,98 @@ describe('SharedWorkerDataServicesClient — attachAppData', () => {
     // The ack-resolution path is exercised in the AppDataMirror tests
     // (in-process, no port).
     expect(() => w.client.detachAppData(a)).not.toThrow();
+  });
+});
+
+function mockProviderRow(id: string, testKey = 'c-1'): AppConfigRow {
+  return {
+    configId: id,
+    appId: 'TestApp',
+    userId: 'system',
+    componentType: 'data-provider',
+    componentSubType: 'mock',
+    isTemplate: false,
+    displayText: id,
+    payload: {
+      providerType: 'mock',
+      keyColumn: 'id',
+      __key: testKey,
+      __providerMeta: { public: true },
+    },
+    createdBy: 'dev1',
+    updatedBy: 'dev1',
+    creationTime: '2026-01-01T00:00:00.000Z',
+    updatedTime: '2026-01-01T00:00:00.000Z',
+  };
+}
+
+describe('SharedWorkerDataServicesClient — config catalog RPC', () => {
+  it('waitForCatalogReady resolves when the hub catalog is hydrated', async () => {
+    const cm = stubConfigManager();
+    cm._rows.set('p1', mockProviderRow('p1'));
+    const w = wire({ configManager: cm });
+    await w.hub.hydrateCatalog();
+    await w.client.waitForCatalogReady();
+    w.close();
+  });
+
+  it('getProviderConfig and listProviderConfigs round-trip through the hub', async () => {
+    const cm = stubConfigManager();
+    cm._rows.set('p1', mockProviderRow('p1'));
+    cm._rows.set('p2', mockProviderRow('p2', 'c-2'));
+    const w = wire({ configManager: cm });
+    await w.hub.hydrateCatalog();
+
+    const one = await w.client.getProviderConfig('p1');
+    expect(one?.providerId).toBe('p1');
+
+    const all = await w.client.listProviderConfigs();
+    expect(all.map((p) => p.providerId).sort()).toEqual(['p1', 'p2']);
+
+    w.close();
+  });
+
+  it('cfg-free subscribe starts a provider from the worker catalog', async () => {
+    const cm = stubConfigManager();
+    cm._rows.set('p1', mockProviderRow('p1'));
+    const w = wire({ configManager: cm });
+    await w.hub.hydrateCatalog();
+
+    const handle = w.client.subscribe<{ id: string }>('p1');
+    await flush();
+
+    expect(handle).toBeTruthy();
+    controllers.get('c-1')!.emit({ rows: [{ id: 'r1' }], replace: true });
+    controllers.get('c-1')!.emit({ status: 'ready' });
+    const snapshot = await handle.snapshot;
+    expect(snapshot).toEqual([{ id: 'r1' }]);
+    handle.unsubscribe();
+    w.close();
+  });
+
+  it('configStore.save() invalidates the worker catalog so getProviderConfig sees updates', async () => {
+    const cm = stubConfigManager();
+    cm._rows.set('p1', mockProviderRow('p1'));
+    const w = wire({ configManager: cm });
+    await w.hub.hydrateCatalog();
+
+    const store = new DataProviderConfigStore(
+      cm,
+      (providerId) => w.client.invalidateConfig(providerId),
+    );
+
+    await store.save({
+      providerId: 'p1',
+      name: 'Renamed',
+      providerType: 'mock',
+      config: { providerType: 'mock', keyColumn: 'id', __key: 'c-1' } as never,
+      userId: 'system',
+      public: true,
+    }, 'dev1');
+    await flush();
+
+    const cfg = await w.client.getProviderConfig('p1');
+    expect(cfg?.name).toBe('Renamed');
+    w.close();
   });
 });

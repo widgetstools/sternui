@@ -89,7 +89,10 @@ export function DataServicesProvider({ services, mode = 'lazy', userId, children
   const value = useMemo<ContextValue>(() => ({
     client: services.client,
     appData: services.appData,
-    configStore: new DataProviderConfigStore(services.configManager),
+    configStore: new DataProviderConfigStore(
+      services.configManager,
+      (providerId) => services.client.invalidateConfig(providerId),
+    ),
   }), [services]);
 
   return (

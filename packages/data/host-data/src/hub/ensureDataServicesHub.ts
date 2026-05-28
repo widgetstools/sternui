@@ -1,6 +1,9 @@
 import type { ConfigManager } from '@starui/host-config';
+import type { PlatformBootstrapConfig } from '../bootstrap/PlatformBootstrapConfig.js';
+import { resolveConfigServiceRestUrl } from '../bootstrap/PlatformBootstrapConfig.js';
 import type { DataServices } from '../runtime/bootstrap/bootstrap.js';
-import { bootstrapDataServicesWithWorkerAsset } from '../runtime/bootstrap/bootstrapWithWorkerAsset.js';
+import { bootstrapDataServices } from '../runtime/bootstrap/bootstrap.js';
+import { createDataServicesWorker } from '../runtime/bootstrap/createDataServicesWorker.js';
 import type { DataServicesHubBundle } from '../provider/IDataProvider.js';
 import type { IDataProvider } from '../provider/IDataProvider.js';
 
@@ -12,11 +15,9 @@ export interface ResolvedDataServicesHubBundle extends DataServicesHubBundle {
 }
 
 /** Options for {@link ensureDataServicesHub}. */
-export interface EnsureHubOpts {
-  appId: string;
-  userId: string;
-  configServiceRestUrl?: string;
+export interface EnsureHubOpts extends PlatformBootstrapConfig {
   workerScriptUrl: string;
+  /** Main-thread ConfigManager (initialized before hub connect). */
   mainThreadConfigManager: ConfigManager;
 }
 
@@ -29,12 +30,20 @@ function notImplementedProvider(providerId: string): never {
   );
 }
 
+function combineReady(services: DataServices): Promise<void> {
+  return (async () => {
+    await services.ready;
+    await services.client.waitForCatalogReady();
+  })();
+}
+
 function adaptDataServicesToHubBundle(
   services: DataServices,
   appId: string,
+  ready: Promise<void>,
 ): ResolvedDataServicesHubBundle {
   return {
-    ready: services.ready,
+    ready,
     getProvider(providerId: string): IDataProvider {
       notImplementedProvider(providerId);
     },
@@ -52,25 +61,32 @@ function adaptDataServicesToHubBundle(
   };
 }
 
+async function bootstrapHubOnce(opts: EnsureHubOpts): Promise<ResolvedDataServicesHubBundle> {
+  const configServiceRestUrl = resolveConfigServiceRestUrl(opts);
+  const worker = createDataServicesWorker(opts.workerScriptUrl, {
+    appName: opts.appId,
+    configServiceRestUrl,
+  });
+  const services = bootstrapDataServices({
+    appName: opts.appId,
+    worker,
+    configManager: opts.mainThreadConfigManager,
+    userId: opts.userId,
+  });
+  const ready = combineReady(services);
+  await ready;
+  return adaptDataServicesToHubBundle(services, opts.appId, ready);
+}
+
 /**
  * Lazy hub entry — one SharedWorker + client bundle per `appId` per window.
- * Phase 2: wraps legacy bootstrap until catalog preload lands (PR2).
+ * Waits for AppData mirror snapshot and worker catalog preload before resolving.
  */
 export function ensureDataServicesHub(opts: EnsureHubOpts): Promise<ResolvedDataServicesHubBundle> {
   const existing = hubPromises.get(opts.appId);
   if (existing) return existing;
 
-  const pending = (async () => {
-    const services = bootstrapDataServicesWithWorkerAsset(opts.workerScriptUrl, {
-      appName: opts.appId,
-      userId: opts.userId,
-      configServiceRestUrl: opts.configServiceRestUrl,
-      mainThreadConfigManager: opts.mainThreadConfigManager,
-    });
-    await services.ready;
-    return adaptDataServicesToHubBundle(services, opts.appId);
-  })();
-
+  const pending = bootstrapHubOnce(opts);
   hubPromises.set(opts.appId, pending);
   pending.catch(() => {
     if (hubPromises.get(opts.appId) === pending) {

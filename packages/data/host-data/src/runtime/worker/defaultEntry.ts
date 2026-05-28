@@ -32,9 +32,8 @@ async function boot(): Promise<void> {
   const configManager = createConfigManager({
     configServiceRestUrl: CONFIG_SERVICE_REST_URL,
   });
-  const installed = installSharedWorkerHub({ configManager });
   await configManager.init();
-  await installed;
+  await installSharedWorkerHub({ configManager });
   // eslint-disable-next-line no-console
   console.info(
     `[@starui/host-data worker] ConfigManager initialised (mode: ${configManager.isRestMode() ? 'REST' : 'local'})`,

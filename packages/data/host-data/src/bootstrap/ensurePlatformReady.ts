@@ -1,23 +1,17 @@
 import { createConfigManager } from '@starui/host-config';
 import {
   validatePlatformBootstrapConfig,
+  resolveConfigServiceRestUrl,
   type PlatformBootstrapConfig,
 } from './PlatformBootstrapConfig.js';
 import { PlatformBootstrapConfigError } from './resolvePlatformBootstrap.js';
 import { ensureDataServicesHub, type ResolvedDataServicesHubBundle } from '../hub/ensureDataServicesHub.js';
-import type { DataServicesHubBundle } from '../provider/IDataProvider.js';
 
 export interface EnsurePlatformReadyOpts {
   workerScriptUrl: string;
 }
 
 const platformPromises = new Map<string, Promise<ResolvedDataServicesHubBundle>>();
-
-function resolveConfigServiceRestUrl(
-  config: PlatformBootstrapConfig,
-): string | undefined {
-  return config.useRest ? config.configServiceRestUrl : undefined;
-}
 
 /**
  * Resolve platform identity, init ConfigManager, spawn/connect SharedWorker hub.
@@ -65,9 +59,7 @@ async function bootstrapPlatformOnce(
   await configManager.init();
 
   return ensureDataServicesHub({
-    appId: config.appId,
-    userId: config.userId,
-    configServiceRestUrl,
+    ...config,
     workerScriptUrl: opts.workerScriptUrl,
     mainThreadConfigManager: configManager,
   });

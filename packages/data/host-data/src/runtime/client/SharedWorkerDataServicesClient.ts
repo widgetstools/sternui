@@ -25,15 +25,22 @@ import type {
   AppDataRequest,
   AppDataSnapshotEvent,
   AttachRequest,
+  CatalogEvent,
+  ConfigInvalidateRequest,
+  ConfigSnapshotEvent,
   DetachRequest,
   Event,
+  GetConfigRequest,
+  HubReadyRequest,
+  ListConfigsRequest,
   ProviderStats,
   ProviderStatus,
   Request,
   StopRequest,
 } from '../protocol.js';
-import { isEvent, isAppDataEvent } from '../protocol.js';
-import type { ProviderConfig } from '@starui/types';
+import { isCatalogEvent, isEvent, isAppDataEvent } from '../protocol.js';
+import type { DataProviderConfig, ProviderConfig } from '@starui/types';
+import type { ListOptions } from '../config/store.js';
 import { AppDataMirror } from '../mirror/AppDataMirror.js';
 
 /**
@@ -119,6 +126,11 @@ export class SharedWorkerDataServicesClient {
   // `reqId` to whichever mirror has that pending request — the
   // mirror tracks its own pending acks, so we just iterate.
   private readonly appDataMirrors = new Map<string, AppDataMirror>();
+  private readonly catalogPending = new Map<
+    string,
+    { resolve: (event: ConfigSnapshotEvent) => void; reject: (err: Error) => void }
+  >();
+  private readonly catalogReadyWaiters: Array<() => void> = [];
 
   constructor(port: MessagePort, opts: SharedWorkerDataServicesClientOpts = {}) {
     this.port = port;
@@ -371,6 +383,36 @@ export class SharedWorkerDataServicesClient {
     this.send({ kind: 'stop', providerId });
   }
 
+  /** Await worker catalog preload (`hub-ready` + optional `catalog-ready`). */
+  async waitForCatalogReady(): Promise<void> {
+    const snap = await this.rpcCatalog({ kind: 'hub-ready' });
+    if (snap.ready) return;
+    await new Promise<void>((resolve) => {
+      this.catalogReadyWaiters.push(resolve);
+    });
+  }
+
+  /** Read one provider row from the worker catalog (no main-thread Dexie). */
+  async getProviderConfig(providerId: string): Promise<DataProviderConfig | null> {
+    const snap = await this.rpcCatalog({ kind: 'get-config', providerId });
+    return snap.config ?? null;
+  }
+
+  /** List provider rows from the worker catalog. */
+  async listProviderConfigs(opts: ListOptions = {}): Promise<DataProviderConfig[]> {
+    const snap = await this.rpcCatalog({
+      kind: 'list-configs',
+      subtype: opts.subtype,
+      includeAppData: opts.includeAppData,
+    });
+    return [...(snap.configs ?? [])];
+  }
+
+  /** Reload one row or the full catalog in the worker after editor save/remove. */
+  async invalidateConfig(providerId?: string): Promise<void> {
+    await this.rpcCatalog({ kind: 'config-invalidate', providerId });
+  }
+
   /**
    * Attach a fresh `AppDataMirror` to the hub. The mirror is a
    * pure RPC client — it sends operations to the hub and receives
@@ -417,13 +459,19 @@ export class SharedWorkerDataServicesClient {
     this.closed = true;
     this.subs.clear();
     this.appDataMirrors.clear();
+    for (const [, pending] of this.catalogPending) {
+      pending.reject(new Error('[SharedWorkerDataServicesClient] client closed'));
+    }
+    this.catalogPending.clear();
+    for (const resolve of this.catalogReadyWaiters) resolve();
+    this.catalogReadyWaiters.length = 0;
     this.port.removeEventListener('message', this.handleMessage);
     try { this.port.close(); } catch { /* MessagePort.close is fine to call twice */ }
   }
 
   // ─── internals ────────────────────────────────────────────────
 
-  private send(req: Request | AttachRequest | DetachRequest | StopRequest): void {
+  private send(req: Request): void {
     try {
       this.port.postMessage(req);
     } catch (err) {
@@ -449,7 +497,27 @@ export class SharedWorkerDataServicesClient {
     }
   }
 
+  private rpcCatalog(
+    req: Omit<HubReadyRequest, 'reqId'>
+      | Omit<GetConfigRequest, 'reqId'>
+      | Omit<ListConfigsRequest, 'reqId'>
+      | Omit<ConfigInvalidateRequest, 'reqId'>,
+  ): Promise<ConfigSnapshotEvent> {
+    if (this.closed) {
+      return Promise.reject(new Error('[SharedWorkerDataServicesClient] client is closed'));
+    }
+    const reqId = crypto.randomUUID();
+    return new Promise((resolve, reject) => {
+      this.catalogPending.set(reqId, { resolve, reject });
+      this.send({ ...req, reqId } as Request);
+    });
+  }
+
   private handleMessage = (ev: MessageEvent): void => {
+    if (isCatalogEvent(ev.data)) {
+      this.routeCatalogEvent(ev.data);
+      return;
+    }
     if (isAppDataEvent(ev.data)) {
       this.routeAppDataEvent(ev.data);
       return;
@@ -476,6 +544,19 @@ export class SharedWorkerDataServicesClient {
         return;
     }
   };
+
+  private routeCatalogEvent(event: CatalogEvent): void {
+    if (event.kind === 'catalog-ready') {
+      for (const resolve of this.catalogReadyWaiters) resolve();
+      this.catalogReadyWaiters.length = 0;
+      return;
+    }
+    const pending = this.catalogPending.get(event.reqId);
+    if (!pending) return;
+    this.catalogPending.delete(event.reqId);
+    if (event.ok) pending.resolve(event);
+    else pending.reject(new Error(event.error ?? 'Catalog request failed'));
+  }
 
   private routeAppDataEvent(event: AppDataSnapshotEvent | AppDataDeltaEvent | AppDataAckEvent): void {
     if (event.kind === 'appdata-ack') {

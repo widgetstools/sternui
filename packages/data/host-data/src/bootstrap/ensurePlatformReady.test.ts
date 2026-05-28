@@ -10,16 +10,19 @@ import {
 import { _resetEnsureDataServicesHubForTests } from '../hub/ensureDataServicesHub.js';
 
 const createConfigManagerMock = vi.fn();
-const bootstrapWithWorkerAssetMock = vi.fn();
+const ensureDataServicesHubMock = vi.fn();
 
 vi.mock('@starui/host-config', () => ({
   createConfigManager: (...args: unknown[]) => createConfigManagerMock(...args),
 }));
 
-vi.mock('../runtime/bootstrap/bootstrapWithWorkerAsset.js', () => ({
-  bootstrapDataServicesWithWorkerAsset: (...args: unknown[]) =>
-    bootstrapWithWorkerAssetMock(...args),
-}));
+vi.mock('../hub/ensureDataServicesHub.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../hub/ensureDataServicesHub.js')>();
+  return {
+    ...actual,
+    ensureDataServicesHub: (...args: unknown[]) => ensureDataServicesHubMock(...args),
+  };
+});
 
 describe('ensurePlatformReady', () => {
   beforeEach(() => {
@@ -27,13 +30,17 @@ describe('ensurePlatformReady', () => {
       _opts: opts,
       init: vi.fn().mockResolvedValue(undefined),
     }));
-    bootstrapWithWorkerAssetMock.mockImplementation(() => ({
-      client: { stop: vi.fn() },
-      appData: {},
-      configManager: {},
-      ready: Promise.resolve(),
-      dispose: vi.fn(),
-    }));
+    ensureDataServicesHubMock.mockImplementation(() =>
+      Promise.resolve({
+        client: { stop: vi.fn() },
+        appData: {},
+        configManager: {},
+        ready: Promise.resolve(),
+        dispose: vi.fn(),
+        getProvider: vi.fn(),
+        stopProvider: vi.fn(),
+      }),
+    );
   });
 
   afterEach(() => {
@@ -53,12 +60,14 @@ describe('ensurePlatformReady', () => {
       configServiceRestUrl: undefined,
       seedConfigUrl: undefined,
     });
-    expect(bootstrapWithWorkerAssetMock).toHaveBeenCalledWith('/worker.mjs', {
-      appName: 'TestApp',
-      userId: 'dev1',
-      configServiceRestUrl: undefined,
-      mainThreadConfigManager: expect.objectContaining({ _opts: expect.any(Object) }),
-    });
+    expect(ensureDataServicesHubMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appId: 'TestApp',
+        userId: 'dev1',
+        workerScriptUrl: '/worker.mjs',
+        mainThreadConfigManager: expect.objectContaining({ _opts: expect.any(Object) }),
+      }),
+    );
     expect(bundle.ready).toBeInstanceOf(Promise);
   });
 
@@ -72,7 +81,7 @@ describe('ensurePlatformReady', () => {
 
     expect(second).toBe(first);
     expect(createConfigManagerMock).toHaveBeenCalledTimes(1);
-    expect(bootstrapWithWorkerAssetMock).toHaveBeenCalledTimes(1);
+    expect(ensureDataServicesHubMock).toHaveBeenCalledTimes(1);
   });
 
   it('passes REST URL when useRest is true', async () => {
@@ -91,9 +100,10 @@ describe('ensurePlatformReady', () => {
         configServiceRestUrl: 'http://localhost:3001/api/v1',
       }),
     );
-    expect(bootstrapWithWorkerAssetMock).toHaveBeenCalledWith(
-      '/worker.mjs',
+    expect(ensureDataServicesHubMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        appId: 'RestApp',
+        useRest: true,
         configServiceRestUrl: 'http://localhost:3001/api/v1',
       }),
     );

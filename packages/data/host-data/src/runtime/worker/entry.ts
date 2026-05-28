@@ -88,10 +88,11 @@ export async function installSharedWorkerHub(opts: InstallOpts = {}): Promise<In
     };
   }
 
-  // Hydrate AppData from IndexedDB before handling port traffic.
+  // Hydrate catalog + AppData from IndexedDB before handling port traffic.
   // No-op when no ConfigManager was supplied (e.g. test installs that
   // don't exercise persistence).
   if (opts.configManager) {
+    await hub.hydrateCatalog();
     await hub.hydrateAppData(opts.hydrateUserId ?? 'worker');
   }
 

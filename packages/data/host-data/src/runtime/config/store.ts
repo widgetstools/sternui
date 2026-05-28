@@ -47,8 +47,14 @@ export interface ListOptions {
   includeAppData?: boolean;
 }
 
+/** Notify the worker hub to reload catalog rows after editor persistence. */
+export type CatalogInvalidateFn = (providerId?: string) => void | Promise<void>;
+
 export class DataProviderConfigStore {
-  constructor(private readonly cm: ConfigManager) {}
+  constructor(
+    private readonly cm: ConfigManager,
+    private readonly invalidateCatalog?: CatalogInvalidateFn,
+  ) {}
 
   async list(userId: string, opts: ListOptions = {}): Promise<DataProviderConfig[]> {
     // DataProviders are GLOBAL to the platform: every registered
@@ -109,11 +115,21 @@ export class DataProviderConfigStore {
       updatedTime: now,
     };
     await this.cm.saveConfig(row);
+    this.notifyCatalogInvalidate(configId);
     return { ...provider, providerId: configId, userId: ownerUserId, public: ownerUserId === PUBLIC_USER_ID };
   }
 
   async remove(configId: string): Promise<void> {
     await this.cm.deleteConfig(configId);
+    this.notifyCatalogInvalidate(configId);
+  }
+
+  private notifyCatalogInvalidate(providerId?: string): void {
+    if (!this.invalidateCatalog) return;
+    void Promise.resolve(this.invalidateCatalog(providerId)).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.warn('[DataProviderConfigStore] hub catalog invalidate failed', err);
+    });
   }
 }
 

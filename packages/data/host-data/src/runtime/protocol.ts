@@ -11,7 +11,7 @@
  * late-joiner race that v1 needed cache replay to patch over.
  */
 
-import type { ProviderConfig, ProviderType } from '@starui/types';
+import type { DataProviderConfig, ProviderConfig, ProviderType } from '@starui/types';
 
 // ─── AppData row shape (mirrors AppDataConfig from probes/appdata) ─
 
@@ -79,8 +79,10 @@ export interface AttachRequest {
    */
   mode: 'data' | 'stats';
   /**
-   * Required on FIRST attach for a providerId. Ignored on subsequent
-   * attaches (the running provider keeps its existing cfg).
+   * Required on FIRST attach when `providerId` is not in the hub catalog.
+   * Optional when the worker has preloaded the provider row via
+   * `ConfigCatalogCache`. Ignored on subsequent attaches (the running
+   * provider keeps its existing cfg).
    * Templates (`{{appdata.key}}`) are resolved on the client side
    * before the request is sent.
    */
@@ -103,6 +105,34 @@ export interface DetachRequest {
 export interface StopRequest {
   kind: 'stop';
   providerId: string;
+}
+
+/** Query whether the worker catalog preload has completed. */
+export interface HubReadyRequest {
+  kind: 'hub-ready';
+  reqId: string;
+}
+
+/** Fetch one data-provider row from the worker catalog. */
+export interface GetConfigRequest {
+  kind: 'get-config';
+  reqId: string;
+  providerId: string;
+}
+
+/** List data-provider rows from the worker catalog. */
+export interface ListConfigsRequest {
+  kind: 'list-configs';
+  reqId: string;
+  subtype?: ProviderType;
+  includeAppData?: boolean;
+}
+
+/** Reload one row or the full catalog after editor save/remove. */
+export interface ConfigInvalidateRequest {
+  kind: 'config-invalidate';
+  reqId: string;
+  providerId?: string;
 }
 
 // ─── Client → Worker AppData requests ──────────────────────────────
@@ -169,7 +199,14 @@ export type AppDataRequest =
   | AppDataUpsertRequest
   | AppDataRemoveRequest;
 
-export type Request = AttachRequest | DetachRequest | StopRequest;
+export type Request =
+  | AttachRequest
+  | DetachRequest
+  | StopRequest
+  | HubReadyRequest
+  | GetConfigRequest
+  | ListConfigsRequest
+  | ConfigInvalidateRequest;
 
 // ─── Worker → Client events ────────────────────────────────────────
 
@@ -200,6 +237,26 @@ export interface StatsEvent {
 }
 
 export type Event = DeltaEvent | StatusEvent | StatsEvent;
+
+/** Worker → client catalog events (no subId — routed by reqId or broadcast). */
+export interface CatalogReadyEvent {
+  kind: 'catalog-ready';
+}
+
+export interface ConfigSnapshotEvent {
+  kind: 'config-snapshot';
+  reqId: string;
+  ok: boolean;
+  error?: string;
+  /** Response to `hub-ready`. */
+  ready?: boolean;
+  /** Response to `get-config`. Null when id is missing from catalog. */
+  config?: DataProviderConfig | null;
+  /** Response to `list-configs`. */
+  configs?: readonly DataProviderConfig[];
+}
+
+export type CatalogEvent = CatalogReadyEvent | ConfigSnapshotEvent;
 
 // ─── Worker → Client AppData events ────────────────────────────────
 
@@ -248,7 +305,15 @@ export type AppDataEvent =
 export function isRequest(value: unknown): value is Request {
   if (!value || typeof value !== 'object') return false;
   const k = (value as { kind?: string }).kind;
-  return k === 'attach' || k === 'detach' || k === 'stop';
+  return (
+    k === 'attach' ||
+    k === 'detach' ||
+    k === 'stop' ||
+    k === 'hub-ready' ||
+    k === 'get-config' ||
+    k === 'list-configs' ||
+    k === 'config-invalidate'
+  );
 }
 
 export function isEvent(value: unknown): value is Event {
@@ -256,6 +321,12 @@ export function isEvent(value: unknown): value is Event {
   const v = value as { kind?: string; subId?: unknown };
   if (typeof v.subId !== 'string') return false;
   return v.kind === 'delta' || v.kind === 'status' || v.kind === 'stats';
+}
+
+export function isCatalogEvent(value: unknown): value is CatalogEvent {
+  if (!value || typeof value !== 'object') return false;
+  const k = (value as { kind?: string }).kind;
+  return k === 'catalog-ready' || k === 'config-snapshot';
 }
 
 export function isAppDataRequest(value: unknown): value is AppDataRequest {
@@ -282,4 +353,4 @@ export function isAppDataEvent(value: unknown): value is AppDataEvent {
 
 // ─── Re-exports for ergonomics ─────────────────────────────────────
 
-export type { ProviderConfig, ProviderType };
+export type { DataProviderConfig, ProviderConfig, ProviderType };

@@ -52,12 +52,19 @@ import type {
   AppDataRemoveRequest,
   AppDataEvent,
   AppDataRow,
+  CatalogEvent,
+  ConfigInvalidateRequest,
+  ConfigSnapshotEvent,
+  GetConfigRequest,
+  HubReadyRequest,
+  ListConfigsRequest,
 } from '../protocol.js';
 import { startProvider } from '../providers/registry.js';
 import type { ProviderEmit, ProviderEmitEvent, ProviderHandle } from '../providers/Provider.js';
 import { WorkerAppDataStore } from './WorkerAppDataStore.js';
 import type { ConfigManager } from '@starui/host-config';
 import { AppDataConfigStore, type AppDataConfig } from '../providers/appdata/store.js';
+import { ConfigCatalogCache } from '../../hub/ConfigCatalogCache.js';
 
 /**
  * Gate for hot-path diagnostic logs. Flip to `true` locally when debugging
@@ -159,6 +166,12 @@ export interface SharedWorkerDataServicesHubOpts {
    */
   configManager?: ConfigManager;
 
+  /**
+   * Preloaded data-provider catalog. When omitted but `configManager`
+   * is set, the hub constructs one automatically.
+   */
+  configCatalog?: ConfigCatalogCache;
+
   /** Tick interval for the stats sampler (default 1000ms). */
   statsIntervalMs?: number;
   /** Inject the timer for tests. Default: setInterval. */
@@ -195,6 +208,8 @@ export class SharedWorkerDataServicesHub {
   private readonly appData = new WorkerAppDataStore();
   private readonly appDataListeners = new Map<string, AppDataListenerEntry>();
   private readonly appDataStore: AppDataConfigStore | null;
+  private readonly configCatalog: ConfigCatalogCache | null;
+  private readonly connectedPorts = new Set<PortLike>();
 
   private readonly statsIntervalMs: number;
   private readonly setTimer: (cb: () => void, ms: number) => unknown;
@@ -206,6 +221,13 @@ export class SharedWorkerDataServicesHub {
     this.setTimer = opts.setTimer ?? ((cb, ms) => setInterval(cb, ms));
     this.clearTimer = opts.clearTimer ?? ((h) => clearInterval(h as ReturnType<typeof setInterval>));
     this.appDataStore = opts.configManager ? new AppDataConfigStore(opts.configManager) : null;
+    if (opts.configCatalog) {
+      this.configCatalog = opts.configCatalog;
+    } else if (opts.configManager) {
+      this.configCatalog = new ConfigCatalogCache(opts.configManager);
+    } else {
+      this.configCatalog = null;
+    }
 
     // Wire the AppData store to fan deltas to every attached listener.
     // Set up here once; re-attaching listeners doesn't re-subscribe.
@@ -226,10 +248,15 @@ export class SharedWorkerDataServicesHub {
   // ─── Public surface ────────────────────────────────────────────
 
   handleRequest(port: PortLike, req: Request): void {
+    this.trackPort(port);
     switch (req.kind) {
       case 'attach':  this.handleAttach(port, req); return;
       case 'detach':  this.handleDetach(req); return;
       case 'stop':    this.handleStop(req); return;
+      case 'hub-ready': this.handleHubReady(port, req); return;
+      case 'get-config': this.handleGetConfig(port, req); return;
+      case 'list-configs': this.handleListConfigs(port, req); return;
+      case 'config-invalidate': void this.handleConfigInvalidate(port, req); return;
     }
   }
 
@@ -244,6 +271,7 @@ export class SharedWorkerDataServicesHub {
    * completes (success or failure).
    */
   handleAppDataRequest(port: PortLike, req: AppDataRequest): void {
+    this.trackPort(port);
     switch (req.kind) {
       case 'appdata-attach':  this.handleAppDataAttach(port, req); return;
       case 'appdata-detach':  this.handleAppDataDetach(req); return;
@@ -251,6 +279,32 @@ export class SharedWorkerDataServicesHub {
       case 'appdata-upsert':  void this.handleAppDataUpsert(port, req); return;
       case 'appdata-remove':  void this.handleAppDataRemove(port, req); return;
     }
+  }
+
+  /**
+   * Preload data-provider catalog rows from ConfigManager into the
+   * in-memory cache. Production installs call this after
+   * `configManager.init()` and before port attach traffic.
+   *
+   * Idempotent. No-op when no ConfigCatalogCache was constructed.
+   */
+  async hydrateCatalog(): Promise<void> {
+    if (!this.configCatalog) return;
+    if (this.configCatalog.isReady()) return;
+    try {
+      await this.configCatalog.loadAll();
+      this.broadcastCatalogEvent({ kind: 'catalog-ready' });
+    } catch (err) {
+      // Hydration failure is non-fatal — attach with inline cfg still
+      // works; cfg-free attach will miss until a retry succeeds.
+      // eslint-disable-next-line no-console
+      console.error('[hub] Config catalog hydrate failed', err);
+    }
+  }
+
+  /** Worker-side catalog cache, or null when no ConfigManager was supplied. */
+  getConfigCatalog(): ConfigCatalogCache | null {
+    return this.configCatalog;
   }
 
   /**
@@ -286,6 +340,7 @@ export class SharedWorkerDataServicesHub {
 
   /** Drop every subscription owned by this port. Called on disconnect. */
   onPortClosed(port: PortLike): void {
+    this.connectedPorts.delete(port);
     for (const [providerId, listeners] of this.dataListeners) {
       for (const [subId, l] of listeners) if (l.port === port) listeners.delete(subId);
       if (listeners.size === 0) this.dataListeners.delete(providerId);
@@ -307,31 +362,123 @@ export class SharedWorkerDataServicesHub {
     this.dataListeners.clear();
     this.statsListeners.clear();
     this.appDataListeners.clear();
+    this.connectedPorts.clear();
     this.maybeStopStatsSampler();
   }
 
   // ─── Request handlers ──────────────────────────────────────────
+
+  private trackPort(port: PortLike): void {
+    this.connectedPorts.add(port);
+  }
+
+  private broadcastCatalogEvent(event: CatalogEvent): void {
+    for (const port of this.connectedPorts) {
+      try { port.postMessage(event); }
+      catch { this.connectedPorts.delete(port); }
+    }
+  }
+
+  private replyConfigSnapshot(port: PortLike, snapshot: ConfigSnapshotEvent): void {
+    port.postMessage(snapshot);
+  }
+
+  private handleHubReady(port: PortLike, req: HubReadyRequest): void {
+    this.replyConfigSnapshot(port, {
+      kind: 'config-snapshot',
+      reqId: req.reqId,
+      ok: true,
+      ready: this.configCatalog?.isReady() ?? false,
+    });
+  }
+
+  private handleGetConfig(port: PortLike, req: GetConfigRequest): void {
+    if (!this.configCatalog) {
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: false,
+        error: 'Config catalog not available in this hub instance',
+      });
+      return;
+    }
+    this.replyConfigSnapshot(port, {
+      kind: 'config-snapshot',
+      reqId: req.reqId,
+      ok: true,
+      config: this.configCatalog.get(req.providerId),
+    });
+  }
+
+  private handleListConfigs(port: PortLike, req: ListConfigsRequest): void {
+    if (!this.configCatalog) {
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: false,
+        error: 'Config catalog not available in this hub instance',
+      });
+      return;
+    }
+    this.replyConfigSnapshot(port, {
+      kind: 'config-snapshot',
+      reqId: req.reqId,
+      ok: true,
+      configs: this.configCatalog.list({
+        subtype: req.subtype,
+        includeAppData: req.includeAppData,
+      }),
+    });
+  }
+
+  private async handleConfigInvalidate(port: PortLike, req: ConfigInvalidateRequest): Promise<void> {
+    if (!this.configCatalog) {
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: false,
+        error: 'Config catalog not available in this hub instance',
+      });
+      return;
+    }
+    try {
+      await this.configCatalog.invalidate(req.providerId);
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: true,
+      });
+      this.broadcastCatalogEvent({ kind: 'catalog-ready' });
+    } catch (err) {
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 
   private handleAttach(port: PortLike, req: AttachRequest): void {
     let slot = this.providers.get(req.providerId);
     const wasRunning = Boolean(slot);
 
     if (!slot) {
-      if (!req.cfg) {
-        // Can't create without a config; surface as error to this sub.
+      let cfg = req.cfg ?? this.configCatalog?.getProviderConfig(req.providerId) ?? undefined;
+      if (!cfg) {
         // eslint-disable-next-line no-console
         if (DEBUG) console.log(`[v2/hub] attach REJECTED subId=${req.subId} provider=${req.providerId}: not running and no cfg`);
         port.postMessage({
           subId: req.subId,
           kind: 'status',
           status: 'error',
-          error: `Provider '${req.providerId}' not running and no cfg supplied to start it.`,
+          error: `Provider '${req.providerId}' not in catalog and no cfg supplied to start it.`,
         });
         return;
       }
       // eslint-disable-next-line no-console
       if (DEBUG) console.log(`[v2/hub] attach CREATE subId=${req.subId} provider=${req.providerId}`);
-      slot = this.createProvider(req.providerId, req.cfg);
+      slot = this.createProvider(req.providerId, cfg);
       this.providers.set(req.providerId, slot);
       this.ensureStatsSampler();
     } else if (req.extra) {

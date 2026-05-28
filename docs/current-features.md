@@ -986,8 +986,9 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Runtime architecture
 
-- `SharedWorkerDataServicesClient` — main-thread client routing events to listeners
-- `SharedWorkerDataServicesHub` — worker state machine (providers, cache, fan-out)
+- `SharedWorkerDataServicesClient` — main-thread client routing events to listeners; catalog RPC (`waitForCatalogReady`, `getProviderConfig`, `listProviderConfigs`, `invalidateConfig`)
+- `SharedWorkerDataServicesHub` — worker state machine (providers, cache, fan-out); **`hydrateCatalog()`** preloads `ConfigCatalogCache` after ConfigManager init
+- `ConfigCatalogCache` — worker-side in-memory data-provider catalog (`loadAll`, `get`, `getProviderConfig`, `list`, `invalidate`, `upsert`); used by hub before cfg-free attach (Phase 1)
 - `AppDataMirror` — synchronous main-thread view of AppData
 - `WorkerAppDataStore` — worker-side IndexedDB persistence
 
@@ -995,7 +996,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 - `IDataProvider` — uniform client contract (`start` / `stop` / `refresh` / `restart`, sync getters, event registrars); **types only in Phase 0** — `ProviderClientAdapter` lands Phase 3
 - `IDataProviderFactory` — `getProvider(providerId)` factory surface
-- `DataServicesHubBundle` — hub bundle from `ensurePlatformReady` (`ready`, `stopProvider`, `dispose`)
+- `DataServicesHubBundle` / `ResolvedDataServicesHubBundle` — hub bundle from `ensurePlatformReady` / `ensureDataServicesHub` (`ready` = AppData + catalog, `stopProvider`, `dispose`, legacy client handles)
 - `ProviderCapabilities` — streaming / realtime / refresh / restart flags per transport
 - `ProviderHandle` — `stop()` + `restart()` lifecycle
 - `ProviderEmit` — callback for rows / status / byte-size events
@@ -1030,7 +1031,8 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Wire protocol (v2)
 
-- Client→worker requests: `AttachRequest`, `DetachRequest`, `StopRequest`, `AppDataRequest` (attach/detach/set/upsert/remove)
+- Client→worker requests: `AttachRequest`, `DetachRequest`, `StopRequest`, `HubReadyRequest`, `GetConfigRequest`, `ListConfigsRequest`, `ConfigInvalidateRequest`, `AppDataRequest` (attach/detach/set/upsert/remove); `AttachRequest.cfg` optional when `providerId` is in worker catalog
+- Worker→client catalog events: `catalog-ready`, `config-snapshot` (responses for hub-ready/get/list/invalidate)
 - Worker→client events: deltas (`{ rows, replace? }`), status, byte-size, stats, AppData (snapshot/delta/ack)
 
 #### Statistics
@@ -1066,7 +1068,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `resolvePlatformBootstrapFromObject()` — parse inline/test bootstrap objects
 - `PlatformBootstrapConfigError` — validation / fetch failures
 - `ensurePlatformReady()` — ConfigManager init + SharedWorker hub bootstrap (singleton per `appId`)
-- `ensureDataServicesHub()` — lazy hub wrapper (legacy bootstrap until catalog preload, PR2)
+- `ensureDataServicesHub()` — lazy per-`appId` hub singleton; `createDataServicesWorker` + `bootstrapDataServices` + catalog preload (`waitForCatalogReady`); returns `ResolvedDataServicesHubBundle`
 - `ResolvedDataServicesHubBundle` — hub bundle + legacy `client` / `appData` / `configManager` handles
 
 #### Bootstrap
@@ -1097,6 +1099,8 @@ Per-renderer config types (`PillRendererConfig`,
 
 **Path:** `packages/data/host-data-react`
 **Purpose:** React bindings for `@starui/host-data` — provider + focused hooks for data subscriptions.
+
+- `DataServicesProvider` — `configStore` calls `client.invalidateConfig()` after editor `save`/`remove`
 
 **Public exports:** `.`, `./runtime`
 

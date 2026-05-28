@@ -62,3 +62,10 @@ export function validatePlatformBootstrapConfig(
     warnings,
   };
 }
+
+/** REST URL forwarded to worker when `useRest` is enabled. */
+export function resolveConfigServiceRestUrl(
+  config: PlatformBootstrapConfig,
+): string | undefined {
+  return config.useRest ? config.configServiceRestUrl : undefined;
+}

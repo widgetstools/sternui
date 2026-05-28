@@ -15,6 +15,9 @@ export interface BootstrapDataServicesWithWorkerAssetOpts
  * One-call bootstrap when the app supplies the bundled worker URL from
  * Vite's `?url` import. Keeps `new SharedWorker(...)` out of library
  * code while avoiding a hand-written app-local worker entry file.
+ *
+ * @deprecated Prefer {@link ensurePlatformReady} or {@link ensureDataServicesHub}
+ * for new apps — they wait for catalog preload and expose the hub bundle API.
  */
 export function bootstrapDataServicesWithWorkerAsset(
   workerScriptUrl: string,

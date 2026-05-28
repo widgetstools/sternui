@@ -50,10 +50,10 @@ npx turbo typecheck build test --filter=@starui/host-data --filter=@starui/host-
 | 5 | PR1b | 0.5.3 | OpenFin `resolvePlatformBootstrapFromManifest` + template manifest | **done** | 2026-05-28 |
 | 6 | PR1b | 0.5.4 | `ensurePlatformReady` orchestrator + tests | **done** | 2026-05-28 |
 | 7 | PR1b | 0.5.5 | `markets-grid-lab` pilot + `platform-bootstrap-config.md` | **done** | 2026-05-28 |
-| 8 | PR2 | 1.1 | `ConfigCatalogCache` in worker | pending | |
-| 9 | PR2 | 1.2 | Protocol extensions (`get-config`, `catalog-ready`, …) | pending | |
-| 10 | PR2 | 1.3 | Editor save → hub invalidation | pending | |
-| 11 | PR3 | 2.1 | `ensureDataServicesHub` lazy singleton | pending | |
+| 8 | PR2 | 1.1 | `ConfigCatalogCache` in worker | **done** | 2026-05-28 |
+| 9 | PR2 | 1.2 | Protocol extensions (`get-config`, `catalog-ready`, …) | **done** | 2026-05-28 |
+| 10 | PR2 | 1.3 | Editor save → hub invalidation | **done** | 2026-05-28 |
+| 11 | PR3 | 2.1 | `ensureDataServicesHub` lazy singleton | **done** | 2026-05-28 |
 | 12 | PR3 | 2.2 | `PlatformProvider` / `DataHubProvider` (React) | pending | |
 | 13 | PR4 | 3.1 | `SnapshotReassembler` + client normalization | pending | |
 | 14 | PR4 | 3.2 | `ProviderClientAdapter` + unit tests | pending | |
@@ -243,7 +243,75 @@ Merge each PR to `feat/data-services-hub-idataprovider` (or stack against `main`
 
 ---
 
-### Session 8 — (pending)
+### Session 8 — 2026-05-28
+**Scope:** Task 1.1 — `ConfigCatalogCache` in worker
+
+**Done:**
+- Added `packages/data/host-data/src/hub/ConfigCatalogCache.ts` — `loadAll`, `get`, `getProviderConfig`, `list`, `invalidate`, `upsert`
+- Added `ConfigCatalogCache.test.ts` (5 tests)
+- Hub accepts optional `configCatalog`; auto-constructs from `configManager`
+- Added `hydrateCatalog()` + `getConfigCatalog()` on `SharedWorkerDataServicesHub`
+- `installSharedWorkerHub` awaits catalog hydrate before AppData hydrate
+- Fixed `defaultEntry.ts` — `configManager.init()` before hub install (catalog needs Dexie/REST ready)
+
+**Verify:** `npm run build --workspace=@starui/host-data`; `npm test --workspace=@starui/host-data` — 167 passed (5 new)
+
+**Next:** Session 9 — protocol extensions (Task 1.2)
+
+**Blockers:** none
+
+---
+
+### Session 9 — 2026-05-28
+**Scope:** Task 1.2 — protocol extensions + cfg-free attach
+
+**Done:**
+- Extended `protocol.ts` — `hub-ready`, `get-config`, `list-configs`, `config-invalidate`, `catalog-ready`, `config-snapshot`
+- Hub handlers read/write `ConfigCatalogCache`; `handleAttach` resolves cfg from catalog when omitted
+- Client RPC — `waitForCatalogReady()`, `getProviderConfig()`, `listProviderConfigs()`, `invalidateConfig()`
+- Hub broadcasts `catalog-ready` after preload/invalidate; tracks connected ports
+- Tests — cfg-free attach, catalog miss error, RPC round-trip (hub + client)
+
+**Verify:** `npm run build --workspace=@starui/host-data`; `npm test --workspace=@starui/host-data` — 173 passed (6 new)
+
+**Next:** Session 10 — editor save → hub invalidation (Task 1.3)
+
+**Blockers:** none
+
+---
+
+### Session 10 — 2026-05-28
+**Scope:** Task 1.3 — editor save → hub invalidation
+
+**Done:**
+- `DataProviderConfigStore` accepts optional `CatalogInvalidateFn`; `save()`/`remove()` notify after ConfigManager persistence
+- `DataServicesProvider` wires `services.client.invalidateConfig` into the store (editor flows via `useDataServices().configStore`)
+- Fixed `ConfigCatalogCache.invalidate(id)` unit test to exercise real reload path
+- Tests — store invalidation callback, hub invalidate RPC + get-config round-trip, client save → invalidate → `getProviderConfig`
+
+**Verify:** `npm run build --workspace=@starui/host-data`; `npm test --workspace=@starui/host-data` — 179 passed; `npm run typecheck --workspace=@starui/host-data-react` — pass
+
+**Next:** Session 11 — `ensureDataServicesHub` lazy singleton (Task 2.1) — starts PR3
+
+**Blockers:** none
+
+---
+
+### Session 11 — 2026-05-28
+**Scope:** Task 2.1 — `ensureDataServicesHub` lazy entry point
+
+**Done:**
+- `EnsureHubOpts extends PlatformBootstrapConfig` + shared `resolveConfigServiceRestUrl()`
+- `bootstrapHubOnce` — `createDataServicesWorker` + `bootstrapDataServices` + shared `ready` (AppData + `waitForCatalogReady`)
+- Per-`appId` singleton; `ResolvedDataServicesHubBundle` retains legacy `client` / `appData` / `configManager`
+- `@deprecated` on `bootstrapDataServicesWithWorkerAsset`; `bootstrapDataServices` docs point to hub entry
+- Tests — `ensureDataServicesHub.test.ts` (4); updated `ensurePlatformReady.test.ts`
+
+**Verify:** `npm run build --workspace=@starui/host-data`; `npm test --workspace=@starui/host-data` — 183 passed
+
+**Next:** Session 12 — `DataHubProvider` (React) (Task 2.2)
+
+**Blockers:** none
 
 ---
 

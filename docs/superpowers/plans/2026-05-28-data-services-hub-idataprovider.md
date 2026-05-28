@@ -275,10 +275,10 @@ export async function ensurePlatformReady(
 - Create: `packages/data/host-data/src/hub/ConfigCatalogCache.test.ts`
 - Modify: `packages/data/host-data/src/runtime/worker/SharedWorkerDataServicesHub.ts`
 
-- [ ] **Step 1:** Write failing test — preload from mock ConfigManager rows → `get(providerId)` returns config.
-- [ ] **Step 2:** Implement cache: `loadAll()`, `get(id)`, `list({ subtype })`, `invalidate(id?)`, `upsert(row)`.
-- [ ] **Step 3:** Hub constructor accepts cache; `hydrateCatalog()` called from `defaultEntry` after `configManager.init()`.
-- [ ] **Step 4:** Run `npm test --workspace=@starui/host-data -- ConfigCatalogCache`.
+- [ ] **Step 1:** Write failing test — preload from mock ConfigManager rows → `get(providerId)` returns config. ✅ Session 8
+- [ ] **Step 2:** Implement cache: `loadAll()`, `get(id)`, `list({ subtype })`, `invalidate(id?)`, `upsert(row)`. ✅ Session 8
+- [ ] **Step 3:** Hub constructor accepts cache; `hydrateCatalog()` called from `defaultEntry` after `configManager.init()`. ✅ Session 8
+- [ ] **Step 4:** Run `npm test --workspace=@starui/host-data -- ConfigCatalogCache`. ✅ Session 8
 - [ ] **Step 5:** Commit.
 
 ### Task 1.2: Protocol extensions
@@ -289,11 +289,11 @@ export async function ensurePlatformReady(
 - Modify: `packages/data/host-data/src/runtime/client/SharedWorkerDataServicesClient.ts`
 - Modify: `packages/data/host-data/src/runtime/worker/SharedWorkerDataServicesHub.test.ts`
 
-- [ ] **Step 1:** Add request/response types: `get-config`, `list-configs`, `config-invalidate`, `catalog-ready`.
-- [ ] **Step 2:** Hub handlers — respond from `ConfigCatalogCache`.
-- [ ] **Step 3:** Client methods: `waitForCatalogReady()`, `getProviderConfig(id)`, `listProviderConfigs(opts)`, `invalidateConfig(id?)`.
-- [ ] **Step 4:** Extend `handleAttach`: if `!req.cfg`, resolve from catalog; error if missing.
-- [ ] **Step 5:** Tests for cfg-free attach + catalog miss error.
+- [ ] **Step 1:** Add request/response types: `get-config`, `list-configs`, `config-invalidate`, `catalog-ready`. ✅ Session 9
+- [ ] **Step 2:** Hub handlers — respond from `ConfigCatalogCache`. ✅ Session 9
+- [ ] **Step 3:** Client methods: `waitForCatalogReady()`, `getProviderConfig(id)`, `listProviderConfigs(opts)`, `invalidateConfig(id?)`. ✅ Session 9
+- [ ] **Step 4:** Extend `handleAttach`: if `!req.cfg`, resolve from catalog; error if missing. ✅ Session 9
+- [ ] **Step 5:** Tests for cfg-free attach + catalog miss error. ✅ Session 9
 - [ ] **Step 6:** Commit: `feat(host-data): hub config catalog cache and cfg-free attach`.
 
 ### Task 1.3: Editor save → hub invalidation
@@ -302,9 +302,9 @@ export async function ensurePlatformReady(
 - Modify: `packages/data/host-data/src/runtime/config/store.ts`
 - Modify: `packages/data/host-data-react/src/runtime/index.tsx`
 
-- [ ] **Step 1:** After `DataProviderConfigStore.save/remove`, call `client.invalidateConfig(providerId)` if hub connected.
-- [ ] **Step 2:** Hub reloads single row or full catalog on invalidate.
-- [ ] **Step 3:** Test round-trip in hub test with mock port.
+- [ ] **Step 1:** After `DataProviderConfigStore.save/remove`, call `client.invalidateConfig(providerId)` if hub connected. ✅ Session 10
+- [ ] **Step 2:** Hub reloads single row or full catalog on invalidate. ✅ Session 9
+- [ ] **Step 3:** Test round-trip in hub test with mock port. ✅ Session 10
 - [ ] **Step 4:** Commit.
 
 ---
@@ -323,38 +323,11 @@ export async function ensurePlatformReady(
 - Modify: `packages/data/host-data/src/runtime/bootstrap/bootstrapWithWorkerAsset.ts`
 - Modify: `packages/data/host-data/src/runtime/bootstrap/bootstrap.ts`
 
-- [ ] **Step 1:** `EnsureHubOpts` extends/bootstrap from `PlatformBootstrapConfig`:
-
-```typescript
-export interface EnsureHubOpts extends PlatformBootstrapConfig {
-  workerScriptUrl: string;
-  mainThreadConfigManager?: ConfigManager;
-}
-```
-
-- [ ] **Step 2:** Implement per-window singleton keyed by `appId`:
-
-```typescript
-let hubPromise: Promise<DataServicesHubBundle> | null = null;
-
-export function ensureDataServicesHub(opts: EnsureHubOpts): Promise<DataServicesHubBundle> {
-  hubPromise ??= bootstrapHubOnce(opts);
-  return hubPromise;
-}
-
-export interface DataServicesHubBundle {
-  client: DataServicesHubClient;
-  appData: AppDataMirror;
-  configManager: ConfigManager; // main-thread for profile storage + editor until Phase 6 optional
-  ready: Promise<void>;         // catalog + appdata hydrated
-  getProvider(providerId: string): IDataProvider;
-  dispose(): void;
-}
-```
-
-- [ ] **Step 3:** `bootstrapHubOnce` → `createDataServicesWorker` + `bootstrapDataServices` + `await client.waitForCatalogReady()`.
-- [ ] **Step 4:** `bootstrapDataServicesWithWorkerAsset` → deprecated wrapper calling `ensurePlatformReady` or compatible opts.
-- [ ] **Step 5:** Tests: double call returns same bundle; worker name uses `opts.appId`.
+- [ ] **Step 1:** `EnsureHubOpts` extends/bootstrap from `PlatformBootstrapConfig`: ✅ Session 11
+- [ ] **Step 2:** Implement per-window singleton keyed by `appId`: ✅ Session 11
+- [ ] **Step 3:** `bootstrapHubOnce` → `createDataServicesWorker` + `bootstrapDataServices` + `await client.waitForCatalogReady()`. ✅ Session 11
+- [ ] **Step 4:** `bootstrapDataServicesWithWorkerAsset` → deprecated wrapper calling `ensurePlatformReady` or compatible opts. ✅ Session 11
+- [ ] **Step 5:** Tests: double call returns same bundle; worker name uses `opts.appId`. ✅ Session 11
 - [ ] **Step 6:** Commit: `feat(host-data): ensureDataServicesHub lazy entry point`.
 
 ### Task 2.2: DataHubProvider (React)

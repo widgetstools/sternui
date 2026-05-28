@@ -49,6 +49,7 @@ export {
   DataProviderConfigStore,
   PUBLIC_USER_ID,
   COMPONENT_TYPE_DATA_PROVIDER,
+  type CatalogInvalidateFn,
   type ListOptions,
 } from './config/store.js';
 export {

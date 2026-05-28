@@ -1,6 +1,9 @@
 /**
- * bootstrapDataServices() — single entry point for wiring up
- * data-services in a consuming app.
+ * bootstrapDataServices() — low-level wiring for a pre-constructed SharedWorker.
+ *
+ * App entry should prefer {@link ensureDataServicesHub} /
+ * {@link ensurePlatformReady} (catalog preload + hub bundle). This
+ * function remains for bespoke worker setups and legacy call sites.
  *
  * Constructs a `SharedWorkerDataServicesClient` around a caller-
  * provided `SharedWorker`, attaches one `AppDataMirror` shared by
