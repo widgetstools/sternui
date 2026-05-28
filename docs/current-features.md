@@ -1271,6 +1271,10 @@ Per-renderer config types (`PillRendererConfig`,
 #### Manifest / host URL
 
 - `manifestConfig` — OpenFin manifest (app, runtime, preload)
+- `resolveRestUrl()` / `getConfigServiceRestUrlFromManifest()` — REST mode gate from `customSettings`
+- `resolvePlatformBootstrapFromManifest()` — full `PlatformBootstrapConfig` from manifest (`./config` export)
+- `resolvePlatformBootstrapFromCustomSettings()` — pure mapper for tests
+- `CustomSettings.appId` / `CustomSettings.userId` — deployment identity fields
 - `resolveHostUrl()` — environment-aware host URL (dev/staging/prod)
 
 #### Home (launcher)

@@ -61,7 +61,43 @@ For tests or inline config, use `resolvePlatformBootstrapFromObject(raw)`.
 
 ## OpenFin — manifest `customSettings`
 
-See the same guide section in Session 5 (`resolvePlatformBootstrapFromManifest`). Platform `manifest.fin.json` carries deployment-wide identity; view `customData` carries per-window `instanceId` only.
+Platform **`manifest.fin.json` → `customSettings`** (deployment-wide — same for every view):
+
+```json
+"customSettings": {
+  "appId": "markets-ui-react-reference",
+  "userId": "dev1",
+  "useRest": false,
+  "configServiceRestUrl": "http://localhost:3001/api/v1",
+  "seedConfigUrl": "http://localhost:5174/seed-config.json"
+}
+```
+
+| Field | Scope | Notes |
+|-------|--------|-------|
+| `appId` | Platform | **Required** — SharedWorker name; must match across all views |
+| `userId` | Session | Dev: manifest pin. **Prod:** SSO → platform provider forwards via `customData` on child spawns |
+| `useRest` / `configServiceRestUrl` | Environment | Same gate as today (`resolveRestUrl`) |
+| `seedConfigUrl` | Environment | Optional Dexie seed |
+
+View **`customData`** carries per-window `instanceId` only — **not** hub `appId`.
+
+### Loader
+
+```typescript
+import { resolvePlatformBootstrapFromManifest } from '@starui/openfin-platform/config';
+import { ensurePlatformReady } from '@starui/host-data';
+import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
+
+const config = await resolvePlatformBootstrapFromManifest();
+export const platform = await ensurePlatformReady(config, {
+  workerScriptUrl: workerAssetUrl,
+});
+```
+
+Outside OpenFin (plain browser import), `resolvePlatformBootstrapFromManifest()` returns `DEV_PLATFORM_BOOTSTRAP` without throwing.
+
+Pure helper for tests: `resolvePlatformBootstrapFromCustomSettings(customSettings)`.
 
 ---
 

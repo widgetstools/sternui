@@ -197,10 +197,10 @@ export interface IDataProvider<T = unknown> {
 - Modify: `tools/mcp-scaffold/templates/static/openfin/public/platform/manifest.fin.json`
 - Modify: `packages/openfin/openfin-platform/src/platformBootstrap.test.ts` (create)
 
-- [ ] **Step 1:** Add `resolvePlatformBootstrapFromManifest(): Promise<PlatformBootstrapConfig>` — extend existing `getConfigServiceRestUrlFromManifest()` / `resolveRestUrl()` pattern.
-- [ ] **Step 2:** Read `customSettings.appId` (required in template); default dev fallback only when missing + `fin` undefined.
-- [ ] **Step 3:** **`userId`:** dev — `customSettings.userId` or fallback `dev1`; document prod path via SSO → `customData` (no manifest hardcode).
-- [ ] **Step 4:** Add to OpenFin template manifest:
+- [ ] **Step 1:** Add `resolvePlatformBootstrapFromManifest(): Promise<PlatformBootstrapConfig>` — extend existing `getConfigServiceRestUrlFromManifest()` / `resolveRestUrl()` pattern. ✅ Session 5
+- [ ] **Step 2:** Read `customSettings.appId` (required in template); default dev fallback only when missing + `fin` undefined. ✅ Session 5
+- [ ] **Step 3:** **`userId`:** dev — `customSettings.userId` or fallback `dev1`; document prod path via SSO → `customData` (no manifest hardcode). ✅ Session 5
+- [ ] **Step 4:** Add to OpenFin template manifest: ✅ Session 5
 
 ```json
 "customSettings": {
@@ -212,7 +212,7 @@ export interface IDataProvider<T = unknown> {
 }
 ```
 
-- [ ] **Step 5:** Export from `@starui/openfin-platform/config` (or `/platformBootstrap`).
+- [ ] **Step 5:** Export from `@starui/openfin-platform/config` (or `/platformBootstrap`). ✅ Session 5
 - [ ] **Step 6:** Commit: `feat(openfin-platform): resolve PlatformBootstrapConfig from manifest`.
 
 ### Task 0.5.4: `ensurePlatformReady` orchestrator

@@ -4,6 +4,21 @@ export interface CustomSettings {
   apps?: App[];
 
   /**
+   * Platform deployment id — drives SharedWorker name
+   * `mkt-data-services:${appId}`. Must be stable across every view.
+   * Dev/demo: set in manifest `customSettings`. Production: one value
+   * per deployed platform manifest.
+   */
+  appId?: string;
+
+  /**
+   * Signed-in session user for AppData, profiles, and private provider
+   * rows. Dev/demo: pin in manifest (e.g. `dev1`). Production: prefer
+   * SSO at platform start, then forward via `customData` on child spawns.
+   */
+  userId?: string;
+
+  /**
    * URL to a JSON file containing seed data for first-run initialization.
    * When the config service database is empty, this file is fetched and
    * its contents are used to populate APP_REGISTRY, USER_PROFILE, and ROLES.

@@ -27,6 +27,8 @@
     "forwardErrorReports": true
   },
   "customSettings": {
+    "appId": "marketsui-e2e-platform",
+    "userId": "dev1",
     "seedConfigUrl": "http://localhost:5197/seed-config.json",
     "useRest": false,
     "configServiceRestUrl": "http://localhost:3001/api/v1",

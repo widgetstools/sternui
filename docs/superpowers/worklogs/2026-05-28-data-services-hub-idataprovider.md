@@ -47,7 +47,7 @@ npx turbo typecheck build test --filter=@starui/host-data --filter=@starui/host-
 | 2 | PR1 | 0.2 | `IDataProvider` + `ProviderCapabilities` types + exports | **done** | 2026-05-28 |
 | 3 | PR1b | 0.5.1 | `PlatformBootstrapConfig` type + validation tests | **done** | 2026-05-28 |
 | 4 | PR1b | 0.5.2 | Web `resolvePlatformBootstrapFromJson` + guide draft | **done** | 2026-05-28 |
-| 5 | PR1b | 0.5.3 | OpenFin `resolvePlatformBootstrapFromManifest` + template manifest | pending | |
+| 5 | PR1b | 0.5.3 | OpenFin `resolvePlatformBootstrapFromManifest` + template manifest | **done** | 2026-05-28 |
 | 6 | PR1b | 0.5.4 | `ensurePlatformReady` orchestrator + tests | pending | |
 | 7 | PR1b | 0.5.5 | `markets-grid-lab` pilot + `platform-bootstrap-config.md` | pending | |
 | 8 | PR2 | 1.1 | `ConfigCatalogCache` in worker | pending | |
@@ -185,7 +185,26 @@ Merge each PR to `feat/data-services-hub-idataprovider` (or stack against `main`
 
 ---
 
-### Session 5 — (pending)
+### Session 5 — 2026-05-28
+
+**Scope:** Task 0.5.3 — OpenFin manifest bootstrap loader  
+**Done:**
+
+- Extended `CustomSettings` with `appId` / `userId`
+- Added `platformBootstrap.ts`: `resolvePlatformBootstrapFromManifest`, `resolvePlatformBootstrapFromCustomSettings`
+- Exported from `@starui/openfin-platform/config`; added `@starui/host-data` dependency
+- Updated MCP OpenFin template manifests (`manifest.fin.json`, `manifest.e2e.fin.json`)
+- Expanded `docs/guides/platform-bootstrap-config.md` OpenFin section; 5 unit tests
+
+**Verify:** build `@starui/host-data`; typecheck + `platformBootstrap.test.ts` — 5 passed
+
+**Next:** Session 6 — `ensurePlatformReady` orchestrator (Task 0.5.4)
+
+**Blockers:** none
+
+---
+
+### Session 6 — (pending)
 
 ---
 

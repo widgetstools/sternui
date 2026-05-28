@@ -131,3 +131,11 @@ export {
   resolveRestUrl,
   getConfigServiceRestUrlFromManifest,
 } from './manifestConfig';
+
+// ── Platform bootstrap (manifest → PlatformBootstrapConfig) ─────────
+export {
+  DEFAULT_MANIFEST_USER_ID,
+  resolvePlatformBootstrapFromCustomSettings,
+  resolvePlatformBootstrapFromManifest,
+} from './platformBootstrap';
+export type { PlatformBootstrapConfig } from '@starui/host-data';
