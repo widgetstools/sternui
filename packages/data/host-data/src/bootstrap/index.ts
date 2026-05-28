@@ -18,3 +18,4 @@ export {
 } from './ensurePlatformReady.js';
 export type { EnsureHubOpts, ResolvedDataServicesHubBundle } from '../hub/ensureDataServicesHub.js';
 export { ensureDataServicesHub } from '../hub/ensureDataServicesHub.js';
+export { SnapshotReassembler, type SnapshotReassemblerCallbacks } from '../hub/SnapshotReassembler.js';

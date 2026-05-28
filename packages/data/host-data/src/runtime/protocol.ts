@@ -135,6 +135,13 @@ export interface ConfigInvalidateRequest {
   providerId?: string;
 }
 
+/** Replay hub row cache to one subscriber without upstream I/O. */
+export interface RefreshProviderRequest {
+  kind: 'refresh-provider';
+  subId: string;
+  providerId: string;
+}
+
 // ─── Client → Worker AppData requests ──────────────────────────────
 //
 // Separate union so existing provider request handling stays
@@ -206,7 +213,8 @@ export type Request =
   | HubReadyRequest
   | GetConfigRequest
   | ListConfigsRequest
-  | ConfigInvalidateRequest;
+  | ConfigInvalidateRequest
+  | RefreshProviderRequest;
 
 // ─── Worker → Client events ────────────────────────────────────────
 
@@ -236,7 +244,14 @@ export interface StatsEvent {
   stats: ProviderStats;
 }
 
-export type Event = DeltaEvent | StatusEvent | StatsEvent;
+/** Progressive snapshot row count while upstream is buffering (pre-cache). */
+export interface RowsReceivedEvent {
+  subId: string;
+  kind: 'rows-received';
+  count: number;
+}
+
+export type Event = DeltaEvent | StatusEvent | StatsEvent | RowsReceivedEvent;
 
 /** Worker → client catalog events (no subId — routed by reqId or broadcast). */
 export interface CatalogReadyEvent {
@@ -312,7 +327,8 @@ export function isRequest(value: unknown): value is Request {
     k === 'hub-ready' ||
     k === 'get-config' ||
     k === 'list-configs' ||
-    k === 'config-invalidate'
+    k === 'config-invalidate' ||
+    k === 'refresh-provider'
   );
 }
 
@@ -320,7 +336,7 @@ export function isEvent(value: unknown): value is Event {
   if (!value || typeof value !== 'object') return false;
   const v = value as { kind?: string; subId?: unknown };
   if (typeof v.subId !== 'string') return false;
-  return v.kind === 'delta' || v.kind === 'status' || v.kind === 'stats';
+  return v.kind === 'delta' || v.kind === 'status' || v.kind === 'stats' || v.kind === 'rows-received';
 }
 
 export function isCatalogEvent(value: unknown): value is CatalogEvent {

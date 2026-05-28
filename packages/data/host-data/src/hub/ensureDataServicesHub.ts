@@ -6,6 +6,7 @@ import { bootstrapDataServices } from '../runtime/bootstrap/bootstrap.js';
 import { createDataServicesWorker } from '../runtime/bootstrap/createDataServicesWorker.js';
 import type { DataServicesHubBundle } from '../provider/IDataProvider.js';
 import type { IDataProvider } from '../provider/IDataProvider.js';
+import { ProviderClientAdapter } from '../provider/ProviderClientAdapter.js';
 
 /** Hub bundle including legacy {@link DataServices} handles for migration. */
 export interface ResolvedDataServicesHubBundle extends DataServicesHubBundle {
@@ -23,13 +24,6 @@ export interface EnsureHubOpts extends PlatformBootstrapConfig {
 
 const hubPromises = new Map<string, Promise<ResolvedDataServicesHubBundle>>();
 
-function notImplementedProvider(providerId: string): never {
-  throw new Error(
-    `IDataProvider adapter is not implemented yet (providerId=${providerId}). ` +
-      'Use client.attach() until ProviderClientAdapter lands in Phase 3.',
-  );
-}
-
 function combineReady(services: DataServices): Promise<void> {
   return (async () => {
     await services.ready;
@@ -45,7 +39,10 @@ function adaptDataServicesToHubBundle(
   return {
     ready,
     getProvider(providerId: string): IDataProvider {
-      notImplementedProvider(providerId);
+      return new ProviderClientAdapter({
+        client: services.client,
+        providerId,
+      });
     },
     stopProvider(providerId: string): Promise<void> {
       services.client.stop(providerId);

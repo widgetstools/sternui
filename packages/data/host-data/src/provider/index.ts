@@ -5,3 +5,8 @@ export type {
   IDataProviderFactory,
   Unsubscribe,
 } from './IDataProvider.js';
+export {
+  ProviderClientAdapter,
+  resolveProviderCapabilities,
+  type ProviderClientAdapterOpts,
+} from './ProviderClientAdapter.js';

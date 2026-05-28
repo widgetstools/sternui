@@ -353,8 +353,8 @@ export async function ensurePlatformReady(
 - Modify: `packages/data/host-data/src/runtime/client/SharedWorkerDataServicesClient.ts`
 - Create: `packages/data/host-data/src/hub/SnapshotReassembler.ts`
 
-- [ ] **Step 1:** Move chunk reassembly logic from `MarketsGridContainer` into `SnapshotReassembler` (loading chunks → single snapshot; expose `onRowsReceived` count).
-- [ ] **Step 2:** Unit tests for 500-row chunks, empty snapshot, restart mid-flight.
+- [x] **Step 1:** Move chunk reassembly logic from `MarketsGridContainer` into `SnapshotReassembler` (loading chunks → single snapshot; expose `onRowsReceived` count).
+- [x] **Step 2:** Unit tests for 500-row chunks, empty snapshot, restart mid-flight.
 - [ ] **Step 3:** Commit.
 
 ### Task 3.2: ProviderClientAdapter
@@ -363,14 +363,14 @@ export async function ensurePlatformReady(
 - Create: `packages/data/host-data/src/provider/ProviderClientAdapter.ts`
 - Create: `packages/data/host-data/src/provider/ProviderClientAdapter.test.ts`
 
-- [ ] **Step 1:** Write failing tests mapping hub events → `onSnapshotData`, `onTick`, `onRowsReceived`, `getData()`.
-- [ ] **Step 2:** Implement adapter:
+- [x] **Step 1:** Write failing tests mapping hub events → `onSnapshotData`, `onTick`, `onRowsReceived`, `getData()`.
+- [x] **Step 2:** Implement adapter:
   - `start()` → attach/subscribe cfg-free + status handling
   - `stop()` → detach local sub; optional global stop flag (default: detach only; document global stop on factory)
   - `getConfig()` → hub `getProviderConfig`
   - `getColumnDefs()` → from config
   - `getData()` → local mirror updated on snapshot
-- [ ] **Step 3:** Wire `getProvider(id)` on `DataServicesHubBundle`.
+- [x] **Step 3:** Wire `getProvider(id)` on `DataServicesHubBundle`.
 - [ ] **Step 4:** Commit: `feat(host-data): ProviderClientAdapter implements IDataProvider`.
 
 ### Task 3.3: useDataProvider hook
@@ -379,8 +379,8 @@ export async function ensurePlatformReady(
 - Create: `packages/data/host-data-react/src/runtime/useDataProvider.ts`
 - Create: `packages/data/host-data-react/src/runtime/useDataProvider.test.tsx`
 
-- [ ] **Step 1:** Hook returns `{ provider, status, error, start, refresh, restart }` with auto-cleanup on unmount.
-- [ ] **Step 2:** Mark `useProviderStream` `@deprecated` pointing to `useDataProvider`.
+- [x] **Step 1:** Hook returns `{ provider, status, error, start, refresh, restart }` with auto-cleanup on unmount.
+- [x] **Step 2:** Mark `useProviderStream` `@deprecated` pointing to `useDataProvider`.
 - [ ] **Step 3:** Commit.
 
 ---
@@ -396,9 +396,9 @@ export async function ensurePlatformReady(
 - Modify: `packages/data/host-data/src/runtime/worker/SharedWorkerDataServicesHub.ts`
 - Modify: `packages/data/host-data/src/runtime/worker/SharedWorkerDataServicesHub.test.ts`
 
-- [ ] **Step 1:** Test — running provider with cache; `refresh-provider` sends replace replay to one subId; transport `restart` not called.
-- [ ] **Step 2:** Implement `handleRefreshProvider(subId, providerId)`.
-- [ ] **Step 3:** Adapter `refresh()` calls RPC + fires `onSnapshotData`.
+- [x] **Step 1:** Test — running provider with cache; `refresh-provider` sends replace replay to one subId; transport `restart` not called.
+- [x] **Step 2:** Implement `handleRefreshProvider(subId, providerId)`.
+- [x] **Step 3:** Adapter `refresh()` calls RPC + fires `onSnapshotData`.
 - [ ] **Step 4:** Rename grid toolbar action: "Refresh view" → `refresh()`, "Reload from source" → `restart()`.
 - [ ] **Step 5:** Commit.
 
@@ -408,8 +408,8 @@ export async function ensurePlatformReady(
 - Modify: `packages/data/host-data/src/runtime/providers/transports/stomp.ts` (comments only unless emit hook needed)
 - Modify: `packages/data/host-data/src/runtime/providers/transports/rest.ts`
 
-- [ ] **Step 1:** Document static providers: `start()` = fetch; no `onTick` after ready.
-- [ ] **Step 2:** Optional: emit progressive `rowsReceived` during STOMP snapshot buffer (hub aggregates to `rows-received` events).
+- [x] **Step 1:** Document static providers: `start()` = fetch; no `onTick` after ready.
+- [x] **Step 2:** Optional: emit progressive `rowsReceived` during STOMP snapshot buffer (hub aggregates to `rows-received` events).
 - [ ] **Step 3:** Commit.
 
 ---

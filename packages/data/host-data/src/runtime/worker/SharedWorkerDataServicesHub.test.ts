@@ -149,6 +149,50 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
     expect(ctrl.restartLog).toEqual([{ asOfDate: '2026-04-01' }]);
   });
 
+  it('refresh-provider replays cache to one subId without provider.restart', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const portA = makePort();
+    const portB = makePort();
+    hub.handleRequest(portA, { kind: 'attach', subId: 'sA', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ rows: [{ id: 'r1' }, { id: 'r2' }], replace: true });
+    ctrl.emit({ status: 'ready' });
+
+    hub.handleRequest(portB, { kind: 'attach', subId: 'sB', providerId: 'p1', mode: 'data' });
+    portA.messages.length = 0;
+    portB.messages.length = 0;
+    const restartsBefore = ctrl.restartLog.length;
+
+    hub.handleRequest(portA, { kind: 'refresh-provider', subId: 'sA', providerId: 'p1' });
+
+    const deltasA = portA.messages.filter((m) => m.kind === 'delta') as Array<Event & { rows: unknown[] }>;
+    expect(deltasA.length).toBeGreaterThan(0);
+    expect(portB.messages).toHaveLength(0);
+    expect(ctrl.restartLog).toHaveLength(restartsBefore);
+    const replayed = deltasA.flatMap((d) => d.rows) as Array<{ id: string }>;
+    expect(replayed.map((r) => r.id)).toEqual(['r1', 'r2']);
+  });
+
+  it('broadcasts rows-received during snapshot before cache is ready', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    port.messages.length = 0;
+
+    ctrl.emit({ rowsReceived: 100 });
+    ctrl.emit({ rowsReceived: 250 });
+
+    const received = port.messages.filter((m) => m.kind === 'rows-received') as Array<Event & { count: number }>;
+    expect(received.map((m) => m.count)).toEqual([100, 250]);
+
+    ctrl.emit({ rows: [{ id: 'r1' }], replace: true });
+    ctrl.emit({ status: 'ready' });
+
+    ctrl.emit({ rowsReceived: 999 });
+    expect(port.messages.filter((m) => m.kind === 'rows-received')).toHaveLength(2);
+  });
+
   it('dedupes by keyColumn when broadcasting a replace event so AG-Grid never sees duplicate row ids', () => {
     // STOMP's snapshot-phase buffer can carry the same row twice when
     // upstream delivers an updated version of an already-buffered row

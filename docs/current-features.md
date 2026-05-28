@@ -994,26 +994,28 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Provider primitives
 
-- `IDataProvider` — uniform client contract (`start` / `stop` / `refresh` / `restart`, sync getters, event registrars); **types only in Phase 0** — `ProviderClientAdapter` lands Phase 3
+- `IDataProvider` — uniform client contract (`start` / `stop` / `refresh` / `restart`, sync getters, event registrars); types + `ProviderClientAdapter` hub adapter (Phase 3)
 - `IDataProviderFactory` — `getProvider(providerId)` factory surface
+- `ProviderClientAdapter` — client-side `IDataProvider`; cfg-free subscribe, `SnapshotReassembler` snapshot assembly, `getProvider()` on hub bundle
+- `resolveProviderCapabilities()` — transport capability flags for STOMP / REST / mock / appdata
 - `DataServicesHubBundle` / `ResolvedDataServicesHubBundle` — hub bundle from `ensurePlatformReady` / `ensureDataServicesHub` (`ready` = AppData + catalog, `stopProvider`, `dispose`, legacy client handles)
 - `ProviderCapabilities` — streaming / realtime / refresh / restart flags per transport
 - `ProviderHandle` — `stop()` + `restart()` lifecycle
-- `ProviderEmit` — callback for rows / status / byte-size events
-- `ProviderEmitEvent` — structured event union
+- `ProviderEmit` — callback for rows / status / byte-size / rowsReceived events
+- `ProviderEmitEvent` — structured event union (`rows`, `status`, `byteSize`, `rowsReceived`)
 - `registerProvider()` — runtime/test factory registration
 
 #### Transports
 
 - **STOMP** (`startStomp()`)
   - WebSocket via `@stomp/stompjs`
-  - Snapshot phase → `snapshotEndToken` → full cache replace
+  - Snapshot phase → `snapshotEndToken` → buffered `{ rowsReceived }` progress, then chunked cache replace
   - Live phase → keyed deltas via `applyTransactionAsync`
   - Auto-chunking (`SNAPSHOT_CHUNK_SIZE = 500`) to stay under 50 ms long-task budget
   - Restart overlay (`extra`) for historical `asOfDate`
   - `probeStomp()` — one-shot Test Connection probe
 - **REST** (`startRest()`)
-  - One-shot HTTP (GET/POST), snapshot-only
+  - One-shot HTTP (GET/POST), snapshot-only — no live tail after `ready` (IDataProvider: no `onTick`)
   - Restart overlay merged into POST body
   - `probeRest()` — one-shot probe for editor flows
 - **Mock** (`startMock()`)
@@ -1022,18 +1024,20 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Stream subscription
 
-- Two-phase: snapshot promise + `onUpdate`/`onReset`/`onStatus`
+- Two-phase: snapshot promise + `onUpdate`/`onReset`/`onStatus`/`onRowsReceived`
+- `SnapshotReassembler` — client-side chunk assembly (head `replace: true` + tail `replace: false` → full snapshot on loading→ready; `onRowsReceived` progress; post-settle `onReset` / live `onTick`)
 - Late-joiner: immediate cache replay + current status on attach
 - `LATE_JOIN_CHUNK_SIZE = 500` chunking for popouts
 - Buffering between snapshot-resolve and update registration
 - Lazy provider create on first attach, reuse on subsequent attaches
+- `refresh-provider` RPC — replay hub cache to one subscriber without upstream I/O; `SubscribeHandle.refresh()` / `IDataProvider.refresh()`
 - `attach.extra` → `restart(extra)` on running provider
 
 #### Wire protocol (v2)
 
-- Client→worker requests: `AttachRequest`, `DetachRequest`, `StopRequest`, `HubReadyRequest`, `GetConfigRequest`, `ListConfigsRequest`, `ConfigInvalidateRequest`, `AppDataRequest` (attach/detach/set/upsert/remove); `AttachRequest.cfg` optional when `providerId` is in worker catalog
+- Client→worker requests: `AttachRequest`, `DetachRequest`, `StopRequest`, `HubReadyRequest`, `GetConfigRequest`, `ListConfigsRequest`, `ConfigInvalidateRequest`, `RefreshProviderRequest`, `AppDataRequest` (attach/detach/set/upsert/remove); `AttachRequest.cfg` optional when `providerId` is in worker catalog
 - Worker→client catalog events: `catalog-ready`, `config-snapshot` (responses for hub-ready/get/list/invalidate)
-- Worker→client events: deltas (`{ rows, replace? }`), status, byte-size, stats, AppData (snapshot/delta/ack)
+- Worker→client events: deltas (`{ rows, replace? }`), status, `rows-received` (upstream snapshot buffer progress), byte-size, stats, AppData (snapshot/delta/ack)
 
 #### Statistics
 

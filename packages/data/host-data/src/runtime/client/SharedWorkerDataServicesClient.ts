@@ -42,6 +42,7 @@ import { isCatalogEvent, isEvent, isAppDataEvent } from '../protocol.js';
 import type { DataProviderConfig, ProviderConfig } from '@starui/types';
 import type { ListOptions } from '../config/store.js';
 import { AppDataMirror } from '../mirror/AppDataMirror.js';
+import { SnapshotReassembler } from '../../hub/SnapshotReassembler.js';
 
 /**
  * Gate for hot-path diagnostic logs. Flip to `true` locally when debugging
@@ -55,6 +56,8 @@ export type SubId = string;
 export interface DataListener<T = unknown> {
   onDelta(rows: readonly T[], replace: boolean): void;
   onStatus(status: ProviderStatus, error?: string): void;
+  /** Upstream snapshot buffer progress (wire `rows-received`). */
+  onRowsReceived?(count: number): void;
 }
 
 export interface StatsListener {
@@ -92,10 +95,17 @@ export interface AttachOpts {
  * keeping stale rows on screen.
  */
 export interface SubscribeHandle<T = unknown> {
+  /** Subscription id used for detach and `refresh-provider` RPC. */
+  subId: SubId;
+  /** Resolves with the fully assembled snapshot (chunk0 + tail chunks). */
   snapshot: Promise<readonly T[]>;
   onUpdate(cb: (rows: readonly T[]) => void): void;
   onReset(cb: (rows: readonly T[]) => void): void;
   onStatus(cb: (status: ProviderStatus, error?: string) => void): void;
+  /** In-flight snapshot row count while status is `loading`. */
+  onRowsReceived(cb: (count: number) => void): void;
+  /** Replay hub cache to this subscriber without upstream I/O. */
+  refresh(): Promise<readonly T[]>;
   unsubscribe(): void;
 }
 
@@ -216,6 +226,9 @@ export class SharedWorkerDataServicesClient {
     let updateCb: ((rows: readonly T[]) => void) | null = null;
     let resetCb: ((rows: readonly T[]) => void) | null = null;
     let statusCb: ((status: ProviderStatus, error?: string) => void) | null = null;
+    let rowsReceivedCb: ((count: number) => void) | null = null;
+    /** STOMP upstream buffer count before hub cache exists. */
+    let upstreamRowCount = 0;
     const bufferedUpdates: ReadonlyArray<T>[] = [];
     /** Replace=true deltas that arrived after the snapshot settled but
      *  before the consumer registered `onReset`. Flushed in order on
@@ -223,24 +236,9 @@ export class SharedWorkerDataServicesClient {
      *  each lets observability hooks see the full sequence). */
     const bufferedResets: ReadonlyArray<T>[] = [];
 
-    // Snapshot is "the cache state at the moment the provider becomes
-    // ready". The Hub's wire protocol sends:
-    //   1. an immediate replace=true delta on attach carrying whatever
-    //      is currently in the cache (possibly empty if the provider
-    //      is still in its loading/snapshot phase);
-    //   2. one or more `status` events as the provider transitions;
-    //   3. on snapshot-end-token, another replace=true delta with the
-    //      now-populated cache, followed by `status: 'ready'`.
-    //
-    // We hold the LATEST replace=true rows in `latestSnapshotRows` and
-    // commit-resolve only when the status reaches `ready`. That way:
-    //   - subscribing to an already-ready provider resolves on the
-    //     first round-trip (delta + status:ready arrive together);
-    //   - subscribing to a still-loading provider waits past the
-    //     empty initial replay until the real snapshot lands.
-    let latestSnapshotRows: readonly T[] | null = null;
-    let currentStatus: ProviderStatus | null = null;
-    let currentError: string | undefined;
+    let refreshResolve!: (rows: readonly T[]) => void;
+    let refreshReject!: (err: Error) => void;
+    let refreshPending: Promise<readonly T[]> | null = null;
 
     const flushBuffered = () => {
       if (!updateCb) return;
@@ -250,18 +248,32 @@ export class SharedWorkerDataServicesClient {
       }
     };
 
-    const trySettleSnapshot = () => {
-      if (snapshotSettled) return;
-      if (currentStatus === 'error') {
-        snapshotSettled = true;
-        snapshotReject(new Error(currentError ?? 'Provider error'));
-        return;
-      }
-      if (currentStatus === 'ready' && latestSnapshotRows !== null) {
-        snapshotSettled = true;
-        snapshotResolve(latestSnapshotRows);
-      }
+    const emitRowsReceived = (reassemblerCount: number) => {
+      rowsReceivedCb?.(Math.max(upstreamRowCount, reassemblerCount));
     };
+
+    const reassembler = new SnapshotReassembler<T>({
+      onRowsReceived: (count) => emitRowsReceived(count),
+      onSnapshotReady: (rows) => {
+        if (snapshotSettled) return;
+        snapshotSettled = true;
+        snapshotResolve(rows);
+      },
+      onTick: (rows) => {
+        if (updateCb) updateCb(rows);
+        else bufferedUpdates.push(rows);
+      },
+      onReset: (rows) => {
+        if (resetCb) resetCb(rows);
+        else bufferedResets.push(rows);
+      },
+      onCacheRefresh: (rows) => {
+        if (refreshPending) {
+          refreshPending = null;
+          refreshResolve(rows);
+        }
+      },
+    });
 
     const listener: DataListener<T> = {
       onDelta: (rows, replace) => {
@@ -273,36 +285,7 @@ export class SharedWorkerDataServicesClient {
             subId, rows.length, replace, snapshotSettled,
           );
         }
-        if (replace) {
-          latestSnapshotRows = rows;
-          if (snapshotSettled) {
-            // Re-snapshot — the provider restarted (worker called
-            // provider.restart, cache was cleared and is repopulating).
-            // Fire onReset so the consumer wipes + replaces its
-            // rendered state. The Promise has already resolved; it
-            // can't fire again, but onReset acts as the post-settle
-            // equivalent.
-            if (resetCb) resetCb(rows);
-            else bufferedResets.push(rows);
-          } else {
-            trySettleSnapshot();
-          }
-          return;
-        }
-        // Non-replace delta. Pre-snapshot deltas shouldn't happen
-        // under our protocol (the provider buffers during the
-        // snapshot phase and emits replace=true at the end), but if
-        // they do we queue them rather than dropping. After the
-        // snapshot is settled, deltas are live ticks.
-        if (updateCb) {
-          updateCb(rows);
-        } else {
-          bufferedUpdates.push(rows);
-          if (DEBUG) {
-            // eslint-disable-next-line no-console
-            console.log(`[data-services/client]   …buffered (no onUpdate handler yet); pending=%d`, bufferedUpdates.length);
-          }
-        }
+        reassembler.onDelta(rows, replace);
       },
       onStatus: (status, error) => {
         if (DEBUG) {
@@ -312,10 +295,22 @@ export class SharedWorkerDataServicesClient {
             'color:#a855f7', '', subId, status, error ? ` error=${JSON.stringify(error)}` : '',
           );
         }
-        currentStatus = status;
-        currentError = error;
-        trySettleSnapshot();
+        if (status === 'loading') upstreamRowCount = 0;
+        if (status === 'error' && !snapshotSettled) {
+          snapshotSettled = true;
+          snapshotReject(new Error(error ?? 'Provider error'));
+        }
+        if (status === 'error' && refreshPending) {
+          const err = new Error(error ?? 'Provider error');
+          refreshPending = null;
+          refreshReject(err);
+        }
+        reassembler.onStatus(status, error);
         statusCb?.(status, error);
+      },
+      onRowsReceived: (count) => {
+        upstreamRowCount = count;
+        emitRowsReceived(reassembler.getRowCount());
       },
     };
 
@@ -330,6 +325,7 @@ export class SharedWorkerDataServicesClient {
     });
 
     return {
+      subId,
       snapshot,
       onUpdate: (cb) => {
         updateCb = cb;
@@ -345,6 +341,25 @@ export class SharedWorkerDataServicesClient {
       onStatus: (cb) => {
         statusCb = cb;
       },
+      onRowsReceived: (cb) => {
+        rowsReceivedCb = cb;
+        cb(Math.max(upstreamRowCount, reassembler.getRowCount()));
+      },
+      refresh: () => {
+        if (refreshPending) return refreshPending;
+        if (!snapshotSettled) {
+          return Promise.reject(
+            new Error('Cannot refresh before the initial snapshot has settled'),
+          );
+        }
+        refreshPending = new Promise<readonly T[]>((resolve, reject) => {
+          refreshResolve = resolve;
+          refreshReject = reject;
+        });
+        reassembler.beginCacheRefresh();
+        this.send({ kind: 'refresh-provider', subId, providerId });
+        return refreshPending;
+      },
       unsubscribe: () => {
         if (!this.subs.delete(subId)) return;
         if (this.closed) return;
@@ -354,6 +369,10 @@ export class SharedWorkerDataServicesClient {
         if (!snapshotSettled) {
           snapshotSettled = true;
           snapshotReject(new Error('Subscription cancelled before snapshot arrived'));
+        }
+        if (refreshPending) {
+          refreshPending = null;
+          refreshReject(new Error('Subscription cancelled during cache refresh'));
         }
       },
     };
@@ -540,6 +559,11 @@ export class SharedWorkerDataServicesClient {
       case 'stats':
         if (sub.kind === 'stats') {
           sub.listener.onStats(event.stats);
+        }
+        return;
+      case 'rows-received':
+        if (sub.kind === 'data') {
+          sub.listener.onRowsReceived?.(event.count);
         }
         return;
     }

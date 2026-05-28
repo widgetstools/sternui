@@ -55,10 +55,11 @@ npx turbo typecheck build test --filter=@starui/host-data --filter=@starui/host-
 | 10 | PR2 | 1.3 | Editor save → hub invalidation | **done** | 2026-05-28 |
 | 11 | PR3 | 2.1 | `ensureDataServicesHub` lazy singleton | **done** | 2026-05-28 |
 | 12 | PR3 | 2.2 | `PlatformProvider` / `DataHubProvider` (React) | **done** | 2026-05-28 |
-| 13 | PR4 | 3.1 | `SnapshotReassembler` + client normalization | pending | |
-| 14 | PR4 | 3.2 | `ProviderClientAdapter` + unit tests | pending | |
-| 15 | PR4 | 3.3 | `useDataProvider` hook | pending | |
-| 16 | PR5 | 4.1–4.2 | Hub `refresh-provider` RPC + transport alignment | pending | |
+| 13 | PR4 | 3.1 | `SnapshotReassembler` + client normalization | **done** | 2026-05-28 |
+| 14 | PR4 | 3.2 | `ProviderClientAdapter` + unit tests | **done** | 2026-05-28 |
+| 15 | PR4 | 3.3 | `useDataProvider` hook | **done** | 2026-05-28 |
+| 16 | PR5 | 4.1 | Hub `refresh-provider` RPC | **done** | 2026-05-28 |
+| 17 | PR5 | 4.2 | Transport alignment | **done** | 2026-05-28 |
 | 17 | PR6 | 5.1 | Extract grid apply helper from `MarketsGridContainer` | pending | |
 | 18 | PR6 | 5.2 | Slim `MarketsGridContainer` → `useDataProvider` | pending | |
 | 19 | PR6 | 5.3 | `HostedMarketsGrid` + blotter hook migration | pending | |
@@ -327,6 +328,90 @@ Merge each PR to `feat/data-services-hub-idataprovider` (or stack against `main`
 **Verify:** `npm run typecheck --workspace=@starui/host-data-react`; `npm run typecheck --workspace=@starui/markets-grid-lab` — pass
 
 **Next:** Session 13 — `SnapshotReassembler` + client normalization (Task 3.1) — starts PR4
+
+**Blockers:** none
+
+---
+
+### Session 13 — 2026-05-28
+**Scope:** Task 3.1 — `SnapshotReassembler` + client normalization
+
+**Done:**
+- Added `SnapshotReassembler` — head/tail chunk assembly, `onRowsReceived`, post-settle `onReset` / live `onTick`
+- Wired into `SharedWorkerDataServicesClient.subscribe` — `snapshot` resolves full assembled rows; new `onRowsReceived` on `SubscribeHandle`
+- Unit tests: 500-row chunks, empty snapshot, restart mid-flight; client late-join 1200-row integration test
+
+**Verify:** `npm test --workspace=@starui/host-data` — 189 passed
+
+**Next:** Session 14 — `ProviderClientAdapter` (Task 3.2)
+
+**Blockers:** none
+
+---
+
+### Session 14 — 2026-05-28
+**Scope:** Task 3.2 — `ProviderClientAdapter`
+
+**Done:**
+- Added `ProviderClientAdapter` implementing `IDataProvider` (start/stop/refresh/restart, getters, event registrars)
+- Wired `ensureDataServicesHub().getProvider(id)` to return adapter instances
+- Exported `ProviderClientAdapter`, `resolveProviderCapabilities` from `@starui/host-data`
+- 8 unit tests covering snapshot, ticks, rows-received, stop/restart/refresh, errors, inline cfg
+
+**Verify:** `npm test --workspace=@starui/host-data` — 197 passed; typecheck green
+
+**Next:** Session 15 — `useDataProvider` hook (Task 3.3)
+
+**Blockers:** none
+
+---
+
+### Session 15 — 2026-05-28
+**Scope:** Task 3.3 — `useDataProvider` hook
+
+**Done:**
+- Added `useDataProvider` — auto-start/stop, status/error from adapter events, `refresh`/`restart` passthrough
+- Marked `useProviderStream` `@deprecated` in favor of `useDataProvider`
+- Vitest + `@testing-library/react` setup for `@starui/host-data-react` (5 hook tests)
+
+**Verify:** `npm test --workspace=@starui/host-data-react` — 5 passed; typecheck green (after `@starui/host-data` build)
+
+**Next:** Session 16 — hub `refresh-provider` RPC (Phase 4 / Task 4.1)
+
+**Blockers:** none
+
+---
+
+### Session 16 — 2026-05-28
+**Scope:** Task 4.1 — hub `refresh-provider` RPC
+
+**Done:**
+- Added `refresh-provider` wire request; hub `handleRefreshProvider` replays chunked cache to one `subId` (no `provider.restart`)
+- Extracted `replayCacheToPort` from late-join attach path
+- `SnapshotReassembler.beginCacheRefresh()` + `onCacheRefresh` for settled subscriptions
+- `SubscribeHandle.refresh()` + `ProviderClientAdapter.refresh()` via hub RPC
+- Tests: hub, client, reassembler, adapter (200 total in `@starui/host-data`)
+
+**Verify:** `npm test --workspace=@starui/host-data` — 200 passed
+
+**Next:** Session 17 — Task 4.2 transport alignment comments OR Task 5.1 grid helper (plan step 4.1 toolbar rename deferred)
+
+**Blockers:** none
+
+---
+
+### Session 17 — 2026-05-28
+**Scope:** Task 4.2 — transport alignment
+
+**Done:**
+- IDataProvider-aligned docs on REST (static: no live tail after `ready`) and STOMP (streaming: `rowsReceived` + live deltas)
+- `ProviderEmitEvent.rowsReceived` → hub `rows-received` wire event (pre-cache snapshot progress only)
+- STOMP snapshot buffer emits cumulative `{ rowsReceived }`; client merges with `SnapshotReassembler` counts
+- Tests: stomp, hub, client
+
+**Verify:** `npm test --workspace=@starui/host-data`
+
+**Next:** Session 18 — Task 5.1 grid apply helper (`applyProviderToGrid`)
 
 **Blockers:** none
 

@@ -1,0 +1,233 @@
+import type { ColumnDefinition, ProviderConfig, ProviderType } from '@starui/types';
+import type { SharedWorkerDataServicesClient, SubscribeHandle } from '../runtime/client/SharedWorkerDataServicesClient.js';
+import type { ProviderStatus } from '../runtime/protocol.js';
+import type { IDataProvider, Unsubscribe } from './IDataProvider.js';
+import type { ProviderCapabilities } from './ProviderCapabilities.js';
+
+export interface ProviderClientAdapterOpts {
+  client: SharedWorkerDataServicesClient;
+  providerId: string;
+  /** Draft cfg when the provider row is not in the catalog yet. */
+  inlineCfg?: ProviderConfig;
+}
+
+export function resolveProviderCapabilities(providerType: ProviderType): ProviderCapabilities {
+  switch (providerType) {
+    case 'stomp':
+    case 'mock':
+      return {
+        providerType,
+        streaming: true,
+        realtime: true,
+        supportsRefresh: true,
+        supportsRestart: true,
+      };
+    case 'rest':
+      return {
+        providerType,
+        streaming: false,
+        realtime: false,
+        supportsRefresh: true,
+        supportsRestart: true,
+      };
+    case 'appdata':
+      return {
+        providerType,
+        streaming: false,
+        realtime: false,
+        supportsRefresh: false,
+        supportsRestart: false,
+      };
+    default:
+      return {
+        providerType,
+        streaming: false,
+        realtime: false,
+        supportsRefresh: true,
+        supportsRestart: true,
+      };
+  }
+}
+
+/**
+ * Client-side {@link IDataProvider} backed by {@link SharedWorkerDataServicesClient}.
+ * One adapter instance = one hub subscriber (attach/detach).
+ */
+export class ProviderClientAdapter<T = Record<string, unknown>> implements IDataProvider<T> {
+  readonly id: string;
+
+  private readonly client: SharedWorkerDataServicesClient;
+  private readonly inlineCfg?: ProviderConfig;
+  private resolvedConfig: ProviderConfig | null = null;
+  private handle: SubscribeHandle<T> | null = null;
+  private data: T[] = [];
+
+  private readonly rowsReceivedHandlers = new Set<(count: number) => void>();
+  private readonly snapshotHandlers = new Set<(rows: readonly T[]) => void>();
+  private readonly tickHandlers = new Set<(rows: readonly T[]) => void>();
+  private readonly errorHandlers = new Set<(error: Error) => void>();
+  private readonly statusHandlers = new Set<(status: ProviderStatus, error?: string) => void>();
+
+  constructor(opts: ProviderClientAdapterOpts) {
+    this.id = opts.providerId;
+    this.client = opts.client;
+    this.inlineCfg = opts.inlineCfg;
+  }
+
+  get capabilities(): ProviderCapabilities {
+    const providerType =
+      this.resolvedConfig?.providerType ??
+      this.inlineCfg?.providerType ??
+      'mock';
+    return resolveProviderCapabilities(providerType);
+  }
+
+  async start(): Promise<void> {
+    if (this.handle) return;
+
+    if (this.inlineCfg) {
+      this.resolvedConfig = this.inlineCfg;
+    } else {
+      const row = await this.client.getProviderConfig(this.id);
+      if (!row?.config) {
+        throw new Error(
+          `[ProviderClientAdapter] No config for providerId=${this.id}. ` +
+            'Pass inlineCfg for drafts or ensure the catalog is hydrated.',
+        );
+      }
+      this.resolvedConfig = row.config;
+    }
+
+    const handle = this.client.subscribe<T>(
+      this.id,
+      this.inlineCfg,
+    );
+    this.wireHandle(handle);
+    this.handle = handle;
+    await handle.snapshot;
+  }
+
+  async stop(): Promise<void> {
+    this.detach();
+  }
+
+  async refresh(): Promise<void> {
+    this.assertStarted();
+    const rows = await this.handle!.refresh();
+    this.data = [...rows];
+    for (const handler of this.snapshotHandlers) {
+      handler(rows);
+    }
+  }
+
+  async restart(extra?: Record<string, unknown>): Promise<void> {
+    this.detach();
+    if (!this.resolvedConfig && !this.inlineCfg) {
+      const row = await this.client.getProviderConfig(this.id);
+      if (!row?.config) {
+        throw new Error(`[ProviderClientAdapter] No config for providerId=${this.id}`);
+      }
+      this.resolvedConfig = row.config;
+    }
+
+    const handle = this.client.subscribe<T>(
+      this.id,
+      this.inlineCfg,
+      extra ? { extra } : {},
+    );
+    this.wireHandle(handle);
+    this.handle = handle;
+    await handle.snapshot;
+  }
+
+  getData(): readonly T[] {
+    return this.data;
+  }
+
+  getConfig(): ProviderConfig {
+    if (!this.resolvedConfig) {
+      throw new Error(
+        `[ProviderClientAdapter] getConfig() before start() for providerId=${this.id}`,
+      );
+    }
+    return this.resolvedConfig;
+  }
+
+  getColumnDefs(): readonly ColumnDefinition[] {
+    const config = this.getConfig() as ProviderConfig & {
+      columnDefinitions?: ColumnDefinition[];
+    };
+    return config.columnDefinitions ?? [];
+  }
+
+  onRowsReceived(handler: (count: number) => void): Unsubscribe {
+    this.rowsReceivedHandlers.add(handler);
+    return () => this.rowsReceivedHandlers.delete(handler);
+  }
+
+  onSnapshotData(handler: (rows: readonly T[]) => void): Unsubscribe {
+    this.snapshotHandlers.add(handler);
+    return () => this.snapshotHandlers.delete(handler);
+  }
+
+  onTick(handler: (rows: readonly T[]) => void): Unsubscribe {
+    this.tickHandlers.add(handler);
+    return () => this.tickHandlers.delete(handler);
+  }
+
+  onError(handler: (error: Error) => void): Unsubscribe {
+    this.errorHandlers.add(handler);
+    return () => this.errorHandlers.delete(handler);
+  }
+
+  onStatus(handler: (status: ProviderStatus, error?: string) => void): Unsubscribe {
+    this.statusHandlers.add(handler);
+    return () => this.statusHandlers.delete(handler);
+  }
+
+  private wireHandle(handle: SubscribeHandle<T>): void {
+    handle.onRowsReceived((count) => {
+      for (const handler of this.rowsReceivedHandlers) handler(count);
+    });
+
+    handle.onStatus((status, error) => {
+      for (const handler of this.statusHandlers) handler(status, error);
+      if (status === 'error') {
+        const err = new Error(error ?? 'Provider error');
+        for (const handler of this.errorHandlers) handler(err);
+      }
+    });
+
+    handle.onUpdate((rows) => {
+      for (const handler of this.tickHandlers) handler(rows);
+    });
+
+    handle.onReset(() => {
+      this.data = [];
+    });
+
+    void handle.snapshot
+      .then((rows) => {
+        this.data = [...rows];
+        for (const handler of this.snapshotHandlers) handler(rows);
+      })
+      .catch((err: unknown) => {
+        const error = err instanceof Error ? err : new Error(String(err));
+        for (const handler of this.errorHandlers) handler(error);
+      });
+  }
+
+  private detach(): void {
+    this.handle?.unsubscribe();
+    this.handle = null;
+    this.data = [];
+  }
+
+  private assertStarted(): void {
+    if (!this.handle) {
+      throw new Error(
+        `[ProviderClientAdapter] Operation requires start() for providerId=${this.id}`,
+      );
+    }
+  }
+}

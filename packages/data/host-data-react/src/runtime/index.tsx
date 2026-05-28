@@ -9,7 +9,8 @@
  *   useAppDataStore()              — reactive AppData snapshot
  *   useDataProviderConfig(id)      — single saved config row
  *   useResolvedCfg(cfg)            — apply {{...}} templates against AppData
- *   useProviderStream(id, cfg, listener, opts?) — attach with auto-detach
+ *   useDataProvider(id, opts?)       — hub-backed IDataProvider (preferred)
+ *   useProviderStream(id, cfg, listener, opts?) — attach with auto-detach (deprecated)
  *   useProviderStats(id, listener) — stats subscription with auto-detach
  *
  * Each hook is < 60 LOC; the file as a whole is the only React glue
@@ -250,7 +251,13 @@ export function useResolvedCfg(cfg: ProviderConfig | null | undefined): Provider
   }, [cfg, version, loaded, store]);
 }
 
-// ─── Hook 5: provider data subscription ──────────────────────────
+export {
+  useDataProvider,
+  type UseDataProviderOpts,
+  type UseDataProviderResult,
+} from './useDataProvider.js';
+
+// ─── Hook 5: provider data subscription (legacy) ───────────────
 //
 // Hides the manual subId tracking + detach-on-unmount. Listener
 // methods are stored in a ref so callers can pass inline closures
@@ -265,6 +272,9 @@ export interface ProviderStreamHandle {
   refresh(extra?: Record<string, unknown>): void;
 }
 
+/**
+ * @deprecated Use {@link useDataProvider} — cfg-free hub attach via `IDataProvider`.
+ */
 export function useProviderStream<T = unknown>(
   providerId: string | null | undefined,
   cfg: ProviderConfig | null | undefined,

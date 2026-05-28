@@ -2,6 +2,15 @@
  * STOMP provider — `startStomp(cfg, emit)` + `probeStomp(cfg)` for
  * the editor's Test Connection / Infer Fields buttons.
  *
+ * **IDataProvider alignment (streaming provider):**
+ *   - `start()` → connect + subscribe; snapshot phase buffers rows
+ *     locally and emits `{ rowsReceived }` for loading overlays.
+ *   - Snapshot flush → chunked `{ rows, replace }` to the hub;
+ *     client `SnapshotReassembler` assembles + fires `onSnapshotData`.
+ *   - Live phase → keyed `{ rows }` deltas (maps to `onTick`).
+ *   - `refresh()` on the adapter replays hub cache; `restart(extra)`
+ *     reconnects and re-runs the snapshot lifecycle.
+ *
  * Lifecycle:
  *   start():
  *     1. Connect WebSocket via @stomp/stompjs.
@@ -12,13 +21,14 @@
  *        objects become a 1-element batch.
  *     4. **Snapshot phase** (before the case-insensitive
  *        `cfg.snapshotEndToken` matches a frame): rows are
- *        accumulated in an in-memory buffer. Nothing is emitted to
- *        the Hub per-frame. When the end-token arrives we flush the
- *        buffer as a single `emit({ rows: [...all], replace: true })`
- *        followed by `emit({ status: 'ready' })`. The Hub then sends
- *        that one snapshot to every attached listener which applies
- *        it via `setGridOption('rowData', ...)` (one cheap reset
- *        instead of N small `add` transactions).
+ *        accumulated in an in-memory buffer. Each batch emits
+ *        `{ rowsReceived: buffer.length }` so the hub can surface
+ *        progressive counts before the cache exists. Row payloads are
+ *        not emitted per-frame. When the end-token arrives we flush the
+ *        buffer as chunked `emit({ rows, replace })` frames followed
+ *        by `emit({ status: 'ready' })`. The Hub merges chunks into
+ *        its cache; listeners apply via `setGridOption('rowData', ...)`
+ *        (one cheap reset instead of N small `add` transactions).
  *     5. **Live phase** (after the end-token): each frame emits as
  *        keyed deltas via `emit({ rows })` — Hub upserts into its
  *        cache, listeners receive `{replace: false}` and route to
@@ -300,12 +310,12 @@ export function startStomp(
     }
 
     if (!state.snapshotComplete) {
-      // Snapshot phase: accumulate in memory, no row emit yet. Bytes are
-      // still surfaced so Diagnostics can show upstream activity.
+      // Snapshot phase: accumulate in memory; surface progressive count.
       if (rows.length > 0) {
         state.receivingSnapshot = true;
       }
       state.snapshotBuffer.push(...rows);
+      emit({ rowsReceived: state.snapshotBuffer.length });
       emit({ byteSize });
       return;
     }

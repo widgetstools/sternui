@@ -58,6 +58,7 @@ import type {
   GetConfigRequest,
   HubReadyRequest,
   ListConfigsRequest,
+  RefreshProviderRequest,
 } from '../protocol.js';
 import { startProvider } from '../providers/registry.js';
 import type { ProviderEmit, ProviderEmitEvent, ProviderHandle } from '../providers/Provider.js';
@@ -257,6 +258,7 @@ export class SharedWorkerDataServicesHub {
       case 'get-config': this.handleGetConfig(port, req); return;
       case 'list-configs': this.handleListConfigs(port, req); return;
       case 'config-invalidate': void this.handleConfigInvalidate(port, req); return;
+      case 'refresh-provider': this.handleRefreshProvider(req); return;
     }
   }
 
@@ -519,6 +521,15 @@ export class SharedWorkerDataServicesHub {
     void this.stopProvider(req.providerId);
   }
 
+  /** Replay hub cache to one subscriber — no upstream `restart`. */
+  private handleRefreshProvider(req: RefreshProviderRequest): void {
+    const slot = this.providers.get(req.providerId);
+    if (!slot) return;
+    const listener = this.dataListeners.get(req.providerId)?.get(req.subId);
+    if (!listener) return;
+    this.replayCacheToPort(req.subId, listener.port, slot);
+  }
+
   private async stopProvider(providerId: string): Promise<void> {
     const slot = this.providers.get(providerId);
     if (!slot) return;
@@ -732,6 +743,17 @@ export class SharedWorkerDataServicesHub {
       slot.msgCount += 1;
       slot.msgsByBucket[slot.bucketIdx] += 1;
       slot.lastMessageAt = Date.now();
+      return;
+    }
+
+    if ('rowsReceived' in event) {
+      if (!slot.snapshotReady) {
+        this.broadcastData(providerId, slot, {
+          kind: 'rows-received',
+          count: event.rowsReceived,
+          subId: '',
+        });
+      }
     }
   }
 
@@ -742,21 +764,17 @@ export class SharedWorkerDataServicesHub {
     set.set(subId, { subId, port });
     this.dataListeners.set(providerId, set);
 
-    // Guaranteed first emit: full cache + current status.
-    //
-    // Chunk the cache replay so a single late-join postMessage doesn't
-    // ship thousands of rows at once. The first chunk carries
-    // `replace: true` (so the consumer treats it as the snapshot);
-    // subsequent chunks ride as `replace: false` deltas which the
-    // client buffers until onUpdate is wired and then flushes as
-    // live updates. For empty caches we still send one replace=true
-    // frame so the snapshot promise has something to settle on.
+    this.replayCacheToPort(subId, port, slot);
+  }
+
+  /** Chunked cache replay to a single port (late-join attach or refresh-provider). */
+  private replayCacheToPort(subId: string, port: PortLike, slot: ProviderSlot): void {
     const cacheRows = [...slot.cache.values()];
     // eslint-disable-next-line no-console
     if (DEBUG) console.log(
       `[v2/hub] → subId=${subId}: replay rows=${cacheRows.length} in ${
         Math.max(1, Math.ceil(cacheRows.length / LATE_JOIN_CHUNK_SIZE))
-      } chunk(s), status=${slot.status} (totalListeners=${set.size})`,
+      } chunk(s), status=${slot.status}`,
     );
     if (cacheRows.length === 0) {
       port.postMessage({ subId, kind: 'delta', rows: [], replace: true } satisfies Event);

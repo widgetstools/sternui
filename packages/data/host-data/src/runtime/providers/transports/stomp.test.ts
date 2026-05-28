@@ -145,9 +145,10 @@ describe('startStomp', () => {
 
     ctrl.deliver(JSON.stringify([{ id: 'r1', x: 1 }, { id: 'r2', x: 2 }]));
     ctrl.deliver(JSON.stringify({ id: 'r3', x: 3 }));   // single object → 1-row batch
-    // Before the end-token, no row events have been emitted — they're
-    // accumulating in the in-memory snapshot buffer.
+    // Before the end-token, no row payloads — progressive count only.
     expect(events.filter((e) => 'rows' in e)).toHaveLength(0);
+    const progress = events.filter((e): e is { rowsReceived: number } => 'rowsReceived' in e);
+    expect(progress.map((e) => e.rowsReceived)).toEqual([2, 3]);
 
     ctrl.deliver('Success: All 3 records delivered');    // case-insensitive token
 

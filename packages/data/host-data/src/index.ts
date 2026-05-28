@@ -24,6 +24,11 @@ export type {
   IDataProviderFactory,
   ProviderCapabilities,
   Unsubscribe,
+  ProviderClientAdapterOpts,
+} from './provider/index.js';
+export {
+  ProviderClientAdapter,
+  resolveProviderCapabilities,
 } from './provider/index.js';
 
 // Platform bootstrap (Phase 0.5).
@@ -39,12 +44,14 @@ export {
   resolvePlatformBootstrapFromObject,
   ensurePlatformReady,
   ensureDataServicesHub,
+  SnapshotReassembler,
 } from './bootstrap/index.js';
 export type {
   FetchLike,
   EnsurePlatformReadyOpts,
   EnsureHubOpts,
   ResolvedDataServicesHubBundle,
+  SnapshotReassemblerCallbacks,
 } from './bootstrap/index.js';
 
 // One-shot probes — pure main-thread functions for editor flows

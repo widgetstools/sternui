@@ -91,13 +91,15 @@ describe('ensureDataServicesHub', () => {
     });
   });
 
-  it('getProvider throws until ProviderClientAdapter lands', async () => {
+  it('getProvider returns a ProviderClientAdapter bound to the hub client', async () => {
     const bundle = await ensureDataServicesHub({
       ...DEV_PLATFORM_BOOTSTRAP,
       workerScriptUrl: '/worker.mjs',
       mainThreadConfigManager: fakeCm,
     });
 
-    expect(() => bundle.getProvider('p1')).toThrow(/not implemented/i);
+    const provider = bundle.getProvider('p1');
+    expect(provider.id).toBe('p1');
+    expect(provider.capabilities.providerType).toBe('mock');
   });
 });

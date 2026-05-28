@@ -232,6 +232,27 @@ describe('SharedWorkerDataServicesClient', () => {
     handle.unsubscribe();
   });
 
+  it('subscribe() resolves chunked late-join replay into a full assembled snapshot', async () => {
+    const rows = Array.from({ length: 1200 }, (_, i) => ({ id: `r${i}` }));
+    const primer = w.client.subscribe('p1', cfg());
+    await flush();
+    controllers.get('c-1')!.emit({ rows, replace: true });
+    controllers.get('c-1')!.emit({ status: 'ready' });
+    await primer.snapshot;
+    primer.unsubscribe();
+
+    const counts: number[] = [];
+    const late = w.client.subscribe<{ id: string }>('p1');
+    late.onRowsReceived((n) => counts.push(n));
+    const snapshot = await late.snapshot;
+    expect(snapshot).toHaveLength(1200);
+    expect(snapshot[0]).toEqual({ id: 'r0' });
+    expect(snapshot[1199]).toEqual({ id: 'r1199' });
+    expect(counts.length).toBeGreaterThan(0);
+    expect(counts[counts.length - 1]).toBe(1200);
+    late.unsubscribe();
+  });
+
   it('subscribe() to an already-ready provider resolves immediately with the cached snapshot', async () => {
     // Provider 1: a primer subscriber that drives the cache to ready.
     const primer = w.client.subscribe('p1', cfg());
@@ -249,6 +270,44 @@ describe('SharedWorkerDataServicesClient', () => {
     const snapshot = await late.snapshot;
     expect(snapshot).toHaveLength(2);
     late.unsubscribe();
+  });
+
+  it('subscribe().refresh() replays hub cache without provider.restart', async () => {
+    const handle = w.client.subscribe<{ id: string; x: number }>('p1', cfg());
+    await flush();
+    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', x: 1 }, { id: 'r2', x: 2 }], replace: true });
+    controllers.get('c-1')!.emit({ status: 'ready' });
+    await handle.snapshot;
+
+    controllers.get('c-1')!.restarts.length = 0;
+    const replayed = await handle.refresh();
+    expect(replayed).toHaveLength(2);
+    expect(replayed[0]).toEqual({ id: 'r1', x: 1 });
+    expect(controllers.get('c-1')!.restarts).toHaveLength(0);
+
+    handle.unsubscribe();
+  });
+
+  it('subscribe() surfaces upstream rows-received before chunked hub deltas land', async () => {
+    const handle = w.client.subscribe('p1', cfg());
+    await flush();
+    const counts: number[] = [];
+    handle.onRowsReceived((n) => counts.push(n));
+
+    controllers.get('c-1')!.emit({ rowsReceived: 50 });
+    controllers.get('c-1')!.emit({ rowsReceived: 120 });
+    await flush();
+    expect(counts).toEqual([0, 50, 120]);
+
+    controllers.get('c-1')!.emit({
+      rows: Array.from({ length: 120 }, (_, i) => ({ id: `r${i}` })),
+      replace: true,
+    });
+    controllers.get('c-1')!.emit({ status: 'ready' });
+    await handle.snapshot;
+    expect(counts[counts.length - 1]).toBe(120);
+
+    handle.unsubscribe();
   });
 
   it('subscribe() rejects the snapshot promise when the provider emits an error before snapshot lands', async () => {

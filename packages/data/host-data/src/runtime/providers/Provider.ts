@@ -11,6 +11,10 @@
  *     emitting a row event. Lets providers track raw frame size for
  *     bandwidth monitoring even on no-op messages (heartbeats, end
  *     tokens, etc.).
+ *   • `{ rowsReceived }` — cumulative in-flight snapshot row count
+ *     while the hub cache is still empty (STOMP snapshot buffer).
+ *     Hub fans this out as wire `rows-received` events so consumers
+ *     can drive loading overlays before the first chunked delta.
  *
  * Keeping these as plain functions has two upsides over a Provider
  * class:
@@ -35,4 +39,5 @@ export type ProviderEmit = (event: ProviderEmitEvent) => void;
 export type ProviderEmitEvent =
   | { rows: readonly unknown[]; replace?: boolean }
   | { status: ProviderStatus; error?: string }
-  | { byteSize: number };
+  | { byteSize: number }
+  | { rowsReceived: number };

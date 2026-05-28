@@ -1,6 +1,14 @@
 /**
  * REST provider — `startRest(cfg, emit)` + `probeRest(cfg)`.
  *
+ * **IDataProvider alignment (static provider):**
+ *   - `start()` → one HTTP fetch; rows arrive as a single
+ *     `{ rows, replace: true }` burst, then `status: 'ready'`.
+ *   - After `ready`, the transport emits **no further row events**
+ *     (maps to `IDataProvider`: no `onTick` — there is no live tail).
+ *   - View resync without upstream I/O is `IDataProvider.refresh()`
+ *     (hub cache replay). Reload from source is `restart(extra)`.
+ *
  * Snapshot-only by nature: `start()` issues one HTTP request, parses
  * rows out of `cfg.rowsPath`, emits them as one
  * `{ rows, replace: true }` event, and flips status to 'ready'.
