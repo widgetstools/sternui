@@ -371,6 +371,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const providerReady = Boolean(activeId && !activeRow.loading && rowIdField && columnDefs);
   const {
     provider,
+    refresh: refreshProvider,
     restart: restartProvider,
   } = useDataProvider<TData>(providerReady ? activeId : null, { autoStart: false });
 
@@ -576,13 +577,27 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveApi, provider, activeId, rowIdFieldKey, onError]);
 
-  const refresh = useCallback(() => {
+  /** Cache replay only — `IDataProvider.refresh()`; no upstream reconnect. */
+  const refreshView = useCallback(() => {
+    if (!activeId || !provider) return;
+    if (DEBUG) {
+      // eslint-disable-next-line no-console
+      console.log('[refresh] %c1. Refresh view clicked%c provider=%s (cache replay)',
+        'color:#ec4899;font-weight:bold', '', activeId);
+    }
+    void refreshProvider().catch((err: unknown) => {
+      (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
+    });
+  }, [activeId, provider, refreshProvider, onError]);
+
+  /** Full re-acquire — `IDataProvider.restart()` with toolbar extra payload. */
+  const reloadFromSource = useCallback(() => {
     if (!activeId || !provider) return;
     const extra = (selection.mode === 'historical' && asOfDate)
       ? { asOfDate }
       : { __refresh: Date.now() };
     // eslint-disable-next-line no-console
-    console.log('[refresh] %c1. Refresh button clicked%c provider=%s mode=%s asOfDate=%s extra=%s',
+    console.log('[refresh] %c1. Reload from source clicked%c provider=%s mode=%s asOfDate=%s extra=%s',
       'color:#ec4899;font-weight:bold', '',
       activeId, selection.mode, asOfDate ?? '—', JSON.stringify(extra));
     if (liveApi) {
@@ -648,7 +663,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       onHistoricalChange={setHistoricalId}
       onModeChange={setMode}
       onAsOfDateChange={setAsOfDateAndPersist}
-      onRefresh={refresh}
+      onRefreshView={refreshView}
+      onReloadFromSource={reloadFromSource}
       onEdit={handleProviderEdit}
     />
   ) : null;
@@ -667,22 +683,26 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   // Provider selected and cfg loaded → full data-attached grid.
   if (activeId && !activeRow.loading && rowIdField && columnDefs) {
-    // Prepend a "Refresh" admin action so users can restart the live
-    // provider without opening the toolbar. The action reuses the
-    // same `refresh()` callback the picker's button
-    // wires to, so behaviour is identical: re-attach with a fresh
-    // `extra` payload, the worker turns it into provider.restart, and
-    // the loading overlay re-shows until the next snapshot lands.
+    // Prepend reload admin actions mirroring the provider toolbar.
     const userAdminActions = (marketsGridProps as { adminActions?: import('@starui/grid').AdminAction[] }).adminActions ?? [];
     const adminActionsWithRefresh: import('@starui/grid').AdminAction[] = [
       {
-        id: 'refresh-provider',
-        label: 'Refresh',
+        id: 'refresh-view',
+        label: 'Refresh view',
+        description: activeProviderName
+          ? `Replay cached rows for ${activeProviderName} without reconnecting`
+          : 'Replay cached rows without reconnecting',
+        icon: 'lucide:refresh-cw',
+        onClick: refreshView,
+      },
+      {
+        id: 'reload-from-source',
+        label: 'Reload from source',
         description: activeProviderName
           ? `Restart ${activeProviderName} and re-fetch the snapshot`
           : 'Restart the active provider and re-fetch the snapshot',
-        icon: 'lucide:refresh-cw',
-        onClick: refresh,
+        icon: 'lucide:rotate-cw',
+        onClick: reloadFromSource,
       },
       ...userAdminActions,
     ];

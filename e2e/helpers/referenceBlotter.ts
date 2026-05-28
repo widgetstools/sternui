@@ -151,7 +151,7 @@ export async function stopLiveProviderFromDiagnostics(page: Page): Promise<void>
 
 /** Grid admin action wired by MarketsGridContainer — restarts the provider. */
 export async function refreshProviderFromGridAdmin(page: Page): Promise<void> {
-  await page.locator('[data-testid="admin-action-refresh-provider"]').click();
+  await page.locator('[data-testid="admin-action-reload-from-source"]').click();
 }
 
 export async function waitForStaleDataBanner(page: Page): Promise<void> {

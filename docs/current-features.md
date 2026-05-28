@@ -494,7 +494,7 @@ Per-renderer config types (`PillRendererConfig`,
   in `MarketsGrid` `headerExtras` when toggled visible
 - `MarketsGridContainer` — hub data via `useDataProvider` + `applyProviderToGrid` (no direct `client.subscribe` / cfg pass-through)
 - `applyProviderToGrid` — live-tick add/update split with pending-add dedup (`createApplyProviderToGridState`, `splitProviderRowsForGrid`); extracted from `MarketsGridContainer` for `IDataProvider.onTick` wiring
-- `ProviderToolbar` — in-grid provider selector + edit dialog launcher (Live/Hist mode, refresh, as-of date)
+- `ProviderToolbar` — in-grid provider selector + edit dialog launcher (Live/Hist mode, **Refresh view** → `IDataProvider.refresh()`, **Reload** → `restart()`, as-of date)
 - `ProviderEditorDialog` — modal hosting `DataProviderEditor`
 - `DataProviderEditor` — connection + tabs (Connections, Fields, Columns, Diagnostics)
 - `DataProviderSelector` — compact provider dropdown with quick-add

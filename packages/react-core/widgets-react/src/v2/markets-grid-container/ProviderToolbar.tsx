@@ -4,7 +4,7 @@
  * Layout:
  *   [Live: <picker> ▾]  [Hist: <picker> ▾]  ( ○ Live  ● Hist )
  *   [📅 date-picker, only when historical mode + historicalId set]
- *   [↻ Refresh]  [✏ Edit selected]
+ *   [↻ Refresh view]  [⟳ Reload from source]  [✏ Edit selected]
  *
  * All inputs are shadcn primitives — no native controls, dark/light
  * via design-system tokens. The toolbar mounts inline above the grid
@@ -13,7 +13,7 @@
  */
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Button } from '@starui/ui';
-import { RefreshCw, Pencil } from 'lucide-react';
+import { RefreshCw, RotateCw, Pencil } from 'lucide-react';
 import type { DataProviderConfig } from '@starui/shared-types';
 import { DatePicker } from './DatePicker.js';
 
@@ -31,7 +31,10 @@ export interface ProviderToolbarProps {
   onHistoricalChange(id: string | null): void;
   onModeChange(mode: ProviderMode): void;
   onAsOfDateChange(date: string | null): void;
-  onRefresh(): void;
+  /** Replay hub cache to the grid without upstream reconnect. */
+  onRefreshView(): void;
+  /** Full provider restart (STOMP reconnect, historical re-fetch, etc.). */
+  onReloadFromSource(): void;
   onEdit(providerId: string): void;
 }
 
@@ -40,7 +43,8 @@ export function ProviderToolbar(props: ProviderToolbarProps) {
     liveProviders, historicalProviders,
     liveProviderId, historicalProviderId,
     mode, asOfDate,
-    onLiveChange, onHistoricalChange, onModeChange, onAsOfDateChange, onRefresh, onEdit,
+    onLiveChange, onHistoricalChange, onModeChange, onAsOfDateChange,
+    onRefreshView, onReloadFromSource, onEdit,
   } = props;
 
   const activeId = mode === 'live' ? liveProviderId : historicalProviderId;
@@ -93,9 +97,28 @@ export function ProviderToolbar(props: ProviderToolbarProps) {
 
       <div className="flex-1" />
 
-      {/* Refresh */}
-      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={onRefresh} title="Refresh active provider">
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-7 gap-1 px-2 text-xs"
+        onClick={onRefreshView}
+        title="Refresh view — replay cached rows without reconnecting"
+        data-testid="provider-refresh-view"
+      >
         <RefreshCw className="h-3.5 w-3.5" />
+        <span>Refresh view</span>
+      </Button>
+
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-7 gap-1 px-2 text-xs"
+        onClick={onReloadFromSource}
+        title="Reload from source — reconnect and re-fetch the snapshot"
+        data-testid="provider-reload-from-source"
+      >
+        <RotateCw className="h-3.5 w-3.5" />
+        <span>Reload</span>
       </Button>
 
       {/* Edit selected */}

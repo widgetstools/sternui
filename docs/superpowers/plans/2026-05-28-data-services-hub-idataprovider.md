@@ -399,7 +399,7 @@ export async function ensurePlatformReady(
 - [x] **Step 1:** Test — running provider with cache; `refresh-provider` sends replace replay to one subId; transport `restart` not called.
 - [x] **Step 2:** Implement `handleRefreshProvider(subId, providerId)`.
 - [x] **Step 3:** Adapter `refresh()` calls RPC + fires `onSnapshotData`.
-- [ ] **Step 4:** Rename grid toolbar action: "Refresh view" → `refresh()`, "Reload from source" → `restart()`.
+- [x] **Step 4:** Rename grid toolbar action: "Refresh view" → `refresh()`, "Reload from source" → `restart()`. ✅
 - [ ] **Step 5:** Commit.
 
 ### Task 4.2: Transport alignment
