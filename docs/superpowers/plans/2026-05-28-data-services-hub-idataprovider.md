@@ -336,9 +336,9 @@ export async function ensurePlatformReady(
 - Create: `packages/data/host-data-react/src/runtime/DataHubProvider.tsx`
 - Modify: `packages/data/host-data-react/src/runtime/index.tsx`
 
-- [ ] **Step 1:** `PlatformProvider` accepts `platform: DataServicesHubBundle` from `ensurePlatformReady()` OR `bootstrapConfig + workerScriptUrl` (calls ensurePlatformReady internally).
-- [ ] **Step 2:** Pass resolved `userId` into context (replaces bare `LOGGED_IN_USER_ID` prop where possible).
-- [ ] **Step 3:** Export alongside legacy `DataServicesProvider` (alias initially).
+- [ ] **Step 1:** `PlatformProvider` accepts `platform: DataServicesHubBundle` from `ensurePlatformReady()` OR `bootstrapConfig + workerScriptUrl` (calls ensurePlatformReady internally). ✅ Session 12
+- [ ] **Step 2:** Pass resolved `userId` into context (replaces bare `LOGGED_IN_USER_ID` prop where possible). ✅ Session 12
+- [ ] **Step 3:** Export alongside legacy `DataServicesProvider` (alias initially). ✅ Session 12
 - [ ] **Step 4:** Commit.
 
 ---

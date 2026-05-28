@@ -1100,6 +1100,9 @@ Per-renderer config types (`PillRendererConfig`,
 **Path:** `packages/data/host-data-react`
 **Purpose:** React bindings for `@starui/host-data` — provider + focused hooks for data subscriptions.
 
+- `DataHubProvider` / `PlatformProvider` — hub-first provider; `platform` from `ensurePlatformReady()` or self-bootstrap via `bootstrapConfig` + `workerScriptUrl`
+- `DataServicesProvider` — legacy wrapper over `DataServices` bootstrap result
+
 - `DataServicesProvider` — `configStore` calls `client.invalidateConfig()` after editor `save`/`remove`
 
 **Public exports:** `.`, `./runtime`
@@ -1389,7 +1392,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 ### Apps — platform bootstrap pilot
 
-- `apps/markets-grid-lab` — `app-config.json` + `platformBootstrap.ts` + `ensurePlatformReady` (PR1b web pilot)
+- `apps/markets-grid-lab` — `app-config.json` + `platformBootstrap.ts` + `DataHubProvider` (PR1b/PR3 web pilot)
 
 ## Cross-cutting architecture notes
 

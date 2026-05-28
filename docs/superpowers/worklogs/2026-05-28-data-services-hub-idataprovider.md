@@ -54,7 +54,7 @@ npx turbo typecheck build test --filter=@starui/host-data --filter=@starui/host-
 | 9 | PR2 | 1.2 | Protocol extensions (`get-config`, `catalog-ready`, …) | **done** | 2026-05-28 |
 | 10 | PR2 | 1.3 | Editor save → hub invalidation | **done** | 2026-05-28 |
 | 11 | PR3 | 2.1 | `ensureDataServicesHub` lazy singleton | **done** | 2026-05-28 |
-| 12 | PR3 | 2.2 | `PlatformProvider` / `DataHubProvider` (React) | pending | |
+| 12 | PR3 | 2.2 | `PlatformProvider` / `DataHubProvider` (React) | **done** | 2026-05-28 |
 | 13 | PR4 | 3.1 | `SnapshotReassembler` + client normalization | pending | |
 | 14 | PR4 | 3.2 | `ProviderClientAdapter` + unit tests | pending | |
 | 15 | PR4 | 3.3 | `useDataProvider` hook | pending | |
@@ -310,6 +310,23 @@ Merge each PR to `feat/data-services-hub-idataprovider` (or stack against `main`
 **Verify:** `npm run build --workspace=@starui/host-data`; `npm test --workspace=@starui/host-data` — 183 passed
 
 **Next:** Session 12 — `DataHubProvider` (React) (Task 2.2)
+
+**Blockers:** none
+
+---
+
+### Session 12 — 2026-05-28
+**Scope:** Task 2.2 — `DataHubProvider` (React)
+
+**Done:**
+- Added `DataHubProvider.tsx` — accepts `platform` or `bootstrapConfig` + `workerScriptUrl`; `PlatformProvider` alias
+- Extracted `DataServicesProvider.tsx` (shared context + catalog invalidation wiring)
+- `useAppData` / list hooks use session `userId` from context instead of bare `LOGGED_IN_USER_ID`
+- `markets-grid-lab` pilot migrated to `<DataHubProvider platform={platform} userId={config.userId}>`
+
+**Verify:** `npm run typecheck --workspace=@starui/host-data-react`; `npm run typecheck --workspace=@starui/markets-grid-lab` — pass
+
+**Next:** Session 13 — `SnapshotReassembler` + client normalization (Task 3.1) — starts PR4
 
 **Blockers:** none
 

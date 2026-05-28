@@ -133,6 +133,6 @@ Reference wiring (PR1b):
 |------|------|
 | `public/app-config.json` | Web bootstrap config (`appId: markets-grid-lab`) |
 | `src/platformBootstrap.ts` | `resolvePlatformBootstrapFromJson` → `ensurePlatformReady` |
-| `src/main.tsx` | Async init, then `<DataServicesProvider services={dataServices}>` |
+| `src/main.tsx` | Async init, then `<DataHubProvider platform={platform} userId={config.userId}>` |
 
 SharedWorker name: `mkt-data-services:markets-grid-lab` (from `app-config.json` `appId`).

@@ -3,7 +3,8 @@
  * focused hooks.
  *
  * Surface:
- *   <DataServicesProvider services={ds} mode="lazy"|"eager" />
+ *   <DataHubProvider platform={hub} userId={config.userId} />  — preferred
+ *   <DataServicesProvider services={ds} mode="lazy"|"eager" /> — legacy
  *   useDataServices()              — escape hatch to the raw client
  *   useAppDataStore()              — reactive AppData snapshot
  *   useDataProviderConfig(id)      — single saved config row
@@ -16,101 +17,42 @@
  */
 
 import {
-  createContext,
-  use,
   useCallback,
-  useContext,
-  useMemo,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
 } from 'react';
 import type {
   DataListener,
-  SharedWorkerDataServicesClient,
   StatsListener,
 } from '@starui/host-data/runtime/client';
 import {
-  AppDataMirror,
-  DataProviderConfigStore,
   resolveCfg,
-  type DataServices,
+  type AppDataMirror,
 } from '@starui/host-data/runtime';
 import type { ProviderStatus } from '@starui/host-data/runtime';
 import type { DataProviderConfig, ProviderConfig } from '@starui/types';
-import { LOGGED_IN_USER_ID } from '@starui/types';
+import {
+  DataServicesProvider,
+  useDataServicesContext,
+  useUserIdFromContext,
+  type ContextValue,
+} from './DataServicesProvider.js';
 
-// ─── Context ──────────────────────────────────────────────────────
-
-interface ContextValue {
-  client: SharedWorkerDataServicesClient;
-  appData: AppDataMirror;
-  configStore: DataProviderConfigStore;
-}
-
-const DataServicesContext = createContext<ContextValue | null>(null);
-
-export interface DataServicesProviderProps {
-  /** Bootstrap result from `bootstrapDataServices(...)`. */
-  services: DataServices;
-  /**
-   * Hydration mode for the AppData mirror.
-   *   - `'lazy'` (default): render immediately. Components see
-   *     `useAppDataStore().loaded === false` on first paint;
-   *     templates resolve once the mirror snapshot arrives.
-   *   - `'eager'`: suspend until `services.ready` resolves. Wrap
-   *     this Provider in a `<Suspense fallback>` boundary to control
-   *     the loading UI.
-   */
-  mode?: 'eager' | 'lazy';
-  /** Override the user id stamped on AppData rows authored from this
-   *  tree. Defaults to the bootstrap's userId via `LOGGED_IN_USER_ID`. */
-  userId?: string;
-  /**
-   * React children. Optional at the type level so callers (notably
-   * `<AppShell>`) can pass a pre-bound element without children and
-   * let the shell inject them via `React.cloneElement`. Runtime
-   * behaviour is unchanged — the body still renders `{children}`,
-   * which is harmless when undefined.
-   */
-  children?: ReactNode;
-}
-
-export function DataServicesProvider({ services, mode = 'lazy', userId, children }: DataServicesProviderProps) {
-  // Eager mode: throw services.ready to nearest <Suspense fallback>.
-  // React's `use()` hook unwraps the resolved promise on subsequent
-  // renders, so once the mirror snapshot has applied the children
-  // mount normally.
-  if (mode === 'eager') use(services.ready);
-
-  const effectiveUserId = userId ?? LOGGED_IN_USER_ID;
-
-  const value = useMemo<ContextValue>(() => ({
-    client: services.client,
-    appData: services.appData,
-    configStore: new DataProviderConfigStore(
-      services.configManager,
-      (providerId) => services.client.invalidateConfig(providerId),
-    ),
-  }), [services]);
-
-  return (
-    <DataServicesContext.Provider value={value}>
-      <DataServicesUserIdContext.Provider value={effectiveUserId}>
-        {children}
-      </DataServicesUserIdContext.Provider>
-    </DataServicesContext.Provider>
-  );
-}
-
-function useDataServicesContext(): ContextValue {
-  const ctx = useContext(DataServicesContext);
-  if (!ctx) {
-    throw new Error('useDataServices / useProviderStream must be inside <DataServicesProvider>');
-  }
-  return ctx;
-}
+export {
+  DataServicesProvider,
+  type DataServicesProviderProps,
+  type ContextValue,
+} from './DataServicesProvider.js';
+export {
+  DataHubProvider,
+  PlatformProvider,
+  type DataHubProviderProps,
+  type DataHubProviderWithBootstrapProps,
+  type DataHubProviderWithPlatformProps,
+} from './DataHubProvider.js';
 
 // ─── Hook 1: raw client + stores escape hatch ────────────────────
 
@@ -180,6 +122,7 @@ export interface AppDataHandle {
 
 export function useAppData(providerName: string): AppDataHandle {
   const { store, version, loaded } = useAppDataStore();
+  const sessionUserId = useUserIdFromContext();
 
   const values = useMemo<Record<string, unknown>>(() => {
     const row = store.list().find((r) => r.name === providerName);
@@ -207,10 +150,10 @@ export function useAppData(providerName: string): AppDataHandle {
         // userId is single-user-pinned across the codebase. Preserve a
         // public ('system') row's userId; otherwise land on the canonical
         // logged-in user id so a fresh row never gets userId=''.
-        userId: existing?.userId ?? LOGGED_IN_USER_ID,
+        userId: existing?.userId ?? sessionUserId,
       });
     },
-    [store, providerName],
+    [store, providerName, sessionUserId],
   );
 
   return { values, loaded, get, set, setMany };
@@ -287,18 +230,6 @@ export function useDataProvidersList(
 
   return { ...view, refresh };
 }
-
-// Internal: read userId out of the context so list/save hooks don't
-// re-take it as a prop.
-function useUserIdFromContext(): string {
-  const ctx = useContext(DataServicesUserIdContext);
-  if (ctx === null) {
-    throw new Error('useDataProvidersList requires <DataServicesProvider userId="...">');
-  }
-  return ctx;
-}
-
-const DataServicesUserIdContext = createContext<string | null>(null);
 
 // ─── Hook 4: template-resolved cfg ───────────────────────────────
 //

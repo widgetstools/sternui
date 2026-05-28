@@ -2,7 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { applyTheme, getTheme } from '@starui/design-system';
 import { Alert, AlertDescription, AlertTitle } from '@starui/ui';
-import { DataServicesProvider } from '@starui/host-data-react/runtime';
+import { DataHubProvider } from '@starui/host-data-react/runtime';
 import { App } from './App';
 import { initPlatformBootstrap } from './platformBootstrap';
 import './globals.css';
@@ -34,12 +34,12 @@ function BootstrapError({ error }: { error: Error }) {
 }
 
 void initPlatformBootstrap()
-  .then(({ dataServices }) => {
+  .then(({ config, platform }) => {
     createRoot(rootElement).render(
       <React.StrictMode>
-        <DataServicesProvider services={dataServices}>
+        <DataHubProvider platform={platform} userId={config.userId}>
           <App />
-        </DataServicesProvider>
+        </DataHubProvider>
       </React.StrictMode>,
     );
   })
