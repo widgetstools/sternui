@@ -20,6 +20,7 @@
     "apps/legacy/*",
     "apps/tutorials-tarball/*",
     "apps/tutorials-workspace/*",
+    "tools/mcp-scaffold",
     "e2e-openfin"
   ],
   "scripts": {
@@ -64,6 +65,7 @@
     "test:e2e:openfin": "npm run test:e2e -w @starui/e2e-openfin",
     "test:e2e:openfin:vitest-legacy": "npm run test:e2e -w @starui/e2e-openfin-vitest",
     "propagate": "node scripts/propagate.mjs",
+    "pack:mcp": "node scripts/pack-mcp-scaffold.mjs",
     "sync:app-deps": "node scripts/sync-app-tarball-deps.mjs",
     "verify:apps": "node scripts/verify-apps.mjs",
     "check:deps": "node scripts/check-package-cycles.mjs",

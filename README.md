@@ -396,6 +396,52 @@ npm run propagate
 # tarballs land in libs/ — see libs/manifest.json for filenames + members
 ```
 
+#### 4. Scaffold apps with MCP (`@starui/mcp-scaffold`)
+
+MCP server (tarball in `libs/starui-mcp-scaffold-*.tgz`) scaffolds external-consumer
+React apps with bundled `libs/` StarUI tarballs, design-system compliance, shadcn UI,
+AG Grid themes, STOMP server, and OpenFin reference template.
+
+```bash
+# Pack MCP server (includes bundled platform tarballs)
+npm run pack:mcp
+
+# Run via npx
+npx -y ./libs/starui-mcp-scaffold-0.1.0-<sha>.tgz
+```
+
+**Cursor / Claude Code** (`~/.cursor/mcp.json` or project `.mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "starui-scaffold": {
+      "command": "npx",
+      "args": ["-y", "./libs/starui-mcp-scaffold-0.1.0-<sha>.tgz"],
+      "env": { "STARUI_ROOT": "/path/to/starui" }
+    }
+  }
+}
+```
+
+**VS Code** (`.vscode/mcp.json` — use `"servers"` root key + `"type": "stdio"`):
+
+```json
+{
+  "servers": {
+    "starui-scaffold": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "./libs/starui-mcp-scaffold-0.1.0-<sha>.tgz"]
+    }
+  }
+}
+```
+
+Templates: `basic`, `mockdata-provider`, `dataprovider-editor`, `stomp`, `openfin-platform`.
+See [`tools/mcp-scaffold/README.md`](./tools/mcp-scaffold/README.md) and
+[`docs/superpowers/specs/2026-05-27-starui-mcp-scaffold-design.md`](./docs/superpowers/specs/2026-05-27-starui-mcp-scaffold-design.md).
+
 ---
 
 ### Building apps

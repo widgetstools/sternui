@@ -1337,6 +1337,31 @@ Per-renderer config types (`PillRendererConfig`,
 
 ---
 
+## Repo tooling
+
+### `@starui/mcp-scaffold`
+
+**Path:** `tools/mcp-scaffold`
+**Deliverable:** `libs/starui-mcp-scaffold-*.tgz` (via `npm run pack:mcp`)
+**Purpose:** StarUI Platform MCP stdio server — scaffold apps, wire STOMP, author grid layouts (config-first), diagnose data plane, OpenFin routes, design compliance.
+
+**MCP tools (44):**
+
+- **Templates:** `starui_list_templates`, `starui_recommend_template`, `starui_scaffold_app`, `starui_upgrade_scaffold`
+- **Grid:** `starui_list_grid_features`, `starui_explain_grid_feature`, `starui_suggest_grid_features`, `starui_add_grid_module`, `starui_generate_column_defs`, `starui_layout_recipe`
+- **Layouts (config-first):** `starui_config_or_code`, `starui_generate_layout`, `starui_validate_layout`, `starui_import_layout_pack`, `starui_explain_layout_module`
+- **Providers / STOMP:** `starui_list_provider_types`, `starui_generate_stomp_config`, `starui_validate_provider_config`, `starui_add_provider_to_project`, `starui_setup_stomp_dev`, `starui_test_stomp_connection`, `starui_diagnose_data_plane` (empty grid), `starui_explain_provider_toolbar`, `starui_provider_config_from_csv`
+- **Tarballs:** `starui_check_tarball_versions`, `starui_refresh_libs`, `starui_explain_import_alias`, `starui_bucket_dependency_graph`
+- **OpenFin:** `starui_explain_component_registration`, `starui_add_blotter_route`, `starui_generate_view_manifest`, `starui_openfin_launch_checklist`
+- **UI / design:** `starui_list_ui_components`, `starui_add_ui_component`, `starui_audit_app_design`, `starui_add_shell_layout`, `starui_theme_playground_snippet`, `starui_shadcn_component_picker`, `starui_validate_design_compliance`
+- **Validation:** `starui_validate_scaffold`, `starui_smoke_test_app`, `starui_validate_stomp_e2e`, `starui_snapshot_grid_config`, `starui_print_install_config`
+
+**MCP resources:** `starui://design-rules`, `starui://guides/stomp-marketsgrid`, `starui://guides/wire-stomp`, `starui://troubleshooting/empty-grid`, `starui://recipes/provider-stomp-positions`, `starui://recipes/openfin-blotter-route`
+
+**Run:** `npx -y @starui/mcp-scaffold` or `npx -y ./libs/starui-mcp-scaffold-*.tgz`
+
+---
+
 ## Cross-cutting architecture notes
 
 These aren't a single feature, but they are platform invariants worth remembering when reading the inventory:

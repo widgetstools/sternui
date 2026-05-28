@@ -57,7 +57,9 @@ It mirrors the patterns used in `apps/markets-ui-react-reference`, `apps/demo-ap
 
 ## Step 1 — Scaffold the app
 
-Create a Vite + React app under `apps/` (in-repo) or in your own repo (external consumer).
+**Recommended:** use the `@starui/mcp-scaffold` MCP server (`npm run pack:mcp` → `npx -y ./libs/starui-mcp-scaffold-*.tgz`) with template `stomp` or `openfin-platform`. See [`tools/mcp-scaffold/README.md`](../tools/mcp-scaffold/README.md).
+
+Alternatively, create a Vite + React app manually under `apps/` (in-repo) or in your own repo (external consumer).
 
 ### In-repo (recommended for development)
 
