@@ -284,6 +284,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `PrimaryToolbar` — actions, admin, export/import, settings sheet toggle
 - `FiltersToolbar` — quick filter, saved filter recall, server-side expression
 - `FormattingToolbar` — cell/header styling, conditional formats, value formatters (with popout)
+- `EditingToolbar` — unified editing row (history undo/redo, Smart Edit ops, Bulk Update apply, keyboard hints dropdown); primary-row pencil toggle (`editing-toolbar-toggle`); segments gated by host allow-list + module `settings.enabled`
 - `AdminActionButtons` — admin grid operations
 
 #### Profile management UI
@@ -343,9 +344,43 @@ Per-renderer config types (`PillRendererConfig`,
   via `valueParser` on editable numeric columns. Single-column guard, optional
   preview-before-apply, and cell-patch journal recording for undo (via shared
   `EditJournal`). Framework-agnostic ops in `@starui/engine`; React module +
-  `SmartEditToolbar` in `@starui/grid`. Opt-in via `showSmartEditToolbar`
-  (default `false`). Settings panel module `06`. Lab: **Smart Edit** tab
-  (`lab-smart-edit`).
+  `SmartEditToolbarBody` in `@starui/grid`. Opt-in via `showEditingToolbar`
+  (default `false`; primary-row pencil toggle; legacy `showSmartEditToolbar` /
+  `showBulkUpdateToolbar` / `showEditHistoryToolbar` remain as per-segment
+  allow-list). Segments appear when the host allows them and the module's
+  `settings.enabled` is true. Settings panel module `06`. Lab: unified **Editing**
+  tab (`lab-editing`, 12 profiles); focused Smart Edit profiles under
+  `public/lab-profiles/smart-edit/`.
+- **Edit History** — session-scoped undo/redo journal consumed by Smart Edit and
+  future editing modules. Monitor panel lists entries (time, source, label, cell
+  count) with per-entry undo in a fixed-height virtualized scroll rail pinned to
+  the bottom of the settings sheet (cascade-undoes that entry and all newer edits;
+  Undo disabled for entries already reversed via toolbar); `EditHistoryToolbar`
+  exposes global Undo/Redo and an undo-stack entry count (decrements on toolbar
+  or monitor undo, increments on redo).
+  Settings: suspend recording, max stack depth, unify undo (disables AG Grid
+  `undoRedoCellEditing`), per-source record toggles (cell editor on by default).
+  In-cell edits are journaled via wrapped `valueSetter` on editable columns (AG Grid
+  35 may omit `cellValueChanged` on inline commit); `cellValueChanged` remains a
+  fallback listener when the event fires.
+  Module `10`; opt-in via
+  `showEditingToolbar` or legacy `showEditHistoryToolbar` (default `false`). Lab: **Editing** tab (`lab-editing`) ships
+  history toolbar on full-curriculum profile; Smart Edit–only history demo in
+  `public/lab-profiles/smart-edit/se-04-history.json`.
+- **Bulk Update** — replace all selected cells in one column with the same
+  value (text, number, date). Distinct-value dropdown, confirm threshold,
+  single-column guard, journal integration. Module `07`; opt-in via
+  `showEditingToolbar` or legacy `showBulkUpdateToolbar` (default `false`). Lab: **Bulk Update** tab
+  (`lab-bulk-update`).
+- **Plus / Minus** — keyboard +/- nudge rules with per-column increment/decrement
+  steps and optional expression gates. Takes over +/- keys from Smart Edit when
+  enabled; `suppressKeyboardEvent` on editable numeric columns prevents inline
+  edit from consuming +/- keys. Module `08` (keyboard only — no toolbar). Journal
+  integration via `recordHistory`. Lab: **Plus / Minus** tab (`lab-plus-minus`).
+- **Shortcuts** — letter-key arithmetic (× ÷ + −) with per-shortcut operand and
+  column scope. Distinct from Smart Edit K/M/B magnitude parsing in the cell editor.
+  Module `09` (keyboard only — no toolbar). Journal integration via `recordHistory`.
+  Lab: **Shortcuts** tab (`lab-shortcuts`).
 - **Alerts** — expression-driven notifications (dataChange / relativeChange /
   rowChange triggers) with toast, toolbar bell badge, and OpenFin Notification
   Centre channels. Runtime evaluates on `cellValueChanged` and on
@@ -362,7 +397,8 @@ Per-renderer config types (`PillRendererConfig`,
   auto-wire when the badge is present. Demo: `apps/markets-grid-lab`
   (`npm run dev:markets-grid-lab`) — Overview, Conditional Styling, Calculated Columns,
   Formatting, Column Groups, Quick Filters (saved filter pills + `FiltersToolbar`),
-  Live Updates, Alerts, Smart Edit, Cell Renderers, and Formatter Toolbar tabs. Each feature tab ships multiple toolbar profiles (catalogs in
+  Live Updates, Alerts, **Editing** (Smart Edit + Bulk Update + Plus/Minus + Shortcuts +
+  History), Bulk Update, Plus / Minus, Shortcuts, Cell Renderers, and Formatter Toolbar tabs. Each feature tab ships multiple toolbar profiles (catalogs in
   `apps/markets-grid-lab/src/profiles/catalogs/`, importable JSON under
   `apps/markets-grid-lab/public/lab-profiles/`). **Demo console** right rail
   (`LabScenarioRail`, `LabDemoProvider`, `useLabRows`) injects scenario patches
@@ -679,6 +715,12 @@ Per-renderer config types (`PillRendererConfig`,
 - **Editing core** — `EditJournal`, `CellPatch`, `buildPatchesFromTargets`,
   `applyForwardPatches`, `previewPatches`, `assertSingleColumnSelection` —
   cell-patch journal for row data edits (one user action = one undo step)
+- **Data change history** — `DataChangeHistorySettings`, `recordSourceKey`,
+  `deserializeDataChangeHistoryState` — profile settings for the edit-history
+  module (session-only stacks; settings-only persistence)
+- **Bulk update** — `BulkUpdateSettings`, `collectBulkUpdateTargets`,
+  `buildBulkUpdatePatches`, `resolveColumnDistinctValues`,
+  `deserializeBulkUpdateState` — replace-all-selected with one value
 
 #### Expression engine
 

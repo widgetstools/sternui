@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
   Badge,
   Button,
+  cn,
   Dialog,
   DialogContent,
   DialogFooter,
@@ -34,7 +35,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@starui/ui';
-import { getEditJournal } from '../../editing/editJournalScope';
+import type { EditingToolbarSegmentProps } from '../../editing/editingToolbarLayout';
+import { resolveEditRecording } from '../../editing/recordEdit';
 import { useGridPlatform } from '../../hooks/GridProvider';
 import { useModuleState } from '../../hooks/useModuleState';
 import { useSmartEditSelection } from './useSmartEditSelection';
@@ -52,7 +54,7 @@ const OP_LABELS: Record<SmartEditOp, string> = {
   set: 'Set…',
 };
 
-export function SmartEditToolbarBody() {
+export function SmartEditToolbarBody({ layout = 'standalone' }: EditingToolbarSegmentProps) {
   const platform = useGridPlatform();
   const [settings] = useModuleState<SmartEditState>(SMART_EDIT_MODULE_ID);
   const { count, cells } = useSmartEditSelection();
@@ -69,10 +71,10 @@ export function SmartEditToolbarBody() {
     return assertSingleColumnSelection(cells);
   }, [cells, settings.settings.enforceSingleColumn]);
 
-  const journalOptions = useMemo(() => {
-    if (!settings.settings.recordHistory) return {};
-    return { journal: getEditJournal(platform) };
-  }, [platform, settings.settings.recordHistory]);
+  const journalRecording = useMemo(
+    () => resolveEditRecording(platform, 'smart-edit', settings.settings.recordHistory),
+    [platform, settings.settings.recordHistory],
+  );
 
   const executeApply = useCallback(async (
     op: SmartEditOp,
@@ -91,10 +93,11 @@ export function SmartEditToolbarBody() {
     }
 
     await applyEdits(api, targets, op, value, {
-      ...journalOptions,
+      journal: journalRecording.record ? journalRecording.journal : null,
       patches,
+      journalApplyGridId: platform.gridId,
     });
-  }, [platform, settings.settings.enabled, settings.settings.enforceSingleColumn, journalOptions]);
+  }, [platform, settings.settings.enabled, settings.settings.enforceSingleColumn, journalRecording]);
 
   const beginOp = useCallback((op: SmartEditOp, value: number) => {
     const api = platform.api.api;
@@ -174,9 +177,15 @@ export function SmartEditToolbarBody() {
   const disabled = count === 0 || !columnGuard.ok;
   const ops = settings.settings.enabledOps;
   const preview = pendingPatches.length > 0 ? previewPatches(pendingPatches) : null;
+  const segment = layout === 'segment';
 
   return (
-    <div className="ds-smart-edit-toolbar ds-sheet-v2" data-testid="smart-edit-toolbar">
+    <div
+      className={cn(
+        segment ? 'ds-editing-toolbar__segment' : 'ds-smart-edit-toolbar ds-sheet-v2',
+      )}
+      data-testid="smart-edit-toolbar"
+    >
       {ops.filter((op) => op !== 'set').map((op) => (
         <Tooltip key={op}>
           <TooltipTrigger asChild>
@@ -213,14 +222,19 @@ export function SmartEditToolbarBody() {
           Set…
         </Button>
       )}
-      <span className="text-[11px] text-[color:var(--ds-text-secondary)]">Operand</span>
+      <span className="ds-editing-toolbar__label">Operand</span>
       <Input
-        className="ds-smart-edit-toolbar__operand h-8 w-[88px] text-[12px]"
+        className="ds-smart-edit-toolbar__operand w-[88px]"
         value={operand}
         onChange={(e) => setOperand(e.target.value)}
         data-testid="smart-edit-operand"
       />
-      <span className="ds-smart-edit-toolbar__count text-[11px] text-[color:var(--ds-text-secondary)]">
+      <span
+        className={cn(
+          'ds-editing-toolbar__meta',
+          !segment && 'ds-smart-edit-toolbar__count',
+        )}
+      >
         {count} cell{count === 1 ? '' : 's'} selected
         {!columnGuard.ok && columnGuard.reason === 'multi-column' && ' · one column only'}
       </span>

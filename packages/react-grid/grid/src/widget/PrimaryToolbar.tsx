@@ -21,6 +21,7 @@ import {
   Check,
   Settings as SettingsIcon,
   SlidersHorizontal,
+  PencilLine,
 } from 'lucide-react';
 import type { UseProfileManagerResult } from '@starui/grid/customizer';
 import type { AdminAction } from './types';
@@ -44,6 +45,11 @@ export interface PrimaryToolbarProps {
   readonly showFormattingToolbar: boolean;
   readonly styleToolbarOpen: boolean;
   readonly onToggleStyleToolbar: () => void;
+
+  // Editing toolbar toggle
+  readonly showEditingToolbar: boolean;
+  readonly editingToolbarOpen: boolean;
+  readonly onToggleEditingToolbar: () => void;
 
   // Profile selector
   readonly showProfileSelector: boolean;
@@ -80,6 +86,9 @@ export function PrimaryToolbar(props: PrimaryToolbarProps): ReactElement {
     showFormattingToolbar,
     styleToolbarOpen,
     onToggleStyleToolbar,
+    showEditingToolbar,
+    editingToolbarOpen,
+    onToggleEditingToolbar,
     showProfileSelector,
     profiles,
     isDirty,
@@ -139,13 +148,30 @@ export function PrimaryToolbar(props: PrimaryToolbarProps): ReactElement {
           </button>
         )}
 
+        {showEditingToolbar && (
+          <button
+            type="button"
+            className="ds-primary-action"
+            onClick={onToggleEditingToolbar}
+            title={editingToolbarOpen ? 'Hide editing toolbar' : 'Show editing toolbar'}
+            data-testid="editing-toolbar-toggle"
+            data-active={editingToolbarOpen ? 'true' : 'false'}
+            aria-pressed={editingToolbarOpen}
+          >
+            <PencilLine size={14} strokeWidth={2} />
+          </button>
+        )}
+
+        {(showFormattingToolbar || showEditingToolbar) && (
+          <span className="ds-primary-divider" aria-hidden />
+        )}
+
         {/* Alerts bell — auto-renders nothing if the alerts module isn't
             registered on the active platform. Always safe to mount. */}
         <AlertsBadge />
 
         {showProfileSelector && (
           <>
-            {showFormattingToolbar && <span className="ds-primary-divider" aria-hidden />}
             <ProfileSelector
               profiles={profiles.profiles}
               activeProfileId={profiles.activeProfileId ?? ''}

@@ -11,6 +11,11 @@ import profiles from './profiles.md?raw';
 import alerts from './alerts.md?raw';
 import quickFilters from './quick-filters.md?raw';
 import smartEdit from './smart-edit.md?raw';
+import editHistory from './edit-history.md?raw';
+import bulkUpdate from './bulk-update.md?raw';
+import editing from './editing.md?raw';
+import plusMinus from './plus-minus.md?raw';
+import shortcuts from './shortcuts.md?raw';
 
 export const HELP = {
   overview,
@@ -25,4 +30,9 @@ export const HELP = {
   alerts,
   quickFilters,
   smartEdit,
+  editHistory,
+  bulkUpdate,
+  editing,
+  plusMinus,
+  shortcuts,
 } as const;

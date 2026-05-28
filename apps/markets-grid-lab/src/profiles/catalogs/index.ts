@@ -53,3 +53,23 @@ export {
   SMART_EDIT_DEMO_PROFILES,
   SMART_EDIT_ACTIVE_PROFILE_ID,
 } from './smartEditCatalog';
+export {
+  BULK_UPDATE_GRID_ID,
+  BULK_UPDATE_DEMO_PROFILES,
+  BULK_UPDATE_ACTIVE_PROFILE_ID,
+} from './bulkUpdateCatalog';
+export {
+  PLUS_MINUS_GRID_ID,
+  PLUS_MINUS_DEMO_PROFILES,
+  PLUS_MINUS_ACTIVE_PROFILE_ID,
+} from './plusMinusCatalog';
+export {
+  SHORTCUTS_GRID_ID,
+  SHORTCUTS_DEMO_PROFILES,
+  SHORTCUTS_ACTIVE_PROFILE_ID,
+} from './shortcutsCatalog';
+export {
+  EDITING_GRID_ID,
+  EDITING_DEMO_PROFILES,
+  EDITING_ACTIVE_PROFILE_ID,
+} from './editingCatalog';

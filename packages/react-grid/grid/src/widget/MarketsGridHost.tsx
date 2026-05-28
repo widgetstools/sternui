@@ -25,7 +25,8 @@ import { TooltipProvider } from '@starui/ui';
 import type { AnyModule, StorageAdapter } from '@starui/engine';
 import type { AdminAction, MarketsGridHandle, MarketsGridProps } from './types';
 import { FormattingToolbar } from './FormattingToolbar';
-import { SmartEditToolbar } from './SmartEditToolbar';
+import { EditingToolbar } from './editingToolbar/EditingToolbar';
+import type { EditingToolbarAllow } from './editingToolbar/resolveEditingToolbarAllow';
 import { SettingsSheet } from './SettingsSheet';
 import { useMarketsGridController } from './useMarketsGridController';
 import { PrimaryToolbar } from './PrimaryToolbar';
@@ -51,7 +52,7 @@ export interface MarketsGridHostProps<TData> {
   showToolbar: boolean;
   showFiltersToolbar: boolean;
   showFormattingToolbar: boolean;
-  showSmartEditToolbar: boolean;
+  editingToolbarAllow: EditingToolbarAllow;
   showSaveButton: boolean;
   showSettingsButton: boolean;
   showProfileSelector: boolean;
@@ -97,7 +98,7 @@ export function MarketsGridHost<TData>({
   showToolbar,
   showFiltersToolbar,
   showFormattingToolbar,
-  showSmartEditToolbar,
+  editingToolbarAllow,
   showSaveButton,
   showSettingsButton,
   showProfileSelector,
@@ -145,6 +146,8 @@ export function MarketsGridHost<TData>({
     setPendingSwitch,
     handleOpenSettings,
     handleToggleStyleToolbar,
+    editingToolbarOpen,
+    handleToggleEditingToolbar,
     handleSaveAll,
     requestLoadProfile,
     confirmSwitchSave,
@@ -204,6 +207,9 @@ export function MarketsGridHost<TData>({
           showFormattingToolbar={showFormattingToolbar}
           styleToolbarOpen={styleToolbarOpen}
           onToggleStyleToolbar={handleToggleStyleToolbar}
+          showEditingToolbar={editingToolbarAllow.rowVisible}
+          editingToolbarOpen={editingToolbarOpen}
+          onToggleEditingToolbar={handleToggleEditingToolbar}
           showProfileSelector={showProfileSelector}
           profiles={profiles}
           isDirty={isDirty}
@@ -222,13 +228,8 @@ export function MarketsGridHost<TData>({
         />
       )}
 
-      {showSmartEditToolbar && (
-        <div
-          className="shrink-0 border-b border-[color:var(--ds-border-primary)]"
-          data-testid="smart-edit-toolbar-pinned"
-        >
-          <SmartEditToolbar />
-        </div>
+      {editingToolbarOpen && editingToolbarAllow.rowVisible && (
+        <EditingToolbar allow={editingToolbarAllow} />
       )}
 
       {/* FormattingToolbar — pinned as a second toolbar row directly

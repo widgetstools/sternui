@@ -28,6 +28,7 @@ export {
   type UseModuleDraftResult,
 } from './hooks/useModuleDraft';
 export { useUndoRedo, type UseUndoRedoResult } from './hooks/useUndoRedo';
+export { useEditJournal, useSyncJournalSuspend } from './hooks/useEditJournal';
 export { useActiveThemeMode } from './hooks/useActiveThemeMode';
 
 // Back-compat alias — preserved from the old core barrel. Some
@@ -311,6 +312,25 @@ export {
   SmartEditToolbarBody,
   useSmartEditSelection,
 } from './modules/smart-edit';
+export {
+  bulkUpdateModule,
+  BULK_UPDATE_MODULE_ID,
+  BulkUpdateToolbarBody,
+  useBulkUpdateSelection,
+} from './modules/bulk-update';
+export {
+  plusMinusModule,
+  PLUS_MINUS_MODULE_ID,
+} from './modules/plus-minus';
+export {
+  shortcutsModule,
+  SHORTCUTS_MODULE_ID,
+} from './modules/shortcuts';
+export {
+  dataChangeHistoryModule,
+  DATA_CHANGE_HISTORY_MODULE_ID,
+  EditHistoryToolbarBody,
+} from './modules/data-change-history';
 export {
   alertsModule,
   ALERTS_MODULE_ID,

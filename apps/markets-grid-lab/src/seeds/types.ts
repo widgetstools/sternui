@@ -12,7 +12,7 @@ import type {
   GeneralSettingsState,
   SavedFiltersState,
 } from '@starui/grid/customizer';
-import type { AlertsState, SmartEditState } from '@starui/engine';
+import type { AlertsState, BulkUpdateState, DataChangeHistoryState, PlusMinusState, ShortcutsState, SmartEditState } from '@starui/engine';
 
 export interface TabSeed {
   'conditional-styling'?: ConditionalStylingState;
@@ -23,4 +23,8 @@ export interface TabSeed {
   'saved-filters'?: SavedFiltersState;
   alerts?: AlertsState;
   'smart-edit'?: SmartEditState;
+  'bulk-update'?: BulkUpdateState;
+  'plus-minus'?: PlusMinusState;
+  shortcuts?: ShortcutsState;
+  'data-change-history'?: DataChangeHistoryState;
 }

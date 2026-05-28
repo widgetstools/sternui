@@ -82,6 +82,10 @@ vi.mock('@starui/grid/customizer', async () => {
     columnTemplatesModule: {},
     conditionalStylingModule: {},
     smartEditModule: {},
+    bulkUpdateModule: {},
+    plusMinusModule: {},
+    shortcutsModule: {},
+    dataChangeHistoryModule: {},
     alertsModule: {},
     AlertsBadge: () => null,
     useAlertsToastBridge: () => undefined,
@@ -107,8 +111,8 @@ vi.mock('./FiltersToolbar', () => ({ FiltersToolbar: () => null }));
 vi.mock('./FormattingToolbar', () => ({
   FormattingToolbar: React.forwardRef(() => null),
 }));
-vi.mock('./SmartEditToolbar', () => ({
-  SmartEditToolbar: () => null,
+vi.mock('./editingToolbar/EditingToolbar', () => ({
+  EditingToolbar: () => null,
 }));
 vi.mock('./SettingsSheet', () => ({
   SettingsSheet: React.forwardRef(() => null),

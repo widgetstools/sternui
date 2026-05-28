@@ -14,7 +14,7 @@ import {
   useGridPlatform,
   type PoppableHandle,
 } from '@starui/grid/customizer';
-import { Drawer, DrawerContent } from '@starui/ui';
+import { Drawer, DrawerContent, DrawerTitle } from '@starui/ui';
 import { GENERAL_SETTINGS_MODULE_ID } from '../customizer/modules/general-settings';
 import {
   ChevronDown,
@@ -54,6 +54,10 @@ const PANEL_TESTID_BY_MODULE_ID: Record<string, string> = {
   'column-customization': 'cols-panel',
   alerts: 'alerts-panel',
   'smart-edit': 'smart-edit-panel',
+  'bulk-update': 'bulk-update-panel',
+  'plus-minus': 'plus-minus-panel',
+  shortcuts: 'shortcuts-panel',
+  'data-change-history': 'edit-history-panel',
 };
 
 /** Default module when the customizer opens (Grid Options). */
@@ -523,6 +527,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
               overlayTestId="v2-settings-overlay"
               className="ds-settings-drawer w-[min(820px,96vw)] border-l border-[color:var(--ds-border-secondary)] bg-[color:var(--ds-surface-ground)] p-0"
             >
+              <DrawerTitle className="sr-only">Grid Customizer</DrawerTitle>
               <div
                 data-ds-settings=""
                 data-testid="v2-settings-sheet"

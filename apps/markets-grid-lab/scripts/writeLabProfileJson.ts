@@ -27,6 +27,14 @@ import {
   OVERVIEW_GRID_ID,
   QUICK_FILTERS_DEMO_PROFILES,
   QUICK_FILTERS_GRID_ID,
+  BULK_UPDATE_DEMO_PROFILES,
+  BULK_UPDATE_GRID_ID,
+  EDITING_DEMO_PROFILES,
+  EDITING_GRID_ID,
+  PLUS_MINUS_DEMO_PROFILES,
+  PLUS_MINUS_GRID_ID,
+  SHORTCUTS_DEMO_PROFILES,
+  SHORTCUTS_GRID_ID,
   SMART_EDIT_GRID_ID,
   SMART_EDIT_DEMO_PROFILES,
 } from '../src/profiles/catalogs';
@@ -47,6 +55,10 @@ const CATALOGS = [
   { folder: 'formatter-toolbar', gridId: FORMATTER_TOOLBAR_GRID_ID, profiles: FORMATTER_TOOLBAR_DEMO_PROFILES },
   { folder: 'quick-filters', gridId: QUICK_FILTERS_GRID_ID, profiles: QUICK_FILTERS_DEMO_PROFILES },
   { folder: 'smart-edit', gridId: SMART_EDIT_GRID_ID, profiles: SMART_EDIT_DEMO_PROFILES },
+  { folder: 'bulk-update', gridId: BULK_UPDATE_GRID_ID, profiles: BULK_UPDATE_DEMO_PROFILES },
+  { folder: 'plus-minus', gridId: PLUS_MINUS_GRID_ID, profiles: PLUS_MINUS_DEMO_PROFILES },
+  { folder: 'shortcuts', gridId: SHORTCUTS_GRID_ID, profiles: SHORTCUTS_DEMO_PROFILES },
+  { folder: 'editing', gridId: EDITING_GRID_ID, profiles: EDITING_DEMO_PROFILES },
 ] as const;
 
 for (const { folder, gridId, profiles } of CATALOGS) {

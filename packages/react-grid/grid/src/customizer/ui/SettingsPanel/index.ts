@@ -36,6 +36,7 @@ export { TabStrip, type TabStripProps, type TabItem } from './TabStrip';
 export {
   CockpitList,
   CockpitListItem,
+  CockpitListItemMeta,
   type CockpitListProps,
   type CockpitListItemProps,
 } from './CockpitList';

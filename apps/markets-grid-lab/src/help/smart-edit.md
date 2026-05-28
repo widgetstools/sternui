@@ -2,6 +2,8 @@
 
 Bulk update and arithmetic editing for numeric columns.
 
+> **Primary demo:** use the unified **[Editing](./editing.md)** tab for all editing modules together. This page describes Smart Edit in isolation.
+
 ## Try it
 
 1. Open the **Smart Edit** tab — stream is **paused** so edits are not overwritten by ticks.

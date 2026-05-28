@@ -37,6 +37,18 @@ import {
   SMART_EDIT_ACTIVE_PROFILE_ID,
   SMART_EDIT_DEMO_PROFILES,
   SMART_EDIT_GRID_ID,
+  BULK_UPDATE_ACTIVE_PROFILE_ID,
+  BULK_UPDATE_DEMO_PROFILES,
+  BULK_UPDATE_GRID_ID,
+  PLUS_MINUS_ACTIVE_PROFILE_ID,
+  PLUS_MINUS_DEMO_PROFILES,
+  PLUS_MINUS_GRID_ID,
+  SHORTCUTS_ACTIVE_PROFILE_ID,
+  SHORTCUTS_DEMO_PROFILES,
+  SHORTCUTS_GRID_ID,
+  EDITING_ACTIVE_PROFILE_ID,
+  EDITING_DEMO_PROFILES,
+  EDITING_GRID_ID,
 } from '../profiles/catalogs';
 import type { LabStreamOptions } from '../demo/types';
 
@@ -44,7 +56,10 @@ type GridChrome = Pick<
   MarketsGridProps,
   | 'showFiltersToolbar'
   | 'showFormattingToolbar'
+  | 'showEditingToolbar'
   | 'showSmartEditToolbar'
+  | 'showBulkUpdateToolbar'
+  | 'showEditHistoryToolbar'
   | 'showProfileSelector'
   | 'showSaveButton'
   | 'showSettingsButton'
@@ -386,8 +401,146 @@ export const SMART_EDIT_FEATURE: LabFeatureConfig = {
   getColumnDefs: () => SMART_EDIT_COLUMNS,
   grid: {
     showSmartEditToolbar: true,
+    showEditHistoryToolbar: true,
     showFiltersToolbar: true,
     showFormattingToolbar: false,
+    showProfileSelector: true,
+    showSaveButton: true,
+    showSettingsButton: true,
+  },
+};
+
+const BULK_UPDATE_COLUMNS = pickColumns([
+  'cusip', 'ticker', 'currency', 'quantityFace', 'maturityDate', 'midPrice',
+]).map((col) => {
+  if (col.field === 'currency') {
+    return { ...col, editable: true, cellDataType: 'text' as const };
+  }
+  if (col.field === 'quantityFace') {
+    return { ...col, editable: true, cellDataType: 'number' as const };
+  }
+  if (col.field === 'maturityDate') {
+    return { ...col, editable: true, cellDataType: 'dateString' as const };
+  }
+  return col;
+});
+
+export const BULK_UPDATE_FEATURE: LabFeatureConfig = {
+  tabId: 'bulk-update',
+  providerId: 'mock-positions-bulk-update',
+  title: 'Bulk Update',
+  subtitle: `${BULK_UPDATE_DEMO_PROFILES.length} profiles · replace selection with one value · text · number · date`,
+  help: HELP.bulkUpdate,
+  gridId: BULK_UPDATE_GRID_ID,
+  componentName: 'BulkUpdateLab',
+  profiles: BULK_UPDATE_DEMO_PROFILES,
+  activeProfileId: BULK_UPDATE_ACTIVE_PROFILE_ID,
+  stream: { rowCount: 200, updateIntervalMs: 500, enableUpdates: false },
+  getColumnDefs: () => BULK_UPDATE_COLUMNS,
+  grid: {
+    showBulkUpdateToolbar: true,
+    showEditHistoryToolbar: true,
+    showFiltersToolbar: true,
+    showFormattingToolbar: false,
+    showProfileSelector: true,
+    showSaveButton: true,
+    showSettingsButton: true,
+  },
+};
+
+const PLUS_MINUS_COLUMNS = pickColumns([
+  'cusip', 'ticker', 'side', 'quantityFace', 'midPrice', 'marketValue',
+]).map((col) => {
+  if (col.field === 'quantityFace' || col.field === 'midPrice') {
+    return { ...col, editable: true, cellDataType: 'number' as const };
+  }
+  return col;
+});
+
+export const PLUS_MINUS_FEATURE: LabFeatureConfig = {
+  tabId: 'plus-minus',
+  providerId: 'mock-positions-plus-minus',
+  title: 'Plus / Minus',
+  subtitle: `${PLUS_MINUS_DEMO_PROFILES.length} profiles · keyboard nudge rules · expression gates · undo`,
+  help: HELP.plusMinus,
+  gridId: PLUS_MINUS_GRID_ID,
+  componentName: 'PlusMinusLab',
+  profiles: PLUS_MINUS_DEMO_PROFILES,
+  activeProfileId: PLUS_MINUS_ACTIVE_PROFILE_ID,
+  stream: { rowCount: 200, updateIntervalMs: 500, enableUpdates: false },
+  getColumnDefs: () => PLUS_MINUS_COLUMNS,
+  grid: {
+    showEditHistoryToolbar: true,
+    showFiltersToolbar: true,
+    showFormattingToolbar: false,
+    showProfileSelector: true,
+    showSaveButton: true,
+    showSettingsButton: true,
+  },
+};
+
+const SHORTCUTS_COLUMNS = pickColumns([
+  'cusip', 'ticker', 'quantityFace', 'midPrice', 'marketValue',
+]).map((col) => {
+  if (col.field === 'quantityFace' || col.field === 'midPrice') {
+    return { ...col, editable: true, cellDataType: 'number' as const };
+  }
+  return col;
+});
+
+export const SHORTCUTS_FEATURE: LabFeatureConfig = {
+  tabId: 'shortcuts',
+  providerId: 'mock-positions-shortcuts',
+  title: 'Shortcuts',
+  subtitle: `${SHORTCUTS_DEMO_PROFILES.length} profiles · letter-key ops · undo · not K/M/B`,
+  help: HELP.shortcuts,
+  gridId: SHORTCUTS_GRID_ID,
+  componentName: 'ShortcutsLab',
+  profiles: SHORTCUTS_DEMO_PROFILES,
+  activeProfileId: SHORTCUTS_ACTIVE_PROFILE_ID,
+  stream: { rowCount: 200, updateIntervalMs: 500, enableUpdates: false },
+  getColumnDefs: () => SHORTCUTS_COLUMNS,
+  grid: {
+    showEditHistoryToolbar: true,
+    showFiltersToolbar: true,
+    showFormattingToolbar: false,
+    showProfileSelector: true,
+    showSaveButton: true,
+    showSettingsButton: true,
+  },
+};
+
+const EDITING_COLUMNS = pickColumns([
+  'cusip', 'ticker', 'currency', 'quantityFace', 'maturityDate', 'midPrice', 'marketValue', 'dailyPnL',
+]).map((col) => {
+  if (col.field === 'currency') {
+    return { ...col, editable: true, cellDataType: 'text' as const };
+  }
+  if (col.field === 'quantityFace' || col.field === 'midPrice') {
+    return { ...col, editable: true, cellDataType: 'number' as const };
+  }
+  if (col.field === 'maturityDate') {
+    return { ...col, editable: true, cellDataType: 'dateString' as const };
+  }
+  return col;
+});
+
+export const EDITING_FEATURE: LabFeatureConfig = {
+  tabId: 'editing',
+  providerId: 'mock-positions-editing',
+  title: 'Editing',
+  subtitle: `${EDITING_DEMO_PROFILES.length} profiles · Smart Edit · Bulk Update · +/- · Shortcuts · History`,
+  help: HELP.editing,
+  gridId: EDITING_GRID_ID,
+  componentName: 'EditingLab',
+  profiles: EDITING_DEMO_PROFILES,
+  activeProfileId: EDITING_ACTIVE_PROFILE_ID,
+  stream: { rowCount: 200, updateIntervalMs: 500, enableUpdates: false },
+  getColumnDefs: () => EDITING_COLUMNS,
+  grid: {
+    showEditingToolbar: true,
+    showFormattingToolbar: true,
+    showFiltersToolbar: true,
     showProfileSelector: true,
     showSaveButton: true,
     showSettingsButton: true,

@@ -26,6 +26,7 @@ export class EditJournal {
   private future: EditJournalEntry[] = [];
   private monitor: EditJournalEntry[] = [];
   private suspended = false;
+  private readonly listeners = new Set<() => void>();
 
   constructor(options: EditJournalOptions = {}) {
     this.limit = options.limit ?? 50;
@@ -34,6 +35,11 @@ export class EditJournal {
 
   get entries(): readonly EditJournalEntry[] {
     return this.monitor;
+  }
+
+  /** Edits currently applied — size of the undo stack. */
+  get undoStackSize(): number {
+    return this.past.length;
   }
 
   get canUndo(): boolean {
@@ -48,6 +54,20 @@ export class EditJournal {
     return this.suspended;
   }
 
+  /** Subscribe to stack/monitor mutations (record, undo, redo, reset). */
+  subscribe(fn: () => void): () => void {
+    this.listeners.add(fn);
+    return () => {
+      this.listeners.delete(fn);
+    };
+  }
+
+  private notify(): void {
+    for (const fn of this.listeners) {
+      fn();
+    }
+  }
+
   suspend(): void {
     this.suspended = true;
   }
@@ -60,6 +80,7 @@ export class EditJournal {
     this.past = [];
     this.future = [];
     this.monitor = [];
+    this.notify();
   }
 
   record(params: {
@@ -84,6 +105,7 @@ export class EditJournal {
     if (this.monitor.length > this.monitorLimit) {
       this.monitor = this.monitor.slice(0, this.monitorLimit);
     }
+    this.notify();
     return entry;
   }
 
@@ -95,6 +117,7 @@ export class EditJournal {
       this.future = this.future.slice(this.future.length - this.limit);
     }
     await applyPatches(api, entry.patches, 'undo', rowIdField);
+    this.notify();
     return true;
   }
 
@@ -106,23 +129,35 @@ export class EditJournal {
       this.past = this.past.slice(this.past.length - this.limit);
     }
     await applyPatches(api, entry.patches, 'redo', rowIdField);
+    this.notify();
     return true;
   }
 
-  /** Undo a specific monitor entry (moves timeline to that point). */
+  /** True when the entry is still on the undo stack (not yet undone). */
+  canUndoEntry(entryId: string): boolean {
+    return this.past.some((entry) => entry.id === entryId);
+  }
+
+  /** Undo this entry and every edit after it — moves the timeline to just before it. */
   async undoEntry(api: EditGridWriter, entryId: string, rowIdField = 'id'): Promise<boolean> {
-    let idx = -1;
-    for (let i = this.past.length - 1; i >= 0; i -= 1) {
-      if (this.past[i]?.id === entryId) {
-        idx = i;
-        break;
-      }
-    }
+    const idx = this.past.findIndex((entry) => entry.id === entryId);
     if (idx < 0) return false;
-    const entry = this.past[idx]!;
+
+    const toUndo = this.past.slice(idx);
     this.past = this.past.slice(0, idx);
-    this.future = [entry, ...this.future];
-    await applyPatches(api, entry.patches, 'undo', rowIdField);
+
+    for (let i = toUndo.length - 1; i >= 0; i -= 1) {
+      await applyPatches(api, toUndo[i]!.patches, 'undo', rowIdField);
+    }
+
+    for (let i = toUndo.length - 1; i >= 0; i -= 1) {
+      this.future.push(toUndo[i]!);
+    }
+    if (this.future.length > this.limit) {
+      this.future = this.future.slice(this.future.length - this.limit);
+    }
+
+    this.notify();
     return true;
   }
 }

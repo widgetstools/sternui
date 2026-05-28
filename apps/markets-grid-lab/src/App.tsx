@@ -35,8 +35,17 @@ const LiveUpdatesTab = lazy(() =>
 const AlertsTab = lazy(() =>
   import('./tabs/AlertsTab').then((m) => ({ default: m.AlertsTab })),
 );
-const SmartEditTab = lazy(() =>
-  import('./tabs/SmartEditTab').then((m) => ({ default: m.SmartEditTab })),
+const EditingTab = lazy(() =>
+  import('./tabs/EditingTab').then((m) => ({ default: m.EditingTab })),
+);
+const BulkUpdateTab = lazy(() =>
+  import('./tabs/BulkUpdateTab').then((m) => ({ default: m.BulkUpdateTab })),
+);
+const PlusMinusTab = lazy(() =>
+  import('./tabs/PlusMinusTab').then((m) => ({ default: m.PlusMinusTab })),
+);
+const ShortcutsTab = lazy(() =>
+  import('./tabs/ShortcutsTab').then((m) => ({ default: m.ShortcutsTab })),
 );
 const ProfilesTab = lazy(() =>
   import('./tabs/ProfilesTab').then((m) => ({ default: m.ProfilesTab })),
@@ -60,7 +69,10 @@ const TABS: TabEntry[] = [
   { id: 'filters', label: 'Quick Filters', hint: 'Saved filter pill buttons', Component: QuickFiltersTab },
   { id: 'live', label: 'Live Updates', hint: 'High-frequency stream', Component: LiveUpdatesTab },
   { id: 'alerts', label: 'Alerts', hint: 'Triggers, toasts, bell + OpenFin', Component: AlertsTab },
-  { id: 'smart-edit', label: 'Smart Edit', hint: 'Bulk update & arithmetic edits', Component: SmartEditTab },
+  { id: 'editing', label: 'Editing', hint: 'Full editing family demo', Component: EditingTab },
+  { id: 'bulk-update', label: 'Bulk Update', hint: 'Replace selection with one value', Component: BulkUpdateTab },
+  { id: 'plus-minus', label: 'Plus / Minus', hint: 'Keyboard nudge rules', Component: PlusMinusTab },
+  { id: 'shortcuts', label: 'Shortcuts', hint: 'Letter-key arithmetic', Component: ShortcutsTab },
   { id: 'profiles', label: 'Profiles', hint: 'Pre-baked configurations', Component: ProfilesTab },
 ];
 

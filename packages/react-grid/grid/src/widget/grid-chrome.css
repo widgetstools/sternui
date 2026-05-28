@@ -480,6 +480,55 @@
   box-shadow: 0 0 5px color-mix(in srgb, var(--ds-accent-warning) 55%, transparent);
 }
 
+/* ── Unified editing toolbar row ──────────────────────────────────────── */
+.ds-editing-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--ds-surface-primary);
+  color: var(--ds-text-primary);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.ds-editing-toolbar__segment {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+}
+
+/* Shared label / meta typography inside the unified row */
+.ds-editing-toolbar__label,
+.ds-editing-toolbar .ds-edit-history-toolbar__label,
+.ds-editing-toolbar .ds-bulk-update-toolbar__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ds-text-secondary);
+  white-space: nowrap;
+}
+
+.ds-editing-toolbar__meta,
+.ds-editing-toolbar .ds-edit-history-toolbar__count,
+.ds-editing-toolbar .ds-bulk-update-toolbar__count {
+  font-size: 12px;
+  color: var(--ds-text-secondary);
+  white-space: nowrap;
+}
+
+/* Compact controls — align to size="sm" buttons (28px) */
+.ds-editing-toolbar .ds-bulk-update-toolbar__input,
+.ds-editing-toolbar .ds-bulk-update-toolbar__select,
+.ds-editing-toolbar .ds-smart-edit-toolbar__operand {
+  height: 28px;
+  min-height: 28px;
+  font-size: 12px;
+}
+
 /* ── Smart Edit toolbar row ─────────────────────────────────────────────── */
 .ds-smart-edit-toolbar {
   display: flex;
@@ -497,4 +546,55 @@
 
 .ds-smart-edit-toolbar__count {
   margin-left: auto;
+}
+
+/* ── Edit history toolbar row ─────────────────────────────────────────── */
+.ds-edit-history-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--ds-surface-primary);
+  color: var(--ds-text-primary);
+  font-size: 12px;
+}
+
+.ds-edit-history-toolbar__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ds-text-secondary);
+}
+
+.ds-edit-history-toolbar__count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--ds-text-secondary);
+}
+
+/* ── Bulk Update toolbar row ────────────────────────────────────────────── */
+.ds-bulk-update-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--ds-surface-primary);
+  color: var(--ds-text-primary);
+  font-size: 12px;
+}
+
+.ds-bulk-update-toolbar__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ds-text-secondary);
+}
+
+.ds-bulk-update-toolbar__input,
+.ds-bulk-update-toolbar__select {
+  width: 160px;
+}
+
+.ds-bulk-update-toolbar__count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--ds-text-secondary);
 }

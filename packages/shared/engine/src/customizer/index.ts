@@ -66,3 +66,33 @@ export {
 } from './modules/smart-edit/collectTargetCells.js';
 
 export * from './modules/editing-core/index.js';
+
+export * from './modules/data-change-history/state.js';
+
+export * from './modules/bulk-update/state.js';
+export { isBulkUpdateCellType, bulkUpdateValueKind } from './modules/bulk-update/isBulkUpdateCellType.js';
+export {
+  collectBulkUpdateTargets,
+  type BulkUpdateGridReader,
+  type BulkUpdateTarget,
+} from './modules/bulk-update/collectBulkUpdateTargets.js';
+export {
+  buildBulkUpdatePatches,
+  buildBulkUpdatePatchesFromRaw,
+  parseBulkUpdateValue,
+} from './modules/bulk-update/applyBulkUpdate.js';
+export { resolveColumnDistinctValues } from './modules/bulk-update/resolveColumnDistinctValues.js';
+
+export * from './modules/plus-minus/state.js';
+export { resolveNudgeForCell } from './modules/plus-minus/resolveNudgeForCell.js';
+export {
+  buildNudgePatches,
+  type BuildNudgePatchesOptions,
+  type NudgeDirection,
+} from './modules/plus-minus/buildNudgePatches.js';
+export { applyPlusMinusColDefTransforms } from './modules/plus-minus/transforms.js';
+
+export * from './modules/shortcuts/state.js';
+export { matchShortcutForCell, collectShortcutKeys } from './modules/shortcuts/matchShortcut.js';
+export { buildShortcutPatches } from './modules/shortcuts/buildShortcutPatches.js';
+export { applyShortcutsColDefTransforms } from './modules/shortcuts/transforms.js';

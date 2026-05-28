@@ -18,14 +18,18 @@ import { type AnyModule, type StorageAdapter } from '@starui/engine';
 import {
   GridProvider,
   alertsModule,
+  bulkUpdateModule,
   calculatedColumnsModule,
   columnCustomizationModule,
   columnGroupsModule,
   columnTemplatesModule,
   conditionalStylingModule,
+  dataChangeHistoryModule,
   generalSettingsModule,
   gridStateModule,
+  plusMinusModule,
   savedFiltersModule,
+  shortcutsModule,
   smartEditModule,
   toolbarVisibilityModule,
 } from '@starui/grid/customizer';
@@ -35,6 +39,7 @@ import { useGridHost } from './useGridHost';
 import { resolveMarketsGridHost } from './resolveMarketsGridHost';
 import { resolveSurfaceHostOverrideKeys } from './gridSurfaceOptions';
 import { MarketsGridHost } from './MarketsGridHost';
+import { resolveEditingToolbarAllow } from './editingToolbar/resolveEditingToolbarAllow';
 
 let _agRegistered = false;
 function ensureAgGridRegistered() {
@@ -65,6 +70,10 @@ export const DEFAULT_MODULES: AnyModule[] = [
   columnGroupsModule,
   conditionalStylingModule,
   smartEditModule,
+  bulkUpdateModule,
+  plusMinusModule,
+  shortcutsModule,
+  dataChangeHistoryModule,
   alertsModule,
   savedFiltersModule,
   toolbarVisibilityModule,
@@ -96,7 +105,10 @@ function MarketsGridInner<TData = unknown>(
     showToolbar = true,
     showFiltersToolbar = false,
     showFormattingToolbar = false,
-    showSmartEditToolbar = false,
+    showEditingToolbar = false,
+    showSmartEditToolbar,
+    showBulkUpdateToolbar,
+    showEditHistoryToolbar,
     showSaveButton = true,
     showSettingsButton = true,
     showProfileSelector = true,
@@ -285,6 +297,16 @@ function MarketsGridInner<TData = unknown>(
     );
   }
 
+  const editingToolbarAllow = useMemo(
+    () => resolveEditingToolbarAllow({
+      showEditingToolbar,
+      showSmartEditToolbar,
+      showBulkUpdateToolbar,
+      showEditHistoryToolbar,
+    }),
+    [showEditingToolbar, showSmartEditToolbar, showBulkUpdateToolbar, showEditHistoryToolbar],
+  );
+
   return (
     <GridProvider platform={platform}>
       <MarketsGridHost
@@ -305,7 +327,7 @@ function MarketsGridInner<TData = unknown>(
         showToolbar={showToolbar}
         showFiltersToolbar={showFiltersToolbar}
         showFormattingToolbar={showFormattingToolbar}
-        showSmartEditToolbar={showSmartEditToolbar}
+        editingToolbarAllow={editingToolbarAllow}
         showSaveButton={showSaveButton}
         showSettingsButton={showSettingsButton}
         showProfileSelector={showProfileSelector}

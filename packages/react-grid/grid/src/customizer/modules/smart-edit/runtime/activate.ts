@@ -1,15 +1,26 @@
 import type { GridApi } from 'ag-grid-community';
 import type { PlatformHandle } from '@starui/engine';
 import {
+  PLUS_MINUS_MODULE_ID,
   SMART_EDIT_MODULE_ID,
+  type PlusMinusState,
   type SmartEditState,
 } from '@starui/engine';
-import { getEditJournal } from '../../../editing/editJournalScope.js';
+import { resolveEditRecording } from '../../../editing/recordEdit.js';
 import { applyEdits, resolveTargetCells } from './applyEdits.js';
 
 function isEditingCell(api: GridApi): boolean {
   try {
     return (api.getEditingCells?.() ?? []).length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function isPlusMinusHandlingKeys(platform: PlatformHandle<SmartEditState>): boolean {
+  try {
+    const pm = platform.getModuleState<PlusMinusState>(PLUS_MINUS_MODULE_ID);
+    return pm.settings.enabled;
   } catch {
     return false;
   }
@@ -27,6 +38,7 @@ export function activateSmartEdit(platform: PlatformHandle<SmartEditState>): () 
       if (!ke) return;
       if (ke.key !== '+' && ke.key !== '=' && ke.key !== '-') return;
       if (isEditingCell(api)) return;
+      if (isPlusMinusHandlingKeys(platform)) return;
 
       ke.preventDefault();
 
@@ -35,8 +47,15 @@ export function activateSmartEdit(platform: PlatformHandle<SmartEditState>): () 
 
       const step = state.settings.incrementStep;
       const op = ke.key === '-' ? 'subtract' : 'add';
-      const journal = state.settings.recordHistory ? getEditJournal(platform) : null;
-      await applyEdits(api, cells, op, step, { journal });
+      const { record, journal } = resolveEditRecording(
+        platform,
+        'smart-edit',
+        state.settings.recordHistory,
+      );
+      await applyEdits(api, cells, op, step, {
+        journal: record ? journal : null,
+        journalApplyGridId: platform.gridId,
+      });
     };
 
     api.addEventListener('cellKeyDown', onCellKeyDown);

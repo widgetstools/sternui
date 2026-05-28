@@ -5,6 +5,57 @@ import { describe, expect, it, vi } from 'vitest';
 import { activateSmartEdit } from './activate.js';
 
 describe('activateSmartEdit', () => {
+  test('ignores +/- when plus-minus module is enabled', async () => {
+    const applyTransactionAsync = vi.fn().mockResolvedValue(undefined);
+    let cellKeyDownHandler: ((e: { event?: Event }) => void) | null = null;
+
+    const api = {
+      getEditingCells: () => [],
+      getCellRanges: () => [],
+      getFocusedCell: () => ({ rowIndex: 0, column: { getColId: () => 'qty' } }),
+      getDisplayedRowAtIndex: () => ({ id: 'r1', data: { id: 'r1', qty: 10 } }),
+      getRowNode: () => ({ data: { id: 'r1', qty: 10 } }),
+      getColumn: () => ({
+        getColDef: () => ({ editable: true, field: 'qty', cellDataType: 'number' }),
+      }),
+      getCellValue: () => 10,
+      applyTransactionAsync,
+      addEventListener: (name: string, fn: typeof cellKeyDownHandler) => {
+        if (name === 'cellKeyDown') cellKeyDownHandler = fn;
+      },
+      removeEventListener: vi.fn(),
+    };
+
+    const platform = {
+      getState: () => ({
+        settings: {
+          enabled: true,
+          incrementStep: 2,
+          magnitudeShortcutsEnabled: true,
+          enabledOps: ['add'],
+          confirmThreshold: 0,
+          recordHistory: true,
+        },
+      }),
+      getModuleState: (id: string) => {
+        if (id === 'plus-minus') return { settings: { enabled: true }, nudges: [] };
+        throw new Error(id);
+      },
+      api: {
+        onReady: (cb: (api: typeof api) => void) => {
+          cb(api);
+          return () => {};
+        },
+      },
+    };
+
+    activateSmartEdit(platform as never);
+    await cellKeyDownHandler!({
+      event: { key: '+', preventDefault: vi.fn() } as unknown as KeyboardEvent,
+    });
+    expect(applyTransactionAsync).not.toHaveBeenCalled();
+  });
+
   it('handles cellKeyDown + and applies increment', async () => {
     const applyTransactionAsync = vi.fn().mockResolvedValue(undefined);
     let cellKeyDownHandler: ((e: { event?: Event }) => void) | null = null;
@@ -34,8 +85,14 @@ describe('activateSmartEdit', () => {
           magnitudeShortcutsEnabled: true,
           enabledOps: ['add'],
           confirmThreshold: 0,
+          recordHistory: true,
         },
       }),
+      getModuleState: (id: string) => {
+        if (id === 'plus-minus') throw new Error('missing');
+        throw new Error(id);
+      },
+      gridId: 'g1',
       api: {
         onReady: (cb: (api: typeof api) => void) => {
           cb(api);

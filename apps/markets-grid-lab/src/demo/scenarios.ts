@@ -382,6 +382,43 @@ const SCENARIOS: LabScenario[] = [
         compositeRating: 'A',
       }),
   },
+  // ─── Editing tab ───────────────────────────────────────────────────
+  {
+    id: 'editing-qty-selection',
+    title: 'Qty column focus',
+    description: 'Distinct quantityFace values on first rows — select qty for Smart Edit / Bulk.',
+    accent: 'info',
+    tabs: ['editing'],
+    apply: (rows) =>
+      patchIndices(rows, [0, 1, 2], (row, i) => ({
+        quantityFace: 1_000_000 * (i + 1),
+      })),
+  },
+  {
+    id: 'editing-validation-trap',
+    title: 'Extreme qty values',
+    description: 'Very large qty on row 0 — useful with preview-before-apply profile.',
+    accent: 'warning',
+    tabs: ['editing'],
+    apply: (rows) =>
+      patchFirst(rows, () => true, {
+        quantityFace: 999_999_999,
+        midPrice: 0.001,
+      }),
+  },
+  {
+    id: 'editing-multi-column',
+    title: 'Mixed column values',
+    description: 'Different qty and mid on adjacent rows — demo single-column guard.',
+    accent: 'neutral',
+    tabs: ['editing'],
+    apply: (rows) => {
+      const next = cloneRows(rows);
+      patchRow(next, 0, { quantityFace: 10_000_000, midPrice: 98.5 });
+      patchRow(next, 1, { quantityFace: 5_000_000, midPrice: 101.25 });
+      return next;
+    },
+  },
 ];
 
 export function scenariosForTab(tabId: string): LabScenario[] {
