@@ -1065,6 +1065,8 @@ Per-renderer config types (`PillRendererConfig`,
 - `resolvePlatformBootstrapFromJson()` — fetch `/app-config.json` for web apps
 - `resolvePlatformBootstrapFromObject()` — parse inline/test bootstrap objects
 - `PlatformBootstrapConfigError` — validation / fetch failures
+- `ensurePlatformReady()` — ConfigManager init + SharedWorker hub bootstrap (singleton per `appId`)
+- `ensureDataServicesHub()` — lazy hub wrapper (legacy bootstrap until catalog preload, PR2)
 
 #### Bootstrap
 

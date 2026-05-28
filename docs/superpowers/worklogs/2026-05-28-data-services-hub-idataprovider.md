@@ -48,7 +48,7 @@ npx turbo typecheck build test --filter=@starui/host-data --filter=@starui/host-
 | 3 | PR1b | 0.5.1 | `PlatformBootstrapConfig` type + validation tests | **done** | 2026-05-28 |
 | 4 | PR1b | 0.5.2 | Web `resolvePlatformBootstrapFromJson` + guide draft | **done** | 2026-05-28 |
 | 5 | PR1b | 0.5.3 | OpenFin `resolvePlatformBootstrapFromManifest` + template manifest | **done** | 2026-05-28 |
-| 6 | PR1b | 0.5.4 | `ensurePlatformReady` orchestrator + tests | pending | |
+| 6 | PR1b | 0.5.4 | `ensurePlatformReady` orchestrator + tests | **done** | 2026-05-28 |
 | 7 | PR1b | 0.5.5 | `markets-grid-lab` pilot + `platform-bootstrap-config.md` | pending | |
 | 8 | PR2 | 1.1 | `ConfigCatalogCache` in worker | pending | |
 | 9 | PR2 | 1.2 | Protocol extensions (`get-config`, `catalog-ready`, …) | pending | |
@@ -204,7 +204,25 @@ Merge each PR to `feat/data-services-hub-idataprovider` (or stack against `main`
 
 ---
 
-### Session 6 — (pending)
+### Session 6 — 2026-05-28
+
+**Scope:** Task 0.5.4 — `ensurePlatformReady` orchestrator  
+**Done:**
+
+- Added `ensurePlatformReady()` — validate config → `createConfigManager` + `init()` → `ensureDataServicesHub()`
+- Added minimal `ensureDataServicesHub()` wrapping `bootstrapDataServicesWithWorkerAsset` (Phase 2 stub until catalog preload)
+- Per-`appId` singletons for platform + hub; `getProvider()` throws until Phase 3 adapter
+- 4 unit tests for ConfigManager args, idempotency, REST URL, validation
+
+**Verify:** typecheck + 162 host-data tests pass
+
+**Next:** Session 7 — `markets-grid-lab` pilot + `platformBootstrap.ts` (Task 0.5.5)
+
+**Blockers:** none
+
+---
+
+### Session 7 — (pending)
 
 ---
 

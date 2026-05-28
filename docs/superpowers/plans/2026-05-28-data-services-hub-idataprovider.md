@@ -221,7 +221,7 @@ export interface IDataProvider<T = unknown> {
 - Create: `packages/data/host-data/src/bootstrap/ensurePlatformReady.ts`
 - Create: `packages/data/host-data/src/bootstrap/ensurePlatformReady.test.ts`
 
-- [ ] **Step 1:** Implement:
+- [ ] **Step 1:** Implement: ✅ Session 6
 
 ```typescript
 export async function ensurePlatformReady(
@@ -245,8 +245,8 @@ export async function ensurePlatformReady(
 }
 ```
 
-- [ ] **Step 2:** Per-window singleton keyed by `appId` (same pattern as `ensureDataServicesHub`).
-- [ ] **Step 3:** Tests: double call returns same bundle; ConfigManager receives `appId` + `userId`.
+- [ ] **Step 2:** Per-window singleton keyed by `appId` (same pattern as `ensureDataServicesHub`). ✅ Session 6
+- [ ] **Step 3:** Tests: double call returns same bundle; ConfigManager receives `appId` + `userId`. ✅ Session 6
 - [ ] **Step 4:** Commit: `feat(host-data): ensurePlatformReady orchestrator`.
 
 ### Task 0.5.5: App bootstrap module pattern (document + one pilot)

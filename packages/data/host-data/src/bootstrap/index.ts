@@ -12,3 +12,9 @@ export {
   resolvePlatformBootstrapFromObject,
   type FetchLike,
 } from './resolvePlatformBootstrap.js';
+export {
+  ensurePlatformReady,
+  type EnsurePlatformReadyOpts,
+} from './ensurePlatformReady.js';
+export type { EnsureHubOpts } from '../hub/ensureDataServicesHub.js';
+export { ensureDataServicesHub } from '../hub/ensureDataServicesHub.js';
