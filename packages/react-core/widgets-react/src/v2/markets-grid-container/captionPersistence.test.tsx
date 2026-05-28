@@ -25,7 +25,14 @@ vi.mock('@starui/grid', () => ({
 }));
 
 vi.mock('@starui/host-data-react/runtime', () => ({
-  useDataServices: () => ({ client: {} }),
+  useDataProvider: () => ({
+    provider: null,
+    status: 'loading',
+    error: undefined,
+    start: vi.fn(),
+    refresh: vi.fn(),
+    restart: vi.fn(),
+  }),
   useAppDataStore: () => ({ store: { set: vi.fn() } }),
   useDataProviderConfig: () => ({ cfg: null, loading: false }),
   useResolvedCfg: () => null,

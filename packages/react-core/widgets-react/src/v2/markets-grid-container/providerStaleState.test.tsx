@@ -7,6 +7,8 @@ import * as React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { act, render, waitFor } from '@testing-library/react';
 import type { StorageAdapter } from '@starui/engine';
+import type { IDataProvider, Unsubscribe } from '@starui/host-data';
+import type { ProviderStatus } from '@starui/host-data/runtime';
 
 const PROVIDER_ID = 'dp-stale-test';
 
@@ -22,39 +24,50 @@ const providerRow = {
   config: providerConfig,
 };
 
-type Status = 'loading' | 'ready' | 'error';
+function createMockProvider(): IDataProvider & {
+  start: ReturnType<typeof vi.fn>;
+  emitStatus: (status: ProviderStatus, error?: string) => void;
+} {
+  const statusHandlers = new Set<(status: ProviderStatus, error?: string) => void>();
 
-function createSubscribeHandle() {
-  const hooks = {
-    onStatus: null as null | ((status: Status, err?: string) => void),
-    onUpdate: null as null | ((rows: unknown[]) => void),
-    onReset: null as null | ((rows: unknown[]) => void),
-  };
-  return {
-    hooks,
-    handle: {
-      onStatus(cb: (status: Status, err?: string) => void) {
-        hooks.onStatus = cb;
-      },
-      onUpdate(cb: (rows: unknown[]) => void) {
-        hooks.onUpdate = cb;
-      },
-      onReset(cb: (rows: unknown[]) => void) {
-        hooks.onReset = cb;
-      },
-      unsubscribe: vi.fn(),
-      snapshot: Promise.resolve([] as unknown[]),
+  const provider: IDataProvider & {
+    start: ReturnType<typeof vi.fn>;
+    emitStatus: (status: ProviderStatus, error?: string) => void;
+  } = {
+    id: PROVIDER_ID,
+    capabilities: {
+      providerType: 'mock',
+      streaming: true,
+      realtime: true,
+      supportsRefresh: true,
+      supportsRestart: true,
+    },
+    start: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn().mockResolvedValue(undefined),
+    refresh: vi.fn().mockResolvedValue(undefined),
+    restart: vi.fn().mockResolvedValue(undefined),
+    getData: () => [],
+    getConfig: () => providerConfig,
+    getColumnDefs: () => providerConfig.columnDefinitions,
+    onRowsReceived: vi.fn(() => () => undefined),
+    onSnapshotData: vi.fn(() => () => undefined),
+    onTick: vi.fn(() => () => undefined),
+    onError: vi.fn(() => () => undefined),
+    onStatus: vi.fn((handler: (status: ProviderStatus, error?: string) => void): Unsubscribe => {
+      statusHandlers.add(handler);
+      return () => statusHandlers.delete(handler);
+    }),
+    emitStatus(status: ProviderStatus, error?: string) {
+      for (const handler of statusHandlers) handler(status, error);
     },
   };
+
+  return provider;
 }
 
-let latestSubscribe: ReturnType<typeof createSubscribeHandle> | null = null;
-const subscribeMock = vi.fn(() => {
-  latestSubscribe = createSubscribeHandle();
-  return latestSubscribe.handle;
-});
+let latestProvider: ReturnType<typeof createMockProvider> | null = null;
+const restartMock = vi.fn().mockResolvedValue(undefined);
 const noopOnError = vi.fn();
-const stableDpClient = { subscribe: subscribeMock };
 
 const lastMarketsGridProps: { current: any } = { current: null };
 
@@ -94,7 +107,28 @@ vi.mock('@starui/grid', () => ({
 }));
 
 vi.mock('@starui/host-data-react/runtime', () => ({
-  useDataServices: () => ({ client: stableDpClient }),
+  useDataProvider: (id: string | null | undefined) => {
+    if (id !== PROVIDER_ID) {
+      latestProvider = null;
+      return {
+        provider: null,
+        status: 'loading' as ProviderStatus,
+        error: undefined,
+        start: vi.fn(),
+        refresh: vi.fn(),
+        restart: restartMock,
+      };
+    }
+    latestProvider ??= createMockProvider();
+    return {
+      provider: latestProvider,
+      status: 'loading' as ProviderStatus,
+      error: undefined,
+      start: vi.fn(),
+      refresh: vi.fn(),
+      restart: restartMock,
+    };
+  },
   useDataProviderConfig: (id: string | null | undefined) => ({
     cfg: id === PROVIDER_ID ? providerRow : null,
     loading: false,
@@ -137,8 +171,8 @@ const baseProps = {
 
 describe('MarketsGridContainer — provider stale state', () => {
   beforeEach(() => {
-    latestSubscribe = null;
-    subscribeMock.mockClear();
+    latestProvider = null;
+    restartMock.mockClear();
     noopOnError.mockClear();
     lastMarketsGridProps.current = null;
   });
@@ -159,15 +193,12 @@ describe('MarketsGridContainer — provider stale state', () => {
       />,
     );
 
-    await waitFor(() => expect(subscribeMock).toHaveBeenCalled(), { timeout: 3000 });
-    await waitFor(() => expect(latestSubscribe?.hooks.onStatus).toBeTypeOf('function'));
-
-    const onStatus = latestSubscribe!.hooks.onStatus!;
+    await waitFor(() => expect(latestProvider?.start).toHaveBeenCalled(), { timeout: 3000 });
 
     await act(async () => {
-      onStatus('loading');
+      latestProvider!.emitStatus('loading');
       await Promise.resolve();
-      onStatus('ready');
+      latestProvider!.emitStatus('ready');
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -177,7 +208,7 @@ describe('MarketsGridContainer — provider stale state', () => {
     });
 
     await act(async () => {
-      onStatus('error', 'Provider disconnected');
+      latestProvider!.emitStatus('error', 'Provider disconnected');
       await Promise.resolve();
     });
 
@@ -188,9 +219,9 @@ describe('MarketsGridContainer — provider stale state', () => {
     expect(noopOnError).toHaveBeenCalled();
 
     await act(async () => {
-      onStatus('loading');
+      latestProvider!.emitStatus('loading');
       await Promise.resolve();
-      onStatus('ready');
+      latestProvider!.emitStatus('ready');
       await Promise.resolve();
       await Promise.resolve();
     });

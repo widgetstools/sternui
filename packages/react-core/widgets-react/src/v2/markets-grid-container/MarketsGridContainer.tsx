@@ -35,9 +35,10 @@ import {
   useResolvedCfg,
   useDataProvidersList,
   useAppDataStore,
-  useDataServices,
+  useDataProvider,
 } from '@starui/host-data-react/runtime';
-import { composeRowId, getValueByPath } from '@starui/shared-types';
+import { getValueByPath } from '@starui/shared-types';
+import { createApplyProviderToGridState } from './applyProviderToGrid.js';
 import { LOGGED_IN_USER_ID } from '@starui/types';
 import { ProviderToolbar, type ProviderMode } from './ProviderToolbar.js';
 import { ProviderEditorDialog } from './ProviderEditorDialog.js';
@@ -116,8 +117,6 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     ...marketsGridProps
   } = props;
 
-  const dp = useDataServices();
-  const dpClient = dp.client;
   const appData = useAppDataStore();
 
   // Adapt AppDataStore → AppDataLookup for the platform's
@@ -279,9 +278,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     );
   }, [props.gridId, selection.mode, activeId, activeProviderName, activeRow.loading]);
 
-  // Date picker writes through to AppData; the next render's
-  // `useResolvedCfg` produces a fresh cfg → useProviderStream
-  // re-attaches → Hub turns it into a restart.
+  // Date picker writes through to AppData; historical refresh passes
+  // `{ asOfDate }` via `provider.restart()`.
   const setAsOfDateAndPersist = useCallback((next: string | null) => {
     setAsOfDate(next);
     if (next && historicalDateAppDataRef) {
@@ -365,32 +363,16 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   const liveApi = stamped && stamped.key === expectedKey ? stamped.api : null;
 
-  // ── Two-phase data flow ──────────────────────────────────────────
+  // ── IDataProvider hook ───────────────────────────────────────────
   //
-  // The flow matches the natural reload-time sequence:
-  //
-  //   1. App reloads → connect to (or create) the SharedWorker.
-  //   2. Grid requests the snapshot from the worker.
-  //   3. Worker delivers it — either from its cache (hot reload), or
-  //      by starting the provider and waiting for its snapshot phase
-  //      to finish (cold reload / first load).
-  //   4. Grid applies the snapshot via setGridOption('rowData', ...).
-  //   5. Grid subscribes for live updates.
-  //
-  // `client.subscribe` returns a handle with both phases unbundled:
-  //   • `await handle.snapshot` — step 3.
-  //   • `handle.onUpdate(cb)` — step 5.
-  //
-  // Updates that arrive between snapshot resolution and onUpdate
-  // registration are buffered by the client and flushed in order on
-  // registration, so nothing is dropped.
-  //
-  // Refresh is implemented as: re-subscribe with `extra: {asOfDate}`
-  // for historical mode, or `extra: {__refresh: ts}` for live. The
-  // worker turns either into provider.restart(extra), which clears
-  // the cache and resets to 'loading' until the new snapshot arrives.
-  const [refreshTick, setRefreshTick] = useState(0);
-  const refreshExtraRef = useRef<Record<string, unknown> | undefined>(undefined);
+  // Hub config comes from the worker catalog on `start()` — we keep
+  // `useDataProviderConfig` / `useResolvedCfg` for column defs and
+  // the picker only, not as an attach cfg pass-through.
+  const providerReady = Boolean(activeId && !activeRow.loading && rowIdField && columnDefs);
+  const {
+    provider,
+    restart: restartProvider,
+  } = useDataProvider<TData>(providerReady ? activeId : null, { autoStart: false });
 
   // Loading-overlay state — derived synchronously from a "subscription
   // key" so the overlay appears on the SAME render that mounts the
@@ -400,7 +382,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // its snapshot resolved, and the overlay shows whenever the current
   // subscription key !== the resolved key.
   const subscriptionKey =
-    activeId && rowIdField ? `${activeId}::${rowIdFieldKey}::${refreshTick}` : null;
+    activeId && rowIdField ? `${activeId}::${rowIdFieldKey}` : null;
   const [resolvedSubKey, setResolvedSubKey] = useState<string | null>(null);
   const [loadRowCount, setLoadRowCount] = useState<number | undefined>(undefined);
   // True while the provider is in the 'loading' phase of a peer-
@@ -444,69 +426,98 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   }
 
   useEffect(() => {
-    if (!liveApi || !activeId || !activeCfg) {
+    if (!liveApi || !provider || !activeId) {
       if (DEBUG) {
         // eslint-disable-next-line no-console
-        console.log(`[v2/grid]   subscribe effect skipped: liveApi=%s activeId=%s activeCfg=%s`,
-          Boolean(liveApi), activeId, Boolean(activeCfg));
+        console.log(`[v2/grid]   provider wiring skipped: liveApi=%s provider=%s activeId=%s`,
+          Boolean(liveApi), Boolean(provider), activeId);
       }
       return;
     }
-    // Subscribe starting / restarting — clear the row count display so
-    // the next snapshot's count appears fresh. The overlay's
-    // visibility is already true via the derived isLoadingSnapshot
-    // flag (subscriptionKey changed → resolvedSubKey is stale).
+
     setLoadRowCount(undefined);
     setProviderDisconnected(false);
     setDisconnectDetail(undefined);
-    // Capture the key that's loading right now so async callbacks
-    // mark the right subscription resolved (in case the user picks a
-    // different provider before this one's snapshot arrives).
-    const thisSubKey = subscriptionKey ?? `${activeId}::${rowIdFieldKey}::${refreshTick}`;
 
-    const extra = refreshExtraRef.current;
-    refreshExtraRef.current = undefined;
+    const thisSubKey = subscriptionKey ?? `${activeId}::${rowIdFieldKey}`;
     const t0 = performance.now();
     // eslint-disable-next-line no-console
     console.log(
-      '[refresh] %c5. subscribe useEffect fired%c provider=%s extra=%s',
+      '[refresh] %c5. provider wiring effect fired%c provider=%s',
       'color:#ec4899', '', activeId,
-      extra ? JSON.stringify(extra) : '(none — initial mount)',
     );
-    const handle = dpClient.subscribe<TData>(activeId, activeCfg, extra ? { extra } : {});
+
     let cancelled = false;
-
-    // Track ids we've handed to AG-Grid as `add` but whose transaction
-    // hasn't been applied yet. Without this, two live ticks for the
-    // SAME new id arriving in the same frame both observe
-    // `getRowNode(id) === null` (because applyTransactionAsync is
-    // async — transactions queue and flush together at the next
-    // animation frame), classify both as `add`, and AG-Grid emits
-    // warning #2 ("Duplicate node id detected"). Server-side fan-out
-    // with multiple ticks per row makes this hit constantly.
-    const pendingAddIds = new Set<string>();
-
-    // Snapshot accumulator. Chunks of the (re-)snapshot are buffered
-    // here while status='loading' and committed to AG-Grid in a single
-    // `setGridOption('rowData', ...)` call on the loading→ready
-    // transition. The running length feeds the busy-overlay caption so
-    // the user sees row count climbing while chunks stream in.
-    let snapshotBuf: TData[] = [];
-    let snapshotApplied = false;
-
-    // Tracks the worker's most recent status so onUpdate can route
-    // deltas correctly: while 'loading', the rows are chunks of a
-    // refreshing snapshot and must be applied as adds-only (the
-    // worker buffers true live frames during the snapshot phase, so
-    // any replace=false delta in this window IS a snapshot chunk).
-    // While 'ready', deltas are real live ticks and go through the
-    // add/update classifier.
+    const gridApply = createApplyProviderToGridState();
     const providerStatusRef = { current: 'loading' as 'loading' | 'ready' | 'error' };
 
-    handle.onStatus((s, err) => {
+    const unsubRows = provider.onRowsReceived((count) => {
+      if (cancelled) return;
+      setLoadRowCount(count);
+    });
+
+    const unsubSnapshot = provider.onSnapshotData((rows) => {
+      if (cancelled) return;
+      Promise.resolve().then(() => {
+        if (cancelled) return;
+        // eslint-disable-next-line no-console
+        console.log(
+          '[refresh] %cflushAsyncTransactions BEFORE commit%c pendingAdds=%d gridRows=%d',
+          'color:#f97316;font-weight:bold', '',
+          gridApply.getPendingAddCount(), liveApi.getDisplayedRowCount(),
+        );
+        try { liveApi.flushAsyncTransactions(); } catch (e) {
+          // eslint-disable-next-line no-console
+          console.warn('[refresh]    flushAsyncTransactions threw:', e);
+        }
+        // eslint-disable-next-line no-console
+        console.log(
+          '[refresh] %csnapshot commit%c %d rows (onSnapshotData)',
+          'color:#10b981;font-weight:bold', '', rows.length,
+        );
+        liveApi.setGridOption('rowData', rows.slice());
+        setLoadRowCount(rows.length);
+        setResolvedSubKey(thisSubKey);
+        setIsRefetching(false);
+        setProviderDisconnected(false);
+        setDisconnectDetail(undefined);
+        providerStatusRef.current = 'ready';
+      });
+    });
+
+    let updateBatchCount = 0;
+    const unsubTick = provider.onTick((updateRows) => {
+      if (cancelled || updateRows.length === 0) return;
+      updateBatchCount += 1;
+
+      if (!rowIdField) {
+        if (DEBUG) {
+          // eslint-disable-next-line no-console
+          console.log(`[v2/grid] %cupdate#%d%c %d rows (no rowIdField → all update)`, 'color:#f59e0b', '', updateBatchCount, updateRows.length);
+        }
+        gridApply.applyTick(liveApi, updateRows, undefined);
+        return;
+      }
+
+      const { droppedPending, addCount, updateCount } = gridApply.applyTick(
+        liveApi,
+        updateRows,
+        rowIdField,
+      );
+      if (droppedPending > 0) {
+        // eslint-disable-next-line no-console
+        console.log(
+          '[refresh]   %clive split (rows dropped due to pending adds)%c add=%d update=%d droppedPending=%d',
+          'color:#f97316', '',
+          addCount, updateCount, droppedPending,
+        );
+      }
+    });
+
+    const unsubStatus = provider.onStatus((s, err) => {
       // eslint-disable-next-line no-console
       console.log(
-        `[refresh] %cstatus%c %s${err ? ' error=' + JSON.stringify(err) : ''} (+${(performance.now() - t0).toFixed(0)}ms) — pendingAdds=${pendingAddIds.size}`,
+        `[refresh] %cstatus%c %s${err ? ' error=' + JSON.stringify(err) : ''} (+${(performance.now() - t0).toFixed(0)}ms) — pendingAdds=${gridApply.getPendingAddCount()}`,
         'color:#a855f7;font-weight:bold', '', s,
       );
       if (cancelled) return;
@@ -515,18 +526,12 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         setIsRefetching(true);
         setProviderDisconnected(false);
         setDisconnectDetail(undefined);
-        // Re-entering snapshot after disconnect/restart — reset the
-        // commit gate so loading→ready applies fresh rowData.
         if (providerStatusRef.current === 'ready' || providerStatusRef.current === 'error') {
-          pendingAddIds.clear();
-          snapshotApplied = false;
-          snapshotBuf = [];
+          gridApply.clearPendingAdds();
         }
         providerStatusRef.current = 'loading';
       }
 
-      // Error path — tear down overlay immediately and surface to
-      // caller. Overrides the loading→ready commit path.
       if (err) {
         providerStatusRef.current = s;
         setProviderDisconnected(true);
@@ -537,266 +542,51 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         return;
       }
 
-      // loading→ready: commit the accumulated snapshot buffer in a
-      // single setGridOption AND defer the providerStatusRef flip +
-      // overlay tear-down to the same microtask. The flip MUST happen
-      // inside the microtask (not synchronously here) because:
-      //
-      //   1. trySettleSnapshot() inside SharedWorkerDataServicesClient.ts schedules a
-      //      microtask M_snap (the consumer's `handle.snapshot.then`).
-      //   2. This onStatus body runs synchronously and schedules
-      //      M_commit (below).
-      //   3. M_snap runs FIRST (FIFO microtask order). Inside it,
-      //      `handle.onUpdate(cb)` triggers SharedWorkerDataServicesClient.ts's
-      //      `flushBuffered`, which synchronously replays every
-      //      `replace=false` chunk that arrived before onUpdate was
-      //      wired (i.e. chunks 1..N of the late-join cache replay).
-      //
-      // Each replayed chunk lands in the consumer's onUpdate. If
-      // providerStatusRef were already 'ready' at that point, those
-      // chunks would route to the live-tick `applyTransactionAsync`
-      // path instead of `snapshotBuf.push`. The commit's setGridOption
-      // would then overwrite those adds with chunk0 only — surfacing
-      // as "Rows: ~500 of 20000" or similar partial counts.
-      //
-      // Keeping the ref on 'loading' until inside M_commit means
-      // flushBuffered's onUpdate callbacks correctly buffer-append,
-      // and by the time M_commit reads `snapshotBuf` it has every row.
-      if (s === 'ready' && providerStatusRef.current === 'loading') {
-        Promise.resolve().then(() => {
-          if (cancelled) return;
-          // Drain any genuinely-queued live-tick transactions BEFORE
-          // setGridOption replaces rowData (rare path: ticks queued by
-          // an overlapping live phase). With the snapshot buffering in
-          // place during 'loading', this is typically a no-op.
-          // eslint-disable-next-line no-console
-          console.log(
-            '[refresh] %cflushAsyncTransactions BEFORE commit%c pendingAdds=%d gridRows=%d',
-            'color:#f97316;font-weight:bold', '',
-            pendingAddIds.size, liveApi.getDisplayedRowCount(),
-          );
-          try { liveApi.flushAsyncTransactions(); } catch (e) {
-            // eslint-disable-next-line no-console
-            console.warn('[refresh]    flushAsyncTransactions threw:', e);
-          }
-          if (!snapshotApplied) {
-            // eslint-disable-next-line no-console
-            console.log(
-              '[refresh] %csnapshot commit%c %d rows (single-shot apply on loading→ready)',
-              'color:#10b981;font-weight:bold', '', snapshotBuf.length,
-            );
-            liveApi.setGridOption('rowData', snapshotBuf.slice());
-            snapshotApplied = true;
-            setLoadRowCount(snapshotBuf.length);
-            setResolvedSubKey(thisSubKey);
-          }
-          setIsRefetching(false);
-          setProviderDisconnected(false);
-          setDisconnectDetail(undefined);
-          providerStatusRef.current = 'ready';
-        });
-        // Do NOT update providerStatusRef synchronously here — see
-        // multi-line comment above. The microtask above does it.
-        return;
+      if (s !== 'loading') {
+        providerStatusRef.current = s;
       }
-      providerStatusRef.current = s;
     });
 
-    // Re-snapshot listener — fires when a `replace: true` delta arrives
-    // AFTER the initial snapshot has settled (peer-triggered refresh
-    // or any caller of `provider.restart`). Re-seeds the buffer with
-    // chunk0; subsequent chunks ride in via onUpdate during 'loading'
-    // and append to the same buffer. The grid stays untouched until
-    // the loading→ready transition does the single-shot commit.
-    handle.onReset((rows) => {
+    const unsubError = provider.onError((err) => {
       if (cancelled) return;
-      // eslint-disable-next-line no-console
-      console.log(
-        `[refresh] %conReset%c %d rows (replace=true mid-subscription) pendingAdds(before)=%d`,
-        'color:#ec4899;font-weight:bold', '', rows.length, pendingAddIds.size,
-      );
-      pendingAddIds.clear();
-      snapshotBuf = [...rows];
-      snapshotApplied = false;
-      setLoadRowCount(snapshotBuf.length);
+      setResolvedSubKey(thisSubKey);
+      setIsRefetching(false);
+      (onError ?? defaultOnError)(err);
     });
 
-    // Register onUpdate IMMEDIATELY (not inside snapshot.then) so
-    // each `replace=false` chunk of the late-join cache replay fires
-    // its own task tick. With the late registration, every chunk
-    // bypassed updateCb and accumulated in SharedWorkerDataServicesClient's bufferedUpdates;
-    // the entire backlog then flushed synchronously when onUpdate was
-    // registered post-`status='ready'`, collapsing into a single React
-    // render and leaving the busy-overlay caption stuck at "0 rows
-    // received" until the commit. Registering early lets each chunk's
-    // setLoadRowCount land on its own task tick → React renders
-    // between them → user sees the count climb.
-    let updateBatchCount = 0;
-    handle.onUpdate((updateRows) => {
-      if (cancelled || updateRows.length === 0) return;
-      updateBatchCount += 1;
-
-      // While the worker is in 'loading', replace=false deltas are
-      // chunks 1..N of the (re-)snapshot — the worker buffers true
-      // live ticks during the snapshot phase and only emits them
-      // after status='ready'. Append to the snapshot buffer; the
-      // grid stays untouched until the loading→ready transition
-      // does the single-shot commit. The Hub's cache replay is
-      // already de-duped by keyColumn so we don't need to filter.
-      if (providerStatusRef.current === 'loading') {
-        snapshotBuf.push(...updateRows);
-        setLoadRowCount(snapshotBuf.length);
-        return;
-      }
-
-      if (!rowIdField) {
-        if (DEBUG) {
-          // eslint-disable-next-line no-console
-          console.log(`[v2/grid] %cupdate#%d%c %d rows (no rowIdField → all update)`, 'color:#f59e0b', '', updateBatchCount, updateRows.length);
-        }
-        liveApi.applyTransactionAsync({ update: updateRows.slice() });
-        return;
-      }
-      const adds: TData[] = [];
-      const updates: TData[] = [];
-      let droppedPending = 0;
-      for (const row of updateRows) {
-        const id = composeRowId(row, rowIdField);
-        if (id === null) continue;
-        // Order matters here: check `getRowNode` FIRST.
-        //
-        // After `flushAsyncTransactions` runs (e.g., on the
-        // loading→ready transition, or on refresh-button entry),
-        // AG-Grid HAS the row internally, but our `pendingAddIds`
-        // bookkeeping can't be cleaned up yet — AG-Grid dispatches
-        // the per-transaction callback on next tick (setTimeout),
-        // not synchronously inside the flush. So `pendingAddIds`
-        // may still hold stale ids for rows that ARE already in
-        // the grid. Checking `getRowNode` first means we correctly
-        // route those ticks to `updates`. Only when the row is
-        // genuinely not in the grid AND we've queued an add for
-        // it do we drop the live tick.
-        if (liveApi.getRowNode(id)) {
-          updates.push(row);
-          continue;
-        }
-        if (pendingAddIds.has(id)) {
-          droppedPending++;
-          continue;
-        }
-        adds.push(row);
-        pendingAddIds.add(id);
-      }
-      // Log only when something is dropped (silent in steady state).
-      if (droppedPending > 0) {
-        // eslint-disable-next-line no-console
-        console.log(
-          '[refresh]   %clive split (rows dropped due to pending adds)%c add=%d update=%d droppedPending=%d',
-          'color:#f97316', '',
-          adds.length, updates.length, droppedPending,
-        );
-      }
-      liveApi.applyTransactionAsync({ add: adds, update: updates }, (result) => {
-        // Transaction has now been applied — those ids are real
-        // grid rows now, so getRowNode will find them on the
-        // next batch. Clear them from the pending set.
-        for (const node of result.add) {
-          const nodeId = node.id;
-          if (typeof nodeId === 'string') pendingAddIds.delete(nodeId);
-        }
-      });
+    void provider.start().catch((err: unknown) => {
+      if (cancelled) return;
+      setResolvedSubKey(thisSubKey);
+      (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
     });
-    if (DEBUG) {
-      // eslint-disable-next-line no-console
-      console.log(`[v2/grid]   onUpdate handler registered (early)`);
-    }
-
-    handle.snapshot
-      .then((rows) => {
-        // eslint-disable-next-line no-console
-        console.log(
-          `[refresh] %csnapshot ✓%c %d rows (chunk0 of buffered snapshot, +${(performance.now() - t0).toFixed(0)}ms)`,
-          'color:#10b981;font-weight:bold', '',
-          rows.length,
-        );
-        if (cancelled) {
-          if (DEBUG) {
-            // eslint-disable-next-line no-console
-            console.log('[v2/grid]   …but the subscription was cancelled before snapshot chunk0 landed; skipping');
-          }
-          return;
-        }
-        // Prepend chunk0 to the buffer — chunks 1..N may already have
-        // accumulated via onUpdate during 'loading' (the late-join
-        // replay sends them as separate replace=false events between
-        // chunk0's replace=true and the final status='ready'). Keeping
-        // chunk0 first preserves the source order in case downstream
-        // consumers care.
-        snapshotBuf = [...rows, ...snapshotBuf];
-        setLoadRowCount(snapshotBuf.length);
-        if (DEBUG) {
-          // eslint-disable-next-line no-console
-          console.log(`[v2/grid]   snapshot buffer total after chunk0 prepend: %d rows`, snapshotBuf.length);
-        }
-      })
-      .catch((err: unknown) => {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[v2/grid] %csnapshot ✗%c rejected: %s (+${(performance.now() - t0).toFixed(0)}ms)`,
-          'color:#ef4444;font-weight:bold', '',
-          err instanceof Error ? err.message : String(err),
-        );
-        if (cancelled) return;
-        // Tear the overlay down so the user sees the empty grid /
-        // their onError toast rather than a perpetual spinner.
-        setResolvedSubKey(thisSubKey);
-        (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
-      });
 
     return () => {
       cancelled = true;
+      unsubRows();
+      unsubSnapshot();
+      unsubTick();
+      unsubStatus();
+      unsubError();
       if (DEBUG) {
         // eslint-disable-next-line no-console
-        console.log(`[v2/grid] %cunsubscribe%c provider=%s (effect cleanup, +${(performance.now() - t0).toFixed(0)}ms)`,
+        console.log(`[v2/grid] %cunwire provider%c provider=%s (effect cleanup, +${(performance.now() - t0).toFixed(0)}ms)`,
           'color:#6b7280', '', activeId);
       }
-      handle.unsubscribe();
     };
-    // `refreshTick` is a deliberate trigger: bumping it tears down
-    // the current handle and re-subscribes with whatever
-    // `refreshExtraRef.current` was set to before the bump.
-    //
-    // `rowIdFieldKey` (the stable string form of `rowIdField`) is the
-    // dependency rather than `rowIdField` itself — the latter is a
-    // composite-key array that gets a fresh reference per render even
-    // when the contents are identical, which would tear down +
-    // re-subscribe needlessly.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveApi, activeId, activeCfg, rowIdFieldKey, dpClient, onError, refreshTick]);
+  }, [liveApi, provider, activeId, rowIdFieldKey, onError]);
 
   const refresh = useCallback(() => {
-    if (!activeId) return;
-    // eslint-disable-next-line no-console
-    console.log('[refresh] %c1. Refresh button clicked%c provider=%s mode=%s asOfDate=%s',
-      'color:#ec4899;font-weight:bold', '',
-      activeId, selection.mode, asOfDate ?? '—');
-    refreshExtraRef.current = (selection.mode === 'historical' && asOfDate)
+    if (!activeId || !provider) return;
+    const extra = (selection.mode === 'historical' && asOfDate)
       ? { asOfDate }
       : { __refresh: Date.now() };
     // eslint-disable-next-line no-console
-    console.log('[refresh] %c2. extra payload set%c', 'color:#ec4899', '', refreshExtraRef.current);
-    // Clear the grid immediately so the user who pressed refresh sees
-    // an empty + spinner state, not stale rows under the overlay.
-    // Other connected subscribers get the same effect via `onReset`
-    // when the worker's `replace: true` empty broadcast lands.
+    console.log('[refresh] %c1. Refresh button clicked%c provider=%s mode=%s asOfDate=%s extra=%s',
+      'color:#ec4899;font-weight:bold', '',
+      activeId, selection.mode, asOfDate ?? '—', JSON.stringify(extra));
     if (liveApi) {
       try {
-        // CRITICAL: drain any async transactions queued by the old
-        // subscription's live ticks BEFORE clearing the grid. If we
-        // clear first, those queued transactions reach AG-Grid's
-        // 100ms flush boundary AFTER the rowData was wiped — they
-        // try to update rows that no longer exist and AG-Grid logs
-        // error #4 for every one of them.
         const beforeFlush = liveApi.getDisplayedRowCount();
         liveApi.flushAsyncTransactions();
         const afterFlush = liveApi.getDisplayedRowCount();
@@ -815,13 +605,11 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     }
     setIsRefetching(true);
     setLoadRowCount(undefined);
-    setRefreshTick((t) => {
-      // eslint-disable-next-line no-console
-      console.log('[refresh] %c4. refreshTick++%c %d → %d (will trigger subscribe useEffect)',
-        'color:#ec4899', '', t, t + 1);
-      return t + 1;
+    setResolvedSubKey(null);
+    void restartProvider(extra).catch((err: unknown) => {
+      (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
     });
-  }, [activeId, selection.mode, asOfDate, liveApi]);
+  }, [activeId, provider, selection.mode, asOfDate, liveApi, restartProvider, onError]);
 
   // ── Toolbar slot content ──────────────────────────────────────────
   //

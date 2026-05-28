@@ -424,8 +424,8 @@ export async function ensurePlatformReady(
 - Create: `packages/react-core/widgets-react/src/v2/markets-grid-container/applyProviderToGrid.ts`
 - Create: `packages/react-core/widgets-react/src/v2/markets-grid-container/applyProviderToGrid.test.ts`
 
-- [ ] **Step 1:** Move add/update split (`pendingAddIds`, `getRowNode`) from `MarketsGridContainer` into testable helper.
-- [ ] **Step 2:** Tests with mock GridApi.
+- [x] **Step 1:** Move add/update split (`pendingAddIds`, `getRowNode`) from `MarketsGridContainer` into testable helper.
+- [x] **Step 2:** Tests with mock GridApi.
 - [ ] **Step 3:** Commit.
 
 ### Task 5.2: Slim MarketsGridContainer
@@ -433,11 +433,11 @@ export async function ensurePlatformReady(
 **Files:**
 - Modify: `packages/react-core/widgets-react/src/v2/markets-grid-container/MarketsGridContainer.tsx`
 
-- [ ] **Step 1:** Replace `dpClient.subscribe` block (~200 LOC) with `useDataProvider(activeId)`.
-- [ ] **Step 2:** Wire `onSnapshotData` → `setGridOption('rowData')`, `onTick` → `applyProviderToGrid`, `onRowsReceived` → overlay count.
-- [ ] **Step 3:** Historical mode → `provider.restart({ asOfDate })`.
-- [ ] **Step 4:** Remove `useDataProviderConfig` cfg pass-through to hub (keep for column defs / picker until catalog hook exists).
-- [ ] **Step 5:** Run widget-react tests + markets-grid-lab manually.
+- [x] **Step 1:** Replace `dpClient.subscribe` block (~200 LOC) with `useDataProvider(activeId)`.
+- [x] **Step 2:** Wire `onSnapshotData` → `setGridOption('rowData')`, `onTick` → `applyProviderToGrid`, `onRowsReceived` → overlay count.
+- [x] **Step 3:** Historical mode → `provider.restart({ asOfDate })`.
+- [x] **Step 4:** Remove `useDataProviderConfig` cfg pass-through to hub (keep for column defs / picker until catalog hook exists).
+- [x] **Step 5:** Run widget-react tests + markets-grid-lab manually.
 - [ ] **Step 6:** Commit: `refactor(widgets-react): MarketsGridContainer uses IDataProvider`.
 
 ### Task 5.3: HostedMarketsGrid + Blotter

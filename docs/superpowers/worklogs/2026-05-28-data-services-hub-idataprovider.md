@@ -60,7 +60,8 @@ npx turbo typecheck build test --filter=@starui/host-data --filter=@starui/host-
 | 15 | PR4 | 3.3 | `useDataProvider` hook | **done** | 2026-05-28 |
 | 16 | PR5 | 4.1 | Hub `refresh-provider` RPC | **done** | 2026-05-28 |
 | 17 | PR5 | 4.2 | Transport alignment | **done** | 2026-05-28 |
-| 17 | PR6 | 5.1 | Extract grid apply helper from `MarketsGridContainer` | pending | |
+| 18 | PR6 | 5.1 | Extract grid apply helper from `MarketsGridContainer` | **done** | 2026-05-28 |
+| 19 | PR6 | 5.2 | Slim `MarketsGridContainer` → `useDataProvider` | **done** | 2026-05-28 |
 | 18 | PR6 | 5.2 | Slim `MarketsGridContainer` → `useDataProvider` | pending | |
 | 19 | PR6 | 5.3 | `HostedMarketsGrid` + blotter hook migration | pending | |
 | 20 | PR7 | 6.1 | Tutorial apps + MCP OpenFin bootstrap migration | pending | |
@@ -416,6 +417,41 @@ Merge each PR to `feat/data-services-hub-idataprovider` (or stack against `main`
 **Blockers:** none
 
 ---
+
+### Session 18 — 2026-05-28
+**Scope:** Task 5.1 — `applyProviderToGrid` helper
+
+**Done:**
+- Extracted live-tick add/update split (`pendingAddIds`, `getRowNode` ordering) into `applyProviderToGrid.ts`
+- Wired `MarketsGridContainer` through `createApplyProviderToGridState()`
+- 7 unit tests with mock `GridApi`
+
+**Verify:** `npm test --workspace=@starui/widgets-react -- applyProviderToGrid.test.ts`; typecheck green
+
+**Next:** Session 19 — Task 5.2 slim `MarketsGridContainer` → `useDataProvider`
+
+**Blockers:** none
+
+---
+
+
+
+---
+
+### Session 19 — 2026-05-28
+**Scope:** Task 5.2 — slim `MarketsGridContainer` to `IDataProvider`
+
+**Done:**
+- Replaced ~280 LOC `dpClient.subscribe` block with `useDataProvider` + provider event wiring
+- `onSnapshotData` → `setGridOption('rowData')`; `onTick` → `applyProviderToGrid`; `onRowsReceived` → overlay count
+- Toolbar refresh → `provider.restart({ asOfDate })` / `{ __refresh }` (no cfg pass-through to hub)
+- Updated container tests for `useDataProvider` mock
+
+**Verify:** `npm test --workspace=@starui/widgets-react` — 113 passed; typecheck green
+
+**Next:** Session 20 — Task 5.3 HostedMarketsGrid + blotter hook migration
+
+**Blockers:** none
 
 ## Decisions log
 
