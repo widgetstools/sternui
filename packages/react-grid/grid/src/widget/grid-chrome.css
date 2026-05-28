@@ -485,116 +485,276 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 4px 8px;
-  background: var(--ds-surface-primary);
+  gap: 6px;
+  padding: 6px 10px;
+  min-height: 36px;
+  background: var(--ds-surface-ground);
   color: var(--ds-text-primary);
+  font-family: var(--ds-font-sans);
   font-size: 12px;
   line-height: 1.25;
 }
 
+[data-theme='light'] .ds-editing-toolbar {
+  background: var(--ds-surface-secondary);
+}
+
 .ds-editing-toolbar__segment {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--ds-border-secondary);
+  border-radius: var(--ds-radius-md, 3px);
+  background: color-mix(in srgb, var(--ds-surface-primary) 72%, var(--ds-surface-secondary));
   font-size: 12px;
 }
 
 /* Shared label / meta typography inside the unified row */
 .ds-editing-toolbar__label,
 .ds-editing-toolbar .ds-edit-history-toolbar__label,
-.ds-editing-toolbar .ds-bulk-update-toolbar__label {
-  font-size: 12px;
+.ds-editing-toolbar .ds-bulk-update-toolbar__label,
+.ds-editing-toolbar .ds-smart-edit-toolbar__label {
+  font-size: 11px;
   font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--ds-text-secondary);
   white-space: nowrap;
 }
 
 .ds-editing-toolbar__meta,
 .ds-editing-toolbar .ds-edit-history-toolbar__count,
-.ds-editing-toolbar .ds-bulk-update-toolbar__count {
-  font-size: 12px;
-  color: var(--ds-text-secondary);
+.ds-editing-toolbar .ds-bulk-update-toolbar__count,
+.ds-editing-toolbar .ds-smart-edit-toolbar__count {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-text-muted);
   white-space: nowrap;
 }
 
-/* Compact controls — align to size="sm" buttons (28px) */
+/* Compact controls — 28px height, 12px type */
+.ds-editing-toolbar__control,
 .ds-editing-toolbar .ds-bulk-update-toolbar__input,
 .ds-editing-toolbar .ds-bulk-update-toolbar__select,
 .ds-editing-toolbar .ds-smart-edit-toolbar__operand {
   height: 28px;
   min-height: 28px;
   font-size: 12px;
+  line-height: 1.25;
+}
+
+.ds-editing-toolbar__control {
+  border-color: var(--ds-border-primary);
+}
+
+/* Icon + apply buttons */
+.ds-editing-toolbar__icon-btn,
+.ds-editing-toolbar__apply {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  flex-shrink: 0;
+  border: 1px solid var(--ds-border-primary);
+  border-radius: var(--ds-radius-md, 3px);
+  background: transparent;
+  color: var(--ds-text-primary);
+  opacity: 0.82;
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    background 120ms ease,
+    border-color 120ms ease,
+    opacity 120ms ease;
+}
+
+.ds-editing-toolbar__icon-btn:hover:not(:disabled),
+.ds-editing-toolbar__apply:hover:not(:disabled) {
+  color: var(--ds-primary);
+  opacity: 1;
+  background: var(--ds-primary-soft);
+  border-color: var(--ds-primary-ring);
+}
+
+.ds-editing-toolbar__icon-btn:disabled,
+.ds-editing-toolbar__apply:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ds-editing-toolbar__apply:not(:disabled) {
+  color: var(--ds-accent-positive);
+  border-color: color-mix(in srgb, var(--ds-accent-positive) 35%, var(--ds-border-primary));
+}
+
+.ds-editing-toolbar__apply:not(:disabled):hover {
+  color: var(--ds-accent-positive);
+  background: color-mix(in srgb, var(--ds-accent-positive) 12%, transparent);
+  border-color: color-mix(in srgb, var(--ds-accent-positive) 45%, var(--ds-border-primary));
+}
+
+/* Segmented op button cluster (× ÷ + −, undo/redo) */
+.ds-editing-toolbar__op-group {
+  display: inline-flex;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid var(--ds-border-primary);
+  border-radius: var(--ds-radius-md, 3px);
+  flex-shrink: 0;
+}
+
+.ds-editing-toolbar__op-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 26px;
+  padding: 0 7px;
+  margin: 0;
+  border: none;
+  border-right: 1px solid var(--ds-border-secondary);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ds-text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  opacity: 0.88;
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    background 120ms ease,
+    opacity 120ms ease;
+}
+
+.ds-editing-toolbar__op-btn:last-child {
+  border-right: none;
+}
+
+.ds-editing-toolbar__op-btn:hover:not(:disabled) {
+  color: var(--ds-primary);
+  opacity: 1;
+  background: var(--ds-primary-soft);
+}
+
+.ds-editing-toolbar__op-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Dropdown / select panels opened from the editing toolbar */
+.ds-editing-toolbar-popover {
+  font-size: 12px;
+}
+
+.ds-editing-toolbar-popover [role='menuitem'],
+.ds-editing-toolbar-popover [role='option'],
+.ds-editing-toolbar-popover [data-radix-collection-item] {
+  font-size: 12px;
+  line-height: 1.25;
+  min-height: 28px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.ds-editing-toolbar-popover [role='group'] > [data-radix-collection-item]:first-child,
+.ds-editing-toolbar-popover > [data-radix-collection-item]:first-child {
+  /* DropdownMenuLabel / SelectLabel — keep eyebrow smaller than items */
+}
+
+.ds-editing-toolbar-popover [data-radix-select-viewport] {
+  padding: 2px;
 }
 
 /* ── Smart Edit toolbar row ─────────────────────────────────────────────── */
 .ds-smart-edit-toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-  background: var(--ds-surface-primary);
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--ds-surface-ground);
   color: var(--ds-text-primary);
   font-size: 12px;
 }
 
 .ds-smart-edit-toolbar__operand {
-  width: 88px;
+  width: 80px;
+}
+
+.ds-smart-edit-toolbar__label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ds-text-secondary);
 }
 
 .ds-smart-edit-toolbar__count {
   margin-left: auto;
+  font-size: 11px;
+  color: var(--ds-text-muted);
 }
 
 /* ── Edit history toolbar row ─────────────────────────────────────────── */
 .ds-edit-history-toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-  background: var(--ds-surface-primary);
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--ds-surface-ground);
   color: var(--ds-text-primary);
   font-size: 12px;
 }
 
 .ds-edit-history-toolbar__label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--ds-text-secondary);
 }
 
 .ds-edit-history-toolbar__count {
   margin-left: auto;
-  font-size: 12px;
-  color: var(--ds-text-secondary);
+  font-size: 11px;
+  color: var(--ds-text-muted);
 }
 
 /* ── Bulk Update toolbar row ────────────────────────────────────────────── */
 .ds-bulk-update-toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-  background: var(--ds-surface-primary);
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--ds-surface-ground);
   color: var(--ds-text-primary);
   font-size: 12px;
 }
 
 .ds-bulk-update-toolbar__label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--ds-text-secondary);
 }
 
 .ds-bulk-update-toolbar__input,
 .ds-bulk-update-toolbar__select {
-  width: 160px;
+  width: 148px;
+}
+
+.ds-bulk-update-toolbar__picker {
+  width: 108px;
 }
 
 .ds-bulk-update-toolbar__count {
   margin-left: auto;
-  font-size: 12px;
-  color: var(--ds-text-secondary);
+  font-size: 11px;
+  color: var(--ds-text-muted);
 }

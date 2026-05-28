@@ -73,7 +73,7 @@ describe('SmartEditToolbarBody', () => {
     mount(makePlatform());
     expect(screen.getByTestId('smart-edit-toolbar')).toBeTruthy();
     expect(screen.getByTestId('smart-edit-op-multiply')).toBeTruthy();
-    expect(screen.getByText(/1 cell selected/)).toBeTruthy();
+    expect(screen.getByText(/1 cell\b/)).toBeTruthy();
   });
 
   it('disables op buttons when no cells selected', () => {

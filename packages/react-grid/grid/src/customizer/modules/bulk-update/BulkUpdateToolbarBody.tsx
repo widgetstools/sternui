@@ -15,7 +15,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  Button,
   cn,
   Input,
   Select,
@@ -31,6 +30,11 @@ import type { EditingToolbarSegmentProps } from '../../editing/editingToolbarLay
 import { resolveEditRecording } from '../../editing/recordEdit';
 import { useGridPlatform } from '../../hooks/GridProvider';
 import { useModuleState } from '../../hooks/useModuleState';
+import {
+  EDITING_TOOLBAR_CONTROL,
+  EDITING_TOOLBAR_POPOVER,
+  EditingToolbarApplyButton,
+} from '../../../widget/editingToolbar/EditingToolbarPrimitives';
 import { useBulkUpdateSelection } from './useBulkUpdateSelection';
 import { applyBulkUpdateEdits, resolveBulkUpdateTargets } from './runtime/applyBulkUpdateEdits';
 
@@ -117,32 +121,45 @@ export function BulkUpdateToolbarBody({ layout = 'standalone' }: EditingToolbarS
 
   const disabled = !settings.settings.enabled || count === 0 || !columnGuard.ok || !value.trim();
 
-  const valueControl = settings.settings.showDistinctValues && distinctValues.length > 0 ? (
-    <Select value={value} onValueChange={setValue}>
-      <SelectTrigger className="ds-bulk-update-toolbar__select" data-testid="bulk-update-value-select">
-        <SelectValue placeholder="Pick value…" />
+  const showDistinctPicker =
+    settings.settings.showDistinctValues && distinctValues.length > 0;
+
+  const valueInput = (
+    <Input
+      className={cn('ds-bulk-update-toolbar__input', EDITING_TOOLBAR_CONTROL)}
+      data-testid="bulk-update-value-input"
+      type={valueKind === 'number' ? 'number' : valueKind === 'date' ? 'date' : 'text'}
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      placeholder={valueKind === 'date' ? 'YYYY-MM-DD' : 'New value…'}
+      aria-label="Bulk update value"
+    />
+  );
+
+  const distinctPicker = showDistinctPicker ? (
+    <Select
+      onValueChange={(picked) => setValue(picked === '__empty__' ? '' : picked)}
+    >
+      <SelectTrigger
+        className={cn('ds-bulk-update-toolbar__select ds-bulk-update-toolbar__picker', EDITING_TOOLBAR_CONTROL)}
+        data-testid="bulk-update-value-select"
+        aria-label="Pick existing column value"
+      >
+        <SelectValue placeholder="Existing…" />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className={EDITING_TOOLBAR_POPOVER}>
         {distinctValues.map((v) => {
           const label = formatDistinctLabel(v);
+          const pickValue = label === '(empty)' ? '__empty__' : label;
           return (
-            <SelectItem key={label} value={label === '(empty)' ? '' : label}>
+            <SelectItem key={label} value={pickValue} className="text-xs">
               {label}
             </SelectItem>
           );
         })}
       </SelectContent>
     </Select>
-  ) : (
-    <Input
-      className="ds-bulk-update-toolbar__input"
-      data-testid="bulk-update-value-input"
-      type={valueKind === 'number' ? 'number' : valueKind === 'date' ? 'date' : 'text'}
-      value={value}
-      onChange={(e) => setValue(e.target.value)}
-      placeholder={valueKind === 'date' ? 'YYYY-MM-DD' : 'New value…'}
-    />
-  );
+  ) : null;
 
   if (!settings.settings.enabled) return null;
 
@@ -153,26 +170,23 @@ export function BulkUpdateToolbarBody({ layout = 'standalone' }: EditingToolbarS
       className={cn(segment ? 'ds-editing-toolbar__segment' : 'ds-bulk-update-toolbar')}
       data-testid="bulk-update-toolbar"
     >
-      <span className="ds-bulk-update-toolbar__label">Bulk update</span>
-      {valueControl}
+      <span className="ds-bulk-update-toolbar__label">Bulk</span>
+      {valueInput}
+      {distinctPicker}
       <Tooltip>
         <TooltipTrigger asChild>
           <span>
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              className="h-7 px-3 text-xs"
+            <EditingToolbarApplyButton
               data-testid="bulk-update-apply"
               disabled={disabled}
               onClick={beginApply}
-            >
-              Apply
-            </Button>
+            />
           </span>
         </TooltipTrigger>
-        {!columnGuard.ok && (
+        {!columnGuard.ok ? (
           <TooltipContent>Select cells in a single column only</TooltipContent>
+        ) : (
+          <TooltipContent>Apply bulk update</TooltipContent>
         )}
       </Tooltip>
       <span

@@ -3,14 +3,18 @@ import {
   DATA_CHANGE_HISTORY_MODULE_ID,
   type DataChangeHistoryState,
 } from '@starui/engine';
-import { Button, cn, Tooltip, TooltipContent, TooltipTrigger } from '@starui/ui';
+import { cn, Tooltip, TooltipContent, TooltipTrigger } from '@starui/ui';
 import { Redo2, Undo2 } from 'lucide-react';
 import type { EditingToolbarSegmentProps } from '../../editing/editingToolbarLayout';
 import { useGridPlatform } from '../../hooks/GridProvider';
 import { useEditJournal } from '../../hooks/useEditJournal';
 import { journalUndoStackSize } from '../../editing/editJournalScope';
-import { journalRedo, journalUndo } from '../../editing/journalUndoRedo';
+import { journalUndo, journalRedo } from '../../editing/journalUndoRedo';
 import { useModuleState } from '../../hooks/useModuleState';
+import {
+  EditingToolbarOpButton,
+  EditingToolbarOpGroup,
+} from '../../../widget/editingToolbar/EditingToolbarPrimitives';
 
 export function EditHistoryToolbarBody({ layout = 'standalone' }: EditingToolbarSegmentProps) {
   const platform = useGridPlatform();
@@ -43,41 +47,37 @@ export function EditHistoryToolbarBody({ layout = 'standalone' }: EditingToolbar
       )}
       data-testid="edit-history-toolbar"
     >
-      <span className="ds-edit-history-toolbar__label">Edit history</span>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            data-testid="edit-history-undo"
-            disabled={!journal.canUndo}
-            onClick={() => void handleUndo()}
-            aria-label="Undo last edit"
-          >
-            <Undo2 className="size-3.5" />
-            Undo
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>Undo last edit</TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            data-testid="edit-history-redo"
-            disabled={!journal.canRedo}
-            onClick={() => void handleRedo()}
-            aria-label="Redo"
-          >
-            <Redo2 className="size-3.5" />
-            Redo
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>Redo</TooltipContent>
-      </Tooltip>
+      <span className="ds-edit-history-toolbar__label">History</span>
+      <EditingToolbarOpGroup>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <EditingToolbarOpButton
+              data-testid="edit-history-undo"
+              disabled={!journal.canUndo}
+              onClick={() => void handleUndo()}
+              aria-label="Undo last edit"
+              title="Undo last edit"
+            >
+              <Undo2 size={14} strokeWidth={2} aria-hidden />
+            </EditingToolbarOpButton>
+          </TooltipTrigger>
+          <TooltipContent>Undo last edit</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <EditingToolbarOpButton
+              data-testid="edit-history-redo"
+              disabled={!journal.canRedo}
+              onClick={() => void handleRedo()}
+              aria-label="Redo"
+              title="Redo"
+            >
+              <Redo2 size={14} strokeWidth={2} aria-hidden />
+            </EditingToolbarOpButton>
+          </TooltipTrigger>
+          <TooltipContent>Redo</TooltipContent>
+        </Tooltip>
+      </EditingToolbarOpGroup>
       <span
         className={cn(
           'ds-edit-history-toolbar__count',
