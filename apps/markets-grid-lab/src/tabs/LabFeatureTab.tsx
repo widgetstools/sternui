@@ -58,6 +58,7 @@ export function LabFeatureTab({ config }: LabFeatureTabProps) {
           showSmartEditToolbar={grid.showSmartEditToolbar}
           showBulkUpdateToolbar={grid.showBulkUpdateToolbar}
           showEditHistoryToolbar={grid.showEditHistoryToolbar}
+          showVisualExcelExport={grid.showVisualExcelExport}
           sideBar={grid.sideBar}
           statusBar={grid.statusBar}
           rowHeight={grid.rowHeight}

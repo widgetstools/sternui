@@ -352,6 +352,13 @@ export {
   type SavedFiltersState,
 } from './modules/saved-filters';
 export {
+  visualExcelModule,
+  VISUAL_EXCEL_MODULE_ID,
+  exportVisualExcel,
+  type VisualExcelExportOptions,
+} from './modules/visual-excel';
+export type { VisualExcelState } from '@starui/engine';
+export {
   toolbarVisibilityModule,
   TOOLBAR_VISIBILITY_MODULE_ID,
   INITIAL_TOOLBAR_VISIBILITY,

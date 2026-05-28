@@ -32,6 +32,7 @@ import {
   shortcutsModule,
   smartEditModule,
   toolbarVisibilityModule,
+  visualExcelModule,
 } from '@starui/grid/customizer';
 import type { MarketsGridHandle, MarketsGridProps } from './types';
 import { isMarketsGridLocalStorageStorageFactory } from './createMarketsGridLocalStorageStorage';
@@ -69,6 +70,7 @@ export const DEFAULT_MODULES: AnyModule[] = [
   calculatedColumnsModule,
   columnGroupsModule,
   conditionalStylingModule,
+  visualExcelModule,
   smartEditModule,
   bulkUpdateModule,
   plusMinusModule,
@@ -111,6 +113,7 @@ function MarketsGridInner<TData = unknown>(
     showEditHistoryToolbar,
     showSaveButton = true,
     showSettingsButton = true,
+    showVisualExcelExport = true,
     showProfileSelector = true,
     storageAdapter,
     autoSaveDebounceMs,
@@ -330,6 +333,7 @@ function MarketsGridInner<TData = unknown>(
         editingToolbarAllow={editingToolbarAllow}
         showSaveButton={showSaveButton}
         showSettingsButton={showSettingsButton}
+        showVisualExcelExport={showVisualExcelExport}
         showProfileSelector={showProfileSelector}
         modules={modules}
         className={className}

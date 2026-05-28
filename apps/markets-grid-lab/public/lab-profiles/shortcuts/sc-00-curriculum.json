@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "gc-profile",
-  "exportedAt": "2026-05-27T21:23:46.918Z",
+  "exportedAt": "2026-05-28T01:28:43.089Z",
   "profile": {
     "name": "00 · Curriculum",
     "gridId": "lab-shortcuts",
@@ -21,7 +21,7 @@
           },
           "shortcuts": [
             {
-              "id": "sc-mpokn3og-waib",
+              "id": "sc-mpote3be-qooh",
               "name": "H ×100 qty",
               "enabled": true,
               "shortcutKey": "h",
@@ -34,7 +34,7 @@
               }
             },
             {
-              "id": "sc-mpokn3og-kh41",
+              "id": "sc-mpote3be-288v",
               "name": "M +1000 qty",
               "enabled": true,
               "shortcutKey": "m",
@@ -47,7 +47,7 @@
               }
             },
             {
-              "id": "sc-mpokn3og-8usm",
+              "id": "sc-mpote3be-jz4r",
               "name": "L −500 qty",
               "enabled": true,
               "shortcutKey": "l",

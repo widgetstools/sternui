@@ -32,13 +32,17 @@ import {
 } from '@starui/engine';
 import {
   captureGridStateInto,
+  exportVisualExcel,
   GENERAL_SETTINGS_MODULE_ID,
   useGridApi,
   useGridPlatform,
   useModuleState,
   useProfileManager,
+  VISUAL_EXCEL_MODULE_ID,
   type GeneralSettingsState,
+  type VisualExcelExportOptions,
 } from '@starui/grid/customizer';
+import { type VisualExcelState } from '@starui/engine';
 import type { FormattingToolbarHandle } from './FormattingToolbar';
 import type { SettingsSheetHandle } from './SettingsSheet';
 import type { MarketsGridHandle, MarketsGridLocalStorageConfig } from './types';
@@ -74,6 +78,8 @@ export interface MarketsGridControllerHandle {
   readonly editingToolbarOpen: boolean;
   readonly handleToggleEditingToolbar: () => void;
   readonly handleSaveAll: () => Promise<void>;
+  readonly handleExportVisualExcel: () => void;
+  readonly visualExcelExportEnabled: boolean;
   readonly requestLoadProfile: (id: string) => void;
   readonly confirmSwitchSave: () => Promise<void>;
   readonly confirmSwitchDiscard: () => Promise<void>;
@@ -202,6 +208,7 @@ export function useMarketsGridController(
   const platform = useGridPlatform();
   const api = useGridApi();
   const [generalSettings] = useModuleState<GeneralSettingsState>(GENERAL_SETTINGS_MODULE_ID);
+  const [visualExcel] = useModuleState<VisualExcelState>(VISUAL_EXCEL_MODULE_ID);
   const headerCaseAttr = generalSettings?.headerCaseUppercase ? 'upper' : undefined;
 
   // ── Imperative handle ─────────────────────────────────────────────
@@ -216,6 +223,7 @@ export function useMarketsGridController(
   // (OpenFin "Save Workspace") run the same path as the toolbar Save
   // button — including the busy-overlay flip via `onSavingChange`.
   const saveAllRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  const exportVisualExcelRef = useRef<(options?: VisualExcelExportOptions) => void>(() => {});
   const saveAll = useCallback(() => saveAllRef.current(), []);
   const bundleAdapter =
     adapterRef.current instanceof LocalStorageBundleAdapter ? adapterRef.current : null;
@@ -230,7 +238,14 @@ export function useMarketsGridController(
       }
     : {};
   handleRef.current = api
-    ? { gridApi: api, platform, profiles, saveAll, ...bundleHandle }
+    ? {
+        gridApi: api,
+        platform,
+        profiles,
+        saveAll,
+        exportVisualExcel: (options) => exportVisualExcelRef.current(options),
+        ...bundleHandle,
+      }
     : null;
 
   // Reason: deps narrowed to `[api]` — the only field whose identity
@@ -309,6 +324,14 @@ export function useMarketsGridController(
   const handleToggleEditingToolbar = useCallback(() => {
     setEditingToolbarOpen((p) => !p);
   }, []);
+
+  const handleExportVisualExcel = useCallback(() => {
+    if (!api) return;
+    const state = platform.store.getModuleState<VisualExcelState>(VISUAL_EXCEL_MODULE_ID);
+    exportVisualExcel(api, state?.settings ?? { enabled: true, fileNamePrefix: 'markets-grid' });
+  }, [api, platform]);
+
+  exportVisualExcelRef.current = handleExportVisualExcel;
 
   const handleSaveAll = useCallback(async () => {
     // Capture native AG-Grid state (column order / widths / sort / filters /
@@ -425,6 +448,8 @@ export function useMarketsGridController(
     handleToggleStyleToolbar,
     editingToolbarOpen,
     handleToggleEditingToolbar,
+    handleExportVisualExcel,
+    visualExcelExportEnabled: visualExcel?.settings?.enabled ?? true,
     handleSaveAll,
     requestLoadProfile,
     confirmSwitchSave,

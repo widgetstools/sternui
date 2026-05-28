@@ -96,3 +96,19 @@ export * from './modules/shortcuts/state.js';
 export { matchShortcutForCell, collectShortcutKeys } from './modules/shortcuts/matchShortcut.js';
 export { buildShortcutPatches } from './modules/shortcuts/buildShortcutPatches.js';
 export { applyShortcutsColDefTransforms } from './modules/shortcuts/transforms.js';
+
+export * from './modules/visual-excel/state.js';
+export {
+  buildVisualExcelStyles,
+  applyFormatExcelClasses,
+  defaultVisualExcelFileName,
+  type BuildVisualExcelStylesInput,
+} from './modules/visual-excel/buildVisualExcelStyles.js';
+export { formatExcelClassId } from './modules/visual-excel/formatExcelClassId.js';
+export { cssToExcelColor } from './modules/visual-excel/cssToExcelColor.js';
+export {
+  VISUAL_EXCEL_CELL_STYLE,
+  VISUAL_EXCEL_HEADER_STYLE,
+  cellStyleToExcelStyle,
+  numberFormatExcelStyle,
+} from './modules/visual-excel/cellStyleToExcelStyle.js';

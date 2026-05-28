@@ -22,6 +22,7 @@ import {
   Settings as SettingsIcon,
   SlidersHorizontal,
   PencilLine,
+  FileSpreadsheet,
 } from 'lucide-react';
 import type { UseProfileManagerResult } from '@starui/grid/customizer';
 import type { AdminAction } from './types';
@@ -66,6 +67,11 @@ export interface PrimaryToolbarProps {
   readonly showSettingsButton: boolean;
   readonly onOpenSettings: () => void;
 
+  // Visual Excel export
+  readonly showVisualExcelExport: boolean;
+  readonly visualExcelExportEnabled: boolean;
+  readonly onExportVisualExcel: () => void;
+
   // Admin actions
   readonly adminActions: AdminAction[] | undefined;
 
@@ -98,6 +104,9 @@ export function PrimaryToolbar(props: PrimaryToolbarProps): ReactElement {
     onSaveAll,
     showSettingsButton,
     onOpenSettings,
+    showVisualExcelExport,
+    visualExcelExportEnabled,
+    onExportVisualExcel,
     adminActions,
     componentName,
     gridId,
@@ -262,6 +271,22 @@ export function PrimaryToolbar(props: PrimaryToolbarProps): ReactElement {
               data-state={saveFlash ? 'saved' : isDirty ? 'dirty' : 'idle'}
             >
               {saveFlash ? <Check size={14} strokeWidth={2.5} /> : <Save size={14} strokeWidth={2} />}
+            </button>
+          </>
+        )}
+
+        {showVisualExcelExport && visualExcelExportEnabled && (
+          <>
+            <span className="ds-primary-divider" aria-hidden />
+            <button
+              type="button"
+              className="ds-primary-action"
+              onClick={onExportVisualExcel}
+              title="Export to Excel (preserves formatting)"
+              data-testid="visual-excel-export-btn"
+              aria-label="Export to Excel"
+            >
+              <FileSpreadsheet size={14} strokeWidth={2} />
             </button>
           </>
         )}

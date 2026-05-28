@@ -55,6 +55,9 @@ export function serializeTabSeed(seed: TabSeed): Record<string, SerializedState>
   if (seed['data-change-history']) {
     state['data-change-history'] = { v: MODULE_SCHEMA_V, data: seed['data-change-history'] };
   }
+  if (seed['visual-excel']) {
+    state['visual-excel'] = { v: MODULE_SCHEMA_V, data: seed['visual-excel'] };
+  }
   return state;
 }
 

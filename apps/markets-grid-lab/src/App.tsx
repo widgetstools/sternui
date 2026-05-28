@@ -50,6 +50,9 @@ const ShortcutsTab = lazy(() =>
 const ProfilesTab = lazy(() =>
   import('./tabs/ProfilesTab').then((m) => ({ default: m.ProfilesTab })),
 );
+const VisualExcelTab = lazy(() =>
+  import('./tabs/VisualExcelTab').then((m) => ({ default: m.VisualExcelTab })),
+);
 
 interface TabEntry {
   id: string;
@@ -61,6 +64,7 @@ interface TabEntry {
 const TABS: TabEntry[] = [
   { id: 'overview', label: 'Overview', hint: 'Full feature kitchen-sink', Component: OverviewTab },
   { id: 'formatting', label: 'Formatting', hint: 'Value formatters & types', Component: FormattingTab },
+  { id: 'visual-excel', label: 'Visual Excel', hint: 'WYSIWYG styled .xlsx export', Component: VisualExcelTab },
   { id: 'renderers', label: 'Cell Renderers', hint: 'Visual cell components', Component: RenderersTab },
   { id: 'toolbar', label: 'Formatter Toolbar', hint: 'Live cell-style toolbar', Component: FormatterToolbarTab },
   { id: 'groups', label: 'Column Groups', hint: 'Nested header groups', Component: ColumnGroupsTab },

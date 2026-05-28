@@ -49,6 +49,9 @@ import {
   EDITING_ACTIVE_PROFILE_ID,
   EDITING_DEMO_PROFILES,
   EDITING_GRID_ID,
+  VISUAL_EXCEL_ACTIVE_PROFILE_ID,
+  VISUAL_EXCEL_DEMO_PROFILES,
+  VISUAL_EXCEL_GRID_ID,
 } from '../profiles/catalogs';
 import type { LabStreamOptions } from '../demo/types';
 
@@ -60,6 +63,7 @@ type GridChrome = Pick<
   | 'showSmartEditToolbar'
   | 'showBulkUpdateToolbar'
   | 'showEditHistoryToolbar'
+  | 'showVisualExcelExport'
   | 'showProfileSelector'
   | 'showSaveButton'
   | 'showSettingsButton'
@@ -208,6 +212,41 @@ export const FORMATTING_FEATURE: LabFeatureConfig = {
   getColumnDefs: () => FORMATTING_COLUMNS,
   grid: {
     showFormattingToolbar: true,
+    showVisualExcelExport: true,
+    showProfileSelector: true,
+    showSaveButton: true,
+    showSettingsButton: true,
+  },
+};
+
+const VISUAL_EXCEL_COLUMNS = pickColumns([
+  'cusip', 'ticker', 'instrumentDescription',
+  'currency', 'compositeRating', 'issuerSector',
+  'bidPrice', 'midPrice', 'askPrice', 'lastPrice',
+  'priceChangePct', 'bidAskWidthBps',
+  'yieldToMaturity', 'yieldToWorst', 'currentYield',
+  'oas', 'zSpread',
+  'modifiedDuration', 'dv01',
+  'quantityFace', 'marketValue', 'avgCost',
+  'unrealizedPnL', 'dailyPnL', 'mtdPnL', 'ytdPnL',
+  'issueDate', 'maturityDate', 'lastUpdate',
+]);
+
+export const VISUAL_EXCEL_FEATURE: LabFeatureConfig = {
+  tabId: 'visual-excel',
+  providerId: 'mock-positions-visual-excel',
+  title: 'Visual Excel',
+  subtitle: `${VISUAL_EXCEL_DEMO_PROFILES.length} profiles · WYSIWYG .xlsx · formatters + style rules`,
+  help: HELP.visualExcel,
+  gridId: VISUAL_EXCEL_GRID_ID,
+  componentName: 'VisualExcel',
+  profiles: VISUAL_EXCEL_DEMO_PROFILES,
+  activeProfileId: VISUAL_EXCEL_ACTIVE_PROFILE_ID,
+  stream: { rowCount: 500, updateIntervalMs: 600 },
+  getColumnDefs: () => VISUAL_EXCEL_COLUMNS,
+  grid: {
+    showFormattingToolbar: true,
+    showVisualExcelExport: true,
     showProfileSelector: true,
     showSaveButton: true,
     showSettingsButton: true,

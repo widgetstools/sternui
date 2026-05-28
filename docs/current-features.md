@@ -265,10 +265,11 @@ Per-renderer config types (`PillRendererConfig`,
 #### Core grid
 
 - `MarketsGrid` — main grid component (host integration, column defs, real-time rows)
-- `MarketsGridHandle` — imperative ref (grid API + platform methods)
+- `MarketsGridHandle` — imperative ref (grid API + platform methods, `exportVisualExcel`)
 - `MarketsGridProps` — host context, storage factory, module overrides, callbacks;
   editing chrome: `showEditingToolbar`, legacy `showSmartEditToolbar` /
-  `showBulkUpdateToolbar` / `showEditHistoryToolbar`, `headerExtras`
+  `showBulkUpdateToolbar` / `showEditHistoryToolbar`, `showVisualExcelExport`,
+  `headerExtras`
 - `DEFAULT_MODULES` — ordered customizer-module pipeline
 - `gridSurfaceOptions` — AG Grid defaults, DOM options, row styling, cell renderers
 - `useGridHost`, `useMarketsGridController` — imperative grid control hooks
@@ -285,7 +286,8 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Toolbars
 
-- `PrimaryToolbar` — actions, admin, export/import, settings sheet toggle, optional inline caption (`tabsHidden`), editing-toolbar pencil toggle
+- `PrimaryToolbar` — actions, admin, export/import, Visual Excel spreadsheet export,
+  settings sheet toggle, optional inline caption (`tabsHidden`), editing-toolbar pencil toggle
 - `FiltersToolbar` — quick filter, saved filter recall, server-side expression
 - `FormattingToolbar` — cell/header styling, conditional formats, value formatters (with popout)
 - `EditingToolbar` — unified editing row (history undo/redo, Smart Edit ops, Bulk Update apply, keyboard hints dropdown); primary-row pencil toggle (`editing-toolbar-toggle`); segments gated by `resolveEditingToolbarAllow()` + module `settings.enabled`
@@ -350,6 +352,11 @@ Per-renderer config types (`PillRendererConfig`,
   registered renderer from `@starui/design-system/cell-renderers-registry`
   and authors its per-renderer config)
 - **Conditional styling** — themed style rules (dark/light)
+- **Visual Excel** — WYSIWYG `.xlsx` export preserving display formatters and
+  conditional style-rule colours. Engine: `buildVisualExcelStyles`,
+  `applyFormatExcelClasses`, `exportVisualExcel` (via `api.exportDataAsExcel` +
+  `processCellCallback`). Primary toolbar spreadsheet icon when enabled.
+  Settings panel: **Visual Excel**. Lab: **Visual Excel** tab (`lab-visual-excel-v1`).
 - **Editing family (overview)** — five customizer modules share a cell-patch
   journal (`EditJournal` in `@starui/engine`). React wiring: `recordEdit.ts`
   (`resolveEditRecording`), `useEditJournal`, `journalUndoRedo`,
@@ -417,7 +424,7 @@ Per-renderer config types (`PillRendererConfig`,
   auto-wire when the badge is present. Demo: `apps/markets-grid-lab`
   (`npm run dev:markets-grid-lab`) — Overview, Conditional Styling, Calculated Columns,
   Formatting, Column Groups, Quick Filters (saved filter pills + `FiltersToolbar`),
-  Live Updates, Alerts, **Editing** (Smart Edit + Bulk Update + Plus/Minus + Shortcuts +
+  Live Updates, Alerts, **Visual Excel** (styled `.xlsx` export), **Editing** (Smart Edit + Bulk Update + Plus/Minus + Shortcuts +
   History), Bulk Update, Plus / Minus, Shortcuts, Cell Renderers, and Formatter Toolbar tabs. Each feature tab ships multiple toolbar profiles (catalogs in
   `apps/markets-grid-lab/src/profiles/catalogs/`, importable JSON under
   `apps/markets-grid-lab/public/lab-profiles/`). **Demo console** right rail
@@ -753,6 +760,9 @@ Per-renderer config types (`PillRendererConfig`,
   `applyPlusMinusColDefTransforms`, `deserializePlusMinusState`, `INITIAL_PLUS_MINUS`
 - **Shortcuts** — `buildShortcutPatches`, `matchShortcutForCell`, `collectShortcutKeys`,
   `applyShortcutsColDefTransforms`, `deserializeShortcutsState`, `INITIAL_SHORTCUTS`
+- **Visual Excel** — `buildVisualExcelStyles`, `applyFormatExcelClasses`,
+  `formatExcelClassId`, `cssToExcelColor`, `cellStyleToExcelStyle`,
+  `defaultVisualExcelFileName`, `deserializeVisualExcelState`, `INITIAL_VISUAL_EXCEL`
 
 #### Expression engine
 
@@ -1335,7 +1345,7 @@ These aren't a single feature, but they are platform invariants worth rememberin
 - **Seam #2 — React host bridge** (`@starui/host-wrapper-react`). All React features consume the host via `useHost()`.
 - **Customizer pipeline** — `DEFAULT_MODULES` runs general-settings →
   column-templates → column-customization → calculated-columns → column-groups →
-  conditional-styling → smart-edit → bulk-update → plus-minus → shortcuts →
+  conditional-styling → visual-excel → smart-edit → bulk-update → plus-minus → shortcuts →
   data-change-history → alerts → saved-filters → toolbar-visibility → grid-state
   (grid-state last so replay sees the finalized column set).
 - **Storage adapter pattern** — `StorageAdapter` is the single contract. localStorage, IndexedDB, ConfigService (REST + Dexie), and in-memory all implement it.
