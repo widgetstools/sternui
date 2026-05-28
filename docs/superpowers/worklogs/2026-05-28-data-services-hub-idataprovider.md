@@ -46,7 +46,7 @@ npx turbo typecheck build test --filter=@starui/host-data --filter=@starui/host-
 | 1 | PR1 | 0.1 | Finalize spec review / minor spec edits | **done** | 2026-05-28 |
 | 2 | PR1 | 0.2 | `IDataProvider` + `ProviderCapabilities` types + exports | **done** | 2026-05-28 |
 | 3 | PR1b | 0.5.1 | `PlatformBootstrapConfig` type + validation tests | **done** | 2026-05-28 |
-| 4 | PR1b | 0.5.2 | Web `resolvePlatformBootstrapFromJson` + guide draft | pending | |
+| 4 | PR1b | 0.5.2 | Web `resolvePlatformBootstrapFromJson` + guide draft | **done** | 2026-05-28 |
 | 5 | PR1b | 0.5.3 | OpenFin `resolvePlatformBootstrapFromManifest` + template manifest | pending | |
 | 6 | PR1b | 0.5.4 | `ensurePlatformReady` orchestrator + tests | pending | |
 | 7 | PR1b | 0.5.5 | `markets-grid-lab` pilot + `platform-bootstrap-config.md` | pending | |
@@ -167,7 +167,25 @@ Merge each PR to `feat/data-services-hub-idataprovider` (or stack against `main`
 
 ---
 
-### Session 4 — (pending)
+### Session 4 — 2026-05-28
+
+**Scope:** Task 0.5.2 — Web bootstrap loader + guide  
+**Done:**
+
+- Added `resolvePlatformBootstrapFromObject()` and `resolvePlatformBootstrapFromJson()`
+- Added `PlatformBootstrapConfigError` for parse/validation/fetch failures
+- Added `docs/guides/platform-bootstrap-config.md` (web schema + loader example)
+- Exported from `@starui/host-data`; 9 new unit tests (16 bootstrap tests total)
+
+**Verify:** `npm run typecheck --workspace=@starui/host-data`; `vitest run src/bootstrap/` — 16 passed
+
+**Next:** Session 5 — OpenFin `resolvePlatformBootstrapFromManifest` + template manifest (Task 0.5.3)
+
+**Blockers:** none
+
+---
+
+### Session 5 — (pending)
 
 ---
 

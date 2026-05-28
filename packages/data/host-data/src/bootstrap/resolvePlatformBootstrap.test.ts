@@ -1,0 +1,130 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  PlatformBootstrapConfigError,
+  resolvePlatformBootstrapFromJson,
+  resolvePlatformBootstrapFromObject,
+} from './resolvePlatformBootstrap.js';
+
+describe('resolvePlatformBootstrapFromObject', () => {
+  it('parses a valid object', () => {
+    expect(
+      resolvePlatformBootstrapFromObject({
+        appId: 'markets-ui-dev',
+        userId: 'dev1',
+        useRest: false,
+        configServiceRestUrl: 'http://localhost:3001/api/v1',
+        seedConfigUrl: '/seed-config.json',
+      }),
+    ).toEqual({
+      appId: 'markets-ui-dev',
+      userId: 'dev1',
+      useRest: false,
+      configServiceRestUrl: 'http://localhost:3001/api/v1',
+      seedConfigUrl: '/seed-config.json',
+    });
+  });
+
+  it('trims appId and userId', () => {
+    expect(
+      resolvePlatformBootstrapFromObject({
+        appId: '  TestApp  ',
+        userId: ' dev1 ',
+      }),
+    ).toEqual({
+      appId: 'TestApp',
+      userId: 'dev1',
+      useRest: undefined,
+      configServiceRestUrl: undefined,
+      seedConfigUrl: undefined,
+    });
+  });
+
+  it('rejects non-objects', () => {
+    expect(() => resolvePlatformBootstrapFromObject(null)).toThrow(
+      PlatformBootstrapConfigError,
+    );
+    expect(() => resolvePlatformBootstrapFromObject([])).toThrow(
+      /JSON object/,
+    );
+  });
+
+  it('rejects missing appId', () => {
+    expect(() =>
+      resolvePlatformBootstrapFromObject({ userId: 'dev1' }),
+    ).toThrow(/appId/);
+  });
+
+  it('rejects empty userId after trim', () => {
+    expect(() =>
+      resolvePlatformBootstrapFromObject({ appId: 'x', userId: '   ' }),
+    ).toThrow(PlatformBootstrapConfigError);
+  });
+});
+
+describe('resolvePlatformBootstrapFromJson', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('fetches and parses config', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          appId: 'markets-ui-dev',
+          userId: 'dev1',
+          useRest: false,
+        }),
+      }),
+    );
+
+    await expect(
+      resolvePlatformBootstrapFromJson('/app-config.json'),
+    ).resolves.toEqual({
+      appId: 'markets-ui-dev',
+      userId: 'dev1',
+      useRest: false,
+      configServiceRestUrl: undefined,
+      seedConfigUrl: undefined,
+    });
+  });
+
+  it('throws on HTTP error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 404 }),
+    );
+
+    await expect(
+      resolvePlatformBootstrapFromJson('/missing.json'),
+    ).rejects.toThrow(/HTTP 404/);
+  });
+
+  it('throws on invalid JSON body', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => {
+          throw new SyntaxError('bad json');
+        },
+      }),
+    );
+
+    await expect(
+      resolvePlatformBootstrapFromJson('/app-config.json'),
+    ).rejects.toThrow(/not valid JSON/);
+  });
+
+  it('throws on network failure', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue(new TypeError('Failed to fetch')),
+    );
+
+    await expect(
+      resolvePlatformBootstrapFromJson('/app-config.json'),
+    ).rejects.toThrow(/Failed to fetch platform bootstrap config/);
+  });
+});

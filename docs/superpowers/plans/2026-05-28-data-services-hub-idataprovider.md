@@ -173,9 +173,9 @@ export interface IDataProvider<T = unknown> {
 - Create: `packages/data/host-data/src/bootstrap/resolvePlatformBootstrap.test.ts`
 - Create: `docs/guides/platform-bootstrap-config.md` — JSON schema + example
 
-- [ ] **Step 1:** Implement `resolvePlatformBootstrapFromJson(url: string): Promise<PlatformBootstrapConfig>`.
-- [ ] **Step 2:** Implement `resolvePlatformBootstrapFromObject(raw: unknown)` for inline/test use.
-- [ ] **Step 3:** Document web schema in `docs/guides/platform-bootstrap-config.md`:
+- [ ] **Step 1:** Implement `resolvePlatformBootstrapFromJson(url: string): Promise<PlatformBootstrapConfig>`. ✅ Session 4
+- [ ] **Step 2:** Implement `resolvePlatformBootstrapFromObject(raw: unknown)` for inline/test use. ✅ Session 4
+- [ ] **Step 3:** Document web schema in `docs/guides/platform-bootstrap-config.md`: ✅ Session 4
 
 ```json
 {

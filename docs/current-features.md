@@ -1062,6 +1062,9 @@ Per-renderer config types (`PillRendererConfig`,
 - `PlatformBootstrapConfig` — unified `appId`, `userId`, REST/seed URLs from manifest or `app-config.json`
 - `validatePlatformBootstrapConfig()` — require non-empty identity; warn when `useRest` without REST URL
 - `DEV_PLATFORM_BOOTSTRAP` — shared test/dev fallback (`TestApp` / `dev1`)
+- `resolvePlatformBootstrapFromJson()` — fetch `/app-config.json` for web apps
+- `resolvePlatformBootstrapFromObject()` — parse inline/test bootstrap objects
+- `PlatformBootstrapConfigError` — validation / fetch failures
 
 #### Bootstrap
 

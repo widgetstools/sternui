@@ -34,7 +34,11 @@ export type {
 export {
   DEV_PLATFORM_BOOTSTRAP,
   validatePlatformBootstrapConfig,
+  PlatformBootstrapConfigError,
+  resolvePlatformBootstrapFromJson,
+  resolvePlatformBootstrapFromObject,
 } from './bootstrap/index.js';
+export type { FetchLike } from './bootstrap/index.js';
 
 // One-shot probes — pure main-thread functions for editor flows
 // (Test connection, Infer fields). Same vocabulary the streaming
