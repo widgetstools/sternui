@@ -1067,6 +1067,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `PlatformBootstrapConfigError` — validation / fetch failures
 - `ensurePlatformReady()` — ConfigManager init + SharedWorker hub bootstrap (singleton per `appId`)
 - `ensureDataServicesHub()` — lazy hub wrapper (legacy bootstrap until catalog preload, PR2)
+- `ResolvedDataServicesHubBundle` — hub bundle + legacy `client` / `appData` / `configManager` handles
 
 #### Bootstrap
 
@@ -1380,6 +1381,11 @@ Per-renderer config types (`PillRendererConfig`,
 **Run:** `npx -y @starui/mcp-scaffold` or `npx -y ./libs/starui-mcp-scaffold-*.tgz`
 
 ---
+
+
+### Apps — platform bootstrap pilot
+
+- `apps/markets-grid-lab` — `app-config.json` + `platformBootstrap.ts` + `ensurePlatformReady` (PR1b web pilot)
 
 ## Cross-cutting architecture notes
 

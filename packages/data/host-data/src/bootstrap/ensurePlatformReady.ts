@@ -4,14 +4,14 @@ import {
   type PlatformBootstrapConfig,
 } from './PlatformBootstrapConfig.js';
 import { PlatformBootstrapConfigError } from './resolvePlatformBootstrap.js';
-import { ensureDataServicesHub } from '../hub/ensureDataServicesHub.js';
+import { ensureDataServicesHub, type ResolvedDataServicesHubBundle } from '../hub/ensureDataServicesHub.js';
 import type { DataServicesHubBundle } from '../provider/IDataProvider.js';
 
 export interface EnsurePlatformReadyOpts {
   workerScriptUrl: string;
 }
 
-const platformPromises = new Map<string, Promise<DataServicesHubBundle>>();
+const platformPromises = new Map<string, Promise<ResolvedDataServicesHubBundle>>();
 
 function resolveConfigServiceRestUrl(
   config: PlatformBootstrapConfig,
@@ -26,7 +26,7 @@ function resolveConfigServiceRestUrl(
 export async function ensurePlatformReady(
   config: PlatformBootstrapConfig,
   opts: EnsurePlatformReadyOpts,
-): Promise<DataServicesHubBundle> {
+): Promise<ResolvedDataServicesHubBundle> {
   const validation = validatePlatformBootstrapConfig(config);
   if (!validation.valid) {
     throw new PlatformBootstrapConfigError(
@@ -53,7 +53,7 @@ export async function ensurePlatformReady(
 async function bootstrapPlatformOnce(
   config: PlatformBootstrapConfig,
   opts: EnsurePlatformReadyOpts,
-): Promise<DataServicesHubBundle> {
+): Promise<ResolvedDataServicesHubBundle> {
   const configServiceRestUrl = resolveConfigServiceRestUrl(config);
 
   const configManager = createConfigManager({

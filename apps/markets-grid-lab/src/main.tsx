@@ -4,7 +4,7 @@ import { applyTheme, getTheme } from '@starui/design-system';
 import { Alert, AlertDescription, AlertTitle } from '@starui/ui';
 import { DataServicesProvider } from '@starui/host-data-react/runtime';
 import { App } from './App';
-import { dataServices, dataServicesBootstrapError } from './dataServices';
+import { initPlatformBootstrap } from './platformBootstrap';
 import './globals.css';
 
 applyTheme(getTheme());
@@ -33,16 +33,21 @@ function BootstrapError({ error }: { error: Error }) {
   );
 }
 
-createRoot(rootElement).render(
-  <React.StrictMode>
-    {dataServicesBootstrapError ? (
-      <BootstrapError error={dataServicesBootstrapError} />
-    ) : dataServices ? (
-      <DataServicesProvider services={dataServices}>
-        <App />
-      </DataServicesProvider>
-    ) : (
-      <BootstrapError error={new Error('Data services bundle is null after bootstrap.')} />
-    )}
-  </React.StrictMode>,
-);
+void initPlatformBootstrap()
+  .then(({ dataServices }) => {
+    createRoot(rootElement).render(
+      <React.StrictMode>
+        <DataServicesProvider services={dataServices}>
+          <App />
+        </DataServicesProvider>
+      </React.StrictMode>,
+    );
+  })
+  .catch((err: unknown) => {
+    const error = err instanceof Error ? err : new Error(String(err));
+    createRoot(rootElement).render(
+      <React.StrictMode>
+        <BootstrapError error={error} />
+      </React.StrictMode>,
+    );
+  });

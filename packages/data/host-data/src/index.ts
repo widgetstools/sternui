@@ -44,6 +44,7 @@ export type {
   FetchLike,
   EnsurePlatformReadyOpts,
   EnsureHubOpts,
+  ResolvedDataServicesHubBundle,
 } from './bootstrap/index.js';
 
 // One-shot probes — pure main-thread functions for editor flows

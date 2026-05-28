@@ -122,3 +122,17 @@ Replace hardcoded `LOGGED_IN_USER_ID` / `DEFAULT_APP_ID` literals as apps migrat
 - **Warnings:** `useRest: true` without `configServiceRestUrl`
 
 Loaders throw `PlatformBootstrapConfigError` when validation fails.
+
+---
+
+## Pilot app — `apps/markets-grid-lab`
+
+Reference wiring (PR1b):
+
+| File | Role |
+|------|------|
+| `public/app-config.json` | Web bootstrap config (`appId: markets-grid-lab`) |
+| `src/platformBootstrap.ts` | `resolvePlatformBootstrapFromJson` → `ensurePlatformReady` |
+| `src/main.tsx` | Async init, then `<DataServicesProvider services={dataServices}>` |
+
+SharedWorker name: `mkt-data-services:markets-grid-lab` (from `app-config.json` `appId`).

@@ -257,30 +257,9 @@ export async function ensurePlatformReady(
 - Create: `apps/markets-grid-lab/src/platformBootstrap.ts`
 - Modify: `apps/markets-grid-lab/src/main.tsx`
 
-- [ ] **Step 1:** Web app pattern:
-
-```typescript
-// src/platformBootstrap.ts
-import { resolvePlatformBootstrapFromJson, ensurePlatformReady } from '@starui/host-data';
-import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
-
-const config = await resolvePlatformBootstrapFromJson('/app-config.json');
-export const platform = await ensurePlatformReady(config, { workerScriptUrl: workerAssetUrl });
-```
-
-- [ ] **Step 2:** OpenFin pattern:
-
-```typescript
-// src/platformBootstrap.ts
-import { resolvePlatformBootstrapFromManifest } from '@starui/openfin-platform/platformBootstrap';
-import { ensurePlatformReady } from '@starui/host-data';
-import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
-
-const config = await resolvePlatformBootstrapFromManifest();
-export const platform = await ensurePlatformReady(config, { workerScriptUrl: workerAssetUrl });
-```
-
-- [ ] **Step 3:** Wire `markets-grid-lab` as pilot; verify SharedWorker name `mkt-data-services:${config.appId}`.
+- [ ] **Step 1:** Web app pattern: ✅ Session 7
+- [ ] **Step 2:** OpenFin pattern: ✅ documented in guide (implementation in OpenFin apps Session 20)
+- [ ] **Step 3:** Wire `markets-grid-lab` as pilot; verify SharedWorker name `mkt-data-services:${config.appId}`. ✅ Session 7
 - [ ] **Step 4:** Commit: `docs + feat(markets-grid-lab): platform bootstrap pilot`.
 
 ---

@@ -49,7 +49,7 @@ npx turbo typecheck build test --filter=@starui/host-data --filter=@starui/host-
 | 4 | PR1b | 0.5.2 | Web `resolvePlatformBootstrapFromJson` + guide draft | **done** | 2026-05-28 |
 | 5 | PR1b | 0.5.3 | OpenFin `resolvePlatformBootstrapFromManifest` + template manifest | **done** | 2026-05-28 |
 | 6 | PR1b | 0.5.4 | `ensurePlatformReady` orchestrator + tests | **done** | 2026-05-28 |
-| 7 | PR1b | 0.5.5 | `markets-grid-lab` pilot + `platform-bootstrap-config.md` | pending | |
+| 7 | PR1b | 0.5.5 | `markets-grid-lab` pilot + `platform-bootstrap-config.md` | **done** | 2026-05-28 |
 | 8 | PR2 | 1.1 | `ConfigCatalogCache` in worker | pending | |
 | 9 | PR2 | 1.2 | Protocol extensions (`get-config`, `catalog-ready`, …) | pending | |
 | 10 | PR2 | 1.3 | Editor save → hub invalidation | pending | |
@@ -222,7 +222,28 @@ Merge each PR to `feat/data-services-hub-idataprovider` (or stack against `main`
 
 ---
 
-### Session 7 — (pending)
+### Session 7 — 2026-05-28
+
+**Scope:** Task 0.5.5 — `markets-grid-lab` platform bootstrap pilot  
+**Done:**
+
+- Added `public/app-config.json` (`appId: markets-grid-lab`, `userId: dev1`)
+- Added `src/platformBootstrap.ts` + `asLegacyDataServices` helper
+- Migrated `main.tsx` to async `initPlatformBootstrap()`; removed sync `dataServices.ts`
+- Switched lab deps to workspace `"*"` (from tarballs) for hub bootstrap APIs
+- Added `ResolvedDataServicesHubBundle` type on hub bundle; guide pilot section
+
+**Verify:** `npm run build --workspace=@starui/host-data`; `npm run typecheck --workspace=@starui/markets-grid-lab` — pass
+
+**Next:** Session 8 — `ConfigCatalogCache` in worker (Task 1.1) — starts PR2
+
+**Blockers:** none
+
+**PR1b complete** — platform bootstrap identity landed end-to-end for web pilot.
+
+---
+
+### Session 8 — (pending)
 
 ---
 

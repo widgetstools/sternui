@@ -16,5 +16,5 @@ export {
   ensurePlatformReady,
   type EnsurePlatformReadyOpts,
 } from './ensurePlatformReady.js';
-export type { EnsureHubOpts } from '../hub/ensureDataServicesHub.js';
+export type { EnsureHubOpts, ResolvedDataServicesHubBundle } from '../hub/ensureDataServicesHub.js';
 export { ensureDataServicesHub } from '../hub/ensureDataServicesHub.js';

@@ -4,6 +4,13 @@ import { bootstrapDataServicesWithWorkerAsset } from '../runtime/bootstrap/boots
 import type { DataServicesHubBundle } from '../provider/IDataProvider.js';
 import type { IDataProvider } from '../provider/IDataProvider.js';
 
+/** Hub bundle including legacy {@link DataServices} handles for migration. */
+export interface ResolvedDataServicesHubBundle extends DataServicesHubBundle {
+  readonly client: DataServices['client'];
+  readonly appData: DataServices['appData'];
+  readonly configManager: ConfigManager;
+}
+
 /** Options for {@link ensureDataServicesHub}. */
 export interface EnsureHubOpts {
   appId: string;
@@ -13,7 +20,7 @@ export interface EnsureHubOpts {
   mainThreadConfigManager: ConfigManager;
 }
 
-const hubPromises = new Map<string, Promise<DataServicesHubBundle>>();
+const hubPromises = new Map<string, Promise<ResolvedDataServicesHubBundle>>();
 
 function notImplementedProvider(providerId: string): never {
   throw new Error(
@@ -25,7 +32,7 @@ function notImplementedProvider(providerId: string): never {
 function adaptDataServicesToHubBundle(
   services: DataServices,
   appId: string,
-): DataServicesHubBundle {
+): ResolvedDataServicesHubBundle {
   return {
     ready: services.ready,
     getProvider(providerId: string): IDataProvider {
@@ -42,14 +49,14 @@ function adaptDataServicesToHubBundle(
     client: services.client,
     appData: services.appData,
     configManager: services.configManager,
-  } as DataServicesHubBundle;
+  };
 }
 
 /**
  * Lazy hub entry — one SharedWorker + client bundle per `appId` per window.
  * Phase 2: wraps legacy bootstrap until catalog preload lands (PR2).
  */
-export function ensureDataServicesHub(opts: EnsureHubOpts): Promise<DataServicesHubBundle> {
+export function ensureDataServicesHub(opts: EnsureHubOpts): Promise<ResolvedDataServicesHubBundle> {
   const existing = hubPromises.get(opts.appId);
   if (existing) return existing;
 
