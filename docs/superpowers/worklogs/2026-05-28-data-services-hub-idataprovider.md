@@ -45,7 +45,7 @@ npx turbo typecheck build test --filter=@starui/host-data --filter=@starui/host-
 | 0 | — | Setup | Branch + worklog (this file) | **done** | 2026-05-28 |
 | 1 | PR1 | 0.1 | Finalize spec review / minor spec edits | **done** | 2026-05-28 |
 | 2 | PR1 | 0.2 | `IDataProvider` + `ProviderCapabilities` types + exports | **done** | 2026-05-28 |
-| 3 | PR1b | 0.5.1 | `PlatformBootstrapConfig` type + validation tests | pending | |
+| 3 | PR1b | 0.5.1 | `PlatformBootstrapConfig` type + validation tests | **done** | 2026-05-28 |
 | 4 | PR1b | 0.5.2 | Web `resolvePlatformBootstrapFromJson` + guide draft | pending | |
 | 5 | PR1b | 0.5.3 | OpenFin `resolvePlatformBootstrapFromManifest` + template manifest | pending | |
 | 6 | PR1b | 0.5.4 | `ensurePlatformReady` orchestrator + tests | pending | |
@@ -149,7 +149,25 @@ Merge each PR to `feat/data-services-hub-idataprovider` (or stack against `main`
 
 ---
 
-### Session 3 — (pending)
+### Session 3 — 2026-05-28
+
+**Scope:** Task 0.5.1 — `PlatformBootstrapConfig` type + validation  
+**Done:**
+
+- Added `PlatformBootstrapConfig`, `PlatformBootstrapValidationResult`
+- Added `validatePlatformBootstrapConfig()` — errors on empty `appId`/`userId`; warns when `useRest` without REST URL
+- Added `DEV_PLATFORM_BOOTSTRAP` (`TestApp` / `dev1`)
+- Exported from `@starui/host-data`; 7 unit tests
+
+**Verify:** `npm run typecheck --workspace=@starui/host-data`; bootstrap tests pass
+
+**Next:** Session 4 — `resolvePlatformBootstrapFromJson` + guide draft (Task 0.5.2)
+
+**Blockers:** none
+
+---
+
+### Session 4 — (pending)
 
 ---
 

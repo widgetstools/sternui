@@ -26,6 +26,16 @@ export type {
   Unsubscribe,
 } from './provider/index.js';
 
+// Platform bootstrap (Phase 0.5).
+export type {
+  PlatformBootstrapConfig,
+  PlatformBootstrapValidationResult,
+} from './bootstrap/index.js';
+export {
+  DEV_PLATFORM_BOOTSTRAP,
+  validatePlatformBootstrapConfig,
+} from './bootstrap/index.js';
+
 // One-shot probes — pure main-thread functions for editor flows
 // (Test connection, Infer fields). Same vocabulary the streaming
 // runtime uses; calling them in-process is the design doc's

@@ -1057,6 +1057,12 @@ Per-renderer config types (`PillRendererConfig`,
 - `[identifier]` — session-unique bracket tokens (worker-side)
 - `resolveBracketCfg()` — per-attach cache so same token reuses same value
 
+#### Platform bootstrap (Phase 0.5)
+
+- `PlatformBootstrapConfig` — unified `appId`, `userId`, REST/seed URLs from manifest or `app-config.json`
+- `validatePlatformBootstrapConfig()` — require non-empty identity; warn when `useRest` without REST URL
+- `DEV_PLATFORM_BOOTSTRAP` — shared test/dev fallback (`TestApp` / `dev1`)
+
 #### Bootstrap
 
 - `bootstrapDataServices()` — coordinate client + worker

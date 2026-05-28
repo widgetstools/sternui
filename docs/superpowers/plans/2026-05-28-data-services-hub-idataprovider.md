@@ -161,9 +161,9 @@ export interface IDataProvider<T = unknown> {
 - Create: `packages/data/host-data/src/bootstrap/PlatformBootstrapConfig.test.ts`
 - Modify: `packages/data/host-data/src/index.ts` — export type
 
-- [ ] **Step 1:** Define `PlatformBootstrapConfig` interface (see spec).
-- [ ] **Step 2:** Add `validatePlatformBootstrapConfig(config)` — require non-empty `appId`, `userId`; warn on missing REST URL when `useRest === true`.
-- [ ] **Step 3:** Add `DEV_PLATFORM_BOOTSTRAP` fallback for tests (`appId: 'TestApp'`, `userId: 'dev1'`) — replaces scattered literals.
+- [ ] **Step 1:** Define `PlatformBootstrapConfig` interface (see spec). ✅ Session 3
+- [ ] **Step 2:** Add `validatePlatformBootstrapConfig(config)` — require non-empty `appId`, `userId`; warn on missing REST URL when `useRest === true`. ✅ Session 3
+- [ ] **Step 3:** Add `DEV_PLATFORM_BOOTSTRAP` fallback for tests (`appId: 'TestApp'`, `userId: 'dev1'`) — replaces scattered literals. ✅ Session 3
 - [ ] **Step 4:** Commit: `feat(host-data): add PlatformBootstrapConfig type`.
 
 ### Task 0.5.2: Web loader — `app-config.json`
