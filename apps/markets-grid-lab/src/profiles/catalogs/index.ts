@@ -73,3 +73,8 @@ export {
   EDITING_DEMO_PROFILES,
   EDITING_ACTIVE_PROFILE_ID,
 } from './editingCatalog';
+export {
+  VISUAL_EXCEL_GRID_ID,
+  VISUAL_EXCEL_DEMO_PROFILES,
+  VISUAL_EXCEL_ACTIVE_PROFILE_ID,
+} from './visualExcelCatalog';

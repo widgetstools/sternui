@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "gc-profile",
-  "exportedAt": "2026-05-27T21:23:46.919Z",
+  "exportedAt": "2026-05-28T01:28:43.090Z",
   "profile": {
     "name": "09 · Low confirm threshold",
     "gridId": "lab-editing",
@@ -55,7 +55,7 @@
           },
           "nudges": [
             {
-              "id": "pm-mpokn3og-1np5",
+              "id": "pm-mpote3be-zjx9",
               "name": "Qty ±100",
               "enabled": true,
               "scope": {
@@ -67,7 +67,7 @@
               "decrementStep": 100
             },
             {
-              "id": "pm-mpokn3og-63rs",
+              "id": "pm-mpote3be-fruc",
               "name": "Mid ±0.01",
               "enabled": true,
               "scope": {
@@ -90,7 +90,7 @@
           },
           "shortcuts": [
             {
-              "id": "sc-mpokn3og-z7js",
+              "id": "sc-mpote3be-hwu8",
               "name": "H ×100 qty",
               "enabled": true,
               "shortcutKey": "h",
@@ -103,7 +103,7 @@
               }
             },
             {
-              "id": "sc-mpokn3og-p9qt",
+              "id": "sc-mpote3be-e18j",
               "name": "M +1000 qty",
               "enabled": true,
               "shortcutKey": "m",
@@ -116,7 +116,7 @@
               }
             },
             {
-              "id": "sc-mpokn3og-vzi9",
+              "id": "sc-mpote3be-ih3e",
               "name": "L −500 qty",
               "enabled": true,
               "shortcutKey": "l",

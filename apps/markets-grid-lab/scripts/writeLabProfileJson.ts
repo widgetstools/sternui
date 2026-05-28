@@ -37,6 +37,8 @@ import {
   SHORTCUTS_GRID_ID,
   SMART_EDIT_GRID_ID,
   SMART_EDIT_DEMO_PROFILES,
+  VISUAL_EXCEL_DEMO_PROFILES,
+  VISUAL_EXCEL_GRID_ID,
 } from '../src/profiles/catalogs';
 import { toExportedProfilePayload } from '../src/profiles/labProfileKit';
 
@@ -59,6 +61,7 @@ const CATALOGS = [
   { folder: 'plus-minus', gridId: PLUS_MINUS_GRID_ID, profiles: PLUS_MINUS_DEMO_PROFILES },
   { folder: 'shortcuts', gridId: SHORTCUTS_GRID_ID, profiles: SHORTCUTS_DEMO_PROFILES },
   { folder: 'editing', gridId: EDITING_GRID_ID, profiles: EDITING_DEMO_PROFILES },
+  { folder: 'visual-excel', gridId: VISUAL_EXCEL_GRID_ID, profiles: VISUAL_EXCEL_DEMO_PROFILES },
 ] as const;
 
 for (const { folder, gridId, profiles } of CATALOGS) {

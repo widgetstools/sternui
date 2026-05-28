@@ -16,6 +16,7 @@ import bulkUpdate from './bulk-update.md?raw';
 import editing from './editing.md?raw';
 import plusMinus from './plus-minus.md?raw';
 import shortcuts from './shortcuts.md?raw';
+import visualExcel from './visual-excel.md?raw';
 
 export const HELP = {
   overview,
@@ -35,4 +36,5 @@ export const HELP = {
   editing,
   plusMinus,
   shortcuts,
+  visualExcel,
 } as const;

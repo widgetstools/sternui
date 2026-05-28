@@ -55,6 +55,7 @@ export interface MarketsGridHostProps<TData> {
   editingToolbarAllow: EditingToolbarAllow;
   showSaveButton: boolean;
   showSettingsButton: boolean;
+  showVisualExcelExport: boolean;
   showProfileSelector: boolean;
   modules: AnyModule[];
   className: string | undefined;
@@ -101,6 +102,7 @@ export function MarketsGridHost<TData>({
   editingToolbarAllow,
   showSaveButton,
   showSettingsButton,
+  showVisualExcelExport,
   showProfileSelector,
   modules,
   className,
@@ -148,6 +150,8 @@ export function MarketsGridHost<TData>({
     handleToggleStyleToolbar,
     editingToolbarOpen,
     handleToggleEditingToolbar,
+    handleExportVisualExcel,
+    visualExcelExportEnabled,
     handleSaveAll,
     requestLoadProfile,
     confirmSwitchSave,
@@ -219,6 +223,9 @@ export function MarketsGridHost<TData>({
           onSaveAll={handleSaveAll}
           showSettingsButton={showSettingsButton}
           onOpenSettings={handleOpenSettings}
+          showVisualExcelExport={showVisualExcelExport}
+          visualExcelExportEnabled={visualExcelExportEnabled}
+          onExportVisualExcel={handleExportVisualExcel}
           adminActions={adminActions}
           componentName={componentName}
           gridId={gridId}

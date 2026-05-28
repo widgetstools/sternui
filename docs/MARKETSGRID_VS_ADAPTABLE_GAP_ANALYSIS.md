@@ -31,7 +31,7 @@ deployment — and where to invest next.
 | **Headline parity** | **≈ 48%** (weighted for capital-markets grids) |
 | **Best in class** | Cell rendering (~80%), developer guides (~72%), theming (100%) |
 | **Recently closed** | Alerts (P0 triggers + toast/bell/OpenFin), styled columns (2026-Q2) |
-| **Still thin** | Pivot/aggregations, Visual Excel, annotations, AdaptableQL extensions |
+| **Still thin** | Pivot/aggregations, scheduled reports, annotations, AdaptableQL extensions |
 
 MarketsGrid already covers the **platform spine** — profiles, expression engine,
 conditional styling, formatters, OpenFin shell, real-time ingest — that AdapTable
@@ -222,7 +222,7 @@ column.
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
 | Exporting — Excel | AG Grid native | 70 | 8 | — |
-| Exporting — Visual Excel (with styling/formatting) | — | 10 | 7 | Big gap — WYSIWYG export is a power-user feature |
+| Exporting — Visual Excel (with styling/formatting) | `visualExcelModule` + toolbar export | 55 | 7 | Format strings + conditional cell colours; row-scoped rules not yet exported |
 | Exporting — CSV | AG Grid native | 80 | 6 | — |
 | Exporting — JSON | AG Grid native (with adapter) | 60 | 5 | — |
 | Reports — system + custom Boolean reports | — | 15 | 6 | No report definition layer |
@@ -434,9 +434,11 @@ Visual Excel preserves column formatting on export. Reports can be
 scheduled (DaysOfWeek + Hour + Minute) and routed to custom destinations
 (email, REST, PDF).
 
-MarketsGrid only does AG Grid's native CSV / Excel export.
+MarketsGrid ships **Visual Excel** (`visualExcelModule`) — toolbar `.xlsx`
+export with display formatters and conditional cell colours via AG Grid
+`excelStyles`. Scheduled reports and custom destinations remain unimplemented.
 
-**Impact:** *high* — daily end-of-day reporting is workflow-critical.
+**Impact:** *medium* — WYSIWYG export is covered; scheduling and routing still gap.
 
 ### 6.7 Notes, Comments, Free Text Columns
 
@@ -546,8 +548,11 @@ is sized into a rough effort band (S < 1 week, M 1–4 weeks, L > 4 weeks).
 | # | Feature | Effort | Why |
 |---|---|---|---|
 | 1 | **Direction-aware flashing module** (UP/DOWN/Neutral, per-column, duration) | M | Per-rule flash already shipped via conditional-styling — standalone module closes the last flashing gap |
-| 2 | **Visual Excel export** (preserve formatting) | M | Differentiator vs AG Grid native; `excelFormatColorResolver` already separates value/colour for re-use |
-| 3 | **Alert extensions** (aggregation limits, validation rollback, auto-jump, `AlertFired` event) | M | P0 triggers shipped; closes evaluation gaps for risk desks |
+| 2 | **Alert extensions** (aggregation limits, validation rollback, auto-jump, `AlertFired` event) | M | P0 triggers shipped; closes evaluation gaps for risk desks |
+
+> **~~Visual Excel export~~** — **shipped 2026-Q2.** `visualExcelModule` +
+> toolbar export; lab tab `lab-visual-excel-v1`. Row-scoped rules and
+> scheduled destinations remain follow-ups.
 
 > **~~Alerts (P0 triggers)~~** — **shipped 2026-Q2.** Customizer module + lab
 > scenarios. See §4.4, §6.1, and `apps/markets-grid-lab`.

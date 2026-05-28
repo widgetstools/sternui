@@ -1,7 +1,7 @@
 import type { ColDef, GridApi, SideBarDef, StatusPanelDef, Theme } from 'ag-grid-community';
 import type { AnyModule, AppDataLookup, GridPlatform, MarketsGridLocalStorageConfig, StorageAdapter, StorageAdapterFactory, StorageAdapterFactoryOpts } from '@starui/engine';
 import type { GridHostContext } from '@starui/host';
-import type { UseProfileManagerResult } from '@starui/grid/customizer';
+import type { UseProfileManagerResult, VisualExcelExportOptions } from '@starui/grid/customizer';
 
 export type { MarketsGridLocalStorageConfig, StorageAdapterFactory, StorageAdapterFactoryOpts } from '@starui/engine';
 
@@ -72,6 +72,8 @@ export interface MarketsGridProps<TData = unknown> {
   showSaveButton?: boolean;
   /** Settings button on the toolbar. Defaults to `true`. */
   showSettingsButton?: boolean;
+  /** Visual Excel export button on the toolbar. Defaults to `true`. */
+  showVisualExcelExport?: boolean;
   /** Profile selector pill. Defaults to `true`. */
   showProfileSelector?: boolean;
   /** AG-Grid sidebar config. */
@@ -308,6 +310,9 @@ export interface MarketsGridHandle {
    * overlay and grid-state capture both run.
    */
   saveAll: () => Promise<void>;
+
+  /** Export visible grid data to Excel with display formatters and style colours. */
+  exportVisualExcel: (options?: VisualExcelExportOptions) => void;
 
   /**
    * When `storage={createMarketsGridLocalStorageStorage()}` — returns the

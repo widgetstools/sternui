@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "gc-profile",
-  "exportedAt": "2026-05-27T21:23:46.918Z",
+  "exportedAt": "2026-05-28T01:28:43.089Z",
   "profile": {
     "name": "02 · Expression gate",
     "gridId": "lab-plus-minus",
@@ -21,7 +21,7 @@
           },
           "nudges": [
             {
-              "id": "pm-mpokn3og-o53m",
+              "id": "pm-mpote3be-4wqi",
               "name": "Long-only qty",
               "enabled": true,
               "scope": {

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "gc-profile",
-  "exportedAt": "2026-05-27T21:23:46.919Z",
+  "exportedAt": "2026-05-28T01:28:43.089Z",
   "profile": {
     "name": "05 · Letter shortcuts",
     "gridId": "lab-editing",
@@ -65,7 +65,7 @@
           },
           "shortcuts": [
             {
-              "id": "sc-mpokn3og-z7js",
+              "id": "sc-mpote3be-hwu8",
               "name": "H ×100 qty",
               "enabled": true,
               "shortcutKey": "h",
@@ -78,7 +78,7 @@
               }
             },
             {
-              "id": "sc-mpokn3og-p9qt",
+              "id": "sc-mpote3be-e18j",
               "name": "M +1000 qty",
               "enabled": true,
               "shortcutKey": "m",
@@ -91,7 +91,7 @@
               }
             },
             {
-              "id": "sc-mpokn3og-vzi9",
+              "id": "sc-mpote3be-ih3e",
               "name": "L −500 qty",
               "enabled": true,
               "shortcutKey": "l",
