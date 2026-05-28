@@ -256,7 +256,9 @@ Per-renderer config types (`PillRendererConfig`,
 **Public exports:**
 
 - `.` — `MarketsGrid` component, toolbars, storage helpers, types
-- `./customizer` — hooks, module definitions, settings-panel primitives
+- `./customizer` — hooks (`useEditJournal`, `useModuleState`, `useProfileManager`, …),
+  module definitions, settings-panel primitives, editing helpers (`recordEdit`,
+  `journalUndoRedo`)
 - `./styles.css` — widget stylesheet
 - `./runtime/openfin` — OpenFin popout helpers
 
@@ -264,7 +266,9 @@ Per-renderer config types (`PillRendererConfig`,
 
 - `MarketsGrid` — main grid component (host integration, column defs, real-time rows)
 - `MarketsGridHandle` — imperative ref (grid API + platform methods)
-- `MarketsGridProps` — host context, storage factory, module overrides, callbacks
+- `MarketsGridProps` — host context, storage factory, module overrides, callbacks;
+  editing chrome: `showEditingToolbar`, legacy `showSmartEditToolbar` /
+  `showBulkUpdateToolbar` / `showEditHistoryToolbar`, `headerExtras`
 - `DEFAULT_MODULES` — ordered customizer-module pipeline
 - `gridSurfaceOptions` — AG Grid defaults, DOM options, row styling, cell renderers
 - `useGridHost`, `useMarketsGridController` — imperative grid control hooks
@@ -281,10 +285,17 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Toolbars
 
-- `PrimaryToolbar` — actions, admin, export/import, settings sheet toggle
+- `PrimaryToolbar` — actions, admin, export/import, settings sheet toggle, optional inline caption (`tabsHidden`), editing-toolbar pencil toggle
 - `FiltersToolbar` — quick filter, saved filter recall, server-side expression
 - `FormattingToolbar` — cell/header styling, conditional formats, value formatters (with popout)
-- `EditingToolbar` — unified editing row (history undo/redo, Smart Edit ops, Bulk Update apply, keyboard hints dropdown); primary-row pencil toggle (`editing-toolbar-toggle`); segments gated by host allow-list + module `settings.enabled`
+- `EditingToolbar` — unified editing row (history undo/redo, Smart Edit ops, Bulk Update apply, keyboard hints dropdown); primary-row pencil toggle (`editing-toolbar-toggle`); segments gated by `resolveEditingToolbarAllow()` + module `settings.enabled`
+- `EditingToolbarKeyboardMenu` — read-only dropdown listing active plus/minus nudges and letter shortcuts (keys handled by module runtime, not the menu)
+- `SmartEditToolbarBody` — operand input, op buttons (× ÷ + −), **Set…** dialog, preview confirm/cancel
+- `BulkUpdateToolbarBody` — text input for custom values, optional distinct-value picker (fills input), check-icon apply control
+- `EditHistoryToolbarBody` — global undo/redo + stack entry count
+- `SmartEditToolbar` — legacy standalone toolbar export (superseded by `EditingToolbar` segment)
+- `headerExtras` prop — optional React slot rendered above the primary toolbar row inside grid chrome (`MarketsGridContainer` mounts `ProviderToolbar` here when revealed)
+- `resolveEditingToolbarAllow()` — maps `showEditingToolbar` and legacy per-segment props to host allow-list
 - `AdminActionButtons` — admin grid operations
 
 #### Profile management UI
@@ -339,23 +350,34 @@ Per-renderer config types (`PillRendererConfig`,
   registered renderer from `@starui/design-system/cell-renderers-registry`
   and authors its per-renderer config)
 - **Conditional styling** — themed style rules (dark/light)
+- **Editing family (overview)** — five customizer modules share a cell-patch
+  journal (`EditJournal` in `@starui/engine`). React wiring: `recordEdit.ts`
+  (`resolveEditRecording`), `useEditJournal`, `journalUndoRedo`,
+  `journalApplyGuard`, `editJournalScope`. Unified **`EditingToolbar`** row
+  composes edit-history, smart-edit, and bulk-update segments plus
+  `EditingToolbarKeyboardMenu` hints; plus/minus and shortcuts are keyboard-only
+  (settings panels, no toolbar segment). Host opt-in: `showEditingToolbar`
+  (all three segments) or legacy `showSmartEditToolbar` /
+  `showBulkUpdateToolbar` / `showEditHistoryToolbar` (per-segment allow-list;
+  row visible when any legacy prop is true). Default module pipeline order in
+  `DEFAULT_MODULES`: … → smart-edit → bulk-update → plus-minus → shortcuts →
+  data-change-history → alerts → … → grid-state (last). E2e: 45 Playwright
+  specs (`e2e/v2-editing-family.spec.ts`, `v2-editing`, `v2-smart-edit`,
+  `v2-bulk-update`, `v2-edit-history`, `v2-plus-minus`, `v2-shortcuts`);
+  shared helpers in `e2e/helpers/labEditing.ts` and `e2e/helpers/editingToolbar.ts`.
 - **Smart Edit** — bulk update, arithmetic across cell selections (× ÷ + −),
   toolbar **Set…** dialog, +/- keyboard increment, and K/M/B magnitude shortcuts
   via `valueParser` on editable numeric columns. Single-column guard, optional
   preview-before-apply, and cell-patch journal recording for undo (via shared
   `EditJournal`). Framework-agnostic ops in `@starui/engine`; React module +
-  `SmartEditToolbarBody` in `@starui/grid`. Opt-in via `showEditingToolbar`
-  (default `false`; primary-row pencil toggle; legacy `showSmartEditToolbar` /
-  `showBulkUpdateToolbar` / `showEditHistoryToolbar` remain as per-segment
-  allow-list). Segments appear when the host allows them and the module's
-  `settings.enabled` is true. Settings panel module `06`. Lab: unified **Editing**
-  tab (`lab-editing`, 12 profiles); focused Smart Edit profiles under
-  `public/lab-profiles/smart-edit/`.
-- **Edit History** — session-scoped undo/redo journal consumed by Smart Edit and
-  future editing modules. Monitor panel lists entries (time, source, label, cell
-  count) with per-entry undo in a fixed-height virtualized scroll rail pinned to
-  the bottom of the settings sheet (cascade-undoes that entry and all newer edits;
-  Undo disabled for entries already reversed via toolbar); `EditHistoryToolbar`
+  `SmartEditToolbarBody` in `@starui/grid`. Settings panel: **Smart Edit**.
+  Lab: unified **Editing** tab (`lab-editing`, 12 profiles); focused Smart Edit
+  profiles under `public/lab-profiles/smart-edit/`.
+- **Edit History** — session-scoped undo/redo journal consumed by all editing
+  modules. Monitor panel lists entries (time, source, label, cell count) with
+  per-entry undo in a fixed-height virtualized scroll rail pinned to the bottom
+  of the settings sheet (cascade-undoes that entry and all newer edits; Undo
+  disabled for entries already reversed via toolbar); `EditHistoryToolbarBody`
   exposes global Undo/Redo and an undo-stack entry count (decrements on toolbar
   or monitor undo, increments on redo).
   Settings: suspend recording, max stack depth, unify undo (disables AG Grid
@@ -363,24 +385,22 @@ Per-renderer config types (`PillRendererConfig`,
   In-cell edits are journaled via wrapped `valueSetter` on editable columns (AG Grid
   35 may omit `cellValueChanged` on inline commit); `cellValueChanged` remains a
   fallback listener when the event fires.
-  Module `10`; opt-in via
-  `showEditingToolbar` or legacy `showEditHistoryToolbar` (default `false`). Lab: **Editing** tab (`lab-editing`) ships
-  history toolbar on full-curriculum profile; Smart Edit–only history demo in
-  `public/lab-profiles/smart-edit/se-04-history.json`.
+  Settings panel: **Edit History**. Lab: **Editing** tab (`lab-editing`);
+  Smart Edit–only history demo in `public/lab-profiles/smart-edit/se-04-history.json`.
 - **Bulk Update** — replace all selected cells in one column with the same
   value (text, number, date). Distinct-value dropdown, confirm threshold,
-  single-column guard, journal integration. Module `07`; opt-in via
-  `showEditingToolbar` or legacy `showBulkUpdateToolbar` (default `false`). Lab: **Bulk Update** tab
-  (`lab-bulk-update`).
+  single-column guard, journal integration. Settings panel: **Bulk Update**.
+  Lab: **Bulk Update** tab (`lab-bulk-update`) and unified **Editing** tab.
 - **Plus / Minus** — keyboard +/- nudge rules with per-column increment/decrement
   steps and optional expression gates. Takes over +/- keys from Smart Edit when
   enabled; `suppressKeyboardEvent` on editable numeric columns prevents inline
-  edit from consuming +/- keys. Module `08` (keyboard only — no toolbar). Journal
-  integration via `recordHistory`. Lab: **Plus / Minus** tab (`lab-plus-minus`).
+  edit from consuming +/- keys. Keyboard only — no toolbar segment. Journal
+  integration via `recordHistory`. Settings panel: **Plus / Minus**.
+  Lab: **Plus / Minus** tab (`lab-plus-minus`).
 - **Shortcuts** — letter-key arithmetic (× ÷ + −) with per-shortcut operand and
   column scope. Distinct from Smart Edit K/M/B magnitude parsing in the cell editor.
-  Module `09` (keyboard only — no toolbar). Journal integration via `recordHistory`.
-  Lab: **Shortcuts** tab (`lab-shortcuts`).
+  Keyboard only — no toolbar segment. Journal integration via `recordHistory`.
+  Settings panel: **Shortcuts**. Lab: **Shortcuts** tab (`lab-shortcuts`).
 - **Alerts** — expression-driven notifications (dataChange / relativeChange /
   rowChange triggers) with toast, toolbar bell badge, and OpenFin Notification
   Centre channels. Runtime evaluates on `cellValueChanged` and on
@@ -462,12 +482,17 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Data-provider container & editor
 
-- `MarketsGridContainer` — grid + two-provider picker + mode toggle (Alt+Shift+P hotkey), grid-level provider persistence
-- `ProviderToolbar` — in-grid provider selector + edit dialog launcher
+- `MarketsGridContainer` — grid + two-provider picker + mode toggle (`Alt+Shift+P` /
+  `Cmd+Shift+P` hotkey), grid-level provider persistence; mounts `ProviderToolbar`
+  in `MarketsGrid` `headerExtras` when toggled visible
+- `ProviderToolbar` — in-grid provider selector + edit dialog launcher (Live/Hist mode, refresh, as-of date)
 - `ProviderEditorDialog` — modal hosting `DataProviderEditor`
 - `DataProviderEditor` — connection + tabs (Connections, Fields, Columns, Diagnostics)
 - `DataProviderSelector` — compact provider dropdown with quick-add
-- `useChordHotkey` — chord keybinding helper (Alt+Shift+P, Cmd+Shift+P)
+- `useChordHotkey` — chord keybinding helper; `PROVIDER_TOOLBAR_TOGGLE_CHORDS`
+  (`Alt+Shift+P`, `Meta+Shift+P`); matches letter keys via `event.code` for macOS
+  Option remaps; listens in capture phase so focused AG-Grid cells cannot swallow
+  the chord; `PROVIDER_TOOLBAR_TOGGLE_HINT` for docs/footers
 
 #### Provider editor tabs
 
@@ -712,15 +737,22 @@ Per-renderer config types (`PillRendererConfig`,
 
 - `HistoryStack` — vanilla undo/redo (module state snapshots)
 - `HistoryStackOptions` — `maxSize`
-- **Editing core** — `EditJournal`, `CellPatch`, `buildPatchesFromTargets`,
-  `applyForwardPatches`, `previewPatches`, `assertSingleColumnSelection` —
-  cell-patch journal for row data edits (one user action = one undo step)
+- **Editing core** — `EditJournal`, `CellPatch`, `EditSource`, `buildPatchesFromTargets`,
+  `applyForwardPatches`, `previewPatches`, `assertSingleColumnSelection`,
+  `BuildNudgePatchesOptions` — cell-patch journal for row data edits (one user
+  action = one undo step)
+- **Smart edit** — `applyNumericOp`, `parseMagnitudeSuffix`, `collectTargetCells`,
+  `applySmartEditColDefTransforms`, `deserializeSmartEditState`, `INITIAL_SMART_EDIT`
 - **Data change history** — `DataChangeHistorySettings`, `recordSourceKey`,
-  `deserializeDataChangeHistoryState` — profile settings for the edit-history
-  module (session-only stacks; settings-only persistence)
+  `deserializeDataChangeHistoryState`, `INITIAL_DATA_CHANGE_HISTORY` — profile
+  settings for the edit-history module (session-only stacks; settings-only persistence)
 - **Bulk update** — `BulkUpdateSettings`, `collectBulkUpdateTargets`,
-  `buildBulkUpdatePatches`, `resolveColumnDistinctValues`,
-  `deserializeBulkUpdateState` — replace-all-selected with one value
+  `buildBulkUpdatePatches`, `resolveColumnDistinctValues`, `parseBulkUpdateValue`,
+  `deserializeBulkUpdateState`, `INITIAL_BULK_UPDATE` — replace-all-selected with one value
+- **Plus / minus** — `buildNudgePatches`, `resolveNudgeForCell`,
+  `applyPlusMinusColDefTransforms`, `deserializePlusMinusState`, `INITIAL_PLUS_MINUS`
+- **Shortcuts** — `buildShortcutPatches`, `matchShortcutForCell`, `collectShortcutKeys`,
+  `applyShortcutsColDefTransforms`, `deserializeShortcutsState`, `INITIAL_SHORTCUTS`
 
 #### Expression engine
 
@@ -1301,9 +1333,13 @@ These aren't a single feature, but they are platform invariants worth rememberin
 
 - **Seam #1 — RuntimePort** (`@starui/host-openfin` vs `@starui/host-browser`). Only OpenFin packages may import `@openfin/core`.
 - **Seam #2 — React host bridge** (`@starui/host-wrapper-react`). All React features consume the host via `useHost()`.
-- **Customizer pipeline** — 8 modules in fixed execution order: general-settings → column-templates → column-customization → conditional-styling → calculated-columns → saved-filters → toolbar-visibility → grid-state.
+- **Customizer pipeline** — `DEFAULT_MODULES` runs general-settings →
+  column-templates → column-customization → calculated-columns → column-groups →
+  conditional-styling → smart-edit → bulk-update → plus-minus → shortcuts →
+  data-change-history → alerts → saved-filters → toolbar-visibility → grid-state
+  (grid-state last so replay sees the finalized column set).
 - **Storage adapter pattern** — `StorageAdapter` is the single contract. localStorage, IndexedDB, ConfigService (REST + Dexie), and in-memory all implement it.
-- **Provider selection** — `MarketsGridContainer` exposes a two-provider picker with grid-level persistence and the `Alt+Shift+P` hotkey.
+- **Provider selection** — `MarketsGridContainer` exposes a two-provider picker with grid-level persistence; reveal/hide via `Alt+Shift+P` / `Cmd+Shift+P` (`useChordHotkey`). Bare `MarketsGrid` hosts (e.g. markets-grid-lab) use parent-controlled `rowData` and do not mount the provider toolbar.
 - **Expression engine** — CSP-safe parser/evaluator drives calculated columns, conditional rules, and filter expressions; `tryCompileToAgString()` transpiles to AG Grid `valueFormatter` strings.
 - **Theme integration** — reactive dark/light switching via `RuntimePort` + `data-theme` attribute; AG Grid theme + StarUI tokens stay in lockstep.
 - **Extensibility surfaces** — slot-based widget extensions in `@starui/widget-sdk`; OpenFin plugin hooks (`onMount`, `onReady`, `onThemeChanged`, `onMessage`, `onClose`) in `@starui/openfin-platform`.

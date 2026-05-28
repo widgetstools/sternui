@@ -39,6 +39,11 @@ import type { EditingToolbarSegmentProps } from '../../editing/editingToolbarLay
 import { resolveEditRecording } from '../../editing/recordEdit';
 import { useGridPlatform } from '../../hooks/GridProvider';
 import { useModuleState } from '../../hooks/useModuleState';
+import {
+  EDITING_TOOLBAR_CONTROL,
+  EditingToolbarOpButton,
+  EditingToolbarOpGroup,
+} from '../../../widget/editingToolbar/EditingToolbarPrimitives';
 import { useSmartEditSelection } from './useSmartEditSelection';
 import {
   applyEdits,
@@ -52,6 +57,13 @@ const OP_LABELS: Record<SmartEditOp, string> = {
   add: '+',
   subtract: '−',
   set: 'Set…',
+};
+
+const OP_TITLES: Record<Exclude<SmartEditOp, 'set'>, string> = {
+  multiply: 'Multiply by operand',
+  divide: 'Divide by operand',
+  add: 'Add operand',
+  subtract: 'Subtract operand',
 };
 
 export function SmartEditToolbarBody({ layout = 'standalone' }: EditingToolbarSegmentProps) {
@@ -179,6 +191,10 @@ export function SmartEditToolbarBody({ layout = 'standalone' }: EditingToolbarSe
   const preview = pendingPatches.length > 0 ? previewPatches(pendingPatches) : null;
   const segment = layout === 'segment';
 
+  const guardTip = !columnGuard.ok && columnGuard.reason === 'multi-column'
+    ? 'Select cells in one column only'
+    : undefined;
+
   return (
     <div
       className={cn(
@@ -186,57 +202,55 @@ export function SmartEditToolbarBody({ layout = 'standalone' }: EditingToolbarSe
       )}
       data-testid="smart-edit-toolbar"
     >
-      {ops.filter((op) => op !== 'set').map((op) => (
-        <Tooltip key={op}>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={disabled}
-              data-testid={`smart-edit-op-${op}`}
-              onClick={() => {
-                const v = Number(operand);
-                if (Number.isFinite(v)) beginOp(op, v);
-              }}
-            >
-              {OP_LABELS[op]}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {!columnGuard.ok && columnGuard.reason === 'multi-column'
-              ? 'Select cells in one column only'
-              : op}
-          </TooltipContent>
-        </Tooltip>
-      ))}
-      {ops.includes('set') && (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={disabled}
-          data-testid="smart-edit-op-set"
-          onClick={() => setSetDialogOpen(true)}
-        >
-          Set…
-        </Button>
-      )}
-      <span className="ds-editing-toolbar__label">Operand</span>
+      <span className="ds-smart-edit-toolbar__label">Smart edit</span>
       <Input
-        className="ds-smart-edit-toolbar__operand w-[88px]"
+        className={cn('ds-smart-edit-toolbar__operand', EDITING_TOOLBAR_CONTROL)}
         value={operand}
         onChange={(e) => setOperand(e.target.value)}
         data-testid="smart-edit-operand"
+        aria-label="Operand"
+        title="Operand value for arithmetic operations"
       />
+      <EditingToolbarOpGroup>
+        {ops.filter((op) => op !== 'set').map((op) => (
+          <Tooltip key={op}>
+            <TooltipTrigger asChild>
+              <EditingToolbarOpButton
+                disabled={disabled}
+                data-testid={`smart-edit-op-${op}`}
+                title={guardTip ?? OP_TITLES[op]}
+                aria-label={OP_TITLES[op]}
+                onClick={() => {
+                  const v = Number(operand);
+                  if (Number.isFinite(v)) beginOp(op, v);
+                }}
+              >
+                {OP_LABELS[op]}
+              </EditingToolbarOpButton>
+            </TooltipTrigger>
+            {guardTip && <TooltipContent>{guardTip}</TooltipContent>}
+          </Tooltip>
+        ))}
+        {ops.includes('set') && (
+          <EditingToolbarOpButton
+            disabled={disabled}
+            data-testid="smart-edit-op-set"
+            title={guardTip ?? 'Set absolute value'}
+            aria-label="Set absolute value"
+            onClick={() => setSetDialogOpen(true)}
+          >
+            {OP_LABELS.set}
+          </EditingToolbarOpButton>
+        )}
+      </EditingToolbarOpGroup>
       <span
         className={cn(
           'ds-editing-toolbar__meta',
           !segment && 'ds-smart-edit-toolbar__count',
         )}
       >
-        {count} cell{count === 1 ? '' : 's'} selected
-        {!columnGuard.ok && columnGuard.reason === 'multi-column' && ' · one column only'}
+        {count} cell{count === 1 ? '' : 's'}
+        {!columnGuard.ok && columnGuard.reason === 'multi-column' && ' · 1 col'}
       </span>
 
       <Dialog open={setDialogOpen} onOpenChange={setSetDialogOpen}>

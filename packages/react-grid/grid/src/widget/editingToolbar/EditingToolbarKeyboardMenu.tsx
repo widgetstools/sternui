@@ -5,7 +5,6 @@ import {
   type ShortcutsState,
 } from '@starui/engine';
 import {
-  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -18,6 +17,10 @@ import {
 } from '@starui/ui';
 import { Keyboard } from 'lucide-react';
 import { useModuleState } from '../../customizer/hooks/useModuleState';
+import {
+  EDITING_TOOLBAR_POPOVER,
+  EditingToolbarIconButton,
+} from './EditingToolbarPrimitives';
 
 export function EditingToolbarKeyboardMenu() {
   const [plusMinus] = useModuleState<PlusMinusState>(PLUS_MINUS_MODULE_ID);
@@ -38,24 +41,22 @@ export function EditingToolbarKeyboardMenu() {
       <Tooltip>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="px-2"
+            <EditingToolbarIconButton
               aria-label="Keyboard shortcuts"
               data-testid="editing-toolbar-keyboard-menu"
             >
-              <Keyboard className="size-3.5" />
-            </Button>
+              <Keyboard size={14} strokeWidth={2} aria-hidden />
+            </EditingToolbarIconButton>
           </DropdownMenuTrigger>
         </TooltipTrigger>
         <TooltipContent>Keyboard shortcuts</TooltipContent>
       </Tooltip>
-      <DropdownMenuContent align="end" className="ds-sheet-v2 w-72">
+      <DropdownMenuContent align="end" className={cnPopover()}>
         {plusEnabled && activeNudges.length > 0 && (
           <>
-            <DropdownMenuLabel>Plus / Minus</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-[11px] font-medium uppercase tracking-wide text-[color:var(--ds-text-secondary)]">
+              Plus / Minus
+            </DropdownMenuLabel>
             {activeNudges.map((nudge) => (
               <DropdownMenuItem key={nudge.id} disabled className="text-xs opacity-100">
                 {nudge.name}
@@ -72,7 +73,9 @@ export function EditingToolbarKeyboardMenu() {
         )}
         {shortcutsEnabled && activeShortcuts.length > 0 && (
           <>
-            <DropdownMenuLabel>Shortcuts</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-[11px] font-medium uppercase tracking-wide text-[color:var(--ds-text-secondary)]">
+              Shortcuts
+            </DropdownMenuLabel>
             {activeShortcuts.map((shortcut) => (
               <DropdownMenuItem key={shortcut.id} disabled className="text-xs opacity-100">
                 {shortcut.name}
@@ -98,4 +101,8 @@ export function EditingToolbarKeyboardMenu() {
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+function cnPopover() {
+  return `${EDITING_TOOLBAR_POPOVER} ds-sheet-v2 w-72`;
 }

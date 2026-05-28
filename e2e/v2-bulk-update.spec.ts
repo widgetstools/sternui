@@ -124,13 +124,11 @@ test.describe('Bulk Update lab tab', () => {
     await bootBulkUpdateTab(page);
 
     await cellAt(page, GRID_ID, 0, 'currency').click();
+    await expect(page.getByTestId('bulk-update-value-input')).toBeVisible();
     const select = page.getByTestId('bulk-update-value-select');
-    const input = page.getByTestId('bulk-update-value-input');
-    await expect(select.or(input)).toBeVisible();
-    if (await select.isVisible()) {
-      await select.click();
-      expect(await page.getByRole('option').count()).toBeGreaterThan(0);
-    }
+    await expect(select).toBeVisible();
+    await select.click();
+    expect(await page.getByRole('option').count()).toBeGreaterThan(0);
   });
 
   test('bulk set maturity date via text input', async ({ page }) => {

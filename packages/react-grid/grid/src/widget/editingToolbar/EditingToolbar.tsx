@@ -70,9 +70,14 @@ export function EditingToolbar({ allow }: EditingToolbarProps) {
       )}
       data-testid="editing-toolbar-pinned"
     >
-      {primary}
-      {primary.length > 0 && showKeyboard && <ToolbarSeparator />}
-      {showKeyboard && <EditingToolbarKeyboardMenu />}
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+        {primary}
+      </div>
+      {showKeyboard && (
+        <div className="ml-auto flex shrink-0 items-center pl-1">
+          <EditingToolbarKeyboardMenu />
+        </div>
+      )}
     </div>
   );
 }
