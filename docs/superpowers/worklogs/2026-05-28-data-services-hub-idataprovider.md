@@ -43,7 +43,7 @@ npx turbo typecheck build test --filter=@starui/host-data --filter=@starui/host-
 | # | PR | Plan task | Scope (1 session) | Status | Date |
 |---|-----|-----------|---------------------|--------|------|
 | 0 | — | Setup | Branch + worklog (this file) | **done** | 2026-05-28 |
-| 1 | PR1 | 0.1 | Finalize spec review / minor spec edits | pending | |
+| 1 | PR1 | 0.1 | Finalize spec review / minor spec edits | **done** | 2026-05-28 |
 | 2 | PR1 | 0.2 | `IDataProvider` + `ProviderCapabilities` types + exports | pending | |
 | 3 | PR1b | 0.5.1 | `PlatformBootstrapConfig` type + validation tests | pending | |
 | 4 | PR1b | 0.5.2 | Web `resolvePlatformBootstrapFromJson` + guide draft | pending | |
@@ -110,13 +110,23 @@ Merge each PR to `feat/data-services-hub-idataprovider` (or stack against `main`
 
 ---
 
-### Session 1 — (pending)
+### Session 1 — 2026-05-28
 
 **Scope:** Task 0.1 — Finalize spec  
-**Done:**  
-**Verify:**  
-**Next:** Session 2  
-**Blockers:**
+**Done:**
+
+- Cross-checked spec against `SharedWorkerDataServicesHub` (detach vs stop, restart via attach.extra)
+- Resolved all Phase 0 open questions in spec § **Resolved decisions**
+- Corrected semantics table: `stop()` = detach; global teardown = `DataServicesHubBundle.stopProvider()`
+- Documented toolbar Refresh → `restart()` migration (today's `__refresh` path), `refresh()` = new cache replay
+- Updated architecture diagram to show `ensurePlatformReady` → `ensureDataServicesHub`
+- Marked spec status **Finalized**; plan Task 0.1 complete
+
+**Verify:** Spec/plan consistency review (no runtime code in this session)
+
+**Next:** Session 2 — `IDataProvider` + `ProviderCapabilities` types (Task 0.2)
+
+**Blockers:** none
 
 ---
 
@@ -141,6 +151,8 @@ Merge each PR to `feat/data-services-hub-idataprovider` (or stack against `main`
 | 2026-05-28 | Implement in monorepo on feature branch, not new repo | Workspace linking, cross-package refactor, MCP templates |
 | 2026-05-28 | ~23 small sessions ≈ 1 task each | Fits focused agent/human sessions without context loss |
 | 2026-05-28 | PR1b (bootstrap) before PR3 (hub factory) | SharedWorker name and ConfigManager need correct `appId` |
+| 2026-05-28 | `IDataProvider.stop()` = detach; global = `stopProvider()` | Matches hub behavior (no auto-teardown on last detach) |
+| 2026-05-28 | Toolbar Refresh → `restart()`, not `refresh()` | Preserves today's `__refresh` / `asOfDate` semantics; `refresh()` is new cache-replay only |
 
 ---
 

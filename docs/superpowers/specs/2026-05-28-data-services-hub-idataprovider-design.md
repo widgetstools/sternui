@@ -1,7 +1,8 @@
 # Data Services Hub + IDataProvider — Design Spec
 
 **Date:** 2026-05-28  
-**Status:** Approved for implementation planning  
+**Status:** Finalized (Session 1 — Phase 0 review)  
+**Revisions:** 2026-05-28 — Resolved open questions (`stop`/`detach`, `refresh`/`restart`, catalog scope, inline cfg, probeStomp, identity rules).  
 **Scope:** `@starui/host-data`, `@starui/host-data-react`, `@starui/widgets-react`, consumer apps, MCP scaffold templates
 
 ---
@@ -44,19 +45,22 @@ OpenFin multi-window apps amplify timing issues: each view is a separate JS real
 Component (grid, editor, config browser)
   │
   ▼
-ensureDataServicesHub(appId)          ← lazy, per-window singleton promise
+ensurePlatformReady(PlatformBootstrapConfig)   ← lazy, per-window singleton promise
   │
   ▼
-DataServicesHubClient                   ← MessagePort RPC
+ensureDataServicesHub({ appId, userId, … })      ← SharedWorker attach-or-create
+  │
+  ▼
+DataServicesHubClient                            ← MessagePort RPC
   │
   ▼
 SharedWorker: SharedWorkerDataServicesHub
-  ├── ConfigCatalogCache                ← preload + invalidate
+  ├── ConfigCatalogCache                         ← preload + invalidate
   ├── AppData (existing)
-  └── Map<providerId, ProviderSlot>     ← startStomp | startMock | startRest
+  └── Map<providerId, ProviderSlot>              ← startStomp | startMock | startRest
         │
         ▼
-IDataProvider adapter (per providerId)  ← client-facing uniform API
+ProviderClientAdapter (per providerId)           ← client-facing IDataProvider
 ```
 
 ### Semantics
@@ -64,11 +68,15 @@ IDataProvider adapter (per providerId)  ← client-facing uniform API
 | Operation | Server behavior | Client behavior |
 |-----------|-----------------|-----------------|
 | **start()** | If not running: resolve cfg from catalog, `startProvider`. If running: attach subscriber only. | Register handlers; await snapshot ready. |
-| **stop()** | Global: `stopProvider(id)` — tear down transport + clear cache. | Unsubscribe all local handlers. |
-| **refresh()** | Replay hub row cache to **this** subscriber (replace deltas), no upstream I/O. | Fires `onSnapshotData` with cached rows. |
-| **restart()** | `handle.restart(extra)` — full re-acquire. | Fires loading → snapshot → ready. |
+| **stop()** | **`detach` this subscriber** — stop fan-out to this client only; provider + cache stay running for other views. | Unsubscribe local handlers; release adapter state. |
+| **refresh()** | **New:** replay hub row cache to **this** subscriber (`replace: true` deltas), **no** `provider.restart` and no upstream I/O. | Fires `onSnapshotData` with cached rows. |
+| **restart(extra?)** | `handle.restart(extra)` — full re-acquire (STOMP reconnect, REST refetch, mock soft restart). | Fires loading → snapshot → ready. Maps to today's toolbar refresh (`__refresh` / `asOfDate` via `attach.extra`). |
 | **getData()** | Read `slot.cache` (via RPC or client mirror). | Sync read of last snapshot mirror. |
 | **getConfig()** | Read `ConfigCatalogCache`. | No main-thread Dexie round-trip. |
+
+**Global provider teardown** (admin / explicit shutdown): `DataServicesHubBundle.stopProvider(providerId)` → wire `stop` request → `stopProvider()` in hub (transport stop + cache cleared). **Not** invoked by grid unmount or `IDataProvider.stop()`.
+
+**Today vs target (refresh naming):** The MarketsGrid toolbar "Refresh" button currently triggers `attach` with `extra: { __refresh }` or `{ asOfDate }`, which the hub maps to **`provider.restart`**. After migration, that UX continues to call **`restart()`**, not `refresh()`. `refresh()` is a new, lighter operation for cache replay only (e.g. grid resync after layout restore without reconnecting STOMP).
 
 ### Static vs streaming
 
@@ -115,7 +123,29 @@ Location: `packages/data/host-data/src/provider/IDataProvider.ts` (exported from
 
 See implementation plan for full TypeScript surface. `IBlotterDataProvider` in `@starui/widgets-react` becomes a deprecated thin wrapper.
 
+**Factory surface (hub bundle):**
+
+```typescript
+interface DataServicesHubBundle {
+  getProvider(providerId: string): IDataProvider;
+  /** Global teardown — maps to wire `stop`. Use sparingly (admin/shutdown). */
+  stopProvider(providerId: string): Promise<void>;
+  ready: Promise<void>;
+}
+```
+
 ---
+
+## Resolved decisions (Phase 0 review)
+
+| Question | Decision |
+|----------|----------|
+| **`IDataProvider.stop()` vs global stop** | `stop()` = **detach** this client (wire `detach`). Global teardown = `DataServicesHubBundle.stopProvider(id)` (wire `stop`). Matches hub test: providers stay running after last subscriber detaches until explicit `stop`. |
+| **Inline cfg for editor drafts** | **Yes, indefinitely.** `attach({ cfg: draft })` when row not in catalog or unsaved draft — catalog attach is cfg-optional only for persisted `providerId`. |
+| **Catalog scope** | Preload **all** `data-provider` rows — same as `DataProviderConfigStore.list()` today (platform-global, unfiltered by view). |
+| **probeStomp / probeRest** | Stay **main-thread** for editor "Test Connection" in v1; hub RPC probe is a follow-up. |
+| **`userId` in OpenFin prod** | Manifest pin for **dev/demo** only; production uses SSO session → platform provider forwards `userId` via `customData` on child window spawn. |
+| **`appId` in view customData** | **Ignored** for hub/worker naming. Only `PlatformBootstrapConfig.appId` from manifest/json drives `mkt-data-services:${appId}`. Per-view `instanceId` stays in `customData`. |
 
 ## Platform bootstrap identity (`appId`, `userId`, config service)
 

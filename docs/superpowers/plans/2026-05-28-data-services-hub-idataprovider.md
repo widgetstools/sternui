@@ -107,8 +107,8 @@
 **Files:**
 - Create: `docs/superpowers/specs/2026-05-28-data-services-hub-idataprovider-design.md` ✅
 
-- [ ] **Step 1:** Review spec with team; confirm `refresh` vs `restart` and global `stop()` semantics.
-- [ ] **Step 2:** Commit spec.
+- [ ] **Step 1:** Review spec with team; confirm `refresh` vs `restart` and global `stop()` semantics. ✅ Session 1 — see spec § Resolved decisions; `stop()` = detach, global = `stopProvider()`.
+- [ ] **Step 2:** Commit spec. ✅ Session 1
 
 ### Task 0.2: Define `IDataProvider` types
 
@@ -127,8 +127,11 @@ export interface IDataProvider<T = unknown> {
   readonly id: string;
   readonly capabilities: ProviderCapabilities;
   start(): Promise<void>;
+  /** Detach this client; does not stop the hub provider for other subscribers. */
   stop(): Promise<void>;
+  /** Replay hub cache to this subscriber without upstream I/O. */
   refresh(): Promise<void>;
+  /** Full re-acquire (STOMP reconnect, historical asOfDate, etc.). */
   restart(extra?: Record<string, unknown>): Promise<void>;
   getData(): readonly T[];
   getConfig(): ProviderConfig;
@@ -592,14 +595,14 @@ Feature flag optional: `STARUI_USE_IDATAPROVIDER=1` in `MarketsGridContainer` fo
 
 ---
 
-## Open questions (resolve in Phase 0 review)
+## Open questions (resolved in Phase 0 — Session 1)
 
-- [ ] **Global vs local stop:** Should `IDataProvider.stop()` detach one client or stop hub provider for all subscribers? **Recommendation:** `stop()` = detach; add `stopProvider(id)` on factory for global teardown (matches spec "terminate connection" as admin action).
-- [ ] **Inline cfg for editor drafts:** Keep `attach({ cfg: draft })` escape hatch when `providerId` not in catalog or `save: false`. **Recommendation:** yes, indefinitely.
-- [ ] **Catalog scope:** Preload all `data-provider` rows globally (current list semantics) or filter by appId? **Recommendation:** match `DataProviderConfigStore.list()` — platform-global unfiltered.
-- [ ] **probeStomp/probeRest:** Stay main-thread for editor Test Connection, or move to hub RPC? **Recommendation:** Phase 8 follow-up; keep main-thread in v1 to limit scope.
-- [ ] **`userId` in OpenFin prod:** Manifest dev-only vs SSO session? **Recommendation:** manifest for dev; platform provider sets session userId → `customData` for child windows in prod (document in `platform-bootstrap-config.md`).
-- [ ] **`appId` in view customData:** Ignore for hub/worker naming? **Recommendation:** yes — only manifest/json `appId` drives SharedWorker; customData `instanceId` stays per-grid.
+- [x] **Global vs local stop:** `IDataProvider.stop()` = **detach**; `DataServicesHubBundle.stopProvider(id)` = global teardown (wire `stop`). Spec § Resolved decisions.
+- [x] **Inline cfg for editor drafts:** Keep `attach({ cfg: draft })` when not in catalog — **yes, indefinitely**.
+- [x] **Catalog scope:** Match `DataProviderConfigStore.list()` — **platform-global unfiltered**.
+- [x] **probeStomp/probeRest:** **Main-thread** in v1; hub RPC follow-up.
+- [x] **`userId` in OpenFin prod:** Manifest for dev; **SSO → customData** in prod.
+- [x] **`appId` in view customData:** **Ignore** — manifest/json only for SharedWorker name.
 
 ---
 
