@@ -1,11 +1,13 @@
 import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
-import { dataServices } from '../dataServices';
+import { getPlatform } from '../platformBootstrap';
 
 /**
  * Positions blotter — HostedMarketsGrid on SharedWorker data plane.
  * Pick "STOMP Positions (local)" from the provider toolbar after stomp-view-server is running.
  */
 export function PositionsBlotter() {
+  const { configManager } = getPlatform();
+
   return (
     <div
       className="relative flex h-full w-full flex-col overflow-hidden bg-[color:var(--ds-surface-ground)]"
@@ -17,8 +19,7 @@ export function PositionsBlotter() {
         defaultInstanceId="{{gridId}}"
         withStorage
         theme="auto"
-        dataServices={dataServices}
-        configManager={dataServices.configManager}
+        configManager={configManager}
         {{#each gridPropsLines}}
         {{{this}}}
         {{/each}}

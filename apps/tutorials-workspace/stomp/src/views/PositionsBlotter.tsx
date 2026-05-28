@@ -1,7 +1,9 @@
 import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
-import { dataServices } from '../dataServices';
+import { getPlatform } from '../platformBootstrap';
 
 export function PositionsBlotter() {
+  const { configManager } = getPlatform();
+
   return (
     <div
       className="relative flex h-full w-full flex-col overflow-hidden bg-[color:var(--ds-surface-ground)]"
@@ -12,8 +14,7 @@ export function PositionsBlotter() {
         componentName="Positions Blotter"
         defaultInstanceId="positions-blotter"
         withStorage
-        dataServices={dataServices}
-        configManager={dataServices.configManager}
+        configManager={configManager}
         showFiltersToolbar
         showFormattingToolbar
         showProfileSelector

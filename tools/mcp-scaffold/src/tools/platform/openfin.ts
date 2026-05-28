@@ -36,9 +36,10 @@ export function handleAddBlotterRoute(opts: {
  * Registered via react-router in main.tsx; componentName="${opts.componentName}" for ConfigManager.
  */
 import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
-import { dataServices } from '../dataServices';
+import { getPlatform } from '../platformBootstrap';
 
 export default function ${viewName}Blotter() {
+  const { configManager } = getPlatform();
   return (
     <HostedMarketsGrid
       componentName="${opts.componentName}"
@@ -46,8 +47,7 @@ export default function ${viewName}Blotter() {
       gridId="${opts.gridId}"
       withStorage
       theme="auto"
-      dataServices={dataServices}
-      configManager={dataServices.configManager}
+      configManager={configManager}
       showFiltersToolbar
       showFormattingToolbar
     />

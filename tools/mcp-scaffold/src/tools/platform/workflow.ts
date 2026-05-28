@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   EMPTY_GRID_TROUBLESHOOTING,
@@ -23,6 +23,25 @@ function readProjectFile(projectDir: string, rel: string): string | null {
   return readFileSync(p, 'utf8');
 }
 
+function hasPlatformBootstrap(projectDir: string): boolean {
+  return existsSync(join(projectDir, 'src/platformBootstrap.ts'));
+}
+
+function hasAppConfig(projectDir: string): boolean {
+  return existsSync(join(projectDir, 'public/app-config.json'));
+}
+
+function manifestHasAppId(projectDir: string): boolean {
+  const manifest = readProjectFile(projectDir, 'public/platform/manifest.fin.json');
+  if (!manifest) return false;
+  try {
+    const parsed = JSON.parse(manifest) as { customSettings?: { appId?: string } };
+    return typeof parsed.customSettings?.appId === 'string' && parsed.customSettings.appId.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 export function handleRecommendTemplate(input: TemplateRecommendationInput) {
   const rec = recommendTemplate(input);
   return { recommendation: rec, nextTool: 'starui_scaffold_app' };
@@ -42,10 +61,12 @@ export async function handleSetupStompDev(opts: {
   if (opts.projectDir) {
     const pkg = readProjectFile(opts.projectDir, 'package.json');
     const vite = readProjectFile(opts.projectDir, 'vite.config.ts');
-    const ds = readProjectFile(opts.projectDir, 'src/dataServices.ts');
+    const bootstrap = hasPlatformBootstrap(opts.projectDir);
     if (!pkg?.includes('@starui/data')) projectHints.push('Add @starui/data tarball to package.json');
     if (vite && !vite.includes('worker: true')) projectHints.push('Enable worker: true in vite.config for SharedWorker');
-    if (!ds) projectHints.push('Add src/dataServices.ts with bootstrapDataServicesWithWorkerAsset');
+    if (!bootstrap && !hasAppConfig(opts.projectDir)) {
+      projectHints.push('Add public/app-config.json + src/platformBootstrap.ts (ensurePlatformReady)');
+    }
     if (!existsSync(join(opts.projectDir, 'stomp-view-server'))) {
       projectHints.push('Copy stomp-view-server/ or run from monorepo apps/stomp-view-server');
     }
@@ -75,8 +96,11 @@ export async function handleDiagnoseDataPlane(opts: { projectDir: string; stompP
   const pkg = readProjectFile(opts.projectDir, 'package.json');
   const vite = readProjectFile(opts.projectDir, 'vite.config.ts');
   const main = readProjectFile(opts.projectDir, 'src/main.tsx');
-  const ds = readProjectFile(opts.projectDir, 'src/dataServices.ts');
+  const bootstrap = readProjectFile(opts.projectDir, 'src/platformBootstrap.ts');
+  const legacyDs = readProjectFile(opts.projectDir, 'src/dataServices.ts');
   const ensure = readProjectFile(opts.projectDir, 'src/ensureStompProvider.ts');
+  const appConfig = hasAppConfig(opts.projectDir);
+  const manifestAppId = manifestHasAppId(opts.projectDir);
 
   if (!pkg) issues.push({ severity: 'error', message: 'No package.json', fix: 'Scaffold or cd to project root' });
   else {
@@ -85,16 +109,30 @@ export async function handleDiagnoseDataPlane(opts: { projectDir: string; stompP
   }
 
   if (vite?.includes('worker: true')) passed.push('Vite worker mode enabled');
-  else if (ds) issues.push({ severity: 'error', message: 'SharedWorker requires worker: true in vite.config', fix: 'staruiConsumerViteConfig(..., { worker: true })' });
+  else if (bootstrap || legacyDs) {
+    issues.push({ severity: 'error', message: 'SharedWorker requires worker: true in vite.config', fix: 'staruiConsumerViteConfig(..., { worker: true })' });
+  }
 
-  if (main?.includes('DataServicesProvider')) passed.push('DataServicesProvider in main.tsx');
-  else if (ds) issues.push({ severity: 'error', message: 'DataServicesProvider not in main.tsx', fix: 'Wrap <App /> with DataServicesProvider' });
+  if (main?.includes('DataHubProvider')) passed.push('DataHubProvider in main.tsx');
+  else if (main?.includes('DataServicesProvider')) passed.push('DataServicesProvider in main.tsx (legacy — migrate to DataHubProvider)');
+  else if (bootstrap || legacyDs) {
+    issues.push({ severity: 'error', message: 'No data provider in main.tsx', fix: 'Wrap <App /> with DataHubProvider after initPlatformBootstrap()' });
+  }
 
-  if (ds) passed.push('dataServices.ts exists');
-  else issues.push({ severity: 'warn', message: 'No dataServices.ts — static grid or missing data plane', fix: 'Add bootstrapDataServicesWithWorkerAsset' });
+  if (bootstrap) passed.push('platformBootstrap.ts exists');
+  else if (legacyDs) issues.push({ severity: 'warn', message: 'Legacy dataServices.ts — migrate to platformBootstrap.ts', fix: 'Add ensurePlatformReady + public/app-config.json' });
+  else issues.push({ severity: 'warn', message: 'No platform bootstrap — static grid or missing data plane', fix: 'Add platformBootstrap.ts + app-config.json or manifest customSettings.appId' });
+
+  if (appConfig) passed.push('public/app-config.json present');
+  else if (manifestAppId) passed.push('manifest customSettings.appId present');
+  else if (bootstrap || legacyDs) {
+    issues.push({ severity: 'warn', message: 'Missing app-config.json or manifest appId', fix: 'Add public/app-config.json { appId, userId } or manifest customSettings.appId' });
+  }
 
   if (ensure) passed.push('ensureStompProvider.ts found');
-  else if (ds) issues.push({ severity: 'info', message: 'No STOMP seed — create provider via editor or starui_add_provider_to_project', fix: 'starui_generate_stomp_config + ensureStompProvider' });
+  else if (bootstrap || legacyDs) {
+    issues.push({ severity: 'info', message: 'No STOMP seed — create provider via editor or starui_add_provider_to_project', fix: 'starui_generate_stomp_config + ensureStompProvider' });
+  }
 
   const health = await fetchHealth(`http://localhost:${port}/health`);
   if (health.ok) passed.push(`stomp-view-server healthy on :${port}`);
@@ -121,8 +159,8 @@ export async function handleDiagnoseDataPlane(opts: { projectDir: string; stompP
 export function handleUpgradeScaffold(opts: { projectDir: string; templateId: string }) {
   const expected = {
     basic: ['src/App.tsx', 'src/bondColumns.ts', 'src/globals.css', 'libs/manifest.json'],
-    stomp: ['src/dataServices.ts', 'src/ensureStompProvider.ts', 'stomp-view-server/package.json'],
-    'openfin-platform': ['launch.mjs', 'public/platform/manifest.fin.json', 'src/platform/Provider.tsx'],
+    stomp: ['src/platformBootstrap.ts', 'public/app-config.json', 'src/ensureStompProvider.ts', 'stomp-view-server/package.json'],
+    'openfin-platform': ['launch.mjs', 'public/platform/manifest.fin.json', 'src/platform/Provider.tsx', 'src/platformBootstrap.ts'],
   }[opts.templateId] ?? [];
 
   const missing = expected.filter((f) => !existsSync(join(opts.projectDir, f)));

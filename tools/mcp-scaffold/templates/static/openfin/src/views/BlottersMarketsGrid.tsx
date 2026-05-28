@@ -7,7 +7,7 @@
 import { useCallback, type ReactNode } from 'react';
 import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
 import { useStarGridApp } from '@starui/app';
-import { dataServices } from '../dataServices.mainThread';
+import { getPlatform } from '../platformBootstrap';
 import { openProviderEditorPopout } from '../dataProvidersPopout';
 
 const DEFAULT_COL_DEF = {
@@ -18,10 +18,7 @@ const DEFAULT_COL_DEF = {
 };
 
 function BlottersMarketsGrid(): ReactNode {
-  // Runtime port (OpenFin or Browser) — used to open the data-provider
-  // editor popout via the single transport-agnostic `openSurface()` API.
-  // The previous `isOpenFin()` branching inside `dataProvidersPopout`
-  // is gone; the helper delegates to whichever runtime is mounted.
+  const { configManager } = getPlatform();
   const { runtime } = useStarGridApp();
   const handleEditProvider = useCallback(
     (providerId: string) => {
@@ -37,12 +34,7 @@ function BlottersMarketsGrid(): ReactNode {
       documentTitle="MarketsGrid · Blotter"
       withStorage
       theme="auto"
-      dataServices={dataServices}
-      // Eager hydration: the grid resolves `{{positions.asOfDate}}`
-      // before first attach, so the cfg never reaches the worker
-      // with an unresolved template. The route's outer <Suspense>
-      // (in main.tsx) renders the loading fallback for the ~50ms
-      // mirror snapshot round-trip.
+      configManager={configManager}
       dataServicesMode="eager"
       gridId="markets-ui-reference-blotter"
       historicalDateAppDataRef="positions.asOfDate"

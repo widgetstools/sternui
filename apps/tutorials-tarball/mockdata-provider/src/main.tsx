@@ -1,20 +1,53 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { applyTheme, getTheme } from '@starui/design-system';
-import { DataServicesProvider } from '@starui/host-data-react/runtime';
+import { Alert, AlertDescription, AlertTitle } from '@starui/ui';
+import { DataHubProvider } from '@starui/host-data-react/runtime';
 import { App } from './App';
-import { dataServices } from './dataServices';
+import { initPlatformBootstrap } from './platformBootstrap';
 import { MockConfigProvider } from './state/MockConfigContext';
 import './globals.css';
 
 applyTheme(getTheme());
 
-createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <MockConfigProvider>
-      {dataServices
-        ? <DataServicesProvider services={dataServices}><App /></DataServicesProvider>
-        : <App />}
-    </MockConfigProvider>
-  </React.StrictMode>,
-);
+const rootElement = document.getElementById('root')!;
+
+function BootstrapError({ error }: { error: Error }) {
+  return (
+    <div className="flex h-screen items-center justify-center bg-[color:var(--ds-surface-ground)] p-8">
+      <Alert
+        variant="destructive"
+        className="max-w-lg border-[color:var(--ds-status-error-border)] bg-[color:var(--ds-surface-primary)]"
+      >
+        <AlertTitle>Mock data tutorial — data services unavailable</AlertTitle>
+        <AlertDescription className="space-y-3 text-[color:var(--ds-text-secondary)]">
+          <p>The SharedWorker hub failed to start. The DataServices grid panel will not work until this is resolved.</p>
+          <pre className="overflow-x-auto rounded-md border border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-raised)] px-3 py-2 text-[12px] text-[color:var(--ds-status-error-fg)]">
+            {error.message}
+          </pre>
+        </AlertDescription>
+      </Alert>
+    </div>
+  );
+}
+
+void initPlatformBootstrap()
+  .then(({ config, platform }) => {
+    createRoot(rootElement).render(
+      <React.StrictMode>
+        <MockConfigProvider>
+          <DataHubProvider platform={platform} userId={config.userId}>
+            <App />
+          </DataHubProvider>
+        </MockConfigProvider>
+      </React.StrictMode>,
+    );
+  })
+  .catch((err: unknown) => {
+    const error = err instanceof Error ? err : new Error(String(err));
+    createRoot(rootElement).render(
+      <React.StrictMode>
+        <BootstrapError error={error} />
+      </React.StrictMode>,
+    );
+  });

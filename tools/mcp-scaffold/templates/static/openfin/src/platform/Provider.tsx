@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import * as Notifications from "@openfin/notifications";
 import { initWorkspace } from "@starui/openfin-platform";
+import { initPlatformBootstrap } from "../platformBootstrap";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
+
+/** Optional: warm the SharedWorker hub while the provider window is idle. */
+void initPlatformBootstrap();
 
 /**
  * Provider — the OpenFin platform provider window.

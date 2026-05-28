@@ -62,6 +62,7 @@ npx turbo typecheck build test --filter=@starui/host-data --filter=@starui/host-
 | 17 | PR5 | 4.2 | Transport alignment | **done** | 2026-05-28 |
 | 18 | PR6 | 5.1 | Extract grid apply helper from `MarketsGridContainer` | **done** | 2026-05-28 |
 | 19 | PR6 | 5.2 | Slim `MarketsGridContainer` → `useDataProvider` | **done** | 2026-05-28 |
+| 20 | PR6 | 5.3 | `HostedMarketsGrid` + blotter hook migration | **done** | 2026-05-28 |
 | 18 | PR6 | 5.2 | Slim `MarketsGridContainer` → `useDataProvider` | pending | |
 | 19 | PR6 | 5.3 | `HostedMarketsGrid` + blotter hook migration | pending | |
 | 20 | PR7 | 6.1 | Tutorial apps + MCP OpenFin bootstrap migration | pending | |
@@ -450,6 +451,42 @@ Merge each PR to `feat/data-services-hub-idataprovider` (or stack against `main`
 **Verify:** `npm test --workspace=@starui/widgets-react` — 113 passed; typecheck green
 
 **Next:** Session 20 — Task 5.3 HostedMarketsGrid + blotter hook migration
+
+**Blockers:** none
+
+
+
+---
+
+### Session 20 — 2026-05-28
+**Scope:** Task 5.3 — HostedMarketsGrid + blotter hook
+
+**Done:**
+- `HostedMarketsGrid` accepts `platform` hub bundle (`DataHubProvider`) alongside legacy `dataServices`
+- `useBlotterDataConnection` migrated to `IDataProvider` (`start`/`stop`, `onSnapshotData`/`onTick`, `applyProviderToGrid`)
+- `IBlotterDataProvider` deprecated as alias of `IDataProvider`
+- Tests: blotter hook + hosted platform mount
+
+**Verify:** `npm test --workspace=@starui/widgets-react` — 116 passed; typecheck green
+
+**Next:** Session 22 — Task 6.2 identity pins + Task 6.3 docs
+
+**Blockers:** none
+
+---
+
+## Session 21 — Phase 6 Task 6.1 app bootstrap migration
+
+**Done:**
+- Tutorial apps (workspace + tarball): `public/app-config.json`, `src/platformBootstrap.ts`, `DataHubProvider` in `main.tsx`; removed legacy `dataServices.ts`
+- STOMP: `ensureStompProvider(configStore, userId)` via React context; `PositionsBlotter` uses `getPlatform().configManager`
+- MCP templates: `platformBootstrap.ts.hbs`, `app-config.json.hbs`, `main-with-hub-provider.tsx.hbs`; manifest fragments updated
+- OpenFin static template: `platformBootstrap.ts`, root `DataHubProvider`, eager hub warmup in `Provider.tsx`
+- `workflow.ts`: validates `platformBootstrap.ts` + `app-config.json` or manifest `customSettings.appId`
+
+**Verify:** `npm test --workspace=@starui/mcp-scaffold`; tutorial app typechecks
+
+**Next:** Session 22 — Task 6.2 remove identity pins
 
 **Blockers:** none
 

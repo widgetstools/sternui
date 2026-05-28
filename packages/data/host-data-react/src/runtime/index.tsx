@@ -44,6 +44,7 @@ import {
 
 export {
   DataServicesProvider,
+  useUserIdFromContext,
   type DataServicesProviderProps,
   type ContextValue,
 } from './DataServicesProvider.js';

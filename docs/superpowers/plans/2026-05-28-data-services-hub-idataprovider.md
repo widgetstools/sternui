@@ -446,8 +446,8 @@ export async function ensurePlatformReady(
 - Modify: `packages/react-core/widgets-react/src/hosted/HostedMarketsGrid.tsx`
 - Modify: `packages/react-core/widgets-react/src/blotter/hooks/useBlotterDataConnection.ts`
 
-- [ ] **Step 1:** Accept `IDataProvider` or use context factory.
-- [ ] **Step 2:** Update hosted tests mocks.
+- [x] **Step 1:** Accept `IDataProvider` or use context factory.
+- [x] **Step 2:** Update hosted tests mocks.
 - [ ] **Step 3:** Commit.
 
 ---
@@ -460,10 +460,10 @@ export async function ensurePlatformReady(
 
 **Template** — every app gets `src/platformBootstrap.ts` (see Phase 0.5.5).
 
-- [ ] **Step 1:** Migrate all tutorial apps + `markets-grid-lab` — each adds `public/app-config.json` + `platformBootstrap.ts`.
-- [ ] **Step 2:** OpenFin MCP template — manifest `customSettings.appId` + shared `platformBootstrap.ts` imported by **all** routes (Provider, blotter, editor, config browser).
-- [ ] **Step 3:** Optional: side-effect import in `Provider.tsx` for eager hub (document as optional, not required).
-- [ ] **Step 4:** Update MCP `workflow.ts` validation — require `app-config.json` or manifest `customSettings.appId`.
+- [x] **Step 1:** Migrate all tutorial apps + `markets-grid-lab` — each adds `public/app-config.json` + `platformBootstrap.ts`. ✅ Session 21
+- [x] **Step 2:** OpenFin MCP template — manifest `customSettings.appId` + shared `platformBootstrap.ts` imported by **all** routes (Provider, blotter, editor, config browser). ✅ Session 21
+- [x] **Step 3:** Optional: side-effect import in `Provider.tsx` for eager hub (document as optional, not required). ✅ Session 21
+- [x] **Step 4:** Update MCP `workflow.ts` validation — require `app-config.json` or manifest `customSettings.appId`. ✅ Session 21
 - [ ] **Step 5:** Commit: `chore(apps): migrate to ensurePlatformReady`.
 
 ### Task 6.2: Remove identity pins (incremental)

@@ -18,6 +18,8 @@ export interface TemplateManifest {
 
 export interface ComposeContext {
   appName: string;
+  appId: string;
+  bootstrapErrorTitle: string;
   packageName: string;
   port: number;
   worker: boolean;

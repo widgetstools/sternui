@@ -480,7 +480,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Blotter framework (v2)
 
-- `BlotterProvider` — DI container for data, actions, state
+- `BlotterProvider` — DI container for `IDataProvider`, actions, state
 - `BlotterDependencies` — actions/data/state contract
 - `useBlotterDI` — access injected dependencies
 - `BlotterToolbar` — layout selector + bulk actions + custom buttons
@@ -520,7 +520,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Hosted integration (legacy)
 
-- `HostedMarketsGrid` — MarketsGrid + OpenFin/FDC3 integration (superseded by Container)
+- `HostedMarketsGrid` — hosted wrapper; accepts `platform` (hub bundle) or legacy `dataServices`; composes `MarketsGridContainer`
 - `useHostedView` — window identity & lifecycle
 - `useHostedIdentity` — resolve current view identity
 - `useFdc3Channel` — FDC3 channel subscription
@@ -534,7 +534,8 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Shared hooks
 
-- `useBlotterDataConnection` — connection lifecycle (connect/disconnect/mutation/staleness)
+- `IBlotterDataProvider` — deprecated alias of `IDataProvider`
+- `useBlotterDataConnection` — `IDataProvider` grid wiring (`onSnapshotData` / `onTick`); optional hub resolve via `useDataProvider`
 - `useGridStateManager` — load/save grid state (cols, filter model, sort)
 
 ---
@@ -1399,6 +1400,9 @@ Per-renderer config types (`PillRendererConfig`,
 ### Apps — platform bootstrap pilot
 
 - `apps/markets-grid-lab` — `app-config.json` + `platformBootstrap.ts` + `DataHubProvider` (PR1b/PR3 web pilot)
+- `apps/tutorials-workspace/{stomp,mockdata-provider,dataprovider-editor}` — migrated to `ensurePlatformReady` + `DataHubProvider`; legacy `dataServices.ts` removed
+- `apps/tutorials-tarball/{stomp,mockdata-provider,dataprovider-editor}` — mirror of workspace bootstrap pattern
+- MCP scaffold templates (`stomp`, `mockdata-provider`, `dataprovider-editor`, `openfin-platform`) — emit `platformBootstrap.ts` + `public/app-config.json` (web) or manifest `customSettings.appId` (OpenFin)
 
 ## Cross-cutting architecture notes
 

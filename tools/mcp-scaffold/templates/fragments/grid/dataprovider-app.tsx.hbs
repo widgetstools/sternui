@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { Button } from '@starui/ui';
 import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
 import { DataProviderEditor } from '@starui/widgets-react/v2/provider-editor';
-import { dataServices } from './dataServices';
+import { getPlatform } from './platformBootstrap';
 
 type Tab = 'grid' | 'editor';
 
 /** Hosted grid + provider editor — dataprovider-editor tutorial shape. */
 export function App() {
   const [tab, setTab] = useState<Tab>('grid');
+  const { configManager } = getPlatform();
 
   return (
     <div className="flex h-screen flex-col bg-[color:var(--ds-surface-ground)]">
@@ -24,8 +25,7 @@ export function App() {
             componentName="Hosted Blotter"
             defaultInstanceId="{{gridId}}"
             withStorage
-            dataServices={dataServices}
-            configManager={dataServices.configManager}
+            configManager={configManager}
             theme="auto"
             {{#each gridPropsLines}}
             {{{this}}}

@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, waitFor } from '@testing-library/react';
 import type { ConfigManager } from '@starui/host-config';
 import type { DataServices } from '@starui/host-data/runtime';
+import type { ResolvedDataServicesHubBundle } from '@starui/host-data';
 import { useDataServices } from '@starui/host-data-react/runtime';
 
 let captureClient: unknown = null;
@@ -58,6 +59,12 @@ const fakeServices: DataServices = {
   dispose: vi.fn(),
 };
 
+const fakePlatform = {
+  ...fakeServices,
+  getProvider: vi.fn(),
+  stopProvider: vi.fn().mockResolvedValue(undefined),
+} as unknown as ResolvedDataServicesHubBundle;
+
 afterEach(() => {
   cleanup();
   captureClient = null;
@@ -73,6 +80,25 @@ describe('HostedMarketsGrid — DataServices mount (row 9)', () => {
         componentName="DP"
         configManager={fakeConfigManager}
         dataServices={fakeServices}
+      />,
+    );
+    const stub = await waitFor(() => {
+      const el = getByTestId('mds-stub');
+      if (el.getAttribute('data-has-dp') !== 'true') throw new Error('not yet');
+      return el;
+    });
+    expect(stub.getAttribute('data-has-dp')).toBe('true');
+    expect(captureClient).toBe(fakeClient);
+  });
+
+  it('mounts DataHubProvider when platform is supplied', async () => {
+    const { getByTestId } = render(
+      <HostedMarketsGrid
+        gridId="dp-1b"
+        defaultInstanceId="dp-1b"
+        componentName="DP"
+        configManager={fakeConfigManager}
+        platform={fakePlatform}
       />,
     );
     const stub = await waitFor(() => {

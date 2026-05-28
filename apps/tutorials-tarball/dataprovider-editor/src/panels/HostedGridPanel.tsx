@@ -1,5 +1,5 @@
 import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
-import { dataServices } from '../dataServices';
+import { getPlatform } from '../platformBootstrap';
 
 interface HostedGridPanelProps {
   /** Stable id for the grid's profile bundle + workspace storage. */
@@ -13,15 +13,8 @@ interface HostedGridPanelProps {
 }
 
 export function HostedGridPanel({ instanceId, componentName, onEditProvider }: HostedGridPanelProps) {
-  if (!dataServices) {
-    return (
-      <div className="flex h-full w-full items-center justify-center bg-[color:var(--ds-surface-ground)] p-6">
-        <div className="rounded-md border border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] p-4 font-mono text-[12px] text-[color:var(--ds-text-secondary)]">
-          DataServices bootstrap failed — SharedWorker unavailable.
-        </div>
-      </div>
-    );
-  }
+  const { configManager } = getPlatform();
+
   return (
     // `transform: translateZ(0)` creates a fixed-position containing
     // block so HostedMarketsGrid's internal `position: fixed; inset: 0`
@@ -39,7 +32,7 @@ export function HostedGridPanel({ instanceId, componentName, onEditProvider }: H
         defaultInstanceId={instanceId}
         defaultUserId="dev1"
         withStorage
-        configManager={dataServices.configManager}
+        configManager={configManager}
         onEditProvider={onEditProvider}
         showFiltersToolbar
         showFormattingToolbar

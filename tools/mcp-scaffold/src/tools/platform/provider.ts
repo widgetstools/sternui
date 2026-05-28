@@ -43,21 +43,25 @@ export function handleGenerateStompConfig(opts: {
 
   const ensureSnippet = `import { DataProviderConfigStore } from '@starui/host-data/runtime';
 import type { DataProviderConfig } from '@starui/types';
-import { LOGGED_IN_USER_ID } from '@starui/types';
-import { dataServices } from './dataServices';
+import { useDataServices, useUserIdFromContext } from '@starui/host-data-react/runtime';
+import { positionsProviderDraft } from './providers/positionsStomp';
 
-export const positionsProviderDraft: DataProviderConfig = ${JSON.stringify(draft, null, 2)};
-
-const configStore = new DataProviderConfigStore(dataServices.configManager);
-
-export async function ensureStompProvider(): Promise<string> {
-  const existing = (await configStore.list(LOGGED_IN_USER_ID, { subtype: 'stomp' }))
-    .find((p) => p.name === positionsProviderDraft.name);
+export async function ensureStompProvider(
+  configStore: DataProviderConfigStore,
+  userId: string,
+): Promise<string> {
+  const existing = (await configStore.list(userId, { subtype: 'stomp' }))
+    .find((p: DataProviderConfig) => p.name === positionsProviderDraft.name);
   if (existing?.providerId) return existing.providerId;
-  const saved = await configStore.save(positionsProviderDraft, LOGGED_IN_USER_ID);
+  const saved = await configStore.save(positionsProviderDraft, userId);
   if (!saved.providerId) throw new Error('Provider save did not return providerId');
   return saved.providerId;
 }
+
+// In App.tsx (inside DataHubProvider):
+// const { configStore } = useDataServices();
+// const userId = useUserIdFromContext();
+// await ensureStompProvider(configStore, userId);
 `;
 
   return { stompConfig, dataProviderConfig: draft, ensureStompProviderSnippet: ensureSnippet };

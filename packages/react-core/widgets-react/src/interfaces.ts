@@ -1,20 +1,15 @@
 /**
  * Dependency injection interfaces for widget data and actions.
  * These are injected via BlotterProvider, NOT imported directly.
- * This allows the reference app to provide STOMP, REST, or mock implementations.
  */
 
+import type { IDataProvider } from '@starui/host-data';
+
 /**
- * IBlotterDataProvider — interface for streaming data into the grid.
+ * @deprecated Use {@link IDataProvider} from `@starui/host-data` instead.
+ * Kept as a type alias for legacy BlotterProvider injection sites.
  */
-export interface IBlotterDataProvider {
-  connect(providerId: string, options?: Record<string, unknown>): void;
-  disconnect(): void;
-  onSnapshot(handler: (rows: Record<string, unknown>[]) => void): () => void;
-  onUpdate(handler: (row: Record<string, unknown>) => void): () => void;
-  onError(handler: (error: Error) => void): () => void;
-  isConnected(): boolean;
-}
+export type IBlotterDataProvider = IDataProvider;
 
 /**
  * IActionRegistry — interface for registering and executing toolbar actions.

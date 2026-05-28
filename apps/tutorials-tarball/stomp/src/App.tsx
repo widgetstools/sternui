@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { applyTheme, getTheme } from '@starui/design-system';
 import { Button } from '@starui/ui';
+import { useDataServices, useUserIdFromContext } from '@starui/host-data-react/runtime';
 import { Moon, Radio, Sun, Table2 } from 'lucide-react';
 import { ensureStompProvider } from './ensureStompProvider';
 import { PositionsBlotter } from './views/PositionsBlotter';
@@ -9,6 +10,8 @@ import { ProviderSetupPage } from './views/ProviderSetupPage';
 type AppTab = 'grid' | 'editor';
 
 export function App() {
+  const { configStore } = useDataServices();
+  const userId = useUserIdFromContext();
   const [tab, setTab] = useState<AppTab>('grid');
   const [ready, setReady] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
@@ -17,7 +20,7 @@ export function App() {
 
   useEffect(() => {
     let cancelled = false;
-    ensureStompProvider()
+    ensureStompProvider(configStore, userId)
       .then(() => {
         if (!cancelled) setReady(true);
       })
@@ -29,7 +32,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [configStore, userId]);
 
   const handleToggleTheme = useCallback(() => {
     const next: 'dark' | 'light' = isDark ? 'light' : 'dark';

@@ -8,20 +8,12 @@ import { useMockConfig } from '../state/MockConfigContext';
 import { useStats } from '../state/StatsContext';
 import { columnDefsByType } from '../data/columnDefsByType';
 import { applyDelta } from '../data/applyDelta';
-import { dataServices, dataServicesBootstrapError } from '../dataServices';
-import { TriangleAlert } from 'lucide-react';
+import { getPlatform } from '../platformBootstrap';
 import type { MockProviderConfig } from '@starui/types';
 
 const storage = createMarketsGridLocalStorageStorage();
 
 export function DataServicesGridPanel() {
-  if (!dataServices) {
-    return <BootstrapErrorState />;
-  }
-  return <DataServicesGridInner />;
-}
-
-function DataServicesGridInner() {
   const { cfg } = useMockConfig();
   const { recordTick } = useStats();
   const dataType = (cfg.dataType ?? 'positions') as 'positions' | 'trades' | 'orders';
@@ -58,10 +50,9 @@ function DataServicesGridInner() {
   // Probe 1: does `services.ready` resolve? If yes, the SharedWorker is
   // alive and the AppData mirror round-tripped at least once.
   useEffect(() => {
-    if (!dataServices) return;
     // eslint-disable-next-line no-console
     console.log('[ds-panel] awaiting services.ready ...');
-    dataServices.ready.then(
+    getPlatform().ready.then(
       () => console.log('[ds-panel] services.ready RESOLVED — SharedWorker is alive'),
       (err) => console.error('[ds-panel] services.ready REJECTED', err),
     );
@@ -148,28 +139,6 @@ function DataServicesGridInner() {
           ],
         }}
       />
-    </div>
-  );
-}
-
-function BootstrapErrorState() {
-  return (
-    <div className="flex h-full w-full items-center justify-center bg-[color:var(--ds-surface-ground)] p-6">
-      <div className="flex max-w-md items-start gap-3 rounded-md border border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] p-4 text-[12px] text-[color:var(--ds-text-secondary)]">
-        <TriangleAlert size={16} strokeWidth={1.75} className="mt-[2px] shrink-0 text-[color:var(--ds-accent-warning,var(--ds-accent-info))]" />
-        <div className="flex flex-col gap-1">
-          <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--ds-text-primary)]">
-            DataServices bootstrap failed
-          </span>
-          <span className="leading-relaxed">
-            {dataServicesBootstrapError?.message ?? 'Unknown error'}
-          </span>
-          <span className="leading-relaxed text-[color:var(--ds-text-faint)]">
-            SharedWorker is unavailable in this browser context (private
-            tab, restricted origin, etc.). The Direct panel still works.
-          </span>
-        </div>
-      </div>
     </div>
   );
 }

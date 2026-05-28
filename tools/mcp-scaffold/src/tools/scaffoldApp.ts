@@ -91,6 +91,8 @@ export async function scaffoldApp(raw: ScaffoldInput): Promise<ScaffoldResult> {
   const manifestFile = loadTemplateManifest(input.template);
   const composeResult = composeTemplate(manifestFile, outputPath, {
     appName: input.appName,
+    appId: input.appName,
+    bootstrapErrorTitle: `${input.appName} — data services unavailable`,
     packageName,
     port,
     worker: template.worker,

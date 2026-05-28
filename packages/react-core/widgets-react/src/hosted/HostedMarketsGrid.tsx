@@ -18,7 +18,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { DataServices } from '@starui/host-data/runtime';
-import { DataServicesProvider } from '@starui/host-data-react/runtime';
+import type { ResolvedDataServicesHubBundle } from '@starui/host-data';
+import { DataServicesProvider, DataHubProvider } from '@starui/host-data-react/runtime';
 import type { MarketsGridHandle } from '@starui/grid';
 import { MarketsGridContainer, type MarketsGridContainerProps } from '../v2/markets-grid-container/index.js';
 import { useHostedView } from './useHostedView.js';
@@ -73,8 +74,14 @@ export interface HostedMarketsGridProps<
   theme?: AgGridThemeMode;
   /** Optional data-services bundle from `bootstrapDataServices(...)`.
    *  When provided, the wrapper mounts a `<DataServicesProvider>` for
-   *  it. Omit when an ancestor already provides data-services context. */
+   *  it. Omit when an ancestor already provides data-services context.
+   *  Prefer {@link platform} from `ensurePlatformReady()` for new apps. */
   dataServices?: DataServices;
+  /** Hub bundle from `ensurePlatformReady()` / `ensureDataServicesHub()`.
+   *  Preferred over `dataServices` — exposes `getProvider()` and mounts
+   *  {@link DataHubProvider} so `MarketsGridContainer` can use
+   *  {@link useDataProvider} against the worker catalog. */
+  platform?: ResolvedDataServicesHubBundle;
   /** Hydration mode for the AppData mirror. `'lazy'` (default) renders
    *  immediately and reconciles when the snapshot arrives; `'eager'`
    *  suspends first paint until `dataServices.ready` resolves. Use
@@ -135,6 +142,7 @@ export function HostedMarketsGrid<
     configManager,
     theme = 'auto',
     dataServices,
+    platform,
     dataServicesMode = 'lazy',
     caption,
     ...containerProps
@@ -257,12 +265,20 @@ export function HostedMarketsGrid<
     handleReady,
   ]);
 
-  const dataServicesWrapped = dataServices && identity.configManager
-    ? (
-      <DataServicesProvider services={dataServices} mode={dataServicesMode} userId={identity.userId}>
-        {containerNode}
-      </DataServicesProvider>
-    )
+  const dataServicesWrapped = identity.configManager
+    ? platform
+      ? (
+        <DataHubProvider platform={platform} mode={dataServicesMode} userId={identity.userId}>
+          {containerNode}
+        </DataHubProvider>
+      )
+      : dataServices
+        ? (
+          <DataServicesProvider services={dataServices} mode={dataServicesMode} userId={identity.userId}>
+            {containerNode}
+          </DataServicesProvider>
+        )
+        : containerNode
     : containerNode;
 
   return (
