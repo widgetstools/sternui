@@ -21,7 +21,9 @@
   },
   "dependencies": {
     "@starui/host-data": "*",
-    "@starui/types": "*"
+    "@starui/types": "*",
+    "@starui/ui": "*",
+    "lucide-react": "^0.554.0"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.2",

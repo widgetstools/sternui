@@ -14,6 +14,9 @@
 export type {
   ProviderStats,
   ProviderStatus,
+  HubIntrospectSnapshot,
+  HubProviderIntrospectRow,
+  HubAppDataIntrospectRow,
   AttachRequest,
   DetachRequest,
   StopRequest,

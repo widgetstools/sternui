@@ -59,6 +59,9 @@ import type {
   HubReadyRequest,
   ListConfigsRequest,
   RefreshProviderRequest,
+  HubIntrospectRequest,
+  HubIntrospectSnapshot,
+  HubProviderIntrospectRow,
 } from '../protocol.js';
 import { startProvider } from '../providers/registry.js';
 import type { ProviderEmit, ProviderEmitEvent, ProviderHandle } from '../providers/Provider.js';
@@ -259,6 +262,7 @@ export class SharedWorkerDataServicesHub {
       case 'list-configs': this.handleListConfigs(port, req); return;
       case 'config-invalidate': void this.handleConfigInvalidate(port, req); return;
       case 'refresh-provider': this.handleRefreshProvider(req); return;
+      case 'hub-introspect': this.handleHubIntrospect(port, req); return;
     }
   }
 
@@ -307,6 +311,63 @@ export class SharedWorkerDataServicesHub {
   /** Worker-side catalog cache, or null when no ConfigManager was supplied. */
   getConfigCatalog(): ConfigCatalogCache | null {
     return this.configCatalog;
+  }
+
+  /** Live hub diagnostics for operator / dev tooling. */
+  buildIntrospectSnapshot(): HubIntrospectSnapshot {
+    const runningIds = new Set(this.providers.keys());
+    const providers: HubProviderIntrospectRow[] = [];
+
+    for (const [providerId, slot] of this.providers) {
+      const stats = this.snapshotStats(providerId, slot);
+      providers.push({
+        providerId,
+        providerType: slot.cfg.providerType,
+        running: true,
+        status: slot.status,
+        subscriberCount: stats.subscriberCount,
+        statsListenerCount: this.statsListeners.get(providerId)?.size ?? 0,
+        rowCount: stats.rowCount,
+        msgPerSec: stats.msgPerSec,
+        publishPerSec: stats.publishPerSec,
+        publishCount: stats.publishCount,
+        lastMessageAt: stats.lastMessageAt,
+        startedAt: stats.startedAt,
+        errorCount: stats.errorCount,
+        lastError: slot.lastError,
+      });
+    }
+
+    if (this.configCatalog) {
+      for (const row of this.configCatalog.list({ includeAppData: false })) {
+        if (!row.providerId || runningIds.has(row.providerId)) continue;
+        if (row.providerType === 'appdata') continue;
+        providers.push({
+          providerId: row.providerId,
+          providerType: row.providerType,
+          running: false,
+        });
+      }
+    }
+
+    providers.sort((a, b) => a.providerId.localeCompare(b.providerId));
+
+    const appDataRows = this.appData.snapshot();
+    return {
+      connectedPorts: this.connectedPorts.size,
+      catalogReady: this.configCatalog?.isReady() ?? false,
+      catalogProviderCount: this.configCatalog?.list({ includeAppData: true }).length ?? 0,
+      runningProviderCount: this.providers.size,
+      providers,
+      appData: {
+        listenerCount: this.appDataListeners.size,
+        rows: appDataRows.map((r) => ({
+          configId: r.configId,
+          name: r.name,
+          keyCount: Object.keys(r.values).length,
+        })),
+      },
+    };
   }
 
   /**
@@ -391,6 +452,15 @@ export class SharedWorkerDataServicesHub {
       reqId: req.reqId,
       ok: true,
       ready: this.configCatalog?.isReady() ?? false,
+    });
+  }
+
+  private handleHubIntrospect(port: PortLike, req: HubIntrospectRequest): void {
+    this.replyConfigSnapshot(port, {
+      kind: 'config-snapshot',
+      reqId: req.reqId,
+      ok: true,
+      introspect: this.buildIntrospectSnapshot(),
     });
   }
 

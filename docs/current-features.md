@@ -989,8 +989,8 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Runtime architecture
 
-- `SharedWorkerDataServicesClient` — main-thread client routing events to listeners; catalog RPC (`waitForCatalogReady`, `getProviderConfig`, `listProviderConfigs`, `invalidateConfig`); **Deprecated.** passing `cfg` on `attach` / `subscribe` for catalogued providers — use cfg-free attach
-- `SharedWorkerDataServicesHub` — worker state machine (providers, cache, fan-out); **`hydrateCatalog()`** preloads `ConfigCatalogCache` after ConfigManager init
+- `SharedWorkerDataServicesClient` — main-thread client routing events to listeners; catalog RPC (`waitForCatalogReady`, `getProviderConfig`, `listProviderConfigs`, `invalidateConfig`, `getHubIntrospect`); **Deprecated.** passing `cfg` on `attach` / `subscribe` for catalogued providers — use cfg-free attach
+- `SharedWorkerDataServicesHub` — worker state machine (providers, cache, fan-out); **`hydrateCatalog()`** preloads `ConfigCatalogCache` after ConfigManager init; **`buildIntrospectSnapshot()`** / `hub-introspect` RPC for live provider + AppData diagnostics
 - `ConfigCatalogCache` — worker-side in-memory data-provider catalog (`loadAll`, `get`, `getProviderConfig`, `list`, `invalidate`, `upsert`); used by hub before cfg-free attach (Phase 1)
 - `AppDataMirror` — synchronous main-thread view of AppData
 - `WorkerAppDataStore` — worker-side IndexedDB persistence
@@ -1040,8 +1040,8 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Wire protocol (v2)
 
-- Client→worker requests: `AttachRequest`, `DetachRequest`, `StopRequest`, `HubReadyRequest`, `GetConfigRequest`, `ListConfigsRequest`, `ConfigInvalidateRequest`, `RefreshProviderRequest`, `AppDataRequest` (attach/detach/set/upsert/remove); `AttachRequest.cfg` optional when `providerId` is in worker catalog
-- Worker→client catalog events: `catalog-ready`, `config-snapshot` (responses for hub-ready/get/list/invalidate)
+- Client→worker requests: `AttachRequest`, `DetachRequest`, `StopRequest`, `HubReadyRequest`, `GetConfigRequest`, `ListConfigsRequest`, `ConfigInvalidateRequest`, `RefreshProviderRequest`, `HubIntrospectRequest`, `AppDataRequest` (attach/detach/set/upsert/remove); `AttachRequest.cfg` optional when `providerId` is in worker catalog
+- Worker→client catalog events: `catalog-ready`, `config-snapshot` (responses for hub-ready/get/list/invalidate/hub-introspect)
 - Worker→client events: deltas (`{ rows, replace? }`), status, `rows-received` (upstream snapshot buffer progress), byte-size, stats, AppData (snapshot/delta/ack)
 
 #### Statistics
@@ -1109,7 +1109,7 @@ Per-renderer config types (`PillRendererConfig`,
 **Path:** `packages/data/host-data-react`
 **Purpose:** React bindings for `@starui/host-data` — provider + focused hooks for data subscriptions.
 
-- `DataHubProvider` / `PlatformProvider` — hub-first provider; `platform` from `ensurePlatformReady()` or self-bootstrap via `bootstrapConfig` + `workerScriptUrl`
+- `DataHubProvider` / `PlatformProvider` — hub-first provider; `platform` from `ensurePlatformReady()` or self-bootstrap via `bootstrapConfig` + `workerScriptUrl`; optional `hubInspector` mounts **Alt+Shift+S** dev drawer (default on in development)
 - `DataServicesProvider` — legacy wrapper over `DataServices` bootstrap result; exposes `appId` + `userId` React context
 - `usePlatformIdentityOrNull()` — read bootstrap `appId`/`userId` from `DataHubProvider` / `DataServicesProvider`
 
@@ -1145,6 +1145,11 @@ Per-renderer config types (`PillRendererConfig`,
 
 - `useProviderStats(providerId, listener)` — 1 Hz stats with auto-detach
 
+#### Hub inspector (dev)
+
+- `HubInspectorDrawer` / `HubInspectorHost` — shadcn drawer listing running + idle catalog providers (status, subscribers, cache row counts) and AppData rows; polls `getHubIntrospect()` while open
+- `useChordHotkey` — minimal chord listener for Alt+Shift+S toggle
+
 #### Escape hatch
 
 - `useDataServices()` — raw access to `client`, `appData`, `configStore`
@@ -1152,7 +1157,7 @@ Per-renderer config types (`PillRendererConfig`,
 #### Types & re-exports
 
 - `AppDataView`, `AppDataHandle`, `DataProviderConfigView`, `DataProvidersListView`, `ProviderStreamHandle`
-- Re-exports of `DataListener`, `StatsListener`, `AttachOpts`, `SubId`, client, stats, status
+- Re-exports of `DataListener`, `StatsListener`, `AttachOpts`, `SubId`, client, stats, status, `HubIntrospectSnapshot`
 
 #### Bootstrap helper
 

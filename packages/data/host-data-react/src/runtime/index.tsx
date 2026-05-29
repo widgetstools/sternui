@@ -57,6 +57,8 @@ export {
   type DataHubProviderWithBootstrapProps,
   type DataHubProviderWithPlatformProps,
 } from './DataHubProvider.js';
+export { HubInspectorDrawer, type HubInspectorDrawerProps } from './HubInspectorDrawer.js';
+export { HubInspectorHost } from './HubInspectorHost.js';
 
 // ─── Hook 1: raw client + stores escape hatch ────────────────────
 
@@ -359,5 +361,10 @@ export type {
 export type {
   ProviderStats,
   ProviderStatus,
+} from '@starui/host-data/runtime';
+export type {
+  HubIntrospectSnapshot,
+  HubProviderIntrospectRow,
+  HubAppDataIntrospectRow,
 } from '@starui/host-data/runtime';
 export { createAppDataServices, type CreateAppDataServicesOpts } from './createAppDataServices.js';

@@ -887,4 +887,51 @@ describe('SharedWorkerDataServicesHub — config catalog', () => {
     });
     expect(cache.get('p1')?.name).toBe('Updated');
   });
+
+  it('hub-introspect returns running providers, catalog idle rows, and AppData', async () => {
+    const cache = new ConfigCatalogCache(mockConfigManager([mockProviderRow('p1'), mockProviderRow('p2')]));
+    await cache.loadAll();
+    const hub = new SharedWorkerDataServicesHub({ configCatalog: cache });
+    const port = makePort();
+
+    hub.handleRequest(port, { kind: 'attach', subId: 'd1', providerId: 'p1', mode: 'data', cfg: cfg() });
+    hub.handleAppDataRequest(port, {
+      kind: 'appdata-attach',
+      subId: 'appdata-1',
+    });
+    hub.handleAppDataRequest(port, {
+      kind: 'appdata-upsert',
+      reqId: 'upsert-1',
+      row: {
+        configId: 'cfg-positions',
+        name: 'positions',
+        isPublic: true,
+        values: { asOfDate: '2026-05-28' },
+        userId: 'system',
+      },
+    });
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    hub.handleRequest(port, { kind: 'hub-introspect', reqId: 'intro-1' });
+
+    const snap = port.messages.find((m) => (m as { reqId?: string }).reqId === 'intro-1') as {
+      ok: boolean;
+      introspect?: {
+        runningProviderCount: number;
+        providers: Array<{ providerId: string; running: boolean }>;
+        appData: { rows: Array<{ name: string }> };
+      };
+    };
+    expect(snap).toMatchObject({ kind: 'config-snapshot', ok: true });
+    expect(snap.introspect?.runningProviderCount).toBe(1);
+    expect(snap.introspect?.providers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ providerId: 'p1', running: true }),
+        expect.objectContaining({ providerId: 'p2', running: false }),
+      ]),
+    );
+    expect(snap.introspect?.appData.rows).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'positions', keyCount: 1 })]),
+    );
+  });
 });

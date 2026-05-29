@@ -23,6 +23,11 @@ import {
 import type { DataServices } from '@starui/host-data/runtime';
 import { LOGGED_IN_USER_ID } from '@starui/types';
 import { DataServicesProvider } from './DataServicesProvider.js';
+import { HubInspectorHost } from './HubInspectorHost.js';
+
+function defaultHubInspectorEnabled(): boolean {
+  return process.env.NODE_ENV === 'development';
+}
 
 function hubToDataServices(platform: ResolvedDataServicesHubBundle): DataServices {
   return {
@@ -38,6 +43,11 @@ interface DataHubProviderCommonProps {
   mode?: 'eager' | 'lazy';
   /** Override session user id; defaults to bootstrap config or legacy pin. */
   userId?: string;
+  /**
+   * Mount the Alt+Shift+S hub inspector drawer. Defaults to on when
+   * `NODE_ENV === 'development'`; pass `true` to force-enable in production builds.
+   */
+  hubInspector?: boolean;
   children?: ReactNode;
 }
 
@@ -62,13 +72,16 @@ function DataHubProviderInner({
   platform,
   mode = 'lazy',
   userId,
+  hubInspector,
   children,
 }: DataHubProviderWithPlatformProps): ReactNode {
   const services = useMemo(() => hubToDataServices(platform), [platform]);
   const effectiveUserId = userId ?? LOGGED_IN_USER_ID;
+  const showInspector = hubInspector ?? defaultHubInspectorEnabled();
 
   return (
     <DataServicesProvider services={services} mode={mode} userId={effectiveUserId}>
+      {showInspector ? <HubInspectorHost /> : null}
       {children}
     </DataServicesProvider>
   );

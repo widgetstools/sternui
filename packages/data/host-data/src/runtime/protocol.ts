@@ -142,6 +142,49 @@ export interface RefreshProviderRequest {
   providerId: string;
 }
 
+/** Snapshot of SharedWorker hub runtime state (providers, AppData, ports). */
+export interface HubProviderIntrospectRow {
+  providerId: string;
+  providerType: string;
+  /** False when the row exists in catalog but has no runtime slot. */
+  running: boolean;
+  status?: ProviderStatus;
+  subscriberCount?: number;
+  statsListenerCount?: number;
+  rowCount?: number;
+  msgPerSec?: number;
+  publishPerSec?: number;
+  publishCount?: number;
+  lastMessageAt?: number | null;
+  startedAt?: number;
+  errorCount?: number;
+  lastError?: string;
+}
+
+export interface HubAppDataIntrospectRow {
+  configId: string;
+  name: string;
+  keyCount: number;
+}
+
+export interface HubIntrospectSnapshot {
+  connectedPorts: number;
+  catalogReady: boolean;
+  catalogProviderCount: number;
+  runningProviderCount: number;
+  providers: readonly HubProviderIntrospectRow[];
+  appData: {
+    listenerCount: number;
+    rows: readonly HubAppDataIntrospectRow[];
+  };
+}
+
+/** Query live hub diagnostics (providers, subscribers, cache sizes). */
+export interface HubIntrospectRequest {
+  kind: 'hub-introspect';
+  reqId: string;
+}
+
 // ─── Client → Worker AppData requests ──────────────────────────────
 //
 // Separate union so existing provider request handling stays
@@ -214,7 +257,8 @@ export type Request =
   | GetConfigRequest
   | ListConfigsRequest
   | ConfigInvalidateRequest
-  | RefreshProviderRequest;
+  | RefreshProviderRequest
+  | HubIntrospectRequest;
 
 // ─── Worker → Client events ────────────────────────────────────────
 
@@ -269,6 +313,8 @@ export interface ConfigSnapshotEvent {
   config?: DataProviderConfig | null;
   /** Response to `list-configs`. */
   configs?: readonly DataProviderConfig[];
+  /** Response to `hub-introspect`. */
+  introspect?: HubIntrospectSnapshot;
 }
 
 export type CatalogEvent = CatalogReadyEvent | ConfigSnapshotEvent;
@@ -328,7 +374,8 @@ export function isRequest(value: unknown): value is Request {
     k === 'get-config' ||
     k === 'list-configs' ||
     k === 'config-invalidate' ||
-    k === 'refresh-provider'
+    k === 'refresh-provider' ||
+    k === 'hub-introspect'
   );
 }
 

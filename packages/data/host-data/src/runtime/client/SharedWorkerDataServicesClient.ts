@@ -31,6 +31,8 @@ import type {
   DetachRequest,
   Event,
   GetConfigRequest,
+  HubIntrospectRequest,
+  HubIntrospectSnapshot,
   HubReadyRequest,
   ListConfigsRequest,
   ProviderStats,
@@ -456,6 +458,15 @@ export class SharedWorkerDataServicesClient {
     await this.rpcCatalog({ kind: 'config-invalidate', providerId });
   }
 
+  /** Live SharedWorker hub diagnostics (providers, subscribers, cache sizes). */
+  async getHubIntrospect(): Promise<HubIntrospectSnapshot> {
+    const snap = await this.rpcCatalog({ kind: 'hub-introspect' });
+    if (!snap.ok || !snap.introspect) {
+      throw new Error(snap.error ?? '[SharedWorkerDataServicesClient] hub-introspect failed');
+    }
+    return snap.introspect;
+  }
+
   /**
    * Attach a fresh `AppDataMirror` to the hub. The mirror is a
    * pure RPC client — it sends operations to the hub and receives
@@ -544,7 +555,8 @@ export class SharedWorkerDataServicesClient {
     req: Omit<HubReadyRequest, 'reqId'>
       | Omit<GetConfigRequest, 'reqId'>
       | Omit<ListConfigsRequest, 'reqId'>
-      | Omit<ConfigInvalidateRequest, 'reqId'>,
+      | Omit<ConfigInvalidateRequest, 'reqId'>
+      | Omit<HubIntrospectRequest, 'reqId'>,
   ): Promise<ConfigSnapshotEvent> {
     if (this.closed) {
       return Promise.reject(new Error('[SharedWorkerDataServicesClient] client is closed'));
