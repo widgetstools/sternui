@@ -104,6 +104,11 @@ export interface SubscribeHandle<T = unknown> {
   onStatus(cb: (status: ProviderStatus, error?: string) => void): void;
   /** In-flight snapshot row count while status is `loading`. */
   onRowsReceived(cb: (count: number) => void): void;
+  /**
+   * Fires on every loading→ready snapshot assembly, including the
+   * initial one and hub-triggered restarts on an existing subId.
+   */
+  onSnapshotCommit(cb: (rows: readonly T[]) => void): void;
   /** Replay hub cache to this subscriber without upstream I/O. */
   refresh(): Promise<readonly T[]>;
   unsubscribe(): void;
@@ -236,6 +241,7 @@ export class SharedWorkerDataServicesClient {
     });
 
     let snapshotSettled = false; // true after resolve OR reject
+    let snapshotCommitCb: ((rows: readonly T[]) => void) | null = null;
     let updateCb: ((rows: readonly T[]) => void) | null = null;
     let resetCb: ((rows: readonly T[]) => void) | null = null;
     let statusCb: ((status: ProviderStatus, error?: string) => void) | null = null;
@@ -268,9 +274,11 @@ export class SharedWorkerDataServicesClient {
     const reassembler = new SnapshotReassembler<T>({
       onRowsReceived: (count) => emitRowsReceived(count),
       onSnapshotReady: (rows) => {
-        if (snapshotSettled) return;
-        snapshotSettled = true;
-        snapshotResolve(rows);
+        if (!snapshotSettled) {
+          snapshotSettled = true;
+          snapshotResolve(rows);
+        }
+        snapshotCommitCb?.(rows);
       },
       onTick: (rows) => {
         if (updateCb) updateCb(rows);
@@ -357,6 +365,9 @@ export class SharedWorkerDataServicesClient {
       onRowsReceived: (cb) => {
         rowsReceivedCb = cb;
         cb(Math.max(upstreamRowCount, reassembler.getRowCount()));
+      },
+      onSnapshotCommit: (cb) => {
+        snapshotCommitCb = cb;
       },
       refresh: () => {
         if (refreshPending) return refreshPending;

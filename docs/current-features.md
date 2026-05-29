@@ -492,7 +492,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `MarketsGridContainer` — grid + two-provider picker + mode toggle (`Alt+Shift+P` /
   `Cmd+Shift+P` hotkey), grid-level provider persistence; mounts `ProviderToolbar`
   in `MarketsGrid` `headerExtras` when toggled visible
-- `MarketsGridContainer` — hub data via `useDataProvider` + `applyProviderToGrid` (no direct `client.subscribe` / cfg pass-through)
+- `MarketsGridContainer` — hub data via `useDataProvider` + `applyProviderToGrid` (no direct `client.subscribe` / cfg pass-through); optional `defaultLiveProviderId` for single-provider demos
 - `applyProviderToGrid` — live-tick add/update split with pending-add dedup (`createApplyProviderToGridState`, `splitProviderRowsForGrid`); extracted from `MarketsGridContainer` for `IDataProvider.onTick` wiring
 - `ProviderToolbar` — in-grid provider selector + edit dialog launcher (Live/Hist mode, **Refresh view** → `IDataProvider.refresh()`, **Reload** → `restart()`, as-of date)
 - `ProviderEditorDialog` — modal hosting `DataProviderEditor`
@@ -1400,6 +1400,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 ### Apps — platform bootstrap pilot
 
+- `apps/demo-stomp-markets-grid` — minimal STOMP + MarketsGrid demo (web + OpenFin); programmatic provider seed + `defaultLiveProviderId`; `npm run dev:demo-stomp-markets-grid`; OpenFin: `npm run dev:openfin:demo-stomp-markets-grid`
 - `apps/markets-grid-lab` — `app-config.json` + `platformBootstrap.ts` + `DataHubProvider` (PR1b/PR3 web pilot)
 - `apps/tutorials-workspace/{stomp,mockdata-provider,dataprovider-editor}` — migrated to `ensurePlatformReady` + `DataHubProvider`; legacy `dataServices.ts` removed
 - `apps/tutorials-tarball/{stomp,mockdata-provider,dataprovider-editor}` — mirror of workspace bootstrap pattern

@@ -69,6 +69,8 @@ from packages, never the reverse. Full rules in [`docs/ARCHITECTURE.md`](./docs/
 | `mockdata-provider-starui-app` | 5192 | `npm run dev:mockdata-provider-starui-app` |
 | `dataprovider-editor-starui-app` | 5193 | `npm run dev:dataprovider-editor-starui-app` |
 | `my-stomp-app` | 5200 | `npm run dev:my-stomp-app` |
+| `demo-stomp-markets-grid` | 5210 | `npm run dev:demo-stomp-markets-grid` (needs `npm run dev:stomp`) |
+| `stomp-marketsgrid-minimal` | 5213 | `npm run dev:stomp-marketsgrid-minimal` — lean STOMP→MarketsGrid code sample (needs `npm run dev:stomp`) |
 | `basic-starui-app` | 5194 | `npm run dev:basic-starui-app` |
 | `markets-ui-react-reference` | 5174 | `npm run dev:markets-ui-react-reference` |
 | `demo-angular` | 4200 | `npm run dev:demo-angular` |

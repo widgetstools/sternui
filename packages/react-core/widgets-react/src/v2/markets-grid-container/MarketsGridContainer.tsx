@@ -75,6 +75,11 @@ export interface MarketsGridContainerProps<TData extends Record<string, unknown>
   onEditProvider?(providerId: string): void;
   /** Surface stream errors. Defaults to console.error. */
   onError?(error: Error): void;
+  /**
+   * When no live provider is persisted in grid-level data, select this
+   * provider on first load (demo / single-provider apps).
+   */
+  defaultLiveProviderId?: string;
 }
 
 /** Persisted picker state. Stored as MarketsGrid's `gridLevelData`. */
@@ -114,6 +119,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     onEditProvider,
     onError,
     onReady: onReadyProp,
+    defaultLiveProviderId,
     ...marketsGridProps
   } = props;
 
@@ -170,7 +176,17 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // fall through to the default selection and mark as loaded.
   useEffect(() => {
     let cancelled = false;
+    const applyDefaultLive = (sel: ProviderSelection): ProviderSelection => {
+      if (!sel.liveProviderId && defaultLiveProviderId) {
+        return { ...sel, liveProviderId: defaultLiveProviderId, mode: 'live' };
+      }
+      return sel;
+    };
+
     if (!adapter?.loadGridLevelData) {
+      if (defaultLiveProviderId) {
+        setSelection(applyDefaultLive({ ...DEFAULT_SELECTION }));
+      }
       setLoaded(true);
       return;
     }
@@ -178,7 +194,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       .loadGridLevelData(props.gridId)
       .then((raw) => {
         if (cancelled) return;
-        setSelection(normalizeSelection(raw));
+        setSelection(applyDefaultLive(normalizeSelection(raw)));
         setPersistedCaption(extractPersistedCaption(raw));
         setLoaded(true);
       })
@@ -189,7 +205,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         setLoaded(true);
       });
     return () => { cancelled = true; };
-  }, [adapter, props.gridId]);
+  }, [adapter, props.gridId, defaultLiveProviderId]);
 
   // Persist on mutation. `lastSavedRef` skips the initial sync when
   // `loaded` flips (state just came FROM disk; saving back would be a

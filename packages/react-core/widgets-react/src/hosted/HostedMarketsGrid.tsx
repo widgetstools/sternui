@@ -65,6 +65,8 @@ export interface HostedMarketsGridProps<
   /** When true, resolve a ConfigService-backed StorageAdapterFactory
    *  from the host ConfigManager and pass it through to the grid. */
   withStorage?: boolean;
+  /** Passed to {@link MarketsGridContainer} — auto-select live provider when unset in storage. */
+  defaultLiveProviderId?: string;
   /** Optional ConfigManager override. When omitted, the host singleton
    *  is resolved via `@starui/openfin-platform/config`. Pass an
    *  explicit ConfigManager in tests / non-OpenFin runtimes. */

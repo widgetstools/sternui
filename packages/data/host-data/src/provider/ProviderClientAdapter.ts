@@ -206,15 +206,17 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
       this.data = [];
     });
 
-    void handle.snapshot
-      .then((rows) => {
-        this.data = [...rows];
-        for (const handler of this.snapshotHandlers) handler(rows);
-      })
-      .catch((err: unknown) => {
-        const error = err instanceof Error ? err : new Error(String(err));
-        for (const handler of this.errorHandlers) handler(error);
-      });
+    const deliverSnapshot = (rows: readonly T[]) => {
+      this.data = [...rows];
+      for (const handler of this.snapshotHandlers) handler(rows);
+    };
+
+    handle.onSnapshotCommit(deliverSnapshot);
+
+    void handle.snapshot.catch((err: unknown) => {
+      const error = err instanceof Error ? err : new Error(String(err));
+      for (const handler of this.errorHandlers) handler(error);
+    });
   }
 
   private detach(): void {

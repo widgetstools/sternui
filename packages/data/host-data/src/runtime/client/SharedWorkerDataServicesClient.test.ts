@@ -210,6 +210,58 @@ describe('SharedWorkerDataServicesClient', () => {
     expect(controllers.get('c-1')!.restarts).toEqual([{ asOfDate: '2026-04-01' }]);
   });
 
+  it('subscribe with extra waits for fresh snapshot instead of stale cache replay', async () => {
+    const primer = w.client.subscribe('p1', cfg());
+    await flush();
+    controllers.get('c-1')!.emit({ rows: [{ id: 'stale', x: 1 }], replace: true });
+    controllers.get('c-1')!.emit({ status: 'ready' });
+    await primer.snapshot;
+    primer.unsubscribe();
+
+    const commits: Array<readonly { id: string; x: number }[]> = [];
+    const handle = w.client.subscribe<{ id: string; x: number }>(
+      'p1',
+      undefined,
+      { extra: { __refresh: 1 } },
+    );
+    handle.onSnapshotCommit((rows) => commits.push(rows));
+    await flush();
+
+    expect(commits).toHaveLength(0);
+
+    controllers.get('c-1')!.emit({ status: 'loading' });
+    controllers.get('c-1')!.emit({ rows: [{ id: 'fresh', x: 2 }], replace: true });
+    controllers.get('c-1')!.emit({ status: 'ready' });
+
+    const snapshot = await handle.snapshot;
+    expect(snapshot).toEqual([{ id: 'fresh', x: 2 }]);
+    expect(commits).toEqual([[{ id: 'fresh', x: 2 }]]);
+    handle.unsubscribe();
+  });
+
+  it('onSnapshotCommit fires again when the provider re-snapshots on an existing subId', async () => {
+    const handle = w.client.subscribe<{ id: string; x: number }>('p1', cfg());
+    const commits: Array<readonly { id: string; x: number }[]> = [];
+    handle.onSnapshotCommit((rows) => commits.push(rows));
+    await flush();
+
+    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', x: 1 }], replace: true });
+    controllers.get('c-1')!.emit({ status: 'ready' });
+    await handle.snapshot;
+    expect(commits).toEqual([[{ id: 'r1', x: 1 }]]);
+
+    controllers.get('c-1')!.emit({ status: 'loading' });
+    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', x: 99 }], replace: true });
+    controllers.get('c-1')!.emit({ status: 'ready' });
+    await flush();
+
+    expect(commits).toEqual([
+      [{ id: 'r1', x: 1 }],
+      [{ id: 'r1', x: 99 }],
+    ]);
+    handle.unsubscribe();
+  });
+
   it('subscribe() resolves the snapshot promise when the provider becomes ready, then routes updates to onUpdate', async () => {
     const handle = w.client.subscribe<{ id: string; x: number }>('p1', cfg());
     const updates: Array<readonly { id: string; x: number }[]> = [];

@@ -149,6 +149,42 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
     expect(ctrl.restartLog).toEqual([{ asOfDate: '2026-04-01' }]);
   });
 
+  it('restart attach posts loading without replaying stale cache', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const portA = makePort();
+    const portB = makePort();
+    hub.handleRequest(portA, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ rows: [{ id: 'stale' }], replace: true });
+    ctrl.emit({ status: 'ready' });
+    portA.messages.length = 0;
+
+    hub.handleRequest(portB, {
+      kind: 'attach',
+      subId: 's2',
+      providerId: 'p1',
+      mode: 'data',
+      extra: { __refresh: 1 },
+    });
+
+    const deltasB = portB.messages.filter((m) => m.kind === 'delta');
+    expect(deltasB).toHaveLength(0);
+    expect(portB.messages).toContainEqual({
+      subId: 's2',
+      kind: 'status',
+      status: 'loading',
+    });
+
+    portB.messages.length = 0;
+    ctrl.emit({ rows: [{ id: 'fresh' }], replace: true });
+    ctrl.emit({ status: 'ready' });
+
+    const replayed = portB.messages
+      .filter((m) => m.kind === 'delta')
+      .flatMap((m) => (m as Event & { rows: Array<{ id: string }> }).rows);
+    expect(replayed.map((r) => r.id)).toEqual(['fresh']);
+  });
+
   it('refresh-provider replays cache to one subId without provider.restart', () => {
     const hub = new SharedWorkerDataServicesHub();
     const portA = makePort();

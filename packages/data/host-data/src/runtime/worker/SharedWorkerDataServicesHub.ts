@@ -492,10 +492,12 @@ export class SharedWorkerDataServicesHub {
       // eslint-disable-next-line no-console
       if (DEBUG) console.log(`[v2/hub] attach LATE-JOINER subId=${req.subId} provider=${req.providerId} cacheSize=${slot.cache.size} status=${slot.status}`);
     }
-    void wasRunning;
+    const isRestartAttach = Boolean(wasRunning && req.extra);
 
     if (req.mode === 'data') {
-      this.attachDataListener(req.providerId, req.subId, port, slot);
+      this.attachDataListener(req.providerId, req.subId, port, slot, {
+        skipCacheReplay: isRestartAttach,
+      });
     } else {
       this.attachStatsListener(req.providerId, req.subId, port);
     }
@@ -759,10 +761,24 @@ export class SharedWorkerDataServicesHub {
 
   // ─── Listener attach + fan-out ─────────────────────────────────
 
-  private attachDataListener(providerId: string, subId: string, port: PortLike, slot: ProviderSlot): void {
+  private attachDataListener(
+    providerId: string,
+    subId: string,
+    port: PortLike,
+    slot: ProviderSlot,
+    opts?: { skipCacheReplay?: boolean },
+  ): void {
     const set = this.dataListeners.get(providerId) ?? new Map<string, DataListener>();
     set.set(subId, { subId, port });
     this.dataListeners.set(providerId, set);
+
+    if (opts?.skipCacheReplay) {
+      // Restart attach must not replay the hub cache — stale rows +
+      // `ready` would settle the client's snapshot promise before the
+      // upstream restart completes, leaving reload overlays stuck.
+      port.postMessage({ subId, kind: 'status', status: 'loading' } satisfies Event);
+      return;
+    }
 
     this.replayCacheToPort(subId, port, slot);
   }

@@ -223,10 +223,14 @@ describe('ProviderClientAdapter', () => {
     const restartPromise = adapter.restart({ __refresh: 1 });
     await flush();
     expect(controllers.get('default')!.restarts).toEqual([{ __refresh: 1 }]);
+
+    controllers.get('default')!.emit({ status: 'loading' });
+    controllers.get('default')!.emit({ rows: [{ id: 'r2' }], replace: true });
+    controllers.get('default')!.emit({ status: 'ready' });
     await restartPromise;
 
-    expect(snapshots.length).toBeGreaterThanOrEqual(2);
-    expect(adapter.getData().length).toBeGreaterThanOrEqual(1);
+    expect(snapshots).toEqual([1, 1]);
+    expect(adapter.getData()).toEqual([{ id: 'r2' }]);
   });
 
   it('refresh() replays hub cache through onSnapshotData', async () => {
