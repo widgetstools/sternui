@@ -1147,7 +1147,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Hub inspector (dev)
 
-- `HubInspectorDrawer` / `HubInspectorHost` — shadcn drawer listing running + idle catalog providers (status, subscribers, cache row counts) and AppData rows; polls `getHubIntrospect()` while open
+- `HubInspectorDrawer` / `HubInspectorHost` — shadcn drawer listing running + idle catalog providers (status, subscribers, cache row counts, expandable worker-loaded `cfg` JSON) and AppData rows (expandable `values`); polls `getHubIntrospect()` while open
 - `useChordHotkey` — minimal chord listener for Alt+Shift+S toggle
 
 #### Escape hatch
@@ -1416,6 +1416,10 @@ Per-renderer config types (`PillRendererConfig`,
 - `apps/tutorials-workspace/{stomp,mockdata-provider,dataprovider-editor}` — migrated to `ensurePlatformReady` + `DataHubProvider`; legacy `dataServices.ts` removed
 - `apps/tutorials-tarball/{stomp,mockdata-provider,dataprovider-editor}` — mirror of workspace bootstrap pattern; mockdata `DataServicesGridPanel` uses `useDataProvider`
 - MCP scaffold templates (`stomp`, `mockdata-provider`, `dataprovider-editor`, `openfin-platform`) — emit `platformBootstrap.ts` + `public/app-config.json` (web) or manifest `customSettings.appId` (OpenFin)
+
+### Consumer documentation
+
+- `docs/MARKETSGRID_USAGE_GUIDE.md` — scenario matrix for MarketsGrid (`MarketsGrid` / `MarketsGridContainer` / `HostedMarketsGrid`), hub bootstrap, OpenFin vs browser, persistence, troubleshooting; PDF at `docs/MARKETSGRID_USAGE_GUIDE.pdf` (`npm run docs:marketsgrid-usage-pdf`)
 
 ## Cross-cutting architecture notes
 

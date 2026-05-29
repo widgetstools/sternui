@@ -159,12 +159,15 @@ export interface HubProviderIntrospectRow {
   startedAt?: number;
   errorCount?: number;
   lastError?: string;
+  /** Transport cfg held in the worker (runtime slot or catalog cache). */
+  cfg?: ProviderConfig;
 }
 
 export interface HubAppDataIntrospectRow {
   configId: string;
   name: string;
   keyCount: number;
+  values: Record<string, unknown>;
 }
 
 export interface HubIntrospectSnapshot {

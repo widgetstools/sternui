@@ -23,8 +23,9 @@ import {
   TableHeader,
   TableRow,
 } from '@starui/ui';
-import { Loader2, RefreshCw, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2, RefreshCw, X } from 'lucide-react';
 import type {
+  HubAppDataIntrospectRow,
   HubIntrospectSnapshot,
   HubProviderIntrospectRow,
   ProviderStatus,
@@ -43,6 +44,8 @@ export function HubInspectorDrawer({ open, onOpenChange }: HubInspectorDrawerPro
   const [snapshot, setSnapshot] = useState<HubIntrospectSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [expandedProviderId, setExpandedProviderId] = useState<string | null>(null);
+  const [expandedAppDataId, setExpandedAppDataId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -68,13 +71,13 @@ export function HubInspectorDrawer({ open, onOpenChange }: HubInspectorDrawerPro
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange} direction="right">
-      <DrawerContent hideHandle className="left-auto right-0 top-0 mt-0 h-full w-full max-w-xl rounded-none border-l">
+      <DrawerContent hideHandle className="left-auto right-0 top-0 mt-0 h-full w-full max-w-2xl rounded-none border-l">
         <DrawerHeader className="border-b border-border pb-3">
           <div className="flex items-start justify-between gap-3">
             <div>
               <DrawerTitle className="text-base">Data Services Hub</DrawerTitle>
               <DrawerDescription className="text-xs">
-                SharedWorker runtime — providers, subscribers, and cache sizes
+                SharedWorker runtime — providers, loaded configs, subscribers, and cache sizes
               </DrawerDescription>
             </div>
             <div className="flex items-center gap-1">
@@ -122,6 +125,7 @@ export function HubInspectorDrawer({ open, onOpenChange }: HubInspectorDrawerPro
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-8" />
                     <TableHead className="text-[11px]">Id</TableHead>
                     <TableHead className="text-[11px]">Type</TableHead>
                     <TableHead className="text-[11px]">Status</TableHead>
@@ -132,13 +136,20 @@ export function HubInspectorDrawer({ open, onOpenChange }: HubInspectorDrawerPro
                 <TableBody>
                   {(snapshot?.providers.length ?? 0) === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-xs text-muted-foreground py-6 text-center">
+                      <TableCell colSpan={6} className="text-xs text-muted-foreground py-6 text-center">
                         No providers in catalog or runtime
                       </TableCell>
                     </TableRow>
                   ) : (
                     snapshot?.providers.map((row) => (
-                      <ProviderRow key={row.providerId} row={row} />
+                      <ProviderRows
+                        key={row.providerId}
+                        row={row}
+                        expanded={expandedProviderId === row.providerId}
+                        onToggle={() => {
+                          setExpandedProviderId((prev) => (prev === row.providerId ? null : row.providerId));
+                        }}
+                      />
                     ))
                   )}
                 </TableBody>
@@ -155,6 +166,7 @@ export function HubInspectorDrawer({ open, onOpenChange }: HubInspectorDrawerPro
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-8" />
                     <TableHead className="text-[11px]">Name</TableHead>
                     <TableHead className="text-[11px]">Config id</TableHead>
                     <TableHead className="text-[11px] text-right">Keys</TableHead>
@@ -163,17 +175,20 @@ export function HubInspectorDrawer({ open, onOpenChange }: HubInspectorDrawerPro
                 <TableBody>
                   {(snapshot?.appData.rows.length ?? 0) === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-xs text-muted-foreground py-6 text-center">
+                      <TableCell colSpan={4} className="text-xs text-muted-foreground py-6 text-center">
                         No AppData rows loaded
                       </TableCell>
                     </TableRow>
                   ) : (
                     snapshot?.appData.rows.map((row) => (
-                      <TableRow key={row.configId}>
-                        <TableCell className="font-mono text-xs">{row.name}</TableCell>
-                        <TableCell className="font-mono text-[11px] text-muted-foreground">{row.configId}</TableCell>
-                        <TableCell className="text-right font-mono text-xs">{row.keyCount}</TableCell>
-                      </TableRow>
+                      <AppDataRows
+                        key={row.configId}
+                        row={row}
+                        expanded={expandedAppDataId === row.configId}
+                        onToggle={() => {
+                          setExpandedAppDataId((prev) => (prev === row.configId ? null : row.configId));
+                        }}
+                      />
                     ))
                   )}
                 </TableBody>
@@ -182,8 +197,8 @@ export function HubInspectorDrawer({ open, onOpenChange }: HubInspectorDrawerPro
           </section>
 
           <p className="text-[10px] text-muted-foreground">
-            Alt+Shift+S toggles this panel. One provider id maps to one upstream connection; multiple
-            grids subscribe to the same cache.
+            Alt+Shift+S toggles this panel. Expand a row to inspect the worker-loaded config JSON.
+            Running providers show the live slot cfg; idle catalog rows show the cached transport cfg.
           </p>
         </div>
       </DrawerContent>
@@ -191,19 +206,84 @@ export function HubInspectorDrawer({ open, onOpenChange }: HubInspectorDrawerPro
   );
 }
 
-function ProviderRow({ row }: { row: HubProviderIntrospectRow }): React.ReactNode {
+function ProviderRows({
+  row,
+  expanded,
+  onToggle,
+}: {
+  row: HubProviderIntrospectRow;
+  expanded: boolean;
+  onToggle: () => void;
+}): React.ReactNode {
+  const hasCfg = row.cfg != null;
   return (
-    <TableRow>
-      <TableCell className="font-mono text-[11px] max-w-[120px] truncate" title={row.providerId}>
-        {row.providerId}
-      </TableCell>
-      <TableCell className="text-xs">{row.providerType}</TableCell>
-      <TableCell>
-        <StatusBadge running={row.running} status={row.status} />
-      </TableCell>
-      <TableCell className="text-right font-mono text-xs">{row.running ? fmtInt(row.subscriberCount) : '—'}</TableCell>
-      <TableCell className="text-right font-mono text-xs">{row.running ? fmtInt(row.rowCount) : '—'}</TableCell>
-    </TableRow>
+    <>
+      <TableRow className={hasCfg ? 'cursor-pointer hover:bg-muted/40' : undefined} onClick={hasCfg ? onToggle : undefined}>
+        <TableCell className="py-2 w-8 text-muted-foreground">
+          {hasCfg ? (expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />) : null}
+        </TableCell>
+        <TableCell className="font-mono text-[11px] max-w-[120px] truncate" title={row.providerId}>
+          {row.providerId}
+        </TableCell>
+        <TableCell className="text-xs">{row.providerType}</TableCell>
+        <TableCell>
+          <StatusBadge running={row.running} status={row.status} />
+        </TableCell>
+        <TableCell className="text-right font-mono text-xs">{row.running ? fmtInt(row.subscriberCount) : '—'}</TableCell>
+        <TableCell className="text-right font-mono text-xs">{row.running ? fmtInt(row.rowCount) : '—'}</TableCell>
+      </TableRow>
+      {expanded && hasCfg && (
+        <TableRow>
+          <TableCell colSpan={6} className="bg-muted/20 p-0">
+            <ConfigJsonBlock
+              title={row.running ? 'Runtime provider cfg' : 'Catalog provider cfg'}
+              value={row.cfg}
+            />
+          </TableCell>
+        </TableRow>
+      )}
+    </>
+  );
+}
+
+function AppDataRows({
+  row,
+  expanded,
+  onToggle,
+}: {
+  row: HubAppDataIntrospectRow;
+  expanded: boolean;
+  onToggle: () => void;
+}): React.ReactNode {
+  return (
+    <>
+      <TableRow className="cursor-pointer hover:bg-muted/40" onClick={onToggle}>
+        <TableCell className="py-2 w-8 text-muted-foreground">
+          {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+        </TableCell>
+        <TableCell className="font-mono text-xs">{row.name}</TableCell>
+        <TableCell className="font-mono text-[11px] text-muted-foreground">{row.configId}</TableCell>
+        <TableCell className="text-right font-mono text-xs">{row.keyCount}</TableCell>
+      </TableRow>
+      {expanded && (
+        <TableRow>
+          <TableCell colSpan={4} className="bg-muted/20 p-0">
+            <ConfigJsonBlock title="AppData values" value={row.values} />
+          </TableCell>
+        </TableRow>
+      )}
+    </>
+  );
+}
+
+function ConfigJsonBlock({ title, value }: { title: string; value: unknown }): React.ReactNode {
+  return (
+    <div className="px-3 py-2 space-y-1">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</div>
+      <pre className="max-h-64 overflow-auto rounded border border-border bg-background px-2 py-2 text-[11px] font-mono leading-relaxed text-foreground whitespace-pre-wrap break-all">
+        {JSON.stringify(value, null, 2)}
+      </pre>
+    </div>
   );
 }
 

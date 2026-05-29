@@ -6,6 +6,8 @@ This guide walks through building a **fresh React web app** that:
 2. Defines and persists a **STOMP** data provider configuration
 3. Renders **MarketsGrid** fed by live snapshot + delta updates from that provider
 
+For the full scenario matrix (component choice, hub bootstrap, OpenFin vs browser, mock vs live data), see **[`MARKETSGRID_USAGE_GUIDE.md`](./MARKETSGRID_USAGE_GUIDE.md)** (also available as [PDF](./MARKETSGRID_USAGE_GUIDE.pdf)).
+
 It mirrors the patterns used in `apps/markets-ui-react-reference`, `apps/demo-apps/dataprovider-editor-starui-app`, and `apps/demo-apps/mockdata-provider-starui-app`.
 
 ---

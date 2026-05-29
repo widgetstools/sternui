@@ -926,12 +926,12 @@ describe('SharedWorkerDataServicesHub — config catalog', () => {
     expect(snap.introspect?.runningProviderCount).toBe(1);
     expect(snap.introspect?.providers).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ providerId: 'p1', running: true }),
-        expect.objectContaining({ providerId: 'p2', running: false }),
+        expect.objectContaining({ providerId: 'p1', running: true, cfg: expect.objectContaining({ providerType: 'mock' }) }),
+        expect.objectContaining({ providerId: 'p2', running: false, cfg: expect.objectContaining({ providerType: 'mock' }) }),
       ]),
     );
     expect(snap.introspect?.appData.rows).toEqual(
-      expect.arrayContaining([expect.objectContaining({ name: 'positions', keyCount: 1 })]),
+      expect.arrayContaining([expect.objectContaining({ name: 'positions', keyCount: 1, values: { asOfDate: '2026-05-28' } })]),
     );
   });
 });

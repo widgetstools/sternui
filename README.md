@@ -293,6 +293,7 @@ CI runs package and consumer jobs separately; see `.github/workflows/ci.yml`.
 | [`docs/guides/platform-bootstrap-config.md`](./docs/guides/platform-bootstrap-config.md) | Web `app-config.json` vs OpenFin manifest `customSettings` (`appId`, `userId`, hub bootstrap) |
 | [`docs/guides/consumer-app-sharedworker-and-tailwind.md`](./docs/guides/consumer-app-sharedworker-and-tailwind.md) | SharedWorker + Tailwind pitfalls for consumer apps |
 | [`docs/STOMP_DATAPROVIDER_MARKETSGRID_GUIDE.md`](./docs/STOMP_DATAPROVIDER_MARKETSGRID_GUIDE.md) | Fresh app + STOMP provider + MarketsGrid end-to-end |
+| [`docs/MARKETSGRID_USAGE_GUIDE.md`](./docs/MARKETSGRID_USAGE_GUIDE.md) | MarketsGrid scenarios (components, hub, OpenFin, persistence) — [PDF](./docs/MARKETSGRID_USAGE_GUIDE.pdf) |
 | [`CLAUDE.md`](./CLAUDE.md) | Agent / contributor conventions |
 
 ## Platform tooling

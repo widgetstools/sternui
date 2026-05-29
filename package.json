@@ -71,6 +71,7 @@
     "pack:mcp": "node scripts/pack-mcp-scaffold.mjs",
     "sync:app-deps": "node scripts/sync-app-tarball-deps.mjs",
     "verify:apps": "node scripts/verify-apps.mjs",
+    "docs:marketsgrid-usage-pdf": "node scripts/generate-marketsgrid-usage-guide-pdf.mjs",
     "check:deps": "node scripts/check-package-cycles.mjs",
     "check:deps:strict": "node scripts/check-package-cycles.mjs --strict",
     "clean": "rimraf -g node_modules packages/*/*/node_modules packages/*/*/dist apps/*/node_modules apps/e2e/*/node_modules apps/tutorials-tarball/*/node_modules apps/tutorials-workspace/*/node_modules apps/legacy/*/node_modules .turbo"

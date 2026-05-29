@@ -335,6 +335,7 @@ export class SharedWorkerDataServicesHub {
         startedAt: stats.startedAt,
         errorCount: stats.errorCount,
         lastError: slot.lastError,
+        cfg: slot.cfg,
       });
     }
 
@@ -346,6 +347,7 @@ export class SharedWorkerDataServicesHub {
           providerId: row.providerId,
           providerType: row.providerType,
           running: false,
+          cfg: this.configCatalog.getProviderConfig(row.providerId) ?? row.config ?? undefined,
         });
       }
     }
@@ -365,6 +367,7 @@ export class SharedWorkerDataServicesHub {
           configId: r.configId,
           name: r.name,
           keyCount: Object.keys(r.values).length,
+          values: r.values,
         })),
       },
     };
