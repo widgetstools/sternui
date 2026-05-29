@@ -5,15 +5,14 @@
  * select which view component the router mounts:
  *
  *   ?view=provider   → Provider (calls initWorkspace; idle hidden window)
- *   ?view=blotter    → Blotter (MarketsGrid + mock provider)
- *
- * In the browser (no OpenFin), the default is `blotter` so the app
- * stays usable for quick visual checks during dev.
+ *   ?view=blotter    → Blotter (HostedMarketsGrid + mock hub provider)
  */
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { applyTheme, getTheme } from '@starui/design-system';
 import '@starui/design-system/css';
+import { DataHubProvider } from '@starui/host-data-react/runtime';
+import { initPlatformBootstrap } from './platformBootstrap';
 import './globals.css';
 
 applyTheme(getTheme());
@@ -31,14 +30,26 @@ function resolveView(): View {
 const Provider = React.lazy(() => import('./platform/Provider').then((m) => ({ default: m.Provider })));
 const Blotter = React.lazy(() => import('./views/Blotter').then((m) => ({ default: m.Blotter })));
 
+const view = resolveView();
 const root = createRoot(document.getElementById('root')!);
 
-const view = resolveView();
-
-root.render(
-  <React.StrictMode>
-    <React.Suspense fallback={<div style={{ padding: 16 }}>Loading…</div>}>
-      {view === 'provider' ? <Provider /> : <Blotter />}
-    </React.Suspense>
-  </React.StrictMode>,
-);
+void initPlatformBootstrap()
+  .then(({ config, platform }) => {
+    root.render(
+      <React.StrictMode>
+        <DataHubProvider platform={platform} userId={config.userId}>
+          <React.Suspense fallback={<div style={{ padding: 16 }}>Loading…</div>}>
+            {view === 'provider' ? <Provider /> : <Blotter />}
+          </React.Suspense>
+        </DataHubProvider>
+      </React.StrictMode>,
+    );
+  })
+  .catch((err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    root.render(
+      <div data-testid="openfin-workspace-bootstrap-error" style={{ padding: 24 }}>
+        Data services bootstrap failed: {message}
+      </div>,
+    );
+  });

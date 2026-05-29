@@ -27,6 +27,8 @@
     "forwardErrorReports": false
   },
   "customSettings": {
+    "appId": "e2e-openfin-workspace",
+    "userId": "dev1",
     "apps": [
       {
         "appId": "blotter",

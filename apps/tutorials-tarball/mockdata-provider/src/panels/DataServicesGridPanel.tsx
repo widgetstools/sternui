@@ -3,13 +3,16 @@ import {
   MarketsGrid,
   createMarketsGridLocalStorageStorage,
 } from '@starui/grid';
-import { useProviderStream, useProviderStats } from '@starui/host-data-react/runtime';
+import {
+  useDataProvider,
+  useProviderStats,
+} from '@starui/host-data-react/runtime';
+import type { MockProviderConfig } from '@starui/types';
 import { useMockConfig } from '../state/MockConfigContext';
 import { useStats } from '../state/StatsContext';
 import { columnDefsByType } from '../data/columnDefsByType';
 import { applyDelta } from '../data/applyDelta';
 import { getPlatform } from '../platformBootstrap';
-import type { MockProviderConfig } from '@starui/types';
 
 const storage = createMarketsGridLocalStorageStorage();
 
@@ -22,21 +25,23 @@ export function DataServicesGridPanel() {
   const { columnDefs, rowIdField, defaultColDef } = columnDefsByType[dataType];
 
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
-  const [streamStatus, setStreamStatus] = useState<string>('mounting');
-  const [streamError, setStreamError] = useState<string | undefined>();
+  const [deltaCount, setDeltaCount] = useState(0);
   const rowsRef = useRef<Record<string, unknown>[]>([]);
-  const deltaCountRef = useRef(0);
 
-  // The hub dedupes its row cache by `cfg.keyColumn`; supply the same
-  // value the grid uses as `rowIdField` so the two sides agree.
   const cfgForHub = useMemo<MockProviderConfig>(
     () => ({ ...cfg, keyColumn: rowIdField }),
     [cfg, rowIdField],
   );
 
+  const inlineCfg = useMemo(() => cfgForHub, [cfgForHub]);
+
+  const { provider, status: streamStatus, error: streamError } = useDataProvider<
+    Record<string, unknown>
+  >(providerId, { inlineCfg });
+
   useEffect(() => {
     rowsRef.current = [];
-    deltaCountRef.current = 0;
+    setDeltaCount(0);
     setRows([]);
     // eslint-disable-next-line no-console
     console.log('[ds-panel] dataType swap →', dataType, 'providerId =', providerId, 'rowIdField =', rowIdField);
@@ -47,8 +52,6 @@ export function DataServicesGridPanel() {
     console.log('[ds-panel] cfgForHub changed →', cfgForHub);
   }, [cfgForHub]);
 
-  // Probe 1: does `services.ready` resolve? If yes, the SharedWorker is
-  // alive and the AppData mirror round-tripped at least once.
   useEffect(() => {
     // eslint-disable-next-line no-console
     console.log('[ds-panel] awaiting services.ready ...');
@@ -58,8 +61,6 @@ export function DataServicesGridPanel() {
     );
   }, []);
 
-  // Probe 2: stats subscription. Hub sends one immediately on attach
-  // and one per second after that — independent of provider deltas.
   useProviderStats(providerId, {
     onStats: (stats) => {
       // eslint-disable-next-line no-console
@@ -67,34 +68,38 @@ export function DataServicesGridPanel() {
     },
   });
 
-  const handle = useProviderStream<Record<string, unknown>>(providerId, cfgForHub, {
-    onDelta: (incoming, replace) => {
-      deltaCountRef.current += 1;
+  useEffect(() => {
+    if (!provider) return;
+
+    const unsubSnapshot = provider.onSnapshotData((incoming) => {
+      rowsRef.current = [...incoming];
+      setRows(rowsRef.current);
+      recordTick('dataservices', Date.now(), rowsRef.current.length);
+    });
+
+    const unsubTick = provider.onTick((incoming) => {
+      if (incoming.length === 0) return;
+      setDeltaCount((n) => n + 1);
       // eslint-disable-next-line no-console
       console.log(
-        `[ds-panel] onDelta #${deltaCountRef.current}: replace=${replace} incoming.length=${incoming.length}`,
+        `[ds-panel] onTick: incoming.length=${incoming.length}`,
         incoming.length > 0
           ? { firstRowKey: incoming[0]?.[rowIdField], firstRow: incoming[0] }
           : undefined,
       );
-      if (replace) {
-        rowsRef.current = [...incoming];
-      } else {
-        rowsRef.current = applyDelta(rowsRef.current, incoming, rowIdField);
-      }
-      setRows(rowsRef.current);
+      rowsRef.current = applyDelta(rowsRef.current, incoming, rowIdField);
+      setRows([...rowsRef.current]);
       recordTick('dataservices', Date.now(), rowsRef.current.length);
-    },
-    onStatus: (s, err) => {
-      // eslint-disable-next-line no-console
-      console.log('[ds-panel] onStatus:', s, err ?? '');
-      setStreamStatus(s);
-      setStreamError(err);
-    },
-  });
+    });
+
+    return () => {
+      unsubSnapshot();
+      unsubTick();
+    };
+  }, [provider, rowIdField, recordTick]);
 
   // eslint-disable-next-line no-console
-  console.log('[ds-panel] render: status=', streamStatus, 'rows=', rows.length, 'handle.status=', handle.status);
+  console.log('[ds-panel] render: status=', streamStatus, 'rows=', rows.length);
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-[color:var(--ds-surface-ground)]">
@@ -105,7 +110,7 @@ export function DataServicesGridPanel() {
         <span className="h-3 w-px bg-[color:var(--ds-border-primary)]" />
         <span><span className="text-[color:var(--ds-text-faint)]">status </span><span className="text-[color:var(--ds-text-primary)]">{streamStatus}</span></span>
         <span className="h-3 w-px bg-[color:var(--ds-border-primary)]" />
-        <span><span className="text-[color:var(--ds-text-faint)]">deltas </span><span className="text-[color:var(--ds-text-primary)]">{deltaCountRef.current}</span></span>
+        <span><span className="text-[color:var(--ds-text-faint)]">deltas </span><span className="text-[color:var(--ds-text-primary)]">{deltaCount}</span></span>
         <span className="h-3 w-px bg-[color:var(--ds-border-primary)]" />
         <span><span className="text-[color:var(--ds-text-faint)]">rows </span><span className="text-[color:var(--ds-text-primary)]">{rows.length}</span></span>
         {streamError ? (

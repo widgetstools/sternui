@@ -1027,9 +1027,11 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Stream subscription
 
-- Two-phase: snapshot promise + `onUpdate`/`onReset`/`onStatus`/`onRowsReceived`
+- Two-phase: snapshot promise + `onUpdate`/`onReset`/`onStatus`/`onRowsReceived`/`onSnapshotCommit`
 - `SnapshotReassembler` — client-side chunk assembly (head `replace: true` + tail `replace: false` → full snapshot on loading→ready; `onRowsReceived` progress; post-settle `onReset` / live `onTick`)
 - Late-joiner: immediate cache replay + current status on attach
+- Restart attach (`attach.extra`): posts `loading` only — skips stale cache replay so reload/restart waits for the fresh upstream snapshot
+- `onSnapshotCommit` — fires on every loading→ready assembly (initial + hub restarts on an existing subId)
 - `LATE_JOIN_CHUNK_SIZE = 500` chunking for popouts
 - Buffering between snapshot-resolve and update registration
 - Lazy provider create on first attach, reuse on subsequent attaches
@@ -1401,9 +1403,13 @@ Per-renderer config types (`PillRendererConfig`,
 ### Apps — platform bootstrap pilot
 
 - `apps/demo-stomp-markets-grid` — minimal STOMP + MarketsGrid demo (web + OpenFin); programmatic provider seed + `defaultLiveProviderId`; `npm run dev:demo-stomp-markets-grid`; OpenFin: `npm run dev:openfin:demo-stomp-markets-grid`
+- `apps/stomp-marketsgrid-minimal` — lean STOMP → MarketsGrid code sample (`ensurePlatformReady` + `HostedMarketsGrid`); `npm run dev:stomp-marketsgrid-minimal` (needs `npm run dev:stomp`)
 - `apps/markets-grid-lab` — `app-config.json` + `platformBootstrap.ts` + `DataHubProvider` (PR1b/PR3 web pilot)
+- `apps/legacy/markets-ui-react-reference` — migrated to `ensurePlatformReady` + `DataHubProvider`; removed `dataServices.mainThread.ts`
+- `apps/e2e/browser-blotter` — `standalone` (in-app rows) + `provider`/`config`/`full` hub modes via `DataHubProvider`
+- `apps/e2e/openfin-workspace` — blotter view uses `HostedMarketsGrid` + hub mock provider
 - `apps/tutorials-workspace/{stomp,mockdata-provider,dataprovider-editor}` — migrated to `ensurePlatformReady` + `DataHubProvider`; legacy `dataServices.ts` removed
-- `apps/tutorials-tarball/{stomp,mockdata-provider,dataprovider-editor}` — mirror of workspace bootstrap pattern
+- `apps/tutorials-tarball/{stomp,mockdata-provider,dataprovider-editor}` — mirror of workspace bootstrap pattern; mockdata `DataServicesGridPanel` uses `useDataProvider`
 - MCP scaffold templates (`stomp`, `mockdata-provider`, `dataprovider-editor`, `openfin-platform`) — emit `platformBootstrap.ts` + `public/app-config.json` (web) or manifest `customSettings.appId` (OpenFin)
 
 ## Cross-cutting architecture notes

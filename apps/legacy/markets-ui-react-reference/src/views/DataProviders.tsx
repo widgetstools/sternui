@@ -7,8 +7,7 @@
  * existing row; we read it via `URLSearchParams` and forward as
  * `initialProviderId` so the form snaps to that row on mount.
  *
- * Storage flows through `<DataServicesProvider services={dataServices}>`
- * → the bootstrap's ConfigManager (Dexie / IndexedDB).
+ * Storage flows through `<DataHubProvider>` → the hub ConfigManager (Dexie / IndexedDB).
  *
  * Layout: a thin top bar with a back link, then the editor fills
  * the rest of the window.

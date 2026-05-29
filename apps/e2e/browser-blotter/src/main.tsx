@@ -1,23 +1,15 @@
 /**
  * Browser-blotter entry — single-page e2e target.
  *
- * URL routing: `?mode=<standalone|provider|config|full>`. Default = full
- * (kitchen-sink). Each mode wires a different subset of the framework
- * stack so Playwright specs can target the right surface.
- *
- *   ?mode=standalone — pure MarketsGrid + in-app generator. No SharedWorker.
- *                       For tests that exercise grid-only behaviour.
- *   ?mode=provider   — adds @starui/host-data mock provider via SharedWorker.
- *                       For tests that exercise the data-services hub.
- *   ?mode=config     — adds ConfigService-backed profile persistence.
- *                       For tests that exercise profile lifecycle round-trips.
- *   ?mode=full       — everything (current target for most specs).
+ * URL routing: `?mode=<standalone|provider|config|full>`. Default = full.
  */
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { applyTheme, getTheme } from '@starui/design-system';
 import '@starui/design-system/css';
+import { DataHubProvider } from '@starui/host-data-react/runtime';
 import { App, type AppMode } from './App';
+import { initPlatformBootstrap } from './platformBootstrap';
 import './globals.css';
 
 applyTheme(getTheme());
@@ -30,10 +22,36 @@ function resolveMode(): AppMode {
   return 'full';
 }
 
+const mode = resolveMode();
 const root = createRoot(document.getElementById('root')!);
 
-root.render(
-  <React.StrictMode>
-    <App mode={resolveMode()} />
-  </React.StrictMode>,
-);
+function renderApp() {
+  root.render(
+    <React.StrictMode>
+      <App mode={mode} />
+    </React.StrictMode>,
+  );
+}
+
+if (mode === 'standalone') {
+  renderApp();
+} else {
+  void initPlatformBootstrap()
+    .then(({ config, platform }) => {
+      root.render(
+        <React.StrictMode>
+          <DataHubProvider platform={platform} userId={config.userId}>
+            <App mode={mode} />
+          </DataHubProvider>
+        </React.StrictMode>,
+      );
+    })
+    .catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      root.render(
+        <div data-testid="browser-blotter-bootstrap-error" style={{ padding: 24 }}>
+          Data services bootstrap failed: {message}
+        </div>,
+      );
+    });
+}

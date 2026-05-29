@@ -67,15 +67,13 @@ test.describe('browser-blotter — boot + ticker smoke', () => {
     expect(changed).toBe(true);
   });
 
-  test('pending modes render banner with data-status="pending"', async ({ page }) => {
+  test('hub modes render banner with data-status="wired"', async ({ page }) => {
     for (const mode of ['provider', 'config', 'full'] as const) {
       await page.goto(`${APP_URL}/?mode=${mode}`);
       const banner = page.getByTestId('browser-blotter-mode-banner');
       await expect(banner).toHaveAttribute('data-mode', mode);
-      // mode=full currently routes through the standalone surface
-      // but its status will read "pending" until the full stack lands.
-      const status = await banner.getAttribute('data-status');
-      expect(status).toBe('pending');
+      await expect(banner).toHaveAttribute('data-status', 'wired');
+      await expect(page.locator('.ag-body-viewport .ag-row').first()).toBeVisible({ timeout: 15_000 });
     }
   });
 });
