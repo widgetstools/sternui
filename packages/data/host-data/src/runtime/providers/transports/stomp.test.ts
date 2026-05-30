@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { startStomp, probeStomp, resolveStompClientCtor } from './stomp';
+import { startStomp, probeStomp, resolveStompClientCtor, resolveStompDestinations, resolveEffectiveStompCfg, stompWireDestinationsUnresolved } from './stomp';
 import type { ProviderEmitEvent } from '../Provider';
 import type { StompProviderConfig } from '@starui/types';
 
@@ -42,6 +42,8 @@ interface FakeController {
   forceDeactivated: boolean;
   /** Whether the subscription is currently active. */
   subscribed: boolean;
+  /** Last topic passed to subscribe(). */
+  subscribedTopic: string;
   /** reconnectDelay after teardown (should be 0). */
   reconnectDelay: number;
 }
@@ -62,16 +64,18 @@ function makeFakeClient(): FakeController {
     deactivated: false,
     forceDeactivated: false,
     subscribed: false,
+    subscribedTopic: '',
     reconnectDelay: 5000,
   };
   ctrl.client = {
     connected: false,
     reconnectDelay: ctrl.reconnectDelay,
     publish: (p) => { ctrl.publishLog.push({ destination: p.destination, body: p.body ?? '' }); },
-    subscribe: (_d, cb) => {
+    subscribe: (d, cb) => {
+      ctrl.subscribedTopic = d;
       onMessage = cb;
       ctrl.subscribed = true;
-      return { unsubscribe() { onMessage = null; ctrl.subscribed = false; } };
+      return { unsubscribe() { onMessage = null; ctrl.subscribed = false; ctrl.subscribedTopic = ''; } };
     },
     activate: () => { /* no-op until tests fire onConnect */ },
     deactivate: (options) => {
@@ -112,6 +116,58 @@ describe('resolveStompClientCtor', () => {
 
   it('throws with module keys when Client is missing', () => {
     expect(() => resolveStompClientCtor({})).toThrow(/Module keys:/);
+  });
+});
+
+describe('resolveStompDestinations', () => {
+  it('substitutes asOfDate tokens in listener and request destinations', () => {
+    const out = resolveStompDestinations(
+      {
+        listenerTopic: '/snapshot/positions/X/{{positions.asOfDate}}',
+        requestMessage: '/snapshot/positions/X/{{positions.asOfDate}}/1000',
+      },
+      { asOfDate: '2026-04-01' },
+    );
+    expect(out.listenerTopic).toBe('/snapshot/positions/X/2026-04-01');
+    expect(out.requestMessage).toBe('/snapshot/positions/X/2026-04-01/1000');
+  });
+
+  it('returns cfg unchanged when overlay has no asOfDate', () => {
+    const cfg = {
+      listenerTopic: '/topic/live',
+      requestMessage: '/app/live',
+    };
+    expect(resolveStompDestinations(cfg, undefined)).toEqual(cfg);
+  });
+});
+
+describe('resolveEffectiveStompCfg', () => {
+  it('restart overlay asOfDate overrides stale AppData for historical date keys', () => {
+    const out = resolveEffectiveStompCfg(
+      cfg({
+        listenerTopic: '/snapshot/positions/{{SessionContext.userId}}/{{SessionContext.position-asofdate}}',
+        requestMessage: '/snapshot/positions/{{positions.asOfDate}}/100',
+      }),
+      (name, key) => {
+        if (name === 'SessionContext' && key === 'userId') return 'TRADER001';
+        if (name === 'SessionContext' && key === 'position-asofdate') return '2026-01-01';
+        if (name === 'positions' && key === 'asOfDate') return '2026-01-01';
+        return undefined;
+      },
+      { asOfDate: '2026-05-22' },
+    );
+    expect(out.destinations.listenerTopic).toBe('/snapshot/positions/TRADER001/2026-05-22');
+    expect(out.destinations.requestMessage).toBe('/snapshot/positions/2026-05-22/100');
+    expect(stompWireDestinationsUnresolved(out.destinations)).toBeNull();
+  });
+
+  it('reports unresolved wire destinations when lookup and overlay are insufficient', () => {
+    const out = resolveEffectiveStompCfg(
+      cfg({ listenerTopic: '/snapshot/{{Missing.userId}}' }),
+      () => undefined,
+      undefined,
+    );
+    expect(stompWireDestinationsUnresolved(out.destinations)).toMatch(/listenerTopic/);
   });
 });
 
@@ -233,6 +289,82 @@ describe('startStomp', () => {
 
     const lastPublish = controllers[1].publishLog.at(-1)!;
     expect(JSON.parse(lastPublish.body)).toEqual({ clientId: 'X', asOfDate: '2026-04-01' });
+  });
+
+  it('resolves {{name.key}} AppData tokens on connect when appDataLookup is provided', async () => {
+    const controllers: FakeController[] = [];
+    startStomp(
+      cfg({
+        listenerTopic: '/snapshot/positions/{{SessionContext.userId}}-[id]/{{SessionContext.position-asofdate}}',
+        requestMessage: '/snapshot/positions/{{SessionContext.userId}}-[id]/{{SessionContext.position-asofdate}}/100',
+      }),
+      () => {},
+      {
+        createClient: () => {
+          const c = makeFakeClient();
+          controllers.push(c);
+          return c.client;
+        },
+        appDataLookup: (name, key) => {
+          if (name === 'SessionContext' && key === 'userId') return 'TRADER001';
+          if (name === 'SessionContext' && key === 'position-asofdate') return '2026-05-22';
+          return undefined;
+        },
+      },
+    );
+    await Promise.resolve();
+    controllers[0].fireConnect();
+
+    expect(controllers[0].subscribedTopic).toBe('/snapshot/positions/TRADER001-[id]/2026-05-22');
+    expect(controllers[0].publishLog.at(-1)?.destination).toBe(
+      '/snapshot/positions/TRADER001-[id]/2026-05-22/100',
+    );
+  });
+
+  it('emits error and does not subscribe when AppData tokens remain unresolved', async () => {
+    const events: ProviderEmitEvent[] = [];
+    const ctrl = makeFakeClient();
+    startStomp(
+      cfg({ listenerTopic: '/snapshot/{{MissingProvider.userId}}' }),
+      (e) => events.push(e),
+      { createClient: () => ctrl.client, appDataLookup: () => undefined },
+    );
+    await Promise.resolve();
+    ctrl.fireConnect();
+    expect(ctrl.subscribed).toBe(false);
+    expect(events.find((e) => 'status' in e && e.status === 'error')).toMatchObject({
+      status: 'error',
+      error: expect.stringContaining('Unresolved AppData template'),
+    });
+  });
+
+  it('restart() substitutes asOfDate into STOMP destination paths', async () => {
+    const controllers: FakeController[] = [];
+    const handle = startStomp(
+      cfg({
+        listenerTopic: '/snapshot/positions/X/{{positions.asOfDate}}',
+        requestMessage: '/snapshot/positions/X/{{positions.asOfDate}}/1000',
+      }),
+      () => {},
+      {
+        createClient: () => {
+          const c = makeFakeClient();
+          controllers.push(c);
+          return c.client;
+        },
+      },
+    );
+    await Promise.resolve();
+    controllers[0].fireConnect();
+    await handle.restart({ asOfDate: '2026-04-01' });
+    await Promise.resolve();
+    await Promise.resolve();
+    controllers[1].fireConnect();
+
+    expect(controllers[1].subscribedTopic).toBe('/snapshot/positions/X/2026-04-01');
+    expect(controllers[1].publishLog.at(-1)?.destination).toBe(
+      '/snapshot/positions/X/2026-04-01/1000',
+    );
   });
 
   it('stop() unsubscribes, disables reconnect, and deactivates the client', async () => {

@@ -58,6 +58,7 @@ const PANEL_TESTID_BY_MODULE_ID: Record<string, string> = {
   'plus-minus': 'plus-minus-panel',
   shortcuts: 'shortcuts-panel',
   'data-change-history': 'edit-history-panel',
+  'toolbar-date-settings': 'toolbar-date-settings-panel',
 };
 
 /** Default module when the customizer opens (Grid Options). */

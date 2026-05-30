@@ -71,4 +71,68 @@ describe('DataProviderConfigStore — hub catalog invalidation', () => {
 
     await expect(store.save(mockProvider('p1', 'First'), 'dev1')).resolves.toBeDefined();
   });
+
+  it('list(includeAppData) returns unified and legacy AppData rows', async () => {
+    const stompRow: AppConfigRow = {
+      configId: 'stomp-1',
+      appId: 'TestApp',
+      userId: 'system',
+      componentType: 'data-provider',
+      componentSubType: 'stomp',
+      isTemplate: false,
+      displayText: 'positions-live',
+      payload: { providerType: 'stomp', __providerMeta: { public: true } },
+      createdBy: 'dev1',
+      updatedBy: 'dev1',
+      creationTime: '2026-01-01T00:00:00.000Z',
+      updatedTime: '2026-01-01T00:00:00.000Z',
+    };
+    const rows: AppConfigRow[] = [
+      stompRow,
+      {
+        configId: 'ad-legacy',
+        appId: 'TestApp',
+        userId: 'dev1',
+        componentType: 'appdata',
+        componentSubType: 'appdata',
+        isTemplate: false,
+        displayText: 'LegacyAppData',
+        payload: { values: { asOfDate: '2026-05-01' } },
+        createdBy: 'dev1',
+        updatedBy: 'dev1',
+        creationTime: '2026-01-01T00:00:00.000Z',
+        updatedTime: '2026-01-01T00:00:00.000Z',
+      },
+      {
+        configId: 'ad-unified',
+        appId: 'TestApp',
+        userId: 'dev1',
+        componentType: 'data-provider',
+        componentSubType: 'appdata',
+        isTemplate: false,
+        displayText: 'UnifiedAppData',
+        payload: {
+          providerType: 'appdata',
+          variables: {
+            asOfDate: { key: 'asOfDate', value: '2026-05-02', type: 'string', durability: 'volatile' },
+          },
+          __providerMeta: { public: false },
+        },
+        createdBy: 'dev1',
+        updatedBy: 'dev1',
+        creationTime: '2026-01-01T00:00:00.000Z',
+        updatedTime: '2026-01-01T00:00:00.000Z',
+      },
+    ];
+
+    const store = new DataProviderConfigStore(mockConfigManager(rows));
+    const listed = await store.list('dev1', { includeAppData: true });
+
+    expect(listed.map((c) => c.name).sort()).toEqual([
+      'LegacyAppData',
+      'UnifiedAppData',
+      'positions-live',
+    ]);
+    expect(listed.find((c) => c.name === 'UnifiedAppData')?.providerType).toBe('appdata');
+  });
 });

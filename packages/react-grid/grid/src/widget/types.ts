@@ -282,6 +282,41 @@ export interface MarketsGridProps<TData = unknown> {
 
   /** Message shown in the stale-data banner. A default is used when omitted. */
   dataStaleMessage?: string;
+
+  /**
+   * When true, the grid is showing a historical as-of snapshot (not live
+   * data). Shows an informational banner and disables cell editing until
+   * cleared. Independent of {@link dataStale} (disconnected provider).
+   */
+  historicalViewMode?: boolean;
+
+  /** Message shown in the historical-view banner. A default is used when omitted. */
+  historicalViewMessage?: string;
+
+  /**
+   * ISO `YYYY-MM-DD` for the primary-toolbar date picker (right edge).
+   * When omitted, the grid initializes to today's date and manages
+   * selection locally until `onToolbarDateChange` is supplied.
+   */
+  toolbarDate?: string;
+
+  /** Fired when the user selects a new date in the toolbar date picker. */
+  onToolbarDateChange?: (date: string) => void;
+
+  /** Show the shadcn date picker on the primary toolbar. Defaults to `true`. */
+  showToolbarDatePicker?: boolean;
+
+  /**
+   * When `false`, the toolbar date picker only allows selecting today
+   * (no historical data provider). Omit or set `true` to allow any date.
+   */
+  toolbarDateHistoryEnabled?: boolean;
+
+  /**
+   * Secondary toolbar actions (export, settings, admin, grid info).
+   * `overflow` (default) — single ⋯ menu; `inline` — one icon per action.
+   */
+  toolbarActionsLayout?: 'inline' | 'overflow';
 }
 
 /**

@@ -72,8 +72,16 @@ export class AppDataConfigStore {
   async get(configId: string): Promise<AppDataConfig | null> {
     const row = await this.cm.getConfig(configId);
     if (!row) return null;
-    if (row.componentType !== COMPONENT_TYPE_APPDATA) return null;
-    return rowToAppData(row);
+    if (row.componentType === COMPONENT_TYPE_APPDATA) {
+      return rowToAppData(row);
+    }
+    if (
+      row.componentType === COMPONENT_TYPE_DATA_PROVIDER
+      && row.componentSubType === 'appdata'
+    ) {
+      return rowToAppDataFromProvider(row);
+    }
+    return null;
   }
 
   async save(appData: AppDataConfig, callerUserId: string): Promise<AppDataConfig> {

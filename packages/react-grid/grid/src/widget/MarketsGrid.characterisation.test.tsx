@@ -236,8 +236,7 @@ describe('MarketsGrid — characterisation', () => {
       const { getByTestId, container } = render(<MarketsGrid {...baseProps} />);
       expect(getByTestId('ag-grid-stub')).toBeTruthy();
       expect(getByTestId('save-all-btn')).toBeTruthy();
-      expect(getByTestId('v2-settings-open-btn')).toBeTruthy();
-      expect(getByTestId('grid-info-btn')).toBeTruthy();
+      expect(getByTestId('toolbar-more-menu-trigger')).toBeTruthy();
       // Root carries the consumer-supplied gridId attribute.
       expect(
         container.querySelector('[data-grid-id="characterisation-test"]'),

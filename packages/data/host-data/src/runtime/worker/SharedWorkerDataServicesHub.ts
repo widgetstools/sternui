@@ -69,6 +69,11 @@ import { WorkerAppDataStore } from './WorkerAppDataStore.js';
 import type { ConfigManager } from '@starui/host-config';
 import { AppDataConfigStore, type AppDataConfig } from '../providers/appdata/store.js';
 import { ConfigCatalogCache } from '../../hub/ConfigCatalogCache.js';
+import type { StompProviderConfig } from '@starui/types';
+import {
+  traceStompProviderCfg,
+  traceWorkerAppDataSnapshot,
+} from '../template/templateTrace.js';
 
 /**
  * Gate for hot-path diagnostic logs. Flip to `true` locally when debugging
@@ -279,7 +284,7 @@ export class SharedWorkerDataServicesHub {
   handleAppDataRequest(port: PortLike, req: AppDataRequest): void {
     this.trackPort(port);
     switch (req.kind) {
-      case 'appdata-attach':  this.handleAppDataAttach(port, req); return;
+      case 'appdata-attach':  void this.handleAppDataAttach(port, req); return;
       case 'appdata-detach':  this.handleAppDataDetach(req); return;
       case 'appdata-set':     void this.handleAppDataSet(port, req); return;
       case 'appdata-upsert':  void this.handleAppDataUpsert(port, req); return;
@@ -404,6 +409,33 @@ export class SharedWorkerDataServicesHub {
     this.appData.hydrate(rows);
   }
 
+  /**
+   * Re-read every AppData row from IndexedDB and reconcile the in-memory
+   * worker store. Called after editor saves (catalog invalidate) and on
+   * mirror re-attach when the SharedWorker survives a page reload.
+   */
+  async resyncAppDataFromStore(userId = 'worker'): Promise<void> {
+    if (!this.appDataStore) return;
+    let configs: AppDataConfig[];
+    try {
+      configs = await this.appDataStore.list(userId);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[hub] AppData resync failed', err);
+      return;
+    }
+    const rows = configs.map(toAppDataRow);
+    const nextIds = new Set(rows.map((row) => row.configId));
+    for (const existing of this.appData.snapshot()) {
+      if (!nextIds.has(existing.configId)) {
+        this.appData.remove(existing.configId);
+      }
+    }
+    for (const row of rows) {
+      this.appData.upsert(row);
+    }
+  }
+
   /** Drop every subscription owned by this port. Called on disconnect. */
   onPortClosed(port: PortLike): void {
     this.connectedPorts.delete(port);
@@ -518,6 +550,7 @@ export class SharedWorkerDataServicesHub {
     }
     try {
       await this.configCatalog.invalidate(req.providerId);
+      await this.resyncAppDataFromStore();
       this.replyConfigSnapshot(port, {
         kind: 'config-snapshot',
         reqId: req.reqId,
@@ -551,12 +584,23 @@ export class SharedWorkerDataServicesHub {
         });
         return;
       }
+      this.traceStompAttachCfg('hub.attach CREATE (catalog cfg → worker)', req.providerId, cfg, req.extra);
       // eslint-disable-next-line no-console
       if (DEBUG) console.log(`[v2/hub] attach CREATE subId=${req.subId} provider=${req.providerId}`);
       slot = this.createProvider(req.providerId, cfg);
       this.providers.set(req.providerId, slot);
       this.ensureStatsSampler();
+      // First attach can carry `extra` (historical asOfDate). Without this,
+      // `ProviderClientAdapter.restart()` on a fresh provider would create
+      // the slot but drop the overlay — STOMP would publish unresolved
+      // `{{positions.asOfDate}}` template paths.
+      if (req.extra) {
+        // eslint-disable-next-line no-console
+        if (DEBUG) console.log(`[v2/hub] attach CREATE+RESTART subId=${req.subId} provider=${req.providerId} extra=${JSON.stringify(req.extra)}`);
+        void slot.handle.restart(req.extra);
+      }
     } else if (req.extra) {
+      this.traceStompAttachCfg('hub.attach RESTART (running provider)', req.providerId, slot.cfg, req.extra);
       // Existing provider + restart payload: kick it.
       // eslint-disable-next-line no-console
       if (DEBUG) console.log(`[v2/hub] attach RESTART subId=${req.subId} provider=${req.providerId} extra=${JSON.stringify(req.extra)}`);
@@ -628,10 +672,13 @@ export class SharedWorkerDataServicesHub {
 
   // ─── AppData handlers (Step 2) ─────────────────────────────────
 
-  private handleAppDataAttach(port: PortLike, req: AppDataAttachRequest): void {
-    // First attacher seeds the store; subsequent attachers' seeds
-    // are ignored (idempotent — see WorkerAppDataStore.hydrate).
-    if (req.seed && !this.appData.isHydrated()) {
+  private async handleAppDataAttach(port: PortLike, req: AppDataAttachRequest): Promise<void> {
+    // SharedWorkers survive page reloads. Re-read IndexedDB before
+    // serving the snapshot so editor-saved AppData providers appear
+    // without requiring a worker restart.
+    if (this.appDataStore && this.appData.isHydrated()) {
+      await this.resyncAppDataFromStore();
+    } else if (req.seed && !this.appData.isHydrated()) {
       this.appData.hydrate(req.seed);
     }
     this.appDataListeners.set(req.subId, { subId: req.subId, port });
@@ -702,6 +749,24 @@ export class SharedWorkerDataServicesHub {
 
   // ─── Provider lifecycle ────────────────────────────────────────
 
+  private traceStompAttachCfg(
+    phase: string,
+    providerId: string,
+    cfg: ProviderConfig | undefined,
+    extra?: Record<string, unknown>,
+  ): void {
+    if (!cfg || cfg.providerType !== 'stomp') return;
+    traceWorkerAppDataSnapshot(
+      `${phase} · worker AppData`,
+      this.appData.snapshot().map((r) => ({ name: r.name, values: r.values })),
+    );
+    traceStompProviderCfg(phase, cfg as StompProviderConfig, {
+      providerId,
+      extra,
+      lookup: (name, key) => this.appData.get(name, key),
+    });
+  }
+
   private createProvider(providerId: string, cfg: ProviderConfig): ProviderSlot {
     const cache = new Map<string, unknown>();
     const now = Date.now();
@@ -731,7 +796,9 @@ export class SharedWorkerDataServicesHub {
       this.applyEmit(providerId, slot, event);
     };
 
-    slot.handle = startProvider(cfg, emit);
+    slot.handle = startProvider(cfg, emit, {
+      appDataLookup: (name, key) => this.appData.get(name, key),
+    });
     return slot;
   }
 

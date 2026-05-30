@@ -19,19 +19,22 @@ import type { ReactElement } from 'react';
 import {
   Save,
   Check,
-  Settings as SettingsIcon,
   SlidersHorizontal,
   PencilLine,
-  FileSpreadsheet,
 } from 'lucide-react';
 import type { UseProfileManagerResult } from '@starui/grid/customizer';
 import type { AdminAction } from './types';
 import { FiltersToolbar } from './FiltersToolbar';
 import { ProfileSelector } from './ProfileSelector';
 import { EditableCaption } from './EditableCaption';
-import { AdminActionButtons } from './AdminActionButtons';
-import { GridInfoButton } from './GridInfoButton';
 import { AlertsBadge } from '../customizer/modules/alerts';
+import { ToolbarDatePicker } from './ToolbarDatePicker';
+import {
+  PrimaryToolbarInlineActions,
+  PrimaryToolbarOverflowMenu,
+} from './PrimaryToolbarOverflowMenu';
+
+export type { ToolbarActionsLayout } from './PrimaryToolbarOverflowMenu';
 
 export interface PrimaryToolbarProps {
   // Caption
@@ -81,6 +84,13 @@ export interface PrimaryToolbarProps {
   readonly instanceId: string | undefined;
   readonly appId: string | undefined;
   readonly userId: string | undefined;
+
+  // Toolbar date picker (right edge)
+  readonly showToolbarDatePicker: boolean;
+  readonly toolbarDate: string;
+  readonly onToolbarDateChange: (next: string) => void;
+  readonly toolbarDateHistoryEnabled: boolean | undefined;
+  readonly toolbarActionsLayout: 'inline' | 'overflow';
 }
 
 export function PrimaryToolbar(props: PrimaryToolbarProps): ReactElement {
@@ -113,7 +123,26 @@ export function PrimaryToolbar(props: PrimaryToolbarProps): ReactElement {
     instanceId,
     appId,
     userId,
+    showToolbarDatePicker,
+    toolbarDate,
+    onToolbarDateChange,
+    toolbarDateHistoryEnabled,
+    toolbarActionsLayout,
   } = props;
+
+  const secondaryActionsProps = {
+    showVisualExcelExport,
+    visualExcelExportEnabled,
+    onExportVisualExcel,
+    showSettingsButton,
+    onOpenSettings,
+    adminActions,
+    componentName,
+    gridId,
+    instanceId,
+    appId,
+    userId,
+  };
 
   return (
     <div className="ds-toolbar-primary ds-primary-row">
@@ -275,55 +304,22 @@ export function PrimaryToolbar(props: PrimaryToolbarProps): ReactElement {
           </>
         )}
 
-        {showVisualExcelExport && visualExcelExportEnabled && (
-          <>
-            <span className="ds-primary-divider" aria-hidden />
-            <button
-              type="button"
-              className="ds-primary-action"
-              onClick={onExportVisualExcel}
-              title="Export to Excel (preserves formatting)"
-              data-testid="visual-excel-export-btn"
-              aria-label="Export to Excel"
-            >
-              <FileSpreadsheet size={14} strokeWidth={2} />
-            </button>
-          </>
+        {toolbarActionsLayout === 'inline' ? (
+          <PrimaryToolbarInlineActions {...secondaryActionsProps} />
+        ) : (
+          <PrimaryToolbarOverflowMenu {...secondaryActionsProps} />
         )}
 
-        {showSettingsButton && (
+        {showToolbarDatePicker && (
           <>
             <span className="ds-primary-divider" aria-hidden />
-            <button
-              type="button"
-              className="ds-primary-action"
-              onClick={onOpenSettings}
-              title="Open settings"
-              data-testid="v2-settings-open-btn"
-            >
-              <SettingsIcon size={14} strokeWidth={2} />
-            </button>
+            <ToolbarDatePicker
+              value={toolbarDate}
+              onChange={onToolbarDateChange}
+              historyEnabled={toolbarDateHistoryEnabled ?? true}
+            />
           </>
         )}
-
-        {/* Admin actions — rendered at the far right edge of the
-            primary row. Each visible action becomes a single icon
-            button with tooltip = label + description. The leading
-            divider only renders when there's something to show; end-
-            user grids (no adminActions) see zero extra chrome. */}
-        <AdminActionButtons actions={adminActions} />
-
-        {/* Grid-info popover — small ⓘ button that surfaces
-            identity (path, instanceId, appId, userId, gridId) for
-            support / debugging. Replaces the legacy hover-to-
-            reveal overlay that used to live in the host shell. */}
-        <GridInfoButton
-          componentName={componentName}
-          gridId={gridId}
-          instanceId={instanceId}
-          appId={appId}
-          userId={userId}
-        />
       </div>
     </div>
   );

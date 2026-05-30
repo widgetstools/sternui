@@ -4,6 +4,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type ForwardedRef,
   type ReactElement,
   type RefAttributes,
@@ -31,6 +32,7 @@ import {
   savedFiltersModule,
   shortcutsModule,
   smartEditModule,
+  toolbarDateSettingsModule,
   toolbarVisibilityModule,
   visualExcelModule,
 } from '@starui/grid/customizer';
@@ -41,6 +43,7 @@ import { resolveMarketsGridHost } from './resolveMarketsGridHost';
 import { resolveSurfaceHostOverrideKeys } from './gridSurfaceOptions';
 import { MarketsGridHost } from './MarketsGridHost';
 import { resolveEditingToolbarAllow } from './editingToolbar/resolveEditingToolbarAllow';
+import { todayIsoDate, type ToolbarIsoDate } from './toolbarDateUtils';
 
 let _agRegistered = false;
 function ensureAgGridRegistered() {
@@ -79,6 +82,7 @@ export const DEFAULT_MODULES: AnyModule[] = [
   alertsModule,
   savedFiltersModule,
   toolbarVisibilityModule,
+  toolbarDateSettingsModule,
   gridStateModule,
 ];
 
@@ -137,8 +141,27 @@ function MarketsGridInner<TData = unknown>(
     onSavingChange,
     dataStale = false,
     dataStaleMessage,
+    historicalViewMode = false,
+    historicalViewMessage,
+    toolbarDate: toolbarDateProp,
+    onToolbarDateChange,
+    showToolbarDatePicker = true,
+    toolbarDateHistoryEnabled,
+    toolbarActionsLayout = 'overflow',
     host,
   } = props;
+
+  const [internalToolbarDate, setInternalToolbarDate] = useState(todayIsoDate);
+  const toolbarDate = toolbarDateProp ?? internalToolbarDate;
+  const handleToolbarDateChange = useCallback(
+    (next: string) => {
+      if (toolbarDateProp === undefined) {
+        setInternalToolbarDate(next as ToolbarIsoDate);
+      }
+      onToolbarDateChange?.(next);
+    },
+    [toolbarDateProp, onToolbarDateChange],
+  );
 
   ensureAgGridRegistered();
 
@@ -187,14 +210,14 @@ function MarketsGridInner<TData = unknown>(
     hostOverrideKeys,
   });
 
-  const dataStaleRef = useRef(dataStale);
-  dataStaleRef.current = dataStale;
+  const editLockedRef = useRef(dataStale || historicalViewMode);
+  editLockedRef.current = dataStale || historicalViewMode;
 
-  const applyStaleEditGuard = useCallback((api: GridReadyEvent['api']) => {
-    const stale = dataStaleRef.current;
-    api.setGridOption('readOnlyEdit', stale);
-    api.setGridOption('suppressClickEdit', stale);
-    if (stale) {
+  const applyEditLockGuard = useCallback((api: GridReadyEvent['api']) => {
+    const locked = editLockedRef.current;
+    api.setGridOption('readOnlyEdit', locked);
+    api.setGridOption('suppressClickEdit', locked);
+    if (locked) {
       api.stopEditing();
     }
   }, []);
@@ -203,8 +226,8 @@ function MarketsGridInner<TData = unknown>(
     const api = platform.api.api;
     if (!api) return;
     if ((api as unknown as { isDestroyed?: () => boolean }).isDestroyed?.()) return;
-    applyStaleEditGuard(api);
-  }, [platform, dataStale, applyStaleEditGuard]);
+    applyEditLockGuard(api);
+  }, [platform, dataStale, historicalViewMode, applyEditLockGuard]);
 
   // When the host passes `defaultColDef`, surface host-override wiring
   // replaces the pipeline object entirely — module-controlled fields
@@ -221,11 +244,11 @@ function MarketsGridInner<TData = unknown>(
   const handleGridReady = useCallback(
     (event: GridReadyEvent) => {
       onGridReady(event);
-      applyStaleEditGuard(event.api);
+      applyEditLockGuard(event.api);
       event.api.sizeColumnsToFit();
       onGridReadyProp?.(event);
     },
-    [onGridReady, onGridReadyProp, applyStaleEditGuard],
+    [onGridReady, onGridReadyProp, applyEditLockGuard],
   );
 
   const rootStyle = useMemo(
@@ -357,6 +380,13 @@ function MarketsGridInner<TData = unknown>(
         onSavingChange={onSavingChange}
         dataStale={dataStale}
         dataStaleMessage={dataStaleMessage}
+        historicalViewMode={historicalViewMode}
+        historicalViewMessage={historicalViewMessage}
+        showToolbarDatePicker={showToolbarDatePicker}
+        toolbarDate={toolbarDate}
+        onToolbarDateChange={handleToolbarDateChange}
+        toolbarDateHistoryEnabled={toolbarDateHistoryEnabled}
+        toolbarActionsLayout={toolbarActionsLayout}
       />
     </GridProvider>
   );

@@ -6,6 +6,7 @@
  * launcher.
  */
 
+export { cloneProviderConfig, copyNameFrom } from './cloneProviderConfig.js';
 export { DataProviderEditor } from './DataProviderEditor.js';
 export type { DataProviderEditorProps } from './DataProviderEditor.js';
 export { EditorForm } from './EditorForm.js';

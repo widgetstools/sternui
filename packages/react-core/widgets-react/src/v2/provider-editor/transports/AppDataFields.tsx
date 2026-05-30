@@ -112,6 +112,9 @@ export function AppDataFields({ cfg, onChange }: AppDataFieldsProps) {
     (e: CellValueChangedEvent<RowData>) => {
       const originalKey = e.data.key;
       const newKey = e.colDef.field === 'key' ? e.newValue : originalKey;
+      const patchField = e.colDef.field as string;
+      const patchValue =
+        patchField === 'value' ? normalizeStoredValue(e.newValue) : e.newValue;
 
       onChange({
         variables: Object.entries(variables).reduce(
@@ -119,7 +122,7 @@ export function AppDataFields({ cfg, onChange }: AppDataFieldsProps) {
             // Skip temp entries
             if (key.startsWith('__editing_')) return acc;
             if (v.key === originalKey) {
-              acc[newKey] = { ...v, [e.colDef.field as string]: e.newValue };
+              acc[newKey] = { ...v, [patchField]: patchValue };
             } else {
               acc[key] = v;
             }
@@ -163,6 +166,7 @@ export function AppDataFields({ cfg, onChange }: AppDataFieldsProps) {
         flex: 1,
         editable: true,
         cellClass: 'font-mono',
+        cellDataType: 'text',
       },
       {
         field: 'value',
@@ -170,6 +174,10 @@ export function AppDataFields({ cfg, onChange }: AppDataFieldsProps) {
         flex: 2,
         editable: true,
         cellClass: 'font-mono',
+        // AppData values are free-form strings — disable AG Grid inference
+        // that turns the whole column into a date editor when one row looks
+        // like YYYY-MM-DD (e.g. position_history_date).
+        cellDataType: 'text',
       },
       {
         headerName: '',
@@ -177,12 +185,19 @@ export function AppDataFields({ cfg, onChange }: AppDataFieldsProps) {
         maxWidth: 44,
         resizable: false,
         sortable: false,
+        editable: false,
         suppressHeaderMenuButton: true,
         suppressMovable: true,
-        cellRenderer: DeleteCellRenderer,
-        cellRendererParams: { onDeleteRef },
+        suppressNavigable: true,
+        cellClass: 'cursor-pointer',
+        cellRenderer: DeleteIconCell,
+        onCellClicked: (event) => {
+          const rowId = event.data?._rowId;
+          if (rowId) onDeleteRef.current(rowId);
+        },
       },
     ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
@@ -250,26 +265,21 @@ export function AppDataFields({ cfg, onChange }: AppDataFieldsProps) {
   );
 }
 
-// ─── Delete cell renderer ──────────────────────────────────────────
+/** Keep AppData values as plain scalars even if AG Grid passes a Date. */
+function normalizeStoredValue(raw: unknown): AppDataVariable['value'] {
+  if (raw instanceof Date) return raw.toISOString().slice(0, 10);
+  if (raw === null || raw === undefined) return '';
+  return raw as AppDataVariable['value'];
+}
 
-type DeleteRendererParams = {
-  onDeleteRef: React.MutableRefObject<(rowId: string) => void>;
-};
-
-function DeleteCellRenderer({ data, colDef }: ICellRendererParams<RowData>) {
-  const { onDeleteRef } = (
-    colDef as ColDef & { cellRendererParams: DeleteRendererParams }
-  ).cellRendererParams;
+function DeleteIconCell(_params: ICellRendererParams<RowData>) {
   return (
-    <Button
-      size="sm"
-      variant="ghost"
-      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+    <span
+      className="inline-flex h-6 w-6 items-center justify-center text-destructive"
       title="Remove variable"
-      onClick={() => onDeleteRef.current(data!._rowId)}
     >
       <Trash2 className="h-3 w-3" />
-    </Button>
+    </span>
   );
 }
 

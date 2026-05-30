@@ -47,6 +47,8 @@ export async function startServer(config: AppConfig): Promise<void> {
                 "snapshot-rows",
                 "row-count (alias)",
               ],
+              historicalTrigger:
+                "Subscribe /snapshot/positions/{clientId}/{asOfDate}; SEND /snapshot/positions/{clientId}/{asOfDate}[/{batchSize}] — snapshot only",
               description:
                 "Clamps requested snapshot size between MIN_SNAPSHOT_ROWS and MAX_SNAPSHOT_ROWS (default from DEFAULT_SNAPSHOT_ROWS).",
             },

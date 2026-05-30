@@ -16,9 +16,10 @@ import {
   DialogTitle, DialogTrigger, Input, Label, ScrollArea,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@starui/ui';
-import { Database, Globe, Plus, Radio, Search, Trash2, TestTube2 } from 'lucide-react';
+import { Database, Copy, Globe, Plus, Radio, Search, Trash2, TestTube2 } from 'lucide-react';
 import type { DataProviderConfig, ProviderConfig, ProviderType } from '@starui/shared-types';
 import { useDataServices, useDataProvidersList } from '@starui/host-data-react/runtime';
+import { cloneProviderConfig } from './cloneProviderConfig.js';
 import { EditorForm } from './EditorForm.js';
 
 // ─── Provider-type defaults — keep MINIMAL; everything else is
@@ -53,6 +54,7 @@ export function DataProviderEditor({ userId, initialProviderId = null, onClose }
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(initialProviderId);
   const [creating, setCreating] = useState<DataProviderConfig | null>(null);
+  const [draftSeq, setDraftSeq] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState<DataProviderConfig | null>(null);
 
   // Resolve which row to edit. `creating` (an in-memory draft) wins
@@ -92,6 +94,13 @@ export function DataProviderEditor({ userId, initialProviderId = null, onClose }
     };
     setCreating(fresh);
     setSelectedId(null);
+    setDraftSeq((n) => n + 1);
+  };
+
+  const startClone = (source: DataProviderConfig) => {
+    setCreating(cloneProviderConfig(source, userId));
+    setSelectedId(null);
+    setDraftSeq((n) => n + 1);
   };
 
   const onSaved = (saved: DataProviderConfig) => {
@@ -125,16 +134,23 @@ export function DataProviderEditor({ userId, initialProviderId = null, onClose }
         selectedId={selectedId ?? creating?.providerId ?? null}
         onSelect={(id) => { setCreating(null); setSelectedId(id); }}
         onNew={startCreate}
+        onClone={startClone}
         onDeleteRequest={setConfirmDelete}
       />
 
       <main className="flex-1 min-w-0 min-h-0 overflow-hidden">
         {selected ? (
           <EditorForm
+            key={creating ? `draft-${draftSeq}` : (selectedId ?? 'empty')}
             initial={selected}
             userId={userId}
             onCancel={onFormCancel}
             onSaved={onSaved}
+            onClone={
+              !creating && selected.providerId
+                ? () => startClone(selected)
+                : undefined
+            }
           />
         ) : (
           <EmptyRight onNew={startCreate} />
@@ -163,7 +179,7 @@ export function DataProviderEditor({ userId, initialProviderId = null, onClose }
 // ─── Sidebar — list of saved providers + "+ New" picker ──────────
 
 function Sidebar({
-  configs, loading, error, search, onSearchChange, selectedId, onSelect, onNew, onDeleteRequest,
+  configs, loading, error, search, onSearchChange, selectedId, onSelect, onNew, onClone, onDeleteRequest,
 }: {
   configs: readonly DataProviderConfig[];
   loading: boolean;
@@ -173,6 +189,7 @@ function Sidebar({
   selectedId: string | null;
   onSelect(id: string): void;
   onNew(type: ProviderType): void;
+  onClone(cfg: DataProviderConfig): void;
   onDeleteRequest(cfg: DataProviderConfig): void;
 }) {
   return (
@@ -206,6 +223,7 @@ function Sidebar({
               cfg={c}
               selected={selectedId === c.providerId}
               onSelect={() => c.providerId && onSelect(c.providerId)}
+              onClone={() => onClone(c)}
               onDelete={() => onDeleteRequest(c)}
             />
           ))}
@@ -216,8 +234,14 @@ function Sidebar({
 }
 
 function SidebarRow({
-  cfg, selected, onSelect, onDelete,
-}: { cfg: DataProviderConfig; selected: boolean; onSelect(): void; onDelete(): void }) {
+  cfg, selected, onSelect, onClone, onDelete,
+}: {
+  cfg: DataProviderConfig;
+  selected: boolean;
+  onSelect(): void;
+  onClone(): void;
+  onDelete(): void;
+}) {
   const meta = PROVIDER_TYPE_META[cfg.providerType] ?? PROVIDER_TYPE_META.mock;
   const Icon = meta.icon;
   return (
@@ -239,6 +263,15 @@ function SidebarRow({
           {cfg.public && <Badge variant="outline" className="h-3.5 px-1 text-[9px]">Public</Badge>}
         </div>
       </div>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100"
+        onClick={(e) => { e.stopPropagation(); onClone(); }}
+        title="Duplicate"
+      >
+        <Copy className="h-3 w-3" />
+      </Button>
       <Button
         size="icon"
         variant="ghost"

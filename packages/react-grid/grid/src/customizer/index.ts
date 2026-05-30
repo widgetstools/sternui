@@ -365,6 +365,17 @@ export {
   type ToolbarVisibilityState,
 } from './modules/toolbar-visibility';
 export {
+  toolbarDateSettingsModule,
+  TOOLBAR_DATE_SETTINGS_MODULE_ID,
+  INITIAL_TOOLBAR_DATE_SETTINGS,
+  ToolbarDateSettingsPanel,
+  applyHistoricalToolbarDateToAppData,
+  isHistoricalToolbarDate,
+  resolveToolbarDateHistoryEnabled,
+  useToolbarDateSettingsBridge,
+  type ToolbarDateSettingsState,
+} from './modules/toolbar-date-settings';
+export {
   gridStateModule,
   GRID_STATE_MODULE_ID,
   GRID_STATE_SCHEMA_VERSION,

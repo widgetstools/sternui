@@ -41,12 +41,15 @@ const ADMIN_ACTION_ICONS: Record<string, LucideIcon> = {
   'lucide:eye':          Eye,
   'lucide:wrench':       Wrench,
   'lucide:refresh-cw':   RefreshCw,
+  'lucide:rotate-cw':    RefreshCw,
 };
 
 function resolveAdminActionIcon(ref: string | undefined): LucideIcon {
   if (!ref) return Wrench;
   return ADMIN_ACTION_ICONS[ref] ?? Wrench;
 }
+
+export { resolveAdminActionIcon };
 
 export interface AdminActionButtonsProps {
   readonly actions: AdminAction[] | undefined;

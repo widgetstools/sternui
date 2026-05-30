@@ -584,3 +584,14 @@ export function buildSnapshot(
   }
   return out;
 }
+
+export function stampPositionsAsOfDate(
+  records: PositionRecord[],
+  asOfDateIso: string,
+): PositionRecord[] {
+  return records.map((record) => {
+    const stamped = structuredClone(record);
+    stamped.asOfDate = asOfDateIso;
+    return stamped;
+  });
+}

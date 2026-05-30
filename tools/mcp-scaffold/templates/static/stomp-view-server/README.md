@@ -30,7 +30,9 @@ Matches `stomp-server/protocolContract.js`:
 
 - `CONNECT` / `STOMP` → `CONNECTED` (`version:1.2`, `server:stomp-fixed-income/1.0.0`, `heart-beat:0,0`)
 - Subscribe: `/snapshot/positions`, `/snapshot/trades`, or `/snapshot/{type}/{clientId}`
-- Trigger: `/snapshot/{type}/{rate}[/{batchSize}]` or `/snapshot/{type}/{clientId}/{rate}[/{batchSize}]`
+- Subscribe (historical positions): `/snapshot/positions/{clientId}/{asOfDate}` — **separate from live** so concurrent live + historical providers do not cross-receive
+- Trigger (live stream): `/snapshot/{type}/{rate}[/{batchSize}]` or `/snapshot/{type}/{clientId}/{rate}[/{batchSize}]`
+- Trigger (historical positions, snapshot only): `/snapshot/positions/{clientId}/{asOfDate}[/{batchSize}]` — subscribe to the same path **without** `{batchSize}`; `asOfDate` is `YYYY-MM-DD` or `YYYYMMDD`; every row gets that `asOfDate`; **no live updates** after completion
 - Snapshot batches: `content-type:application/json`, `message-type:snapshot` (legacy path includes these)
 - Completion: body starts with `Success: All …`
 - Live: JSON array of one row, `message-type:live-update`
@@ -47,7 +49,13 @@ Existing clients that omit this header keep prior behavior with server defaults.
 Example (stompjs):
 
 ```javascript
+// Live snapshot + updates
 client.send('/snapshot/positions/TRADER001/1000/50', { 'snapshot-rows': '4000' }, '');
+
+// Historical positions for one as-of date (snapshot only)
+// Subscribe: /snapshot/positions/TRADER001/2024-05-28
+client.subscribe('/snapshot/positions/TRADER001/2024-05-28', ...);
+client.send('/snapshot/positions/TRADER001/2024-05-28/50', { 'snapshot-rows': '4000' }, '');
 ```
 
 ## Configuration

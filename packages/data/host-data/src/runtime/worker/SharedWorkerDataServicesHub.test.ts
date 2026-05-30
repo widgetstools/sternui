@@ -149,6 +149,21 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
     expect(ctrl.restartLog).toEqual([{ asOfDate: '2026-04-01' }]);
   });
 
+  it('passes extra to provider.restart on the first attach (fresh provider)', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makePort();
+    hub.handleRequest(port, {
+      kind: 'attach',
+      subId: 's1',
+      providerId: 'p1',
+      mode: 'data',
+      cfg: cfg(),
+      extra: { asOfDate: '2026-04-01' },
+    });
+    const ctrl = controllers.get('default')!;
+    expect(ctrl.restartLog).toEqual([{ asOfDate: '2026-04-01' }]);
+  });
+
   it('restart attach posts loading without replaying stale cache', () => {
     const hub = new SharedWorkerDataServicesHub();
     const portA = makePort();
@@ -581,7 +596,7 @@ describe('SharedWorkerDataServicesHub — AppData', () => {
     });
   });
 
-  it('second attacher sees the previously-seeded snapshot (no double-hydrate)', () => {
+  it('second attacher sees the previously-seeded snapshot (no double-hydrate)', async () => {
     const hub = new SharedWorkerDataServicesHub();
     const portA = makeAppDataPort();
     const portB = makeAppDataPort();
@@ -593,14 +608,81 @@ describe('SharedWorkerDataServicesHub — AppData', () => {
       seed: [appDataRow('a', 'positions', { asOfDate: '2026-04-01' })],
     });
     // Second attacher attempts a different seed — ignored.
-    hub.handleAppDataRequest(portB, {
+    void hub.handleAppDataRequest(portB, {
       kind: 'appdata-attach',
       subId: 'b',
       seed: [appDataRow('z', 'wouldOverwrite')],
     });
+    await Promise.resolve();
     expect(portB.messages[0]).toMatchObject({
       kind: 'appdata-snapshot',
       rows: [{ configId: 'a', name: 'positions' }],
+    });
+  });
+
+  it('reattach resyncs AppData rows persisted while the worker stayed alive', async () => {
+    const rows = new Map<string, AppConfigRow>([
+      ['ad-1', {
+        configId: 'ad-1',
+        appId: 'TestApp',
+        userId: 'dev1',
+        componentType: 'data-provider',
+        componentSubType: 'appdata',
+        isTemplate: false,
+        displayText: 'App1Data',
+        payload: {
+          providerType: 'appdata',
+          variables: {
+            userId: { key: 'userId', value: 'alice', type: 'string', durability: 'volatile' },
+          },
+          __providerMeta: {},
+        },
+        createdBy: 'dev1',
+        updatedBy: 'dev1',
+        creationTime: '2026-01-01T00:00:00.000Z',
+        updatedTime: '2026-01-01T00:00:00.000Z',
+      }],
+    ]);
+    const cm = {
+      async getAllConfigsUnfiltered() { return [...rows.values()]; },
+      async getConfig(id: string) { return rows.get(id); },
+      async saveConfig(row: AppConfigRow) { rows.set(row.configId, row); },
+      async deleteConfig(id: string) { rows.delete(id); },
+    } as unknown as ConfigManager;
+
+    const hub = new SharedWorkerDataServicesHub({ configManager: cm });
+    await hub.hydrateAppData();
+
+    const portA = makeAppDataPort();
+    void hub.handleAppDataRequest(portA, { kind: 'appdata-attach', subId: 'a' });
+    await new Promise<void>((resolve) => { setTimeout(resolve, 0); });
+    expect(portA.messages[0]).toMatchObject({
+      kind: 'appdata-snapshot',
+      rows: [expect.objectContaining({ name: 'App1Data' })],
+    });
+
+    rows.set('ad-2', {
+      ...rows.get('ad-1')!,
+      configId: 'ad-2',
+      displayText: 'App2Data',
+      payload: {
+        providerType: 'appdata',
+        variables: {
+          clientId: { key: 'clientId', value: 'desk-1', type: 'string', durability: 'volatile' },
+        },
+        __providerMeta: {},
+      },
+    });
+
+    const portB = makeAppDataPort();
+    void hub.handleAppDataRequest(portB, { kind: 'appdata-attach', subId: 'b' });
+    await new Promise<void>((resolve) => { setTimeout(resolve, 0); });
+    expect(portB.messages[0]).toMatchObject({
+      kind: 'appdata-snapshot',
+      rows: expect.arrayContaining([
+        expect.objectContaining({ name: 'App1Data' }),
+        expect.objectContaining({ name: 'App2Data' }),
+      ]),
     });
   });
 

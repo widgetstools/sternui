@@ -14,7 +14,8 @@
  *
  * Usage
  * -----
- *   npm run propagate                       # pack ALL buckets
+ *   npm run propagate                       # pack ALL buckets (rebuilds members)
+ *   npm run build:consumer                  # turbo build:packages then propagate --no-build
  *   npm run propagate -- react-core           # one bucket (folder name)
  *   npm run propagate -- grid                 # bucket containing @starui/grid
  *   npm run propagate -- @starui/react-core

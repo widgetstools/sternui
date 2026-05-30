@@ -23,7 +23,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Button, Input, Label, Switch, Tabs, TabsContent, TabsList, TabsTrigger, Textarea,
 } from '@starui/ui';
-import { CheckCircle2, Columns3, Loader2, X } from 'lucide-react';
+import { CheckCircle2, Columns3, Copy, Loader2, X } from 'lucide-react';
 import type { ColumnDefinition, DataProviderConfig, ProviderConfig } from '@starui/shared-types';
 import { useDataServices } from '@starui/host-data-react/runtime';
 import { useProviderProbe } from './useProviderProbe.js';
@@ -45,9 +45,11 @@ export interface EditorFormProps {
   /** Called after a successful save. The form stays open and the saved
    *  config (now with a stable providerId) is passed back. */
   onSaved?: (saved: DataProviderConfig) => void;
+  /** Duplicate the current saved provider into a new unsaved draft. */
+  onClone?: () => void;
 }
 
-export function EditorForm({ initial, userId, onCancel, onSaved }: EditorFormProps) {
+export function EditorForm({ initial, userId, onCancel, onSaved, onClone }: EditorFormProps) {
   const { configStore } = useDataServices();
   const [provider, setProvider] = useState<DataProviderConfig>(initial);
   const [saving, setSaving] = useState(false);
@@ -253,6 +255,7 @@ export function EditorForm({ initial, userId, onCancel, onSaved }: EditorFormPro
         saveError={saveError}
         onSave={onSave}
         onCancel={onCancel}
+        onClone={onClone}
         onUpdateColumns={isAppData ? undefined : applyPendingFieldsCols}
         canUpdateColumns={hasPendingFieldsChanges}
       />
@@ -327,7 +330,7 @@ function readKeyColumn(cfg: ProviderConfig): string | readonly string[] | undefi
 }
 
 function Footer({
-  saveLabel, saving, savedAt, saveError, onSave, onCancel,
+  saveLabel, saving, savedAt, saveError, onSave, onCancel, onClone,
   onUpdateColumns, canUpdateColumns,
 }: {
   saveLabel: string;
@@ -336,6 +339,7 @@ function Footer({
   saveError: string | null;
   onSave(): void;
   onCancel?(): void;
+  onClone?(): void;
   /** Apply the FieldsTab draft to the column list. Omitted for
    *  AppData providers (no fields tab). */
   onUpdateColumns?(): void;
@@ -360,6 +364,18 @@ function Footer({
       <div className="flex items-center gap-2">
         {onCancel && (
           <Button size="sm" variant="ghost" onClick={onCancel} className="h-8 text-xs">Cancel</Button>
+        )}
+        {onClone && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onClone}
+            className="h-8 text-xs"
+            title="Copy this provider into a new draft you can edit and save separately"
+          >
+            <Copy className="h-3.5 w-3.5 mr-1.5" />
+            Duplicate
+          </Button>
         )}
         {onUpdateColumns && (
           <Button

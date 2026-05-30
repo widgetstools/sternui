@@ -25,6 +25,7 @@
 
 import type { ConfigManager, AppConfigRow } from '@starui/host-config';
 import type { DataProviderConfig, ProviderConfig } from '@starui/types';
+import { COMPONENT_TYPE_APPDATA } from '../providers/appdata/store.js';
 
 export const PUBLIC_USER_ID = 'system';
 export const COMPONENT_TYPE_DATA_PROVIDER = 'data-provider';
@@ -73,6 +74,11 @@ export class DataProviderConfigStore {
     const all = await this.cm.getAllConfigsUnfiltered();
     const out: DataProviderConfig[] = [];
     for (const row of all) {
+      if (row.componentType === COMPONENT_TYPE_APPDATA) {
+        if (!opts.includeAppData) continue;
+        out.push(legacyAppDataRowToProvider(row));
+        continue;
+      }
       if (row.componentType !== COMPONENT_TYPE_DATA_PROVIDER) continue;
       // AppData rows are routinely consumed via AppDataConfigStore for
       // {{name.key}} resolution. By default we hide them here so the
@@ -90,6 +96,9 @@ export class DataProviderConfigStore {
   async get(configId: string): Promise<DataProviderConfig | null> {
     const row = await this.cm.getConfig(configId);
     if (!row) return null;
+    if (row.componentType === COMPONENT_TYPE_APPDATA) {
+      return legacyAppDataRowToProvider(row);
+    }
     if (row.componentType !== COMPONENT_TYPE_DATA_PROVIDER) return null;
     return rowToProvider(row);
   }
@@ -134,6 +143,24 @@ export class DataProviderConfigStore {
 }
 
 // ─── helpers ───────────────────────────────────────────────────────
+
+function legacyAppDataRowToProvider(row: AppConfigRow): DataProviderConfig {
+  const payload = (row.payload ?? {}) as Record<string, unknown>;
+  const values = (payload.values as Record<string, unknown>) ?? {};
+  const variables: Record<string, { key: string; value: unknown; type: 'string'; durability: 'volatile' }> = {};
+  for (const [key, value] of Object.entries(values)) {
+    variables[key] = { key, value, type: 'string', durability: 'volatile' };
+  }
+  return {
+    providerId: row.configId,
+    name: row.displayText,
+    description: payload.description as string | undefined,
+    providerType: 'appdata',
+    config: { providerType: 'appdata', variables } as ProviderConfig,
+    userId: row.userId,
+    public: row.userId === PUBLIC_USER_ID,
+  };
+}
 
 function rowToProvider(row: AppConfigRow): DataProviderConfig {
   const payload = (row.payload ?? {}) as Record<string, unknown>;

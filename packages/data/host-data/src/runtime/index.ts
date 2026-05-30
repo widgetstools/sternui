@@ -46,6 +46,12 @@ export {
   collectTemplateRefs,
   type AppDataLookup,
 } from './template/resolver.js';
+export {
+  traceStompProviderCfg,
+  traceStompWireDestinations,
+  traceWorkerAppDataSnapshot,
+  isTemplateTraceForced,
+} from './template/templateTrace.js';
 
 // Persistence helpers — main-thread, ConfigManager-backed.
 export {

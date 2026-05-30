@@ -2,7 +2,7 @@ import type { WebSocket } from "ws";
 import type { AppConfig } from "../config.js";
 import { clampSnapshotRows } from "../config.js";
 import type { PositionRecord, TradeRecord } from "../data/fiRecords.js";
-import { buildSnapshot } from "../data/fiRecords.js";
+import { buildSnapshot, stampPositionsAsOfDate } from "../data/fiRecords.js";
 import { mutatePosition, mutateTrade } from "../data/mutate.js";
 import * as protocol from "../protocol/contract.js";
 import { hashString } from "../util/hash.js";
@@ -190,6 +190,43 @@ export class StompConnection {
     const requestString =
       body && body.startsWith("/snapshot/") ? body : destination;
 
+    const asOfTrigger = protocol.parseAsOfDateTrigger(requestString);
+    if (asOfTrigger) {
+      const topic = protocol.asOfDateSubscriptionDestination(
+        asOfTrigger.clientId,
+        asOfTrigger.asOfDateDisplay,
+      );
+      let subscription: Subscription | null = null;
+      for (const sub of this.subscriptions.values()) {
+        if (sub.destination === topic) {
+          subscription = sub;
+          break;
+        }
+      }
+      if (subscription) {
+        this.startAsOfDateSnapshotDelivery(
+          asOfTrigger.clientId,
+          asOfTrigger.asOfDateIso,
+          asOfTrigger.asOfDateDisplay,
+          asOfTrigger.batchSize,
+          subscription,
+          rowCount,
+        );
+      } else {
+        if (this.config.debug)
+          console.log(`No subscription for ${topic}`);
+        this.send(
+          "MESSAGE",
+          {
+            [protocol.HEADER.DESTINATION]: protocol.DESTINATION_ERRORS,
+            [protocol.HEADER.MESSAGE_ID]: `error-${Date.now()}`,
+          },
+          `Error: No subscription found for ${topic}. Please subscribe first.`,
+        );
+      }
+      return;
+    }
+
     const match = requestString.match(protocol.TRIGGER_CLIENT_SPECIFIC);
     if (match) {
       const [, dataType, clientId, rateStr, batchStr] = match;
@@ -316,6 +353,76 @@ export class StompConnection {
       } catch (err) {
         console.error(
           `[snapshot legacy] client ${this.id} ${dataType}:`,
+          err,
+        );
+      }
+    };
+
+    sendBatch();
+  }
+
+  private startAsOfDateSnapshotDelivery(
+    clientId: string,
+    asOfDateIso: string,
+    asOfDateDisplay: string,
+    batchSize: number,
+    subscription: Subscription,
+    rowCount: number,
+  ): void {
+    const seedBase = hashString(`${clientId}-positions-${asOfDateDisplay}`);
+    const data = stampPositionsAsOfDate(
+      buildSnapshot("positions", rowCount, seedBase) as PositionRecord[],
+      asOfDateIso,
+    );
+    let index = 0;
+    let batchNumber = 1;
+    const snapshotBatchInterval = protocol.SNAPSHOT_BATCH_INTERVAL_MS;
+
+    const sendBatch = (): void => {
+      try {
+        if (index >= data.length) {
+          this.send(
+            "MESSAGE",
+            {
+              [protocol.HEADER.SUBSCRIPTION]: subscription.id,
+              [protocol.HEADER.MESSAGE_ID]: `msg-${Date.now()}`,
+              [protocol.HEADER.DESTINATION]: subscription.destination,
+              [protocol.HEADER.CLIENT_ID]: clientId,
+              [protocol.HEADER.MESSAGE_TYPE]:
+                protocol.MESSAGE_TYPE.SNAPSHOT_COMPLETE,
+            },
+            protocol.asOfDateSnapshotCompleteText(
+              data.length,
+              asOfDateDisplay,
+              clientId,
+            ),
+          );
+          return;
+        }
+
+        const endIndex = Math.min(index + batchSize, data.length);
+        const batch = data.slice(index, endIndex);
+
+        this.send(
+          "MESSAGE",
+          {
+            [protocol.HEADER.SUBSCRIPTION]: subscription.id,
+            [protocol.HEADER.MESSAGE_ID]: `msg-${Date.now()}-batch-${batchNumber}`,
+            [protocol.HEADER.DESTINATION]: subscription.destination,
+            [protocol.HEADER.CONTENT_TYPE]: "application/json",
+            [protocol.HEADER.BATCH_NUMBER]: String(batchNumber),
+            [protocol.HEADER.CLIENT_ID]: clientId,
+            [protocol.HEADER.MESSAGE_TYPE]: protocol.MESSAGE_TYPE.SNAPSHOT,
+          },
+          JSON.stringify(batch),
+        );
+
+        index = endIndex;
+        batchNumber++;
+        setTimeout(sendBatch, snapshotBatchInterval);
+      } catch (err) {
+        console.error(
+          `[snapshot as-of] ${clientId} ${asOfDateDisplay}:`,
           err,
         );
       }

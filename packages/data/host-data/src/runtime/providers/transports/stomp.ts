@@ -58,6 +58,8 @@ import type { StompProviderConfig } from '@starui/types';
 import { composeRowId } from '@starui/types';
 import type { ProviderEmit, ProviderHandle } from '../Provider.js';
 import { resolveBracketCfg } from '../../template/bracketResolver.js';
+import { resolveCfg, type AppDataLookup } from '../../template/resolver.js';
+import { traceStompProviderCfg, traceStompWireDestinations } from '../../template/templateTrace.js';
 
 /**
  * Maximum rows to ship in a single `postMessage` from the worker.
@@ -163,6 +165,62 @@ export interface StompOpts {
    * — Hub consumers want the buffered, replace-flagged snapshot.
    */
   passthroughSnapshot?: boolean;
+  /** Resolve `{{name.key}}` on every STOMP connect/restart (worker AppData). */
+  appDataLookup?: AppDataLookup;
+}
+
+/** Keys commonly used for historical as-of dates in STOMP destination templates. */
+export function isHistoricalDateAppDataKey(key: string): boolean {
+  const normalized = key.replace(/-/g, '').toLowerCase();
+  return normalized === 'asofdate' || normalized === 'positionasofdate';
+}
+
+/**
+ * Merge worker AppData lookup with `restart({ asOfDate })` overlay.
+ * When overlay carries `asOfDate`, it wins for historical date keys so
+ * toolbar reload is deterministic even if AppData is stale or still syncing.
+ */
+export function lookupWithRestartOverlay(
+  lookup: AppDataLookup | undefined,
+  overlay: Record<string, unknown> | undefined,
+): AppDataLookup | undefined {
+  const asOfDate = typeof overlay?.asOfDate === 'string' ? overlay.asOfDate : undefined;
+  if (!lookup && !asOfDate) return undefined;
+  return (name, key) => {
+    if (asOfDate && isHistoricalDateAppDataKey(key)) return asOfDate;
+    return lookup?.(name, key);
+  };
+}
+
+export function stompWireDestinationsUnresolved(
+  destinations: Pick<ReturnType<typeof resolveStompDestinations>, 'listenerTopic' | 'requestMessage'>,
+): string | null {
+  if (destinations.listenerTopic.includes('{{')) {
+    return `Unresolved AppData template in STOMP listenerTopic: ${destinations.listenerTopic}`;
+  }
+  if (destinations.requestMessage?.includes('{{')) {
+    return `Unresolved AppData template in STOMP requestMessage: ${destinations.requestMessage}`;
+  }
+  return null;
+}
+
+/** Resolve catalog cfg + overlay into broker wire destinations (deterministic order). */
+export function resolveEffectiveStompCfg(
+  templateCfg: StompProviderConfig,
+  lookup: AppDataLookup | undefined,
+  overlay: Record<string, unknown> | undefined,
+): {
+  cfg: StompProviderConfig;
+  destinations: ReturnType<typeof resolveStompDestinations>;
+} {
+  const mergedLookup = lookupWithRestartOverlay(lookup, overlay);
+  const cfgAfterAppData = mergedLookup
+    ? resolveCfg(templateCfg, mergedLookup) as StompProviderConfig
+    : templateCfg;
+  return {
+    cfg: cfgAfterAppData,
+    destinations: resolveStompDestinations(cfgAfterAppData, overlay),
+  };
 }
 
 /** Tear down STOMP subscription + session; disable auto-reconnect. */
@@ -360,8 +418,35 @@ export function startStomp(
         beginSnapshotPhase();
       }
       state.hadSuccessfulConnect = true;
+      const { cfg: resolvedCfg, destinations } = resolveEffectiveStompCfg(
+        cfg,
+        opts.appDataLookup,
+        state.overlay,
+      );
+      traceStompProviderCfg(
+        'stomp.onConnect (after worker AppData resolve)',
+        resolvedCfg,
+        { extra: state.overlay, lookup: lookupWithRestartOverlay(opts.appDataLookup, state.overlay) },
+      );
+      const publishBody = destinations.requestMessage
+        ? mergeOverlay(resolvedCfg.requestBody ?? '', state.overlay)
+        : undefined;
+      traceStompWireDestinations('stomp.onConnect (wire destinations sent to broker)', {
+        listenerTopic: destinations.listenerTopic,
+        requestMessage: destinations.requestMessage,
+        requestBody: publishBody,
+        overlay: state.overlay,
+        cfgHadUnresolvedTemplates:
+          resolvedCfg.listenerTopic.includes('{{')
+          || Boolean(resolvedCfg.requestMessage?.includes('{{')),
+      });
+      const wireError = stompWireDestinationsUnresolved(destinations);
+      if (wireError) {
+        emit({ status: 'error', error: wireError });
+        return;
+      }
       try {
-        state.sub = client.subscribe(cfg.listenerTopic, (msg) => handleFrame(msg.body));
+        state.sub = client.subscribe(destinations.listenerTopic, (msg) => handleFrame(msg.body));
       } catch (err) {
         emit({ status: 'error', error: err instanceof Error ? err.message : String(err) });
         return;
@@ -369,10 +454,10 @@ export function startStomp(
       // Publish the trigger frame. The body can be a literal string or
       // a JSON template; if `extra` was supplied AND the body parses
       // as JSON, we merge the overlay in (the historical-mode pattern).
-      if (cfg.requestMessage) {
-        const body = mergeOverlay(cfg.requestBody ?? '', state.overlay);
+      if (destinations.requestMessage) {
+        const body = publishBody ?? mergeOverlay(resolvedCfg.requestBody ?? '', state.overlay);
         try {
-          client.publish({ destination: cfg.requestMessage, body });
+          client.publish({ destination: destinations.requestMessage, body });
         } catch (err) {
           emit({ status: 'error', error: err instanceof Error ? err.message : String(err) });
         }
@@ -574,4 +659,26 @@ function mergeOverlay(body: string, overlay: Record<string, unknown> | undefined
   }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return body;
   return JSON.stringify({ ...(parsed as Record<string, unknown>), ...overlay });
+}
+
+/** Substitute `overlay.asOfDate` into STOMP destination strings for historical snapshots. */
+export function resolveStompDestinations(
+  cfg: Pick<StompProviderConfig, 'listenerTopic' | 'requestMessage'>,
+  overlay: Record<string, unknown> | undefined,
+): { listenerTopic: string; requestMessage: string | undefined } {
+  const asOfDate = typeof overlay?.asOfDate === 'string' ? overlay.asOfDate : undefined;
+  if (!asOfDate) {
+    return {
+      listenerTopic: cfg.listenerTopic,
+      requestMessage: cfg.requestMessage,
+    };
+  }
+  const replaceAsOfDate = (value: string) =>
+    value
+      .replace(/\{\{positions\.asOfDate\}\}/g, asOfDate)
+      .replace(/\{\{asOfDate\}\}/g, asOfDate);
+  return {
+    listenerTopic: replaceAsOfDate(cfg.listenerTopic),
+    requestMessage: cfg.requestMessage ? replaceAsOfDate(cfg.requestMessage) : undefined,
+  };
 }

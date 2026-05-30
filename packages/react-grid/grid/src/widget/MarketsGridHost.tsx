@@ -29,10 +29,12 @@ import { EditingToolbar } from './editingToolbar/EditingToolbar';
 import type { EditingToolbarAllow } from './editingToolbar/resolveEditingToolbarAllow';
 import { SettingsSheet } from './SettingsSheet';
 import { useMarketsGridController } from './useMarketsGridController';
+import { useToolbarDateSettingsBridge } from '../customizer/modules/toolbar-date-settings/useToolbarDateSettingsBridge';
 import { PrimaryToolbar } from './PrimaryToolbar';
 import { UnsavedSwitchDialog } from './UnsavedSwitchDialog';
 import { MarketsGridSurface } from './MarketsGridSurface';
 import { StaleDataBanner } from './StaleDataBanner';
+import { HistoricalViewBanner } from './HistoricalViewBanner';
 
 export interface MarketsGridHostProps<TData> {
   rowData: TData[];
@@ -79,6 +81,13 @@ export interface MarketsGridHostProps<TData> {
   onSavingChange: ((saving: boolean) => void) | undefined;
   dataStale: boolean;
   dataStaleMessage: string | undefined;
+  historicalViewMode: boolean;
+  historicalViewMessage: string | undefined;
+  showToolbarDatePicker: boolean;
+  toolbarDate: string;
+  onToolbarDateChange: (next: string) => void;
+  toolbarDateHistoryEnabled: boolean | undefined;
+  toolbarActionsLayout: 'inline' | 'overflow';
 }
 
 export function MarketsGridHost<TData>({
@@ -126,6 +135,13 @@ export function MarketsGridHost<TData>({
   onSavingChange,
   dataStale,
   dataStaleMessage,
+  historicalViewMode,
+  historicalViewMessage,
+  showToolbarDatePicker,
+  toolbarDate,
+  onToolbarDateChange,
+  toolbarDateHistoryEnabled,
+  toolbarActionsLayout,
 }: MarketsGridHostProps<TData>) {
   // All state, effects, refs, and side-effect callbacks live in the
   // controller hook (`./useMarketsGridController`). This component is
@@ -166,6 +182,12 @@ export function MarketsGridHost<TData>({
     onGridLevelDataLoad,
     onSavingChange,
   });
+
+  const toolbarDateBridge = useToolbarDateSettingsBridge({
+    toolbarDate,
+    onToolbarDateChange,
+    toolbarDateHistoryEnabled,
+  });
   // `api` is forwarded through the imperative handle from the hook —
   // the view doesn't consume it directly, but the destructure makes
   // it explicit that the hook owns this signal.
@@ -179,7 +201,16 @@ export function MarketsGridHost<TData>({
       data-grid-id={gridId}
       data-header-case={headerCaseAttr}
       data-stale={dataStale ? 'true' : undefined}
+      data-historical-view={historicalViewMode ? 'true' : undefined}
     >
+      {historicalViewMode ? (
+        <HistoricalViewBanner
+          message={
+            historicalViewMessage ??
+            'Viewing historical data — editing is disabled.'
+          }
+        />
+      ) : null}
       {dataStale ? (
         <StaleDataBanner
           message={
@@ -232,6 +263,11 @@ export function MarketsGridHost<TData>({
           instanceId={instanceId}
           appId={appId}
           userId={userId}
+          showToolbarDatePicker={showToolbarDatePicker}
+          toolbarDate={toolbarDateBridge.toolbarDate}
+          onToolbarDateChange={toolbarDateBridge.onToolbarDateChange}
+          toolbarDateHistoryEnabled={toolbarDateBridge.toolbarDateHistoryEnabled}
+          toolbarActionsLayout={toolbarActionsLayout}
         />
       )}
 

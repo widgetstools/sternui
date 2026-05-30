@@ -15,6 +15,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import type {
   ColDef,
+  CellClickedEvent,
   CellValueChangedEvent,
   GetRowIdParams,
   ICellRendererParams,
@@ -140,8 +141,7 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
   // Stable ref so colDefs (empty-dep memo) always call the latest
   // delete handler without needing to be recreated on each columns change.
   const onDelete = useCallback(
-    (rowId: string) =>
-      onChange(columns.filter((col, idx) => `${col.field}-${idx}` !== rowId)),
+    (field: string) => onChange(removeColumnDefinition(columns, field)),
     [columns, onChange],
   );
   const onDeleteRef = useRef(onDelete);
@@ -188,15 +188,19 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
         maxWidth: 44,
         resizable: false,
         sortable: false,
+        editable: false,
         suppressHeaderMenuButton: true,
         suppressMovable: true,
-        cellRenderer: DeleteCellRenderer,
-        cellRendererParams: { onDeleteRef },
+        suppressNavigable: true,
+        cellClass: 'cursor-pointer',
+        cellRenderer: DeleteIconCell,
+        onCellClicked: (event: CellClickedEvent<RowData>) => {
+          const field = event.data?.field;
+          if (field) onDeleteRef.current(field);
+        },
       },
     ],
-    // Empty deps: delete is routed via onDeleteRef.current so this
-    // never needs to be recreated — avoids AG-Grid re-applying colDefs
-    // on every columns change.
+    // Empty deps: delete routes through grid context + onDeleteRef.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
@@ -350,24 +354,24 @@ function AddColumnForm({
 
 // ─── Delete cell renderer ──────────────────────────────────────────
 
-type DeleteRendererParams = {
-  onDeleteRef: React.MutableRefObject<(rowId: string) => void>;
-};
+// ─── Delete cell renderer ──────────────────────────────────────────
 
-function DeleteCellRenderer({ data, colDef }: ICellRendererParams<RowData>) {
-  const { onDeleteRef } = (
-    colDef as ColDef & { cellRendererParams: DeleteRendererParams }
-  ).cellRendererParams;
+export function removeColumnDefinition(
+  columns: ColumnDefinition[],
+  field: string,
+): ColumnDefinition[] {
+  return columns.filter((col) => col.field !== field);
+}
+
+function DeleteIconCell(_params: ICellRendererParams<RowData>) {
   return (
-    <Button
-      size="sm"
-      variant="ghost"
-      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+    <span
+      className="inline-flex h-6 w-6 items-center justify-center text-destructive"
+      data-testid="columns-tab-delete-row"
       title="Remove column"
-      onClick={() => onDeleteRef.current(data!._rowId)}
     >
       <Trash2 className="h-3 w-3" />
-    </Button>
+    </span>
   );
 }
 

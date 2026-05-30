@@ -151,6 +151,8 @@ export interface AppDataLookup {
   keysOf?(name: string): string[];
   /** Notify on provider/value changes. Returns a disposer. Optional. */
   subscribe?(fn: () => void): () => void;
+  /** Optional write path when the host allows grid-driven AppData mutation. */
+  set?(name: string, key: string, value: unknown): void | Promise<void>;
 }
 
 export interface ResourceScope {

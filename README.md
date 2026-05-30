@@ -171,12 +171,12 @@ turbo test (packages)               turbo typecheck (apps)
 |---|---|
 | `build:packages` | Build all libraries under `packages/` |
 | `build:apps` | Build demo apps (needs fresh tarballs) |
-| `build:consumer` | `build:packages` → `propagate` → `build:apps` |
+| `build:consumer` | `build:packages` → `propagate --no-build` → `build:apps` |
 | `typecheck:packages` | `tsc --noEmit` on libraries |
 | `typecheck:apps` | `tsc --noEmit` on demo apps |
-| `typecheck:consumer` | packages + propagate + apps typecheck |
+| `typecheck:consumer` | packages + `propagate --no-build` + apps typecheck |
 | `test:packages` | Vitest across library packages (`npm test`) |
-| `check:tarballs` | Fail if committed `libs/*.tgz` are stale |
+| `check:tarballs` | Fail if committed `libs/*.tgz` are stale (uses `propagate --no-build`) |
 | `verify:consumer` | `build:consumer` + `typecheck:apps` |
 | `propagate` | Pack bucket tarballs to `libs/`, sync app deps |
 | `sync:app-deps` | Rewrite app tarball paths from manifest |

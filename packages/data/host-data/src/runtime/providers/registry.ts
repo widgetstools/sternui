@@ -7,9 +7,10 @@
  * it — descriptors pay off at 8+).
  */
 
-import type { ProviderConfig } from '@starui/types';
+import type { ProviderConfig, StompProviderConfig } from '@starui/types';
 import type { ProviderEmit, ProviderHandle } from './Provider.js';
 import { resolveBracketCfg, type BracketCache } from '../template/bracketResolver.js';
+import { resolveCfg, type AppDataLookup } from '../template/resolver.js';
 import { startMock } from './transports/mock.js';
 import { startStomp } from './transports/stomp.js';
 import { startRest } from './transports/rest.js';
@@ -36,18 +37,36 @@ const factories: Partial<Record<ProviderConfig['providerType'], ProviderFactory>
  * the lifetime of this provider attach. The cache is discarded once
  * dispatch completes; the factory only sees resolved strings.
  *
- * The existing `{{name.key}}` AppData substitution runs upstream in
- * the React hook (`useResolvedCfg`) before the cfg reaches the
- * worker, so by the time we get here only bracket tokens remain to
- * resolve.
+ * `[identifier]` bracket tokens are resolved here. When `appDataLookup`
+ * is supplied (SharedWorker hub), `{{name.key}}` tokens are also
+ * resolved — STOMP re-applies AppData on every connect/restart.
  */
-export function startProvider(cfg: ProviderConfig, emit: ProviderEmit): ProviderHandle {
+export interface StartProviderOpts {
+  appDataLookup?: AppDataLookup;
+}
+
+export function startProvider(
+  cfg: ProviderConfig,
+  emit: ProviderEmit,
+  opts?: StartProviderOpts,
+): ProviderHandle {
   const factory = factories[cfg.providerType];
   if (!factory) {
     throw new Error(`[data-services] No provider factory registered for type '${cfg.providerType}'`);
   }
   const bracketCache: BracketCache = new Map();
-  const resolved = resolveBracketCfg(cfg, bracketCache);
+  const bracketResolved = resolveBracketCfg(cfg, bracketCache);
+
+  if (cfg.providerType === 'stomp') {
+    return startStomp(bracketResolved as StompProviderConfig, emit, {
+      appDataLookup: opts?.appDataLookup,
+    });
+  }
+
+  let resolved = bracketResolved;
+  if (opts?.appDataLookup) {
+    resolved = resolveCfg(resolved, opts.appDataLookup);
+  }
   return factory(resolved, emit);
 }
 

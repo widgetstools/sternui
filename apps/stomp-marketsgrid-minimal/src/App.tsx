@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
 import { useDataServices, useUserIdFromContext } from '@starui/host-data-react/runtime';
 import { getPlatform } from './bootstrap.js';
-import { stompProviderDraft } from './stompProvider.js';
+import { stompHistoricalProviderDraft, stompProviderDraft } from './stompProvider.js';
 
 /**
  * Phase 3 — seed catalog row (programmatic, no provider editor UI).
@@ -19,6 +19,7 @@ export function App() {
   const userId = useUserIdFromContext();
 
   const [providerId, setProviderId] = useState<string | null>(null);
+  const [historicalProviderId, setHistoricalProviderId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -26,22 +27,27 @@ export function App() {
       // configStore.list — read STOMP providers from IndexedDB (main thread).
       const rows = await configStore.list(userId, { subtype: 'stomp' });
       const existing = rows.find((p) => p.name === stompProviderDraft.name);
+      const existingHistorical = rows.find((p) => p.name === stompHistoricalProviderDraft.name);
 
       // configStore.save — persist data-provider row if missing; then
       // client.invalidateConfig() (inside save) reloads worker ConfigCatalogCache.
       const id =
         existing?.providerId ??
         (await configStore.save(stompProviderDraft, userId)).providerId;
+      const histId =
+        existingHistorical?.providerId ??
+        (await configStore.save(stompHistoricalProviderDraft, userId)).providerId;
 
       if (!cancelled && id) setProviderId(id);
+      if (!cancelled && histId) setHistoricalProviderId(histId);
     })();
     return () => {
       cancelled = true;
     };
   }, [configStore, userId]);
 
-  // Wait until catalog row exists and worker cache has been invalidated.
-  if (!providerId) return null;
+  // Wait until catalog rows exist and worker cache has been invalidated.
+  if (!providerId || !historicalProviderId) return null;
 
   // HostedMarketsGrid: cfg-free attach via defaultLiveProviderId; hub lazy-starts STOMP.
   // withStorage + configManager: grid layout via main-thread ConfigManager from getPlatform().
@@ -51,8 +57,12 @@ export function App() {
       componentName="STOMP Positions"
       defaultInstanceId="stomp-blotter"
       defaultLiveProviderId={providerId}
+      defaultHistoricalProviderId={historicalProviderId}
+      historicalDateAppDataRef="positions.asOfDate"
       withStorage
       configManager={getPlatform().configManager}
+      showFiltersToolbar
+      showFormattingToolbar
     />
   );
 }

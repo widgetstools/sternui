@@ -91,8 +91,23 @@ vi.mock('@starui/grid/customizer', async () => {
     gridStateModule: {},
     savedFiltersModule: {},
     toolbarVisibilityModule: {},
+    toolbarDateSettingsModule: {},
   };
 });
+
+vi.mock('../customizer/modules/toolbar-date-settings/useToolbarDateSettingsBridge.js', () => ({
+  useToolbarDateSettingsBridge: ({
+    toolbarDate,
+    onToolbarDateChange,
+  }: {
+    toolbarDate: string;
+    onToolbarDateChange: (next: string) => void;
+  }) => ({
+    toolbarDate,
+    onToolbarDateChange,
+    historyEnabled: true,
+  }),
+}));
 
 vi.mock('./useGridHost', () => ({
   useGridHost: () => ({
@@ -183,6 +198,30 @@ describe('MarketsGrid — stale data stream', () => {
     await waitFor(() => {
       expect(setGridOption).toHaveBeenCalledWith('readOnlyEdit', false);
       expect(setGridOption).toHaveBeenCalledWith('suppressClickEdit', false);
+    });
+  });
+
+  it('shows the historical banner when historicalViewMode is true', () => {
+    const { getByTestId } = render(
+      <MarketsGrid
+        {...baseProps}
+        historicalViewMode
+        historicalViewMessage="Viewing historical data as of 2026-04-01. Editing is disabled."
+      />,
+    );
+    expect(getByTestId('historical-view-banner')).toHaveTextContent('2026-04-01');
+  });
+
+  it('enables read-only edit guard when historicalViewMode toggles on', async () => {
+    const { rerender } = render(
+      <MarketsGrid {...baseProps} historicalViewMode={false} />,
+    );
+
+    rerender(<MarketsGrid {...baseProps} historicalViewMode />);
+
+    await waitFor(() => {
+      expect(setGridOption).toHaveBeenCalledWith('readOnlyEdit', true);
+      expect(setGridOption).toHaveBeenCalledWith('suppressClickEdit', true);
     });
   });
 });

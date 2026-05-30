@@ -17,6 +17,16 @@ export const TRIGGER_CLIENT_SPECIFIC =
 export const TRIGGER_LEGACY =
   /^\/snapshot\/(positions|trades)\/(\d+)(?:\/(\d+))?$/;
 
+/**
+ * Historical positions snapshot (no live updates):
+ * /snapshot/positions/{clientId}/{asOfDate}[/{batchSize}]
+ * `asOfDate`: `YYYY-MM-DD` or `YYYYMMDD`
+ */
+export const TRIGGER_AS_OF_DATE_POSITIONS =
+  /^\/snapshot\/positions\/([^/]+)\/([^/]+)(?:\/(\d+))?$/;
+
+export const DEFAULT_AS_OF_DATE_BATCH_SIZE = 50;
+
 /** Subscription path /snapshot/{positions|trades}/{clientId} */
 export const CLIENT_TOPIC_REGEX = /^\/snapshot\/(positions|trades)\/[^/]+$/;
 
@@ -62,6 +72,14 @@ export function clientSubscriptionDestination(
   return `/snapshot/${dataType}/${clientId}`;
 }
 
+/** Subscribe + receive historical positions for one as-of date (separate from live topic). */
+export function asOfDateSubscriptionDestination(
+  clientId: string,
+  asOfDateDisplay: string,
+): string {
+  return `/snapshot/positions/${clientId}/${asOfDateDisplay}`;
+}
+
 export function defaultBatchSize(rate: number): number {
   return Math.max(1, Math.floor(rate / 10));
 }
@@ -79,4 +97,74 @@ export function clientSnapshotCompleteText(
   clientId: string,
 ): string {
   return `Success: All ${totalRecords} ${dataType} records delivered to client '${clientId}'. Starting live updates...`;
+}
+
+export function parseAsOfDateSegment(segment: string): string | null {
+  const isoDate = /^(\d{4})-(\d{2})-(\d{2})$/;
+  const isoMatch = segment.match(isoDate);
+  if (isoMatch) {
+    const year = Number(isoMatch[1]);
+    const month = Number(isoMatch[2]);
+    const day = Number(isoMatch[3]);
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    if (
+      parsed.getUTCFullYear() === year &&
+      parsed.getUTCMonth() === month - 1 &&
+      parsed.getUTCDate() === day
+    ) {
+      return parsed.toISOString();
+    }
+    return null;
+  }
+
+  if (/^\d{8}$/.test(segment)) {
+    const year = Number(segment.slice(0, 4));
+    const month = Number(segment.slice(4, 6));
+    const day = Number(segment.slice(6, 8));
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    if (
+      parsed.getUTCFullYear() === year &&
+      parsed.getUTCMonth() === month - 1 &&
+      parsed.getUTCDate() === day
+    ) {
+      return parsed.toISOString();
+    }
+  }
+
+  return null;
+}
+
+export function parseAsOfDateTrigger(requestString: string): {
+  clientId: string;
+  asOfDateIso: string;
+  asOfDateDisplay: string;
+  batchSize: number;
+} | null {
+  const match = requestString.match(TRIGGER_AS_OF_DATE_POSITIONS);
+  if (!match) return null;
+
+  const asOfDateIso = parseAsOfDateSegment(match[2] ?? "");
+  if (!asOfDateIso) return null;
+
+  const batchRaw = match[3];
+  const parsedBatch = batchRaw ? Number.parseInt(batchRaw, 10) : NaN;
+  const batchSize =
+    Number.isFinite(parsedBatch) && parsedBatch >= 1
+      ? parsedBatch
+      : DEFAULT_AS_OF_DATE_BATCH_SIZE;
+
+  return {
+    clientId: match[1] ?? "",
+    asOfDateIso,
+    asOfDateDisplay: match[2] ?? "",
+    batchSize,
+  };
+}
+
+export function asOfDateSnapshotCompleteText(
+  totalRecords: number,
+  asOfDateDisplay: string,
+  clientId: string,
+): string {
+  return `Success: All ${totalRecords} positions snapshot records delivered for as-of date '${asOfDateDisplay}' to client '${clientId}'.`;
 }

@@ -28,7 +28,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, GridApi } from 'ag-grid-community';
 import { MarketsGrid } from '@starui/grid';
+import { isHistoricalToolbarDate } from '@starui/grid/customizer';
 import type { MarketsGridProps, MarketsGridHandle, StorageAdapterFactory } from '@starui/grid';
+import type { StompProviderConfig } from '@starui/types';
+import { traceStompProviderCfg } from '@starui/host-data/runtime';
 import type { AppDataLookup, StorageAdapter } from '@starui/engine';
 import {
   useDataProviderConfig,
@@ -57,6 +60,14 @@ const EMPTY: never[] = [];
  */
 const DEBUG = false;
 
+function todayIsoDate(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export interface MarketsGridContainerProps<TData extends Record<string, unknown> = Record<string, unknown>>
   extends Omit<MarketsGridProps<TData>, 'rowData' | 'rowIdField' | 'columnDefs' | 'gridLevelData' | 'onGridLevelDataLoad' | 'headerExtras'> {
   /**
@@ -80,6 +91,11 @@ export interface MarketsGridContainerProps<TData extends Record<string, unknown>
    * provider on first load (demo / single-provider apps).
    */
   defaultLiveProviderId?: string;
+  /**
+   * When no historical provider is persisted in grid-level data, select
+   * this provider when the user picks a past toolbar date.
+   */
+  defaultHistoricalProviderId?: string;
 }
 
 /** Persisted picker state. Stored as MarketsGrid's `gridLevelData`. */
@@ -120,6 +136,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     onError,
     onReady: onReadyProp,
     defaultLiveProviderId,
+    defaultHistoricalProviderId,
     ...marketsGridProps
   } = props;
 
@@ -138,6 +155,9 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       return row ? Object.keys(row.values) : [];
     },
     subscribe: (fn) => appData.store.subscribe(fn),
+    set: (name: string, key: string, value: unknown) => {
+      void appData.store.set(name, key, value);
+    },
   }), [appData.store]);
 
   // ── Storage adapter ──────────────────────────────────────────────
@@ -168,6 +188,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // Provider toolbar hidden until the user toggles it via chord hotkeys.
   const [pickerVisible, setPickerVisible] = useState(false);
   const [asOfDate, setAsOfDate] = useState<string | null>(null);
+  const [toolbarDate, setToolbarDate] = useState(todayIsoDate);
+  const pendingToolbarReloadRef = useRef(false);
   const [providerEditorOpen, setProviderEditorOpen] = useState(false);
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
 
@@ -176,16 +198,20 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // fall through to the default selection and mark as loaded.
   useEffect(() => {
     let cancelled = false;
-    const applyDefaultLive = (sel: ProviderSelection): ProviderSelection => {
-      if (!sel.liveProviderId && defaultLiveProviderId) {
-        return { ...sel, liveProviderId: defaultLiveProviderId, mode: 'live' };
+    const applyDefaults = (sel: ProviderSelection): ProviderSelection => {
+      let next = sel;
+      if (!next.liveProviderId && defaultLiveProviderId) {
+        next = { ...next, liveProviderId: defaultLiveProviderId, mode: 'live' };
       }
-      return sel;
+      if (!next.historicalProviderId && defaultHistoricalProviderId) {
+        next = { ...next, historicalProviderId: defaultHistoricalProviderId };
+      }
+      return next;
     };
 
     if (!adapter?.loadGridLevelData) {
-      if (defaultLiveProviderId) {
-        setSelection(applyDefaultLive({ ...DEFAULT_SELECTION }));
+      if (defaultLiveProviderId || defaultHistoricalProviderId) {
+        setSelection(applyDefaults({ ...DEFAULT_SELECTION }));
       }
       setLoaded(true);
       return;
@@ -194,7 +220,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       .loadGridLevelData(props.gridId)
       .then((raw) => {
         if (cancelled) return;
-        setSelection(applyDefaultLive(normalizeSelection(raw)));
+        setSelection(applyDefaults(normalizeSelection(raw)));
         setPersistedCaption(extractPersistedCaption(raw));
         setLoaded(true);
       })
@@ -205,7 +231,22 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         setLoaded(true);
       });
     return () => { cancelled = true; };
-  }, [adapter, props.gridId, defaultLiveProviderId]);
+  }, [adapter, props.gridId, defaultLiveProviderId, defaultHistoricalProviderId]);
+
+  // Restore toolbar date from AppData when persisted mode is historical.
+  useEffect(() => {
+    if (!loaded || selection.mode !== 'historical' || !historicalDateAppDataRef) return;
+    const dot = historicalDateAppDataRef.indexOf('.');
+    if (dot <= 0) return;
+    const name = historicalDateAppDataRef.slice(0, dot);
+    const key = historicalDateAppDataRef.slice(dot + 1);
+    const val = appData.store.get(name, key);
+    if (typeof val === 'string' && isHistoricalToolbarDate(val)) {
+      setToolbarDate(val);
+      setAsOfDate(val);
+      pendingToolbarReloadRef.current = true;
+    }
+  }, [loaded, selection.mode, historicalDateAppDataRef, appData.store]);
 
   // Persist on mutation. `lastSavedRef` skips the initial sync when
   // `loaded` flips (state just came FROM disk; saving back would be a
@@ -298,6 +339,9 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // `{ asOfDate }` via `provider.restart()`.
   const setAsOfDateAndPersist = useCallback((next: string | null) => {
     setAsOfDate(next);
+    if (next) {
+      setToolbarDate(next);
+    }
     if (next && historicalDateAppDataRef) {
       const dot = historicalDateAppDataRef.indexOf('.');
       if (dot > 0) {
@@ -307,6 +351,52 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       }
     }
   }, [appData.store, historicalDateAppDataRef]);
+
+  const effectiveHistoricalProviderId =
+    selection.historicalProviderId ?? defaultHistoricalProviderId ?? null;
+  const toolbarDateHistoryEnabled = effectiveHistoricalProviderId != null;
+  const isHistoricalView =
+    selection.mode === 'historical'
+    && asOfDate != null
+    && isHistoricalToolbarDate(asOfDate);
+  const historicalViewMessage = isHistoricalView
+    ? `Viewing historical data as of ${asOfDate}. Editing is disabled.`
+    : undefined;
+
+  const handleToolbarDateChange = useCallback((next: string) => {
+    setToolbarDate(next);
+    const isHistorical = isHistoricalToolbarDate(next);
+
+    if (isHistorical) {
+      if (!effectiveHistoricalProviderId) {
+        (onError ?? defaultOnError)(new Error(
+          'Cannot load historical data: no historical provider is configured.',
+        ));
+        return;
+      }
+      setAsOfDateAndPersist(next);
+      setSelection((s) => ({
+        ...s,
+        mode: 'historical',
+        historicalProviderId: s.historicalProviderId ?? defaultHistoricalProviderId ?? null,
+      }));
+      pendingToolbarReloadRef.current = true;
+      return;
+    }
+
+    if (selection.mode === 'historical') {
+      setAsOfDate(null);
+      setMode('live');
+      pendingToolbarReloadRef.current = true;
+    }
+  }, [
+    effectiveHistoricalProviderId,
+    defaultHistoricalProviderId,
+    setAsOfDateAndPersist,
+    setMode,
+    selection.mode,
+    onError,
+  ]);
 
   // `keyColumn` may be a single column name OR an array of column
   // names (composite key — values joined with `-`, see
@@ -607,11 +697,40 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   }, [activeId, provider, refreshProvider, onError]);
 
   /** Full re-acquire — `IDataProvider.restart()` with toolbar extra payload. */
-  const reloadFromSource = useCallback(() => {
+  const reloadFromSource = useCallback(async () => {
     if (!activeId || !provider) return;
     const extra = (selection.mode === 'historical' && asOfDate)
       ? { asOfDate }
       : { __refresh: Date.now() };
+    if (
+      selection.mode === 'historical'
+      && asOfDate
+      && historicalDateAppDataRef
+    ) {
+      const dot = historicalDateAppDataRef.indexOf('.');
+      if (dot > 0) {
+        const name = historicalDateAppDataRef.slice(0, dot);
+        const key = historicalDateAppDataRef.slice(dot + 1);
+        try {
+          await appData.store.set(name, key, asOfDate);
+        } catch (err: unknown) {
+          (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
+          return;
+        }
+      }
+    }
+    const rawCfg = activeRow.cfg?.config;
+    if (rawCfg && (rawCfg as { providerType?: string }).providerType === 'stomp') {
+      traceStompProviderCfg(
+        'MarketsGridContainer.reloadFromSource (main-thread audit; worker resolves on connect)',
+        rawCfg as StompProviderConfig,
+        {
+          providerId: activeId,
+          extra,
+          lookup: (name, key) => appData.store.get(name, key),
+        },
+      );
+    }
     // eslint-disable-next-line no-console
     console.log('[refresh] %c1. Reload from source clicked%c provider=%s mode=%s asOfDate=%s extra=%s',
       'color:#ec4899;font-weight:bold', '',
@@ -640,7 +759,27 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     void restartProvider(extra).catch((err: unknown) => {
       (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
     });
-  }, [activeId, provider, selection.mode, asOfDate, liveApi, restartProvider, onError]);
+  }, [activeId, provider, selection.mode, asOfDate, liveApi, restartProvider, onError, activeRow.cfg, appData.store, historicalDateAppDataRef]);
+
+  // Restart the active provider after toolbar date / mode changes.
+  // Wait for `liveApi` so the provider wiring effect registers snapshot
+  // listeners before `restart()` — otherwise the first historical snapshot
+  // can arrive with no `onSnapshotData` handler attached.
+  useEffect(() => {
+    if (!pendingToolbarReloadRef.current) return;
+    if (!loaded || !provider || !activeId || !liveApi) return;
+    pendingToolbarReloadRef.current = false;
+    reloadFromSource();
+  }, [
+    loaded,
+    provider,
+    activeId,
+    liveApi,
+    selection.mode,
+    asOfDate,
+    toolbarDate,
+    reloadFromSource,
+  ]);
 
   // ── Toolbar slot content ──────────────────────────────────────────
   //
@@ -740,6 +879,11 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
             onSavingChange={setIsSavingProfile}
             dataStale={providerDisconnected}
             dataStaleMessage={dataStaleMessage}
+            historicalViewMode={isHistoricalView}
+            historicalViewMessage={historicalViewMessage}
+            toolbarDate={toolbarDate}
+            onToolbarDateChange={handleToolbarDateChange}
+            toolbarDateHistoryEnabled={toolbarDateHistoryEnabled}
           />
           {showLoadingOverlay && (
             <MarketsGridLoadingOverlay
@@ -775,6 +919,9 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         headerExtras={headerExtras}
         caption={effectiveCaption}
         onCaptionChange={handleCaptionChange}
+        toolbarDate={toolbarDate}
+        onToolbarDateChange={handleToolbarDateChange}
+        toolbarDateHistoryEnabled={toolbarDateHistoryEnabled}
       />
       {providerEditorDialog}
     </>

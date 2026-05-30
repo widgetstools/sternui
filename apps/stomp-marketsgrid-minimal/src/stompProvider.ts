@@ -10,12 +10,17 @@ import type { DataProviderConfig, StompProviderConfig } from '@starui/types';
 /** Must match a tag published by stomp-view-server (npm run dev:stomp). */
 const TAG = 'TRADER001';
 
+const liveListenerTopic = `/snapshot/positions/${TAG}`;
+const liveRequestMessage = `/snapshot/positions/${TAG}/1000/50`;
+const historicalListenerTopic = `/snapshot/positions/${TAG}/{{positions.asOfDate}}`;
+const historicalRequestMessage = `/snapshot/positions/${TAG}/{{positions.asOfDate}}/1000/50`;
+
 /** StompProviderConfig — passed to hub startStomp() after catalog resolve. */
-const stomp: StompProviderConfig = {
+const stompLive: StompProviderConfig = {
   providerType: 'stomp',
   websocketUrl: 'ws://localhost:8081',
-  listenerTopic: `/snapshot/positions/${TAG}`,
-  requestMessage: `/snapshot/positions/${TAG}/1000/50`,
+  listenerTopic: liveListenerTopic,
+  requestMessage: liveRequestMessage,
   requestBody: '',
   snapshotEndToken: 'Success',
   snapshotTimeoutMs: 60_000,
@@ -33,11 +38,25 @@ const stomp: StompProviderConfig = {
   ],
 };
 
+const stompHistorical: StompProviderConfig = {
+  ...stompLive,
+  listenerTopic: historicalListenerTopic,
+  requestMessage: historicalRequestMessage,
+};
+
 /** DataProviderConfig row shape for configStore.save() → appConfig in Dexie. */
 export const stompProviderDraft: DataProviderConfig = {
   name: 'STOMP Positions',
   providerType: 'stomp',
   userId: 'dev1',
   public: false,
-  config: stomp,
+  config: stompLive,
+};
+
+export const stompHistoricalProviderDraft: DataProviderConfig = {
+  name: 'STOMP Positions (Historical)',
+  providerType: 'stomp',
+  userId: 'dev1',
+  public: false,
+  config: stompHistorical,
 };

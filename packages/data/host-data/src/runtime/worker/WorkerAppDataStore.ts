@@ -86,6 +86,13 @@ export class WorkerAppDataStore {
     return () => this.listeners.delete(listener);
   }
 
+  /** Template lookup by provider name + key (worker mirror). */
+  get(name: string, key: string): unknown {
+    const row = this.byName.get(name);
+    if (!row) return undefined;
+    return row.values[key];
+  }
+
   /** Number of registered listeners (observability for tests). */
   listenerCount(): number {
     return this.listeners.size;

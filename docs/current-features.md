@@ -269,7 +269,8 @@ Per-renderer config types (`PillRendererConfig`,
 - `MarketsGridProps` — host context, storage factory, module overrides, callbacks;
   editing chrome: `showEditingToolbar`, legacy `showSmartEditToolbar` /
   `showBulkUpdateToolbar` / `showEditHistoryToolbar`, `showVisualExcelExport`,
-  `headerExtras`
+  `headerExtras`, `toolbarDate` / `onToolbarDateChange`, `showToolbarDatePicker`,
+  `toolbarDateHistoryEnabled` (when `false`, only today is selectable)
 - `DEFAULT_MODULES` — ordered customizer-module pipeline
 - `gridSurfaceOptions` — AG Grid defaults, DOM options, row styling, cell renderers
 - `useGridHost`, `useMarketsGridController` — imperative grid control hooks
@@ -287,7 +288,8 @@ Per-renderer config types (`PillRendererConfig`,
 #### Toolbars
 
 - `PrimaryToolbar` — actions, admin, export/import, Visual Excel spreadsheet export,
-  settings sheet toggle, optional inline caption (`tabsHidden`), editing-toolbar pencil toggle
+  settings sheet toggle, optional inline caption (`tabsHidden`), editing-toolbar pencil toggle,
+  secondary actions in ⋯ overflow menu by default (`toolbarActionsLayout`: `overflow` | `inline`); shadcn `ToolbarDatePicker` on the right edge (defaults to today; `showToolbarDatePicker`; `historyEnabled` gates past dates)
 - `FiltersToolbar` — quick filter, saved filter recall, server-side expression
 - `FormattingToolbar` — cell/header styling, conditional formats, value formatters (with popout)
 - `EditingToolbar` — unified editing row (history undo/redo, Smart Edit ops, Bulk Update apply, keyboard hints dropdown); primary-row pencil toggle (`editing-toolbar-toggle`); segments gated by `resolveEditingToolbarAllow()` + module `settings.enabled`
@@ -1012,6 +1014,8 @@ Per-renderer config types (`PillRendererConfig`,
 
 - **STOMP** (`startStomp()`)
   - WebSocket via `@stomp/stompjs`
+  - Worker-side `{{name.key}}` resolution on every connect/restart via `appDataLookup` (SharedWorker AppData mirror); `restart({ asOfDate })` overlay **wins** for historical date keys (`asOfDate`, `position-asofdate`) so toolbar reload is deterministic
+  - Unresolved `{{...}}` in wire destinations → `status: error` (fail-fast; no silent infinite loading)
   - Snapshot phase → `snapshotEndToken` → buffered `{ rowsReceived }` progress, then chunked cache replace
   - Live phase → keyed deltas via `applyTransactionAsync`
   - Auto-chunking (`SNAPSHOT_CHUNK_SIZE = 500`) to stay under 50 ms long-task budget
@@ -1053,6 +1057,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### AppData system
 
+
 - `AppDataRow` — `configId, name, description, isPublic, values, userId`
 - `AppDataMirror`:
   - Synchronous `get(name, key)`
@@ -1061,12 +1066,14 @@ Per-renderer config types (`PillRendererConfig`,
   - Pending-ack handler for durability
   - `ready()` promise + `subscribe()` reactivity
 - Worker is sole IndexedDB writer
+- `SharedWorkerDataServicesHub.resyncAppDataFromStore()` — reload AppData provider rows from IndexedDB on mirror re-attach and after catalog `config-invalidate` (AppData editor saves)
 
 #### Template resolution
 
-- `{{name.key}}` — AppData token substitution (client-side, pre-attach)
+- `{{name.key}}` — AppData token substitution (React `useResolvedCfg` for column defs; worker `startProvider({ appDataLookup })` + STOMP `onConnect` for wire destinations)
 - `[identifier]` — session-unique bracket tokens (worker-side)
 - `resolveBracketCfg()` — per-attach cache so same token reuses same value
+- `traceStompProviderCfg()` / `traceStompWireDestinations()` — opt-in console audit (`globalThis.__STARUI_TEMPLATE_TRACE__ = true`)
 
 #### Platform bootstrap (Phase 0.5)
 
