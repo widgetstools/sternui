@@ -322,11 +322,20 @@ export class SharedWorkerDataServicesHub {
   buildIntrospectSnapshot(): HubIntrospectSnapshot {
     const runningIds = new Set(this.providers.keys());
     const providers: HubProviderIntrospectRow[] = [];
+    const nameById = new Map<string, string>();
+    if (this.configCatalog) {
+      for (const row of this.configCatalog.list({ includeAppData: false })) {
+        if (row.providerId && row.name) {
+          nameById.set(row.providerId, row.name);
+        }
+      }
+    }
 
     for (const [providerId, slot] of this.providers) {
       const stats = this.snapshotStats(providerId, slot);
       providers.push({
         providerId,
+        name: nameById.get(providerId),
         providerType: slot.cfg.providerType,
         running: true,
         status: slot.status,
@@ -350,6 +359,7 @@ export class SharedWorkerDataServicesHub {
         if (row.providerType === 'appdata') continue;
         providers.push({
           providerId: row.providerId,
+          name: row.name,
           providerType: row.providerType,
           running: false,
           cfg: this.configCatalog.getProviderConfig(row.providerId) ?? row.config ?? undefined,

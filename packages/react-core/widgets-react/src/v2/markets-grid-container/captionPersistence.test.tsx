@@ -39,8 +39,6 @@ vi.mock('@starui/host-data-react/runtime', () => ({
   useDataProvidersList: () => ({ configs: [] }),
 }));
 
-vi.mock('./ProviderToolbar.js', () => ({ ProviderToolbar: () => null }));
-vi.mock('./useChordHotkey.js', () => ({ useChordHotkey: () => {} }));
 vi.mock('./LoadingOverlay.js', () => ({ MarketsGridLoadingOverlay: () => null }));
 
 import { MarketsGridContainer } from './MarketsGridContainer.js';

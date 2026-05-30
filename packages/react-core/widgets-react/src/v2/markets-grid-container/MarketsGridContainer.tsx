@@ -1,16 +1,13 @@
 /**
  * MarketsGridContainer — v2.
  *
- *   - Two providers in the picker, ONE active at a time.
- *   - Picker toolbar is mounted INSIDE MarketsGrid via the
- *     `headerExtras` slot — it lives inside the grid's own chrome,
- *     not as a separate strip above it.
- *   - Toolbar is hidden by default. Alt+Shift+P / Meta+Shift+P toggles it.
  *   - Provider selection persists at the GRID level (not per-profile)
  *     in the SAME storage row MarketsGrid uses for its profile-set,
  *     via the StorageAdapter's `loadGridLevelData / saveGridLevelData`
  *     methods. Profile switches preserve the selection because it's
  *     not stored in any individual profile.
+ *   - Provider pickers, mode toggle, refresh/reload, and edit live in
+ *     the grid customizer → Custom Settings panel (not a toolbar strip).
  *
  *   Persistence flow:
  *     - Container resolves the storage adapter from
@@ -29,7 +26,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, GridApi } from 'ag-grid-community';
 import { MarketsGrid } from '@starui/grid';
 import { isHistoricalToolbarDate } from '@starui/grid/customizer';
-import type { MarketsGridProps, MarketsGridHandle, StorageAdapterFactory } from '@starui/grid';
+import type { MarketsGridProps, MarketsGridHandle, StorageAdapterFactory, ProviderGridHostApi } from '@starui/grid';
 import type { StompProviderConfig } from '@starui/types';
 import { traceStompProviderCfg } from '@starui/host-data/runtime';
 import type { AppDataLookup, StorageAdapter } from '@starui/engine';
@@ -43,12 +40,11 @@ import {
 import { getValueByPath } from '@starui/shared-types';
 import { createApplyProviderToGridState } from './applyProviderToGrid.js';
 import { LOGGED_IN_USER_ID } from '@starui/types';
-import { ProviderToolbar, type ProviderMode } from './ProviderToolbar.js';
 import { ProviderEditorDialog } from './ProviderEditorDialog.js';
-import { useChordHotkey } from './useChordHotkey.js';
-import { PROVIDER_TOOLBAR_TOGGLE_CHORDS } from './providerToolbarHotkeys.js';
 import { MarketsGridLoadingOverlay } from './LoadingOverlay.js';
 import { isOpenFinRuntime } from './openFinRuntime.js';
+
+export type ProviderMode = 'live' | 'historical';
 
 const EMPTY: never[] = [];
 
@@ -79,9 +75,9 @@ export interface MarketsGridContainerProps<TData extends Record<string, unknown>
    */
   historicalDateAppDataRef?: string;
   /**
-   * OpenFin only: called when the user clicks the toolbar Edit button.
-   * In a browser runtime the container opens {@link DataProviderEditor}
-   * in a shadcn dialog instead.
+   * OpenFin only: called when the user edits the active provider from
+   * Custom Settings. In a browser runtime the container opens
+   * {@link DataProviderEditor} in a shadcn dialog instead.
    */
   onEditProvider?(providerId: string): void;
   /** Surface stream errors. Defaults to console.error. */
@@ -185,8 +181,6 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const [selection, setSelection] = useState<ProviderSelection>(DEFAULT_SELECTION);
   const [persistedCaption, setPersistedCaption] = useState<string | undefined>(undefined);
   const [loaded, setLoaded] = useState(false);
-  // Provider toolbar hidden until the user toggles it via chord hotkeys.
-  const [pickerVisible, setPickerVisible] = useState(false);
   const [asOfDate, setAsOfDate] = useState<string | null>(null);
   const [toolbarDate, setToolbarDate] = useState(todayIsoDate);
   const pendingToolbarReloadRef = useRef(false);
@@ -298,16 +292,6 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const setMode = useCallback((mode: ProviderMode) => {
     setSelection((s) => ({ ...s, mode }));
   }, []);
-
-  // ── Hotkey ────────────────────────────────────────────────────────
-  //
-  // Alt+Shift+P (Option on Mac) and Meta+Shift+P (Command on Mac) toggle
-  // the provider toolbar. Hidden by default — developer/support affordance.
-  const toggleToolbar = useCallback(() => setPickerVisible((v) => !v), []);
-  useChordHotkey(PROVIDER_TOOLBAR_TOGGLE_CHORDS, (e) => {
-    e.preventDefault();
-    toggleToolbar();
-  });
 
   // ── Active provider resolution ────────────────────────────────────
   const activeId = selection.mode === 'live' ? selection.liveProviderId : selection.historicalProviderId;
@@ -527,8 +511,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   if (DEBUG) {
     // eslint-disable-next-line no-console
     console.log(
-      `[v2/grid] render gate: loaded=%s liveApi=%s activeId=%s rowIdField=%s columnDefs=%s cfgLoaded=%s pickerVisible=%s`,
-      loaded, Boolean(liveApi), activeId, rowIdField, Boolean(columnDefs), Boolean(activeCfg), pickerVisible,
+      `[v2/grid] render gate: loaded=%s liveApi=%s activeId=%s rowIdField=%s columnDefs=%s cfgLoaded=%s`,
+      loaded, Boolean(liveApi), activeId, rowIdField, Boolean(columnDefs), Boolean(activeCfg),
     );
   }
 
@@ -781,10 +765,6 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     reloadFromSource,
   ]);
 
-  // ── Toolbar slot content ──────────────────────────────────────────
-  //
-  // Passed via `headerExtras`; null until the user toggles the toolbar
-  // via Alt+Shift+P / Meta+Shift+P.
   const handleProviderEdit = useCallback((providerId: string) => {
     if (isOpenFinRuntime()) {
       onEditProvider?.(providerId);
@@ -793,6 +773,37 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     setEditingProviderId(providerId);
     setProviderEditorOpen(true);
   }, [onEditProvider]);
+
+  const providerGridHost = useMemo<ProviderGridHostApi>(() => ({
+    available: true,
+    liveProviders: liveList.configs,
+    historicalProviders: histList.configs,
+    liveProviderId: selection.liveProviderId,
+    historicalProviderId: selection.historicalProviderId,
+    mode: selection.mode,
+    asOfDate,
+    onLiveChange: setLiveId,
+    onHistoricalChange: setHistoricalId,
+    onModeChange: setMode,
+    onAsOfDateChange: setAsOfDateAndPersist,
+    onRefreshView: refreshView,
+    onReloadFromSource: () => { void reloadFromSource(); },
+    onEditProvider: handleProviderEdit,
+  }), [
+    liveList.configs,
+    histList.configs,
+    selection.liveProviderId,
+    selection.historicalProviderId,
+    selection.mode,
+    asOfDate,
+    setLiveId,
+    setHistoricalId,
+    setMode,
+    setAsOfDateAndPersist,
+    refreshView,
+    reloadFromSource,
+    handleProviderEdit,
+  ]);
 
   const providerEditorDialog = (
     <ProviderEditorDialog
@@ -805,24 +816,6 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       }}
     />
   );
-
-  const headerExtras = pickerVisible ? (
-    <ProviderToolbar
-      liveProviders={liveList.configs}
-      historicalProviders={histList.configs}
-      liveProviderId={selection.liveProviderId}
-      historicalProviderId={selection.historicalProviderId}
-      mode={selection.mode}
-      asOfDate={asOfDate}
-      onLiveChange={setLiveId}
-      onHistoricalChange={setHistoricalId}
-      onModeChange={setMode}
-      onAsOfDateChange={setAsOfDateAndPersist}
-      onRefreshView={refreshView}
-      onReloadFromSource={reloadFromSource}
-      onEdit={handleProviderEdit}
-    />
-  ) : null;
 
   // ── Render ────────────────────────────────────────────────────────
   if (!loaded) {
@@ -838,7 +831,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   // Provider selected and cfg loaded → full data-attached grid.
   if (activeId && !activeRow.loading && rowIdField && columnDefs) {
-    // Prepend reload admin actions mirroring the provider toolbar.
+    // Prepend reload admin actions (also available in Custom Settings).
     const userAdminActions = (marketsGridProps as { adminActions?: import('@starui/grid').AdminAction[] }).adminActions ?? [];
     const adminActionsWithRefresh: import('@starui/grid').AdminAction[] = [
       {
@@ -872,7 +865,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
             columnDefs={columnDefs}
             appData={appDataLookup}
             onReady={onReady}
-            headerExtras={headerExtras}
+            providerGridHost={providerGridHost}
             adminActions={adminActionsWithRefresh}
             caption={effectiveCaption}
             onCaptionChange={handleCaptionChange}
@@ -905,8 +898,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   }
 
   // No provider selected (or cfg still resolving): mount MarketsGrid
-  // with a sentinel rowIdField. Reveal the toolbar (Alt+Shift+P /
-  // Meta+Shift+P) to pick a provider; chord toggles visibility.
+  // with a sentinel rowIdField. Open Custom Settings to pick a provider.
   return (
     <>
       <MarketsGrid<TData>
@@ -916,7 +908,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         rowIdField="__none__"
         columnDefs={EMPTY as unknown as ColDef<TData>[]}
         appData={appDataLookup}
-        headerExtras={headerExtras}
+        providerGridHost={providerGridHost}
         caption={effectiveCaption}
         onCaptionChange={handleCaptionChange}
         toolbarDate={toolbarDate}

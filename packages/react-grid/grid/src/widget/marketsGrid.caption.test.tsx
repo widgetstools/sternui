@@ -42,6 +42,7 @@ vi.mock('@starui/grid/customizer', async () => {
   return {
     ...actual,
     GridProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    ProviderGridHostProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     useGridApi: () => null,
     useGridPlatform: () => ({}),
     useModuleState: () => [undefined, vi.fn()],
@@ -95,8 +96,23 @@ vi.mock('@starui/grid/customizer', async () => {
     gridStateModule: {},
     savedFiltersModule: {},
     toolbarVisibilityModule: {},
+    toolbarDateSettingsModule: {},
   };
 });
+
+vi.mock('../customizer/modules/toolbar-date-settings/useToolbarDateSettingsBridge.js', () => ({
+  useToolbarDateSettingsBridge: ({
+    toolbarDate,
+    onToolbarDateChange,
+  }: {
+    toolbarDate: string;
+    onToolbarDateChange: (next: string) => void;
+  }) => ({
+    toolbarDate,
+    onToolbarDateChange,
+    historyEnabled: true,
+  }),
+}));
 
 vi.mock('./useGridHost', () => ({
   useGridHost: () => ({

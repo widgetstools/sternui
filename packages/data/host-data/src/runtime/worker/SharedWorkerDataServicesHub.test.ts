@@ -1008,8 +1008,8 @@ describe('SharedWorkerDataServicesHub — config catalog', () => {
     expect(snap.introspect?.runningProviderCount).toBe(1);
     expect(snap.introspect?.providers).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ providerId: 'p1', running: true, cfg: expect.objectContaining({ providerType: 'mock' }) }),
-        expect.objectContaining({ providerId: 'p2', running: false, cfg: expect.objectContaining({ providerType: 'mock' }) }),
+        expect.objectContaining({ providerId: 'p1', name: 'p1', running: true, cfg: expect.objectContaining({ providerType: 'mock' }) }),
+        expect.objectContaining({ providerId: 'p2', name: 'p2', running: false, cfg: expect.objectContaining({ providerType: 'mock' }) }),
       ]),
     );
     expect(snap.introspect?.appData.rows).toEqual(

@@ -376,6 +376,12 @@ export {
   type ToolbarDateSettingsState,
 } from './modules/toolbar-date-settings';
 export {
+  ProviderGridHostProvider,
+  useProviderGridHost,
+  type ProviderGridHostApi,
+  type ProviderGridHostMode,
+} from './providerGridHost/ProviderGridHostContext';
+export {
   gridStateModule,
   GRID_STATE_MODULE_ID,
   GRID_STATE_SCHEMA_VERSION,

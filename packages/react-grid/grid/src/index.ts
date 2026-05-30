@@ -26,6 +26,8 @@ export type {
   StorageAdapterFactory,
   StorageAdapterFactoryOpts,
   MarketsGridLocalStorageConfig,
+  ProviderGridHostApi,
+  ProviderGridHostMode,
 } from './widget/types.js';
 
 export { isOpenFin, openFinWindowOpener } from './runtime/openFin.js';

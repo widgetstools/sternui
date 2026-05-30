@@ -145,6 +145,8 @@ export interface RefreshProviderRequest {
 /** Snapshot of SharedWorker hub runtime state (providers, AppData, ports). */
 export interface HubProviderIntrospectRow {
   providerId: string;
+  /** Human-readable label from catalog (`displayText` / `DataProviderConfig.name`). */
+  name?: string;
   providerType: string;
   /** False when the row exists in catalog but has no runtime slot. */
   running: boolean;

@@ -23,11 +23,12 @@
     "@starui/host-data": "*",
     "@starui/types": "*",
     "@starui/ui": "*",
+    "@tanstack/react-virtual": "^3.13.26",
     "lucide-react": "^0.554.0"
   },
   "devDependencies": {
-    "@testing-library/react": "^16.3.2",
     "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "jsdom": "^29.0.2",

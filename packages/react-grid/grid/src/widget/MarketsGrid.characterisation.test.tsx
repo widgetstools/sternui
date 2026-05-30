@@ -95,6 +95,7 @@ vi.mock('@starui/engine', () => ({
 
 vi.mock('@starui/grid/customizer', () => ({
   GridProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  ProviderGridHostProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useGridApi: () => mocks.api,
   useGridPlatform: () => ({ store: {} }),
   useModuleState: () => [undefined, vi.fn()],
@@ -149,6 +150,7 @@ vi.mock('@starui/grid/customizer', () => ({
   gridStateModule: {},
   savedFiltersModule: {},
   toolbarVisibilityModule: {},
+  toolbarDateSettingsModule: {},
 }));
 
 vi.mock('./useGridHost', () => ({
@@ -162,6 +164,20 @@ vi.mock('./useGridHost', () => ({
       onGridPreDestroyed: vi.fn(),
     };
   },
+}));
+
+vi.mock('../customizer/modules/toolbar-date-settings/useToolbarDateSettingsBridge.js', () => ({
+  useToolbarDateSettingsBridge: ({
+    toolbarDate,
+    onToolbarDateChange,
+  }: {
+    toolbarDate: string;
+    onToolbarDateChange: (next: string) => void;
+  }) => ({
+    toolbarDate,
+    onToolbarDateChange,
+    historyEnabled: true,
+  }),
 }));
 
 vi.mock('./FiltersToolbar', () => ({ FiltersToolbar: () => null }));

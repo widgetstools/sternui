@@ -298,7 +298,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `BulkUpdateToolbarBody` — text input for custom values, optional distinct-value picker (fills input), check-icon apply control
 - `EditHistoryToolbarBody` — global undo/redo + stack entry count
 - `SmartEditToolbar` — legacy standalone toolbar export (superseded by `EditingToolbar` segment)
-- `headerExtras` prop — optional React slot rendered above the primary toolbar row inside grid chrome (`MarketsGridContainer` mounts `ProviderToolbar` here when revealed)
+- `providerGridHost` prop — optional runtime API for data-provider controls in the grid customizer → Custom Settings panel (`MarketsGridContainer` wires live/historical pickers, refresh, reload, edit)
 - `resolveEditingToolbarAllow()` — maps `showEditingToolbar` and legacy per-segment props to host allow-list
 - `AdminActionButtons` — admin grid operations
 
@@ -492,11 +492,10 @@ Per-renderer config types (`PillRendererConfig`,
 #### Data-provider container & editor
 
 - `MarketsGridContainer` — grid + two-provider picker + mode toggle (`Alt+Shift+P` /
-  `Cmd+Shift+P` hotkey), grid-level provider persistence; mounts `ProviderToolbar`
-  in `MarketsGrid` `headerExtras` when toggled visible
+  grid-level provider persistence; provider pickers live in grid customizer → Custom Settings (`providerGridHost`)
 - `MarketsGridContainer` — hub data via `useDataProvider` + `applyProviderToGrid` (no direct `client.subscribe` / cfg pass-through); optional `defaultLiveProviderId` for single-provider demos
 - `applyProviderToGrid` — live-tick add/update split with pending-add dedup (`createApplyProviderToGridState`, `splitProviderRowsForGrid`); extracted from `MarketsGridContainer` for `IDataProvider.onTick` wiring
-- `ProviderToolbar` — in-grid provider selector + edit dialog launcher (Live/Hist mode, **Refresh view** → `IDataProvider.refresh()`, **Reload** → `restart()`, as-of date)
+- Custom Settings panel (`toolbar-date-settings` module) — data provider pickers (live/historical, mode, as-of date, refresh, reload, edit) when `providerGridHost` is wired; historical date → AppData configuration
 - `ProviderEditorDialog` — modal hosting `DataProviderEditor`
 - `DataProviderEditor` — connection + tabs (Connections, Fields, Columns, Diagnostics)
 - `DataProviderSelector` — compact provider dropdown with quick-add
@@ -1154,7 +1153,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Hub inspector (dev)
 
-- `HubInspectorDrawer` / `HubInspectorHost` — shadcn drawer listing running + idle catalog providers (status, subscribers, cache row counts, expandable worker-loaded `cfg` JSON) and AppData rows (expandable `values`); polls `getHubIntrospect()` while open
+- `HubInspectorDrawer` / `HubInspectorHost` — shadcn drawer listing running + idle catalog providers (display name + id, status, subscribers, cache row counts, expandable worker-loaded `cfg` JSON) and AppData rows (expandable `values`); polls `getHubIntrospect()` while open
 - `useChordHotkey` — minimal chord listener for Alt+Shift+S toggle
 
 #### Escape hatch
@@ -1440,7 +1439,7 @@ These aren't a single feature, but they are platform invariants worth rememberin
   data-change-history → alerts → saved-filters → toolbar-visibility → grid-state
   (grid-state last so replay sees the finalized column set).
 - **Storage adapter pattern** — `StorageAdapter` is the single contract. localStorage, IndexedDB, ConfigService (REST + Dexie), and in-memory all implement it.
-- **Provider selection** — `MarketsGridContainer` exposes a two-provider picker with grid-level persistence; reveal/hide via `Alt+Shift+P` / `Cmd+Shift+P` (`useChordHotkey`). Bare `MarketsGrid` hosts (e.g. markets-grid-lab) use parent-controlled `rowData` and do not mount the provider toolbar.
+- **Provider selection** — `MarketsGridContainer` exposes live/historical provider pickers in grid customizer → Custom Settings with grid-level persistence (`gridLevelData`). Primary toolbar still offers refresh/reload admin actions. Bare `MarketsGrid` hosts use parent-controlled `rowData`.
 - **Expression engine** — CSP-safe parser/evaluator drives calculated columns, conditional rules, and filter expressions; `tryCompileToAgString()` transpiles to AG Grid `valueFormatter` strings.
 - **Theme integration** — reactive dark/light switching via `RuntimePort` + `data-theme` attribute; AG Grid theme + StarUI tokens stay in lockstep.
 - **Extensibility surfaces** — slot-based widget extensions in `@starui/widget-sdk`; OpenFin plugin hooks (`onMount`, `onReady`, `onThemeChanged`, `onMessage`, `onClose`) in `@starui/openfin-platform`.

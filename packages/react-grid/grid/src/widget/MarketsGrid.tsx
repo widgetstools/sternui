@@ -35,6 +35,8 @@ import {
   toolbarDateSettingsModule,
   toolbarVisibilityModule,
   visualExcelModule,
+  ProviderGridHostProvider,
+  type ProviderGridHostApi,
 } from '@starui/grid/customizer';
 import type { MarketsGridHandle, MarketsGridProps } from './types';
 import { isMarketsGridLocalStorageStorageFactory } from './createMarketsGridLocalStorageStorage';
@@ -134,6 +136,7 @@ function MarketsGridInner<TData = unknown>(
     gridLevelData,
     onGridLevelDataLoad,
     headerExtras,
+    providerGridHost,
     componentName,
     caption,
     tabsHidden,
@@ -334,7 +337,8 @@ function MarketsGridInner<TData = unknown>(
   );
 
   return (
-    <GridProvider platform={platform}>
+    <ProviderGridHostProvider value={providerGridHost ?? null}>
+      <GridProvider platform={platform}>
       <MarketsGridHost
         rowData={rowData}
         columnDefs={columnDefs}
@@ -389,6 +393,7 @@ function MarketsGridInner<TData = unknown>(
         toolbarActionsLayout={toolbarActionsLayout}
       />
     </GridProvider>
+    </ProviderGridHostProvider>
   );
 }
 

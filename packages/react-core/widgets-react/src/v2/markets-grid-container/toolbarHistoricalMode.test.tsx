@@ -158,8 +158,6 @@ vi.mock('@starui/host-data-react/runtime', () => ({
   }),
 }));
 
-vi.mock('./ProviderToolbar.js', () => ({ ProviderToolbar: () => null }));
-vi.mock('./useChordHotkey.js', () => ({ useChordHotkey: () => {} }));
 vi.mock('./LoadingOverlay.js', () => ({ MarketsGridLoadingOverlay: () => null }));
 vi.mock('./ProviderEditorDialog.js', () => ({ ProviderEditorDialog: () => null }));
 

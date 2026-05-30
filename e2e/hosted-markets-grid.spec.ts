@@ -99,20 +99,14 @@ test.describe('hosted-markets-grid integration', () => {
     await expect(page.locator('[data-testid="save-all-dirty"]')).toHaveCount(0);
   });
 
-  test('Alt+Shift+P toggles the provider picker toolbar', async ({ page }) => {
-    // Picker is hidden by default. The chord mounts the ProviderToolbar
-    // strip with "Live" + "Hist" buttons.
-    const liveBtn = page.locator('button', { hasText: /^Live$/ }).first();
-    await expect(liveBtn).toHaveCount(0);
-
-    await page.keyboard.down('Alt');
-    await page.keyboard.down('Shift');
-    await page.keyboard.press('KeyP');
-    await page.keyboard.up('Shift');
-    await page.keyboard.up('Alt');
-
-    await expect(liveBtn).toBeVisible();
-    await expect(page.locator('button', { hasText: /^Hist$/ }).first()).toBeVisible();
+  test('Custom Settings exposes data provider controls', async ({ page }) => {
+    await page.locator('[data-testid="v2-settings-open-btn"]').click();
+    await page.locator('[data-testid="v2-settings-module-dropdown"]').click();
+    await page.locator('[data-testid="v2-settings-nav-menu-toolbar-date-settings"]').click();
+    await expect(page.locator('[data-testid="provider-grid-host-section"]')).toBeVisible();
+    await expect(page.locator('[data-testid="provider-live-select"]')).toBeVisible();
+    await expect(page.locator('[data-testid="provider-refresh-view"]')).toBeVisible();
+    await expect(page.locator('[data-testid="provider-reload-from-source"]')).toBeVisible();
   });
 
   test('grid info popover surfaces path / instanceId / gridId', async ({ page }) => {

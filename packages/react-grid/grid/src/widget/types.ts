@@ -1,8 +1,9 @@
 import type { ColDef, GridApi, SideBarDef, StatusPanelDef, Theme } from 'ag-grid-community';
 import type { AnyModule, AppDataLookup, GridPlatform, MarketsGridLocalStorageConfig, StorageAdapter, StorageAdapterFactory, StorageAdapterFactoryOpts } from '@starui/engine';
 import type { GridHostContext } from '@starui/host';
-import type { UseProfileManagerResult, VisualExcelExportOptions } from '@starui/grid/customizer';
+import type { UseProfileManagerResult, VisualExcelExportOptions, ProviderGridHostApi } from '@starui/grid/customizer';
 
+export type { ProviderGridHostApi, ProviderGridHostMode } from '@starui/grid/customizer';
 export type { MarketsGridLocalStorageConfig, StorageAdapterFactory, StorageAdapterFactoryOpts } from '@starui/engine';
 
 /**
@@ -221,18 +222,18 @@ export interface MarketsGridProps<TData = unknown> {
   componentName?: string;
 
   /**
-   * Slot rendered in the grid's primary toolbar row, BEFORE the
-   * filters/formatting toolbars. Used by `<MarketsGridContainer>` to
-   * mount the data-provider toolbar (live/historical pickers, mode
-   * toggle, refresh, edit) so it lives inside the grid's own chrome
-   * rather than as a separate strip above it. Anything renderable;
-   * `undefined` collapses the slot.
-   *
-   * The slot is hidden by default in v2 — the container only mounts
-   * its toolbar when the user reveals it via the Alt+Shift+P chord
-   * (a developer/support affordance, not surfaced to end users).
+   * Optional slot rendered above the primary toolbar row. Prefer
+   * {@link providerGridHost} + Custom Settings in the grid customizer for
+   * data-provider controls; `headerExtras` remains for ad-hoc host chrome.
    */
   headerExtras?: import('react').ReactNode;
+
+  /**
+   * Data-provider runtime API for MarketsGridContainer. Wired into the grid
+   * customizer → Custom Settings panel (live/historical pickers, refresh,
+   * reload, edit). Grid-level selection persists via `gridLevelData`.
+   */
+  providerGridHost?: ProviderGridHostApi | null;
 
   /**
    * Optional caption rendered top-left, ABOVE the primary toolbar row,

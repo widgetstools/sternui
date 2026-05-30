@@ -1,15 +1,11 @@
 /**
- * MarketsGridContainer — provider pencil edit opens an in-browser dialog
+ * MarketsGridContainer — provider edit opens an in-browser dialog
  * when not hosted in OpenFin; OpenFin delegates to `onEditProvider`.
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import type { StorageAdapter } from '@starui/engine';
-
-vi.mock('./ProviderToolbar.js', () => ({
-  ProviderToolbar: () => <div data-testid="provider-toolbar-stub" />,
-}));
 
 vi.mock('./ProviderEditorDialog.js', () => ({
   ProviderEditorDialog: (props: any) => (
@@ -44,13 +40,6 @@ vi.mock('@starui/host-data-react/runtime', () => ({
   useDataProvidersList: () => ({ configs: [] }),
 }));
 
-let invokeToolbarToggle: (() => void) | undefined;
-vi.mock('./useChordHotkey.js', () => ({
-  useChordHotkey: (_chords: unknown, cb: (e: { preventDefault: () => void }) => void) => {
-    invokeToolbarToggle = () => cb({ preventDefault: () => {} });
-  },
-}));
-
 vi.mock('./LoadingOverlay.js', () => ({ MarketsGridLoadingOverlay: () => null }));
 
 import { isOpenFinRuntime } from './openFinRuntime.js';
@@ -71,12 +60,6 @@ function makeAdapter(initial: unknown = null) {
   return adapter;
 }
 
-function toolbarOnEdit(): ((id: string) => void) | undefined {
-  const extras = lastMarketsGridProps.current?.headerExtras;
-  if (!extras || typeof extras !== 'object') return undefined;
-  return (extras as { props?: { onEdit?: (id: string) => void } }).props?.onEdit;
-}
-
 const baseProps = {
   gridId: 'g1',
   instanceId: 'inst-1',
@@ -86,26 +69,21 @@ const baseProps = {
 
 describe('MarketsGridContainer — provider editor dialog', () => {
   beforeEach(() => {
-    invokeToolbarToggle = undefined;
     lastMarketsGridProps.current = null;
     vi.mocked(isOpenFinRuntime).mockReturnValue(false);
   });
 
-  it('opens ProviderEditorDialog in browser when toolbar edit is clicked', async () => {
+  it('wires providerGridHost.onEditProvider to open ProviderEditorDialog in browser', async () => {
     const storage = vi.fn(() => makeAdapter());
     const { getByTestId, queryByTestId } = render(
       <MarketsGridContainer {...baseProps} storage={storage as any} />,
     );
 
-    await waitFor(() => expect(lastMarketsGridProps.current).not.toBeNull());
-    await act(async () => {
-      invokeToolbarToggle?.();
-    });
-    await waitFor(() => expect(toolbarOnEdit()).toBeTypeOf('function'));
+    await waitFor(() => expect(lastMarketsGridProps.current?.providerGridHost?.onEditProvider).toBeTypeOf('function'));
     expect(queryByTestId('provider-editor-dialog')).toBeNull();
 
     act(() => {
-      toolbarOnEdit()?.('provider-abc');
+      lastMarketsGridProps.current.providerGridHost.onEditProvider('provider-abc');
     });
 
     await waitFor(() => {
@@ -126,14 +104,10 @@ describe('MarketsGridContainer — provider editor dialog', () => {
       />,
     );
 
-    await waitFor(() => expect(lastMarketsGridProps.current).not.toBeNull());
-    await act(async () => {
-      invokeToolbarToggle?.();
-    });
-    await waitFor(() => expect(toolbarOnEdit()).toBeTypeOf('function'));
+    await waitFor(() => expect(lastMarketsGridProps.current?.providerGridHost?.onEditProvider).toBeTypeOf('function'));
 
     act(() => {
-      toolbarOnEdit()?.('provider-openfin');
+      lastMarketsGridProps.current.providerGridHost.onEditProvider('provider-openfin');
     });
 
     expect(onEditProvider).toHaveBeenCalledWith('provider-openfin');

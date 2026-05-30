@@ -5,6 +5,22 @@ import {
   openSettingsSheet,
 } from './settingsSheet';
 
+export async function openProviderCustomSettings(page: Page): Promise<void> {
+  await openSettingsSheet(page);
+  const section = page.locator('[data-testid="provider-grid-host-section"]');
+  if (await section.isVisible().catch(() => false)) {
+    return;
+  }
+  await page.locator('[data-testid="v2-settings-module-dropdown"]').click();
+  await page.locator('[data-testid="v2-settings-nav-menu-toolbar-date-settings"]').click();
+  await expect(section).toBeVisible({ timeout: 10_000 });
+}
+
+/** @deprecated Use {@link openProviderCustomSettings} — provider toolbar removed. */
+export async function revealProviderToolbar(page: Page): Promise<void> {
+  await openProviderCustomSettings(page);
+}
+
 export const REFERENCE_BLOTTER_URL = 'http://localhost:5174/blotters/marketsgrid';
 export const REFERENCE_GRID_ID = 'markets-ui-reference-blotter';
 export const REFERENCE_DEXIE_DB = 'marketsui-config';
@@ -110,13 +126,11 @@ export async function seedMockPositionsProvider(
 }
 
 export function liveProviderCombobox(page: Page) {
-  const byTestId = page.locator('[data-testid="provider-live-select"]');
-  return byTestId.or(
-    page.locator('span').filter({ hasText: /^Live:$/ }).locator('..').getByRole('combobox'),
-  );
+  return page.locator('[data-testid="provider-live-select"]');
 }
 
 export async function selectLiveProvider(page: Page, providerName: string): Promise<void> {
+  await openProviderCustomSettings(page);
   const picker = liveProviderCombobox(page);
   await picker.click();
   const option = page.getByRole('option', { name: new RegExp(providerName) });
@@ -130,19 +144,10 @@ export async function waitForProviderRows(page: Page): Promise<void> {
   ).not.toHaveCount(0, { timeout: 20_000 });
 }
 
-/** Alt+Shift+P / Meta+Shift+P — reveal the provider toolbar strip. */
-export async function revealProviderToolbar(page: Page): Promise<void> {
-  await page.keyboard.down('Alt');
-  await page.keyboard.down('Shift');
-  await page.keyboard.press('KeyP');
-  await page.keyboard.up('Shift');
-  await page.keyboard.up('Alt');
-  await expect(page.getByTitle('Edit selected provider')).toBeVisible({ timeout: 10_000 });
-}
-
-/** Stop the active live provider via Diagnostics → Stop. */
+/** Stop the active live provider via Custom Settings → Edit → Diagnostics → Stop. */
 export async function stopLiveProviderFromDiagnostics(page: Page): Promise<void> {
-  await page.getByTitle('Edit selected provider').click();
+  await openProviderCustomSettings(page);
+  await page.getByTestId('provider-edit-selected').click();
   await expect(page.getByTestId('provider-editor-dialog')).toBeVisible({ timeout: 10_000 });
   await page.getByRole('tab', { name: 'Diagnostics' }).click();
   await page.getByRole('button', { name: 'Stop' }).click();
