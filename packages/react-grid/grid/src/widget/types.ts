@@ -1,9 +1,9 @@
 import type { ColDef, GridApi, SideBarDef, StatusPanelDef, Theme } from 'ag-grid-community';
 import type { AnyModule, AppDataLookup, GridPlatform, MarketsGridLocalStorageConfig, StorageAdapter, StorageAdapterFactory, StorageAdapterFactoryOpts } from '@starui/engine';
 import type { GridHostContext } from '@starui/host';
-import type { UseProfileManagerResult, VisualExcelExportOptions, ProviderGridHostApi } from '@starui/grid/customizer';
+import type { UseProfileManagerResult, VisualExcelExportOptions, ProviderGridHostApi, GridEventBindingsHostApi } from '@starui/grid/customizer';
 
-export type { ProviderGridHostApi, ProviderGridHostMode } from '@starui/grid/customizer';
+export type { ProviderGridHostApi, ProviderGridHostMode, GridEventBindingsHostApi } from '@starui/grid/customizer';
 export type { MarketsGridLocalStorageConfig, StorageAdapterFactory, StorageAdapterFactoryOpts } from '@starui/engine';
 
 /**
@@ -234,6 +234,12 @@ export interface MarketsGridProps<TData = unknown> {
    * reload, edit). Grid-level selection persists via `gridLevelData`.
    */
   providerGridHost?: ProviderGridHostApi | null;
+
+  /**
+   * Grid-level event→handler bindings UI (Custom Settings). Wired by
+   * {@link MarketsGridContainer} when the app supplies `gridEventHandlers`.
+   */
+  gridEventBindingsHost?: GridEventBindingsHostApi | null;
 
   /**
    * Optional caption rendered top-left, ABOVE the primary toolbar row,

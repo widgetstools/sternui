@@ -16,6 +16,18 @@ export {
   ensurePlatformReady,
   type EnsurePlatformReadyOpts,
 } from './ensurePlatformReady.js';
+export type {
+  AppDataBootstrapContext,
+  AppDataBootstrapHook,
+  AppDataBootstrapHookRegistry,
+  AppDataUpsertInput,
+  RunAppDataBootstrapOpts,
+} from './appDataBootstrap.js';
+export {
+  createAppDataBootstrapContext,
+  runAppDataBootstrap,
+} from './appDataBootstrap.js';
+export type { AppDataBootstrapManifest } from './PlatformBootstrapConfig.js';
 export type { EnsureHubOpts, ResolvedDataServicesHubBundle } from '../hub/ensureDataServicesHub.js';
 export { ensureDataServicesHub } from '../hub/ensureDataServicesHub.js';
 export { SnapshotReassembler, type SnapshotReassemblerCallbacks } from '../hub/SnapshotReassembler.js';

@@ -15,6 +15,7 @@ import {
 } from '../column-customization/editors/CellEditorEditor';
 import { BoolControl } from '../general-settings/fieldSchema';
 import { ProviderGridHostSection } from './ProviderGridHostSection';
+import { GridEventBindingsSection } from './GridEventBindingsSection';
 import {
   INITIAL_TOOLBAR_DATE_SETTINGS,
   TOOLBAR_DATE_SETTINGS_MODULE_ID,
@@ -55,6 +56,7 @@ export function ToolbarDateSettingsPanel(): ReactElement {
         )}
       />
       <ProviderGridHostSection />
+      <GridEventBindingsSection />
       <div className="space-y-1 border-b border-[color:var(--ds-border-primary)] p-3">
         <SubLabel>HISTORICAL DATE → APP DATA</SubLabel>
         <p className="mb-3 text-[11px] text-[color:var(--ds-text-secondary)]">

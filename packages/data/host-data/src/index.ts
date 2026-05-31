@@ -35,6 +35,7 @@ export {
 export type {
   PlatformBootstrapConfig,
   PlatformBootstrapValidationResult,
+  AppDataBootstrapManifest,
 } from './bootstrap/index.js';
 export {
   DEV_PLATFORM_BOOTSTRAP,
@@ -45,6 +46,8 @@ export {
   ensurePlatformReady,
   ensureDataServicesHub,
   SnapshotReassembler,
+  runAppDataBootstrap,
+  createAppDataBootstrapContext,
 } from './bootstrap/index.js';
 export type {
   FetchLike,
@@ -52,6 +55,11 @@ export type {
   EnsureHubOpts,
   ResolvedDataServicesHubBundle,
   SnapshotReassemblerCallbacks,
+  AppDataBootstrapContext,
+  AppDataBootstrapHook,
+  AppDataBootstrapHookRegistry,
+  AppDataUpsertInput,
+  RunAppDataBootstrapOpts,
 } from './bootstrap/index.js';
 
 // One-shot probes — pure main-thread functions for editor flows

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
 import { useDataServices, useUserIdFromContext } from '@starui/host-data-react/runtime';
 import { getPlatform } from './bootstrap.js';
+import { gridEventHandlers } from './platform/gridEventHandlers.js';
+import { gridHandlerMeta } from './platform/hooksMeta.js';
 import { stompHistoricalProviderDraft, stompProviderDraft } from './stompProvider.js';
 
 /**
@@ -61,6 +63,8 @@ export function App() {
       historicalDateAppDataRef="positions.asOfDate"
       withStorage
       configManager={getPlatform().configManager}
+      gridEventHandlers={gridEventHandlers}
+      handlerMeta={gridHandlerMeta}
       showFiltersToolbar
       showFormattingToolbar
     />

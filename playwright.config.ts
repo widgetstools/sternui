@@ -51,5 +51,14 @@ export default defineConfig({
       reuseExistingServer: true,
       timeout: 120_000,
     },
+    {
+      // Platform hooks demo — AppData bootstrap + grid event bindings.
+      // Port matches `apps/platform-hooks-demo/vite.config.ts`.
+      // host-data resolves to dist exports — build before dev so bootstrap JSON parsing is current.
+      command: 'npm run build --workspace=@starui/host-data && npm run build --workspace=@starui/widgets-react && STARUI_DEV_SOURCE=1 npm run dev --workspace=@starui/platform-hooks-demo -- --no-open --force',
+      port: 5214,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
   ],
 });

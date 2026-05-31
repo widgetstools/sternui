@@ -26,7 +26,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, GridApi } from 'ag-grid-community';
 import { MarketsGrid } from '@starui/grid';
 import { isHistoricalToolbarDate } from '@starui/grid/customizer';
-import type { MarketsGridProps, MarketsGridHandle, StorageAdapterFactory, ProviderGridHostApi } from '@starui/grid';
+import type { MarketsGridProps, MarketsGridHandle, StorageAdapterFactory, ProviderGridHostApi, GridEventBindingsHostApi, MarketsGridEventHandlerRegistry, MarketsGridHandlerMeta } from '@starui/grid';
+import {
+  MARKETS_GRID_EVENT_CATALOG,
+  createMarketsGridContainerEventBus,
+  useMarketsGridEventBridge,
+} from '@starui/grid';
 import type { StompProviderConfig } from '@starui/types';
 import { traceStompProviderCfg } from '@starui/host-data/runtime';
 import type { AppDataLookup, StorageAdapter } from '@starui/engine';
@@ -43,8 +48,16 @@ import { LOGGED_IN_USER_ID } from '@starui/types';
 import { ProviderEditorDialog } from './ProviderEditorDialog.js';
 import { MarketsGridLoadingOverlay } from './LoadingOverlay.js';
 import { isOpenFinRuntime } from './openFinRuntime.js';
+import {
+  DEFAULT_PROVIDER_SELECTION,
+  normalizeGridLevelData,
+  serializeGridLevelData,
+  type GridLevelStateV1,
+  type ProviderMode,
+  type ProviderSelection,
+} from './gridLevelState.js';
 
-export type ProviderMode = 'live' | 'historical';
+export type { ProviderMode, ProviderSelection } from './gridLevelState.js';
 
 const EMPTY: never[] = [];
 
@@ -92,36 +105,13 @@ export interface MarketsGridContainerProps<TData extends Record<string, unknown>
    * this provider when the user picks a past toolbar date.
    */
   defaultHistoricalProviderId?: string;
+  /** App registry of event handler functions keyed by stable id. */
+  gridEventHandlers?: MarketsGridEventHandlerRegistry;
+  /** Optional labels for Custom Settings event binding UI. */
+  handlerMeta?: MarketsGridHandlerMeta;
 }
 
-/** Persisted picker state. Stored as MarketsGrid's `gridLevelData`. */
-export interface ProviderSelection {
-  liveProviderId: string | null;
-  historicalProviderId: string | null;
-  mode: ProviderMode;
-}
-
-const DEFAULT_SELECTION: ProviderSelection = {
-  liveProviderId: null,
-  historicalProviderId: null,
-  mode: 'live',
-};
-
-function normalizeSelection(raw: unknown): ProviderSelection {
-  if (!raw || typeof raw !== 'object') return { ...DEFAULT_SELECTION };
-  const v = raw as Partial<ProviderSelection>;
-  return {
-    liveProviderId: typeof v.liveProviderId === 'string' ? v.liveProviderId : null,
-    historicalProviderId: typeof v.historicalProviderId === 'string' ? v.historicalProviderId : null,
-    mode: v.mode === 'historical' ? 'historical' : 'live',
-  };
-}
-
-function extractPersistedCaption(raw: unknown): string | undefined {
-  if (!raw || typeof raw !== 'object') return undefined;
-  const c = (raw as { caption?: unknown }).caption;
-  return typeof c === 'string' ? c : undefined;
-}
+const DEFAULT_SELECTION = DEFAULT_PROVIDER_SELECTION;
 
 export function MarketsGridContainer<TData extends Record<string, unknown> = Record<string, unknown>>(
   props: MarketsGridContainerProps<TData>,
@@ -133,8 +123,13 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     onReady: onReadyProp,
     defaultLiveProviderId,
     defaultHistoricalProviderId,
+    gridEventHandlers,
+    handlerMeta,
     ...marketsGridProps
   } = props;
+
+  const containerEventBus = useMemo(() => createMarketsGridContainerEventBus(), []);
+  const [gridHandle, setGridHandle] = useState<MarketsGridHandle | null>(null);
 
   const appData = useAppDataStore();
 
@@ -168,6 +163,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     const instanceId = props.instanceId ?? props.gridId;
     return storageFactory({
       instanceId,
+      gridId: props.gridId,
       appId: props.appId,
       userId: props.userId,
     });
@@ -180,6 +176,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // — no second mount required when the load resolves.
   const [selection, setSelection] = useState<ProviderSelection>(DEFAULT_SELECTION);
   const [persistedCaption, setPersistedCaption] = useState<string | undefined>(undefined);
+  const [eventBindings, setEventBindings] = useState<Record<string, string[]>>({});
   const [loaded, setLoaded] = useState(false);
   const [asOfDate, setAsOfDate] = useState<string | null>(null);
   const [toolbarDate, setToolbarDate] = useState(todayIsoDate);
@@ -214,14 +211,17 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       .loadGridLevelData(props.gridId)
       .then((raw) => {
         if (cancelled) return;
-        setSelection(applyDefaults(normalizeSelection(raw)));
-        setPersistedCaption(extractPersistedCaption(raw));
+        const state = normalizeGridLevelData(raw);
+        setSelection(applyDefaults(state.provider));
+        setPersistedCaption(state.caption);
+        setEventBindings(state.eventBindings ?? {});
         setLoaded(true);
       })
       .catch(() => {
         if (cancelled) return;
         setSelection({ ...DEFAULT_SELECTION });
         setPersistedCaption(undefined);
+        setEventBindings({});
         setLoaded(true);
       });
     return () => { cancelled = true; };
@@ -247,27 +247,34 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // no-op write) AND handles React StrictMode's double-effect correctly
   // across remounts. Tracks both the picker selection and the persisted
   // caption — they share the same gridLevelData blob.
-  const lastSavedRef = useRef<{ selection: ProviderSelection; caption: string | undefined } | null>(null);
+  const lastSavedRef = useRef<GridLevelStateV1 | null>(null);
   useEffect(() => {
     if (!loaded) return;
+    const next = serializeGridLevelData({
+      v: 1,
+      provider: selection,
+      caption: persistedCaption,
+      eventBindings: Object.keys(eventBindings).length > 0 ? eventBindings : undefined,
+    });
     if (lastSavedRef.current === null) {
-      lastSavedRef.current = { selection, caption: persistedCaption };
+      lastSavedRef.current = next;
       return;
     }
     const prev = lastSavedRef.current;
     if (
-      prev.selection.liveProviderId === selection.liveProviderId
-      && prev.selection.historicalProviderId === selection.historicalProviderId
-      && prev.selection.mode === selection.mode
-      && prev.caption === persistedCaption
+      prev.provider.liveProviderId === next.provider.liveProviderId
+      && prev.provider.historicalProviderId === next.provider.historicalProviderId
+      && prev.provider.mode === next.provider.mode
+      && prev.caption === next.caption
+      && JSON.stringify(prev.eventBindings ?? {}) === JSON.stringify(next.eventBindings ?? {})
     ) {
       return;
     }
-    lastSavedRef.current = { selection, caption: persistedCaption };
+    lastSavedRef.current = next;
     if (adapter?.saveGridLevelData) {
-      void adapter.saveGridLevelData(props.gridId, { ...selection, caption: persistedCaption });
+      void adapter.saveGridLevelData(props.gridId, next);
     }
-  }, [selection, persistedCaption, loaded, adapter, props.gridId]);
+  }, [selection, persistedCaption, eventBindings, loaded, adapter, props.gridId]);
 
   // Caller may also want to observe caption edits — chain.
   const callerOnCaptionChange = (marketsGridProps as { onCaptionChange?: (next: string) => void }).onCaptionChange;
@@ -365,6 +372,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         historicalProviderId: s.historicalProviderId ?? defaultHistoricalProviderId ?? null,
       }));
       pendingToolbarReloadRef.current = true;
+      containerEventBus.emit('toolbar:dateChanged', { date: next, historical: true });
       return;
     }
 
@@ -373,6 +381,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       setMode('live');
       pendingToolbarReloadRef.current = true;
     }
+    containerEventBus.emit('toolbar:dateChanged', { date: next, historical: false });
   }, [
     effectiveHistoricalProviderId,
     defaultHistoricalProviderId,
@@ -380,6 +389,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     setMode,
     selection.mode,
     onError,
+    containerEventBus,
   ]);
 
   // `keyColumn` may be a single column name OR an array of column
@@ -448,8 +458,21 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     if (k) {
       setStamped({ key: k, api: handle.gridApi as unknown as GridApi<TData> });
     }
+    setGridHandle(handle);
     onReadyProp?.(handle);
   }, [onReadyProp]);
+
+  useMarketsGridEventBridge({
+    handle: gridHandle,
+    gridId: props.gridId,
+    instanceId: props.instanceId ?? props.gridId,
+    appId: props.appId,
+    userId: props.userId,
+    appData: appDataLookup,
+    eventBindings,
+    handlers: gridEventHandlers,
+    containerBus: containerEventBus,
+  });
 
   const liveApi = stamped && stamped.key === expectedKey ? stamped.api : null;
 
@@ -497,6 +520,37 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const dataStaleMessage = disconnectDetail
     ? `Grid data is stale — ${disconnectDetail}. Edits are disabled until the connection is restored.`
     : undefined;
+
+  const prevSelectionRef = useRef<ProviderSelection | null>(null);
+  useEffect(() => {
+    if (!loaded) return;
+    const prev = prevSelectionRef.current;
+    if (prev === null) {
+      prevSelectionRef.current = selection;
+      return;
+    }
+    if (
+      prev.liveProviderId === selection.liveProviderId
+      && prev.historicalProviderId === selection.historicalProviderId
+      && prev.mode === selection.mode
+    ) {
+      return;
+    }
+    prevSelectionRef.current = selection;
+    containerEventBus.emit('provider:switched', {
+      liveProviderId: selection.liveProviderId,
+      historicalProviderId: selection.historicalProviderId,
+      mode: selection.mode,
+    });
+  }, [loaded, selection, containerEventBus]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    containerEventBus.emit('provider:dataStale', {
+      stale: providerDisconnected,
+      message: dataStaleMessage,
+    });
+  }, [loaded, providerDisconnected, dataStaleMessage, containerEventBus]);
 
   useEffect(() => {
     setProviderDisconnected(false);
@@ -636,6 +690,13 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       if (s !== 'loading') {
         providerStatusRef.current = s;
       }
+
+      containerEventBus.emit('provider:status', {
+        status: s,
+        error: err,
+        providerId: activeId,
+        mode: selection.mode,
+      });
     });
 
     const unsubError = provider.onError((err) => {
@@ -774,6 +835,35 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     setProviderEditorOpen(true);
   }, [onEditProvider]);
 
+  const setEventBindingsAll = useCallback((next: Record<string, string[]>) => {
+    setEventBindings(next);
+  }, []);
+
+  const setEventHandler = useCallback((eventId: string, handlerId: string | null) => {
+    setEventBindings((prev) => {
+      const next = { ...prev };
+      if (!handlerId) delete next[eventId];
+      else next[eventId] = [handlerId];
+      return next;
+    });
+  }, []);
+
+  const gridEventBindingsHost = useMemo<GridEventBindingsHostApi>(() => ({
+    available: Boolean(gridEventHandlers),
+    bindings: eventBindings,
+    catalog: MARKETS_GRID_EVENT_CATALOG,
+    handlerIds: gridEventHandlers ? Object.keys(gridEventHandlers) : [],
+    handlerMeta,
+    setBindings: setEventBindingsAll,
+    setEventHandler,
+  }), [
+    gridEventHandlers,
+    eventBindings,
+    handlerMeta,
+    setEventBindingsAll,
+    setEventHandler,
+  ]);
+
   const providerGridHost = useMemo<ProviderGridHostApi>(() => ({
     available: true,
     liveProviders: liveList.configs,
@@ -866,6 +956,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
             appData={appDataLookup}
             onReady={onReady}
             providerGridHost={providerGridHost}
+            gridEventBindingsHost={gridEventBindingsHost}
             adminActions={adminActionsWithRefresh}
             caption={effectiveCaption}
             onCaptionChange={handleCaptionChange}
@@ -909,6 +1000,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         columnDefs={EMPTY as unknown as ColDef<TData>[]}
         appData={appDataLookup}
         providerGridHost={providerGridHost}
+        gridEventBindingsHost={gridEventBindingsHost}
         caption={effectiveCaption}
         onCaptionChange={handleCaptionChange}
         toolbarDate={toolbarDate}

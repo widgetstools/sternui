@@ -8,6 +8,15 @@ import {
   ensurePlatformReady,
 } from './ensurePlatformReady.js';
 import { _resetEnsureDataServicesHubForTests } from '../hub/ensureDataServicesHub.js';
+import { runAppDataBootstrap } from './appDataBootstrap.js';
+
+vi.mock('./appDataBootstrap.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./appDataBootstrap.js')>();
+  return {
+    ...actual,
+    runAppDataBootstrap: vi.fn((...args: unknown[]) => actual.runAppDataBootstrap(...args)),
+  };
+});
 
 const createConfigManagerMock = vi.fn();
 const ensureDataServicesHubMock = vi.fn();
@@ -114,5 +123,25 @@ describe('ensurePlatformReady', () => {
       ensurePlatformReady({ appId: '', userId: 'dev1' }, { workerScriptUrl: '/w.mjs' }),
     ).rejects.toBeInstanceOf(PlatformBootstrapConfigError);
     expect(createConfigManagerMock).not.toHaveBeenCalled();
+  });
+
+  it('runs appDataBootstrap hooks when manifest and registry are supplied', async () => {
+    const hooks = { 'session-context': vi.fn() };
+    await ensurePlatformReady(
+      {
+        ...DEV_PLATFORM_BOOTSTRAP,
+        appDataBootstrap: { onHubReady: ['session-context'], runPolicy: 'always' },
+      },
+      { workerScriptUrl: '/worker.mjs', appDataBootstrapHooks: hooks },
+    );
+
+    expect(runAppDataBootstrap).toHaveBeenCalledWith(
+      expect.objectContaining({
+        manifest: expect.objectContaining({ onHubReady: ['session-context'] }),
+        registry: hooks,
+        appId: 'TestApp',
+        userId: 'dev1',
+      }),
+    );
   });
 });

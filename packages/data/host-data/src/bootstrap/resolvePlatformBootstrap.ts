@@ -1,5 +1,6 @@
 import {
   validatePlatformBootstrapConfig,
+  type AppDataBootstrapManifest,
   type PlatformBootstrapConfig,
 } from './PlatformBootstrapConfig.js';
 
@@ -39,6 +40,55 @@ function readOptionalBoolean(value: unknown): boolean | undefined {
   return undefined;
 }
 
+function readStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const out = value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+  return out.length > 0 ? out : undefined;
+}
+
+function readAppDataBootstrapManifest(value: unknown): AppDataBootstrapManifest | undefined {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+  const record = value as Record<string, unknown>;
+  const runPolicy = record.runPolicy;
+  const policy =
+    runPolicy === 'if-missing' || runPolicy === 'always' || runPolicy === 'once-per-session'
+      ? runPolicy
+      : undefined;
+
+  let targets: Record<string, string[]> | undefined;
+  if (record.targets !== null && typeof record.targets === 'object' && !Array.isArray(record.targets)) {
+    const parsed: Record<string, string[]> = {};
+    for (const [hookId, names] of Object.entries(record.targets as Record<string, unknown>)) {
+      const list = readStringArray(names);
+      if (list) parsed[hookId] = list;
+    }
+    if (Object.keys(parsed).length > 0) targets = parsed;
+  }
+
+  const manifest: AppDataBootstrapManifest = {
+    onHubReady: readStringArray(record.onHubReady),
+    onUserChange: readStringArray(record.onUserChange),
+    runPolicy: policy,
+    targets,
+  };
+
+  if (
+    !manifest.onHubReady
+    && !manifest.onUserChange
+    && !manifest.runPolicy
+    && !manifest.targets
+  ) {
+    return undefined;
+  }
+
+  return manifest;
+}
+
 /**
  * Parse a plain object (e.g. parsed JSON) into {@link PlatformBootstrapConfig}.
  * Throws {@link PlatformBootstrapConfigError} when required fields are missing.
@@ -60,6 +110,7 @@ export function resolvePlatformBootstrapFromObject(
     useRest: readOptionalBoolean(record.useRest),
     configServiceRestUrl: readOptionalString(record.configServiceRestUrl),
     seedConfigUrl: readOptionalString(record.seedConfigUrl),
+    appDataBootstrap: readAppDataBootstrapManifest(record.appDataBootstrap),
   };
 
   const result = validatePlatformBootstrapConfig(config);

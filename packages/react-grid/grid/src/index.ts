@@ -28,6 +28,31 @@ export type {
   MarketsGridLocalStorageConfig,
   ProviderGridHostApi,
   ProviderGridHostMode,
+  GridEventBindingsHostApi,
 } from './widget/types.js';
+
+export {
+  MARKETS_GRID_EVENT_CATALOG,
+  isMarketsGridEventId,
+  marketsGridEventCatalogByCategory,
+  type MarketsGridEventId,
+  type MarketsGridEventCatalogEntry,
+} from './events/marketsGridEventCatalog.js';
+export type {
+  MarketsGridEventContext,
+  MarketsGridEventHandler,
+  MarketsGridEventHandlerRegistry,
+  MarketsGridHandlerMeta,
+  ProviderStatusEventPayload,
+  ProviderSwitchedEventPayload,
+  ProviderDataStaleEventPayload,
+  ToolbarDateChangedEventPayload,
+} from './events/marketsGridEventHandlers.js';
+export {
+  createMarketsGridContainerEventBus,
+  type MarketsGridContainerEventBus,
+  type MarketsGridContainerEventMap,
+} from './events/containerEventBus.js';
+export { useMarketsGridEventBridge } from './events/useMarketsGridEventBridge.js';
 
 export { isOpenFin, openFinWindowOpener } from './runtime/openFin.js';

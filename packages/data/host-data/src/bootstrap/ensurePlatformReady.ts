@@ -6,9 +6,15 @@ import {
 } from './PlatformBootstrapConfig.js';
 import { PlatformBootstrapConfigError } from './resolvePlatformBootstrap.js';
 import { ensureDataServicesHub, type ResolvedDataServicesHubBundle } from '../hub/ensureDataServicesHub.js';
+import {
+  runAppDataBootstrap,
+  type AppDataBootstrapHookRegistry,
+} from './appDataBootstrap.js';
 
 export interface EnsurePlatformReadyOpts {
   workerScriptUrl: string;
+  /** App-authored hook registry keyed by stable ids from app-config.json. */
+  appDataBootstrapHooks?: AppDataBootstrapHookRegistry;
 }
 
 const platformPromises = new Map<string, Promise<ResolvedDataServicesHubBundle>>();
@@ -58,11 +64,26 @@ async function bootstrapPlatformOnce(
   });
   await configManager.init();
 
-  return ensureDataServicesHub({
+  const bundle = await ensureDataServicesHub({
     ...config,
     workerScriptUrl: opts.workerScriptUrl,
     mainThreadConfigManager: configManager,
   });
+
+  await bundle.ready;
+
+  if (config.appDataBootstrap && opts.appDataBootstrapHooks) {
+    await runAppDataBootstrap({
+      manifest: config.appDataBootstrap,
+      registry: opts.appDataBootstrapHooks,
+      appId: config.appId,
+      userId: config.userId,
+      appData: bundle.appData,
+      configManager: bundle.configManager,
+    });
+  }
+
+  return bundle;
 }
 
 /** Test-only — clears platform singleton registry. */

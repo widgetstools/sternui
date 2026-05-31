@@ -15,6 +15,17 @@ export interface PlatformBootstrapConfig {
   configServiceRestUrl?: string;
   /** Optional seed JSON for empty Dexie (dev/demo). */
   seedConfigUrl?: string;
+  /** AppData bootstrap hook ids + run policy (see `runAppDataBootstrap`). */
+  appDataBootstrap?: AppDataBootstrapManifest;
+}
+
+/** Declarative AppData seeding — hook ids reference app TS registry entries. */
+export interface AppDataBootstrapManifest {
+  onHubReady?: string[];
+  onUserChange?: string[];
+  runPolicy?: 'if-missing' | 'always' | 'once-per-session';
+  /** hookId → AppData provider names that must be absent before run (if-missing). */
+  targets?: Record<string, string[]>;
 }
 
 export interface PlatformBootstrapValidationResult {

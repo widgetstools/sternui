@@ -58,6 +58,7 @@
     "dev:markets-grid-lab": "npm run dev --workspace=@starui/markets-grid-lab",
     "dev:demo-stomp-markets-grid": "npm run dev --workspace=@starui/demo-stomp-markets-grid",
     "dev:stomp-marketsgrid-minimal": "npm run dev --workspace=@starui/stomp-marketsgrid-minimal",
+    "dev:platform-hooks-demo": "npm run dev --workspace=@starui/platform-hooks-demo",
     "dev:stomp": "npm run dev --workspace=@starui/stomp-view-server",
     "dev:demo": "npm run dev:demo-react",
     "dev:openfin": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev:demo-react -- --no-open\" \"wait-on http://localhost:5190 && node tools/scripts/launch-openfin.mjs http://localhost:5190/openfin/manifest.json\"",

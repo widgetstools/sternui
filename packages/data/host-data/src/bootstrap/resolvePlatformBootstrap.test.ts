@@ -59,6 +59,37 @@ describe('resolvePlatformBootstrapFromObject', () => {
       resolvePlatformBootstrapFromObject({ appId: 'x', userId: '   ' }),
     ).toThrow(PlatformBootstrapConfigError);
   });
+
+  it('parses appDataBootstrap manifest from JSON object', () => {
+    expect(
+      resolvePlatformBootstrapFromObject({
+        appId: 'platform-hooks-demo',
+        userId: 'dev1',
+        appDataBootstrap: {
+          onHubReady: ['session-context', 'desk-defaults'],
+          runPolicy: 'if-missing',
+          targets: {
+            'session-context': ['SessionContext'],
+            'desk-defaults': ['DeskDefaults', 'positions'],
+          },
+        },
+      }),
+    ).toEqual({
+      appId: 'platform-hooks-demo',
+      userId: 'dev1',
+      useRest: undefined,
+      configServiceRestUrl: undefined,
+      seedConfigUrl: undefined,
+      appDataBootstrap: {
+        onHubReady: ['session-context', 'desk-defaults'],
+        runPolicy: 'if-missing',
+        targets: {
+          'session-context': ['SessionContext'],
+          'desk-defaults': ['DeskDefaults', 'positions'],
+        },
+      },
+    });
+  });
 });
 
 describe('resolvePlatformBootstrapFromJson', () => {

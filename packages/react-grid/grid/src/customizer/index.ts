@@ -382,6 +382,11 @@ export {
   type ProviderGridHostMode,
 } from './providerGridHost/ProviderGridHostContext';
 export {
+  GridEventBindingsHostProvider,
+  useGridEventBindingsHost,
+  type GridEventBindingsHostApi,
+} from './gridEventBindingsHost/GridEventBindingsHostContext';
+export {
   gridStateModule,
   GRID_STATE_MODULE_ID,
   GRID_STATE_SCHEMA_VERSION,
