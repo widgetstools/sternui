@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { ChromeButton } from '../ChromeButton';
 
 /**
  * Sub-tab strip — horizontal tabs with accent underline for the active item.
@@ -32,7 +33,7 @@ export function TabStrip({ items, value, onChange, trailing, ...rest }: TabStrip
         {items.map((item) => {
           const active = item.value === value;
           return (
-            <button
+            <ChromeButton
               key={item.value}
               type="button"
               onClick={() => !item.disabled && onChange(item.value)}
@@ -53,7 +54,7 @@ export function TabStrip({ items, value, onChange, trailing, ...rest }: TabStrip
                   {item.badge}
                 </span>
               )}
-            </button>
+            </ChromeButton>
           );
         })}
       </div>

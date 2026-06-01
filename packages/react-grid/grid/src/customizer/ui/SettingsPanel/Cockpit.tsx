@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { controls, typography } from '@starui/design-system/tokens';
-import { Input, cn } from '@starui/ui';
+import { Button, Input, cn } from '@starui/ui';
 
 /**
  * Typography token key — every Caps/Mono `size` prop should reach for one of
@@ -125,21 +125,25 @@ export function SharpBtn({
   ...rest
 }: SharpBtnProps) {
   return (
-    <button
+    <Button
       type={type}
       onClick={onClick}
       title={title}
       disabled={disabled}
-      className={cn(
-        'inline-flex items-center justify-center gap-1.5 h-7 px-3.5 rounded-sm font-semibold uppercase tracking-widest cursor-pointer border border-transparent disabled:opacity-45 disabled:cursor-not-allowed',
-        SETTINGS_UI_TEXT,
-      )}
+      variant={variant === 'action' ? 'default' : variant === 'danger' ? 'destructive' : 'outline'}
+      size="sm"
       data-variant={variant}
       data-testid={rest['data-testid']}
+      className={cn(
+        'inline-flex h-7 items-center justify-center gap-1.5 rounded-sm px-3.5 font-semibold uppercase tracking-widest shadow-none',
+        SETTINGS_UI_TEXT,
+        variant === 'ghost' && 'border-transparent bg-transparent hover:bg-muted',
+        variant === 'default' && 'border-border bg-background',
+      )}
       style={style}
     >
       {children}
-    </button>
+    </Button>
   );
 }
 
@@ -178,21 +182,23 @@ export interface TBtnProps {
 
 export function TBtn({ active, onClick, children, title, width, disabled, ...rest }: TBtnProps) {
   return (
-    <button
+    <Button
       type="button"
       onClick={onClick}
       title={title}
       disabled={disabled}
+      variant="ghost"
+      size="sm"
       aria-pressed={active ? 'true' : undefined}
       className={cn(
-        'min-w-8 h-7 inline-flex items-center justify-center bg-transparent text-foreground/85 px-1.5 rounded-sm hover:text-foreground hover:bg-muted aria-pressed:bg-[var(--ds-primary-soft)] aria-pressed:text-[color:var(--ds-primary)] disabled:opacity-45 disabled:cursor-not-allowed',
+        'min-w-8 h-7 inline-flex items-center justify-center bg-transparent text-foreground/85 px-1.5 rounded-sm hover:text-foreground hover:bg-muted aria-pressed:bg-[var(--ds-primary-soft)] aria-pressed:text-[color:var(--ds-primary)] disabled:opacity-45 shadow-none',
         SETTINGS_UI_TEXT,
       )}
       data-testid={rest['data-testid']}
       style={width ? { width } : undefined}
     >
       {children}
-    </button>
+    </Button>
   );
 }
 

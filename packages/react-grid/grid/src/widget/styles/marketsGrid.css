@@ -307,6 +307,19 @@
   color: var(--ds-accent-positive);
 }
 
+.ds-caption-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+}
+
 .ds-primary-save {
   position: relative;
 }
@@ -444,6 +457,10 @@
 .ds-filters-add-btn:hover:not(:disabled) {
   background: rgba(20, 184, 166, 0.10);
   color: var(--ds-accent-positive-hover);
+}
+.ds-filters-add-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .ds-filter-scroll {

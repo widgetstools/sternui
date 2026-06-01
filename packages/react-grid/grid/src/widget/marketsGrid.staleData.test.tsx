@@ -21,8 +21,12 @@ vi.mock('ag-grid-enterprise', () => ({
   ModuleRegistry: { registerModules: () => {} },
 }));
 
-vi.mock('@starui/engine', async () => {
-  const actual: any = {};
+vi.mock('../customizer/hooks/useModuleState.js', () => ({
+  useModuleState: () => [undefined, vi.fn()],
+}));
+
+vi.mock('@starui/engine', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@starui/engine')>();
   return {
     ...actual,
     MemoryAdapter: class {
@@ -58,6 +62,9 @@ vi.mock('@starui/grid/customizer', async () => {
     }),
     captureGridStateInto: vi.fn(),
     DirtyDot: () => null,
+    ChromeButton: React.forwardRef<HTMLButtonElement, any>(({ children, ...rest }, ref) => (
+      <button ref={ref} {...rest}>{children}</button>
+    )),
     Input: React.forwardRef<HTMLInputElement, any>((p, ref) => (
       <input ref={ref} {...p} />
     )),

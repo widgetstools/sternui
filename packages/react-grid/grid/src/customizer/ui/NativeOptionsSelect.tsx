@@ -16,6 +16,7 @@ import {
   SelectValue,
   cn,
 } from '@starui/ui';
+import { ChromeButton } from './ChromeButton';
 
 /** Radix `Select.Item` forbids `value=""` — map real `""` options through this sentinel. */
 const RADIX_EMPTY_OPTION = '__STARUI_GRID_SELECT_EMPTY__';
@@ -96,7 +97,7 @@ export const NativeOptionsSelect = forwardRef<HTMLButtonElement, NativeOptionsSe
 
   if (items.length === 0) {
     return (
-      <button
+      <ChromeButton
         type="button"
         ref={ref}
         disabled={disabled}
@@ -108,7 +109,7 @@ export const NativeOptionsSelect = forwardRef<HTMLButtonElement, NativeOptionsSe
         style={style}
       >
         —
-      </button>
+      </ChromeButton>
     );
   }
 

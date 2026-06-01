@@ -18,7 +18,9 @@
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { ChromeButton } from '@starui/grid/customizer';
 import { GripVertical, X as XIcon } from 'lucide-react';
+import './grid-chrome.css';
 
 interface DragContext {
   onPointerDownDrag: (e: React.PointerEvent) => void;
@@ -308,39 +310,17 @@ function CloseButton({
   const ctx = useContext(DraggableFloatCtx);
   if (!ctx) return null;
   return (
-    <button
+    <ChromeButton
       type="button"
-      className={className}
+      className={className ?? 'ds-float-close-btn'}
       data-testid={testId}
       onClick={ctx.onClose}
       onPointerDown={(e) => e.stopPropagation()}
       title={title}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minWidth: 22,
-        minHeight: 22,
-        borderRadius: 2,
-        background: 'transparent',
-        border: 'none',
-        color: 'var(--ds-text-primary)',
-        cursor: 'pointer',
-        transition: 'background 150ms, color 150ms',
-        padding: 0,
-        ...style,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'color-mix(in srgb, var(--ds-accent-negative) 14%, transparent)';
-        e.currentTarget.style.color = 'var(--ds-accent-negative)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = (style?.background as string) ?? 'transparent';
-        e.currentTarget.style.color = 'var(--ds-text-primary)';
-      }}
+      style={style}
     >
       <XIcon size={size} strokeWidth={2.25} />
-    </button>
+    </ChromeButton>
   );
 }
 

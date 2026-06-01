@@ -18,6 +18,8 @@ import {
   AlertDialogCancel,
   GhostIconButton,
   buttonVariants,
+  Input,
+  ChromeButton,
 } from '@starui/grid/customizer';
 
 export interface ProfileSelectorProps {
@@ -129,50 +131,26 @@ export function ProfileSelector({
     <div className="ds-profile-selector">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <button
+          <ChromeButton
             type="button"
+            className="ds-ps-trigger"
+            data-empty={active ? 'false' : 'true'}
+            data-open={open ? 'true' : 'false'}
+            aria-expanded={open}
             title={active ? (isDirty ? `${active.name} (unsaved changes)` : active.name) : 'Select or create a layout'}
             data-testid="profile-selector-trigger"
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              height: 28, padding: '0 10px 0 8px',
-              background: 'var(--ds-surface-primary)',
-              border: '1px solid var(--ds-border-primary)',
-              borderRadius: 2,
-              color: active ? 'var(--ds-text-primary)' : 'var(--ds-text-muted)',
-              cursor: 'pointer',
-              fontSize: 11,
-              lineHeight: 1,
-              transition: 'border-color 120ms, background 120ms',
-            }}
           >
-            <span className="relative inline-flex items-center">
-              <User size={12} strokeWidth={1.75} className="opacity-75" />
-              <span
-                aria-label={isDirty ? 'unsaved changes' : 'saved'}
-                style={{
-                  position: 'absolute', top: -2, right: -3,
-                  width: 6, height: 6, borderRadius: '50%',
-                  background: active
-                    ? (isDirty ? 'var(--ds-accent-warning)' : 'var(--ds-primary)')
-                    : 'var(--ds-text-muted)',
-                  boxShadow: '0 0 0 1.5px var(--ds-surface-primary)',
-                }}
-              />
+            <span className="ds-ps-trigger-icon-badge" aria-hidden>
+              <User size={10} strokeWidth={2.25} />
             </span>
-            <span className="max-w-[180px] overflow-hidden text-ellipsis whitespace-nowrap font-medium tracking-[0.1px]">
-              {triggerLabel}
-            </span>
+            <span className="ds-ps-trigger-label">{triggerLabel}</span>
             <ChevronDown
               size={12}
-              strokeWidth={1.75}
-              style={{
-                opacity: 0.6,
-                transition: 'transform 150ms',
-                transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-              }}
+              strokeWidth={2}
+              className="ds-ps-trigger-chevron"
+              data-open={open ? 'true' : 'false'}
             />
-          </button>
+          </ChromeButton>
         </PopoverTrigger>
 
         <PopoverContent
@@ -180,11 +158,6 @@ export function ProfileSelector({
           sideOffset={6}
           data-testid="profile-selector-popover"
           className="ds-ps-shell !p-0 !w-auto"
-          style={{
-            minWidth: 288,
-            maxWidth: 'min(340px, calc(100vw - 24px))',
-            borderRadius: 2,
-          }}
         >
           {/* Header */}
           <div className="ds-ps-header">
@@ -213,29 +186,8 @@ export function ProfileSelector({
                   data-active={isActive ? 'true' : undefined}
                   onClick={() => { if (!isRenaming) { onLoad(p.id); setOpen(false); } }}
                   onKeyDown={(e) => { if (!isRenaming && e.key === 'Enter') { onLoad(p.id); setOpen(false); } }}
-                  style={{
-                    position: 'relative',
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '7px 8px 7px 10px',
-                    borderRadius: 2,
-                    cursor: 'pointer',
-                    background: isActive
-                      ? 'var(--ds-primary-soft)'
-                      : 'transparent',
-                    color: 'var(--ds-text-primary)',
-                    fontSize: 11,
-                    transition: 'background 120ms',
-                  }}
                 >
-                  {/* Active accent bar */}
-                  <span
-                    aria-hidden
-                    style={{
-                      position: 'absolute', left: 2, top: 7, bottom: 7,
-                      width: 2, borderRadius: 2,
-                      background: isActive ? 'var(--ds-primary)' : 'transparent',
-                    }}
-                  />
+                  <span aria-hidden className="ds-ps-row-accent" />
 
                   {/* Leading indicator */}
                   <span className="ds-ps-row-indicator">
@@ -248,7 +200,7 @@ export function ProfileSelector({
 
                   {/* Name — switches to inline input while renaming */}
                   {isRenaming ? (
-                    <input
+                    <Input
                       type="text"
                       value={renameDraft}
                       autoFocus
@@ -261,25 +213,11 @@ export function ProfileSelector({
                         else if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
                       }}
                       onBlur={() => { void commitRename(); }}
-                      style={{
-                        flex: 1, minWidth: 0, height: 22, padding: '0 6px',
-                        background: 'var(--ds-surface-ground)',
-                        border: '1px solid color-mix(in srgb, var(--ds-primary) 55%, var(--ds-border-primary))',
-                        borderRadius: 2,
-                        color: 'var(--ds-text-primary)',
-                        fontSize: 11,
-                        fontWeight: isActive ? 600 : 450,
-                        letterSpacing: 0.1,
-                        outline: 'none',
-                      }}
+                      className="h-[22px] min-h-[22px] flex-1 min-w-0 rounded-[2px] border-[color-mix(in_srgb,var(--ds-primary)_55%,var(--ds-border-primary))] bg-[color:var(--ds-surface-ground)] px-1.5 text-[11px] font-[450] tracking-[0.1px] text-[color:var(--ds-text-primary)] shadow-none focus-visible:ring-0 data-[active=true]:font-semibold"
+                      data-active={isActive ? 'true' : undefined}
                     />
                   ) : (
-                    <span style={{
-                      flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      fontWeight: isActive ? 600 : 450,
-                      color: isActive ? 'var(--ds-text-primary)' : 'var(--ds-text-primary)',
-                      letterSpacing: 0.1,
-                    }}>
+                    <span className="ds-ps-row-name">
                       {p.name}
                     </span>
                   )}
@@ -370,7 +308,7 @@ export function ProfileSelector({
                   {isRenaming ? null : isReserved ? (
                     <span
                       title="Built-in default layout"
-                      className="flex items-center justify-center w-[22px] h-[22px] text-[var(--ds-text-secondary)] opacity-[0.55]"
+                      className="ds-ps-row-lock"
                     >
                       <Lock size={12} strokeWidth={2.25} />
                     </span>
@@ -409,21 +347,10 @@ export function ProfileSelector({
               Save current as
             </div>
             <div
-              style={{
-                display: 'flex', alignItems: 'center',
-                background: 'var(--ds-surface-ground)',
-                border: `1px solid ${inputFocused
-                  ? 'color-mix(in srgb, var(--ds-primary) 55%, var(--ds-border-primary))'
-                  : 'var(--ds-border-primary)'}`,
-                borderRadius: 2,
-                boxShadow: inputFocused
-                  ? '0 0 0 3px color-mix(in srgb, var(--ds-primary) 18%, transparent)'
-                  : 'none',
-                transition: 'border-color 120ms, box-shadow 120ms',
-                overflow: 'hidden',
-              }}
+              className="ds-ps-create-field"
+              data-focused={inputFocused ? 'true' : 'false'}
             >
-              <input
+              <Input
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
@@ -436,29 +363,19 @@ export function ProfileSelector({
                 placeholder="New layout name"
                 autoFocus
                 data-testid="profile-name-input"
-                className="flex-1 min-w-0 h-[30px] px-2.5 bg-transparent border-none text-foreground text-[11px] outline-none tracking-[0.1px]"
+                className="h-[30px] min-h-[30px] flex-1 min-w-0 rounded-none border-none bg-transparent px-2.5 text-[11px] tracking-[0.1px] text-[color:var(--ds-text-primary)] shadow-none focus-visible:ring-0"
               />
-              <button
+              <ChromeButton
                 type="button"
+                className="ds-ps-save-btn"
                 onClick={handleCreate}
                 disabled={!canCreate}
                 title="Save current state as new layout"
                 data-testid="profile-create-btn"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  height: 30, padding: '0 12px',
-                  background: canCreate ? 'var(--ds-primary)' : 'transparent',
-                  color: canCreate ? 'var(--ds-primary-foreground)' : 'var(--ds-text-muted)',
-                  border: 'none',
-                  borderLeft: `1px solid ${canCreate ? 'transparent' : 'var(--ds-border-primary)'}`,
-                  fontSize: 11, fontWeight: 600, letterSpacing: 0.2,
-                  cursor: canCreate ? 'pointer' : 'not-allowed',
-                  transition: 'background 120ms, color 120ms',
-                }}
               >
                 <Plus size={12} strokeWidth={2.25} />
                 Save
-              </button>
+              </ChromeButton>
             </div>
           </div>
 
@@ -470,35 +387,16 @@ export function ProfileSelector({
               <div className="h-px bg-[color-mix(in_srgb,var(--ds-border-primary)_60%,transparent)]" />
               <div className="flex gap-1.5 px-2.5 pt-2 pb-2.5">
                 {onExport && (
-                  <button
+                  <ChromeButton
                     type="button"
+                    className="ds-ps-io-btn"
                     onClick={() => { onExport(activeProfileId); }}
                     title="Export the active layout to a JSON file"
                     data-testid="profile-export-active-btn"
-                    style={{
-                      flex: 1,
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                      height: 28,
-                      background: 'transparent',
-                      border: '1px solid var(--ds-border-primary)',
-                      borderRadius: 2,
-                      color: 'var(--ds-text-primary)',
-                      fontSize: 11, fontWeight: 500, letterSpacing: 0.15,
-                      cursor: 'pointer',
-                      transition: 'border-color 120ms, background 120ms, color 120ms',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--ds-primary) 55%, var(--ds-border-primary))';
-                      e.currentTarget.style.color = 'var(--ds-primary)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--ds-border-primary)';
-                      e.currentTarget.style.color = 'var(--ds-text-primary)';
-                    }}
                   >
                     <Download size={12} strokeWidth={1.75} />
                     Export
-                  </button>
+                  </ChromeButton>
                 )}
                 {onImport && (
                   <>
@@ -511,40 +409,20 @@ export function ProfileSelector({
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) void onImport(file);
-                        // Clear so re-picking the same file still fires change.
                         e.target.value = '';
                         setOpen(false);
                       }}
                     />
-                    <button
+                    <ChromeButton
                       type="button"
+                      className="ds-ps-io-btn"
                       onClick={() => fileInputRef.current?.click()}
                       title="Import a layout from a JSON file"
                       data-testid="profile-import-btn"
-                      style={{
-                        flex: 1,
-                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                        height: 28,
-                        background: 'transparent',
-                        border: '1px solid var(--ds-border-primary)',
-                        borderRadius: 2,
-                        color: 'var(--ds-text-primary)',
-                        fontSize: 11, fontWeight: 500, letterSpacing: 0.15,
-                        cursor: 'pointer',
-                        transition: 'border-color 120ms, background 120ms, color 120ms',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--ds-primary) 55%, var(--ds-border-primary))';
-                        e.currentTarget.style.color = 'var(--ds-primary)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--ds-border-primary)';
-                        e.currentTarget.style.color = 'var(--ds-text-primary)';
-                      }}
                     >
                       <Upload size={12} strokeWidth={1.75} />
                       Import
-                    </button>
+                    </ChromeButton>
                   </>
                 )}
               </div>

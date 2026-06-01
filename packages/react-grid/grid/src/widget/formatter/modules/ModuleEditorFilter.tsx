@@ -16,14 +16,14 @@
  * data updates. Date / boolean / raw AG-Grid kinds aren't quick-
  * pickable here — they belong in the column-settings panel.
  */
-import { useEffect, useMemo, useState } from 'react';
-import { Check, ChevronDown, Filter, FilterX, MoreVertical, Pencil, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Check, Filter, FilterX, MoreVertical, Pencil, X } from 'lucide-react';
 import { spacing, typography } from '@starui/design-system/tokens';
 import {
   Input,
   PopoverCompat as Popover,
   Select,
-  Tooltip,
+  Tooltip as CustomizerTooltip,
   parseValuesSource,
   useAppDataKeys,
   useAppDataLookup,
@@ -31,14 +31,7 @@ import {
   type CellEditorKind,
   type FilterKind,
 } from '@starui/grid/customizer';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@starui/ui';
-import { Hair, Module, Pill, pillClasses, SplitPill } from '../primitives';
+import { Hair, Module, Pill, PillButton, ToolbarSelect, pillClasses } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 const SELECT_KINDS: ReadonlySet<CellEditorKind> = new Set([
@@ -62,17 +55,6 @@ const FILTER_OPTIONS: ReadonlyArray<{ kind: FilterKind; label: string }> = [
   { kind: 'streamSafeMultiDateColumnFilter',   label: 'Date'   },
 ];
 
-function editorLabel(kind: CellEditorKind | undefined): string {
-  if (!kind) return 'None';
-  return EDITOR_OPTIONS.find((o) => o.kind === kind)?.label ?? 'Custom';
-}
-
-function filterLabel(kind: FilterKind | undefined, isCustom: boolean): string {
-  if (isCustom) return 'Custom';
-  if (!kind) return 'None';
-  return FILTER_OPTIONS.find((o) => o.kind === kind)?.label ?? 'Custom';
-}
-
 export function ModuleEditorFilter({
   state,
   actions,
@@ -95,79 +77,35 @@ export function ModuleEditorFilter({
   const moduleDisabled = disabled || isHeader;
   const showValuesSource = !moduleDisabled && cellEditorKind != null && SELECT_KINDS.has(cellEditorKind);
 
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [filterOpen, setFilterOpen] = useState(false);
   const [valuesOpen, setValuesOpen] = useState(false);
+
+  const editorSelectValue = cellEditorKind ?? '';
+  const filterSelectValue = filterIsCustom ? 'custom' : (filterPrimaryKind ?? '');
 
   return (
     <Module index="05" label="Editor & Filter" testId="fmt-module-editor-filter">
-      {/* Editor split — icon primary + chevron menu. The primary button
-          is purely decorative (opens the menu via the chevron); we
-          could also have it toggle on/off but having a single trigger
-          point reduces accidental clears. */}
-      <SplitPill>
-        <Pill
+      <div className="inline-flex items-center gap-1.5">
+        <ToolbarSelect
+          value={editorSelectValue}
+          onValueChange={(next) => actions.setCellEditorKind(next as CellEditorKind | undefined)}
           disabled={moduleDisabled}
-          active={!moduleDisabled && cellEditorKind != null}
-          tooltip={cellEditorKind ? `Editor: ${editorLabel(cellEditorKind)}` : 'Cell editor'}
-          onClick={() => setEditorOpen(true)}
-          data-testid="fmt-editor-pill"
-        >
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: spacing[1], whiteSpace: 'nowrap' }}>
-            <Pencil size={12} strokeWidth={1.75} />
-            <span style={{ fontSize: typography.fontSize.xs, fontWeight: typography.fontWeight.medium }}>{editorLabel(cellEditorKind)}</span>
-          </span>
-        </Pill>
-        <DropdownMenu open={editorOpen} onOpenChange={setEditorOpen}>
-          <DropdownMenuTrigger asChild>
-            <Tooltip content="Choose cell editor type (text, number, select, date, …)">
-              <button
-                type="button"
-                disabled={moduleDisabled}
-                aria-label="Cell editor menu"
-                className={pillClasses('narrow')}
-                data-testid="fmt-editor-menu-trigger"
-              >
-                <ChevronDown size={9} strokeWidth={2} />
-              </button>
-            </Tooltip>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="fx-menu min-w-[160px]">
-            <DropdownMenuItem
-              onSelect={() => actions.setCellEditorKind(undefined)}
-              data-testid="fmt-editor-menu-none"
-              className={cellEditorKind == null ? 'bg-primary/10 text-primary' : undefined}
-            >
-              <span className="w-3 text-center text-[11px]">{cellEditorKind == null ? '✓' : ''}</span>
-              <span>None</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {EDITOR_OPTIONS.map((o) => {
-              const active = cellEditorKind === o.kind;
-              return (
-                <DropdownMenuItem
-                  key={o.kind}
-                  onSelect={() => actions.setCellEditorKind(o.kind)}
-                  data-testid={`fmt-editor-menu-${o.kind}`}
-                  className={active ? 'bg-primary/10 text-primary' : undefined}
-                >
-                  <span className="w-3 text-center text-[11px]">{active ? '✓' : ''}</span>
-                  <span>{o.label}</span>
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        {/* Values-source trigger — only meaningful for select-style
-            editors. Sits inside the SplitPill so it visually attaches
-            to the editor cluster instead of floating loose. */}
-        {showValuesSource && (
+          icon={<Pencil size={12} strokeWidth={1.75} />}
+          placeholder="Editor"
+          tooltip="Choose cell editor type (text, number, select, date, …)"
+          aria-label="Cell editor"
+          data-testid="fmt-editor-select"
+          options={[
+            { value: '', label: 'None' },
+            ...EDITOR_OPTIONS.map((o) => ({ value: o.kind, label: o.label })),
+          ]}
+        />
+        {showValuesSource ? (
           <Popover
             open={valuesOpen}
             onOpenChange={setValuesOpen}
             trigger={
-              <Tooltip content="Configure editor values (static list or app-data binding)">
-                <button
+              <CustomizerTooltip content="Configure editor values (static list or app-data binding)">
+                <PillButton
                   type="button"
                   aria-label="Configure editor values"
                   className={pillClasses('narrow')}
@@ -175,8 +113,8 @@ export function ModuleEditorFilter({
                   onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                 >
                   <MoreVertical size={11} strokeWidth={2} />
-                </button>
-              </Tooltip>
+                </PillButton>
+              </CustomizerTooltip>
             }
           >
             <ValuesSourcePopover
@@ -190,76 +128,41 @@ export function ModuleEditorFilter({
               }}
             />
           </Popover>
-        )}
-      </SplitPill>
+        ) : null}
+      </div>
 
       <Hair />
 
-      {/* Filter split — primary kind picker. Picking Text/Number/Date
-          writes a multi-filter envelope w/ agSet as sub-2. */}
-      <SplitPill>
-        <Pill
-          disabled={moduleDisabled}
-          active={!moduleDisabled && (filterPrimaryKind != null || filterIsCustom)}
-          tooltip={
-            filterIsCustom
-              ? 'Filter is custom-configured (open column settings to tune)'
-              : filterPrimaryKind
-                ? `Filter: ${filterLabel(filterPrimaryKind, false)}`
-                : 'Column filter'
-          }
-          onClick={() => setFilterOpen(true)}
-          data-testid="fmt-filter-pill"
-        >
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: spacing[1], whiteSpace: 'nowrap' }}>
-            <Filter size={12} strokeWidth={1.75} />
-            <span style={{ fontSize: typography.fontSize.xs, fontWeight: typography.fontWeight.medium }}>
-              {filterLabel(filterPrimaryKind, filterIsCustom)}
-            </span>
-          </span>
-        </Pill>
-        <DropdownMenu open={filterOpen} onOpenChange={setFilterOpen}>
-          <DropdownMenuTrigger asChild>
-            <Tooltip content="Choose filter type (text, number, or date — all add a Set filter)">
-              <button
-                type="button"
-                disabled={moduleDisabled}
-                aria-label="Filter kind menu"
-                className={pillClasses('narrow')}
-                data-testid="fmt-filter-menu-trigger"
-              >
-                <ChevronDown size={9} strokeWidth={2} />
-              </button>
-            </Tooltip>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="fx-menu min-w-[180px]">
-            <DropdownMenuItem
-              onSelect={() => actions.setFilterPrimaryKind(undefined)}
-              data-testid="fmt-filter-menu-none"
-              className={filterPrimaryKind == null && !filterIsCustom ? 'bg-primary/10 text-primary' : undefined}
-            >
-              <span className="w-3 text-center text-[11px]">{filterPrimaryKind == null && !filterIsCustom ? '✓' : ''}</span>
-              <span>None</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {FILTER_OPTIONS.map((o) => {
-              const active = !filterIsCustom && filterPrimaryKind === o.kind;
-              return (
-                <DropdownMenuItem
-                  key={o.kind}
-                  onSelect={() => actions.setFilterPrimaryKind(o.kind)}
-                  data-testid={`fmt-filter-menu-${o.kind}`}
-                  className={active ? 'bg-primary/10 text-primary' : undefined}
-                >
-                  <span className="w-3 text-center text-[11px]">{active ? '✓' : ''}</span>
-                  <span className="flex-1">{o.label}</span>
-                  <span className="text-[11px] font-mono text-muted-foreground">+ Set</span>
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SplitPill>
+      <ToolbarSelect
+        value={filterSelectValue}
+        onValueChange={(next) => {
+          if (next === 'custom') return;
+          actions.setFilterPrimaryKind(next ? (next as FilterKind) : undefined);
+        }}
+        disabled={moduleDisabled || filterIsCustom}
+        icon={<Filter size={12} strokeWidth={1.75} />}
+        placeholder="Filter"
+        tooltip={
+          filterIsCustom
+            ? 'Filter is custom-configured (open column settings to tune)'
+            : 'Choose filter type (text, number, or date — all add a Set filter)'
+        }
+        aria-label="Column filter"
+        data-testid="fmt-filter-select"
+        options={[
+          { value: '', label: 'None' },
+          ...FILTER_OPTIONS.map((o) => ({
+            value: o.kind,
+            label: (
+              <span className="inline-flex w-full items-center gap-2">
+                <span className="flex-1">{o.label}</span>
+                <span className="font-mono text-[10px] text-[color:var(--ds-text-secondary)]">+ Set</span>
+              </span>
+            ),
+          })),
+          ...(filterIsCustom ? [{ value: 'custom', label: 'Custom', disabled: true }] : []),
+        ]}
+      />
 
       {/* Floating filter row toggle. */}
       <Pill
@@ -339,7 +242,7 @@ function ValuesSourcePopover({
     >
       {/* Mode toggle row */}
       <div style={{ display: 'flex', gap: spacing[1.5] }}>
-        <button
+        <PillButton
           type="button"
           className={pillClasses('text')}
           data-on={draftMode === 'static' ? 'true' : undefined}
@@ -348,8 +251,8 @@ function ValuesSourcePopover({
           data-testid="fmt-editor-values-mode-static"
         >
           Static list
-        </button>
-        <button
+        </PillButton>
+        <PillButton
           type="button"
           className={pillClasses('text')}
           data-on={draftMode === 'appdata' ? 'true' : undefined}
@@ -358,7 +261,7 @@ function ValuesSourcePopover({
           data-testid="fmt-editor-values-mode-appdata"
         >
           App data
-        </button>
+        </PillButton>
       </div>
 
       {draftMode === 'static' && (
@@ -434,7 +337,7 @@ function ValuesSourcePopover({
       {/* Confirm / Cancel footer — explicit commit so accidental dropdown
           changes don't write to the column until the user confirms. */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: spacing[1], marginTop: spacing[0.5] }}>
-        <button
+        <PillButton
           type="button"
           className={pillClasses()}
           aria-label="Cancel"
@@ -444,8 +347,8 @@ function ValuesSourcePopover({
           style={{ color: 'var(--ds-accent-negative)' }}
         >
           <X size={13} strokeWidth={2.25} />
-        </button>
-        <button
+        </PillButton>
+        <PillButton
           type="button"
           className={pillClasses()}
           aria-label="Confirm"
@@ -455,7 +358,7 @@ function ValuesSourcePopover({
           style={{ color: 'var(--ds-accent-positive)' }}
         >
           <Check size={13} strokeWidth={2.25} />
-        </button>
+        </PillButton>
       </div>
     </div>
   );

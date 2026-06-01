@@ -85,6 +85,9 @@ export function inferPickerDataType(
     case 'percent':
     case 'date':
     case 'datetime':
+    case 'dateString':
+    case 'dateTimeString':
+      return raw === 'date' ? 'date' : 'datetime';
     case 'string':
     case 'boolean':
       return raw;

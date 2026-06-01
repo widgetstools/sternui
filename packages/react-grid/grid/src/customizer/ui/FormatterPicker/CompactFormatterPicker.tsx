@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Check, ChevronDown, Hash, Info, X } from 'lucide-react';
 import { isValidExcelFormat } from '@starui/engine';
 import { controls, radius, spacing, typography } from '@starui/design-system/tokens';
+import { cn } from '@starui/ui';
 import { FormatPopover } from '../format-editor';
 import { Caps, IconInput, SubLabel } from '../SettingsPanel';
 import { ExcelReferencePopover } from './ExcelReferencePopover';
@@ -10,6 +11,7 @@ import { CURRENCY_QUICK_INSERT, applyCurrencySymbol } from './currencyQuickInser
 import { GROUP_LABELS, groupKeyForPreset } from './presetGroups';
 import { triggerCaption, type SharedBodyProps } from './formatterPickerShared';
 import type { FormatterPreset } from './presetsForDataType';
+import { ChromeButton } from '../ChromeButton';
 
 // Inline data-chip dimension (CURRENT preview, clear, currency-insert) —
 // sits one step tighter than controls.xs so chip rows read as data, not
@@ -56,46 +58,28 @@ export function CompactFormatterPicker({
     <FormatPopover
       width={360}
       trigger={
-        <button
+        <ChromeButton
           type="button"
           title="Value formatter"
           data-testid={testId ? `${testId}-trigger` : undefined}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: spacing[1.5],
-            height: controls.sm.height,
-            padding: `0 ${spacing[2]}px`,
-            background: 'var(--ds-surface-ground)',
-            border: `1px solid ${
-              value ? 'var(--ds-border-secondary)' : 'var(--ds-border-primary)'
-            }`,
-            borderRadius: radius.md,
-            color: value ? 'var(--ds-primary)' : 'var(--ds-text-primary)',
-            fontFamily: 'var(--ds-font-sans)',
-            fontSize: controls.sm.fontSize,
-            cursor: 'pointer',
-            transition: 'background 120ms, border-color 120ms, color 120ms',
-          }}
+          className={cn(
+            'inline-flex h-7 min-h-7 max-w-[180px] items-center gap-1.5 px-2',
+            'rounded-[2px] border border-border/55 bg-transparent text-[11px] font-medium shadow-none',
+            'text-foreground/90 hover:bg-accent/45 hover:border-border',
+            value ? 'text-primary' : undefined,
+          )}
         >
-          <Hash size={12} strokeWidth={1.75} className="opacity-70" />
+          <Hash size={12} strokeWidth={1.75} className="shrink-0 opacity-70" />
           <span
-            style={{
-              maxWidth: 140,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              fontFamily:
-                activePreset || !value
-                  ? 'var(--ds-font-sans)'
-                  : 'var(--ds-font-mono)',
-              fontVariantNumeric: 'tabular-nums',
-            }}
+            className={cn(
+              'min-w-0 truncate tabular-nums',
+              activePreset || !value ? 'font-sans' : 'font-mono',
+            )}
           >
             {triggerCaption(value, activePreset)}
           </span>
-          <ChevronDown size={11} strokeWidth={1.75} className="opacity-50" />
-        </button>
+          <ChevronDown size={11} strokeWidth={1.75} className="shrink-0 opacity-50" />
+        </ChromeButton>
       }
     >
       {({ close }) => (
@@ -136,7 +120,7 @@ export function CompactFormatterPicker({
           >
             {preview || '—'}
           </span>
-          <button
+          <ChromeButton
             type="button"
             onClick={() => {
               setDraftExcel('');
@@ -161,7 +145,7 @@ export function CompactFormatterPicker({
             }}
           >
             <X size={11} strokeWidth={2} />
-          </button>
+          </ChromeButton>
         </div>
 
         {/* Preset tile grid — the single scrollable region of the
@@ -180,7 +164,7 @@ export function CompactFormatterPicker({
                 {items.map((p) => {
                   const active = activePreset?.id === p.id;
                   return (
-                    <button
+                    <ChromeButton
                       key={p.id}
                       type="button"
                       onClick={() => pickPreset(p)}
@@ -222,7 +206,7 @@ export function CompactFormatterPicker({
                           {p.hint}
                         </span>
                       ) : null}
-                    </button>
+                    </ChromeButton>
                   );
                 })}
               </div>
@@ -250,7 +234,7 @@ export function CompactFormatterPicker({
               SYMBOL
             </Caps>
             {CURRENCY_QUICK_INSERT.map((c) => (
-              <button
+              <ChromeButton
                 key={c.symbol}
                 type="button"
                 title={`Insert ${c.aria}`}
@@ -288,7 +272,7 @@ export function CompactFormatterPicker({
                 }}
               >
                 {c.label}
-              </button>
+              </ChromeButton>
             ))}
           </div>
 
@@ -395,7 +379,7 @@ function ApplyOrClearButton({
       ? 'var(--ds-primary)'
       : 'var(--ds-accent-negative)';
   return (
-    <button
+    <ChromeButton
       type="button"
       onClick={onClick}
       disabled={disabled}
@@ -419,6 +403,6 @@ function ApplyOrClearButton({
       }}
     >
       {icon}
-    </button>
+    </ChromeButton>
   );
 }

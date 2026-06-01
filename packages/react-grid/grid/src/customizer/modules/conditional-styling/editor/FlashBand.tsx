@@ -8,6 +8,7 @@ import {
   PillToggleBtn,
   PillToggleGroup,
 } from '../../../ui/SettingsPanel';
+import { ChromeButton } from '../../../ui/ChromeButton';
 import { SettingsRow } from '../../../ui/SettingsPanel/SettingsRow';
 import { Switch } from '@starui/ui';
 import type {
@@ -179,7 +180,7 @@ export const FlashBand = memo(function FlashBand({
                 {FLASH_COLOR_ORDER.map((name) => {
                   const isActive = currentColor === name;
                   return (
-                    <button
+                    <ChromeButton
                       key={name}
                       type="button"
                       role="radio"
@@ -245,7 +246,7 @@ export const FlashBand = memo(function FlashBand({
                 }}
                 placeholder={String(DEFAULT_DURATION_MS)}
                 suffix="MS"
-                style={{ width: 110 }}
+                className="w-[110px]"
                 data-testid={`cs-rule-flash-duration-${ruleId}`}
               />
             }
@@ -276,7 +277,7 @@ export const FlashBand = memo(function FlashBand({
             }}
             placeholder="Persistent"
             suffix="MS"
-            style={{ width: 130 }}
+            className="w-[130px]"
             data-testid={`cs-rule-style-window-ms-${ruleId}`}
           />
         }

@@ -13,6 +13,7 @@ import {
 } from '../../ui/SettingsPanel';
 import { Select } from '../../ui/NativeOptionsSelect';
 import { cn } from '@starui/ui';
+import { ChromeButton } from '../../ui/ChromeButton';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
 import {
   useAppDataKeys,
@@ -59,7 +60,7 @@ interface SectionNavItemProps {
 
 function SectionNavItem({ index, title, active, onClick }: SectionNavItemProps) {
   return (
-    <button
+    <ChromeButton
       type="button"
       onClick={onClick}
       aria-current={active ? 'true' : undefined}
@@ -82,7 +83,7 @@ function SectionNavItem({ index, title, active, onClick }: SectionNavItemProps) 
       <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase leading-tight tracking-[0.1em]">
         {title}
       </span>
-    </button>
+    </ChromeButton>
   );
 }
 
@@ -245,7 +246,7 @@ export function ToolbarDateSettingsPanel(): ReactElement {
                           update('historicalDateAppDataKey', '');
                         }}
                         data-testid="tds-provider-select"
-                        style={{ maxWidth: 240 }}
+                        className="max-w-[240px]"
                       >
                         <option value="">— pick a provider —</option>
                         {providers.map((name) => (
@@ -258,7 +259,7 @@ export function ToolbarDateSettingsPanel(): ReactElement {
                         onCommit={(value) => update('historicalDateAppDataProvider', value.trim())}
                         placeholder="positions"
                         data-testid="tds-provider-text"
-                        style={{ maxWidth: 240 }}
+                        className="max-w-[240px]"
                       />
                     )
                   }
@@ -274,7 +275,7 @@ export function ToolbarDateSettingsPanel(): ReactElement {
                         value={draft.historicalDateAppDataKey}
                         onChange={(e) => update('historicalDateAppDataKey', e.target.value)}
                         data-testid="tds-key-select"
-                        style={{ maxWidth: 240 }}
+                        className="max-w-[240px]"
                       >
                         <option value="">— pick a key —</option>
                         {keys.map((key) => (
@@ -287,7 +288,7 @@ export function ToolbarDateSettingsPanel(): ReactElement {
                         onCommit={(value) => update('historicalDateAppDataKey', value.trim())}
                         placeholder="asOfDate"
                         data-testid="tds-key-text"
-                        style={{ maxWidth: 240 }}
+                        className="max-w-[240px]"
                       />
                     )
                   }

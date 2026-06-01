@@ -48,6 +48,7 @@ import {
   PillToggleGroup,
   SubLabel,
 } from '../../ui/SettingsPanel';
+import { ChromeButton } from '../../ui/ChromeButton';
 import { StyleEditor } from '../../ui/StyleEditor';
 import { Tooltip } from '../../ui/HoverTooltip';
 import type {
@@ -179,7 +180,7 @@ export function ConditionalStylingList({ selectedId, onSelect }: ListPaneProps) 
           {String(state.rules.length).padStart(2, '0')}
         </Mono>
         <span className="flex-1" />
-        <button
+        <ChromeButton
           type="button"
           onClick={addRule}
           title="Add rule"
@@ -187,7 +188,7 @@ export function ConditionalStylingList({ selectedId, onSelect }: ListPaneProps) 
           className="w-[22px] h-[22px] inline-flex items-center justify-center bg-[var(--ds-primary-soft)] text-[var(--ds-primary)] border border-[var(--ds-primary-ring)] rounded-sm cursor-pointer p-0"
         >
           <Plus size={11} strokeWidth={2.5} />
-        </button>
+        </ChromeButton>
       </div>
       <CockpitList listTestId="cs-rules-list">
         {state.rules.map((r) => (
@@ -238,7 +239,7 @@ const RuleRow = memo(function RuleRow({
         {rule.name}
       </span>
       <Tooltip content="Clone">
-        <button
+        <ChromeButton
           type="button"
           aria-label="Clone"
           data-testid={`cs-rule-clone-${rule.id}`}
@@ -249,10 +250,10 @@ const RuleRow = memo(function RuleRow({
           }}
         >
           <Copy size={14} strokeWidth={2} />
-        </button>
+        </ChromeButton>
       </Tooltip>
       <Tooltip content="Delete">
-        <button
+        <ChromeButton
           type="button"
           aria-label="Delete"
           data-testid={`cs-rule-delete-${rule.id}`}
@@ -263,7 +264,7 @@ const RuleRow = memo(function RuleRow({
           }}
         >
           <Trash2 size={14} strokeWidth={2} />
-        </button>
+        </ChromeButton>
       </Tooltip>
     </CockpitListItem>
   );
@@ -539,7 +540,7 @@ function IndicatorPicker({
           <FormatPopover
             width={240}
             trigger={
-              <button
+              <ChromeButton
                 type="button"
                 title="Indicator colour"
                 data-testid={`cs-rule-indicator-color-${ruleId}`}
@@ -559,7 +560,7 @@ function IndicatorPicker({
                 <Caps size="2xs" color="var(--ds-text-muted)">
                   {color.startsWith('#') ? color.toUpperCase() : 'COLOR'}
                 </Caps>
-              </button>
+              </ChromeButton>
             }
           >
             <FormatColorPicker
@@ -572,7 +573,7 @@ function IndicatorPicker({
           </FormatPopover>
         )}
 
-        <button
+        <ChromeButton
           type="button"
           onClick={() => onChange(undefined)}
           disabled={!value?.icon}
@@ -594,7 +595,7 @@ function IndicatorPicker({
           data-testid={`cs-rule-indicator-clear-${ruleId}`}
         >
           CLEAR
-        </button>
+        </ChromeButton>
       </div>
 
       {/* Target + Position — only meaningful when an icon is picked */}
@@ -676,7 +677,7 @@ function IndicatorPicker({
             {icons.map((i) => {
               const active = value?.icon === i.key;
               return (
-                <button
+                <ChromeButton
                   key={i.key}
                   type="button"
                   title={i.label}
@@ -715,7 +716,7 @@ function IndicatorPicker({
                     color={active ? color : 'currentColor'}
                     size={14}
                   />
-                </button>
+                </ChromeButton>
               );
             })}
           </div>

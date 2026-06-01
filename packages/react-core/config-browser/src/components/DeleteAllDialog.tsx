@@ -11,9 +11,10 @@
  *      so the click itself is intentional.
  */
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { Button, Input, cn } from "@starui/ui";
 import { DynamicIcon as Icon } from "@starui/config-browser/icons";
-import { Input } from "@starui/ui";
+import { EditorButton } from "./EditorButton";
 
 interface DeleteAllDialogProps {
   tableLabel: string;
@@ -48,33 +49,25 @@ export function DeleteAllDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="delete-all-title"
-      className="fixed inset-0 bg-background/55 flex items-center justify-center z-[1000] font-[var(--de-font)]"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-background/55 font-[var(--de-font)]"
       onClick={onCancel}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-[520px] max-w-[90vw] flex flex-col bg-[var(--de-bg)] border border-[var(--de-danger,var(--ds-accent-negative))] rounded-[var(--de-radius-md,8px)] shadow-[var(--ds-elevation-overlay)] overflow-hidden"
+        className="flex w-[520px] max-w-[90vw] flex-col overflow-hidden rounded-[var(--de-radius-md,8px)] border border-[var(--de-danger,var(--ds-accent-negative))] bg-[var(--de-bg)] shadow-[var(--ds-elevation-overlay)]"
       >
-        {/* Header */}
-        <div
-          className="flex items-center gap-2.5 px-[18px] py-[14px] border-b border-[var(--de-border)] bg-[color-mix(in_srgb,var(--de-danger,var(--ds-accent-negative))_8%,var(--de-bg))]"
-        >
+        <div className="flex items-center gap-2.5 border-b border-[var(--de-border)] bg-[color-mix(in_srgb,var(--de-danger,var(--ds-accent-negative))_8%,var(--de-bg))] px-[18px] py-[14px]">
           <Icon
             icon="lucide:alert-triangle"
-            style={{ width: 16, height: 16 }}
-            className="text-[var(--de-danger,var(--ds-accent-negative))]"
+            className="h-4 w-4 text-[var(--de-danger,var(--ds-accent-negative))]"
           />
-          <span
-            id="delete-all-title"
-            className="text-[13px] font-semibold text-[var(--de-text)]"
-          >
+          <span id="delete-all-title" className="text-[13px] font-semibold text-[var(--de-text)]">
             Delete all rows in {tableLabel}
           </span>
         </div>
 
-        {/* Body */}
-        <div className="px-[18px] py-4 flex flex-col gap-[14px]">
-          <div className="text-[12px] text-[var(--de-text-secondary)] leading-[1.55]">
+        <div className="flex flex-col gap-[14px] px-[18px] py-4">
+          <div className="text-[12px] leading-[1.55] text-[var(--de-text-secondary)]">
             This will permanently delete{" "}
             <strong className="text-[var(--de-text)]">{rowCount}</strong> row
             {rowCount === 1 ? "" : "s"}
@@ -88,30 +81,28 @@ export function DeleteAllDialog({
             REST backend on the next sync. This cannot be undone.
           </div>
 
-          {/* Step 1: backup */}
           <Step
             number={1}
             title="Download a backup"
             description="Saves the same JSON that Export JSON produces — Import will round-trip it."
             done={backedUp}
           >
-            <button
+            <EditorButton
               onClick={handleBackup}
               disabled={rowCount === 0}
-              style={stepButton(backedUp)}
+              icon={backedUp ? "lucide:check" : "lucide:download"}
+              className={cn(
+                backedUp &&
+                  'border-[color-mix(in_srgb,var(--de-success,var(--ds-accent-positive))_35%,var(--de-border))] bg-[color-mix(in_srgb,var(--de-success,var(--ds-accent-positive))_12%,var(--de-bg))] text-[var(--de-success,var(--ds-accent-positive))]',
+              )}
             >
-              <Icon
-                icon={backedUp ? "lucide:check" : "lucide:download"}
-                style={{ width: 14, height: 14 }}
-              />
               {backedUp ? "Backup downloaded" : "Download backup"}
-            </button>
+            </EditorButton>
           </Step>
 
-          {/* Step 2: type-to-confirm */}
           <Step
             number={2}
-            title={`Type the table name to confirm`}
+            title="Type the table name to confirm"
             description={
               <>
                 Type{" "}
@@ -128,28 +119,24 @@ export function DeleteAllDialog({
               onChange={(e) => setTyped(e.target.value)}
               placeholder={tableLabel}
               disabled={!backedUp}
-              style={{
-                height: 30,
-                fontSize: 12,
-                fontFamily: "var(--de-mono)",
-                background: "var(--de-bg-surface)",
-                border: `1px solid ${typedMatches ? "var(--de-success, var(--ds-accent-positive))" : "var(--de-border)"}`,
-                color: "var(--de-text)",
-              }}
+              className={cn(
+                'h-[30px] bg-[var(--de-bg-surface)] font-[var(--de-mono)] text-xs text-[var(--de-text)] shadow-none',
+                typedMatches
+                  ? 'border-[var(--de-success,var(--ds-accent-positive))]'
+                  : 'border-[var(--de-border)]',
+              )}
             />
           </Step>
         </div>
 
-        {/* Footer */}
-        <div
-          className="flex items-center gap-2 px-[18px] py-3 border-t border-[var(--de-border)] bg-[var(--de-bg-surface)]"
-        >
+        <div className="flex items-center gap-2 border-t border-[var(--de-border)] bg-[var(--de-bg-surface)] px-[18px] py-3">
           <span
-            style={{
-              fontSize: 11,
-              color: canDelete ? "var(--de-danger, var(--ds-accent-negative))" : "var(--de-text-tertiary)",
-              fontFamily: "var(--de-mono)",
-            }}
+            className={cn(
+              'font-[var(--de-mono)] text-[11px]',
+              canDelete
+                ? 'text-[var(--de-danger,var(--ds-accent-negative))]'
+                : 'text-[var(--de-text-tertiary)]',
+            )}
           >
             {canDelete
               ? `Ready to delete ${rowCount} row${rowCount === 1 ? "" : "s"}`
@@ -160,17 +147,22 @@ export function DeleteAllDialog({
                   : "—"}
           </span>
           <div className="flex-1" />
-          <button onClick={onCancel} style={cancelButton()}>
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
+          <EditorButton onClick={onCancel}>Cancel</EditorButton>
+          <Button
+            type="button"
+            size="sm"
             disabled={!canDelete}
-            style={dangerButton(canDelete)}
+            onClick={onConfirm}
+            className={cn(
+              'h-[30px] gap-1.5 px-3.5 text-xs font-semibold font-[var(--de-font)] shadow-none',
+              canDelete
+                ? 'bg-[var(--de-danger,var(--ds-accent-negative))] text-[hsl(var(--destructive-foreground))] hover:bg-[var(--de-danger,var(--ds-accent-negative))]'
+                : 'bg-[color-mix(in_srgb,var(--de-danger,var(--ds-accent-negative))_30%,transparent)] text-[hsl(var(--destructive-foreground))] opacity-60',
+            )}
           >
-            <Icon icon="lucide:trash-2" style={{ width: 14, height: 14 }} />
+            <Icon icon="lucide:trash-2" className="h-3.5 w-3.5" />
             Delete all {rowCount > 0 ? rowCount : ""}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -186,102 +178,36 @@ function Step({
 }: {
   number: number;
   title: string;
-  description: React.ReactNode;
+  description: ReactNode;
   done: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div
-      style={{
-        display: "flex",
-        gap: 12,
-        padding: "12px 14px",
-        background: "var(--de-bg-surface)",
-        border: `1px solid ${done ? "var(--de-success, var(--ds-accent-positive))" : "var(--de-border)"}`,
-        borderRadius: "var(--de-radius-sm)",
-        transition: "border-color 100ms",
-      }}
+      className={cn(
+        'flex gap-3 rounded-[var(--de-radius-sm)] bg-[var(--de-bg-surface)] p-3 transition-[border-color] duration-100',
+        done
+          ? 'border border-[var(--de-success,var(--ds-accent-positive))]'
+          : 'border border-[var(--de-border)]',
+      )}
     >
       <div
-        style={{
-          width: 22,
-          height: 22,
-          borderRadius: "50%",
-          background: done ? "var(--de-success, var(--ds-accent-positive))" : "var(--de-bg)",
-          color: done ? "var(--ds-text-primary)" : "var(--de-text-secondary)",
-          fontSize: 11,
-          fontWeight: 700,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-          fontFamily: "var(--de-mono)",
-        }}
+        className={cn(
+          'flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full font-[var(--de-mono)] text-[11px] font-bold',
+          done
+            ? 'bg-[var(--de-success,var(--ds-accent-positive))] text-[var(--ds-text-primary)]'
+            : 'bg-[var(--de-bg)] text-[var(--de-text-secondary)]',
+        )}
       >
-        {done ? <Icon icon="lucide:check" style={{ width: 12, height: 12 }} /> : number}
+        {done ? <Icon icon="lucide:check" className="h-3 w-3" /> : number}
       </div>
-      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div>
           <div className="text-[12px] font-semibold text-[var(--de-text)]">{title}</div>
-          <div className="text-[11px] text-[var(--de-text-tertiary)] mt-0.5">
-            {description}
-          </div>
+          <div className="mt-0.5 text-[11px] text-[var(--de-text-tertiary)]">{description}</div>
         </div>
         {children}
       </div>
     </div>
   );
-}
-
-function stepButton(done: boolean): React.CSSProperties {
-  return {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-    height: 30,
-    padding: "0 12px",
-    border: "1px solid var(--de-border)",
-    borderRadius: "var(--de-radius-sm)",
-    background: done ? "color-mix(in srgb, var(--de-success, var(--ds-accent-positive)) 12%, var(--de-bg))" : "var(--de-bg)",
-    color: done ? "var(--de-success, var(--ds-accent-positive))" : "var(--de-text-secondary)",
-    fontSize: 12,
-    fontWeight: 500,
-    cursor: "pointer",
-    alignSelf: "flex-start",
-    fontFamily: "var(--de-font)",
-  };
-}
-
-function cancelButton(): React.CSSProperties {
-  return {
-    height: 30,
-    padding: "0 14px",
-    border: "1px solid var(--de-border)",
-    borderRadius: "var(--de-radius-sm)",
-    background: "var(--de-bg)",
-    color: "var(--de-text-secondary)",
-    fontSize: 12,
-    fontWeight: 500,
-    cursor: "pointer",
-    fontFamily: "var(--de-font)",
-  };
-}
-
-function dangerButton(enabled: boolean): React.CSSProperties {
-  return {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-    height: 30,
-    padding: "0 14px",
-    border: "none",
-    borderRadius: "var(--de-radius-sm)",
-    background: enabled ? "var(--de-danger, var(--ds-accent-negative))" : "color-mix(in srgb, var(--de-danger, var(--ds-accent-negative)) 30%, transparent)",
-    color: "hsl(var(--destructive-foreground))",
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: enabled ? "pointer" : "not-allowed",
-    opacity: enabled ? 1 : 0.6,
-    fontFamily: "var(--de-font)",
-  };
 }

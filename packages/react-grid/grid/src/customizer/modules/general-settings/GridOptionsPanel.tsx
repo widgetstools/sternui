@@ -51,6 +51,7 @@ import {
   type SummaryChipTone,
 } from '../../ui/SettingsPanel';
 import { cn } from '@starui/ui';
+import { ChromeButton } from '../../ui/ChromeButton';
 import {
   FieldRenderer,
   collectFieldKeys,
@@ -140,7 +141,7 @@ interface BandNavItemProps {
 
 function BandNavItem({ band, active, overrides, onClick }: BandNavItemProps) {
   return (
-    <button
+    <ChromeButton
       type="button"
       onClick={onClick}
       aria-current={active ? 'true' : undefined}
@@ -172,7 +173,7 @@ function BandNavItem({ band, active, overrides, onClick }: BandNavItemProps) {
           {overrides}
         </span>
       )}
-    </button>
+    </ChromeButton>
   );
 }
 
@@ -334,7 +335,7 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
           placeholder="Filter options…"
           aria-label="Filter grid options"
           data-testid="go-filter-input"
-          style={{ flex: 1 }}
+          className="flex-1"
         />
         {query && (
           <SharpBtn

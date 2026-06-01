@@ -11,31 +11,26 @@ import {
   type ShortcutsState,
   type SmartEditState,
 } from '@starui/engine';
-import { cn } from '@starui/ui';
 import { useModuleState } from '../../customizer/hooks/useModuleState';
 import { BulkUpdateToolbarBody } from '../../customizer/modules/bulk-update/BulkUpdateToolbarBody';
 import { EditHistoryToolbarBody } from '../../customizer/modules/data-change-history/EditHistoryToolbarBody';
 import { SmartEditToolbarBody } from '../../customizer/modules/smart-edit/SmartEditToolbarBody';
 import { EditingToolbarKeyboardMenu } from './EditingToolbarKeyboardMenu';
 import type { EditingToolbarAllow } from './resolveEditingToolbarAllow';
+import './editingToolbar.css';
 
 export interface EditingToolbarProps {
   allow: EditingToolbarAllow;
 }
 
-function ToolbarSeparator() {
-  return (
-    <span
-      className="ds-editing-toolbar__sep"
-      aria-hidden
-    />
-  );
+function EditingHair() {
+  return <span aria-hidden className="ex-hair" />;
 }
 
 function joinSegments(nodes: Array<ReactNode | false | null | undefined>) {
   const visible = nodes.filter(Boolean);
   return visible.flatMap((node, index) => (
-    index === 0 ? [node] : [<ToolbarSeparator key={`sep-${index}`} />, node]
+    index === 0 ? [node] : [<EditingHair key={`sep-${index}`} />, node]
   ));
 }
 
@@ -65,15 +60,13 @@ export function EditingToolbar({ allow }: EditingToolbarProps) {
 
   return (
     <div
-      className={cn(
-        'ds-editing-toolbar ds-sheet-v2 shrink-0 border-b border-[color:var(--ds-border-primary)]',
-      )}
+      className="ex-shell ex-shell--horizontal shrink-0"
       data-testid="editing-toolbar-pinned"
     >
       {primary}
       {showKeyboard && (
         <>
-          <ToolbarSeparator />
+          <EditingHair />
           <EditingToolbarKeyboardMenu />
         </>
       )}

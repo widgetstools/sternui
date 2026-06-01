@@ -28,7 +28,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Pencil, Plus, RotateCw, Trash2, Check, X } from 'lucide-react';
-import { GhostIconButton } from '@starui/grid/customizer';
+import { GhostIconButton, Input, ChromeButton, cn } from '@starui/grid/customizer';
 
 // Inactive-row hover tint. Co-located here (instead of marketsGrid.css)
 // so the row + its buttons stay self-contained — the row also serves
@@ -185,7 +185,7 @@ function TemplateRow({
 
       {/* Name — switches to input while renaming */}
       {isRenaming ? (
-        <input
+        <Input
           type="text"
           value={renameDraft}
           autoFocus
@@ -198,16 +198,8 @@ function TemplateRow({
             else if (e.key === 'Escape') { e.preventDefault(); onCancelRename(); }
           }}
           onBlur={onCommitRename}
-          style={{
-            flex: 1, minWidth: 0, height: 22, padding: '0 6px',
-            background: 'var(--ds-surface-ground)',
-            border: '1px solid color-mix(in srgb, var(--ds-primary) 55%, var(--ds-border-primary))',
-            borderRadius: 2,
-            color: 'var(--ds-text-primary)',
-            fontSize: 11,
-            fontWeight: isActive ? 600 : 450,
-            outline: 'none',
-          }}
+          className="h-[22px] min-h-[22px] flex-1 min-w-0 rounded-[2px] border-[color-mix(in_srgb,var(--ds-primary)_55%,var(--ds-border-primary))] bg-[color:var(--ds-surface-ground)] px-1.5 text-[11px] text-[color:var(--ds-text-primary)] shadow-none focus-visible:ring-0 data-[active=true]:font-semibold"
+          data-active={isActive ? 'true' : undefined}
         />
       ) : (
         <span style={{
@@ -256,18 +248,18 @@ function TemplateRow({
             </GhostIconButton>
           )}
           {isPendingDelete ? (
-            <button
+            <ChromeButton
               type="button"
               onClick={(e) => { e.stopPropagation(); onConfirmDelete(); }}
               onMouseDown={(e) => e.preventDefault()}
               data-testid={`${testId}-delete-confirm`}
               title="Click to confirm delete"
               aria-label="Confirm delete template"
-              className="inline-flex items-center justify-center gap-1 h-[22px] px-2 border border-[var(--ds-accent-negative)] rounded-[3px] bg-[color-mix(in_srgb,var(--ds-accent-negative)_18%,transparent)] text-[var(--ds-accent-negative)] text-[9px] font-bold tracking-[0.08em] uppercase cursor-pointer shrink-0"
+              className="inline-flex h-[22px] shrink-0 items-center justify-center gap-1 rounded-[3px] border border-[var(--ds-accent-negative)] bg-[color-mix(in_srgb,var(--ds-accent-negative)_18%,transparent)] px-2 text-[9px] font-bold uppercase tracking-[0.08em] text-[var(--ds-accent-negative)]"
             >
               <Trash2 size={10} strokeWidth={2.25} />
               <span>Delete</span>
-            </button>
+            </ChromeButton>
           ) : (
             <GhostIconButton
               reveal="on-row-hover"
@@ -438,7 +430,7 @@ export function TemplateManager({
           Save current as new
         </div>
         <div className="flex gap-1.5">
-          <input
+          <Input
             type="text"
             value={saveName}
             onChange={(e) => onSaveNameChange(e.target.value)}
@@ -449,9 +441,9 @@ export function TemplateManager({
             onKeyDown={(e) => {
               if (e.key === 'Enter' && saveName.trim()) onSave();
             }}
-            className="flex-1 min-w-0 h-7 px-2.5 border border-border rounded-[3px] bg-background text-foreground text-[11px] outline-none"
+            className="h-7 min-h-7 flex-1 min-w-0 rounded-[3px] text-[11px]"
           />
-          <button
+          <ChromeButton
             type="button"
             disabled={disabled || !saveName.trim()}
             onClick={onSave}
@@ -459,26 +451,16 @@ export function TemplateManager({
             data-testid={`${testIdPrefix}-save-btn`}
             title="Save current state as new template"
             aria-label="Save current state as new template"
-            style={{
-              width: 28, height: 28,
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              border: `1px solid ${saveConfirmed
-                ? 'color-mix(in srgb, var(--ds-primary) 40%, transparent)'
-                : 'var(--ds-border-primary)'}`,
-              borderRadius: 2,
-              background: saveConfirmed
-                ? 'color-mix(in srgb, var(--ds-primary) 14%, transparent)'
-                : 'transparent',
-              color: saveConfirmed ? 'var(--ds-primary)' : 'var(--ds-text-secondary)',
-              cursor: disabled || !saveName.trim() ? 'not-allowed' : 'pointer',
-              opacity: disabled || !saveName.trim() ? 0.3 : 1,
-              transition: 'all 120ms',
-              padding: 0,
-              flexShrink: 0,
-            }}
+            className={cn(
+              'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[2px] border p-0 transition-all duration-[120ms]',
+              saveConfirmed
+                ? 'border-[color-mix(in_srgb,var(--ds-primary)_40%,transparent)] bg-[color-mix(in_srgb,var(--ds-primary)_14%,transparent)] text-[var(--ds-primary)]'
+                : 'border-[var(--ds-border-primary)] bg-transparent text-[var(--ds-text-secondary)]',
+              (disabled || !saveName.trim()) && 'cursor-not-allowed opacity-30',
+            )}
           >
             {saveConfirmed ? <Check size={13} strokeWidth={2.5} /> : <Plus size={13} strokeWidth={2} />}
-          </button>
+          </ChromeButton>
         </div>
       </div>
 

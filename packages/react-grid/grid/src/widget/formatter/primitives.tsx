@@ -9,8 +9,20 @@
  */
 import * as React from 'react';
 import { ArrowLeftRight, X } from 'lucide-react';
-import { Button, ButtonGroup } from '@starui/ui';
-import { cn, Tooltip } from '@starui/grid/customizer';
+import {
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Tooltip as TooltipRoot,
+  TooltipContent,
+  TooltipTrigger,
+  cn,
+  type ButtonProps,
+} from '@starui/ui';
+import { CHROME_BUTTON_RESET } from '@starui/grid/customizer';
 
 export type Orientation = 'horizontal' | 'vertical';
 
@@ -23,32 +35,140 @@ export type Orientation = 'horizontal' | 'vertical';
 // every raw consumer resolve their visuals through the same chain →
 // design-system tokens → `@starui/design-system`.
 
+/** Radix Select forbids `value=""` — map empty selections through this sentinel. */
+export const TOOLBAR_SELECT_EMPTY = '__STARUI_FMT_SELECT_EMPTY__';
+
 export function pillClasses(variant: 'icon' | 'text' | 'narrow' = 'icon'): string {
-  // Note: matches what Pill emits below. Any change here ripples to
-  // every raw `<button>` that uses it; keep in sync.
+  // Ghost icon buttons — aligned with `.ds-primary-action`: transparent
+  // at rest, soft primary tint on hover/active (no heavy per-button boxes).
   return [
-    // shadcn `<Button size="sm">` baseline equivalent.
+    CHROME_BUTTON_RESET,
     'inline-flex items-center justify-center whitespace-nowrap shrink-0',
-    // `border-[1.5px]` only sets border-width (Tailwind preflight
-    // gives border-style: solid by default). `border-input` then
-    // applies the pewter colour. Using the CSS `border:` shorthand
-    // would force border-color back to currentColor (= text-foreground)
-    // and shadow the colour utility — that's the bug we just fixed.
-    'h-7 rounded-[3px] border-[1.5px] border-input bg-transparent',
-    'text-foreground text-[11px] leading-none gap-1 font-medium cursor-pointer',
-    'transition-colors disabled:opacity-[0.38] disabled:cursor-not-allowed',
-    // Per-variant min-width + padding + (text variant: mono font).
+    'h-7 rounded-[2px] border border-transparent bg-transparent shadow-none',
+    'text-[color:var(--ds-text-secondary)] text-[11px] leading-none gap-1 font-medium cursor-pointer',
+    'transition-[color,background,border-color,opacity] duration-150',
+    'disabled:opacity-[0.38] disabled:cursor-not-allowed disabled:pointer-events-none',
     variant === 'icon' && 'min-w-7 px-1.5',
     variant === 'text' && 'min-w-[30px] px-2 font-mono text-[10px] tracking-[0.04em]',
     variant === 'narrow' && 'min-w-[18px] px-[3px]',
-    // Rest hover — darken border, keep transparent fill.
-    'hover:bg-transparent hover:text-foreground hover:border-foreground/60',
-    // Active — brand-primary fill (matches every other active CTA).
-    'data-[on=true]:bg-primary data-[on=true]:text-primary-foreground data-[on=true]:border-primary',
-    'data-[on=true]:hover:bg-primary data-[on=true]:hover:border-primary',
-    // Focus ring — 1px brand outline.
+    'hover:text-primary hover:bg-primary/10 hover:border-primary/25',
+    'data-[on=true]:text-primary data-[on=true]:bg-primary/12 data-[on=true]:border-primary/35',
+    'data-[on=true]:shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--primary)_14%,transparent)]',
     'focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary focus-visible:outline-offset-1 focus-visible:ring-0',
   ].filter(Boolean).join(' ');
+}
+
+/** Compact shadcn `<SelectTrigger>` styling for formatter enum pickers. */
+export function toolbarSelectTriggerClasses(className?: string): string {
+  return cn(
+    CHROME_BUTTON_RESET,
+    'h-7 min-h-7 w-auto max-w-[220px] gap-1.5 px-2 py-0',
+    'text-[11px] font-medium leading-none shadow-none',
+    'rounded-[2px] border border-border/55 bg-transparent',
+    'text-foreground hover:bg-accent/45 hover:border-border',
+    'focus:ring-1 focus:ring-ring [&>span]:line-clamp-1',
+    '[&_svg]:shrink-0 [&_svg]:opacity-55',
+    className,
+  );
+}
+
+export function toolbarSelectContentClasses(className?: string): string {
+  return cn('text-[11px] min-w-[var(--radix-select-trigger-width)]', className);
+}
+
+/** Column caption chip — readout + inline rename field in the scope strip. */
+export function columnCaptionChipClasses(editable = false): string {
+  return cn(
+    'fx-col inline-flex h-7 min-h-7 max-w-[180px] items-center gap-1.5 px-2',
+    'font-mono text-[11px] font-normal leading-none tracking-[0.02em]',
+    'text-[color:var(--ds-text-secondary)]',
+    editable && 'fx-col--editable cursor-text',
+  );
+}
+
+export function columnCaptionInputClasses(className?: string): string {
+  return cn(
+    'h-7 min-h-7 min-w-[140px] max-w-[180px] rounded-[2px] border border-border/55 bg-transparent',
+    'px-2 py-0 font-mono text-[11px] font-normal leading-none tracking-[0.02em]',
+    'text-foreground shadow-none placeholder:text-[color:var(--ds-text-muted)]',
+    'focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/30',
+    className,
+  );
+}
+
+export function columnCaptionTriggerClasses(className?: string): string {
+  return cn(
+    CHROME_BUTTON_RESET,
+    columnCaptionChipClasses(true),
+    'hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50',
+    className,
+  );
+}
+
+export interface ToolbarSelectOption {
+  value: string;
+  label: React.ReactNode;
+  disabled?: boolean;
+}
+
+export function ToolbarSelect({
+  value,
+  onValueChange,
+  options,
+  disabled,
+  icon,
+  placeholder = '—',
+  tooltip,
+  'aria-label': ariaLabel,
+  'data-testid': dataTestId,
+  className,
+}: {
+  value: string | undefined;
+  onValueChange: (next: string | undefined) => void;
+  options: ToolbarSelectOption[];
+  disabled?: boolean;
+  icon?: React.ReactNode;
+  placeholder?: string;
+  tooltip?: string;
+  'aria-label'?: string;
+  'data-testid'?: string;
+  className?: string;
+}) {
+  const encoded = value == null || value === '' ? TOOLBAR_SELECT_EMPTY : value;
+
+  const trigger = (
+    <SelectTrigger
+      className={toolbarSelectTriggerClasses(className)}
+      aria-label={ariaLabel}
+      title={tooltip}
+      data-testid={dataTestId}
+    >
+      {icon ? <span className="inline-flex shrink-0 opacity-75">{icon}</span> : null}
+      <SelectValue placeholder={placeholder} />
+    </SelectTrigger>
+  );
+
+  return (
+    <Select
+      value={encoded}
+      onValueChange={(next) => onValueChange(next === TOOLBAR_SELECT_EMPTY ? undefined : next)}
+      disabled={disabled}
+    >
+      {trigger}
+      <SelectContent position="popper" className={toolbarSelectContentClasses()}>
+        {options.map((opt) => (
+          <SelectItem
+            key={opt.value === '' ? TOOLBAR_SELECT_EMPTY : opt.value}
+            value={opt.value === '' ? TOOLBAR_SELECT_EMPTY : opt.value}
+            disabled={opt.disabled}
+            className="py-1.5 pl-7 pr-2 text-[11px]"
+          >
+            {opt.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 }
 
 export interface PillProps {
@@ -105,17 +225,38 @@ export function Pill({
       {children}
     </Button>
   );
-  if (tooltip) return <Tooltip content={tooltip}>{btn}</Tooltip>;
-  return btn;
+  if (!tooltip) return btn;
+  return (
+    <TooltipRoot>
+      <TooltipTrigger asChild>{btn}</TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs px-1.5 py-0.5 text-[10px]">
+        {tooltip}
+      </TooltipContent>
+    </TooltipRoot>
+  );
 }
+
+/** shadcn `Button` pre-styled as a formatter toolbar pill (for Radix triggers). */
+export const PillButton = React.forwardRef<
+  HTMLButtonElement,
+  ButtonProps & { pillVariant?: 'icon' | 'text' | 'narrow' }
+>(function PillButton({ className, pillVariant = 'icon', variant = 'ghost', size = 'sm', ...rest }, ref) {
+  return (
+    <Button
+      ref={ref}
+      type="button"
+      variant={variant}
+      size={size}
+      className={cn(pillClasses(pillVariant), className)}
+      {...rest}
+    />
+  );
+});
 
 // ─── SplitPill — primary action + chevron menu trigger ────────────
 //
-// Now a thin re-export over shadcn's `<ButtonGroup>`. The wrapper
-// gives every child square inner corners + a 1px negative gap so the
-// primary pill + chevron pill read as one joined control.
-// The legacy `.fx-split` CSS class is gone; consumers don't need to
-// know they're getting shadcn underneath.
+// Loose sibling layout — each child keeps its own pill border instead
+// of merging into a single attached strip (no enclosing box).
 
 export function SplitPill({
   children,
@@ -124,7 +265,11 @@ export function SplitPill({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <ButtonGroup className={className}>{children}</ButtonGroup>;
+  return (
+    <div className={cn('inline-flex items-center gap-1.5', className)}>
+      {children}
+    </div>
+  );
 }
 
 // ─── Hairline divider between sub-groups inside a module ──────────
@@ -249,7 +394,7 @@ export function ColumnLabel({
 }) {
   return (
     <span
-      className="fx-col"
+      className={columnCaptionChipClasses()}
       data-disabled={disabled ? 'true' : undefined}
       data-testid={testId}
     >
@@ -275,21 +420,22 @@ export function ScopeToggle({
   testId?: string;
 }) {
   return (
-    <button
+    <Button
       type="button"
       role="switch"
       aria-checked={target === 'header'}
       aria-label={`Edit ${target === 'cell' ? 'cell' : 'header'} (click to switch)`}
       data-testid={testId}
       data-target={target}
-      className="fx-scope"
+      variant="ghost"
+      className={cn('fx-scope h-auto min-h-0 p-0 shadow-none hover:bg-transparent focus-visible:ring-0')}
       onClick={onToggle}
       onMouseDown={(e) => e.preventDefault()}
       title={`Click to edit ${target === 'cell' ? 'header' : 'cell'}`}
     >
       <span>{target.toUpperCase()}</span>
       <ArrowLeftRight size={9} strokeWidth={2} className="fx-scope__swap" aria-hidden />
-    </button>
+    </Button>
   );
 }
 
@@ -343,59 +489,38 @@ export function SegmentedToggle<T extends string>({
       aria-label={ariaLabel}
       data-variant={variant}
       data-testid={testId}
-      className={cn(
-        // Container — 28px tall with 2px inner padding (the active
-        // chip floats inside this padding ring). Subtle muted-fill
-        // background distinguishes the segmented control from
-        // surrounding pills.
-        'inline-flex items-stretch h-7 p-[2px] shrink-0 isolate',
-        'rounded-md border border-border',
-        // Container fill — 6% ink tint in dark, 4% ink-on-card in light.
-        'bg-foreground/[0.06] dark:bg-foreground/[0.06]',
-      )}
+      className="inline-flex items-center gap-1.5 shrink-0"
     >
       {options.map((opt) => {
         const isActive = opt.value === value;
         const btn = (
-          <button
+          <Button
             key={opt.value}
             type="button"
             role="radio"
+            variant="ghost"
             aria-checked={isActive}
             aria-label={opt.ariaLabel ?? opt.tooltip}
             data-active={isActive ? 'true' : undefined}
+            data-on={isActive ? 'true' : undefined}
             data-testid={opt.testId}
             onMouseDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
               if (!isActive) onChange(opt.value);
             }}
-            className={cn(
-              // Option chip — fills the container vertically (h-full
-              // = 22px after the container's 2px padding) and a fixed
-              // 26px width gives each segment a square clickable area.
-              'inline-flex items-center justify-center w-[26px] cursor-pointer select-none',
-              'border-none bg-transparent appearance-none rounded-[3px]',
-              'transition-colors transition-shadow [transition-duration:120ms]',
-              // Rest — muted icon colour.
-              'text-muted-foreground',
-              // Hover (not active) — strengthen to full ink.
-              'hover:text-foreground data-[active=true]:hover:text-primary-foreground',
-              // Active — brand-primary fill, primary-foreground glyph,
-              // subtle inset highlight for the "lift" feel.
-              'data-[active=true]:bg-primary data-[active=true]:text-primary-foreground',
-              'data-[active=true]:shadow-[0_1px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.18)]',
-              // Focus ring — brand outline, sits 1px outside the chip.
-              'focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary focus-visible:outline-offset-1',
-            )}
+            className={pillClasses('icon')}
           >
             {opt.icon}
-          </button>
+          </Button>
         );
         return (
-          <Tooltip key={opt.value} content={opt.tooltip}>
-            {btn}
-          </Tooltip>
+          <TooltipRoot key={opt.value}>
+            <TooltipTrigger asChild>{btn}</TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs px-1.5 py-0.5 text-[10px]">
+              {opt.tooltip}
+            </TooltipContent>
+          </TooltipRoot>
         );
       })}
     </div>
@@ -412,12 +537,17 @@ export function PreviewReadout({
   testId?: string;
 }) {
   return (
-    <Tooltip content="Live preview — current format against a sample value">
-      <span className="fx-preview" data-testid={testId}>
-        <span className="fx-preview__lbl">Preview</span>
-        <span className="fx-preview__val">{value || '—'}</span>
-      </span>
-    </Tooltip>
+    <TooltipRoot>
+      <TooltipTrigger asChild>
+        <span className="fx-preview" data-testid={testId}>
+          <span className="fx-preview__lbl">Preview</span>
+          <span className="fx-preview__val">{value || '—'}</span>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs px-1.5 py-0.5 text-[10px]">
+        Live preview — current format against a sample value
+      </TooltipContent>
+    </TooltipRoot>
   );
 }
 
@@ -436,16 +566,18 @@ export function TitleBar({
   return (
     <div className="fx-titlebar" data-testid={testId}>
       <span>{text}</span>
-      <button
+      <Button
         type="button"
-        className="fx-titlebar__close"
+        variant="ghost"
+        size="icon"
+        className="fx-titlebar__close h-auto min-h-0 w-auto p-0 shadow-none hover:bg-transparent focus-visible:ring-0"
         onClick={onClose}
         aria-label="Close"
         data-testid="fmt-panel-close"
         title="Close"
       >
         <X size={14} strokeWidth={2} />
-      </button>
+      </Button>
     </div>
   );
 }

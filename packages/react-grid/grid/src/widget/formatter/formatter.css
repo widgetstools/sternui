@@ -51,6 +51,10 @@
   --fx-label-fs:     10px;
   --fx-readout-fs:   11px;
 
+  /* Toolbar label/meta ink — one step above faint/muted for scannability. */
+  --fx-toolbar-label: var(--ds-text-secondary);
+  --fx-toolbar-meta:  color-mix(in srgb, var(--ds-text-secondary) 82%, var(--ds-text-primary));
+
   font-family: var(--ds-font-sans);
   color: var(--ds-text-primary);
   background: var(--ds-surface-ground);
@@ -71,17 +75,17 @@
 }
 
 /* Toolbar variant — intentional two-row layout with labeled groups.
-   Row 1: scope + typography/colour/number format.
-   Row 2: editor/filter + templates + destructive clear (right-aligned).
-   Background tracks `.ds-primary-row` so the formatter reads as one
-   continuous surface with the primary action row above the grid. */
+   Row 1: scope + typography + colour.
+   Row 2: number format + editor/filter + templates + clear (right).
+   Each row stays a single line (`flex-wrap: nowrap`); narrow viewports
+   scroll horizontally rather than spawning a third wrapped line. */
 .fx-shell--horizontal {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 0;
   padding: 6px 48px 8px 12px;
-  min-height: 48px;
+  min-height: 56px;
   background: var(--ds-surface-sunken);
   border-bottom: 1px solid var(--ds-border-primary);
   width: 100%;
@@ -101,10 +105,23 @@
 .fx-toolbar-row {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   min-height: var(--fx-pill-h);
   min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ds-border-secondary) transparent;
+}
+
+.fx-toolbar-row::-webkit-scrollbar {
+  height: 4px;
+}
+
+.fx-toolbar-row::-webkit-scrollbar-thumb {
+  background: var(--ds-border-secondary);
+  border-radius: var(--fx-radius, 3px);
 }
 
 .fx-toolbar-row__spacer {
@@ -112,16 +129,16 @@
   min-width: 8px;
 }
 
-/* Labeled cluster — subtle inset chrome groups controls by function. */
+/* Labeled cluster — label + controls inline; no outer box chrome. */
 .fx-toolbar-group {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   min-height: var(--fx-pill-h);
-  padding: 2px 8px 2px 6px;
-  border-radius: calc(var(--fx-radius) + 2px);
-  border: 1px solid color-mix(in srgb, var(--ds-border-primary) 85%, transparent);
-  background: color-mix(in srgb, var(--fx-bg-sunken) 72%, var(--ds-surface-primary));
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
   flex-shrink: 0;
   max-width: 100%;
   min-width: 0;
@@ -129,11 +146,11 @@
 
 .fx-toolbar-group__label {
   font-family: var(--ds-font-mono);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ds-text-faint);
+  color: var(--fx-toolbar-label);
   line-height: 1;
   white-space: nowrap;
   user-select: none;
@@ -159,17 +176,16 @@
   min-width: 0;
 }
 
-/* Destruct cluster — warm outline so it reads as "danger zone". */
+/* Destruct cluster — label tint only (no enclosing box). */
 .fx-toolbar-group--destruct {
-  border-color: color-mix(in srgb, var(--ds-accent-negative) 28%, var(--ds-border-primary));
-  background: color-mix(in srgb, var(--ds-accent-negative) 4%, var(--fx-bg-sunken));
+  border: none;
+  background: transparent;
 }
 .fx-toolbar-group--destruct .fx-toolbar-group__label {
-  color: color-mix(in srgb, var(--ds-accent-negative) 72%, var(--ds-text-faint));
+  color: color-mix(in srgb, var(--ds-accent-negative) 72%, var(--fx-toolbar-label));
 }
 
-/* Inside a group, modules lose outer spacing — the group chrome
-   provides the visual boundary. */
+/* Inside a group, modules stay unstyled — pills provide per-control chrome. */
 .fx-toolbar-group .fx-module {
   min-height: 0;
 }
@@ -255,7 +271,7 @@
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ds-text-faint);
+  color: var(--fx-toolbar-label);
   line-height: 1;
   border-bottom: 1px solid color-mix(in srgb, var(--ds-border-primary) 70%, transparent);
   user-select: none;
@@ -270,7 +286,7 @@
   background: color-mix(in srgb, var(--ds-accent-negative) 4%, var(--fx-bg-sunken));
 }
 .fx-panel-group--destruct .fx-panel-group__label {
-  color: color-mix(in srgb, var(--ds-accent-negative) 72%, var(--ds-text-faint));
+  color: color-mix(in srgb, var(--ds-accent-negative) 72%, var(--fx-toolbar-label));
 }
 
 /* Inside a panel card, module eyebrows duplicate the group label. */
@@ -372,7 +388,7 @@
   font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--ds-text-faint);
+  color: var(--fx-toolbar-label);
   line-height: 1;
   white-space: nowrap;
   user-select: none;
@@ -420,10 +436,11 @@
 .fx-hair {
   display: inline-block;
   width: 1px;
-  height: 14px;
-  background: var(--ds-border-primary);
-  margin: 0 4px;
+  height: 16px;
+  background: color-mix(in srgb, var(--ds-border-secondary) 88%, var(--ds-text-primary));
+  margin: 0 5px;
   flex-shrink: 0;
+  opacity: 1;
 }
 
 /* `.fx-pill` / `.fx-pill--text` / `.fx-pill--narrow` moved to
@@ -496,23 +513,16 @@
   overflow: hidden;
 }
 
-/* Column label readout. */
+/* Column label readout — secondary readout tier (11px mono, muted ink). */
 .fx-col {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: var(--fx-pill-h);
-  padding: 0 10px;
+  box-sizing: border-box;
   border-radius: var(--fx-radius);
-  background: var(--fx-bg-sunken);
-  border: 1px solid var(--ds-border-primary);
-  font-family: var(--ds-font-mono);
-  font-size: var(--fx-readout-fs);
-  color: var(--ds-text-primary);
-  max-width: 200px;
+  background: color-mix(in srgb, var(--fx-bg-sunken) 50%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ds-border-secondary) 72%, var(--ds-text-primary));
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  transition: border-color 120ms, background 120ms, color 120ms;
 }
 .fx-shell--vertical .fx-col {
   flex: 1;
@@ -520,14 +530,13 @@
   max-width: none;
 }
 .fx-col__dot {
-  width: 6px;
-  height: 6px;
-  /* Fully round indicator — `radius.full` semantics. */
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--ds-primary);
-  box-shadow: 0 0 6px var(--ds-primary);
+  box-shadow: 0 0 4px color-mix(in srgb, var(--ds-primary) 55%, transparent);
   flex-shrink: 0;
-  animation: fxLivePulse 1.6s ease-in-out infinite;
+  animation: fxLivePulse 2s ease-in-out infinite;
 }
 .fx-col[data-disabled='true'] .fx-col__dot {
   background: var(--ds-text-faint);
@@ -538,8 +547,10 @@
   color: var(--ds-text-faint);
 }
 .fx-col__name {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: 400;
 }
 
 /* Editable column-label chip — same dimensions as `.fx-col`, but
@@ -547,27 +558,25 @@
  * inline rename input. The edit pencil is muted until hover so the
  * chip stays clean when the user is just reading the active column. */
 .fx-col--editable {
-  border: 1px solid var(--ds-border-primary);
   cursor: text;
-  padding-right: 8px;
-  transition: border-color 120ms, background 120ms;
 }
 .fx-col--editable:hover:not(:disabled) {
-  border-color: var(--ds-primary-ring);
-  background: color-mix(in srgb, var(--fx-bg-sunken) 60%, var(--ds-primary-soft));
+  border-color: color-mix(in srgb, var(--ds-primary-ring) 70%, var(--ds-border-secondary));
+  background: color-mix(in srgb, var(--ds-primary-soft) 35%, var(--fx-bg-sunken));
+  color: var(--ds-text-primary);
 }
 .fx-col--editable:disabled {
   cursor: not-allowed;
 }
 .fx-col__edit {
   color: var(--ds-text-faint);
-  opacity: 0.5;
+  opacity: 0.45;
   flex-shrink: 0;
   transition: color 120ms, opacity 120ms;
 }
 .fx-col--editable:hover:not(:disabled) .fx-col__edit {
   color: var(--ds-primary);
-  opacity: 1;
+  opacity: 0.85;
 }
 
 /* `.fx-col-input` moved to ModuleContext.tsx as a shadcn `<Input>`
@@ -586,7 +595,7 @@
   height: var(--fx-pill-h);
   padding: 0 10px;
   background: transparent;
-  border: 1px solid var(--ds-border-primary);
+  border: 1px solid transparent;
   border-radius: var(--fx-radius);
   font-family: var(--ds-font-mono);
   font-size: 9px;
@@ -681,7 +690,7 @@
   border: 1px solid var(--ds-border-primary);
   border-radius: var(--fx-radius);
   background: var(--ds-surface-primary);
-  color: var(--ds-text-muted);
+  color: var(--fx-toolbar-meta);
   cursor: pointer;
   transition: color 120ms, border-color 120ms, background 120ms;
   z-index: 3;

@@ -22,6 +22,7 @@ import {
   SlidersHorizontal,
   PencilLine,
 } from 'lucide-react';
+import { Button } from '@starui/ui';
 import type { UseProfileManagerResult } from '@starui/grid/customizer';
 import type { AdminAction } from './types';
 import { FiltersToolbar } from './FiltersToolbar';
@@ -174,8 +175,10 @@ export function PrimaryToolbar(props: PrimaryToolbarProps): ReactElement {
            then evenly-spaced icon buttons with matching chrome. */}
       <div className="ds-primary-actions">
         {showFormattingToolbar && (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             className="ds-primary-action"
             onClick={onToggleStyleToolbar}
             title={styleToolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'}
@@ -184,12 +187,14 @@ export function PrimaryToolbar(props: PrimaryToolbarProps): ReactElement {
             aria-pressed={styleToolbarOpen}
           >
             <SlidersHorizontal size={14} strokeWidth={2} />
-          </button>
+          </Button>
         )}
 
         {showEditingToolbar && (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             className="ds-primary-action"
             onClick={onToggleEditingToolbar}
             title={editingToolbarOpen ? 'Hide editing toolbar' : 'Show editing toolbar'}
@@ -198,7 +203,7 @@ export function PrimaryToolbar(props: PrimaryToolbarProps): ReactElement {
             aria-pressed={editingToolbarOpen}
           >
             <PencilLine size={14} strokeWidth={2} />
-          </button>
+          </Button>
         )}
 
         {(showFormattingToolbar || showEditingToolbar) && (
@@ -292,8 +297,10 @@ export function PrimaryToolbar(props: PrimaryToolbarProps): ReactElement {
         {showSaveButton && (
           <>
             <span className="ds-primary-divider" aria-hidden />
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
               className="ds-primary-action ds-primary-save"
               onClick={() => { void onSaveAll(); }}
               title={isDirty ? 'Save all settings (unsaved changes)' : 'Save all settings'}
@@ -301,7 +308,7 @@ export function PrimaryToolbar(props: PrimaryToolbarProps): ReactElement {
               data-state={saveFlash ? 'saved' : isDirty ? 'dirty' : 'idle'}
             >
               {saveFlash ? <Check size={14} strokeWidth={2.5} /> : <Save size={14} strokeWidth={2} />}
-            </button>
+            </Button>
           </>
         )}
 

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Eye, EyeOff, Minus, Pipette } from 'lucide-react';
 import { FormatColorPicker } from '../format-editor';
-import { Popover, PopoverContent, PopoverTrigger } from '@starui/ui';
+import { Popover, PopoverContent, PopoverTrigger, Input } from '@starui/ui';
+import { ChromeButton } from '../ChromeButton';
 
 /**
  * Cockpit compact colour field — 28px tall pill with checkerboard preview
@@ -116,7 +117,7 @@ export function CompactColorField({
         onClear={onClear}
         recents={recents}
         trigger={
-          <button
+          <ChromeButton
             type="button"
             disabled={disabled}
             aria-label="Pick color"
@@ -140,11 +141,11 @@ export function CompactColorField({
                 style={{ position: 'absolute', top: 2, left: 2 }}
               />
             )}
-          </button>
+          </ChromeButton>
         }
       />
 
-      <input
+      <Input
         type="text"
         disabled={disabled}
         placeholder={placeholder}
@@ -171,21 +172,7 @@ export function CompactColorField({
             setHexDraft(value ?? '');
           }
         }}
-        style={{
-          flex: 1,
-          minWidth: 0,
-          height: 26,
-          border: 'none',
-          background: 'transparent',
-          color: hasValue ? 'var(--ds-text-primary)' : 'var(--ds-text-faint)',
-          fontFamily: 'var(--ds-font-mono)',
-          fontSize: 11,
-          fontWeight: 500,
-          outline: 'none',
-          padding: 0,
-          textTransform: 'uppercase',
-          letterSpacing: '0.02em',
-        }}
+        className="h-[26px] min-h-[26px] flex-1 min-w-0 border-none bg-transparent px-1 font-[family-name:var(--ds-font-mono)] text-[11px] uppercase tracking-[0.02em] shadow-none focus-visible:ring-0 text-[color:var(--ds-text-primary)] placeholder:text-[color:var(--ds-text-faint)]"
       />
 
       <span
@@ -203,7 +190,7 @@ export function CompactColorField({
       </span>
 
       {onToggleVisible && (
-        <button
+        <ChromeButton
           type="button"
           data-action="toggle-visible"
           disabled={disabled}
@@ -224,11 +211,11 @@ export function CompactColorField({
           }}
         >
           {visible ? <Eye size={12} strokeWidth={1.75} /> : <EyeOff size={12} strokeWidth={1.75} />}
-        </button>
+        </ChromeButton>
       )}
 
       {onClear && hasValue && (
-        <button
+        <ChromeButton
           type="button"
           data-action="clear"
           disabled={disabled}
@@ -249,7 +236,7 @@ export function CompactColorField({
           }}
         >
           <Minus size={12} strokeWidth={2} />
-        </button>
+        </ChromeButton>
       )}
     </div>
   );
@@ -368,7 +355,7 @@ function CompactColorFieldPopover({
             </div>
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               {recents.slice(0, 10).map((c) => (
-                <button
+                <ChromeButton
                   key={c}
                   type="button"
                   onClick={() => onChange(c, localAlpha)}

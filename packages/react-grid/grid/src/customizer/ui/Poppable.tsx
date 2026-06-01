@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { ExternalLink } from 'lucide-react';
+import { ChromeButton } from './ChromeButton';
 import { PopoutPortal } from './PopoutPortal';
 import { openFinWindowOpener } from '../../runtime/openFin.js';
 
@@ -182,7 +183,7 @@ export const Poppable = forwardRef<PoppableHandle, PoppableProps>(function Poppa
     ({ className, title: btnTitle, icon, ...rest }: PopoutButtonProps) => {
       if (popped) return null;
       return (
-        <button
+        <ChromeButton
           type="button"
           className={className ?? 'ds-popout-btn'}
           onClick={() => setPopped(true)}
@@ -191,7 +192,7 @@ export const Poppable = forwardRef<PoppableHandle, PoppableProps>(function Poppa
           data-testid={rest['data-testid']}
         >
           {icon ?? <ExternalLink size={12} strokeWidth={2} />}
-        </button>
+        </ChromeButton>
       );
     },
     [popped],

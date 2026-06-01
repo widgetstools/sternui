@@ -7,6 +7,7 @@ import { isOpenFin } from '../runtime/openFin.js';
 import {
   Poppable,
   SharpBtn,
+  ChromeButton,
   useDirtyCount,
   useGridPlatform,
   type PoppableHandle,
@@ -246,7 +247,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                 ...(frameless ? ({ WebkitAppRegion: 'no-drag' } as CSSProperties) : {}),
               }}
             >
-              <button
+              <ChromeButton
                 type="button"
                 className="ds-popout-title-btn"
                 onClick={() => setHelpOpen((v) => !v)}
@@ -257,11 +258,11 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                 style={helpOpen ? { color: 'var(--ds-accent-positive)' } : undefined}
               >
                 <HelpCircle size={12} strokeWidth={2} />
-              </button>
+              </ChromeButton>
               {/* Maximize collapses into a no-op when popped — the
                   OS window chrome owns maximize in that mode. */}
               {!popped && (
-                <button
+                <ChromeButton
                   type="button"
                   className="ds-popout-title-btn"
                   onClick={() => setMaximized((v) => !v)}
@@ -269,7 +270,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                   aria-label={maximized ? 'Restore window size' : 'Maximize'}
                 >
                   {maximized ? <Minimize2 size={12} strokeWidth={2} /> : <Maximize2 size={12} strokeWidth={2} />}
-                </button>
+                </ChromeButton>
               )}
               {/* Pop-out button from <Poppable> — rendered only when
                   inline; hides itself when popped (the OS window
@@ -285,15 +286,11 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                   framed-popped mode (browser popout with OS chrome)
                   the OS window close handles it. */}
               {(!popped || frameless) && (
-                <button
+                <ChromeButton
                   type="button"
                   className="ds-popout-title-btn"
                   onClick={() => {
                     if (frameless) {
-                      // Popped + OpenFin: user clicked our custom X.
-                      // Tear down the window via Poppable's close,
-                      // then fully dismiss the sheet so reopening
-                      // starts clean (rather than re-mounting inline).
                       close();
                       onClose();
                     } else {
@@ -305,7 +302,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                   data-testid="v2-settings-close-btn"
                 >
                   <X size={14} strokeWidth={2} />
-                </button>
+                </ChromeButton>
               )}
             </div>
           </header>
@@ -337,7 +334,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
             data-testid="v2-settings-nav"
           >
             {panelModules.map((m) => (
-              <button
+              <ChromeButton
                 key={m.id}
                 type="button"
                 data-testid={`v2-settings-nav-${m.id}`}
@@ -347,7 +344,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                 className="w-px h-px p-0 border-none bg-transparent"
               >
                 {m.name}
-              </button>
+              </ChromeButton>
             ))}
           </nav>
 

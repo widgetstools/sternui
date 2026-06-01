@@ -1,6 +1,7 @@
 import { Band } from '../../../ui/SettingsPanel';
 import {
   FormatterPicker,
+  inferPickerDataType,
   type FormatterPickerDataType,
 } from '../../../ui/FormatterPicker';
 import type { ValueFormatterTemplate } from '../state';
@@ -20,7 +21,7 @@ export function ValueFormatBand({
     <Band index="06" title="VALUE FORMAT">
       <FormatterPicker
         compact
-        dataType={(cellDataType as FormatterPickerDataType) ?? 'number'}
+        dataType={inferPickerDataType(cellDataType) as FormatterPickerDataType}
         value={value}
         onChange={(next) => onChange(next as ValueFormatterTemplate | undefined)}
         data-testid={`cols-${colId}-fmt`}

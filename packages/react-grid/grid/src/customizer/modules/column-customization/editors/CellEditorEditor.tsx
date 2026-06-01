@@ -187,7 +187,7 @@ function SelectValuesEditor({
                 update({ values: tokens });
               }}
               data-testid={`cols-${colId}-celleditor-static-values`}
-              style={{ maxWidth: 360 }}
+              className="max-w-[360px]"
             />
           }
         />
@@ -236,7 +236,7 @@ function AppDataSourcePicker({
             value={valuesSource ?? ''}
             onCommit={(v) => onChange(v.trim() === '' ? undefined : v.trim())}
             data-testid={`cols-${colId}-celleditor-source-text`}
-            style={{ maxWidth: 360 }}
+            className="max-w-[360px]"
           />
         }
       />
@@ -262,7 +262,7 @@ function AppDataSourcePicker({
               onChange(`{{${name}.}}`);
             }}
             data-testid={`cols-${colId}-celleditor-source-provider`}
-            style={{ maxWidth: 240 }}
+            className="max-w-[240px]"
           >
             <option value="">— pick a provider —</option>
             {providers.map((p) => (
@@ -288,7 +288,7 @@ function AppDataSourcePicker({
                 onChange(`{{${parsed.providerName}.${k}}}`);
               }}
               data-testid={`cols-${colId}-celleditor-source-key`}
-              style={{ maxWidth: 240 }}
+              className="max-w-[240px]"
             >
               <option value="">— pick a key —</option>
               {keys.map((k) => (
@@ -332,7 +332,7 @@ function TextParamsEditor({
             update({ params: next });
           }}
           data-testid={`cols-${colId}-celleditor-text-maxlength`}
-          style={{ maxWidth: 160 }}
+          className="max-w-[160px]"
         />
       }
     />
@@ -369,7 +369,7 @@ function NumberParamsEditor({
             numeric
             onCommit={(v) => setNumeric('min', v)}
             data-testid={`cols-${colId}-celleditor-num-min`}
-            style={{ maxWidth: 160 }}
+            className="max-w-[160px]"
           />
         }
       />
@@ -382,7 +382,7 @@ function NumberParamsEditor({
             numeric
             onCommit={(v) => setNumeric('max', v)}
             data-testid={`cols-${colId}-celleditor-num-max`}
-            style={{ maxWidth: 160 }}
+            className="max-w-[160px]"
           />
         }
       />
@@ -395,7 +395,7 @@ function NumberParamsEditor({
             numeric
             onCommit={(v) => setNumeric('step', v)}
             data-testid={`cols-${colId}-celleditor-num-step`}
-            style={{ maxWidth: 160 }}
+            className="max-w-[160px]"
           />
         }
       />
@@ -408,7 +408,7 @@ function NumberParamsEditor({
             numeric
             onCommit={(v) => setNumeric('precision', v)}
             data-testid={`cols-${colId}-celleditor-num-precision`}
-            style={{ maxWidth: 160 }}
+            className="max-w-[160px]"
           />
         }
       />
@@ -445,7 +445,7 @@ function LargeTextParamsEditor({
             numeric
             onCommit={(v) => setNumeric('rows', v)}
             data-testid={`cols-${colId}-celleditor-lt-rows`}
-            style={{ maxWidth: 160 }}
+            className="max-w-[160px]"
           />
         }
       />
@@ -457,7 +457,7 @@ function LargeTextParamsEditor({
             numeric
             onCommit={(v) => setNumeric('cols', v)}
             data-testid={`cols-${colId}-celleditor-lt-cols`}
-            style={{ maxWidth: 160 }}
+            className="max-w-[160px]"
           />
         }
       />
@@ -470,7 +470,7 @@ function LargeTextParamsEditor({
             numeric
             onCommit={(v) => setNumeric('maxLength', v)}
             data-testid={`cols-${colId}-celleditor-lt-maxlength`}
-            style={{ maxWidth: 160 }}
+            className="max-w-[160px]"
           />
         }
       />

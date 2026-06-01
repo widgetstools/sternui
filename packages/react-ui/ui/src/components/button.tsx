@@ -22,6 +22,8 @@ const buttonVariants = cva(
         secondary:
           'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
+        /** No accent hover — chrome/toolbar wrappers own colors via `.ds-*` CSS. */
+        chrome: '',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
@@ -29,6 +31,8 @@ const buttonVariants = cva(
         sm:      'h-[28px] rounded-md px-[10px] gap-1 text-xs',
         lg:      'h-[40px] rounded-md px-[18px] gap-2 text-sm',
         icon:    'h-[34px] w-[34px]',
+        /** Strip Stockflux sizing — `.ds-*` / `.fx-*` CSS owns dimensions. */
+        chrome:  'min-h-0 w-auto max-w-none px-0 py-0 gap-0 text-inherit font-inherit tracking-normal rounded-none',
       },
     },
     defaultVariants: {

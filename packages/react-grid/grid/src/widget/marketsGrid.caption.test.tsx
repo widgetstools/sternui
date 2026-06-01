@@ -24,10 +24,14 @@ vi.mock('ag-grid-enterprise', () => ({
   ModuleRegistry: { registerModules: () => {} },
 }));
 
+vi.mock('../customizer/hooks/useModuleState.js', () => ({
+  useModuleState: () => [undefined, vi.fn()],
+}));
+
 // Vanilla shells from @starui/engine — only the constants + the
 // `MemoryAdapter` class that MarketsGrid uses for default storage.
-vi.mock('@starui/engine', async () => {
-  const actual: any = {};
+vi.mock('@starui/engine', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@starui/engine')>();
   return {
     ...actual,
     MemoryAdapter: class { async loadGridLevelData() { return null; } async saveGridLevelData() {} },
@@ -62,6 +66,9 @@ vi.mock('@starui/grid/customizer', async () => {
     }),
     captureGridStateInto: vi.fn(),
     DirtyDot: () => null,
+    ChromeButton: React.forwardRef<HTMLButtonElement, any>(({ children, ...rest }, ref) => (
+      <button ref={ref} {...rest}>{children}</button>
+    )),
     Input: React.forwardRef<HTMLInputElement, any>((p, ref) => (
       <input ref={ref} {...p} />
     )),

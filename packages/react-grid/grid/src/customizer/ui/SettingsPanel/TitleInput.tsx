@@ -1,30 +1,25 @@
-import { forwardRef, type InputHTMLAttributes } from 'react';
+import { forwardRef } from 'react';
+import { Input, cn } from '@starui/ui';
+import type { ComponentProps } from 'react';
 
 /**
- * Editable title input used in the editor identity row.
- *
- * Renders as a proper bordered field (not a naked inline-editable span) so
- * it reads unambiguously as an input. Semibold keeps the title weight; the
- * border + subtle background give the "this is editable" affordance without
- * shrinking the type.
- *
- * Focus ring matches every other design-system input (border-primary on focus).
+ * Editable title field for settings panel identity rows.
+ * Wraps shadcn `Input` with title-weight typography.
  */
 
-export type TitleInputProps = InputHTMLAttributes<HTMLInputElement>;
+export type TitleInputProps = ComponentProps<typeof Input>;
 
 export const TitleInput = forwardRef<HTMLInputElement, TitleInputProps>(function TitleInput(
-  { className, style, ...rest },
+  { className, ...rest },
   ref,
 ) {
   return (
-    <input
+    <Input
       ref={ref}
-      className={[
-        'flex-1 min-w-0 h-8 px-2.5 border border-border rounded-sm bg-background text-foreground font-sans font-semibold outline-none transition-colors [transition-duration:120ms] focus:border-primary placeholder:text-muted-foreground placeholder:font-medium text-[length:var(--ds-font-size-sm)] tracking-tight',
-        className ?? '',
-      ].join(' ')}
-      style={style}
+      className={cn(
+        'flex-1 min-w-0 h-8 px-2.5 font-sans font-semibold text-[length:var(--ds-font-size-sm)] tracking-tight',
+        className,
+      )}
       {...rest}
     />
   );

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Button, Textarea } from "@starui/ui";
 import { DynamicIcon as Icon } from "@starui/config-browser/icons";
 
 type Mode = "edit" | "create";
@@ -117,31 +118,17 @@ export function RowDrawer({
   return (
     <div
       aria-hidden={!open}
-      style={{
-        position: "absolute",
-        top: 0,
-        right: 0,
-        bottom: 0,
-        width: "min(520px, 100%)",
-        background: "var(--de-bg)",
-        borderLeft: "1px solid var(--de-border)",
-        boxShadow: open ? "var(--de-shadow-lg)" : "none",
-        display: "flex",
-        flexDirection: "column",
-        transform: open ? "translateX(0)" : "translateX(100%)",
-        transition: "transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1)",
-        pointerEvents: open ? "auto" : "none",
-        zIndex: 20,
-        color: "var(--de-text)",
-        fontFamily: "var(--de-font)",
-      }}
+      className={[
+        'absolute top-0 right-0 bottom-0 z-20 flex w-[min(520px,100%)] flex-col border-l border-[var(--de-border)] bg-[var(--de-bg)] font-[var(--de-font)] text-[var(--de-text)]',
+        'transition-transform duration-[220ms] [transition-timing-function:cubic-bezier(0.22,0.61,0.36,1)]',
+        open ? 'translate-x-0 shadow-[var(--de-shadow-lg)] pointer-events-auto' : 'translate-x-full shadow-none pointer-events-none',
+      ].join(' ')}
     >
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--de-border)] bg-[var(--de-bg)]">
         <Icon
           icon={mode === "create" ? "lucide:plus-circle" : "lucide:file-json"}
-          style={{ width: 16, height: 16 }}
-          className="text-[var(--de-accent)]"
+          className="h-4 w-4 text-[var(--de-accent)]"
         />
         <span className="text-[13px] font-semibold text-[var(--de-text)]">
           {mode === "create" ? "New row" : "Edit row"}
@@ -150,13 +137,16 @@ export function RowDrawer({
           {title}
         </span>
         <div className="flex-1" />
-        <button
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
           onClick={onClose}
           title="Close"
-          className="bg-transparent border border-[var(--de-border)] rounded-[var(--de-radius-sm)] p-1 cursor-pointer text-[var(--de-text-secondary)] flex items-center justify-center"
+          className="h-7 w-7 shrink-0 border-[var(--de-border)] bg-transparent text-[var(--de-text-secondary)]"
         >
-          <Icon icon="lucide:x" style={{ width: 14, height: 14 }} />
-        </button>
+          <Icon icon="lucide:x" className="h-3.5 w-3.5" />
+        </Button>
       </div>
 
       {/* Body */}
@@ -164,27 +154,15 @@ export function RowDrawer({
         <div className="text-[10px] font-bold tracking-[0.8px] uppercase text-[var(--de-text-tertiary)]">
           JSON payload
         </div>
-        <textarea
+        <Textarea
           ref={textareaRef}
           value={jsonText}
           onChange={(e) => setJsonText(e.target.value)}
           spellCheck={false}
-          style={{
-            flex: 1,
-            minHeight: 240,
-            width: "100%",
-            padding: 10,
-            fontFamily: "var(--de-mono)",
-            fontSize: 12,
-            lineHeight: 1.5,
-            background: "var(--de-bg-surface)",
-            border: `1px solid ${parsedOk ? "var(--de-border)" : "var(--de-danger)"}`,
-            borderRadius: "var(--de-radius-sm)",
-            color: "var(--de-text)",
-            resize: "none",
-            outline: "none",
-            boxSizing: "border-box",
-          }}
+          className={[
+            'min-h-[240px] flex-1 resize-none rounded-[var(--de-radius-sm)] border bg-[var(--de-bg-surface)] p-2.5 font-[var(--de-mono)] text-xs leading-normal text-[var(--de-text)] shadow-none focus-visible:ring-0',
+            parsedOk ? 'border-[var(--de-border)]' : 'border-[var(--de-danger)]',
+          ].join(' ')}
         />
         {!parsedOk && (
           <div
@@ -205,63 +183,47 @@ export function RowDrawer({
       {/* Footer */}
       <div className="flex items-center gap-2 px-[14px] py-2.5 border-t border-[var(--de-border)] bg-[var(--de-bg)]">
         {mode === "edit" && (
-          <button
+          <Button
+            type="button"
+            variant={confirmDelete ? "destructive" : "outline"}
+            size="sm"
             onClick={handleDelete}
             disabled={saving}
-            style={{
-              height: 30,
-              padding: "0 12px",
-              borderRadius: "var(--de-radius-sm)",
-              border: `1px solid ${confirmDelete ? "var(--de-danger)" : "var(--de-border)"}`,
-              background: confirmDelete ? "var(--de-danger)" : "var(--de-bg-surface)",
-              color: confirmDelete ? "hsl(var(--destructive-foreground))" : "var(--de-danger)",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: saving ? "not-allowed" : "pointer",
-              fontFamily: "var(--de-font)",
-            }}
+            className={[
+              'h-[30px] px-3 text-xs font-semibold font-[var(--de-font)]',
+              confirmDelete
+                ? ''
+                : 'border-[var(--de-border)] bg-[var(--de-bg-surface)] text-[var(--de-danger)] hover:text-[var(--de-danger)]',
+            ].join(' ')}
           >
             {confirmDelete ? "Click to confirm" : "Delete"}
-          </button>
+          </Button>
         )}
         <div className="flex-1" />
-        <button
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
           onClick={onClose}
           disabled={saving}
-          style={{
-            height: 30,
-            padding: "0 12px",
-            borderRadius: "var(--de-radius-sm)",
-            border: "1px solid var(--de-border)",
-            background: "var(--de-bg-surface)",
-            color: "var(--de-text-secondary)",
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: saving ? "not-allowed" : "pointer",
-            fontFamily: "var(--de-font)",
-          }}
+          className="h-[30px] px-3 text-xs font-medium font-[var(--de-font)] border-[var(--de-border)] bg-[var(--de-bg-surface)] text-[var(--de-text-secondary)]"
         >
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
+          type="button"
+          size="sm"
           onClick={handleSave}
           disabled={!parsedOk || saving}
-          style={{
-            height: 30,
-            padding: "0 16px",
-            borderRadius: "var(--de-radius-sm)",
-            border: "none",
-            background: parsedOk ? "var(--de-accent)" : "var(--de-bg-surface)",
-            color: parsedOk ? "hsl(var(--primary-foreground))" : "var(--de-text-tertiary)",
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: parsedOk && !saving ? "pointer" : "not-allowed",
-            opacity: saving ? 0.7 : 1,
-            fontFamily: "var(--de-font)",
-          }}
+          className={[
+            'h-[30px] px-4 text-xs font-semibold font-[var(--de-font)]',
+            parsedOk
+              ? 'bg-[var(--de-accent)] text-[hsl(var(--primary-foreground))] hover:bg-[var(--de-accent)]'
+              : 'bg-[var(--de-bg-surface)] text-[var(--de-text-tertiary)]',
+          ].join(' ')}
         >
           {saving ? "Saving…" : "Save"}
-        </button>
+        </Button>
       </div>
     </div>
   );

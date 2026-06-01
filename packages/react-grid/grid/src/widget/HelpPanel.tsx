@@ -16,8 +16,7 @@
 
 import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
-// Static-layout styles — AUDIT i5 partial migration. Button/hover state
-// styles stay inline (see HelpPanel.css for rationale).
+import { ChromeButton } from '@starui/grid/customizer';
 import './HelpPanel.css';
 import { SECTIONS } from './help/sections';
 import type { SectionId } from './help/types';
@@ -32,42 +31,21 @@ export function HelpPanel() {
         {SECTIONS.map((s) => {
           const on = s.id === active;
           return (
-            <button
+            <ChromeButton
               key={s.id}
               type="button"
               onClick={() => setActive(s.id)}
               data-testid={`help-nav-${s.id}`}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                width: '100%',
-                padding: '7px 10px',
-                border: 'none',
-                borderRadius: 2,
-                background: on
-                  ? 'color-mix(in srgb, var(--ds-accent-positive) 10%, transparent)'
-                  : 'transparent',
-                color: on ? 'var(--ds-accent-positive)' : 'var(--ds-text-secondary)',
-                fontSize: 11,
-                fontWeight: on ? 600 : 450,
-                letterSpacing: 0.12,
-                textAlign: 'left',
-                cursor: 'pointer',
-                transition: 'background 120ms, color 120ms',
-              }}
+              data-active={on ? 'true' : 'false'}
+              className="ds-help-nav-btn"
             >
               <ChevronRight
                 size={10}
                 strokeWidth={2}
-                style={{
-                  opacity: on ? 1 : 0.5,
-                  transform: on ? 'translateX(0)' : 'translateX(-3px)',
-                  transition: 'transform 120ms, opacity 120ms',
-                }}
+                className="ds-help-nav-chevron"
               />
               {s.title}
-            </button>
+            </ChromeButton>
           );
         })}
         <div className="ds-help-nav-footer">

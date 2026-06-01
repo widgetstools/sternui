@@ -10,6 +10,7 @@ import { useMemo, useState } from 'react';
 import { MARKET_ICON_SVGS } from '@starui/icons-svg/all-icons';
 import { Button, Input, Popover, PopoverContent, PopoverTrigger, RadioGroup, RadioGroupItem, Label } from '@starui/ui';
 import type { IconTextRendererConfig } from '@starui/design-system';
+import { ChromeButton } from '../../../ui/ChromeButton';
 import { Row } from '../editors/Row';
 import { ThemeAwareColorRow } from './themeColorRow';
 
@@ -71,7 +72,7 @@ export function IconTextEditor({
               />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 4, maxHeight: 240, overflow: 'auto' }}>
                 {filtered.map((id) => (
-                  <button
+                  <ChromeButton
                     key={id}
                     type="button"
                     onClick={() => pickIcon(id)}
@@ -88,7 +89,7 @@ export function IconTextEditor({
                       style={{ display: 'inline-flex', width: 20, height: 20 }}
                       dangerouslySetInnerHTML={{ __html: MARKET_ICON_SVGS[id] ?? '' }}
                     />
-                  </button>
+                  </ChromeButton>
                 ))}
               </div>
             </PopoverContent>

@@ -1,4 +1,5 @@
-import { forwardRef, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { forwardRef, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Input, cn } from '@starui/ui';
 
 /**
  * Input pill — sharp 2px corners, bg-background inset, design-system focus
@@ -24,9 +25,9 @@ export interface IconInputProps {
   error?: boolean;
   /** Marks the input inputMode="decimal" — still a normal text input. */
   numeric?: boolean;
-  style?: CSSProperties;
   'data-testid'?: string;
   'aria-label'?: string;
+  className?: string;
 }
 
 export const IconInput = forwardRef<HTMLInputElement, IconInputProps>(function IconInput(
@@ -41,7 +42,7 @@ export const IconInput = forwardRef<HTMLInputElement, IconInputProps>(function I
     disabled,
     error,
     numeric,
-    style,
+    className,
     ...rest
   },
   ref,
@@ -65,20 +66,20 @@ export const IconInput = forwardRef<HTMLInputElement, IconInputProps>(function I
   return (
     <div
       data-error={error ? 'true' : 'false'}
-      className={[
+      className={cn(
         'inline-flex items-center flex-1 min-w-0 h-7 rounded-sm bg-background border px-2 gap-1.5 transition-colors [transition-duration:120ms]',
         error ? 'border-destructive' : 'border-border',
         disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-text',
         'focus-within:border-primary',
-      ].join(' ')}
-      style={style}
+        className,
+      )}
     >
       {icon && (
         <span className="text-muted-foreground inline-flex flex-shrink-0 text-xs">
           {icon}
         </span>
       )}
-      <input
+      <Input
         ref={ref}
         value={draft}
         disabled={disabled}
@@ -97,11 +98,10 @@ export const IconInput = forwardRef<HTMLInputElement, IconInputProps>(function I
         }}
         data-testid={rest['data-testid']}
         aria-label={rest['aria-label']}
-        className={[
-          'flex-1 min-w-0 bg-transparent border-none outline-none h-auto p-0 text-foreground text-xs',
+        className={cn(
+          'flex-1 min-w-0 h-auto border-none bg-transparent p-0 text-xs text-foreground shadow-none focus-visible:ring-0',
           monospace || numeric ? 'font-mono tabular-nums' : 'font-sans',
-        ].join(' ')}
-        style={{ fontSize: 12 }}
+        )}
       />
       {suffix && (
         <span className="font-semibold uppercase text-muted-foreground flex-shrink-0 tracking-[0.08em] text-[9px]">

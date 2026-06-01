@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ChevronDown, RemoveFormatting } from 'lucide-react';
 import { FormatColorPicker, FormatDropdown, FormatPopover } from '../format-editor';
 import type { BorderSpec } from '@starui/engine';
+import { ChromeButton } from '../ChromeButton';
 
 /**
  * Token-driven stylesheet for `BorderStyleEditor`.
@@ -566,7 +567,7 @@ export function BorderStyleEditor({
                   : `Select ${key} for editing`
                 : `Add ${key} border`;
           return (
-            <button
+            <ChromeButton
               key={key}
               type="button"
               className="ds-be-side"
@@ -580,7 +581,7 @@ export function BorderStyleEditor({
               onMouseDown={(e) => e.preventDefault()}
             >
               {letter}
-            </button>
+            </ChromeButton>
           );
         })}
       </div>
@@ -591,7 +592,7 @@ export function BorderStyleEditor({
       <FormatPopover
         width={240}
         trigger={
-          <button
+          <ChromeButton
             type="button"
             className="ds-be-color"
             title="Border colour"
@@ -605,7 +606,7 @@ export function BorderStyleEditor({
             />
             <span>{normalizedHex}</span>
             <ChevronDown className="ds-be-caret" strokeWidth={1.75} />
-          </button>
+          </ChromeButton>
         }
       >
         <FormatColorPicker
@@ -626,7 +627,7 @@ export function BorderStyleEditor({
         options={STYLE_OPTIONS.map((o) => ({ ...o }))}
         width={140}
         trigger={
-          <button
+          <ChromeButton
             type="button"
             className="ds-be-chip"
             title="Border style"
@@ -640,7 +641,7 @@ export function BorderStyleEditor({
             />
             <span>{STYLE_OPTIONS.find((o) => o.value === anchor.style)?.label ?? 'Solid'}</span>
             <ChevronDown className="ds-be-caret" strokeWidth={1.75} />
-          </button>
+          </ChromeButton>
         }
       />
 
@@ -653,7 +654,7 @@ export function BorderStyleEditor({
         options={WIDTH_OPTIONS.map((o) => ({ ...o }))}
         width={110}
         trigger={
-          <button
+          <ChromeButton
             type="button"
             className="ds-be-chip"
             title="Border width"
@@ -662,14 +663,14 @@ export function BorderStyleEditor({
           >
             <span>{Math.max(1, Math.min(5, anchor.width || 1))} PX</span>
             <ChevronDown className="ds-be-caret" strokeWidth={1.75} />
-          </button>
+          </ChromeButton>
         }
       />
 
       {/* ── Clear-all-borders action (far right, `margin-left: auto`) ─
           RemoveFormatting glyph + destructive color — reads as
           "clear styles" rather than the ambiguous generic X. */}
-      <button
+      <ChromeButton
         type="button"
         className="ds-be-clear"
         onClick={clearAll}
@@ -680,7 +681,7 @@ export function BorderStyleEditor({
         data-testid="ds-be-clear"
       >
         <RemoveFormatting size={14} strokeWidth={1.75} />
-      </button>
+      </ChromeButton>
     </div>
   );
 }

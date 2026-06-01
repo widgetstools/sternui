@@ -3,7 +3,7 @@ import {
   DATA_CHANGE_HISTORY_MODULE_ID,
   type DataChangeHistoryState,
 } from '@starui/engine';
-import { cn, Tooltip, TooltipContent, TooltipTrigger } from '@starui/ui';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@starui/ui';
 import { Redo2, Undo2 } from 'lucide-react';
 import type { EditingToolbarSegmentProps } from '../../editing/editingToolbarLayout';
 import { useGridPlatform } from '../../hooks/GridProvider';
@@ -12,8 +12,9 @@ import { journalUndoStackSize } from '../../editing/editJournalScope';
 import { journalUndo, journalRedo } from '../../editing/journalUndoRedo';
 import { useModuleState } from '../../hooks/useModuleState';
 import {
-  EditingToolbarOpButton,
+  EditingToolbarIconButton,
   EditingToolbarOpGroup,
+  EditingToolbarSegment,
 } from '../../../widget/editingToolbar/EditingToolbarPrimitives';
 
 export function EditHistoryToolbarBody({ layout = 'standalone' }: EditingToolbarSegmentProps) {
@@ -37,21 +38,21 @@ export function EditHistoryToolbarBody({ layout = 'standalone' }: EditingToolbar
 
   if (!history.settings.enabled) return null;
 
-  const segment = layout === 'segment';
-
   return (
-    <div
-      className={cn(
-        segment ? 'ds-editing-toolbar__segment' : 'ds-edit-history-toolbar',
-        !segment && 'ds-sheet-v2',
-      )}
+    <EditingToolbarSegment
+      layout={layout}
+      label="History"
       data-testid="edit-history-toolbar"
+      meta={
+        <span data-testid="edit-history-count">
+          {entryCount} {entryCount === 1 ? 'entry' : 'entries'}
+        </span>
+      }
     >
-      <span className="ds-edit-history-toolbar__label">History</span>
       <EditingToolbarOpGroup>
         <Tooltip>
           <TooltipTrigger asChild>
-            <EditingToolbarOpButton
+            <EditingToolbarIconButton
               data-testid="edit-history-undo"
               disabled={!journal.canUndo}
               onClick={() => void handleUndo()}
@@ -59,13 +60,13 @@ export function EditHistoryToolbarBody({ layout = 'standalone' }: EditingToolbar
               title="Undo last edit"
             >
               <Undo2 size={14} strokeWidth={2} aria-hidden />
-            </EditingToolbarOpButton>
+            </EditingToolbarIconButton>
           </TooltipTrigger>
           <TooltipContent>Undo last edit</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <EditingToolbarOpButton
+            <EditingToolbarIconButton
               data-testid="edit-history-redo"
               disabled={!journal.canRedo}
               onClick={() => void handleRedo()}
@@ -73,19 +74,11 @@ export function EditHistoryToolbarBody({ layout = 'standalone' }: EditingToolbar
               title="Redo"
             >
               <Redo2 size={14} strokeWidth={2} aria-hidden />
-            </EditingToolbarOpButton>
+            </EditingToolbarIconButton>
           </TooltipTrigger>
           <TooltipContent>Redo</TooltipContent>
         </Tooltip>
       </EditingToolbarOpGroup>
-      <span
-        className={cn(
-          segment ? 'ds-editing-toolbar__meta' : 'ds-edit-history-toolbar__count',
-        )}
-        data-testid="edit-history-count"
-      >
-        {entryCount} {entryCount === 1 ? 'entry' : 'entries'}
-      </span>
-    </div>
+    </EditingToolbarSegment>
   );
 }

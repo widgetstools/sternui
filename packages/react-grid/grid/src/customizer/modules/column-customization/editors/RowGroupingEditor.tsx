@@ -91,7 +91,7 @@ export function RowGroupingEditor({
                 if (Number.isFinite(n) && n >= 0) update({ rowGroupIndex: Math.floor(n) });
               }}
               data-testid={`cols-${colId}-rg-rowgroup-index`}
-              style={{ maxWidth: 120 }}
+              className="max-w-[120px]"
             />
           }
         />
@@ -191,7 +191,7 @@ export function RowGroupingEditor({
                 if (Number.isFinite(n) && n >= 0) update({ pivotIndex: Math.floor(n) });
               }}
               data-testid={`cols-${colId}-rg-pivot-index`}
-              style={{ maxWidth: 120 }}
+              className="max-w-[120px]"
             />
           }
         />

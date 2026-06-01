@@ -6,6 +6,7 @@
  */
 
 import { SECTION_META } from './sectionMeta';
+import { ChromeButton } from '@starui/grid/customizer';
 import { Code, H1, H2, P, Table } from './primitives';
 import type { HelpSectionProps } from './types';
 
@@ -35,32 +36,14 @@ export function Overview({ navigateTo }: HelpSectionProps) {
       <H2>Jump to a section</H2>
       <div className="flex flex-col gap-1 mt-1.5">
         {SECTION_META.filter((s) => s.id !== 'overview').map((s) => (
-          <button
+          <ChromeButton
             key={s.id}
             type="button"
             onClick={() => navigateTo(s.id)}
-            style={{
-              textAlign: 'left',
-              padding: '8px 10px',
-              border: '1px solid var(--ds-border-primary)',
-              borderRadius: 2,
-              background: 'transparent',
-              color: 'var(--ds-text-primary)',
-              fontSize: 12,
-              cursor: 'pointer',
-              transition: 'border-color 120ms, background 120ms',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--ds-overlay-positive-ring)';
-              e.currentTarget.style.background = 'var(--ds-overlay-positive-soft)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--ds-border-primary)';
-              e.currentTarget.style.background = 'transparent';
-            }}
+            className="ds-help-jump-btn"
           >
             {s.title}
-          </button>
+          </ChromeButton>
         ))}
       </div>
 

@@ -42,6 +42,7 @@ import {
   SummaryChip,
   TitleInput,
 } from '../../ui/SettingsPanel';
+import { ChromeButton } from '../../ui/ChromeButton';
 import { FormatterPicker, type FormatterPickerDataType } from '../../ui/FormatterPicker';
 import { Tooltip } from '../../ui/HoverTooltip';
 import type { CalculatedColumnsState, VirtualColumnDef } from './state';
@@ -118,7 +119,7 @@ export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
           {String(state.virtualColumns.length).padStart(2, '0')}
         </Mono>
         <span style={{ flex: 1 }} />
-        <button
+        <ChromeButton
           type="button"
           onClick={addVirtualColumn}
           title="Add virtual column"
@@ -138,7 +139,7 @@ export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
           }}
         >
           <Plus size={11} strokeWidth={2.5} />
-        </button>
+        </ChromeButton>
       </div>
       <CockpitList>
         {state.virtualColumns.map((v) => {
@@ -166,7 +167,7 @@ export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
                 {v.headerName || '(unnamed)'}
               </span>
               <Tooltip content="Delete">
-                <button
+                <ChromeButton
                   type="button"
                   aria-label="Delete"
                   data-testid={`cc-virtual-delete-${v.colId}`}
@@ -177,7 +178,7 @@ export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
                   }}
                 >
                   <Trash2 size={14} strokeWidth={2} />
-                </button>
+                </ChromeButton>
               </Tooltip>
             </CockpitListItem>
           );
@@ -323,7 +324,7 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
               onCommit={(v) => setDraft({ colId: v })}
               monospace
               data-testid={`cc-virtual-colid-${colId}`}
-              style={{ width: 220 }}
+              className="w-[220px]"
             />
           </div>
         </div>

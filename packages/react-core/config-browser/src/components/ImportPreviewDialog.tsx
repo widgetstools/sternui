@@ -12,6 +12,7 @@
  */
 
 import { useState } from "react";
+import { Button, RadioGroup, RadioGroupItem } from "@starui/ui";
 import { DynamicIcon as Icon } from "@starui/config-browser/icons";
 import type { ImportPreview, ImportMode } from "../hooks/useConfigBrowser";
 
@@ -53,7 +54,7 @@ export function ImportPreviewDialog({
       >
         {/* Header */}
         <div className="flex items-center gap-2.5 px-[18px] py-[14px] border-b border-[var(--de-border)]">
-          <Icon icon="lucide:upload" style={{ width: 16, height: 16 }} className="text-[var(--de-accent)]" />
+          <Icon icon="lucide:upload" className="h-4 w-4 text-[var(--de-accent)]" />
           <span id="import-preview-title" className="text-[13px] font-semibold text-[var(--de-text)]">
             Import preview · {tableLabel}
           </span>
@@ -70,23 +71,25 @@ export function ImportPreviewDialog({
           />
 
           {/* Mode selector */}
-          <div className="mt-[18px] flex flex-col gap-2">
+          <RadioGroup
+            value={mode}
+            onValueChange={(value) => setMode(value as ImportMode)}
+            className="mt-[18px] flex flex-col gap-2"
+          >
             <ModeRadio
-              checked={mode === "skip-existing"}
-              onChange={() => setMode("skip-existing")}
+              value="skip-existing"
               title="Skip existing rows"
               description={`Only insert ${preview.fresh.length} new row${preview.fresh.length === 1 ? "" : "s"}. Existing rows in the table are left untouched.`}
               disabled={preview.fresh.length === 0}
             />
             <ModeRadio
-              checked={mode === "overwrite"}
-              onChange={() => setMode("overwrite")}
+              value="overwrite"
               title="Overwrite existing rows"
               description={`Upsert all ${validCount} valid row${validCount === 1 ? "" : "s"}. ${preview.conflicts.length} existing row${preview.conflicts.length === 1 ? "" : "s"} will be replaced.`}
               disabled={validCount === 0}
               warning={preview.conflicts.length > 0}
             />
-          </div>
+          </RadioGroup>
 
           {preview.invalid.length > 0 && (
             <div
@@ -173,15 +176,13 @@ function StatCell({ label, value, accent }: { label: string; value: number; acce
 }
 
 function ModeRadio({
-  checked,
-  onChange,
+  value,
   title,
   description,
   disabled,
   warning,
 }: {
-  checked: boolean;
-  onChange: () => void;
+  value: ImportMode;
   title: string;
   description: string;
   disabled?: boolean;
@@ -189,25 +190,14 @@ function ModeRadio({
 }) {
   return (
     <label
-      style={{
-        display: "flex",
-        gap: 10,
-        padding: "10px 12px",
-        background: checked ? "var(--de-bg-surface)" : "transparent",
-        border: `1px solid ${checked ? "var(--de-accent)" : "var(--de-border)"}`,
-        borderRadius: "var(--de-radius-sm)",
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.5 : 1,
-        transition: "border-color 100ms",
-      }}
+      className={[
+        'flex gap-2.5 rounded-[var(--de-radius-sm)] border px-3 py-2.5 transition-[border-color] duration-100',
+        disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
+        'has-[[data-state=checked]]:border-[var(--de-accent)] has-[[data-state=checked]]:bg-[var(--de-bg-surface)]',
+        'border-[var(--de-border)] bg-transparent',
+      ].join(' ')}
     >
-      <input
-        type="radio"
-        checked={checked}
-        onChange={onChange}
-        disabled={disabled}
-        style={{ marginTop: 2, accentColor: "var(--de-accent)" }}
-      />
+      <RadioGroupItem value={value} disabled={disabled} className="mt-0.5" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="text-[12px] font-semibold text-[var(--de-text)]">{title}</span>
@@ -239,25 +229,16 @@ function DialogButton({
   primary?: boolean;
 }) {
   return (
-    <button
+    <Button
+      type="button"
       onClick={onClick}
       title={title}
       disabled={disabled}
-      style={{
-        height: 30,
-        padding: "0 14px",
-        border: primary ? "none" : "1px solid var(--de-border)",
-        borderRadius: "var(--de-radius-sm)",
-        background: primary ? "var(--de-accent)" : "var(--de-bg)",
-        color: primary ? "hsl(var(--primary-foreground))" : "var(--de-text-secondary)",
-        fontSize: 12,
-        fontWeight: primary ? 600 : 500,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.5 : 1,
-        fontFamily: "var(--de-font)",
-      }}
+      variant={primary ? 'default' : 'outline'}
+      size="sm"
+      className="h-[30px] px-3.5 text-xs font-medium font-[var(--de-font)]"
     >
       {children}
-    </button>
+    </Button>
   );
 }

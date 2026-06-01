@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { ChevronDown, LayoutTemplate } from 'lucide-react';
 import { PopoverCompat as Popover, Tooltip } from '@starui/grid/customizer';
 import { TemplateManager } from '../../TemplateManager';
-import { Module, pillClasses, type Orientation } from '../primitives';
+import { Module, PillButton, pillClasses, type Orientation } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 export function ModuleLibrary({
@@ -84,7 +84,7 @@ export function ModuleLibrary({
           onOpenChange={setOpen}
           trigger={
             <Tooltip content="Column templates — apply, save, rename, or delete reusable styling presets">
-              <button
+              <PillButton
                 type="button"
                 className={pillClasses()}
                 aria-label="Templates"
@@ -94,7 +94,7 @@ export function ModuleLibrary({
               >
                 <LayoutTemplate size={13} strokeWidth={1.75} />
                 <ChevronDown size={9} strokeWidth={2} />
-              </button>
+              </PillButton>
             </Tooltip>
           }
         >

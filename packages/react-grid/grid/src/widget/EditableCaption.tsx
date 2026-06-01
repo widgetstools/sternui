@@ -15,7 +15,7 @@ import {
   useState,
   type ReactElement,
 } from 'react';
-import { Input } from '@starui/grid/customizer';
+import { Input, ChromeButton } from '@starui/grid/customizer';
 import { Pencil } from 'lucide-react';
 
 export interface EditableCaptionProps {
@@ -121,30 +121,16 @@ export function EditableCaption({
       }}
     >
       <span data-testid="grid-caption-text">{value}</span>
-      <button
+      <ChromeButton
         type="button"
         onClick={startEdit}
         title="Rename"
         aria-label="Rename caption"
         data-testid="grid-caption-edit-btn"
-        // The pencil only appears on hover of the caption cluster;
-        // tab-key focus also reveals it for keyboard users.
-        className="opacity-0 group-hover:opacity-100 focus:opacity-100"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 18,
-          height: 18,
-          padding: 0,
-          background: 'transparent',
-          border: 'none',
-          color: 'var(--ds-text-muted)',
-          cursor: 'pointer',
-        }}
+        className="ds-caption-edit-btn opacity-0 group-hover:opacity-100 focus:opacity-100"
       >
         <Pencil size={12} strokeWidth={2} />
-      </button>
+      </ChromeButton>
     </div>
   );
 }

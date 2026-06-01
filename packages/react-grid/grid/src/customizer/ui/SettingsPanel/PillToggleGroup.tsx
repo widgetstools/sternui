@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { controls } from '@starui/design-system/tokens';
+import { ChromeButton } from '../ChromeButton';
 
 /**
  * Sharp-toggle group — 28×26 butt-joined buttons inside a hairline
@@ -49,7 +50,7 @@ export function PillToggleBtn({
   ...rest
 }: PillToggleBtnProps) {
   return (
-    <button
+    <ChromeButton
       type="button"
       onClick={onClick}
       onMouseDown={(e) => e.preventDefault()}
@@ -71,6 +72,6 @@ export function PillToggleBtn({
       }}
     >
       {children}
-    </button>
+    </ChromeButton>
   );
 }

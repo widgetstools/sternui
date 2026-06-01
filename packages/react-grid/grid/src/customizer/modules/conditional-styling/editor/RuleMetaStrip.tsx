@@ -112,7 +112,7 @@ export const RuleMetaStrip = memo(function RuleMetaStrip({
               }
             }}
             data-testid={`cs-rule-priority-${ruleId}`}
-            style={{ width: 72 }}
+            className="w-[72px]"
           />
         </div>
       </div>

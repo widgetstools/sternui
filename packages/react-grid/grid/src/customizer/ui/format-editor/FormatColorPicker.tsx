@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pipette, X } from 'lucide-react';
 import { controls, radius } from '@starui/design-system/tokens';
 import { Input } from '@starui/ui';
+import { ChromeButton } from '../ChromeButton';
 
 /**
  * Unified color picker used across the entire app.
@@ -304,7 +305,7 @@ export function FormatColorPicker({
       {/* Preset swatches (8×2) */}
       <div className="grid grid-cols-8 gap-1 mb-1.5">
         {PRESETS.map((c) => (
-          <button key={c} onClick={() => selectPreset(c)} onMouseDown={(e) => e.preventDefault()} style={swatchStyle(c, hex.toLowerCase() === c.toLowerCase())} />
+          <ChromeButton key={c} onClick={() => selectPreset(c)} onMouseDown={(e) => e.preventDefault()} style={swatchStyle(c, hex.toLowerCase() === c.toLowerCase())} />
         ))}
       </div>
 
@@ -316,7 +317,7 @@ export function FormatColorPicker({
           </div>
           <div className="flex gap-1">
             {recent.slice(0, 8).map((c) => (
-              <button
+              <ChromeButton
                 key={c}
                 onClick={() => selectPreset(c)}
                 onMouseDown={(e) => e.preventDefault()}
@@ -380,7 +381,7 @@ export function FormatColorPicker({
 
         {/* Clear */}
         {allowClear && (
-          <button
+          <ChromeButton
             onClick={() => {
               setHex('');
               onChange('');
@@ -391,7 +392,7 @@ export function FormatColorPicker({
             style={{ width: controls.xs.height, height: controls.xs.height }}
           >
             <X size={10} strokeWidth={2} />
-          </button>
+          </ChromeButton>
         )}
       </div>
     </div>

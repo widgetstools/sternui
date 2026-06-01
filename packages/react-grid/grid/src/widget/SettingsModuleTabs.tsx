@@ -6,6 +6,7 @@ import {
   type CSSProperties,
 } from 'react';
 import type { AnyModule } from '@starui/engine';
+import { ChromeButton } from '@starui/grid/customizer';
 import { Tabs, TabsList, TabsTrigger } from '@starui/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -77,7 +78,7 @@ export function SettingsModuleTabs({
       style={noDrag}
     >
       {canScrollLeft && (
-        <button
+        <ChromeButton
           type="button"
           className="ds-settings-module-tabs-caret"
           aria-label="Scroll modules left"
@@ -85,7 +86,7 @@ export function SettingsModuleTabs({
           onClick={() => scrollBy(-SCROLL_STEP_PX)}
         >
           <ChevronLeft size={12} strokeWidth={2} />
-        </button>
+        </ChromeButton>
       )}
 
       <div
@@ -117,7 +118,7 @@ export function SettingsModuleTabs({
       </div>
 
       {canScrollRight && (
-        <button
+        <ChromeButton
           type="button"
           className="ds-settings-module-tabs-caret"
           aria-label="Scroll modules right"
@@ -125,7 +126,7 @@ export function SettingsModuleTabs({
           onClick={() => scrollBy(SCROLL_STEP_PX)}
         >
           <ChevronRight size={12} strokeWidth={2} />
-        </button>
+        </ChromeButton>
       )}
     </div>
   );

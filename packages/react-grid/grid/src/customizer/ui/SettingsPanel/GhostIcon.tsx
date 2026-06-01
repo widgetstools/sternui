@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
+import { ChromeButton } from '../ChromeButton';
 
 /**
  * Ghost button — 22×22px sharp-corner, transparent, hover highlight.
@@ -28,7 +29,7 @@ export function GhostIcon({
   ...rest
 }: GhostIconProps) {
   return (
-    <button
+    <ChromeButton
       type="button"
       onClick={onClick}
       onMouseDown={(e) => e.preventDefault()}
@@ -40,6 +41,6 @@ export function GhostIcon({
       style={style}
     >
       {children}
-    </button>
+    </ChromeButton>
   );
 }

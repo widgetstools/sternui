@@ -19,13 +19,15 @@ import {
   Table2,
   Undo2,
 } from 'lucide-react';
-import { Tooltip } from '@starui/grid/customizer';
-import { Input } from '@starui/ui';
+import { ChromeButton } from '@starui/grid/customizer';
+import { Input, TooltipContent, Tooltip as TooltipRoot, TooltipTrigger } from '@starui/ui';
 import {
   ColumnLabel,
   Hair,
   Pill,
   SegmentedToggle,
+  columnCaptionInputClasses,
+  columnCaptionTriggerClasses,
 } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
@@ -89,27 +91,38 @@ function InlineColumnLabel({
         onBlur={commit}
         data-testid="formatting-col-label-input"
         aria-label="Rename column"
-        className="h-7 min-w-[160px] max-w-[200px] px-2.5 py-0 font-mono text-[11px] border-primary shadow-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className={columnCaptionInputClasses()}
       />
     );
   }
 
+  const trigger = (
+    <ChromeButton
+      type="button"
+      variant="ghost"
+      className={columnCaptionTriggerClasses()}
+      data-disabled={disabled ? 'true' : undefined}
+      data-testid="formatting-col-label"
+      disabled={disabled}
+      title={disabled ? 'Select a single column to rename' : 'Click to rename column'}
+      onClick={() => { if (!disabled) setEditing(true); }}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <span className="fx-col__dot" aria-hidden />
+      <span className="fx-col__name">{colLabel}</span>
+      <Pencil size={9} strokeWidth={1.75} className="fx-col__edit" aria-hidden />
+    </ChromeButton>
+  );
+
+  if (disabled) return trigger;
+
   return (
-    <Tooltip content={disabled ? 'Select a single column to rename' : 'Click to rename column'}>
-      <button
-        type="button"
-        className="fx-col fx-col--editable"
-        data-disabled={disabled ? 'true' : undefined}
-        data-testid="formatting-col-label"
-        disabled={disabled}
-        onClick={() => { if (!disabled) setEditing(true); }}
-        onMouseDown={(e) => e.preventDefault()}
-      >
-        <span className="fx-col__dot" aria-hidden />
-        <span className="fx-col__name">{colLabel}</span>
-        <Pencil size={10} strokeWidth={1.75} className="fx-col__edit" aria-hidden />
-      </button>
-    </Tooltip>
+    <TooltipRoot>
+      <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs px-1.5 py-0.5 text-[10px]">
+        Click to rename column
+      </TooltipContent>
+    </TooltipRoot>
   );
 }
 
@@ -170,15 +183,20 @@ export function ModuleContext({ state, actions }: Props) {
           onCommit={actions.setHeaderName}
         />
       ) : (
-        <Tooltip content={state.colIds.length > 0 ? state.colIds.join(', ') : 'Click a cell or header to pick a column'}>
-          <div>
-            <ColumnLabel
-              colLabel={state.colLabel}
-              disabled={state.disabled}
-              testId="formatting-col-label"
-            />
-          </div>
-        </Tooltip>
+        <TooltipRoot>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <ColumnLabel
+                colLabel={state.colLabel}
+                disabled={state.disabled}
+                testId="formatting-col-label"
+              />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs px-1.5 py-0.5 text-[10px]">
+            {state.colIds.length > 0 ? state.colIds.join(', ') : 'Click a cell or header to pick a column'}
+          </TooltipContent>
+        </TooltipRoot>
       )}
 
       <Pill

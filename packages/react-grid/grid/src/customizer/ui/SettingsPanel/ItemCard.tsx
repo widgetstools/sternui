@@ -3,6 +3,7 @@ import { Trash2, Save, ChevronDown, ChevronRight } from 'lucide-react';
 import { DirtyDot } from './DirtyDot';
 import { GhostIcon } from './GhostIcon';
 import { SharpBtn } from './Cockpit';
+import { ChromeButton } from '../ChromeButton';
 
 /**
  * ItemCard — title + body wrapper for callers that render lists of cards
@@ -62,7 +63,7 @@ export function ItemCard({
         ].join(' ')}
       >
         {canToggle && (
-          <button
+          <ChromeButton
             type="button"
             onClick={onToggleCollapsed}
             aria-expanded={!collapsed}
@@ -70,7 +71,7 @@ export function ItemCard({
             className="inline-flex items-center justify-center w-5 h-5 bg-transparent border-none text-muted-foreground cursor-pointer p-0 rounded-sm"
           >
             {collapsed ? <ChevronRight size={12} strokeWidth={2.25} /> : <ChevronDown size={12} strokeWidth={2.25} />}
-          </button>
+          </ChromeButton>
         )}
         {dirty && <DirtyDot />}
         <div

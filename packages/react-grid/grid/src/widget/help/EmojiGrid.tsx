@@ -7,6 +7,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { ChromeButton } from '@starui/grid/customizer';
+import '../HelpPanel.css';
 
 export function EmojiGrid({ items }: { items: Array<{ emoji: string; label: string }> }) {
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
@@ -30,57 +32,23 @@ export function EmojiGrid({ items }: { items: Array<{ emoji: string; label: stri
     }
   };
   return (
-    <div className="grid gap-1.5 my-2 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))' }}>
+    <div className="ds-help-emoji-grid">
       {items.map((it, i) => {
         const copied = copiedIdx === i;
         return (
-          <button
+          <ChromeButton
             key={`${it.emoji}-${i}`}
             type="button"
             onClick={() => copy(it.emoji, i)}
             title={`Copy ${it.emoji}  ·  ${it.label}`}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 2,
-              padding: '8px 6px 6px',
-              background: copied ? 'var(--ds-overlay-positive-soft)' : 'var(--ds-surface-ground)',
-              border: '1px solid',
-              borderColor: copied ? 'var(--ds-accent-positive)' : 'var(--ds-border-primary)',
-              borderRadius: 2,
-              color: 'var(--ds-text-primary)',
-              cursor: 'pointer',
-              transition: 'all 120ms',
-            }}
+            data-copied={copied ? 'true' : 'false'}
+            className="ds-help-emoji-tile"
           >
-            <span
-              style={{
-                fontSize: 22,
-                lineHeight: 1,
-                fontFamily:
-                  'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, Twemoji Mozilla, EmojiOne Color, sans-serif',
-              }}
-            >
-              {it.emoji}
-            </span>
-            <span
-              style={{
-                fontSize: 9,
-                lineHeight: 1.2,
-                color: copied ? 'var(--ds-accent-positive)' : 'var(--ds-text-muted)',
-                textAlign: 'center',
-                fontFamily: 'var(--ds-font-mono)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                width: '100%',
-              }}
-            >
+            <span className="ds-help-emoji-glyph">{it.emoji}</span>
+            <span className="ds-help-emoji-label">
               {copied ? 'copied!' : it.label}
             </span>
-          </button>
+          </ChromeButton>
         );
       })}
     </div>

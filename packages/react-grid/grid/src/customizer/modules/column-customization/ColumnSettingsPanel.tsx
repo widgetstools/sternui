@@ -281,7 +281,7 @@ export function ColumnSettingsList({ selectedId, onSelect }: ListPaneProps) {
           placeholder="Filter columns…"
           aria-label="Filter columns"
           data-testid="cols-filter-input"
-          style={{ width: '100%' }}
+          className="w-full"
         />
       </div>
       <CockpitList ref={listRef}>

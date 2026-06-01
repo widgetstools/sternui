@@ -6,6 +6,8 @@ import {
   PopoverTrigger,
   Button,
   Textarea,
+  Input,
+  ChromeButton,
 } from '@starui/grid/customizer';
 import {
   FunnelPlus,
@@ -148,7 +150,7 @@ export function FiltersToolbar() {
           the user sees. Flips between ChevronUp (expanded) and
           ChevronDown (collapsed); persists through the
           toolbar-visibility module. */}
-      <button
+      <ChromeButton
         type="button"
         className="ds-filters-collapse"
         onClick={toggleExpanded}
@@ -161,12 +163,12 @@ export function FiltersToolbar() {
         ) : (
           <ChevronRight size={16} strokeWidth={2.5} />
         )}
-      </button>
+      </ChromeButton>
 
       {/* Collapsed view — compact summary chip replaces the pill row.
           Click it to re-expand (in addition to the chevron). */}
       {!expanded && (
-        <button
+        <ChromeButton
           type="button"
           className="ds-filters-summary"
           onClick={toggleExpanded}
@@ -190,11 +192,11 @@ export function FiltersToolbar() {
               )}
             </>
           )}
-        </button>
+        </ChromeButton>
       )}
 
       {expanded && canScrollLeft && (
-        <button
+        <ChromeButton
           type="button"
           className="ds-filters-caret"
           onClick={() => scrollBy(-1)}
@@ -202,14 +204,14 @@ export function FiltersToolbar() {
           data-testid="filters-caret-left"
         >
           <ChevronLeft size={12} strokeWidth={2.5} />
-        </button>
+        </ChromeButton>
       )}
       {expanded && (
       <div ref={scrollRef} className="ds-filter-scroll">
         {filters.map((f) => {
           if (renameId === f.id) {
             return (
-              <input
+              <Input
                 key={f.id}
                 ref={renameInputRef}
                 defaultValue={f.label}
@@ -230,7 +232,7 @@ export function FiltersToolbar() {
               data-testid={`filter-pill-${f.id}`}
               data-active={f.active}
             >
-              <button
+              <ChromeButton
                 type="button"
                 className="ds-filter-pill-btn"
                 onClick={() => model.toggle(f.id)}
@@ -249,31 +251,31 @@ export function FiltersToolbar() {
                     {filterCounts[f.id]}
                   </span>
                 )}
-              </button>
+              </ChromeButton>
               <span className="ds-filter-pill-actions">
-                <button
+                <ChromeButton
                   type="button"
                   className="ds-filter-pill-action"
                   onClick={(e) => { e.stopPropagation(); setRenameId(f.id); }}
                   title="Rename"
                 >
                   <Pencil size={9} strokeWidth={1.75} />
-                </button>
-                <button
+                </ChromeButton>
+                <ChromeButton
                   type="button"
                   className="ds-filter-pill-action ds-filter-pill-action-remove"
                   onClick={(e) => { e.stopPropagation(); model.remove(f.id); }}
                   title="Remove"
                 >
                   <Trash2 size={9} strokeWidth={1.75} />
-                </button>
+                </ChromeButton>
               </span>
               <Popover
                 open={openDetailsId === f.id}
                 onOpenChange={(o) => setOpenDetailsId(o ? f.id : null)}
               >
                 <PopoverTrigger asChild>
-                  <button
+                  <ChromeButton
                     type="button"
                     className="ds-filter-pill-menu"
                     onClick={(e) => e.stopPropagation()}
@@ -281,7 +283,7 @@ export function FiltersToolbar() {
                     data-testid={`filter-pill-menu-${f.id}`}
                   >
                     <MoreVertical size={11} strokeWidth={2} />
-                  </button>
+                  </ChromeButton>
                 </PopoverTrigger>
                 <PopoverContent
                   align="end"
@@ -308,7 +310,7 @@ export function FiltersToolbar() {
       </div>
       )}
       {expanded && canScrollRight && (
-        <button
+        <ChromeButton
           type="button"
           className="ds-filters-caret"
           onClick={() => scrollBy(1)}
@@ -316,7 +318,7 @@ export function FiltersToolbar() {
           data-testid="filters-caret-right"
         >
           <ChevronRight size={12} strokeWidth={2.5} />
-        </button>
+        </ChromeButton>
       )}
 
       {/* Sticky action cluster — always visible even when the pill row
@@ -328,17 +330,17 @@ export function FiltersToolbar() {
           (MarketsGrid) where it's decoupled from filter semantics. */}
       <div className="ds-filters-actions">
         {filters.length > 0 && (
-          <button
+          <ChromeButton
             type="button"
             className="ds-filters-clear-btn"
             onClick={model.deactivateAll}
             title="Clear all filters"
           >
             <FunnelX size={18} strokeWidth={3} />
-          </button>
+          </ChromeButton>
         )}
 
-        <button
+        <ChromeButton
           type="button"
           className="ds-filters-add-btn"
           onClick={model.addFromLive}
@@ -350,13 +352,9 @@ export function FiltersToolbar() {
               ? 'Capture current filter as a new pill'
               : 'Add a column filter (that isn’t already saved) to enable'
           }
-          style={{
-            opacity: hasNewFilter ? 1 : 0.35,
-            cursor: hasNewFilter ? 'pointer' : 'not-allowed',
-          }}
         >
           <FunnelPlus size={18} strokeWidth={3} />
-        </button>
+        </ChromeButton>
       </div>
     </div>
   );
@@ -398,10 +396,7 @@ function FilterModelEditor({ label, filterModel, onSave, onCancel }: FilterModel
 
   return (
     <div className="flex flex-col">
-      <div
-        className="px-3 py-2 border-b text-[10px] font-bold uppercase tracking-wider opacity-60"
-        style={{ borderColor: 'var(--ds-border-primary)' }}
-      >
+      <div className="px-3 py-2 border-b border-[color:var(--ds-border-primary)] text-[10px] font-bold uppercase tracking-wider opacity-60">
         {label}
       </div>
       <Textarea
@@ -409,14 +404,12 @@ function FilterModelEditor({ label, filterModel, onSave, onCancel }: FilterModel
         onChange={(e) => setDraft(e.target.value)}
         spellCheck={false}
         rows={10}
-        className="font-mono text-[11px] leading-snug rounded-none border-0 border-b resize-none focus-visible:ring-0 focus-visible:ring-offset-0 max-h-[280px]"
-        style={{ borderColor: 'var(--ds-border-primary)' }}
+        className="font-mono text-[11px] leading-snug rounded-none border-0 border-b border-[color:var(--ds-border-primary)] resize-none focus-visible:ring-0 focus-visible:ring-offset-0 max-h-[280px]"
         data-testid="filter-pill-details-textarea"
       />
       {!parsed.ok && (
         <div
-          className="px-3 py-1.5 text-[10px] font-medium border-b"
-          style={{ color: 'var(--ds-accent-negative)', borderColor: 'var(--ds-border-primary)' }}
+          className="px-3 py-1.5 text-[10px] font-medium border-b border-[color:var(--ds-border-primary)] text-[color:var(--ds-accent-negative)]"
           data-testid="filter-pill-details-error"
         >
           {parsed.error}

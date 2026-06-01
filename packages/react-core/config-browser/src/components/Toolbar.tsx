@@ -1,6 +1,7 @@
 import { DynamicIcon as Icon } from "@starui/config-browser/icons";
 import { Input } from "@starui/ui";
 import type { TableMeta } from "../types";
+import { EditorButton } from "./EditorButton";
 
 interface ToolbarProps {
   table: TableMeta;
@@ -28,9 +29,7 @@ export function Toolbar({
   onDeleteAll,
 }: ToolbarProps) {
   return (
-    <div
-      className="flex items-center gap-2 px-4 py-2.5 border-b bg-[var(--de-bg)] border-[var(--de-border)]"
-    >
+    <div className="flex items-center gap-2 border-b border-[var(--de-border)] bg-[var(--de-bg)] px-4 py-2.5">
       <div className="flex flex-col gap-0.5">
         <div className="text-[13px] font-semibold text-[var(--de-text)]">
           {table.label}
@@ -45,89 +44,34 @@ export function Toolbar({
       <div className="relative w-60">
         <Icon
           icon="lucide:search"
-          style={{ width: 14, height: 14 }}
-          className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--de-text-tertiary)] pointer-events-none"
+          className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--de-text-tertiary)]"
         />
         <Input
           value={quickFilter}
           onChange={(e) => onQuickFilterChange(e.target.value)}
           placeholder="Search rows…"
-          className="h-[30px] text-[12px] bg-[var(--de-bg-surface)] border-[var(--de-border)] text-[var(--de-text)]"
-          style={{ paddingLeft: 28 }}
+          className="h-[30px] pl-7 text-[12px] bg-[var(--de-bg-surface)] border-[var(--de-border)] text-[var(--de-text)]"
         />
       </div>
 
-      <ToolbarButton onClick={onRefresh} title="Refresh" icon="lucide:refresh-cw" />
-      <ToolbarButton onClick={onImport} title="Import JSON (matches Export format)" icon="lucide:upload" />
-      <ToolbarButton onClick={onExport} title="Export JSON (this table only)" icon="lucide:download" />
-      <ToolbarButton
+      <EditorButton onClick={onRefresh} title="Refresh" icon="lucide:refresh-cw" />
+      <EditorButton onClick={onImport} title="Import JSON (matches Export format)" icon="lucide:upload" />
+      <EditorButton onClick={onExport} title="Export JSON (this table only)" icon="lucide:download" />
+      <EditorButton
         onClick={onExportAll}
         title="Export ALL tables as a single bundle (seed-config shape — feed straight into the admin importer)"
         icon="lucide:package"
       />
-      <ToolbarButton
+      <EditorButton
         onClick={onDeleteAll}
         title="Delete all rows in this view (requires backup)"
         icon="lucide:trash-2"
         disabled={rowCount === 0}
-        danger
+        variant="danger"
       />
-      <ToolbarButton onClick={onNew} title="New row" icon="lucide:plus" primary />
+      <EditorButton onClick={onNew} title="New row" icon="lucide:plus" variant="primary">
+        New
+      </EditorButton>
     </div>
-  );
-}
-
-function ToolbarButton({
-  onClick,
-  title,
-  icon,
-  primary,
-  danger,
-  disabled,
-}: {
-  onClick: () => void;
-  title: string;
-  icon: string;
-  primary?: boolean;
-  danger?: boolean;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      disabled={disabled}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        height: 30,
-        padding: primary ? "0 12px" : "0 8px",
-        border: primary
-          ? "none"
-          : danger
-            ? "1px solid color-mix(in srgb, var(--de-danger, var(--ds-accent-negative)) 35%, var(--de-border))"
-            : "1px solid var(--de-border)",
-        borderRadius: "var(--de-radius-sm)",
-        background: primary
-          ? "var(--de-accent)"
-          : danger
-            ? "color-mix(in srgb, var(--de-danger, var(--ds-accent-negative)) 8%, var(--de-bg-surface))"
-            : "var(--de-bg-surface)",
-        color: primary
-          ? "hsl(var(--primary-foreground))"
-          : danger
-            ? "var(--de-danger, var(--ds-accent-negative))"
-            : "var(--de-text-secondary)",
-        fontSize: 12,
-        fontWeight: primary ? 600 : 500,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.4 : 1,
-        fontFamily: "var(--de-font)",
-      }}
-    >
-      <Icon icon={icon} style={{ width: 14, height: 14 }} />
-      {primary && <span>New</span>}
-    </button>
   );
 }

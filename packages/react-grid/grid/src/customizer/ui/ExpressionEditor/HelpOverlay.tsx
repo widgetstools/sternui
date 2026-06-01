@@ -40,7 +40,7 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 10200,
-        background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)',
+        background: 'color-mix(in srgb, var(--ds-overlay-scrim, var(--ds-text-primary)) 55%, transparent)', backdropFilter: 'blur(3px)',
         display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
         paddingTop: '8vh',
       }}
@@ -55,7 +55,7 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
           background: 'var(--ds-surface-primary)',
           border: '1px solid var(--ds-border-primary)',
           borderRadius: 8,
-          boxShadow: '0 20px 48px rgba(0,0,0,0.5)',
+          boxShadow: '0 20px 48px color-mix(in srgb, var(--ds-text-primary) 50%, transparent)',
           display: 'flex', flexDirection: 'column',
           overflow: 'hidden',
           fontFamily: 'var(--ds-font-sans)',

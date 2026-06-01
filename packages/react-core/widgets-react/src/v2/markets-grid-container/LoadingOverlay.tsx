@@ -2,11 +2,7 @@
  * LoadingOverlay — animated busy indicator shown while the active
  * provider is between subscribe and snapshot delivery.
  *
- * Visual: a dual-ring rotating spinner — an outer conic-gradient
- * sweep (clockwise) layered over a dashed inner ring (counter-
- * clockwise) with a central pulsing dot. Sits inside a glassmorphism
- * card with a soft animated halo. Pure design-system tokens, dark/
- * light auto via [data-theme].
+ * Pure design-system tokens; dark/light via [data-theme].
  */
 
 export interface LoadingOverlayProps {
@@ -35,124 +31,35 @@ export function MarketsGridLoadingOverlay({
         role="status"
         aria-live="polite"
         aria-label={`${title}. ${subtitle}`}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          zIndex: 10,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          background:
-            'color-mix(in srgb, var(--background, rgba(20,20,28,0.6)) 60%, transparent)',
-          pointerEvents: 'auto',
-          animation: 'mui-grid-overlay-fade-in 200ms ease-out',
-        }}
+        className="absolute inset-0 z-10 flex items-center justify-center backdrop-blur-sm pointer-events-auto animate-[mui-grid-overlay-fade-in_200ms_ease-out] bg-[color-mix(in_srgb,var(--ds-surface-ground)_60%,transparent)]"
       >
         <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 18,
-            padding: '24px 36px',
-            borderRadius: 14,
-            background:
-              'color-mix(in srgb, var(--card, rgba(255,255,255,0.06)) 85%, transparent)',
-            border: '1px solid var(--border, rgba(255,255,255,0.12))',
-            boxShadow:
-              '0 18px 50px rgba(0,0,0,0.45), 0 0 0 1px color-mix(in srgb, var(--ds-accent-info) 20%, transparent)',
-            minWidth: 240,
-            animation: 'mui-grid-overlay-card-pulse 2.6s ease-in-out infinite',
-          }}
+          className="flex min-w-[240px] flex-col items-center gap-[18px] rounded-[14px] border border-[color:var(--ds-border-primary)] px-9 py-6 animate-[mui-grid-overlay-card-pulse_2.6s_ease-in-out_infinite] bg-[color-mix(in_srgb,var(--ds-surface-primary)_85%,transparent)] shadow-[0_18px_50px_color-mix(in_srgb,var(--ds-text-primary)_45%,transparent),0_0_0_1px_color-mix(in_srgb,var(--ds-accent-info)_20%,transparent)]"
         >
-          {/* Dual-ring rotating spinner — pure border-based so it
-              works in every renderer (no conic-gradient masks). */}
-          <div
-            style={{
-              position: 'relative',
-              width: 56,
-              height: 56,
-            }}
-          >
-            {/* Soft pulsing halo behind the rings */}
+          <div className="relative h-14 w-14">
             <span
-              style={{
-                position: 'absolute',
-                inset: -8,
-                borderRadius: '50%',
-                background:
-                  'radial-gradient(circle, rgba(59,130,246,0.35) 0%, transparent 65%)',
-                animation: 'mui-grid-overlay-halo 2s ease-in-out infinite',
-                filter: 'blur(3px)',
-              }}
+              className="absolute -inset-2 rounded-full blur-[3px] animate-[mui-grid-overlay-halo_2s_ease-in-out_infinite] bg-[radial-gradient(circle,color-mix(in_srgb,var(--ds-accent-info)_35%,transparent)_0%,transparent_65%)]"
+              aria-hidden
             />
-
-            {/* Outer ring — bright top arc, transparent rest, clockwise */}
             <span
-              style={{
-                position: 'absolute',
-                inset: 0,
-                borderRadius: '50%',
-                border: '3px solid transparent',
-                borderTopColor: 'var(--ds-accent-info)',
-                borderRightColor: 'rgba(59,130,246,0.35)',
-                animation: 'mui-grid-overlay-spin-cw 1.0s linear infinite',
-                boxShadow: '0 0 12px rgba(59,130,246,0.45)',
-              }}
+              className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-[color:var(--ds-accent-info)] border-r-[color-mix(in_srgb,var(--ds-accent-info)_35%,transparent)] animate-[mui-grid-overlay-spin-cw_1s_linear_infinite] shadow-[0_0_12px_color-mix(in_srgb,var(--ds-accent-info)_45%,transparent)]"
+              aria-hidden
             />
-
-            {/* Inner ring — dashed, counter-clockwise, slower */}
             <span
-              style={{
-                position: 'absolute',
-                inset: 12,
-                borderRadius: '50%',
-                border: '2px dashed rgba(59,130,246,0.65)',
-                animation: 'mui-grid-overlay-spin-ccw 2.4s linear infinite',
-              }}
+              className="absolute inset-3 rounded-full border-2 border-dashed border-[color-mix(in_srgb,var(--ds-accent-info)_65%,transparent)] animate-[mui-grid-overlay-spin-ccw_2.4s_linear_infinite]"
+              aria-hidden
             />
-
-            {/* Center dot — pulsing core */}
             <span
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                width: 8,
-                height: 8,
-                marginLeft: -4,
-                marginTop: -4,
-                borderRadius: '50%',
-                background: 'var(--ds-accent-info)',
-                boxShadow: '0 0 14px rgba(59,130,246,0.8)',
-                animation: 'mui-grid-overlay-dot 1.2s ease-in-out infinite',
-              }}
+              className="absolute left-1/2 top-1/2 h-2 w-2 -ml-1 -mt-1 rounded-full animate-[mui-grid-overlay-dot_1.2s_ease-in-out_infinite] bg-[color:var(--ds-accent-info)] shadow-[0_0_14px_color-mix(in_srgb,var(--ds-accent-info)_80%,transparent)]"
+              aria-hidden
             />
           </div>
 
-          {/* Title */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-            <span
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: 'var(--foreground, var(--ds-border-secondary))',
-                letterSpacing: 0.2,
-              }}
-            >
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-[13px] font-semibold tracking-[0.2px] text-[color:var(--ds-text-primary)]">
               {title}
             </span>
-            <span
-              style={{
-                fontSize: 11,
-                color: 'var(--muted-foreground, var(--ds-text-muted))',
-                fontFamily:
-                  'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
-                letterSpacing: 0.15,
-              }}
-            >
+            <span className="font-[family-name:var(--ds-font-mono)] text-[11px] tracking-[0.15px] text-[color:var(--ds-text-muted)]">
               {subtitle}
             </span>
           </div>
@@ -168,8 +75,8 @@ const KEYFRAMES_CSS = `
   to   { opacity: 1; }
 }
 @keyframes mui-grid-overlay-card-pulse {
-  0%, 100% { box-shadow: 0 18px 50px rgba(0,0,0,0.45), 0 0 0 1px color-mix(in srgb, var(--ds-accent-info) 20%, transparent); }
-  50%      { box-shadow: 0 18px 50px rgba(0,0,0,0.45), 0 0 0 1px color-mix(in srgb, var(--ds-accent-info) 55%, transparent); }
+  0%, 100% { box-shadow: 0 18px 50px color-mix(in srgb, var(--ds-text-primary) 45%, transparent), 0 0 0 1px color-mix(in srgb, var(--ds-accent-info) 20%, transparent); }
+  50%      { box-shadow: 0 18px 50px color-mix(in srgb, var(--ds-text-primary) 45%, transparent), 0 0 0 1px color-mix(in srgb, var(--ds-accent-info) 55%, transparent); }
 }
 @keyframes mui-grid-overlay-halo {
   0%, 100% { opacity: 0.45; transform: scale(0.92); }

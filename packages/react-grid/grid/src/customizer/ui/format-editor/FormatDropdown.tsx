@@ -2,6 +2,7 @@ import * as React from 'react';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { Check } from 'lucide-react';
 import { cn } from '@starui/ui';
+import { ChromeButton } from '../ChromeButton';
 import { useResolvedPortalContainer } from '../PortalContainer';
 import { clickIsInsideAnyOpenPopover, registerPopoverRoot } from './popoverStack';
 
@@ -81,8 +82,9 @@ export function FormatDropdown<V extends string | number>({
           {options.map((o) => {
             const selected = o.value === value;
             return (
-              <button
+              <ChromeButton
                 key={String(o.value)}
+                type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   onChange(o.value);
@@ -122,7 +124,7 @@ export function FormatDropdown<V extends string | number>({
                   </span>
                 )}
                 <span style={{ flex: 1 }}>{o.label}</span>
-              </button>
+              </ChromeButton>
             );
           })}
           {footer && (

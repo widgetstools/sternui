@@ -4,6 +4,7 @@
 declare const fin: any;
 
 import { useEffect, useRef, useState } from "react";
+import { Button } from "@starui/ui";
 import { DynamicIcon as Icon } from "@starui/config-browser/icons";
 import { useConfigBrowser } from "./hooks/useConfigBrowser";
 import { TableSidebar } from "./components/TableSidebar";
@@ -275,12 +276,13 @@ export function ConfigBrowserPanel() {
                   No rows in {selected.label}
                   {selected.scopable && hostEnv.appId ? ` for ${hostEnv.appId}` : ""}
                 </div>
-                <button
+                <Button
+                  type="button"
                   onClick={openCreate}
-                  className="bg-primary text-primary-foreground border-none rounded-[var(--de-radius-sm)] px-4 py-2 text-xs font-semibold cursor-pointer hover:bg-primary/90"
+                  className="rounded-[var(--de-radius-sm)] border-none bg-[var(--de-accent)] px-4 py-2 text-xs font-semibold text-[hsl(var(--primary-foreground))] hover:bg-[var(--de-accent)]"
                 >
                   Add first row
-                </button>
+                </Button>
               </div>
             ) : (
               <DataGrid

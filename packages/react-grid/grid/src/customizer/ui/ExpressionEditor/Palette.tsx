@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Input } from '@starui/ui';
 import { useResolvedPortalContainer } from '../PortalContainer';
 import { getPortalDomContext } from './editorDom';
 
@@ -110,7 +111,7 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 10200,
-        background: 'rgba(0,0,0,0.55)',
+        background: 'color-mix(in srgb, var(--ds-overlay-scrim, var(--ds-text-primary)) 55%, transparent)',
         backdropFilter: 'blur(3px)',
         display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
         paddingTop: '15vh',
@@ -125,7 +126,7 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
           background: 'var(--ds-surface-primary)',
           border: '1px solid var(--ds-border-primary)',
           borderRadius: 8,
-          boxShadow: '0 20px 48px rgba(0,0,0,0.5)',
+          boxShadow: '0 20px 48px color-mix(in srgb, var(--ds-text-primary) 50%, transparent)',
           display: 'flex', flexDirection: 'column',
           overflow: 'hidden',
           fontFamily: 'var(--ds-font-sans)',
@@ -134,20 +135,12 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
         <div style={{ padding: '12px 14px 8px', borderBottom: '1px solid var(--ds-border-primary)' }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ds-text-primary)', letterSpacing: 0.3 }}>{title}</div>
           {subtitle && <div style={{ fontSize: 10, color: 'var(--ds-text-muted)', marginTop: 2 }}>{subtitle}</div>}
-          <input
+          <Input
             ref={inputRef}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder={placeholder}
-            style={{
-              marginTop: 8, width: '100%', height: 28,
-              background: 'var(--ds-surface-ground)',
-              color: 'var(--ds-text-primary)',
-              border: '1px solid var(--ds-border-primary)',
-              borderRadius: 4, padding: '0 10px',
-              fontSize: 12, outline: 'none',
-              fontFamily: "'JetBrains Mono', Menlo, monospace",
-            }}
+            className="mt-2 h-7 w-full font-[family-name:var(--ds-font-mono)] text-xs"
           />
         </div>
         <div

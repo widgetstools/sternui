@@ -258,7 +258,8 @@ Per-renderer config types (`PillRendererConfig`,
 - `.` — `MarketsGrid` component, toolbars, storage helpers, types
 - `./customizer` — hooks (`useEditJournal`, `useModuleState`, `useProfileManager`, …),
   module definitions, settings-panel primitives, editing helpers (`recordEdit`,
-  `journalUndoRedo`)
+  `journalUndoRedo`), `ChromeButton` (shadcn `Button` with chrome CSS resets for
+  legacy `.ds-*` / `.fx-*` styling)
 - `./styles.css` — widget stylesheet
 - `./runtime/openfin` — OpenFin popout helpers
 
@@ -291,8 +292,10 @@ Per-renderer config types (`PillRendererConfig`,
   settings sheet toggle, optional inline caption (`tabsHidden`), editing-toolbar pencil toggle,
   secondary actions in ⋯ overflow menu by default (`toolbarActionsLayout`: `overflow` | `inline`); shadcn `ToolbarDatePicker` on the right edge (defaults to today; `showToolbarDatePicker`; `historyEnabled` gates past dates)
 - `FiltersToolbar` — quick filter, saved filter recall, server-side expression
-- `FormattingToolbar` — cell/header styling, conditional formats, value formatters (with popout)
-- `EditingToolbar` — unified editing row (history undo/redo, Smart Edit ops, Bulk Update apply, keyboard hints dropdown); primary-row pencil toggle (`editing-toolbar-toggle`); segments gated by `resolveEditingToolbarAllow()` + module `settings.enabled`
+  (shadcn `ChromeButton` / `Input` / `Textarea` controls)
+- `FormattingToolbar` — cell/header styling, conditional formats, value formatters (with popout); horizontal strip is **two rows** — row 1: Scope / Type / Paint; row 2: Format / Edit / Templates / Clear (Format moved off row 1 so the wide format cluster no longer wraps alone onto a third line)
+  formatter pills use shadcn `Button` via `Pill` / `PillButton`; enum pickers use shadcn `Select` via `ToolbarSelect`; horizontal strip uses flat labeled groups (no enclosing boxes around control clusters)
+- `EditingToolbar` — unified editing row (history undo/redo, Smart Edit ops, Bulk Update apply, keyboard hints dropdown); primary-row pencil toggle (`editing-toolbar-toggle`); segments gated by `resolveEditingToolbarAllow()` + module `settings.enabled`; `editingToolbar.css` + shadcn ghost pills aligned with formatter toolbar (labeled clusters, hairline separators, no boxed button groups)
 - `EditingToolbarKeyboardMenu` — read-only dropdown listing active plus/minus nudges and letter shortcuts (keys handled by module runtime, not the menu)
 - `SmartEditToolbarBody` — operand input, op buttons (× ÷ + −), **Set…** dialog, preview confirm/cancel
 - `BulkUpdateToolbarBody` — text input for custom values, optional distinct-value picker (fills input), check-icon apply control
@@ -300,7 +303,9 @@ Per-renderer config types (`PillRendererConfig`,
 - `SmartEditToolbar` — legacy standalone toolbar export (superseded by `EditingToolbar` segment)
 - `providerGridHost` prop — optional runtime API for data-provider controls in the grid customizer → Custom Settings panel (`MarketsGridContainer` wires live/historical pickers, refresh, reload, edit)
 - `resolveEditingToolbarAllow()` — maps `showEditingToolbar` and legacy per-segment props to host allow-list
-- `AdminActionButtons` — admin grid operations
+- `AdminActionButtons` — admin grid operations (shadcn `ChromeButton`)
+- `GridInfoButton` — grid identity popover trigger (`ChromeButton`)
+- `PrimaryToolbarOverflowMenu` / `PrimaryToolbarInlineActions` — secondary toolbar actions (`ChromeButton` triggers); overflow ⋯ menu includes dark/light theme toggle (`applyTheme` + `useActiveThemeMode`) and grid info
 
 #### Profile management UI
 
@@ -342,7 +347,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `ModuleContext` — applied-column summary + copy-to-all
 - `ModuleClear` — clear formatting (with confirm)
 - `formatterPresets` — built-in numeric, date, currency, %, traffic-light, emoji presets
-- `formattingToolbarHooks` — `useFormatter` state + actions
+- `formattingToolbarHooks` — `useFormatter` state + actions; `resolveToolbarPickerDataType()` maps `dateString` / `dateTimeString` (and `date` columns whose sample values include time) to datetime FormatterPicker presets so **Date + time** tiles (ISO with time, US short) appear in the toolbar
 
 #### Customizer modules (under `./customizer`)
 

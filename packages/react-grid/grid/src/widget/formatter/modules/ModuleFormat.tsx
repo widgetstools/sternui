@@ -5,13 +5,12 @@
  * (Excel-format input + presets) attaches at the end. Header target
  * disables the whole module since headers don't carry formatters.
  */
-import { useState } from 'react';
 import { spacing } from '@starui/design-system/tokens';
 import {
-  ArrowLeft, ArrowRight, ChevronDown, DollarSign, Hash, Percent,
+  ArrowLeft, ArrowRight, DollarSign, Hash, Percent,
 } from 'lucide-react';
 import type { ValueFormatterTemplate } from '@starui/engine';
-import { FormatterPicker, Tooltip } from '@starui/grid/customizer';
+import { FormatterPicker } from '@starui/grid/customizer';
 import {
   BPS_TEMPLATE,
   COMMA_TEMPLATE,
@@ -19,16 +18,8 @@ import {
   PERCENT_TEMPLATE,
   isCommaTemplate,
   isPercentTemplate,
-  isTickTemplate,
 } from '../../formatterPresets';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@starui/ui';
-import { Hair, Module, Pill, pillClasses, SplitPill } from '../primitives';
+import { Hair, Module, Pill, ToolbarSelect } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 const TICK_MENU = [
@@ -41,6 +32,16 @@ const TICK_MENU = [
 
 function currentTickToken(t: ValueFormatterTemplate | undefined): typeof TICK_MENU[number]['token'] | null {
   return t && t.kind === 'tick' ? (t.tick as typeof TICK_MENU[number]['token']) : null;
+}
+
+function currencyKeyFromTemplate(t: ValueFormatterTemplate | undefined): string {
+  if (!t) return '';
+  if (t.kind === 'preset' && t.preset === 'currency') {
+    const code = (t.options as { currency?: string } | undefined)?.currency;
+    if (code && CURRENCY_FORMATTERS[code]) return code;
+  }
+  if (t.kind === 'expression' && t.expression === BPS_TEMPLATE.expression) return 'BPS';
+  return '';
 }
 
 export function ModuleFormat({
@@ -60,52 +61,45 @@ export function ModuleFormat({
     isHeader ||
     (scope === 'selected' && (disabled || pickerDataType !== 'number'));
 
-  const [currencyOpen, setCurrencyOpen] = useState(false);
-  const [tickMenuOpen, setTickMenuOpen] = useState(false);
+  const currencyValue = currencyKeyFromTemplate(vft);
+  const tickValue = currentTickToken(vft) ?? '';
 
   return (
     <Module index="04" label="Format">
-      {/* Currency split — primary $ + chevron menu (USD/EUR/GBP/JPY/BPS). */}
-      <SplitPill>
-        <Pill
-          disabled={fmtDisabled}
-          tooltip="Currency (USD)"
-          onClick={() => actions.doFormat(CURRENCY_FORMATTERS.USD.template)}
-        >
-          <DollarSign size={13} strokeWidth={1.75} />
-        </Pill>
-        <DropdownMenu open={currencyOpen} onOpenChange={setCurrencyOpen}>
-          <DropdownMenuTrigger asChild>
-            <Tooltip content="Pick a currency (USD, EUR, GBP, JPY, basis points)">
-              <button
-                type="button"
-                disabled={fmtDisabled}
-                aria-label="Currency menu"
-                className={pillClasses('narrow')}
-                data-testid="fmt-currency-menu"
-              >
-                <ChevronDown size={9} strokeWidth={2} />
-              </button>
-            </Tooltip>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="fx-menu min-w-[160px]">
-            {Object.entries(CURRENCY_FORMATTERS).map(([key, f]) => (
-              <DropdownMenuItem
-                key={key}
-                onSelect={() => actions.doFormat(f.template)}
-              >
-                <span className="w-5 text-[11px] font-mono text-muted-foreground">{f.label}</span>
+      <ToolbarSelect
+        value={currencyValue}
+        onValueChange={(next) => {
+          if (!next) {
+            actions.doFormat(undefined);
+            return;
+          }
+          if (next === 'BPS') {
+            actions.doFormat(BPS_TEMPLATE);
+            return;
+          }
+          const choice = CURRENCY_FORMATTERS[next];
+          if (choice) actions.doFormat(choice.template);
+        }}
+        disabled={fmtDisabled}
+        icon={<DollarSign size={12} strokeWidth={1.75} />}
+        placeholder="Currency"
+        tooltip="Pick a currency (USD, EUR, GBP, JPY, basis points)"
+        aria-label="Currency format"
+        data-testid="fmt-currency-select"
+        options={[
+          { value: '', label: 'None' },
+          ...Object.entries(CURRENCY_FORMATTERS).map(([key, f]) => ({
+            value: key,
+            label: (
+              <span className="inline-flex items-center gap-2">
+                <span className="w-5 font-mono text-[color:var(--ds-text-secondary)]">{f.label}</span>
                 <span>{key}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => actions.doFormat(BPS_TEMPLATE)}>
-              <span className="w-5 text-[11px] font-mono text-muted-foreground">bp</span>
-              <span>Basis points</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SplitPill>
+              </span>
+            ),
+          })),
+          { value: 'BPS', label: 'Basis points' },
+        ]}
+      />
 
       <Pill
         disabled={fmtDisabled}
@@ -143,72 +137,42 @@ export function ModuleFormat({
 
       <Hair />
 
-      {/* Tick split — main button toggles current tick; chevron picks denominator. */}
-      <SplitPill>
-        <Pill
-          disabled={fmtDisabled}
-          active={!fmtDisabled && isTickTemplate(vft)}
-          variant="text"
-          tooltip={
-            currentTickToken(vft)
-              ? `Tick: ${TICK_MENU.find((m) => m.token === currentTickToken(vft))?.label ?? '32nds'}`
-              : 'Tick format (32nds)'
+      <ToolbarSelect
+        value={tickValue}
+        onValueChange={(next) => {
+          if (!next) {
+            actions.doFormat(undefined);
+            return;
           }
-          onClick={() =>
-            actions.doFormat(
-              isTickTemplate(vft)
-                ? undefined
-                : { kind: 'tick', tick: currentTickToken(vft) ?? 'TICK32' },
-            )
-          }
-          data-testid="fmt-tick-btn"
-        >
-          {currentTickToken(vft)
-            ? (TICK_MENU.find((m) => m.token === currentTickToken(vft))?.denominator ?? '32')
-            : '32'}
-        </Pill>
-        <DropdownMenu open={tickMenuOpen} onOpenChange={setTickMenuOpen}>
-          <DropdownMenuTrigger asChild>
-            <Tooltip content="Tick precision — choose denominator (32, 64, 128, 256)">
-              <button
-                type="button"
-                disabled={fmtDisabled}
-                aria-label="Tick precision"
-                className={pillClasses('narrow')}
-                data-testid="fmt-tick-menu-trigger"
-              >
-                <ChevronDown size={9} strokeWidth={1.75} />
-              </button>
-            </Tooltip>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="fx-menu min-w-[180px]">
-            {TICK_MENU.map((m) => {
-              const active = currentTickToken(vft) === m.token;
-              return (
-                <DropdownMenuItem
-                  key={m.token}
-                  onSelect={() => actions.doFormat({ kind: 'tick', tick: m.token })}
-                  data-testid={`fmt-tick-menu-${m.token}`}
-                  className={active ? 'bg-primary/10 text-primary' : undefined}
-                >
-                  <span className="w-3 text-center text-[11px]">{active ? '✓' : ''}</span>
-                  <span className="flex-1">{m.label}</span>
-                  <span className="text-[11px] font-mono text-muted-foreground tabular-nums">{m.sample}</span>
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SplitPill>
+          actions.doFormat({ kind: 'tick', tick: next as typeof TICK_MENU[number]['token'] });
+        }}
+        disabled={fmtDisabled}
+        placeholder="32"
+        tooltip="Tick precision — choose denominator (32, 64, 128, 256)"
+        aria-label="Tick format"
+        data-testid="fmt-tick-select"
+        options={[
+          { value: '', label: 'None' },
+          ...TICK_MENU.map((m) => ({
+            value: m.token,
+            label: (
+              <span className="inline-flex w-full items-center gap-2">
+                <span className="flex-1">{m.label}</span>
+                <span className="font-mono text-[10px] text-[color:var(--ds-text-secondary)] tabular-nums">{m.sample}</span>
+              </span>
+            ),
+          })),
+        ]}
+      />
 
       <Hair />
 
       {/*
-        CELLS + ALL scope renders TWO pickers — Number and Date — so the
-        user can author a global number format AND a global date format
-        without first selecting a column of the matching type. Other
-        scopes keep a single picker driven by the active column's
-        `pickerDataType`.
+        CELLS + ALL scope renders TWO pickers — Number and Date/time — so
+        the user can author a global number format AND a global date or
+        datetime format without first selecting a column of the matching
+        type. Other scopes keep a single picker driven by the active
+        column's `pickerDataType`.
       */}
       {scope === 'all' && !isHeader ? (
         <>
@@ -221,7 +185,7 @@ export function ModuleFormat({
             data-testid="fmt-picker-toolbar-number"
           />
           <FormatterPicker
-            dataType="date"
+            dataType="datetime"
             value={state.globalDateFormatter}
             onChange={(next) => actions.doFormat(next, 'date')}
             defaultCollapsed

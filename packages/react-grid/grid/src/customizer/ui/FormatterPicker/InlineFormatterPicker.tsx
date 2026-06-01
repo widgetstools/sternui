@@ -6,6 +6,7 @@ import { FormatDropdown } from '../format-editor';
 import { Caps, IconInput } from '../SettingsPanel';
 import { ExcelReferencePopover } from './ExcelReferencePopover';
 import { triggerCaption, type SharedBodyProps } from './formatterPickerShared';
+import { ChromeButton } from '../ChromeButton';
 
 /**
  * Inline (editor) presentation of FormatterPicker.
@@ -66,7 +67,7 @@ export function InlineFormatterPicker({
           }))}
           width={280}
           trigger={
-            <button
+            <ChromeButton
               type="button"
               title="Presets"
               data-testid={testId ? `${testId}-preset` : undefined}
@@ -91,7 +92,7 @@ export function InlineFormatterPicker({
                 {activePreset?.label ?? 'Preset…'}
               </span>
               <ChevronDown size={12} strokeWidth={1.75} className="opacity-60" />
-            </button>
+            </ChromeButton>
           }
         />
 
@@ -133,7 +134,7 @@ export function InlineFormatterPicker({
 
   if (!expanded) {
     return (
-      <button
+      <ChromeButton
         type="button"
         onClick={() => setExpanded(true)}
         title="Expand format picker"
@@ -145,7 +146,7 @@ export function InlineFormatterPicker({
           {triggerCaption(value, activePreset)}
         </span>
         <ChevronDown size={11} strokeWidth={1.75} className="opacity-50" />
-      </button>
+      </ChromeButton>
     );
   }
 
@@ -154,7 +155,7 @@ export function InlineFormatterPicker({
       data-testid={testId}
       className="inline-flex items-center gap-1.5 p-1 bg-[var(--ds-surface-secondary)] border border-border rounded-sm font-sans"
     >
-      <button
+      <ChromeButton
         type="button"
         onClick={() => setExpanded(false)}
         title="Collapse"
@@ -172,7 +173,7 @@ export function InlineFormatterPicker({
         }}
       >
         <ChevronLeft size={12} strokeWidth={1.75} />
-      </button>
+      </ChromeButton>
 
       <FormatDropdown<string>
         value={activePreset?.id ?? ''}
@@ -186,7 +187,7 @@ export function InlineFormatterPicker({
         }))}
         width={240}
         trigger={
-          <button
+          <ChromeButton
             type="button"
             title="Presets"
             data-testid={testId ? `${testId}-preset` : undefined}
@@ -212,7 +213,7 @@ export function InlineFormatterPicker({
               {activePreset?.label ?? 'Preset…'}
             </span>
             <ChevronDown size={12} strokeWidth={1.75} className="opacity-60" />
-          </button>
+          </ChromeButton>
         }
       />
 

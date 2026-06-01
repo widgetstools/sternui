@@ -8,6 +8,7 @@ import type {
   MultiFilterEntry,
   SetFilterOptions,
 } from '../state';
+import { ChromeButton } from '../../../ui/ChromeButton';
 import { Row } from './Row';
 
 /**
@@ -158,7 +159,7 @@ export function FilterEditor({
                 {BUTTONS_ALL.map((b) => {
                   const active = (cfg.buttons ?? []).includes(b);
                   return (
-                    <button
+                    <ChromeButton
                       key={b}
                       type="button"
                       onClick={() => {
@@ -193,7 +194,7 @@ export function FilterEditor({
                       }}
                     >
                       {b}
-                    </button>
+                    </ChromeButton>
                   );
                 })}
               </div>
@@ -215,7 +216,7 @@ export function FilterEditor({
                     if (Number.isFinite(n) && n >= 0) update({ debounceMs: n });
                   }}
                   data-testid={`cols-${colId}-filter-debounce`}
-                  style={{ maxWidth: 160 }}
+                  className="max-w-[160px]"
                 />
               }
             />
@@ -415,7 +416,7 @@ function MultiFilterEditor({
                   <option value="subMenu">Sub-menu</option>
                   <option value="accordion">Accordion</option>
                 </Select>
-                <button
+                <ChromeButton
                   type="button"
                   onClick={() => commit(entries.filter((_, i) => i !== idx))}
                   title="Remove sub-filter"
@@ -431,7 +432,7 @@ function MultiFilterEditor({
                   }}
                 >
                   <X size={12} strokeWidth={2} />
-                </button>
+                </ChromeButton>
               </div>
             ))}
             <Select

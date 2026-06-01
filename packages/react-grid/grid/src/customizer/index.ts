@@ -152,6 +152,11 @@ export {
 } from '@starui/ui';
 export type { ButtonProps } from '@starui/ui';
 export { GhostIconButton } from './ui/GhostIconButton';
+export {
+  ChromeButton,
+  CHROME_BUTTON_RESET,
+  type ChromeButtonProps,
+} from './ui/ChromeButton';
 export type {
   GhostIconButtonProps,
   GhostIconButtonVariant,

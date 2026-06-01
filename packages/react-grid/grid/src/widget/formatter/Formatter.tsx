@@ -136,7 +136,14 @@ export function FormatterToolbar({
       }}
     >
       <div className="fx-toolbar-rows">
-        <div className="fx-toolbar-row" data-fx-row="style">
+        {/*
+          Row 1 — column context + typography + colour (compact).
+          Row 2 — number format, editor/filter, templates, clear.
+          Format deliberately lives on row 2: it is the widest cluster
+          (currency / decimals / picker) and was wrapping alone when
+          packed into row 1, wasting a full line.
+        */}
+        <div className="fx-toolbar-row" data-fx-row="context">
           <ToolbarGroup label="Scope" testId="fmt-group-scope">
             <ModuleContext state={state} actions={actions} />
           </ToolbarGroup>
@@ -146,12 +153,12 @@ export function FormatterToolbar({
           <ToolbarGroup label="Paint" testId="fmt-group-paint">
             <ModulePaint state={state} actions={actions} />
           </ToolbarGroup>
+        </div>
+
+        <div className="fx-toolbar-row" data-fx-row="workflows">
           <ToolbarGroup label="Format" testId="fmt-group-format">
             <ModuleFormat state={state} actions={actions} />
           </ToolbarGroup>
-        </div>
-
-        <div className="fx-toolbar-row" data-fx-row="behavior">
           <ToolbarGroup label="Edit" testId="fmt-group-edit">
             <ModuleEditorFilter state={state} actions={actions} />
           </ToolbarGroup>

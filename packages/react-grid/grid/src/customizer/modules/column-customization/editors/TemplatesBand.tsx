@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { Band, Caps } from '../../../ui/SettingsPanel';
+import { ChromeButton } from '../../../ui/ChromeButton';
 import { Row } from './Row';
 import { TemplatePicker } from './TemplatePicker';
 import type { ColumnTemplate } from '../../column-templates';
@@ -65,7 +66,7 @@ export function TemplatesBand({
                   }}
                 >
                   {t.name}
-                  <button
+                  <ChromeButton
                     type="button"
                     aria-label={`Remove template ${t.name}`}
                     title={`Remove ${t.name}`}
@@ -95,7 +96,7 @@ export function TemplatesBand({
                     }}
                   >
                     <X size={12} strokeWidth={2} />
-                  </button>
+                  </ChromeButton>
                 </span>
               ))}
             </div>

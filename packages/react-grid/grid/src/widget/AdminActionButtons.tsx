@@ -9,6 +9,7 @@
  */
 
 import type { ReactElement } from 'react';
+import { ChromeButton } from '@starui/grid/customizer';
 import {
   Activity,
   BarChart3,
@@ -70,7 +71,7 @@ export function AdminActionButtons({ actions }: AdminActionButtonsProps): ReactE
           ? `${action.label}\n${action.description}`
           : action.label;
         return (
-          <button
+          <ChromeButton
             key={action.id}
             type="button"
             className="ds-primary-action"
@@ -80,7 +81,7 @@ export function AdminActionButtons({ actions }: AdminActionButtonsProps): ReactE
             data-testid={`admin-action-${action.id}`}
           >
             <Icon size={14} strokeWidth={2} />
-          </button>
+          </ChromeButton>
         );
       })}
     </>

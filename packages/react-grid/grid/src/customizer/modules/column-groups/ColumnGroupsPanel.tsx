@@ -53,6 +53,7 @@ import {
   SummaryChip,
   TitleInput,
 } from '../../ui/SettingsPanel';
+import { ChromeButton } from '../../ui/ChromeButton';
 import { StyleEditor, type StyleEditorValue } from '../../ui/StyleEditor';
 import type {
   ColumnGroupNode,
@@ -209,7 +210,7 @@ export function ColumnGroupsList({ selectedId, onSelect }: ListPaneProps) {
           {String(flat.length).padStart(2, '0')}
         </Mono>
         <span className="flex-1" />
-        <button
+        <ChromeButton
           type="button"
           onClick={addTopLevelGroup}
           title="Add group"
@@ -217,7 +218,7 @@ export function ColumnGroupsList({ selectedId, onSelect }: ListPaneProps) {
           className="w-[22px] h-[22px] inline-flex items-center justify-center bg-[var(--ds-primary-soft)] text-[var(--ds-primary)] border border-[var(--ds-primary-ring)] rounded-sm cursor-pointer p-0"
         >
           <Plus size={11} strokeWidth={2.5} />
-        </button>
+        </ChromeButton>
       </div>
       <CockpitList>
         {flat.map((fg) => {
@@ -238,7 +239,7 @@ export function ColumnGroupsList({ selectedId, onSelect }: ListPaneProps) {
                 {fg.node.headerName}
               </span>
               <Tooltip content="Delete">
-                <button
+                <ChromeButton
                   type="button"
                   aria-label="Delete"
                   data-testid={`cg-delete-${fg.node.groupId}`}
@@ -249,7 +250,7 @@ export function ColumnGroupsList({ selectedId, onSelect }: ListPaneProps) {
                   }}
                 >
                   <Trash2 size={14} strokeWidth={2} />
-                </button>
+                </ChromeButton>
               </Tooltip>
             </CockpitListItem>
           );
@@ -529,7 +530,7 @@ const GroupEditor = memo(function GroupEditor({
           index="01"
           title="COLUMNS"
           trailing={
-            <button
+            <ChromeButton
               type="button"
               onClick={addSubgroup}
               disabled={!canAddSubgroup}
@@ -555,7 +556,7 @@ const GroupEditor = memo(function GroupEditor({
               }}
             >
               <FolderPlus size={12} strokeWidth={1.75} /> SUBGROUP
-            </button>
+            </ChromeButton>
           }
         >
           <div className="flex flex-wrap gap-1 items-center">
@@ -572,7 +573,7 @@ const GroupEditor = memo(function GroupEditor({
                   className="inline-flex items-center gap-[5px] pt-[3px] pr-1 pb-[3px] pl-2 rounded-sm bg-background border border-[var(--ds-border-secondary)] font-mono text-[11px] text-foreground"
                 >
                   {info?.headerName ?? c.colId}
-                  <button
+                  <ChromeButton
                     type="button"
                     onClick={() => cycleColumnShow(c.colId)}
                     title={showTooltip(show)}
@@ -592,15 +593,15 @@ const GroupEditor = memo(function GroupEditor({
                     }}
                   >
                     {showIcon(show)}
-                  </button>
-                  <button
+                  </ChromeButton>
+                  <ChromeButton
                     type="button"
                     onClick={() => removeColumn(c.colId)}
                     title="Remove"
                     className="bg-transparent border-none cursor-pointer text-muted-foreground p-0 leading-none"
                   >
                     <XIcon size={11} />
-                  </button>
+                  </ChromeButton>
                 </span>
               );
             })}

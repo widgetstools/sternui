@@ -3,10 +3,9 @@
  *
  * AUDIT i5 partial migration: this stylesheet hosts the structural
  * layout (grid shell, nav rail, content pane, paragraph defaults).
- * Button active/hover states stay inline because they branch on
- * React state. Cheat-sheet inline styles (code blocks, emoji grid)
- * also remain inline since they're either one-offs or state-driven.
- * Full migration is deferred; this establishes the entry point.
+ * Button active/hover states use data attributes + CSS classes so shadcn
+ * ChromeButton can host the control without inline style branches.
+ * Cheat-sheet inline styles (code blocks) remain minimal one-offs.
  * ─────────────────────────────────────────────────────────────────── */
 
 .ds-help-shell {
@@ -43,4 +42,106 @@
 .ds-help-p {
   margin: 6px 0;
   color: var(--ds-text-secondary);
+}
+
+.ds-help-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--ds-text-secondary);
+  font-size: 11px;
+  font-weight: 450;
+  letter-spacing: 0.12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+
+.ds-help-nav-btn[data-active='true'] {
+  background: color-mix(in srgb, var(--ds-accent-positive) 10%, transparent);
+  color: var(--ds-accent-positive);
+  font-weight: 600;
+}
+
+.ds-help-nav-btn[data-active='true'] .ds-help-nav-chevron {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.ds-help-nav-chevron {
+  opacity: 0.5;
+  transform: translateX(-3px);
+  transition: transform 120ms, opacity 120ms;
+}
+
+.ds-help-jump-btn {
+  text-align: left;
+  padding: 8px 10px;
+  border: 1px solid var(--ds-border-primary);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--ds-text-primary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 120ms, background 120ms;
+}
+
+.ds-help-jump-btn:hover {
+  border-color: var(--ds-overlay-positive-ring);
+  background: var(--ds-overlay-positive-soft);
+}
+
+.ds-help-emoji-grid {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 16px;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+}
+
+.ds-help-emoji-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 6px 6px;
+  background: var(--ds-surface-ground);
+  border: 1px solid var(--ds-border-primary);
+  border-radius: 2px;
+  color: var(--ds-text-primary);
+  cursor: pointer;
+  transition: all 120ms;
+}
+
+.ds-help-emoji-tile[data-copied='true'] {
+  background: var(--ds-overlay-positive-soft);
+  border-color: var(--ds-accent-positive);
+}
+
+.ds-help-emoji-glyph {
+  font-size: 22px;
+  line-height: 1;
+  font-family:
+    Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, Twemoji Mozilla, EmojiOne Color, sans-serif;
+}
+
+.ds-help-emoji-label {
+  font-size: 9px;
+  line-height: 1.2;
+  color: var(--ds-text-muted);
+  text-align: center;
+  font-family: var(--ds-font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.ds-help-emoji-tile[data-copied='true'] .ds-help-emoji-label {
+  color: var(--ds-accent-positive);
 }

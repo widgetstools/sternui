@@ -49,7 +49,7 @@ export function HeaderBand({
             onCommit={(v) => setDraft({ headerName: v.trim() ? v : undefined })}
             placeholder={hostHeaderName}
             data-testid={`cols-${colId}-header-name`}
-            style={{ maxWidth: 260 }}
+            className="max-w-[260px]"
           />
         }
       />
@@ -60,7 +60,7 @@ export function HeaderBand({
             value={headerTooltip ?? ''}
             onCommit={(v) => setDraft({ headerTooltip: v.trim() ? v : undefined })}
             data-testid={`cols-${colId}-header-tooltip`}
-            style={{ maxWidth: 320 }}
+            className="max-w-[320px]"
           />
         }
       />

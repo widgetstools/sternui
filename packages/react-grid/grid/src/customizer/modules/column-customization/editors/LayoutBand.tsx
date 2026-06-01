@@ -38,7 +38,7 @@ export function LayoutBand({
               if (Number.isFinite(n) && n > 0) setDraft({ initialWidth: n });
             }}
             data-testid={`cols-${colId}-width`}
-            style={{ maxWidth: 160 }}
+            className="max-w-[160px]"
           />
         }
       />

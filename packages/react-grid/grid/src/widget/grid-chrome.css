@@ -890,3 +890,23 @@
   font-size: 11px;
   color: var(--ds-text-muted);
 }
+
+.ds-float-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  min-height: 22px;
+  border-radius: 2px;
+  background: transparent;
+  border: none;
+  color: var(--ds-text-primary);
+  cursor: pointer;
+  transition: background 150ms, color 150ms;
+  padding: 0;
+}
+
+.ds-float-close-btn:hover {
+  background: color-mix(in srgb, var(--ds-accent-negative) 14%, transparent);
+  color: var(--ds-accent-negative);
+}

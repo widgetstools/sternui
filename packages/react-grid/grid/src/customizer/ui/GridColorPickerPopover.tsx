@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { cn } from '@starui/ui';
 import { Tooltip } from './HoverTooltip';
 import { FormatColorPicker } from './format-editor/FormatColorPicker';
+import { ChromeButton } from './ChromeButton';
 import { FormatPopover } from './format-editor/FormatPopover';
 
 export interface ColorPickerProps {
@@ -49,7 +50,8 @@ export function ColorPickerPopover({
     <FormatPopover
       trigger={
         <Tooltip content={title}>
-          <button
+          <ChromeButton
+            type="button"
             disabled={disabled}
             aria-label={title}
             className={cn(
@@ -64,7 +66,7 @@ export function ColorPickerPopover({
                 style={{ background: value || 'var(--ds-text-muted)' }}
               />
             </span>
-          </button>
+          </ChromeButton>
         </Tooltip>
       }
       width={240}

@@ -4,7 +4,8 @@
  * admin actions, grid info).
  */
 
-import { useState, type ReactElement } from 'react';
+import { useCallback, useState, type ReactElement } from 'react';
+import { applyTheme } from '@starui/design-system';
 import {
   Dialog,
   DialogContent,
@@ -19,11 +20,14 @@ import {
 import {
   FileSpreadsheet,
   Info,
+  Moon,
   MoreVertical,
   Settings as SettingsIcon,
+  Sun,
 } from 'lucide-react';
 import type { AdminAction } from './types';
 import { AdminActionButtons, resolveAdminActionIcon } from './AdminActionButtons';
+import { ChromeButton, useActiveThemeMode } from '@starui/grid/customizer';
 import { GridInfoButton } from './GridInfoButton';
 import { GridInfoContent } from './GridInfoContent';
 
@@ -47,20 +51,10 @@ export interface PrimaryToolbarSecondaryActionsProps {
 
 export function PrimaryToolbarOverflowMenu(
   props: PrimaryToolbarSecondaryActionsProps,
-): ReactElement | null {
+): ReactElement {
   const adminVisible = (props.adminActions ?? []).filter((a) => a.visible !== false);
   const showExcel = props.showVisualExcelExport && props.visualExcelExportEnabled;
-  const hasMenuItems = showExcel || props.showSettingsButton || adminVisible.length > 0;
   const showLeadingDivider = props.showLeadingDivider ?? true;
-
-  if (!hasMenuItems) {
-    return (
-      <GridInfoButton
-        {...gridInfoProps(props)}
-        showLeadingDivider={showLeadingDivider}
-      />
-    );
-  }
 
   return (
     <OverflowMenu
@@ -100,13 +94,14 @@ function OverflowMenu({
   showLeadingDivider: boolean;
 }): ReactElement {
   const [infoOpen, setInfoOpen] = useState(false);
+  const hasActionItems = showExcel || showSettingsButton || adminVisible.length > 0;
 
   return (
     <>
       {showLeadingDivider ? <span className="ds-primary-divider" aria-hidden /> : null}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button
+          <ChromeButton
             type="button"
             className="ds-primary-action"
             title="More actions"
@@ -114,7 +109,7 @@ function OverflowMenu({
             data-testid="toolbar-more-menu-trigger"
           >
             <MoreVertical size={14} strokeWidth={2} />
-          </button>
+          </ChromeButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="fx-menu w-max min-w-0 p-0.5">
           {showExcel ? (
@@ -158,6 +153,8 @@ function OverflowMenu({
               </DropdownMenuItem>
             );
           })}
+          {hasActionItems ? <DropdownMenuSeparator /> : null}
+          <ThemeToggleMenuItem />
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onSelect={() => setInfoOpen(true)}
@@ -188,6 +185,30 @@ function OverflowMenu({
   );
 }
 
+function ThemeToggleMenuItem(): ReactElement {
+  const mode = useActiveThemeMode();
+  const isDark = mode === 'dark';
+
+  const handleSelect = useCallback(() => {
+    applyTheme({ theme: isDark ? 'light' : 'dark' });
+  }, [isDark]);
+
+  return (
+    <DropdownMenuItem
+      onSelect={handleSelect}
+      data-testid="toolbar-theme-toggle"
+      className="gap-1.5 px-2 py-1"
+    >
+      {isDark ? (
+        <Sun size={14} strokeWidth={2} className="shrink-0 opacity-80" />
+      ) : (
+        <Moon size={14} strokeWidth={2} className="shrink-0 opacity-80" />
+      )}
+      {isDark ? 'Light theme' : 'Dark theme'}
+    </DropdownMenuItem>
+  );
+}
+
 /** Inline icon cluster — opt-in via `toolbarActionsLayout="inline"`. */
 export function PrimaryToolbarInlineActions(
   props: PrimaryToolbarSecondaryActionsProps,
@@ -199,7 +220,7 @@ export function PrimaryToolbarInlineActions(
       {props.showVisualExcelExport && props.visualExcelExportEnabled ? (
         <>
           {showLeadingDivider ? <span className="ds-primary-divider" aria-hidden /> : null}
-          <button
+          <ChromeButton
             type="button"
             className="ds-primary-action"
             onClick={props.onExportVisualExcel}
@@ -208,7 +229,7 @@ export function PrimaryToolbarInlineActions(
             aria-label="Export to Excel"
           >
             <FileSpreadsheet size={14} strokeWidth={2} />
-          </button>
+          </ChromeButton>
         </>
       ) : null}
 
@@ -217,7 +238,7 @@ export function PrimaryToolbarInlineActions(
           {(props.showVisualExcelExport && props.visualExcelExportEnabled) || showLeadingDivider ? (
             <span className="ds-primary-divider" aria-hidden />
           ) : null}
-          <button
+          <ChromeButton
             type="button"
             className="ds-primary-action"
             onClick={props.onOpenSettings}
@@ -225,7 +246,7 @@ export function PrimaryToolbarInlineActions(
             data-testid="v2-settings-open-btn"
           >
             <SettingsIcon size={14} strokeWidth={2} />
-          </button>
+          </ChromeButton>
         </>
       ) : null}
 

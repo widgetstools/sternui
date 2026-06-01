@@ -1,6 +1,7 @@
 import { Copy, Info } from 'lucide-react';
 import { FormatPopover } from '../format-editor';
 import { EXCEL_EXAMPLES } from './excelExamples';
+import { ChromeButton } from '../ChromeButton';
 
 /**
  * Info popover with categorised Excel format examples. Clicking any
@@ -26,7 +27,7 @@ export function ExcelReferencePopover({
     <FormatPopover
       width={420}
       trigger={
-        <button
+        <ChromeButton
           type="button"
           title="Excel format reference"
           data-testid={testId}
@@ -45,7 +46,7 @@ export function ExcelReferencePopover({
           }}
         >
           <Info size={12} strokeWidth={1.75} />
-        </button>
+        </ChromeButton>
       }
     >
       {({ close }) => {
@@ -87,7 +88,7 @@ export function ExcelReferencePopover({
                 const copyable = !ex.format.startsWith('—');
                 return (
                   <li key={id}>
-                    <button
+                    <ChromeButton
                       type="button"
                       onClick={() => copyable && handleCopy(ex.format)}
                       disabled={!copyable}
@@ -145,7 +146,7 @@ export function ExcelReferencePopover({
                           <Copy size={11} strokeWidth={1.75} style={{ opacity: 0.5 }} />
                         ) : null}
                       </span>
-                    </button>
+                    </ChromeButton>
                   </li>
                 );
               })}

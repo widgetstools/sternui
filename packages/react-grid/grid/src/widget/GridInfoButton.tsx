@@ -9,7 +9,12 @@
  */
 
 import type { ReactElement } from 'react';
-import { Popover, PopoverContent, PopoverTrigger } from '@starui/grid/customizer';
+import {
+  ChromeButton,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@starui/grid/customizer';
 import { Info } from 'lucide-react';
 import { GridInfoContent } from './GridInfoContent';
 
@@ -35,7 +40,7 @@ export function GridInfoButton({
       {showLeadingDivider ? <span className="ds-primary-divider" aria-hidden /> : null}
       <Popover>
         <PopoverTrigger asChild>
-          <button
+          <ChromeButton
             type="button"
             className="ds-primary-action"
             title="Grid info"
@@ -43,7 +48,7 @@ export function GridInfoButton({
             data-testid="grid-info-btn"
           >
             <Info size={14} strokeWidth={2} />
-          </button>
+          </ChromeButton>
         </PopoverTrigger>
         <PopoverContent
           align="end"

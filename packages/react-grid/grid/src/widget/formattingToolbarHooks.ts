@@ -86,6 +86,47 @@ export function readFirstRowValue(api: GridApi | null, colId: string): unknown {
   }
 }
 
+/** Toolbar picker enum — mirrors `PickerDataType` in formatter/state.ts. */
+export type ToolbarPickerDataType = 'number' | 'date' | 'datetime' | 'boolean' | 'string';
+
+function looksLikeDateTimeValue(value: unknown): boolean {
+  if (value instanceof Date) {
+    return !(
+      value.getUTCHours() === 0
+      && value.getUTCMinutes() === 0
+      && value.getUTCSeconds() === 0
+      && value.getUTCMilliseconds() === 0
+    );
+  }
+  if (typeof value === 'string') {
+    const s = value.trim();
+    if (!s) return false;
+    // ISO 8601 timestamps (typical for ag-grid `dateString` columns).
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return true;
+    if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(s)) return true;
+  }
+  return false;
+}
+
+/** Map a column's declared type + sample value → FormatterPicker dataType. */
+export function resolveToolbarPickerDataType(
+  api: GridApi | null,
+  colId: string | undefined,
+): ToolbarPickerDataType {
+  if (!colId) return 'number';
+  const raw = readCellDataType(api, colId);
+  if (raw === 'dateTimeString' || raw === 'datetime' || raw === 'dateString') {
+    return 'datetime';
+  }
+  if (raw === 'date') {
+    return looksLikeDateTimeValue(readFirstRowValue(api, colId)) ? 'datetime' : 'date';
+  }
+  if (raw === 'boolean') return 'boolean';
+  if (raw === 'text' || raw === 'string') return 'string';
+  if (raw === 'number' || raw === 'numeric') return 'number';
+  return 'number';
+}
+
 // ─── Active-column tracking ─────────────────────────────────────────────
 
 export function useActiveColumns(): string[] {

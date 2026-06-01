@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { ChromeButton } from '../../../ui/ChromeButton';
 import { Select } from '../../../ui/NativeOptionsSelect';
 import { useGridColumns } from '../../../hooks/useGridColumns';
 
@@ -59,7 +60,7 @@ export const ColumnPickerMulti = memo(function ColumnPickerMulti({
                 }}
               >
                 {col?.headerName ?? colId}
-                <button
+                <ChromeButton
                   type="button"
                   onClick={() => onChange(value.filter((v) => v !== colId))}
                   title="Remove"
@@ -74,7 +75,7 @@ export const ColumnPickerMulti = memo(function ColumnPickerMulti({
                   }}
                 >
                   ×
-                </button>
+                </ChromeButton>
               </span>
             );
           })

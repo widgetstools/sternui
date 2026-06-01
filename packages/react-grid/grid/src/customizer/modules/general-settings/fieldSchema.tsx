@@ -82,7 +82,7 @@ export function NumberControl({
         onChange(n);
       }}
       data-testid={testId}
-      style={{ maxWidth: 180 }}
+      className="max-w-[180px]"
     />
   );
 }
@@ -124,7 +124,7 @@ function OptNumberControl({
         onChange(n);
       }}
       data-testid={testId}
-      style={{ maxWidth: 180 }}
+      className="max-w-[180px]"
     />
   );
 }
@@ -146,7 +146,7 @@ function TextControl({
       onCommit={onChange}
       placeholder={placeholder}
       data-testid={testId}
-      style={{ maxWidth: 280 }}
+      className="max-w-[280px]"
     />
   );
 }

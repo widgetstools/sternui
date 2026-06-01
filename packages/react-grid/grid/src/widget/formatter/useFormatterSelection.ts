@@ -12,10 +12,11 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useGridPlatform } from '@starui/grid/customizer';
+import { useGridPlatform, useModuleState } from '@starui/grid/customizer';
+import type { ColumnCustomizationState } from '@starui/grid/customizer';
 import {
-  readCellDataType,
   readHeaderName,
+  resolveToolbarPickerDataType,
   useActiveColumns,
   useColumnFormatting,
   type ResolvedFormatting,
@@ -58,6 +59,7 @@ export interface FormatterSelection {
 
 export function useFormatterSelection(): FormatterSelection {
   const platform = useGridPlatform();
+  const [cust] = useModuleState<ColumnCustomizationState>('column-customization');
   const colIds = useActiveColumns();
   const colIdsRef = useRef(colIds);
   colIdsRef.current = colIds;
@@ -83,10 +85,13 @@ export function useFormatterSelection(): FormatterSelection {
   const colLabel = useMemo(() => {
     if (colIds.length === 0) return 'Select a cell';
     if (colIds.length === 1) {
-      return readHeaderName(platform.api.api, colIds[0]) ?? colIds[0];
+      const colId = colIds[0];
+      const assigned = cust?.assignments?.[colId]?.headerName?.trim();
+      if (assigned) return assigned;
+      return readHeaderName(platform.api.api, colId) ?? colId;
     }
     return `${colIds.length} columns`;
-  }, [colIds, platform]);
+  }, [colIds, cust, platform]);
 
   // pickerDataType — re-evaluates on column / data-render events so
   // auto-detected types take effect once they land on the colDef.
@@ -105,15 +110,9 @@ export function useFormatterSelection(): FormatterSelection {
     };
   }, [platform]);
 
-  const pickerDataType = useMemo<PickerDataType>(() => {
-    if (colIds.length === 0) return 'number';
-    const raw = readCellDataType(platform.api.api, colIds[0]);
-    if (raw === 'dateTimeString' || raw === 'datetime') return 'datetime';
-    if (raw === 'date' || raw === 'dateString') return 'date';
-    if (raw === 'boolean') return 'boolean';
-    if (raw === 'text' || raw === 'string') return 'string';
-    if (raw === 'number' || raw === 'numeric') return 'number';
-    return 'number';
+  const pickerDataType = useMemo(() => {
+    if (colIds.length === 0) return 'number' as const;
+    return resolveToolbarPickerDataType(platform.api.api, colIds[0]);
     // Reason: `platform.api.api` is read inside the callback but is a
     // mutable ApiHub field, not a React-tracked dep. `colEventTick`
     // increments whenever AG-Grid fires a column-related event, which
