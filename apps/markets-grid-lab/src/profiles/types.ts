@@ -26,6 +26,7 @@ export interface ProfilePreset {
   toolbars?: {
     showFiltersToolbar?: boolean;
     showFormattingToolbar?: boolean;
+    showEditingToolbar?: boolean;
   };
   /** Stream override — slower / faster for the preset. */
   stream?: { rowCount?: number; updateIntervalMs?: number };

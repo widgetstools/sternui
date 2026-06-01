@@ -80,6 +80,7 @@ export function App() {
           handlerMeta={gridHandlerMeta}
           showFiltersToolbar
           showFormattingToolbar
+          showEditingToolbar
         />
       </div>
     </div>

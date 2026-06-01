@@ -137,6 +137,7 @@ function PresetGridView({
           onReady={onReady}
           showFiltersToolbar={preset.toolbars?.showFiltersToolbar}
           showFormattingToolbar={preset.toolbars?.showFormattingToolbar}
+          showEditingToolbar={preset.toolbars?.showEditingToolbar}
           showProfileSelector
           showSaveButton
           showSettingsButton

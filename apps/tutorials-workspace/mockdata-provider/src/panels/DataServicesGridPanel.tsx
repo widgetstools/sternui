@@ -130,6 +130,7 @@ export function DataServicesGridPanel() {
         storage={storage}
         showFiltersToolbar
         showFormattingToolbar
+        showEditingToolbar
         showProfileSelector
         showSaveButton
         showSettingsButton

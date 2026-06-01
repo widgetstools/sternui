@@ -191,8 +191,7 @@ export function BulkUpdateToolbarBody({ layout = 'standalone' }: EditingToolbarS
       </Tooltip>
       <span
         className={cn(
-          'ds-bulk-update-toolbar__count',
-          segment && 'ml-0',
+          segment ? 'ds-editing-toolbar__meta' : 'ds-bulk-update-toolbar__count',
         )}
         data-testid="bulk-update-count"
       >

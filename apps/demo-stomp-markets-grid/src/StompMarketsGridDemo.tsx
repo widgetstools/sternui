@@ -58,6 +58,7 @@ export function StompMarketsGridDemo() {
       withStorage
       configManager={getPlatform().configManager}
       showFormattingToolbar
+      showEditingToolbar
       showProfileSelector
       showSaveButton
       sideBar={{ toolPanels: ['columns', 'filters'] }}

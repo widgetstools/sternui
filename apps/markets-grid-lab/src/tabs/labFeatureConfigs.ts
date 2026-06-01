@@ -183,6 +183,7 @@ export const OVERVIEW_FEATURE: LabFeatureConfig = {
   grid: {
     showFiltersToolbar: true,
     showFormattingToolbar: true,
+    showEditingToolbar: true,
     showProfileSelector: true,
     showSaveButton: true,
     showSettingsButton: true,
@@ -212,6 +213,7 @@ export const FORMATTING_FEATURE: LabFeatureConfig = {
   getColumnDefs: () => FORMATTING_COLUMNS,
   grid: {
     showFormattingToolbar: true,
+    showEditingToolbar: true,
     showVisualExcelExport: true,
     showProfileSelector: true,
     showSaveButton: true,
@@ -246,6 +248,7 @@ export const VISUAL_EXCEL_FEATURE: LabFeatureConfig = {
   getColumnDefs: () => VISUAL_EXCEL_COLUMNS,
   grid: {
     showFormattingToolbar: true,
+    showEditingToolbar: true,
     showVisualExcelExport: true,
     showProfileSelector: true,
     showSaveButton: true,
@@ -287,6 +290,7 @@ export const FORMATTER_TOOLBAR_FEATURE: LabFeatureConfig = {
   getColumnDefs: () => FORMATTER_TOOLBAR_COLUMNS,
   grid: {
     showFormattingToolbar: true,
+    showEditingToolbar: true,
     showProfileSelector: true,
     showSaveButton: true,
     showSettingsButton: true,

@@ -202,7 +202,7 @@ export function SmartEditToolbarBody({ layout = 'standalone' }: EditingToolbarSe
       )}
       data-testid="smart-edit-toolbar"
     >
-      <span className="ds-smart-edit-toolbar__label">Smart edit</span>
+      <span className="ds-smart-edit-toolbar__label">{segment ? 'Smart' : 'Smart edit'}</span>
       <Input
         className={cn('ds-smart-edit-toolbar__operand', EDITING_TOOLBAR_CONTROL)}
         value={operand}

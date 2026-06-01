@@ -57,6 +57,7 @@ export function DirectGridPanel() {
         storage={storage}
         showFiltersToolbar
         showFormattingToolbar
+        showEditingToolbar
         showProfileSelector
         showSaveButton
         showSettingsButton

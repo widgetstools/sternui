@@ -26,7 +26,7 @@ export interface EditingToolbarProps {
 function ToolbarSeparator() {
   return (
     <span
-      className="mx-1 hidden h-5 w-px shrink-0 bg-[color:var(--ds-border-primary)] sm:inline-block"
+      className="ds-editing-toolbar__sep"
       aria-hidden
     />
   );
@@ -70,13 +70,12 @@ export function EditingToolbar({ allow }: EditingToolbarProps) {
       )}
       data-testid="editing-toolbar-pinned"
     >
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-        {primary}
-      </div>
+      {primary}
       {showKeyboard && (
-        <div className="ml-auto flex shrink-0 items-center pl-1">
+        <>
+          <ToolbarSeparator />
           <EditingToolbarKeyboardMenu />
-        </div>
+        </>
       )}
     </div>
   );

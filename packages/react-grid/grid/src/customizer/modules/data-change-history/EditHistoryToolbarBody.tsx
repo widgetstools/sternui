@@ -80,8 +80,7 @@ export function EditHistoryToolbarBody({ layout = 'standalone' }: EditingToolbar
       </EditingToolbarOpGroup>
       <span
         className={cn(
-          'ds-edit-history-toolbar__count',
-          segment && 'ml-0',
+          segment ? 'ds-editing-toolbar__meta' : 'ds-edit-history-toolbar__count',
         )}
         data-testid="edit-history-count"
       >

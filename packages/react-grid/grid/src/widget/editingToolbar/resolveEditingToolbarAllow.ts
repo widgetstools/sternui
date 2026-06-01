@@ -38,8 +38,7 @@ export function resolveEditingToolbarAllow(
     showSmartEditToolbar || showBulkUpdateToolbar || showEditHistoryToolbar,
   );
 
-  // `??` would treat explicit `showEditingToolbar: false` (MarketsGrid default) as
-  // set — use `||` so legacy props still enable the row when the unified prop is off.
+  // Use `||` so legacy props still enable the row when the unified prop is off.
   const rowVisible = Boolean(showEditingToolbar) || legacyAny;
 
   if (showEditingToolbar && !legacySpecified) {
@@ -56,5 +55,45 @@ export function resolveEditingToolbarAllow(
     allowHistory: Boolean(showEditHistoryToolbar),
     allowSmartEdit: Boolean(showSmartEditToolbar),
     allowBulkUpdate: Boolean(showBulkUpdateToolbar),
+  };
+}
+
+export interface EditingModuleEnabledSnapshot {
+  smartEdit: boolean;
+  bulkUpdate: boolean;
+  history: boolean;
+}
+
+function editingToolbarLegacyAny(props: EditingToolbarHostProps): boolean {
+  return Boolean(
+    props.showSmartEditToolbar || props.showBulkUpdateToolbar || props.showEditHistoryToolbar,
+  );
+}
+
+/**
+ * When the host did not opt in via props, derive the primary-row pencil toggle
+ * from Custom Settings module switches (`settings.enabled` on smart-edit,
+ * bulk-update, data-change-history). Explicit `showEditingToolbar: false`
+ * (without legacy segment props) suppresses auto-detection.
+ */
+export function mergeEditingToolbarAllowWithModules(
+  base: EditingToolbarAllow,
+  hostProps: EditingToolbarHostProps,
+  modules: EditingModuleEnabledSnapshot,
+): EditingToolbarAllow {
+  if (base.rowVisible) return base;
+
+  if (hostProps.showEditingToolbar === false && !editingToolbarLegacyAny(hostProps)) {
+    return base;
+  }
+
+  const anyModuleEnabled = modules.smartEdit || modules.bulkUpdate || modules.history;
+  if (!anyModuleEnabled) return base;
+
+  return {
+    rowVisible: true,
+    allowHistory: true,
+    allowSmartEdit: true,
+    allowBulkUpdate: true,
   };
 }

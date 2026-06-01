@@ -420,6 +420,7 @@ function AppInner({
             userId={DEMO_USER_ID}
             showFiltersToolbar
             showFormattingToolbar
+            showEditingToolbar
             onGridReady={handleGridReady}
             sideBar={DEMO_BLOTTER_SIDE_BAR}
             statusBar={DEMO_BLOTTER_STATUS_BAR}

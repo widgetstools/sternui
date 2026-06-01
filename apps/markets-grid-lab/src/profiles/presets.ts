@@ -59,7 +59,7 @@ reference data.
 - **Row height**: 32 px (compact)
 - **Cell flash**: on`,
   rowHeight: 32,
-  toolbars: { showFiltersToolbar: true, showFormattingToolbar: true },
+  toolbars: { showFiltersToolbar: true, showFormattingToolbar: true, showEditingToolbar: true },
   buildColumns: () => {
     const cols = pickColumns(TRADER_FIELDS);
     return cols.map((c) => {
@@ -438,7 +438,7 @@ pre-painted cell/header styles or a blank canvas for live painting.`,
     ]),
   demoProfiles: FORMATTER_TOOLBAR_DEMO_PROFILES,
   activeDemoProfileId: FORMATTER_TOOLBAR_ACTIVE_PROFILE_ID,
-  toolbars: { showFormattingToolbar: true },
+  toolbars: { showFormattingToolbar: true, showEditingToolbar: true },
 };
 
 const calculatedColumnsLab: ProfilePreset = {

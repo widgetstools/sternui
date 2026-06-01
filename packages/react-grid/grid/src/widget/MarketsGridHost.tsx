@@ -26,7 +26,8 @@ import type { AnyModule, StorageAdapter } from '@starui/engine';
 import type { AdminAction, MarketsGridHandle, MarketsGridProps } from './types';
 import { FormattingToolbar } from './FormattingToolbar';
 import { EditingToolbar } from './editingToolbar/EditingToolbar';
-import type { EditingToolbarAllow } from './editingToolbar/resolveEditingToolbarAllow';
+import type { EditingToolbarHostProps } from './editingToolbar/resolveEditingToolbarAllow';
+import { useEffectiveEditingToolbarAllow } from './editingToolbar/useEffectiveEditingToolbarAllow';
 import { SettingsSheet } from './SettingsSheet';
 import { useMarketsGridController } from './useMarketsGridController';
 import { useToolbarDateSettingsBridge } from '../customizer/modules/toolbar-date-settings/useToolbarDateSettingsBridge';
@@ -54,7 +55,7 @@ export interface MarketsGridHostProps<TData> {
   showToolbar: boolean;
   showFiltersToolbar: boolean;
   showFormattingToolbar: boolean;
-  editingToolbarAllow: EditingToolbarAllow;
+  editingToolbarHostProps: EditingToolbarHostProps;
   showSaveButton: boolean;
   showSettingsButton: boolean;
   showVisualExcelExport: boolean;
@@ -108,7 +109,7 @@ export function MarketsGridHost<TData>({
   showToolbar,
   showFiltersToolbar,
   showFormattingToolbar,
-  editingToolbarAllow,
+  editingToolbarHostProps,
   showSaveButton,
   showSettingsButton,
   showVisualExcelExport,
@@ -182,6 +183,8 @@ export function MarketsGridHost<TData>({
     onGridLevelDataLoad,
     onSavingChange,
   });
+
+  const editingToolbarAllow = useEffectiveEditingToolbarAllow(editingToolbarHostProps);
 
   const toolbarDateBridge = useToolbarDateSettingsBridge({
     toolbarDate,

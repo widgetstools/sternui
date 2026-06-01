@@ -66,6 +66,7 @@ export function Blotter() {
           configManager={getPlatform().configManager}
           showFiltersToolbar
           showFormattingToolbar
+          showEditingToolbar
         />
       </div>
     </div>

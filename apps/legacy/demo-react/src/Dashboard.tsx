@@ -141,6 +141,7 @@ function GridPanel({
           userId={DEMO_USER_ID}
           showFiltersToolbar
           showFormattingToolbar
+          showEditingToolbar
           sideBar={{ toolPanels: ['columns', 'filters'] }}
           statusBar={{
             statusPanels: [

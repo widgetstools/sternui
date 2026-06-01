@@ -46,7 +46,6 @@ import { useGridHost } from './useGridHost';
 import { resolveMarketsGridHost } from './resolveMarketsGridHost';
 import { resolveSurfaceHostOverrideKeys } from './gridSurfaceOptions';
 import { MarketsGridHost } from './MarketsGridHost';
-import { resolveEditingToolbarAllow } from './editingToolbar/resolveEditingToolbarAllow';
 import { todayIsoDate, type ToolbarIsoDate } from './toolbarDateUtils';
 
 let _agRegistered = false;
@@ -115,7 +114,7 @@ function MarketsGridInner<TData = unknown>(
     showToolbar = true,
     showFiltersToolbar = false,
     showFormattingToolbar = false,
-    showEditingToolbar = false,
+    showEditingToolbar,
     showSmartEditToolbar,
     showBulkUpdateToolbar,
     showEditHistoryToolbar,
@@ -329,8 +328,8 @@ function MarketsGridInner<TData = unknown>(
     );
   }
 
-  const editingToolbarAllow = useMemo(
-    () => resolveEditingToolbarAllow({
+  const editingToolbarHostProps = useMemo(
+    () => ({
       showEditingToolbar,
       showSmartEditToolbar,
       showBulkUpdateToolbar,
@@ -361,7 +360,7 @@ function MarketsGridInner<TData = unknown>(
         showToolbar={showToolbar}
         showFiltersToolbar={showFiltersToolbar}
         showFormattingToolbar={showFormattingToolbar}
-        editingToolbarAllow={editingToolbarAllow}
+        editingToolbarHostProps={editingToolbarHostProps}
         showSaveButton={showSaveButton}
         showSettingsButton={showSettingsButton}
         showVisualExcelExport={showVisualExcelExport}

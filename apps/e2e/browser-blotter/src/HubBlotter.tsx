@@ -43,6 +43,7 @@ function HubBlotter({ fullChrome }: { fullChrome: boolean }) {
       configManager={getPlatform().configManager}
       showFiltersToolbar={fullChrome}
       showFormattingToolbar={fullChrome}
+      showEditingToolbar={fullChrome}
       showProfileSelector={fullChrome}
       showSaveButton={fullChrome}
     />

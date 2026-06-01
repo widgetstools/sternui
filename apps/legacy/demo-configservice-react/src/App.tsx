@@ -594,6 +594,7 @@ function AppInner() {
             adminActions={adminActions}
             showFiltersToolbar
             showFormattingToolbar
+            showEditingToolbar
             onGridReady={handleGridReady}
             sideBar={{ toolPanels: ['columns', 'filters'] }}
             statusBar={{

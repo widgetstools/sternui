@@ -250,6 +250,7 @@ export function App() {
               storage={storage}
               showFiltersToolbar
               showFormattingToolbar
+              showEditingToolbar
               showProfileSelector
               showSaveButton
               showSettingsButton

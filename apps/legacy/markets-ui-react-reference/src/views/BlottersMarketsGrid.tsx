@@ -41,6 +41,7 @@ function BlottersMarketsGrid(): ReactNode {
       onEditProvider={handleEditProvider}
       showFiltersToolbar
       showFormattingToolbar
+      showEditingToolbar
       defaultColDef={DEFAULT_COL_DEF}
     />
   );

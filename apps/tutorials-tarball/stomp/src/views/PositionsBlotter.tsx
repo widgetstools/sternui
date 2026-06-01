@@ -17,6 +17,7 @@ export function PositionsBlotter() {
         configManager={configManager}
         showFiltersToolbar
         showFormattingToolbar
+        showEditingToolbar
         showProfileSelector
         showSaveButton
         sideBar={{ toolPanels: ['columns', 'filters'] }}

@@ -86,4 +86,4 @@ export function EditingToolbarOpButton({
 
 /** Shared compact control classes for inputs and select triggers. */
 export const EDITING_TOOLBAR_CONTROL =
-  'ds-editing-toolbar__control h-7 min-h-7 px-2 text-xs shadow-none';
+  'ds-editing-toolbar__control h-6 min-h-6 px-2 text-xs shadow-none';

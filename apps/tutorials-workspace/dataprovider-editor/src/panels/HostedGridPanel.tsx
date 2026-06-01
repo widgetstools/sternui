@@ -36,6 +36,7 @@ export function HostedGridPanel({ instanceId, componentName, onEditProvider }: H
         onEditProvider={onEditProvider}
         showFiltersToolbar
         showFormattingToolbar
+        showEditingToolbar
         showProfileSelector
         showSaveButton
         showSettingsButton

@@ -270,6 +270,7 @@ function HostedGridDocs() {
   onEditProvider={(providerId) => { ... bring editor to front ... }}
   showFiltersToolbar
   showFormattingToolbar
+  showEditingToolbar
   showProfileSelector
   showSaveButton
   showSettingsButton
