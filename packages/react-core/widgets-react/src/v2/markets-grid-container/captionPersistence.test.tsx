@@ -22,6 +22,12 @@ vi.mock('@starui/grid', () => ({
     lastMarketsGridProps.current = props;
     return <div data-testid="markets-grid-stub" data-caption={props.caption ?? ''} />;
   },
+  createMarketsGridContainerEventBus: () => ({
+    emit: vi.fn(),
+    on: vi.fn(() => () => {}),
+  }),
+  MARKETS_GRID_EVENT_CATALOG: [],
+  useMarketsGridEventBridge: vi.fn(),
 }));
 
 vi.mock('@starui/host-data-react/runtime', () => ({

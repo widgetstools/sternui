@@ -45,6 +45,11 @@ import {
 import { getValueByPath } from '@starui/shared-types';
 import { createApplyProviderToGridState } from './applyProviderToGrid.js';
 import { LOGGED_IN_USER_ID } from '@starui/types';
+import {
+  createConfigBrowserAction,
+} from '@starui/config-browser';
+import type { AdminAction } from '@starui/grid';
+import { ConfigBrowserDialog } from './ConfigBrowserDialog.js';
 import { ProviderEditorDialog } from './ProviderEditorDialog.js';
 import { MarketsGridLoadingOverlay } from './LoadingOverlay.js';
 import { isOpenFinRuntime } from './openFinRuntime.js';
@@ -60,6 +65,19 @@ import {
 export type { ProviderMode, ProviderSelection } from './gridLevelState.js';
 
 const EMPTY: never[] = [];
+
+/** Stable id for overflow-menu e2e (`admin-action-data-provider-editor`). */
+export const DATA_PROVIDER_EDITOR_ACTION_ID = 'data-provider-editor';
+
+function mergeAdminActions(
+  prepend: AdminAction[],
+  infra: AdminAction[],
+  user: AdminAction[],
+): AdminAction[] {
+  const userIds = new Set(user.map((a) => a.id));
+  const dedupedInfra = infra.filter((a) => !userIds.has(a.id));
+  return [...prepend, ...dedupedInfra, ...user];
+}
 
 /**
  * Gate for hot-path diagnostic logs. Flip to `true` locally when debugging
@@ -92,7 +110,13 @@ export interface MarketsGridContainerProps<TData extends Record<string, unknown>
    * Custom Settings. In a browser runtime the container opens
    * {@link DataProviderEditor} in a shadcn dialog instead.
    */
-  onEditProvider?(providerId: string): void;
+  onEditProvider?(providerId: string | null): void;
+  /**
+   * OpenFin only: called when the user opens Config Browser from the
+   * toolbar overflow menu. In a browser runtime the container opens
+   * {@link ConfigBrowserPanel} in a shadcn dialog instead.
+   */
+  onOpenConfigBrowser?(): void;
   /** Surface stream errors. Defaults to console.error. */
   onError?(error: Error): void;
   /**
@@ -119,6 +143,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const {
     historicalDateAppDataRef,
     onEditProvider,
+    onOpenConfigBrowser,
     onError,
     onReady: onReadyProp,
     defaultLiveProviderId,
@@ -183,6 +208,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const pendingToolbarReloadRef = useRef(false);
   const [providerEditorOpen, setProviderEditorOpen] = useState(false);
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
+  const [configBrowserOpen, setConfigBrowserOpen] = useState(false);
 
   // Initial load. If the adapter doesn't implement grid-level data
   // (older third-party adapters), or there's no adapter at all, we
@@ -744,12 +770,15 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   /** Full re-acquire — `IDataProvider.restart()` with toolbar extra payload. */
   const reloadFromSource = useCallback(async () => {
     if (!activeId || !provider) return;
-    const extra = (selection.mode === 'historical' && asOfDate)
-      ? { asOfDate }
+    const asOfForRestart = selection.mode === 'historical'
+      ? (asOfDate ?? (isHistoricalToolbarDate(toolbarDate) ? toolbarDate : null))
+      : null;
+    const extra = asOfForRestart
+      ? { asOfDate: asOfForRestart }
       : { __refresh: Date.now() };
     if (
       selection.mode === 'historical'
-      && asOfDate
+      && asOfForRestart
       && historicalDateAppDataRef
     ) {
       const dot = historicalDateAppDataRef.indexOf('.');
@@ -757,7 +786,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         const name = historicalDateAppDataRef.slice(0, dot);
         const key = historicalDateAppDataRef.slice(dot + 1);
         try {
-          await appData.store.set(name, key, asOfDate);
+          await appData.store.set(name, key, asOfForRestart);
         } catch (err: unknown) {
           (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
           return;
@@ -804,7 +833,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     void restartProvider(extra).catch((err: unknown) => {
       (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
     });
-  }, [activeId, provider, selection.mode, asOfDate, liveApi, restartProvider, onError, activeRow.cfg, appData.store, historicalDateAppDataRef]);
+  }, [activeId, provider, selection.mode, asOfDate, toolbarDate, liveApi, restartProvider, onError, activeRow.cfg, appData.store, historicalDateAppDataRef]);
 
   // Restart the active provider after toolbar date / mode changes.
   // Wait for `liveApi` so the provider wiring effect registers snapshot
@@ -826,7 +855,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     reloadFromSource,
   ]);
 
-  const handleProviderEdit = useCallback((providerId: string) => {
+  const handleProviderEdit = useCallback((providerId: string | null) => {
     if (isOpenFinRuntime()) {
       onEditProvider?.(providerId);
       return;
@@ -834,6 +863,30 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     setEditingProviderId(providerId);
     setProviderEditorOpen(true);
   }, [onEditProvider]);
+
+  const handleOpenConfigBrowser = useCallback(() => {
+    if (isOpenFinRuntime()) {
+      onOpenConfigBrowser?.();
+      return;
+    }
+    setConfigBrowserOpen(true);
+  }, [onOpenConfigBrowser]);
+
+  const userAdminActions = useMemo(
+    () => (marketsGridProps as { adminActions?: AdminAction[] }).adminActions ?? [],
+    [marketsGridProps],
+  );
+
+  const dataProviderInfraAdminActions = useMemo<AdminAction[]>(() => [
+    {
+      id: DATA_PROVIDER_EDITOR_ACTION_ID,
+      label: 'Data Provider Editor',
+      description: 'Edit provider configs, STOMP paths, and field mappings',
+      icon: 'lucide:plug',
+      onClick: () => handleProviderEdit(activeId ?? null),
+    },
+    createConfigBrowserAction({ launch: handleOpenConfigBrowser }),
+  ], [activeId, handleProviderEdit, handleOpenConfigBrowser]);
 
   const setEventBindingsAll = useCallback((next: Record<string, string[]>) => {
     setEventBindings(next);
@@ -907,6 +960,51 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     />
   );
 
+  const configBrowserDialog = (
+    <ConfigBrowserDialog
+      open={configBrowserOpen}
+      onOpenChange={setConfigBrowserOpen}
+    />
+  );
+
+  const dataDialogs = (
+    <>
+      {providerEditorDialog}
+      {configBrowserDialog}
+    </>
+  );
+
+  const refreshReloadAdminActions = useMemo<AdminAction[]>(() => [
+    {
+      id: 'refresh-view',
+      label: 'Refresh view',
+      description: activeProviderName
+        ? `Replay cached rows for ${activeProviderName} without reconnecting`
+        : 'Replay cached rows without reconnecting',
+      icon: 'lucide:refresh-cw',
+      onClick: refreshView,
+    },
+    {
+      id: 'reload-from-source',
+      label: 'Reload from source',
+      description: activeProviderName
+        ? `Restart ${activeProviderName} and re-fetch the snapshot`
+        : 'Restart the active provider and re-fetch the snapshot',
+      icon: 'lucide:rotate-cw',
+      onClick: reloadFromSource,
+    },
+  ], [activeProviderName, refreshView, reloadFromSource]);
+
+  const adminActionsWithDataInfra = useMemo(
+    () => mergeAdminActions(refreshReloadAdminActions, dataProviderInfraAdminActions, userAdminActions),
+    [refreshReloadAdminActions, dataProviderInfraAdminActions, userAdminActions],
+  );
+
+  const adminActionsInfraOnly = useMemo(
+    () => mergeAdminActions([], dataProviderInfraAdminActions, userAdminActions),
+    [dataProviderInfraAdminActions, userAdminActions],
+  );
+
   // ── Render ────────────────────────────────────────────────────────
   if (!loaded) {
     return (
@@ -914,36 +1012,13 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
           Loading…
         </div>
-        {providerEditorDialog}
+        {dataDialogs}
       </>
     );
   }
 
   // Provider selected and cfg loaded → full data-attached grid.
   if (activeId && !activeRow.loading && rowIdField && columnDefs) {
-    // Prepend reload admin actions (also available in Custom Settings).
-    const userAdminActions = (marketsGridProps as { adminActions?: import('@starui/grid').AdminAction[] }).adminActions ?? [];
-    const adminActionsWithRefresh: import('@starui/grid').AdminAction[] = [
-      {
-        id: 'refresh-view',
-        label: 'Refresh view',
-        description: activeProviderName
-          ? `Replay cached rows for ${activeProviderName} without reconnecting`
-          : 'Replay cached rows without reconnecting',
-        icon: 'lucide:refresh-cw',
-        onClick: refreshView,
-      },
-      {
-        id: 'reload-from-source',
-        label: 'Reload from source',
-        description: activeProviderName
-          ? `Restart ${activeProviderName} and re-fetch the snapshot`
-          : 'Restart the active provider and re-fetch the snapshot',
-        icon: 'lucide:rotate-cw',
-        onClick: reloadFromSource,
-      },
-      ...userAdminActions,
-    ];
     return (
       <>
         <div style={{ position: 'relative', height: '100%', minHeight: 0 }}>
@@ -957,7 +1032,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
             onReady={onReady}
             providerGridHost={providerGridHost}
             gridEventBindingsHost={gridEventBindingsHost}
-            adminActions={adminActionsWithRefresh}
+            adminActions={adminActionsWithDataInfra}
             caption={effectiveCaption}
             onCaptionChange={handleCaptionChange}
             onSavingChange={setIsSavingProfile}
@@ -983,7 +1058,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
             />
           )}
         </div>
-        {providerEditorDialog}
+        {dataDialogs}
       </>
     );
   }
@@ -1001,13 +1076,14 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         appData={appDataLookup}
         providerGridHost={providerGridHost}
         gridEventBindingsHost={gridEventBindingsHost}
+        adminActions={adminActionsInfraOnly}
         caption={effectiveCaption}
         onCaptionChange={handleCaptionChange}
         toolbarDate={toolbarDate}
         onToolbarDateChange={handleToolbarDateChange}
         toolbarDateHistoryEnabled={toolbarDateHistoryEnabled}
       />
-      {providerEditorDialog}
+      {dataDialogs}
     </>
   );
 }

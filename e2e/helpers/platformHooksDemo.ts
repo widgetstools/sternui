@@ -64,9 +64,7 @@ export async function openCustomSettings(page: Page): Promise<void> {
     await page.locator('[data-testid="v2-settings-open-btn"]').click();
   }
   await expect(sheet).toBeVisible();
-  if (await panel.isVisible().catch(() => false)) return;
-  await page.locator('[data-testid="v2-settings-module-dropdown"]').click();
-  await page.locator('[data-testid="v2-settings-nav-menu-toolbar-date-settings"]').click();
+  if (await panel.isVisible().catch(() => false)) return;  await page.locator('[data-testid="v2-settings-nav-menu-toolbar-date-settings"]').click();
   await expect(panel).toBeVisible();
 }
 

@@ -229,18 +229,6 @@ export function ConfigBrowserPanel() {
           </span>
         )}
 
-        <div className="flex-1" />
-
-        <button
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          title="Toggle theme"
-          className="bg-[var(--de-bg-surface)] border border-[var(--de-border)] rounded-[var(--de-radius-sm)] p-1.5 cursor-pointer text-[var(--de-text-secondary)] flex"
-        >
-          <Icon
-            icon={theme === "dark" ? "lucide:sun" : "lucide:moon"}
-            className="w-[15px] h-[15px]"
-          />
-        </button>
       </div>
 
       {/* Body: sidebar + main */}

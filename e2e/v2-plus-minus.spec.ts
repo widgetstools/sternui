@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { clickSettingsFromToolbar } from './helpers/settingsSheet';
 import { openEditingToolbar } from './helpers/editingToolbar';
 import { loadLabProfile } from './helpers/labEditing';
 
@@ -166,9 +167,8 @@ test.describe('Plus / Minus lab tab', () => {
 
   test('settings sheet opens Plus / Minus panel', async ({ page }) => {
     await bootPlusMinusTab(page);
-    await page.locator('[data-testid="v2-settings-open-btn"]').click();
+    await clickSettingsFromToolbar(page);
     await page.locator('.ds-sheet').waitFor({ state: 'visible' });
-    await page.locator('[data-testid="v2-settings-module-dropdown"]').click();
     await page.locator('[data-testid="v2-settings-nav-menu-plus-minus"]').click();
     await expect(page.getByTestId('plus-minus-panel').first()).toBeVisible();
     await expect(page.getByTestId('pm-enabled-toggle')).toBeVisible();

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { clickSettingsFromToolbar } from './helpers/settingsSheet';
 import { openEditingToolbar } from './helpers/editingToolbar';
 import {
   cellAt,
@@ -94,9 +95,8 @@ test.describe('Bulk Update lab tab', () => {
 
   test('settings sheet opens Bulk Update panel', async ({ page }) => {
     await bootBulkUpdateTab(page);
-    await page.locator('[data-testid="v2-settings-open-btn"]').click();
+    await clickSettingsFromToolbar(page);
     await page.locator('.ds-sheet').waitFor({ state: 'visible' });
-    await page.locator('[data-testid="v2-settings-module-dropdown"]').click();
     await page.locator('[data-testid="v2-settings-nav-menu-bulk-update"]').click();
     await expect(page.getByTestId('bulk-update-panel')).toBeVisible();
     await expect(page.getByTestId('bu-enabled-toggle')).toBeVisible();

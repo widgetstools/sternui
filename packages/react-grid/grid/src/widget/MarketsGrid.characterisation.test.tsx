@@ -96,6 +96,7 @@ vi.mock('@starui/engine', () => ({
 vi.mock('@starui/grid/customizer', () => ({
   GridProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   ProviderGridHostProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  GridEventBindingsHostProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useGridApi: () => mocks.api,
   useGridPlatform: () => ({ store: {} }),
   useModuleState: () => [undefined, vi.fn()],

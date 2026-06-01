@@ -5,9 +5,6 @@ import {
 } from '@starui/engine';
 import { isOpenFin } from '../runtime/openFin.js';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
   Poppable,
   SharpBtn,
   useDirtyCount,
@@ -17,7 +14,6 @@ import {
 import { Drawer, DrawerContent, DrawerTitle } from '@starui/ui';
 import { GENERAL_SETTINGS_MODULE_ID } from '../customizer/modules/general-settings';
 import {
-  ChevronDown,
   GripHorizontal,
   HelpCircle,
   Maximize2,
@@ -25,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { HelpPanel } from './HelpPanel';
+import { SettingsModuleTabs } from './SettingsModuleTabs';
 
 /**
  * Cockpit Terminal popout — the v2 settings sheet.
@@ -116,7 +113,6 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
 
   const [activeId, setActiveId] = useState<string>(resolveDefaultModuleId);
   const [maximized, setMaximized] = useState(false);
-  const [moduleMenuOpen, setModuleMenuOpen] = useState(false);
   // When true, the body area renders the Help cheatsheet instead of the
   // active module's ListPane / EditorPane. Toggled by the ? icon in the
   // header — a temporary view, not persisted.
@@ -133,7 +129,6 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
     if (!open) return;
     setActiveId(resolveDefaultModuleId());
     setHelpOpen(false);
-    setModuleMenuOpen(false);
   }, [open, resolveDefaultModuleId]);
 
   useEffect(() => {
@@ -233,53 +228,6 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
               </>
             )}
 
-            {/* Module dropdown — shadcn Popover.
-                `no-drag` inline style is only meaningful when the
-                header sits inside an OpenFin frameless window; in
-                every other mode it's a harmless no-op. Applying it
-                here (rather than on every button) keeps the
-                responsibility at each interactive node. */}
-            {panelModules.length > 0 && activeModule && (
-              <Popover open={moduleMenuOpen} onOpenChange={setModuleMenuOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="ds-popout-module-btn"
-                    aria-expanded={moduleMenuOpen}
-                    data-testid="v2-settings-module-dropdown"
-                    style={frameless ? ({ WebkitAppRegion: 'no-drag' } as CSSProperties) : undefined}
-                  >
-                    <span>{activeModule.name}</span>
-                    <ChevronDown size={11} strokeWidth={2} color="var(--ds-text-muted)" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  align="start"
-                  sideOffset={6}
-                  className="ds-sheet-v2 ds-settings-module-popover p-1 w-[220px] bg-[var(--ds-surface-secondary)] border border-[var(--ds-border-secondary)] rounded-sm shadow-[var(--ds-elevation-overlay)]"
-                >
-                  {panelModules.map((m) => {
-                    const selected = m.id === activeId;
-                    return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        className="ds-popout-module-menu-item"
-                        aria-selected={selected}
-                        data-testid={`v2-settings-nav-menu-${m.id}`}
-                        onClick={() => {
-                          setActiveId(m.id);
-                          setModuleMenuOpen(false);
-                        }}
-                      >
-                        <span>{m.name}</span>
-                      </button>
-                    );
-                  })}
-                </PopoverContent>
-              </Popover>
-            )}
-
             <span className="flex-1" />
             <span className="ds-popout-title-status">
               DIRTY=<strong style={{ color: dirtyCount > 0 ? 'var(--ds-accent-warning)' : 'var(--ds-text-secondary)' }}>
@@ -362,14 +310,20 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
             </div>
           </header>
 
+          {panelModules.length > 0 && (
+            <SettingsModuleTabs
+              modules={panelModules}
+              activeId={activeId}
+              onActiveIdChange={setActiveId}
+              frameless={frameless}
+            />
+          )}
+
           {/*
             Accessible module-nav fallback + stable test hook.
-            The visible module switcher lives inside the header Popover; when
-            the Popover is closed its menu items aren't in the DOM. This
-            permanent visually-hidden nav exposes each module as a discrete,
-            always-mounted button carrying the public testid
-            `v2-settings-nav-<id>`. Screen readers read it; e2e tests click
-            through it without having to open the dropdown first.
+            Visible module switcher is the scrollable shadcn tab strip above.
+            This permanent visually-hidden nav keeps `v2-settings-nav-<id>`
+            for screen readers and force-navigation e2e helpers.
            */}
           <nav
             aria-label="Modules (accessible navigation)"

@@ -10,7 +10,7 @@
 import type { ProviderConfig, StompProviderConfig } from '@starui/types';
 import type { ProviderEmit, ProviderHandle } from './Provider.js';
 import { resolveBracketCfg, type BracketCache } from '../template/bracketResolver.js';
-import { resolveCfg, type AppDataLookup } from '../template/resolver.js';
+import { assertAppDataResolved, resolveCfg, type AppDataLookup } from '../template/resolver.js';
 import { startMock } from './transports/mock.js';
 import { startStomp } from './transports/stomp.js';
 import { startRest } from './transports/rest.js';
@@ -66,6 +66,10 @@ export function startProvider(
   let resolved = bracketResolved;
   if (opts?.appDataLookup) {
     resolved = resolveCfg(resolved, opts.appDataLookup);
+    const unresolved = assertAppDataResolved(resolved, `[data-services] ${cfg.providerType} provider cfg`);
+    if (unresolved) {
+      throw new Error(unresolved);
+    }
   }
   return factory(resolved, emit);
 }

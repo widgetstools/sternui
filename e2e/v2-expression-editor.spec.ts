@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import {
   bootCleanDemo,
+  clickSettingsFromToolbar,
   openPanel,
 } from './helpers/settingsSheet';
 
@@ -24,13 +25,11 @@ async function openInlineExpressionEditor(page: Page): Promise<EditorHost> {
 
 async function openPoppedExpressionEditor(page: Page): Promise<EditorHost> {
   await bootCleanDemo(page);
-  await page.locator('[data-testid="v2-settings-open-btn"]').click();
+  await clickSettingsFromToolbar(page);
   const popupPromise = page.waitForEvent('popup');
   await page.locator('[data-testid="v2-settings-popout-btn"]').click();
   const popup = await popupPromise;
-  await popup.waitForSelector('[data-testid="v2-settings-sheet"]', { timeout: 5_000 });
-  await popup.locator('[data-testid="v2-settings-module-dropdown"]').click();
-  await popup.locator('[data-testid="v2-settings-nav-menu-conditional-styling"]').click();
+  await popup.waitForSelector('[data-testid="v2-settings-sheet"]', { timeout: 5_000 });  await popup.locator('[data-testid="v2-settings-nav-menu-conditional-styling"]').click();
   await ensureExpressionEditor(popup);
   return popup;
 }

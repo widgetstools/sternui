@@ -597,7 +597,18 @@ export class SharedWorkerDataServicesHub {
       this.traceStompAttachCfg('hub.attach CREATE (catalog cfg → worker)', req.providerId, cfg, req.extra);
       // eslint-disable-next-line no-console
       if (DEBUG) console.log(`[v2/hub] attach CREATE subId=${req.subId} provider=${req.providerId}`);
-      slot = this.createProvider(req.providerId, cfg);
+      try {
+        slot = this.createProvider(req.providerId, cfg);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        port.postMessage({
+          subId: req.subId,
+          kind: 'status',
+          status: 'error',
+          error: message,
+        } satisfies Event);
+        return;
+      }
       this.providers.set(req.providerId, slot);
       this.ensureStatsSampler();
       // First attach can carry `extra` (historical asOfDate). Without this,

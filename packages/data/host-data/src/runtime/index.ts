@@ -44,6 +44,8 @@ export {
   resolveTemplate,
   resolveCfg,
   collectTemplateRefs,
+  findUnresolvedAppDataTokens,
+  assertAppDataResolved,
   type AppDataLookup,
 } from './template/resolver.js';
 export {

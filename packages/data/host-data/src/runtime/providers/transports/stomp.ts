@@ -58,8 +58,13 @@ import type { StompProviderConfig } from '@starui/types';
 import { composeRowId } from '@starui/types';
 import type { ProviderEmit, ProviderHandle } from '../Provider.js';
 import { resolveBracketCfg } from '../../template/bracketResolver.js';
-import { resolveCfg, type AppDataLookup } from '../../template/resolver.js';
+import {
+  assertAppDataResolved,
+  resolveCfg,
+  type AppDataLookup,
+} from '../../template/resolver.js';
 import { traceStompProviderCfg, traceStompWireDestinations } from '../../template/templateTrace.js';
+import { validateStompPathContract } from './stompPathContract.js';
 
 /**
  * Maximum rows to ship in a single `postMessage` from the worker.
@@ -192,16 +197,37 @@ export function lookupWithRestartOverlay(
   };
 }
 
+export interface StompWireDestinations {
+  listenerTopic: string;
+  requestMessage?: string;
+  requestBody?: string;
+}
+
+/** @deprecated Prefer `validateStompWireReady`. */
 export function stompWireDestinationsUnresolved(
-  destinations: Pick<ReturnType<typeof resolveStompDestinations>, 'listenerTopic' | 'requestMessage'>,
+  destinations: Pick<StompWireDestinations, 'listenerTopic' | 'requestMessage'>,
 ): string | null {
+  return validateStompWireReady(destinations);
+}
+
+/**
+ * Deterministic pre-wire gate: no `{{name.key}}` tokens on the broker path and
+ * historical/live trigger shapes match the stomp-view-server contract.
+ */
+export function validateStompWireReady(destinations: StompWireDestinations): string | null {
   if (destinations.listenerTopic.includes('{{')) {
     return `Unresolved AppData template in STOMP listenerTopic: ${destinations.listenerTopic}`;
   }
   if (destinations.requestMessage?.includes('{{')) {
     return `Unresolved AppData template in STOMP requestMessage: ${destinations.requestMessage}`;
   }
-  return null;
+  if (destinations.requestBody?.includes('{{')) {
+    return `Unresolved AppData template in STOMP requestBody: ${destinations.requestBody}`;
+  }
+  return validateStompPathContract(
+    destinations.listenerTopic,
+    destinations.requestMessage,
+  );
 }
 
 /** Resolve catalog cfg + overlay into broker wire destinations (deterministic order). */
@@ -438,9 +464,20 @@ export function startStomp(
         overlay: state.overlay,
         cfgHadUnresolvedTemplates:
           resolvedCfg.listenerTopic.includes('{{')
-          || Boolean(resolvedCfg.requestMessage?.includes('{{')),
+          || Boolean(resolvedCfg.requestMessage?.includes('{{'))
+          || Boolean(resolvedCfg.requestBody?.includes('{{'))
+          || Boolean(publishBody?.includes('{{')),
       });
-      const wireError = stompWireDestinationsUnresolved(destinations);
+      const cfgUnresolved = assertAppDataResolved(resolvedCfg, 'STOMP provider cfg');
+      if (cfgUnresolved) {
+        emit({ status: 'error', error: cfgUnresolved });
+        return;
+      }
+      const wireError = validateStompWireReady({
+        listenerTopic: destinations.listenerTopic,
+        requestMessage: destinations.requestMessage,
+        requestBody: publishBody,
+      });
       if (wireError) {
         emit({ status: 'error', error: wireError });
         return;

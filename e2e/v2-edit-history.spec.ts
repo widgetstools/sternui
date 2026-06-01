@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { clickSettingsFromToolbar } from './helpers/settingsSheet';
 import { openEditingToolbar } from './helpers/editingToolbar';
 
 /**
@@ -103,10 +104,8 @@ test.describe('Edit History lab tab', () => {
 
   test('settings sheet opens Edit History panel with monitor', async ({ page }) => {
     await bootHistoryTab(page);
-    await page.locator('[data-testid="v2-settings-open-btn"]').click();
-    await page.locator('.ds-sheet').waitFor({ state: 'visible' });
-    await page.locator('[data-testid="v2-settings-module-dropdown"]').click();
-    await page.locator('[data-testid="v2-settings-nav-menu-data-change-history"]').click();
+    await clickSettingsFromToolbar(page);
+    await page.locator('.ds-sheet').waitFor({ state: 'visible' });    await page.locator('[data-testid="v2-settings-nav-menu-data-change-history"]').click();
     await expect(page.getByTestId('edit-history-panel')).toBeVisible();
     await expect(page.getByTestId('dch-enabled-toggle')).toBeVisible();
   });
@@ -135,10 +134,8 @@ test.describe('Edit History lab tab', () => {
     await page.getByTestId('smart-edit-op-multiply').click();
     await expect(cell).not.toHaveText(before, { timeout: 5_000 });
 
-    await page.locator('[data-testid="v2-settings-open-btn"]').click();
-    await page.locator('.ds-sheet').waitFor({ state: 'visible' });
-    await page.locator('[data-testid="v2-settings-module-dropdown"]').click();
-    await page.locator('[data-testid="v2-settings-nav-menu-data-change-history"]').click();
+    await clickSettingsFromToolbar(page);
+    await page.locator('.ds-sheet').waitFor({ state: 'visible' });    await page.locator('[data-testid="v2-settings-nav-menu-data-change-history"]').click();
 
     const entry = page.locator('[data-testid^="dch-entry-"]').first();
     await expect(entry).toBeVisible({ timeout: 5_000 });
@@ -150,10 +147,8 @@ test.describe('Edit History lab tab', () => {
   test('suspend toggle in settings stops journaling new edits', async ({ page }) => {
     await bootHistoryTab(page);
 
-    await page.locator('[data-testid="v2-settings-open-btn"]').click();
-    await page.locator('.ds-sheet').waitFor({ state: 'visible' });
-    await page.locator('[data-testid="v2-settings-module-dropdown"]').click();
-    await page.locator('[data-testid="v2-settings-nav-menu-data-change-history"]').click();
+    await clickSettingsFromToolbar(page);
+    await page.locator('.ds-sheet').waitFor({ state: 'visible' });    await page.locator('[data-testid="v2-settings-nav-menu-data-change-history"]').click();
     await page.getByTestId('dch-suspended-toggle').click();
     await page.getByRole('button', { name: 'Save' }).click();
     await page.keyboard.press('Escape');

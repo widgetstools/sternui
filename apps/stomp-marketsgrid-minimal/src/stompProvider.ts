@@ -13,7 +13,11 @@ const TAG = 'TRADER001';
 const liveListenerTopic = `/snapshot/positions/${TAG}`;
 const liveRequestMessage = `/snapshot/positions/${TAG}/1000/50`;
 const historicalListenerTopic = `/snapshot/positions/${TAG}/{{positions.asOfDate}}`;
-const historicalRequestMessage = `/snapshot/positions/${TAG}/{{positions.asOfDate}}/1000/50`;
+/** Historical trigger: /snapshot/positions/{clientId}/{asOfDate}[/{batchSize}] — not live rate/batch. */
+const historicalRequestMessage = `/snapshot/positions/${TAG}/{{positions.asOfDate}}/50`;
+
+/** Bump when STOMP wire destinations change so App re-persists catalog rows on load. */
+export const STOMP_PROVIDER_CFG_VERSION = 2;
 
 /** StompProviderConfig — passed to hub startStomp() after catalog resolve. */
 const stompLive: StompProviderConfig = {

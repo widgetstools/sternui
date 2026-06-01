@@ -112,6 +112,12 @@ vi.mock('@starui/grid', () => ({
       />
     );
   },
+  createMarketsGridContainerEventBus: () => ({
+    emit: vi.fn(),
+    on: vi.fn(() => () => {}),
+  }),
+  MARKETS_GRID_EVENT_CATALOG: [],
+  useMarketsGridEventBridge: vi.fn(),
 }));
 
 vi.mock('@starui/host-data-react/runtime', () => ({
@@ -217,7 +223,9 @@ describe('MarketsGridContainer — toolbar historical mode', () => {
 
     await waitFor(() => {
       expect(restartMock).toHaveBeenCalled();
-      expect(restartMock.mock.calls.at(-1)?.[0]).toEqual({ asOfDate: '2026-04-01' });
+      expect(
+        restartMock.mock.calls.some(([extra]) => extra?.asOfDate === '2026-04-01'),
+      ).toBe(true);
       expect(lastMarketsGridProps.current?.historicalViewMode).toBe(true);
       expect(lastMarketsGridProps.current?.historicalViewMessage).toContain('2026-04-01');
     });

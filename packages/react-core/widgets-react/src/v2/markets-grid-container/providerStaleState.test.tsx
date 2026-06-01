@@ -104,6 +104,12 @@ vi.mock('@starui/grid', () => ({
       />
     );
   },
+  createMarketsGridContainerEventBus: () => ({
+    emit: vi.fn(),
+    on: vi.fn(() => () => {}),
+  }),
+  MARKETS_GRID_EVENT_CATALOG: [],
+  useMarketsGridEventBridge: vi.fn(),
 }));
 
 vi.mock('@starui/host-data-react/runtime', () => ({

@@ -41,6 +41,8 @@ export interface PrimaryToolbarSecondaryActionsProps {
   readonly instanceId: string | undefined;
   readonly appId: string | undefined;
   readonly userId: string | undefined;
+  /** When false, skip the leading vertical rule (e.g. after the date picker). */
+  readonly showLeadingDivider?: boolean;
 }
 
 export function PrimaryToolbarOverflowMenu(
@@ -49,12 +51,25 @@ export function PrimaryToolbarOverflowMenu(
   const adminVisible = (props.adminActions ?? []).filter((a) => a.visible !== false);
   const showExcel = props.showVisualExcelExport && props.visualExcelExportEnabled;
   const hasMenuItems = showExcel || props.showSettingsButton || adminVisible.length > 0;
+  const showLeadingDivider = props.showLeadingDivider ?? true;
 
   if (!hasMenuItems) {
-    return <GridInfoButton {...gridInfoProps(props)} />;
+    return (
+      <GridInfoButton
+        {...gridInfoProps(props)}
+        showLeadingDivider={showLeadingDivider}
+      />
+    );
   }
 
-  return <OverflowMenu {...props} adminVisible={adminVisible} showExcel={showExcel} />;
+  return (
+    <OverflowMenu
+      {...props}
+      adminVisible={adminVisible}
+      showExcel={showExcel}
+      showLeadingDivider={showLeadingDivider}
+    />
+  );
 }
 
 function gridInfoProps(props: PrimaryToolbarSecondaryActionsProps) {
@@ -78,15 +93,17 @@ function OverflowMenu({
   instanceId,
   appId,
   userId,
+  showLeadingDivider,
 }: PrimaryToolbarSecondaryActionsProps & {
   adminVisible: AdminAction[];
   showExcel: boolean;
+  showLeadingDivider: boolean;
 }): ReactElement {
   const [infoOpen, setInfoOpen] = useState(false);
 
   return (
     <>
-      <span className="ds-primary-divider" aria-hidden />
+      {showLeadingDivider ? <span className="ds-primary-divider" aria-hidden /> : null}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -175,11 +192,13 @@ function OverflowMenu({
 export function PrimaryToolbarInlineActions(
   props: PrimaryToolbarSecondaryActionsProps,
 ): ReactElement {
+  const showLeadingDivider = props.showLeadingDivider ?? true;
+
   return (
     <>
       {props.showVisualExcelExport && props.visualExcelExportEnabled ? (
         <>
-          <span className="ds-primary-divider" aria-hidden />
+          {showLeadingDivider ? <span className="ds-primary-divider" aria-hidden /> : null}
           <button
             type="button"
             className="ds-primary-action"
@@ -195,7 +214,9 @@ export function PrimaryToolbarInlineActions(
 
       {props.showSettingsButton ? (
         <>
-          <span className="ds-primary-divider" aria-hidden />
+          {(props.showVisualExcelExport && props.visualExcelExportEnabled) || showLeadingDivider ? (
+            <span className="ds-primary-divider" aria-hidden />
+          ) : null}
           <button
             type="button"
             className="ds-primary-action"

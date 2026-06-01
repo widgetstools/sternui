@@ -234,18 +234,18 @@
 .ds-primary-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 10px;
+  gap: 2px;
+  padding: 0 6px;
   flex-shrink: 0;
 }
 
 .ds-primary-date-picker {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 32px;
+  gap: 4px;
+  height: 30px;
   min-width: 0;
-  padding: 0 10px;
+  padding: 0 8px;
   font-family: var(--ds-font-mono, ui-monospace, monospace);
   font-size: 11px;
   line-height: 1;
@@ -275,8 +275,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   background: transparent;
   border: 1px solid transparent;
@@ -314,10 +314,18 @@
 .ds-primary-divider {
   display: inline-block;
   width: 1px;
-  height: 20px;
+  height: 18px;
   background: var(--ds-border-secondary);
   opacity: 0.75;
-  margin: 0 4px;
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+/* Date picker + overflow menu sit flush at the trailing edge. */
+.ds-primary-actions-trailing {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
   flex-shrink: 0;
 }
 

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { clickSettingsFromToolbar } from './helpers/settingsSheet';
 import { openEditingToolbar } from './helpers/editingToolbar';
 import { focusCellValue } from './helpers/labEditing';
 
@@ -56,10 +57,8 @@ test.describe('Editing lab tab (unified)', () => {
 
   test('settings sheet lists all editing modules', async ({ page }) => {
     await bootEditingTab(page);
-    await page.locator('[data-testid="v2-settings-open-btn"]').click();
-    await page.locator('.ds-sheet').waitFor({ state: 'visible' });
-    await page.locator('[data-testid="v2-settings-module-dropdown"]').click();
-    for (const moduleId of ['smart-edit', 'bulk-update', 'plus-minus', 'shortcuts', 'data-change-history']) {
+    await clickSettingsFromToolbar(page);
+    await page.locator('.ds-sheet').waitFor({ state: 'visible' });    for (const moduleId of ['smart-edit', 'bulk-update', 'plus-minus', 'shortcuts', 'data-change-history']) {
       await expect(page.getByTestId(`v2-settings-nav-menu-${moduleId}`)).toBeVisible();
     }
   });

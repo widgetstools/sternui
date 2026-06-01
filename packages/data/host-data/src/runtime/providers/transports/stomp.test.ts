@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { startStomp, probeStomp, resolveStompClientCtor, resolveStompDestinations, resolveEffectiveStompCfg, stompWireDestinationsUnresolved } from './stomp';
+import { startStomp, probeStomp, resolveStompClientCtor, resolveStompDestinations, resolveEffectiveStompCfg, validateStompWireReady } from './stomp';
 import type { ProviderEmitEvent } from '../Provider';
 import type { StompProviderConfig } from '@starui/types';
 
@@ -146,7 +146,7 @@ describe('resolveEffectiveStompCfg', () => {
     const out = resolveEffectiveStompCfg(
       cfg({
         listenerTopic: '/snapshot/positions/{{SessionContext.userId}}/{{SessionContext.position-asofdate}}',
-        requestMessage: '/snapshot/positions/{{positions.asOfDate}}/100',
+        requestMessage: '/snapshot/positions/{{SessionContext.userId}}/{{SessionContext.position-asofdate}}/100',
       }),
       (name, key) => {
         if (name === 'SessionContext' && key === 'userId') return 'TRADER001';
@@ -157,8 +157,8 @@ describe('resolveEffectiveStompCfg', () => {
       { asOfDate: '2026-05-22' },
     );
     expect(out.destinations.listenerTopic).toBe('/snapshot/positions/TRADER001/2026-05-22');
-    expect(out.destinations.requestMessage).toBe('/snapshot/positions/2026-05-22/100');
-    expect(stompWireDestinationsUnresolved(out.destinations)).toBeNull();
+    expect(out.destinations.requestMessage).toBe('/snapshot/positions/TRADER001/2026-05-22/100');
+    expect(validateStompWireReady(out.destinations)).toBeNull();
   });
 
   it('reports unresolved wire destinations when lookup and overlay are insufficient', () => {
@@ -167,7 +167,22 @@ describe('resolveEffectiveStompCfg', () => {
       () => undefined,
       undefined,
     );
-    expect(stompWireDestinationsUnresolved(out.destinations)).toMatch(/listenerTopic/);
+    expect(validateStompWireReady(out.destinations)).toMatch(/listenerTopic/);
+  });
+
+  it('rejects historical listener paired with live-style trigger after resolve', () => {
+    const out = resolveEffectiveStompCfg(
+      cfg({
+        listenerTopic: '/snapshot/positions/TRADER001/{{positions.asOfDate}}',
+        requestMessage: '/snapshot/positions/TRADER001/{{positions.asOfDate}}/1000/50',
+      }),
+      (name, key) => {
+        if (name === 'positions' && key === 'asOfDate') return '2026-05-28';
+        return undefined;
+      },
+      { asOfDate: '2026-05-28' },
+    );
+    expect(validateStompWireReady(out.destinations)).toMatch(/live rate\/batch path/);
   });
 });
 
@@ -334,7 +349,7 @@ describe('startStomp', () => {
     expect(ctrl.subscribed).toBe(false);
     expect(events.find((e) => 'status' in e && e.status === 'error')).toMatchObject({
       status: 'error',
-      error: expect.stringContaining('Unresolved AppData template'),
+      error: expect.stringContaining('unresolved AppData template'),
     });
   });
 

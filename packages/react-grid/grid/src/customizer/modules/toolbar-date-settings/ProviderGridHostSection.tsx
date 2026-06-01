@@ -64,7 +64,14 @@ function ProviderSelectRow({
   );
 }
 
-export function ProviderGridHostSection(): ReactElement | null {
+export interface ProviderGridHostSectionProps {
+  /** When true, section title is rendered by the parent sidebar layout. */
+  hideSectionHeader?: boolean;
+}
+
+export function ProviderGridHostSection({
+  hideSectionHeader = false,
+}: ProviderGridHostSectionProps = {}): ReactElement | null {
   const host = useProviderGridHost();
   const activeId = host?.mode === 'live' ? host.liveProviderId : host?.historicalProviderId;
 
@@ -73,8 +80,8 @@ export function ProviderGridHostSection(): ReactElement | null {
 
   if (!host?.available) {
     return (
-      <div className="border-b border-[color:var(--ds-border-primary)] p-3">
-        <SubLabel>DATA PROVIDER</SubLabel>
+      <div data-testid="provider-grid-host-section">
+        {!hideSectionHeader ? <SubLabel>DATA PROVIDER</SubLabel> : null}
         <p className="text-[11px] text-[color:var(--ds-text-secondary)]">
           Provider selection and refresh controls are available when the grid
           is hosted by MarketsGridContainer.
@@ -84,8 +91,8 @@ export function ProviderGridHostSection(): ReactElement | null {
   }
 
   return (
-    <div className="space-y-1 border-b border-[color:var(--ds-border-primary)] p-3" data-testid="provider-grid-host-section">
-      <SubLabel>DATA PROVIDER</SubLabel>
+    <div className="space-y-1" data-testid="provider-grid-host-section">
+      {!hideSectionHeader ? <SubLabel>DATA PROVIDER</SubLabel> : null}
       <p className="mb-3 text-[11px] text-[color:var(--ds-text-secondary)]">
         Grid-level provider selection persists across profile switches. Changes
         apply immediately — no profile Save required.

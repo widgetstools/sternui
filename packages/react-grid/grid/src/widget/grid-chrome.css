@@ -250,13 +250,116 @@
 }
 
 /* ── Module dropdown ───────────────────────────────────────────────────────*/
-/* Portaled shadcn menus (`.ds-sheet-v2`) must sit above the vaul drawer
-   panel (z 11001) and its dim overlay (z 11000). */
+/* Portaled shadcn menus (`.ds-sheet-v2`) and modal dialogs must sit above the
+   vaul drawer panel (z 11001) and its dim overlay (z 11000). */
 [data-radix-popper-content-wrapper] .ds-sheet-v2,
-.ds-settings-module-popover {
+.ds-settings-module-popover,
+[data-testid='provider-editor-dialog'] {
   z-index: 12050 !important;
 }
 
+/* ── Module tabs (scrollable shadcn strip) ─────────────────────────────── */
+.ds-settings-module-tabs-bar {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  min-height: 33px;
+  border-bottom: 1px solid var(--ds-border-primary);
+  background: var(--ds-surface-primary);
+}
+
+.ds-settings-module-tabs-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.ds-settings-module-tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.ds-settings-module-tabs {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+}
+
+.ds-sheet-v2 .ds-settings-module-tabs-list {
+  display: inline-flex;
+  height: auto;
+  min-height: 33px;
+  width: max-content;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* Secondary nav — one step below title bar (12px) / caps labels (11px). */
+.ds-sheet-v2 .ds-settings-module-tab-trigger {
+  display: inline-flex;
+  align-items: center;
+  height: 33px;
+  padding: 0 10px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ds-text-muted);
+  font-family: var(--ds-font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color 120ms, border-color 120ms, background 120ms;
+}
+
+.ds-sheet-v2 .ds-settings-module-tab-trigger:hover {
+  color: var(--ds-text-secondary);
+  background: var(--ds-surface-secondary);
+}
+
+.ds-sheet-v2 .ds-settings-module-tab-trigger[data-state='active'] {
+  color: var(--ds-text-primary);
+  background: var(--ds-surface-secondary);
+  border-bottom-color: var(--ds-primary);
+  box-shadow: none;
+}
+
+.ds-settings-module-tabs-caret {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  align-self: stretch;
+  border: none;
+  border-right: 1px solid var(--ds-border-primary);
+  background: var(--ds-surface-secondary);
+  color: var(--ds-text-muted);
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+
+.ds-settings-module-tabs-caret:last-child {
+  border-right: none;
+  border-left: 1px solid var(--ds-border-primary);
+}
+
+.ds-settings-module-tabs-caret:hover {
+  background: var(--ds-surface-tertiary);
+  color: var(--ds-text-primary);
+}
+
+/* Legacy module dropdown (removed from UI — kept for reference in older docs) */
 .ds-popout-module-btn {
   display: inline-flex;
   align-items: center;

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { clickSettingsFromToolbar } from './helpers/settingsSheet';
 
 /**
  * Alerts module e2e — runs against the markets-grid-lab app's Alerts tab
@@ -103,10 +104,8 @@ async function openAlertsPanel(page: Page): Promise<void> {
   // outer container that stays mounted in the DOM (visibility toggled via
   // CSS) — Playwright's `state: 'visible'` rejects it. Mirrors the existing
   // `openSettingsSheet` helper in `e2e/helpers/settingsSheet.ts`.
-  await page.locator('[data-testid="v2-settings-open-btn"]').click();
+  await clickSettingsFromToolbar(page);
   await page.locator('.ds-sheet').waitFor({ state: 'visible' });
-  // Open the module-picker popover, then click the Alerts entry.
-  await page.locator('[data-testid="v2-settings-module-dropdown"]').click();
   await page.locator('[data-testid="v2-settings-nav-menu-alerts"]').click();
   // Editor pane mounts once a rule is selected (seeded rules auto-select).
   await page.locator('[data-testid="alerts-rule-editor"]').waitFor({ state: 'visible' });

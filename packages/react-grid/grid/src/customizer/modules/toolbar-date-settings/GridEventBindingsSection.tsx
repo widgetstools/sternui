@@ -10,12 +10,19 @@ import type { MarketsGridHandlerMeta } from '../../../events/marketsGridEventHan
 
 const NONE_VALUE = '__none__';
 
+export interface GridEventBindingsSectionProps {
+  /** When true, section title is rendered by the parent sidebar layout. */
+  hideSectionHeader?: boolean;
+}
+
 function handlerLabel(handlerId: string, meta: MarketsGridHandlerMeta | undefined): string {
   const entry = meta?.[handlerId];
   return entry?.label ?? handlerId;
 }
 
-export function GridEventBindingsSection(): ReactElement | null {
+export function GridEventBindingsSection({
+  hideSectionHeader = false,
+}: GridEventBindingsSectionProps = {}): ReactElement | null {
   const host = useGridEventBindingsHost();
 
   const categories = useMemo(
@@ -25,8 +32,8 @@ export function GridEventBindingsSection(): ReactElement | null {
 
   if (!host?.available) {
     return (
-      <div className="border-b border-[color:var(--ds-border-primary)] p-3">
-        <SubLabel>EVENT CALLBACKS</SubLabel>
+      <div data-testid="grid-event-bindings-section">
+        {!hideSectionHeader ? <SubLabel>EVENT CALLBACKS</SubLabel> : null}
         <p className="text-[11px] text-[color:var(--ds-text-secondary)]">
           Event bindings are available when the grid is hosted by MarketsGridContainer
           and the app supplies a handler registry.
@@ -37,8 +44,8 @@ export function GridEventBindingsSection(): ReactElement | null {
 
   if (host.handlerIds.length === 0) {
     return (
-      <div className="border-b border-[color:var(--ds-border-primary)] p-3">
-        <SubLabel>EVENT CALLBACKS</SubLabel>
+      <div data-testid="grid-event-bindings-section">
+        {!hideSectionHeader ? <SubLabel>EVENT CALLBACKS</SubLabel> : null}
         <p className="text-[11px] text-[color:var(--ds-text-secondary)]">
           No handlers registered — export `gridEventHandlers` from your app bootstrap.
         </p>
@@ -47,8 +54,8 @@ export function GridEventBindingsSection(): ReactElement | null {
   }
 
   return (
-    <div className="border-b border-[color:var(--ds-border-primary)] p-3" data-testid="grid-event-bindings-section">
-      <SubLabel>EVENT CALLBACKS</SubLabel>
+    <div data-testid="grid-event-bindings-section">
+      {!hideSectionHeader ? <SubLabel>EVENT CALLBACKS</SubLabel> : null}
       <p className="mb-3 text-[11px] text-[color:var(--ds-text-secondary)]">
         Assign one app callback per grid event. Bindings persist at grid level
         (shared across profile switches).

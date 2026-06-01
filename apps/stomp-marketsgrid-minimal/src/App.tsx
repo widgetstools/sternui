@@ -4,7 +4,7 @@ import { useDataServices, useUserIdFromContext } from '@starui/host-data-react/r
 import { getPlatform } from './bootstrap.js';
 import { gridEventHandlers } from './platform/gridEventHandlers.js';
 import { gridHandlerMeta } from './platform/hooksMeta.js';
-import { stompHistoricalProviderDraft, stompProviderDraft } from './stompProvider.js';
+import { stompHistoricalProviderDraft, stompProviderDraft, STOMP_PROVIDER_CFG_VERSION } from './stompProvider.js';
 
 /**
  * Phase 3 — seed catalog row (programmatic, no provider editor UI).
@@ -31,14 +31,29 @@ export function App() {
       const existing = rows.find((p) => p.name === stompProviderDraft.name);
       const existingHistorical = rows.find((p) => p.name === stompHistoricalProviderDraft.name);
 
-      // configStore.save — persist data-provider row if missing; then
-      // client.invalidateConfig() (inside save) reloads worker ConfigCatalogCache.
-      const id =
-        existing?.providerId ??
-        (await configStore.save(stompProviderDraft, userId)).providerId;
-      const histId =
-        existingHistorical?.providerId ??
-        (await configStore.save(stompHistoricalProviderDraft, userId)).providerId;
+      const liveDraft = existing
+        ? { ...stompProviderDraft, providerId: existing.providerId }
+        : stompProviderDraft;
+      const histDraft = existingHistorical
+        ? { ...stompHistoricalProviderDraft, providerId: existingHistorical.providerId }
+        : stompHistoricalProviderDraft;
+
+      const storedVersion = localStorage.getItem('stomp-marketsgrid-minimal.stomp-cfg-version');
+      const shouldRefresh = storedVersion !== String(STOMP_PROVIDER_CFG_VERSION);
+
+      const id = shouldRefresh || !existing
+        ? (await configStore.save(liveDraft, userId)).providerId
+        : existing.providerId;
+      const histId = shouldRefresh || !existingHistorical
+        ? (await configStore.save(histDraft, userId)).providerId
+        : existingHistorical.providerId;
+
+      if (shouldRefresh) {
+        localStorage.setItem(
+          'stomp-marketsgrid-minimal.stomp-cfg-version',
+          String(STOMP_PROVIDER_CFG_VERSION),
+        );
+      }
 
       if (!cancelled && id) setProviderId(id);
       if (!cancelled && histId) setHistoricalProviderId(histId);

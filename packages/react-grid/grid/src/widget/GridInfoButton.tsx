@@ -19,6 +19,7 @@ export interface GridInfoButtonProps {
   readonly instanceId: string | undefined;
   readonly appId: string | undefined;
   readonly userId: string | undefined;
+  readonly showLeadingDivider?: boolean;
 }
 
 export function GridInfoButton({
@@ -27,10 +28,11 @@ export function GridInfoButton({
   instanceId,
   appId,
   userId,
+  showLeadingDivider = true,
 }: GridInfoButtonProps): ReactElement {
   return (
     <>
-      <span className="ds-primary-divider" aria-hidden />
+      {showLeadingDivider ? <span className="ds-primary-divider" aria-hidden /> : null}
       <Popover>
         <PopoverTrigger asChild>
           <button

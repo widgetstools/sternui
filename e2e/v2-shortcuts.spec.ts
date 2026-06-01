@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { clickSettingsFromToolbar } from './helpers/settingsSheet';
 import { openEditingToolbar } from './helpers/editingToolbar';
 import { loadLabProfile } from './helpers/labEditing';
 
@@ -147,9 +148,8 @@ test.describe('Shortcuts lab tab', () => {
 
   test('settings sheet opens Shortcuts panel', async ({ page }) => {
     await bootShortcutsTab(page);
-    await page.locator('[data-testid="v2-settings-open-btn"]').click();
+    await clickSettingsFromToolbar(page);
     await page.locator('.ds-sheet').waitFor({ state: 'visible' });
-    await page.locator('[data-testid="v2-settings-module-dropdown"]').click();
     await page.locator('[data-testid="v2-settings-nav-menu-shortcuts"]').click();
     await expect(page.getByTestId('shortcuts-panel').first()).toBeVisible();
     await expect(page.getByTestId('sc-enabled-toggle')).toBeVisible();

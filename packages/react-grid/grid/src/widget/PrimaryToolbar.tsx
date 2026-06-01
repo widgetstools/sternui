@@ -85,7 +85,7 @@ export interface PrimaryToolbarProps {
   readonly appId: string | undefined;
   readonly userId: string | undefined;
 
-  // Toolbar date picker (right edge)
+  // Toolbar date picker (right edge, before overflow menu)
   readonly showToolbarDatePicker: boolean;
   readonly toolbarDate: string;
   readonly onToolbarDateChange: (next: string) => void;
@@ -142,6 +142,7 @@ export function PrimaryToolbar(props: PrimaryToolbarProps): ReactElement {
     instanceId,
     appId,
     userId,
+    showLeadingDivider: !showToolbarDatePicker,
   };
 
   return (
@@ -304,22 +305,24 @@ export function PrimaryToolbar(props: PrimaryToolbarProps): ReactElement {
           </>
         )}
 
-        {toolbarActionsLayout === 'inline' ? (
-          <PrimaryToolbarInlineActions {...secondaryActionsProps} />
-        ) : (
-          <PrimaryToolbarOverflowMenu {...secondaryActionsProps} />
-        )}
+        <div className="ds-primary-actions-trailing">
+          {showToolbarDatePicker && (
+            <>
+              <span className="ds-primary-divider" aria-hidden />
+              <ToolbarDatePicker
+                value={toolbarDate}
+                onChange={onToolbarDateChange}
+                historyEnabled={toolbarDateHistoryEnabled ?? true}
+              />
+            </>
+          )}
 
-        {showToolbarDatePicker && (
-          <>
-            <span className="ds-primary-divider" aria-hidden />
-            <ToolbarDatePicker
-              value={toolbarDate}
-              onChange={onToolbarDateChange}
-              historyEnabled={toolbarDateHistoryEnabled ?? true}
-            />
-          </>
-        )}
+          {toolbarActionsLayout === 'inline' ? (
+            <PrimaryToolbarInlineActions {...secondaryActionsProps} />
+          ) : (
+            <PrimaryToolbarOverflowMenu {...secondaryActionsProps} />
+          )}
+        </div>
       </div>
     </div>
   );

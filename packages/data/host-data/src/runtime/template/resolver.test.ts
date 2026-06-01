@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveTemplate, resolveCfg, collectTemplateRefs, type AppDataLookup } from './resolver';
+import { resolveTemplate, resolveCfg, collectTemplateRefs, findUnresolvedAppDataTokens, assertAppDataResolved, type AppDataLookup } from './resolver';
 
 const lookup: AppDataLookup = (name, key) => {
   if (name === 'positions' && key === 'asOfDate') return '2026-04-01';
@@ -66,5 +66,20 @@ describe('collectTemplateRefs', () => {
     const refs = collectTemplateRefs(cfg);
     const sortedKeys = refs.map((r) => `${r.providerName}.${r.key}`).sort();
     expect(sortedKeys).toEqual(['ctx.user.id', 'positions.asOfDate', 'positions.rate']);
+  });
+});
+
+describe('findUnresolvedAppDataTokens', () => {
+  it('collects remaining {{name.key}} tokens after partial resolve', () => {
+    const cfg = resolveCfg(
+      { url: '{{positions.asOfDate}}', other: '{{nope.missing}}' },
+      lookup,
+    );
+    expect(findUnresolvedAppDataTokens(cfg)).toEqual(['{{nope.missing}}']);
+  });
+
+  it('assertAppDataResolved returns null when fully resolved', () => {
+    const cfg = resolveCfg({ url: '{{positions.asOfDate}}' }, lookup);
+    expect(assertAppDataResolved(cfg, 'test')).toBeNull();
   });
 });

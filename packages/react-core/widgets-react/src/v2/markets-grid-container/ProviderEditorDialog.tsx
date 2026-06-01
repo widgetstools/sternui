@@ -23,7 +23,7 @@ export function ProviderEditorDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="flex h-[85vh] max-h-[900px] w-[95vw] max-w-6xl flex-col gap-0 overflow-hidden p-0"
+        className="ds-sheet-v2 flex h-[85vh] max-h-[900px] w-[95vw] max-w-6xl flex-col gap-0 overflow-hidden p-0"
         data-testid="provider-editor-dialog"
       >
         <DialogHeader className="sr-only">

@@ -13,14 +13,14 @@ import { expect, type Page } from '@playwright/test';
  *      on THIS testid bypasses that check — safe because the button IS
  *      wired to an onClick handler.
  *
- *   2. The VISIBLE nav is a shadcn Popover opened by
- *      `v2-settings-module-dropdown`, with menu items testidded
- *      `v2-settings-nav-menu-<id>`. This is the realistic user path.
+ *   2. The VISIBLE nav is a horizontal shadcn Tabs strip
+ *      (`v2-settings-module-tabs`) with tab triggers testidded
+ *      `v2-settings-nav-menu-<id>`. Left/right carets scroll when tabs
+ *      overflow the viewport.
  *
  * We default to the visible path (`openPanel`) because it exercises the
  * actual user flow. `forceNavigateToPanel` is the escape hatch when a
- * test needs to skip the dropdown animation or trigger navigation from
- * an already-open panel.
+ * test needs to skip tab scrolling or trigger navigation from an edge case.
  */
 
 export const V2_PATH = '/';
@@ -59,11 +59,28 @@ export async function bootCleanDemo(page: Page): Promise<void> {
   await waitForV2Grid(page);
 }
 
+/** Opens the primary toolbar ⋯ overflow menu. */
+export async function openToolbarOverflowMenu(page: Page): Promise<void> {
+  await page.locator('[data-testid="toolbar-more-menu-trigger"]').click();
+}
+
+/** Opens Grid settings from the toolbar overflow menu (does not wait for sheet). */
+export async function clickSettingsFromToolbar(page: Page): Promise<void> {
+  await openToolbarOverflowMenu(page);
+  await page.locator('[data-testid="v2-settings-open-btn"]').click();
+}
+
+/** Opens the Grid info dialog from the toolbar overflow menu. */
+export async function openGridInfoDialog(page: Page): Promise<void> {
+  await openToolbarOverflowMenu(page);
+  await page.locator('[data-testid="grid-info-btn"]').click();
+}
+
 /** Opens the settings sheet via the header Settings button. Idempotent. */
 export async function openSettingsSheet(page: Page): Promise<void> {
   const sheet = page.locator('.ds-sheet');
   if (await sheet.isVisible().catch(() => false)) return;
-  await page.locator('[data-testid="v2-settings-open-btn"]').click();
+  await clickSettingsFromToolbar(page);
   await expect(sheet).toBeVisible();
 }
 
@@ -101,7 +118,7 @@ export const PANEL_ROOT_TESTID: Record<PanelModuleId, string> = {
 
 /**
  * Opens the settings sheet (if closed) and navigates to the given
- * module's panel via the visible header dropdown — the realistic user
+ * module's panel via the visible tab strip — the realistic user
  * path. Waits for the panel root testid to become visible before
  * returning.
  */
@@ -114,8 +131,7 @@ export async function openPanel(page: Page, moduleId: PanelModuleId): Promise<vo
     return;
   }
 
-  // Open the dropdown and pick the module.
-  await page.locator('[data-testid="v2-settings-module-dropdown"]').click();
+  // Click the visible module tab (shadcn Tabs strip below the title bar).
   await page.locator(`[data-testid="v2-settings-nav-menu-${moduleId}"]`).click();
   await expect(page.locator(`[data-testid="${rootTestid}"]`)).toBeVisible();
 }

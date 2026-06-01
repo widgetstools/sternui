@@ -13,6 +13,12 @@ vi.mock('./ProviderEditorDialog.js', () => ({
   ),
 }));
 
+vi.mock('./ConfigBrowserDialog.js', () => ({
+  ConfigBrowserDialog: (props: any) => (
+    props.open ? <div data-testid="config-browser-dialog" /> : null
+  ),
+}));
+
 vi.mock('./openFinRuntime.js', () => ({
   isOpenFinRuntime: vi.fn(() => false),
 }));
@@ -23,6 +29,12 @@ vi.mock('@starui/grid', () => ({
     lastMarketsGridProps.current = props;
     return <div data-testid="markets-grid-stub" />;
   },
+  createMarketsGridContainerEventBus: () => ({
+    emit: vi.fn(),
+    on: vi.fn(() => () => {}),
+  }),
+  MARKETS_GRID_EVENT_CATALOG: [],
+  useMarketsGridEventBridge: vi.fn(),
 }));
 
 vi.mock('@starui/host-data-react/runtime', () => ({
@@ -43,7 +55,8 @@ vi.mock('@starui/host-data-react/runtime', () => ({
 vi.mock('./LoadingOverlay.js', () => ({ MarketsGridLoadingOverlay: () => null }));
 
 import { isOpenFinRuntime } from './openFinRuntime.js';
-import { MarketsGridContainer } from './MarketsGridContainer.js';
+import { MarketsGridContainer, DATA_PROVIDER_EDITOR_ACTION_ID } from './MarketsGridContainer.js';
+import { CONFIG_BROWSER_ACTION_ID } from '@starui/config-browser';
 
 afterEach(() => {
   cleanup();
@@ -112,5 +125,62 @@ describe('MarketsGridContainer — provider editor dialog', () => {
 
     expect(onEditProvider).toHaveBeenCalledWith('provider-openfin');
     expect(queryByTestId('provider-editor-dialog')).toBeNull();
+  });
+
+  it('injects data-provider editor and config browser into toolbar overflow adminActions', async () => {
+    const storage = vi.fn(() => makeAdapter());
+    render(<MarketsGridContainer {...baseProps} storage={storage as any} />);
+
+    await waitFor(() => expect(lastMarketsGridProps.current?.adminActions).toBeDefined());
+
+    const ids = lastMarketsGridProps.current.adminActions.map((a: { id: string }) => a.id);
+    expect(ids).toContain(DATA_PROVIDER_EDITOR_ACTION_ID);
+    expect(ids).toContain(CONFIG_BROWSER_ACTION_ID);
+  });
+
+  it('opens ConfigBrowserDialog from overflow admin action in browser', async () => {
+    const storage = vi.fn(() => makeAdapter());
+    const { getByTestId, queryByTestId } = render(
+      <MarketsGridContainer {...baseProps} storage={storage as any} />,
+    );
+
+    await waitFor(() => expect(lastMarketsGridProps.current?.adminActions).toBeDefined());
+    expect(queryByTestId('config-browser-dialog')).toBeNull();
+
+    const configAction = lastMarketsGridProps.current.adminActions.find(
+      (a: { id: string }) => a.id === CONFIG_BROWSER_ACTION_ID,
+    );
+    act(() => {
+      void configAction.onClick();
+    });
+
+    await waitFor(() => {
+      expect(getByTestId('config-browser-dialog')).toBeTruthy();
+    });
+  });
+
+  it('delegates config browser to onOpenConfigBrowser when running in OpenFin', async () => {
+    vi.mocked(isOpenFinRuntime).mockReturnValue(true);
+    const onOpenConfigBrowser = vi.fn();
+    const storage = vi.fn(() => makeAdapter());
+
+    render(
+      <MarketsGridContainer
+        {...baseProps}
+        storage={storage as any}
+        onOpenConfigBrowser={onOpenConfigBrowser}
+      />,
+    );
+
+    await waitFor(() => expect(lastMarketsGridProps.current?.adminActions).toBeDefined());
+
+    const configAction = lastMarketsGridProps.current.adminActions.find(
+      (a: { id: string }) => a.id === CONFIG_BROWSER_ACTION_ID,
+    );
+    act(() => {
+      void configAction.onClick();
+    });
+
+    expect(onOpenConfigBrowser).toHaveBeenCalledTimes(1);
   });
 });

@@ -61,6 +61,7 @@
     "@starui/types": "*",
     "@starui/widget-sdk": "*",
     "@starui/ui": "*",
+    "@starui/config-browser": "*",
     "@stomp/stompjs": "^7.3.0"
   },
   "devDependencies": {

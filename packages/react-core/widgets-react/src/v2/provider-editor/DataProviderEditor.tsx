@@ -12,6 +12,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
   DialogTitle, DialogTrigger, Input, Label, ScrollArea,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -56,6 +63,8 @@ export function DataProviderEditor({ userId, initialProviderId = null, onClose }
   const [creating, setCreating] = useState<DataProviderConfig | null>(null);
   const [draftSeq, setDraftSeq] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState<DataProviderConfig | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Resolve which row to edit. `creating` (an in-memory draft) wins
   // until saved; otherwise look up the selected id in the list.
@@ -115,12 +124,25 @@ export function DataProviderEditor({ userId, initialProviderId = null, onClose }
     onClose?.();
   };
 
+  const onDeleteRequest = (cfg: DataProviderConfig) => {
+    setDeleteError(null);
+    setConfirmDelete(cfg);
+  };
+
   const onDelete = async (cfg: DataProviderConfig) => {
-    if (!cfg.providerId) return;
-    await configStore.remove(cfg.providerId);
-    setConfirmDelete(null);
-    if (selectedId === cfg.providerId) setSelectedId(null);
-    list.refresh();
+    if (!cfg.providerId || deleting) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await configStore.remove(cfg.providerId);
+      setConfirmDelete(null);
+      if (selectedId === cfg.providerId) setSelectedId(null);
+      list.refresh();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -135,7 +157,7 @@ export function DataProviderEditor({ userId, initialProviderId = null, onClose }
         onSelect={(id) => { setCreating(null); setSelectedId(id); }}
         onNew={startCreate}
         onClone={startClone}
-        onDeleteRequest={setConfirmDelete}
+        onDeleteRequest={onDeleteRequest}
       />
 
       <main className="flex-1 min-w-0 min-h-0 overflow-hidden">
@@ -157,21 +179,45 @@ export function DataProviderEditor({ userId, initialProviderId = null, onClose }
         )}
       </main>
 
-      <Dialog open={Boolean(confirmDelete)} onOpenChange={(open) => !open && setConfirmDelete(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete provider?</DialogTitle>
-            <DialogDescription>
+      <AlertDialog
+        open={Boolean(confirmDelete)}
+        onOpenChange={(open) => {
+          if (!open && !deleting) {
+            setConfirmDelete(null);
+            setDeleteError(null);
+          }
+        }}
+      >
+        <AlertDialogContent
+          overlayClassName="z-[12100]"
+          className="z-[12100]"
+          data-testid="provider-delete-confirm"
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete provider?</AlertDialogTitle>
+            <AlertDialogDescription>
               {confirmDelete?.name} will be removed. Subscribers in other windows will fail
               to re-attach until a replacement is configured. This cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setConfirmDelete(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => confirmDelete && onDelete(confirmDelete)}>Delete</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError ? (
+            <p className="text-sm text-destructive" data-testid="provider-delete-error">
+              {deleteError}
+            </p>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={deleting || !confirmDelete?.providerId}
+              data-testid="provider-delete-confirm-btn"
+              onClick={() => confirmDelete && void onDelete(confirmDelete)}
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -248,6 +294,7 @@ function SidebarRow({
     <li
       role="button"
       tabIndex={0}
+      data-selected={selected ? 'true' : 'false'}
       onClick={onSelect}
       onKeyDown={(e) => { if (e.key === 'Enter') onSelect(); }}
       className={[
@@ -266,7 +313,7 @@ function SidebarRow({
       <Button
         size="icon"
         variant="ghost"
-        className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100"
+        className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 group-data-[selected=true]:opacity-100"
         onClick={(e) => { e.stopPropagation(); onClone(); }}
         title="Duplicate"
       >
@@ -275,7 +322,7 @@ function SidebarRow({
       <Button
         size="icon"
         variant="ghost"
-        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
+        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 group-data-[selected=true]:opacity-100"
         onClick={(e) => { e.stopPropagation(); onDelete(); }}
         title="Delete"
       >

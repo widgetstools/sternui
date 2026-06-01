@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { clickSettingsFromToolbar } from './helpers/settingsSheet';
 
 /**
  * E2E for the settings-sheet pop-out button. Playwright blocks real
@@ -49,7 +50,7 @@ test.describe('v2 — settings sheet pop-out window', () => {
     await page.goto(V2_PATH);
     await waitForGrid(page);
     await stubWindowOpen(page);
-    await page.locator('[data-testid="v2-settings-open-btn"]').click();
+    await clickSettingsFromToolbar(page);
   });
 
   test('pop-out button is present in the sheet header', async ({ page }) => {
@@ -151,7 +152,7 @@ test.describe('v2 — settings sheet pop-out window', () => {
     });
 
     // Re-click the settings icon — should raise the popout.
-    await page.locator('[data-testid="v2-settings-open-btn"]').click();
+    await clickSettingsFromToolbar(page);
     await page.waitForTimeout(200);
 
     const focusCalls = await page.evaluate(
@@ -183,44 +184,23 @@ test.describe('v2 — settings sheet pop-out window', () => {
     expect(title).toContain('demo-blotter-v2');
   });
 
-  test('shadcn popovers from the popped sheet render INSIDE the popout window', async ({ page }) => {
-    // Regression: Radix Portal defaults to `document.body`, which is
-    // the MAIN window's body even when the Radix-using component lives
-    // in a React subtree portaled into another window. Without the
-    // PortalContainer context threading the popout's body down, every
-    // dropdown / popover / alert-dialog ends up on the wrong window.
+  test('module tabs from the popped sheet render INSIDE the popout window', async ({ page }) => {
     await page.locator('[data-testid="v2-settings-popout-btn"]').click();
     await page.waitForTimeout(400);
-
-    // Sanity: no popover wrappers in the main doc yet.
-    expect(await page.locator('[data-radix-popper-content-wrapper]').count()).toBe(0);
-
-    // Click the module dropdown trigger inside the popout iframe. The
-    // button is routed by testid so we pick it out of the iframe's doc.
-    const clickedInPopout = await page.evaluate(() => {
-      const iframe = document.querySelector('iframe[data-popout-iframe]') as HTMLIFrameElement | null;
-      const btn = iframe?.contentDocument?.querySelector('[data-testid="v2-settings-module-dropdown"]') as HTMLElement | null;
-      if (!btn) return false;
-      btn.click();
-      return true;
-    });
-    expect(clickedInPopout).toBe(true);
-    await page.waitForTimeout(300);
 
     const where = await page.evaluate(() => {
       const iframe = document.querySelector('iframe[data-popout-iframe]') as HTMLIFrameElement | null;
       const popoutDoc = iframe?.contentDocument;
       return {
-        wrappersInMain: document.querySelectorAll('[data-radix-popper-content-wrapper]').length,
-        wrappersInPopout: popoutDoc?.querySelectorAll('[data-radix-popper-content-wrapper]').length ?? 0,
-        // The menu items are only mounted while the popover is open.
+        tabsInMain: document.querySelectorAll('[data-testid="v2-settings-module-tabs"]').length,
+        tabsInPopout: popoutDoc?.querySelectorAll('[data-testid="v2-settings-module-tabs"]').length ?? 0,
         menuItemsInMain: document.querySelectorAll('[data-testid^="v2-settings-nav-menu-"]').length,
         menuItemsInPopout: popoutDoc?.querySelectorAll('[data-testid^="v2-settings-nav-menu-"]').length ?? 0,
       };
     });
 
-    expect(where.wrappersInMain).toBe(0);
-    expect(where.wrappersInPopout).toBeGreaterThanOrEqual(1);
+    expect(where.tabsInMain).toBe(0);
+    expect(where.tabsInPopout).toBeGreaterThanOrEqual(1);
     expect(where.menuItemsInMain).toBe(0);
     expect(where.menuItemsInPopout).toBeGreaterThanOrEqual(1);
   });

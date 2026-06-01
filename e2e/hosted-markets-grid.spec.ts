@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { openGridInfoDialog, openSettingsSheet } from './helpers/settingsSheet';
 
 /**
  * E2E — HostedMarketsGrid integration spec.
@@ -100,17 +101,17 @@ test.describe('hosted-markets-grid integration', () => {
   });
 
   test('Custom Settings exposes data provider controls', async ({ page }) => {
-    await page.locator('[data-testid="v2-settings-open-btn"]').click();
-    await page.locator('[data-testid="v2-settings-module-dropdown"]').click();
+    await openSettingsSheet(page);
     await page.locator('[data-testid="v2-settings-nav-menu-toolbar-date-settings"]').click();
     await expect(page.locator('[data-testid="provider-grid-host-section"]')).toBeVisible();
-    await expect(page.locator('[data-testid="provider-live-select"]')).toBeVisible();
+    await expect(page.getByTestId('provider-live-select').first()).toBeVisible();
+    await expect(page.locator('[data-testid="tds-enabled"]')).toBeVisible();
     await expect(page.locator('[data-testid="provider-refresh-view"]')).toBeVisible();
     await expect(page.locator('[data-testid="provider-reload-from-source"]')).toBeVisible();
   });
 
   test('grid info popover surfaces path / instanceId / gridId', async ({ page }) => {
-    await page.locator('[data-testid="grid-info-btn"]').click();
+    await openGridInfoDialog(page);
     // Popover content is unscoped — match by label cells.
     const popover = page.locator('[data-ds-settings]').filter({ hasText: 'instanceId' });
     await expect(popover).toBeVisible();

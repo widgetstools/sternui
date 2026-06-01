@@ -133,7 +133,6 @@ test.describe('platform-hooks-demo — handler invocation', () => {
 
     await page.locator('[data-testid="toolbar-more-menu-trigger"]').click();
     await page.locator('[data-testid="v2-settings-open-btn"]').click();
-    await page.locator('[data-testid="v2-settings-module-dropdown"]').click();
     await page.locator('[data-testid="v2-settings-nav-menu-general-settings"]').click();
     await page.locator('[data-testid="go-pagination"]').click();
     await page.locator('[data-testid="go-save-btn"]').click();

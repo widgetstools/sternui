@@ -104,14 +104,12 @@ test.describe('@vr v1 visual reference capture', () => {
       });
     }
 
-    test(`${theme} — module dropdown open`, async ({ page }) => {
+    test(`${theme} — module tabs visible`, async ({ page }) => {
       await setTheme(page, theme);
       await openSettingsSheet(page);
-      await page.locator('[data-testid="v2-settings-module-dropdown"]').click();
-      // Wait for popover anim.
+      await expect(page.locator('[data-testid="v2-settings-module-tabs"]')).toBeVisible();
       await page.waitForTimeout(200);
-      await shot(page, theme, 'module-dropdown-open');
-      await page.keyboard.press('Escape');
+      await shot(page, theme, 'module-tabs-visible');
       await closeSettingsSheet(page);
     });
   }

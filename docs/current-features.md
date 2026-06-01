@@ -1014,7 +1014,8 @@ Per-renderer config types (`PillRendererConfig`,
 - **STOMP** (`startStomp()`)
   - WebSocket via `@stomp/stompjs`
   - Worker-side `{{name.key}}` resolution on every connect/restart via `appDataLookup` (SharedWorker AppData mirror); `restart({ asOfDate })` overlay **wins** for historical date keys (`asOfDate`, `position-asofdate`) so toolbar reload is deterministic
-  - Unresolved `{{...}}` in wire destinations → `status: error` (fail-fast; no silent infinite loading)
+  - Fail-closed gates before broker wire: `assertAppDataResolved()` on full resolved cfg; `validateStompWireReady()` on subscribe/publish destinations + `requestBody` (no `{{...}}` downstream); `validateStompPathContract()` rejects historical listeners paired with live-style `/rate/batch` triggers
+  - Unresolved `{{...}}` or invalid wire paths → `status: error` (no subscribe/publish; no silent infinite loading)
   - Snapshot phase → `snapshotEndToken` → buffered `{ rowsReceived }` progress, then chunked cache replace
   - Live phase → keyed deltas via `applyTransactionAsync`
   - Auto-chunking (`SNAPSHOT_CHUNK_SIZE = 500`) to stay under 50 ms long-task budget
@@ -1070,6 +1071,8 @@ Per-renderer config types (`PillRendererConfig`,
 #### Template resolution
 
 - `{{name.key}}` — AppData token substitution (React `useResolvedCfg` for column defs; worker `startProvider({ appDataLookup })` + STOMP `onConnect` for wire destinations)
+- `findUnresolvedAppDataTokens()` / `assertAppDataResolved()` — scan cfg for remaining `{{name.key}}` tokens; non-STOMP providers throw at `startProvider` when lookup is wired; STOMP fails on connect before wire
+- `validateStompWireReady()` / `validateStompPathContract()` — STOMP subscribe/publish + historical vs live path contract (mirrors `stomp-view-server` wire rules)
 - `[identifier]` — session-unique bracket tokens (worker-side)
 - `resolveBracketCfg()` — per-attach cache so same token reuses same value
 - `traceStompProviderCfg()` / `traceStompWireDestinations()` — opt-in console audit (`globalThis.__STARUI_TEMPLATE_TRACE__ = true`)
