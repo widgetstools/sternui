@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "STARUI_DEV_SOURCE=1 vite",
+    "dev": "cross-env STARUI_DEV_SOURCE=1 vite",
     "build": "tsc && vite build",
     "typecheck": "tsc --noEmit"
   },

@@ -13,7 +13,7 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
   webServer: [
     {
-      command: 'STARUI_DEV_SOURCE=1 npm run dev --workspace=@starui/demo-react',
+      command: 'cross-env STARUI_DEV_SOURCE=1 npm run dev --workspace=@starui/demo-react',
       port: 5190,
       reuseExistingServer: true,
       timeout: 90_000,
@@ -25,7 +25,7 @@ export default defineConfig({
       timeout: 90_000,
     },
     {
-      command: 'STARUI_DEV_SOURCE=1 npm run dev --workspace=@starui/markets-ui-react-reference',
+      command: 'cross-env STARUI_DEV_SOURCE=1 npm run dev --workspace=@starui/markets-ui-react-reference',
       port: 5174,
       reuseExistingServer: true,
       timeout: 90_000,
@@ -46,7 +46,7 @@ export default defineConfig({
       // disk during the first dev start. Without it, newly-added grid
       // modules (alerts, etc.) get silently dropped from the served bundle.
       // Port matches `apps/markets-grid-lab/vite.config.ts`.
-      command: 'STARUI_DEV_SOURCE=1 npm run dev --workspace=@starui/markets-grid-lab -- --no-open --force',
+      command: 'cross-env STARUI_DEV_SOURCE=1 npm run dev --workspace=@starui/markets-grid-lab -- --no-open --force',
       port: 5300,
       reuseExistingServer: true,
       timeout: 120_000,
@@ -55,7 +55,7 @@ export default defineConfig({
       // Platform hooks demo — AppData bootstrap + grid event bindings.
       // Port matches `apps/platform-hooks-demo/vite.config.ts`.
       // host-data resolves to dist exports — build before dev so bootstrap JSON parsing is current.
-      command: 'npm run build --workspace=@starui/host-data && npm run build --workspace=@starui/widgets-react && STARUI_DEV_SOURCE=1 npm run dev --workspace=@starui/platform-hooks-demo -- --no-open --force',
+      command: 'npm run build --workspace=@starui/host-data && npm run build --workspace=@starui/widgets-react && cross-env STARUI_DEV_SOURCE=1 npm run dev --workspace=@starui/platform-hooks-demo -- --no-open --force',
       port: 5214,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
