@@ -252,6 +252,39 @@ describe('useFilterModel — AG-Grid wiring', () => {
     expect(fake.api.getFilterModel()).toEqual(liveModel);
   });
 
+  it('addFromLive captures only the delta vs active pills', () => {
+    const fake = makeFakeApi();
+    platform.onGridReady(fake.api);
+
+    seedFilters(platform, [
+      {
+        id: 'a',
+        label: 'side: BUY',
+        active: true,
+        filterModel: { side: { filterType: 'set', values: ['BUY'] } },
+      },
+    ]);
+
+    const { result } = renderHook(() => useFilterModel(), { wrapper: wrapper(platform) });
+
+    const liveModel = {
+      side: { filterType: 'set', values: ['BUY'] },
+      price: { filterType: 'number', type: 'greaterThan', filter: 100 },
+    };
+    fake.setLiveModel(liveModel);
+
+    act(() => fake.fireEvent('filterChanged'));
+    expect(result.current.hasNewFilter).toBe(true);
+
+    act(() => result.current.addFromLive());
+
+    const saved = readFilters(platform);
+    expect(saved).toHaveLength(2);
+    expect(saved[1].filterModel).toEqual({
+      price: { filterType: 'number', type: 'greaterThan', filter: 100 },
+    });
+  });
+
   it('addFromLive is a no-op when the live model is empty', () => {
     const fake = makeFakeApi();
     platform.onGridReady(fake.api);

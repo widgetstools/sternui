@@ -41,34 +41,27 @@
 /* ─── Filter pill colour variables ─────────────────────────────────── */
 
 :root {
-  /* Active filters use bright cool accents (cyan/violet), distinct from
-     earthy warning tones and from trading green/red semantics. */
-  --filter-active-bg: linear-gradient(135deg,
-                        color-mix(in srgb, var(--ds-accent-highlight) 20%, transparent),
-                        color-mix(in srgb, var(--ds-accent-purple) 16%, transparent));
-  --filter-active-text: var(--ds-accent-highlight);
-  --filter-active-border: color-mix(in srgb, var(--ds-accent-highlight) 62%, var(--ds-accent-purple));
-  --filter-active-glow: 0 0 0 1px color-mix(in srgb, var(--ds-accent-highlight) 36%, transparent),
-                        0 0 8px color-mix(in srgb, var(--ds-accent-highlight) 42%, transparent),
-                        0 0 16px color-mix(in srgb, var(--ds-accent-purple) 26%, transparent);
-  --filter-inactive-bg: var(--ds-surface-tertiary);
-  --filter-inactive-text: var(--ds-text-secondary);
-  --filter-inactive-border: var(--ds-border-secondary);
-  --filter-label-color: var(--ds-accent-info);
+  /* Active pills — solid primary fill + on-primary text. */
+  --filter-active-bg: var(--ds-primary);
+  --filter-active-text: var(--ds-primary-foreground);
+  --filter-active-border: var(--ds-primary-hover);
+  --filter-active-glow: inset 0 1px 0 color-mix(in srgb, var(--ds-primary-foreground) 24%, transparent),
+                        0 1px 2px color-mix(in srgb, var(--ds-primary-pressed) 32%, transparent);
+  --filter-inactive-bg: color-mix(in srgb, var(--ds-primary) 6%, var(--ds-surface-secondary));
+  --filter-inactive-text: var(--ds-text-muted);
+  --filter-inactive-border: color-mix(in srgb, var(--ds-primary) 22%, var(--ds-border-secondary));
+  --filter-label-color: var(--ds-primary);
 }
 
 [data-theme="light"] {
-  --filter-active-bg: linear-gradient(135deg,
-                        color-mix(in srgb, var(--ds-accent-highlight) 16%, var(--ds-surface-primary)),
-                        color-mix(in srgb, var(--ds-accent-purple) 10%, var(--ds-surface-primary)));
-  --filter-active-text: var(--ds-accent-purple);
-  --filter-active-border: color-mix(in srgb, var(--ds-accent-highlight) 42%, var(--ds-accent-purple));
-  --filter-active-glow: 0 1px 2px rgba(15, 23, 42, 0.06),
-                        0 0 0 1px color-mix(in srgb, var(--ds-accent-highlight) 18%, transparent);
-  --filter-inactive-bg: var(--ds-surface-tertiary);
-  --filter-inactive-text: var(--ds-text-secondary);
-  --filter-inactive-border: var(--ds-border-secondary);
-  --filter-label-color: var(--ds-accent-info);
+  --filter-active-bg: var(--ds-primary);
+  --filter-active-text: var(--ds-primary-foreground);
+  --filter-active-border: var(--ds-primary-hover);
+  --filter-active-glow: inset 0 1px 0 color-mix(in srgb, var(--ds-primary-foreground) 18%, transparent),
+                        0 1px 2px color-mix(in srgb, var(--ds-primary-pressed) 24%, transparent);
+  --filter-inactive-bg: color-mix(in srgb, var(--ds-primary) 5%, var(--ds-surface-primary));
+  --filter-inactive-text: var(--ds-text-muted);
+  --filter-inactive-border: color-mix(in srgb, var(--ds-primary) 18%, var(--ds-border-secondary));
 }
 
 /* ─── Toolbar button theme styles (wrapped in @layer so Tailwind's
@@ -201,6 +194,7 @@
    flexbox layout. */
 
 .ds-primary-row {
+  --ds-toolbar-chip-height: 30px;
   display: flex;
   align-items: stretch;
   flex-shrink: 0;
@@ -239,16 +233,29 @@
   flex-shrink: 0;
 }
 
+/* Profile picker + save + date — no dividers; save sits flush beside layout chip. */
+.ds-primary-profile-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+
 .ds-primary-date-picker {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 30px;
+  height: var(--ds-toolbar-chip-height, 30px) !important;
+  min-height: var(--ds-toolbar-chip-height, 30px) !important;
+  max-height: var(--ds-toolbar-chip-height, 30px) !important;
   min-width: 0;
   padding: 0 8px;
   font-family: var(--ds-font-mono, ui-monospace, monospace);
-  font-size: 11px;
-  line-height: 1;
+  /* Beat shadcn `text-sm` / `text-xs` / `h-[28px]` on outline `Button`. */
+  font-size: 11px !important;
+  font-weight: 600;
+  line-height: 1 !important;
   color: var(--ds-text-primary);
   background: transparent;
   border: 1px solid var(--ds-border-primary);
@@ -270,14 +277,19 @@
   background: color-mix(in srgb, var(--ds-surface-primary) 94%, var(--ds-surface-secondary));
 }
 
-/* Shared icon button for Brush / Save / Settings. */
+/* Shared icon button for Brush / Save / Settings / alerts / ⋯ menu. */
 .ds-primary-action {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
+  width: var(--ds-toolbar-chip-height, 30px) !important;
+  height: var(--ds-toolbar-chip-height, 30px) !important;
+  min-width: var(--ds-toolbar-chip-height, 30px) !important;
+  min-height: var(--ds-toolbar-chip-height, 30px) !important;
+  max-width: var(--ds-toolbar-chip-height, 30px) !important;
+  max-height: var(--ds-toolbar-chip-height, 30px) !important;
+  padding: 0 !important;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 2px;
@@ -358,17 +370,18 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 32px;
+  width: var(--ds-toolbar-chip-height, 30px);
+  height: var(--ds-toolbar-chip-height, 30px);
+  min-width: var(--ds-toolbar-chip-height, 30px);
+  min-height: var(--ds-toolbar-chip-height, 30px);
   padding: 0;
   background: var(--ds-surface-secondary);
-  border: 1px solid var(--ds-border-primary);
+  border: 1px solid var(--ds-border-secondary);
   color: var(--ds-text-primary);
   opacity: 0.85;
   cursor: pointer;
   flex-shrink: 0;
   border-radius: 2px;
-  margin-right: 4px;
   transition: color 120ms ease, background 120ms ease, border-color 120ms ease, opacity 120ms ease;
 }
 .ds-filters-collapse:hover {
@@ -378,42 +391,66 @@
   border-color: var(--ds-primary-ring);
 }
 
-/* Summary chip (collapsed state) */
+/* Summary chip (collapsed state) — geometry + typography match profile/date chips. */
 .ds-filters-summary {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 28px;
-  padding: 0 10px;
-  background: var(--ds-surface-tertiary);
-  border: 1px solid var(--ds-border-primary);
-  border-radius: 13px;
+  justify-content: center;
+  gap: 6px !important;
+  height: var(--ds-toolbar-chip-height, 30px) !important;
+  min-height: var(--ds-toolbar-chip-height, 30px) !important;
+  max-height: var(--ds-toolbar-chip-height, 30px) !important;
+  /* Beat shadcn chrome `Button` (`px-0`, `py-0`, `gap-0`). */
+  padding: 0 14px !important;
+  margin: 0 2px;
+  background: var(--ds-surface-secondary);
+  border: 1px solid var(--ds-border-secondary);
+  border-radius: 2px;
   color: var(--ds-text-primary);
   font-family: var(--ds-font-sans);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  /* Beat shadcn chrome `Button` (`text-sm`, `h-auto`). */
+  font-size: 11px !important;
+  font-weight: 600;
+  line-height: 1.2 !important;
+  letter-spacing: 0.01em;
   cursor: pointer;
   flex-shrink: 0;
-  transition: all 120ms ease;
+  box-shadow: none;
+  white-space: nowrap;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+[data-theme="light"] .ds-filters-summary {
+  background: var(--ds-surface-primary);
+  border-color: var(--ds-border-primary);
 }
 .ds-filters-summary:hover {
-  border-color: var(--ds-border-secondary);
-  background: var(--ds-surface-secondary);
+  background: color-mix(in srgb, var(--ds-surface-secondary) 90%, var(--ds-primary) 10%);
+  border-color: color-mix(in srgb, var(--ds-primary) 35%, var(--ds-border-secondary));
+  color: var(--ds-text-primary);
+}
+[data-theme="light"] .ds-filters-summary:hover {
+  background: color-mix(in srgb, var(--ds-surface-primary) 92%, var(--ds-primary) 8%);
+  border-color: color-mix(in srgb, var(--ds-primary) 30%, var(--ds-border-primary));
 }
 .ds-filters-summary-count {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   color: var(--ds-primary);
+  margin-right: 1px;
 }
 .ds-filters-summary-label {
+  font-weight: 500;
   color: var(--ds-text-muted);
+  margin-right: 2px;
 }
 .ds-filters-summary-active {
-  color: var(--ds-accent-warning);
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--ds-primary);
+  margin-left: 2px;
 }
 .ds-filters-summary-empty {
+  font-weight: 500;
   color: var(--ds-text-muted);
   font-style: italic;
 }
@@ -425,18 +462,27 @@
   justify-content: center;
   width: 30px;
   height: 30px;
+  min-height: 30px;
+  max-height: 30px;
   padding: 0;
   background: none;
   border: none;
-  color: var(--ds-accent-negative);
+  color: var(--ds-accent-negative) !important;
   cursor: pointer;
   flex-shrink: 0;
   border-radius: 2px;
   transition: color 120ms ease, background 120ms ease;
 }
-.ds-filters-clear-btn:hover {
-  background: rgba(239, 68, 68, 0.10);
-  color: var(--ds-accent-negative-hover);
+.ds-filters-clear-btn:hover:not(:disabled) {
+  background: var(--ds-overlay-negative-soft);
+  color: var(--ds-accent-negative-hover) !important;
+}
+.ds-filters-clear-btn:disabled,
+.ds-filters-clear-btn[data-enabled='false'] {
+  color: var(--ds-text-disabled) !important;
+  opacity: 0.65 !important;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .ds-filters-add-btn {
@@ -445,28 +491,38 @@
   justify-content: center;
   width: 30px;
   height: 30px;
+  min-height: 30px;
+  max-height: 30px;
   padding: 0;
   background: none;
   border: none;
-  color: var(--ds-accent-positive);
+  color: var(--ds-text-muted);
   cursor: pointer;
   flex-shrink: 0;
   border-radius: 2px;
   transition: color 120ms ease, background 120ms ease;
 }
-.ds-filters-add-btn:hover:not(:disabled) {
-  background: rgba(20, 184, 166, 0.10);
-  color: var(--ds-accent-positive-hover);
+/* Enabled when the live grid filter is new — teal accent (overrides shadcn `text-inherit`). */
+.ds-filters-add-btn[data-enabled='true'] {
+  color: var(--ds-accent-positive) !important;
+  opacity: 1;
 }
-.ds-filters-add-btn:disabled {
-  opacity: 0.35;
+.ds-filters-add-btn[data-enabled='true']:hover {
+  background: var(--ds-overlay-positive-soft);
+  color: var(--ds-accent-positive-hover) !important;
+}
+.ds-filters-add-btn:disabled,
+.ds-filters-add-btn[data-enabled='false'] {
+  color: var(--ds-text-disabled) !important;
+  opacity: 0.65 !important;
   cursor: not-allowed;
+  pointer-events: none;
 }
 
 .ds-filter-scroll {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   flex: 1 1 0px;
   min-width: 0;
   overflow-x: auto;
@@ -483,16 +539,20 @@
   align-items: center;
   justify-content: center;
   height: 28px;
-  padding: 0 11px;
-  border-radius: 2px;
+  padding: 0 10px;
+  border-radius: 999px;
   border: 1px solid;
-  font-size: 11.5px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   font-family: var(--ds-font-sans);
   white-space: nowrap;
   flex-shrink: 0;
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
   cursor: default;
 }
 
@@ -501,35 +561,34 @@
   color: var(--filter-active-text);
   border-color: var(--filter-active-border);
   box-shadow: var(--filter-active-glow);
-  text-shadow: 0 0 8px color-mix(in srgb, var(--ds-accent-highlight) 50%, transparent);
 }
 .ds-filter-active:hover {
-  background: linear-gradient(135deg,
-                color-mix(in srgb, var(--ds-accent-highlight) 28%, transparent),
-                color-mix(in srgb, var(--ds-accent-purple) 22%, transparent));
-  border-color: color-mix(in srgb, var(--ds-accent-highlight) 78%, var(--ds-accent-purple));
-}
-
-[data-theme="light"] .ds-filter-active {
-  text-shadow: none;
+  background: var(--ds-primary-hover);
+  border-color: var(--ds-primary-pressed);
+  color: var(--ds-primary-foreground);
 }
 
 [data-theme="light"] .ds-filter-active:hover {
-  background: linear-gradient(135deg,
-                color-mix(in srgb, var(--ds-accent-highlight) 22%, var(--ds-surface-primary)),
-                color-mix(in srgb, var(--ds-accent-purple) 14%, var(--ds-surface-primary)));
-  border-color: color-mix(in srgb, var(--ds-accent-highlight) 55%, var(--ds-accent-purple));
+  background: var(--ds-primary-hover);
+  border-color: var(--ds-primary-pressed);
 }
 
 .ds-filter-inactive {
   background: var(--filter-inactive-bg);
   color: var(--filter-inactive-text);
-  border-color: var(--filter-inactive-border);
+  border: 1px solid var(--filter-inactive-border);
+  box-shadow: none;
+  font-weight: 500;
 }
 .ds-filter-inactive:hover {
-  color: var(--ds-text-primary);
-  background: color-mix(in srgb, var(--ds-text-primary) 6%, var(--ds-surface-tertiary));
-  border-color: color-mix(in srgb, var(--ds-text-primary) 22%, var(--ds-border-secondary));
+  color: var(--ds-text-secondary);
+  background: color-mix(in srgb, var(--ds-primary) 9%, var(--filter-inactive-bg));
+  border-color: color-mix(in srgb, var(--ds-primary) 32%, var(--ds-border-secondary));
+}
+
+[data-theme="light"] .ds-filter-inactive:hover {
+  background: color-mix(in srgb, var(--ds-primary) 8%, var(--filter-inactive-bg));
+  border-color: color-mix(in srgb, var(--ds-primary) 26%, var(--ds-border-secondary));
 }
 
 .ds-filter-pill-btn {
@@ -551,8 +610,8 @@
 
 .ds-filter-pill-count {
   flex-shrink: 0;
-  margin-left: 7px;
-  padding: 0 6px;
+  margin-left: 6px;
+  padding: 0 5px;
   height: 16px;
   min-width: 18px;
   display: inline-flex;
@@ -560,22 +619,20 @@
   justify-content: center;
   border-radius: 999px;
   font-size: 9.5px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  background: color-mix(in srgb, currentColor 14%, transparent);
-  color: inherit;
-  opacity: 0.9;
+  border: 1px solid transparent;
 }
 .ds-filter-active .ds-filter-pill-count {
-  background: color-mix(in srgb, var(--ds-accent-warning) 25%, transparent);
-  color: var(--ds-accent-warning);
-  opacity: 1;
+  background: color-mix(in srgb, var(--ds-primary-foreground) 18%, transparent);
+  border-color: color-mix(in srgb, var(--ds-primary-foreground) 32%, transparent);
+  color: var(--ds-primary-foreground);
 }
 .ds-filter-inactive .ds-filter-pill-count {
-  background: color-mix(in srgb, var(--ds-text-primary) 10%, transparent);
-  color: var(--ds-text-primary);
-  opacity: 0.95;
+  background: color-mix(in srgb, var(--ds-primary) 8%, var(--ds-surface-tertiary));
+  border-color: color-mix(in srgb, var(--ds-primary) 22%, transparent);
+  color: var(--ds-text-secondary);
 }
 
 .ds-filter-pill-actions {
@@ -615,11 +672,18 @@
 }
 .ds-filter-pill-action:hover {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--ds-text-primary) 12%, transparent);
 }
 .ds-filter-pill-action-remove:hover {
   color: var(--ds-accent-negative);
-  background: rgba(248, 113, 113, 0.12);
+  background: var(--ds-overlay-negative-soft);
+}
+.ds-filter-active .ds-filter-pill-action:hover {
+  background: color-mix(in srgb, var(--ds-primary-foreground) 14%, transparent);
+}
+.ds-filter-active .ds-filter-pill-menu:hover,
+.ds-filter-active .ds-filter-pill-menu[data-state="open"] {
+  background: color-mix(in srgb, var(--ds-primary-foreground) 14%, transparent);
 }
 
 /* Always-visible "show saved filter" menu trigger. Sits between the
@@ -670,16 +734,22 @@
   height: 18px;
   padding: 0;
   background: none;
-  border: none;
-  border-radius: 2px;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none;
+  border-radius: 0;
   color: var(--ds-text-muted);
   cursor: pointer;
   flex-shrink: 0;
-  transition: color 100ms ease, background 100ms ease;
+  transition: color 100ms ease;
 }
 .ds-filters-caret:hover {
   color: var(--ds-text-primary);
-  background: var(--ds-surface-tertiary);
+  background: none;
+}
+.ds-filters-caret:focus-visible {
+  outline: none;
+  box-shadow: none !important;
 }
 
 .ds-filters-actions {
@@ -688,6 +758,18 @@
   gap: 6px;
   flex-shrink: 0;
   margin-left: 4px;
+  position: relative;
+  z-index: 2;
+}
+
+/* Sticky add/clear sit after the overflow scroll row — keep them above any
+   clipped pill chrome and make icon strokes transparent to hit-testing so
+   Playwright / pointer clicks reach the `<button>` (shadcn chrome variant). */
+.ds-filters-actions .ds-filters-clear-btn,
+.ds-filters-actions .ds-filters-add-btn {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
 }
 
 .ds-filters-icon-btn {
@@ -722,7 +804,7 @@
   font-size: 11px;
   font-weight: 600;
   font-family: var(--ds-font-sans);
-  border-radius: 12px;
+  border-radius: 999px;
   border: 1px solid var(--ds-primary);
   background: var(--ds-surface-ground);
   color: var(--ds-text-primary);

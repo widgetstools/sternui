@@ -57,7 +57,16 @@ async function getFilterPillCount(page: Page): Promise<number> {
 }
 
 async function clickAddFilter(page: Page) {
-  await page.locator('.ds-filters-add-btn').click();
+  const btn = page.locator('[data-testid="filters-add-btn"]');
+  await expect(btn).toBeEnabled({ timeout: 5000 });
+  await btn.click();
+  await page.waitForTimeout(400);
+}
+
+async function clickClearAllFilters(page: Page) {
+  const btn = page.locator('[data-testid="filters-clear-btn"]');
+  await expect(btn).toBeVisible({ timeout: 5000 });
+  await btn.click();
   await page.waitForTimeout(400);
 }
 
@@ -167,6 +176,24 @@ test.describe('v2 FiltersToolbar', () => {
     expect(await getDisplayedRowCount(page)).toBeLessThanOrEqual(filteredCount + 1);
   });
 
+  test('clear all deactivates every pill and removes grid filter', async ({ page }) => {
+    await setFilterViaApi(page, { side: { filterType: 'set', values: ['BUY'] } });
+    const filteredCount = await getDisplayedRowCount(page);
+    await clickAddFilter(page);
+    expect(await getFilterPillCount(page)).toBe(1);
+
+    await clickClearAllFilters(page);
+
+    expect(await getDisplayedRowCount(page)).toBeGreaterThan(filteredCount);
+    const activePills = await page.locator('.ds-filter-pill[data-active="true"]').count();
+    expect(activePills).toBe(0);
+    expect(await getFilterPillCount(page)).toBe(1);
+
+    const clearBtn = page.locator('[data-testid="filters-clear-btn"]');
+    await expect(clearBtn).toBeDisabled();
+    await expect(clearBtn).toHaveAttribute('data-enabled', 'false');
+  });
+
   test('multiple filters compose with AND across columns', async ({ page }) => {
     await setFilterViaApi(page, { side: { filterType: 'set', values: ['BUY'] } });
     await clickAddFilter(page);
@@ -261,7 +288,7 @@ test.describe('v2 FiltersToolbar', () => {
     await expect(addBtn).toBeDisabled();
 
     // Defensive: even if the DOM disabled attribute were somehow lost,
-    // a click would no-op via `handleAdd`'s internal isNewFilter guard.
+    // a forced click would no-op via addFromLive's isNewFilter guard.
     await addBtn.click({ force: true });
     await page.waitForTimeout(200);
     expect(await getFilterPillCount(page)).toBe(1);
@@ -352,7 +379,7 @@ test.describe('v2 FiltersToolbar', () => {
     // Create a pill so the clear-all button mounts.
     await setFilterViaApi(page, { side: { filterType: 'set', values: ['BUY'] } });
     await clickAddFilter(page);
-    const clearBtn = page.locator('.ds-filters-clear-btn');
+    const clearBtn = page.locator('[data-testid="filters-clear-btn"]');
     await expect(clearBtn).toBeVisible();
     // Same sticky-group placement.
     const clearInsideScroll = await clearBtn.evaluate(

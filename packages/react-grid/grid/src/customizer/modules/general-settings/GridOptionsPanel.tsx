@@ -76,6 +76,7 @@ const CUSTOM_FIELD_STATE_KEYS: Record<
 > = {
   'go-page-size-row': ['paginationPageSize', 'paginationAutoPageSize'],
   'go-undo-redo-row': ['undoRedoCellEditing', 'undoRedoCellEditingLimit'],
+  'go-cell-change-flash-color': ['cellChangeFlashColor'],
 };
 
 function collectCustomKeys(

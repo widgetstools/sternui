@@ -124,11 +124,6 @@
   border-radius: var(--fx-radius, 3px);
 }
 
-.fx-toolbar-row__spacer {
-  flex: 1 1 auto;
-  min-width: 8px;
-}
-
 /* Labeled cluster — label + controls inline; no outer box chrome. */
 .fx-toolbar-group {
   display: inline-flex;

@@ -257,6 +257,57 @@ function getByPath(row: Record<string, unknown>, path: string): unknown {
   return cursor;
 }
 
+// ─── Filter-model normalization (compare-only) ──────────────────────────
+
+/** AG-Grid condition fields we compare — runtime-only props are stripped. */
+const FILTER_COMPARE_KEYS = [
+  'filterType',
+  'type',
+  'filter',
+  'filterTo',
+  'values',
+  'operator',
+  'condition1',
+  'condition2',
+  'dateFrom',
+  'dateTo',
+  'filterModels',
+] as const;
+
+function normalizeFilterEntryForCompare(entry: unknown): unknown {
+  if (entry == null || typeof entry !== 'object') return entry;
+  const e = entry as Record<string, unknown>;
+  if (e.filterType === 'multi' && Array.isArray(e.filterModels)) {
+    return {
+      filterType: 'multi',
+      filterModels: e.filterModels.map(normalizeFilterEntryForCompare),
+    };
+  }
+  const out: Record<string, unknown> = {};
+  for (const key of FILTER_COMPARE_KEYS) {
+    if (key === 'filterModels') continue;
+    if (key in e) out[key] = e[key];
+  }
+  return out;
+}
+
+/**
+ * Strip AG-Grid runtime noise before equality / delta checks. `getFilterModel()`
+ * often returns superset shapes (extra keys on set/number conditions) that
+ * would otherwise keep the "+" button lit even when the live filter is fully
+ * represented by saved pills.
+ */
+export function normalizeFilterModelForCompare(
+  model: Record<string, unknown> | null | undefined,
+): Record<string, unknown> | null {
+  if (model == null || Object.keys(model).length === 0) return null;
+  const out: Record<string, unknown> = {};
+  for (const [col, entry] of Object.entries(model)) {
+    out[col] = normalizeFilterEntryForCompare(entry);
+  }
+  return out;
+}
+
 // ─── Filter-model equality ──────────────────────────────────────────────
 
 /**
@@ -417,23 +468,41 @@ export function isNewFilter(
   live: Record<string, unknown> | null | undefined,
   pills: ReadonlyArray<SavedFilterShape>,
 ): boolean {
-  if (!live || Object.keys(live).length === 0) return false;
+  const liveNorm = normalizeFilterModelForCompare(live);
+  if (!liveNorm || Object.keys(liveNorm).length === 0) return false;
 
   // Rule 2: reject if any pill's model equals the live model.
   for (const pill of pills) {
-    if (filterModelsEqual(live, pill.filterModel)) return false;
+    if (filterModelsEqual(liveNorm, normalizeFilterModelForCompare(pill.filterModel))) {
+      return false;
+    }
   }
 
-  // Rule 3: reject the merged-active echo. For 0/1 active pills the
-  // merge equals null / that one pill — already caught above. Only the
-  // N≥2 case produces a shape distinct from every individual pill.
+  // Rule 3: reject the merged-active echo (any N≥1 active pills). AG-Grid
+  // returns enriched shapes so compare normalized models, not raw references.
   const active = pills.filter((p) => p.active);
-  if (active.length >= 2) {
-    const merged = mergeFilterModels(active.map((p) => p.filterModel));
-    if (filterModelsEqual(live, merged)) return false;
+  if (active.length > 0) {
+    const merged =
+      active.length === 1
+        ? active[0].filterModel
+        : mergeFilterModels(active.map((p) => p.filterModel));
+    if (filterModelsEqual(liveNorm, normalizeFilterModelForCompare(merged))) {
+      return false;
+    }
   }
 
-  return true;
+  // Rule 4: no net-new column delta vs the active merge → not capturable.
+  const activeMerged =
+    active.length === 0
+      ? {}
+      : active.length === 1
+        ? active[0].filterModel
+        : mergeFilterModels(active.map((p) => p.filterModel));
+  const delta = subtractFilterModel(
+    liveNorm,
+    normalizeFilterModelForCompare(activeMerged) ?? {},
+  );
+  return Object.keys(delta).length > 0;
 }
 
 // ─── New-filter extraction (live \ active) ──────────────────────────────

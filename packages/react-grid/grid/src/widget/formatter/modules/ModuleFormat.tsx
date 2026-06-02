@@ -40,7 +40,9 @@ function currencyKeyFromTemplate(t: ValueFormatterTemplate | undefined): string 
     const code = (t.options as { currency?: string } | undefined)?.currency;
     if (code && CURRENCY_FORMATTERS[code]) return code;
   }
-  if (t.kind === 'expression' && t.expression === BPS_TEMPLATE.expression) return 'BPS';
+  if (t.kind === 'expression' && BPS_TEMPLATE.kind === 'expression' && t.expression === BPS_TEMPLATE.expression) {
+    return 'BPS';
+  }
   return '';
 }
 

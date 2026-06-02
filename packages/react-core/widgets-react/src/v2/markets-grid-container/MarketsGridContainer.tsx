@@ -842,6 +842,13 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   useEffect(() => {
     if (!pendingToolbarReloadRef.current) return;
     if (!loaded || !provider || !activeId || !liveApi) return;
+    // Wait until selection.mode catches up with the toolbar date intent.
+    // Without this guard the effect can fire while mode is still `live`,
+    // consume the pending flag with a live refresh, and skip the
+    // historical restart that carries `{ asOfDate }`.
+    const historicalDate = isHistoricalToolbarDate(toolbarDate);
+    if (historicalDate && selection.mode !== 'historical') return;
+    if (!historicalDate && selection.mode === 'historical') return;
     pendingToolbarReloadRef.current = false;
     reloadFromSource();
   }, [

@@ -146,6 +146,24 @@ describe('GridOptionsPanel (v4 schema-driven)', () => {
     expect(screen.getByTestId('go-page-size-auto')).toBeTruthy();
   });
 
+  it('flash colour swatches render only when flash-on-change is enabled', () => {
+    mount(platform);
+    expect(screen.queryByTestId('go-cell-change-flash-color-amber')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('go-enable-cell-change-flash'));
+    expect(screen.getByTestId('go-cell-change-flash-color-amber')).toBeTruthy();
+    expect(screen.getByTestId('go-cell-change-flash-color-emerald')).toBeTruthy();
+  });
+
+  it('selects a flash colour swatch in the draft', () => {
+    mount(platform);
+    fireEvent.click(screen.getByTestId('go-enable-cell-change-flash'));
+    fireEvent.click(screen.getByTestId('go-cell-change-flash-color-emerald'));
+    expect(
+      screen.getByTestId('go-cell-change-flash-color-emerald').getAttribute('aria-checked'),
+    ).toBe('true');
+  });
+
   it('optNum field (DEFAULT MAX WIDTH) accepts empty → undefined, number → number', () => {
     mount(platform);
     const maxW = screen.getByTestId('go-default-max-width') as HTMLInputElement;

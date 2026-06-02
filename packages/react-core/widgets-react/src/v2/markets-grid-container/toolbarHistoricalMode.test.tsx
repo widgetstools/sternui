@@ -215,21 +215,32 @@ describe('MarketsGridContainer — toolbar historical mode', () => {
 
     await waitFor(() => expect(lastMarketsGridProps.current).not.toBeNull());
 
+    restartMock.mockClear();
+
     await act(async () => {
       lastMarketsGridProps.current.onToolbarDateChange('2026-04-01');
       await Promise.resolve();
       await Promise.resolve();
     });
 
-    await waitFor(() => {
-      expect(restartMock).toHaveBeenCalled();
-      expect(
-        restartMock.mock.calls.some(([extra]) => extra?.asOfDate === '2026-04-01'),
-      ).toBe(true);
-      expect(lastMarketsGridProps.current?.historicalViewMode).toBe(true);
-      expect(lastMarketsGridProps.current?.historicalViewMessage).toContain('2026-04-01');
-    });
+    await waitFor(
+      () => {
+        expect(lastMarketsGridProps.current?.historicalViewMode).toBe(true);
+        expect(lastMarketsGridProps.current?.historicalViewMessage).toContain('2026-04-01');
+      },
+      { timeout: 10_000 },
+    );
+
+    await waitFor(
+      () => {
+        expect(restartMock).toHaveBeenCalled();
+        expect(
+          restartMock.mock.calls.some(([extra]) => extra?.asOfDate === '2026-04-01'),
+        ).toBe(true);
+      },
+      { timeout: 10_000 },
+    );
 
     expect(appDataSet).toHaveBeenCalledWith('positions', 'asOfDate', '2026-04-01');
-  });
+  }, 15_000);
 });

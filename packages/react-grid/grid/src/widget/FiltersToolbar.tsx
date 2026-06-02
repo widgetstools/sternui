@@ -10,7 +10,7 @@ import {
   ChromeButton,
 } from '@starui/grid/customizer';
 import {
-  FunnelPlus,
+  Plus,
   Pencil,
   Trash2,
   FunnelX,
@@ -139,6 +139,7 @@ export function FiltersToolbar() {
   // ─── Render ─────────────────────────────────────────────────────────────
 
   const activeCount = filters.filter((f) => f.active).length;
+  const canClearFilters = activeCount > 0;
 
   return (
     <div
@@ -334,7 +335,14 @@ export function FiltersToolbar() {
             type="button"
             className="ds-filters-clear-btn"
             onClick={model.deactivateAll}
-            title="Clear all filters"
+            disabled={!canClearFilters}
+            data-enabled={canClearFilters ? 'true' : 'false'}
+            title={
+              canClearFilters
+                ? 'Clear all filters'
+                : 'All saved filters are already inactive'
+            }
+            data-testid="filters-clear-btn"
           >
             <FunnelX size={18} strokeWidth={3} />
           </ChromeButton>
@@ -353,7 +361,7 @@ export function FiltersToolbar() {
               : 'Add a column filter (that isn’t already saved) to enable'
           }
         >
-          <FunnelPlus size={18} strokeWidth={3} />
+          <Plus size={18} strokeWidth={3} />
         </ChromeButton>
       </div>
     </div>

@@ -1,7 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Check, Plus, Trash2, Lock, User, Download, Upload, Copy, Pencil, X } from 'lucide-react';
 import { RESERVED_DEFAULT_PROFILE_ID, type ProfileMeta } from '@starui/engine';
-// Static-layout styles — AUDIT i5 partial migration. State-dependent
 // styles stay inline (see ProfileSelector.css for rationale).
 import './ProfileSelector.css';
 import {
@@ -31,11 +30,11 @@ export interface ProfileSelectorProps {
   onDelete: (id: string) => void | Promise<unknown>;
   /**
    * Optional: called per-profile from the row's clone button. Suggested
-   * implementation: dispatch `cloneProfile(sourceId, name)`. The parent
-   * decides the default name ("Source Name (copy)" is conventional).
+   * implementation: `return cloneProfile(sourceId, name)` so the picker
+   * can keep the popover open and drop into inline rename on the clone.
    * Omit to hide the clone affordance.
    */
-  onClone?: (id: string) => void | Promise<unknown>;
+  onClone?: (id: string) => void | Promise<ProfileMeta | void>;
   /**
    * Optional: called when the user finishes inline-renaming a profile
    * row. Receives the profile id and the trimmed new name. Implementations
@@ -80,6 +79,11 @@ export function ProfileSelector({
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  /** Blocks Radix dismiss while clone async runs or inline rename is active. */
+  const blockPopoverDismissRef = useRef(false);
+  /** When the host omits a return value, pick up the activated clone row. */
+  const awaitingCloneRenameRef = useRef(false);
   // Pending-delete drives the shadcn AlertDialog. We track the FULL row
   // (not just the id) so the dialog can render the profile's display name
   // without having to re-lookup from `profiles` after the delete has
@@ -127,9 +131,63 @@ export function ProfileSelector({
     await onDelete(target.id);
   };
 
+  useEffect(() => {
+    blockPopoverDismissRef.current =
+      renamingId != null || awaitingCloneRenameRef.current;
+  }, [renamingId]);
+
+  useEffect(() => {
+    if (!awaitingCloneRenameRef.current || !open) return;
+    const active = profiles.find((p) => p.id === activeProfileId);
+    if (!active) return;
+    setRenamingId(active.id);
+    setRenameDraft(active.name);
+    awaitingCloneRenameRef.current = false;
+    blockPopoverDismissRef.current = true;
+  }, [profiles, activeProfileId, open]);
+
+  useEffect(() => {
+    if (!renamingId) return;
+    setOpen(true);
+    const row = listRef.current?.querySelector(
+      `[data-testid="profile-row-${renamingId}"]`,
+    );
+    row?.scrollIntoView({ block: 'nearest' });
+  }, [renamingId]);
+
+  const handlePopoverOpenChange = (next: boolean) => {
+    if (!next && shouldBlockPopoverDismiss()) return;
+    setOpen(next);
+    if (!next) cancelRename();
+  };
+
+  const shouldBlockPopoverDismiss = () =>
+    blockPopoverDismissRef.current
+    || renamingId != null
+    || awaitingCloneRenameRef.current;
+
+  const handleClone = async (sourceId: string) => {
+    if (!onClone) return;
+    blockPopoverDismissRef.current = true;
+    awaitingCloneRenameRef.current = true;
+    setOpen(true);
+    try {
+      const cloned = await onClone(sourceId);
+      if (cloned?.id) {
+        awaitingCloneRenameRef.current = false;
+        setRenamingId(cloned.id);
+        setRenameDraft(cloned.name);
+        setOpen(true);
+      }
+    } catch {
+      awaitingCloneRenameRef.current = false;
+      blockPopoverDismissRef.current = false;
+    }
+  };
+
   return (
     <div className="ds-profile-selector">
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={handlePopoverOpenChange}>
         <PopoverTrigger asChild>
           <ChromeButton
             type="button"
@@ -158,6 +216,15 @@ export function ProfileSelector({
           sideOffset={6}
           data-testid="profile-selector-popover"
           className="ds-ps-shell !p-0 !w-auto"
+          onFocusOutside={(e) => {
+            if (shouldBlockPopoverDismiss()) e.preventDefault();
+          }}
+          onInteractOutside={(e) => {
+            if (shouldBlockPopoverDismiss()) e.preventDefault();
+          }}
+          onPointerDownOutside={(e) => {
+            if (shouldBlockPopoverDismiss()) e.preventDefault();
+          }}
         >
           {/* Header */}
           <div className="ds-ps-header">
@@ -166,7 +233,7 @@ export function ProfileSelector({
           </div>
 
           {/* List */}
-          <div className="ds-ps-list">
+          <div ref={listRef} className="ds-ps-list">
             {profiles.length === 0 ? (
               <div className="ds-ps-empty">
                 No layouts yet — create one below
@@ -274,10 +341,13 @@ export function ProfileSelector({
                   {onClone && !isRenaming && (
                     <GhostIconButton
                       reveal="on-row-hover"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onClone(p.id);
-                        setOpen(false);
+                        void handleClone(p.id);
                       }}
                       title={`Clone "${p.name}"`}
                       aria-label={`Clone layout ${p.name}`}
@@ -339,11 +409,9 @@ export function ProfileSelector({
           {/* Footer — Save current as + (optional) Export / Import.
               Sits below the scrolling list, never scrolls itself. */}
           <div className="ds-ps-footer">
-          <div className="h-px bg-[color-mix(in_srgb,var(--ds-border-primary)_60%,transparent)]" />
-
           {/* Create new */}
-          <div className="px-2.5 pt-2.5 pb-3">
-            <div className="text-[10px] font-semibold tracking-[0.6px] uppercase text-[var(--ds-text-secondary)] mb-1.5">
+          <div className="ds-ps-create-section">
+            <div className="ds-ps-section-label">
               Save current as
             </div>
             <div
@@ -361,7 +429,7 @@ export function ProfileSelector({
                   if (e.key === 'Escape') { setNewName(''); (e.currentTarget as HTMLInputElement).blur(); }
                 }}
                 placeholder="New layout name"
-                autoFocus
+                autoFocus={!renamingId}
                 data-testid="profile-name-input"
                 className="h-[30px] min-h-[30px] flex-1 min-w-0 rounded-none border-none bg-transparent px-2.5 text-[11px] tracking-[0.1px] text-[color:var(--ds-text-primary)] shadow-none focus-visible:ring-0"
               />
@@ -385,7 +453,7 @@ export function ProfileSelector({
           {(onExport || onImport) && (
             <>
               <div className="h-px bg-[color-mix(in_srgb,var(--ds-border-primary)_60%,transparent)]" />
-              <div className="flex gap-1.5 px-2.5 pt-2 pb-2.5">
+              <div className="ds-ps-io-row">
                 {onExport && (
                   <ChromeButton
                     type="button"

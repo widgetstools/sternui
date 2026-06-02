@@ -214,116 +214,103 @@ export function PrimaryToolbar(props: PrimaryToolbarProps): ReactElement {
             registered on the active platform. Always safe to mount. */}
         <AlertsBadge />
 
-        {showProfileSelector && (
-          <>
-            <ProfileSelector
-              profiles={profiles.profiles}
-              activeProfileId={profiles.activeProfileId ?? ''}
-              isDirty={isDirty}
-              onCreate={(name) => profiles.createProfile(name)}
-              onLoad={(id) => onRequestLoadProfile(id)}
-              onDelete={(id) => profiles.deleteProfile(id)}
-              onClone={async (id) => {
-                // Compose a unique " (copy)" name, de-duping against
-                // existing profiles so consecutive clones produce
-                // "…(copy)", "…(copy 2)", "…(copy 3)". The manager
-                // throws on id collision, so we also suffix the id
-                // deterministically via the default slug; if it
-                // still collides (edge case: user already made a
-                // "<foo>-copy"), bump the suffix until it's free.
-                try {
-                  const src = profiles.profiles.find((p) => p.id === id);
-                  if (!src) return;
-                  const existingNames = new Set(profiles.profiles.map((p) => p.name));
-                  let candidate = `${src.name} (copy)`;
-                  let n = 2;
-                  while (existingNames.has(candidate)) {
-                    candidate = `${src.name} (copy ${n})`;
-                    n++;
+        {(showProfileSelector || showSaveButton || showToolbarDatePicker) && (
+          <div className="ds-primary-profile-cluster">
+            {showProfileSelector && (
+              <ProfileSelector
+                profiles={profiles.profiles}
+                activeProfileId={profiles.activeProfileId ?? ''}
+                isDirty={isDirty}
+                onCreate={(name) => profiles.createProfile(name)}
+                onLoad={(id) => onRequestLoadProfile(id)}
+                onDelete={(id) => profiles.deleteProfile(id)}
+                onClone={async (id) => {
+                  try {
+                    const src = profiles.profiles.find((p) => p.id === id);
+                    if (!src) return;
+                    const existingNames = new Set(profiles.profiles.map((p) => p.name));
+                    let candidate = `${src.name} (copy)`;
+                    let n = 2;
+                    while (existingNames.has(candidate)) {
+                      candidate = `${src.name} (copy ${n})`;
+                      n++;
+                    }
+                    return await profiles.cloneProfile(id, candidate);
+                  } catch (err) {
+                    console.warn('[markets-grid] profile clone failed:', err);
+                    window.alert(`Could not clone profile: ${err instanceof Error ? err.message : String(err)}`);
                   }
-                  await profiles.cloneProfile(id, candidate);
-                } catch (err) {
-                  console.warn('[markets-grid] profile clone failed:', err);
-                  window.alert(`Could not clone profile: ${err instanceof Error ? err.message : String(err)}`);
-                }
-              }}
-              onRename={async (id, name) => {
-                try {
-                  await profiles.renameProfile(id, name);
-                } catch (err) {
-                  console.warn('[markets-grid] profile rename failed:', err);
-                  window.alert(`Could not rename profile: ${err instanceof Error ? err.message : String(err)}`);
-                }
-              }}
-              onExport={async (id) => {
-                try {
-                  const payload = await profiles.exportProfile(id);
-                  const fileStem = (payload.profile.name || id)
-                    .toLowerCase()
-                    .replace(/[^a-z0-9-]+/g, '-')
-                    .replace(/^-+|-+$/g, '')
-                    .slice(0, 60) || 'profile';
-                  const json = JSON.stringify(payload, null, 2);
-                  const blob = new Blob([json], { type: 'application/json' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `ds-profile-${fileStem}.json`;
-                  document.body.appendChild(a);
-                  a.click();
-                  a.remove();
-                  // Release the object-url on the next tick so the
-                  // browser has a frame to initiate the download.
-                  setTimeout(() => URL.revokeObjectURL(url), 1000);
-                } catch (err) {
-                  console.warn('[markets-grid] profile export failed:', err);
-                  window.alert(`Could not export profile: ${err instanceof Error ? err.message : String(err)}`);
-                }
-              }}
-              onImport={async (file) => {
-                try {
-                  const text = await file.text();
-                  const payload = JSON.parse(text);
-                  await profiles.importProfile(payload);
-                } catch (err) {
-                  console.warn('[markets-grid] profile import failed:', err);
-                  window.alert(`Could not import profile: ${err instanceof Error ? err.message : String(err)}`);
-                }
-              }}
-            />
-          </>
-        )}
+                }}
+                onRename={async (id, name) => {
+                  try {
+                    await profiles.renameProfile(id, name);
+                  } catch (err) {
+                    console.warn('[markets-grid] profile rename failed:', err);
+                    window.alert(`Could not rename profile: ${err instanceof Error ? err.message : String(err)}`);
+                  }
+                }}
+                onExport={async (id) => {
+                  try {
+                    const payload = await profiles.exportProfile(id);
+                    const fileStem = (payload.profile.name || id)
+                      .toLowerCase()
+                      .replace(/[^a-z0-9-]+/g, '-')
+                      .replace(/^-+|-+$/g, '')
+                      .slice(0, 60) || 'profile';
+                    const json = JSON.stringify(payload, null, 2);
+                    const blob = new Blob([json], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `ds-profile-${fileStem}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                  } catch (err) {
+                    console.warn('[markets-grid] profile export failed:', err);
+                    window.alert(`Could not export profile: ${err instanceof Error ? err.message : String(err)}`);
+                  }
+                }}
+                onImport={async (file) => {
+                  try {
+                    const text = await file.text();
+                    const payload = JSON.parse(text);
+                    await profiles.importProfile(payload);
+                  } catch (err) {
+                    console.warn('[markets-grid] profile import failed:', err);
+                    window.alert(`Could not import profile: ${err instanceof Error ? err.message : String(err)}`);
+                  }
+                }}
+              />
+            )}
 
-        {showSaveButton && (
-          <>
-            <span className="ds-primary-divider" aria-hidden />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="ds-primary-action ds-primary-save"
-              onClick={() => { void onSaveAll(); }}
-              title={isDirty ? 'Save all settings (unsaved changes)' : 'Save all settings'}
-              data-testid="save-all-btn"
-              data-state={saveFlash ? 'saved' : isDirty ? 'dirty' : 'idle'}
-            >
-              {saveFlash ? <Check size={14} strokeWidth={2.5} /> : <Save size={14} strokeWidth={2} />}
-            </Button>
-          </>
-        )}
+            {showSaveButton && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="ds-primary-action ds-primary-save"
+                onClick={() => { void onSaveAll(); }}
+                title={isDirty ? 'Save all settings (unsaved changes)' : 'Save all settings'}
+                data-testid="save-all-btn"
+                data-state={saveFlash ? 'saved' : isDirty ? 'dirty' : 'idle'}
+              >
+                {saveFlash ? <Check size={14} strokeWidth={2.5} /> : <Save size={14} strokeWidth={2} />}
+              </Button>
+            )}
 
-        <div className="ds-primary-actions-trailing">
-          {showToolbarDatePicker && (
-            <>
-              <span className="ds-primary-divider" aria-hidden />
+            {showToolbarDatePicker && (
               <ToolbarDatePicker
                 value={toolbarDate}
                 onChange={onToolbarDateChange}
                 historyEnabled={toolbarDateHistoryEnabled ?? true}
               />
-            </>
-          )}
+            )}
+          </div>
+        )}
 
+        <div className="ds-primary-actions-trailing">
           {toolbarActionsLayout === 'inline' ? (
             <PrimaryToolbarInlineActions {...secondaryActionsProps} />
           ) : (

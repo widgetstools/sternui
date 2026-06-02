@@ -333,6 +333,22 @@ describe('isNewFilter', () => {
     expect(isNewFilter(live, [pill])).toBe(false);
   });
 
+  it('AG-Grid enriched live shape still matches a saved pill (no false + enable)', () => {
+    const pill: SavedFilterShape = {
+      filterModel: { side: { filterType: 'set', values: ['BUY'] } },
+      active: true,
+    };
+    const live = {
+      side: {
+        filterType: 'set',
+        values: ['BUY'],
+        // Runtime-only keys AG-Grid adds on getFilterModel().
+        searchType: 'value',
+      },
+    };
+    expect(isNewFilter(live, [pill])).toBe(false);
+  });
+
   it('mixed active/inactive set: new filter with two actives + one inactive', () => {
     const extraInactive: SavedFilterShape = {
       filterModel: { quantity: { filterType: 'number', type: 'equals', filter: 7 } },

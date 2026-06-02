@@ -16,7 +16,7 @@
  * data updates. Date / boolean / raw AG-Grid kinds aren't quick-
  * pickable here — they belong in the column-settings panel.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Check, Filter, FilterX, MoreVertical, Pencil, X } from 'lucide-react';
 import { spacing, typography } from '@starui/design-system/tokens';
 import {

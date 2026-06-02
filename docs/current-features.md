@@ -351,7 +351,8 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Customizer modules (under `./customizer`)
 
-- **General settings** — grid behaviour toggles
+- **General settings** — grid behaviour toggles; **Default ColDef** band includes
+  flash-on-change with theme-aware colour swatches (shown when enabled)
 - **Column templates** — reusable column-state bundles
 - **Column customization** — 10 bands per column: Header, Layout,
   Templates, Cell Style, Header Style, Value Format, Filter,

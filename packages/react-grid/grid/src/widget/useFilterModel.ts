@@ -333,6 +333,12 @@ function useFilterModelSync(filters: readonly SavedFilter[]): boolean {
   // Centralised so the React effect, profile:loaded listener, and
   // firstDataRendered listener all use the exact same code path.
   const pushActiveFilterModel = useCallback((liveApi: GridApi) => {
+    const syncHasNewFilter = () => {
+      const raw = liveApi.getFilterModel() as Record<string, unknown> | null;
+      const live = sanitizeFilterModel(raw);
+      setHasNewFilter(isNewFilter(live, filtersRef.current));
+    };
+
     const list = filtersRef.current;
     const active = list.filter((f) => f.active);
     let model: Record<string, unknown> | null;
@@ -351,7 +357,7 @@ function useFilterModelSync(filters: readonly SavedFilter[]): boolean {
         liveApi.getFilterModel() as Record<string, unknown> | null,
       );
       if (filterModelsEqual(nextModel, currentModel)) {
-        setHasNewFilter((prev) => (prev ? false : prev));
+        syncHasNewFilter();
         return;
       }
       liveApi.setFilterModel(nextModel);
@@ -359,7 +365,7 @@ function useFilterModelSync(filters: readonly SavedFilter[]): boolean {
       // eslint-disable-next-line no-console
       console.error('[FiltersToolbar] setFilterModel threw — ignoring this push so the grid stays usable.', { model, err });
     }
-    setHasNewFilter((prev) => (prev ? false : prev));
+    syncHasNewFilter();
   }, []);
 
   // ─── Push the merged filter into AG-Grid whenever the active set changes ─
@@ -417,7 +423,8 @@ function useFilterModelSync(filters: readonly SavedFilter[]): boolean {
     disposers.push(
       platform.api.onReady((liveApi) => {
         const check = () => {
-          const live = liveApi.getFilterModel();
+          const raw = liveApi.getFilterModel() as Record<string, unknown> | null;
+          const live = sanitizeFilterModel(raw);
           const next = isNewFilter(live, filtersRef.current);
           setHasNewFilter((prev) => (prev === next ? prev : next));
         };
@@ -458,36 +465,36 @@ export function useFilterModel(): UseFilterModelResult {
     if (!api) return;
     const liveModel = api.getFilterModel() as Record<string, unknown> | null;
     if (!liveModel || Object.keys(liveModel).length === 0) return;
-    // Belt-and-braces: even if a race let the + button render enabled,
-    // drop the click when the live model would duplicate any existing
-    // pill (active OR inactive).
-    if (!isNewFilter(liveModel, filters)) return;
 
-    // Capture ONLY the net-new criterion — subtract the merged model of
-    // currently-active pills from `liveModel`. Otherwise the new pill
-    // would carry every active pill's filter in addition to the new
-    // one, which duplicates that criterion and breaks toggle semantics.
-    const active = filters.filter((f) => f.active);
-    const activeMerged = active.length === 0
-      ? {}
-      : active.length === 1
-        ? active[0].filterModel
-        : mergeFilterModels(active.map((f) => f.filterModel));
-    const delta = subtractFilterModel(liveModel, activeMerged);
+    setFilters((prev) => {
+      // Belt-and-braces: even if a race let the + button render enabled,
+      // drop the click when the live model would duplicate any existing
+      // pill (active OR inactive).
+      if (!isNewFilter(liveModel, prev)) return prev;
 
-    // If the delta comes back empty, the live model is already fully
-    // represented by the active pills — nothing to capture. isNewFilter
-    // should have returned false in that case, but guard anyway.
-    if (Object.keys(delta).length === 0) return;
+      // Capture ONLY the net-new criterion — subtract the merged model of
+      // currently-active pills from `liveModel`. Otherwise the new pill
+      // would carry every active pill's filter in addition to the new
+      // one, which duplicates that criterion and breaks toggle semantics.
+      const active = prev.filter((f) => f.active);
+      const activeMerged = active.length === 0
+        ? {}
+        : active.length === 1
+          ? active[0].filterModel
+          : mergeFilterModels(active.map((f) => f.filterModel));
+      const delta = subtractFilterModel(liveModel, activeMerged);
 
-    const next: SavedFilter = {
-      id: makeId(),
-      label: generateLabel(delta, filters.length),
-      filterModel: delta,
-      active: true,
-    };
-    setFilters([...filters, next]);
-  }, [api, filters, setFilters]);
+      if (Object.keys(delta).length === 0) return prev;
+
+      const next: SavedFilter = {
+        id: makeId(),
+        label: generateLabel(delta, prev.length),
+        filterModel: delta,
+        active: true,
+      };
+      return [...prev, next];
+    });
+  }, [api, setFilters]);
 
   const toggle = useCallback(
     (id: string) =>

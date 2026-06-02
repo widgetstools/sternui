@@ -12,6 +12,7 @@
 import type { BandSchema } from './fieldSchema';
 import { BoolControl, NumberControl } from './fieldSchema';
 import { SubLabel } from '../../ui/SettingsPanel';
+import { CellChangeFlashColorSwatches } from './CellChangeFlashColorSwatches';
 
 export const GRID_OPTIONS_SCHEMA: readonly BandSchema[] = [
   // ─── 01 ESSENTIALS ─────────────────────────────────────────────────
@@ -312,6 +313,24 @@ export const GRID_OPTIONS_SCHEMA: readonly BandSchema[] = [
           { kind: 'bool', key: 'wrapText', label: 'WRAP TEXT', hint: 'Wrap long cell text across multiple lines', testId: 'go-wrap-text' },
           { kind: 'bool', key: 'autoHeight', label: 'AUTO HEIGHT', hint: 'Auto-size row height to fit wrapped content', testId: 'go-auto-height' },
           { kind: 'bool', key: 'enableCellChangeFlash', label: 'FLASH ON CHANGE', hint: 'Flash the cell background when its value changes', testId: 'go-enable-cell-change-flash' },
+          {
+            kind: 'conditional',
+            show: (s) => s.enableCellChangeFlash,
+            fields: [
+              {
+                kind: 'custom',
+                label: 'FLASH COLOR',
+                hint: 'Background tint for AG-Grid cell value-change flash',
+                testId: 'go-cell-change-flash-color',
+                render: (s, update) => (
+                  <CellChangeFlashColorSwatches
+                    value={s.cellChangeFlashColor}
+                    onChange={(color) => update('cellChangeFlashColor', color)}
+                  />
+                ),
+              },
+            ],
+          },
         ],
       },
       {

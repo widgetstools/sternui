@@ -1,6 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { TransformContext } from '@starui/engine';
 import { generalSettingsModule } from './index';
 import { INITIAL_GENERAL_SETTINGS } from './state';
+import {
+  buildCellChangeFlashCss,
+  CELL_CHANGE_FLASH_CSS_HANDLE,
+  CELL_CHANGE_FLASH_CSS_RULE_ID,
+} from './cellChangeFlashCss';
 
 describe('generalSettingsModule.transformColumnDefs', () => {
   const baseDefs = [
@@ -25,10 +31,98 @@ describe('generalSettingsModule.transformColumnDefs', () => {
   });
 
   it('includes enableCellChangeFlash in defaultColDef from transformGridOptions', () => {
+    const ctx = makeCtx();
     const opts = generalSettingsModule.transformGridOptions!(
       {},
       { ...INITIAL_GENERAL_SETTINGS, enableCellChangeFlash: true },
+      ctx,
     );
     expect(opts.defaultColDef?.enableCellChangeFlash).toBe(true);
+  });
+});
+
+describe('generalSettingsModule cell change flash CSS', () => {
+  it('injects scoped flash colour CSS when flash-on-change is enabled', () => {
+    const addRule = vi.fn();
+    const removeRule = vi.fn();
+    const ctx = makeCtx({ addRule, removeRule });
+
+    generalSettingsModule.transformGridOptions!(
+      {},
+      {
+        ...INITIAL_GENERAL_SETTINGS,
+        enableCellChangeFlash: true,
+        cellChangeFlashColor: 'rose',
+      },
+      ctx,
+    );
+
+    expect(addRule).toHaveBeenCalledWith(
+      CELL_CHANGE_FLASH_CSS_RULE_ID,
+      buildCellChangeFlashCss('test-grid', 'rose'),
+    );
+    expect(removeRule).not.toHaveBeenCalled();
+  });
+
+  it('removes flash colour CSS when flash-on-change is disabled', () => {
+    const addRule = vi.fn();
+    const removeRule = vi.fn();
+    const ctx = makeCtx({ addRule, removeRule });
+
+    generalSettingsModule.transformGridOptions!(
+      {},
+      { ...INITIAL_GENERAL_SETTINGS, enableCellChangeFlash: false },
+      ctx,
+    );
+
+    expect(removeRule).toHaveBeenCalledWith(CELL_CHANGE_FLASH_CSS_RULE_ID);
+    expect(addRule).not.toHaveBeenCalled();
+  });
+});
+
+function makeCtx(
+  css: Partial<{ addRule: ReturnType<typeof vi.fn>; removeRule: ReturnType<typeof vi.fn> }> = {},
+): TransformContext {
+  return {
+    gridId: 'test-grid',
+    getRowId: () => '',
+    getModuleState: () => undefined,
+    api: null,
+    resources: {
+      css: () => ({
+        addRule: css.addRule ?? vi.fn(),
+        removeRule: css.removeRule ?? vi.fn(),
+        clear: vi.fn(),
+      }),
+    },
+  } as TransformContext;
+}
+
+function makeCtxWithCssTracking(): {
+  ctx: TransformContext;
+  addRule: ReturnType<typeof vi.fn>;
+  removeRule: ReturnType<typeof vi.fn>;
+} {
+  const addRule = vi.fn();
+  const removeRule = vi.fn();
+  return {
+    ctx: makeCtx({ addRule, removeRule }),
+    addRule,
+    removeRule,
+  };
+}
+
+// Ensure css handle key stays stable for ResourceScope lookups.
+describe('CELL_CHANGE_FLASH_CSS_HANDLE', () => {
+  it('matches the injector module id used in transformGridOptions', () => {
+    const { ctx, addRule } = makeCtxWithCssTracking();
+    const cssSpy = vi.spyOn(ctx.resources, 'css');
+    generalSettingsModule.transformGridOptions!(
+      {},
+      { ...INITIAL_GENERAL_SETTINGS, enableCellChangeFlash: true },
+      ctx,
+    );
+    expect(cssSpy).toHaveBeenCalledWith(CELL_CHANGE_FLASH_CSS_HANDLE);
+    expect(addRule).toHaveBeenCalled();
   });
 });

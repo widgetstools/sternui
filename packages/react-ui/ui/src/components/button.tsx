@@ -9,7 +9,7 @@ import { cn } from '../lib/utils';
 // expressed as Tailwind arbitrary heights so they don't depend on the
 // app's spacing scale tuning.
 const buttonVariants = cva(
-  'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-semibold tracking-tight transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-semibold tracking-tight transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50',
   {
     variants: {
       variant: {
@@ -31,10 +31,18 @@ const buttonVariants = cva(
         sm:      'h-[28px] rounded-md px-[10px] gap-1 text-xs',
         lg:      'h-[40px] rounded-md px-[18px] gap-2 text-sm',
         icon:    'h-[34px] w-[34px]',
-        /** Strip Stockflux sizing — `.ds-*` / `.fx-*` CSS owns dimensions. */
-        chrome:  'min-h-0 w-auto max-w-none px-0 py-0 gap-0 text-inherit font-inherit tracking-normal rounded-none',
+        /** Strip Stockflux sizing — `.ds-*` / `.fx-*` CSS owns dimensions + color. */
+        chrome:  'min-h-0 w-auto max-w-none px-0 py-0 gap-0 font-inherit tracking-normal rounded-none',
       },
     },
+    compoundVariants: [
+      {
+        variant: 'chrome',
+        size: 'chrome',
+        class:
+          'font-normal tracking-normal rounded-none whitespace-normal transition-none shadow-none focus-visible:ring-0 disabled:opacity-100 leading-none text-[length:inherit]',
+      },
+    ],
     defaultVariants: {
       variant: 'default',
       size: 'default',

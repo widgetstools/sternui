@@ -1,3 +1,5 @@
+import type { FlashColor } from '../conditional-styling/state.js';
+
 /**
  * Grid Options state — the single source of truth for AG-Grid configuration
  * the user can tweak from the Grid Options panel.
@@ -26,6 +28,9 @@ export interface GeneralSettingsState {
   animateRows: boolean;
   cellFlashDuration: number;
   cellFadeDuration: number;
+  /** Background tint for AG-Grid native `ag-cell-data-changed` flash.
+   *  Only applied when {@link enableCellChangeFlash} is true. */
+  cellChangeFlashColor: FlashColor;
   quickFilterText: string;
 
   // ─── Tier 2 — Grouping, Pivoting, Aggregation ────────────────────────────
@@ -255,6 +260,7 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   animateRows: true,
   cellFlashDuration: 500,
   cellFadeDuration: 1000,
+  cellChangeFlashColor: 'amber',
   quickFilterText: '',
 
   // Tier 2

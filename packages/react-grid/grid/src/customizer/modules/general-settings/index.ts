@@ -11,11 +11,17 @@
  * `INITIAL_GENERAL_SETTINGS`. The bump is intra-module — the app
  * version was never tied to module schema versions. v3 adds Side Bar
  * + Status Bar visibility toggles + their per-panel sub-toggles.
+ * v4 adds `cellChangeFlashColor` (AG-Grid native flash tint swatches).
  */
 import type { GridOptions } from 'ag-grid-community';
-import type { Module } from '@starui/engine';
+import type { Module, TransformContext } from '@starui/engine';
 import { INITIAL_GENERAL_SETTINGS, type GeneralSettingsState } from './state';
 import { GridOptionsPanel } from './GridOptionsPanel';
+import {
+  buildCellChangeFlashCss,
+  CELL_CHANGE_FLASH_CSS_HANDLE,
+  CELL_CHANGE_FLASH_CSS_RULE_ID,
+} from './cellChangeFlashCss';
 
 export const GENERAL_SETTINGS_MODULE_ID = 'general-settings';
 
@@ -23,7 +29,7 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
   id: GENERAL_SETTINGS_MODULE_ID,
   name: 'Grid Options',
   code: '00',
-  schemaVersion: 3,
+  schemaVersion: 4,
   priority: 0,
 
   getInitialState: () => ({ ...INITIAL_GENERAL_SETTINGS }),
@@ -40,7 +46,17 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
       ? { ...INITIAL_GENERAL_SETTINGS }
       : { ...INITIAL_GENERAL_SETTINGS, ...(raw as Partial<GeneralSettingsState>) },
 
-  transformGridOptions(opts: Partial<GridOptions>, s: GeneralSettingsState): Partial<GridOptions> {
+  transformGridOptions(opts: Partial<GridOptions>, s: GeneralSettingsState, ctx: TransformContext): Partial<GridOptions> {
+    const flashCss = ctx.resources.css(CELL_CHANGE_FLASH_CSS_HANDLE);
+    if (s.enableCellChangeFlash) {
+      flashCss.addRule(
+        CELL_CHANGE_FLASH_CSS_RULE_ID,
+        buildCellChangeFlashCss(ctx.gridId, s.cellChangeFlashColor),
+      );
+    } else {
+      flashCss.removeRule(CELL_CHANGE_FLASH_CSS_RULE_ID);
+    }
+
     // Compound multi-sort → three AG-Grid flags.
     const multi = {
       replace: { suppressMultiSort: true, alwaysMultiSort: false, multiSortKey: undefined as 'ctrl' | undefined },

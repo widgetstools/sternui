@@ -170,7 +170,6 @@ export function FormatterToolbar({
               colLabel={state.colLabel}
             />
           </ToolbarGroup>
-          <span className="fx-toolbar-row__spacer" aria-hidden />
           <ToolbarGroup label="Clear" variant="destruct" testId="fmt-group-clear">
             <ModuleClear state={state} actions={actions} orientation="horizontal" />
           </ToolbarGroup>

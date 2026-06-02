@@ -100,7 +100,7 @@ function AlertsBadgeInner() {
           size="icon"
           aria-label={`Alerts (${unreadCount} unread)`}
           data-testid="alerts-badge-trigger"
-          className="relative"
+          className="ds-primary-action relative"
         >
           <Bell size={14} strokeWidth={2} />
           {!badgeHidden && unreadCount > 0 && (
