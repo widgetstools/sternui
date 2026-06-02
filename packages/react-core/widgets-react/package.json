@@ -8,25 +8,25 @@
   "type": "module",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     },
     "./v2/markets-grid-container": {
-      "import": "./dist/v2/markets-grid-container/index.js",
-      "types": "./dist/v2/markets-grid-container/index.d.ts"
+      "types": "./dist/v2/markets-grid-container/index.d.ts",
+      "import": "./dist/v2/markets-grid-container/index.js"
     },
     "./v2/provider-editor": {
-      "import": "./dist/v2/provider-editor/index.js",
-      "types": "./dist/v2/provider-editor/index.d.ts"
+      "types": "./dist/v2/provider-editor/index.d.ts",
+      "import": "./dist/v2/provider-editor/index.js"
     },
     "./v2/data-provider-selector": {
-      "import": "./dist/v2/data-provider-selector/index.js",
-      "types": "./dist/v2/data-provider-selector/index.d.ts"
+      "types": "./dist/v2/data-provider-selector/index.d.ts",
+      "import": "./dist/v2/data-provider-selector/index.js"
     },
     "./hosted": {
-      "import": "./dist/hosted/index.js",
-      "types": "./dist/hosted/index.d.ts"
+      "types": "./dist/hosted/index.d.ts",
+      "import": "./dist/hosted/index.js"
     }
   },
   "scripts": {

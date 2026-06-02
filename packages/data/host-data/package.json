@@ -8,24 +8,24 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./runtime": {
-      "import": "./dist/runtime/index.js",
-      "types": "./dist/runtime/index.d.ts"
+      "types": "./dist/runtime/index.d.ts",
+      "import": "./dist/runtime/index.js"
     },
     "./runtime/sharedWorker": {
-      "import": "./dist/runtime/worker/index.js",
-      "types": "./dist/runtime/worker/index.d.ts"
+      "types": "./dist/runtime/worker/index.d.ts",
+      "import": "./dist/runtime/worker/index.js"
     },
     "./runtime/client": {
-      "import": "./dist/runtime/client/index.js",
-      "types": "./dist/runtime/client/index.d.ts"
+      "types": "./dist/runtime/client/index.d.ts",
+      "import": "./dist/runtime/client/index.js"
     },
     "./runtime/worker/defaultEntry": {
-      "import": "./dist/runtime/worker/defaultEntry.js",
-      "types": "./dist/runtime/worker/defaultEntry.d.ts"
+      "types": "./dist/runtime/worker/defaultEntry.d.ts",
+      "import": "./dist/runtime/worker/defaultEntry.js"
     },
     "./assets/data-services-worker.mjs": "./dist/assets/data-services-worker.mjs"
   },

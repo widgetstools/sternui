@@ -8,14 +8,14 @@
   "type": "module",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     },
     "./chart": {
+      "types": "./dist/components/chart.d.ts",
       "import": "./dist/components/chart.js",
-      "require": "./dist/components/chart.js",
-      "types": "./dist/components/chart.d.ts"
+      "require": "./dist/components/chart.js"
     },
     "./tailwind-config": "./tailwind.config.js"
   },
