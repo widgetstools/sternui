@@ -16,6 +16,8 @@ export const HEAVY_FLASH: Partial<GeneralSettingsState> = {
 
 /** Live-updates tab — fast AG-Grid native flash + rule flashes. */
 export const STORM_FLASH: Partial<GeneralSettingsState> = {
+  enableCellChangeFlash: true,
+  cellChangeFlashColor: 'sky',
   cellFlashDuration: 350,
   cellFadeDuration: 800,
 };

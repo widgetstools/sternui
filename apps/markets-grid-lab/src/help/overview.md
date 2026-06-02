@@ -35,7 +35,9 @@ wide bid/ask, junk-rated **row** scope, price-changed flash on ticks.
 Pricing + P&L open by default; other groups collapsed.
 
 ### Column Customization + General Settings
-Formatter presets on bid/mid/ask/yields/P&L; `cellFlashDuration` 700 ms.
+Formatter presets on bid/mid/ask/yields/P&L; native cell flash enabled with
+`cellFlashDuration: 700` ms (see **Grid Options → DEFAULT COLDEF** for flash-on-change
+and colour swatches).
 
 ## Seed source
 

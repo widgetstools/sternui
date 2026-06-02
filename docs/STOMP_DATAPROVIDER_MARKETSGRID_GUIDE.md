@@ -481,6 +481,8 @@ Checklist:
 
 | App | What it demonstrates |
 |---|---|
+| `apps/stomp-marketsgrid-minimal` | Smallest STOMP + `HostedMarketsGrid` path (Scenario A) |
+| `apps/platform-hooks-demo` | AppData bootstrap + grid event callbacks (mock, no broker) |
 | `apps/tutorials-workspace/stomp` | STOMP tutorial with `platformBootstrap.ts` + `DataHubProvider` |
 | `apps/markets-grid-lab` | Feature lab with platform bootstrap pilot |
 | `apps/markets-ui-react-reference` | Production-style OpenFin `HostedMarketsGrid` (legacy bootstrap being migrated) |
@@ -513,5 +515,7 @@ my-stomp-app/
 ## Related documentation
 
 - [README — Getting started](../README.md)
+- [MarketsGrid Usage Guide](./MARKETSGRID_USAGE_GUIDE.md) — scenarios, customizer UI, persistence
+- [Platform hooks demo guide](./guides/platform-hooks-demo.md) — AppData + grid event bindings
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — package layers and import rules
 - [apps/stomp-view-server/README.md](../apps/stomp-view-server/README.md) — STOMP protocol details

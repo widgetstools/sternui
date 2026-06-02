@@ -196,8 +196,8 @@ Demo handlers append to the sidebar log via `appendDemoEventLog()`.
 
 ### 2.4 Custom Settings UI
 
-1. Open grid toolbar → **Grid Options** (settings drawer).
-2. Switch module dropdown to access **Custom Settings** (toolbar-date-settings panel).
+1. Grid toolbar → **settings** (gear) opens the customizer drawer (defaults to **Grid Options**).
+2. Use the **module dropdown** → **Custom Settings**.
 3. Scroll to **EVENT CALLBACKS**.
 4. For each event, pick **one** callback from the dropdown (or **— None —**).
 5. Bindings save automatically to **`gridLevelData`** (same blob as provider selection + caption).
@@ -306,6 +306,18 @@ Then save a profile and change the toolbar date — three log lines confirm end-
 
 - `MarketsGridContainer` props: `gridEventHandlers`, `handlerMeta`
 - `normalizeGridLevelData()` / `GridLevelStateV1` in markets-grid-container module
+
+---
+
+## Related — native cell flash colour
+
+This demo focuses on **hooks and event bindings**, not live streaming. To try AG-Grid's native **flash-on-change** tint (separate from conditional-styling rule flashes):
+
+1. Toolbar **settings** → stay on **Grid Options**.
+2. **DEFAULT COLDEF → CELL CONTENT** → enable **FLASH ON CHANGE**.
+3. Pick a **FLASH COLOR** swatch (maps to `--ag-value-change-value-highlight-background-color`).
+
+For a streaming lab with both native flash and style-rule flashes, run `npm run dev:markets-grid-lab` → **Live Updates** tab. See [MarketsGrid usage guide §22](../../MARKETSGRID_USAGE_GUIDE.md#22-grid-customizer-ui-settings-drawer).
 
 ---
 

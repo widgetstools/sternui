@@ -10,6 +10,7 @@
 |----------|--------|
 | [`STOMP_DATAPROVIDER_MARKETSGRID_GUIDE.md`](./STOMP_DATAPROVIDER_MARKETSGRID_GUIDE.md) | Step-by-step STOMP wiring |
 | [`guides/platform-bootstrap-config.md`](./guides/platform-bootstrap-config.md) | `appId` / `userId` / REST bootstrap |
+| [`guides/platform-hooks-demo.md`](./guides/platform-hooks-demo.md) | AppData bootstrap hooks + grid event callbacks |
 | [`guides/consumer-app-sharedworker-and-tailwind.md`](./guides/consumer-app-sharedworker-and-tailwind.md) | Vite + SharedWorker consumer setup |
 | [`PROFILE_PERSISTENCE.md`](./PROFILE_PERSISTENCE.md) | Profile keys, workspace save, storage adapters |
 | [`ARCHITECTURE.md`](./ARCHITECTURE.md) | Monorepo layer model |
@@ -102,6 +103,7 @@ Identity (`appId`, `userId`) is **deployment-wide** — from `public/app-config.
 | H2 | **Basic tutorial (localStorage)** | `MarketsGrid` | No | `apps/tutorials-workspace/basic` |
 | I | **Mock provider + hub** | `HostedMarketsGrid` | Yes | `apps/tutorials-workspace/mockdata-provider` |
 | J | **REST config service** | `HostedMarketsGrid` | Yes | `apps/legacy/demo-configservice-react` |
+| K | **Platform hooks (AppData + grid events)** | `MarketsGridContainer` | Yes | `apps/platform-hooks-demo` |
 
 ---
 
@@ -310,7 +312,53 @@ Grids still use `DataHubProvider` + `HostedMarketsGrid`. Provider rows persist v
 
 ---
 
-## 14. Provider attachment modes
+## 14. Scenario K — Platform hooks (AppData bootstrap + grid events)
+
+**Goal:** declarative AppData seeding at hub ready, plus persisted grid event callback bindings — without a STOMP broker.
+
+**Reference:** `apps/platform-hooks-demo` (port **5214**, `npm run dev:platform-hooks-demo`)
+
+### Two hook tiers
+
+| Tier | Config | Code | Persists |
+|------|--------|------|----------|
+| **AppData bootstrap** | `public/app-config.json` → `appDataBootstrap` | `appDataBootstrapHooks` map passed to `ensurePlatformReady` | AppData rows in IndexedDB |
+| **Grid event callbacks** | `gridLevelData.eventBindings` (grid-level) | `gridEventHandlers` registry on `MarketsGridContainer` | Same blob as provider picker state |
+
+JSON stores **stable handler ids only** — never executable code.
+
+### Minimal wiring
+
+```typescript
+// bootstrap.ts
+platform = await ensurePlatformReady(config, {
+  workerScriptUrl: workerAssetUrl,
+  appDataBootstrapHooks,
+});
+
+// App.tsx
+<MarketsGridContainer
+  gridEventHandlers={gridEventHandlers}
+  handlerMeta={gridHandlerMeta}
+  defaultLiveProviderId={liveId}
+  …
+/>
+```
+
+### Custom Settings UI
+
+1. Toolbar **settings** (gear) opens the customizer drawer on **Grid Options** by default.
+2. Use the **module dropdown** (top of drawer) → **Custom Settings**.
+3. **Provider** section — live/historical pickers, refresh, reload.
+4. **EVENT CALLBACKS** — one shadcn `Select` per catalog event; bindings save to `gridLevelData`.
+
+See [`guides/platform-hooks-demo.md`](./guides/platform-hooks-demo.md) for the full checklist and event catalog.
+
+**Compare:** `apps/stomp-marketsgrid-minimal` now ships optional `gridEventHandlers` + `appDataBootstrap` stubs for console logging — same APIs, STOMP data path.
+
+---
+
+## 15. Provider attachment modes
 
 ### Recommended: cfg-free attach (catalog)
 
@@ -333,7 +381,7 @@ When cfg contains `{{positions.asOfDate}}`:
 
 ---
 
-## 15. Persistence & identity keys
+## 16. Persistence & identity keys
 
 | Key | Source | Stored in | Purpose |
 |-----|--------|-----------|---------|
@@ -349,7 +397,7 @@ See [`PROFILE_PERSISTENCE.md`](./PROFILE_PERSISTENCE.md) for workspace-save timi
 
 ---
 
-## 16. Bootstrap placement patterns
+## 17. Bootstrap placement patterns
 
 ### Pattern 1 — External boot (recommended for clarity)
 
@@ -382,7 +430,7 @@ Mounts a **nested** `DataHubProvider`. Avoid double-wrapping if ancestor already
 
 ---
 
-## 17. OpenFin vs browser checklist
+## 18. OpenFin vs browser checklist
 
 ### Browser app checklist
 
@@ -406,7 +454,7 @@ Mounts a **nested** `DataHubProvider`. Avoid double-wrapping if ancestor already
 
 ---
 
-## 18. Troubleshooting
+## 19. Troubleshooting
 
 | Symptom | Likely cause | Action |
 |---------|--------------|--------|
@@ -423,7 +471,7 @@ Mounts a **nested** `DataHubProvider`. Avoid double-wrapping if ancestor already
 
 ---
 
-## 19. Package imports cheat sheet
+## 20. Package imports cheat sheet
 
 ```typescript
 // Grid primitive (static data)
@@ -453,7 +501,7 @@ import {
 
 ---
 
-## 20. Choosing your starting template
+## 21. Choosing your starting template
 
 | You want… | Start here |
 |-----------|------------|
@@ -463,7 +511,45 @@ import {
 | OpenFin view integration test | `apps/e2e/openfin-workspace` |
 | Full OpenFin platform reference | `apps/legacy/markets-ui-react-reference` |
 | Grid UI features without hub | `apps/markets-grid-lab` |
+| AppData bootstrap + grid event hooks (mock) | `apps/platform-hooks-demo` |
 | MCP scaffold from scratch | `@starui/mcp-scaffold` templates `stomp`, `openfin-platform`, `dataprovider-editor` |
+
+---
+
+## 22. Grid customizer UI (settings drawer)
+
+The toolbar **settings** icon opens a right-rail **Grid Customizer** drawer (`SettingsSheet`).
+
+### Module navigation
+
+- Opens on **Grid Options** (`general-settings`) by default.
+- **Module dropdown** at the top switches panels: Grid Options, Style Rules, Column Settings, Custom Settings, Smart Edit, …
+- Flat panels (Grid Options) use a **band sidebar** + scrollable field list; master-detail panels (Column Settings, Style Rules) use list + editor panes.
+
+### Grid Options highlights
+
+| Band | Notable settings |
+|------|------------------|
+| **ESSENTIALS** | Row/header height, `cellFlashDuration` / `cellFadeDuration` |
+| **DEFAULT COLDEF → CELL CONTENT** | **FLASH ON CHANGE** toggle; when enabled, **FLASH COLOR** swatches (amber, emerald, rose, sky, …) tint AG-Grid's native `ag-cell-data-changed` flash |
+| **SIDE BAR / STATUS BAR** | Tool-panel and status-panel visibility |
+
+Flash colour maps to `--ag-value-change-value-highlight-background-color` per grid instance (theme-aware palette). Conditional styling **flash-on-match** rules are separate — they use CSS keyframe overlays, not this setting.
+
+### Custom Settings (provider + events)
+
+Available when `MarketsGridContainer` wires `providerGridHost`:
+
+- Live / historical provider pickers, refresh, reload, edit provider
+- **EVENT CALLBACKS** — bind catalog events to app handler ids (grid-level persistence)
+
+Provider pickers moved out of the primary toolbar into this panel; the toolbar keeps refresh/reload admin actions and the settings entry point.
+
+### Chrome stack
+
+Toolbar, filter pills, formatter strip, and customizer controls use **shadcn/ui** primitives (`@starui/ui`) themed via `@starui/design-system` tokens — no native `<input>` / `<button>` in grid chrome.
+
+Try it: `apps/markets-grid-lab` (all modules) or enable flash colour under Grid Options → DEFAULT COLDEF on any hosted grid.
 
 ---
 
@@ -472,3 +558,4 @@ import {
 | Date | Change |
 |------|--------|
 | 2026-05-28 | Initial comprehensive scenario guide |
+| 2026-05-28 | Scenario K (platform hooks), customizer UI section, native flash colour swatches |

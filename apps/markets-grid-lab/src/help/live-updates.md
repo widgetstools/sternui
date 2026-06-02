@@ -29,9 +29,13 @@ between 100 ms and 1 s. At each tick, 1–4% of rows are mutated — so at
 
 ## General settings
 
-`cellFlashDuration: 500` ms · `cellFadeDuration: 1000` ms — module's
-defaults are slower; we seed faster timings here so multiple flashes can
-land per second without smearing.
+`enableCellChangeFlash: true` · `cellChangeFlashColor: sky` · `cellFlashDuration: 350` ms ·
+`cellFadeDuration: 800` ms — seeded via `STORM_FLASH` in
+[`src/seeds/generalSettings.ts`](../../src/seeds/generalSettings.ts). Native AG-Grid flash
+uses the **sky** swatch; Style Rules use their own palette overlays.
+
+To change the native flash colour in the UI: **Grid Options → DEFAULT COLDEF → CELL CONTENT**
+→ enable **FLASH ON CHANGE** → pick a **FLASH COLOR** swatch.
 
 ## How the data lands
 
@@ -61,4 +65,4 @@ same stream.
 [src/seeds/conditionalStyling.ts](src/seeds/conditionalStyling.ts) —
 `LIVE_TAB_CS_RULES` array.
 [src/seeds/generalSettings.ts](src/seeds/generalSettings.ts) —
-`FAST_FLASH`.
+`STORM_FLASH`.

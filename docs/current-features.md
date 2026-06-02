@@ -1434,7 +1434,8 @@ Per-renderer config types (`PillRendererConfig`,
 
 ### Consumer documentation
 
-- `docs/MARKETSGRID_USAGE_GUIDE.md` — scenario matrix for MarketsGrid (`MarketsGrid` / `MarketsGridContainer` / `HostedMarketsGrid`), hub bootstrap, OpenFin vs browser, persistence, troubleshooting; PDF at `docs/MARKETSGRID_USAGE_GUIDE.pdf` (`npm run docs:marketsgrid-usage-pdf`)
+- `docs/MARKETSGRID_USAGE_GUIDE.md` — scenario matrix for MarketsGrid (`MarketsGrid` / `MarketsGridContainer` / `HostedMarketsGrid`), hub bootstrap, OpenFin vs browser, persistence, customizer UI (§22), troubleshooting; PDF at `docs/MARKETSGRID_USAGE_GUIDE.pdf` (`npm run docs:marketsgrid-usage-pdf`)
+- `docs/guides/platform-hooks-demo.md` — AppData bootstrap hooks + grid event callback bindings (`apps/platform-hooks-demo`, port 5214)
 
 ## Cross-cutting architecture notes
 

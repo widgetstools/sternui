@@ -71,6 +71,7 @@ from packages, never the reverse. Full rules in [`docs/ARCHITECTURE.md`](./docs/
 | `my-stomp-app` | 5200 | `npm run dev:my-stomp-app` |
 | `demo-stomp-markets-grid` | 5210 | `npm run dev:demo-stomp-markets-grid` (needs `npm run dev:stomp`) |
 | `stomp-marketsgrid-minimal` | 5213 | `npm run dev:stomp-marketsgrid-minimal` — lean STOMP→MarketsGrid code sample (needs `npm run dev:stomp`) |
+| `platform-hooks-demo` | 5214 | `npm run dev:platform-hooks-demo` — AppData bootstrap + grid event callbacks (mock data, no broker) |
 | `basic-starui-app` | 5194 | `npm run dev:basic-starui-app` |
 | `markets-ui-react-reference` | 5174 | `npm run dev:markets-ui-react-reference` |
 | `demo-angular` | 4200 | `npm run dev:demo-angular` |
@@ -117,7 +118,7 @@ rm -rf node_modules/.vite apps/*/node_modules/.vite
 
 | Module | Priority | Purpose |
 |---|---|---|
-| `general-settings` | 0 | Grid Options — row sizing, selection, flash-on-change, side bar, … |
+| `general-settings` | 0 | Grid Options — row sizing, selection, flash-on-change + colour swatches, side bar, … |
 | `column-templates` | 1 | Named style templates |
 | `column-customization` | 10 | Per-column format, filter, style, layout |
 | `calculated-columns` | 15 | Expression-driven virtual columns |
@@ -271,6 +272,7 @@ Playwright starts dev servers automatically (`playwright.config.ts`):
 - **5191** — `demo-configservice-react`
 - **5174** — `markets-ui-react-reference` with `STARUI_DEV_SOURCE=1` (integration
   specs such as `hosted-markets-grid.spec.ts`, `reference-cell-flash.spec.ts`)
+- **5214** — `platform-hooks-demo` with `STARUI_DEV_SOURCE=1` (`e2e/platform-hooks-demo.spec.ts`)
 
 Run a single spec:
 
@@ -294,6 +296,7 @@ CI runs package and consumer jobs separately; see `.github/workflows/ci.yml`.
 | [`docs/guides/consumer-app-sharedworker-and-tailwind.md`](./docs/guides/consumer-app-sharedworker-and-tailwind.md) | SharedWorker + Tailwind pitfalls for consumer apps |
 | [`docs/STOMP_DATAPROVIDER_MARKETSGRID_GUIDE.md`](./docs/STOMP_DATAPROVIDER_MARKETSGRID_GUIDE.md) | Fresh app + STOMP provider + MarketsGrid end-to-end |
 | [`docs/MARKETSGRID_USAGE_GUIDE.md`](./docs/MARKETSGRID_USAGE_GUIDE.md) | MarketsGrid scenarios (components, hub, OpenFin, persistence) — [PDF](./docs/MARKETSGRID_USAGE_GUIDE.pdf) |
+| [`docs/guides/platform-hooks-demo.md`](./docs/guides/platform-hooks-demo.md) | AppData bootstrap hooks + grid event callback bindings |
 | [`CLAUDE.md`](./CLAUDE.md) | Agent / contributor conventions |
 
 ## Platform tooling

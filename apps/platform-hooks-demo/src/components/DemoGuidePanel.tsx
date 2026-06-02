@@ -7,7 +7,7 @@ const CHECKLIST = [
   },
   {
     title: '2. Open Custom Settings',
-    body: 'In the grid toolbar, open Grid Options → Custom Settings (provider section). Scroll to EVENT CALLBACKS.',
+    body: 'Toolbar settings (gear) opens the customizer on Grid Options by default. Use the module dropdown at the top to switch to Custom Settings. Scroll to EVENT CALLBACKS.',
   },
   {
     title: '3. Bind platform events',

@@ -139,7 +139,7 @@ They **survive profile switches** — unlike profile modules, bindings are not p
 
 ### How to test
 
-1. Grid toolbar → **Grid Options** → **Custom Settings** → scroll to **EVENT CALLBACKS**.
+1. Toolbar **settings** (gear) → module dropdown → **Custom Settings**.
 2. Enable handlers via the **dropdown** under each event group (platform / provider / toolbar / grid).
 3. Perform the action (save profile, click cell, change filter, pick toolbar date, etc.).
 4. **Events** tab updates immediately.

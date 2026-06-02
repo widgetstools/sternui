@@ -133,6 +133,9 @@ First attach for that id **lazy-starts** the STOMP provider in the worker: one u
 | `src/main.tsx` | Theme, boot gate, `DataHubProvider`, render `App` |
 | `src/stompProvider.ts` | STOMP transport cfg + column defs (catalog payload) |
 | `src/App.tsx` | Idempotent catalog seed + `HostedMarketsGrid` |
+| `src/platform/appDataBootstrap.ts` | *(optional)* AppData bootstrap hooks (console demo) |
+| `src/platform/gridEventHandlers.ts` | *(optional)* Grid event handler registry (console demo) |
+| `src/platform/hooksMeta.ts` | Labels if wiring `handlerMeta` on the grid container |
 | `src/globals.css` | Design-system + grid styles |
 
 Supporting config only: `vite.config.ts` (port **5213**, SharedWorker bundling), Tailwind/PostCSS.
@@ -146,7 +149,7 @@ Supporting config only: `vite.config.ts` (port **5213**, SharedWorker bundling),
 - AppData template vars (`{{name.key}}`) — not needed for this fixed STOMP cfg
 - REST config service (`useRest: false` — local Dexie only)
 
-Use this app to verify **hub bootstrap**, **catalog persistence**, and **cfg-free STOMP attach**. For authoring providers in UI, see `apps/tutorials-workspace/dataprovider-editor` or `apps/markets-grid-lab`.
+Use this app to verify **hub bootstrap**, **catalog persistence**, and **cfg-free STOMP attach**. For authoring providers in UI, see `apps/tutorials-workspace/dataprovider-editor` or `apps/markets-grid-lab`. For **AppData bootstrap + grid event callbacks** with mock data (no broker), see [`apps/platform-hooks-demo`](../platform-hooks-demo/README.md).
 
 ---
 
