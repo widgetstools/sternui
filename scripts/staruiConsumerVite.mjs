@@ -38,12 +38,31 @@ export function staruiConsumerViteConfig(appDir, opts = {}) {
     },
     ...(opts.worker ? { worker: { format: 'es' } } : {}),
     build: {
+      // monaco-editor (via @starui/grid's ExpressionEditor) is irreducibly
+      // large (~3.8MB editor + multi-MB language workers). Keep the limit
+      // above it so the known-large monaco chunk doesn't emit a noisy
+      // warning, while genuinely oversized *app* chunks still surface.
       chunkSizeWarningLimit: 4500,
+      // Reporting gzip sizes re-compresses every emitted chunk; on the
+      // multi-MB monaco bundles that is a measurable chunk of build time
+      // for output we don't act on. Skip it.
+      reportCompressedSize: false,
       rollupOptions: {
         onwarn(warning, defaultHandler) {
           if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return;
           if (warning.code === 'SOURCEMAP_ERROR') return;
           defaultHandler(warning);
+        },
+        output: {
+          // Pull monaco-editor out of the main app chunk into its own
+          // cacheable vendor chunk. Shrinks the entry bundle, lowers peak
+          // minifier memory (no single 4MB+ chunk), and lets monaco stay
+          // cached across rebuilds. App-agnostic: a no-op for apps that
+          // don't pull monaco in.
+          manualChunks(id) {
+            if (id.includes('node_modules/monaco-editor')) return 'monaco-editor';
+            return undefined;
+          },
         },
       },
     },

@@ -452,7 +452,7 @@ export function TemplateManager({
             title="Save current state as new template"
             aria-label="Save current state as new template"
             className={cn(
-              'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[2px] border p-0 transition-all duration-[120ms]',
+              'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[2px] border p-0 transition-all [transition-duration:120ms]',
               saveConfirmed
                 ? 'border-[color-mix(in_srgb,var(--ds-primary)_40%,transparent)] bg-[color-mix(in_srgb,var(--ds-primary)_14%,transparent)] text-[var(--ds-primary)]'
                 : 'border-[var(--ds-border-primary)] bg-transparent text-[var(--ds-text-secondary)]',

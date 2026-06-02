@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "cross-env STARUI_DEV_SOURCE=1 vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

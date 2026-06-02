@@ -120,7 +120,7 @@ export function RowDrawer({
       aria-hidden={!open}
       className={[
         'absolute top-0 right-0 bottom-0 z-20 flex w-[min(520px,100%)] flex-col border-l border-[var(--de-border)] bg-[var(--de-bg)] font-[var(--de-font)] text-[var(--de-text)]',
-        'transition-transform duration-[220ms] [transition-timing-function:cubic-bezier(0.22,0.61,0.36,1)]',
+        'transition-transform [transition-duration:220ms] [transition-timing-function:cubic-bezier(0.22,0.61,0.36,1)]',
         open ? 'translate-x-0 shadow-[var(--de-shadow-lg)] pointer-events-auto' : 'translate-x-full shadow-none pointer-events-none',
       ].join(' ')}
     >

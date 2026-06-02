@@ -24,8 +24,8 @@
     "e2e-openfin"
   ],
   "scripts": {
-    "build:packages": "turbo build --filter=!./apps/**",
-    "build:apps": "turbo build --filter=./apps/**",
+    "build:packages": "turbo build --filter=!./apps/** --concurrency=50%",
+    "build:apps": "turbo build --filter=./apps/** --concurrency=50%",
     "build:consumer": "npm run build:packages && node scripts/propagate.mjs --no-build && npm run build:apps",
     "build": "npm run build:consumer",
     "typecheck:packages": "turbo typecheck --filter=!./apps/**",

@@ -6,22 +6,22 @@
       "@starui/config-browser-angular",
       "@starui/widgets-angular"
     ],
-    "filename": "starui-angular-core-0.1.0-29aa4495.tgz",
+    "filename": "starui-angular-core-0.1.0-f135225c.tgz",
     "distFilename": "starui-angular-core-0.1.0.tgz",
     "version": "0.1.0",
-    "sha": "29aa4495",
-    "packedAt": "2026-06-02T03:52:09.970Z"
+    "sha": "f135225c",
+    "packedAt": "2026-06-02T11:51:14.741Z"
   },
   "@starui/angular-grid": {
     "bucket": "angular-grid",
     "members": [
       "@starui/grid-angular"
     ],
-    "filename": "starui-angular-grid-0.1.0-6f30df27.tgz",
+    "filename": "starui-angular-grid-0.1.0-5e4f48df.tgz",
     "distFilename": "starui-angular-grid-0.1.0.tgz",
     "version": "0.1.0",
-    "sha": "6f30df27",
-    "packedAt": "2026-06-02T03:52:09.970Z"
+    "sha": "5e4f48df",
+    "packedAt": "2026-06-02T11:51:14.741Z"
   },
   "@starui/data": {
     "bucket": "data",
@@ -31,11 +31,11 @@
       "@starui/host-data-angular",
       "@starui/host-data-react"
     ],
-    "filename": "starui-data-0.1.0-d74699a4.tgz",
+    "filename": "starui-data-0.1.0-7adef64b.tgz",
     "distFilename": "starui-data-0.1.0.tgz",
     "version": "0.1.0",
-    "sha": "d74699a4",
-    "packedAt": "2026-06-02T03:52:09.970Z"
+    "sha": "7adef64b",
+    "packedAt": "2026-06-02T11:51:14.741Z"
   },
   "@starui/design-system": {
     "bucket": "design-system",
@@ -43,11 +43,11 @@
       "@starui/design-system",
       "@starui/icons-svg"
     ],
-    "filename": "starui-design-system-1.0.0-e2456ffb.tgz",
+    "filename": "starui-design-system-1.0.0-29dcdbbf.tgz",
     "distFilename": "starui-design-system-1.0.0.tgz",
     "version": "1.0.0",
-    "sha": "e2456ffb",
-    "packedAt": "2026-06-02T03:52:09.970Z"
+    "sha": "29dcdbbf",
+    "packedAt": "2026-06-02T11:51:14.741Z"
   },
   "@starui/openfin": {
     "bucket": "openfin",
@@ -55,11 +55,11 @@
       "@starui/host-openfin",
       "@starui/openfin-platform"
     ],
-    "filename": "starui-openfin-0.1.0-b83e24bc.tgz",
+    "filename": "starui-openfin-0.1.0-8f36db4a.tgz",
     "distFilename": "starui-openfin-0.1.0.tgz",
     "version": "0.1.0",
-    "sha": "b83e24bc",
-    "packedAt": "2026-06-02T03:52:09.970Z"
+    "sha": "8f36db4a",
+    "packedAt": "2026-06-02T11:51:14.741Z"
   },
   "@starui/react-core": {
     "bucket": "react-core",
@@ -71,33 +71,33 @@
       "@starui/widgets-react",
       "@starui/workspace-setup-react"
     ],
-    "filename": "starui-react-core-1.0.0-4e9fe2e4.tgz",
+    "filename": "starui-react-core-1.0.0-1668361d.tgz",
     "distFilename": "starui-react-core-1.0.0.tgz",
     "version": "1.0.0",
-    "sha": "4e9fe2e4",
-    "packedAt": "2026-06-02T03:52:09.970Z"
+    "sha": "1668361d",
+    "packedAt": "2026-06-02T11:51:14.741Z"
   },
   "@starui/react-grid": {
     "bucket": "react-grid",
     "members": [
       "@starui/grid"
     ],
-    "filename": "starui-react-grid-0.1.0-e94946bd.tgz",
+    "filename": "starui-react-grid-0.1.0-e93b9352.tgz",
     "distFilename": "starui-react-grid-0.1.0.tgz",
     "version": "0.1.0",
-    "sha": "e94946bd",
-    "packedAt": "2026-06-02T03:52:09.970Z"
+    "sha": "e93b9352",
+    "packedAt": "2026-06-02T11:51:14.741Z"
   },
   "@starui/react-ui": {
     "bucket": "react-ui",
     "members": [
       "@starui/ui"
     ],
-    "filename": "starui-react-ui-1.0.0-1915a109.tgz",
+    "filename": "starui-react-ui-1.0.0-3e10bd98.tgz",
     "distFilename": "starui-react-ui-1.0.0.tgz",
     "version": "1.0.0",
-    "sha": "1915a109",
-    "packedAt": "2026-06-02T03:52:09.970Z"
+    "sha": "3e10bd98",
+    "packedAt": "2026-06-02T11:51:14.741Z"
   },
   "@starui/shared": {
     "bucket": "shared",
@@ -110,10 +110,10 @@
       "@starui/widget",
       "@starui/widget-browser"
     ],
-    "filename": "starui-shared-1.0.0-013cf363.tgz",
+    "filename": "starui-shared-1.0.0-4899e9a3.tgz",
     "distFilename": "starui-shared-1.0.0.tgz",
     "version": "1.0.0",
-    "sha": "013cf363",
-    "packedAt": "2026-06-02T03:52:09.970Z"
+    "sha": "4899e9a3",
+    "packedAt": "2026-06-02T11:51:14.741Z"
   }
 }
