@@ -10,6 +10,8 @@
   --ex-toolbar-meta: color-mix(in srgb, var(--ds-text-secondary) 82%, var(--ds-text-primary));
   --ex-field-border: color-mix(in srgb, var(--ds-border-secondary) 90%, var(--ds-text-primary));
   --ex-field-bg: color-mix(in srgb, var(--ds-surface-primary) 52%, transparent);
+  /* Single knob for edit-box width. 1 = native sizing; 2 = +100% wider. */
+  --ex-field-scale: 2;
 }
 
 .ex-shell--horizontal {
@@ -124,21 +126,21 @@
 }
 
 .ex-field-numeric {
-  width: calc(var(--ex-field-cols, 4) * 1ch + 0.625rem) !important;
-  min-width: calc(3ch + 0.625rem);
-  max-width: calc(8ch + 0.625rem);
+  width: calc(var(--ex-field-cols, 4) * var(--ex-field-scale, 1) * 1ch + 0.625rem) !important;
+  min-width: calc(3ch * var(--ex-field-scale, 1) + 0.625rem);
+  max-width: calc(8ch * var(--ex-field-scale, 1) + 0.625rem);
 }
 
 .ex-field-grow {
-  width: calc(var(--ex-field-cols, 6) * 1ch + 0.625rem) !important;
-  min-width: calc(4ch + 0.625rem);
-  max-width: calc(12ch + 0.625rem);
+  width: calc(var(--ex-field-cols, 6) * var(--ex-field-scale, 1) * 1ch + 0.625rem) !important;
+  min-width: calc(4ch * var(--ex-field-scale, 1) + 0.625rem);
+  max-width: calc(12ch * var(--ex-field-scale, 1) + 0.625rem);
 }
 
 .ex-field-select {
   width: auto !important;
-  min-width: 5.75rem;
-  max-width: 9rem;
+  min-width: calc(5.75rem * var(--ex-field-scale, 1));
+  max-width: calc(9rem * var(--ex-field-scale, 1));
   flex-shrink: 0;
   border-color: var(--ex-field-border) !important;
   background: var(--ex-field-bg) !important;
