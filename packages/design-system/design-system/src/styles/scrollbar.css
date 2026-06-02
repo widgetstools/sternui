@@ -1,4 +1,40 @@
 /* ─────────────────────────────────────────────────────────────
+   Global theme-aware baseline.
+   Every scrollable surface gets a dark/light-compatible scrollbar
+   even without the .ds-scrollbar class — so no container can fall
+   back to the browser's non-theme-aware default. Specificity is
+   intentionally minimal (the universal `*` selector), so any
+   component that styles its own scrollbar still wins; this only
+   fills the gaps. Colours track --ds-text-primary via color-mix,
+   so flipping `data-theme` flips every scrollbar with no overrides.
+   ───────────────────────────────────────────────────────────── */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ds-text-primary) 22%, transparent) transparent;
+}
+*::-webkit-scrollbar {
+  width:  10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--ds-text-primary) 18%, transparent);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 120ms ease;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--ds-text-primary) 32%, transparent);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ─────────────────────────────────────────────────────────────
    The one and only scrollbar utility.
    Apply class="ds-scrollbar" to any scrollable container.
    Theme-aware via color-mix on --ds-text-primary; works in
