@@ -69,10 +69,10 @@ jobs:
         run: node scripts/propagate.mjs
       - name: Install nested apps workspace
         run: npm run install:apps
-      - name: Build consumer apps
-        run: npm run build:apps
-      - name: Typecheck consumer apps
-        run: npm run typecheck:apps
+      - name: Build consumer apps (tarball track)
+        run: npm run build:apps-tarball
+      - name: Typecheck consumer apps (tarball track)
+        run: npm run typecheck:apps-tarball
       - name: Upload demo-react bundle
         uses: actions/upload-artifact@v4
         with:

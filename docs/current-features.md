@@ -51,7 +51,7 @@
 - `./tailwind` — Tailwind preset
 - `./primeng` — PrimeNG theme preset
 - `./shadcn` — shadcn token generator
-- `./adapters/ag-grid` — AG Grid styling parameters
+- `./adapters/ag-grid` — AG Grid Quartz themes (`iconSetQuartzLight`); dark `#0C0F14` chrome; light shares structural params (Inter 12/11, 2px radii, `rowVerticalPaddingScale` 1)
 - `./tokens`, `./tokens/primitives`, `./tokens/semantic`, `./tokens/components`, `./tokens/controls`
 - `./cell-renderers` — bundled AG Grid cell renderer classes
 
@@ -429,13 +429,13 @@ Per-renderer config types (`PillRendererConfig`,
   non-OpenFin apps pay zero runtime cost. `AlertsBadge` mounts in
   `PrimaryToolbar` (shadcn `Popover` + `ScrollArea`; history list scrolls
   with theme-aware dividers/scrollbar via `ds-sheet-v2`); `useAlertsToastBridge` + `useAlertsOpenFinBridge`
-  auto-wire when the badge is present. Demo: `apps/markets-grid-lab`
+  auto-wire when the badge is present. Demo: `apps/consumer-workspace/markets-grid-lab`
   (`npm run dev:markets-grid-lab`) — Overview, Conditional Styling, Calculated Columns,
   Formatting, Column Groups, Quick Filters (saved filter pills + `FiltersToolbar`),
   Live Updates, Alerts, **Visual Excel** (styled `.xlsx` export), **Editing** (Smart Edit + Bulk Update + Plus/Minus + Shortcuts +
   History), Bulk Update, Plus / Minus, Shortcuts, Cell Renderers, and Formatter Toolbar tabs. Each feature tab ships multiple toolbar profiles (catalogs in
-  `apps/markets-grid-lab/src/profiles/catalogs/`, importable JSON under
-  `apps/markets-grid-lab/public/lab-profiles/`). **Demo console** right rail
+  `apps/consumer-workspace/markets-grid-lab/src/profiles/catalogs/`, importable JSON under
+  `apps/consumer-workspace/markets-grid-lab/public/lab-profiles/`). **Demo console** right rail
   (`LabScenarioRail`, `LabDemoProvider`, `useLabRows`) injects scenario patches
   (bid spike, P&L loss, mid ticks, OAS heat, etc.) and shared stream controls
   (pause/play, tick interval) across all grid tabs;   mock ticks use
@@ -1424,8 +1424,10 @@ Per-renderer config types (`PillRendererConfig`,
 ### Apps — platform bootstrap pilot
 
 - `apps/demo-stomp-markets-grid` — minimal STOMP + MarketsGrid demo (web + OpenFin); programmatic provider seed + `defaultLiveProviderId`; `npm run dev:demo-stomp-markets-grid`; OpenFin: `npm run dev:openfin:demo-stomp-markets-grid`
-- `apps/stomp-marketsgrid-minimal` — lean STOMP → MarketsGrid code sample (`ensurePlatformReady` + `HostedMarketsGrid`); `npm run dev:stomp-marketsgrid-minimal` (needs `npm run dev:stomp`)
-- `apps/markets-grid-lab` — `app-config.json` + `platformBootstrap.ts` + `DataHubProvider` (PR1b/PR3 web pilot)
+- `apps/consumer-workspace/stomp-marketsgrid-minimal` — workspace dev track; lean STOMP → MarketsGrid (`STARUI_DEV_SOURCE=1`); `npm run dev:stomp-marketsgrid-minimal`
+- `apps/consumer-workspace/markets-grid-lab` — workspace dev track; grid lab tabs + profiles (`STARUI_DEV_SOURCE=1`); `npm run dev:markets-grid-lab`
+- `apps/consumer-tarball/` — tarball-track consumer demos (mirror workspace apps for CI; see README)
+- `apps/tutorials-tarball/*` vs `apps/tutorials-workspace/*` — same two-track split for tutorials
 - `apps/legacy/markets-ui-react-reference` — migrated to `ensurePlatformReady` + `DataHubProvider`; removed `dataServices.mainThread.ts`
 - `apps/e2e/browser-blotter` — `standalone` (in-app rows) + `provider`/`config`/`full` hub modes via `DataHubProvider`
 - `apps/e2e/openfin-workspace` — blotter view uses `HostedMarketsGrid` + hub mock provider

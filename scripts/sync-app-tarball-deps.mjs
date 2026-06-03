@@ -10,8 +10,12 @@
  *   npm run sync:app-deps -- demo-react
  */
 
+import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { basename, dirname, join, relative, sep } from 'node:path';
+
+const require = createRequire(import.meta.url);
+const { isTarballTrack } = require('./app-tracks.cjs');
 
 const REPO_ROOT = join(import.meta.dirname, '..');
 const LIBS_DIR = join(REPO_ROOT, 'libs');
@@ -133,7 +137,9 @@ function syncApp(appPkgPath, manifest, memberIndex) {
 const filterNames = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const manifest = readManifest();
 const memberIndex = buildMemberIndex(manifest);
-const apps = findAppPackageJsons().filter((p) => matchesFilter(p, filterNames));
+const apps = findAppPackageJsons()
+  .filter((p) => isTarballTrack(p))
+  .filter((p) => matchesFilter(p, filterNames));
 
 let changedApps = 0;
 for (const appPkgPath of apps) {

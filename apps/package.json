@@ -2,11 +2,15 @@
   "name": "starui-apps",
   "version": "0.0.0",
   "private": true,
-  "description": "Nested workspace for StarUI demo, tutorial, and e2e consumer apps (tarball install track).",
+  "description": "Nested workspace for StarUI consumer apps (tarball + workspace dev tracks).",
   "workspaces": [
-    "*",
+    "consumer-tarball/*",
+    "consumer-workspace/*",
+    "demo-stomp-markets-grid",
     "e2e/*",
     "legacy/*",
+    "platform-hooks-demo",
+    "stomp-view-server",
     "tutorials-tarball/*",
     "tutorials-workspace/*"
   ],
@@ -22,5 +26,8 @@
     "@openfin/core": "43.101.2",
     "esbuild": "0.28.0",
     "hono": "^4.12.20"
+  },
+  "dependencies": {
+    "marketsui-platform": "file:.."
   }
 }

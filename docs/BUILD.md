@@ -31,6 +31,26 @@ npm run install:all
 
 Runs `bootstrap`: `npm ci` (packages) → `build:packages` → `propagate` (creates `libs/*.tgz`) → `npm ci --prefix apps`.
 
+If `libs/` already exists, bootstrap **skips** rebuild/propagate. After changing `packages/`, refresh tarballs and apps:
+
+```bash
+npm run bootstrap -- --force
+```
+
+## App tracks (tarball vs workspace)
+
+Mirrors `tutorials-tarball/` vs `tutorials-workspace/`:
+
+| Track | Paths | Purpose |
+|-------|--------|---------|
+| **Tarball** | `tutorials-tarball/*`, `consumer-tarball/*`, `legacy/*`, `e2e/*`, top-level consumer apps | Installs `file:libs/*.tgz`; **CI** (`build:apps-tarball`); `propagate` syncs these only |
+| **Workspace** | `tutorials-workspace/*`, `consumer-workspace/*` | Dev with `STARUI_DEV_SOURCE=1`; **skipped** by propagate reinstall/sync |
+
+Daily UI work: `npm run build:packages -- --filter=@starui/design-system` then  
+`STARUI_DEV_SOURCE=1 npm run dev:…` under `consumer-workspace/` (no propagate / no `npm ci --prefix apps`).
+
+Tarball validation (before release): `npm run build:consumer` or propagate + `npm run build:apps-tarball`.
+
 | Phase | What happens |
 |-------|----------------|
 | Root `npm ci` | ~687 packages — `packages/*`, tooling |
