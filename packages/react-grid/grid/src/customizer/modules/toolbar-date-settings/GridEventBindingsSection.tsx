@@ -4,6 +4,7 @@ import { SettingsRow as Row, SubLabel } from '../../ui/SettingsPanel';
 import {
   boundHandlerForEvent,
   useGridEventBindingsHost,
+  type GridEventBindingsMap,
 } from '../../gridEventBindingsHost/GridEventBindingsHostContext';
 import { marketsGridEventCatalogByCategory } from '../../../events/marketsGridEventCatalog.js';
 import type { MarketsGridHandlerMeta } from '../../../events/marketsGridEventHandlers.js';
@@ -13,6 +14,10 @@ const NONE_VALUE = '__none__';
 export interface GridEventBindingsSectionProps {
   /** When true, section title is rendered by the parent sidebar layout. */
   hideSectionHeader?: boolean;
+  /** Staged bindings — rendered here, applied to the host on the panel's Save. */
+  draft: GridEventBindingsMap;
+  /** Patch one event's handler in the staged map (does NOT touch the host until Save). */
+  onBindingChange(eventId: string, handlerId: string | null): void;
 }
 
 function handlerLabel(handlerId: string, meta: MarketsGridHandlerMeta | undefined): string {
@@ -22,7 +27,9 @@ function handlerLabel(handlerId: string, meta: MarketsGridHandlerMeta | undefine
 
 export function GridEventBindingsSection({
   hideSectionHeader = false,
-}: GridEventBindingsSectionProps = {}): ReactElement | null {
+  draft,
+  onBindingChange,
+}: GridEventBindingsSectionProps): ReactElement | null {
   const host = useGridEventBindingsHost();
 
   const categories = useMemo(
@@ -58,7 +65,7 @@ export function GridEventBindingsSection({
       {!hideSectionHeader ? <SubLabel>EVENT CALLBACKS</SubLabel> : null}
       <p className="mb-3 text-[11px] text-[color:var(--ds-text-secondary)]">
         Assign one app callback per grid event. Bindings persist at grid level
-        (shared across profile switches).
+        (shared across profile switches) and apply when you Save this panel.
       </p>
       <div className="max-h-64 space-y-3 overflow-auto pr-1">
         {categories.map((category) => {
@@ -70,7 +77,7 @@ export function GridEventBindingsSection({
                 {category}
               </div>
               {events.map((event) => {
-                const selected = boundHandlerForEvent(host.bindings, event.id);
+                const selected = boundHandlerForEvent(draft, event.id);
                 return (
                   <Row
                     key={event.id}
@@ -80,7 +87,7 @@ export function GridEventBindingsSection({
                     control={(
                       <Select
                         value={selected ?? NONE_VALUE}
-                        onValueChange={(v) => host.setEventHandler(
+                        onValueChange={(v) => onBindingChange(
                           event.id,
                           v === NONE_VALUE ? null : v,
                         )}

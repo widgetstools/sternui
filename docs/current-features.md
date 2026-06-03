@@ -501,7 +501,7 @@ Per-renderer config types (`PillRendererConfig`,
   grid-level provider persistence; provider pickers live in grid customizer → Custom Settings (`providerGridHost`)
 - `MarketsGridContainer` — hub data via `useDataProvider` + `applyProviderToGrid` (no direct `client.subscribe` / cfg pass-through); optional `defaultLiveProviderId` for single-provider demos
 - `applyProviderToGrid` — live-tick add/update split with pending-add dedup (`createApplyProviderToGridState`, `splitProviderRowsForGrid`); extracted from `MarketsGridContainer` for `IDataProvider.onTick` wiring
-- Custom Settings panel (`toolbar-date-settings` module) — data provider pickers (live/historical, mode, as-of date, refresh, reload, edit) when `providerGridHost` is wired; historical date → AppData configuration
+- Custom Settings panel (`toolbar-date-settings` module) — three sections: Toolbar Date (historical date → AppData config), Data Provider (live/historical pickers, mode, as-of date) when `providerGridHost` is wired, and Event Callbacks (event→handler bindings) when `gridEventBindingsHost` is wired. All settings are staged and applied only on the panel's explicit Save (Reset reverts); imperative actions (refresh/reload/edit) stay immediate
 - `ProviderEditorDialog` — modal hosting `DataProviderEditor`
 - `DataProviderEditor` — connection + tabs (Connections, Fields, Columns, Diagnostics)
 - `DataProviderSelector` — compact provider dropdown with quick-add

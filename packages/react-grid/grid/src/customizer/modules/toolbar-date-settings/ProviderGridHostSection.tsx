@@ -3,7 +3,22 @@ import { Button, Calendar, Popover, PopoverContent, PopoverTrigger, Select, Sele
 import { CalendarIcon, Pencil, RefreshCw, RotateCw } from 'lucide-react';
 import type { DataProviderConfig } from '@starui/shared-types';
 import { SettingsRow as Row, SubLabel } from '../../ui/SettingsPanel';
-import { useProviderGridHost } from '../../providerGridHost/ProviderGridHostContext';
+import {
+  useProviderGridHost,
+  type ProviderGridHostMode,
+} from '../../providerGridHost/ProviderGridHostContext';
+
+/**
+ * The provider SETTINGS that the Custom Settings panel stages and applies
+ * only on Save (live/historical provider + mode + as-of date). Imperative
+ * actions (refresh/reload/edit) are NOT part of this — they fire immediately.
+ */
+export interface ProviderSelectionDraft {
+  liveProviderId: string | null;
+  historicalProviderId: string | null;
+  mode: ProviderGridHostMode;
+  asOfDate: string | null;
+}
 
 function isoToDate(iso: string | null): Date | undefined {
   if (!iso) return undefined;
@@ -67,16 +82,22 @@ function ProviderSelectRow({
 export interface ProviderGridHostSectionProps {
   /** When true, section title is rendered by the parent sidebar layout. */
   hideSectionHeader?: boolean;
+  /** Staged selection — rendered here, applied to the host on the panel's Save. */
+  draft: ProviderSelectionDraft;
+  /** Patch the staged selection (does NOT touch the host until Save). */
+  onDraftChange(patch: Partial<ProviderSelectionDraft>): void;
 }
 
 export function ProviderGridHostSection({
   hideSectionHeader = false,
-}: ProviderGridHostSectionProps = {}): ReactElement | null {
+  draft,
+  onDraftChange,
+}: ProviderGridHostSectionProps): ReactElement | null {
   const host = useProviderGridHost();
-  const activeId = host?.mode === 'live' ? host.liveProviderId : host?.historicalProviderId;
+  // Active id follows the STAGED selection so Edit targets what's shown.
+  const activeId = draft.mode === 'live' ? draft.liveProviderId : draft.historicalProviderId;
 
-  const asOfDate = host?.asOfDate ?? null;
-  const selectedDate = useMemo(() => isoToDate(asOfDate), [asOfDate]);
+  const selectedDate = useMemo(() => isoToDate(draft.asOfDate), [draft.asOfDate]);
 
   if (!host?.available) {
     return (
@@ -94,25 +115,26 @@ export function ProviderGridHostSection({
     <div className="space-y-1" data-testid="provider-grid-host-section">
       {!hideSectionHeader ? <SubLabel>DATA PROVIDER</SubLabel> : null}
       <p className="mb-3 text-[11px] text-[color:var(--ds-text-secondary)]">
-        Grid-level provider selection persists across profile switches. Changes
-        apply immediately — no profile Save required.
+        Grid-level provider selection persists across profile switches.
+        Selections apply when you Save this panel; the actions below
+        (Refresh / Reload / Edit) run immediately.
       </p>
 
       <ProviderSelectRow
         label="LIVE"
         testId="provider-live-select"
-        value={host.liveProviderId}
+        value={draft.liveProviderId}
         providers={host.liveProviders}
-        onChange={host.onLiveChange}
+        onChange={(id) => onDraftChange({ liveProviderId: id })}
       />
 
       <ProviderSelectRow
         label="HISTORICAL"
         testId="provider-hist-select"
-        value={host.historicalProviderId}
+        value={draft.historicalProviderId}
         providers={host.historicalProviders}
-        onChange={host.onHistoricalChange}
-        disabled={host.historicalProviders.length === 0 && host.historicalProviderId === null}
+        onChange={(id) => onDraftChange({ historicalProviderId: id })}
+        disabled={host.historicalProviders.length === 0 && draft.historicalProviderId === null}
       />
 
       <Row
@@ -124,20 +146,20 @@ export function ProviderGridHostSection({
             <Button
               type="button"
               size="sm"
-              variant={host.mode === 'live' ? 'default' : 'outline'}
+              variant={draft.mode === 'live' ? 'default' : 'outline'}
               className="h-8 px-3 text-xs"
-              onClick={() => host.onModeChange('live')}
-              disabled={!host.liveProviderId}
+              onClick={() => onDraftChange({ mode: 'live' })}
+              disabled={!draft.liveProviderId}
             >
               Live
             </Button>
             <Button
               type="button"
               size="sm"
-              variant={host.mode === 'historical' ? 'default' : 'outline'}
+              variant={draft.mode === 'historical' ? 'default' : 'outline'}
               className="h-8 px-3 text-xs"
-              onClick={() => host.onModeChange('historical')}
-              disabled={!host.historicalProviderId}
+              onClick={() => onDraftChange({ mode: 'historical' })}
+              disabled={!draft.historicalProviderId}
             >
               Hist
             </Button>
@@ -145,7 +167,7 @@ export function ProviderGridHostSection({
         )}
       />
 
-      {host.mode === 'historical' && host.historicalProviderId ? (
+      {draft.mode === 'historical' && draft.historicalProviderId ? (
         <Row
           label="AS OF"
           hint="Historical snapshot date (ISO YYYY-MM-DD)."
@@ -155,14 +177,14 @@ export function ProviderGridHostSection({
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 justify-start font-mono text-xs">
                   <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                  {asOfDate ?? <span className="text-muted-foreground">Pick a date</span>}
+                  {draft.asOfDate ?? <span className="text-muted-foreground">Pick a date</span>}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
                   selected={selectedDate}
-                  onSelect={(d) => host.onAsOfDateChange(dateToIso(d))}
+                  onSelect={(d) => onDraftChange({ asOfDate: dateToIso(d) })}
                   initialFocus
                 />
               </PopoverContent>
