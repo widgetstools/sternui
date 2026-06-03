@@ -8,13 +8,20 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { findMonoRoot, staruiTailwindContent: staruiTailwindContentImpl } = require('./staruiTailwindContent.cjs');
+const {
+  findReactRoot,
+  findStaruiPackageRoot,
+  findBucketNodeModules,
+  collectStaruiInstallRoots,
+  staruiTailwindContent: staruiTailwindContentImpl,
+} = require('./staruiTailwindContent.cjs');
 
 const REPO_ROOT = resolve(import.meta.dirname, '..');
 
 /** Monorepo root where hoisted node_modules lives. Walks up from appDir. */
+/** Root whose `node_modules` holds installed @starui/* bucket tarballs. */
 export function monoRootFromApp(appDir) {
-  return findMonoRoot(appDir);
+  return findStaruiPackageRoot(appDir);
 }
 
 /**
@@ -22,9 +29,9 @@ export function monoRootFromApp(appDir) {
  * tarball sources.
  */
 export function reactResolveConfig(appDir) {
-  const monoRoot = monoRootFromApp(appDir);
-  const reactRoot = join(monoRoot, 'node_modules/react');
-  const reactDomRoot = join(monoRoot, 'node_modules/react-dom');
+  const reactRootDir = findReactRoot(appDir);
+  const reactRoot = join(reactRootDir, 'node_modules/react');
+  const reactDomRoot = join(reactRootDir, 'node_modules/react-dom');
 
   return {
     dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
@@ -128,8 +135,9 @@ function isBucketBundlePackage(pkgJson, bucketName) {
 }
 
 /** Installed path root for a member — bucket tarball vs workspace symlink. */
-function installedMemberRoot(nmRoot, bucketName, bucketShort, memberName, folder) {
-  const bucketDir = join(nmRoot, '@starui', bucketShort);
+function installedMemberRoot(appDir, bucketName, bucketShort, memberName, folder) {
+  const bucketDir = findBucketNodeModules(appDir, bucketShort);
+  const nmRoot = join(bucketDir, '../..');
   const bucketPkgPath = join(bucketDir, 'package.json');
   if (existsSync(bucketPkgPath)) {
     const bucketPkg = JSON.parse(readFileSync(bucketPkgPath, 'utf8'));
@@ -168,8 +176,6 @@ export function staruiViteAliases(appDir) {
   const manifest = readManifest();
   if (!manifest) return [];
 
-  const monoRoot = monoRootFromApp(appDir);
-  const nmRoot = join(monoRoot, 'node_modules');
   const useDevSource = process.env.STARUI_DEV_SOURCE === '1';
   const aliases = [];
   const seen = new Set();
@@ -184,7 +190,7 @@ export function staruiViteAliases(appDir) {
   for (const [bucketName, entry] of Object.entries(manifest)) {
     if (!entry?.members?.length || !entry.bucket) continue;
     const bucketShort = bucketName.split('/').pop();
-    const bucketDir = join(nmRoot, '@starui', bucketShort);
+    const bucketDir = findBucketNodeModules(appDir, bucketShort);
     const bucketPkgPath = join(bucketDir, 'package.json');
 
     for (const member of entry.members) {
@@ -208,7 +214,7 @@ export function staruiViteAliases(appDir) {
         // without needing to re-install.
         resolveRoot = useDevSource
           ? join(REPO_ROOT, 'packages', entry.bucket, folder)
-          : installedMemberRoot(nmRoot, bucketName, bucketShort, member, folder);
+          : installedMemberRoot(appDir, bucketName, bucketShort, member, folder);
       }
 
       for (const [exportKey, relTarget] of Object.entries(exportEntries)) {
@@ -249,12 +255,15 @@ const HOST_DATA_WORKER_ASSET_RE =
 export function resolveHostDataWorkerAssetUrl(source, appDir) {
   if (!HOST_DATA_WORKER_ASSET_RE.test(source)) return null;
 
-  const monoRoot = monoRootFromApp(appDir);
   const candidates = [
-    join(monoRoot, 'node_modules/@starui/host-data/dist/assets/data-services-worker.mjs'),
     join(REPO_ROOT, 'packages/data/host-data/dist/assets/data-services-worker.mjs'),
-    join(monoRoot, 'node_modules/@starui/data/host-data/dist/assets/data-services-worker.mjs'),
   ];
+  for (const root of collectStaruiInstallRoots(appDir)) {
+    candidates.push(
+      join(root, 'node_modules/@starui/host-data/dist/assets/data-services-worker.mjs'),
+      join(root, 'node_modules/@starui/data/host-data/dist/assets/data-services-worker.mjs'),
+    );
+  }
   const workerPath = candidates.find((p) => existsSync(p));
   return workerPath ? `${workerPath}?url` : null;
 }
@@ -280,23 +289,28 @@ export function staruiTailwindContent(appDir) {
 
 /** Force ESM entry — browser export resolves to UMD which breaks dynamic `import()` Client lookup. */
 export function stompJsEsmAlias(appDir) {
-  const monoRoot = monoRootFromApp(appDir);
+  const reactRootDir = findReactRoot(appDir);
   return {
     find: /^@stomp\/stompjs$/,
-    replacement: join(monoRoot, 'node_modules/@stomp/stompjs/esm6/index.js'),
+    replacement: join(reactRootDir, 'node_modules/@stomp/stompjs/esm6/index.js'),
   };
 }
 
 /** Paths Vite may read when aliases resolve into hoisted node_modules. */
 export function staruiServerFsAllow(appDir) {
-  const monoRoot = monoRootFromApp(appDir);
-  return [
+  const reactRootDir = findReactRoot(appDir);
+  const allow = new Set([
     REPO_ROOT,
     join(REPO_ROOT, 'packages'),
-    monoRoot,
-    join(monoRoot, 'node_modules'),
     join(REPO_ROOT, 'node_modules'),
-  ];
+    reactRootDir,
+    join(reactRootDir, 'node_modules'),
+  ]);
+  for (const root of collectStaruiInstallRoots(appDir)) {
+    allow.add(root);
+    allow.add(join(root, 'node_modules'));
+  }
+  return [...allow];
 }
 
 export function staruiOptimizeDeps() {
