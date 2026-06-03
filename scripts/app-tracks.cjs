@@ -6,11 +6,9 @@
  * - **workspace** — local dev via STARUI_DEV_SOURCE=1 (Vite → packages/ source).
  *   skipped by propagate install/sync to avoid lockfile churn and slow npm ci loops.
  *
- * Folder convention (mirror tutorials-tarball / tutorials-workspace):
- *   apps/<name>-tarball/*   apps/<name>-workspace/*
- *   apps/consumer-tarball/* apps/consumer-workspace/*
- *
- * Legacy paths (apps/legacy/*, top-level apps, e2e/*) remain tarball track until migrated.
+ * Folder convention:
+ *   apps/workspace/<app> — STARUI_DEV_SOURCE=1 dev (packages/ source)
+ *   apps/tarball/<app>   — file:libs/*.tgz consumer install (CI / MCP parity)
  */
 const { existsSync, readFileSync } = require('node:fs');
 const { join, relative, sep } = require('node:path');
@@ -19,16 +17,10 @@ const REPO_ROOT = join(__dirname, '..');
 const APPS_ROOT = join(REPO_ROOT, 'apps');
 
 /** Path segments that mark the workspace (dev-source) track. */
-const WORKSPACE_TRACK_SEGMENTS = new Set([
-  'tutorials-workspace',
-  'consumer-workspace',
-]);
+const WORKSPACE_TRACK_SEGMENTS = new Set(['workspace']);
 
 /** Path segments that mark the tarball (consumer) track explicitly. */
-const TARBALL_TRACK_SEGMENTS = new Set([
-  'tutorials-tarball',
-  'consumer-tarball',
-]);
+const TARBALL_TRACK_SEGMENTS = new Set(['tarball']);
 
 function normalizeRel(appPkgPath) {
   const appDir = join(appPkgPath, '..');
@@ -43,7 +35,6 @@ function appTrack(appPkgPath) {
   const segments = normalizeRel(appPkgPath).split('/').filter(Boolean);
   if (segments.some((s) => WORKSPACE_TRACK_SEGMENTS.has(s))) return 'workspace';
   if (segments.some((s) => TARBALL_TRACK_SEGMENTS.has(s))) return 'tarball';
-  // legacy/, e2e/, and top-level apps (demo-react, markets-grid-lab, …) → tarball
   return 'tarball';
 }
 
@@ -56,9 +47,8 @@ function isWorkspaceTrack(appPkgPath) {
 }
 
 /**
- * Apps that set STARUI_DEV_SOURCE on `dev` but still live on the tarball track path
- * (e.g. apps/markets-grid-lab). propagate still refreshes their tarballs; prefer
- * consumer-workspace/ for new apps.
+ * Apps that set STARUI_DEV_SOURCE on `dev` but live under apps/tarball/ (mis-placed).
+ * propagate still refreshes their tarballs; new apps belong under apps/workspace/.
  */
 function devUsesSource(appPkgPath) {
   try {

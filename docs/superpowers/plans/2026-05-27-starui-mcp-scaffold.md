@@ -388,7 +388,7 @@ Groups: toolbars, chrome, hosting, agGridThemeVariant, modules, persistence.
 
 - [ ] **Step 1: package.json.hbs** — generate `file:libs/{{tarballFilename}}` deps from manifest members; include `@starui/design-system`, `@starui/ui`, `@starui/grid`, ag-grid 35.1.0, react 19.2.5.
 
-- [ ] **Step 2: vite.config.ts.hbs** — inline `staruiConsumerVite.mjs` equivalent for **external** apps (copy minimal config from `apps/tutorials-tarball/basic/vite.config.ts` — no monorepo-relative import; embed alias resolution or ship `scripts/staruiConsumerVite.mjs` as fragment):
+- [ ] **Step 2: vite.config.ts.hbs** — inline `staruiConsumerVite.mjs` equivalent for **external** apps (copy minimal config from `apps/tarball/basic/vite.config.ts` — no monorepo-relative import; embed alias resolution or ship `scripts/staruiConsumerVite.mjs` as fragment):
 
 ```typescript
 import { defineConfig } from 'vite';
@@ -417,7 +417,7 @@ export default defineConfig({
 - Create: `tools/mcp-scaffold/templates/fragments/readme/basic.md.hbs`
 - Create: `tools/mcp-scaffold/templates/fragments/ui/help-sheet.tsx` (from tutorial, commented)
 
-Source: distill `apps/tutorials-tarball/basic/src/` — strip dock/extra panels; keep HelpSheet as optional `includeUiRecipes`.
+Source: distill `apps/tarball/basic/src/` — strip dock/extra panels; keep HelpSheet as optional `includeUiRecipes`.
 
 - [ ] **Step 1: App.tsx.hbs** — `MarketsGrid` with `createMarketsGridLocalStorageStorage()`, grid feature flags from `{{gridFeatures}}`, imports from `@starui/grid`, `@starui/ui`, `@starui/design-system`.
 
@@ -432,11 +432,11 @@ Source: distill `apps/tutorials-tarball/basic/src/` — strip dock/extra panels;
 **Files:**
 - Create: `tools/mcp-scaffold/templates/fragments/data/dataServices.ts.hbs`
 - Create: `tools/mcp-scaffold/templates/fragments/data/main-with-provider.tsx.hbs`
-- Create: `tools/mcp-scaffold/templates/fragments/stomp-server/` — copy from `apps/stomp-view-server/` (exclude node_modules)
+- Create: `tools/mcp-scaffold/templates/fragments/stomp-server/` — copy from `apps/tarball/stomp-view-server/` (exclude node_modules)
 
 - [ ] **Step 1: Copy stomp-view-server** as static fragment (not .hbs); composer copies directory tree.
 
-- [ ] **Step 2: dataServices.ts.hbs** — from `apps/tutorials-tarball/stomp/src/dataServices.ts`:
+- [ ] **Step 2: dataServices.ts.hbs** — from `apps/tarball/stomp/src/dataServices.ts`:
 
 ```typescript
 import { bootstrapDataServicesWithWorkerAsset } from '@starui/host-data';
@@ -456,7 +456,7 @@ export const dataServices = bootstrapDataServicesWithWorkerAsset(workerAssetUrl,
 
 **Files:**
 - Create: manifests + fragments for each template
-- Source: `apps/tutorials-tarball/mockdata-provider`, `dataprovider-editor`, `stomp`
+- Source: `apps/tarball/mockdata-provider`, `dataprovider-editor`, `stomp`
 
 - [ ] **Step 1: mockdata-provider** — single `DirectGridPanel` OR `DataServicesGridPanel` (not both — cleaner default: DataServices path only; document direct path in README).
 
@@ -473,7 +473,7 @@ export const dataServices = bootstrapDataServicesWithWorkerAsset(workerAssetUrl,
 **Files:**
 - Create: `tools/mcp-scaffold/templates/manifests/openfin-platform.json`
 - Create: `tools/mcp-scaffold/templates/fragments/openfin/**`
-- Source: `apps/legacy/markets-ui-react-reference/`
+- Source: `apps/tarball/markets-ui-react-reference/`
 
 - [ ] **Step 1: Copy + distill fragments:**
 
@@ -510,7 +510,7 @@ export const dataServices = bootstrapDataServicesWithWorkerAsset(workerAssetUrl,
 - Create: `tools/mcp-scaffold/src/tools/addUiComponent.ts`
 - Create: `tools/mcp-scaffold/src/tools/listUiComponents.ts`
 
-- [ ] **Step 1: Copy distilled UI recipes** from `apps/tutorials-tarball/basic/src/components/` with header comments.
+- [ ] **Step 1: Copy distilled UI recipes** from `apps/tarball/basic/src/components/` with header comments.
 
 - [ ] **Step 2: Implement `starui_add_ui_component`** — copies recipe to `src/components/`, runs design linter.
 

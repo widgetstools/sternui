@@ -15,7 +15,7 @@ import {
 } from './helpers/platformHooksDemo';
 
 /**
- * Rigorous e2e for `apps/platform-hooks-demo` — AppData bootstrap hooks and
+ * Rigorous e2e for `apps/workspace/platform-hooks-demo` — AppData bootstrap hooks and
  * MarketsGridContainer event callback bindings (Custom Settings → EVENT CALLBACKS).
  *
  * Targets http://localhost:5214 (see playwright.config webServer entry).

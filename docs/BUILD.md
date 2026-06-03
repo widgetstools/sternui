@@ -12,108 +12,176 @@ Step-by-step guide for a **fresh machine**. See also [README.md](../README.md#ge
 
 Optional for e2e: Chromium (Playwright installs via `npx playwright install`).
 
-## 1. Clone
+---
+
+## Build matrix (three layers)
+
+There are **three separate build surfaces**. Run them in order when validating a full consumer release.
+
+| Layer | What | Command (repo root) | Output |
+|-------|------|---------------------|--------|
+| **1. Packages** | `@starui/*` libraries under `packages/` | `npm run build:packages` | `packages/*/*/dist/` (and grid consumed as source) |
+| **2. Tarballs** | Architecture-bucket `.tgz` under `libs/` | `npm run propagate` | `libs/starui-*.tgz` (gitignored) |
+| **3a. Tarball apps** | Consumer install path (`apps/tarball/*`) | `npm run build:apps-tarball` | `apps/tarball/<app>/dist/` |
+| **3b. Workspace apps** | Dev track (`apps/workspace/*`) | `npm run build:apps-workspace` | `apps/workspace/<app>/dist/` |
+
+**Install apps** (nested workspace) after `libs/` exists:
 
 ```bash
-git clone <repo-url> sternui
-cd sternui
+npm run install:apps    # npm ci --prefix apps
 ```
 
-`libs/` is **not** in git. You will generate it locally (step 2).
+`npm run install:apps` alone **fails** on a fresh clone until `libs/` exists.
 
-## 2. Install dependencies
+---
 
-### Full install (libraries + all demo apps) — recommended
+## 1. Build packages (libraries)
+
+From repo root:
 
 ```bash
-npm run install:all
+npm ci
+npm run build:packages
 ```
 
-Runs `bootstrap`: `npm ci` (packages) → `build:packages` → `propagate` (creates `libs/*.tgz`) → `npm ci --prefix apps`.
+Equivalent inside `npm run install:all` / `bootstrap` (step 1).
 
-If `libs/` already exists, bootstrap **skips** rebuild/propagate. After changing `packages/`, refresh tarballs and apps:
+**Unit tests (packages only):**
+
+```bash
+npm test
+# or: npm run test:packages
+```
+
+**Typecheck libraries only:**
+
+```bash
+npm run typecheck:packages
+```
+
+---
+
+## 2. Pack tarballs (`libs/`)
+
+`libs/` is **not** in git. Generate it locally:
+
+```bash
+npm run build:packages
+npm run propagate
+```
+
+`propagate` builds buckets, writes `libs/*.tgz`, runs `sync:app-deps` (updates **both** `apps/tarball/*` and `apps/workspace/*` `file:libs/…` deps), and refreshes installs.
+
+Force rebuild:
 
 ```bash
 npm run bootstrap -- --force
 ```
 
-## App tracks (tarball vs workspace)
+---
 
-Mirrors `tutorials-tarball/` vs `tutorials-workspace/`:
+## 3a. Build tarball apps (CI / consumer parity)
 
-| Track | Paths | Purpose |
-|-------|--------|---------|
-| **Tarball** | `tutorials-tarball/*`, `consumer-tarball/*`, `legacy/*`, `e2e/*`, top-level consumer apps | Installs `file:libs/*.tgz`; **CI** (`build:apps-tarball`); `propagate` syncs these only |
-| **Workspace** | `tutorials-workspace/*`, `consumer-workspace/*` | Dev with `STARUI_DEV_SOURCE=1`; **skipped** by propagate reinstall/sync |
-
-Daily UI work: `npm run build:packages -- --filter=@starui/design-system` then  
-`STARUI_DEV_SOURCE=1 npm run dev:…` under `consumer-workspace/` (no propagate / no `npm ci --prefix apps`).
-
-Tarball validation (before release): `npm run build:consumer` or propagate + `npm run build:apps-tarball`.
-
-| Phase | What happens |
-|-------|----------------|
-| Root `npm ci` | ~687 packages — `packages/*`, tooling |
-| `propagate` | Packs buckets into gitignored `libs/` |
-| Apps `npm ci` | ~762 packages — demos from those tarballs |
-
-### Packages only (no demos, faster)
-
-```bash
-npm ci
-```
-
-Add demos later:
+Validates that apps work like external consumers (Artifactory / MCP), using **`apps/tarball/<app>/`** only.
 
 ```bash
 npm run build:packages
 npm run propagate
 npm run install:apps
+npm run build:apps-tarball
 ```
 
-`npm run install:apps` alone **fails** on a fresh clone until `libs/` exists.
-
-## 3. Build libraries
+**CI-equivalent one-liner:**
 
 ```bash
-npm run build:packages
-```
-
-(Already run by `install:all` / `bootstrap`.)
-
-## 4. Run unit tests (libraries)
-
-```bash
-npm test
-```
-
-## 5. Run a demo app
-
-Requires full install (step 2).
-
-```bash
-npm run dev
-```
-
-Default: `@starui/demo-react` at http://localhost:5190.
-
-## 6. Build demo apps (production bundles)
-
-```bash
-npm run install:all
-npm run build:apps
-```
-
-Or CI-equivalent:
-
-```bash
-npm ci
 npm run verify:consumer
 ```
 
-(`verify:consumer` runs `build:packages`, `propagate`, `install:apps`, then builds/typechecks apps.)
+(`verify:consumer` = packages build → propagate → `install:apps` → **tarball app production builds**.)
 
-## 7. After changing code under `packages/`
+**Typecheck tarball apps (optional):**
+
+```bash
+npm run typecheck:apps-tarball
+```
+
+App `tsc` may report duplicate `@types/react` errors when TypeScript resolves `@starui/grid` via the **root** workspace link instead of the installed bucket tarball. Production **`vite build` / `ng build`** is the supported consumer check; library types are covered by `npm run typecheck:packages`.
+
+---
+
+## 3b. Build workspace apps (dev track)
+
+Validates production bundles for **`apps/workspace/<app>/`** with `STARUI_DEV_SOURCE=1` (same Vite aliases as `npm run dev:*`).
+
+```bash
+npm run build:packages
+npm run propagate
+npm run install:apps
+npm run build:apps-workspace
+```
+
+**Typecheck workspace apps (optional):**
+
+```bash
+npm run typecheck:apps-workspace
+```
+
+**Run a dev server (workspace track):**
+
+```bash
+npm run dev:demo-react          # @starui/demo-react-workspace
+npm run dev:markets-grid-lab    # @starui/markets-grid-lab-workspace
+```
+
+See [apps/workspace/README.md](../apps/workspace/README.md).
+
+---
+
+## App tracks (folder layout)
+
+| Track | Path | `propagate` reinstall | Root `npm run dev:*` |
+|-------|------|------------------------|----------------------|
+| **Tarball** | `apps/tarball/<app>/` | Yes | No (use workspace) |
+| **Workspace** | `apps/workspace/<app>/` | Skipped for install churn | Yes |
+
+Pair names: e.g. `@starui/demo-react` (tarball) vs `@starui/demo-react-workspace` (workspace). Special case: `@starui/e2e-openfin-workspace` (tarball) vs `@starui/e2e-openfin-workspace-ws` (workspace).
+
+---
+
+## Fresh clone (full setup)
+
+```bash
+git clone <repo-url> starui
+cd starui
+npm run install:all
+```
+
+Runs **`bootstrap`**: `npm ci` → `build:packages` → `propagate` → `npm ci --prefix apps`.
+
+If `libs/` already exists, bootstrap **skips** rebuild unless:
+
+```bash
+npm run bootstrap -- --force
+```
+
+### Packages only (faster)
+
+```bash
+npm ci
+npm run build:packages
+npm test
+```
+
+Add apps later:
+
+```bash
+npm run propagate
+npm run install:apps
+```
+
+---
+
+## After changing `packages/`
 
 ```bash
 npm run build:packages
@@ -123,18 +191,26 @@ npm run install:apps
 
 Commit `apps/package-lock.json` and any `apps/**/package.json` touched by propagate. Do **not** commit `libs/`.
 
-## 8. Rebuild `libs/` only
+---
+
+## Build everything
 
 ```bash
-npm run bootstrap -- --force
+npm run build:all
 ```
 
-## 9. Clean reinstall
+Runs `build:consumer` (packages + propagate + install apps) then **`build:apps-tarball`** and **`build:apps-workspace`**.
+
+---
+
+## Clean reinstall
 
 ```bash
 npm run clean
 npm run install:all
 ```
+
+---
 
 ## Quick reference
 
@@ -142,6 +218,9 @@ npm run install:all
 |------|----------|
 | Fresh clone, everything | `npm run install:all` |
 | Libraries only | `npm ci` → `npm run build:packages` → `npm test` |
-| Run demo | `npm run install:all` → `npm run dev` |
-| CI parity | `npm ci` → `npm run verify:consumer` |
+| Tarball consumer CI | `npm run verify:consumer` |
+| Tarball app bundles | `npm run build:apps-tarball` |
+| Workspace app bundles | `npm run build:apps-workspace` |
+| Both app tracks | `npm run build:apps` |
+| Run demo (dev) | `npm run dev` (workspace `@starui/demo-react-workspace`) |
 | Refresh tarballs | `npm run build:packages` → `npm run propagate` → `npm run install:apps` |

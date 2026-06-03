@@ -2,22 +2,19 @@
   "name": "starui-apps",
   "version": "0.0.0",
   "private": true,
-  "description": "Nested workspace for StarUI consumer apps (tarball + workspace dev tracks).",
+  "description": "Nested workspace for StarUI consumer apps (workspace + tarball tracks).",
   "workspaces": [
-    "consumer-tarball/*",
-    "consumer-workspace/*",
-    "demo-stomp-markets-grid",
-    "e2e/*",
-    "legacy/*",
-    "platform-hooks-demo",
-    "stomp-view-server",
-    "tutorials-tarball/*",
-    "tutorials-workspace/*"
+    "workspace/*",
+    "tarball/*"
   ],
   "scripts": {
     "ci": "npm ci",
-    "build": "cd .. && npx turbo run build --filter=./apps/**",
-    "typecheck": "cd .. && npx turbo run typecheck --filter=./apps/**"
+    "build": "node ../scripts/build-app-track.mjs tarball build && node ../scripts/build-app-track.mjs workspace build",
+    "build:tarball": "node ../scripts/build-app-track.mjs tarball build",
+    "build:workspace": "node ../scripts/build-app-track.mjs workspace build",
+    "typecheck": "node ../scripts/build-app-track.mjs tarball typecheck && node ../scripts/build-app-track.mjs workspace typecheck",
+    "typecheck:tarball": "node ../scripts/build-app-track.mjs tarball typecheck",
+    "typecheck:workspace": "node ../scripts/build-app-track.mjs workspace typecheck"
   },
   "engines": {
     "node": ">=20.0.0"

@@ -1,6 +1,6 @@
 /**
  * CDP polling helpers — moved verbatim from the legacy Vitest harness
- * (now at apps/legacy/e2e-openfin-vitest/helpers/cdp.ts).
+ * (now at apps/tarball/e2e-openfin-vitest/helpers/cdp.ts).
  *
  * OpenFin v13+ exposes the runtime on `--remote-debugging-port` (see
  * the openfin-workspace manifest `runtime.arguments` + `devtools_port`).

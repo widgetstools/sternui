@@ -141,7 +141,7 @@ Manifest: `libs/manifest.json` maps `@starui/<bucket>` → tarball +
 ## Testing
 
 - Vitest 4 + jsdom 29 for unit tests. Baseline: 653 passing.
-- Playwright 1.59 against `apps/demo-react`. Baseline: 195/214 passing
+- Playwright 1.59 against `apps/tarball/demo-react`. Baseline: 195/214 passing
   (19 failures are pre-existing — see [`docs/E2E_STATUS.md`](./docs/E2E_STATUS.md)).
 
 ## UI stack rules (non-negotiable)

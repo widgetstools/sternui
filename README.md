@@ -19,7 +19,7 @@ architecture buckets.
 ```
 starui/                      # npm workspace root
 ├── packages/                # ten architecture buckets (@starui/* libraries)
-├── apps/                    # demos, reference apps, dev utilities
+├── apps/                    # consumer demos — workspace/ (dev) + tarball/ (CI)
 ├── docs/                    # architecture, parity, consumer guides
 ├── scripts/                 # propagate, Vite/Tailwind consumer helpers
 ├── tools/                   # OpenFin launcher + dev utilities
@@ -81,38 +81,27 @@ from packages, never the reverse. Full rules in [`docs/ARCHITECTURE.md`](./docs/
 
 Run `npm run verify:apps` to smoke-test dev servers.
 
-### Demo apps vs library development
+### Packages vs consumer apps
 
-| Audience | Installs | Builds with |
-|---|---|---|
-| **External consumers** | Artifactory / bucket `.tgz` files | App CI + `staruiConsumerVite.mjs` |
-| **Monorepo libraries** | Workspace `"*"` between packages | `build:packages`, `typecheck:packages`, `test:packages` |
-| **Monorepo demo apps** | Nested `apps/` workspace; `file:../../libs/*.tgz` per bucket | `install:apps`, `build:consumer`, `verify:consumer` |
+| Layer | Path | Build command |
+|-------|------|----------------|
+| **Libraries** | `packages/*` | `npm run build:packages` |
+| **Bucket tarballs** | `libs/*.tgz` (gitignored) | `npm run propagate` |
+| **Tarball apps** (CI) | `apps/tarball/*` | `npm run build:apps-tarball` |
+| **Workspace apps** (dev) | `apps/workspace/*` | `npm run build:apps-workspace` |
 
-Apps under `apps/` install StarUI the way external teams do: **architecture-bucket
-tarballs** under `libs/` (standing in for Artifactory), not workspace member deps.
-Vite resolves member imports (`@starui/grid`, `@starui/app`, …) via
-[`scripts/staruiConsumerAliases.mjs`](./scripts/staruiConsumerAliases.mjs).
+Consumer apps install **`file:libs/starui-*.tgz`** (not root workspace `"*"`). Vite maps `@starui/grid`, `@starui/app`, … via [`scripts/staruiConsumerAliases.mjs`](./scripts/staruiConsumerAliases.mjs). Workspace copies use `STARUI_DEV_SOURCE=1` on `npm run dev:*` (see [`apps/workspace/README.md`](./apps/workspace/README.md)).
 
-After library changes that demo apps consume:
+After library changes:
 
 ```bash
-npm run propagate          # rebuild + pack buckets → libs/
-npm run verify:consumer    # full consumer parity (CI)
+npm run build:packages
+npm run propagate
+npm run install:apps
+npm run verify:consumer    # CI: tarball production builds
 ```
 
-**Local fast path** — alias demo apps to live `packages/` source (not used in CI):
-
-```bash
-STARUI_DEV_SOURCE=1 npm run dev:demo-react
-STARUI_DEV_SOURCE=1 npm run dev:markets-ui-react-reference
-```
-
-If hot reload looks stale after editing packages, clear Vite cache:
-
-```bash
-rm -rf node_modules/.vite apps/*/node_modules/.vite
-```
+Full matrix: **[`docs/BUILD.md`](./docs/BUILD.md)** and **[`apps/README.md`](./apps/README.md)**.
 
 ## Grid customizer modules (`@starui/grid`)
 
@@ -147,8 +136,8 @@ The repo has **two install surfaces**:
 ### 1. Clone and install everything (most contributors)
 
 ```bash
-git clone <repo-url> sternui
-cd sternui
+git clone <repo-url> starui
+cd starui
 
 npm run install:all
 ```
@@ -179,19 +168,26 @@ npm run install:apps
 
 ```bash
 npm run dev
-# → http://localhost:5190  (@starui/demo-react under apps/legacy/demo-react)
+# → http://localhost:5190  (@starui/demo-react-workspace under apps/workspace/demo-react)
 ```
 
-### 5. Full consumer build (matches CI `verify:consumer`)
+### 5. Consumer CI parity (tarball apps)
 
 ```bash
-npm run install:all
 npm run verify:consumer
 ```
 
-Sequence inside `verify:consumer`: build packages → propagate tarballs → reinstall apps → build apps → typecheck apps.
+Sequence: `build:packages` → `propagate` → `install:apps` → **`build:apps-tarball`**.
 
-### 6. After you change library code that apps consume
+### 6. Workspace app bundles (dev track)
+
+```bash
+npm run build:apps-workspace
+```
+
+Requires the same `propagate` + `install:apps` prep as tarball builds.
+
+### 7. After you change library code that apps consume
 
 ```bash
 npm run build:packages
@@ -200,7 +196,7 @@ npm run install:apps
 # commit apps/package-lock.json and any apps/*/package.json touched by propagate (not libs/)
 ```
 
-### 7. Rebuild gitignored `libs/`
+### 8. Rebuild gitignored `libs/`
 
 ```bash
 npm run bootstrap -- --force

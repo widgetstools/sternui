@@ -52,7 +52,7 @@ When **any** editing module has `settings.enabled === false`, that module is **f
 | **`@starui/engine`** | `packages/shared/engine/` | `editing-core/`, per-module state/ops/journal; no React, no DOM |
 | **`@starui/grid`** | `packages/react-grid/grid/` | Module shells, panels, toolbars, runtime `activate`, widget wiring |
 | **`@starui/ui`** | `packages/react-ui/ui/` | Consume shadcn only — **no editing-specific components in react-ui** |
-| **`markets-grid-lab`** | `apps/markets-grid-lab/` | **Editing** tab (unified curriculum) + per-feature profile catalogs |
+| **`markets-grid-lab`** | `apps/workspace/markets-grid-lab/` | **Editing** tab (unified curriculum) + per-feature profile catalogs |
 
 **Do NOT create:** new npm packages, new top-level `packages/*` buckets, duplicate logic in `react-core`.
 

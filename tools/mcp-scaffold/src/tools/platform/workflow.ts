@@ -68,7 +68,7 @@ export async function handleSetupStompDev(opts: {
       projectHints.push('Add public/app-config.json + src/platformBootstrap.ts (ensurePlatformReady)');
     }
     if (!existsSync(join(opts.projectDir, 'stomp-view-server'))) {
-      projectHints.push('Copy stomp-view-server/ or run from monorepo apps/stomp-view-server');
+      projectHints.push('Copy stomp-view-server/ or run from monorepo apps/tarball/stomp-view-server');
     }
   }
 

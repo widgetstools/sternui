@@ -82,11 +82,11 @@
 
 | App | Bootstrap entry | Config source |
 |-----|-----------------|---------------|
-| `apps/markets-grid-lab` | `src/platformBootstrap.ts` | `public/app-config.json` |
-| `apps/tutorials-workspace/stomp` | same | `app-config.json` |
-| `apps/tutorials-workspace/mockdata-provider` | same | `app-config.json` |
-| `apps/tutorials-workspace/dataprovider-editor` | same | `app-config.json` |
-| `apps/tutorials-tarball/*` | mirror workspace | |
+| `apps/workspace/markets-grid-lab` | `src/platformBootstrap.ts` | `public/app-config.json` |
+| `apps/workspace/stomp` | same | `app-config.json` |
+| `apps/workspace/mockdata-provider` | same | `app-config.json` |
+| `apps/workspace/dataprovider-editor` | same | `app-config.json` |
+| `apps/tarball/*` | mirror workspace | |
 | OpenFin MCP template | `src/platformBootstrap.ts` | `manifest.fin.json` `customSettings` |
 | `tools/mcp-scaffold/templates/fragments/**` | scaffold output | both patterns documented |
 
@@ -94,7 +94,7 @@
 
 | App | Note |
 |-----|------|
-| `apps/legacy/markets-ui-react-reference` | Migrate when active; or mark deprecated |
+| `apps/tarball/markets-ui-react-reference` | Migrate when active; or mark deprecated |
 
 ---
 
@@ -253,9 +253,9 @@ export async function ensurePlatformReady(
 
 **Files:**
 - Create: `docs/guides/platform-bootstrap-config.md` (complete)
-- Create: `apps/markets-grid-lab/public/app-config.json`
-- Create: `apps/markets-grid-lab/src/platformBootstrap.ts`
-- Modify: `apps/markets-grid-lab/src/main.tsx`
+- Create: `apps/workspace/markets-grid-lab/public/app-config.json`
+- Create: `apps/workspace/markets-grid-lab/src/platformBootstrap.ts`
+- Modify: `apps/workspace/markets-grid-lab/src/main.tsx`
 
 - [ ] **Step 1:** Web app pattern: ✅ Session 7
 - [ ] **Step 2:** OpenFin pattern: ✅ documented in guide (implementation in OpenFin apps Session 20)
@@ -502,7 +502,7 @@ export async function ensurePlatformReady(
 - [ ] **Step 1:** `npx turbo typecheck build test` — full monorepo green.
 - [x] **Step 2:** Add integration test: two hub clients, same providerId, second cfg-free attach receives snapshot. ✅ Session 23
 - [x] **Step 3:** Add adapter test: `refresh()` does not call transport restart (mock handle). ✅ pre-existing (`ProviderClientAdapter.test.ts`)
-- [ ] **Step 4:** Smoke `apps/markets-grid-lab` + stomp tutorial against `stomp-view-server`.
+- [ ] **Step 4:** Smoke `apps/workspace/markets-grid-lab` + stomp tutorial against `stomp-view-server`.
 - [ ] **Step 5:** Run targeted e2e if grid attach paths changed (`e2e/` grep `MarketsGrid`).
 
 ### Task 7.2: Deprecation notices

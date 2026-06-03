@@ -429,13 +429,13 @@ Per-renderer config types (`PillRendererConfig`,
   non-OpenFin apps pay zero runtime cost. `AlertsBadge` mounts in
   `PrimaryToolbar` (shadcn `Popover` + `ScrollArea`; history list scrolls
   with theme-aware dividers/scrollbar via `ds-sheet-v2`); `useAlertsToastBridge` + `useAlertsOpenFinBridge`
-  auto-wire when the badge is present. Demo: `apps/consumer-workspace/markets-grid-lab`
+  auto-wire when the badge is present. Demo: `apps/workspace/markets-grid-lab`
   (`npm run dev:markets-grid-lab`) — Overview, Conditional Styling, Calculated Columns,
   Formatting, Column Groups, Quick Filters (saved filter pills + `FiltersToolbar`),
   Live Updates, Alerts, **Visual Excel** (styled `.xlsx` export), **Editing** (Smart Edit + Bulk Update + Plus/Minus + Shortcuts +
   History), Bulk Update, Plus / Minus, Shortcuts, Cell Renderers, and Formatter Toolbar tabs. Each feature tab ships multiple toolbar profiles (catalogs in
-  `apps/consumer-workspace/markets-grid-lab/src/profiles/catalogs/`, importable JSON under
-  `apps/consumer-workspace/markets-grid-lab/public/lab-profiles/`). **Demo console** right rail
+  `apps/workspace/markets-grid-lab/src/profiles/catalogs/`, importable JSON under
+  `apps/workspace/markets-grid-lab/public/lab-profiles/`). **Demo console** right rail
   (`LabScenarioRail`, `LabDemoProvider`, `useLabRows`) injects scenario patches
   (bid spike, P&L loss, mid ticks, OAS heat, etc.) and shared stream controls
   (pause/play, tick interval) across all grid tabs;   mock ticks use
@@ -1423,22 +1423,25 @@ Per-renderer config types (`PillRendererConfig`,
 
 ### Apps — platform bootstrap pilot
 
-- `apps/demo-stomp-markets-grid` — minimal STOMP + MarketsGrid demo (web + OpenFin); programmatic provider seed + `defaultLiveProviderId`; `npm run dev:demo-stomp-markets-grid`; OpenFin: `npm run dev:openfin:demo-stomp-markets-grid`
-- `apps/consumer-workspace/stomp-marketsgrid-minimal` — workspace dev track; lean STOMP → MarketsGrid (`STARUI_DEV_SOURCE=1`); `npm run dev:stomp-marketsgrid-minimal`
-- `apps/consumer-workspace/markets-grid-lab` — workspace dev track; grid lab tabs + profiles (`STARUI_DEV_SOURCE=1`); `npm run dev:markets-grid-lab`
-- `apps/consumer-tarball/` — tarball-track consumer demos (mirror workspace apps for CI; see README)
-- `apps/tutorials-tarball/*` vs `apps/tutorials-workspace/*` — same two-track split for tutorials
-- `apps/legacy/markets-ui-react-reference` — migrated to `ensurePlatformReady` + `DataHubProvider`; removed `dataServices.mainThread.ts`
-- `apps/e2e/browser-blotter` — `standalone` (in-app rows) + `provider`/`config`/`full` hub modes via `DataHubProvider`
-- `apps/e2e/openfin-workspace` — blotter view uses `HostedMarketsGrid` + hub mock provider
-- `apps/tutorials-workspace/{stomp,mockdata-provider,dataprovider-editor}` — migrated to `ensurePlatformReady` + `DataHubProvider`; legacy `dataServices.ts` removed
-- `apps/tutorials-tarball/{stomp,mockdata-provider,dataprovider-editor}` — mirror of workspace bootstrap pattern; mockdata `DataServicesGridPanel` uses `useDataProvider`
+- `apps/workspace/demo-stomp-markets-grid` — minimal STOMP + MarketsGrid demo (web + OpenFin); programmatic provider seed + `defaultLiveProviderId`; `npm run dev:demo-stomp-markets-grid`; OpenFin: `npm run dev:openfin:demo-stomp-markets-grid`
+- `apps/workspace/stomp-marketsgrid-minimal` — workspace dev track; lean STOMP → MarketsGrid (`STARUI_DEV_SOURCE=1`); `npm run dev:stomp-marketsgrid-minimal`
+- `apps/workspace/markets-grid-lab` — workspace dev track; grid lab tabs + profiles (`STARUI_DEV_SOURCE=1`); `npm run dev:markets-grid-lab`
+- `apps/tarball/*` — tarball-track consumer demos (CI / propagate; see `apps/tarball/README.md`)
+- `apps/workspace/*` — workspace dev track (`STARUI_DEV_SOURCE=1`; see `apps/workspace/README.md`)
+- `docs/BUILD.md` + `apps/README.md` — three-layer build matrix: `build:packages` → `propagate` → `build:apps-tarball` / `build:apps-workspace`
+- `scripts/build-app-track.mjs` — per-track app `build` / `typecheck` (root turbo does not include nested `apps/` workspace)
+- `npm run verify:consumer` — CI parity: packages + propagate + `build:apps-tarball` (15 production bundles)
+- `apps/tarball/markets-ui-react-reference` — migrated to `ensurePlatformReady` + `DataHubProvider`; removed `dataServices.mainThread.ts`
+- `apps/tarball/e2e-browser-blotter` — `standalone` (in-app rows) + `provider`/`config`/`full` hub modes via `DataHubProvider`
+- `apps/tarball/e2e-openfin-workspace` — blotter view uses `HostedMarketsGrid` + hub mock provider
+- `apps/workspace/{stomp,mockdata-provider,dataprovider-editor}` — migrated to `ensurePlatformReady` + `DataHubProvider`; legacy `dataServices.ts` removed
+- `apps/tarball/{stomp,mockdata-provider,dataprovider-editor}` — mirror of workspace bootstrap pattern; mockdata `DataServicesGridPanel` uses `useDataProvider`
 - MCP scaffold templates (`stomp`, `mockdata-provider`, `dataprovider-editor`, `openfin-platform`) — emit `platformBootstrap.ts` + `public/app-config.json` (web) or manifest `customSettings.appId` (OpenFin)
 
 ### Consumer documentation
 
 - `docs/MARKETSGRID_USAGE_GUIDE.md` — scenario matrix for MarketsGrid (`MarketsGrid` / `MarketsGridContainer` / `HostedMarketsGrid`), hub bootstrap, OpenFin vs browser, persistence, customizer UI (§22), troubleshooting; PDF at `docs/MARKETSGRID_USAGE_GUIDE.pdf` (`npm run docs:marketsgrid-usage-pdf`)
-- `docs/guides/platform-hooks-demo.md` — AppData bootstrap hooks + grid event callback bindings (`apps/platform-hooks-demo`, port 5214)
+- `docs/guides/platform-hooks-demo.md` — AppData bootstrap hooks + grid event callback bindings (`apps/workspace/platform-hooks-demo`, port 5214)
 
 ## Cross-cutting architecture notes
 

@@ -24,7 +24,7 @@ All code lives inside **existing** workspace packages only:
 | **`@starui/grid`** | `packages/react-grid/grid/` | Module registration, Settings panel, toolbar, hooks, runtime `activate`, widget wiring |
 | **`@starui/ui`** | `packages/react-ui/ui/` | **Do not add Smart Edit–specific components** — consume existing shadcn exports (`Button`, `Input`, `Dialog`, `AlertDialog`, `Tooltip`, `Separator`) |
 | **`@starui/react-core`** | `packages/react-core/` | **Optional only:** forward `showSmartEditToolbar` through `HostedMarketsGrid` if needed — no Smart Edit logic here |
-| **`markets-grid-lab`** | `apps/markets-grid-lab/` | Tab, profiles, seeds, help, scenarios — **required deliverable** |
+| **`markets-grid-lab`** | `apps/workspace/markets-grid-lab/` | Tab, profiles, seeds, help, scenarios — **required deliverable** |
 
 **Do NOT create:**
 - New folders under `packages/` (e.g. no `packages/smart-edit/`)
@@ -151,7 +151,7 @@ Add to `packages/react-grid/grid/src/widget/grid-chrome.css`:
 | `src/widget/SettingsSheet.tsx` | Add module to nav (`code: '06'`, testId map entry) |
 | `src/customizer/index.ts` | Public exports |
 
-### `markets-grid-lab` — `apps/markets-grid-lab/`
+### `markets-grid-lab` — `apps/workspace/markets-grid-lab/`
 
 | File | Responsibility |
 |------|----------------|
@@ -396,7 +396,7 @@ Place **between** `PrimaryToolbar` and `FormattingToolbar` row (logical order: f
 
 ## Task 6: markets-grid-lab demo (required)
 
-**Files:** `apps/markets-grid-lab/`
+**Files:** `apps/workspace/markets-grid-lab/`
 
 - [ ] Add `smartEditCatalog.ts` with 4 profiles (curriculum, qty-only, shortcuts-off, confirm-threshold)
 - [ ] Add `seeds/smartEdit.ts` + wire in `seeds/index.ts` / `useLabDemoProfiles`

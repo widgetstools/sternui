@@ -225,11 +225,11 @@ Tool **`starui_print_install_config`** returns all three snippets with optional 
 
 | Template ID | Canonical source | Grid | Data plane | Shell |
 |-------------|------------------|------|------------|-------|
-| `basic` | `apps/tutorials-tarball/basic` | `MarketsGrid` + static data | None | Single page |
-| `mockdata-provider` | `apps/tutorials-tarball/mockdata-provider` | `MarketsGrid` ×1 | Mock via SharedWorker | Single panel (no dock) |
-| `dataprovider-editor` | `apps/tutorials-tarball/dataprovider-editor` | `HostedMarketsGrid` | SharedWorker + editor | Tabs (grid + editor) |
-| `stomp` | `apps/tutorials-tarball/stomp` | `HostedMarketsGrid` | STOMP + `ensureStompProvider` | Tabs + seeded provider |
-| `openfin-platform` | `apps/legacy/markets-ui-react-reference` | `HostedMarketsGrid` on route | Full DataServices + ConfigManager | Full OpenFin platform |
+| `basic` | `apps/tarball/basic` | `MarketsGrid` + static data | None | Single page |
+| `mockdata-provider` | `apps/tarball/mockdata-provider` | `MarketsGrid` ×1 | Mock via SharedWorker | Single panel (no dock) |
+| `dataprovider-editor` | `apps/tarball/dataprovider-editor` | `HostedMarketsGrid` | SharedWorker + editor | Tabs (grid + editor) |
+| `stomp` | `apps/tarball/stomp` | `HostedMarketsGrid` | STOMP + `ensureStompProvider` | Tabs + seeded provider |
+| `openfin-platform` | `apps/tarball/markets-ui-react-reference` | `HostedMarketsGrid` on route | Full DataServices + ConfigManager | Full OpenFin platform |
 
 All templates include the **design-system fragment**. Data-provider templates include **`stomp-view-server/`**.
 
@@ -421,7 +421,7 @@ Violations block scaffold completion unless `force: true` (dev-only escape hatch
 
 ## 8. OpenFin reference template
 
-Scaffolds full parity with `apps/legacy/markets-ui-react-reference`:
+Scaffolds full parity with `apps/tarball/markets-ui-react-reference`:
 
 1. **`launch.mjs`** + `"client": "node launch.mjs http://localhost:<port>/platform/manifest.fin.json"`
 2. **`public/platform/manifest.fin.json`** — provider URL, platform UUID, customSettings

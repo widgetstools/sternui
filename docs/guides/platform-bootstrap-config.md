@@ -73,7 +73,7 @@ const platform = await ensurePlatformReady(config, {
 
 Only **hook ids** are stored in JSON — never executable code.
 
-**Interactive demo:** [`apps/platform-hooks-demo`](../../apps/platform-hooks-demo/) — `npm run dev:platform-hooks-demo` ([full testing guide](./platform-hooks-demo.md)).
+**Interactive demo:** [`apps/workspace/platform-hooks-demo`](../../apps/workspace/platform-hooks-demo/) — `npm run dev:platform-hooks-demo` ([full testing guide](./platform-hooks-demo.md)).
 
 ---
 
@@ -182,7 +182,7 @@ Loaders throw `PlatformBootstrapConfigError` when validation fails.
 
 ---
 
-## Pilot app — `apps/markets-grid-lab`
+## Pilot app — `apps/workspace/markets-grid-lab`
 
 Reference wiring (PR1b):
 

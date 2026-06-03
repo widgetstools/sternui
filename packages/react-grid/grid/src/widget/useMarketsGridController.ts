@@ -104,7 +104,7 @@ export function useMarketsGridController(
   // demos, tests, and consumers that want ephemeral state. Production
   // apps should pass a `storage` factory built from
   // `createConfigServiceStorage({ configManager })`
-  // (see apps/demo-react and apps/demo-configservice-react).
+  // (see apps/tarball/demo-react and apps/demo-configservice-react).
   const adapterRef = useRef<StorageAdapter | null>(null);
   if (!adapterRef.current) adapterRef.current = storageAdapter ?? new MemoryAdapter();
 

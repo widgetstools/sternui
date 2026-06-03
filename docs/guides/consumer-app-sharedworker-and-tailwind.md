@@ -49,8 +49,8 @@ but is deprecated; migrate to `ensurePlatformReady`.
 
 See:
 
-- `apps/tutorials-workspace/stomp/src/platformBootstrap.ts`
-- `apps/markets-grid-lab/src/platformBootstrap.ts`
+- `apps/workspace/stomp/src/platformBootstrap.ts`
+- `apps/workspace/markets-grid-lab/src/platformBootstrap.ts`
 
 **Do not** use `createDataServicesClient()` in Vite apps — its
 `new URL(..., import.meta.url)` lives inside the library and breaks once

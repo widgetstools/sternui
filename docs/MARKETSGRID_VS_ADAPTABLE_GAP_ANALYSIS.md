@@ -19,7 +19,7 @@ deployment — and where to invest next.
 | [§9 Headline score](#9-how-close-is-marketsgrid-to-adaptable) | Parity % and “what if we ship P0/P1” |
 
 **Sources:** MarketsGrid — [`docs/current-features.md`](./current-features.md) +
-`packages/` tree. AdapTable — doc crawl 2026-05-23. Lab parity UI — `apps/markets-grid-lab`
+`packages/` tree. AdapTable — doc crawl 2026-05-23. Lab parity UI — `apps/workspace/markets-grid-lab`
 (last updated 2026-05-26).
 
 ---
@@ -59,7 +59,7 @@ The fastest way to understand parity is to **drive the grid** — not only read 
 npm run dev:markets-grid-lab
 ```
 
-Open **MarketsGrid Feature Lab** (`apps/markets-grid-lab`):
+Open **MarketsGrid Feature Lab** (`apps/workspace/markets-grid-lab`):
 
 1. **Gap guide** tab — short parity map (mirrors §1–§2 of this doc).
 2. Any **feature tab** — grid on the left; **Demo console** rail on the right.
@@ -405,7 +405,7 @@ MarketsGrid ships the **full editing family** in `@starui/engine` +
 
 Unified **Editing** toolbar row (`showEditingToolbar`, primary-row pencil
 toggle) composes history, smart edit, and bulk-update segments plus a
-keyboard-hints menu. Demoable in `apps/markets-grid-lab` → **Editing** tab
+keyboard-hints menu. Demoable in `apps/workspace/markets-grid-lab` → **Editing** tab
 (`lab-editing`, 12 profiles) plus focused tabs per module.
 
 E2E: `e2e/v2-smart-edit.spec.ts`, `v2-bulk-update.spec.ts`,
@@ -555,7 +555,7 @@ is sized into a rough effort band (S < 1 week, M 1–4 weeks, L > 4 weeks).
 > scheduled destinations remain follow-ups.
 
 > **~~Alerts (P0 triggers)~~** — **shipped 2026-Q2.** Customizer module + lab
-> scenarios. See §4.4, §6.1, and `apps/markets-grid-lab`.
+> scenarios. See §4.4, §6.1, and `apps/workspace/markets-grid-lab`.
 >
 > **~~Smart Edit family~~** — **shipped 2026-Q2.** Full editing family
 > (Smart Edit, Bulk Update, Plus/Minus, Shortcuts, Change History) +
