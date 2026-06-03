@@ -128,7 +128,7 @@ rm -rf node_modules/.vite apps/*/node_modules/.vite
 | `toolbar-visibility` | 40 | Toolbar show/hide |
 | `grid-state` | 200 | AG Grid native state on explicit Save |
 
-See **[docs/BUILD.md](./docs/BUILD.md)** for a full step-by-step build guide.
+See **[docs/BUILD.md](./docs/BUILD.md)** and **[docs/LIBS.md](./docs/LIBS.md)** for build and tarball layout.
 
 ## Prerequisites
 
@@ -142,9 +142,7 @@ The repo has **two install surfaces**:
 | Surface | Path | What gets installed |
 |---------|------|---------------------|
 | **Packages** | repo root | `packages/*`, `tools/mcp-scaffold`, `e2e-openfin` — workspace `"*"` links between libraries |
-| **Apps** | `apps/` (nested workspace) | Demos, tutorials, e2e apps — `@starui/*` from committed **`libs/*.tgz`** |
-
-Committed **`libs/`** tarballs are required for apps; they are already in git on `main`.
+| **Apps** | `apps/` (nested workspace) | Demos — `@starui/*` from local **`libs/*.tgz`** ([not in git](./docs/LIBS.md)) |
 
 ### 1. Clone and install everything (most contributors)
 
@@ -155,7 +153,7 @@ cd sternui
 npm run install:all
 ```
 
-That runs `npm ci` at the root, then `npm ci --prefix apps` (see `install:apps`).
+Runs **`bootstrap`**: `npm ci` → build packages → **`propagate`** (writes gitignored `libs/`) → `npm ci --prefix apps`.
 
 ### 2. Packages only (library work — faster)
 
@@ -169,7 +167,11 @@ Skip `install:apps` until you need to run a demo or `npm run build:apps`.
 
 ### 3. Install apps when you need demos
 
+Requires `libs/` on disk first (`propagate` or step 1):
+
 ```bash
+npm run build:packages
+npm run propagate
 npm run install:apps
 ```
 
@@ -195,16 +197,14 @@ Sequence inside `verify:consumer`: build packages → propagate tarballs → rei
 npm run build:packages
 npm run propagate
 npm run install:apps
-# commit libs/, package-lock.json, apps/package-lock.json, and any apps/*/package.json touched by propagate
+# commit apps/package-lock.json and any apps/*/package.json touched by propagate (not libs/)
 ```
 
-### 7. If install fails on missing `libs/*.tgz`
+### 7. Rebuild gitignored `libs/`
 
 ```bash
 npm run bootstrap -- --force
 ```
-
-Rebuilds tarballs from `packages/`, then runs both lockfile installs.
 
 ---
 
@@ -253,12 +253,12 @@ turbo test (packages)               turbo typecheck (apps)
 | `typecheck:apps` | `tsc --noEmit` on demo apps |
 | `typecheck:consumer` | packages + `propagate --no-build` + apps typecheck |
 | `test:packages` | Vitest across library packages (`npm test`) |
-| `check:tarballs` | Fail if committed `libs/*.tgz` are stale (uses `propagate --no-build`) |
+| `check:tarballs` | Fail if local `libs/*.tgz` are stale vs `packages/` build (optional; `libs/` not in git) |
 | `verify:consumer` | `build:consumer` + `typecheck:apps` |
 | `install:apps` | `npm ci` in nested `apps/` workspace (consumer demos only) |
-| `install:all` | `npm ci` + `install:apps` |
-| `bootstrap` | Repair when `libs/` missing (build packages → propagate → full install) |
-| `propagate` | Rebuild bucket tarballs in `libs/`, sync app deps (commit `libs/` + both lockfiles) |
+| `install:all` | `bootstrap` — packages + propagate + apps (fresh clone default) |
+| `bootstrap` | `npm ci` → `build:packages` → `propagate` → `install:apps` |
+| `propagate` | Rebuild gitignored `libs/`, sync app deps (commit app lockfiles only) |
 | `sync:app-deps` | Rewrite app tarball paths from manifest |
 | `e2e` | Playwright (`e2e/`) |
 | `test:e2e:openfin` | OpenFin CDP smoke tests (`e2e-openfin/`) |
@@ -397,11 +397,10 @@ npm -v     # 10.x (npm 10 workspaces)
 npm ci     # from repo root — always start here on a fresh clone
 ```
 
-Bucket tarballs under `libs/` are **committed** so `npm ci` works on a fresh
-clone. After changing packages that feed tarballs, run `npm run propagate` and
-commit `libs/` + `package-lock.json`. If install errors mention missing
-`file:../../libs/*.tgz`, run `npm run bootstrap` or propagate once before
-developing apps (see below).
+Bucket tarballs under `libs/` are **gitignored** — run `npm run install:all`
+(or `bootstrap`) on a fresh clone to generate them. After package changes, run
+`npm run propagate` and commit `apps/package-lock.json` only (not `libs/`).
+See [docs/LIBS.md](./docs/LIBS.md).
 
 ---
 
@@ -447,7 +446,7 @@ npm run typecheck
 # CI gate before merge (build + typecheck apps)
 npm run verify:consumer
 
-# Check committed tarballs are current (no repack)
+# Check local libs/ tarballs match packages/ (optional; libs/ not in git)
 npm run check:tarballs
 ```
 
@@ -666,7 +665,7 @@ npm run typecheck             # full consumer path (default)
 
 ```bash
 npm run verify:consumer       # build:consumer + typecheck:apps
-npm run check:tarballs        # ensure committed libs/*.tgz match built packages
+npm run check:tarballs        # optional: local libs/ vs fresh pack (after propagate)
 npm run check:deps            # package cycle check
 ```
 

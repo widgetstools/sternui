@@ -1,6 +1,6 @@
 # Building the StarUI monorepo
 
-Step-by-step guide for a **fresh machine**. See also [README.md](../README.md#getting-started).
+Step-by-step guide for a **fresh machine**. See also [README.md](../README.md#getting-started) and [LIBS.md](./LIBS.md).
 
 ## Prerequisites
 
@@ -19,28 +19,39 @@ git clone <repo-url> sternui
 cd sternui
 ```
 
-You should see `libs/*.tgz` and `libs/manifest.json` in the tree (committed artifacts).
+`libs/` is **not** in git. You will generate it locally (step 2).
 
 ## 2. Install dependencies
 
-### Full install (libraries + all demo apps)
+### Full install (libraries + all demo apps) — recommended
 
 ```bash
 npm run install:all
 ```
 
-| Step | Command | Result |
-|------|---------|--------|
-| Root | `npm ci` | ~687 packages — `packages/*`, tooling, `e2e-openfin` |
-| Apps | `npm ci --prefix apps` | ~762 packages — demos from `libs/*.tgz` |
+Runs `bootstrap`: `npm ci` (packages) → `build:packages` → `propagate` (creates `libs/*.tgz`) → `npm ci --prefix apps`.
 
-### Packages only (faster — no demos)
+| Phase | What happens |
+|-------|----------------|
+| Root `npm ci` | ~687 packages — `packages/*`, tooling |
+| `propagate` | Packs buckets into gitignored `libs/` |
+| Apps `npm ci` | ~762 packages — demos from those tarballs |
+
+### Packages only (no demos, faster)
 
 ```bash
 npm ci
 ```
 
-Add apps later with `npm run install:apps`.
+Add demos later:
+
+```bash
+npm run build:packages
+npm run propagate
+npm run install:apps
+```
+
+`npm run install:apps` alone **fails** on a fresh clone until `libs/` exists.
 
 ## 3. Build libraries
 
@@ -48,7 +59,7 @@ Add apps later with `npm run install:apps`.
 npm run build:packages
 ```
 
-Compiles every package under `packages/` (Turbo, respects `^build` order).
+(Already run by `install:all` / `bootstrap`.)
 
 ## 4. Run unit tests (libraries)
 
@@ -58,15 +69,13 @@ npm test
 
 ## 5. Run a demo app
 
-Requires step 2 **full install** (or `npm run install:apps` after `npm ci`).
+Requires full install (step 2).
 
 ```bash
 npm run dev
 ```
 
 Default: `@starui/demo-react` at http://localhost:5190.
-
-Other entry points: `npm run dev:markets-grid-lab`, `npm run dev:platform-hooks-demo`, etc. (see root `package.json` `dev:*` scripts).
 
 ## 6. Build demo apps (production bundles)
 
@@ -78,12 +87,13 @@ npm run build:apps
 Or CI-equivalent:
 
 ```bash
+npm ci
 npm run verify:consumer
 ```
 
-## 7. After changing code under `packages/`
+(`verify:consumer` runs `build:packages`, `propagate`, `install:apps`, then builds/typechecks apps.)
 
-Apps consume **bucket tarballs**, not live workspace links (unless `STARUI_DEV_SOURCE=1` in dev).
+## 7. After changing code under `packages/`
 
 ```bash
 npm run build:packages
@@ -91,16 +101,9 @@ npm run propagate
 npm run install:apps
 ```
 
-Commit:
+Commit `apps/package-lock.json` and any `apps/**/package.json` touched by propagate. Do **not** commit `libs/`.
 
-- `libs/` (updated `.tgz` + `manifest.json`)
-- `package-lock.json` (root, if propagate touched it)
-- `apps/package-lock.json`
-- Any `apps/**/package.json` rewritten by propagate
-
-## 8. Repair broken install
-
-Missing tarballs or stale `libs/`:
+## 8. Rebuild `libs/` only
 
 ```bash
 npm run bootstrap -- --force
@@ -111,7 +114,6 @@ npm run bootstrap -- --force
 ```bash
 npm run clean
 npm run install:all
-npm run build:packages
 ```
 
 ## Quick reference
@@ -121,5 +123,5 @@ npm run build:packages
 | Fresh clone, everything | `npm run install:all` |
 | Libraries only | `npm ci` → `npm run build:packages` → `npm test` |
 | Run demo | `npm run install:all` → `npm run dev` |
-| CI parity | `npm run install:all` → `npm run verify:consumer` |
-| Refresh consumer tarballs | `npm run build:packages` → `npm run propagate` → `npm run install:apps` |
+| CI parity | `npm ci` → `npm run verify:consumer` |
+| Refresh tarballs | `npm run build:packages` → `npm run propagate` → `npm run install:apps` |

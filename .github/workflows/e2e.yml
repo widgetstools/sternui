@@ -27,7 +27,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: npm ci (packages + apps)
+      - name: Bootstrap (packages + propagate + apps)
         run: npm run install:all
 
       - name: Install Playwright browsers

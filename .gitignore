@@ -11,6 +11,9 @@ playwright-report/
 .DS_Store
 .claude/
 
+# Bucket tarballs from `npm run propagate` — local only (see docs/LIBS.md)
+/libs/
+
 /cell-format-toolbar*.html
 /toolbar-teal*.html
 

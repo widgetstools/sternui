@@ -20,7 +20,7 @@
   ],
   "scripts": {
     "install:apps": "npm ci --prefix apps",
-    "install:all": "npm ci && npm run install:apps",
+    "install:all": "npm run bootstrap",
     "build:packages": "turbo build --filter=!./apps/** --concurrency=50%",
     "build:apps": "turbo build --filter=./apps/** --concurrency=50%",
     "build:consumer": "npm run build:packages && node scripts/propagate.mjs --no-build && npm run install:apps",

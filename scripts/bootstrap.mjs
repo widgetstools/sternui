@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 /**
- * bootstrap.mjs — repair install when libs/*.tgz are missing locally.
+ * bootstrap.mjs — full monorepo install when libs/*.tgz are missing (gitignored).
  *
- * Tarball-track apps live under apps/ (nested workspace). Root `npm ci`
- * installs packages only; apps install via `npm ci --prefix apps`.
+ *   1. npm ci              — packages/* at repo root
+ *   2. build:packages + propagate — writes libs/*.tgz (local only)
+ *   3. npm ci --prefix apps — consumer apps from tarballs
  *
  * Usage:
  *   npm run bootstrap
- *   npm run bootstrap -- --force
- *   npm run bootstrap -- --no-ci
+ *   npm run bootstrap -- --force     # rebuild libs/ even when tarballs exist
+ *   npm run bootstrap -- --no-ci     # pack only, skip npm ci steps
  */
 
 import { execSync } from 'node:child_process';
@@ -17,7 +18,7 @@ import { join } from 'node:path';
 
 const REPO_ROOT = join(import.meta.dirname, '..');
 const LIBS_DIR = join(REPO_ROOT, 'libs');
-const LOCKFILE_PATH = join(REPO_ROOT, 'package-lock.json');
+const APPS_LOCKFILE = join(REPO_ROOT, 'apps', 'package-lock.json');
 
 const force = process.argv.includes('--force');
 const noCi = process.argv.includes('--no-ci');
@@ -49,67 +50,43 @@ function collectTarballsFromLock(lockPath) {
   return files;
 }
 
-function requiredTarballsFromLockfiles() {
-  const files = collectTarballsFromLock(LOCKFILE_PATH);
-  for (const f of collectTarballsFromLock(join(REPO_ROOT, 'apps', 'package-lock.json'))) {
-    files.add(f);
-  }
+function requiredTarballs() {
+  const files = collectTarballsFromLock(APPS_LOCKFILE);
   if (files.size === 0) {
-    const manifestPath = join(LIBS_DIR, 'manifest.json');
-    if (existsSync(manifestPath)) {
-      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-      for (const entry of Object.values(manifest)) {
-        if (entry?.filename) files.add(entry.filename);
-      }
-    }
-  }
-  if (files.size === 0) {
-    die('no libs/*.tgz in lockfiles or libs/manifest.json');
+    die('apps/package-lock.json has no file:libs/*.tgz entries');
   }
   return [...files].sort();
 }
 
-function missingTarballs() {
-  return requiredTarballsFromLockfiles().filter((f) => !existsSync(join(LIBS_DIR, f)));
-}
-
 function libsReady() {
-  const required = requiredTarballsFromLockfiles();
-  const missing = missingTarballs();
+  const required = requiredTarballs();
+  const missing = required.filter((f) => !existsSync(join(LIBS_DIR, f)));
   if (missing.length === 0) {
-    log(`libs/ OK (${required.length} bucket tarball(s) on disk)`);
+    log(`libs/ OK (${required.length} bucket tarball(s))`);
     return true;
   }
-  log(`libs/ incomplete — missing ${missing.length} tarball(s):`);
-  for (const f of missing.slice(0, 10)) log(`  - ${f}`);
-  if (missing.length > 10) log(`  … and ${missing.length - 10} more`);
+  log(`libs/ missing ${missing.length}/${required.length} tarball(s) — will run propagate`);
+  for (const f of missing.slice(0, 8)) log(`  - ${f}`);
   return false;
 }
 
 function main() {
   const needsPack = force || !libsReady();
 
-  if (!needsPack) {
-    log('tarballs present — installing packages + apps');
-    if (!noCi) {
-      run('npm ci');
-      run('npm ci --prefix apps');
-    }
-    return;
+  if (!noCi) {
+    run('npm ci');
   }
 
-  log('building bucket tarballs before workspace install');
-  run('npm ci --workspaces=false --ignore-scripts');
-  run('npm run build:packages');
-  run('node scripts/propagate.mjs --skip-drift-check');
-
-  if (noCi) {
-    log('done (--no-ci)');
-    return;
+  if (needsPack) {
+    log('packing libs/ from packages/ (not committed to git)');
+    run('npm run build:packages');
+    run('node scripts/propagate.mjs --skip-drift-check');
   }
 
-  run('npm ci');
-  run('npm ci --prefix apps');
+  if (!noCi) {
+    run('npm ci --prefix apps');
+  }
+
   log('done');
 }
 

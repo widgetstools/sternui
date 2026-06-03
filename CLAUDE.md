@@ -117,17 +117,17 @@ on the next run. Don't remove it.
 ## Install layout
 
 - **Root** `npm ci` / `npm run install:all` — `packages/*` only (workspace `"*"`).
-- **Apps** nested under `apps/package.json` — `npm run install:apps` (`npm ci --prefix apps`);
-  `@starui/*` bucket deps from committed `libs/*.tgz`.
+- **Apps** nested under `apps/package.json` — `npm run install:apps` after `libs/` exists;
+  `@starui/*` bucket deps from gitignored `libs/*.tgz` (`npm run propagate` / `npm run bootstrap`).
 - **`STARUI_DEV_SOURCE=1`** on demo dev scripts — Vite aliases into `packages/` source.
 
 ## Propagating package changes (external tarball consumers)
 
 `npm run propagate` (delegates to `scripts/propagate.mjs`) builds
 and packs **one tarball per architecture bucket** flat under `libs/`
-(e.g. `starui-react-grid-0.1.0-<sha8>.tgz`). **`libs/` is committed**; after
-package changes run propagate, `npm run install:apps`, and commit `libs/` +
-`package-lock.json` + `apps/package-lock.json` (CI `check:tarballs` enforces freshness). Each
+(e.g. `starui-react-grid-0.1.0-<sha8>.tgz`). **`libs/` is gitignored** — fresh clones use
+`npm run bootstrap` / `npm run install:all`. After package changes run propagate,
+`npm run install:apps`, and commit `apps/package-lock.json` (not `libs/`). Each
 bundle contains all workspace packages in that bucket. Flags:
 
 - `--dry-run` — show the plan, write nothing.

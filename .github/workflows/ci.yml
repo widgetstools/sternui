@@ -81,20 +81,6 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
-  tarballs:
-    name: Tarball freshness (committed libs/)
-    needs: packages
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      - name: Verify libs/ tarballs match package build output
-        run: npm run check:tarballs
-
   cross-platform:
     name: Consumer verify (${{ matrix.os }})
     strategy:
@@ -116,5 +102,5 @@ jobs:
       - name: npm ci
         run: npm ci
 
-      - name: Install apps + consumer build + typecheck
-        run: npm run install:apps && npm run verify:consumer
+      - name: Consumer build + typecheck
+        run: npm run verify:consumer
