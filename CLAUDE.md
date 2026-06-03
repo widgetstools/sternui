@@ -121,8 +121,10 @@ In-repo apps use workspace `"*"` deps — edit a package, run `npm run build`
 
 `npm run propagate` (delegates to `scripts/propagate.mjs`) builds
 and packs **one tarball per architecture bucket** flat under `libs/`
-(e.g. `starui-react-grid-0.1.0-<sha8>.tgz`). Each bundle contains all workspace
-packages in that bucket. Flags:
+(e.g. `starui-react-grid-0.1.0-<sha8>.tgz`). **`libs/` is committed** so root
+`npm ci` works on a fresh clone; after package changes run propagate and commit
+`libs/` + `package-lock.json` (CI `check:tarballs` enforces freshness). Each
+bundle contains all workspace packages in that bucket. Flags:
 
 - `--dry-run` — show the plan, write nothing.
 - `--gc` — delete orphaned tarballs in `libs/`.

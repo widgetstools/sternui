@@ -69,6 +69,7 @@
     "e2e:openfin": "npm run test:e2e -w @starui/e2e-openfin",
     "test:e2e:openfin": "npm run test:e2e -w @starui/e2e-openfin",
     "test:e2e:openfin:vitest-legacy": "npm run test:e2e -w @starui/e2e-openfin-vitest",
+    "bootstrap": "node scripts/bootstrap.mjs",
     "propagate": "node scripts/propagate.mjs",
     "pack:mcp": "node scripts/pack-mcp-scaffold.mjs",
     "sync:app-deps": "node scripts/sync-app-tarball-deps.mjs",

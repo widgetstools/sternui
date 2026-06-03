@@ -11,10 +11,6 @@ playwright-report/
 .DS_Store
 .claude/
 
-# /libs/ tarballs (produced by `npm run propagate` / `npm run pack:libs`)
-# are local build artifacts — regenerate on demand rather than committing.
-/libs/
-
 /cell-format-toolbar*.html
 /toolbar-teal*.html
 

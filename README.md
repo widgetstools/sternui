@@ -149,9 +149,12 @@ npm run dev:openfin
 npm run dev:openfin:markets-react
 ```
 
-On a fresh clone, demo apps expect tarballs in `libs/`. If `npm ci` in an app
-fails on missing `file:../../libs/*.tgz`, run `npm run propagate` from the repo
-root first (or `npm run build:consumer` for a full pass).
+After library changes that demo apps consume, refresh tarballs:
+
+```bash
+npm run propagate   # or npm run build:consumer for packages + tarballs + apps
+npm ci
+```
 
 ## Build & test pipelines
 
@@ -179,7 +182,8 @@ turbo test (packages)               turbo typecheck (apps)
 | `test:packages` | Vitest across library packages (`npm test`) |
 | `check:tarballs` | Fail if committed `libs/*.tgz` are stale (uses `propagate --no-build`) |
 | `verify:consumer` | `build:consumer` + `typecheck:apps` |
-| `propagate` | Pack bucket tarballs to `libs/`, sync app deps |
+| `bootstrap` | Repair install when `libs/` is missing locally (root install → build → propagate → `npm ci`) |
+| `propagate` | Rebuild bucket tarballs in `libs/`, sync app deps (commit `libs/` + lockfile after package changes) |
 | `sync:app-deps` | Rewrite app tarball paths from manifest |
 | `e2e` | Playwright (`e2e/`) |
 | `test:e2e:openfin` | OpenFin CDP smoke tests (`e2e-openfin/`) |
@@ -318,8 +322,10 @@ npm -v     # 10.x (npm 10 workspaces)
 npm ci     # from repo root — always start here on a fresh clone
 ```
 
-On a **fresh clone**, demo apps depend on tarballs under `libs/`. If install
-errors mention missing `file:../../libs/*.tgz`, run propagate once before
+Bucket tarballs under `libs/` are **committed** so `npm ci` works on a fresh
+clone. After changing packages that feed tarballs, run `npm run propagate` and
+commit `libs/` + `package-lock.json`. If install errors mention missing
+`file:../../libs/*.tgz`, run `npm run bootstrap` or propagate once before
 developing apps (see below).
 
 ---
