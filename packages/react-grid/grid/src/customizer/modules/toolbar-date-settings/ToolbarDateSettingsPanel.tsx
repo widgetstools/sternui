@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactElement,
@@ -21,12 +22,76 @@ import {
   useAppDataProviders,
 } from '../column-customization/editors/CellEditorEditor';
 import { BoolControl } from '../general-settings/fieldSchema';
-import { ProviderGridHostSection } from './ProviderGridHostSection';
+import {
+  ProviderGridHostSection,
+  type ProviderSelectionDraft,
+} from './ProviderGridHostSection';
 import { GridEventBindingsSection } from './GridEventBindingsSection';
+import { useProviderGridHost } from '../../providerGridHost/ProviderGridHostContext';
+import {
+  useGridEventBindingsHost,
+  type GridEventBindingsMap,
+} from '../../gridEventBindingsHost/GridEventBindingsHostContext';
 import {
   TOOLBAR_DATE_SETTINGS_MODULE_ID,
   type ToolbarDateSettingsState,
 } from './state';
+
+/** Structural equality good enough for the POJO staging values here. */
+function jsonEqual<T>(a: T, b: T): boolean {
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return a === b;
+  }
+}
+
+interface Staged<T> {
+  value: T;
+  set: (patch: Partial<T> | ((prev: T) => T)) => void;
+  dirty: boolean;
+  reset: () => void;
+}
+
+/**
+ * Stage edits locally and apply them elsewhere (a grid-level host) only on
+ * an explicit Save. Mirrors `useModuleDraft`'s clean/dirty re-seed: while
+ * clean, the staged value tracks the committed (host) value; once the user
+ * edits, their draft is preserved until Save (apply) or Reset (revert).
+ */
+function useStaged<T>(committed: T): Staged<T> {
+  const committedKey = useMemo(() => {
+    try { return JSON.stringify(committed); } catch { return String(committed); }
+  }, [committed]);
+
+  const [staged, setStaged] = useState<T>(committed);
+  const committedRef = useRef<T>(committed);
+
+  const dirty = !jsonEqual(staged, committed);
+
+  // Re-seed only when the host value changes AND we're clean — never clobber
+  // a mid-edit draft. Keyed on the serialized committed value so a new object
+  // reference with identical content doesn't churn.
+  useEffect(() => {
+    const prev = committedRef.current;
+    committedRef.current = committed;
+    const wasClean = jsonEqual(prev, staged);
+    if (wasClean && !jsonEqual(prev, committed)) setStaged(committed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [committedKey]);
+
+  const set = useCallback<Staged<T>['set']>((patch) => {
+    setStaged((prev) =>
+      typeof patch === 'function'
+        ? (patch as (p: T) => T)(prev)
+        : { ...prev, ...patch },
+    );
+  }, []);
+
+  const reset = useCallback(() => setStaged(committedRef.current), []);
+
+  return { value: staged, set, dirty, reset };
+}
 
 const SECTIONS = [
   {
@@ -108,15 +173,93 @@ function SectionAnchor({
 }
 
 export function ToolbarDateSettingsPanel(): ReactElement {
-  const { draft, setDraft, dirty, save, discard } = useModuleDraft<
-    ToolbarDateSettingsState,
-    ToolbarDateSettingsState
-  >({
+  const {
+    draft,
+    setDraft,
+    dirty: dateDirty,
+    save: saveDate,
+    discard: discardDate,
+  } = useModuleDraft<ToolbarDateSettingsState, ToolbarDateSettingsState>({
     moduleId: TOOLBAR_DATE_SETTINGS_MODULE_ID,
     itemId: 'settings',
     selectItem: (state) => state,
     commitItem: (next) => () => next,
   });
+
+  // ─── Section 02/03 staging — apply on Save, not on change ───────────
+  const providerHost = useProviderGridHost();
+  const bindingsHost = useGridEventBindingsHost();
+
+  const committedProvider = useMemo<ProviderSelectionDraft>(
+    () => ({
+      liveProviderId: providerHost?.liveProviderId ?? null,
+      historicalProviderId: providerHost?.historicalProviderId ?? null,
+      mode: providerHost?.mode ?? 'live',
+      asOfDate: providerHost?.asOfDate ?? null,
+    }),
+    [
+      providerHost?.liveProviderId,
+      providerHost?.historicalProviderId,
+      providerHost?.mode,
+      providerHost?.asOfDate,
+    ],
+  );
+  const providerStaged = useStaged<ProviderSelectionDraft>(committedProvider);
+
+  const committedBindings = useMemo<GridEventBindingsMap>(
+    () => bindingsHost?.bindings ?? {},
+    [bindingsHost?.bindings],
+  );
+  const bindingsStaged = useStaged<GridEventBindingsMap>(committedBindings);
+
+  const providerDirty = Boolean(providerHost?.available) && providerStaged.dirty;
+  const bindingsDirty = Boolean(bindingsHost?.available) && bindingsStaged.dirty;
+  const dirty = dateDirty || providerDirty || bindingsDirty;
+
+  const handleBindingChange = useCallback(
+    (eventId: string, handlerId: string | null) => {
+      bindingsStaged.set((prev) => {
+        const next = { ...prev };
+        if (handlerId == null) delete next[eventId];
+        else next[eventId] = [handlerId];
+        return next;
+      });
+    },
+    [bindingsStaged],
+  );
+
+  const save = useCallback(() => {
+    saveDate();
+    if (providerHost?.available) {
+      const s = providerStaged.value;
+      if (s.liveProviderId !== providerHost.liveProviderId) {
+        providerHost.onLiveChange(s.liveProviderId);
+      }
+      if (s.historicalProviderId !== providerHost.historicalProviderId) {
+        providerHost.onHistoricalChange(s.historicalProviderId);
+      }
+      if (s.mode !== providerHost.mode) providerHost.onModeChange(s.mode);
+      if (s.asOfDate !== providerHost.asOfDate) {
+        providerHost.onAsOfDateChange(s.asOfDate);
+      }
+    }
+    if (bindingsHost?.available && bindingsStaged.dirty) {
+      bindingsHost.setBindings(bindingsStaged.value);
+    }
+  }, [
+    saveDate,
+    providerHost,
+    providerStaged.value,
+    bindingsHost,
+    bindingsStaged.value,
+    bindingsStaged.dirty,
+  ]);
+
+  const discard = useCallback(() => {
+    discardDate();
+    providerStaged.reset();
+    bindingsStaged.reset();
+  }, [discardDate, providerStaged, bindingsStaged]);
 
   const appData = useAppDataLookup();
   const providers = useAppDataProviders(appData);
@@ -306,7 +449,11 @@ export function ToolbarDateSettingsPanel(): ReactElement {
             className="px-5 pb-4 pt-3"
           >
             <SectionAnchor index="02" title={SECTIONS[1].headerTitle} />
-            <ProviderGridHostSection hideSectionHeader />
+            <ProviderGridHostSection
+              hideSectionHeader
+              draft={providerStaged.value}
+              onDraftChange={providerStaged.set}
+            />
           </section>
 
           <section
@@ -318,7 +465,11 @@ export function ToolbarDateSettingsPanel(): ReactElement {
             className="px-5 pb-4 pt-3"
           >
             <SectionAnchor index="03" title={SECTIONS[2].headerTitle} />
-            <GridEventBindingsSection hideSectionHeader />
+            <GridEventBindingsSection
+              hideSectionHeader
+              draft={bindingsStaged.value}
+              onBindingChange={handleBindingChange}
+            />
           </section>
         </div>
       </div>
