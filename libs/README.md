@@ -9,12 +9,18 @@ in git** so `npm ci` at the repo root works on a fresh clone.
 | `manifest.json` | Maps `@starui/<bucket>` → tarball filename + member packages |
 | `starui-*-<sha8>.tgz` | One packed bundle per bucket under `packages/` |
 
+## Install layout
+
+- **Root** `npm ci` — `packages/*`, `tools/mcp-scaffold`, `e2e-openfin` only (~700 packages).
+- **Apps** `npm run install:apps` — `npm ci` in `apps/` using `apps/package-lock.json` (~760 packages).
+- **Both** `npm run install:all` from the repo root.
+
 ## Refresh after package changes
 
 ```bash
 npm run build:packages
-npm run propagate          # or: npm run build:consumer
-git add libs/ package-lock.json apps/**/package.json
+npm run propagate          # or: npm run build:consumer (includes install:apps)
+git add libs/ package-lock.json apps/package-lock.json apps/**/package.json
 ```
 
 CI runs `npm run check:tarballs` to fail when committed tarballs are stale

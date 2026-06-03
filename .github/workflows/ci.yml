@@ -67,6 +67,8 @@ jobs:
         run: npm run build:packages
       - name: Pack bucket tarballs + sync apps
         run: node scripts/propagate.mjs
+      - name: Install nested apps workspace
+        run: npm run install:apps
       - name: Build consumer apps
         run: npm run build:apps
       - name: Typecheck consumer apps
@@ -114,5 +116,5 @@ jobs:
       - name: npm ci
         run: npm ci
 
-      - name: Consumer build + typecheck
-        run: npm run verify:consumer
+      - name: Install apps + consumer build + typecheck
+        run: npm run install:apps && npm run verify:consumer

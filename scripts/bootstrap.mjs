@@ -2,20 +2,13 @@
 /**
  * bootstrap.mjs — repair install when libs/*.tgz are missing locally.
  *
- * Tarball-track apps use `file:../../libs/starui-*.tgz` (see package-lock.json).
- * libs/ is normally committed; use this script only if tarballs were deleted or
- * never generated on your machine.
- *
- * This script breaks the cycle:
- *   1. npm ci --workspaces=false  (root devDependencies only — turbo, tsc, …)
- *   2. npm run build:packages
- *   3. node scripts/propagate.mjs --skip-drift-check
- *   4. npm ci                       (full workspace with tarballs on disk)
+ * Tarball-track apps live under apps/ (nested workspace). Root `npm ci`
+ * installs packages only; apps install via `npm ci --prefix apps`.
  *
  * Usage:
  *   npm run bootstrap
- *   npm run bootstrap -- --force     # rebuild libs/ even when tarballs exist
- *   npm run bootstrap -- --no-ci     # stop after propagate (lockfile may drift)
+ *   npm run bootstrap -- --force
+ *   npm run bootstrap -- --no-ci
  */
 
 import { execSync } from 'node:child_process';
@@ -43,30 +36,45 @@ function run(cmd) {
   execSync(cmd, { cwd: REPO_ROOT, stdio: 'inherit' });
 }
 
-function requiredTarballsFromLockfile() {
-  if (!existsSync(LOCKFILE_PATH)) {
-    die('package-lock.json missing — cannot determine required libs/*.tgz');
-  }
-  const lock = JSON.parse(readFileSync(LOCKFILE_PATH, 'utf8'));
+function collectTarballsFromLock(lockPath) {
   const files = new Set();
+  if (!existsSync(lockPath)) return files;
+  const lock = JSON.parse(readFileSync(lockPath, 'utf8'));
   for (const entry of Object.values(lock.packages ?? {})) {
     const resolved = entry?.resolved;
     if (typeof resolved !== 'string' || !resolved.startsWith('file:')) continue;
     const m = resolved.match(/libs\/([^/]+\.tgz)$/);
     if (m) files.add(m[1]);
   }
+  return files;
+}
+
+function requiredTarballsFromLockfiles() {
+  const files = collectTarballsFromLock(LOCKFILE_PATH);
+  for (const f of collectTarballsFromLock(join(REPO_ROOT, 'apps', 'package-lock.json'))) {
+    files.add(f);
+  }
+  if (files.size === 0) {
+    const manifestPath = join(LIBS_DIR, 'manifest.json');
+    if (existsSync(manifestPath)) {
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+      for (const entry of Object.values(manifest)) {
+        if (entry?.filename) files.add(entry.filename);
+      }
+    }
+  }
+  if (files.size === 0) {
+    die('no libs/*.tgz in lockfiles or libs/manifest.json');
+  }
   return [...files].sort();
 }
 
 function missingTarballs() {
-  return requiredTarballsFromLockfile().filter((f) => !existsSync(join(LIBS_DIR, f)));
+  return requiredTarballsFromLockfiles().filter((f) => !existsSync(join(LIBS_DIR, f)));
 }
 
 function libsReady() {
-  const required = requiredTarballsFromLockfile();
-  if (required.length === 0) {
-    die('package-lock.json has no file:libs/*.tgz resolved entries — cannot verify libs/');
-  }
+  const required = requiredTarballsFromLockfiles();
   const missing = missingTarballs();
   if (missing.length === 0) {
     log(`libs/ OK (${required.length} bucket tarball(s) on disk)`);
@@ -82,25 +90,27 @@ function main() {
   const needsPack = force || !libsReady();
 
   if (!needsPack) {
-    log('tarballs present — running full workspace install only');
-    if (!noCi) run('npm ci');
+    log('tarballs present — installing packages + apps');
+    if (!noCi) {
+      run('npm ci');
+      run('npm ci --prefix apps');
+    }
     return;
   }
 
-  log('fresh or incomplete libs/ — building bucket tarballs before workspace install');
-  log('(producing tarballs via propagate — commit libs/ when refreshing for remote)');
-
+  log('building bucket tarballs before workspace install');
   run('npm ci --workspaces=false --ignore-scripts');
   run('npm run build:packages');
   run('node scripts/propagate.mjs --skip-drift-check');
 
   if (noCi) {
-    log('done (--no-ci) — run `npm ci` when ready');
+    log('done (--no-ci)');
     return;
   }
 
   run('npm ci');
-  log('done — workspace installed; use `npm ci` on later pulls when libs/ is intact');
+  run('npm ci --prefix apps');
+  log('done');
 }
 
 main();

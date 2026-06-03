@@ -429,6 +429,19 @@ function syncRootLockfile() {
   execSync('npm install --no-audit --no-fund', { cwd: REPO_ROOT, stdio: 'inherit' });
 }
 
+function syncAppsLockfile() {
+  if (args.noInstall) {
+    log('apps install: skipped (--no-install)');
+    return;
+  }
+  if (args.dryRun) {
+    log('apps install: would run `npm install --prefix apps` (dry-run)');
+    return;
+  }
+  log('apps install: converging apps/package-lock.json');
+  execSync('npm install --no-audit --no-fund --prefix apps', { cwd: REPO_ROOT, stdio: 'inherit' });
+}
+
 // ────────────────────────────────────────────────────────────────────────
 // Manifest
 // ────────────────────────────────────────────────────────────────────────
@@ -482,44 +495,25 @@ function writeManifest(manifest) {
 // Sync apps/* package.json file: deps
 // ────────────────────────────────────────────────────────────────────────
 
-/**
- * Apps that should NOT receive tarball-dep rewrites.
- *
- * Workspace-track apps (currently apps/tutorials-workspace/*) live as
- * sibling workspaces consuming @starui/* via `"*"` deps. Rewriting their
- * package.json to file: tarball refs would defeat the workspace-HMR
- * purpose. Mirrors the same list in scripts/sync-app-tarball-deps.mjs.
- *
- * Match against the path relative to REPO_ROOT (POSIX-style), with a
- * trailing slash on the directory.
- */
-const TARBALL_TRACK_EXCLUDES = [
-  /^apps\/tutorials-workspace\//,
-];
+const APPS_ROOT = join(REPO_ROOT, 'apps');
 
-function isTarballTrackAppPath(appPkgPath) {
-  const rel = relative(REPO_ROOT, appPkgPath).split(/[\\/]/).join('/');
-  return !TARBALL_TRACK_EXCLUDES.some((re) => re.test(rel));
-}
+const APPS_ROOT_PKG = join(APPS_ROOT, 'package.json');
 
 function findAppPackageJsons() {
-  const appsDir = join(REPO_ROOT, 'apps');
-  if (!isDirectory(appsDir)) return [];
+  if (!isDirectory(APPS_ROOT)) return [];
   const out = [];
-  for (const entry of readdirSync(appsDir, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-    const direct = join(appsDir, entry.name, 'package.json');
-    if (existsSync(direct)) {
-      if (isTarballTrackAppPath(direct)) out.push(direct);
-      continue;
+  function walk(dir) {
+    if (dir.split(/[\\/]/).includes('node_modules')) return;
+    const pkgPath = join(dir, 'package.json');
+    if (existsSync(pkgPath) && pkgPath !== APPS_ROOT_PKG) {
+      out.push(pkgPath);
     }
-    const nestedRoot = join(appsDir, entry.name);
-    for (const child of readdirSync(nestedRoot, { withFileTypes: true })) {
-      if (!child.isDirectory()) continue;
-      const nested = join(nestedRoot, child.name, 'package.json');
-      if (existsSync(nested) && isTarballTrackAppPath(nested)) out.push(nested);
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      walk(join(dir, entry.name));
     }
   }
+  walk(APPS_ROOT);
   return out;
 }
 
@@ -572,8 +566,9 @@ function installApp(appDir, depsToRefresh) {
   // the root node_modules). Without removing the hoisted copy, npm reports
   // "up to date" and never re-extracts the new tarball content — its file:
   // tarball handling does not reliably detect a content change.
+  const appsRoot = join(REPO_ROOT, 'apps');
   for (const dep of depsToRefresh) {
-    for (const base of [appDir, REPO_ROOT]) {
+    for (const base of [appDir, appsRoot, REPO_ROOT]) {
       const path = join(base, 'node_modules', dep);
       if (existsSync(path)) {
         if (args.dryRun) log(`  would remove: ${relative(REPO_ROOT, path) || dep}`);
@@ -838,6 +833,10 @@ function main() {
     refreshRootLockfile();
   } else if (Object.keys(updates).length > 0) {
     syncRootLockfile();
+  }
+
+  if (affectedApps.size > 0) {
+    syncAppsLockfile();
   }
 
   if (args.gc) {

@@ -27,14 +27,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: npm ci
-        run: npm ci
+      - name: npm ci (packages + apps)
+        run: npm run install:all
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
-
-      - name: Build packages + refresh consumer tarballs
-        run: npm run build:packages && node scripts/propagate.mjs --skip-drift-check
 
       - name: Run Playwright
         run: npx playwright test

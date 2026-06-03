@@ -8,12 +8,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@starui/data": "*",
-    "@starui/design-system": "*",
-    "@starui/react-core": "*",
-    "@starui/react-grid": "*",
-    "@starui/react-ui": "*",
-    "@starui/shared": "*",
+    "@starui/data": "file:../../../libs/starui-data-0.1.0-cb89c20a.tgz",
+    "@starui/design-system": "file:../../../libs/starui-design-system-1.0.0-077b7812.tgz",
+    "@starui/react-core": "file:../../../libs/starui-react-core-1.0.0-1ddc28b4.tgz",
+    "@starui/react-grid": "file:../../../libs/starui-react-grid-0.1.0-75e97905.tgz",
+    "@starui/react-ui": "file:../../../libs/starui-react-ui-1.0.0-f98ab8fe.tgz",
+    "@starui/shared": "file:../../../libs/starui-shared-1.0.0-fc04023c.tgz",
     "@stomp/stompjs": "^7.3.0",
     "@tanstack/react-query": "^5.80.0",
     "@widgetstools/dock-manager-core": "^1.0.0",

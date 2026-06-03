@@ -87,7 +87,7 @@ Run `npm run verify:apps` to smoke-test dev servers.
 |---|---|---|
 | **External consumers** | Artifactory / bucket `.tgz` files | App CI + `staruiConsumerVite.mjs` |
 | **Monorepo libraries** | Workspace `"*"` between packages | `build:packages`, `typecheck:packages`, `test:packages` |
-| **Monorepo demo apps** | `file:../../libs/*.tgz` per bucket | `build:consumer`, `verify:consumer` |
+| **Monorepo demo apps** | Nested `apps/` workspace; `file:../../libs/*.tgz` per bucket | `install:apps`, `build:consumer`, `verify:consumer` |
 
 Apps under `apps/` install StarUI the way external teams do: **architecture-bucket
 tarballs** under `libs/` (standing in for Artifactory), not workspace member deps.
@@ -128,10 +128,90 @@ rm -rf node_modules/.vite apps/*/node_modules/.vite
 | `toolbar-visibility` | 40 | Toolbar show/hide |
 | `grid-state` | 200 | AG Grid native state on explicit Save |
 
-## Getting started
+See **[docs/BUILD.md](./docs/BUILD.md)** for a full step-by-step build guide.
+
+## Prerequisites
+
+- **Node.js** ≥ 20
+- **npm** 10.x (see `packageManager` in root `package.json` — use `npm ci`, not `yarn` / `pnpm`)
+
+## Fresh clone — step by step
+
+The repo has **two install surfaces**:
+
+| Surface | Path | What gets installed |
+|---------|------|---------------------|
+| **Packages** | repo root | `packages/*`, `tools/mcp-scaffold`, `e2e-openfin` — workspace `"*"` links between libraries |
+| **Apps** | `apps/` (nested workspace) | Demos, tutorials, e2e apps — `@starui/*` from committed **`libs/*.tgz`** |
+
+Committed **`libs/`** tarballs are required for apps; they are already in git on `main`.
+
+### 1. Clone and install everything (most contributors)
+
+```bash
+git clone <repo-url> sternui
+cd sternui
+
+npm run install:all
+```
+
+That runs `npm ci` at the root, then `npm ci --prefix apps` (see `install:apps`).
+
+### 2. Packages only (library work — faster)
 
 ```bash
 npm ci
+npm run build:packages
+npm test
+```
+
+Skip `install:apps` until you need to run a demo or `npm run build:apps`.
+
+### 3. Install apps when you need demos
+
+```bash
+npm run install:apps
+```
+
+### 4. Run the primary React demo
+
+```bash
+npm run dev
+# → http://localhost:5190  (@starui/demo-react under apps/legacy/demo-react)
+```
+
+### 5. Full consumer build (matches CI `verify:consumer`)
+
+```bash
+npm run install:all
+npm run verify:consumer
+```
+
+Sequence inside `verify:consumer`: build packages → propagate tarballs → reinstall apps → build apps → typecheck apps.
+
+### 6. After you change library code that apps consume
+
+```bash
+npm run build:packages
+npm run propagate
+npm run install:apps
+# commit libs/, package-lock.json, apps/package-lock.json, and any apps/*/package.json touched by propagate
+```
+
+### 7. If install fails on missing `libs/*.tgz`
+
+```bash
+npm run bootstrap -- --force
+```
+
+Rebuilds tarballs from `packages/`, then runs both lockfile installs.
+
+---
+
+## Getting started (quick commands)
+
+```bash
+npm run install:all
 
 # Primary React demo — http://localhost:5190
 npm run dev
@@ -147,13 +227,6 @@ npm run dev:openfin
 
 # Launch the React reference app inside OpenFin
 npm run dev:openfin:markets-react
-```
-
-After library changes that demo apps consume, refresh tarballs:
-
-```bash
-npm run propagate   # or npm run build:consumer for packages + tarballs + apps
-npm ci
 ```
 
 ## Build & test pipelines
@@ -175,15 +248,17 @@ turbo test (packages)               turbo typecheck (apps)
 |---|---|
 | `build:packages` | Build all libraries under `packages/` |
 | `build:apps` | Build demo apps (needs fresh tarballs) |
-| `build:consumer` | `build:packages` → `propagate --no-build` → `build:apps` |
+| `build:consumer` | `build:packages` → `propagate --no-build` → `install:apps` → (then `build:apps` via `build:all`) |
 | `typecheck:packages` | `tsc --noEmit` on libraries |
 | `typecheck:apps` | `tsc --noEmit` on demo apps |
 | `typecheck:consumer` | packages + `propagate --no-build` + apps typecheck |
 | `test:packages` | Vitest across library packages (`npm test`) |
 | `check:tarballs` | Fail if committed `libs/*.tgz` are stale (uses `propagate --no-build`) |
 | `verify:consumer` | `build:consumer` + `typecheck:apps` |
-| `bootstrap` | Repair install when `libs/` is missing locally (root install → build → propagate → `npm ci`) |
-| `propagate` | Rebuild bucket tarballs in `libs/`, sync app deps (commit `libs/` + lockfile after package changes) |
+| `install:apps` | `npm ci` in nested `apps/` workspace (consumer demos only) |
+| `install:all` | `npm ci` + `install:apps` |
+| `bootstrap` | Repair when `libs/` missing (build packages → propagate → full install) |
+| `propagate` | Rebuild bucket tarballs in `libs/`, sync app deps (commit `libs/` + both lockfiles) |
 | `sync:app-deps` | Rewrite app tarball paths from manifest |
 | `e2e` | Playwright (`e2e/`) |
 | `test:e2e:openfin` | OpenFin CDP smoke tests (`e2e-openfin/`) |

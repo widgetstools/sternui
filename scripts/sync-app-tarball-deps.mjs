@@ -11,7 +11,7 @@
  */
 
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
-import { dirname, join, relative, sep } from 'node:path';
+import { basename, dirname, join, relative, sep } from 'node:path';
 
 const REPO_ROOT = join(import.meta.dirname, '..');
 const LIBS_DIR = join(REPO_ROOT, 'libs');
@@ -46,36 +46,19 @@ function buildMemberIndex(manifest) {
   return memberToBucket;
 }
 
-/**
- * Apps whose @starui/* deps should NOT be rewritten to tarball refs.
- *
- * Workspace-track apps (currently apps/tutorials-workspace/*) consume the
- * @starui/* packages directly from the npm workspaces graph via `"*"`
- * deps. Rewriting them to `file:.../libs/...tgz` would defeat the
- * purpose — they exist so contributors can edit @starui/* sources and
- * see HMR in the tutorial app without a propagate cycle.
- *
- * Match against `relative(REPO_ROOT, dirname(appPkgPath))` (POSIX-style).
- */
-const TARBALL_TRACK_EXCLUDES = [
-  /^apps\/tutorials-workspace\//,
-];
-
-function isTarballTrack(appPkgPath) {
-  const rel = relative(REPO_ROOT, dirname(appPkgPath)).split(sep).join('/');
-  return !TARBALL_TRACK_EXCLUDES.some((re) => re.test(`${rel}/`));
-}
+const APPS_ROOT_PKG = join(APPS_ROOT, 'package.json');
 
 function findAppPackageJsons() {
   const out = [];
   function walk(dir) {
+    if (dir.split(/[\\/]/).includes('node_modules')) return;
+    const pkgPath = join(dir, 'package.json');
+    if (existsSync(pkgPath) && pkgPath !== APPS_ROOT_PKG) {
+      out.push(pkgPath);
+    }
     for (const name of readdirSync(dir)) {
       const p = join(dir, name);
-      if (!statSync(p).isDirectory()) continue;
-      const pkgPath = join(p, 'package.json');
-      if (existsSync(pkgPath)) {
-        if (isTarballTrack(pkgPath)) out.push(pkgPath);
-      } else walk(p);
+      if (statSync(p).isDirectory()) walk(p);
     }
   }
   walk(APPS_ROOT);

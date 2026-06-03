@@ -44,7 +44,7 @@ async function waitForUrl(url, timeoutMs) {
 }
 
 function run(workspace, args, { cwd }) {
-  return spawn(npmCmd, ['run', 'dev', `--workspace=${workspace}`, '--', ...args], {
+  return spawn(npmCmd, ['--prefix', 'apps', 'run', 'dev', `-w`, workspace, '--', ...args], {
     cwd,
     stdio: ['ignore', 'pipe', 'pipe'],
     env: process.env,

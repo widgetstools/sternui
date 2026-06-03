@@ -114,16 +114,20 @@ Every library package uses `"build": "rimraf dist && tsc"` (or
 "cannot overwrite input file" error that Turbo's cache-restore triggers
 on the next run. Don't remove it.
 
-## Propagating package changes (external tarball consumers)
+## Install layout
 
-In-repo apps use workspace `"*"` deps — edit a package, run `npm run build`
-(or `npm run dev:demo-react`) and changes are picked up via workspace linking.
+- **Root** `npm ci` / `npm run install:all` — `packages/*` only (workspace `"*"`).
+- **Apps** nested under `apps/package.json` — `npm run install:apps` (`npm ci --prefix apps`);
+  `@starui/*` bucket deps from committed `libs/*.tgz`.
+- **`STARUI_DEV_SOURCE=1`** on demo dev scripts — Vite aliases into `packages/` source.
+
+## Propagating package changes (external tarball consumers)
 
 `npm run propagate` (delegates to `scripts/propagate.mjs`) builds
 and packs **one tarball per architecture bucket** flat under `libs/`
-(e.g. `starui-react-grid-0.1.0-<sha8>.tgz`). **`libs/` is committed** so root
-`npm ci` works on a fresh clone; after package changes run propagate and commit
-`libs/` + `package-lock.json` (CI `check:tarballs` enforces freshness). Each
+(e.g. `starui-react-grid-0.1.0-<sha8>.tgz`). **`libs/` is committed**; after
+package changes run propagate, `npm run install:apps`, and commit `libs/` +
+`package-lock.json` + `apps/package-lock.json` (CI `check:tarballs` enforces freshness). Each
 bundle contains all workspace packages in that bucket. Flags:
 
 - `--dry-run` — show the plan, write nothing.
