@@ -13,6 +13,11 @@ export const appDataBootstrapHooks: AppDataBootstrapHookRegistry = {
       values: {
         userId: ctx.userId,
         entitlements: ['desk-a', 'desk-b'],
+        // Initial/default as-of-date (today) seeded into AppData. STOMP
+        // `{{...asofdate}}` templates resolve against this until the user
+        // picks a date in the toolbar — at which point the historical
+        // restart overlay `{ asOfDate }` overrides it (the overlay wins
+        // for any historical date key; see stomp.ts lookupWithRestartOverlay).
         'position-asofdate': new Date().toISOString().slice(0, 10),
       },
     });
