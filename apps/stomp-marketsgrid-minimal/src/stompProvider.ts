@@ -49,6 +49,17 @@ const historicalRequestMessage = `/snapshot/positions/${TAG}/{{positions.asOfDat
 /** Bump when STOMP wire destinations or cfg change so App re-persists catalog rows on load. */
 export const STOMP_PROVIDER_CFG_VERSION = 4;
 
+// ─── Deterministic catalog ids ───────────────────────────────────────
+// Stable, app-namespaced provider ids. Because configStore.save() upserts
+// by providerId (`provider.providerId ?? generateProviderId()`), giving the
+// seed drafts a fixed id makes seeding IDEMPOTENT: two concurrent saves —
+// e.g. React StrictMode's double-invoked effect, which previously listed an
+// empty catalog twice and minted two random-id rows each — now write the
+// SAME row instead of duplicating it. See App.tsx for the self-heal that
+// also removes any pre-existing random-id duplicates.
+export const STOMP_LIVE_PROVIDER_ID = 'stomp-marketsgrid-minimal:positions-live';
+export const STOMP_HISTORICAL_PROVIDER_ID = 'stomp-marketsgrid-minimal:positions-historical';
+
 /** StompProviderConfig — passed to hub startStomp() after catalog resolve. */
 const stompLive: StompProviderConfig = {
   providerType: 'stomp',
@@ -112,6 +123,7 @@ const stompHistorical: StompProviderConfig = {
 
 /** DataProviderConfig row shape for configStore.save() → appConfig in Dexie. */
 export const stompProviderDraft: DataProviderConfig = {
+  providerId: STOMP_LIVE_PROVIDER_ID,
   name: 'STOMP Positions',
   providerType: 'stomp',
   userId: 'dev1',
@@ -124,6 +136,7 @@ export const stompProviderDraft: DataProviderConfig = {
 // id to the grid as `defaultHistoricalProviderId`, which is what the
 // toolbar date picker switches to for past dates.
 export const stompHistoricalProviderDraft: DataProviderConfig = {
+  providerId: STOMP_HISTORICAL_PROVIDER_ID,
   name: 'STOMP Positions (Historical)',
   providerType: 'stomp',
   userId: 'dev1',

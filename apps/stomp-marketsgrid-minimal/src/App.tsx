@@ -4,7 +4,13 @@ import { useDataServices, useUserIdFromContext } from '@starui/host-data-react/r
 import { getPlatform } from './bootstrap.js';
 import { gridEventHandlers } from './platform/gridEventHandlers.js';
 import { gridHandlerMeta } from './platform/hooksMeta.js';
-import { stompHistoricalProviderDraft, stompProviderDraft, STOMP_PROVIDER_CFG_VERSION } from './stompProvider.js';
+import {
+  stompHistoricalProviderDraft,
+  stompProviderDraft,
+  STOMP_PROVIDER_CFG_VERSION,
+  STOMP_LIVE_PROVIDER_ID,
+  STOMP_HISTORICAL_PROVIDER_ID,
+} from './stompProvider.js';
 
 /**
  * Phase 3 — seed catalog row (programmatic, no provider editor UI).
@@ -26,31 +32,40 @@ export function App() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      // configStore.list — read STOMP providers from IndexedDB (main thread).
       // We seed TWO catalog rows: the live provider and a separate
       // historical provider (date-templated destinations — see
       // stompProvider.ts). Both are needed so the grid can switch
       // between them when the toolbar date picker changes.
+      //
+      // Both drafts carry DETERMINISTIC providerIds (STOMP_*_PROVIDER_ID),
+      // so configStore.save() upserts a fixed row rather than minting a
+      // random id. That makes this effect idempotent under React
+      // StrictMode's double-invoke: two concurrent runs that both observe
+      // an empty catalog now write the SAME two rows instead of four.
       const rows = await configStore.list(userId, { subtype: 'stomp' });
-      const existing = rows.find((p) => p.name === stompProviderDraft.name);
-      const existingHistorical = rows.find((p) => p.name === stompHistoricalProviderDraft.name);
-
-      const liveDraft = existing
-        ? { ...stompProviderDraft, providerId: existing.providerId }
-        : stompProviderDraft;
-      const histDraft = existingHistorical
-        ? { ...stompHistoricalProviderDraft, providerId: existingHistorical.providerId }
-        : stompHistoricalProviderDraft;
+      const liveExists = rows.some((p) => p.providerId === STOMP_LIVE_PROVIDER_ID);
+      const histExists = rows.some((p) => p.providerId === STOMP_HISTORICAL_PROVIDER_ID);
 
       const storedVersion = localStorage.getItem('stomp-marketsgrid-minimal.stomp-cfg-version');
       const shouldRefresh = storedVersion !== String(STOMP_PROVIDER_CFG_VERSION);
 
-      const id = shouldRefresh || !existing
-        ? (await configStore.save(liveDraft, userId)).providerId
-        : existing.providerId;
-      const histId = shouldRefresh || !existingHistorical
-        ? (await configStore.save(histDraft, userId)).providerId
-        : existingHistorical.providerId;
+      if (shouldRefresh || !liveExists) await configStore.save(stompProviderDraft, userId);
+      if (shouldRefresh || !histExists) await configStore.save(stompHistoricalProviderDraft, userId);
+
+      // Self-heal: remove any same-name rows left by the old random-id
+      // seeding (the duplicate "STOMP Positions" / "(Historical)" rows that
+      // accumulated before deterministic ids). Anything sharing a draft name
+      // but not the canonical id is a stale duplicate. Idempotent and
+      // race-safe — a concurrent run deleting the same id is a no-op.
+      const stale = rows.filter(
+        (p) =>
+          (p.name === stompProviderDraft.name && p.providerId !== STOMP_LIVE_PROVIDER_ID) ||
+          (p.name === stompHistoricalProviderDraft.name &&
+            p.providerId !== STOMP_HISTORICAL_PROVIDER_ID),
+      );
+      for (const dup of stale) {
+        if (dup.providerId) await configStore.remove(dup.providerId);
+      }
 
       if (shouldRefresh) {
         localStorage.setItem(
@@ -59,8 +74,10 @@ export function App() {
         );
       }
 
-      if (!cancelled && id) setProviderId(id);
-      if (!cancelled && histId) setHistoricalProviderId(histId);
+      if (!cancelled) {
+        setProviderId(STOMP_LIVE_PROVIDER_ID);
+        setHistoricalProviderId(STOMP_HISTORICAL_PROVIDER_ID);
+      }
     })();
     return () => {
       cancelled = true;
