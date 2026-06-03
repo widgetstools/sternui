@@ -11,10 +11,9 @@ playwright-report/
 .DS_Store
 .claude/
 
-# /libs/ tarballs (produced by `npm run pack:libs`) are tracked so a
-# fresh clone + `npm ci` works without first running pack:libs.
-# Regenerate via `npm run pack:libs` whenever a library's source or
-# package.json changes (CI should enforce this in a follow-up).
+# /libs/ tarballs (produced by `npm run propagate` / `npm run pack:libs`)
+# are local build artifacts — regenerate on demand rather than committing.
+/libs/
 
 /cell-format-toolbar*.html
 /toolbar-teal*.html
