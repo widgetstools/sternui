@@ -132,6 +132,15 @@ export interface StompProviderConfig {
    */
   throttleMs?: number;
   /**
+   * Max rows shipped per `postMessage` when flushing the snapshot from
+   * the worker to the client. Larger snapshots split into this many
+   * rows per replace/delta frame so each main-thread `message`
+   * deserialize stays under Chromium's ~50ms long-task budget.
+   * Default 500. Settable in code (author the config) or via the
+   * provider editor.
+   */
+  snapshotChunkSize?: number;
+  /**
    * Reconnect policy. Today only `initialDelayMs` is honoured (it
    * becomes the stompjs `reconnectDelay`); full exponential backoff +
    * jitter + maxAttempts requires bypassing stompjs's auto-reconnect
