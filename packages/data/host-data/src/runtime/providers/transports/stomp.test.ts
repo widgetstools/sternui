@@ -445,6 +445,132 @@ describe('startStomp', () => {
   });
 });
 
+describe('startStomp — snapshot chunk size', () => {
+  it('splits the snapshot flush into cfg.snapshotChunkSize-row frames', async () => {
+    const events: ProviderEmitEvent[] = [];
+    const ctrl = makeFakeClient();
+    startStomp(cfg({ snapshotChunkSize: 2 }), (e) => events.push(e), { createClient: () => ctrl.client });
+    await Promise.resolve();
+    ctrl.fireConnect();
+
+    ctrl.deliver(JSON.stringify([{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }, { id: 'r4' }, { id: 'r5' }]));
+    ctrl.deliver('Success');
+
+    const deltas = events.filter((e): e is { rows: readonly unknown[]; replace?: boolean } => 'rows' in e);
+    // 5 rows / chunk 2 → 3 frames; first replace=true, rest deltas.
+    expect(deltas).toHaveLength(3);
+    expect(deltas[0]).toMatchObject({ replace: true });
+    expect(deltas[0].rows).toHaveLength(2);
+    expect(deltas[1].replace).toBeFalsy();
+    expect(deltas[1].rows).toHaveLength(2);
+    expect(deltas[2].rows).toHaveLength(1);
+  });
+});
+
+describe('startStomp — live conflation + throttle', () => {
+  function fakeTimer() {
+    let scheduled: (() => void) | null = null;
+    return {
+      setTimer: (cb: () => void) => { scheduled = cb; return 'tok'; },
+      clearTimer: () => { scheduled = null; },
+      fire: () => { const c = scheduled; scheduled = null; c?.(); },
+      get pending() { return scheduled !== null; },
+    };
+  }
+
+  it('conflates same-key live deltas to the latest within a throttle window', async () => {
+    const events: ProviderEmitEvent[] = [];
+    const ctrl = makeFakeClient();
+    const t = fakeTimer();
+    // keyColumn 'id' (from cfg) is the default conflation key.
+    startStomp(cfg({ throttleMs: 100 }), (e) => events.push(e), {
+      createClient: () => ctrl.client,
+      setTimer: t.setTimer,
+      clearTimer: t.clearTimer,
+    });
+    await Promise.resolve();
+    ctrl.fireConnect();
+    ctrl.deliver('Success');
+    events.length = 0;
+
+    ctrl.deliver(JSON.stringify({ id: 'r1', price: 1 }));
+    ctrl.deliver(JSON.stringify({ id: 'r1', price: 2 })); // overwrites r1
+    ctrl.deliver(JSON.stringify({ id: 'r2', price: 3 }));
+
+    // Throttled — nothing flushed yet.
+    expect(events.filter((e) => 'rows' in e)).toHaveLength(0);
+    expect(t.pending).toBe(true);
+
+    t.fire();
+
+    const deltas = events.filter((e): e is { rows: readonly unknown[] } => 'rows' in e);
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0].rows).toEqual([{ id: 'r1', price: 2 }, { id: 'r2', price: 3 }]);
+  });
+
+  it('throttle-only (no key) batches distinct frames preserving order', async () => {
+    const events: ProviderEmitEvent[] = [];
+    const ctrl = makeFakeClient();
+    const t = fakeTimer();
+    startStomp(cfg({ throttleMs: 100, keyColumn: undefined, conflateByKey: undefined }), (e) => events.push(e), {
+      createClient: () => ctrl.client,
+      setTimer: t.setTimer,
+      clearTimer: t.clearTimer,
+    });
+    await Promise.resolve();
+    ctrl.fireConnect();
+    ctrl.deliver('Success');
+    events.length = 0;
+
+    ctrl.deliver(JSON.stringify({ id: 'r1', v: 1 }));
+    ctrl.deliver(JSON.stringify({ id: 'r1', v: 2 })); // kept (no conflation)
+    t.fire();
+
+    const deltas = events.filter((e): e is { rows: readonly unknown[] } => 'rows' in e);
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0].rows).toEqual([{ id: 'r1', v: 1 }, { id: 'r1', v: 2 }]);
+  });
+
+  it('drops pending throttled deltas on stop()', async () => {
+    const events: ProviderEmitEvent[] = [];
+    const ctrl = makeFakeClient();
+    const t = fakeTimer();
+    const handle = startStomp(cfg({ throttleMs: 100 }), (e) => events.push(e), {
+      createClient: () => ctrl.client,
+      setTimer: t.setTimer,
+      clearTimer: t.clearTimer,
+    });
+    await Promise.resolve();
+    ctrl.fireConnect();
+    ctrl.deliver('Success');
+    events.length = 0;
+
+    ctrl.deliver(JSON.stringify({ id: 'r1', price: 1 }));
+    expect(t.pending).toBe(true);
+    await handle.stop();
+
+    // Timer cancelled; firing it is a no-op and emits nothing.
+    t.fire();
+    expect(events.filter((e) => 'rows' in e)).toHaveLength(0);
+  });
+
+  it('passes live deltas straight through when throttleMs is unset', async () => {
+    const events: ProviderEmitEvent[] = [];
+    const ctrl = makeFakeClient();
+    startStomp(cfg(), (e) => events.push(e), { createClient: () => ctrl.client });
+    await Promise.resolve();
+    ctrl.fireConnect();
+    ctrl.deliver('Success');
+    events.length = 0;
+
+    ctrl.deliver(JSON.stringify({ id: 'r1', price: 9 }));
+
+    const deltas = events.filter((e): e is { rows: readonly unknown[] } => 'rows' in e);
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0].rows).toEqual([{ id: 'r1', price: 9 }]);
+  });
+});
+
 describe('probeStomp', () => {
   it('resolves with collected rows once the end token arrives', async () => {
     const ctrl = makeFakeClient();

@@ -523,7 +523,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `StompFields` — broker URL, login, subscribe topics, parsing
 - `MockFields` — seed data, latency, mutation playback
 - `AppDataFields` — read from `@starui/host-data` AppData
-- `BehaviourFields` — behaviour-library references + transforms
+- `BehaviourFields` — per-transport behaviour knobs; STOMP: reconnect initial delay, realtime throttle (ms) + conflate-by-key, snapshot chunk size (all written to `cfg`, also settable in code)
 
 #### Hosted integration (legacy)
 
@@ -1024,7 +1024,8 @@ Per-renderer config types (`PillRendererConfig`,
   - Unresolved `{{...}}` or invalid wire paths → `status: error` (no subscribe/publish; no silent infinite loading)
   - Snapshot phase → `snapshotEndToken` → buffered `{ rowsReceived }` progress, then chunked cache replace
   - Live phase → keyed deltas via `applyTransactionAsync`
-  - Auto-chunking (`SNAPSHOT_CHUNK_SIZE = 500`) to stay under 50 ms long-task budget
+  - Snapshot flush chunking (`cfg.snapshotChunkSize`, default `SNAPSHOT_CHUNK_SIZE = 500`) to stay under 50 ms long-task budget — configurable in code or the provider editor
+  - Live conflation + trailing-edge throttle (`cfg.throttleMs` window; `cfg.conflateByKey` upsert key, defaults to `keyColumn`) via `bufferedDispatch()` — coalesces same-key ticks in the worker before fanout; `throttleMs` unset = immediate passthrough; probe path bypasses it
   - Restart overlay (`extra`) for historical `asOfDate`
   - `probeStomp()` — one-shot Test Connection probe
 - **REST** (`startRest()`)

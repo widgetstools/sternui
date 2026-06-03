@@ -57,6 +57,7 @@
 import type { StompProviderConfig } from '@starui/types';
 import { composeRowId } from '@starui/types';
 import type { ProviderEmit, ProviderHandle } from '../Provider.js';
+import { bufferedDispatch } from './bufferedDispatch.js';
 import { resolveBracketCfg } from '../../template/bracketResolver.js';
 import {
   assertAppDataResolved,
@@ -76,6 +77,9 @@ import { validateStompPathContract } from './stompPathContract.js';
  * 500 is a balance: empirically a 500-row structured-clone of
  * typical position rows takes ~10–25ms; halving it makes no
  * material difference but doubles the round-trips.
+ *
+ * Overridable per provider via `cfg.snapshotChunkSize` (settable in
+ * code or the provider editor); this is the fallback default.
  */
 const SNAPSHOT_CHUNK_SIZE = 500;
 
@@ -168,10 +172,15 @@ export interface StompOpts {
    * the first N rows ASAP regardless of where the end-token sits)
    * and by callers that just want raw frame fan-out. Default: false
    * — Hub consumers want the buffered, replace-flagged snapshot.
+   * Also disables live-phase conflation/throttle (probe wants raw
+   * frames as they arrive).
    */
   passthroughSnapshot?: boolean;
   /** Resolve `{{name.key}}` on every STOMP connect/restart (worker AppData). */
   appDataLookup?: AppDataLookup;
+  /** Clock injection for the live-phase throttle. Defaults to setTimeout/clearTimeout. */
+  setTimer?: (cb: () => void, ms: number) => unknown;
+  clearTimer?: (handle: unknown) => void;
 }
 
 /** Keys commonly used for historical as-of dates in STOMP destination templates. */
@@ -290,6 +299,36 @@ export function startStomp(
   const hasEndToken = Boolean(cfg.snapshotEndToken);
   const buffering = hasEndToken && !opts.passthroughSnapshot;
 
+  // Snapshot flush chunk size — `cfg.snapshotChunkSize` overrides the
+  // default (settable in code or via the provider editor).
+  const chunkSize =
+    cfg.snapshotChunkSize && cfg.snapshotChunkSize > 0
+      ? Math.floor(cfg.snapshotChunkSize)
+      : SNAPSHOT_CHUNK_SIZE;
+
+  // Live-phase conflation + trailing-edge throttle. Driven by
+  // `cfg.throttleMs` (window) and `cfg.conflateByKey` / `cfg.keyColumn`
+  // (upsert key). Conflation only takes effect when a throttle window
+  // is set; without `throttleMs` the dispatch is a passthrough. The
+  // probe path (`passthroughSnapshot`) wants raw frames ASAP, so it
+  // skips the dispatch entirely.
+  const conflateColumns = cfg.conflateByKey ?? cfg.keyColumn;
+  const conflateKeyFn = conflateColumns
+    ? (row: unknown): unknown =>
+        row && typeof row === 'object'
+          ? composeRowId(row as Record<string, unknown>, conflateColumns)
+          : null
+    : undefined;
+  const liveDispatch = opts.passthroughSnapshot
+    ? null
+    : bufferedDispatch<unknown>({
+        conflateKeyFn,
+        throttleMs: cfg.throttleMs,
+        flush: (rows) => emit({ rows }),
+        setTimer: opts.setTimer,
+        clearTimer: opts.clearTimer,
+      });
+
   const state = {
     client: null as StompClient | null,
     sub: null as { unsubscribe(): void } | null,
@@ -307,6 +346,10 @@ export function startStomp(
   };
 
   const beginSnapshotPhase = () => {
+    // Drop any live deltas still pending in the throttle window — they
+    // belong to the session being reset and would arrive after the
+    // replace:true below.
+    liveDispatch?.teardown();
     state.snapshotComplete = !buffering;
     state.receivingSnapshot = false;
     state.snapshotBuffer = [];
@@ -348,15 +391,15 @@ export function startStomp(
     // eslint-disable-next-line no-console
     console.log(
       `[v2/stomp] flushSnapshot: ${buffer.length} rows in ${
-        Math.max(1, Math.ceil(buffer.length / SNAPSHOT_CHUNK_SIZE))
-      } chunk(s) of ${SNAPSHOT_CHUNK_SIZE}`,
+        Math.max(1, Math.ceil(buffer.length / chunkSize))
+      } chunk(s) of ${chunkSize}`,
     );
     if (buffer.length === 0) {
       emit({ rows: [], replace: true });
       return;
     }
-    for (let offset = 0; offset < buffer.length; offset += SNAPSHOT_CHUNK_SIZE) {
-      const chunk = buffer.slice(offset, offset + SNAPSHOT_CHUNK_SIZE);
+    for (let offset = 0; offset < buffer.length; offset += chunkSize) {
+      const chunk = buffer.slice(offset, offset + chunkSize);
       emit({ rows: chunk, replace: offset === 0 });
     }
   };
@@ -404,8 +447,10 @@ export function startStomp(
       return;
     }
 
-    // Live phase: pass through as a keyed delta.
-    emit({ rows });
+    // Live phase: route through the conflation/throttle dispatch (or
+    // straight to emit on the probe passthrough path).
+    if (liveDispatch) liveDispatch.push(rows);
+    else emit({ rows });
     emit({ byteSize });
   };
 
@@ -527,6 +572,7 @@ export function startStomp(
   const stop = async () => {
     state.stopped = true;
     state.connectGeneration += 1;
+    liveDispatch?.teardown();
     const client = state.client;
     const sub = state.sub;
     state.sub = null;

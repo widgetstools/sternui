@@ -16,8 +16,8 @@ const historicalListenerTopic = `/snapshot/positions/${TAG}/{{positions.asOfDate
 /** Historical trigger: /snapshot/positions/{clientId}/{asOfDate}[/{batchSize}] — not live rate/batch. */
 const historicalRequestMessage = `/snapshot/positions/${TAG}/{{positions.asOfDate}}/50`;
 
-/** Bump when STOMP wire destinations change so App re-persists catalog rows on load. */
-export const STOMP_PROVIDER_CFG_VERSION = 2;
+/** Bump when STOMP wire destinations or cfg change so App re-persists catalog rows on load. */
+export const STOMP_PROVIDER_CFG_VERSION = 4;
 
 /** StompProviderConfig — passed to hub startStomp() after catalog resolve. */
 const stompLive: StompProviderConfig = {
@@ -31,14 +31,41 @@ const stompLive: StompProviderConfig = {
   dataType: 'positions',
   keyColumn: 'positionId',
   autoStart: false,
+  // Snapshot flush frame size (rows per worker→client postMessage).
+  // Smaller keeps each main-thread message under the long-task budget.
+  snapshotChunkSize: 1000,
+  // Live updates: coalesce ticks into a trailing-edge burst every 100ms,
+  // collapsing repeated updates for the same positionId to the latest
+  // before fanning out to the grid.
+  throttleMs: 100,
+  conflateByKey: 'positionId',
   columnDefinitions: [
+    // Identifiers
     { field: 'positionId', headerName: 'Position ID' },
     { field: 'cusip', headerName: 'CUSIP' },
-    { field: 'instrumentType', headerName: 'Type' },
-    { field: 'instrumentName', headerName: 'Instrument' },
+    { field: 'desk', headerName: 'Desk' },
+    { field: 'trader', headerName: 'Trader' },
+    { field: 'currency', headerName: 'Ccy' },
+    // Agency ratings (nested `rating` object → auto valueGetter for dot-paths)
+    { field: 'rating.moody', headerName: "Moody's" },
+    { field: 'rating.sp', headerName: 'S&P' },
+    { field: 'rating.fitch', headerName: 'Fitch' },
+    { field: 'rating.composite', headerName: 'Composite' },
+    { field: 'rating.internal', headerName: 'Internal' },
+    // Price & size
+    { field: 'currentPrice', headerName: 'Price', type: 'numericColumn' },
+    { field: 'notionalAmount', headerName: 'Notional', type: 'numericColumn' },
     { field: 'marketValue', headerName: 'MV', type: 'numericColumn' },
-    { field: 'notional', headerName: 'Notional', type: 'numericColumn' },
-    { field: 'currentprice', headerName: 'Price', type: 'numericColumn' },
+    // P&L
+    { field: 'pnl', headerName: 'PnL', type: 'numericColumn' },
+    { field: 'unrealizedPnl', headerName: 'Unrealized', type: 'numericColumn' },
+    { field: 'realizedPnl', headerName: 'Realized', type: 'numericColumn' },
+    { field: 'dailyPnl', headerName: 'Daily', type: 'numericColumn' },
+    { field: 'mtdPnl', headerName: 'MTD', type: 'numericColumn' },
+    { field: 'ytdPnl', headerName: 'YTD', type: 'numericColumn' },
+    // Rate risk
+    { field: 'dv01', headerName: 'DV01', type: 'numericColumn' },
+    { field: 'pv01', headerName: 'PV01', type: 'numericColumn' },
   ],
 };
 
