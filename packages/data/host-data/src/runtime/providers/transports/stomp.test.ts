@@ -569,6 +569,54 @@ describe('startStomp — live conflation + throttle', () => {
     expect(deltas).toHaveLength(1);
     expect(deltas[0].rows).toEqual([{ id: 'r1', price: 9 }]);
   });
+
+  it('conflateEnabled:false keeps same-key deltas (still throttled, not collapsed)', async () => {
+    const events: ProviderEmitEvent[] = [];
+    const ctrl = makeFakeClient();
+    const t = fakeTimer();
+    // keyColumn 'id' is present, but the explicit switch disables conflation.
+    startStomp(cfg({ throttleMs: 100, conflateEnabled: false }), (e) => events.push(e), {
+      createClient: () => ctrl.client,
+      setTimer: t.setTimer,
+      clearTimer: t.clearTimer,
+    });
+    await Promise.resolve();
+    ctrl.fireConnect();
+    ctrl.deliver('Success');
+    events.length = 0;
+
+    ctrl.deliver(JSON.stringify({ id: 'r1', price: 1 }));
+    ctrl.deliver(JSON.stringify({ id: 'r1', price: 2 })); // kept — not conflated
+    expect(t.pending).toBe(true); // still batched by the throttle window
+    t.fire();
+
+    const deltas = events.filter((e): e is { rows: readonly unknown[] } => 'rows' in e);
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0].rows).toEqual([{ id: 'r1', price: 1 }, { id: 'r1', price: 2 }]);
+  });
+
+  it('throttleEnabled:false fans out immediately even when throttleMs is set', async () => {
+    const events: ProviderEmitEvent[] = [];
+    const ctrl = makeFakeClient();
+    const t = fakeTimer();
+    startStomp(cfg({ throttleMs: 100, throttleEnabled: false }), (e) => events.push(e), {
+      createClient: () => ctrl.client,
+      setTimer: t.setTimer,
+      clearTimer: t.clearTimer,
+    });
+    await Promise.resolve();
+    ctrl.fireConnect();
+    ctrl.deliver('Success');
+    events.length = 0;
+
+    ctrl.deliver(JSON.stringify({ id: 'r1', price: 1 }));
+    // No timer scheduled — each delta flushes synchronously.
+    expect(t.pending).toBe(false);
+
+    const deltas = events.filter((e): e is { rows: readonly unknown[] } => 'rows' in e);
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0].rows).toEqual([{ id: 'r1', price: 1 }]);
+  });
 });
 
 describe('probeStomp', () => {

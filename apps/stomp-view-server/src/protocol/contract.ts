@@ -35,6 +35,14 @@ export const SNAPSHOT_BATCH_INTERVAL_MS = 10;
 /** Optional extension — existing clients do not send this; server uses env defaults. */
 export const HEADER_SNAPSHOT_ROWS = "snapshot-rows";
 
+/**
+ * Optional extension — number of distinct rows mutated and shipped per
+ * live-update frame. Omitted by existing clients; server falls back to the
+ * `UPDATES_PER_TICK` env default. Lets a single SEND request a high-frequency
+ * stream (N rows per tick) without changing the wire trigger format.
+ */
+export const HEADER_UPDATES_PER_TICK = "updates-per-tick";
+
 export const HEADER = {
   MESSAGE_TYPE: "message-type",
   CONTENT_TYPE: "content-type",

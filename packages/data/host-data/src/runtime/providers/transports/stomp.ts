@@ -308,11 +308,19 @@ export function startStomp(
 
   // Live-phase conflation + trailing-edge throttle. Driven by
   // `cfg.throttleMs` (window) and `cfg.conflateByKey` / `cfg.keyColumn`
-  // (upsert key). Conflation only takes effect when a throttle window
-  // is set; without `throttleMs` the dispatch is a passthrough. The
-  // probe path (`passthroughSnapshot`) wants raw frames ASAP, so it
-  // skips the dispatch entirely.
-  const conflateColumns = cfg.conflateByKey ?? cfg.keyColumn;
+  // (upsert key). Two explicit master switches (both default ON) let a
+  // config — or the provider editor — turn each off independently:
+  //   • `conflateEnabled: false` disables conflation even though
+  //     `keyColumn` could supply a key (drops the `?? keyColumn`
+  //     fallback that previously made conflation impossible to disable).
+  //   • `throttleEnabled: false` disables batching while preserving the
+  //     `throttleMs` value, so re-enabling restores the window.
+  // Conflation still only takes effect when a throttle window is live;
+  // without it the dispatch is a passthrough. The probe path
+  // (`passthroughSnapshot`) wants raw frames ASAP, so it skips dispatch.
+  const conflateEnabled = cfg.conflateEnabled !== false;
+  const throttleEnabled = cfg.throttleEnabled !== false;
+  const conflateColumns = conflateEnabled ? cfg.conflateByKey ?? cfg.keyColumn : undefined;
   const conflateKeyFn = conflateColumns
     ? (row: unknown): unknown =>
         row && typeof row === 'object'
@@ -323,7 +331,7 @@ export function startStomp(
     ? null
     : bufferedDispatch<unknown>({
         conflateKeyFn,
-        throttleMs: cfg.throttleMs,
+        throttleMs: throttleEnabled ? cfg.throttleMs : 0,
         flush: (rows) => emit({ rows }),
         setTimer: opts.setTimer,
         clearTimer: opts.clearTimer,

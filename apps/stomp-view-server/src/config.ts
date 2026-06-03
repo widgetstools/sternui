@@ -5,6 +5,13 @@ export interface AppConfig {
   defaultSnapshotRows: number;
   minSnapshotRows: number;
   maxSnapshotRows: number;
+  /**
+   * Distinct rows mutated + sent per live-update tick unless overridden by
+   * STOMP header `updates-per-tick`. Default 1 (one row per frame, the
+   * original behaviour). Raise to push a high-frequency stream — aggregate
+   * row-updates/sec ≈ `rate × liveUpdatesPerTick`.
+   */
+  liveUpdatesPerTick: number;
   /** Verbose STOMP / per-tick logging */
   debug: boolean;
   /** Log outbound STOMP frames (CONNECTED + MESSAGE) to the terminal */
@@ -17,18 +24,23 @@ export interface AppConfig {
 
 export function loadConfig(): AppConfig {
   const port = Number(process.env.PORT ?? 8081);
-  const rawDefault = Number(process.env.DEFAULT_SNAPSHOT_ROWS ?? 20_000);
-  const rawMin = Number(process.env.MIN_SNAPSHOT_ROWS ?? 1_000);
+  const rawDefault = Number(process.env.DEFAULT_SNAPSHOT_ROWS ?? 1_000);
+  const rawMin = Number(process.env.MIN_SNAPSHOT_ROWS ?? 20_000);
   const rawMax = Number(process.env.MAX_SNAPSHOT_ROWS ?? 20_000);
 
   const minSnapshotRows = Number.isFinite(rawMin) ? rawMin : 1_000;
   const maxSnapshotRows = Number.isFinite(rawMax)
     ? Math.max(minSnapshotRows, rawMax)
-    : Math.max(minSnapshotRows, 20_000);
+    : Math.max(minSnapshotRows, 1_000);
   const defaultSnapshotRows = clamp(
-    Number.isFinite(rawDefault) ? rawDefault : 20_000,
+    Number.isFinite(rawDefault) ? rawDefault : 1_000,
     minSnapshotRows,
     maxSnapshotRows,
+  );
+
+  const rawUpdatesPerTick = Number.parseInt(
+    process.env.UPDATES_PER_TICK ?? "1",
+    10,
   );
 
   const logLiveRaw = Number.parseInt(process.env.LOG_LIVE_EVERY ?? "1", 10);
@@ -43,6 +55,7 @@ export function loadConfig(): AppConfig {
     defaultSnapshotRows,
     minSnapshotRows,
     maxSnapshotRows,
+    liveUpdatesPerTick: clampUpdatesPerTick(rawUpdatesPerTick),
     debug: process.env.DEBUG === "1" || process.env.DEBUG === "true",
     logOutbound:
       process.env.LOG_OUTBOUND !== "0" &&
@@ -53,6 +66,15 @@ export function loadConfig(): AppConfig {
         ? Math.min(logPreviewRaw, 50_000)
         : 400,
   };
+}
+
+/** Upper bound on rows-per-tick — a sanity cap, not a perf recommendation. */
+export const MAX_UPDATES_PER_TICK = 100_000;
+
+/** Clamp a requested rows-per-tick to `[1, MAX_UPDATES_PER_TICK]`; default 1. */
+export function clampUpdatesPerTick(requested: number | undefined): number {
+  if (requested === undefined || !Number.isFinite(requested)) return 1;
+  return Math.min(MAX_UPDATES_PER_TICK, Math.max(1, Math.floor(requested)));
 }
 
 export function clampSnapshotRows(

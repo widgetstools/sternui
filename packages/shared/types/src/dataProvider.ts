@@ -117,18 +117,36 @@ export interface StompProviderConfig {
   inferredFields?: FieldInfo[];
   columnDefinitions?: ColumnDefinition[];
   /**
+   * Master on/off for live-update conflation. Defaults to ON
+   * (`undefined` / `true`). Set `false` to deliver every live row
+   * update even when `conflateByKey` / `keyColumn` would otherwise
+   * supply a conflation key. This is the explicit disable switch:
+   * without it, conflation falls back to `keyColumn` and can't be
+   * turned off independently of throttling.
+   */
+  conflateEnabled?: boolean;
+  /**
    * Conflate row updates by this column before fanning out to
    * subscribers. Two updates for the same key value within a
    * `throttleMs` window collapse into the latest one (upsert
    * semantics). Typically set to the same value as `keyColumn` so
-   * grids see exactly one update per row per flush. Omit for
-   * "every row update is delivered" behaviour.
+   * grids see exactly one update per row per flush. When unset,
+   * conflation falls back to `keyColumn`; set `conflateEnabled:
+   * false` to turn conflation off entirely.
    */
   conflateByKey?: string;
   /**
+   * Master on/off for live-update throttling. Defaults to ON
+   * (`undefined` / `true`). Set `false` to fan out every live delta
+   * immediately even when `throttleMs` is set — the ms value is kept
+   * so re-enabling restores the previous window.
+   */
+  throttleEnabled?: boolean;
+  /**
    * Coalesce row-update fanout into trailing-edge bursts every
    * `throttleMs`. 0 / undefined → immediate fanout (no batching).
-   * The conflation window above only takes effect when this is set.
+   * The conflation window above only takes effect when this is set
+   * and `throttleEnabled` is not `false`.
    */
   throttleMs?: number;
   /**
