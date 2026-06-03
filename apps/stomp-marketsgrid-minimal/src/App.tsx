@@ -27,6 +27,10 @@ export function App() {
     let cancelled = false;
     void (async () => {
       // configStore.list — read STOMP providers from IndexedDB (main thread).
+      // We seed TWO catalog rows: the live provider and a separate
+      // historical provider (date-templated destinations — see
+      // stompProvider.ts). Both are needed so the grid can switch
+      // between them when the toolbar date picker changes.
       const rows = await configStore.list(userId, { subtype: 'stomp' });
       const existing = rows.find((p) => p.name === stompProviderDraft.name);
       const existingHistorical = rows.find((p) => p.name === stompHistoricalProviderDraft.name);
@@ -68,6 +72,32 @@ export function App() {
 
   // HostedMarketsGrid: cfg-free attach via defaultLiveProviderId; hub lazy-starts STOMP.
   // withStorage + configManager: grid layout via main-thread ConfigManager from getPlatform().
+  //
+  // ─── Historical data: how the date picker drives the fetch ──────────
+  // The app only declares THREE props below; the grid library does the
+  // work (MarketsGridContainer + the worker-side STOMP provider).
+  //
+  //   • defaultLiveProviderId        — provider used by default (live tail).
+  //   • defaultHistoricalProviderId  — provider the grid switches to when a
+  //     PAST date is picked. Its config has `{{positions.asOfDate}}`
+  //     tokens in the broker destinations (see stompProvider.ts).
+  //   • historicalDateAppDataRef     — "name.key" path the picked date is
+  //     written to in AppData. Must match the token used in the
+  //     historical destinations ("positions.asOfDate").
+  //
+  // Runtime sequence when the user picks a past date in the toolbar:
+  //   1. ToolbarDatePicker → MarketsGrid.onToolbarDateChange → the
+  //      container's handleToolbarDateChange.
+  //   2. Container detects a past date → enters historical mode, writes
+  //      the date to AppData at `historicalDateAppDataRef`, and switches
+  //      the active provider id to `defaultHistoricalProviderId`.
+  //   3. Container restarts that provider with overlay `{ asOfDate }`.
+  //   4. Worker STOMP provider substitutes `{{positions.asOfDate}}` in
+  //      its listener/trigger with the date and re-subscribes; the broker
+  //      returns that day's snapshot (no live tail). Picking "today"
+  //      switches back to the live provider.
+  // (Library refs: MarketsGridContainer.tsx handleToolbarDateChange /
+  //  reloadFromSource; host-data stomp.ts resolveStompDestinations.)
   return (
     <HostedMarketsGrid
       gridId="stomp-blotter"

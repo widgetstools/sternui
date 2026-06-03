@@ -10,8 +10,38 @@ import type { DataProviderConfig, StompProviderConfig } from '@starui/types';
 /** Must match a tag published by stomp-view-server (npm run dev:stomp). */
 const TAG = 'TRADER001';
 
+// ─── Live wire destinations ──────────────────────────────────────────
+// Live snapshot + realtime tail. No date token — the broker streams the
+// current book and keeps pushing deltas.
 const liveListenerTopic = `/snapshot/positions/${TAG}`;
 const liveRequestMessage = `/snapshot/positions/${TAG}/1000/50`;
+
+// ─── Historical wire destinations (HOW HISTORICAL DATA IS FETCHED) ────
+// These carry the `{{positions.asOfDate}}` template token. The date is
+// NOT known when this config is authored — it is filled in at runtime
+// from the toolbar date picker. End-to-end flow:
+//
+//   1. User picks a PAST date in the grid's toolbar date picker
+//      (ToolbarDatePicker → MarketsGrid.onToolbarDateChange).
+//   2. MarketsGridContainer.handleToolbarDateChange sees it's a past
+//      date, switches the active provider from the LIVE id to the
+//      HISTORICAL id (defaultHistoricalProviderId, see App.tsx), writes
+//      the date into AppData under `historicalDateAppDataRef`
+//      (= "positions.asOfDate", see App.tsx), and schedules a reload.
+//   3. reloadFromSource() restarts the historical provider with the
+//      overlay `{ asOfDate: '<picked date>' }`.
+//   4. In the worker, the STOMP provider (startStomp) takes that
+//      restart overlay and, on reconnect, substitutes the token in the
+//      destinations below — `{{positions.asOfDate}}` → the picked date
+//      (host-data/.../transports/stomp.ts: resolveStompDestinations +
+//      lookupWithRestartOverlay, and mergeOverlay injects `asOfDate`
+//      into the trigger body). The overlay date wins over any AppData
+//      value, so the reload is deterministic.
+//   5. The broker receives a date-specific snapshot path/trigger and
+//      replies with that day's positions (snapshot only — no live tail).
+//
+// So: changing the picker date == swapping the value substituted into
+// these two strings, then re-subscribing.
 const historicalListenerTopic = `/snapshot/positions/${TAG}/{{positions.asOfDate}}`;
 /** Historical trigger: /snapshot/positions/{clientId}/{asOfDate}[/{batchSize}] — not live rate/batch. */
 const historicalRequestMessage = `/snapshot/positions/${TAG}/{{positions.asOfDate}}/50`;
@@ -69,6 +99,11 @@ const stompLive: StompProviderConfig = {
   ],
 };
 
+// The HISTORICAL provider is a SECOND, separate catalog row. It reuses
+// every live setting (columns, keyColumn, conflation/throttle, chunk
+// size) but swaps in the date-templated destinations above. The grid
+// switches to this provider's id when a past date is picked; the date
+// is injected into the tokens at restart (see the flow note above).
 const stompHistorical: StompProviderConfig = {
   ...stompLive,
   listenerTopic: historicalListenerTopic,
@@ -84,6 +119,10 @@ export const stompProviderDraft: DataProviderConfig = {
   config: stompLive,
 };
 
+// Persisted as its own catalog row (distinct `name` → distinct
+// providerId). App.tsx seeds this alongside the live one and hands its
+// id to the grid as `defaultHistoricalProviderId`, which is what the
+// toolbar date picker switches to for past dates.
 export const stompHistoricalProviderDraft: DataProviderConfig = {
   name: 'STOMP Positions (Historical)',
   providerType: 'stomp',
