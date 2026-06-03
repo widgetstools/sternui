@@ -5,43 +5,43 @@
  */
 
 :root, [data-theme="dark"] {
-  --background: 215 10% 10%;
-  --foreground: 215 10% 94%;
-  --card: 215 9% 13%;
-  --card-foreground: 215 10% 94%;
-  --popover: 215 9% 16%;
-  --popover-foreground: 215 10% 94%;
+  --background: 215 39% 10%;
+  --foreground: 218 27% 92%;
+  --card: 215 35% 12%;
+  --card-foreground: 218 27% 92%;
+  --popover: 215 32% 17%;
+  --popover-foreground: 218 27% 92%;
   --primary: 217 91% 60%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 215 8% 18%;
-  --secondary-foreground: 215 10% 94%;
-  --muted: 215 8% 15%;
-  --muted-foreground: 215 6% 60%;
+  --secondary: 216 31% 19%;
+  --secondary-foreground: 218 27% 92%;
+  --muted: 215 31% 14%;
+  --muted-foreground: 217 16% 59%;
   --accent: 217 91% 60%;
   --accent-foreground: 0 0% 100%;
   --destructive: 354 86% 65%;
   --destructive-foreground: 0 0% 100%;
-  --border: 215 8% 21%;
-  --input: 215 8% 21%;
+  --border: 216 31% 19%;
+  --input: 216 31% 19%;
   --ring: 217 91% 60%;
   --radius: 3px;
 
-  --bn-bg:        #171a1d;
-  --bn-bg-sunken: #1e2125;
-  --bn-bg1:       #212429;
-  --bn-bg2:       #2c2f34;
-  --bn-bg3:       #383c42;
-  --bn-bg4:       #4b4f57;
+  --bn-bg:        #0f1722;
+  --bn-bg-sunken: #141d2a;
+  --bn-bg1:       #1a2433;
+  --bn-bg2:       #243044;
+  --bn-bg3:       #32405a;
+  --bn-bg4:       #44546e;
 
-  --bn-t0:      #ebedef;
-  --bn-t1:      #c1c4c9;
-  --bn-t2:      #8f939a;
-  --bn-t3:      #686d73;
-  --bn-t4:      #494c52;
+  --bn-t0:      #e5e9f0;
+  --bn-t1:      #bfc6d2;
+  --bn-t2:      #8995a6;
+  --bn-t3:      #5a6678;
+  --bn-t4:      #3b475a;
 
-  --bn-border:  #2c2f34;
-  --bn-border2: #3e4148;
-  --bn-border3: #565a61;
+  --bn-border:  #222e40;
+  --bn-border2: #32425a;
+  --bn-border3: #46566e;
 
   --bn-green:   #2dd4bf;
   --bn-green2:  #5eead4;
@@ -86,7 +86,7 @@
   --tt-bid-strip:  rgba(45,212,191,0.05);
   --tt-ask-strip:  rgba(242,86,104,0.05);
 
-  --scrollbar-thumb: #3e4148;
+  --scrollbar-thumb: #32425a;
 
   --fi-bg0: var(--bn-bg);
   --fi-bg1: var(--bn-bg1);

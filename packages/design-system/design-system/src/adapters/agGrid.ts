@@ -57,7 +57,7 @@ function gridParams(
 
     borderColor:        pack.border,
     wrapperBorder:      true as const,
-    wrapperBorderRadius: 3,
+    wrapperBorderRadius: 2,
     headerColumnBorder: false as const,
     // Vertical 1px rule between data-row cells (Stockflux blotter look —
     // makes columns read as distinct in dense numeric tables).
@@ -69,7 +69,7 @@ function gridParams(
     rowHeight:          rowH,
     headerHeight:       headerH,
     spacing,
-    borderRadius:       3,
+    borderRadius:       2,
     cellHorizontalPadding: 10,
 
     inputBackgroundColor: pack.inputBg,

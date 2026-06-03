@@ -28,22 +28,22 @@ export const colors = {
     3:   '#7a8392',
     4:   '#abb1bb',
   },
-  // ── Pewter graphite (dark chrome) — Stockflux slate-dark sf-bg scale
+  // ── Navy graphite (dark chrome) — Stockflux slate-dark sf-bg scale
   graphite: {
-    975: '#171a1d',
-    960: '#1e2125',
-    950: '#212429',
-    900: '#2c2f34',
-    850: '#383c42',
-    800: '#4b4f57',
-    700: '#3e4148',
-    600: '#2c2f34',
-    500: '#686d73',
-    400: '#8f939a',
-    300: '#c1c4c9',
-    50:  '#ebedef',
-    450: '#494c52',  // sf-t-4 disabled
-    650: '#565a61',  // sf-border-3
+    975: '#0f1722',  // sf-bg ground
+    960: '#141d2a',  // sf-bg-1 sunken
+    950: '#1a2433',  // sf-bg-2 card
+    900: '#243044',  // sf-bg-3 / border
+    850: '#32405a',  // sf-bg-4
+    800: '#44546e',  // sf-bg-5
+    700: '#32425a',  // sf-border-2
+    600: '#243044',  // sf-bg-3 alt
+    500: '#5a6678',  // sf-t-3
+    400: '#8995a6',  // sf-t-2
+    300: '#bfc6d2',  // sf-t-1
+    50:  '#e5e9f0',  // sf-t-0
+    450: '#3b475a',  // sf-t-4 disabled
+    650: '#46566e',  // sf-border-3
   },
   // ── Teal / positive (Stockflux palette-locked trade up) ──
   teal: {
