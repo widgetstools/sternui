@@ -47,7 +47,7 @@ const historicalListenerTopic = `/snapshot/positions/${TAG}/{{positions.asOfDate
 const historicalRequestMessage = `/snapshot/positions/${TAG}/{{positions.asOfDate}}/50`;
 
 /** Bump when STOMP wire destinations or cfg change so App re-persists catalog rows on load. */
-export const STOMP_PROVIDER_CFG_VERSION = 4;
+export const STOMP_PROVIDER_CFG_VERSION = 5;
 
 // ─── Deterministic catalog ids ───────────────────────────────────────
 // Stable, app-namespaced provider ids. Because configStore.save() upserts
@@ -82,31 +82,39 @@ const stompLive: StompProviderConfig = {
   conflateByKey: 'positionId',
   columnDefinitions: [
     // Identifiers
-    { field: 'positionId', headerName: 'Position ID' },
-    { field: 'cusip', headerName: 'CUSIP' },
-    { field: 'desk', headerName: 'Desk' },
-    { field: 'trader', headerName: 'Trader' },
-    { field: 'currency', headerName: 'Ccy' },
-    // Agency ratings (nested `rating` object → auto valueGetter for dot-paths)
-    { field: 'rating.moody', headerName: "Moody's" },
-    { field: 'rating.sp', headerName: 'S&P' },
-    { field: 'rating.fitch', headerName: 'Fitch' },
-    { field: 'rating.composite', headerName: 'Composite' },
-    { field: 'rating.internal', headerName: 'Internal' },
+    { field: 'positionId', headerName: 'Position Id', cellDataType: 'text', filter: true, sortable: true, resizable: true },
+    { field: 'cusip', headerName: 'Cusip', cellDataType: 'text', filter: true, sortable: true, resizable: true },
+    { field: 'ticker', headerName: 'Ticker', cellDataType: 'text', filter: true, sortable: true, resizable: true },
+    { field: 'instrumentName', headerName: 'Instrument Name', cellDataType: 'text', filter: true, sortable: true, resizable: true },
+    { field: 'instrumentType', headerName: 'Instrument Type', cellDataType: 'text', filter: true, sortable: true, resizable: true },
+    { field: 'bookName', headerName: 'Book Name', cellDataType: 'text', filter: true, sortable: true, resizable: true },
+    { field: 'portfolio', headerName: 'Portfolio', cellDataType: 'text', filter: true, sortable: true, resizable: true },
+    { field: 'trader', headerName: 'Trader', cellDataType: 'text', filter: true, sortable: true, resizable: true },
+    { field: 'desk', headerName: 'Desk', cellDataType: 'text', filter: true, sortable: true, resizable: true },
+    { field: 'region', headerName: 'Region', cellDataType: 'text', filter: true, sortable: true, resizable: true },
+    { field: 'country', headerName: 'Country', cellDataType: 'text', filter: true, sortable: true, resizable: true },
     // Price & size
-    { field: 'currentPrice', headerName: 'Price', type: 'numericColumn' },
-    { field: 'notionalAmount', headerName: 'Notional', type: 'numericColumn' },
-    { field: 'marketValue', headerName: 'MV', type: 'numericColumn' },
+    { field: 'notionalAmount', headerName: 'Notional Amount', cellDataType: 'number', filter: true, sortable: true, resizable: true },
+    { field: 'marketValue', headerName: 'Market Value', cellDataType: 'number', filter: true, sortable: true, resizable: true },
+    { field: 'currentPrice', headerName: 'Current Price', cellDataType: 'number', filter: true, sortable: true, resizable: true },
     // P&L
-    { field: 'pnl', headerName: 'PnL', type: 'numericColumn' },
-    { field: 'unrealizedPnl', headerName: 'Unrealized', type: 'numericColumn' },
-    { field: 'realizedPnl', headerName: 'Realized', type: 'numericColumn' },
-    { field: 'dailyPnl', headerName: 'Daily', type: 'numericColumn' },
-    { field: 'mtdPnl', headerName: 'MTD', type: 'numericColumn' },
-    { field: 'ytdPnl', headerName: 'YTD', type: 'numericColumn' },
+    { field: 'pnl', headerName: 'Pnl', cellDataType: 'number', filter: true, sortable: true, resizable: true },
+    { field: 'unrealizedPnl', headerName: 'Unrealized Pnl', cellDataType: 'number', filter: true, sortable: true, resizable: true },
+    { field: 'realizedPnl', headerName: 'Realized Pnl', cellDataType: 'number', filter: true, sortable: true, resizable: true },
+    { field: 'dailyPnl', headerName: 'Daily Pnl', cellDataType: 'number', filter: true, sortable: true, resizable: true },
+    { field: 'mtdPnl', headerName: 'Mtd Pnl', cellDataType: 'number', filter: true, sortable: true, resizable: true },
+    { field: 'ytdPnl', headerName: 'Ytd Pnl', cellDataType: 'number', filter: true, sortable: true, resizable: true },
+    // Yield & spread
+    { field: 'yield', headerName: 'Yield', cellDataType: 'number', filter: true, sortable: true, resizable: true },
+    { field: 'spread', headerName: 'Spread', cellDataType: 'number', filter: true, sortable: true, resizable: true },
     // Rate risk
-    { field: 'dv01', headerName: 'DV01', type: 'numericColumn' },
-    { field: 'pv01', headerName: 'PV01', type: 'numericColumn' },
+    { field: 'dv01', headerName: 'Dv01', cellDataType: 'number', filter: true, sortable: true, resizable: true },
+    { field: 'pv01', headerName: 'Pv01', cellDataType: 'number', filter: true, sortable: true, resizable: true },
+    { field: 'cs01', headerName: 'Cs01', cellDataType: 'number', filter: true, sortable: true, resizable: true },
+    // Agency ratings (nested `rating` object → auto valueGetter for dot-paths)
+    { field: 'rating.moody', headerName: 'Moody', cellDataType: 'text', filter: true, sortable: true, resizable: true },
+    { field: 'rating.sp', headerName: 'Sp', cellDataType: 'text', filter: true, sortable: true, resizable: true },
+    { field: 'rating.fitch', headerName: 'Fitch', cellDataType: 'text', filter: true, sortable: true, resizable: true },
   ],
 };
 

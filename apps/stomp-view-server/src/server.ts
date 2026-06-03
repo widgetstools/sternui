@@ -46,6 +46,7 @@ export async function startServer(config: AppConfig): Promise<void> {
               optionalSendHeaders: [
                 "snapshot-rows",
                 "row-count (alias)",
+                "updates-per-tick",
               ],
               historicalTrigger:
                 "Subscribe /snapshot/positions/{clientId}/{asOfDate}; SEND /snapshot/positions/{clientId}/{asOfDate}[/{batchSize}] — snapshot only",
@@ -104,5 +105,8 @@ export async function startServer(config: AppConfig): Promise<void> {
   console.log(`WebSocket ws://localhost:${config.port}`);
   console.log(
     `Snapshot rows: default ${config.defaultSnapshotRows} (range ${config.minSnapshotRows}–${config.maxSnapshotRows}); optional STOMP header snapshot-rows on SEND`,
+  );
+  console.log(
+    `Live updates/tick: default ${config.liveUpdatesPerTick} (env UPDATES_PER_TICK; optional STOMP header updates-per-tick on SEND) — aggregate rows/sec ≈ rate × this`,
   );
 }

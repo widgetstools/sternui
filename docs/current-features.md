@@ -523,7 +523,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `StompFields` — broker URL, login, subscribe topics, parsing
 - `MockFields` — seed data, latency, mutation playback
 - `AppDataFields` — read from `@starui/host-data` AppData
-- `BehaviourFields` — per-transport behaviour knobs; STOMP: reconnect initial delay, realtime throttle (ms) + conflate-by-key, snapshot chunk size (all written to `cfg`, also settable in code)
+- `BehaviourFields` — per-transport behaviour knobs; STOMP: reconnect initial delay, realtime throttle (on/off switch + ms) + conflation (on/off switch + conflate-by-key), snapshot chunk size (all written to `cfg`, also settable in code)
 
 #### Hosted integration (legacy)
 
@@ -1025,7 +1025,7 @@ Per-renderer config types (`PillRendererConfig`,
   - Snapshot phase → `snapshotEndToken` → buffered `{ rowsReceived }` progress, then chunked cache replace
   - Live phase → keyed deltas via `applyTransactionAsync`
   - Snapshot flush chunking (`cfg.snapshotChunkSize`, default `SNAPSHOT_CHUNK_SIZE = 500`) to stay under 50 ms long-task budget — configurable in code or the provider editor
-  - Live conflation + trailing-edge throttle (`cfg.throttleMs` window; `cfg.conflateByKey` upsert key, defaults to `keyColumn`) via `bufferedDispatch()` — coalesces same-key ticks in the worker before fanout; `throttleMs` unset = immediate passthrough; probe path bypasses it
+  - Live conflation + trailing-edge throttle (`cfg.throttleMs` window; `cfg.conflateByKey` upsert key, defaults to `keyColumn`) via `bufferedDispatch()` — coalesces same-key ticks in the worker before fanout; `throttleMs` unset = immediate passthrough; probe path bypasses it. Two explicit master switches (default ON): `cfg.throttleEnabled: false` fans out every delta immediately while keeping the `throttleMs` value; `cfg.conflateEnabled: false` disables conflation even when `keyColumn` could supply a key (the off-switch the `?? keyColumn` fallback otherwise prevented)
   - Restart overlay (`extra`) for historical `asOfDate`
   - `probeStomp()` — one-shot Test Connection probe
 - **REST** (`startRest()`)

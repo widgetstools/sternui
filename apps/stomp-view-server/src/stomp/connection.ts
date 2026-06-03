@@ -1,11 +1,12 @@
 import type { WebSocket } from "ws";
 import type { AppConfig } from "../config.js";
-import { clampSnapshotRows } from "../config.js";
+import { clampSnapshotRows, clampUpdatesPerTick } from "../config.js";
 import type { PositionRecord, TradeRecord } from "../data/fiRecords.js";
 import { buildSnapshot, stampPositionsAsOfDate } from "../data/fiRecords.js";
 import { mutatePosition, mutateTrade } from "../data/mutate.js";
 import * as protocol from "../protocol/contract.js";
 import { hashString } from "../util/hash.js";
+import { pickDistinctIndices } from "../util/sample.js";
 
 export interface Subscription {
   destination: string;
@@ -184,9 +185,19 @@ export class StompConnection {
     return clampSnapshotRows(this.config, Number.isFinite(n) ? n : undefined);
   }
 
+  private parseUpdatesPerTick(headers: Record<string, string>): number {
+    const raw = headerCI(headers, protocol.HEADER_UPDATES_PER_TICK);
+    if (raw === undefined) return this.config.liveUpdatesPerTick;
+    const n = Number.parseInt(raw, 10);
+    return clampUpdatesPerTick(
+      Number.isFinite(n) ? n : this.config.liveUpdatesPerTick,
+    );
+  }
+
   private handleSend(headers: Record<string, string>, body: string): void {
     const destination = headers.destination ?? "";
     const rowCount = this.parseSnapshotRows(headers);
+    const updatesPerTick = this.parseUpdatesPerTick(headers);
     const requestString =
       body && body.startsWith("/snapshot/") ? body : destination;
 
@@ -253,6 +264,7 @@ export class StompConnection {
           batchSize,
           subscription,
           rowCount,
+          updatesPerTick,
         );
       } else {
         if (this.config.debug)
@@ -293,6 +305,7 @@ export class StompConnection {
           subscription,
           rowCount,
           seedBase,
+          updatesPerTick,
         );
       } else if (this.config.debug) {
         console.log(`No subscription for ${generic}`);
@@ -311,6 +324,7 @@ export class StompConnection {
     subscription: Subscription,
     rowCount: number,
     seedBase: number,
+    updatesPerTick: number,
   ): void {
     const data = buildSnapshot(dataType, rowCount, seedBase);
     let index = 0;
@@ -329,7 +343,13 @@ export class StompConnection {
             },
             protocol.legacySnapshotCompleteText(data.length, dataType),
           );
-          this.startLiveUpdates(dataType, rate, subscription, delivered);
+          this.startLiveUpdates(
+            dataType,
+            rate,
+            subscription,
+            delivered,
+            updatesPerTick,
+          );
           return;
         }
 
@@ -431,11 +451,33 @@ export class StompConnection {
     sendBatch();
   }
 
+  /**
+   * Mutate up to `updatesPerTick` distinct rows drawn from `records`, returning
+   * a fresh batch. Shared by the legacy and client-specific live loops so both
+   * emit one frame carrying N rows instead of one row per frame.
+   */
+  private buildLiveBatch(
+    dataType: "positions" | "trades",
+    records: (PositionRecord | TradeRecord)[],
+    updatesPerTick: number,
+  ): (PositionRecord | TradeRecord)[] {
+    if (records.length === 0) return [];
+    const n = Math.min(updatesPerTick, records.length);
+    const indices = pickDistinctIndices(n, records.length);
+    return indices.map((i) => {
+      const base = records[i]!;
+      return dataType === "positions"
+        ? mutatePosition(base as PositionRecord)
+        : mutateTrade(base as TradeRecord);
+    });
+  }
+
   private startLiveUpdates(
     dataType: "positions" | "trades",
     rate: number,
     subscription: Subscription,
     deliveredRecords: (PositionRecord | TradeRecord)[],
+    updatesPerTick: number,
   ): void {
     const intervalMs = 1000 / rate;
     let updateNumber = 1;
@@ -446,14 +488,12 @@ export class StompConnection {
           clearInterval(updateInterval);
           return;
         }
-        const idx = Math.floor(Math.random() * deliveredRecords.length);
-        const base = deliveredRecords[idx];
-        if (!base) return;
-
-        const update =
-          dataType === "positions"
-            ? mutatePosition(base as PositionRecord)
-            : mutateTrade(base as TradeRecord);
+        const batch = this.buildLiveBatch(
+          dataType,
+          deliveredRecords,
+          updatesPerTick,
+        );
+        if (batch.length === 0) return;
 
         this.send(
           "MESSAGE",
@@ -464,15 +504,18 @@ export class StompConnection {
             [protocol.HEADER.CONTENT_TYPE]: "application/json",
             [protocol.HEADER.MESSAGE_TYPE]: protocol.MESSAGE_TYPE.LIVE_UPDATE,
           },
-          JSON.stringify([update]),
+          JSON.stringify(batch),
         );
 
         if (this.config.debug && updateNumber <= 3) {
+          const first = batch[0]!;
           const rid =
             dataType === "positions"
-              ? (update as PositionRecord).positionId
-              : (update as TradeRecord).tradeId;
-          console.log(`live update #${updateNumber} ${dataType} ${rid}`);
+              ? (first as PositionRecord).positionId
+              : (first as TradeRecord).tradeId;
+          console.log(
+            `live update #${updateNumber} ${dataType} ${batch.length} row(s) (e.g. ${rid})`,
+          );
         }
         updateNumber++;
       } catch (err) {
@@ -490,6 +533,7 @@ export class StompConnection {
     batchSize: number,
     subscription: Subscription,
     rowCount: number,
+    updatesPerTick: number,
   ): void {
     const seedBase = hashString(`${clientId}-${dataType}`);
     const data = buildSnapshot(dataType, rowCount, seedBase);
@@ -523,6 +567,7 @@ export class StompConnection {
             rate,
             subscription,
             deliveredRecords,
+            updatesPerTick,
           );
           return;
         }
@@ -565,6 +610,7 @@ export class StompConnection {
     rate: number,
     subscription: Subscription,
     deliveredRecords: (PositionRecord | TradeRecord)[],
+    updatesPerTick: number,
   ): void {
     let updateNumber = 1;
     const streamKey = `${dataType}-${clientId}`;
@@ -576,16 +622,12 @@ export class StompConnection {
           clearInterval(updateInterval);
           return;
         }
-        const base =
-          deliveredRecords[
-            Math.floor(Math.random() * deliveredRecords.length)
-          ];
-        if (!base) return;
-
-        const update =
-          dataType === "positions"
-            ? mutatePosition(base as PositionRecord)
-            : mutateTrade(base as TradeRecord);
+        const batch = this.buildLiveBatch(
+          dataType,
+          deliveredRecords,
+          updatesPerTick,
+        );
+        if (batch.length === 0) return;
 
         this.send(
           "MESSAGE",
@@ -598,7 +640,7 @@ export class StompConnection {
             [protocol.HEADER.CLIENT_ID]: clientId,
             [protocol.HEADER.UPDATE_NUMBER]: String(updateNumber),
           },
-          JSON.stringify([update]),
+          JSON.stringify(batch),
         );
 
         updateNumber++;

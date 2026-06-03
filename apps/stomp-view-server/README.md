@@ -35,22 +35,24 @@ Matches `stomp-server/protocolContract.js`:
 - Trigger (historical positions, snapshot only): `/snapshot/positions/{clientId}/{asOfDate}[/{batchSize}]` — subscribe to the same path **without** `{batchSize}`; `asOfDate` is `YYYY-MM-DD` or `YYYYMMDD`; every row gets that `asOfDate`; **no live updates** after completion
 - Snapshot batches: `content-type:application/json`, `message-type:snapshot` (legacy path includes these)
 - Completion: body starts with `Success: All …`
-- Live: JSON array of one row, `message-type:live-update`
+- Live: JSON array of one-or-more rows, `message-type:live-update` (row count per frame = `updates-per-tick`, default 1)
 
 ## Extension (optional)
 
-Clients **that want a configurable snapshot size** (1k–20k by default env bounds) may add a STOMP header on the **SEND** frame:
+Clients may add optional STOMP headers on the **SEND** frame:
 
-- `snapshot-rows: 15000`  
-- Alias: `row-count`
+- **Snapshot size** (1k–20k by default env bounds): `snapshot-rows: 15000` — alias `row-count`.
+- **Live frequency** — `updates-per-tick: 100` mutates that many distinct rows and ships them in **one** live-update frame. Aggregate rows/sec ≈ `rate × updates-per-tick` (rate is the trigger segment, e.g. `/1000/`). Default `1` (one row per frame, original behaviour). Falls back to the `UPDATES_PER_TICK` env default when omitted.
 
-Existing clients that omit this header keep prior behavior with server defaults.
+Existing clients that omit these headers keep prior behavior with server defaults.
+
+> **Tuning note.** Per-*row* update frequency = `rate × updates-per-tick ÷ snapshot-rows`. With the defaults (`rate=1000`, `updates-per-tick=1`, `snapshot-rows=20000`) any single row changes only ~once per 20s. Node also can't sustain a true 1000 timers/sec at a 1ms interval, so prefer a **moderate rate with a large `updates-per-tick`** (e.g. `rate=30`, `updates-per-tick=200` → ~6,000 rows/sec across 30 fat frames) rather than a very high rate with one row per frame.
 
 Example (stompjs):
 
 ```javascript
-// Live snapshot + updates
-client.send('/snapshot/positions/TRADER001/1000/50', { 'snapshot-rows': '4000' }, '');
+// Live snapshot + updates — 100 rows mutated per live frame
+client.send('/snapshot/positions/TRADER001/1000/50', { 'snapshot-rows': '4000', 'updates-per-tick': '100' }, '');
 
 // Historical positions for one as-of date (snapshot only)
 // Subscribe: /snapshot/positions/TRADER001/2024-05-28
@@ -66,6 +68,7 @@ client.send('/snapshot/positions/TRADER001/2024-05-28/50', { 'snapshot-rows': '4
 | `DEFAULT_SNAPSHOT_ROWS` | `20000` |
 | `MIN_SNAPSHOT_ROWS` | `1000` |
 | `MAX_SNAPSHOT_ROWS` | `20000` |
+| `UPDATES_PER_TICK` | `1` — distinct rows mutated + sent per live frame; overridable per-SEND via the `updates-per-tick` header |
 | `DEBUG` | unset (`1` / `true` for verbose logs) |
 | `LOG_OUTBOUND` | `1` by default; set to `0` or `false` to stop printing each outbound **MESSAGE** body |
 | `LOG_LIVE_EVERY` | `1` = log every live-update message; use `50` or `100` at high msg/sec to reduce noise |

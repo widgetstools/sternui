@@ -567,11 +567,18 @@ function installApp(appDir, depsToRefresh) {
     log(`install: ${relative(REPO_ROOT, appDir)} — skipped (--no-install)`);
     return;
   }
+  // Clear BOTH the app-local copy (standalone non-workspace consumers) and
+  // the repo-root hoisted copy (workspace-member apps resolve @starui/* from
+  // the root node_modules). Without removing the hoisted copy, npm reports
+  // "up to date" and never re-extracts the new tarball content — its file:
+  // tarball handling does not reliably detect a content change.
   for (const dep of depsToRefresh) {
-    const path = join(appDir, 'node_modules', dep);
-    if (existsSync(path)) {
-      if (args.dryRun) log(`  would remove: node_modules/${dep}`);
-      else rmSync(path, { recursive: true, force: true });
+    for (const base of [appDir, REPO_ROOT]) {
+      const path = join(base, 'node_modules', dep);
+      if (existsSync(path)) {
+        if (args.dryRun) log(`  would remove: ${relative(REPO_ROOT, path) || dep}`);
+        else rmSync(path, { recursive: true, force: true });
+      }
     }
   }
   const viteCache = join(appDir, 'node_modules', '.vite');
@@ -728,6 +735,12 @@ function main() {
     else mkdirSync(LIBS_DIR, { recursive: true });
   }
 
+  // When `--refresh-lockfile` clears drift, the regen must run AFTER packing:
+  // regenerating now (while the referenced tarballs are still missing) makes
+  // `npm install` write degenerate nodes (version-only, no resolved/integrity)
+  // that resolve to the registry and fail with ETARGET. Deferred to the
+  // end-of-run lockfile step below.
+  let refreshLockfilePending = false;
   if (!args.skipDriftCheck) {
     const drift = detectLockfileDrift();
     if (drift.length > 0) {
@@ -735,8 +748,10 @@ function main() {
       for (const d of drift) {
         log(`  - ${d.file} (${d.reason === 'missing' ? 'missing' : 'sha512 mismatch'})`);
       }
-      if (args.refreshLockfile) refreshRootLockfile();
-      else {
+      if (args.refreshLockfile) {
+        refreshLockfilePending = true;
+        log('lockfile: will regenerate package-lock.json after packing (referenced tarballs missing now)');
+      } else {
         die(
           'package-lock.json is stale relative to libs/. Re-run with `--refresh-lockfile`\n'
           + '       or `--skip-drift-check` to bypass.',
@@ -817,7 +832,13 @@ function main() {
     }
   }
 
-  if (Object.keys(updates).length > 0) syncRootLockfile();
+  if (refreshLockfilePending) {
+    // Tarballs now exist and app package.json file: refs are rewritten, so a
+    // clean regen writes correct resolved/integrity nodes for every bucket.
+    refreshRootLockfile();
+  } else if (Object.keys(updates).length > 0) {
+    syncRootLockfile();
+  }
 
   if (args.gc) {
     gcOrphanedTarballs(manifest, appPkgPaths);

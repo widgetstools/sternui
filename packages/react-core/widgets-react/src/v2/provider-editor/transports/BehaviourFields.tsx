@@ -20,6 +20,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Switch,
 } from '@starui/ui';
 import type { ProviderConfig, StompProviderConfig } from '@starui/shared-types';
 
@@ -51,6 +52,9 @@ function conflateFieldOptions(cfg: StompProviderConfig): string[] {
 
 function StompBehaviour({ cfg, onChange }: { cfg: StompProviderConfig; onChange(next: Partial<StompProviderConfig>): void }) {
   const fieldOptions = conflateFieldOptions(cfg);
+  // Both default ON: undefined / true → enabled, only explicit false disables.
+  const throttleEnabled = cfg.throttleEnabled !== false;
+  const conflateEnabled = cfg.conflateEnabled !== false;
   return (
     <section className="rounded-lg border border-border bg-muted/30 p-4 space-y-5 max-w-md">
       {/* Reconnect */}
@@ -80,6 +84,16 @@ function StompBehaviour({ cfg, onChange }: { cfg: StompProviderConfig; onChange(
       <div className="space-y-3.5">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Realtime updates</h3>
         <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="throttleEnabled"
+              checked={throttleEnabled}
+              onCheckedChange={(v) => onChange({ throttleEnabled: v })}
+            />
+            <Label htmlFor="throttleEnabled" className="text-xs font-medium text-muted-foreground">
+              Throttle updates
+            </Label>
+          </div>
           <Label className="text-xs font-medium text-muted-foreground">Throttle (ms)</Label>
           <Input
             type="number"
@@ -87,6 +101,7 @@ function StompBehaviour({ cfg, onChange }: { cfg: StompProviderConfig; onChange(
             min={0}
             max={10_000}
             step={50}
+            disabled={!throttleEnabled}
             value={cfg.throttleMs ?? 0}
             onChange={(e) => {
               const v = Number(e.target.value) || 0;
@@ -95,13 +110,25 @@ function StompBehaviour({ cfg, onChange }: { cfg: StompProviderConfig; onChange(
           />
           <p className="text-[11px] text-muted-foreground">
             Coalesce live deltas into a trailing-edge burst every N ms. 0 = immediate
-            (no batching). Conflation below only applies when this is set.
+            (no batching). Turn the switch off to fan out every delta immediately while
+            keeping this value. Conflation below only applies when throttling is on.
           </p>
         </div>
         <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="conflateEnabled"
+              checked={conflateEnabled}
+              onCheckedChange={(v) => onChange({ conflateEnabled: v })}
+            />
+            <Label htmlFor="conflateEnabled" className="text-xs font-medium text-muted-foreground">
+              Conflate updates
+            </Label>
+          </div>
           <Label className="text-xs font-medium text-muted-foreground">Conflate by key</Label>
           <Select
             value={cfg.conflateByKey ?? CONFLATE_NONE}
+            disabled={!conflateEnabled}
             onValueChange={(v) => onChange({ conflateByKey: v === CONFLATE_NONE ? undefined : v })}
           >
             <SelectTrigger className="h-8 text-sm">
@@ -116,7 +143,8 @@ function StompBehaviour({ cfg, onChange }: { cfg: StompProviderConfig; onChange(
           </Select>
           <p className="text-[11px] text-muted-foreground">
             Within each throttle window, collapse repeated updates for the same key to
-            the latest. Defaults to the provider's key column when left unset.
+            the latest. Defaults to the provider's key column when left unset. Turn the
+            switch off to deliver every update even when a key column exists.
           </p>
         </div>
       </div>
