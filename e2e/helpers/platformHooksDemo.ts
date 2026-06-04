@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 
-/** Matches `apps/workspace/platform-hooks-demo/vite.config.ts`. */
+/** Matches `apps/demos/platform-hooks-demo/vite.config.ts`. */
 export const PLATFORM_HOOKS_DEMO_URL = 'http://localhost:5214';
 export const HOOKS_DEMO_GRID_ID = 'hooks-demo-blotter';
 

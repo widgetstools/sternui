@@ -86,12 +86,12 @@ const ALLOW_PATHS = [
   'packages/react-core/widgets-react/src/hosted/__tests__/useColorLinking.test.tsx',
   'packages/react-core/widgets-react/src/hosted/useColorLinking.ts',
   // --- Demo app profile/fixture data files ---
-  'apps/tarball/demo-react/src/showcaseProfile.ts',
-  'apps/tarball/demo-react/src/nestedFixtures.ts',
-  'apps/tarball/demo-configservice-react/src/showcaseProfile.ts',
-  'apps/tarball/demo-angular/src/app/services/trading-data.service.ts',
-  'apps/tarball/demo-angular/src/app/widgets/design-system.widget.ts',
-  'apps/tarball/demo-angular/src/app/app.ts',
+  'apps/demos/demo-react/src/showcaseProfile.ts',
+  'apps/demos/demo-react/src/nestedFixtures.ts',
+  'apps/demos/demo-configservice-react/src/showcaseProfile.ts',
+  'apps/demos/demo-angular/src/app/services/trading-data.service.ts',
+  'apps/demos/demo-angular/src/app/widgets/design-system.widget.ts',
+  'apps/demos/demo-angular/src/app/app.ts',
 ];
 
 function walk(dir: string, root: string, out: string[]): void {

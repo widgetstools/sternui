@@ -10,12 +10,8 @@
  *   npm run sync:app-deps -- demo-react
  */
 
-import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { basename, dirname, join, relative, sep } from 'node:path';
-
-const require = createRequire(import.meta.url);
-const { isTarballTrack, isWorkspaceTrack } = require('./app-tracks.cjs');
 
 const REPO_ROOT = join(import.meta.dirname, '..');
 const LIBS_DIR = join(REPO_ROOT, 'libs');
@@ -137,9 +133,8 @@ function syncApp(appPkgPath, manifest, memberIndex) {
 const filterNames = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const manifest = readManifest();
 const memberIndex = buildMemberIndex(manifest);
-/** Tarball + workspace apps both list file:libs/*.tgz (workspace uses STARUI_DEV_SOURCE only at dev). */
+/** Every demo app lists file:libs/*.tgz; source mode overrides via STARUI_DEV_SOURCE at dev/build. */
 const apps = findAppPackageJsons()
-  .filter((p) => isTarballTrack(p) || isWorkspaceTrack(p))
   .filter((p) => matchesFilter(p, filterNames));
 
 let changedApps = 0;

@@ -58,7 +58,7 @@ It mirrors the patterns used in `apps/markets-ui-react-reference`, `apps/demo-ap
 | Node.js 20+ | Same as the monorepo |
 | npm 10 | Workspace installs use plain `npm ci` |
 | StarUI packages | In-monorepo: workspace `"*"` deps. External app: run `npm run propagate` and install tarballs from `libs/` (see [README](../README.md)) |
-| STOMP endpoint | Local dev: `apps/tarball/stomp-view-server` on **`ws://localhost:8081`** (`npm run dev:stomp` from repo root) |
+| STOMP endpoint | Local dev: `apps/demos/stomp-view-server` on **`ws://localhost:8081`** (`npm run dev:stomp` from repo root) |
 
 ---
 
@@ -136,7 +136,7 @@ Set theme on `<html data-theme="dark">` or `"light"`.
 ### External consumer
 
 1. Run `npm run propagate` in the StarUI monorepo.
-2. Point `"dependencies"` at `file:../../libs/starui-*-*.tgz` (see `apps/tarball/demo-react/package.json`).
+2. Point `"dependencies"` at `file:../../libs/starui-*-*.tgz` (see `apps/demos/demo-react/package.json`).
 3. Copy the Vite config pattern above, adjusting the path to `staruiConsumerVite.mjs` or inlining aliases from `scripts/staruiConsumerAliases.mjs`.
 
 ---
@@ -171,7 +171,7 @@ export async function initPlatformBootstrap() {
 
 SharedWorker name: `mkt-data-services:${config.appId}`.
 
-Reference: `apps/workspace/stomp/src/platformBootstrap.ts`, `apps/workspace/markets-grid-lab/src/platformBootstrap.ts`.
+Reference: `apps/demos/stomp/src/platformBootstrap.ts`, `apps/demos/markets-grid-lab/src/platformBootstrap.ts`.
 
 ---
 
@@ -235,7 +235,7 @@ npm run dev:stomp
 # WebSocket: ws://localhost:8081
 ```
 
-Protocol (from `apps/tarball/stomp-view-server/README.md`):
+Protocol (from `apps/demos/stomp-view-server/README.md`):
 
 - **Subscribe:** `/snapshot/positions/{clientId}`
 - **Trigger snapshot:** SEND to `/snapshot/positions/{clientId}/{rateMs}[/{batchSize}]`
@@ -402,7 +402,7 @@ connect(websocketUrl)
 
 ### Lower-level: raw `MarketsGrid` + `useDataProvider`
 
-For a minimal panel without Hosted shell (see `apps/workspace/mockdata-provider`):
+For a minimal panel without Hosted shell (see `apps/demos/mockdata-provider`):
 
 ```tsx
 import { useEffect, useState } from 'react';
@@ -481,15 +481,15 @@ Checklist:
 
 | App | What it demonstrates |
 |---|---|
-| `apps/workspace/stomp-marketsgrid-minimal` | Smallest STOMP + `HostedMarketsGrid` path (Scenario A) |
-| `apps/workspace/platform-hooks-demo` | AppData bootstrap + grid event callbacks (mock, no broker) |
-| `apps/workspace/stomp` | STOMP tutorial with `platformBootstrap.ts` + `DataHubProvider` |
-| `apps/workspace/markets-grid-lab` | Feature lab with platform bootstrap pilot |
+| `apps/demos/stomp-marketsgrid-minimal` | Smallest STOMP + `HostedMarketsGrid` path (Scenario A) |
+| `apps/demos/platform-hooks-demo` | AppData bootstrap + grid event callbacks (mock, no broker) |
+| `apps/demos/stomp` | STOMP tutorial with `platformBootstrap.ts` + `DataHubProvider` |
+| `apps/demos/markets-grid-lab` | Feature lab with platform bootstrap pilot |
 | `apps/markets-ui-react-reference` | Production-style OpenFin `HostedMarketsGrid` (legacy bootstrap being migrated) |
 | `apps/demo-apps/dataprovider-editor-starui-app` | `DataProviderEditor` + two `HostedMarketsGrid` panels |
 | `apps/demo-apps/mockdata-provider-starui-app` | Lower-level `useProviderStream` + raw `MarketsGrid` (Mock transport; same hub protocol) |
 | `apps/my-stomp-app` | End-to-end sample from this guide — seeded STOMP provider + `HostedMarketsGrid` + editor |
-| `apps/tarball/stomp-view-server` | Local STOMP broker for development |
+| `apps/demos/stomp-view-server` | Local STOMP broker for development |
 
 ---
 
@@ -518,4 +518,4 @@ my-stomp-app/
 - [MarketsGrid Usage Guide](./MARKETSGRID_USAGE_GUIDE.md) — scenarios, customizer UI, persistence
 - [Platform hooks demo guide](./guides/platform-hooks-demo.md) — AppData + grid event bindings
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — package layers and import rules
-- [apps/tarball/stomp-view-server/README.md](../apps/tarball/stomp-view-server/README.md) — STOMP protocol details
+- [apps/demos/stomp-view-server/README.md](../apps/demos/stomp-view-server/README.md) — STOMP protocol details

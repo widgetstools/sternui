@@ -13,7 +13,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  *   - `join` / `leave` / `broadcast` resolve immediately
  *   - `addContextListener` returns a noop cleanup
  *
- * so call sites compile and run inside `apps/tarball/demo-react` and any other
+ * so call sites compile and run inside `apps/demos/demo-react` and any other
  * non-FDC3 host without conditional branches.
  */
 

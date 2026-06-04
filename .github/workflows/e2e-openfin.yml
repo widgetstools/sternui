@@ -1,6 +1,6 @@
 name: E2E (OpenFin)
 
-# Runs the @starui/e2e-openfin harness against apps/tarball/e2e-openfin-workspace.
+# Runs the @starui/e2e-openfin harness against apps/demos/e2e-openfin-workspace.
 # The harness uses @openfin/node-adapter to spawn the OpenFin runtime
 # and Playwright (chromium.connectOverCDP) to drive the views.
 #
@@ -13,8 +13,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'apps/tarball/e2e-openfin-workspace/**'
-      - 'apps/tarball/markets-ui-react-reference/**'
+      - 'apps/demos/e2e-openfin-workspace/**'
+      - 'apps/demos/markets-ui-react-reference/**'
       - 'e2e-openfin/**'
       - 'packages/openfin/**'
       - 'tools/scripts/launch-openfin.mjs'
@@ -23,8 +23,8 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'apps/tarball/e2e-openfin-workspace/**'
-      - 'apps/tarball/markets-ui-react-reference/**'
+      - 'apps/demos/e2e-openfin-workspace/**'
+      - 'apps/demos/markets-ui-react-reference/**'
       - 'e2e-openfin/**'
       - 'packages/openfin/**'
       - 'tools/scripts/launch-openfin.mjs'

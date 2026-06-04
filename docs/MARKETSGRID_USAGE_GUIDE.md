@@ -92,18 +92,18 @@ Identity (`appId`, `userId`) is **deployment-wide** — from `public/app-config.
 
 | # | Scenario | Entry component | Hub | Example app |
 |---|----------|-----------------|-----|-------------|
-| A | **Minimal browser STOMP blotter** | `HostedMarketsGrid` | Yes | `apps/workspace/stomp-marketsgrid-minimal` |
-| B | **Browser STOMP + OpenFin option** | `HostedMarketsGrid` | Yes | `apps/workspace/demo-stomp-markets-grid` |
-| C | **Provider editor + dual grids** | `HostedMarketsGrid` ×2 | Yes | `apps/workspace/dataprovider-editor` |
-| D | **STOMP tutorial (workspace tarballs)** | `HostedMarketsGrid` | Yes | `apps/workspace/stomp` |
-| E | **OpenFin workspace blotter** | `HostedMarketsGrid` | Yes | `apps/tarball/e2e-openfin-workspace` |
-| F | **OpenFin production reference** | `HostedMarketsGrid` | Yes | `apps/tarball/markets-ui-react-reference` |
-| G | **E2E browser modes** | `HostedMarketsGrid` / standalone | Optional | `apps/tarball/e2e-browser-blotter` |
-| H | **Grid feature lab (static rows)** | `MarketsGrid` | No | `apps/workspace/markets-grid-lab` |
-| H2 | **Basic tutorial (localStorage)** | `MarketsGrid` | No | `apps/workspace/basic` |
-| I | **Mock provider + hub** | `HostedMarketsGrid` | Yes | `apps/workspace/mockdata-provider` |
-| J | **REST config service** | `HostedMarketsGrid` | Yes | `apps/tarball/demo-configservice-react` |
-| K | **Platform hooks (AppData + grid events)** | `MarketsGridContainer` | Yes | `apps/workspace/platform-hooks-demo` |
+| A | **Minimal browser STOMP blotter** | `HostedMarketsGrid` | Yes | `apps/demos/stomp-marketsgrid-minimal` |
+| B | **Browser STOMP + OpenFin option** | `HostedMarketsGrid` | Yes | `apps/demos/demo-stomp-markets-grid` |
+| C | **Provider editor + dual grids** | `HostedMarketsGrid` ×2 | Yes | `apps/demos/dataprovider-editor` |
+| D | **STOMP tutorial (workspace tarballs)** | `HostedMarketsGrid` | Yes | `apps/demos/stomp` |
+| E | **OpenFin workspace blotter** | `HostedMarketsGrid` | Yes | `apps/demos/e2e-openfin-workspace` |
+| F | **OpenFin production reference** | `HostedMarketsGrid` | Yes | `apps/demos/markets-ui-react-reference` |
+| G | **E2E browser modes** | `HostedMarketsGrid` / standalone | Optional | `apps/demos/e2e-browser-blotter` |
+| H | **Grid feature lab (static rows)** | `MarketsGrid` | No | `apps/demos/markets-grid-lab` |
+| H2 | **Basic tutorial (localStorage)** | `MarketsGrid` | No | `apps/demos/basic` |
+| I | **Mock provider + hub** | `HostedMarketsGrid` | Yes | `apps/demos/mockdata-provider` |
+| J | **REST config service** | `HostedMarketsGrid` | Yes | `apps/demos/demo-configservice-react` |
+| K | **Platform hooks (AppData + grid events)** | `MarketsGridContainer` | Yes | `apps/demos/platform-hooks-demo` |
 
 ---
 
@@ -111,7 +111,7 @@ Identity (`appId`, `userId`) is **deployment-wide** — from `public/app-config.
 
 **Goal:** smallest path from zero to live STOMP rows. No provider editor UI.
 
-**Reference:** `apps/workspace/stomp-marketsgrid-minimal`
+**Reference:** `apps/demos/stomp-marketsgrid-minimal`
 
 ### Boot sequence
 
@@ -160,7 +160,7 @@ void bootstrap().then(({ config, platform }) => {
 
 **Goal:** same hub path as A, with optional OpenFin launch and richer demo shell.
 
-**Reference:** `apps/workspace/demo-stomp-markets-grid`
+**Reference:** `apps/demos/demo-stomp-markets-grid`
 
 Same bootstrap + `HostedMarketsGrid` pattern. May include tabs, help copy, and `npm run openfin` for platform manifest testing.
 
@@ -170,7 +170,7 @@ Same bootstrap + `HostedMarketsGrid` pattern. May include tabs, help copy, and `
 
 **Goal:** author providers in UI; run two independent grids on one SharedWorker hub.
 
-**Reference:** `apps/workspace/dataprovider-editor`
+**Reference:** `apps/demos/dataprovider-editor`
 
 ### Layout pattern
 
@@ -198,7 +198,7 @@ When `HostedMarketsGrid` sits inside a dock panel (not viewport root), wrap it i
 
 **Goal:** guided STOMP setup with help sheet and seeded provider utilities.
 
-**Reference:** `apps/workspace/stomp`, `apps/tarball/stomp`
+**Reference:** `apps/demos/stomp`, `apps/demos/stomp`
 
 Uses `ensurePlatformReady` + `DataHubProvider` + `PositionsBlotter.tsx` rendering `HostedMarketsGrid`. Good middle ground between minimal and dataprovider-editor complexity.
 
@@ -208,7 +208,7 @@ Uses `ensurePlatformReady` + `DataHubProvider` + `PositionsBlotter.tsx` renderin
 
 **Goal:** MarketsGrid as an OpenFin **view** inside a workspace platform.
 
-**Reference:** `apps/tarball/e2e-openfin-workspace`
+**Reference:** `apps/demos/e2e-openfin-workspace`
 
 ### Differences from plain browser
 
@@ -240,7 +240,7 @@ Manifest view URL typically includes `?view=blotter`. Platform provider view spa
 
 **Goal:** full platform shell (dock, registry, config browser routes).
 
-**Reference:** `apps/tarball/markets-ui-react-reference`
+**Reference:** `apps/demos/markets-ui-react-reference`
 
 Multiple routes render `HostedMarketsGrid` via thin view wrappers (`BlottersMarketsGrid.tsx`). Uses `ensurePlatformReady` + `DataHubProvider` at app root. Study this for multi-blotter production layouts.
 
@@ -248,7 +248,7 @@ Multiple routes render `HostedMarketsGrid` via thin view wrappers (`BlottersMark
 
 ## 10. Scenario G — E2E browser blotter modes
 
-**Reference:** `apps/tarball/e2e-browser-blotter`
+**Reference:** `apps/demos/e2e-browser-blotter`
 
 | Mode | Grid wiring | Purpose |
 |------|-------------|---------|
@@ -263,7 +263,7 @@ Useful when testing attach semantics (`data-status="wired"`) without OpenFin.
 
 **Goal:** exercise MarketsGrid modules (formatting, alerts, profiles, editing) with **static** `rowData`.
 
-**Reference:** `apps/workspace/markets-grid-lab`
+**Reference:** `apps/demos/markets-grid-lab`
 
 ```tsx
 import { MarketsGrid } from '@starui/grid';
@@ -285,7 +285,7 @@ import { MarketsGrid } from '@starui/grid';
 
 **Goal:** synthetic streaming data without external broker.
 
-**Reference:** `apps/workspace/mockdata-provider`
+**Reference:** `apps/demos/mockdata-provider`
 
 Same hub bootstrap as STOMP scenarios. Provider `providerType: 'mock'` in catalog. `HostedMarketsGrid` or `MarketsGridContainer` attaches by id. Ideal for CI, demos offline, and e2e openfin-workspace mock provider.
 
@@ -295,7 +295,7 @@ Same hub bootstrap as STOMP scenarios. Provider `providerType: 'mock'` in catalo
 
 **Goal:** ConfigManager talks to remote REST API (Dexie as cache + pending sync queue).
 
-**Reference:** `apps/tarball/demo-configservice-react`
+**Reference:** `apps/demos/demo-configservice-react`
 
 Set in bootstrap config:
 
@@ -316,7 +316,7 @@ Grids still use `DataHubProvider` + `HostedMarketsGrid`. Provider rows persist v
 
 **Goal:** declarative AppData seeding at hub ready, plus persisted grid event callback bindings — without a STOMP broker.
 
-**Reference:** `apps/workspace/platform-hooks-demo` (port **5214**, `npm run dev:platform-hooks-demo`)
+**Reference:** `apps/demos/platform-hooks-demo` (port **5214**, `npm run dev:platform-hooks-demo`)
 
 ### Two hook tiers
 
@@ -354,7 +354,7 @@ platform = await ensurePlatformReady(config, {
 
 See [`guides/platform-hooks-demo.md`](./guides/platform-hooks-demo.md) for the full checklist and event catalog.
 
-**Compare:** `apps/workspace/stomp-marketsgrid-minimal` now ships optional `gridEventHandlers` + `appDataBootstrap` stubs for console logging — same APIs, STOMP data path.
+**Compare:** `apps/demos/stomp-marketsgrid-minimal` now ships optional `gridEventHandlers` + `appDataBootstrap` stubs for console logging — same APIs, STOMP data path.
 
 ---
 
@@ -505,13 +505,13 @@ import {
 
 | You want… | Start here |
 |-----------|------------|
-| Absolute minimum STOMP grid | `apps/workspace/stomp-marketsgrid-minimal` |
-| STOMP + narrative / OpenFin launch | `apps/workspace/demo-stomp-markets-grid` |
-| Learn provider editor + dual grids | `apps/workspace/dataprovider-editor` |
-| OpenFin view integration test | `apps/tarball/e2e-openfin-workspace` |
-| Full OpenFin platform reference | `apps/tarball/markets-ui-react-reference` |
-| Grid UI features without hub | `apps/workspace/markets-grid-lab` |
-| AppData bootstrap + grid event hooks (mock) | `apps/workspace/platform-hooks-demo` |
+| Absolute minimum STOMP grid | `apps/demos/stomp-marketsgrid-minimal` |
+| STOMP + narrative / OpenFin launch | `apps/demos/demo-stomp-markets-grid` |
+| Learn provider editor + dual grids | `apps/demos/dataprovider-editor` |
+| OpenFin view integration test | `apps/demos/e2e-openfin-workspace` |
+| Full OpenFin platform reference | `apps/demos/markets-ui-react-reference` |
+| Grid UI features without hub | `apps/demos/markets-grid-lab` |
+| AppData bootstrap + grid event hooks (mock) | `apps/demos/platform-hooks-demo` |
 | MCP scaffold from scratch | `@starui/mcp-scaffold` templates `stomp`, `openfin-platform`, `dataprovider-editor` |
 
 ---
@@ -549,7 +549,7 @@ Provider pickers moved out of the primary toolbar into this panel; the toolbar k
 
 Toolbar, filter pills, formatter strip, and customizer controls use **shadcn/ui** primitives (`@starui/ui`) themed via `@starui/design-system` tokens — no native `<input>` / `<button>` in grid chrome.
 
-Try it: `apps/workspace/markets-grid-lab` (all modules) or enable flash colour under Grid Options → DEFAULT COLDEF on any hosted grid.
+Try it: `apps/demos/markets-grid-lab` (all modules) or enable flash colour under Grid Options → DEFAULT COLDEF on any hosted grid.
 
 ---
 

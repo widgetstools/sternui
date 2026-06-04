@@ -53,7 +53,7 @@ jobs:
         run: npm run test:packages
 
   consumer:
-    name: Consumer apps (tarball build + typecheck)
+    name: Consumer apps (installed build + typecheck)
     needs: packages
     runs-on: ubuntu-latest
     steps:
@@ -69,15 +69,15 @@ jobs:
         run: node scripts/propagate.mjs
       - name: Install nested apps workspace
         run: npm run install:apps
-      - name: Build consumer apps (tarball track)
-        run: npm run build:apps-tarball
-      - name: Typecheck consumer apps (tarball track)
-        run: npm run typecheck:apps-tarball
+      - name: Build consumer apps (installed mode)
+        run: npm run build:apps
+      - name: Typecheck consumer apps (installed mode)
+        run: npm run typecheck:apps
       - name: Upload demo-react bundle
         uses: actions/upload-artifact@v4
         with:
           name: demo-react-dist
-          path: apps/tarball/demo-react/dist
+          path: apps/demos/demo-react/dist
           retention-days: 7
           if-no-files-found: warn
 

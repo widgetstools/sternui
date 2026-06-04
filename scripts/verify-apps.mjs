@@ -14,12 +14,12 @@ import { setTimeout as sleep } from 'node:timers/promises';
 const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 const VITE_APPS = [
-  ['@starui/demo-react-workspace', 5190],
-  ['@starui/demo-configservice-react-workspace', 5191],
-  ['@starui/markets-ui-react-reference-workspace', 5174],
-  ['@starui/tutorial-basic-workspace', 5194],
-  ['@starui/tutorial-mockdata-provider-workspace', 5192],
-  ['@starui/tutorial-dataprovider-editor-workspace', 5193],
+  ['@starui/demo-react', 5190],
+  ['@starui/demo-configservice-react', 5191],
+  ['@starui/markets-ui-react-reference', 5174],
+  ['@starui/tutorial-basic', 5194],
+  ['@starui/tutorial-mockdata-provider', 5192],
+  ['@starui/tutorial-dataprovider-editor', 5193],
 ];
 
 const flags = new Set(process.argv.slice(2).filter((a) => a.startsWith('--')).map((a) => a.slice(2)));
@@ -44,7 +44,7 @@ async function waitForUrl(url, timeoutMs) {
 }
 
 function run(workspace, args, { cwd }) {
-  return spawn(npmCmd, ['--prefix', 'apps', 'run', 'dev', `-w`, workspace, '--', ...args], {
+  return spawn(npmCmd, ['--prefix', 'apps', 'run', 'dev:source', `-w`, workspace, '--', ...args], {
     cwd,
     stdio: ['ignore', 'pipe', 'pipe'],
     env: process.env,
@@ -73,10 +73,10 @@ async function smokeVite(workspace, port, cwd) {
 async function smokeStomp(cwd) {
   const port = 8081;
   if (await waitForUrl(`http://127.0.0.1:${port}/`, 500)) {
-    console.log(`OK  @starui/stomp-view-server-workspace (already on :${port})`);
+    console.log(`OK  @starui/stomp-view-server (already on :${port})`);
     return true;
   }
-  const child = spawn(npmCmd, ['--prefix', 'apps', 'run', 'dev', '-w', '@starui/stomp-view-server-workspace'], {
+  const child = spawn(npmCmd, ['--prefix', 'apps', 'run', 'dev', '-w', '@starui/stomp-view-server'], {
     cwd,
     stdio: 'ignore',
     env: process.env,
@@ -100,10 +100,10 @@ async function smokeStomp(cwd) {
   }
   child.kill('SIGTERM');
   if (open) {
-    console.log(`OK  @starui/stomp-view-server-workspace (:${port})`);
+    console.log(`OK  @starui/stomp-view-server (:${port})`);
     return true;
   }
-  console.error('FAIL @starui/stomp-view-server-workspace — port 8081 not open');
+  console.error('FAIL @starui/stomp-view-server — port 8081 not open');
   return false;
 }
 
@@ -111,10 +111,10 @@ async function smokeAngular(cwd) {
   const port = 4200;
   const url = `http://127.0.0.1:${port}/`;
   if (await httpOk(url)) {
-    console.log(`OK  @starui/demo-angular-workspace (already on :${port})`);
+    console.log(`OK  @starui/demo-angular (already on :${port})`);
     return true;
   }
-  const child = spawn(npmCmd, ['--prefix', 'apps', 'run', 'start', '-w', '@starui/demo-angular-workspace', '--', '--host', '127.0.0.1', '--port', String(port)], {
+  const child = spawn(npmCmd, ['--prefix', 'apps', 'run', 'start', '-w', '@starui/demo-angular', '--', '--host', '127.0.0.1', '--port', String(port)], {
     cwd,
     stdio: 'ignore',
     env: process.env,
@@ -124,10 +124,10 @@ async function smokeAngular(cwd) {
   await sleep(500);
   if (child.exitCode === null) child.kill('SIGKILL');
   if (ok) {
-    console.log(`OK  @starui/demo-angular-workspace (:${port})`);
+    console.log(`OK  @starui/demo-angular (:${port})`);
     return true;
   }
-  console.error('FAIL @starui/demo-angular-workspace — no HTTP response on :4200');
+  console.error('FAIL @starui/demo-angular — no HTTP response on :4200');
   return false;
 }
 

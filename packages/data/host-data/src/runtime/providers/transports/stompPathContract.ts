@@ -1,5 +1,5 @@
 /**
- * STOMP snapshot path contract — mirrors `apps/tarball/stomp-view-server` wire rules
+ * STOMP snapshot path contract — mirrors `apps/demos/stomp-view-server` wire rules
  * so the worker rejects misconfigured historical triggers before publish.
  */
 

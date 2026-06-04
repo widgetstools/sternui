@@ -8,7 +8,7 @@
  * fixtures so a single OpenFin runtime serves every test (workers
  * forced to 1 in playwright.config.ts because we share the CDP port).
  *
- * Manifest URL points at apps/tarball/e2e-openfin-workspace's e2e variant —
+ * Manifest URL points at apps/demos/e2e-openfin-workspace's e2e variant —
  * autoShow=false + CDP port 9191 so a dev session on 9190 can coexist.
  */
 import { setDefaultResultOrder } from 'node:dns';

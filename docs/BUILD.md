@@ -22,8 +22,12 @@ There are **three separate build surfaces**. Run them in order when validating a
 |-------|------|---------------------|--------|
 | **1. Packages** | `@starui/*` libraries under `packages/` | `npm run build:packages` | `packages/*/*/dist/` (and grid consumed as source) |
 | **2. Tarballs** | Architecture-bucket `.tgz` under `libs/` | `npm run propagate` | `libs/starui-*.tgz` (gitignored) |
-| **3a. Tarball apps** | Consumer install path (`apps/tarball/*`) | `npm run build:apps-tarball` | `apps/tarball/<app>/dist/` |
-| **3b. Workspace apps** | Dev track (`apps/workspace/*`) | `npm run build:apps-workspace` | `apps/workspace/<app>/dist/` |
+| **3a. Apps — installed mode** | Consumer / publish parity (`apps/demos/*`) | `npm run build:apps` | `apps/demos/<app>/dist/` |
+| **3b. Apps — source mode** | Live `packages/` source, `STARUI_DEV_SOURCE=1` (`apps/demos/*`) | `npm run build:apps-source` | `apps/demos/<app>/dist/` |
+
+Apps live **once** under `apps/demos/*`; "installed" vs "source" is a build
+**mode** (which script runs), not a separate folder. See
+[apps/README.md](../apps/README.md).
 
 **Install apps** (nested workspace) after `libs/` exists:
 
@@ -70,7 +74,7 @@ npm run build:packages
 npm run propagate
 ```
 
-`propagate` builds buckets, writes `libs/*.tgz`, runs `sync:app-deps` (updates **both** `apps/tarball/*` and `apps/workspace/*` `file:libs/…` deps), and refreshes installs.
+`propagate` builds buckets, writes `libs/*.tgz`, runs `sync:app-deps` (updates every `apps/demos/*` `file:libs/…` dep), and refreshes installs.
 
 Force rebuild:
 
@@ -80,15 +84,16 @@ npm run bootstrap -- --force
 
 ---
 
-## 3a. Build tarball apps (CI / consumer parity)
+## 3a. Build apps — installed mode (CI / consumer parity)
 
-Validates that apps work like external consumers (Artifactory / MCP), using **`apps/tarball/<app>/`** only.
+Validates that apps work like external consumers (Artifactory / MCP) — `@starui/*`
+resolved from the installed `file:libs/*.tgz` tarballs.
 
 ```bash
 npm run build:packages
 npm run propagate
 npm run install:apps
-npm run build:apps-tarball
+npm run build:apps
 ```
 
 **CI-equivalent one-liner:**
@@ -97,54 +102,56 @@ npm run build:apps-tarball
 npm run verify:consumer
 ```
 
-(`verify:consumer` = packages build → propagate → `install:apps` → **tarball app production builds**.)
+(`verify:consumer` = packages build → propagate → `install:apps` → **installed-mode app production builds**.)
 
-**Typecheck tarball apps (optional):**
+**Typecheck apps (optional):**
 
 ```bash
-npm run typecheck:apps-tarball
+npm run typecheck:apps
 ```
 
 App `tsc` may report duplicate `@types/react` errors when TypeScript resolves `@starui/grid` via the **root** workspace link instead of the installed bucket tarball. Production **`vite build` / `ng build`** is the supported consumer check; library types are covered by `npm run typecheck:packages`.
 
 ---
 
-## 3b. Build workspace apps (dev track)
+## 3b. Build apps — source mode (live `packages/` source)
 
-Validates production bundles for **`apps/workspace/<app>/`** with `STARUI_DEV_SOURCE=1` (same Vite aliases as `npm run dev:*`).
+Builds the same `apps/demos/<app>/` with `STARUI_DEV_SOURCE=1` (same Vite aliases as `npm run dev:*`).
 
 ```bash
 npm run build:packages
 npm run propagate
 npm run install:apps
-npm run build:apps-workspace
+npm run build:apps-source
 ```
 
-**Typecheck workspace apps (optional):**
+**Typecheck apps — source mode (optional):**
 
 ```bash
-npm run typecheck:apps-workspace
+npm run typecheck:apps-source
 ```
 
-**Run a dev server (workspace track):**
+**Run a dev server (source mode):**
 
 ```bash
-npm run dev:demo-react          # @starui/demo-react-workspace
-npm run dev:markets-grid-lab    # @starui/markets-grid-lab-workspace
+npm run dev:demo-react          # @starui/demo-react (dev:source)
+npm run dev:markets-grid-lab    # @starui/markets-grid-lab (dev:source)
 ```
 
-See [apps/workspace/README.md](../apps/workspace/README.md).
+See [apps/demos/README.md](../apps/demos/README.md).
 
 ---
 
-## App tracks (folder layout)
+## App modes (one folder)
 
-| Track | Path | `propagate` reinstall | Root `npm run dev:*` |
-|-------|------|------------------------|----------------------|
-| **Tarball** | `apps/tarball/<app>/` | Yes | No (use workspace) |
-| **Workspace** | `apps/workspace/<app>/` | Skipped for install churn | Yes |
+| Mode | Resolves `@starui/*` from | Per-app script | Root `npm run dev:*` |
+|------|---------------------------|----------------|----------------------|
+| **Installed** | `file:libs/*.tgz` (consumer parity) | `dev` / `build` | — |
+| **Source** | `packages/` via `STARUI_DEV_SOURCE=1` | `dev:source` / `build:source` | uses this |
 
-Pair names: e.g. `@starui/demo-react` (tarball) vs `@starui/demo-react-workspace` (workspace). Special case: `@starui/e2e-openfin-workspace` (tarball) vs `@starui/e2e-openfin-workspace-ws` (workspace).
+Every app lives once under `apps/demos/<app>/` with the clean consumer name
+(`@starui/demo-react`, …). Angular (`demo-angular`) and the node
+`stomp-view-server` are installed-only (no Vite source mode).
 
 ---
 
@@ -199,7 +206,7 @@ Commit `apps/package-lock.json` and any `apps/**/package.json` touched by propag
 npm run build:all
 ```
 
-Runs `build:consumer` (packages + propagate + install apps) then **`build:apps-tarball`** and **`build:apps-workspace`**.
+Runs `build:consumer` (packages + propagate + install apps) then **`build:apps`** (installed) and **`build:apps-source`**.
 
 ---
 
@@ -218,9 +225,8 @@ npm run install:all
 |------|----------|
 | Fresh clone, everything | `npm run install:all` |
 | Libraries only | `npm ci` → `npm run build:packages` → `npm test` |
-| Tarball consumer CI | `npm run verify:consumer` |
-| Tarball app bundles | `npm run build:apps-tarball` |
-| Workspace app bundles | `npm run build:apps-workspace` |
-| Both app tracks | `npm run build:apps` |
-| Run demo (dev) | `npm run dev` (workspace `@starui/demo-react-workspace`) |
+| Consumer CI (installed) | `npm run verify:consumer` |
+| App bundles — installed mode | `npm run build:apps` |
+| App bundles — source mode | `npm run build:apps-source` |
+| Run demo (dev, source mode) | `npm run dev` (`@starui/demo-react` via `dev:source`) |
 | Refresh tarballs | `npm run build:packages` → `npm run propagate` → `npm run install:apps` |

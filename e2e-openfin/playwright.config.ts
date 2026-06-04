@@ -2,7 +2,7 @@
  * Playwright config for the OpenFin e2e harness.
  *
  * Independent of the root /e2e/ Playwright config — different webServer
- * (apps/tarball/e2e-openfin-workspace on :5181), different fixture set, single
+ * (apps/demos/e2e-openfin-workspace on :5181), different fixture set, single
  * worker because the OpenFin runtime holds the CDP port.
  *
  * The launchOpenFin fixture spawns the OpenFin platform via

@@ -1,5 +1,5 @@
 /**
- * Starter spec for apps/tarball/e2e-browser-blotter/.
+ * Starter spec for apps/demos/e2e-browser-blotter/.
  *
  * Asserts the app boots, the mode banner shows the resolved URL mode,
  * MarketsGrid mounts, and the in-app ticker actually produces row

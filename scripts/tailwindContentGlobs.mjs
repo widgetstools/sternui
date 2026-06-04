@@ -25,7 +25,7 @@ export const platformAppTailwindContent = [
   '../../../node_modules/@starui/grid/src/**/*.{ts,tsx}',
 ];
 
-/** apps/workspace/<name>/ or apps/tarball/<name>/ (3 levels to repo root) */
+/** apps/demos/<name>/ or apps/demos/<name>/ (3 levels to repo root) */
 export const demoAppTailwindContent = [
   '../../../packages/react-ui/ui/src/**/*.{ts,tsx}',
   '../../../packages/react-grid/grid/src/**/*.{ts,tsx}',

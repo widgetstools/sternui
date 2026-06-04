@@ -2,19 +2,16 @@
   "name": "starui-apps",
   "version": "0.0.0",
   "private": true,
-  "description": "Nested workspace for StarUI consumer apps (workspace + tarball tracks).",
+  "description": "Nested workspace for StarUI consumer/reference demo apps. Each app runs in two modes: installed (file:libs/*.tgz tarballs, consumer parity) or source (STARUI_DEV_SOURCE=1 → Vite aliases @starui/* to packages/ source).",
   "workspaces": [
-    "workspace/*",
-    "tarball/*"
+    "demos/*"
   ],
   "scripts": {
     "ci": "npm ci",
-    "build": "node ../scripts/build-app-track.mjs tarball build && node ../scripts/build-app-track.mjs workspace build",
-    "build:tarball": "node ../scripts/build-app-track.mjs tarball build",
-    "build:workspace": "node ../scripts/build-app-track.mjs workspace build",
-    "typecheck": "node ../scripts/build-app-track.mjs tarball typecheck && node ../scripts/build-app-track.mjs workspace typecheck",
-    "typecheck:tarball": "node ../scripts/build-app-track.mjs tarball typecheck",
-    "typecheck:workspace": "node ../scripts/build-app-track.mjs workspace typecheck"
+    "build": "node ../scripts/build-app-track.mjs installed build",
+    "build:source": "node ../scripts/build-app-track.mjs source build",
+    "typecheck": "node ../scripts/build-app-track.mjs installed typecheck",
+    "typecheck:source": "node ../scripts/build-app-track.mjs source typecheck"
   },
   "engines": {
     "node": ">=20.0.0"

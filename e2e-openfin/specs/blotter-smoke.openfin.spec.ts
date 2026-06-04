@@ -2,7 +2,7 @@
  * Starter OpenFin e2e spec — proves the harness can spawn the
  * platform, attach Playwright, and reach the blotter view.
  *
- * Mirrors apps/tarball/e2e-browser-blotter's starter spec where possible so
+ * Mirrors apps/demos/e2e-browser-blotter's starter spec where possible so
  * future specs can be lifted between harnesses with minimal edits.
  */
 import { test, expect } from '../fixtures/launchOpenFin';

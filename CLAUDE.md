@@ -117,9 +117,16 @@ on the next run. Don't remove it.
 ## Install layout
 
 - **Root** `npm ci` / `npm run install:all` — `packages/*` only (workspace `"*"`).
-- **Apps** nested under `apps/package.json` — `npm run install:apps` after `libs/` exists;
-  `@starui/*` bucket deps from gitignored `libs/*.tgz` (`npm run propagate` / `npm run bootstrap`).
-- **`STARUI_DEV_SOURCE=1`** on demo dev scripts — Vite aliases into `packages/` source.
+- **Apps** nested under `apps/package.json` (`workspaces: ["demos/*"]`) — each
+  reference/demo app lives **once** under `apps/demos/<app>/`. `npm run install:apps`
+  after `libs/` exists; `@starui/*` bucket deps from gitignored `libs/*.tgz`
+  (`npm run propagate` / `npm run bootstrap`).
+- **Two run modes per app** (same folder, chosen by script): `dev`/`build` =
+  installed mode (resolves `@starui/*` from `file:libs/*.tgz`, consumer/publish
+  parity); `dev:source`/`build:source` set **`STARUI_DEV_SOURCE=1`** so Vite
+  aliases `@starui/*` into `packages/` source. Build all apps in a mode with
+  `npm run build:apps` / `npm run build:apps-source`. Angular + the node
+  `stomp-view-server` are installed-only.
 
 ## Propagating package changes (external tarball consumers)
 
@@ -141,7 +148,7 @@ Manifest: `libs/manifest.json` maps `@starui/<bucket>` → tarball +
 ## Testing
 
 - Vitest 4 + jsdom 29 for unit tests. Baseline: 653 passing.
-- Playwright 1.59 against `apps/tarball/demo-react`. Baseline: 195/214 passing
+- Playwright 1.59 against `apps/demos/demo-react`. Baseline: 195/214 passing
   (19 failures are pre-existing — see [`docs/E2E_STATUS.md`](./docs/E2E_STATUS.md)).
 
 ## UI stack rules (non-negotiable)

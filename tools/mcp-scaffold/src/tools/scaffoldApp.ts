@@ -121,7 +121,7 @@ export async function scaffoldApp(raw: ScaffoldInput): Promise<ScaffoldResult> {
     if (stompSrc && existsSync(stompSrc)) {
       copyTree(stompSrc, join(outputPath, 'stomp-view-server'));
     } else {
-      bundle.warnings.push('stomp-view-server source not found — copy manually from starui/apps/tarball/stomp-view-server');
+      bundle.warnings.push('stomp-view-server source not found — copy manually from starui/apps/demos/stomp-view-server');
     }
   }
 

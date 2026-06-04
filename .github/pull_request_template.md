@@ -26,7 +26,7 @@
 - [ ] `@starui/react-tools` / `@starui/angular-tools`
 - [ ] `@starui/dock-editor` / `@starui/angular-dock-editor`
 - [ ] `@starui/registry-editor` / `@starui/angular-registry-editor`
-- [ ] `apps/tarball/demo-react` / `apps/demo-angular`
+- [ ] `apps/demos/demo-react` / `apps/demo-angular`
 - [ ] Other: ___
 
 ## Test plan
@@ -35,7 +35,7 @@
 - [ ] `npx turbo build` passes
 - [ ] `npx turbo test` passes
 - [ ] `npx playwright test` (if E2E-relevant)
-- [ ] Manual smoke in `apps/tarball/demo-react` (if UI-facing)
+- [ ] Manual smoke in `apps/demos/demo-react` (if UI-facing)
 
 ## Docs updated
 

@@ -4,14 +4,14 @@ OpenFin e2e harness — Playwright runner attached over CDP to an
 OpenFin runtime spawned via `@openfin/node-adapter`.
 
 Replaces the legacy Vitest+bridge-channel harness now archived at
-[`apps/tarball/e2e-openfin-vitest/`](../apps/tarball/e2e-openfin-vitest/).
+[`apps/demos/e2e-openfin-vitest/`](../apps/demos/e2e-openfin-vitest/).
 Same test-runner API (Playwright) as the browser e2e suite so fixtures
 and helpers can flow between the two over time.
 
 ## Run
 
 ```bash
-# Local — spawns apps/tarball/e2e-openfin-workspace dev server on :5181
+# Local — spawns apps/demos/e2e-openfin-workspace dev server on :5181
 # then launches OpenFin against the e2e manifest variant.
 npm run test:e2e:openfin
 
@@ -22,7 +22,7 @@ npm --prefix e2e-openfin run test:e2e:headed
 ## How it works
 
 1. Playwright's `webServer` block boots
-   [`@starui/e2e-openfin-workspace`](../apps/tarball/e2e-openfin-workspace/) on
+   [`@starui/e2e-openfin-workspace`](../apps/demos/e2e-openfin-workspace/) on
    port 5181 (Vite dev). `reuseExistingServer: true` so an already-
    running dev session is reused.
 2. The `launchOpenFin` fixture calls
@@ -55,7 +55,7 @@ test('something useful', async ({ blotterPage }) => {
 ```
 
 The `blotterPage` is a regular Playwright `Page` — same API as the
-browser harness uses against `apps/tarball/e2e-browser-blotter`. Helpers from
+browser harness uses against `apps/demos/e2e-browser-blotter`. Helpers from
 `/e2e/helpers/` (profile manipulation, settings sheet) work against
 either.
 

@@ -1,6 +1,6 @@
 # Platform hooks demo — testing guide
 
-Hands-on documentation for the **`apps/workspace/platform-hooks-demo`** app. Use it to validate **AppData bootstrap** and **MarketsGrid event callbacks** without a STOMP broker.
+Hands-on documentation for the **`apps/demos/platform-hooks-demo`** app. Use it to validate **AppData bootstrap** and **MarketsGrid event callbacks** without a STOMP broker.
 
 **Run:**
 
@@ -11,9 +11,9 @@ npm run dev:platform-hooks-demo
 
 **Related:**
 
-- App README: [`../../apps/workspace/platform-hooks-demo/README.md`](../../apps/workspace/platform-hooks-demo/README.md)
+- App README: [`../../apps/demos/platform-hooks-demo/README.md`](../../apps/demos/platform-hooks-demo/README.md)
 - Bootstrap config reference: [platform-bootstrap-config.md](./platform-bootstrap-config.md)
-- Minimal STOMP sample (subset of hooks): [`../../apps/workspace/stomp-marketsgrid-minimal/`](../../apps/workspace/stomp-marketsgrid-minimal/)
+- Minimal STOMP sample (subset of hooks): [`../../apps/demos/stomp-marketsgrid-minimal/`](../../apps/demos/stomp-marketsgrid-minimal/)
 
 ---
 
@@ -52,7 +52,7 @@ sequenceDiagram
 
 ### 1.2 Manifest fields
 
-From `apps/workspace/platform-hooks-demo/public/app-config.json`:
+From `apps/demos/platform-hooks-demo/public/app-config.json`:
 
 ```json
 {

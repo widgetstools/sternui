@@ -41,11 +41,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { createRequire } from 'node:module';
 import { join, relative, resolve } from 'node:path';
-
-const require = createRequire(import.meta.url);
-const { isTarballTrack } = require('./app-tracks.cjs');
 
 const REPO_ROOT = resolve(import.meta.dirname, '..');
 const PACKAGES_ROOT = join(REPO_ROOT, 'packages');
@@ -811,9 +807,8 @@ function main() {
   }
 
   const appPkgPaths = findAppPackageJsons();
-  const tarballAppPkgPaths = appPkgPaths.filter((p) => isTarballTrack(p));
   const affectedApps = new Map();
-  for (const appPkgPath of tarballAppPkgPaths) {
+  for (const appPkgPath of appPkgPaths) {
     const rewritten = syncAppPackageJson(appPkgPath, updates);
     const appDir = resolve(appPkgPath, '..');
     const deps = affectedApps.get(appDir) ?? new Set();
@@ -859,11 +854,9 @@ function main() {
     }
   }
 
-  const workspaceSkipped = appPkgPaths.length - tarballAppPkgPaths.length;
   log(
     `done — packed ${Object.keys(updates).length} bucket(s), `
-      + `${affectedApps.size} tarball app(s) synced`
-      + (workspaceSkipped > 0 ? ` (${workspaceSkipped} workspace-track app(s) skipped)` : ''),
+      + `${affectedApps.size} app(s) synced`,
   );
 }
 

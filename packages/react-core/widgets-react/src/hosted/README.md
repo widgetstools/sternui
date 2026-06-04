@@ -201,7 +201,7 @@ End-to-end coverage is in
 it composes is also exported standalone so any hosted feature — not
 just MarketsGrid — can pick the slice it needs. Each hook degrades
 safely when the OpenFin (or FDC3) runtime isn't present, so the same
-call site works inside the OpenFin browser and inside `apps/tarball/demo-react`.
+call site works inside the OpenFin browser and inside `apps/demos/demo-react`.
 
 | Hook | Purpose |
 |---|---|
