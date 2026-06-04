@@ -17,7 +17,7 @@
 
 import { memo, useMemo, type CSSProperties, type ReactElement, type RefObject } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import type { GridReadyEvent } from 'ag-grid-community';
+import type { GridReadyEvent, Theme } from 'ag-grid-community';
 import { StreamSafeTextFloatingFilter } from './streamSafeFloatingFilter';
 import { StreamSafeNumberFloatingFilter } from './streamSafeNumberFloatingFilter';
 import { StreamSafeDateFloatingFilter } from './streamSafeDateFloatingFilter';
@@ -106,6 +106,34 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
     [gridOptions, hostOverrideKeys],
   );
 
+  // AG Grid centers ordinary cell text via `line-height`, derived from the
+  // theme's STATIC `--ag-row-height` param clamped against the runtime
+  // `--ag-line-height` (set from the grid `rowHeight` option):
+  //   line-height = min(--ag-row-height, --ag-line-height) - border - 2px
+  // When the live row height exceeds the theme's baked height, the min()
+  // clamps line-height below the real row height and text rides the top.
+  // Fix: keep the theme's height PARAMS in sync with whatever height the grid
+  // actually uses (host-override prop OR general-settings pipeline option), so
+  // --ag-row-height == --ag-line-height and the clamp never bites. Pure
+  // parameter-based theming — no CSS, no effect on horizontal align / ellipsis.
+  const effRowHeight = hostOverrideKeys.has('rowHeight')
+    ? rowHeight
+    : (gridOptions.rowHeight as number | undefined);
+  const effHeaderHeight = hostOverrideKeys.has('headerHeight')
+    ? headerHeight
+    : (gridOptions.headerHeight as number | undefined);
+
+  const effectiveTheme = useMemo(() => {
+    const overrides: Record<string, number> = {};
+    if (typeof effRowHeight === 'number') overrides.rowHeight = effRowHeight;
+    if (typeof effHeaderHeight === 'number') overrides.headerHeight = effHeaderHeight;
+    const t = theme as Theme | undefined;
+    if (Object.keys(overrides).length === 0 || typeof t?.withParams !== 'function') {
+      return theme;
+    }
+    return t.withParams(overrides);
+  }, [theme, effRowHeight, effHeaderHeight]);
+
   const hostOverrides = useMemo(() => {
     const out: Record<string, unknown> = {};
     if (hostOverrideKeys.has('rowHeight')) out.rowHeight = rowHeight;
@@ -131,7 +159,7 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
         ref={gridRef}
         {...pipelineGridOptions}
         {...hostOverrides}
-        theme={theme}
+        theme={effectiveTheme}
         rowData={rowData}
         columnDefs={columnDefs as never}
         maintainColumnOrder

@@ -278,6 +278,10 @@ Per-renderer config types (`PillRendererConfig`,
   `toolbarDateHistoryEnabled` (when `false`, only today is selectable)
 - `DEFAULT_MODULES` — ordered customizer-module pipeline
 - `gridSurfaceOptions` — AG Grid defaults, DOM options, row styling, cell renderers
+- `MarketsGridSurface` — folds the effective `rowHeight`/`headerHeight` (host
+  override or general-settings pipeline) into the theme via `theme.withParams`,
+  keeping `--ag-row-height` in sync with the live row height so cell text stays
+  vertically centered at any height (parameter-based; no CSS overrides)
 - `useGridHost`, `useMarketsGridController` — imperative grid control hooks
 - `useFilterModel` — filter-model persistence + mutation
 - `useGridTheme` — resolves AG Grid theme from `data-theme`
