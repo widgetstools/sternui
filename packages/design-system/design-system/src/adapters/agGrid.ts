@@ -1,47 +1,24 @@
 // ─────────────────────────────────────────────────────────────
 //  AG Grid Theme Params — Quartz (ag-grid v33+)
 //
-//  Dark chrome colors match the platform Quartz dark preset; light mode
-//  reuses the same structural params (fonts, radii, borders) with the
-//  Stockflux SLATE color pack for surfaces.
+//  Token-driven STARUI chrome — colors from staruiHex AG Grid packs.
+//  Structural params aligned with starui-aggrid.jsx (4px radius, 12px pad).
 // ─────────────────────────────────────────────────────────────
 
 import { iconSetQuartzLight, themeQuartz, type Theme } from 'ag-grid-community';
 import { dark, light, type ColorScheme } from '../tokens/semantic';
 import { stockfluxSlateAgGrid } from '../tokens/stockfluxSlate';
-import { typography } from '../tokens/primitives';
 
 type Density = 'compact' | 'comfort' | 'ultra';
 type AgPack = { [K in keyof (typeof stockfluxSlateAgGrid)['dark']]: string };
 
-/** Shared with the reference Quartz dark theme (non-color params also apply to light). */
 const AG_GRID_INTER_FONT = { googleFont: 'Inter' } as const;
+const AG_GRID_MONO_FONT = { googleFont: 'JetBrains Mono' } as const;
 
-const agGridDarkColorOverrides = {
-  bg: '#0C0F14',
-  chrome: '#181923',
-  fg: '#FFFFFF',
-  odd: '#000000',
-} as const;
-
-function hexToRgba(hex: string, a: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r},${g},${b},${a})`;
-}
-
-function resolveColorPack(pack: AgPack, mode: 'dark' | 'light'): AgPack {
-  if (mode === 'dark') {
-    return { ...pack, ...agGridDarkColorOverrides };
-  }
-  return pack;
-}
-
-/** Non-color params from the Quartz dark reference theme (both color schemes). */
+/** Non-color params aligned with STARUI grid demo. */
 function quartzStructuralParams(density: Density) {
-  const rowH = density === 'ultra' ? 22 : density === 'comfort' ? 38 : 30;
-  const headerH = density === 'ultra' ? 26 : density === 'comfort' ? 40 : 32;
+  const rowH = density === 'ultra' ? 22 : density === 'comfort' ? 40 : 30;
+  const headerH = density === 'ultra' ? 26 : density === 'comfort' ? 42 : 32;
   const fontPx = density === 'ultra' ? 11 : density === 'comfort' ? 13 : 12;
   const headerFontPx = density === 'ultra' ? 10 : density === 'comfort' ? 12 : 11;
   const iconPx = density === 'ultra' ? 11 : density === 'comfort' ? 13 : 12;
@@ -50,11 +27,12 @@ function quartzStructuralParams(density: Density) {
   return {
     fontFamily: AG_GRID_INTER_FONT,
     fontSize: fontPx,
-    headerFontFamily: AG_GRID_INTER_FONT,
+    headerFontFamily: AG_GRID_MONO_FONT,
     headerFontSize: headerFontPx,
     iconSize: iconPx,
-    borderRadius: 2,
-    wrapperBorderRadius: 2,
+    borderRadius: 4,
+    wrapperBorderRadius: 4,
+    cellHorizontalPaddingScale: 1,
     rowVerticalPaddingScale: 1,
     columnBorder: true as const,
     rowHeight: rowH,
@@ -69,7 +47,7 @@ function gridParams(
   mode: 'dark' | 'light',
   density: Density = 'compact',
 ) {
-  const colors = resolveColorPack(pack, mode);
+  const colors = pack;
   const structural = quartzStructuralParams(density);
 
   return {
@@ -77,7 +55,7 @@ function gridParams(
     ...structural,
 
     headerFontWeight: 700,
-    cellFontFamily: typography.fontFamily.mono,
+    cellFontFamily: AG_GRID_MONO_FONT,
     cellTextColor: colors.fg,
 
     backgroundColor: colors.bg,
@@ -90,14 +68,14 @@ function gridParams(
     oddRowBackgroundColor: colors.odd,
 
     borderColor: colors.border,
-    wrapperBorder: true as const,
+    wrapperBorder: false as const,
     rowBorder: { style: 'solid' as const, width: 1, color: colors.rowBorder },
-    cellHorizontalPadding: 10,
+    cellHorizontalPadding: 12,
 
     inputBackgroundColor: colors.inputBg,
     inputBorder: { style: 'solid' as const, width: 1, color: colors.inputBorder },
     inputFocusBorder: { style: 'solid' as const, width: 1, color: colors.inputFocus },
-    focusShadow: `0 0 0 2px ${scheme.primary.ring}`,
+    focusShadow: scheme.elevation.glow,
 
     rangeSelectionBorderColor: colors.accent,
     rangeSelectionBackgroundColor: colors.accentSoft,

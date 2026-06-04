@@ -53,12 +53,37 @@ describe('applyTheme', () => {
 
   it('getTheme reads back theme + cvd from canonical keys', () => {
     applyTheme({ theme: 'light', cvd: true });
-    expect(getTheme()).toEqual({ theme: 'light', cvd: true });
+    expect(getTheme()).toEqual({ theme: 'light', cvd: true, variant: 'clinical' });
   });
 
   it('getTheme omits cvd when not persisted', () => {
     applyTheme({ theme: 'light', cvd: false });
-    expect(getTheme()).toEqual({ theme: 'light' });
+    expect(getTheme()).toEqual({ theme: 'light', variant: 'clinical' });
+  });
+
+  it('sets data-variant="clinical" on light by default', () => {
+    applyTheme({ theme: 'light' });
+    expect(document.documentElement.setAttribute).toHaveBeenCalledWith('data-variant', 'clinical');
+  });
+
+  it('sets data-variant="paper" when variant: paper', () => {
+    applyTheme({ theme: 'light', variant: 'paper' });
+    expect(document.documentElement.setAttribute).toHaveBeenCalledWith('data-variant', 'paper');
+  });
+
+  it('removes data-variant on dark theme', () => {
+    applyTheme({ theme: 'dark' });
+    expect(document.documentElement.removeAttribute).toHaveBeenCalledWith('data-variant');
+  });
+
+  it('persists variant under starui:variant for light', () => {
+    applyTheme({ theme: 'light', variant: 'paper' });
+    expect(localStorage.getItem('starui:variant')).toBe('paper');
+  });
+
+  it('getTheme reads back variant for light', () => {
+    applyTheme({ theme: 'light', variant: 'paper' });
+    expect(getTheme()).toEqual({ theme: 'light', variant: 'paper' });
   });
 
   it('getTheme returns dark default when nothing persisted', () => {
@@ -70,7 +95,7 @@ describe('applyTheme', () => {
   it('migrates from the legacy "@starui/theme" JSON blob on first read', () => {
     // Pre-existing user with the old JSON-blob storage layout.
     localStorage.setItem('@starui/theme', JSON.stringify({ theme: 'light', cvd: true }));
-    expect(getTheme()).toEqual({ theme: 'light', cvd: true });
+    expect(getTheme()).toEqual({ theme: 'light', cvd: true, variant: 'clinical' });
     // The next applyTheme() rewrites under the canonical keys and clears
     // the legacy blob so we don't keep reading it.
     applyTheme({ theme: 'light', cvd: true });

@@ -12,8 +12,16 @@ describe('generateUnifiedCSS', () => {
     expect(css).toMatch(/:root,\s*\[data-theme="dark"\]\s*\{/);
   });
 
-  it('contains [data-theme="light"] block', () => {
-    expect(css).toMatch(/\[data-theme="light"\]\s*\{/);
+  it('contains clinical light block', () => {
+    expect(css).toMatch(/\[data-theme="light"\]\[data-variant="clinical"\]\s*\{/);
+  });
+
+  it('contains paper light variant block', () => {
+    expect(css).toMatch(/\[data-theme="light"\]\[data-variant="paper"\]\s*\{/);
+  });
+
+  it('emits STARUI --st-* source vars (e.g. --st-accent)', () => {
+    expect(css).toMatch(/--st-accent:\s*#/);
   });
 
   it('contains [data-theme="dark"][data-cvd="on"] CVD override', () => {

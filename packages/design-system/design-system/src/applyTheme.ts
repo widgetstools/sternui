@@ -19,6 +19,8 @@
 //      so the theme reducer can store a plain string in
 //      `starui:theme` (rather than parse JSON). Stored as the
 //      string `'on'` or absent (default off).
+//    `starui:variant` — light-only surface variant: `clinical` |
+//      `paper`. Default `clinical` when light and absent.
 //
 //  Backwards compatibility: the legacy `@starui/theme` JSON blob
 //  is read on first boot if the canonical keys are absent, then
@@ -29,19 +31,35 @@
 import { THEME_STORAGE_KEY } from '@starui/shared-types';
 
 export type Mode = 'dark' | 'light';
+export type LightVariant = 'clinical' | 'paper';
 
 export interface ThemeOptions {
   theme: Mode;
   cvd?: boolean;
+  /** Light-mode surface variant. Ignored when `theme` is `dark`. Default: `clinical`. */
+  variant?: LightVariant;
 }
 
 const CVD_KEY = 'starui:cvd';
+const VARIANT_KEY = 'starui:variant';
 const LEGACY_KEY = '@starui/theme';
 const LEGACY_THEME_KEY = 'starui:theme';
+
+function applyVariant(variant: LightVariant | undefined, theme: Mode): void {
+  if (theme === 'dark') {
+    document.documentElement.removeAttribute('data-variant');
+    return;
+  }
+  document.documentElement.setAttribute(
+    'data-variant',
+    variant ?? 'clinical',
+  );
+}
 
 export function applyTheme(opts: ThemeOptions): void {
   if (typeof document === 'undefined') return;
   document.documentElement.setAttribute('data-theme', opts.theme);
+  applyVariant(opts.variant, opts.theme);
   if (opts.cvd) {
     document.documentElement.setAttribute('data-cvd', 'on');
   } else {
@@ -55,9 +73,11 @@ export function applyTheme(opts: ThemeOptions): void {
       } else {
         localStorage.removeItem(CVD_KEY);
       }
-      // Clear the legacy key once the new ones are populated — keeps
-      // a future getTheme() from re-reading stale JSON if the new keys
-      // are ever cleared.
+      if (opts.theme === 'light') {
+        localStorage.setItem(VARIANT_KEY, opts.variant ?? 'clinical');
+      } else {
+        localStorage.removeItem(VARIANT_KEY);
+      }
       localStorage.removeItem(LEGACY_KEY);
     } catch { /* private mode / quota */ }
   }
@@ -69,16 +89,30 @@ export function getTheme(): ThemeOptions {
     const theme = localStorage.getItem(THEME_STORAGE_KEY)
       ?? localStorage.getItem(LEGACY_THEME_KEY);
     const cvd = localStorage.getItem(CVD_KEY) === 'on';
+    const variantRaw = localStorage.getItem(VARIANT_KEY);
+    const variant: LightVariant | undefined =
+      variantRaw === 'paper' ? 'paper'
+      : variantRaw === 'clinical' ? 'clinical'
+      : undefined;
+
     if (theme === 'dark' || theme === 'light') {
-      return cvd ? { theme, cvd: true } : { theme };
+      const base: ThemeOptions = cvd ? { theme, cvd: true } : { theme };
+      if (theme === 'light') {
+        return { ...base, variant: variant ?? 'clinical' };
+      }
+      return base;
     }
-    // Legacy migration — old `@starui/theme` JSON blob. Read once,
-    // then `applyTheme()` will rewrite to the new keys on next call.
     const legacy = localStorage.getItem(LEGACY_KEY);
     if (legacy) {
       const parsed = JSON.parse(legacy) as Partial<ThemeOptions>;
       if (parsed.theme === 'dark' || parsed.theme === 'light') {
-        return parsed.cvd ? { theme: parsed.theme, cvd: true } : { theme: parsed.theme };
+        const out: ThemeOptions = parsed.cvd
+          ? { theme: parsed.theme, cvd: true }
+          : { theme: parsed.theme };
+        if (parsed.theme === 'light') {
+          out.variant = parsed.variant ?? 'clinical';
+        }
+        return out;
       }
     }
     return { theme: 'dark' };

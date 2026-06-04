@@ -1,0 +1,14 @@
+/* ─────────────────────────────────────────────────────────────
+   AG Grid typography — enforce design-system fonts on headers.
+   Theme params can fall back to browser serif when Google Font
+   injection fails or font stacks are misparsed; these rules win.
+   ───────────────────────────────────────────────────────────── */
+
+@layer base {
+  .ag-header-cell-text,
+  .ag-header-group-text,
+  .ag-header-cell-label {
+    font-family: var(--ds-font-mono, var(--st-font-mono, ui-monospace, monospace));
+    font-variant-numeric: var(--ds-font-variant-tabular, tabular-nums);
+  }
+}
