@@ -14,7 +14,10 @@ import {
 } from '../../ui/SettingsPanel';
 import { Select } from '../../ui/NativeOptionsSelect';
 import { cn } from '@starui/ui';
+import { ExpressionEngine } from '@starui/engine';
 import { ChromeButton } from '../../ui/ChromeButton';
+import { ExpressionEditor } from '../../ui/ExpressionEditor';
+import { useGridColumns } from '../../hooks/useGridColumns';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
 import {
   useAppDataKeys,
@@ -112,7 +115,21 @@ const SECTIONS = [
     title: 'Event Callbacks',
     headerTitle: 'EVENT CALLBACKS',
   },
+  {
+    index: '04',
+    id: 'row-filter',
+    title: 'Row Filter',
+    headerTitle: 'ROW EXCLUSION',
+  },
 ] as const;
+
+/** One-click starting points for the row-exclusion expression. */
+const ROW_FILTER_EXAMPLES: ReadonlyArray<{ label: string; expr: string }> = [
+  { label: 'active is false', expr: '[active] == false' },
+  { label: 'one currency', expr: '[ccy] == "INR"' },
+  { label: 'negative amount', expr: '[notional] < 0' },
+  { label: 'in a list', expr: '[ccy] IN ["INR", "XXX"]' },
+];
 
 type SectionIndex = (typeof SECTIONS)[number]['index'];
 
@@ -264,6 +281,29 @@ export function ToolbarDateSettingsPanel(): ReactElement {
   const appData = useAppDataLookup();
   const providers = useAppDataProviders(appData);
   const keys = useAppDataKeys(appData, draft.historicalDateAppDataProvider || undefined);
+
+  // Live column list for the row-exclusion expression editor's autocomplete.
+  // `useGridColumns` keeps a stable array reference while the column set is
+  // unchanged, so the provider callback only re-subscribes on real changes.
+  const columns = useGridColumns();
+  const columnsProvider = useCallback(
+    () =>
+      columns.map((c) => ({
+        colId: c.colId,
+        headerName: c.headerName,
+        dataType: c.cellDataType,
+      })),
+    [columns],
+  );
+
+  // Live validation for the row-exclusion expression. The engine is the same
+  // CSP-safe one that compiles the filter at runtime, so "Valid" here means
+  // the expression will actually parse when applied.
+  const exprEngine = useMemo(() => new ExpressionEngine(), []);
+  const rowExpr = (draft.rowExclusionExpression ?? '').trim();
+  const rowExprValidation = rowExpr
+    ? exprEngine.validate(rowExpr)
+    : { valid: true, errors: [] as Array<{ message: string }> };
 
   const [activeSection, setActiveSection] = useState<SectionIndex>('01');
   const sectionRefs = useRef<Map<string, HTMLElement | null>>(new Map());
@@ -470,6 +510,99 @@ export function ToolbarDateSettingsPanel(): ReactElement {
               draft={bindingsStaged.value}
               onBindingChange={handleBindingChange}
             />
+          </section>
+
+          <section
+            ref={(el) => {
+              if (el) sectionRefs.current.set('04', el);
+              else sectionRefs.current.delete('04');
+            }}
+            data-section-index="04"
+            data-testid="tds-row-filter-section"
+            className="px-5 pb-4 pt-3"
+          >
+            <SectionAnchor index="04" title={SECTIONS[3].headerTitle} />
+            <p className="mb-3 text-[11px] leading-relaxed text-[color:var(--ds-text-secondary)]">
+              Hide rows whose values match an expression. A row is excluded when
+              the expression is <strong>true</strong> — reference columns with{' '}
+              <code className="font-mono text-[10px]">[field]</code> (e.g.{' '}
+              <code className="font-mono text-[10px]">{`[ccy] == "INR"`}</code> or{' '}
+              <code className="font-mono text-[10px]">{`[active] == false`}</code>).
+              Type freely; column names autocomplete as you go. The row stays in
+              the data and reappears if the value changes. Leave empty to show
+              all rows. Applied when you press <strong>Save</strong>.
+            </p>
+
+            <div data-testid="tds-row-filter" className="space-y-2">
+              <label className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-foreground/85">
+                Exclude rows when
+              </label>
+
+              <ExpressionEditor
+                value={draft.rowExclusionExpression}
+                // Stage every keystroke into the draft so Save always has the
+                // latest text (no commit-on-blur surprise); onCommit trims on
+                // blur/Enter. Feeding the draft back as `value` is a no-op
+                // while typing (the editor only resets when text truly differs).
+                onChange={(expr) => update('rowExclusionExpression', expr)}
+                onCommit={(expr) => update('rowExclusionExpression', expr.trim())}
+                columnsProvider={columnsProvider}
+                multiline
+                lines={3}
+                fontSize={12}
+                placeholder={`[active] == false`}
+                className="w-full max-w-[520px] rounded-sm border border-border"
+                data-testid="tds-row-filter-editor"
+              />
+
+              {/* Live validity feedback — mirrors the runtime compile. */}
+              {rowExpr ? (
+                rowExprValidation.valid ? (
+                  <p
+                    data-testid="tds-row-filter-valid"
+                    className="text-[11px] text-muted-foreground"
+                  >
+                    ✓ Valid — hides rows where this is true.
+                  </p>
+                ) : (
+                  <p
+                    data-testid="tds-row-filter-error"
+                    className="text-[11px] text-destructive"
+                  >
+                    {rowExprValidation.errors[0]?.message ?? 'Invalid expression.'}
+                  </p>
+                )
+              ) : null}
+
+              {/* One-click examples — fill the editor, then tweak. */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                  Examples
+                </span>
+                {ROW_FILTER_EXAMPLES.map((ex) => (
+                  <button
+                    key={ex.expr}
+                    type="button"
+                    title={ex.label}
+                    onClick={() => update('rowExclusionExpression', ex.expr)}
+                    data-testid="tds-row-filter-example"
+                    className="rounded-sm border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-foreground/90 transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    {ex.expr}
+                  </button>
+                ))}
+                {draft.rowExclusionExpression ? (
+                  <button
+                    type="button"
+                    onClick={() => update('rowExclusionExpression', '')}
+                    data-testid="tds-row-filter-clear"
+                    className="rounded-sm px-1.5 py-0.5 text-[10px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                  >
+                    Clear
+                  </button>
+                ) : null}
+              </div>
+            </div>
           </section>
         </div>
       </div>

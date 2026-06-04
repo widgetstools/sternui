@@ -69,8 +69,9 @@ that yields the same value per row.
 - **CSP‑safe.** No `eval`, no `new Function`. Pipeline:
   `tokenize → Pratt parse → AST → tree‑walking evaluate`.
 - **Used in:** column `valueGetter` expressions (DataProvider editor → Columns
-  tab), Calculated Columns, Conditional Styling rule predicates, custom Row‑Group
-  aggregations, alerts.
+  tab), Calculated Columns, Conditional Styling rule predicates, row‑exclusion
+  filters (grid customizer → Custom Settings → Row Filter; EXCLUDE‑when‑true,
+  wired to AG Grid's external filter), custom Row‑Group aggregations, alerts.
 - **Per‑row.** The expression is parsed once and evaluated against each row's
   data. Keep it pure and cheap.
 

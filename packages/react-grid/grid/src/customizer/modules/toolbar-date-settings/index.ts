@@ -5,6 +5,8 @@ import {
   type ToolbarDateSettingsState,
 } from './state';
 import { ToolbarDateSettingsPanel } from './ToolbarDateSettingsPanel';
+import { activateRowExclusion } from './activate';
+import { buildExternalFilterOptions } from './rowExclusionFilter';
 
 export {
   TOOLBAR_DATE_SETTINGS_MODULE_ID,
@@ -27,6 +29,19 @@ export const toolbarDateSettingsModule: Module<ToolbarDateSettingsState> = {
   priority: 1002,
 
   getInitialState: () => ({ ...INITIAL_TOOLBAR_DATE_SETTINGS }),
+
+  /** Nudges AG-Grid's external filter to re-run on cell/expression edits. */
+  activate: activateRowExclusion,
+
+  /**
+   * Install the row-exclusion external filter. Always emitted so the host's
+   * `setGridOption` sync removes a stale filter when the expression is
+   * cleared; the callbacks read the live expression so an empty one is a
+   * no-op (`isExternalFilterPresent` → false).
+   */
+  transformGridOptions(opts, _state, ctx) {
+    return { ...opts, ...buildExternalFilterOptions(opts, ctx) };
+  },
 
   serialize: (state) => state,
 
