@@ -191,8 +191,35 @@ export class Parser {
       return { type: 'array', elements };
     }
 
-    // Identifier (variable or function call)
+    // Identifier — variable, function call, or a CASE / if conditional form.
     if (token.type === 'IDENTIFIER') {
+      const lower = token.value.toLowerCase();
+
+      // Searched CASE: `CASE WHEN cond THEN result [WHEN …] [ELSE result] END`.
+      // Sugar that folds into nested ternaries (short-circuiting). The legacy
+      // value-switch `CASE(expr, …)` function is kept — it's followed by `(`,
+      // this form by `WHEN`.
+      if (lower === 'case' && this.peekIsIdent('when', 1)) {
+        this.advance(); // CASE
+        return this.parseSearchedCase();
+      }
+
+      // Block form: `if (cond) { … } [else if (…) {…}] [else {…}]`. Sugar that
+      // folds into ternaries. Distinguished from the `IF(cond, then, else)`
+      // function by the `{` after the `)` — otherwise we rewind and let the
+      // normal function-call path handle `IF(...)`.
+      if (lower === 'if' && this.tokens[this.pos + 1]?.type === 'LPAREN') {
+        const save = this.pos;
+        this.advance(); // if
+        this.advance(); // (
+        const cond = this.parseExpression(0);
+        if (this.peek().type === 'RPAREN' && this.tokens[this.pos + 1]?.type === 'LBRACE') {
+          this.advance(); // )
+          return this.parseIfBlock(cond);
+        }
+        this.pos = save; // not a block → fall through to IF(...) function call
+      }
+
       this.advance();
       // Function call
       if (this.peek().type === 'LPAREN') {
@@ -234,6 +261,93 @@ export class Parser {
       throw new SyntaxError(`Expected '${keyword}' but got '${token.value}' at position ${token.position}`);
     }
     return this.advance();
+  }
+
+  /**
+   * True when the token at `offset` from the cursor is an identifier equal to
+   * `word` (case-insensitive). Used for the contextual keywords WHEN / THEN /
+   * ELSE / END / RETURN — they're only special inside CASE / if forms, so a
+   * column named `end` (bracketed `[end]` or bare) keeps working elsewhere.
+   */
+  private peekIsIdent(word: string, offset = 0): boolean {
+    const t = this.tokens[this.pos + offset];
+    return t?.type === 'IDENTIFIER' && t.value.toLowerCase() === word;
+  }
+
+  private expectIdent(word: string): Token {
+    if (!this.peekIsIdent(word)) {
+      const t = this.peek();
+      throw new SyntaxError(`Expected '${word.toUpperCase()}' but got '${t.value}' at position ${t.position}`);
+    }
+    return this.advance();
+  }
+
+  /** Fold ordered (cond, result) branches + an else into nested ternaries. */
+  private foldBranches(
+    branches: ReadonlyArray<{ cond: ExpressionNode; result: ExpressionNode }>,
+    alternate: ExpressionNode,
+  ): ExpressionNode {
+    let node = alternate;
+    for (let i = branches.length - 1; i >= 0; i--) {
+      node = {
+        type: 'ternary',
+        condition: branches[i].cond,
+        consequent: branches[i].result,
+        alternate: node,
+      };
+    }
+    return node;
+  }
+
+  /** `CASE` already consumed → parse `WHEN cond THEN result … [ELSE r] END`. */
+  private parseSearchedCase(): ExpressionNode {
+    const branches: { cond: ExpressionNode; result: ExpressionNode }[] = [];
+    while (this.peekIsIdent('when')) {
+      this.advance(); // WHEN
+      const cond = this.parseExpression(0);
+      this.expectIdent('then');
+      const result = this.parseExpression(0);
+      branches.push({ cond, result });
+    }
+    if (branches.length === 0) {
+      const t = this.peek();
+      throw new SyntaxError(`CASE requires at least one WHEN at position ${t.position}`);
+    }
+    let alternate: ExpressionNode = { type: 'literal', value: null };
+    if (this.peekIsIdent('else')) {
+      this.advance();
+      alternate = this.parseExpression(0);
+    }
+    this.expectIdent('end');
+    return this.foldBranches(branches, alternate);
+  }
+
+  /** `if ( cond )` already consumed → parse `{ … } [else if (…) {…}] [else {…}]`. */
+  private parseIfBlock(cond: ExpressionNode): ExpressionNode {
+    const consequent = this.parseBlock();
+    let alternate: ExpressionNode = { type: 'literal', value: null };
+    if (this.peekIsIdent('else')) {
+      this.advance(); // else
+      if (this.peekIsIdent('if')) {
+        this.advance(); // if
+        this.expect('LPAREN');
+        const cond2 = this.parseExpression(0);
+        this.expect('RPAREN');
+        alternate = this.parseIfBlock(cond2);
+      } else {
+        alternate = this.parseBlock();
+      }
+    }
+    return { type: 'ternary', condition: cond, consequent, alternate };
+  }
+
+  /** `{ [return] <expression> }` → the block's single value expression. */
+  private parseBlock(): ExpressionNode {
+    this.expect('LBRACE');
+    if (this.peekIsIdent('return')) this.advance();
+    const expr = this.parseExpression(0);
+    this.expect('RBRACE');
+    return expr;
   }
 
   /**

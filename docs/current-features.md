@@ -509,6 +509,7 @@ Per-renderer config types (`PillRendererConfig`,
   grid-level provider persistence; provider pickers live in grid customizer → Custom Settings (`providerGridHost`)
 - `MarketsGridContainer` — hub data via `useDataProvider` + `applyProviderToGrid` (no direct `client.subscribe` / cfg pass-through); optional `defaultLiveProviderId` for single-provider demos
 - `applyProviderToGrid` — live-tick add/update split with pending-add dedup (`createApplyProviderToGridState`, `splitProviderRowsForGrid`); extracted from `MarketsGridContainer` for `IDataProvider.onTick` wiring
+- `buildColumnDefs` — maps a provider's persisted `ColumnDefinition[]` to AG Grid `ColDef[]` for `MarketsGridContainer`. Per column: a `valueGetter` DSL expression compiles (once, cached) to a CSP-safe `@starui/engine` getter; a dotted `field` keeps the nested-path default getter (`getValueByPath`); a flat field stays on AG Grid's native path. Expression getters never throw — parse errors fall back to the field binding, runtime errors to the field value; a legitimate null result is preserved
 - Custom Settings panel (`toolbar-date-settings` module) — three sections: Toolbar Date (historical date → AppData config), Data Provider (live/historical pickers, mode, as-of date) when `providerGridHost` is wired, and Event Callbacks (event→handler bindings) when `gridEventBindingsHost` is wired. All settings are staged and applied only on the panel's explicit Save (Reset reverts); imperative actions (refresh/reload/edit) stay immediate
 - `ProviderEditorDialog` — modal hosting `DataProviderEditor`
 - `DataProviderEditor` — connection + tabs (Connections, Fields, Columns, Diagnostics)
@@ -522,7 +523,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 - `ConnectionTab` — connection string, auth, transport selection
 - `FieldsTab` — discover provider fields, map to columns, infer types
-- `ColumnsTab` — derive AG Grid column defs from schema
+- `ColumnsTab` — derive AG Grid column defs from schema; collapsible Key Column + Add Custom Column panels and a scrollable body keep the columns table at a usable minimum height in short containers. Per-row ƒx button opens a Monaco `ExpressionEditor` (from `@starui/grid/customizer`) to author a column `valueGetter` DSL expression (column refs `[field]`, nested optional-chaining paths `[a.b.c]`, live-validated); persists onto `ColumnDefinition.valueGetter`, applied at runtime by `buildColumnDefs`
 - `DiagnosticsTab` — probe, request/response logging, debug
 
 #### Transport-specific editors
@@ -789,6 +790,13 @@ Per-renderer config types (`PillRendererConfig`,
 - `tryCompileToAgString()` — transpile to AG Grid `valueFormatter` string
 - `ExpressionNode`, `EvaluationContext`, `ValidationResult`, `FunctionDefinition`
 - `migrateExpressionSyntax()` — legacy migration
+- Conditional sugar (both desugar to short-circuiting ternaries at parse time, so
+  they compose with everything and the `IF`/`IFS`/`SWITCH`/`CASE(...)` functions
+  still work): SQL-style `CASE WHEN cond THEN result [WHEN …] [ELSE e] END` and
+  JS-style `if (cond) { [return] expr } [else if (…) {…}] [else {…}]` (single-value
+  blocks, optional `return`/`;`). Contextual keywords (`WHEN`/`THEN`/`ELSE`/`END`/
+  `RETURN`) are case-insensitive and only reserved inside these forms; legacy
+  `{col}` refs and column names like `[end]` are unaffected
 
 #### Column-def helpers
 
@@ -1449,6 +1457,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 - `docs/MARKETSGRID_USAGE_GUIDE.md` — scenario matrix for MarketsGrid (`MarketsGrid` / `MarketsGridContainer` / `HostedMarketsGrid`), hub bootstrap, OpenFin vs browser, persistence, customizer UI (§22), troubleshooting; PDF at `docs/MARKETSGRID_USAGE_GUIDE.pdf` (`npm run docs:marketsgrid-usage-pdf`)
 - `docs/guides/platform-hooks-demo.md` — AppData bootstrap hooks + grid event callback bindings (`apps/demos/platform-hooks-demo`, port 5214)
+- `docs/EXPRESSION_DSL.md` — authoritative reference for the `@starui/engine` expression DSL (grammar, operator semantics, the full 44-function catalog, coercion/null rules, conditional sugar) plus an explicit JavaScript→DSL conversion guide written for an AI agent to translate JS expressions into DSL correctly
 
 ## Cross-cutting architecture notes
 

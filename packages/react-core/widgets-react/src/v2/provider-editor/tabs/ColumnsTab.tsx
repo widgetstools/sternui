@@ -21,8 +21,14 @@ import type {
   ICellRendererParams,
   RowDragEndEvent,
 } from 'ag-grid-community';
-import { Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@starui/ui';
-import { Plus, Trash2 } from 'lucide-react';
+import {
+  Button, Collapsible, CollapsibleContent, CollapsibleTrigger,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@starui/ui';
+import { ChevronDown, Plus, SquareFunction, Trash2 } from 'lucide-react';
+import { ExpressionEditor } from '@starui/grid/customizer';
+import { ExpressionEngine } from '@starui/engine';
 import type { ColumnDefinition } from '@starui/shared-types';
 import { normalizeKeyColumns } from '@starui/shared-types';
 import { MultiSelect } from '../MultiSelect.js';
@@ -147,6 +153,35 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
   const onDeleteRef = useRef(onDelete);
   onDeleteRef.current = onDelete;
 
+  // ── Value-expression editing ─────────────────────────────────────
+  // Which column's `valueGetter` expression is open in the editor
+  // dialog (by field). null = closed.
+  const [editingField, setEditingField] = useState<string | null>(null);
+
+  const onEditExpression = useCallback((field: string) => setEditingField(field), []);
+  const onEditExpressionRef = useRef(onEditExpression);
+  onEditExpressionRef.current = onEditExpression;
+
+  const editingColumn = useMemo(
+    () => (editingField ? columns.find((c) => c.field === editingField) ?? null : null),
+    [editingField, columns],
+  );
+
+  // Commit an expression onto a column. Empty string clears the override
+  // (drops the field) so the column reverts to its plain field binding.
+  const setColumnExpression = useCallback(
+    (field: string, expr: string) => {
+      const trimmed = expr.trim();
+      const next = columns.map((col) => {
+        if (col.field !== field) return col;
+        const { valueGetter: _drop, ...rest } = col;
+        return trimmed ? { ...rest, valueGetter: trimmed } : rest;
+      });
+      onChange(next);
+    },
+    [columns, onChange],
+  );
+
   const colDefs = useMemo<ColDef<RowData>[]>(
     () => [
       {
@@ -155,6 +190,8 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
         maxWidth: 36,
         resizable: false,
         sortable: false,
+        filter: false,
+        floatingFilter: false,
         suppressHeaderMenuButton: true,
         suppressMovable: true,
         headerName: '',
@@ -188,6 +225,28 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
         maxWidth: 44,
         resizable: false,
         sortable: false,
+        filter: false,
+        floatingFilter: false,
+        editable: false,
+        suppressHeaderMenuButton: true,
+        suppressMovable: true,
+        suppressNavigable: true,
+        cellClass: 'cursor-pointer',
+        headerTooltip: 'Value expression',
+        cellRenderer: ExpressionIconCell,
+        onCellClicked: (event: CellClickedEvent<RowData>) => {
+          const field = event.data?.field;
+          if (field) onEditExpressionRef.current(field);
+        },
+      },
+      {
+        headerName: '',
+        width: 44,
+        maxWidth: 44,
+        resizable: false,
+        sortable: false,
+        filter: false,
+        floatingFilter: false,
         editable: false,
         suppressHeaderMenuButton: true,
         suppressMovable: true,
@@ -200,7 +259,8 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
         },
       },
     ],
-    // Empty deps: delete routes through grid context + onDeleteRef.
+    // Empty deps: delete + edit-expression route through grid context +
+    // refs (onDeleteRef / onEditExpressionRef).
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
@@ -221,7 +281,13 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex-1 min-h-0 flex flex-col p-3 gap-3 overflow-hidden">
+      {/*
+        Body scrolls when the editor gets short: the two config panels keep
+        their natural height and the grid keeps a usable floor (min-h), so the
+        columns table never collapses to nothing in a small container. Users
+        can also collapse either panel to hand more space back to the grid.
+      */}
+      <div className="flex-1 min-h-0 flex flex-col p-3 gap-3 overflow-y-auto scrollbar-thin">
         <KeyColumnPicker
           columns={columns}
           keyColumn={keyColumn}
@@ -240,7 +306,7 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
           fieldNameEmpty={!newFieldName.trim()}
         />
 
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-[220px]">
           <AgGridReact<RowData>
             theme={gridTheme}
             rowData={rowData}
@@ -258,7 +324,119 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
           />
         </div>
       </div>
+
+      {editingColumn && (
+        <ExpressionEditorDialog
+          column={editingColumn}
+          columns={columns}
+          onClose={() => setEditingField(null)}
+          onSave={(expr) => {
+            setColumnExpression(editingColumn.field, expr);
+            setEditingField(null);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+// ─── Value-expression editor dialog ────────────────────────────────
+//
+// Hosts the shared Monaco `ExpressionEditor` (lazy-loaded) so users can
+// author a DSL `valueGetter` for a single column. Column refs use
+// bracket syntax (`[cusip]`, `[a.b.c]` for nested optional-chaining
+// paths); the live column list feeds autocomplete. Empty clears the
+// override.
+
+function ExpressionEditorDialog({
+  column,
+  columns,
+  onClose,
+  onSave,
+}: {
+  column: ColumnDefinition;
+  columns: ColumnDefinition[];
+  onClose(): void;
+  onSave(expr: string): void;
+}) {
+  const engine = useMemo(() => new ExpressionEngine(), []);
+  const initial = column.valueGetter ?? '';
+  const [draft, setDraft] = useState(initial);
+
+  // Stable reference so Monaco's completion provider isn't re-registered
+  // every keystroke.
+  const columnsProvider = useCallback(
+    () =>
+      columns.map((c) => ({
+        colId: c.field,
+        headerName: c.headerName || c.field,
+        dataType: c.cellDataType,
+      })),
+    [columns],
+  );
+
+  const trimmed = draft.trim();
+  const validation = trimmed ? engine.validate(trimmed) : { valid: true, errors: [] };
+
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-2xl" data-testid="columns-tab-expression-dialog">
+        <DialogHeader>
+          <DialogTitle className="text-sm">
+            Value expression — <span className="font-mono">{column.field}</span>
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            Computes this column's value per row. Reference columns with{' '}
+            <code className="text-foreground">[field]</code>; nested,
+            optional-chaining paths like{' '}
+            <code className="text-foreground">[a.b.c]</code> are supported and
+            never throw. Leave empty to use the raw field value.
+          </DialogDescription>
+        </DialogHeader>
+
+        <ExpressionEditor
+          key={column.field}
+          value={initial}
+          multiline
+          lines={6}
+          onChange={setDraft}
+          onCommit={setDraft}
+          columnsProvider={columnsProvider}
+          className="rounded-md border border-border"
+          data-testid="columns-tab-expression-editor"
+        />
+
+        {!validation.valid && (
+          <p className="text-[11px] text-destructive" data-testid="columns-tab-expression-error">
+            {validation.errors[0]?.message}
+          </p>
+        )}
+
+        <DialogFooter className="gap-2 sm:justify-end">
+          {initial && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs mr-auto"
+              onClick={() => onSave('')}
+            >
+              Clear
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            className="h-8 text-xs"
+            disabled={!validation.valid}
+            onClick={() => onSave(draft)}
+          >
+            Save expression
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -289,12 +467,21 @@ function AddColumnForm({
   fieldNameEmpty: boolean;
 }) {
   const canAdd = !fieldNameEmpty && !fieldNameExists;
+  const [open, setOpen] = useState(true);
 
   return (
-    <div className="rounded-md border border-border bg-card px-3 py-2.5 flex-shrink-0">
-      <Label className="text-[11px] font-medium text-muted-foreground block mb-2">
-        Add Custom Column
-      </Label>
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      className="rounded-md border border-border bg-card flex-shrink-0"
+    >
+      <CollapsibleTrigger className="group flex w-full items-center justify-between gap-2 px-3 py-2 text-left">
+        <span className="text-[11px] font-medium text-muted-foreground">
+          Add Custom Column
+        </span>
+        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-3 pb-2.5">
       <div className="flex items-end gap-2">
         <div className="flex-1 min-w-0 space-y-1">
           <label className="text-[10px] font-medium text-muted-foreground">
@@ -348,11 +535,34 @@ function AddColumnForm({
           Add
         </Button>
       </div>
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
-// ─── Delete cell renderer ──────────────────────────────────────────
+// ─── Value-expression cell renderer ───────────────────────────────
+//
+// ƒx affordance per row. Highlighted (primary) when the column already
+// carries a `valueGetter` expression, muted otherwise. Click handling
+// lives on the colDef (`onCellClicked`) so the empty-dep colDef memo
+// stays stable.
+
+function ExpressionIconCell(params: ICellRendererParams<RowData>) {
+  const active =
+    typeof params.data?.valueGetter === 'string' && params.data.valueGetter.trim().length > 0;
+  return (
+    <span
+      className={`inline-flex h-6 w-6 items-center justify-center ${
+        active ? 'text-primary' : 'text-muted-foreground'
+      }`}
+      data-testid="columns-tab-expression-cell"
+      data-active={active}
+      title={active ? 'Edit value expression' : 'Add value expression'}
+    >
+      <SquareFunction className="h-3.5 w-3.5" />
+    </span>
+  );
+}
 
 // ─── Delete cell renderer ──────────────────────────────────────────
 
@@ -403,35 +613,49 @@ function KeyColumnPicker({
 
   const value = useMemo(() => normalizeKeyColumns(keyColumn) ?? [], [keyColumn]);
   const composite = value.length > 1;
+  const [open, setOpen] = useState(true);
 
   return (
-    <section
-      className="rounded-md border border-border bg-card px-3 py-2.5 space-y-1.5 flex-shrink-0"
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      className="rounded-md border border-border bg-card flex-shrink-0"
       data-testid="columns-tab-keycolumn"
     >
-      <div className="flex items-baseline justify-between gap-2">
-        <Label className="text-[11px] font-medium text-muted-foreground">
+      <CollapsibleTrigger className="group flex w-full items-baseline justify-between gap-2 px-3 py-2 text-left">
+        <span className="text-[11px] font-medium text-muted-foreground shrink-0">
           Key Column{value.length > 1 ? 's' : ''} <span className="text-destructive">*</span>
-        </Label>
-        {composite && (
-          <span className="text-[10px] font-mono text-muted-foreground">
-            id = {value.map((v) => `[${v}]`).join(' + "-" + ')}
-          </span>
-        )}
-      </div>
-      <MultiSelect
-        options={options}
-        value={value}
-        onChange={onChange}
-        placeholder={columns.length === 0 ? 'Pick fields first…' : 'Select column(s)…'}
-        emptyMessage="No columns — add fields on the Fields tab"
-        disabled={columns.length === 0}
-      />
-      <p className="text-[11px] text-muted-foreground">
-        Drives AG-Grid <code className="text-foreground">getRowId</code> + the worker-side
-        cache key. Pick a single column for a simple key, or two or more for a composite key
-        (values joined with <code className="text-foreground">-</code>).
-      </p>
-    </section>
+        </span>
+        <span className="flex min-w-0 items-baseline gap-2">
+          {/* When collapsed, surface the current key so it stays at a glance. */}
+          {!open && value.length > 0 && (
+            <span className="truncate text-[10px] font-mono text-muted-foreground">
+              {value.join(', ')}
+            </span>
+          )}
+          {open && composite && (
+            <span className="truncate text-[10px] font-mono text-muted-foreground">
+              id = {value.map((v) => `[${v}]`).join(' + "-" + ')}
+            </span>
+          )}
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" />
+        </span>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-3 pb-2.5 space-y-1.5">
+        <MultiSelect
+          options={options}
+          value={value}
+          onChange={onChange}
+          placeholder={columns.length === 0 ? 'Pick fields first…' : 'Select column(s)…'}
+          emptyMessage="No columns — add fields on the Fields tab"
+          disabled={columns.length === 0}
+        />
+        <p className="text-[11px] text-muted-foreground">
+          Drives AG-Grid <code className="text-foreground">getRowId</code> + the worker-side
+          cache key. Pick a single column for a simple key, or two or more for a composite key
+          (values joined with <code className="text-foreground">-</code>).
+        </p>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

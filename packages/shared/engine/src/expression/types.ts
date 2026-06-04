@@ -14,6 +14,8 @@ export type TokenType =
   | 'RPAREN'
   | 'LBRACKET'
   | 'RBRACKET'
+  | 'LBRACE'
+  | 'RBRACE'
   | 'COMMA'
   | 'QUESTION'
   | 'COLON'

@@ -21,7 +21,7 @@ import { ExpressionEngine } from '@starui/engine';
 interface OpSpec {
   label: string;
   detail: string;
-  kind: 'keyword' | 'operator';
+  kind: 'keyword' | 'operator' | 'control';
   /** Text inserted into the editor. Defaults to `label` when omitted. */
   insertText?: string;
   /** If true, `insertText` is interpreted as a Monaco snippet (with `$0`). */
@@ -43,6 +43,14 @@ const OPERATORS_AND_KEYWORDS: ReadonlyArray<OpSpec> = [
   { label: 'true', detail: 'Boolean true', kind: 'keyword' },
   { label: 'false', detail: 'Boolean false', kind: 'keyword' },
   { label: 'null', detail: 'Null literal', kind: 'keyword' },
+
+  // ── Control flow (sugar — both fold into short-circuiting ternaries) ──
+  { label: 'CASE', detail: 'Multi-branch (SQL-style)', kind: 'control', insertText: 'CASE WHEN ${1:cond} THEN ${2:result} ELSE ${0:fallback} END', snippet: true, docs: '`CASE WHEN c1 THEN r1 [WHEN …] [ELSE e] END` — first matching branch wins; short-circuits.' },
+  { label: 'WHEN', detail: 'CASE branch', kind: 'control', insertText: 'WHEN ${1:cond} THEN ${0:result}', snippet: true, docs: 'A `WHEN cond THEN result` branch inside a CASE.' },
+  { label: 'THEN', detail: 'CASE result', kind: 'keyword' },
+  { label: 'END', detail: 'CASE terminator', kind: 'keyword' },
+  { label: 'if … else', detail: 'Conditional block', kind: 'control', insertText: 'if (${1:cond}) {\n  return ${2:a}\n} else {\n  return ${0:b}\n}', snippet: true, docs: '`if (cond) { return a } else { return b }` — JS-style conditional; supports `else if`; short-circuits.' },
+  { label: 'else', detail: 'if / CASE branch', kind: 'keyword' },
 
   // ── Comparison operators ────────────────────────────────────────────
   { label: '==', detail: 'Equal to', kind: 'operator', docs: '`a == b` — true when operands compare equal.' },
@@ -137,8 +145,11 @@ export function registerCompletions(
       // Inside an open `[` or `{` — the user is typing a column name directly.
       // Suggest column ids only; the closing bracket will be inserted by
       // autoClosingPairs so we don't append it.
+      // Only a `[` opens column-only context. `{` is now ambiguous (legacy
+      // `{col}` ref vs an `if (…) { … }` block body), so we fall through to
+      // the general suggestion list there.
       const lastOpenBracket = findUnclosedBracket(textBefore);
-      if (lastOpenBracket === '[' || lastOpenBracket === '{') {
+      if (lastOpenBracket === '[') {
         return {
           suggestions: cols.map((c) => ({
             label: c.headerName,
@@ -171,15 +182,19 @@ export function registerCompletions(
             label: k.label,
             detail: k.detail,
             documentation: k.docs ? { value: k.docs } : undefined,
-            kind: k.kind === 'keyword'
-              ? monaco.languages.CompletionItemKind.Keyword
-              : monaco.languages.CompletionItemKind.Operator,
+            kind: k.kind === 'operator'
+              ? monaco.languages.CompletionItemKind.Operator
+              : k.kind === 'control'
+                ? monaco.languages.CompletionItemKind.Snippet
+                : monaco.languages.CompletionItemKind.Keyword,
             insertText: k.insertText ?? k.label,
             insertTextRules: k.snippet
               ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
               : undefined,
             range,
-            sortText: (k.kind === 'keyword' ? '1_' : '2_') + k.label,
+            // Control-flow snippets surface just under columns; then keywords,
+            // then operators.
+            sortText: (k.kind === 'control' ? '0a_' : k.kind === 'keyword' ? '1_' : '2_') + k.label,
           })),
           ...fns.map((f) => ({
             label: f.name,

@@ -85,6 +85,18 @@ export interface ColumnDefinition {
   type?: string;
   valueFormatter?: string;
   cellRenderer?: string;
+  /**
+   * Optional DSL expression compiled to an AG-Grid `valueGetter` at
+   * runtime (via `@starui/engine`'s ExpressionEngine). Column refs use
+   * bracket syntax — `[cusip]`, `[a.b.c]` for nested, optional-chaining
+   * paths — e.g.
+   *   `STARTS_WITH([cusip], "SPCL") AND [inventoryName] == null
+   *      ? [pnl.wrapper.rdiInventoryName] : [inventoryName]`
+   * Empty / absent means no override (column falls back to its `field`
+   * binding or the default nested-path getter). The expression never
+   * throws at runtime: parse/eval failures fall back to the field value.
+   */
+  valueGetter?: string;
 }
 
 /**

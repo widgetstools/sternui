@@ -205,14 +205,14 @@ test.describe('v2 — settings sheet pop-out window', () => {
     expect(where.menuItemsInPopout).toBeGreaterThanOrEqual(1);
   });
 
-  test('maximize + pop-out + close buttons AND the title caption hide while popped', async ({ page }) => {
+  test('pop-out + close buttons AND the title caption hide while popped', async ({ page }) => {
     await page.locator('[data-testid="v2-settings-popout-btn"]').click();
     await page.waitForTimeout(300);
 
     // Header cluster owned by the OS window chrome once popped: the
     // "GRID CUSTOMIZER / v2.3.0" caption + drag grip + close X. The
-    // pop-out + maximize buttons are ALSO hidden (redundant inside
-    // an OS window). The MAIN doc shouldn't render any of them.
+    // pop-out button is ALSO hidden (redundant inside an OS window).
+    // The MAIN doc shouldn't render any of them.
     const mainDocHasChrome = await page.evaluate(() => {
       return {
         close: !!document.querySelector('[data-testid="v2-settings-close-btn"]'),

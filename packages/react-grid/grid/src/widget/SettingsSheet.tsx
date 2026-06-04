@@ -17,8 +17,6 @@ import { GENERAL_SETTINGS_MODULE_ID } from '../customizer/modules/general-settin
 import {
   GripHorizontal,
   HelpCircle,
-  Maximize2,
-  Minimize2,
   X,
 } from 'lucide-react';
 import { HelpPanel } from './HelpPanel';
@@ -29,7 +27,7 @@ import { SettingsModuleTabs } from './SettingsModuleTabs';
  *
  * Chrome:
  *   - Title bar: terminal ticker with grip + green dot + "GRID CUSTOMIZER v2.3.0"
- *     + profile status + dirty count + maximise + close.
+ *     + profile status + dirty count + help + pop-out + close.
  *   - Body: 3-col grid (module rail, items list, editor).
  *   - Footer: save-per-rule keyboard hints + Done CTA.
  */
@@ -113,7 +111,6 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
   );
 
   const [activeId, setActiveId] = useState<string>(resolveDefaultModuleId);
-  const [maximized, setMaximized] = useState(false);
   // When true, the body area renders the Help cheatsheet instead of the
   // active module's ListPane / EditorPane. Toggled by the ? icon in the
   // header — a temporary view, not persisted.
@@ -172,7 +169,6 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
   // enclosing <Poppable/> so it can:
   //   - swap chrome (strip grip/title/close when popped — OS window
   //     owns those)
-  //   - hide the maximize button when popped (OS window owns it)
   //   - drop in the pop-out trigger button in the header icon cluster
   // See Poppable's render-prop API for the contract.
   const buildSheet = ({ popped, PopoutButton, close }: {
@@ -191,7 +187,6 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
       // Inline drawer: fill the vaul panel (no centered fixed modal chrome).
       // Popped OS window: full-viewport `.ds-popout` shell.
       popped ? 'ds-popout' : 'ds-drawer-shell',
-      maximized && !popped ? 'is-maximized' : '',
       popped ? 'is-popped' : '',
       frameless ? 'is-frameless' : '',
     ]
@@ -240,12 +235,8 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                 inside registers clicks instead of moving the
                 OpenFin window. */}
             <div
-              style={{
-                display: 'inline-flex',
-                gap: 2,
-                marginLeft: 8,
-                ...(frameless ? ({ WebkitAppRegion: 'no-drag' } as CSSProperties) : {}),
-              }}
+              className="ds-popout-title-actions"
+              style={frameless ? ({ WebkitAppRegion: 'no-drag' } as CSSProperties) : undefined}
             >
               <ChromeButton
                 type="button"
@@ -259,19 +250,6 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
               >
                 <HelpCircle size={12} strokeWidth={2} />
               </ChromeButton>
-              {/* Maximize collapses into a no-op when popped — the
-                  OS window chrome owns maximize in that mode. */}
-              {!popped && (
-                <ChromeButton
-                  type="button"
-                  className="ds-popout-title-btn"
-                  onClick={() => setMaximized((v) => !v)}
-                  title={maximized ? 'Restore window size' : 'Maximize'}
-                  aria-label={maximized ? 'Restore window size' : 'Maximize'}
-                >
-                  {maximized ? <Minimize2 size={12} strokeWidth={2} /> : <Maximize2 size={12} strokeWidth={2} />}
-                </ChromeButton>
-              )}
               {/* Pop-out button from <Poppable> — rendered only when
                   inline; hides itself when popped (the OS window
                   chrome takes over). */}

@@ -5,6 +5,7 @@
  * select another rail entry.
  */
 
+import { ArrowRight } from 'lucide-react';
 import { SECTION_META } from './sectionMeta';
 import { ChromeButton } from '@starui/grid/customizer';
 import { Code, H1, H2, P, Table } from './primitives';
@@ -34,15 +35,16 @@ export function Overview({ navigateTo }: HelpSectionProps) {
       />
 
       <H2>Jump to a section</H2>
-      <div className="flex flex-col gap-1 mt-1.5">
+      <div className="mt-2 flex flex-col gap-1.5">
         {SECTION_META.filter((s) => s.id !== 'overview').map((s) => (
           <ChromeButton
             key={s.id}
             type="button"
             onClick={() => navigateTo(s.id)}
-            className="ds-help-jump-btn"
+            className="ds-help-jump-btn !justify-start"
           >
             {s.title}
+            <ArrowRight size={14} strokeWidth={2} className="ds-help-jump-arrow" />
           </ChromeButton>
         ))}
       </div>

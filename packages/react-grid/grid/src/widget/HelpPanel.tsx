@@ -3,10 +3,10 @@
  * syntax, and trading-specific recipes. Rendered inside the SettingsSheet
  * body when the user clicks the Help icon in the sheet's title bar.
  *
- * Content mirrors `docs/FORMATS_AND_EXPRESSIONS.md` — the markdown doc is
- * the source of truth for anyone browsing on GitHub; this component is
- * the same content rendered inline so users never have to leave the app.
- * Keep the two in lockstep when editing.
+ * The Expression Syntax section mirrors `docs/EXPRESSION_DSL.md` — the
+ * authoritative engine reference (grammar, the full function catalog, and
+ * JS→DSL conversion). Keep the two in lockstep when editing. Excel format
+ * strings follow standard SSF (SheetJS) syntax.
  *
  * The shell holds the section rail and content pane. Section bodies and
  * shared presentational primitives live under ./help/ — see
@@ -15,7 +15,6 @@
  */
 
 import { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
 import { ChromeButton } from '@starui/grid/customizer';
 import './HelpPanel.css';
 import { SECTIONS } from './help/sections';
@@ -28,39 +27,34 @@ export function HelpPanel() {
     <div data-testid="v2-settings-help" className="ds-help-shell">
       {/* Section rail */}
       <nav className="ds-help-nav">
-        {SECTIONS.map((s) => {
-          const on = s.id === active;
-          return (
-            <ChromeButton
-              key={s.id}
-              type="button"
-              onClick={() => setActive(s.id)}
-              data-testid={`help-nav-${s.id}`}
-              data-active={on ? 'true' : 'false'}
-              className="ds-help-nav-btn"
-            >
-              <ChevronRight
-                size={10}
-                strokeWidth={2}
-                className="ds-help-nav-chevron"
-              />
-              {s.title}
-            </ChromeButton>
-          );
-        })}
+        <div className="ds-help-nav-eyebrow">Cookbook</div>
+        {SECTIONS.map((s) => (
+          <ChromeButton
+            key={s.id}
+            type="button"
+            onClick={() => setActive(s.id)}
+            data-testid={`help-nav-${s.id}`}
+            data-active={s.id === active ? 'true' : 'false'}
+            className="ds-help-nav-btn !justify-start"
+          >
+            {s.title}
+          </ChromeButton>
+        ))}
         <div className="ds-help-nav-footer">
-          Full reference:
+          Expression reference
           <br />
-          <code>docs/FORMATS_AND_EXPRESSIONS.md</code>
+          <code>docs/EXPRESSION_DSL.md</code>
         </div>
       </nav>
 
-      {/* Content pane */}
+      {/* Content column */}
       <section
         data-testid="help-content"
-        className="ds-help-content pt-5 px-7 pb-8 text-[12.5px] leading-relaxed"
+        className="ds-help-content text-[12.5px] leading-relaxed"
       >
-        {activeSection ? <activeSection.Body navigateTo={setActive} /> : null}
+        <div className="ds-help-content-inner">
+          {activeSection ? <activeSection.Body navigateTo={setActive} /> : null}
+        </div>
       </section>
     </div>
   );
