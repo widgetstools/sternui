@@ -41,11 +41,28 @@ function collectTarballsFromLock(lockPath) {
   const files = new Set();
   if (!existsSync(lockPath)) return files;
   const lock = JSON.parse(readFileSync(lockPath, 'utf8'));
-  for (const entry of Object.values(lock.packages ?? {})) {
-    const resolved = entry?.resolved;
-    if (typeof resolved !== 'string' || !resolved.startsWith('file:')) continue;
-    const m = resolved.match(/libs\/([^/]+\.tgz)$/);
+
+  const addFromSpec = (spec) => {
+    if (typeof spec !== 'string') return;
+    const m = spec.match(/libs\/([^/]+\.tgz)$/);
     if (m) files.add(m[1]);
+  };
+
+  for (const entry of Object.values(lock.packages ?? {})) {
+    if (!entry || typeof entry !== 'object') continue;
+    // Installed-node form: "resolved": "file:.../libs/<bucket>.tgz".
+    addFromSpec(entry.resolved);
+    // Dependency-specifier form. When every demo app references the SAME bucket
+    // tarball (single apps/demos tree), npm hoists it to one node recorded as
+    // version-only with no `resolved`; the `file:` spec then only survives on
+    // the consuming app's dependency edge. Scan those too so detection is
+    // independent of npm's hoisting decisions.
+    for (const section of ['dependencies', 'devDependencies', 'optionalDependencies']) {
+      const deps = entry[section];
+      if (deps && typeof deps === 'object') {
+        for (const spec of Object.values(deps)) addFromSpec(spec);
+      }
+    }
   }
   return files;
 }
