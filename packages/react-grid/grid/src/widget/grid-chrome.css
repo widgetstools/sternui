@@ -137,11 +137,6 @@
   animation: ds-popout-rise 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.ds-popout.is-maximized {
-  width: 94vw;
-  height: 90vh;
-}
-
 /* Inline settings drawer — fills the vaul right-rail panel (not centered modal). */
 .ds-drawer-shell {
   display: flex;
@@ -153,10 +148,6 @@
   background: var(--ds-surface-ground);
   color: var(--ds-text-primary);
   overflow: hidden;
-}
-
-.ds-drawer-shell.is-maximized {
-  width: 100%;
 }
 
 /* Popped mode — window IS the overlay; fill edge-to-edge */
@@ -187,17 +178,34 @@
 }
 
 /* ── Title bar ─────────────────────────────────────────────────────────────*/
+/* Taller than the module-tab strip below it, on an elevated surface with a
+ * drop shadow + stronger divider so the chrome reads as a distinct title bar
+ * rather than blending into the tabs/content (which sit on surface-primary). */
 .ds-popout-title {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 36px;
-  padding: 0 14px;
-  border-bottom: 1px solid var(--ds-border-primary);
-  background: var(--ds-surface-primary);
+  height: 46px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--ds-border-secondary);
+  background: var(--ds-surface-secondary);
+  box-shadow: 0 2px 5px -3px rgb(0 0 0 / 0.4);
   cursor: move;
   user-select: none;
   flex-shrink: 0;
+}
+
+/* Right-side control cluster — divider + breathing room so it stops feeling
+ * crowded against the DIRTY readout. */
+.ds-popout-title-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 14px;
+  padding-left: 14px;
+  border-left: 1px solid var(--ds-border-primary);
 }
 
 .ds-popout-title-text {
@@ -229,9 +237,12 @@
   font-weight: 500;
 }
 
-.ds-popout-title-btn {
-  width: 24px;
-  height: 24px;
+/* Parent-qualified so width/height beat the ChromeButton Tailwind reset
+ * (`h-auto`), otherwise the buttons collapse to the icon's intrinsic size
+ * and the cluster reads as cramped regardless of the flex gap. */
+.ds-popout-title .ds-popout-title-btn {
+  width: 26px;
+  height: 26px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -239,13 +250,13 @@
   border: none;
   color: var(--ds-text-secondary);
   cursor: pointer;
-  border-radius: 2px;
+  border-radius: 5px;
   padding: 0;
   transition: background 120ms, color 120ms;
 }
 
-.ds-popout-title-btn:hover {
-  background: var(--ds-surface-secondary);
+.ds-popout-title .ds-popout-title-btn:hover {
+  background: var(--ds-surface-hover, color-mix(in srgb, var(--ds-text-primary) 8%, transparent));
   color: var(--ds-text-primary);
 }
 

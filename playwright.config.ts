@@ -60,5 +60,16 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
     },
+    {
+      // STOMP minimal app — hosts the DataProvider editor's Columns tab,
+      // which lives in `@starui/widgets-react`. That package resolves to its
+      // dist exports (only `@starui/grid` is consumed as source), so build it
+      // first or the editor serves stale code. Port matches
+      // `apps/demos/stomp-marketsgrid-minimal/vite.config.ts`.
+      command: 'npm run build --workspace=@starui/widgets-react && npm --prefix apps run dev:source -w @starui/stomp-marketsgrid-minimal -- --no-open --force',
+      port: 5213,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
   ],
 });

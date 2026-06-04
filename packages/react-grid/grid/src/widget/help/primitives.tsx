@@ -1,14 +1,15 @@
 /**
  * Shared presentational primitives used across HelpPanel sections.
  * Pure presentational — no state, no side effects. Tokens come from
- * the design system; Tailwind utilities handle layout.
+ * the design system (shadcn semantic tokens → dark/light safe).
  */
 
 import type { ReactNode } from 'react';
+import { cn } from '@starui/ui';
 
 export function H1({ children }: { children: ReactNode }) {
   return (
-    <h1 className="text-[18px] font-bold tracking-[0.2px] mb-1 text-foreground">
+    <h1 className="mb-2 text-[19px] font-bold tracking-[0.2px] text-foreground">
       {children}
     </h1>
   );
@@ -16,7 +17,7 @@ export function H1({ children }: { children: ReactNode }) {
 
 export function H2({ children }: { children: ReactNode }) {
   return (
-    <h2 className="text-[14px] font-semibold tracking-[0.15px] mt-6 mb-2 text-foreground border-b border-border pb-1">
+    <h2 className="mt-7 mb-2.5 border-b border-border pb-1.5 text-[13.5px] font-semibold tracking-[0.1px] text-foreground">
       {children}
     </h2>
   );
@@ -24,7 +25,7 @@ export function H2({ children }: { children: ReactNode }) {
 
 export function H3({ children }: { children: ReactNode }) {
   return (
-    <h3 className="text-xs font-semibold tracking-[0.2px] mt-[18px] mb-1.5 text-[var(--ds-text-secondary)] uppercase">
+    <h3 className="mt-5 mb-1.5 text-[11px] font-semibold uppercase tracking-[0.55px] text-muted-foreground">
       {children}
     </h3>
   );
@@ -36,7 +37,7 @@ export function P({ children }: { children: ReactNode }) {
 
 export function Code({ children }: { children: ReactNode }) {
   return (
-    <code className="inline-block px-1.5 py-px rounded-[3px] bg-background border border-border font-mono text-[11px]">
+    <code className="rounded-[4px] border border-border bg-muted px-1.5 py-px font-mono text-[11px] text-foreground">
       {children}
     </code>
   );
@@ -44,7 +45,7 @@ export function Code({ children }: { children: ReactNode }) {
 
 export function Pre({ children }: { children: ReactNode }) {
   return (
-    <pre className="my-2 mb-3.5 px-3 py-2.5 rounded bg-background border border-border font-mono text-[11px] leading-[1.55] text-foreground overflow-x-auto">
+    <pre className="my-3 overflow-x-auto rounded-lg border border-border bg-muted/50 px-3.5 py-3 font-mono text-[11px] leading-[1.6] text-foreground">
       {children}
     </pre>
   );
@@ -52,33 +53,38 @@ export function Pre({ children }: { children: ReactNode }) {
 
 export function Table({ rows, cols }: { cols: string[]; rows: Array<Array<ReactNode>> }) {
   return (
-    <table className="w-full border-collapse my-2.5 mb-3.5 text-[11px]">
-      <thead>
-        <tr>
-          {cols.map((c) => (
-            <th
-              key={c}
-              className="text-left px-2 py-1.5 border-b border-[var(--ds-border-secondary)] font-semibold text-[10px] uppercase tracking-[0.25px] text-muted-foreground bg-[var(--ds-surface-secondary)]"
-            >
-              {c}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r, i) => (
-          <tr key={i}>
-            {r.map((cell, j) => (
-              <td
-                key={j}
-                className="px-2 py-[5px] border-b border-border align-top text-foreground"
+    <div className="my-3 overflow-hidden rounded-lg border border-border">
+      <table className="w-full border-collapse text-[11.5px]">
+        <thead>
+          <tr className="bg-muted/60">
+            {cols.map((c) => (
+              <th
+                key={c}
+                className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.4px] text-muted-foreground"
               >
-                {cell}
-              </td>
+                {c}
+              </th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className="border-t border-border/70 transition-colors hover:bg-muted/30">
+              {r.map((cell, j) => (
+                <td
+                  key={j}
+                  className={cn(
+                    'px-3 py-[7px] align-top text-foreground',
+                    j === 0 && 'font-medium',
+                  )}
+                >
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

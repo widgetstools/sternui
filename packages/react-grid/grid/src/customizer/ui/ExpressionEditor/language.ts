@@ -14,7 +14,13 @@ import type * as MonacoNS from 'monaco-editor';
  */
 export const LANGUAGE_ID = 'gcExpression';
 
-const KEYWORDS = ['AND', 'OR', 'NOT', 'IN', 'BETWEEN', 'true', 'false', 'null', 'TRUE', 'FALSE', 'NULL'];
+const KEYWORDS = [
+  'AND', 'OR', 'NOT', 'IN', 'BETWEEN', 'true', 'false', 'null', 'TRUE', 'FALSE', 'NULL',
+  // Conditional sugar (case-insensitive in the grammar — list both forms so
+  // the highlighter colors them regardless of how the user types them).
+  'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'IF', 'RETURN',
+  'case', 'when', 'then', 'else', 'end', 'if', 'return',
+];
 
 export function registerLanguage(monaco: typeof MonacoNS): void {
   if (monaco.languages.getLanguages().some((l) => l.id === LANGUAGE_ID)) return;

@@ -19,20 +19,29 @@ export function tokenize(source: string): Token[] {
   let i = 0;
 
   while (i < source.length) {
-    // Skip whitespace
-    if (/\s/.test(source[i])) {
+    // Skip whitespace. `;` is treated as an (optional) statement terminator
+    // inside `if (...) { return ...; }` blocks — harmless elsewhere.
+    if (/\s/.test(source[i]) || source[i] === ';') {
       i++;
       continue;
     }
 
     const pos = i;
 
-    // Column reference: {columnId}
+    // `{...}` is overloaded: the legacy column-ref form `{col}` / `{a.b}` AND
+    // the `{ ... }` block braces of `if (cond) { ... }`. Disambiguate by
+    // content: a clean column id stays a COLUMN_REF (back-compat); anything
+    // else (spaces, `return`, operators, brackets) is a block brace.
     if (source[i] === '{') {
       const end = source.indexOf('}', i + 1);
-      if (end === -1) throw new SyntaxError(`Unterminated column reference at position ${i}`);
-      tokens.push({ type: 'COLUMN_REF', value: source.slice(i + 1, end), position: pos });
-      i = end + 1;
+      const inner = end === -1 ? '' : source.slice(i + 1, end);
+      if (end !== -1 && /^[A-Za-z_$][A-Za-z0-9_$]*(\.[A-Za-z0-9_$]+)*$/.test(inner)) {
+        tokens.push({ type: 'COLUMN_REF', value: inner, position: pos });
+        i = end + 1;
+        continue;
+      }
+      tokens.push({ type: 'LBRACE', value: '{', position: pos });
+      i++;
       continue;
     }
 
@@ -102,6 +111,7 @@ export function tokenize(source: string): Token[] {
       ')': 'RPAREN',
       '[': 'LBRACKET',
       ']': 'RBRACKET',
+      '}': 'RBRACE',
       ',': 'COMMA',
       '?': 'QUESTION',
       ':': 'COLON',
