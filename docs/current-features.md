@@ -51,7 +51,7 @@
 - `./tailwind` — Tailwind preset
 - `./primeng` — PrimeNG theme preset
 - `./shadcn` — shadcn token generator
-- `./adapters/ag-grid` — AG Grid Quartz themes (`iconSetQuartzLight`); dark `#0C0F14` chrome; light shares structural params (Inter 12/11, 2px radii, `rowVerticalPaddingScale` 1)
+- `./adapters/ag-grid` — AG Grid Quartz themes (`iconSetQuartzLight`); STARUI token-driven chrome (JetBrains Mono headers/cells, Inter chrome, 4px radii, 12px cell padding)
 - `./tokens`, `./tokens/primitives`, `./tokens/semantic`, `./tokens/components`, `./tokens/controls`
 - `./cell-renderers` — bundled AG Grid cell renderer classes
 
@@ -61,32 +61,36 @@
 - Typography: font families, sizes, weights, letter-spacing, line-heights
 - Spacing scale, border radius, opacity scale, transition tokens, elevation/shadow scale
 - Stockflux Slate palette in hex, shadcn-compatible HSL, and AG Grid formats
+- **STARUI canonical packs** (`tokens/staruiHex.ts`) — Graphite dark, clinical light, paper light; cyan signature accent; mint-teal buy / rose sell
+- Legacy `--sf-*` / `stockfluxSlate*` export names retained; new `--st-*` namespace emitted in unified CSS
 
 #### Semantic tokens
 
 - `ColorScheme` interface — primary, surface, text, border, accent, trade, action, state, overlay, chart, sidebar, CVD groups
+- `dark`, `light` (clinical), `lightPaper` (warm cream) schemes
 - Component tokens — per-component theming overrides
 - Control tokens — `ControlSize` and `ControlTier` for form-control variants
 
 #### Theme runtime
 
-- `applyTheme()` — toggle dark/light + CVD accessibility mode, persists to `localStorage`
+- `applyTheme()` — toggle dark/light + CVD accessibility mode + light variant, persists to `localStorage`
 - `getTheme()` — read persisted theme with legacy key migration
-- `ThemeOptions` — `{ mode, cvd }` shape
-- Storage keys: `starui:theme` (canonical), `starui:cvd`, with `@starui/theme` legacy migration
+- `ThemeOptions` — `{ theme, cvd?, variant? }` shape; `variant`: `'clinical' | 'paper'` (light only; default `clinical`)
+- DOM: `data-theme="dark|light"`, optional `data-variant="clinical|paper"`, optional `data-cvd="on"`
+- Storage keys: `starui:theme` (canonical), `starui:cvd`, `starui:variant`, with `@starui/theme` legacy migration
 
 #### CSS generation
 
-- `buildCSSTheme` — emit CSS custom properties from semantic tokens
+- `generateUnifiedCSS()` — emit CSS custom properties from semantic tokens (dark + clinical + paper blocks)
 - Dynamic CSS injection utility for theme switching
 - WCAG contrast validation helpers
 
 #### Framework adapters
 
-- Tailwind preset — `darkMode: 'class'`, HSL channel variables, surface scale 50–950, radius, font families
-- shadcn adapter — Radix/shadcn color-name unification
-- PrimeNG adapter — PrimeUI-compatible color mapping
-- AG Grid adapters — `dark`, `light`, `comfort`, `blotter` variants with cell-styling parameters
+- Tailwind preset — `darkMode: ['selector', '[data-theme="dark"]']`, HSL channel variables, surface scale 50–950, radius, font families
+- shadcn adapter — Radix/shadcn color-name unification + `--st-*` STARUI bridge
+- PrimeNG adapter — PrimeUI-compatible color mapping via `var(--ds-*)`
+- AG Grid adapters — `dark`, `light`, `comfort`, `blotter` variants; STARUI token colors (JetBrains Mono headers/cells, Inter chrome, 4px radii, 12px cell padding)
 
 #### AG Grid cell renderers
 
@@ -274,6 +278,10 @@ Per-renderer config types (`PillRendererConfig`,
   `toolbarDateHistoryEnabled` (when `false`, only today is selectable)
 - `DEFAULT_MODULES` — ordered customizer-module pipeline
 - `gridSurfaceOptions` — AG Grid defaults, DOM options, row styling, cell renderers
+- `MarketsGridSurface` — folds the effective `rowHeight`/`headerHeight` (host
+  override or general-settings pipeline) into the theme via `theme.withParams`,
+  keeping `--ag-row-height` in sync with the live row height so cell text stays
+  vertically centered at any height (parameter-based; no CSS overrides)
 - `useGridHost`, `useMarketsGridController` — imperative grid control hooks
 - `useFilterModel` — filter-model persistence + mutation
 - `useGridTheme` — resolves AG Grid theme from `data-theme`

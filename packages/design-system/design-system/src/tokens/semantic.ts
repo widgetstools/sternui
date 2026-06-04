@@ -1,20 +1,25 @@
 // ─────────────────────────────────────────────────────────────
-//  FI Design System — Semantic Tokens
-//  Stockflux SLATE BLUE (`data-palette="slate"`) — single theme.
-//  Canonical hex: tokens/stockfluxSlate.ts
+//  STARUI — Semantic Tokens
+//  Three themes: dark (Graphite), light clinical, light paper.
+//  Canonical hex: tokens/staruiHex.ts
 // ─────────────────────────────────────────────────────────────
 
 import { colors, typography, radius, spacing, opacity, transition, shadow } from './primitives';
-import { stockfluxSlateHex, stockfluxSlateShadcn } from './stockfluxSlate';
+import {
+  staruiHex,
+  buildShadcnFromStarui,
+  type StaruiHexPack,
+} from './staruiHex';
+import { stockfluxSlateShadcn } from './stockfluxSlate';
 
 // ── Color Scheme Type ──
 export interface ColorScheme {
   primary: {
-    color:      string;  // CTA fill (shadcn --primary)
-    hover:      string;  // CTA hover
-    display:    string;  // link / accent (sf-teal)
-    highlight:  string;  // hover highlight (sf-teal-hi)
-    pressed:    string;  // pressed (sf-teal-lo)
+    color:      string;
+    hover:      string;
+    display:    string;
+    highlight:  string;
+    pressed:    string;
     foreground: string;
     soft:       string;
     ring:       string;
@@ -40,6 +45,7 @@ export interface ColorScheme {
     primary:   string;
     secondary: string;
     tertiary:  string;
+    divider:   string;
   };
   accent: {
     positive:      string;
@@ -106,139 +112,135 @@ export interface ColorScheme {
     overlay: string;
     glow:    string;
   };
-  /** shadcn/ui HSL channel triplets — must match Stockflux palettes.css slate */
   shadcn: typeof stockfluxSlateShadcn.dark | typeof stockfluxSlateShadcn.light;
 }
 
-function schemeFromStockflux(
-  hex: typeof stockfluxSlateHex.dark | typeof stockfluxSlateHex.light,
+function schemeFromStarui(
+  h: StaruiHexPack,
   shadcn: typeof stockfluxSlateShadcn.dark | typeof stockfluxSlateShadcn.light,
   mode: 'dark' | 'light',
 ): ColorScheme {
   const isDark = mode === 'dark';
   return {
     primary: {
-      color:      isDark ? hex.brandLo : hex.brand,
-      hover:      isDark ? hex.brand : hex.brandHi,
-      display:    hex.brand,
-      highlight:  hex.brandHi,
-      pressed:    hex.brandLo,
-      foreground: '#ffffff',
-      soft:       hex.brandSoft,
-      ring:       hex.brandRing,
+      color:      h.accent,
+      hover:      h.accentHover,
+      display:    h.accent,
+      highlight:  h.accentHover,
+      pressed:    h.accentHover,
+      foreground: h.accentFg,
+      soft:       h.accentSoft,
+      ring:       h.accentRing,
     },
     surface: {
-      ground:     hex.bg,
-      sunken:     hex.bg1,
-      primary:    hex.bg2,
-      secondary:  hex.bg3,
-      tertiary:   hex.bg4,
-      quaternary: hex.bg5,
-      muted:      hex.mutedSurface,
-      popover:    hex.popoverSurface,
+      ground:     h.bg,
+      sunken:     h.bg1,
+      primary:    h.bg1,
+      secondary:  h.bg2,
+      tertiary:   h.bg3,
+      quaternary: h.border2,
+      muted:      h.bg2,
+      popover:    h.bg1,
     },
     text: {
-      primary:   hex.t0,
-      secondary: hex.t1,
-      muted:     hex.t2,
-      faint:     hex.t3,
-      disabled:  hex.t4,
+      primary:   h.t0,
+      secondary: h.t1,
+      muted:     h.t2,
+      faint:     h.t3,
+      disabled:  h.disabledFg,
     },
     border: {
-      primary:   hex.border,
-      secondary: hex.border2,
-      tertiary:  hex.border3,
+      primary:   h.border,
+      secondary: h.border2,
+      tertiary:  h.border2,
+      divider:   h.divider,
     },
     accent: {
-      positive:      hex.up,
-      positiveHover: hex.upHi,
-      negative:      hex.down,
-      negativeHover: hex.downHi,
-      warning:       hex.warn,
-      info:          hex.info,
-      infoHover:     isDark ? colors.cyan.darkHov : colors.cyan.lightHov,
-      highlight:     isDark ? colors.cyan.highlightDark : colors.cyan.highlightLight,
-      purple:        isDark ? colors.purple.dark : colors.purple.light,
+      positive:      h.buy,
+      positiveHover: h.buyHover,
+      negative:      h.sell,
+      negativeHover: h.sellHover,
+      warning:       h.warn,
+      info:          h.info,
+      infoHover:     h.accentHover,
+      highlight:     h.accent,
+      purple:        h.purple,
     },
     trade: {
-      flat:          hex.flat,
-      positiveStrip: hex.upStrip,
-      negativeStrip: hex.downStrip,
-      bidFill:       hex.bidFill,
-      askFill:       hex.askFill,
+      flat:          h.t2,
+      positiveStrip: h.buySoft,
+      negativeStrip: h.sellSoft,
+      bidFill:       h.bidFill,
+      askFill:       h.askFill,
     },
     action: {
-      buyBg:    hex.up,
-      buyText:  '#ffffff',
-      sellBg:   hex.down,
-      sellText: '#ffffff',
+      buyBg:    h.buy,
+      buyText:  h.buyFg,
+      sellBg:   h.sell,
+      sellText: h.sellFg,
     },
     state: {
-      focusRing:    isDark ? hex.brandLo : hex.brand,
-      focusRingBg:  hex.brandSoft,
-      disabledBg:   hex.bg4,
-      disabledFg:   hex.t4,
-      hoverOverlay: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.045)',
-      selection:    isDark ? 'rgba(59,130,246,0.20)' : 'rgba(37,99,235,0.12)',
+      focusRing:    h.accent,
+      focusRingBg:  h.accentSoft,
+      disabledBg:   h.disabledBg,
+      disabledFg:   h.disabledFg,
+      hoverOverlay: h.hoverOverlay,
+      selection:    h.selection,
     },
     overlay: {
-      positiveSoft: hex.upSoft,
-      positiveRing: hex.upSoft,
-      negativeSoft: hex.downSoft,
-      negativeRing: hex.downSoft,
-      warningSoft:  hex.warnSoft,
-      warningRing:  hex.warnSoft,
-      infoSoft:     hex.infoSoft,
-      infoRing:     hex.infoSoft,
-      neutralSoft:  isDark ? 'rgba(143,147,154,0.13)' : 'rgba(82,93,108,0.08)',
-      neutralRing:  isDark ? 'rgba(143,147,154,0.24)' : 'rgba(82,93,108,0.14)',
+      positiveSoft: h.buySoft,
+      positiveRing: h.buyRing,
+      negativeSoft: h.sellSoft,
+      negativeRing: h.sellRing,
+      warningSoft:  h.warnSoft,
+      warningRing:  h.warnRing,
+      infoSoft:     h.infoSoft,
+      infoRing:     h.infoRing,
+      neutralSoft:  h.neutralSoft,
+      neutralRing:  h.neutralRing,
     },
-    chart: [
-      isDark ? hex.brandLo : hex.brand,
-      hex.up,
-      isDark ? hex.warn : hex.warn,
-      isDark ? colors.purple.dark : colors.purple.light,
-      hex.down,
-    ],
+    chart: [h.accent, h.buy, h.warn, h.purple, h.sell],
     sidebar: {
-      background:       hex.sidebarGround,
-      foreground:       hex.t0,
-      primary:          isDark ? hex.brandLo : hex.brand,
-      primaryForeground: isDark ? '#0b0f14' : '#ffffff',
-      accent:           hex.mutedSurface,
-      accentForeground: hex.t0,
-      border:           isDark ? hex.bg3 : hex.border,
-      ring:             isDark ? hex.brandLo : hex.brand,
+      background:        h.bg,
+      foreground:        h.t0,
+      primary:           h.accent,
+      primaryForeground: h.accentFg,
+      accent:            h.bg2,
+      accentForeground:  h.t0,
+      border:            h.border,
+      ring:              h.accent,
     },
     cvd: {
       buy:  isDark ? colors.cvd.buyDark : colors.cvd.buyLight,
       sell: isDark ? colors.cvd.sellDark : colors.cvd.sellLight,
     },
-    scrollbar: hex.scrollbar,
+    scrollbar: h.scrollbar,
     elevation: {
-      card:    isDark
-        ? '0 1px 2px rgba(0,0,0,0.4)'
-        : '0 1px 2px rgba(12,29,48,0.06)',
-      overlay: isDark
-        ? '0 4px 12px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.04) inset'
-        : '0 2px 8px rgba(12,29,48,0.08), 0 1px 0 rgba(255,255,255,0.6) inset',
-      glow:    isDark
-        ? '0 0 0 3px rgba(59,130,246,0.38)'
-        : '0 0 0 3px rgba(37,99,235,0.22)',
+      card:    h.shadowCard,
+      overlay: h.shadowOverlay,
+      glow:    h.glowFocus,
     },
     shadcn,
   };
 }
 
-export const dark: ColorScheme = schemeFromStockflux(
-  stockfluxSlateHex.dark,
-  stockfluxSlateShadcn.dark,
+export const dark: ColorScheme = schemeFromStarui(
+  staruiHex.dark,
+  buildShadcnFromStarui(staruiHex.dark),
   'dark',
 );
 
-export const light: ColorScheme = schemeFromStockflux(
-  stockfluxSlateHex.light,
-  stockfluxSlateShadcn.light,
+/** Default light theme — STARUI "clinical" (Studio). */
+export const light: ColorScheme = schemeFromStarui(
+  staruiHex.lightClinical,
+  buildShadcnFromStarui(staruiHex.lightClinical),
+  'light',
+);
+
+/** STARUI "paper" light variant — warm cream chrome. */
+export const lightPaper: ColorScheme = schemeFromStarui(
+  staruiHex.lightPaper,
+  buildShadcnFromStarui(staruiHex.lightPaper),
   'light',
 );
 
@@ -251,4 +253,4 @@ export const shared = {
   shadow,
 } as const;
 
-export const semantic = { dark, light, shared } as const;
+export const semantic = { dark, light, lightPaper, shared } as const;

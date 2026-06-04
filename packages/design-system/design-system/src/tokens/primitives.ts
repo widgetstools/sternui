@@ -1,10 +1,10 @@
 // ─────────────────────────────────────────────────────────────
-//  FI Design System — Primitive Tokens
+//  STARUI — Primitive Tokens
 //  Raw palette, type scale, spacing, radius, opacity, timing.
 //
-//  Blue-slate (Stockflux SLATE) palette:
-//    - Industrial-cool pewter chrome with a sapphire brand accent.
-//    - Trading semantics are palette-locked (mint-teal up / rose down).
+//  Binance-inspired trading palette:
+//    - Graphite chrome with a cyan signature accent.
+//    - Trading semantics are palette-locked (mint-teal buy / rose sell).
 // ─────────────────────────────────────────────────────────────
 
 export const colors = {
@@ -45,42 +45,42 @@ export const colors = {
     450: '#494c52',  // sf-t-4 disabled
     650: '#565a61',  // sf-border-3
   },
-  // ── Teal / positive (Stockflux palette-locked trade up) ──
+  // ── Teal / positive (STARUI --st-buy) ──
   teal: {
-    light:    '#0f766e',
-    lightHov: '#0a5d56',
-    dark:     '#2dd4bf',
-    darkHov:  '#5eead4',
+    light:    '#0d9488',
+    lightHov: '#0b7a70',
+    dark:     '#22e3a8',
+    darkHov:  '#3fecb8',
   },
-  // ── Red / negative (Stockflux palette-locked trade down) ──
+  // ── Red / negative (STARUI --st-sell) ──
   rose: {
-    light:    '#be1f43',
-    lightHov: '#9e1838',
-    dark:     '#f25668',
-    darkHov:  '#ff7484',
+    light:    '#e11d48',
+    lightHov: '#be123c',
+    dark:     '#ff5a82',
+    darkHov:  '#ff7898',
   },
   // ── Warning (Stockflux palette-locked) ──
   amber: {
     light:    '#b27607',
     dark:     '#f5c14b',
   },
-  // ── Brand / sapphire (sf-teal naming in Stockflux) ──
+  // ── Brand / signature cyan (STARUI --st-accent) ──
   brand: {
-    light:    '#2563eb',
-    lightHov: '#1d4ed8',
-    lightLo:  '#1e40af',
-    dark:     '#3b82f6',
-    darkHov:  '#60a5fa',
-    darkHi:   '#93c5fd',
+    light:    '#0891b2',
+    lightHov: '#0e7490',
+    lightLo:  '#0e7490',
+    dark:     '#22d3ee',
+    darkHov:  '#4ae0f2',
+    darkHi:   '#4ae0f2',
   },
-  // ── Info (Stockflux palette-locked sf-info) ──
+  // ── Info (STARUI signature cyan — same hue family as brand) ──
   cyan: {
-    light:          '#0e7490',
-    lightHov:       '#0c6378',
-    dark:           '#38bdf8',
-    darkHov:        '#7dd3fc',
-    highlightLight: '#06b6d4',
-    highlightDark:  '#00e5ff',
+    light:          '#0891b2',
+    lightHov:       '#0e7490',
+    dark:           '#22d3ee',
+    darkHov:        '#4ae0f2',
+    highlightLight: '#0891b2',
+    highlightDark:  '#22d3ee',
   },
   // ── Purple / chart accent (Stockflux slate chart-4) ──
   purple: {
@@ -162,10 +162,10 @@ export const spacing = {
 
 export const radius = {
   none: '0px',
-  sm:   '3px',
-  md:   '3px',
-  lg:   '3px',
-  xl:   '6px',
+  sm:   '2px',
+  md:   '4px',
+  lg:   '8px',
+  xl:   '8px',
   full: '9999px',
 } as const;
 

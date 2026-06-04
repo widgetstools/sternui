@@ -70,10 +70,8 @@ describe('ColorScheme contract', () => {
     expect(light.cvd.sell).not.toBe(light.accent.negative);
   });
 
-  it('primary brand colors are distinct from informational accents', () => {
-    expect(dark.primary.color).not.toBe(dark.accent.info);
-    expect(dark.primary.hover).not.toBe(dark.accent.infoHover);
-    expect(light.primary.color).not.toBe(light.accent.info);
-    expect(light.primary.hover).not.toBe(light.accent.infoHover);
+  it('STARUI signature cyan: primary and info share the accent hue', () => {
+    expect(dark.primary.color).toBe(dark.accent.info);
+    expect(light.primary.color).toBe(light.accent.info);
   });
 });

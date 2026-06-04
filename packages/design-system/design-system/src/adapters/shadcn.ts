@@ -21,7 +21,7 @@
 //    --p-*        PrimeNG / tailwindcss-primeui aliases
 // ─────────────────────────────────────────────────────────────
 
-import { dark, light, shared } from '../tokens/semantic';
+import { dark, light, lightPaper, shared } from '../tokens/semantic';
 import type { ColorScheme } from '../tokens/semantic';
 import { colors, typography, radius, transition } from '../tokens/primitives';
 import { controls } from '../tokens/controls';
@@ -91,6 +91,67 @@ export function getShadcnTokens(mode: 'dark' | 'light') {
 // ─────────────────────────────────────────────────────────────
 //  Unified CSS Generator — Task 9
 // ─────────────────────────────────────────────────────────────
+
+function staruiAliasVars(scheme: ColorScheme): string {
+  return `
+    /* ── STARUI --st-* source tokens ── */
+    --st-bg:           ${scheme.surface.ground};
+    --st-bg-1:         ${scheme.surface.sunken};
+    --st-bg-2:         ${scheme.surface.secondary};
+    --st-bg-3:         ${scheme.surface.tertiary};
+    --st-t0:           ${scheme.text.primary};
+    --st-t1:           ${scheme.text.secondary};
+    --st-t2:           ${scheme.text.muted};
+    --st-t3:           ${scheme.text.faint};
+    --st-border:       ${scheme.border.primary};
+    --st-border-2:     ${scheme.border.secondary};
+    --st-divider:      ${scheme.border.divider};
+    --st-accent:       ${scheme.primary.color};
+    --st-accent-hover: ${scheme.primary.hover};
+    --st-accent-fg:    ${scheme.primary.foreground};
+    --st-accent-soft:  ${scheme.primary.soft};
+    --st-accent-ring:  ${scheme.primary.ring};
+    --st-buy:          ${scheme.accent.positive};
+    --st-buy-hover:    ${scheme.accent.positiveHover};
+    --st-buy-fg:       ${scheme.action.buyText};
+    --st-buy-soft:     ${scheme.overlay.positiveSoft};
+    --st-buy-ring:     ${scheme.overlay.positiveRing};
+    --st-sell:         ${scheme.accent.negative};
+    --st-sell-hover:   ${scheme.accent.negativeHover};
+    --st-sell-fg:      ${scheme.action.sellText};
+    --st-sell-soft:    ${scheme.overlay.negativeSoft};
+    --st-sell-ring:    ${scheme.overlay.negativeRing};
+    --st-warn:         ${scheme.accent.warning};
+    --st-warn-soft:    ${scheme.overlay.warningSoft};
+    --st-warn-ring:    ${scheme.overlay.warningRing};
+    --st-info:         ${scheme.accent.info};
+    --st-info-soft:    ${scheme.overlay.infoSoft};
+    --st-info-ring:    ${scheme.overlay.infoRing};
+    --st-purple:       ${scheme.accent.purple};
+    --st-neutral-soft: ${scheme.overlay.neutralSoft};
+    --st-neutral-ring: ${scheme.overlay.neutralRing};
+    --st-hover-overlay:${scheme.state.hoverOverlay};
+    --st-selection:    ${scheme.state.selection};
+    --st-disabled-bg:  ${scheme.state.disabledBg};
+    --st-disabled-fg:  ${scheme.state.disabledFg};
+    --st-scrollbar:    ${scheme.scrollbar};
+    --st-ob-bid:       ${scheme.trade.bidFill};
+    --st-ob-ask:       ${scheme.trade.askFill};
+    --st-shadow-card:    ${scheme.elevation.card};
+    --st-shadow-overlay: ${scheme.elevation.overlay};
+    --st-glow-focus:     ${scheme.elevation.glow};
+    --st-font-sans:  ${typography.fontFamily.sans};
+    --st-font-mono:  ${typography.fontFamily.mono};
+    --st-radius:     ${radius.md};
+    --st-radius-sm:  ${radius.sm};
+    --st-radius-md:  ${radius.md};
+    --st-radius-lg:  ${radius.lg};
+    --st-t-instant:  ${transition.instant};
+    --st-t-fast:     ${transition.fast};
+    --st-t-normal:   ${transition.normal};
+    --st-t-slow:     ${transition.slow};
+    --st-t-tick:     ${transition.tickFlash};`;
+}
 
 function stockfluxAliasVars(scheme: ColorScheme): string {
   const h = scheme.surface;
@@ -383,6 +444,7 @@ function dsVars(scheme: ColorScheme, mode: 'dark' | 'light'): string {
     --ob-ask-fill:  ${scheme.trade.askFill};
     --tt-bid-strip: ${scheme.trade.positiveStrip};
     --tt-ask-strip: ${scheme.trade.negativeStrip};
+    ${staruiAliasVars(scheme)}
     ${stockfluxAliasVars(scheme)}`;
 }
 
@@ -403,7 +465,11 @@ export function generateUnifiedCSS(): string {
   :root, [data-theme="dark"] {${dsVars(dark, 'dark')}
   }
 
-  [data-theme="light"] {${dsVars(light, 'light')}
+  [data-theme="light"]:not([data-variant="paper"]),
+  [data-theme="light"][data-variant="clinical"] {${dsVars(light, 'light')}
+  }
+
+  [data-theme="light"][data-variant="paper"] {${dsVars(lightPaper, 'light')}
   }
 
   [data-theme="dark"][data-cvd="on"] {${cvdOverride(dark)}

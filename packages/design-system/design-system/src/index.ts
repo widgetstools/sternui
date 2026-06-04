@@ -12,7 +12,7 @@
 
 export * from './tokens';
 export * from './adapters';
-export { applyTheme, getTheme, type ThemeOptions } from './applyTheme';
+export { applyTheme, getTheme, type ThemeOptions, type LightVariant, type Mode } from './applyTheme';
 export {
   // Existing zero-config renderers
   SideCellRenderer, StatusBadgeRenderer, ColoredValueRenderer,
