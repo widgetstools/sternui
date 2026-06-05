@@ -16,7 +16,7 @@
     "@starui/design-system": "file:../../../libs/starui-design-system-1.0.0-4ba3dc39.tgz",
     "@starui/openfin": "file:../../../libs/starui-openfin-0.1.0-f2861ec0.tgz",
     "@starui/react-core": "file:../../../libs/starui-react-core-1.0.0-bad7bd32.tgz",
-    "@starui/react-grid": "file:../../../libs/starui-react-grid-0.1.0-ab264c19.tgz",
+    "@starui/react-grid": "file:../../../libs/starui-react-grid-0.1.0-68f1dabb.tgz",
     "@starui/react-ui": "file:../../../libs/starui-react-ui-1.0.0-de31cbc7.tgz",
     "@starui/shared": "file:../../../libs/starui-shared-1.0.0-7862fbe1.tgz",
     "ag-grid-community": "35.1.0",
