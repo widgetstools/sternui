@@ -161,6 +161,12 @@ export interface HubProviderIntrospectRow {
   startedAt?: number;
   errorCount?: number;
   lastError?: string;
+  /**
+   * Rows dropped because the configured `keyColumn` didn't resolve a value
+   * (name/case mismatch). Non-zero here with `rowCount: 0` is the signature
+   * of "provider fetched data but the grid is empty".
+   */
+  keyDropCount?: number;
   /** Transport cfg held in the worker (runtime slot or catalog cache). */
   cfg?: ProviderConfig;
 }
