@@ -787,9 +787,18 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Expression engine
 
-- `ExpressionEngine` — CSP-safe parser/evaluator
+- `ExpressionEngine` — CSP-safe parser/evaluator. `parse()` memoizes the AST by
+  source string (immutable ASTs shared across calls), so the per-cell/per-tick
+  `parseAndEvaluate` hot path is a Map lookup, not a re-tokenize+re-parse
+  (benchmarked ~7x faster for a conditional-styling-heavy frame: ~23ms → ~3ms)
 - `tokenize()`, `parse()`, `Evaluator`
+- `compile()` / `compileToFunction()` — compile an AST once into a reusable
+  `(ctx) => value` closure (cached by source); `evalOps` holds the shared
+  operator/resolution semantics both the interpreter and the compiler call, so
+  the two paths are behaviourally identical (parity-tested). Prefer `compile()`
+  at rule/column setup on hot paths (conditional-styling cell/row predicates use it)
 - `tryCompileToAgString()` — transpile to AG Grid `valueFormatter` string
+  (still the FIRST choice — zero per-cell JS; the closure is the fallback)
 - `ExpressionNode`, `EvaluationContext`, `ValidationResult`, `FunctionDefinition`
 - `migrateExpressionSyntax()` — legacy migration
 - Conditional sugar (both desugar to short-circuiting ternaries at parse time, so

@@ -24,6 +24,7 @@ const NOOP_ENGINE = {
   parse: () => ({}),
   evaluate: () => 0,
   parseAndEvaluate: () => 0,
+  compile: () => () => 0,
   validate: () => ({ valid: true, errors: [] }),
 };
 

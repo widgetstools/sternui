@@ -153,6 +153,12 @@ export interface ExpressionEngineLike {
   parse(source: string): unknown;
   evaluate(node: unknown, ctx: unknown): unknown;
   parseAndEvaluate(source: string, ctx: unknown): unknown;
+  /** Compile once to a reusable `(ctx) => value` closure — prefer on hot paths.
+   *  `ctx` is `any` (not `unknown`) so the concrete engine's
+   *  `(ctx: EvaluationContext) => unknown` stays assignable to this narrow,
+   *  expression-type-free interface. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  compile(source: string): (ctx: any) => unknown;
   validate(source: string): { valid: boolean; errors: Array<{ message: string; position: number; length: number }> };
 }
 

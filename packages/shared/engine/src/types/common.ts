@@ -2,11 +2,15 @@ import type { ExpressionNode, EvaluationContext } from '../expression/types';
 
 // ─── Expression Engine ───────────────────────────────────────────────────────
 
+export type CompiledExpression = (context: EvaluationContext) => unknown;
+
 export interface ExpressionEngineInstance {
   parse(expression: string): ExpressionNode;
   evaluate(node: ExpressionNode, context: EvaluationContext): unknown;
   /** Parse and evaluate in one call — convenience method */
   parseAndEvaluate(expression: string, context: EvaluationContext): unknown;
+  /** Compile once to a reusable closure — prefer on per-cell/per-row hot paths. */
+  compile(expression: string): CompiledExpression;
   tryCompileToAgString(node: ExpressionNode): string | null;
   validate(expression: string): ValidationResult;
 }

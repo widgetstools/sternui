@@ -30,18 +30,21 @@ class CaptureCss implements CssHandle {
   }
 }
 
+function evalSource(source: string, ctx: unknown): unknown {
+  if (source === 'x > 100') return Number((ctx as { x: unknown }).x) > 100;
+  if (source === 'x == "BUY"') return (ctx as { x: unknown }).x === 'BUY';
+  if (source === 'x == "SELL"') return (ctx as { x: unknown }).x === 'SELL';
+  if (source === 'data.status == "WARN"') {
+    return (ctx as { data: { status?: string } }).data.status === 'WARN';
+  }
+  return source === 'true';
+}
+
 const ENGINE: ExpressionEngineLike = {
   parse: () => ({}),
   evaluate: () => true,
-  parseAndEvaluate: (source, ctx) => {
-    if (source === 'x > 100') return Number((ctx as { x: unknown }).x) > 100;
-    if (source === 'x == "BUY"') return (ctx as { x: unknown }).x === 'BUY';
-    if (source === 'x == "SELL"') return (ctx as { x: unknown }).x === 'SELL';
-    if (source === 'data.status == "WARN"') {
-      return (ctx as { data: { status?: string } }).data.status === 'WARN';
-    }
-    return source === 'true';
-  },
+  parseAndEvaluate: (source, ctx) => evalSource(source, ctx),
+  compile: (source) => (ctx) => evalSource(source, ctx),
   validate: () => ({ valid: true, errors: [] }),
 };
 
