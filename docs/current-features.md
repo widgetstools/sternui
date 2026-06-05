@@ -719,9 +719,10 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Platform runtime
 
-- `GridPlatform` — per-grid singleton (store, api, events, resources, pipeline)
+- `GridPlatform` — per-grid singleton (store, api, events, rows, resources, pipeline)
 - `EventBus<T>` — typed pub-sub (`emit`, `on`, `off`)
-- `ApiHub` — reactive `GridApi` (`attach`, `whenReady`, event subscriptions)
+- `ApiHub` — reactive `GridApi` (`attach`, `whenReady`, event subscriptions; `on` forwards the AG event object)
+- `RowChangeBus` (`platform.rows`, type `RowChangeSignal`) — shared, timer-coalesced row-change emitter. Reads the exact changed nodes from AG `asyncTransactionsFlushed` and emits one `RowChange` (`added`/`updated`/`removed` deltas, or `full` for sort/filter/`setRowData`) per frame, so data-reactive modules (alerts, conditional-styling, filter counts) evaluate only changed rows instead of walking the whole grid on every streaming tick
 - `ResourceScope` — `CssInjector` + `ExpressionEngine` + WeakMap caches
 - `PipelineRunner` — cached transform pipeline for `colDef` + `gridOptions`
 - `topoSortModules()` — topological module-dependency sort

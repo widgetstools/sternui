@@ -260,7 +260,6 @@ function useFilterCounts(filters: readonly SavedFilter[]): Record<string, number
     const disposers: Array<() => void> = [];
     disposers.push(
       platform.api.onReady((liveApi) => {
-        let rafId = 0;
         const recomputeNow = () => {
           if (filters.length === 0) {
             if (Object.keys(filterCountsRef.current).length === 0) return;
@@ -288,17 +287,12 @@ function useFilterCounts(filters: readonly SavedFilter[]): Record<string, number
           filterCountsRef.current = next;
           setFilterCounts(next);
         };
-        const recompute = () => {
-          if (rafId) cancelAnimationFrame(rafId);
-          rafId = requestAnimationFrame(() => {
-            rafId = 0;
-            recomputeNow();
-          });
-        };
         recomputeNow();
-        disposers.push(platform.api.on('rowDataUpdated', recompute));
-        disposers.push(platform.api.on('modelUpdated', recompute));
-        disposers.push(platform.api.on('firstDataRendered', recompute));
+        // Recompute on the shared, rAF-coalesced row-change signal instead of a
+        // private `modelUpdated` + rAF — the whole-grid walk now happens at most
+        // once per frame, shared with every other data-reactive module.
+        disposers.push(platform.rows.subscribe(recomputeNow));
+        disposers.push(platform.api.on('firstDataRendered', recomputeNow));
       }),
     );
     return () => { for (const d of disposers) d(); };
