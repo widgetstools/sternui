@@ -7,7 +7,7 @@ Step-by-step guide for a **fresh machine**. See also [README.md](../README.md#ge
 | Tool | Version |
 |------|---------|
 | Node.js | ≥ 20 |
-| npm | 10.x (`npm ci` — not yarn/pnpm) |
+| npm | 10.x (`npm install` — not yarn/pnpm; lockfiles aren't committed) |
 | Git | any recent |
 
 Optional for e2e: Chromium (Playwright installs via `npx playwright install`).
@@ -32,7 +32,7 @@ Apps live **once** under `apps/demos/*`; "installed" vs "source" is a build
 **Install apps** (nested workspace) after `libs/` exists:
 
 ```bash
-npm run install:apps    # npm ci --prefix apps
+npm run install:apps    # npm install --prefix apps
 ```
 
 `npm run install:apps` alone **fails** on a fresh clone until `libs/` exists.
@@ -44,7 +44,7 @@ npm run install:apps    # npm ci --prefix apps
 From repo root:
 
 ```bash
-npm ci
+npm install
 npm run build:packages
 ```
 
@@ -163,7 +163,7 @@ cd starui
 npm run install:all
 ```
 
-Runs **`bootstrap`**: `npm ci` → `build:packages` → `propagate` → `npm ci --prefix apps`.
+Runs **`bootstrap`**: `npm install` → `build:packages` → `propagate` → `npm install --prefix apps`.
 
 If `libs/` already exists, bootstrap **skips** rebuild unless:
 
@@ -174,7 +174,7 @@ npm run bootstrap -- --force
 ### Packages only (faster)
 
 ```bash
-npm ci
+npm install
 npm run build:packages
 npm test
 ```
@@ -224,7 +224,7 @@ npm run install:all
 | Goal | Commands |
 |------|----------|
 | Fresh clone, everything | `npm run install:all` |
-| Libraries only | `npm ci` → `npm run build:packages` → `npm test` |
+| Libraries only | `npm install` → `npm run build:packages` → `npm test` |
 | Consumer CI (installed) | `npm run verify:consumer` |
 | App bundles — installed mode | `npm run build:apps` |
 | App bundles — source mode | `npm run build:apps-source` |

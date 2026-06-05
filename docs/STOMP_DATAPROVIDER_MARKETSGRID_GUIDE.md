@@ -56,7 +56,7 @@ It mirrors the patterns used in `apps/markets-ui-react-reference`, `apps/demo-ap
 | Requirement | Notes |
 |---|---|
 | Node.js 20+ | Same as the monorepo |
-| npm 10 | Workspace installs use plain `npm ci` |
+| npm 10 | Workspace installs use plain `npm install` (lockfiles aren't committed) |
 | StarUI packages | In-monorepo: workspace `"*"` deps. External app: run `npm run propagate` and install tarballs from `libs/` (see [README](../README.md)) |
 | STOMP endpoint | Local dev: `apps/demos/stomp-view-server` on **`ws://localhost:8081`** (`npm run dev:stomp` from repo root) |
 

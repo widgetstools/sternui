@@ -205,7 +205,12 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const [loaded, setLoaded] = useState(false);
   const [asOfDate, setAsOfDate] = useState<string | null>(null);
   const [toolbarDate, setToolbarDate] = useState(todayIsoDate);
-  const pendingToolbarReloadRef = useRef(false);
+  // Carries the *intent* of a queued toolbar reload — the mode + asOfDate the
+  // reload should run against — not a bare boolean. The ref is set
+  // synchronously in the handler while the matching state updates commit a
+  // render later; keying off the intent lets the reload effect fire exactly
+  // once, when committed state catches up, with the correct payload.
+  const pendingToolbarReloadRef = useRef<{ mode: ProviderMode; asOfDate: string | null } | null>(null);
   const [providerEditorOpen, setProviderEditorOpen] = useState(false);
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
   const [configBrowserOpen, setConfigBrowserOpen] = useState(false);
@@ -264,7 +269,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     if (typeof val === 'string' && isHistoricalToolbarDate(val)) {
       setToolbarDate(val);
       setAsOfDate(val);
-      pendingToolbarReloadRef.current = true;
+      pendingToolbarReloadRef.current = { mode: 'historical', asOfDate: val };
     }
   }, [loaded, selection.mode, historicalDateAppDataRef, appData.store]);
 
@@ -397,7 +402,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         mode: 'historical',
         historicalProviderId: s.historicalProviderId ?? defaultHistoricalProviderId ?? null,
       }));
-      pendingToolbarReloadRef.current = true;
+      pendingToolbarReloadRef.current = { mode: 'historical', asOfDate: next };
       containerEventBus.emit('toolbar:dateChanged', { date: next, historical: true });
       return;
     }
@@ -405,7 +410,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     if (selection.mode === 'historical') {
       setAsOfDate(null);
       setMode('live');
-      pendingToolbarReloadRef.current = true;
+      pendingToolbarReloadRef.current = { mode: 'live', asOfDate: null };
     }
     containerEventBus.emit('toolbar:dateChanged', { date: next, historical: false });
   }, [
@@ -830,16 +835,18 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // listeners before `restart()` — otherwise the first historical snapshot
   // can arrive with no `onSnapshotData` handler attached.
   useEffect(() => {
-    if (!pendingToolbarReloadRef.current) return;
+    const pending = pendingToolbarReloadRef.current;
+    if (!pending) return;
     if (!loaded || !provider || !activeId || !liveApi) return;
-    // Wait until selection.mode catches up with the toolbar date intent.
-    // Without this guard the effect can fire while mode is still `live`,
-    // consume the pending flag with a live refresh, and skip the
-    // historical restart that carries `{ asOfDate }`.
-    const historicalDate = isHistoricalToolbarDate(toolbarDate);
-    if (historicalDate && selection.mode !== 'historical') return;
-    if (!historicalDate && selection.mode === 'historical') return;
-    pendingToolbarReloadRef.current = false;
+    // Fire only once the committed state matches the intent that queued this
+    // reload. The ref is set synchronously in the handler, but the matching
+    // toolbar date / mode / asOfDate updates commit a render later — an
+    // unrelated render (e.g. `liveApi` flipping true from the grid's onReady)
+    // can otherwise run this effect with stale state, consume the flag with a
+    // live refresh, and skip the historical restart that carries `{ asOfDate }`.
+    if (selection.mode !== pending.mode) return;
+    if (pending.mode === 'historical' && asOfDate !== pending.asOfDate) return;
+    pendingToolbarReloadRef.current = null;
     reloadFromSource();
   }, [
     loaded,

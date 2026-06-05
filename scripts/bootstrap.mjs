@@ -2,26 +2,32 @@
 /**
  * bootstrap.mjs — full monorepo install when libs/*.tgz are missing (gitignored).
  *
- *   1. npm ci              — packages/* at repo root
+ *   1. npm install          — packages/* at repo root (generates a local lock)
  *   2. build:packages + propagate — writes libs/*.tgz (local only)
- *   3. npm ci --prefix apps — consumer apps from tarballs
+ *   3. npm install --prefix apps — consumer apps from tarballs
+ *
+ * Lockfiles are intentionally NOT committed (see .gitignore): they pin a
+ * registry host a corporate-Artifactory client cannot reach. Every install
+ * uses `npm install`, so a fresh clone regenerates its own lock against
+ * whatever registry its .npmrc points at. The required bucket-tarball list is
+ * derived from the committed app package.json `file:` deps, not from a lock.
  *
  * Usage:
  *   npm run bootstrap
- *   npm run bootstrap -- --force     # rebuild libs/ even when tarballs exist
- *   npm run bootstrap -- --no-ci     # pack only, skip npm ci steps
+ *   npm run bootstrap -- --force        # rebuild libs/ even when tarballs exist
+ *   npm run bootstrap -- --no-install   # pack only, skip npm install steps
  */
 
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const REPO_ROOT = join(import.meta.dirname, '..');
 const LIBS_DIR = join(REPO_ROOT, 'libs');
-const APPS_LOCKFILE = join(REPO_ROOT, 'apps', 'package-lock.json');
+const APPS_ROOT = join(REPO_ROOT, 'apps');
 
 const force = process.argv.includes('--force');
-const noCi = process.argv.includes('--no-ci');
+const noCi = process.argv.includes('--no-install') || process.argv.includes('--no-ci');
 
 function log(msg) {
   process.stdout.write(`[bootstrap] ${msg}\n`);
@@ -37,10 +43,9 @@ function run(cmd) {
   execSync(cmd, { cwd: REPO_ROOT, stdio: 'inherit' });
 }
 
-function collectTarballsFromLock(lockPath) {
+function collectTarballsFromAppPackageJsons() {
   const files = new Set();
-  if (!existsSync(lockPath)) return files;
-  const lock = JSON.parse(readFileSync(lockPath, 'utf8'));
+  if (!existsSync(APPS_ROOT)) return files;
 
   const addFromSpec = (spec) => {
     if (typeof spec !== 'string') return;
@@ -48,29 +53,35 @@ function collectTarballsFromLock(lockPath) {
     if (m) files.add(m[1]);
   };
 
-  for (const entry of Object.values(lock.packages ?? {})) {
-    if (!entry || typeof entry !== 'object') continue;
-    // Installed-node form: "resolved": "file:.../libs/<bucket>.tgz".
-    addFromSpec(entry.resolved);
-    // Dependency-specifier form. When every demo app references the SAME bucket
-    // tarball (single apps/demos tree), npm hoists it to one node recorded as
-    // version-only with no `resolved`; the `file:` spec then only survives on
-    // the consuming app's dependency edge. Scan those too so detection is
-    // independent of npm's hoisting decisions.
-    for (const section of ['dependencies', 'devDependencies', 'optionalDependencies']) {
-      const deps = entry[section];
-      if (deps && typeof deps === 'object') {
-        for (const spec of Object.values(deps)) addFromSpec(spec);
+  const walk = (dir) => {
+    if (dir.split(/[\\/]/).includes('node_modules')) return;
+    const pkgPath = join(dir, 'package.json');
+    if (existsSync(pkgPath)) {
+      let pkg = null;
+      try { pkg = JSON.parse(readFileSync(pkgPath, 'utf8')); } catch { pkg = null; }
+      if (pkg) {
+        for (const section of ['dependencies', 'devDependencies', 'optionalDependencies']) {
+          const deps = pkg[section];
+          if (deps && typeof deps === 'object') {
+            for (const spec of Object.values(deps)) addFromSpec(spec);
+          }
+        }
       }
     }
-  }
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) walk(join(dir, entry.name));
+    }
+  };
+
+  walk(APPS_ROOT);
   return files;
 }
 
 function requiredTarballs() {
-  const files = collectTarballsFromLock(APPS_LOCKFILE);
+  // Derived from committed app package.json `file:` deps — no lockfile needed.
+  const files = collectTarballsFromAppPackageJsons();
   if (files.size === 0) {
-    die('apps/package-lock.json has no file:libs/*.tgz entries');
+    die('no `file:…/libs/*.tgz` deps found in apps/** package.json files');
   }
   return [...files].sort();
 }
@@ -91,7 +102,7 @@ function main() {
   const needsPack = force || !libsReady();
 
   if (!noCi) {
-    run('npm ci');
+    run('npm install');
   }
 
   if (needsPack) {
@@ -101,7 +112,7 @@ function main() {
   }
 
   if (!noCi) {
-    run('npm ci --prefix apps');
+    run('npm install --prefix apps');
   }
 
   log('done');

@@ -36,7 +36,7 @@ These specs are intentionally NOT part of the default `npm test` run — see
 
 3. **A display.** OpenFin doesn't run headless. On Linux CI use `xvfb-run`.
 
-4. Workspace install: `npm ci`
+4. Workspace install: `npm install`
 
 ## Running
 

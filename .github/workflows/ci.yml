@@ -29,10 +29,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
 
-      - name: npm ci
-        run: npm ci
+      - name: npm install
+        run: npm install
 
   packages:
     name: Packages (build + typecheck + test)
@@ -43,8 +42,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
+      - run: npm install
       - name: Build packages
         run: npm run build:packages
       - name: Typecheck packages
@@ -61,8 +59,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
+      - run: npm install
       - name: Build packages
         run: npm run build:packages
       - name: Pack bucket tarballs + sync apps
@@ -97,10 +94,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
 
-      - name: npm ci
-        run: npm ci
+      - name: npm install
+        run: npm install
 
       - name: Consumer build + typecheck
         run: npm run verify:consumer

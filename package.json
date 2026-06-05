@@ -19,7 +19,7 @@
     "e2e-openfin"
   ],
   "scripts": {
-    "install:apps": "npm ci --prefix apps",
+    "install:apps": "npm install --prefix apps",
     "install:all": "npm run bootstrap",
     "build:packages": "turbo build --filter=!./apps/** --concurrency=50%",
     "build:apps": "npm --prefix apps run build",
@@ -104,6 +104,7 @@
   "overrides": {
     "@openfin/core": "43.101.2",
     "esbuild": "0.28.0",
-    "hono": "^4.12.20"
+    "hono": "^4.12.20",
+    "dompurify": "^3.4.8"
   }
 }

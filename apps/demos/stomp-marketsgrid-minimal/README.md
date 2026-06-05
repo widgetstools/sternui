@@ -12,7 +12,7 @@ No OpenFin, no routing, no provider editor UI — full-screen `HostedMarketsGrid
 
 | Requirement | Notes |
 |-------------|--------|
-| **Monorepo install** | From repo root: `npm ci` |
+| **Monorepo install** | From repo root: `npm install` |
 | **STOMP broker** | [`stomp-view-server`](../../apps/demos/stomp-view-server) on `ws://localhost:8081` — matches `src/stompProvider.ts` |
 | **Node 20+** | Same as root `package.json` engines |
 
