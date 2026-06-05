@@ -231,22 +231,31 @@ export function activateAlerts(
   disposers.push(
     platform.api.onReady((api) => {
       knownRowIds = snapshotRowIds(api);
-      // forEachNode to populate baselines for every (row, col) cell so
-      // the FIRST cellValueChanged after activation isn't treated as the
-      // first observation.
+      // Seed prev-value baselines so the FIRST cellValueChanged after activation
+      // isn't treated as a first observation — but ONLY for the columns alert
+      // rules actually watch, not every (row × column) cell. With no enabled
+      // data/relative rules there's nothing to observe, so skip the walk
+      // entirely. (The old all-columns seed was ~rows×cols `getValueByPath`+set
+      // on mount — ~1M ops at 5000 rows × 200 cols, even with zero rules — a
+      // pure load-time tax.) A rule added later seeds its column's baseline on
+      // its first observed change (scanNode treats `prev === undefined` as
+      // baseline-only, no fire), which is the correct conservative behaviour.
       try {
-        const cols =
-          (api as { getColumns?: () => Array<{ getColId: () => string }> | null }).getColumns?.() ??
-          [];
-        api.forEachNode((node) => {
-          const id = resolveRowId(node);
-          if (!id) return;
-          const data = (node as { data?: Record<string, unknown> }).data ?? {};
-          for (const c of cols) {
-            const colId = c.getColId();
-            prevValues.set(id, colId, getValueByPath(data, colId));
+        const rules = platform.getState().rules;
+        const { dataChange, relativeChange } = partitionEnabledRules(rules);
+        if (dataChange.length > 0 || relativeChange.length > 0) {
+          const watchedCols = collectWatchedColIds(api, rules);
+          if (watchedCols.size > 0) {
+            api.forEachNode((node) => {
+              const id = resolveRowId(node);
+              if (!id) return;
+              const data = (node as { data?: Record<string, unknown> }).data ?? {};
+              for (const colId of watchedCols) {
+                prevValues.set(id, colId, getValueByPath(data, colId));
+              }
+            });
           }
-        });
+        }
       } catch {
         /* grid mid-teardown */
       }

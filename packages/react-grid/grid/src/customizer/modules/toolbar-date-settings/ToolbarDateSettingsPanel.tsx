@@ -70,7 +70,11 @@ function useStaged<T>(committed: T): Staged<T> {
   const [staged, setStaged] = useState<T>(committed);
   const committedRef = useRef<T>(committed);
 
-  const dirty = !jsonEqual(staged, committed);
+  // Memoize the dirty check — `jsonEqual` serializes BOTH operands, so an
+  // unmemoized compute ran two full `JSON.stringify` of the (potentially large)
+  // provider config on EVERY render of this panel. Recompute only when the
+  // staged draft or the committed host value actually changes reference.
+  const dirty = useMemo(() => !jsonEqual(staged, committed), [staged, committed]);
 
   // Re-seed only when the host value changes AND we're clean — never clobber
   // a mid-edit draft. Keyed on the serialized committed value so a new object
