@@ -8,9 +8,14 @@
  *
  * Layout
  * ------
- *   libs/starui-react-core-0.1.0-<sha8>.tgz   — apps install from here
- *   dist/packages/starui-react-core-0.1.0.tgz — human-readable mirror
+ *   libs/starui-react-core.tgz                — apps install from here (stable name)
+ *   dist/packages/starui-react-core-0.1.0.tgz — human-readable, version-stamped mirror
  *   libs/manifest.json                        — bucket → { bucket, members, filename, … }
+ *
+ * The libs/ tarball uses a stable, content-independent name (one per bucket).
+ * Apps pin `file:libs/starui-<bucket>.tgz` once; the path never changes when
+ * the bucket's content changes, so app package.json files don't churn. Only
+ * the lockfile integrity refreshes (handled by the post-pack `npm install`).
  *
  * Usage
  * -----
@@ -314,13 +319,22 @@ function writeDistMirror(srcPath, distFilename, prevDistFilename) {
   }
 }
 
+/**
+ * Stable, content-independent libs filename for a bucket — e.g.
+ * `starui-react-grid.tgz`. One tarball per bucket; the name never carries the
+ * version or a content hash, so app `file:` pins stay put across re-packs.
+ */
+function stableLibsFilename(bucket) {
+  return `starui-${bucket.bucket}.tgz`;
+}
+
 function packBucketToManifest(bucket, prevEntry) {
   const distFilename = rawPackFilename(bucket.name, bucket.version);
+  const libsFilename = stableLibsFilename(bucket);
   if (args.dryRun) {
-    const hashedName = distFilename.replace(/\.tgz$/, '-DRYRUN0.tgz');
-    log(`pack: ${bucket.name}@${bucket.version} → libs/${hashedName} + dist/packages/${distFilename} (dry-run)`);
+    log(`pack: ${bucket.name}@${bucket.version} → libs/${libsFilename} + dist/packages/${distFilename} (dry-run)`);
     return {
-      filename: hashedName,
+      filename: libsFilename,
       distFilename,
       sha: 'DRYRUN0',
       version: bucket.version,
@@ -332,33 +346,36 @@ function packBucketToManifest(bucket, prevEntry) {
   const packedFlat = rawPack(stageDir);
   const flatPath = join(LIBS_DIR, packedFlat);
   const sha = sha8OfFile(flatPath);
-  const hashedName = packedFlat.replace(/\.tgz$/, `-${sha}.tgz`);
-  const hashedPath = join(LIBS_DIR, hashedName);
+  const libsPath = join(LIBS_DIR, libsFilename);
   const contentChanged = !prevEntry || prevEntry.sha !== sha;
 
-  if (existsSync(hashedPath)) {
-    if (packedFlat !== hashedName && existsSync(flatPath)) unlinkSync(flatPath);
-  } else if (packedFlat !== hashedName) {
-    renameSync(flatPath, hashedPath);
+  // npm pack emits `starui-<bucket>-<version>.tgz`; move it onto the stable
+  // name, overwriting any prior content for this bucket.
+  if (resolve(flatPath) !== resolve(libsPath)) {
+    if (existsSync(libsPath)) unlinkSync(libsPath);
+    renameSync(flatPath, libsPath);
   }
 
-  writeDistMirror(hashedPath, distFilename, prevEntry?.distFilename);
+  writeDistMirror(libsPath, distFilename, prevEntry?.distFilename);
 
-  if (prevEntry?.filename && prevEntry.filename !== hashedName) {
-    const oldPath = join(LIBS_DIR, prevEntry.filename);
-    if (existsSync(oldPath)) {
-      unlinkSync(oldPath);
-      log(`  removed prior libs tarball: ${prevEntry.filename}`);
+  // Sweep away any legacy version+hash tarballs for this bucket left over from
+  // the old naming scheme, so libs/ holds exactly one tarball per bucket.
+  const legacyPrefix = `starui-${bucket.bucket}-`;
+  for (const entry of readdirSync(LIBS_DIR)) {
+    if (entry === libsFilename || !entry.endsWith('.tgz')) continue;
+    if (entry.startsWith(legacyPrefix)) {
+      unlinkSync(join(LIBS_DIR, entry));
+      log(`  removed legacy tarball: ${entry}`);
     }
   }
 
   rmSync(stageDir, { recursive: true, force: true });
 
   log(
-    `pack: ${bucket.name}@${bucket.version} → libs/${hashedName} + dist/packages/${distFilename}`
+    `pack: ${bucket.name}@${bucket.version} → libs/${libsFilename} + dist/packages/${distFilename}`
       + ` [${bucket.members.length} members]${contentChanged ? '' : ' (unchanged)'}`,
   );
-  return { filename: hashedName, distFilename, sha, version: bucket.version, contentChanged };
+  return { filename: libsFilename, distFilename, sha, version: bucket.version, contentChanged };
 }
 
 // ────────────────────────────────────────────────────────────────────────

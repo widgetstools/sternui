@@ -44,10 +44,12 @@ npm run verify:consumer
 [`apps/package.json`](./package.json) declares `demos/*`. Install with:
 
 ```bash
-npm ci --prefix apps
+npm install --prefix apps
 ```
 
-Commit **`apps/package-lock.json`** when propagate updates `file:libs/*.tgz` paths. Do **not** commit `libs/`.
+Lockfiles aren't committed (each environment regenerates its own on `npm install`),
+and the app `file:libs/*.tgz` pins are stable across re-packs — so propagate
+leaves nothing to commit here. Do **not** commit `libs/`.
 
 ## Utilities
 

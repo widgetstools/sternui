@@ -164,7 +164,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 - `.` — `ICON_PATHS`, `ICON_META`, helpers
 - `./react` — SVGR-generated React components
-- `./angular` — Angular `MatIconRegistry` / `angular-svg-icon` bindings
+- `./angular` — `@lucide/angular` bindings: re-exports the standalone `LucideComponent` + `provideLucideIcons` and the per-icon standalone components (aliased to friendly names, e.g. `FileText`, `Home`)
 - `./all-icons` — full enumeration of icon IDs
 - `./svg/*` — direct SVG file access
 

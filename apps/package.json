@@ -7,7 +7,7 @@
     "demos/*"
   ],
   "scripts": {
-    "ci": "npm ci",
+    "install:apps": "npm install",
     "build": "node ../scripts/build-app-track.mjs installed build",
     "build:source": "node ../scripts/build-app-track.mjs source build",
     "typecheck": "node ../scripts/build-app-track.mjs installed typecheck",

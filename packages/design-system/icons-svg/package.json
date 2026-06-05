@@ -24,7 +24,7 @@
   ],
   "dependencies": {
     "lucide-react": "^0.554.0",
-    "lucide-angular": "^1.0.0"
+    "@lucide/angular": "^1.17.0"
   },
   "peerDependencies": {
     "react": "^19.2.5",

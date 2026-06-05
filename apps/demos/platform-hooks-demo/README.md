@@ -9,7 +9,7 @@ Interactive browser demo for **AppData bootstrap hooks** and **MarketsGrid event
 From repo root:
 
 ```bash
-npm ci
+npm install
 npm run dev:platform-hooks-demo
 # → http://localhost:5214
 ```

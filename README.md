@@ -122,7 +122,14 @@ See **[docs/BUILD.md](./docs/BUILD.md)** and **[docs/LIBS.md](./docs/LIBS.md)** 
 ## Prerequisites
 
 - **Node.js** ≥ 20
-- **npm** 10.x (see `packageManager` in root `package.json` — use `npm ci`, not `yarn` / `pnpm`)
+- **npm** 10.x (see `packageManager` in root `package.json` — use `npm install`, not `yarn` / `pnpm`)
+
+> **Lockfiles are not committed.** `package-lock.json` / `apps/package-lock.json`
+> are gitignored — they pin `registry.npmjs.org`, which a site behind a corporate
+> Artifactory can't reach. Every install uses `npm install` (never `npm ci`); each
+> environment regenerates its own lock against the registry in its `.npmrc` (see
+> [`.npmrc.example`](./.npmrc.example)). Version pins in `package.json` are the
+> reproducibility anchor.
 
 ## Fresh clone — step by step
 
@@ -142,12 +149,12 @@ cd starui
 npm run install:all
 ```
 
-Runs **`bootstrap`**: `npm ci` → build packages → **`propagate`** (writes gitignored `libs/`) → `npm ci --prefix apps`.
+Runs **`bootstrap`**: `npm install` → build packages → **`propagate`** (writes gitignored `libs/`) → `npm install --prefix apps`.
 
 ### 2. Packages only (library work — faster)
 
 ```bash
-npm ci
+npm install
 npm run build:packages
 npm test
 ```
@@ -306,10 +313,10 @@ turbo test (packages)               turbo typecheck (apps)
 | `test:packages` | Vitest across library packages (`npm test`) |
 | `check:tarballs` | Fail if local `libs/*.tgz` are stale vs `packages/` build (optional; `libs/` not in git) |
 | `verify:consumer` | `build:consumer` + `typecheck:apps` |
-| `install:apps` | `npm ci` in nested `apps/` workspace (consumer demos only) |
+| `install:apps` | `npm install` in nested `apps/` workspace (consumer demos only) |
 | `install:all` | `bootstrap` — packages + propagate + apps (fresh clone default) |
-| `bootstrap` | `npm ci` → `build:packages` → `propagate` → `install:apps` |
-| `propagate` | Rebuild gitignored `libs/`, sync app deps (commit app lockfiles only) |
+| `bootstrap` | `npm install` → `build:packages` → `propagate` → `install:apps` |
+| `propagate` | Rebuild gitignored `libs/`, sync app deps (no lockfiles to commit) |
 | `sync:app-deps` | Rewrite app tarball paths from manifest |
 | `e2e` | Playwright (`e2e/`) |
 | `test:e2e:openfin` | OpenFin CDP smoke tests (`e2e-openfin/`) |
@@ -333,7 +340,8 @@ npm test  -w @starui/grid
 ### Tarballs
 
 - `npm run propagate` writes one `.tgz` per architecture bucket under `libs/`
-  (e.g. `starui-react-grid-0.1.0-<sha>.tgz` bundles `@starui/grid`).
+  (e.g. `starui-react-grid.tgz` bundles `@starui/grid`). The name is stable —
+  no version or content hash — so app `file:` pins never need re-syncing.
 - Manifest: `libs/manifest.json` when present, else `dist/packages/manifest.json`
   after a package build.
 - External consumers install the same buckets from Artifactory and wire Vite through
@@ -445,13 +453,13 @@ propagate, clean, and test workflows.
 ```bash
 node -v    # ≥ 20
 npm -v     # 10.x (npm 10 workspaces)
-npm ci     # from repo root — always start here on a fresh clone
+npm install     # from repo root — always start here on a fresh clone
 ```
 
 Bucket tarballs under `libs/` are **gitignored** — run `npm run install:all`
 (or `bootstrap`) on a fresh clone to generate them. After package changes, run
-`npm run propagate` and commit `apps/package-lock.json` only (not `libs/`).
-See [docs/LIBS.md](./docs/LIBS.md).
+`npm run propagate`. Lockfiles aren't committed (regenerated per environment),
+so there's nothing to commit but source. See [docs/LIBS.md](./docs/LIBS.md).
 
 ---
 
@@ -659,9 +667,10 @@ npm run sync:app-deps
 | Before opening a PR that touches libraries | `npm run verify:consumer` |
 | Before committing tarball updates | `npm run check:tarballs` |
 
-Each bucket tarball name includes a content SHA, e.g.
-`libs/starui-react-grid-0.1.0-df49405b.tgz`. `libs/manifest.json` maps
+Each bucket tarball uses a stable, content-independent name, e.g.
+`libs/starui-react-grid.tgz`. `libs/manifest.json` maps
 `@starui/react-grid` → filename and lists member packages inside the bundle.
+A version-stamped human-readable mirror is kept under `dist/packages/`.
 
 ---
 
@@ -676,7 +685,7 @@ npm run clean
 Then reinstall:
 
 ```bash
-npm ci
+npm install
 npm run propagate    # if libs/ was empty or you need fresh tarballs
 ```
 
@@ -776,7 +785,7 @@ STARUI_DEV_SOURCE=1 npx playwright test e2e/reference-cell-flash.spec.ts
 
 | Goal | Command |
 |---|---|
-| First-time setup | `npm ci && npm run propagate` |
+| First-time setup | `npm install && npm run propagate` |
 | Edit libraries | `npm run build:packages && npm test` |
 | Edit libraries + test in demo app | `npm run propagate && STARUI_DEV_SOURCE=1 npm run dev` |
 | Pre-merge CI check | `npm run verify:consumer && npm test && npm run e2e` |

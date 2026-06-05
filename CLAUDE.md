@@ -13,10 +13,17 @@ docs, tooling, and e2e tests all live at the **repo root** (`packages/`,
 ## Package manager
 
 **npm 10 workspaces.** Never `pnpm`, never `yarn`. Install with plain
-`npm ci` — no `--legacy-peer-deps`, no `--force`. Every workspace
-resolves cleanly against the public npm registry. If a future install
-needs the flag, treat that as a real ERESOLVE bug to investigate, not
-a permanent workaround.
+`npm install` — no `--legacy-peer-deps`, no `--force`. Every workspace
+resolves cleanly. If a future install needs the flag, treat that as a
+real ERESOLVE bug to investigate, not a permanent workaround.
+
+**Lockfiles are not committed** (`package-lock.json` / `apps/package-lock.json`
+are gitignored). They pin `registry.npmjs.org`, which a client site behind a
+corporate Artifactory can't reach — so each environment regenerates its own
+lock on `npm install` against whatever registry its `.npmrc` points at (see
+[`.npmrc.example`](./.npmrc.example)). Use `npm install` everywhere, **never
+`npm ci`** (it requires a committed lock). Reproducibility rests on the version
+pins in `package.json`.
 
 One root `overrides` entry remains: `@openfin/core` is pinned to
 `43.101.4` to keep the workspace direct deps aligned with the version
@@ -116,11 +123,11 @@ on the next run. Don't remove it.
 
 ## Install layout
 
-- **Root** `npm ci` / `npm run install:all` — `packages/*` only (workspace `"*"`).
+- **Root** `npm install` / `npm run install:all` — `packages/*` only (workspace `"*"`).
 - **Apps** nested under `apps/package.json` (`workspaces: ["demos/*"]`) — each
   reference/demo app lives **once** under `apps/demos/<app>/`. `npm run install:apps`
-  after `libs/` exists; `@starui/*` bucket deps from gitignored `libs/*.tgz`
-  (`npm run propagate` / `npm run bootstrap`).
+  (= `npm install --prefix apps`) after `libs/` exists; `@starui/*` bucket deps
+  from gitignored `libs/*.tgz` (`npm run propagate` / `npm run bootstrap`).
 - **Two run modes per app** (same folder, chosen by script): `dev`/`build` =
   installed mode (resolves `@starui/*` from `file:libs/*.tgz`, consumer/publish
   parity); `dev:source`/`build:source` set **`STARUI_DEV_SOURCE=1`** so Vite
@@ -132,10 +139,13 @@ on the next run. Don't remove it.
 
 `npm run propagate` (delegates to `scripts/propagate.mjs`) builds
 and packs **one tarball per architecture bucket** flat under `libs/`
-(e.g. `starui-react-grid-0.1.0-<sha8>.tgz`). **`libs/` is gitignored** — fresh clones use
-`npm run bootstrap` / `npm run install:all`. After package changes run propagate,
-`npm run install:apps`, and commit `apps/package-lock.json` (not `libs/`). Each
-bundle contains all workspace packages in that bucket. Flags:
+(e.g. `starui-react-grid.tgz` — a stable name with no version or content
+hash, so app `file:` pins never churn). **`libs/` is gitignored** — fresh clones use
+`npm run bootstrap` / `npm run install:all`. After package changes run propagate
+and `npm run install:apps`. Lockfiles are not committed, so there's nothing to
+commit but the app `package.json` `file:` pins (which stay stable across
+re-packs) and `libs/manifest.json`. Each bundle contains all workspace packages
+in that bucket. Flags:
 
 - `--dry-run` — show the plan, write nothing.
 - `--gc` — delete orphaned tarballs in `libs/`.

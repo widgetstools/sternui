@@ -8,13 +8,16 @@
  *   - Leaves peerDependencies alone (consumer ranges stay loose).
  *   - Idempotent — re-runnable when fi-tt's reference shifts.
  *
- * fi-tt declares three local-tarball deps via `file:libs/*.tgz`:
- *   - @primeng/themes              (file:libs/primeng-themes-20.3.0.tgz)
+ * fi-tt declares two local-tarball deps via `file:libs/*.tgz`:
  *   - @widgetstools/angular-dock-manager
  *   - @widgetstools/dock-manager-core
- * Our libs/ directory carries the same three tarballs, so when an
+ * Our libs/ directory carries the same tarballs, so when an
  * align-target dep matches, we keep the file: path so the install
  * resolves identically.
+ *
+ * Theming resolves from the public registry: @primeuix/themes (the
+ * non-deprecated successor to @primeng/themes), aligned to the version
+ * that pairs with PrimeNG 21.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -29,7 +32,7 @@ const FI_TT_ANGULAR = {
   '@angular/forms': '21.1.0',
   '@angular/platform-browser': '21.1.0',
   '@angular/router': '21.1.0',
-  '@primeng/themes': 'file:libs/primeng-themes-20.3.0.tgz',
+  '@primeuix/themes': '~2.0.3',
   '@widgetstools/angular-dock-manager': 'file:libs/widgetstools-angular-dock-manager-1.0.0.tgz',
   '@widgetstools/dock-manager-core': 'file:libs/widgetstools-dock-manager-core-1.0.0.tgz',
   'ag-grid-angular': '35.1.0',

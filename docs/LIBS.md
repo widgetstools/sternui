@@ -7,19 +7,19 @@ generate it locally with `npm run propagate` or `npm run bootstrap`.
 | File | Role |
 |------|------|
 | `manifest.json` | Maps `@starui/<bucket>` → tarball filename + member packages |
-| `starui-*-<sha8>.tgz` | One packed bundle per bucket under `packages/` |
+| `starui-<bucket>.tgz` | One packed bundle per bucket under `packages/` (stable name, no version/hash) |
 
 ## Generate on a fresh clone
 
 ```bash
-npm ci
+npm install
 npm run bootstrap
 ```
 
 Or manually:
 
 ```bash
-npm ci
+npm install
 npm run build:packages
 npm run propagate
 npm run install:apps
@@ -33,5 +33,7 @@ npm run propagate
 npm run install:apps
 ```
 
-Commit `apps/package-lock.json` and any `apps/**/package.json` updated by propagate.
-Do **not** commit `libs/` (ignored).
+Nothing tarball-related needs committing: `libs/` is ignored, the app
+`package.json` `file:` pins are stable (they don't change across re-packs),
+and **lockfiles are not committed** (each environment regenerates its own on
+`npm install`).
