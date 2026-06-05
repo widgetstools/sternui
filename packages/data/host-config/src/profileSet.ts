@@ -34,29 +34,8 @@ export async function loadProfileSet(
 ): Promise<ProfileSetPayload | null> {
   const row = await configManager.getConfig(scope.instanceId);
   if (isProfileSetRow(row, scope.appId, scope.userId)) {
-    const payload = normalizePayload(row.payload);
-    // eslint-disable-next-line no-console
-    console.log(
-      '[profile-set] LOAD ✓ configId=%s appId=%s userId=%s → profiles=%d version=%d gridLevelData=%s',
-      scope.instanceId, scope.appId, scope.userId,
-      payload.profiles.length, payload.version,
-      payload.gridLevelData == null ? 'none' : 'present',
-    );
-    return payload;
+    return normalizePayload(row.payload);
   }
-  // Distinguish "no row at all" from "row exists but belongs to a
-  // different (appId,userId)" — the latter is a scope/identity mismatch
-  // that silently looks like data loss on restart. (The type guard above
-  // narrowed `row` to null in this branch, so re-widen for diagnostics.)
-  const miss = row as AppConfigRow | null;
-  // eslint-disable-next-line no-console
-  console.warn(
-    '[profile-set] LOAD ∅ configId=%s appId=%s userId=%s → %s',
-    scope.instanceId, scope.appId, scope.userId,
-    miss
-      ? `row EXISTS but scope mismatch (row.appId=${miss.appId} row.userId=${miss.userId} componentType=${miss.componentType}) — treated as missing`
-      : 'no row found (first launch, or it was never persisted / was wiped)',
-  );
   return null;
 }
 
@@ -77,20 +56,7 @@ export async function saveProfileSet(
     ? readVersion(existing.payload)
     : 0;
 
-  // eslint-disable-next-line no-console
-  console.log(
-    '[profile-set] SAVE→ configId=%s appId=%s userId=%s profiles=%d expectedVersion=%d actualVersion=%d gridLevelData=%s',
-    instanceId, appId, userId,
-    set.profiles?.length ?? 0, expectedVersion, actualVersion,
-    set.gridLevelData == null ? 'none' : 'present',
-  );
-
   if (actualVersion !== expectedVersion) {
-    // eslint-disable-next-line no-console
-    console.error(
-      '[profile-set] SAVE ✗ VERSION CONFLICT configId=%s expected=%d actual=%d — write REJECTED (a concurrent writer won; this save is dropped)',
-      instanceId, expectedVersion, actualVersion,
-    );
     throw new ProfileSetVersionConflictError(expectedVersion, actualVersion, instanceId);
   }
 
@@ -121,21 +87,7 @@ export async function saveProfileSet(
     creationTime,
     updatedTime: now,
   };
-  try {
-    await configManager.saveConfig(row);
-    // eslint-disable-next-line no-console
-    console.log(
-      '[profile-set] SAVE ✓ configId=%s committed → newVersion=%d componentType=%s',
-      instanceId, expectedVersion + 1, componentType,
-    );
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(
-      '[profile-set] SAVE ✗ configManager.saveConfig threw for configId=%s — state NOT persisted:',
-      instanceId, err,
-    );
-    throw err;
-  }
+  await configManager.saveConfig(row);
 }
 
 export function isProfileSetRow(

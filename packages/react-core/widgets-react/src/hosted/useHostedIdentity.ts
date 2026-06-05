@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare const fin: any;
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DEV_PLATFORM_BOOTSTRAP } from '@starui/host-data';
 import { usePlatformIdentityOrNull } from '@starui/host-data-react/runtime';
 import { createConfigServiceStorage } from '@starui/host-config';
@@ -176,13 +176,10 @@ export function useHostedIdentity(args: UseHostedIdentityArgs): UseHostedIdentit
     null,
   );
 
-  const appIdFromPlatform = platformIdentity?.appId;
-  const appIdFromOverride = readConfigManagerAppId(configManagerOverride);
-  const appIdFromResolved = readConfigManagerAppId(resolvedConfigManager);
   const appId =
-    appIdFromPlatform
-    ?? appIdFromOverride
-    ?? appIdFromResolved
+    platformIdentity?.appId
+    ?? readConfigManagerAppId(configManagerOverride)
+    ?? readConfigManagerAppId(resolvedConfigManager)
     ?? defaultAppId;
 
   const userId =
@@ -190,30 +187,6 @@ export function useHostedIdentity(args: UseHostedIdentityArgs): UseHostedIdentit
     ?? readConfigManagerUserId(configManagerOverride)
     ?? readConfigManagerUserId(resolvedConfigManager)
     ?? defaultUserId;
-
-  // appId stability is the #1 cause of "settings lost on restart": profile
-  // rows are scoped by (instanceId, appId, userId), so if appId resolves to a
-  // different source between save and load the row looks missing. Trace which
-  // source won + flag when we fell through to the hardcoded default. Deduped
-  // via a ref so it logs only when the resolved tuple actually changes (the
-  // hook re-renders many times during mount).
-  const lastIdentityLogRef = useRef<string | null>(null);
-  const usedFallback =
-    appId === defaultAppId && !appIdFromPlatform && !appIdFromOverride && !appIdFromResolved;
-  const identitySig = `${appId}|${userId}|${appIdFromPlatform ?? ''}|${appIdFromOverride ?? ''}|${appIdFromResolved ?? ''}`;
-  if (lastIdentityLogRef.current !== identitySig) {
-    lastIdentityLogRef.current = identitySig;
-    // eslint-disable-next-line no-console
-    console.log(
-      '[hosted-identity:%s] appId=%s (platform=%s override=%s resolvedCM=%s default=%s)%s userId=%s',
-      componentName, appId,
-      appIdFromPlatform ?? '∅', appIdFromOverride ?? '∅', appIdFromResolved ?? '∅', defaultAppId,
-      usedFallback
-        ? ' ⚠ USING FALLBACK DEFAULT — no platform/configManager appId available; rows saved now will be orphaned once the real appId resolves'
-        : '',
-      userId,
-    );
-  }
 
   // Identity resolution. Only instanceId and registered-component
   // metadata come from OpenFin customData / URL.

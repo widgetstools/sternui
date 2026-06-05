@@ -71,11 +71,7 @@ export function useWorkspaceSaveEvent(
 
     (async () => {
       try {
-        // eslint-disable-next-line no-console
-        console.log('[ws-save/client] connecting to channel %s …', WORKSPACE_SAVE_CHANNEL);
         client = await fin.InterApplicationBus.Channel.connect(WORKSPACE_SAVE_CHANNEL);
-        // eslint-disable-next-line no-console
-        console.log('[ws-save/client] connected to %s — registering workspace-saving handler', WORKSPACE_SAVE_CHANNEL);
         if (cancelled) {
           // Hook unmounted before the connection resolved — drop it.
           try {
@@ -90,13 +86,9 @@ export function useWorkspaceSaveEvent(
           // Returning the awaited promise is what makes the platform
           // `dispatch` block until the flush completes.
           const cb = saveRef.current;
-          // eslint-disable-next-line no-console
-          console.log('[ws-save/client] ◀ workspace-saving received — flushing (hasCb=%s)', Boolean(cb));
           if (!cb) return;
           try {
             await cb();
-            // eslint-disable-next-line no-console
-            console.log('[ws-save/client] flush complete — view state persisted before snapshot capture');
           } catch (err) {
             console.warn('[useWorkspaceSaveEvent] flush callback threw:', err);
           }

@@ -64,15 +64,9 @@ function getSaveChannelProvider(): Promise<SaveChannelProvider | null> {
     return Promise.resolve(null);
   }
   if (!saveChannelProviderPromise) {
-    // eslint-disable-next-line no-console
-    console.log('[ws-save/provider] creating save channel provider %s', WORKSPACE_SAVE_CHANNEL);
     saveChannelProviderPromise = Promise.resolve(
       fin.InterApplicationBus.Channel.create(WORKSPACE_SAVE_CHANNEL),
-    ).then((p) => {
-      // eslint-disable-next-line no-console
-      console.log('[ws-save/provider] save channel provider created');
-      return p as SaveChannelProvider;
-    }).catch((err: unknown) => {
+    ).catch((err: unknown) => {
       console.warn('[workspace-persistence] failed to create save channel provider:', err);
       saveChannelProviderPromise = null;
       return null;
@@ -91,19 +85,9 @@ async function dispatchWorkspaceSaving(workspaceId: string): Promise<void> {
     const provider = await getSaveChannelProvider();
     if (!provider) return;
     const conns = provider.connections ?? [];
-    // eslint-disable-next-line no-console
-    console.log(
-      '[ws-save/provider] dispatching workspace-saving to %d connected view(s) for workspaceId=%s%s',
-      conns.length, workspaceId,
-      conns.length === 0
-        ? ' — ⚠ NO VIEWS CONNECTED: no per-view profile/grid state will be flushed into this snapshot'
-        : '',
-    );
     await Promise.allSettled(
       conns.map((c) => provider.dispatch(c, 'workspace-saving', { workspaceId })),
     );
-    // eslint-disable-next-line no-console
-    console.log('[ws-save/provider] all view flushes settled for workspaceId=%s', workspaceId);
   } catch (err) {
     console.warn('[workspace-persistence] pre-save dispatch failed:', err);
   }
@@ -364,11 +348,6 @@ export function createWorkspacePersistenceOverride(
           displayText: ws.title ?? 'Workspace',
           payload,
         }));
-        // eslint-disable-next-line no-console
-        console.log(
-          '[ws-save/provider] CREATE ✓ workspace row saved configId=%s appId=%s userId=%s views=%d instanceIds=%d',
-          configId, appId, userId, instanceIdsFromSnapshot(snapshot).length, instanceIds.length,
-        );
 
         publishWorkspaceSaved(ws.workspaceId);
         await fireChange();
@@ -409,11 +388,6 @@ export function createWorkspacePersistenceOverride(
           payload,
           existing,
         }));
-        // eslint-disable-next-line no-console
-        console.log(
-          '[ws-save/provider] UPDATE ✓ workspace row saved configId=%s appId=%s userId=%s instanceIds=%d',
-          configId, appId, userId, instanceIds.length,
-        );
 
         publishWorkspaceSaved(ws.workspaceId);
         await fireChange();
@@ -426,15 +400,8 @@ export function createWorkspacePersistenceOverride(
         // throwing here would break the upsert path.
         const row = await cm.getConfig(workspaceConfigId(id));
         if (!row || row.componentType !== COMPONENT_TYPES.WORKSPACE) {
-          // eslint-disable-next-line no-console
-          console.warn(
-            '[ws-save/provider] getSavedWorkspace ∅ id=%s → %s',
-            id, row ? `row exists but componentType=${row.componentType}` : 'no row found',
-          );
           return undefined;
         }
-        // eslint-disable-next-line no-console
-        console.log('[ws-save/provider] getSavedWorkspace ✓ id=%s', id);
         return rowToWorkspace(row);
       }
 
@@ -452,12 +419,6 @@ export function createWorkspacePersistenceOverride(
         const filtered = term
           ? mine.filter((r) => (r.displayText ?? '').toLowerCase().includes(term))
           : mine;
-        // eslint-disable-next-line no-console
-        console.log(
-          '[ws-save/provider] getSavedWorkspaces appId=%s userId=%s → %d workspace(s) found%s',
-          appId, userId, filtered.length,
-          filtered.length === 0 ? ' — ⚠ none to restore (layouts will not reappear)' : '',
-        );
         return filtered.map(rowToWorkspace);
       }
 
