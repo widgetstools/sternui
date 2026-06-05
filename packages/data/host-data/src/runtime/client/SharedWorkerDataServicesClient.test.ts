@@ -134,6 +134,7 @@ function stubConfigManager(): ConfigManager & { _rows: Map<string, AppConfigRow>
     },
     async getAllConfigs() { return [...rows.values()]; },
     async getAllConfigsUnfiltered() { return [...rows.values()]; },
+    async getConfigsByComponentTypesUnfiltered(types: string[]) { return [...rows.values()].filter((r) => types.includes(r.componentType)); },
     async getConfig(id: string) { return rows.get(id); },
     async saveConfig(row: AppConfigRow) { rows.set(row.configId, row); },
     async deleteConfig(id: string) { rows.delete(id); },

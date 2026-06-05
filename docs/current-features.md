@@ -938,6 +938,7 @@ Per-renderer config types (`PillRendererConfig`,
 #### ConfigManager (deprecated lower-level API)
 
 - CRUD for 6 tables: `appConfig`, `appRegistry`, `userProfile`, `roles`, `permissions`, `pendingSync`
+- `getConfigsByComponentTypesUnfiltered(types)` — fetch only the given `componentType`s via the `[componentType+componentSubType]` index (O(matching) not O(all rows)). Used by the data-provider / AppData stores so listing providers reads only provider rows instead of materialising every grid profile in `appConfig`
 - Dev mode (default) — all data in Dexie/IndexedDB
 - REST mode — writes sync to backend with Dexie as local cache
 - Failed REST writes → `PENDING_SYNC` table, auto-retry every 10 s (max 10 retries)
