@@ -1,5 +1,5 @@
 {
-  "appId": "markets-ui-react-reference",
+  "appId": "TestApp",
   "userId": "dev1",
   "useRest": false,
   "configServiceRestUrl": "http://localhost:3001/api/v1",
