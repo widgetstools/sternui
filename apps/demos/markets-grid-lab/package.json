@@ -12,7 +12,7 @@
   "dependencies": {
     "@starui/data": "file:../../../libs/starui-data-0.1.0-f803381e.tgz",
     "@starui/design-system": "file:../../../libs/starui-design-system-1.0.0-4ba3dc39.tgz",
-    "@starui/react-grid": "file:../../../libs/starui-react-grid-0.1.0-eee09937.tgz",
+    "@starui/react-grid": "file:../../../libs/starui-react-grid-0.1.0-c6591d21.tgz",
     "@starui/react-ui": "file:../../../libs/starui-react-ui-1.0.0-f98ab8fe.tgz",
     "@starui/shared": "file:../../../libs/starui-shared-1.0.0-7862fbe1.tgz",
     "ag-grid-community": "35.1.0",
