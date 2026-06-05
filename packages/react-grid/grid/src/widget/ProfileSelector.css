@@ -371,13 +371,17 @@
 /* Scrollable layout list — fixed height so the popover footprint stays
  * constant; rows scroll inside this pane as layouts are added. */
 .ds-ps-list {
-  flex: 0 0 auto;
+  /* Flex (not fixed) so the list yields height to the pinned header and
+   * footer when the shell hits its max-height — otherwise a fixed-height
+   * list pushes the Export/Import footer past the shell's clipped bottom
+   * edge. `min-height: 0` lets it shrink + scroll; the preferred height
+   * below keeps the stable ~200px footprint when there's room. */
+  flex: 1 1 auto;
   /* ~2/3 of the previous 300px default; `40vh` makes the list track the
    * host window height (responsive), the 200px cap keeps it from growing
-   * past the 2/3 default on tall screens, and the 120px floor stops it
-   * collapsing on short ones. */
+   * past the 2/3 default on tall screens. */
   height: min(200px, 40vh);
-  min-height: 120px;
+  min-height: 0;
   max-height: min(200px, calc(100vh - 240px));
   overflow-x: hidden;
   overflow-y: auto;
