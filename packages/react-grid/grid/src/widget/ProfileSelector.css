@@ -138,9 +138,12 @@
   display: flex;
   flex-direction: column;
   height: auto;
-  min-width: 288px;
-  max-width: min(340px, calc(100vw - 24px));
-  max-height: min(480px, calc(100vh - 48px));
+  /* ~2/3 of the previous default (288/340/480), and responsive: the
+   * vw/vh caps shrink the popover on small host windows so it never
+   * overflows its container. */
+  min-width: 192px;
+  max-width: min(228px, calc(100vw - 24px));
+  max-height: min(320px, calc(100vh - 48px));
   border-radius: 2px !important;
   /* Beat shadcn PopoverContent (`border`, `bg-popover`, `shadow-md`). */
   background: var(--ds-surface-ground) !important;
@@ -369,9 +372,13 @@
  * constant; rows scroll inside this pane as layouts are added. */
 .ds-ps-list {
   flex: 0 0 auto;
-  height: 300px;
-  min-height: 300px;
-  max-height: min(300px, calc(100vh - 240px));
+  /* ~2/3 of the previous 300px default; `40vh` makes the list track the
+   * host window height (responsive), the 200px cap keeps it from growing
+   * past the 2/3 default on tall screens, and the 120px floor stops it
+   * collapsing on short ones. */
+  height: min(200px, 40vh);
+  min-height: 120px;
+  max-height: min(200px, calc(100vh - 240px));
   overflow-x: hidden;
   overflow-y: auto;
   padding: 6px;

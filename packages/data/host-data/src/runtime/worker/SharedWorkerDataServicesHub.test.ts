@@ -1017,3 +1017,76 @@ describe('SharedWorkerDataServicesHub — config catalog', () => {
     );
   });
 });
+
+describe('SharedWorkerDataServicesHub — keyColumn mismatch diagnostics', () => {
+  it('drops rows whose keyColumn does not resolve and warns once per cycle', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const hub = new SharedWorkerDataServicesHub();
+      const port = makePort();
+      // cfg() keys on 'id'; rows below carry 'ID' (wrong case) → every key is null.
+      hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
+      const ctrl = controllers.get('default')!;
+      port.messages.length = 0;
+
+      ctrl.emit({ rows: [{ ID: 'r1', x: 1 }, { ID: 'r2', x: 2 }], replace: true });
+      // Second batch in the same cycle must NOT produce a second warning.
+      ctrl.emit({ rows: [{ ID: 'r3', x: 3 }] });
+
+      // Nothing reaches subscribers (cache + broadcasts are empty).
+      const broadcastRows = port.messages
+        .filter((m) => m.kind === 'delta')
+        .flatMap((m) => (m as Event & { rows: unknown[] }).rows);
+      expect(broadcastRows).toHaveLength(0);
+
+      // Exactly one warning, naming the key and the actual fields.
+      expect(warn).toHaveBeenCalledTimes(1);
+      const msg = warn.mock.calls[0][0] as string;
+      expect(msg).toContain('"id"');
+      expect(msg).toContain('ID'); // sample field names
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('surfaces keyDropCount in the hub introspect snapshot', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const hub = new SharedWorkerDataServicesHub();
+      const port = makePort();
+      hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
+      const ctrl = controllers.get('default')!;
+      ctrl.emit({ rows: [{ ID: 'r1' }, { ID: 'r2' }, { ID: 'r3' }], replace: true });
+
+      hub.handleRequest(port, { kind: 'hub-introspect', reqId: 'intro-keydrop' });
+      const snap = port.messages.find((m) => (m as { reqId?: string }).reqId === 'intro-keydrop') as {
+        introspect?: { providers: Array<{ providerId: string; keyDropCount?: number; rowCount?: number }> };
+      };
+      const row = snap.introspect?.providers.find((p) => p.providerId === 'p1');
+      expect(row?.keyDropCount).toBe(3);
+      expect(row?.rowCount).toBe(0);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('resets the warning + drop count on provider restart (status loading)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const hub = new SharedWorkerDataServicesHub();
+      const port = makePort();
+      hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
+      const ctrl = controllers.get('default')!;
+
+      ctrl.emit({ rows: [{ ID: 'r1' }], replace: true });
+      expect(warn).toHaveBeenCalledTimes(1);
+
+      // A new cycle (loading) re-arms the one-shot warning.
+      ctrl.emit({ status: 'loading' });
+      ctrl.emit({ rows: [{ ID: 'r2' }], replace: true });
+      expect(warn).toHaveBeenCalledTimes(2);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+});

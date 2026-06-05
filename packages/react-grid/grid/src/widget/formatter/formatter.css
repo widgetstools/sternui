@@ -74,11 +74,12 @@
   isolation: isolate;
 }
 
-/* Toolbar variant — intentional two-row layout with labeled groups.
+/* Toolbar variant — two labeled-group rows that reflow with width.
    Row 1: scope + typography + colour.
-   Row 2: number format + editor/filter + templates + clear (right).
-   Each row stays a single line (`flex-wrap: nowrap`); narrow viewports
-   scroll horizontally rather than spawning a third wrapped line. */
+   Row 2: number format + editor/filter + templates + clear.
+   Each row WRAPS: when a row's groups can't all fit, whole labeled
+   groups drop to a new line (never split mid-group) instead of growing
+   a horizontal scrollbar. The toolbar grows taller, never sideways. */
 .fx-shell--horizontal {
   display: flex;
   flex-direction: column;
@@ -105,23 +106,15 @@
 .fx-toolbar-row {
   display: flex;
   align-items: center;
-  flex-wrap: nowrap;
-  gap: 8px;
+  /* Reflow whole groups onto new lines instead of scrolling. `row-gap`
+   * gives wrapped lines breathing room that matches the inter-row gap
+   * of the two-row scaffold, so a wrapped group reads as a natural
+   * continuation rather than a cramped overflow. */
+  flex-wrap: wrap;
+  column-gap: 8px;
+  row-gap: 6px;
   min-height: var(--fx-pill-h);
   min-width: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: var(--ds-border-secondary) transparent;
-}
-
-.fx-toolbar-row::-webkit-scrollbar {
-  height: 4px;
-}
-
-.fx-toolbar-row::-webkit-scrollbar-thumb {
-  background: var(--ds-border-secondary);
-  border-radius: var(--fx-radius, 3px);
 }
 
 /* Labeled cluster — label + controls inline; no outer box chrome. */

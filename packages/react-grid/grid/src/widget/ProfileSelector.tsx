@@ -411,9 +411,6 @@ export function ProfileSelector({
           <div className="ds-ps-footer">
           {/* Create new */}
           <div className="ds-ps-create-section">
-            <div className="ds-ps-section-label">
-              Save current as
-            </div>
             <div
               className="ds-ps-create-field"
               data-focused={inputFocused ? 'true' : 'false'}

@@ -110,6 +110,8 @@ function resetProviderStats(slot: ProviderSlot, now = Date.now()): void {
   slot.pubsByMinBucket.fill(0);
   slot.minBucketIdx = 0;
   slot.publishWindowSeconds = 0;
+  slot.keyDropCount = 0;
+  slot.keyDropWarned = false;
 }
 
 export interface PortLike {
@@ -148,6 +150,17 @@ interface ProviderSlot {
   minBucketIdx: number;
   /** Seconds elapsed since snapshot ready (capped at MIN_WINDOW). */
   publishWindowSeconds: number;
+  /**
+   * Count of rows dropped this cycle because `composeRowId(row, keyColumn)`
+   * returned null — i.e. the configured `keyColumn` doesn't resolve a value
+   * on the incoming rows (usually a name/case mismatch like `POSITIONID` vs
+   * `positionId`). Dropped rows never reach the cache or any subscriber, so
+   * the grid silently empties; this counter + the one-time warning surface
+   * the misconfig instead. Reset on every (re)start via {@link resetProviderStats}.
+   */
+  keyDropCount: number;
+  /** One-shot guard so the key-mismatch warning logs once per cycle, not per batch. */
+  keyDropWarned: boolean;
 }
 
 interface DataListener {
@@ -349,6 +362,7 @@ export class SharedWorkerDataServicesHub {
         startedAt: stats.startedAt,
         errorCount: stats.errorCount,
         lastError: slot.lastError,
+        keyDropCount: slot.keyDropCount,
         cfg: slot.cfg,
       });
     }
@@ -811,6 +825,8 @@ export class SharedWorkerDataServicesHub {
       pubsByMinBucket: Array.from({ length: MIN_WINDOW }, () => 0),
       minBucketIdx: 0,
       publishWindowSeconds: 0,
+      keyDropCount: 0,
+      keyDropWarned: false,
     };
 
     const emit: ProviderEmit = (event: ProviderEmitEvent) => {
@@ -833,12 +849,19 @@ export class SharedWorkerDataServicesHub {
       // semantics line up: the cache and the broadcast batch see the
       // same final value per key.
       const batch = new Map<string, unknown>();
+      let dropped = 0;
+      let droppedSample: unknown;
       for (const row of event.rows) {
         const k = keyOf(row, keyColumn);
-        if (k === null) continue;
+        if (k === null) {
+          if (dropped === 0) droppedSample = row;
+          dropped += 1;
+          continue;
+        }
         slot.cache.set(k, row);
         batch.set(k, row);
       }
+      if (dropped > 0) this.reportKeyDrops(providerId, slot, keyColumn, dropped, droppedSample);
       slot.msgCount += 1;
       slot.msgsByBucket[slot.bucketIdx] += 1;
       slot.lastMessageAt = Date.now();
@@ -918,6 +941,43 @@ export class SharedWorkerDataServicesHub {
         });
       }
     }
+  }
+
+  /**
+   * Record + surface rows dropped because the configured `keyColumn`
+   * doesn't resolve a value on the incoming rows. This is the single
+   * most confusing failure mode in the pipeline: the provider fetches
+   * the full snapshot, the worker logs "flushSnapshot: N rows", but the
+   * grid stays empty because every row's `composeRowId(...)` returns null
+   * (e.g. `keyColumn: "POSITIONID"` against rows keyed `positionId`).
+   *
+   * We warn ONCE per (re)start cycle — never per batch — with the
+   * configured key and the actual top-level field names on a sample row,
+   * so the mismatch (usually name/case) is obvious in the SharedWorker
+   * console. `keyDropCount` accumulates for the hub introspector.
+   */
+  private reportKeyDrops(
+    providerId: string,
+    slot: ProviderSlot,
+    keyColumn: string | readonly string[] | undefined,
+    dropped: number,
+    sample: unknown,
+  ): void {
+    slot.keyDropCount += dropped;
+    if (slot.keyDropWarned) return;
+    slot.keyDropWarned = true;
+    const sampleFields =
+      sample && typeof sample === 'object' && !Array.isArray(sample)
+        ? Object.keys(sample as Record<string, unknown>)
+        : [];
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[hub] provider '${providerId}' dropped ${dropped} row(s): keyColumn ` +
+        `${JSON.stringify(keyColumn ?? null)} did not resolve a value on the incoming rows. ` +
+        `These rows never reach the cache or the grid (it will appear empty). ` +
+        `Fix the provider's Key Column to match an actual field — sample row fields: ` +
+        `[${sampleFields.join(', ')}].`,
+    );
   }
 
   // ─── Listener attach + fan-out ─────────────────────────────────

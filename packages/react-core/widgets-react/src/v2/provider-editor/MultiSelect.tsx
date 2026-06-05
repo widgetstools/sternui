@@ -104,7 +104,11 @@ export function MultiSelect({
                   <Badge
                     key={v}
                     variant="secondary"
-                    className="h-5 px-1.5 text-[11px] font-mono gap-0.5"
+                    // `normal-case` overrides Badge's default `uppercase` — these
+                    // pills show field identifiers (the keyColumn), which are
+                    // case-sensitive (they drive getRowId + the worker cache key).
+                    // Uppercasing them misreads `positionId` as `POSITIONID`.
+                    className="h-5 px-1.5 text-[11px] font-mono normal-case gap-0.5"
                   >
                     {opt?.label ?? v}
                     <span

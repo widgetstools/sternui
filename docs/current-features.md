@@ -1078,6 +1078,7 @@ Per-renderer config types (`PillRendererConfig`,
 - 1 Hz sampler with 5 s upstream + 60 s publish windows
 - Self-disabling when no stats listeners
 - Per-provider cache (`Map<rowKey, row>` keyed by `cfg.keyColumn`)
+- keyColumn-mismatch diagnostics: rows whose `composeRowId(row, cfg.keyColumn)` resolves null (name/case mismatch, e.g. `POSITIONID` vs `positionId`) are dropped from the cache + fan-out; the hub now warns once per (re)start cycle in the SharedWorker console (naming the key + sample row fields) and exposes `keyDropCount` on the `hub-introspect` row so "provider fetched data but the grid is empty" is no longer silent
 
 #### AppData system
 
