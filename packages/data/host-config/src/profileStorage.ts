@@ -173,6 +173,11 @@ export function createConfigServiceStorage(
       },
 
       async saveProfile(snapshot: ProfileSnapshot): Promise<void> {
+        // eslint-disable-next-line no-console
+        console.log(
+          '[profile-store] saveProfile() called instanceId=%s profileId=%s name=%s',
+          instanceId, snapshot.id, snapshot.name,
+        );
         // Load the existing bundle, then upsert the snapshot and
         // write back. The expected-version from the load is threaded
         // into saveProfileSet so a second writer that landed in
@@ -225,6 +230,11 @@ export function createConfigServiceStorage(
 
       async saveGridLevelData(gridId: string, data: unknown): Promise<void> {
         void gridId;
+        // eslint-disable-next-line no-console
+        console.log(
+          '[profile-store] saveGridLevelData() called instanceId=%s data=%s',
+          instanceId, data == null ? 'null' : 'present',
+        );
         // Read-modify-write the same bundled row. Keep profiles and
         // version intact — only the `gridLevelData` field changes.
         const loaded = await loadProfileSet(configManager, scope);

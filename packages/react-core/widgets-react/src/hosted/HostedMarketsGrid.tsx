@@ -169,18 +169,40 @@ export function HostedMarketsGrid<
 
   const onWorkspaceSave = useCallback(async () => {
     const handle = gridRef.current;
-    console.log('Saving workspace…', { hasHandle: !!handle });
+    // eslint-disable-next-line no-console
+    console.log(
+      '[ws-save/flush] %s onWorkspaceSave hasHandle=%s saveAll=%s saveActiveProfile=%s',
+      componentName, Boolean(handle), Boolean(handle?.saveAll), Boolean(handle?.profiles?.saveActiveProfile),
+    );
+    if (!handle) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[ws-save/flush] %s NO grid handle — onReady never fired, so nothing is flushed for this view',
+        componentName,
+      );
+      return;
+    }
     // Prefer `saveAll` — same path as the toolbar Save button, so the
     // container's busy overlay and grid-state capture both run. Fall
     // back to `profiles.saveActiveProfile` for older handle shapes.
-    if (handle?.saveAll) {
-      await handle.saveAll();
-      return;
+    try {
+      if (handle.saveAll) {
+        await handle.saveAll();
+        // eslint-disable-next-line no-console
+        console.log('[ws-save/flush] %s saveAll() done', componentName);
+        return;
+      }
+      if (handle.profiles?.saveActiveProfile) {
+        await handle.profiles.saveActiveProfile();
+        // eslint-disable-next-line no-console
+        console.log('[ws-save/flush] %s saveActiveProfile() done', componentName);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[ws-save/flush] %s flush threw — state may not be persisted:', componentName, err);
+      throw err;
     }
-    if (handle?.profiles?.saveActiveProfile) {
-      await handle.profiles.saveActiveProfile();
-    }
-  }, []);
+  }, [componentName]);
 
   const { identity, agTheme, tabsHidden } = useHostedView({
     defaultInstanceId,
