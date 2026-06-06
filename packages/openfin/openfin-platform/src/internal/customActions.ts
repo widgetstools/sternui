@@ -101,28 +101,38 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
     },
 
     // ── Toggle between dark and light theme ──
-    // The toggle is handled INLINE inside the Dock3Provider override's
-    // `launchEntry()` (see `dock.ts`). That's the canonical v23 pattern
-    // from the `register-with-dock3-basic` starter (THEME_TOGGLE_ON_DOCK.md):
-    // the toggle must run inside the dock channel's launchEntry handler
-    // to avoid a deadlock between dock channel and platform scheme dispatch.
+    // This is the ACTIVE toggle path for the classic dock (dock2), whose
+    // theme-toggle button dispatches here as a CustomButton. (The dock3
+    // path handles the toggle INLINE in the Dock3Provider override's
+    // `launchEntry()` and does NOT reach this handler.)
     //
-    // This entry is kept for fallback / non-dock callers (e.g. a custom
-    // browser button if one is ever added). It uses `runThemeToggle`
-    // for safe re-entry coalescing.
+    // `runThemeToggle` flips `[data-theme]` synchronously (so the provider
+    // window's CSS updates immediately) and coalesces rapid re-entry.
+    //
+    // CRITICAL: fire `setSelectedScheme` WITHOUT awaiting. It dispatches over
+    // the `__of_workspace_protocol__` channel which hangs in this setup —
+    // awaiting it blocks the dock icon recolor and the IAB publish that our
+    // content windows need to flip their theme (the exact failure that made
+    // the classic toggle "not work like dock3"). The SDK still flips the dock
+    // + chrome from the synchronous part of the dispatch. Mirrors the dock3
+    // inline handler.
     [ACTION_TOGGLE_THEME]: async (e): Promise<void> => {
       if (e.callerType !== CustomActionCallerType.CustomButton) return;
       await runThemeToggle(async (isDark) => {
         const platform = getCurrentSync();
         const next = isDark ? ColorSchemeOptionType.Dark : ColorSchemeOptionType.Light;
         try {
-          await platform.Theme.setSelectedScheme(next);
+          // Fire-and-forget — do NOT await (see note above).
+          void platform.Theme.setSelectedScheme(next);
         } catch (schemeErr) {
           console.warn('setSelectedScheme failed:', schemeErr);
         }
         await recolorDockIcons(isDark);
+        const themeStr = isDark ? 'dark' : 'light';
         try {
-          await fin.InterApplicationBus.publish(IAB_THEME_CHANGED, { isDark });
+          // Publish both `theme` (current schema) and `isDark` (legacy) so
+          // content windows on either reducer stay in sync — matches dock3.
+          await fin.InterApplicationBus.publish(IAB_THEME_CHANGED, { theme: themeStr, isDark });
         } catch (iabErr) {
           console.warn('IAB publish failed:', iabErr);
         }
