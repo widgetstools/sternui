@@ -390,9 +390,11 @@ async function exportAllConfig(cm: ConfigManager): Promise<void> {
 // palette. These values are OpenFin's own reference light/dark palettes
 // (`OpenFinLightTheme` / `OpenFinDarkTheme` from @openfin/workspace-platform,
 // which are not exported at runtime) so we reproduce OpenFin's intended look
-// exactly, just without the broken under-specified derivation. `brandPrimary`
-// (and its derived variants) and `contentBackground*` are left for OpenFin to
-// compute from `brandPrimary`/`backgroundPrimary`.
+// exactly, just without the broken under-specified derivation. Only
+// `brandPrimary` and its derived hover/active variants are left for OpenFin
+// to compute (from `brandPrimary`); everything the dock surfaces read —
+// including `contentBackground*`, which drives the dropdown flyout — is
+// pinned per scheme.
 const OPENFIN_DARK_PALETTE = {
   brandPrimary: "#0A76D3",
   brandSecondary: "#383A40",
@@ -416,6 +418,15 @@ const OPENFIN_DARK_PALETTE = {
   textDefault: "#FFFFFF",
   textHelp: "#C9CBD2",
   textInactive: "#7D808A",
+  // contentBackground* drive the dock dropdown / expanded-container surfaces
+  // (`dockExpandedContainerBackground = contentBackground4`). Mirror the
+  // background ramp so the dropdown matches the scheme — left underived,
+  // OpenFin produced a dark dropdown in light mode.
+  contentBackground1: "#111214",
+  contentBackground2: "#1E1F23",
+  contentBackground3: "#24262B",
+  contentBackground4: "#2F3136",
+  contentBackground5: "#383A40",
   statusSuccess: "#207735",
   statusWarning: "#F48F00",
   statusCritical: "#F31818",
@@ -446,6 +457,13 @@ const OPENFIN_LIGHT_PALETTE = {
   textDefault: "#1E1F23",
   textHelp: "#2F3136",
   textInactive: "#7D808A",
+  // See dark palette note — light values so the dock dropdown
+  // (`dockExpandedContainerBackground = contentBackground4`) renders light.
+  contentBackground1: "#FFFFFF",
+  contentBackground2: "#FAFBFE",
+  contentBackground3: "#F3F5F8",
+  contentBackground4: "#ECEEF1",
+  contentBackground5: "#DDDFE4",
   statusSuccess: "#207735",
   statusWarning: "#F48F00",
   statusCritical: "#F31818",
