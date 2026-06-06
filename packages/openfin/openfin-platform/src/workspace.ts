@@ -379,6 +379,80 @@ async function exportAllConfig(cm: ConfigManager): Promise<void> {
 
 // ─── Platform initialization ─────────────────────────────────────────
 
+// Full per-scheme palettes for the workspace platform.
+//
+// OpenFin themes every workspace surface (dock bar, dock dropdowns, content
+// menu, home/store, modals) from these palettes. Supplying only the three
+// seed colours (brandPrimary/brandSecondary/backgroundPrimary) makes OpenFin
+// DERIVE the rest, and that derivation produced a dark dock dropdown and an
+// illegible Cancel button in LIGHT mode (the light scheme inherited the dark
+// brand grey). The fix per OpenFin's theming docs is to provide the complete
+// palette. These values are OpenFin's own reference light/dark palettes
+// (`OpenFinLightTheme` / `OpenFinDarkTheme` from @openfin/workspace-platform,
+// which are not exported at runtime) so we reproduce OpenFin's intended look
+// exactly, just without the broken under-specified derivation. `brandPrimary`
+// (and its derived variants) and `contentBackground*` are left for OpenFin to
+// compute from `brandPrimary`/`backgroundPrimary`.
+const OPENFIN_DARK_PALETTE = {
+  brandPrimary: "#0A76D3",
+  brandSecondary: "#383A40",
+  backgroundPrimary: "#1E1F23",
+  background1: "#111214",
+  background2: "#1E1F23",
+  background3: "#24262B",
+  background4: "#2F3136",
+  background5: "#383A40",
+  background6: "#53565F",
+  brandSecondaryActive: "#33353B",
+  brandSecondaryHover: "#44464E",
+  brandSecondaryFocused: "#FFFFFF",
+  brandSecondaryText: "#FFFFFF",
+  inputBackground: "#53565F",
+  inputColor: "#FFFFFF",
+  inputPlaceholder: "#C9CBD2",
+  inputDisabled: "#7D808A",
+  inputFocused: "#C9CBD2",
+  inputBorder: "#7D808A",
+  textDefault: "#FFFFFF",
+  textHelp: "#C9CBD2",
+  textInactive: "#7D808A",
+  statusSuccess: "#207735",
+  statusWarning: "#F48F00",
+  statusCritical: "#F31818",
+  statusActive: "#0A76D3",
+  borderNeutral: "#C0C1C2",
+} as const;
+
+const OPENFIN_LIGHT_PALETTE = {
+  brandPrimary: "#0A76D3",
+  brandSecondary: "#DDDFE4",
+  backgroundPrimary: "#FAFBFE",
+  background1: "#FFFFFF",
+  background2: "#FAFBFE",
+  background3: "#F3F5F8",
+  background4: "#ECEEF1",
+  background5: "#DDDFE4",
+  background6: "#C9CBD2",
+  brandSecondaryActive: "#D7DADF",
+  brandSecondaryHover: "#EBECEF",
+  brandSecondaryFocused: "#1E1F23",
+  brandSecondaryText: "#1E1F23",
+  inputBackground: "#ECEEF1",
+  inputColor: "#1E1F23",
+  inputPlaceholder: "#383A40",
+  inputDisabled: "#7D808A",
+  inputFocused: "#C9CBD2",
+  inputBorder: "#7D808A",
+  textDefault: "#1E1F23",
+  textHelp: "#2F3136",
+  textInactive: "#7D808A",
+  statusSuccess: "#207735",
+  statusWarning: "#F48F00",
+  statusCritical: "#F31818",
+  statusActive: "#0A76D3",
+  borderNeutral: "#C0C1C2",
+} as const;
+
 /**
  * Initialize the OpenFin workspace platform with theme config and
  * custom action handlers for the dock buttons.
@@ -406,14 +480,19 @@ async function initializePlatform(
         default: "dark",
         palettes: {
           dark: {
-            brandPrimary: theme?.brandPrimary ?? "#0A76D3",
-            brandSecondary: theme?.brandSecondary ?? "#383A40",
-            backgroundPrimary: theme?.backgroundPrimary ?? "#1E1F23",
+            ...OPENFIN_DARK_PALETTE,
+            brandPrimary: theme?.brandPrimary ?? OPENFIN_DARK_PALETTE.brandPrimary,
+            brandSecondary: theme?.brandSecondary ?? OPENFIN_DARK_PALETTE.brandSecondary,
+            backgroundPrimary: theme?.backgroundPrimary ?? OPENFIN_DARK_PALETTE.backgroundPrimary,
           },
           light: {
-            brandPrimary: theme?.brandPrimary ?? "#0A76D3",
-            brandSecondary: theme?.brandSecondary ?? "#383A40",
-            backgroundPrimary: "#FAFBFE",
+            ...OPENFIN_LIGHT_PALETTE,
+            brandPrimary: theme?.brandPrimary ?? OPENFIN_LIGHT_PALETTE.brandPrimary,
+            // NOTE: `brandSecondary` and `backgroundPrimary` are intentionally
+            // NOT threaded from the single `theme.*` knobs — those carry the
+            // dark-scheme values (#383A40 / #1E1F23), and reusing them here
+            // makes OpenFin derive a dark dock dropdown / Cancel button in light
+            // mode. The light scheme keeps its own light values.
           },
         },
       },
