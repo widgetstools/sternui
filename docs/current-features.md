@@ -522,7 +522,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Provider editor tabs
 
-- `ConnectionTab` — connection string, auth, transport selection
+- `ConnectionTab` — connection string, auth, transport selection; "Test Connection" button (STOMP/REST) drives `useProviderProbe.test()`. STOMP runs a pure socket connect (`connectStomp` — handshake only, no subscribe/trigger/rows) and shows "Connected"; row-fetching transports (REST/mock) show "Connected — received N rows"
 - `FieldsTab` — discover provider fields, map to columns, infer types
 - `ColumnsTab` — derive AG Grid column defs from schema; collapsible Key Column + Add Custom Column panels and a scrollable body keep the columns table at a usable minimum height in short containers. Per-row ƒx button opens a Monaco `ExpressionEditor` (from `@starui/grid/customizer`) to author a column `valueGetter` DSL expression (column refs `[field]`, nested optional-chaining paths `[a.b.c]`, live-validated); persists onto `ColumnDefinition.valueGetter`, applied at runtime by `buildColumnDefs`
 - `DiagnosticsTab` — probe, request/response logging, debug
@@ -537,13 +537,14 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Hosted integration (legacy)
 
-- `HostedMarketsGrid` — hosted wrapper; accepts `platform` (hub bundle) or legacy `dataServices`; composes `MarketsGridContainer`
+- `HostedMarketsGrid` — hosted wrapper; accepts `platform` (hub bundle) or legacy `dataServices`; composes `MarketsGridContainer`. Opt-in `contextLink` prop wires grid-to-grid linking (see `useGridContextLink`)
 - `useHostedView` — window identity & lifecycle
 - `useHostedIdentity` — resolve current view identity
 - `useFdc3Channel` — FDC3 channel subscription
 - `useOpenFinChannel` — OpenFin IAB subscription
 - `useIab` — generic Inter-App Bus pub/sub
-- `useColorLinking` — workspace theme colour-linking
+- `useColorLinking` — workspace colour-linking membership (`{ color, linked }`); flat peer group, no parent/child
+- `useGridContextLink` — grid-to-grid context linking over colored "Link" groups: publishes the selection and filters rows on peer selections. Two modes: `'rowId'` (default) broadcasts AG-Grid `getRowId` values (`node.id` = `composeRowId` over the provider key fields) and applies them as an external filter — no `rowIdField` config needed; `'fields'` broadcasts key-field values (or grouped colId + key) and applies a per-column set-filter. Pure helpers `buildRowIdContext` / `applyRowIdExternalFilter` / `buildSelectionContext` / `defaultGridLinkResolver` / `applyGridLinkContext` (`gridContextLink.ts`); `resolve` / `buildContext` overridable
 - `useTabsHidden` — tab visibility detection
 - `useWorkspaceSaveEvent` — workspace save callback
 - `windowOptionsSubscription` — `window.options` reactivity
@@ -1055,7 +1056,8 @@ Per-renderer config types (`PillRendererConfig`,
   - Snapshot flush chunking (`cfg.snapshotChunkSize`, default `SNAPSHOT_CHUNK_SIZE = 500`) to stay under 50 ms long-task budget — configurable in code or the provider editor
   - Live conflation + trailing-edge throttle (`cfg.throttleMs` window; `cfg.conflateByKey` upsert key, defaults to `keyColumn`) via `bufferedDispatch()` — coalesces same-key ticks in the worker before fanout; `throttleMs` unset = immediate passthrough; probe path bypasses it. Two explicit master switches (default ON): `cfg.throttleEnabled: false` fans out every delta immediately while keeping the `throttleMs` value; `cfg.conflateEnabled: false` disables conflation even when `keyColumn` could supply a key (the off-switch the `?? keyColumn` fallback otherwise prevented)
   - Restart overlay (`extra`) for historical `asOfDate`
-  - `probeStomp()` — one-shot Test Connection probe
+  - `connectStomp()` — pure socket connection test for the editor's "Test Connection" button: opens the WebSocket + STOMP session and resolves on the broker handshake (`onConnect`) without subscribing, publishing a trigger, or waiting for rows (`reconnectDelay: 0` so a failed test fails fast)
+  - `probeStomp()` — one-shot data probe (subscribe + trigger + collect up to `maxRows`); backs the editor's Infer Fields flow, which needs real rows to sample
 - **REST** (`startRest()`)
   - One-shot HTTP (GET/POST), snapshot-only — no live tail after `ready` (IDataProvider: no `onTick`)
   - Restart overlay merged into POST body

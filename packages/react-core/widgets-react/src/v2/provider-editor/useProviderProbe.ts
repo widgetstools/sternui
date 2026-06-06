@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useState } from 'react';
-import { probeStomp, probeRest, probeMock, inferFields } from '@starui/host-data';
+import { probeStomp, connectStomp, probeRest, probeMock, inferFields } from '@starui/host-data';
 import { resolveCfg } from '@starui/host-data/runtime';
 import { useAppDataStore } from '@starui/host-data-react/runtime';
 import type { ProviderConfig, FieldNode } from '@starui/shared-types';
@@ -53,12 +53,15 @@ export function useProviderProbe(cfg: ProviderConfig | null): ProbeState {
     setState((s) => ({ ...s, testing: true, testResult: null }));
     try {
       await appDataStore.ready();
-      const result = await probeOnce(resolveAppDataTokens(cfg), { maxRows: 5, timeoutMs: 10_000 });
+      const result = await testConnectionOnce(resolveAppDataTokens(cfg), { maxRows: 5, timeoutMs: 10_000 });
       setState((s) => ({
         ...s,
         testing: false,
         testResult: result.ok
-          ? { success: true, rowCount: result.rows?.length ?? 0 }
+          // STOMP's pure-connect test returns no rows, so `rowCount`
+          // stays undefined and the pill shows just "Connected". Probe
+          // transports (REST/mock) still report the rows they fetched.
+          ? { success: true, rowCount: result.rows?.length }
           : { success: false, error: result.error },
       }));
     } catch (err) {
@@ -112,6 +115,31 @@ export function useProviderProbe(cfg: ProviderConfig | null): ProbeState {
   return { ...state, test, infer, reset };
 }
 
+/**
+ * Test Connection dispatcher. STOMP uses `connectStomp` — a pure socket
+ * connection test that resolves on the broker handshake without
+ * subscribing, publishing a trigger, or waiting for rows. Other
+ * transports reuse their data probe (REST does an HTTP GET, mock
+ * synthesises rows), which doubles as a reachability check.
+ */
+async function testConnectionOnce(
+  cfg: ProviderConfig,
+  opts: { maxRows: number; timeoutMs: number },
+): Promise<{ ok: boolean; rows?: readonly unknown[]; error?: string }> {
+  switch (cfg.providerType) {
+    case 'stomp': return connectStomp(cfg, { timeoutMs: opts.timeoutMs });
+    case 'rest':  return probeRest(cfg);
+    case 'mock':  return probeMock(cfg, { maxRows: opts.maxRows });
+    case 'appdata': return { ok: true, rows: [] };
+    default:      return { ok: false, error: `Test not implemented for ${cfg.providerType}` };
+  }
+}
+
+/**
+ * Field-inference probe — fetches real rows so `inferFields` has data
+ * to sample. STOMP runs the full subscribe + trigger + collect path
+ * here (unlike the connection test, which only needs the handshake).
+ */
 async function probeOnce(
   cfg: ProviderConfig,
   opts: { maxRows: number; timeoutMs: number },

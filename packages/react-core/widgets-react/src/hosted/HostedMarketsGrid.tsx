@@ -16,13 +16,15 @@
  * Props are flat (no `gridProps` namespacing) per refactor decision D7.
  */
 
-import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import type { GridApi } from 'ag-grid-community';
 import type { DataServices } from '@starui/host-data/runtime';
 import type { ResolvedDataServicesHubBundle } from '@starui/host-data';
 import { DataServicesProvider, DataHubProvider } from '@starui/host-data-react/runtime';
 import type { MarketsGridHandle } from '@starui/grid';
 import { MarketsGridContainer, type MarketsGridContainerProps } from '../v2/markets-grid-container/index.js';
 import { useHostedView } from './useHostedView.js';
+import { useGridContextLink, type GridContextLinkConfig } from './useGridContextLink.js';
 import type { AgGridThemeMode } from './useAgGridTheme.js';
 import type { ConfigManager } from './types.js';
 
@@ -92,6 +94,12 @@ export interface HostedMarketsGridProps<
    *  historical-date blotter keyed off `{{positions.asOfDate}}`). The
    *  consumer's surrounding `<Suspense>` boundary handles the fallback. */
   dataServicesMode?: 'eager' | 'lazy';
+  /** Opt-in grid-to-grid context linking over OpenFin's colored "Link"
+   *  groups. When `{ enabled: true }`, this grid broadcasts its selection
+   *  to linked peers and filters its rows on contexts received from them.
+   *  Set `rowIdField` to the provider's `keyColumn` so peers match on the
+   *  same fields. See {@link useGridContextLink}. */
+  contextLink?: GridContextLinkConfig;
 }
 
 function fullBleedReset(): ReactNode {
@@ -147,6 +155,7 @@ export function HostedMarketsGrid<
     platform,
     dataServicesMode = 'lazy',
     caption,
+    contextLink,
     ...containerProps
   } = props;
 
@@ -157,14 +166,21 @@ export function HostedMarketsGrid<
   // toolbar Save button calls runs on `Save Workspace`.
   const gridRef = useRef<MarketsGridHandle | null>(null);
 
+  // Grid API as state (not just the ref) so the context-link hook
+  // re-runs its effects once the live grid is ready / re-mounts on a
+  // provider switch. Only tracked when context linking is enabled.
+  const [gridApi, setGridApi] = useState<GridApi | null>(null);
+  const linkActive = contextLink?.enabled === true;
+
   // Chain any caller-supplied onReady so we don't shadow it.
   const callerOnReady = (containerProps as { onReady?: (h: MarketsGridHandle) => void }).onReady;
   const handleReady = useCallback(
     (handle: MarketsGridHandle) => {
       gridRef.current = handle;
+      if (linkActive) setGridApi(handle.gridApi as unknown as GridApi);
       callerOnReady?.(handle);
     },
-    [callerOnReady],
+    [callerOnReady, linkActive],
   );
 
   const onWorkspaceSave = useCallback(async () => {
@@ -182,7 +198,7 @@ export function HostedMarketsGrid<
     }
   }, []);
 
-  const { identity, agTheme, tabsHidden } = useHostedView({
+  const { identity, agTheme, tabsHidden, linking } = useHostedView({
     defaultInstanceId,
     defaultAppId,
     defaultUserId,
@@ -191,6 +207,16 @@ export function HostedMarketsGrid<
     componentName,
     theme,
     onWorkspaceSave,
+  });
+
+  // Grid-to-grid context linking over OpenFin's colored "Link" groups.
+  // No-op unless `contextLink.enabled` is true; degrades cleanly outside
+  // an FDC3 runtime.
+  useGridContextLink({
+    gridApi,
+    fdc3: linking.fdc3,
+    instanceId: identity.instanceId ?? defaultInstanceId,
+    config: contextLink,
   });
 
   // Document title — restored on unmount.

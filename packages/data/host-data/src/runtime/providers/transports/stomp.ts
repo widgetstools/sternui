@@ -686,6 +686,95 @@ export async function probeStomp(
   });
 }
 
+// ─── connectStomp() — pure socket connection test ─────────────────
+
+/**
+ * connectStomp — pure connection test for the editor's "Test
+ * Connection" button. Opens the WebSocket + STOMP session and resolves
+ * `{ ok: true }` the moment the broker completes the handshake
+ * (`client.onConnect`). It does **not** subscribe to the listener
+ * topic, publish a trigger frame, or wait for any rows — a green
+ * result means "the broker is reachable and the STOMP handshake
+ * succeeded", nothing more. Auto-reconnect is disabled
+ * (`reconnectDelay: 0`) so a failed test fails fast instead of
+ * silently retrying.
+ *
+ * Contrast with `probeStomp`, which runs the full data path (subscribe
+ * + trigger + collect rows) because field inference needs real rows.
+ * The Test button uses `connectStomp`; Infer Fields uses `probeStomp`.
+ */
+export async function connectStomp(
+  cfg: StompProviderConfig,
+  opts: ProbeOpts = {},
+): Promise<ProbeResult> {
+  // Resolve [bracket] tokens before connecting — same as the live path,
+  // so the brokerURL the client opens matches what the provider will use.
+  const resolvedCfg = resolveBracketCfg(cfg, new Map());
+  const timeoutMs = opts.timeoutMs ?? 15_000;
+
+  if (!resolvedCfg.websocketUrl || resolvedCfg.websocketUrl.includes('{{')) {
+    return {
+      ok: false,
+      error: `Unresolved or missing WebSocket URL: ${resolvedCfg.websocketUrl || '(empty)'}`,
+    };
+  }
+
+  let client: StompClient | null = null;
+  let settled = false;
+
+  return new Promise<ProbeResult>((resolve) => {
+    const finish = (result: ProbeResult) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      // No subscription was opened, so tear down with sub = null.
+      void teardownStompConnection(client, null);
+      resolve(result);
+    };
+
+    const timer = setTimeout(
+      () => finish({ ok: false, error: `Connection timed out after ${timeoutMs}ms` }),
+      timeoutMs,
+    );
+
+    void (async () => {
+      let Ctor: (new (c: StompClientCfg) => StompClient) | null = null;
+      try {
+        Ctor = opts.createClient ? null : await loadDefaultClientCtor();
+      } catch (err) {
+        finish({ ok: false, error: err instanceof Error ? err.message : String(err) });
+        return;
+      }
+      if (settled) return;
+
+      const factory: StompClientFactory = opts.createClient ?? ((c) => new Ctor!(c));
+      try {
+        client = factory({
+          brokerURL: resolvedCfg.websocketUrl,
+          // A connection test must not auto-retry — fail fast.
+          reconnectDelay: 0,
+          heartbeatIncoming: resolvedCfg.heartbeat?.incoming ?? 4000,
+          heartbeatOutgoing: resolvedCfg.heartbeat?.outgoing ?? 4000,
+        });
+      } catch (err) {
+        finish({ ok: false, error: err instanceof Error ? err.message : String(err) });
+        return;
+      }
+
+      client.onConnect = () => finish({ ok: true });
+      client.onWebSocketError = () => finish({ ok: false, error: 'WebSocket connection failed' });
+      client.onStompError = (frame) =>
+        finish({ ok: false, error: frame.headers['message'] ?? 'STOMP error' });
+
+      try {
+        client.activate();
+      } catch (err) {
+        finish({ ok: false, error: err instanceof Error ? err.message : String(err) });
+      }
+    })();
+  });
+}
+
 // ─── helpers ───────────────────────────────────────────────────────
 
 function matchesEndToken(body: string, token: string | undefined): boolean {

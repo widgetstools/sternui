@@ -68,6 +68,7 @@ export type {
 // `transport: 'main'` mode.
 export {
   probeStomp,
+  connectStomp,
   probeRest,
   probeMock,
   startMock,
