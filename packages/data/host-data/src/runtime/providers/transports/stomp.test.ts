@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { startStomp, probeStomp, resolveStompClientCtor, resolveStompDestinations, resolveEffectiveStompCfg, validateStompWireReady } from './stomp';
+import { startStomp, probeStomp, connectStomp, resolveStompClientCtor, resolveStompDestinations, resolveEffectiveStompCfg, validateStompWireReady } from './stomp';
 import type { ProviderEmitEvent } from '../Provider';
 import type { StompProviderConfig } from '@starui/types';
 
@@ -663,5 +663,60 @@ describe('probeStomp', () => {
     const result = await promise;
     expect(result.ok).toBe(true);
     expect(result.rows).toHaveLength(100);
+  });
+});
+
+describe('connectStomp', () => {
+  it('resolves on connect without subscribing, publishing, or waiting for rows', async () => {
+    const ctrl = makeFakeClient();
+    const promise = connectStomp(cfg(), { createClient: () => ctrl.client, timeoutMs: 1000 });
+    await Promise.resolve();
+    ctrl.fireConnect();
+
+    const result = await promise;
+    expect(result.ok).toBe(true);
+    expect(result.rows).toBeUndefined();
+    // Pure connect: never subscribed, never published a trigger frame.
+    expect(ctrl.subscribed).toBe(false);
+    expect(ctrl.publishLog).toHaveLength(0);
+  });
+
+  it('tears the connection down once it resolves', async () => {
+    const ctrl = makeFakeClient();
+    const promise = connectStomp(cfg(), { createClient: () => ctrl.client, timeoutMs: 1000 });
+    await Promise.resolve();
+    ctrl.fireConnect();
+    await promise;
+    expect(ctrl.deactivated).toBe(true);
+  });
+
+  it('fails when the WebSocket errors before connecting', async () => {
+    const ctrl = makeFakeClient();
+    const promise = connectStomp(cfg(), { createClient: () => ctrl.client, timeoutMs: 1000 });
+    await Promise.resolve();
+    ctrl.fireWsError();
+    const result = await promise;
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/WebSocket/);
+  });
+
+  it('fails on a STOMP error frame', async () => {
+    const ctrl = makeFakeClient();
+    const promise = connectStomp(cfg(), { createClient: () => ctrl.client, timeoutMs: 1000 });
+    await Promise.resolve();
+    ctrl.fireError('broker rejected');
+    const result = await promise;
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('broker rejected');
+  });
+
+  it('fails fast when the WebSocket URL is unresolved', async () => {
+    const ctrl = makeFakeClient();
+    const result = await connectStomp(cfg({ websocketUrl: 'ws://{{env.host}}' }), {
+      createClient: () => ctrl.client,
+      timeoutMs: 1000,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/Unresolved or missing WebSocket URL/);
   });
 });

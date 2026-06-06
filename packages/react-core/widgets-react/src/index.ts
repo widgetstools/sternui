@@ -54,5 +54,9 @@ export type {
   ConfigManager,
   StorageAdapterFactory,
   HostedMarketsGridProps,
+  GridContextLinkConfig,
+  GridLinkSelectionContext,
+  GridLinkResolver,
+  GridLinkSelectionBuilder,
 } from './hosted/index.js';
-export { HostedMarketsGrid } from './hosted/index.js';
+export { HostedMarketsGrid, useGridContextLink } from './hosted/index.js';

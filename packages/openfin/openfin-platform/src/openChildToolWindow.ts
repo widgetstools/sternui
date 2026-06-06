@@ -85,6 +85,13 @@ export async function openChildToolWindow(
       resizable: true,
       saveWindowState: true,
       contextMenu: true,
+      // Make child tool windows (config browser, data providers editor)
+      // inspectable. `contextMenu: true` only enables the default menu;
+      // `contextMenuSettings.devtools` adds the "Inspect" entry (and
+      // `reload` a "Reload" entry) so the editor can be opened in
+      // DevTools via right-click. (ContextMenuSettings shape per
+      // @openfin/core: { enable, devtools?, reload? }.)
+      contextMenuSettings: { enable: true, devtools: true, reload: true },
       ...extraOptions,
     });
     console.log(`[openChildToolWindow] Created platform window "${name}" at ${url}`);

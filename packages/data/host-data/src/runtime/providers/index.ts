@@ -38,7 +38,7 @@
  * through the registry + cache + broadcast machinery the same way.
  */
 
-export { probeStomp } from './transports/stomp.js';
+export { probeStomp, connectStomp } from './transports/stomp.js';
 export type {
   ProbeResult as StompProbeResult,
   ProbeOpts as StompProbeOpts,

@@ -61,5 +61,23 @@ export type {
 export { useHostedView } from './useHostedView.js';
 export type { UseHostedViewArgs, UseHostedViewResult } from './useHostedView.js';
 
+export { useGridContextLink } from './useGridContextLink.js';
+export type {
+  GridContextLinkConfig,
+  UseGridContextLinkArgs,
+} from './useGridContextLink.js';
+export {
+  GRID_LINK_CONTEXT_TYPE,
+  buildSelectionContext,
+  defaultGridLinkResolver,
+  applyGridLinkContext,
+  normalizeRowIdField,
+} from './gridContextLink.js';
+export type {
+  GridLinkSelectionContext,
+  GridLinkResolver,
+  GridLinkSelectionBuilder,
+} from './gridContextLink.js';
+
 export { HostedMarketsGrid } from './HostedMarketsGrid.js';
 export type { HostedMarketsGridProps } from './HostedMarketsGrid.js';

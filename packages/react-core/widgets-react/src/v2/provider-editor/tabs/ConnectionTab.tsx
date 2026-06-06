@@ -83,10 +83,13 @@ function TestResultPill({ probe }: { probe: ProbeState }) {
     return <span className="text-xs text-muted-foreground">Not yet tested.</span>;
   }
   if (probe.testResult.success) {
+    const { rowCount } = probe.testResult;
     return (
       <span className="text-xs text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1.5">
         <CheckCircle2 className="h-3.5 w-3.5" />
-        Connected — received {probe.testResult.rowCount ?? 0} row{probe.testResult.rowCount === 1 ? '' : 's'}
+        {rowCount === undefined
+          ? 'Connected'
+          : `Connected — received ${rowCount} row${rowCount === 1 ? '' : 's'}`}
       </span>
     );
   }

@@ -213,6 +213,7 @@ call site works inside the OpenFin browser and inside `apps/demos/demo-react`.
 | [`useIab`](./useIab.ts) | Generic OpenFin Inter-Application Bus pub/sub: `{ subscribe, publish }`. |
 | [`useOpenFinChannel`](./useOpenFinChannel.ts) | OpenFin Channel API factory: `{ createProvider, connect }` with auto-teardown on unmount. |
 | [`useWorkspaceSaveEvent`](./useWorkspaceSaveEvent.ts) | Register an awaited flush callback that runs before the platform captures a workspace snapshot, plus an optional post-save listener. |
+| [`useGridContextLink`](./useGridContextLink.ts) | Grid-to-grid context linking over OpenFin's colored "Link" groups: broadcasts the grid's selection (key-field values, or grouped column id + key) and filters rows on contexts received from linked peers. Built on `useFdc3Channel`; pure helpers in [`gridContextLink.ts`](./gridContextLink.ts). |
 | [`useHostedView`](./useHostedView.ts) | Single composing hook that wires every hook above. Use this when you want everything; otherwise compose à-la-carte. |
 
 ### `useHostedView` example
@@ -256,3 +257,38 @@ export function HostedBlotter() {
 `linking.color`, `linking.fdc3`, and `linking.channel` give you the same
 state and helpers `useColorLinking()` / `useFdc3Channel()` /
 `useOpenFinChannel()` would return — bundled here for convenience.
+
+Color linking is a **flat peer group keyed by color** — there is no
+parent/child or publisher/subscriber hierarchy. Every view joined to the
+same color is an equal member: each both broadcasts to and receives from
+the group. `useColorLinking` only reports *this* view's own membership
+(`{ color, linked }`); the actual messages travel over the FDC3 channel
+(`linking.fdc3`). `HostedMarketsGrid`'s `contextLink` prop wires that
+transport into the grid via [`useGridContextLink`](./useGridContextLink.ts):
+
+```tsx
+<HostedMarketsGrid
+  componentName="MarketsGrid"
+  // …
+  contextLink={{ enabled: true }}
+/>
+```
+
+With it enabled the grid broadcasts its selection to linked peers and
+filters its own rows on the selections it receives from them.
+
+Two modes (config `mode`):
+
+- **`'rowId'` (default)** — broadcasts the row id AG-Grid's `getRowId`
+  produced for each selected row (`node.id` = `composeRowId` over the
+  **data provider's key fields**). Peers apply it as an external filter
+  that keeps only those rows. Needs **no `rowIdField` config** — the
+  provider already drives `getRowId`, so two grids on the same provider
+  keying match for free. The external filter AND's with the user's own
+  column filters.
+- **`'fields'`** — broadcasts the selected rows' `rowIdField` values and
+  peers apply them as a per-column set-filter. Use when peers key rows
+  differently and you want to match on shared business fields; set
+  `rowIdField` to the provider's `keyColumn`.
+
+Pass `resolve` / `buildContext` to override the receive/publish mapping.
