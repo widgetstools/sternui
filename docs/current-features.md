@@ -1363,7 +1363,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Child windows
 
-- `openChildToolWindow` — config-browser / workspace-setup in child
+- `openChildToolWindow` — config-browser / workspace-setup in child; windows are inspectable (`contextMenuSettings: { enable, devtools, reload }` → right-click Inspect / Reload)
 - `openDataProvidersToolWindow` — provider selector child window
 
 #### Context menu / custom actions

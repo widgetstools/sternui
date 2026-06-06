@@ -546,6 +546,20 @@ export function startStomp(
       // as JSON, we merge the overlay in (the historical-mode pattern).
       if (destinations.requestMessage) {
         const body = publishBody ?? mergeOverlay(resolvedCfg.requestBody ?? '', state.overlay);
+        // Log the exact frame sent to the broker — the publish
+        // destination and the verbatim body string (the same value
+        // passed to stompjs `client.publish`). Runs in the SharedWorker,
+        // so it surfaces in the SharedWorker console
+        // (chrome://inspect → Shared workers, or the worker's own
+        // DevTools). `JSON.stringify(body)` keeps whitespace/quoting
+        // visible so an empty or padded body is unambiguous.
+        // eslint-disable-next-line no-console
+        console.log('[v2/stomp] publish → broker', {
+          destination: destinations.requestMessage,
+          body,
+          bodyJson: JSON.stringify(body),
+          bodyLength: body.length,
+        });
         try {
           client.publish({ destination: destinations.requestMessage, body });
         } catch (err) {
