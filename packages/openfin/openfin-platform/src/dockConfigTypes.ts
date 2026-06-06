@@ -105,6 +105,102 @@ export interface ContentMenuFolderEntry {
 
 export type ContentMenuEntryType = ContentMenuItemEntry | ContentMenuFolderEntry;
 
+// ─── Classic dock (dock2) button shapes ──────────────────────────────
+// Structurally compatible with @openfin/workspace's DockButton /
+// CustomDropdownItem (the string literals match DockButtonNames values),
+// so dock.ts can cast these to the OpenFin types at the register call
+// without this module importing OpenFin.
+
+/** A classic dock dropdown option (leaf carries `action`; nested has `options`). */
+export interface Dock2Option {
+  tooltip: string;
+  iconUrl?: string;
+  action?: { id: string; customData?: unknown };
+  options?: Dock2Option[];
+}
+
+/** A classic top-level dock button (action button or dropdown). */
+export interface Dock2Button {
+  type: "ActionButton" | "DropdownButton";
+  tooltip: string;
+  iconUrl: string;
+  action?: { id: string; customData?: unknown };
+  options?: Dock2Option[];
+}
+
+/** Resolve a dual-theme icon (or string) to the live theme's single string. */
+function pickThemeIcon(icon: DockEntryIcon, theme: "dark" | "light"): string {
+  return typeof icon === "string" ? icon : (icon?.[theme] ?? "");
+}
+
+/**
+ * Convert one DockMenuItemConfig (a dropdown option, possibly nested) into a
+ * classic dock dropdown option. Leaves carry an `action`; items with children
+ * become nested dropdowns. Icons resolve to a single string for the theme.
+ */
+export function toDock2Option(
+  item: DockMenuItemConfig,
+  generateIcon: (iconId: string, color: string) => string,
+  recolorUrl: (url: string, color: string) => string,
+  darkColor: string,
+  lightColor: string,
+  theme: "dark" | "light",
+): Dock2Option {
+  const iconUrl = pickThemeIcon(
+    makeDualIcon(item, generateIcon, recolorUrl, darkColor, lightColor), theme,
+  );
+  if (item.options && item.options.length > 0) {
+    return {
+      tooltip: item.tooltip,
+      ...(iconUrl ? { iconUrl } : {}),
+      options: item.options.map((child) =>
+        toDock2Option(child, generateIcon, recolorUrl, darkColor, lightColor, theme),
+      ),
+    };
+  }
+  return {
+    tooltip: item.tooltip,
+    ...(iconUrl ? { iconUrl } : {}),
+    action: { id: item.actionId ?? "", customData: item.customData },
+  };
+}
+
+/**
+ * Convert the user's DockEditorConfig buttons into classic dock buttons.
+ * ActionButton → action button; DropdownButton → dock-bar dropdown whose
+ * options (and nested options) carry their own icons.
+ */
+export function toDock2Buttons(
+  config: DockEditorConfig,
+  generateIcon: (iconId: string, color: string) => string,
+  recolorUrl: (url: string, color: string) => string,
+  darkColor: string,
+  lightColor: string,
+  theme: "dark" | "light",
+): Dock2Button[] {
+  return config.buttons.map((btn): Dock2Button => {
+    const iconUrl = pickThemeIcon(
+      makeDualIcon(btn, generateIcon, recolorUrl, darkColor, lightColor), theme,
+    );
+    if (btn.type === "DropdownButton") {
+      return {
+        type: "DropdownButton",
+        tooltip: btn.tooltip,
+        iconUrl,
+        options: btn.options.map((item) =>
+          toDock2Option(item, generateIcon, recolorUrl, darkColor, lightColor, theme),
+        ),
+      };
+    }
+    return {
+      type: "ActionButton",
+      tooltip: btn.tooltip,
+      iconUrl,
+      action: { id: btn.actionId, customData: btn.customData },
+    };
+  });
+}
+
 // ─── Converter: serializable config → Dock3 DockEntry[] ─────────────
 
 /**
@@ -112,7 +208,7 @@ export type ContentMenuEntryType = ContentMenuItemEntry | ContentMenuFolderEntry
  * If the button has a fixed iconColor, both dark and light use that color.
  * Otherwise, generates separate URLs for dark and light themes.
  */
-function makeDualIcon(
+export function makeDualIcon(
   btn: { iconUrl?: string; iconId?: string; iconColor?: string },
   generateIcon: (iconId: string, color: string) => string,
   recolorUrl: (url: string, color: string) => string,

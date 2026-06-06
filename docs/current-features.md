@@ -1283,7 +1283,9 @@ Per-renderer config types (`PillRendererConfig`,
 - `shutdownDock()` — graceful dock teardown
 - Dock button types: action, dropdown, folder
 - `DockEditorConfig`, `DockButtonConfig`, `DockActionButtonConfig`, `DockDropdownButtonConfig`, `DockMenuItemConfig`
-- Top-level dropdowns render on the dock bar as icon-bearing folders — `toDock3Favorites` emits each `DropdownButton` (and the system "Tools" group) as a `DockEntry` folder with its icon, linked by id to the matching content-menu folder that owns the children. Works around OpenFin's `ContentMenuEntry` folder shape having no icon field; the dock-bar `DockEntry` folder does.
+- Top-level dropdowns render on the dock bar as icon-bearing folders (dock3 path) — `toDock3Favorites` emits each `DropdownButton` (and the system "Tools" group) as a `DockEntry` folder with its icon, linked by id to the matching content-menu folder that owns the children. Works around OpenFin's `ContentMenuEntry` folder shape having no icon field; the dock-bar `DockEntry` folder does.
+- Dock implementation toggle — `customSettings.dockVersion: "dock2" | "dock3"` (default `"dock2"`). `"dock2"` uses the classic `Dock.register` API: top-level DropdownButtons render directly on the dock bar as icon dropdowns whose options carry icons, with a normal flyout (no two-column content menu). `"dock3"` uses `Dock.init` with the content-menu/favorites model. Both read the same dock config; only the registration + rendering differ. Classic button clicks dispatch through the same `buildCustomActions` platform actions (including the theme toggle).
+- `toDock2Buttons` / `toDock2Option` — convert `DockEditorConfig` to classic `Dock2Button[]` (action buttons + nested icon dropdowns), theme-resolved.
 
 #### Inter-App Bus topics
 

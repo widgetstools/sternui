@@ -631,7 +631,7 @@ async function initializeWorkspaceComponents(
       }
     };
 
-    await registerDock(platformSettings, customSettings?.apps, dockIcon, themeToggleDarkIcon, themeToggleLightIcon, roles, dockActionDispatcher);
+    await registerDock(platformSettings, customSettings?.apps, dockIcon, themeToggleDarkIcon, themeToggleLightIcon, roles, dockActionDispatcher, customSettings?.dockVersion ?? "dock2");
   }
 
   if (components.notifications) {
