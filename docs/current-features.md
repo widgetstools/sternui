@@ -668,6 +668,35 @@ Per-renderer config types (`PillRendererConfig`,
 
 ---
 
+### 4.7 `@starui/dock-react`
+
+**Path:** `packages/react-core/dock-react`
+**Purpose:** Custom OpenFin dock UI — the React surface for the
+`dockVersion: "custom"` dock (a frameless, always-on-top window we render
+ourselves). OpenFin-free: all side-effects cross an injected `DockController`,
+so the bar is fully unit-testable without a runtime. Not yet mounted in a window
+(Phase 0 wires the `/dock` host).
+
+#### Dock bar
+
+- `DockBar` — composes launcher buttons + dropdowns + Tools menu + theme toggle;
+  design-system token surface, dark/light compliant
+- `DockLauncherButton` / `DockDropdownButton` — top-level action button / nested
+  dropdown (shadcn `DropdownMenu`, arbitrary nesting)
+- `DockToolsMenu` + `SYSTEM_TOOLS` — the 9 system tool actions (lucide icons)
+- `DockThemeToggle` — sun-while-dark / moon-while-light toggle
+- `DockIcon` — renders a theme-aware `{dark,light}` icon spec
+
+#### Mapping & control seam
+
+- `dockConfigToViewModel` / `resolveDockIcon` — pure `DockEditorConfig` → render
+  model (theme-aware icon URLs)
+- `DockController` — injected OpenFin boundary (`dispatchAction`, `getTheme`,
+  `toggleTheme`, `onThemeChanged`)
+- `useDockTheme` — track live theme through the controller
+
+---
+
 ## 5. Shared / Core
 
 ### 5.1 `@starui/shared-types` & `@starui/types`
