@@ -2,7 +2,7 @@
 declare const fin: any;
 import type OpenFin from "@openfin/core";
 import { Home, Storefront, type App } from "@openfin/workspace";
-import { init, type WorkspacePlatformOverrideCallback } from "@openfin/workspace-platform";
+import { init, getCurrentSync, type WorkspacePlatformOverrideCallback } from "@openfin/workspace-platform";
 import { createConfigManager, type ConfigManager } from "@starui/host-config";
 import {
   setConfigManager,
@@ -379,6 +379,98 @@ async function exportAllConfig(cm: ConfigManager): Promise<void> {
 
 // ─── Platform initialization ─────────────────────────────────────────
 
+// Full per-scheme palettes for the workspace platform.
+//
+// OpenFin themes every workspace surface (dock bar, dock dropdowns, content
+// menu, home/store, modals) from these palettes. Supplying only the three
+// seed colours (brandPrimary/brandSecondary/backgroundPrimary) makes OpenFin
+// DERIVE the rest, and that derivation produced a dark dock dropdown and an
+// illegible Cancel button in LIGHT mode (the light scheme inherited the dark
+// brand grey). The fix per OpenFin's theming docs is to provide the complete
+// palette. These values are OpenFin's own reference light/dark palettes
+// (`OpenFinLightTheme` / `OpenFinDarkTheme` from @openfin/workspace-platform,
+// which are not exported at runtime) so we reproduce OpenFin's intended look
+// exactly, just without the broken under-specified derivation. Only
+// `brandPrimary` and its derived hover/active variants are left for OpenFin
+// to compute (from `brandPrimary`); everything the dock surfaces read —
+// including `contentBackground*`, which drives the dropdown flyout — is
+// pinned per scheme.
+const OPENFIN_DARK_PALETTE = {
+  brandPrimary: "#0A76D3",
+  brandSecondary: "#383A40",
+  backgroundPrimary: "#1E1F23",
+  background1: "#111214",
+  background2: "#1E1F23",
+  background3: "#24262B",
+  background4: "#2F3136",
+  background5: "#383A40",
+  background6: "#53565F",
+  brandSecondaryActive: "#33353B",
+  brandSecondaryHover: "#44464E",
+  brandSecondaryFocused: "#FFFFFF",
+  brandSecondaryText: "#FFFFFF",
+  inputBackground: "#53565F",
+  inputColor: "#FFFFFF",
+  inputPlaceholder: "#C9CBD2",
+  inputDisabled: "#7D808A",
+  inputFocused: "#C9CBD2",
+  inputBorder: "#7D808A",
+  textDefault: "#FFFFFF",
+  textHelp: "#C9CBD2",
+  textInactive: "#7D808A",
+  // contentBackground* drive the dock dropdown / expanded-container surfaces
+  // (`dockExpandedContainerBackground = contentBackground4`). Mirror the
+  // background ramp so the dropdown matches the scheme — left underived,
+  // OpenFin produced a dark dropdown in light mode.
+  contentBackground1: "#111214",
+  contentBackground2: "#1E1F23",
+  contentBackground3: "#24262B",
+  contentBackground4: "#2F3136",
+  contentBackground5: "#383A40",
+  statusSuccess: "#207735",
+  statusWarning: "#F48F00",
+  statusCritical: "#F31818",
+  statusActive: "#0A76D3",
+  borderNeutral: "#C0C1C2",
+} as const;
+
+const OPENFIN_LIGHT_PALETTE = {
+  brandPrimary: "#0A76D3",
+  brandSecondary: "#DDDFE4",
+  backgroundPrimary: "#FAFBFE",
+  background1: "#FFFFFF",
+  background2: "#FAFBFE",
+  background3: "#F3F5F8",
+  background4: "#ECEEF1",
+  background5: "#DDDFE4",
+  background6: "#C9CBD2",
+  brandSecondaryActive: "#D7DADF",
+  brandSecondaryHover: "#EBECEF",
+  brandSecondaryFocused: "#1E1F23",
+  brandSecondaryText: "#1E1F23",
+  inputBackground: "#ECEEF1",
+  inputColor: "#1E1F23",
+  inputPlaceholder: "#383A40",
+  inputDisabled: "#7D808A",
+  inputFocused: "#C9CBD2",
+  inputBorder: "#7D808A",
+  textDefault: "#1E1F23",
+  textHelp: "#2F3136",
+  textInactive: "#7D808A",
+  // See dark palette note — light values so the dock dropdown
+  // (`dockExpandedContainerBackground = contentBackground4`) renders light.
+  contentBackground1: "#FFFFFF",
+  contentBackground2: "#FAFBFE",
+  contentBackground3: "#F3F5F8",
+  contentBackground4: "#ECEEF1",
+  contentBackground5: "#DDDFE4",
+  statusSuccess: "#207735",
+  statusWarning: "#F48F00",
+  statusCritical: "#F31818",
+  statusActive: "#0A76D3",
+  borderNeutral: "#C0C1C2",
+} as const;
+
 /**
  * Initialize the OpenFin workspace platform with theme config and
  * custom action handlers for the dock buttons.
@@ -406,14 +498,19 @@ async function initializePlatform(
         default: "dark",
         palettes: {
           dark: {
-            brandPrimary: theme?.brandPrimary ?? "#0A76D3",
-            brandSecondary: theme?.brandSecondary ?? "#383A40",
-            backgroundPrimary: theme?.backgroundPrimary ?? "#1E1F23",
+            ...OPENFIN_DARK_PALETTE,
+            brandPrimary: theme?.brandPrimary ?? OPENFIN_DARK_PALETTE.brandPrimary,
+            brandSecondary: theme?.brandSecondary ?? OPENFIN_DARK_PALETTE.brandSecondary,
+            backgroundPrimary: theme?.backgroundPrimary ?? OPENFIN_DARK_PALETTE.backgroundPrimary,
           },
           light: {
-            brandPrimary: theme?.brandPrimary ?? "#0A76D3",
-            brandSecondary: theme?.brandSecondary ?? "#383A40",
-            backgroundPrimary: "#FAFBFE",
+            ...OPENFIN_LIGHT_PALETTE,
+            brandPrimary: theme?.brandPrimary ?? OPENFIN_LIGHT_PALETTE.brandPrimary,
+            // NOTE: `brandSecondary` and `backgroundPrimary` are intentionally
+            // NOT threaded from the single `theme.*` knobs — those carry the
+            // dark-scheme values (#383A40 / #1E1F23), and reusing them here
+            // makes OpenFin derive a dark dock dropdown / Cancel button in light
+            // mode. The light scheme keeps its own light values.
           },
         },
       },
@@ -590,6 +687,56 @@ const dockActionHandlers: Record<string, (customData?: any) => Promise<void>> = 
 
 // ─── Workspace component registration ────────────────────────────────
 
+// Sentinel id for the "untitled" (nothing-open) workspace. OpenFin
+// assigns GUIDs to saved workspaces, so this constant never collides —
+// while it's the active workspace, the switchWorkspace dock menu shows
+// no checkmark.
+const UNTITLED_WORKSPACE_ID = "untitled-workspace";
+
+// Set while the platform is tearing down (provider window close-requested
+// → quit). During quit every Browser window closes, which would otherwise
+// trip the empty-desktop reset below mid-teardown; skip it then.
+let platformQuitting = false;
+
+/**
+ * Reset the platform's active-workspace pointer to an untitled workspace
+ * once the last Browser window closes.
+ *
+ * OpenFin has no notion of a workspace being "closed" — only switched.
+ * `applyWorkspace` marks a workspace active (and checked in the
+ * switchWorkspace dock menu), and nothing clears that pointer when the
+ * user closes the workspace's window, so the menu keeps showing a stale
+ * checkmark. We watch `window-closed` and, once no Browser windows
+ * remain, set an untitled workspace active so the menu reflects that
+ * nothing is open.
+ *
+ * `getInitialWorkspace()` is not a public API (see the WorkspacePlatform-
+ * Module docs), so we synthesise a minimal valid `Workspace`
+ * ({ workspaceId, title, snapshot } — the documented required fields)
+ * from a live (empty) snapshot. Best-effort: a failure here must never
+ * surface to the user.
+ */
+async function resetActiveWorkspaceWhenEmpty(closedWindowName?: string): Promise<void> {
+  if (platformQuitting) return;
+  try {
+    const platform = getCurrentSync();
+    const windows = await platform.Browser.getAllWindows();
+    const remaining = closedWindowName
+      ? windows.filter((w: any) => w?.identity?.name !== closedWindowName)
+      : windows;
+    if (remaining.length > 0) return;
+
+    const snapshot = await platform.getSnapshot();
+    await platform.setActiveWorkspace({
+      workspaceId: UNTITLED_WORKSPACE_ID,
+      title: "Untitled",
+      snapshot,
+    } as any);
+  } catch (err) {
+    console.warn("[workspace] resetActiveWorkspaceWhenEmpty failed (ignored):", err);
+  }
+}
+
 /**
  * Register each enabled workspace component (Home, Store, Dock, Notifications)
  * and set up a cleanup handler for when the provider window is closed.
@@ -631,7 +778,7 @@ async function initializeWorkspaceComponents(
       }
     };
 
-    await registerDock(platformSettings, customSettings?.apps, dockIcon, themeToggleDarkIcon, themeToggleLightIcon, roles, dockActionDispatcher);
+    await registerDock(platformSettings, customSettings?.apps, dockIcon, themeToggleDarkIcon, themeToggleLightIcon, roles, dockActionDispatcher, customSettings?.dockVersion ?? "dock2");
   }
 
   if (components.notifications) {
@@ -639,9 +786,21 @@ async function initializeWorkspaceComponents(
     await registerNotifications();
   }
 
+  // Clear the stale switchWorkspace checkmark once the user closes the
+  // last workspace (Browser) window — see resetActiveWorkspaceWhenEmpty.
+  try {
+    const platform = getCurrentSync();
+    platform.on("window-closed", (evt: any) => {
+      void resetActiveWorkspaceWhenEmpty(evt?.name);
+    });
+  } catch (err) {
+    console.warn("[workspace] failed to wire window-closed reset (ignored):", err);
+  }
+
   // Clean up all registered components when the provider window closes
   const providerWindow = fin.Window.getCurrentSync();
   await providerWindow.once("close-requested", async () => {
+    platformQuitting = true;
     if (components.home) await Home.deregister(platformSettings.id);
     if (components.store) await Storefront.deregister(platformSettings.id);
     if (components.dock) await shutdownDock();

@@ -427,6 +427,21 @@ export function createWorkspacePersistenceOverride(
         await fireChange();
       }
 
+      // Suppress OpenFin's "Are you sure you want to switch to <X>? Any
+      // unsaved changes will be discarded" confirmation shown when the
+      // user switches workspaces from Home. This platform persists
+      // workspaces automatically (createSavedWorkspace/updateSavedWorkspace
+      // above), so the modal only adds friction. Force `skipPrompt: true`
+      // into the apply options before delegating to the default apply
+      // logic. See `ApplyWorkspaceOptions.skipPrompt` in
+      // @openfin/workspace-platform.
+      async applyWorkspace(payload: any): Promise<boolean> {
+        return super.applyWorkspace({
+          ...payload,
+          options: { ...payload?.options, skipPrompt: true },
+        });
+      }
+
       // Inject "Save Tab As…" at the top of the view-tab right-click menu.
       // The custom action id is dispatched to the rename handler registered
       // in `customActions` (see internal/viewTabRename.ts).

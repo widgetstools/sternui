@@ -1,18 +1,27 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare const fin: any;
 import { Dock, ColorSchemeOptionType, getCurrentSync } from "@openfin/workspace-platform";
-import type { App } from "@openfin/workspace";
+import {
+  Dock as ClassicDock,
+  DockButtonNames,
+  type App,
+  type DockButton,
+  type DockProvider,
+  type DockProviderRegistration,
+} from "@openfin/workspace";
 import { loadDockConfig, saveDockConfig } from './db';
 import {
   appsToEditorConfig,
   toDock3Favorites,
   toDock3UserContentMenu,
+  toDock2Buttons,
   type DockEditorConfig,
   type Dock3Entry,
   type ContentMenuEntryType,
 } from './dockConfigTypes';
 import {
   SETTINGS_SVG,
+  TOOLS_SVG,
   REFRESH_SVG,
   CODE_SVG,
   DOWNLOAD_SVG,
@@ -76,6 +85,17 @@ export {
 };
 
 // ─── Module-level state ──────────────────────────────────────────────
+
+/**
+ * Which dock implementation is active for this provider window. Set at
+ * `registerDock` time from the manifest's `customSettings.dockVersion`
+ * (default `"dock2"`). The shared lifecycle functions (`recolorDockIcons`,
+ * `reloadDockFromConfig`, `shutdownDock`, IAB handlers) dispatch on it.
+ */
+let dockVersion: "dock2" | "dock3" = "dock2";
+
+/** The classic `Dock.register()` registration handle (dock2 path). */
+let classicReg: DockProviderRegistration | undefined;
 
 /** The Dock3 provider instance returned by Dock.init(). */
 let dockProvider: any;
@@ -178,12 +198,19 @@ function pickIconVariant(
 function flattenFavoritesForV22(entries: Dock3Entry[], theme: "dark" | "light"): any[] {
   return entries.map((entry) => {
     if (entry.type === "folder") {
-      // v22 DockEntry folder shape does not carry an icon — strip it.
+      // The OpenFin DockEntry (favorites) folder shape supports `icon?` as
+      // `string | { dark, light }`. Resolve to a single string for the live
+      // theme — v22/v23 `CustomIcon` calls `.startsWith()` directly, so an
+      // object form would crash the dock UI. Children are NOT carried on the
+      // favorites folder (the DockEntry folder shape has no `children` field);
+      // OpenFin addresses the matching content-menu folder by id when a
+      // dock-bar folder is clicked.
+      const folderIcon = pickIconVariant(entry.icon, theme) ?? "";
       return {
         type: "folder" as const,
         id: entry.id,
         label: entry.label,
-        children: flattenFavoritesForV22(entry.children, theme),
+        ...(folderIcon ? { icon: folderIcon } : {}),
       };
     }
     return {
@@ -358,6 +385,19 @@ function buildAllFavorites(editorConfig?: DockEditorConfig): Dock3Entry[] {
       )
     : [];
 
+  // System "Tools" group — a dock-bar folder carrying the wrench icon,
+  // linked by id ("system-tools") to the content-menu folder that holds
+  // the actual tool entries (see buildContentMenuEntries). Same id-link
+  // pattern as user DropdownButtons; the favorites folder is just the
+  // icon-bearing entry point.
+  const toolsFolder: Dock3Entry = {
+    type: "folder",
+    id: "system-tools",
+    label: "Tools",
+    icon: contentMenuIcon(TOOLS_SVG),
+    children: [],
+  };
+
   // Theme toggle — always last in favorites
   const themeToggle: Dock3Entry = {
     type: "item",
@@ -370,7 +410,229 @@ function buildAllFavorites(editorConfig?: DockEditorConfig): Dock3Entry[] {
     itemData: { actionId: ACTION_TOGGLE_THEME },
   };
 
-  return [...userFavorites, themeToggle];
+  return [...userFavorites, toolsFolder, themeToggle];
+}
+
+// ─── Classic dock (dock2) builders ───────────────────────────────────
+//
+// The classic `Dock.register` API renders DropdownButtons directly on the
+// dock bar as icon dropdowns whose options carry their own icons — no
+// two-column content menu. Button clicks dispatch to the platform custom
+// actions registered via `buildCustomActions` (the same CustomButton /
+// CustomDropdownItem callers those handlers already guard for), so the
+// action wiring (including ACTION_TOGGLE_THEME → recolorDockIcons) is
+// shared with the dock3 path. Classic icons are single strings (no
+// {dark,light}), so we resolve per theme and re-push on every toggle.
+
+/** Resolve an SVG constant to a theme-appropriate data-URL string. */
+function toolIconStr(svg: string, theme: "dark" | "light"): string {
+  return pickIconVariant(contentMenuIcon(svg), theme) ?? "";
+}
+
+/** Convert the user's editor buttons to classic dock buttons for the theme. */
+function userClassicButtons(config: DockEditorConfig, theme: "dark" | "light"): DockButton[] {
+  return toDock2Buttons(
+    config, generateIconFromId, recolorIconifyUrl,
+    ICON_COLOR_DARK_THEME, ICON_COLOR_LIGHT_THEME, theme,
+  ) as unknown as DockButton[];
+}
+
+/** Classic "Tools" dropdown — same system entries as the dock3 content menu. */
+function buildClassicSystemTools(theme: "dark" | "light"): DockButton {
+  // Option icons resolve against the dark scheme (white glyphs): the classic
+  // dock's dropdown flyout is always dark, so theme-following glyphs would
+  // vanish on it in light mode. The Tools button icon below still follows the
+  // live theme — it sits on the theme-following dock bar.
+  const opt = (tooltip: string, actionId: string, svg: string) => ({
+    tooltip,
+    iconUrl: toolIconStr(svg, "dark"),
+    action: { id: actionId },
+  });
+  return {
+    type: DockButtonNames.DropdownButton,
+    tooltip: "Tools",
+    iconUrl: toolIconStr(TOOLS_SVG, theme),
+    options: [
+      opt("Workspace Setup (new)", ACTION_OPEN_WORKSPACE_SETUP, SETTINGS_SVG),
+      opt("Data Providers", ACTION_OPEN_DATA_PROVIDERS, SETTINGS_SVG),
+      opt("Config Browser", ACTION_OPEN_CONFIG_BROWSER, SETTINGS_SVG),
+      opt("Reload Dock", ACTION_RELOAD_DOCK, REFRESH_SVG),
+      opt("Developer Tools", ACTION_SHOW_DEVTOOLS, CODE_SVG),
+      opt("Inspect Shared Worker", ACTION_INSPECT_SHARED_WORKER, CODE_SVG),
+      opt("Export Config", ACTION_EXPORT_CONFIG, DOWNLOAD_SVG),
+      opt("Import Config", ACTION_IMPORT_CONFIG, UPLOAD_SVG),
+      opt("Show/Hide Provider", ACTION_TOGGLE_PROVIDER, EYE_SVG),
+    ],
+  } as DockButton;
+}
+
+/** Classic theme-toggle action button — mirrors the dock3 favorites toggle. */
+function buildClassicThemeToggle(theme: "dark" | "light"): DockButton {
+  const icon = theme === "dark"
+    ? (themeToggleDarkIcon ?? DEFAULT_DARK_THEME_ICON)
+    : (themeToggleLightIcon ?? DEFAULT_LIGHT_THEME_ICON);
+  return {
+    type: DockButtonNames.ActionButton,
+    tooltip: "Toggle Theme",
+    iconUrl: icon,
+    action: { id: ACTION_TOGGLE_THEME },
+  } as DockButton;
+}
+
+/** Full classic dock button list: user buttons + Tools dropdown + theme toggle. */
+function buildAllClassicButtons(
+  editorConfig: DockEditorConfig | undefined,
+  theme: "dark" | "light",
+): DockButton[] {
+  const userButtons = editorConfig ? userClassicButtons(editorConfig, theme) : [];
+  return [...userButtons, buildClassicSystemTools(theme), buildClassicThemeToggle(theme)];
+}
+
+// ─── Classic dock (dock2) lifecycle ──────────────────────────────────
+
+/** Dispatch a config push to whichever dock implementation is active. */
+async function applyDockConfig(): Promise<void> {
+  if (dockVersion === "dock2") {
+    await applyDockClassicConfig();
+    return;
+  }
+  await applyDock3Config();
+}
+
+/**
+ * Subscribe the shared dock IAB handlers (config-update + reload-after-
+ * import). Used by the classic path; the dock3 path has its own inline
+ * block. `applyFn` is the version-specific config push.
+ */
+function subscribeDockIab(applyFn: () => Promise<void>): void {
+  if (iabSubscribed) return;
+  iabSubscribed = true;
+  try {
+    iabConfigHandler = async (config: DockEditorConfig) => {
+      console.log("Received dock config update via IAB.");
+      await saveDockConfig(config);
+      lastEditorConfig = config;
+      await applyFn();
+    };
+    void fin.InterApplicationBus.subscribe(
+      { uuid: fin.me.identity.uuid }, IAB_DOCK_CONFIG_UPDATE, iabConfigHandler,
+    );
+  } catch (iabError) {
+    console.error("Could not subscribe to dock-config-update IAB topic.", iabError);
+  }
+  try {
+    iabReloadHandler = async () => {
+      console.log("Reloading dock after config import.");
+      const saved = await loadDockConfig();
+      if (saved) lastEditorConfig = saved;
+      await applyFn();
+    };
+    void fin.InterApplicationBus.subscribe(
+      { uuid: fin.me.identity.uuid }, IAB_RELOAD_AFTER_IMPORT, iabReloadHandler,
+    );
+  } catch (iabError) {
+    console.error("Could not subscribe to reload-dock-after-import IAB topic.", iabError);
+  }
+}
+
+/**
+ * Register the classic (dock2) provider via `Dock.register`. Self-contained:
+ * caches the same shared settings/state the dock3 path uses, so the shared
+ * lifecycle functions (recolorDockIcons / reloadDockFromConfig / shutdownDock)
+ * dispatch correctly via `dockVersion`. Button clicks route through the
+ * platform custom actions registered at init (buildCustomActions).
+ */
+async function registerDockClassic(
+  platformSettings: PlatformSettings,
+  apps?: App[],
+  dockIcon?: string,
+  darkIcon?: string,
+  lightIcon?: string,
+  onAction?: (actionId: string, customData?: any) => Promise<void>,
+): Promise<any> {
+  // Idempotency — refresh config in place if already registered.
+  if (classicReg) {
+    console.log("Classic dock already registered — refreshing config in place.");
+    storedPlatformSettings = platformSettings;
+    storedIcon = dockIcon ?? platformSettings.icon;
+    themeToggleDarkIcon = darkIcon ?? DEFAULT_DARK_THEME_ICON;
+    themeToggleLightIcon = lightIcon ?? DEFAULT_LIGHT_THEME_ICON;
+    actionDispatcher = onAction;
+    if (!lastEditorConfig) {
+      const saved = await loadDockConfig();
+      lastEditorConfig = saved ?? appsToEditorConfig(apps ?? [], platformSettings.icon);
+    }
+    await applyDockClassicConfig();
+    return classicReg;
+  }
+
+  console.log("Registering the classic (dock2) provider.");
+  storedPlatformSettings = platformSettings;
+  storedIcon = dockIcon ?? platformSettings.icon;
+  themeToggleDarkIcon = darkIcon ?? DEFAULT_DARK_THEME_ICON;
+  themeToggleLightIcon = lightIcon ?? DEFAULT_LIGHT_THEME_ICON;
+  actionDispatcher = onAction;
+
+  const savedConfig = await loadDockConfig();
+  lastEditorConfig = savedConfig ?? appsToEditorConfig(apps ?? [], platformSettings.icon);
+
+  const theme = readDockTheme();
+  const buttons = buildAllClassicButtons(lastEditorConfig, theme);
+
+  try {
+    classicReg = await ClassicDock.register({
+      id: platformSettings.id,
+      title: platformSettings.title,
+      icon: storedIcon,
+      buttons,
+      // Mirror the dock3 defaultDockButtons (minus contentMenu — classic
+      // has no content menu; dropdowns render directly on the bar).
+      workspaceComponents: ["switchWorkspace", "notifications"],
+    } as DockProvider);
+    // Unlike Dock3's `Dock.init` (which auto-shows), classic `Dock.register`
+    // only registers the provider — the dock stays hidden until `Dock.show()`.
+    await ClassicDock.show();
+    console.log("Classic dock provider registered and shown.");
+    subscribeDockIab(applyDockClassicConfig);
+    return classicReg;
+  } catch (error) {
+    console.error("Failed to register the classic dock provider.", error);
+    return undefined;
+  }
+}
+
+/** Push the latest editor config to the classic provider (rebuilds button icons for the theme). */
+async function applyDockClassicConfig(): Promise<void> {
+  if (!classicReg || !storedPlatformSettings || !storedIcon) {
+    console.error("Cannot update classic dock: not registered yet.");
+    return;
+  }
+  const theme = readDockTheme();
+  const buttons = buildAllClassicButtons(lastEditorConfig, theme);
+  try {
+    await classicReg.updateDockProviderConfig({
+      title: storedPlatformSettings.title,
+      icon: storedIcon,
+      buttons,
+      workspaceComponents: ["switchWorkspace", "notifications"],
+    } as any);
+    console.log("Classic dock config updated.");
+  } catch (error) {
+    console.error("Failed to update classic dock config.", error);
+  }
+}
+
+/** Deregister the classic provider and clear its state. */
+async function shutdownDockClassic(): Promise<void> {
+  if (classicReg) {
+    try {
+      await ClassicDock.deregister();
+      console.log("Classic dock provider deregistered.");
+    } catch (error) {
+      console.error("Error deregistering classic dock provider.", error);
+    }
+  }
+  classicReg = undefined;
 }
 
 // ─── Public API ──────────────────────────────────────────────────────
@@ -392,7 +654,16 @@ export async function registerDock(
   lightIcon?: string,
   _roles?: string[],
   onAction?: (actionId: string, customData?: any) => Promise<void>,
+  dockVersionArg?: "dock2" | "dock3",
 ): Promise<any> {
+  dockVersion = dockVersionArg ?? dockVersion;
+
+  // dock2 (classic Dock.register) path — fully self-contained so the
+  // dock3 body below stays untouched. See registerDockClassic.
+  if (dockVersion === "dock2") {
+    return registerDockClassic(platformSettings, apps, dockIcon, darkIcon, lightIcon, onAction);
+  }
+
   // Idempotency guard. The OpenFin v22 starter creates exactly one
   // Dock3Provider per platform window; calling Dock.init() again
   // produces a second provider that competes with the first for the
@@ -517,7 +788,7 @@ export async function registerDock(
  */
 export async function recolorDockIcons(isDark: boolean): Promise<void> {
   console.log(`Recoloring dock icons for ${isDark ? "dark" : "light"} theme.`);
-  await applyDock3Config();
+  await applyDockConfig();
 }
 
 /**
@@ -538,6 +809,13 @@ export async function reloadDockFromConfig(): Promise<void> {
   const saved = await loadDockConfig();
   if (saved) {
     lastEditorConfig = saved;
+  }
+  // Classic dock has no two-window content-menu chrome to re-bootstrap —
+  // updateDockProviderConfig refreshes the bar in place. No hard reload.
+  if (dockVersion === "dock2") {
+    await applyDockClassicConfig();
+    console.log("Classic dock reloaded from config.");
+    return;
   }
   // For the user-initiated "Reload Dock" action we want a guaranteed
   // visual refresh — the soft `updateConfig()` path (used for IAB
@@ -839,7 +1117,9 @@ export async function shutdownDock(): Promise<void> {
     iabReloadHandler = null;
   }
 
-  if (dockProvider) {
+  if (dockVersion === "dock2") {
+    await shutdownDockClassic();
+  } else if (dockProvider) {
     try {
       await dockProvider.shutdown();
       console.log("Dock3 provider shut down.");
@@ -868,6 +1148,7 @@ export async function shutdownDock(): Promise<void> {
  */
 function resetDockState(): void {
   dockProvider = undefined;
+  classicReg = undefined;
   storedPlatformSettings = undefined;
   storedIcon = undefined;
   lastEditorConfig = undefined;

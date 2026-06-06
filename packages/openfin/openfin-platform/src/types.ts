@@ -4,6 +4,22 @@ export interface CustomSettings {
   apps?: App[];
 
   /**
+   * Which dock implementation to use.
+   *
+   * - `"dock2"` (default) — the classic `Dock.register` API. Top-level
+   *   DropdownButtons render directly on the dock bar as icon dropdowns
+   *   whose options carry their own icons, with a normal flyout (no
+   *   two-column content-menu panel).
+   * - `"dock3"` — the newer `Dock.init` content-menu API. Top-level
+   *   groups surface their icon via dock-bar favorites folders linked by
+   *   id to a two-column content menu.
+   *
+   * Both paths read the same dock config from ConfigService; only the
+   * OpenFin registration + rendering differ.
+   */
+  dockVersion?: "dock2" | "dock3";
+
+  /**
    * Platform deployment id — drives SharedWorker name
    * `mkt-data-services:${appId}`. Must be stable across every view.
    * Dev/demo: set in manifest `customSettings`. Production: one value
