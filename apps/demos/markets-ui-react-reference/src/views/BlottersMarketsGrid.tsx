@@ -26,6 +26,15 @@ function BlottersMarketsGrid(): ReactNode {
     },
     [runtime],
   );
+  const handleOpenConfigBrowser = useCallback(() => {
+    void runtime.openSurface({
+      kind: 'popout',
+      url: `${window.location.origin}/config-browser`,
+      windowName: 'config-browser',
+      width: 1100,
+      height: 720,
+    });
+  }, [runtime]);
 
   return (
     <HostedMarketsGrid
@@ -39,6 +48,7 @@ function BlottersMarketsGrid(): ReactNode {
       gridId="markets-ui-reference-blotter"
       historicalDateAppDataRef="positions.asOfDate"
       onEditProvider={handleEditProvider}
+      onOpenConfigBrowser={handleOpenConfigBrowser}
       showFiltersToolbar
       showFormattingToolbar
       showEditingToolbar
