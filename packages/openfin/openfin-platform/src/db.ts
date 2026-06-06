@@ -263,6 +263,62 @@ export async function clearDockConfig(scope?: ConfigScope): Promise<void> {
   await manager.deleteConfig(scopedConfigId(DOCK_CONFIG_BASE_ID, resolved));
 }
 
+// ─── Custom dock window position ─────────────────────────────────────
+//
+// The custom dock (`dockVersion: "custom"`) is a frameless OpenFin window
+// the user can drag. We persist its last position so it reopens where they
+// left it. Stored as its own row (componentSubType `window-bounds`) so it's
+// distinct from the dock-button `DockEditorConfig` row in the Config Browser.
+
+const DOCK_BOUNDS_BASE_ID = 'dock-window-bounds';
+const DOCK_BOUNDS_DISPLAY = 'Dock Window Position';
+
+/** Persisted screen position + size of the custom dock window (DIP px). */
+export interface DockWindowBounds {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/** Save the custom dock window's position. Overwrites any previous save in the same scope. */
+export async function saveDockWindowBounds(
+  bounds: DockWindowBounds,
+  scope?: ConfigScope,
+): Promise<void> {
+  const resolved = resolveScope(scope);
+  const configId = scopedConfigId(DOCK_BOUNDS_BASE_ID, resolved);
+  const manager = await getConfigManager();
+  const existing = await manager.getConfig(configId);
+  const now = new Date().toISOString();
+
+  const row: AppConfigRow = {
+    configId,
+    appId: resolved.appId,
+    userId: resolved.userId,
+    displayText: DOCK_BOUNDS_DISPLAY,
+    componentType: COMPONENT_TYPES.DOCK_CONFIG,
+    componentSubType: 'window-bounds',
+    isTemplate: false,
+    payload: bounds,
+    createdBy: existing?.createdBy ?? resolved.userId,
+    updatedBy: resolved.userId,
+    creationTime: existing?.creationTime ?? now,
+    updatedTime: now,
+  };
+  await manager.saveConfig(row);
+}
+
+/** Load the saved custom dock window position. Returns null if none. */
+export async function loadDockWindowBounds(
+  scope?: ConfigScope,
+): Promise<DockWindowBounds | null> {
+  const resolved = resolveScope(scope);
+  const manager = await getConfigManager();
+  const row = await manager.getConfig(scopedConfigId(DOCK_BOUNDS_BASE_ID, resolved));
+  return row ? (row.payload as DockWindowBounds) : null;
+}
+
 // ─── Registry config ─────────────────────────────────────────────────
 
 const REGISTRY_CONFIG_BASE_ID = 'component-registry';

@@ -13,11 +13,15 @@ export interface CustomSettings {
    * - `"dock3"` — the newer `Dock.init` content-menu API. Top-level
    *   groups surface their icon via dock-bar favorites folders linked by
    *   id to a two-column content menu.
+   * - `"custom"` — a frameless, always-on-top OpenFin window we render
+   *   ourselves (React + `@starui/design-system` tokens + shadcn
+   *   primitives), to escape dock2's un-themeable dark flyout and dock3's
+   *   non-hideable content menu. dock2/dock3 stay intact as fallbacks.
    *
-   * Both paths read the same dock config from ConfigService; only the
+   * All three paths read the same dock config from ConfigService; only the
    * OpenFin registration + rendering differ.
    */
-  dockVersion?: "dock2" | "dock3";
+  dockVersion?: "dock2" | "dock3" | "custom";
 
   /**
    * Platform deployment id — drives SharedWorker name

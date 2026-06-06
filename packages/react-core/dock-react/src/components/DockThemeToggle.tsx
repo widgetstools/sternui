@@ -24,6 +24,7 @@ export function DockThemeToggle({ theme, onToggle }: DockThemeToggleProps) {
           variant="ghost"
           size="icon"
           aria-label={label}
+          title={label}
           data-dock-item="theme-toggle"
           onClick={onToggle}
           className="h-8 w-8 text-[var(--ds-text-secondary)] hover:text-[var(--ds-text-primary)]"

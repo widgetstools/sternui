@@ -28,7 +28,12 @@ import {
   ACTION_OPEN_WORKSPACE_SETUP,
   ACTION_OPEN_DATA_PROVIDERS,
   ACTION_LAUNCH_COMPONENT,
+  ACTION_SHOW_HOME,
+  ACTION_SHOW_STORE,
+  UNTITLED_WORKSPACE_ID,
   shutdownDock,
+  setCustomDockShown,
+  publishCustomDockWorkspaceChanged,
 } from './dock';
 import { registerHome } from './home';
 import { launchApp, launchRegisteredComponent } from './launch';
@@ -534,6 +539,15 @@ const dockActionHandlers: Record<string, (customData?: any) => Promise<void>> = 
     await launchApp(customData as App);
   },
 
+  // Default workspace-component buttons (parity with the native dock): show
+  // Home search / the Storefront. Best-effort — no-op if not registered.
+  [ACTION_SHOW_HOME]: async () => {
+    try { await Home.show(); } catch (err) { console.warn("[dock] Home.show failed:", err); }
+  },
+  [ACTION_SHOW_STORE]: async () => {
+    try { await Storefront.show(); } catch (err) { console.warn("[dock] Storefront.show failed:", err); }
+  },
+
   // Launch a Component-Registry entry by id. Shape:
   //   customData = { registryEntryId: string, asWindow?: boolean }
   // Missing ids are handled gracefully inside launchRegisteredComponent
@@ -674,9 +688,13 @@ const dockActionHandlers: Record<string, (customData?: any) => Promise<void>> = 
       const isVisible = await providerWindow.isShowing();
       if (isVisible) {
         await providerWindow.hide();
+        // The custom dock follows the provider's visibility (no-op for
+        // dock2/dock3, which have no separate dock window).
+        await setCustomDockShown(false);
         console.log("Provider window hidden.");
       } else {
         await providerWindow.show();
+        await setCustomDockShown(true);
         console.log("Provider window shown.");
       }
     } catch (error) {
@@ -686,12 +704,6 @@ const dockActionHandlers: Record<string, (customData?: any) => Promise<void>> = 
 };
 
 // ─── Workspace component registration ────────────────────────────────
-
-// Sentinel id for the "untitled" (nothing-open) workspace. OpenFin
-// assigns GUIDs to saved workspaces, so this constant never collides —
-// while it's the active workspace, the switchWorkspace dock menu shows
-// no checkmark.
-const UNTITLED_WORKSPACE_ID = "untitled-workspace";
 
 // Set while the platform is tearing down (provider window close-requested
 // → quit). During quit every Browser window closes, which would otherwise
@@ -732,6 +744,9 @@ async function resetActiveWorkspaceWhenEmpty(closedWindowName?: string): Promise
       title: "Untitled",
       snapshot,
     } as any);
+    // Custom dock: clear the switcher checkmark to match (no-op under dock2/dock3,
+    // whose native switchWorkspace component already reacts to setActiveWorkspace).
+    await publishCustomDockWorkspaceChanged();
   } catch (err) {
     console.warn("[workspace] resetActiveWorkspaceWhenEmpty failed (ignored):", err);
   }

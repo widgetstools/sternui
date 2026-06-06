@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare const fin: any;
 import { Dock, ColorSchemeOptionType, getCurrentSync } from "@openfin/workspace-platform";
+import * as Notifications from "@openfin/workspace/notifications";
 import {
   Dock as ClassicDock,
   DockButtonNames,
@@ -9,7 +10,15 @@ import {
   type DockProvider,
   type DockProviderRegistration,
 } from "@openfin/workspace";
-import { loadDockConfig, saveDockConfig } from './db';
+import {
+  loadDockConfig,
+  saveDockConfig,
+  loadDockWindowBounds,
+  saveDockWindowBounds,
+  setPlatformDefaultScope,
+  getPlatformDefaultScope,
+  type DockWindowBounds,
+} from './db';
 import {
   appsToEditorConfig,
   toDock3Favorites,
@@ -48,6 +57,27 @@ import {
   IAB_RELOAD_AFTER_IMPORT,
   IAB_THEME_CHANGED,
   IAB_REGISTRY_CONFIG_UPDATE,
+  CHANNEL_CUSTOM_DOCK,
+  CUSTOM_DOCK_DISPATCH_ACTION,
+  CUSTOM_DOCK_GET_CONFIG,
+  CUSTOM_DOCK_CONFIG_PUSH,
+  CUSTOM_DOCK_LIST_WORKSPACES,
+  CUSTOM_DOCK_GET_ACTIVE_WORKSPACE,
+  CUSTOM_DOCK_APPLY_WORKSPACE,
+  CUSTOM_DOCK_WORKSPACE_CHANGED,
+  CUSTOM_DOCK_SAVE_WORKSPACE_AS,
+  CUSTOM_DOCK_RESTORE_LAST_SAVED,
+  CUSTOM_DOCK_GET_NOTIF_COUNT,
+  CUSTOM_DOCK_TOGGLE_NOTIF_CENTER,
+  CUSTOM_DOCK_NOTIF_COUNT_CHANGED,
+  CUSTOM_DOCK_SAVE_WORKSPACE,
+  CUSTOM_DOCK_RENAME_WORKSPACE,
+  CUSTOM_DOCK_DELETE_WORKSPACE,
+  CUSTOM_DOCK_LIST_RUNNING_APPS,
+  CUSTOM_DOCK_GET_ACTIVE_APP,
+  CUSTOM_DOCK_SWITCH_APP,
+  CUSTOM_DOCK_RUNNING_APPS_CHANGED,
+  UNTITLED_WORKSPACE_ID,
   ACTION_LAUNCH_APP,
   ACTION_TOGGLE_THEME,
   ACTION_OPEN_DOCK_EDITOR,
@@ -62,12 +92,35 @@ import {
   ACTION_OPEN_WORKSPACE_SETUP,
   ACTION_OPEN_DATA_PROVIDERS,
   ACTION_LAUNCH_COMPONENT,
+  ACTION_SHOW_HOME,
+  ACTION_SHOW_STORE,
 } from './iabTopics';
 export {
   IAB_DOCK_CONFIG_UPDATE,
   IAB_RELOAD_AFTER_IMPORT,
   IAB_THEME_CHANGED,
   IAB_REGISTRY_CONFIG_UPDATE,
+  CHANNEL_CUSTOM_DOCK,
+  CUSTOM_DOCK_DISPATCH_ACTION,
+  CUSTOM_DOCK_GET_CONFIG,
+  CUSTOM_DOCK_CONFIG_PUSH,
+  CUSTOM_DOCK_LIST_WORKSPACES,
+  CUSTOM_DOCK_GET_ACTIVE_WORKSPACE,
+  CUSTOM_DOCK_APPLY_WORKSPACE,
+  CUSTOM_DOCK_WORKSPACE_CHANGED,
+  CUSTOM_DOCK_SAVE_WORKSPACE_AS,
+  CUSTOM_DOCK_RESTORE_LAST_SAVED,
+  CUSTOM_DOCK_GET_NOTIF_COUNT,
+  CUSTOM_DOCK_TOGGLE_NOTIF_CENTER,
+  CUSTOM_DOCK_NOTIF_COUNT_CHANGED,
+  CUSTOM_DOCK_SAVE_WORKSPACE,
+  CUSTOM_DOCK_RENAME_WORKSPACE,
+  CUSTOM_DOCK_DELETE_WORKSPACE,
+  CUSTOM_DOCK_LIST_RUNNING_APPS,
+  CUSTOM_DOCK_GET_ACTIVE_APP,
+  CUSTOM_DOCK_SWITCH_APP,
+  CUSTOM_DOCK_RUNNING_APPS_CHANGED,
+  UNTITLED_WORKSPACE_ID,
   ACTION_LAUNCH_APP,
   ACTION_TOGGLE_THEME,
   ACTION_OPEN_DOCK_EDITOR,
@@ -82,6 +135,8 @@ export {
   ACTION_OPEN_WORKSPACE_SETUP,
   ACTION_OPEN_DATA_PROVIDERS,
   ACTION_LAUNCH_COMPONENT,
+  ACTION_SHOW_HOME,
+  ACTION_SHOW_STORE,
 };
 
 // ─── Module-level state ──────────────────────────────────────────────
@@ -92,7 +147,7 @@ export {
  * (default `"dock2"`). The shared lifecycle functions (`recolorDockIcons`,
  * `reloadDockFromConfig`, `shutdownDock`, IAB handlers) dispatch on it.
  */
-let dockVersion: "dock2" | "dock3" = "dock2";
+let dockVersion: "dock2" | "dock3" | "custom" = "dock2";
 
 /** The classic `Dock.register()` registration handle (dock2 path). */
 let classicReg: DockProviderRegistration | undefined;
@@ -102,6 +157,12 @@ let dockProvider: any;
 
 /** Cached copy of platform settings from the manifest. */
 let storedPlatformSettings: PlatformSettings | undefined;
+
+/** The configured apps (for the app-switcher's running/title lookup — S19). */
+let storedApps: App[] | undefined;
+
+/** `fin.System` running-app event listeners (custom path; for teardown — S19). */
+let customDockAppListeners: Array<{ event: string; handler: (...args: any[]) => void }> = [];
 
 /** The dock provider icon URL. */
 let storedIcon: string | undefined;
@@ -122,6 +183,27 @@ let themeToggleLightIcon: string | undefined;
 
 /** Callback for dispatching actions to workspace.ts handlers. */
 let actionDispatcher: ((actionId: string, customData?: any) => Promise<void>) | undefined;
+
+/** The frameless, always-on-top custom-dock window handle (custom path). */
+let customDockWindow: any;
+
+/**
+ * In-flight launch guard (singleton, one-per-platform). Concurrent or
+ * re-entrant `launchCustomDockWindow` calls collapse onto this one promise so
+ * exactly one dock window is ever created per platform run — every app/view in
+ * the platform shares it via the provider channel. Cleared on teardown so a
+ * later run can re-launch.
+ */
+let customDockLaunch: Promise<any> | undefined;
+
+/** The OpenFin Channel provider the custom dock window dispatches over. */
+let customDockChannel: any;
+
+/** Debounce handle for persisting the custom dock window's dragged position. */
+let customDockBoundsSaveTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** The `notifications-count-changed` listener (custom path; for teardown). */
+let customDockNotifListener: ((evt: { count?: number }) => void) | undefined;
 
 // ─── Pre-built theme toggle icons ────────────────────────────────────
 const DEFAULT_DARK_THEME_ICON = svgToDataUrl(SUN_SVG, "#FFB300");
@@ -496,6 +578,12 @@ async function applyDockConfig(): Promise<void> {
     await applyDockClassicConfig();
     return;
   }
+  if (dockVersion === "custom") {
+    // The custom dock window re-renders its own icons on the theme IAB —
+    // there's no provider-side config to push (the live `<DockBar config=…>`
+    // re-render lands in Phase 2). No-op here.
+    return;
+  }
   await applyDock3Config();
 }
 
@@ -635,6 +723,852 @@ async function shutdownDockClassic(): Promise<void> {
   classicReg = undefined;
 }
 
+// ─── Custom dock lifecycle ───────────────────────────────────────────
+//
+// The "custom" dock is a frameless, always-on-top OpenFin window we
+// render ourselves (React + @starui/design-system tokens + shadcn
+// primitives — the `@starui/dock-react` package's <DockBar>). It exists
+// to escape dock2's un-themeable dark flyout and dock3's non-hideable
+// content menu. dock2/dock3 stay fully intact as fallbacks.
+//
+// Phase 0 is staged across three sessions:
+//   • S1 — no-op stub: thread `dockVersion: "custom"` through the type +
+//     `registerDock` branch so the manifest flag is selectable.
+//   • S2 (here) — launch the frameless, always-on-top `/dock` window with
+//     monitor-geometry edge placement; the route renders a themed
+//     placeholder ("hello dock"). <DockBar> + the real DockController land
+//     in S3.
+//   • S3 (here) — provider↔dock action-dispatch channel + theme IAB. The
+//     provider creates an OpenFin Channel (`registerCustomDockChannel`); the
+//     dock window's `OpenFinDockController` connects as a client and round-
+//     trips every `ACTION_*` through `dockActionHandlers`. Theme toggle is
+//     intercepted provider-side (`toggleCustomDockTheme`) — only the provider
+//     window can flip the platform scheme + broadcast the theme IAB.
+
+/** Named, manifest-origin route + geometry for the custom dock window. */
+const CUSTOM_DOCK_WINDOW_NAME = "starui-custom-dock";
+const CUSTOM_DOCK_ROUTE = "/dock";
+/** Dock bar height in DIP px — matches <DockBar>'s h-11 (2.75rem @ 16px). */
+const CUSTOM_DOCK_HEIGHT = 44;
+/**
+ * Minimum / initial window width. The bar is a **floating** object that grows
+ * with its content: the dock window opens at this min width and the React bar
+ * measures itself (ResizeObserver) and calls back over the
+ * `DockController.resizeToContent` seam to fit. Keep in sync with `<DockBar>`'s
+ * `min-w-*`.
+ */
+const CUSTOM_DOCK_MIN_WIDTH = 220;
+/** Default float offset (DIP px) from the primary monitor's top edge. */
+const CUSTOM_DOCK_TOP_OFFSET = 24;
+
+/**
+ * Resolve the web-app origin for the dock window from the manifest's
+ * `platform.providerUrl` (not `window.location`, which inside the provider
+ * View may not match the Vite origin). Mirrors openChildToolWindow's
+ * resolver — kept local so this OpenFin-only file stays self-contained.
+ */
+async function resolveProviderOrigin(): Promise<string | undefined> {
+  try {
+    const app = await fin.Application.getCurrent();
+    const manifest: Record<string, any> = await app.getManifest();
+    const providerUrl = manifest?.platform?.providerUrl ?? "";
+    return new URL(providerUrl).origin;
+  } catch (err) {
+    console.error("[customDock] Could not resolve provider origin.", err);
+    return undefined;
+  }
+}
+
+/**
+ * Default **floating** placement: a compact, content-sized bar centred near the
+ * top of the primary monitor (not pinned/spanning the top edge — it's a movable
+ * floating object the user can drag). Opens at the min width; the React bar
+ * grows the window to fit via `resizeToContent`. `availableRect` excludes the OS
+ * taskbar. Falls back to 40,40 if monitor info is unavailable.
+ */
+async function computeCustomDockBounds(): Promise<{
+  left: number; top: number; width: number; height: number;
+}> {
+  const width = CUSTOM_DOCK_MIN_WIDTH;
+  let left = 40;
+  let top = 40;
+  try {
+    const info = await fin.System.getMonitorInfo();
+    const rect = info?.primaryMonitor?.availableRect;
+    if (rect && typeof rect.left === "number" && typeof rect.right === "number") {
+      top = rect.top + CUSTOM_DOCK_TOP_OFFSET;
+      left = Math.round(rect.left + ((rect.right - rect.left) - width) / 2);
+    }
+  } catch (err) {
+    console.warn("[customDock] getMonitorInfo failed; using fallback bounds.", err);
+  }
+  return { left, top, width, height: CUSTOM_DOCK_HEIGHT };
+}
+
+/**
+ * Is a saved position still visible on a currently-connected monitor? Guards
+ * against restoring the bar off-screen after a monitor is unplugged or the
+ * layout changes. A few px of slack lets an edge-flush bar still count.
+ */
+async function boundsAreOnScreen(b: DockWindowBounds): Promise<boolean> {
+  try {
+    const info = await fin.System.getMonitorInfo();
+    const monitors: any[] = [info?.primaryMonitor, ...(info?.nonPrimaryMonitors ?? [])].filter(Boolean);
+    return monitors.some((m) => {
+      const r = m?.monitorRect ?? m?.availableRect;
+      return r
+        && b.left >= r.left - 8 && b.left <= r.right - 8
+        && b.top >= r.top - 8 && b.top <= r.bottom - 8;
+    });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Where to open the dock: the user's last-saved position if it's still
+ * on-screen, otherwise the default floating placement. (Session 10; floating
+ * default since the S14 UX rework.)
+ */
+async function resolveCustomDockBounds(): Promise<{
+  left: number; top: number; width: number; height: number;
+}> {
+  try {
+    const saved = await loadDockWindowBounds();
+    if (saved && (await boundsAreOnScreen(saved))) {
+      console.log("[customDock] Restoring saved window position.");
+      return saved;
+    }
+  } catch (err) {
+    console.warn("[customDock] Could not restore saved bounds; using edge placement.", err);
+  }
+  return computeCustomDockBounds();
+}
+
+/** Persist the dock window's current position (called debounced on drag). */
+async function persistCustomDockBounds(win: any): Promise<void> {
+  try {
+    const b = await win.getBounds();
+    await saveDockWindowBounds({ left: b.left, top: b.top, width: b.width, height: b.height });
+  } catch (err) {
+    console.warn("[customDock] Failed to persist window bounds.", err);
+  }
+}
+
+/**
+ * Re-apply `alwaysOnTop`. A peer window going maximized/always-on-top can steal
+ * the top z-order and OpenFin fires no event for it, so we re-assert on the
+ * dock's own focus/shown events. Best-effort (see the plan's risk list #1).
+ */
+async function reassertCustomDockAlwaysOnTop(win: any): Promise<void> {
+  try {
+    await win.updateOptions({ alwaysOnTop: true });
+  } catch (err) {
+    console.debug("[customDock] always-on-top re-assert failed.", err);
+  }
+}
+
+/**
+ * Wire the dock window's geometry side-effects: debounced position persistence
+ * on drag, and always-on-top re-assert on focus/shown. Attached once, right
+ * after the window is created.
+ */
+function attachCustomDockGeometryListeners(win: any): void {
+  try {
+    win.on("bounds-changed", () => {
+      if (customDockBoundsSaveTimer) clearTimeout(customDockBoundsSaveTimer);
+      customDockBoundsSaveTimer = setTimeout(() => { void persistCustomDockBounds(win); }, 400);
+    });
+  } catch (err) {
+    console.warn("[customDock] Could not wire bounds-changed persistence.", err);
+  }
+  const reassert = () => { void reassertCustomDockAlwaysOnTop(win); };
+  try { win.on("focused", reassert); } catch { /* non-fatal */ }
+  try { win.on("shown", reassert); } catch { /* non-fatal */ }
+}
+
+/**
+ * Open (or focus) the frameless, always-on-top dock window at `/dock`.
+ *
+ * `fin.Window.create` (not `Platform.createWindow`) is deliberate: the dock
+ * is a chrome utility, NOT a workspace-managed window — it must not be
+ * snapshot-saved, dockable, or restored as a platform view. `saveWindowState:
+ * false` + `showTaskbarIcon: false` + `smallWindow: true` keep it a
+ * lightweight always-on-top bar.
+ *
+ * NOTE (carried from the plan's risk list): always-on-top ≠ appbar — the bar
+ * does not reserve screen space, so maximized/snapped windows can overlap it.
+ * Accepted; no standard OpenFin reserve-space API.
+ */
+function launchCustomDockWindow(): Promise<any> {
+  // Singleton guard: collapse concurrent/re-entrant launches onto one promise so
+  // a race (two callers before the window exists) can't create two docks, which
+  // would otherwise throw on the duplicate window name. Stays resolved for the
+  // platform's lifetime; cleared on teardown.
+  if (customDockLaunch) return customDockLaunch;
+  customDockLaunch = doLaunchCustomDockWindow().catch((err) => {
+    customDockLaunch = undefined; // a failed launch may be retried
+    throw err;
+  });
+  return customDockLaunch;
+}
+
+async function doLaunchCustomDockWindow(): Promise<any> {
+  const origin = await resolveProviderOrigin();
+  if (!origin) return undefined;
+  const url = `${origin}${CUSTOM_DOCK_ROUTE}`;
+
+  // Idempotency — focus the existing dock window rather than spawning a
+  // second one (registerDock can be re-entered on config refresh).
+  try {
+    const existing = fin.Window.wrapSync({
+      uuid: fin.me.identity.uuid,
+      name: CUSTOM_DOCK_WINDOW_NAME,
+    });
+    await existing.getInfo();        // throws if the window doesn't exist
+    await existing.setAsForeground();
+    customDockWindow = existing;
+    console.log("[customDock] Dock window already open — brought to front.");
+    return existing;
+  } catch {
+    console.debug("[customDock] Dock window not open; creating.");
+  }
+
+  const { left, top, width, height } = await resolveCustomDockBounds();
+  try {
+    customDockWindow = await fin.Window.create({
+      name: CUSTOM_DOCK_WINDOW_NAME,
+      url,
+      defaultLeft: left,
+      defaultTop: top,
+      defaultWidth: width,
+      defaultHeight: height,
+      frame: false,
+      resizable: false,
+      maximizable: false,
+      minimizable: false,
+      alwaysOnTop: true,
+      autoShow: true,
+      showTaskbarIcon: false,
+      saveWindowState: false,
+      smallWindow: true,
+      backgroundThrottling: false,
+    });
+    // Persist drags + keep the bar on top (Session 10).
+    attachCustomDockGeometryListeners(customDockWindow);
+    console.log(
+      `[customDock] Launched frameless always-on-top dock window at ${url} ` +
+        `(${width}×${height} @ ${left},${top}).`,
+    );
+    return customDockWindow;
+  } catch (err) {
+    console.error("[customDock] Failed to create dock window.", err);
+    return undefined;
+  }
+}
+
+/**
+ * Show or hide the custom dock window. No-op under dock2/dock3 (no custom
+ * window exists). On show, re-asserts always-on-top and brings the bar to the
+ * foreground. Wired to the "Show/Hide Provider" action so the dock follows the
+ * provider window's visibility.
+ */
+export async function setCustomDockShown(show: boolean): Promise<void> {
+  if (!customDockWindow) return;
+  try {
+    if (show) {
+      await customDockWindow.show();
+      await reassertCustomDockAlwaysOnTop(customDockWindow);
+      await customDockWindow.setAsForeground();
+      console.log("[customDock] Dock window shown.");
+    } else {
+      await customDockWindow.hide();
+      console.log("[customDock] Dock window hidden.");
+    }
+  } catch (err) {
+    console.warn(`[customDock] setCustomDockShown(${show}) failed.`, err);
+  }
+}
+
+/**
+ * Flip the platform color scheme from the provider window and broadcast the
+ * theme IAB. The custom dock's theme toggle dispatches `ACTION_TOGGLE_THEME`
+ * over the channel; that action lands here (not in `dockActionHandlers`) for
+ * the same reason dock3 handles it inline — the toggle must run in the
+ * provider window, and `setSelectedScheme` must NOT be awaited.
+ *
+ * `setSelectedScheme` connects to `__of_workspace_protocol__` to persist the
+ * choice; that channel hangs in our setup, so awaiting it would block the IAB
+ * broadcast (which is what tells the dock + content windows to re-render).
+ * The SDK still flips the workspace chrome synchronously before the hang.
+ */
+async function toggleCustomDockTheme(): Promise<void> {
+  try {
+    const platform = getCurrentSync();
+    const currentScheme = await platform.Theme.getSelectedScheme();
+    const newScheme = currentScheme === ColorSchemeOptionType.Light
+      ? ColorSchemeOptionType.Dark
+      : ColorSchemeOptionType.Light;
+    const isDark = newScheme === ColorSchemeOptionType.Dark;
+    const themeStr = isDark ? "dark" : "light";
+    console.log(`[customDock theme] ${currentScheme} → ${newScheme}`);
+
+    // Fire-and-forget (see doc comment) — do NOT await.
+    void platform.Theme.setSelectedScheme(newScheme);
+
+    // Side effects we own: provider-window data-theme (drives our CSS vars),
+    // the AG-Grid theme hint, the canonical `starui:theme` storage key, and
+    // the IAB broadcast the dock window + content views listen on.
+    try { document.documentElement.setAttribute("data-theme", themeStr); } catch { /* */ }
+    try { document.body.dataset["agThemeMode"] = themeStr; } catch { /* */ }
+    try { localStorage.setItem("starui:theme", themeStr); } catch { /* */ }
+    try {
+      await fin.InterApplicationBus.publish(IAB_THEME_CHANGED, { theme: themeStr, isDark });
+    } catch (iabErr) {
+      console.warn("[customDock theme] IAB publish failed:", iabErr);
+    }
+  } catch (err) {
+    console.error("[customDock theme] toggle failed:", err);
+  }
+}
+
+/**
+ * Create the provider-side OpenFin Channel the dock window dispatches over.
+ *
+ * The dock window is a separate OpenFin window, so its `<DockBar>` clicks
+ * can't call `dockActionHandlers` directly. They `client.dispatch(
+ * CUSTOM_DOCK_DISPATCH_ACTION, { actionId, customData })` to this provider,
+ * which routes through the same `actionDispatcher` dock2/dock3 use — except
+ * `ACTION_TOGGLE_THEME`, handled inline (see `toggleCustomDockTheme`).
+ *
+ * Idempotent: a second `registerDockCustom` (config refresh) reuses the
+ * existing channel rather than recreating it.
+ */
+async function registerCustomDockChannel(): Promise<void> {
+  if (customDockChannel) {
+    console.log("[customDock] Action channel already registered.");
+    return;
+  }
+  try {
+    const channel = await fin.InterApplicationBus.Channel.create(CHANNEL_CUSTOM_DOCK);
+    customDockChannel = channel;
+    channel.register(CUSTOM_DOCK_DISPATCH_ACTION, async (payload: any) => {
+      const actionId: string | undefined = payload?.actionId;
+      const customData = payload?.customData;
+      if (!actionId) {
+        console.warn("[customDock] dispatch-action called without an actionId.");
+        return;
+      }
+      // Theme toggle runs in THIS (provider) window — the dock window can't
+      // flip the platform scheme. Intercept before the generic dispatcher.
+      if (actionId === ACTION_TOGGLE_THEME) {
+        await toggleCustomDockTheme();
+        return;
+      }
+      if (!actionDispatcher) {
+        console.warn(`[customDock] No action dispatcher for: ${actionId}`);
+        return;
+      }
+      await actionDispatcher(actionId, customData);
+    });
+    // Initial config pull — the provider owns config persistence + scope, so
+    // the dock window asks for the current `DockEditorConfig` here rather than
+    // reading the store under its own default scope. Live updates arrive via
+    // `pushCustomDockConfig` (CUSTOM_DOCK_CONFIG_PUSH).
+    channel.register(CUSTOM_DOCK_GET_CONFIG, async () => lastEditorConfig ?? null);
+
+    // Workspace switcher (Phase 3 / S12). The provider owns the workspace-
+    // platform context, so the dock window lists / reads-active / applies
+    // workspaces through here rather than calling the Storage API itself.
+    channel.register(CUSTOM_DOCK_LIST_WORKSPACES, async () => listCustomDockWorkspaces());
+    channel.register(CUSTOM_DOCK_GET_ACTIVE_WORKSPACE, async () =>
+      getCustomDockActiveWorkspaceId(),
+    );
+    channel.register(CUSTOM_DOCK_APPLY_WORKSPACE, async (payload: any) =>
+      applyCustomDockWorkspace(payload?.id, payload?.skipPrompt),
+    );
+    channel.register(CUSTOM_DOCK_SAVE_WORKSPACE_AS, async (payload: any) =>
+      saveCustomDockWorkspaceAs(payload?.title),
+    );
+    channel.register(CUSTOM_DOCK_RESTORE_LAST_SAVED, async (payload: any) =>
+      restoreCustomDockLastSaved(payload?.skipPrompt),
+    );
+    channel.register(CUSTOM_DOCK_SAVE_WORKSPACE, async () => saveCustomDockWorkspace());
+    channel.register(CUSTOM_DOCK_RENAME_WORKSPACE, async (payload: any) =>
+      renameCustomDockWorkspace(payload?.id, payload?.title),
+    );
+    channel.register(CUSTOM_DOCK_DELETE_WORKSPACE, async (payload: any) =>
+      deleteCustomDockWorkspace(payload?.id),
+    );
+    // Notifications (Phase 4 / S16) — the provider owns the notifications client.
+    channel.register(CUSTOM_DOCK_GET_NOTIF_COUNT, async () => getCustomDockNotifCount());
+    channel.register(CUSTOM_DOCK_TOGGLE_NOTIF_CENTER, async () =>
+      toggleCustomDockNotificationCenter(),
+    );
+    // App-switcher (Phase 5 / S19) — the provider owns fin.System + the scope.
+    channel.register(CUSTOM_DOCK_LIST_RUNNING_APPS, async () => listCustomDockRunningApps());
+    channel.register(CUSTOM_DOCK_GET_ACTIVE_APP, async () => getCustomDockActiveAppId());
+    channel.register(CUSTOM_DOCK_SWITCH_APP, async (payload: any) =>
+      switchCustomDockApp(payload?.id),
+    );
+    console.log(`[customDock] Action-dispatch channel '${CHANNEL_CUSTOM_DOCK}' registered.`);
+  } catch (err) {
+    console.error("[customDock] Failed to register the action-dispatch channel.", err);
+  }
+}
+
+/**
+ * Push the current `DockEditorConfig` to the connected dock window(s) over the
+ * channel. Wired as `subscribeDockIab`'s `applyFn` for the custom path, so it
+ * fires after the editor saves (`IAB_DOCK_CONFIG_UPDATE` — which already
+ * refreshed `lastEditorConfig`) or a config import (`IAB_RELOAD_AFTER_IMPORT`
+ * — which reloaded it from the store). No-op when no dock window is connected.
+ */
+async function pushCustomDockConfig(): Promise<void> {
+  if (!customDockChannel) return;
+  try {
+    await customDockChannel.publish(CUSTOM_DOCK_CONFIG_PUSH, lastEditorConfig ?? null);
+    console.log("[customDock] Pushed live config to dock window.");
+  } catch (err) {
+    console.warn("[customDock] Config push failed.", err);
+  }
+}
+
+// ─── Workspace switcher (Phase 3 / S12) ──────────────────────────────
+// The custom dock replaces dock2/dock3's native `switchWorkspace` component
+// with its own themed dropdown. These provider-side helpers back the channel
+// handlers above, talking to the workspace-platform Storage API the same way
+// the native component would. The dock window's `WorkspaceController` is a thin
+// channel client over them.
+
+/** List saved workspaces as `{ id, title }` (Storage metadata only). */
+async function listCustomDockWorkspaces(): Promise<{ id: string; title: string }[]> {
+  try {
+    const platform = getCurrentSync();
+    const metadata = await platform.Storage.getWorkspacesMetadata();
+    return metadata.map((w) => ({ id: w.workspaceId, title: w.title }));
+  } catch (err) {
+    console.warn("[customDock] listWorkspaces failed.", err);
+    return [];
+  }
+}
+
+/**
+ * The active workspace id, or `null` when nothing saved is active. Reads
+ * `getCurrentWorkspace({ skipSnapshotUpdate: true })` (the active pointer, no
+ * snapshot recompute); the `UNTITLED_WORKSPACE_ID` sentinel maps to `null`
+ * (the switcher reducer normalizes it too).
+ */
+async function getCustomDockActiveWorkspaceId(): Promise<string | null> {
+  try {
+    const platform = getCurrentSync();
+    const current = await platform.getCurrentWorkspace({ skipSnapshotUpdate: true });
+    const id = current?.workspaceId ?? null;
+    return id && id !== UNTITLED_WORKSPACE_ID ? id : null;
+  } catch (err) {
+    console.warn("[customDock] getActiveWorkspaceId failed.", err);
+    return null;
+  }
+}
+
+/**
+ * Apply (switch to) a saved workspace by id, then push
+ * `CUSTOM_DOCK_WORKSPACE_CHANGED` so the switcher moves its checkmark. The dock
+ * window passes `skipPrompt: true` to bypass the platform's confirmation dialog
+ * (parity with our existing `applyWorkspace({ skipPrompt })` override).
+ */
+async function applyCustomDockWorkspace(id?: string, skipPrompt = true): Promise<void> {
+  if (!id) {
+    console.warn("[customDock] applyWorkspace called without an id.");
+    return;
+  }
+  try {
+    const platform = getCurrentSync();
+    const workspace = await platform.Storage.getWorkspace(id);
+    if (!workspace) {
+      console.warn(`[customDock] applyWorkspace: no workspace '${id}'.`);
+      return;
+    }
+    await platform.applyWorkspace(workspace, { skipPrompt });
+  } catch (err) {
+    console.warn(`[customDock] applyWorkspace('${id}') failed.`, err);
+  } finally {
+    await publishCustomDockWorkspaceChanged();
+  }
+}
+
+/**
+ * Tell the connected dock window(s) the saved list / active workspace may have
+ * changed (switch, save/delete, or the empty-desktop reset in `workspace.ts`).
+ * The dock window re-reads both. No-op when no dock window is connected.
+ */
+export async function publishCustomDockWorkspaceChanged(): Promise<void> {
+  if (!customDockChannel) return;
+  try {
+    await customDockChannel.publish(CUSTOM_DOCK_WORKSPACE_CHANGED, {});
+  } catch (err) {
+    console.warn("[customDock] Workspace-changed push failed.", err);
+  }
+}
+
+/** Fresh workspace id (GUID where available; collision-resistant fallback). */
+function newCustomDockWorkspaceId(): string {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+  } catch { /* fall through */ }
+  return `ws-${Date.now()}-${Math.round(Math.random() * 1e9).toString(36)}`;
+}
+
+/**
+ * Save the current desktop as a NEW saved workspace (Phase 3 / S13). Captures
+ * the live snapshot via `getCurrentWorkspace()`, persists it under a fresh id +
+ * the user's title through `Storage.createWorkspace` (the ConfigService-backed
+ * override), marks it active so the switcher checks it, then pushes a change.
+ */
+async function saveCustomDockWorkspaceAs(title?: string): Promise<void> {
+  const name = (title ?? "").trim();
+  if (!name) {
+    console.warn("[customDock] saveWorkspaceAs called without a title.");
+    return;
+  }
+  try {
+    const platform = getCurrentSync();
+    const current = await platform.getCurrentWorkspace();
+    const workspace = {
+      workspaceId: newCustomDockWorkspaceId(),
+      title: name,
+      snapshot: current.snapshot,
+      metadata: current.metadata,
+    } as any;
+    await platform.Storage.createWorkspace({ workspace });
+    await platform.setActiveWorkspace(workspace);
+  } catch (err) {
+    console.warn(`[customDock] saveWorkspaceAs('${name}') failed.`, err);
+  } finally {
+    await publishCustomDockWorkspaceChanged();
+  }
+}
+
+/**
+ * Re-apply the last saved version of the current workspace (Phase 3 / S13),
+ * skipping the platform's confirmation prompt, then push a change so the
+ * switcher refreshes. Logs the platform's outcome
+ * ('success' | 'not-saved-workspace' | 'user-declined').
+ */
+async function restoreCustomDockLastSaved(skipPrompt = true): Promise<void> {
+  try {
+    const platform = getCurrentSync();
+    const result = await platform.restoreLastSavedWorkspace({ skipPrompt });
+    console.log(`[customDock] restoreLastSavedWorkspace → ${result}`);
+  } catch (err) {
+    console.warn("[customDock] restoreLastSavedWorkspace failed.", err);
+  } finally {
+    await publishCustomDockWorkspaceChanged();
+  }
+}
+
+/**
+ * Save (update) the active saved workspace from the current desktop — parity
+ * with the native `SaveWorkspace` menu action. `Storage.saveWorkspace` upserts
+ * by `workspaceId`; no-op when nothing saved is active (untitled), since that
+ * would create a stray "Untitled" workspace (use Save-As for that).
+ */
+async function saveCustomDockWorkspace(): Promise<void> {
+  try {
+    const platform = getCurrentSync();
+    const current = await platform.getCurrentWorkspace();
+    if (!current?.workspaceId || current.workspaceId === UNTITLED_WORKSPACE_ID) {
+      console.warn("[customDock] saveWorkspace: no active saved workspace (use Save-As).");
+      return;
+    }
+    await platform.Storage.saveWorkspace(current);
+  } catch (err) {
+    console.warn("[customDock] saveWorkspace failed.", err);
+  } finally {
+    await publishCustomDockWorkspaceChanged();
+  }
+}
+
+/** Rename a saved workspace (parity with the native `RenameWorkspace` action). */
+async function renameCustomDockWorkspace(id?: string, title?: string): Promise<void> {
+  const name = (title ?? "").trim();
+  if (!id || !name) {
+    console.warn("[customDock] renameWorkspace: missing id/title.");
+    return;
+  }
+  try {
+    const platform = getCurrentSync();
+    const workspace = await platform.Storage.getWorkspace(id);
+    if (!workspace) {
+      console.warn(`[customDock] renameWorkspace: no workspace '${id}'.`);
+      return;
+    }
+    await platform.Storage.updateWorkspace({
+      workspaceId: id,
+      workspace: { ...workspace, title: name },
+    } as any);
+  } catch (err) {
+    console.warn(`[customDock] renameWorkspace('${id}') failed.`, err);
+  } finally {
+    await publishCustomDockWorkspaceChanged();
+  }
+}
+
+/** Delete a saved workspace (parity with the native `DeleteWorkspace` action). */
+async function deleteCustomDockWorkspace(id?: string): Promise<void> {
+  if (!id) {
+    console.warn("[customDock] deleteWorkspace: missing id.");
+    return;
+  }
+  try {
+    const platform = getCurrentSync();
+    await platform.Storage.deleteWorkspace(id);
+  } catch (err) {
+    console.warn(`[customDock] deleteWorkspace('${id}') failed.`, err);
+  } finally {
+    await publishCustomDockWorkspaceChanged();
+  }
+}
+
+// ─── Notifications (Phase 4 / S16) ───────────────────────────────────
+// The custom dock's bell + unread badge. The provider owns the
+// `@openfin/notifications` client, so the dock window pulls the count / toggles
+// the center over the channel, and the provider pushes count changes.
+
+/** Current notification-center count (0 on any error / before the service is up). */
+async function getCustomDockNotifCount(): Promise<number> {
+  try {
+    return await Notifications.getNotificationsCount();
+  } catch (err) {
+    console.warn("[customDock] getNotificationsCount failed.", err);
+    return 0;
+  }
+}
+
+/** Toggle the notification center open/closed. */
+async function toggleCustomDockNotificationCenter(): Promise<void> {
+  try {
+    await Notifications.toggleNotificationCenter();
+  } catch (err) {
+    console.warn("[customDock] toggleNotificationCenter failed.", err);
+  }
+}
+
+/** Push a new count to the connected dock window(s). No-op when none connected. */
+async function publishCustomDockNotifCount(count: number): Promise<void> {
+  if (!customDockChannel) return;
+  try {
+    await customDockChannel.publish(CUSTOM_DOCK_NOTIF_COUNT_CHANGED, { count });
+  } catch (err) {
+    console.warn("[customDock] Notif-count push failed.", err);
+  }
+}
+
+/**
+ * Subscribe to `notifications-count-changed` and push each new count to the dock
+ * window. Best-effort + idempotent; the listener is torn down in
+ * `shutdownDockCustom`. Stored so `removeEventListener` gets the same reference.
+ */
+function attachCustomDockNotifListener(): void {
+  if (customDockNotifListener) return;
+  try {
+    customDockNotifListener = (evt: { count?: number }) => {
+      void publishCustomDockNotifCount(typeof evt?.count === "number" ? evt.count : 0);
+    };
+    void Notifications.addEventListener("notifications-count-changed", customDockNotifListener);
+  } catch (err) {
+    console.warn("[customDock] Could not attach notifications-count listener.", err);
+    customDockNotifListener = undefined;
+  }
+}
+
+/** Remove the count listener (teardown). */
+function detachCustomDockNotifListener(): void {
+  if (!customDockNotifListener) return;
+  try {
+    void Notifications.removeEventListener("notifications-count-changed", customDockNotifListener);
+  } catch { /* best-effort */ }
+  customDockNotifListener = undefined;
+}
+
+// ─── App switcher (Phase 5 / S19) ────────────────────────────────────
+// The custom dock's per-app config switcher. "Running apps" = the configured
+// apps (`storedApps`) that are currently running, derived from
+// `fin.System.getAllApplications()` (best-effort — apps launched as platform
+// views/snapshots aren't separate applications, so detection may need refining
+// at runtime). "Switch to app" swaps the **platform default config scope**
+// (`setPlatformDefaultScope`) to that appId and reloads the bar from that
+// scope's `DockEditorConfig` — note this is platform-wide by design (per-app
+// config), so other scoped config (registry, profiles) follows too.
+
+/** Running configured apps as `{ id, title }` (active scope app always included). */
+async function listCustomDockRunningApps(): Promise<{ id: string; title: string }[]> {
+  try {
+    const configured = storedApps ?? [];
+    if (configured.length === 0) return [];
+    const running = new Set<string>();
+    try {
+      const apps = await fin.System.getAllApplications();
+      for (const a of apps ?? []) if (a?.uuid) running.add(a.uuid);
+    } catch (err) {
+      console.debug("[customDock] getAllApplications failed (app-switcher).", err);
+    }
+    const activeAppId = getPlatformDefaultScope().appId;
+    return configured
+      .filter((app) => running.has(app.appId) || app.appId === activeAppId)
+      .map((app) => ({ id: app.appId, title: app.title ?? app.appId }));
+  } catch (err) {
+    console.warn("[customDock] listRunningApps failed.", err);
+    return [];
+  }
+}
+
+/** The active app id — the app whose config scope the dock currently shows. */
+async function getCustomDockActiveAppId(): Promise<string | null> {
+  try {
+    return getPlatformDefaultScope().appId ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Switch the dock to an app: swap the platform default config scope to `appId`
+ * and reload the bar from that scope's `DockEditorConfig`, then push so the
+ * switcher's active marker + the bar update. Platform-wide scope swap by design.
+ */
+async function switchCustomDockApp(appId?: string): Promise<void> {
+  if (!appId) {
+    console.warn("[customDock] switchToApp: missing id.");
+    return;
+  }
+  try {
+    setPlatformDefaultScope({ appId, userId: getPlatformDefaultScope().userId });
+    const saved = await loadDockConfig();
+    lastEditorConfig =
+      saved ?? appsToEditorConfig(storedApps ?? [], storedPlatformSettings?.icon ?? "");
+    await pushCustomDockConfig();
+  } catch (err) {
+    console.warn(`[customDock] switchToApp('${appId}') failed.`, err);
+  } finally {
+    await publishCustomDockRunningAppsChanged();
+  }
+}
+
+/** Push "running-app list / active app may have changed" to the dock window. */
+async function publishCustomDockRunningAppsChanged(): Promise<void> {
+  if (!customDockChannel) return;
+  try {
+    await customDockChannel.publish(CUSTOM_DOCK_RUNNING_APPS_CHANGED, {});
+  } catch (err) {
+    console.warn("[customDock] Running-apps push failed.", err);
+  }
+}
+
+/**
+ * Wire `fin.System` running-app events to push the switcher refresh. Best-effort
+ * + idempotent; listeners stored for teardown. Debounced so a burst of
+ * window-created/closed events coalesces into one push.
+ */
+function attachCustomDockAppListeners(): void {
+  if (customDockAppListeners.length > 0) return;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const fire = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => { void publishCustomDockRunningAppsChanged(); }, 250);
+  };
+  const events = ["application-started", "application-closed", "window-created", "window-closed"];
+  for (const event of events) {
+    try {
+      fin.System.addListener(event, fire);
+      customDockAppListeners.push({ event, handler: fire });
+    } catch (err) {
+      console.debug(`[customDock] Could not wire fin.System '${event}'.`, err);
+    }
+  }
+}
+
+/** Remove the running-app event listeners (teardown). */
+function detachCustomDockAppListeners(): void {
+  for (const { event, handler } of customDockAppListeners) {
+    try { fin.System.removeListener(event, handler); } catch { /* best-effort */ }
+  }
+  customDockAppListeners = [];
+}
+
+/**
+ * Register the custom dock — caches the shared settings/state (so the
+ * shared lifecycle functions can read them), opens the provider↔dock
+ * action-dispatch channel, then launches the frameless `/dock` window
+ * (whose `OpenFinDockController` connects to the channel as a client).
+ */
+async function registerDockCustom(
+  platformSettings: PlatformSettings,
+  apps?: App[],
+  dockIcon?: string,
+  darkIcon?: string,
+  lightIcon?: string,
+  onAction?: (actionId: string, customData?: any) => Promise<void>,
+): Promise<any> {
+  console.log("Registering the custom dock.");
+  storedPlatformSettings = platformSettings;
+  storedApps = apps;
+  storedIcon = dockIcon ?? platformSettings.icon;
+  themeToggleDarkIcon = darkIcon ?? DEFAULT_DARK_THEME_ICON;
+  themeToggleLightIcon = lightIcon ?? DEFAULT_LIGHT_THEME_ICON;
+  actionDispatcher = onAction;
+
+  if (!lastEditorConfig) {
+    const saved = await loadDockConfig();
+    lastEditorConfig = saved ?? appsToEditorConfig(apps ?? [], platformSettings.icon);
+  }
+
+  // Open the action channel BEFORE the window so the dock window's client
+  // `connect()` resolves immediately rather than waiting/retrying.
+  await registerCustomDockChannel();
+  // Live config loop (Phase 2): the shared dock IAB handlers refresh
+  // `lastEditorConfig` on editor-save / import; `pushCustomDockConfig` then
+  // ships it to the dock window over the channel. Reuses the exact handlers
+  // dock2 uses — the existing dock editor drives the custom dock unchanged.
+  subscribeDockIab(pushCustomDockConfig);
+  // Bell badge (S16): push notification-count changes to the dock window.
+  attachCustomDockNotifListener();
+  // App-switcher (S19): push running-app changes to the dock window.
+  attachCustomDockAppListeners();
+  return launchCustomDockWindow();
+}
+
+/** Close the custom dock window + tear down the action channel. */
+async function shutdownDockCustom(): Promise<void> {
+  if (customDockBoundsSaveTimer) {
+    clearTimeout(customDockBoundsSaveTimer);
+    customDockBoundsSaveTimer = undefined;
+  }
+  detachCustomDockNotifListener();
+  detachCustomDockAppListeners();
+  if (customDockChannel) {
+    try {
+      await customDockChannel.destroy();
+      console.log("[customDock] Action channel destroyed.");
+    } catch (err) {
+      console.error("[customDock] Error destroying action channel.", err);
+    }
+  }
+  customDockChannel = undefined;
+  if (customDockWindow) {
+    try {
+      await customDockWindow.close();
+      console.log("[customDock] Dock window closed.");
+    } catch (err) {
+      console.error("[customDock] Error closing dock window.", err);
+    }
+  }
+  customDockWindow = undefined;
+  customDockLaunch = undefined;
+}
+
 // ─── Public API ──────────────────────────────────────────────────────
 
 /**
@@ -654,9 +1588,17 @@ export async function registerDock(
   lightIcon?: string,
   _roles?: string[],
   onAction?: (actionId: string, customData?: any) => Promise<void>,
-  dockVersionArg?: "dock2" | "dock3",
+  dockVersionArg?: "dock2" | "dock3" | "custom",
 ): Promise<any> {
   dockVersion = dockVersionArg ?? dockVersion;
+
+  // custom (frameless, always-on-top React window we render ourselves)
+  // path — fully self-contained so the dock2/dock3 bodies stay untouched.
+  // See registerDockCustom. Phase 0/S1 ships a no-op stub; S2 launches the
+  // window, S3 wires the action-dispatch channel.
+  if (dockVersion === "custom") {
+    return registerDockCustom(platformSettings, apps, dockIcon, darkIcon, lightIcon, onAction);
+  }
 
   // dock2 (classic Dock.register) path — fully self-contained so the
   // dock3 body below stays untouched. See registerDockClassic.
@@ -815,6 +1757,14 @@ export async function reloadDockFromConfig(): Promise<void> {
   if (dockVersion === "dock2") {
     await applyDockClassicConfig();
     console.log("Classic dock reloaded from config.");
+    return;
+  }
+  // The custom dock has no two-window content-menu chrome to re-bootstrap —
+  // `lastEditorConfig` was just reloaded from the store above; ship it to the
+  // dock window over the channel and it re-renders <DockBar config=…>.
+  if (dockVersion === "custom") {
+    await pushCustomDockConfig();
+    console.log("[customDock] Reloaded dock from config (pushed to window).");
     return;
   }
   // For the user-initiated "Reload Dock" action we want a guaranteed
@@ -1119,6 +2069,8 @@ export async function shutdownDock(): Promise<void> {
 
   if (dockVersion === "dock2") {
     await shutdownDockClassic();
+  } else if (dockVersion === "custom") {
+    await shutdownDockCustom();
   } else if (dockProvider) {
     try {
       await dockProvider.shutdown();
@@ -1149,6 +2101,16 @@ export async function shutdownDock(): Promise<void> {
 function resetDockState(): void {
   dockProvider = undefined;
   classicReg = undefined;
+  customDockWindow = undefined;
+  customDockLaunch = undefined;
+  customDockChannel = undefined;
+  customDockNotifListener = undefined;
+  customDockAppListeners = [];
+  storedApps = undefined;
+  if (customDockBoundsSaveTimer) {
+    clearTimeout(customDockBoundsSaveTimer);
+    customDockBoundsSaveTimer = undefined;
+  }
   storedPlatformSettings = undefined;
   storedIcon = undefined;
   lastEditorConfig = undefined;

@@ -39,16 +39,22 @@ export interface SystemToolItem {
   label: string;
   actionId: string;
   Icon: LucideIcon;
+  /**
+   * The lucide icon's export name (e.g. `"Settings"`). Serializable, so the
+   * popup menu window (a separate JS realm — S15) can resolve the icon by name
+   * via {@link resolveLucideIcon} rather than receiving a React component.
+   */
+  iconName: string;
 }
 
 export const SYSTEM_TOOLS: SystemToolItem[] = [
-  { id: "tool-workspace-setup", label: "Workspace Setup", actionId: ACTION_OPEN_WORKSPACE_SETUP, Icon: Settings },
-  { id: "tool-data-providers", label: "Data Providers", actionId: ACTION_OPEN_DATA_PROVIDERS, Icon: Database },
-  { id: "tool-config-browser", label: "Config Browser", actionId: ACTION_OPEN_CONFIG_BROWSER, Icon: FolderSearch },
-  { id: "tool-reload-dock", label: "Reload Dock", actionId: ACTION_RELOAD_DOCK, Icon: RefreshCw },
-  { id: "tool-devtools", label: "Developer Tools", actionId: ACTION_SHOW_DEVTOOLS, Icon: Code2 },
-  { id: "tool-inspect-shared-worker", label: "Inspect Shared Worker", actionId: ACTION_INSPECT_SHARED_WORKER, Icon: Bug },
-  { id: "tool-export-config", label: "Export Config", actionId: ACTION_EXPORT_CONFIG, Icon: Download },
-  { id: "tool-import-config", label: "Import Config", actionId: ACTION_IMPORT_CONFIG, Icon: Upload },
-  { id: "tool-toggle-provider", label: "Show/Hide Provider", actionId: ACTION_TOGGLE_PROVIDER, Icon: Eye },
+  { id: "tool-workspace-setup", label: "Workspace Setup", actionId: ACTION_OPEN_WORKSPACE_SETUP, Icon: Settings, iconName: "Settings" },
+  { id: "tool-data-providers", label: "Data Providers", actionId: ACTION_OPEN_DATA_PROVIDERS, Icon: Database, iconName: "Database" },
+  { id: "tool-config-browser", label: "Config Browser", actionId: ACTION_OPEN_CONFIG_BROWSER, Icon: FolderSearch, iconName: "FolderSearch" },
+  { id: "tool-reload-dock", label: "Reload Dock", actionId: ACTION_RELOAD_DOCK, Icon: RefreshCw, iconName: "RefreshCw" },
+  { id: "tool-devtools", label: "Developer Tools", actionId: ACTION_SHOW_DEVTOOLS, Icon: Code2, iconName: "Code2" },
+  { id: "tool-inspect-shared-worker", label: "Inspect Shared Worker", actionId: ACTION_INSPECT_SHARED_WORKER, Icon: Bug, iconName: "Bug" },
+  { id: "tool-export-config", label: "Export Config", actionId: ACTION_EXPORT_CONFIG, Icon: Download, iconName: "Download" },
+  { id: "tool-import-config", label: "Import Config", actionId: ACTION_IMPORT_CONFIG, Icon: Upload, iconName: "Upload" },
+  { id: "tool-toggle-provider", label: "Show/Hide Provider", actionId: ACTION_TOGGLE_PROVIDER, Icon: Eye, iconName: "Eye" },
 ];

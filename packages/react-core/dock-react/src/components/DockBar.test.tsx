@@ -1,15 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { render, screen, act, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { DockEditorConfig } from "@starui/openfin-platform/config";
-import type { DockController, DockTheme } from "../types";
-import { SYSTEM_TOOLS } from "../systemTools";
+import type { DockController, DockMenuResult, DockTheme } from "../types";
 import { DockBar } from "./DockBar";
 
-/** A fake controller that records dispatches and drives theme manually. */
+/**
+ * A fake controller: records dispatches, drives theme manually, and stands in
+ * for the popout-menu seam (S15) — `openMenu` resolves with a configurable
+ * result so we can assert the bar maps it to the right dispatch.
+ */
 function makeController(initialTheme: DockTheme = "dark") {
   const listeners = new Set<(t: DockTheme) => void>();
   let theme = initialTheme;
+  let menuResult: DockMenuResult | null = null;
   const controller: DockController = {
     dispatchAction: vi.fn(),
     getTheme: () => theme,
@@ -21,9 +25,15 @@ function makeController(initialTheme: DockTheme = "dark") {
       listeners.add(l);
       return () => listeners.delete(l);
     },
+    openMenu: vi.fn(async () => menuResult),
+    promptText: vi.fn(async () => null),
   };
   return {
     controller,
+    /** Set what the next `openMenu` resolves with. */
+    setMenuResult(r: DockMenuResult | null) {
+      menuResult = r;
+    },
     /** Simulate an external (other-window) theme broadcast. */
     pushTheme(next: DockTheme) {
       theme = next;
@@ -91,26 +101,29 @@ describe("DockBar", () => {
     expect(controller.dispatchAction).toHaveBeenCalledWith("launch-app", { appId: "blotter" });
   });
 
-  it("opens the Tools menu and dispatches a system action (S6/S7)", async () => {
-    const { controller } = makeController();
+  it("opens the Tools menu as a popout and dispatches the chosen action (S6/S15)", async () => {
+    const { controller, setMenuResult } = makeController();
+    setMenuResult({ id: "tool-reload-dock", actionId: "reload-dock" });
     render(<DockBar config={config} controller={controller} />);
 
     await user.click(screen.getByLabelText("Tools"));
-    // All nine tools render.
-    for (const tool of SYSTEM_TOOLS) {
-      expect(screen.getByText(tool.label)).toBeTruthy();
-    }
-    await user.click(screen.getByText("Reload Dock"));
-    expect(controller.dispatchAction).toHaveBeenCalledWith("reload-dock", undefined);
+    expect(controller.openMenu).toHaveBeenCalled();
+    // The model handed to the popup is the Tools model (carries the system actions).
+    const model = (controller.openMenu as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(model.items.some((i: { actionId?: string }) => i.actionId === "reload-dock")).toBe(true);
+    await waitFor(() =>
+      expect(controller.dispatchAction).toHaveBeenCalledWith("reload-dock", undefined),
+    );
   });
 
-  it("opens a user dropdown and dispatches a leaf option (S6/S7)", async () => {
-    const { controller } = makeController();
+  it("opens a launcher dropdown as a popout and dispatches the chosen leaf (S6/S15)", async () => {
+    const { controller, setMenuResult } = makeController();
+    setMenuResult({ id: "opt-1", actionId: "do-one" });
     render(<DockBar config={config} controller={controller} />);
 
     await user.click(screen.getByLabelText("My Tools"));
-    await user.click(screen.getByText("Option One"));
-    expect(controller.dispatchAction).toHaveBeenCalledWith("do-one", undefined);
+    expect(controller.openMenu).toHaveBeenCalled();
+    await waitFor(() => expect(controller.dispatchAction).toHaveBeenCalledWith("do-one", undefined));
   });
 
   it("toggles the theme via the controller (S8)", async () => {
@@ -119,7 +132,6 @@ describe("DockBar", () => {
 
     await user.click(screen.getByLabelText("Switch to light theme"));
     expect(controller.toggleTheme).toHaveBeenCalledOnce();
-    // The toggle re-rendered to offer the opposite direction.
     expect(screen.getByLabelText("Switch to dark theme")).toBeTruthy();
   });
 
@@ -130,5 +142,12 @@ describe("DockBar", () => {
 
     act(() => pushTheme("light"));
     expect(screen.getByLabelText("Switch to dark theme")).toBeTruthy();
+  });
+
+  it("reports its content size to the host for window auto-sizing (S14)", () => {
+    const { controller } = makeController();
+    const resizeToContent = vi.fn();
+    render(<DockBar config={config} controller={{ ...controller, resizeToContent }} />);
+    expect(resizeToContent).toHaveBeenCalled();
   });
 });

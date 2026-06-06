@@ -24,6 +24,9 @@ const ConfigBrowser   = React.lazy(() => import("./views/ConfigBrowser"));
 const RenameViewTab   = React.lazy(() => import("./views/RenameViewTab"));
 const BlottersMarketsGrid = React.lazy(() => import("./views/BlottersMarketsGrid"));
 const DataProviders = React.lazy(() => import("./views/DataProviders"));
+const DockHost      = React.lazy(() => import("./views/DockHost"));
+const DockMenuWindow   = React.lazy(() => import("./views/DockMenuWindow"));
+const DockPromptWindow = React.lazy(() => import("./views/DockPromptWindow"));
 
 const ImportConfig = React.lazy(() =>
   import("@starui/workspace-setup-react").then((m) => ({ default: m.ImportConfig })),
@@ -91,6 +94,11 @@ root.render(
                 </React.Suspense>
               }
             />
+            <Route path="/dock" element={<React.Suspense fallback={LOADING}><DockHost /></React.Suspense>} />
+            {/* Popup menus: no "Loading…" fallback — an empty frame reads as a
+                momentary blank popup, not a stray message inside the menu. */}
+            <Route path="/dock/menu" element={<React.Suspense fallback={null}><DockMenuWindow /></React.Suspense>} />
+            <Route path="/dock/prompt" element={<React.Suspense fallback={null}><DockPromptWindow /></React.Suspense>} />
             <Route path="/config-browser" element={<React.Suspense fallback={LOADING}><ConfigBrowser /></React.Suspense>} />
             <Route path="/import-config" element={<React.Suspense fallback={LOADING}><ImportConfig /></React.Suspense>} />
             <Route path="/workspace-setup" element={<React.Suspense fallback={LOADING}><WorkspaceSetup /></React.Suspense>} />

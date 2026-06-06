@@ -674,26 +674,108 @@ Per-renderer config types (`PillRendererConfig`,
 **Purpose:** Custom OpenFin dock UI — the React surface for the
 `dockVersion: "custom"` dock (a frameless, always-on-top window we render
 ourselves). OpenFin-free: all side-effects cross an injected `DockController`,
-so the bar is fully unit-testable without a runtime. Not yet mounted in a window
-(Phase 0 wires the `/dock` host).
+so the bar is fully unit-testable without a runtime. Mounted live in the `/dock`
+window by the reference app's `DockHost` + `OpenFinDockController` (Phase 0/S3),
+which binds the controller to the provider↔dock action-dispatch channel and
+feeds live config (initial pull + provider pushes on editor save / import) over
+the same channel (Phase 2/S9) — so `<DockBar config=…>` rebuilds when the
+existing dock editor saves.
 
 #### Dock bar
 
 - `DockBar` — composes launcher buttons + dropdowns + Tools menu + theme toggle;
-  design-system token surface, dark/light compliant
-- `DockLauncherButton` / `DockDropdownButton` — top-level action button / nested
-  dropdown (shadcn `DropdownMenu`, arbitrary nesting)
-- `DockToolsMenu` + `SYSTEM_TOOLS` — the 9 system tool actions (lucide icons)
+  design-system token surface, dark/light compliant. **Floating, draggable,
+  content-sized** (S14): `inline-flex w-fit min-w-[220px]`, rounded/bordered, a
+  `GripVertical` affordance, and a `-webkit-app-region: drag` surface (interactive
+  groups opt out with `no-drag`); measures itself via `useDockAutoSize` →
+  `DockController.resizeToContent` so the frameless window grows with its buttons
+- `DockLauncherButton` — top-level action button
+- `DockDropdownButton` — launcher dropdown trigger; opens its (possibly nested)
+  menu as an OpenFin **popup window** via `DockController.openMenu` (S15 —
+  popouts, so menus aren't clipped by the small floating dock)
+- `DockToolsMenu` + `SYSTEM_TOOLS` — the 9 system tool actions (lucide icons,
+  serializable `iconName`); opens as a popout (`openMenu`) since S15
 - `DockThemeToggle` — sun-while-dark / moon-while-light toggle
+- `DockNotificationsButton` — bell + live unread badge (`useNotificationsCount`
+  over a `NotificationController`; hidden at 0, clamps `99+`), click toggles the
+  notification center (S16); rendered by `DockBar` when a `notificationController`
+  prop is supplied
+- `DockSystemButton` — fixed icon button for a built-in action; used for the
+  default **Home** + **Store** workspace-component buttons (S17,
+  `ACTION_SHOW_HOME` / `ACTION_SHOW_STORE`). `DockBar` renders the default dock
+  buttons in native order: Home, Workspaces, Notifications, Store (+ Tools, theme)
+- `DockWorkspaceSwitcher` — themed saved-workspace switcher (replaces dock2/dock3's
+  native `switchWorkspace`); opens a popout (`openMenu`) with **full native
+  workspace-management parity** (S17): list with active check (`isActiveWorkspace`)
+  + 1-click **Switch** (`applyWorkspace({skipPrompt})`), **Save** (update active),
+  **Save workspace as…** (text-prompt popup via `DockController.promptText`),
+  **Manage workspaces ▸** per-workspace **Rename…** + **Delete ▸ Confirm**, and
+  **Restore last saved**; backed by `WorkspaceController` (apply / save / saveAs /
+  rename / delete / restore). Rendered by `DockBar` when a `workspaceController`
+  prop is supplied
+- `DockAppSwitcher` — running-app switcher popout (S19): lists running apps with
+  the active one checked (`useRunningApps` + `appSwitcherMenuModel`); selecting a
+  row calls `AppSwitcherController.switchToApp(id)`, which swaps the dock's
+  per-app config scope; rendered by `DockBar` when an `appSwitcherController` prop
+  is supplied
+- `DockMenuView` — plain themed menu list rendered inside the popup window
+  (lucide-by-name + image icons, active-check column, separators, submenu
+  drill-down); no Radix (S15); compact `13px` rows
+- Dock buttons carry native `title` tooltips (OS-level — Radix tooltips would be
+  clipped by the small frameless window)
 - `DockIcon` — renders a theme-aware `{dark,light}` icon spec
+
+#### Popout menu model (S15)
+
+- `toolsMenuModel` / `dropdownMenuModel` / `workspaceMenuModel` — pure builders
+  producing a **serializable** `DockMenuModel` (`DockMenuItem[]` + theme) that
+  crosses the window boundary as `customData`; `WORKSPACE_MENU_SAVE_AS` /
+  `WORKSPACE_MENU_RESTORE` / `WORKSPACE_MENU_APPLY_PREFIX` map the chosen
+  `DockMenuResult` back to a workspace action
+- Types: `DockMenuItem`, `DockMenuModel`, `DockMenuResult`, `DockMenuAnchor`,
+  `DockPromptOptions`
 
 #### Mapping & control seam
 
 - `dockConfigToViewModel` / `resolveDockIcon` — pure `DockEditorConfig` → render
   model (theme-aware icon URLs)
 - `DockController` — injected OpenFin boundary (`dispatchAction`, `getTheme`,
-  `toggleTheme`, `onThemeChanged`)
+  `toggleTheme`, `onThemeChanged`, optional `resizeToContent` for floating-window
+  auto-sizing, and optional `openMenu` / `promptText` for popout menus + the
+  Save-As text prompt — S15)
 - `useDockTheme` — track live theme through the controller
+- `useDockAutoSize` — observe the bar (ResizeObserver, jsdom-safe) and report its
+  content size to `DockController.resizeToContent` (S14)
+- `NotificationController` + `useNotificationsCount` — injected notifications
+  boundary (`getNotificationsCount` / `onCountChanged` / `toggleNotificationCenter`)
+  + hook that seeds and live-updates the bell badge (S16)
+
+#### Workspace switcher (data layer)
+
+- `workspaceSwitcherReducer` — pure reducer for the saved-workspace list + active
+  id, with the `UNTITLED_WORKSPACE_ID` checkmark-reset (untitled/empty → no
+  active) and deleted-active reset; `initialWorkspaceSwitcherState`,
+  `isActiveWorkspace` selector
+- `useSavedWorkspaces` — track the saved list + active workspace through an
+  injected `WorkspaceController`, re-reading on `onWorkspaceChanged`
+- `WorkspaceController` — injected OpenFin boundary (`listWorkspaces`,
+  `getActiveWorkspaceId`, `onWorkspaceChanged`, `applyWorkspace`,
+  `saveWorkspaceAs`, `restoreLastSavedWorkspace`, `saveWorkspace`,
+  `renameWorkspace`, `deleteWorkspace` — native parity, S17);
+  `SavedWorkspace` (`{id,title}`), `ApplyWorkspaceOptions` (`{skipPrompt}`)
+
+#### App switcher (data layer, S18)
+
+- `runningAppsReducer` — pure reducer for the running-app list + active id, with
+  a closed-app active-reset and the **active ∈ running ∪ {null}** invariant
+  enforced in both `set-apps` and `set-active`; `initialRunningAppsState`,
+  `isActiveApp` selector
+- `useRunningApps` — track the running apps + active one through an injected
+  `AppSwitcherController`, re-reading on `onRunningAppsChanged`
+- `AppSwitcherController` — injected OpenFin boundary (`listRunningApps`,
+  `getActiveAppId`, `onRunningAppsChanged`, `switchToApp` — S19, =
+  `setPlatformDefaultScope` + reload bar from that scope's config);
+  `appSwitcherMenuModel` + `APP_SWITCHER_PREFIX` builders; `RunningApp` (`{id,title}`)
 
 ---
 
@@ -1313,7 +1395,7 @@ so the bar is fully unit-testable without a runtime. Not yet mounted in a window
 - Dock button types: action, dropdown, folder
 - `DockEditorConfig`, `DockButtonConfig`, `DockActionButtonConfig`, `DockDropdownButtonConfig`, `DockMenuItemConfig`
 - Top-level dropdowns render on the dock bar as icon-bearing folders (dock3 path) — `toDock3Favorites` emits each `DropdownButton` (and the system "Tools" group) as a `DockEntry` folder with its icon, linked by id to the matching content-menu folder that owns the children. Works around OpenFin's `ContentMenuEntry` folder shape having no icon field; the dock-bar `DockEntry` folder does.
-- Dock implementation toggle — `customSettings.dockVersion: "dock2" | "dock3"` (default `"dock2"`). `"dock2"` uses the classic `Dock.register` API: top-level DropdownButtons render directly on the dock bar as icon dropdowns whose options carry icons, with a normal flyout (no two-column content menu). `"dock3"` uses `Dock.init` with the content-menu/favorites model. Both read the same dock config; only the registration + rendering differ. Classic button clicks dispatch through the same `buildCustomActions` platform actions (including the theme toggle).
+- Dock implementation toggle — `customSettings.dockVersion: "dock2" | "dock3" | "custom"` (default `"dock2"`). `"dock2"` uses the classic `Dock.register` API: top-level DropdownButtons render directly on the dock bar as icon dropdowns whose options carry icons, with a normal flyout (no two-column content menu). `"dock3"` uses `Dock.init` with the content-menu/favorites model. `"custom"` is a frameless, always-on-top window we render ourselves (the `@starui/dock-react` surface) — `registerDock` branches to `registerDockCustom`, which caches settings + loads `lastEditorConfig` and launches a frameless, always-on-top OpenFin window (`fin.Window.create`) at the `/dock` route as a **floating, draggable, content-sized** bar (Phase 0/S2; floating since the S14 UX rework): `computeCustomDockBounds` opens it compact (`CUSTOM_DOCK_MIN_WIDTH = 220`) centred near the primary monitor's top via `fin.System.getMonitorInfo` (no longer pinned/spanning the top edge), the bar is dragged via `-webkit-app-region`, and `DockBar` measures itself (`useDockAutoSize`) and grows the window through `DockController.resizeToContent` → `Window.resizeTo(w, h, "top-left")`. The dock window is a **per-platform singleton**: `launchCustomDockWindow` collapses concurrent/re-entrant launches onto one in-flight promise (`customDockLaunch`) and focuses any existing window by name, so exactly one dock exists per platform run and every app/view shares it via the provider channel (cleared on teardown). The dock window is a **separate** OpenFin window, so `registerDockCustom` also opens an OpenFin Channel (`registerCustomDockChannel`, channel name `CHANNEL_CUSTOM_DOCK`) over which the window's `<DockBar>` round-trips every click — `client.dispatch(CUSTOM_DOCK_DISPATCH_ACTION, {actionId, customData})` lands provider-side and routes through the same `dockActionHandlers` dock2/dock3 use, except `ACTION_TOGGLE_THEME` which is intercepted by `toggleCustomDockTheme` (flips the platform scheme + broadcasts `IAB_THEME_CHANGED` from the provider window — the dock window can't do either) (Phase 0/S3). The same channel carries config: `get-config` (`CUSTOM_DOCK_GET_CONFIG`) returns the provider's scoped `lastEditorConfig` for the dock window's initial load, and `pushCustomDockConfig` publishes `config-push` (`CUSTOM_DOCK_CONFIG_PUSH`) whenever `subscribeDockIab` refreshes `lastEditorConfig` on editor-save (`IAB_DOCK_CONFIG_UPDATE`) / import (`IAB_RELOAD_AFTER_IMPORT`) — so the existing dock editor drives the custom dock unchanged (Phase 2/S9). `shutdownDock`/`reloadDockFromConfig`/`applyDockConfig` carry `"custom"` branches (close-window + channel-destroy on teardown; `reloadDockFromConfig` pushes the reloaded config; `applyDockConfig` is a theme-only no-op since the dock window recolours itself via `useDockTheme`). Window geometry is provider-owned (Phase 2/S10): `resolveCustomDockBounds` restores the saved position when it's still on-screen (`boundsAreOnScreen` validates against `getMonitorInfo`) else edge-places; a debounced `bounds-changed` listener persists drags via `saveDockWindowBounds`; `reassertCustomDockAlwaysOnTop` re-applies `alwaysOnTop` on the bar's focus/shown; and `setCustomDockShown(show)` (wired to the "Show/Hide Provider" action) shows/hides the bar with the provider window. Workspace switcher (Phase 3/S12): the same channel carries `list-workspaces` / `get-active-workspace` / `apply-workspace` so the dock window's `DockWorkspaceSwitcher` lists, checkmarks, and switches saved workspaces against the provider's workspace-platform `Storage` API (`getWorkspacesMetadata` / `getWorkspace` / `getCurrentWorkspace` / `applyWorkspace({skipPrompt})`); the provider publishes `workspace-changed` after a switch and from `workspace.ts`'s empty-desktop reset (`resetActiveWorkspaceWhenEmpty`) so the switcher clears its checkmark — the themed replacement for dock2/dock3's native `switchWorkspace` component. Save-As + Restore (Phase 3/S13): `save-workspace-as` (`saveCustomDockWorkspaceAs`) captures the live `getCurrentWorkspace()` snapshot and persists a new workspace under a fresh GUID + the user's title via `Storage.createWorkspace` (the ConfigService-backed override), marks it active, and pushes a change; `restore-last-saved` (`restoreCustomDockLastSaved`) re-applies the last saved version via `restoreLastSavedWorkspace({skipPrompt})`. All three read the same dock config; only the registration + rendering differ. Classic button clicks dispatch through the same `buildCustomActions` platform actions (including the theme toggle).
 - `toDock2Buttons` / `toDock2Option` — convert `DockEditorConfig` to classic `Dock2Button[]` (action buttons + nested icon dropdowns), theme-resolved.
 
 #### Inter-App Bus topics
@@ -1322,6 +1404,14 @@ so the bar is fully unit-testable without a runtime. Not yet mounted in a window
 - `IAB_RELOAD_AFTER_IMPORT`
 - `IAB_THEME_CHANGED`
 - `IAB_REGISTRY_CONFIG_UPDATE`
+- `CHANNEL_CUSTOM_DOCK` / `CUSTOM_DOCK_DISPATCH_ACTION` / `CUSTOM_DOCK_GET_CONFIG` / `CUSTOM_DOCK_CONFIG_PUSH` — OpenFin Channel name + actions the custom dock window uses (dispatch actions, pull initial config, receive live config pushes; custom dock only; pure strings, also exported via the `/config` subpath)
+- `CUSTOM_DOCK_LIST_WORKSPACES` / `CUSTOM_DOCK_GET_ACTIVE_WORKSPACE` / `CUSTOM_DOCK_APPLY_WORKSPACE` / `CUSTOM_DOCK_WORKSPACE_CHANGED` — workspace-switcher channel actions (Phase 3/S12): the dock window lists / reads-active / applies workspaces via the provider (which owns the workspace-platform `Storage` API + `applyWorkspace`/`getCurrentWorkspace`), and the provider pushes `workspace-changed` after a switch or the empty-desktop reset so the switcher moves its checkmark (custom dock only; pure strings, also exported via the `/config` subpath)
+- `CUSTOM_DOCK_SAVE_WORKSPACE_AS` / `CUSTOM_DOCK_RESTORE_LAST_SAVED` — save-as + restore channel actions (Phase 3/S13): `save-workspace-as` captures `getCurrentWorkspace()` and persists a new workspace under a fresh id + the user's title via `Storage.createWorkspace`, then `setActiveWorkspace` + pushes `workspace-changed`; `restore-last-saved` calls `restoreLastSavedWorkspace({skipPrompt})` and pushes a change (custom dock only; pure strings, also exported via the `/config` subpath)
+- `CUSTOM_DOCK_GET_NOTIF_COUNT` / `CUSTOM_DOCK_TOGGLE_NOTIF_CENTER` / `CUSTOM_DOCK_NOTIF_COUNT_CHANGED` — notifications-bell channel actions (Phase 4/S16): the dock window pulls the count / toggles the center via the provider's `@openfin/notifications` client (`getNotificationsCount` / `toggleNotificationCenter`), and the provider pushes `notif-count-changed` `{count}` from the `notifications-count-changed` event so the bell badge stays live (custom dock only; pure strings, also exported via the `/config` subpath)
+- `CUSTOM_DOCK_SAVE_WORKSPACE` / `CUSTOM_DOCK_RENAME_WORKSPACE` / `CUSTOM_DOCK_DELETE_WORKSPACE` — workspace-management channel actions for native parity (Phase 4/S17): save (update) the active workspace (`Storage.saveWorkspace`), rename (`updateWorkspace`), delete (`deleteWorkspace`); each pushes `workspace-changed` (custom dock only; pure strings, also exported via the `/config` subpath)
+- `ACTION_SHOW_HOME` / `ACTION_SHOW_STORE` — action IDs for the default Home / Store dock buttons (dispatched over the normal action channel → `dockActionHandlers` → `Home.show()` / `Storefront.show()`; Phase 4/S17)
+- `CUSTOM_DOCK_LIST_RUNNING_APPS` / `CUSTOM_DOCK_GET_ACTIVE_APP` / `CUSTOM_DOCK_SWITCH_APP` / `CUSTOM_DOCK_RUNNING_APPS_CHANGED` — app-switcher channel actions (Phase 5/S19): the dock lists running apps (configured apps ∩ `fin.System.getAllApplications()`, best-effort) / reads the active scope's appId / switches the dock to an app (`setPlatformDefaultScope` + reload), and the provider pushes `running-apps-changed` on `fin.System` running-app events (custom dock only; pure strings, also exported via the `/config` subpath)
+- `UNTITLED_WORKSPACE_ID` — sentinel for the "nothing-saved-open" active workspace (no switcher checkmark); shared by `workspace.ts`'s empty-desktop reset and the dock-react switcher reducer (pure string, `/config` subpath)
 - `ACTION_OPEN_REGISTRY_EDITOR`
 - `ACTION_OPEN_CONFIG_BROWSER`
 - `ACTION_LAUNCH_COMPONENT`
@@ -1330,6 +1420,7 @@ so the bar is fully unit-testable without a runtime. Not yet mounted in a window
 #### Persistence (config service backed)
 
 - `saveDockConfig` / `loadDockConfig` / `clearDockConfig`
+- `saveDockWindowBounds` / `loadDockWindowBounds` — custom dock window position (`DockWindowBounds`); restored on launch when still on-screen
 - `saveRegistryConfig` / `loadRegistryConfig` / `clearRegistryConfig`
 - `getConfigManager` — resolve `ConfigClient` for current scope
 - `setConfigManager` — override `ConfigClient`

@@ -24,6 +24,7 @@ export function DockLauncherButton({ item, theme, onDispatch }: DockLauncherButt
           variant="ghost"
           size="icon"
           aria-label={item.label}
+          title={item.label}
           data-dock-item={item.id}
           onClick={() => onDispatch(item.actionId, item.customData)}
           className="h-8 w-8 text-[var(--ds-text-secondary)] hover:text-[var(--ds-text-primary)]"
