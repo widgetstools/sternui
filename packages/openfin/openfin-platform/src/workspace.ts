@@ -2,7 +2,7 @@
 declare const fin: any;
 import type OpenFin from "@openfin/core";
 import { Home, Storefront, type App } from "@openfin/workspace";
-import { init, type WorkspacePlatformOverrideCallback } from "@openfin/workspace-platform";
+import { init, getCurrentSync, type WorkspacePlatformOverrideCallback } from "@openfin/workspace-platform";
 import { createConfigManager, type ConfigManager } from "@starui/host-config";
 import {
   setConfigManager,
@@ -687,6 +687,56 @@ const dockActionHandlers: Record<string, (customData?: any) => Promise<void>> = 
 
 // ─── Workspace component registration ────────────────────────────────
 
+// Sentinel id for the "untitled" (nothing-open) workspace. OpenFin
+// assigns GUIDs to saved workspaces, so this constant never collides —
+// while it's the active workspace, the switchWorkspace dock menu shows
+// no checkmark.
+const UNTITLED_WORKSPACE_ID = "untitled-workspace";
+
+// Set while the platform is tearing down (provider window close-requested
+// → quit). During quit every Browser window closes, which would otherwise
+// trip the empty-desktop reset below mid-teardown; skip it then.
+let platformQuitting = false;
+
+/**
+ * Reset the platform's active-workspace pointer to an untitled workspace
+ * once the last Browser window closes.
+ *
+ * OpenFin has no notion of a workspace being "closed" — only switched.
+ * `applyWorkspace` marks a workspace active (and checked in the
+ * switchWorkspace dock menu), and nothing clears that pointer when the
+ * user closes the workspace's window, so the menu keeps showing a stale
+ * checkmark. We watch `window-closed` and, once no Browser windows
+ * remain, set an untitled workspace active so the menu reflects that
+ * nothing is open.
+ *
+ * `getInitialWorkspace()` is not a public API (see the WorkspacePlatform-
+ * Module docs), so we synthesise a minimal valid `Workspace`
+ * ({ workspaceId, title, snapshot } — the documented required fields)
+ * from a live (empty) snapshot. Best-effort: a failure here must never
+ * surface to the user.
+ */
+async function resetActiveWorkspaceWhenEmpty(closedWindowName?: string): Promise<void> {
+  if (platformQuitting) return;
+  try {
+    const platform = getCurrentSync();
+    const windows = await platform.Browser.getAllWindows();
+    const remaining = closedWindowName
+      ? windows.filter((w: any) => w?.identity?.name !== closedWindowName)
+      : windows;
+    if (remaining.length > 0) return;
+
+    const snapshot = await platform.getSnapshot();
+    await platform.setActiveWorkspace({
+      workspaceId: UNTITLED_WORKSPACE_ID,
+      title: "Untitled",
+      snapshot,
+    } as any);
+  } catch (err) {
+    console.warn("[workspace] resetActiveWorkspaceWhenEmpty failed (ignored):", err);
+  }
+}
+
 /**
  * Register each enabled workspace component (Home, Store, Dock, Notifications)
  * and set up a cleanup handler for when the provider window is closed.
@@ -736,9 +786,21 @@ async function initializeWorkspaceComponents(
     await registerNotifications();
   }
 
+  // Clear the stale switchWorkspace checkmark once the user closes the
+  // last workspace (Browser) window — see resetActiveWorkspaceWhenEmpty.
+  try {
+    const platform = getCurrentSync();
+    platform.on("window-closed", (evt: any) => {
+      void resetActiveWorkspaceWhenEmpty(evt?.name);
+    });
+  } catch (err) {
+    console.warn("[workspace] failed to wire window-closed reset (ignored):", err);
+  }
+
   // Clean up all registered components when the provider window closes
   const providerWindow = fin.Window.getCurrentSync();
   await providerWindow.once("close-requested", async () => {
+    platformQuitting = true;
     if (components.home) await Home.deregister(platformSettings.id);
     if (components.store) await Storefront.deregister(platformSettings.id);
     if (components.dock) await shutdownDock();
