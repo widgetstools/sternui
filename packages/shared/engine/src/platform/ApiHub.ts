@@ -54,12 +54,14 @@ export class ApiHub implements IApiHub {
     return () => this.readyHandlers.delete(fn);
   }
 
-  on(evt: ApiEventName, fn: () => void): () => void {
+  on(evt: ApiEventName, fn: (event?: unknown) => void): () => void {
     const attach = (api: GridApi): (() => void) => {
       try {
         // AG-Grid's addEventListener typing accepts known names via string
-        // literal types; we narrow via the ApiEventName union.
-        (api.addEventListener as (e: string, f: () => void) => void)(evt, fn);
+        // literal types; we narrow via the ApiEventName union. AG calls the
+        // listener with the event object — forwarded so delta-carrying events
+        // (asyncTransactionsFlushed) can read their payload.
+        (api.addEventListener as (e: string, f: (event?: unknown) => void) => void)(evt, fn);
       } catch {
         /* api mid-teardown / event unsupported — degrade silently */
       }
@@ -70,7 +72,7 @@ export class ApiHub implements IApiHub {
         const maybeDestroyed = (api as unknown as { isDestroyed?: () => boolean }).isDestroyed;
         if (typeof maybeDestroyed === 'function' && maybeDestroyed.call(api)) return;
         try {
-          (api.removeEventListener as (e: string, f: () => void) => void)(evt, fn);
+          (api.removeEventListener as (e: string, f: (event?: unknown) => void) => void)(evt, fn);
         } catch { /* ignore */ }
       };
     };

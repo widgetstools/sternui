@@ -10,6 +10,7 @@ import type {
   GetRowIdParams,
   GridApi,
   GridOptions,
+  IRowNode,
 } from 'ag-grid-community';
 /**
  * Framework-agnostic component slot. The `Module` interface accepts
@@ -89,6 +90,7 @@ export type ApiEventName =
   | 'firstDataRendered'
   | 'modelUpdated'
   | 'rowDataUpdated'
+  | 'asyncTransactionsFlushed'
   | 'rowValueChanged';
 
 export interface ApiHub {
@@ -99,11 +101,44 @@ export interface ApiHub {
   /** Fire `fn` every time a grid mounts (or immediately if already ready).
    *  Returns a disposer. */
   onReady(fn: (api: GridApi) => void): () => void;
-  /** Subscribe to an AG-Grid event. Returns a disposer. */
-  on(evt: ApiEventName, fn: () => void): () => void;
+  /** Subscribe to an AG-Grid event. Returns a disposer. The handler receives
+   *  the raw AG-Grid event object; most callers ignore it (a `() => void`
+   *  handler is assignable here), but delta-carrying events like
+   *  `asyncTransactionsFlushed` expose their payload through it. */
+  on(evt: ApiEventName, fn: (event?: unknown) => void): () => void;
   /** Run `fn` with the live api (null-safe). Returns `fallback` when api
    *  hasn't mounted. Pure — never subscribes. */
   use<T>(fn: (api: GridApi) => T, fallback: T): T;
+}
+
+// ─── Shared row-change signal ──────────────────────────────────────────────
+
+/**
+ * The per-frame, rAF-coalesced summary of what changed in the grid's row
+ * model, emitted by the platform's shared `RowChangeBus`. It exists so that
+ * data-reactive modules (alerts, conditional-styling, filter counts) DON'T
+ * each wire their own `modelUpdated` listener and walk every row on every
+ * streaming tick — instead they subscribe once and act on the delta.
+ *
+ * Two shapes:
+ *   - **delta** (`full === false`): `added` / `updated` / `removed` carry the
+ *     exact row nodes from the streaming `applyTransactionAsync` flush. This
+ *     is the hot path — subscribers evaluate ONLY these nodes.
+ *   - **full** (`full === true`): a structural change (sort / filter /
+ *     `setRowData`) where the per-row delta is unknown. Rare, user-driven.
+ *     Subscribers that need correctness fall back to a whole-grid pass.
+ */
+export interface RowChange {
+  readonly added: ReadonlyArray<IRowNode>;
+  readonly updated: ReadonlyArray<IRowNode>;
+  readonly removed: ReadonlyArray<IRowNode>;
+  readonly full: boolean;
+}
+
+export interface RowChangeSignal {
+  /** Subscribe to the coalesced per-frame row-change summary. Returns a
+   *  disposer. Fires at most once per animation frame. */
+  subscribe(fn: (change: RowChange) => void): () => void;
 }
 
 // ─── Resource scope ───────────────────────────────────────────────────────
@@ -118,6 +153,12 @@ export interface ExpressionEngineLike {
   parse(source: string): unknown;
   evaluate(node: unknown, ctx: unknown): unknown;
   parseAndEvaluate(source: string, ctx: unknown): unknown;
+  /** Compile once to a reusable `(ctx) => value` closure — prefer on hot paths.
+   *  `ctx` is `any` (not `unknown`) so the concrete engine's
+   *  `(ctx: EvaluationContext) => unknown` stays assignable to this narrow,
+   *  expression-type-free interface. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  compile(source: string): (ctx: any) => unknown;
   validate(source: string): { valid: boolean; errors: Array<{ message: string; position: number; length: number }> };
 }
 
@@ -205,6 +246,9 @@ export interface PlatformHandle<S> {
   readonly api: ApiHub;
   readonly resources: ResourceScope;
   readonly events: EventBus<PlatformEventMap>;
+  /** Shared, rAF-coalesced row-change signal. Subscribe here instead of
+   *  wiring a private `modelUpdated` listener that walks every row per tick. */
+  readonly rows: RowChangeSignal;
   /** Read + write THIS module's state. */
   getState(): S;
   setState(updater: (prev: S) => S): void;

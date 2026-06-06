@@ -16,6 +16,7 @@
 // empty, the ConfigManager fetches the seed file and populates the
 // APP_REGISTRY, USER_PROFILE, and ROLES tables.
 
+import Dexie from 'dexie';
 import { ChangeNotifier } from './changeNotifier';
 import { ConfigDatabase } from './db';
 import { OptimisticLockError } from './errors';
@@ -732,6 +733,34 @@ export class ConfigManager {
    */
   async getConfigsByAppUnfiltered(appId: string): Promise<AppConfigRow[]> {
     return this.db.appConfig.where("appId").equals(appId).toArray();
+  }
+
+  /**
+   * Get every row whose `componentType` is one of `types`, **bypassing the
+   * visibility filter**, via the `[componentType+componentSubType]` index.
+   *
+   * Callers that want a single kind of config (data providers, AppData)
+   * previously did `getAllConfigsUnfiltered()` + an in-memory `componentType`
+   * filter — materialising the ENTIRE appConfig table (every grid profile,
+   * etc.) just to keep a handful of provider rows. This narrows the read to
+   * the matching componentTypes at the index, so it's O(matching rows) instead
+   * of O(all rows). One indexed range scan per type (any `componentSubType`),
+   * results concatenated; a row has exactly one componentType so the groups are
+   * disjoint.
+   */
+  async getConfigsByComponentTypesUnfiltered(
+    types: readonly string[],
+  ): Promise<AppConfigRow[]> {
+    if (types.length === 0) return [];
+    const groups = await Promise.all(
+      types.map((t) =>
+        this.db.appConfig
+          .where("[componentType+componentSubType]")
+          .between([t, Dexie.minKey], [t, Dexie.maxKey], true, true)
+          .toArray(),
+      ),
+    );
+    return groups.flat();
   }
 
   /**

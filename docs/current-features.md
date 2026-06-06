@@ -719,9 +719,10 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Platform runtime
 
-- `GridPlatform` — per-grid singleton (store, api, events, resources, pipeline)
+- `GridPlatform` — per-grid singleton (store, api, events, rows, resources, pipeline)
 - `EventBus<T>` — typed pub-sub (`emit`, `on`, `off`)
-- `ApiHub` — reactive `GridApi` (`attach`, `whenReady`, event subscriptions)
+- `ApiHub` — reactive `GridApi` (`attach`, `whenReady`, event subscriptions; `on` forwards the AG event object)
+- `RowChangeBus` (`platform.rows`, type `RowChangeSignal`) — shared, timer-coalesced row-change emitter. Reads the exact changed nodes from AG `asyncTransactionsFlushed` and emits one `RowChange` (`added`/`updated`/`removed` deltas, or `full` for sort/filter/`setRowData`) per frame, so data-reactive modules (alerts, conditional-styling, filter counts) evaluate only changed rows instead of walking the whole grid on every streaming tick
 - `ResourceScope` — `CssInjector` + `ExpressionEngine` + WeakMap caches
 - `PipelineRunner` — cached transform pipeline for `colDef` + `gridOptions`
 - `topoSortModules()` — topological module-dependency sort
@@ -786,9 +787,18 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Expression engine
 
-- `ExpressionEngine` — CSP-safe parser/evaluator
+- `ExpressionEngine` — CSP-safe parser/evaluator. `parse()` memoizes the AST by
+  source string (immutable ASTs shared across calls), so the per-cell/per-tick
+  `parseAndEvaluate` hot path is a Map lookup, not a re-tokenize+re-parse
+  (benchmarked ~7x faster for a conditional-styling-heavy frame: ~23ms → ~3ms)
 - `tokenize()`, `parse()`, `Evaluator`
+- `compile()` / `compileToFunction()` — compile an AST once into a reusable
+  `(ctx) => value` closure (cached by source); `evalOps` holds the shared
+  operator/resolution semantics both the interpreter and the compiler call, so
+  the two paths are behaviourally identical (parity-tested). Prefer `compile()`
+  at rule/column setup on hot paths (conditional-styling cell/row predicates use it)
 - `tryCompileToAgString()` — transpile to AG Grid `valueFormatter` string
+  (still the FIRST choice — zero per-cell JS; the closure is the fallback)
 - `ExpressionNode`, `EvaluationContext`, `ValidationResult`, `FunctionDefinition`
 - `migrateExpressionSyntax()` — legacy migration
 - Conditional sugar (both desugar to short-circuiting ternaries at parse time, so
@@ -928,6 +938,7 @@ Per-renderer config types (`PillRendererConfig`,
 #### ConfigManager (deprecated lower-level API)
 
 - CRUD for 6 tables: `appConfig`, `appRegistry`, `userProfile`, `roles`, `permissions`, `pendingSync`
+- `getConfigsByComponentTypesUnfiltered(types)` — fetch only the given `componentType`s via the `[componentType+componentSubType]` index (O(matching) not O(all rows)). Used by the data-provider / AppData stores so listing providers reads only provider rows instead of materialising every grid profile in `appConfig`
 - Dev mode (default) — all data in Dexie/IndexedDB
 - REST mode — writes sync to backend with Dexie as local cache
 - Failed REST writes → `PENDING_SYNC` table, auto-retry every 10 s (max 10 retries)

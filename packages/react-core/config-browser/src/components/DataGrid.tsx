@@ -109,11 +109,20 @@ export function DataGrid({
     if (e.data) onRowClick(e.data);
   };
 
+  // Key rows by their primary key so AG Grid diffs an updated `rows` array
+  // (single-row optimistic save/delete) and mutates only the changed row,
+  // instead of re-rendering the whole table on every mutation.
+  const getRowId = useMemo(
+    () => (params: { data: any }) => String(params.data?.[primaryKey]),
+    [primaryKey],
+  );
+
   return (
     <div style={{ flex: 1, minHeight: 0, width: "100%", position: "relative" }}>
       <AgGridReact
         theme={agGridThemeFor(theme)}
         rowData={rows}
+        getRowId={getRowId}
         columnDefs={columnDefs}
         defaultColDef={defaultColDef}
         statusBar={statusBar}

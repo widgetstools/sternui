@@ -662,6 +662,11 @@ function buildCellClassPredicate(
       /* fall through to function form */
     }
   }
+  // Compile ONCE here, not per cell — the closure is reused for every cell this
+  // rule paints. (parseAndEvaluate would hit the engine's parse cache, but
+  // building the closure up front avoids even the per-cell cache lookup and is
+  // behaviourally identical — see compileToFunction parity tests.)
+  const evalRule = engine.compile(rule.expression);
   return (params: CellClassParams) => {
     const data = params.data ?? {};
     const rowDiffs = getOrCreateRowDiffs(params.api, params.node, diffCacheByApi);
@@ -678,7 +683,7 @@ function buildCellClassPredicate(
     );
     try {
       return Boolean(
-        engine.parseAndEvaluate(rule.expression, {
+        evalRule({
           x: params.value,
           value: params.value,
           data,
@@ -708,6 +713,8 @@ export function buildRowClassPredicate(
       );
   }
 
+  // Compile once — reused for every row this rule paints.
+  const evalRule = engine.compile(rule.expression);
   return (params: RowClassParams) => {
     const data = params.data ?? {};
     const rowDiffs = getOrCreateRowDiffs(
@@ -726,7 +733,7 @@ export function buildRowClassPredicate(
     );
     try {
       return Boolean(
-        engine.parseAndEvaluate(rule.expression, {
+        evalRule({
           x: null,
           value: null,
           data,

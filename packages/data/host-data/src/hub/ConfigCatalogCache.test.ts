@@ -30,6 +30,9 @@ function mockConfigManager(rows: AppConfigRow[]): ConfigManager {
     async getAllConfigsUnfiltered() {
       return [...map.values()];
     },
+    async getConfigsByComponentTypesUnfiltered(types: string[]) {
+      return [...map.values()].filter((r) => types.includes(r.componentType));
+    },
     async getConfig(id: string) {
       return map.get(id);
     },
@@ -82,6 +85,7 @@ describe('ConfigCatalogCache', () => {
     const rows = new Map([['p1', stompRow('p1', 'Original')]]);
     const cm = {
       async getAllConfigsUnfiltered() { return [...rows.values()]; },
+    async getConfigsByComponentTypesUnfiltered(types: string[]) { return [...rows.values()].filter((r) => types.includes(r.componentType)); },
       async getConfig(id: string) { return rows.get(id); },
     } as unknown as ConfigManager;
     cache = new ConfigCatalogCache(cm);

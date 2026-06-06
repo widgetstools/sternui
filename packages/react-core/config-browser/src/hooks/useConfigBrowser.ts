@@ -193,6 +193,44 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
     ]);
   }, [hostEnv.appId, selectedKey, loadRows, loadCounts]);
 
+  /**
+   * Post-mutation reconcile WITHOUT re-reading the whole table. A single
+   * save/delete changes one row, but the old path called `refresh()` →
+   * `loadRows()` → `table.toArray()` + a full grid re-render of EVERY row
+   * (measured ~120–200ms of main-thread blocking at 300 rows, O(rows), so a
+   * few-thousand-row config DB stalls ~1–2s on every save). Instead we splice
+   * the one row in/out of the existing `rows` state (re-reading just that row by
+   * key so server-set fields like `updatedAt` are reflected) and refresh the
+   * cheap count() queries — which also catch side-effects like a new
+   * `pendingSync` entry. The grid then diffs a single changed row, not 300.
+   */
+  const upsertRowLocal = useCallback(
+    async (manager: ConfigManager, key: TableKey, keyValue: string | number) => {
+      const meta = TABLES.find((t) => t.key === key)!;
+      const pk = meta.primaryKey;
+      const saved = await tableOf(manager, key).get(keyValue);
+      const inScope =
+        saved != null &&
+        (!meta.scopable || !hostEnv.appId || (saved as any).appId === hostEnv.appId);
+      setRows((prev) => {
+        const idx = prev.findIndex((r) => r[pk] === keyValue);
+        if (!inScope) return idx >= 0 ? prev.filter((_, i) => i !== idx) : prev;
+        if (idx >= 0) {
+          const next = prev.slice();
+          next[idx] = saved;
+          return next;
+        }
+        return [...prev, saved];
+      });
+    },
+    [hostEnv.appId],
+  );
+
+  const removeRowLocal = useCallback((key: TableKey, id: string | number) => {
+    const pk = TABLES.find((t) => t.key === key)!.primaryKey;
+    setRows((prev) => prev.filter((r) => String(r[pk]) !== String(id)));
+  }, []);
+
   const saveRow = useCallback(
     async (row: any) => {
       const manager = managerRef.current;
@@ -218,9 +256,11 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
           await (manager as any).db.pendingSync.put(row);
           break;
       }
-      await refresh();
+      const pk = TABLES.find((t) => t.key === selectedKey)!.primaryKey;
+      await upsertRowLocal(manager, selectedKey, row[pk]);
+      await loadCounts(manager, hostEnv.appId);
     },
-    [selectedKey, refresh],
+    [selectedKey, upsertRowLocal, loadCounts, hostEnv.appId],
   );
 
   const deleteRow = useCallback(
@@ -247,9 +287,10 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
           await (manager as any).db.pendingSync.delete(id);
           break;
       }
-      await refresh();
+      removeRowLocal(selectedKey, id);
+      await loadCounts(manager, hostEnv.appId);
     },
-    [selectedKey, refresh],
+    [selectedKey, removeRowLocal, loadCounts, hostEnv.appId],
   );
 
   /**

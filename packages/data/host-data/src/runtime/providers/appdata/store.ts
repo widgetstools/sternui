@@ -48,7 +48,15 @@ export class AppDataConfigStore {
     // siblings — bypass the per-app/per-owner visibility filter so
     // rows authored under any app surface in {{name.key}} resolution
     // anywhere.
-    const all = await this.cm.getAllConfigsUnfiltered();
+    //
+    // Read ONLY the two componentTypes that can carry AppData (legacy
+    // `appdata` rows + unified `data-provider` rows) via the
+    // `[componentType+componentSubType]` index, rather than scanning every
+    // row (grid profiles included) and filtering in memory.
+    const all = await this.cm.getConfigsByComponentTypesUnfiltered([
+      COMPONENT_TYPE_APPDATA,
+      COMPONENT_TYPE_DATA_PROVIDER,
+    ]);
     const seen = new Set<string>();
     const out: AppDataConfig[] = [];
     for (const row of all) {

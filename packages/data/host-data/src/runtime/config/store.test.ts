@@ -28,6 +28,7 @@ function mockConfigManager(rows: AppConfigRow[] = []): ConfigManager {
   const map = new Map(rows.map((r) => [r.configId, r]));
   return {
     async getAllConfigsUnfiltered() { return [...map.values()]; },
+    async getConfigsByComponentTypesUnfiltered(types: string[]) { return [...map.values()].filter((r) => types.includes(r.componentType)); },
     async getConfig(id: string) { return map.get(id); },
     async saveConfig(row: AppConfigRow) { map.set(row.configId, row); },
     async deleteConfig(id: string) { map.delete(id); },

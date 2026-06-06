@@ -5,6 +5,7 @@ import { ApiHub } from './ApiHub';
 import { EventBus } from './EventBus';
 import { PipelineRunner } from './PipelineRunner';
 import { ResourceScope } from './ResourceScope';
+import { RowChangeBus } from './RowChangeBus';
 import { topoSortModules } from './topoSort';
 import type {
   AnyColDef,
@@ -55,6 +56,7 @@ export class GridPlatform {
   readonly api: ApiHub;
   readonly resources: ResourceScope;
   readonly events: EventBus<PlatformEventMap>;
+  readonly rows: RowChangeBus;
 
   private readonly pipeline: PipelineRunner;
   private readonly modules: AnyModule[];
@@ -76,6 +78,7 @@ export class GridPlatform {
     this.store = createGridStore({ gridId: opts.gridId, modules: this.modules });
     this.events = new EventBus<PlatformEventMap>();
     this.api = new ApiHub();
+    this.rows = new RowChangeBus(this.api);
     this.resources = new ResourceScope(opts.gridId, { appData: opts.appData });
     this.pipeline = new PipelineRunner();
 
@@ -91,6 +94,9 @@ export class GridPlatform {
   onGridReady(api: GridApi): void {
     if (this.destroyed) return;
     this.api.attach(api);
+    // Start the shared row-change emitter before modules activate so any
+    // module subscribing in `activate` is wired to a live bus. Idempotent.
+    this.rows.start();
     if (!this.mountedGrid) {
       this.mountedGrid = true;
       for (const m of this.modules) {
@@ -109,6 +115,7 @@ export class GridPlatform {
     for (const dispose of this.activeDisposers.splice(0)) {
       try { dispose(); } catch { /* swallow — teardown must complete */ }
     }
+    this.rows.dispose();
     this.api.detach();
     this.pipeline.dispose();
     this.resources.dispose();
@@ -175,6 +182,7 @@ export class GridPlatform {
       api: this.api,
       resources: this.resources,
       events: this.events,
+      rows: this.rows,
       getState: () => this.store.getModuleState<S>(module.id),
       setState: (updater) => this.store.setModuleState<S>(module.id, updater),
       getModuleState: <T,>(id: string) => this.store.getModuleState<T>(id),

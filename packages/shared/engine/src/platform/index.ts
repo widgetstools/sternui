@@ -3,6 +3,7 @@ export type { GridPlatformOptions } from './GridPlatform';
 export { EventBus } from './EventBus';
 export { topoSortModules } from './topoSort';
 export { ApiHub } from './ApiHub';
+export { RowChangeBus } from './RowChangeBus';
 export { ResourceScope } from './ResourceScope';
 export { CssInjector } from './CssInjector';
 export { DirtyBus } from './DirtyBus';
@@ -28,6 +29,8 @@ export type {
   PlatformEventMap,
   PlatformHandle,
   ResourceScope as IResourceScope,
+  RowChange,
+  RowChangeSignal,
   SerializedState,
   SettingsPanelProps,
   Store,

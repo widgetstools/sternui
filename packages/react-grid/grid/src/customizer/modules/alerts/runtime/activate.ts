@@ -1,23 +1,35 @@
 /**
- * Alerts module runtime — listens to AG-Grid events and routes hits through
- * the dispatcher. No CSS injection, no DOM watchers; alerts are pure
- * event-driven.
+ * Alerts module runtime — listens to the platform's shared row-change signal
+ * and routes hits through the dispatcher. No CSS injection, no DOM watchers;
+ * alerts are pure event-driven.
  *
  * Wiring:
- *   - cellValueChanged  → evaluate dataChange + relativeChange rules
- *   - modelUpdated / rowDataUpdated
- *       → diff cell values vs. in-memory baselines (host `rowData` stream)
- *       → detect ROW_ADDED / ROW_REMOVED via id-set diff
- *   - platform.subscribe(rules changed) → reset dispatcher timers
+ *   - cellValueChanged   → evaluate dataChange + relativeChange rules for the
+ *                          one edited cell (user edits, immediate)
+ *   - platform.rows      → the rAF-coalesced row-change delta from streaming
+ *       · delta (full=false): evaluate ONLY the changed/added nodes, and read
+ *         row add/remove straight from the transaction delta — NO whole-grid
+ *         `forEachNode` scan per tick. This is the hot path.
+ *       · full  (full=true):  a structural change (sort/filter/setRowData) with
+ *         no per-row delta → fall back to a whole-grid pass. Rare, user-driven.
+ *   - platform.subscribe (rules changed) → reset dispatcher timers
  *
- * The previous-values store is per-grid, in-memory, and cleared on
- * teardown. It is intentionally NOT persisted with the profile — a fresh
- * load should not falsely fire relativeChange alerts against a stale
- * baseline.
+ * GATE: when no alert rule is enabled the subscriber returns immediately, so an
+ * idle alerts module costs nothing per tick. Previously this module walked
+ * every row via `forEachNode` on EVERY `modelUpdated` (even with zero rules,
+ * and synchronously in 'realtime' mode) — the dominant per-tick cost that made
+ * large live grids sluggish.
+ *
+ * The previous-values store is per-grid, in-memory, and cleared on teardown. It
+ * is intentionally NOT persisted with the profile — a fresh load should not
+ * falsely fire relativeChange alerts against a stale baseline.
  */
 
-import type { GridApi, Module, PlatformHandle } from '@starui/engine';
+import type { GridApi, Module, PlatformHandle, RowChange } from '@starui/engine';
 import { detectRowChanges, type AlertsState } from '@starui/engine';
+
+/** Structural shape of an AG-Grid row node — avoids leaking an ag-grid import. */
+type RowNodeLike = { id?: unknown; data?: Record<string, unknown> };
 import { getValueByPath } from '@starui/types';
 import { createAlertDispatcher } from './dispatch';
 import {
@@ -67,66 +79,126 @@ export function activateAlerts(
   const engine = platform.resources.expression();
 
   let knownRowIds: Set<string> = new Set();
-  let modelPassRaf: number | null = null;
 
   const isEvaluationActive = (): boolean => {
     const settings = platform.getState().settings;
     return settings.enabled && settings.evaluationMode !== 'paused';
   };
 
-  const processModelCellChanges = (): void => {
-    const api = platform.api.api;
-    if (!api || !isEvaluationActive()) return;
-
-    const rules = platform.getState().rules;
-    const { dataChange, relativeChange } = partitionEnabledRules(rules);
-    if (dataChange.length === 0 && relativeChange.length === 0) return;
-
-    const watchedCols = collectWatchedColIds(api, rules);
-    if (watchedCols.size === 0) return;
-
-    try {
-      api.forEachNode((node) => {
-        const rowId = resolveRowId(node);
-        if (!rowId) return;
-        const data = (node as { data?: Record<string, unknown> }).data ?? {};
-        for (const colId of watchedCols) {
-          const next = getValueByPath(data, colId);
-          const prev = prevValues.get(rowId, colId);
-          if (prev === undefined) {
-            prevValues.set(rowId, colId, next);
-            continue;
-          }
-          if (Object.is(prev, next)) continue;
-          evaluateCellDelta({
-            rowId,
-            colId,
-            prev,
-            next,
-            data,
-            rules,
-            engine,
-            dispatcher,
-            prevValues,
-          });
-        }
-      });
-    } catch {
-      /* grid mid-teardown */
+  /** Dispatch ROW_ADDED / ROW_REMOVED hits for a given add/remove id set. */
+  const dispatchRowChanges = (
+    added: Array<{ id: string }>,
+    removed: Array<{ id: string }>,
+    rules: AlertsState['rules'],
+  ): void => {
+    if (added.length === 0 && removed.length === 0) return;
+    const hits = detectRowChanges(added, removed, rules);
+    if (hits.length === 0) return;
+    const rulesById = new Map(rules.map((r) => [r.id, r]));
+    for (const hit of hits) {
+      const rule = rulesById.get(hit.ruleId);
+      if (rule) dispatcher.dispatch(rule, hit);
     }
   };
 
-  const scheduleModelPass = (): void => {
-    const mode = platform.getState().settings.evaluationMode;
-    if (mode === 'throttled') {
-      if (modelPassRaf !== null) return;
-      modelPassRaf = requestAnimationFrame(() => {
-        modelPassRaf = null;
-        processModelCellChanges();
+  /**
+   * Evaluate dataChange / relativeChange rules against ONE row node, comparing
+   * each watched column against its stored baseline. Seeds the baseline on
+   * first observation (no fire). Shared by the delta and full-pass paths.
+   */
+  const scanNode = (
+    node: RowNodeLike,
+    rules: AlertsState['rules'],
+    watchedCols: ReadonlySet<string>,
+  ): void => {
+    const rowId = resolveRowId(node);
+    if (!rowId) return;
+    const data = (node as { data?: Record<string, unknown> }).data ?? {};
+    for (const colId of watchedCols) {
+      const next = getValueByPath(data, colId);
+      const prev = prevValues.get(rowId, colId);
+      if (prev === undefined) {
+        prevValues.set(rowId, colId, next);
+        continue;
+      }
+      if (Object.is(prev, next)) continue;
+      evaluateCellDelta({
+        rowId,
+        colId,
+        prev,
+        next,
+        data,
+        rules,
+        engine,
+        dispatcher,
+        prevValues,
       });
-      return;
     }
-    processModelCellChanges();
+  };
+
+  /**
+   * Delta path (streaming hot path): evaluate ONLY the nodes the transaction
+   * actually touched. No whole-grid `forEachNode`.
+   */
+  const runDelta = (change: RowChange, rules: AlertsState['rules']): void => {
+    // Row add/remove alerts come straight from the transaction delta.
+    if (hasEnabledRowChangeRules(rules)) {
+      const added: Array<{ id: string }> = [];
+      const removed: Array<{ id: string }> = [];
+      for (const n of change.added) { const id = resolveRowId(n); if (id) added.push({ id }); }
+      for (const n of change.removed) { const id = resolveRowId(n); if (id) removed.push({ id }); }
+      dispatchRowChanges(added, removed, rules);
+    }
+
+    // Keep knownRowIds current (consumed by the full-pass diff) + drop
+    // baselines for removed rows.
+    for (const n of change.added) { const id = resolveRowId(n); if (id) knownRowIds.add(id); }
+    for (const n of change.removed) {
+      const id = resolveRowId(n);
+      if (id) { knownRowIds.delete(id); prevValues.deleteRow(id); }
+    }
+
+    const { dataChange, relativeChange } = partitionEnabledRules(rules);
+    if (dataChange.length === 0 && relativeChange.length === 0) return;
+    const api = platform.api.api;
+    if (!api) return;
+    const watchedCols = collectWatchedColIds(api, rules);
+    if (watchedCols.size === 0) return;
+
+    for (const node of change.updated) scanNode(node, rules, watchedCols);
+    // New rows: seed baselines so their first subsequent tick compares cleanly.
+    for (const node of change.added) scanNode(node, rules, watchedCols);
+  };
+
+  /**
+   * Full pass (structural change — sort/filter/setRowData): re-detect row
+   * add/remove via id-set diff and re-scan every row for cell deltas. Rare and
+   * user-driven, never the streaming hot path.
+   */
+  const runFullPass = (rules: AlertsState['rules']): void => {
+    const api = platform.api.api;
+    if (!api) return;
+
+    const next = snapshotRowIds(api);
+    if (hasEnabledRowChangeRules(rules)) {
+      const added: Array<{ id: string }> = [];
+      const removed: Array<{ id: string }> = [];
+      for (const id of next) if (!knownRowIds.has(id)) added.push({ id });
+      for (const id of knownRowIds) if (!next.has(id)) removed.push({ id });
+      dispatchRowChanges(added, removed, rules);
+    }
+    for (const id of knownRowIds) if (!next.has(id)) prevValues.deleteRow(id);
+    knownRowIds = next;
+
+    const { dataChange, relativeChange } = partitionEnabledRules(rules);
+    if (dataChange.length === 0 && relativeChange.length === 0) return;
+    const watchedCols = collectWatchedColIds(api, rules);
+    if (watchedCols.size === 0) return;
+    try {
+      api.forEachNode((node) => scanNode(node, rules, watchedCols));
+    } catch {
+      /* grid mid-teardown */
+    }
   };
 
   const onCellValueChanged = (evt: CellValueChangedEvent) => {
@@ -142,12 +214,6 @@ export function activateAlerts(
     const newValue = evt.newValue;
     const prev = prevValues.get(rowId, colId);
 
-    if (platform.getState().settings.evaluationMode === 'throttled') {
-      // Coalesce with the modelUpdated pass — one evaluation per frame.
-      scheduleModelPass();
-      return;
-    }
-
     evaluateCellDelta({
       rowId,
       colId,
@@ -161,54 +227,35 @@ export function activateAlerts(
     });
   };
 
-  const onModelUpdated = () => {
-    const api = platform.api.api;
-    if (!api) return;
-
-    const rules = platform.getState().rules;
-    const next = snapshotRowIds(api);
-
-    if (isEvaluationActive() && hasEnabledRowChangeRules(rules)) {
-      const added: Array<{ id: string }> = [];
-      const removed: Array<{ id: string }> = [];
-      for (const id of next) if (!knownRowIds.has(id)) added.push({ id });
-      for (const id of knownRowIds) if (!next.has(id)) removed.push({ id });
-      if (added.length > 0 || removed.length > 0) {
-        const hits = detectRowChanges(added, removed, rules);
-        const rulesById = new Map(rules.map((r) => [r.id, r]));
-        for (const hit of hits) {
-          const rule = rulesById.get(hit.ruleId);
-          if (rule) dispatcher.dispatch(rule, hit);
-        }
-      }
-    }
-
-    for (const id of knownRowIds) if (!next.has(id)) prevValues.deleteRow(id);
-    knownRowIds = next;
-
-    scheduleModelPass();
-  };
-
   // Initial seeding + listener attachment, deferred until the grid is ready.
   disposers.push(
     platform.api.onReady((api) => {
       knownRowIds = snapshotRowIds(api);
-      // forEachNode to populate baselines for every (row, col) cell so
-      // the FIRST cellValueChanged after activation isn't treated as the
-      // first observation.
+      // Seed prev-value baselines so the FIRST cellValueChanged after activation
+      // isn't treated as a first observation — but ONLY for the columns alert
+      // rules actually watch, not every (row × column) cell. With no enabled
+      // data/relative rules there's nothing to observe, so skip the walk
+      // entirely. (The old all-columns seed was ~rows×cols `getValueByPath`+set
+      // on mount — ~1M ops at 5000 rows × 200 cols, even with zero rules — a
+      // pure load-time tax.) A rule added later seeds its column's baseline on
+      // its first observed change (scanNode treats `prev === undefined` as
+      // baseline-only, no fire), which is the correct conservative behaviour.
       try {
-        const cols =
-          (api as { getColumns?: () => Array<{ getColId: () => string }> | null }).getColumns?.() ??
-          [];
-        api.forEachNode((node) => {
-          const id = resolveRowId(node);
-          if (!id) return;
-          const data = (node as { data?: Record<string, unknown> }).data ?? {};
-          for (const c of cols) {
-            const colId = c.getColId();
-            prevValues.set(id, colId, getValueByPath(data, colId));
+        const rules = platform.getState().rules;
+        const { dataChange, relativeChange } = partitionEnabledRules(rules);
+        if (dataChange.length > 0 || relativeChange.length > 0) {
+          const watchedCols = collectWatchedColIds(api, rules);
+          if (watchedCols.size > 0) {
+            api.forEachNode((node) => {
+              const id = resolveRowId(node);
+              if (!id) return;
+              const data = (node as { data?: Record<string, unknown> }).data ?? {};
+              for (const colId of watchedCols) {
+                prevValues.set(id, colId, getValueByPath(data, colId));
+              }
+            });
           }
-        });
+        }
       } catch {
         /* grid mid-teardown */
       }
@@ -220,8 +267,18 @@ export function activateAlerts(
       disposers.push(() => api.removeEventListener('cellValueChanged', handler));
     }),
   );
-  disposers.push(platform.api.on('modelUpdated', onModelUpdated));
-  disposers.push(platform.api.on('rowDataUpdated', onModelUpdated));
+
+  // The shared, rAF-coalesced row-change signal replaces the per-tick
+  // `modelUpdated` + `forEachNode` scan. GATE: no enabled rules → no work.
+  disposers.push(
+    platform.rows.subscribe((change) => {
+      if (!isEvaluationActive()) return;
+      const rules = platform.getState().rules;
+      if (!rules.some((r) => r.enabled)) return;
+      if (change.full) runFullPass(rules);
+      else runDelta(change, rules);
+    }),
+  );
 
   // Reset dispatcher debounce timers when the rule list mutates (profile
   // switch, in-place edit). The previous-values store is preserved across
@@ -243,10 +300,6 @@ export function activateAlerts(
   };
 
   return () => {
-    if (modelPassRaf !== null) {
-      cancelAnimationFrame(modelPassRaf);
-      modelPassRaf = null;
-    }
     for (const d of disposers) {
       try {
         d();

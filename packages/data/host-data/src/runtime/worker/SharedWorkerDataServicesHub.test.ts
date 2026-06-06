@@ -645,6 +645,7 @@ describe('SharedWorkerDataServicesHub — AppData', () => {
     ]);
     const cm = {
       async getAllConfigsUnfiltered() { return [...rows.values()]; },
+    async getConfigsByComponentTypesUnfiltered(types: string[]) { return [...rows.values()].filter((r) => types.includes(r.componentType)); },
       async getConfig(id: string) { return rows.get(id); },
       async saveConfig(row: AppConfigRow) { rows.set(row.configId, row); },
       async deleteConfig(id: string) { rows.delete(id); },
@@ -860,6 +861,7 @@ function mockConfigManager(rows: AppConfigRow[]): ConfigManager {
   const map = new Map(rows.map((r) => [r.configId, r]));
   return {
     async getAllConfigsUnfiltered() { return [...map.values()]; },
+    async getConfigsByComponentTypesUnfiltered(types: string[]) { return [...map.values()].filter((r) => types.includes(r.componentType)); },
     async getConfig(id: string) { return map.get(id); },
   } as unknown as ConfigManager;
 }
@@ -928,6 +930,7 @@ describe('SharedWorkerDataServicesHub — config catalog', () => {
     const rows = new Map([['p1', { ...mockProviderRow('p1'), displayText: 'Original' }]]);
     const cm = {
       async getAllConfigsUnfiltered() { return [...rows.values()]; },
+    async getConfigsByComponentTypesUnfiltered(types: string[]) { return [...rows.values()].filter((r) => types.includes(r.componentType)); },
       async getConfig(id: string) { return rows.get(id); },
     } as unknown as ConfigManager;
     const cache = new ConfigCatalogCache(cm);
@@ -952,6 +955,7 @@ describe('SharedWorkerDataServicesHub — config catalog', () => {
     const rows = new Map([['p1', { ...mockProviderRow('p1'), displayText: 'Original' }]]);
     const cm = {
       async getAllConfigsUnfiltered() { return [...rows.values()]; },
+    async getConfigsByComponentTypesUnfiltered(types: string[]) { return [...rows.values()].filter((r) => types.includes(r.componentType)); },
       async getConfig(id: string) { return rows.get(id); },
     } as unknown as ConfigManager;
     const cache = new ConfigCatalogCache(cm);

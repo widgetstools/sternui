@@ -72,7 +72,13 @@ export function activateConditionalStyling(
     headerPainter.evaluate();
     refresh.scheduleRefresh();
   }));
-  disposers.push(platform.api.on('modelUpdated', () => {
+  // Coalesce the per-tick header-paint + timed-activation work onto the
+  // platform's shared, rAF-batched row-change signal instead of wiring a
+  // private `modelUpdated` listener — so a burst of streaming flushes in one
+  // frame triggers ONE evaluate() pass, not one per tick. (The painter and
+  // timed activations run their own scans gated by rule presence, so they ignore
+  // the delta payload.)
+  disposers.push(platform.rows.subscribe(() => {
     timed.processTimedActivations();
     headerPainter.evaluate();
   }));

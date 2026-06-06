@@ -71,7 +71,15 @@ export class DataProviderConfigStore {
     // every row regardless of the manager's app/owner scope. Visibility
     // is the wrong filter here because providers authored under any
     // app must be selectable from any other app's components.
-    const all = await this.cm.getAllConfigsUnfiltered();
+    //
+    // Read ONLY provider (+ AppData when asked) componentTypes via the
+    // `[componentType+componentSubType]` index, rather than materialising the
+    // whole appConfig table (every grid profile, etc.) and filtering in memory.
+    const all = await this.cm.getConfigsByComponentTypesUnfiltered(
+      opts.includeAppData
+        ? [COMPONENT_TYPE_DATA_PROVIDER, COMPONENT_TYPE_APPDATA]
+        : [COMPONENT_TYPE_DATA_PROVIDER],
+    );
     const out: DataProviderConfig[] = [];
     for (const row of all) {
       if (row.componentType === COMPONENT_TYPE_APPDATA) {

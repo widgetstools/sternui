@@ -19,7 +19,8 @@
     "build": "rimraf dist tsconfig.tsbuildinfo && tsc && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "bench": "vitest bench --run"
   },
   "peerDependencies": {
     "ag-grid-community": "^35.1.0",
