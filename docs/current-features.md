@@ -1283,6 +1283,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `shutdownDock()` — graceful dock teardown
 - Dock button types: action, dropdown, folder
 - `DockEditorConfig`, `DockButtonConfig`, `DockActionButtonConfig`, `DockDropdownButtonConfig`, `DockMenuItemConfig`
+- Top-level dropdowns render on the dock bar as icon-bearing folders — `toDock3Favorites` emits each `DropdownButton` (and the system "Tools" group) as a `DockEntry` folder with its icon, linked by id to the matching content-menu folder that owns the children. Works around OpenFin's `ContentMenuEntry` folder shape having no icon field; the dock-bar `DockEntry` folder does.
 
 #### Inter-App Bus topics
 

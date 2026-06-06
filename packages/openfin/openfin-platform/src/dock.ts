@@ -13,6 +13,7 @@ import {
 } from './dockConfigTypes';
 import {
   SETTINGS_SVG,
+  TOOLS_SVG,
   REFRESH_SVG,
   CODE_SVG,
   DOWNLOAD_SVG,
@@ -178,12 +179,19 @@ function pickIconVariant(
 function flattenFavoritesForV22(entries: Dock3Entry[], theme: "dark" | "light"): any[] {
   return entries.map((entry) => {
     if (entry.type === "folder") {
-      // v22 DockEntry folder shape does not carry an icon — strip it.
+      // The OpenFin DockEntry (favorites) folder shape supports `icon?` as
+      // `string | { dark, light }`. Resolve to a single string for the live
+      // theme — v22/v23 `CustomIcon` calls `.startsWith()` directly, so an
+      // object form would crash the dock UI. Children are NOT carried on the
+      // favorites folder (the DockEntry folder shape has no `children` field);
+      // OpenFin addresses the matching content-menu folder by id when a
+      // dock-bar folder is clicked.
+      const folderIcon = pickIconVariant(entry.icon, theme) ?? "";
       return {
         type: "folder" as const,
         id: entry.id,
         label: entry.label,
-        children: flattenFavoritesForV22(entry.children, theme),
+        ...(folderIcon ? { icon: folderIcon } : {}),
       };
     }
     return {
@@ -358,6 +366,19 @@ function buildAllFavorites(editorConfig?: DockEditorConfig): Dock3Entry[] {
       )
     : [];
 
+  // System "Tools" group — a dock-bar folder carrying the wrench icon,
+  // linked by id ("system-tools") to the content-menu folder that holds
+  // the actual tool entries (see buildContentMenuEntries). Same id-link
+  // pattern as user DropdownButtons; the favorites folder is just the
+  // icon-bearing entry point.
+  const toolsFolder: Dock3Entry = {
+    type: "folder",
+    id: "system-tools",
+    label: "Tools",
+    icon: contentMenuIcon(TOOLS_SVG),
+    children: [],
+  };
+
   // Theme toggle — always last in favorites
   const themeToggle: Dock3Entry = {
     type: "item",
@@ -370,7 +391,7 @@ function buildAllFavorites(editorConfig?: DockEditorConfig): Dock3Entry[] {
     itemData: { actionId: ACTION_TOGGLE_THEME },
   };
 
-  return [...userFavorites, themeToggle];
+  return [...userFavorites, toolsFolder, themeToggle];
 }
 
 // ─── Public API ──────────────────────────────────────────────────────

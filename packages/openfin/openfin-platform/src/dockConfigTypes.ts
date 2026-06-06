@@ -144,9 +144,24 @@ function makeDualIcon(
 }
 
 /**
- * Convert ActionButtons from a DockEditorConfig into Dock3 favorites.
- * DropdownButtons are NOT included here — they go into contentMenu via
- * `toDock3UserContentMenu()`.
+ * Convert top-level dock buttons from a DockEditorConfig into Dock3 favorites
+ * (the icon row on the dock bar).
+ *
+ * Both kinds of top-level button land here:
+ *   - ActionButton   → Dock3 item   (icon + click → launch action)
+ *   - DropdownButton  → Dock3 folder (icon + click → opens its content menu)
+ *
+ * The reason DropdownButtons appear here (not only in the content menu) is
+ * that OpenFin's `ContentMenuEntry` folder shape has NO `icon` field, so a
+ * top-level dropdown can never show its icon inside the content-menu dropdown
+ * (verified against the v23 published types and the live dock). The dock-bar
+ * `DockEntry` folder shape DOES support `icon?`, so we surface the icon there.
+ *
+ * Children are intentionally NOT carried on the favorites folder — the
+ * `DockEntry` folder shape has no `children` field. The same DropdownButton is
+ * also emitted by `toDock3UserContentMenu()` under the SAME id with its
+ * children; OpenFin's Dock3 links the two by id, so clicking the dock-bar
+ * folder opens its menu items.
  */
 export function toDock3Favorites(
   config: DockEditorConfig,
@@ -155,21 +170,30 @@ export function toDock3Favorites(
   darkColor: string,
   lightColor: string,
 ): Dock3Entry[] {
-  return config.buttons
-    .filter((btn): btn is DockActionButtonConfig => btn.type === "ActionButton")
-    .map((btn): Dock3Entry => {
-      const icon = makeDualIcon(btn, generateIcon, recolorUrl, darkColor, lightColor);
+  return config.buttons.map((btn): Dock3Entry => {
+    const icon = makeDualIcon(btn, generateIcon, recolorUrl, darkColor, lightColor);
+    if (btn.type === "DropdownButton") {
       return {
-        type: "item",
+        type: "folder",
         id: btn.id,
         label: btn.tooltip,
         icon,
-        itemData: {
-          actionId: btn.actionId,
-          customData: btn.customData,
-        },
+        // Children live in the matching content-menu folder (same id);
+        // OpenFin links by id when the dock-bar folder is clicked.
+        children: [],
       };
-    });
+    }
+    return {
+      type: "item",
+      id: btn.id,
+      label: btn.tooltip,
+      icon,
+      itemData: {
+        actionId: btn.actionId,
+        customData: btn.customData,
+      },
+    };
+  });
 }
 
 /**
