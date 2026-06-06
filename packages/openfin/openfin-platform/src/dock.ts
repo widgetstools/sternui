@@ -585,7 +585,10 @@ async function registerDockClassic(
       // has no content menu; dropdowns render directly on the bar).
       workspaceComponents: ["switchWorkspace", "notifications"],
     } as DockProvider);
-    console.log("Classic dock provider registered.");
+    // Unlike Dock3's `Dock.init` (which auto-shows), classic `Dock.register`
+    // only registers the provider — the dock stays hidden until `Dock.show()`.
+    await ClassicDock.show();
+    console.log("Classic dock provider registered and shown.");
     subscribeDockIab(applyDockClassicConfig);
     return classicReg;
   } catch (error) {
