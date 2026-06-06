@@ -439,9 +439,13 @@ function userClassicButtons(config: DockEditorConfig, theme: "dark" | "light"): 
 
 /** Classic "Tools" dropdown — same system entries as the dock3 content menu. */
 function buildClassicSystemTools(theme: "dark" | "light"): DockButton {
+  // Option icons resolve against the dark scheme (white glyphs): the classic
+  // dock's dropdown flyout is always dark, so theme-following glyphs would
+  // vanish on it in light mode. The Tools button icon below still follows the
+  // live theme — it sits on the theme-following dock bar.
   const opt = (tooltip: string, actionId: string, svg: string) => ({
     tooltip,
-    iconUrl: toolIconStr(svg, theme),
+    iconUrl: toolIconStr(svg, "dark"),
     action: { id: actionId },
   });
   return {

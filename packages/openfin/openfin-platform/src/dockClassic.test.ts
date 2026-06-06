@@ -104,7 +104,7 @@ describe('toDock2Buttons — classic dock button conversion', () => {
     expect(sub?.options?.[0]).toEqual({ tooltip: 'Leaf', action: { id: 'do-leaf', customData: undefined } });
   });
 
-  it('resolves icons for the requested theme', () => {
+  it('resolves top-level (dock-bar) button icons for the requested theme', () => {
     const cfg: DockEditorConfig = {
       version: 1,
       updatedAt: '',
@@ -114,5 +114,38 @@ describe('toDock2Buttons — classic dock button conversion', () => {
     };
     expect(convert(cfg, 'dark')[0].iconUrl).toBe('icon:lucide:x:#fff');
     expect(convert(cfg, 'light')[0].iconUrl).toBe('icon:lucide:x:#000');
+  });
+
+  it('always resolves submenu option icons to the dark (white) glyph, even in light theme', () => {
+    // The classic dock dropdown flyout is always dark, so option glyphs must
+    // not follow the theme — otherwise they vanish on the dark flyout in light.
+    const cfg: DockEditorConfig = {
+      version: 1,
+      updatedAt: '',
+      buttons: [
+        {
+          type: 'DropdownButton',
+          id: 'd',
+          tooltip: 'D',
+          iconUrl: '',
+          iconId: 'lucide:bar', // top-level button icon — follows theme
+          options: [
+            {
+              id: 'sub',
+              tooltip: 'Sub',
+              iconId: 'lucide:folder',
+              options: [{ id: 'leaf', tooltip: 'Leaf', iconId: 'lucide:file', actionId: 'go' }],
+            },
+          ],
+        },
+      ],
+    };
+    const lightBtn = convert(cfg, 'light')[0];
+    // Top-level dropdown button icon follows the light theme...
+    expect(lightBtn.iconUrl).toBe('icon:lucide:bar:#000');
+    // ...but the nested option + leaf icons stay dark (white) regardless.
+    const sub = lightBtn.options?.[0];
+    expect(sub?.iconUrl).toBe('icon:lucide:folder:#fff');
+    expect(sub?.options?.[0].iconUrl).toBe('icon:lucide:file:#fff');
   });
 });

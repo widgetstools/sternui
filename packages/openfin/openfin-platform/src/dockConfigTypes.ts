@@ -187,8 +187,14 @@ export function toDock2Buttons(
         type: "DropdownButton",
         tooltip: btn.tooltip,
         iconUrl,
+        // Submenu (dropdown flyout) is always dark in the classic dock —
+        // an OpenFin Dock2 limitation — so resolve option icons against the
+        // dark scheme (light/white glyphs) regardless of the live theme.
+        // Otherwise light-theme options get dark glyphs that vanish on the
+        // dark flyout. The top-level button icon above still follows `theme`
+        // (it sits on the theme-following dock bar).
         options: btn.options.map((item) =>
-          toDock2Option(item, generateIcon, recolorUrl, darkColor, lightColor, theme),
+          toDock2Option(item, generateIcon, recolorUrl, darkColor, lightColor, "dark"),
         ),
       };
     }
