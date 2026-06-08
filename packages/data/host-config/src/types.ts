@@ -483,8 +483,14 @@ export interface ConfigManagerOptions {
 /**
  * The shape of the seed JSON file loaded on first run.
  *
- * Contains the minimum data needed to bootstrap a working app:
- * app registry entry, user profiles, roles, and permissions.
+ * The four auth/registry tables bootstrap a working app shell. `appConfig`
+ * is optional: include it to restore the app's full component state (data
+ * providers, component registry, dock, workspaces, MarketsGrid
+ * profile-sets, …). A Config Browser "Export ALL" bundle is exactly this
+ * shape, so a full export can be dropped in as `seed.json` to restore a
+ * deployment to its exported state. Seeding only runs against an empty
+ * database (see `ConfigManager.seedIfEmpty`), so it never clobbers an
+ * already-bootstrapped app.
  */
 export interface SeedData {
   /** App registry entries to seed. */
@@ -498,4 +504,13 @@ export interface SeedData {
 
   /** Permission definitions to seed. */
   permissions: PermissionRow[];
+
+  /**
+   * Component configs to seed — data providers, component registry, dock,
+   * workspaces, MarketsGrid profile-sets, etc. Optional; minimal bootstrap
+   * seeds omit it. Rows are written verbatim (their `(appId, userId)` is
+   * preserved), so the seed must be authored for the target deployment's
+   * identities — which a same-deployment "Export ALL" already satisfies.
+   */
+  appConfig?: AppConfigRow[];
 }
