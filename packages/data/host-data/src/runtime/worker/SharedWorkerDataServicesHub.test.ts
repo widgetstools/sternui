@@ -149,6 +149,33 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
     expect(ctrl.restartLog).toEqual([{ asOfDate: '2026-04-01' }]);
   });
 
+  it('rebuilds the slot from a new cfg when a running provider is restarted with cfg (editor reconnect)', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makePort();
+    // Provider created with the original cfg.
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg('v1') });
+    const v1 = controllers.get('v1')!;
+    expect(v1.stopCount).toBe(0);
+
+    // Editor edits the connection settings and hits Restart: the attach
+    // carries the NEW cfg plus a __refresh extra. The old slot is torn
+    // down and a fresh provider is built from the new cfg, so the
+    // reconnect uses the latest values rather than the stale ones.
+    hub.handleRequest(port, {
+      kind: 'attach',
+      subId: 's2',
+      providerId: 'p1',
+      mode: 'data',
+      cfg: cfg('v2'),
+      extra: { __refresh: 1 },
+    });
+
+    expect(v1.stopCount).toBe(1);
+    const v2 = controllers.get('v2')!;
+    expect(v2).toBeTruthy();
+    expect(v2.restartLog).toEqual([{ __refresh: 1 }]);
+  });
+
   it('passes extra to provider.restart on the first attach (fresh provider)', () => {
     const hub = new SharedWorkerDataServicesHub();
     const port = makePort();
@@ -443,6 +470,49 @@ describe('SharedWorkerDataServicesHub — stats sampler', () => {
     timers.tick();
     const tickStats = port.messages.find((m) => m.kind === 'stats');
     expect(tickStats).toBeTruthy();
+  });
+
+  it('keeps stats listeners across a stop, emits a zeroed snapshot, and resumes them on restart', () => {
+    const timers = makeFakeTimers();
+    const hub = new SharedWorkerDataServicesHub({ setTimer: timers.set, clearTimer: timers.clear });
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 'data', providerId: 'p1', mode: 'data', cfg: cfg('v1') });
+    const v1 = controllers.get('v1')!;
+    v1.emit({ rows: [{ id: 'r1' }, { id: 'r2' }] });
+    hub.handleRequest(port, { kind: 'attach', subId: 'stats', providerId: 'p1', mode: 'stats' });
+
+    port.messages.length = 0;
+    hub.handleRequest(port, { kind: 'stop', providerId: 'p1' });
+
+    // Stop pushes one final zeroed stats snapshot to the surviving sub —
+    // the diagnostics pane reflects the stopped state without being
+    // unsubscribed.
+    const stoppedStats = port.messages.find((m) => m.kind === 'stats') as { subId: string; stats: { rowCount: number } };
+    expect(stoppedStats).toBeTruthy();
+    expect(stoppedStats.subId).toBe('stats');
+    expect(stoppedStats.stats.rowCount).toBe(0);
+
+    // Restart (editor reconnect with cfg) re-creates the provider; the
+    // SAME stats subscription resumes receiving ticks — it was never
+    // dropped, so the client never had to re-subscribe.
+    hub.handleRequest(port, {
+      kind: 'attach',
+      subId: 'data2',
+      providerId: 'p1',
+      mode: 'data',
+      cfg: cfg('v2'),
+      extra: { __refresh: 1 },
+    });
+    const v2 = controllers.get('v2')!;
+    v2.emit({ rows: [{ id: 'r3' }] });
+
+    port.messages.length = 0;
+    timers.tick();
+    const resumed = port.messages.find(
+      (m) => m.kind === 'stats' && (m as { subId: string }).subId === 'stats',
+    ) as { stats: { rowCount: number } };
+    expect(resumed).toBeTruthy();
+    expect(resumed.stats.rowCount).toBe(1);
   });
 
   it('tracks snapshot fetch duration and post-snapshot publish rates', () => {
