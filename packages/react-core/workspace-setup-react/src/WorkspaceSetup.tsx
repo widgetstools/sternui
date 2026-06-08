@@ -125,6 +125,45 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
     setSelection({ kind: "component", entryId: entry.id });
   }, [registry]);
 
+  // Clone a registry entry into a fresh draft, opened in the inspector.
+  //
+  // The data model keys every entry — and its settings-template config
+  // row — by `${componentType}-${componentSubType}` (see
+  // `deriveTemplateConfigId`), with at most one entry per pair. A clone
+  // therefore MUST differ on that pair or it would derive the same
+  // canonical id as its source and collide on save. We keep the
+  // componentType and mint a unique componentSubType (`<sub>-copy`,
+  // `<sub>-copy-2`, …), plus a de-duplicated "(copy)" display name.
+  // `id`/`configId` are reset (a temp draft id now; both re-derive from
+  // the final pair on save) and the clone is selected so the user can
+  // rename it in pane ③ before committing.
+  const handleClone = useCallback((entryId: string) => {
+    const src = registry.entries.find((e) => e.id === entryId);
+    if (!src) return;
+
+    const names = new Set(registry.entries.map((e) => e.displayName));
+    const pairs = new Set(
+      registry.entries
+        .filter((e) => e.componentType && e.componentSubType)
+        .map((e) => pairKey(e.componentType, e.componentSubType)),
+    );
+    const bothSet = Boolean(src.componentType && src.componentSubType);
+
+    const cloned: RegistryEntry = {
+      ...src,
+      id: `draft-${newId()}`,
+      configId: "",
+      displayName: uniqueDisplayName(src.displayName || "Component", names),
+      componentSubType: bothSet
+        ? uniqueSubType(src.componentType, src.componentSubType, pairs)
+        : src.componentSubType,
+      createdAt: new Date().toISOString(),
+    };
+
+    registry.dispatch({ type: "ADD_ENTRY", entry: cloned });
+    setSelection({ kind: "component", entryId: cloned.id });
+  }, [registry]);
+
   // Delete a registry entry AND prune any dock items that reference it.
   // Without the cascade, removing a component leaves orphaned ActionButtons
   // and DropdownButton menu items pointing at the dead `registryEntryId` —
@@ -356,6 +395,7 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
           selection={selection}
           onSelect={setSelection}
           onAddDraft={handleAddDraft}
+          onClone={handleClone}
           onDelete={handleDelete}
           onTest={registry.testComponent}
         />
@@ -417,6 +457,40 @@ function newId(): string {
   return typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
     : `id-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+}
+
+// ─── Clone helpers ───────────────────────────────────────────────────
+//
+// `pairKey` canonicalises a (componentType, componentSubType) pair the
+// same lowercase way `deriveTemplateConfigId` does, so the uniqueness
+// check below matches the rule the registry enforces at save time. A
+// space separator is unambiguous here — component classifications are
+// single tokens (GRID, CREDIT, RATES) and never contain spaces.
+
+function pairKey(componentType: string, componentSubType: string): string {
+  return `${componentType} ${componentSubType}`.toLowerCase();
+}
+
+/** First free "<base> (copy)" / "<base> (copy N)" not already in use. */
+function uniqueDisplayName(base: string, existing: Set<string>): string {
+  let candidate = `${base} (copy)`;
+  let n = 2;
+  while (existing.has(candidate)) {
+    candidate = `${base} (copy ${n})`;
+    n += 1;
+  }
+  return candidate;
+}
+
+/** First free "<base>-copy" / "<base>-copy-N" whose (type, sub) pair is unused. */
+function uniqueSubType(componentType: string, base: string, existingPairs: Set<string>): string {
+  let candidate = `${base}-copy`;
+  let n = 2;
+  while (existingPairs.has(pairKey(componentType, candidate))) {
+    candidate = `${base}-copy-${n}`;
+    n += 1;
+  }
+  return candidate;
 }
 
 function findMenuItem(items: DockMenuItemConfig[], itemId: string): DockMenuItemConfig | null {

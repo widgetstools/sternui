@@ -18,7 +18,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { Plus, PlayCircle, Trash2, Search, Box } from "lucide-react";
+import { Plus, PlayCircle, Copy, Trash2, Search, Box } from "lucide-react";
 import { Input } from "@starui/ui";
 import type { RegistryEntry } from "@starui/openfin-platform/config";
 import { iconIdToSvgUrl } from "../dock-editor/iconUtils";
@@ -31,6 +31,7 @@ interface ComponentsPaneProps {
   selection: EditorSelection;
   onSelect: (sel: EditorSelection) => void;
   onAddDraft: () => void;
+  onClone: (entryId: string) => void;
   onDelete: (entryId: string) => void;
   onTest: (entry: RegistryEntry) => void | Promise<void>;
 }
@@ -41,6 +42,7 @@ export function ComponentsPane({
   selection,
   onSelect,
   onAddDraft,
+  onClone,
   onDelete,
   onTest,
 }: ComponentsPaneProps) {
@@ -156,6 +158,12 @@ export function ComponentsPane({
                   onClick={(e) => { e.stopPropagation(); void onTest(entry); }}
                 >
                   <PlayCircle className="w-3 h-3" />
+                </RowAction>
+                <RowAction
+                  title="Clone component"
+                  onClick={(e) => { e.stopPropagation(); onClone(entry.id); }}
+                >
+                  <Copy className="w-3 h-3" />
                 </RowAction>
                 <RowAction
                   title="Delete"

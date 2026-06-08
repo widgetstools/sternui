@@ -26,6 +26,7 @@ import { Button } from '@starui/ui';
 import type { UseProfileManagerResult } from '@starui/grid/customizer';
 import type { AdminAction } from './types';
 import { FiltersToolbar } from './FiltersToolbar';
+import { QuickSearch } from './QuickSearch';
 import { ProfileSelector } from './ProfileSelector';
 import { EditableCaption } from './EditableCaption';
 import { AlertsBadge } from '../customizer/modules/alerts';
@@ -174,6 +175,15 @@ export function PrimaryToolbar(props: PrimaryToolbarProps): ReactElement {
            group (instead of a full-height border on every button),
            then evenly-spaced icon buttons with matching chrome. */}
       <div className="ds-primary-actions">
+        {/* Quick search — expands on hover/focus, drives AG-Grid's
+            quick filter across every column. Self-contained: reaches
+            the GridApi via context, like AlertsBadge below. */}
+        <QuickSearch />
+
+        {(showFormattingToolbar || showEditingToolbar) && (
+          <span className="ds-primary-divider" aria-hidden />
+        )}
+
         {showFormattingToolbar && (
           <Button
             type="button"
