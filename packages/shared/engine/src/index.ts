@@ -153,10 +153,12 @@ export {
   presetToExcelFormat,
   cellStyleToAgStyle,
   getActiveTheme,
+  mergeCellStyleOverrides,
   mergeThemedStyle,
   migrateThemedStyle,
   patchActiveStyle,
   resolveActiveStyle,
+  resolveEffectiveStyle,
   nestedField,
   defaultNullSafeComparator,
 } from './colDef';

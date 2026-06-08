@@ -20,10 +20,9 @@
  */
 import type {
   BaseColumnAssignment as ColumnAssignment,
-  CellStyleOverrides,
   ColumnDataType,
 } from '@starui/engine';
-import { mergeThemedStyle } from '@starui/engine';
+import { mergeCellStyleOverrides, mergeThemedStyle } from '@starui/engine';
 import type { ColumnTemplate, ColumnTemplatesState } from './state';
 
 export function resolveTemplates(
@@ -82,14 +81,14 @@ function applyOver(
     target.cellStyleOverrides = mergeThemedStyle(
       target.cellStyleOverrides,
       source.cellStyleOverrides,
-      mergeStyle,
+      mergeCellStyleOverrides,
     );
   }
   if (source.headerStyleOverrides !== undefined) {
     target.headerStyleOverrides = mergeThemedStyle(
       target.headerStyleOverrides,
       source.headerStyleOverrides,
-      mergeStyle,
+      mergeCellStyleOverrides,
     );
   }
   // Last-writer-wins for everything else.
@@ -123,29 +122,4 @@ function applyOver(
     if (v !== undefined) (target as unknown as Record<string, unknown>)[k as string] = v;
   }
   return target;
-}
-
-function mergeStyle(
-  base: CellStyleOverrides | undefined,
-  top: CellStyleOverrides | undefined,
-): CellStyleOverrides | undefined {
-  if (!base && !top) return undefined;
-  if (!base) return top;
-  if (!top) return base;
-  return {
-    typography: base.typography || top.typography
-      ? { ...base.typography, ...top.typography }
-      : undefined,
-    colors: base.colors || top.colors
-      ? { ...base.colors, ...top.colors }
-      : undefined,
-    alignment: base.alignment || top.alignment
-      ? { ...base.alignment, ...top.alignment }
-      : undefined,
-    // Borders merge per-side, not per-property within a side. A full
-    // BorderSpec is a unit; you rarely want "t1's color + t2's width".
-    borders: base.borders || top.borders
-      ? { ...base.borders, ...top.borders }
-      : undefined,
-  };
 }

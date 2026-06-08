@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { LocalStorageBundleAdapter, marketsGridLocalStorageBundleKey } from './LocalStorageBundleAdapter';
 import { RESERVED_DEFAULT_PROFILE_ID, activeProfileKey } from './StorageAdapter';
 
@@ -105,5 +105,70 @@ describe('LocalStorageBundleAdapter', () => {
     const adapter = new LocalStorageBundleAdapter(gridId);
     await adapter.saveGridLevelData(gridId, { a: 1 });
     expect(await adapter.loadGridLevelData(gridId)).toEqual({ a: 1 });
+  });
+
+  it('does not re-parse the bundle on repeated reads (cache hit)', async () => {
+    const adapter = new LocalStorageBundleAdapter(gridId);
+    const now = Date.now();
+    await adapter.saveProfile({
+      id: RESERVED_DEFAULT_PROFILE_ID,
+      gridId,
+      name: 'Default',
+      state: { m: { v: 1, data: {} } },
+      createdAt: now,
+      updatedAt: now,
+    });
+    // saveProfile primed the cache; subsequent reads must hit it without
+    // a fresh JSON.parse of the whole bundle (the save-path hot cost).
+    const parseSpy = vi.spyOn(JSON, 'parse');
+    await adapter.loadProfile(gridId, RESERVED_DEFAULT_PROFILE_ID);
+    await adapter.listProfiles(gridId);
+    await adapter.loadProfile(gridId, RESERVED_DEFAULT_PROFILE_ID);
+    expect(parseSpy).not.toHaveBeenCalled();
+    parseSpy.mockRestore();
+  });
+
+  it('reflects an external (cross-tab) bundle write — cache keys on the raw string', async () => {
+    const adapter = new LocalStorageBundleAdapter(gridId);
+    const now = Date.now();
+    await adapter.saveProfile({
+      id: RESERVED_DEFAULT_PROFILE_ID,
+      gridId,
+      name: 'Default',
+      state: { m: { v: 1, data: { a: 1 } } },
+      createdAt: now,
+      updatedAt: now,
+    });
+    expect(
+      (await adapter.loadProfile(gridId, RESERVED_DEFAULT_PROFILE_ID))?.state,
+    ).toEqual({ m: { v: 1, data: { a: 1 } } });
+
+    // Another tab overwrites the bundle directly. The raw string changes,
+    // so the next read misses the cache and reparses fresh.
+    const external = {
+      kind: 'markets-grid-bundle',
+      version: 1,
+      gridId,
+      activeProfileId: RESERVED_DEFAULT_PROFILE_ID,
+      profiles: [
+        {
+          id: RESERVED_DEFAULT_PROFILE_ID,
+          gridId,
+          name: 'Default',
+          state: { m: { v: 2, data: { a: 999 } } },
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      gridLevelData: null,
+    };
+    localStorage.setItem(
+      marketsGridLocalStorageBundleKey(gridId),
+      JSON.stringify(external),
+    );
+
+    expect(
+      (await adapter.loadProfile(gridId, RESERVED_DEFAULT_PROFILE_ID))?.state,
+    ).toEqual({ m: { v: 2, data: { a: 999 } } });
   });
 });

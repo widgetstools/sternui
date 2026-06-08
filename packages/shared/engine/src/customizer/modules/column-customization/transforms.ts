@@ -24,6 +24,7 @@ import type { ColumnDataType, ColumnTemplatesState } from '../column-templates/s
 import {
   valueFormatterFromTemplate,
   excelFormatColorResolver,
+  resolveEffectiveStyle,
 } from '@starui/engine';
 import type { GridThemeMode, ValueFormatterTemplate } from '@starui/engine';
 
@@ -206,8 +207,11 @@ export function reinjectCSS(
   //    chained-class selectors.
   for (const mode of ['dark', 'light'] as GridThemeMode[]) {
     const themeSel = `html[data-theme="${mode}"]`;
-    const gCell = state.globalCellStyle?.[mode];
-    const gHdr = state.globalHeaderStyle?.[mode];
+    // Effective slot: dark renders its own; light inherits dark and
+    // overrides per-leaf. Storage stays divergence-only — the merge is a
+    // read-time fold (see resolveEffectiveStyle).
+    const gCell = resolveEffectiveStyle(state.globalCellStyle, mode);
+    const gHdr = resolveEffectiveStyle(state.globalHeaderStyle, mode);
 
     if (gCell) {
       const css = styleOverridesToCSS(gCell);
@@ -271,8 +275,10 @@ export function reinjectCSS(
 
     for (const mode of ['dark', 'light'] as GridThemeMode[]) {
       const themeSel = `html[data-theme="${mode}"]`;
-      const cellStyle = resolved?.cellStyleOverrides?.[mode];
-      const headerStyle = resolved?.headerStyleOverrides?.[mode];
+      // Light inherits the dark slot and overrides per-leaf; dark renders
+      // its own slot unchanged (resolveEffectiveStyle).
+      const cellStyle = resolveEffectiveStyle(resolved?.cellStyleOverrides, mode);
+      const headerStyle = resolveEffectiveStyle(resolved?.headerStyleOverrides, mode);
 
       // Chain AG-Grid's base class so per-column selectors out-specific
       // the global-baseline rules emitted above.
