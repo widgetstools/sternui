@@ -94,6 +94,25 @@ export interface WorkspaceConfig {
   /** Override the dock provider icon (must be raster: PNG/ICO) */
   dockIcon?: string;
   /**
+   * Dock customization.
+   */
+  dock?: {
+    /**
+     * Action IDs of built-in Tools-menu items to hide from the dock.
+     * Defaults to none — every built-in tool is shown. The IDs match the
+     * `ACTION_*` constants exported by this package, e.g.
+     * `ACTION_EXPORT_CONFIG === "export-config"` and
+     * `ACTION_IMPORT_CONFIG === "import-config"`. Applies to both the
+     * classic (dock2) Tools dropdown and the dock3 content menu.
+     *
+     * @example
+     * ```typescript
+     * initWorkspace({ dock: { excludeTools: ["export-config", "import-config"] } });
+     * ```
+     */
+    excludeTools?: string[];
+  };
+  /**
    * Icon shown on the theme toggle dock button when the app is in dark mode
    * (clicking it will switch to light). Typically a sun icon.
    * If set, adds a toggle button to the dock.

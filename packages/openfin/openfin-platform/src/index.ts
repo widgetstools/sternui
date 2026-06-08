@@ -24,6 +24,9 @@ export {
   getDefaultEditorConfig,
   recolorDockIcons,
   shutdownDock,
+  // Hide built-in Tools-menu items by action ID. Normally driven via
+  // `initWorkspace({ dock: { excludeTools } })`; exported for advanced use.
+  setExcludedDockTools,
   // IAB topic names — exported so packages that publish/subscribe
   // to these topics use the same string constant, not separate literals.
   IAB_DOCK_CONFIG_UPDATE,
@@ -33,6 +36,10 @@ export {
   ACTION_OPEN_REGISTRY_EDITOR,
   ACTION_OPEN_CONFIG_BROWSER,
   ACTION_LAUNCH_COMPONENT,
+  // Built-in Tools-menu action IDs — pass to `dock.excludeTools` to hide
+  // the matching entries.
+  ACTION_EXPORT_CONFIG,
+  ACTION_IMPORT_CONFIG,
 } from './dock';
 
 // ─── Persistence (config service) ────────────────────────────────────

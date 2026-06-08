@@ -123,6 +123,24 @@ let themeToggleLightIcon: string | undefined;
 /** Callback for dispatching actions to workspace.ts handlers. */
 let actionDispatcher: ((actionId: string, customData?: any) => Promise<void>) | undefined;
 
+/**
+ * Action IDs of built-in Tools-menu items to hide. Empty by default — the
+ * whole built-in tool set renders. Set once (before registerDock) via
+ * {@link setExcludedDockTools}; both the dock2 and dock3 menu builders
+ * consult it on every (re)render.
+ */
+let excludedToolActionIds = new Set<string>();
+
+/**
+ * Configure which built-in Tools-menu items are hidden, keyed by action ID
+ * (e.g. `"export-config"`, `"import-config"`). Pass `undefined`/empty to
+ * show everything. Called from `initWorkspace` via
+ * `WorkspaceConfig.dock.excludeTools`.
+ */
+export function setExcludedDockTools(actionIds?: readonly string[]): void {
+  excludedToolActionIds = new Set(actionIds ?? []);
+}
+
 // ─── Pre-built theme toggle icons ────────────────────────────────────
 const DEFAULT_DARK_THEME_ICON = svgToDataUrl(SUN_SVG, "#FFB300");
 const DEFAULT_LIGHT_THEME_ICON = svgToDataUrl(MOON_SVG, "#000000");
@@ -269,7 +287,7 @@ function contentMenuIcon(svgString: string): { dark: string; light: string } {
  * Each icon uses { dark, light } so it's visible in both themes.
  */
 function buildSystemContentMenuEntries(): ContentMenuEntryType[] {
-  return [
+  const entries: ContentMenuEntryType[] = [
     {
       type: "item",
       id: "tool-workspace-setup",
@@ -334,6 +352,12 @@ function buildSystemContentMenuEntries(): ContentMenuEntryType[] {
       itemData: { actionId: ACTION_TOGGLE_PROVIDER },
     },
   ];
+  if (excludedToolActionIds.size === 0) return entries;
+  return entries.filter((e) => {
+    if (e.type !== "item") return true;
+    const actionId = (e.itemData as { actionId?: string } | undefined)?.actionId;
+    return !actionId || !excludedToolActionIds.has(actionId);
+  });
 }
 
 /**
@@ -448,21 +472,25 @@ function buildClassicSystemTools(theme: "dark" | "light"): DockButton {
     iconUrl: toolIconStr(svg, "dark"),
     action: { id: actionId },
   });
+  const options = [
+    opt("Workspace Setup (new)", ACTION_OPEN_WORKSPACE_SETUP, SETTINGS_SVG),
+    opt("Data Providers", ACTION_OPEN_DATA_PROVIDERS, SETTINGS_SVG),
+    opt("Config Browser", ACTION_OPEN_CONFIG_BROWSER, SETTINGS_SVG),
+    opt("Reload Dock", ACTION_RELOAD_DOCK, REFRESH_SVG),
+    opt("Developer Tools", ACTION_SHOW_DEVTOOLS, CODE_SVG),
+    opt("Inspect Shared Worker", ACTION_INSPECT_SHARED_WORKER, CODE_SVG),
+    opt("Export Config", ACTION_EXPORT_CONFIG, DOWNLOAD_SVG),
+    opt("Import Config", ACTION_IMPORT_CONFIG, UPLOAD_SVG),
+    opt("Show/Hide Provider", ACTION_TOGGLE_PROVIDER, EYE_SVG),
+  ];
   return {
     type: DockButtonNames.DropdownButton,
     tooltip: "Tools",
     iconUrl: toolIconStr(TOOLS_SVG, theme),
-    options: [
-      opt("Workspace Setup (new)", ACTION_OPEN_WORKSPACE_SETUP, SETTINGS_SVG),
-      opt("Data Providers", ACTION_OPEN_DATA_PROVIDERS, SETTINGS_SVG),
-      opt("Config Browser", ACTION_OPEN_CONFIG_BROWSER, SETTINGS_SVG),
-      opt("Reload Dock", ACTION_RELOAD_DOCK, REFRESH_SVG),
-      opt("Developer Tools", ACTION_SHOW_DEVTOOLS, CODE_SVG),
-      opt("Inspect Shared Worker", ACTION_INSPECT_SHARED_WORKER, CODE_SVG),
-      opt("Export Config", ACTION_EXPORT_CONFIG, DOWNLOAD_SVG),
-      opt("Import Config", ACTION_IMPORT_CONFIG, UPLOAD_SVG),
-      opt("Show/Hide Provider", ACTION_TOGGLE_PROVIDER, EYE_SVG),
-    ],
+    options:
+      excludedToolActionIds.size === 0
+        ? options
+        : options.filter((o) => !excludedToolActionIds.has(o.action.id)),
   } as DockButton;
 }
 
