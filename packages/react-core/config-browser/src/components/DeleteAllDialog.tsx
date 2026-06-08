@@ -54,7 +54,7 @@ export function DeleteAllDialog({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex w-[520px] max-w-[90vw] flex-col overflow-hidden rounded-[var(--de-radius-md,8px)] border border-[var(--de-danger,var(--ds-accent-negative))] bg-[var(--de-bg)] shadow-[var(--ds-elevation-overlay)]"
+        className="flex w-[520px] max-w-[90vw] flex-col overflow-hidden rounded-[var(--de-radius-md,2px)] border border-[var(--de-danger,var(--ds-accent-negative))] bg-[var(--de-bg)] shadow-[var(--ds-elevation-overlay)]"
       >
         <div className="flex items-center gap-2.5 border-b border-[var(--de-border)] bg-[color-mix(in_srgb,var(--de-danger,var(--ds-accent-negative))_8%,var(--de-bg))] px-[18px] py-[14px]">
           <Icon

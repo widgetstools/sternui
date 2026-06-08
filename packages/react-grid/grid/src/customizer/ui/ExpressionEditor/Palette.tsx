@@ -125,7 +125,7 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
           width: 560, maxWidth: '92vw', maxHeight: '70vh',
           background: 'var(--ds-surface-primary)',
           border: '1px solid var(--ds-border-primary)',
-          borderRadius: 8,
+          borderRadius: 2,
           boxShadow: '0 20px 48px color-mix(in srgb, var(--ds-text-primary) 50%, transparent)',
           display: 'flex', flexDirection: 'column',
           overflow: 'hidden',

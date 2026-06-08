@@ -214,7 +214,7 @@ export default function ExpressionEditorInner(
           boxSizing: 'border-box',
           height: heightPx,
           border: '1px solid var(--ds-border-primary)',
-          borderRadius: 4,
+          borderRadius: 2,
           background: 'var(--ds-surface-ground)',
           overflow: 'hidden',
           ...hostStyle,

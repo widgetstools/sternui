@@ -110,7 +110,7 @@ export function buildFloatingFilterDom(opts: BuildFloatingFilterDomOptions): Flo
   clearBtn.style.lineHeight = '18px';
   clearBtn.style.fontSize = '14px';
   clearBtn.style.fontWeight = '600';
-  clearBtn.style.borderRadius = '3px';
+  clearBtn.style.borderRadius = '2px';
   clearBtn.style.background = 'transparent';
   clearBtn.style.border = 'none';
   // `--ds-text-primary` flips automatically between light/dark

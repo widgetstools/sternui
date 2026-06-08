@@ -51,7 +51,7 @@
   margin: 0;
   padding: 8px 10px 8px 16px;
   border: none;
-  border-radius: 7px;
+  border-radius: 2px;
   background: transparent;
   color: var(--ds-text-secondary);
   font-size: 12px;
@@ -131,7 +131,7 @@
   margin: 0;
   padding: 11px 14px;
   border: 1px solid var(--ds-border-primary);
-  border-radius: 8px;
+  border-radius: 2px;
   background: var(--ds-surface-secondary);
   color: var(--ds-text-primary);
   font-size: 12.5px;
@@ -177,7 +177,7 @@
   padding: 8px 6px 6px;
   background: var(--ds-surface-ground);
   border: 1px solid var(--ds-border-primary);
-  border-radius: 6px;
+  border-radius: 2px;
   color: var(--ds-text-primary);
   cursor: pointer;
   transition: all 120ms;

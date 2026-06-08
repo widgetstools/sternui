@@ -21,23 +21,21 @@ function quartzStructuralParams(density: Density) {
   const headerH = density === 'ultra' ? 26 : density === 'comfort' ? 42 : 32;
   const fontPx = density === 'ultra' ? 11 : density === 'comfort' ? 13 : 12;
   const headerFontPx = density === 'ultra' ? 10 : density === 'comfort' ? 12 : 11;
-  const iconPx = density === 'ultra' ? 11 : density === 'comfort' ? 13 : 12;
-  const spacing = density === 'ultra' ? 4 : density === 'comfort' ? 8 : 6;
 
   return {
     fontFamily: AG_GRID_INTER_FONT,
     fontSize: fontPx,
     headerFontFamily: AG_GRID_MONO_FONT,
     headerFontSize: headerFontPx,
-    iconSize: iconPx,
-    borderRadius: 4,
-    wrapperBorderRadius: 4,
+    iconSize: 14,
+    borderRadius: 2,
+    wrapperBorderRadius: 2,
     cellHorizontalPaddingScale: 1,
     rowVerticalPaddingScale: 1,
     columnBorder: true as const,
     rowHeight: rowH,
     headerHeight: headerH,
-    spacing,
+    spacing: 6,
   };
 }
 

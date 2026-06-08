@@ -81,7 +81,7 @@ export function IconTextEditor({
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                       width: 32, height: 32, padding: 4, border: '1px solid var(--ds-border-primary)',
                       background: cfg.iconId === id ? 'var(--ds-overlay-info-soft)' : 'transparent',
-                      borderRadius: 4, cursor: 'pointer',
+                      borderRadius: 2, cursor: 'pointer',
                     }}
                     data-testid={testId ? `${testId}-icon-${id}` : undefined}
                   >

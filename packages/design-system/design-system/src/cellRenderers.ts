@@ -399,7 +399,7 @@ export class PillCellRenderer implements ICellRendererComp {
     const bg = pickThemeColor(chosen.bg, mode);
     const fg = pickThemeColor(chosen.fg, mode);
     const border = pickThemeColor(chosen.border, mode);
-    const radius = cfg?.shape === 'square' ? '4px' : '9999px';
+    const radius = cfg?.shape === 'square' ? '2px' : '9999px';
     Object.assign(this.eGui.style, {
       display: 'inline-block',
       fontFamily: MONO,
@@ -1168,7 +1168,7 @@ export class AllocationBarCellRenderer implements ICellRendererComp {
         Object.assign(item.style, { display: 'inline-flex', alignItems: 'center', gap: '3px' } as Partial<CSSStyleDeclaration>);
         const swatch = document.createElement('span');
         Object.assign(swatch.style, {
-          width: '6px', height: '6px', borderRadius: '1px',
+          width: '6px', height: '6px', borderRadius: '2px',
           background: pickThemeColor(cfg.segmentColorMap[seg.key], mode) || 'rgba(127,127,127,0.4)',
         } as Partial<CSSStyleDeclaration>);
         const label = document.createElement('span');

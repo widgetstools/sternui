@@ -51,7 +51,7 @@
 - `./tailwind` — Tailwind preset
 - `./primeng` — PrimeNG theme preset
 - `./shadcn` — shadcn token generator
-- `./adapters/ag-grid` — AG Grid Quartz themes (`iconSetQuartzLight`); STARUI token-driven chrome (JetBrains Mono headers/cells, Inter chrome, 4px radii, 12px cell padding)
+- `./adapters/ag-grid` — AG Grid Quartz themes (`iconSetQuartzLight`); STARUI token-driven chrome (JetBrains Mono headers/cells, Inter chrome, 2px radii, 12px cell padding)
 - `./tokens`, `./tokens/primitives`, `./tokens/semantic`, `./tokens/components`, `./tokens/controls`
 - `./cell-renderers` — bundled AG Grid cell renderer classes
 
@@ -90,7 +90,7 @@
 - Tailwind preset — `darkMode: ['selector', '[data-theme="dark"]']`, HSL channel variables, surface scale 50–950, radius, font families
 - shadcn adapter — Radix/shadcn color-name unification + `--st-*` STARUI bridge
 - PrimeNG adapter — PrimeUI-compatible color mapping via `var(--ds-*)`
-- AG Grid adapters — `dark`, `light`, `comfort`, `blotter` variants; STARUI token colors (JetBrains Mono headers/cells, Inter chrome, 4px radii, 12px cell padding)
+- AG Grid adapters — `dark`, `light`, `comfort`, `blotter` variants; STARUI token colors (JetBrains Mono headers/cells, Inter chrome, 2px radii, 12px cell padding)
 
 #### AG Grid cell renderers
 

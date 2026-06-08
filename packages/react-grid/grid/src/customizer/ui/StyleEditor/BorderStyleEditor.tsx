@@ -71,7 +71,7 @@ const BORDER_STYLE_EDITOR_CSS = `
 .ds-be-editor .ds-be-preview-inner {
   width: 100%;
   height: 100%;
-  border-radius: 1px;
+  border-radius: 2px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -112,7 +112,7 @@ const BORDER_STYLE_EDITOR_CSS = `
   letter-spacing: 0.06em;
   line-height: 1;
   border: 1px dashed var(--be-line);
-  border-radius: 1px;
+  border-radius: 2px;
   transition: color 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 
@@ -179,7 +179,7 @@ const BORDER_STYLE_EDITOR_CSS = `
 .ds-be-editor .ds-be-color .ds-be-swatch {
   width: 18px;
   height: 18px;
-  border-radius: 1px;
+  border-radius: 2px;
   border: 1px solid var(--be-line-strong);
   flex-shrink: 0;
 }

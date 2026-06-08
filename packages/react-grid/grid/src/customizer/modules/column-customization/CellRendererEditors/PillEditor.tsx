@@ -81,7 +81,7 @@ export function PillEditor({ value, onChange, testId }: PillEditorProps) {
           </Button>
         </div>
         {cfg.rules.length === 0 && (
-          <div style={{ fontSize: 11, opacity: 0.6, padding: 6, border: '1px dashed var(--ds-border-primary)', borderRadius: 4 }}>
+          <div style={{ fontSize: 11, opacity: 0.6, padding: 6, border: '1px dashed var(--ds-border-primary)', borderRadius: 2 }}>
             No rules. Click <strong>Add rule</strong> to map a value to a colour.
           </div>
         )}

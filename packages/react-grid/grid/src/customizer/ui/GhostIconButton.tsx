@@ -24,7 +24,7 @@ const GHOST_ICON_BUTTON_CSS = `
   border: none;
   background: transparent;
   color: var(--ds-text-primary);
-  border-radius: 4px;
+  border-radius: 2px;
   cursor: pointer;
   transition: background-color 120ms, color 120ms, opacity 120ms;
 }
@@ -52,7 +52,7 @@ const GHOST_ICON_BUTTON_CSS = `
 .ds-gib[data-size='md'] {
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: 2px;
 }
 .ds-gib[data-reveal='on-row-hover'] {
   opacity: 0;

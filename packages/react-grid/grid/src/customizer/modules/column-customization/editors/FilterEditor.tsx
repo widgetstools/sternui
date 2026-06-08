@@ -182,7 +182,7 @@ export function FilterEditor({
                         fontWeight: 500,
                         letterSpacing: '0.04em',
                         textTransform: 'uppercase',
-                        borderRadius: 3,
+                        borderRadius: 2,
                         border: '1px solid',
                         borderColor: active ? 'var(--ds-primary)' : 'var(--ds-border-primary)',
                         background: active
@@ -373,7 +373,7 @@ function MultiFilterEditor({
                   gap: 6,
                   alignItems: 'center',
                   padding: '4px 6px',
-                  borderRadius: 3,
+                  borderRadius: 2,
                   border: '1px solid var(--ds-border-primary)',
                   background: 'var(--ds-surface-secondary)',
                 }}
@@ -428,7 +428,7 @@ function MultiFilterEditor({
                     background: 'transparent',
                     color: 'var(--ds-text-muted)',
                     cursor: 'pointer',
-                    borderRadius: 3,
+                    borderRadius: 2,
                   }}
                 >
                   <X size={12} strokeWidth={2} />

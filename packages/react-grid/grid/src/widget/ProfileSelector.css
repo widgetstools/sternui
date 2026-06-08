@@ -394,7 +394,7 @@
 }
 .ds-ps-list::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--ds-text-muted) 35%, transparent);
-  border-radius: 3px;
+  border-radius: 2px;
 }
 
 /* Footer sections (Save current as, Export / Import) sit below the
