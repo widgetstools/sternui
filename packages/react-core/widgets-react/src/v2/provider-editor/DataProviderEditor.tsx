@@ -10,7 +10,7 @@
  * to the form's tab bodies.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -23,10 +23,11 @@ import {
   DialogTitle, DialogTrigger, Input, Label, ScrollArea,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@starui/ui';
-import { Database, Copy, Globe, Plus, Radio, Search, Trash2, TestTube2 } from 'lucide-react';
+import { Database, Copy, Globe, Plus, Radio, Search, Trash2, TestTube2, Upload } from 'lucide-react';
 import type { DataProviderConfig, ProviderConfig, ProviderType } from '@starui/shared-types';
 import { useDataServices, useDataProvidersList } from '@starui/host-data-react/runtime';
 import { cloneProviderConfig } from './cloneProviderConfig.js';
+import { parseProviderConfigImport, type PortableProviderConfig } from './providerConfigIo.js';
 import { EditorForm } from './EditorForm.js';
 
 // ─── Provider-type defaults — keep MINIMAL; everything else is
@@ -112,6 +113,35 @@ export function DataProviderEditor({ userId, initialProviderId = null, onClose }
     setDraftSeq((n) => n + 1);
   };
 
+  // Import a config from a JSON file as a brand-new persisted provider.
+  // The imported config has no identity (providerId/userId stripped on
+  // export), so `save` mints a fresh providerId — a new instance owned by
+  // the current user (or 'system' when public, matching the editor's own
+  // save rule). The new row is then selected and opened for editing.
+  const onImportFile = async (file: File) => {
+    let portable: PortableProviderConfig;
+    try {
+      portable = parseProviderConfigImport(await file.text());
+    } catch (err) {
+      window.alert(`Could not import provider: ${err instanceof Error ? err.message : String(err)}`);
+      return;
+    }
+    try {
+      const draft: DataProviderConfig = {
+        ...portable,
+        providerId: undefined,
+        isDefault: false,
+        userId: portable.public ? 'system' : userId,
+      };
+      const saved = await configStore.save(draft, userId);
+      setCreating(null);
+      setSelectedId(saved.providerId ?? null);
+      list.refresh();
+    } catch (err) {
+      window.alert(`Could not import provider: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   const onSaved = (saved: DataProviderConfig) => {
     setCreating(null);
     setSelectedId(saved.providerId ?? null);
@@ -157,6 +187,7 @@ export function DataProviderEditor({ userId, initialProviderId = null, onClose }
         onSelect={(id) => { setCreating(null); setSelectedId(id); }}
         onNew={startCreate}
         onClone={startClone}
+        onImportFile={onImportFile}
         onDeleteRequest={onDeleteRequest}
       />
 
@@ -225,7 +256,7 @@ export function DataProviderEditor({ userId, initialProviderId = null, onClose }
 // ─── Sidebar — list of saved providers + "+ New" picker ──────────
 
 function Sidebar({
-  configs, loading, error, search, onSearchChange, selectedId, onSelect, onNew, onClone, onDeleteRequest,
+  configs, loading, error, search, onSearchChange, selectedId, onSelect, onNew, onClone, onImportFile, onDeleteRequest,
 }: {
   configs: readonly DataProviderConfig[];
   loading: boolean;
@@ -236,6 +267,7 @@ function Sidebar({
   onSelect(id: string): void;
   onNew(type: ProviderType): void;
   onClone(cfg: DataProviderConfig): void;
+  onImportFile(file: File): void;
   onDeleteRequest(cfg: DataProviderConfig): void;
 }) {
   return (
@@ -243,7 +275,10 @@ function Sidebar({
       <div className="px-3 py-3 border-b border-border space-y-2.5">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Providers</h2>
-          <NewProviderPicker onPick={onNew} />
+          <div className="flex items-center gap-1.5">
+            <ImportButton onImportFile={onImportFile} />
+            <NewProviderPicker onPick={onNew} />
+          </div>
         </div>
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -302,18 +337,29 @@ function SidebarRow({
         selected ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50',
       ].join(' ')}
     >
-      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+      <Icon className={`h-3.5 w-3.5 ${selected ? 'text-accent-foreground' : 'text-muted-foreground'}`} />
       <div className="flex-1 min-w-0">
         <div className="font-medium truncate">{cfg.name}</div>
-        <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+        <div className={`text-[10px] flex items-center gap-1.5 ${selected ? 'text-accent-foreground/80' : 'text-muted-foreground'}`}>
           <span>{meta.label}</span>
-          {cfg.public && <Badge variant="outline" className="h-3.5 px-1 text-[9px]">Public</Badge>}
+          {cfg.public && (
+            <Badge
+              variant="outline"
+              className={`h-3.5 px-1 text-[9px] ${selected ? 'border-accent-foreground/40 text-accent-foreground' : ''}`}
+            >
+              Public
+            </Badge>
+          )}
         </div>
       </div>
       <Button
         size="icon"
         variant="ghost"
-        className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 group-data-[selected=true]:opacity-100"
+        className={`h-6 w-6 p-0 opacity-0 group-hover:opacity-100 group-data-[selected=true]:opacity-100 ${
+          selected
+            ? 'text-accent-foreground/80 hover:text-accent-foreground hover:bg-accent-foreground/10'
+            : 'text-muted-foreground hover:text-foreground'
+        }`}
         onClick={(e) => { e.stopPropagation(); onClone(); }}
         title="Duplicate"
       >
@@ -322,13 +368,48 @@ function SidebarRow({
       <Button
         size="icon"
         variant="ghost"
-        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 group-data-[selected=true]:opacity-100"
+        className={`h-6 w-6 p-0 opacity-0 group-hover:opacity-100 group-data-[selected=true]:opacity-100 hover:text-destructive ${
+          selected ? 'text-accent-foreground/80 hover:bg-accent-foreground/10' : 'text-muted-foreground'
+        }`}
         onClick={(e) => { e.stopPropagation(); onDelete(); }}
         title="Delete"
       >
         <Trash2 className="h-3 w-3" />
       </Button>
     </li>
+  );
+}
+
+// Hidden file input + button. Resets `value` after each pick so the
+// same file can be re-imported back-to-back (the change event won't
+// fire for an identical value otherwise).
+function ImportButton({ onImportFile }: { onImportFile(file: File): void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <input
+        ref={ref}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        data-testid="provider-import-input"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onImportFile(file);
+          e.target.value = '';
+        }}
+      />
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-7 text-xs"
+        onClick={() => ref.current?.click()}
+        title="Import a provider from an exported JSON file"
+        data-testid="provider-import-btn"
+      >
+        <Upload className="h-3 w-3 mr-1" /> Import
+      </Button>
+    </>
   );
 }
 

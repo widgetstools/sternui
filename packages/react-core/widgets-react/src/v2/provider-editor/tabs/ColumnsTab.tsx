@@ -92,6 +92,16 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
 
   const fieldNames = useMemo(() => new Set(columns.map((c) => c.field)), [columns]);
 
+  // Clear all columns — wipes the column list AND the (now-stale) key
+  // column. Confirmed via dialog since it's a full reset (recoverable by
+  // re-picking fields on the Fields tab).
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const handleClearAll = useCallback(() => {
+    onChange([]);
+    onKeyColumnChange([]);
+    setConfirmClearOpen(false);
+  }, [onChange, onKeyColumnChange]);
+
   const handleAddColumn = useCallback(() => {
     if (!newFieldName.trim()) return;
     if (fieldNames.has(newFieldName)) return;
@@ -231,7 +241,7 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
         suppressHeaderMenuButton: true,
         suppressMovable: true,
         suppressNavigable: true,
-        cellClass: 'cursor-pointer',
+        cellClass: 'cursor-pointer flex items-center justify-center !px-0',
         headerTooltip: 'Value expression',
         cellRenderer: ExpressionIconCell,
         onCellClicked: (event: CellClickedEvent<RowData>) => {
@@ -251,7 +261,7 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
         suppressHeaderMenuButton: true,
         suppressMovable: true,
         suppressNavigable: true,
-        cellClass: 'cursor-pointer',
+        cellClass: 'cursor-pointer flex items-center justify-center !px-0',
         cellRenderer: DeleteIconCell,
         onCellClicked: (event: CellClickedEvent<RowData>) => {
           const field = event.data?.field;
@@ -306,6 +316,22 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
           fieldNameEmpty={!newFieldName.trim()}
         />
 
+        <div className="flex items-center justify-between flex-shrink-0">
+          <span className="text-[11px] font-medium text-muted-foreground">
+            Columns ({columns.length})
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-destructive hover:text-destructive"
+            onClick={() => setConfirmClearOpen(true)}
+            data-testid="columns-tab-clear-all"
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1" />
+            Clear all columns
+          </Button>
+        </div>
+
         <div className="flex-1 min-h-[220px]">
           <AgGridReact<RowData>
             theme={gridTheme}
@@ -324,6 +350,37 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
           />
         </div>
       </div>
+
+      <Dialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
+        <DialogContent className="max-w-sm" data-testid="columns-tab-clear-all-dialog">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Clear all columns?</DialogTitle>
+            <DialogDescription className="text-xs">
+              Removes all {columns.length} column{columns.length === 1 ? '' : 's'} and the
+              key column. You can re-add columns from the <strong>Fields</strong> tab.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => setConfirmClearOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={handleClearAll}
+              data-testid="columns-tab-clear-all-confirm"
+            >
+              Clear all
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {editingColumn && (
         <ExpressionEditorDialog
