@@ -16,7 +16,7 @@ Every runtime resolves the same TypeScript interface (`PlatformBootstrapConfig` 
 | `userId` | yes | Session user for AppData, profiles, private provider rows |
 | `useRest` | no | When `true`, enable REST config service (requires URL) |
 | `configServiceRestUrl` | no | REST API base URL when `useRest === true` |
-| `seedConfigUrl` | no | Seed JSON for empty Dexie (dev/demo) |
+| `seedConfigUrl` | no | Seed JSON for empty Dexie (dev/demo). Seeds the auth/registry tables; if it also carries an `appConfig` array it restores the app's full component state (data providers, component registry, dock, workspaces, profile-sets). A Config Browser "Export ALL" bundle is a drop-in full-restore seed. Runs only against an empty DB. |
 | `appDataBootstrap` | no | Declarative AppData hook ids + run policy (see below) |
 
 ---

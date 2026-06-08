@@ -574,3 +574,104 @@ describe('ProfileManager — phantom-profile regressions', () => {
     manager.dispose();
   });
 });
+
+describe('ProfileManager — export/import grid-level data (schemaVersion 2)', () => {
+  it('export carries the adapter\'s grid-level data as a v2 payload', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter, 'grid-gld');
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    const gld = { v: 1, provider: { liveProviderId: 'stomp-1', historicalProviderId: null, mode: 'live' } };
+    await adapter.saveGridLevelData(platform.gridId, gld);
+
+    const payload = await manager.export();
+    expect(payload.schemaVersion).toBe(2);
+    expect(payload.gridLevelData).toEqual(gld);
+
+    manager.dispose();
+  });
+
+  it('export omits grid-level data (v1) when the adapter has none', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter, 'grid-no-gld');
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    const payload = await manager.export();
+    expect(payload.schemaVersion).toBe(1);
+    expect('gridLevelData' in payload).toBe(false);
+
+    manager.dispose();
+  });
+
+  it('import writes grid-level data to the adapter and emits gridLevelData:imported', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter, 'grid-import');
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    const events: unknown[] = [];
+    platform.events.on('gridLevelData:imported', (p) => events.push(p.data));
+
+    const gld = { v: 1, provider: { liveProviderId: 'rest-9', historicalProviderId: 'rest-h', mode: 'historical' }, caption: 'Imported View' };
+    await manager.import({
+      schemaVersion: 2,
+      kind: 'gc-profile',
+      exportedAt: new Date().toISOString(),
+      profile: { name: 'FromFile', gridId: 'grid-import', state: {} },
+      gridLevelData: gld,
+    });
+
+    expect(await adapter.loadGridLevelData(platform.gridId)).toEqual(gld);
+    expect(events).toEqual([gld]);
+
+    manager.dispose();
+  });
+
+  it('import of a v1 payload leaves grid-level data untouched and emits nothing', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter, 'grid-v1');
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    const existing = { v: 1, provider: { liveProviderId: 'keep-me', historicalProviderId: null, mode: 'live' } };
+    await adapter.saveGridLevelData(platform.gridId, existing);
+
+    let fired = 0;
+    platform.events.on('gridLevelData:imported', () => { fired++; });
+
+    await manager.import({
+      schemaVersion: 1,
+      kind: 'gc-profile',
+      exportedAt: new Date().toISOString(),
+      profile: { name: 'LegacyFile', gridId: 'grid-v1', state: {} },
+    });
+
+    // The pre-existing grid-level data must survive an import that carries none.
+    expect(await adapter.loadGridLevelData(platform.gridId)).toEqual(existing);
+    expect(fired).toBe(0);
+
+    manager.dispose();
+  });
+
+  it('export → import round-trips grid-level data into a second grid', async () => {
+    const srcAdapter = new MemoryAdapter();
+    const { platform: srcPlatform } = makePlatform(srcAdapter, 'grid-src');
+    const src = new ProfileManager({ platform: srcPlatform, adapter: srcAdapter, disableAutoSave: true });
+    await src.boot();
+    const gld = { v: 1, provider: { liveProviderId: 'p-live', historicalProviderId: null, mode: 'live' }, caption: 'Src' };
+    await srcAdapter.saveGridLevelData(srcPlatform.gridId, gld);
+    const payload = await src.export();
+    src.dispose();
+
+    const dstAdapter = new MemoryAdapter();
+    const { platform: dstPlatform } = makePlatform(dstAdapter, 'grid-dst');
+    const dst = new ProfileManager({ platform: dstPlatform, adapter: dstAdapter, disableAutoSave: true });
+    await dst.boot();
+    await dst.import(payload);
+
+    expect(await dstAdapter.loadGridLevelData(dstPlatform.gridId)).toEqual(gld);
+    dst.dispose();
+  });
+});

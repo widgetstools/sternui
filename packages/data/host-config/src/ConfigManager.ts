@@ -1144,9 +1144,16 @@ export class ConfigManager {
       return;
     }
 
-    // Check if the database already has data
-    const appCount = await this.db.appRegistry.count();
-    if (appCount > 0) {
+    // Check if the database already has data. Gate on appRegistry OR
+    // appConfig: a full-restore seed carries appConfig, so once anything
+    // is seeded we must not re-run and clobber a user's later edits on the
+    // next boot. (Minimal seeds have no appConfig, so this still trips on
+    // appRegistry exactly as before.)
+    const [appCount, configCount] = await Promise.all([
+      this.db.appRegistry.count(),
+      this.db.appConfig.count(),
+    ]);
+    if (appCount > 0 || configCount > 0) {
       console.log("ConfigManager: Database already seeded, skipping.");
       return;
     }
@@ -1171,7 +1178,13 @@ export class ConfigManager {
       // so that either all tables are seeded or none are.
       await this.db.transaction(
         "rw",
-        [this.db.appRegistry, this.db.userProfile, this.db.roles, this.db.permissions],
+        [
+          this.db.appRegistry,
+          this.db.userProfile,
+          this.db.roles,
+          this.db.permissions,
+          this.db.appConfig,
+        ],
         async () => {
           if (seedData.permissions && seedData.permissions.length > 0) {
             await this.db.permissions.bulkPut(seedData.permissions);
@@ -1191,6 +1204,15 @@ export class ConfigManager {
           if (seedData.userProfiles && seedData.userProfiles.length > 0) {
             await this.db.userProfile.bulkPut(seedData.userProfiles);
             console.log(`ConfigManager: Seeded ${seedData.userProfiles.length} user profiles.`);
+          }
+
+          // Component configs (data providers, component registry, dock,
+          // workspaces, MarketsGrid profile-sets, …). Written verbatim so a
+          // same-deployment "Export ALL" bundle restores the full app state
+          // when used as the seed. Optional — absent on minimal seeds.
+          if (seedData.appConfig && seedData.appConfig.length > 0) {
+            await this.db.appConfig.bulkPut(seedData.appConfig);
+            console.log(`ConfigManager: Seeded ${seedData.appConfig.length} component configs.`);
           }
         },
       );

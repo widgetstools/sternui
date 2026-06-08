@@ -617,23 +617,40 @@ export class ProfileManager {
   }
 
   /** Snapshot a profile as a portable JSON payload. Flushes any pending
-   *  auto-save first so the payload reflects the latest edits. */
+   *  auto-save first so the payload reflects the latest edits.
+   *
+   *  When the adapter persists grid-level data (provider selection,
+   *  caption, event bindings) the payload is a schemaVersion-2 export
+   *  carrying it as a sibling of `profile`, so the file is a complete
+   *  grid-view snapshot. Grids whose adapter has no grid-level data (or
+   *  none persisted yet) export a v1-shaped payload with no
+   *  `gridLevelData` field. */
   async export(id?: string): Promise<ExportedProfilePayload> {
     const targetId = id ?? this.state.activeId;
     await this.autoSave?.flushNow();
-    const snap = await this.adapter.loadProfile(this.platform.gridId, targetId);
+    const { gridId } = this.platform;
+    const snap = await this.adapter.loadProfile(gridId, targetId);
     if (!snap) throw new Error(`[profiles] No profile "${targetId}" to export`);
+    const gridLevelData = (await this.adapter.loadGridLevelData?.(gridId)) ?? undefined;
     return {
-      schemaVersion: 1,
+      schemaVersion: gridLevelData !== undefined ? 2 : 1,
       kind: 'gc-profile',
       exportedAt: new Date().toISOString(),
       profile: { name: snap.name, gridId: snap.gridId, state: snap.state },
+      ...(gridLevelData !== undefined ? { gridLevelData } : {}),
     };
   }
 
   /** Import a previously-exported payload. Always additive — unique id +
    *  name on collision so imports never overwrite. Activates the new
    *  profile unless `activate: false`.
+   *
+   *  Grid-level data (schemaVersion 2): if the payload carries a
+   *  `gridLevelData` blob and the adapter persists grid-level data, it is
+   *  written to storage and a `gridLevelData:imported` platform event is
+   *  emitted so the live grid view (provider selection, caption, event
+   *  bindings) reflects the import — see the `ExportedProfilePayload`
+   *  schemaVersion notes. v1 payloads (no `gridLevelData`) are unaffected.
    *
    *  Expression-policy enforcement:
    *    - In `'strict'` mode, payloads containing any
@@ -713,6 +730,23 @@ export class ProfileManager {
     };
     await this.adapter.saveProfile(snap);
     this.platform.events.emit('profile:saved', { gridId, profileId: id });
+
+    // schemaVersion-2 payloads carry grid-level data (provider selection,
+    // caption, event bindings). The chosen semantics are "always apply on
+    // import", so write it to the adapter unconditionally — the imported
+    // file reconstitutes the whole grid view, not just the profile.
+    // Written BEFORE activation so any remount a consumer triggers off the
+    // `gridLevelData:imported` event (emitted below) re-hydrates from the
+    // now-current row. No-op when the payload has none (v1 export) or the
+    // adapter doesn't persist grid-level data.
+    const importedGridLevelData =
+      parsed.gridLevelData !== undefined && this.adapter.saveGridLevelData
+        ? parsed.gridLevelData
+        : undefined;
+    if (importedGridLevelData !== undefined) {
+      await this.adapter.saveGridLevelData!(gridId, importedGridLevelData);
+    }
+
     await this.refresh();
 
     if (options?.activate !== false) {
@@ -730,6 +764,17 @@ export class ProfileManager {
       this.autoSave?.cancelScheduled();
       this.updateState({ isDirty: false });
       this.platform.events.emit('profile:loaded', { gridId, profileId: id });
+    }
+
+    // Emit AFTER activation so the manager has finished mutating the shared
+    // store before a listener (the v2 container) re-applies the selection —
+    // which may remount the grid via its `key`. The new row is already on
+    // disk, so the remount re-hydrates consistently.
+    if (importedGridLevelData !== undefined) {
+      this.platform.events.emit('gridLevelData:imported', {
+        gridId,
+        data: importedGridLevelData,
+      });
     }
     return toMeta(snap);
   }
@@ -872,8 +917,16 @@ function validatePayload(raw: unknown): ExportedProfilePayload {
   if (!profile.state || typeof profile.state !== 'object') {
     throw new Error('[profiles] Missing profile.state');
   }
+  // `gridLevelData` is opaque to the engine (the consumer owns its shape),
+  // so it is carried through verbatim with no structural validation —
+  // only its presence flips the export to schemaVersion 2. Absent on v1
+  // payloads. `null` is preserved (an explicit "no value") distinct from
+  // `undefined` ("field omitted"); both are no-ops on import.
+  const hasGridLevelData =
+    Object.prototype.hasOwnProperty.call(obj, 'gridLevelData')
+    && obj.gridLevelData !== undefined;
   return {
-    schemaVersion: 1,
+    schemaVersion: hasGridLevelData || obj.schemaVersion === 2 ? 2 : 1,
     kind: 'gc-profile',
     exportedAt: typeof obj.exportedAt === 'string' ? obj.exportedAt : new Date().toISOString(),
     profile: {
@@ -881,5 +934,6 @@ function validatePayload(raw: unknown): ExportedProfilePayload {
       gridId: profile.gridId,
       state: profile.state as Record<string, SerializedState>,
     },
+    ...(hasGridLevelData ? { gridLevelData: obj.gridLevelData } : {}),
   };
 }

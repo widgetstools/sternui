@@ -39,6 +39,29 @@ profiles against it.
 Source: [`packages/shared/engine/src/persistence/StorageAdapter.ts`](../packages/shared/engine/src/persistence/StorageAdapter.ts),
 [`packages/shared/engine/src/profiles/types.ts`](../packages/shared/engine/src/profiles/types.ts).
 
+### Portable export (profile selector ⬇/⬆ buttons)
+
+`ProfileManager.export()` / `.import()` produce and accept an
+`ExportedProfilePayload`. Although `gridLevelData` is **not** part of a
+profile in storage, the portable file bundles it as a `schemaVersion: 2`
+sibling of `profile` so a single export is a complete grid-view
+snapshot — profile state **plus** the provider selection / caption /
+event bindings that were active. Import always re-applies that blob:
+it is written to the same backing row via the adapter's
+`saveGridLevelData` and a `gridLevelData:imported` platform event lets
+the live container update the picker/caption without a reload.
+
+`schemaVersion: 1` files (profile state only, exported before this
+change, or from a grid whose adapter has no grid-level data) still
+import — they simply leave the grid's existing `gridLevelData` alone.
+
+Source: [`packages/shared/engine/src/profiles/types.ts`](../packages/shared/engine/src/profiles/types.ts)
+(`ExportedProfilePayload`),
+[`ProfileManager.export()` / `.import()`](../packages/shared/engine/src/profiles/ProfileManager.ts).
+Config-table import/export (whole `appConfig` rows, including the bundled
+`gridLevelData`) is a separate, row-level path — see the Config Browser
+and `importConfigBundle`.
+
 ### Reserved Default profile
 
 There is always exactly one profile with id `__default__` (the

@@ -756,7 +756,12 @@ Per-renderer config types (`PillRendererConfig`,
 - `ProfileManagerOptions` — `platform, adapter, autoSave, activeIdSource`
 - `ActiveIdSource` — pluggable active-profile pointer
 - `ProfileMeta` — metadata
-- `ExportedProfilePayload` — JSON export format
+- `ExportedProfilePayload` — JSON export format; `schemaVersion: 2` bundles
+  the grid-level data blob (provider selection, caption, event bindings)
+  alongside the profile so an export/import is a complete grid-view
+  snapshot. `import()` re-applies it via the adapter's `saveGridLevelData`
+  and emits a `gridLevelData:imported` platform event; v1 files (no
+  grid-level data) still import unchanged.
 
 #### Security policy
 
@@ -1000,6 +1005,11 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Data layer
 
+- `SeedData` — first-run seed shape; optional `appConfig[]` lets a Config
+  Browser "Export ALL" bundle serve as a full-restore `seed.json` (data
+  providers, component registry, dock, workspaces, profile-sets). Written
+  verbatim; `seedIfEmpty()` runs only on an empty DB (gated on appRegistry
+  **or** appConfig count) so it never clobbers a bootstrapped app.
 - `ConfigDatabase` — Dexie wrapper with schema versioning
 - Compound indexes: `[componentType+componentSubType]`, `[userId+appId]`
 - v1→v2 unified schema migration (`config→payload`, `createdAt→creationTime`, `updatedAt→updatedTime`)

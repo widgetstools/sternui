@@ -43,9 +43,13 @@ export interface ImportResult {
 
 /**
  * The full export bundle shape produced by `exportAll`. Keys match the
- * server's `data/seed-config.json` (and the admin tool's bundle reader),
- * so a single file can seed an empty REST server in one round-trip
- * without per-table juggling.
+ * `SeedData` shape (and the server's `data/seed-config.json`), so a single
+ * file round-trips three ways without per-table juggling: seed an empty
+ * REST server, restore via the Config Browser / Import Config dialogs, or
+ * drop in as the client `seedConfigUrl` `seed.json` — the seed loader reads
+ * `appConfig` too (see `ConfigManager.seedIfEmpty`), so a same-deployment
+ * export restores the app's FULL state (data providers, component registry,
+ * dock, workspaces, profile-sets), not just the auth/registry shell.
  *
  * `userProfiles` is plural to match the canonical bundle shape even
  * though the Dexie table key is `userProfile` (singular).

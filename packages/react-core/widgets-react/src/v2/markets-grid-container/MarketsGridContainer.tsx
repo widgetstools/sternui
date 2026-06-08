@@ -215,12 +215,11 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
   const [configBrowserOpen, setConfigBrowserOpen] = useState(false);
 
-  // Initial load. If the adapter doesn't implement grid-level data
-  // (older third-party adapters), or there's no adapter at all, we
-  // fall through to the default selection and mark as loaded.
-  useEffect(() => {
-    let cancelled = false;
-    const applyDefaults = (sel: ProviderSelection): ProviderSelection => {
+  // Fill empty provider slots from the configured defaults. Shared by the
+  // initial load and the import-restore handler so both reconcile the
+  // persisted selection against host defaults identically.
+  const applyDefaults = useCallback(
+    (sel: ProviderSelection): ProviderSelection => {
       let next = sel;
       if (!next.liveProviderId && defaultLiveProviderId) {
         next = { ...next, liveProviderId: defaultLiveProviderId, mode: 'live' };
@@ -229,7 +228,15 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         next = { ...next, historicalProviderId: defaultHistoricalProviderId };
       }
       return next;
-    };
+    },
+    [defaultLiveProviderId, defaultHistoricalProviderId],
+  );
+
+  // Initial load. If the adapter doesn't implement grid-level data
+  // (older third-party adapters), or there's no adapter at all, we
+  // fall through to the default selection and mark as loaded.
+  useEffect(() => {
+    let cancelled = false;
 
     if (!adapter?.loadGridLevelData) {
       if (defaultLiveProviderId || defaultHistoricalProviderId) {
@@ -256,7 +263,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         setLoaded(true);
       });
     return () => { cancelled = true; };
-  }, [adapter, props.gridId, defaultLiveProviderId, defaultHistoricalProviderId]);
+  }, [adapter, props.gridId, applyDefaults]);
 
   // Restore toolbar date from AppData when persisted mode is historical.
   useEffect(() => {
@@ -306,6 +313,43 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       void adapter.saveGridLevelData(props.gridId, next);
     }
   }, [selection, persistedCaption, eventBindings, loaded, adapter, props.gridId]);
+
+  // Apply grid-level data restored by a profile import (schemaVersion 2).
+  // The ProfileManager has already written the blob to the same backing
+  // row and emitted `gridLevelData:imported`; this mirrors it into live
+  // picker/caption/binding state so the view updates without a reload.
+  // `lastSavedRef` is primed to the applied value so the persist effect
+  // above treats it as already-on-disk and skips a redundant write (which
+  // would also bump the row version unnecessarily).
+  const applyImportedGridLevelData = useCallback(
+    (raw: unknown) => {
+      const state = normalizeGridLevelData(raw);
+      const provider = applyDefaults(state.provider);
+      const bindings = state.eventBindings ?? {};
+      lastSavedRef.current = serializeGridLevelData({
+        v: 1,
+        provider,
+        caption: state.caption,
+        eventBindings: Object.keys(bindings).length > 0 ? bindings : undefined,
+      });
+      setSelection(provider);
+      setPersistedCaption(state.caption);
+      setEventBindings(bindings);
+    },
+    [applyDefaults],
+  );
+
+  // Subscribe to the grid's `gridLevelData:imported` event per mounted
+  // handle. A provider-switch remount swaps `gridHandle` (new platform),
+  // so re-binding on its identity keeps the listener on the live bus and
+  // cleans up the stale one.
+  useEffect(() => {
+    const events = gridHandle?.platform?.events;
+    if (!events) return;
+    return events.on('gridLevelData:imported', ({ data }) => {
+      applyImportedGridLevelData(data);
+    });
+  }, [gridHandle, applyImportedGridLevelData]);
 
   // Caller may also want to observe caption edits — chain.
   const callerOnCaptionChange = (marketsGridProps as { onCaptionChange?: (next: string) => void }).onCaptionChange;
