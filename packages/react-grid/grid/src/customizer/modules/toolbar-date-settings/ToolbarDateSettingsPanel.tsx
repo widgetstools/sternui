@@ -360,8 +360,8 @@ export function ToolbarDateSettingsPanel(): ReactElement {
           title="Custom Settings"
           actions={(
             <>
-              <SharpBtn variant="ghost" onClick={discard} disabled={!dirty}>Reset</SharpBtn>
-              <SharpBtn variant="action" onClick={save} disabled={!dirty}>Save</SharpBtn>
+              <SharpBtn variant="ghost" onClick={discard} disabled={!dirty} data-testid="tds-reset-btn">Reset</SharpBtn>
+              <SharpBtn variant="action" onClick={save} disabled={!dirty} data-testid="tds-save-btn">Save</SharpBtn>
             </>
           )}
         />
