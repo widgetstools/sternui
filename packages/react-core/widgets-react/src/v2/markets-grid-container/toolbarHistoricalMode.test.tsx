@@ -77,6 +77,7 @@ function createMockProvider(id: string): IDataProvider & {
 const providers = new Map<string, ReturnType<typeof createMockProvider>>();
 const restartMock = vi.fn().mockResolvedValue(undefined);
 const appDataSet = vi.fn().mockResolvedValue(undefined);
+const saveAllMock = vi.fn().mockResolvedValue(undefined);
 const lastMarketsGridProps: { current: any } = { current: null };
 
 vi.mock('@starui/grid', () => ({
@@ -99,7 +100,7 @@ vi.mock('@starui/grid', () => ({
           gridApi: api,
           platform: {},
           profiles: {},
-          saveAll: vi.fn(),
+          saveAll: saveAllMock,
         });
       }, 0);
       return () => clearTimeout(t);
@@ -192,6 +193,7 @@ describe('MarketsGridContainer — toolbar historical mode', () => {
     providers.clear();
     restartMock.mockClear();
     appDataSet.mockClear();
+    saveAllMock.mockClear();
     lastMarketsGridProps.current = null;
   });
 
@@ -242,5 +244,43 @@ describe('MarketsGridContainer — toolbar historical mode', () => {
     );
 
     expect(appDataSet).toHaveBeenCalledWith('positions', 'asOfDate', '2026-04-01');
+  }, 15_000);
+
+  it('save-and-switch: flushes pending edits via saveAll() before applying a provider change', async () => {
+    // Changing the live provider changes `activeId`, which is part of the
+    // <MarketsGrid> key — so the grid remounts and re-hydrates the
+    // customizer from disk. Without a flush, other tabs' in-memory per-card
+    // "Save"s (e.g. a Grid Options status-bar edit) would be discarded by
+    // that remount. The container must call the grid handle's saveAll()
+    // FIRST so the working set is persisted and survives the remount.
+    const adapter = makeAdapter({
+      liveProviderId: LIVE_PROVIDER_ID,
+      historicalProviderId: HIST_PROVIDER_ID,
+      mode: 'live',
+    });
+    const storage = vi.fn(() => adapter);
+
+    render(
+      <MarketsGridContainer
+        {...baseProps}
+        storage={storage as any}
+        defaultLiveProviderId={LIVE_PROVIDER_ID}
+        defaultHistoricalProviderId={HIST_PROVIDER_ID}
+      />,
+    );
+
+    await waitFor(() => expect(lastMarketsGridProps.current).not.toBeNull());
+    // Let the mock grid's onReady (setTimeout 0) fire so the container
+    // captures the grid handle (and its saveAll).
+    await act(async () => { await new Promise((r) => setTimeout(r, 5)); });
+    expect(lastMarketsGridProps.current?.providerGridHost).toBeTruthy();
+    saveAllMock.mockClear();
+
+    await act(async () => {
+      lastMarketsGridProps.current.providerGridHost.onLiveChange(HIST_PROVIDER_ID);
+      await Promise.resolve();
+    });
+
+    expect(saveAllMock).toHaveBeenCalledTimes(1);
   }, 15_000);
 });

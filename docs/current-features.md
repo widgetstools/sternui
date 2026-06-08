@@ -1077,7 +1077,8 @@ Per-renderer config types (`PillRendererConfig`,
 - Buffering between snapshot-resolve and update registration
 - Lazy provider create on first attach, reuse on subsequent attaches
 - `refresh-provider` RPC — replay hub cache to one subscriber without upstream I/O; `SubscribeHandle.refresh()` / `IDataProvider.refresh()`
-- `attach.extra` → `restart(extra)` on running provider
+- `attach.extra` → `restart(extra)` on running provider; when the attach also carries `cfg` (editor Restart button), the slot is **rebuilt from the new cfg** (`recreateProvider`) so the reconnect picks up edited connection/column/behaviour settings instead of the stale config the slot was created with
+- `stop` keeps a provider's **stats listeners** registered (pushes one zeroed snapshot, doesn't drop the subscription) so the diagnostics pane survives a Stop and resumes automatically on the next Restart
 
 #### Wire protocol (v2)
 
@@ -1490,6 +1491,7 @@ These aren't a single feature, but they are platform invariants worth rememberin
   (grid-state last so replay sees the finalized column set).
 - **Storage adapter pattern** — `StorageAdapter` is the single contract. localStorage, IndexedDB, ConfigService (REST + Dexie), and in-memory all implement it.
 - **Provider selection** — `MarketsGridContainer` exposes live/historical provider pickers in grid customizer → Custom Settings with grid-level persistence (`gridLevelData`). Primary toolbar still offers refresh/reload admin actions. Bare `MarketsGrid` hosts use parent-controlled `rowData`.
+  - **Save-and-switch** — a provider/mode change alters `activeId`, part of the `<MarketsGrid>` key, so the grid remounts and re-hydrates the customizer from disk. The container flushes the working set via `gridHandle.saveAll()` BEFORE applying the selection, so other tabs' in-memory per-card "Save"s (e.g. a Grid Options status-bar edit) survive the remount instead of being discarded.
 - **Expression engine** — CSP-safe parser/evaluator drives calculated columns, conditional rules, and filter expressions; `tryCompileToAgString()` transpiles to AG Grid `valueFormatter` strings.
 - **Theme integration** — reactive dark/light switching via `RuntimePort` + `data-theme` attribute; AG Grid theme + StarUI tokens stay in lockstep.
 - **Extensibility surfaces** — slot-based widget extensions in `@starui/widget-sdk`; OpenFin plugin hooks (`onMount`, `onReady`, `onThemeChanged`, `onMessage`, `onClose`) in `@starui/openfin-platform`.

@@ -40,6 +40,7 @@
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
     "e2e:ui": "playwright test --ui",
+    "e2e:container": "playwright test -c playwright.container.config.ts",
     "dev": "npm run dev:demo-react",
     "dev:demo-react": "npm --prefix apps run dev:source -w @starui/demo-react",
     "dev:demo-configservice-react": "npm --prefix apps run dev:source -w @starui/demo-configservice-react",

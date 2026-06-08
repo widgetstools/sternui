@@ -321,15 +321,42 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const propCaption = (marketsGridProps as { caption?: string }).caption;
   const effectiveCaption = persistedCaption ?? propCaption;
 
+  // Changing the live/historical provider or the mode changes `activeId`,
+  // which is part of the <MarketsGrid> `key` — so the grid remounts and a
+  // fresh ProfileManager re-hydrates the customizer from disk. Under
+  // `disableAutoSave`, other tabs' per-card "Save"s live only in the
+  // in-memory store, so that remount would silently discard them (e.g. a
+  // Grid Options status-bar edit lost when the provider is switched).
+  // Save-and-switch: flush the working set to disk via the grid's own
+  // saveAll() BEFORE applying the selection, so the remount re-hydrates the
+  // latest state. `saveAll` is a stable bridge to the live store (the
+  // handle's `profiles.isDirty` snapshot is captured at onReady and would
+  // be stale), so we call it unconditionally — a clean save is a harmless
+  // no-op write.
+  const applyProviderSelection = useCallback(
+    async (apply: (s: ProviderSelection) => ProviderSelection) => {
+      const handle = gridHandleRef.current;
+      if (handle) {
+        try {
+          await handle.saveAll();
+        } catch (err) {
+          console.warn('[markets-grid] save-before-provider-switch failed:', err);
+        }
+      }
+      setSelection(apply);
+    },
+    [],
+  );
+
   const setLiveId = useCallback((id: string | null) => {
-    setSelection((s) => ({ ...s, liveProviderId: id }));
-  }, []);
+    void applyProviderSelection((s) => ({ ...s, liveProviderId: id }));
+  }, [applyProviderSelection]);
   const setHistoricalId = useCallback((id: string | null) => {
-    setSelection((s) => ({ ...s, historicalProviderId: id }));
-  }, []);
+    void applyProviderSelection((s) => ({ ...s, historicalProviderId: id }));
+  }, [applyProviderSelection]);
   const setMode = useCallback((mode: ProviderMode) => {
-    setSelection((s) => ({ ...s, mode }));
-  }, []);
+    void applyProviderSelection((s) => ({ ...s, mode }));
+  }, [applyProviderSelection]);
 
   // ── Active provider resolution ────────────────────────────────────
   const activeId = selection.mode === 'live' ? selection.liveProviderId : selection.historicalProviderId;
@@ -474,11 +501,18 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const expectedKeyRef = useRef(expectedKey);
   useEffect(() => { expectedKeyRef.current = expectedKey; }, [expectedKey]);
 
+  // Latest grid handle, kept in a ref so the provider-change setters can
+  // flush a save before the switch remounts the grid (see
+  // `applyProviderSelection`) without re-creating those callbacks or
+  // closing over a stale handle.
+  const gridHandleRef = useRef<MarketsGridHandle | null>(null);
+
   const onReady = useCallback((handle: MarketsGridHandle) => {
     const k = expectedKeyRef.current;
     if (k) {
       setStamped({ key: k, api: handle.gridApi as unknown as GridApi<TData> });
     }
+    gridHandleRef.current = handle;
     setGridHandle(handle);
     onReadyProp?.(handle);
   }, [onReadyProp]);

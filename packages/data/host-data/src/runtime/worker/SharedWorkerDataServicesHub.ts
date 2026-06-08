@@ -635,10 +635,24 @@ export class SharedWorkerDataServicesHub {
         void slot.handle.restart(req.extra);
       }
     } else if (req.extra) {
-      this.traceStompAttachCfg('hub.attach RESTART (running provider)', req.providerId, slot.cfg, req.extra);
-      // Existing provider + restart payload: kick it.
-      // eslint-disable-next-line no-console
-      if (DEBUG) console.log(`[v2/hub] attach RESTART subId=${req.subId} provider=${req.providerId} extra=${JSON.stringify(req.extra)}`);
+      // Existing provider + restart payload. When the caller supplies a
+      // cfg (the provider editor's Restart button always sends the current
+      // draft), the connection / column / behaviour settings may have been
+      // edited since the slot was created — the running provider captured
+      // the OLD cfg, so a plain restart() would reconnect with stale
+      // values. Rebuild the slot from the new cfg first. Normal grid
+      // subscribers omit cfg and just get a plain restart(extra) (e.g. the
+      // historical `asOfDate` overlay), which keeps the existing config.
+      if (req.cfg) {
+        this.traceStompAttachCfg('hub.attach RESTART+RECONFIG (running provider)', req.providerId, req.cfg, req.extra);
+        // eslint-disable-next-line no-console
+        if (DEBUG) console.log(`[v2/hub] attach RESTART+RECONFIG subId=${req.subId} provider=${req.providerId} extra=${JSON.stringify(req.extra)}`);
+        slot = this.recreateProvider(req.providerId, req.cfg);
+      } else {
+        this.traceStompAttachCfg('hub.attach RESTART (running provider)', req.providerId, slot.cfg, req.extra);
+        // eslint-disable-next-line no-console
+        if (DEBUG) console.log(`[v2/hub] attach RESTART subId=${req.subId} provider=${req.providerId} extra=${JSON.stringify(req.extra)}`);
+      }
       void slot.handle.restart(req.extra);
     } else {
       // eslint-disable-next-line no-console
@@ -699,10 +713,28 @@ export class SharedWorkerDataServicesHub {
       }
       this.dataListeners.delete(providerId);
     }
-    this.statsListeners.delete(providerId);
+    // Keep stats listeners registered across a stop. The diagnostics pane
+    // is a passive monitor subscribed via `useProviderStats`; that effect
+    // doesn't re-run while mounted, so deleting the listeners here would
+    // strand the client — it would never re-subscribe, and a subsequent
+    // Restart would re-create the provider into a UI that's gone blind.
+    // Instead push one final zeroed snapshot so the pane reflects the
+    // stopped state; the sampler skips this provider (no slot) until a
+    // Restart re-creates it, at which point the same subscription resumes.
+    this.emitStoppedStats(providerId);
     this.maybeStopStatsSampler();
 
     await slot.handle.stop();
+  }
+
+  /** Push a single zeroed stats snapshot to a provider's stats listeners. */
+  private emitStoppedStats(providerId: string): void {
+    const listeners = this.statsListeners.get(providerId);
+    if (!listeners) return;
+    const stats = zeroedStats();
+    for (const l of listeners.values()) {
+      l.port.postMessage({ subId: l.subId, kind: 'stats', stats } satisfies Event);
+    }
   }
 
   // ─── AppData handlers (Step 2) ─────────────────────────────────
@@ -839,8 +871,32 @@ export class SharedWorkerDataServicesHub {
     return slot;
   }
 
+  /**
+   * Tear down a running provider's upstream connection and rebuild the
+   * slot from a (possibly changed) cfg, keeping the provider id and all
+   * existing data / stats listeners intact. Used when the editor's
+   * Restart button reconnects after the connection / column / behaviour
+   * settings were edited: the running slot was created with the old cfg,
+   * so a plain `restart()` would reconnect with stale values.
+   */
+  private recreateProvider(providerId: string, cfg: ProviderConfig): ProviderSlot {
+    const old = this.providers.get(providerId);
+    // Drop the old slot from the registry first. `applyEmit` keys on the
+    // currently-registered slot, so any in-flight frames from the old
+    // connection are ignored the moment it stops being that slot.
+    this.providers.delete(providerId);
+    if (old) void old.handle.stop();
+    const fresh = this.createProvider(providerId, cfg);
+    this.providers.set(providerId, fresh);
+    this.ensureStatsSampler();
+    return fresh;
+  }
+
   private applyEmit(providerId: string, slot: ProviderSlot, event: ProviderEmitEvent): void {
-    if (!this.providers.has(providerId)) return;
+    // Only the currently-registered slot may emit. A superseded slot
+    // (after recreateProvider) or a stopped one (removed from the map)
+    // is silently ignored, so stale frames never leak into the new cache.
+    if (this.providers.get(providerId) !== slot) return;
     if ('rows' in event) {
       const keyColumn = (slot.cfg as { keyColumn?: string | readonly string[] }).keyColumn;
       if (event.replace) slot.cache.clear();
@@ -1159,6 +1215,24 @@ export class SharedWorkerDataServicesHub {
       lastError: slot.lastError,
     };
   }
+}
+
+/** All-zero stats snapshot — emitted when a provider is stopped. */
+function zeroedStats(): ProviderStats {
+  return {
+    rowCount: 0,
+    byteCount: 0,
+    msgCount: 0,
+    msgPerSec: 0,
+    snapshotFetchMs: null,
+    publishCount: 0,
+    publishPerSec: 0,
+    publishPerMin: 0,
+    subscriberCount: 0,
+    startedAt: 0,
+    lastMessageAt: null,
+    errorCount: 0,
+  };
 }
 
 // ─── AppData row ↔ config bridges ──────────────────────────────────
