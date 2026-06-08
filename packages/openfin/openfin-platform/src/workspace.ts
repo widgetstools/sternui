@@ -14,6 +14,7 @@ import {
 } from './db';
 import {
   registerDock,
+  setExcludedDockTools,
   reloadDockFromConfig,
   ACTION_LAUNCH_APP,
   ACTION_OPEN_DOCK_EDITOR,
@@ -281,6 +282,7 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
         config?.themeToggleDarkIcon,
         config?.themeToggleLightIcon,
         config?.roles,
+        config?.dock?.excludeTools,
       );
       log("Workspace platform initialized");
     } catch (err) {
@@ -750,6 +752,7 @@ async function initializeWorkspaceComponents(
   themeToggleDarkIcon?: string,
   themeToggleLightIcon?: string,
   roles?: string[],
+  excludeTools?: string[],
 ): Promise<void> {
   log("Initializing workspace components");
 
@@ -777,6 +780,10 @@ async function initializeWorkspaceComponents(
         console.warn(`Unknown dock action: ${actionId}`);
       }
     };
+
+    // Hide any built-in Tools-menu items the app opted out of (e.g.
+    // export-config / import-config) before the dock builds its menus.
+    setExcludedDockTools(excludeTools);
 
     await registerDock(platformSettings, customSettings?.apps, dockIcon, themeToggleDarkIcon, themeToggleLightIcon, roles, dockActionDispatcher, customSettings?.dockVersion ?? "dock2");
   }

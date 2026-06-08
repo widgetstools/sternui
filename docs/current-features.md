@@ -1266,7 +1266,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Workspace initialization
 
-- `initWorkspace()` — bootstrap dock + home + context menu + notifications
+- `initWorkspace()` — bootstrap dock + home + context menu + notifications. `WorkspaceConfig.dock.excludeTools?: string[]` hides built-in Tools-menu items by action ID (e.g. `[ACTION_EXPORT_CONFIG, ACTION_IMPORT_CONFIG]`); applies to both dock2 and dock3, default shows all.
 - `WorkspacePlatformOverrideCallback` — workspace lifecycle hooks
 - `workspace.options` — platform settings (name, icon, theme, notifications, dock)
 - `workspacePersistence` — save/load workspace (pinned windows, dock, layouts)
@@ -1284,6 +1284,8 @@ Per-renderer config types (`PillRendererConfig`,
 - `getDefaultEditorConfig()` — default dock editor config
 - `recolorDockIcons()` — theme-aware icon recolour
 - `shutdownDock()` — graceful dock teardown
+- `setExcludedDockTools(actionIds?)` — hide built-in Tools-menu items by action ID (normally driven via `initWorkspace({ dock: { excludeTools } })`)
+- `ACTION_EXPORT_CONFIG` / `ACTION_IMPORT_CONFIG` — Tools-menu action IDs (pass to `dock.excludeTools` to hide Export/Import Config)
 - Dock button types: action, dropdown, folder
 - `DockEditorConfig`, `DockButtonConfig`, `DockActionButtonConfig`, `DockDropdownButtonConfig`, `DockMenuItemConfig`
 - Top-level dropdowns render on the dock bar as icon-bearing folders (dock3 path) — `toDock3Favorites` emits each `DropdownButton` (and the system "Tools" group) as a `DockEntry` folder with its icon, linked by id to the matching content-menu folder that owns the children. Works around OpenFin's `ContentMenuEntry` folder shape having no icon field; the dock-bar `DockEntry` folder does.
