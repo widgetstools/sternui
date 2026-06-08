@@ -1,41 +1,1629 @@
 {
-  "permissions": [
+  "appConfig": [
     {
-      "permissionId": "config:read",
-      "description": "View component configurations",
-      "category": "config"
+      "configId": "WS_bf0e92bf-4530-4f8d-868c-87fa33e5e54c",
+      "appId": "TestApp",
+      "userId": "dev1",
+      "componentType": "workspace",
+      "componentSubType": "SNAPSHOT",
+      "isTemplate": false,
+      "displayText": "My Workspace",
+      "payload": {
+        "name": "My Workspace",
+        "openfinSnapshot": {
+          "snapshotDetails": {
+            "timestamp": "2026-06-08T21:16:14.713Z",
+            "runtimeVersion": "43.142.101.2",
+            "monitorInfo": {
+              "deviceScaleFactor": 2,
+              "dpi": {
+                "x": 192,
+                "y": 192
+              },
+              "nonPrimaryMonitors": [],
+              "primaryMonitor": {
+                "available": {
+                  "dipRect": {
+                    "top": 0,
+                    "bottom": 901,
+                    "left": 0,
+                    "right": 1512
+                  },
+                  "scaledRect": {
+                    "top": 0,
+                    "bottom": 1802,
+                    "left": 0,
+                    "right": 3024
+                  }
+                },
+                "availableRect": {
+                  "top": 0,
+                  "bottom": 901,
+                  "left": 0,
+                  "right": 1512
+                },
+                "deviceId": "\\\\?\\DISPLAY#PRL5000#3&21de92e8&0&UID0#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}",
+                "deviceScaleFactor": 2,
+                "displayDeviceActive": true,
+                "dpi": {
+                  "x": 192,
+                  "y": 192
+                },
+                "monitor": {
+                  "dipRect": {
+                    "top": 0,
+                    "bottom": 949,
+                    "left": 0,
+                    "right": 1512
+                  },
+                  "scaledRect": {
+                    "top": 0,
+                    "bottom": 1898,
+                    "left": 0,
+                    "right": 3024
+                  }
+                },
+                "monitorRect": {
+                  "top": 0,
+                  "bottom": 949,
+                  "left": 0,
+                  "right": 1512
+                },
+                "name": "\\\\.\\DISPLAY1"
+              },
+              "reason": "api-query",
+              "taskbar": {
+                "dipRect": {
+                  "top": 901,
+                  "bottom": 949,
+                  "left": 0,
+                  "right": 1512
+                },
+                "edge": "bottom",
+                "rect": {
+                  "top": 901,
+                  "bottom": 949,
+                  "left": 0,
+                  "right": 1512
+                },
+                "scaledRect": {
+                  "top": 1802,
+                  "bottom": 1898,
+                  "left": 0,
+                  "right": 3024
+                }
+              },
+              "virtualScreen": {
+                "top": 0,
+                "bottom": 949,
+                "left": 0,
+                "right": 1512,
+                "dipRect": {
+                  "top": 0,
+                  "bottom": 949,
+                  "left": 0,
+                  "right": 1512
+                },
+                "scaledRect": {
+                  "top": 0,
+                  "bottom": 1898,
+                  "left": 0,
+                  "right": 3024
+                }
+              }
+            },
+            "machineId": "104c60d9-375e-464d-9cc1-de5c55452f0a",
+            "machineName": "unknown"
+          },
+          "windows": [
+            {
+              "alwaysOnTop": false,
+              "frame": false,
+              "icon": "http://localhost:5175/dock-provider.png",
+              "maxHeight": -1,
+              "maxWidth": -1,
+              "maximizable": true,
+              "minHeight": 200,
+              "minWidth": 232,
+              "minimizable": true,
+              "opacity": 1,
+              "resizeRegion": {
+                "bottomRightCorner": 20,
+                "size": 7,
+                "sides": {
+                  "top": true,
+                  "right": true,
+                  "bottom": true,
+                  "left": true
+                }
+              },
+              "transparent": false,
+              "uuid": "star-demo",
+              "accelerator": {
+                "devtools": false,
+                "zoom": false,
+                "reload": false,
+                "reloadIgnoringCache": false
+              },
+              "alphaMask": {
+                "blue": -1,
+                "green": -1,
+                "red": -1
+              },
+              "alwaysOnBottom": false,
+              "api": {
+                "iframe": {
+                  "crossOriginInjection": false,
+                  "sameOriginInjection": true,
+                  "enableDeprecatedSharedName": false
+                },
+                "fin": "global"
+              },
+              "applicationIcon": "",
+              "aspectRatio": 0,
+              "autoShow": false,
+              "backgroundThrottling": true,
+              "contentNavigation": {
+                "allowlist": [
+                  "<all_urls>"
+                ],
+                "denylist": [],
+                "whitelist": [
+                  "<all_urls>"
+                ],
+                "blacklist": []
+              },
+              "contentRedirect": {
+                "allowlist": [
+                  "<all_urls>"
+                ],
+                "denylist": [],
+                "whitelist": [
+                  "<all_urls>"
+                ],
+                "blacklist": []
+              },
+              "contextMenuSettings": {
+                "enable": true,
+                "devtools": true,
+                "reload": false
+              },
+              "cornerRounding": {
+                "height": 0,
+                "width": 0
+              },
+              "closeOnLastViewRemoved": false,
+              "viewsPreventingClose": "all",
+              "defaultHeight": 801,
+              "defaultLeft": 229,
+              "defaultTop": 176,
+              "defaultWidth": 800,
+              "disableAppRegion": false,
+              "disableUniqueLogIdentifier": false,
+              "draggable": false,
+              "downloadShelf": {
+                "enabled": false,
+                "border": {
+                  "size": 1,
+                  "color": "default"
+                }
+              },
+              "downloadBubble": {
+                "enabled": true,
+                "anchor": {
+                  "bounds": {
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "top": 0,
+                    "right": 0,
+                    "bottom": 0,
+                    "left": 0
+                  },
+                  "location": "topRight"
+                }
+              },
+              "experimental": {
+                "api": {
+                  "batching": {
+                    "renderer": {
+                      "enabled": false,
+                      "maxSize": 1.7976931348623157e+308,
+                      "ttl": 0
+                    }
+                  },
+                  "breadcrumbs": false,
+                  "iframe": {
+                    "crossOriginInjection": false,
+                    "sameOriginInjection": true,
+                    "enableDeprecatedSharedName": false
+                  }
+                },
+                "v2Api": true,
+                "showFavicons": true,
+                "defaultFaviconUrl": "data:image/svg+xml,%3Csvg%20style%3D%22background-color%3A%237D808A%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2010%2010%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20clip-rule%3D%22evenodd%22%20d%3D%22M4.64648%200.874962C4.84174%200.6797%205.15833%200.6797%205.35359%200.874962L9.12482%204.6462C9.32009%204.84146%209.32009%205.15804%209.12482%205.3533L5.35359%209.12454C5.15833%209.3198%204.84174%209.3198%204.64648%209.12454L0.875245%205.3533C0.679982%205.15804%200.679982%204.84146%200.875245%204.6462L4.64648%200.874962ZM5.00003%201.93562L1.9359%204.99975L5.00003%208.06388L8.06416%204.99975L5.00003%201.93562Z%22%20fill%3D%22white%22%2F%3E%3C%2Fsvg%3E"
+              },
+              "includeInSnapshots": true,
+              "resizable": true,
+              "resize": true,
+              "saveWindowState": false,
+              "shadow": false,
+              "showTaskbarIcon": true,
+              "showBackgroundImages": false,
+              "smallWindow": false,
+              "spellCheck": false,
+              "state": "normal",
+              "taskbarIcon": "",
+              "taskbarIconGroup": "star-demo",
+              "url": "https://workspace.openfin.co/workspace/23.0.20/browser/",
+              "waitForPageLoad": false,
+              "backgroundColor": "#1E1F23",
+              "fdc3InteropApi": "",
+              "enableBeforeUnload": false,
+              "hotkeys": [
+                {
+                  "command": "stack.nextTab",
+                  "keys": "Ctrl+Tab"
+                },
+                {
+                  "command": "stack.previousTab",
+                  "keys": "Ctrl+Shift+Tab"
+                },
+                {
+                  "command": "view.detach",
+                  "keys": "Ctrl+Shift+D"
+                },
+                {
+                  "command": "view.focusLeft",
+                  "keys": "Ctrl+Shift+Left"
+                },
+                {
+                  "command": "view.focusRight",
+                  "keys": "Ctrl+Shift+Right"
+                },
+                {
+                  "command": "view.focusUp",
+                  "keys": "Ctrl+Shift+Up"
+                },
+                {
+                  "command": "view.focusDown",
+                  "keys": "Ctrl+Shift+Down"
+                },
+                {
+                  "command": "stack.nth-tab-1",
+                  "keys": "Ctrl+1"
+                },
+                {
+                  "command": "stack.nth-tab-2",
+                  "keys": "Ctrl+2"
+                },
+                {
+                  "command": "stack.nth-tab-3",
+                  "keys": "Ctrl+3"
+                },
+                {
+                  "command": "stack.nth-tab-4",
+                  "keys": "Ctrl+4"
+                },
+                {
+                  "command": "stack.nth-tab-5",
+                  "keys": "Ctrl+5"
+                },
+                {
+                  "command": "stack.nth-tab-6",
+                  "keys": "Ctrl+6"
+                },
+                {
+                  "command": "stack.nth-tab-7",
+                  "keys": "Ctrl+7"
+                },
+                {
+                  "command": "stack.nth-tab-8",
+                  "keys": "Ctrl+8"
+                },
+                {
+                  "command": "stack.nth-tab-9",
+                  "keys": "Ctrl+9"
+                }
+              ],
+              "viewVisibility": {
+                "showViewsOnSplitterDrag": {
+                  "enabled": true
+                },
+                "showViewsOnWindowResize": {
+                  "enabled": true
+                }
+              },
+              "autoplayPolicy": "no-user-gesture-required",
+              "roundedCorners": false,
+              "title": "My Views",
+              "height": 801,
+              "width": 800,
+              "center": false,
+              "x": 229,
+              "y": 176,
+              "permissions": {
+                "System": {
+                  "openUrlWithBrowser": {
+                    "enabled": true,
+                    "protocols": [
+                      "mailto"
+                    ]
+                  }
+                }
+              },
+              "closeBehavior": "detach",
+              "layout": {
+                "settings": {
+                  "hasHeaders": true,
+                  "constrainDragToContainer": true,
+                  "reorderEnabled": true,
+                  "selectionEnabled": false,
+                  "popoutWholeStack": false,
+                  "blockedPopoutsThrowError": true,
+                  "closePopoutsOnUnload": true,
+                  "showPopoutIcon": false,
+                  "showMaximiseIcon": false,
+                  "showCloseIcon": false,
+                  "responsiveMode": "onload",
+                  "tabOverlapAllowance": 0,
+                  "reorderOnTabMenuClick": true,
+                  "tabControlOffset": 10,
+                  "constrainDragToHeaders": false,
+                  "preventDragOut": false,
+                  "preventDragIn": false,
+                  "pageId": "89f8a930-2054-462c-869f-60067a876eb6",
+                  "disableTabOverflowDropdown": true
+                },
+                "dimensions": {
+                  "borderWidth": 3,
+                  "borderGrabWidth": 15,
+                  "minItemHeight": 0,
+                  "minItemWidth": 0,
+                  "headerHeight": 30,
+                  "dragProxyWidth": 300,
+                  "dragProxyHeight": 200
+                },
+                "labels": {
+                  "close": "close",
+                  "maximise": "maximise",
+                  "minimise": "minimise",
+                  "popout": "open in new window",
+                  "popin": "pop in",
+                  "tabDropdown": "additional tabs"
+                },
+                "content": [
+                  {
+                    "type": "stack",
+                    "isClosable": true,
+                    "reorderEnabled": true,
+                    "title": "",
+                    "activeItemIndex": 0,
+                    "content": [
+                      {
+                        "type": "component",
+                        "componentName": "view",
+                        "componentState": {
+                          "bounds": {
+                            "x": 1,
+                            "y": 1,
+                            "width": 0,
+                            "height": 0
+                          },
+                          "contextMenu": true,
+                          "detachOnClose": false,
+                          "isClosable": true,
+                          "preventDragOut": false,
+                          "accelerator": {
+                            "zoom": true
+                          },
+                          "zoomLevel": 0,
+                          "url": "http://localhost:5175/blotters/marketsgrid",
+                          "contextMenuOptions": {
+                            "enabled": true,
+                            "template": [
+                              "spellCheck",
+                              "separator",
+                              "print",
+                              "separator",
+                              "cut",
+                              "copy",
+                              "paste",
+                              "undo",
+                              "redo",
+                              "selectAll",
+                              "inspect",
+                              "reload"
+                            ]
+                          },
+                          "downloadShelf": {
+                            "enabled": false
+                          },
+                          "hotkeys": [
+                            {
+                              "keys": "Shift+CommandOrControl+E"
+                            },
+                            {
+                              "command": "stack.nextTab",
+                              "keys": "Ctrl+Tab"
+                            },
+                            {
+                              "command": "stack.previousTab",
+                              "keys": "Ctrl+Shift+Tab"
+                            },
+                            {
+                              "command": "view.detach",
+                              "keys": "Ctrl+Shift+D"
+                            },
+                            {
+                              "command": "view.focusLeft",
+                              "keys": "Ctrl+Shift+Left"
+                            },
+                            {
+                              "command": "view.focusRight",
+                              "keys": "Ctrl+Shift+Right"
+                            },
+                            {
+                              "command": "view.focusUp",
+                              "keys": "Ctrl+Shift+Up"
+                            },
+                            {
+                              "command": "view.focusDown",
+                              "keys": "Ctrl+Shift+Down"
+                            },
+                            {
+                              "command": "stack.nth-tab-1",
+                              "keys": "Ctrl+1"
+                            },
+                            {
+                              "command": "stack.nth-tab-2",
+                              "keys": "Ctrl+2"
+                            },
+                            {
+                              "command": "stack.nth-tab-3",
+                              "keys": "Ctrl+3"
+                            },
+                            {
+                              "command": "stack.nth-tab-4",
+                              "keys": "Ctrl+4"
+                            },
+                            {
+                              "command": "stack.nth-tab-5",
+                              "keys": "Ctrl+5"
+                            },
+                            {
+                              "command": "stack.nth-tab-6",
+                              "keys": "Ctrl+6"
+                            },
+                            {
+                              "command": "stack.nth-tab-7",
+                              "keys": "Ctrl+7"
+                            },
+                            {
+                              "command": "stack.nth-tab-8",
+                              "keys": "Ctrl+8"
+                            },
+                            {
+                              "command": "stack.nth-tab-9",
+                              "keys": "Ctrl+9"
+                            }
+                          ],
+                          "customData": {
+                            "instanceId": "dev1grid-pnl-1780953257368",
+                            "templateId": "grid-pnl",
+                            "componentType": "grid",
+                            "componentSubType": "pnl",
+                            "appId": "TestApp",
+                            "configServiceUrl": "",
+                            "singleton": false,
+                            "activeProfileId": "default-copy",
+                            "savedTitle": "PNL"
+                          },
+                          "name": "internal-generated-view-061da415-a79f-428d-ad3f-30d2a329656f",
+                          "preloadScripts": [],
+                          "enableBeforeUnload": false,
+                          "backgroundThrottling": true,
+                          "autoResize": {
+                            "width": false,
+                            "height": false
+                          },
+                          "_internalWorkspaceData": {
+                            "viewIdentifier": "80690c8b-aad5-408b-9555-b36824c1cd3b"
+                          },
+                          "componentName": "view",
+                          "uuid": "star-demo",
+                          "initialUrl": "http://localhost:5175/blotters/marketsgrid",
+                          "processAffinity": "star-demo"
+                        },
+                        "isClosable": true,
+                        "reorderEnabled": true,
+                        "title": "PNL"
+                      }
+                    ]
+                  }
+                ],
+                "isClosable": true,
+                "reorderEnabled": true,
+                "title": "",
+                "openPopouts": [],
+                "maximisedItemId": null
+              },
+              "layoutSnapshot": {
+                "layouts": {
+                  "692c9d4d-6b16-4a07-9c81-12d6d012b800": {
+                    "settings": {
+                      "hasHeaders": true,
+                      "constrainDragToContainer": true,
+                      "reorderEnabled": true,
+                      "selectionEnabled": false,
+                      "popoutWholeStack": false,
+                      "blockedPopoutsThrowError": true,
+                      "closePopoutsOnUnload": true,
+                      "showPopoutIcon": false,
+                      "showMaximiseIcon": false,
+                      "showCloseIcon": false,
+                      "responsiveMode": "onload",
+                      "tabOverlapAllowance": 0,
+                      "reorderOnTabMenuClick": true,
+                      "tabControlOffset": 10,
+                      "constrainDragToHeaders": false,
+                      "preventDragOut": false,
+                      "preventDragIn": false,
+                      "pageId": "89f8a930-2054-462c-869f-60067a876eb6",
+                      "disableTabOverflowDropdown": true
+                    },
+                    "dimensions": {
+                      "borderWidth": 3,
+                      "borderGrabWidth": 15,
+                      "minItemHeight": 0,
+                      "minItemWidth": 0,
+                      "headerHeight": 30,
+                      "dragProxyWidth": 300,
+                      "dragProxyHeight": 200
+                    },
+                    "labels": {
+                      "close": "close",
+                      "maximise": "maximise",
+                      "minimise": "minimise",
+                      "popout": "open in new window",
+                      "popin": "pop in",
+                      "tabDropdown": "additional tabs"
+                    },
+                    "content": [
+                      {
+                        "type": "stack",
+                        "isClosable": true,
+                        "reorderEnabled": true,
+                        "title": "",
+                        "activeItemIndex": 0,
+                        "content": [
+                          {
+                            "type": "component",
+                            "componentName": "view",
+                            "componentState": {
+                              "bounds": {
+                                "x": 1,
+                                "y": 1,
+                                "width": 0,
+                                "height": 0
+                              },
+                              "contextMenu": true,
+                              "detachOnClose": false,
+                              "isClosable": true,
+                              "preventDragOut": false,
+                              "accelerator": {
+                                "zoom": true
+                              },
+                              "zoomLevel": 0,
+                              "url": "http://localhost:5175/blotters/marketsgrid",
+                              "contextMenuOptions": {
+                                "enabled": true,
+                                "template": [
+                                  "spellCheck",
+                                  "separator",
+                                  "print",
+                                  "separator",
+                                  "cut",
+                                  "copy",
+                                  "paste",
+                                  "undo",
+                                  "redo",
+                                  "selectAll",
+                                  "inspect",
+                                  "reload"
+                                ]
+                              },
+                              "downloadShelf": {
+                                "enabled": false
+                              },
+                              "hotkeys": [
+                                {
+                                  "keys": "Shift+CommandOrControl+E"
+                                },
+                                {
+                                  "command": "stack.nextTab",
+                                  "keys": "Ctrl+Tab"
+                                },
+                                {
+                                  "command": "stack.previousTab",
+                                  "keys": "Ctrl+Shift+Tab"
+                                },
+                                {
+                                  "command": "view.detach",
+                                  "keys": "Ctrl+Shift+D"
+                                },
+                                {
+                                  "command": "view.focusLeft",
+                                  "keys": "Ctrl+Shift+Left"
+                                },
+                                {
+                                  "command": "view.focusRight",
+                                  "keys": "Ctrl+Shift+Right"
+                                },
+                                {
+                                  "command": "view.focusUp",
+                                  "keys": "Ctrl+Shift+Up"
+                                },
+                                {
+                                  "command": "view.focusDown",
+                                  "keys": "Ctrl+Shift+Down"
+                                },
+                                {
+                                  "command": "stack.nth-tab-1",
+                                  "keys": "Ctrl+1"
+                                },
+                                {
+                                  "command": "stack.nth-tab-2",
+                                  "keys": "Ctrl+2"
+                                },
+                                {
+                                  "command": "stack.nth-tab-3",
+                                  "keys": "Ctrl+3"
+                                },
+                                {
+                                  "command": "stack.nth-tab-4",
+                                  "keys": "Ctrl+4"
+                                },
+                                {
+                                  "command": "stack.nth-tab-5",
+                                  "keys": "Ctrl+5"
+                                },
+                                {
+                                  "command": "stack.nth-tab-6",
+                                  "keys": "Ctrl+6"
+                                },
+                                {
+                                  "command": "stack.nth-tab-7",
+                                  "keys": "Ctrl+7"
+                                },
+                                {
+                                  "command": "stack.nth-tab-8",
+                                  "keys": "Ctrl+8"
+                                },
+                                {
+                                  "command": "stack.nth-tab-9",
+                                  "keys": "Ctrl+9"
+                                }
+                              ],
+                              "customData": {
+                                "instanceId": "dev1grid-pnl-1780953257368",
+                                "templateId": "grid-pnl",
+                                "componentType": "grid",
+                                "componentSubType": "pnl",
+                                "appId": "TestApp",
+                                "configServiceUrl": "",
+                                "singleton": false,
+                                "activeProfileId": "default-copy",
+                                "savedTitle": "PNL"
+                              },
+                              "name": "internal-generated-view-061da415-a79f-428d-ad3f-30d2a329656f",
+                              "preloadScripts": [],
+                              "enableBeforeUnload": false,
+                              "backgroundThrottling": true,
+                              "autoResize": {
+                                "width": false,
+                                "height": false
+                              },
+                              "_internalWorkspaceData": {
+                                "viewIdentifier": "80690c8b-aad5-408b-9555-b36824c1cd3b"
+                              },
+                              "componentName": "view",
+                              "uuid": "star-demo",
+                              "initialUrl": "http://localhost:5175/blotters/marketsgrid",
+                              "processAffinity": "star-demo"
+                            },
+                            "isClosable": true,
+                            "reorderEnabled": true,
+                            "title": "PNL"
+                          }
+                        ]
+                      }
+                    ],
+                    "isClosable": true,
+                    "reorderEnabled": true,
+                    "title": "",
+                    "openPopouts": [],
+                    "maximisedItemId": null
+                  }
+                }
+              },
+              "contextMenu": true,
+              "contextMenuOptions": {
+                "template": [],
+                "enabled": false
+              },
+              "workspacePlatform": {
+                "pages": [
+                  {
+                    "pageId": "81973353-b915-4146-983e-f614a8f41db4",
+                    "title": "My Views",
+                    "layout": {
+                      "settings": {
+                        "hasHeaders": true,
+                        "constrainDragToContainer": true,
+                        "reorderEnabled": true,
+                        "selectionEnabled": false,
+                        "popoutWholeStack": false,
+                        "blockedPopoutsThrowError": true,
+                        "closePopoutsOnUnload": true,
+                        "showPopoutIcon": false,
+                        "showMaximiseIcon": false,
+                        "showCloseIcon": false,
+                        "responsiveMode": "onload",
+                        "tabOverlapAllowance": 0,
+                        "reorderOnTabMenuClick": true,
+                        "tabControlOffset": 10,
+                        "constrainDragToHeaders": false,
+                        "preventDragOut": false,
+                        "preventDragIn": false,
+                        "pageId": "89f8a930-2054-462c-869f-60067a876eb6",
+                        "disableTabOverflowDropdown": true
+                      },
+                      "dimensions": {
+                        "borderWidth": 3,
+                        "borderGrabWidth": 15,
+                        "minItemHeight": 0,
+                        "minItemWidth": 0,
+                        "headerHeight": 30,
+                        "dragProxyWidth": 300,
+                        "dragProxyHeight": 200
+                      },
+                      "labels": {
+                        "close": "close",
+                        "maximise": "maximise",
+                        "minimise": "minimise",
+                        "popout": "open in new window",
+                        "popin": "pop in",
+                        "tabDropdown": "additional tabs"
+                      },
+                      "content": [
+                        {
+                          "type": "stack",
+                          "isClosable": true,
+                          "reorderEnabled": true,
+                          "title": "",
+                          "activeItemIndex": 0,
+                          "content": [
+                            {
+                              "type": "component",
+                              "componentName": "view",
+                              "componentState": {
+                                "bounds": {
+                                  "x": 1,
+                                  "y": 1,
+                                  "width": 0,
+                                  "height": 0
+                                },
+                                "contextMenu": true,
+                                "detachOnClose": false,
+                                "isClosable": true,
+                                "preventDragOut": false,
+                                "accelerator": {
+                                  "zoom": true
+                                },
+                                "zoomLevel": 0,
+                                "url": "http://localhost:5175/blotters/marketsgrid",
+                                "contextMenuOptions": {
+                                  "enabled": true,
+                                  "template": [
+                                    "spellCheck",
+                                    "separator",
+                                    "print",
+                                    "separator",
+                                    "cut",
+                                    "copy",
+                                    "paste",
+                                    "undo",
+                                    "redo",
+                                    "selectAll",
+                                    "inspect",
+                                    "reload"
+                                  ]
+                                },
+                                "downloadShelf": {
+                                  "enabled": false
+                                },
+                                "hotkeys": [
+                                  {
+                                    "keys": "Shift+CommandOrControl+E"
+                                  },
+                                  {
+                                    "command": "stack.nextTab",
+                                    "keys": "Ctrl+Tab"
+                                  },
+                                  {
+                                    "command": "stack.previousTab",
+                                    "keys": "Ctrl+Shift+Tab"
+                                  },
+                                  {
+                                    "command": "view.detach",
+                                    "keys": "Ctrl+Shift+D"
+                                  },
+                                  {
+                                    "command": "view.focusLeft",
+                                    "keys": "Ctrl+Shift+Left"
+                                  },
+                                  {
+                                    "command": "view.focusRight",
+                                    "keys": "Ctrl+Shift+Right"
+                                  },
+                                  {
+                                    "command": "view.focusUp",
+                                    "keys": "Ctrl+Shift+Up"
+                                  },
+                                  {
+                                    "command": "view.focusDown",
+                                    "keys": "Ctrl+Shift+Down"
+                                  },
+                                  {
+                                    "command": "stack.nth-tab-1",
+                                    "keys": "Ctrl+1"
+                                  },
+                                  {
+                                    "command": "stack.nth-tab-2",
+                                    "keys": "Ctrl+2"
+                                  },
+                                  {
+                                    "command": "stack.nth-tab-3",
+                                    "keys": "Ctrl+3"
+                                  },
+                                  {
+                                    "command": "stack.nth-tab-4",
+                                    "keys": "Ctrl+4"
+                                  },
+                                  {
+                                    "command": "stack.nth-tab-5",
+                                    "keys": "Ctrl+5"
+                                  },
+                                  {
+                                    "command": "stack.nth-tab-6",
+                                    "keys": "Ctrl+6"
+                                  },
+                                  {
+                                    "command": "stack.nth-tab-7",
+                                    "keys": "Ctrl+7"
+                                  },
+                                  {
+                                    "command": "stack.nth-tab-8",
+                                    "keys": "Ctrl+8"
+                                  },
+                                  {
+                                    "command": "stack.nth-tab-9",
+                                    "keys": "Ctrl+9"
+                                  }
+                                ],
+                                "customData": {
+                                  "instanceId": "dev1grid-pnl-1780953257368",
+                                  "templateId": "grid-pnl",
+                                  "componentType": "grid",
+                                  "componentSubType": "pnl",
+                                  "appId": "TestApp",
+                                  "configServiceUrl": "",
+                                  "singleton": false,
+                                  "activeProfileId": "default-copy",
+                                  "savedTitle": "PNL"
+                                },
+                                "name": "internal-generated-view-061da415-a79f-428d-ad3f-30d2a329656f",
+                                "preloadScripts": [],
+                                "enableBeforeUnload": false,
+                                "backgroundThrottling": true,
+                                "autoResize": {
+                                  "width": false,
+                                  "height": false
+                                },
+                                "_internalWorkspaceData": {
+                                  "viewIdentifier": "80690c8b-aad5-408b-9555-b36824c1cd3b"
+                                },
+                                "componentName": "view",
+                                "uuid": "star-demo",
+                                "initialUrl": "http://localhost:5175/blotters/marketsgrid",
+                                "processAffinity": "star-demo"
+                              },
+                              "isClosable": true,
+                              "reorderEnabled": true,
+                              "title": "PNL"
+                            }
+                          ]
+                        }
+                      ],
+                      "isClosable": true,
+                      "reorderEnabled": true,
+                      "title": "",
+                      "openPopouts": [],
+                      "maximisedItemId": null
+                    },
+                    "isReadOnly": false,
+                    "isActive": true,
+                    "layoutContainerKey": "692c9d4d-6b16-4a07-9c81-12d6d012b800",
+                    "isLayoutCreated": true,
+                    "singleViewName": "internal-generated-view-061da415-a79f-428d-ad3f-30d2a329656f",
+                    "layoutName": "692c9d4d-6b16-4a07-9c81-12d6d012b800",
+                    "hasUnsavedChanges": false,
+                    "panels": []
+                  }
+                ],
+                "favicon": "http://localhost:5175/dock-provider.png",
+                "title": {
+                  "type": "page-title"
+                },
+                "_internalDeferShowOptions": {
+                  "setAsForeground": true,
+                  "deferShowEnabled": true,
+                  "autoShow": true
+                },
+                "windowType": "browser",
+                "_themeData": {
+                  "themes": [
+                    {
+                      "label": "Default",
+                      "default": "dark",
+                      "palettes": {
+                        "dark": {
+                          "brandPrimary": "#0A76D3",
+                          "brandPrimaryActive": "#0A71C9",
+                          "brandPrimaryHover": "#0B84EB",
+                          "brandPrimaryFocused": "#FFFFFF",
+                          "brandPrimaryText": "#FFFFFF",
+                          "statusSuccess": "#207735",
+                          "statusWarning": "#F48F00",
+                          "statusCritical": "#F31818",
+                          "statusActive": "#0A76D3",
+                          "contentBackground1": "#111214",
+                          "contentBackground2": "#1E1F23",
+                          "contentBackground3": "#24262B",
+                          "contentBackground4": "#2F3136",
+                          "contentBackground5": "#383A40",
+                          "borderNeutral": "#C0C1C2",
+                          "background1": "#111214",
+                          "background2": "#1E1F23",
+                          "background3": "#24262B",
+                          "background4": "#2F3136",
+                          "background5": "#383A40",
+                          "background6": "#53565F",
+                          "brandSecondary": "#383A40",
+                          "brandSecondaryActive": "#33353B",
+                          "brandSecondaryHover": "#44464E",
+                          "brandSecondaryFocused": "#FFFFFF",
+                          "brandSecondaryText": "#FFFFFF",
+                          "inputBackground": "#53565F",
+                          "inputColor": "#FFFFFF",
+                          "inputPlaceholder": "#C9CBD2",
+                          "inputDisabled": "#7D808A",
+                          "inputFocused": "#C9CBD2",
+                          "inputBorder": "#7D808A",
+                          "textDefault": "#FFFFFF",
+                          "textHelp": "#C9CBD2",
+                          "textInactive": "#7D808A",
+                          "backgroundPrimary": "#1E1F23"
+                        },
+                        "light": {
+                          "brandPrimary": "#0A76D3",
+                          "brandPrimaryActive": "#0A71C9",
+                          "brandPrimaryHover": "#0B84EB",
+                          "brandPrimaryFocused": "#FFFFFF",
+                          "brandPrimaryText": "#FFFFFF",
+                          "statusSuccess": "#207735",
+                          "statusWarning": "#F48F00",
+                          "statusCritical": "#F31818",
+                          "statusActive": "#0A76D3",
+                          "contentBackground1": "#FFFFFF",
+                          "contentBackground2": "#FAFBFE",
+                          "contentBackground3": "#F3F5F8",
+                          "contentBackground4": "#ECEEF1",
+                          "contentBackground5": "#DDDFE4",
+                          "borderNeutral": "#C0C1C2",
+                          "background1": "#FFFFFF",
+                          "background2": "#FAFBFE",
+                          "background3": "#F3F5F8",
+                          "background4": "#ECEEF1",
+                          "background5": "#DDDFE4",
+                          "background6": "#C9CBD2",
+                          "brandSecondary": "#DDDFE4",
+                          "brandSecondaryActive": "#D7DADF",
+                          "brandSecondaryHover": "#EBECEF",
+                          "brandSecondaryFocused": "#1E1F23",
+                          "brandSecondaryText": "#1E1F23",
+                          "inputBackground": "#ECEEF1",
+                          "inputColor": "#1E1F23",
+                          "inputPlaceholder": "#383A40",
+                          "inputDisabled": "#7D808A",
+                          "inputFocused": "#C9CBD2",
+                          "inputBorder": "#7D808A",
+                          "textDefault": "#1E1F23",
+                          "textHelp": "#2F3136",
+                          "textInactive": "#7D808A",
+                          "backgroundPrimary": "#FAFBFE"
+                        }
+                      }
+                    }
+                  ],
+                  "selectedScheme": "dark"
+                }
+              },
+              "ignoreSavedWindowState": true,
+              "preloadScripts": []
+            }
+          ],
+          "interopSnapshotDetails": {
+            "contextGroupStates": {
+              "green": {},
+              "purple": {},
+              "orange": {},
+              "red": {},
+              "pink": {},
+              "yellow": {}
+            }
+          }
+        },
+        "instanceIds": [],
+        "metadata": {
+          "APIVersion": "23.0.20"
+        },
+        "version": 1
+      },
+      "createdBy": "dev1",
+      "updatedBy": "dev-user",
+      "creationTime": "2026-06-08T21:16:02.446Z",
+      "updatedTime": "2026-06-08T21:16:15.276Z"
     },
     {
-      "permissionId": "config:write",
-      "description": "Create and update component configurations",
-      "category": "config"
+      "configId": "component-registry::TestApp::system",
+      "appId": "TestApp",
+      "userId": "dev1",
+      "displayText": "Component Registry",
+      "componentType": "component-registry",
+      "componentSubType": "",
+      "isTemplate": false,
+      "payload": {
+        "version": 2,
+        "entries": [
+          {
+            "id": "grid-pnl",
+            "hostUrl": "/blotters/marketsgrid",
+            "iconId": "",
+            "componentType": "grid",
+            "componentSubType": "pnl",
+            "configId": "grid-pnl",
+            "displayName": "Pnl",
+            "createdAt": "2026-06-08T06:17:27.112Z",
+            "type": "internal",
+            "usesHostConfig": true,
+            "appId": "TestApp",
+            "configServiceUrl": "",
+            "singleton": false
+          }
+        ]
+      },
+      "createdBy": "system",
+      "updatedBy": "dev-user",
+      "creationTime": "2026-06-08T06:18:24.154Z",
+      "updatedTime": "2026-06-08T06:22:29.863Z"
     },
     {
-      "permissionId": "config:delete",
-      "description": "Delete component configurations",
-      "category": "config"
+      "configId": "dev1grid-pnl-1780899516244",
+      "appId": "TestApp",
+      "userId": "dev1",
+      "isPublic": true,
+      "displayText": "MarketsGrid profiles: dev1grid-pnl-1780899516244",
+      "componentType": "grid",
+      "componentSubType": "pnl",
+      "isTemplate": false,
+      "singleton": false,
+      "payload": {
+        "version": 1,
+        "profiles": [
+          {
+            "id": "__default__",
+            "gridId": "star-demo-blotter",
+            "name": "Default",
+            "state": {},
+            "createdAt": 1780899519673,
+            "updatedAt": 1780899519673
+          }
+        ]
+      },
+      "createdBy": "dev1",
+      "updatedBy": "dev-user",
+      "creationTime": "2026-06-08T06:18:39.695Z",
+      "updatedTime": "2026-06-08T06:22:29.877Z"
     },
     {
-      "permissionId": "snapshot:read",
-      "description": "View workspace snapshots",
-      "category": "snapshot"
+      "configId": "dev1grid-pnl-1780899781015",
+      "appId": "TestApp",
+      "userId": "dev1",
+      "isPublic": true,
+      "displayText": "MarketsGrid profiles: dev1grid-pnl-1780899781015",
+      "componentType": "grid",
+      "componentSubType": "pnl",
+      "isTemplate": false,
+      "singleton": false,
+      "payload": {
+        "version": 1,
+        "profiles": [
+          {
+            "id": "__default__",
+            "gridId": "star-demo-blotter",
+            "name": "Default",
+            "state": {},
+            "createdAt": 1780899784571,
+            "updatedAt": 1780899784571
+          }
+        ]
+      },
+      "createdBy": "dev1",
+      "updatedBy": "dev-user",
+      "creationTime": "2026-06-08T06:23:04.600Z",
+      "updatedTime": "2026-06-08T12:24:52.647Z"
     },
     {
-      "permissionId": "snapshot:write",
-      "description": "Save workspace snapshots",
-      "category": "snapshot"
+      "configId": "dev1grid-pnl-1780921896711",
+      "appId": "TestApp",
+      "userId": "dev1",
+      "isPublic": true,
+      "displayText": "MarketsGrid profiles: dev1grid-pnl-1780921896711",
+      "componentType": "grid",
+      "componentSubType": "pnl",
+      "isTemplate": false,
+      "singleton": false,
+      "payload": {
+        "version": 1,
+        "profiles": [
+          {
+            "id": "__default__",
+            "gridId": "star-demo-blotter",
+            "name": "Default",
+            "state": {},
+            "createdAt": 1780921917211,
+            "updatedAt": 1780921917211
+          }
+        ]
+      },
+      "createdBy": "dev1",
+      "updatedBy": "dev-user",
+      "creationTime": "2026-06-08T12:31:57.211Z",
+      "updatedTime": "2026-06-08T12:57:28.610Z"
     },
     {
-      "permissionId": "admin:users",
-      "description": "Manage user profiles and role assignments",
-      "category": "admin"
+      "configId": "dev1grid-pnl-1780921899661",
+      "appId": "TestApp",
+      "userId": "dev1",
+      "isPublic": true,
+      "displayText": "MarketsGrid profiles: dev1grid-pnl-1780921899661",
+      "componentType": "grid",
+      "componentSubType": "pnl",
+      "isTemplate": false,
+      "singleton": false,
+      "payload": {
+        "version": 1,
+        "profiles": [
+          {
+            "id": "__default__",
+            "gridId": "star-demo-blotter",
+            "name": "Default",
+            "state": {},
+            "createdAt": 1780921919591,
+            "updatedAt": 1780921919591
+          }
+        ]
+      },
+      "createdBy": "dev1",
+      "updatedBy": "dev-user",
+      "creationTime": "2026-06-08T12:31:59.591Z",
+      "updatedTime": "2026-06-08T12:57:28.627Z"
     },
     {
-      "permissionId": "admin:roles",
-      "description": "Manage role definitions and permissions",
-      "category": "admin"
+      "configId": "dev1grid-pnl-1780923460277",
+      "appId": "TestApp",
+      "userId": "dev1",
+      "isPublic": true,
+      "displayText": "MarketsGrid profiles: dev1grid-pnl-1780923460277",
+      "componentType": "grid",
+      "componentSubType": "pnl",
+      "isTemplate": false,
+      "singleton": false,
+      "payload": {
+        "version": 1,
+        "profiles": [
+          {
+            "id": "__default__",
+            "gridId": "star-demo-blotter",
+            "name": "Default",
+            "state": {},
+            "createdAt": 1780925170110,
+            "updatedAt": 1780925170110
+          }
+        ]
+      },
+      "createdBy": "dev1",
+      "updatedBy": "dev-user",
+      "creationTime": "2026-06-08T13:26:10.111Z",
+      "updatedTime": "2026-06-08T17:46:22.851Z"
+    },
+    {
+      "configId": "dev1grid-pnl-1780940793507",
+      "appId": "TestApp",
+      "userId": "dev1",
+      "isPublic": true,
+      "displayText": "MarketsGrid profiles: dev1grid-pnl-1780940793507",
+      "componentType": "grid",
+      "componentSubType": "pnl",
+      "isTemplate": false,
+      "singleton": false,
+      "payload": {
+        "version": 1,
+        "profiles": [
+          {
+            "id": "__default__",
+            "gridId": "star-demo-blotter",
+            "name": "Default",
+            "state": {},
+            "createdAt": 1780940799802,
+            "updatedAt": 1780940799802
+          }
+        ]
+      },
+      "createdBy": "dev1",
+      "updatedBy": "dev-user",
+      "creationTime": "2026-06-08T17:46:39.802Z",
+      "updatedTime": "2026-06-08T21:00:43.931Z"
+    },
+    {
+      "configId": "dev1grid-pnl-1780952679872",
+      "appId": "TestApp",
+      "userId": "dev1",
+      "isPublic": true,
+      "displayText": "MarketsGrid profiles: dev1grid-pnl-1780952679872",
+      "componentType": "grid",
+      "componentSubType": "pnl",
+      "isTemplate": false,
+      "singleton": false,
+      "payload": {
+        "version": 1,
+        "profiles": [
+          {
+            "id": "__default__",
+            "gridId": "star-demo-blotter",
+            "name": "Default",
+            "state": {},
+            "createdAt": 1780953032170,
+            "updatedAt": 1780953032170
+          }
+        ]
+      },
+      "createdBy": "dev1",
+      "updatedBy": "dev-user",
+      "creationTime": "2026-06-08T21:10:32.170Z",
+      "updatedTime": "2026-06-08T21:10:57.807Z"
+    },
+    {
+      "configId": "dev1grid-pnl-1780953067860",
+      "appId": "TestApp",
+      "userId": "dev1",
+      "isPublic": true,
+      "displayText": "MarketsGrid profiles: dev1grid-pnl-1780953067860",
+      "componentType": "grid",
+      "componentSubType": "pnl",
+      "isTemplate": false,
+      "singleton": false,
+      "payload": {
+        "version": 1,
+        "profiles": [
+          {
+            "id": "__default__",
+            "gridId": "star-demo-blotter",
+            "name": "Default",
+            "state": {},
+            "createdAt": 1780953071197,
+            "updatedAt": 1780953071197
+          }
+        ]
+      },
+      "createdBy": "dev1",
+      "updatedBy": "dev-user",
+      "creationTime": "2026-06-08T21:11:11.197Z",
+      "updatedTime": "2026-06-08T21:11:39.336Z"
+    },
+    {
+      "configId": "dock-config",
+      "appId": "TestApp",
+      "userId": "dev1",
+      "displayText": "Dock Configuration",
+      "componentType": "dock-config",
+      "componentSubType": "",
+      "isTemplate": false,
+      "payload": {
+        "version": 1,
+        "buttons": [
+          {
+            "type": "ActionButton",
+            "id": "886660ff-74dd-48b8-a9bc-90a243f0c96f",
+            "tooltip": "Pnl",
+            "iconUrl": "",
+            "iconId": "",
+            "iconColor": "",
+            "actionId": "launch-component",
+            "customData": {
+              "registryEntryId": "grid-pnl",
+              "asWindow": false
+            }
+          }
+        ],
+        "updatedAt": "2026-06-08T06:18:33.702Z"
+      },
+      "createdBy": "dev1",
+      "updatedBy": "dev-user",
+      "creationTime": "2026-06-08T06:18:33.707Z",
+      "updatedTime": "2026-06-08T06:18:33.761Z"
+    },
+    {
+      "configId": "dp-e081b3f2-6dac-493e-ad8c-7e782e9a9f29",
+      "appId": "TestApp",
+      "userId": "dev1",
+      "componentType": "data-provider",
+      "componentSubType": "stomp",
+      "isTemplate": false,
+      "displayText": "positions.dp",
+      "payload": {
+        "providerType": "stomp",
+        "websocketUrl": "ws://localhost:8081",
+        "listenerTopic": "/snapshot/positions/trd-[tid]",
+        "requestMessage": "/snapshot/positions/trd-[tid]/10000/100",
+        "snapshotEndToken": "Success",
+        "columnDefinitions": [
+          {
+            "field": "positionId",
+            "headerName": "Position Id",
+            "cellDataType": "text",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "cusip",
+            "headerName": "Cusip",
+            "cellDataType": "text",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "ticker",
+            "headerName": "Ticker",
+            "cellDataType": "text",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "asOfDate",
+            "headerName": "As Of Date",
+            "cellDataType": "dateString",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "bookName",
+            "headerName": "Book Name",
+            "cellDataType": "text",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "trader",
+            "headerName": "Trader",
+            "cellDataType": "text",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "desk",
+            "headerName": "Desk",
+            "cellDataType": "text",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "region",
+            "headerName": "Region",
+            "cellDataType": "text",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "currency",
+            "headerName": "Currency",
+            "cellDataType": "text",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "notionalAmount",
+            "headerName": "Notional Amount",
+            "cellDataType": "number",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "currentPrice",
+            "headerName": "Current Price",
+            "cellDataType": "number",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "marketValue",
+            "headerName": "Market Value",
+            "cellDataType": "number",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "pnl",
+            "headerName": "Pnl",
+            "cellDataType": "number",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "unrealizedPnl",
+            "headerName": "Unrealized Pnl",
+            "cellDataType": "number",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "realizedPnl",
+            "headerName": "Realized Pnl",
+            "cellDataType": "number",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "dailyPnl",
+            "headerName": "Daily Pnl",
+            "cellDataType": "number",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "mtdPnl",
+            "headerName": "Mtd Pnl",
+            "cellDataType": "number",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "ytdPnl",
+            "headerName": "Ytd Pnl",
+            "cellDataType": "number",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "dv01",
+            "headerName": "Dv01",
+            "cellDataType": "number",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "pv01",
+            "headerName": "Pv01",
+            "cellDataType": "number",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "spread",
+            "headerName": "Spread",
+            "cellDataType": "number",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          },
+          {
+            "field": "yield",
+            "headerName": "Yield",
+            "cellDataType": "number",
+            "filter": true,
+            "sortable": true,
+            "resizable": true
+          }
+        ],
+        "keyColumn": "positionId",
+        "throttleEnabled": false,
+        "conflateEnabled": false,
+        "reconnect": {
+          "initialDelayMs": 1000
+        },
+        "__providerMeta": {
+          "tags": [],
+          "isDefault": false,
+          "public": false
+        }
+      },
+      "createdBy": "dev1",
+      "updatedBy": "dev1",
+      "creationTime": "2026-06-08T21:12:13.182Z",
+      "updatedTime": "2026-06-08T21:12:13.185Z"
+    },
+    {
+      "configId": "grid-pnl-copy",
+      "appId": "TestApp",
+      "userId": "dev1",
+      "isPublic": true,
+      "displayText": "MarketsGrid profiles: grid-pnl-copy",
+      "componentType": "grid",
+      "componentSubType": "pnl-copy",
+      "isTemplate": true,
+      "singleton": false,
+      "payload": {
+        "version": 1,
+        "profiles": [
+          {
+            "id": "__default__",
+            "gridId": "star-demo-blotter",
+            "name": "Default",
+            "state": {},
+            "createdAt": 1780921587399,
+            "updatedAt": 1780921587399
+          }
+        ]
+      },
+      "createdBy": "dev1",
+      "updatedBy": "dev-user",
+      "creationTime": "2026-06-08T12:26:27.400Z",
+      "updatedTime": "2026-06-08T12:29:08.292Z"
     }
   ],
+  "appRegistry": [
+    {
+      "appId": "StarDemo",
+      "displayName": "Star Demo",
+      "manifestUrl": "http://localhost:5175/platform/manifest.fin.json",
+      "configServiceEnabled": false,
+      "environment": "dev"
+    }
+  ],
+  "userProfiles": [],
   "roles": [
     {
       "roleId": "admin",
@@ -69,21 +1657,41 @@
       ]
     }
   ],
-  "appRegistry": [
+  "permissions": [
     {
-      "appId": "StarDemo",
-      "displayName": "Star Demo",
-      "manifestUrl": "http://localhost:5175/platform/manifest.fin.json",
-      "configServiceEnabled": false,
-      "environment": "dev"
-    }
-  ],
-  "userProfiles": [
+      "permissionId": "admin:roles",
+      "description": "Manage role definitions and permissions",
+      "category": "admin"
+    },
     {
-      "userId": "dev1",
-      "appId": "StarDemo",
-      "roleIds": ["admin", "developer"],
-      "displayName": "Developer"
+      "permissionId": "admin:users",
+      "description": "Manage user profiles and role assignments",
+      "category": "admin"
+    },
+    {
+      "permissionId": "config:delete",
+      "description": "Delete component configurations",
+      "category": "config"
+    },
+    {
+      "permissionId": "config:read",
+      "description": "View component configurations",
+      "category": "config"
+    },
+    {
+      "permissionId": "config:write",
+      "description": "Create and update component configurations",
+      "category": "config"
+    },
+    {
+      "permissionId": "snapshot:read",
+      "description": "View workspace snapshots",
+      "category": "snapshot"
+    },
+    {
+      "permissionId": "snapshot:write",
+      "description": "Save workspace snapshots",
+      "category": "snapshot"
     }
   ]
 }
