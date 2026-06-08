@@ -299,6 +299,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `PrimaryToolbar` — actions, admin, export/import, Visual Excel spreadsheet export,
   settings sheet toggle, optional inline caption (`tabsHidden`), editing-toolbar pencil toggle,
   secondary actions in ⋯ overflow menu by default (`toolbarActionsLayout`: `overflow` | `inline`); shadcn `ToolbarDatePicker` on the right edge (defaults to today; `showToolbarDatePicker`; `historyEnabled` gates past dates)
+- `QuickSearch` — primary-toolbar search icon that expands into a compact field on hover/focus (or click-to-pin via `data-open`) and drives AG-Grid's quick filter across all columns (`setGridOption('quickFilterText')`); self-contained (reaches `GridApi` via `useGridApi`, like `AlertsBadge`); Escape clears + collapses, an inline ✕ clears, and an active term keeps the field open and lights the icon (`data-has-text`)
 - `FiltersToolbar` — quick filter, saved filter recall, server-side expression
   (shadcn `ChromeButton` / `Input` / `Textarea` controls)
 - `FormattingToolbar` — cell/header styling, conditional formats, value formatters (with popout); horizontal strip is **two rows** — row 1: Scope / Type / Paint; row 2: Format / Edit / Templates / Clear (Format moved off row 1 so the wide format cluster no longer wraps alone onto a third line)
@@ -648,7 +649,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 - `WorkspaceSetup` — 3-pane editor (Dock / Inspector / Components+Registry)
 - `ImportConfig` — standalone import-config utility window
-- `ComponentsPane` — browse registered components, drag to dock
+- `ComponentsPane` — browse registered components, drag to dock; per-row hover actions: configure (test-launch), **clone**, delete. Clone (`WorkspaceSetup.handleClone`) duplicates a registry entry into a fresh draft — deep-copies all definition fields, gives it a de-duplicated `(copy)` display name and a unique `componentSubType` (`<sub>-copy`) so its derived `${type}-${subtype}` id can't collide with the source on save, resets `id`/`configId` (re-derived at save), and selects it for immediate editing in the inspector
 - `DockPane` — dock toolbar editor (buttons, folders, menus, icons, actions)
 - `InspectorPane` — selected dock-item property editor
 - `IconPicker` — themed icon selector with search

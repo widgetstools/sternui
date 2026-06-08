@@ -346,6 +346,79 @@
   flex-shrink: 0;
 }
 
+/* ─── Quick search (expand-on-hover) ───────────────────────────────── */
+
+.ds-quick-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+
+/* Collapsed at rest — zero width, invisible, no chrome. Expands on hover,
+   when the field (or anything inside) is focused, when pinned open via the
+   icon, or while a search term is active. `!important` beats the shadcn
+   `Input` base classes (h-9 / w-full / border / px-3), mirroring how
+   `.ds-primary-date-picker` overrides the shadcn `Button`. */
+.ds-quick-search-field {
+  box-sizing: border-box;
+  width: 0;
+  min-width: 0 !important;
+  max-width: 0;
+  height: var(--ds-toolbar-chip-height, 30px) !important;
+  margin-left: 0;
+  padding: 0 !important;
+  background: transparent;
+  border: 1px solid transparent !important;
+  border-radius: 2px;
+  color: var(--ds-text-primary);
+  font-family: var(--ds-font-mono, ui-monospace, monospace);
+  font-size: 11px !important;
+  opacity: 0;
+  overflow: hidden;
+  box-shadow: none !important;
+  transition: width 160ms ease, max-width 160ms ease, margin 160ms ease,
+    padding 160ms ease, opacity 120ms ease, border-color 120ms ease,
+    background 120ms ease;
+}
+
+.ds-quick-search:hover .ds-quick-search-field,
+.ds-quick-search:focus-within .ds-quick-search-field,
+.ds-quick-search[data-open='true'] .ds-quick-search-field,
+.ds-quick-search[data-has-text='true'] .ds-quick-search-field {
+  width: 172px;
+  max-width: 172px;
+  margin-left: 2px;
+  padding: 0 8px !important;
+  opacity: 1;
+  background: var(--ds-surface-secondary, transparent);
+  border-color: var(--ds-border-primary) !important;
+}
+
+.ds-quick-search-field:focus,
+.ds-quick-search-field:focus-visible {
+  outline: none !important;
+  border-color: var(--ds-primary-ring) !important;
+}
+
+.ds-quick-search-field::placeholder {
+  color: var(--ds-text-muted);
+}
+
+/* Light up the magnifier while a search is applied. */
+.ds-quick-search[data-has-text='true'] .ds-quick-search-toggle {
+  color: var(--ds-primary);
+  opacity: 1;
+}
+
+/* Clear button is slightly tighter than the standard chip. */
+.ds-quick-search-clear {
+  width: 22px !important;
+  min-width: 22px !important;
+  max-width: 22px !important;
+  margin-left: 2px;
+}
+
 /* Date picker + overflow menu sit flush at the trailing edge. */
 .ds-primary-actions-trailing {
   display: inline-flex;

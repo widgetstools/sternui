@@ -291,7 +291,7 @@ function buildSystemContentMenuEntries(): ContentMenuEntryType[] {
     {
       type: "item",
       id: "tool-workspace-setup",
-      label: "Workspace Setup (new)",
+      label: "Workspace Setup",
       icon: contentMenuIcon(SETTINGS_SVG),
       itemData: { actionId: ACTION_OPEN_WORKSPACE_SETUP },
     },
