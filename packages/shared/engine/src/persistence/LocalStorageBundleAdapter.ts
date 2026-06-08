@@ -64,6 +64,16 @@ function readActivePointer(gridId: string): string | null {
 export class LocalStorageBundleAdapter implements StorageAdapter {
   private readonly bundleKey: string;
 
+  // In-memory cache keyed by the raw stored string. `getOrCreateBundle`
+  // re-reads the (cheap) localStorage string on every call but only
+  // re-parses when it differs from what we last parsed/wrote — so a
+  // profile save no longer pays a full `JSON.parse` of the whole bundle
+  // twice (loadProfile + saveProfile). An external/cross-tab write
+  // changes the string, which misses the cache and forces a reparse, so
+  // there's no staleness and no need for a `storage`-event listener.
+  private cachedRaw: string | null = null;
+  private cachedBundle: BundleV1 | null = null;
+
   constructor(private readonly gridId: string) {
     this.bundleKey = marketsGridLocalStorageBundleKey(gridId);
   }
@@ -131,27 +141,33 @@ export class LocalStorageBundleAdapter implements StorageAdapter {
     const bundle = this.getOrCreateBundle();
     const row = this.normalizeSnapshot(snapshot);
     const idx = bundle.profiles.findIndex((p) => p.id === row.id);
-    if (idx >= 0) bundle.profiles[idx] = row;
-    else bundle.profiles.push(row);
+    // Build a new profiles array rather than mutating the cached bundle's
+    // — `getOrCreateBundle` may hand back the live cache reference.
+    const profiles =
+      idx >= 0
+        ? bundle.profiles.map((p, i) => (i === idx ? row : p))
+        : [...bundle.profiles, row];
+    let activeProfileId = bundle.activeProfileId;
     const pointer = readActivePointer(this.gridId);
-    if (pointer && bundle.profiles.some((p) => p.id === pointer)) {
-      bundle.activeProfileId = pointer;
+    if (pointer && profiles.some((p) => p.id === pointer)) {
+      activeProfileId = pointer;
     }
-    this.writeBundle(bundle);
+    this.writeBundle({ ...bundle, profiles, activeProfileId });
   }
 
   async deleteProfile(gridId: string, profileId: string): Promise<void> {
     if (gridId !== this.gridId) return;
     if (profileId === RESERVED_DEFAULT_PROFILE_ID) return;
     const bundle = this.getOrCreateBundle();
-    bundle.profiles = bundle.profiles.filter((p) => p.id !== profileId);
+    const profiles = bundle.profiles.filter((p) => p.id !== profileId);
+    let activeProfileId = bundle.activeProfileId;
     const pointer = readActivePointer(this.gridId);
-    if (pointer && bundle.profiles.some((p) => p.id === pointer)) {
-      bundle.activeProfileId = pointer;
-    } else if (!bundle.profiles.some((p) => p.id === bundle.activeProfileId)) {
-      bundle.activeProfileId = RESERVED_DEFAULT_PROFILE_ID;
+    if (pointer && profiles.some((p) => p.id === pointer)) {
+      activeProfileId = pointer;
+    } else if (!profiles.some((p) => p.id === activeProfileId)) {
+      activeProfileId = RESERVED_DEFAULT_PROFILE_ID;
     }
-    this.writeBundle(bundle);
+    this.writeBundle({ ...bundle, profiles, activeProfileId });
   }
 
   async listProfiles(gridId: string): Promise<ProfileSnapshot[]> {
@@ -169,12 +185,12 @@ export class LocalStorageBundleAdapter implements StorageAdapter {
   async saveGridLevelData(gridId: string, data: unknown): Promise<void> {
     if (gridId !== this.gridId) return;
     const bundle = this.getOrCreateBundle();
-    bundle.gridLevelData = data;
+    let activeProfileId = bundle.activeProfileId;
     const pointer = readActivePointer(this.gridId);
     if (pointer && bundle.profiles.some((p) => p.id === pointer)) {
-      bundle.activeProfileId = pointer;
+      activeProfileId = pointer;
     }
-    this.writeBundle(bundle);
+    this.writeBundle({ ...bundle, gridLevelData: data, activeProfileId });
   }
 
   private normalizeSnapshot(raw: ProfileSnapshot): ProfileSnapshot {
@@ -201,9 +217,18 @@ export class LocalStorageBundleAdapter implements StorageAdapter {
     };
     if (typeof localStorage === 'undefined') return;
     try {
-      localStorage.setItem(this.bundleKey, JSON.stringify(normalized));
+      const json = JSON.stringify(normalized);
+      localStorage.setItem(this.bundleKey, json);
+      // Prime the cache: the next `getOrCreateBundle` reads back a string
+      // equal to `json` and returns `normalized` without re-parsing.
+      this.cachedRaw = json;
+      this.cachedBundle = normalized;
     } catch {
-      /* quota / private mode */
+      // quota / private mode — the write didn't land, so drop the cache
+      // key (but keep the object) and let the next read reconcile against
+      // whatever is actually on disk.
+      this.cachedRaw = null;
+      this.cachedBundle = normalized;
     }
     try {
       localStorage.setItem(activeProfileKey(this.gridId), normalized.activeProfileId);
@@ -213,8 +238,38 @@ export class LocalStorageBundleAdapter implements StorageAdapter {
   }
 
   private getOrCreateBundle(): BundleV1 {
-    const parsed = this.readBundleRaw();
-    if (parsed) return parsed;
+    let raw: string | null = null;
+    if (typeof localStorage !== 'undefined') {
+      try {
+        raw = localStorage.getItem(this.bundleKey);
+      } catch {
+        raw = null;
+      }
+    }
+
+    // Cache hit — the stored string is byte-identical to what we last
+    // parsed/wrote, so the parsed object is still authoritative. Skips a
+    // full JSON.parse of the whole bundle (the dominant save-path cost).
+    if (raw !== null && raw === this.cachedRaw && this.cachedBundle) {
+      return this.cachedBundle;
+    }
+
+    if (raw) {
+      try {
+        const parsed = this.parseBundle(JSON.parse(raw) as unknown);
+        if (parsed) {
+          this.cachedRaw = raw;
+          this.cachedBundle = parsed;
+          return parsed;
+        }
+      } catch {
+        /* fall through to a fresh empty bundle */
+      }
+    }
+
+    // Nothing valid stored yet — synthesise an empty bundle. Not cached
+    // (there's no backing string to key it on); the first write populates
+    // the cache.
     let activeProfileId = RESERVED_DEFAULT_PROFILE_ID;
     const pointer = readActivePointer(this.gridId);
     if (pointer) activeProfileId = pointer;
@@ -226,23 +281,6 @@ export class LocalStorageBundleAdapter implements StorageAdapter {
       profiles: [],
       gridLevelData: null,
     };
-  }
-
-  private readBundleRaw(): BundleV1 | null {
-    if (typeof localStorage === 'undefined') return null;
-    let raw: string | null;
-    try {
-      raw = localStorage.getItem(this.bundleKey);
-    } catch {
-      return null;
-    }
-    if (!raw) return null;
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      return this.parseBundle(parsed);
-    } catch {
-      return null;
-    }
   }
 
   private parseBundle(parsed: unknown): BundleV1 | null {

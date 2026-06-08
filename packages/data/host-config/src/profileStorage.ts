@@ -58,6 +58,7 @@ import type { ProfileSetConfigAccess } from './profileSetAccess';
 import { loadProfileSet, saveProfileSet } from './profileSet';
 import type { ProfilesNamespace } from './profilesTypes';
 import type { RegisteredComponentIdentity } from './profileSetTypes';
+import type { AppConfigRow } from './types';
 
 export {
   MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE,
@@ -164,10 +165,38 @@ export function createConfigServiceStorage(
     const scope = { instanceId, appId, userId };
     const saveOptions = { identity, displayTextPrefix };
 
+    // Per-scope cache of the raw AppConfigRow. `ConfigManager.getConfig`
+    // has no memory cache, so without this a single profile save reads +
+    // structured-clone-deserialises the whole bundle FOUR times before
+    // the write (ProfileManager's existence check, `saveProfile`'s load,
+    // the version-check inside `saveProfileSet`, plus a read inside
+    // `saveConfig`). Holding the row collapses the three reads this
+    // adapter controls into one. The shared version / normalize / metadata
+    // logic still lives in `loadProfileSet` / `saveProfileSet` — we just
+    // feed them the cached row instead of re-fetching.
+    //
+    // Invalidation: cleared after every local write AND on any change
+    // notification for this scope (cross-tab writes, or writes via the
+    // `configManager.profiles.*` namespace that bypass this adapter), so
+    // the cache never serves a row that's gone stale past a write.
+    let cachedRow: AppConfigRow | undefined;
+    let cacheLoaded = false;
+    const invalidate = (): void => {
+      cacheLoaded = false;
+      cachedRow = undefined;
+    };
+    const readRow = async (): Promise<AppConfigRow | undefined> => {
+      if (!cacheLoaded) {
+        cachedRow = (await configManager.getConfig(scope.instanceId)) ?? undefined;
+        cacheLoaded = true;
+      }
+      return cachedRow;
+    };
+
     const adapter: StorageAdapter = {
       async loadProfile(gridId: string, profileId: string): Promise<ProfileSnapshot | null> {
         void gridId; // gridId maps 1:1 to instanceId at this seam
-        const set = await loadProfileSet(configManager, scope);
+        const set = await loadProfileSet(configManager, scope, { row: await readRow() });
         if (!set) return null;
         return set.profiles.find((p) => p.id === profileId) ?? null;
       },
@@ -178,7 +207,8 @@ export function createConfigServiceStorage(
         // into saveProfileSet so a second writer that landed in
         // between gets caught on the version-compare. `gridLevelData`
         // is preserved verbatim — saving a profile must not clobber it.
-        const loaded = await loadProfileSet(configManager, scope);
+        const row = await readRow();
+        const loaded = await loadProfileSet(configManager, scope, { row });
         const expectedVersion = loaded?.version ?? 0;
         const profiles = loaded?.profiles ?? [];
         const idx = profiles.findIndex((p) => p.id === snapshot.id);
@@ -193,12 +223,15 @@ export function createConfigServiceStorage(
           { version: expectedVersion, profiles, gridLevelData: loaded?.gridLevelData },
           expectedVersion,
           saveOptions,
+          { row },
         );
+        invalidate();
       },
 
       async deleteProfile(gridId: string, profileId: string): Promise<void> {
         void gridId;
-        const loaded = await loadProfileSet(configManager, scope);
+        const row = await readRow();
+        const loaded = await loadProfileSet(configManager, scope, { row });
         if (!loaded) return;
         const filtered = loaded.profiles.filter((p) => p.id !== profileId);
         if (filtered.length === loaded.profiles.length) return; // not found; no-op
@@ -208,18 +241,20 @@ export function createConfigServiceStorage(
           { version: loaded.version, profiles: filtered, gridLevelData: loaded.gridLevelData },
           loaded.version,
           saveOptions,
+          { row },
         );
+        invalidate();
       },
 
       async listProfiles(gridId: string): Promise<ProfileSnapshot[]> {
         void gridId;
-        const set = await loadProfileSet(configManager, scope);
+        const set = await loadProfileSet(configManager, scope, { row: await readRow() });
         return set?.profiles ?? [];
       },
 
       async loadGridLevelData(gridId: string): Promise<unknown | null> {
         void gridId;
-        const set = await loadProfileSet(configManager, scope);
+        const set = await loadProfileSet(configManager, scope, { row: await readRow() });
         return set?.gridLevelData ?? null;
       },
 
@@ -227,7 +262,8 @@ export function createConfigServiceStorage(
         void gridId;
         // Read-modify-write the same bundled row. Keep profiles and
         // version intact — only the `gridLevelData` field changes.
-        const loaded = await loadProfileSet(configManager, scope);
+        const row = await readRow();
+        const loaded = await loadProfileSet(configManager, scope, { row });
         const expectedVersion = loaded?.version ?? 0;
         await saveProfileSet(
           configManager,
@@ -239,7 +275,9 @@ export function createConfigServiceStorage(
           },
           expectedVersion,
           saveOptions,
+          { row },
         );
+        invalidate();
       },
 
       // Multi-tab subscribe (Session 3.2 / consolidation). When the
@@ -253,7 +291,15 @@ export function createConfigServiceStorage(
       // future refactors.
       subscribeToChanges(gridId: string, fn: () => void): () => void {
         void gridId;
-        return configManager.profiles.subscribe(scope, fn);
+        // Drop the cached row before notifying the consumer so its
+        // refetch (and any read this adapter does next) sees the new
+        // row, not the stale cached one. Covers cross-tab writes and
+        // writes that go through the `configManager.profiles.*` namespace
+        // rather than this adapter.
+        return configManager.profiles.subscribe(scope, () => {
+          invalidate();
+          fn();
+        });
       },
     };
 

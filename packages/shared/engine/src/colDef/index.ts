@@ -17,10 +17,12 @@ export type {
 
 export {
   getActiveTheme,
+  mergeCellStyleOverrides,
   mergeThemedStyle,
   migrateThemedStyle,
   patchActiveStyle,
   resolveActiveStyle,
+  resolveEffectiveStyle,
 } from './themedStyle';
 
 // ─── Writers / adapters ─────────────────────────────────────────────────────

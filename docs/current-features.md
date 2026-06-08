@@ -741,7 +741,9 @@ Per-renderer config types (`PillRendererConfig`,
 
 - `StorageAdapter` — profile CRUD interface
 - `MemoryAdapter` — in-memory ephemeral storage
-- `LocalStorageBundleAdapter` — localStorage JSON blobs
+- `LocalStorageBundleAdapter` — localStorage JSON blobs (in-memory bundle
+  cache keyed on the raw stored string: reads skip re-parsing unless the
+  blob changed, so a profile save no longer re-parses the whole bundle twice)
 - `createMarketsGridLocalStorageStorage()` — MarketsGrid-specific factory
 - `RESERVED_DEFAULT_PROFILE_ID`
 - `activeProfileKey()` — localStorage key generator
@@ -820,7 +822,11 @@ Per-renderer config types (`PillRendererConfig`,
 - `presetToExcelFormat()` — preset id → Excel format
 - `cellStyleToAgStyle()` — themed style → AG Grid style
 - `getActiveTheme()`, `mergeThemedStyle()`, `migrateThemedStyle()`
-- `patchActiveStyle()`, `resolveActiveStyle()`
+- `patchActiveStyle()`, `resolveActiveStyle()` (own-slot read, divergence-only)
+- `resolveEffectiveStyle()` — render-time fold: dark renders its own slot;
+  light inherits the dark slot and overrides it per-leaf
+- `mergeCellStyleOverrides()` — per-leaf `CellStyleOverrides` merge (top wins;
+  borders per-side), shared by template resolution + dark→light inheritance
 - `nestedField()` — nested-field accessor
 - `defaultNullSafeComparator()` — null-safe sort comparator
 - `ColumnAssignment`, `CellStyleOverrides`, `ThemedCellStyleOverrides`
@@ -970,8 +976,13 @@ Per-renderer config types (`PillRendererConfig`,
 #### MarketsGrid profile storage
 
 - `createConfigServiceStorage()` — `StorageAdapter` factory for `MarketsGrid` profile sync
+  (per-scope in-memory cache of the raw `AppConfigRow`: collapses a save's redundant
+  `getConfig` reads to one, fed into the shared helpers; invalidated on every local write
+  and on `subscribeToChanges` notifications so cross-tab writes never serve a stale row)
 - `migrateProfilesToConfigService()` — one-shot legacy migration
 - Bundling: one `AppConfigRow` per `(appId, userId, instanceId)` with all profiles in payload
+- `loadProfileSet()` / `saveProfileSet()` accept an optional pre-fetched-row box so a
+  caller holding the row (the adapter cache) can skip a redundant `getConfig`
 - `MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE`
 - `CONFIG_SERVICE_ADAPTER_BRAND` + `getConfigServiceAdapterBrand()` — adapter detection
 - `ProfileStorageFactory`, `ProfileStorageFactoryOpts`

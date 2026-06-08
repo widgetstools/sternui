@@ -49,14 +49,20 @@ export interface CellStyleOverrides {
 // ─── Theme-keyed wrapper ───────────────────────────────────────────────────
 //
 // Per-column styling that differs by host theme. Reducers write to the
-// slot matching `[data-theme]` at write-time; the transform reads the
-// matching slot at colDef-build time. Both slots persist independently
-// inside the profile, so the user can set red headers in dark and blue
-// headers in light without one clobbering the other.
+// slot matching `[data-theme]` at write-time (via `patchActiveStyle`), and
+// each slot persists independently in the profile — so the light slot only
+// ever stores what the user explicitly diverged in light.
+//
+// Dark is the canonical base. At render time `resolveEffectiveStyle`
+// (in `themedStyle.ts`) folds the dark slot UNDER the light slot: light
+// inherits every dark leaf and overrides per-property with its own. So a
+// header styled red in dark and given a blue background in light renders
+// red-text + blue-bg in light. Editing dark still never touches the light
+// slot, and vice versa — the inheritance is a read-time fold, not stored.
 //
 // Legacy profiles stored a flat `CellStyleOverrides`. `migrateThemedStyle`
-// (in `themedStyle.ts`) lifts those into `{ dark, light }` at load time
-// — same colour appears in both modes until the user diverges them.
+// lifts those into `{ dark, light }` at load time — same colour appears in
+// both modes until the user diverges them.
 
 export type GridThemeMode = 'dark' | 'light';
 

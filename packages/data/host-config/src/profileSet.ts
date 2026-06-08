@@ -22,17 +22,32 @@ import type { AppConfigRow } from './types';
 export type { ProfileSetPayload, ProfileSetScope, ProfileSetSaveOptions };
 
 /**
+ * A pre-fetched row, boxed so `{ row: undefined }` ("provided, no row on
+ * disk") is distinguishable from passing no argument ("fetch it yourself").
+ * Lets a caller that already holds the row — e.g. the config-service
+ * adapter's per-scope cache — skip a redundant `getConfig`. The shared
+ * version / normalize logic stays in one place either way.
+ */
+export interface PrefetchedRow {
+  row: AppConfigRow | undefined;
+}
+
+/**
  * Read the bundled row for `scope`. Returns `null` when no row exists
  * yet (consumer treats null as "first launch, start empty"). Filters
  * defensively: a row that happens to share `configId` but belongs to a
  * different `(appId, userId)` is treated as missing rather than
  * misappropriated.
+ *
+ * `prefetched`, when supplied, is used in place of a `getConfig` call —
+ * the caller vouches it's the current row for `scope`.
  */
 export async function loadProfileSet(
   configManager: ProfileSetConfigAccess,
   scope: ProfileSetScope,
+  prefetched?: PrefetchedRow,
 ): Promise<ProfileSetPayload | null> {
-  const row = await configManager.getConfig(scope.instanceId);
+  const row = prefetched ? prefetched.row : await configManager.getConfig(scope.instanceId);
   if (isProfileSetRow(row, scope.appId, scope.userId)) {
     return normalizePayload(row.payload);
   }
@@ -48,10 +63,11 @@ export async function saveProfileSet(
   set: ProfileSetPayload,
   expectedVersion: number,
   options: ProfileSetSaveOptions = {},
+  prefetched?: PrefetchedRow,
 ): Promise<void> {
   const { instanceId, appId, userId } = scope;
   const now = new Date().toISOString();
-  const existing = await configManager.getConfig(instanceId);
+  const existing = prefetched ? prefetched.row : await configManager.getConfig(instanceId);
   const actualVersion = isProfileSetRow(existing, appId, userId)
     ? readVersion(existing.payload)
     : 0;
