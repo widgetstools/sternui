@@ -139,6 +139,69 @@ export function TrafficLightSection() {
           ],
         ]}
       />
+
+      <H2>Addendum — animate the indicator (in-progress spinner)</H2>
+      <P>
+        The recipe above paints a <strong>static</strong> glyph. To show a
+        live "in progress / working" state, keep the value-format step and add
+        a <strong>Style Rules</strong> animation so the glyph spins. Two layers,
+        one value: the format decides <em>which</em> glyph; the rule decides
+        <em>whether it moves</em>.
+      </P>
+
+      <H3>Step A — map the busy value to a spinner glyph</H3>
+      <P>
+        Column Settings → Traffic Light → <strong>06 VALUE FORMAT</strong> →
+        Custom Excel Format. Use a glyph that reads as spinning for the
+        in-progress value:
+      </P>
+      <Pre>[=1]&quot;🔄&quot;;[=2]&quot;✅&quot;;[=3]&quot;❌&quot;</Pre>
+
+      <H3>Step B — add a rule that spins it</H3>
+      <P>
+        <strong>Style Rules</strong> tab → <strong>+ Add rule</strong>. Scope it
+        to the Traffic Light column and match the in-progress value:
+      </P>
+      <Pre>{'[trafficlight] = 1'}</Pre>
+      <P>
+        In that rule's <strong>10 ANIMATE VALUE</strong> band → toggle{' '}
+        <Code>ANIMATE</Code> on → pick <Code>SPIN</Code> (or{' '}
+        <Code>REVERSE</Code> / <Code>PULSE</Code>) and an optional{' '}
+        <Code>SPEED</Code> in ms. Only the value-1 cells spin their 🔄; the
+        ✅ / ❌ cells stay still.
+      </P>
+
+      <H2>Why two layers?</H2>
+      <Table
+        cols={['Layer', 'Where', 'Decides']}
+        rows={[
+          ['Value format', 'Column Settings → 06 Value Format', 'Which glyph each value shows (1 → 🔄)'],
+          ['Animate rule', 'Style Rules → 10 Animate Value', 'Whether the matching cell’s glyph moves'],
+        ]}
+      />
+
+      <H2>Gotchas</H2>
+      <Table
+        cols={['Symptom', 'Fix']}
+        rows={[
+          [
+            'Rule never matches',
+            <>Match the <strong>raw value</strong> (<Code>{'[trafficlight] = 1'}</Code>), not the emoji — CSS / the rule predicate never sees the formatted glyph text.</>,
+          ],
+          [
+            'Hourglass ⏳ looks wrong spinning',
+            <>Hourglasses don’t spin. Use <Code>PULSE</Code> for ⏳, or switch the glyph to <Code>🔄</Code> / <Code>↻</Code> / <Code>◐</Code> for <Code>SPIN</Code>.</>,
+          ],
+          [
+            'Whole cell rotates, not the glyph',
+            <>It doesn’t — Animate is scoped to the cell’s value element, so only the emoji/icon turns. (Whole-cell motion is what <strong>FLASH</strong> is for.)</>,
+          ],
+          [
+            'No ANIMATE VALUE band',
+            'Animate is cell-scope only. Row-scope rules show FLASH instead — use a cell-scoped rule on the indicator column.',
+          ],
+        ]}
+      />
     </>
   );
 }

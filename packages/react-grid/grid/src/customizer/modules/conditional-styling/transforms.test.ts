@@ -207,6 +207,48 @@ describe('conditional-styling transforms', () => {
     expect(sellPredicate(sellParams)).toBe(true);
   });
 
+  it('spins the value glyph (not the whole cell) for an animated cell rule and ships the keyframes once', () => {
+    const css = new CaptureCss();
+
+    reinjectAllRules(css, [
+      cellRule({
+        // A no-style "in progress" rule — only the spin animation paints.
+        style: { light: {}, dark: {} },
+        animation: { enabled: true, kind: 'spin', durationMs: 800 },
+      }),
+    ]);
+
+    const ruleCss = css.text('conditional-rule-text');
+    // Targets the value element so only the emoji/icon rotates.
+    expect(ruleCss).toContain('.ag-cell.ds-rule-rule-text .ag-cell-value {');
+    expect(ruleCss).toContain('display: inline-block');
+    expect(ruleCss).toContain('transform-origin: center');
+    expect(ruleCss).toContain('animation: ds-anim-spin 800ms linear infinite');
+
+    // Keyframes are shipped once, globally — not per rule.
+    const kf = css.text('__value-animation-keyframes__');
+    expect(kf).toContain('@keyframes ds-anim-spin');
+    expect(kf).toContain('@keyframes ds-anim-spin-reverse');
+    expect(kf).toContain('@keyframes ds-anim-pulse');
+  });
+
+  it('uses ease-in-out timing for pulse and falls back to the default 1000ms when unset', () => {
+    const css = new CaptureCss();
+    reinjectAllRules(css, [
+      cellRule({ animation: { enabled: true, kind: 'pulse' } }),
+    ]);
+    const ruleCss = css.text('conditional-rule-text');
+    expect(ruleCss).toContain('animation: ds-anim-pulse 1000ms ease-in-out infinite');
+  });
+
+  it('emits no value-glyph animation rule when animation is absent or disabled', () => {
+    const css = new CaptureCss();
+    reinjectAllRules(css, [
+      cellRule({ animation: { enabled: false, kind: 'spin' } }),
+    ]);
+    expect(css.text('conditional-rule-text')).not.toContain('.ag-cell-value {');
+  });
+
   it('keeps row-scope styles row-scoped while preserving indicator and flash CSS', () => {
     const css = new CaptureCss();
     const rowRule: ConditionalRule = {
