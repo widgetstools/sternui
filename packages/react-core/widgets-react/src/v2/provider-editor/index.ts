@@ -7,6 +7,12 @@
  */
 
 export { cloneProviderConfig, copyNameFrom } from './cloneProviderConfig.js';
+export {
+  exportProviderConfig,
+  parseProviderConfigImport,
+  toPortableProviderConfig,
+} from './providerConfigIo.js';
+export type { PortableProviderConfig } from './providerConfigIo.js';
 export { DataProviderEditor } from './DataProviderEditor.js';
 export type { DataProviderEditorProps } from './DataProviderEditor.js';
 export { EditorForm } from './EditorForm.js';

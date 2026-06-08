@@ -23,9 +23,10 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Button, Input, Label, Switch, Tabs, TabsContent, TabsList, TabsTrigger, Textarea,
 } from '@starui/ui';
-import { CheckCircle2, Columns3, Copy, Loader2, X } from 'lucide-react';
+import { CheckCircle2, Columns3, Copy, Download, Loader2, X } from 'lucide-react';
 import type { ColumnDefinition, DataProviderConfig, ProviderConfig } from '@starui/shared-types';
 import { useDataServices } from '@starui/host-data-react/runtime';
+import { exportProviderConfig } from './providerConfigIo.js';
 import { useProviderProbe } from './useProviderProbe.js';
 import { ConnectionTab } from './tabs/ConnectionTab.js';
 import { FieldsTab } from './tabs/FieldsTab.js';
@@ -256,6 +257,7 @@ export function EditorForm({ initial, userId, onCancel, onSaved, onClone }: Edit
         onSave={onSave}
         onCancel={onCancel}
         onClone={onClone}
+        onExport={() => exportProviderConfig(provider)}
         onUpdateColumns={isAppData ? undefined : applyPendingFieldsCols}
         canUpdateColumns={hasPendingFieldsChanges}
       />
@@ -330,7 +332,7 @@ function readKeyColumn(cfg: ProviderConfig): string | readonly string[] | undefi
 }
 
 function Footer({
-  saveLabel, saving, savedAt, saveError, onSave, onCancel, onClone,
+  saveLabel, saving, savedAt, saveError, onSave, onCancel, onClone, onExport,
   onUpdateColumns, canUpdateColumns,
 }: {
   saveLabel: string;
@@ -340,6 +342,8 @@ function Footer({
   onSave(): void;
   onCancel?(): void;
   onClone?(): void;
+  /** Download the current working config (including unsaved edits) as JSON. */
+  onExport?(): void;
   /** Apply the FieldsTab draft to the column list. Omitted for
    *  AppData providers (no fields tab). */
   onUpdateColumns?(): void;
@@ -364,6 +368,19 @@ function Footer({
       <div className="flex items-center gap-2">
         {onCancel && (
           <Button size="sm" variant="ghost" onClick={onCancel} className="h-8 text-xs">Cancel</Button>
+        )}
+        {onExport && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onExport}
+            className="h-8 text-xs"
+            title="Download this provider config (including unsaved edits) as a JSON file"
+            data-testid="provider-export-btn"
+          >
+            <Download className="h-3.5 w-3.5 mr-1.5" />
+            Export
+          </Button>
         )}
         {onClone && (
           <Button
