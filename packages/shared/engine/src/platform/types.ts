@@ -54,6 +54,14 @@ export interface PlatformEventMap {
   'profile:loaded': { gridId: string; profileId: string };
   'profile:saved': { gridId: string; profileId: string };
   'profile:deleted': { gridId: string; profileId: string };
+  /**
+   * A profile import (schemaVersion 2+) carried grid-level data and the
+   * manager has just written it to the storage adapter. Grid-level
+   * consumers (the v2 container's provider picker / caption) listen for
+   * this to re-apply the restored selection live, without a remount.
+   * `data` is the opaque blob as imported.
+   */
+  'gridLevelData:imported': { gridId: string; data: unknown };
 }
 
 export interface EventBus<M> {
