@@ -452,11 +452,11 @@ function syncAppsLockfile() {
     return;
   }
   if (args.dryRun) {
-    log('apps install: would run `npm install --prefix apps` (dry-run)');
+    log('apps install: would run install:apps (dry-run)');
     return;
   }
-  log('apps install: converging apps/package-lock.json');
-  execSync('npm install --no-audit --no-fund --prefix apps', { cwd: REPO_ROOT, stdio: 'inherit' });
+  log('apps install: fresh install via scripts/install-apps.mjs');
+  execSync('node scripts/install-apps.mjs', { cwd: REPO_ROOT, stdio: 'inherit' });
 }
 
 // ────────────────────────────────────────────────────────────────────────

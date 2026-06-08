@@ -1,26 +1,35 @@
-# Apps — tarball (consumer) track
+# Demo apps (`apps/demos/`)
 
-Each app here installs StarUI from **`file:../../../libs/starui-*.tgz`**, matching external consumers and MCP scaffolds. **`propagate`** syncs these `package.json` deps and refreshes `node_modules` after packs.
+Each folder is one consumer/reference app. Apps install StarUI from
+`file:../../../libs/starui-*.tgz` (synced by `npm run propagate`).
 
-## Build (from repo root)
+## Running an app
 
-```bash
-npm run build:packages
-npm run propagate
-npm run install:apps
-npm run build:apps-tarball
-```
-
-This is what **`npm run verify:consumer`** runs (CI parity).
-
-## Typecheck (optional)
+**Source mode (default)** — `@starui/*` from live `packages/`:
 
 ```bash
-npm run typecheck:apps-tarball
+cd apps/demos/demo-react
+npm run dev
+npm run build
 ```
 
-Prefer **`build:apps-tarball`** for release gates; app-level `tsc` can conflict with the root workspace `@starui/grid` link. Library typing is enforced via `npm run typecheck:packages`.
+**Tarball mode** — `@starui/*` from installed bucket tarballs:
 
-## Pairing
+```bash
+cd apps/demos/demo-react
+npm run dev:installed
+npm run build:installed
+```
 
-Every folder here mirrors [`../workspace/<same-name>/`](../workspace/) for local dev. See [`../README.md`](../README.md).
+From the **repo root**, use `npm run dev:demo-react` (source) or
+`npm --prefix apps run dev:installed -w @starui/demo-react` (tarball).
+
+Full guide: **[`../../README.md` — Running apps](../../README.md#running-apps--source-mode-vs-tarball-mode)**.
+
+## CI parity
+
+From repo root:
+
+```bash
+npm run verify:consumer
+```

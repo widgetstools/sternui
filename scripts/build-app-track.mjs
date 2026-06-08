@@ -2,11 +2,9 @@
 /**
  * Build or typecheck every app under apps/demos/ in one of two MODES:
  *
- *   installed — resolve @starui/* from the installed file:libs/*.tgz tarballs
- *               (consumer / future-publish parity). Runs `<task>`.
- *   source    — STARUI_DEV_SOURCE=1 so Vite aliases @starui/* to packages/
- *               source. Runs `<task>:source` when present, else falls back to
- *               `<task>` (so Angular / node apps still build under a source run).
+ *   source    — default: Vite aliases @starui/* to packages/ source
+ *   installed — STARUI_USE_TARBALLS=1: resolve from file:libs/*.tgz tarballs
+ *               (consumer / publish parity). Runs `<task>` or `<task>:installed`.
  *
  *   node scripts/build-app-track.mjs installed build
  *   node scripts/build-app-track.mjs source typecheck
@@ -38,9 +36,9 @@ if (!existsSync(APPS_ROOT)) {
   process.exit(1);
 }
 
-/** Pick the script to run for an app: source mode prefers `<task>:source`. */
+/** Pick the script to run for an app. Installed mode prefers `<task>:installed`. */
 function resolveScript(scripts) {
-  if (mode === 'source' && scripts?.[`${task}:source`]) return `${task}:source`;
+  if (mode === 'installed' && scripts?.[`${task}:installed`]) return `${task}:installed`;
   if (scripts?.[task]) return task;
   return null;
 }
@@ -75,7 +73,7 @@ for (const { dir, name, script } of apps) {
       stdio: 'inherit',
       env: {
         ...process.env,
-        ...(mode === 'source' ? { STARUI_DEV_SOURCE: '1' } : {}),
+        ...(mode === 'installed' ? { STARUI_USE_TARBALLS: '1' } : {}),
       },
     });
   } catch {

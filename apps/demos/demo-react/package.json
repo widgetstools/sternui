@@ -4,9 +4,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:source": "cross-env STARUI_DEV_SOURCE=1 vite",
+    "dev:installed": "cross-env STARUI_USE_TARBALLS=1 vite",
+    "dev:source": "npm run dev",
     "build": "vite build",
-    "build:source": "cross-env STARUI_DEV_SOURCE=1 vite build",
+    "build:installed": "cross-env STARUI_USE_TARBALLS=1 vite build",
+    "build:source": "npm run build",
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test"
   },

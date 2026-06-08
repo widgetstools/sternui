@@ -165,7 +165,78 @@ function readManifest() {
     if (!existsSync(manifestPath)) continue;
     return JSON.parse(readFileSync(manifestPath, 'utf8'));
   }
-  return null;
+  return discoverManifestFromPackages();
+}
+
+/** Fallback when libs/manifest.json is missing (before first propagate). */
+function discoverManifestFromPackages() {
+  const packagesRoot = join(REPO_ROOT, 'packages');
+  if (!existsSync(packagesRoot)) return null;
+  const manifest = {};
+  for (const bucket of readdirSync(packagesRoot, { withFileTypes: true })) {
+    if (!bucket.isDirectory()) continue;
+    const bucketDir = join(packagesRoot, bucket.name);
+    const members = [];
+    for (const child of readdirSync(bucketDir, { withFileTypes: true })) {
+      if (!child.isDirectory()) continue;
+      const pkgPath = join(bucketDir, child.name, 'package.json');
+      if (!existsSync(pkgPath)) continue;
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+      if (pkg.name) members.push(pkg.name);
+    }
+    if (members.length === 0) continue;
+    members.sort();
+    manifest[`@starui/${bucket.name}`] = { bucket: bucket.name, members };
+  }
+  return Object.keys(manifest).length > 0 ? manifest : null;
+}
+
+/**
+ * In source mode, prefer live TS/TSX under src/ when dist/ has not been built.
+ * @param {string} exportKey package.json exports key (e.g. '.', './css')
+ */
+function resolveMemberPath(resolveRoot, relTarget, useDevSource, exportKey = '.', opts = {}) {
+  const ignoreDist = opts.ignoreDist === true;
+  if (typeof relTarget !== 'string' || relTarget.includes('*')) {
+    return join(resolveRoot, String(relTarget).replace(/^\.\//, ''));
+  }
+
+  const rel = relTarget.replace(/^\.\//, '');
+  const primary = join(resolveRoot, rel);
+  const primaryUsable = existsSync(primary) && !(ignoreDist && rel.startsWith('dist/'));
+  if (!useDevSource || primaryUsable) return primary;
+
+  const srcBase = rel.replace(/^dist\//, 'src/');
+  const srcCandidates = [
+    join(resolveRoot, srcBase.replace(/\.js$/, '.ts')),
+    join(resolveRoot, srcBase.replace(/\.js$/, '.tsx')),
+    join(resolveRoot, srcBase.replace(/\.mjs$/, '.ts')),
+    join(resolveRoot, srcBase),
+  ];
+  for (const candidate of srcCandidates) {
+    if (existsSync(candidate)) return candidate;
+  }
+
+  if (exportKey === '.') {
+    for (const entry of ['src/index.ts', 'src/index.tsx']) {
+      const candidate = join(resolveRoot, entry);
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+
+  return primary;
+}
+
+/** Paths that are generated at build time — no src/ substitute exists. */
+export function isBuildGeneratedExport(relTarget) {
+  if (typeof relTarget !== 'string') return false;
+  const rel = relTarget.replace(/^\.\//, '');
+  return (
+    rel.includes('*')
+    || rel.endsWith('.css')
+    || rel.endsWith('.scss')
+    || (rel.includes('/assets/') && rel.endsWith('.mjs'))
+  );
 }
 
 /**
@@ -176,7 +247,7 @@ export function staruiViteAliases(appDir) {
   const manifest = readManifest();
   if (!manifest) return [];
 
-  const useDevSource = process.env.STARUI_DEV_SOURCE === '1';
+  const useDevSource = process.env.STARUI_USE_TARBALLS !== '1';
   const aliases = [];
   const seen = new Set();
 
@@ -218,7 +289,8 @@ export function staruiViteAliases(appDir) {
       }
 
       for (const [exportKey, relTarget] of Object.entries(exportEntries)) {
-        const absTarget = join(resolveRoot, relTarget.replace(/^\.\//, ''));
+        if (typeof relTarget === 'string' && relTarget.includes('*')) continue;
+        const absTarget = resolveMemberPath(resolveRoot, relTarget, useDevSource, exportKey);
         const suffix =
           exportKey === '.'
             ? ''
@@ -246,6 +318,62 @@ export function staruiViteAliases(appDir) {
   }
 
   return aliases.sort((a, b) => String(b.find).length - String(a.find).length);
+}
+
+/**
+ * Verify every @starui/* export resolves in source mode (optionally ignoring dist/).
+ * @returns {{ broken: object[], requiresBuild: object[], ok: string[] }}
+ */
+export function auditSourceModePaths(appDir, opts = {}) {
+  const ignoreDist = opts.ignoreDist !== false;
+  const manifest = readManifest();
+  const broken = [];
+  const requiresBuild = [];
+  const ok = [];
+
+  if (!manifest) {
+    broken.push({ label: '(manifest)', reason: 'libs/manifest.json missing and packages/ discovery failed' });
+    return { broken, requiresBuild, ok };
+  }
+
+  for (const [bucketName, entry] of Object.entries(manifest)) {
+    if (!entry?.members?.length || !entry.bucket) continue;
+    for (const member of entry.members) {
+      const folder = findMemberFolder(entry.bucket, member);
+      const resolveRoot = join(REPO_ROOT, 'packages', entry.bucket, folder);
+      const exportEntries = readMemberExports(entry.bucket, folder);
+
+      for (const [exportKey, relTarget] of Object.entries(exportEntries)) {
+        if (typeof relTarget !== 'string' || relTarget.includes('*')) continue;
+
+        const label = exportKey === '.' ? member : `${member}${exportKey.slice(1)}`;
+        const resolved = resolveMemberPath(resolveRoot, relTarget, true, exportKey, { ignoreDist });
+
+        if (existsSync(resolved)) {
+          ok.push(label);
+          continue;
+        }
+
+        const item = { label, relTarget, path: resolved, member };
+        if (isBuildGeneratedExport(relTarget)) requiresBuild.push(item);
+        else broken.push(item);
+      }
+    }
+  }
+
+  const workerPath = join(REPO_ROOT, 'packages/data/host-data/dist/assets/data-services-worker.mjs');
+  if (!existsSync(workerPath)) {
+    requiresBuild.push({
+      label: '@starui/host-data/assets/data-services-worker.mjs',
+      relTarget: './dist/assets/data-services-worker.mjs',
+      path: workerPath,
+      member: '@starui/host-data',
+    });
+  } else {
+    ok.push('@starui/host-data/assets/data-services-worker.mjs');
+  }
+
+  return { broken, requiresBuild, ok };
 }
 
 const HOST_DATA_WORKER_ASSET_RE =

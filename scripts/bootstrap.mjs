@@ -112,7 +112,7 @@ function main() {
   }
 
   if (!noCi) {
-    run('npm install --prefix apps');
+    run('npm run install:apps');
   }
 
   log('done');

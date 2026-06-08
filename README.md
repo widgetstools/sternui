@@ -87,18 +87,29 @@ Run `npm run verify:apps` to smoke-test dev servers.
 |-------|------|----------------|
 | **Libraries** | `packages/*` | `npm run build:packages` |
 | **Bucket tarballs** | `libs/*.tgz` (gitignored) | `npm run propagate` |
-| **Apps — installed mode** (CI / consumer parity) | `apps/demos/*` | `npm run build:apps` |
-| **Apps — source mode** (dev) | `apps/demos/*` | `npm run build:apps-source` |
+| **Apps — source mode** (default dev) | `apps/demos/*` | `npm run build:apps` |
+| **Apps — tarball mode** (CI / consumer parity) | `apps/demos/*` | `npm run build:apps:installed` |
 
-Consumer apps install **`file:libs/starui-*.tgz`** (not root workspace `"*"`). Vite maps `@starui/grid`, `@starui/app`, … via [`scripts/staruiConsumerAliases.mjs`](./scripts/staruiConsumerAliases.mjs). Source mode adds `STARUI_DEV_SOURCE=1` (the `dev:source` / `build:source` scripts) so Vite resolves `@starui/*` from `packages/` instead (see [`apps/demos/README.md`](./apps/demos/README.md)).
+Consumer apps declare **`file:libs/starui-*.tgz`** in `package.json`. Vite maps
+`@starui/grid`, `@starui/app`, … via [`scripts/staruiConsumerAliases.mjs`](./scripts/staruiConsumerAliases.mjs).
+**Source mode is the default** (live `packages/`). Tarball mode is opt-in with
+`STARUI_USE_TARBALLS=1` or the `*:installed` scripts — see
+[Running apps](#running-apps--source-mode-vs-tarball-mode) below.
 
-After library changes:
+After library changes (tarball mode only — source mode picks up edits live):
 
 ```bash
 npm run build:packages
 npm run propagate
 npm run install:apps
 npm run verify:consumer    # CI: tarball production builds
+```
+
+Validate source-mode resolution before starting demos:
+
+```bash
+npm run check:source-aliases           # warn if build:packages still needed
+npm run check:source-aliases -- --strict   # fail until packages are built
 ```
 
 Full matrix: **[`docs/BUILD.md`](./docs/BUILD.md)** and **[`apps/README.md`](./apps/README.md)**.
@@ -178,30 +189,33 @@ npm run dev
 # → http://localhost:5190  (@starui/demo-react under apps/demos/demo-react, source mode)
 ```
 
-### 5. Consumer CI parity (installed mode)
+### 5. Consumer CI parity (tarball mode)
 
 ```bash
 npm run verify:consumer
 ```
 
-Sequence: `build:packages` → `propagate` → `install:apps` → **`build:apps`**.
+Sequence: `build:packages` → `propagate` → `install:apps` → **`build:apps:installed`**.
 
-### 6. App bundles — source mode
+### 6. App bundles — source mode (default)
 
 ```bash
-npm run build:apps-source
+npm run build:apps
 ```
 
-Requires the same `propagate` + `install:apps` prep as installed builds.
+Requires `propagate` + `install:apps` once so app npm deps (React, Vite, …) are
+installed. `@starui/*` resolves from live `packages/` — no re-propagate needed
+after library edits.
 
-### 7. After you change library code that apps consume
+### 7. After you change library code (tarball mode only)
 
 ```bash
 npm run build:packages
 npm run propagate
 npm run install:apps
-# commit apps/package-lock.json and any apps/*/package.json touched by propagate (not libs/)
 ```
+
+Source-mode dev servers pick up `packages/` edits on hot reload without this step.
 
 ### 8. Rebuild gitignored `libs/`
 
@@ -211,54 +225,112 @@ npm run bootstrap -- --force
 
 ---
 
-## Running apps — source mode vs installed (tarball) mode
+## Running apps — source mode vs tarball mode
 
-Each demo lives **once** under `apps/demos/<app>/` and runs in **two modes**.
-The mode is chosen by *which script you run* — nothing in `package.json` changes
-between them.
+Each Vite demo lives **once** under `apps/demos/<app>/`. The folder is the same
+in both modes; you choose the mode with the script (or env var) you run.
 
-| Mode | A.k.a. | `@starui/*` resolves from | Use it when |
-|------|--------|---------------------------|-------------|
-| **Source** | "workspace" track | live `packages/` source (`STARUI_DEV_SOURCE=1`) | working on the libraries — edits under `packages/` hot-reload instantly |
-| **Installed** | "tarball" track | the packed `file:libs/*.tgz` bucket tarballs | verifying what a real consumer (future artifactory install) sees |
+| Mode | Default? | `@starui/*` resolves from | Use it when |
+|------|----------|---------------------------|-------------|
+| **Source** | yes | live `packages/` source | day-to-day dev — library edits hot-reload |
+| **Tarball** | no | installed `file:libs/*.tgz` | consumer / publish parity, CI |
 
-> Both modes need the apps installed first (`npm run install:all`, or
-> `npm run propagate && npm run install:apps`) — the **install** step reads
-> `libs/*.tgz` regardless of mode. Angular (`demo-angular`) and the node
-> `stomp-view-server` are **installed-only** (no Vite source mode).
+Mechanism: [`scripts/staruiConsumerAliases.mjs`](./scripts/staruiConsumerAliases.mjs)
+aliases `@starui/*` to `packages/` **unless** `STARUI_USE_TARBALLS=1` is set.
 
-### Source mode (live `packages/` source)
+> **Setup (both modes):** run once after clone (or when adding app deps):
+>
+> ```bash
+> npm install                  # repo root — libraries
+> npm run build:packages       # required — emits packages/*/dist (CSS, workers, tsc output)
+> npm run propagate            # writes gitignored libs/*.tgz + manifest.json
+> npm run install:apps         # nested apps/ workspace (React, Vite, tarballs, …)
+> ```
+>
+> Or `npm run install:all` to do all of the above.
+>
+> **Exceptions:** `demo-angular` and `stomp-view-server` always resolve
+> `@starui/*` from installed tarballs (no Vite source aliases).
 
-```bash
-# Root convenience scripts — already source mode:
-npm run dev:demo-react             # → http://localhost:5190
-npm run dev:markets-grid-lab       # → http://localhost:5300
+---
 
-# …or directly by app name (note the `:source` script):
-npm --prefix apps run dev:source -w @starui/demo-react
+### Source mode
 
-# Production bundle in source mode — all apps, or just one:
-npm run build:apps-source
-npm --prefix apps run build:source -w @starui/markets-grid-lab
-```
-
-Edit any file under `packages/` and the running app hot-reloads.
-
-### Installed mode (consumer / tarball parity)
+#### From the repo root
 
 ```bash
-# Dev server against the installed tarballs (the app's plain `dev`):
-npm --prefix apps run dev -w @starui/demo-react        # → http://localhost:5190
+# Primary demo — http://localhost:5190
+npm run dev
+npm run dev:demo-react
 
-# Production bundle in installed mode — all apps, or just one:
+# Other demos (same pattern — all root dev:* scripts are source mode)
+npm run dev:markets-ui-react-reference    # → http://localhost:5174
+npm run dev:star-demo                     # → http://localhost:5175
+npm run dev:markets-grid-lab
+
+# By workspace name (any Vite demo)
+npm --prefix apps run dev -w @starui/demo-react
+npm --prefix apps run dev -w @starui/star-demo
+
+# Production bundles — all apps, or one app
 npm run build:apps
 npm --prefix apps run build -w @starui/demo-react
+```
 
-# Full CI parity in one shot (packages → propagate → install → build:apps):
+#### From inside an app folder
+
+```bash
+cd apps/demos/demo-react
+
+npm run dev          # source mode (default)
+npm run dev:source   # alias for dev
+
+npm run build        # source-mode production bundle
+npm run build:source # alias for build
+```
+
+Edit files under `packages/` — the running dev server hot-reloads without
+re-running `propagate`.
+
+---
+
+### Tarball mode
+
+Use this to verify what an external consumer sees after `npm install` from
+packed `@starui/*` bucket tarballs.
+
+#### From the repo root
+
+```bash
+# Dev server (one app)
+npm --prefix apps run dev:installed -w @starui/demo-react
+npm --prefix apps run dev:installed -w @starui/star-demo
+
+# Or set the env var explicitly
+cross-env STARUI_USE_TARBALLS=1 npm --prefix apps run dev -w @starui/demo-react
+
+# Production bundles — all apps, or one app
+npm run build:apps:installed
+npm --prefix apps run build:installed -w @starui/demo-react
+
+# Full CI parity (packages → propagate → install → tarball builds)
 npm run verify:consumer
 ```
 
-After changing `packages/`, refresh the tarballs so installed mode picks the change up:
+#### From inside an app folder
+
+```bash
+cd apps/demos/demo-react
+
+npm run dev:installed
+npm run build:installed
+
+# Or
+cross-env STARUI_USE_TARBALLS=1 npm run dev
+cross-env STARUI_USE_TARBALLS=1 npm run build
+```
+
+After changing `packages/`, refresh tarballs before tarball-mode dev/build:
 
 ```bash
 npm run build:packages && npm run propagate && npm run install:apps
@@ -305,15 +377,19 @@ turbo test (packages)               turbo typecheck (apps)
 | Script | What it does |
 |---|---|
 | `build:packages` | Build all libraries under `packages/` |
-| `build:apps` | Build demo apps (needs fresh tarballs) |
-| `build:consumer` | `build:packages` → `propagate --no-build` → `install:apps` → (then `build:apps` via `build:all`) |
+| `build:apps` | Build all demo apps in **source mode** (default) |
+| `build:apps:installed` | Build all demo apps in **tarball mode** (consumer parity) |
+| `build:apps-source` | Alias for `build:apps` |
+| `build:consumer` | `build:packages` → `propagate --no-build` → `install:apps` |
 | `typecheck:packages` | `tsc --noEmit` on libraries |
-| `typecheck:apps` | `tsc --noEmit` on demo apps |
-| `typecheck:consumer` | packages + `propagate --no-build` + apps typecheck |
+| `typecheck:apps` | Typecheck demo apps in **source mode** |
+| `typecheck:apps:installed` | Typecheck demo apps in **tarball mode** |
+| `typecheck:consumer` | packages + propagate + **tarball** app typecheck (CI) |
 | `test:packages` | Vitest across library packages (`npm test`) |
+| `check:source-aliases` | Verify `@starui/*` Vite aliases resolve in source mode (`--strict` fails until `build:packages` done) |
 | `check:tarballs` | Fail if local `libs/*.tgz` are stale vs `packages/` build (optional; `libs/` not in git) |
-| `verify:consumer` | `build:consumer` + `typecheck:apps` |
-| `install:apps` | `npm install` in nested `apps/` workspace (consumer demos only) |
+| `verify:consumer` | Full tarball pipeline: packages → propagate → install → `build:apps:installed` |
+| `install:apps` | Fresh `npm install` in nested `apps/` workspace |
 | `install:all` | `bootstrap` — packages + propagate + apps (fresh clone default) |
 | `bootstrap` | `npm install` → `build:packages` → `propagate` → `install:apps` |
 | `propagate` | Rebuild gitignored `libs/`, sync app deps (no lockfiles to commit) |
@@ -509,11 +585,18 @@ npm run verify:consumer
 npm run check:tarballs
 ```
 
-**Fast local dev** — skip tarballs and alias live package source (not used in CI):
+**Fast local dev** — source mode is the default; no tarball refresh needed while editing `packages/`:
 
 ```bash
-STARUI_DEV_SOURCE=1 npm run dev:demo-react
-STARUI_DEV_SOURCE=1 npm run dev:markets-ui-react-reference
+npm run dev:demo-react
+npm run dev:markets-ui-react-reference
+```
+
+To test against **tarballs** instead:
+
+```bash
+npm run build:packages && npm run propagate && npm run install:apps
+npm --prefix apps run dev:installed -w @starui/demo-react
 ```
 
 If edits to packages do not show up in the browser, clear the Vite prebundle cache:
@@ -787,7 +870,8 @@ STARUI_DEV_SOURCE=1 npx playwright test e2e/reference-cell-flash.spec.ts
 |---|---|
 | First-time setup | `npm install && npm run propagate` |
 | Edit libraries | `npm run build:packages && npm test` |
-| Edit libraries + test in demo app | `npm run propagate && STARUI_DEV_SOURCE=1 npm run dev` |
+| Edit libraries + test in demo app | `npm run dev` (source mode — hot-reloads `packages/`) |
+| Test as a tarball consumer | `npm run propagate && npm run install:apps && npm --prefix apps run dev:installed -w @starui/demo-react` |
 | Pre-merge CI check | `npm run verify:consumer && npm test && npm run e2e` |
 | Production build all apps | `npm run build` |
 | Fresh tarball hand-off | `npm run build:packages && npm run propagate` |

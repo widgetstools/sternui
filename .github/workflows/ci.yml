@@ -67,9 +67,9 @@ jobs:
       - name: Install nested apps workspace
         run: npm run install:apps
       - name: Build consumer apps (installed mode)
-        run: npm run build:apps
+        run: npm run build:apps:installed
       - name: Typecheck consumer apps (installed mode)
-        run: npm run typecheck:apps
+        run: npm run typecheck:apps:installed
       - name: Upload demo-react bundle
         uses: actions/upload-artifact@v4
         with:

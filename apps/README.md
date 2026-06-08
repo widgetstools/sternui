@@ -1,59 +1,50 @@
 # Consumer / reference apps (`apps/`)
 
-These are **demo / reference apps only** — they are never deployed; only the
-`packages/*` get published. Each app lives **once** under
-[`demos/<app>/`](./demos/) and runs in either of **two modes** (same folder,
-chosen by which script you run):
+Demo and reference apps only — never deployed; only `packages/*` get published.
+Each app lives **once** under [`demos/<app>/`](./demos/).
 
-| Mode | Command | How `@starui/*` resolves |
-|------|---------|--------------------------|
-| **Installed** (consumer / publish parity) | `npm run dev` · `npm run build` | from the installed `file:../../../libs/starui-*.tgz` tarballs — what a real consumer (future artifactory) sees |
-| **Source** (day-to-day dev) | `npm run dev:source` · `npm run build:source` | `STARUI_DEV_SOURCE=1` → Vite aliases `@starui/*` straight to `packages/` source |
+**Source mode is the default** (Vite aliases `@starui/*` to live `packages/`).
+**Tarball mode** (`STARUI_USE_TARBALLS=1` or `*:installed` scripts) matches
+what external consumers see from `file:libs/*.tgz`.
 
-The mode is a single env var (`STARUI_DEV_SOURCE`) consumed by
-[`../scripts/staruiConsumerAliases.mjs`](../scripts/staruiConsumerAliases.mjs);
-both modes share the same `file:libs/*.tgz` deps, so nothing in `package.json`
-changes between them. Angular (`demo-angular`) and the node `stomp-view-server`
-have no Vite source mode — they run installed-only.
+Full instructions (root + in-app commands): **[`../README.md` — Running apps](../README.md#running-apps--source-mode-vs-tarball-mode)**.
 
-Root `npm run dev:*` scripts use **source** mode. CI and
-`npm run verify:consumer` build the **installed** mode.
+## Quick reference
 
-See **[`docs/BUILD.md`](../docs/BUILD.md)** for the full build matrix (packages → libs → apps).
-
-## Quick commands (from repo root)
+### Setup (once)
 
 ```bash
-# 1) Libraries
-npm run build:packages
-
-# 2) Bucket tarballs + sync app package.json deps + install apps
-npm run propagate
-npm run install:apps          # or: npm install --prefix apps (after lockfile drift)
-
-# 3) Production bundles
-npm run build:apps            # installed mode (consumer parity) — apps/demos/*
-npm run build:apps-source     # source mode (STARUI_DEV_SOURCE=1)  — apps/demos/*
-
-# 4) CI parity (installed build)
-npm run verify:consumer
+# from repo root
+npm run install:all
+# or: npm install && npm run build:packages && npm run propagate && npm run install:apps
 ```
+
+### Source mode (default)
+
+| Where | Dev | Build |
+|-------|-----|-------|
+| **Repo root** | `npm run dev:demo-react` · `npm --prefix apps run dev -w @starui/demo-react` | `npm run build:apps` |
+| **App folder** | `cd apps/demos/demo-react && npm run dev` | `npm run build` |
+
+### Tarball mode (consumer parity)
+
+| Where | Dev | Build |
+|-------|-----|-------|
+| **Repo root** | `npm --prefix apps run dev:installed -w @starui/demo-react` | `npm run build:apps:installed` |
+| **App folder** | `cd apps/demos/demo-react && npm run dev:installed` | `npm run build:installed` |
+
+CI: `npm run verify:consumer` from repo root.
 
 ## Nested workspace
 
-[`apps/package.json`](./package.json) declares `demos/*`. Install with:
-
-```bash
-npm install --prefix apps
-```
-
-Lockfiles aren't committed (each environment regenerates its own on `npm install`),
-and the app `file:libs/*.tgz` pins are stable across re-packs — so propagate
-leaves nothing to commit here. Do **not** commit `libs/`.
+[`apps/package.json`](./package.json) declares `demos/*`. Install from root with
+`npm run install:apps`. Lockfiles are gitignored — do **not** commit `libs/`.
 
 ## Utilities
 
 | Path | Role |
 |------|------|
 | [`grid-config/`](./grid-config/) | Shared grid profile JSON (not an npm package) |
-| [`../scripts/build-app-track.mjs`](../scripts/build-app-track.mjs) | Runs `build` / `typecheck` for every app in one mode (`installed` \| `source`) |
+| [`../scripts/build-app-track.mjs`](../scripts/build-app-track.mjs) | Runs `build` / `typecheck` for every app in one mode (`source` \| `installed`) |
+
+See **[`docs/BUILD.md`](../docs/BUILD.md)** for the full build matrix.
