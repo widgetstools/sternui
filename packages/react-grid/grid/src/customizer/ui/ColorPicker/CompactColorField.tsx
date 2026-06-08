@@ -363,7 +363,7 @@ function CompactColorFieldPopover({
                   style={{
                     width: 18,
                     height: 18,
-                    borderRadius: 4,
+                    borderRadius: 2,
                     padding: 0,
                     cursor: 'pointer',
                     border:

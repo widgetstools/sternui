@@ -74,7 +74,7 @@ const OVERLAY_CSS = `
   align-items: center;
   gap: 18px;
   padding: 24px 36px;
-  border-radius: 14px;
+  border-radius: 2px;
   border: 1px solid var(--ds-border-primary);
   background: var(--ds-surface-primary);
   box-shadow: none;

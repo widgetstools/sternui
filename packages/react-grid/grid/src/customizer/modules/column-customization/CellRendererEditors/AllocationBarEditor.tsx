@@ -89,7 +89,7 @@ export function AllocationBarEditor({
           </Button>
         </div>
         {entries.length === 0 && (
-          <div style={{ fontSize: 11, opacity: 0.6, padding: 6, border: '1px dashed var(--ds-border-primary)', borderRadius: 4 }}>
+          <div style={{ fontSize: 11, opacity: 0.6, padding: 6, border: '1px dashed var(--ds-border-primary)', borderRadius: 2 }}>
             No segment colours. Click <strong>Add segment</strong> to define one.
           </div>
         )}

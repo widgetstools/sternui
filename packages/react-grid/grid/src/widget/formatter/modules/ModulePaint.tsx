@@ -72,7 +72,7 @@ export function ModulePaint({
             maxWidth: '90vw',
             background: 'transparent',
             border: 'none',
-            borderRadius: 4,
+            borderRadius: 2,
             boxShadow: 'var(--ds-elevation-overlay)',
             fontFamily: 'var(--ds-font-sans)',
           }}

@@ -146,7 +146,7 @@ const EDITOR_CSS = `
 .bn-scrollbar::-webkit-scrollbar-thumb {
   background: var(--ds-border-secondary, var(--ds-border-primary));
   border: 2px solid var(--ds-surface-ground);
-  border-radius: 6px;
+  border-radius: 2px;
 }
 .bn-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--ds-text-faint, var(--ds-text-muted));

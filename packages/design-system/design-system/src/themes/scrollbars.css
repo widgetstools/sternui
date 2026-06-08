@@ -38,7 +38,7 @@
 
 .scrollbar-themed::-webkit-scrollbar-thumb {
   background-color: var(--scrollbar-thumb);
-  border-radius: 6px;
+  border-radius: 2px;
   border: 3px solid transparent;
   background-clip: padding-box;
 }
@@ -70,7 +70,7 @@
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
   background-color: var(--scrollbar-thumb);
-  border-radius: 3px;
+  border-radius: 2px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {

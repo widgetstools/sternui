@@ -163,9 +163,9 @@ export const spacing = {
 export const radius = {
   none: '0px',
   sm:   '2px',
-  md:   '4px',
-  lg:   '8px',
-  xl:   '8px',
+  md:   '2px',
+  lg:   '2px',
+  xl:   '2px',
   full: '9999px',
 } as const;
 

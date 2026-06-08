@@ -50,7 +50,7 @@ export function ImportPreviewDialog({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-[520px] max-w-[90vw] max-h-[90vh] flex flex-col bg-[var(--de-bg)] border border-[var(--de-border)] rounded-[var(--de-radius-md,8px)] shadow-[var(--ds-elevation-overlay)] overflow-hidden"
+        className="w-[520px] max-w-[90vw] max-h-[90vh] flex flex-col bg-[var(--de-bg)] border border-[var(--de-border)] rounded-[var(--de-radius-md,2px)] shadow-[var(--ds-elevation-overlay)] overflow-hidden"
       >
         {/* Header */}
         <div className="flex items-center gap-2.5 px-[18px] py-[14px] border-b border-[var(--de-border)]">

@@ -165,11 +165,11 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-font-size-5xl: 56px;
     --ds-font-variant-tabular: tabular-nums;
     --ds-radius-sm:   2px;
-    --ds-radius-md:   4px;
-    --ds-radius-lg:   8px;
-    --ds-radius-xl:   8px;
+    --ds-radius-md:   2px;
+    --ds-radius-lg:   2px;
+    --ds-radius-xl:   2px;
     --ds-radius-full: 9999px;
-    --radius:         4px;
+    --radius:         2px;
 
     /* ── Motion vars (Stockflux tokens.css) ── */
     --ds-tx-instant: 80ms cubic-bezier(0.4,0,0.6,1);
@@ -290,10 +290,10 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --st-glow-focus:     0 0 0 2px rgba(34,211,238,0.40), 0 0 24px rgba(34,211,238,0.16);
     --st-font-sans:  'Inter', system-ui, -apple-system, 'Segoe UI', 'Geist', sans-serif;
     --st-font-mono:  'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
-    --st-radius:     4px;
+    --st-radius:     2px;
     --st-radius-sm:  2px;
-    --st-radius-md:  4px;
-    --st-radius-lg:  8px;
+    --st-radius-md:  2px;
+    --st-radius-lg:  2px;
     --st-t-instant:  80ms cubic-bezier(0.4,0,0.6,1);
     --st-t-fast:     140ms cubic-bezier(0.4,0,0.2,1);
     --st-t-normal:   220ms cubic-bezier(0.4,0,0.2,1);
@@ -504,11 +504,11 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-font-size-5xl: 56px;
     --ds-font-variant-tabular: tabular-nums;
     --ds-radius-sm:   2px;
-    --ds-radius-md:   4px;
-    --ds-radius-lg:   8px;
-    --ds-radius-xl:   8px;
+    --ds-radius-md:   2px;
+    --ds-radius-lg:   2px;
+    --ds-radius-xl:   2px;
     --ds-radius-full: 9999px;
-    --radius:         4px;
+    --radius:         2px;
 
     /* ── Motion vars (Stockflux tokens.css) ── */
     --ds-tx-instant: 80ms cubic-bezier(0.4,0,0.6,1);
@@ -629,10 +629,10 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --st-glow-focus:     0 0 0 3px rgba(8,145,178,0.18);
     --st-font-sans:  'Inter', system-ui, -apple-system, 'Segoe UI', 'Geist', sans-serif;
     --st-font-mono:  'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
-    --st-radius:     4px;
+    --st-radius:     2px;
     --st-radius-sm:  2px;
-    --st-radius-md:  4px;
-    --st-radius-lg:  8px;
+    --st-radius-md:  2px;
+    --st-radius-lg:  2px;
     --st-t-instant:  80ms cubic-bezier(0.4,0,0.6,1);
     --st-t-fast:     140ms cubic-bezier(0.4,0,0.2,1);
     --st-t-normal:   220ms cubic-bezier(0.4,0,0.2,1);
@@ -842,11 +842,11 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-font-size-5xl: 56px;
     --ds-font-variant-tabular: tabular-nums;
     --ds-radius-sm:   2px;
-    --ds-radius-md:   4px;
-    --ds-radius-lg:   8px;
-    --ds-radius-xl:   8px;
+    --ds-radius-md:   2px;
+    --ds-radius-lg:   2px;
+    --ds-radius-xl:   2px;
     --ds-radius-full: 9999px;
-    --radius:         4px;
+    --radius:         2px;
 
     /* ── Motion vars (Stockflux tokens.css) ── */
     --ds-tx-instant: 80ms cubic-bezier(0.4,0,0.6,1);
@@ -967,10 +967,10 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --st-glow-focus:     0 0 0 3px rgba(14,116,144,0.18);
     --st-font-sans:  'Inter', system-ui, -apple-system, 'Segoe UI', 'Geist', sans-serif;
     --st-font-mono:  'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
-    --st-radius:     4px;
+    --st-radius:     2px;
     --st-radius-sm:  2px;
-    --st-radius-md:  4px;
-    --st-radius-lg:  8px;
+    --st-radius-md:  2px;
+    --st-radius-lg:  2px;
     --st-t-instant:  80ms cubic-bezier(0.4,0,0.6,1);
     --st-t-fast:     140ms cubic-bezier(0.4,0,0.2,1);
     --st-t-normal:   220ms cubic-bezier(0.4,0,0.2,1);

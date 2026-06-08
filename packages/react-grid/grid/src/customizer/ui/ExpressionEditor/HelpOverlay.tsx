@@ -54,7 +54,7 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
           width: 720, maxWidth: '92vw', maxHeight: '82vh',
           background: 'var(--ds-surface-primary)',
           border: '1px solid var(--ds-border-primary)',
-          borderRadius: 8,
+          borderRadius: 2,
           boxShadow: '0 20px 48px color-mix(in srgb, var(--ds-text-primary) 50%, transparent)',
           display: 'flex', flexDirection: 'column',
           overflow: 'hidden',
@@ -149,7 +149,7 @@ function Row({ code, note, muted, kbd }: { code: string; note?: string; muted?: 
           color: muted ? 'var(--ds-text-muted)' : 'var(--ds-accent-warning)',
           background: kbd ? 'var(--ds-surface-secondary)' : 'transparent',
           padding: kbd ? '1px 6px' : 0,
-          borderRadius: kbd ? 3 : 0,
+          borderRadius: kbd ? 2 : 0,
           border: kbd ? '1px solid var(--ds-border-primary)' : 'none',
         }}
         dangerouslySetInnerHTML={{ __html: code.replace(/</g, '&lt;').replace(/>/g, '&gt;') }}

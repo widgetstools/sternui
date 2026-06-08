@@ -250,7 +250,7 @@
   border: none;
   color: var(--ds-text-secondary);
   cursor: pointer;
-  border-radius: 5px;
+  border-radius: 2px;
   padding: 0;
   transition: background 120ms, color 120ms;
 }
@@ -704,7 +704,7 @@
   padding: 0;
   flex-shrink: 0;
   border: 1px solid var(--ds-border-primary);
-  border-radius: var(--ds-radius-md, 3px);
+  border-radius: var(--ds-radius-md, 2px);
   background: transparent;
   color: var(--ds-text-primary);
   opacity: 0.82;
@@ -747,7 +747,7 @@
   align-items: stretch;
   overflow: hidden;
   border: 1px solid var(--ds-border-primary);
-  border-radius: var(--ds-radius-md, 3px);
+  border-radius: var(--ds-radius-md, 2px);
   flex-shrink: 0;
 }
 

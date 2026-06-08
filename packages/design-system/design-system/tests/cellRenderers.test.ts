@@ -109,7 +109,7 @@ describe('PillCellRenderer', () => {
         shape: 'square',
       }),
     );
-    expect(r.getGui().style.borderRadius).toBe('4px');
+    expect(r.getGui().style.borderRadius).toBe('2px');
     r.destroy?.();
   });
 });
