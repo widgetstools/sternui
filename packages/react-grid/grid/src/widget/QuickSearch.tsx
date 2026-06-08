@@ -45,12 +45,45 @@ export function QuickSearch() {
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const apply = useCallback(
+  // Quick filter re-runs a full pass over every row on each
+  // `setGridOption('quickFilterText')`. Debounce that push so fast typing on a
+  // large grid stays smooth — the input value updates immediately (responsive
+  // caret) while the expensive filter pass coalesces to the latest term.
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const pushToGrid = useCallback(
     (next: string) => {
-      setText(next);
       api?.setGridOption('quickFilterText', next);
     },
     [api],
+  );
+
+  const apply = useCallback(
+    (next: string) => {
+      setText(next);
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+      // Clearing should feel instant — never delay removing the filter.
+      if (next === '') {
+        pushToGrid('');
+        return;
+      }
+      debounceRef.current = setTimeout(() => {
+        debounceRef.current = null;
+        pushToGrid(next);
+      }, 140);
+    },
+    [pushToGrid],
+  );
+
+  // Cancel any pending push on unmount.
+  useEffect(
+    () => () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    },
+    [],
   );
 
   // The grid API arrives asynchronously (after `onGridReady`). If the user

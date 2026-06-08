@@ -368,7 +368,7 @@ Per-renderer config types (`PillRendererConfig`,
   Row Grouping, Cell Editor, **Cell Renderer** (band 10 — picks any
   registered renderer from `@starui/design-system/cell-renderers-registry`
   and authors its per-renderer config)
-- **Conditional styling** — themed style rules (dark/light)
+- **Conditional styling** — themed style rules (dark/light); per-rule bands for cell/row style, **flash on match** (`FlashConfig` — colour/mode/duration), **indicator** badge (`RuleIndicator`), value formatter, and **animate value** (`AnimationConfig` — `spin` / `spin-reverse` / `pulse`, cell-scope only). Animate spins the matching cell's value glyph via CSS keyframes scoped to `.ag-cell-value` (shipped once as `ds-anim-*`), e.g. an Excel value format maps `1 → 🔄` and a `value = 1` rule spins it — the no-code "in progress" spinner
 - **Visual Excel** — WYSIWYG `.xlsx` export preserving display formatters and
   conditional style-rule colours. Engine: `buildVisualExcelStyles`,
   `applyFormatExcelClasses`, `exportVisualExcel` (via `api.exportDataAsExcel` +

@@ -65,6 +65,7 @@ import { RuleMetaStrip } from './editor/RuleMetaStrip';
 import { ExpressionBand } from './editor/ExpressionBand';
 import { TargetColumnsBand } from './editor/TargetColumnsBand';
 import { FlashBand } from './editor/FlashBand';
+import { AnimateBand } from './editor/AnimateBand';
 import { ValueFormatterBand } from './editor/ValueFormatterBand';
 
 const MODULE_ID = 'conditional-styling';
@@ -420,6 +421,17 @@ const RuleEditor = memo(function RuleEditor({
           cellDataTypeForColumn={cellDataTypeForColumn}
           setDraft={setDraft}
         />
+
+        {/* ANIMATE — spin/pulse the value glyph (e.g. a 🔄 from the value
+            format) while the rule matches. Cell-scope only: row-scope would
+            animate every cell's value, which is what FLASH pulse is for. */}
+        {draft.scope.type === 'cell' && (
+          <AnimateBand
+            ruleId={ruleId}
+            animation={draft.animation}
+            setDraft={setDraft}
+          />
+        )}
 
         <div className="h-5" />
       </div>

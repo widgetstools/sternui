@@ -19,6 +19,7 @@ import type {
 import { valueFormatterFromTemplate } from '@starui/engine';
 import { cssEscapeColId } from '../column-customization/transforms';
 import type {
+  AnimationKind,
   CellStyleProperties,
   ConditionalRule,
   FlashColor,
@@ -333,6 +334,34 @@ function buildFlashKeyframesCss(safeRuleId: string): string {
 `;
 }
 
+// ─── Value-glyph animation (spin / pulse) ───────────────────────────────────
+
+const DEFAULT_ANIMATION_KIND: AnimationKind = 'spin';
+const DEFAULT_ANIMATION_DURATION_MS = 1000;
+
+/** Keyframe name per animation kind. */
+const ANIMATION_KEYFRAME_NAME: Record<AnimationKind, string> = {
+  spin: 'ds-anim-spin',
+  'spin-reverse': 'ds-anim-spin-reverse',
+  pulse: 'ds-anim-pulse',
+};
+
+/**
+ * Value-glyph animation keyframes. Unlike the per-rule flash keyframes
+ * (which bake in a `--ds-flash-color` reference), these are value-agnostic
+ * transforms, so they ship ONCE per grid (like the flash palette) and every
+ * animating rule references one by name — no per-rule keyframe duplication.
+ *
+ * `spin` drives the "in progress" spinner: an Excel value format maps the
+ * in-progress value to a 🔄 / ⏳ glyph and a `value = N` rule spins it.
+ */
+const ANIMATION_KEYFRAMES_RULE_ID = '__value-animation-keyframes__';
+const ANIMATION_KEYFRAMES_CSS = `
+@keyframes ds-anim-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes ds-anim-spin-reverse { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+@keyframes ds-anim-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.18); opacity: 0.6; } }
+`;
+
 // ─── CSS generation ────────────────────────────────────────────────────────
 
 function styleToCSS(style: CellStyleProperties): string {
@@ -421,6 +450,11 @@ function buildCssText(
     durationMs: number;
   } | null,
   indicator: RuleIndicator | undefined,
+  animation: {
+    enabled: boolean;
+    kind: AnimationKind;
+    durationMs: number;
+  } | null,
 ): string {
   // Encode rule id with the same helper column-customization uses so a
   // future rule.id with chars outside [A-Za-z0-9_-] still produces a
@@ -464,6 +498,20 @@ function buildCssText(
     }
   }
 
+  if (animation?.enabled) {
+    // Target the value glyph, NOT the whole cell, so a rotation spins the
+    // rendered emoji/icon in place rather than the entire cell box.
+    // `display: inline-block` is required (transforms don't apply to inline
+    // text) and `transform-origin: center` keeps the spin centred on the
+    // glyph. Works for both scopes — `surfaceSelector` already resolves to
+    // `.ag-cell…` (cell) or `.ag-row… .ag-cell` (row).
+    const animName = ANIMATION_KEYFRAME_NAME[animation.kind];
+    const timing = animation.kind === 'pulse' ? 'ease-in-out' : 'linear';
+    lines.push(
+      `${surfaceSelector} .ag-cell-value { display: inline-block; transform-origin: center; animation: ${animName} ${animation.durationMs}ms ${timing} infinite; }`,
+    );
+  }
+
   const indicatorCss = indicatorOverlayCSS(cls, indicator, scopeType);
   if (indicatorCss) lines.push(indicatorCss);
 
@@ -491,6 +539,9 @@ export function reinjectAllRules(css: CssHandle, rules: ConditionalRule[]): void
   css.clear();
   // Palette ships once — per-rule classes reference --ds-flash-<color>.
   css.addRule(FLASH_PALETTE_RULE_ID, FLASH_PALETTE_CSS);
+  // Value-glyph animation keyframes ship once — animating rules reference
+  // them by name (`ds-anim-spin` etc.).
+  css.addRule(ANIMATION_KEYFRAMES_RULE_ID, ANIMATION_KEYFRAMES_CSS);
   for (const rule of rules) {
     if (!rule.enabled) continue;
     const safeRuleId = cssEscapeColId(rule.id);
@@ -511,9 +562,19 @@ export function reinjectAllRules(css: CssHandle, rules: ConditionalRule[]): void
       // durationMs / mode don't fight over the shared `animation` slot.
       css.addRule(`conditional-flash-kf-${rule.id}`, buildFlashKeyframesCss(safeRuleId));
     }
+    const animation = rule.animation?.enabled
+      ? {
+          enabled: true,
+          kind: rule.animation.kind ?? DEFAULT_ANIMATION_KIND,
+          durationMs:
+            typeof rule.animation.durationMs === 'number' && rule.animation.durationMs > 0
+              ? Math.round(rule.animation.durationMs)
+              : DEFAULT_ANIMATION_DURATION_MS,
+        }
+      : null;
     css.addRule(
       `conditional-${rule.id}`,
-      buildCssText(rule.id, rule.scope.type, rule.style.light, rule.style.dark, flash, rule.indicator),
+      buildCssText(rule.id, rule.scope.type, rule.style.light, rule.style.dark, flash, rule.indicator, animation),
     );
   }
 }

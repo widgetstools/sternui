@@ -136,6 +136,32 @@ export interface RuleIndicator {
   position?: IndicatorPosition;
 }
 
+/**
+ * How a matching cell's *value glyph* animates. Distinct from
+ * {@link FlashConfig}, which pulses the whole cell/row surface: animation
+ * targets the `.ag-cell-value` element so only the rendered value — typically
+ * an emoji / icon supplied by the column's value format — moves.
+ *
+ *   - `spin`         — continuous clockwise rotation. The "in progress"
+ *                      spinner pattern: pair with an Excel value format that
+ *                      maps the in-progress value to a 🔄 / ⏳ glyph
+ *                      (`[=1]"🔄";[=2]"✅"`) and a rule `value = 1`.
+ *   - `spin-reverse` — continuous counter-clockwise rotation.
+ *   - `pulse`        — scale + opacity throb, no rotation (a "breathing"
+ *                      attention cue for glyphs that don't read as spinning).
+ */
+export type AnimationKind = 'spin' | 'spin-reverse' | 'pulse';
+
+export interface AnimationConfig {
+  enabled: boolean;
+  /** Animation style. Default `'spin'`. */
+  kind?: AnimationKind;
+  /**
+   * One full iteration in ms (lower = faster). Default 1000.
+   */
+  durationMs?: number;
+}
+
 export interface ConditionalRule {
   id: string;
   name: string;
@@ -151,6 +177,13 @@ export interface ConditionalRule {
   flash?: FlashConfig;
   /** Optional badge drawn on every matching cell + header. */
   indicator?: RuleIndicator;
+  /**
+   * Optional motion applied to the matching cell's value glyph — e.g. a
+   * spinning 🔄 for an "in progress" state. Pure CSS-keyframes (zero
+   * per-cell JS), scoped to `.ag-cell-value` so only the value animates,
+   * not the cell surface. Only meaningful for cell-scope rules.
+   */
+  animation?: AnimationConfig;
   /**
    * Optional per-rule value formatter. Applies to cells matching the
    * rule in the rule's target column(s). Only meaningful when the rule
