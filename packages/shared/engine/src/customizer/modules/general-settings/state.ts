@@ -10,8 +10,13 @@ import type { FlashColor } from '../conditional-styling/state.js';
  * to 2 — older snapshots get every new field filled from
  * `INITIAL_GENERAL_SETTINGS` by the module's `migrate()`.
  */
+/** Matches `@starui/design-system/adapters/ag-grid` `GridDensity`. */
+export type GridDensity = 'ultra' | 'compact' | 'comfort';
+
 export interface GeneralSettingsState {
   // ─── Tier 1 — Essential ──────────────────────────────────────────────────
+  /** Quartz compactness preset — drives `spacing`, row/header heights, and font sizes. */
+  gridDensity: GridDensity;
   rowHeight: number;
   headerHeight: number;
   pagination: boolean;
@@ -247,6 +252,7 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   // Defaults aligned with `@starui/design-system/adapters/ag-grid`
   // compact density (rowHeight 30, headerHeight 32) so a fresh profile
   // matches the theme. Users can still override either via Settings.
+  gridDensity: 'compact',
   rowHeight: 30,
   headerHeight: 32,
   pagination: false,

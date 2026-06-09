@@ -35,6 +35,7 @@ import {
   PrimaryToolbarInlineActions,
   PrimaryToolbarOverflowMenu,
 } from './PrimaryToolbarOverflowMenu';
+import { GridDensityPill } from './GridDensityPill';
 
 export type { ToolbarActionsLayout } from './PrimaryToolbarOverflowMenu';
 
@@ -148,7 +149,8 @@ export function PrimaryToolbar(props: PrimaryToolbarProps): ReactElement {
   };
 
   return (
-    <div className="ds-toolbar-primary ds-primary-row">
+    <div className="ds-toolbar-primary ds-primary-row ds-primary-row--with-density">
+      <GridDensityPill />
       {/* LEFT-MOST — editable caption surfaced when the host's
            OpenFin tab strip is hidden. Click reveals an inline edit
            icon; clicking the icon swaps the label for an input.

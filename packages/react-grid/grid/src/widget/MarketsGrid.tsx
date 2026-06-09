@@ -14,6 +14,12 @@ import { AgGridReact } from 'ag-grid-react';
 import { AllEnterpriseModule, ModuleRegistry } from 'ag-grid-enterprise';
 import type { ColDef, GridReadyEvent } from 'ag-grid-community';
 import { useGridTheme } from './theme/useGridTheme.js';
+import {
+  applyGridDensityToTheme,
+  resolveGridDensity,
+} from '@starui/design-system/adapters/ag-grid';
+import type { Theme } from 'ag-grid-community';
+import { useGeneralSettingsSnapshot } from './useGeneralSettingsSnapshot';
 import { installAgGridSetFilterValidateGuard } from './agGridSetFilterValidateGuard';
 import { type AnyModule, type StorageAdapter } from '@starui/engine';
 import {
@@ -170,12 +176,6 @@ function MarketsGridInner<TData = unknown>(
 
   ensureAgGridRegistered();
 
-  // Canonical star theme (dark/light follows `[data-theme]` on <html>).
-  // Apps can still pass `theme` for one-off overrides, but the default
-  // keeps every grid in lockstep with the host's theme attribute.
-  const internalTheme = useGridTheme();
-  const theme = themeProp ?? internalTheme;
-
   const gridRef = useRef<AgGridReact<TData>>(null);
 
   const effectiveInstanceId = instanceId ?? gridId;
@@ -214,6 +214,32 @@ function MarketsGridInner<TData = unknown>(
     appData: resolvedAppData,
     hostOverrideKeys,
   });
+
+  // Canonical star theme (dark/light follows `[data-theme]` on <html>).
+  // Density preset overlays spacing + font sizes + row/header height params
+  // via `theme.withParams` (AG Grid compactness). Live row/header heights from
+  // general-settings (or host overrides) are synced into the theme so
+  // `--ag-row-height` matches the grid option and cell text stays centered.
+  const internalTheme = useGridTheme();
+  const generalSettings = useGeneralSettingsSnapshot(platform);
+  const gridDensity = resolveGridDensity(generalSettings);
+  const effRowHeight = hostOverrideKeys.has('rowHeight')
+    ? rowHeight
+    : generalSettings?.rowHeight;
+  const effHeaderHeight = hostOverrideKeys.has('headerHeight')
+    ? headerHeight
+    : generalSettings?.headerHeight;
+  const theme = useMemo(() => {
+    const base = (themeProp ?? internalTheme) as Theme;
+    const densityTheme = applyGridDensityToTheme(base, gridDensity);
+    const overrides: Record<string, number> = {};
+    if (typeof effRowHeight === 'number') overrides.rowHeight = effRowHeight;
+    if (typeof effHeaderHeight === 'number') overrides.headerHeight = effHeaderHeight;
+    if (Object.keys(overrides).length === 0 || typeof densityTheme?.withParams !== 'function') {
+      return densityTheme;
+    }
+    return densityTheme.withParams(overrides);
+  }, [themeProp, internalTheme, gridDensity, effRowHeight, effHeaderHeight]);
 
   const editLockedRef = useRef(dataStale || historicalViewMode);
   editLockedRef.current = dataStale || historicalViewMode;

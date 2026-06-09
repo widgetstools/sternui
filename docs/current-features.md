@@ -88,7 +88,7 @@ module or a different package provides it.
 - `./tailwind` — Tailwind preset
 - `./primeng` — PrimeNG theme preset
 - `./shadcn` — shadcn token generator
-- `./adapters/ag-grid` — AG Grid Quartz theme params + baked `Theme` objects (`agGridDarkTheme`, `agGridLightTheme`, comfort/blotter variants); STARUI token-driven chrome (JetBrains Mono headers/cells, Inter chrome, 2px radii, 12px cell padding)
+- `./adapters/ag-grid` — AG Grid Quartz theme params + baked `Theme` objects (`agGridDarkTheme`, `agGridLightTheme`, comfort/blotter variants); `GridDensity` presets (`gridDensityStructuralParams`, `applyGridDensityToTheme`, `resolveGridDensity`) for ultra/compact/comfortable `spacing`, row/header heights, cell/header `fontSize`, and `iconSize` per AG Grid compactness theming (cached `withParams` per base theme)
 - `./tokens`, `./tokens/primitives`, `./tokens/semantic`, `./tokens/components`, `./tokens/controls`
 - `./cell-renderers` — bundled AG Grid cell renderer classes
 - `./cell-renderers-registry` — `cellRendererCatalogue`, `cellRendererComponents`, `getCellRendererEntry`, `CONFIGURABLE_RENDERER_IDS`, `CellRendererConfig` discriminated union
@@ -320,6 +320,7 @@ Per-renderer config types (`PillRendererConfig`,
   `toolbarDateHistoryEnabled` (when `false`, only today is selectable)
 - `DEFAULT_MODULES` — ordered customizer-module pipeline
 - `gridSurfaceOptions` — AG Grid defaults, DOM options, row styling, cell renderers
+- `GridDensityPill` — center-top primary-toolbar chip; Ultra / Compact / Comfortable presets (persists `gridDensity` + matching `rowHeight`/`headerHeight` in general-settings; `applyGridDensityLive` pushes heights immediately with row animation suppressed)
 - `MarketsGridSurface` — folds the effective `rowHeight`/`headerHeight` (host
   override or general-settings pipeline) into the theme via `theme.withParams`,
   keeping `--ag-row-height` in sync with the live row height so cell text stays
@@ -345,7 +346,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are composed inside `MarketsGrid` and are **not** on the package `.` barrel. Public toolbar exports: `FiltersToolbar`, `FormattingToolbar`, `DraggableFloat`, `SettingsSheet`, `ProfileSelector`, `HelpPanel`.
 
-- `PrimaryToolbar` — actions, admin, export/import, Visual Excel spreadsheet export,
+- `PrimaryToolbar` — actions, admin, export/import, Visual Excel spreadsheet export; center-top `GridDensityPill` (Ultra / Compact / Comfortable spacing presets via AG Grid `theme.withParams` + general-settings persistence)
   settings sheet toggle, optional inline caption (`tabsHidden`), editing-toolbar pencil toggle,
   secondary actions in ⋯ overflow menu by default (`toolbarActionsLayout`: `overflow` | `inline`); shadcn `ToolbarDatePicker` on the right edge (defaults to today; `showToolbarDatePicker`; `historyEnabled` gates past dates)
 - `QuickSearch` — primary-toolbar search icon that expands into a compact field on hover/focus (or click-to-pin via `data-open`) and drives AG-Grid's quick filter across all columns (`setGridOption('quickFilterText')`); self-contained (reaches `GridApi` via `useGridApi`, like `AlertsBadge`); Escape clears + collapses, an inline ✕ clears, and an active term keeps the field open and lights the icon (`data-has-text`)

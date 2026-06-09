@@ -12,6 +12,7 @@
  * version was never tied to module schema versions. v3 adds Side Bar
  * + Status Bar visibility toggles + their per-panel sub-toggles.
  * v4 adds `cellChangeFlashColor` (AG-Grid native flash tint swatches).
+ * v5 adds `gridDensity` (ultra / compact / comfortable Quartz preset).
  */
 import type { GridOptions } from 'ag-grid-community';
 import type { Module, TransformContext } from '@starui/engine';
@@ -29,7 +30,7 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
   id: GENERAL_SETTINGS_MODULE_ID,
   name: 'Grid Options',
   code: '00',
-  schemaVersion: 4,
+  schemaVersion: 5,
   priority: 0,
 
   getInitialState: () => ({ ...INITIAL_GENERAL_SETTINGS }),

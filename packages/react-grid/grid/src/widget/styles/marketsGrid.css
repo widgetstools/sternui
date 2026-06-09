@@ -203,6 +203,110 @@
   border-bottom: 1px solid var(--ds-border-primary);
 }
 
+.ds-primary-row--with-density {
+  position: relative;
+}
+
+/* Center-top grid spacing pill — chip always visible; menu on hover/focus/click. */
+.ds-density-pill-host {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  pointer-events: none;
+}
+
+.ds-density-pill {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ds-density-pill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid var(--ds-border-primary);
+  background: var(--ds-surface-primary);
+  color: var(--ds-text-muted);
+  font-family: var(--ds-font-sans);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+[data-theme="light"] .ds-density-pill-chip {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.ds-density-pill-chip:hover,
+.ds-density-pill:focus-within .ds-density-pill-chip,
+.ds-density-pill[data-open='true'] .ds-density-pill-chip {
+  color: var(--ds-text-primary);
+  border-color: color-mix(in srgb, var(--ds-primary) 35%, var(--ds-border-primary));
+  background: color-mix(in srgb, var(--ds-surface-primary) 88%, var(--ds-surface-secondary));
+}
+
+.ds-density-pill-menu {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--ds-border-primary);
+  background: var(--ds-surface-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 60ms ease, transform 60ms ease;
+}
+
+.ds-density-pill:hover .ds-density-pill-menu,
+.ds-density-pill:focus-within .ds-density-pill-menu,
+.ds-density-pill[data-open='true'] .ds-density-pill-menu {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.ds-density-pill-option {
+  height: 20px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ds-text-muted);
+  font-family: var(--ds-font-sans);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.ds-density-pill-option:hover {
+  color: var(--ds-text-primary);
+  background: var(--ds-surface-tertiary);
+}
+
+.ds-density-pill-option[data-active='true'] {
+  color: var(--ds-primary);
+  background: color-mix(in srgb, var(--ds-primary) 14%, transparent);
+  border-color: color-mix(in srgb, var(--ds-primary) 40%, transparent);
+}
+
 [data-theme="light"] .ds-primary-row {
   background:
     linear-gradient(180deg,
