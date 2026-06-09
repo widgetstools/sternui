@@ -50,6 +50,10 @@ describe('ensureDataServicesHub', () => {
     expect(createDataServicesWorkerMock).toHaveBeenCalledWith('/worker.mjs', {
       appName: 'TestApp',
       configServiceRestUrl: undefined,
+      appId: 'TestApp',
+      userId: 'dev1',
+      seedConfigUrl: undefined,
+      seedConfigReload: undefined,
     });
     expect(bootstrapDataServicesMock).toHaveBeenCalledWith({
       appName: 'TestApp',
@@ -88,6 +92,10 @@ describe('ensureDataServicesHub', () => {
     expect(createDataServicesWorkerMock).toHaveBeenCalledWith('/worker.mjs', {
       appName: 'RestApp',
       configServiceRestUrl: 'http://localhost:3001/api/v1',
+      appId: 'RestApp',
+      userId: 'dev1',
+      seedConfigUrl: undefined,
+      seedConfigReload: undefined,
     });
   });
 

@@ -30,6 +30,7 @@
 // ── ConfigManager singleton (delegates to ./db) ─────────────────────
 export {
   getConfigManager,
+  peekConfigManager,
   setConfigManager,
   setPlatformDefaultScope,
   migrateLegacyPlatformScope,

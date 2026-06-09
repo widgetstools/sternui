@@ -39,18 +39,6 @@ async function prefetchToolWindowChunks(): Promise<void> {
   }
 }
 
-function scheduleIdle(cb: () => void): void {
-  type IdleAPI = {
-    requestIdleCallback?: (cb: IdleRequestCallback, opts?: IdleRequestOptions) => number;
-  };
-  const w = window as unknown as IdleAPI;
-  if (typeof w.requestIdleCallback === "function") {
-    w.requestIdleCallback(() => cb(), { timeout: 4000 });
-  } else {
-    setTimeout(cb, 1500);
-  }
-}
-
 function Provider() {
   const [message, setMessage] = useState("");
 
@@ -73,9 +61,7 @@ function Provider() {
         return import("@starui/host-wrapper-react/test-bridge").then((m) => m.installTestBridge());
       })
       .then(() => {
-        scheduleIdle(() => {
-          void prefetchToolWindowChunks();
-        });
+        void prefetchToolWindowChunks();
       })
       .catch((err) => {
         console.error("Failed to initialize workspace platform:", err);

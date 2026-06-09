@@ -41,6 +41,7 @@ import {
   useDataProvidersList,
   useAppDataStore,
   useDataProvider,
+  useDataServices,
 } from '@starui/host-data-react/runtime';
 import { buildColumnDefs } from './buildColumnDefs.js';
 import { createApplyProviderToGridState } from './applyProviderToGrid.js';
@@ -157,6 +158,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const [gridHandle, setGridHandle] = useState<MarketsGridHandle | null>(null);
 
   const appData = useAppDataStore();
+  const { client: dataHubClient } = useDataServices();
 
   // Adapt AppDataStore → AppDataLookup for the platform's
   // resources.appData(). Plumbed into MarketsGrid so column-customization's
@@ -285,7 +287,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     if (typeof val === 'string' && isHistoricalToolbarDate(val)) {
       setToolbarDate(val);
       setAsOfDate(val);
-      pendingToolbarReloadRef.current = { mode: 'historical', asOfDate: val };
+      // Do not queue reload on mount — provider wiring late-joins when the
+      // hub slot is already warm; restart only when this window cold-starts.
     }
   }, [loaded, selection.mode, historicalDateAppDataRef, appData.store]);
 
@@ -827,11 +830,27 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       (onError ?? defaultOnError)(err);
     });
 
-    void provider.start().catch((err: unknown) => {
-      if (cancelled) return;
-      setResolvedSubKey(thisSubKey);
-      (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
-    });
+    void (async () => {
+      try {
+        const running = await dataHubClient.isProviderRunning(activeId);
+        if (running) {
+          await provider.start();
+          return;
+        }
+        const asOfForRestart = selection.mode === 'historical'
+          ? (asOfDate ?? (isHistoricalToolbarDate(toolbarDate) ? toolbarDate : null))
+          : null;
+        if (asOfForRestart) {
+          await restartProvider({ asOfDate: asOfForRestart });
+          return;
+        }
+        await provider.start();
+      } catch (err: unknown) {
+        if (cancelled) return;
+        setResolvedSubKey(thisSubKey);
+        (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
+      }
+    })();
 
     return () => {
       cancelled = true;
@@ -847,7 +866,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveApi, provider, activeId, rowIdFieldKey, onError]);
+  }, [liveApi, provider, activeId, rowIdFieldKey, onError, dataHubClient, selection.mode, asOfDate, toolbarDate, restartProvider]);
 
   /** Cache replay only — `IDataProvider.refresh()`; no upstream reconnect. */
   const refreshView = useCallback(() => {

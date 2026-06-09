@@ -317,7 +317,7 @@ export class SharedWorkerDataServicesHub {
     if (this.configCatalog.isReady()) return;
     try {
       await this.configCatalog.loadAll();
-      this.broadcastCatalogEvent({ kind: 'catalog-ready' });
+      this.broadcastCatalogEvent({ kind: 'catalog-ready', full: true });
     } catch (err) {
       // Hydration failure is non-fatal — attach with inline cfg still
       // works; cfg-free attach will miss until a retry succeeds.
@@ -580,7 +580,11 @@ export class SharedWorkerDataServicesHub {
         reqId: req.reqId,
         ok: true,
       });
-      this.broadcastCatalogEvent({ kind: 'catalog-ready' });
+      this.broadcastCatalogEvent(
+        req.providerId
+          ? { kind: 'catalog-ready', providerId: req.providerId }
+          : { kind: 'catalog-ready', full: true },
+      );
     } catch (err) {
       this.replyConfigSnapshot(port, {
         kind: 'config-snapshot',

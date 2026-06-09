@@ -71,9 +71,21 @@ export async function resolvePlatformBootstrapFromManifest(): Promise<PlatformBo
         rawSeedUrl,
         manifest.platform?.providerUrl,
       );
+      const cs = manifest.customSettings;
+      const manifestAppId = typeof cs?.appId === 'string' ? cs.appId.trim() : '';
+      const manifestUserId = typeof cs?.userId === 'string' ? cs.userId.trim() : '';
+      if (manifestAppId && manifestUserId) {
+        return {
+          appId: manifestAppId,
+          userId: manifestUserId,
+          useRest: cs?.useRest,
+          configServiceRestUrl: cs?.configServiceRestUrl,
+          seedConfigUrl: seedUrl,
+          seedConfigReload: cs?.seedConfigReload === 'when-changed' ? 'when-changed' : undefined,
+        };
+      }
       const identity = await resolveActiveIdentityFromSeedUrl(seedUrl);
       if (identity) {
-        const cs = manifest.customSettings;
         return {
           appId: identity.activeAppId,
           userId: identity.activeUserId,

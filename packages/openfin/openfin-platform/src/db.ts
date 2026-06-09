@@ -67,6 +67,11 @@ export function setConfigManager(manager: ConfigManager): void {
   configManagerInstance = manager;
 }
 
+/** Synchronous peek — set by `setConfigManager` or `initWorkspace`. */
+export function peekConfigManager(): ConfigManager | undefined {
+  return configManagerInstance;
+}
+
 /**
  * Returns the ConfigManager instance, creating a fallback if needed.
  *

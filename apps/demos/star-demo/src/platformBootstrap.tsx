@@ -1,10 +1,18 @@
 import {
+  createContext,
+  useContext,
+  type ReactNode,
+} from 'react';
+import {
   ensurePlatformReady,
   resolvePlatformBootstrapFromJson,
   type PlatformBootstrapConfig,
   type ResolvedDataServicesHubBundle,
 } from '@starui/host-data';
-import { resolvePlatformBootstrapFromManifest } from '@starui/openfin-platform/config';
+import {
+  resolvePlatformBootstrapFromManifest,
+  setConfigManager,
+} from '@starui/openfin-platform/config';
 import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
 
 export interface PlatformBootstrapResult {
@@ -14,6 +22,30 @@ export interface PlatformBootstrapResult {
 
 let platformRef: ResolvedDataServicesHubBundle | undefined;
 let configRef: PlatformBootstrapConfig | undefined;
+
+const PlatformBootstrapContext = createContext<PlatformBootstrapResult | null>(null);
+
+export function PlatformBootstrapProvider({
+  value,
+  children,
+}: {
+  value: PlatformBootstrapResult;
+  children: ReactNode;
+}): ReactNode {
+  return (
+    <PlatformBootstrapContext.Provider value={value}>
+      {children}
+    </PlatformBootstrapContext.Provider>
+  );
+}
+
+export function usePlatformBootstrap(): PlatformBootstrapResult {
+  const ctx = useContext(PlatformBootstrapContext);
+  if (!ctx) {
+    throw new Error('usePlatformBootstrap() requires PlatformBootstrapProvider');
+  }
+  return ctx;
+}
 
 function isOpenFinRuntime(): boolean {
   if (typeof globalThis === 'undefined') return false;
@@ -38,15 +70,14 @@ export function getBootstrapConfig(): PlatformBootstrapConfig {
 
 /**
  * Browser: `/app-config.json` (seedConfigUrl only). OpenFin: manifest
- * `customSettings.seedConfigUrl`. `appId` and `userId` are read from
- * `seed.json` `activeAppId` / `activeUserId` — the only deployment
- * identity source.
+ * `customSettings` (prefer pinned `appId` / `userId`; else seed identity).
  */
 export async function initPlatformBootstrap(): Promise<PlatformBootstrapResult> {
   const config = isOpenFinRuntime()
     ? await resolvePlatformBootstrapFromManifest()
     : await resolvePlatformBootstrapFromJson('/app-config.json');
   const platform = await ensurePlatformReady(config, { workerScriptUrl: workerAssetUrl });
+  setConfigManager(platform.configManager);
   platformRef = platform;
   configRef = config;
   return { config, platform };

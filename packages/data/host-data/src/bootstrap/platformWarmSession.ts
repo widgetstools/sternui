@@ -1,46 +1,28 @@
+import {
+  clearCrossWindowPrefix,
+  readCrossWindowItem,
+  removeCrossWindowItem,
+  writeCrossWindowItem,
+} from './crossWindowStorage.js';
+
 const PLATFORM_WARM_PREFIX = 'starui:platform-warm:';
 
 /** Record that a full platform bootstrap completed for this deployment. */
 export function markPlatformWarm(appId: string): void {
-  if (typeof sessionStorage === 'undefined') return;
-  try {
-    sessionStorage.setItem(`${PLATFORM_WARM_PREFIX}${appId}`, '1');
-  } catch {
-    /* quota / private mode */
-  }
+  writeCrossWindowItem(`${PLATFORM_WARM_PREFIX}${appId}`, '1');
 }
 
-/** True when a prior window in this session already ran full bootstrap. */
+/** True when a prior window already ran full bootstrap (cross-window). */
 export function isPlatformWarm(appId: string): boolean {
-  if (typeof sessionStorage === 'undefined') return false;
-  try {
-    return sessionStorage.getItem(`${PLATFORM_WARM_PREFIX}${appId}`) === '1';
-  } catch {
-    return false;
-  }
+  return readCrossWindowItem(`${PLATFORM_WARM_PREFIX}${appId}`) === '1';
 }
 
 /** Clear warm marker when the SharedWorker is unreachable (worker restart). */
 export function clearPlatformWarm(appId: string): void {
-  if (typeof sessionStorage === 'undefined') return;
-  try {
-    sessionStorage.removeItem(`${PLATFORM_WARM_PREFIX}${appId}`);
-  } catch {
-    /* ignore */
-  }
+  removeCrossWindowItem(`${PLATFORM_WARM_PREFIX}${appId}`);
 }
 
 /** Test-only — clears all warm markers. */
 export function _resetPlatformWarmSessionForTests(): void {
-  if (typeof sessionStorage === 'undefined') return;
-  try {
-    for (let i = sessionStorage.length - 1; i >= 0; i -= 1) {
-      const key = sessionStorage.key(i);
-      if (key?.startsWith(PLATFORM_WARM_PREFIX)) {
-        sessionStorage.removeItem(key);
-      }
-    }
-  } catch {
-    /* ignore */
-  }
+  clearCrossWindowPrefix(PLATFORM_WARM_PREFIX);
 }

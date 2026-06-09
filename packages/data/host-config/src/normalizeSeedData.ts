@@ -81,10 +81,45 @@ export function isSeedIdentityCached(url: string): boolean {
   return readCachedSeedIdentity(url) !== null;
 }
 
+function readCrossWindowItem(key: string): string | null {
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const value = localStorage.getItem(key);
+      if (value !== null) return value;
+    } catch {
+      /* private mode / quota */
+    }
+  }
+  if (typeof sessionStorage !== 'undefined') {
+    try {
+      return sessionStorage.getItem(key);
+    } catch {
+      /* ignore */
+    }
+  }
+  return null;
+}
+
+function writeCrossWindowItem(key: string, value: string): void {
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      /* best-effort */
+    }
+  }
+  if (typeof sessionStorage !== 'undefined') {
+    try {
+      sessionStorage.setItem(key, value);
+    } catch {
+      /* best-effort */
+    }
+  }
+}
+
 function readCachedSeedIdentity(url: string): SeedActiveIdentity | null {
-  if (typeof sessionStorage === 'undefined') return null;
   try {
-    const raw = sessionStorage.getItem(`${SEED_IDENTITY_SESSION_PREFIX}${url}`);
+    const raw = readCrossWindowItem(`${SEED_IDENTITY_SESSION_PREFIX}${url}`);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<SeedActiveIdentity>;
     if (
@@ -99,18 +134,16 @@ function readCachedSeedIdentity(url: string): SeedActiveIdentity | null {
       };
     }
   } catch {
-    /* sessionStorage unavailable or corrupt — fall through to fetch */
+    /* corrupt cache — fall through to fetch */
   }
   return null;
 }
 
 function writeCachedSeedIdentity(url: string, identity: SeedActiveIdentity): void {
-  if (typeof sessionStorage === 'undefined') return;
-  try {
-    sessionStorage.setItem(`${SEED_IDENTITY_SESSION_PREFIX}${url}`, JSON.stringify(identity));
-  } catch {
-    /* quota / private mode — best-effort */
-  }
+  writeCrossWindowItem(
+    `${SEED_IDENTITY_SESSION_PREFIX}${url}`,
+    JSON.stringify(identity),
+  );
 }
 
 async function fetchSeedActiveIdentity(
@@ -135,9 +168,9 @@ async function fetchSeedActiveIdentity(
  * Fetch `seed.json` and read `activeAppId` / `activeUserId`.
  * Returns `null` when the URL is unreachable or the fields are missing.
  *
- * Results are cached for the browser session (sessionStorage + in-memory
- * single-flight) so each OpenFin child view does not re-download the full
- * deploy bundle after the provider window has already resolved identity.
+ * Results are cached in localStorage (cross-window) + in-memory single-flight
+ * so OpenFin child views do not re-download the full deploy bundle after the
+ * provider window has already resolved identity.
  */
 export async function resolveActiveIdentityFromSeedUrl(
   url: string,

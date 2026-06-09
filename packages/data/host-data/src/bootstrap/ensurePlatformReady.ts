@@ -63,15 +63,18 @@ async function resolveAttachBootstrap(
   workerScriptUrl: string,
   configServiceRestUrl: string | undefined,
 ): Promise<boolean> {
-  const identityReady = !config.seedConfigUrl || isSeedIdentityCached(config.seedConfigUrl);
-  if (!identityReady || !isPlatformWarm(config.appId)) {
+  if (config.seedConfigUrl && !isSeedIdentityCached(config.seedConfigUrl)) {
     return false;
   }
 
   const workerUp = await probeWorkerHubReady({
     workerScriptUrl,
+    appName: config.appId,
     appId: config.appId,
+    userId: config.userId,
     configServiceRestUrl,
+    seedConfigUrl: config.seedConfigUrl,
+    seedConfigReload: config.seedConfigReload,
   });
   if (!workerUp) {
     clearPlatformWarm(config.appId);
@@ -98,13 +101,15 @@ async function bootstrapPlatformOnce(
     seedConfigUrl: attachMode ? undefined : config.seedConfigUrl,
     seedConfigReload: attachMode ? undefined : config.seedConfigReload,
   });
-  await configManager.init(attachMode ? { mode: 'attach' } : undefined);
 
-  const bundle = await ensureDataServicesHub({
+  const initPromise = configManager.init(attachMode ? { mode: 'attach' } : undefined);
+  const bundlePromise = ensureDataServicesHub({
     ...config,
     workerScriptUrl: opts.workerScriptUrl,
     mainThreadConfigManager: configManager,
   });
+
+  const [bundle] = await Promise.all([bundlePromise, initPromise]);
 
   wireWorkerCatalogSync(configManager, bundle.client);
 

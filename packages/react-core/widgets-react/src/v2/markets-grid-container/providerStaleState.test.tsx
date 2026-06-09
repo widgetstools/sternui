@@ -69,6 +69,11 @@ let latestProvider: ReturnType<typeof createMockProvider> | null = null;
 const restartMock = vi.fn().mockResolvedValue(undefined);
 const noopOnError = vi.fn();
 
+const { dataHubClientMock } = vi.hoisted(() => {
+  const isProviderRunning = vi.fn().mockResolvedValue(false);
+  return { dataHubClientMock: { isProviderRunning } };
+});
+
 const lastMarketsGridProps: { current: any } = { current: null };
 
 vi.mock('@starui/grid', () => ({
@@ -113,6 +118,7 @@ vi.mock('@starui/grid', () => ({
 }));
 
 vi.mock('@starui/host-data-react/runtime', () => ({
+  useDataServices: () => ({ client: dataHubClientMock }),
   useDataProvider: (id: string | null | undefined) => {
     if (id !== PROVIDER_ID) {
       latestProvider = null;

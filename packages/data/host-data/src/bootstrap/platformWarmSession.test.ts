@@ -9,6 +9,8 @@ import {
 describe('platformWarmSession', () => {
   afterEach(() => {
     _resetPlatformWarmSessionForTests();
+    localStorage.clear();
+    sessionStorage.clear();
   });
 
   it('marks and reads warm state per appId', () => {

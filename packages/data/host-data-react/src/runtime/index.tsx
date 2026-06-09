@@ -179,8 +179,12 @@ export function useDataProviderConfig(providerId: string | null | undefined): Da
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    return client.onCatalogChange(() => setTick((t) => t + 1));
-  }, [client]);
+    return client.onCatalogChange((detail) => {
+      if (detail.full || detail.providerId === providerId) {
+        setTick((t) => t + 1);
+      }
+    });
+  }, [client, providerId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -188,11 +192,21 @@ export function useDataProviderConfig(providerId: string | null | undefined): Da
       setView({ cfg: null, loading: false });
       return;
     }
-    setView({ cfg: null, loading: true });
+    setView((prev) => ({
+      ...prev,
+      loading: prev.cfg === null,
+      error: undefined,
+    }));
     client.getProviderConfig(providerId)
       .then((cfg) => { if (!cancelled) setView({ cfg, loading: false }); })
       .catch((err: unknown) => {
-        if (!cancelled) setView({ cfg: null, loading: false, error: err instanceof Error ? err.message : String(err) });
+        if (!cancelled) {
+          setView((prev) => ({
+            cfg: prev.cfg,
+            loading: false,
+            error: err instanceof Error ? err.message : String(err),
+          }));
+        }
       });
     return () => { cancelled = true; };
   }, [providerId, client, tick]);
@@ -225,12 +239,16 @@ export function useDataProvidersList(
   const refresh = useCallback(() => setTick((t) => t + 1), []);
 
   useEffect(() => {
-    return client.onCatalogChange(() => setTick((t) => t + 1));
+    return client.onCatalogChange((detail) => {
+      if (detail.full || detail.providerId) {
+        setTick((t) => t + 1);
+      }
+    });
   }, [client]);
 
   useEffect(() => {
     let cancelled = false;
-    setView((v) => ({ ...v, loading: true }));
+    setView((v) => ({ ...v, loading: v.configs.length === 0 }));
     const listOpts: { subtype?: ProviderConfig['providerType']; includeAppData?: boolean } = {};
     if (opts.subtype) listOpts.subtype = opts.subtype;
     if (opts.includeAppData) listOpts.includeAppData = true;

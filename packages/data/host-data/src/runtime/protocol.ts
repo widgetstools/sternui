@@ -308,8 +308,16 @@ export interface RowsReceivedEvent {
 
 export type Event = DeltaEvent | StatusEvent | StatsEvent | RowsReceivedEvent;
 
+/** Detail payload for {@link CatalogReadyEvent} broadcasts. */
+export interface CatalogChangeDetail {
+  /** Single-row refresh — hooks should react only when this matches their provider. */
+  providerId?: string;
+  /** Full catalog reload (startup hydrate or `config-invalidate` without id). */
+  full?: boolean;
+}
+
 /** Worker → client catalog events (no subId — routed by reqId or broadcast). */
-export interface CatalogReadyEvent {
+export interface CatalogReadyEvent extends CatalogChangeDetail {
   kind: 'catalog-ready';
 }
 

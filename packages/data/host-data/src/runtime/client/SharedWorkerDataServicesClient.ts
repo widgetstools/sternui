@@ -25,6 +25,7 @@ import type {
   AppDataRequest,
   AppDataSnapshotEvent,
   AttachRequest,
+  CatalogChangeDetail,
   CatalogEvent,
   ConfigInvalidateRequest,
   ConfigSnapshotEvent,
@@ -148,7 +149,7 @@ export class SharedWorkerDataServicesClient {
     { resolve: (event: ConfigSnapshotEvent) => void; reject: (err: Error) => void }
   >();
   private readonly catalogReadyWaiters: Array<() => void> = [];
-  private readonly catalogChangeListeners = new Set<() => void>();
+  private readonly catalogChangeListeners = new Set<(detail: CatalogChangeDetail) => void>();
 
   constructor(port: MessagePort, opts: SharedWorkerDataServicesClientOpts = {}) {
     this.port = port;
@@ -432,12 +433,26 @@ export class SharedWorkerDataServicesClient {
   /**
    * Subscribe to worker catalog refresh broadcasts (`catalog-ready`).
    * Fires after startup hydrate and after every `invalidateConfig`.
+   * `detail.providerId` is set for single-row refresh; `detail.full` for
+   * whole-catalog reload.
    */
-  onCatalogChange(listener: () => void): () => void {
+  onCatalogChange(listener: (detail: CatalogChangeDetail) => void): () => void {
     this.catalogChangeListeners.add(listener);
     return () => {
       this.catalogChangeListeners.delete(listener);
     };
+  }
+
+  /** True when the hub already has a running slot for `providerId`. */
+  async isProviderRunning(providerId: string): Promise<boolean> {
+    try {
+      const snap = await this.getHubIntrospect();
+      return snap.providers.some(
+        (row) => row.providerId === providerId && row.running,
+      );
+    } catch {
+      return false;
+    }
   }
 
   /** True when the worker catalog finished its startup hydrate. */
@@ -631,9 +646,13 @@ export class SharedWorkerDataServicesClient {
     if (event.kind === 'catalog-ready') {
       for (const resolve of this.catalogReadyWaiters) resolve();
       this.catalogReadyWaiters.length = 0;
+      const detail: CatalogChangeDetail = {
+        providerId: event.providerId,
+        full: event.full ?? !event.providerId,
+      };
       for (const listener of this.catalogChangeListeners) {
         try {
-          listener();
+          listener(detail);
         } catch (err) {
           // eslint-disable-next-line no-console
           console.warn('[SharedWorkerDataServicesClient] catalog change listener threw', err);

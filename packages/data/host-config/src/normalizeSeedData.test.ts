@@ -329,6 +329,7 @@ describe('normalizeSeedData', () => {
 describe('resolveActiveIdentityFromSeedUrl', () => {
   afterEach(() => {
     _resetSeedIdentityCacheForTests();
+    localStorage.clear();
     sessionStorage.clear();
   });
 
@@ -348,8 +349,8 @@ describe('resolveActiveIdentityFromSeedUrl', () => {
     expect(b).toEqual(a);
   });
 
-  it('reuses sessionStorage cache without refetching', async () => {
-    sessionStorage.setItem(
+  it('reuses localStorage cache without refetching', async () => {
+    localStorage.setItem(
       'starui:seed-identity:http://test/seed.json',
       JSON.stringify({ activeAppId: 'cached-app', activeUserId: 'cached-user' }),
     );

@@ -75,6 +75,10 @@ function createMockProvider(id: string): IDataProvider & {
 }
 
 const providers = new Map<string, ReturnType<typeof createMockProvider>>();
+const { dataHubClientMock } = vi.hoisted(() => {
+  const isProviderRunning = vi.fn().mockResolvedValue(false);
+  return { dataHubClientMock: { isProviderRunning } };
+});
 const restartMock = vi.fn().mockResolvedValue(undefined);
 const appDataSet = vi.fn().mockResolvedValue(undefined);
 const saveAllMock = vi.fn().mockResolvedValue(undefined);
@@ -122,6 +126,7 @@ vi.mock('@starui/grid', () => ({
 }));
 
 vi.mock('@starui/host-data-react/runtime', () => ({
+  useDataServices: () => ({ client: dataHubClientMock }),
   useDataProvider: (id: string | null | undefined) => {
     if (!id) {
       return {

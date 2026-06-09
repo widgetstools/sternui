@@ -10,7 +10,6 @@ import {
 import { isSeedIdentityCached } from '@starui/host-config';
 import { _resetEnsureDataServicesHubForTests } from '../hub/ensureDataServicesHub.js';
 import { runAppDataBootstrap } from './appDataBootstrap.js';
-import { markPlatformWarm } from './platformWarmSession.js';
 
 vi.mock('./appDataBootstrap.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./appDataBootstrap.js')>();
@@ -139,10 +138,9 @@ describe('ensurePlatformReady', () => {
     expect(createConfigManagerMock).not.toHaveBeenCalled();
   });
 
-  it('uses attach bootstrap when platform is warm and worker catalog is ready', async () => {
+  it('uses attach bootstrap when worker catalog is ready and seed identity is cached', async () => {
     vi.mocked(isSeedIdentityCached).mockReturnValue(true);
     probeWorkerHubReadyMock.mockResolvedValue(true);
-    markPlatformWarm('TestApp');
 
     const initMock = vi.fn().mockResolvedValue(undefined);
     createConfigManagerMock.mockImplementation((opts: unknown) => ({

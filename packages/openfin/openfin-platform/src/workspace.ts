@@ -5,6 +5,7 @@ import { Home, Storefront, type App } from "@openfin/workspace";
 import { init, getCurrentSync, type WorkspacePlatformOverrideCallback } from "@openfin/workspace-platform";
 import { createConfigManager, type ConfigManager } from "@starui/host-config";
 import {
+  peekConfigManager,
   setConfigManager,
   setPlatformDefaultScope,
   getPlatformDefaultScope,
@@ -178,23 +179,25 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
     platform?: { providerUrl?: string };
   };
   const providerUrl = manifest.platform?.providerUrl;
-  const deployment = await resolveDeploymentIdentity(settings.customSettings, providerUrl);
-  const rawSeedUrl = settings.customSettings?.seedConfigUrl?.trim();
-  const seedConfigUrl = rawSeedUrl
-    ? await resolveSeedConfigUrl(rawSeedUrl, providerUrl)
-    : undefined;
-  configManager = createConfigManager({
-    appId: deployment.appId,
-    identity: { userId: deployment.userId, displayName: deployment.userId },
-    seedConfigUrl,
-    seedConfigReload: settings.customSettings?.seedConfigReload,
-    configServiceRestUrl: restUrl,
-  });
-  await configManager.init();
-
-  // Share the ConfigManager with db.ts so dock config persistence
-  // uses the same database as everything else.
-  setConfigManager(configManager);
+  const prewired = peekConfigManager();
+  if (prewired) {
+    configManager = prewired;
+  } else {
+    const deployment = await resolveDeploymentIdentity(settings.customSettings, providerUrl);
+    const rawSeedUrl = settings.customSettings?.seedConfigUrl?.trim();
+    const seedConfigUrl = rawSeedUrl
+      ? await resolveSeedConfigUrl(rawSeedUrl, providerUrl)
+      : undefined;
+    configManager = createConfigManager({
+      appId: deployment.appId,
+      identity: { userId: deployment.userId, displayName: deployment.userId },
+      seedConfigUrl,
+      seedConfigReload: settings.customSettings?.seedConfigReload,
+      configServiceRestUrl: restUrl,
+    });
+    await configManager.init();
+    setConfigManager(configManager);
+  }
 
   // Scope comes from seed.json activeAppId / activeUserId via ConfigManager.
   const defaultScope = await resolveDefaultPlatformScope(

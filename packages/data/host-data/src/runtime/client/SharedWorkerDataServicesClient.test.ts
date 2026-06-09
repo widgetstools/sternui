@@ -549,17 +549,17 @@ describe('SharedWorkerDataServicesClient — config catalog RPC', () => {
     w.close();
   });
 
-  it('onCatalogChange fires after catalog invalidate broadcasts', async () => {
+  it('onCatalogChange fires with scoped detail after row invalidate', async () => {
     const cm = stubConfigManager();
     cm._rows.set('p1', mockProviderRow('p1'));
     const w = wire({ configManager: cm });
     await w.hub.hydrateCatalog();
 
-    let fires = 0;
-    const off = w.client.onCatalogChange(() => { fires += 1; });
+    const details: Array<{ providerId?: string; full?: boolean }> = [];
+    const off = w.client.onCatalogChange((detail) => { details.push(detail); });
     await w.client.invalidateConfig('p1');
     await flush();
-    expect(fires).toBe(1);
+    expect(details).toEqual([{ providerId: 'p1', full: false }]);
     off();
     w.close();
   });

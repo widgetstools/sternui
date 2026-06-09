@@ -1,36 +1,77 @@
 /**
  * Default SharedWorker entry for `@starui/host-data`.
  *
- * Apps that don't need a customised hub can use this directly via
- * `createDataServicesClient()` (see `../bootstrap/createDataServicesClient.ts`).
- * The factory passes the resolved ConfigService REST URL to the worker
- * by appending `?configServiceRestUrl=…` to the worker's scriptURL;
- * this entry reads it back from `self.location.search` and constructs
- * its ConfigManager accordingly.
+ * Bootstrap fields (`appId`, `userId`, seed URL, REST URL) are read from
+ * localStorage (written by `createDataServicesWorker` before spawn) — not
+ * from the script URL — so Vite dev `@fs/` worker URLs stay clean.
  *
- * Why a query param: SharedWorkers run in their own global scope with
- * no access to OpenFin's `fin` object or the main thread's modules.
- * The main thread reads the URL once from the manifest and forwards
- * it here on the scriptURL. The first tab to spawn the worker fixes
- * the URL — subsequent tabs with the same `name` attach to the
- * running instance.
- *
- * Apps that need bespoke worker setup (extra services, custom
- * ConfigManager wiring) should keep their own worker file and call
- * `installSharedWorkerHub({...})` directly, then pass the worker to
- * `bootstrapDataServices({ worker, ... })`.
+ * Apps that need bespoke worker setup should keep their own worker file and
+ * call `installSharedWorkerHub({...})` directly.
  */
 
 import { installSharedWorkerHub } from './index.js';
 import { createConfigManager } from '@starui/host-config';
+import {
+  appNameFromWorkerName,
+  readWorkerBootstrapPayload,
+} from '../../bootstrap/workerBootstrapPayload.js';
 
-const CONFIG_SERVICE_REST_URL =
-  new URLSearchParams(self.location.search).get('configServiceRestUrl') ||
-  undefined;
+function readWorkerBootstrapParams(): {
+  configServiceRestUrl: string | undefined;
+  appId: string | undefined;
+  userId: string | undefined;
+  seedConfigUrl: string | undefined;
+  seedConfigReload: 'empty-only' | 'when-changed' | undefined;
+} {
+  const workerName = typeof self.name === 'string' ? self.name : '';
+  const appName = appNameFromWorkerName(workerName);
+  if (!appName) {
+    return {
+      configServiceRestUrl: undefined,
+      appId: undefined,
+      userId: undefined,
+      seedConfigUrl: undefined,
+      seedConfigReload: undefined,
+    };
+  }
+
+  const payload = readWorkerBootstrapPayload(appName);
+  if (!payload) {
+    return {
+      configServiceRestUrl: undefined,
+      appId: undefined,
+      userId: undefined,
+      seedConfigUrl: undefined,
+      seedConfigReload: undefined,
+    };
+  }
+
+  return {
+    configServiceRestUrl: payload.configServiceRestUrl,
+    appId: payload.appId,
+    userId: payload.userId,
+    seedConfigUrl: payload.seedConfigUrl,
+    seedConfigReload: payload.seedConfigReload,
+  };
+}
 
 async function boot(): Promise<void> {
+  const {
+    configServiceRestUrl,
+    appId,
+    userId,
+    seedConfigUrl,
+    seedConfigReload,
+  } = readWorkerBootstrapParams();
+
   const configManager = createConfigManager({
-    configServiceRestUrl: CONFIG_SERVICE_REST_URL,
+    configServiceRestUrl,
+    appId,
+    identity: userId
+      ? { userId, displayName: userId }
+      : undefined,
+    seedConfigUrl,
+    seedConfigReload,
   });
   await configManager.init();
   await installSharedWorkerHub({ configManager });
@@ -39,13 +80,11 @@ async function boot(): Promise<void> {
     `[@starui/host-data worker] ConfigManager initialised (mode: ${configManager.isRestMode() ? 'REST' : 'local'})`,
   );
   // eslint-disable-next-line no-console
-  console.info('[@starui/host-data worker] booted; hub waiting for ports');
+  console.info('[@starui/host-data worker] catalog + AppData hydrated; hub waiting for ports');
 }
 
 boot().catch((err) => {
   // eslint-disable-next-line no-console
   console.error('[@starui/host-data worker] boot failed', err);
-  // Re-throw so the worker surfaces the error in DevTools — without
-  // this, a Dexie open failure looks like a silently-stuck worker.
   throw err;
 });

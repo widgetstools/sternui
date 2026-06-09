@@ -7,7 +7,7 @@
 import { useCallback, type ReactNode } from 'react';
 import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
 import { useStarGridApp } from '@starui/app';
-import { getPlatform } from '../platformBootstrap';
+import { usePlatformBootstrap } from '../platformBootstrap';
 import { openProviderEditorPopout } from '../dataProvidersPopout';
 
 const DEFAULT_COL_DEF = {
@@ -18,7 +18,7 @@ const DEFAULT_COL_DEF = {
 };
 
 function BlottersMarketsGrid(): ReactNode {
-  const { configManager } = getPlatform();
+  const { platform: { configManager } } = usePlatformBootstrap();
   const { runtime } = useStarGridApp();
   const handleEditProvider = useCallback(
     (providerId: string) => {
@@ -44,7 +44,7 @@ function BlottersMarketsGrid(): ReactNode {
       withStorage
       theme="auto"
       configManager={configManager}
-      dataServicesMode="eager"
+      defaultLiveProviderId="dp-121e4569-5100-4f6b-b946-c3423d8aff7c"
       gridId="star-demo-blotter"
       historicalDateAppDataRef="positions.asOfDate"
       onEditProvider={handleEditProvider}

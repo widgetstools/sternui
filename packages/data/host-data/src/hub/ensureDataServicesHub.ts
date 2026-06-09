@@ -63,6 +63,10 @@ async function bootstrapHubOnce(opts: EnsureHubOpts): Promise<ResolvedDataServic
   const worker = createDataServicesWorker(opts.workerScriptUrl, {
     appName: opts.appId,
     configServiceRestUrl,
+    appId: opts.appId,
+    userId: opts.userId,
+    seedConfigUrl: opts.seedConfigUrl,
+    seedConfigReload: opts.seedConfigReload,
   });
   const services = bootstrapDataServices({
     appName: opts.appId,

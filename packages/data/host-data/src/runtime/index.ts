@@ -36,6 +36,8 @@ export type {
   AppDataDeltaEvent,
   AppDataAckEvent,
   AppDataEvent,
+  CatalogChangeDetail,
+  CatalogReadyEvent,
 } from './protocol.js';
 export { isRequest, isEvent, isAppDataRequest, isAppDataEvent } from './protocol.js';
 
