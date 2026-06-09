@@ -10,6 +10,8 @@
     ".": "./src/index.ts",
     "./customizer": "./src/customizer/index.ts",
     "./styles.css": "./src/widget/styles/marketsGrid.css",
+    "./styles/core.css": "./src/widget/styles/marketsGrid-core.css",
+    "./styles/chrome.css": "./src/widget/styles/marketsGrid-chrome.css",
     "./runtime/openfin": "./src/runtime/openFin.ts"
   },
   "scripts": {

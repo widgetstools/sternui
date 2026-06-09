@@ -306,25 +306,36 @@ Per-renderer config types (`PillRendererConfig`,
   grid-state capture/restore (`captureGridState`, `applyGridState`),
   toolbar-date bridge (`ToolbarDateSettingsPanel`, `applyHistoricalToolbarDateToAppData`),
   `ChromeButton` (shadcn `Button` with chrome CSS resets for legacy `.ds-*` / `.fx-*` styling)
-- `./styles.css` — widget stylesheet
+- `./styles.css` — widget stylesheet (barrel: `@import` of core + chrome splits)
+- `./styles/core.css` — filter-pill tokens + toolbar button theme layer
+- `./styles/chrome.css` — primary toolbar, filters row, banners, density pill layout
 - `./runtime/openfin` — OpenFin popout helpers
 
 #### Core grid
 
 - `MarketsGrid` — main grid component (host integration, column defs, real-time rows)
+- `MarketsGridCore` — grid platform + memo'd AG Grid surface only (no toolbar/settings/profile chrome); same pipeline as `MarketsGrid`
 - `MarketsGridHandle` — imperative ref (grid API + platform methods, `exportVisualExcel`)
 - `MarketsGridProps` — host context, storage factory, module overrides, callbacks;
+  perf props: `sizeColumnsToFitOnReady` (default `false`), `includeAllStreamSafeFilters` (default `true`),
+  `agGridModules` (optional subset registration; default full enterprise);
+  streaming: keep `rowData` referentially stable and push live deltas via `applyTransactionAsync`;
   editing chrome: `showEditingToolbar`, legacy `showSmartEditToolbar` /
   `showBulkUpdateToolbar` / `showEditHistoryToolbar`, `showVisualExcelExport`,
   `headerExtras`, `toolbarDate` / `onToolbarDateChange`, `showToolbarDatePicker`,
   `toolbarDateHistoryEnabled` (when `false`, only today is selectable)
-- `DEFAULT_MODULES` — ordered customizer-module pipeline
+- `DEFAULT_MODULES` — ordered customizer-module pipeline (full feature set)
+- `MINIMAL_MODULES` — lightweight embed preset (general-settings, saved-filters, grid-state)
 - `gridSurfaceOptions` — AG Grid defaults, DOM options, row styling, cell renderers
 - `GridDensityPill` — center-top primary-toolbar chip; Ultra / Compact / Comfortable presets (persists `gridDensity` + matching `rowHeight`/`headerHeight` in general-settings; `applyGridDensityLive` pushes heights immediately with row animation suppressed)
-- `MarketsGridSurface` — folds the effective `rowHeight`/`headerHeight` (host
+- `MarketsGridSurface` — memo'd AgGridReact boundary; `buildStreamSafeComponents` optionally omits date floating filter when unused; folds the effective `rowHeight`/`headerHeight` (host
   override or general-settings pipeline) into the theme via `theme.withParams`,
   keeping `--ag-row-height` in sync with the live row height so cell text stays
   vertically centered at any height (parameter-based; no CSS overrides)
+- `LazySettingsSheet` — code-split settings drawer (loads `SettingsSheet` + `grid-chrome.css` on first open)
+- `GeneralSettingsProvider` / `useGeneralSettingsFromContext` — single subscription for density/header-case reads
+- `GridChromeProvider` / `useGridChromeState` — isolates frequently-changing toolbar UI state
+- `mergeDefaultColDef`, `gridOptionCompare`, `buildStreamSafeComponents` — reference-stable pipeline → surface wiring
 - `useGridHost`, `useMarketsGridController` — imperative grid control hooks (internal to `MarketsGrid`; not on package `.` barrel)
 - `useFilterModel` — filter-model persistence + mutation
 - `useGridTheme` — resolves AG Grid theme from `data-theme`
@@ -782,7 +793,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `ApiHub` — reactive `GridApi` (`attach`, `whenReady`, event subscriptions; `on` forwards the AG event object)
 - `RowChangeBus` (`platform.rows`, type `RowChangeSignal`) — shared, timer-coalesced row-change emitter. Reads the exact changed nodes from AG `asyncTransactionsFlushed` and emits one `RowChange` (`added`/`updated`/`removed` deltas, or `full` for sort/filter/`setRowData`) per frame, so data-reactive modules (alerts, conditional-styling, filter counts) evaluate only changed rows instead of walking the whole grid on every streaming tick
 - `ResourceScope` — `CssInjector` + `ExpressionEngine` + WeakMap caches
-- `PipelineRunner` — cached transform pipeline for `colDef` + `gridOptions`
+- `PipelineRunner` — cached transform pipeline for `colDef` + `gridOptions`; per-module memo plus output structural sharing (returns previous refs when shallow-equal)
 - `topoSortModules()` — topological module-dependency sort
 - `CssInjector` — dynamic CSS injection
 - `GridPlatformOptions` — `gridId, modules, rowIdField, appData`

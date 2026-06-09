@@ -22,6 +22,9 @@ interface CacheEntry<T> {
 export class PipelineRunner {
   private columnDefCache = new Map<string, CacheEntry<AnyColDef[]>>();
   private gridOptionCache = new Map<string, CacheEntry<Partial<GridOptions>>>();
+  /** Last emitted outputs — returned when a full run produces deep-equal results. */
+  private lastColumnDefsOutput: AnyColDef[] | null = null;
+  private lastGridOptionsOutput: Partial<GridOptions> | null = null;
 
   runColumnDefs(
     modules: readonly AnyModule[],
@@ -41,6 +44,14 @@ export class PipelineRunner {
       this.columnDefCache.set(m.id, { state, input: defs, output: next });
       defs = next;
     }
+    if (
+      this.lastColumnDefsOutput
+      && defs.length === this.lastColumnDefsOutput.length
+      && defs.every((d, i) => d === this.lastColumnDefsOutput![i])
+    ) {
+      return this.lastColumnDefsOutput;
+    }
+    this.lastColumnDefsOutput = defs;
     return defs;
   }
 
@@ -62,6 +73,13 @@ export class PipelineRunner {
       this.gridOptionCache.set(m.id, { state, input: opts, output: next });
       opts = next;
     }
+    if (
+      this.lastGridOptionsOutput
+      && shallowGridOptionsEqual(opts, this.lastGridOptionsOutput)
+    ) {
+      return this.lastGridOptionsOutput;
+    }
+    this.lastGridOptionsOutput = opts;
     return opts;
   }
 
@@ -75,5 +93,20 @@ export class PipelineRunner {
   dispose(): void {
     this.columnDefCache.clear();
     this.gridOptionCache.clear();
+    this.lastColumnDefsOutput = null;
+    this.lastGridOptionsOutput = null;
   }
+}
+
+function shallowGridOptionsEqual(
+  a: Partial<GridOptions>,
+  b: Partial<GridOptions>,
+): boolean {
+  const aKeys = Object.keys(a) as (keyof GridOptions)[];
+  const bKeys = Object.keys(b) as (keyof GridOptions)[];
+  if (aKeys.length !== bKeys.length) return false;
+  for (const key of aKeys) {
+    if (!Object.is(a[key], b[key])) return false;
+  }
+  return true;
 }

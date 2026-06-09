@@ -2,7 +2,12 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 describe('marketsGrid.css', () => {
-  const css = readFileSync(resolve(__dirname, 'styles/marketsGrid.css'), 'utf8');
+  const stylesDir = resolve(__dirname, 'styles');
+  const css = [
+    'marketsGrid.css',
+    'marketsGrid-core.css',
+    'marketsGrid-chrome.css',
+  ].map((f) => readFileSync(resolve(stylesDir, f), 'utf8')).join('\n');
 
   it('defines center-top grid density pill chrome', () => {
     expect(css).toContain('.ds-density-pill-host');

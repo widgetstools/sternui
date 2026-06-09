@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import {
   useModuleState,
   Popover,
@@ -48,7 +48,7 @@ const FILTERS_EXPANDED_KEY = 'filters-toolbar-pills';
  */
 export type FiltersToolbarProps = Record<string, never>;
 
-export function FiltersToolbar() {
+function FiltersToolbarInner() {
   const model = useFilterModel();
   const { filters, filterCounts, hasNewFilter } = model;
 
@@ -367,6 +367,8 @@ export function FiltersToolbar() {
     </div>
   );
 }
+
+export const FiltersToolbar = memo(FiltersToolbarInner);
 
 /**
  * Inline JSON editor for a saved filter's `filterModel`. Lives inside

@@ -13,22 +13,27 @@
  * etc.). No state, no AG-Grid API access, no ProfileManager touching.
  */
 
-import type {
-  CSSProperties,
-  ForwardedRef,
-  ReactNode,
-  RefObject,
+import {
+  memo,
+  useCallback,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type ForwardedRef,
+  type ReactNode,
+  type RefObject,
 } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import type { GridReadyEvent } from 'ag-grid-community';
 import { TooltipProvider } from '@starui/ui';
+import { resolveGridDensity } from '@starui/design-system/adapters/ag-grid';
 import type { AnyModule, StorageAdapter } from '@starui/engine';
 import type { AdminAction, MarketsGridHandle, MarketsGridProps } from './types';
 import { FormattingToolbar } from './FormattingToolbar';
 import { EditingToolbar } from './editingToolbar/EditingToolbar';
 import type { EditingToolbarHostProps } from './editingToolbar/resolveEditingToolbarAllow';
 import { useEffectiveEditingToolbarAllow } from './editingToolbar/useEffectiveEditingToolbarAllow';
-import { SettingsSheet } from './SettingsSheet';
+import { LazySettingsSheet } from './LazySettingsSheet';
 import { useMarketsGridController } from './useMarketsGridController';
 import { useToolbarDateSettingsBridge } from '../customizer/modules/toolbar-date-settings/useToolbarDateSettingsBridge';
 import { PrimaryToolbar } from './PrimaryToolbar';
@@ -36,6 +41,9 @@ import { UnsavedSwitchDialog } from './UnsavedSwitchDialog';
 import { MarketsGridSurface } from './MarketsGridSurface';
 import { StaleDataBanner } from './StaleDataBanner';
 import { HistoricalViewBanner } from './HistoricalViewBanner';
+import { GridChromeProvider } from './GridChromeContext';
+import { useGeneralSettingsFromContext } from './GeneralSettingsContext';
+import { useProfileSelectorActions } from './useProfileSelectorActions';
 
 export interface MarketsGridHostProps<TData> {
   rowData: TData[];
@@ -89,9 +97,10 @@ export interface MarketsGridHostProps<TData> {
   onToolbarDateChange: (next: string) => void;
   toolbarDateHistoryEnabled: boolean | undefined;
   toolbarActionsLayout: 'inline' | 'overflow';
+  includeAllStreamSafeFilters: boolean;
 }
 
-export function MarketsGridHost<TData>({
+function MarketsGridHostInner<TData>({
   rowData,
   columnDefs,
   gridOptions,
@@ -143,17 +152,15 @@ export function MarketsGridHost<TData>({
   onToolbarDateChange,
   toolbarDateHistoryEnabled,
   toolbarActionsLayout,
+  includeAllStreamSafeFilters,
 }: MarketsGridHostProps<TData>) {
-  // All state, effects, refs, and side-effect callbacks live in the
-  // controller hook (`./useMarketsGridController`). This component is
-  // intentionally JSX-only: prop forwarding + the hook call. See the
-  // hook for the full lifecycle (gridLevelData persistence,
-  // ProfileManager wiring, imperative handle, save-flash, pending-
-  // switch dialog state, etc.).
+  const generalSettings = useGeneralSettingsFromContext();
+  const headerCaseAttr = generalSettings?.headerCaseUppercase ? 'upper' : undefined;
+  const gridDensity = resolveGridDensity(generalSettings);
+
   const {
     profiles,
     api: _api,
-    headerCaseAttr,
     sheetRef,
     toolbarRef,
     isDirty,
@@ -182,7 +189,17 @@ export function MarketsGridHost<TData>({
     gridLevelData,
     onGridLevelDataLoad,
     onSavingChange,
+    headerCaseAttr,
   });
+
+  const [settingsMounted, setSettingsMounted] = useState(false);
+  const handleCloseSettings = useCallback(() => setSettingsOpen(false), [setSettingsOpen]);
+  const handleOpenSettingsTracked = useCallback(() => {
+    setSettingsMounted(true);
+    handleOpenSettings();
+  }, [handleOpenSettings]);
+
+  const profileActions = useProfileSelectorActions(profiles, requestLoadProfile);
 
   const editingToolbarAllow = useEffectiveEditingToolbarAllow(editingToolbarHostProps);
 
@@ -191,12 +208,23 @@ export function MarketsGridHost<TData>({
     onToolbarDateChange,
     toolbarDateHistoryEnabled,
   });
-  // `api` is forwarded through the imperative handle from the hook —
-  // the view doesn't consume it directly, but the destructure makes
-  // it explicit that the hook owns this signal.
+
+  const chromeState = useMemo(
+    () => ({
+      settingsOpen,
+      setSettingsOpen,
+      styleToolbarOpen,
+      editingToolbarOpen,
+      saveFlash,
+      isDirty,
+    }),
+    [settingsOpen, setSettingsOpen, styleToolbarOpen, editingToolbarOpen, saveFlash, isDirty],
+  );
+
   void _api;
 
   return (
+    <GridChromeProvider value={chromeState}>
     <TooltipProvider delayDuration={200}>
     <div
       className={className}
@@ -222,12 +250,6 @@ export function MarketsGridHost<TData>({
           }
         />
       ) : null}
-      {/* Header extras — slot for consumer-supplied chrome that needs
-           to live INSIDE the grid's frame but ABOVE the filters/format
-           toolbars. The data-services container uses this for the
-           data-provider picker (live + historical, mode toggle, refresh,
-           edit). Hidden by default in v2; revealed only via Alt+Shift+P
-           — a developer/support affordance, not surfaced to end users. */}
       {headerExtras ? (
         <div
           className="ds-toolbar-primary ds-primary-row"
@@ -249,14 +271,15 @@ export function MarketsGridHost<TData>({
           editingToolbarOpen={editingToolbarOpen}
           onToggleEditingToolbar={handleToggleEditingToolbar}
           showProfileSelector={showProfileSelector}
-          profiles={profiles}
+          profileList={profiles.profiles}
+          activeProfileId={profiles.activeProfileId ?? ''}
+          profileActions={profileActions}
           isDirty={isDirty}
-          onRequestLoadProfile={requestLoadProfile}
           showSaveButton={showSaveButton}
           saveFlash={saveFlash}
           onSaveAll={handleSaveAll}
           showSettingsButton={showSettingsButton}
-          onOpenSettings={handleOpenSettings}
+          onOpenSettings={handleOpenSettingsTracked}
           showVisualExcelExport={showVisualExcelExport}
           visualExcelExportEnabled={visualExcelExportEnabled}
           onExportVisualExcel={handleExportVisualExcel}
@@ -271,6 +294,7 @@ export function MarketsGridHost<TData>({
           onToolbarDateChange={toolbarDateBridge.onToolbarDateChange}
           toolbarDateHistoryEnabled={toolbarDateBridge.toolbarDateHistoryEnabled}
           toolbarActionsLayout={toolbarActionsLayout}
+          gridDensity={gridDensity}
         />
       )}
 
@@ -278,16 +302,6 @@ export function MarketsGridHost<TData>({
         <EditingToolbar allow={editingToolbarAllow} />
       )}
 
-      {/* FormattingToolbar — pinned as a second toolbar row directly
-           beneath the FiltersToolbar. Visibility is bound to the
-           existing formatter toggle in the FiltersToolbar
-           (`styleToolbarOpen`). When the viewport is narrow the
-           toolbar's flex-wrap kicks in and the row grows vertically
-           (1 row → 2 rows) so no content is clipped.
-
-           DraggableFloat was replaced in favour of this pinned row —
-           the float-style drag-to-reposition UX made the toolbar
-           overlap narrow grid columns in multi-grid dashboards. */}
       {showFormattingToolbar && styleToolbarOpen && (
         <div
           className="ds-tb-pinned"
@@ -313,15 +327,18 @@ export function MarketsGridHost<TData>({
         defaultColDef={defaultColDef}
         onGridReady={handleGridReady}
         onGridPreDestroyed={onGridPreDestroyed}
+        includeAllStreamSafeFilters={includeAllStreamSafeFilters}
       />
 
-      <SettingsSheet
-        ref={sheetRef}
-        modules={modules}
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        initialModuleId="general-settings"
-      />
+      {(settingsMounted || settingsOpen) && (
+        <LazySettingsSheet
+          ref={sheetRef}
+          modules={modules}
+          open={settingsOpen}
+          onClose={handleCloseSettings}
+          initialModuleId="general-settings"
+        />
+      )}
 
       <UnsavedSwitchDialog
         open={pendingSwitch !== null}
@@ -331,5 +348,8 @@ export function MarketsGridHost<TData>({
       />
     </div>
     </TooltipProvider>
+    </GridChromeProvider>
   );
 }
+
+export const MarketsGridHost = memo(MarketsGridHostInner) as typeof MarketsGridHostInner;

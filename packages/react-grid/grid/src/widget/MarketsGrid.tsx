@@ -9,10 +9,9 @@ import {
   type ReactElement,
   type RefAttributes,
 } from 'react';
-import './grid-chrome.css';
 import { AgGridReact } from 'ag-grid-react';
-import { AllEnterpriseModule, ModuleRegistry } from 'ag-grid-enterprise';
 import type { ColDef, GridReadyEvent } from 'ag-grid-community';
+import type { Module } from 'ag-grid-community';
 import { useGridTheme } from './theme/useGridTheme.js';
 import {
   applyGridDensityToTheme,
@@ -20,27 +19,9 @@ import {
 } from '@starui/design-system/adapters/ag-grid';
 import type { Theme } from 'ag-grid-community';
 import { useGeneralSettingsSnapshot } from './useGeneralSettingsSnapshot';
-import { installAgGridSetFilterValidateGuard } from './agGridSetFilterValidateGuard';
 import { type AnyModule, type StorageAdapter } from '@starui/engine';
 import {
   GridProvider,
-  alertsModule,
-  bulkUpdateModule,
-  calculatedColumnsModule,
-  columnCustomizationModule,
-  columnGroupsModule,
-  columnTemplatesModule,
-  conditionalStylingModule,
-  dataChangeHistoryModule,
-  generalSettingsModule,
-  gridStateModule,
-  plusMinusModule,
-  savedFiltersModule,
-  shortcutsModule,
-  smartEditModule,
-  toolbarDateSettingsModule,
-  toolbarVisibilityModule,
-  visualExcelModule,
   ProviderGridHostProvider,
   type ProviderGridHostApi,
   GridEventBindingsHostProvider,
@@ -53,14 +34,13 @@ import { resolveMarketsGridHost } from './resolveMarketsGridHost';
 import { resolveSurfaceHostOverrideKeys } from './gridSurfaceOptions';
 import { MarketsGridHost } from './MarketsGridHost';
 import { todayIsoDate, type ToolbarIsoDate } from './toolbarDateUtils';
+import { DEFAULT_MODULES, MINIMAL_MODULES } from './modules';
+import { ensureAgGridModules } from './ensureAgGridModules';
+import { mergeDefaultColDef } from './mergeDefaultColDef';
+import { GeneralSettingsProvider } from './GeneralSettingsContext';
+import { MarketsGridSurface } from './MarketsGridSurface';
 
-let _agRegistered = false;
-function ensureAgGridRegistered() {
-  if (_agRegistered) return;
-  ModuleRegistry.registerModules([AllEnterpriseModule]);
-  installAgGridSetFilterValidateGuard();
-  _agRegistered = true;
-}
+export { DEFAULT_MODULES, MINIMAL_MODULES } from './modules';
 
 // One-shot dev-only warning when the host forgets to pass `storage`
 // (or the legacy `storageAdapter`). Module-scoped so the message fires
@@ -68,36 +48,9 @@ function ensureAgGridRegistered() {
 // only if the module is reloaded (HMR / a fresh page).
 let _memoryAdapterWarned = false;
 
-/**
- * Default module list — every shipped module, ordered the way the user's
- * profile round-trips expect. Hosts can pass `modules` to override.
- *
- * grid-state MUST run last (priority 200) so replay sees the finalized
- * column set from every structure module.
- */
-export const DEFAULT_MODULES: AnyModule[] = [
-  generalSettingsModule,
-  columnTemplatesModule,
-  columnCustomizationModule,
-  calculatedColumnsModule,
-  columnGroupsModule,
-  conditionalStylingModule,
-  visualExcelModule,
-  smartEditModule,
-  bulkUpdateModule,
-  plusMinusModule,
-  shortcutsModule,
-  dataChangeHistoryModule,
-  alertsModule,
-  savedFiltersModule,
-  toolbarVisibilityModule,
-  toolbarDateSettingsModule,
-  gridStateModule,
-];
-
-function MarketsGridInner<TData = unknown>(
+/** Shared inner implementation for {@link MarketsGrid} and {@link MarketsGridCore}. */
+function useMarketsGridShell<TData>(
   props: MarketsGridProps<TData>,
-  ref: ForwardedRef<MarketsGridHandle>,
 ) {
   const {
     rowData,
@@ -107,76 +60,28 @@ function MarketsGridInner<TData = unknown>(
     rowIdField = 'id',
     appData,
     modules = DEFAULT_MODULES,
-    // Row + header heights default to whatever the active AG Grid theme
-    // provides (currently `agGridDarkTheme` / `agGridLightTheme` from
-    // `@starui/design-system/adapters/ag-grid` — compact = 30/32).
-    // Apps pass explicit values only when they need a non-theme size.
     rowHeight,
     headerHeight,
     animateRows,
     sideBar,
     statusBar,
     defaultColDef,
-    showToolbar = true,
-    showFiltersToolbar = false,
-    showFormattingToolbar = false,
-    showEditingToolbar,
-    showSmartEditToolbar,
-    showBulkUpdateToolbar,
-    showEditHistoryToolbar,
-    showSaveButton = true,
-    showSettingsButton = true,
-    showVisualExcelExport = true,
-    showProfileSelector = true,
+    agGridModules,
+    sizeColumnsToFitOnReady = false,
+    includeAllStreamSafeFilters = true,
     storageAdapter,
-    autoSaveDebounceMs,
-    onGridReady: onGridReadyProp,
-    className,
-    style,
-    // v2 additions
     instanceId,
     appId,
     userId,
     storage,
-    onReady,
-    adminActions,
-    gridLevelData,
-    onGridLevelDataLoad,
-    headerExtras,
-    providerGridHost,
-    gridEventBindingsHost,
-    componentName,
-    caption,
-    tabsHidden,
-    onCaptionChange,
-    onSavingChange,
-    dataStale = false,
-    dataStaleMessage,
-    historicalViewMode = false,
-    historicalViewMessage,
-    toolbarDate: toolbarDateProp,
-    onToolbarDateChange,
-    showToolbarDatePicker = true,
-    toolbarDateHistoryEnabled,
-    toolbarActionsLayout = 'overflow',
     host,
+    style,
+    dataStale = false,
+    historicalViewMode = false,
+    onGridReady: onGridReadyProp,
   } = props;
 
-  const [internalToolbarDate, setInternalToolbarDate] = useState(todayIsoDate);
-  const toolbarDate = toolbarDateProp ?? internalToolbarDate;
-  const handleToolbarDateChange = useCallback(
-    (next: string) => {
-      if (toolbarDateProp === undefined) {
-        setInternalToolbarDate(next as ToolbarIsoDate);
-      }
-      onToolbarDateChange?.(next);
-    },
-    [toolbarDateProp, onToolbarDateChange],
-  );
-
-  ensureAgGridRegistered();
-
-  const gridRef = useRef<AgGridReact<TData>>(null);
+  ensureAgGridModules(agGridModules as readonly Module[] | undefined);
 
   const effectiveInstanceId = instanceId ?? gridId;
 
@@ -215,11 +120,6 @@ function MarketsGridInner<TData = unknown>(
     hostOverrideKeys,
   });
 
-  // Canonical star theme (dark/light follows `[data-theme]` on <html>).
-  // Density preset overlays spacing + font sizes + row/header height params
-  // via `theme.withParams` (AG Grid compactness). Live row/header heights from
-  // general-settings (or host overrides) are synced into the theme so
-  // `--ag-row-height` matches the grid option and cell text stays centered.
   const internalTheme = useGridTheme();
   const generalSettings = useGeneralSettingsSnapshot(platform);
   const gridDensity = resolveGridDensity(generalSettings);
@@ -260,26 +160,31 @@ function MarketsGridInner<TData = unknown>(
     applyEditLockGuard(api);
   }, [platform, dataStale, historicalViewMode, applyEditLockGuard]);
 
-  // When the host passes `defaultColDef`, surface host-override wiring
-  // replaces the pipeline object entirely — module-controlled fields
-  // (enableCellChangeFlash, wrapText, defaultSortable, …) would never
-  // reach AgGridReact. Merge pipeline output under host props so Grid
-  // Options panel changes still apply while host keys win on conflict.
-  const effectiveDefaultColDef = useMemo((): ColDef<TData> | undefined => {
-    const pipelineDef = gridOptions.defaultColDef as ColDef<TData> | undefined;
-    if (!defaultColDef) return pipelineDef;
-    if (!pipelineDef) return defaultColDef as ColDef<TData>;
-    return { ...pipelineDef, ...(defaultColDef as ColDef<TData>) };
-  }, [gridOptions.defaultColDef, defaultColDef]);
+  const effectiveDefaultColDef = useMemo(
+    (): ColDef<TData> | undefined =>
+      mergeDefaultColDef(
+        gridOptions.defaultColDef as ColDef<TData> | undefined,
+        defaultColDef as ColDef<TData> | undefined,
+      ),
+    [gridOptions.defaultColDef, defaultColDef],
+  );
 
   const handleGridReady = useCallback(
     (event: GridReadyEvent) => {
       onGridReady(event);
       applyEditLockGuard(event.api);
-      event.api.sizeColumnsToFit();
+      if (sizeColumnsToFitOnReady) {
+        const suppressAll = event.api.getColumns()?.every((col) => {
+          const def = col.getColDef();
+          return def.suppressSizeToFit === true;
+        });
+        if (!suppressAll) {
+          event.api.sizeColumnsToFit();
+        }
+      }
       onGridReadyProp?.(event);
     },
-    [onGridReady, onGridReadyProp, applyEditLockGuard],
+    [onGridReady, onGridReadyProp, applyEditLockGuard, sizeColumnsToFitOnReady],
   );
 
   const rootStyle = useMemo(
@@ -287,32 +192,6 @@ function MarketsGridInner<TData = unknown>(
     [style],
   );
 
-  // Resolve effective instance id — framework-hosted widgets pass
-  // `instanceId` explicitly (from customData / launch env). Standalone
-  // consumers omit it; we fall back to `gridId` so the key is still
-  // stable per-grid.
-  // (effectiveInstanceId computed above via resolveMarketsGridHost)
-
-  // Required-companion assertion: a storage factory combined with an
-  // empty identity is almost always a bug (rows land in whatever
-  // scope the factory defaults to — usually "dev-host" — and get
-  // mixed across users). Surface it loudly so the developer catches
-  // the misconfiguration on first mount rather than shipping to
-  // users who then wonder why profiles vanish.
-  if (
-    storage &&
-    (!resolvedAppId || !resolvedUserId) &&
-    !isMarketsGridLocalStorageStorageFactory(storage)
-  ) {
-    throw new Error(
-      '<MarketsGrid storage={...}> requires `appId` and `userId` props unless `storage` is ' +
-        '`createMarketsGridLocalStorageStorage()`. ConfigService-backed factories scope rows by ' +
-        '(appId, userId, instanceId); without both identities the factory cannot produce a correctly-scoped adapter. ' +
-        `Received: appId=${JSON.stringify(resolvedAppId)}, userId=${JSON.stringify(resolvedUserId)}.`,
-    );
-  }
-
-  // Storage precedence: factory > direct adapter > host.storage > MemoryAdapter default.
   const resolvedAdapter = useMemo<StorageAdapter | undefined>(() => {
     if (storage) {
       return storage({
@@ -331,12 +210,107 @@ function MarketsGridInner<TData = unknown>(
     }).storageAdapter;
   }, [storage, storageAdapter, host, resolvedInstanceId, resolvedAppId, resolvedUserId, gridId]);
 
-  // Dev-only nudge — when neither a `storage` factory nor a direct
-  // `storageAdapter` is wired, the inner Host falls through to a
-  // `MemoryAdapter` and every profile / layout / grid-level-data
-  // change vanishes on reload. This is the half-day gotcha every new
-  // framework consumer hits exactly once. Fire a single warn per
-  // page session, only outside production builds.
+  return {
+    platform,
+    columnDefs,
+    gridOptions,
+    onGridPreDestroyed,
+    handleGridReady,
+    theme,
+    generalSettings,
+    hostOverrideKeys,
+    effectiveDefaultColDef,
+    rootStyle,
+    resolvedAdapter,
+    resolvedAppId,
+    resolvedUserId,
+    resolvedInstanceId,
+    includeAllStreamSafeFilters,
+  };
+}
+
+function MarketsGridInner<TData = unknown>(
+  props: MarketsGridProps<TData>,
+  ref: ForwardedRef<MarketsGridHandle>,
+) {
+  const {
+    rowData,
+    rowHeight,
+    headerHeight,
+    animateRows,
+    sideBar,
+    statusBar,
+    showToolbar = true,
+    showFiltersToolbar = false,
+    showFormattingToolbar = false,
+    showEditingToolbar,
+    showSmartEditToolbar,
+    showBulkUpdateToolbar,
+    showEditHistoryToolbar,
+    showSaveButton = true,
+    showSettingsButton = true,
+    showVisualExcelExport = true,
+    showProfileSelector = true,
+    modules = DEFAULT_MODULES,
+    autoSaveDebounceMs,
+    className,
+    gridId,
+    onReady,
+    adminActions,
+    gridLevelData,
+    onGridLevelDataLoad,
+    headerExtras,
+    providerGridHost,
+    gridEventBindingsHost,
+    componentName,
+    caption,
+    tabsHidden,
+    onCaptionChange,
+    onSavingChange,
+    dataStale = false,
+    dataStaleMessage,
+    historicalViewMode = false,
+    historicalViewMessage,
+    toolbarDate: toolbarDateProp,
+    onToolbarDateChange,
+    showToolbarDatePicker = true,
+    toolbarDateHistoryEnabled,
+    toolbarActionsLayout = 'overflow',
+    storage,
+    storageAdapter,
+    host,
+    includeAllStreamSafeFilters,
+  } = props;
+
+  const [internalToolbarDate, setInternalToolbarDate] = useState(todayIsoDate);
+  const toolbarDate = toolbarDateProp ?? internalToolbarDate;
+  const handleToolbarDateChange = useCallback(
+    (next: string) => {
+      if (toolbarDateProp === undefined) {
+        setInternalToolbarDate(next as ToolbarIsoDate);
+      }
+      onToolbarDateChange?.(next);
+    },
+    [toolbarDateProp, onToolbarDateChange],
+  );
+
+  const gridRef = useRef<AgGridReact<TData>>(null);
+
+  const shell = useMarketsGridShell(props);
+
+  if (
+    storage &&
+    (!shell.resolvedAppId || !shell.resolvedUserId) &&
+    !isMarketsGridLocalStorageStorageFactory(storage)
+  ) {
+    throw new Error(
+      '<MarketsGrid storage={...}> requires `appId` and `userId` props unless `storage` is ' +
+        '`createMarketsGridLocalStorageStorage()`. ConfigService-backed factories scope rows by ' +
+        '(appId, userId, instanceId); without both identities the factory cannot produce a correctly-scoped adapter. ' +
+        `Received: appId=${JSON.stringify(shell.resolvedAppId)}, userId=${JSON.stringify(shell.resolvedUserId)}.`,
+    );
+  }
+
   if (
     !storage &&
     !storageAdapter &&
@@ -367,22 +341,23 @@ function MarketsGridInner<TData = unknown>(
   return (
     <ProviderGridHostProvider value={providerGridHost ?? null}>
     <GridEventBindingsHostProvider value={gridEventBindingsHost ?? null}>
-      <GridProvider platform={platform}>
+      <GridProvider platform={shell.platform}>
+      <GeneralSettingsProvider value={shell.generalSettings}>
       <MarketsGridHost
         rowData={rowData}
-        columnDefs={columnDefs}
-        gridOptions={gridOptions}
-        hostOverrideKeys={hostOverrideKeys}
-        handleGridReady={handleGridReady}
-        onGridPreDestroyed={onGridPreDestroyed}
-        theme={theme}
+        columnDefs={shell.columnDefs}
+        gridOptions={shell.gridOptions}
+        hostOverrideKeys={shell.hostOverrideKeys}
+        handleGridReady={shell.handleGridReady}
+        onGridPreDestroyed={shell.onGridPreDestroyed}
+        theme={shell.theme}
         gridId={gridId}
         rowHeight={rowHeight}
         headerHeight={headerHeight}
         animateRows={animateRows}
         sideBar={sideBar}
         statusBar={statusBar}
-        defaultColDef={effectiveDefaultColDef}
+        defaultColDef={shell.effectiveDefaultColDef}
         showToolbar={showToolbar}
         showFiltersToolbar={showFiltersToolbar}
         showFormattingToolbar={showFormattingToolbar}
@@ -393,9 +368,9 @@ function MarketsGridInner<TData = unknown>(
         showProfileSelector={showProfileSelector}
         modules={modules}
         className={className}
-        rootStyle={rootStyle}
+        rootStyle={shell.rootStyle}
         gridRef={gridRef}
-        storageAdapter={resolvedAdapter}
+        storageAdapter={shell.resolvedAdapter}
         autoSaveDebounceMs={autoSaveDebounceMs}
         forwardedRef={ref}
         onReady={onReady}
@@ -404,9 +379,9 @@ function MarketsGridInner<TData = unknown>(
         onGridLevelDataLoad={onGridLevelDataLoad}
         headerExtras={headerExtras}
         componentName={componentName}
-        instanceId={resolvedInstanceId}
-        appId={resolvedAppId}
-        userId={resolvedUserId}
+        instanceId={shell.resolvedInstanceId}
+        appId={shell.resolvedAppId}
+        userId={shell.resolvedUserId}
         caption={caption}
         tabsHidden={tabsHidden}
         onCaptionChange={onCaptionChange}
@@ -420,15 +395,69 @@ function MarketsGridInner<TData = unknown>(
         onToolbarDateChange={handleToolbarDateChange}
         toolbarDateHistoryEnabled={toolbarDateHistoryEnabled}
         toolbarActionsLayout={toolbarActionsLayout}
+        includeAllStreamSafeFilters={includeAllStreamSafeFilters ?? true}
       />
+      </GeneralSettingsProvider>
     </GridProvider>
     </GridEventBindingsHostProvider>
     </ProviderGridHostProvider>
   );
 }
 
-// Generic forwardRef cast — canonical TS workaround for typed generic handles.
-// Consumers get correct inference on TData AND ref access to MarketsGridHandle.
+/**
+ * Grid platform + memo'd AG Grid surface only — no toolbar, settings, or
+ * profile chrome. Same engine pipeline wiring as {@link MarketsGrid}.
+ */
+function MarketsGridCoreInner<TData = unknown>(
+  props: MarketsGridProps<TData>,
+  _ref: ForwardedRef<MarketsGridHandle>,
+) {
+  const {
+    rowData,
+    rowHeight,
+    headerHeight,
+    animateRows,
+    sideBar,
+    statusBar,
+    gridId,
+    className,
+    includeAllStreamSafeFilters,
+  } = props;
+
+  const gridRef = useRef<AgGridReact<TData>>(null);
+  const shell = useMarketsGridShell(props);
+
+  return (
+    <GridProvider platform={shell.platform}>
+      <GeneralSettingsProvider value={shell.generalSettings}>
+        <div className={className} style={shell.rootStyle} data-grid-id={gridId}>
+          <MarketsGridSurface
+            gridRef={gridRef}
+            gridOptions={shell.gridOptions}
+            hostOverrideKeys={shell.hostOverrideKeys}
+            theme={shell.theme}
+            rowData={rowData}
+            columnDefs={shell.columnDefs}
+            rowHeight={rowHeight}
+            headerHeight={headerHeight}
+            animateRows={animateRows}
+            sideBar={sideBar}
+            statusBar={statusBar}
+            defaultColDef={shell.effectiveDefaultColDef}
+            onGridReady={shell.handleGridReady}
+            onGridPreDestroyed={shell.onGridPreDestroyed}
+            includeAllStreamSafeFilters={includeAllStreamSafeFilters ?? true}
+          />
+        </div>
+      </GeneralSettingsProvider>
+    </GridProvider>
+  );
+}
+
 export const MarketsGrid = forwardRef(MarketsGridInner) as <TData = unknown>(
+  props: MarketsGridProps<TData> & RefAttributes<MarketsGridHandle>,
+) => ReactElement;
+
+export const MarketsGridCore = forwardRef(MarketsGridCoreInner) as <TData = unknown>(
   props: MarketsGridProps<TData> & RefAttributes<MarketsGridHandle>,
 ) => ReactElement;

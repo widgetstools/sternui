@@ -1,14 +1,8 @@
 /**
  * GridDensityPill — center-top toolbar chip for AG Grid compactness presets.
- *
- * Shows the active preset (Ultra / Compact / Comfortable) and expands on
- * hover, focus, or click to pick another. Persists via the general-settings
- * module (`gridDensity`, `rowHeight`, `headerHeight`) so profile save
- * round-trips. Structural params follow AG Grid theming compactness guidance
- * (`spacing`, `rowHeight`, `headerHeight`, font sizes).
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { ChevronDown } from 'lucide-react';
 import {
@@ -21,15 +15,15 @@ import {
 import type { GeneralSettingsState } from '@starui/engine';
 import { useOptionalGridPlatform } from '../customizer/hooks/GridProvider';
 import { applyGridDensityLive } from './applyGridDensityLive';
-import { useGeneralSettingsSnapshot } from './useGeneralSettingsSnapshot';
 
-export function GridDensityPill(): ReactElement | null {
+export interface GridDensityPillProps {
+  readonly density: GridDensity;
+}
+
+function GridDensityPillInner({ density }: GridDensityPillProps): ReactElement | null {
   const platform = useOptionalGridPlatform();
-  const settings = useGeneralSettingsSnapshot(platform);
   const [open, setOpen] = useState(false);
   const hostRef = useRef<HTMLDivElement>(null);
-
-  const density = settings ? resolveGridDensity(settings) : 'compact';
 
   const applyDensity = useCallback(
     (next: GridDensity) => {
@@ -98,6 +92,8 @@ export function GridDensityPill(): ReactElement | null {
     </div>
   );
 }
+
+export const GridDensityPill = memo(GridDensityPillInner);
 
 /** @internal test helper */
 export function resolveDensityForTest(settings: Partial<GeneralSettingsState> | null): GridDensity {
