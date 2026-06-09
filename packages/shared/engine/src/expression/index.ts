@@ -6,6 +6,7 @@ import { Evaluator } from './evaluator';
 import { tryCompileToAgString } from './compiler';
 import { compileToFunction, type CompiledExpression } from './compileToFunction';
 import { createFunctionRegistry, getAllFunctions } from './functions';
+import { validateCallSites } from './validateCalls';
 
 /**
  * Max distinct expression strings whose parsed AST we keep. Real grids have a
@@ -86,7 +87,11 @@ export class ExpressionEngine implements ExpressionEngineInstance {
   validate(expression: string): ValidationResult {
     try {
       const tokens = tokenize(expression);
-      parse(tokens);
+      const node = parse(tokens);
+      const callErrors = validateCallSites(node, this.functions);
+      if (callErrors.length > 0) {
+        return { valid: false, errors: callErrors };
+      }
       return { valid: true, errors: [] };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

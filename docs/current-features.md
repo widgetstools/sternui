@@ -5,7 +5,7 @@
 > in the same change that adds, modifies, or removes a feature — same rule as
 > `docs/IMPLEMENTED_FEATURES.md`. Treat omissions as a code-review blocker.
 >
-> Last reconciled: 2026-05-22 (sourced directly from `packages/` source.)
+> Last reconciled: 2026-06-09 (sourced directly from `packages/` source.)
 
 ## Document conventions
 
@@ -19,6 +19,43 @@
 - **Status tags** (`scaffold`, `deprecated`) appear inline where applicable.
 - **Skip tests/fixtures**. Skip private implementation details that aren't
   importable.
+
+### Public vs internal
+
+A capability belongs in this inventory when a consumer **can import it** without
+reaching into package internals. Visibility is determined in this order:
+
+1. **`package.json` `"exports"`** — the authoritative public surface. If a
+   subpath isn't listed, it isn't public (even if source files exist).
+2. **Package root / subpath barrel** (`src/index.ts`, `customizer/index.ts`, …)
+   — symbols re-exported here are public for that subpath. Source files that
+   exist but aren't re-exported are **internal**.
+3. **Cross-package re-exports** — only list a symbol under the package that
+   actually exports it. If `@starui/engine` owns `StorageAdapter`, don't imply
+   it ships from `@starui/grid` unless the grid barrel re-exports it.
+
+**How to tag visibility in bullets:**
+
+| Tag | When to use | Example phrasing |
+|-----|-------------|------------------|
+| *(none)* | On a public barrel or documented subpath export | `- useDataProvider()` — hub-backed …` |
+| **Internal** | Implemented and user-visible at runtime, but not importable | `- applyProviderToGrid` — … **Internal** — not on public barrel` |
+| **Deprecated.** | Still exported; callers should migrate | `- useProviderStream` — … **Deprecated.** use `useDataProvider`` |
+
+**Common internal patterns** (list the behavior, tag if not importable):
+
+- **Composition internals** — toolbar shells, profile dialogs, and editor tabs
+  composed inside a parent (`MarketsGrid`, `DataProviderEditor`, `WorkspaceSetup`)
+  without their own barrel export.
+- **Runtime-only wiring** — scope migration, GC, and workspace init helpers that
+  run inside `initWorkspace()` but aren't on any public barrel.
+- **Type-only exposure** — interfaces used in public prop types but defined in
+  another package (document under the owning package; cross-reference elsewhere).
+
+**Review rule:** before adding a bullet, grep the package's `index.ts` (and
+`package.json` `exports`). If the symbol isn't there, either mark it **Internal**
+or omit it. Never document a symbol as a public export when only an internal
+module or a different package provides it.
 
 ---
 
@@ -51,9 +88,10 @@
 - `./tailwind` — Tailwind preset
 - `./primeng` — PrimeNG theme preset
 - `./shadcn` — shadcn token generator
-- `./adapters/ag-grid` — AG Grid Quartz themes (`iconSetQuartzLight`); STARUI token-driven chrome (JetBrains Mono headers/cells, Inter chrome, 2px radii, 12px cell padding)
+- `./adapters/ag-grid` — AG Grid Quartz theme params + baked `Theme` objects (`agGridDarkTheme`, `agGridLightTheme`, comfort/blotter variants); STARUI token-driven chrome (JetBrains Mono headers/cells, Inter chrome, 2px radii, 12px cell padding)
 - `./tokens`, `./tokens/primitives`, `./tokens/semantic`, `./tokens/components`, `./tokens/controls`
 - `./cell-renderers` — bundled AG Grid cell renderer classes
+- `./cell-renderers-registry` — `cellRendererCatalogue`, `cellRendererComponents`, `getCellRendererEntry`, `CONFIGURABLE_RENDERER_IDS`, `CellRendererConfig` discriminated union
 
 #### Primitive tokens
 
@@ -81,9 +119,8 @@
 
 #### CSS generation
 
-- `generateUnifiedCSS()` — emit CSS custom properties from semantic tokens (dark + clinical + paper blocks)
-- Dynamic CSS injection utility for theme switching
-- WCAG contrast validation helpers
+- `generateUnifiedCSS()` — emit CSS custom properties from semantic tokens (dark + clinical + paper blocks); also on `./shadcn` as `generateShadcnCSS` / `getShadcnTokens`
+- Theme switching is DOM-attribute driven (`applyTheme()` sets `data-theme` / `data-variant` / `data-cvd`); WCAG contrast helpers live in `src/internal/wcag.ts` (not exported)
 
 #### Framework adapters
 
@@ -158,20 +195,20 @@ Per-renderer config types (`PillRendererConfig`,
 ### 1.2 `@starui/icons-svg`
 
 **Path:** `packages/design-system/icons-svg`
-**Purpose:** Framework-agnostic SVG icon catalogue (≈90 icons) for trading UIs.
+**Purpose:** Framework-agnostic SVG icon catalogue (113 icons) for trading UIs.
 
 **Public exports:**
 
 - `.` — `ICON_PATHS`, `ICON_META`, helpers
-- `./react` — SVGR-generated React components
-- `./angular` — `@lucide/angular` bindings: re-exports the standalone `LucideComponent` + `provideLucideIcons` and the per-icon standalone components (aliased to friendly names, e.g. `FileText`, `Home`)
-- `./all-icons` — full enumeration of icon IDs
+- `./react` — curated `lucide-react` re-exports + `DynamicIcon` (id → Lucide component)
+- `./angular` — `@lucide/angular` bindings: `LucideComponent`, `provideLucideIcons`, `provideLucideConfig`, `LUCIDE_ICONS`, `LUCIDE_CONFIG`, and per-icon standalone components (aliased to friendly names, e.g. `FileText`, `Home`)
+- `./all-icons` — `MARKET_ICON_SVGS`, `svgToDataUrl`, `marketIconToDataUrl`, named SVG constants, plus full icon-id enumeration
 - `./svg/*` — direct SVG file access
 
 #### Catalogue (grouped by domain)
 
 - **Trading (21):** bond, candlestick, coupon, credit-rating, duration, execute-trade, interest-rate, IPO, live-feed, market-depth, maturity, order-book, portfolio, position, price-alert, spread, stock, ticker, trade-ticket, watchlist, yield-curve
-- **Blotters (18):** allocation, audit, block-trade, cash, commodities, derivatives, equity, execution, FI, FX, order, pending, P&L, position, rejected, risk, settlement, trade
+- **Blotters (18):** allocation-blotter, audit-blotter, block-trade-blotter, cash-blotter, commodities-blotter, derivatives-blotter, equity-blotter, execution-blotter, fi-blotter, fx-blotter, order-blotter, pending-blotter, pnl-blotter, position-blotter, rejected-blotter, risk-blotter, settlement-blotter, trade-blotter
 - **Charts (6):** area-chart, bar-chart, blotter, heatmap, line-chart, waterfall
 - **Risk (11):** compliance, counterparty, drawdown, exposure-map, hedging, limits, risk, risk-gauge, scenarios, stress-test, volatility
 - **General (16):** alert, analytics, bank, calculator, clock, currency, dashboard, globe, market-data, notifications, percentage, P&L, reports, settings, trending-down, trending-up
@@ -185,6 +222,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 - `ICON_PATHS` — id → SVG path map
 - `ICON_META` — id → `{ name, category }`
+- `ICON_NAMES` — ordered id list (`MarketIconName` keys)
 - `ICON_CATEGORIES` — grouped by category
 - `getIconsByCategory()` — category filter
 
@@ -209,7 +247,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Layout & containers
 
-- `Accordion`, `AspectRatio`, `Card`, `Collapsible`, `Resizable` (PanelGroup), `ScrollArea`, `Separator`, `Sheet`, `Tabs`
+- `Accordion`, `AspectRatio`, `Card`, `Collapsible`, `ResizablePanelGroup`, `ResizablePanel`, `ResizableHandle`, `ScrollArea`, `Separator`, `Sheet`, `Tabs`
 
 #### Navigation
 
@@ -218,8 +256,8 @@ Per-renderer config types (`PillRendererConfig`,
 #### Forms & inputs
 
 - `Button` (variants: default, outline, ghost, link, destructive)
-- `ButtonGroup` (with toggle support)
-- `Checkbox`, `Form` (`useForm`, `useFormField`, `FormProvider`)
+- `ButtonGroup` — styled cluster wrapper (no built-in toggle API; use `ToggleGroup` for toggles)
+- `Checkbox`, `Form` (`Form` aliases `FormProvider` from react-hook-form; exports `useFormField`, `FormField`, `FormItem`, `FormLabel`, `FormControl`, `FormDescription`, `FormMessage` — import `useForm` from `react-hook-form` directly)
 - `Input`, `InputOTP`, `Label`, `RadioGroup`, `Select`, `Slider`, `Switch`, `Textarea`
 - `Toggle`, `ToggleGroup`
 
@@ -228,11 +266,11 @@ Per-renderer config types (`PillRendererConfig`,
 - `Avatar`, `Badge`, `Calendar` (react-day-picker)
 - `Carousel` (Embla)
 - `Progress`, `Skeleton`, `Table` (semantic HTML rows/cells/headers/footers)
-- `Chart` (lazy via `@starui/ui/chart`)
+- `Chart` primitives (`ChartContainer`, `ChartTooltip`, `ChartLegend`, …) — import via `@starui/ui/chart` subpath (not re-exported from root, to avoid pulling recharts into every consumer)
 
 #### Feedback & overlays
 
-- `Alert`, `AlertDialog`, `Dialog`, `Drawer` (vaul), `HoverCard`, `Popover`
+- `Alert`, `AlertDialog`, `Dialog`, `Drawer` (vaul), `HoverCard`, `Popover`, `Tooltip` (`TooltipProvider`, `TooltipTrigger`, `TooltipContent`)
 - `Toast`, `Toaster`, `useToast` (Radix/sonner)
 - `SonnerToaster` — sonner provider
 
@@ -260,10 +298,14 @@ Per-renderer config types (`PillRendererConfig`,
 **Public exports:**
 
 - `.` — `MarketsGrid` component, toolbars, storage helpers, types
-- `./customizer` — hooks (`useEditJournal`, `useModuleState`, `useProfileManager`, …),
-  module definitions, settings-panel primitives, editing helpers (`recordEdit`,
-  `journalUndoRedo`), `ChromeButton` (shadcn `Button` with chrome CSS resets for
-  legacy `.ds-*` / `.fx-*` styling)
+- `./customizer` — hooks (`useEditJournal`, `useModuleState`, `useProfileManager`,
+  `useGridPlatform`, `useGridApi`, `useModuleDraft`, `useActiveThemeMode`, …),
+  module definitions, settings-panel primitives (`SettingsPanel`, `ExpressionEditor`,
+  `StyleEditor`, `FormatterPicker`, `CellRendererBand` + per-renderer config editors),
+  editing helpers (`resolveEditRecording`, `journalUndo`/`journalRedo`, `withJournalApplyGuard`),
+  grid-state capture/restore (`captureGridState`, `applyGridState`),
+  toolbar-date bridge (`ToolbarDateSettingsPanel`, `applyHistoricalToolbarDateToAppData`),
+  `ChromeButton` (shadcn `Button` with chrome CSS resets for legacy `.ds-*` / `.fx-*` styling)
 - `./styles.css` — widget stylesheet
 - `./runtime/openfin` — OpenFin popout helpers
 
@@ -282,7 +324,7 @@ Per-renderer config types (`PillRendererConfig`,
   override or general-settings pipeline) into the theme via `theme.withParams`,
   keeping `--ag-row-height` in sync with the live row height so cell text stays
   vertically centered at any height (parameter-based; no CSS overrides)
-- `useGridHost`, `useMarketsGridController` — imperative grid control hooks
+- `useGridHost`, `useMarketsGridController` — imperative grid control hooks (internal to `MarketsGrid`; not on package `.` barrel)
 - `useFilterModel` — filter-model persistence + mutation
 - `useGridTheme` — resolves AG Grid theme from `data-theme`
 - `grid-chrome.css` — container/toolbar layout
@@ -291,10 +333,17 @@ Per-renderer config types (`PillRendererConfig`,
 
 - `createMarketsGridLocalStorageStorage()` — browser localStorage adapter factory
 - `isMarketsGridLocalStorageStorageFactory()` — type guard
-- `StorageAdapter` — load/save profile + grid-level data contract
-- `StorageAdapterFactory` — runtime-injectable factory pattern
+- `StorageAdapter` — load/save profile + grid-level data contract (type from `@starui/engine`)
+- `StorageAdapterFactory` / `StorageAdapterFactoryOpts` — runtime-injectable factory pattern (exported from `@starui/grid` types)
+
+#### Grid event system (public on `.` barrel)
+
+- `MARKETS_GRID_EVENT_CATALOG`, `isMarketsGridEventId`, `marketsGridEventCatalogByCategory` — typed event-id catalogue for provider/toolbar lifecycle hooks
+- `createMarketsGridContainerEventBus`, `useMarketsGridEventBridge` — wire container events (`providerSwitched`, `toolbarDateChanged`, `providerDataStale`, …) to handler registries staged in Custom Settings
 
 #### Toolbars
+
+Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are composed inside `MarketsGrid` and are **not** on the package `.` barrel. Public toolbar exports: `FiltersToolbar`, `FormattingToolbar`, `DraggableFloat`, `SettingsSheet`, `ProfileSelector`, `HelpPanel`.
 
 - `PrimaryToolbar` — actions, admin, export/import, Visual Excel spreadsheet export,
   settings sheet toggle, optional inline caption (`tabsHidden`), editing-toolbar pencil toggle,
@@ -339,15 +388,15 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Floating filters (toolbar)
 
-- `streamSafeFloatingFilter` — base floating-filter bridge
-- `streamSafeNumberFloatingFilter` — number variant
-- `streamSafeDateFloatingFilter` — date-range variant with calendar
+- `StreamSafeTextFloatingFilter` — base floating-filter bridge (`streamSafeFloatingFilter.ts`)
+- `StreamSafeNumberFloatingFilter` — number variant
+- `StreamSafeDateFloatingFilter` — date-range variant with calendar
 - `filtersToolbarLogic` — filter parsing + AG Grid model translation
-- `agGridSetFilterValidateGuard` — set-filter dataset-size guard
+- `installAgGridSetFilterValidateGuard()` — set-filter dataset-size guard
 
 #### Formatting pipeline
 
-- `Formatter` — orchestrator (toolbar or panel orientation)
+- `FormatterToolbar` / `FormatterPanel` — formatting orchestrator (toolbar or panel orientation; composed by `FormattingToolbar`)
 - `ModuleType` — data-type picker (number, date, duration, currency, percentage, …)
 - `ModuleFormat` — format-string editor with preset picker + example preview
 - `ModulePaint` — cell background/text colour editor
@@ -355,7 +404,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `ModuleEditorFilter` — column-target picker
 - `ModuleContext` — applied-column summary + copy-to-all
 - `ModuleClear` — clear formatting (with confirm)
-- `formatterPresets` — built-in numeric, date, currency, %, traffic-light, emoji presets
+- `formatterPresets` — built-in numeric, date, currency, % presets; traffic-light / emoji patterns documented in `HelpPanel` and authored via Excel value-format strings in conditional styling
 - `formattingToolbarHooks` — `useFormatter` state + actions; `resolveToolbarPickerDataType()` maps `dateString` / `dateTimeString` (and `date` columns whose sample values include time) to datetime FormatterPicker presets so **Date + time** tiles (ISO with time, US short) appear in the toolbar
 
 #### Customizer modules (under `./customizer`)
@@ -454,6 +503,8 @@ Per-renderer config types (`PillRendererConfig`,
   feature tabs share `LabFeatureTab` + `labFeatureConfigs` with lazy-loaded tab
   chunks in `App.tsx`; parity doc:
   `docs/MARKETSGRID_VS_ADAPTABLE_GAP_ANALYSIS.md` §2.
+- **Column groups** — nested column-group headers with border/style overlays (`composeGroups`, `groupHeaderBorderOverlayCSS`)
+- **Toolbar date settings** (`toolbar-date-settings`) — Custom Settings panel for toolbar date, data-provider pickers, event-callback bindings, and row-exclusion expression (wired via `providerGridHost` / `gridEventBindingsHost` from `MarketsGridContainer`)
 - **Calculated columns** — virtual cols from expressions
 - **Saved filters** — named filter-model presets
 - **Toolbar visibility** — show/hide toolbar items
@@ -473,9 +524,8 @@ Per-renderer config types (`PillRendererConfig`,
 - `useStarGridApp` — read app state, plugins, instance metadata
 - `useStarGridHost` — read host context (runtime, storage, data, config)
 - `buildGridHostContext` — compose host context from `{ runtime, storage, data, config }`
-- `createGridHostContext` — explicit factory (re-export from `@starui/host`)
-- `GridHostContext` — shared shape (appId, userId, instanceId, storage, data, config managers)
-- `defineStarGridPlugin` — plugin registration with `onMount`, `onReady`, `onThemeChanged`, `onMessage`
+- `defineStarGridPlugin` — plugin registration (`StarGridPlugin`: `{ id, register?({ appId }) }`; `register` runs once at app mount)
+- `GridHostContext`, `createGridHostContext` — on `@starui/host` (not re-exported from `@starui/app`)
 - `StarGridAppState` — persisted app state (profile, layout, theme, toolbar, settings)
 - `StarGridAppOptions` — init config (appId, userId, host, storage, persistence mode, plugins)
 - `StarGridPersistence` + `storageFactoryForPersistence` — pluggable persistence adapters
@@ -490,8 +540,8 @@ Per-renderer config types (`PillRendererConfig`,
 **Public exports:**
 
 - `.` — blotter components, hooks, provider, theme
-- `./v2/markets-grid-container` — `MarketsGridContainer`
-- `./v2/provider-editor` — `DataProviderEditor`
+- `./v2/markets-grid-container` — `MarketsGridContainer`, `DatePicker`, `ProviderSelection`, `ProviderMode`
+- `./v2/provider-editor` — `DataProviderEditor`, `EditorForm`, `useProviderProbe`, `cloneProviderConfig`, `exportProviderConfig`, `parseProviderConfigImport`
 - `./v2/data-provider-selector` — `DataProviderSelector`
 - `./hosted` — `HostedMarketsGrid` (legacy wrapper)
 
@@ -509,20 +559,17 @@ Per-renderer config types (`PillRendererConfig`,
 - `MarketsGridContainer` — grid + two-provider picker + mode toggle (`Alt+Shift+P` /
   grid-level provider persistence; provider pickers live in grid customizer → Custom Settings (`providerGridHost`)
 - `MarketsGridContainer` — hub data via `useDataProvider` + `applyProviderToGrid` (no direct `client.subscribe` / cfg pass-through); optional `defaultLiveProviderId` for single-provider demos
-- `applyProviderToGrid` — live-tick add/update split with pending-add dedup (`createApplyProviderToGridState`, `splitProviderRowsForGrid`); extracted from `MarketsGridContainer` for `IDataProvider.onTick` wiring
-- `buildColumnDefs` — maps a provider's persisted `ColumnDefinition[]` to AG Grid `ColDef[]` for `MarketsGridContainer`. Per column: a `valueGetter` DSL expression compiles (once, cached) to a CSP-safe `@starui/engine` getter; a dotted `field` keeps the nested-path default getter (`getValueByPath`); a flat field stays on AG Grid's native path. Expression getters never throw — parse errors fall back to the field binding, runtime errors to the field value; a legitimate null result is preserved
+- `applyProviderToGrid` — live-tick add/update split with pending-add dedup (`createApplyProviderToGridState`, `splitProviderRowsForGrid`); internal to `MarketsGridContainer` / `useBlotterDataConnection` (not on public barrel)
+- `buildColumnDefs` — maps a provider's persisted `ColumnDefinition[]` to AG Grid `ColDef[]` for `MarketsGridContainer`. Per column: a `valueGetter` DSL expression compiles once (bounded FIFO cache) to a CSP-safe `@starui/engine` **compiled closure** (not per-cell AST walk); dotted `field` uses cached `getPathAccessor`; flat field stays on AG Grid's native path. Expression getters never throw — parse errors fall back to the field binding, runtime errors to the field value (warn once per expression); reusable per-getter `EvaluationContext` avoids per-cell allocations under high-frequency updates. Soak: `npm run soak:value-getter` (`valueGetter.soak.test.ts`, `SOAK=1`) — sustained eval load + heap-delta guard. **Internal** — not on public barrel
 - Custom Settings panel (`toolbar-date-settings` module) — four sections: Toolbar Date (historical date → AppData config), Data Provider (live/historical pickers, mode, as-of date) when `providerGridHost` is wired, Event Callbacks (event→handler bindings) when `gridEventBindingsHost` is wired, and Row Filter (row-exclusion expression). All settings are staged and applied only on the panel's explicit Save (Reset reverts); imperative actions (refresh/reload/edit) stay immediate
-- Row exclusion (`toolbar-date-settings` module) — a multiline Monaco `ExpressionEditor` (free-text, column autocomplete, live valid/invalid feedback, one-click example chips + Clear) authors an EXCLUDE-when-true DSL predicate (column refs `[field]`, nested optional-chaining paths `[a.b.c]`, e.g. `[ccy] == "INR"`, `[active] == false`); keystrokes stage into the panel draft (applied on Save). `transformGridOptions` installs it as AG Grid's external filter (`isExternalFilterPresent` / `doesExternalFilterPass`) and the module's `activate` calls `api.onFilterChanged()` on cell edits, expression edits, and first ready. Rows are hidden, not removed — they reappear when the offending value changes; the callbacks read the live expression so they never go stale, and a parse/eval failure excludes nothing (`rowExclusionFilter.ts`, fails open)
+- Row exclusion — implemented in `@starui/grid` `toolbar-date-settings` module (not widgets-react): multiline Monaco `ExpressionEditor` authors an EXCLUDE-when-true DSL predicate (column refs `[field]`, nested optional-chaining paths `[a.b.c]`, e.g. `[ccy] == "INR"`, `[active] == false`); keystrokes stage into the panel draft (applied on Save). `transformGridOptions` installs it as AG Grid's external filter (`isExternalFilterPresent` / `doesExternalFilterPass`) and the module's `activate` calls `api.onFilterChanged()` on cell edits, expression edits, and first ready. Rows are hidden, not removed — they reappear when the offending value changes; parse/eval failure excludes nothing (`rowExclusionFilter.ts`, fails open)
 - `ProviderEditorDialog` — modal hosting `DataProviderEditor`
 - `DataProviderEditor` — connection + tabs (Connections, Fields, Columns, Diagnostics). Sidebar **Import** button creates a brand-new persisted provider from an exported JSON config (`configStore.save` mints a fresh `providerId`, owned by the current user — or `system` when the config is public), then selects and opens it for editing; footer **Export** button downloads the current working config — including unsaved edits — as JSON
 - `providerConfigIo` — `exportProviderConfig` (downloads a `{ kind, version, exportedAt, provider }` envelope with `providerId`/`userId`/`isDefault` stripped so bundles are portable), `parseProviderConfigImport` (accepts the wrapped envelope or a bare provider object; validates `providerType`/`config`, defaults a missing name, re-strips identity), `toPortableProviderConfig`
 - `DataProviderSelector` — compact provider dropdown with quick-add
-- `useChordHotkey` — chord keybinding helper; `PROVIDER_TOOLBAR_TOGGLE_CHORDS`
-  (`Alt+Shift+P`, `Meta+Shift+P`); matches letter keys via `event.code` for macOS
-  Option remaps; listens in capture phase so focused AG-Grid cells cannot swallow
-  the chord; `PROVIDER_TOOLBAR_TOGGLE_HINT` for docs/footers
+- `useChordHotkey` — chord keybinding helper (internal to markets-grid-container; also in `@starui/host-data-react` for hub inspector); `PROVIDER_TOOLBAR_TOGGLE_CHORDS` (`Alt+Shift+P`, `Meta+Shift+P`); capture-phase listener so AG-Grid cells cannot swallow the chord
 
-#### Provider editor tabs
+#### Provider editor tabs (internal to `DataProviderEditor`; not separately importable)
 
 - `ConnectionTab` — connection string, auth, transport selection; "Test Connection" button (STOMP/REST) drives `useProviderProbe.test()`. STOMP runs a pure socket connect (`connectStomp` — handshake only, no subscribe/trigger/rows) and shows "Connected"; row-fetching transports (REST/mock) show "Connected — received N rows"
 - `FieldsTab` — discover provider fields, map to columns, infer types
@@ -546,10 +593,10 @@ Per-renderer config types (`PillRendererConfig`,
 - `useOpenFinChannel` — OpenFin IAB subscription
 - `useIab` — generic Inter-App Bus pub/sub
 - `useColorLinking` — workspace colour-linking membership (`{ color, linked }`); flat peer group, no parent/child
-- `useGridContextLink` — grid-to-grid context linking over colored "Link" groups: publishes the selection and filters rows on peer selections. Two modes: `'rowId'` (default) broadcasts AG-Grid `getRowId` values (`node.id` = `composeRowId` over the provider key fields) and applies them as an external filter — no `rowIdField` config needed; `'fields'` broadcasts key-field values (or grouped colId + key) and applies a per-column set-filter. Pure helpers `buildRowIdContext` / `applyRowIdExternalFilter` / `buildSelectionContext` / `defaultGridLinkResolver` / `applyGridLinkContext` (`gridContextLink.ts`); `resolve` / `buildContext` overridable
+- `useGridContextLink` — grid-to-grid context linking over colored "Link" groups: publishes the selection and filters rows on peer selections. Two modes: `'rowId'` (default) broadcasts AG-Grid `getRowId` values (`node.id` = `composeRowId` over the provider key fields) and applies them as an external filter — no `rowIdField` config needed; `'fields'` broadcasts key-field values (or grouped colId + key) and applies a per-column set-filter. Exported helpers: `buildSelectionContext`, `defaultGridLinkResolver`, `applyGridLinkContext`, `deriveTabsHidden`, `deriveColorLinking`, `GRID_LINK_CONTEXT_TYPE`, `normalizeRowIdField`; `buildRowIdContext` / `applyRowIdExternalFilter` are internal to `gridContextLink.ts`
 - `useTabsHidden` — tab visibility detection
 - `useWorkspaceSaveEvent` — workspace save callback
-- `windowOptionsSubscription` — `window.options` reactivity
+- Window options — hosted hooks use `subscribeWindowOptions` from `@starui/host-openfin` internally (not re-exported from `./hosted`)
 - `useAgGridTheme` — AG Grid theme resolution
 
 #### Shared hooks
@@ -590,6 +637,7 @@ Per-renderer config types (`PillRendererConfig`,
 #### Config + layout persistence
 
 - `createConfigClient` — factory for `ConfigClient` (delegates to `@starui/host-config`)
+- `BrowserAdapter` — re-export from `@starui/widget-browser` for browser widget hosts
 - `ConfigClient` — CRUD over app/user/role configs
 - `getLayouts`, `saveLayout`, `loadLayout`, `deleteLayout`
 
@@ -604,8 +652,8 @@ Per-renderer config types (`PillRendererConfig`,
 - `HostContext` — React context (`runtime, configManager, instanceId, theme, onThemeChanged`)
 - `useHost` — hook to read host context
 - Reactive theme propagation from `RuntimePort`
-- Lazy-init `ConfigClient` for app/user config CRUD
-- `test-bridge` subpath — testing utilities for host-context mocking
+- Requires a caller-supplied `configManager: ConfigClient | Promise<ConfigClient>` (does not construct one)
+- `./test-bridge` subpath — `installTestBridge` for host-context mocking
 
 ---
 
@@ -617,12 +665,11 @@ Per-renderer config types (`PillRendererConfig`,
 **Public exports:**
 
 - `.` — `ConfigBrowserPanel`, `useConfigBrowser`, types
-- `./icons` — icon catalogue
+- `./icons` — `DynamicIcon` (Lucide id → component for config-browser chrome)
 
 #### Panels & dialogs
 
-- `ConfigBrowserPanel` — master table UI with sidebar (AppConfig, UserProfile, Role, Blotter)
-- `ConfigBrowser` — root container (toolbar, search, drawer, import/export)
+- `ConfigBrowserPanel` — master table UI with sidebar (AppConfig, UserProfile, Role, Blotter); sole public export (internal `ConfigBrowser.tsx` composes toolbar, search, drawer, import/export)
 - `Toolbar` — search bar, import, delete-all, export
 - `DataGrid` — AG Grid table with inline editing
 - `TableSidebar` — table selector, CRUD buttons, row counts
@@ -633,13 +680,13 @@ Per-renderer config types (`PillRendererConfig`,
 #### State, helpers, theming
 
 - `useConfigBrowser` — table state, filters, mutations; `exportDeploy()` full deploy seed bundle (unfiltered `appConfig`) + validation via `@starui/host-config` `buildDeployExport()`
-- `DeployExportPreviewDialog` — pre-download validation summary (errors block; warnings require acknowledge)
+- `DeployExportPreviewDialog` — pre-download validation summary; rocket download saves as `seed.json` (errors and warnings require acknowledge checkbox)
 - `buildDeployExport()`, `validateDeployExport()`, `parseSeedJson()`, `resolveActiveIdentityFromSeedUrl()` (`@starui/host-config`) — deploy export includes every `appConfig` row plus `activeAppId` / `activeUserId`; normalize scope drift against those fields; reject wrong `seed.json` shapes (e.g. `kind: starui.dataProvider`); emit `DeployExportWarning` codes (`MISSING_INSTANCE_ROW`, `EMPTY_PROFILE_STATE`, `UNREFERENCED_ROWS`, …)
 - `readProfileSetPayload()` (`@starui/host-config`) — storage adapter reads profile-set bytes even when row `appId` drifted, so `gridLevelData` / profile saves do not wipe `profiles: []`; re-stamps correct scope on write
-- `resolveDefaultPlatformScope()` / `resolveBootstrapManifestScope()` (`@starui/openfin-platform`) — `initWorkspace` and child-window `getConfigManager()` read manifest / `app-config.json` `appId` instead of hard-coded `TestApp`; `readHostEnv()` uses the same bootstrap before dev fallback; `migrateRegistryAppIdDrift()` relocates and deletes stale `component-registry::TestApp::system` rows
+- Platform scope realignment — `initWorkspace` reads manifest / `app-config.json` `appId` instead of hard-coded `TestApp`; `migrateRegistryAppIdDrift()` runs inside workspace init (not a public `@starui/openfin-platform` export); `readHostEnv()` uses the same bootstrap before dev fallback
 - `TABLES` — table enumeration
 - `createConfigBrowserAction` — wire config browser as OpenFin context-menu action
-- `agGridTheme` — AG Grid theme adapter
+- `agGridThemeFor()` — AG Grid theme adapter (internal helper; not on package barrel)
 - `editorStyles` — inline styles for editors
 - Format conversion, validation, clipboard helpers
 
@@ -652,9 +699,10 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Workspace shell
 
-- `WorkspaceSetup` — 3-pane editor (Dock / Inspector / Components+Registry)
+- `WorkspaceSetup` — 3-pane editor (Dock / Inspector / Components+Registry); embeds `ComponentsPane`, `DockPane`, `InspectorPane`, `IconPicker` internally (not separately importable)
 - `ImportConfig` — standalone import-config utility window
 - `ComponentsPane` — browse registered components, drag to dock; per-row hover actions: configure (test-launch), **clone**, delete. Clone (`WorkspaceSetup.handleClone`) duplicates a registry entry into a fresh draft — deep-copies all definition fields, gives it a de-duplicated `(copy)` display name and a unique `componentSubType` (`<sub>-copy`) so its derived `${type}-${subtype}` id can't collide with the source on save, resets `id`/`configId` (re-derived at save), and selects it for immediate editing in the inspector
+- `DEFAULT_ICON` — fallback icon id for dock/registry entries
 - `DockPane` — dock toolbar editor (buttons, folders, menus, icons, actions)
 - `InspectorPane` — selected dock-item property editor
 - `IconPicker` — themed icon selector with search
@@ -680,7 +728,7 @@ Per-renderer config types (`PillRendererConfig`,
 ### 5.1 `@starui/shared-types` & `@starui/types`
 
 **Paths:** `packages/shared/shared-types`, `packages/shared/types`
-**Purpose:** Shared type contracts for StarGrid host ports and runtime. (Both packages mirror each other during the consolidation transition.)
+**Purpose:** Shared type contracts for StarGrid host ports and runtime. `@starui/types` is the slim runtime subset; `@starui/shared-types` additionally exports `configuration` (`COMPONENT_TYPES`, `COMPONENT_SUBTYPES`, …), `dockConfig`, `dockTreeUtils`, `simpleBlotter`, and `widget` modules during the consolidation transition.
 
 #### Runtime constants
 
@@ -772,8 +820,9 @@ Per-renderer config types (`PillRendererConfig`,
 
 - `configureExpressionPolicy()` — set CSP mode (`'strict' | 'permissive'`)
 - `getExpressionPolicy()` — runtime policy lookup
-- `ExpressionPolicy`, `ExpressionPolicyMode`
-- `sanitizeExpressionFormatters()` — drop unsafe expression formatters
+- `ExpressionPolicy`, `ExpressionPolicyMode`, `ExpressionPolicyViolation`
+- `sanitizeExpressionFormatters()` — drop unsafe expression formatters (used internally by `ProfileManager`; not on engine `.` barrel)
+- `migrateExpressionsInObject()` — batch expression-syntax migration across profile payloads
 
 #### History (undo/redo)
 
@@ -806,11 +855,16 @@ Per-renderer config types (`PillRendererConfig`,
   `parseAndEvaluate` hot path is a Map lookup, not a re-tokenize+re-parse
   (benchmarked ~7x faster for a conditional-styling-heavy frame: ~23ms → ~3ms)
 - `tokenize()`, `parse()`, `Evaluator`
-- `compile()` / `compileToFunction()` — compile an AST once into a reusable
-  `(ctx) => value` closure (cached by source); `evalOps` holds the shared
+- `compile()` — compile an AST once into a reusable `(ctx) => value` closure
+  (cached by source; `compileToFunction` exists in `expression/index.ts` but is
+  not re-exported from the engine `.` barrel); `evalOps` holds the shared
   operator/resolution semantics both the interpreter and the compiler call, so
   the two paths are behaviourally identical (parity-tested). Prefer `compile()`
-  at rule/column setup on hot paths (conditional-styling cell/row predicates use it)
+  at rule/column setup on hot paths (conditional-styling cell/row predicates and
+  provider column `valueGetter` expressions via `buildColumnDefs` use it)
+- `validate()` — parse-time syntax check plus `validateCallSites()` (unknown
+  functions and arity mismatches rejected before save/runtime)
+- `REGEX_MATCH` — invalid patterns return `false` (never throw)
 - `tryCompileToAgString()` — transpile to AG Grid `valueFormatter` string
   (still the FIRST choice — zero per-cell JS; the closure is the fallback)
 - `ExpressionNode`, `EvaluationContext`, `ValidationResult`, `FunctionDefinition`
@@ -893,7 +947,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `GridHostContextOptions` — init options
 - `storageFactoryForPersistence()` — adapt `StoragePort` to `ProfileManager`
 - `defineStarGridPlugin()` — declare a host plugin
-- `StarGridPlugin` — plugin interface (`activate`, module exports)
+- `StarGridPlugin` — `{ id, register?({ appId }) }` optional one-shot registration hook
 
 ---
 
@@ -1021,8 +1075,13 @@ Per-renderer config types (`PillRendererConfig`,
   imported `appConfig` rows (Config Browser per-table import, OpenFin
   `importConfigBundle`, and every `saveConfig()`) to the same
   `activeAppId` / `activeUserId`; bundle file values are ignored.
-  Global catalogue rows keep `userId: system`. `seedIfEmpty()` runs only on an empty DB (gated on
-  appRegistry **or** appConfig count) so it never clobbers a bootstrapped app.
+  Global catalogue rows keep `userId: system`. `seedIfEmpty()` default (`seedConfigReload:
+  'empty-only'`) runs only on an empty DB (gated on appRegistry **or** appConfig count).
+  Optional `seedConfigReload: 'when-changed'` re-seeds when `seed.json` content changes (local dev;
+  digest via `computeSeedDigest`, fetch uses `cache: 'no-store'`). Shipped apps use default `empty-only`.
+  `parseSeedJson()` + `coerceDeploySeedBundle()` accept the rocket export shape (`buildDeployExport`
+  bundle); `normalizeSeedData()` re-stamps `appRegistry`, `userProfiles`, and `appConfig` to
+  `activeAppId` / `activeUserId` before write.
 - `ConfigDatabase` — Dexie wrapper with schema versioning
 - Compound indexes: `[componentType+componentSubType]`, `[userId+appId]`
 - v1→v2 unified schema migration (`config→payload`, `createdAt→creationTime`, `updatedAt→updatedTime`)
@@ -1168,7 +1227,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 - `bootstrapDataServices()` — coordinate client + worker
 - `createDataServicesClient()`, `createDataServicesWorker()`
-- `bootstrapWithWorkerAsset()` — load bundled worker
+- `bootstrapDataServicesWithWorkerAsset()` — load bundled worker asset (`bootstrapWithWorkerAsset.ts`)
 - `createDataPort()` — `DataPort` factory for app startup
 
 #### DataProvider configuration service
@@ -1186,6 +1245,15 @@ Per-renderer config types (`PillRendererConfig`,
 - `InferOptions` — inference behaviour controls
 - Used by editor Test-Connection / Infer-Fields flows
 
+#### AppData bootstrap hooks
+
+- `runAppDataBootstrap()`, `createAppDataBootstrapContext()` — register and run named AppData seed hooks at platform init
+- `AppDataBootstrapHook`, `AppDataBootstrapHookRegistry`, `AppDataUpsertInput` — hook contract + upsert shape
+
+#### Mock provider presets
+
+- `createFiPositionsLargeConfig()`, `createFiPositionsSmallConfig()` — canned FI positions provider configs for demos/tests
+
 ---
 
 ### 6.3 `@starui/host-data-react`
@@ -1193,7 +1261,7 @@ Per-renderer config types (`PillRendererConfig`,
 **Path:** `packages/data/host-data-react`
 **Purpose:** React bindings for `@starui/host-data` — provider + focused hooks for data subscriptions.
 
-- `DataHubProvider` / `PlatformProvider` — hub-first provider; `platform` from `ensurePlatformReady()` or self-bootstrap via `bootstrapConfig` + `workerScriptUrl`; optional `hubInspector` mounts **Alt+Shift+S** dev drawer (default on in development)
+- `DataHubProvider` / `PlatformProvider` (alias) — hub-first provider; `platform` from `ensurePlatformReady()` or self-bootstrap via `bootstrapConfig` + `workerScriptUrl`; optional `hubInspector` mounts **Alt+Shift+S** dev drawer (default on in development)
 - `DataServicesProvider` — legacy wrapper over `DataServices` bootstrap result; exposes `appId` + `userId` React context
 - `usePlatformIdentityOrNull()` — read bootstrap `appId`/`userId` from `DataHubProvider` / `DataServicesProvider`
 
@@ -1218,12 +1286,20 @@ Per-renderer config types (`PillRendererConfig`,
 - `useDataProviderConfig(providerId)` — single config lookup
 - `useDataProvidersList(opts?)` — list user + public configs (`subtype`, `includeAppData`, `refresh()`)
 
+#### DataProvider hook (preferred)
+
+- `useDataProvider(providerId, opts?)` — hub-backed `IDataProvider` wrapper (`ProviderClientAdapter`); preferred over `useProviderStream` for production grids
+  - `UseDataProviderOpts`: `inlineCfg` (unsaved editor draft), `autoStart` (default `true`)
+  - `UseDataProviderResult`: `provider`, `status`, `error`, `start()`, `refresh()`, `restart(extra?)`
+  - Subscribes to `onStatus` and `onError` from the adapter
+
 #### Stream & template hooks
 
 - `useResolvedCfg(cfg)` — apply `{{name.key}}` templates, returns stable cfg
 - `useProviderStream(providerId, cfg, listener, opts?)` — auto-detaching subscription **Deprecated.** use `useDataProvider` for catalogued providers; keep cfg only for unsaved editor drafts
   - Listener: `onDelta(rows, replace)`, `onStatus(status, error)`
   - `refresh(extra)` re-attaches with overlay
+- `useUserIdFromContext()` — read effective `userId` from `DataHubProvider` / `DataServicesProvider`
 
 #### Statistics hook
 
@@ -1276,14 +1352,13 @@ Per-renderer config types (`PillRendererConfig`,
 #### Popout lifecycle
 
 - `openFinWindowOpener` — popout factory (formatting toolbar, providers editor, help)
-- `popoutWindow` — `window.open` bridge spanning browser + OpenFin
-- `popoutLifecycle` — popout position, sizing, close-on-parent-close
-- `isOpenFinWindow` — OpenFin window type guard
+- `debugOpenFin` — opt-in OpenFin environment diagnostics
+- `isOpenFinWindow` — alias of `isOpenFin` (OpenFin window type guard)
+- Popout lifecycle (`openOpenFinPopout` in `popout.ts`) — internal to `OpenFinRuntime.openSurface`
 
 #### Window options subscription
 
 - `subscribeWindowOptions` — listen for `fin.me.getWindowOptions()` changes
-- `windowOptionsSubscription` — reactive subscription manager
 
 ---
 
@@ -1296,12 +1371,13 @@ Per-renderer config types (`PillRendererConfig`,
 
 - `.` — main platform API (workspace init, config, dock, launch)
 - `./config` — config-only entry (no runtime deps, browser-safe)
-- `./plugin` — plugin interface + lifecycle
+- `./plugin` — `openFinPlatformPlugin` factory (OpenFin workspace plugin entry; `StarGridPlugin` contract lives in `@starui/host`)
 - `./test-bridge` — test utilities
-- `./dock-editor` — dock editor UI components + state
+- `./dock-editor` — icon helpers only (`ICON_OPTIONS`, `iconIdToSvgUrl`, `iconIdToThemedUrls`, `parseIconUrl`); dock editor React UI lives in `@starui/workspace-setup-react`
 
 #### Workspace initialization
 
+- `resolveSeedConfigUrl(seedUrl, providerUrl?)` — resolve relative `seedConfigUrl` (e.g. `/seed.json`) against manifest `platform.providerUrl` origin for dev and production hosts
 - `initWorkspace()` — bootstrap dock + home + context menu + notifications. `WorkspaceConfig.dock.excludeTools?: string[]` hides built-in Tools-menu items by action ID (e.g. `[ACTION_EXPORT_CONFIG, ACTION_IMPORT_CONFIG]`); applies to both dock2 and dock3, default shows all.
 - `WorkspacePlatformOverrideCallback` — workspace lifecycle hooks
 - `workspace.options` — platform settings (name, icon, theme, notifications, dock)
@@ -1326,7 +1402,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `DockEditorConfig`, `DockButtonConfig`, `DockActionButtonConfig`, `DockDropdownButtonConfig`, `DockMenuItemConfig`
 - Top-level dropdowns render on the dock bar as icon-bearing folders (dock3 path) — `toDock3Favorites` emits each `DropdownButton` (and the system "Tools" group) as a `DockEntry` folder with its icon, linked by id to the matching content-menu folder that owns the children. Works around OpenFin's `ContentMenuEntry` folder shape having no icon field; the dock-bar `DockEntry` folder does.
 - Dock implementation toggle — `customSettings.dockVersion: "dock2" | "dock3"` (default `"dock2"`). `"dock2"` uses the classic `Dock.register` API: top-level DropdownButtons render directly on the dock bar as icon dropdowns whose options carry icons, with a normal flyout (no two-column content menu). `"dock3"` uses `Dock.init` with the content-menu/favorites model. Both read the same dock config; only the registration + rendering differ. Classic button clicks dispatch through the same `buildCustomActions` platform actions (including the theme toggle).
-- `toDock2Buttons` / `toDock2Option` — convert `DockEditorConfig` to classic `Dock2Button[]` (action buttons + nested icon dropdowns), theme-resolved.
+- `toDock2Buttons` / `toDock2Option` — convert `DockEditorConfig` to classic `Dock2Button[]` (internal to `dock.ts`; not on public barrel)
 
 #### Inter-App Bus topics
 
@@ -1334,10 +1410,10 @@ Per-renderer config types (`PillRendererConfig`,
 - `IAB_RELOAD_AFTER_IMPORT`
 - `IAB_THEME_CHANGED`
 - `IAB_REGISTRY_CONFIG_UPDATE`
-- `ACTION_OPEN_REGISTRY_EDITOR`
-- `ACTION_OPEN_CONFIG_BROWSER`
-- `ACTION_LAUNCH_COMPONENT`
-- `ACTION_RENAME_VIEW_TAB`
+- `ACTION_LAUNCH_APP`, `ACTION_TOGGLE_THEME`, `ACTION_OPEN_DOCK_EDITOR`, `ACTION_RELOAD_DOCK`, `ACTION_SHOW_DEVTOOLS`, `ACTION_INSPECT_SHARED_WORKER`
+- `ACTION_EXPORT_CONFIG`, `ACTION_IMPORT_CONFIG`, `ACTION_TOGGLE_PROVIDER`
+- `ACTION_OPEN_REGISTRY_EDITOR`, `ACTION_OPEN_CONFIG_BROWSER`, `ACTION_OPEN_WORKSPACE_SETUP`, `ACTION_OPEN_DATA_PROVIDERS`
+- `ACTION_LAUNCH_COMPONENT`, `ACTION_RENAME_VIEW_TAB`
 
 #### Persistence (config service backed)
 
@@ -1353,7 +1429,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 - `importConfigBundle()` — multi-table bundle import (AppConfig, UserProfile, Role, Blotter, Dock)
 - `ImportBundle` — bundle shape
-- `ImportMode` — replace | merge
+- `ImportMode` — `'overwrite' | 'skip-existing'`
 - Validation, conflict detection, batch commit
 
 #### Registry
@@ -1393,8 +1469,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Home (launcher)
 
-- `home.ts` — Home integration (search, favourites, recent apps)
-- `homeResults` — custom search-provider results
+- `home.ts` — Home integration (search, favourites, recent apps; `mapAppEntriesToSearchEntries` internal)
 
 #### Notifications
 
@@ -1428,8 +1503,8 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Plugin system
 
-- `plugin.ts` — plugin discovery, loading, lifecycle hooks
-- `StarGridPlugin` — `onMount`, `onReady`, `onThemeChanged`, `onMessage`, `onClose`
+- `plugin.ts` — OpenFin workspace plugin factory (`openFinPlatformPlugin`)
+- `./plugin` export — workspace lifecycle wiring; app-level `StarGridPlugin` contract is in `@starui/host`
 
 ---
 
@@ -1487,7 +1562,7 @@ Per-renderer config types (`PillRendererConfig`,
 - **UI / design:** `starui_list_ui_components`, `starui_add_ui_component`, `starui_audit_app_design`, `starui_add_shell_layout`, `starui_theme_playground_snippet`, `starui_shadcn_component_picker`, `starui_validate_design_compliance`
 - **Validation:** `starui_validate_scaffold`, `starui_smoke_test_app`, `starui_validate_stomp_e2e`, `starui_snapshot_grid_config`, `starui_print_install_config`
 
-**MCP resources:** `starui://design-rules`, `starui://guides/stomp-marketsgrid`, `starui://guides/wire-stomp`, `starui://troubleshooting/empty-grid`, `starui://recipes/provider-stomp-positions`, `starui://recipes/openfin-blotter-route`
+**MCP resources (9):** `starui://design-rules`, `starui://guides/stomp-marketsgrid`, `starui://guides/layout-persistence`, `starui://guides/customizer-modules`, `starui://guides/wire-stomp`, `starui://troubleshooting/empty-grid`, `starui://troubleshooting/wire-stomp`, `starui://recipes/provider-stomp-positions`, `starui://recipes/openfin-blotter-route`
 
 **Run:** `npx -y @starui/mcp-scaffold` or `npx -y ./libs/starui-mcp-scaffold-*.tgz`
 
@@ -1496,19 +1571,33 @@ Per-renderer config types (`PillRendererConfig`,
 
 ### Apps — platform bootstrap pilot
 
-- `apps/demos/demo-stomp-markets-grid` — minimal STOMP + MarketsGrid demo (web + OpenFin); programmatic provider seed + `defaultLiveProviderId`; `npm run dev:demo-stomp-markets-grid`; OpenFin: `npm run dev:openfin:demo-stomp-markets-grid`
-- `apps/demos/stomp-marketsgrid-minimal` — workspace dev track; lean STOMP → MarketsGrid (`STARUI_DEV_SOURCE=1`); `npm run dev:stomp-marketsgrid-minimal`
-- `apps/demos/markets-grid-lab` — workspace dev track; grid lab tabs + profiles (`STARUI_DEV_SOURCE=1`); `npm run dev:markets-grid-lab`
-- `apps/demos/*` — single tree of consumer/reference demos; each runs in two modes via one folder (installed `file:libs/*.tgz` vs source `STARUI_DEV_SOURCE=1`; see `apps/demos/README.md`)
+**18 demos** under `apps/demos/` (nested `apps/package.json` workspace). Each consumer app runs in two modes via one folder: installed `file:libs/*.tgz` vs source `STARUI_DEV_SOURCE=1` (see `apps/demos/README.md`).
+
+| App | Role |
+|-----|------|
+| `demo-react` (`@starui/demo-react`) | Primary React dev app + Playwright e2e target (`npm run dev`) |
+| `demo-angular` (`@starui/demo-angular`) | Angular consumer demo |
+| `demo-configservice-react` | Config-service REST/Dexie lab |
+| `star-demo` (`@starui/star-demo`) | Lean OpenFin workspace pilot — `HostedMarketsGrid` route, Workspace Setup, data providers, config browser (port 5175; `npm run dev:star-demo`); Import/Export Config removed from dock Tools |
+| `markets-ui-react-reference` | Full OpenFin reference shell; `ensurePlatformReady` + `DataHubProvider` |
+| `demo-stomp-markets-grid` | Minimal STOMP + MarketsGrid (web + OpenFin); `defaultLiveProviderId` |
+| `stomp-marketsgrid-minimal` | Lean STOMP → MarketsGrid dev track |
+| `markets-grid-lab` | Grid lab tabs + scenario rail + importable profiles |
+| `platform-hooks-demo` | AppData bootstrap hooks + grid event callback bindings (port 5214) |
+| `stomp`, `mockdata-provider`, `dataprovider-editor` | MCP tutorial apps; hub bootstrap + `useDataProvider` |
+| `basic` (`@starui/tutorial-basic`) | Minimal grid tutorial |
+| `e2e-browser-blotter` | Browser blotter e2e (`standalone` / `provider` / `config` / `full` hub modes) |
+| `e2e-openfin-workspace` | OpenFin workspace e2e; `HostedMarketsGrid` + hub mock provider |
+| `e2e-openfin-vitest` | OpenFin Vitest harness |
+| `marketsgrid-container-e2e` | `MarketsGridContainer` interaction harness |
+| `stomp-view-server` | Node STOMP wire mock for local dev (pairs with STOMP demos) |
+
+**Build / verify tooling:**
 - `docs/BUILD.md` + `apps/README.md` — three-layer build matrix: `build:packages` → `propagate` → `build:apps` (installed) / `build:apps-source` (source)
-- `scripts/build-app-track.mjs` — runs every app's `build` / `typecheck` in one mode (`installed` | `source`); root turbo does not include the nested `apps/` workspace
-- `npm run verify:consumer` — CI parity: packages + propagate + `build:apps` (installed-mode production bundles)
-- `apps/demos/markets-ui-react-reference` — migrated to `ensurePlatformReady` + `DataHubProvider`; removed `dataServices.mainThread.ts`
-- `apps/demos/e2e-browser-blotter` — `standalone` (in-app rows) + `provider`/`config`/`full` hub modes via `DataHubProvider`
-- `apps/demos/e2e-openfin-workspace` — blotter view uses `HostedMarketsGrid` + hub mock provider
-- `apps/demos/{stomp,mockdata-provider,dataprovider-editor}` — migrated to `ensurePlatformReady` + `DataHubProvider`; legacy `dataServices.ts` removed
-- `apps/demos/{stomp,mockdata-provider,dataprovider-editor}` — mirror of workspace bootstrap pattern; mockdata `DataServicesGridPanel` uses `useDataProvider`
-- MCP scaffold templates (`stomp`, `mockdata-provider`, `dataprovider-editor`, `openfin-platform`) — emit `platformBootstrap.ts` + `public/app-config.json` (web) or manifest `customSettings.appId` (OpenFin)
+- `scripts/build-app-track.mjs` — runs every app's `build` / `typecheck` in one mode (`installed` \| `source`)
+- `npm run verify:consumer` — CI parity: packages + propagate + `build:apps`
+
+**MCP scaffold templates** (`stomp`, `mockdata-provider`, `dataprovider-editor`, `openfin-platform`, `basic`) emit `platformBootstrap.ts` + `public/app-config.json` (web) or manifest `customSettings.appId` (OpenFin)
 
 ### Consumer documentation
 
@@ -1525,14 +1614,14 @@ These aren't a single feature, but they are platform invariants worth rememberin
 - **Customizer pipeline** — `DEFAULT_MODULES` runs general-settings →
   column-templates → column-customization → calculated-columns → column-groups →
   conditional-styling → visual-excel → smart-edit → bulk-update → plus-minus → shortcuts →
-  data-change-history → alerts → saved-filters → toolbar-visibility → grid-state
-  (grid-state last so replay sees the finalized column set).
+  data-change-history → alerts → saved-filters → toolbar-visibility → toolbar-date-settings →
+  grid-state (grid-state last so replay sees the finalized column set).
 - **Storage adapter pattern** — `StorageAdapter` is the single contract. localStorage, IndexedDB, ConfigService (REST + Dexie), and in-memory all implement it.
 - **Provider selection** — `MarketsGridContainer` exposes live/historical provider pickers in grid customizer → Custom Settings with grid-level persistence (`gridLevelData`). Primary toolbar still offers refresh/reload admin actions. Bare `MarketsGrid` hosts use parent-controlled `rowData`.
   - **Save-and-switch** — a provider/mode change alters `activeId`, part of the `<MarketsGrid>` key, so the grid remounts and re-hydrates the customizer from disk. The container flushes the working set via `gridHandle.saveAll()` BEFORE applying the selection, so other tabs' in-memory per-card "Save"s (e.g. a Grid Options status-bar edit) survive the remount instead of being discarded.
 - **Expression engine** — CSP-safe parser/evaluator drives calculated columns, conditional rules, and filter expressions; `tryCompileToAgString()` transpiles to AG Grid `valueFormatter` strings.
 - **Theme integration** — reactive dark/light switching via `RuntimePort` + `data-theme` attribute; AG Grid theme + StarUI tokens stay in lockstep.
-- **Extensibility surfaces** — slot-based widget extensions in `@starui/widget-sdk`; OpenFin plugin hooks (`onMount`, `onReady`, `onThemeChanged`, `onMessage`, `onClose`) in `@starui/openfin-platform`.
+- **Extensibility surfaces** — slot-based widget extensions in `@starui/widget-sdk`; `StarGridPlugin.register` in `@starui/host` / `@starui/app`; OpenFin workspace plugin via `openFinPlatformPlugin` in `@starui/openfin-platform/plugin`.
 
 ---
 
@@ -1542,5 +1631,7 @@ These aren't a single feature, but they are platform invariants worth rememberin
 2. Add bullets at the **right granularity** — one bullet per importable capability, not per file.
 3. Preserve the **bucket → package → functional-area** structure. New buckets go in the index at top.
 4. Mark scaffolds and deprecations inline with **bold tags** (`**Scaffold.**`, `**Deprecated.**`).
-5. If a feature is removed, delete its bullet — do not strike it through, do not leave "removed" notes. The git history is the audit trail.
-6. Keep wording short and factual. Wire-protocol details, constants, and identifier names belong in the bullets; rationale belongs in `docs/ARCHITECTURE.md`.
+5. Mark non-exported runtime behavior with **Internal** (see [Public vs internal](#public-vs-internal)). Do not list internal helpers unless they explain how a public feature works.
+6. If a feature is removed, delete its bullet — do not strike it through, do not leave "removed" notes. The git history is the audit trail.
+7. Keep wording short and factual. Wire-protocol details, constants, and identifier names belong in the bullets; rationale belongs in `docs/ARCHITECTURE.md`.
+8. On reconciliation passes, verify bullets against `package.json` `exports` + barrel `index.ts` — not against a repo-wide symbol search alone.

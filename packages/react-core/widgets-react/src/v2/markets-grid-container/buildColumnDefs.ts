@@ -6,74 +6,147 @@
  *
  *   1. `valueGetter` expression present → compile it once with the
  *      CSP-safe `@starui/engine` ExpressionEngine and install a
- *      `valueGetter` that walks the AST per row. Column refs use bracket
- *      syntax with optional-chaining nested paths: `[cusip]`,
- *      `[pnl.wrapper.rdiInventoryName]` (a missing segment yields null,
- *      never throws). The getter NEVER throws — a parse failure falls
- *      back to the plain field binding, and a runtime failure falls back
- *      to the field's own value.
+ *      `valueGetter` that calls the compiled closure per row. Column
+ *      refs use bracket syntax with optional-chaining nested paths:
+ *      `[cusip]`, `[pnl.wrapper.rdiInventoryName]` (a missing segment
+ *      yields null, never throws). The getter NEVER throws — a parse
+ *      failure falls back to the plain field binding, and a runtime
+ *      failure falls back to the field's own value.
  *
- *   2. No expression but a dotted `field` → the existing nested-path
- *      default getter (`getValueByPath`). AG-Grid's native dot-walk
- *      can't tell a nested object (`row.a.b`) from a literal-dot key
- *      (`row['a.b']`); our helper tries the flat key first, then walks.
+ *   2. No expression but a dotted `field` → cached nested-path accessor
+ *      (`getPathAccessor`). AG-Grid's native dot-walk can't tell a
+ *      nested object (`row.a.b`) from a literal-dot key (`row['a.b']`);
+ *      our helper tries the flat key first, then walks.
  *
  *   3. Flat field, no expression → untouched; AG-Grid's native fast path.
  *
- * Parsing is memoised by expression string (module-level cache) so the
- * per-row hot path is a pure AST walk — no re-parse, no `new Function`.
+ * Compile + parse are memoised by expression string (bounded FIFO cache).
+ * Per-row evaluation reuses one mutable `EvaluationContext` per getter
+ * (safe — AG-Grid calls valueGetters synchronously on the main thread).
  */
 
 import type { ColDef, ValueGetterParams } from 'ag-grid-community';
 import { ExpressionEngine, type ExpressionNode } from '@starui/engine';
-import { getValueByPath } from '@starui/shared-types';
 
-// One shared engine + parse cache for the whole app. The engine is
-// stateless across evaluations; the cache dedupes identical expressions
-// so flipping providers or re-rendering never re-parses.
+type CompiledFn = ReturnType<ExpressionEngine['compile']>;
+import { getPathAccessor, getValueByPath } from '@starui/shared-types';
+
+/** Match ExpressionEngine parse-cache policy — grids have few distinct expressions. */
+const COMPILE_CACHE_MAX = 1000;
+
+const EMPTY_ROW: Record<string, unknown> = Object.freeze({});
+
 const engine = new ExpressionEngine();
 
-type Compiled = { node: ExpressionNode } | { error: string };
-const parseCache = new Map<string, Compiled>();
+type CompiledEntry =
+  | { fn: CompiledFn; usesCellValue: boolean; runtimeWarned?: boolean }
+  | { error: string };
 
-function compile(expression: string): Compiled {
-  let entry = parseCache.get(expression);
-  if (entry) return entry;
+const compileCache = new Map<string, CompiledEntry>();
+
+function evictOldest<V>(map: Map<string, V>): void {
+  if (map.size >= COMPILE_CACHE_MAX) {
+    const oldest = map.keys().next().value;
+    if (oldest !== undefined) map.delete(oldest);
+  }
+}
+
+function logRuntimeFailureOnce(expression: string, err: unknown): void {
+  const entry = compileCache.get(expression);
+  if (!entry || !('fn' in entry) || entry.runtimeWarned) return;
+  entry.runtimeWarned = true;
+  console.warn(
+    '[markets-grid] column valueGetter expression failed at runtime — falling back to field value:',
+    expression,
+    err,
+  );
+}
+
+function expressionUsesCellValue(node: ExpressionNode): boolean {
+  switch (node.type) {
+    case 'variable':
+      return node.name === 'value' || node.name === 'x';
+    case 'literal':
+    case 'columnRef':
+      return false;
+    case 'member':
+      return expressionUsesCellValue(node.object);
+    case 'unary':
+      return expressionUsesCellValue(node.operand);
+    case 'binary':
+      return expressionUsesCellValue(node.left) || expressionUsesCellValue(node.right);
+    case 'ternary':
+      return (
+        expressionUsesCellValue(node.condition) ||
+        expressionUsesCellValue(node.consequent) ||
+        expressionUsesCellValue(node.alternate)
+      );
+    case 'call':
+      return node.args.some(expressionUsesCellValue);
+    case 'array':
+      return node.elements.some(expressionUsesCellValue);
+    default:
+      return false;
+  }
+}
+
+function compileExpression(expression: string): CompiledEntry {
+  const cached = compileCache.get(expression);
+  if (cached) return cached;
+
+  let entry: CompiledEntry;
   try {
-    entry = { node: engine.parse(expression) };
+    const node = engine.parse(expression);
+    entry = {
+      fn: engine.compile(expression),
+      usesCellValue: expressionUsesCellValue(node),
+    };
   } catch (err) {
     entry = { error: err instanceof Error ? err.message : String(err) };
-    // One warning per unique bad expression — never per row.
     console.warn('[markets-grid] invalid column valueGetter expression:', expression, err);
   }
-  parseCache.set(expression, entry);
+
+  evictOldest(compileCache);
+  compileCache.set(expression, entry);
   return entry;
 }
 
 /** Field value used as the runtime fallback + the `value`/`x` context. */
-function fieldValue(data: unknown, field: string | undefined): unknown {
+function fieldValue(data: Record<string, unknown>, field: string | undefined): unknown {
   return field ? getValueByPath(data, field) ?? null : null;
 }
 
-function makeExpressionGetter(node: ExpressionNode, field: string | undefined) {
+function makeExpressionGetter(
+  expression: string,
+  compiledFn: CompiledFn,
+  usesCellValue: boolean,
+  field: string | undefined,
+) {
+  const ctx = {
+    x: null as unknown,
+    value: null as unknown,
+    data: EMPTY_ROW,
+    columns: EMPTY_ROW,
+  };
+
   return (params: ValueGetterParams): unknown => {
     const raw = params.data;
-    const data = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+    const data =
+      raw != null && typeof raw === 'object' ? (raw as Record<string, unknown>) : EMPTY_ROW;
+
+    ctx.data = data;
+    ctx.columns = data;
+
+    if (usesCellValue) {
+      const cell = fieldValue(data, field);
+      ctx.value = cell;
+      ctx.x = cell;
+    }
+
     try {
-      return engine.evaluate(node, {
-        data,
-        columns: data,
-        // Lazy so the field lookup only runs when the expression
-        // actually references `value`/`x`.
-        get value() {
-          return fieldValue(data, field);
-        },
-        get x() {
-          return fieldValue(data, field);
-        },
-      });
-    } catch {
-      // Never throw out of a valueGetter — degrade to the field value.
+      return compiledFn(ctx);
+    } catch (err) {
+      logRuntimeFailureOnce(expression, err);
       return fieldValue(data, field);
     }
   };
@@ -87,33 +160,33 @@ function makeExpressionGetter(node: ExpressionNode, field: string | undefined) {
  */
 function toColDef<TData>(def: ColDef<TData>): ColDef<TData> {
   const field = typeof def.field === 'string' ? def.field : undefined;
-  // `valueGetter` on the persisted shape is our DSL string; AG-Grid's
-  // own `valueGetter` is string | func, so read it defensively.
   const expr = typeof def.valueGetter === 'string' ? def.valueGetter.trim() : '';
 
   if (expr) {
-    const compiled = compile(expr);
-    if ('node' in compiled) {
+    const compiled = compileExpression(expr);
+    if ('fn' in compiled) {
       return {
         ...def,
         colId: def.colId ?? field,
-        valueGetter: makeExpressionGetter(compiled.node, field),
+        valueGetter: makeExpressionGetter(
+          expr,
+          compiled.fn,
+          compiled.usesCellValue,
+          field,
+        ),
       };
     }
-    // Parse failed: drop the unusable DSL string and fall through to the
-    // default binding so the column still shows its raw field value.
   }
 
   if (field && field.includes('.')) {
+    const accessor = getPathAccessor(field);
     return {
       ...def,
       colId: def.colId ?? field,
-      valueGetter: (params) => getValueByPath(params.data, field),
+      valueGetter: (params) => accessor(params.data),
     };
   }
 
-  // Flat field, no (valid) expression. Strip any stray DSL string so
-  // AG-Grid doesn't try to interpret it as a native string expression.
   return expr ? { ...def, valueGetter: undefined } : def;
 }
 
@@ -129,7 +202,12 @@ export function buildColumnDefs<TData>(
   return columnDefinitions.map((def) => toColDef<TData>(def));
 }
 
-/** Test-only: clear the expression parse cache between suites. */
+/** Test-only: clear expression compile + runtime-warning state between suites. */
 export function __resetColumnDefExpressionCache(): void {
-  parseCache.clear();
+  compileCache.clear();
+}
+
+/** Test-only: read compile-cache size for bounded-growth regression guards. */
+export function __getCompileCacheSizeForTests(): number {
+  return compileCache.size;
 }

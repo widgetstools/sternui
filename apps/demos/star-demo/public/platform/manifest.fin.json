@@ -27,7 +27,7 @@
     "forwardErrorReports": true
   },
   "customSettings": {
-    "seedConfigUrl": "http://localhost:5175/seed.json",
+    "seedConfigUrl": "/seed.json",
     "$comment-useRest": "Master switch for REST mode. true + non-empty configServiceRestUrl → every ConfigManager in the platform writes to the REST server first, mirrors to Dexie, queues pendingSync on transient failures. false (or unset) → local Dexie only. Flip this single boolean to switch the whole platform between local and REST.",
     "useRest": false,
     "configServiceRestUrl": "http://localhost:3001/api/v1",

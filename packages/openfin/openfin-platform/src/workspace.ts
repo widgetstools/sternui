@@ -43,6 +43,7 @@ import { gcOrphanedConfigs } from './workspaceGc';
 import { buildCustomActions } from './internal/customActions';
 import { resolveDefaultPlatformScope } from './platformScope';
 import { resolveDeploymentIdentity } from './platformBootstrap';
+import { resolveSeedConfigUrl } from './resolveSeedConfigUrl';
 import {
   openChildToolWindow as openChildWindow,
   openDataProvidersToolWindow,
@@ -171,11 +172,22 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
   // same source-of-truth read used by view-route ConfigServiceProviders
   // (see `getConfigServiceRestUrlFromManifest()`).
   const restUrl = resolveRestUrl(settings.customSettings);
-  const deployment = await resolveDeploymentIdentity(settings.customSettings);
+  const app = await fin.Application.getCurrent();
+  const manifest = (await app.getManifest()) as OpenFin.Manifest & {
+    customSettings?: import('./types.js').CustomSettings;
+    platform?: { providerUrl?: string };
+  };
+  const providerUrl = manifest.platform?.providerUrl;
+  const deployment = await resolveDeploymentIdentity(settings.customSettings, providerUrl);
+  const rawSeedUrl = settings.customSettings?.seedConfigUrl?.trim();
+  const seedConfigUrl = rawSeedUrl
+    ? await resolveSeedConfigUrl(rawSeedUrl, providerUrl)
+    : undefined;
   configManager = createConfigManager({
     appId: deployment.appId,
     identity: { userId: deployment.userId, displayName: deployment.userId },
-    seedConfigUrl: settings.customSettings?.seedConfigUrl,
+    seedConfigUrl,
+    seedConfigReload: settings.customSettings?.seedConfigReload,
     configServiceRestUrl: restUrl,
   });
   await configManager.init();

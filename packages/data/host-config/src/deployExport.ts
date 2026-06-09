@@ -327,6 +327,8 @@ export function buildDeployExport(raw: DeployExportInput): DeployExportResult {
     ...scoped,
     activeAppId: activeAppId || activeAppIdFromSeed(normalizedSeed) || '',
     activeUserId: activeUserId || activeUserIdFromSeed(normalizedSeed) || '',
+    appRegistry: normalizedSeed.appRegistry,
+    userProfiles: normalizedSeed.userProfiles,
     appConfig: normalizedSeed.appConfig ?? scoped.appConfig,
   };
 

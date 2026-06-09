@@ -44,6 +44,13 @@ export interface CustomSettings {
   seedConfigUrl?: string;
 
   /**
+   * When to re-apply `seedConfigUrl` on platform boot. Default `empty-only`.
+   * Dev: `when-changed` re-seeds after a Config Browser rocket export is
+   * copied to `seed.json` and the page reloads.
+   */
+  seedConfigReload?: 'empty-only' | 'when-changed';
+
+  /**
    * Base URL of the remote config service REST API.
    * Only honoured when `useRest === true` — see `useRest` for the
    * intended on/off switch. Keeping the URL configured (but disabled)

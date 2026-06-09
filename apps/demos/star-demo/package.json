@@ -15,6 +15,7 @@
     "build:installed": "cross-env STARUI_USE_TARBALLS=1 vite build",
     "build:source": "npm run build",
     "typecheck": "tsc -p tsconfig.app.json",
+    "validate:seed": "node scripts/validate-seed.mjs",
     "preview": "vite preview",
     "client": "node launch.mjs http://localhost:5175/platform/manifest.fin.json"
   },

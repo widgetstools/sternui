@@ -105,12 +105,16 @@ export function resolvePlatformBootstrapFromObject(
 
   const record = raw as Record<string, unknown>;
 
+  const seedConfigReload =
+    record.seedConfigReload === 'when-changed' ? 'when-changed' : undefined;
+
   const config: PlatformBootstrapConfig = {
     appId: readOptionalString(record.appId) ?? '',
     userId: readOptionalString(record.userId) ?? '',
     useRest: readOptionalBoolean(record.useRest),
     configServiceRestUrl: readOptionalString(record.configServiceRestUrl),
     seedConfigUrl: readOptionalString(record.seedConfigUrl),
+    seedConfigReload,
     appDataBootstrap: readAppDataBootstrapManifest(record.appDataBootstrap),
   };
 

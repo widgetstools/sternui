@@ -171,6 +171,81 @@ describe('ConfigManager.seedIfEmpty — full-restore seeding', () => {
     expect(registry?.configId).toBe('component-registry::StarDemo::system');
   });
 
+  it('re-seeds when seedConfigReload is when-changed and the deploy bundle digest changes', async () => {
+    const bundleV1 = exportBundle();
+    mockFetchOnce(bundleV1);
+    const cm1 = createConfigManager({
+      appId: 'StarDemo',
+      seedConfigUrl: SEED_URL,
+      seedConfigReload: 'when-changed',
+    });
+    await cm1.init();
+    await cm1.saveConfig(
+      makeConfigRow({
+        configId: 'dp-stomp',
+        componentType: 'data-provider',
+        componentSubType: 'stomp',
+        userId: 'system',
+        payload: { url: 'wss://EDITED' },
+      }),
+    );
+    cm1.dispose();
+
+    const bundleV2 = exportBundle();
+    bundleV2.appConfig!.push(
+      makeConfigRow({
+        configId: 'dp-extra',
+        componentType: 'data-provider',
+        componentSubType: 'mock',
+        userId: 'system',
+        payload: { rows: 10 },
+      }),
+    );
+    mockFetchOnce(bundleV2);
+    cm = createConfigManager({
+      appId: 'StarDemo',
+      seedConfigUrl: SEED_URL,
+      seedConfigReload: 'when-changed',
+    });
+    await cm.init();
+
+    const configIds = (await cm.getAllConfigsUnfiltered()).map((c) => c.configId).sort();
+    expect(configIds).toContain('dp-extra');
+    const stomp = (await cm.getAllConfigsUnfiltered()).find((c) => c.configId === 'dp-stomp');
+    expect(stomp?.payload).toEqual({ url: 'wss://feed.example/stomp' });
+  });
+
+  it('skips re-seed on when-changed when the deploy bundle digest is unchanged', async () => {
+    mockFetchOnce(exportBundle());
+    const cm1 = createConfigManager({
+      appId: 'StarDemo',
+      seedConfigUrl: SEED_URL,
+      seedConfigReload: 'when-changed',
+    });
+    await cm1.init();
+    await cm1.saveConfig(
+      makeConfigRow({
+        configId: 'dp-stomp',
+        componentType: 'data-provider',
+        componentSubType: 'stomp',
+        userId: 'system',
+        payload: { url: 'wss://EDITED' },
+      }),
+    );
+    cm1.dispose();
+
+    mockFetchOnce(exportBundle());
+    cm = createConfigManager({
+      appId: 'StarDemo',
+      seedConfigUrl: SEED_URL,
+      seedConfigReload: 'when-changed',
+    });
+    await cm.init();
+
+    const stomp = (await cm.getAllConfigsUnfiltered()).find((c) => c.configId === 'dp-stomp');
+    expect(stomp?.payload).toEqual({ url: 'wss://EDITED' });
+  });
+
   it('stays backward-compatible: a minimal seed with no appConfig still boots', async () => {
     const minimal = exportBundle();
     delete minimal.appConfig;

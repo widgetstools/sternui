@@ -89,8 +89,15 @@ export type {
   PendingSyncRow,
   RoleRow,
   SeedData,
+  SeedConfigReloadMode,
   UserProfileRow,
 } from './types';
+
+export {
+  computeSeedDigest,
+  seedDigestStorageKey,
+  simpleSeedDigest,
+} from './seedDigest';
 
 // ─── MarketsGrid profile storage (StorageAdapter factory) ───────────
 // ConfigService-backed persistence for <MarketsGrid>. Pass the factory
@@ -177,6 +184,7 @@ export {
   canonicalUserIdFromSeed,
   normalizeImportedAppConfigRow,
   normalizeImportedAppConfigRows,
+  coerceDeploySeedBundle,
   normalizeSeedData,
   parseSeedJson,
   resolveActiveIdentityFromSeedUrl,

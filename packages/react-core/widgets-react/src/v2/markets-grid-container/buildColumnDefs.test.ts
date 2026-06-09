@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ColDef, ValueGetterParams } from 'ag-grid-community';
-import { buildColumnDefs, __resetColumnDefExpressionCache } from './buildColumnDefs.js';
+import {
+  buildColumnDefs,
+  __getCompileCacheSizeForTests,
+  __resetColumnDefExpressionCache,
+} from './buildColumnDefs.js';
 
 beforeEach(() => {
   __resetColumnDefExpressionCache();
@@ -94,12 +98,25 @@ describe('buildColumnDefs', () => {
     });
 
     it('falls back to the field value (not crash) on a runtime error', () => {
-      // NOPE is not a registered function → evaluator throws → caught.
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // NOPE is not a registered function → compiled call throws → caught.
       const [def] = buildColumnDefs([
         { field: 'cusip', valueGetter: 'NOPE([cusip])' },
       ] as ColDef[])!;
       expect(() => getValue(def, { cusip: 'ABC' })).not.toThrow();
       expect(getValue(def, { cusip: 'ABC' })).toBe('ABC');
+      expect(warn).toHaveBeenCalledOnce();
+      // Second row — warn once per expression, not per cell.
+      getValue(def, { cusip: 'DEF' });
+      expect(warn).toHaveBeenCalledOnce();
+    });
+
+    it('REGEX_MATCH with invalid pattern returns false without throwing', () => {
+      const [def] = buildColumnDefs([
+        { field: 'ticker', valueGetter: 'REGEX_MATCH([ticker], "(")' },
+      ] as ColDef[])!;
+      expect(() => getValue(def, { ticker: 'ABC' })).not.toThrow();
+      expect(getValue(def, { ticker: 'ABC' })).toBe(false);
     });
 
     it('drops an unparseable expression and falls back to the field binding', () => {
@@ -128,6 +145,13 @@ describe('buildColumnDefs', () => {
       buildColumnDefs([{ field: 'a', valueGetter: '@@@' }] as ColDef[]);
       buildColumnDefs([{ field: 'b', valueGetter: '@@@' }] as ColDef[]);
       expect(warn).toHaveBeenCalledOnce();
+    });
+
+    it('compile cache is bounded — no unbounded growth under expression churn', () => {
+      for (let i = 0; i < 1500; i++) {
+        buildColumnDefs([{ field: 'x', valueGetter: `[col_${i}]` }] as ColDef[]);
+      }
+      expect(__getCompileCacheSizeForTests()).toBeLessThanOrEqual(1000);
     });
   });
 });

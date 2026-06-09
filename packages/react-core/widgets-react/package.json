@@ -35,7 +35,8 @@
     "clean": "rimraf dist",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "soak:value-getter": "npx cross-env SOAK=1 NODE_OPTIONS=--expose-gc vitest run src/v2/markets-grid-container/valueGetter.soak.test.ts --no-file-parallelism"
   },
   "peerDependencies": {
     "react": "^19.2.5",

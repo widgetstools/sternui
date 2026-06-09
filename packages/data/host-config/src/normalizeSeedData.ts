@@ -239,6 +239,16 @@ export function normalizeSeedData(seed: SeedData): SeedData {
     }
   }
 
+  if (Array.isArray(seed.appRegistry) && seed.appRegistry.length > 0) {
+    const appRegistry = seed.appRegistry.map((row) =>
+      row.appId === canonicalAppId ? row : { ...row, appId: canonicalAppId },
+    );
+    if (appRegistry.some((row, i) => row !== seed.appRegistry![i])) {
+      next = { ...next, appRegistry };
+      changed = true;
+    }
+  }
+
   if (Array.isArray(seed.appConfig) && seed.appConfig.length > 0) {
     const appConfig = seed.appConfig.map((row) =>
       normalizeAppConfigRow(row, canonicalAppId, canonicalUserId),
@@ -255,8 +265,28 @@ export function normalizeSeedData(seed: SeedData): SeedData {
 const DATA_PROVIDER_EXPORT_KIND = 'starui.dataProvider';
 
 /**
+ * Coerce a Config Browser rocket export (`DeployExportInput`) into the
+ * canonical {@link SeedData} shape — defaulting optional tables to `[]`.
+ */
+export function coerceDeploySeedBundle(raw: SeedData): SeedData {
+  return {
+    activeAppId: raw.activeAppId,
+    activeUserId: raw.activeUserId,
+    appRegistry: Array.isArray(raw.appRegistry) ? raw.appRegistry : [],
+    userProfiles: Array.isArray(raw.userProfiles) ? raw.userProfiles : [],
+    roles: Array.isArray(raw.roles) ? raw.roles : [],
+    permissions: Array.isArray(raw.permissions) ? raw.permissions : [],
+    ...(Array.isArray(raw.appConfig) ? { appConfig: raw.appConfig } : {}),
+  };
+}
+
+/**
  * Reject JSON that is not a deploy/seed bundle (e.g. a single data-provider
  * export saved as `seed.json`). Returns `null` and logs a clear error.
+ *
+ * Accepts the exact shape emitted by Config Browser rocket export
+ * (`buildDeployExport().bundle`): `activeAppId`, `activeUserId`,
+ * `appRegistry`, `userProfiles`, `roles`, `permissions`, optional `appConfig`.
  */
 export function parseSeedJson(raw: unknown): SeedData | null {
   if (!raw || typeof raw !== 'object') {
@@ -292,5 +322,11 @@ export function parseSeedJson(raw: unknown): SeedData | null {
     );
     return null;
   }
-  return raw as SeedData;
+  if (obj.appConfig !== undefined && !Array.isArray(obj.appConfig)) {
+    console.error(
+      'ConfigManager: seed.json appConfig must be an array when present — seeding skipped.',
+    );
+    return null;
+  }
+  return coerceDeploySeedBundle(raw as SeedData);
 }

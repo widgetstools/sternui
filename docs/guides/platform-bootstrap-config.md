@@ -16,7 +16,8 @@ Every runtime resolves the same TypeScript interface (`PlatformBootstrapConfig` 
 | `userId` | yes | Session user for AppData, profiles, private provider rows |
 | `useRest` | no | When `true`, enable REST config service (requires URL) |
 | `configServiceRestUrl` | no | REST API base URL when `useRest === true` |
-| `seedConfigUrl` | no | Seed JSON for empty Dexie (dev/demo). Seeds the auth/registry tables; if it also carries an `appConfig` array it restores the app's full component state (data providers, component registry, dock, workspaces, profile-sets). A Config Browser "Export ALL" bundle is a drop-in full-restore seed. Runs only against an empty DB. |
+| `seedConfigUrl` | no | URL to the shipped seed bundle (typically `/seed.json`). Relative paths resolve against manifest `platform.providerUrl` origin so one manifest works in dev and production. Must match the Config Browser **rocket** (deploy) export shape: `activeAppId`, `activeUserId`, `appRegistry`, `userProfiles`, `roles`, `permissions`, optional `appConfig`. |
+| `seedConfigReload` | no | `empty-only` (default, **ship with app**) — seed once when Dexie is empty; end users get your layout on first launch without manual import. `when-changed` — also re-seed when `seed.json` content changes (local dev only: export → replace `public/seed.json` → reload). |
 | `appDataBootstrap` | no | Declarative AppData hook ids + run policy (see below) |
 
 ---
@@ -168,6 +169,20 @@ import { DEV_PLATFORM_BOOTSTRAP } from '@starui/host-data';
 ```
 
 Replace hardcoded `LOGGED_IN_USER_ID` / `DEFAULT_APP_ID` literals as apps migrate (Phase 6). **`useHostedIdentity`** and **`DataHubProvider`** now expose bootstrap `appId` / `userId` via React context; `LOGGED_IN_USER_ID` in `@starui/types` is deprecated.
+
+---
+
+## Ship config with the app
+
+End users should not import config manually. Configure once, export, commit, ship:
+
+1. Run the app locally; set up providers, grids, dock, workspaces, profiles.
+2. **Config Browser** → **Export** → **rocket** (deploy bundle). Save as `public/seed.json`.
+3. Set `seedConfigUrl: "/seed.json"` in `app-config.json` and manifest `customSettings` (relative path — resolved at runtime).
+4. Leave `seedConfigReload` unset (default `empty-only`) so seed runs only on empty IndexedDB.
+5. Commit `public/seed.json` with the release. Optional: `npm run validate:seed` in apps that ship a seed (e.g. `star-demo`).
+
+First launch seeds Dexie from the bundled file; later launches use persisted config. To refresh during development, set `seedConfigReload: "when-changed"` locally only.
 
 ---
 

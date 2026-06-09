@@ -130,6 +130,22 @@ describe('buildDeployExport', () => {
     expect(result.warnings.some((w) => w.code === 'UNREFERENCED_ROWS')).toBe(true);
   });
 
+  it('re-stamps appRegistry appId to activeAppId in the deploy bundle', () => {
+    const raw = baseInput({
+      activeAppId: 'Star-Demo',
+      appRegistry: [{
+        appId: 'StarDemo',
+        displayName: 'Star',
+        manifestUrl: 'http://x/m.json',
+        configServiceEnabled: false,
+        environment: 'dev',
+      }],
+    });
+    const result = buildDeployExport(raw);
+    expect(result.bundle.appRegistry[0].appId).toBe('Star-Demo');
+    expect(result.bundle.activeAppId).toBe('Star-Demo');
+  });
+
   it('re-stamps appId drift in the deploy bundle', () => {
     const raw = baseInput({
       appConfig: [

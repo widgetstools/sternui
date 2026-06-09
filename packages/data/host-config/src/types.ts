@@ -416,6 +416,9 @@ export interface ApplicationContext {
 
 // ─── ConfigManager options ───────────────────────────────────────────
 
+/** Seed apply policy for {@link ConfigManagerOptions.seedConfigReload}. */
+export type SeedConfigReloadMode = 'empty-only' | 'when-changed';
+
 /**
  * Options for creating a ConfigManager instance.
  */
@@ -429,6 +432,17 @@ export interface ConfigManagerOptions {
    * If not provided, the database starts empty.
    */
   seedConfigUrl?: string;
+
+  /**
+   * When to apply `seedConfigUrl` on `init()`.
+   *
+   * - `empty-only` (default) — seed only when appRegistry and appConfig are
+   *   both empty. Preserves user edits across restarts.
+   * - `when-changed` — also re-seed when the normalized seed digest differs
+   *   from the last successful apply (dev workflow: replace `seed.json` and
+   *   reload). Clears auth + config tables before writing the new bundle.
+   */
+  seedConfigReload?: SeedConfigReloadMode;
 
   /**
    * Base URL of the remote config service REST API.

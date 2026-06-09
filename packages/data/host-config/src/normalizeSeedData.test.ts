@@ -267,6 +267,21 @@ describe('normalizeSeedData', () => {
     expect(normalized.userId).toBe('system');
   });
 
+  it('re-stamps appRegistry appId to activeAppId', () => {
+    const seed = makeSeed({
+      activeAppId: 'Star-Demo',
+      appRegistry: [{
+        appId: 'StarDemo',
+        displayName: 'Star Demo',
+        manifestUrl: 'http://x/m.json',
+        configServiceEnabled: false,
+        environment: 'dev',
+      }],
+    });
+    const normalized = normalizeSeedData(seed);
+    expect(normalized.appRegistry![0].appId).toBe('Star-Demo');
+  });
+
   it('is a no-op when rows already match the registry scope', () => {
 
     const seed = makeSeed({

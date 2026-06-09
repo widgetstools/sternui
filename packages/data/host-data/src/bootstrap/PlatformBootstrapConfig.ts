@@ -15,6 +15,11 @@ export interface PlatformBootstrapConfig {
   configServiceRestUrl?: string;
   /** Optional seed JSON for empty Dexie (dev/demo). */
   seedConfigUrl?: string;
+  /**
+   * When to re-apply `seedConfigUrl`. Default `empty-only`. Dev demos use
+   * `when-changed` so replacing `seed.json` after a rocket export re-seeds on reload.
+   */
+  seedConfigReload?: 'empty-only' | 'when-changed';
   /** AppData bootstrap hook ids + run policy (see `runAppDataBootstrap`). */
   appDataBootstrap?: AppDataBootstrapManifest;
 }

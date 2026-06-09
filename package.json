@@ -36,6 +36,7 @@
     "typecheck": "npm run typecheck:consumer",
     "test:packages": "npx turbo test --filter=!./apps/**",
     "test": "npm run test:packages",
+    "soak:value-getter": "npm run soak:value-getter -w @starui/widgets-react",
     "check:source-aliases": "node scripts/check-source-aliases.mjs",
     "check:tarballs": "npm run build:packages && node scripts/propagate.mjs --check-only --no-install --no-build",
     "verify:consumer": "npm run build:packages && node scripts/propagate.mjs && npm run install:apps && npm run build:apps:installed",

@@ -156,10 +156,7 @@ export function ConfigBrowserPanel() {
 
   const handleConfirmDeployExport = () => {
     if (!deployExportPreview) return;
-    downloadJsonBundle(
-      deployExportPreview.bundle,
-      `deploy-bundle-${hostEnv.appId || "all"}.json`,
-    );
+    downloadJsonBundle(deployExportPreview.bundle, 'seed.json');
     setDeployExportPreview(null);
   };
 

@@ -61,6 +61,7 @@ async function bootstrapPlatformOnce(
     identity: { userId: config.userId, displayName: config.userId },
     configServiceRestUrl,
     seedConfigUrl: config.seedConfigUrl,
+    seedConfigReload: config.seedConfigReload,
   });
   await configManager.init();
 

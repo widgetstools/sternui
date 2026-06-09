@@ -38,7 +38,8 @@ export function DeployExportPreviewDialog({
   const { stats, warnings, hasErrors } = result;
   const errors = warnings.filter((w) => w.severity === "error");
   const warns = warnings.filter((w) => w.severity === "warn");
-  const canDownload = !hasErrors && (warns.length === 0 || acknowledgeWarnings);
+  const hasIssues = hasErrors || warns.length > 0;
+  const canDownload = !hasIssues || acknowledgeWarnings;
 
   return (
     <div
@@ -61,9 +62,10 @@ export function DeployExportPreviewDialog({
 
         <div className="px-[18px] py-4 overflow-auto flex-1">
           <p className="text-[12px] text-[var(--de-text-secondary)] leading-relaxed mb-4">
-            Full deploy seed bundle: every appConfig row (all providers, registry, dock,
-            workspaces, profile-sets). appId / userId drift is normalized to match
-            appRegistry / userProfiles. Validation warnings below do not remove rows.
+            Ship-with-app seed bundle — save as <code className="font-[var(--de-mono)]">public/seed.json</code>{' '}
+            and commit with your build. On first launch the platform loads it automatically via{' '}
+            <code className="font-[var(--de-mono)]">seedConfigUrl</code>. Every appConfig row is included;
+            scope drift is normalized on export and again at startup.
           </p>
 
           <div className="grid grid-cols-2 gap-2 text-[11px] font-[var(--de-mono)] mb-4">
@@ -88,7 +90,7 @@ export function DeployExportPreviewDialog({
             <WarningList warnings={warnings} />
           )}
 
-          {!hasErrors && warns.length > 0 && (
+          {hasIssues && (
             <label className="mt-4 flex items-start gap-2 text-[12px] text-[var(--de-text-secondary)] cursor-pointer">
               <input
                 type="checkbox"
@@ -97,16 +99,10 @@ export function DeployExportPreviewDialog({
                 className="mt-0.5"
               />
               <span>
-                Download anyway — I understand {warns.length} warning
-                {warns.length === 1 ? "" : "s"} may cause empty grids or missing provider links after seed.
+                Download seed.json anyway — I understand {warnings.length} issue
+                {warnings.length === 1 ? '' : 's'} below may cause empty grids or missing links at runtime.
               </span>
             </label>
-          )}
-
-          {hasErrors && (
-            <p className="mt-3 text-[12px] text-[var(--de-danger,var(--ds-accent-negative))]">
-              Fix errors before deploying, or use Export all (raw) for debugging.
-            </p>
           )}
         </div>
 
@@ -120,7 +116,7 @@ export function DeployExportPreviewDialog({
             disabled={!canDownload}
             className="text-xs h-8 bg-[var(--de-accent)] text-[hsl(var(--primary-foreground))] hover:bg-[var(--de-accent)] disabled:opacity-50"
           >
-            Download deploy bundle
+            Download seed.json
           </Button>
         </div>
       </div>

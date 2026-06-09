@@ -120,7 +120,13 @@ const builtins: FunctionDefinition[] = [
   { name: 'CONTAINS', category: 'String', description: 'Check contains', signature: 'CONTAINS(s, substr)', minArgs: 2, maxArgs: 2,
     evaluate: ([s, sub]) => toStr(s).includes(toStr(sub)) },
   { name: 'REGEX_MATCH', category: 'String', description: 'Regex test', signature: 'REGEX_MATCH(s, pattern)', minArgs: 2, maxArgs: 2,
-    evaluate: ([s, pattern]) => new RegExp(toStr(pattern)).test(toStr(s)) },
+    evaluate: ([s, pattern]) => {
+      try {
+        return new RegExp(toStr(pattern)).test(toStr(s));
+      } catch {
+        return false;
+      }
+    } },
 
   // ─── Date ────────────────────────────────────────────────────────────────
   { name: 'NOW', category: 'Date', description: 'Current timestamp', signature: 'NOW()', minArgs: 0, maxArgs: 0,

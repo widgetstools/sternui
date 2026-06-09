@@ -152,16 +152,32 @@ content menu, by action ID. Omit the option to show every built-in tool.
 ### How seeding works
 
 On first launch `initWorkspace()` creates a `ConfigManager` with
-`seedConfigUrl` (→ `/seed.json`) and calls `init()`, which seeds the database
-(roles/permissions/appRegistry/userProfiles) if empty. `seed.json` is also the
-**canonical source of `appId`**: `platformBootstrap.ts` resolves the
-`appRegistry` entry whose `manifestUrl` matches the current origin and uses its
-`appId` (`StarDemo`) as the scope key for every config row — keeping
+`seedConfigUrl` (→ `/seed.json`, resolved against the manifest `providerUrl`
+origin) and calls `init()`, which seeds the database when IndexedDB is empty.
+`seed.json` is also the **canonical source of `appId`**: `platformBootstrap.ts`
+resolves the `appRegistry` entry whose `manifestUrl` matches the current origin
+and uses its `appId` (`StarDemo`) as the scope key for every config row — keeping
 `(instanceId, appId, userId)` stable across browser and OpenFin so saved
 settings survive restarts.
 
 To re-seed from scratch, clear the app's IndexedDB (DevTools → Application →
 IndexedDB) and relaunch.
+
+### Ship config with the app (recommended for end users)
+
+1. Run the app locally and configure providers, grids, dock, workspaces, etc.
+2. Open **Config Browser** → **Export** → **rocket** (deploy bundle).
+3. Save the download as `public/seed.json` (the rocket button names the file
+   `seed.json` automatically).
+4. Commit `public/seed.json` with your release.
+5. Run `npm run validate:seed` in this app folder before shipping (CI-friendly).
+
+End users get your layout on **first launch** — no manual import. The platform
+only seeds when IndexedDB is empty (`seedConfigReload` defaults to `empty-only`).
+
+**Developer iteration:** set `"seedConfigReload": "when-changed"` in
+`app-config.json` / manifest `customSettings` to re-apply `seed.json` whenever
+its content changes (clears and re-seeds). Do not ship that flag to production.
 
 ---
 

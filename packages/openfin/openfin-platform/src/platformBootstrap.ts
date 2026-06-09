@@ -18,6 +18,7 @@ import {
 } from '@starui/host-data';
 
 import { DEFAULT_APP_ID } from './registryHostEnv.js';
+import { resolveSeedConfigUrl } from './resolveSeedConfigUrl.js';
 import type { CustomSettings } from './types.js';
 
 /** Default dev userId when manifest omits `customSettings.userId`. */
@@ -36,6 +37,7 @@ export function resolvePlatformBootstrapFromCustomSettings(
     useRest: customSettings?.useRest,
     configServiceRestUrl: customSettings?.configServiceRestUrl,
     seedConfigUrl: customSettings?.seedConfigUrl,
+    seedConfigReload: customSettings?.seedConfigReload,
   });
 }
 
@@ -63,8 +65,12 @@ export async function resolvePlatformBootstrapFromManifest(): Promise<PlatformBo
     const manifest = (await app.getManifest()) as OpenFin.Manifest & {
       customSettings?: CustomSettings;
     };
-    const seedUrl = readSeedUrl(manifest.customSettings);
-    if (seedUrl) {
+    const rawSeedUrl = readSeedUrl(manifest.customSettings);
+    if (rawSeedUrl) {
+      const seedUrl = await resolveSeedConfigUrl(
+        rawSeedUrl,
+        manifest.platform?.providerUrl,
+      );
       const identity = await resolveActiveIdentityFromSeedUrl(seedUrl);
       if (identity) {
         const cs = manifest.customSettings;
@@ -74,6 +80,7 @@ export async function resolvePlatformBootstrapFromManifest(): Promise<PlatformBo
           useRest: cs?.useRest,
           configServiceRestUrl: cs?.configServiceRestUrl,
           seedConfigUrl: seedUrl,
+          seedConfigReload: cs?.seedConfigReload === 'when-changed' ? 'when-changed' : undefined,
         };
       }
       throw new PlatformBootstrapConfigError(
@@ -103,9 +110,11 @@ export interface BootstrapManifestScope {
  */
 export async function resolveDeploymentIdentity(
   manifest?: { appId?: string; userId?: string; seedConfigUrl?: string } | null,
+  providerUrl?: string,
 ): Promise<BootstrapManifestScope> {
-  const seedUrl = readSeedUrl(manifest ?? undefined);
-  if (seedUrl) {
+  const rawSeedUrl = readSeedUrl(manifest ?? undefined);
+  if (rawSeedUrl) {
+    const seedUrl = await resolveSeedConfigUrl(rawSeedUrl, providerUrl);
     const identity = await resolveActiveIdentityFromSeedUrl(seedUrl);
     if (identity) {
       return { appId: identity.activeAppId, userId: identity.activeUserId };
