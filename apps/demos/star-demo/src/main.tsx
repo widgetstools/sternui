@@ -20,7 +20,9 @@ import {
 const Provider            = React.lazy(() => import("./platform/Provider"));
 const ConfigBrowser       = React.lazy(() => import("./views/ConfigBrowser"));
 const RenameViewTab       = React.lazy(() => import("./views/RenameViewTab"));
-const BlottersMarketsGrid = React.lazy(() => import("./views/BlottersMarketsGrid"));
+/** Start downloading+parsing the MarketsGrid route chunk in parallel with platform bootstrap. */
+const blottersMarketsGridChunk = import("./views/BlottersMarketsGrid");
+const BlottersMarketsGrid = React.lazy(() => blottersMarketsGridChunk);
 const DataProviders       = React.lazy(() => import("./views/DataProviders"));
 
 const WorkspaceSetup = React.lazy(() =>
@@ -30,6 +32,15 @@ const WorkspaceSetup = React.lazy(() =>
 const LOADING = <div style={{ padding: 16 }}>Loading...</div>;
 
 const bootstrapPromise = initPlatformBootstrap();
+
+/** Warm AG Grid vendor chunks while bootstrap runs (no-op if route chunk already started). */
+if (typeof window !== "undefined" && window.location.pathname.includes("/blotters/marketsgrid")) {
+  void Promise.all([
+    import("ag-grid-community"),
+    import("ag-grid-enterprise"),
+    import("ag-grid-react"),
+  ]).catch(() => { /* dev-only prebundle warm-up */ });
+}
 
 async function createRuntimeForViews(config: PlatformBootstrapResult['config']): Promise<RuntimePort> {
   if (isOpenFin()) {

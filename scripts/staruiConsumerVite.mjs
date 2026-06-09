@@ -25,6 +25,12 @@ export function staruiConsumerViteConfig(appDir, opts = {}) {
     optimizeDeps: {
       ...reactResolve.optimizeDeps,
       ...staruiOptimizeDeps(),
+      include: [
+        ...(reactResolve.optimizeDeps.include ?? []),
+        'ag-grid-community',
+        'ag-grid-enterprise',
+        'ag-grid-react',
+      ],
     },
     resolve: {
       dedupe: reactResolve.dedupe,
@@ -61,6 +67,9 @@ export function staruiConsumerViteConfig(appDir, opts = {}) {
           // don't pull monaco in.
           manualChunks(id) {
             if (id.includes('node_modules/monaco-editor')) return 'monaco-editor';
+            if (id.includes('node_modules/ag-grid-enterprise')) return 'ag-grid-enterprise';
+            if (id.includes('node_modules/ag-grid-community')) return 'ag-grid-community';
+            if (id.includes('node_modules/ag-grid-react')) return 'ag-grid-react';
             return undefined;
           },
         },

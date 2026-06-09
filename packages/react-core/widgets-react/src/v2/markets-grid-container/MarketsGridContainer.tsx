@@ -65,6 +65,9 @@ import {
 
 export type { ProviderMode, ProviderSelection } from './gridLevelState.js';
 
+/** Historical restore only — brief peer race before `restartProvider()`. Live mode connects immediately. */
+const PEER_PROVIDER_WAIT_MS = 2_000;
+
 const EMPTY: never[] = [];
 
 /** Stable id for overflow-menu e2e (`admin-action-data-provider-editor`). */
@@ -834,16 +837,21 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     void (async () => {
       try {
         let running = await dataHubClient.isProviderRunning(activeId);
-        if (!running) {
-          running = await dataHubClient.waitForProviderRunning(activeId, { timeoutMs: 10_000 });
+        const asOfForRestart = selection.mode === 'historical'
+          ? (asOfDate ?? (isHistoricalToolbarDate(toolbarDate) ? toolbarDate : null))
+          : null;
+        // Live cold start connects immediately — hub attach dedupes concurrent
+        // windows. Historical restore waits briefly so a peer with the same
+        // overlay can finish starting instead of this window calling restart().
+        if (!running && asOfForRestart) {
+          running = await dataHubClient.waitForProviderRunning(activeId, {
+            timeoutMs: PEER_PROVIDER_WAIT_MS,
+          });
         }
         if (running) {
           await provider.start();
           return;
         }
-        const asOfForRestart = selection.mode === 'historical'
-          ? (asOfDate ?? (isHistoricalToolbarDate(toolbarDate) ? toolbarDate : null))
-          : null;
         if (asOfForRestart) {
           await restartProvider({ asOfDate: asOfForRestart });
           return;
@@ -1144,6 +1152,22 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     );
   }
 
+  // Provider id chosen but catalog row still loading — avoid mounting a
+  // throwaway MarketsGrid shell (AG Grid + enterprise modules) that would
+  // immediately unmount when cfg arrives.
+  if (activeId && activeRow.loading) {
+    return (
+      <>
+        <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
+          {activeProviderName
+            ? `Loading ${activeProviderName}…`
+            : 'Loading provider configuration…'}
+        </div>
+        {dataDialogs}
+      </>
+    );
+  }
+
   // Provider selected and cfg loaded → full data-attached grid.
   if (activeId && !activeRow.loading && rowIdField && columnDefs) {
     return (
@@ -1190,8 +1214,9 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     );
   }
 
-  // No provider selected (or cfg still resolving): mount MarketsGrid
-  // with a sentinel rowIdField. Open Custom Settings to pick a provider.
+  // No provider selected, or cfg loaded but not data-ready (missing
+  // key/columns): mount MarketsGrid with a sentinel rowIdField so Custom
+  // Settings can pick or repair the provider.
   return (
     <>
       <MarketsGrid<TData>

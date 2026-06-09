@@ -48,6 +48,9 @@ function Provider() {
       typeof window !== "undefined" &&
       new URLSearchParams(window.location.search).get("e2eBridge") === "1";
 
+    // Warm tool-window chunks immediately — do not wait for initWorkspace to finish.
+    void prefetchToolWindowChunks();
+
     initWorkspace({
       dockIcon: "http://localhost:5175/dock-provider.png",
       onProgress: setMessage,
@@ -59,9 +62,6 @@ function Provider() {
       .then(() => {
         if (!isDev && !e2eBridge) return undefined;
         return import("@starui/host-wrapper-react/test-bridge").then((m) => m.installTestBridge());
-      })
-      .then(() => {
-        void prefetchToolWindowChunks();
       })
       .catch((err) => {
         console.error("Failed to initialize workspace platform:", err);

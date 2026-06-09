@@ -465,7 +465,7 @@ export class SharedWorkerDataServicesClient {
     opts: { timeoutMs?: number; intervalMs?: number } = {},
   ): Promise<boolean> {
     if (await this.isProviderRunning(providerId)) return true;
-    const timeoutMs = opts.timeoutMs ?? 8_000;
+    const timeoutMs = opts.timeoutMs ?? 2_000;
     const intervalMs = opts.intervalMs ?? 50;
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
