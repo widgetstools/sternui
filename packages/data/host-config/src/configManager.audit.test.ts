@@ -108,14 +108,11 @@ describe('ConfigManager — owner / audit stamping (Session 3)', () => {
     cm2.dispose();
   });
 
-  it('insert respects an explicitly-supplied userId / createdBy / creationTime', async () => {
-    // Caller-supplied owner / audit values are honored on INSERT (the
-    // helper uses ?? so it only fills missing slots). updatedBy /
-    // updatedTime are still stamped from the current identity.
+  it('overwrites caller-supplied appId / userId with deployment scope on save', async () => {
     const ts = '2025-12-31T23:59:00.000Z';
     await cm.saveConfig({
       configId: 'cfg-3',
-      appId: 'TestApp',
+      appId: 'wrong-app',
       userId: 'pre-set-owner',
       isPublic: false,
       displayText: 'caller-stamped',
@@ -125,17 +122,50 @@ describe('ConfigManager — owner / audit stamping (Session 3)', () => {
       payload: {},
       createdBy: 'pre-set-creator',
       creationTime: ts,
-      // updatedBy / updatedTime intentionally unset — should be stamped
     } as unknown as AppConfigRow);
 
     const row = (await cm.getConfig('cfg-3'))!;
-    expect(row.userId).toBe('pre-set-owner');
+    expect(row.appId).toBe('TestApp');
+    expect(row.userId).toBe('alice');
     expect(row.createdBy).toBe('pre-set-creator');
     expect(row.creationTime).toBe(ts);
-    // The current identity stamps updatedBy / updatedTime regardless.
     expect(row.updatedBy).toBe('alice');
     expect(typeof row.updatedTime).toBe('string');
     expect(row.updatedTime).not.toBe(ts);
+  });
+
+  it('keeps userId system for global catalogue rows', async () => {
+    await cm.saveConfig({
+      configId: 'component-registry::TestApp::system',
+      appId: 'wrong-app',
+      userId: 'dev1',
+      isPublic: true,
+      displayText: 'registry',
+      componentType: 'component-registry',
+      componentSubType: '',
+      isTemplate: false,
+      payload: { version: 2, entries: [] },
+    } as unknown as AppConfigRow);
+
+    const registry = (await cm.getConfig('component-registry::TestApp::system'))!;
+    expect(registry.appId).toBe('TestApp');
+    expect(registry.userId).toBe('system');
+
+    await cm.saveConfig({
+      configId: 'dp-public',
+      appId: 'wrong-app',
+      userId: 'system',
+      isPublic: true,
+      displayText: 'feed',
+      componentType: 'data-provider',
+      componentSubType: 'stomp',
+      isTemplate: false,
+      payload: {},
+    } as unknown as AppConfigRow);
+
+    const provider = (await cm.getConfig('dp-public'))!;
+    expect(provider.appId).toBe('TestApp');
+    expect(provider.userId).toBe('system');
   });
 
   // ─── saveSnapshot — owner now flows from identity, not "system" ─

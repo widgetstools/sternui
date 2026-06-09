@@ -151,7 +151,7 @@ describe('ConfigManager — impersonation (Session 8)', () => {
 
   // ─── Owner stamping ────────────────────────────────────────────
 
-  it('saved row owner === impersonated user; audit === real user', async () => {
+  it('saved row owner === seeded identity.userId even while impersonating; audit === real user', async () => {
     await cm.setImpersonatedUser({ userId: 'alice', displayName: 'Alice' });
 
     await cm.saveConfig(
@@ -168,12 +168,12 @@ describe('ConfigManager — impersonation (Session 8)', () => {
     );
 
     const row = (await cm.getConfig('cfg-1'))!;
-    expect(row.userId).toBe('alice');         // owner = effective user
-    expect(row.createdBy).toBe('real-user');  // audit = real user
+    expect(row.userId).toBe('real-user');
+    expect(row.createdBy).toBe('real-user');
     expect(row.updatedBy).toBe('real-user');
   });
 
-  it('clearing impersonation reverts owner default to real user', async () => {
+  it('every save stamps owner to seeded identity.userId regardless of impersonation state', async () => {
     await cm.setImpersonatedUser({ userId: 'alice' });
     await cm.saveConfig(
       makeRow({
@@ -192,56 +192,35 @@ describe('ConfigManager — impersonation (Session 8)', () => {
       }),
     );
 
-    expect((await cm.getConfig('cfg-as-alice'))!.userId).toBe('alice');
+    expect((await cm.getConfig('cfg-as-alice'))!.userId).toBe('real-user');
     expect((await cm.getConfig('cfg-as-real'))!.userId).toBe('real-user');
   });
 
   // ─── Visibility ─────────────────────────────────────────────────
 
   it('reads as alice show alice-owned private rows; hide real-user-owned private rows', async () => {
-    // Plant rows under both owners. Use saveConfig under each
-    // impersonation so the centralised stamping does the work.
-    await cm.setImpersonatedUser({ userId: 'alice' });
-    await cm.saveConfig(
-      makeRow({
-        configId: 'priv-alice',
-        appId: 'TestApp',
-        isPublic: false,
-      }),
+    const internal = cm as unknown as {
+      db: { appConfig: { put: (r: AppConfigRow) => Promise<string> } };
+    };
+    await internal.db.appConfig.put(
+      makeRow({ configId: 'priv-alice', appId: 'TestApp', userId: 'alice', isPublic: false }),
     );
-    await cm.saveConfig(
-      makeRow({
-        configId: 'pub-alice',
-        appId: 'TestApp',
-        isPublic: true,
-      }),
+    await internal.db.appConfig.put(
+      makeRow({ configId: 'pub-alice', appId: 'TestApp', userId: 'alice', isPublic: true }),
+    );
+    await internal.db.appConfig.put(
+      makeRow({ configId: 'priv-real', appId: 'TestApp', userId: 'real-user', isPublic: false }),
+    );
+    await internal.db.appConfig.put(
+      makeRow({ configId: 'pub-real', appId: 'TestApp', userId: 'real-user', isPublic: true }),
     );
 
-    await cm.setImpersonatedUser(null);
-    await cm.saveConfig(
-      makeRow({
-        configId: 'priv-real',
-        appId: 'TestApp',
-        isPublic: false,
-      }),
-    );
-    await cm.saveConfig(
-      makeRow({
-        configId: 'pub-real',
-        appId: 'TestApp',
-        isPublic: true,
-      }),
-    );
-
-    // Read while impersonating alice: alice's private + everyone's
-    // public rows are visible; real-user's private row is hidden.
     await cm.setImpersonatedUser({ userId: 'alice' });
     const visibleAsAlice = (await cm.getConfigsByApp('TestApp'))
       .map((r) => r.configId)
       .sort();
     expect(visibleAsAlice).toEqual(['priv-alice', 'pub-alice', 'pub-real']);
 
-    // Clear impersonation — visibility reverts to real-user.
     await cm.setImpersonatedUser(null);
     const visibleAsReal = (await cm.getConfigsByApp('TestApp'))
       .map((r) => r.configId)

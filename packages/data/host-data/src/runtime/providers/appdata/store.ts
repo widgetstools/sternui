@@ -100,7 +100,7 @@ export class AppDataConfigStore {
 
     const row: AppConfigRow = {
       configId,
-      appId: existing?.appId ?? 'TestApp',
+      appId: this.cm.getAppId(),
       userId: ownerUserId,
       componentType: COMPONENT_TYPE_APPDATA,
       componentSubType: 'appdata',

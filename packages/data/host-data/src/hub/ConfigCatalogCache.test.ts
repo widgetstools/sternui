@@ -27,6 +27,7 @@ function stompRow(id: string, name = id): AppConfigRow {
 function mockConfigManager(rows: AppConfigRow[]): ConfigManager {
   const map = new Map(rows.map((r) => [r.configId, r]));
   return {
+    getAppId() { return 'TestApp'; },
     async getAllConfigsUnfiltered() {
       return [...map.values()];
     },

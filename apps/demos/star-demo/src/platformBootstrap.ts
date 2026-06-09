@@ -40,20 +40,20 @@ export function getBootstrapConfig(): PlatformBootstrapConfig {
  * Browser: `/app-config.json`. OpenFin: manifest `customSettings`.
  * Worker name: `mkt-data-services:${config.appId}`.
  *
- * `appId` is the single source of truth in `seed.json` —
- * see {@link resolveAppIdFromSeed}. The `appId` carried by
- * app-config.json / the manifest is only a fallback used when the seed
- * can't be read; this keeps the row-scope key `(instanceId, appId,
- * userId)` stable across browser/OpenFin and prevents the "settings lost
- * on restart" drift caused by divergent appId values.
+ * `appId` and `userId` are the single source of truth in `seed.json` —
+ * see {@link resolveAppIdFromSeed} / {@link resolveUserIdFromSeed}. Values
+ * in app-config.json / the manifest are fallbacks when the seed can't be
+ * read; this keeps the row-scope key `(instanceId, appId, userId)` stable
+ * across browser/OpenFin and prevents settings drift on restart.
  */
 export async function initPlatformBootstrap(): Promise<PlatformBootstrapResult> {
   const base = isOpenFinRuntime()
     ? await resolvePlatformBootstrapFromManifest()
     : await resolvePlatformBootstrapFromJson('/app-config.json');
-  // Seed is the canonical appId source; bootstrap value is the fallback.
+  // Seed is the canonical identity; bootstrap values are the fallback.
   const appId = await resolveAppIdFromSeed(base.seedConfigUrl, base.appId);
-  const config: PlatformBootstrapConfig = { ...base, appId };
+  const userId = await resolveUserIdFromSeed(base.seedConfigUrl, base.userId, appId);
+  const config: PlatformBootstrapConfig = { ...base, appId, userId };
   const platform = await ensurePlatformReady(config, { workerScriptUrl: workerAssetUrl });
   platformRef = platform;
   configRef = config;
@@ -105,5 +105,35 @@ async function resolveAppIdFromSeed(
     return (matched ?? entries[0]).appId.trim();
   } catch {
     return fallbackAppId;
+  }
+}
+
+/**
+ * Read the canonical `userId` from `seed.json`'s `userProfiles`.
+ * Prefers a profile whose `appId` matches the resolved deployment app.
+ */
+async function resolveUserIdFromSeed(
+  seedConfigUrl: string | undefined,
+  fallbackUserId: string,
+  appId: string,
+): Promise<string> {
+  if (!seedConfigUrl) return fallbackUserId;
+  try {
+    const res = await fetch(seedConfigUrl);
+    if (!res.ok) return fallbackUserId;
+    const seed = (await res.json()) as {
+      userProfiles?: Array<{ userId?: unknown; appId?: unknown }>;
+    };
+    const profiles = Array.isArray(seed?.userProfiles) ? seed.userProfiles : [];
+    const entries = profiles.filter(
+      (p): p is { userId: string; appId?: string } =>
+        typeof p?.userId === 'string' && p.userId.trim().length > 0,
+    );
+    if (entries.length === 0) return fallbackUserId;
+
+    const forApp = entries.filter((p) => !p.appId || p.appId === appId);
+    return (forApp[0] ?? entries[0]).userId.trim();
+  } catch {
+    return fallbackUserId;
   }
 }

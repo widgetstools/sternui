@@ -50,12 +50,13 @@ function makeRow(over: Partial<AppConfigRow>): AppConfigRow {
   };
 }
 
-// Insert a row through the public write path. `saveConfig` re-stamps
-// `updatedBy` / `updatedTime`, but it preserves caller-supplied
-// `userId` / `appId` / `isPublic` / `createdBy`, which is everything
-// the visibility predicate looks at.
+// Plant rows directly into Dexie so multi-owner visibility scenarios are
+// not collapsed by `saveConfig`'s deployment-scope stamping.
 async function plant(cm: ConfigManager, row: AppConfigRow): Promise<void> {
-  await cm.saveConfig({ ...row });
+  const internal = cm as unknown as {
+    db: { appConfig: { put: (r: AppConfigRow) => Promise<string> } };
+  };
+  await internal.db.appConfig.put(row);
 }
 
 describe('ConfigManager — visibility filter on read paths (Session 4)', () => {

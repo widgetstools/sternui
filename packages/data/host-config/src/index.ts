@@ -97,6 +97,10 @@ export type {
 // to MarketsGrid's `storage` prop to opt-in to cross-device profile
 // sync scoped by (appId, userId, instanceId).
 export {
+  readProfileSetPayload,
+} from './profileSet';
+
+export {
   createConfigServiceStorage,
   migrateProfilesToConfigService,
   ProfileSetVersionConflictError,
@@ -152,3 +156,16 @@ export {
   type TableKey,
   type TableMeta,
 } from './configBrowserTables';
+
+// ─── Deploy export (scoped seed bundle) ─────────────────────────────
+export {
+  buildDeployExport,
+  validateDeployExport,
+  collectReferencedInstanceIds,
+  instanceIdsFromOpenFinSnapshot,
+  type DeployExportInput,
+  type DeployExportResult,
+  type DeployExportWarning,
+  type DeployExportSeverity,
+  type DeployExportStats,
+} from './deployExport';

@@ -20,6 +20,7 @@ import Dexie from 'dexie';
 import { ChangeNotifier } from './changeNotifier';
 import { ConfigDatabase } from './db';
 import { OptimisticLockError } from './errors';
+import { normalizeSeedData, parseSeedJson } from './normalizeSeedData';
 import { createProfilesNamespace } from './profiles';
 import type { ProfilesNamespace } from './profilesTypes';
 import type {
@@ -77,6 +78,12 @@ const DEFAULT_IDENTITY: AppIdentity = {
   userId: 'dev-user',
   displayName: 'Dev User',
 };
+
+/** Rows shared across every user of the app keep `userId: 'system'`. */
+const GLOBAL_OWNER_USER_ID = 'system';
+const COMPONENT_TYPE_REGISTRY = 'component-registry';
+const COMPONENT_TYPE_DATA_PROVIDER = 'data-provider';
+const COMPONENT_TYPE_APPDATA = 'appdata';
 
 // How often to retry failed REST writes.
 // 10 seconds is a balance: short enough to recover quickly after a
@@ -375,6 +382,31 @@ export class ConfigManager {
    * @param isInsert - whether this is a first-time insert (controls
    *   whether `createdBy` / `creationTime` get defaulted)
    */
+  /**
+   * Stamp every `appConfig` write with this manager's deployment scope
+   * (`appId` + seeded `identity.userId`). Global catalogue rows
+   * (component registry, public data providers) keep `userId: 'system'`.
+   */
+  private stampAppConfigScope(config: AppConfigRow): void {
+    config.appId = this.appId;
+    if (this.isGlobalAppConfigOwner(config)) {
+      config.userId = GLOBAL_OWNER_USER_ID;
+      return;
+    }
+    config.userId = this.identity.userId;
+  }
+
+  private isGlobalAppConfigOwner(row: AppConfigRow): boolean {
+    if (row.componentType === COMPONENT_TYPE_REGISTRY) {
+      return true;
+    }
+    if (row.userId === GLOBAL_OWNER_USER_ID) {
+      return row.componentType === COMPONENT_TYPE_DATA_PROVIDER
+        || row.componentType === COMPONENT_TYPE_APPDATA;
+    }
+    return false;
+  }
+
   private stampWrite<
     T extends {
       createdBy?: string;
@@ -605,11 +637,14 @@ export class ConfigManager {
    * In REST mode, also sends to the remote backend.
    *
    * Owner / audit stamping (Decisions 5 + 7):
-   *   - On INSERT: if the caller didn't set `userId` (owner) it
-   *     defaults to the **effective** user via `getEffectiveUserId()`
-   *     — the impersonated user when impersonation is active, the
-   *     real signed-in user otherwise. `createdBy` / `creationTime`
-   *     default from the **real** identity / now if absent.
+   *   - On EVERY write: `appId` is stamped to this manager's deployment
+   *     app; `userId` (owner) is stamped to `identity.userId` (the
+   *     seeded signed-in user from bootstrap / `seed.json`), except
+   *     global catalogue rows (component registry, public data providers)
+   *     which keep `userId: 'system'`. Caller-supplied scope drift is
+   *     overwritten — not honoured.
+   *   - On INSERT: `createdBy` / `creationTime` default from the real
+   *     identity / now if absent.
    *   - On EVERY write: `updatedBy` / `updatedTime` are unconditionally
    *     stamped from the current identity / now — audit fields always
    *     reflect the real logged-in user, never an impersonated one.
@@ -634,13 +669,7 @@ export class ConfigManager {
       throw new OptimisticLockError(existing);
     }
 
-    if (isInsert) {
-      // Owner defaults to the effective user (Session 8): equals the
-      // impersonated user when one is set, otherwise the real
-      // logged-in user. Audit fields are stamped from the real user
-      // independently inside `stampWrite`.
-      config.userId = config.userId ?? this.getEffectiveUserId();
-    }
+    this.stampAppConfigScope(config);
     this.stampWrite(config, isInsert);
 
     if (this.restUrl) {
@@ -1172,7 +1201,11 @@ export class ConfigManager {
         return;
       }
 
-      const seedData: SeedData = await response.json();
+      const parsed = parseSeedJson(await response.json());
+      if (!parsed) {
+        return;
+      }
+      const seedData: SeedData = normalizeSeedData(parsed);
 
       // Insert seed data into each table using a transaction
       // so that either all tables are seeded or none are.

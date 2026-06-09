@@ -119,7 +119,7 @@ export class DataProviderConfigStore {
 
     const row: AppConfigRow = {
       configId,
-      appId: existing?.appId ?? 'TestApp',
+      appId: this.cm.getAppId(),
       userId: ownerUserId,
       componentType: COMPONENT_TYPE_DATA_PROVIDER,
       componentSubType: provider.providerType,

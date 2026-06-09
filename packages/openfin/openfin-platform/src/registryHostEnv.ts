@@ -11,6 +11,8 @@
  * trade-off for being able to develop the editor out of OpenFin.
  */
 
+import { resolveBootstrapManifestScope } from './platformBootstrap';
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare const fin: any;
 
@@ -77,10 +79,25 @@ export async function readHostEnv(): Promise<HostEnv> {
       const opts = await fin.me.getOptions();
       const cd = opts?.customData;
       const configServiceUrl = typeof cd?.configServiceUrl === 'string' ? cd.configServiceUrl : '';
-      const appId = typeof cd?.appId === 'string' && cd.appId.length > 0 ? cd.appId : DEFAULT_APP_ID;
-      const userId = typeof cd?.userId === 'string' && cd.userId.length > 0 ? cd.userId : DEFAULT_USER_ID;
-      return { appId, userId, configServiceUrl };
+      let appId = typeof cd?.appId === 'string' && cd.appId.length > 0 ? cd.appId : '';
+      let userId = typeof cd?.userId === 'string' && cd.userId.length > 0 ? cd.userId : '';
+      if (!appId || !userId) {
+        const bootstrap = await resolveBootstrapManifestScope();
+        if (bootstrap) {
+          if (!appId) appId = bootstrap.appId;
+          if (!userId) userId = bootstrap.userId;
+        }
+      }
+      return {
+        appId: appId || DEFAULT_APP_ID,
+        userId: userId || DEFAULT_USER_ID,
+        configServiceUrl,
+      };
     } catch {
+      const bootstrap = await resolveBootstrapManifestScope();
+      if (bootstrap) {
+        return { ...bootstrap, configServiceUrl: '' };
+      }
       return { appId: DEFAULT_APP_ID, userId: DEFAULT_USER_ID, configServiceUrl: '' };
     }
   }
@@ -92,7 +109,13 @@ export async function readHostEnv(): Promise<HostEnv> {
   const qsEnv = readHostEnvFromQueryString();
   if (qsEnv) return qsEnv;
 
-  // 3. Dev fallback
+  // 3. Web bootstrap (`app-config.json`) before dev fallback
+  const bootstrap = await resolveBootstrapManifestScope();
+  if (bootstrap) {
+    return { ...bootstrap, configServiceUrl: DEV_FALLBACK.configServiceUrl };
+  }
+
+  // 4. Dev fallback
   return DEV_FALLBACK;
 }
 

@@ -12,9 +12,11 @@ import { Toolbar } from "./components/Toolbar";
 import { DataGrid } from "./components/DataGrid";
 import { RowDrawer } from "./components/RowDrawer";
 import { ImportPreviewDialog } from "./components/ImportPreviewDialog";
+import { DeployExportPreviewDialog } from "./components/DeployExportPreviewDialog";
 import { DeleteAllDialog } from "./components/DeleteAllDialog";
 import { injectEditorStyles } from "./editorStyles";
 import type { ImportMode, ImportPreview } from "./hooks/useConfigBrowser";
+import type { DeployExportResult } from "@starui/host-config";
 
 // ─── Main Component ──────────────────────────────────────────────────
 
@@ -34,10 +36,12 @@ export function ConfigBrowserPanel() {
     importRows,
     deleteAllRows,
     exportAll,
+    exportDeploy,
   } = useConfigBrowser();
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
+  const [deployExportPreview, setDeployExportPreview] = useState<DeployExportResult | null>(null);
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
 
   const [theme, setTheme] = useState<"dark" | "light">("dark");
@@ -127,18 +131,36 @@ export function ConfigBrowserPanel() {
     URL.revokeObjectURL(url);
   };
 
-  const handleExportAll = async () => {
-    const bundle = await exportAll();
+  const downloadJsonBundle = (bundle: unknown, filename: string) => {
     const json = JSON.stringify(bundle, null, 2);
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `config-bundle-${hostEnv.appId || "all"}.json`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+  };
+
+  const handleExportAll = async () => {
+    const bundle = await exportAll();
+    downloadJsonBundle(bundle, `config-bundle-${hostEnv.appId || "all"}.json`);
+  };
+
+  const handleExportDeployClick = async () => {
+    const result = await exportDeploy();
+    setDeployExportPreview(result);
+  };
+
+  const handleConfirmDeployExport = () => {
+    if (!deployExportPreview) return;
+    downloadJsonBundle(
+      deployExportPreview.bundle,
+      `deploy-bundle-${hostEnv.appId || "all"}.json`,
+    );
+    setDeployExportPreview(null);
   };
 
   const handleImportClick = () => {
@@ -250,6 +272,7 @@ export function ConfigBrowserPanel() {
             onNew={openCreate}
             onExport={handleExport}
             onExportAll={handleExportAll}
+            onExportDeploy={handleExportDeployClick}
             onImport={handleImportClick}
             onDeleteAll={() => setDeleteAllOpen(true)}
           />
@@ -316,6 +339,15 @@ export function ConfigBrowserPanel() {
           primaryKey={selected.primaryKey}
           onCancel={() => setImportPreview(null)}
           onConfirm={handleConfirmImport}
+        />
+      )}
+
+      {deployExportPreview && (
+        <DeployExportPreviewDialog
+          result={deployExportPreview}
+          appId={hostEnv.appId}
+          onCancel={() => setDeployExportPreview(null)}
+          onConfirm={handleConfirmDeployExport}
         />
       )}
 

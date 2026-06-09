@@ -67,9 +67,10 @@ function exportBundle(): SeedData {
         payload: { url: 'wss://feed.example/stomp' },
       }),
       makeConfigRow({
-        configId: 'component-registry',
+        configId: 'component-registry::StarDemo::system',
         componentType: 'component-registry',
-        payload: { components: [{ id: 'MarketsGrid' }] },
+        userId: 'system',
+        payload: { version: 2, entries: [{ id: 'MarketsGrid' }] },
       }),
       makeConfigRow({
         configId: 'grid-instance-1',
@@ -108,7 +109,7 @@ describe('ConfigManager.seedIfEmpty — full-restore seeding', () => {
 
     const configs = await cm.getAllConfigsUnfiltered();
     expect(configs.map((c) => c.configId).sort()).toEqual([
-      'component-registry',
+      'component-registry::StarDemo::system',
       'dp-stomp',
       'grid-instance-1',
     ]);
@@ -147,6 +148,25 @@ describe('ConfigManager.seedIfEmpty — full-restore seeding', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
     const stomp = (await cm.getAllConfigsUnfiltered()).find((c) => c.configId === 'dp-stomp');
     expect(stomp?.payload).toEqual({ url: 'wss://EDITED' });
+  });
+
+  it('normalizes stale appId values in appConfig to match appRegistry on seed', async () => {
+    const bundle = exportBundle();
+    for (const row of bundle.appConfig!) {
+      row.appId = 'TestApp';
+      if (row.configId === 'component-registry') {
+        row.configId = 'component-registry::TestApp::system';
+      }
+    }
+    mockFetchOnce(bundle);
+    cm = createConfigManager({ appId: 'StarDemo', seedConfigUrl: SEED_URL });
+    await cm.init();
+
+    const configs = await cm.getAllConfigsUnfiltered();
+    expect(configs.every((c) => c.appId === 'StarDemo' || c.appId === '')).toBe(true);
+    const registry = configs.find((c) => c.componentType === 'component-registry');
+    expect(registry?.userId).toBe('system');
+    expect(registry?.configId).toBe('component-registry::StarDemo::system');
   });
 
   it('stays backward-compatible: a minimal seed with no appConfig still boots', async () => {

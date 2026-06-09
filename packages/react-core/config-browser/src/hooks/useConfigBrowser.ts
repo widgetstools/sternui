@@ -8,6 +8,7 @@ import {
   readHostEnv,
   type HostEnv,
 } from "@starui/openfin-platform/config";
+import { buildDeployExport, type DeployExportResult } from "@starui/host-config";
 import type { ConfigManager } from "@starui/host-config";
 import { TABLES, type TableKey, type TableMeta } from "../types";
 
@@ -92,6 +93,8 @@ export interface UseConfigBrowserReturn {
    *  Scopable tables are filtered to the active `hostEnv.appId` when
    *  set, matching the per-table export's behavior. */
   exportAll: () => Promise<ExportBundle>;
+  /** Scoped deploy bundle with validation warnings (seed-ready). */
+  exportDeploy: () => Promise<DeployExportResult>;
 }
 
 const ZERO_COUNTS: Counts = {
@@ -446,6 +449,32 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
   }, [hostEnv.appId]);
 
   /**
+   * Full deploy snapshot — reads every appConfig row (unfiltered) so rows
+   * with stale appId still export, then normalizes + validates.
+   */
+  const exportDeploy = useCallback(async (): Promise<DeployExportResult> => {
+    const manager = managerRef.current;
+    if (!manager) {
+      return buildDeployExport({
+        appConfig: [],
+        appRegistry: [],
+        userProfiles: [],
+        roles: [],
+        permissions: [],
+      });
+    }
+    const db = (manager as any).db;
+    const [appConfig, appRegistry, userProfiles, roles, permissions] = await Promise.all([
+      manager.getAllConfigsUnfiltered(),
+      db.appRegistry.toArray(),
+      db.userProfile.toArray(),
+      db.roles.toArray(),
+      db.permissions.toArray(),
+    ]);
+    return buildDeployExport({ appConfig, appRegistry, userProfiles, roles, permissions });
+  }, []);
+
+  /**
    * Delete every row currently in view. For scopable tables (appConfig,
    * userProfile) only rows inside the active appId scope are affected
    * because `rows` was already filtered when loaded. Each row is routed
@@ -500,5 +529,6 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
     importRows,
     deleteAllRows,
     exportAll,
+    exportDeploy,
   };
 }

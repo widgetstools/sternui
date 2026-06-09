@@ -29,6 +29,12 @@ import { COMPONENT_TYPES } from "@starui/types";
 import type { DockEditorConfig } from './dockConfigTypes';
 import { getConfigServiceRestUrlFromManifest } from './manifestConfig';
 import type { RegistryEditorConfig } from './registryConfigTypes';
+import { resolvePlatformBootstrapFromJson } from '@starui/host-data';
+import {
+  resolveDeploymentIdentity,
+  resolvePlatformBootstrapFromManifest,
+} from './platformBootstrap';
+import { resolveDefaultPlatformScope } from './platformScope';
 
 // ─── Singleton management ────────────────────────────────────────────
 
@@ -82,8 +88,25 @@ export async function getConfigManager(): Promise<ConfigManager> {
   if (!initPromise) {
     initPromise = (async () => {
       const configServiceRestUrl = await getConfigServiceRestUrlFromManifest();
-      const manager = createConfigManager({ configServiceRestUrl });
+      let seedConfigUrl: string | undefined;
+      try {
+        const bootstrap = typeof globalThis !== 'undefined' && (globalThis as { fin?: unknown }).fin
+          ? await resolvePlatformBootstrapFromManifest()
+          : await resolvePlatformBootstrapFromJson('/app-config.json');
+        seedConfigUrl = bootstrap.seedConfigUrl;
+      } catch {
+        seedConfigUrl = undefined;
+      }
+      const deployment = await resolveDeploymentIdentity();
+      const manager = createConfigManager({
+        appId: deployment.appId,
+        identity: { userId: deployment.userId, displayName: deployment.userId },
+        configServiceRestUrl,
+        seedConfigUrl,
+      });
       await manager.init();
+      const scope = await resolveDefaultPlatformScope(manager, deployment);
+      setPlatformDefaultScope(scope);
       configManagerInstance = manager;
       initPromise = undefined;
       return manager;
@@ -523,4 +546,56 @@ export async function migrateRegistryToGlobalScope(): Promise<{ migrated: number
   }
 
   return { migrated: candidates.length };
+}
+
+/**
+ * One-shot migration: relocate component-registry rows stamped under a
+ * stale `appId` (e.g. `TestApp` from the pre-manifest platform scope)
+ * to `currentPlatformScope.appId` at the global registry location.
+ */
+export async function migrateRegistryAppIdDrift(): Promise<{ migrated: number }> {
+  const manager = await getConfigManager();
+  const targetAppId = currentPlatformScope.appId;
+  const globalScope: Required<ConfigScope> = { appId: targetAppId, userId: GLOBAL_USER_ID };
+  const targetConfigId = scopedConfigId(REGISTRY_CONFIG_BASE_ID, globalScope);
+
+  const all = await manager.getAllConfigsUnfiltered();
+  const registryRows = all.filter((r) =>
+    r.componentType === COMPONENT_TYPES.COMPONENT_REGISTRY
+    || r.componentType === LEGACY_REGISTRY_COMPONENT_TYPE,
+  );
+
+  const stale = registryRows.filter(
+    (r) => r.configId !== targetConfigId || r.appId !== targetAppId,
+  );
+  if (stale.length === 0) return { migrated: 0 };
+
+  const existingTarget = await manager.getConfig(targetConfigId);
+  if (!existingTarget || existingTarget.appId !== targetAppId) {
+    stale.sort((a, b) => (b.updatedTime ?? '').localeCompare(a.updatedTime ?? ''));
+    const source = stale[0];
+    const now = new Date().toISOString();
+    await manager.saveConfig({
+      ...source,
+      configId: targetConfigId,
+      appId: globalScope.appId,
+      userId: globalScope.userId,
+      componentType: COMPONENT_TYPES.COMPONENT_REGISTRY,
+      updatedBy: globalScope.userId,
+      updatedTime: now,
+    });
+  }
+
+  let deleted = 0;
+  for (const row of stale) {
+    if (row.configId === targetConfigId) continue;
+    try {
+      await manager.deleteConfig(row.configId);
+      deleted += 1;
+    } catch (err) {
+      console.warn(`[migrateRegistryAppIdDrift] failed to delete '${row.configId}':`, err);
+    }
+  }
+
+  return { migrated: deleted + (existingTarget?.appId === targetAppId ? 0 : 1) };
 }

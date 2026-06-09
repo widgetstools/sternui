@@ -64,6 +64,7 @@ function mockProviderRow(id: string, testKey = 'default'): AppConfigRow {
 function mockConfigManager(rows: AppConfigRow[]) {
   const map = new Map(rows.map((r) => [r.configId, r]));
   return {
+    getAppId() { return 'TestApp'; },
     async getAllConfigsUnfiltered() { return [...map.values()]; },
     async getConfigsByComponentTypesUnfiltered(types: string[]) { return [...map.values()].filter((r) => types.includes(r.componentType)); },
     async getConfig(id: string) { return map.get(id); },

@@ -508,9 +508,9 @@ export interface SeedData {
   /**
    * Component configs to seed — data providers, component registry, dock,
    * workspaces, MarketsGrid profile-sets, etc. Optional; minimal bootstrap
-   * seeds omit it. Rows are written verbatim (their `(appId, userId)` is
-   * preserved), so the seed must be authored for the target deployment's
-   * identities — which a same-deployment "Export ALL" already satisfies.
+   * seeds omit it. `seedIfEmpty()` runs `normalizeSeedData()` first so
+   * mismatched `appId` values are re-stamped to match `appRegistry[0].appId`
+   * before write. Other fields are preserved as authored.
    */
   appConfig?: AppConfigRow[];
 }

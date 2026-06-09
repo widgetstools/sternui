@@ -1,18 +1,18 @@
 {
   "appConfig": [
     {
-      "configId": "WS_bf0e92bf-4530-4f8d-868c-87fa33e5e54c",
-      "appId": "TestApp",
-      "userId": "dev1",
+      "configId": "WS_c684a711-60b5-411a-935c-47507035dca5",
+      "appId": "StarDemo",
+      "userId": "k151344",
       "componentType": "workspace",
       "componentSubType": "SNAPSHOT",
       "isTemplate": false,
-      "displayText": "My Workspace",
+      "displayText": "MyWksp1",
       "payload": {
-        "name": "My Workspace",
+        "name": "MyWksp1",
         "openfinSnapshot": {
           "snapshotDetails": {
-            "timestamp": "2026-06-08T21:16:14.713Z",
+            "timestamp": "2026-06-09T00:41:21.888Z",
             "runtimeVersion": "43.142.101.2",
             "monitorInfo": {
               "deviceScaleFactor": 2,
@@ -195,9 +195,9 @@
               "closeOnLastViewRemoved": false,
               "viewsPreventingClose": "all",
               "defaultHeight": 801,
-              "defaultLeft": 229,
-              "defaultTop": 176,
-              "defaultWidth": 800,
+              "defaultLeft": 77,
+              "defaultTop": 156,
+              "defaultWidth": 1089,
               "disableAppRegion": false,
               "disableUniqueLogIdentifier": false,
               "draggable": false,
@@ -337,12 +337,12 @@
               },
               "autoplayPolicy": "no-user-gesture-required",
               "roundedCorners": false,
-              "title": "My Views",
+              "title": "My Wksp",
               "height": 801,
-              "width": 800,
+              "width": 1089,
               "center": false,
-              "x": 229,
-              "y": 176,
+              "x": 77,
+              "y": 156,
               "permissions": {
                 "System": {
                   "openUrlWithBrowser": {
@@ -373,15 +373,15 @@
                   "constrainDragToHeaders": false,
                   "preventDragOut": false,
                   "preventDragIn": false,
-                  "pageId": "89f8a930-2054-462c-869f-60067a876eb6",
+                  "pageId": "07e5f206-9ce9-4543-b9c2-dacf908a828d",
                   "disableTabOverflowDropdown": true
                 },
                 "dimensions": {
-                  "borderWidth": 3,
+                  "borderWidth": 5,
                   "borderGrabWidth": 15,
                   "minItemHeight": 0,
                   "minItemWidth": 0,
-                  "headerHeight": 30,
+                  "headerHeight": 29,
                   "dragProxyWidth": 300,
                   "dragProxyHeight": 200
                 },
@@ -510,17 +510,17 @@
                             }
                           ],
                           "customData": {
-                            "instanceId": "dev1grid-pnl-1780953257368",
-                            "templateId": "grid-pnl",
+                            "instanceId": "dev1grid-test-1780965483367",
+                            "templateId": "grid-test",
                             "componentType": "grid",
-                            "componentSubType": "pnl",
-                            "appId": "TestApp",
+                            "componentSubType": "test",
+                            "appId": "StarDemo",
                             "configServiceUrl": "",
                             "singleton": false,
                             "activeProfileId": "default-copy",
-                            "savedTitle": "PNL"
+                            "savedTitle": "TestGrid"
                           },
-                          "name": "internal-generated-view-061da415-a79f-428d-ad3f-30d2a329656f",
+                          "name": "internal-generated-view-14ffa254-7b14-4128-bf2a-03cbf4a03ffe",
                           "preloadScripts": [],
                           "enableBeforeUnload": false,
                           "backgroundThrottling": true,
@@ -529,7 +529,7 @@
                             "height": false
                           },
                           "_internalWorkspaceData": {
-                            "viewIdentifier": "80690c8b-aad5-408b-9555-b36824c1cd3b"
+                            "viewIdentifier": "77645c08-977e-4fcc-843c-59f5587dd258"
                           },
                           "componentName": "view",
                           "uuid": "star-demo",
@@ -538,7 +538,7 @@
                         },
                         "isClosable": true,
                         "reorderEnabled": true,
-                        "title": "PNL"
+                        "title": "TestGrid"
                       }
                     ]
                   }
@@ -551,7 +551,7 @@
               },
               "layoutSnapshot": {
                 "layouts": {
-                  "692c9d4d-6b16-4a07-9c81-12d6d012b800": {
+                  "4a8081cf-bf2e-46ad-a160-a9765078ac22": {
                     "settings": {
                       "hasHeaders": true,
                       "constrainDragToContainer": true,
@@ -570,15 +570,15 @@
                       "constrainDragToHeaders": false,
                       "preventDragOut": false,
                       "preventDragIn": false,
-                      "pageId": "89f8a930-2054-462c-869f-60067a876eb6",
+                      "pageId": "07e5f206-9ce9-4543-b9c2-dacf908a828d",
                       "disableTabOverflowDropdown": true
                     },
                     "dimensions": {
-                      "borderWidth": 3,
+                      "borderWidth": 5,
                       "borderGrabWidth": 15,
                       "minItemHeight": 0,
                       "minItemWidth": 0,
-                      "headerHeight": 30,
+                      "headerHeight": 29,
                       "dragProxyWidth": 300,
                       "dragProxyHeight": 200
                     },
@@ -707,17 +707,17 @@
                                 }
                               ],
                               "customData": {
-                                "instanceId": "dev1grid-pnl-1780953257368",
-                                "templateId": "grid-pnl",
+                                "instanceId": "dev1grid-test-1780965483367",
+                                "templateId": "grid-test",
                                 "componentType": "grid",
-                                "componentSubType": "pnl",
-                                "appId": "TestApp",
+                                "componentSubType": "test",
+                                "appId": "StarDemo",
                                 "configServiceUrl": "",
                                 "singleton": false,
                                 "activeProfileId": "default-copy",
-                                "savedTitle": "PNL"
+                                "savedTitle": "TestGrid"
                               },
-                              "name": "internal-generated-view-061da415-a79f-428d-ad3f-30d2a329656f",
+                              "name": "internal-generated-view-14ffa254-7b14-4128-bf2a-03cbf4a03ffe",
                               "preloadScripts": [],
                               "enableBeforeUnload": false,
                               "backgroundThrottling": true,
@@ -726,7 +726,7 @@
                                 "height": false
                               },
                               "_internalWorkspaceData": {
-                                "viewIdentifier": "80690c8b-aad5-408b-9555-b36824c1cd3b"
+                                "viewIdentifier": "77645c08-977e-4fcc-843c-59f5587dd258"
                               },
                               "componentName": "view",
                               "uuid": "star-demo",
@@ -735,7 +735,7 @@
                             },
                             "isClosable": true,
                             "reorderEnabled": true,
-                            "title": "PNL"
+                            "title": "TestGrid"
                           }
                         ]
                       }
@@ -756,8 +756,8 @@
               "workspacePlatform": {
                 "pages": [
                   {
-                    "pageId": "81973353-b915-4146-983e-f614a8f41db4",
-                    "title": "My Views",
+                    "pageId": "41dbd84d-98ca-4a04-a6e5-723d9b0ddf53",
+                    "title": "My Wksp",
                     "layout": {
                       "settings": {
                         "hasHeaders": true,
@@ -777,15 +777,15 @@
                         "constrainDragToHeaders": false,
                         "preventDragOut": false,
                         "preventDragIn": false,
-                        "pageId": "89f8a930-2054-462c-869f-60067a876eb6",
+                        "pageId": "07e5f206-9ce9-4543-b9c2-dacf908a828d",
                         "disableTabOverflowDropdown": true
                       },
                       "dimensions": {
-                        "borderWidth": 3,
+                        "borderWidth": 5,
                         "borderGrabWidth": 15,
                         "minItemHeight": 0,
                         "minItemWidth": 0,
-                        "headerHeight": 30,
+                        "headerHeight": 29,
                         "dragProxyWidth": 300,
                         "dragProxyHeight": 200
                       },
@@ -914,17 +914,17 @@
                                   }
                                 ],
                                 "customData": {
-                                  "instanceId": "dev1grid-pnl-1780953257368",
-                                  "templateId": "grid-pnl",
+                                  "instanceId": "dev1grid-test-1780965483367",
+                                  "templateId": "grid-test",
                                   "componentType": "grid",
-                                  "componentSubType": "pnl",
-                                  "appId": "TestApp",
+                                  "componentSubType": "test",
+                                  "appId": "StarDemo",
                                   "configServiceUrl": "",
                                   "singleton": false,
                                   "activeProfileId": "default-copy",
-                                  "savedTitle": "PNL"
+                                  "savedTitle": "TestGrid"
                                 },
-                                "name": "internal-generated-view-061da415-a79f-428d-ad3f-30d2a329656f",
+                                "name": "internal-generated-view-14ffa254-7b14-4128-bf2a-03cbf4a03ffe",
                                 "preloadScripts": [],
                                 "enableBeforeUnload": false,
                                 "backgroundThrottling": true,
@@ -933,7 +933,7 @@
                                   "height": false
                                 },
                                 "_internalWorkspaceData": {
-                                  "viewIdentifier": "80690c8b-aad5-408b-9555-b36824c1cd3b"
+                                  "viewIdentifier": "77645c08-977e-4fcc-843c-59f5587dd258"
                                 },
                                 "componentName": "view",
                                 "uuid": "star-demo",
@@ -942,7 +942,7 @@
                               },
                               "isClosable": true,
                               "reorderEnabled": true,
-                              "title": "PNL"
+                              "title": "TestGrid"
                             }
                           ]
                         }
@@ -955,11 +955,11 @@
                     },
                     "isReadOnly": false,
                     "isActive": true,
-                    "layoutContainerKey": "692c9d4d-6b16-4a07-9c81-12d6d012b800",
+                    "layoutContainerKey": "4a8081cf-bf2e-46ad-a160-a9765078ac22",
                     "isLayoutCreated": true,
-                    "singleViewName": "internal-generated-view-061da415-a79f-428d-ad3f-30d2a329656f",
-                    "layoutName": "692c9d4d-6b16-4a07-9c81-12d6d012b800",
+                    "singleViewName": "internal-generated-view-14ffa254-7b14-4128-bf2a-03cbf4a03ffe",
                     "hasUnsavedChanges": false,
+                    "layoutName": "4a8081cf-bf2e-46ad-a160-a9765078ac22",
                     "panels": []
                   }
                 ],
@@ -1082,15 +1082,15 @@
         },
         "version": 1
       },
-      "createdBy": "dev1",
-      "updatedBy": "dev-user",
-      "creationTime": "2026-06-08T21:16:02.446Z",
-      "updatedTime": "2026-06-08T21:16:15.276Z"
+      "createdBy": "k151344",
+      "updatedBy": "k151344",
+      "creationTime": "2026-06-09T00:39:21.958Z",
+      "updatedTime": "2026-06-09T01:17:55.208Z"
     },
     {
-      "configId": "component-registry::TestApp::system",
-      "appId": "TestApp",
-      "userId": "dev1",
+      "configId": "component-registry::StarDemo::system",
+      "appId": "StarDemo",
+      "userId": "system",
       "displayText": "Component Registry",
       "componentType": "component-registry",
       "componentSubType": "",
@@ -1099,255 +1099,3978 @@
         "version": 2,
         "entries": [
           {
-            "id": "grid-pnl",
+            "id": "grid-test",
             "hostUrl": "/blotters/marketsgrid",
             "iconId": "",
             "componentType": "grid",
-            "componentSubType": "pnl",
-            "configId": "grid-pnl",
-            "displayName": "Pnl",
-            "createdAt": "2026-06-08T06:17:27.112Z",
+            "componentSubType": "test",
+            "configId": "grid-test",
+            "displayName": "TestGrid",
+            "createdAt": "2026-06-09T00:31:17.689Z",
             "type": "internal",
             "usesHostConfig": true,
-            "appId": "TestApp",
+            "appId": "StarDemo",
             "configServiceUrl": "",
             "singleton": false
           }
         ]
       },
       "createdBy": "system",
-      "updatedBy": "dev-user",
-      "creationTime": "2026-06-08T06:18:24.154Z",
-      "updatedTime": "2026-06-08T06:22:29.863Z"
+      "updatedBy": "k151344",
+      "creationTime": "2026-06-09T00:32:21.674Z",
+      "updatedTime": "2026-06-09T01:17:55.227Z"
     },
     {
-      "configId": "dev1grid-pnl-1780899516244",
-      "appId": "TestApp",
-      "userId": "dev1",
+      "configId": "dev1grid-test-1780965280487",
+      "appId": "StarDemo",
+      "userId": "k151344",
       "isPublic": true,
-      "displayText": "MarketsGrid profiles: dev1grid-pnl-1780899516244",
+      "displayText": "MarketsGrid profiles: grid-test: dev1grid",
       "componentType": "grid",
-      "componentSubType": "pnl",
+      "componentSubType": "test",
       "isTemplate": false,
       "singleton": false,
       "payload": {
-        "version": 1,
+        "version": 3,
         "profiles": [
           {
             "id": "__default__",
             "gridId": "star-demo-blotter",
             "name": "Default",
-            "state": {},
-            "createdAt": 1780899519673,
-            "updatedAt": 1780899519673
+            "state": {
+              "general-settings": {
+                "v": 4,
+                "data": {
+                  "rowHeight": 30,
+                  "headerHeight": 32,
+                  "pagination": false,
+                  "paginationPageSize": 100,
+                  "paginationAutoPageSize": false,
+                  "suppressPaginationPanel": false,
+                  "checkboxSelection": false,
+                  "cellSelection": true,
+                  "rowDragging": false,
+                  "animateRows": true,
+                  "cellFlashDuration": 500,
+                  "cellFadeDuration": 1000,
+                  "cellChangeFlashColor": "amber",
+                  "quickFilterText": "",
+                  "groupDefaultExpanded": 0,
+                  "rowGroupPanelShow": "never",
+                  "pivotMode": false,
+                  "pivotPanelShow": "never",
+                  "groupHideOpenParents": false,
+                  "suppressAggFuncInHeader": false,
+                  "showOpenedGroup": false,
+                  "groupHideColumnsUntilExpanded": false,
+                  "groupHideParentOfSingleChild": false,
+                  "groupAllowUnbalanced": false,
+                  "groupMaintainOrder": false,
+                  "suppressGroupRowsSticky": false,
+                  "rowGroupPanelSuppressSort": false,
+                  "groupLockGroupColumns": 0,
+                  "suppressGroupChangesColumnVisibility": false,
+                  "ssrmExpandAllAffectsAllRows": false,
+                  "refreshAfterGroupEdit": false,
+                  "enableAdvancedFilter": false,
+                  "includeHiddenColumnsInQuickFilter": false,
+                  "multiSortMode": "shift",
+                  "accentedSort": false,
+                  "copyHeadersToClipboard": false,
+                  "clipboardDelimiter": "\t",
+                  "singleClickEdit": false,
+                  "stopEditingWhenCellsLoseFocus": false,
+                  "enterNavigation": "default",
+                  "undoRedoCellEditing": false,
+                  "undoRedoCellEditingLimit": 10,
+                  "tooltipShowDelay": 2000,
+                  "tooltipShowMode": "standard",
+                  "suppressRowHoverHighlight": false,
+                  "columnHoverHighlight": false,
+                  "headerCaseUppercase": false,
+                  "showCellTooltips": false,
+                  "defaultResizable": true,
+                  "defaultMinWidth": 80,
+                  "suppressSizeToFit": false,
+                  "suppressAutoSize": false,
+                  "defaultSortable": true,
+                  "defaultFilterable": true,
+                  "unSortIcon": false,
+                  "floatingFilter": false,
+                  "defaultEditable": false,
+                  "suppressPaste": false,
+                  "suppressNavigable": false,
+                  "wrapHeaderText": false,
+                  "autoHeaderHeight": false,
+                  "suppressHeaderMenuButton": false,
+                  "suppressMovable": false,
+                  "lockPosition": false,
+                  "lockVisible": false,
+                  "lockPinned": false,
+                  "wrapText": false,
+                  "autoHeight": false,
+                  "enableCellChangeFlash": false,
+                  "enableRowGroup": false,
+                  "enablePivot": false,
+                  "enableValue": false,
+                  "enableCellTextSelection": false,
+                  "suppressDragLeaveHidesColumns": true,
+                  "suppressColumnMoveAnimation": false,
+                  "sideBar": false,
+                  "sideBarShowColumns": true,
+                  "sideBarShowFilters": true,
+                  "statusBar": false,
+                  "statusBarShowTotalAndFilteredCount": true,
+                  "statusBarShowFilteredCount": false,
+                  "statusBarShowTotalCount": false,
+                  "statusBarShowSelectedCount": true,
+                  "statusBarShowAggregation": false,
+                  "rowBuffer": 10,
+                  "suppressScrollOnNewData": false,
+                  "suppressColumnVirtualisation": false,
+                  "suppressRowVirtualisation": false,
+                  "suppressMaxRenderedRowRestriction": false,
+                  "suppressAnimationFrame": false,
+                  "debounceVerticalScrollbar": false
+                }
+              },
+              "column-templates": {
+                "v": 1,
+                "data": {
+                  "templates": {},
+                  "typeDefaults": {}
+                }
+              },
+              "column-customization": {
+                "v": 10,
+                "data": {
+                  "assignments": {
+                    "trader": {
+                      "colId": "trader",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#eab308"
+                          }
+                        }
+                      }
+                    },
+                    "desk": {
+                      "colId": "desk",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#eab308"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "calculated-columns": {
+                "v": 1,
+                "data": {
+                  "virtualColumns": []
+                }
+              },
+              "column-groups": {
+                "v": 1,
+                "data": {
+                  "groups": [],
+                  "openGroupIds": {}
+                }
+              },
+              "conditional-styling": {
+                "v": 1,
+                "data": {
+                  "rules": []
+                }
+              },
+              "visual-excel": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "fileNamePrefix": "markets-grid"
+                  }
+                }
+              },
+              "smart-edit": {
+                "v": 2,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "incrementStep": 1,
+                    "magnitudeShortcutsEnabled": true,
+                    "enabledOps": [
+                      "multiply",
+                      "divide",
+                      "add",
+                      "subtract",
+                      "set"
+                    ],
+                    "confirmThreshold": 50,
+                    "enforceSingleColumn": true,
+                    "previewBeforeApply": false,
+                    "recordHistory": true
+                  }
+                }
+              },
+              "bulk-update": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "confirmThreshold": 50,
+                    "showDistinctValues": true,
+                    "maxDropdownValues": 20,
+                    "enforceSingleColumn": true,
+                    "recordHistory": true
+                  }
+                }
+              },
+              "plus-minus": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "recordHistory": true
+                  },
+                  "nudges": []
+                }
+              },
+              "shortcuts": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "recordHistory": true
+                  },
+                  "shortcuts": []
+                }
+              },
+              "data-change-history": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "maxEntries": 50,
+                    "suspended": false,
+                    "unifyUndo": true,
+                    "recordSources": {
+                      "smartEdit": true,
+                      "bulkUpdate": true,
+                      "plusMinus": true,
+                      "shortcuts": true,
+                      "cellEditor": true,
+                      "stream": false
+                    }
+                  }
+                }
+              },
+              "alerts": {
+                "v": 1,
+                "data": {
+                  "rules": [],
+                  "settings": {
+                    "enabled": true,
+                    "defaultDebounceMs": 1000,
+                    "maxNotificationsPerSecond": 5,
+                    "historyLimit": 500,
+                    "enabledChannels": {
+                      "toast": true,
+                      "badge": true,
+                      "openfin": true
+                    },
+                    "evaluationMode": "realtime"
+                  },
+                  "history": []
+                }
+              },
+              "grid-state": {
+                "v": 3,
+                "data": {
+                  "schemaVersion": 3,
+                  "savedAt": "2026-06-09T00:34:17.226Z",
+                  "gridState": {
+                    "version": "35.1.0",
+                    "cellSelection": {
+                      "cellRanges": [
+                        {
+                          "startRow": {
+                            "rowIndex": 5,
+                            "rowPinned": null
+                          },
+                          "endRow": {
+                            "rowIndex": 5,
+                            "rowPinned": null
+                          },
+                          "colIds": [
+                            "desk"
+                          ],
+                          "startColId": "desk"
+                        }
+                      ]
+                    },
+                    "sideBar": {
+                      "visible": false,
+                      "openToolPanel": null,
+                      "toolPanels": {}
+                    },
+                    "columnSizing": {
+                      "columnSizingModel": [
+                        {
+                          "colId": "positionId",
+                          "width": 80
+                        },
+                        {
+                          "colId": "cusip",
+                          "width": 80
+                        },
+                        {
+                          "colId": "ticker",
+                          "width": 80
+                        },
+                        {
+                          "colId": "asOfDate",
+                          "width": 80
+                        },
+                        {
+                          "colId": "trader",
+                          "width": 131.5
+                        },
+                        {
+                          "colId": "desk",
+                          "width": 132.5
+                        },
+                        {
+                          "colId": "notionalAmount",
+                          "width": 80
+                        },
+                        {
+                          "colId": "currentPrice",
+                          "width": 80
+                        },
+                        {
+                          "colId": "pnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "unrealizedPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "realizedPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "dailyPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "mtdPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "ytdPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "dv01",
+                          "width": 80
+                        },
+                        {
+                          "colId": "pv01",
+                          "width": 80
+                        }
+                      ]
+                    },
+                    "columnOrder": {
+                      "orderedColIds": [
+                        "positionId",
+                        "cusip",
+                        "ticker",
+                        "asOfDate",
+                        "trader",
+                        "desk",
+                        "notionalAmount",
+                        "currentPrice",
+                        "pnl",
+                        "unrealizedPnl",
+                        "realizedPnl",
+                        "dailyPnl",
+                        "mtdPnl",
+                        "ytdPnl",
+                        "dv01",
+                        "pv01"
+                      ]
+                    },
+                    "filter": {
+                      "selectableFilters": {}
+                    },
+                    "rowGroupExpansion": {
+                      "expandedRowGroupIds": [],
+                      "collapsedRowGroupIds": []
+                    },
+                    "pagination": {
+                      "page": 0,
+                      "pageSize": 100
+                    },
+                    "focusedCell": {
+                      "colId": "desk",
+                      "rowIndex": 5,
+                      "rowPinned": null
+                    },
+                    "rangeSelection": {
+                      "cellRanges": [
+                        {
+                          "startRow": {
+                            "rowIndex": 5,
+                            "rowPinned": null
+                          },
+                          "endRow": {
+                            "rowIndex": 5,
+                            "rowPinned": null
+                          },
+                          "colIds": [
+                            "desk"
+                          ],
+                          "startColId": "desk"
+                        }
+                      ]
+                    }
+                  },
+                  "viewportAnchor": {
+                    "firstRowIndex": 0,
+                    "leftColId": "positionId",
+                    "horizontalPixel": 0
+                  }
+                }
+              },
+              "toolbar-visibility": {
+                "v": 1,
+                "data": {
+                  "visible": {}
+                }
+              },
+              "saved-filters": {
+                "v": 2,
+                "data": {
+                  "filters": []
+                }
+              },
+              "toolbar-date-settings": {
+                "v": 1,
+                "data": {
+                  "historicalDateAppDataEnabled": false,
+                  "historicalDateAppDataProvider": "",
+                  "historicalDateAppDataKey": "",
+                  "rowExclusionExpression": ""
+                }
+              }
+            },
+            "createdAt": 1780965255221,
+            "updatedAt": 1780965257349
           }
-        ]
+        ],
+        "gridLevelData": {
+          "v": 1,
+          "provider": {
+            "liveProviderId": "dp-121e4569-5100-4f6b-b946-c3423d8aff7c",
+            "historicalProviderId": null,
+            "mode": "live"
+          }
+        }
       },
-      "createdBy": "dev1",
-      "updatedBy": "dev-user",
-      "creationTime": "2026-06-08T06:18:39.695Z",
-      "updatedTime": "2026-06-08T06:22:29.877Z"
+      "createdBy": "k151344",
+      "updatedBy": "k151344",
+      "creationTime": "2026-06-09T00:34:40.489Z",
+      "updatedTime": "2026-06-09T01:17:55.231Z"
     },
     {
-      "configId": "dev1grid-pnl-1780899781015",
-      "appId": "TestApp",
-      "userId": "dev1",
+      "configId": "dev1grid-test-1780965316757",
+      "appId": "StarDemo",
+      "userId": "k151344",
       "isPublic": true,
-      "displayText": "MarketsGrid profiles: dev1grid-pnl-1780899781015",
+      "displayText": "MarketsGrid profiles: grid-test: dev1grid",
       "componentType": "grid",
-      "componentSubType": "pnl",
+      "componentSubType": "test",
       "isTemplate": false,
       "singleton": false,
       "payload": {
-        "version": 1,
+        "version": 3,
         "profiles": [
           {
             "id": "__default__",
             "gridId": "star-demo-blotter",
             "name": "Default",
-            "state": {},
-            "createdAt": 1780899784571,
-            "updatedAt": 1780899784571
+            "state": {
+              "general-settings": {
+                "v": 4,
+                "data": {
+                  "rowHeight": 30,
+                  "headerHeight": 32,
+                  "pagination": false,
+                  "paginationPageSize": 100,
+                  "paginationAutoPageSize": false,
+                  "suppressPaginationPanel": false,
+                  "checkboxSelection": false,
+                  "cellSelection": true,
+                  "rowDragging": false,
+                  "animateRows": true,
+                  "cellFlashDuration": 500,
+                  "cellFadeDuration": 1000,
+                  "cellChangeFlashColor": "amber",
+                  "quickFilterText": "",
+                  "groupDefaultExpanded": 0,
+                  "rowGroupPanelShow": "never",
+                  "pivotMode": false,
+                  "pivotPanelShow": "never",
+                  "groupHideOpenParents": false,
+                  "suppressAggFuncInHeader": false,
+                  "showOpenedGroup": false,
+                  "groupHideColumnsUntilExpanded": false,
+                  "groupHideParentOfSingleChild": false,
+                  "groupAllowUnbalanced": false,
+                  "groupMaintainOrder": false,
+                  "suppressGroupRowsSticky": false,
+                  "rowGroupPanelSuppressSort": false,
+                  "groupLockGroupColumns": 0,
+                  "suppressGroupChangesColumnVisibility": false,
+                  "ssrmExpandAllAffectsAllRows": false,
+                  "refreshAfterGroupEdit": false,
+                  "enableAdvancedFilter": false,
+                  "includeHiddenColumnsInQuickFilter": false,
+                  "multiSortMode": "shift",
+                  "accentedSort": false,
+                  "copyHeadersToClipboard": false,
+                  "clipboardDelimiter": "\t",
+                  "singleClickEdit": false,
+                  "stopEditingWhenCellsLoseFocus": false,
+                  "enterNavigation": "default",
+                  "undoRedoCellEditing": false,
+                  "undoRedoCellEditingLimit": 10,
+                  "tooltipShowDelay": 2000,
+                  "tooltipShowMode": "standard",
+                  "suppressRowHoverHighlight": false,
+                  "columnHoverHighlight": false,
+                  "headerCaseUppercase": false,
+                  "showCellTooltips": false,
+                  "defaultResizable": true,
+                  "defaultMinWidth": 80,
+                  "suppressSizeToFit": false,
+                  "suppressAutoSize": false,
+                  "defaultSortable": true,
+                  "defaultFilterable": true,
+                  "unSortIcon": false,
+                  "floatingFilter": false,
+                  "defaultEditable": false,
+                  "suppressPaste": false,
+                  "suppressNavigable": false,
+                  "wrapHeaderText": false,
+                  "autoHeaderHeight": false,
+                  "suppressHeaderMenuButton": false,
+                  "suppressMovable": false,
+                  "lockPosition": false,
+                  "lockVisible": false,
+                  "lockPinned": false,
+                  "wrapText": false,
+                  "autoHeight": false,
+                  "enableCellChangeFlash": false,
+                  "enableRowGroup": false,
+                  "enablePivot": false,
+                  "enableValue": false,
+                  "enableCellTextSelection": false,
+                  "suppressDragLeaveHidesColumns": true,
+                  "suppressColumnMoveAnimation": false,
+                  "sideBar": false,
+                  "sideBarShowColumns": true,
+                  "sideBarShowFilters": true,
+                  "statusBar": false,
+                  "statusBarShowTotalAndFilteredCount": true,
+                  "statusBarShowFilteredCount": false,
+                  "statusBarShowTotalCount": false,
+                  "statusBarShowSelectedCount": true,
+                  "statusBarShowAggregation": false,
+                  "rowBuffer": 10,
+                  "suppressScrollOnNewData": false,
+                  "suppressColumnVirtualisation": false,
+                  "suppressRowVirtualisation": false,
+                  "suppressMaxRenderedRowRestriction": false,
+                  "suppressAnimationFrame": false,
+                  "debounceVerticalScrollbar": false
+                }
+              },
+              "column-templates": {
+                "v": 1,
+                "data": {
+                  "templates": {},
+                  "typeDefaults": {}
+                }
+              },
+              "column-customization": {
+                "v": 10,
+                "data": {
+                  "assignments": {
+                    "trader": {
+                      "colId": "trader",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#eab308"
+                          }
+                        }
+                      }
+                    },
+                    "desk": {
+                      "colId": "desk",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#eab308"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "calculated-columns": {
+                "v": 1,
+                "data": {
+                  "virtualColumns": []
+                }
+              },
+              "column-groups": {
+                "v": 1,
+                "data": {
+                  "groups": [],
+                  "openGroupIds": {}
+                }
+              },
+              "conditional-styling": {
+                "v": 1,
+                "data": {
+                  "rules": []
+                }
+              },
+              "visual-excel": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "fileNamePrefix": "markets-grid"
+                  }
+                }
+              },
+              "smart-edit": {
+                "v": 2,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "incrementStep": 1,
+                    "magnitudeShortcutsEnabled": true,
+                    "enabledOps": [
+                      "multiply",
+                      "divide",
+                      "add",
+                      "subtract",
+                      "set"
+                    ],
+                    "confirmThreshold": 50,
+                    "enforceSingleColumn": true,
+                    "previewBeforeApply": false,
+                    "recordHistory": true
+                  }
+                }
+              },
+              "bulk-update": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "confirmThreshold": 50,
+                    "showDistinctValues": true,
+                    "maxDropdownValues": 20,
+                    "enforceSingleColumn": true,
+                    "recordHistory": true
+                  }
+                }
+              },
+              "plus-minus": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "recordHistory": true
+                  },
+                  "nudges": []
+                }
+              },
+              "shortcuts": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "recordHistory": true
+                  },
+                  "shortcuts": []
+                }
+              },
+              "data-change-history": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "maxEntries": 50,
+                    "suspended": false,
+                    "unifyUndo": true,
+                    "recordSources": {
+                      "smartEdit": true,
+                      "bulkUpdate": true,
+                      "plusMinus": true,
+                      "shortcuts": true,
+                      "cellEditor": true,
+                      "stream": false
+                    }
+                  }
+                }
+              },
+              "alerts": {
+                "v": 1,
+                "data": {
+                  "rules": [],
+                  "settings": {
+                    "enabled": true,
+                    "defaultDebounceMs": 1000,
+                    "maxNotificationsPerSecond": 5,
+                    "historyLimit": 500,
+                    "enabledChannels": {
+                      "toast": true,
+                      "badge": true,
+                      "openfin": true
+                    },
+                    "evaluationMode": "realtime"
+                  },
+                  "history": []
+                }
+              },
+              "grid-state": {
+                "v": 3,
+                "data": {
+                  "schemaVersion": 3,
+                  "savedAt": "2026-06-09T00:34:17.226Z",
+                  "gridState": {
+                    "version": "35.1.0",
+                    "cellSelection": {
+                      "cellRanges": [
+                        {
+                          "startRow": {
+                            "rowIndex": 5,
+                            "rowPinned": null
+                          },
+                          "endRow": {
+                            "rowIndex": 5,
+                            "rowPinned": null
+                          },
+                          "colIds": [
+                            "desk"
+                          ],
+                          "startColId": "desk"
+                        }
+                      ]
+                    },
+                    "sideBar": {
+                      "visible": false,
+                      "openToolPanel": null,
+                      "toolPanels": {}
+                    },
+                    "columnSizing": {
+                      "columnSizingModel": [
+                        {
+                          "colId": "positionId",
+                          "width": 80
+                        },
+                        {
+                          "colId": "cusip",
+                          "width": 80
+                        },
+                        {
+                          "colId": "ticker",
+                          "width": 80
+                        },
+                        {
+                          "colId": "asOfDate",
+                          "width": 80
+                        },
+                        {
+                          "colId": "trader",
+                          "width": 131.5
+                        },
+                        {
+                          "colId": "desk",
+                          "width": 132.5
+                        },
+                        {
+                          "colId": "notionalAmount",
+                          "width": 80
+                        },
+                        {
+                          "colId": "currentPrice",
+                          "width": 80
+                        },
+                        {
+                          "colId": "pnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "unrealizedPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "realizedPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "dailyPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "mtdPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "ytdPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "dv01",
+                          "width": 80
+                        },
+                        {
+                          "colId": "pv01",
+                          "width": 80
+                        }
+                      ]
+                    },
+                    "columnOrder": {
+                      "orderedColIds": [
+                        "positionId",
+                        "cusip",
+                        "ticker",
+                        "asOfDate",
+                        "trader",
+                        "desk",
+                        "notionalAmount",
+                        "currentPrice",
+                        "pnl",
+                        "unrealizedPnl",
+                        "realizedPnl",
+                        "dailyPnl",
+                        "mtdPnl",
+                        "ytdPnl",
+                        "dv01",
+                        "pv01"
+                      ]
+                    },
+                    "filter": {
+                      "selectableFilters": {}
+                    },
+                    "rowGroupExpansion": {
+                      "expandedRowGroupIds": [],
+                      "collapsedRowGroupIds": []
+                    },
+                    "pagination": {
+                      "page": 0,
+                      "pageSize": 100
+                    },
+                    "focusedCell": {
+                      "colId": "desk",
+                      "rowIndex": 5,
+                      "rowPinned": null
+                    },
+                    "rangeSelection": {
+                      "cellRanges": [
+                        {
+                          "startRow": {
+                            "rowIndex": 5,
+                            "rowPinned": null
+                          },
+                          "endRow": {
+                            "rowIndex": 5,
+                            "rowPinned": null
+                          },
+                          "colIds": [
+                            "desk"
+                          ],
+                          "startColId": "desk"
+                        }
+                      ]
+                    }
+                  },
+                  "viewportAnchor": {
+                    "firstRowIndex": 0,
+                    "leftColId": "positionId",
+                    "horizontalPixel": 0
+                  }
+                }
+              },
+              "toolbar-visibility": {
+                "v": 1,
+                "data": {
+                  "visible": {}
+                }
+              },
+              "saved-filters": {
+                "v": 2,
+                "data": {
+                  "filters": []
+                }
+              },
+              "toolbar-date-settings": {
+                "v": 1,
+                "data": {
+                  "historicalDateAppDataEnabled": false,
+                  "historicalDateAppDataProvider": "",
+                  "historicalDateAppDataKey": "",
+                  "rowExclusionExpression": ""
+                }
+              }
+            },
+            "createdAt": 1780965255221,
+            "updatedAt": 1780965257349
           }
-        ]
+        ],
+        "gridLevelData": {
+          "v": 1,
+          "provider": {
+            "liveProviderId": "dp-121e4569-5100-4f6b-b946-c3423d8aff7c",
+            "historicalProviderId": null,
+            "mode": "live"
+          }
+        }
       },
-      "createdBy": "dev1",
-      "updatedBy": "dev-user",
-      "creationTime": "2026-06-08T06:23:04.600Z",
-      "updatedTime": "2026-06-08T12:24:52.647Z"
+      "createdBy": "k151344",
+      "updatedBy": "k151344",
+      "creationTime": "2026-06-09T00:35:16.779Z",
+      "updatedTime": "2026-06-09T01:17:55.234Z"
     },
     {
-      "configId": "dev1grid-pnl-1780921896711",
-      "appId": "TestApp",
-      "userId": "dev1",
+      "configId": "dev1grid-test-1780965483367",
+      "appId": "StarDemo",
+      "userId": "k151344",
       "isPublic": true,
-      "displayText": "MarketsGrid profiles: dev1grid-pnl-1780921896711",
+      "displayText": "MarketsGrid profiles: dev1grid-test-1780965483367",
       "componentType": "grid",
-      "componentSubType": "pnl",
+      "componentSubType": "test",
       "isTemplate": false,
       "singleton": false,
       "payload": {
-        "version": 1,
+        "version": 14,
         "profiles": [
           {
             "id": "__default__",
             "gridId": "star-demo-blotter",
             "name": "Default",
-            "state": {},
-            "createdAt": 1780921917211,
-            "updatedAt": 1780921917211
+            "state": {
+              "general-settings": {
+                "v": 4,
+                "data": {
+                  "rowHeight": 30,
+                  "headerHeight": 32,
+                  "pagination": false,
+                  "paginationPageSize": 100,
+                  "paginationAutoPageSize": false,
+                  "suppressPaginationPanel": false,
+                  "checkboxSelection": false,
+                  "cellSelection": true,
+                  "rowDragging": false,
+                  "animateRows": true,
+                  "cellFlashDuration": 500,
+                  "cellFadeDuration": 1000,
+                  "cellChangeFlashColor": "amber",
+                  "quickFilterText": "",
+                  "groupDefaultExpanded": 0,
+                  "rowGroupPanelShow": "never",
+                  "pivotMode": false,
+                  "pivotPanelShow": "never",
+                  "groupHideOpenParents": false,
+                  "suppressAggFuncInHeader": false,
+                  "showOpenedGroup": false,
+                  "groupHideColumnsUntilExpanded": false,
+                  "groupHideParentOfSingleChild": false,
+                  "groupAllowUnbalanced": false,
+                  "groupMaintainOrder": false,
+                  "suppressGroupRowsSticky": false,
+                  "rowGroupPanelSuppressSort": false,
+                  "groupLockGroupColumns": 0,
+                  "suppressGroupChangesColumnVisibility": false,
+                  "ssrmExpandAllAffectsAllRows": false,
+                  "refreshAfterGroupEdit": false,
+                  "enableAdvancedFilter": false,
+                  "includeHiddenColumnsInQuickFilter": false,
+                  "multiSortMode": "shift",
+                  "accentedSort": false,
+                  "copyHeadersToClipboard": false,
+                  "clipboardDelimiter": "\t",
+                  "singleClickEdit": false,
+                  "stopEditingWhenCellsLoseFocus": false,
+                  "enterNavigation": "default",
+                  "undoRedoCellEditing": false,
+                  "undoRedoCellEditingLimit": 10,
+                  "tooltipShowDelay": 2000,
+                  "tooltipShowMode": "standard",
+                  "suppressRowHoverHighlight": false,
+                  "columnHoverHighlight": false,
+                  "headerCaseUppercase": false,
+                  "showCellTooltips": false,
+                  "defaultResizable": true,
+                  "defaultMinWidth": 80,
+                  "suppressSizeToFit": false,
+                  "suppressAutoSize": false,
+                  "defaultSortable": true,
+                  "defaultFilterable": true,
+                  "unSortIcon": false,
+                  "floatingFilter": false,
+                  "defaultEditable": false,
+                  "suppressPaste": false,
+                  "suppressNavigable": false,
+                  "wrapHeaderText": false,
+                  "autoHeaderHeight": false,
+                  "suppressHeaderMenuButton": false,
+                  "suppressMovable": false,
+                  "lockPosition": false,
+                  "lockVisible": false,
+                  "lockPinned": false,
+                  "wrapText": false,
+                  "autoHeight": false,
+                  "enableCellChangeFlash": false,
+                  "enableRowGroup": false,
+                  "enablePivot": false,
+                  "enableValue": false,
+                  "enableCellTextSelection": false,
+                  "suppressDragLeaveHidesColumns": true,
+                  "suppressColumnMoveAnimation": false,
+                  "sideBar": false,
+                  "sideBarShowColumns": true,
+                  "sideBarShowFilters": true,
+                  "statusBar": false,
+                  "statusBarShowTotalAndFilteredCount": true,
+                  "statusBarShowFilteredCount": false,
+                  "statusBarShowTotalCount": false,
+                  "statusBarShowSelectedCount": true,
+                  "statusBarShowAggregation": false,
+                  "rowBuffer": 10,
+                  "suppressScrollOnNewData": false,
+                  "suppressColumnVirtualisation": false,
+                  "suppressRowVirtualisation": false,
+                  "suppressMaxRenderedRowRestriction": false,
+                  "suppressAnimationFrame": false,
+                  "debounceVerticalScrollbar": false
+                }
+              },
+              "column-templates": {
+                "v": 1,
+                "data": {
+                  "templates": {},
+                  "typeDefaults": {}
+                }
+              },
+              "column-customization": {
+                "v": 10,
+                "data": {
+                  "assignments": {
+                    "trader": {
+                      "colId": "trader",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#eab308"
+                          }
+                        }
+                      }
+                    },
+                    "desk": {
+                      "colId": "desk",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#eab308"
+                          }
+                        }
+                      }
+                    },
+                    "ticker": {
+                      "colId": "ticker",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "typography": {
+                            "bold": true
+                          },
+                          "colors": {
+                            "text": "#68ccc8"
+                          }
+                        }
+                      }
+                    },
+                    "notionalAmount": {
+                      "colId": "notionalAmount",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "alignment": {
+                            "horizontal": "right"
+                          }
+                        }
+                      }
+                    },
+                    "currentPrice": {
+                      "colId": "currentPrice",
+                      "valueFormatterTemplate": {
+                        "kind": "preset",
+                        "preset": "number",
+                        "options": {
+                          "decimals": 0,
+                          "thousands": true
+                        }
+                      },
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "alignment": {
+                            "horizontal": "right"
+                          }
+                        }
+                      }
+                    },
+                    "pnl": {
+                      "colId": "pnl",
+                      "valueFormatterTemplate": {
+                        "kind": "preset",
+                        "preset": "number",
+                        "options": {
+                          "decimals": 0,
+                          "thousands": true
+                        }
+                      },
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#7578ee"
+                          }
+                        }
+                      }
+                    },
+                    "unrealizedPnl": {
+                      "colId": "unrealizedPnl",
+                      "valueFormatterTemplate": {
+                        "kind": "preset",
+                        "preset": "number",
+                        "options": {
+                          "decimals": 0,
+                          "thousands": true
+                        }
+                      }
+                    },
+                    "realizedPnl": {
+                      "colId": "realizedPnl",
+                      "valueFormatterTemplate": {
+                        "kind": "preset",
+                        "preset": "number",
+                        "options": {
+                          "decimals": 0,
+                          "thousands": true
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "calculated-columns": {
+                "v": 1,
+                "data": {
+                  "virtualColumns": []
+                }
+              },
+              "column-groups": {
+                "v": 1,
+                "data": {
+                  "groups": [],
+                  "openGroupIds": {}
+                }
+              },
+              "conditional-styling": {
+                "v": 1,
+                "data": {
+                  "rules": []
+                }
+              },
+              "visual-excel": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "fileNamePrefix": "markets-grid"
+                  }
+                }
+              },
+              "smart-edit": {
+                "v": 2,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "incrementStep": 1,
+                    "magnitudeShortcutsEnabled": true,
+                    "enabledOps": [
+                      "multiply",
+                      "divide",
+                      "add",
+                      "subtract",
+                      "set"
+                    ],
+                    "confirmThreshold": 50,
+                    "enforceSingleColumn": true,
+                    "previewBeforeApply": false,
+                    "recordHistory": true
+                  }
+                }
+              },
+              "bulk-update": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "confirmThreshold": 50,
+                    "showDistinctValues": true,
+                    "maxDropdownValues": 20,
+                    "enforceSingleColumn": true,
+                    "recordHistory": true
+                  }
+                }
+              },
+              "plus-minus": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "recordHistory": true
+                  },
+                  "nudges": []
+                }
+              },
+              "shortcuts": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "recordHistory": true
+                  },
+                  "shortcuts": []
+                }
+              },
+              "data-change-history": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "maxEntries": 50,
+                    "suspended": false,
+                    "unifyUndo": true,
+                    "recordSources": {
+                      "smartEdit": true,
+                      "bulkUpdate": true,
+                      "plusMinus": true,
+                      "shortcuts": true,
+                      "cellEditor": true,
+                      "stream": false
+                    }
+                  }
+                }
+              },
+              "alerts": {
+                "v": 1,
+                "data": {
+                  "rules": [],
+                  "settings": {
+                    "enabled": true,
+                    "defaultDebounceMs": 1000,
+                    "maxNotificationsPerSecond": 5,
+                    "historyLimit": 500,
+                    "enabledChannels": {
+                      "toast": true,
+                      "badge": true,
+                      "openfin": true
+                    },
+                    "evaluationMode": "realtime"
+                  },
+                  "history": []
+                }
+              },
+              "grid-state": {
+                "v": 3,
+                "data": {
+                  "schemaVersion": 3,
+                  "savedAt": "2026-06-09T00:40:47.926Z",
+                  "gridState": {
+                    "version": "35.1.0",
+                    "cellSelection": {
+                      "cellRanges": [
+                        {
+                          "startRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "endRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "colIds": [
+                            "pnl"
+                          ],
+                          "startColId": "pnl"
+                        }
+                      ]
+                    },
+                    "sideBar": {
+                      "visible": false,
+                      "openToolPanel": null,
+                      "toolPanels": {}
+                    },
+                    "columnSizing": {
+                      "columnSizingModel": [
+                        {
+                          "colId": "positionId",
+                          "width": 80
+                        },
+                        {
+                          "colId": "cusip",
+                          "width": 80
+                        },
+                        {
+                          "colId": "ticker",
+                          "width": 80
+                        },
+                        {
+                          "colId": "asOfDate",
+                          "width": 80
+                        },
+                        {
+                          "colId": "trader",
+                          "width": 131.5
+                        },
+                        {
+                          "colId": "desk",
+                          "width": 132.5
+                        },
+                        {
+                          "colId": "notionalAmount",
+                          "width": 80
+                        },
+                        {
+                          "colId": "currentPrice",
+                          "width": 80
+                        },
+                        {
+                          "colId": "pnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "unrealizedPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "realizedPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "dailyPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "mtdPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "ytdPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "dv01",
+                          "width": 80
+                        },
+                        {
+                          "colId": "pv01",
+                          "width": 80
+                        }
+                      ]
+                    },
+                    "columnOrder": {
+                      "orderedColIds": [
+                        "positionId",
+                        "cusip",
+                        "ticker",
+                        "asOfDate",
+                        "trader",
+                        "desk",
+                        "notionalAmount",
+                        "currentPrice",
+                        "pnl",
+                        "unrealizedPnl",
+                        "realizedPnl",
+                        "dailyPnl",
+                        "mtdPnl",
+                        "ytdPnl",
+                        "dv01",
+                        "pv01"
+                      ]
+                    },
+                    "filter": {
+                      "selectableFilters": {}
+                    },
+                    "rowGroupExpansion": {
+                      "expandedRowGroupIds": [],
+                      "collapsedRowGroupIds": []
+                    },
+                    "pagination": {
+                      "page": 0,
+                      "pageSize": 100
+                    },
+                    "focusedCell": {
+                      "colId": "pnl",
+                      "rowIndex": 0,
+                      "rowPinned": null
+                    },
+                    "rangeSelection": {
+                      "cellRanges": [
+                        {
+                          "startRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "endRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "colIds": [
+                            "pnl"
+                          ],
+                          "startColId": "pnl"
+                        }
+                      ]
+                    }
+                  },
+                  "viewportAnchor": {
+                    "firstRowIndex": 0,
+                    "leftColId": "positionId",
+                    "horizontalPixel": 0
+                  }
+                }
+              },
+              "toolbar-visibility": {
+                "v": 1,
+                "data": {
+                  "visible": {
+                    "filters-toolbar-pills": false
+                  }
+                }
+              },
+              "saved-filters": {
+                "v": 2,
+                "data": {
+                  "filters": []
+                }
+              },
+              "toolbar-date-settings": {
+                "v": 1,
+                "data": {
+                  "historicalDateAppDataEnabled": false,
+                  "historicalDateAppDataProvider": "",
+                  "historicalDateAppDataKey": "",
+                  "rowExclusionExpression": ""
+                }
+              }
+            },
+            "createdAt": 1780965255221,
+            "updatedAt": 1780965648083
+          },
+          {
+            "id": "default-copy",
+            "gridId": "star-demo-blotter",
+            "name": "L1",
+            "state": {
+              "general-settings": {
+                "v": 4,
+                "data": {
+                  "rowHeight": 30,
+                  "headerHeight": 32,
+                  "pagination": false,
+                  "paginationPageSize": 100,
+                  "paginationAutoPageSize": false,
+                  "suppressPaginationPanel": false,
+                  "checkboxSelection": false,
+                  "cellSelection": true,
+                  "rowDragging": false,
+                  "animateRows": true,
+                  "cellFlashDuration": 500,
+                  "cellFadeDuration": 1000,
+                  "cellChangeFlashColor": "amber",
+                  "quickFilterText": "",
+                  "groupDefaultExpanded": 0,
+                  "rowGroupPanelShow": "never",
+                  "pivotMode": false,
+                  "pivotPanelShow": "never",
+                  "groupHideOpenParents": false,
+                  "suppressAggFuncInHeader": false,
+                  "showOpenedGroup": false,
+                  "groupHideColumnsUntilExpanded": false,
+                  "groupHideParentOfSingleChild": false,
+                  "groupAllowUnbalanced": false,
+                  "groupMaintainOrder": false,
+                  "suppressGroupRowsSticky": false,
+                  "rowGroupPanelSuppressSort": false,
+                  "groupLockGroupColumns": 0,
+                  "suppressGroupChangesColumnVisibility": false,
+                  "ssrmExpandAllAffectsAllRows": false,
+                  "refreshAfterGroupEdit": false,
+                  "enableAdvancedFilter": false,
+                  "includeHiddenColumnsInQuickFilter": false,
+                  "multiSortMode": "shift",
+                  "accentedSort": false,
+                  "copyHeadersToClipboard": false,
+                  "clipboardDelimiter": "\t",
+                  "singleClickEdit": false,
+                  "stopEditingWhenCellsLoseFocus": false,
+                  "enterNavigation": "default",
+                  "undoRedoCellEditing": false,
+                  "undoRedoCellEditingLimit": 10,
+                  "tooltipShowDelay": 2000,
+                  "tooltipShowMode": "standard",
+                  "suppressRowHoverHighlight": false,
+                  "columnHoverHighlight": false,
+                  "headerCaseUppercase": false,
+                  "showCellTooltips": false,
+                  "defaultResizable": true,
+                  "defaultMinWidth": 80,
+                  "suppressSizeToFit": false,
+                  "suppressAutoSize": false,
+                  "defaultSortable": true,
+                  "defaultFilterable": true,
+                  "unSortIcon": false,
+                  "floatingFilter": false,
+                  "defaultEditable": false,
+                  "suppressPaste": false,
+                  "suppressNavigable": false,
+                  "wrapHeaderText": false,
+                  "autoHeaderHeight": false,
+                  "suppressHeaderMenuButton": false,
+                  "suppressMovable": false,
+                  "lockPosition": false,
+                  "lockVisible": false,
+                  "lockPinned": false,
+                  "wrapText": false,
+                  "autoHeight": false,
+                  "enableCellChangeFlash": false,
+                  "enableRowGroup": false,
+                  "enablePivot": false,
+                  "enableValue": false,
+                  "enableCellTextSelection": false,
+                  "suppressDragLeaveHidesColumns": true,
+                  "suppressColumnMoveAnimation": false,
+                  "sideBar": false,
+                  "sideBarShowColumns": true,
+                  "sideBarShowFilters": true,
+                  "statusBar": false,
+                  "statusBarShowTotalAndFilteredCount": true,
+                  "statusBarShowFilteredCount": false,
+                  "statusBarShowTotalCount": false,
+                  "statusBarShowSelectedCount": true,
+                  "statusBarShowAggregation": false,
+                  "rowBuffer": 10,
+                  "suppressScrollOnNewData": false,
+                  "suppressColumnVirtualisation": false,
+                  "suppressRowVirtualisation": false,
+                  "suppressMaxRenderedRowRestriction": false,
+                  "suppressAnimationFrame": false,
+                  "debounceVerticalScrollbar": false
+                }
+              },
+              "column-templates": {
+                "v": 1,
+                "data": {
+                  "templates": {},
+                  "typeDefaults": {}
+                }
+              },
+              "column-customization": {
+                "v": 10,
+                "data": {
+                  "assignments": {
+                    "trader": {
+                      "colId": "trader",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#eab308"
+                          }
+                        }
+                      }
+                    },
+                    "desk": {
+                      "colId": "desk",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#eab308"
+                          }
+                        }
+                      }
+                    },
+                    "ticker": {
+                      "colId": "ticker",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "typography": {
+                            "bold": true
+                          },
+                          "colors": {
+                            "text": "#68ccc8"
+                          }
+                        }
+                      }
+                    },
+                    "notionalAmount": {
+                      "colId": "notionalAmount",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "alignment": {
+                            "horizontal": "right"
+                          }
+                        }
+                      }
+                    },
+                    "currentPrice": {
+                      "colId": "currentPrice",
+                      "valueFormatterTemplate": {
+                        "kind": "preset",
+                        "preset": "number",
+                        "options": {
+                          "decimals": 0,
+                          "thousands": true
+                        }
+                      },
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "alignment": {
+                            "horizontal": "right"
+                          }
+                        }
+                      }
+                    },
+                    "pnl": {
+                      "colId": "pnl",
+                      "valueFormatterTemplate": {
+                        "kind": "preset",
+                        "preset": "number",
+                        "options": {
+                          "decimals": 0,
+                          "thousands": true
+                        }
+                      },
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#7578ee"
+                          }
+                        }
+                      }
+                    },
+                    "unrealizedPnl": {
+                      "colId": "unrealizedPnl",
+                      "valueFormatterTemplate": {
+                        "kind": "preset",
+                        "preset": "number",
+                        "options": {
+                          "decimals": 0,
+                          "thousands": true
+                        }
+                      }
+                    },
+                    "realizedPnl": {
+                      "colId": "realizedPnl",
+                      "valueFormatterTemplate": {
+                        "kind": "preset",
+                        "preset": "number",
+                        "options": {
+                          "decimals": 0,
+                          "thousands": true
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "calculated-columns": {
+                "v": 1,
+                "data": {
+                  "virtualColumns": []
+                }
+              },
+              "column-groups": {
+                "v": 1,
+                "data": {
+                  "groups": [],
+                  "openGroupIds": {}
+                }
+              },
+              "conditional-styling": {
+                "v": 1,
+                "data": {
+                  "rules": []
+                }
+              },
+              "visual-excel": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "fileNamePrefix": "markets-grid"
+                  }
+                }
+              },
+              "smart-edit": {
+                "v": 2,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "incrementStep": 1,
+                    "magnitudeShortcutsEnabled": true,
+                    "enabledOps": [
+                      "multiply",
+                      "divide",
+                      "add",
+                      "subtract",
+                      "set"
+                    ],
+                    "confirmThreshold": 50,
+                    "enforceSingleColumn": true,
+                    "previewBeforeApply": false,
+                    "recordHistory": true
+                  }
+                }
+              },
+              "bulk-update": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "confirmThreshold": 50,
+                    "showDistinctValues": true,
+                    "maxDropdownValues": 20,
+                    "enforceSingleColumn": true,
+                    "recordHistory": true
+                  }
+                }
+              },
+              "plus-minus": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "recordHistory": true
+                  },
+                  "nudges": []
+                }
+              },
+              "shortcuts": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "recordHistory": true
+                  },
+                  "shortcuts": []
+                }
+              },
+              "data-change-history": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "maxEntries": 50,
+                    "suspended": false,
+                    "unifyUndo": true,
+                    "recordSources": {
+                      "smartEdit": true,
+                      "bulkUpdate": true,
+                      "plusMinus": true,
+                      "shortcuts": true,
+                      "cellEditor": true,
+                      "stream": false
+                    }
+                  }
+                }
+              },
+              "alerts": {
+                "v": 1,
+                "data": {
+                  "rules": [],
+                  "settings": {
+                    "enabled": true,
+                    "defaultDebounceMs": 1000,
+                    "maxNotificationsPerSecond": 5,
+                    "historyLimit": 500,
+                    "enabledChannels": {
+                      "toast": true,
+                      "badge": true,
+                      "openfin": true
+                    },
+                    "evaluationMode": "realtime"
+                  },
+                  "history": []
+                }
+              },
+              "grid-state": {
+                "v": 3,
+                "data": {
+                  "schemaVersion": 3,
+                  "savedAt": "2026-06-09T01:20:04.352Z",
+                  "gridState": {
+                    "version": "35.1.0",
+                    "cellSelection": {
+                      "cellRanges": [
+                        {
+                          "startRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "endRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "colIds": [
+                            "pnl"
+                          ],
+                          "startColId": "pnl"
+                        }
+                      ]
+                    },
+                    "sideBar": {
+                      "visible": false,
+                      "openToolPanel": null,
+                      "toolPanels": {}
+                    },
+                    "columnSizing": {
+                      "columnSizingModel": [
+                        {
+                          "colId": "positionId",
+                          "width": 80
+                        },
+                        {
+                          "colId": "cusip",
+                          "width": 80
+                        },
+                        {
+                          "colId": "ticker",
+                          "width": 80
+                        },
+                        {
+                          "colId": "asOfDate",
+                          "width": 80
+                        },
+                        {
+                          "colId": "trader",
+                          "width": 131.5
+                        },
+                        {
+                          "colId": "desk",
+                          "width": 132.5
+                        },
+                        {
+                          "colId": "notionalAmount",
+                          "width": 80
+                        },
+                        {
+                          "colId": "currentPrice",
+                          "width": 80
+                        },
+                        {
+                          "colId": "pnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "unrealizedPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "realizedPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "dailyPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "mtdPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "ytdPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "dv01",
+                          "width": 80
+                        },
+                        {
+                          "colId": "pv01",
+                          "width": 80
+                        }
+                      ]
+                    },
+                    "columnOrder": {
+                      "orderedColIds": [
+                        "positionId",
+                        "cusip",
+                        "ticker",
+                        "asOfDate",
+                        "trader",
+                        "desk",
+                        "notionalAmount",
+                        "currentPrice",
+                        "pnl",
+                        "unrealizedPnl",
+                        "realizedPnl",
+                        "dailyPnl",
+                        "mtdPnl",
+                        "ytdPnl",
+                        "dv01",
+                        "pv01"
+                      ]
+                    },
+                    "filter": {
+                      "selectableFilters": {}
+                    },
+                    "rowGroupExpansion": {
+                      "expandedRowGroupIds": [],
+                      "collapsedRowGroupIds": []
+                    },
+                    "pagination": {
+                      "page": 0,
+                      "pageSize": 100
+                    },
+                    "focusedCell": {
+                      "colId": "pnl",
+                      "rowIndex": 0,
+                      "rowPinned": null
+                    },
+                    "rangeSelection": {
+                      "cellRanges": [
+                        {
+                          "startRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "endRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "colIds": [
+                            "pnl"
+                          ],
+                          "startColId": "pnl"
+                        }
+                      ]
+                    }
+                  },
+                  "viewportAnchor": {
+                    "firstRowIndex": 0,
+                    "leftColId": "positionId",
+                    "horizontalPixel": 0
+                  }
+                }
+              },
+              "toolbar-visibility": {
+                "v": 1,
+                "data": {
+                  "visible": {
+                    "filters-toolbar-pills": false
+                  }
+                }
+              },
+              "saved-filters": {
+                "v": 2,
+                "data": {
+                  "filters": []
+                }
+              },
+              "toolbar-date-settings": {
+                "v": 1,
+                "data": {
+                  "historicalDateAppDataEnabled": false,
+                  "historicalDateAppDataProvider": "",
+                  "historicalDateAppDataKey": "",
+                  "rowExclusionExpression": ""
+                }
+              }
+            },
+            "createdAt": 1780965652752,
+            "updatedAt": 1780968004388
           }
-        ]
+        ],
+        "gridLevelData": {
+          "v": 1,
+          "provider": {
+            "liveProviderId": "dp-121e4569-5100-4f6b-b946-c3423d8aff7c",
+            "historicalProviderId": null,
+            "mode": "live"
+          },
+          "caption": "Testgrid"
+        }
       },
-      "createdBy": "dev1",
-      "updatedBy": "dev-user",
-      "creationTime": "2026-06-08T12:31:57.211Z",
-      "updatedTime": "2026-06-08T12:57:28.610Z"
+      "createdBy": "k151344",
+      "updatedBy": "k151344",
+      "creationTime": "2026-06-09T00:38:03.368Z",
+      "updatedTime": "2026-06-09T01:20:04.425Z"
     },
     {
-      "configId": "dev1grid-pnl-1780921899661",
-      "appId": "TestApp",
-      "userId": "dev1",
+      "configId": "dev1grid-test-1780966646949",
+      "appId": "StarDemo",
+      "userId": "k151344",
       "isPublic": true,
-      "displayText": "MarketsGrid profiles: dev1grid-pnl-1780921899661",
+      "displayText": "MarketsGrid profiles: grid-test: dev1grid",
       "componentType": "grid",
-      "componentSubType": "pnl",
+      "componentSubType": "test",
       "isTemplate": false,
       "singleton": false,
       "payload": {
-        "version": 1,
+        "version": 5,
         "profiles": [
           {
             "id": "__default__",
             "gridId": "star-demo-blotter",
             "name": "Default",
-            "state": {},
-            "createdAt": 1780921919591,
-            "updatedAt": 1780921919591
+            "state": {
+              "general-settings": {
+                "v": 4,
+                "data": {
+                  "rowHeight": 30,
+                  "headerHeight": 32,
+                  "pagination": false,
+                  "paginationPageSize": 100,
+                  "paginationAutoPageSize": false,
+                  "suppressPaginationPanel": false,
+                  "checkboxSelection": false,
+                  "cellSelection": true,
+                  "rowDragging": false,
+                  "animateRows": true,
+                  "cellFlashDuration": 500,
+                  "cellFadeDuration": 1000,
+                  "cellChangeFlashColor": "amber",
+                  "quickFilterText": "",
+                  "groupDefaultExpanded": 0,
+                  "rowGroupPanelShow": "never",
+                  "pivotMode": false,
+                  "pivotPanelShow": "never",
+                  "groupHideOpenParents": false,
+                  "suppressAggFuncInHeader": false,
+                  "showOpenedGroup": false,
+                  "groupHideColumnsUntilExpanded": false,
+                  "groupHideParentOfSingleChild": false,
+                  "groupAllowUnbalanced": false,
+                  "groupMaintainOrder": false,
+                  "suppressGroupRowsSticky": false,
+                  "rowGroupPanelSuppressSort": false,
+                  "groupLockGroupColumns": 0,
+                  "suppressGroupChangesColumnVisibility": false,
+                  "ssrmExpandAllAffectsAllRows": false,
+                  "refreshAfterGroupEdit": false,
+                  "enableAdvancedFilter": false,
+                  "includeHiddenColumnsInQuickFilter": false,
+                  "multiSortMode": "shift",
+                  "accentedSort": false,
+                  "copyHeadersToClipboard": false,
+                  "clipboardDelimiter": "\t",
+                  "singleClickEdit": false,
+                  "stopEditingWhenCellsLoseFocus": false,
+                  "enterNavigation": "default",
+                  "undoRedoCellEditing": false,
+                  "undoRedoCellEditingLimit": 10,
+                  "tooltipShowDelay": 2000,
+                  "tooltipShowMode": "standard",
+                  "suppressRowHoverHighlight": false,
+                  "columnHoverHighlight": false,
+                  "headerCaseUppercase": false,
+                  "showCellTooltips": false,
+                  "defaultResizable": true,
+                  "defaultMinWidth": 80,
+                  "suppressSizeToFit": false,
+                  "suppressAutoSize": false,
+                  "defaultSortable": true,
+                  "defaultFilterable": true,
+                  "unSortIcon": false,
+                  "floatingFilter": false,
+                  "defaultEditable": false,
+                  "suppressPaste": false,
+                  "suppressNavigable": false,
+                  "wrapHeaderText": false,
+                  "autoHeaderHeight": false,
+                  "suppressHeaderMenuButton": false,
+                  "suppressMovable": false,
+                  "lockPosition": false,
+                  "lockVisible": false,
+                  "lockPinned": false,
+                  "wrapText": false,
+                  "autoHeight": false,
+                  "enableCellChangeFlash": false,
+                  "enableRowGroup": false,
+                  "enablePivot": false,
+                  "enableValue": false,
+                  "enableCellTextSelection": false,
+                  "suppressDragLeaveHidesColumns": true,
+                  "suppressColumnMoveAnimation": false,
+                  "sideBar": false,
+                  "sideBarShowColumns": true,
+                  "sideBarShowFilters": true,
+                  "statusBar": false,
+                  "statusBarShowTotalAndFilteredCount": true,
+                  "statusBarShowFilteredCount": false,
+                  "statusBarShowTotalCount": false,
+                  "statusBarShowSelectedCount": true,
+                  "statusBarShowAggregation": false,
+                  "rowBuffer": 10,
+                  "suppressScrollOnNewData": false,
+                  "suppressColumnVirtualisation": false,
+                  "suppressRowVirtualisation": false,
+                  "suppressMaxRenderedRowRestriction": false,
+                  "suppressAnimationFrame": false,
+                  "debounceVerticalScrollbar": false
+                }
+              },
+              "column-templates": {
+                "v": 1,
+                "data": {
+                  "templates": {},
+                  "typeDefaults": {}
+                }
+              },
+              "column-customization": {
+                "v": 10,
+                "data": {
+                  "assignments": {
+                    "trader": {
+                      "colId": "trader",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#eab308"
+                          }
+                        }
+                      }
+                    },
+                    "desk": {
+                      "colId": "desk",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#eab308"
+                          }
+                        }
+                      }
+                    },
+                    "ticker": {
+                      "colId": "ticker",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "typography": {
+                            "bold": true
+                          },
+                          "colors": {
+                            "text": "#68ccc8"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "calculated-columns": {
+                "v": 1,
+                "data": {
+                  "virtualColumns": []
+                }
+              },
+              "column-groups": {
+                "v": 1,
+                "data": {
+                  "groups": [],
+                  "openGroupIds": {}
+                }
+              },
+              "conditional-styling": {
+                "v": 1,
+                "data": {
+                  "rules": []
+                }
+              },
+              "visual-excel": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "fileNamePrefix": "markets-grid"
+                  }
+                }
+              },
+              "smart-edit": {
+                "v": 2,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "incrementStep": 1,
+                    "magnitudeShortcutsEnabled": true,
+                    "enabledOps": [
+                      "multiply",
+                      "divide",
+                      "add",
+                      "subtract",
+                      "set"
+                    ],
+                    "confirmThreshold": 50,
+                    "enforceSingleColumn": true,
+                    "previewBeforeApply": false,
+                    "recordHistory": true
+                  }
+                }
+              },
+              "bulk-update": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "confirmThreshold": 50,
+                    "showDistinctValues": true,
+                    "maxDropdownValues": 20,
+                    "enforceSingleColumn": true,
+                    "recordHistory": true
+                  }
+                }
+              },
+              "plus-minus": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "recordHistory": true
+                  },
+                  "nudges": []
+                }
+              },
+              "shortcuts": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "recordHistory": true
+                  },
+                  "shortcuts": []
+                }
+              },
+              "data-change-history": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "maxEntries": 50,
+                    "suspended": false,
+                    "unifyUndo": true,
+                    "recordSources": {
+                      "smartEdit": true,
+                      "bulkUpdate": true,
+                      "plusMinus": true,
+                      "shortcuts": true,
+                      "cellEditor": true,
+                      "stream": false
+                    }
+                  }
+                }
+              },
+              "alerts": {
+                "v": 1,
+                "data": {
+                  "rules": [],
+                  "settings": {
+                    "enabled": true,
+                    "defaultDebounceMs": 1000,
+                    "maxNotificationsPerSecond": 5,
+                    "historyLimit": 500,
+                    "enabledChannels": {
+                      "toast": true,
+                      "badge": true,
+                      "openfin": true
+                    },
+                    "evaluationMode": "realtime"
+                  },
+                  "history": []
+                }
+              },
+              "grid-state": {
+                "v": 3,
+                "data": {
+                  "schemaVersion": 3,
+                  "savedAt": "2026-06-09T00:37:47.150Z",
+                  "gridState": {
+                    "version": "35.1.0",
+                    "cellSelection": {
+                      "cellRanges": [
+                        {
+                          "startRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "endRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "colIds": [
+                            "ticker"
+                          ],
+                          "startColId": "ticker"
+                        }
+                      ]
+                    },
+                    "sideBar": {
+                      "visible": false,
+                      "openToolPanel": null,
+                      "toolPanels": {}
+                    },
+                    "columnSizing": {
+                      "columnSizingModel": [
+                        {
+                          "colId": "positionId",
+                          "width": 80
+                        },
+                        {
+                          "colId": "cusip",
+                          "width": 80
+                        },
+                        {
+                          "colId": "ticker",
+                          "width": 80
+                        },
+                        {
+                          "colId": "asOfDate",
+                          "width": 80
+                        },
+                        {
+                          "colId": "trader",
+                          "width": 131.5
+                        },
+                        {
+                          "colId": "desk",
+                          "width": 132.5
+                        },
+                        {
+                          "colId": "notionalAmount",
+                          "width": 80
+                        },
+                        {
+                          "colId": "currentPrice",
+                          "width": 80
+                        },
+                        {
+                          "colId": "pnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "unrealizedPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "realizedPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "dailyPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "mtdPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "ytdPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "dv01",
+                          "width": 80
+                        },
+                        {
+                          "colId": "pv01",
+                          "width": 80
+                        }
+                      ]
+                    },
+                    "columnOrder": {
+                      "orderedColIds": [
+                        "positionId",
+                        "cusip",
+                        "ticker",
+                        "asOfDate",
+                        "trader",
+                        "desk",
+                        "notionalAmount",
+                        "currentPrice",
+                        "pnl",
+                        "unrealizedPnl",
+                        "realizedPnl",
+                        "dailyPnl",
+                        "mtdPnl",
+                        "ytdPnl",
+                        "dv01",
+                        "pv01"
+                      ]
+                    },
+                    "filter": {
+                      "selectableFilters": {}
+                    },
+                    "rowGroupExpansion": {
+                      "expandedRowGroupIds": [],
+                      "collapsedRowGroupIds": []
+                    },
+                    "pagination": {
+                      "page": 0,
+                      "pageSize": 100
+                    },
+                    "focusedCell": {
+                      "colId": "ticker",
+                      "rowIndex": 0,
+                      "rowPinned": null
+                    },
+                    "rangeSelection": {
+                      "cellRanges": [
+                        {
+                          "startRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "endRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "colIds": [
+                            "ticker"
+                          ],
+                          "startColId": "ticker"
+                        }
+                      ]
+                    }
+                  },
+                  "viewportAnchor": {
+                    "firstRowIndex": 0,
+                    "leftColId": "positionId",
+                    "horizontalPixel": 0
+                  }
+                }
+              },
+              "toolbar-visibility": {
+                "v": 1,
+                "data": {
+                  "visible": {
+                    "filters-toolbar-pills": false
+                  }
+                }
+              },
+              "saved-filters": {
+                "v": 2,
+                "data": {
+                  "filters": []
+                }
+              },
+              "toolbar-date-settings": {
+                "v": 1,
+                "data": {
+                  "historicalDateAppDataEnabled": false,
+                  "historicalDateAppDataProvider": "",
+                  "historicalDateAppDataKey": "",
+                  "rowExclusionExpression": ""
+                }
+              }
+            },
+            "createdAt": 1780965255221,
+            "updatedAt": 1780965467302
           }
-        ]
+        ],
+        "gridLevelData": {
+          "v": 1,
+          "provider": {
+            "liveProviderId": "dp-121e4569-5100-4f6b-b946-c3423d8aff7c",
+            "historicalProviderId": null,
+            "mode": "live"
+          },
+          "caption": "Testgrid"
+        }
       },
-      "createdBy": "dev1",
-      "updatedBy": "dev-user",
-      "creationTime": "2026-06-08T12:31:59.591Z",
-      "updatedTime": "2026-06-08T12:57:28.627Z"
+      "createdBy": "k151344",
+      "updatedBy": "k151344",
+      "creationTime": "2026-06-09T00:57:26.950Z",
+      "updatedTime": "2026-06-09T01:17:55.242Z"
     },
     {
-      "configId": "dev1grid-pnl-1780923460277",
-      "appId": "TestApp",
-      "userId": "dev1",
+      "configId": "dev1grid-test-1780967890905",
+      "appId": "StarDemo",
+      "userId": "k151344",
       "isPublic": true,
-      "displayText": "MarketsGrid profiles: dev1grid-pnl-1780923460277",
+      "displayText": "MarketsGrid profiles: grid-test: dev1grid",
       "componentType": "grid",
-      "componentSubType": "pnl",
+      "componentSubType": "test",
       "isTemplate": false,
       "singleton": false,
       "payload": {
-        "version": 1,
+        "version": 5,
         "profiles": [
           {
             "id": "__default__",
             "gridId": "star-demo-blotter",
             "name": "Default",
-            "state": {},
-            "createdAt": 1780925170110,
-            "updatedAt": 1780925170110
+            "state": {
+              "general-settings": {
+                "v": 4,
+                "data": {
+                  "rowHeight": 30,
+                  "headerHeight": 32,
+                  "pagination": false,
+                  "paginationPageSize": 100,
+                  "paginationAutoPageSize": false,
+                  "suppressPaginationPanel": false,
+                  "checkboxSelection": false,
+                  "cellSelection": true,
+                  "rowDragging": false,
+                  "animateRows": true,
+                  "cellFlashDuration": 500,
+                  "cellFadeDuration": 1000,
+                  "cellChangeFlashColor": "amber",
+                  "quickFilterText": "",
+                  "groupDefaultExpanded": 0,
+                  "rowGroupPanelShow": "never",
+                  "pivotMode": false,
+                  "pivotPanelShow": "never",
+                  "groupHideOpenParents": false,
+                  "suppressAggFuncInHeader": false,
+                  "showOpenedGroup": false,
+                  "groupHideColumnsUntilExpanded": false,
+                  "groupHideParentOfSingleChild": false,
+                  "groupAllowUnbalanced": false,
+                  "groupMaintainOrder": false,
+                  "suppressGroupRowsSticky": false,
+                  "rowGroupPanelSuppressSort": false,
+                  "groupLockGroupColumns": 0,
+                  "suppressGroupChangesColumnVisibility": false,
+                  "ssrmExpandAllAffectsAllRows": false,
+                  "refreshAfterGroupEdit": false,
+                  "enableAdvancedFilter": false,
+                  "includeHiddenColumnsInQuickFilter": false,
+                  "multiSortMode": "shift",
+                  "accentedSort": false,
+                  "copyHeadersToClipboard": false,
+                  "clipboardDelimiter": "\t",
+                  "singleClickEdit": false,
+                  "stopEditingWhenCellsLoseFocus": false,
+                  "enterNavigation": "default",
+                  "undoRedoCellEditing": false,
+                  "undoRedoCellEditingLimit": 10,
+                  "tooltipShowDelay": 2000,
+                  "tooltipShowMode": "standard",
+                  "suppressRowHoverHighlight": false,
+                  "columnHoverHighlight": false,
+                  "headerCaseUppercase": false,
+                  "showCellTooltips": false,
+                  "defaultResizable": true,
+                  "defaultMinWidth": 80,
+                  "suppressSizeToFit": false,
+                  "suppressAutoSize": false,
+                  "defaultSortable": true,
+                  "defaultFilterable": true,
+                  "unSortIcon": false,
+                  "floatingFilter": false,
+                  "defaultEditable": false,
+                  "suppressPaste": false,
+                  "suppressNavigable": false,
+                  "wrapHeaderText": false,
+                  "autoHeaderHeight": false,
+                  "suppressHeaderMenuButton": false,
+                  "suppressMovable": false,
+                  "lockPosition": false,
+                  "lockVisible": false,
+                  "lockPinned": false,
+                  "wrapText": false,
+                  "autoHeight": false,
+                  "enableCellChangeFlash": false,
+                  "enableRowGroup": false,
+                  "enablePivot": false,
+                  "enableValue": false,
+                  "enableCellTextSelection": false,
+                  "suppressDragLeaveHidesColumns": true,
+                  "suppressColumnMoveAnimation": false,
+                  "sideBar": false,
+                  "sideBarShowColumns": true,
+                  "sideBarShowFilters": true,
+                  "statusBar": false,
+                  "statusBarShowTotalAndFilteredCount": true,
+                  "statusBarShowFilteredCount": false,
+                  "statusBarShowTotalCount": false,
+                  "statusBarShowSelectedCount": true,
+                  "statusBarShowAggregation": false,
+                  "rowBuffer": 10,
+                  "suppressScrollOnNewData": false,
+                  "suppressColumnVirtualisation": false,
+                  "suppressRowVirtualisation": false,
+                  "suppressMaxRenderedRowRestriction": false,
+                  "suppressAnimationFrame": false,
+                  "debounceVerticalScrollbar": false
+                }
+              },
+              "column-templates": {
+                "v": 1,
+                "data": {
+                  "templates": {},
+                  "typeDefaults": {}
+                }
+              },
+              "column-customization": {
+                "v": 10,
+                "data": {
+                  "assignments": {
+                    "trader": {
+                      "colId": "trader",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#eab308"
+                          }
+                        }
+                      }
+                    },
+                    "desk": {
+                      "colId": "desk",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#eab308"
+                          }
+                        }
+                      }
+                    },
+                    "ticker": {
+                      "colId": "ticker",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "typography": {
+                            "bold": true
+                          },
+                          "colors": {
+                            "text": "#68ccc8"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "calculated-columns": {
+                "v": 1,
+                "data": {
+                  "virtualColumns": []
+                }
+              },
+              "column-groups": {
+                "v": 1,
+                "data": {
+                  "groups": [],
+                  "openGroupIds": {}
+                }
+              },
+              "conditional-styling": {
+                "v": 1,
+                "data": {
+                  "rules": []
+                }
+              },
+              "visual-excel": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "fileNamePrefix": "markets-grid"
+                  }
+                }
+              },
+              "smart-edit": {
+                "v": 2,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "incrementStep": 1,
+                    "magnitudeShortcutsEnabled": true,
+                    "enabledOps": [
+                      "multiply",
+                      "divide",
+                      "add",
+                      "subtract",
+                      "set"
+                    ],
+                    "confirmThreshold": 50,
+                    "enforceSingleColumn": true,
+                    "previewBeforeApply": false,
+                    "recordHistory": true
+                  }
+                }
+              },
+              "bulk-update": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "confirmThreshold": 50,
+                    "showDistinctValues": true,
+                    "maxDropdownValues": 20,
+                    "enforceSingleColumn": true,
+                    "recordHistory": true
+                  }
+                }
+              },
+              "plus-minus": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "recordHistory": true
+                  },
+                  "nudges": []
+                }
+              },
+              "shortcuts": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "recordHistory": true
+                  },
+                  "shortcuts": []
+                }
+              },
+              "data-change-history": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "maxEntries": 50,
+                    "suspended": false,
+                    "unifyUndo": true,
+                    "recordSources": {
+                      "smartEdit": true,
+                      "bulkUpdate": true,
+                      "plusMinus": true,
+                      "shortcuts": true,
+                      "cellEditor": true,
+                      "stream": false
+                    }
+                  }
+                }
+              },
+              "alerts": {
+                "v": 1,
+                "data": {
+                  "rules": [],
+                  "settings": {
+                    "enabled": true,
+                    "defaultDebounceMs": 1000,
+                    "maxNotificationsPerSecond": 5,
+                    "historyLimit": 500,
+                    "enabledChannels": {
+                      "toast": true,
+                      "badge": true,
+                      "openfin": true
+                    },
+                    "evaluationMode": "realtime"
+                  },
+                  "history": []
+                }
+              },
+              "grid-state": {
+                "v": 3,
+                "data": {
+                  "schemaVersion": 3,
+                  "savedAt": "2026-06-09T00:37:47.150Z",
+                  "gridState": {
+                    "version": "35.1.0",
+                    "cellSelection": {
+                      "cellRanges": [
+                        {
+                          "startRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "endRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "colIds": [
+                            "ticker"
+                          ],
+                          "startColId": "ticker"
+                        }
+                      ]
+                    },
+                    "sideBar": {
+                      "visible": false,
+                      "openToolPanel": null,
+                      "toolPanels": {}
+                    },
+                    "columnSizing": {
+                      "columnSizingModel": [
+                        {
+                          "colId": "positionId",
+                          "width": 80
+                        },
+                        {
+                          "colId": "cusip",
+                          "width": 80
+                        },
+                        {
+                          "colId": "ticker",
+                          "width": 80
+                        },
+                        {
+                          "colId": "asOfDate",
+                          "width": 80
+                        },
+                        {
+                          "colId": "trader",
+                          "width": 131.5
+                        },
+                        {
+                          "colId": "desk",
+                          "width": 132.5
+                        },
+                        {
+                          "colId": "notionalAmount",
+                          "width": 80
+                        },
+                        {
+                          "colId": "currentPrice",
+                          "width": 80
+                        },
+                        {
+                          "colId": "pnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "unrealizedPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "realizedPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "dailyPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "mtdPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "ytdPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "dv01",
+                          "width": 80
+                        },
+                        {
+                          "colId": "pv01",
+                          "width": 80
+                        }
+                      ]
+                    },
+                    "columnOrder": {
+                      "orderedColIds": [
+                        "positionId",
+                        "cusip",
+                        "ticker",
+                        "asOfDate",
+                        "trader",
+                        "desk",
+                        "notionalAmount",
+                        "currentPrice",
+                        "pnl",
+                        "unrealizedPnl",
+                        "realizedPnl",
+                        "dailyPnl",
+                        "mtdPnl",
+                        "ytdPnl",
+                        "dv01",
+                        "pv01"
+                      ]
+                    },
+                    "filter": {
+                      "selectableFilters": {}
+                    },
+                    "rowGroupExpansion": {
+                      "expandedRowGroupIds": [],
+                      "collapsedRowGroupIds": []
+                    },
+                    "pagination": {
+                      "page": 0,
+                      "pageSize": 100
+                    },
+                    "focusedCell": {
+                      "colId": "ticker",
+                      "rowIndex": 0,
+                      "rowPinned": null
+                    },
+                    "rangeSelection": {
+                      "cellRanges": [
+                        {
+                          "startRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "endRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "colIds": [
+                            "ticker"
+                          ],
+                          "startColId": "ticker"
+                        }
+                      ]
+                    }
+                  },
+                  "viewportAnchor": {
+                    "firstRowIndex": 0,
+                    "leftColId": "positionId",
+                    "horizontalPixel": 0
+                  }
+                }
+              },
+              "toolbar-visibility": {
+                "v": 1,
+                "data": {
+                  "visible": {
+                    "filters-toolbar-pills": false
+                  }
+                }
+              },
+              "saved-filters": {
+                "v": 2,
+                "data": {
+                  "filters": []
+                }
+              },
+              "toolbar-date-settings": {
+                "v": 1,
+                "data": {
+                  "historicalDateAppDataEnabled": false,
+                  "historicalDateAppDataProvider": "",
+                  "historicalDateAppDataKey": "",
+                  "rowExclusionExpression": ""
+                }
+              }
+            },
+            "createdAt": 1780965255221,
+            "updatedAt": 1780965467302
           }
-        ]
+        ],
+        "gridLevelData": {
+          "v": 1,
+          "provider": {
+            "liveProviderId": "dp-121e4569-5100-4f6b-b946-c3423d8aff7c",
+            "historicalProviderId": null,
+            "mode": "live"
+          },
+          "caption": "Testgrid"
+        }
       },
-      "createdBy": "dev1",
-      "updatedBy": "dev-user",
-      "creationTime": "2026-06-08T13:26:10.111Z",
-      "updatedTime": "2026-06-08T17:46:22.851Z"
+      "createdBy": "k151344",
+      "updatedBy": "k151344",
+      "creationTime": "2026-06-09T01:18:10.906Z",
+      "updatedTime": "2026-06-09T01:18:10.907Z"
     },
     {
-      "configId": "dev1grid-pnl-1780940793507",
-      "appId": "TestApp",
-      "userId": "dev1",
+      "configId": "dev1grid-test-1780967892940",
+      "appId": "StarDemo",
+      "userId": "k151344",
       "isPublic": true,
-      "displayText": "MarketsGrid profiles: dev1grid-pnl-1780940793507",
+      "displayText": "MarketsGrid profiles: grid-test: dev1grid",
       "componentType": "grid",
-      "componentSubType": "pnl",
+      "componentSubType": "test",
       "isTemplate": false,
       "singleton": false,
       "payload": {
-        "version": 1,
+        "version": 5,
         "profiles": [
           {
             "id": "__default__",
             "gridId": "star-demo-blotter",
             "name": "Default",
-            "state": {},
-            "createdAt": 1780940799802,
-            "updatedAt": 1780940799802
+            "state": {
+              "general-settings": {
+                "v": 4,
+                "data": {
+                  "rowHeight": 30,
+                  "headerHeight": 32,
+                  "pagination": false,
+                  "paginationPageSize": 100,
+                  "paginationAutoPageSize": false,
+                  "suppressPaginationPanel": false,
+                  "checkboxSelection": false,
+                  "cellSelection": true,
+                  "rowDragging": false,
+                  "animateRows": true,
+                  "cellFlashDuration": 500,
+                  "cellFadeDuration": 1000,
+                  "cellChangeFlashColor": "amber",
+                  "quickFilterText": "",
+                  "groupDefaultExpanded": 0,
+                  "rowGroupPanelShow": "never",
+                  "pivotMode": false,
+                  "pivotPanelShow": "never",
+                  "groupHideOpenParents": false,
+                  "suppressAggFuncInHeader": false,
+                  "showOpenedGroup": false,
+                  "groupHideColumnsUntilExpanded": false,
+                  "groupHideParentOfSingleChild": false,
+                  "groupAllowUnbalanced": false,
+                  "groupMaintainOrder": false,
+                  "suppressGroupRowsSticky": false,
+                  "rowGroupPanelSuppressSort": false,
+                  "groupLockGroupColumns": 0,
+                  "suppressGroupChangesColumnVisibility": false,
+                  "ssrmExpandAllAffectsAllRows": false,
+                  "refreshAfterGroupEdit": false,
+                  "enableAdvancedFilter": false,
+                  "includeHiddenColumnsInQuickFilter": false,
+                  "multiSortMode": "shift",
+                  "accentedSort": false,
+                  "copyHeadersToClipboard": false,
+                  "clipboardDelimiter": "\t",
+                  "singleClickEdit": false,
+                  "stopEditingWhenCellsLoseFocus": false,
+                  "enterNavigation": "default",
+                  "undoRedoCellEditing": false,
+                  "undoRedoCellEditingLimit": 10,
+                  "tooltipShowDelay": 2000,
+                  "tooltipShowMode": "standard",
+                  "suppressRowHoverHighlight": false,
+                  "columnHoverHighlight": false,
+                  "headerCaseUppercase": false,
+                  "showCellTooltips": false,
+                  "defaultResizable": true,
+                  "defaultMinWidth": 80,
+                  "suppressSizeToFit": false,
+                  "suppressAutoSize": false,
+                  "defaultSortable": true,
+                  "defaultFilterable": true,
+                  "unSortIcon": false,
+                  "floatingFilter": false,
+                  "defaultEditable": false,
+                  "suppressPaste": false,
+                  "suppressNavigable": false,
+                  "wrapHeaderText": false,
+                  "autoHeaderHeight": false,
+                  "suppressHeaderMenuButton": false,
+                  "suppressMovable": false,
+                  "lockPosition": false,
+                  "lockVisible": false,
+                  "lockPinned": false,
+                  "wrapText": false,
+                  "autoHeight": false,
+                  "enableCellChangeFlash": false,
+                  "enableRowGroup": false,
+                  "enablePivot": false,
+                  "enableValue": false,
+                  "enableCellTextSelection": false,
+                  "suppressDragLeaveHidesColumns": true,
+                  "suppressColumnMoveAnimation": false,
+                  "sideBar": false,
+                  "sideBarShowColumns": true,
+                  "sideBarShowFilters": true,
+                  "statusBar": false,
+                  "statusBarShowTotalAndFilteredCount": true,
+                  "statusBarShowFilteredCount": false,
+                  "statusBarShowTotalCount": false,
+                  "statusBarShowSelectedCount": true,
+                  "statusBarShowAggregation": false,
+                  "rowBuffer": 10,
+                  "suppressScrollOnNewData": false,
+                  "suppressColumnVirtualisation": false,
+                  "suppressRowVirtualisation": false,
+                  "suppressMaxRenderedRowRestriction": false,
+                  "suppressAnimationFrame": false,
+                  "debounceVerticalScrollbar": false
+                }
+              },
+              "column-templates": {
+                "v": 1,
+                "data": {
+                  "templates": {},
+                  "typeDefaults": {}
+                }
+              },
+              "column-customization": {
+                "v": 10,
+                "data": {
+                  "assignments": {
+                    "trader": {
+                      "colId": "trader",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#eab308"
+                          }
+                        }
+                      }
+                    },
+                    "desk": {
+                      "colId": "desk",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#eab308"
+                          }
+                        }
+                      }
+                    },
+                    "ticker": {
+                      "colId": "ticker",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "typography": {
+                            "bold": true
+                          },
+                          "colors": {
+                            "text": "#68ccc8"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "calculated-columns": {
+                "v": 1,
+                "data": {
+                  "virtualColumns": []
+                }
+              },
+              "column-groups": {
+                "v": 1,
+                "data": {
+                  "groups": [],
+                  "openGroupIds": {}
+                }
+              },
+              "conditional-styling": {
+                "v": 1,
+                "data": {
+                  "rules": []
+                }
+              },
+              "visual-excel": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "fileNamePrefix": "markets-grid"
+                  }
+                }
+              },
+              "smart-edit": {
+                "v": 2,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "incrementStep": 1,
+                    "magnitudeShortcutsEnabled": true,
+                    "enabledOps": [
+                      "multiply",
+                      "divide",
+                      "add",
+                      "subtract",
+                      "set"
+                    ],
+                    "confirmThreshold": 50,
+                    "enforceSingleColumn": true,
+                    "previewBeforeApply": false,
+                    "recordHistory": true
+                  }
+                }
+              },
+              "bulk-update": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "confirmThreshold": 50,
+                    "showDistinctValues": true,
+                    "maxDropdownValues": 20,
+                    "enforceSingleColumn": true,
+                    "recordHistory": true
+                  }
+                }
+              },
+              "plus-minus": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "recordHistory": true
+                  },
+                  "nudges": []
+                }
+              },
+              "shortcuts": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "recordHistory": true
+                  },
+                  "shortcuts": []
+                }
+              },
+              "data-change-history": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "maxEntries": 50,
+                    "suspended": false,
+                    "unifyUndo": true,
+                    "recordSources": {
+                      "smartEdit": true,
+                      "bulkUpdate": true,
+                      "plusMinus": true,
+                      "shortcuts": true,
+                      "cellEditor": true,
+                      "stream": false
+                    }
+                  }
+                }
+              },
+              "alerts": {
+                "v": 1,
+                "data": {
+                  "rules": [],
+                  "settings": {
+                    "enabled": true,
+                    "defaultDebounceMs": 1000,
+                    "maxNotificationsPerSecond": 5,
+                    "historyLimit": 500,
+                    "enabledChannels": {
+                      "toast": true,
+                      "badge": true,
+                      "openfin": true
+                    },
+                    "evaluationMode": "realtime"
+                  },
+                  "history": []
+                }
+              },
+              "grid-state": {
+                "v": 3,
+                "data": {
+                  "schemaVersion": 3,
+                  "savedAt": "2026-06-09T00:37:47.150Z",
+                  "gridState": {
+                    "version": "35.1.0",
+                    "cellSelection": {
+                      "cellRanges": [
+                        {
+                          "startRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "endRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "colIds": [
+                            "ticker"
+                          ],
+                          "startColId": "ticker"
+                        }
+                      ]
+                    },
+                    "sideBar": {
+                      "visible": false,
+                      "openToolPanel": null,
+                      "toolPanels": {}
+                    },
+                    "columnSizing": {
+                      "columnSizingModel": [
+                        {
+                          "colId": "positionId",
+                          "width": 80
+                        },
+                        {
+                          "colId": "cusip",
+                          "width": 80
+                        },
+                        {
+                          "colId": "ticker",
+                          "width": 80
+                        },
+                        {
+                          "colId": "asOfDate",
+                          "width": 80
+                        },
+                        {
+                          "colId": "trader",
+                          "width": 131.5
+                        },
+                        {
+                          "colId": "desk",
+                          "width": 132.5
+                        },
+                        {
+                          "colId": "notionalAmount",
+                          "width": 80
+                        },
+                        {
+                          "colId": "currentPrice",
+                          "width": 80
+                        },
+                        {
+                          "colId": "pnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "unrealizedPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "realizedPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "dailyPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "mtdPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "ytdPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "dv01",
+                          "width": 80
+                        },
+                        {
+                          "colId": "pv01",
+                          "width": 80
+                        }
+                      ]
+                    },
+                    "columnOrder": {
+                      "orderedColIds": [
+                        "positionId",
+                        "cusip",
+                        "ticker",
+                        "asOfDate",
+                        "trader",
+                        "desk",
+                        "notionalAmount",
+                        "currentPrice",
+                        "pnl",
+                        "unrealizedPnl",
+                        "realizedPnl",
+                        "dailyPnl",
+                        "mtdPnl",
+                        "ytdPnl",
+                        "dv01",
+                        "pv01"
+                      ]
+                    },
+                    "filter": {
+                      "selectableFilters": {}
+                    },
+                    "rowGroupExpansion": {
+                      "expandedRowGroupIds": [],
+                      "collapsedRowGroupIds": []
+                    },
+                    "pagination": {
+                      "page": 0,
+                      "pageSize": 100
+                    },
+                    "focusedCell": {
+                      "colId": "ticker",
+                      "rowIndex": 0,
+                      "rowPinned": null
+                    },
+                    "rangeSelection": {
+                      "cellRanges": [
+                        {
+                          "startRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "endRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "colIds": [
+                            "ticker"
+                          ],
+                          "startColId": "ticker"
+                        }
+                      ]
+                    }
+                  },
+                  "viewportAnchor": {
+                    "firstRowIndex": 0,
+                    "leftColId": "positionId",
+                    "horizontalPixel": 0
+                  }
+                }
+              },
+              "toolbar-visibility": {
+                "v": 1,
+                "data": {
+                  "visible": {
+                    "filters-toolbar-pills": false
+                  }
+                }
+              },
+              "saved-filters": {
+                "v": 2,
+                "data": {
+                  "filters": []
+                }
+              },
+              "toolbar-date-settings": {
+                "v": 1,
+                "data": {
+                  "historicalDateAppDataEnabled": false,
+                  "historicalDateAppDataProvider": "",
+                  "historicalDateAppDataKey": "",
+                  "rowExclusionExpression": ""
+                }
+              }
+            },
+            "createdAt": 1780965255221,
+            "updatedAt": 1780965467302
           }
-        ]
+        ],
+        "gridLevelData": {
+          "v": 1,
+          "provider": {
+            "liveProviderId": "dp-121e4569-5100-4f6b-b946-c3423d8aff7c",
+            "historicalProviderId": null,
+            "mode": "live"
+          },
+          "caption": "Testgrid"
+        }
       },
-      "createdBy": "dev1",
-      "updatedBy": "dev-user",
-      "creationTime": "2026-06-08T17:46:39.802Z",
-      "updatedTime": "2026-06-08T21:00:43.931Z"
+      "createdBy": "k151344",
+      "updatedBy": "k151344",
+      "creationTime": "2026-06-09T01:18:12.947Z",
+      "updatedTime": "2026-06-09T01:18:12.948Z"
     },
     {
-      "configId": "dev1grid-pnl-1780952679872",
-      "appId": "TestApp",
-      "userId": "dev1",
+      "configId": "dev1grid-test-1780967984873",
+      "appId": "StarDemo",
+      "userId": "k151344",
       "isPublic": true,
-      "displayText": "MarketsGrid profiles: dev1grid-pnl-1780952679872",
+      "displayText": "MarketsGrid profiles: grid-test: dev1grid",
       "componentType": "grid",
-      "componentSubType": "pnl",
+      "componentSubType": "test",
       "isTemplate": false,
       "singleton": false,
       "payload": {
-        "version": 1,
+        "version": 6,
         "profiles": [
           {
             "id": "__default__",
             "gridId": "star-demo-blotter",
             "name": "Default",
-            "state": {},
-            "createdAt": 1780953032170,
-            "updatedAt": 1780953032170
+            "state": {
+              "general-settings": {
+                "v": 4,
+                "data": {
+                  "rowHeight": 30,
+                  "headerHeight": 32,
+                  "pagination": false,
+                  "paginationPageSize": 100,
+                  "paginationAutoPageSize": false,
+                  "suppressPaginationPanel": false,
+                  "checkboxSelection": false,
+                  "cellSelection": true,
+                  "rowDragging": false,
+                  "animateRows": true,
+                  "cellFlashDuration": 500,
+                  "cellFadeDuration": 1000,
+                  "cellChangeFlashColor": "amber",
+                  "quickFilterText": "",
+                  "groupDefaultExpanded": 0,
+                  "rowGroupPanelShow": "never",
+                  "pivotMode": false,
+                  "pivotPanelShow": "never",
+                  "groupHideOpenParents": false,
+                  "suppressAggFuncInHeader": false,
+                  "showOpenedGroup": false,
+                  "groupHideColumnsUntilExpanded": false,
+                  "groupHideParentOfSingleChild": false,
+                  "groupAllowUnbalanced": false,
+                  "groupMaintainOrder": false,
+                  "suppressGroupRowsSticky": false,
+                  "rowGroupPanelSuppressSort": false,
+                  "groupLockGroupColumns": 0,
+                  "suppressGroupChangesColumnVisibility": false,
+                  "ssrmExpandAllAffectsAllRows": false,
+                  "refreshAfterGroupEdit": false,
+                  "enableAdvancedFilter": false,
+                  "includeHiddenColumnsInQuickFilter": false,
+                  "multiSortMode": "shift",
+                  "accentedSort": false,
+                  "copyHeadersToClipboard": false,
+                  "clipboardDelimiter": "\t",
+                  "singleClickEdit": false,
+                  "stopEditingWhenCellsLoseFocus": false,
+                  "enterNavigation": "default",
+                  "undoRedoCellEditing": false,
+                  "undoRedoCellEditingLimit": 10,
+                  "tooltipShowDelay": 2000,
+                  "tooltipShowMode": "standard",
+                  "suppressRowHoverHighlight": false,
+                  "columnHoverHighlight": false,
+                  "headerCaseUppercase": false,
+                  "showCellTooltips": false,
+                  "defaultResizable": true,
+                  "defaultMinWidth": 80,
+                  "suppressSizeToFit": false,
+                  "suppressAutoSize": false,
+                  "defaultSortable": true,
+                  "defaultFilterable": true,
+                  "unSortIcon": false,
+                  "floatingFilter": false,
+                  "defaultEditable": false,
+                  "suppressPaste": false,
+                  "suppressNavigable": false,
+                  "wrapHeaderText": false,
+                  "autoHeaderHeight": false,
+                  "suppressHeaderMenuButton": false,
+                  "suppressMovable": false,
+                  "lockPosition": false,
+                  "lockVisible": false,
+                  "lockPinned": false,
+                  "wrapText": false,
+                  "autoHeight": false,
+                  "enableCellChangeFlash": false,
+                  "enableRowGroup": false,
+                  "enablePivot": false,
+                  "enableValue": false,
+                  "enableCellTextSelection": false,
+                  "suppressDragLeaveHidesColumns": true,
+                  "suppressColumnMoveAnimation": false,
+                  "sideBar": false,
+                  "sideBarShowColumns": true,
+                  "sideBarShowFilters": true,
+                  "statusBar": false,
+                  "statusBarShowTotalAndFilteredCount": true,
+                  "statusBarShowFilteredCount": false,
+                  "statusBarShowTotalCount": false,
+                  "statusBarShowSelectedCount": true,
+                  "statusBarShowAggregation": false,
+                  "rowBuffer": 10,
+                  "suppressScrollOnNewData": false,
+                  "suppressColumnVirtualisation": false,
+                  "suppressRowVirtualisation": false,
+                  "suppressMaxRenderedRowRestriction": false,
+                  "suppressAnimationFrame": false,
+                  "debounceVerticalScrollbar": false
+                }
+              },
+              "column-templates": {
+                "v": 1,
+                "data": {
+                  "templates": {},
+                  "typeDefaults": {}
+                }
+              },
+              "column-customization": {
+                "v": 10,
+                "data": {
+                  "assignments": {
+                    "trader": {
+                      "colId": "trader",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#eab308"
+                          }
+                        }
+                      }
+                    },
+                    "desk": {
+                      "colId": "desk",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#eab308"
+                          }
+                        }
+                      }
+                    },
+                    "ticker": {
+                      "colId": "ticker",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "typography": {
+                            "bold": true
+                          },
+                          "colors": {
+                            "text": "#68ccc8"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "calculated-columns": {
+                "v": 1,
+                "data": {
+                  "virtualColumns": []
+                }
+              },
+              "column-groups": {
+                "v": 1,
+                "data": {
+                  "groups": [],
+                  "openGroupIds": {}
+                }
+              },
+              "conditional-styling": {
+                "v": 1,
+                "data": {
+                  "rules": []
+                }
+              },
+              "visual-excel": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "fileNamePrefix": "markets-grid"
+                  }
+                }
+              },
+              "smart-edit": {
+                "v": 2,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "incrementStep": 1,
+                    "magnitudeShortcutsEnabled": true,
+                    "enabledOps": [
+                      "multiply",
+                      "divide",
+                      "add",
+                      "subtract",
+                      "set"
+                    ],
+                    "confirmThreshold": 50,
+                    "enforceSingleColumn": true,
+                    "previewBeforeApply": false,
+                    "recordHistory": true
+                  }
+                }
+              },
+              "bulk-update": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "confirmThreshold": 50,
+                    "showDistinctValues": true,
+                    "maxDropdownValues": 20,
+                    "enforceSingleColumn": true,
+                    "recordHistory": true
+                  }
+                }
+              },
+              "plus-minus": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "recordHistory": true
+                  },
+                  "nudges": []
+                }
+              },
+              "shortcuts": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "recordHistory": true
+                  },
+                  "shortcuts": []
+                }
+              },
+              "data-change-history": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "maxEntries": 50,
+                    "suspended": false,
+                    "unifyUndo": true,
+                    "recordSources": {
+                      "smartEdit": true,
+                      "bulkUpdate": true,
+                      "plusMinus": true,
+                      "shortcuts": true,
+                      "cellEditor": true,
+                      "stream": false
+                    }
+                  }
+                }
+              },
+              "alerts": {
+                "v": 1,
+                "data": {
+                  "rules": [],
+                  "settings": {
+                    "enabled": true,
+                    "defaultDebounceMs": 1000,
+                    "maxNotificationsPerSecond": 5,
+                    "historyLimit": 500,
+                    "enabledChannels": {
+                      "toast": true,
+                      "badge": true,
+                      "openfin": true
+                    },
+                    "evaluationMode": "realtime"
+                  },
+                  "history": []
+                }
+              },
+              "grid-state": {
+                "v": 3,
+                "data": {
+                  "schemaVersion": 3,
+                  "savedAt": "2026-06-09T01:19:37.954Z",
+                  "gridState": {
+                    "version": "35.1.0",
+                    "cellSelection": {
+                      "cellRanges": [
+                        {
+                          "startRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "endRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "colIds": [
+                            "ticker"
+                          ],
+                          "startColId": "ticker"
+                        }
+                      ]
+                    },
+                    "sideBar": {
+                      "visible": false,
+                      "openToolPanel": null,
+                      "toolPanels": {}
+                    },
+                    "columnSizing": {
+                      "columnSizingModel": [
+                        {
+                          "colId": "positionId",
+                          "width": 80
+                        },
+                        {
+                          "colId": "cusip",
+                          "width": 80
+                        },
+                        {
+                          "colId": "ticker",
+                          "width": 80
+                        },
+                        {
+                          "colId": "asOfDate",
+                          "width": 80
+                        },
+                        {
+                          "colId": "trader",
+                          "width": 131.5
+                        },
+                        {
+                          "colId": "desk",
+                          "width": 132.5
+                        },
+                        {
+                          "colId": "notionalAmount",
+                          "width": 80
+                        },
+                        {
+                          "colId": "currentPrice",
+                          "width": 80
+                        },
+                        {
+                          "colId": "pnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "unrealizedPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "realizedPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "dailyPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "mtdPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "ytdPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "dv01",
+                          "width": 80
+                        },
+                        {
+                          "colId": "pv01",
+                          "width": 80
+                        }
+                      ]
+                    },
+                    "columnOrder": {
+                      "orderedColIds": [
+                        "positionId",
+                        "cusip",
+                        "ticker",
+                        "asOfDate",
+                        "trader",
+                        "desk",
+                        "notionalAmount",
+                        "currentPrice",
+                        "pnl",
+                        "unrealizedPnl",
+                        "realizedPnl",
+                        "dailyPnl",
+                        "mtdPnl",
+                        "ytdPnl",
+                        "dv01",
+                        "pv01"
+                      ]
+                    },
+                    "filter": {
+                      "selectableFilters": {}
+                    },
+                    "rowGroupExpansion": {
+                      "expandedRowGroupIds": [],
+                      "collapsedRowGroupIds": []
+                    },
+                    "pagination": {
+                      "page": 0,
+                      "pageSize": 100
+                    },
+                    "focusedCell": {
+                      "colId": "ticker",
+                      "rowIndex": 0,
+                      "rowPinned": null
+                    },
+                    "rangeSelection": {
+                      "cellRanges": [
+                        {
+                          "startRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "endRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "colIds": [
+                            "ticker"
+                          ],
+                          "startColId": "ticker"
+                        }
+                      ]
+                    }
+                  },
+                  "viewportAnchor": {
+                    "firstRowIndex": 0,
+                    "leftColId": "positionId",
+                    "horizontalPixel": 0
+                  }
+                }
+              },
+              "toolbar-visibility": {
+                "v": 1,
+                "data": {
+                  "visible": {
+                    "filters-toolbar-pills": false
+                  }
+                }
+              },
+              "saved-filters": {
+                "v": 2,
+                "data": {
+                  "filters": []
+                }
+              },
+              "toolbar-date-settings": {
+                "v": 1,
+                "data": {
+                  "historicalDateAppDataEnabled": false,
+                  "historicalDateAppDataProvider": "",
+                  "historicalDateAppDataKey": "",
+                  "rowExclusionExpression": ""
+                }
+              }
+            },
+            "createdAt": 1780965255221,
+            "updatedAt": 1780967977984
           }
-        ]
+        ],
+        "gridLevelData": {
+          "v": 1,
+          "provider": {
+            "liveProviderId": "dp-121e4569-5100-4f6b-b946-c3423d8aff7c",
+            "historicalProviderId": null,
+            "mode": "live"
+          },
+          "caption": "Testgrid"
+        }
       },
-      "createdBy": "dev1",
-      "updatedBy": "dev-user",
-      "creationTime": "2026-06-08T21:10:32.170Z",
-      "updatedTime": "2026-06-08T21:10:57.807Z"
-    },
-    {
-      "configId": "dev1grid-pnl-1780953067860",
-      "appId": "TestApp",
-      "userId": "dev1",
-      "isPublic": true,
-      "displayText": "MarketsGrid profiles: dev1grid-pnl-1780953067860",
-      "componentType": "grid",
-      "componentSubType": "pnl",
-      "isTemplate": false,
-      "singleton": false,
-      "payload": {
-        "version": 1,
-        "profiles": [
-          {
-            "id": "__default__",
-            "gridId": "star-demo-blotter",
-            "name": "Default",
-            "state": {},
-            "createdAt": 1780953071197,
-            "updatedAt": 1780953071197
-          }
-        ]
-      },
-      "createdBy": "dev1",
-      "updatedBy": "dev-user",
-      "creationTime": "2026-06-08T21:11:11.197Z",
-      "updatedTime": "2026-06-08T21:11:39.336Z"
+      "createdBy": "k151344",
+      "updatedBy": "k151344",
+      "creationTime": "2026-06-09T01:19:44.874Z",
+      "updatedTime": "2026-06-09T01:19:44.874Z"
     },
     {
       "configId": "dock-config",
-      "appId": "TestApp",
-      "userId": "dev1",
+      "appId": "StarDemo",
+      "userId": "k151344",
       "displayText": "Dock Configuration",
       "componentType": "dock-config",
       "componentSubType": "",
@@ -1357,38 +5080,38 @@
         "buttons": [
           {
             "type": "ActionButton",
-            "id": "886660ff-74dd-48b8-a9bc-90a243f0c96f",
-            "tooltip": "Pnl",
+            "id": "0395b5f2-088b-4bb1-b99f-724b53a01a6a",
+            "tooltip": "TestGrid",
             "iconUrl": "",
             "iconId": "",
             "iconColor": "",
             "actionId": "launch-component",
             "customData": {
-              "registryEntryId": "grid-pnl",
+              "registryEntryId": "grid-test",
               "asWindow": false
             }
           }
         ],
-        "updatedAt": "2026-06-08T06:18:33.702Z"
+        "updatedAt": "2026-06-09T00:34:29.394Z"
       },
-      "createdBy": "dev1",
-      "updatedBy": "dev-user",
-      "creationTime": "2026-06-08T06:18:33.707Z",
-      "updatedTime": "2026-06-08T06:18:33.761Z"
+      "createdBy": "k151344",
+      "updatedBy": "k151344",
+      "creationTime": "2026-06-09T00:34:29.401Z",
+      "updatedTime": "2026-06-09T01:17:55.244Z"
     },
     {
-      "configId": "dp-e081b3f2-6dac-493e-ad8c-7e782e9a9f29",
-      "appId": "TestApp",
-      "userId": "dev1",
+      "configId": "dp-121e4569-5100-4f6b-b946-c3423d8aff7c",
+      "appId": "StarDemo",
+      "userId": "k151344",
       "componentType": "data-provider",
       "componentSubType": "stomp",
       "isTemplate": false,
-      "displayText": "positions.dp",
+      "displayText": "test.dp",
       "payload": {
         "providerType": "stomp",
         "websocketUrl": "ws://localhost:8081",
-        "listenerTopic": "/snapshot/positions/trd-[tid]",
-        "requestMessage": "/snapshot/positions/trd-[tid]/10000/100",
+        "listenerTopic": "/snapshot/positions/trd1",
+        "requestMessage": "/snapshot/positions/trd1/1000/10",
         "snapshotEndToken": "Success",
         "columnDefinitions": [
           {
@@ -1424,14 +5147,6 @@
             "resizable": true
           },
           {
-            "field": "bookName",
-            "headerName": "Book Name",
-            "cellDataType": "text",
-            "filter": true,
-            "sortable": true,
-            "resizable": true
-          },
-          {
             "field": "trader",
             "headerName": "Trader",
             "cellDataType": "text",
@@ -1448,22 +5163,6 @@
             "resizable": true
           },
           {
-            "field": "region",
-            "headerName": "Region",
-            "cellDataType": "text",
-            "filter": true,
-            "sortable": true,
-            "resizable": true
-          },
-          {
-            "field": "currency",
-            "headerName": "Currency",
-            "cellDataType": "text",
-            "filter": true,
-            "sortable": true,
-            "resizable": true
-          },
-          {
             "field": "notionalAmount",
             "headerName": "Notional Amount",
             "cellDataType": "number",
@@ -1474,14 +5173,6 @@
           {
             "field": "currentPrice",
             "headerName": "Current Price",
-            "cellDataType": "number",
-            "filter": true,
-            "sortable": true,
-            "resizable": true
-          },
-          {
-            "field": "marketValue",
-            "headerName": "Market Value",
             "cellDataType": "number",
             "filter": true,
             "sortable": true,
@@ -1550,29 +5241,13 @@
             "filter": true,
             "sortable": true,
             "resizable": true
-          },
-          {
-            "field": "spread",
-            "headerName": "Spread",
-            "cellDataType": "number",
-            "filter": true,
-            "sortable": true,
-            "resizable": true
-          },
-          {
-            "field": "yield",
-            "headerName": "Yield",
-            "cellDataType": "number",
-            "filter": true,
-            "sortable": true,
-            "resizable": true
           }
         ],
         "keyColumn": "positionId",
         "throttleEnabled": false,
         "conflateEnabled": false,
         "reconnect": {
-          "initialDelayMs": 1000
+          "initialDelayMs": 500
         },
         "__providerMeta": {
           "tags": [],
@@ -1581,37 +5256,493 @@
         }
       },
       "createdBy": "dev1",
-      "updatedBy": "dev1",
-      "creationTime": "2026-06-08T21:12:13.182Z",
-      "updatedTime": "2026-06-08T21:12:13.185Z"
+      "updatedBy": "k151344",
+      "creationTime": "2026-06-09T00:15:31.112Z",
+      "updatedTime": "2026-06-09T01:19:17.661Z"
     },
     {
-      "configId": "grid-pnl-copy",
-      "appId": "TestApp",
-      "userId": "dev1",
+      "configId": "grid-test",
+      "appId": "StarDemo",
+      "userId": "k151344",
       "isPublic": true,
-      "displayText": "MarketsGrid profiles: grid-pnl-copy",
+      "displayText": "MarketsGrid profiles: grid-test",
       "componentType": "grid",
-      "componentSubType": "pnl-copy",
+      "componentSubType": "test",
       "isTemplate": true,
       "singleton": false,
       "payload": {
-        "version": 1,
+        "version": 6,
         "profiles": [
           {
             "id": "__default__",
             "gridId": "star-demo-blotter",
             "name": "Default",
-            "state": {},
-            "createdAt": 1780921587399,
-            "updatedAt": 1780921587399
+            "state": {
+              "general-settings": {
+                "v": 4,
+                "data": {
+                  "rowHeight": 30,
+                  "headerHeight": 32,
+                  "pagination": false,
+                  "paginationPageSize": 100,
+                  "paginationAutoPageSize": false,
+                  "suppressPaginationPanel": false,
+                  "checkboxSelection": false,
+                  "cellSelection": true,
+                  "rowDragging": false,
+                  "animateRows": true,
+                  "cellFlashDuration": 500,
+                  "cellFadeDuration": 1000,
+                  "cellChangeFlashColor": "amber",
+                  "quickFilterText": "",
+                  "groupDefaultExpanded": 0,
+                  "rowGroupPanelShow": "never",
+                  "pivotMode": false,
+                  "pivotPanelShow": "never",
+                  "groupHideOpenParents": false,
+                  "suppressAggFuncInHeader": false,
+                  "showOpenedGroup": false,
+                  "groupHideColumnsUntilExpanded": false,
+                  "groupHideParentOfSingleChild": false,
+                  "groupAllowUnbalanced": false,
+                  "groupMaintainOrder": false,
+                  "suppressGroupRowsSticky": false,
+                  "rowGroupPanelSuppressSort": false,
+                  "groupLockGroupColumns": 0,
+                  "suppressGroupChangesColumnVisibility": false,
+                  "ssrmExpandAllAffectsAllRows": false,
+                  "refreshAfterGroupEdit": false,
+                  "enableAdvancedFilter": false,
+                  "includeHiddenColumnsInQuickFilter": false,
+                  "multiSortMode": "shift",
+                  "accentedSort": false,
+                  "copyHeadersToClipboard": false,
+                  "clipboardDelimiter": "\t",
+                  "singleClickEdit": false,
+                  "stopEditingWhenCellsLoseFocus": false,
+                  "enterNavigation": "default",
+                  "undoRedoCellEditing": false,
+                  "undoRedoCellEditingLimit": 10,
+                  "tooltipShowDelay": 2000,
+                  "tooltipShowMode": "standard",
+                  "suppressRowHoverHighlight": false,
+                  "columnHoverHighlight": false,
+                  "headerCaseUppercase": false,
+                  "showCellTooltips": false,
+                  "defaultResizable": true,
+                  "defaultMinWidth": 80,
+                  "suppressSizeToFit": false,
+                  "suppressAutoSize": false,
+                  "defaultSortable": true,
+                  "defaultFilterable": true,
+                  "unSortIcon": false,
+                  "floatingFilter": false,
+                  "defaultEditable": false,
+                  "suppressPaste": false,
+                  "suppressNavigable": false,
+                  "wrapHeaderText": false,
+                  "autoHeaderHeight": false,
+                  "suppressHeaderMenuButton": false,
+                  "suppressMovable": false,
+                  "lockPosition": false,
+                  "lockVisible": false,
+                  "lockPinned": false,
+                  "wrapText": false,
+                  "autoHeight": false,
+                  "enableCellChangeFlash": false,
+                  "enableRowGroup": false,
+                  "enablePivot": false,
+                  "enableValue": false,
+                  "enableCellTextSelection": false,
+                  "suppressDragLeaveHidesColumns": true,
+                  "suppressColumnMoveAnimation": false,
+                  "sideBar": false,
+                  "sideBarShowColumns": true,
+                  "sideBarShowFilters": true,
+                  "statusBar": false,
+                  "statusBarShowTotalAndFilteredCount": true,
+                  "statusBarShowFilteredCount": false,
+                  "statusBarShowTotalCount": false,
+                  "statusBarShowSelectedCount": true,
+                  "statusBarShowAggregation": false,
+                  "rowBuffer": 10,
+                  "suppressScrollOnNewData": false,
+                  "suppressColumnVirtualisation": false,
+                  "suppressRowVirtualisation": false,
+                  "suppressMaxRenderedRowRestriction": false,
+                  "suppressAnimationFrame": false,
+                  "debounceVerticalScrollbar": false
+                }
+              },
+              "column-templates": {
+                "v": 1,
+                "data": {
+                  "templates": {},
+                  "typeDefaults": {}
+                }
+              },
+              "column-customization": {
+                "v": 10,
+                "data": {
+                  "assignments": {
+                    "trader": {
+                      "colId": "trader",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#eab308"
+                          }
+                        }
+                      }
+                    },
+                    "desk": {
+                      "colId": "desk",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "colors": {
+                            "text": "#eab308"
+                          }
+                        }
+                      }
+                    },
+                    "ticker": {
+                      "colId": "ticker",
+                      "cellStyleOverrides": {
+                        "dark": {
+                          "typography": {
+                            "bold": true
+                          },
+                          "colors": {
+                            "text": "#68ccc8"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "calculated-columns": {
+                "v": 1,
+                "data": {
+                  "virtualColumns": []
+                }
+              },
+              "column-groups": {
+                "v": 1,
+                "data": {
+                  "groups": [],
+                  "openGroupIds": {}
+                }
+              },
+              "conditional-styling": {
+                "v": 1,
+                "data": {
+                  "rules": []
+                }
+              },
+              "visual-excel": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "fileNamePrefix": "markets-grid"
+                  }
+                }
+              },
+              "smart-edit": {
+                "v": 2,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "incrementStep": 1,
+                    "magnitudeShortcutsEnabled": true,
+                    "enabledOps": [
+                      "multiply",
+                      "divide",
+                      "add",
+                      "subtract",
+                      "set"
+                    ],
+                    "confirmThreshold": 50,
+                    "enforceSingleColumn": true,
+                    "previewBeforeApply": false,
+                    "recordHistory": true
+                  }
+                }
+              },
+              "bulk-update": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "confirmThreshold": 50,
+                    "showDistinctValues": true,
+                    "maxDropdownValues": 20,
+                    "enforceSingleColumn": true,
+                    "recordHistory": true
+                  }
+                }
+              },
+              "plus-minus": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "recordHistory": true
+                  },
+                  "nudges": []
+                }
+              },
+              "shortcuts": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "recordHistory": true
+                  },
+                  "shortcuts": []
+                }
+              },
+              "data-change-history": {
+                "v": 1,
+                "data": {
+                  "settings": {
+                    "enabled": true,
+                    "maxEntries": 50,
+                    "suspended": false,
+                    "unifyUndo": true,
+                    "recordSources": {
+                      "smartEdit": true,
+                      "bulkUpdate": true,
+                      "plusMinus": true,
+                      "shortcuts": true,
+                      "cellEditor": true,
+                      "stream": false
+                    }
+                  }
+                }
+              },
+              "alerts": {
+                "v": 1,
+                "data": {
+                  "rules": [],
+                  "settings": {
+                    "enabled": true,
+                    "defaultDebounceMs": 1000,
+                    "maxNotificationsPerSecond": 5,
+                    "historyLimit": 500,
+                    "enabledChannels": {
+                      "toast": true,
+                      "badge": true,
+                      "openfin": true
+                    },
+                    "evaluationMode": "realtime"
+                  },
+                  "history": []
+                }
+              },
+              "grid-state": {
+                "v": 3,
+                "data": {
+                  "schemaVersion": 3,
+                  "savedAt": "2026-06-09T01:19:37.954Z",
+                  "gridState": {
+                    "version": "35.1.0",
+                    "cellSelection": {
+                      "cellRanges": [
+                        {
+                          "startRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "endRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "colIds": [
+                            "ticker"
+                          ],
+                          "startColId": "ticker"
+                        }
+                      ]
+                    },
+                    "sideBar": {
+                      "visible": false,
+                      "openToolPanel": null,
+                      "toolPanels": {}
+                    },
+                    "columnSizing": {
+                      "columnSizingModel": [
+                        {
+                          "colId": "positionId",
+                          "width": 80
+                        },
+                        {
+                          "colId": "cusip",
+                          "width": 80
+                        },
+                        {
+                          "colId": "ticker",
+                          "width": 80
+                        },
+                        {
+                          "colId": "asOfDate",
+                          "width": 80
+                        },
+                        {
+                          "colId": "trader",
+                          "width": 131.5
+                        },
+                        {
+                          "colId": "desk",
+                          "width": 132.5
+                        },
+                        {
+                          "colId": "notionalAmount",
+                          "width": 80
+                        },
+                        {
+                          "colId": "currentPrice",
+                          "width": 80
+                        },
+                        {
+                          "colId": "pnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "unrealizedPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "realizedPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "dailyPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "mtdPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "ytdPnl",
+                          "width": 80
+                        },
+                        {
+                          "colId": "dv01",
+                          "width": 80
+                        },
+                        {
+                          "colId": "pv01",
+                          "width": 80
+                        }
+                      ]
+                    },
+                    "columnOrder": {
+                      "orderedColIds": [
+                        "positionId",
+                        "cusip",
+                        "ticker",
+                        "asOfDate",
+                        "trader",
+                        "desk",
+                        "notionalAmount",
+                        "currentPrice",
+                        "pnl",
+                        "unrealizedPnl",
+                        "realizedPnl",
+                        "dailyPnl",
+                        "mtdPnl",
+                        "ytdPnl",
+                        "dv01",
+                        "pv01"
+                      ]
+                    },
+                    "filter": {
+                      "selectableFilters": {}
+                    },
+                    "rowGroupExpansion": {
+                      "expandedRowGroupIds": [],
+                      "collapsedRowGroupIds": []
+                    },
+                    "pagination": {
+                      "page": 0,
+                      "pageSize": 100
+                    },
+                    "focusedCell": {
+                      "colId": "ticker",
+                      "rowIndex": 0,
+                      "rowPinned": null
+                    },
+                    "rangeSelection": {
+                      "cellRanges": [
+                        {
+                          "startRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "endRow": {
+                            "rowIndex": 0,
+                            "rowPinned": null
+                          },
+                          "colIds": [
+                            "ticker"
+                          ],
+                          "startColId": "ticker"
+                        }
+                      ]
+                    }
+                  },
+                  "viewportAnchor": {
+                    "firstRowIndex": 0,
+                    "leftColId": "positionId",
+                    "horizontalPixel": 0
+                  }
+                }
+              },
+              "toolbar-visibility": {
+                "v": 1,
+                "data": {
+                  "visible": {
+                    "filters-toolbar-pills": false
+                  }
+                }
+              },
+              "saved-filters": {
+                "v": 2,
+                "data": {
+                  "filters": []
+                }
+              },
+              "toolbar-date-settings": {
+                "v": 1,
+                "data": {
+                  "historicalDateAppDataEnabled": false,
+                  "historicalDateAppDataProvider": "",
+                  "historicalDateAppDataKey": "",
+                  "rowExclusionExpression": ""
+                }
+              }
+            },
+            "createdAt": 1780965255221,
+            "updatedAt": 1780967977984
           }
-        ]
+        ],
+        "gridLevelData": {
+          "v": 1,
+          "provider": {
+            "liveProviderId": "dp-121e4569-5100-4f6b-b946-c3423d8aff7c",
+            "historicalProviderId": null,
+            "mode": "live"
+          },
+          "caption": "Testgrid"
+        }
       },
-      "createdBy": "dev1",
-      "updatedBy": "dev-user",
-      "creationTime": "2026-06-08T12:26:27.400Z",
-      "updatedTime": "2026-06-08T12:29:08.292Z"
+      "createdBy": "k151344",
+      "updatedBy": "k151344",
+      "creationTime": "2026-06-09T00:33:14.095Z",
+      "updatedTime": "2026-06-09T01:19:38.026Z"
     }
   ],
   "appRegistry": [

@@ -129,6 +129,7 @@ function stubConfigManager(): ConfigManager & { _rows: Map<string, AppConfigRow>
   const rows = new Map<string, AppConfigRow>();
   return {
     _rows: rows,
+    getAppId() { return 'TestApp'; },
     async getConfigsByUser(userId: string) {
       return [...rows.values()].filter((r) => r.userId === userId);
     },

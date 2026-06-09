@@ -54,6 +54,26 @@ export async function loadProfileSet(
   return null;
 }
 
+function hasProfileSetShape(row: AppConfigRow): boolean {
+  const payload = row.payload as { profiles?: unknown } | null | undefined;
+  return row.componentType === MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE
+    || Array.isArray(payload?.profiles);
+}
+
+/**
+ * Storage-adapter read: returns profile-set bytes when the row has bundle
+ * shape, even if `appId`/`userId` drifted (export/seed class), so
+ * gridLevelData / profile RMW does not wipe with `profiles: []`.
+ */
+export function readProfileSetPayload(
+  row: AppConfigRow | null | undefined,
+  scope: Pick<ProfileSetScope, 'appId' | 'userId'>,
+): ProfileSetPayload | null {
+  void scope;
+  if (!row || !hasProfileSetShape(row)) return null;
+  return normalizePayload(row.payload);
+}
+
 /**
  * Write the bundle with optimistic-concurrency check.
  */
@@ -68,9 +88,10 @@ export async function saveProfileSet(
   const { instanceId, appId, userId } = scope;
   const now = new Date().toISOString();
   const existing = prefetched ? prefetched.row : await configManager.getConfig(instanceId);
-  const actualVersion = isProfileSetRow(existing, appId, userId)
-    ? readVersion(existing.payload)
-    : 0;
+  // Version lives on the payload regardless of scope drift — a row at this
+  // configId with mismatched appId must still participate in OCC so
+  // concurrent gridLevelData + profile writes do not silently clobber.
+  const actualVersion = existing ? readVersion(existing.payload) : 0;
 
   if (actualVersion !== expectedVersion) {
     throw new ProfileSetVersionConflictError(expectedVersion, actualVersion, instanceId);

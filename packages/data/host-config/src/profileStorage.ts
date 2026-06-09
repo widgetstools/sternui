@@ -55,7 +55,7 @@
 // core; consumers naturally satisfy the peer by depending on both.
 import type { ProfileSnapshot, StorageAdapter } from '@starui/engine';
 import type { ProfileSetConfigAccess } from './profileSetAccess';
-import { loadProfileSet, saveProfileSet } from './profileSet';
+import { loadProfileSet, readProfileSetPayload, saveProfileSet } from './profileSet';
 import type { ProfilesNamespace } from './profilesTypes';
 import type { RegisteredComponentIdentity } from './profileSetTypes';
 import type { AppConfigRow } from './types';
@@ -196,7 +196,7 @@ export function createConfigServiceStorage(
     const adapter: StorageAdapter = {
       async loadProfile(gridId: string, profileId: string): Promise<ProfileSnapshot | null> {
         void gridId; // gridId maps 1:1 to instanceId at this seam
-        const set = await loadProfileSet(configManager, scope, { row: await readRow() });
+        const set = readProfileSetPayload(await readRow(), scope);
         if (!set) return null;
         return set.profiles.find((p) => p.id === profileId) ?? null;
       },
@@ -208,7 +208,7 @@ export function createConfigServiceStorage(
         // between gets caught on the version-compare. `gridLevelData`
         // is preserved verbatim — saving a profile must not clobber it.
         const row = await readRow();
-        const loaded = await loadProfileSet(configManager, scope, { row });
+        const loaded = readProfileSetPayload(row, scope);
         const expectedVersion = loaded?.version ?? 0;
         const profiles = loaded?.profiles ?? [];
         const idx = profiles.findIndex((p) => p.id === snapshot.id);
@@ -231,7 +231,7 @@ export function createConfigServiceStorage(
       async deleteProfile(gridId: string, profileId: string): Promise<void> {
         void gridId;
         const row = await readRow();
-        const loaded = await loadProfileSet(configManager, scope, { row });
+        const loaded = readProfileSetPayload(row, scope);
         if (!loaded) return;
         const filtered = loaded.profiles.filter((p) => p.id !== profileId);
         if (filtered.length === loaded.profiles.length) return; // not found; no-op
@@ -248,13 +248,13 @@ export function createConfigServiceStorage(
 
       async listProfiles(gridId: string): Promise<ProfileSnapshot[]> {
         void gridId;
-        const set = await loadProfileSet(configManager, scope, { row: await readRow() });
+        const set = readProfileSetPayload(await readRow(), scope);
         return set?.profiles ?? [];
       },
 
       async loadGridLevelData(gridId: string): Promise<unknown | null> {
         void gridId;
-        const set = await loadProfileSet(configManager, scope, { row: await readRow() });
+        const set = readProfileSetPayload(await readRow(), scope);
         return set?.gridLevelData ?? null;
       },
 
@@ -263,7 +263,7 @@ export function createConfigServiceStorage(
         // Read-modify-write the same bundled row. Keep profiles and
         // version intact — only the `gridLevelData` field changes.
         const row = await readRow();
-        const loaded = await loadProfileSet(configManager, scope, { row });
+        const loaded = readProfileSetPayload(row, scope);
         const expectedVersion = loaded?.version ?? 0;
         await saveProfileSet(
           configManager,

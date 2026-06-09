@@ -24,9 +24,10 @@ function mockRow(id: string, name = id): AppConfigRow {
   };
 }
 
-function mockConfigManager(rows: AppConfigRow[] = []): ConfigManager {
+function mockConfigManager(rows: AppConfigRow[] = [], appId = 'StarDemo'): ConfigManager {
   const map = new Map(rows.map((r) => [r.configId, r]));
   return {
+    getAppId() { return appId; },
     async getAllConfigsUnfiltered() { return [...map.values()]; },
     async getConfigsByComponentTypesUnfiltered(types: string[]) { return [...map.values()].filter((r) => types.includes(r.componentType)); },
     async getConfig(id: string) { return map.get(id); },
@@ -45,6 +46,36 @@ const mockProvider = (id: string, name: string): DataProviderConfig => ({
 });
 
 describe('DataProviderConfigStore — hub catalog invalidation', () => {
+  it('save() stamps the ConfigManager appId on new rows', async () => {
+    const cm = mockConfigManager([], 'StarDemo');
+    const store = new DataProviderConfigStore(cm);
+    const savedRows: AppConfigRow[] = [];
+    (cm as { saveConfig: (row: AppConfigRow) => Promise<void> }).saveConfig = async (row) => {
+      savedRows.push(row);
+    };
+
+    await store.save({
+      name: 'positions-live',
+      providerType: 'stomp',
+      config: { providerType: 'stomp' } as never,
+      public: true,
+    }, 'dev1');
+
+    expect(savedRows[0]?.appId).toBe('StarDemo');
+  });
+
+  it('save() re-stamps appId when updating a row that drifted to TestApp', async () => {
+    const drifted = mockRow('p1', 'Drifted');
+    drifted.appId = 'TestApp';
+    const cm = mockConfigManager([drifted], 'StarDemo');
+    const store = new DataProviderConfigStore(cm);
+
+    await store.save(mockProvider('p1', 'Drifted'), 'dev1');
+
+    const row = await cm.getConfig('p1');
+    expect(row?.appId).toBe('StarDemo');
+  });
+
   it('save() notifies invalidateCatalog with the saved provider id', async () => {
     const invalidate = vi.fn();
     const store = new DataProviderConfigStore(mockConfigManager(), invalidate);

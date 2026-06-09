@@ -10,6 +10,7 @@ import {
   getPlatformDefaultScope,
   migrateLegacyPlatformScope,
   migrateRegistryToGlobalScope,
+  migrateRegistryAppIdDrift,
   realignAllConfigsToPlatformScope,
 } from './db';
 import {
@@ -40,7 +41,8 @@ import type { CustomSettings, PlatformSettings, WorkspaceConfig } from './types'
 import { createWorkspacePersistenceOverride } from './workspacePersistence';
 import { gcOrphanedConfigs } from './workspaceGc';
 import { buildCustomActions } from './internal/customActions';
-import { DEFAULT_APP_ID, DEFAULT_USER_ID } from './registryHostEnv';
+import { resolveDefaultPlatformScope } from './platformScope';
+import { resolveDeploymentIdentity } from './platformBootstrap';
 import {
   openChildToolWindow as openChildWindow,
   openDataProvidersToolWindow,
@@ -118,32 +120,6 @@ function applyLocalDataTheme(isDark: boolean): void {
 }
 
 /**
- * Resolve the canonical `(appId, userId)` to use as the platform's
- * default scope for every implicit-scope save/load.
- *
- * Both fields are pinned to constants and never read from the
- * `appRegistry` / `userProfile` tables. Reading from those tables
- * sounds data-driven but in practice it lets a stale/imported row
- * (e.g. a Windows export with `userId='dev-user-001'`, or an old
- * `appRegistry[0].appId='react-workspace-starter'`) become the
- * platform scope, which `realignAllConfigsToPlatformScope` then
- * propagates onto every appConfig row — diverging the realign-time
- * `(appId, userId)` from the runtime caller's `(appId, userId)` and
- * silently breaking the strict-equality ownership check in
- * `isProfileSetRow`. Pinning matches every other resolution site
- * (runtime-port, registry-host-env, useHostedIdentity).
- *
- * Replace the literals when real multi-app + SSO support actually
- * lands; until then the `(TestApp, dev1)` constant is the contract.
- */
-async function resolveDefaultPlatformScope(
-  _cm: ConfigManager,
-): Promise<{ appId: string; userId: string }> {
-  void _cm;
-  return { appId: DEFAULT_APP_ID, userId: DEFAULT_USER_ID };
-}
-
-/**
  * Prevents initWorkspace() from running more than once.
  * The platform can only be initialised a single time per provider window,
  * so a second call silently returns without doing anything.
@@ -195,7 +171,10 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
   // same source-of-truth read used by view-route ConfigServiceProviders
   // (see `getConfigServiceRestUrlFromManifest()`).
   const restUrl = resolveRestUrl(settings.customSettings);
+  const deployment = await resolveDeploymentIdentity(settings.customSettings);
   configManager = createConfigManager({
+    appId: deployment.appId,
+    identity: { userId: deployment.userId, displayName: deployment.userId },
     seedConfigUrl: settings.customSettings?.seedConfigUrl,
     configServiceRestUrl: restUrl,
   });
@@ -205,18 +184,12 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
   // uses the same database as everything else.
   setConfigManager(configManager);
 
-  // Tag every implicit-scope save with the canonical (appId, userId)
-  // pair seeded into the config service:
-  //   • appId  = "TestApp"  (the only row in appRegistry seed)
-  //   • userId = "dev1"     (the only row in userProfiles seed)
-  // Dock, registry, MarketsGrid profiles, and any future per-app config
-  // all land in one scope bucket — visible together in the Config Browser.
-  // Decoupled from `fin.me.identity.uuid` deliberately: the platform's
-  // OpenFin uuid is a runtime detail; the config-service identity is the
-  // stable key that survives platform rename/relaunch and matches whatever
-  // appears in the appRegistry / userProfile tables. Replace `dev1` with
-  // the signed-in user's id when real auth is wired.
-  const defaultScope = await resolveDefaultPlatformScope(configManager);
+  // Tag every implicit-scope save with manifest customSettings first,
+  // then seeded appRegistry / userProfile (star-demo → StarDemo / dev1).
+  const defaultScope = await resolveDefaultPlatformScope(
+    configManager,
+    settings.customSettings,
+  );
   setPlatformDefaultScope(defaultScope);
   log(
     `Platform default scope: appId='${defaultScope.appId}' userId='${defaultScope.userId}' ` +
@@ -264,6 +237,17 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
     }
   } catch (regMigErr) {
     console.warn('[initWorkspace] migrateRegistryToGlobalScope failed:', regMigErr);
+  }
+
+  // Relocate registry rows stamped under a stale appId (e.g. TestApp from
+  // the old hard-coded platform scope) to the current platform appId.
+  try {
+    const drift = await migrateRegistryAppIdDrift();
+    if (drift.migrated > 0) {
+      log(`Migrated ${drift.migrated} component-registry row(s) to appId='${defaultScope.appId}'.`);
+    }
+  } catch (driftErr) {
+    console.warn('[initWorkspace] migrateRegistryAppIdDrift failed:', driftErr);
   }
 
   log("Config service initialized");

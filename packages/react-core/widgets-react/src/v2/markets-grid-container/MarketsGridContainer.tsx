@@ -214,6 +214,10 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const [providerEditorOpen, setProviderEditorOpen] = useState(false);
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
   const [configBrowserOpen, setConfigBrowserOpen] = useState(false);
+  const lastSavedRef = useRef<GridLevelStateV1 | null>(null);
+  /** False when disk has no provider link yet — bootstrap should write once. */
+  const diskHadProviderLinkRef = useRef<boolean | null>(null);
+  const persistChainRef = useRef<Promise<void>>(Promise.resolve());
 
   // Fill empty provider slots from the configured defaults. Shared by the
   // initial load and the import-restore handler so both reconcile the
@@ -239,6 +243,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     let cancelled = false;
 
     if (!adapter?.loadGridLevelData) {
+      diskHadProviderLinkRef.current = false;
       if (defaultLiveProviderId || defaultHistoricalProviderId) {
         setSelection(applyDefaults({ ...DEFAULT_SELECTION }));
       }
@@ -250,6 +255,9 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       .then((raw) => {
         if (cancelled) return;
         const state = normalizeGridLevelData(raw);
+        diskHadProviderLinkRef.current = Boolean(
+          state.provider.liveProviderId || state.provider.historicalProviderId,
+        );
         setSelection(applyDefaults(state.provider));
         setPersistedCaption(state.caption);
         setEventBindings(state.eventBindings ?? {});
@@ -257,6 +265,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       })
       .catch(() => {
         if (cancelled) return;
+        diskHadProviderLinkRef.current = false;
         setSelection({ ...DEFAULT_SELECTION });
         setPersistedCaption(undefined);
         setEventBindings({});
@@ -285,7 +294,6 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // no-op write) AND handles React StrictMode's double-effect correctly
   // across remounts. Tracks both the picker selection and the persisted
   // caption — they share the same gridLevelData blob.
-  const lastSavedRef = useRef<GridLevelStateV1 | null>(null);
   useEffect(() => {
     if (!loaded) return;
     const next = serializeGridLevelData({
@@ -294,8 +302,24 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       caption: persistedCaption,
       eventBindings: Object.keys(eventBindings).length > 0 ? eventBindings : undefined,
     });
+    const enqueuePersist = (payload: GridLevelStateV1) => {
+      if (!adapter?.saveGridLevelData) return;
+      persistChainRef.current = persistChainRef.current
+        .then(() => adapter.saveGridLevelData!(props.gridId, payload))
+        .catch((err) => {
+          console.warn('[markets-grid-container] gridLevelData save failed:', err);
+        });
+    };
+
     if (lastSavedRef.current === null) {
       lastSavedRef.current = next;
+      const shouldBootstrapPersist =
+        diskHadProviderLinkRef.current === false
+        && Boolean(next.provider.liveProviderId || next.provider.historicalProviderId);
+      if (shouldBootstrapPersist) {
+        diskHadProviderLinkRef.current = true;
+        enqueuePersist(next);
+      }
       return;
     }
     const prev = lastSavedRef.current;
@@ -309,9 +333,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       return;
     }
     lastSavedRef.current = next;
-    if (adapter?.saveGridLevelData) {
-      void adapter.saveGridLevelData(props.gridId, next);
-    }
+    enqueuePersist(next);
   }, [selection, persistedCaption, eventBindings, loaded, adapter, props.gridId]);
 
   // Apply grid-level data restored by a profile import (schemaVersion 2).

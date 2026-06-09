@@ -12,6 +12,7 @@ interface ToolbarProps {
   onNew: () => void;
   onExport: () => void;
   onExportAll: () => void;
+  onExportDeploy: () => void;
   onImport: () => void;
   onDeleteAll: () => void;
 }
@@ -25,6 +26,7 @@ export function Toolbar({
   onNew,
   onExport,
   onExportAll,
+  onExportDeploy,
   onImport,
   onDeleteAll,
 }: ToolbarProps) {
@@ -58,8 +60,13 @@ export function Toolbar({
       <EditorButton onClick={onImport} title="Import JSON (matches Export format)" icon="lucide:upload" />
       <EditorButton onClick={onExport} title="Export JSON (this table only)" icon="lucide:download" />
       <EditorButton
+        onClick={onExportDeploy}
+        title="Export for deploy — scoped seed bundle with validation (workspaces + referenced instances only)"
+        icon="lucide:rocket"
+      />
+      <EditorButton
         onClick={onExportAll}
-        title="Export ALL tables as a single bundle (seed-config shape — feed straight into the admin importer)"
+        title="Export ALL (raw) — full Dexie dump for debugging; may include orphan instance rows"
         icon="lucide:package"
       />
       <EditorButton

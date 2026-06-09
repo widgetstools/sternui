@@ -135,6 +135,8 @@ export {
 // ── Platform bootstrap (manifest → PlatformBootstrapConfig) ─────────
 export {
   DEFAULT_MANIFEST_USER_ID,
+  resolveBootstrapManifestScope,
+  resolveDeploymentIdentity,
   resolvePlatformBootstrapFromCustomSettings,
   resolvePlatformBootstrapFromManifest,
 } from './platformBootstrap';

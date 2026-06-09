@@ -11,10 +11,12 @@ import type OpenFin from '@openfin/core';
 import {
   DEV_PLATFORM_BOOTSTRAP,
   PlatformBootstrapConfigError,
+  resolvePlatformBootstrapFromJson,
   resolvePlatformBootstrapFromObject,
   type PlatformBootstrapConfig,
 } from '@starui/host-data';
 
+import { DEFAULT_APP_ID } from './registryHostEnv.js';
 import type { CustomSettings } from './types.js';
 
 /** Default dev userId when manifest omits `customSettings.userId`. */
@@ -61,5 +63,42 @@ export async function resolvePlatformBootstrapFromManifest(): Promise<PlatformBo
     throw new PlatformBootstrapConfigError(
       'Failed to read OpenFin manifest for platform bootstrap',
     );
+  }
+}
+
+/** `(appId, userId)` from manifest or web `app-config.json`. */
+export interface BootstrapManifestScope {
+  appId: string;
+  userId: string;
+}
+
+/**
+ * Deployment identity for `createConfigManager({ appId, identity })`.
+ * Manifest / app-config values are fallbacks when the seed can't be read.
+ */
+export async function resolveDeploymentIdentity(
+  manifest?: { appId?: string; userId?: string } | null,
+): Promise<BootstrapManifestScope> {
+  const bootstrap = await resolveBootstrapManifestScope();
+  const manifestAppId = typeof manifest?.appId === 'string' ? manifest.appId.trim() : '';
+  const manifestUserId = typeof manifest?.userId === 'string' ? manifest.userId.trim() : '';
+  const appId = bootstrap?.appId ?? (manifestAppId || DEFAULT_APP_ID);
+  const userId = bootstrap?.userId ?? (manifestUserId || DEFAULT_MANIFEST_USER_ID);
+  return { appId, userId };
+}
+
+/**
+ * Read deployment `appId` / `userId` from manifest `customSettings`
+ * (OpenFin) or web `app-config.json` (browser). Returns `null` when
+ * neither source is reachable.
+ */
+export async function resolveBootstrapManifestScope(): Promise<BootstrapManifestScope | null> {
+  try {
+    const bootstrap = typeof fin !== 'undefined'
+      ? await resolvePlatformBootstrapFromManifest()
+      : await resolvePlatformBootstrapFromJson('/app-config.json');
+    return { appId: bootstrap.appId, userId: bootstrap.userId };
+  } catch {
+    return null;
   }
 }

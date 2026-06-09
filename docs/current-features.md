@@ -632,7 +632,11 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### State, helpers, theming
 
-- `useConfigBrowser` — table state, filters, mutations
+- `useConfigBrowser` — table state, filters, mutations; `exportDeploy()` full deploy seed bundle (unfiltered `appConfig`) + validation via `@starui/host-config` `buildDeployExport()`
+- `DeployExportPreviewDialog` — pre-download validation summary (errors block; warnings require acknowledge)
+- `buildDeployExport()`, `validateDeployExport()`, `parseSeedJson()` (`@starui/host-config`) — deploy export includes every `appConfig` row (unfiltered read); normalize `appId` / `userId` drift; reject wrong `seed.json` shapes (e.g. `kind: starui.dataProvider`); emit `DeployExportWarning` codes (`MISSING_INSTANCE_ROW`, `EMPTY_PROFILE_STATE`, `UNREFERENCED_ROWS`, …)
+- `readProfileSetPayload()` (`@starui/host-config`) — storage adapter reads profile-set bytes even when row `appId` drifted, so `gridLevelData` / profile saves do not wipe `profiles: []`; re-stamps correct scope on write
+- `resolveDefaultPlatformScope()` / `resolveBootstrapManifestScope()` (`@starui/openfin-platform`) — `initWorkspace` and child-window `getConfigManager()` read manifest / `app-config.json` `appId` instead of hard-coded `TestApp`; `readHostEnv()` uses the same bootstrap before dev fallback; `migrateRegistryAppIdDrift()` relocates and deletes stale `component-registry::TestApp::system` rows
 - `TABLES` — table enumeration
 - `createConfigBrowserAction` — wire config browser as OpenFin context-menu action
 - `agGridTheme` — AG Grid theme adapter
@@ -1008,9 +1012,15 @@ Per-renderer config types (`PillRendererConfig`,
 
 - `SeedData` — first-run seed shape; optional `appConfig[]` lets a Config
   Browser "Export ALL" bundle serve as a full-restore `seed.json` (data
-  providers, component registry, dock, workspaces, profile-sets). Written
-  verbatim; `seedIfEmpty()` runs only on an empty DB (gated on appRegistry
-  **or** appConfig count) so it never clobbers a bootstrapped app.
+  providers, component registry, dock, workspaces, profile-sets).
+  `normalizeSeedData()` re-stamps mismatched `appConfig[].appId` / `userId`
+  (and `userProfiles[].appId`) to match `appRegistry` / `userProfiles` before
+  `seedIfEmpty()` writes (fixes stale exports such as `TestApp` / `dev1`
+  against a `star-demo` / `k151344` deployment). `ConfigManager.saveConfig()`
+  enforces the same deployment `appId` / seeded `identity.userId` on every
+  runtime write (global catalogue rows keep `userId: system`). `seedIfEmpty()` runs only
+  on an empty DB (gated on appRegistry **or** appConfig count) so it never
+  clobbers a bootstrapped app.
 - `ConfigDatabase` — Dexie wrapper with schema versioning
 - Compound indexes: `[componentType+componentSubType]`, `[userId+appId]`
 - v1→v2 unified schema migration (`config→payload`, `createdAt→creationTime`, `updatedAt→updatedTime`)
@@ -1051,6 +1061,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `SharedWorkerDataServicesClient` — main-thread client routing events to listeners; catalog RPC (`waitForCatalogReady`, `getProviderConfig`, `listProviderConfigs`, `invalidateConfig`, `getHubIntrospect`); **Deprecated.** passing `cfg` on `attach` / `subscribe` for catalogued providers — use cfg-free attach
 - `SharedWorkerDataServicesHub` — worker state machine (providers, cache, fan-out); **`hydrateCatalog()`** preloads `ConfigCatalogCache` after ConfigManager init; **`buildIntrospectSnapshot()`** / `hub-introspect` RPC for live provider + AppData diagnostics
 - `ConfigCatalogCache` — worker-side in-memory data-provider catalog (`loadAll`, `get`, `getProviderConfig`, `list`, `invalidate`, `upsert`); used by hub before cfg-free attach (Phase 1)
+- `DataProviderConfigStore` / `AppDataConfigStore` — persist provider rows with `ConfigManager.getAppId()` (no hard-coded `TestApp`); re-stamps `appId` on every save so drifted rows realign to the deployment scope
 - `AppDataMirror` — synchronous main-thread view of AppData
 - `WorkerAppDataStore` — worker-side IndexedDB persistence
 

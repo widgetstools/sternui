@@ -71,7 +71,7 @@
   ],
   "appRegistry": [
     {
-      "appId": "StarDemo",
+      "appId": "star-demo",
       "displayName": "Star Demo",
       "manifestUrl": "http://localhost:5175/platform/manifest.fin.json",
       "configServiceEnabled": false,
@@ -80,8 +80,8 @@
   ],
   "userProfiles": [
     {
-      "userId": "dev1",
-      "appId": "StarDemo",
+      "userId": "k151344",
+      "appId": "star-demo",
       "roleIds": ["admin", "developer"],
       "displayName": "Developer"
     }
