@@ -83,6 +83,7 @@ export type {
   AppIdentity,
   AppRegistryRow,
   ApplicationContext,
+  ConfigManagerInitOptions,
   ConfigManagerOptions,
   DataServicesHandle,
   PermissionRow,
@@ -188,6 +189,7 @@ export {
   normalizeSeedData,
   parseSeedJson,
   resolveActiveIdentityFromSeedUrl,
+  isSeedIdentityCached,
   type ActiveIdentity,
   type FetchLike as SeedFetchLike,
 } from './normalizeSeedData';

@@ -21,6 +21,7 @@
 export class ChangeNotifier {
   private channel: BroadcastChannel | undefined;
   private listeners = new Map<string, Set<() => void>>();
+  private globalListeners = new Set<(configId: string) => void>();
   private disposed = false;
 
   constructor(channelName = 'marketsui-config-changes') {
@@ -53,6 +54,17 @@ export class ChangeNotifier {
     }
   }
 
+  /**
+   * Subscribe to every config write/delete (same-tab + cross-tab).
+   * Returns unsubscribe.
+   */
+  subscribeAll(fn: (configId: string) => void): () => void {
+    this.globalListeners.add(fn);
+    return () => {
+      this.globalListeners.delete(fn);
+    };
+  }
+
   /** Subscribe to changes for a specific `configId`. Returns unsubscribe. */
   subscribe(configId: string, fn: () => void): () => void {
     let set = this.listeners.get(configId);
@@ -73,6 +85,7 @@ export class ChangeNotifier {
     if (this.disposed) return;
     this.disposed = true;
     this.listeners.clear();
+    this.globalListeners.clear();
     if (this.channel) {
       try {
         this.channel.close();
@@ -84,6 +97,15 @@ export class ChangeNotifier {
   }
 
   private dispatchLocal(configId: string): void {
+    for (const fn of [...this.globalListeners]) {
+      try {
+        fn(configId);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('[config-service] global change listener threw:', err);
+      }
+    }
+
     const set = this.listeners.get(configId);
     if (!set || set.size === 0) return;
     // Snapshot before iterating so a listener that unsubscribes mid-fire

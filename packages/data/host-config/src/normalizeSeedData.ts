@@ -71,14 +71,52 @@ export type FetchLike = (
   init?: RequestInit,
 ) => Promise<Response>;
 
-/**
- * Fetch `seed.json` and read `activeAppId` / `activeUserId`.
- * Returns `null` when the URL is unreachable or the fields are missing.
- */
-export async function resolveActiveIdentityFromSeedUrl(
+export type SeedActiveIdentity = { activeAppId: string; activeUserId: string };
+
+const SEED_IDENTITY_SESSION_PREFIX = 'starui:seed-identity:';
+const seedIdentityInflight = new Map<string, Promise<SeedActiveIdentity | null>>();
+
+/** True when `activeAppId` / `activeUserId` were resolved earlier this session. */
+export function isSeedIdentityCached(url: string): boolean {
+  return readCachedSeedIdentity(url) !== null;
+}
+
+function readCachedSeedIdentity(url: string): SeedActiveIdentity | null {
+  if (typeof sessionStorage === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(`${SEED_IDENTITY_SESSION_PREFIX}${url}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SeedActiveIdentity>;
+    if (
+      typeof parsed.activeAppId === 'string'
+      && parsed.activeAppId.trim().length > 0
+      && typeof parsed.activeUserId === 'string'
+      && parsed.activeUserId.trim().length > 0
+    ) {
+      return {
+        activeAppId: parsed.activeAppId.trim(),
+        activeUserId: parsed.activeUserId.trim(),
+      };
+    }
+  } catch {
+    /* sessionStorage unavailable or corrupt — fall through to fetch */
+  }
+  return null;
+}
+
+function writeCachedSeedIdentity(url: string, identity: SeedActiveIdentity): void {
+  if (typeof sessionStorage === 'undefined') return;
+  try {
+    sessionStorage.setItem(`${SEED_IDENTITY_SESSION_PREFIX}${url}`, JSON.stringify(identity));
+  } catch {
+    /* quota / private mode — best-effort */
+  }
+}
+
+async function fetchSeedActiveIdentity(
   url: string,
-  fetchImpl: FetchLike = fetch,
-): Promise<{ activeAppId: string; activeUserId: string } | null> {
+  fetchImpl: FetchLike,
+): Promise<SeedActiveIdentity | null> {
   try {
     const res = await fetchImpl(url);
     if (!res.ok) return null;
@@ -91,6 +129,40 @@ export async function resolveActiveIdentityFromSeedUrl(
   } catch {
     return null;
   }
+}
+
+/**
+ * Fetch `seed.json` and read `activeAppId` / `activeUserId`.
+ * Returns `null` when the URL is unreachable or the fields are missing.
+ *
+ * Results are cached for the browser session (sessionStorage + in-memory
+ * single-flight) so each OpenFin child view does not re-download the full
+ * deploy bundle after the provider window has already resolved identity.
+ */
+export async function resolveActiveIdentityFromSeedUrl(
+  url: string,
+  fetchImpl: FetchLike = fetch,
+): Promise<SeedActiveIdentity | null> {
+  const cached = readCachedSeedIdentity(url);
+  if (cached) return cached;
+
+  let pending = seedIdentityInflight.get(url);
+  if (!pending) {
+    pending = fetchSeedActiveIdentity(url, fetchImpl).then((identity) => {
+      if (identity) writeCachedSeedIdentity(url, identity);
+      return identity;
+    });
+    seedIdentityInflight.set(url, pending);
+    pending.finally(() => {
+      seedIdentityInflight.delete(url);
+    });
+  }
+  return pending;
+}
+
+/** Test-only — clears in-memory single-flight cache. */
+export function _resetSeedIdentityCacheForTests(): void {
+  seedIdentityInflight.clear();
 }
 
 function rescopeConfigId(

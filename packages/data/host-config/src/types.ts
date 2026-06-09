@@ -492,6 +492,16 @@ export interface ConfigManagerOptions {
   dataServices?: DataServicesHandle;
 }
 
+/**
+ * Options for {@link ConfigManager.init}.
+ *
+ * `attach` — skip `seedIfEmpty` when IndexedDB was already seeded by the
+ * provider window or an earlier tab in the same session.
+ */
+export interface ConfigManagerInitOptions {
+  mode?: 'full' | 'attach';
+}
+
 // ─── Seed data shape ─────────────────────────────────────────────────
 
 /**

@@ -681,7 +681,8 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 - `useConfigBrowser` — table state, filters, mutations; `exportDeploy()` full deploy seed bundle (unfiltered `appConfig`) + validation via `@starui/host-config` `buildDeployExport()`
 - `DeployExportPreviewDialog` — pre-download validation summary; rocket download saves as `seed.json` (errors and warnings require acknowledge checkbox)
-- `buildDeployExport()`, `validateDeployExport()`, `parseSeedJson()`, `resolveActiveIdentityFromSeedUrl()` (`@starui/host-config`) — deploy export includes every `appConfig` row plus `activeAppId` / `activeUserId`; normalize scope drift against those fields; reject wrong `seed.json` shapes (e.g. `kind: starui.dataProvider`); emit `DeployExportWarning` codes (`MISSING_INSTANCE_ROW`, `EMPTY_PROFILE_STATE`, `UNREFERENCED_ROWS`, …)
+- `buildDeployExport()`, `validateDeployExport()`, `parseSeedJson()`, `resolveActiveIdentityFromSeedUrl()` (`@starui/host-config`) — deploy export includes every `appConfig` row plus `activeAppId` / `activeUserId`; normalize scope drift against those fields; reject wrong `seed.json` shapes (e.g. `kind: starui.dataProvider`); emit `DeployExportWarning` codes (`MISSING_INSTANCE_ROW`, `EMPTY_PROFILE_STATE`, `UNREFERENCED_ROWS`, …); `resolveActiveIdentityFromSeedUrl()` session-caches identity (single-flight + `sessionStorage`) so OpenFin child views do not re-fetch the full deploy bundle
+- `ConfigManager.onConfigChanged()` / `ChangeNotifier.subscribeAll()` — global write/delete subscription (same-tab + cross-tab) for worker catalog sync
 - `readProfileSetPayload()` (`@starui/host-config`) — storage adapter reads profile-set bytes even when row `appId` drifted, so `gridLevelData` / profile saves do not wipe `profiles: []`; re-stamps correct scope on write
 - Platform scope realignment — `initWorkspace` reads manifest / `app-config.json` `appId` instead of hard-coded `TestApp`; `migrateRegistryAppIdDrift()` runs inside workspace init (not a public `@starui/openfin-platform` export); `readHostEnv()` uses the same bootstrap before dev fallback
 - `TABLES` — table enumeration
@@ -1119,7 +1120,11 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 #### Runtime architecture
 
-- `SharedWorkerDataServicesClient` — main-thread client routing events to listeners; catalog RPC (`waitForCatalogReady`, `getProviderConfig`, `listProviderConfigs`, `invalidateConfig`, `getHubIntrospect`); **Deprecated.** passing `cfg` on `attach` / `subscribe` for catalogued providers — use cfg-free attach
+- `SharedWorkerDataServicesClient` — main-thread client routing events to listeners; catalog RPC (`waitForCatalogReady`, `getProviderConfig`, `listProviderConfigs`, `invalidateConfig`, `getHubIntrospect`, `onCatalogChange`); **Deprecated.** passing `cfg` on `attach` / `subscribe` for catalogued providers — use cfg-free attach
+- `wireWorkerCatalogSync()` — `ensurePlatformReady` wires `ConfigManager.onConfigChanged` → `client.invalidateConfig` so worker `ConfigCatalogCache` reloads from IndexedDB only on save/delete (including Config Browser and cross-tab writes)
+- `ensurePlatformReady` attach bootstrap — when `isPlatformWarm(appId)` + cached seed identity + `probeWorkerHubReady()` succeed, child views skip `seedConfigUrl` and run `ConfigManager.init({ mode: 'attach' })` (no `seedIfEmpty`); first full bootstrap sets `markPlatformWarm(appId)`
+- `probeWorkerHubReady()`, `isCatalogReady()`, `platformWarmSession` (`markPlatformWarm` / `isPlatformWarm` / `clearPlatformWarm`)
+- `ConfigManager.init({ mode: 'attach' })` — attach-only init for warm worker sessions
 - `SharedWorkerDataServicesHub` — worker state machine (providers, cache, fan-out); **`hydrateCatalog()`** preloads `ConfigCatalogCache` after ConfigManager init; **`buildIntrospectSnapshot()`** / `hub-introspect` RPC for live provider + AppData diagnostics
 - `ConfigCatalogCache` — worker-side in-memory data-provider catalog (`loadAll`, `get`, `getProviderConfig`, `list`, `invalidate`, `upsert`); used by hub before cfg-free attach (Phase 1)
 - `DataProviderConfigStore` / `AppDataConfigStore` — persist provider rows with `ConfigManager.getAppId()` (no hard-coded `TestApp`); re-stamps `appId` on every save so drifted rows realign to the deployment scope
@@ -1283,8 +1288,8 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 #### DataProvider config hooks
 
-- `useDataProviderConfig(providerId)` — single config lookup
-- `useDataProvidersList(opts?)` — list user + public configs (`subtype`, `includeAppData`, `refresh()`)
+- `useDataProviderConfig(providerId)` — single provider row from worker catalog cache (`getProviderConfig` RPC); auto-refreshes on `catalog-ready`
+- `useDataProvidersList(opts?)` — list platform provider rows from worker catalog cache (`listProviderConfigs` RPC); auto-refreshes on `catalog-ready`; `refresh()` for manual re-pull
 
 #### DataProvider hook (preferred)
 

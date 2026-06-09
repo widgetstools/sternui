@@ -7,8 +7,10 @@ import {
   _resetEnsurePlatformReadyForTests,
   ensurePlatformReady,
 } from './ensurePlatformReady.js';
+import { isSeedIdentityCached } from '@starui/host-config';
 import { _resetEnsureDataServicesHubForTests } from '../hub/ensureDataServicesHub.js';
 import { runAppDataBootstrap } from './appDataBootstrap.js';
+import { markPlatformWarm } from './platformWarmSession.js';
 
 vi.mock('./appDataBootstrap.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./appDataBootstrap.js')>();
@@ -20,9 +22,15 @@ vi.mock('./appDataBootstrap.js', async (importOriginal) => {
 
 const createConfigManagerMock = vi.fn();
 const ensureDataServicesHubMock = vi.fn();
+const probeWorkerHubReadyMock = vi.fn();
 
 vi.mock('@starui/host-config', () => ({
   createConfigManager: (...args: unknown[]) => createConfigManagerMock(...args),
+  isSeedIdentityCached: vi.fn(() => false),
+}));
+
+vi.mock('../hub/probeWorkerHub.js', () => ({
+  probeWorkerHubReady: (...args: unknown[]) => probeWorkerHubReadyMock(...args),
 }));
 
 vi.mock('../hub/ensureDataServicesHub.js', async (importOriginal) => {
@@ -35,13 +43,19 @@ vi.mock('../hub/ensureDataServicesHub.js', async (importOriginal) => {
 
 describe('ensurePlatformReady', () => {
   beforeEach(() => {
+    vi.mocked(isSeedIdentityCached).mockReturnValue(false);
+    probeWorkerHubReadyMock.mockResolvedValue(false);
     createConfigManagerMock.mockImplementation((opts: unknown) => ({
       _opts: opts,
       init: vi.fn().mockResolvedValue(undefined),
+      onConfigChanged: vi.fn(() => () => {}),
     }));
     ensureDataServicesHubMock.mockImplementation(() =>
       Promise.resolve({
-        client: { stop: vi.fn() },
+        client: {
+          stop: vi.fn(),
+          invalidateConfig: vi.fn().mockResolvedValue(undefined),
+        },
         appData: {},
         configManager: {},
         ready: Promise.resolve(),
@@ -123,6 +137,33 @@ describe('ensurePlatformReady', () => {
       ensurePlatformReady({ appId: '', userId: 'dev1' }, { workerScriptUrl: '/w.mjs' }),
     ).rejects.toBeInstanceOf(PlatformBootstrapConfigError);
     expect(createConfigManagerMock).not.toHaveBeenCalled();
+  });
+
+  it('uses attach bootstrap when platform is warm and worker catalog is ready', async () => {
+    vi.mocked(isSeedIdentityCached).mockReturnValue(true);
+    probeWorkerHubReadyMock.mockResolvedValue(true);
+    markPlatformWarm('TestApp');
+
+    const initMock = vi.fn().mockResolvedValue(undefined);
+    createConfigManagerMock.mockImplementation((opts: unknown) => ({
+      _opts: opts,
+      init: initMock,
+      onConfigChanged: vi.fn(() => () => {}),
+    }));
+
+    await ensurePlatformReady(
+      { ...DEV_PLATFORM_BOOTSTRAP, seedConfigUrl: '/seed.json' },
+      { workerScriptUrl: '/worker.mjs' },
+    );
+
+    expect(createConfigManagerMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        seedConfigUrl: undefined,
+        seedConfigReload: undefined,
+      }),
+    );
+    expect(initMock).toHaveBeenCalledWith({ mode: 'attach' });
+    expect(probeWorkerHubReadyMock).toHaveBeenCalled();
   });
 
   it('runs appDataBootstrap hooks when manifest and registry are supplied', async () => {

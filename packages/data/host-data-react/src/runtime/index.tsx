@@ -174,8 +174,13 @@ export interface DataProviderConfigView {
 }
 
 export function useDataProviderConfig(providerId: string | null | undefined): DataProviderConfigView {
-  const { configStore } = useDataServicesContext();
+  const { client } = useDataServicesContext();
   const [view, setView] = useState<DataProviderConfigView>({ cfg: null, loading: Boolean(providerId) });
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    return client.onCatalogChange(() => setTick((t) => t + 1));
+  }, [client]);
 
   useEffect(() => {
     let cancelled = false;
@@ -184,13 +189,13 @@ export function useDataProviderConfig(providerId: string | null | undefined): Da
       return;
     }
     setView({ cfg: null, loading: true });
-    configStore.get(providerId)
+    client.getProviderConfig(providerId)
       .then((cfg) => { if (!cancelled) setView({ cfg, loading: false }); })
       .catch((err: unknown) => {
         if (!cancelled) setView({ cfg: null, loading: false, error: err instanceof Error ? err.message : String(err) });
       });
     return () => { cancelled = true; };
-  }, [providerId, configStore]);
+  }, [providerId, client, tick]);
 
   return view;
 }
@@ -212,8 +217,7 @@ export interface DataProvidersListView {
 export function useDataProvidersList(
   opts: { subtype?: ProviderConfig['providerType']; includeAppData?: boolean } = {},
 ): DataProvidersListView {
-  const { configStore } = useDataServicesContext();
-  const userId = useUserIdFromContext();
+  const { client } = useDataServicesContext();
   const [view, setView] = useState<{ configs: readonly DataProviderConfig[]; loading: boolean; error?: string }>(
     { configs: [], loading: true },
   );
@@ -221,18 +225,22 @@ export function useDataProvidersList(
   const refresh = useCallback(() => setTick((t) => t + 1), []);
 
   useEffect(() => {
+    return client.onCatalogChange(() => setTick((t) => t + 1));
+  }, [client]);
+
+  useEffect(() => {
     let cancelled = false;
     setView((v) => ({ ...v, loading: true }));
     const listOpts: { subtype?: ProviderConfig['providerType']; includeAppData?: boolean } = {};
     if (opts.subtype) listOpts.subtype = opts.subtype;
     if (opts.includeAppData) listOpts.includeAppData = true;
-    configStore.list(userId, listOpts)
+    client.listProviderConfigs(listOpts)
       .then((rows) => { if (!cancelled) setView({ configs: rows, loading: false }); })
       .catch((err: unknown) => {
         if (!cancelled) setView({ configs: [], loading: false, error: err instanceof Error ? err.message : String(err) });
       });
     return () => { cancelled = true; };
-  }, [configStore, userId, opts.subtype, opts.includeAppData, tick]);
+  }, [client, opts.subtype, opts.includeAppData, tick]);
 
   return { ...view, refresh };
 }

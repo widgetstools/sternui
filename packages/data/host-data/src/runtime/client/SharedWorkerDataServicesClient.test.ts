@@ -549,6 +549,21 @@ describe('SharedWorkerDataServicesClient — config catalog RPC', () => {
     w.close();
   });
 
+  it('onCatalogChange fires after catalog invalidate broadcasts', async () => {
+    const cm = stubConfigManager();
+    cm._rows.set('p1', mockProviderRow('p1'));
+    const w = wire({ configManager: cm });
+    await w.hub.hydrateCatalog();
+
+    let fires = 0;
+    const off = w.client.onCatalogChange(() => { fires += 1; });
+    await w.client.invalidateConfig('p1');
+    await flush();
+    expect(fires).toBe(1);
+    off();
+    w.close();
+  });
+
   it('getProviderConfig and listProviderConfigs round-trip through the hub', async () => {
     const cm = stubConfigManager();
     cm._rows.set('p1', mockProviderRow('p1'));

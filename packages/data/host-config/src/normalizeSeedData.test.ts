@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  _resetSeedIdentityCacheForTests,
   activeAppIdFromSeed,
   activeUserIdFromSeed,
   canonicalAppIdFromSeed,
@@ -8,6 +9,7 @@ import {
   normalizeImportedAppConfigRow,
   normalizeSeedData,
   parseSeedJson,
+  resolveActiveIdentityFromSeedUrl,
 } from './normalizeSeedData';
 
 import type { AppConfigRow, SeedData } from './types';
@@ -322,6 +324,42 @@ describe('normalizeSeedData', () => {
 
   });
 
+});
+
+describe('resolveActiveIdentityFromSeedUrl', () => {
+  afterEach(() => {
+    _resetSeedIdentityCacheForTests();
+    sessionStorage.clear();
+  });
+
+  it('single-flights concurrent fetches for the same URL', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => makeSeed({}),
+    });
+
+    const [a, b] = await Promise.all([
+      resolveActiveIdentityFromSeedUrl('http://test/seed.json', fetchImpl),
+      resolveActiveIdentityFromSeedUrl('http://test/seed.json', fetchImpl),
+    ]);
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(a).toEqual({ activeAppId: 'star-demo', activeUserId: 'k151344' });
+    expect(b).toEqual(a);
+  });
+
+  it('reuses sessionStorage cache without refetching', async () => {
+    sessionStorage.setItem(
+      'starui:seed-identity:http://test/seed.json',
+      JSON.stringify({ activeAppId: 'cached-app', activeUserId: 'cached-user' }),
+    );
+    const fetchImpl = vi.fn();
+
+    await expect(
+      resolveActiveIdentityFromSeedUrl('http://test/seed.json', fetchImpl),
+    ).resolves.toEqual({ activeAppId: 'cached-app', activeUserId: 'cached-user' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
 });
 
 

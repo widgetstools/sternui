@@ -148,6 +148,7 @@ export class SharedWorkerDataServicesClient {
     { resolve: (event: ConfigSnapshotEvent) => void; reject: (err: Error) => void }
   >();
   private readonly catalogReadyWaiters: Array<() => void> = [];
+  private readonly catalogChangeListeners = new Set<() => void>();
 
   constructor(port: MessagePort, opts: SharedWorkerDataServicesClientOpts = {}) {
     this.port = port;
@@ -428,10 +429,30 @@ export class SharedWorkerDataServicesClient {
     this.send({ kind: 'stop', providerId });
   }
 
+  /**
+   * Subscribe to worker catalog refresh broadcasts (`catalog-ready`).
+   * Fires after startup hydrate and after every `invalidateConfig`.
+   */
+  onCatalogChange(listener: () => void): () => void {
+    this.catalogChangeListeners.add(listener);
+    return () => {
+      this.catalogChangeListeners.delete(listener);
+    };
+  }
+
+  /** True when the worker catalog finished its startup hydrate. */
+  async isCatalogReady(): Promise<boolean> {
+    try {
+      const snap = await this.rpcCatalog({ kind: 'hub-ready' });
+      return Boolean(snap.ready);
+    } catch {
+      return false;
+    }
+  }
+
   /** Await worker catalog preload (`hub-ready` + optional `catalog-ready`). */
   async waitForCatalogReady(): Promise<void> {
-    const snap = await this.rpcCatalog({ kind: 'hub-ready' });
-    if (snap.ready) return;
+    if (await this.isCatalogReady()) return;
     await new Promise<void>((resolve) => {
       this.catalogReadyWaiters.push(resolve);
     });
@@ -519,6 +540,7 @@ export class SharedWorkerDataServicesClient {
     this.catalogPending.clear();
     for (const resolve of this.catalogReadyWaiters) resolve();
     this.catalogReadyWaiters.length = 0;
+    this.catalogChangeListeners.clear();
     this.port.removeEventListener('message', this.handleMessage);
     try { this.port.close(); } catch { /* MessagePort.close is fine to call twice */ }
   }
@@ -609,6 +631,14 @@ export class SharedWorkerDataServicesClient {
     if (event.kind === 'catalog-ready') {
       for (const resolve of this.catalogReadyWaiters) resolve();
       this.catalogReadyWaiters.length = 0;
+      for (const listener of this.catalogChangeListeners) {
+        try {
+          listener();
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn('[SharedWorkerDataServicesClient] catalog change listener threw', err);
+        }
+      }
       return;
     }
     const pending = this.catalogPending.get(event.reqId);

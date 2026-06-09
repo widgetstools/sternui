@@ -257,3 +257,24 @@ describe('ConfigManager.seedIfEmpty — full-restore seeding', () => {
     expect((await cm.getAllApps()).map((a) => a.appId)).toEqual(['StarDemo']);
   });
 });
+
+describe('ConfigManager.init — attach mode', () => {
+  let cm: ConfigManager | undefined;
+
+  afterEach(() => {
+    cm?.dispose();
+    cm = undefined;
+    vi.unstubAllGlobals();
+  });
+
+  it('skips seedIfEmpty even when the database is empty and seedConfigUrl is set', async () => {
+    await wipeDatabase();
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    cm = createConfigManager({ appId: 'StarDemo', seedConfigUrl: SEED_URL });
+    await cm.init({ mode: 'attach' });
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(await cm.getAllConfigsUnfiltered()).toEqual([]);
+  });
+});

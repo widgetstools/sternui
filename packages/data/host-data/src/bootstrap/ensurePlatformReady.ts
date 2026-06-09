@@ -1,4 +1,4 @@
-import { createConfigManager } from '@starui/host-config';
+import { createConfigManager, isSeedIdentityCached } from '@starui/host-config';
 import {
   validatePlatformBootstrapConfig,
   resolveConfigServiceRestUrl,
@@ -6,6 +6,14 @@ import {
 } from './PlatformBootstrapConfig.js';
 import { PlatformBootstrapConfigError } from './resolvePlatformBootstrap.js';
 import { ensureDataServicesHub, type ResolvedDataServicesHubBundle } from '../hub/ensureDataServicesHub.js';
+import { probeWorkerHubReady } from '../hub/probeWorkerHub.js';
+import { wireWorkerCatalogSync } from '../hub/wireWorkerCatalogSync.js';
+import {
+  _resetPlatformWarmSessionForTests,
+  clearPlatformWarm,
+  isPlatformWarm,
+  markPlatformWarm,
+} from './platformWarmSession.js';
 import {
   runAppDataBootstrap,
   type AppDataBootstrapHookRegistry,
@@ -50,20 +58,47 @@ export async function ensurePlatformReady(
   return pending;
 }
 
+async function resolveAttachBootstrap(
+  config: PlatformBootstrapConfig,
+  workerScriptUrl: string,
+  configServiceRestUrl: string | undefined,
+): Promise<boolean> {
+  const identityReady = !config.seedConfigUrl || isSeedIdentityCached(config.seedConfigUrl);
+  if (!identityReady || !isPlatformWarm(config.appId)) {
+    return false;
+  }
+
+  const workerUp = await probeWorkerHubReady({
+    workerScriptUrl,
+    appId: config.appId,
+    configServiceRestUrl,
+  });
+  if (!workerUp) {
+    clearPlatformWarm(config.appId);
+    return false;
+  }
+  return true;
+}
+
 async function bootstrapPlatformOnce(
   config: PlatformBootstrapConfig,
   opts: EnsurePlatformReadyOpts,
 ): Promise<ResolvedDataServicesHubBundle> {
   const configServiceRestUrl = resolveConfigServiceRestUrl(config);
+  const attachMode = await resolveAttachBootstrap(
+    config,
+    opts.workerScriptUrl,
+    configServiceRestUrl,
+  );
 
   const configManager = createConfigManager({
     appId: config.appId,
     identity: { userId: config.userId, displayName: config.userId },
     configServiceRestUrl,
-    seedConfigUrl: config.seedConfigUrl,
-    seedConfigReload: config.seedConfigReload,
+    seedConfigUrl: attachMode ? undefined : config.seedConfigUrl,
+    seedConfigReload: attachMode ? undefined : config.seedConfigReload,
   });
-  await configManager.init();
+  await configManager.init(attachMode ? { mode: 'attach' } : undefined);
 
   const bundle = await ensureDataServicesHub({
     ...config,
@@ -71,7 +106,13 @@ async function bootstrapPlatformOnce(
     mainThreadConfigManager: configManager,
   });
 
+  wireWorkerCatalogSync(configManager, bundle.client);
+
   await bundle.ready;
+
+  if (!attachMode) {
+    markPlatformWarm(config.appId);
+  }
 
   if (config.appDataBootstrap && opts.appDataBootstrapHooks) {
     await runAppDataBootstrap({
@@ -90,4 +131,5 @@ async function bootstrapPlatformOnce(
 /** Test-only — clears platform singleton registry. */
 export function _resetEnsurePlatformReadyForTests(): void {
   platformPromises.clear();
+  _resetPlatformWarmSessionForTests();
 }

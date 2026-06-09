@@ -249,6 +249,22 @@ describe('ChangeNotifier — same-tab event bus', () => {
     expect(fires).toBe(0);
   });
 
+  it('subscribeAll receives every notify with configId', () => {
+    const n = new ChangeNotifier(`test-${Math.random()}`);
+    const ids: string[] = [];
+    const off = n.subscribeAll((configId) => ids.push(configId));
+
+    n.notify('cfg-1');
+    n.notify('cfg-2');
+    expect(ids).toEqual(['cfg-1', 'cfg-2']);
+
+    off();
+    n.notify('cfg-3');
+    expect(ids).toEqual(['cfg-1', 'cfg-2']);
+
+    n.dispose();
+  });
+
   it('one listener throwing does not prevent siblings from firing', () => {
     const n = new ChangeNotifier(`test-${Math.random()}`);
     const fires: string[] = [];

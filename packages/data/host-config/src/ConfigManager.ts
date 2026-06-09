@@ -29,6 +29,7 @@ import type {
   AppIdentity,
   AppRegistryRow,
   ApplicationContext,
+  ConfigManagerInitOptions,
   ConfigManagerOptions,
   DataServicesHandle,
   PermissionRow,
@@ -191,6 +192,14 @@ export class ConfigManager {
    */
   getIdentity(): AppIdentity {
     return this.identity;
+  }
+
+  /**
+   * Subscribe to any config row write or delete (same-tab + cross-tab).
+   * Use to refresh worker-side caches after persistence without polling Dexie.
+   */
+  onConfigChanged(fn: (configId: string) => void): () => void {
+    return this.changeNotifier.subscribeAll(fn);
   }
 
   // ─── ApplicationContext / data-services wiring (Session 7) ────────
@@ -434,7 +443,7 @@ export class ConfigManager {
    * leaves `isInitialized` false so a fresh manager instance can own
    * the database on the next mount.
    */
-  async init(): Promise<void> {
+  async init(options?: ConfigManagerInitOptions): Promise<void> {
     if (this.disposed) {
       return;
     }
@@ -445,7 +454,7 @@ export class ConfigManager {
       await this.initInFlight;
       return;
     }
-    this.initInFlight = this.performInit();
+    this.initInFlight = this.performInit(options);
     try {
       await this.initInFlight;
     } finally {
@@ -453,10 +462,14 @@ export class ConfigManager {
     }
   }
 
-  private async performInit(): Promise<void> {
+  private async performInit(options?: ConfigManagerInitOptions): Promise<void> {
+    const attach = options?.mode === 'attach';
     try {
-      // Seed the database if it's empty and a seed URL is provided
-      await this.seedIfEmpty();
+      // Seed the database if it's empty and a seed URL is provided.
+      // Attach mode skips this — the provider window (or first tab) already seeded.
+      if (!attach) {
+        await this.seedIfEmpty();
+      }
       if (this.disposed) {
         return;
       }
@@ -477,8 +490,11 @@ export class ConfigManager {
       }
 
       this.isInitialized = true;
+      const modeLabel = this.restUrl ? 'REST' : 'local';
       console.log(
-        `ConfigManager initialized (mode: ${this.restUrl ? "REST" : "local"})`,
+        attach
+          ? `ConfigManager initialized (mode: ${modeLabel}, attach)`
+          : `ConfigManager initialized (mode: ${modeLabel})`,
       );
     } catch (err) {
       if (this.disposed) {
