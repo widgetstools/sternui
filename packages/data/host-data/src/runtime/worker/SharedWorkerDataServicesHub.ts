@@ -161,6 +161,12 @@ interface ProviderSlot {
   keyDropCount: number;
   /** One-shot guard so the key-mismatch warning logs once per cycle, not per batch. */
   keyDropWarned: boolean;
+  /**
+   * Last `extra` overlay passed to `handle.restart` for this slot (e.g.
+   * historical `asOfDate`). Used to late-join concurrent windows that
+   * attach with the same overlay instead of reconnecting upstream again.
+   */
+  activeRestartExtra?: Record<string, unknown> | null;
 }
 
 interface DataListener {
@@ -215,6 +221,15 @@ export interface SharedWorkerDataServicesHubOpts {
  */
 function keyOf(row: unknown, keyColumn: string | readonly string[] | undefined): string | null {
   return composeRowId(row, keyColumn);
+}
+
+/** Stable compare for restart overlay payloads (e.g. `{ asOfDate }`). */
+function restartExtrasEqual(
+  active: Record<string, unknown> | null | undefined,
+  incoming: Record<string, unknown>,
+): boolean {
+  if (!active) return false;
+  return JSON.stringify(active) === JSON.stringify(incoming);
 }
 
 export class SharedWorkerDataServicesHub {
@@ -597,7 +612,7 @@ export class SharedWorkerDataServicesHub {
 
   private handleAttach(port: PortLike, req: AttachRequest): void {
     let slot = this.providers.get(req.providerId);
-    const wasRunning = Boolean(slot);
+    let isRestartAttach = false;
 
     if (!slot) {
       let cfg = req.cfg ?? this.configCatalog?.getProviderConfig(req.providerId) ?? undefined;
@@ -637,6 +652,7 @@ export class SharedWorkerDataServicesHub {
         // eslint-disable-next-line no-console
         if (DEBUG) console.log(`[v2/hub] attach CREATE+RESTART subId=${req.subId} provider=${req.providerId} extra=${JSON.stringify(req.extra)}`);
         void slot.handle.restart(req.extra);
+        slot.activeRestartExtra = req.extra;
       }
     } else if (req.extra) {
       // Existing provider + restart payload. When the caller supplies a
@@ -652,17 +668,24 @@ export class SharedWorkerDataServicesHub {
         // eslint-disable-next-line no-console
         if (DEBUG) console.log(`[v2/hub] attach RESTART+RECONFIG subId=${req.subId} provider=${req.providerId} extra=${JSON.stringify(req.extra)}`);
         slot = this.recreateProvider(req.providerId, req.cfg);
-      } else {
+        void slot.handle.restart(req.extra);
+        slot.activeRestartExtra = req.extra;
+        isRestartAttach = true;
+      } else if (!restartExtrasEqual(slot.activeRestartExtra, req.extra)) {
         this.traceStompAttachCfg('hub.attach RESTART (running provider)', req.providerId, slot.cfg, req.extra);
         // eslint-disable-next-line no-console
         if (DEBUG) console.log(`[v2/hub] attach RESTART subId=${req.subId} provider=${req.providerId} extra=${JSON.stringify(req.extra)}`);
+        void slot.handle.restart(req.extra);
+        slot.activeRestartExtra = req.extra;
+        isRestartAttach = true;
+      } else {
+        // eslint-disable-next-line no-console
+        if (DEBUG) console.log(`[v2/hub] attach LATE-JOINER (same extra) subId=${req.subId} provider=${req.providerId} cacheSize=${slot.cache.size} status=${slot.status}`);
       }
-      void slot.handle.restart(req.extra);
     } else {
       // eslint-disable-next-line no-console
       if (DEBUG) console.log(`[v2/hub] attach LATE-JOINER subId=${req.subId} provider=${req.providerId} cacheSize=${slot.cache.size} status=${slot.status}`);
     }
-    const isRestartAttach = Boolean(wasRunning && req.extra);
 
     if (req.mode === 'data') {
       this.attachDataListener(req.providerId, req.subId, port, slot, {
@@ -863,6 +886,7 @@ export class SharedWorkerDataServicesHub {
       publishWindowSeconds: 0,
       keyDropCount: 0,
       keyDropWarned: false,
+      activeRestartExtra: null,
     };
 
     const emit: ProviderEmit = (event: ProviderEmitEvent) => {

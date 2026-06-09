@@ -739,6 +739,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
           // eslint-disable-next-line no-console
           console.warn('[refresh]    flushAsyncTransactions threw:', e);
         }
+        gridApply.clearPendingAdds();
         // eslint-disable-next-line no-console
         console.log(
           '[refresh] %csnapshot commit%c %d rows (onSnapshotData)',
@@ -768,17 +769,17 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         return;
       }
 
-      const { droppedPending, addCount, updateCount } = gridApply.applyTick(
+      const { coalescedPending, addCount, updateCount } = gridApply.applyTick(
         liveApi,
         updateRows,
         rowIdField,
       );
-      if (droppedPending > 0) {
+      if (coalescedPending > 0) {
         // eslint-disable-next-line no-console
         console.log(
-          '[refresh]   %clive split (rows dropped due to pending adds)%c add=%d update=%d droppedPending=%d',
+          '[refresh]   %clive split (rows coalesced behind pending adds)%c add=%d update=%d coalescedPending=%d',
           'color:#f97316', '',
-          addCount, updateCount, droppedPending,
+          addCount, updateCount, coalescedPending,
         );
       }
     });
@@ -832,7 +833,10 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
     void (async () => {
       try {
-        const running = await dataHubClient.isProviderRunning(activeId);
+        let running = await dataHubClient.isProviderRunning(activeId);
+        if (!running) {
+          running = await dataHubClient.waitForProviderRunning(activeId, { timeoutMs: 10_000 });
+        }
         if (running) {
           await provider.start();
           return;

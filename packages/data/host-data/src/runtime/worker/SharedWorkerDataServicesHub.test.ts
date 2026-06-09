@@ -149,6 +149,34 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
     expect(ctrl.restartLog).toEqual([{ asOfDate: '2026-04-01' }]);
   });
 
+  it('skips provider.restart when a second window attaches with the same extra overlay', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const portA = makePort();
+    const portB = makePort();
+    hub.handleRequest(portA, {
+      kind: 'attach',
+      subId: 'sA',
+      providerId: 'p1',
+      mode: 'data',
+      cfg: cfg(),
+      extra: { asOfDate: '2026-04-01' },
+    });
+    const ctrl = controllers.get('default')!;
+    expect(ctrl.restartLog).toEqual([{ asOfDate: '2026-04-01' }]);
+
+    hub.handleRequest(portB, {
+      kind: 'attach',
+      subId: 'sB',
+      providerId: 'p1',
+      mode: 'data',
+      extra: { asOfDate: '2026-04-01' },
+    });
+
+    expect(ctrl.restartLog).toEqual([{ asOfDate: '2026-04-01' }]);
+    const replaceB = portB.messages.find((m) => m.kind === 'delta' && (m as { replace?: boolean }).replace);
+    expect(replaceB).toBeTruthy();
+  });
+
   it('rebuilds the slot from a new cfg when a running provider is restarted with cfg (editor reconnect)', () => {
     const hub = new SharedWorkerDataServicesHub();
     const port = makePort();

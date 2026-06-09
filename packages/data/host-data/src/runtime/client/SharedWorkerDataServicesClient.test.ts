@@ -212,6 +212,28 @@ describe('SharedWorkerDataServicesClient', () => {
     expect(controllers.get('c-1')!.restarts).toEqual([{ asOfDate: '2026-04-01' }]);
   });
 
+  it('attach with the same extra overlay late-joins without a second restart', async () => {
+    const { listener } = makeListener();
+    w.client.attach('p1', cfg(), listener, { extra: { asOfDate: '2026-04-01' } });
+    await flush();
+    const ctrl = controllers.get('c-1')!;
+    expect(ctrl.restarts).toEqual([{ asOfDate: '2026-04-01' }]);
+
+    const { listener: l2 } = makeListener();
+    w.client.attach('p1', undefined, l2, { extra: { asOfDate: '2026-04-01' } });
+    await flush();
+
+    expect(ctrl.restarts).toEqual([{ asOfDate: '2026-04-01' }]);
+  });
+
+  it('waitForProviderRunning resolves true once a peer window starts the provider', async () => {
+    const waitP = w.client.waitForProviderRunning('p1', { timeoutMs: 1000, intervalMs: 20 });
+    await new Promise<void>((r) => setTimeout(r, 30));
+    w.client.attach('p1', cfg(), makeListener().listener);
+    await flush();
+    expect(await waitP).toBe(true);
+  });
+
   it('subscribe with extra waits for fresh snapshot instead of stale cache replay', async () => {
     const primer = w.client.subscribe('p1', cfg());
     await flush();

@@ -77,7 +77,8 @@ function createMockProvider(id: string): IDataProvider & {
 const providers = new Map<string, ReturnType<typeof createMockProvider>>();
 const { dataHubClientMock } = vi.hoisted(() => {
   const isProviderRunning = vi.fn().mockResolvedValue(false);
-  return { dataHubClientMock: { isProviderRunning } };
+  const waitForProviderRunning = vi.fn().mockResolvedValue(false);
+  return { dataHubClientMock: { isProviderRunning, waitForProviderRunning } };
 });
 const restartMock = vi.fn().mockResolvedValue(undefined);
 const appDataSet = vi.fn().mockResolvedValue(undefined);

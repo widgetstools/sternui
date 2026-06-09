@@ -18,23 +18,6 @@ export interface UseBlotterDataConnectionResult {
   rowCount: number;
 }
 
-function applyTickWithGetRowId(
-  gridApi: GridApi,
-  rows: readonly Record<string, unknown>[],
-  getRowId: (row: Record<string, unknown>) => string,
-): void {
-  const adds: Record<string, unknown>[] = [];
-  const updates: Record<string, unknown>[] = [];
-  for (const row of rows) {
-    const rowId = getRowId(row);
-    if (!rowId) continue;
-    if (gridApi.getRowNode(rowId)) updates.push(row);
-    else adds.push(row);
-  }
-  if (adds.length > 0 || updates.length > 0) {
-    gridApi.applyTransaction({ add: adds, update: updates });
-  }
-}
 
 /**
  * useBlotterDataConnection — grid wiring for {@link IDataProvider}.
@@ -75,6 +58,7 @@ export function useBlotterDataConnection({
 
     const unsubSnapshot = provider.onSnapshotData((rows) => {
       if (cancelled) return;
+      gridApply.clearPendingAdds();
       gridApi.setGridOption('rowData', rows.slice());
       setRowCount(rows.length);
     });
@@ -82,7 +66,10 @@ export function useBlotterDataConnection({
     const unsubTick = provider.onTick((rows) => {
       if (cancelled || rows.length === 0) return;
       if (getRowId) {
-        applyTickWithGetRowId(gridApi, rows as Record<string, unknown>[], getRowId);
+        gridApply.applyTickWithResolver(gridApi, rows as Record<string, unknown>[], (row) => {
+          const id = getRowId(row);
+          return id || null;
+        });
       } else {
         gridApply.applyTick(gridApi, rows as Record<string, unknown>[], 'id');
       }

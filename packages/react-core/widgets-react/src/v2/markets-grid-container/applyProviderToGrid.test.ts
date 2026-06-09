@@ -35,7 +35,7 @@ describe('splitProviderRowsForGrid', () => {
     const pending = new Set<string>();
     const api = makeGridApi({ existingIds: new Set(['r1']) });
 
-    const { adds, updates, droppedPending } = splitProviderRowsForGrid(
+    const { adds, updates, coalescedPending } = splitProviderRowsForGrid(
       [{ id: 'r1', price: 2 }],
       'id',
       api,
@@ -44,7 +44,7 @@ describe('splitProviderRowsForGrid', () => {
 
     expect(adds).toEqual([]);
     expect(updates).toEqual([{ id: 'r1', price: 2 }]);
-    expect(droppedPending).toBe(0);
+    expect(coalescedPending).toBe(0);
     expect(pending.size).toBe(0);
   });
 
@@ -52,7 +52,7 @@ describe('splitProviderRowsForGrid', () => {
     const pending = new Set<string>();
     const api = makeGridApi();
 
-    const { adds, updates, droppedPending } = splitProviderRowsForGrid(
+    const { adds, updates, coalescedPending } = splitProviderRowsForGrid(
       [{ id: 'r1' }, { id: 'r2' }],
       'id',
       api,
@@ -61,31 +61,34 @@ describe('splitProviderRowsForGrid', () => {
 
     expect(adds).toEqual([{ id: 'r1' }, { id: 'r2' }]);
     expect(updates).toEqual([]);
-    expect(droppedPending).toBe(0);
+    expect(coalescedPending).toBe(0);
     expect(pending).toEqual(new Set(['r1', 'r2']));
   });
 
-  it('drops duplicate ticks for ids with a pending add', () => {
+  it('coalesces duplicate ticks for ids with a pending add', () => {
     const pending = new Set<string>(['r1']);
+    const latest = new Map<string, Row>();
     const api = makeGridApi();
 
-    const { adds, updates, droppedPending } = splitProviderRowsForGrid(
+    const { adds, updates, coalescedPending } = splitProviderRowsForGrid(
       [{ id: 'r1', price: 99 }],
       'id',
       api,
       pending,
+      latest,
     );
 
     expect(adds).toEqual([]);
     expect(updates).toEqual([]);
-    expect(droppedPending).toBe(1);
+    expect(coalescedPending).toBe(1);
+    expect(latest.get('r1')).toEqual({ id: 'r1', price: 99 });
   });
 
   it('prefers getRowNode over pendingAddIds when the row is already in the grid', () => {
     const pending = new Set<string>(['r1']);
     const api = makeGridApi({ existingIds: new Set(['r1']) });
 
-    const { adds, updates, droppedPending } = splitProviderRowsForGrid(
+    const { adds, updates, coalescedPending } = splitProviderRowsForGrid(
       [{ id: 'r1', price: 3 }],
       'id',
       api,
@@ -94,7 +97,7 @@ describe('splitProviderRowsForGrid', () => {
 
     expect(adds).toEqual([]);
     expect(updates).toEqual([{ id: 'r1', price: 3 }]);
-    expect(droppedPending).toBe(0);
+    expect(coalescedPending).toBe(0);
   });
 });
 
@@ -120,6 +123,22 @@ describe('createApplyProviderToGridState', () => {
     cb({ add: [{ id: 'r1' } as never], update: [], remove: [] });
 
     expect(state.getPendingAddCount()).toBe(0);
+  });
+
+  it('applies coalesced updates after pending adds land', () => {
+    const state = createApplyProviderToGridState();
+    const api = makeGridApi();
+
+    state.applyTick(api, [{ id: 'r1', price: 1 }], 'id');
+    state.applyTick(api, [{ id: 'r1', price: 99 }], 'id');
+
+    const cb = vi.mocked(api.applyTransactionAsync).mock.calls[0][1]!;
+    cb({ add: [{ id: 'r1' } as never], update: [], remove: [] });
+
+    expect(api.applyTransactionAsync).toHaveBeenCalledTimes(2);
+    expect(api.applyTransactionAsync).toHaveBeenLastCalledWith({
+      update: [{ id: 'r1', price: 99 }],
+    });
   });
 
   it('clearPendingAdds resets pending bookkeeping', () => {

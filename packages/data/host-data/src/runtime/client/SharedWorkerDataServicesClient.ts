@@ -455,6 +455,26 @@ export class SharedWorkerDataServicesClient {
     }
   }
 
+  /**
+   * Poll until the hub reports a running slot for `providerId`, or until
+   * `timeoutMs`. Used when several windows open at once so late joiners
+   * wait for the first attach instead of cold-starting a second connection.
+   */
+  async waitForProviderRunning(
+    providerId: string,
+    opts: { timeoutMs?: number; intervalMs?: number } = {},
+  ): Promise<boolean> {
+    if (await this.isProviderRunning(providerId)) return true;
+    const timeoutMs = opts.timeoutMs ?? 8_000;
+    const intervalMs = opts.intervalMs ?? 50;
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      if (await this.isProviderRunning(providerId)) return true;
+    }
+    return false;
+  }
+
   /** True when the worker catalog finished its startup hydrate. */
   async isCatalogReady(): Promise<boolean> {
     try {

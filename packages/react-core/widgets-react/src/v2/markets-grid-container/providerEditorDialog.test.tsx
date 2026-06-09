@@ -39,7 +39,10 @@ vi.mock('@starui/grid', () => ({
 
 vi.mock('@starui/host-data-react/runtime', () => ({
   useDataServices: () => ({
-    client: { isProviderRunning: vi.fn().mockResolvedValue(false) },
+    client: {
+      isProviderRunning: vi.fn().mockResolvedValue(false),
+      waitForProviderRunning: vi.fn().mockResolvedValue(false),
+    },
   }),
   useDataProvider: () => ({
     provider: null,

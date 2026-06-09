@@ -71,7 +71,8 @@ const noopOnError = vi.fn();
 
 const { dataHubClientMock } = vi.hoisted(() => {
   const isProviderRunning = vi.fn().mockResolvedValue(false);
-  return { dataHubClientMock: { isProviderRunning } };
+  const waitForProviderRunning = vi.fn().mockResolvedValue(false);
+  return { dataHubClientMock: { isProviderRunning, waitForProviderRunning } };
 });
 
 const lastMarketsGridProps: { current: any } = { current: null };

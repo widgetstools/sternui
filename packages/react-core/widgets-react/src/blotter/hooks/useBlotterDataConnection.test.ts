@@ -52,18 +52,18 @@ function createMockProvider(): IDataProvider & {
 
 function makeGridApi(): GridApi & {
   setGridOption: ReturnType<typeof vi.fn>;
-  applyTransaction: ReturnType<typeof vi.fn>;
+  applyTransactionAsync: ReturnType<typeof vi.fn>;
   getRowNode: ReturnType<typeof vi.fn>;
   getDisplayedRowCount: ReturnType<typeof vi.fn>;
 } {
   return {
     setGridOption: vi.fn(),
-    applyTransaction: vi.fn(),
+    applyTransactionAsync: vi.fn(),
     getRowNode: vi.fn(() => null),
     getDisplayedRowCount: vi.fn(() => 0),
   } as unknown as GridApi & {
     setGridOption: ReturnType<typeof vi.fn>;
-    applyTransaction: ReturnType<typeof vi.fn>;
+    applyTransactionAsync: ReturnType<typeof vi.fn>;
     getRowNode: ReturnType<typeof vi.fn>;
     getDisplayedRowCount: ReturnType<typeof vi.fn>;
   };
@@ -103,7 +103,7 @@ describe('useBlotterDataConnection', () => {
     await waitFor(() => expect(provider.stop).toHaveBeenCalledTimes(1));
   });
 
-  it('applies live ticks via applyTransaction when getRowId is set', async () => {
+  it('applies live ticks via applyTransactionAsync when getRowId is set', async () => {
     gridApi.getRowNode.mockImplementation((id: string) => (id === 'r1' ? { id } : null));
 
     renderHook(() =>
@@ -117,9 +117,9 @@ describe('useBlotterDataConnection', () => {
     await waitFor(() => expect(provider.start).toHaveBeenCalled());
 
     provider.emitTick([{ id: 'r1', x: 2 }, { id: 'r2', x: 1 }]);
-    expect(gridApi.applyTransaction).toHaveBeenCalledWith({
+    expect(gridApi.applyTransactionAsync).toHaveBeenCalledWith({
       add: [{ id: 'r2', x: 1 }],
       update: [{ id: 'r1', x: 2 }],
-    });
+    }, expect.any(Function));
   });
 });
