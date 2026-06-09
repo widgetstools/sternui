@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GridOptions, GridReadyEvent } from 'ag-grid-community';
 import { GridPlatform, type AnyColDef, type AnyModule, type AppDataLookup } from '@starui/engine';
 import { shouldSkipGridOptionSync } from './gridSurfaceOptions';
+import { gridOptionValuesEqual } from './gridOptionCompare';
 
 /**
  * AG-Grid options that can ONLY be set at construction time. Calling
@@ -173,6 +174,10 @@ export function useGridHost(opts: {
         // Fast: same reference → definitely unchanged.
         if (Object.is(lastSyncedRef.current[key], value)) continue;
         // Slow: reference drifted but content might still match.
+        if (gridOptionValuesEqual(key, lastSyncedRef.current[key], value)) {
+          lastSyncedRef.current[key] = value;
+          continue;
+        }
         const json = JSON.stringify(value) ?? 'undefined';
         if (lastSyncedJson.current[key] === json) {
           // Refresh the cached ref so the next tick hits the fast path.

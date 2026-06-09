@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, memo } from 'react';
 import { ChevronDown, Check, Plus, Trash2, Lock, User, Download, Upload, Copy, Pencil, X } from 'lucide-react';
 import { RESERVED_DEFAULT_PROFILE_ID, type ProfileMeta } from '@starui/engine';
 // styles stay inline (see ProfileSelector.css for rationale).
@@ -61,7 +61,7 @@ export interface ProfileSelectorProps {
  * so outside-click, Escape, portal rendering, and collision detection are
  * consistent with the rest of the app.
  */
-export function ProfileSelector({
+export function ProfileSelectorInner({
   profiles,
   activeProfileId,
   isDirty,
@@ -531,3 +531,5 @@ export function ProfileSelector({
     </div>
   );
 }
+
+export const ProfileSelector = memo(ProfileSelectorInner);

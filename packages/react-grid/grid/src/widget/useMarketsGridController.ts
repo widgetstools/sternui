@@ -33,13 +33,11 @@ import {
 import {
   captureGridStateInto,
   exportVisualExcel,
-  GENERAL_SETTINGS_MODULE_ID,
   useGridApi,
   useGridPlatform,
   useModuleState,
   useProfileManager,
   VISUAL_EXCEL_MODULE_ID,
-  type GeneralSettingsState,
   type VisualExcelExportOptions,
 } from '@starui/grid/customizer';
 import { type VisualExcelState } from '@starui/engine';
@@ -57,6 +55,8 @@ export interface UseMarketsGridControllerOpts {
   readonly gridLevelData: unknown;
   readonly onGridLevelDataLoad: ((data: unknown) => void) | undefined;
   readonly onSavingChange: ((saving: boolean) => void) | undefined;
+  /** Derived from general-settings — supplied by host to avoid duplicate store subscription. */
+  readonly headerCaseAttr?: 'upper' | undefined;
 }
 
 export interface MarketsGridControllerHandle {
@@ -97,6 +97,7 @@ export function useMarketsGridController(
     gridLevelData,
     onGridLevelDataLoad,
     onSavingChange,
+    headerCaseAttr: headerCaseAttrProp,
   } = opts;
 
   // Construct a fallback adapter ONCE when the host doesn't provide one.
@@ -207,9 +208,8 @@ export function useMarketsGridController(
 
   const platform = useGridPlatform();
   const api = useGridApi();
-  const [generalSettings] = useModuleState<GeneralSettingsState>(GENERAL_SETTINGS_MODULE_ID);
   const [visualExcel] = useModuleState<VisualExcelState>(VISUAL_EXCEL_MODULE_ID);
-  const headerCaseAttr = generalSettings?.headerCaseUppercase ? 'upper' : undefined;
+  const headerCaseAttr = headerCaseAttrProp;
 
   // ── Imperative handle ─────────────────────────────────────────────
   // Populated once AG-Grid's onGridReady has fired (api becomes non-null)

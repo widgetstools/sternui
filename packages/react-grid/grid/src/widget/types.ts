@@ -31,14 +31,35 @@ export interface MarketsGridProps<TData = unknown> {
 
   /** Unique id per grid instance. Profile snapshots key off this. */
   gridId: string;
-  /** Row data. Kept reactive — swapping triggers the usual AG-Grid diff. */
+  /** Row data. Kept reactive — swapping triggers the usual AG-Grid diff.
+   *  For live streaming, prefer keeping this prop referentially stable
+   *  (e.g. pass a module-scoped `EMPTY` array) and push deltas via
+   *  `gridApi.applyTransactionAsync` — see `applyProviderToGrid` in
+   *  `@starui/widgets-react` MarketsGridContainer for the reference pattern. */
   rowData: TData[];
   /** Base column definitions — modules can transform them. */
   columnDefs: ColDef<TData>[];
-  /** Module list. Default passes a curated set (see DEFAULT_MODULES). */
+  /** Module list. Default passes {@link DEFAULT_MODULES}; use exported
+   *  {@link MINIMAL_MODULES} for a lightweight embed preset. */
   modules?: AnyModule[];
   /** AG-Grid theme object. */
   theme?: Theme;
+  /**
+   * AG Grid modules to register. Defaults to full {@link AllEnterpriseModule}.
+   * Omit for backward-compatible enterprise registration.
+   */
+  agGridModules?: readonly import('ag-grid-community').Module[];
+  /**
+   * Call `api.sizeColumnsToFit()` on grid ready when columns allow it.
+   * Defaults to `false` so profile-persisted column widths win on load.
+   * Set `true` for hosts that want columns stretched to the viewport on first ready.
+   */
+  sizeColumnsToFitOnReady?: boolean;
+  /**
+   * When `false`, omit the date stream-safe floating filter from the
+   * components map unless column defs reference date filters. Default `true`.
+   */
+  includeAllStreamSafeFilters?: boolean;
   /**
    * Field(s) on each row that uniquely identify it. Defaults to `'id'`.
    * A single column name keys rows by that field; an array of column
