@@ -634,7 +634,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 - `useConfigBrowser` — table state, filters, mutations; `exportDeploy()` full deploy seed bundle (unfiltered `appConfig`) + validation via `@starui/host-config` `buildDeployExport()`
 - `DeployExportPreviewDialog` — pre-download validation summary (errors block; warnings require acknowledge)
-- `buildDeployExport()`, `validateDeployExport()`, `parseSeedJson()` (`@starui/host-config`) — deploy export includes every `appConfig` row (unfiltered read); normalize `appId` / `userId` drift; reject wrong `seed.json` shapes (e.g. `kind: starui.dataProvider`); emit `DeployExportWarning` codes (`MISSING_INSTANCE_ROW`, `EMPTY_PROFILE_STATE`, `UNREFERENCED_ROWS`, …)
+- `buildDeployExport()`, `validateDeployExport()`, `parseSeedJson()`, `resolveActiveIdentityFromSeedUrl()` (`@starui/host-config`) — deploy export includes every `appConfig` row plus `activeAppId` / `activeUserId`; normalize scope drift against those fields; reject wrong `seed.json` shapes (e.g. `kind: starui.dataProvider`); emit `DeployExportWarning` codes (`MISSING_INSTANCE_ROW`, `EMPTY_PROFILE_STATE`, `UNREFERENCED_ROWS`, …)
 - `readProfileSetPayload()` (`@starui/host-config`) — storage adapter reads profile-set bytes even when row `appId` drifted, so `gridLevelData` / profile saves do not wipe `profiles: []`; re-stamps correct scope on write
 - `resolveDefaultPlatformScope()` / `resolveBootstrapManifestScope()` (`@starui/openfin-platform`) — `initWorkspace` and child-window `getConfigManager()` read manifest / `app-config.json` `appId` instead of hard-coded `TestApp`; `readHostEnv()` uses the same bootstrap before dev fallback; `migrateRegistryAppIdDrift()` relocates and deletes stale `component-registry::TestApp::system` rows
 - `TABLES` — table enumeration
@@ -1010,17 +1010,19 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Data layer
 
-- `SeedData` — first-run seed shape; optional `appConfig[]` lets a Config
-  Browser "Export ALL" bundle serve as a full-restore `seed.json` (data
-  providers, component registry, dock, workspaces, profile-sets).
-  `normalizeSeedData()` re-stamps mismatched `appConfig[].appId` / `userId`
-  (and `userProfiles[].appId`) to match `appRegistry` / `userProfiles` before
-  `seedIfEmpty()` writes (fixes stale exports such as `TestApp` / `dev1`
-  against a `star-demo` / `k151344` deployment). `ConfigManager.saveConfig()`
-  enforces the same deployment `appId` / seeded `identity.userId` on every
-  runtime write (global catalogue rows keep `userId: system`). `seedIfEmpty()` runs only
-  on an empty DB (gated on appRegistry **or** appConfig count) so it never
-  clobbers a bootstrapped app.
+- `SeedData` — first-run seed shape with required `activeAppId` /
+  `activeUserId` (deployment identity — the only source of truth for scope;
+  not duplicated in app-config.json or manifest `customSettings`). Optional
+  `appConfig[]` lets a Config Browser deploy export serve as a full-restore
+  `seed.json`. `normalizeSeedData()` / `resolveActiveIdentityFromSeedUrl()`
+  re-stamp mismatched `appConfig[].appId` / `userId` (and
+  `userProfiles[].appId`) to match `activeAppId` / `activeUserId` before
+  `seedIfEmpty()` writes. `normalizeImportedAppConfigRow()` re-stamps
+  imported `appConfig` rows (Config Browser per-table import, OpenFin
+  `importConfigBundle`, and every `saveConfig()`) to the same
+  `activeAppId` / `activeUserId`; bundle file values are ignored.
+  Global catalogue rows keep `userId: system`. `seedIfEmpty()` runs only on an empty DB (gated on
+  appRegistry **or** appConfig count) so it never clobbers a bootstrapped app.
 - `ConfigDatabase` — Dexie wrapper with schema versioning
 - Compound indexes: `[componentType+componentSubType]`, `[userId+appId]`
 - v1→v2 unified schema migration (`config→payload`, `createdAt→creationTime`, `updatedAt→updatedTime`)

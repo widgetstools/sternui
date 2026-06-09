@@ -10,6 +10,8 @@ import type { AppConfigRow } from './types';
 
 function baseInput(over: Partial<DeployExportInput> = {}): DeployExportInput {
   return {
+    activeAppId: 'StarDemo',
+    activeUserId: 'dev1',
     appRegistry: [{ appId: 'StarDemo', displayName: 'Star', manifestUrl: 'http://x/m.json', configServiceEnabled: false, environment: 'dev' }],
     userProfiles: [],
     roles: [],

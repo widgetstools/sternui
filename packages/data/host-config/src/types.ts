@@ -493,6 +493,20 @@ export interface ConfigManagerOptions {
  * already-bootstrapped app.
  */
 export interface SeedData {
+  /**
+   * Deployment scope — single source of truth for `appId` on every
+   * `appConfig` row. Read at bootstrap and on seed import; not
+   * overridden by app-config.json or manifest `customSettings`.
+   */
+  activeAppId: string;
+
+  /**
+   * Signed-in user scope — single source of truth for private-row
+   * `userId` stamping. Global catalogue rows (registry, public
+   * providers) still use `userId: 'system'`.
+   */
+  activeUserId: string;
+
   /** App registry entries to seed. */
   appRegistry: AppRegistryRow[];
 
@@ -509,8 +523,9 @@ export interface SeedData {
    * Component configs to seed — data providers, component registry, dock,
    * workspaces, MarketsGrid profile-sets, etc. Optional; minimal bootstrap
    * seeds omit it. `seedIfEmpty()` runs `normalizeSeedData()` first so
-   * mismatched `appId` values are re-stamped to match `appRegistry[0].appId`
-   * before write. Other fields are preserved as authored.
+   * mismatched `appId` / `userId` values are re-stamped to match
+   * `activeAppId` / `activeUserId` before write. Other fields are
+   * preserved as authored.
    */
   appConfig?: AppConfigRow[];
 }

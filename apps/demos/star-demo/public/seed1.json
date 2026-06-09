@@ -1,4 +1,6 @@
 {
+  "activeAppId": "star-demo",
+  "activeUserId": "k151344",
   "permissions": [
     {
       "permissionId": "config:read",

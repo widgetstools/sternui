@@ -158,4 +158,48 @@ describe('resolvePlatformBootstrapFromJson', () => {
       resolvePlatformBootstrapFromJson('/app-config.json'),
     ).rejects.toThrow(/Failed to fetch platform bootstrap config/);
   });
+
+  it('resolves appId and userId from seed activeAppId / activeUserId', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (url: string) => {
+        if (String(url).includes('seed')) {
+          return {
+            ok: true,
+            json: async () => ({
+              activeAppId: 'star-demo',
+              activeUserId: 'k151344',
+              appRegistry: [{
+                appId: 'star-demo',
+                displayName: 'Star',
+                manifestUrl: 'http://x/m.json',
+                configServiceEnabled: false,
+                environment: 'dev',
+              }],
+              userProfiles: [],
+              roles: [],
+              permissions: [],
+            }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            seedConfigUrl: '/seed.json',
+            useRest: false,
+          }),
+        };
+      }),
+    );
+
+    await expect(
+      resolvePlatformBootstrapFromJson('/app-config.json'),
+    ).resolves.toEqual({
+      appId: 'star-demo',
+      userId: 'k151344',
+      useRest: false,
+      configServiceRestUrl: undefined,
+      seedConfigUrl: '/seed.json',
+    });
+  });
 });

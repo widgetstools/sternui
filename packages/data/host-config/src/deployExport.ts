@@ -4,12 +4,15 @@
  * normalizes appId drift via {@link normalizeSeedData}.
  */
 
-import { canonicalAppIdFromSeed, normalizeSeedData } from './normalizeSeedData';
+import { activeAppIdFromSeed, activeUserIdFromSeed, normalizeSeedData } from './normalizeSeedData';
 import { MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE } from './profileSetTypes';
 import type { AppConfigRow, SeedData } from './types';
 
 /** Same shape as Config Browser `exportAll` / `SeedData`. */
 export interface DeployExportInput {
+  /** Deployment scope written to seed.json — defaults from ConfigManager when exporting. */
+  activeAppId?: string;
+  activeUserId?: string;
   appConfig: AppConfigRow[];
   appRegistry: SeedData['appRegistry'];
   userProfiles: SeedData['userProfiles'];
@@ -199,19 +202,20 @@ export function validateDeployExport(
   options: { referencedInstanceIds?: string[] } = {},
 ): DeployExportWarning[] {
   const warnings: DeployExportWarning[] = [];
-  const seedShape: SeedData = {
-    appRegistry: input.appRegistry,
-    userProfiles: input.userProfiles,
-    roles: input.roles,
-    permissions: input.permissions,
-    appConfig: input.appConfig,
-  };
-  const canonicalAppId = canonicalAppIdFromSeed(seedShape);
+  const canonicalAppId = input.activeAppId?.trim()
+    || activeAppIdFromSeed({
+      activeAppId: input.activeAppId ?? '',
+      activeUserId: input.activeUserId ?? '',
+      appRegistry: input.appRegistry,
+      userProfiles: input.userProfiles,
+      roles: input.roles,
+      permissions: input.permissions,
+    });
   if (!canonicalAppId) {
     warnings.push({
       severity: 'error',
-      code: 'NO_CANONICAL_APP_ID',
-      message: 'appRegistry has no usable appId — deploy bundle cannot scope profile rows.',
+      code: 'NO_ACTIVE_APP_ID',
+      message: 'Deploy bundle has no activeAppId — set it in seed.json or pass it when exporting.',
     });
   }
 
@@ -311,12 +315,18 @@ export function buildDeployExport(raw: DeployExportInput): DeployExportResult {
     permissions: raw.permissions,
   };
 
+  const activeAppId = raw.activeAppId?.trim() ?? '';
+  const activeUserId = raw.activeUserId?.trim() ?? '';
   const normalizedSeed = normalizeSeedData({
+    activeAppId,
+    activeUserId,
     ...scoped,
     appConfig: scoped.appConfig,
   });
   const bundle: DeployExportInput = {
     ...scoped,
+    activeAppId: activeAppId || activeAppIdFromSeed(normalizedSeed) || '',
+    activeUserId: activeUserId || activeUserIdFromSeed(normalizedSeed) || '',
     appConfig: normalizedSeed.appConfig ?? scoped.appConfig,
   };
 
@@ -324,13 +334,7 @@ export function buildDeployExport(raw: DeployExportInput): DeployExportResult {
     referencedInstanceIds: [...referencedIds],
   });
 
-  const canonicalAppId = canonicalAppIdFromSeed({
-    appRegistry: raw.appRegistry,
-    userProfiles: raw.userProfiles,
-    roles: raw.roles,
-    permissions: raw.permissions,
-    appConfig: raw.appConfig,
-  });
+  const canonicalAppId = bundle.activeAppId?.trim() || activeAppIdFromSeed(normalizedSeed);
   if (canonicalAppId) {
     for (const row of raw.appConfig) {
       if (row.appId && row.appId !== '' && row.appId !== canonicalAppId) {

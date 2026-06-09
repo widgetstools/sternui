@@ -1,3 +1,4 @@
+import { resolveActiveIdentityFromSeedUrl } from '@starui/host-config';
 import {
   validatePlatformBootstrapConfig,
   type AppDataBootstrapManifest,
@@ -105,8 +106,8 @@ export function resolvePlatformBootstrapFromObject(
   const record = raw as Record<string, unknown>;
 
   const config: PlatformBootstrapConfig = {
-    appId: readRequiredString(record.appId, 'appId'),
-    userId: readRequiredString(record.userId, 'userId'),
+    appId: readOptionalString(record.appId) ?? '',
+    userId: readOptionalString(record.userId) ?? '',
     useRest: readOptionalBoolean(record.useRest),
     configServiceRestUrl: readOptionalString(record.configServiceRestUrl),
     seedConfigUrl: readOptionalString(record.seedConfigUrl),
@@ -162,7 +163,28 @@ export async function resolvePlatformBootstrapFromJson(
   }
 
   try {
-    return resolvePlatformBootstrapFromObject(raw);
+    const record = raw as Record<string, unknown>;
+    const seedConfigUrl = readOptionalString(record.seedConfigUrl);
+    let appId = readOptionalString(record.appId);
+    let userId = readOptionalString(record.userId);
+
+    if (seedConfigUrl) {
+      const fromSeed = await resolveActiveIdentityFromSeedUrl(seedConfigUrl, fetchImpl);
+      if (fromSeed) {
+        appId = fromSeed.activeAppId;
+        userId = fromSeed.activeUserId;
+      }
+    }
+
+    if (!appId || !userId) {
+      throw new PlatformBootstrapConfigError(
+        seedConfigUrl
+          ? `seed.json at ${seedConfigUrl} must define activeAppId and activeUserId`
+          : 'appId and userId are required (or provide seedConfigUrl with activeAppId/activeUserId in seed.json)',
+      );
+    }
+
+    return resolvePlatformBootstrapFromObject({ ...record, appId, userId });
   } catch (err) {
     if (err instanceof PlatformBootstrapConfigError) {
       throw err;

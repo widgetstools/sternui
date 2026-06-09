@@ -1,7 +1,8 @@
 /**
  * Resolve the canonical `(appId, userId)` platform scope after
- * ConfigManager seeding. Manifest `customSettings` wins, then seeded
- * `appRegistry` / `userProfile` tables, then dev fallbacks.
+ * ConfigManager init. The manager's construction-time identity (from
+ * `seed.json` `activeAppId` / `activeUserId`) wins; manifest
+ * `customSettings` and registry tables are legacy fallbacks only.
  */
 
 import type { ConfigManager } from '@starui/host-config';
@@ -37,8 +38,15 @@ export async function resolveDefaultPlatformScope(
   cm: ConfigManager,
   manifest?: Pick<CustomSettings, 'appId' | 'userId'> | null,
 ): Promise<PlatformScope> {
-  let appId = typeof manifest?.appId === 'string' ? manifest.appId.trim() : '';
-  let userId = typeof manifest?.userId === 'string' ? manifest.userId.trim() : '';
+  let appId = cm.getAppId().trim();
+  let userId = cm.getIdentity().userId.trim();
+
+  if (!appId && typeof manifest?.appId === 'string') {
+    appId = manifest.appId.trim();
+  }
+  if (!userId && typeof manifest?.userId === 'string') {
+    userId = manifest.userId.trim();
+  }
 
   if (!appId) {
     const fromRegistry = pickRegistryAppId(await cm.getAllApps());

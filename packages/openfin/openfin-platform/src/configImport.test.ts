@@ -30,16 +30,14 @@ class InMemoryConfigManager {
   async saveRole(row: RoleRow)           { this.roles.set(row.roleId, { ...row }); }
   async getAllPermissions()              { return Array.from(this.permissions.values()); }
   async savePermission(row: PermissionRow) { this.permissions.set(row.permissionId, { ...row }); }
+  getAppId() { return 'LocalApp'; }
+  getIdentity() { return { userId: 'localuser', displayName: 'localuser' }; }
 }
 
 const cm = new InMemoryConfigManager();
 
 vi.mock('./db', () => ({
   getConfigManager: async () => cm as unknown as ConfigManager,
-}));
-
-vi.mock('./registryHostEnv', () => ({
-  readHostEnv: async () => ({ appId: 'LocalApp', userId: 'localuser', configServiceUrl: '' }),
 }));
 
 const { importConfigBundle } = await import('./configImport');

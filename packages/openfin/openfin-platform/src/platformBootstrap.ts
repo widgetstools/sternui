@@ -8,6 +8,7 @@
 declare const fin: any;
 
 import type OpenFin from '@openfin/core';
+import { resolveActiveIdentityFromSeedUrl } from '@starui/host-config';
 import {
   DEV_PLATFORM_BOOTSTRAP,
   PlatformBootstrapConfigError,
@@ -45,6 +46,13 @@ export function resolvePlatformBootstrapFromCustomSettings(
  * Outside OpenFin (`fin` undefined), returns {@link DEV_PLATFORM_BOOTSTRAP}
  * so plain-browser dev harnesses can import without crashing.
  */
+function readSeedUrl(customSettings: CustomSettings | undefined): string | undefined {
+  const url = customSettings?.seedConfigUrl;
+  if (typeof url !== 'string') return undefined;
+  const trimmed = url.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export async function resolvePlatformBootstrapFromManifest(): Promise<PlatformBootstrapConfig> {
   if (typeof fin === 'undefined') {
     return DEV_PLATFORM_BOOTSTRAP;
@@ -55,6 +63,23 @@ export async function resolvePlatformBootstrapFromManifest(): Promise<PlatformBo
     const manifest = (await app.getManifest()) as OpenFin.Manifest & {
       customSettings?: CustomSettings;
     };
+    const seedUrl = readSeedUrl(manifest.customSettings);
+    if (seedUrl) {
+      const identity = await resolveActiveIdentityFromSeedUrl(seedUrl);
+      if (identity) {
+        const cs = manifest.customSettings;
+        return {
+          appId: identity.activeAppId,
+          userId: identity.activeUserId,
+          useRest: cs?.useRest,
+          configServiceRestUrl: cs?.configServiceRestUrl,
+          seedConfigUrl: seedUrl,
+        };
+      }
+      throw new PlatformBootstrapConfigError(
+        `seed.json at ${seedUrl} must define activeAppId and activeUserId`,
+      );
+    }
     return resolvePlatformBootstrapFromCustomSettings(manifest.customSettings);
   } catch (err) {
     if (err instanceof PlatformBootstrapConfigError) {
@@ -77,8 +102,19 @@ export interface BootstrapManifestScope {
  * Manifest / app-config values are fallbacks when the seed can't be read.
  */
 export async function resolveDeploymentIdentity(
-  manifest?: { appId?: string; userId?: string } | null,
+  manifest?: { appId?: string; userId?: string; seedConfigUrl?: string } | null,
 ): Promise<BootstrapManifestScope> {
+  const seedUrl = readSeedUrl(manifest ?? undefined);
+  if (seedUrl) {
+    const identity = await resolveActiveIdentityFromSeedUrl(seedUrl);
+    if (identity) {
+      return { appId: identity.activeAppId, userId: identity.activeUserId };
+    }
+    throw new PlatformBootstrapConfigError(
+      `seed.json at ${seedUrl} must define activeAppId and activeUserId`,
+    );
+  }
+
   const bootstrap = await resolveBootstrapManifestScope();
   const manifestAppId = typeof manifest?.appId === 'string' ? manifest.appId.trim() : '';
   const manifestUserId = typeof manifest?.userId === 'string' ? manifest.userId.trim() : '';

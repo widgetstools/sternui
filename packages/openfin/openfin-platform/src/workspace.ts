@@ -184,8 +184,7 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
   // uses the same database as everything else.
   setConfigManager(configManager);
 
-  // Tag every implicit-scope save with manifest customSettings first,
-  // then seeded appRegistry / userProfile (star-demo → StarDemo / dev1).
+  // Scope comes from seed.json activeAppId / activeUserId via ConfigManager.
   const defaultScope = await resolveDefaultPlatformScope(
     configManager,
     settings.customSettings,
@@ -193,7 +192,7 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
   setPlatformDefaultScope(defaultScope);
   log(
     `Platform default scope: appId='${defaultScope.appId}' userId='${defaultScope.userId}' ` +
-    `(resolved from appRegistry + userProfile seed).`,
+    `(from seed.json activeAppId / activeUserId).`,
   );
   // One-shot migration: pre-platform rows still tagged with the legacy
   // `appId='system'` get re-stamped to the platform scope so they show

@@ -169,3 +169,17 @@ export {
   type DeployExportSeverity,
   type DeployExportStats,
 } from './deployExport';
+
+export {
+  activeAppIdFromSeed,
+  activeUserIdFromSeed,
+  canonicalAppIdFromSeed,
+  canonicalUserIdFromSeed,
+  normalizeImportedAppConfigRow,
+  normalizeImportedAppConfigRows,
+  normalizeSeedData,
+  parseSeedJson,
+  resolveActiveIdentityFromSeedUrl,
+  type ActiveIdentity,
+  type FetchLike as SeedFetchLike,
+} from './normalizeSeedData';

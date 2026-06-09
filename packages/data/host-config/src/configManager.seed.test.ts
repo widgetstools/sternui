@@ -46,6 +46,8 @@ function makeConfigRow(over: Partial<AppConfigRow>): AppConfigRow {
 /** A representative "Export ALL" bundle: auth shell + component configs. */
 function exportBundle(): SeedData {
   return {
+    activeAppId: 'StarDemo',
+    activeUserId: 'dev1',
     permissions: [{ permissionId: 'config:read', description: 'Read', category: 'config' }],
     roles: [{ roleId: 'admin', displayName: 'Admin', permissionIds: ['config:read'] }],
     appRegistry: [

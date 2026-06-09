@@ -1,14 +1,13 @@
 import { describe, it, expect } from 'vitest';
 
 import {
-
+  activeAppIdFromSeed,
+  activeUserIdFromSeed,
   canonicalAppIdFromSeed,
-
   canonicalUserIdFromSeed,
-
+  normalizeImportedAppConfigRow,
   normalizeSeedData,
   parseSeedJson,
-
 } from './normalizeSeedData';
 
 import type { AppConfigRow, SeedData } from './types';
@@ -18,7 +17,8 @@ import type { AppConfigRow, SeedData } from './types';
 function makeSeed(over: Partial<SeedData> & { appConfig?: AppConfigRow[] }): SeedData {
 
   return {
-
+    activeAppId: 'star-demo',
+    activeUserId: 'k151344',
     appRegistry: [{
 
       appId: 'star-demo',
@@ -69,18 +69,25 @@ describe('parseSeedJson', () => {
   it('rejects JSON without appRegistry', () => {
     expect(parseSeedJson({ permissions: [] })).toBeNull();
   });
+
+  it('rejects JSON without activeAppId / activeUserId', () => {
+    expect(parseSeedJson({
+      appRegistry: [{ appId: 'x', displayName: 'x', manifestUrl: 'http://x', configServiceEnabled: false, environment: 'dev' }],
+      userProfiles: [],
+      roles: [],
+      permissions: [],
+    })).toBeNull();
+  });
 });
 
 describe('normalizeSeedData', () => {
 
-  it('reads canonical appId and userId from seed auth tables', () => {
-
+  it('reads appId and userId from activeAppId / activeUserId', () => {
     const seed = makeSeed({});
-
+    expect(activeAppIdFromSeed(seed)).toBe('star-demo');
+    expect(activeUserIdFromSeed(seed)).toBe('k151344');
     expect(canonicalAppIdFromSeed(seed)).toBe('star-demo');
-
-    expect(canonicalUserIdFromSeed(seed, 'star-demo')).toBe('k151344');
-
+    expect(canonicalUserIdFromSeed(seed)).toBe('k151344');
   });
 
 
@@ -234,6 +241,31 @@ describe('normalizeSeedData', () => {
   });
 
 
+
+  it('normalizeImportedAppConfigRow rescopes registry configId on import', () => {
+    const row = makeSeed({}).appConfig?.[0] ?? {
+      configId: 'component-registry::TestApp::system',
+      appId: 'TestApp',
+      userId: 'system',
+      isPublic: true,
+      displayText: 'registry',
+      componentType: 'component-registry',
+      componentSubType: '',
+      isTemplate: false,
+      payload: { version: 2, entries: [{ id: 'grid', appId: 'TestApp' }] },
+      createdBy: 'dev1',
+      updatedBy: 'dev1',
+      creationTime: '2026-01-01T00:00:00.000Z',
+      updatedTime: '2026-01-01T00:00:00.000Z',
+    };
+    const normalized = normalizeImportedAppConfigRow(row, {
+      activeAppId: 'star-demo',
+      activeUserId: 'k151344',
+    });
+    expect(normalized.configId).toBe('component-registry::star-demo::system');
+    expect(normalized.appId).toBe('star-demo');
+    expect(normalized.userId).toBe('system');
+  });
 
   it('is a no-op when rows already match the registry scope', () => {
 

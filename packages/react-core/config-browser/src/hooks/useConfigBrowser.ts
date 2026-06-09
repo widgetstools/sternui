@@ -8,7 +8,11 @@ import {
   readHostEnv,
   type HostEnv,
 } from "@starui/openfin-platform/config";
-import { buildDeployExport, type DeployExportResult } from "@starui/host-config";
+import {
+  buildDeployExport,
+  normalizeImportedAppConfigRow,
+  type DeployExportResult,
+} from "@starui/host-config";
 import type { ConfigManager } from "@starui/host-config";
 import { TABLES, type TableKey, type TableMeta } from "../types";
 
@@ -349,41 +353,26 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
    * of mode.
    */
   /**
-   * Re-own a single appConfig row to the current host environment so
-   * imports from another machine become USABLE under the local
-   * (appId, userId) scope. Without this, profile-set / dock /
-   * workspace lookups silently miss because they require
-   * `row.userId === currentUserId` (and same for appId), and the
-   * blotter renders empty even though the row is on disk.
-   *
-   * Audit fields (`createdBy`, `updatedBy`) are intentionally
-   * preserved verbatim — they are NOT used for access control, only
-   * for showing provenance in the Config Browser.
-   *
-   * Sentinel values that must NOT be re-owned:
-   *   - `userId === 'system'` — public/global rows (registry, public
-   *     data-providers). Re-owning would break their visibility rule.
-   *   - `appId === ''` — pre-scoped legacy rows; leave them alone so
-   *     the existing back-compat fallbacks still find them.
-   *
-   * userProfile rows are not re-owned: their `userId` IS the primary
-   * key, so re-owning would collide with whatever the active user
-   * already has on disk and silently drop profiles. Importing
-   * userProfiles is a "replicate the user list" action, not a
-   * "make this mine" action.
+   * Re-stamp imported rows to the deployment's `activeAppId` /
+   * `activeUserId` (from `seed.json` via ConfigManager) so imports
+   * from other machines match local scope before `saveConfig`.
    */
   const reownForImport = useCallback((row: any): any => {
     if (!row || typeof row !== 'object') return row;
-    if (selectedKey !== 'appConfig') return row;
-    const next = { ...row };
-    if (typeof row.userId === 'string' && row.userId !== '' && row.userId !== 'system') {
-      next.userId = hostEnv.userId ?? row.userId;
+    const manager = managerRef.current;
+    if (!manager) return row;
+    const activeAppId = manager.getAppId();
+    const activeUserId = manager.getIdentity().userId;
+    if (selectedKey === 'appConfig') {
+      const next = { ...row };
+      if (next.config && !next.payload) next.payload = next.config;
+      return normalizeImportedAppConfigRow(next, { activeAppId, activeUserId });
     }
-    if (typeof row.appId === 'string' && row.appId !== '') {
-      next.appId = hostEnv.appId || row.appId;
+    if (selectedKey === 'userProfile') {
+      return { ...row, appId: activeAppId };
     }
-    return next;
-  }, [selectedKey, hostEnv.appId, hostEnv.userId]);
+    return row;
+  }, [selectedKey]);
 
   const importRows = useCallback(
     async (incoming: any[], mode: ImportMode): Promise<ImportResult> => {
@@ -471,7 +460,15 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
       db.roles.toArray(),
       db.permissions.toArray(),
     ]);
-    return buildDeployExport({ appConfig, appRegistry, userProfiles, roles, permissions });
+    return buildDeployExport({
+      activeAppId: manager.getAppId(),
+      activeUserId: manager.getIdentity().userId,
+      appConfig,
+      appRegistry,
+      userProfiles,
+      roles,
+      permissions,
+    });
   }, []);
 
   /**

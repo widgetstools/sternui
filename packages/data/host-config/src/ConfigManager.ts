@@ -20,7 +20,7 @@ import Dexie from 'dexie';
 import { ChangeNotifier } from './changeNotifier';
 import { ConfigDatabase } from './db';
 import { OptimisticLockError } from './errors';
-import { normalizeSeedData, parseSeedJson } from './normalizeSeedData';
+import { normalizeImportedAppConfigRow, normalizeSeedData, parseSeedJson } from './normalizeSeedData';
 import { createProfilesNamespace } from './profiles';
 import type { ProfilesNamespace } from './profilesTypes';
 import type {
@@ -388,23 +388,11 @@ export class ConfigManager {
    * (component registry, public data providers) keep `userId: 'system'`.
    */
   private stampAppConfigScope(config: AppConfigRow): void {
-    config.appId = this.appId;
-    if (this.isGlobalAppConfigOwner(config)) {
-      config.userId = GLOBAL_OWNER_USER_ID;
-      return;
-    }
-    config.userId = this.identity.userId;
-  }
-
-  private isGlobalAppConfigOwner(row: AppConfigRow): boolean {
-    if (row.componentType === COMPONENT_TYPE_REGISTRY) {
-      return true;
-    }
-    if (row.userId === GLOBAL_OWNER_USER_ID) {
-      return row.componentType === COMPONENT_TYPE_DATA_PROVIDER
-        || row.componentType === COMPONENT_TYPE_APPDATA;
-    }
-    return false;
+    const stamped = normalizeImportedAppConfigRow(config, {
+      activeAppId: this.appId,
+      activeUserId: this.identity.userId,
+    });
+    Object.assign(config, stamped);
   }
 
   private stampWrite<
@@ -904,6 +892,7 @@ export class ConfigManager {
    */
   async saveUserProfile(row: UserProfileRow): Promise<void> {
     const existing = await this.db.userProfile.get(row.userId);
+    row.appId = this.appId;
     this.stampWrite(row, existing === undefined);
 
     if (this.restUrl) {
