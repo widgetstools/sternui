@@ -332,7 +332,8 @@ Per-renderer config types (`PillRendererConfig`,
   override or general-settings pipeline) into the theme via `theme.withParams`,
   keeping `--ag-row-height` in sync with the live row height so cell text stays
   vertically centered at any height (parameter-based; no CSS overrides)
-- `LazySettingsSheet` — code-split settings drawer (loads `SettingsSheet` + `grid-chrome.css` on first open)
+- `LazySettingsSheet` — code-split settings drawer (loads `SettingsSheet` + `grid-chrome.css` on first open); public-barrel `SettingsSheet` export aliases this wrapper (same props/ref contract) so the inner sheet never lands in a consumer's main chunk
+- `preloadSettingsSheet()` — warms the sheet chunk ahead of first open; `MarketsGridHost` calls it on idle, the ⋯ overflow menu on open, the inline settings button on pointer-enter
 - `GeneralSettingsProvider` / `useGeneralSettingsFromContext` — single subscription for density/header-case reads
 - `GridChromeProvider` / `useGridChromeState` — isolates frequently-changing toolbar UI state
 - `mergeDefaultColDef`, `gridOptionCompare`, `buildStreamSafeComponents` — reference-stable pipeline → surface wiring
@@ -388,7 +389,13 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
   via `.ds-settings-module-popover` / `.ds-sheet-v2` z-index in `grid-chrome.css`;
   flat `SettingsPanel` modules (Grid Options) fill the editor pane without an
   outer `ds-editor-scroll` so the band sidebar stays fixed while only the
-  right-hand fields scroll
+  right-hand fields scroll; two-phase open — chrome + structural wrappers
+  commit first so the drawer slide-in starts immediately, the active module
+  panel mounts one deferred render behind (`useDeferredValue(open, false)`;
+  popped OS-window mode bypasses the gate)
+- Grid Options band sections use `content-visibility: auto` so off-screen
+  bands skip render work at open; intrinsic-size placeholder keeps the
+  scrollbar and band scroll-into-view targets stable
 
 #### Help, status & overlays
 

@@ -30,6 +30,7 @@ import { AdminActionButtons, resolveAdminActionIcon } from './AdminActionButtons
 import { ChromeButton, useActiveThemeMode } from '@starui/grid/customizer';
 import { GridInfoButton } from './GridInfoButton';
 import { GridInfoContent } from './GridInfoContent';
+import { preloadSettingsSheet } from './LazySettingsSheet';
 
 export type ToolbarActionsLayout = 'inline' | 'overflow';
 
@@ -99,7 +100,13 @@ function OverflowMenu({
   return (
     <>
       {showLeadingDivider ? <span className="ds-primary-divider" aria-hidden /> : null}
-      <DropdownMenu>
+      <DropdownMenu
+        onOpenChange={(open) => {
+          // Strong intent signal: the menu containing "Grid settings" just
+          // opened — warm the sheet chunk during the user's read time.
+          if (open && showSettingsButton) preloadSettingsSheet();
+        }}
+      >
         <DropdownMenuTrigger asChild>
           <ChromeButton
             type="button"
@@ -242,6 +249,7 @@ export function PrimaryToolbarInlineActions(
             type="button"
             className="ds-primary-action"
             onClick={props.onOpenSettings}
+            onPointerEnter={preloadSettingsSheet}
             title="Open settings"
             data-testid="v2-settings-open-btn"
           >

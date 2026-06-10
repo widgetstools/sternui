@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { forwardRef, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import './grid-chrome.css';
 import {
   type AnyModule,
@@ -116,6 +116,17 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
   // header — a temporary view, not persisted.
   const [helpOpen, setHelpOpen] = useState(false);
 
+  // Two-phase open. The drawer shell + chrome commit on the urgent
+  // update so the slide-in animation starts on the next frame; the
+  // active module panel — the expensive part (Grid Options alone mounts
+  // ~100 controls) — fills in on the deferred follow-up render instead
+  // of blocking the animation's first frame. The `false` initial value
+  // keeps the FIRST open two-phase too (useDeferredValue otherwise
+  // returns the live value on initial mount, and the sheet mounts fresh
+  // at first open). Popped mode bypasses the gate below — the OS window
+  // keeps its content regardless of the inline `open` flag.
+  const deferredOpen = useDeferredValue(open, false);
+
   const [selectedByModule, setSelectedByModule] = useState<Record<string, string | null>>({});
 
   const setSelectedForModule = useCallback((moduleId: string, id: string | null) => {
@@ -181,6 +192,10 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
     // Browsers ignore those and always render full OS chrome, so our
     // custom titlebar would just duplicate it there.
     const frameless = popped && isOpenFin();
+    // Heavy module panes mount one transition behind the chrome — see
+    // the deferredOpen note above. All structural wrappers (testids,
+    // layout) stay in the first commit so selectors resolve immediately.
+    const panelReady = popped || deferredOpen;
     const sheetClasses = [
       'ds-sheet',
       'ds-sheet-v2',
@@ -337,11 +352,13 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
               <>
             {hasMasterDetail && ListPane && activeModule && (
               <aside className="ds-popout-list" data-testid="v2-settings-list">
-                <ListPane
-                  gridId={gridId}
-                  selectedId={selectedId}
-                  onSelect={(id) => setSelectedForModule(activeModule.id, id)}
-                />
+                {panelReady ? (
+                  <ListPane
+                    gridId={gridId}
+                    selectedId={selectedId}
+                    onSelect={(id) => setSelectedForModule(activeModule.id, id)}
+                  />
+                ) : null}
               </aside>
             )}
 
@@ -360,14 +377,14 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                   data-testid={PANEL_TESTID_BY_MODULE_ID[activeId] ?? ''}
                   className="flex flex-col flex-1 min-h-0 overflow-hidden"
                 >
-                  <EditorPane gridId={gridId} selectedId={selectedId} />
+                  {panelReady ? <EditorPane gridId={gridId} selectedId={selectedId} /> : null}
                 </div>
               ) : LegacyPanel ? (
                 // Flat panels (e.g. Grid Options) own their scroll regions —
                 // a wrapping `ds-editor-scroll` scrolls the whole panel and
                 // drags the band sidebar along with the right-hand content.
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                  <LegacyPanel gridId={gridId} />
+                  {panelReady ? <LegacyPanel gridId={gridId} /> : null}
                 </div>
               ) : (
                 <div className="p-6">

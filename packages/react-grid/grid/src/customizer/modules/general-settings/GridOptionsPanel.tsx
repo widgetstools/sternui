@@ -464,6 +464,15 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
                 data-band-index={band.index}
                 data-testid={`go-section-${band.index}`}
                 className="px-5 pt-3 pb-1"
+                // Skip rendering work for off-screen bands (~100 controls
+                // across ~13 sections; only 1-2 are in the viewport when
+                // the sheet opens). The intrinsic-size placeholder keeps
+                // the scrollbar and scrollIntoView targets stable; the
+                // browser renders each band as it scrolls into view.
+                style={{
+                  contentVisibility: 'auto',
+                  containIntrinsicSize: 'auto 480px',
+                }}
               >
                 <header className="flex items-center gap-2.5 mb-2 select-none">
                   <span className="font-mono tabular-nums text-[10px] text-muted-foreground tracking-[0.06em]">

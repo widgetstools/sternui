@@ -16,6 +16,7 @@
 import {
   memo,
   useCallback,
+  useEffect,
   useMemo,
   useState,
   type CSSProperties,
@@ -33,7 +34,7 @@ import { FormattingToolbar } from './FormattingToolbar';
 import { EditingToolbar } from './editingToolbar/EditingToolbar';
 import type { EditingToolbarHostProps } from './editingToolbar/resolveEditingToolbarAllow';
 import { useEffectiveEditingToolbarAllow } from './editingToolbar/useEffectiveEditingToolbarAllow';
-import { LazySettingsSheet } from './LazySettingsSheet';
+import { LazySettingsSheet, preloadSettingsSheet } from './LazySettingsSheet';
 import { useMarketsGridController } from './useMarketsGridController';
 import { useToolbarDateSettingsBridge } from '../customizer/modules/toolbar-date-settings/useToolbarDateSettingsBridge';
 import { PrimaryToolbar } from './PrimaryToolbar';
@@ -198,6 +199,20 @@ function MarketsGridHostInner<TData>({
     setSettingsMounted(true);
     handleOpenSettings();
   }, [handleOpenSettings]);
+
+  // Warm the settings-sheet chunk while the grid is idle so the first
+  // "Grid settings" click doesn't pay the lazy-chunk load. The sheet
+  // itself stays unmounted until first open (settingsMounted above), so
+  // this is the only place a pre-open preload can actually run.
+  useEffect(() => {
+    if (!showSettingsButton) return;
+    if (typeof requestIdleCallback === 'function') {
+      const id = requestIdleCallback(() => preloadSettingsSheet());
+      return () => cancelIdleCallback(id);
+    }
+    const t = setTimeout(() => preloadSettingsSheet(), 2000);
+    return () => clearTimeout(t);
+  }, [showSettingsButton]);
 
   const profileActions = useProfileSelectorActions(profiles, requestLoadProfile);
 
