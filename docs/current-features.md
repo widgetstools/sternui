@@ -1135,9 +1135,11 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 - `SharedWorkerDataServicesClient` — main-thread client routing events to listeners; catalog RPC (`waitForCatalogReady`, `getProviderConfig`, `listProviderConfigs`, `invalidateConfig`, `getHubIntrospect`, `isProviderRunning`, `waitForProviderRunning`, `onCatalogChange(detail)`); scoped `catalog-ready` broadcasts carry `providerId` (single row) or `full` (whole catalog); **Deprecated.** passing `cfg` on `attach` / `subscribe` for catalogued providers — use cfg-free attach
 - `wireWorkerCatalogSync()` / `isCatalogConfigRow()` — `ensurePlatformReady` wires `ConfigManager.onConfigChanged` → `client.invalidateConfig` only for `data-provider` / `appdata` rows (grid profile saves do not fan out `catalog-ready`)
-- `ensurePlatformReady` attach bootstrap — when cached seed identity (localStorage, cross-window) + `probeWorkerHubReady()` (worker catalog already hydrated) succeed, child views skip `seedConfigUrl` and run `ConfigManager.init({ mode: 'attach' })`; hub connect and main-thread `init` run in parallel; first full bootstrap sets `markPlatformWarm(appId)` in localStorage
+- `ensurePlatformReady` attach bootstrap — when cached seed identity (localStorage, cross-window) + `isPlatformWarm(appId)` (a prior window completed full bootstrap) hold, child views skip `seedConfigUrl` and run `ConfigManager.init({ mode: 'attach' })`; no worker round-trip — seeding lives in IndexedDB, which outlives windows and worker; every completed full bootstrap sets `markPlatformWarm(appId)` in localStorage
+- `ensureConfigReady()` — config-only bootstrap (attach resolution + ConfigManager init, no hub connect / AppData snapshot / catalog preload); idempotent per `appId`; `ensurePlatformReady` builds on it, so a window upgrades from config-only to full reusing the same ConfigManager
+- one SharedWorker connection per window — `ensureDataServicesHub` owns a per-`appId` `HubConnection` (worker + `SharedWorkerDataServicesClient`); `warmHubConnection()` opens it early (never throws) so the worker spawns while ConfigManager init runs, and the hub bundle adopts the same port (`bootstrapDataServices({ client })`)
 - `writeWorkerBootstrapPayload` / `readWorkerBootstrapPayload` — main thread persists deployment bootstrap (`appId`, `userId`, seed URL, REST URL) in localStorage before `new SharedWorker()`; `defaultEntry` reads it via `self.name` (avoids Vite dev breaking `@fs/` worker URLs with extra query params)
-- `probeWorkerHubReady()`, `isCatalogReady()`, `platformWarmSession` (`markPlatformWarm` / `isPlatformWarm` / `clearPlatformWarm`)
+- `isCatalogReady()`, `platformWarmSession` (`markPlatformWarm` / `isPlatformWarm`)
 - `ConfigManager.init({ mode: 'attach' })` — attach-only init for warm worker sessions
 - `SharedWorkerDataServicesHub` — worker state machine (providers, cache, fan-out); attach with matching `extra` overlay (e.g. same historical `asOfDate`) late-joins without a second upstream `restart`; **`hydrateCatalog()`** preloads `ConfigCatalogCache` after ConfigManager init; **`buildIntrospectSnapshot()`** / `hub-introspect` RPC for live provider + AppData diagnostics
 - `ConfigCatalogCache` — worker-side in-memory data-provider catalog (`loadAll`, `get`, `getProviderConfig`, `list`, `invalidate`, `upsert`); used by hub before cfg-free attach (Phase 1)
@@ -1238,8 +1240,9 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `resolvePlatformBootstrapFromJson()` — fetch `/app-config.json` for web apps
 - `resolvePlatformBootstrapFromObject()` — parse inline/test bootstrap objects
 - `PlatformBootstrapConfigError` — validation / fetch failures
-- `ensurePlatformReady()` — ConfigManager init + SharedWorker hub bootstrap (singleton per `appId`)
-- `ensureDataServicesHub()` — lazy per-`appId` hub singleton; `createDataServicesWorker` + `bootstrapDataServices` + catalog preload (`waitForCatalogReady`); returns `ResolvedDataServicesHubBundle`
+- `ensureConfigReady()` — config-only bootstrap (ConfigManager init, no hub; singleton per `appId`)
+- `ensurePlatformReady()` — ConfigManager init + SharedWorker hub bootstrap (singleton per `appId`; reuses `ensureConfigReady`'s ConfigManager)
+- `ensureDataServicesHub()` — lazy per-`appId` hub singleton; shared per-window `HubConnection` + `bootstrapDataServices` + catalog preload (`waitForCatalogReady`); returns `ResolvedDataServicesHubBundle`
 - `ResolvedDataServicesHubBundle` — hub bundle + legacy `client` / `appData` / `configManager` handles
 
 #### Bootstrap
@@ -1406,7 +1409,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 #### Launch
 
 - `launchApp()` — launch registered app by id (config overrides supported)
-- `launchRegisteredComponent()` — create registered-component instance in new view
+- `launchRegisteredComponent()` — create registered-component instance in new view; the template→instance config clone runs concurrently with `createWindow` / `createView` (window appears immediately; clone lands before the view's first config read)
 - `LaunchRegisteredComponentOptions` — instance config (layout, properties, parent)
 
 #### Dock management
@@ -1496,7 +1499,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 #### Child windows
 
-- `openChildToolWindow` — config-browser / workspace-setup in child; windows are inspectable (`contextMenuSettings: { enable, devtools, reload }` → right-click Inspect / Reload)
+- `openChildToolWindow` — config-browser / workspace-setup in child; windows are inspectable (`contextMenuSettings: { enable, devtools, reload }` → right-click Inspect / Reload); manifest-derived provider origin is cached after the first lookup (failures are not cached)
 - `openDataProvidersToolWindow` — provider selector child window
 
 #### Context menu / custom actions

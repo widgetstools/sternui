@@ -39,23 +39,6 @@ export function writeCrossWindowItem(key: string, value: string): void {
   }
 }
 
-export function removeCrossWindowItem(key: string): void {
-  if (typeof localStorage !== 'undefined') {
-    try {
-      localStorage.removeItem(key);
-    } catch {
-      /* ignore */
-    }
-  }
-  if (typeof sessionStorage !== 'undefined') {
-    try {
-      sessionStorage.removeItem(key);
-    } catch {
-      /* ignore */
-    }
-  }
-}
-
 export function clearCrossWindowPrefix(prefix: string): void {
   for (const store of [localStorage, sessionStorage]) {
     if (typeof store === 'undefined') continue;

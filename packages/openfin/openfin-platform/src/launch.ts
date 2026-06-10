@@ -209,9 +209,12 @@ export async function launchRegisteredComponent(
 
 /**
  * Eagerly clone the template's config row onto a fresh per-instance
- * row at `instanceId`, BEFORE the view opens. The view then reads its
- * own row directly — no lazy seed-from-template inside the storage
- * adapter, no dual-adapter race.
+ * row at `instanceId`. The clone starts before window creation and runs
+ * concurrently with it — the view's first config read happens only after
+ * the window's renderer boots and the app bundle loads (hundreds of ms at
+ * minimum), so the clone lands long before any consumer reads the row.
+ * The view then reads its own row directly — no lazy seed-from-template
+ * inside the storage adapter, no dual-adapter race.
  *
  * Why eager: a single hosted MarketsGrid builds two storage adapters
  * (one in MarketsGridContainer for gridLevelData, one in <MarketsGrid>
@@ -291,12 +294,16 @@ async function createComponentInstance(
     generateTemplateConfigId(entry.componentType, entry.componentSubType);
 
   // Non-singleton launch: clone the template's row onto the fresh
-  // instanceId BEFORE opening the view, so the view's storage reads
-  // hit a populated row directly. Singletons skip this — instanceId
+  // instanceId so the view's storage reads hit a populated row directly.
+  // Started here and awaited alongside window creation below — the OS
+  // window appears immediately instead of waiting out the config
+  // read+write, while the clone still completes well before the view's
+  // renderer boots far enough to read the row (see
+  // cloneTemplateRowForInstance). Singletons skip this — instanceId
   // === templateId, the view IS the template.
-  if (!singletonId) {
-    await cloneTemplateRowForInstance(templateId, instanceId, entry);
-  }
+  const clonePromise = singletonId
+    ? Promise.resolve()
+    : cloneTemplateRowForInstance(templateId, instanceId, entry);
 
   const customData = {
     instanceId,
@@ -319,19 +326,27 @@ async function createComponentInstance(
 
   if (opts.asWindow) {
     const platform = getCurrentSync();
-    return platform.createWindow({
-      url: resolvedUrl,
-      name: `registered-${entry.id}-${instanceId}`,
-      defaultWidth: 1200,
-      defaultHeight: 800,
-      autoShow: true,
-      customData,
-    });
+    const [win] = await Promise.all([
+      platform.createWindow({
+        url: resolvedUrl,
+        name: `registered-${entry.id}-${instanceId}`,
+        defaultWidth: 1200,
+        defaultHeight: 800,
+        autoShow: true,
+        customData,
+      }),
+      clonePromise,
+    ]);
+    return win;
   }
 
   const platform = getCurrentSync();
-  return platform.createView({
-    url: resolvedUrl,
-    customData,
-  } as unknown as Parameters<ReturnType<typeof getCurrentSync>["createView"]>[0]);
+  const [view] = await Promise.all([
+    platform.createView({
+      url: resolvedUrl,
+      customData,
+    } as unknown as Parameters<ReturnType<typeof getCurrentSync>["createView"]>[0]),
+    clonePromise,
+  ]);
+  return view;
 }

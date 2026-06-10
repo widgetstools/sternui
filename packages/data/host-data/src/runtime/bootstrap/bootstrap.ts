@@ -45,6 +45,14 @@ export interface BootstrapDataServicesOpts {
   worker: SharedWorker;
 
   /**
+   * Pre-constructed client around `worker.port`. When provided, bootstrap
+   * adopts it instead of wrapping the port itself — used by the hub path
+   * so an early-opened connection (worker warm-up) and the hub share one
+   * MessagePort. `dispose()` closes it either way.
+   */
+  client?: SharedWorkerDataServicesClient;
+
+  /**
    * ConfigManager used by the AppData mirror for persistence reads
    * (initial seed) and writes (durable upserts/removes).
    */
@@ -83,7 +91,7 @@ export function bootstrapDataServices(opts: BootstrapDataServicesOpts): DataServ
   const existing = registry.get(opts.appName);
   if (existing) return existing;
 
-  const client = new SharedWorkerDataServicesClient(opts.worker.port);
+  const client = opts.client ?? new SharedWorkerDataServicesClient(opts.worker.port);
   // The mirror is now a pure RPC client — it sends operations to the
   // hub and receives snapshot/delta events back. The hub owns
   // IndexedDB persistence (it constructs its own ConfigManager inside
