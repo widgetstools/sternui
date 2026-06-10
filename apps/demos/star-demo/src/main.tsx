@@ -1,4 +1,4 @@
-import React, { Suspense, use } from "react";
+import React, { Suspense, use, type ReactNode } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
 import App from "./App";
@@ -12,8 +12,10 @@ import { OpenFinRuntime, isOpenFin } from "@starui/host-openfin";
 import { DataHubProvider } from "@starui/host-data-react/runtime";
 import type { RuntimePort } from "@starui/host";
 import {
+  initConfigBootstrap,
   initPlatformBootstrap,
   PlatformBootstrapProvider,
+  usePlatformBootstrap,
   type PlatformBootstrapResult,
 } from "./platformBootstrap";
 
@@ -31,7 +33,17 @@ const WorkspaceSetup = React.lazy(() =>
 
 const LOADING = <div style={{ padding: 16 }}>Loading...</div>;
 
-const bootstrapPromise = initPlatformBootstrap();
+// Warm the bootstrap tier this window's initial route needs. Routes that
+// never touch the data plane skip the SharedWorker hub entirely; the
+// gates below still upgrade on in-window navigation to a data route.
+const initialPath = typeof window !== "undefined" ? window.location.pathname : "";
+if (initialPath.startsWith("/rename-view-tab")) {
+  // pure-fin dialog — needs neither config rows nor the data plane
+} else if (initialPath.startsWith("/workspace-setup")) {
+  void initConfigBootstrap();
+} else {
+  void initPlatformBootstrap();
+}
 
 /** Warm AG Grid vendor chunks while bootstrap runs (no-op if route chunk already started). */
 if (typeof window !== "undefined" && window.location.pathname.includes("/blotters/marketsgrid")) {
@@ -40,6 +52,24 @@ if (typeof window !== "undefined" && window.location.pathname.includes("/blotter
     import("ag-grid-enterprise"),
     import("ag-grid-react"),
   ]).catch(() => { /* dev-only prebundle warm-up */ });
+}
+
+/** Suspend on the config-only bootstrap (ConfigManager, no data hub). */
+function ConfigGate({ children }: { children: ReactNode }) {
+  use(initConfigBootstrap());
+  return children;
+}
+
+/** Suspend on the full bootstrap (config + SharedWorker data hub). */
+function FullGate({ children }: { children: ReactNode }) {
+  const boot = use(initPlatformBootstrap());
+  return (
+    <PlatformBootstrapProvider value={boot}>
+      <DataHubProvider platform={boot.platform} userId={boot.config.userId}>
+        {children}
+      </DataHubProvider>
+    </PlatformBootstrapProvider>
+  );
 }
 
 async function createRuntimeForViews(config: PlatformBootstrapResult['config']): Promise<RuntimePort> {
@@ -55,7 +85,8 @@ async function createRuntimeForViews(config: PlatformBootstrapResult['config']):
   });
 }
 
-function ViewRoutesLayout({ boot }: { boot: PlatformBootstrapResult }) {
+function ViewRoutesLayout() {
+  const boot = usePlatformBootstrap();
   const runtimePromise = React.useMemo(
     () => createRuntimeForViews(boot.config),
     [boot.config.appId, boot.config.userId],
@@ -74,47 +105,46 @@ function ViewRoutesLayout({ boot }: { boot: PlatformBootstrapResult }) {
   );
 }
 
-function AppTree({ boot }: { boot: PlatformBootstrapResult }) {
+function AppTree() {
   return (
-    <PlatformBootstrapProvider value={boot}>
-      <DataHubProvider platform={boot.platform} userId={boot.config.userId}>
-        <BrowserRouter
-          future={{
-            v7_startTransition: true,
-            v7_relativeSplatPath: true,
-          }}
-        >
-          <Routes>
-            <Route path="/platform/provider" element={<Provider />} />
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
+      <Routes>
+        {/* Config-only windows — no data hub. RenameViewTab is pure fin
+            APIs + UI primitives and needs no bootstrap at all. */}
+        <Route path="/rename-view-tab" element={<React.Suspense fallback={LOADING}><RenameViewTab /></React.Suspense>} />
+        <Route path="/workspace-setup" element={<ConfigGate><React.Suspense fallback={LOADING}><WorkspaceSetup /></React.Suspense></ConfigGate>} />
 
-            <Route element={<Outlet />}>
-              <Route path="/dataproviders" element={<React.Suspense fallback={LOADING}><DataProviders /></React.Suspense>} />
-              <Route path="/config-browser" element={<React.Suspense fallback={LOADING}><ConfigBrowser /></React.Suspense>} />
-              <Route path="/workspace-setup" element={<React.Suspense fallback={LOADING}><WorkspaceSetup /></React.Suspense>} />
-              <Route path="/rename-view-tab" element={<React.Suspense fallback={LOADING}><RenameViewTab /></React.Suspense>} />
-            </Route>
+        {/* Provider window: dock + platform init only need the ConfigManager
+            (initWorkspace picks it up via peekConfigManager). The full hub
+            bootstrap is warmed in the background at module scope, keeping
+            the SharedWorker alive across grid-window close/reopen. */}
+        <Route path="/platform/provider" element={<ConfigGate><React.Suspense fallback={LOADING}><Provider /></React.Suspense></ConfigGate>} />
 
-            <Route element={<ViewRoutesLayout boot={boot} />}>
-              <Route path="/" element={<App />} />
-              <Route
-                path="/blotters/marketsgrid"
-                element={
-                  <React.Suspense fallback={LOADING}>
-                    <BlottersMarketsGrid />
-                  </React.Suspense>
-                }
-              />
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      </DataHubProvider>
-    </PlatformBootstrapProvider>
+        {/* Data-plane windows — full bootstrap. ConfigBrowser stays here
+            because it can edit data-provider rows, which must invalidate
+            the worker catalog (wireWorkerCatalogSync). */}
+        <Route path="/dataproviders" element={<FullGate><React.Suspense fallback={LOADING}><DataProviders /></React.Suspense></FullGate>} />
+        <Route path="/config-browser" element={<FullGate><React.Suspense fallback={LOADING}><ConfigBrowser /></React.Suspense></FullGate>} />
+
+        <Route element={<FullGate><ViewRoutesLayout /></FullGate>}>
+          <Route path="/" element={<App />} />
+          <Route
+            path="/blotters/marketsgrid"
+            element={
+              <React.Suspense fallback={LOADING}>
+                <BlottersMarketsGrid />
+              </React.Suspense>
+            }
+          />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
-}
-
-function BootstrapRoot() {
-  const boot = use(bootstrapPromise);
-  return <AppTree boot={boot} />;
 }
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
@@ -122,7 +152,7 @@ const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 root.render(
   <React.StrictMode>
     <Suspense fallback={LOADING}>
-      <BootstrapRoot />
+      <AppTree />
     </Suspense>
   </React.StrictMode>,
 );

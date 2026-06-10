@@ -1,7 +1,6 @@
 import {
   clearCrossWindowPrefix,
   readCrossWindowItem,
-  removeCrossWindowItem,
   writeCrossWindowItem,
 } from './crossWindowStorage.js';
 
@@ -15,11 +14,6 @@ export function markPlatformWarm(appId: string): void {
 /** True when a prior window already ran full bootstrap (cross-window). */
 export function isPlatformWarm(appId: string): boolean {
   return readCrossWindowItem(`${PLATFORM_WARM_PREFIX}${appId}`) === '1';
-}
-
-/** Clear warm marker when the SharedWorker is unreachable (worker restart). */
-export function clearPlatformWarm(appId: string): void {
-  removeCrossWindowItem(`${PLATFORM_WARM_PREFIX}${appId}`);
 }
 
 /** Test-only — clears all warm markers. */

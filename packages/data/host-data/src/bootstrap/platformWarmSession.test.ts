@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   _resetPlatformWarmSessionForTests,
-  clearPlatformWarm,
   isPlatformWarm,
   markPlatformWarm,
 } from './platformWarmSession.js';
@@ -20,9 +19,9 @@ describe('platformWarmSession', () => {
     expect(isPlatformWarm('other-app')).toBe(false);
   });
 
-  it('clearPlatformWarm removes the marker', () => {
+  it('_resetPlatformWarmSessionForTests removes the marker', () => {
     markPlatformWarm('star-demo');
-    clearPlatformWarm('star-demo');
+    _resetPlatformWarmSessionForTests();
     expect(isPlatformWarm('star-demo')).toBe(false);
   });
 });

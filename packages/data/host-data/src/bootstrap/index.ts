@@ -13,7 +13,9 @@ export {
   type FetchLike,
 } from './resolvePlatformBootstrap.js';
 export {
+  ensureConfigReady,
   ensurePlatformReady,
+  type ConfigReadyBundle,
   type EnsurePlatformReadyOpts,
 } from './ensurePlatformReady.js';
 export type {

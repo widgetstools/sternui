@@ -43,6 +43,7 @@ export {
   PlatformBootstrapConfigError,
   resolvePlatformBootstrapFromJson,
   resolvePlatformBootstrapFromObject,
+  ensureConfigReady,
   ensurePlatformReady,
   ensureDataServicesHub,
   SnapshotReassembler,
@@ -51,6 +52,7 @@ export {
 } from './bootstrap/index.js';
 export type {
   FetchLike,
+  ConfigReadyBundle,
   EnsurePlatformReadyOpts,
   EnsureHubOpts,
   ResolvedDataServicesHubBundle,

@@ -25,7 +25,17 @@ describe('ensureDataServicesHub', () => {
   beforeEach(() => {
     waitForCatalogReady = vi.fn().mockResolvedValue(undefined);
     dispose = vi.fn();
-    createDataServicesWorkerMock.mockReturnValue({ port: {} });
+    // Real MessagePort surface — getOrCreateHubConnection wraps the port in
+    // a real SharedWorkerDataServicesClient before bootstrap is invoked.
+    createDataServicesWorkerMock.mockReturnValue({
+      port: {
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        postMessage: vi.fn(),
+        start: vi.fn(),
+        close: vi.fn(),
+      },
+    });
     bootstrapDataServicesMock.mockImplementation(() => ({
       client: { waitForCatalogReady, stop: vi.fn() },
       appData: {},
@@ -58,6 +68,7 @@ describe('ensureDataServicesHub', () => {
     expect(bootstrapDataServicesMock).toHaveBeenCalledWith({
       appName: 'TestApp',
       worker: expect.any(Object),
+      client: expect.any(Object),
       configManager: fakeCm,
       userId: 'dev1',
     });

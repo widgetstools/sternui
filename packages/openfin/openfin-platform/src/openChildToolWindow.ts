@@ -19,17 +19,32 @@ function urlsSameDocument(a: string, b: string): boolean {
  * same as the workspace shell — so URLs stay correct when the current
  * script runs inside an OpenFin **View** whose `window.location` may
  * not match the Vite app origin.
+ *
+ * The manifest never changes for the lifetime of the platform, so the
+ * resolved origin is cached after the first successful lookup — repeat
+ * opens skip two `fin` IPC round trips. Failed lookups are not cached
+ * so a transient manifest error doesn't poison every later open.
  */
-async function resolveProviderOrigin(): Promise<string | undefined> {
-  try {
-    const app = await fin.Application.getCurrent();
-    const manifest: Record<string, unknown> = await app.getManifest();
-    const platformConfig = manifest.platform as Record<string, string> | undefined;
-    const providerUrl = platformConfig?.providerUrl ?? '';
-    return new URL(providerUrl).origin;
-  } catch {
-    return undefined;
+let cachedProviderOrigin: Promise<string | undefined> | undefined;
+
+function resolveProviderOrigin(): Promise<string | undefined> {
+  if (!cachedProviderOrigin) {
+    cachedProviderOrigin = (async (): Promise<string | undefined> => {
+      try {
+        const app = await fin.Application.getCurrent();
+        const manifest: Record<string, unknown> = await app.getManifest();
+        const platformConfig = manifest.platform as Record<string, string> | undefined;
+        const providerUrl = platformConfig?.providerUrl ?? '';
+        return new URL(providerUrl).origin;
+      } catch {
+        return undefined;
+      }
+    })().then((origin) => {
+      if (origin === undefined) cachedProviderOrigin = undefined;
+      return origin;
+    });
   }
+  return cachedProviderOrigin;
 }
 
 /**
