@@ -57,23 +57,23 @@ export interface StaruiHexPack {
 
 export const staruiHex = {
   dark: {
-    // Surface ramp lifted +10 HSL lightness points (hue/saturation preserved)
-    // for a lighter "elevated dark" chrome. Text + accents unchanged; the
-    // contrast-audit floors (muted text on ground ≥4) still hold.
-    bg: '#20262e',
-    bg1: '#2a3038',
-    bg2: '#323942',
-    bg3: '#3b434e',
-    // Text ramp brightened to raise contrast against the lighter surfaces
-    // (secondary 7.2->8.9, muted 4.1->5.7, faint 2.3->3.3 on ground).
-    // t0 already AAA (13.3:1); disabledFg stays dim by design.
+    // Surface ramp darkened -5 HSL lightness points (hue/saturation preserved):
+    // ground sits at L=10%. Darkening alone lifts text contrast ~15%; the text
+    // ramp below is then brightened on top, compounding to ~+25% on ground.
+    bg: '#161a1f',
+    bg1: '#1f2429',
+    bg2: '#272c33',
+    bg3: '#30373f',
+    // Text ramp brightened on top of the darker surfaces for punchier contrast
+    // on ground (#161a1f): secondary 8.9->11.1, muted 5.7->7.2, faint 3.3->4.2.
+    // t0 already AAA (13.3->15.3 from the darkening); disabledFg stays dim.
     t0: '#ecf0f5',
-    t1: '#bfc6cf',
-    t2: '#979faa',
-    t3: '#6d7583',
-    border: '#414a56',
-    border2: '#545d6f',
-    divider: '#373f4a',
+    t1: '#c9cfd7',
+    t2: '#a0a7b1',
+    t3: '#747c8b',
+    border: '#363e47',
+    border2: '#495160',
+    divider: '#2c333b',
     accent: '#22d3ee',
     accentHover: '#4ae0f2',
     accentFg: '#06232b',
@@ -100,9 +100,9 @@ export const staruiHex = {
     neutralRing: 'rgba(170,179,191,0.25)',
     hoverOverlay: 'rgba(255,255,255,0.05)',
     selection: 'rgba(34,211,238,0.22)',
-    disabledBg: '#3b434e',
+    disabledBg: '#30373f',
     disabledFg: '#565d68',
-    scrollbar: '#545d6f',
+    scrollbar: '#495160',
     bidFill: 'rgba(34,227,168,0.16)',
     askFill: 'rgba(255,90,130,0.16)',
     shadowCard: '0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 6px rgba(0,0,0,0.5)',

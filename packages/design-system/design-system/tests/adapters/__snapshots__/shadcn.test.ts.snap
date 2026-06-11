@@ -13,22 +13,22 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-primary-soft:      rgba(34,211,238,0.12);
     --ds-primary-ring:      rgba(34,211,238,0.45);
 
-    --ds-surface-ground:     #20262e;
-    --ds-surface-sunken:     #2a3038;
-    --ds-surface-primary:    #2a3038;
-    --ds-surface-secondary:  #323942;
-    --ds-surface-tertiary:   #3b434e;
-    --ds-surface-quaternary: #545d6f;
+    --ds-surface-ground:     #161a1f;
+    --ds-surface-sunken:     #1f2429;
+    --ds-surface-primary:    #1f2429;
+    --ds-surface-secondary:  #272c33;
+    --ds-surface-tertiary:   #30373f;
+    --ds-surface-quaternary: #495160;
 
     --ds-text-primary:   #ecf0f5;
-    --ds-text-secondary: #bfc6cf;
-    --ds-text-muted:     #979faa;
-    --ds-text-faint:     #6d7583;
+    --ds-text-secondary: #c9cfd7;
+    --ds-text-muted:     #a0a7b1;
+    --ds-text-faint:     #747c8b;
     --ds-text-disabled:  #565d68;
 
-    --ds-border-primary:   #414a56;
-    --ds-border-secondary: #545d6f;
-    --ds-border-tertiary:  #545d6f;
+    --ds-border-primary:   #363e47;
+    --ds-border-secondary: #495160;
+    --ds-border-tertiary:  #495160;
 
     --ds-accent-positive:       #22e3a8;
     --ds-accent-positive-hover: #3fecb8;
@@ -47,7 +47,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
 
     --ds-state-focus-ring:    #22d3ee;
     --ds-state-focus-ring-bg: rgba(34,211,238,0.12);
-    --ds-state-disabled-bg:   #3b434e;
+    --ds-state-disabled-bg:   #30373f;
     --ds-state-disabled-fg:   #565d68;
     --ds-state-hover-overlay: rgba(255,255,255,0.05);
     --ds-state-selection:     rgba(34,211,238,0.22);
@@ -63,13 +63,13 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-overlay-neutral-soft:   rgba(170,179,191,0.10);
     --ds-overlay-neutral-ring:   rgba(170,179,191,0.25);
 
-    --ds-scrollbar:  #545d6f;
+    --ds-scrollbar:  #495160;
 
     --ds-elevation-card:    0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 6px rgba(0,0,0,0.5);
     --ds-elevation-overlay: 0 1px 0 rgba(255,255,255,0.05) inset, 0 8px 24px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.4);
     --ds-elevation-glow:    0 0 0 2px rgba(34,211,238,0.40), 0 0 24px rgba(34,211,238,0.16);
 
-    --ds-trade-flat:           #979faa;
+    --ds-trade-flat:           #a0a7b1;
     --ds-trade-positive-strip: rgba(34,227,168,0.12);
     --ds-trade-negative-strip: rgba(255,90,130,0.12);
     --ds-trade-bid-fill:       rgba(34,227,168,0.16);
@@ -82,18 +82,18 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-chart-5: #ff5a82;
 
     /* ── shadcn-compat HSL channel aliases (Stockflux SLATE BLUE) ── */
-    --background:             214 18% 15%;
+    --background:             213 17% 10%;
     --foreground:             213 31% 94%;
-    --card:                   214 14% 19%;
+    --card:                   210 14% 14%;
     --card-foreground:        213 31% 94%;
-    --popover:                214 14% 19%;
+    --popover:                210 14% 14%;
     --popover-foreground:     213 31% 94%;
     --primary:                188 86% 53%;
     --primary-foreground:     193 76% 10%;
-    --secondary:              214 14% 23%;
-    --secondary-foreground:   214 14% 78%;
-    --muted:                  214 14% 23%;
-    --muted-foreground:       215 10% 63%;
+    --secondary:              215 13% 18%;
+    --secondary-foreground:   214 15% 82%;
+    --muted:                  215 13% 18%;
+    --muted-foreground:       215 10% 66%;
     --accent:                 188 86% 53%;
     --accent-foreground:      193 76% 10%;
     --destructive:            345 100% 68%;
@@ -104,17 +104,17 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --warning-foreground:     213 31% 94%;
     --info:                   188 86% 53%;
     --info-foreground:        193 76% 10%;
-    --border:                 214 14% 30%;
-    --input:                  214 14% 30%;
+    --border:                 212 14% 25%;
+    --input:                  212 14% 25%;
     --ring:                   188 86% 53%;
 
-    --sidebar-background:              214 18% 15%;
+    --sidebar-background:              213 17% 10%;
     --sidebar-foreground:              213 31% 94%;
     --sidebar-primary:                 188 86% 53%;
     --sidebar-primary-foreground:      193 76% 10%;
-    --sidebar-accent:                  214 14% 23%;
+    --sidebar-accent:                  215 13% 18%;
     --sidebar-accent-foreground:       213 31% 94%;
-    --sidebar-border:                  214 14% 30%;
+    --sidebar-border:                  212 14% 25%;
     --sidebar-ring:                    188 86% 53%;
 
     --chart-1: 188 86% 53%;
@@ -123,30 +123,30 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --chart-4: 255 92% 76%;
     --chart-5: 345 100% 68%;
 
-    --surface-50:  214 14% 19%;
-    --surface-100: 214 14% 23%;
-    --surface-200: 215 14% 27%;
-    --surface-300: 220 14% 38%;
-    --surface-400: 220 14% 38%;
-    --surface-500: 214 14% 30%;
-    --surface-600: 218 9% 47%;
-    --surface-700: 215 10% 63%;
-    --surface-800: 214 14% 78%;
+    --surface-50:  210 14% 14%;
+    --surface-100: 215 13% 18%;
+    --surface-200: 212 14% 22%;
+    --surface-300: 219 14% 33%;
+    --surface-400: 219 14% 33%;
+    --surface-500: 212 14% 25%;
+    --surface-600: 219 9% 50%;
+    --surface-700: 215 10% 66%;
+    --surface-800: 214 15% 82%;
     --surface-900: 213 31% 94%;
-    --surface-950: 214 18% 15%;
+    --surface-950: 213 17% 10%;
 
     /* ── PrimeNG var bridge (for tailwindcss-primeui) ── */
     --p-primary-color:        #22d3ee;
     --p-primary-color-text:   #06232b;
-    --p-surface-50:           #2a3038;
-    --p-surface-100:          #323942;
-    --p-surface-200:          #3b434e;
+    --p-surface-50:           #1f2429;
+    --p-surface-100:          #272c33;
+    --p-surface-200:          #30373f;
     --p-surface-900:          #ecf0f5;
-    --p-surface-950:          #20262e;
+    --p-surface-950:          #161a1f;
     --p-text-color:           #ecf0f5;
-    --p-text-muted-color:     #979faa;
-    --p-content-background:   #2a3038;
-    --p-content-border-color: #414a56;
+    --p-text-muted-color:     #a0a7b1;
+    --p-content-background:   #1f2429;
+    --p-content-border-color: #363e47;
     --p-content-color:        #ecf0f5;
 
     /* ── Typography vars ── */
@@ -210,20 +210,20 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-control-lg-radius:       2px;
 
     /* ── Legacy bn-* / fi-* aliases (apps + cell renderers) ── */
-    --bn-bg:        #20262e;
-    --bn-bg-sunken: #2a3038;
-    --bn-bg1:       #2a3038;
-    --bn-bg2:       #323942;
-    --bn-bg3:       #3b434e;
-    --bn-bg4:       #545d6f;
+    --bn-bg:        #161a1f;
+    --bn-bg-sunken: #1f2429;
+    --bn-bg1:       #1f2429;
+    --bn-bg2:       #272c33;
+    --bn-bg3:       #30373f;
+    --bn-bg4:       #495160;
     --bn-t0:        #ecf0f5;
-    --bn-t1:        #bfc6cf;
-    --bn-t2:        #979faa;
-    --bn-t3:        #6d7583;
+    --bn-t1:        #c9cfd7;
+    --bn-t2:        #a0a7b1;
+    --bn-t3:        #747c8b;
     --bn-t4:        #565d68;
-    --bn-border:    #414a56;
-    --bn-border2:   #545d6f;
-    --bn-border3:   #545d6f;
+    --bn-border:    #363e47;
+    --bn-border2:   #495160;
+    --bn-border3:   #495160;
     --bn-green:     #22e3a8;
     --bn-green2:    #3fecb8;
     --bn-red:       #ff5a82;
@@ -243,17 +243,17 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --tt-ask-strip: rgba(255,90,130,0.12);
     
     /* ── STARUI --st-* source tokens ── */
-    --st-bg:           #20262e;
-    --st-bg-1:         #2a3038;
-    --st-bg-2:         #323942;
-    --st-bg-3:         #3b434e;
+    --st-bg:           #161a1f;
+    --st-bg-1:         #1f2429;
+    --st-bg-2:         #272c33;
+    --st-bg-3:         #30373f;
     --st-t0:           #ecf0f5;
-    --st-t1:           #bfc6cf;
-    --st-t2:           #979faa;
-    --st-t3:           #6d7583;
-    --st-border:       #414a56;
-    --st-border-2:     #545d6f;
-    --st-divider:      #373f4a;
+    --st-t1:           #c9cfd7;
+    --st-t2:           #a0a7b1;
+    --st-t3:           #747c8b;
+    --st-border:       #363e47;
+    --st-border-2:     #495160;
+    --st-divider:      #2c333b;
     --st-accent:       #22d3ee;
     --st-accent-hover: #4ae0f2;
     --st-accent-fg:    #06232b;
@@ -280,9 +280,9 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --st-neutral-ring: rgba(170,179,191,0.25);
     --st-hover-overlay:rgba(255,255,255,0.05);
     --st-selection:    rgba(34,211,238,0.22);
-    --st-disabled-bg:  #3b434e;
+    --st-disabled-bg:  #30373f;
     --st-disabled-fg:  #565d68;
-    --st-scrollbar:    #545d6f;
+    --st-scrollbar:    #495160;
     --st-ob-bid:       rgba(34,227,168,0.16);
     --st-ob-ask:       rgba(255,90,130,0.16);
     --st-shadow-card:    0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 6px rgba(0,0,0,0.5);
@@ -301,20 +301,20 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --st-t-tick:     900ms cubic-bezier(0.25,0.1,0.25,1);
     
     /* ── Stockflux --sf-* aliases (SLATE BLUE) ── */
-    --sf-bg:        #20262e;
-    --sf-bg-1:      #2a3038;
-    --sf-bg-2:      #2a3038;
-    --sf-bg-3:      #323942;
-    --sf-bg-4:      #3b434e;
-    --sf-bg-5:      #545d6f;
+    --sf-bg:        #161a1f;
+    --sf-bg-1:      #1f2429;
+    --sf-bg-2:      #1f2429;
+    --sf-bg-3:      #272c33;
+    --sf-bg-4:      #30373f;
+    --sf-bg-5:      #495160;
     --sf-t-0:       #ecf0f5;
-    --sf-t-1:       #bfc6cf;
-    --sf-t-2:       #979faa;
-    --sf-t-3:       #6d7583;
+    --sf-t-1:       #c9cfd7;
+    --sf-t-2:       #a0a7b1;
+    --sf-t-3:       #747c8b;
     --sf-t-4:       #565d68;
-    --sf-border:    #414a56;
-    --sf-border-2:  #545d6f;
-    --sf-border-3:  #545d6f;
+    --sf-border:    #363e47;
+    --sf-border-2:  #495160;
+    --sf-border-3:  #495160;
     --sf-teal:      #22d3ee;
     --sf-teal-hi:   #4ae0f2;
     --sf-teal-lo:   #4ae0f2;
@@ -328,7 +328,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --sf-down-hi:   #ff7898;
     --sf-down-soft: rgba(255,90,130,0.12);
     --sf-down-strip:rgba(255,90,130,0.12);
-    --sf-flat:      #979faa;
+    --sf-flat:      #a0a7b1;
     --sf-info:      #22d3ee;
     --sf-info-soft: rgba(34,211,238,0.12);
     --sf-warn:      #f5c14b;
@@ -337,7 +337,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --sf-error:     #ff5a82;
     --sf-bid-fill:  rgba(34,227,168,0.16);
     --sf-ask-fill:  rgba(255,90,130,0.16);
-    --sf-scrollbar: #545d6f;
+    --sf-scrollbar: #495160;
   }
 
   [data-theme="light"]:not([data-variant="paper"]),

@@ -12,7 +12,7 @@ test.describe('Chroma Desk theme switching', () => {
     );
 
     const darkGround = await ground();
-    expect(darkGround).toBe('#20262e');
+    expect(darkGround).toBe('#161a1f');
 
     // Flip to light
     await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
