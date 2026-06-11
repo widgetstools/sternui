@@ -57,17 +57,20 @@ export interface StaruiHexPack {
 
 export const staruiHex = {
   dark: {
-    bg: '#0b0d10',
-    bg1: '#14171b',
-    bg2: '#1c2025',
-    bg3: '#252a31',
+    // Surface ramp lifted +10 HSL lightness points (hue/saturation preserved)
+    // for a lighter "elevated dark" chrome. Text + accents unchanged; the
+    // contrast-audit floors (muted text on ground ≥4) still hold.
+    bg: '#20262e',
+    bg1: '#2a3038',
+    bg2: '#323942',
+    bg3: '#3b434e',
     t0: '#ecf0f5',
     t1: '#aab3bf',
     t2: '#7d8694',
     t3: '#565d68',
-    border: '#2b3139',
-    border2: '#3e4552',
-    divider: '#21262d',
+    border: '#414a56',
+    border2: '#545d6f',
+    divider: '#373f4a',
     accent: '#22d3ee',
     accentHover: '#4ae0f2',
     accentFg: '#06232b',
@@ -94,9 +97,9 @@ export const staruiHex = {
     neutralRing: 'rgba(170,179,191,0.25)',
     hoverOverlay: 'rgba(255,255,255,0.05)',
     selection: 'rgba(34,211,238,0.22)',
-    disabledBg: '#252a31',
+    disabledBg: '#3b434e',
     disabledFg: '#565d68',
-    scrollbar: '#3e4552',
+    scrollbar: '#545d6f',
     bidFill: 'rgba(34,227,168,0.16)',
     askFill: 'rgba(255,90,130,0.16)',
     shadowCard: '0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 6px rgba(0,0,0,0.5)',

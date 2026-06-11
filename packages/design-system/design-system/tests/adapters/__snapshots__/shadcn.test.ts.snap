@@ -13,12 +13,12 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-primary-soft:      rgba(34,211,238,0.12);
     --ds-primary-ring:      rgba(34,211,238,0.45);
 
-    --ds-surface-ground:     #0b0d10;
-    --ds-surface-sunken:     #14171b;
-    --ds-surface-primary:    #14171b;
-    --ds-surface-secondary:  #1c2025;
-    --ds-surface-tertiary:   #252a31;
-    --ds-surface-quaternary: #3e4552;
+    --ds-surface-ground:     #20262e;
+    --ds-surface-sunken:     #2a3038;
+    --ds-surface-primary:    #2a3038;
+    --ds-surface-secondary:  #323942;
+    --ds-surface-tertiary:   #3b434e;
+    --ds-surface-quaternary: #545d6f;
 
     --ds-text-primary:   #ecf0f5;
     --ds-text-secondary: #aab3bf;
@@ -26,9 +26,9 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-text-faint:     #565d68;
     --ds-text-disabled:  #565d68;
 
-    --ds-border-primary:   #2b3139;
-    --ds-border-secondary: #3e4552;
-    --ds-border-tertiary:  #3e4552;
+    --ds-border-primary:   #414a56;
+    --ds-border-secondary: #545d6f;
+    --ds-border-tertiary:  #545d6f;
 
     --ds-accent-positive:       #22e3a8;
     --ds-accent-positive-hover: #3fecb8;
@@ -47,7 +47,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
 
     --ds-state-focus-ring:    #22d3ee;
     --ds-state-focus-ring-bg: rgba(34,211,238,0.12);
-    --ds-state-disabled-bg:   #252a31;
+    --ds-state-disabled-bg:   #3b434e;
     --ds-state-disabled-fg:   #565d68;
     --ds-state-hover-overlay: rgba(255,255,255,0.05);
     --ds-state-selection:     rgba(34,211,238,0.22);
@@ -63,7 +63,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-overlay-neutral-soft:   rgba(170,179,191,0.10);
     --ds-overlay-neutral-ring:   rgba(170,179,191,0.25);
 
-    --ds-scrollbar:  #3e4552;
+    --ds-scrollbar:  #545d6f;
 
     --ds-elevation-card:    0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 6px rgba(0,0,0,0.5);
     --ds-elevation-overlay: 0 1px 0 rgba(255,255,255,0.05) inset, 0 8px 24px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.4);
@@ -82,17 +82,17 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-chart-5: #ff5a82;
 
     /* ── shadcn-compat HSL channel aliases (Stockflux SLATE BLUE) ── */
-    --background:             216 19% 5%;
+    --background:             214 18% 15%;
     --foreground:             213 31% 94%;
-    --card:                   214 15% 9%;
+    --card:                   214 14% 19%;
     --card-foreground:        213 31% 94%;
-    --popover:                214 15% 9%;
+    --popover:                214 14% 19%;
     --popover-foreground:     213 31% 94%;
     --primary:                188 86% 53%;
     --primary-foreground:     193 76% 10%;
-    --secondary:              213 14% 13%;
+    --secondary:              214 14% 23%;
     --secondary-foreground:   214 14% 71%;
-    --muted:                  213 14% 13%;
+    --muted:                  214 14% 23%;
     --muted-foreground:       217 10% 54%;
     --accent:                 188 86% 53%;
     --accent-foreground:      193 76% 10%;
@@ -104,17 +104,17 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --warning-foreground:     213 31% 94%;
     --info:                   188 86% 53%;
     --info-foreground:        193 76% 10%;
-    --border:                 214 14% 20%;
-    --input:                  214 14% 20%;
+    --border:                 214 14% 30%;
+    --input:                  214 14% 30%;
     --ring:                   188 86% 53%;
 
-    --sidebar-background:              216 19% 5%;
+    --sidebar-background:              214 18% 15%;
     --sidebar-foreground:              213 31% 94%;
     --sidebar-primary:                 188 86% 53%;
     --sidebar-primary-foreground:      193 76% 10%;
-    --sidebar-accent:                  213 14% 13%;
+    --sidebar-accent:                  214 14% 23%;
     --sidebar-accent-foreground:       213 31% 94%;
-    --sidebar-border:                  214 14% 20%;
+    --sidebar-border:                  214 14% 30%;
     --sidebar-ring:                    188 86% 53%;
 
     --chart-1: 188 86% 53%;
@@ -123,30 +123,30 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --chart-4: 255 92% 76%;
     --chart-5: 345 100% 68%;
 
-    --surface-50:  214 15% 9%;
-    --surface-100: 213 14% 13%;
-    --surface-200: 215 14% 17%;
-    --surface-300: 219 14% 28%;
-    --surface-400: 219 14% 28%;
-    --surface-500: 214 14% 20%;
+    --surface-50:  214 14% 19%;
+    --surface-100: 214 14% 23%;
+    --surface-200: 215 14% 27%;
+    --surface-300: 220 14% 38%;
+    --surface-400: 220 14% 38%;
+    --surface-500: 214 14% 30%;
     --surface-600: 217 9% 37%;
     --surface-700: 217 10% 54%;
     --surface-800: 214 14% 71%;
     --surface-900: 213 31% 94%;
-    --surface-950: 216 19% 5%;
+    --surface-950: 214 18% 15%;
 
     /* ── PrimeNG var bridge (for tailwindcss-primeui) ── */
     --p-primary-color:        #22d3ee;
     --p-primary-color-text:   #06232b;
-    --p-surface-50:           #14171b;
-    --p-surface-100:          #1c2025;
-    --p-surface-200:          #252a31;
+    --p-surface-50:           #2a3038;
+    --p-surface-100:          #323942;
+    --p-surface-200:          #3b434e;
     --p-surface-900:          #ecf0f5;
-    --p-surface-950:          #0b0d10;
+    --p-surface-950:          #20262e;
     --p-text-color:           #ecf0f5;
     --p-text-muted-color:     #7d8694;
-    --p-content-background:   #14171b;
-    --p-content-border-color: #2b3139;
+    --p-content-background:   #2a3038;
+    --p-content-border-color: #414a56;
     --p-content-color:        #ecf0f5;
 
     /* ── Typography vars ── */
@@ -210,20 +210,20 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-control-lg-radius:       2px;
 
     /* ── Legacy bn-* / fi-* aliases (apps + cell renderers) ── */
-    --bn-bg:        #0b0d10;
-    --bn-bg-sunken: #14171b;
-    --bn-bg1:       #14171b;
-    --bn-bg2:       #1c2025;
-    --bn-bg3:       #252a31;
-    --bn-bg4:       #3e4552;
+    --bn-bg:        #20262e;
+    --bn-bg-sunken: #2a3038;
+    --bn-bg1:       #2a3038;
+    --bn-bg2:       #323942;
+    --bn-bg3:       #3b434e;
+    --bn-bg4:       #545d6f;
     --bn-t0:        #ecf0f5;
     --bn-t1:        #aab3bf;
     --bn-t2:        #7d8694;
     --bn-t3:        #565d68;
     --bn-t4:        #565d68;
-    --bn-border:    #2b3139;
-    --bn-border2:   #3e4552;
-    --bn-border3:   #3e4552;
+    --bn-border:    #414a56;
+    --bn-border2:   #545d6f;
+    --bn-border3:   #545d6f;
     --bn-green:     #22e3a8;
     --bn-green2:    #3fecb8;
     --bn-red:       #ff5a82;
@@ -243,17 +243,17 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --tt-ask-strip: rgba(255,90,130,0.12);
     
     /* ── STARUI --st-* source tokens ── */
-    --st-bg:           #0b0d10;
-    --st-bg-1:         #14171b;
-    --st-bg-2:         #1c2025;
-    --st-bg-3:         #252a31;
+    --st-bg:           #20262e;
+    --st-bg-1:         #2a3038;
+    --st-bg-2:         #323942;
+    --st-bg-3:         #3b434e;
     --st-t0:           #ecf0f5;
     --st-t1:           #aab3bf;
     --st-t2:           #7d8694;
     --st-t3:           #565d68;
-    --st-border:       #2b3139;
-    --st-border-2:     #3e4552;
-    --st-divider:      #21262d;
+    --st-border:       #414a56;
+    --st-border-2:     #545d6f;
+    --st-divider:      #373f4a;
     --st-accent:       #22d3ee;
     --st-accent-hover: #4ae0f2;
     --st-accent-fg:    #06232b;
@@ -280,9 +280,9 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --st-neutral-ring: rgba(170,179,191,0.25);
     --st-hover-overlay:rgba(255,255,255,0.05);
     --st-selection:    rgba(34,211,238,0.22);
-    --st-disabled-bg:  #252a31;
+    --st-disabled-bg:  #3b434e;
     --st-disabled-fg:  #565d68;
-    --st-scrollbar:    #3e4552;
+    --st-scrollbar:    #545d6f;
     --st-ob-bid:       rgba(34,227,168,0.16);
     --st-ob-ask:       rgba(255,90,130,0.16);
     --st-shadow-card:    0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 6px rgba(0,0,0,0.5);
@@ -301,20 +301,20 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --st-t-tick:     900ms cubic-bezier(0.25,0.1,0.25,1);
     
     /* ── Stockflux --sf-* aliases (SLATE BLUE) ── */
-    --sf-bg:        #0b0d10;
-    --sf-bg-1:      #14171b;
-    --sf-bg-2:      #14171b;
-    --sf-bg-3:      #1c2025;
-    --sf-bg-4:      #252a31;
-    --sf-bg-5:      #3e4552;
+    --sf-bg:        #20262e;
+    --sf-bg-1:      #2a3038;
+    --sf-bg-2:      #2a3038;
+    --sf-bg-3:      #323942;
+    --sf-bg-4:      #3b434e;
+    --sf-bg-5:      #545d6f;
     --sf-t-0:       #ecf0f5;
     --sf-t-1:       #aab3bf;
     --sf-t-2:       #7d8694;
     --sf-t-3:       #565d68;
     --sf-t-4:       #565d68;
-    --sf-border:    #2b3139;
-    --sf-border-2:  #3e4552;
-    --sf-border-3:  #3e4552;
+    --sf-border:    #414a56;
+    --sf-border-2:  #545d6f;
+    --sf-border-3:  #545d6f;
     --sf-teal:      #22d3ee;
     --sf-teal-hi:   #4ae0f2;
     --sf-teal-lo:   #4ae0f2;
@@ -337,7 +337,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --sf-error:     #ff5a82;
     --sf-bid-fill:  rgba(34,227,168,0.16);
     --sf-ask-fill:  rgba(255,90,130,0.16);
-    --sf-scrollbar: #3e4552;
+    --sf-scrollbar: #545d6f;
   }
 
   [data-theme="light"]:not([data-variant="paper"]),
