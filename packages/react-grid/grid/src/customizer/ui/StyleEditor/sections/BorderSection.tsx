@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Band } from '../../SettingsPanel';
 import { BorderStyleEditor } from '../BorderStyleEditor';
 import type { StyleEditorValue } from '../types';
@@ -19,7 +20,7 @@ export interface BorderSectionProps {
   index?: string;
 }
 
-export function BorderSection({ value, onChange, inlineBody, index = '04' }: BorderSectionProps) {
+export const BorderSection = memo(function BorderSection({ value, onChange, inlineBody, index = '04' }: BorderSectionProps) {
   const body = (
     <BorderStyleEditor
       value={value.borders ?? {}}
@@ -36,4 +37,4 @@ export function BorderSection({ value, onChange, inlineBody, index = '04' }: Bor
       {body}
     </Band>
   );
-}
+});

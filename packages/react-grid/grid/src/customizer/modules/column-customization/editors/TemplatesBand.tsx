@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { X } from 'lucide-react';
 import { Band, Caps } from '../../../ui/SettingsPanel';
 import { ChromeButton } from '../../../ui/ChromeButton';
@@ -5,7 +6,7 @@ import { Row } from './Row';
 import { TemplatePicker } from './TemplatePicker';
 import type { ColumnTemplate } from '../../column-templates';
 
-export function TemplatesBand({
+export const TemplatesBand = memo(function TemplatesBand({
   colId,
   templates,
   allTemplates,
@@ -117,4 +118,4 @@ export function TemplatesBand({
       />
     </Band>
   );
-}
+});

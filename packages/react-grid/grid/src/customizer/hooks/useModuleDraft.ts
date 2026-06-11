@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGridPlatform } from './GridProvider';
 import { useModuleState } from './useModuleState';
 import { useDirty } from './useDirty';
@@ -84,8 +84,19 @@ export function useModuleDraft<TState, TItem>({
   const dirtyKey = `${moduleId}:${itemId}`;
   const { set: setDirtyBus } = useDirty(dirtyKey);
 
-  const dirty =
-    draft !== undefined && committed !== undefined && !isEqual(draft, committed);
+  // `dirty` drives the DirtyBus + every panel's SAVE pill, so it is read on
+  // every render. The default `isEqual` is a full `JSON.stringify` of both
+  // sides — cheap once, ruinous when re-run on every keystroke/parent render
+  // of a draft-backed editor. Memoising on the draft/committed *identities*
+  // collapses it to one comparison per actual change: `setDraft` only mints a
+  // new draft identity on a real edit, and `committed` only changes identity
+  // when the store slice does. Fast-path identical identities (fresh-seeded
+  // drafts) without serialising at all.
+  const dirty = useMemo(() => {
+    if (draft === undefined || committed === undefined) return false;
+    if (draft === committed) return false;
+    return !isEqual(draft, committed);
+  }, [draft, committed, isEqual]);
 
   // Keep the DirtyBus in sync. Pushing on every render is correct
   // because `bus.set` coalesces — it only notifies when the value

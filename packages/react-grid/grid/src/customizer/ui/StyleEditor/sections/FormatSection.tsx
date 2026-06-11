@@ -1,4 +1,5 @@
 import { Hash } from 'lucide-react';
+import { memo } from 'react';
 import {
   Band,
   Caps,
@@ -45,7 +46,7 @@ const PRESET_LABEL: Record<PresetId, string> = {
   duration: 'DURATION',
 };
 
-export function FormatSection({
+export const FormatSection = memo(function FormatSection({
   value,
   onChange,
   dataType = 'number',
@@ -129,4 +130,4 @@ export function FormatSection({
       {body}
     </Band>
   );
-}
+});

@@ -95,6 +95,12 @@ type ColumnInfo = GridColumnInfo;
 const MODULE_ID = 'column-customization';
 const DIRTY_PREFIX = `${MODULE_ID}:`;
 
+// Stable empty fallbacks — sharing one identity keeps the memoised
+// TemplatesBand from re-rendering just because `?? []` / `?? {}` minted a
+// fresh empty literal on a column with no templates.
+const EMPTY_TEMPLATE_IDS: string[] = [];
+const EMPTY_TEMPLATES: Record<string, ColumnTemplate> = {};
+
 // Row height matches the shared sidebar item chrome (`h-8` = 32px)
 // plus the shared 1px inter-item list gap (`gap-px`).
 // Used for windowed layout math when the column count crosses the threshold.
@@ -406,13 +412,49 @@ const ColumnSettingsEditorInner = memo(function ColumnSettingsEditorInner({
       .filter((t): t is ColumnTemplate => !!t);
   }, [draft.templateIds, templatesState]);
 
+  // Functional `setDraft` reads the live draft inside the updater, so these
+  // callbacks never need `draft` in their dep arrays — they keep a stable
+  // identity across renders and let the memoised bands below actually skip.
   const removeTemplate = useCallback(
     (id: string) => {
-      setDraft({
-        templateIds: (draft.templateIds ?? []).filter((t) => t !== id),
-      });
+      setDraft((prev) => ({
+        ...prev,
+        templateIds: (prev.templateIds ?? []).filter((t) => t !== id),
+      }));
     },
-    [draft.templateIds, setDraft],
+    [setDraft],
+  );
+
+  const addTemplate = useCallback(
+    (id: string) => {
+      setDraft((prev) => ({
+        ...prev,
+        templateIds: [...(prev.templateIds ?? []), id],
+      }));
+    },
+    [setDraft],
+  );
+
+  const setHeaderName = useCallback(
+    (name: string | undefined) => setDraft({ headerName: name }),
+    [setDraft],
+  );
+  const setValueFormat = useCallback(
+    (next: ColumnAssignment['valueFormatterTemplate']) =>
+      setDraft({ valueFormatterTemplate: next }),
+    [setDraft],
+  );
+  const setFilter = useCallback(
+    (next: ColumnAssignment['filter']) => setDraft({ filter: next }),
+    [setDraft],
+  );
+  const setRowGrouping = useCallback(
+    (next: ColumnAssignment['rowGrouping']) => setDraft({ rowGrouping: next }),
+    [setDraft],
+  );
+  const setCellEditor = useCallback(
+    (next: ColumnAssignment['cellEditor']) => setDraft({ cellEditor: next }),
+    [setDraft],
   );
 
   // Bridge the themed-shape state ↔ `StyleEditorValue`. The panel always
@@ -422,40 +464,44 @@ const ColumnSettingsEditorInner = memo(function ColumnSettingsEditorInner({
   // is reactive so flipping `data-theme` re-renders the editor against
   // the right slot.
   const activeTheme = useActiveThemeMode();
-  const cellStyleValue = toStyleEditorValue(
-    resolveActiveStyle(draft.cellStyleOverrides, activeTheme),
+  // Memoise the themed→flat projection: a new identity here forces the
+  // StyleEditor (and its four sections) to re-render even when the style
+  // hasn't changed. Recompute only when the underlying override slot or the
+  // active theme flips.
+  const cellStyleValue = useMemo(
+    () => toStyleEditorValue(resolveActiveStyle(draft.cellStyleOverrides, activeTheme)),
+    [draft.cellStyleOverrides, activeTheme],
   );
   const setCellStyle = useCallback(
     (patch: Partial<StyleEditorValue>) => {
-      const merged = { ...cellStyleValue, ...patch };
-      const nextFlat = fromStyleEditorValue(merged);
-      setDraft({
-        cellStyleOverrides: patchActiveStyle(
-          draft.cellStyleOverrides,
-          activeTheme,
-          nextFlat,
-        ),
+      setDraft((prev) => {
+        const cur = toStyleEditorValue(resolveActiveStyle(prev.cellStyleOverrides, activeTheme));
+        const nextFlat = fromStyleEditorValue({ ...cur, ...patch });
+        return {
+          ...prev,
+          cellStyleOverrides: patchActiveStyle(prev.cellStyleOverrides, activeTheme, nextFlat),
+        };
       });
     },
-    [cellStyleValue, draft.cellStyleOverrides, activeTheme, setDraft],
+    [activeTheme, setDraft],
   );
 
-  const headerStyleValue = toStyleEditorValue(
-    resolveActiveStyle(draft.headerStyleOverrides, activeTheme),
+  const headerStyleValue = useMemo(
+    () => toStyleEditorValue(resolveActiveStyle(draft.headerStyleOverrides, activeTheme)),
+    [draft.headerStyleOverrides, activeTheme],
   );
   const setHeaderStyle = useCallback(
     (patch: Partial<StyleEditorValue>) => {
-      const merged = { ...headerStyleValue, ...patch };
-      const nextFlat = fromStyleEditorValue(merged);
-      setDraft({
-        headerStyleOverrides: patchActiveStyle(
-          draft.headerStyleOverrides,
-          activeTheme,
-          nextFlat,
-        ),
+      setDraft((prev) => {
+        const cur = toStyleEditorValue(resolveActiveStyle(prev.headerStyleOverrides, activeTheme));
+        const nextFlat = fromStyleEditorValue({ ...cur, ...patch });
+        return {
+          ...prev,
+          headerStyleOverrides: patchActiveStyle(prev.headerStyleOverrides, activeTheme, nextFlat),
+        };
       });
     },
-    [headerStyleValue, draft.headerStyleOverrides, activeTheme, setDraft],
+    [activeTheme, setDraft],
   );
 
   const overrideCount = countOverrides(draft);
@@ -476,7 +522,7 @@ const ColumnSettingsEditorInner = memo(function ColumnSettingsEditorInner({
         headerName={draft.headerName}
         hostHeaderName={col.headerName}
         dirty={dirty}
-        onHeaderNameChange={(name) => setDraft({ headerName: name })}
+        onHeaderNameChange={setHeaderName}
         onSave={save}
         onDiscard={discard}
       />
@@ -515,9 +561,9 @@ const ColumnSettingsEditorInner = memo(function ColumnSettingsEditorInner({
         <TemplatesBand
           colId={col.colId}
           templates={templates}
-          allTemplates={templatesState?.templates ?? {}}
-          appliedIds={draft.templateIds ?? []}
-          onAdd={(id) => setDraft({ templateIds: [...(draft.templateIds ?? []), id] })}
+          allTemplates={templatesState?.templates ?? EMPTY_TEMPLATES}
+          appliedIds={draft.templateIds ?? EMPTY_TEMPLATE_IDS}
+          onAdd={addTemplate}
           onRemove={removeTemplate}
         />
 
@@ -537,24 +583,24 @@ const ColumnSettingsEditorInner = memo(function ColumnSettingsEditorInner({
           colId={col.colId}
           cellDataType={col.cellDataType}
           value={draft.valueFormatterTemplate}
-          onChange={(next) => setDraft({ valueFormatterTemplate: next })}
+          onChange={setValueFormat}
         />
 
         {/* ── 07 FILTER ──────────────────────────────────────────────────── */}
-        <FilterBandWrapper colId={col.colId} value={draft.filter} onChange={(next) => setDraft({ filter: next })} />
+        <FilterBandWrapper colId={col.colId} value={draft.filter} onChange={setFilter} />
 
         {/* ── 08 ROW GROUPING ────────────────────────────────────────────── */}
         <RowGroupingBandWrapper
           colId={col.colId}
           value={draft.rowGrouping}
-          onChange={(next) => setDraft({ rowGrouping: next })}
+          onChange={setRowGrouping}
         />
 
         {/* ── 09 CELL EDITOR ─────────────────────────────────────────────── */}
         <CellEditorBandWrapper
           colId={col.colId}
           value={draft.cellEditor}
-          onChange={(next) => setDraft({ cellEditor: next })}
+          onChange={setCellEditor}
         />
 
         {/* ── 10 CELL RENDERER ───────────────────────────────────────────── */}
@@ -576,7 +622,7 @@ const ColumnSettingsEditorInner = memo(function ColumnSettingsEditorInner({
 import { Band } from '../../ui/SettingsPanel';
 import type { ColumnAssignment as _ColumnAssignment } from './state';
 
-function FilterBandWrapper({
+const FilterBandWrapper = memo(function FilterBandWrapper({
   colId,
   value,
   onChange,
@@ -590,9 +636,9 @@ function FilterBandWrapper({
       <FilterEditor colId={colId} value={value} onChange={onChange} />
     </Band>
   );
-}
+});
 
-function CellEditorBandWrapper({
+const CellEditorBandWrapper = memo(function CellEditorBandWrapper({
   colId,
   value,
   onChange,
@@ -606,9 +652,9 @@ function CellEditorBandWrapper({
       <CellEditorEditor colId={colId} value={value} onChange={onChange} />
     </Band>
   );
-}
+});
 
-function RowGroupingBandWrapper({
+const RowGroupingBandWrapper = memo(function RowGroupingBandWrapper({
   colId,
   value,
   onChange,
@@ -622,7 +668,7 @@ function RowGroupingBandWrapper({
       <RowGroupingEditor colId={colId} value={value} onChange={onChange} />
     </Band>
   );
-}
+});
 
 // ─── Legacy flat panel (settings sheet host renders List+Editor side-by-side
 // via the master-detail contract when both are present; this component is

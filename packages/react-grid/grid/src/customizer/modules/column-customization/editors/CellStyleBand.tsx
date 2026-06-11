@@ -1,7 +1,8 @@
+import { memo } from 'react';
 import { Band } from '../../../ui/SettingsPanel';
 import { StyleEditor, type StyleEditorValue } from '../../../ui/StyleEditor';
 
-export function CellStyleBand({
+export const CellStyleBand = memo(function CellStyleBand({
   colId,
   value,
   onChange,
@@ -20,4 +21,4 @@ export function CellStyleBand({
       />
     </Band>
   );
-}
+});

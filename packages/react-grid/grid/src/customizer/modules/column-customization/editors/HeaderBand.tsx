@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Band, IconInput } from '../../../ui/SettingsPanel';
 import { Row } from './Row';
 
@@ -20,7 +21,7 @@ function ColIdReadOnlyField({ colId }: { colId: string }) {
   );
 }
 
-export function HeaderBand({
+export const HeaderBand = memo(function HeaderBand({
   colId,
   hostHeaderName,
   headerName,
@@ -66,4 +67,4 @@ export function HeaderBand({
       />
     </Band>
   );
-}
+});

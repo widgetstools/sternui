@@ -10,7 +10,7 @@
  * The Cell Renderer band ships AFTER the Cell Editor band (band
  * 09) and is the last band in the column-settings editor.
  */
-import { useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import {
   cellRendererCatalogue,
   type CellRendererCategory,
@@ -48,7 +48,7 @@ export interface CellRendererBandProps {
   setDraft: (patch: Partial<ColumnAssignment>) => void;
 }
 
-export function CellRendererBand({
+export const CellRendererBand = memo(function CellRendererBand({
   colId,
   cellRendererId,
   cellRendererConfig,
@@ -139,7 +139,7 @@ export function CellRendererBand({
       )}
     </Band>
   );
-}
+});
 
 function groupCatalogue(
   catalogue: ReadonlyArray<CellRendererCatalogueEntry>,

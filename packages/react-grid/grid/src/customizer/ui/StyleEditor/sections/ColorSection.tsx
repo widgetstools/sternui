@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { spacing } from '@starui/design-system/tokens';
 import { Band, SubLabel } from '../../SettingsPanel';
 import { CompactColorField } from '../../ColorPicker';
@@ -16,7 +17,7 @@ export interface ColorSectionProps {
   index?: string;
 }
 
-export function ColorSection({ value, onChange, inlineBody, index = '03' }: ColorSectionProps) {
+export const ColorSection = memo(function ColorSection({ value, onChange, inlineBody, index = '03' }: ColorSectionProps) {
   const body = (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing[2.5] }}>
       <div>
@@ -50,4 +51,4 @@ export function ColorSection({ value, onChange, inlineBody, index = '03' }: Colo
       {body}
     </Band>
   );
-}
+});

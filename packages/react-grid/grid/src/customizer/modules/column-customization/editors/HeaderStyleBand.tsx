@@ -1,7 +1,8 @@
+import { memo } from 'react';
 import { Band, Caps } from '../../../ui/SettingsPanel';
 import { StyleEditor, type StyleEditorValue } from '../../../ui/StyleEditor';
 
-export function HeaderStyleBand({
+export const HeaderStyleBand = memo(function HeaderStyleBand({
   colId,
   value,
   onChange,
@@ -23,4 +24,4 @@ export function HeaderStyleBand({
       />
     </Band>
   );
-}
+});

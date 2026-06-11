@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Band } from '../../../ui/SettingsPanel';
 import {
   FormatterPicker,
@@ -6,7 +7,7 @@ import {
 } from '../../../ui/FormatterPicker';
 import type { ValueFormatterTemplate } from '../state';
 
-export function ValueFormatBand({
+export const ValueFormatBand = memo(function ValueFormatBand({
   colId,
   cellDataType,
   value,
@@ -28,4 +29,4 @@ export function ValueFormatBand({
       />
     </Band>
   );
-}
+});

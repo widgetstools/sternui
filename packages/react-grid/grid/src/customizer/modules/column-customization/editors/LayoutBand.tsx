@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Band, IconInput } from '../../../ui/SettingsPanel';
 import { Switch } from '@starui/ui';
 import { Select } from '../../../ui/NativeOptionsSelect';
@@ -5,7 +6,7 @@ import { Row } from './Row';
 import { TriStateToggle } from './TriStateToggle';
 import type { ColumnAssignment } from '../state';
 
-export function LayoutBand({
+export const LayoutBand = memo(function LayoutBand({
   colId,
   initialWidth,
   initialPinned,
@@ -101,4 +102,4 @@ export function LayoutBand({
       />
     </Band>
   );
-}
+});

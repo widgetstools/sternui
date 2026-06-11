@@ -8,6 +8,7 @@ import {
   Strikethrough,
   Underline,
 } from 'lucide-react';
+import { memo } from 'react';
 import { radius, spacing } from '@starui/design-system/tokens';
 import {
   Band,
@@ -38,7 +39,7 @@ export interface TextSectionProps {
   index?: string;
 }
 
-export function TextSection({ value, onChange, inlineBody, index = '02' }: TextSectionProps) {
+export const TextSection = memo(function TextSection({ value, onChange, inlineBody, index = '02' }: TextSectionProps) {
   const body = (
     <div
       style={{
@@ -155,4 +156,4 @@ export function TextSection({ value, onChange, inlineBody, index = '02' }: TextS
       {body}
     </Band>
   );
-}
+});
