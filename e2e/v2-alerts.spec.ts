@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { clickSettingsFromToolbar } from './helpers/settingsSheet';
+import { clickSettingsFromToolbar, navigateToModule } from './helpers/settingsSheet';
 
 /**
  * Alerts module e2e — runs against the markets-grid-lab app's Alerts tab
@@ -106,7 +106,7 @@ async function openAlertsPanel(page: Page): Promise<void> {
   // `openSettingsSheet` helper in `e2e/helpers/settingsSheet.ts`.
   await clickSettingsFromToolbar(page);
   await page.locator('.ds-sheet').waitFor({ state: 'visible' });
-  await page.locator('[data-testid="v2-settings-nav-menu-alerts"]').click();
+  await navigateToModule(page, 'alerts');
   // Editor pane mounts once a rule is selected (seeded rules auto-select).
   await page.locator('[data-testid="alerts-rule-editor"]').waitFor({ state: 'visible' });
 }

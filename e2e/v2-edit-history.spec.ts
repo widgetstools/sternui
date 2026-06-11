@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { clickSettingsFromToolbar } from './helpers/settingsSheet';
+import { clickSettingsFromToolbar, navigateToModule } from './helpers/settingsSheet';
 import { openEditingToolbar } from './helpers/editingToolbar';
 
 /**
@@ -105,7 +105,8 @@ test.describe('Edit History lab tab', () => {
   test('settings sheet opens Edit History panel with monitor', async ({ page }) => {
     await bootHistoryTab(page);
     await clickSettingsFromToolbar(page);
-    await page.locator('.ds-sheet').waitFor({ state: 'visible' });    await page.locator('[data-testid="v2-settings-nav-menu-data-change-history"]').click();
+    await page.locator('.ds-sheet').waitFor({ state: 'visible' });
+    await navigateToModule(page, 'data-change-history');
     await expect(page.getByTestId('edit-history-panel')).toBeVisible();
     await expect(page.getByTestId('dch-enabled-toggle')).toBeVisible();
   });
@@ -135,7 +136,8 @@ test.describe('Edit History lab tab', () => {
     await expect(cell).not.toHaveText(before, { timeout: 5_000 });
 
     await clickSettingsFromToolbar(page);
-    await page.locator('.ds-sheet').waitFor({ state: 'visible' });    await page.locator('[data-testid="v2-settings-nav-menu-data-change-history"]').click();
+    await page.locator('.ds-sheet').waitFor({ state: 'visible' });
+    await navigateToModule(page, 'data-change-history');
 
     const entry = page.locator('[data-testid^="dch-entry-"]').first();
     await expect(entry).toBeVisible({ timeout: 5_000 });
@@ -148,7 +150,8 @@ test.describe('Edit History lab tab', () => {
     await bootHistoryTab(page);
 
     await clickSettingsFromToolbar(page);
-    await page.locator('.ds-sheet').waitFor({ state: 'visible' });    await page.locator('[data-testid="v2-settings-nav-menu-data-change-history"]').click();
+    await page.locator('.ds-sheet').waitFor({ state: 'visible' });
+    await navigateToModule(page, 'data-change-history');
     await page.getByTestId('dch-suspended-toggle').click();
     await page.getByRole('button', { name: 'Save' }).click();
     await page.keyboard.press('Escape');

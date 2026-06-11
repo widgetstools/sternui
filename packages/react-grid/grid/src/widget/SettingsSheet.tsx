@@ -20,7 +20,7 @@ import {
   X,
 } from 'lucide-react';
 import { HelpPanel } from './HelpPanel';
-import { SettingsModuleTabs } from './SettingsModuleTabs';
+import { SettingsModuleMenubar } from './SettingsModuleMenubar';
 
 /**
  * Cockpit Terminal popout — the v2 settings sheet.
@@ -162,7 +162,21 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCloseRef.current();
+      if (e.key === 'Escape') {
+        // An open Radix popup (menubar menu, select, popover…) owns this
+        // Escape — it closes itself; the sheet must stay open. Popup
+        // content is portaled to body, so when one is open the event
+        // target sits inside a popper wrapper rather than the sheet.
+        const target = e.target as HTMLElement | null;
+        if (
+          target?.closest(
+            '[data-radix-popper-content-wrapper], [role="menu"], [role="listbox"]',
+          )
+        ) {
+          return;
+        }
+        onCloseRef.current();
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') onCloseRef.current();
     };
     document.addEventListener('keydown', handler);
@@ -301,7 +315,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
           </header>
 
           {panelModules.length > 0 && (
-            <SettingsModuleTabs
+            <SettingsModuleMenubar
               modules={panelModules}
               activeId={activeId}
               onActiveIdChange={setActiveId}
@@ -311,7 +325,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
 
           {/*
             Accessible module-nav fallback + stable test hook.
-            Visible module switcher is the scrollable shadcn tab strip above.
+            Visible module switcher is the grouped shadcn menubar above.
             This permanent visually-hidden nav keeps `v2-settings-nav-<id>`
             for screen readers and force-navigation e2e helpers.
            */}
@@ -458,11 +472,14 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
           );
         }
 
-        if (!open) return null;
-
+        // The Drawer root stays mounted with a controlled `open` (vaul
+        // animates the panel out on close and unmounts only the portal
+        // content). Keeping THIS component mounted across opens preserves
+        // sheet-local state (active module, per-module selection) and
+        // skips re-running all the top-level hooks on every reopen.
         return (
           <Drawer
-            open
+            open={open}
             onOpenChange={(next) => {
               if (!next) onClose();
             }}

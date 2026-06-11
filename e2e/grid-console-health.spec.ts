@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { clickSettingsFromToolbar, waitForV2Grid } from './helpers/settingsSheet';
+import { clickSettingsFromToolbar, navigateToModule, waitForV2Grid } from './helpers/settingsSheet';
 
 /**
  * Guards against React update-depth loops and other console regressions on
@@ -56,7 +56,7 @@ test.describe('MarketsGrid console health', () => {
     await page.goto('/?view=single');
     await waitForV2Grid(page);
     await clickSettingsFromToolbar(page);
-    await page.getByTestId('v2-settings-nav-menu-general-settings').click();
+    await navigateToModule(page, 'general-settings');
     await page.waitForSelector('[data-testid="go-panel"]', { timeout: 10_000 });
 
     depthErrors.length = 0;

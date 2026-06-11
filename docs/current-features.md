@@ -384,18 +384,30 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `TemplateManager` — column-template library (save/apply/manage)
 - `UnsavedSwitchDialog` — guard for dirty profile switch
 - `SettingsSheet` — shadcn right-rail `Drawer` host for all customizer modules;
-  opens on **Grid Options** (`general-settings`) by default; header module
-  dropdown (Grid Options, Alerts, Style Rules, …) portals above the drawer
+  opens on **Grid Options** (`general-settings`) by default; module navigation
+  is a grouped shadcn **Menubar** (`SettingsModuleMenubar`): five stable
+  categories (Options / Columns / Styling / Editing / Data) each opening a
+  menu of module items, plus a trailing More menu for host-registered module
+  ids outside the category map and an active-module breadcrumb
+  (`GROUP ▸ MODULE`) on the bar's right edge — the bar never overflows
+  regardless of module count; menus portal above the drawer
   via `.ds-settings-module-popover` / `.ds-sheet-v2` z-index in `grid-chrome.css`;
   flat `SettingsPanel` modules (Grid Options) fill the editor pane without an
   outer `ds-editor-scroll` so the band sidebar stays fixed while only the
   right-hand fields scroll; two-phase open — chrome + structural wrappers
   commit first so the drawer slide-in starts immediately, the active module
   panel mounts one deferred render behind (`useDeferredValue(open, false)`;
-  popped OS-window mode bypasses the gate)
-- Grid Options band sections use `content-visibility: auto` so off-screen
-  bands skip render work at open; intrinsic-size placeholder keeps the
-  scrollbar and band scroll-into-view targets stable
+  popped OS-window mode bypasses the gate); the vaul `Drawer` root stays
+  mounted with controlled `open` so closes play the slide-out animation and
+  sheet-local state (active module, per-module selection) survives reopen
+- Grid Options bands mount progressively — first commit mounts only the
+  first 3 bands (≈ one viewport), the rest fill in one-per-`requestIdleCallback`
+  slice (200ms timeout cap) so the heavy ~92-control mount never lands inside
+  the drawer slide-in animation; sidebar nav clicks force-mount their target
+  band, an active search filter mounts all matching bands, and environments
+  without `requestIdleCallback` (jsdom) mount everything up front; unmounted
+  bands hold a fixed-height placeholder and mounted off-screen bands still
+  use `content-visibility: auto` to skip paint work
 
 #### Help, status & overlays
 

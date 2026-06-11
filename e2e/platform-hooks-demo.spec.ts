@@ -13,6 +13,7 @@ import {
   waitForPlatformHooksDemo,
   HOOKS_DEMO_GRID_ID,
 } from './helpers/platformHooksDemo';
+import { navigateToModule } from './helpers/settingsSheet';
 
 /**
  * Rigorous e2e for `apps/demos/platform-hooks-demo` — AppData bootstrap hooks and
@@ -133,7 +134,7 @@ test.describe('platform-hooks-demo — handler invocation', () => {
 
     await page.locator('[data-testid="toolbar-more-menu-trigger"]').click();
     await page.locator('[data-testid="v2-settings-open-btn"]').click();
-    await page.locator('[data-testid="v2-settings-nav-menu-general-settings"]').click();
+    await navigateToModule(page, 'general-settings');
     await page.locator('[data-testid="go-pagination"]').click();
     await page.locator('[data-testid="go-save-btn"]').click();
     await page.keyboard.press('Escape');

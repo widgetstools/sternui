@@ -131,6 +131,29 @@ function countNonDefault(s: GeneralSettingsState): number {
   return n;
 }
 
+// ─── Progressive band mounting ──────────────────────────────────────
+//
+// Mounting all ~13 bands (~92 Radix controls) in one commit is what made
+// the settings drawer janky to open — the commit landed mid slide-in
+// animation. Instead, the first commit mounts only the bands that can be
+// on screen; the rest fill in one-per-idle-slice right after. Off-screen
+// placeholders keep the scrollbar + scrollIntoView targets stable.
+//
+// `requestIdleCallback` is the gate: where it's missing (jsdom tests),
+// everything mounts up front so sync assertions keep working.
+
+const IDLE_MOUNT_SUPPORTED =
+  typeof requestIdleCallback === 'function' &&
+  typeof cancelIdleCallback === 'function';
+
+/** Bands mounted in the very first commit (≈ what fits one viewport). */
+const INITIAL_MOUNTED_BANDS = 3;
+
+/** Schema position per band index ('01' → 0, …) for the mount gate. */
+const BAND_POSITION: ReadonlyMap<string, number> = new Map(
+  GRID_OPTIONS_SCHEMA.map((b, i) => [b.index, i]),
+);
+
 // ─── Sidebar nav item ───────────────────────────────────────────────
 
 interface BandNavItemProps {
@@ -203,6 +226,38 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
     GRID_OPTIONS_SCHEMA[0]?.index ?? '01',
   );
 
+  // Progressive band mounting — see the IDLE_MOUNT_SUPPORTED note above.
+  const [mountedBands, setMountedBands] = useState(
+    IDLE_MOUNT_SUPPORTED ? INITIAL_MOUNTED_BANDS : GRID_OPTIONS_SCHEMA.length,
+  );
+  // Bands force-mounted out of order (sidebar nav jump to a band the
+  // idle sweep hasn't reached yet).
+  const [forcedBands, setForcedBands] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+
+  useEffect(() => {
+    if (!IDLE_MOUNT_SUPPORTED) return;
+    if (mountedBands >= GRID_OPTIONS_SCHEMA.length) return;
+    const id = requestIdleCallback(
+      () => setMountedBands((n) => n + 1),
+      // Cap the wait so a busy main thread (streaming grid) can't stall
+      // the sweep indefinitely.
+      { timeout: 200 },
+    );
+    return () => cancelIdleCallback(id);
+  }, [mountedBands]);
+
+  const isBandMounted = useCallback(
+    (index: string): boolean => {
+      if (query) return true; // filtering must surface matches everywhere
+      if (forcedBands.has(index)) return true;
+      const pos = BAND_POSITION.get(index) ?? 0;
+      return pos < mountedBands;
+    },
+    [query, forcedBands, mountedBands],
+  );
+
   const filteredBands = useMemo(
     () =>
       GRID_OPTIONS_SCHEMA.map((b) => filterBand(b, query)).filter(
@@ -233,6 +288,14 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
   activeBandRef.current = activeBand;
 
   const scrollToBand = useCallback((index: string) => {
+    // Make sure the target band's fields exist before jumping to it, so
+    // the user never lands on an empty placeholder.
+    setForcedBands((prev) => {
+      if (prev.has(index)) return prev;
+      const next = new Set(prev);
+      next.add(index);
+      return next;
+    });
     const el = bandRefs.current.get(index);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -488,14 +551,21 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
                   )}
                   <span className="flex-1 h-px bg-border" />
                 </header>
-                {band.fields.map((f, i) => (
-                  <FieldRenderer
-                    key={i}
-                    field={f}
-                    state={draft}
-                    update={update}
-                  />
-                ))}
+                {isBandMounted(band.index) ? (
+                  band.fields.map((f, i) => (
+                    <FieldRenderer
+                      key={i}
+                      field={f}
+                      state={draft}
+                      update={update}
+                    />
+                  ))
+                ) : (
+                  // Idle sweep hasn't reached this band yet — hold its
+                  // approximate height so the scrollbar doesn't jump as
+                  // bands fill in.
+                  <div aria-hidden style={{ minHeight: 420 }} />
+                )}
               </section>
             ))
           )}

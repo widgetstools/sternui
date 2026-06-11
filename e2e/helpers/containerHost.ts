@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { navigateToModule } from './settingsSheet';
 
 /**
  * Helpers for the isolated MarketsGridContainer mock host
@@ -56,10 +57,10 @@ export async function openCustomizer(page: Page): Promise<void> {
   await expect(sheet).toBeVisible();
 }
 
-/** Navigate to a customizer module panel via the visible tab strip. */
+/** Navigate to a customizer module panel via the grouped menubar. */
 export async function openPanel(page: Page, moduleId: string): Promise<void> {
   await openCustomizer(page);
-  await page.locator(`[data-testid="v2-settings-nav-menu-${moduleId}"]`).click();
+  await navigateToModule(page, moduleId);
 }
 
 /** The Custom Settings provider <Select> renders its testid on both the Row

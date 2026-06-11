@@ -13,8 +13,8 @@ import {
  * Smoke coverage for every v2 settings panel. One test per module that:
  *
  *   1. Opens the sheet via the Settings button
- *   2. Navigates to the panel using the visible tab strip
- *      (`v2-settings-nav-menu-<id>`)
+ *   2. Navigates to the panel using the visible grouped menubar
+ *      (group trigger → `v2-settings-nav-menu-<id>` item)
  *   3. Asserts the panel's root testid becomes visible
  *   4. Closes the sheet via ESC
  *
@@ -48,20 +48,27 @@ test.describe('v2 — settings panels smoke', () => {
   });
 
   for (const { id, label } of MODULES) {
-    test(`${label} panel mounts via tab nav`, async ({ page }) => {
+    test(`${label} panel mounts via menubar nav`, async ({ page }) => {
       await openPanel(page, id);
       await expect(page.locator(`[data-testid="${PANEL_ROOT_TESTID[id]}"]`)).toBeVisible();
       await closeSettingsSheet(page);
     });
   }
 
-  test('settings module tabs expose every panel', async ({ page }) => {
+  test('settings module menubar exposes every panel', async ({ page }) => {
     await openSettingsSheet(page);
-    await expect(page.locator('[data-testid="v2-settings-module-tabs"]')).toBeVisible();
+    await expect(page.locator('[data-testid="v2-settings-module-menubar"]')).toBeVisible();
+    // Each module is reachable through exactly one group menu — open the
+    // owning menu (via the trigger's data-modules list), assert the item,
+    // and dismiss before checking the next module.
     for (const { id } of [...MODULES, ...EXTRA_DROPDOWN_MODULES]) {
+      await page
+        .locator(`[data-testid^="v2-settings-nav-group-"][data-modules~="${id}"]`)
+        .click();
       await expect(
         page.locator(`[data-testid="v2-settings-nav-menu-${id}"]`),
       ).toBeVisible();
+      await page.keyboard.press('Escape');
     }
     await closeSettingsSheet(page);
   });

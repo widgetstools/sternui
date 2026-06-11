@@ -13,14 +13,18 @@ import { expect, type Page } from '@playwright/test';
  *      on THIS testid bypasses that check — safe because the button IS
  *      wired to an onClick handler.
  *
- *   2. The VISIBLE nav is a horizontal shadcn Tabs strip
- *      (`v2-settings-module-tabs`) with tab triggers testidded
- *      `v2-settings-nav-menu-<id>`. Left/right carets scroll when tabs
- *      overflow the viewport.
+ *   2. The VISIBLE nav is a grouped shadcn Menubar
+ *      (`v2-settings-module-menubar`): five category triggers
+ *      (`v2-settings-nav-group-<group>`) each opening a menu of module
+ *      items (`v2-settings-nav-menu-<id>`). Each trigger carries a
+ *      space-separated `data-modules` attribute listing the module ids
+ *      it owns, so `navigateToModule` can resolve the owning menu with a
+ *      CSS `~=` selector instead of duplicating the grouping map here.
  *
- * We default to the visible path (`openPanel`) because it exercises the
- * actual user flow. `forceNavigateToPanel` is the escape hatch when a
- * test needs to skip tab scrolling or trigger navigation from an edge case.
+ * We default to the visible path (`openPanel` / `navigateToModule`)
+ * because it exercises the actual user flow. `forceNavigateToPanel` is
+ * the escape hatch when a test needs to trigger navigation from an edge
+ * case (e.g. while a Popover is open).
  */
 
 export const V2_PATH = '/';
@@ -117,10 +121,25 @@ export const PANEL_ROOT_TESTID: Record<PanelModuleId, string> = {
 };
 
 /**
+ * Navigates to a module via the visible grouped menubar — opens the
+ * category menu owning `moduleId` (resolved through the trigger's
+ * `data-modules` attribute), then clicks the module item. Assumes the
+ * settings sheet is already open. Works on popout `Page`s too.
+ */
+export async function navigateToModule(page: Page, moduleId: string): Promise<void> {
+  const item = page.locator(`[data-testid="v2-settings-nav-menu-${moduleId}"]`);
+  if (!(await item.isVisible().catch(() => false))) {
+    await page
+      .locator(`[data-testid^="v2-settings-nav-group-"][data-modules~="${moduleId}"]`)
+      .click();
+  }
+  await item.click();
+}
+
+/**
  * Opens the settings sheet (if closed) and navigates to the given
- * module's panel via the visible tab strip — the realistic user
- * path. Waits for the panel root testid to become visible before
- * returning.
+ * module's panel via the visible menubar — the realistic user path.
+ * Waits for the panel root testid to become visible before returning.
  */
 export async function openPanel(page: Page, moduleId: PanelModuleId): Promise<void> {
   await openSettingsSheet(page);
@@ -131,8 +150,7 @@ export async function openPanel(page: Page, moduleId: PanelModuleId): Promise<vo
     return;
   }
 
-  // Click the visible module tab (shadcn Tabs strip below the title bar).
-  await page.locator(`[data-testid="v2-settings-nav-menu-${moduleId}"]`).click();
+  await navigateToModule(page, moduleId);
   await expect(page.locator(`[data-testid="${rootTestid}"]`)).toBeVisible();
 }
 

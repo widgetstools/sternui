@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { openGridInfoDialog, openSettingsSheet } from './helpers/settingsSheet';
+import { navigateToModule, openGridInfoDialog, openSettingsSheet } from './helpers/settingsSheet';
 
 /**
  * E2E — HostedMarketsGrid integration spec.
@@ -102,7 +102,7 @@ test.describe('hosted-markets-grid integration', () => {
 
   test('Custom Settings exposes data provider controls', async ({ page }) => {
     await openSettingsSheet(page);
-    await page.locator('[data-testid="v2-settings-nav-menu-toolbar-date-settings"]').click();
+    await navigateToModule(page, 'toolbar-date-settings');
     await expect(page.locator('[data-testid="provider-grid-host-section"]')).toBeVisible();
     await expect(page.getByTestId('provider-live-select').first()).toBeVisible();
     await expect(page.locator('[data-testid="tds-enabled"]')).toBeVisible();

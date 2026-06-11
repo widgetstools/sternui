@@ -104,12 +104,12 @@ test.describe('@vr v1 visual reference capture', () => {
       });
     }
 
-    test(`${theme} — module tabs visible`, async ({ page }) => {
+    test(`${theme} — module menubar visible`, async ({ page }) => {
       await setTheme(page, theme);
       await openSettingsSheet(page);
-      await expect(page.locator('[data-testid="v2-settings-module-tabs"]')).toBeVisible();
+      await expect(page.locator('[data-testid="v2-settings-module-menubar"]')).toBeVisible();
       await page.waitForTimeout(200);
-      await shot(page, theme, 'module-tabs-visible');
+      await shot(page, theme, 'module-menubar-visible');
       await closeSettingsSheet(page);
     });
   }

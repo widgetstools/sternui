@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { navigateToModule } from './settingsSheet';
 
 /** Matches `apps/demos/platform-hooks-demo/vite.config.ts`. */
 export const PLATFORM_HOOKS_DEMO_URL = 'http://localhost:5214';
@@ -64,7 +65,8 @@ export async function openCustomSettings(page: Page): Promise<void> {
     await page.locator('[data-testid="v2-settings-open-btn"]').click();
   }
   await expect(sheet).toBeVisible();
-  if (await panel.isVisible().catch(() => false)) return;  await page.locator('[data-testid="v2-settings-nav-menu-toolbar-date-settings"]').click();
+  if (await panel.isVisible().catch(() => false)) return;
+  await navigateToModule(page, 'toolbar-date-settings');
   await expect(panel).toBeVisible();
 }
 
