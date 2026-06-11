@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { clickSettingsFromToolbar } from './helpers/settingsSheet';
+import { clickSettingsFromToolbar, navigateToModule } from './helpers/settingsSheet';
 import { openEditingToolbar } from './helpers/editingToolbar';
 import { loadLabProfile } from './helpers/labEditing';
 
@@ -150,7 +150,7 @@ test.describe('Shortcuts lab tab', () => {
     await bootShortcutsTab(page);
     await clickSettingsFromToolbar(page);
     await page.locator('.ds-sheet').waitFor({ state: 'visible' });
-    await page.locator('[data-testid="v2-settings-nav-menu-shortcuts"]').click();
+    await navigateToModule(page, 'shortcuts');
     await expect(page.getByTestId('shortcuts-panel').first()).toBeVisible();
     await expect(page.getByTestId('sc-enabled-toggle')).toBeVisible();
   });

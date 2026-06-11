@@ -11,7 +11,16 @@ export { useGridTheme } from './widget/theme/index.js';
 export { FiltersToolbar, type FiltersToolbarProps } from './widget/FiltersToolbar.js';
 export { FormattingToolbar } from './widget/FormattingToolbar.js';
 export { DraggableFloat } from './widget/DraggableFloat.js';
-export { SettingsSheet, type SettingsSheetProps } from './widget/SettingsSheet.js';
+// The public SettingsSheet is the lazy wrapper — same props + ref
+// contract as the inner sheet, but a static value import of
+// `./widget/SettingsSheet.js` here would pull the whole sheet into the
+// main chunk and defeat its code-splitting (Vite warned about exactly
+// that). Type re-exports are erased at build, so they stay direct.
+export {
+  LazySettingsSheet as SettingsSheet,
+  preloadSettingsSheet,
+} from './widget/LazySettingsSheet.js';
+export type { SettingsSheetProps } from './widget/SettingsSheet.js';
 export { ProfileSelector, type ProfileSelectorProps } from './widget/ProfileSelector.js';
 export { HelpPanel } from './widget/HelpPanel.js';
 export {

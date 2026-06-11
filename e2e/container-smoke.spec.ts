@@ -10,5 +10,8 @@ test('grid renders mock rows and the customizer opens', async ({ page }) => {
   await page.locator('[data-testid="toolbar-more-menu-trigger"]').click();
   await page.locator('[data-testid="v2-settings-open-btn"]').click();
   await expect(page.locator('.ds-sheet')).toBeVisible();
-  await expect(page.locator('[data-testid="v2-settings-nav-menu-toolbar-date-settings"]')).toBeVisible();
+  // Custom Settings lives in the OPTIONS group of the module menubar.
+  await expect(
+    page.locator('[data-testid^="v2-settings-nav-group-"][data-modules~="toolbar-date-settings"]'),
+  ).toBeVisible();
 });

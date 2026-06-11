@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { clickSettingsFromToolbar } from './settingsSheet';
+import { clickSettingsFromToolbar, navigateToModule } from './settingsSheet';
 import { openEditingToolbar } from './editingToolbar';
 
 export const LAB_URL = 'http://localhost:5300/';
@@ -177,7 +177,7 @@ export async function selectColumnRange(
 export async function openEditingModulePanel(page: Page, moduleId: string): Promise<void> {
   await clickSettingsFromToolbar(page);
   await page.locator('.ds-sheet').waitFor({ state: 'visible' });
-  await page.locator(`[data-testid="v2-settings-nav-menu-${moduleId}"]`).click();
+  await navigateToModule(page, moduleId);
 }
 
 export async function saveModuleSettings(page: Page): Promise<void> {

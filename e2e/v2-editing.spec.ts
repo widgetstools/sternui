@@ -58,8 +58,16 @@ test.describe('Editing lab tab (unified)', () => {
   test('settings sheet lists all editing modules', async ({ page }) => {
     await bootEditingTab(page);
     await clickSettingsFromToolbar(page);
-    await page.locator('.ds-sheet').waitFor({ state: 'visible' });    for (const moduleId of ['smart-edit', 'bulk-update', 'plus-minus', 'shortcuts', 'data-change-history']) {
+    await page.locator('.ds-sheet').waitFor({ state: 'visible' });
+    // Modules live behind grouped menubar menus — open each module's
+    // owning menu (resolved via the trigger's data-modules list) and
+    // assert the item renders, then dismiss before the next one.
+    for (const moduleId of ['smart-edit', 'bulk-update', 'plus-minus', 'shortcuts', 'data-change-history']) {
+      await page
+        .locator(`[data-testid^="v2-settings-nav-group-"][data-modules~="${moduleId}"]`)
+        .click();
       await expect(page.getByTestId(`v2-settings-nav-menu-${moduleId}`)).toBeVisible();
+      await page.keyboard.press('Escape');
     }
   });
 

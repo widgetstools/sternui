@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import {
   bootCleanDemo,
   clickSettingsFromToolbar,
+  navigateToModule,
   openPanel,
 } from './helpers/settingsSheet';
 
@@ -29,7 +30,8 @@ async function openPoppedExpressionEditor(page: Page): Promise<EditorHost> {
   const popupPromise = page.waitForEvent('popup');
   await page.locator('[data-testid="v2-settings-popout-btn"]').click();
   const popup = await popupPromise;
-  await popup.waitForSelector('[data-testid="v2-settings-sheet"]', { timeout: 5_000 });  await popup.locator('[data-testid="v2-settings-nav-menu-conditional-styling"]').click();
+  await popup.waitForSelector('[data-testid="v2-settings-sheet"]', { timeout: 5_000 });
+  await navigateToModule(popup, 'conditional-styling');
   await ensureExpressionEditor(popup);
   return popup;
 }

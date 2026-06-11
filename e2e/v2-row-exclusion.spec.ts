@@ -3,6 +3,7 @@ import {
   bootCleanDemo,
   openSettingsSheet,
   closeSettingsSheet,
+  navigateToModule,
 } from './helpers/settingsSheet';
 
 /**
@@ -53,7 +54,7 @@ async function typeRowFilter(page: Page, text: string) {
 /** Open Custom Settings → Row Filter section and return the Save button. */
 async function openRowFilter(page: Page): Promise<Locator> {
   await openSettingsSheet(page);
-  await page.locator('[data-testid="v2-settings-nav-menu-toolbar-date-settings"]').click();
+  await navigateToModule(page, 'toolbar-date-settings');
   const panel = page.getByTestId('toolbar-date-settings-panel');
   await expect(panel).toBeVisible();
   await page.getByTestId('tds-nav-04').click();

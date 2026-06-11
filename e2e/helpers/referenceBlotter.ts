@@ -2,6 +2,7 @@ import { expect, type Page } from '@playwright/test';
 import {
   closeSettingsSheet,
   clickSettingsFromToolbar,
+  navigateToModule,
   openPanel,
   openSettingsSheet,
 } from './settingsSheet';
@@ -11,7 +12,8 @@ export async function openProviderCustomSettings(page: Page): Promise<void> {
   const section = page.locator('[data-testid="provider-grid-host-section"]');
   if (await section.isVisible().catch(() => false)) {
     return;
-  }  await page.locator('[data-testid="v2-settings-nav-menu-toolbar-date-settings"]').click();
+  }
+  await navigateToModule(page, 'toolbar-date-settings');
   await expect(section).toBeVisible({ timeout: 10_000 });
 }
 

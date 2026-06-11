@@ -2,7 +2,6 @@ import {
   forwardRef,
   lazy,
   Suspense,
-  useEffect,
   type ForwardedRef,
   type ReactElement,
 } from 'react';
@@ -13,6 +12,20 @@ const LazySettingsSheetInner = lazy(async () => {
   return { default: mod.SettingsSheet };
 });
 
+/**
+ * Warm the SettingsSheet chunk ahead of the first open. Hosts call this
+ * on idle (MarketsGridHost) and on strong intent signals (the toolbar
+ * ⋯ menu opening, hovering the inline settings button) so the first
+ * click never pays the chunk load.
+ *
+ * Lives here — NOT inside the component — because the sheet only mounts
+ * at open time, so an in-component preloader could never fire early
+ * enough to matter.
+ */
+export function preloadSettingsSheet(): void {
+  void import('./SettingsSheet');
+}
+
 export type LazySettingsSheetProps = SettingsSheetProps;
 
 /**
@@ -21,19 +34,6 @@ export type LazySettingsSheetProps = SettingsSheetProps;
  */
 export const LazySettingsSheet = forwardRef<SettingsSheetHandle, LazySettingsSheetProps>(
   function LazySettingsSheet(props, ref) {
-    const { open } = props;
-
-    // Preload on idle when settings button is visible so first open is fast.
-    useEffect(() => {
-      if (open) return;
-      if (typeof requestIdleCallback === 'function') {
-        const id = requestIdleCallback(() => { void import('./SettingsSheet'); });
-        return () => cancelIdleCallback(id);
-      }
-      const t = setTimeout(() => { void import('./SettingsSheet'); }, 2000);
-      return () => clearTimeout(t);
-    }, [open]);
-
     return (
       <Suspense fallback={null}>
         <LazySettingsSheetInner ref={ref} {...props} />

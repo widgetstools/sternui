@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { forwardRef, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import './grid-chrome.css';
 import {
   type AnyModule,
@@ -20,7 +20,7 @@ import {
   X,
 } from 'lucide-react';
 import { HelpPanel } from './HelpPanel';
-import { SettingsModuleTabs } from './SettingsModuleTabs';
+import { SettingsModuleMenubar } from './SettingsModuleMenubar';
 
 /**
  * Cockpit Terminal popout — the v2 settings sheet.
@@ -116,6 +116,17 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
   // header — a temporary view, not persisted.
   const [helpOpen, setHelpOpen] = useState(false);
 
+  // Two-phase open. The drawer shell + chrome commit on the urgent
+  // update so the slide-in animation starts on the next frame; the
+  // active module panel — the expensive part (Grid Options alone mounts
+  // ~100 controls) — fills in on the deferred follow-up render instead
+  // of blocking the animation's first frame. The `false` initial value
+  // keeps the FIRST open two-phase too (useDeferredValue otherwise
+  // returns the live value on initial mount, and the sheet mounts fresh
+  // at first open). Popped mode bypasses the gate below — the OS window
+  // keeps its content regardless of the inline `open` flag.
+  const deferredOpen = useDeferredValue(open, false);
+
   const [selectedByModule, setSelectedByModule] = useState<Record<string, string | null>>({});
 
   const setSelectedForModule = useCallback((moduleId: string, id: string | null) => {
@@ -151,7 +162,21 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCloseRef.current();
+      if (e.key === 'Escape') {
+        // An open Radix popup (menubar menu, select, popover…) owns this
+        // Escape — it closes itself; the sheet must stay open. Popup
+        // content is portaled to body, so when one is open the event
+        // target sits inside a popper wrapper rather than the sheet.
+        const target = e.target as HTMLElement | null;
+        if (
+          target?.closest(
+            '[data-radix-popper-content-wrapper], [role="menu"], [role="listbox"]',
+          )
+        ) {
+          return;
+        }
+        onCloseRef.current();
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') onCloseRef.current();
     };
     document.addEventListener('keydown', handler);
@@ -181,6 +206,10 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
     // Browsers ignore those and always render full OS chrome, so our
     // custom titlebar would just duplicate it there.
     const frameless = popped && isOpenFin();
+    // Heavy module panes mount one transition behind the chrome — see
+    // the deferredOpen note above. All structural wrappers (testids,
+    // layout) stay in the first commit so selectors resolve immediately.
+    const panelReady = popped || deferredOpen;
     const sheetClasses = [
       'ds-sheet',
       'ds-sheet-v2',
@@ -286,7 +315,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
           </header>
 
           {panelModules.length > 0 && (
-            <SettingsModuleTabs
+            <SettingsModuleMenubar
               modules={panelModules}
               activeId={activeId}
               onActiveIdChange={setActiveId}
@@ -296,7 +325,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
 
           {/*
             Accessible module-nav fallback + stable test hook.
-            Visible module switcher is the scrollable shadcn tab strip above.
+            Visible module switcher is the grouped shadcn menubar above.
             This permanent visually-hidden nav keeps `v2-settings-nav-<id>`
             for screen readers and force-navigation e2e helpers.
            */}
@@ -337,11 +366,13 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
               <>
             {hasMasterDetail && ListPane && activeModule && (
               <aside className="ds-popout-list" data-testid="v2-settings-list">
-                <ListPane
-                  gridId={gridId}
-                  selectedId={selectedId}
-                  onSelect={(id) => setSelectedForModule(activeModule.id, id)}
-                />
+                {panelReady ? (
+                  <ListPane
+                    gridId={gridId}
+                    selectedId={selectedId}
+                    onSelect={(id) => setSelectedForModule(activeModule.id, id)}
+                  />
+                ) : null}
               </aside>
             )}
 
@@ -360,14 +391,14 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                   data-testid={PANEL_TESTID_BY_MODULE_ID[activeId] ?? ''}
                   className="flex flex-col flex-1 min-h-0 overflow-hidden"
                 >
-                  <EditorPane gridId={gridId} selectedId={selectedId} />
+                  {panelReady ? <EditorPane gridId={gridId} selectedId={selectedId} /> : null}
                 </div>
               ) : LegacyPanel ? (
                 // Flat panels (e.g. Grid Options) own their scroll regions —
                 // a wrapping `ds-editor-scroll` scrolls the whole panel and
                 // drags the band sidebar along with the right-hand content.
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                  <LegacyPanel gridId={gridId} />
+                  {panelReady ? <LegacyPanel gridId={gridId} /> : null}
                 </div>
               ) : (
                 <div className="p-6">
@@ -441,11 +472,14 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
           );
         }
 
-        if (!open) return null;
-
+        // The Drawer root stays mounted with a controlled `open` (vaul
+        // animates the panel out on close and unmounts only the portal
+        // content). Keeping THIS component mounted across opens preserves
+        // sheet-local state (active module, per-module selection) and
+        // skips re-running all the top-level hooks on every reopen.
         return (
           <Drawer
-            open
+            open={open}
             onOpenChange={(next) => {
               if (!next) onClose();
             }}

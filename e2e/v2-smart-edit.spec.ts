@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { clickSettingsFromToolbar } from './helpers/settingsSheet';
+import { clickSettingsFromToolbar, navigateToModule } from './helpers/settingsSheet';
 import { openEditingToolbar } from './helpers/editingToolbar';
 import { clearLabStorage, loadLabProfile } from './helpers/labEditing';
 
@@ -38,7 +38,7 @@ async function bootSmartEditTab(page: Page, profileId?: string): Promise<void> {
 async function openSmartEditPanel(page: Page): Promise<void> {
   await clickSettingsFromToolbar(page);
   await page.locator('.ds-sheet').waitFor({ state: 'visible' });
-  await page.locator('[data-testid="v2-settings-nav-menu-smart-edit"]').click();
+  await navigateToModule(page, 'smart-edit');
   await page.locator('[data-testid="smart-edit-panel"]').waitFor({ state: 'visible' });
 }
 

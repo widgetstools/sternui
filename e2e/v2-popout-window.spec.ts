@@ -184,25 +184,27 @@ test.describe('v2 — settings sheet pop-out window', () => {
     expect(title).toContain('demo-blotter-v2');
   });
 
-  test('module tabs from the popped sheet render INSIDE the popout window', async ({ page }) => {
+  test('module menubar from the popped sheet renders INSIDE the popout window', async ({ page }) => {
     await page.locator('[data-testid="v2-settings-popout-btn"]').click();
     await page.waitForTimeout(400);
 
+    // Module items live inside portaled menus (closed by default), so the
+    // in-DOM markers are the menubar bar + its group triggers.
     const where = await page.evaluate(() => {
       const iframe = document.querySelector('iframe[data-popout-iframe]') as HTMLIFrameElement | null;
       const popoutDoc = iframe?.contentDocument;
       return {
-        tabsInMain: document.querySelectorAll('[data-testid="v2-settings-module-tabs"]').length,
-        tabsInPopout: popoutDoc?.querySelectorAll('[data-testid="v2-settings-module-tabs"]').length ?? 0,
-        menuItemsInMain: document.querySelectorAll('[data-testid^="v2-settings-nav-menu-"]').length,
-        menuItemsInPopout: popoutDoc?.querySelectorAll('[data-testid^="v2-settings-nav-menu-"]').length ?? 0,
+        menubarInMain: document.querySelectorAll('[data-testid="v2-settings-module-menubar"]').length,
+        menubarInPopout: popoutDoc?.querySelectorAll('[data-testid="v2-settings-module-menubar"]').length ?? 0,
+        groupsInMain: document.querySelectorAll('[data-testid^="v2-settings-nav-group-"]').length,
+        groupsInPopout: popoutDoc?.querySelectorAll('[data-testid^="v2-settings-nav-group-"]').length ?? 0,
       };
     });
 
-    expect(where.tabsInMain).toBe(0);
-    expect(where.tabsInPopout).toBeGreaterThanOrEqual(1);
-    expect(where.menuItemsInMain).toBe(0);
-    expect(where.menuItemsInPopout).toBeGreaterThanOrEqual(1);
+    expect(where.menubarInMain).toBe(0);
+    expect(where.menubarInPopout).toBeGreaterThanOrEqual(1);
+    expect(where.groupsInMain).toBe(0);
+    expect(where.groupsInPopout).toBeGreaterThanOrEqual(1);
   });
 
   test('pop-out + close buttons AND the title caption hide while popped', async ({ page }) => {

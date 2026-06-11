@@ -269,53 +269,37 @@
   z-index: 12050 !important;
 }
 
-/* ── Module tabs (scrollable shadcn strip) ─────────────────────────────── */
-.ds-settings-module-tabs-bar {
+/* ── Module menubar (grouped shadcn Menubar) ───────────────────────────── */
+/* Five category menus replace the scrollable tab strip — the bar never
+   overflows no matter how many modules a host registers. Secondary nav:
+   one step below title bar (12px) / caps labels (11px). */
+.ds-settings-menubar-bar {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   flex-shrink: 0;
   min-height: 33px;
+  padding: 0 8px 0 2px;
+  gap: 8px;
   border-bottom: 1px solid var(--ds-border-primary);
   background: var(--ds-surface-primary);
 }
 
-.ds-settings-module-tabs-scroll {
-  flex: 1;
-  min-width: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.ds-settings-module-tabs-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.ds-settings-module-tabs {
-  display: block;
-  width: max-content;
-  min-width: 100%;
-}
-
-.ds-sheet-v2 .ds-settings-module-tabs-list {
-  display: inline-flex;
-  height: auto;
-  min-height: 33px;
-  width: max-content;
+/* Strip the shadcn card chrome — the bar supplies the surface. */
+.ds-sheet-v2 .ds-settings-menubar {
+  height: 33px;
   align-items: stretch;
-  justify-content: flex-start;
   gap: 0;
   padding: 0;
+  border: none;
   border-radius: 0;
   background: transparent;
+  box-shadow: none;
 }
 
-/* Secondary nav — one step below title bar (12px) / caps labels (11px). */
-.ds-sheet-v2 .ds-settings-module-tab-trigger {
+.ds-sheet-v2 .ds-settings-menubar-trigger {
   display: inline-flex;
   align-items: center;
-  height: 33px;
+  height: 100%;
   padding: 0 10px;
   border: none;
   border-bottom: 2px solid transparent;
@@ -330,44 +314,83 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
+  cursor: pointer;
   transition: color 120ms, border-color 120ms, background 120ms;
 }
 
-.ds-sheet-v2 .ds-settings-module-tab-trigger:hover {
+.ds-sheet-v2 .ds-settings-menubar-trigger:hover,
+.ds-sheet-v2 .ds-settings-menubar-trigger[data-state='open'] {
   color: var(--ds-text-secondary);
   background: var(--ds-surface-secondary);
 }
 
-.ds-sheet-v2 .ds-settings-module-tab-trigger[data-state='active'] {
+/* Group containing the active module — same accent as the old active tab. */
+.ds-sheet-v2 .ds-settings-menubar-trigger[data-active] {
   color: var(--ds-text-primary);
-  background: var(--ds-surface-secondary);
   border-bottom-color: var(--ds-primary);
-  box-shadow: none;
 }
 
-.ds-settings-module-tabs-caret {
-  flex-shrink: 0;
+/* Portaled menu panel — terminal chrome over the shadcn defaults. */
+.ds-sheet-v2.ds-settings-menubar-content {
+  min-width: 180px;
+  padding: 3px;
+  border: 1px solid var(--ds-border-primary);
+  border-radius: 2px;
+  background: var(--ds-surface-ground);
+  box-shadow: var(--ds-elevation-overlay);
+}
+
+.ds-sheet-v2 .ds-settings-menubar-item {
+  height: 26px;
+  padding: 0 8px 0 22px;
+  border-radius: 2px;
+  color: var(--ds-text-secondary);
+  font-family: var(--ds-font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.ds-sheet-v2 .ds-settings-menubar-item:focus,
+.ds-sheet-v2 .ds-settings-menubar-item[data-highlighted] {
+  background: var(--ds-surface-secondary);
+  color: var(--ds-text-primary);
+}
+
+.ds-sheet-v2 .ds-settings-menubar-item[data-state='checked'] {
+  color: var(--ds-primary);
+}
+
+/* Active-module breadcrumb on the right edge of the bar. */
+.ds-settings-menubar-crumb {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 24px;
-  align-self: stretch;
-  border: none;
-  border-right: 1px solid var(--ds-border-primary);
-  background: var(--ds-surface-secondary);
+  gap: 6px;
+  margin-left: auto;
+  min-width: 0;
+  font-family: var(--ds-font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ds-settings-menubar-crumb-group {
   color: var(--ds-text-muted);
-  cursor: pointer;
-  transition: background 120ms, color 120ms;
 }
 
-.ds-settings-module-tabs-caret:last-child {
-  border-right: none;
-  border-left: 1px solid var(--ds-border-primary);
+.ds-settings-menubar-crumb-sep {
+  color: var(--ds-text-faint);
+  font-size: 8px;
 }
 
-.ds-settings-module-tabs-caret:hover {
-  background: var(--ds-surface-tertiary);
-  color: var(--ds-text-primary);
+.ds-settings-menubar-crumb-module {
+  color: var(--ds-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Legacy module dropdown (removed from UI — kept for reference in older docs) */
