@@ -64,10 +64,13 @@ export const staruiHex = {
     bg1: '#2a3038',
     bg2: '#323942',
     bg3: '#3b434e',
+    // Text ramp brightened to raise contrast against the lighter surfaces
+    // (secondary 7.2->8.9, muted 4.1->5.7, faint 2.3->3.3 on ground).
+    // t0 already AAA (13.3:1); disabledFg stays dim by design.
     t0: '#ecf0f5',
-    t1: '#aab3bf',
-    t2: '#7d8694',
-    t3: '#565d68',
+    t1: '#bfc6cf',
+    t2: '#979faa',
+    t3: '#6d7583',
     border: '#414a56',
     border2: '#545d6f',
     divider: '#373f4a',

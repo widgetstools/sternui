@@ -33,7 +33,7 @@ exports[`agGrid params > matches snapshot 1`] = `
     "headerFontSize": 10,
     "headerFontWeight": 700,
     "headerHeight": 26,
-    "headerTextColor": "#7d8694",
+    "headerTextColor": "#979faa",
     "iconSize": 12,
     "inputBackgroundColor": "#20262e",
     "inputBorder": {
@@ -175,7 +175,7 @@ exports[`agGrid params > matches snapshot 1`] = `
     "headerFontSize": 13,
     "headerFontWeight": 700,
     "headerHeight": 42,
-    "headerTextColor": "#7d8694",
+    "headerTextColor": "#979faa",
     "iconSize": 16,
     "inputBackgroundColor": "#20262e",
     "inputBorder": {
@@ -317,7 +317,7 @@ exports[`agGrid params > matches snapshot 1`] = `
     "headerFontSize": 11,
     "headerFontWeight": 700,
     "headerHeight": 32,
-    "headerTextColor": "#7d8694",
+    "headerTextColor": "#979faa",
     "iconSize": 14,
     "inputBackgroundColor": "#20262e",
     "inputBorder": {

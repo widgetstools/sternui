@@ -21,9 +21,9 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-surface-quaternary: #545d6f;
 
     --ds-text-primary:   #ecf0f5;
-    --ds-text-secondary: #aab3bf;
-    --ds-text-muted:     #7d8694;
-    --ds-text-faint:     #565d68;
+    --ds-text-secondary: #bfc6cf;
+    --ds-text-muted:     #979faa;
+    --ds-text-faint:     #6d7583;
     --ds-text-disabled:  #565d68;
 
     --ds-border-primary:   #414a56;
@@ -69,7 +69,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-elevation-overlay: 0 1px 0 rgba(255,255,255,0.05) inset, 0 8px 24px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.4);
     --ds-elevation-glow:    0 0 0 2px rgba(34,211,238,0.40), 0 0 24px rgba(34,211,238,0.16);
 
-    --ds-trade-flat:           #7d8694;
+    --ds-trade-flat:           #979faa;
     --ds-trade-positive-strip: rgba(34,227,168,0.12);
     --ds-trade-negative-strip: rgba(255,90,130,0.12);
     --ds-trade-bid-fill:       rgba(34,227,168,0.16);
@@ -91,9 +91,9 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --primary:                188 86% 53%;
     --primary-foreground:     193 76% 10%;
     --secondary:              214 14% 23%;
-    --secondary-foreground:   214 14% 71%;
+    --secondary-foreground:   214 14% 78%;
     --muted:                  214 14% 23%;
-    --muted-foreground:       217 10% 54%;
+    --muted-foreground:       215 10% 63%;
     --accent:                 188 86% 53%;
     --accent-foreground:      193 76% 10%;
     --destructive:            345 100% 68%;
@@ -129,9 +129,9 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --surface-300: 220 14% 38%;
     --surface-400: 220 14% 38%;
     --surface-500: 214 14% 30%;
-    --surface-600: 217 9% 37%;
-    --surface-700: 217 10% 54%;
-    --surface-800: 214 14% 71%;
+    --surface-600: 218 9% 47%;
+    --surface-700: 215 10% 63%;
+    --surface-800: 214 14% 78%;
     --surface-900: 213 31% 94%;
     --surface-950: 214 18% 15%;
 
@@ -144,7 +144,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --p-surface-900:          #ecf0f5;
     --p-surface-950:          #20262e;
     --p-text-color:           #ecf0f5;
-    --p-text-muted-color:     #7d8694;
+    --p-text-muted-color:     #979faa;
     --p-content-background:   #2a3038;
     --p-content-border-color: #414a56;
     --p-content-color:        #ecf0f5;
@@ -217,9 +217,9 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --bn-bg3:       #3b434e;
     --bn-bg4:       #545d6f;
     --bn-t0:        #ecf0f5;
-    --bn-t1:        #aab3bf;
-    --bn-t2:        #7d8694;
-    --bn-t3:        #565d68;
+    --bn-t1:        #bfc6cf;
+    --bn-t2:        #979faa;
+    --bn-t3:        #6d7583;
     --bn-t4:        #565d68;
     --bn-border:    #414a56;
     --bn-border2:   #545d6f;
@@ -248,9 +248,9 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --st-bg-2:         #323942;
     --st-bg-3:         #3b434e;
     --st-t0:           #ecf0f5;
-    --st-t1:           #aab3bf;
-    --st-t2:           #7d8694;
-    --st-t3:           #565d68;
+    --st-t1:           #bfc6cf;
+    --st-t2:           #979faa;
+    --st-t3:           #6d7583;
     --st-border:       #414a56;
     --st-border-2:     #545d6f;
     --st-divider:      #373f4a;
@@ -308,9 +308,9 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --sf-bg-4:      #3b434e;
     --sf-bg-5:      #545d6f;
     --sf-t-0:       #ecf0f5;
-    --sf-t-1:       #aab3bf;
-    --sf-t-2:       #7d8694;
-    --sf-t-3:       #565d68;
+    --sf-t-1:       #bfc6cf;
+    --sf-t-2:       #979faa;
+    --sf-t-3:       #6d7583;
     --sf-t-4:       #565d68;
     --sf-border:    #414a56;
     --sf-border-2:  #545d6f;
@@ -328,7 +328,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --sf-down-hi:   #ff7898;
     --sf-down-soft: rgba(255,90,130,0.12);
     --sf-down-strip:rgba(255,90,130,0.12);
-    --sf-flat:      #7d8694;
+    --sf-flat:      #979faa;
     --sf-info:      #22d3ee;
     --sf-info-soft: rgba(34,211,238,0.12);
     --sf-warn:      #f5c14b;
