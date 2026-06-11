@@ -250,6 +250,17 @@ function keyOf(row: unknown, keyColumn: string | readonly string[] | undefined):
   return composeRowId(row, keyColumn);
 }
 
+/**
+ * Click-to-hub latency annotation for restart-attach trace logs.
+ * `extra.__refresh` carries Date.now() at the user's Restart click,
+ * so the delta is the port + main-thread latency before the hub
+ * even started the restart.
+ */
+function restartClickLatency(extra: Record<string, unknown>): string {
+  const clickAt = typeof extra.__refresh === 'number' ? extra.__refresh : null;
+  return clickAt === null ? '' : `sinceClick=+${Date.now() - clickAt}ms`;
+}
+
 /** Stable compare for restart overlay payloads (e.g. `{ asOfDate }`). */
 function restartExtrasEqual(
   active: Record<string, unknown> | null | undefined,
@@ -681,7 +692,7 @@ export class SharedWorkerDataServicesHub {
       // `{{positions.asOfDate}}` template paths.
       if (req.extra) {
         // eslint-disable-next-line no-console
-        if (DEBUG) console.log(`[v2/hub] attach CREATE+RESTART subId=${req.subId} provider=${req.providerId} extra=${JSON.stringify(req.extra)}`);
+        console.log(`[v2/hub][trace] attach CREATE+RESTART provider=${req.providerId} extra=${JSON.stringify(req.extra)} ${restartClickLatency(req.extra)}`);
         void slot.handle.restart(req.extra);
         slot.activeRestartExtra = req.extra;
       }
@@ -697,7 +708,7 @@ export class SharedWorkerDataServicesHub {
       if (req.cfg) {
         this.traceStompAttachCfg('hub.attach RESTART+RECONFIG (running provider)', req.providerId, req.cfg, req.extra);
         // eslint-disable-next-line no-console
-        if (DEBUG) console.log(`[v2/hub] attach RESTART+RECONFIG subId=${req.subId} provider=${req.providerId} extra=${JSON.stringify(req.extra)}`);
+        console.log(`[v2/hub][trace] attach RESTART+RECONFIG provider=${req.providerId} extra=${JSON.stringify(req.extra)} ${restartClickLatency(req.extra)}`);
         slot = this.recreateProvider(req.providerId, req.cfg);
         void slot.handle.restart(req.extra);
         slot.activeRestartExtra = req.extra;
@@ -705,7 +716,7 @@ export class SharedWorkerDataServicesHub {
       } else if (!restartExtrasEqual(slot.activeRestartExtra, req.extra)) {
         this.traceStompAttachCfg('hub.attach RESTART (running provider)', req.providerId, slot.cfg, req.extra);
         // eslint-disable-next-line no-console
-        if (DEBUG) console.log(`[v2/hub] attach RESTART subId=${req.subId} provider=${req.providerId} extra=${JSON.stringify(req.extra)}`);
+        console.log(`[v2/hub][trace] attach RESTART provider=${req.providerId} extra=${JSON.stringify(req.extra)} ${restartClickLatency(req.extra)}`);
         void slot.handle.restart(req.extra);
         slot.activeRestartExtra = req.extra;
         isRestartAttach = true;
