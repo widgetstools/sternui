@@ -34,15 +34,33 @@ interface CapturedPort extends PortLike {
   messages: Event[];
 }
 
+// PortLike contract: postMessage consumes the message synchronously
+// (real MessagePorts structured-clone during the call), and the hub
+// reuses one event object across fan-out loops. Fakes must therefore
+// shallow-copy on capture or every captured message aliases the last
+// listener's subId.
 function makePort(): CapturedPort {
   const messages: Event[] = [];
   return {
     messages,
     postMessage(m: unknown) {
-      messages.push(m as Event);
+      messages.push({ ...(m as Event) });
     },
   };
 }
+
+const REPLAY_DECODER = new TextDecoder();
+
+/** Rows carried by a delta — decodes pre-encoded `delta-bin` replay chunks. */
+function rowsOf(m: Event): unknown[] | null {
+  if (m.kind === 'delta') return [...m.rows];
+  if (m.kind === 'delta-bin') return JSON.parse(REPLAY_DECODER.decode(m.buf)) as unknown[];
+  return null;
+}
+
+const isAnyDelta = (m: Event): boolean => m.kind === 'delta' || m.kind === 'delta-bin';
+const isReplaceDelta = (m: Event): boolean =>
+  isAnyDelta(m) && Boolean((m as { replace?: boolean }).replace);
 
 interface FakeTimers {
   set: (cb: () => void, ms: number) => unknown;
@@ -128,10 +146,11 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
     const portB = makePort();
     hub.handleRequest(portB, { kind: 'attach', subId: 'sB', providerId: 'p1', mode: 'data' });
 
-    // Late joiner sees the cache as a single replace delta.
-    const replaceB = portB.messages.find((m) => m.kind === 'delta' && (m as { replace?: boolean }).replace) as Event & { rows: unknown[] };
+    // Late joiner sees the cache as a single replace delta (shipped
+    // as a pre-encoded delta-bin chunk).
+    const replaceB = portB.messages.find(isReplaceDelta);
     expect(replaceB).toBeTruthy();
-    expect(replaceB.rows).toHaveLength(2);
+    expect(rowsOf(replaceB!)).toHaveLength(2);
 
     // ...and the current status.
     const statusB = portB.messages.find((m) => m.kind === 'status');
@@ -173,7 +192,7 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
     });
 
     expect(ctrl.restartLog).toEqual([{ asOfDate: '2026-04-01' }]);
-    const replaceB = portB.messages.find((m) => m.kind === 'delta' && (m as { replace?: boolean }).replace);
+    const replaceB = portB.messages.find(isReplaceDelta);
     expect(replaceB).toBeTruthy();
   });
 
@@ -237,7 +256,7 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
       extra: { __refresh: 1 },
     });
 
-    const deltasB = portB.messages.filter((m) => m.kind === 'delta');
+    const deltasB = portB.messages.filter(isAnyDelta);
     expect(deltasB).toHaveLength(0);
     expect(portB.messages).toContainEqual({
       subId: 's2',
@@ -250,8 +269,8 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
     ctrl.emit({ status: 'ready' });
 
     const replayed = portB.messages
-      .filter((m) => m.kind === 'delta')
-      .flatMap((m) => (m as Event & { rows: Array<{ id: string }> }).rows);
+      .filter(isAnyDelta)
+      .flatMap((m) => rowsOf(m) as Array<{ id: string }>);
     expect(replayed.map((r) => r.id)).toEqual(['fresh']);
   });
 
@@ -271,11 +290,11 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
 
     hub.handleRequest(portA, { kind: 'refresh-provider', subId: 'sA', providerId: 'p1' });
 
-    const deltasA = portA.messages.filter((m) => m.kind === 'delta') as Array<Event & { rows: unknown[] }>;
+    const deltasA = portA.messages.filter(isAnyDelta);
     expect(deltasA.length).toBeGreaterThan(0);
     expect(portB.messages).toHaveLength(0);
     expect(ctrl.restartLog).toHaveLength(restartsBefore);
-    const replayed = deltasA.flatMap((d) => d.rows) as Array<{ id: string }>;
+    const replayed = deltasA.flatMap((d) => rowsOf(d)) as Array<{ id: string }>;
     expect(replayed.map((r) => r.id)).toEqual(['r1', 'r2']);
   });
 
@@ -417,8 +436,8 @@ describe('SharedWorkerDataServicesHub — no auto-teardown', () => {
     // the cached row in its first replace delta.
     const portB = makePort();
     hub.handleRequest(portB, { kind: 'attach', subId: 's2', providerId: 'p1', mode: 'data' });
-    const replace = portB.messages.find((m) => m.kind === 'delta') as { rows: unknown[] };
-    expect(replace.rows).toEqual([{ id: 'r1' }]);
+    const replace = portB.messages.find(isAnyDelta);
+    expect(rowsOf(replace!)).toEqual([{ id: 'r1' }]);
     expect(ctrl.stopCount).toBe(0);
   });
 
@@ -457,6 +476,83 @@ describe('SharedWorkerDataServicesHub — broadcast fan-out', () => {
     const bDelta = b.messages.find((m) => m.kind === 'delta' && (m as { rows: unknown[] }).rows.length === 1);
     expect((aDelta as { subId: string }).subId).toBe('sA');
     expect((bDelta as { subId: string }).subId).toBe('sB');
+  });
+});
+
+describe('SharedWorkerDataServicesHub — snapshot replay memoization', () => {
+  const binChunks = (port: CapturedPort) =>
+    port.messages.filter((m) => m.kind === 'delta-bin') as Array<Event & { kind: 'delta-bin' }>;
+
+  /** Drive a provider to ready with `n` cached rows. */
+  function readyHub(n: number) {
+    const hub = new SharedWorkerDataServicesHub();
+    const primer = makePort();
+    hub.handleRequest(primer, { kind: 'attach', subId: 'primer', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ rows: Array.from({ length: n }, (_, i) => ({ id: `r${i}`, x: i })), replace: true });
+    ctrl.emit({ status: 'ready' });
+    return { hub, ctrl };
+  }
+
+  it('replays the cache as pre-encoded delta-bin chunks of ≤500 rows, first chunk replace=true', () => {
+    const { hub } = readyHub(1200);
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 'late', providerId: 'p1', mode: 'data' });
+
+    const chunks = binChunks(port);
+    expect(chunks).toHaveLength(3); // 500 + 500 + 200
+    expect(chunks.map((c) => Boolean(c.replace))).toEqual([true, false, false]);
+    const rows = chunks.flatMap((c) => rowsOf(c)) as Array<{ id: string }>;
+    expect(rows).toHaveLength(1200);
+    expect(rows[0]).toEqual({ id: 'r0', x: 0 });
+    expect(rows[1199]).toEqual({ id: 'r1199', x: 1199 });
+    // Replay ends with the current status.
+    expect(port.messages[port.messages.length - 1]).toMatchObject({ kind: 'status', status: 'ready' });
+  });
+
+  it('concurrent late joiners reuse the SAME encoded buffers — one serialization per cache generation', () => {
+    const { hub } = readyHub(700);
+    const portB = makePort();
+    const portC = makePort();
+    hub.handleRequest(portB, { kind: 'attach', subId: 'sB', providerId: 'p1', mode: 'data' });
+    hub.handleRequest(portC, { kind: 'attach', subId: 'sC', providerId: 'p1', mode: 'data' });
+
+    const bufsB = binChunks(portB).map((c) => c.buf);
+    const bufsC = binChunks(portC).map((c) => c.buf);
+    expect(bufsB).toHaveLength(2);
+    expect(bufsC).toHaveLength(2);
+    // Identity, not equality: the hub must not re-serialize per attach.
+    expect(bufsC[0]).toBe(bufsB[0]);
+    expect(bufsC[1]).toBe(bufsB[1]);
+  });
+
+  it('any cache mutation invalidates the memoized replay snapshot', () => {
+    const { hub, ctrl } = readyHub(10);
+    const portB = makePort();
+    hub.handleRequest(portB, { kind: 'attach', subId: 'sB', providerId: 'p1', mode: 'data' });
+    const bufB = binChunks(portB)[0].buf;
+
+    ctrl.emit({ rows: [{ id: 'r0', x: 999 }] }); // live tick → invalidate
+
+    const portC = makePort();
+    hub.handleRequest(portC, { kind: 'attach', subId: 'sC', providerId: 'p1', mode: 'data' });
+    const chunkC = binChunks(portC)[0];
+    expect(chunkC.buf).not.toBe(bufB);
+    const rowsC = rowsOf(chunkC) as Array<{ id: string; x: number }>;
+    expect(rowsC.find((r) => r.id === 'r0')?.x).toBe(999);
+  });
+
+  it('a clean live batch (keyed, no intra-batch duplicates) is broadcast by reference — no copy', () => {
+    const { hub, ctrl } = readyHub(2);
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data' });
+    port.messages.length = 0;
+
+    const batch = [{ id: 'r0', x: 7 }, { id: 'r1', x: 8 }];
+    ctrl.emit({ rows: batch });
+
+    const delta = port.messages.find((m) => m.kind === 'delta') as Event & { rows: readonly unknown[] };
+    expect(delta.rows).toBe(batch);
   });
 });
 
@@ -665,11 +761,12 @@ interface AppDataPort {
   postMessage(m: unknown): void;
 }
 
+// Shallow-copy on capture — see makePort note (hub reuses fan-out events).
 function makeAppDataPort(): AppDataPort {
   const messages: unknown[] = [];
   return {
     messages,
-    postMessage(m) { messages.push(m); },
+    postMessage(m) { messages.push({ ...(m as object) }); },
   };
 }
 
@@ -969,7 +1066,7 @@ function makeAnyPort(): PortLike & { messages: unknown[] } {
   const messages: unknown[] = [];
   return {
     messages,
-    postMessage(m: unknown) { messages.push(m); },
+    postMessage(m: unknown) { messages.push({ ...(m as object) }); },
   };
 }
 

@@ -1209,6 +1209,8 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - Restart attach (`attach.extra`): posts `loading` only — skips stale cache replay so reload/restart waits for the fresh upstream snapshot
 - `onSnapshotCommit` — fires on every loading→ready assembly (initial + hub restarts on an existing subId)
 - `LATE_JOIN_CHUNK_SIZE = 500` chunking for popouts
+- Pre-encoded replay (`delta-bin`): cache replay chunks are UTF-8 JSON `Uint8Array`s built **once per cache generation** (lazy, invalidated O(1) on any cache mutation) and the same buffers are posted to every attaching port — N simultaneous window attaches cost one serialization plus N flat byte copies instead of N object-graph structured clones; client decodes back into the normal `onDelta` path
+- Fan-out allocation discipline: `broadcastData` (and AppData delta fan-out) reuse one event object across the listener loop, rewriting `subId` per post (`PortLike` contract: `postMessage` serializes synchronously); a clean live batch (keyed, no intra-batch duplicates) is broadcast **by reference** — the dedup `Map`/`Set` and copied arrays are built only when a batch actually carries drops or duplicate keys
 - Buffering between snapshot-resolve and update registration
 - Lazy provider create on first attach, reuse on subsequent attaches
 - `refresh-provider` RPC — replay hub cache to one subscriber without upstream I/O; `SubscribeHandle.refresh()` / `IDataProvider.refresh()`
@@ -1219,7 +1221,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 - Client→worker requests: `AttachRequest`, `DetachRequest`, `StopRequest`, `HubReadyRequest`, `GetConfigRequest`, `ListConfigsRequest`, `ConfigInvalidateRequest`, `RefreshProviderRequest`, `HubIntrospectRequest`, `AppDataRequest` (attach/detach/set/upsert/remove); `AttachRequest.cfg` optional when `providerId` is in worker catalog
 - Worker→client catalog events: `catalog-ready`, `config-snapshot` (responses for hub-ready/get/list/invalidate/hub-introspect)
-- Worker→client events: deltas (`{ rows, replace? }`), status, `rows-received` (upstream snapshot buffer progress), byte-size, stats, AppData (snapshot/delta/ack)
+- Worker→client events: deltas (`{ rows, replace? }`), `delta-bin` (pre-encoded UTF-8 JSON replay chunk `{ buf, replace? }`), status, `rows-received` (upstream snapshot buffer progress), byte-size, stats, AppData (snapshot/delta/ack)
 
 #### Statistics
 
