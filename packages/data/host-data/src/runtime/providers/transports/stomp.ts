@@ -347,6 +347,14 @@ export function startStomp(
     stopped: false,
     /** Bumped on stop/restart so in-flight connect callbacks are ignored. */
     connectGeneration: 0,
+    /**
+     * True from creation until the initial `start()` settles. While the
+     * initial connect is still pre-dial (`client === null`), a `restart()`
+     * just adopts its overlay into the pending dial instead of tearing
+     * down and dialing again — the Hub's CREATE+RESTART / RESTART+RECONFIG
+     * paths call `restart()` synchronously right after `startStomp()`.
+     */
+    connectPending: true,
     /** True after the first successful STOMP session (subscribe + trigger). */
     hadSuccessfulConnect: false,
     /** When set, the next onConnect restarts the snapshot from scratch. */
@@ -662,7 +670,7 @@ export function startStomp(
   // Kick off async start so listeners attached after `startStomp`
   // returns still see the loading status event (Hub calls us
   // synchronously from attach).
-  void start();
+  void start().finally(() => { state.connectPending = false; });
 
   return {
     stop,
@@ -673,6 +681,13 @@ export function startStomp(
       timing.clickAt = typeof extra?.__refresh === 'number' ? extra.__refresh : Date.now();
       timing.restartAt = Date.now();
       state.overlay = extra;
+      if (state.connectPending && state.client === null) {
+        // The initial start() is still pre-dial (awaiting the stompjs
+        // import). It reads `state.overlay` in onConnect, so the new
+        // overlay rides the in-flight connect — no second dial needed.
+        trace('restart() adopted by in-flight initial connect — overlay applied, single dial');
+        return;
+      }
       state.connectGeneration += 1;
       const client = state.client;
       const sub = state.sub;
@@ -898,15 +913,33 @@ function extractRows(parsed: unknown): unknown[] {
 }
 
 /**
- * If `body` is JSON-shaped and `overlay` is set, merge overlay keys
- * onto the parsed body and re-stringify. Otherwise return body as-is.
- * This is the cheap "pass {asOfDate} through to the historical
- * provider's trigger" path.
+ * Drop `__`-prefixed overlay keys (e.g. the `__refresh` cache-buster
+ * stamped by the Restart button). They exist only to defeat client-side
+ * restart dedup and must never reach the broker. Returns `undefined`
+ * when nothing publishable remains.
+ */
+function publicOverlayKeys(
+  overlay: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!overlay) return undefined;
+  const entries = Object.entries(overlay).filter(([k]) => !k.startsWith('__'));
+  if (entries.length === 0) return undefined;
+  if (entries.length === Object.keys(overlay).length) return overlay;
+  return Object.fromEntries(entries);
+}
+
+/**
+ * If `body` is JSON-shaped and `overlay` has publishable keys, merge
+ * them onto the parsed body and re-stringify. Otherwise return body
+ * as-is. This is the cheap "pass {asOfDate} through to the historical
+ * provider's trigger" path. Internal `__`-prefixed keys never reach
+ * the wire.
  */
 function mergeOverlay(body: string, overlay: Record<string, unknown> | undefined): string {
-  if (!overlay) return body;
+  const wireOverlay = publicOverlayKeys(overlay);
+  if (!wireOverlay) return body;
   const trimmed = body.trim();
-  if (!trimmed) return JSON.stringify(overlay);
+  if (!trimmed) return JSON.stringify(wireOverlay);
   let parsed: unknown;
   try {
     parsed = JSON.parse(trimmed);
@@ -914,7 +947,7 @@ function mergeOverlay(body: string, overlay: Record<string, unknown> | undefined
     return body;
   }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return body;
-  return JSON.stringify({ ...(parsed as Record<string, unknown>), ...overlay });
+  return JSON.stringify({ ...(parsed as Record<string, unknown>), ...wireOverlay });
 }
 
 /** Substitute `overlay.asOfDate` into STOMP destination strings for historical snapshots. */
