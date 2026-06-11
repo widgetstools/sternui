@@ -110,6 +110,10 @@ export {
   type RegistryEntry,
 } from './registryConfigTypes';
 export {
+  cloneRegistryTemplateConfig,
+  type CloneRegistryTemplateConfigOptions,
+} from './registryClone';
+export {
   validateEntry,
   validateSingletonUniqueness,
   type ValidationError,

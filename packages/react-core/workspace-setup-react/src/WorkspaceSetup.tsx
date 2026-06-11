@@ -18,7 +18,7 @@
  * open. See `workspace.ts`'s ACTION_OPEN_WORKSPACE_SETUP launcher.
  */
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { injectEditorStyles } from "@starui/engine";
 import { useRegistryEditor } from "./registry/useRegistryEditor";
 import {
@@ -26,6 +26,7 @@ import {
   readHostEnv,
   setPlatformDefaultScope,
   deriveTemplateConfigId,
+  cloneRegistryTemplateConfig,
   type ConfigScope,
   type RegistryEntry,
   type DockButtonConfig,
@@ -95,6 +96,10 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
 
   const [selection, setSelection] = useState<EditorSelection>({ kind: "none" });
 
+  // Maps draft entry id → source template configId for clones whose
+  // AppConfigRow copy is retried at save if the immediate clone failed.
+  const pendingTemplateClonesRef = useRef(new Map<string, string>());
+
   // For pane ①'s "in dock" badge + filter chips, and for the Inspector's
   // "currently in your dock" footer.
   const inDockEntryIds = useMemo(() => {
@@ -137,6 +142,11 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
   // `id`/`configId` are reset (a temp draft id now; both re-derive from
   // the final pair on save) and the clone is selected so the user can
   // rename it in pane ③ before committing.
+  //
+  // The registry entry is only launch metadata — profiles, grid options,
+  // styling, and theme live on the template AppConfigRow. We deep-clone
+  // that row onto the clone's derived template id immediately so test-
+  // launch and dock use work before the user saves the registry.
   const handleClone = useCallback((entryId: string) => {
     const src = registry.entries.find((e) => e.id === entryId);
     if (!src) return;
@@ -162,6 +172,20 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
 
     registry.dispatch({ type: "ADD_ENTRY", entry: cloned });
     setSelection({ kind: "component", entryId: cloned.id });
+
+    if (bothSet) {
+      const sourceTemplateId =
+        src.configId ||
+        deriveTemplateConfigId(src.componentType, src.componentSubType);
+      pendingTemplateClonesRef.current.set(cloned.id, sourceTemplateId);
+      void cloneRegistryTemplateConfig({
+        sourceTemplateId,
+        targetComponentType: cloned.componentType,
+        targetComponentSubType: cloned.componentSubType,
+        displayText: cloned.displayName,
+        singleton: cloned.singleton,
+      });
+    }
   }, [registry]);
 
   // Delete a registry entry AND prune any dock items that reference it.
@@ -347,9 +371,24 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
       if (renameMap.size > 0) {
         rewriteDockRegistryEntryIds(dock.buttons, dock.dispatch, renameMap);
       }
+
+      // 2b. Deep-clone template AppConfigRows for any pending clones
+      //     (retry if the immediate clone on handleClone failed).
+      for (const e of registry.entries) {
+        const sourceTemplateId = pendingTemplateClonesRef.current.get(e.id);
+        if (!sourceTemplateId || !e.componentType || !e.componentSubType) continue;
+        await cloneRegistryTemplateConfig({
+          sourceTemplateId,
+          targetComponentType: e.componentType,
+          targetComponentSubType: e.componentSubType,
+          displayText: e.displayName,
+          singleton: e.singleton,
+        });
+      }
     }
     if (registry.isDirty) await registry.save();
     if (dock.isDirty) await dock.save();
+    pendingTemplateClonesRef.current.clear();
   }, [registry, dock]);
 
   // Discard — non-destructive: re-load from storage. Replaces the previous

@@ -72,6 +72,10 @@ export {
   type RegistryEditorConfig,
   type RegistryEntry,
 } from './registryConfigTypes';
+export {
+  cloneRegistryTemplateConfig,
+  type CloneRegistryTemplateConfigOptions,
+} from './registryClone';
 
 // ─── Registry v2 validators, migrator, host env reader ──────────────
 export {

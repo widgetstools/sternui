@@ -28,6 +28,7 @@ import type { DataProviderConfig, ProviderConfig, ProviderType } from '@starui/s
 import { useDataServices, useDataProvidersList } from '@starui/host-data-react/runtime';
 import { cloneProviderConfig } from './cloneProviderConfig.js';
 import { parseProviderConfigImport, type PortableProviderConfig } from './providerConfigIo.js';
+import { buildProviderSidebarConfigs, isDraftListId, providerMatchesSearch, toDraftListId } from './providerSidebarList.js';
 import { EditorForm } from './EditorForm.js';
 
 // ─── Provider-type defaults — keep MINIMAL; everything else is
@@ -84,14 +85,19 @@ export function DataProviderEditor({ userId, initialProviderId = null, onClose }
   }, [initialProviderId, selectedId, list.configs]);
 
   const filtered = useMemo(() => {
-    const s = search.trim().toLowerCase();
-    if (!s) return list.configs;
-    return list.configs.filter((c) =>
-      c.name.toLowerCase().includes(s) ||
-      c.providerType.toLowerCase().includes(s) ||
-      (c.description ?? '').toLowerCase().includes(s),
-    );
+    if (!search.trim()) return list.configs;
+    return list.configs.filter((c) => providerMatchesSearch(c, search));
   }, [list.configs, search]);
+
+  // Unsaved create/clone drafts live only in `creating` until the form
+  // saves — but the sidebar must show them immediately so clone feels
+  // like a new list row (same as Workspace Setup component clone).
+  const sidebarConfigs = useMemo(
+    () => buildProviderSidebarConfigs(filtered, creating, draftSeq, search),
+    [creating, draftSeq, filtered, search],
+  );
+
+  const activeListId = creating ? toDraftListId(draftSeq) : selectedId;
 
   const startCreate = (type: ProviderType) => {
     const fresh: DataProviderConfig = {
@@ -178,13 +184,17 @@ export function DataProviderEditor({ userId, initialProviderId = null, onClose }
   return (
     <div className="flex h-full min-h-0 overflow-hidden bg-background">
       <Sidebar
-        configs={filtered}
+        configs={sidebarConfigs}
         loading={list.loading}
         error={list.error}
         search={search}
         onSearchChange={setSearch}
-        selectedId={selectedId ?? creating?.providerId ?? null}
-        onSelect={(id) => { setCreating(null); setSelectedId(id); }}
+        selectedId={activeListId}
+        onSelect={(id) => {
+          if (isDraftListId(id)) return;
+          setCreating(null);
+          setSelectedId(id);
+        }}
         onNew={startCreate}
         onClone={startClone}
         onImportFile={onImportFile}
@@ -303,6 +313,7 @@ function Sidebar({
               key={c.providerId}
               cfg={c}
               selected={selectedId === c.providerId}
+              isDraft={isDraftListId(c.providerId)}
               onSelect={() => c.providerId && onSelect(c.providerId)}
               onClone={() => onClone(c)}
               onDelete={() => onDeleteRequest(c)}
@@ -315,10 +326,11 @@ function Sidebar({
 }
 
 function SidebarRow({
-  cfg, selected, onSelect, onClone, onDelete,
+  cfg, selected, isDraft, onSelect, onClone, onDelete,
 }: {
   cfg: DataProviderConfig;
   selected: boolean;
+  isDraft?: boolean;
   onSelect(): void;
   onClone(): void;
   onDelete(): void;
@@ -342,6 +354,14 @@ function SidebarRow({
         <div className="font-medium truncate">{cfg.name}</div>
         <div className={`text-[10px] flex items-center gap-1.5 ${selected ? 'text-accent-foreground/80' : 'text-muted-foreground'}`}>
           <span>{meta.label}</span>
+          {isDraft && (
+            <Badge
+              variant="outline"
+              className={`h-3.5 px-1 text-[9px] ${selected ? 'border-accent-foreground/40 text-accent-foreground' : ''}`}
+            >
+              Unsaved
+            </Badge>
+          )}
           {cfg.public && (
             <Badge
               variant="outline"
@@ -352,6 +372,7 @@ function SidebarRow({
           )}
         </div>
       </div>
+      {!isDraft && (
       <Button
         size="icon"
         variant="ghost"
@@ -365,6 +386,8 @@ function SidebarRow({
       >
         <Copy className="h-3 w-3" />
       </Button>
+      )}
+      {!isDraft && (
       <Button
         size="icon"
         variant="ghost"
@@ -376,6 +399,7 @@ function SidebarRow({
       >
         <Trash2 className="h-3 w-3" />
       </Button>
+      )}
     </li>
   );
 }
