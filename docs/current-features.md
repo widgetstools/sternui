@@ -606,7 +606,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `ConnectionTab` — connection string, auth, transport selection; "Test Connection" button (STOMP/REST) drives `useProviderProbe.test()`. STOMP runs a pure socket connect (`connectStomp` — handshake only, no subscribe/trigger/rows) and shows "Connected"; row-fetching transports (REST/mock) show "Connected — received N rows"
 - `FieldsTab` — discover provider fields, map to columns, infer types
 - `ColumnsTab` — derive AG Grid column defs from schema; collapsible Key Column + Add Custom Column panels and a scrollable body keep the columns table at a usable minimum height in short containers. A "Clear all columns" button (confirm dialog) wipes the column list and the now-stale key column in one action. Per-row ƒx button opens a Monaco `ExpressionEditor` (from `@starui/grid/customizer`) to author a column `valueGetter` DSL expression (column refs `[field]`, nested optional-chaining paths `[a.b.c]`, live-validated); persists onto `ColumnDefinition.valueGetter`, applied at runtime by `buildColumnDefs`
-- `DiagnosticsTab` — probe, request/response logging, debug
+- `DiagnosticsTab` — probe, request/response logging, debug; Snapshot card shows "Cache size (serialized)" (`stats.cacheBytes`, the worker-cache footprint that `projectFields` shrinks) alongside fetch time and row count; Throughput card's byte stat is labelled "Bytes received" (upstream wire traffic, unaffected by projection)
 
 #### Transport-specific editors
 
@@ -614,7 +614,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `StompFields` — broker URL, login, subscribe topics, parsing
 - `MockFields` — seed data, latency, mutation playback
 - `AppDataFields` — read from `@starui/host-data` AppData
-- `BehaviourFields` — per-transport behaviour knobs; STOMP: reconnect initial delay, realtime throttle (on/off switch + ms) + conflation (on/off switch + conflate-by-key), snapshot chunk size (all written to `cfg`, also settable in code)
+- `BehaviourFields` — per-transport behaviour knobs; STOMP: reconnect initial delay, realtime throttle (on/off switch + ms) + conflation (on/off switch + conflate-by-key), snapshot chunk size, "Keep only column fields" projection switch (`projectFields`) (all written to `cfg`, also settable in code)
 
 #### Hosted integration (legacy)
 
@@ -1190,6 +1190,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
   - Live phase → keyed deltas via `applyTransactionAsync`
   - Snapshot flush chunking (`cfg.snapshotChunkSize`, default `SNAPSHOT_CHUNK_SIZE = 500`) to stay under 50 ms long-task budget — configurable in code or the provider editor
   - Live conflation + trailing-edge throttle (`cfg.throttleMs` window; `cfg.conflateByKey` upsert key, defaults to `keyColumn`) via `bufferedDispatch()` — coalesces same-key ticks in the worker before fanout; `throttleMs` unset = immediate passthrough; probe path bypasses it. Two explicit master switches (default ON): `cfg.throttleEnabled: false` fans out every delta immediately while keeping the `throttleMs` value; `cfg.conflateEnabled: false` disables conflation even when `keyColumn` could supply a key (the off-switch the `?? keyColumn` fallback otherwise prevented)
+  - Field projection (`cfg.projectFields`, default off): each incoming row is pruned at frame-parse time to the `columnDefinitions[].field` paths + `keyColumn` (`createFieldProjector` / `collectProjectionPaths` in `fieldProjection.ts`) — wide upstream objects (e.g. 2000 fields when the blotter shows 200) never reach the snapshot buffer, hub cache, or any window; nested `a.b.c` paths copy just the needed subtree, prefix paths win over longer ones; changing visible fields requires a provider Restart; `probeStomp` (Infer Fields) always sees raw rows
   - Restart overlay (`extra`) for historical `asOfDate`; internal `__`-prefixed overlay keys (e.g. the Restart button's `__refresh` cache-buster) are stripped before the trigger body reaches the broker
   - `restart()` arriving while the initial connect is still pre-dial (the Hub's CREATE+RESTART / RESTART+RECONFIG paths call it synchronously after `startStomp()`) adopts its overlay into the in-flight start — one dial, no torn-down-then-redialed duplicate session
   - Lifecycle timing trace (`[v2/stomp][trace]` / `[v2/hub][trace]`, SharedWorker console): restart → teardown → dial → handshake → trigger publish → end-token, each line stamped with elapsed-since-Restart-click (`extra.__refresh` epoch) plus the effective stompjs `reconnectDelay` on socket error/disconnect — pinpoints whether a slow restart is teardown, reconnect backoff, or server snapshot time
@@ -1212,7 +1213,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `onSnapshotCommit` — fires on every loading→ready assembly (initial + hub restarts on an existing subId)
 - `LATE_JOIN_CHUNK_SIZE = 500` chunking for popouts
 - Pre-encoded replay (`delta-bin`): cache replay chunks are UTF-8 JSON `Uint8Array`s built **once per cache generation** (lazy, invalidated O(1) on any cache mutation) and the same buffers are posted to every attaching port — N simultaneous window attaches cost one serialization plus N flat byte copies instead of N object-graph structured clones; client decodes back into the normal `onDelta` path
-- Binary snapshot broadcast: **pre-ready** row broadcasts (initial load AND restarts — `snapshotReady` clears on every `loading`) also fan out as `delta-bin`, sliced to ≤`LATE_JOIN_CHUNK_SIZE` rows and encoded once for all attached ports — a 10-window restart costs one serialization per chunk instead of 10 structured clones; the broadcast encoding **seeds the replay snapshot** (replace chunk → chunk 0; clean key-appending chunks extend it) so the next late joiner replays with zero re-encoding. Post-ready live ticks stay plain object `delta`s (straight into `applyTransactionAsync`)
+- Binary snapshot broadcast: **pre-ready** row broadcasts (initial load AND restarts — `snapshotReady` clears on every `loading`) also fan out as `delta-bin`, sliced to ≤`LATE_JOIN_CHUNK_SIZE` rows and encoded once for all attached ports — a 10-window restart costs one serialization per chunk instead of 10 structured clones; the broadcast encoding **seeds the replay snapshot** (replace chunk → chunk 0; clean key-appending chunks extend it) so the next late joiner replays with zero re-encoding. **Post-ready live ticks ≥ `LIVE_BIN_MIN_ROWS` (64) rows also fan out as `delta-bin`** — large sweep frames (all-distinct keys, immune to conflation) otherwise cost one object-graph structured clone per window per frame, saturating the worker at 3+ windows and stalling late-joiner replays behind the backlog; smaller conflated ticks stay plain object `delta`s (straight into `applyTransactionAsync`)
 - Fan-out allocation discipline: `broadcastData` (and AppData delta fan-out) reuse one event object across the listener loop, rewriting `subId` per post (`PortLike` contract: `postMessage` serializes synchronously); a clean live batch (keyed, no intra-batch duplicates) is broadcast **by reference** — the dedup `Map`/`Set` and copied arrays are built only when a batch actually carries drops or duplicate keys
 - Buffering between snapshot-resolve and update registration
 - Lazy provider create on first attach, reuse on subsequent attaches
@@ -1225,11 +1226,11 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 - Client→worker requests: `AttachRequest`, `DetachRequest`, `StopRequest`, `HubReadyRequest`, `GetConfigRequest`, `ListConfigsRequest`, `ConfigInvalidateRequest`, `RefreshProviderRequest`, `HubIntrospectRequest`, `AppDataRequest` (attach/detach/set/upsert/remove); `AttachRequest.cfg` optional when `providerId` is in worker catalog
 - Worker→client catalog events: `catalog-ready`, `config-snapshot` (responses for hub-ready/get/list/invalidate/hub-introspect)
-- Worker→client events: deltas (`{ rows, replace? }`), `delta-bin` (pre-encoded UTF-8 JSON chunk `{ buf, replace? }` — used for cache replay AND pre-ready snapshot fan-out), status, `rows-received` (upstream snapshot buffer progress), byte-size, stats, AppData (snapshot/delta/ack)
+- Worker→client events: deltas (`{ rows, replace? }`), `delta-bin` (pre-encoded UTF-8 JSON chunk `{ buf, replace? }` — used for cache replay, pre-ready snapshot fan-out, AND post-ready live ticks ≥ 64 rows), status, `rows-received` (upstream snapshot buffer progress), byte-size, stats, AppData (snapshot/delta/ack)
 
 #### Statistics
 
-- `ProviderStats` — `rowCount, byteCount, msgCount, msgPerSec, publishPerSec, publishPerMin, snapshotFetchMs, subscriberCount, startedAt, lastMessageAt, errorCount, lastError`
+- `ProviderStats` — `rowCount, byteCount, cacheBytes, msgCount, msgPerSec, publishPerSec, publishPerMin, snapshotFetchMs, subscriberCount, startedAt, lastMessageAt, errorCount, lastError`; `cacheBytes` is the serialized worker-cache footprint (exact from the memoized replay-snapshot chunks when present, else one-sampled-row × rowCount estimate) — the number `projectFields` shrinks, surfaced in the Diagnostics tab as "Cache size (serialized)"
 - 1 Hz sampler with 5 s upstream + 60 s publish windows
 - Self-disabling when no stats listeners
 - Per-provider cache (`Map<rowKey, row>` keyed by `cfg.keyColumn`)

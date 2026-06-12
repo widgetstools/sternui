@@ -109,4 +109,7 @@ export async function startServer(config: AppConfig): Promise<void> {
   console.log(
     `Live updates/tick: default ${config.liveUpdatesPerTick} (env UPDATES_PER_TICK; optional STOMP header updates-per-tick on SEND) — aggregate rows/sec ≈ rate × this`,
   );
+  console.log(
+    `Row profile: ${config.rowProfile} (env ROW_PROFILE=wide|slim); live sweep cap ${config.maxSweepRowsPerSec} rows/s (env SWEEP_ROWS_PER_SEC)`,
+  );
 }

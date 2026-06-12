@@ -1358,6 +1358,50 @@ describe('SharedWorkerDataServicesHub — config catalog', () => {
   });
 });
 
+describe('SharedWorkerDataServicesHub — live binary fan-out', () => {
+  it('broadcasts large post-ready live ticks as delta-bin to every listener', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const portA = makePort();
+    const portB = makePort();
+    hub.handleRequest(portA, { kind: 'attach', subId: 'sA', providerId: 'p1', mode: 'data', cfg: cfg() });
+    hub.handleRequest(portB, { kind: 'attach', subId: 'sB', providerId: 'p1', mode: 'data' });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ rows: [{ id: 'seed', x: 0 }], replace: true });
+    ctrl.emit({ status: 'ready' });
+    portA.messages.length = 0;
+    portB.messages.length = 0;
+
+    // Sweep-style frame: many distinct keys, well over LIVE_BIN_MIN_ROWS.
+    const rows = Array.from({ length: 100 }, (_, i) => ({ id: `r${i}`, x: i }));
+    ctrl.emit({ rows });
+
+    for (const port of [portA, portB]) {
+      const bins = port.messages.filter((m) => m.kind === 'delta-bin');
+      expect(bins).toHaveLength(1);
+      expect(rowsOf(bins[0]!)).toHaveLength(100);
+      // Incremental tick — must not wipe the grid.
+      expect(Boolean((bins[0] as { replace?: boolean }).replace)).toBe(false);
+    }
+  });
+
+  it('keeps small post-ready conflated ticks as plain object deltas', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ rows: [{ id: 'r1', x: 0 }], replace: true });
+    ctrl.emit({ status: 'ready' });
+    port.messages.length = 0;
+
+    ctrl.emit({ rows: [{ id: 'r1', x: 1 }, { id: 'r2', x: 2 }] });
+
+    const deltas = port.messages.filter(isAnyDelta);
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0]!.kind).toBe('delta');
+    expect(rowsOf(deltas[0]!)).toHaveLength(2);
+  });
+});
+
 describe('SharedWorkerDataServicesHub — keyColumn mismatch diagnostics', () => {
   it('drops rows whose keyColumn does not resolve and warns once per cycle', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});

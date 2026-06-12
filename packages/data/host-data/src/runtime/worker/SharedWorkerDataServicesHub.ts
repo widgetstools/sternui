@@ -92,6 +92,21 @@ const DEBUG = false;
  */
 const LATE_JOIN_CHUNK_SIZE = 500;
 
+/**
+ * Post-ready live delta batches at or above this row count broadcast
+ * as pre-encoded `delta-bin` instead of plain object deltas. A plain
+ * delta costs one object-graph structured clone PER LISTENER per
+ * frame; a high-rate sweep feed (e.g. stomp-view-server's full-set
+ * coverage stream) ships thousands of distinct-key rows per frame
+ * that conflation cannot shrink, and with several windows on one
+ * provider the per-listener clones saturated the worker thread —
+ * stalling late-joiner snapshot replays behind the backlog. Encoding
+ * once and byte-copying per port makes fan-out cost ~flat in listener
+ * count. Small conflated ticks stay as plain deltas (the encode
+ * round-trip doesn't repay itself below this size).
+ */
+const LIVE_BIN_MIN_ROWS = 64;
+
 /** Reset every diagnostics counter when a provider (re)starts. */
 function resetProviderStats(slot: ProviderSlot, now = Date.now()): void {
   slot.byteCount = 0;
@@ -1091,10 +1106,13 @@ export class SharedWorkerDataServicesHub {
       // flat byte copy per port, instead of N object-graph structured
       // clones. With many windows on one provider, the restart snapshot
       // fan-out was the worker's biggest remaining allocation burst.
-      // Live ticks (post-ready) stay as plain object deltas — small
-      // conflated batches don't repay the encode, and consumers feed
-      // them straight to `applyTransactionAsync`.
-      if (!slot.snapshotReady && broadcastRows.length > 0) {
+      // Post-ready live ticks ALSO go binary once they reach
+      // LIVE_BIN_MIN_ROWS (see its doc): big sweep frames × many
+      // windows otherwise saturate the worker with per-listener
+      // clones. Small conflated ticks stay as plain object deltas.
+      const binary =
+        !slot.snapshotReady || broadcastRows.length >= LIVE_BIN_MIN_ROWS;
+      if (binary && broadcastRows.length > 0) {
         // Encode in ≤ LATE_JOIN_CHUNK_SIZE slices so each port message
         // decodes under the receiver's long-task budget (STOMP already
         // flushes 500-row chunks and hits the single-slice path; REST /
@@ -1331,7 +1349,9 @@ export class SharedWorkerDataServicesHub {
   private broadcastData(providerId: string, slot: ProviderSlot, eventTemplate: Event): void {
     const listeners = this.dataListeners.get(providerId);
     if (!listeners) return;
-    const countPublish = slot.snapshotReady && eventTemplate.kind === 'delta';
+    const countPublish =
+      slot.snapshotReady
+      && (eventTemplate.kind === 'delta' || eventTemplate.kind === 'delta-bin');
     if (DEBUG) {
       // eslint-disable-next-line no-console
       if (eventTemplate.kind === 'delta') {
@@ -1414,6 +1434,28 @@ export class SharedWorkerDataServicesHub {
     }
   }
 
+  /**
+   * Serialized cache footprint in bytes. Exact when the memoized
+   * replay snapshot exists (sum of its pre-encoded chunk lengths);
+   * otherwise estimated from ONE sampled row × rowCount — live ticks
+   * invalidate the memo constantly and the 1 Hz stats sampler must
+   * not force a full cache re-encode.
+   */
+  private cacheFootprintBytes(slot: ProviderSlot): number {
+    if (slot.replaySnapshot) {
+      let total = 0;
+      for (const chunk of slot.replaySnapshot) total += chunk.byteLength;
+      return total;
+    }
+    if (slot.cache.size === 0) return 0;
+    const sample = slot.cache.values().next().value;
+    try {
+      return JSON.stringify(sample).length * slot.cache.size;
+    } catch {
+      return 0;
+    }
+  }
+
   private snapshotStats(providerId: string, slot: ProviderSlot): ProviderStats {
     const subscriberCount = this.dataListeners.get(providerId)?.size ?? 0;
     const sumBuckets = slot.msgsByBucket.reduce((a, b) => a + b, 0);
@@ -1426,6 +1468,7 @@ export class SharedWorkerDataServicesHub {
     return {
       rowCount: slot.cache.size,
       byteCount: slot.byteCount,
+      cacheBytes: this.cacheFootprintBytes(slot),
       msgCount: slot.msgCount,
       msgPerSec,
       snapshotFetchMs: slot.snapshotFetchMs,
@@ -1446,6 +1489,7 @@ function zeroedStats(): ProviderStats {
   return {
     rowCount: 0,
     byteCount: 0,
+    cacheBytes: 0,
     msgCount: 0,
     msgPerSec: 0,
     snapshotFetchMs: null,

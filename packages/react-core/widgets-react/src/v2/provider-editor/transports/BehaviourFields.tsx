@@ -172,6 +172,29 @@ function StompBehaviour({ cfg, onChange }: { cfg: StompProviderConfig; onChange(
           </p>
         </div>
       </div>
+
+      {/* Row fields */}
+      <div className="space-y-3.5">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Row fields</h3>
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="projectFields"
+              checked={cfg.projectFields === true}
+              onCheckedChange={(v) => onChange({ projectFields: v ? true : undefined })}
+            />
+            <Label htmlFor="projectFields" className="text-xs font-medium text-muted-foreground">
+              Keep only column fields
+            </Label>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Prune each incoming row to the column definition fields (plus the key column)
+            before it enters the cache. Big win when the feed sends many more fields than
+            the blotter shows. Adding or removing columns requires a provider Restart.
+            Infer Fields always sees the full row.
+          </p>
+        </div>
+      </div>
     </section>
   );
 }

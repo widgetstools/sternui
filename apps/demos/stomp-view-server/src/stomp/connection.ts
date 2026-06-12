@@ -3,10 +3,15 @@ import type { AppConfig } from "../config.js";
 import { clampSnapshotRows, clampUpdatesPerTick } from "../config.js";
 import type { PositionRecord, TradeRecord } from "../data/fiRecords.js";
 import { buildSnapshot, stampPositionsAsOfDate } from "../data/fiRecords.js";
-import { mutatePosition, mutateTrade } from "../data/mutate.js";
+import {
+  mutatePosition,
+  mutateTrade,
+  touchPosition,
+  touchTrade,
+} from "../data/mutate.js";
 import * as protocol from "../protocol/contract.js";
 import { hashString } from "../util/hash.js";
-import { pickDistinctIndices } from "../util/sample.js";
+import { createLiveBatcher } from "./liveBatcher.js";
 
 export interface Subscription {
   destination: string;
@@ -326,7 +331,12 @@ export class StompConnection {
     seedBase: number,
     updatesPerTick: number,
   ): void {
-    const data = buildSnapshot(dataType, rowCount, seedBase);
+    const data = buildSnapshot(
+      dataType,
+      rowCount,
+      seedBase,
+      this.config.rowProfile,
+    );
     let index = 0;
     const snapshotBatchInterval = protocol.SNAPSHOT_BATCH_INTERVAL_MS;
     const delivered: (PositionRecord | TradeRecord)[] = [];
@@ -391,7 +401,12 @@ export class StompConnection {
   ): void {
     const seedBase = hashString(`${clientId}-positions-${asOfDateDisplay}`);
     const data = stampPositionsAsOfDate(
-      buildSnapshot("positions", rowCount, seedBase) as PositionRecord[],
+      buildSnapshot(
+        "positions",
+        rowCount,
+        seedBase,
+        this.config.rowProfile,
+      ) as PositionRecord[],
       asOfDateIso,
     );
     let index = 0;
@@ -452,24 +467,40 @@ export class StompConnection {
   }
 
   /**
-   * Mutate up to `updatesPerTick` distinct rows drawn from `records`, returning
-   * a fresh batch. Shared by the legacy and client-specific live loops so both
-   * emit one frame carrying N rows instead of one row per frame.
+   * Round-robin live batcher over the delivered record set (full-set
+   * coverage targeted once per second, capped by SWEEP_ROWS_PER_SEC —
+   * see `liveBatcher.ts`), shared by the legacy and client-specific
+   * live loops.
    */
-  private buildLiveBatch(
+  private liveBatcherFor(
     dataType: "positions" | "trades",
     records: (PositionRecord | TradeRecord)[],
     updatesPerTick: number,
-  ): (PositionRecord | TradeRecord)[] {
-    if (records.length === 0) return [];
-    const n = Math.min(updatesPerTick, records.length);
-    const indices = pickDistinctIndices(n, records.length);
-    return indices.map((i) => {
-      const base = records[i]!;
-      return dataType === "positions"
-        ? mutatePosition(base as PositionRecord)
-        : mutateTrade(base as TradeRecord);
+  ): () => (PositionRecord | TradeRecord)[] {
+    const isPositions = dataType === "positions";
+    return createLiveBatcher<PositionRecord | TradeRecord>({
+      records,
+      mutate: (base) =>
+        isPositions
+          ? mutatePosition(base as PositionRecord)
+          : mutateTrade(base as TradeRecord),
+      touch: (row) =>
+        isPositions
+          ? touchPosition(row as PositionRecord)
+          : touchTrade(row as TradeRecord),
+      updatesPerTick,
+      maxSweepRowsPerSec: this.config.maxSweepRowsPerSec,
     });
+  }
+
+  /**
+   * Skip a live tick while the socket's send buffer is backed up — a
+   * slow consumer must throttle the stream, not balloon server memory.
+   * The batcher's elapsed-time coverage floor catches the sweep up on
+   * the next healthy tick.
+   */
+  private socketBackedUp(): boolean {
+    return this.ws.bufferedAmount > 16 * 1024 * 1024;
   }
 
   private startLiveUpdates(
@@ -481,6 +512,11 @@ export class StompConnection {
   ): void {
     const intervalMs = 1000 / rate;
     let updateNumber = 1;
+    const nextBatch = this.liveBatcherFor(
+      dataType,
+      deliveredRecords,
+      updatesPerTick,
+    );
 
     const updateInterval = setInterval(() => {
       try {
@@ -488,11 +524,8 @@ export class StompConnection {
           clearInterval(updateInterval);
           return;
         }
-        const batch = this.buildLiveBatch(
-          dataType,
-          deliveredRecords,
-          updatesPerTick,
-        );
+        if (this.socketBackedUp()) return;
+        const batch = nextBatch();
         if (batch.length === 0) return;
 
         this.send(
@@ -536,7 +569,12 @@ export class StompConnection {
     updatesPerTick: number,
   ): void {
     const seedBase = hashString(`${clientId}-${dataType}`);
-    const data = buildSnapshot(dataType, rowCount, seedBase);
+    const data = buildSnapshot(
+      dataType,
+      rowCount,
+      seedBase,
+      this.config.rowProfile,
+    );
     let index = 0;
     let batchNumber = 1;
     const snapshotBatchInterval = protocol.SNAPSHOT_BATCH_INTERVAL_MS;
@@ -615,6 +653,11 @@ export class StompConnection {
     let updateNumber = 1;
     const streamKey = `${dataType}-${clientId}`;
     const intervalMs = 1000 / rate;
+    const nextBatch = this.liveBatcherFor(
+      dataType,
+      deliveredRecords,
+      updatesPerTick,
+    );
 
     const updateInterval = setInterval(() => {
       try {
@@ -622,11 +665,8 @@ export class StompConnection {
           clearInterval(updateInterval);
           return;
         }
-        const batch = this.buildLiveBatch(
-          dataType,
-          deliveredRecords,
-          updatesPerTick,
-        );
+        if (this.socketBackedUp()) return;
+        const batch = nextBatch();
         if (batch.length === 0) return;
 
         this.send(
