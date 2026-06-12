@@ -3,11 +3,17 @@
  * record set, driving the live-update loops.
  *
  * Goal: every row updates at least once per second. Each tick emits the
- * next N rows in cursor order (wrapping), where N is the larger of the
+ * next N rows in sweep order (wrapping), where N is the larger of the
  * configured `updatesPerTick` and the coverage floor — the share of the
  * row set owed for the time elapsed since the last tick. The floor is
  * computed from real elapsed time, so setInterval clamping (Node's
  * ~1 ms minimum) and event-loop delays can't starve coverage.
+ *
+ * Sweep order alternates parity: all even-indexed rows first, then all
+ * odd-indexed rows, repeating. A contiguous 0..N sweep reads as a slow
+ * scan crawling down the blotter; parity waves make every other visible
+ * row tick in each wave, so the whole grid looks alive at any scroll
+ * position.
  *
  * Cost control (what makes the guarantee survivable): the first
  * `updatesPerTick` rows of each batch get the full-fidelity `mutate`
@@ -44,8 +50,20 @@ export function createLiveBatcher<T>(
   } = options;
   let cursor = 0;
   let lastTick = now();
+  // Visit order: even indices, then odd indices (parity waves). Built
+  // lazily so callers may create the batcher before the delivered set
+  // is final; rebuilt if the record count ever changes.
+  let order: number[] = [];
+  const ensureOrder = (): void => {
+    if (order.length === records.length) return;
+    order = [];
+    for (let i = 0; i < records.length; i += 2) order.push(i);
+    for (let i = 1; i < records.length; i += 2) order.push(i);
+    cursor = 0;
+  };
   return () => {
     if (records.length === 0) return [];
+    ensureOrder();
     const t = now();
     const elapsedMs = Math.min(1000, Math.max(1, t - lastTick));
     lastTick = t;
@@ -61,10 +79,10 @@ export function createLiveBatcher<T>(
     const fullCount = Math.min(updatesPerTick, n);
     const batch: T[] = [];
     for (let i = 0; i < n; i++) {
-      const row = records[(cursor + i) % records.length]!;
+      const row = records[order[(cursor + i) % order.length]!]!;
       batch.push(i < fullCount ? mutate(row) : touch(row));
     }
-    cursor = (cursor + n) % records.length;
+    cursor = (cursor + n) % order.length;
     return batch;
   };
 }

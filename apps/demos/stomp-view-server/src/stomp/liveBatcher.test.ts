@@ -42,14 +42,24 @@ describe('createLiveBatcher', () => {
     expect(next().length).toBe(25);
   });
 
-  it('round-robins in order with wrap-around (no row starved)', () => {
+  it('sweeps in parity waves — evens first, then odds, wrapping (no row starved)', () => {
     const next = batcher([0, 1, 2, 3, 4], {
       updatesPerTick: 2,
       now: clock(0, 1),
     });
-    expect(next()).toEqual([0, 1]);
-    expect(next()).toEqual([2, 3]);
-    expect(next()).toEqual([4, 0]);
+    // Visit order: 0,2,4 (even wave) then 1,3 (odd wave), repeating.
+    expect(next()).toEqual([0, 2]);
+    expect(next()).toEqual([4, 1]);
+    expect(next()).toEqual([3, 0]);
+  });
+
+  it('alternates whole even and odd waves when a tick covers half the set', () => {
+    const records = Array.from({ length: 10 }, (_, i) => i);
+    // 500 ms ticks → floor = 5 rows = exactly one parity class per tick.
+    const next = batcher(records, { now: clock(0, 500) });
+    expect(next()).toEqual([0, 2, 4, 6, 8]);
+    expect(next()).toEqual([1, 3, 5, 7, 9]);
+    expect(next()).toEqual([0, 2, 4, 6, 8]);
   });
 
   it('emits the entire set when a tick is delayed a second or more', () => {
@@ -92,8 +102,9 @@ describe('createLiveBatcher', () => {
       now: clock(0, 1000), // floor = whole set per tick
     });
     expect(next().length).toBe(10);
-    expect(mutated).toEqual([0, 1]);
-    expect(touched).toEqual([2, 3, 4, 5, 6, 7, 8, 9]);
+    // Parity visit order: 0,2,4,6,8,1,3,5,7,9 — first two get full mutate.
+    expect(mutated).toEqual([0, 2]);
+    expect(touched).toEqual([4, 6, 8, 1, 3, 5, 7, 9]);
   });
 
   it('never exceeds the record count per tick', () => {

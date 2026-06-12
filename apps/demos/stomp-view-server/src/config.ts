@@ -15,11 +15,12 @@ export interface AppConfig {
   /**
    * Cap on sweep-driven coverage rows/sec per live stream (env
    * `SWEEP_ROWS_PER_SEC`). The live loop sweeps the whole delivered set
-   * round-robin, targeting full coverage every second; above this cap
-   * it degrades to full coverage every rowCount/cap seconds instead of
-   * saturating the event loop. ~8.5 KB synthetic rows serialize at
-   * roughly 12k rows/s on one Node thread — 5000 leaves headroom for
-   * snapshot serving and multiple clients.
+   * in parity waves (evens, then odds), targeting full coverage every
+   * second; above this cap it degrades to full coverage every
+   * rowCount/cap seconds instead of saturating the event loop. ~8.5 KB
+   * synthetic rows serialize at roughly 12k rows/s on one Node thread —
+   * 10000 is near the ceiling for a single hot stream; drop it back if
+   * running many simultaneous clients.
    */
   maxSweepRowsPerSec: number;
   /** Verbose STOMP / per-tick logging */
@@ -54,7 +55,7 @@ export function loadConfig(): AppConfig {
   );
 
   const rawSweepRows = Number.parseInt(
-    process.env.SWEEP_ROWS_PER_SEC ?? "5000",
+    process.env.SWEEP_ROWS_PER_SEC ?? "10000",
     10,
   );
 
@@ -74,7 +75,7 @@ export function loadConfig(): AppConfig {
     maxSweepRowsPerSec:
       Number.isFinite(rawSweepRows) && rawSweepRows >= 1
         ? Math.min(rawSweepRows, 1_000_000)
-        : 5_000,
+        : 10_000,
     debug: process.env.DEBUG === "1" || process.env.DEBUG === "true",
     logOutbound:
       process.env.LOG_OUTBOUND !== "0" &&
