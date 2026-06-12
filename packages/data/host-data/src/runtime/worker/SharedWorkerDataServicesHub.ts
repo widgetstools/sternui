@@ -114,9 +114,22 @@ function resetProviderStats(slot: ProviderSlot, now = Date.now()): void {
   slot.keyDropWarned = false;
 }
 
+/**
+ * Minimal port surface the hub posts to.
+ *
+ * CONTRACT: `postMessage` must consume (serialize/copy) the message
+ * synchronously before returning — real `MessagePort`s structured-clone
+ * during the call, per spec. The hub relies on this to REUSE one event
+ * object across a fan-out loop (mutating `subId` between posts) instead
+ * of allocating a fresh envelope per listener per tick. Test fakes that
+ * capture messages must shallow-copy on capture.
+ */
 export interface PortLike {
   postMessage(message: unknown): void;
 }
+
+/** Shared encoder for pre-serialized snapshot replay chunks. */
+const SNAPSHOT_ENCODER = new TextEncoder();
 
 /** Sliding-window length for upstream + publish /s averages. */
 const SEC_WINDOW = 5;
@@ -167,6 +180,15 @@ interface ProviderSlot {
    * attach with the same overlay instead of reconnecting upstream again.
    */
   activeRestartExtra?: Record<string, unknown> | null;
+  /**
+   * Lazily-built, pre-encoded snapshot replay chunks (UTF-8 JSON,
+   * ≤ LATE_JOIN_CHUNK_SIZE rows each). Built on the first late-join
+   * attach after a cache change and shared by every subsequent replay
+   * until the next cache mutation nulls it — so N windows attaching in
+   * a burst trigger ONE serialization instead of N object-graph clones.
+   * Updates never build this eagerly; they only invalidate (O(1)).
+   */
+  replaySnapshot: Uint8Array[] | null;
 }
 
 interface DataListener {
@@ -183,6 +205,11 @@ interface AppDataListenerEntry {
   subId: string;
   port: PortLike;
 }
+
+/** Fan-out scratch shape — `subId` is rewritten per listener. */
+type AppDataDeltaEventMutable = Extract<AppDataEvent, { kind: 'appdata-delta' }> & {
+  subId: string;
+};
 
 export interface SharedWorkerDataServicesHubOpts {
   /**
@@ -221,6 +248,17 @@ export interface SharedWorkerDataServicesHubOpts {
  */
 function keyOf(row: unknown, keyColumn: string | readonly string[] | undefined): string | null {
   return composeRowId(row, keyColumn);
+}
+
+/**
+ * Click-to-hub latency annotation for restart-attach trace logs.
+ * `extra.__refresh` carries Date.now() at the user's Restart click,
+ * so the delta is the port + main-thread latency before the hub
+ * even started the restart.
+ */
+function restartClickLatency(extra: Record<string, unknown>): string {
+  const clickAt = typeof extra.__refresh === 'number' ? extra.__refresh : null;
+  return clickAt === null ? '' : `sinceClick=+${Date.now() - clickAt}ms`;
 }
 
 /** Stable compare for restart overlay payloads (e.g. `{ asOfDate }`). */
@@ -268,14 +306,18 @@ export class SharedWorkerDataServicesHub {
 
     // Wire the AppData store to fan deltas to every attached listener.
     // Set up here once; re-attaching listeners doesn't re-subscribe.
+    // One reusable event object per delta — postMessage serializes
+    // synchronously (PortLike contract), so mutating subId between
+    // posts is safe and avoids a per-listener allocation.
     this.appData.subscribe((op, row) => {
+      const event: AppDataDeltaEventMutable = {
+        kind: 'appdata-delta',
+        subId: '',
+        op,
+        row,
+      };
       for (const [, entry] of this.appDataListeners) {
-        const event: AppDataEvent = {
-          kind: 'appdata-delta',
-          subId: entry.subId,
-          op,
-          row,
-        };
+        event.subId = entry.subId;
         try { entry.port.postMessage(event); }
         catch { /* port dead; cleanup happens via onPortClosed */ }
       }
@@ -642,7 +684,8 @@ export class SharedWorkerDataServicesHub {
         } satisfies Event);
         return;
       }
-      this.providers.set(req.providerId, slot);
+      // createProvider registered the slot (pre-start, so synchronous
+      // emissions broadcast).
       this.ensureStatsSampler();
       // First attach can carry `extra` (historical asOfDate). Without this,
       // `ProviderClientAdapter.restart()` on a fresh provider would create
@@ -650,7 +693,7 @@ export class SharedWorkerDataServicesHub {
       // `{{positions.asOfDate}}` template paths.
       if (req.extra) {
         // eslint-disable-next-line no-console
-        if (DEBUG) console.log(`[v2/hub] attach CREATE+RESTART subId=${req.subId} provider=${req.providerId} extra=${JSON.stringify(req.extra)}`);
+        console.log(`[v2/hub][trace] attach CREATE+RESTART provider=${req.providerId} extra=${JSON.stringify(req.extra)} ${restartClickLatency(req.extra)}`);
         void slot.handle.restart(req.extra);
         slot.activeRestartExtra = req.extra;
       }
@@ -666,7 +709,7 @@ export class SharedWorkerDataServicesHub {
       if (req.cfg) {
         this.traceStompAttachCfg('hub.attach RESTART+RECONFIG (running provider)', req.providerId, req.cfg, req.extra);
         // eslint-disable-next-line no-console
-        if (DEBUG) console.log(`[v2/hub] attach RESTART+RECONFIG subId=${req.subId} provider=${req.providerId} extra=${JSON.stringify(req.extra)}`);
+        console.log(`[v2/hub][trace] attach RESTART+RECONFIG provider=${req.providerId} extra=${JSON.stringify(req.extra)} ${restartClickLatency(req.extra)}`);
         slot = this.recreateProvider(req.providerId, req.cfg);
         void slot.handle.restart(req.extra);
         slot.activeRestartExtra = req.extra;
@@ -674,7 +717,7 @@ export class SharedWorkerDataServicesHub {
       } else if (!restartExtrasEqual(slot.activeRestartExtra, req.extra)) {
         this.traceStompAttachCfg('hub.attach RESTART (running provider)', req.providerId, slot.cfg, req.extra);
         // eslint-disable-next-line no-console
-        if (DEBUG) console.log(`[v2/hub] attach RESTART subId=${req.subId} provider=${req.providerId} extra=${JSON.stringify(req.extra)}`);
+        console.log(`[v2/hub][trace] attach RESTART provider=${req.providerId} extra=${JSON.stringify(req.extra)} ${restartClickLatency(req.extra)}`);
         void slot.handle.restart(req.extra);
         slot.activeRestartExtra = req.extra;
         isRestartAttach = true;
@@ -887,15 +930,29 @@ export class SharedWorkerDataServicesHub {
       keyDropCount: 0,
       keyDropWarned: false,
       activeRestartExtra: null,
+      replaySnapshot: null,
     };
 
     const emit: ProviderEmit = (event: ProviderEmitEvent) => {
       this.applyEmit(providerId, slot, event);
     };
 
-    slot.handle = startProvider(cfg, emit, {
-      appDataLookup: (name, key) => this.appData.get(name, key),
-    });
+    // Register BEFORE starting the provider: transports emit
+    // `status: loading` synchronously inside the factory call, and
+    // `applyEmit` drops events from unregistered slots. Registered
+    // after-the-fact, that first loading vanished — peer windows never
+    // learned a restart had begun (the old `restart()` path masked
+    // this by re-emitting loading post-registration; the adopt-in-
+    // flight restart path doesn't).
+    this.providers.set(providerId, slot);
+    try {
+      slot.handle = startProvider(cfg, emit, {
+        appDataLookup: (name, key) => this.appData.get(name, key),
+      });
+    } catch (err) {
+      this.providers.delete(providerId);
+      throw err;
+    }
     return slot;
   }
 
@@ -914,8 +971,9 @@ export class SharedWorkerDataServicesHub {
     // connection are ignored the moment it stops being that slot.
     this.providers.delete(providerId);
     if (old) void old.handle.stop();
+    // createProvider registers the fresh slot before starting it, so its
+    // synchronous `loading` emission reaches every existing listener.
     const fresh = this.createProvider(providerId, cfg);
-    this.providers.set(providerId, fresh);
     this.ensureStatsSampler();
     return fresh;
   }
@@ -928,22 +986,64 @@ export class SharedWorkerDataServicesHub {
     if ('rows' in event) {
       const keyColumn = (slot.cfg as { keyColumn?: string | readonly string[] }).keyColumn;
       if (event.replace) slot.cache.clear();
-      // Build a per-batch dedup map IN PARALLEL with the cache update.
-      // Both consume `event.rows` in order, so the last-write-wins
-      // semantics line up: the cache and the broadcast batch see the
-      // same final value per key.
-      const batch = new Map<string, unknown>();
+      // Any cache mutation invalidates the pre-encoded replay snapshot.
+      // Invalidation is O(1); the next late-join attach rebuilds lazily.
+      // Snapshot-phase chunks below may re-seed it from the broadcast
+      // encoding — capture the prior chunks so a clean append (new keys
+      // only) can extend them instead of forcing a full rebuild.
+      const prevReplay = slot.replaySnapshot;
+      slot.replaySnapshot = null;
+      const cacheSizeBefore = slot.cache.size;
+
+      // Upsert into the cache and detect (a) rows whose key doesn't
+      // resolve (dropped) and (b) intra-batch duplicate keys. In the
+      // common case — every row keyed, no duplicates, which upstream
+      // conflation (`bufferedDispatch`) already guarantees for live
+      // ticks — we broadcast `event.rows` AS-IS, with no dedup Map and
+      // no copied array. The slow paths below only run when the batch
+      // actually contains drops or duplicates.
       let dropped = 0;
       let droppedSample: unknown;
-      for (const row of event.rows) {
+      let dupKeys = false;
+      if (event.replace) {
+        // Cache was just cleared, so every distinct key grows it by
+        // exactly one — a size shortfall vs (rows − dropped) means the
+        // batch carried intra-batch duplicates. No Set needed.
+        for (const row of event.rows) {
+          const k = keyOf(row, keyColumn);
+          if (k === null) {
+            if (dropped === 0) droppedSample = row;
+            dropped += 1;
+            continue;
+          }
+          slot.cache.set(k, row);
+        }
+        dupKeys = slot.cache.size !== event.rows.length - dropped;
+      } else if (event.rows.length === 1) {
+        const row = event.rows[0];
         const k = keyOf(row, keyColumn);
         if (k === null) {
-          if (dropped === 0) droppedSample = row;
-          dropped += 1;
-          continue;
+          droppedSample = row;
+          dropped = 1;
+        } else {
+          slot.cache.set(k, row);
         }
-        slot.cache.set(k, row);
-        batch.set(k, row);
+      } else {
+        // Incremental batch: a key already present in the cache is a
+        // legit update (size doesn't grow), so the size trick can't
+        // spot intra-batch duplicates — track keys seen in THIS batch.
+        const seen = new Set<string>();
+        for (const row of event.rows) {
+          const k = keyOf(row, keyColumn);
+          if (k === null) {
+            if (dropped === 0) droppedSample = row;
+            dropped += 1;
+            continue;
+          }
+          if (seen.has(k)) dupKeys = true;
+          else seen.add(k);
+          slot.cache.set(k, row);
+        }
       }
       if (dropped > 0) this.reportKeyDrops(providerId, slot, keyColumn, dropped, droppedSample);
       slot.msgCount += 1;
@@ -952,33 +1052,91 @@ export class SharedWorkerDataServicesHub {
 
       // Broadcast contract: rows are ALWAYS unique by `keyColumn`.
       //
-      // - `replace: true`  → broadcast the full cache. Provider
-      //   snapshot buffers (notably the STOMP provider's
-      //   snapshot-phase accumulator) can carry the same row twice
-      //   when the upstream feed delivers an updated version of an
-      //   already-buffered row before its end-token arrives. AG-Grid
-      //   emits warning #2 ("Duplicate node id") on `setRowData` if
-      //   any two rows resolve to the same `getRowId(...)`. Going
-      //   through `cache.values()` collapses duplicates by
-      //   `keyColumn` (last-write-wins).
+      // - Clean batch (no drops, no intra-batch duplicates — the
+      //   overwhelmingly common case): broadcast `event.rows` by
+      //   reference. postMessage doesn't mutate it and nothing
+      //   retains it, so sharing is safe and allocation-free.
       //
-      // - `replace: false` → broadcast the per-batch dedup map. A
-      //   single live message can carry multiple updates for the same
-      //   row id (e.g. an upstream batched feed coalescing two ticks
-      //   for the same position into one frame). Without dedup the
-      //   consumer's `applyTransactionAsync({add: [...], update:
-      //   [...]})` ends up with duplicate ids in one of those arrays
-      //   — same warning #2.
+      // - `replace: true` with drops/dups → broadcast the full cache.
+      //   Provider snapshot buffers (notably STOMP's snapshot-phase
+      //   accumulator) can carry the same row twice; AG-Grid emits
+      //   warning #2 ("Duplicate node id") on `setRowData` if two rows
+      //   share a `getRowId(...)`. `cache.values()` collapses
+      //   duplicates by keyColumn (last-write-wins).
+      //
+      // - `replace: false` with drops/dups → rebuild a deduped batch
+      //   (last-write-wins, insertion-ordered) so the consumer's
+      //   `applyTransactionAsync` never sees duplicate ids either.
       //
       // Rows lacking the keyColumn are dropped from the broadcast
       // entirely; the cache also skips them, and they couldn't be
       // routed by the consumer's `getRowId` either.
-      const broadcastRows = event.replace ? [...slot.cache.values()] : [...batch.values()];
+      let broadcastRows: readonly unknown[];
+      if (!dupKeys && dropped === 0) {
+        broadcastRows = event.rows;
+      } else if (event.replace) {
+        broadcastRows = [...slot.cache.values()];
+      } else {
+        const batch = new Map<string, unknown>();
+        for (const row of event.rows) {
+          const k = keyOf(row, keyColumn);
+          if (k !== null) batch.set(k, row);
+        }
+        broadcastRows = [...batch.values()];
+      }
+
+      // Snapshot-phase chunks (pre-ready: initial load AND restarts —
+      // `resetProviderStats` clears `snapshotReady` on every `loading`)
+      // broadcast as pre-encoded `delta-bin`: one serialization, then a
+      // flat byte copy per port, instead of N object-graph structured
+      // clones. With many windows on one provider, the restart snapshot
+      // fan-out was the worker's biggest remaining allocation burst.
+      // Live ticks (post-ready) stay as plain object deltas — small
+      // conflated batches don't repay the encode, and consumers feed
+      // them straight to `applyTransactionAsync`.
+      if (!slot.snapshotReady && broadcastRows.length > 0) {
+        // Encode in ≤ LATE_JOIN_CHUNK_SIZE slices so each port message
+        // decodes under the receiver's long-task budget (STOMP already
+        // flushes 500-row chunks and hits the single-slice path; REST /
+        // mock one-shot replaces get sliced here).
+        const bufs: Uint8Array[] = [];
+        for (let i = 0; i < broadcastRows.length; i += LATE_JOIN_CHUNK_SIZE) {
+          bufs.push(SNAPSHOT_ENCODER.encode(
+            JSON.stringify(broadcastRows.slice(i, i + LATE_JOIN_CHUNK_SIZE)),
+          ));
+        }
+        if (event.replace) {
+          // A replace broadcast always equals the cache contents
+          // (clean rows by reference, or the deduped cache itself), so
+          // the encoded slices double as the replay snapshot for free.
+          slot.replaySnapshot = bufs;
+        } else if (
+          prevReplay
+          && !dupKeys
+          && dropped === 0
+          && slot.cache.size === cacheSizeBefore + event.rows.length
+        ) {
+          // Clean append (every key new): the chunk extends the cache
+          // in insertion order, so it extends the replay encoding too.
+          prevReplay.push(...bufs);
+          slot.replaySnapshot = prevReplay;
+        }
+        for (let i = 0; i < bufs.length; i++) {
+          this.broadcastData(providerId, slot, {
+            kind: 'delta-bin',
+            buf: bufs[i],
+            replace: event.replace && i === 0,
+            subId: '', // rewritten per listener in broadcastData
+          });
+        }
+        return;
+      }
+
       this.broadcastData(providerId, slot, {
         kind: 'delta',
         rows: broadcastRows,
         replace: event.replace,
-        subId: '', // replaced per listener below
+        subId: '', // rewritten per listener in broadcastData
       });
       return;
     }
@@ -1088,26 +1246,35 @@ export class SharedWorkerDataServicesHub {
     this.replayCacheToPort(subId, port, slot);
   }
 
-  /** Chunked cache replay to a single port (late-join attach or refresh-provider). */
+  /**
+   * Chunked cache replay to a single port (late-join attach or
+   * refresh-provider).
+   *
+   * Ships pre-encoded `delta-bin` chunks (see {@link DeltaBinEvent}):
+   * the cache is serialized to UTF-8 JSON once per cache generation and
+   * the SAME byte buffers are posted to every replaying port. Cloning a
+   * Uint8Array across the port is a flat memcpy — no per-row object
+   * graph walk per subscriber, which is what made simultaneous
+   * multi-window attaches GC-storm the worker.
+   */
   private replayCacheToPort(subId: string, port: PortLike, slot: ProviderSlot): void {
-    const cacheRows = [...slot.cache.values()];
     // eslint-disable-next-line no-console
     if (DEBUG) console.log(
-      `[v2/hub] → subId=${subId}: replay rows=${cacheRows.length} in ${
-        Math.max(1, Math.ceil(cacheRows.length / LATE_JOIN_CHUNK_SIZE))
+      `[v2/hub] → subId=${subId}: replay rows=${slot.cache.size} in ${
+        Math.max(1, Math.ceil(slot.cache.size / LATE_JOIN_CHUNK_SIZE))
       } chunk(s), status=${slot.status}`,
     );
-    if (cacheRows.length === 0) {
+    if (slot.cache.size === 0) {
       port.postMessage({ subId, kind: 'delta', rows: [], replace: true } satisfies Event);
       this.recordPublish(slot, 1);
     } else {
-      for (let offset = 0; offset < cacheRows.length; offset += LATE_JOIN_CHUNK_SIZE) {
-        const chunk = cacheRows.slice(offset, offset + LATE_JOIN_CHUNK_SIZE);
+      const chunks = this.ensureReplaySnapshot(slot);
+      for (let i = 0; i < chunks.length; i++) {
         port.postMessage({
           subId,
-          kind: 'delta',
-          rows: chunk,
-          replace: offset === 0,
+          kind: 'delta-bin',
+          buf: chunks[i],
+          replace: i === 0,
         } satisfies Event);
         this.recordPublish(slot, 1);
       }
@@ -1118,6 +1285,28 @@ export class SharedWorkerDataServicesHub {
       status: slot.status,
       error: slot.lastError,
     } satisfies Event);
+  }
+
+  /**
+   * Build (or reuse) the pre-encoded replay chunks for a slot's current
+   * cache generation. Synchronous with respect to cache mutation — the
+   * worker is single-threaded, so a built snapshot is always consistent
+   * with the delta stream that follows it on the same port.
+   */
+  private ensureReplaySnapshot(slot: ProviderSlot): readonly Uint8Array[] {
+    if (slot.replaySnapshot) return slot.replaySnapshot;
+    const chunks: Uint8Array[] = [];
+    const scratch: unknown[] = [];
+    for (const row of slot.cache.values()) {
+      scratch.push(row);
+      if (scratch.length === LATE_JOIN_CHUNK_SIZE) {
+        chunks.push(SNAPSHOT_ENCODER.encode(JSON.stringify(scratch)));
+        scratch.length = 0;
+      }
+    }
+    if (scratch.length > 0) chunks.push(SNAPSHOT_ENCODER.encode(JSON.stringify(scratch)));
+    slot.replaySnapshot = chunks;
+    return chunks;
   }
 
   private attachStatsListener(providerId: string, subId: string, port: PortLike): void {
@@ -1153,8 +1342,15 @@ export class SharedWorkerDataServicesHub {
         console.log(`[v2/hub] broadcast provider=${providerId} kind=status status=${tpl.status}${tpl.error ? ' error=' + JSON.stringify(tpl.error) : ''} → ${listeners.size} listener(s)`);
       }
     }
+    // Reuse ONE event object across the loop, rewriting subId per
+    // listener. Safe because postMessage serializes synchronously
+    // (PortLike contract) — and it removes a per-listener-per-tick
+    // allocation, which at high message rates × many subscribers was
+    // a measurable share of young-gen GC churn. Callers always pass a
+    // fresh template, so mutating it here can't alias anything.
     for (const l of listeners.values()) {
-      l.port.postMessage({ ...eventTemplate, subId: l.subId } as Event);
+      (eventTemplate as { subId: string }).subId = l.subId;
+      l.port.postMessage(eventTemplate);
       if (countPublish) this.recordPublish(slot, 1);
     }
   }

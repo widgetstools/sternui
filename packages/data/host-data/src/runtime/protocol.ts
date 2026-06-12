@@ -286,6 +286,31 @@ export interface DeltaEvent {
   replace?: boolean;
 }
 
+/**
+ * Binary sibling of {@link DeltaEvent} used for late-join cache replay.
+ *
+ * `buf` is the UTF-8 `JSON.stringify` encoding of what would otherwise
+ * be `DeltaEvent.rows`. The hub encodes each replay chunk ONCE per
+ * cache generation and posts the same `Uint8Array` to every attaching
+ * port — cloning a typed array across the port is a flat byte copy,
+ * whereas cloning a rows array walks every row object's property graph
+ * per subscriber. With N windows attaching at once this turns N full
+ * object-graph serializations into N memcpys plus one shared encode.
+ *
+ * Constraint: rows must be JSON-serializable. This holds for every
+ * transport — STOMP/REST rows are born from `JSON.parse`, and mock
+ * rows are plain primitives. Live deltas keep using `DeltaEvent`
+ * (structured clone) so this constraint never applies to tick paths.
+ */
+export interface DeltaBinEvent {
+  subId: string;
+  kind: 'delta-bin';
+  /** UTF-8 JSON-encoded rows array (same payload as `DeltaEvent.rows`). */
+  buf: Uint8Array;
+  /** Same semantics as {@link DeltaEvent.replace}. */
+  replace?: boolean;
+}
+
 export interface StatusEvent {
   subId: string;
   kind: 'status';
@@ -306,7 +331,7 @@ export interface RowsReceivedEvent {
   count: number;
 }
 
-export type Event = DeltaEvent | StatusEvent | StatsEvent | RowsReceivedEvent;
+export type Event = DeltaEvent | DeltaBinEvent | StatusEvent | StatsEvent | RowsReceivedEvent;
 
 /** Detail payload for {@link CatalogReadyEvent} broadcasts. */
 export interface CatalogChangeDetail {
@@ -402,7 +427,7 @@ export function isEvent(value: unknown): value is Event {
   if (!value || typeof value !== 'object') return false;
   const v = value as { kind?: string; subId?: unknown };
   if (typeof v.subId !== 'string') return false;
-  return v.kind === 'delta' || v.kind === 'status' || v.kind === 'stats' || v.kind === 'rows-received';
+  return v.kind === 'delta' || v.kind === 'delta-bin' || v.kind === 'status' || v.kind === 'stats' || v.kind === 'rows-received';
 }
 
 export function isCatalogEvent(value: unknown): value is CatalogEvent {

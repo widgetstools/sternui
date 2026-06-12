@@ -347,11 +347,46 @@ export function startStomp(
     stopped: false,
     /** Bumped on stop/restart so in-flight connect callbacks are ignored. */
     connectGeneration: 0,
+    /**
+     * True from creation until the initial `start()` settles. While the
+     * initial connect is still pre-dial (`client === null`), a `restart()`
+     * just adopts its overlay into the pending dial instead of tearing
+     * down and dialing again — the Hub's CREATE+RESTART / RESTART+RECONFIG
+     * paths call `restart()` synchronously right after `startStomp()`.
+     */
+    connectPending: true,
     /** True after the first successful STOMP session (subscribe + trigger). */
     hadSuccessfulConnect: false,
     /** When set, the next onConnect restarts the snapshot from scratch. */
     reconnectRestartPending: false,
   };
+
+  // ─── Lifecycle timing trace ────────────────────────────────────
+  // Diagnoses "restart takes a while before connecting": every line
+  // reports the elapsed time since the user's Restart click. The
+  // click epoch rides for free in the `extra.__refresh` overlay
+  // (DiagnosticsTab/toolbar set it to Date.now()). These logs fire
+  // only on lifecycle transitions — restart, dial, handshake,
+  // trigger publish, snapshot end — never per-frame, so they're
+  // cheap enough to stay on permanently.
+  const timing = {
+    /** Date.now() at the user's Restart click (from extra.__refresh). */
+    clickAt: null as number | null,
+    /** When restart() began tearing down the previous session. */
+    restartAt: null as number | null,
+    /** When client.activate() was called (WebSocket dial start). */
+    dialAt: null as number | null,
+    /** When the broker completed the STOMP handshake (onConnect). */
+    connectAt: null as number | null,
+    /** When the snapshot trigger frame was published. */
+    publishAt: null as number | null,
+  };
+  const sinceClick = (now = Date.now()) =>
+    timing.clickAt === null ? 'n/a' : `+${now - timing.clickAt}ms`;
+  const since = (from: number | null, now = Date.now()) =>
+    from === null ? 'n/a' : `${now - from}ms`;
+  // eslint-disable-next-line no-console
+  const trace = (msg: string) => console.log(`[v2/stomp][trace] ${msg} (sinceClick=${sinceClick()})`);
 
   const beginSnapshotPhase = () => {
     // Drop any live deltas still pending in the throttle window — they
@@ -420,7 +455,10 @@ export function startStomp(
     // End-of-snapshot token (case-insensitive substring match).
     if (matchesEndToken(trimmed, cfg.snapshotEndToken)) {
       // eslint-disable-next-line no-console
-      console.log(`[v2/stomp] end-token matched: "${cfg.snapshotEndToken}" — closing snapshot phase`);
+      console.log(
+        `[v2/stomp] end-token matched: "${cfg.snapshotEndToken}" — closing snapshot phase ` +
+          `(snapshot stream ${since(timing.publishAt)} since publish, sinceClick=${sinceClick()})`,
+      );
       if (!state.snapshotComplete) {
         flushSnapshot();
         state.snapshotComplete = true;
@@ -467,18 +505,23 @@ export function startStomp(
     const generation = ++state.connectGeneration;
     state.receivingSnapshot = false;
     emit({ status: 'loading' });
+    const reconnectDelayMs = cfg.reconnect?.initialDelayMs ?? 5000;
+    trace(`start() gen=${generation} → loading`);
 
     let client: StompClient;
     try {
       const Ctor = opts.createClient
         ? null
         : await loadDefaultClientCtor();
-      if (state.stopped || generation !== state.connectGeneration) return;
+      if (state.stopped || generation !== state.connectGeneration) {
+        trace(`start() gen=${generation} superseded pre-dial — abandoned`);
+        return;
+      }
       const factory: StompClientFactory = opts.createClient
         ?? ((c) => new Ctor!(c));
       client = factory({
         brokerURL: cfg.websocketUrl,
-        reconnectDelay: cfg.reconnect?.initialDelayMs ?? 5000,
+        reconnectDelay: reconnectDelayMs,
         heartbeatIncoming: cfg.heartbeat?.incoming ?? 4000,
         heartbeatOutgoing: cfg.heartbeat?.outgoing ?? 4000,
       });
@@ -486,12 +529,19 @@ export function startStomp(
       emit({ status: 'error', error: err instanceof Error ? err.message : String(err) });
       return;
     }
-    if (state.stopped || generation !== state.connectGeneration) return;
+    if (state.stopped || generation !== state.connectGeneration) {
+      trace(`start() gen=${generation} superseded pre-activate — abandoned`);
+      return;
+    }
 
     state.client = client;
 
     client.onConnect = () => {
       if (state.stopped || generation !== state.connectGeneration) return;
+      timing.connectAt = Date.now();
+      trace(
+        `onConnect gen=${generation} — handshake ${since(timing.dialAt, timing.connectAt)} after dial`,
+      );
       if (state.reconnectRestartPending) {
         state.reconnectRestartPending = false;
         beginSnapshotPhase();
@@ -553,12 +603,15 @@ export function startStomp(
         // (chrome://inspect → Shared workers, or the worker's own
         // DevTools). `JSON.stringify(body)` keeps whitespace/quoting
         // visible so an empty or padded body is unambiguous.
+        timing.publishAt = Date.now();
         // eslint-disable-next-line no-console
         console.log('[v2/stomp] publish → broker', {
           destination: destinations.requestMessage,
           body,
           bodyJson: JSON.stringify(body),
           bodyLength: body.length,
+          sinceConnect: since(timing.connectAt, timing.publishAt),
+          sinceClick: sinceClick(timing.publishAt),
         });
         try {
           client.publish({ destination: destinations.requestMessage, body });
@@ -569,10 +622,15 @@ export function startStomp(
     };
     client.onDisconnect = () => {
       if (state.stopped || generation !== state.connectGeneration) return;
+      trace(`onDisconnect gen=${generation} — stompjs will auto-redial in ${reconnectDelayMs}ms`);
       markDisconnected();
     };
     client.onWebSocketError = () => {
       if (state.stopped || generation !== state.connectGeneration) return;
+      trace(
+        `WebSocket error gen=${generation} (hadSuccessfulConnect=${state.hadSuccessfulConnect}) ` +
+          `— stompjs will auto-redial in ${reconnectDelayMs}ms`,
+      );
       if (state.hadSuccessfulConnect) {
         markDisconnected();
       } else {
@@ -581,10 +639,15 @@ export function startStomp(
     };
     client.onStompError = (frame) => {
       if (state.stopped || generation !== state.connectGeneration) return;
+      trace(`STOMP error gen=${generation}: ${frame.headers['message'] ?? '(no message)'}`);
       emit({ status: 'error', error: frame.headers['message'] ?? 'STOMP error' });
     };
 
     try {
+      timing.dialAt = Date.now();
+      timing.connectAt = null;
+      timing.publishAt = null;
+      trace(`activate() gen=${generation} — dialing ${cfg.websocketUrl} (reconnectDelay=${reconnectDelayMs}ms)`);
       client.activate();
     } catch (err) {
       emit({ status: 'error', error: err instanceof Error ? err.message : String(err) });
@@ -607,18 +670,32 @@ export function startStomp(
   // Kick off async start so listeners attached after `startStomp`
   // returns still see the loading status event (Hub calls us
   // synchronously from attach).
-  void start();
+  void start().finally(() => { state.connectPending = false; });
 
   return {
     stop,
     restart: async (extra) => {
+      // `extra.__refresh` is Date.now() at the user's Restart click —
+      // adopt it as the trace epoch so every subsequent line reports
+      // true click-to-X latency.
+      timing.clickAt = typeof extra?.__refresh === 'number' ? extra.__refresh : Date.now();
+      timing.restartAt = Date.now();
       state.overlay = extra;
+      if (state.connectPending && state.client === null) {
+        // The initial start() is still pre-dial (awaiting the stompjs
+        // import). It reads `state.overlay` in onConnect, so the new
+        // overlay rides the in-flight connect — no second dial needed.
+        trace('restart() adopted by in-flight initial connect — overlay applied, single dial');
+        return;
+      }
       state.connectGeneration += 1;
       const client = state.client;
       const sub = state.sub;
       state.sub = null;
       state.client = null;
+      trace(`restart() begin — tearing down previous session (hadClient=${Boolean(client)})`);
       await teardownStompConnection(client, sub);
+      trace(`restart() previous session torn down in ${since(timing.restartAt)}`);
       // Reset snapshot tracking. `snapshotComplete` returns to its
       // initial value (`!buffering`) so the new connection re-buffers
       // its snapshot phase if buffering is enabled.
@@ -836,15 +913,33 @@ function extractRows(parsed: unknown): unknown[] {
 }
 
 /**
- * If `body` is JSON-shaped and `overlay` is set, merge overlay keys
- * onto the parsed body and re-stringify. Otherwise return body as-is.
- * This is the cheap "pass {asOfDate} through to the historical
- * provider's trigger" path.
+ * Drop `__`-prefixed overlay keys (e.g. the `__refresh` cache-buster
+ * stamped by the Restart button). They exist only to defeat client-side
+ * restart dedup and must never reach the broker. Returns `undefined`
+ * when nothing publishable remains.
+ */
+function publicOverlayKeys(
+  overlay: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!overlay) return undefined;
+  const entries = Object.entries(overlay).filter(([k]) => !k.startsWith('__'));
+  if (entries.length === 0) return undefined;
+  if (entries.length === Object.keys(overlay).length) return overlay;
+  return Object.fromEntries(entries);
+}
+
+/**
+ * If `body` is JSON-shaped and `overlay` has publishable keys, merge
+ * them onto the parsed body and re-stringify. Otherwise return body
+ * as-is. This is the cheap "pass {asOfDate} through to the historical
+ * provider's trigger" path. Internal `__`-prefixed keys never reach
+ * the wire.
  */
 function mergeOverlay(body: string, overlay: Record<string, unknown> | undefined): string {
-  if (!overlay) return body;
+  const wireOverlay = publicOverlayKeys(overlay);
+  if (!wireOverlay) return body;
   const trimmed = body.trim();
-  if (!trimmed) return JSON.stringify(overlay);
+  if (!trimmed) return JSON.stringify(wireOverlay);
   let parsed: unknown;
   try {
     parsed = JSON.parse(trimmed);
@@ -852,7 +947,7 @@ function mergeOverlay(body: string, overlay: Record<string, unknown> | undefined
     return body;
   }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return body;
-  return JSON.stringify({ ...(parsed as Record<string, unknown>), ...overlay });
+  return JSON.stringify({ ...(parsed as Record<string, unknown>), ...wireOverlay });
 }
 
 /** Substitute `overlay.asOfDate` into STOMP destination strings for historical snapshots. */

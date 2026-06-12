@@ -8,10 +8,49 @@
  * to mock.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { startStomp, probeStomp, connectStomp, resolveStompClientCtor, resolveStompDestinations, resolveEffectiveStompCfg, validateStompWireReady } from './stomp';
 import type { ProviderEmitEvent } from '../Provider';
 import type { StompProviderConfig } from '@starui/types';
+
+// Mocked @stomp/stompjs module — only reached by tests that do NOT
+// inject `createClient` (i.e. the dynamic-import path). Every other
+// test injects a factory and never touches this.
+const mockedStomp = vi.hoisted(() => {
+  class MockStompClient {
+    connected = false;
+    reconnectDelay = 0;
+    onConnect?: () => void;
+    onWebSocketError?: () => void;
+    onStompError?: (frame: { headers: Record<string, string> }) => void;
+    onDisconnect?: () => void;
+    publishLog: Array<{ destination: string; body: string }> = [];
+    subscribedTopic = '';
+    constructor(cfg: { reconnectDelay: number }) {
+      this.reconnectDelay = cfg.reconnectDelay;
+      instances.push(this);
+    }
+    subscribe(d: string) {
+      this.subscribedTopic = d;
+      return { unsubscribe() { /* no-op */ } };
+    }
+    publish(p: { destination: string; body?: string }) {
+      this.publishLog.push({ destination: p.destination, body: p.body ?? '' });
+    }
+    activate() { /* tests fire onConnect manually */ }
+    deactivate() { this.connected = false; }
+  }
+  const instances: InstanceType<typeof MockStompClient>[] = [];
+  return { instances, MockStompClient };
+});
+
+vi.mock('@stomp/stompjs', () => ({
+  Client: mockedStomp.MockStompClient,
+  // resolveStompClientCtor probes these interop shapes eagerly, and
+  // vitest's mock proxy throws on undeclared exports — declare them.
+  default: { Client: mockedStomp.MockStompClient },
+  StompJs: undefined,
+}));
 
 interface FakeClient {
   connected: boolean;
@@ -304,6 +343,86 @@ describe('startStomp', () => {
 
     const lastPublish = controllers[1].publishLog.at(-1)!;
     expect(JSON.parse(lastPublish.body)).toEqual({ clientId: 'X', asOfDate: '2026-04-01' });
+  });
+
+  it('restart() strips internal __ keys from the trigger body', async () => {
+    const controllers: FakeController[] = [];
+    const handle = startStomp(
+      cfg({ requestBody: '{"clientId":"X"}' }),
+      () => { /* ignore */ },
+      {
+        createClient: () => {
+          const c = makeFakeClient();
+          controllers.push(c);
+          return c.client;
+        },
+      },
+    );
+    await Promise.resolve();
+    controllers[0].fireConnect();
+    controllers[0].deliver('Success');
+
+    await handle.restart({ asOfDate: '2026-04-01', __refresh: 1781218676307 });
+    await Promise.resolve();
+    await Promise.resolve();
+    controllers[1].fireConnect();
+
+    const lastPublish = controllers[1].publishLog.at(-1)!;
+    expect(lastPublish.body).not.toContain('__refresh');
+    expect(JSON.parse(lastPublish.body)).toEqual({ clientId: 'X', asOfDate: '2026-04-01' });
+  });
+
+  it('an overlay of only internal keys leaves an empty trigger body empty', async () => {
+    const controllers: FakeController[] = [];
+    const handle = startStomp(
+      cfg(), // requestBody: ''
+      () => { /* ignore */ },
+      {
+        createClient: () => {
+          const c = makeFakeClient();
+          controllers.push(c);
+          return c.client;
+        },
+      },
+    );
+    await Promise.resolve();
+    controllers[0].fireConnect();
+    controllers[0].deliver('Success');
+
+    await handle.restart({ __refresh: Date.now() });
+    await Promise.resolve();
+    await Promise.resolve();
+    controllers[1].fireConnect();
+
+    expect(controllers[1].publishLog.at(-1)!.body).toBe('');
+  });
+
+  it('restart() during the in-flight initial connect adopts the overlay — single dial, no duplicate session', async () => {
+    // No `createClient` here: this exercises the real dynamic-import
+    // path (mocked above), whose await opens the pre-dial window the
+    // Hub's CREATE+RESTART / RESTART+RECONFIG paths land in when they
+    // call restart() synchronously right after startStomp().
+    mockedStomp.instances.length = 0;
+    const events: ProviderEmitEvent[] = [];
+    const handle = startStomp(cfg({ requestBody: '{"clientId":"X"}' }), (e) => events.push(e));
+    void handle.restart({ asOfDate: '2026-04-01', __refresh: 123 });
+    await new Promise((r) => setTimeout(r, 0));
+
+    const errorEvent = events.find((e) => 'status' in e && e.status === 'error');
+    expect(errorEvent).toBeUndefined();
+    // The overlay rode the in-flight initial connect: exactly one
+    // client was ever constructed.
+    expect(mockedStomp.instances).toHaveLength(1);
+
+    const client = mockedStomp.instances[0];
+    client.connected = true;
+    client.onConnect?.();
+
+    const lastPublish = client.publishLog.at(-1)!;
+    expect(lastPublish.body).not.toContain('__refresh');
+    expect(JSON.parse(lastPublish.body)).toEqual({ clientId: 'X', asOfDate: '2026-04-01' });
+
+    await handle.stop();
   });
 
   it('resolves {{name.key}} AppData tokens on connect when appDataLookup is provided', async () => {

@@ -54,6 +54,9 @@ import { SnapshotReassembler } from '../../hub/SnapshotReassembler.js';
  */
 const DEBUG = false;
 
+/** Shared decoder for pre-serialized snapshot replay chunks (`delta-bin`). */
+const SNAPSHOT_DECODER = new TextDecoder();
+
 export type SubId = string;
 
 export interface DataListener<T = unknown> {
@@ -642,6 +645,16 @@ export class SharedWorkerDataServicesClient {
       case 'delta':
         if (sub.kind === 'data') {
           sub.listener.onDelta(event.rows, Boolean(event.replace));
+        }
+        return;
+      case 'delta-bin':
+        // Pre-encoded replay chunk: the hub serialized the cache once
+        // and shipped bytes; decode back into rows and ride the same
+        // delta path. The decoded array is freshly owned by this
+        // client, exactly like a structured-clone `delta.rows`.
+        if (sub.kind === 'data') {
+          const rows = JSON.parse(SNAPSHOT_DECODER.decode(event.buf)) as unknown[];
+          sub.listener.onDelta(rows, Boolean(event.replace));
         }
         return;
       case 'status':
