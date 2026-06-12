@@ -96,12 +96,16 @@ function Live({ providerId, cfg }: { providerId: string; cfg: ProviderConfig | n
             value={fmtSnapshotFetch(stats?.snapshotFetchMs, status)}
           />
           <Stat label="Rows loaded" value={fmtInt(stats?.rowCount)} />
+          {/* Serialized size of the worker cache — the number field
+              projection shrinks ("Bytes received" below is upstream
+              wire traffic, which client-side pruning can't reduce). */}
+          <Stat label="Cache size (serialized)" value={fmtBytes(stats?.cacheBytes)} />
         </Card>
 
         <Card title="Throughput">
           <Stat label="Messages (upstream)" value={fmtInt(stats?.msgCount)} />
           <Stat label="Upstream rate" value={stats ? `${stats.msgPerSec.toFixed(1)} msg/s` : '—'} />
-          <Stat label="Bytes" value={fmtBytes(stats?.byteCount)} />
+          <Stat label="Bytes received" value={fmtBytes(stats?.byteCount)} />
         </Card>
 
         <Card title="Client publishing">

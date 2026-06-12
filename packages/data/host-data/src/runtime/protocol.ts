@@ -38,6 +38,15 @@ export interface ProviderStats {
   rowCount: number;
   /** Cumulative bytes received from upstream (raw frame bodies). */
   byteCount: number;
+  /**
+   * Serialized footprint of the worker cache (UTF-8 JSON bytes of the
+   * cached rows). Exact when the memoized replay snapshot exists (sum
+   * of its chunk lengths); otherwise estimated from one sampled row ×
+   * rowCount. This is the number `projectFields` shrinks — `byteCount`
+   * measures upstream wire bytes, which client-side projection cannot
+   * reduce.
+   */
+  cacheBytes: number;
   /** Cumulative messages parsed. */
   msgCount: number;
   /** Sliding-window upstream throughput (last 5s). */

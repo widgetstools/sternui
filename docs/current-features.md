@@ -606,7 +606,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `ConnectionTab` — connection string, auth, transport selection; "Test Connection" button (STOMP/REST) drives `useProviderProbe.test()`. STOMP runs a pure socket connect (`connectStomp` — handshake only, no subscribe/trigger/rows) and shows "Connected"; row-fetching transports (REST/mock) show "Connected — received N rows"
 - `FieldsTab` — discover provider fields, map to columns, infer types
 - `ColumnsTab` — derive AG Grid column defs from schema; collapsible Key Column + Add Custom Column panels and a scrollable body keep the columns table at a usable minimum height in short containers. A "Clear all columns" button (confirm dialog) wipes the column list and the now-stale key column in one action. Per-row ƒx button opens a Monaco `ExpressionEditor` (from `@starui/grid/customizer`) to author a column `valueGetter` DSL expression (column refs `[field]`, nested optional-chaining paths `[a.b.c]`, live-validated); persists onto `ColumnDefinition.valueGetter`, applied at runtime by `buildColumnDefs`
-- `DiagnosticsTab` — probe, request/response logging, debug
+- `DiagnosticsTab` — probe, request/response logging, debug; Snapshot card shows "Cache size (serialized)" (`stats.cacheBytes`, the worker-cache footprint that `projectFields` shrinks) alongside fetch time and row count; Throughput card's byte stat is labelled "Bytes received" (upstream wire traffic, unaffected by projection)
 
 #### Transport-specific editors
 
@@ -1230,7 +1230,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 #### Statistics
 
-- `ProviderStats` — `rowCount, byteCount, msgCount, msgPerSec, publishPerSec, publishPerMin, snapshotFetchMs, subscriberCount, startedAt, lastMessageAt, errorCount, lastError`
+- `ProviderStats` — `rowCount, byteCount, cacheBytes, msgCount, msgPerSec, publishPerSec, publishPerMin, snapshotFetchMs, subscriberCount, startedAt, lastMessageAt, errorCount, lastError`; `cacheBytes` is the serialized worker-cache footprint (exact from the memoized replay-snapshot chunks when present, else one-sampled-row × rowCount estimate) — the number `projectFields` shrinks, surfaced in the Diagnostics tab as "Cache size (serialized)"
 - 1 Hz sampler with 5 s upstream + 60 s publish windows
 - Self-disabling when no stats listeners
 - Per-provider cache (`Map<rowKey, row>` keyed by `cfg.keyColumn`)

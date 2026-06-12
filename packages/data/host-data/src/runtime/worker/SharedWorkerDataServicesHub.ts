@@ -1414,6 +1414,28 @@ export class SharedWorkerDataServicesHub {
     }
   }
 
+  /**
+   * Serialized cache footprint in bytes. Exact when the memoized
+   * replay snapshot exists (sum of its pre-encoded chunk lengths);
+   * otherwise estimated from ONE sampled row × rowCount — live ticks
+   * invalidate the memo constantly and the 1 Hz stats sampler must
+   * not force a full cache re-encode.
+   */
+  private cacheFootprintBytes(slot: ProviderSlot): number {
+    if (slot.replaySnapshot) {
+      let total = 0;
+      for (const chunk of slot.replaySnapshot) total += chunk.byteLength;
+      return total;
+    }
+    if (slot.cache.size === 0) return 0;
+    const sample = slot.cache.values().next().value;
+    try {
+      return JSON.stringify(sample).length * slot.cache.size;
+    } catch {
+      return 0;
+    }
+  }
+
   private snapshotStats(providerId: string, slot: ProviderSlot): ProviderStats {
     const subscriberCount = this.dataListeners.get(providerId)?.size ?? 0;
     const sumBuckets = slot.msgsByBucket.reduce((a, b) => a + b, 0);
@@ -1426,6 +1448,7 @@ export class SharedWorkerDataServicesHub {
     return {
       rowCount: slot.cache.size,
       byteCount: slot.byteCount,
+      cacheBytes: this.cacheFootprintBytes(slot),
       msgCount: slot.msgCount,
       msgPerSec,
       snapshotFetchMs: slot.snapshotFetchMs,
@@ -1446,6 +1469,7 @@ function zeroedStats(): ProviderStats {
   return {
     rowCount: 0,
     byteCount: 0,
+    cacheBytes: 0,
     msgCount: 0,
     msgPerSec: 0,
     snapshotFetchMs: null,
