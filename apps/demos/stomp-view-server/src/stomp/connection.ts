@@ -3,7 +3,12 @@ import type { AppConfig } from "../config.js";
 import { clampSnapshotRows, clampUpdatesPerTick } from "../config.js";
 import type { PositionRecord, TradeRecord } from "../data/fiRecords.js";
 import { buildSnapshot, stampPositionsAsOfDate } from "../data/fiRecords.js";
-import { mutatePosition, mutateTrade } from "../data/mutate.js";
+import {
+  mutatePosition,
+  mutateTrade,
+  touchPosition,
+  touchTrade,
+} from "../data/mutate.js";
 import * as protocol from "../protocol/contract.js";
 import { hashString } from "../util/hash.js";
 import { createLiveBatcher } from "./liveBatcher.js";
@@ -453,22 +458,39 @@ export class StompConnection {
 
   /**
    * Round-robin live batcher over the delivered record set (full-set
-   * coverage at least once per second — see `liveBatcher.ts`), shared
-   * by the legacy and client-specific live loops.
+   * coverage targeted once per second, capped by SWEEP_ROWS_PER_SEC —
+   * see `liveBatcher.ts`), shared by the legacy and client-specific
+   * live loops.
    */
   private liveBatcherFor(
     dataType: "positions" | "trades",
     records: (PositionRecord | TradeRecord)[],
     updatesPerTick: number,
   ): () => (PositionRecord | TradeRecord)[] {
-    return createLiveBatcher(
+    const isPositions = dataType === "positions";
+    return createLiveBatcher<PositionRecord | TradeRecord>({
       records,
-      (base) =>
-        dataType === "positions"
+      mutate: (base) =>
+        isPositions
           ? mutatePosition(base as PositionRecord)
           : mutateTrade(base as TradeRecord),
+      touch: (row) =>
+        isPositions
+          ? touchPosition(row as PositionRecord)
+          : touchTrade(row as TradeRecord),
       updatesPerTick,
-    );
+      maxSweepRowsPerSec: this.config.maxSweepRowsPerSec,
+    });
+  }
+
+  /**
+   * Skip a live tick while the socket's send buffer is backed up — a
+   * slow consumer must throttle the stream, not balloon server memory.
+   * The batcher's elapsed-time coverage floor catches the sweep up on
+   * the next healthy tick.
+   */
+  private socketBackedUp(): boolean {
+    return this.ws.bufferedAmount > 16 * 1024 * 1024;
   }
 
   private startLiveUpdates(
@@ -492,6 +514,7 @@ export class StompConnection {
           clearInterval(updateInterval);
           return;
         }
+        if (this.socketBackedUp()) return;
         const batch = nextBatch();
         if (batch.length === 0) return;
 
@@ -627,6 +650,7 @@ export class StompConnection {
           clearInterval(updateInterval);
           return;
         }
+        if (this.socketBackedUp()) return;
         const batch = nextBatch();
         if (batch.length === 0) return;
 

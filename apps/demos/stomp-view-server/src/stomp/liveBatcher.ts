@@ -2,20 +2,46 @@
  * createLiveBatcher — stateful round-robin sweeper over the delivered
  * record set, driving the live-update loops.
  *
- * Guarantees every row is updated at least once per second: each tick
- * mutates the next N rows in cursor order (wrapping), where N is the
- * larger of the configured `updatesPerTick` and the coverage floor —
- * the share of the row set owed for the time elapsed since the last
- * tick. The floor is computed from real elapsed time, so setInterval
- * clamping (Node's ~1 ms minimum) and event-loop delays can't starve
- * coverage; a tick delayed ≥1 s emits the entire set.
+ * Goal: every row updates at least once per second. Each tick emits the
+ * next N rows in cursor order (wrapping), where N is the larger of the
+ * configured `updatesPerTick` and the coverage floor — the share of the
+ * row set owed for the time elapsed since the last tick. The floor is
+ * computed from real elapsed time, so setInterval clamping (Node's
+ * ~1 ms minimum) and event-loop delays can't starve coverage.
+ *
+ * Cost control (what makes the guarantee survivable): the first
+ * `updatesPerTick` rows of each batch get the full-fidelity `mutate`
+ * (deep clone, dozens of nested fields); the remaining coverage rows
+ * get the cheap in-place `touch`. And the floor is capped at
+ * `maxSweepRowsPerSec` — serializing an ~8.5 KB row costs ~80 µs, so an
+ * uncapped 20 000-row/s sweep needs more CPU than one Node thread has;
+ * past the cap the sweep degrades to full coverage every
+ * rowCount / maxSweepRowsPerSec seconds instead of melting the event
+ * loop (which delivers nothing at all).
  */
+export interface LiveBatcherOptions<T> {
+  records: readonly T[];
+  /** Full-fidelity mutation (deep clone) for the `updatesPerTick` head rows. */
+  mutate: (base: T) => T;
+  /** Cheap in-place tick for sweep-coverage rows. */
+  touch: (row: T) => T;
+  updatesPerTick: number;
+  /** Upper bound on sweep-driven rows/sec (the coverage floor's cap). */
+  maxSweepRowsPerSec: number;
+  now?: () => number;
+}
+
 export function createLiveBatcher<T>(
-  records: readonly T[],
-  mutate: (base: T) => T,
-  updatesPerTick: number,
-  now: () => number = Date.now,
+  options: LiveBatcherOptions<T>,
 ): () => T[] {
+  const {
+    records,
+    mutate,
+    touch,
+    updatesPerTick,
+    maxSweepRowsPerSec,
+    now = Date.now,
+  } = options;
   let cursor = 0;
   let lastTick = now();
   return () => {
@@ -23,14 +49,20 @@ export function createLiveBatcher<T>(
     const t = now();
     const elapsedMs = Math.min(1000, Math.max(1, t - lastTick));
     lastTick = t;
-    const coverageFloor = Math.ceil((records.length * elapsedMs) / 1000);
+    const sweepTarget = Math.min(
+      records.length,
+      Math.max(1, maxSweepRowsPerSec),
+    );
+    const coverageFloor = Math.ceil((sweepTarget * elapsedMs) / 1000);
     const n = Math.min(
       records.length,
       Math.max(updatesPerTick, coverageFloor),
     );
+    const fullCount = Math.min(updatesPerTick, n);
     const batch: T[] = [];
     for (let i = 0; i < n; i++) {
-      batch.push(mutate(records[(cursor + i) % records.length]!));
+      const row = records[(cursor + i) % records.length]!;
+      batch.push(i < fullCount ? mutate(row) : touch(row));
     }
     cursor = (cursor + n) % records.length;
     return batch;

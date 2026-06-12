@@ -1,9 +1,11 @@
 import type { PositionRecord, TradeRecord } from "./fiRecords.js";
 
-function updateDatesPosition(record: PositionRecord): PositionRecord {
+// NOTE: updateDates* mutate in place — callers always pass a private
+// clone they own (a second structuredClone here doubled the cost of
+// every live mutation, which matters at sweep rates).
+function updateDatesPosition(u: PositionRecord): PositionRecord {
   const today = new Date().toISOString().slice(0, 10);
   const now = new Date().toISOString();
-  const u = structuredClone(record);
   if (typeof u.asOfDate === "string") u.asOfDate = now;
   const meta = u.metadata as Record<string, unknown> | undefined;
   if (meta && typeof meta === "object") meta.modifiedDate = now;
@@ -15,9 +17,8 @@ function updateDatesPosition(record: PositionRecord): PositionRecord {
   return u;
 }
 
-function updateDatesTrade(record: TradeRecord): TradeRecord {
+function updateDatesTrade(u: TradeRecord): TradeRecord {
   const now = new Date().toISOString();
-  const u = structuredClone(record);
   if (typeof u.tradeDate === "string") u.tradeDate = now;
   const ex = u.execution as Record<string, unknown> | undefined;
   if (ex && typeof ex === "object") ex.executionTime = now;
@@ -28,6 +29,43 @@ function updateDatesTrade(record: TradeRecord): TradeRecord {
     rep.reportingTimestamp = now;
     rep.lastUpdateTime = now;
   }
+  return u;
+}
+
+/**
+ * touchPosition / touchTrade — O(few fields) in-place price tick used
+ * for sweep-coverage rows. The full mutate* functions deep-clone an
+ * ~8.5 KB nested record (~0.2 ms each); at sweep rates (every row at
+ * least once per second) that alone outruns one CPU core. The touch
+ * variants update the handful of headline fields a blotter visibly
+ * ticks and nothing else. They mutate the delivered record in place —
+ * callers serialize the row synchronously in the same tick, so there
+ * is no aliasing hazard, and drift compounds realistically.
+ */
+export function touchPosition(u: PositionRecord): PositionRecord {
+  const now = new Date().toISOString();
+  const notional = Number(u.notionalAmount) || 1;
+  const price =
+    Number(u.currentPrice) * (1 + (Math.random() - 0.5) * 0.02);
+  u.currentPrice = price;
+  u.marketValue = (notional * price) / 100;
+  u.totalValue =
+    Number(u.marketValue) + Number(u.accruedInterest ?? 0);
+  u.pnl = Math.round(
+    Number(u.marketValue) - Number(u.bookValue ?? u.marketValue),
+  );
+  if (typeof u.asOfDate === "string") u.asOfDate = now;
+  return u;
+}
+
+export function touchTrade(u: TradeRecord): TradeRecord {
+  const now = new Date().toISOString();
+  u.price = Number(u.price) * (1 + (Math.random() - 0.5) * 0.02);
+  u.yield = Number(u.yield) * (1 + (Math.random() - 0.5) * 0.02);
+  u.spread = Math.round(
+    Number(u.spread) + (Math.random() - 0.5) * 10,
+  );
+  if (typeof u.tradeDate === "string") u.tradeDate = now;
   return u;
 }
 

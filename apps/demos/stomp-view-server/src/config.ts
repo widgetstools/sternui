@@ -12,6 +12,16 @@ export interface AppConfig {
    * row-updates/sec ≈ `rate × liveUpdatesPerTick`.
    */
   liveUpdatesPerTick: number;
+  /**
+   * Cap on sweep-driven coverage rows/sec per live stream (env
+   * `SWEEP_ROWS_PER_SEC`). The live loop sweeps the whole delivered set
+   * round-robin, targeting full coverage every second; above this cap
+   * it degrades to full coverage every rowCount/cap seconds instead of
+   * saturating the event loop. ~8.5 KB synthetic rows serialize at
+   * roughly 12k rows/s on one Node thread — 5000 leaves headroom for
+   * snapshot serving and multiple clients.
+   */
+  maxSweepRowsPerSec: number;
   /** Verbose STOMP / per-tick logging */
   debug: boolean;
   /** Log outbound STOMP frames (CONNECTED + MESSAGE) to the terminal */
@@ -43,6 +53,11 @@ export function loadConfig(): AppConfig {
     10,
   );
 
+  const rawSweepRows = Number.parseInt(
+    process.env.SWEEP_ROWS_PER_SEC ?? "5000",
+    10,
+  );
+
   const logLiveRaw = Number.parseInt(process.env.LOG_LIVE_EVERY ?? "1", 10);
   const logPreviewRaw = Number.parseInt(
     process.env.LOG_BODY_PREVIEW ?? "400",
@@ -56,6 +71,10 @@ export function loadConfig(): AppConfig {
     minSnapshotRows,
     maxSnapshotRows,
     liveUpdatesPerTick: clampUpdatesPerTick(rawUpdatesPerTick),
+    maxSweepRowsPerSec:
+      Number.isFinite(rawSweepRows) && rawSweepRows >= 1
+        ? Math.min(rawSweepRows, 1_000_000)
+        : 5_000,
     debug: process.env.DEBUG === "1" || process.env.DEBUG === "true",
     logOutbound:
       process.env.LOG_OUTBOUND !== "0" &&
