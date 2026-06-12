@@ -55,6 +55,7 @@
  */
 
 import type { StompProviderConfig } from '@starui/types';
+import { createFieldProjector } from '../fieldProjection.js';
 import { composeRowId } from '@starui/types';
 import type { ProviderEmit, ProviderHandle } from '../Provider.js';
 import { bufferedDispatch } from './bufferedDispatch.js';
@@ -318,6 +319,16 @@ export function startStomp(
   // Conflation still only takes effect when a throttle window is live;
   // without it the dispatch is a passthrough. The probe path
   // (`passthroughSnapshot`) wants raw frames ASAP, so it skips dispatch.
+  // Field projection (`cfg.projectFields`): prune incoming rows to the
+  // columnDefinitions field paths + keyColumn at frame-parse time, so
+  // unused upstream fields never enter the snapshot buffer, hub cache
+  // or any window. The probe path must see RAW rows — Infer Fields
+  // exists to discover the fields projection would strip.
+  const projector =
+    cfg.projectFields && !opts.passthroughSnapshot
+      ? createFieldProjector(cfg.columnDefinitions, cfg.keyColumn)
+      : null;
+
   const conflateEnabled = cfg.conflateEnabled !== false;
   const throttleEnabled = cfg.throttleEnabled !== false;
   const conflateColumns = conflateEnabled ? cfg.conflateByKey ?? cfg.keyColumn : undefined;
@@ -476,11 +487,12 @@ export function startStomp(
       emit({ byteSize });
       return;
     }
-    const rows = extractRows(parsed);
-    if (rows.length === 0) {
+    const rawRows = extractRows(parsed);
+    if (rawRows.length === 0) {
       emit({ byteSize });
       return;
     }
+    const rows = projector ? rawRows.map(projector) : rawRows;
 
     if (!state.snapshotComplete) {
       // Snapshot phase: accumulate in memory; surface progressive count.

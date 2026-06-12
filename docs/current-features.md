@@ -614,7 +614,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `StompFields` — broker URL, login, subscribe topics, parsing
 - `MockFields` — seed data, latency, mutation playback
 - `AppDataFields` — read from `@starui/host-data` AppData
-- `BehaviourFields` — per-transport behaviour knobs; STOMP: reconnect initial delay, realtime throttle (on/off switch + ms) + conflation (on/off switch + conflate-by-key), snapshot chunk size (all written to `cfg`, also settable in code)
+- `BehaviourFields` — per-transport behaviour knobs; STOMP: reconnect initial delay, realtime throttle (on/off switch + ms) + conflation (on/off switch + conflate-by-key), snapshot chunk size, "Keep only column fields" projection switch (`projectFields`) (all written to `cfg`, also settable in code)
 
 #### Hosted integration (legacy)
 
@@ -1190,6 +1190,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
   - Live phase → keyed deltas via `applyTransactionAsync`
   - Snapshot flush chunking (`cfg.snapshotChunkSize`, default `SNAPSHOT_CHUNK_SIZE = 500`) to stay under 50 ms long-task budget — configurable in code or the provider editor
   - Live conflation + trailing-edge throttle (`cfg.throttleMs` window; `cfg.conflateByKey` upsert key, defaults to `keyColumn`) via `bufferedDispatch()` — coalesces same-key ticks in the worker before fanout; `throttleMs` unset = immediate passthrough; probe path bypasses it. Two explicit master switches (default ON): `cfg.throttleEnabled: false` fans out every delta immediately while keeping the `throttleMs` value; `cfg.conflateEnabled: false` disables conflation even when `keyColumn` could supply a key (the off-switch the `?? keyColumn` fallback otherwise prevented)
+  - Field projection (`cfg.projectFields`, default off): each incoming row is pruned at frame-parse time to the `columnDefinitions[].field` paths + `keyColumn` (`createFieldProjector` / `collectProjectionPaths` in `fieldProjection.ts`) — wide upstream objects (e.g. 2000 fields when the blotter shows 200) never reach the snapshot buffer, hub cache, or any window; nested `a.b.c` paths copy just the needed subtree, prefix paths win over longer ones; changing visible fields requires a provider Restart; `probeStomp` (Infer Fields) always sees raw rows
   - Restart overlay (`extra`) for historical `asOfDate`; internal `__`-prefixed overlay keys (e.g. the Restart button's `__refresh` cache-buster) are stripped before the trigger body reaches the broker
   - `restart()` arriving while the initial connect is still pre-dial (the Hub's CREATE+RESTART / RESTART+RECONFIG paths call it synchronously after `startStomp()`) adopts its overlay into the in-flight start — one dial, no torn-down-then-redialed duplicate session
   - Lifecycle timing trace (`[v2/stomp][trace]` / `[v2/hub][trace]`, SharedWorker console): restart → teardown → dial → handshake → trigger publish → end-token, each line stamped with elapsed-since-Restart-click (`extra.__refresh` epoch) plus the effective stompjs `reconnectDelay` on socket error/disconnect — pinpoints whether a slow restart is teardown, reconnect backoff, or server snapshot time

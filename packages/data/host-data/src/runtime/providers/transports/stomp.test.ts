@@ -345,6 +345,68 @@ describe('startStomp', () => {
     expect(JSON.parse(lastPublish.body)).toEqual({ clientId: 'X', asOfDate: '2026-04-01' });
   });
 
+  it('projectFields prunes snapshot and live rows to columnDefinitions + keyColumn', async () => {
+    const events: ProviderEmitEvent[] = [];
+    const ctrl = makeFakeClient();
+    startStomp(
+      cfg({
+        projectFields: true,
+        keyColumn: 'id',
+        columnDefinitions: [
+          { field: 'px', headerName: 'Price' },
+          { field: 'risk.dv01', headerName: 'DV01' },
+        ],
+      }),
+      (e) => events.push(e),
+      { createClient: () => ctrl.client },
+    );
+    await Promise.resolve();
+    ctrl.fireConnect();
+
+    const fatRow = (id: string) => ({
+      id,
+      px: 100,
+      risk: { dv01: 12, gamma: 9, vega: 3 },
+      junkA: 'x',
+      junkB: { nested: true },
+    });
+
+    // Snapshot phase: buffered rows must already be pruned.
+    ctrl.deliver(JSON.stringify([fatRow('r1'), fatRow('r2')]));
+    ctrl.deliver('Success');
+
+    const snapshotRows = events
+      .filter((e) => 'rows' in e)
+      .flatMap((e) => (e as { rows: readonly unknown[] }).rows);
+    expect(snapshotRows).toHaveLength(2);
+    expect(snapshotRows[0]).toEqual({ id: 'r1', px: 100, risk: { dv01: 12 } });
+
+    // Live phase: deltas pruned too.
+    events.length = 0;
+    ctrl.deliver(JSON.stringify([fatRow('r1')]));
+    const live = events.find((e) => 'rows' in e) as { rows: readonly unknown[] };
+    expect(live.rows[0]).toEqual({ id: 'r1', px: 100, risk: { dv01: 12 } });
+  });
+
+  it('probeStomp sees RAW rows even when projectFields is on (Infer Fields path)', async () => {
+    const ctrl = makeFakeClient();
+    const probe = probeStomp(
+      cfg({
+        projectFields: true,
+        keyColumn: 'id',
+        columnDefinitions: [{ field: 'px', headerName: 'Price' }],
+      }),
+      { createClient: () => ctrl.client, maxRows: 1, timeoutMs: 1000 },
+    );
+    await Promise.resolve();
+    ctrl.fireConnect();
+    ctrl.deliver(JSON.stringify([{ id: 'r1', px: 1, hidden: 'still-here' }]));
+
+    const result = await probe;
+    expect(result.ok).toBe(true);
+    expect(result.rows?.[0]).toEqual({ id: 'r1', px: 1, hidden: 'still-here' });
+  });
+
   it('restart() strips internal __ keys from the trigger body', async () => {
     const controllers: FakeController[] = [];
     const handle = startStomp(

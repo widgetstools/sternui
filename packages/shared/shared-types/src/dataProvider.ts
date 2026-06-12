@@ -171,6 +171,19 @@ export interface StompProviderConfig {
    */
   snapshotChunkSize?: number;
   /**
+   * Prune incoming rows to the fields the UI can actually see — the
+   * `columnDefinitions[].field` paths plus `keyColumn` — at frame-parse
+   * time in the worker, BEFORE rows enter the snapshot buffer / hub
+   * cache. Upstream feeds that ship wide objects (e.g. 2000 fields when
+   * the blotter renders 200) otherwise pay ~10x on worker memory,
+   * snapshot encode, postMessage payloads and client parse in every
+   * window. Nested paths (`a.b.c`) copy just the needed subtree.
+   * Default OFF. Changing the visible fields requires a provider
+   * restart (the editor's Restart already rebuilds the slot from the
+   * new cfg).
+   */
+  projectFields?: boolean;
+  /**
    * Reconnect policy. Today only `initialDelayMs` is honoured (it
    * becomes the stompjs `reconnectDelay`); full exponential backoff +
    * jitter + maxAttempts requires bypassing stompjs's auto-reconnect
