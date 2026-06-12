@@ -47,6 +47,7 @@ export async function startServer(config: AppConfig): Promise<void> {
                 "snapshot-rows",
                 "row-count (alias)",
                 "updates-per-tick",
+                "live-mode (sparse | sparse-erratic)",
               ],
               historicalTrigger:
                 "Subscribe /snapshot/positions/{clientId}/{asOfDate}; SEND /snapshot/positions/{clientId}/{asOfDate}[/{batchSize}] — snapshot only",
@@ -108,6 +109,9 @@ export async function startServer(config: AppConfig): Promise<void> {
   );
   console.log(
     `Live updates/tick: default ${config.liveUpdatesPerTick} (env UPDATES_PER_TICK; optional STOMP header updates-per-tick on SEND) — aggregate rows/sec ≈ rate × this`,
+  );
+  console.log(
+    `Live mode: default ${config.defaultLiveMode} (env LIVE_MODE=sparse; STOMP header live-mode: sparse); sparse rows/tick ${config.sparseRowsPerTick} (env SPARSE_ROWS_PER_TICK)`,
   );
   console.log(
     `Row profile: ${config.rowProfile} (env ROW_PROFILE=wide|slim); live sweep cap ${config.maxSweepRowsPerSec} rows/s (env SWEEP_ROWS_PER_SEC)`,

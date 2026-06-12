@@ -43,16 +43,26 @@ Clients may add optional STOMP headers on the **SEND** frame:
 
 - **Snapshot size** (1k–20k by default env bounds): `snapshot-rows: 15000` — alias `row-count`.
 - **Live frequency** — `updates-per-tick: 100` mutates that many distinct rows and ships them in **one** live-update frame. Aggregate rows/sec ≈ `rate × updates-per-tick` (rate is the trigger segment, e.g. `/1000/`). Default `1` (one row per frame, original behaviour). Falls back to the `UPDATES_PER_TICK` env default when omitted.
+- **Sparse live mode** — `live-mode: sparse` (alias `sparse-erratic`) for **positions** only: each live frame carries **partial row JSON** (`positionId` + an erratic subset of headline fields: `marketValue`, `currentPrice`, `pnl`, `yield`, `spread`, `pv01`, `dv01`). Row count per frame defaults to `SPARSE_ROWS_PER_TICK` (100) with ±35% jitter; override with `updates-per-tick`. No full-set coverage floor — rows are chosen at random each tick. Set env `LIVE_MODE=sparse` to make sparse the default for all streams.
 
 Existing clients that omit these headers keep prior behavior with server defaults.
 
-> **Tuning note.** Per-*row* update frequency = `rate × updates-per-tick ÷ snapshot-rows`. With the defaults (`rate=1000`, `updates-per-tick=1`, `snapshot-rows=20000`) any single row changes only ~once per 20s. Node also can't sustain a true 1000 timers/sec at a 1ms interval, so prefer a **moderate rate with a large `updates-per-tick`** (e.g. `rate=30`, `updates-per-tick=200` → ~6,000 rows/sec across 30 fat frames) rather than a very high rate with one row per frame.
+> **Tuning note (legacy mode).** Per-*row* update frequency = `rate × updates-per-tick ÷ snapshot-rows`. With the defaults (`rate=1000`, `updates-per-tick=1`, `snapshot-rows=20000`) any single row changes only ~once per 20s. Node also can't sustain a true 1000 timers/sec at a 1ms interval, so prefer a **moderate rate with a large `updates-per-tick`** (e.g. `rate=30`, `updates-per-tick=200` → ~6,000 rows/sec across 30 fat frames) rather than a very high rate with one row per frame.
+
+> **Sparse blotter profile (~150 ms, 20k rows).** Trigger `rate=7` (~143 ms/frame), `snapshot-rows=20000`, `live-mode: sparse`, `updates-per-tick: 100`. Use `ROW_PROFILE=slim` for sustainable throughput. Example below.
 
 Example (stompjs):
 
 ```javascript
-// Live snapshot + updates — 100 rows mutated per live frame
+// Legacy — 100 full rows per live frame
 client.send('/snapshot/positions/TRADER001/1000/50', { 'snapshot-rows': '4000', 'updates-per-tick': '100' }, '');
+
+// Sparse erratic — ~150 ms ticks, partial field deltas, ~100 random rows/frame
+client.send('/snapshot/positions/TRADER001/7/50', {
+  'snapshot-rows': '20000',
+  'live-mode': 'sparse',
+  'updates-per-tick': '100',
+}, '');
 
 // Historical positions for one as-of date (snapshot only)
 // Subscribe: /snapshot/positions/TRADER001/2024-05-28
@@ -68,7 +78,11 @@ client.send('/snapshot/positions/TRADER001/2024-05-28/50', { 'snapshot-rows': '4
 | `DEFAULT_SNAPSHOT_ROWS` | `20000` |
 | `MIN_SNAPSHOT_ROWS` | `1000` |
 | `MAX_SNAPSHOT_ROWS` | `20000` |
-| `UPDATES_PER_TICK` | `1` — distinct rows mutated + sent per live frame; overridable per-SEND via the `updates-per-tick` header |
+| `UPDATES_PER_TICK` | `1` — distinct rows mutated + sent per live frame (legacy mode); overridable per-SEND via the `updates-per-tick` header |
+| `LIVE_MODE` | `legacy` — set `sparse` for partial headline-field deltas (positions only) |
+| `SPARSE_ROWS_PER_TICK` | `100` — target rows per sparse live frame (jittered); overridable via `updates-per-tick` when `live-mode: sparse` |
+| `ROW_PROFILE` | `wide` — set `slim` for high-frequency sparse streams |
+| `SWEEP_ROWS_PER_SEC` | `10000` (`wide`) / `40000` (`slim`) — legacy live sweep cap only |
 | `DEBUG` | unset (`1` / `true` for verbose logs) |
 | `LOG_OUTBOUND` | `1` by default; set to `0` or `false` to stop printing each outbound **MESSAGE** body |
 | `LOG_LIVE_EVERY` | `1` = log every live-update message; use `50` or `100` at high msg/sec to reduce noise |

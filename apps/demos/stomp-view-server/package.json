@@ -12,7 +12,8 @@
     "build": "rimraf dist && tsc",
     "start": "node dist/main.js",
     "dev": "tsx watch src/main.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "dotenv": "^16.5.0",
@@ -23,7 +24,8 @@
     "@types/ws": "^8.5.13",
     "rimraf": "^6.0.1",
     "tsx": "^4.22.2",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "vitest": "^4.0.16"
   },
   "license": "ISC"
 }

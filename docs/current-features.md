@@ -1639,7 +1639,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 | `e2e-openfin-workspace` | OpenFin workspace e2e; `HostedMarketsGrid` + hub mock provider |
 | `e2e-openfin-vitest` | OpenFin Vitest harness |
 | `marketsgrid-container-e2e` | `MarketsGridContainer` interaction harness |
-| `stomp-view-server` | Node STOMP wire mock for local dev (pairs with STOMP demos) |
+| `stomp-view-server` | Node STOMP wire mock for local dev (pairs with STOMP demos); optional **`live-mode: sparse`** partial position deltas (`marketValue`, `currentPrice`, `pnl`, `yield`, `spread`, `pv01`, `dv01`) |
 
 **Build / verify tooling:**
 - `docs/BUILD.md` + `apps/README.md` — three-layer build matrix: `build:packages` → `propagate` → `build:apps` (installed) / `build:apps-source` (source)

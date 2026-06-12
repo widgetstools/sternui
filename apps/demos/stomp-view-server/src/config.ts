@@ -1,5 +1,7 @@
 import type { RowProfile } from "./data/fiRecords.js";
 
+export type LiveMode = "legacy" | "sparse";
+
 export interface AppConfig {
   port: number;
   nodeEnv: string;
@@ -34,6 +36,19 @@ export interface AppConfig {
    * running many simultaneous clients.
    */
   maxSweepRowsPerSec: number;
+  /**
+   * Live update wire shape (env `LIVE_MODE`): `legacy` = full-row
+   * sweep batches; `sparse` = partial headline-field deltas for
+   * positions (positions only — trades stay legacy). Overridable per
+   * SEND via STOMP header `live-mode: sparse`.
+   */
+  defaultLiveMode: LiveMode;
+  /**
+   * Rows targeted per sparse live tick (env `SPARSE_ROWS_PER_TICK`).
+   * Actual count jitters ±35%. Overridden by STOMP `updates-per-tick`
+   * when `live-mode: sparse`.
+   */
+  sparseRowsPerTick: number;
   /** Verbose STOMP / per-tick logging */
   debug: boolean;
   /** Log outbound STOMP frames (CONNECTED + MESSAGE) to the terminal */
@@ -80,6 +95,14 @@ export function loadConfig(): AppConfig {
     10,
   );
 
+  const defaultLiveMode: LiveMode =
+    process.env.LIVE_MODE === "sparse" ? "sparse" : "legacy";
+
+  const rawSparseRows = Number.parseInt(
+    process.env.SPARSE_ROWS_PER_TICK ?? "100",
+    10,
+  );
+
   return {
     port: Number.isFinite(port) ? port : 8081,
     nodeEnv: process.env.NODE_ENV ?? "development",
@@ -92,6 +115,11 @@ export function loadConfig(): AppConfig {
       Number.isFinite(rawSweepRows) && rawSweepRows >= 1
         ? Math.min(rawSweepRows, 1_000_000)
         : defaultSweepRows,
+    defaultLiveMode,
+    sparseRowsPerTick:
+      Number.isFinite(rawSparseRows) && rawSparseRows >= 1
+        ? Math.min(rawSparseRows, MAX_UPDATES_PER_TICK)
+        : 100,
     debug: process.env.DEBUG === "1" || process.env.DEBUG === "true",
     logOutbound:
       process.env.LOG_OUTBOUND !== "0" &&
@@ -122,6 +150,14 @@ export function clampSnapshotRows(
   const raw = requested ?? config.defaultSnapshotRows;
   if (!Number.isFinite(raw)) return clamp(config.defaultSnapshotRows, lo, hi);
   return clamp(Math.floor(raw), lo, hi);
+}
+
+export function parseLiveMode(
+  config: AppConfig,
+  requested: string | undefined,
+): LiveMode {
+  const raw = (requested ?? config.defaultLiveMode).trim().toLowerCase();
+  return raw === "sparse" || raw === "sparse-erratic" ? "sparse" : "legacy";
 }
 
 function clamp(n: number, lo: number, hi: number): number {

@@ -43,6 +43,14 @@ export const HEADER_SNAPSHOT_ROWS = "snapshot-rows";
  */
 export const HEADER_UPDATES_PER_TICK = "updates-per-tick";
 
+/**
+ * Optional extension — live update wire shape. `sparse` (alias
+ * `sparse-erratic`) emits partial position deltas (headline fields
+ * only, erratic subset per row). Omitted → env `LIVE_MODE` default
+ * (`legacy` = full-row sweep batches).
+ */
+export const HEADER_LIVE_MODE = "live-mode";
+
 export const HEADER = {
   MESSAGE_TYPE: "message-type",
   CONTENT_TYPE: "content-type",

@@ -1,6 +1,6 @@
 import type { WebSocket } from "ws";
-import type { AppConfig } from "../config.js";
-import { clampSnapshotRows, clampUpdatesPerTick } from "../config.js";
+import type { AppConfig, LiveMode } from "../config.js";
+import { clampSnapshotRows, clampUpdatesPerTick, parseLiveMode } from "../config.js";
 import type { PositionRecord, TradeRecord } from "../data/fiRecords.js";
 import { buildSnapshot, stampPositionsAsOfDate } from "../data/fiRecords.js";
 import {
@@ -12,6 +12,7 @@ import {
 import * as protocol from "../protocol/contract.js";
 import { hashString } from "../util/hash.js";
 import { createLiveBatcher } from "./liveBatcher.js";
+import { createSparseLiveBatcher } from "./sparseLiveBatcher.js";
 
 export interface Subscription {
   destination: string;
@@ -199,10 +200,35 @@ export class StompConnection {
     );
   }
 
+  private parseLiveMode(headers: Record<string, string>): LiveMode {
+    return parseLiveMode(
+      this.config,
+      headerCI(headers, protocol.HEADER_LIVE_MODE),
+    );
+  }
+
+  /** Rows per sparse live tick; falls back to `SPARSE_ROWS_PER_TICK`. */
+  private parseSparseRowsPerTick(
+    headers: Record<string, string>,
+    liveMode: LiveMode,
+  ): number {
+    const raw = headerCI(headers, protocol.HEADER_UPDATES_PER_TICK);
+    if (raw !== undefined) {
+      const n = Number.parseInt(raw, 10);
+      if (Number.isFinite(n)) return clampUpdatesPerTick(n);
+    }
+    if (liveMode === "sparse") return this.config.sparseRowsPerTick;
+    return this.parseUpdatesPerTick(headers);
+  }
+
   private handleSend(headers: Record<string, string>, body: string): void {
     const destination = headers.destination ?? "";
     const rowCount = this.parseSnapshotRows(headers);
-    const updatesPerTick = this.parseUpdatesPerTick(headers);
+    const liveMode = this.parseLiveMode(headers);
+    const updatesPerTick =
+      liveMode === "sparse"
+        ? this.parseSparseRowsPerTick(headers, liveMode)
+        : this.parseUpdatesPerTick(headers);
     const requestString =
       body && body.startsWith("/snapshot/") ? body : destination;
 
@@ -270,6 +296,7 @@ export class StompConnection {
           subscription,
           rowCount,
           updatesPerTick,
+          liveMode,
         );
       } else {
         if (this.config.debug)
@@ -311,6 +338,7 @@ export class StompConnection {
           rowCount,
           seedBase,
           updatesPerTick,
+          liveMode,
         );
       } else if (this.config.debug) {
         console.log(`No subscription for ${generic}`);
@@ -330,6 +358,7 @@ export class StompConnection {
     rowCount: number,
     seedBase: number,
     updatesPerTick: number,
+    liveMode: LiveMode,
   ): void {
     const data = buildSnapshot(
       dataType,
@@ -359,6 +388,7 @@ export class StompConnection {
             subscription,
             delivered,
             updatesPerTick,
+            liveMode,
           );
           return;
         }
@@ -466,17 +496,18 @@ export class StompConnection {
     sendBatch();
   }
 
-  /**
-   * Round-robin live batcher over the delivered record set (full-set
-   * coverage targeted once per second, capped by SWEEP_ROWS_PER_SEC —
-   * see `liveBatcher.ts`), shared by the legacy and client-specific
-   * live loops.
-   */
-  private liveBatcherFor(
+  private liveBatchFnFor(
     dataType: "positions" | "trades",
     records: (PositionRecord | TradeRecord)[],
     updatesPerTick: number,
-  ): () => (PositionRecord | TradeRecord)[] {
+    liveMode: LiveMode,
+  ): () => unknown[] {
+    if (liveMode === "sparse" && dataType === "positions") {
+      return createSparseLiveBatcher({
+        records: records as PositionRecord[],
+        rowsPerTick: updatesPerTick,
+      });
+    }
     const isPositions = dataType === "positions";
     return createLiveBatcher<PositionRecord | TradeRecord>({
       records,
@@ -509,13 +540,15 @@ export class StompConnection {
     subscription: Subscription,
     deliveredRecords: (PositionRecord | TradeRecord)[],
     updatesPerTick: number,
+    liveMode: LiveMode,
   ): void {
     const intervalMs = 1000 / rate;
     let updateNumber = 1;
-    const nextBatch = this.liveBatcherFor(
+    const nextBatch = this.liveBatchFnFor(
       dataType,
       deliveredRecords,
       updatesPerTick,
+      liveMode,
     );
 
     const updateInterval = setInterval(() => {
@@ -541,13 +574,14 @@ export class StompConnection {
         );
 
         if (this.config.debug && updateNumber <= 3) {
-          const first = batch[0]!;
+          const first = batch[0] as Record<string, unknown>;
           const rid =
             dataType === "positions"
-              ? (first as PositionRecord).positionId
-              : (first as TradeRecord).tradeId;
+              ? first.positionId
+              : first.tradeId;
+          const fieldCount = Object.keys(first).length - 1;
           console.log(
-            `live update #${updateNumber} ${dataType} ${batch.length} row(s) (e.g. ${rid})`,
+            `live update #${updateNumber} ${dataType} ${liveMode} ${batch.length} row(s) (e.g. ${String(rid)}, ~${fieldCount} field(s)/row)`,
           );
         }
         updateNumber++;
@@ -567,6 +601,7 @@ export class StompConnection {
     subscription: Subscription,
     rowCount: number,
     updatesPerTick: number,
+    liveMode: LiveMode,
   ): void {
     const seedBase = hashString(`${clientId}-${dataType}`);
     const data = buildSnapshot(
@@ -606,6 +641,7 @@ export class StompConnection {
             subscription,
             deliveredRecords,
             updatesPerTick,
+            liveMode,
           );
           return;
         }
@@ -649,14 +685,16 @@ export class StompConnection {
     subscription: Subscription,
     deliveredRecords: (PositionRecord | TradeRecord)[],
     updatesPerTick: number,
+    liveMode: LiveMode,
   ): void {
     let updateNumber = 1;
     const streamKey = `${dataType}-${clientId}`;
     const intervalMs = 1000 / rate;
-    const nextBatch = this.liveBatcherFor(
+    const nextBatch = this.liveBatchFnFor(
       dataType,
       deliveredRecords,
       updatesPerTick,
+      liveMode,
     );
 
     const updateInterval = setInterval(() => {
