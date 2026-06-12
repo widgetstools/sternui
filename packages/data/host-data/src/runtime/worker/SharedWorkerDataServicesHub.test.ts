@@ -223,6 +223,58 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
     expect(v2.restartLog).toEqual([{ __refresh: 1 }]);
   });
 
+  it('peer windows receive the loading status when one window restarts with a new cfg (RESTART+RECONFIG)', () => {
+    // Regression: real transports emit `status: loading` SYNCHRONOUSLY
+    // inside the factory call. createProvider used to register the slot
+    // only after the factory returned, so applyEmit dropped that first
+    // loading — and with the adopt-in-flight restart no longer
+    // re-emitting via beginSnapshotPhase(), peer windows erratically
+    // never learned a refresh had started.
+    registerProvider('mock' as ProviderConfig['providerType'], (c, emit) => {
+      const ctrl: TestController = { emit, stopCount: 0, restartLog: [] };
+      controllers.set((c as unknown as { __testKey?: string }).__testKey ?? 'default', ctrl);
+      emit({ status: 'loading' }); // synchronous, like startStomp/startRest
+      return { stop() { ctrl.stopCount += 1; }, restart(extra) { ctrl.restartLog.push(extra); } };
+    });
+
+    const hub = new SharedWorkerDataServicesHub();
+    const clicker = makePort();
+    const peer = makePort();
+    hub.handleRequest(clicker, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg('v1') });
+    hub.handleRequest(peer, { kind: 'attach', subId: 'sPeer', providerId: 'p1', mode: 'data' });
+    const v1 = controllers.get('v1')!;
+    v1.emit({ rows: [{ id: 'r1', x: 1 }], replace: true });
+    v1.emit({ status: 'ready' });
+    peer.messages.length = 0;
+
+    // Window 1's adapter restarts: detach old sub, re-attach with the
+    // current cfg + a __refresh extra (the editor/diagnostics flow).
+    hub.handleRequest(clicker, { kind: 'detach', subId: 's1' });
+    hub.handleRequest(clicker, {
+      kind: 'attach',
+      subId: 's1b',
+      providerId: 'p1',
+      mode: 'data',
+      cfg: cfg('v2'),
+      extra: { __refresh: 1 },
+    });
+
+    // The peer must see the refresh begin...
+    const peerLoading = peer.messages.find(
+      (m) => m.kind === 'status' && (m as { status: string }).status === 'loading',
+    );
+    expect(peerLoading).toBeTruthy();
+    expect((peerLoading as { subId: string }).subId).toBe('sPeer');
+
+    // ...and the fresh snapshot when it lands.
+    const v2 = controllers.get('v2')!;
+    v2.emit({ rows: [{ id: 'r1', x: 42 }], replace: true });
+    v2.emit({ status: 'ready' });
+    const freshReplace = peer.messages.find(isReplaceDelta);
+    expect(freshReplace).toBeTruthy();
+    expect(rowsOf(freshReplace!)).toEqual([{ id: 'r1', x: 42 }]);
+  });
+
   it('passes extra to provider.restart on the first attach (fresh provider)', () => {
     const hub = new SharedWorkerDataServicesHub();
     const port = makePort();

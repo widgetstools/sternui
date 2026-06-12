@@ -684,7 +684,8 @@ export class SharedWorkerDataServicesHub {
         } satisfies Event);
         return;
       }
-      this.providers.set(req.providerId, slot);
+      // createProvider registered the slot (pre-start, so synchronous
+      // emissions broadcast).
       this.ensureStatsSampler();
       // First attach can carry `extra` (historical asOfDate). Without this,
       // `ProviderClientAdapter.restart()` on a fresh provider would create
@@ -936,9 +937,22 @@ export class SharedWorkerDataServicesHub {
       this.applyEmit(providerId, slot, event);
     };
 
-    slot.handle = startProvider(cfg, emit, {
-      appDataLookup: (name, key) => this.appData.get(name, key),
-    });
+    // Register BEFORE starting the provider: transports emit
+    // `status: loading` synchronously inside the factory call, and
+    // `applyEmit` drops events from unregistered slots. Registered
+    // after-the-fact, that first loading vanished — peer windows never
+    // learned a restart had begun (the old `restart()` path masked
+    // this by re-emitting loading post-registration; the adopt-in-
+    // flight restart path doesn't).
+    this.providers.set(providerId, slot);
+    try {
+      slot.handle = startProvider(cfg, emit, {
+        appDataLookup: (name, key) => this.appData.get(name, key),
+      });
+    } catch (err) {
+      this.providers.delete(providerId);
+      throw err;
+    }
     return slot;
   }
 
@@ -957,8 +971,9 @@ export class SharedWorkerDataServicesHub {
     // connection are ignored the moment it stops being that slot.
     this.providers.delete(providerId);
     if (old) void old.handle.stop();
+    // createProvider registers the fresh slot before starting it, so its
+    // synchronous `loading` emission reaches every existing listener.
     const fresh = this.createProvider(providerId, cfg);
-    this.providers.set(providerId, fresh);
     this.ensureStatsSampler();
     return fresh;
   }

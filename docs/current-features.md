@@ -1218,6 +1218,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - Lazy provider create on first attach, reuse on subsequent attaches
 - `refresh-provider` RPC — replay hub cache to one subscriber without upstream I/O; `SubscribeHandle.refresh()` / `IDataProvider.refresh()`
 - `attach.extra` → `restart(extra)` on running provider; when the attach also carries `cfg` (editor Restart button), the slot is **rebuilt from the new cfg** (`recreateProvider`) so the reconnect picks up edited connection/column/behaviour settings instead of the stale config the slot was created with
+- Slots register in the provider map **before** their transport factory runs, so the synchronous `status: loading` every transport emits on start broadcasts to all attached windows — peer blotters show the refresh overlay the moment any window restarts the shared provider (previously that first emission was dropped by the unregistered-slot guard and peers erratically missed the restart signal)
 - `stop` keeps a provider's **stats listeners** registered (pushes one zeroed snapshot, doesn't drop the subscription) so the diagnostics pane survives a Stop and resumes automatically on the next Restart
 
 #### Wire protocol (v2)
