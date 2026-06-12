@@ -340,9 +340,10 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
       replace: true,
     });
 
-    const broadcast = port.messages.find((m) => m.kind === 'delta' && (m as { replace?: boolean }).replace) as Event & { rows: Array<{ id: string; x: number }> };
-    expect(broadcast.rows).toHaveLength(2);
-    const byId = new Map(broadcast.rows.map((r) => [r.id, r]));
+    const broadcast = port.messages.find(isReplaceDelta)!;
+    const rows = rowsOf(broadcast) as Array<{ id: string; x: number }>;
+    expect(rows).toHaveLength(2);
+    const byId = new Map(rows.map((r) => [r.id, r]));
     expect(byId.get('r1')?.x).toBe(99); // last write wins
     expect(byId.get('r2')?.x).toBe(2);
   });
@@ -366,9 +367,10 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
 
     ctrl.emit({ rows: [{ id: 'r1', x: 1 }, { id: 'r1', x: 2 }] });
 
-    const delta = port.messages.find((m) => m.kind === 'delta' && !(m as { replace?: boolean }).replace) as Event & { rows: Array<{ id: string; x: number }> };
-    expect(delta.rows).toHaveLength(1);
-    expect(delta.rows[0]).toEqual({ id: 'r1', x: 2 }); // last write wins
+    const delta = port.messages.find((m) => isAnyDelta(m) && !isReplaceDelta(m))!;
+    const rows = rowsOf(delta) as Array<{ id: string; x: number }>;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual({ id: 'r1', x: 2 }); // last write wins
   });
 
   it('drops rows without a keyColumn value from the broadcast (no id → cannot route)', () => {
@@ -384,9 +386,10 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
 
     ctrl.emit({ rows: [{ id: 'r1', x: 1 }, { x: 'orphan' }, { id: 'r2', x: 3 }] });
 
-    const delta = port.messages.find((m) => m.kind === 'delta' && !(m as { replace?: boolean }).replace) as Event & { rows: Array<{ id?: string }> };
-    expect(delta.rows).toHaveLength(2);
-    expect(delta.rows.every((r) => r.id !== undefined)).toBe(true);
+    const delta = port.messages.find((m) => isAnyDelta(m) && !isReplaceDelta(m))!;
+    const rows = rowsOf(delta) as Array<{ id?: string }>;
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r.id !== undefined)).toBe(true);
   });
 
   it('dedupes by COMPOSITE keyColumn (array form — values joined with `-`)', () => {
@@ -412,11 +415,12 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
       ],
     });
 
-    const delta = port.messages.find((m) => m.kind === 'delta' && !(m as { replace?: boolean }).replace) as Event & { rows: Array<Record<string, unknown>> };
-    expect(delta.rows).toHaveLength(3);              // 4 distinct rows minus the orphan → 3
-    expect(delta.rows[0]).toEqual({ region: 'EMEA', desk: 'CRD', instrumentId: 'IBM', qty: 250 });
-    expect(delta.rows[1]).toEqual({ region: 'EMEA', desk: 'CRD', instrumentId: 'AAPL', qty: 10 });
-    expect(delta.rows[2]).toEqual({ region: 'AMER', desk: 'CRD', instrumentId: 'IBM', qty: 50 });
+    const delta = port.messages.find((m) => isAnyDelta(m) && !isReplaceDelta(m))!;
+    const rows = rowsOf(delta) as Array<Record<string, unknown>>;
+    expect(rows).toHaveLength(3);              // 4 distinct rows minus the orphan → 3
+    expect(rows[0]).toEqual({ region: 'EMEA', desk: 'CRD', instrumentId: 'IBM', qty: 250 });
+    expect(rows[1]).toEqual({ region: 'EMEA', desk: 'CRD', instrumentId: 'AAPL', qty: 10 });
+    expect(rows[2]).toEqual({ region: 'AMER', desk: 'CRD', instrumentId: 'IBM', qty: 50 });
   });
 });
 
@@ -469,11 +473,11 @@ describe('SharedWorkerDataServicesHub — broadcast fan-out', () => {
 
     ctrl.emit({ rows: [{ id: 'r1' }] });
 
-    expect(a.messages.find((m) => m.kind === 'delta' && (m as { rows: unknown[] }).rows.length === 1)).toBeTruthy();
-    expect(b.messages.find((m) => m.kind === 'delta' && (m as { rows: unknown[] }).rows.length === 1)).toBeTruthy();
+    const aDelta = a.messages.find((m) => isAnyDelta(m) && rowsOf(m)?.length === 1);
+    const bDelta = b.messages.find((m) => isAnyDelta(m) && rowsOf(m)?.length === 1);
+    expect(aDelta).toBeTruthy();
+    expect(bDelta).toBeTruthy();
     // Each carries its own subId.
-    const aDelta = a.messages.find((m) => m.kind === 'delta' && (m as { rows: unknown[] }).rows.length === 1);
-    const bDelta = b.messages.find((m) => m.kind === 'delta' && (m as { rows: unknown[] }).rows.length === 1);
     expect((aDelta as { subId: string }).subId).toBe('sA');
     expect((bDelta as { subId: string }).subId).toBe('sB');
   });
@@ -553,6 +557,89 @@ describe('SharedWorkerDataServicesHub — snapshot replay memoization', () => {
 
     const delta = port.messages.find((m) => m.kind === 'delta') as Event & { rows: readonly unknown[] };
     expect(delta.rows).toBe(batch);
+  });
+});
+
+describe('SharedWorkerDataServicesHub — binary snapshot broadcast (restart/initial fan-out)', () => {
+  const binChunks = (port: CapturedPort) =>
+    port.messages.filter((m) => m.kind === 'delta-bin') as Array<Event & { kind: 'delta-bin' }>;
+
+  it('pre-ready snapshot chunks broadcast as delta-bin with ONE shared buffer per chunk across all ports', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const a = makePort();
+    const b = makePort();
+    hub.handleRequest(a, { kind: 'attach', subId: 'sA', providerId: 'p1', mode: 'data', cfg: cfg() });
+    hub.handleRequest(b, { kind: 'attach', subId: 'sB', providerId: 'p1', mode: 'data' });
+    const ctrl = controllers.get('default')!;
+    a.messages.length = 0;
+    b.messages.length = 0;
+
+    // 700-row replace while status is still loading → sliced into 500 + 200.
+    ctrl.emit({ rows: Array.from({ length: 700 }, (_, i) => ({ id: `r${i}`, x: i })), replace: true });
+
+    const chunksA = binChunks(a);
+    const chunksB = binChunks(b);
+    expect(chunksA).toHaveLength(2);
+    expect(chunksB).toHaveLength(2);
+    expect(chunksA.map((c) => Boolean(c.replace))).toEqual([true, false]);
+    // Identity across ports: one serialization, N flat byte copies.
+    expect(chunksB[0].buf).toBe(chunksA[0].buf);
+    expect(chunksB[1].buf).toBe(chunksA[1].buf);
+    const rows = chunksA.flatMap((c) => rowsOf(c)) as Array<{ id: string }>;
+    expect(rows).toHaveLength(700);
+    expect(rows[0]).toEqual({ id: 'r0', x: 0 });
+    expect(rows[699]).toEqual({ id: 'r699', x: 699 });
+    // Each port's chunks carry its own subId.
+    expect(chunksA.every((c) => c.subId === 'sA')).toBe(true);
+    expect(chunksB.every((c) => c.subId === 'sB')).toBe(true);
+  });
+
+  it('the broadcast encoding seeds the replay snapshot — a late joiner reuses the SAME buffers', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const primer = makePort();
+    hub.handleRequest(primer, { kind: 'attach', subId: 'primer', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    primer.messages.length = 0;
+
+    // STOMP-style streamed snapshot: replace head + clean append tail.
+    ctrl.emit({ rows: Array.from({ length: 500 }, (_, i) => ({ id: `r${i}`, x: i })), replace: true });
+    ctrl.emit({ rows: Array.from({ length: 200 }, (_, i) => ({ id: `r${500 + i}`, x: 500 + i })) });
+    ctrl.emit({ status: 'ready' });
+
+    const broadcastBufs = binChunks(primer).map((c) => c.buf);
+    expect(broadcastBufs).toHaveLength(2);
+
+    const late = makePort();
+    hub.handleRequest(late, { kind: 'attach', subId: 'late', providerId: 'p1', mode: 'data' });
+    const replayBufs = binChunks(late).map((c) => c.buf);
+    // No re-serialization on attach: the replay IS the broadcast encoding.
+    expect(replayBufs).toHaveLength(2);
+    expect(replayBufs[0]).toBe(broadcastBufs[0]);
+    expect(replayBufs[1]).toBe(broadcastBufs[1]);
+    const rows = binChunks(late).flatMap((c) => rowsOf(c)) as Array<{ id: string }>;
+    expect(rows).toHaveLength(700);
+  });
+
+  it('a pre-ready chunk that UPDATES an existing key invalidates the seed — replay re-encodes correctly', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const primer = makePort();
+    hub.handleRequest(primer, { kind: 'attach', subId: 'primer', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    primer.messages.length = 0;
+
+    ctrl.emit({ rows: [{ id: 'r0', x: 0 }, { id: 'r1', x: 1 }], replace: true });
+    // Same key again while still loading → cache overwrites in place;
+    // the appended-chunk shortcut must NOT apply.
+    ctrl.emit({ rows: [{ id: 'r0', x: 99 }] });
+    ctrl.emit({ status: 'ready' });
+
+    const broadcastBufs = binChunks(primer).map((c) => c.buf);
+    const late = makePort();
+    hub.handleRequest(late, { kind: 'attach', subId: 'late', providerId: 'p1', mode: 'data' });
+    const lateChunks = binChunks(late);
+    expect(lateChunks).toHaveLength(1);
+    expect(lateChunks[0].buf).not.toBe(broadcastBufs[0]);
+    expect(rowsOf(lateChunks[0])).toEqual([{ id: 'r0', x: 99 }, { id: 'r1', x: 1 }]);
   });
 });
 
@@ -1001,8 +1088,8 @@ describe('SharedWorkerDataServicesHub — REST round-trip', () => {
     for (let i = 0; i < 3; i++) await new Promise<void>((r) => setTimeout(r, 0));
 
     // Initial attach replay (cache empty), then loading, then the
-    // post-fetch replace with rows, then ready.
-    const deltas = port.messages.filter((m) => m.kind === 'delta');
+    // post-fetch replace with rows (pre-ready → delta-bin), then ready.
+    const deltas = port.messages.filter(isAnyDelta);
     const statuses = port.messages.filter((m) => m.kind === 'status') as Array<Event & { status: string }>;
 
     expect(statuses.map((s) => s.status)).toEqual(['loading', 'ready']);
@@ -1010,10 +1097,11 @@ describe('SharedWorkerDataServicesHub — REST round-trip', () => {
     // The last delta carries the fetched rows (the immediate attach
     // replay sent an empty cache; the post-fetch broadcast carried
     // the snapshot). Hub dedupes by keyColumn so we expect exactly 2.
-    const finalDelta = deltas[deltas.length - 1] as Event & { rows: unknown[]; replace?: boolean };
-    expect(finalDelta.replace).toBe(true);
-    expect(finalDelta.rows).toHaveLength(2);
-    expect(finalDelta.rows.map((r) => (r as { id: string }).id)).toEqual(['r1', 'r2']);
+    const finalDelta = deltas[deltas.length - 1]!;
+    expect(isReplaceDelta(finalDelta)).toBe(true);
+    const finalRows = rowsOf(finalDelta)!;
+    expect(finalRows).toHaveLength(2);
+    expect(finalRows.map((r) => (r as { id: string }).id)).toEqual(['r1', 'r2']);
 
     // Detach is a clean fire-and-forget; no further events.
     port.messages.length = 0;

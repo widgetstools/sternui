@@ -1212,6 +1212,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `onSnapshotCommit` — fires on every loading→ready assembly (initial + hub restarts on an existing subId)
 - `LATE_JOIN_CHUNK_SIZE = 500` chunking for popouts
 - Pre-encoded replay (`delta-bin`): cache replay chunks are UTF-8 JSON `Uint8Array`s built **once per cache generation** (lazy, invalidated O(1) on any cache mutation) and the same buffers are posted to every attaching port — N simultaneous window attaches cost one serialization plus N flat byte copies instead of N object-graph structured clones; client decodes back into the normal `onDelta` path
+- Binary snapshot broadcast: **pre-ready** row broadcasts (initial load AND restarts — `snapshotReady` clears on every `loading`) also fan out as `delta-bin`, sliced to ≤`LATE_JOIN_CHUNK_SIZE` rows and encoded once for all attached ports — a 10-window restart costs one serialization per chunk instead of 10 structured clones; the broadcast encoding **seeds the replay snapshot** (replace chunk → chunk 0; clean key-appending chunks extend it) so the next late joiner replays with zero re-encoding. Post-ready live ticks stay plain object `delta`s (straight into `applyTransactionAsync`)
 - Fan-out allocation discipline: `broadcastData` (and AppData delta fan-out) reuse one event object across the listener loop, rewriting `subId` per post (`PortLike` contract: `postMessage` serializes synchronously); a clean live batch (keyed, no intra-batch duplicates) is broadcast **by reference** — the dedup `Map`/`Set` and copied arrays are built only when a batch actually carries drops or duplicate keys
 - Buffering between snapshot-resolve and update registration
 - Lazy provider create on first attach, reuse on subsequent attaches
@@ -1223,7 +1224,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 - Client→worker requests: `AttachRequest`, `DetachRequest`, `StopRequest`, `HubReadyRequest`, `GetConfigRequest`, `ListConfigsRequest`, `ConfigInvalidateRequest`, `RefreshProviderRequest`, `HubIntrospectRequest`, `AppDataRequest` (attach/detach/set/upsert/remove); `AttachRequest.cfg` optional when `providerId` is in worker catalog
 - Worker→client catalog events: `catalog-ready`, `config-snapshot` (responses for hub-ready/get/list/invalidate/hub-introspect)
-- Worker→client events: deltas (`{ rows, replace? }`), `delta-bin` (pre-encoded UTF-8 JSON replay chunk `{ buf, replace? }`), status, `rows-received` (upstream snapshot buffer progress), byte-size, stats, AppData (snapshot/delta/ack)
+- Worker→client events: deltas (`{ rows, replace? }`), `delta-bin` (pre-encoded UTF-8 JSON chunk `{ buf, replace? }` — used for cache replay AND pre-ready snapshot fan-out), status, `rows-received` (upstream snapshot buffer progress), byte-size, stats, AppData (snapshot/delta/ack)
 
 #### Statistics
 

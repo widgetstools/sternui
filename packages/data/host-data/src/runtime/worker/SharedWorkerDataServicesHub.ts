@@ -973,7 +973,12 @@ export class SharedWorkerDataServicesHub {
       if (event.replace) slot.cache.clear();
       // Any cache mutation invalidates the pre-encoded replay snapshot.
       // Invalidation is O(1); the next late-join attach rebuilds lazily.
+      // Snapshot-phase chunks below may re-seed it from the broadcast
+      // encoding — capture the prior chunks so a clean append (new keys
+      // only) can extend them instead of forcing a full rebuild.
+      const prevReplay = slot.replaySnapshot;
       slot.replaySnapshot = null;
+      const cacheSizeBefore = slot.cache.size;
 
       // Upsert into the cache and detect (a) rows whose key doesn't
       // resolve (dropped) and (b) intra-batch duplicate keys. In the
@@ -1064,6 +1069,54 @@ export class SharedWorkerDataServicesHub {
         }
         broadcastRows = [...batch.values()];
       }
+
+      // Snapshot-phase chunks (pre-ready: initial load AND restarts —
+      // `resetProviderStats` clears `snapshotReady` on every `loading`)
+      // broadcast as pre-encoded `delta-bin`: one serialization, then a
+      // flat byte copy per port, instead of N object-graph structured
+      // clones. With many windows on one provider, the restart snapshot
+      // fan-out was the worker's biggest remaining allocation burst.
+      // Live ticks (post-ready) stay as plain object deltas — small
+      // conflated batches don't repay the encode, and consumers feed
+      // them straight to `applyTransactionAsync`.
+      if (!slot.snapshotReady && broadcastRows.length > 0) {
+        // Encode in ≤ LATE_JOIN_CHUNK_SIZE slices so each port message
+        // decodes under the receiver's long-task budget (STOMP already
+        // flushes 500-row chunks and hits the single-slice path; REST /
+        // mock one-shot replaces get sliced here).
+        const bufs: Uint8Array[] = [];
+        for (let i = 0; i < broadcastRows.length; i += LATE_JOIN_CHUNK_SIZE) {
+          bufs.push(SNAPSHOT_ENCODER.encode(
+            JSON.stringify(broadcastRows.slice(i, i + LATE_JOIN_CHUNK_SIZE)),
+          ));
+        }
+        if (event.replace) {
+          // A replace broadcast always equals the cache contents
+          // (clean rows by reference, or the deduped cache itself), so
+          // the encoded slices double as the replay snapshot for free.
+          slot.replaySnapshot = bufs;
+        } else if (
+          prevReplay
+          && !dupKeys
+          && dropped === 0
+          && slot.cache.size === cacheSizeBefore + event.rows.length
+        ) {
+          // Clean append (every key new): the chunk extends the cache
+          // in insertion order, so it extends the replay encoding too.
+          prevReplay.push(...bufs);
+          slot.replaySnapshot = prevReplay;
+        }
+        for (let i = 0; i < bufs.length; i++) {
+          this.broadcastData(providerId, slot, {
+            kind: 'delta-bin',
+            buf: bufs[i],
+            replace: event.replace && i === 0,
+            subId: '', // rewritten per listener in broadcastData
+          });
+        }
+        return;
+      }
+
       this.broadcastData(providerId, slot, {
         kind: 'delta',
         rows: broadcastRows,
