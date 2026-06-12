@@ -568,19 +568,39 @@ export function generateTrade(seed: number): TradeRecord {
   return trade;
 }
 
+/**
+ * Row width profile (env `ROW_PROFILE`):
+ * - `wide` (default) — full ~8.5 KB nested records; mimics a fat
+ *   corporate feed and exercises field projection / cache memory.
+ * - `slim` — top-level primitive fields only (~40 fields, sub-KB);
+ *   serialization stops being the bottleneck, so the live sweep can
+ *   run 5–10x faster. The high-frequency blotter stress profile.
+ */
+export type RowProfile = "wide" | "slim";
+
+/** Keep only top-level primitive fields (drop nested objects/arrays). */
+export function slimRecord<T extends Record<string, unknown>>(record: T): T {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(record)) {
+    if (v === null || typeof v !== "object") out[k] = v;
+  }
+  return out as T;
+}
+
 export function buildSnapshot(
   dataType: "positions" | "trades",
   rowCount: number,
   seedBase: number,
+  profile: RowProfile = "wide",
 ): (PositionRecord | TradeRecord)[] {
   const out: (PositionRecord | TradeRecord)[] = [];
   for (let i = 0; i < rowCount; i++) {
     const seed = seedBase + Math.imul(i, 1_000_003);
-    out.push(
+    const record =
       dataType === "positions"
         ? generatePosition(seed)
-        : generateTrade(seed),
-    );
+        : generateTrade(seed);
+    out.push(profile === "slim" ? slimRecord(record) : record);
   }
   return out;
 }

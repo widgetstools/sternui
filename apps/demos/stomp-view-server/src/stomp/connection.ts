@@ -331,7 +331,12 @@ export class StompConnection {
     seedBase: number,
     updatesPerTick: number,
   ): void {
-    const data = buildSnapshot(dataType, rowCount, seedBase);
+    const data = buildSnapshot(
+      dataType,
+      rowCount,
+      seedBase,
+      this.config.rowProfile,
+    );
     let index = 0;
     const snapshotBatchInterval = protocol.SNAPSHOT_BATCH_INTERVAL_MS;
     const delivered: (PositionRecord | TradeRecord)[] = [];
@@ -396,7 +401,12 @@ export class StompConnection {
   ): void {
     const seedBase = hashString(`${clientId}-positions-${asOfDateDisplay}`);
     const data = stampPositionsAsOfDate(
-      buildSnapshot("positions", rowCount, seedBase) as PositionRecord[],
+      buildSnapshot(
+        "positions",
+        rowCount,
+        seedBase,
+        this.config.rowProfile,
+      ) as PositionRecord[],
       asOfDateIso,
     );
     let index = 0;
@@ -559,7 +569,12 @@ export class StompConnection {
     updatesPerTick: number,
   ): void {
     const seedBase = hashString(`${clientId}-${dataType}`);
-    const data = buildSnapshot(dataType, rowCount, seedBase);
+    const data = buildSnapshot(
+      dataType,
+      rowCount,
+      seedBase,
+      this.config.rowProfile,
+    );
     let index = 0;
     let batchNumber = 1;
     const snapshotBatchInterval = protocol.SNAPSHOT_BATCH_INTERVAL_MS;

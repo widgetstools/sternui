@@ -1,6 +1,16 @@
+import type { RowProfile } from "./data/fiRecords.js";
+
 export interface AppConfig {
   port: number;
   nodeEnv: string;
+  /**
+   * Snapshot row width (env `ROW_PROFILE`): `wide` (default) = full
+   * ~8.5 KB nested records, `slim` = top-level primitives only
+   * (~1.1 KB) — serialization stops being the bottleneck so the live
+   * sweep sustains 4x the row rate. Use `slim` for high-frequency
+   * blotter stress tests.
+   */
+  rowProfile: RowProfile;
   /** Rows delivered in snapshot unless overridden by STOMP header `snapshot-rows` */
   defaultSnapshotRows: number;
   minSnapshotRows: number;
@@ -17,9 +27,10 @@ export interface AppConfig {
    * `SWEEP_ROWS_PER_SEC`). The live loop sweeps the whole delivered set
    * in parity waves (evens, then odds), targeting full coverage every
    * second; above this cap it degrades to full coverage every
-   * rowCount/cap seconds instead of saturating the event loop. ~8.5 KB
-   * synthetic rows serialize at roughly 12k rows/s on one Node thread —
-   * 10000 is near the ceiling for a single hot stream; drop it back if
+   * rowCount/cap seconds instead of saturating the event loop. Default
+   * tracks the row profile's measured single-thread ceiling: `wide`
+   * rows (~8.5 KB) serialize at ~12k rows/s → default 10000; `slim`
+   * rows (~1.1 KB) at ~60k rows/s → default 40000. Drop it back if
    * running many simultaneous clients.
    */
   maxSweepRowsPerSec: number;
@@ -54,8 +65,12 @@ export function loadConfig(): AppConfig {
     10,
   );
 
+  const rowProfile: RowProfile =
+    process.env.ROW_PROFILE === "slim" ? "slim" : "wide";
+
+  const defaultSweepRows = rowProfile === "slim" ? 40_000 : 10_000;
   const rawSweepRows = Number.parseInt(
-    process.env.SWEEP_ROWS_PER_SEC ?? "10000",
+    process.env.SWEEP_ROWS_PER_SEC ?? String(defaultSweepRows),
     10,
   );
 
@@ -68,6 +83,7 @@ export function loadConfig(): AppConfig {
   return {
     port: Number.isFinite(port) ? port : 8081,
     nodeEnv: process.env.NODE_ENV ?? "development",
+    rowProfile,
     defaultSnapshotRows,
     minSnapshotRows,
     maxSnapshotRows,
@@ -75,7 +91,7 @@ export function loadConfig(): AppConfig {
     maxSweepRowsPerSec:
       Number.isFinite(rawSweepRows) && rawSweepRows >= 1
         ? Math.min(rawSweepRows, 1_000_000)
-        : 10_000,
+        : defaultSweepRows,
     debug: process.env.DEBUG === "1" || process.env.DEBUG === "true",
     logOutbound:
       process.env.LOG_OUTBOUND !== "0" &&
