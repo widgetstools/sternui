@@ -6,7 +6,7 @@ import { buildSnapshot, stampPositionsAsOfDate } from "../data/fiRecords.js";
 import { mutatePosition, mutateTrade } from "../data/mutate.js";
 import * as protocol from "../protocol/contract.js";
 import { hashString } from "../util/hash.js";
-import { pickDistinctIndices } from "../util/sample.js";
+import { createLiveBatcher } from "./liveBatcher.js";
 
 export interface Subscription {
   destination: string;
@@ -452,24 +452,23 @@ export class StompConnection {
   }
 
   /**
-   * Mutate up to `updatesPerTick` distinct rows drawn from `records`, returning
-   * a fresh batch. Shared by the legacy and client-specific live loops so both
-   * emit one frame carrying N rows instead of one row per frame.
+   * Round-robin live batcher over the delivered record set (full-set
+   * coverage at least once per second — see `liveBatcher.ts`), shared
+   * by the legacy and client-specific live loops.
    */
-  private buildLiveBatch(
+  private liveBatcherFor(
     dataType: "positions" | "trades",
     records: (PositionRecord | TradeRecord)[],
     updatesPerTick: number,
-  ): (PositionRecord | TradeRecord)[] {
-    if (records.length === 0) return [];
-    const n = Math.min(updatesPerTick, records.length);
-    const indices = pickDistinctIndices(n, records.length);
-    return indices.map((i) => {
-      const base = records[i]!;
-      return dataType === "positions"
-        ? mutatePosition(base as PositionRecord)
-        : mutateTrade(base as TradeRecord);
-    });
+  ): () => (PositionRecord | TradeRecord)[] {
+    return createLiveBatcher(
+      records,
+      (base) =>
+        dataType === "positions"
+          ? mutatePosition(base as PositionRecord)
+          : mutateTrade(base as TradeRecord),
+      updatesPerTick,
+    );
   }
 
   private startLiveUpdates(
@@ -481,6 +480,11 @@ export class StompConnection {
   ): void {
     const intervalMs = 1000 / rate;
     let updateNumber = 1;
+    const nextBatch = this.liveBatcherFor(
+      dataType,
+      deliveredRecords,
+      updatesPerTick,
+    );
 
     const updateInterval = setInterval(() => {
       try {
@@ -488,11 +492,7 @@ export class StompConnection {
           clearInterval(updateInterval);
           return;
         }
-        const batch = this.buildLiveBatch(
-          dataType,
-          deliveredRecords,
-          updatesPerTick,
-        );
+        const batch = nextBatch();
         if (batch.length === 0) return;
 
         this.send(
@@ -615,6 +615,11 @@ export class StompConnection {
     let updateNumber = 1;
     const streamKey = `${dataType}-${clientId}`;
     const intervalMs = 1000 / rate;
+    const nextBatch = this.liveBatcherFor(
+      dataType,
+      deliveredRecords,
+      updatesPerTick,
+    );
 
     const updateInterval = setInterval(() => {
       try {
@@ -622,11 +627,7 @@ export class StompConnection {
           clearInterval(updateInterval);
           return;
         }
-        const batch = this.buildLiveBatch(
-          dataType,
-          deliveredRecords,
-          updatesPerTick,
-        );
+        const batch = nextBatch();
         if (batch.length === 0) return;
 
         this.send(
