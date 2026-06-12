@@ -4,17 +4,20 @@
    to also include @tailwind base in their own globals.css.
    ───────────────────────────────────────────────────────────── */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+/* Font @import is emitted first in dist/css/theme.css by scripts/build-css.ts */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
   html, body {
-    background-color: var(--ds-surface-ground);
-    color:            var(--ds-text-primary);
-    font-family:      var(--ds-font-sans);
+    @apply bg-background text-foreground;
+    font-family:      var(--font-sans);
     -webkit-font-smoothing: antialiased;
     text-rendering:   optimizeLegibility;
   }
@@ -23,7 +26,7 @@
      correctly. Setting font-size on html would shrink every Tailwind
      class by ~19% — buttons, badges, inputs all read undersized. */
   body {
-    font-size: var(--ds-font-size-md);
+    font-size: var(--text-md);
   }
 /*
   *:focus-visible {
@@ -32,14 +35,13 @@
   }*/
 
   ::selection {
-    background-color: var(--ds-state-selection);
+    background-color: oklch(var(--primary) / 0.16);
   }
 
   /* Tabular numerics for cell-monospace and any numeric column.
      Apply via class on data tables, KPI numbers, price ticks. */
-  .ds-mono,
-  .sf-mono {
-    font-family:           var(--ds-font-mono);
-    font-variant-numeric:  var(--ds-font-variant-tabular);
+  .ds-mono {
+    font-family:           var(--font-mono);
+    font-variant-numeric:  tabular-nums;
   }
 }

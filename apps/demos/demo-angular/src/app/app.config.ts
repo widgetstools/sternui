@@ -1,12 +1,7 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { providePrimeNG } from 'primeng/config';
-import { definePreset } from '@primeuix/themes';
-import Aura from '@primeuix/themes/aura';
 import { primengPreset } from '@starui/design-system/primeng';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const ChromaDeskPreset = definePreset(Aura, primengPreset as any);
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -14,7 +9,7 @@ export const appConfig: ApplicationConfig = {
     provideAnimationsAsync(),
     providePrimeNG({
       theme: {
-        preset: ChromaDeskPreset,
+        preset: primengPreset,
         options: {
           darkModeSelector: '[data-theme="dark"]',
           cssLayer: { name: 'primeng', order: 'tailwind-base, primeng, tailwind-utilities' },

@@ -59,6 +59,8 @@ function applyVariant(variant: LightVariant | undefined, theme: Mode): void {
 export function applyTheme(opts: ThemeOptions): void {
   if (typeof document === 'undefined') return;
   document.documentElement.setAttribute('data-theme', opts.theme);
+  // AG Grid v33+ theme modes read `data-ag-theme-mode` (see adapters/agGrid.ts).
+  document.documentElement.setAttribute('data-ag-theme-mode', opts.theme);
   applyVariant(opts.variant, opts.theme);
   if (opts.cvd) {
     document.documentElement.setAttribute('data-cvd', 'on');

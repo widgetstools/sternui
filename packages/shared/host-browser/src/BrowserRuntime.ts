@@ -151,6 +151,8 @@ export class BrowserRuntime implements RuntimePort {
   private writeTheme(theme: Theme): void {
     if (typeof document !== 'undefined') {
       try { document.documentElement.setAttribute('data-theme', theme); } catch { /* swallow */ }
+      // AG Grid v33+ theme modes read `data-ag-theme-mode` on an ancestor.
+      try { document.documentElement.setAttribute('data-ag-theme-mode', theme); } catch { /* swallow */ }
       try { document.body.dataset['agThemeMode'] = theme; } catch { /* swallow */ }
     }
     if (typeof window !== 'undefined') {

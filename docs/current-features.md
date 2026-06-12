@@ -81,6 +81,8 @@ module or a different package provides it.
 **Path:** `packages/design-system/design-system`
 **Purpose:** Design tokens, theme runtime, CSS variable generation, and framework adapters for the MarketsUI platform.
 
+**Upgrade guide:** [`docs/guides/design-system-upgrade-and-openfin-palette.md`](../../docs/guides/design-system-upgrade-and-openfin-palette.md) — StarUI v1 OKLCH tokens, shadcn/AG Grid alignment, OpenFin palette bridge.
+
 **Public exports:**
 
 - `.` — root (tokens, adapters, `applyTheme`, cell renderers)
@@ -98,9 +100,12 @@ module or a different package provides it.
 - Color palettes: paper, ink, graphite, teal, rose, amber, brand, cyan, purple, CVD-safe variants
 - Typography: font families, sizes, weights, letter-spacing, line-heights
 - Spacing scale, border radius, opacity scale, transition tokens, elevation/shadow scale
-- Stockflux Slate palette in hex, shadcn-compatible HSL, and AG Grid formats
-- **STARUI canonical packs** (`tokens/staruiHex.ts`) — Graphite dark, clinical light, paper light; cyan signature accent; mint-teal buy / rose sell
-- Legacy `--sf-*` / `stockfluxSlate*` export names retained; new `--st-*` namespace emitted in unified CSS
+- **StarUI v1 OKLCH tokens** (`tokens/starui-tokens.css`) — Azure accent, teal/rose buy/sell, FT paper light + blue-graphite dark; bare OKLCH components for alpha-friendly `oklch(var(--primary) / 0.12)` usage
+- **Compat bridge** (`adapters/compatCss.ts`) — `--ds-*`, `--bn-*`, `--p-*`, and surface scale aliases mapped from OKLCH source tokens for grid chrome and legacy consumers
+- **PrimeNG preset** — `definePreset(Aura, …)` Azure ramp + FI buy/sell semantics (`primeng/starui-primeng-preset` parity)
+- **AG Grid theme** — Quartz `staruiGridTheme` with light/dark `withParams` modes; OKLCH CSS vars; `data-ag-theme-mode` on `<html>` synced by `applyTheme` and runtime theme writers; density presets retained
+- **Tailwind preset** — OKLCH colors use `oklch(var(--token) / <alpha-value>)`; `fontSize` maps to `--text-*`; `h-control` / `size-control` map to `--control-h*` density tokens; shadcn opacity utilities resolve correctly in dark mode
+- **@starui/ui shadcn primitives** — aligned to StarUI v1 density (30px controls, 2px radius, semibold tracking-tight chrome, `shadow-card`/`shadow-overlay`, `bg-background` form surfaces, buy/sell badge variants)
 
 #### Semantic tokens
 
@@ -1415,6 +1420,8 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 **Path:** `packages/openfin/openfin-platform`
 **Purpose:** OpenFin workspace shell — dock, home, notifications, child windows, config import/export.
 
+**Chrome theming:** [`docs/guides/design-system-upgrade-and-openfin-palette.md`](../../docs/guides/design-system-upgrade-and-openfin-palette.md) § OpenFin palette integration.
+
 **Public exports:**
 
 - `.` — main platform API (workspace init, config, dock, launch)
@@ -1426,7 +1433,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 #### Workspace initialization
 
 - `resolveSeedConfigUrl(seedUrl, providerUrl?)` — resolve relative `seedConfigUrl` (e.g. `/seed.json`) against manifest `platform.providerUrl` origin for dev and production hosts
-- `initWorkspace()` — bootstrap dock + home + context menu + notifications. `WorkspaceConfig.dock.excludeTools?: string[]` hides built-in Tools-menu items by action ID (e.g. `[ACTION_EXPORT_CONFIG, ACTION_IMPORT_CONFIG]`); applies to both dock2 and dock3, default shows all.
+- `initWorkspace()` — bootstrap dock + home + context menu + notifications. `WorkspaceConfig.dock.excludeTools?: string[]` hides built-in Tools-menu items by action ID (e.g. `[ACTION_EXPORT_CONFIG, ACTION_IMPORT_CONFIG]`); applies to both dock2 and dock3, default shows all. Workspace chrome palettes (`CustomPaletteSet` dark/light) are resolved at init from loaded `@starui/design-system/css` OKLCH tokens (`buildOpenFinPalettesFromDesignSystem` in `openfinPalette.ts`) by flipping `<html data-theme>` while sampling each scheme — dock, browser tab bar, home/store, and modals follow StarUI light/dark ramps; `defaultWindowOptions.backgroundColor` matches the active scheme backfill.
 - `WorkspacePlatformOverrideCallback` — workspace lifecycle hooks
 - `workspace.options` — platform settings (name, icon, theme, notifications, dock)
 - `workspacePersistence` — save/load workspace (pinned windows, dock, layouts)

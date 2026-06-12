@@ -61,7 +61,7 @@ function Header() {
         className="text-[10px] font-bold uppercase tracking-[0.12em]"
         style={{ color: 'var(--ds-accent-info)' }}
       >
-        StarUI · Stockflux blue-slate
+        StarUI · slate trading palette
       </span>
       <h1 className="text-[40px] font-bold tracking-tight" style={{ color: 'var(--ds-text-primary)' }}>
         Design system
@@ -322,7 +322,7 @@ function FormGallery() {
                 <CheckCircle2 size={12} /> Hover for tooltip
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Themed tooltip surface (sf-bg-3 tier).</TooltipContent>
+            <TooltipContent>Themed tooltip surface (tertiary tier).</TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>

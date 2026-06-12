@@ -152,7 +152,7 @@ function SectionNavItem({ index, title, active, onClick }: SectionNavItemProps) 
       aria-current={active ? 'true' : undefined}
       data-testid={`tds-nav-${index}`}
       className={cn(
-        'group flex h-8 w-full items-center gap-2 rounded-sm border-l-2 pl-2.5 pr-2 text-left transition-colors',
+        'group flex h-control-sm w-full items-center gap-2 rounded-sm border-l-2 pl-2.5 pr-2 text-left transition-colors',
         active
           ? 'border-l-[color:var(--ds-primary)] bg-[var(--ds-primary-soft)] text-foreground'
           : 'border-l-transparent text-foreground/90 hover:bg-muted/60 hover:text-foreground',

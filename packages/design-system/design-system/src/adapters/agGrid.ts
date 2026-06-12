@@ -1,13 +1,9 @@
 // ─────────────────────────────────────────────────────────────
-//  AG Grid Theme Params — Quartz (ag-grid v33+)
-//
-//  Token-driven STARUI chrome — colors from staruiHex AG Grid packs.
-//  Structural params aligned with starui-aggrid.jsx (4px radius, 12px pad).
+//  AG Grid Theme — Quartz (ag-grid v33+)
+//  OKLCH CSS vars + light/dark theme modes (data-ag-theme-mode).
 // ─────────────────────────────────────────────────────────────
 
 import { iconSetQuartzLight, themeQuartz, type Theme } from 'ag-grid-community';
-import { dark, light, type ColorScheme } from '../tokens/semantic';
-import { stockfluxSlateAgGrid } from '../tokens/stockfluxSlate';
 
 /** AG Grid Quartz compactness preset — maps to `theme.withParams` structural knobs. */
 export type GridDensity = 'ultra' | 'compact' | 'comfort';
@@ -20,14 +16,11 @@ export const GRID_DENSITY_LABELS: Record<GridDensity, string> = {
   comfort: 'Comfortable',
 };
 
-type AgPack = { [K in keyof (typeof stockfluxSlateAgGrid)['dark']]: string };
-
 const AG_GRID_INTER_FONT = { googleFont: 'Inter' } as const;
 const AG_GRID_MONO_FONT = { googleFont: 'JetBrains Mono' } as const;
 
 /**
- * Structural theme params per density — aligned with AG Grid compactness guidance
- * (`spacing`, fixed `rowHeight` / `headerHeight`, font sizes).
+ * Structural theme params per density — aligned with AG Grid compactness guidance.
  * @see https://www.ag-grid.com/javascript-data-grid/theming-compactness/
  */
 export function gridDensityStructuralParams(density: GridDensity) {
@@ -52,6 +45,7 @@ export function gridDensityStructuralParams(density: GridDensity) {
     rowHeight: rowH,
     headerHeight: headerH,
     spacing,
+    cellHorizontalPadding: 12,
   };
 }
 
@@ -93,107 +87,105 @@ export function resolveGridDensity(settings?: GridDensitySettingsSlice | null): 
   return inferGridDensity(settings?.rowHeight, settings?.headerHeight);
 }
 
-function gridParams(
-  pack: AgPack,
-  scheme: ColorScheme,
-  mode: 'dark' | 'light',
-  density: GridDensity = 'compact',
-) {
-  const colors = pack;
-  const structural = gridDensityStructuralParams(density);
-
+/** Shared colour params — read live OKLCH tokens from the page. */
+function staruiSharedColorParams() {
   return {
-    browserColorScheme: mode,
-    ...structural,
-
-    headerFontWeight: 700,
+    backgroundColor: 'oklch(var(--card))',
+    foregroundColor: 'oklch(var(--foreground))',
+    borderColor: 'oklch(var(--grid-border))',
+    oddRowBackgroundColor: 'oklch(var(--primary) / 0.022)',
+    rowHoverColor: 'oklch(var(--primary) / 0.07)',
+    selectedRowBackgroundColor: 'oklch(var(--primary) / 0.12)',
+    rangeSelectionBackgroundColor: 'oklch(var(--primary) / 0.14)',
+    rangeSelectionBorderColor: 'oklch(var(--primary) / 0.5)',
+    accentColor: 'oklch(var(--primary))',
+    checkboxCheckedBackgroundColor: 'oklch(var(--primary))',
+    checkboxCheckedBorderColor: 'oklch(var(--primary))',
+    checkboxUncheckedBackgroundColor: 'oklch(var(--card))',
+    checkboxUncheckedBorderColor: 'oklch(var(--border))',
+    toggleButtonOnBackgroundColor: 'oklch(var(--primary))',
+    toggleButtonOffBackgroundColor: 'oklch(var(--muted))',
+    menuBackgroundColor: 'oklch(var(--popover))',
+    menuTextColor: 'oklch(var(--popover-foreground))',
+    menuBorder: { style: 'solid' as const, width: 1, color: 'oklch(var(--border))' },
+    tooltipBackgroundColor: 'oklch(var(--foreground))',
+    tooltipTextColor: 'oklch(var(--background))',
+    inputBackgroundColor: 'oklch(var(--card))',
+    inputBorder: { style: 'solid' as const, width: 1, color: 'oklch(var(--border))' },
+    inputFocusBorder: { style: 'solid' as const, width: 1, color: 'oklch(var(--primary))' },
+    focusShadow: 'var(--ds-elevation-glow)',
+    rowBorder: { style: 'solid' as const, width: 1, color: 'oklch(var(--grid-border))' },
+    headerRowBorder: true,
+    columnBorder: { style: 'solid' as const, width: 1, color: 'oklch(var(--grid-border) / 0.6)' },
+    headerColumnBorder: { style: 'solid' as const, width: 1, color: 'oklch(var(--grid-border) / 0.7)' },
+    headerColumnResizeHandleHeight: '0%',
+    wrapperBorder: true,
+    sidePanelBorder: true,
+    headerFontWeight: 600,
     cellFontFamily: AG_GRID_MONO_FONT,
-    cellTextColor: colors.fg,
-
-    backgroundColor: colors.bg,
-    foregroundColor: colors.fg,
-    chromeBackgroundColor: colors.chrome,
-    headerBackgroundColor: colors.header,
-    headerTextColor: colors.headerText,
-    rowHoverColor: colors.hover,
-    selectedRowBackgroundColor: colors.sel,
-    oddRowBackgroundColor: colors.odd,
-
-    borderColor: colors.border,
-    wrapperBorder: false as const,
-    rowBorder: { style: 'solid' as const, width: 1, color: colors.rowBorder },
-    cellHorizontalPadding: 12,
-
-    inputBackgroundColor: colors.inputBg,
-    inputBorder: { style: 'solid' as const, width: 1, color: colors.inputBorder },
-    inputFocusBorder: { style: 'solid' as const, width: 1, color: colors.inputFocus },
-    focusShadow: scheme.elevation.glow,
-
-    rangeSelectionBorderColor: colors.accent,
-    rangeSelectionBackgroundColor: colors.accentSoft,
-
-    menuBackgroundColor: colors.menu,
-    menuTextColor: colors.menuText,
-    menuBorder: { style: 'solid' as const, width: 1, color: colors.menuBorder },
-
-    tooltipBackgroundColor: colors.tooltip,
-    tooltipTextColor: colors.tooltipText,
-
-    checkboxCheckedBackgroundColor: colors.accent,
-    checkboxCheckedBorderColor: colors.accent,
-    checkboxUncheckedBackgroundColor: colors.inputBg,
-    checkboxUncheckedBorderColor: colors.inputBorder,
-
-    toggleButtonOnBackgroundColor: colors.accent,
-    toggleButtonOffBackgroundColor: colors.toggleOff,
-
-    accentColor: colors.accent,
+    cellTextColor: 'oklch(var(--foreground))',
+    invalidColor: 'oklch(var(--destructive))',
   };
 }
 
-export const agGridDarkParams = gridParams(
-  { ...stockfluxSlateAgGrid.dark },
-  dark,
-  'dark',
-  'compact',
-);
-export const agGridLightParams = gridParams(
-  { ...stockfluxSlateAgGrid.light },
-  light,
-  'light',
-  'compact',
-);
-export const agGridComfortDarkParams = gridParams(
-  { ...stockfluxSlateAgGrid.dark },
-  dark,
-  'dark',
-  'comfort',
-);
-export const agGridComfortLightParams = gridParams(
-  { ...stockfluxSlateAgGrid.light },
-  light,
-  'light',
-  'comfort',
-);
-export const agGridBlotterDarkParams = gridParams(
-  { ...stockfluxSlateAgGrid.dark },
-  dark,
-  'dark',
-  'ultra',
-);
-export const agGridBlotterLightParams = gridParams(
-  { ...stockfluxSlateAgGrid.light },
-  light,
-  'light',
-  'ultra',
-);
+const STARUI_LIGHT_CHROME = {
+  chromeBackgroundColor:
+    'color-mix(in oklch, color-mix(in oklch, oklch(var(--card)) 97%, oklch(var(--primary))) 92%, #fff)',
+  headerBackgroundColor: 'color-mix(in oklch, oklch(var(--muted)) 56%, #fff)',
+  headerTextColor: 'oklch(var(--muted-foreground))',
+};
 
-const bake = (params: ReturnType<typeof gridParams>): Theme =>
-  themeQuartz.withPart(iconSetQuartzLight).withParams(params);
+const STARUI_DARK_CHROME = {
+  chromeBackgroundColor: 'oklch(var(--popover))',
+  headerBackgroundColor: 'oklch(var(--muted))',
+  headerTextColor: 'oklch(var(--secondary-foreground))',
+  columnBorder: { style: 'solid' as const, width: 1, color: 'oklch(0.34 0.016 258 / 0.55)' },
+  headerColumnBorder: { style: 'solid' as const, width: 1, color: 'oklch(0.36 0.017 258 / 0.6)' },
+};
 
-export const agGridDarkTheme = bake(agGridDarkParams);
-export const agGridLightTheme = bake(agGridLightParams);
-export const agGridComfortDarkTheme = bake(agGridComfortDarkParams);
-export const agGridComfortLightTheme = bake(agGridComfortLightParams);
-export const agGridBlotterDarkTheme = bake(agGridBlotterDarkParams);
-export const agGridBlotterLightTheme = bake(agGridBlotterLightParams);
+function gridParams(mode: 'dark' | 'light', density: GridDensity = 'compact') {
+  const chrome = mode === 'dark' ? STARUI_DARK_CHROME : STARUI_LIGHT_CHROME;
+  return {
+    browserColorScheme: mode,
+    ...gridDensityStructuralParams(density),
+    ...staruiSharedColorParams(),
+    ...chrome,
+  };
+}
+
+export const agGridDarkParams = gridParams('dark', 'compact');
+export const agGridLightParams = gridParams('light', 'compact');
+export const agGridComfortDarkParams = gridParams('dark', 'comfort');
+export const agGridComfortLightParams = gridParams('light', 'comfort');
+export const agGridBlotterDarkParams = gridParams('dark', 'ultra');
+export const agGridBlotterLightParams = gridParams('light', 'ultra');
+
+/** Canonical StarUI theme — light + dark modes; toggle via `data-ag-theme-mode` on `<html>`. */
+function bakeStaruiTheme(density: GridDensity = 'compact'): Theme {
+  const structural = gridDensityStructuralParams(density);
+  const shared = staruiSharedColorParams();
+  return themeQuartz.withPart(iconSetQuartzLight)
+    .withParams({
+      browserColorScheme: 'light',
+      ...structural,
+      ...shared,
+      ...STARUI_LIGHT_CHROME,
+    }, 'light')
+    .withParams({
+      browserColorScheme: 'dark',
+      ...STARUI_DARK_CHROME,
+    }, 'dark');
+}
+
+export const staruiGridTheme = bakeStaruiTheme('compact');
+
+/** @deprecated Use `staruiGridTheme` + `data-ag-theme-mode` on `<html>` (set by `applyTheme`). */
+export const agGridLightTheme = staruiGridTheme;
+
+/** @deprecated Use `staruiGridTheme` + `data-ag-theme-mode` on `<html>` (set by `applyTheme`). */
+export const agGridDarkTheme = staruiGridTheme;
+
+export const agGridComfortDarkTheme = applyGridDensityToTheme(staruiGridTheme, 'comfort');
+export const agGridComfortLightTheme = applyGridDensityToTheme(staruiGridTheme, 'comfort');
+export const agGridBlotterDarkTheme = applyGridDensityToTheme(staruiGridTheme, 'ultra');
+export const agGridBlotterLightTheme = applyGridDensityToTheme(staruiGridTheme, 'ultra');

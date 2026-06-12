@@ -323,6 +323,7 @@ export class OpenFinRuntime implements RuntimePort {
   private writeTheme(theme: Theme): void {
     if (typeof document !== 'undefined') {
       try { document.documentElement.setAttribute('data-theme', theme); } catch { /* swallow */ }
+      try { document.documentElement.setAttribute('data-ag-theme-mode', theme); } catch { /* swallow */ }
       // Defensive: some AG-Grid integrations read body.dataset.agThemeMode.
       try { document.body.dataset['agThemeMode'] = theme; } catch { /* swallow */ }
     }

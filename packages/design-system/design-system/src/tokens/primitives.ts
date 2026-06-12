@@ -8,19 +8,19 @@
 // ─────────────────────────────────────────────────────────────
 
 export const colors = {
-  // ── Cool paper (light chrome) — Stockflux slate-light sf-bg scale
+  // ── Cool paper (light chrome) — clinical light surface scale
   paper: {
-    50:  '#ffffff',  // sf-bg-1 / sf-bg-2 card
-    75:  '#f8fafc',  // AG Grid odd-row only (not sf-bg-*)
-    100: '#f1f3f6',  // sf-bg ground
-    200: '#e9ecf0',  // sf-bg-3
-    300: '#dde1e7',  // sf-bg-4
-    400: '#c8cdd5',  // sf-bg-5
-    500: '#d4d8de',  // sf-border
-    600: '#b6bbc4',  // sf-border-2
-    700: '#8e94a0',  // sf-border-3
+    50:  '#ffffff',  // card / elevated surface
+    75:  '#f8fafc',  // AG Grid odd-row only
+    100: '#f1f3f6',  // ground
+    200: '#e9ecf0',  // tertiary
+    300: '#dde1e7',  // quaternary
+    400: '#c8cdd5',  // muted chrome
+    500: '#d4d8de',  // border primary
+    600: '#b6bbc4',  // border secondary
+    700: '#8e94a0',  // border tertiary
   },
-  // ── Pewter ink (light text) — Stockflux slate-light sf-t scale
+  // ── Pewter ink (light text)
   ink: {
     0:   '#18222f',
     1:   '#2f3a4a',
@@ -28,7 +28,7 @@ export const colors = {
     3:   '#7a8392',
     4:   '#abb1bb',
   },
-  // ── Pewter graphite (dark chrome) — Stockflux slate-dark sf-bg scale
+  // ── Pewter graphite (dark chrome)
   graphite: {
     975: '#171a1d',
     960: '#1e2125',
@@ -42,8 +42,8 @@ export const colors = {
     400: '#8f939a',
     300: '#c1c4c9',
     50:  '#ebedef',
-    450: '#494c52',  // sf-t-4 disabled
-    650: '#565a61',  // sf-border-3
+    450: '#494c52',  // disabled text
+    650: '#565a61',  // border tertiary
   },
   // ── Teal / positive (STARUI --st-buy) ──
   teal: {
@@ -59,7 +59,7 @@ export const colors = {
     dark:     '#ff5a82',
     darkHov:  '#ff7898',
   },
-  // ── Warning (Stockflux palette-locked) ──
+  // ── Warning (palette-locked) ──
   amber: {
     light:    '#b27607',
     dark:     '#f5c14b',
@@ -82,7 +82,7 @@ export const colors = {
     highlightLight: '#0891b2',
     highlightDark:  '#22d3ee',
   },
-  // ── Purple / chart accent (Stockflux slate chart-4) ──
+  // ── Purple / chart accent ──
   purple: {
     light:    '#7631c4',
     dark:     '#af7de8',

@@ -199,52 +199,6 @@ export const staruiHex = {
   },
 } as const satisfies Record<string, StaruiHexPack>;
 
-/** Legacy `--sf-*` / semantic hex shape derived from STARUI packs. */
-export function toLegacyHexPack(h: StaruiHexPack) {
-  return {
-    bg: h.bg,
-    bg1: h.bg1,
-    bg2: h.bg2,
-    bg3: h.bg3,
-    bg4: h.bg3,
-    bg5: h.border2,
-    t0: h.t0,
-    t1: h.t1,
-    t2: h.t2,
-    t3: h.t3,
-    t4: h.disabledFg,
-    border: h.border,
-    border2: h.border2,
-    border3: h.border2,
-    brand: h.accent,
-    brandHi: h.accentHover,
-    brandLo: h.accent,
-    brandSoft: h.accentSoft,
-    brandRing: h.accentRing,
-    up: h.buy,
-    upHi: h.buyHover,
-    upSoft: h.buySoft,
-    upStrip: h.buySoft,
-    down: h.sell,
-    downHi: h.sellHover,
-    downSoft: h.sellSoft,
-    downStrip: h.sellSoft,
-    flat: h.t2,
-    info: h.info,
-    infoSoft: h.infoSoft,
-    warn: h.warn,
-    warnSoft: h.warnSoft,
-    success: h.buy,
-    error: h.sell,
-    bidFill: h.bidFill,
-    askFill: h.askFill,
-    scrollbar: h.scrollbar,
-    mutedSurface: h.bg2,
-    popoverSurface: h.bg1,
-    sidebarGround: h.bg,
-  };
-}
-
 /** shadcn HSL channel triplets derived from STARUI hex. */
 export function buildShadcnFromStarui(h: StaruiHexPack) {
   const hsl = (hex: string) => hexToHslChannel(hex);

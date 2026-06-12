@@ -69,14 +69,14 @@ export interface CockpitListItemProps
    *  underlying record is disabled — preserves the existing
    *  conditional-styling rule list affordance. */
   muted?: boolean;
-  /** Two-line rail rows (title + metadata). Default single-line `h-8`. */
+  /** Two-line rail rows (title + metadata). Default single-line `h-control-sm`. */
   multiline?: boolean;
 }
 
 const COCKPIT_LIST_ITEM_BASE =
   'flex w-full px-3.5 bg-transparent border-l-2 border-l-transparent text-foreground/90 text-[length:var(--ds-font-size-sm)] cursor-pointer select-none rounded-sm transition-colors data-[active=true]:bg-[var(--ds-primary-soft)] data-[active=true]:border-l-[color:var(--ds-primary)] data-[active=true]:text-foreground aria-selected:bg-muted/70 aria-selected:text-foreground data-[muted=true]:text-muted-foreground hover:bg-muted/60';
 
-const COCKPIT_LIST_ITEM_SINGLE = 'items-center gap-2.5 h-8';
+const COCKPIT_LIST_ITEM_SINGLE = 'items-center gap-2.5 h-control-sm';
 const COCKPIT_LIST_ITEM_MULTILINE =
   'flex-col items-stretch gap-0.5 min-h-[3.25rem] h-auto py-2';
 

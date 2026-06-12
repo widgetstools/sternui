@@ -194,7 +194,7 @@ export function editingToolbarNumericInputClasses(className?: string): string {
 /** Shared compact select trigger styling. */
 export function editingToolbarSelectTriggerClasses(className?: string): string {
   return cn(
-    toolbarSelectTriggerClasses('ex-field ex-field-select h-8 min-h-8'),
+    toolbarSelectTriggerClasses('ex-field ex-field-select h-control-sm min-h-control-sm'),
     '!w-auto max-w-none shrink-0 flex-none',
     'border-[color:var(--ex-field-border)] bg-[color:var(--ex-field-bg)]',
     '[&>span]:truncate',

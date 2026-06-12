@@ -1,0 +1,160 @@
+/* ============================================================================
+   STARUI · Fixed-Income Design System — Core Tokens
+   v1.0 · framework-agnostic single source of truth
+   ----------------------------------------------------------------------------
+   • Default accent ........ Azure (neon, trading-desk)
+   • Positive / Negative ... Teal / Rose
+   • Type .................. Inter (sans) · JetBrains Mono (numeric)
+   • Themes ................ Light (FT "paper") + Dark (blue-graphite, default)
+
+   Colour tokens are bare OKLCH components ("L C H") — NOT wrapped in oklch() —
+   so any consumer can add an alpha channel:
+       plain CSS  →  oklch(var(--primary) / 0.12)
+       Tailwind   →  oklch(var(--primary) / <alpha-value>)
+   Light theme on :root / [data-theme="light"]. Dark theme under .dark / [data-theme="dark"].
+   ============================================================================ */
+
+:root,
+[data-theme="light"] {
+  /* ── Surfaces — single base: FT paper #FFF1E5 (hue 67) ──────────────────── */
+  --background:            0.962 0.015 67;
+  --foreground:            0.30 0.008 67;
+  --card:                  0.982 0.011 67;
+  --card-foreground:       0.30 0.008 67;
+  --popover:               0.986 0.009 67;
+  --popover-foreground:    0.30 0.008 67;
+
+  /* ── Brand / accent — Azure ─────────────────────────────────────────────── */
+  --primary:               0.545 0.225 254;
+  --primary-foreground:    0.99 0.015 250;
+  --secondary:             0.934 0.020 67;
+  --secondary-foreground:  0.34 0.012 67;
+  --muted:                 0.934 0.020 67;
+  --muted-foreground:      0.505 0.018 67;
+  --accent:                0.922 0.028 67;
+  --accent-foreground:     0.40 0.045 67;
+
+  --destructive:           0.505 0.225 27;
+  --destructive-foreground: 1 0 0;
+
+  --border:                0.896 0.020 67;
+  --border-strong:         0.80 0.024 67;
+  --input:                 0.896 0.020 67;
+  --grid-border:           0.882 0.020 67;
+  --ring:                  0.545 0.225 254;
+
+  /* ── Fixed-income semantics — Teal (up) / Rose (down), light ────────────── */
+  --buy:                   0.52 0.105 192;
+  --buy-foreground:        1 0 0;
+  --sell:                  0.515 0.205 12;
+  --sell-foreground:       1 0 0;
+  --positive:              0.53 0.105 192;
+  --negative:              0.525 0.205 12;
+  --warning:               0.72 0.17 78;
+  --warning-foreground:    0.24 0.06 70;
+  --info:                  0.51 0.21 252;
+  --info-foreground:       1 0 0;
+
+  --tick-up:               0.53 0.105 192;
+  --tick-down:             0.525 0.205 12;
+  --chart-1:               0.52 0.105 192;
+  --chart-2:               0.50 0.16 250;
+  --chart-3:               0.62 0.13 75;
+  --chart-4:               0.55 0.16 300;
+  --chart-5:               0.525 0.205 12;
+
+  /* ── Geometry ───────────────────────────────────────────────────────────── */
+  --radius:        2px;
+  --radius-sm:     var(--radius);
+  --radius-md:     var(--radius);
+  --radius-lg:     var(--radius);
+  --radius-xl:     var(--radius);
+  --radius-full:   9999px;
+
+  /* ── Density (compact default) ──────────────────────────────────────────── */
+  --control-h:     30px;
+  --control-h-sm:  calc(var(--control-h) - 4px);
+  --control-h-lg:  calc(var(--control-h) + 6px);
+  --control-px:    10px;
+  --row-h:         30px;
+  --gap:           10px;
+
+  /* ── Type — Inter / JetBrains Mono ──────────────────────────────────────── */
+  --font-sans:  'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:  'JetBrains Mono', ui-monospace, monospace;
+  --text-2xs:   10px;
+  --text-xs:    11px;
+  --text-sm:    12px;
+  --text-md:    13px;
+  --text-base:  13px;
+  --text-lg:    15px;
+  --text-xl:    18px;
+  --text-2xl:   22px;
+  --text-3xl:   30px;
+
+  /* ── Motion ─────────────────────────────────────────────────────────────── */
+  --t-fast:    120ms cubic-bezier(0.4,0,0.2,1);
+  --t-normal:  180ms cubic-bezier(0.4,0,0.2,1);
+  --t-slow:    320ms cubic-bezier(0.2,0.8,0.2,1);
+
+  /* ── Elevation ──────────────────────────────────────────────────────────── */
+  --shadow-sm:      0 1px 2px rgba(16,20,24,0.05);
+  --shadow-card:    0 0 0 1px rgba(16,20,24,0.015), 0 1px 2px rgba(16,20,24,0.05), 0 8px 24px -12px rgba(16,20,24,0.12);
+  --shadow-overlay: 0 12px 40px -8px rgba(16,20,24,0.16), 0 2px 8px rgba(16,20,24,0.08);
+  --scrollbar:      0.80 0.012 256;
+}
+
+/* ============================================================================
+   DARK — blue-graphite (default)
+   ============================================================================ */
+.dark, [data-theme="dark"] {
+  --background:            0.176 0.017 258;
+  --foreground:            0.96 0.006 258;
+  --card:                  0.203 0.0185 258;
+  --card-foreground:       0.96 0.006 258;
+  --popover:               0.217 0.020 258;
+  --popover-foreground:    0.96 0.006 258;
+
+  --primary:               0.555 0.225 256;
+  --primary-foreground:    0.99 0.02 252;
+  --secondary:             0.260 0.023 258;
+  --secondary-foreground:  0.93 0.006 258;
+  --muted:                 0.251 0.023 258;
+  --muted-foreground:      0.70 0.015 258;
+  --accent:                0.28 0.04 256;
+  --accent-foreground:     0.82 0.11 254;
+
+  --destructive:           0.70 0.215 24;
+  --destructive-foreground: 0.16 0.06 26;
+
+  --border:                0.425 0.020 258;
+  --border-strong:         0.525 0.022 258;
+  --input:                 0.355 0.019 258;
+  --grid-border:           0.365 0.019 258;
+  --ring:                  0.555 0.225 256;
+
+  /* Teal (up) / Rose (down) — dark, AA text on fill */
+  --buy:                   0.76 0.135 192;
+  --buy-foreground:        0.16 0.05 195;
+  --sell:                  0.70 0.19 12;
+  --sell-foreground:       0.16 0.06 14;
+  --positive:              0.78 0.135 192;
+  --negative:              0.71 0.19 12;
+  --warning:               0.85 0.17 88;
+  --warning-foreground:    0.22 0.06 80;
+  --info:                  0.72 0.16 242;
+  --info-foreground:       0.15 0.05 245;
+
+  --tick-up:               0.78 0.135 192;
+  --tick-down:             0.71 0.19 12;
+  --chart-1:               0.76 0.135 192;
+  --chart-2:               0.70 0.12 235;
+  --chart-3:               0.82 0.135 85;
+  --chart-4:               0.70 0.13 300;
+  --chart-5:               0.71 0.19 12;
+
+  --shadow-sm:      0 1px 2px rgba(0,0,0,0.5);
+  --shadow-card:    0 0 0 1px rgba(255,255,255,0.02), 0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 8px rgba(0,0,0,0.55), 0 8px 24px -8px rgba(0,0,0,0.6);
+  --shadow-overlay: 0 1px 0 rgba(255,255,255,0.05) inset, 0 16px 48px -12px rgba(0,0,0,0.75), 0 4px 12px rgba(0,0,0,0.5);
+  --scrollbar:      0.36 0.012 258;
+}

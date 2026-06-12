@@ -38,14 +38,12 @@
     "@openfin/core": "43.101.2",
     "@openfin/workspace": "23.0.20",
     "@openfin/workspace-platform": "23.0.20",
+    "@starui/app": "*",
     "@starui/design-system": "*",
     "@starui/host-config": "*",
     "@starui/host-data": "*",
     "@starui/icons-svg": "*",
     "@starui/types": "*"
-  },
-  "peerDependencies": {
-    "@starui/app": "*"
   },
   "devDependencies": {
     "jsdom": "^29.0.2",

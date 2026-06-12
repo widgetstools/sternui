@@ -15,9 +15,11 @@ describe('agGrid params', () => {
       expect((p as any).backgroundColor).toBeDefined();
     });
 
-  it('dark and light differ in backgroundColor', () => {
-    expect((agGridDarkParams as any).backgroundColor)
-      .not.toBe((agGridLightParams as any).backgroundColor);
+  it('dark and light differ in header chrome and browserColorScheme', () => {
+    expect((agGridDarkParams as any).headerBackgroundColor)
+      .not.toBe((agGridLightParams as any).headerBackgroundColor);
+    expect((agGridDarkParams as any).browserColorScheme).toBe('dark');
+    expect((agGridLightParams as any).browserColorScheme).toBe('light');
   });
 
   it('blotter variants exist', () => {

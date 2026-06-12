@@ -421,11 +421,17 @@ export function PopoutPortal({
     if (!popout) return;
     const syncTheme = () => {
       const theme = document.documentElement.getAttribute('data-theme');
-      if (theme) popout.document.documentElement.setAttribute('data-theme', theme);
+      if (!theme) return;
+      const popoutRoot = popout.document.documentElement;
+      popoutRoot.setAttribute('data-theme', theme);
+      popoutRoot.setAttribute('data-ag-theme-mode', theme);
     };
     syncTheme();
     const obs = new MutationObserver(syncTheme);
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme', 'data-ag-theme-mode', 'class'],
+    });
     return () => obs.disconnect();
   }, [popout]);
 

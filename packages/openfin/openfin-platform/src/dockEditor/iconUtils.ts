@@ -10,12 +10,15 @@
  */
 
 import { marketIconToDataUrl } from "@starui/icons-svg/all-icons";
-import { dark, light } from "@starui/design-system/tokens/semantic";
+import { buildOpenFinPalettesFromDesignSystem } from "../openfinPalette";
 
-// Default icon colors sourced from the design-system text.primary tokens
-// for each theme (warm off-white for dark, deep cool charcoal for light).
-const DARK_COLOR  = dark.text.primary;
-const LIGHT_COLOR = light.text.primary;
+function resolveThemedIconColors(): { dark: string; light: string } {
+  const palettes = buildOpenFinPalettesFromDesignSystem();
+  return {
+    dark: palettes.dark.textDefault ?? "#FFFFFF",
+    light: palettes.light.textDefault ?? "#1E1F23",
+  };
+}
 
 // The rendered height of each icon in pixels.
 const ICON_HEIGHT = 24;
@@ -33,26 +36,29 @@ const DEFAULT_ICON_ID   = "lucide:file-text";
  * @param iconId - Icon ID in "prefix:name" format
  * @param color  - Hex color for the icon stroke/fill (default: white)
  */
-export function iconIdToSvgUrl(iconId: string, color = DARK_COLOR): string {
+export function iconIdToSvgUrl(iconId: string, color?: string): string {
+  const defaultDark = resolveThemedIconColors().dark;
+  const resolvedColor = color ?? defaultDark;
   const [prefix, name] = iconId.split(":");
   if (!prefix || !name) return "";
 
   // Custom market icons — resolve from embedded SVG strings
   if (prefix === "mkt") {
-    return marketIconToDataUrl(name, color);
+    return marketIconToDataUrl(name, resolvedColor);
   }
 
   // Iconify CDN icons (lucide, etc.)
-  return `https://api.iconify.design/${prefix}/${name}.svg?color=${encodeURIComponent(color)}&height=${ICON_HEIGHT}`;
+  return `https://api.iconify.design/${prefix}/${name}.svg?color=${encodeURIComponent(resolvedColor)}&height=${ICON_HEIGHT}`;
 }
 
 /**
  * Build both dark-theme and light-theme icon URLs for a given icon ID.
  */
 export function iconIdToThemedUrls(iconId: string): { dark: string; light: string } {
+  const { dark, light } = resolveThemedIconColors();
   return {
-    dark:  iconIdToSvgUrl(iconId, DARK_COLOR),
-    light: iconIdToSvgUrl(iconId, LIGHT_COLOR),
+    dark:  iconIdToSvgUrl(iconId, dark),
+    light: iconIdToSvgUrl(iconId, light),
   };
 }
 

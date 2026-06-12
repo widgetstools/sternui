@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { primengPreset } from '../../src/adapters/primeng';
 
 describe('primengPreset', () => {
-  it('has a primitive block with borderRadius', () => {
-    expect(primengPreset.primitive?.borderRadius).toBeDefined();
+  it('has an azure primitive ramp', () => {
+    expect(primengPreset.primitive?.azure).toBeDefined();
   });
 
   it('has a semantic block with primary scale 50..900', () => {
@@ -20,9 +20,10 @@ describe('primengPreset', () => {
     expect(cs?.dark).toBeDefined();
   });
 
-  it('uses var(--ds-*) references for live theme switching', () => {
+  it('uses OKLCH StarUI palette literals', () => {
     const json = JSON.stringify(primengPreset);
-    expect(json).toMatch(/var\(--ds-/);
+    expect(json).toMatch(/oklch\(/);
+    expect(json).toMatch(/azure\.500/);
   });
 
   it('matches snapshot', () => {

@@ -5,10 +5,9 @@ export { semantic, dark, light, lightPaper, shared } from './semantic';
 export type { ColorScheme } from './semantic';
 export {
   staruiHex,
-  stockfluxSlateHex,
-  stockfluxSlateShadcn,
-  stockfluxSlateAgGrid,
-} from './stockfluxSlate';
+  buildShadcnFromStarui,
+  buildAgGridFromStarui,
+} from './staruiHex';
 export { componentTokens } from './components';
 export { controls } from './controls';
 export type { ControlSize, ControlTier } from './controls';

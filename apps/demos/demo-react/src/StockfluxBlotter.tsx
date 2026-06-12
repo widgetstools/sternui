@@ -3,7 +3,7 @@
  *
  * Apples-to-apples comparison surface: same data shape, same column defs,
  * same cell-renderer styling — but driven by our `@starui/design-system`
- * tokens (`--ds-*` vs Stockflux's `--sf-*`) and our shadcn primitives
+ * tokens (`--ds-*`) and our shadcn primitives
  * from `@starui/ui`. Any visual delta is a real theme delta, not a
  * structural one.
  *

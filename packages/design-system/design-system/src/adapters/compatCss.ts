@@ -1,7 +1,12 @@
-// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+// ─────────────────────────────────────────────────────────────
+//  Compatibility CSS — maps legacy --ds-* / --bn-* / --p-* /
+//  surface scale aliases onto StarUI v1 OKLCH token vars.
+//  Canonical tokens live in tokens/starui-tokens.css.
+// ─────────────────────────────────────────────────────────────
 
-exports[`generateCompatCSS (via generateUnifiedCSS) > matches snapshot 1`] = `
-"@layer base {
+/** Legacy + framework bridge vars derived from OKLCH source tokens. */
+export function generateCompatCSS(): string {
+  return `@layer base {
   :root,
   [data-theme="dark"],
   [data-theme="light"] {
@@ -220,5 +225,10 @@ exports[`generateCompatCSS (via generateUnifiedCSS) > matches snapshot 1`] = `
     --buy:                      0.45 0.18 250;
     --sell:                     0.50 0.22 25;
   }
-}"
-`;
+}`;
+}
+
+/** @deprecated Use generateCompatCSS — kept for adapter test snapshots. */
+export function generateUnifiedCSS(): string {
+  return generateCompatCSS();
+}

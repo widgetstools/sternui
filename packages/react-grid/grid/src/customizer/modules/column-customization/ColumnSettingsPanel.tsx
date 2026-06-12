@@ -95,7 +95,7 @@ type ColumnInfo = GridColumnInfo;
 const MODULE_ID = 'column-customization';
 const DIRTY_PREFIX = `${MODULE_ID}:`;
 
-// Row height matches the shared sidebar item chrome (`h-8` = 32px)
+// Row height matches the shared sidebar item chrome (`h-control-sm` = 26px)
 // plus the shared 1px inter-item list gap (`gap-px`).
 // Used for windowed layout math when the column count crosses the threshold.
 const ROW_HEIGHT = 33;

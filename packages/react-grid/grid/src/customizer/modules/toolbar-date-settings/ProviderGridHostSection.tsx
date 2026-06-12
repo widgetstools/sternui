@@ -61,7 +61,7 @@ function ProviderSelectRow({
           onValueChange={(v) => onChange(v === '__none__' ? null : v)}
           disabled={disabled}
         >
-          <SelectTrigger className="h-8 min-w-[220px] text-xs" data-testid={testId}>
+          <SelectTrigger className="h-control-sm min-h-control-sm min-w-[220px] text-xs" data-testid={testId}>
             <SelectValue placeholder="None" />
           </SelectTrigger>
           <SelectContent>
@@ -147,7 +147,7 @@ export function ProviderGridHostSection({
               type="button"
               size="sm"
               variant={draft.mode === 'live' ? 'default' : 'outline'}
-              className="h-8 px-3 text-xs"
+              className="text-xs"
               onClick={() => onDraftChange({ mode: 'live' })}
               disabled={!draft.liveProviderId}
             >
@@ -157,7 +157,7 @@ export function ProviderGridHostSection({
               type="button"
               size="sm"
               variant={draft.mode === 'historical' ? 'default' : 'outline'}
-              className="h-8 px-3 text-xs"
+              className="text-xs"
               onClick={() => onDraftChange({ mode: 'historical' })}
               disabled={!draft.historicalProviderId}
             >
@@ -175,7 +175,7 @@ export function ProviderGridHostSection({
           control={(
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 justify-start font-mono text-xs">
+                <Button variant="outline" size="sm" className="justify-start font-mono text-xs">
                   <CalendarIcon className="mr-2 h-3.5 w-3.5" />
                   {draft.asOfDate ?? <span className="text-muted-foreground">Pick a date</span>}
                 </Button>
@@ -203,7 +203,7 @@ export function ProviderGridHostSection({
               type="button"
               size="sm"
               variant="outline"
-              className="h-8 gap-1 text-xs"
+              className="gap-1 text-xs"
               onClick={host.onRefreshView}
               data-testid="provider-refresh-view"
             >
@@ -214,7 +214,7 @@ export function ProviderGridHostSection({
               type="button"
               size="sm"
               variant="outline"
-              className="h-8 gap-1 text-xs"
+              className="gap-1 text-xs"
               onClick={host.onReloadFromSource}
               data-testid="provider-reload-from-source"
             >
@@ -225,7 +225,7 @@ export function ProviderGridHostSection({
               type="button"
               size="sm"
               variant="ghost"
-              className="h-8 w-8 p-0"
+              className="size-control-sm p-0"
               onClick={() => activeId && host.onEditProvider(activeId)}
               disabled={!activeId}
               title="Edit selected provider"

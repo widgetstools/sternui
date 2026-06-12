@@ -1,5 +1,5 @@
 import type { Config } from 'tailwindcss';
-import { tailwindPreset } from '@starui/design-system/tailwind';
+import { tailwindPreset } from '../../../scripts/staruiTailwindPreset.cjs';
 
 export default {
   presets: [tailwindPreset as any],

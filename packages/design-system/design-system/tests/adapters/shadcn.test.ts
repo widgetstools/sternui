@@ -1,27 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { generateUnifiedCSS } from '../../src/adapters/shadcn';
 
-describe('generateUnifiedCSS', () => {
+describe('generateCompatCSS (via generateUnifiedCSS)', () => {
   const css = generateUnifiedCSS();
 
   it('contains @layer base', () => {
     expect(css).toMatch(/@layer base \{/);
   });
 
-  it('contains :root, [data-theme="dark"] block', () => {
-    expect(css).toMatch(/:root,\s*\[data-theme="dark"\]\s*\{/);
-  });
-
-  it('contains clinical light block', () => {
-    expect(css).toMatch(/\[data-theme="light"\]\[data-variant="clinical"\]\s*\{/);
-  });
-
-  it('contains paper light variant block', () => {
-    expect(css).toMatch(/\[data-theme="light"\]\[data-variant="paper"\]\s*\{/);
-  });
-
-  it('emits STARUI --st-* source vars (e.g. --st-accent)', () => {
-    expect(css).toMatch(/--st-accent:\s*#/);
+  it('contains shared compat block for all theme roots', () => {
+    expect(css).toMatch(/:root,\s*\[data-theme="dark"\],\s*\[data-theme="light"\]\s*\{/);
   });
 
   it('contains [data-theme="dark"][data-cvd="on"] CVD override', () => {
@@ -32,21 +20,21 @@ describe('generateUnifiedCSS', () => {
     expect(css).toMatch(/\[data-theme="light"\]\[data-cvd="on"\]\s*\{/);
   });
 
-  it('emits --ds-* source vars (e.g. --ds-surface-ground)', () => {
-    expect(css).toMatch(/--ds-surface-ground:\s*#/);
-  });
-
-  it('emits shadcn HSL aliases (e.g. --background)', () => {
-    expect(css).toMatch(/--background:\s*\d+\s+\d+%\s+\d+%/);
+  it('emits --ds-* bridge vars (e.g. --ds-surface-ground)', () => {
+    expect(css).toMatch(/--ds-surface-ground:\s*oklch\(var\(--background\)\)/);
   });
 
   it('emits PrimeNG --p-* aliases (e.g. --p-primary-color)', () => {
-    expect(css).toMatch(/--p-primary-color/);
+    expect(css).toMatch(/--p-primary-color:\s*oklch\(var\(--primary\)\)/);
   });
 
-  it('emits surface scale --surface-50..950 (HSL channels)', () => {
-    expect(css).toMatch(/--surface-50:\s*\d+\s+\d+%\s+\d+%/);
-    expect(css).toMatch(/--surface-950:\s*\d+\s+\d+%\s+\d+%/);
+  it('emits surface scale referencing OKLCH token components', () => {
+    expect(css).toMatch(/--surface-50:\s*var\(--card\)/);
+    expect(css).toMatch(/--surface-950:\s*var\(--foreground\)/);
+  });
+
+  it('maps control density to starui-tokens.css vars', () => {
+    expect(css).toMatch(/--ds-control-md-height:\s*var\(--control-h\)/);
   });
 
   it('matches snapshot', () => {

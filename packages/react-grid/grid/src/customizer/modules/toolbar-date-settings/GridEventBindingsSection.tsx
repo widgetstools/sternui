@@ -93,7 +93,7 @@ export function GridEventBindingsSection({
                         )}
                       >
                         <SelectTrigger
-                          className="h-8 min-w-[200px] text-xs"
+                          className="h-control-sm min-h-control-sm min-w-[200px] text-xs"
                           data-testid={`grid-event-handler-select-${event.id}`}
                         >
                           <SelectValue placeholder="None" />

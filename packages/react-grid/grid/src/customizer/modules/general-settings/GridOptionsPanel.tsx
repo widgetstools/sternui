@@ -171,7 +171,7 @@ function BandNavItem({ band, active, overrides, onClick }: BandNavItemProps) {
       aria-current={active ? 'true' : undefined}
       data-testid={`go-nav-${band.index}`}
       className={cn(
-        'group w-full h-8 flex items-center gap-2 pl-2.5 pr-2 text-left rounded-sm transition-colors',
+        'group w-full h-control-sm flex items-center gap-2 pl-2.5 pr-2 text-left rounded-sm transition-colors',
         'border-l-2 transition-colors',
         active
           ? 'bg-[var(--ds-primary-soft)] border-l-[color:var(--ds-primary)] text-foreground'

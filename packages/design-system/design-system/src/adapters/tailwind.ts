@@ -1,100 +1,141 @@
 // ─────────────────────────────────────────────────────────────
-//  Tailwind Preset — consumed by every React + Angular app.
-//
-//  Emits both shadcn-compat color names (bg-primary, bg-card,
-//  text-foreground, etc.) AND a surface scale (bg-surface-50 …
-//  bg-surface-950) for parity with tailwindcss-primeui's plugin.
-//  All values reference CSS custom properties on <html>, so theme
-//  switching is just `data-theme="dark|light"` flips.
+//  Tailwind Preset — OKLCH StarUI tokens (v1)
+//  Colors reference bare OKLCH components in starui-tokens.css.
 // ─────────────────────────────────────────────────────────────
 
 import primeui from 'tailwindcss-primeui';
 import animate from 'tailwindcss-animate';
 import type { Config } from 'tailwindcss';
 
-const hsl = (v: string) => `hsl(var(${v}))`;
+/** OKLCH bare components in starui-tokens.css — `<alpha-value>` enables `/80`, `/50`, etc. */
+const oklch = (v: string) => `oklch(var(${v}) / <alpha-value>)`;
 
 export const tailwindPreset: Partial<Config> = {
   darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--ds-font-sans)'],
-        mono: ['var(--ds-font-mono)'],
-        serif: ['var(--ds-font-serif)'],
+        sans: ['var(--font-sans)'],
+        mono: ['var(--font-mono)'],
       },
       borderRadius: {
-        sm: 'var(--ds-radius-sm)',
-        md: 'var(--ds-radius-md)',
-        lg: 'var(--ds-radius-lg)',
-        xl: 'var(--ds-radius-xl)',
+        sm: 'var(--radius-sm)',
+        md: 'var(--radius-md)',
+        lg: 'var(--radius-lg)',
+        xl: 'var(--radius-xl)',
+      },
+      /* Map Tailwind text-* utilities to StarUI density tokens (not browser rem). */
+      fontSize: {
+        '2xs': ['var(--text-2xs)', { lineHeight: '1.4' }],
+        xs:    ['var(--text-xs)', { lineHeight: '1.4' }],
+        sm:    ['var(--text-sm)', { lineHeight: '1.45' }],
+        base:  ['var(--text-base)', { lineHeight: '1.5' }],
+        md:    ['var(--text-md)', { lineHeight: '1.5' }],
+        lg:    ['var(--text-lg)', { lineHeight: '1.45' }],
+        xl:    ['var(--text-xl)', { lineHeight: '1.35' }],
+        '2xl': ['var(--text-2xl)', { lineHeight: '1.25' }],
+        '3xl': ['var(--text-3xl)', { lineHeight: '1.2' }],
+      },
+      height: {
+        control:     'var(--control-h)',
+        'control-sm': 'var(--control-h-sm)',
+        'control-lg': 'var(--control-h-lg)',
+      },
+      minHeight: {
+        control:     'var(--control-h)',
+        'control-sm': 'var(--control-h-sm)',
+        'control-lg': 'var(--control-h-lg)',
+      },
+      width: {
+        control:     'var(--control-h)',
+        'control-sm': 'var(--control-h-sm)',
+        'control-lg': 'var(--control-h-lg)',
+      },
+      minWidth: {
+        control:     'var(--control-h)',
+        'control-sm': 'var(--control-h-sm)',
+        'control-lg': 'var(--control-h-lg)',
+      },
+      size: {
+        control:     'var(--control-h)',
+        'control-sm': 'var(--control-h-sm)',
+        'control-lg': 'var(--control-h-lg)',
       },
       colors: {
-        // shadcn-compat names (HSL channel vars)
-        background: hsl('--background'),
-        foreground: hsl('--foreground'),
+        background: oklch('--background'),
+        foreground: oklch('--foreground'),
         card: {
-          DEFAULT: hsl('--card'),
-          foreground: hsl('--card-foreground'),
+          DEFAULT: oklch('--card'),
+          foreground: oklch('--card-foreground'),
         },
         popover: {
-          DEFAULT: hsl('--popover'),
-          foreground: hsl('--popover-foreground'),
+          DEFAULT: oklch('--popover'),
+          foreground: oklch('--popover-foreground'),
         },
         primary: {
-          DEFAULT: hsl('--primary'),
-          foreground: hsl('--primary-foreground'),
+          DEFAULT: oklch('--primary'),
+          foreground: oklch('--primary-foreground'),
         },
         secondary: {
-          DEFAULT: hsl('--secondary'),
-          foreground: hsl('--secondary-foreground'),
+          DEFAULT: oklch('--secondary'),
+          foreground: oklch('--secondary-foreground'),
         },
         muted: {
-          DEFAULT: hsl('--muted'),
-          foreground: hsl('--muted-foreground'),
+          DEFAULT: oklch('--muted'),
+          foreground: oklch('--muted-foreground'),
         },
         accent: {
-          DEFAULT: hsl('--accent'),
-          foreground: hsl('--accent-foreground'),
+          DEFAULT: oklch('--accent'),
+          foreground: oklch('--accent-foreground'),
         },
         destructive: {
-          DEFAULT: hsl('--destructive'),
-          foreground: hsl('--destructive-foreground'),
+          DEFAULT: oklch('--destructive'),
+          foreground: oklch('--destructive-foreground'),
         },
         success: {
-          DEFAULT: hsl('--success'),
-          foreground: hsl('--success-foreground'),
+          DEFAULT: oklch('--positive'),
+          foreground: oklch('--buy-foreground'),
         },
         warning: {
-          DEFAULT: hsl('--warning'),
-          foreground: hsl('--warning-foreground'),
+          DEFAULT: oklch('--warning'),
+          foreground: oklch('--warning-foreground'),
         },
         info: {
-          DEFAULT: hsl('--info'),
-          foreground: hsl('--info-foreground'),
+          DEFAULT: oklch('--info'),
+          foreground: oklch('--info-foreground'),
         },
-        border: hsl('--border'),
-        input: hsl('--input'),
-        ring: hsl('--ring'),
+        buy: {
+          DEFAULT: oklch('--buy'),
+          foreground: oklch('--buy-foreground'),
+        },
+        sell: {
+          DEFAULT: oklch('--sell'),
+          foreground: oklch('--sell-foreground'),
+        },
+        positive: oklch('--positive'),
+        negative: oklch('--negative'),
+        border: oklch('--border'),
+        'border-strong': oklch('--border-strong'),
+        input: oklch('--input'),
+        ring: oklch('--ring'),
 
-        // Surface scale — parity with tailwindcss-primeui
         surface: {
-          50:  hsl('--surface-50'),
-          100: hsl('--surface-100'),
-          200: hsl('--surface-200'),
-          300: hsl('--surface-300'),
-          400: hsl('--surface-400'),
-          500: hsl('--surface-500'),
-          600: hsl('--surface-600'),
-          700: hsl('--surface-700'),
-          800: hsl('--surface-800'),
-          900: hsl('--surface-900'),
-          950: hsl('--surface-950'),
+          50:  oklch('--surface-50'),
+          100: oklch('--surface-100'),
+          200: oklch('--surface-200'),
+          300: oklch('--surface-300'),
+          400: oklch('--surface-400'),
+          500: oklch('--surface-500'),
+          600: oklch('--surface-600'),
+          700: oklch('--surface-700'),
+          800: oklch('--surface-800'),
+          900: oklch('--surface-900'),
+          950: oklch('--surface-950'),
         },
       },
       boxShadow: {
-        card:    'var(--ds-elevation-card)',
-        overlay: 'var(--ds-elevation-overlay)',
+        card:    'var(--shadow-card)',
+        overlay: 'var(--shadow-overlay)',
         glow:    'var(--ds-elevation-glow)',
       },
       keyframes: {

@@ -10,7 +10,8 @@ import {
   buildShadcnFromStarui,
   type StaruiHexPack,
 } from './staruiHex';
-import { stockfluxSlateShadcn } from './stockfluxSlate';
+
+export type ShadcnTokenPack = ReturnType<typeof buildShadcnFromStarui>;
 
 // ── Color Scheme Type ──
 export interface ColorScheme {
@@ -112,12 +113,12 @@ export interface ColorScheme {
     overlay: string;
     glow:    string;
   };
-  shadcn: typeof stockfluxSlateShadcn.dark | typeof stockfluxSlateShadcn.light;
+  shadcn: ShadcnTokenPack;
 }
 
 function schemeFromStarui(
   h: StaruiHexPack,
-  shadcn: typeof stockfluxSlateShadcn.dark | typeof stockfluxSlateShadcn.light,
+  shadcn: ShadcnTokenPack,
   mode: 'dark' | 'light',
 ): ColorScheme {
   const isDark = mode === 'dark';

@@ -32,8 +32,8 @@ describe('FI Design System contrast audit', () => {
         expect(contrastRatio(s.accent.negative, s.surface.ground)).toBeGreaterThanOrEqual(4.3);
       });
 
-      it('accent.warning on surface.ground ≥ 3.0 (Stockflux sf-warn parity)', () => {
-        // Stockflux SLATE locks sf-warn to #b27607 (light) / #f5c14b (dark) —
+      it('accent.warning on surface.ground ≥ 3.0 (palette-locked warning)', () => {
+        // Warning accent is palette-locked to #c2410c (light) / #f5c14b (dark) —
         // graphic/badge threshold, not link-text AA.
         expect(contrastRatio(s.accent.warning, s.surface.ground)).toBeGreaterThanOrEqual(3.0);
       });

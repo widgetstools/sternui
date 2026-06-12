@@ -21,7 +21,7 @@ function Calendar({
         months: 'flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0',
         month: 'space-y-4',
         month_caption: 'flex justify-center pt-1 relative items-center w-full',
-        caption_label: 'text-sm font-medium',
+        caption_label: 'text-sm font-semibold tracking-tight',
         nav: 'flex items-center gap-1 absolute inset-x-0 top-0 z-10 w-full justify-between px-1',
         button_previous: cn(
           buttonVariants({ variant: 'outline' }),
@@ -44,7 +44,7 @@ function Calendar({
         ),
         day_button: cn(
           buttonVariants({ variant: 'ghost' }),
-          'h-9 w-9 p-0 font-normal aria-selected:opacity-100',
+          'size-control p-0 font-normal aria-selected:opacity-100',
         ),
         range_start: 'day-range-start',
         range_end: 'day-range-end',

@@ -15,7 +15,7 @@ describe('scrollbar.css', () => {
   });
 
   it('uses color-mix against --ds-text-primary for theme-awareness', () => {
-    expect(css).toMatch(/color-mix\(in srgb, var\(--ds-text-primary\)/);
+    expect(css).toMatch(/color-mix\(in oklch, oklch\(var\(--foreground\)\)/);
   });
 
   it('does NOT define a hidden-scrollbar utility', () => {

@@ -1,10 +1,9 @@
 /**
  * useAgGridTheme — returns the same AG Grid `Theme` instances as `MarketsGrid`.
  *
- * Delegates to `useGridTheme()` from `@starui/grid`, which reads
- * `[data-theme]` on `<html>` (MutationObserver) so the grid tracks the host
- * shell — not `next-themes`' resolved class on `<body>`, which can disagree
- * with `data-theme` in embedded / docked surfaces.
+ * Delegates to `useGridTheme()` from `@starui/grid`, which returns the
+ * canonical `staruiGridTheme`. Light/dark chrome follows `data-ag-theme-mode`
+ * on `<html>` (kept in sync with `data-theme` by `applyTheme` / runtime).
  *
  * Usage:
  *   const { theme } = useAgGridTheme();

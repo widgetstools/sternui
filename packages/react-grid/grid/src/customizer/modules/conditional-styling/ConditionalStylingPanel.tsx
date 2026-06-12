@@ -532,7 +532,7 @@ function IndicatorPicker({
       <div className="flex items-center gap-2.5">
         <span
           aria-label="Current indicator"
-          className="w-8 h-8 inline-flex items-center justify-center p-1 border border-[var(--ds-border-secondary)] rounded-sm bg-background"
+          className="size-control-sm inline-flex items-center justify-center p-1 border border-[var(--ds-border-secondary)] rounded-sm bg-background"
         >
           {value?.icon ? (
             <IndicatorIconPreview iconKey={value.icon} color={color} size={14} />

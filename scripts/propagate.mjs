@@ -40,6 +40,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   renameSync,
   rmSync,
   statSync,
@@ -573,24 +574,45 @@ function appReferencesLibTarball(appPkgPath, packageName) {
   return false;
 }
 
+function isRepoWorkspaceSymlink(nodeModulesPath) {
+  if (!existsSync(nodeModulesPath)) return false;
+  try {
+    const resolved = realpathSync(nodeModulesPath);
+    const packagesRoot = realpathSync(PACKAGES_ROOT);
+    return resolved.startsWith(packagesRoot);
+  } catch {
+    return false;
+  }
+}
+
 function installApp(appDir, depsToRefresh) {
   if (args.noInstall) {
     log(`install: ${relative(REPO_ROOT, appDir)} — skipped (--no-install)`);
     return;
   }
   // Clear BOTH the app-local copy (standalone non-workspace consumers) and
-  // the repo-root hoisted copy (workspace-member apps resolve @starui/* from
-  // the root node_modules). Without removing the hoisted copy, npm reports
+  // the apps-root hoisted copy (workspace-member apps resolve @starui/* from
+  // apps/node_modules). Without removing the hoisted copy, npm reports
   // "up to date" and never re-extracts the new tarball content — its file:
   // tarball handling does not reliably detect a content change.
+  //
+  // Do NOT remove repo-root workspace symlinks (packages/* → node_modules/@starui/*).
+  // That breaks `npm run build:packages` until someone runs root `npm install` again.
   const appsRoot = join(REPO_ROOT, 'apps');
   for (const dep of depsToRefresh) {
-    for (const base of [appDir, appsRoot, REPO_ROOT]) {
+    for (const base of [appDir, appsRoot]) {
       const path = join(base, 'node_modules', dep);
       if (existsSync(path)) {
         if (args.dryRun) log(`  would remove: ${relative(REPO_ROOT, path) || dep}`);
         else rmSync(path, { recursive: true, force: true });
       }
+    }
+    const rootPath = join(REPO_ROOT, 'node_modules', dep);
+    if (existsSync(rootPath) && !isRepoWorkspaceSymlink(rootPath)) {
+      if (args.dryRun) log(`  would remove: ${relative(REPO_ROOT, rootPath)}`);
+      else rmSync(rootPath, { recursive: true, force: true });
+    } else if (existsSync(rootPath) && isRepoWorkspaceSymlink(rootPath)) {
+      log(`  keep workspace link: ${relative(REPO_ROOT, rootPath)}`);
     }
   }
   const viteCache = join(appDir, 'node_modules', '.vite');

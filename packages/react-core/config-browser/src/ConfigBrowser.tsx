@@ -92,6 +92,7 @@ export function ConfigBrowserPanel() {
   // Apply [data-theme] so fi-dark / fi-light CSS vars re-resolve.
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
+    document.documentElement.setAttribute("data-ag-theme-mode", theme);
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {

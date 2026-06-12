@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-import { tailwindPreset } from '@starui/design-system/tailwind';
+import { tailwindPreset } from '../../../scripts/staruiTailwindPreset.cjs';
 import { demoAppTailwindContent } from '../../../scripts/tailwindContentGlobs.mjs';
 
 export default {
