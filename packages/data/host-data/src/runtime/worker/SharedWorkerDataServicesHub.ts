@@ -43,7 +43,9 @@ import type {
   ProviderStats,
   ProviderStatus,
   Request,
+  RowPatch,
   StopRequest,
+  WireEncoding,
   AppDataRequest,
   AppDataAttachRequest,
   AppDataDetachRequest,
@@ -64,6 +66,8 @@ import type {
   HubProviderIntrospectRow,
 } from '../protocol.js';
 import { startProvider } from '../providers/registry.js';
+import { tryEncodeColumnar } from '../wire/columnarCodec.js';
+import { diffTopLevel } from '../wire/rowDiff.js';
 import type { ProviderEmit, ProviderEmitEvent, ProviderHandle } from '../providers/Provider.js';
 import { WorkerAppDataStore } from './WorkerAppDataStore.js';
 import type { ConfigManager } from '@starui/host-config';
@@ -146,6 +150,29 @@ export interface PortLike {
 /** Shared encoder for pre-serialized snapshot replay chunks. */
 const SNAPSHOT_ENCODER = new TextEncoder();
 
+/**
+ * One pre-encoded broadcast/replay chunk plus the codec it used.
+ * `enc` is per-chunk (not per-slot) because the columnar encoder can
+ * decline a frame (non-object rows) and fall back to JSON, so chunks
+ * of mixed encodings may coexist within one replay snapshot.
+ */
+interface EncodedChunk {
+  buf: Uint8Array;
+  enc: WireEncoding;
+}
+
+/**
+ * Encode one rows chunk for the wire. Columnar when the provider opts
+ * in AND the frame qualifies (plain-object rows); UTF-8 JSON otherwise.
+ */
+function encodeChunk(rows: readonly unknown[], wantColumnar: boolean): EncodedChunk {
+  if (wantColumnar) {
+    const col = tryEncodeColumnar(rows);
+    if (col) return { buf: col, enc: 'col' };
+  }
+  return { buf: SNAPSHOT_ENCODER.encode(JSON.stringify(rows)), enc: 'json' };
+}
+
 /** Sliding-window length for upstream + publish /s averages. */
 const SEC_WINDOW = 5;
 /** Sliding-window length for publish /min rolling total. */
@@ -196,14 +223,26 @@ interface ProviderSlot {
    */
   activeRestartExtra?: Record<string, unknown> | null;
   /**
-   * Lazily-built, pre-encoded snapshot replay chunks (UTF-8 JSON,
-   * ≤ LATE_JOIN_CHUNK_SIZE rows each). Built on the first late-join
-   * attach after a cache change and shared by every subsequent replay
-   * until the next cache mutation nulls it — so N windows attaching in
-   * a burst trigger ONE serialization instead of N object-graph clones.
-   * Updates never build this eagerly; they only invalidate (O(1)).
+   * Lazily-built, pre-encoded snapshot replay chunks (JSON or columnar
+   * per `wireFormat`, ≤ LATE_JOIN_CHUNK_SIZE rows each). Built on the
+   * first late-join attach after a cache change and shared by every
+   * subsequent replay until the next cache mutation nulls it — so N
+   * windows attaching in a burst trigger ONE serialization instead of
+   * N object-graph clones. Updates never build this eagerly; they only
+   * invalidate (O(1)).
    */
-  replaySnapshot: Uint8Array[] | null;
+  replaySnapshot: EncodedChunk[] | null;
+  /**
+   * `cfg.thinDeltas` — post-ready live frames broadcast as field-level
+   * `delta-patch` events (changed top-level fields only) instead of
+   * full rows. Requires `keyColumn`; precomputed at slot creation.
+   */
+  thinDeltas: boolean;
+  /**
+   * `cfg.wireFormat === 'columnar'` — binary frames use the typed-array
+   * columnar codec instead of UTF-8 JSON. Precomputed at slot creation.
+   */
+  columnar: boolean;
 }
 
 interface DataListener {
@@ -922,6 +961,11 @@ export class SharedWorkerDataServicesHub {
   private createProvider(providerId: string, cfg: ProviderConfig): ProviderSlot {
     const cache = new Map<string, unknown>();
     const now = Date.now();
+    const flags = cfg as {
+      keyColumn?: string | readonly string[];
+      thinDeltas?: boolean;
+      wireFormat?: string;
+    };
     const slot: ProviderSlot = {
       handle: undefined as unknown as ProviderHandle, // set immediately below
       cfg,
@@ -946,6 +990,10 @@ export class SharedWorkerDataServicesHub {
       keyDropWarned: false,
       activeRestartExtra: null,
       replaySnapshot: null,
+      // Thin deltas need a key to patch against — without keyColumn
+      // every row would drop from the cache anyway, so gate on both.
+      thinDeltas: flags.thinDeltas === true && flags.keyColumn !== undefined,
+      columnar: flags.wireFormat === 'columnar',
     };
 
     const emit: ProviderEmit = (event: ProviderEmitEvent) => {
@@ -1009,6 +1057,16 @@ export class SharedWorkerDataServicesHub {
       const prevReplay = slot.replaySnapshot;
       slot.replaySnapshot = null;
       const cacheSizeBefore = slot.cache.size;
+
+      // Thin field-level deltas (`cfg.thinDeltas`): post-ready live
+      // frames ship only the top-level fields that actually changed
+      // per row. Replace frames and the pre-ready snapshot phase stay
+      // full-row (they're full state by definition). Handles its own
+      // cache upsert, key-drop accounting and broadcast.
+      if (slot.thinDeltas && slot.snapshotReady && !event.replace) {
+        this.applyThinDelta(providerId, slot, event.rows, keyColumn);
+        return;
+      }
 
       // Upsert into the cache and detect (a) rows whose key doesn't
       // resolve (dropped) and (b) intra-batch duplicate keys. In the
@@ -1117,10 +1175,11 @@ export class SharedWorkerDataServicesHub {
         // decodes under the receiver's long-task budget (STOMP already
         // flushes 500-row chunks and hits the single-slice path; REST /
         // mock one-shot replaces get sliced here).
-        const bufs: Uint8Array[] = [];
+        const bufs: EncodedChunk[] = [];
         for (let i = 0; i < broadcastRows.length; i += LATE_JOIN_CHUNK_SIZE) {
-          bufs.push(SNAPSHOT_ENCODER.encode(
-            JSON.stringify(broadcastRows.slice(i, i + LATE_JOIN_CHUNK_SIZE)),
+          bufs.push(encodeChunk(
+            broadcastRows.slice(i, i + LATE_JOIN_CHUNK_SIZE),
+            slot.columnar,
           ));
         }
         if (event.replace) {
@@ -1142,7 +1201,8 @@ export class SharedWorkerDataServicesHub {
         for (let i = 0; i < bufs.length; i++) {
           this.broadcastData(providerId, slot, {
             kind: 'delta-bin',
-            buf: bufs[i],
+            buf: bufs[i].buf,
+            enc: bufs[i].enc,
             replace: event.replace && i === 0,
             subId: '', // rewritten per listener in broadcastData
           });
@@ -1204,6 +1264,70 @@ export class SharedWorkerDataServicesHub {
   }
 
   /**
+   * Thin field-level delta path (`cfg.thinDeltas`, post-ready live
+   * frames only). For each row: upsert the full row into the cache
+   * (replay/late-join still need full state), diff it against the
+   * previous cached version, and broadcast only the changed top-level
+   * fields as a `RowPatch`. New keys (inserts) and non-diffable rows
+   * ship full under `f`. Rows that didn't observably change are
+   * skipped entirely — a free extra layer of conflation.
+   *
+   * Large patch batches are encoded to UTF-8 JSON ONCE and byte-copied
+   * per port (same rationale as `delta-bin`); small batches go as
+   * plain object events.
+   */
+  private applyThinDelta(
+    providerId: string,
+    slot: ProviderSlot,
+    rows: readonly unknown[],
+    keyColumn: string | readonly string[] | undefined,
+  ): void {
+    let dropped = 0;
+    let droppedSample: unknown;
+    const patches: RowPatch[] = [];
+    for (const row of rows) {
+      const k = keyOf(row, keyColumn);
+      if (k === null) {
+        if (dropped === 0) droppedSample = row;
+        dropped += 1;
+        continue;
+      }
+      const prev = slot.cache.get(k);
+      slot.cache.set(k, row);
+      if (prev === undefined) {
+        patches.push({ k, f: row });
+        continue;
+      }
+      const diff = diffTopLevel(prev, row);
+      if (diff === 'identical') continue;
+      if (diff === 'opaque') {
+        patches.push({ k, f: row });
+        continue;
+      }
+      patches.push({ k, ...diff });
+    }
+    if (dropped > 0) this.reportKeyDrops(providerId, slot, keyColumn, dropped, droppedSample);
+    slot.msgCount += 1;
+    slot.msgsByBucket[slot.bucketIdx] += 1;
+    slot.lastMessageAt = Date.now();
+    if (patches.length === 0) return;
+
+    if (patches.length >= LIVE_BIN_MIN_ROWS) {
+      this.broadcastData(providerId, slot, {
+        kind: 'delta-patch',
+        buf: SNAPSHOT_ENCODER.encode(JSON.stringify(patches)),
+        subId: '', // rewritten per listener in broadcastData
+      });
+    } else {
+      this.broadcastData(providerId, slot, {
+        kind: 'delta-patch',
+        patches,
+        subId: '', // rewritten per listener in broadcastData
+      });
+    }
+  }
+
+  /**
    * Record + surface rows dropped because the configured `keyColumn`
    * doesn't resolve a value on the incoming rows. This is the single
    * most confusing failure mode in the pipeline: the provider fetches
@@ -1253,6 +1377,17 @@ export class SharedWorkerDataServicesHub {
     set.set(subId, { subId, port });
     this.dataListeners.set(providerId, set);
 
+    // Thin-delta subscriptions need the provider's keyColumn so the
+    // client can mirror full rows under the same composed key the hub
+    // patches against. Posted BEFORE any replay frame.
+    if (slot.thinDeltas) {
+      port.postMessage({
+        subId,
+        kind: 'sub-init',
+        keyColumn: (slot.cfg as { keyColumn?: string | readonly string[] }).keyColumn,
+      } satisfies Event);
+    }
+
     if (opts?.skipCacheReplay) {
       // Restart attach must not replay the hub cache — stale rows +
       // `ready` would settle the client's snapshot promise before the
@@ -1291,7 +1426,8 @@ export class SharedWorkerDataServicesHub {
         port.postMessage({
           subId,
           kind: 'delta-bin',
-          buf: chunks[i],
+          buf: chunks[i].buf,
+          enc: chunks[i].enc,
           replace: i === 0,
         } satisfies Event);
         this.recordPublish(slot, 1);
@@ -1311,18 +1447,18 @@ export class SharedWorkerDataServicesHub {
    * worker is single-threaded, so a built snapshot is always consistent
    * with the delta stream that follows it on the same port.
    */
-  private ensureReplaySnapshot(slot: ProviderSlot): readonly Uint8Array[] {
+  private ensureReplaySnapshot(slot: ProviderSlot): readonly EncodedChunk[] {
     if (slot.replaySnapshot) return slot.replaySnapshot;
-    const chunks: Uint8Array[] = [];
+    const chunks: EncodedChunk[] = [];
     const scratch: unknown[] = [];
     for (const row of slot.cache.values()) {
       scratch.push(row);
       if (scratch.length === LATE_JOIN_CHUNK_SIZE) {
-        chunks.push(SNAPSHOT_ENCODER.encode(JSON.stringify(scratch)));
+        chunks.push(encodeChunk(scratch, slot.columnar));
         scratch.length = 0;
       }
     }
-    if (scratch.length > 0) chunks.push(SNAPSHOT_ENCODER.encode(JSON.stringify(scratch)));
+    if (scratch.length > 0) chunks.push(encodeChunk(scratch, slot.columnar));
     slot.replaySnapshot = chunks;
     return chunks;
   }
@@ -1351,7 +1487,11 @@ export class SharedWorkerDataServicesHub {
     if (!listeners) return;
     const countPublish =
       slot.snapshotReady
-      && (eventTemplate.kind === 'delta' || eventTemplate.kind === 'delta-bin');
+      && (
+        eventTemplate.kind === 'delta'
+        || eventTemplate.kind === 'delta-bin'
+        || eventTemplate.kind === 'delta-patch'
+      );
     if (DEBUG) {
       // eslint-disable-next-line no-console
       if (eventTemplate.kind === 'delta') {
@@ -1444,7 +1584,7 @@ export class SharedWorkerDataServicesHub {
   private cacheFootprintBytes(slot: ProviderSlot): number {
     if (slot.replaySnapshot) {
       let total = 0;
-      for (const chunk of slot.replaySnapshot) total += chunk.byteLength;
+      for (const chunk of slot.replaySnapshot) total += chunk.buf.byteLength;
       return total;
     }
     if (slot.cache.size === 0) return 0;

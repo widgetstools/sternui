@@ -117,6 +117,24 @@ function StompBehaviour({ cfg, onChange }: { cfg: StompProviderConfig; onChange(
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
             <Switch
+              id="thinDeltas"
+              checked={cfg.thinDeltas === true}
+              onCheckedChange={(v) => onChange({ thinDeltas: v ? true : undefined })}
+            />
+            <Label htmlFor="thinDeltas" className="text-xs font-medium text-muted-foreground">
+              Thin field-level deltas
+            </Label>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Ship only the fields that changed per row on live updates instead of full
+            replacement rows — big wire saving when ticks touch a few fields of a wide
+            row. Requires a key column; snapshots always ship full rows. Changing this
+            requires a provider Restart.
+          </p>
+        </div>
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <Switch
               id="conflateEnabled"
               checked={conflateEnabled}
               onCheckedChange={(v) => onChange({ conflateEnabled: v })}
@@ -169,6 +187,27 @@ function StompBehaviour({ cfg, onChange }: { cfg: StompProviderConfig; onChange(
           <p className="text-[11px] text-muted-foreground">
             Rows per worker→client frame when flushing the snapshot. Smaller chunks keep
             each main-thread message under the long-task budget. Default 500.
+          </p>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium text-muted-foreground">Wire format</Label>
+          <Select
+            value={cfg.wireFormat ?? 'json'}
+            onValueChange={(v) => onChange({ wireFormat: v === 'columnar' ? 'columnar' : undefined })}
+          >
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="json">JSON (default)</SelectItem>
+              <SelectItem value="columnar">Columnar (typed arrays)</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] text-muted-foreground">
+            Codec for binary worker→window frames (snapshot replay, restarts, large live
+            batches). Columnar ships numbers as raw Float64 and booleans as bitmaps —
+            several-fold faster to decode on number-heavy feeds. Changing this requires
+            a provider Restart.
           </p>
         </div>
       </div>

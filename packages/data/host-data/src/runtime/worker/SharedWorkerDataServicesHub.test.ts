@@ -26,7 +26,8 @@ import { SharedWorkerDataServicesHub, type PortLike } from './SharedWorkerDataSe
 import { ConfigCatalogCache } from '../../hub/ConfigCatalogCache.js';
 import { registerProvider } from '../providers/registry';
 import type { ProviderEmit, ProviderHandle } from '../providers/Provider';
-import type { Event } from '../protocol';
+import type { Event, RowPatch } from '../protocol';
+import { decodeColumnar } from '../wire/columnarCodec';
 import type { ProviderConfig } from '@starui/types';
 import type { ConfigManager, AppConfigRow } from '@starui/host-config';
 
@@ -54,7 +55,11 @@ const REPLAY_DECODER = new TextDecoder();
 /** Rows carried by a delta — decodes pre-encoded `delta-bin` replay chunks. */
 function rowsOf(m: Event): unknown[] | null {
   if (m.kind === 'delta') return [...m.rows];
-  if (m.kind === 'delta-bin') return JSON.parse(REPLAY_DECODER.decode(m.buf)) as unknown[];
+  if (m.kind === 'delta-bin') {
+    return m.enc === 'col'
+      ? decodeColumnar(m.buf)
+      : JSON.parse(REPLAY_DECODER.decode(m.buf)) as unknown[];
+  }
   return null;
 }
 
@@ -108,8 +113,8 @@ beforeEach(() => {
   });
 });
 
-const cfg = (key = 'default'): ProviderConfig =>
-  ({ providerType: 'mock', __testKey: key, keyColumn: 'id' } as unknown as ProviderConfig);
+const cfg = (key = 'default', overrides: Record<string, unknown> = {}): ProviderConfig =>
+  ({ providerType: 'mock', __testKey: key, keyColumn: 'id', ...overrides } as unknown as ProviderConfig);
 
 describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
   it('first attach creates the provider and the listener immediately gets a replace + status', () => {
@@ -1472,5 +1477,203 @@ describe('SharedWorkerDataServicesHub — keyColumn mismatch diagnostics', () =>
     } finally {
       warn.mockRestore();
     }
+  });
+});
+
+describe('SharedWorkerDataServicesHub — thin field-level deltas (cfg.thinDeltas)', () => {
+  /** Hub with a thin-delta provider driven to ready with seed rows. */
+  function thinHub(seed: unknown[]) {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makePort();
+    hub.handleRequest(port, {
+      kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data',
+      cfg: cfg('default', { thinDeltas: true }),
+    });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ rows: seed, replace: true });
+    ctrl.emit({ status: 'ready' });
+    port.messages.length = 0;
+    return { hub, ctrl, port };
+  }
+
+  const patchesOf = (m: Event): readonly RowPatch[] | null => {
+    if (m.kind !== 'delta-patch') return null;
+    if (m.patches) return m.patches;
+    if (m.buf) return JSON.parse(REPLAY_DECODER.decode(m.buf)) as RowPatch[];
+    return [];
+  };
+
+  it('posts sub-init with the keyColumn before the replay on attach', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makePort();
+    hub.handleRequest(port, {
+      kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data',
+      cfg: cfg('default', { thinDeltas: true }),
+    });
+    expect(port.messages[0]).toMatchObject({ kind: 'sub-init', subId: 's1', keyColumn: 'id' });
+    expect(port.messages[1]).toMatchObject({ kind: 'delta', replace: true });
+  });
+
+  it('broadcasts only the changed top-level fields for an updated row', () => {
+    const { ctrl, port } = thinHub([{ id: 'r1', px: 1, qty: 10 }]);
+
+    ctrl.emit({ rows: [{ id: 'r1', px: 2, qty: 10 }] });
+
+    const patchEvents = port.messages.filter((m) => m.kind === 'delta-patch');
+    expect(patchEvents).toHaveLength(1);
+    expect(patchesOf(patchEvents[0]!)).toEqual([{ k: 'r1', s: { px: 2 } }]);
+    // No full-row delta rides alongside.
+    expect(port.messages.filter(isAnyDelta)).toHaveLength(0);
+  });
+
+  it('ships inserts (unseen keys) as full rows under f', () => {
+    const { ctrl, port } = thinHub([{ id: 'r1', px: 1 }]);
+
+    ctrl.emit({ rows: [{ id: 'r2', px: 5 }] });
+
+    const patches = patchesOf(port.messages.find((m) => m.kind === 'delta-patch')!);
+    expect(patches).toEqual([{ k: 'r2', f: { id: 'r2', px: 5 } }]);
+  });
+
+  it('reports removed fields under d', () => {
+    const { ctrl, port } = thinHub([{ id: 'r1', px: 1, stale: true }]);
+
+    ctrl.emit({ rows: [{ id: 'r1', px: 1 }] });
+
+    const patches = patchesOf(port.messages.find((m) => m.kind === 'delta-patch')!);
+    expect(patches).toEqual([{ k: 'r1', d: ['stale'] }]);
+  });
+
+  it('skips rows that did not observably change (free conflation)', () => {
+    const { ctrl, port } = thinHub([{ id: 'r1', px: 1 }]);
+
+    ctrl.emit({ rows: [{ id: 'r1', px: 1 }] });
+
+    expect(port.messages.filter((m) => m.kind === 'delta-patch')).toHaveLength(0);
+    expect(port.messages.filter(isAnyDelta)).toHaveLength(0);
+  });
+
+  it('keeps the full row in the hub cache so late joiners still replay complete rows', () => {
+    const { hub, ctrl } = thinHub([{ id: 'r1', px: 1, qty: 10 }]);
+
+    ctrl.emit({ rows: [{ id: 'r1', px: 2, qty: 10 }] });
+
+    const late = makePort();
+    hub.handleRequest(late, { kind: 'attach', subId: 'late', providerId: 'p1', mode: 'data' });
+    const replay = late.messages.find(isReplaceDelta)!;
+    expect(rowsOf(replay)).toEqual([{ id: 'r1', px: 2, qty: 10 }]);
+  });
+
+  it('encodes large patch batches to a shared buffer (one serialization, N byte copies)', () => {
+    const seed = Array.from({ length: 100 }, (_, i) => ({ id: `r${i}`, x: 0 }));
+    const { hub, ctrl, port } = thinHub(seed);
+    const portB = makePort();
+    hub.handleRequest(portB, { kind: 'attach', subId: 'sB', providerId: 'p1', mode: 'data' });
+    port.messages.length = 0;
+    portB.messages.length = 0;
+
+    ctrl.emit({ rows: Array.from({ length: 100 }, (_, i) => ({ id: `r${i}`, x: 1 })) });
+
+    const evA = port.messages.find((m) => m.kind === 'delta-patch')!;
+    const evB = portB.messages.find((m) => m.kind === 'delta-patch')!;
+    // (Not toBeInstanceOf — jsdom's realm has its own Uint8Array.)
+    expect(ArrayBuffer.isView((evA as { buf?: Uint8Array }).buf)).toBe(true);
+    // Identity: encoded once, byte-copied per port (fake ports share refs).
+    expect((evB as { buf?: Uint8Array }).buf).toBe((evA as { buf?: Uint8Array }).buf);
+    expect(patchesOf(evA)).toHaveLength(100);
+    expect(patchesOf(evA)![0]).toEqual({ k: 'r0', s: { x: 1 } });
+  });
+
+  it('replace frames bypass the thin path — restarts still broadcast full rows', () => {
+    const { ctrl, port } = thinHub([{ id: 'r1', px: 1 }]);
+
+    ctrl.emit({ status: 'loading' });
+    port.messages.length = 0;
+    ctrl.emit({ rows: [{ id: 'r1', px: 9 }], replace: true });
+
+    expect(port.messages.filter((m) => m.kind === 'delta-patch')).toHaveLength(0);
+    const replace = port.messages.find(isReplaceDelta)!;
+    expect(rowsOf(replace)).toEqual([{ id: 'r1', px: 9 }]);
+  });
+});
+
+describe('SharedWorkerDataServicesHub — columnar wire format (cfg.wireFormat)', () => {
+  it('encodes pre-ready snapshot chunks columnar with enc=col, decodable and shared across ports', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const a = makePort();
+    const b = makePort();
+    hub.handleRequest(a, {
+      kind: 'attach', subId: 'sA', providerId: 'p1', mode: 'data',
+      cfg: cfg('default', { wireFormat: 'columnar' }),
+    });
+    hub.handleRequest(b, { kind: 'attach', subId: 'sB', providerId: 'p1', mode: 'data' });
+    const ctrl = controllers.get('default')!;
+    a.messages.length = 0;
+    b.messages.length = 0;
+
+    ctrl.emit({ rows: Array.from({ length: 700 }, (_, i) => ({ id: `r${i}`, x: i })), replace: true });
+
+    const chunksA = a.messages.filter((m) => m.kind === 'delta-bin');
+    const chunksB = b.messages.filter((m) => m.kind === 'delta-bin');
+    expect(chunksA).toHaveLength(2);
+    expect(chunksA.every((c) => (c as { enc?: string }).enc === 'col')).toBe(true);
+    expect((chunksB[0] as { buf: Uint8Array }).buf).toBe((chunksA[0] as { buf: Uint8Array }).buf);
+    const rows = chunksA.flatMap((c) => rowsOf(c)) as Array<{ id: string; x: number }>;
+    expect(rows).toHaveLength(700);
+    expect(rows[0]).toEqual({ id: 'r0', x: 0 });
+    expect(rows[699]).toEqual({ id: 'r699', x: 699 });
+  });
+
+  it('replays the cache to late joiners as columnar chunks', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const primer = makePort();
+    hub.handleRequest(primer, {
+      kind: 'attach', subId: 'primer', providerId: 'p1', mode: 'data',
+      cfg: cfg('default', { wireFormat: 'columnar' }),
+    });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ rows: [{ id: 'r1', px: 1.5, live: true }, { id: 'r2', px: 2.5, live: false }], replace: true });
+    ctrl.emit({ status: 'ready' });
+
+    const late = makePort();
+    hub.handleRequest(late, { kind: 'attach', subId: 'late', providerId: 'p1', mode: 'data' });
+    const chunk = late.messages.find((m) => m.kind === 'delta-bin')!;
+    expect((chunk as { enc?: string }).enc).toBe('col');
+    expect(rowsOf(chunk)).toEqual([
+      { id: 'r1', px: 1.5, live: true },
+      { id: 'r2', px: 2.5, live: false },
+    ]);
+  });
+
+  it('broadcasts large post-ready live ticks columnar', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makePort();
+    hub.handleRequest(port, {
+      kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data',
+      cfg: cfg('default', { wireFormat: 'columnar' }),
+    });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ rows: [{ id: 'seed', x: 0 }], replace: true });
+    ctrl.emit({ status: 'ready' });
+    port.messages.length = 0;
+
+    ctrl.emit({ rows: Array.from({ length: 100 }, (_, i) => ({ id: `r${i}`, x: i })) });
+
+    const bins = port.messages.filter((m) => m.kind === 'delta-bin');
+    expect(bins).toHaveLength(1);
+    expect((bins[0] as { enc?: string }).enc).toBe('col');
+    expect(rowsOf(bins[0]!)).toHaveLength(100);
+  });
+
+  it('providers without wireFormat keep the JSON encoding (enc=json)', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ rows: Array.from({ length: 100 }, (_, i) => ({ id: `r${i}` })), replace: true });
+
+    const bins = port.messages.filter((m) => m.kind === 'delta-bin');
+    expect(bins.length).toBeGreaterThan(0);
+    expect(bins.every((b) => (b as { enc?: string }).enc === 'json')).toBe(true);
   });
 });

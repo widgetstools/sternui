@@ -296,15 +296,28 @@ export interface DeltaEvent {
 }
 
 /**
+ * Encoding of a {@link DeltaBinEvent} buffer.
+ *   - `'json'` (default when absent) — UTF-8 `JSON.stringify` of the
+ *     rows array; decoded with `JSON.parse`.
+ *   - `'col'` — typed-array columnar frame (`columnarCodec`); numbers
+ *     travel as raw Float64 and booleans as bitmaps, cutting the
+ *     receiving window's per-frame decode several-fold on numeric
+ *     feeds. Opt-in via `cfg.wireFormat: 'columnar'`.
+ */
+export type WireEncoding = 'json' | 'col';
+
+/**
  * Binary sibling of {@link DeltaEvent} used for late-join cache replay.
  *
- * `buf` is the UTF-8 `JSON.stringify` encoding of what would otherwise
- * be `DeltaEvent.rows`. The hub encodes each replay chunk ONCE per
- * cache generation and posts the same `Uint8Array` to every attaching
- * port — cloning a typed array across the port is a flat byte copy,
- * whereas cloning a rows array walks every row object's property graph
- * per subscriber. With N windows attaching at once this turns N full
- * object-graph serializations into N memcpys plus one shared encode.
+ * `buf` is the encoded form of what would otherwise be
+ * `DeltaEvent.rows` (`enc` selects the codec — UTF-8 JSON by default,
+ * typed-array columnar when the provider opts in). The hub encodes
+ * each replay chunk ONCE per cache generation and posts the same
+ * `Uint8Array` to every attaching port — cloning a typed array across
+ * the port is a flat byte copy, whereas cloning a rows array walks
+ * every row object's property graph per subscriber. With N windows
+ * attaching at once this turns N full object-graph serializations into
+ * N memcpys plus one shared encode.
  *
  * Constraint: rows must be JSON-serializable. This holds for every
  * transport — STOMP/REST rows are born from `JSON.parse`, and mock
@@ -314,10 +327,63 @@ export interface DeltaEvent {
 export interface DeltaBinEvent {
   subId: string;
   kind: 'delta-bin';
-  /** UTF-8 JSON-encoded rows array (same payload as `DeltaEvent.rows`). */
+  /** Encoded rows array (same payload as `DeltaEvent.rows`). */
   buf: Uint8Array;
+  /** Buffer codec. Absent = `'json'`. */
+  enc?: WireEncoding;
   /** Same semantics as {@link DeltaEvent.replace}. */
   replace?: boolean;
+}
+
+/**
+ * One row's worth of a thin field-level delta (`delta-patch`).
+ *
+ * Either `f` carries a FULL row (insert — key not in the hub cache —
+ * or a non-diffable fallback), or `s`/`d` carry the top-level fields
+ * that changed/disappeared relative to the previous version of the
+ * row. The client merges `{...prev, ...s}` minus `d` into a NEW row
+ * object, so consumers keep seeing immutable full-row values.
+ */
+export interface RowPatch {
+  /** Composed row key (`composeRowId(row, keyColumn)`) — byte-identical to AG Grid's `getRowId`. */
+  k: string;
+  /** Changed or added top-level fields (new values). */
+  s?: Record<string, unknown>;
+  /** Top-level fields removed by the replacement row. */
+  d?: readonly string[];
+  /** Full row — insert or non-diffable fallback. Wins over `s`/`d`. */
+  f?: unknown;
+}
+
+/**
+ * Thin field-level delta. Opt-in via `cfg.thinDeltas`; emitted only
+ * for POST-READY live frames (snapshot/replace frames are full rows by
+ * definition). For touch updates that change a few fields out of
+ * hundreds, this shrinks the hub→window wire by the touch ratio.
+ *
+ * Exactly one of `patches` (small frames, structured clone) or `buf`
+ * (large frames — UTF-8 JSON of the patches array, encoded once and
+ * byte-copied per port) is set.
+ */
+export interface DeltaPatchEvent {
+  subId: string;
+  kind: 'delta-patch';
+  patches?: readonly RowPatch[];
+  /** UTF-8 JSON-encoded `RowPatch[]` (large frames). */
+  buf?: Uint8Array;
+}
+
+/**
+ * Per-subscription handshake posted by the hub BEFORE the first replay
+ * frame when the provider runs with `thinDeltas`. Carries the
+ * provider's `keyColumn` so the client can mirror full rows by the
+ * same composed key the hub patches against. Not sent for providers
+ * without thin deltas (no mirror needed).
+ */
+export interface SubInitEvent {
+  subId: string;
+  kind: 'sub-init';
+  keyColumn?: string | readonly string[];
 }
 
 export interface StatusEvent {
@@ -340,7 +406,14 @@ export interface RowsReceivedEvent {
   count: number;
 }
 
-export type Event = DeltaEvent | DeltaBinEvent | StatusEvent | StatsEvent | RowsReceivedEvent;
+export type Event =
+  | DeltaEvent
+  | DeltaBinEvent
+  | DeltaPatchEvent
+  | SubInitEvent
+  | StatusEvent
+  | StatsEvent
+  | RowsReceivedEvent;
 
 /** Detail payload for {@link CatalogReadyEvent} broadcasts. */
 export interface CatalogChangeDetail {
@@ -436,7 +509,15 @@ export function isEvent(value: unknown): value is Event {
   if (!value || typeof value !== 'object') return false;
   const v = value as { kind?: string; subId?: unknown };
   if (typeof v.subId !== 'string') return false;
-  return v.kind === 'delta' || v.kind === 'delta-bin' || v.kind === 'status' || v.kind === 'stats' || v.kind === 'rows-received';
+  return (
+    v.kind === 'delta' ||
+    v.kind === 'delta-bin' ||
+    v.kind === 'delta-patch' ||
+    v.kind === 'sub-init' ||
+    v.kind === 'status' ||
+    v.kind === 'stats' ||
+    v.kind === 'rows-received'
+  );
 }
 
 export function isCatalogEvent(value: unknown): value is CatalogEvent {

@@ -22,6 +22,11 @@ export type {
   StopRequest,
   Request,
   DeltaEvent,
+  DeltaBinEvent,
+  DeltaPatchEvent,
+  SubInitEvent,
+  RowPatch,
+  WireEncoding,
   StatusEvent,
   StatsEvent,
   Event,
@@ -40,6 +45,10 @@ export type {
   CatalogReadyEvent,
 } from './protocol.js';
 export { isRequest, isEvent, isAppDataRequest, isAppDataEvent } from './protocol.js';
+
+// Wire codecs — typed-array columnar frames + thin-delta row diffing.
+export { tryEncodeColumnar, decodeColumnar } from './wire/columnarCodec.js';
+export { diffTopLevel, type TopLevelDiff } from './wire/rowDiff.js';
 
 // Template substitution (client-side, before attach).
 export {

@@ -43,10 +43,11 @@ beforeEach(() => {
   });
 });
 
-const cfg = (key = 'c-1'): ProviderConfig => ({
+const cfg = (key = 'c-1', overrides: Record<string, unknown> = {}): ProviderConfig => ({
   providerType: 'mock',
   __key: key,
   keyColumn: 'id',
+  ...overrides,
 } as unknown as ProviderConfig);
 
 interface Captured {
@@ -671,5 +672,165 @@ describe('SharedWorkerDataServicesClient — config catalog RPC', () => {
     const cfg = await w.client.getProviderConfig('p1');
     expect(cfg?.name).toBe('Renamed');
     w.close();
+  });
+});
+
+describe('SharedWorkerDataServicesClient — thin field-level deltas end-to-end', () => {
+  let w: Wiring;
+  beforeEach(() => { w = wire(); });
+  afterEach(() => w.close());
+
+  /** Subscribe to a thin-delta provider and settle a 1-row snapshot. */
+  async function settledThinHandle() {
+    const handle = w.client.subscribe<Record<string, unknown>>(
+      'p1',
+      cfg('c-1', { thinDeltas: true }),
+    );
+    await flush();
+    controllers.get('c-1')!.emit({
+      rows: [{ id: 'r1', px: 1, qty: 10, note: 'keep' }],
+      replace: true,
+    });
+    controllers.get('c-1')!.emit({ status: 'ready' });
+    await handle.snapshot;
+    return handle;
+  }
+
+  it('merges a field patch into the previous full row — consumer sees a complete row', async () => {
+    const handle = await settledThinHandle();
+    const updates: Array<readonly Record<string, unknown>[]> = [];
+    handle.onUpdate((rows) => updates.push(rows));
+
+    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', px: 2, qty: 10, note: 'keep' }] });
+    await flush();
+
+    expect(updates).toEqual([[{ id: 'r1', px: 2, qty: 10, note: 'keep' }]]);
+    handle.unsubscribe();
+  });
+
+  it('the merged row is a NEW object — the previous row value is never mutated', async () => {
+    const handle = await settledThinHandle();
+    const snapshotRow = (await handle.snapshot)[0];
+    const updates: Array<readonly Record<string, unknown>[]> = [];
+    handle.onUpdate((rows) => updates.push(rows));
+
+    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', px: 2, qty: 10, note: 'keep' }] });
+    await flush();
+
+    expect(updates[0][0]).not.toBe(snapshotRow);
+    expect(snapshotRow).toEqual({ id: 'r1', px: 1, qty: 10, note: 'keep' });
+    handle.unsubscribe();
+  });
+
+  it('applies field removals from the patch', async () => {
+    const handle = await settledThinHandle();
+    const updates: Array<readonly Record<string, unknown>[]> = [];
+    handle.onUpdate((rows) => updates.push(rows));
+
+    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', px: 1, qty: 10 }] }); // note removed
+    await flush();
+
+    expect(updates).toEqual([[{ id: 'r1', px: 1, qty: 10 }]]);
+    expect('note' in (updates[0][0] as object)).toBe(false);
+    handle.unsubscribe();
+  });
+
+  it('delivers inserts (new keys) as full rows', async () => {
+    const handle = await settledThinHandle();
+    const updates: Array<readonly Record<string, unknown>[]> = [];
+    handle.onUpdate((rows) => updates.push(rows));
+
+    controllers.get('c-1')!.emit({ rows: [{ id: 'r2', px: 5 }] });
+    await flush();
+
+    expect(updates).toEqual([[{ id: 'r2', px: 5 }]]);
+    handle.unsubscribe();
+  });
+
+  it('chains patches across ticks (mirror tracks the merged row)', async () => {
+    const handle = await settledThinHandle();
+    const updates: Array<readonly Record<string, unknown>[]> = [];
+    handle.onUpdate((rows) => updates.push(rows));
+
+    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', px: 2, qty: 10, note: 'keep' }] });
+    await flush();
+    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', px: 2, qty: 99, note: 'keep' }] });
+    await flush();
+
+    expect(updates).toEqual([
+      [{ id: 'r1', px: 2, qty: 10, note: 'keep' }],
+      [{ id: 'r1', px: 2, qty: 99, note: 'keep' }],
+    ]);
+    handle.unsubscribe();
+  });
+
+  it('a second window attaching mid-stream gets full replay then merges patches', async () => {
+    const handle = await settledThinHandle();
+
+    const late = w.client.subscribe<Record<string, unknown>>('p1', undefined);
+    await flush();
+    const snapshot = await late.snapshot;
+    expect(snapshot).toEqual([{ id: 'r1', px: 1, qty: 10, note: 'keep' }]);
+
+    const updates: Array<readonly Record<string, unknown>[]> = [];
+    late.onUpdate((rows) => updates.push(rows));
+    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', px: 7, qty: 10, note: 'keep' }] });
+    await flush();
+
+    expect(updates).toEqual([[{ id: 'r1', px: 7, qty: 10, note: 'keep' }]]);
+    handle.unsubscribe();
+    late.unsubscribe();
+  });
+});
+
+describe('SharedWorkerDataServicesClient — columnar wire format end-to-end', () => {
+  let w: Wiring;
+  beforeEach(() => { w = wire(); });
+  afterEach(() => w.close());
+
+  it('decodes a columnar snapshot transparently — consumer sees plain rows', async () => {
+    const handle = w.client.subscribe<Record<string, unknown>>(
+      'p1',
+      cfg('c-1', { wireFormat: 'columnar' }),
+    );
+    await flush();
+    controllers.get('c-1')!.emit({
+      rows: [
+        { id: 'r1', px: 1.25, live: true, note: null },
+        { id: 'r2', px: 2.5, live: false, note: 'x' },
+      ],
+      replace: true,
+    });
+    controllers.get('c-1')!.emit({ status: 'ready' });
+
+    const snapshot = await handle.snapshot;
+    expect(snapshot).toEqual([
+      { id: 'r1', px: 1.25, live: true, note: null },
+      { id: 'r2', px: 2.5, live: false, note: 'x' },
+    ]);
+    handle.unsubscribe();
+  });
+
+  it('decodes large columnar live ticks through onUpdate', async () => {
+    const handle = w.client.subscribe<Record<string, unknown>>(
+      'p1',
+      cfg('c-1', { wireFormat: 'columnar' }),
+    );
+    await flush();
+    controllers.get('c-1')!.emit({ rows: [{ id: 'seed', x: 0 }], replace: true });
+    controllers.get('c-1')!.emit({ status: 'ready' });
+    await handle.snapshot;
+
+    const updates: Array<readonly Record<string, unknown>[]> = [];
+    handle.onUpdate((rows) => updates.push(rows));
+    controllers.get('c-1')!.emit({
+      rows: Array.from({ length: 100 }, (_, i) => ({ id: `r${i}`, x: i * 1.5 })),
+    });
+    await flush();
+
+    expect(updates).toHaveLength(1);
+    expect(updates[0]).toHaveLength(100);
+    expect(updates[0][99]).toEqual({ id: 'r99', x: 148.5 });
+    handle.unsubscribe();
   });
 });

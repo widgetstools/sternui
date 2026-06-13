@@ -184,6 +184,30 @@ export interface StompProviderConfig {
    */
   projectFields?: boolean;
   /**
+   * Thin field-level deltas. When ON, post-ready live updates broadcast
+   * only the top-level fields that actually changed per row
+   * (`delta-patch` wire events) instead of full replacement rows —
+   * touch updates that change a few fields out of hundreds shrink the
+   * hub→window wire by the touch ratio. The client merges each patch
+   * into its previous full row producing a NEW row object, so
+   * subscribers still observe whole immutable rows. Requires
+   * `keyColumn` (ignored without it). Snapshot/replace frames always
+   * ship full rows. Default OFF.
+   */
+  thinDeltas?: boolean;
+  /**
+   * Wire codec for binary hub→window frames (snapshot replay, restart
+   * broadcast, large live batches).
+   *   - `'json'` (default) — UTF-8 `JSON.stringify` bytes, decoded
+   *     with `JSON.parse`.
+   *   - `'columnar'` — typed-array columnar frames: numbers travel as
+   *     raw Float64 and booleans as bitmaps, cutting each window's
+   *     per-frame decode several-fold on number-heavy feeds. Frames
+   *     that don't qualify (non-object rows) fall back to JSON
+   *     per-chunk automatically.
+   */
+  wireFormat?: 'json' | 'columnar';
+  /**
    * Reconnect policy. Today only `initialDelayMs` is honoured (it
    * becomes the stompjs `reconnectDelay`); full exponential backoff +
    * jitter + maxAttempts requires bypassing stompjs's auto-reconnect

@@ -145,12 +145,47 @@ flowchart LR
 
 ---
 
-## 8. Architectural choices and their trade-offs
+## 8. Thin field-level deltas — opt-in (`cfg.thinDeltas`)
+
+Originally rejected to protect the "row is immutable value" invariant;
+now implemented WITHOUT breaking it by putting the merge contract in
+exactly one place.
+
+```mermaid
+flowchart LR
+    UP[upstream full row<br/>200 fields] --> HUB[hub: cache.set full row<br/>diff vs previous version]
+    HUB -->|"delta-patch { k, s: {px, qty} }"| WIN[window client]
+    WIN -->|"merge {...prev, ...s} → NEW row"| GRID[grid sees full immutable row]
+```
+
+| Technical | In plain words |
+|---|---|
+| Post-ready live frames broadcast as `delta-patch`: per row, only the top-level fields that changed vs the cached previous version (`RowPatch { k, s, d }`), computed in the hub with `diffTopLevel`. Inserts / non-diffable rows ship full under `f`; rows that didn't observably change are skipped entirely. The hub cache still stores full rows, so replace frames and late-join replay are untouched. | Instead of mailing a whole replacement card when one price ticks, mail a note saying "card r1: price is now 2". New cards still ship whole, and the master filing cabinet still holds complete cards. |
+| The client (the ONE merge point) mirrors full rows per thin subscription — the hub announces `keyColumn` via a `sub-init` handshake before the first replay — and applies each patch as `{...prev, ...s}` minus `d`, producing a **new** row object. Consumers keep receiving whole immutable rows; reference-sharing (P4) in the hub stays safe. | The receiving office keeps its own copy of every card; when a note arrives it writes out a fresh complete card. Nobody downstream ever sees a sticky note. |
+| Trade-offs: requires `keyColumn`; the hub pays a per-row top-level compare on the hot path (Object.is per field, JSON compare only for nested values); each subscribing window holds one extra `Map` of row references. Default OFF — turn it on for wide rows with touchy ticks. | The clerk now compares each card to the old one before mailing — cheap for flat cards, and only done when you ask for it. |
+
+---
+
+## 9. Columnar wire format — opt-in (`cfg.wireFormat: 'columnar'`)
+
+The "next big win" from the original write-up, implemented as a
+per-provider codec choice rather than a protocol rewrite: `delta-bin`
+events carry an `enc` tag and the client picks the decoder.
+
+| Technical | In plain words |
+|---|---|
+| All binary frames (replay, restart broadcast, big live ticks) encode via `columnarCodec` (`COL1`): one column per top-level field; numbers as raw little-endian Float64 (zero parse), booleans as bitmaps, strings/nested objects as ONE `JSON.parse` per column; presence + null bitmaps preserve ragged rows and null-vs-absent exactly. | Instead of photocopying whole pages of mixed text, ship each column of the spreadsheet in its native form — numbers as numbers, not digits to be re-read. The reader reconstructs the rows several times faster. |
+| Frames that don't qualify (non-plain-object rows) fall back to JSON per chunk — `DeltaBinEvent.enc: 'json' \| 'col'` discriminates per event, so mixed encodings coexist safely, and providers that never opt in are byte-identical to before. | The new shorthand is used only where it helps; everything else stays ordinary photocopies, and each envelope says which one is inside. |
+| The columnar bytes double as the replay memo exactly like the JSON bytes did — encode once per cache generation, flat byte copy per port. | The shorthand reprints sit on the same shelf the photocopies did. |
+
+---
+
+## 10. Architectural choices and their trade-offs
 
 | Choice | Technical rationale | In plain words |
 |---|---|---|
-| **Whole-row replacement by key** (no partial/thin deltas) | The cache and every consumer do `cache.set(key, row)` / AG Grid `applyTransactionAsync` with full rows. Thin field-level patches would shrink the wire ~50× for touch updates, but require a merge contract at every hop and break the "row is immutable value" invariant that makes reference-sharing (P4) safe. Rejected for now. | Every update is a complete replacement card, never a sticky note on top of an old card. Bigger to mail, but nobody ever has a half-updated card. |
-| **UTF-8 JSON in `Uint8Array`, not a binary columnar format** | JSON keeps one codec everywhere (`JSON.parse` is heavily optimized native code) and the bytes double as the replay memo. A typed-array columnar format would cut decode several-fold but is a protocol rewrite touching every consumer. Deferred. | We standardized on fast photocopies rather than inventing a new shorthand every office would have to learn. The shorthand is the next big win if needed. |
+| **Whole-row replacement by key on every hop except the thin-delta wire** | The cache and every consumer still do `cache.set(key, row)` / AG Grid `applyTransactionAsync` with full rows. With `cfg.thinDeltas` (§8) only the hub→window WIRE carries field patches; the client re-materializes full immutable rows before anything else sees them, so the invariant that makes reference-sharing (P4) safe holds everywhere. | Updates may travel as sticky notes now (if you opt in), but every desk still ends up with a complete card — the note is transcribed at the mailroom, never passed around. |
+| **UTF-8 JSON in `Uint8Array` by default, columnar opt-in** | JSON keeps one codec everywhere and the bytes double as the replay memo. The typed-array columnar format (§9) cuts decode several-fold on numeric feeds but costs a second codec — so it's per-provider opt-in (`cfg.wireFormat`), tagged per event, with automatic JSON fallback. | Fast photocopies remain the default; the shorthand exists for the offices that want it, and every envelope is labelled. |
 | **Lazy memo + O(1) invalidation** (vs incremental memo maintenance) | Live ticks mutate the cache constantly; keeping the replay encoding incrementally updated per tick would tax the hot path to subsidize the rare attach. Lazy rebuild costs one encode per "attach after mutation" — the right side of the trade at realistic attach rates. | Don't reprint the book after every price tick just in case a reader shows up — reprint when one actually does. |
 | **64-row threshold for binary live frames** | Encode+decode ≈ clone serialize+deserialize for one listener; binary only wins when the encode is amortized over listeners or the frame is big. Small conflated ticks (the production norm) keep the zero-copy-feeling direct path. | Use the printing press for books, hand over post-its directly. |
 | **Backpressure at the edges, not the hub** | The demo server skips ticks when `ws.bufferedAmount` exceeds 16 MB and budgets its sweep (`SWEEP_ROWS_PER_SEC`); clients throttle/conflate per provider (`throttleMs`, `conflateByKey`). The hub itself never buffers unboundedly — `MessagePort` queues are the only queue. | Slow consumers are slowed at the tap and at the cup — the pipe in the middle is kept dumb and fast. |
@@ -158,7 +193,7 @@ flowchart LR
 
 ---
 
-## 9. Result summary
+## 11. Result summary
 
 | Path | Before | After |
 |---|---|---|
@@ -168,6 +203,8 @@ flowchart LR
 | Live tick fan-out (small conflated frames) | plain delta | unchanged — plain delta (below 64-row threshold) |
 | Worker GC pressure | per-listener event allocations + dedup maps every tick | reused event objects, reference-shared row arrays on the clean path |
 | Cache memory (2000-field feed, 200 shown) | full rows cached and shipped | ~10× cut with `projectFields`, visible as "Cache size (serialized)" |
+| Touch updates (few fields of a wide row) | full replacement row per tick per window | with `thinDeltas`: changed fields only on the wire (~touch-ratio shrink); unchanged rows skipped entirely |
+| Window decode of binary frames (numeric feeds) | `JSON.parse` over every byte | with `wireFormat: 'columnar'`: Float64/bitmap columns, several-fold faster decode |
 
 Diagnostics: Provider editor → **Diagnostics** tab — `Cache size
 (serialized)`, `Bytes received`, publish rates (binary fan-out posts
@@ -175,8 +212,10 @@ count as publishes), snapshot fetch time.
 
 Related code:
 
-- `packages/data/host-data/src/runtime/worker/SharedWorkerDataServicesHub.ts` — cache, replay memo, binary fan-out, broadcast loop
-- `packages/data/host-data/src/runtime/client/SharedWorkerDataServicesClient.ts` — `delta-bin` decode
+- `packages/data/host-data/src/runtime/worker/SharedWorkerDataServicesHub.ts` — cache, replay memo, binary fan-out, thin-delta diffing, broadcast loop
+- `packages/data/host-data/src/runtime/client/SharedWorkerDataServicesClient.ts` — `delta-bin` / `delta-patch` decode + thin-delta merge mirror
+- `packages/data/host-data/src/runtime/wire/columnarCodec.ts` — typed-array columnar codec (`COL1`)
+- `packages/data/host-data/src/runtime/wire/rowDiff.ts` — top-level row diffing for thin deltas
 - `packages/data/host-data/src/runtime/providers/fieldProjection.ts` — field projection
 - `packages/data/host-data/src/runtime/protocol.ts` — wire events, `ProviderStats`
 - `apps/demos/stomp-view-server/` — sweep batcher, row profiles, backpressure guard (test feed)
