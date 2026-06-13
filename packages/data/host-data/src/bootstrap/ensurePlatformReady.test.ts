@@ -56,6 +56,8 @@ describe('ensurePlatformReady', () => {
         appData: {},
         configManager: {},
         ready: Promise.resolve(),
+        appDataReady: Promise.resolve(),
+        catalogReady: Promise.resolve(),
         dispose: vi.fn(),
         getProvider: vi.fn(),
         stopProvider: vi.fn(),
@@ -185,19 +187,24 @@ describe('ensurePlatformReady', () => {
 
   it('marks the platform warm after full bootstrap completes', async () => {
     expect(isPlatformWarm('TestApp')).toBe(false);
-    await ensurePlatformReady(DEV_PLATFORM_BOOTSTRAP, { workerScriptUrl: '/worker.mjs' });
+    const bundle = await ensurePlatformReady(DEV_PLATFORM_BOOTSTRAP, { workerScriptUrl: '/worker.mjs' });
+    // Phase 2: the warm marker fires in the background once bundle.ready
+    // settles (no longer awaited before ensurePlatformReady resolves).
+    await bundle.ready;
     expect(isPlatformWarm('TestApp')).toBe(true);
   });
 
   it('runs appDataBootstrap hooks when manifest and registry are supplied', async () => {
     const hooks = { 'session-context': vi.fn() };
-    await ensurePlatformReady(
+    const bundle = await ensurePlatformReady(
       {
         ...DEV_PLATFORM_BOOTSTRAP,
         appDataBootstrap: { onHubReady: ['session-context'], runPolicy: 'always' },
       },
       { workerScriptUrl: '/worker.mjs', appDataBootstrapHooks: hooks },
     );
+    // Phase 2: AppData hooks run in the background off bundle.appDataReady.
+    await bundle.appDataReady;
 
     expect(runAppDataBootstrap).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -224,6 +231,8 @@ describe('ensureConfigReady', () => {
         appData: {},
         configManager: {},
         ready: Promise.resolve(),
+        appDataReady: Promise.resolve(),
+        catalogReady: Promise.resolve(),
         dispose: vi.fn(),
         getProvider: vi.fn(),
         stopProvider: vi.fn(),

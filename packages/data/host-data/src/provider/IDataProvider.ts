@@ -50,11 +50,23 @@ export interface IDataProviderFactory {
 
 /**
  * Bundle returned by `ensurePlatformReady` / `ensureDataServicesHub`.
- * Implementation lands in Phase 2; contract locked in Phase 0.
+ *
+ * The two hydration signals are split so consumers can paint the shell as
+ * soon as the hub connection is live and await only the signal they need:
+ *   - {@link appDataReady} — the AppData mirror's first snapshot (templates).
+ *   - {@link catalogReady} — the worker's data-provider catalog preload
+ *     (provider attach / picker lists).
+ * {@link ready} is `Promise.all` of both, retained for callers that want full
+ * hydration. `ensurePlatformReady` resolves the bundle once the hub connection
+ * is established — these promises settle in the background afterward.
  */
 export interface DataServicesHubBundle extends IDataProviderFactory {
-  /** Catalog + AppData hydrated in the worker. */
+  /** Both AppData mirror snapshot and worker catalog hydrated (`Promise.all`). */
   readonly ready: Promise<void>;
+  /** AppData mirror's first snapshot has arrived. */
+  readonly appDataReady: Promise<void>;
+  /** Worker data-provider catalog preload completed. */
+  readonly catalogReady: Promise<void>;
   /** Global teardown — wire `stop`. Does not run on grid unmount. */
   stopProvider(providerId: string): Promise<void>;
   /** Tear down hub client and worker connection for this window. */

@@ -16,6 +16,7 @@ import {
   isPlatformWarm,
   markPlatformWarm,
 } from './platformWarmSession.js';
+import { markConfigReady, markPlatformReady } from './loadMarks.js';
 import {
   runAppDataBootstrap,
   type AppDataBootstrapHookRegistry,
@@ -109,6 +110,7 @@ async function bootstrapConfigOnce(
     seedConfigReload: attachMode ? undefined : config.seedConfigReload,
   });
   await configManager.init(attachMode ? { mode: 'attach' } : undefined);
+  markConfigReady();
   return { configManager, attachMode };
 }
 
@@ -156,21 +158,41 @@ async function bootstrapPlatformOnce(
 
   wireWorkerCatalogSync(configManager, bundle.client);
 
-  await bundle.ready;
-
-  // Warm marker drives resolveAttachMode in later windows: bundle.ready
-  // implies the worker catalog hydrated, which implies seeding completed.
-  markPlatformWarm(config.appId);
+  // Phase 2: return once config + hub connection are established. Full
+  // hydration (AppData snapshot + catalog preload) settles in the background;
+  // consumers paint the shell now and await `bundle.appDataReady` /
+  // `bundle.catalogReady` only where they need it.
+  void bundle.ready
+    .then(() => {
+      markPlatformReady();
+      // Warm marker drives resolveAttachMode in later windows: bundle.ready
+      // implies the worker catalog hydrated, which implies seeding completed.
+      // Firing it only after full hydration keeps attach-mode correct.
+      markPlatformWarm(config.appId);
+    })
+    .catch(() => {
+      /* hydration failure already surfaces to awaiters of bundle.ready */
+    });
 
   if (config.appDataBootstrap && opts.appDataBootstrapHooks) {
-    await runAppDataBootstrap({
-      manifest: config.appDataBootstrap,
-      registry: opts.appDataBootstrapHooks,
-      appId: config.appId,
-      userId: config.userId,
-      appData: bundle.appData,
-      configManager: bundle.configManager,
-    });
+    const { appDataBootstrap } = config;
+    const { appDataBootstrapHooks } = opts;
+    // AppData hooks need the mirror hydrated — run them off appDataReady in the
+    // background so they don't gate the window's first paint.
+    void bundle.appDataReady
+      .then(() =>
+        runAppDataBootstrap({
+          manifest: appDataBootstrap,
+          registry: appDataBootstrapHooks,
+          appId: config.appId,
+          userId: config.userId,
+          appData: bundle.appData,
+          configManager: bundle.configManager,
+        }),
+      )
+      .catch((err) => {
+        console.error(`[ensurePlatformReady:${config.appId}] AppData bootstrap failed:`, err);
+      });
   }
 
   return bundle;

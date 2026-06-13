@@ -94,6 +94,10 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
     if (this.inlineCfg) {
       this.resolvedConfig = this.inlineCfg;
     } else {
+      // Phase 3: `getProviderConfig` resolves this one provider on demand in
+      // the worker (cached or a single-row read) — no need to gate on the full
+      // catalog preload. The worker caches the row, so the attach below finds
+      // it synchronously.
       const row = await this.client.getProviderConfig(this.id);
       if (!row?.config) {
         throw new Error(

@@ -8,6 +8,11 @@ import { SharedWorkerDataServicesClient } from '../runtime/client/SharedWorkerDa
 import type { DataServicesHubBundle } from '../provider/IDataProvider.js';
 import type { IDataProvider } from '../provider/IDataProvider.js';
 import { ProviderClientAdapter } from '../provider/ProviderClientAdapter.js';
+import {
+  markAppDataReady,
+  markCatalogReady,
+  markHubConnected,
+} from '../bootstrap/loadMarks.js';
 
 /** Hub bundle including legacy {@link DataServices} handles for migration. */
 export interface ResolvedDataServicesHubBundle extends DataServicesHubBundle {
@@ -77,20 +82,41 @@ export function warmHubConnection(opts: WarmHubConnectionOpts): void {
   }
 }
 
-function combineReady(services: DataServices): Promise<void> {
-  return (async () => {
+/** The two hydration signals, resolved in parallel; `ready` = both. */
+interface HubReadiness {
+  ready: Promise<void>;
+  appDataReady: Promise<void>;
+  catalogReady: Promise<void>;
+}
+
+function buildReadiness(services: DataServices): HubReadiness {
+  const appDataReady = (async () => {
     await services.ready;
-    await services.client.waitForCatalogReady();
+    markAppDataReady();
   })();
+  const catalogReady = (async () => {
+    await services.client.waitForCatalogReady();
+    markCatalogReady();
+  })();
+  const ready = Promise.all([appDataReady, catalogReady]).then(() => undefined);
+  // These may go unawaited (Phase 2: the bundle is returned before full
+  // hydration). Attach no-op rejection handlers so a hydration failure can't
+  // surface as an unhandled rejection — awaiters still observe the rejection.
+  appDataReady.catch(() => {});
+  catalogReady.catch(() => {});
+  ready.catch(() => {});
+  return { ready, appDataReady, catalogReady };
 }
 
 function adaptDataServicesToHubBundle(
   services: DataServices,
   appId: string,
-  ready: Promise<void>,
+  readiness: HubReadiness,
 ): ResolvedDataServicesHubBundle {
   return {
-    ready,
+    ready: readiness.ready,
+    appDataReady: readiness.appDataReady,
+    catalogReady: readiness.catalogReady,
     getProvider(providerId: string): IDataProvider {
       return new ProviderClientAdapter({
         client: services.client,
@@ -121,14 +147,18 @@ async function bootstrapHubOnce(opts: EnsureHubOpts): Promise<ResolvedDataServic
     configManager: opts.mainThreadConfigManager,
     userId: opts.userId,
   });
-  const ready = combineReady(services);
-  await ready;
-  return adaptDataServicesToHubBundle(services, opts.appId, ready);
+  markHubConnected();
+  // Return as soon as the hub connection is established — the AppData snapshot
+  // and catalog preload resolve in the background via the readiness promises.
+  const readiness = buildReadiness(services);
+  return adaptDataServicesToHubBundle(services, opts.appId, readiness);
 }
 
 /**
  * Lazy hub entry — one SharedWorker + client bundle per `appId` per window.
- * Waits for AppData mirror snapshot and worker catalog preload before resolving.
+ * Resolves once the hub connection is established; the AppData mirror snapshot
+ * and worker catalog preload settle in the background via the bundle's
+ * `appDataReady` / `catalogReady` / `ready` promises.
  */
 export function ensureDataServicesHub(opts: EnsureHubOpts): Promise<ResolvedDataServicesHubBundle> {
   const existing = hubPromises.get(opts.appId);

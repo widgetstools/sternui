@@ -387,7 +387,7 @@ export class SharedWorkerDataServicesHub {
       case 'detach':  this.handleDetach(req); return;
       case 'stop':    this.handleStop(req); return;
       case 'hub-ready': this.handleHubReady(port, req); return;
-      case 'get-config': this.handleGetConfig(port, req); return;
+      case 'get-config': void this.handleGetConfig(port, req); return;
       case 'list-configs': this.handleListConfigs(port, req); return;
       case 'config-invalidate': void this.handleConfigInvalidate(port, req); return;
       case 'refresh-provider': this.handleRefreshProvider(req); return;
@@ -634,7 +634,7 @@ export class SharedWorkerDataServicesHub {
     });
   }
 
-  private handleGetConfig(port: PortLike, req: GetConfigRequest): void {
+  private async handleGetConfig(port: PortLike, req: GetConfigRequest): Promise<void> {
     if (!this.configCatalog) {
       this.replyConfigSnapshot(port, {
         kind: 'config-snapshot',
@@ -644,12 +644,25 @@ export class SharedWorkerDataServicesHub {
       });
       return;
     }
-    this.replyConfigSnapshot(port, {
-      kind: 'config-snapshot',
-      reqId: req.reqId,
-      ok: true,
-      config: this.configCatalog.get(req.providerId),
-    });
+    // Phase 3: resolve the single provider on demand (cached or one-row read)
+    // so a grid doesn't gate on the full catalog preload. Caching the row here
+    // means the synchronous attach lookup that follows finds it too.
+    try {
+      const config = await this.configCatalog.ensure(req.providerId);
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: true,
+        config,
+      });
+    } catch (err) {
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   private handleListConfigs(port: PortLike, req: ListConfigsRequest): void {

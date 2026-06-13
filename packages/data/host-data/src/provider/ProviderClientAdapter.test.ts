@@ -77,11 +77,12 @@ interface Wiring {
   close(): void;
 }
 
-function wireCatalog(rows: AppConfigRow[]): Wiring {
+function wireCatalog(rows: AppConfigRow[], opts: { preload?: boolean } = {}): Wiring {
+  const { preload = true } = opts;
   const cm = mockConfigManager(rows);
   const cache = new ConfigCatalogCache(cm as never);
   const hub = new SharedWorkerDataServicesHub({ configCatalog: cache });
-  void cache.loadAll();
+  if (preload) void cache.loadAll();
   const wiring = createInPageWiring((port) => {
     const portLike: PortLike = { postMessage: (m) => port.postMessage(m) };
     port.addEventListener('message', (ev: MessageEvent) => {
@@ -115,6 +116,29 @@ describe('ProviderClientAdapter', () => {
   });
 
   afterEach(() => w.close());
+
+  it('start() resolves the provider on demand when the catalog never preloaded', async () => {
+    // Phase 3: no loadAll() — start() must resolve the one provider via the
+    // worker's on-demand single-row read instead of gating on the full catalog.
+    const local = wireCatalog([mockProviderRow('p1')], { preload: false });
+    try {
+      const adapter = new ProviderClientAdapter<{ id: string; x: number }>({
+        client: local.client,
+        providerId: 'p1',
+      });
+      const startPromise = adapter.start();
+      await flush();
+      controllers.get('default')!.emit({ rows: [{ id: 'r1', x: 1 }], replace: true });
+      controllers.get('default')!.emit({ status: 'ready' });
+      await startPromise;
+
+      expect(adapter.getData()).toEqual([{ id: 'r1', x: 1 }]);
+      expect(adapter.getConfig().providerType).toBe('mock');
+      await adapter.stop();
+    } finally {
+      local.close();
+    }
+  });
 
   it('maps hub snapshot to onSnapshotData and getData()', async () => {
     const adapter = new ProviderClientAdapter<{ id: string; x: number }>({

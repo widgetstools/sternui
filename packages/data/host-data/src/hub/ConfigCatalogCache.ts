@@ -47,6 +47,21 @@ export class ConfigCatalogCache {
     return this.byId.get(providerId) ?? null;
   }
 
+  /**
+   * Resolve a single provider row on demand — cached value if present, else a
+   * one-row ConfigManager read (no full {@link loadAll}). Phase 3: a grid that
+   * needs exactly one provider doesn't wait on the whole catalog preload.
+   * The fetched row is cached so the synchronous {@link getProviderConfig} /
+   * {@link handleAttach} lookups that follow find it.
+   */
+  async ensure(providerId: string): Promise<DataProviderConfig | null> {
+    const cached = this.byId.get(providerId);
+    if (cached) return cached;
+    const fresh = await this.store.get(providerId);
+    if (fresh && fresh.providerId) this.byId.set(fresh.providerId, fresh);
+    return fresh;
+  }
+
   /** Resolved transport cfg for provider attach. */
   getProviderConfig(providerId: string): ProviderConfig | null {
     return this.byId.get(providerId)?.config ?? null;

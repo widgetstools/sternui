@@ -49,7 +49,16 @@ export {
   SnapshotReassembler,
   runAppDataBootstrap,
   createAppDataBootstrapContext,
+  markConfigReady,
+  markHubConnected,
+  markAppDataReady,
+  markCatalogReady,
+  markPlatformReady,
+  markLoadMilestone,
+  readLoadMilestone,
+  readLoadTimings,
 } from './bootstrap/index.js';
+export type { LoadMilestone } from './bootstrap/index.js';
 export type {
   FetchLike,
   ConfigReadyBundle,

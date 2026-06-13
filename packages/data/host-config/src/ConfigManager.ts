@@ -50,6 +50,19 @@ import { isVisible, type VisibilityContext } from './visibility';
 export type ImpersonatedUser = { userId: string; displayName?: string };
 
 /**
+ * Minimal structural view of the Web Locks `LockManager` used for the
+ * cold-start seed lock. Declared locally so the package does not depend on the
+ * DOM lib's `LockManager` type being present in every consuming tsconfig.
+ */
+interface SeedLockManager {
+  request(
+    name: string,
+    options: { mode: 'exclusive' | 'shared' },
+    callback: () => Promise<void>,
+  ): Promise<void>;
+}
+
+/**
  * Fixed name of the framework-owned AppData provider (Decision 4 in
  * `config-manager-redesign.md`). Every ConfigManager that's wired
  * with `dataServices` writes its identity / profile keys into this
@@ -1181,6 +1194,42 @@ export class ConfigManager {
    */
   private async seedIfEmpty(): Promise<void> {
     if (!this.seedConfigUrl) {
+      return;
+    }
+    // Serialize the seed across every same-origin context — all OpenFin
+    // windows AND the SharedWorker — with a Web Lock keyed by the seed URL.
+    // A cold start that opens several windows at once would otherwise have
+    // each context (plus the worker) independently see an empty DB, fetch
+    // seed.json, and run a bulkPut transaction. The lock collapses that to a
+    // single fetch+seed: the emptiness check lives *inside* the lock, so late
+    // acquirers find the rows already present and skip the fetch entirely.
+    // Web Locks auto-release if a holder crashes mid-seed, so there is no
+    // stale lock to time out (the cross-window warm-marker fallback in
+    // ensurePlatformReady still guards the next-launch fast path).
+    await this.runWithSeedLock(this.seedConfigUrl, () => this.seedIfEmptyLocked());
+  }
+
+  /**
+   * Run `fn` while holding an exclusive same-origin Web Lock for this seed URL.
+   * Falls back to running `fn` directly when `navigator.locks` is unavailable
+   * (older runtimes, jsdom) — `bulkPut` is idempotent on primary key, so a
+   * concurrent seed is wasteful but still correct.
+   */
+  private async runWithSeedLock(url: string, fn: () => Promise<void>): Promise<void> {
+    const locks = (
+      globalThis as { navigator?: { locks?: SeedLockManager } }
+    ).navigator?.locks;
+    if (!locks || typeof locks.request !== 'function') {
+      await fn();
+      return;
+    }
+    await locks.request(`starui:seed-lock:${url}`, { mode: 'exclusive' }, async () => {
+      await fn();
+    });
+  }
+
+  private async seedIfEmptyLocked(): Promise<void> {
+    if (this.disposed || !this.seedConfigUrl) {
       return;
     }
 

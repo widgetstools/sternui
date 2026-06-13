@@ -1,67 +1,98 @@
 # `@starui/e2e-openfin`
 
-OpenFin e2e harness — Playwright runner attached over CDP to an
-OpenFin runtime spawned via `@openfin/node-adapter`.
+OpenFin e2e harness — a Playwright runner attached over CDP to a real
+OpenFin runtime spawned via `@openfin/node-adapter`, driving the
+fully-configured **star-demo** reference workspace app.
 
-Replaces the legacy Vitest+bridge-channel harness now archived at
+Targets `apps/demos/star-demo` (not the stripped `e2e-openfin-workspace`)
+because star-demo ships a real seeded STOMP data provider, the dock +
+provider window, and the dev test bridge — so blotters actually load and
+tick rows, which the multi-window guards assert.
+
+Replaces the legacy Vitest+bridge-channel harness archived at
 [`apps/demos/e2e-openfin-vitest/`](../apps/demos/e2e-openfin-vitest/).
-Same test-runner API (Playwright) as the browser e2e suite so fixtures
-and helpers can flow between the two over time.
 
 ## Run
 
 ```bash
-# Local — spawns apps/demos/e2e-openfin-workspace dev server on :5181
-# then launches OpenFin against the e2e manifest variant.
+# Boots the STOMP server (:8081) + star-demo dev server (:5175), then
+# launches OpenFin against star-demo's manifest and attaches over CDP.
 npm run test:e2e:openfin
 
-# Headed (provider window visible)
+# Headed
 npm --prefix e2e-openfin run test:e2e:headed
 ```
 
+`reuseExistingServer: true`, so an already-running `npm run dev:stomp` /
+`npm run dev:star-demo` (or `npm run star-demo`) session is reused.
+
 ## How it works
 
-1. Playwright's `webServer` block boots
-   [`@starui/e2e-openfin-workspace`](../apps/demos/e2e-openfin-workspace/) on
-   port 5181 (Vite dev). `reuseExistingServer: true` so an already-
-   running dev session is reused.
-2. The `launchOpenFin` fixture calls
-   [`@openfin/node-adapter`'s `launch()`](https://developer.openfin.co/)
-   with `MANIFEST_URL` pointing at
-   `http://localhost:5181/platform/manifest.e2e.fin.json`.
-3. The e2e manifest's `runtime.arguments` declares
-   `--remote-debugging-port=9191`. The fixture polls
-   `http://127.0.0.1:9191/json/version` until the runtime is ready,
-   then attaches Playwright via `chromium.connectOverCDP()`.
-4. The fixture finds the blotter view's tab and produces a Playwright
-   `Page` for it. Specs receive that page via the `blotterPage`
-   fixture.
+1. Playwright's `webServer` block boots two servers: the STOMP view
+   server ([`@starui/stomp-view-server`](../apps/demos/stomp-view-server/),
+   `:8081`, health-checked at `/health`) and star-demo's Vite dev server
+   (`:5175`, **DEV mode** so the test bridge installs).
+2. The `launchOpenFin` fixture calls `@openfin/node-adapter`'s `launch()`
+   with star-demo's manifest, then `connect()`s an out-of-runtime `fin`
+   proxy.
+3. star-demo's manifest declares `--remote-debugging-port=9091`. The
+   fixture polls `http://127.0.0.1:9091/json/version`, waits for the
+   provider window, connects to the dev test bridge
+   (`marketsui-test-bridge`), and waits for the platform's storage API
+   (`getWorkspaces` succeeds only once `WorkspacePlatform` is live).
+4. Specs drive the worker-scoped `platform` handle:
+   - `platform.openBlotter(instanceId)` launches a MarketsGrid blotter
+     window via `Platform.createWindow` with a distinct
+     `customData.instanceId` (+ matching `?instanceId=` so each window's
+     CDP URL is unique) and returns a Playwright `Page` attached to it.
+     Each blotter scopes its own profile-set config row.
+   - `platform.bridge` exposes the WorkspacePlatform.Storage ops
+     (`saveWorkspace` / `getWorkspace` / `getWorkspaces` /
+     `deleteWorkspace` / `ping`).
+   Blotter windows opened during a test are auto-closed after it (so the
+   shared hub isn't loaded down across the run).
+
+> New top-level OpenFin windows don't surface on an already-attached
+> Playwright CDP connection, so `openBlotter` reconnects fresh to resolve
+> the page — don't "optimize" that into a single persistent connection.
+
+## Specs
+
+| Spec | Guards |
+|---|---|
+| `blotter-smoke` | A single blotter mounts in OpenFin, reaches an interactive grid with STOMP rows, and the rows tick. |
+| `multi-blotter-load` | Three blotters with distinct instanceIds all reach interactive grids with rows; never strand on *"Connecting to ConfigService…"*. **Primary regression guard.** |
+| `multi-blotter-late-join` | A blotter opened after the hub is warm attaches and shows rows inside the warm budget (logs the measured warm time). |
+| `workspace-persistence` | Save → get-by-id → delete round-trips through the config-service-backed WorkspacePlatform storage. |
 
 ## Env overrides
 
 | Var | Default | Purpose |
 |---|---|---|
-| `OPENFIN_MANIFEST_URL` | `http://localhost:5181/platform/manifest.e2e.fin.json` | Override to point at a different deployment |
-| `OPENFIN_CDP_PORT` | `9191` | Must match the manifest's `--remote-debugging-port` |
+| `OPENFIN_MANIFEST_URL` | `http://localhost:5175/platform/manifest.fin.json` | Point at a different deployment |
+| `OPENFIN_APP_ORIGIN` | `http://localhost:5175` | Origin used to build blotter URLs |
+| `OPENFIN_CDP_PORT` | `9091` | Must match the manifest's `--remote-debugging-port` |
 
 ## Adding a spec
 
 ```ts
 import { test, expect } from '../fixtures/launchOpenFin';
 
-test('something useful', async ({ blotterPage }) => {
-  await expect(blotterPage.getByTestId('openfin-workspace-blotter')).toBeVisible();
+test('something useful', async ({ platform }) => {
+  const page = await platform.openBlotter('my-instance');
+  await expect(page.locator('.ag-center-cols-container .ag-row').first()).toBeVisible();
 });
 ```
 
-The `blotterPage` is a regular Playwright `Page` — same API as the
-browser harness uses against `apps/demos/e2e-browser-blotter`. Helpers from
-`/e2e/helpers/` (profile manipulation, settings sheet) work against
-either.
-
 ## Concurrency
 
-`workers: 1` in `playwright.config.ts` and the platform fixture is
-worker-scoped — one OpenFin runtime serves every test in the run.
-Parallel CDP attachments to the same OpenFin runtime are not
-supported, so don't lift this constraint.
+`workers: 1` and the `platform` fixture is worker-scoped — one OpenFin
+runtime serves every test. Parallel CDP attachments to one OpenFin
+runtime aren't supported, so don't lift this constraint.
+
+## Runtime note
+
+The first run on a fresh machine downloads the OpenFin runtime version
+pinned in star-demo's manifest (one-time, can exceed a minute); the
+`timeout` in `playwright.config.ts` is sized for it. Subsequent warm runs
+boot in ~15s.

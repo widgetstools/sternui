@@ -98,6 +98,40 @@ describe('ConfigCatalogCache', () => {
     expect(cache.get('p1')?.name).toBe('Updated');
   });
 
+  it('ensure() resolves one provider on demand without a full loadAll', async () => {
+    // No loadAll — catalog is not ready yet (Phase 3 on-demand path).
+    expect(cache.isReady()).toBe(false);
+    const cfg = await cache.ensure('p1');
+    expect(cfg?.providerId).toBe('p1');
+    // Cached so the synchronous attach lookup that follows finds it.
+    expect(cache.get('p1')?.providerId).toBe('p1');
+    expect(cache.getProviderConfig('p1')?.providerType).toBe('stomp');
+    // A single-row resolve does not flip the full-catalog ready flag.
+    expect(cache.isReady()).toBe(false);
+  });
+
+  it('ensure() returns null for an unknown provider and does not cache it', async () => {
+    const cfg = await cache.ensure('nope');
+    expect(cfg).toBeNull();
+    expect(cache.get('nope')).toBeNull();
+  });
+
+  it('ensure() returns the cached row without a second fetch', async () => {
+    let fetches = 0;
+    const cm = {
+      getAppId() { return 'TestApp'; },
+      async getAllConfigsUnfiltered() { return [stompRow('p1')]; },
+      async getConfigsByComponentTypesUnfiltered(types: string[]) {
+        return [stompRow('p1')].filter((r) => types.includes(r.componentType));
+      },
+      async getConfig(id: string) { fetches += 1; return id === 'p1' ? stompRow('p1') : undefined; },
+    } as unknown as ConfigManager;
+    cache = new ConfigCatalogCache(cm);
+    await cache.ensure('p1');
+    await cache.ensure('p1');
+    expect(fetches).toBe(1);
+  });
+
   it('upsert() merges without ConfigManager fetch', async () => {
     await cache.loadAll();
     cache.upsert({

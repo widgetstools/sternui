@@ -1280,18 +1280,42 @@ describe('SharedWorkerDataServicesHub — config catalog', () => {
     hub.handleRequest(port, { kind: 'hub-ready', reqId: 'ready-1' });
     hub.handleRequest(port, { kind: 'get-config', reqId: 'get-1', providerId: 'p1' });
     hub.handleRequest(port, { kind: 'list-configs', reqId: 'list-1' });
+    // get-config now resolves the provider on demand (async), so match by
+    // reqId rather than positional index.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-    expect(port.messages[0]).toMatchObject({ kind: 'config-snapshot', reqId: 'ready-1', ok: true, ready: true });
-    expect(port.messages[1]).toMatchObject({ kind: 'config-snapshot', reqId: 'get-1', ok: true, config: { providerId: 'p1' } });
-    expect(port.messages[2]).toMatchObject({
+    const byReqId = (reqId: string) =>
+      port.messages.find((m) => (m as { reqId?: string }).reqId === reqId);
+    expect(byReqId('ready-1')).toMatchObject({ kind: 'config-snapshot', ok: true, ready: true });
+    expect(byReqId('get-1')).toMatchObject({ kind: 'config-snapshot', ok: true, config: { providerId: 'p1' } });
+    expect(byReqId('list-1')).toMatchObject({
       kind: 'config-snapshot',
-      reqId: 'list-1',
       ok: true,
       configs: expect.arrayContaining([
         expect.objectContaining({ providerId: 'p1' }),
         expect.objectContaining({ providerId: 'p2' }),
       ]),
     });
+  });
+
+  it('get-config resolves a provider on demand before the catalog preloads', async () => {
+    const cache = new ConfigCatalogCache(mockConfigManager([mockProviderRow('p1')]));
+    // Deliberately skip loadAll() — the worker should still resolve the one
+    // provider via a single-row read (Phase 3 on-demand path).
+    expect(cache.isReady()).toBe(false);
+    const hub = new SharedWorkerDataServicesHub({ configCatalog: cache });
+    const port = makeAnyPort();
+
+    hub.handleRequest(port, { kind: 'get-config', reqId: 'get-od', providerId: 'p1' });
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    expect(port.messages.find((m) => (m as { reqId?: string }).reqId === 'get-od')).toMatchObject({
+      kind: 'config-snapshot',
+      ok: true,
+      config: { providerId: 'p1' },
+    });
+    // The resolved row is now cached, so a follow-up attach finds it.
+    expect(cache.get('p1')?.providerId).toBe('p1');
   });
 
   it('config-invalidate reloads an updated row from ConfigManager', async () => {
@@ -1312,6 +1336,7 @@ describe('SharedWorkerDataServicesHub — config catalog', () => {
 
     port.messages.length = 0;
     hub.handleRequest(port, { kind: 'get-config', reqId: 'get-2', providerId: 'p1' });
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
     expect(port.messages[0]).toMatchObject({
       kind: 'config-snapshot',
       ok: true,

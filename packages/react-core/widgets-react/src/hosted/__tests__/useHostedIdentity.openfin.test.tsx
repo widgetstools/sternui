@@ -40,8 +40,10 @@ describe('useHostedIdentity — OpenFin path', () => {
         configManager: fakeConfigManager,
       }),
     );
-    await waitFor(() => expect(result.current.ready).toBe(true));
-    expect(result.current.identity.instanceId).toBe('OF-INSTANCE');
+    // `ready` is now always true (instanceId is seeded synchronously); the
+    // OpenFin `customData` refine lands on the next tick, so wait for it.
+    expect(result.current.ready).toBe(true);
+    await waitFor(() => expect(result.current.identity.instanceId).toBe('OF-INSTANCE'));
     expect(result.current.identity.appId).toBe('fallback-app');
     expect(result.current.identity.userId).toBe('fallback-user');
     expect(result.current.identity.configManager).toBe(fakeConfigManager);

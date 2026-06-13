@@ -68,3 +68,39 @@ export async function openPanel(page: Page, moduleId: string): Promise<void> {
 export function liveProviderTrigger(page: Page) {
   return page.locator('button[data-testid="provider-live-select"]');
 }
+
+/** The bootstrap load-timing ladder (`starui:*` marks) — ms from `timeOrigin`. */
+export interface LoadTimings {
+  configReady?: number;
+  hubConnected?: number;
+  appDataReady?: number;
+  catalogReady?: number;
+  platformReady?: number;
+}
+
+/**
+ * Read the Phase-0 load-timing marks stamped by `@starui/host-data` bootstrap
+ * (see `packages/data/host-data/src/bootstrap/loadMarks.ts`). Each value is the
+ * milestone's time-to-interactive in ms relative to the page's `timeOrigin`.
+ * Polls until `platform-ready` lands so the read is never racy against a grid
+ * that is visually up but whose `bundle.ready` mark hasn't flushed.
+ */
+export async function readLoadTimings(page: Page): Promise<LoadTimings> {
+  const read = () =>
+    page.evaluate(() => {
+      const at = (name: string): number | undefined => {
+        const e = performance.getEntriesByName(`starui:${name}`, 'mark');
+        return e.length ? e[e.length - 1].startTime : undefined;
+      };
+      return {
+        configReady: at('config-ready'),
+        hubConnected: at('hub-connected'),
+        appDataReady: at('appdata-ready'),
+        catalogReady: at('catalog-ready'),
+        platformReady: at('platform-ready'),
+      };
+    });
+
+  await expect.poll(async () => (await read()).platformReady ?? -1, { timeout: 20_000 }).toBeGreaterThanOrEqual(0);
+  return read();
+}

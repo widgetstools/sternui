@@ -625,7 +625,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 - `HostedMarketsGrid` — hosted wrapper; accepts `platform` (hub bundle) or legacy `dataServices`; composes `MarketsGridContainer`. Opt-in `contextLink` prop wires grid-to-grid linking (see `useGridContextLink`)
 - `useHostedView` — window identity & lifecycle
-- `useHostedIdentity` — resolve current view identity
+- `useHostedIdentity` — resolve current view identity. `instanceId` is seeded synchronously (URL `?instanceId=` → `defaultInstanceId`) so the grid mounts on first paint; OpenFin `customData` refines it via a single `fin.me.getOptions()` call hard-bounded to 3s (`readHostCustomData`), so a wedged runtime can't strand the window. Host ConfigManager resolution is peek-first (`peekConfigManager()`) then a slow-warned (8s) `getConfigManager()` fallback. `ready` is always `true` (kept for API compat) — gate data-readiness on `identity.configManager` / `identity.storage`
 - `useFdc3Channel` — FDC3 channel subscription
 - `useOpenFinChannel` — OpenFin IAB subscription
 - `useIab` — generic Inter-App Bus pub/sub
@@ -1117,6 +1117,12 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
   'empty-only'`) runs only on an empty DB (gated on appRegistry **or** appConfig count).
   Optional `seedConfigReload: 'when-changed'` re-seeds when `seed.json` content changes (local dev;
   digest via `computeSeedDigest`, fetch uses `cache: 'no-store'`). Shipped apps use default `empty-only`.
+  Cold-start dedup: `seedIfEmpty()` serializes the fetch+seed across all same-origin contexts (every
+  OpenFin window **and** the SharedWorker) with an exclusive Web Lock keyed `starui:seed-lock:<url>`
+  (`runWithSeedLock`); the emptiness check runs *inside* the lock (`seedIfEmptyLocked`) so late
+  acquirers skip the fetch — a multi-window cold start fetches + writes the bundle exactly once. The
+  lock auto-releases on holder crash; absent `navigator.locks` it falls back to running directly
+  (idempotent `bulkPut`).
   `parseSeedJson()` + `coerceDeploySeedBundle()` accept the rocket export shape (`buildDeployExport`
   bundle); `normalizeSeedData()` re-stamps `appRegistry`, `userProfiles`, and `appConfig` to
   `activeAppId` / `activeUserId` before write.
@@ -1165,8 +1171,8 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `writeWorkerBootstrapPayload` / `readWorkerBootstrapPayload` — main thread persists deployment bootstrap (`appId`, `userId`, seed URL, REST URL) in localStorage before `new SharedWorker()`; `defaultEntry` reads it via `self.name` (avoids Vite dev breaking `@fs/` worker URLs with extra query params)
 - `isCatalogReady()`, `platformWarmSession` (`markPlatformWarm` / `isPlatformWarm`)
 - `ConfigManager.init({ mode: 'attach' })` — attach-only init for warm worker sessions
-- `SharedWorkerDataServicesHub` — worker state machine (providers, cache, fan-out); attach with matching `extra` overlay (e.g. same historical `asOfDate`) late-joins without a second upstream `restart`; **`hydrateCatalog()`** preloads `ConfigCatalogCache` after ConfigManager init; **`buildIntrospectSnapshot()`** / `hub-introspect` RPC for live provider + AppData diagnostics
-- `ConfigCatalogCache` — worker-side in-memory data-provider catalog (`loadAll`, `get`, `getProviderConfig`, `list`, `invalidate`, `upsert`); used by hub before cfg-free attach (Phase 1)
+- `SharedWorkerDataServicesHub` — worker state machine (providers, cache, fan-out); attach with matching `extra` overlay (e.g. same historical `asOfDate`) late-joins without a second upstream `restart`; **`hydrateCatalog()`** preloads `ConfigCatalogCache` after ConfigManager init; **`get-config`** resolves the requested provider on demand (`ConfigCatalogCache.ensure`) so a grid attaches without waiting on the full preload; **`buildIntrospectSnapshot()`** / `hub-introspect` RPC for live provider + AppData diagnostics
+- `ConfigCatalogCache` — worker-side in-memory data-provider catalog (`loadAll`, `get`, `getProviderConfig`, `list`, `invalidate`, `upsert`); `ensure(providerId)` resolves one provider on demand (cached row, else a single `ConfigManager` read with no full `loadAll`) and caches it so the synchronous attach lookup finds it; used by hub before cfg-free attach
 - `DataProviderConfigStore` / `AppDataConfigStore` — persist provider rows with `ConfigManager.getAppId()` (no hard-coded `TestApp`); re-stamps `appId` on every save so drifted rows realign to the deployment scope
 - `AppDataMirror` — synchronous main-thread view of AppData
 - `WorkerAppDataStore` — worker-side IndexedDB persistence
@@ -1175,9 +1181,9 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 - `IDataProvider` — uniform client contract (`start` / `stop` / `refresh` / `restart`, sync getters, event registrars); types + `ProviderClientAdapter` hub adapter (Phase 3)
 - `IDataProviderFactory` — `getProvider(providerId)` factory surface
-- `ProviderClientAdapter` — client-side `IDataProvider`; cfg-free subscribe, `SnapshotReassembler` snapshot assembly, `getProvider()` on hub bundle
+- `ProviderClientAdapter` — client-side `IDataProvider`; cfg-free subscribe, `SnapshotReassembler` snapshot assembly, `getProvider()` on hub bundle. `start()` resolves its one provider via the worker's on-demand `get-config` (single-row read, no full-catalog gate) so attach is race-safe even mid-preload
 - `resolveProviderCapabilities()` — transport capability flags for STOMP / REST / mock / appdata
-- `DataServicesHubBundle` / `ResolvedDataServicesHubBundle` — hub bundle from `ensurePlatformReady` / `ensureDataServicesHub` (`ready` = AppData + catalog, `stopProvider`, `dispose`, legacy client handles)
+- `DataServicesHubBundle` / `ResolvedDataServicesHubBundle` — hub bundle from `ensurePlatformReady` / `ensureDataServicesHub`. Hydration is split into parallel signals: `appDataReady` (AppData mirror snapshot) + `catalogReady` (worker catalog preload), with `ready = Promise.all([appDataReady, catalogReady])` for full-hydration callers. Plus `stopProvider`, `dispose`, legacy client handles
 - `ProviderCapabilities` — streaming / realtime / refresh / restart flags per transport
 - `ProviderHandle` — `stop()` + `restart()` lifecycle
 - `ProviderEmit` — callback for rows / status / byte-size / rowsReceived events
@@ -1275,9 +1281,10 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `resolvePlatformBootstrapFromObject()` — parse inline/test bootstrap objects
 - `PlatformBootstrapConfigError` — validation / fetch failures
 - `ensureConfigReady()` — config-only bootstrap (ConfigManager init, no hub; singleton per `appId`)
-- `ensurePlatformReady()` — ConfigManager init + SharedWorker hub bootstrap (singleton per `appId`; reuses `ensureConfigReady`'s ConfigManager)
-- `ensureDataServicesHub()` — lazy per-`appId` hub singleton; shared per-window `HubConnection` + `bootstrapDataServices` + catalog preload (`waitForCatalogReady`); returns `ResolvedDataServicesHubBundle`
+- `ensurePlatformReady()` — ConfigManager init + SharedWorker hub bootstrap (singleton per `appId`; reuses `ensureConfigReady`'s ConfigManager). Returns once config + hub connection are established; full hydration (`bundle.ready`), `markPlatformReady`/`markPlatformWarm`, and AppData-bootstrap hooks (off `bundle.appDataReady`) all settle in the background so the window paints without waiting on catalog/AppData
+- `ensureDataServicesHub()` — lazy per-`appId` hub singleton; shared per-window `HubConnection` + `bootstrapDataServices`; resolves at hub-connect and surfaces `appDataReady` + `catalogReady` (kicked off in parallel) plus combined `ready`; returns `ResolvedDataServicesHubBundle`
 - `ResolvedDataServicesHubBundle` — hub bundle + legacy `client` / `appData` / `configManager` handles
+- load-timing marks (`loadMarks.ts`) — `markConfigReady` / `markHubConnected` / `markAppDataReady` / `markCatalogReady` / `markPlatformReady` stamp `performance.mark` milestones (name `starui:<milestone>`, `startTime` = ms-from-`timeOrigin`) along the bootstrap chain; `readLoadMilestone()` / `readLoadTimings()` read them back; `markLoadMilestone()` is the generic form. Idempotent per realm, no-op without `performance.mark`. Measurement only — e2e time-to-interactive budgets read `starui:platform-ready`
 
 #### Bootstrap
 

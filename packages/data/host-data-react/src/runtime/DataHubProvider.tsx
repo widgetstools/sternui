@@ -34,7 +34,10 @@ function hubToDataServices(platform: ResolvedDataServicesHubBundle): DataService
     client: platform.client,
     appData: platform.appData,
     configManager: platform.configManager,
-    ready: platform.ready,
+    // `DataServices.ready` is the AppData-mirror snapshot signal (templates).
+    // Phase 2: map it to `appDataReady` (not the combined `ready`) so eager
+    // mode suspends only on AppData hydration, never the catalog preload.
+    ready: platform.appDataReady,
     dispose: () => platform.dispose(),
   };
 }

@@ -51,57 +51,105 @@ export interface UseHostedIdentityArgs {
  * Result of {@link useHostedIdentity}.
  */
 export interface UseHostedIdentityResult {
-  /** Resolved identity bundle. Several fields begin `null`. */
+  /** Resolved identity bundle. `instanceId` is seeded synchronously; the
+   *  ConfigManager / storage fields may begin `null` and resolve shortly. */
   identity: HostedContext;
   /**
-   * `true` once `instanceId` has resolved (OpenFin lookup or fallback).
-   * Consumers should typically gate rendering on this flag rather than
-   * inspecting individual fields.
+   * Always `true` — `instanceId` is seeded synchronously (URL/default), so
+   * identity is ready on first render. Retained for API compatibility with
+   * consumers that gate on it; it no longer reflects a pending OpenFin lookup.
+   * Gate on `identity.configManager` / `identity.storage` for data-readiness.
    */
   ready: boolean;
 }
 
 // ─── Identity resolution helpers ─────────────────────────────────────
 
-async function resolveHostInstanceId(defaultId: string): Promise<string> {
-  if (typeof fin !== 'undefined') {
-    try {
-      const options = await fin.me.getOptions();
-      const id = (options as { customData?: { instanceId?: string } })?.customData?.instanceId;
-      if (typeof id === 'string' && id.length > 0) return id;
-    } catch {
-      /* not in an OpenFin view, or getOptions failed — fall through */
-    }
-  }
-  try {
-    const fromUrl = new URLSearchParams(window.location.search).get('instanceId');
-    if (fromUrl && fromUrl.length > 0) return fromUrl;
-  } catch {
-    /* SSR / no window — fall through */
-  }
-  return defaultId;
+/**
+ * Hard bound on the OpenFin `fin.me.getOptions()` round-trip. A wedged
+ * runtime (the original "Connecting to ConfigService…" stall) must never
+ * strand the window — after this we keep the synchronously-seeded id.
+ */
+const HOST_OPTIONS_TIMEOUT_MS = 3_000;
+
+/**
+ * Diagnostic bound on host ConfigManager resolution. We never *drop* the
+ * manager (that would strand persistence); exceeding this only logs a warning
+ * so a slow ConfigService backend is visible without breaking the gate.
+ */
+const CONFIG_MANAGER_SLOW_MS = 8_000;
+
+/** Reject after `ms` so a hung host call can't block identity resolution. */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
 }
 
-async function resolveRegisteredIdentity(): Promise<RegisteredComponentMetadata | null> {
+interface HostCustomData {
+  instanceId?: string;
+  componentType?: string;
+  componentSubType?: string;
+  isTemplate?: boolean;
+  singleton?: boolean;
+}
+
+/** Synchronously derive `instanceId` from the URL `?instanceId=` query param. */
+function readUrlInstanceId(): string | null {
+  try {
+    const fromUrl = new URLSearchParams(window.location.search).get('instanceId');
+    return fromUrl && fromUrl.length > 0 ? fromUrl : null;
+  } catch {
+    /* SSR / no window */
+    return null;
+  }
+}
+
+/**
+ * The synchronous identity seed: URL `?instanceId=` wins, else the host
+ * default. Used as the initial state so the grid mounts immediately — the
+ * OpenFin `customData` refine (when present) overrides it on the next tick.
+ */
+function seedInstanceId(defaultId: string): string {
+  return readUrlInstanceId() ?? defaultId;
+}
+
+/**
+ * Read OpenFin `customData` with a hard timeout. Returns `null` outside
+ * OpenFin, on error, or on timeout — callers then keep the synchronous seed.
+ */
+async function readHostCustomData(timeoutMs: number): Promise<HostCustomData | null> {
   if (typeof fin === 'undefined') return null;
   try {
-    const options = await fin.me.getOptions();
-    const cd = (options as { customData?: {
-      componentType?: string;
-      componentSubType?: string;
-      isTemplate?: boolean;
-      singleton?: boolean;
-    } })?.customData;
-    if (!cd?.componentType) return null;
-    return {
-      componentType: cd.componentType,
-      componentSubType: cd.componentSubType ?? '',
-      isTemplate: cd.isTemplate === true,
-      singleton: cd.singleton === true,
-    };
+    const options = await withTimeout(
+      fin.me.getOptions() as Promise<{ customData?: HostCustomData }>,
+      timeoutMs,
+      'fin.me.getOptions()',
+    );
+    return options?.customData ?? null;
   } catch {
     return null;
   }
+}
+
+function toRegisteredIdentity(cd: HostCustomData | null): RegisteredComponentMetadata | null {
+  if (!cd || typeof cd.componentType !== 'string' || cd.componentType.length === 0) return null;
+  return {
+    componentType: cd.componentType,
+    componentSubType: cd.componentSubType ?? '',
+    isTemplate: cd.isTemplate === true,
+    singleton: cd.singleton === true,
+  };
 }
 
 /**
@@ -111,16 +159,36 @@ async function resolveRegisteredIdentity(): Promise<RegisteredComponentMetadata 
  * `null` when the entry point is unavailable — the caller will then
  * surface a `null` configManager and consumers can fall back to
  * passing their own.
+ *
+ * Resolution is **peek-first**: `peekConfigManager()` returns the
+ * already-initialized singleton synchronously (Provider realm), avoiding the
+ * async `getConfigManager()` fallback entirely. Only when no instance is set
+ * (child windows, fresh realms) do we await `getConfigManager()`, which is
+ * diagnostically bounded by {@link CONFIG_MANAGER_SLOW_MS}.
  */
-async function loadHostConfigManager(): Promise<ConfigManager | null> {
+async function loadHostConfigManager(componentName: string): Promise<ConfigManager | null> {
   try {
     // Dynamic specifier — the package is an optional runtime peer, not
     // a build-time dep.
     const mod = (await import(
       /* @vite-ignore */ '@starui/openfin-platform/config' as string
-    )) as { getConfigManager?: () => Promise<ConfigManager> };
+    )) as {
+      getConfigManager?: () => Promise<ConfigManager>;
+      peekConfigManager?: () => ConfigManager | undefined;
+    };
+    const peeked = mod.peekConfigManager?.();
+    if (peeked) return peeked;
     if (typeof mod.getConfigManager !== 'function') return null;
-    return await mod.getConfigManager();
+    const pending = mod.getConfigManager();
+    // Warn (don't drop) when the host CM is slow to resolve.
+    void withTimeout(pending, CONFIG_MANAGER_SLOW_MS, 'getConfigManager()').catch((err) => {
+      if (err instanceof Error && err.message.includes('timed out')) {
+        console.warn(
+          `[useHostedIdentity:${componentName}] host ConfigManager resolve exceeded ${CONFIG_MANAGER_SLOW_MS}ms; still awaiting`,
+        );
+      }
+    });
+    return await pending;
   } catch {
     return null;
   }
@@ -168,9 +236,12 @@ export function useHostedIdentity(args: UseHostedIdentityArgs): UseHostedIdentit
 
   const platformIdentity = usePlatformIdentityOrNull();
 
-  const [instanceId, setInstanceId] = useState<string | null>(null);
+  // Seed `instanceId` synchronously (URL ?instanceId= → default) so the grid
+  // mounts on first paint instead of gating on the async OpenFin lookup. In
+  // OpenFin the `customData` refine below overrides it on the next tick.
+  const [instanceId, setInstanceId] = useState<string>(() => seedInstanceId(defaultInstanceId));
   const [resolvedConfigManager, setResolvedConfigManager] = useState<ConfigManager | null>(
-    configManagerOverride ?? null,
+    () => configManagerOverride ?? null,
   );
   const [registeredIdentity, setRegisteredIdentity] = useState<RegisteredComponentMetadata | null>(
     null,
@@ -188,37 +259,39 @@ export function useHostedIdentity(args: UseHostedIdentityArgs): UseHostedIdentit
     ?? readConfigManagerUserId(resolvedConfigManager)
     ?? defaultUserId;
 
-  // Identity resolution. Only instanceId and registered-component
-  // metadata come from OpenFin customData / URL.
+  // OpenFin refine — overrides the synchronous seed with `customData`
+  // (instanceId + registered-component metadata) when running inside a view.
+  // Bounded by HOST_OPTIONS_TIMEOUT_MS so a wedged runtime can't strand the
+  // window: on timeout/error we simply keep the seed. No-op in the browser.
   useEffect(() => {
+    if (typeof fin === 'undefined') return;
     let cancelled = false;
-    Promise.all([
-      resolveHostInstanceId(defaultInstanceId),
-      resolveRegisteredIdentity(),
-    ])
-      .then(([id, reg]) => {
-        if (cancelled) return;
-        setInstanceId(id);
-        setRegisteredIdentity(reg);
+    readHostCustomData(HOST_OPTIONS_TIMEOUT_MS)
+      .then((cd) => {
+        if (cancelled || !cd) return;
+        if (typeof cd.instanceId === 'string' && cd.instanceId.length > 0) {
+          setInstanceId(cd.instanceId);
+        }
+        const reg = toRegisteredIdentity(cd);
+        if (reg) setRegisteredIdentity(reg);
       })
       .catch((err) => {
         console.error(`[useHostedIdentity:${componentName}] identity resolution failed:`, err);
-        if (!cancelled) setInstanceId(defaultInstanceId);
       });
     return () => {
       cancelled = true;
     };
-  }, [defaultInstanceId, componentName]);
+  }, [componentName]);
 
   // ConfigManager — explicit override wins; otherwise resolve the host
-  // singleton lazily.
+  // singleton lazily (peek-first, then bounded getConfigManager fallback).
   useEffect(() => {
     if (configManagerOverride) {
       setResolvedConfigManager(configManagerOverride);
       return;
     }
     let cancelled = false;
-    loadHostConfigManager()
+    loadHostConfigManager(componentName)
       .then((cm) => {
         if (!cancelled) setResolvedConfigManager(cm);
       })
@@ -252,5 +325,8 @@ export function useHostedIdentity(args: UseHostedIdentityArgs): UseHostedIdentit
     [instanceId, appId, userId, resolvedConfigManager, storage],
   );
 
-  return { identity, ready: instanceId !== null };
+  // `instanceId` is seeded synchronously, so identity is always ready on first
+  // render. The flag is retained for API compatibility with consumers that
+  // gate on it; it no longer reflects a pending OpenFin lookup.
+  return { identity, ready: true };
 }

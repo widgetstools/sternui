@@ -62,9 +62,9 @@ describe('useHostedIdentity — storage factory wrapping', () => {
 
     // Wait until the OpenFin async resolution lands — that's the same
     // tick that sets registeredIdentity, after which the storage memo
-    // re-runs with the wrap in place.
-    await waitFor(() => expect(result.current.ready).toBe(true));
-    expect(result.current.identity.storage).not.toBe(innerFactory);
+    // re-runs with the wrap in place. (`ready` is now true synchronously,
+    // so it can't be used to await the registeredIdentity refine.)
+    await waitFor(() => expect(result.current.identity.storage).not.toBe(innerFactory));
 
     // Build the underlying factory once with the resolved configManager.
     expect(createConfigServiceStorageMock).toHaveBeenCalledWith({

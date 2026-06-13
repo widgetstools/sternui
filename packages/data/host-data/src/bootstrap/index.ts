@@ -18,6 +18,17 @@ export {
   type ConfigReadyBundle,
   type EnsurePlatformReadyOpts,
 } from './ensurePlatformReady.js';
+export {
+  markConfigReady,
+  markHubConnected,
+  markAppDataReady,
+  markCatalogReady,
+  markPlatformReady,
+  markLoadMilestone,
+  readLoadMilestone,
+  readLoadTimings,
+  type LoadMilestone,
+} from './loadMarks.js';
 export type {
   AppDataBootstrapContext,
   AppDataBootstrapHook,

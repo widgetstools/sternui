@@ -1,53 +1,45 @@
 /**
- * Starter OpenFin e2e spec — proves the harness can spawn the
- * platform, attach Playwright, and reach the blotter view.
- *
- * Mirrors apps/demos/e2e-browser-blotter's starter spec where possible so
- * future specs can be lifted between harnesses with minimal edits.
+ * Smoke: a single star-demo MarketsGrid blotter mounts inside a real
+ * OpenFin runtime, reaches an interactive grid with STOMP-fed rows, and
+ * the rows tick. This is the baseline the multi-window guards build on.
  */
 import { test, expect } from '../fixtures/launchOpenFin';
 
-test.describe('openfin-workspace — blotter smoke', () => {
-  test('blotter view mounts inside OpenFin and exposes the grid api', async ({ blotterPage }) => {
-    await expect(blotterPage.getByTestId('openfin-workspace-blotter')).toBeVisible({ timeout: 30_000 });
-    await expect(blotterPage.locator('.ag-body-viewport .ag-row').first()).toBeVisible({ timeout: 30_000 });
+const ROW_SELECTOR = '.ag-center-cols-container .ag-row';
+const CELL_SELECTOR = '.ag-center-cols-container .ag-row .ag-cell';
 
-    await blotterPage.waitForFunction(
-      () => typeof (window as any).__openfinWorkspaceApi !== 'undefined',
-      null,
-      { timeout: 10_000 },
-    );
+test.describe('star-demo — blotter smoke', () => {
+  test('blotter mounts in OpenFin and loads STOMP rows', async ({ platform }) => {
+    const page = await platform.openBlotter('smoke-1');
 
-    const rowCount = await blotterPage.evaluate(() => {
-      const api = (window as any).__openfinWorkspaceApi;
-      return api?.getDisplayedRowCount?.() ?? 0;
-    });
-    expect(rowCount).toBe(500);
+    // Grid shell paints (headers from the provider column definitions).
+    await expect(page.locator('.ag-header-cell').first()).toBeVisible({ timeout: 30_000 });
+
+    // The identity gate must not strand the window on its placeholder.
+    await expect(page.getByText('Connecting to ConfigService')).toHaveCount(0);
+
+    // Rows arrive over the STOMP snapshot.
+    await expect(page.locator(ROW_SELECTOR).first()).toBeVisible({ timeout: 45_000 });
+    const rowCount = await page.locator(ROW_SELECTOR).count();
+    expect(rowCount).toBeGreaterThan(0);
   });
 
-  test('ticker mutates row data while running inside OpenFin', async ({ blotterPage }) => {
-    await blotterPage.waitForFunction(
-      () => typeof (window as any).__openfinWorkspaceApi !== 'undefined',
-      null,
-      { timeout: 30_000 },
-    );
+  test('rows tick while running inside OpenFin', async ({ platform }) => {
+    const page = await platform.openBlotter('smoke-tick-1');
+    const firstCell = page.locator(CELL_SELECTOR).first();
+    await expect(firstCell).toBeVisible({ timeout: 45_000 });
 
-    const sampleRow = async () => blotterPage.evaluate(() => {
-      const api = (window as any).__openfinWorkspaceApi;
-      const node = api?.getDisplayedRowAtIndex?.(0);
-      return node?.data ? { price: node.data.price, yield: node.data.yield } : null;
-    });
+    // Sample a numeric cell repeatedly; the live STOMP feed mutates rows.
+    const sample = async () => {
+      const texts = await page.locator(CELL_SELECTOR).allInnerTexts();
+      return texts.slice(0, 40).join('|');
+    };
 
-    const before = await sampleRow();
-    expect(before).not.toBeNull();
-
+    const before = await sample();
     let changed = false;
-    for (let i = 0; i < 20 && !changed; i++) {
-      await blotterPage.waitForTimeout(50);
-      const after = await sampleRow();
-      if (after && (after.price !== before!.price || after.yield !== before!.yield)) {
-        changed = true;
-      }
+    for (let i = 0; i < 30 && !changed; i++) {
+      await page.waitForTimeout(250);
+      if ((await sample()) !== before) changed = true;
     }
     expect(changed).toBe(true);
   });
