@@ -142,6 +142,26 @@ export interface ConfigInvalidateRequest {
   kind: 'config-invalidate';
   reqId: string;
   providerId?: string;
+  /**
+   * When set, merge this row into the hub catalog without a Dexie
+   * round-trip. Used when the worker already persisted the row.
+   */
+  provider?: DataProviderConfig;
+}
+
+/** Persist a data-provider row via the worker ConfigManager. */
+export interface SaveProviderConfigRequest {
+  kind: 'save-provider-config';
+  reqId: string;
+  provider: DataProviderConfig;
+  callerUserId: string;
+}
+
+/** Delete a data-provider row via the worker ConfigManager. */
+export interface DeleteProviderConfigRequest {
+  kind: 'delete-provider-config';
+  reqId: string;
+  providerId: string;
 }
 
 /** Replay hub row cache to one subscriber without upstream I/O. */
@@ -277,6 +297,8 @@ export type Request =
   | GetConfigRequest
   | ListConfigsRequest
   | ConfigInvalidateRequest
+  | SaveProviderConfigRequest
+  | DeleteProviderConfigRequest
   | RefreshProviderRequest
   | HubIntrospectRequest;
 
@@ -439,6 +461,8 @@ export interface ConfigSnapshotEvent {
   config?: DataProviderConfig | null;
   /** Response to `list-configs`. */
   configs?: readonly DataProviderConfig[];
+  /** Response to `save-provider-config`. */
+  saved?: DataProviderConfig;
   /** Response to `hub-introspect`. */
   introspect?: HubIntrospectSnapshot;
 }
@@ -500,6 +524,8 @@ export function isRequest(value: unknown): value is Request {
     k === 'get-config' ||
     k === 'list-configs' ||
     k === 'config-invalidate' ||
+    k === 'save-provider-config' ||
+    k === 'delete-provider-config' ||
     k === 'refresh-provider' ||
     k === 'hub-introspect'
   );

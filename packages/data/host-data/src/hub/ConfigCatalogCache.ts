@@ -80,4 +80,23 @@ export class ConfigCatalogCache {
     this.byId.set(provider.providerId, provider);
     this.loaded = true;
   }
+
+  /**
+   * Persist via the worker ConfigManager and push into the in-memory
+   * catalog. The sole write path for UI-thread editor saves.
+   */
+  async saveProvider(
+    provider: DataProviderConfig,
+    callerUserId: string,
+  ): Promise<DataProviderConfig> {
+    const saved = await this.store.save(provider, callerUserId);
+    this.upsert(saved);
+    return saved;
+  }
+
+  /** Delete from ConfigManager and drop from the in-memory catalog. */
+  async removeProvider(providerId: string): Promise<void> {
+    await this.store.remove(providerId);
+    this.byId.delete(providerId);
+  }
 }

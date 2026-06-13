@@ -57,10 +57,12 @@ import type {
   CatalogEvent,
   ConfigInvalidateRequest,
   ConfigSnapshotEvent,
+  DeleteProviderConfigRequest,
   GetConfigRequest,
   HubReadyRequest,
   ListConfigsRequest,
   RefreshProviderRequest,
+  SaveProviderConfigRequest,
   HubIntrospectRequest,
   HubIntrospectSnapshot,
   HubProviderIntrospectRow,
@@ -390,6 +392,8 @@ export class SharedWorkerDataServicesHub {
       case 'get-config': this.handleGetConfig(port, req); return;
       case 'list-configs': this.handleListConfigs(port, req); return;
       case 'config-invalidate': void this.handleConfigInvalidate(port, req); return;
+      case 'save-provider-config': void this.handleSaveProviderConfig(port, req); return;
+      case 'delete-provider-config': void this.handleDeleteProviderConfig(port, req); return;
       case 'refresh-provider': this.handleRefreshProvider(req); return;
       case 'hub-introspect': this.handleHubIntrospect(port, req); return;
     }
@@ -684,8 +688,21 @@ export class SharedWorkerDataServicesHub {
       return;
     }
     try {
-      await this.configCatalog.invalidate(req.providerId);
-      await this.resyncAppDataFromStore();
+      if (req.provider) {
+        this.configCatalog.upsert(req.provider);
+      } else {
+        await this.configCatalog.invalidate(req.providerId);
+      }
+      // Only resync AppData when an external writer may have touched
+      // appdata rows (config-browser / legacy main-thread Dexie).
+      if (!req.provider && req.providerId) {
+        const row = this.configCatalog.get(req.providerId);
+        if (row?.providerType === 'appdata') {
+          await this.resyncAppDataFromStore();
+        }
+      } else if (!req.provider && !req.providerId) {
+        await this.resyncAppDataFromStore();
+      }
       this.replyConfigSnapshot(port, {
         kind: 'config-snapshot',
         reqId: req.reqId,
@@ -696,6 +713,76 @@ export class SharedWorkerDataServicesHub {
           ? { kind: 'catalog-ready', providerId: req.providerId }
           : { kind: 'catalog-ready', full: true },
       );
+    } catch (err) {
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  private async handleSaveProviderConfig(
+    port: PortLike,
+    req: SaveProviderConfigRequest,
+  ): Promise<void> {
+    if (!this.configCatalog) {
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: false,
+        error: 'Config catalog not available in this hub instance',
+      });
+      return;
+    }
+    try {
+      const saved = await this.configCatalog.saveProvider(req.provider, req.callerUserId);
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: true,
+        saved,
+        config: saved,
+      });
+      this.broadcastCatalogEvent({
+        kind: 'catalog-ready',
+        providerId: saved.providerId,
+      });
+    } catch (err) {
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  private async handleDeleteProviderConfig(
+    port: PortLike,
+    req: DeleteProviderConfigRequest,
+  ): Promise<void> {
+    if (!this.configCatalog) {
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: false,
+        error: 'Config catalog not available in this hub instance',
+      });
+      return;
+    }
+    try {
+      await this.configCatalog.removeProvider(req.providerId);
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: true,
+      });
+      this.broadcastCatalogEvent({
+        kind: 'catalog-ready',
+        providerId: req.providerId,
+      });
     } catch (err) {
       this.replyConfigSnapshot(port, {
         kind: 'config-snapshot',
@@ -866,12 +953,10 @@ export class SharedWorkerDataServicesHub {
   // ─── AppData handlers (Step 2) ─────────────────────────────────
 
   private async handleAppDataAttach(port: PortLike, req: AppDataAttachRequest): Promise<void> {
-    // SharedWorkers survive page reloads. Re-read IndexedDB before
-    // serving the snapshot so editor-saved AppData providers appear
-    // without requiring a worker restart.
-    if (this.appDataStore && this.appData.isHydrated()) {
-      await this.resyncAppDataFromStore();
-    } else if (req.seed && !this.appData.isHydrated()) {
+    // Worker memory is authoritative after boot hydrate — no Dexie
+    // re-read on attach. Editor/catalog saves reach the hub via
+    // config-invalidate or save-provider-config.
+    if (req.seed && !this.appData.isHydrated()) {
       this.appData.hydrate(req.seed);
     }
     this.appDataListeners.set(req.subId, { subId: req.subId, port });

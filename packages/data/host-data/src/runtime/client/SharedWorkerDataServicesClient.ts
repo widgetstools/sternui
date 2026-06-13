@@ -29,6 +29,7 @@ import type {
   CatalogEvent,
   ConfigInvalidateRequest,
   ConfigSnapshotEvent,
+  DeleteProviderConfigRequest,
   DeltaPatchEvent,
   DetachRequest,
   Event,
@@ -41,6 +42,7 @@ import type {
   ProviderStatus,
   Request,
   RowPatch,
+  SaveProviderConfigRequest,
   StopRequest,
 } from '../protocol.js';
 import { isCatalogEvent, isEvent, isAppDataEvent } from '../protocol.js';
@@ -532,9 +534,33 @@ export class SharedWorkerDataServicesClient {
     return [...(snap.configs ?? [])];
   }
 
-  /** Reload one row or the full catalog in the worker after editor save/remove. */
-  async invalidateConfig(providerId?: string): Promise<void> {
-    await this.rpcCatalog({ kind: 'config-invalidate', providerId });
+  /** Reload one row or the full catalog after editor save/remove. */
+  async invalidateConfig(providerId?: string, provider?: DataProviderConfig): Promise<void> {
+    await this.rpcCatalog({ kind: 'config-invalidate', providerId, provider });
+  }
+
+  /** Persist a provider row via the worker ConfigManager (no main-thread Dexie). */
+  async saveProviderConfig(
+    provider: DataProviderConfig,
+    callerUserId: string,
+  ): Promise<DataProviderConfig> {
+    const snap = await this.rpcCatalog({
+      kind: 'save-provider-config',
+      provider,
+      callerUserId,
+    });
+    if (!snap.ok || !snap.saved) {
+      throw new Error(snap.error ?? '[SharedWorkerDataServicesClient] save-provider-config failed');
+    }
+    return snap.saved;
+  }
+
+  /** Delete a provider row via the worker ConfigManager. */
+  async deleteProviderConfig(providerId: string): Promise<void> {
+    const snap = await this.rpcCatalog({ kind: 'delete-provider-config', providerId });
+    if (!snap.ok) {
+      throw new Error(snap.error ?? '[SharedWorkerDataServicesClient] delete-provider-config failed');
+    }
   }
 
   /** Live SharedWorker hub diagnostics (providers, subscribers, cache sizes). */
@@ -655,6 +681,8 @@ export class SharedWorkerDataServicesClient {
       | Omit<GetConfigRequest, 'reqId'>
       | Omit<ListConfigsRequest, 'reqId'>
       | Omit<ConfigInvalidateRequest, 'reqId'>
+      | Omit<SaveProviderConfigRequest, 'reqId'>
+      | Omit<DeleteProviderConfigRequest, 'reqId'>
       | Omit<HubIntrospectRequest, 'reqId'>,
   ): Promise<ConfigSnapshotEvent> {
     if (this.closed) {

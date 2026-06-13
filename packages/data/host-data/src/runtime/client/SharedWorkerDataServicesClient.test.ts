@@ -17,7 +17,7 @@ import type { ProviderConfig } from '@starui/types';
 import type { ProviderEmit, ProviderHandle } from '../providers/Provider';
 import type { ProviderStats, ProviderStatus } from '../protocol';
 import type { ConfigManager, AppConfigRow } from '@starui/host-config';
-import { DataProviderConfigStore } from '../config/store.js';
+import { HubDataProviderConfigStore } from '../../hub/HubDataProviderConfigStore.js';
 
 interface TestController {
   emit: ProviderEmit;
@@ -677,16 +677,13 @@ describe('SharedWorkerDataServicesClient — config catalog RPC', () => {
     dual.close();
   });
 
-  it('configStore.save() invalidates the worker catalog so getProviderConfig sees updates', async () => {
+  it('configStore.save() persists via the worker hub so getProviderConfig sees updates', async () => {
     const cm = stubConfigManager();
     cm._rows.set('p1', mockProviderRow('p1'));
     const w = wire({ configManager: cm });
     await w.hub.hydrateCatalog();
 
-    const store = new DataProviderConfigStore(
-      cm,
-      (providerId) => w.client.invalidateConfig(providerId),
-    );
+    const store = new HubDataProviderConfigStore(w.client);
 
     await store.save({
       providerId: 'p1',

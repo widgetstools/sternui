@@ -986,7 +986,7 @@ describe('SharedWorkerDataServicesHub — AppData', () => {
     });
   });
 
-  it('reattach resyncs AppData rows persisted while the worker stayed alive', async () => {
+  it('attach serves memory snapshot without Dexie resync; full invalidate reloads AppData', async () => {
     const rows = new Map<string, AppConfigRow>([
       ['ad-1', {
         configId: 'ad-1',
@@ -1044,7 +1044,20 @@ describe('SharedWorkerDataServicesHub — AppData', () => {
     const portB = makeAppDataPort();
     void hub.handleAppDataRequest(portB, { kind: 'appdata-attach', subId: 'b' });
     await new Promise<void>((resolve) => { setTimeout(resolve, 0); });
+    // Attach does not re-read Dexie — external write not visible yet.
     expect(portB.messages[0]).toMatchObject({
+      kind: 'appdata-snapshot',
+      rows: [expect.objectContaining({ name: 'App1Data' })],
+    });
+
+    const catalogPort = makeAnyPort();
+    hub.handleRequest(catalogPort, { kind: 'config-invalidate', reqId: 'inv-full' });
+    await new Promise<void>((resolve) => { setTimeout(resolve, 0); });
+
+    const portC = makeAppDataPort();
+    void hub.handleAppDataRequest(portC, { kind: 'appdata-attach', subId: 'c' });
+    await new Promise<void>((resolve) => { setTimeout(resolve, 0); });
+    expect(portC.messages[0]).toMatchObject({
       kind: 'appdata-snapshot',
       rows: expect.arrayContaining([
         expect.objectContaining({ name: 'App1Data' }),

@@ -74,6 +74,12 @@ export {
   type CatalogInvalidateFn,
   type ListOptions,
 } from './config/store.js';
+export { HubDataProviderConfigStore } from '../hub/HubDataProviderConfigStore.js';
+export {
+  WorkerConfigManagerClient,
+  isWorkerConfigManagerClient,
+  type WorkerConfigIdentity,
+} from '../hub/WorkerConfigManagerClient.js';
 export {
   AppDataConfigStore,
   COMPONENT_TYPE_APPDATA,

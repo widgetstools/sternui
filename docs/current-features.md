@@ -1157,7 +1157,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 #### Runtime architecture
 
-- `SharedWorkerDataServicesClient` — main-thread client routing events to listeners; catalog RPC (`waitForCatalogReady`, `getProviderConfig`, `listProviderConfigs`, `invalidateConfig`, `getHubIntrospect`, `isProviderRunning`, `waitForProviderRunning`, `onCatalogChange(detail)`); scoped `catalog-ready` broadcasts carry `providerId` (single row) or `full` (whole catalog); **Deprecated.** passing `cfg` on `attach` / `subscribe` for catalogued providers — use cfg-free attach
+- `SharedWorkerDataServicesClient` — main-thread client routing events to listeners; catalog RPC (`waitForCatalogReady`, `getProviderConfig`, `listProviderConfigs`, `saveProviderConfig`, `deleteProviderConfig`, `invalidateConfig`, `getHubIntrospect`, `isProviderRunning`, `waitForProviderRunning`, `onCatalogChange(detail)`); scoped `catalog-ready` broadcasts carry `providerId` (single row) or `full` (whole catalog); **Deprecated.** passing `cfg` on `attach` / `subscribe` for catalogued providers — use cfg-free attach
 - `wireWorkerCatalogSync()` / `isCatalogConfigRow()` — `ensurePlatformReady` wires `ConfigManager.onConfigChanged` → `client.invalidateConfig` only for `data-provider` / `appdata` rows (grid profile saves do not fan out `catalog-ready`)
 - `ensurePlatformReady` attach bootstrap — when cached seed identity (localStorage, cross-window) + `isPlatformWarm(appId)` (a prior window completed full bootstrap) hold, child views skip `seedConfigUrl` and run `ConfigManager.init({ mode: 'attach' })`; no worker round-trip — seeding lives in IndexedDB, which outlives windows and worker; every completed full bootstrap sets `markPlatformWarm(appId)` in localStorage
 - `ensureConfigReady()` — config-only bootstrap (attach resolution + ConfigManager init, no hub connect / AppData snapshot / catalog preload); idempotent per `appId`; `ensurePlatformReady` builds on it, so a window upgrades from config-only to full reusing the same ConfigManager
@@ -1166,7 +1166,9 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `isCatalogReady()`, `platformWarmSession` (`markPlatformWarm` / `isPlatformWarm`)
 - `ConfigManager.init({ mode: 'attach' })` — attach-only init for warm worker sessions
 - `SharedWorkerDataServicesHub` — worker state machine (providers, cache, fan-out); attach with matching `extra` overlay (e.g. same historical `asOfDate`) late-joins without a second upstream `restart`; **`hydrateCatalog()`** preloads `ConfigCatalogCache` after ConfigManager init; **`buildIntrospectSnapshot()`** / `hub-introspect` RPC for live provider + AppData diagnostics
-- `ConfigCatalogCache` — worker-side in-memory data-provider catalog (`loadAll`, `get`, `getProviderConfig`, `list`, `invalidate`, `upsert`); used by hub before cfg-free attach (Phase 1)
+- `ConfigCatalogCache` — worker-side in-memory data-provider catalog (`loadAll`, `get`, `getProviderConfig`, `list`, `invalidate`, `upsert`, `saveProvider`, `removeProvider`); sole Dexie writer for provider rows when saves route through `save-provider-config` RPC
+- `HubDataProviderConfigStore` — UI-thread provider catalog store backed by hub RPC (no main-thread Dexie for editor save/list/get)
+- `WorkerConfigManagerClient` — UI-thread facade over the worker's authoritative `ConfigManager` (phase 1: data-provider catalog slice via `dataProviders()`)
 - `DataProviderConfigStore` / `AppDataConfigStore` — persist provider rows with `ConfigManager.getAppId()` (no hard-coded `TestApp`); re-stamps `appId` on every save so drifted rows realign to the deployment scope
 - `AppDataMirror` — synchronous main-thread view of AppData
 - `WorkerAppDataStore` — worker-side IndexedDB persistence
@@ -1255,7 +1257,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
   - Pending-ack handler for durability
   - `ready()` promise + `subscribe()` reactivity
 - Worker is sole IndexedDB writer
-- `SharedWorkerDataServicesHub.resyncAppDataFromStore()` — reload AppData provider rows from IndexedDB on mirror re-attach and after catalog `config-invalidate` (AppData editor saves)
+- `SharedWorkerDataServicesHub.resyncAppDataFromStore()` — reload AppData provider rows from IndexedDB on full catalog `config-invalidate` or appdata-provider invalidation (external Dexie writes); **not** on mirror re-attach — attach serves the in-memory snapshot only
 
 #### Template resolution
 
@@ -1321,7 +1323,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `DataServicesProvider` — legacy wrapper over `DataServices` bootstrap result; exposes `appId` + `userId` React context
 - `usePlatformIdentityOrNull()` — read bootstrap `appId`/`userId` from `DataHubProvider` / `DataServicesProvider`
 
-- `DataServicesProvider` — `configStore` calls `client.invalidateConfig()` after editor `save`/`remove`
+- `DataServicesProvider` — `configStore` is a `HubDataProviderConfigStore` (worker-authoritative saves via `save-provider-config` RPC)
 
 **Public exports:** `.`, `./runtime`
 

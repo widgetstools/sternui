@@ -12,7 +12,7 @@ import {
 import type { SharedWorkerDataServicesClient } from '@starui/host-data/runtime/client';
 import {
   AppDataMirror,
-  DataProviderConfigStore,
+  HubDataProviderConfigStore,
   type DataServices,
 } from '@starui/host-data/runtime';
 import { DEV_PLATFORM_BOOTSTRAP } from '@starui/host-data';
@@ -32,7 +32,7 @@ function readConfigManagerUserId(configManager: ConfigManager | undefined): stri
 export interface ContextValue {
   client: SharedWorkerDataServicesClient;
   appData: AppDataMirror;
-  configStore: DataProviderConfigStore;
+  configStore: HubDataProviderConfigStore;
 }
 
 const DataServicesContext = createContext<ContextValue | null>(null);
@@ -79,10 +79,7 @@ export function DataServicesProvider({
   const value = useMemo<ContextValue>(() => ({
     client: services.client,
     appData: services.appData,
-    configStore: new DataProviderConfigStore(
-      services.configManager,
-      (providerId) => services.client.invalidateConfig(providerId),
-    ),
+    configStore: new HubDataProviderConfigStore(services.client),
   }), [services]);
 
   return (
