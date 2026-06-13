@@ -11,6 +11,7 @@ import {
   type PlatformBootstrapConfig,
   type ResolvedDataServicesHubBundle,
 } from '@starui/host-data';
+import type { ConfigManager } from '@starui/host-config';
 import {
   resolvePlatformBootstrapFromManifest,
   setConfigManager,
@@ -96,9 +97,11 @@ export function initConfigBootstrap(): Promise<ConfigBootstrapResult> {
 export function initPlatformBootstrap(): Promise<PlatformBootstrapResult> {
   if (!platformBootstrapPromise) {
     platformBootstrapPromise = (async () => {
-      const { config } = await initConfigBootstrap();
+      const config = isOpenFinRuntime()
+        ? await resolvePlatformBootstrapFromManifest()
+        : await resolvePlatformBootstrapFromJson('/app-config.json');
       const platform = await ensurePlatformReady(config, { workerScriptUrl: workerAssetUrl });
-      setConfigManager(platform.configManager);
+      setConfigManager(platform.configManager as ConfigManager);
       return { config, platform };
     })();
   }

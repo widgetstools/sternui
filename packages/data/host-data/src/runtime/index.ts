@@ -80,6 +80,12 @@ export {
   isWorkerConfigManagerClient,
   type WorkerConfigIdentity,
 } from '../hub/WorkerConfigManagerClient.js';
+export type {
+  ConfigBrowserAccess,
+  ConfigBrowserCounts,
+  ConfigBrowserExportBundle,
+} from '../hub/ConfigBrowserAccess.js';
+export { LocalConfigBrowserAccess } from '../hub/LocalConfigBrowserAccess.js';
 export {
   AppDataConfigStore,
   COMPONENT_TYPE_APPDATA,

@@ -69,24 +69,21 @@ describe('ensurePlatformReady', () => {
     vi.clearAllMocks();
   });
 
-  it('creates ConfigManager with appId and userId then bootstraps hub', async () => {
+  it('connects the data hub without opening a main-thread ConfigManager', async () => {
     const bundle = await ensurePlatformReady(DEV_PLATFORM_BOOTSTRAP, {
       workerScriptUrl: '/worker.mjs',
     });
 
-    expect(createConfigManagerMock).toHaveBeenCalledWith({
-      appId: 'TestApp',
-      identity: { userId: 'dev1', displayName: 'dev1' },
-      configServiceRestUrl: undefined,
-      seedConfigUrl: undefined,
-    });
+    expect(createConfigManagerMock).not.toHaveBeenCalled();
     expect(ensureDataServicesHubMock).toHaveBeenCalledWith(
       expect.objectContaining({
         appId: 'TestApp',
         userId: 'dev1',
         workerScriptUrl: '/worker.mjs',
-        mainThreadConfigManager: expect.objectContaining({ _opts: expect.any(Object) }),
       }),
+    );
+    expect(ensureDataServicesHubMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({ mainThreadConfigManager: expect.anything() }),
     );
     expect(bundle.ready).toBeInstanceOf(Promise);
   });
@@ -100,11 +97,11 @@ describe('ensurePlatformReady', () => {
     });
 
     expect(second).toBe(first);
-    expect(createConfigManagerMock).toHaveBeenCalledTimes(1);
+    expect(createConfigManagerMock).not.toHaveBeenCalled();
     expect(ensureDataServicesHubMock).toHaveBeenCalledTimes(1);
   });
 
-  it('passes REST URL when useRest is true', async () => {
+  it('passes REST URL to the hub worker bootstrap payload', async () => {
     await ensurePlatformReady(
       {
         appId: 'RestApp',
@@ -115,11 +112,7 @@ describe('ensurePlatformReady', () => {
       { workerScriptUrl: '/worker.mjs' },
     );
 
-    expect(createConfigManagerMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        configServiceRestUrl: 'http://localhost:3001/api/v1',
-      }),
-    );
+    expect(createConfigManagerMock).not.toHaveBeenCalled();
     expect(ensureDataServicesHubMock).toHaveBeenCalledWith(
       expect.objectContaining({
         appId: 'RestApp',
@@ -136,51 +129,17 @@ describe('ensurePlatformReady', () => {
     expect(createConfigManagerMock).not.toHaveBeenCalled();
   });
 
-  it('uses attach bootstrap when the platform is warm and seed identity is cached', async () => {
+  it('does not consult seed identity or platform warm state (worker owns config)', async () => {
     vi.mocked(isSeedIdentityCached).mockReturnValue(true);
     markPlatformWarm('TestApp');
 
-    const initMock = vi.fn().mockResolvedValue(undefined);
-    createConfigManagerMock.mockImplementation((opts: unknown) => ({
-      _opts: opts,
-      init: initMock,
-      onConfigChanged: vi.fn(() => () => {}),
-    }));
-
     await ensurePlatformReady(
       { ...DEV_PLATFORM_BOOTSTRAP, seedConfigUrl: '/seed.json' },
       { workerScriptUrl: '/worker.mjs' },
     );
 
-    expect(createConfigManagerMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        seedConfigUrl: undefined,
-        seedConfigReload: undefined,
-      }),
-    );
-    expect(initMock).toHaveBeenCalledWith({ mode: 'attach' });
-  });
-
-  it('seeds (no attach) when the seed identity is not cached even if warm', async () => {
-    vi.mocked(isSeedIdentityCached).mockReturnValue(false);
-    markPlatformWarm('TestApp');
-
-    const initMock = vi.fn().mockResolvedValue(undefined);
-    createConfigManagerMock.mockImplementation((opts: unknown) => ({
-      _opts: opts,
-      init: initMock,
-      onConfigChanged: vi.fn(() => () => {}),
-    }));
-
-    await ensurePlatformReady(
-      { ...DEV_PLATFORM_BOOTSTRAP, seedConfigUrl: '/seed.json' },
-      { workerScriptUrl: '/worker.mjs' },
-    );
-
-    expect(createConfigManagerMock).toHaveBeenCalledWith(
-      expect.objectContaining({ seedConfigUrl: '/seed.json' }),
-    );
-    expect(initMock).toHaveBeenCalledWith(undefined);
+    expect(createConfigManagerMock).not.toHaveBeenCalled();
+    expect(ensureDataServicesHubMock).toHaveBeenCalledTimes(1);
   });
 
   it('marks the platform warm after full bootstrap completes', async () => {
@@ -245,13 +204,13 @@ describe('ensureConfigReady', () => {
     expect(ensureDataServicesHubMock).not.toHaveBeenCalled();
   });
 
-  it('shares its ConfigManager with a later ensurePlatformReady', async () => {
-    const { configManager } = await ensureConfigReady(DEV_PLATFORM_BOOTSTRAP);
+  it('does not pass config-only ConfigManager into full platform bootstrap', async () => {
+    await ensureConfigReady(DEV_PLATFORM_BOOTSTRAP);
     await ensurePlatformReady(DEV_PLATFORM_BOOTSTRAP, { workerScriptUrl: '/worker.mjs' });
 
     expect(createConfigManagerMock).toHaveBeenCalledTimes(1);
     expect(ensureDataServicesHubMock).toHaveBeenCalledWith(
-      expect.objectContaining({ mainThreadConfigManager: configManager }),
+      expect.not.objectContaining({ mainThreadConfigManager: expect.anything() }),
     );
   });
 

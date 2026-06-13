@@ -19,6 +19,7 @@
  * forever, which surfaces the issue).
  */
 
+import type { ConfigBrowserExportBundle } from '../../hub/ConfigBrowserAccess.js';
 import type {
   AppDataAckEvent,
   AppDataDeltaEvent,
@@ -29,6 +30,15 @@ import type {
   CatalogEvent,
   ConfigInvalidateRequest,
   ConfigSnapshotEvent,
+  ConfigBrowserCounts,
+  ConfigBrowserCountsRequest,
+  ConfigBrowserListRequest,
+  ConfigBrowserGetRequest,
+  ConfigBrowserSaveRequest,
+  ConfigBrowserDeleteRequest,
+  ConfigBrowserExportRequest,
+  ConfigBrowserMetaRequest,
+  ConfigBrowserTable,
   DeleteProviderConfigRequest,
   DeltaPatchEvent,
   DetachRequest,
@@ -563,6 +573,81 @@ export class SharedWorkerDataServicesClient {
     }
   }
 
+  /** REST URL from the worker ConfigManager (undefined in local-only mode). */
+  async getConfigBrowserMeta(): Promise<string | undefined> {
+    const snap = await this.rpcCatalog({ kind: 'config-browser-meta' });
+    if (!snap.ok) {
+      throw new Error(snap.error ?? '[SharedWorkerDataServicesClient] config-browser-meta failed');
+    }
+    return snap.restUrl;
+  }
+
+  async configBrowserCounts(appId: string): Promise<ConfigBrowserCounts> {
+    const snap = await this.rpcCatalog({ kind: 'config-browser-counts', appId });
+    if (!snap.ok || !snap.counts) {
+      throw new Error(snap.error ?? '[SharedWorkerDataServicesClient] config-browser-counts failed');
+    }
+    return snap.counts;
+  }
+
+  async configBrowserList(table: ConfigBrowserTable, appId: string): Promise<unknown[]> {
+    const snap = await this.rpcCatalog({ kind: 'config-browser-list', table, appId });
+    if (!snap.ok) {
+      throw new Error(snap.error ?? '[SharedWorkerDataServicesClient] config-browser-list failed');
+    }
+    return [...(snap.tableRows ?? [])];
+  }
+
+  async configBrowserGet(
+    table: ConfigBrowserTable,
+    primaryKey: string | number,
+  ): Promise<unknown | undefined> {
+    const snap = await this.rpcCatalog({ kind: 'config-browser-get', table, primaryKey });
+    if (!snap.ok) {
+      throw new Error(snap.error ?? '[SharedWorkerDataServicesClient] config-browser-get failed');
+    }
+    return snap.tableRow;
+  }
+
+  async configBrowserSave(table: ConfigBrowserTable, row: Record<string, unknown>): Promise<void> {
+    const snap = await this.rpcCatalog({ kind: 'config-browser-save', table, row });
+    if (!snap.ok) {
+      throw new Error(snap.error ?? '[SharedWorkerDataServicesClient] config-browser-save failed');
+    }
+  }
+
+  async configBrowserDelete(
+    table: ConfigBrowserTable,
+    primaryKey: string | number,
+  ): Promise<void> {
+    const snap = await this.rpcCatalog({ kind: 'config-browser-delete', table, primaryKey });
+    if (!snap.ok) {
+      throw new Error(snap.error ?? '[SharedWorkerDataServicesClient] config-browser-delete failed');
+    }
+  }
+
+  async configBrowserExport(opts: {
+    appId?: string;
+    deploy?: boolean;
+  }): Promise<ConfigBrowserExportBundle> {
+    const snap = await this.rpcCatalog({
+      kind: 'config-browser-export',
+      appId: opts.appId,
+      deploy: opts.deploy,
+    });
+    if (!snap.ok || !snap.exportBundle) {
+      throw new Error(snap.error ?? '[SharedWorkerDataServicesClient] config-browser-export failed');
+    }
+    const b = snap.exportBundle;
+    return {
+      appConfig: [...b.appConfig] as ConfigBrowserExportBundle['appConfig'],
+      appRegistry: [...b.appRegistry],
+      userProfiles: [...b.userProfiles],
+      roles: [...b.roles],
+      permissions: [...b.permissions],
+    };
+  }
+
   /** Live SharedWorker hub diagnostics (providers, subscribers, cache sizes). */
   async getHubIntrospect(): Promise<HubIntrospectSnapshot> {
     const snap = await this.rpcCatalog({ kind: 'hub-introspect' });
@@ -683,6 +768,13 @@ export class SharedWorkerDataServicesClient {
       | Omit<ConfigInvalidateRequest, 'reqId'>
       | Omit<SaveProviderConfigRequest, 'reqId'>
       | Omit<DeleteProviderConfigRequest, 'reqId'>
+      | Omit<ConfigBrowserCountsRequest, 'reqId'>
+      | Omit<ConfigBrowserListRequest, 'reqId'>
+      | Omit<ConfigBrowserGetRequest, 'reqId'>
+      | Omit<ConfigBrowserSaveRequest, 'reqId'>
+      | Omit<ConfigBrowserDeleteRequest, 'reqId'>
+      | Omit<ConfigBrowserExportRequest, 'reqId'>
+      | Omit<ConfigBrowserMetaRequest, 'reqId'>
       | Omit<HubIntrospectRequest, 'reqId'>,
   ): Promise<ConfigSnapshotEvent> {
     if (this.closed) {

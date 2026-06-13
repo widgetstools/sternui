@@ -10,7 +10,6 @@ import {
   warmHubConnection,
   type ResolvedDataServicesHubBundle,
 } from '../hub/ensureDataServicesHub.js';
-import { wireWorkerCatalogSync } from '../hub/wireWorkerCatalogSync.js';
 import {
   _resetPlatformWarmSessionForTests,
   isPlatformWarm,
@@ -69,9 +68,8 @@ function resolveAttachMode(config: PlatformBootstrapConfig): boolean {
  * Does NOT touch the SharedWorker hub — windows that only read/write config
  * rows (tool windows, editors) suspend on this instead of the full
  * {@link ensurePlatformReady}, skipping hub connect + AppData snapshot +
- * catalog preload. Idempotent per `appId`; {@link ensurePlatformReady} reuses
- * the same ConfigManager, so a window can upgrade from config-only to full
- * without a second IndexedDB connection.
+ * catalog preload. Idempotent per `appId`. Independent from
+ * {@link ensurePlatformReady} — full bootstrap uses the worker ConfigManager.
  */
 export function ensureConfigReady(
   config: PlatformBootstrapConfig,
@@ -140,26 +138,15 @@ async function bootstrapPlatformOnce(
   config: PlatformBootstrapConfig,
   opts: EnsurePlatformReadyOpts,
 ): Promise<ResolvedDataServicesHubBundle> {
-  // Open the window's single SharedWorker connection now so the worker
-  // spawns (and seeds, on cold start) while the main-thread ConfigManager
-  // opens IndexedDB. The same connection is reused by the hub below —
-  // one port per window, no throwaway probe connection.
   warmHubConnection({ ...config, workerScriptUrl: opts.workerScriptUrl });
-
-  const { configManager } = await ensureConfigReady(config);
 
   const bundle = await ensureDataServicesHub({
     ...config,
     workerScriptUrl: opts.workerScriptUrl,
-    mainThreadConfigManager: configManager,
   });
-
-  wireWorkerCatalogSync(configManager, bundle.client);
 
   await bundle.ready;
 
-  // Warm marker drives resolveAttachMode in later windows: bundle.ready
-  // implies the worker catalog hydrated, which implies seeding completed.
   markPlatformWarm(config.appId);
 
   if (config.appDataBootstrap && opts.appDataBootstrapHooks) {
@@ -169,7 +156,7 @@ async function bootstrapPlatformOnce(
       appId: config.appId,
       userId: config.userId,
       appData: bundle.appData,
-      configManager: bundle.configManager,
+      configManager: bundle.configManager as ConfigManager,
     });
   }
 

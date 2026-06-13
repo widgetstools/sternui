@@ -57,6 +57,13 @@ import type {
   CatalogEvent,
   ConfigInvalidateRequest,
   ConfigSnapshotEvent,
+  ConfigBrowserCountsRequest,
+  ConfigBrowserListRequest,
+  ConfigBrowserGetRequest,
+  ConfigBrowserSaveRequest,
+  ConfigBrowserDeleteRequest,
+  ConfigBrowserExportRequest,
+  ConfigBrowserMetaRequest,
   DeleteProviderConfigRequest,
   GetConfigRequest,
   HubReadyRequest,
@@ -75,6 +82,16 @@ import { WorkerAppDataStore } from './WorkerAppDataStore.js';
 import type { ConfigManager } from '@starui/host-config';
 import { AppDataConfigStore, type AppDataConfig } from '../providers/appdata/store.js';
 import { ConfigCatalogCache } from '../../hub/ConfigCatalogCache.js';
+import {
+  configBrowserCounts,
+  configBrowserDelete,
+  configBrowserExportBundle,
+  configBrowserExportDeployTables,
+  configBrowserGet,
+  configBrowserList,
+  configBrowserSave,
+} from '../../hub/configBrowserHubOps.js';
+import { isCatalogConfigRow } from '../../hub/isCatalogConfigRow.js';
 import type { StompProviderConfig } from '@starui/types';
 import {
   traceStompProviderCfg,
@@ -340,6 +357,7 @@ export class SharedWorkerDataServicesHub {
   private readonly appDataListeners = new Map<string, AppDataListenerEntry>();
   private readonly appDataStore: AppDataConfigStore | null;
   private readonly configCatalog: ConfigCatalogCache | null;
+  private readonly configManager: ConfigManager | null;
   private readonly connectedPorts = new Set<PortLike>();
 
   private readonly statsIntervalMs: number;
@@ -352,6 +370,7 @@ export class SharedWorkerDataServicesHub {
     this.setTimer = opts.setTimer ?? ((cb, ms) => setInterval(cb, ms));
     this.clearTimer = opts.clearTimer ?? ((h) => clearInterval(h as ReturnType<typeof setInterval>));
     this.appDataStore = opts.configManager ? new AppDataConfigStore(opts.configManager) : null;
+    this.configManager = opts.configManager ?? null;
     if (opts.configCatalog) {
       this.configCatalog = opts.configCatalog;
     } else if (opts.configManager) {
@@ -394,6 +413,13 @@ export class SharedWorkerDataServicesHub {
       case 'config-invalidate': void this.handleConfigInvalidate(port, req); return;
       case 'save-provider-config': void this.handleSaveProviderConfig(port, req); return;
       case 'delete-provider-config': void this.handleDeleteProviderConfig(port, req); return;
+      case 'config-browser-counts': void this.handleConfigBrowserCounts(port, req); return;
+      case 'config-browser-list': void this.handleConfigBrowserList(port, req); return;
+      case 'config-browser-get': void this.handleConfigBrowserGet(port, req); return;
+      case 'config-browser-save': void this.handleConfigBrowserSave(port, req); return;
+      case 'config-browser-delete': void this.handleConfigBrowserDelete(port, req); return;
+      case 'config-browser-export': void this.handleConfigBrowserExport(port, req); return;
+      case 'config-browser-meta': this.handleConfigBrowserMeta(port, req); return;
       case 'refresh-provider': this.handleRefreshProvider(req); return;
       case 'hub-introspect': this.handleHubIntrospect(port, req); return;
     }
@@ -791,6 +817,201 @@ export class SharedWorkerDataServicesHub {
         error: err instanceof Error ? err.message : String(err),
       });
     }
+  }
+
+  private configBrowserUnavailable(port: PortLike, reqId: string): void {
+    this.replyConfigSnapshot(port, {
+      kind: 'config-snapshot',
+      reqId,
+      ok: false,
+      error: 'ConfigManager not available in this hub instance',
+    });
+  }
+
+  private async handleConfigBrowserCounts(
+    port: PortLike,
+    req: ConfigBrowserCountsRequest,
+  ): Promise<void> {
+    if (!this.configManager) {
+      this.configBrowserUnavailable(port, req.reqId);
+      return;
+    }
+    try {
+      const counts = await configBrowserCounts(this.configManager, req.appId ?? '');
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: true,
+        counts,
+      });
+    } catch (err) {
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  private async handleConfigBrowserList(
+    port: PortLike,
+    req: ConfigBrowserListRequest,
+  ): Promise<void> {
+    if (!this.configManager) {
+      this.configBrowserUnavailable(port, req.reqId);
+      return;
+    }
+    try {
+      const tableRows = await configBrowserList(this.configManager, req.table, req.appId ?? '');
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: true,
+        tableRows,
+      });
+    } catch (err) {
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  private async handleConfigBrowserGet(
+    port: PortLike,
+    req: ConfigBrowserGetRequest,
+  ): Promise<void> {
+    if (!this.configManager) {
+      this.configBrowserUnavailable(port, req.reqId);
+      return;
+    }
+    try {
+      const tableRow = await configBrowserGet(this.configManager, req.table, req.primaryKey);
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: true,
+        tableRow,
+      });
+    } catch (err) {
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  private async handleConfigBrowserSave(
+    port: PortLike,
+    req: ConfigBrowserSaveRequest,
+  ): Promise<void> {
+    if (!this.configManager) {
+      this.configBrowserUnavailable(port, req.reqId);
+      return;
+    }
+    try {
+      await configBrowserSave(this.configManager, this.configCatalog, req.table, req.row);
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: true,
+      });
+      if (req.table === 'appConfig' && isCatalogConfigRow(req.row as never)) {
+        const configId = String((req.row as { configId?: string }).configId ?? '');
+        if (configId) {
+          this.broadcastCatalogEvent({ kind: 'catalog-ready', providerId: configId });
+        }
+      }
+    } catch (err) {
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  private async handleConfigBrowserDelete(
+    port: PortLike,
+    req: ConfigBrowserDeleteRequest,
+  ): Promise<void> {
+    if (!this.configManager) {
+      this.configBrowserUnavailable(port, req.reqId);
+      return;
+    }
+    try {
+      await configBrowserDelete(
+        this.configManager,
+        this.configCatalog,
+        req.table,
+        req.primaryKey,
+      );
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: true,
+      });
+      if (req.table === 'appConfig') {
+        this.broadcastCatalogEvent({
+          kind: 'catalog-ready',
+          providerId: String(req.primaryKey),
+        });
+      }
+    } catch (err) {
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  private async handleConfigBrowserExport(
+    port: PortLike,
+    req: ConfigBrowserExportRequest,
+  ): Promise<void> {
+    if (!this.configManager) {
+      this.configBrowserUnavailable(port, req.reqId);
+      return;
+    }
+    try {
+      const bundle = req.deploy
+        ? await configBrowserExportDeployTables(this.configManager)
+        : await configBrowserExportBundle(this.configManager, req.appId ?? '');
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: true,
+        exportBundle: bundle,
+      });
+    } catch (err) {
+      this.replyConfigSnapshot(port, {
+        kind: 'config-snapshot',
+        reqId: req.reqId,
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  private handleConfigBrowserMeta(port: PortLike, req: ConfigBrowserMetaRequest): void {
+    if (!this.configManager) {
+      this.configBrowserUnavailable(port, req.reqId);
+      return;
+    }
+    this.replyConfigSnapshot(port, {
+      kind: 'config-snapshot',
+      reqId: req.reqId,
+      ok: true,
+      restUrl: this.configManager.getRestUrl?.(),
+    });
   }
 
   private handleAttach(port: PortLike, req: AttachRequest): void {

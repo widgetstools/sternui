@@ -8,19 +8,25 @@ import { SharedWorkerDataServicesClient } from '../runtime/client/SharedWorkerDa
 import type { DataServicesHubBundle } from '../provider/IDataProvider.js';
 import type { IDataProvider } from '../provider/IDataProvider.js';
 import { ProviderClientAdapter } from '../provider/ProviderClientAdapter.js';
+import { WorkerConfigManagerClient } from './WorkerConfigManagerClient.js';
 
 /** Hub bundle including legacy {@link DataServices} handles for migration. */
 export interface ResolvedDataServicesHubBundle extends DataServicesHubBundle {
   readonly client: DataServices['client'];
   readonly appData: DataServices['appData'];
-  readonly configManager: ConfigManager;
+  /** Worker-authoritative config facade (or legacy main-thread ConfigManager). */
+  readonly configManager: ConfigManager | WorkerConfigManagerClient;
 }
 
 /** Options for {@link ensureDataServicesHub}. */
 export interface EnsureHubOpts extends PlatformBootstrapConfig {
   workerScriptUrl: string;
-  /** Main-thread ConfigManager (initialized before hub connect). */
-  mainThreadConfigManager: ConfigManager;
+  /**
+   * Optional main-thread ConfigManager for migration / config-only attach.
+   * Omitted in production data windows — the worker ConfigManager is used
+   * via {@link WorkerConfigManagerClient}.
+   */
+  mainThreadConfigManager?: ConfigManager;
 }
 
 /** The window's single SharedWorker port + client for one `appId`. */
@@ -88,6 +94,7 @@ function adaptDataServicesToHubBundle(
   services: DataServices,
   appId: string,
   ready: Promise<void>,
+  configManager: ConfigManager | WorkerConfigManagerClient,
 ): ResolvedDataServicesHubBundle {
   return {
     ready,
@@ -108,22 +115,27 @@ function adaptDataServicesToHubBundle(
     },
     client: services.client,
     appData: services.appData,
-    configManager: services.configManager,
+    configManager,
   };
 }
 
 async function bootstrapHubOnce(opts: EnsureHubOpts): Promise<ResolvedDataServicesHubBundle> {
   const connection = getOrCreateHubConnection(opts);
+  const workerClient = new WorkerConfigManagerClient(connection.client, {
+    appId: opts.appId,
+    userId: opts.userId,
+  });
+  const configManager = opts.mainThreadConfigManager ?? workerClient;
   const services = bootstrapDataServices({
     appName: opts.appId,
     worker: connection.worker,
     client: connection.client,
-    configManager: opts.mainThreadConfigManager,
+    configManager: configManager as ConfigManager,
     userId: opts.userId,
   });
   const ready = combineReady(services);
   await ready;
-  return adaptDataServicesToHubBundle(services, opts.appId, ready);
+  return adaptDataServicesToHubBundle(services, opts.appId, ready, configManager);
 }
 
 /**

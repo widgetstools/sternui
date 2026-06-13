@@ -706,7 +706,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 #### Panels & dialogs
 
-- `ConfigBrowserPanel` — master table UI with sidebar (AppConfig, UserProfile, Role, Blotter); sole public export (internal `ConfigBrowser.tsx` composes toolbar, search, drawer, import/export)
+- `ConfigBrowserPanel` — master table UI with sidebar (AppConfig, UserProfile, Role, Blotter); accepts optional `resolveConfigAccess` for worker-backed persistence
 - `Toolbar` — search bar, import, delete-all, export
 - `DataGrid` — AG Grid table with inline editing
 - `TableSidebar` — table selector, CRUD buttons, row counts
@@ -716,7 +716,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 #### State, helpers, theming
 
-- `useConfigBrowser` — table state, filters, mutations; `exportDeploy()` full deploy seed bundle (unfiltered `appConfig`) + validation via `@starui/host-config` `buildDeployExport()`
+- `useConfigBrowser` — table state, filters, mutations; optional `resolveConfigAccess` injects worker RPC (`WorkerConfigManagerClient`) or falls back to `LocalConfigBrowserAccess` + main-thread Dexie; `exportDeploy()` full deploy seed bundle (unfiltered `appConfig`) + validation via `@starui/host-config` `buildDeployExport()`
 - `DeployExportPreviewDialog` — pre-download validation summary; rocket download saves as `seed.json` (errors and warnings require acknowledge checkbox)
 - `buildDeployExport()`, `validateDeployExport()`, `parseSeedJson()`, `resolveActiveIdentityFromSeedUrl()` (`@starui/host-config`) — deploy export includes every `appConfig` row plus `activeAppId` / `activeUserId`; normalize scope drift against those fields; reject wrong `seed.json` shapes (e.g. `kind: starui.dataProvider`); emit `DeployExportWarning` codes (`MISSING_INSTANCE_ROW`, `EMPTY_PROFILE_STATE`, `UNREFERENCED_ROWS`, …); `resolveActiveIdentityFromSeedUrl()` cross-window-caches identity (single-flight + `localStorage`) so OpenFin child views do not re-fetch the full deploy bundle; manifest `customSettings.appId` / `userId` skip the seed fetch when both are pinned
 - `ConfigManager.onConfigChanged()` / `ChangeNotifier.subscribeAll()` — global write/delete subscription (same-tab + cross-tab) for worker catalog sync
@@ -1157,10 +1157,10 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 #### Runtime architecture
 
-- `SharedWorkerDataServicesClient` — main-thread client routing events to listeners; catalog RPC (`waitForCatalogReady`, `getProviderConfig`, `listProviderConfigs`, `saveProviderConfig`, `deleteProviderConfig`, `invalidateConfig`, `getHubIntrospect`, `isProviderRunning`, `waitForProviderRunning`, `onCatalogChange(detail)`); scoped `catalog-ready` broadcasts carry `providerId` (single row) or `full` (whole catalog); **Deprecated.** passing `cfg` on `attach` / `subscribe` for catalogued providers — use cfg-free attach
-- `wireWorkerCatalogSync()` / `isCatalogConfigRow()` — `ensurePlatformReady` wires `ConfigManager.onConfigChanged` → `client.invalidateConfig` only for `data-provider` / `appdata` rows (grid profile saves do not fan out `catalog-ready`)
-- `ensurePlatformReady` attach bootstrap — when cached seed identity (localStorage, cross-window) + `isPlatformWarm(appId)` (a prior window completed full bootstrap) hold, child views skip `seedConfigUrl` and run `ConfigManager.init({ mode: 'attach' })`; no worker round-trip — seeding lives in IndexedDB, which outlives windows and worker; every completed full bootstrap sets `markPlatformWarm(appId)` in localStorage
-- `ensureConfigReady()` — config-only bootstrap (attach resolution + ConfigManager init, no hub connect / AppData snapshot / catalog preload); idempotent per `appId`; `ensurePlatformReady` builds on it, so a window upgrades from config-only to full reusing the same ConfigManager
+- `SharedWorkerDataServicesClient` — main-thread client routing events to listeners; catalog RPC (`waitForCatalogReady`, `getProviderConfig`, `listProviderConfigs`, `saveProviderConfig`, `deleteProviderConfig`, `invalidateConfig`, Config Browser `configBrowserCounts` / `List` / `Get` / `Save` / `Delete` / `Export` / `getConfigBrowserMeta`, `getHubIntrospect`, `isProviderRunning`, `waitForProviderRunning`, `onCatalogChange(detail)`); scoped `catalog-ready` broadcasts carry `providerId` (single row) or `full` (whole catalog); **Deprecated.** passing `cfg` on `attach` / `subscribe` for catalogued providers — use cfg-free attach
+- `wireWorkerCatalogSync()` / `isCatalogConfigRow()` — legacy main-thread invalidation bridge for config-only windows; full `ensurePlatformReady` bootstrap no longer wires it (catalog saves go through worker RPC + cache push)
+- `ensurePlatformReady` — connects SharedWorker hub only (no main-thread `ConfigManager`); worker `defaultEntry` owns seed/attach + Dexie; every completed full bootstrap sets `markPlatformWarm(appId)` in localStorage
+- `ensureConfigReady()` — config-only bootstrap (attach resolution + main-thread ConfigManager init, no hub connect / AppData snapshot / catalog preload); idempotent per `appId`; independent from `ensurePlatformReady` (config-only OpenFin tool windows)
 - one SharedWorker connection per window — `ensureDataServicesHub` owns a per-`appId` `HubConnection` (worker + `SharedWorkerDataServicesClient`); `warmHubConnection()` opens it early (never throws) so the worker spawns while ConfigManager init runs, and the hub bundle adopts the same port (`bootstrapDataServices({ client })`)
 - `writeWorkerBootstrapPayload` / `readWorkerBootstrapPayload` — main thread persists deployment bootstrap (`appId`, `userId`, seed URL, REST URL) in localStorage before `new SharedWorker()`; `defaultEntry` reads it via `self.name` (avoids Vite dev breaking `@fs/` worker URLs with extra query params)
 - `isCatalogReady()`, `platformWarmSession` (`markPlatformWarm` / `isPlatformWarm`)
@@ -1168,7 +1168,9 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `SharedWorkerDataServicesHub` — worker state machine (providers, cache, fan-out); attach with matching `extra` overlay (e.g. same historical `asOfDate`) late-joins without a second upstream `restart`; **`hydrateCatalog()`** preloads `ConfigCatalogCache` after ConfigManager init; **`buildIntrospectSnapshot()`** / `hub-introspect` RPC for live provider + AppData diagnostics
 - `ConfigCatalogCache` — worker-side in-memory data-provider catalog (`loadAll`, `get`, `getProviderConfig`, `list`, `invalidate`, `upsert`, `saveProvider`, `removeProvider`); sole Dexie writer for provider rows when saves route through `save-provider-config` RPC
 - `HubDataProviderConfigStore` — UI-thread provider catalog store backed by hub RPC (no main-thread Dexie for editor save/list/get)
-- `WorkerConfigManagerClient` — UI-thread facade over the worker's authoritative `ConfigManager` (phase 1: data-provider catalog slice via `dataProviders()`)
+- `WorkerConfigManagerClient` — UI-thread facade over the worker's authoritative `ConfigManager` (data-provider catalog via `dataProviders()`, Config Browser table I/O via hub RPC, grid profile `getConfig`/`saveConfig`, `profiles.subscribe` via `onCatalogChange`)
+- `ConfigBrowserAccess` / `LocalConfigBrowserAccess` — Config Browser persistence surface; worker client implements RPC path, local wrapper delegates to main-thread `ConfigManager` for config-only windows
+- `configBrowserHubOps` — worker Dexie table ops for Config Browser RPC; syncs `ConfigCatalogCache` after `appConfig` saves/deletes
 - `DataProviderConfigStore` / `AppDataConfigStore` — persist provider rows with `ConfigManager.getAppId()` (no hard-coded `TestApp`); re-stamps `appId` on every save so drifted rows realign to the deployment scope
 - `AppDataMirror` — synchronous main-thread view of AppData
 - `WorkerAppDataStore` — worker-side IndexedDB persistence
@@ -1234,7 +1236,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 #### Wire protocol (v2)
 
-- Client→worker requests: `AttachRequest`, `DetachRequest`, `StopRequest`, `HubReadyRequest`, `GetConfigRequest`, `ListConfigsRequest`, `ConfigInvalidateRequest`, `RefreshProviderRequest`, `HubIntrospectRequest`, `AppDataRequest` (attach/detach/set/upsert/remove); `AttachRequest.cfg` optional when `providerId` is in worker catalog
+- Client→worker requests: `AttachRequest`, `DetachRequest`, `StopRequest`, `HubReadyRequest`, `GetConfigRequest`, `ListConfigsRequest`, `ConfigInvalidateRequest`, `SaveProviderConfigRequest`, `DeleteProviderConfigRequest`, Config Browser (`config-browser-meta`, `-counts`, `-list`, `-get`, `-save`, `-delete`, `-export`), `RefreshProviderRequest`, `HubIntrospectRequest`, `AppDataRequest` (attach/detach/set/upsert/remove); `AttachRequest.cfg` optional when `providerId` is in worker catalog
 - Worker→client catalog events: `catalog-ready`, `config-snapshot` (responses for hub-ready/get/list/invalidate/hub-introspect)
 - Worker→client events: deltas (`{ rows, replace? }`), `delta-bin` (pre-encoded chunk `{ buf, enc?, replace? }` — `enc: 'json' | 'col'` selects UTF-8 JSON vs typed-array columnar; used for cache replay, pre-ready snapshot fan-out, AND post-ready live ticks ≥ 64 rows), `delta-patch` (thin field-level deltas `{ patches? | buf? }` of `RowPatch { k, s?, d?, f? }`), `sub-init` (thin-delta handshake carrying `keyColumn`), status, `rows-received` (upstream snapshot buffer progress), byte-size, stats, AppData (snapshot/delta/ack)
 
@@ -1276,8 +1278,8 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `resolvePlatformBootstrapFromJson()` — fetch `/app-config.json` for web apps
 - `resolvePlatformBootstrapFromObject()` — parse inline/test bootstrap objects
 - `PlatformBootstrapConfigError` — validation / fetch failures
-- `ensureConfigReady()` — config-only bootstrap (ConfigManager init, no hub; singleton per `appId`)
-- `ensurePlatformReady()` — ConfigManager init + SharedWorker hub bootstrap (singleton per `appId`; reuses `ensureConfigReady`'s ConfigManager)
+- `ensureConfigReady()` — config-only bootstrap (main-thread ConfigManager init, no hub; singleton per `appId`)
+- `ensurePlatformReady()` — SharedWorker hub bootstrap only (singleton per `appId`; worker-authoritative ConfigManager via `WorkerConfigManagerClient`)
 - `ensureDataServicesHub()` — lazy per-`appId` hub singleton; shared per-window `HubConnection` + `bootstrapDataServices` + catalog preload (`waitForCatalogReady`); returns `ResolvedDataServicesHubBundle`
 - `ResolvedDataServicesHubBundle` — hub bundle + legacy `client` / `appData` / `configManager` handles
 

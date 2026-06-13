@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { ConfigPort, DataPort, RuntimePort } from '@starui/host';
 import type { ConfigClient, ConfigManager } from '@starui/host-config';
+import type { WorkerConfigManagerClient } from '@starui/host-data';
 import type { StorageAdapterFactory } from '@starui/engine';
 import type { Theme, Unsubscribe } from '@starui/types';
 
@@ -37,7 +38,11 @@ export interface StarGridAppOptions {
   /** How profile bundles persist. Default `localStorage`. */
   readonly persistence?: StarGridPersistence;
   readonly runtime?: RuntimePort | Promise<RuntimePort>;
-  readonly configManager?: ConfigManager | ConfigClient | Promise<ConfigManager | ConfigClient>;
+  readonly configManager?:
+    | ConfigManager
+    | ConfigClient
+    | WorkerConfigManagerClient
+    | Promise<ConfigManager | ConfigClient | WorkerConfigManagerClient>;
   readonly data?: DataPort | Promise<DataPort>;
   readonly loading?: ReactNode;
   /** Optional plugins (e.g. OpenFin workspace shell). */

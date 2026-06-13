@@ -18,6 +18,7 @@
     "@starui/design-system": "*",
     "@starui/engine": "*",
     "@starui/host-config": "*",
+    "@starui/host-data": "*",
     "@starui/openfin-platform": "*",
     "@starui/ui": "*",
     "class-variance-authority": "^0.7.1",

@@ -164,6 +164,71 @@ export interface DeleteProviderConfigRequest {
   providerId: string;
 }
 
+/** Config Browser table keys (Dexie tables). */
+export type ConfigBrowserTable =
+  | 'appConfig'
+  | 'appRegistry'
+  | 'userProfile'
+  | 'roles'
+  | 'permissions'
+  | 'pendingSync';
+
+export interface ConfigBrowserCounts {
+  appConfig: number;
+  appRegistry: number;
+  userProfile: number;
+  roles: number;
+  permissions: number;
+  pendingSync: number;
+}
+
+export interface ConfigBrowserCountsRequest {
+  kind: 'config-browser-counts';
+  reqId: string;
+  appId?: string;
+}
+
+export interface ConfigBrowserListRequest {
+  kind: 'config-browser-list';
+  reqId: string;
+  table: ConfigBrowserTable;
+  appId?: string;
+}
+
+export interface ConfigBrowserGetRequest {
+  kind: 'config-browser-get';
+  reqId: string;
+  table: ConfigBrowserTable;
+  primaryKey: string | number;
+}
+
+export interface ConfigBrowserSaveRequest {
+  kind: 'config-browser-save';
+  reqId: string;
+  table: ConfigBrowserTable;
+  row: Record<string, unknown>;
+}
+
+export interface ConfigBrowserDeleteRequest {
+  kind: 'config-browser-delete';
+  reqId: string;
+  table: ConfigBrowserTable;
+  primaryKey: string | number;
+}
+
+export interface ConfigBrowserExportRequest {
+  kind: 'config-browser-export';
+  reqId: string;
+  appId?: string;
+  /** When true, export unfiltered deploy tables (all appIds). */
+  deploy?: boolean;
+}
+
+export interface ConfigBrowserMetaRequest {
+  kind: 'config-browser-meta';
+  reqId: string;
+}
+
 /** Replay hub row cache to one subscriber without upstream I/O. */
 export interface RefreshProviderRequest {
   kind: 'refresh-provider';
@@ -299,6 +364,13 @@ export type Request =
   | ConfigInvalidateRequest
   | SaveProviderConfigRequest
   | DeleteProviderConfigRequest
+  | ConfigBrowserCountsRequest
+  | ConfigBrowserListRequest
+  | ConfigBrowserGetRequest
+  | ConfigBrowserSaveRequest
+  | ConfigBrowserDeleteRequest
+  | ConfigBrowserExportRequest
+  | ConfigBrowserMetaRequest
   | RefreshProviderRequest
   | HubIntrospectRequest;
 
@@ -463,6 +535,18 @@ export interface ConfigSnapshotEvent {
   configs?: readonly DataProviderConfig[];
   /** Response to `save-provider-config`. */
   saved?: DataProviderConfig;
+  /** Config Browser RPC payloads. */
+  counts?: ConfigBrowserCounts;
+  tableRows?: readonly unknown[];
+  tableRow?: unknown;
+  exportBundle?: {
+    appConfig: readonly unknown[];
+    appRegistry: readonly unknown[];
+    userProfiles: readonly unknown[];
+    roles: readonly unknown[];
+    permissions: readonly unknown[];
+  };
+  restUrl?: string;
   /** Response to `hub-introspect`. */
   introspect?: HubIntrospectSnapshot;
 }
@@ -526,6 +610,13 @@ export function isRequest(value: unknown): value is Request {
     k === 'config-invalidate' ||
     k === 'save-provider-config' ||
     k === 'delete-provider-config' ||
+    k === 'config-browser-counts' ||
+    k === 'config-browser-list' ||
+    k === 'config-browser-get' ||
+    k === 'config-browser-save' ||
+    k === 'config-browser-delete' ||
+    k === 'config-browser-export' ||
+    k === 'config-browser-meta' ||
     k === 'refresh-provider' ||
     k === 'hub-introspect'
   );

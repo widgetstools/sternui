@@ -20,7 +20,11 @@ import type { DeployExportResult } from "@starui/host-config";
 
 // ─── Main Component ──────────────────────────────────────────────────
 
-export function ConfigBrowserPanel() {
+export function ConfigBrowserPanel({
+  resolveConfigAccess,
+}: {
+  resolveConfigAccess?: () => Promise<import("@starui/host-data").ConfigBrowserAccess>;
+} = {}) {
   const {
     hostEnv,
     restUrl,
@@ -37,7 +41,7 @@ export function ConfigBrowserPanel() {
     deleteAllRows,
     exportAll,
     exportDeploy,
-  } = useConfigBrowser();
+  } = useConfigBrowser({ resolveConfigAccess });
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);

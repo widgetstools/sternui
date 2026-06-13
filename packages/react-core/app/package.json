@@ -28,6 +28,7 @@
     "@starui/host": "*",
     "@starui/host-browser": "*",
     "@starui/host-config": "*",
+    "@starui/host-data": "*",
     "@starui/types": "*"
   },
   "devDependencies": {

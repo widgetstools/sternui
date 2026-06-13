@@ -8,6 +8,10 @@ import {
   createConfigServiceStorage,
   createConfigPort,
 } from '@starui/host-config';
+import {
+  isWorkerConfigManagerClient,
+  type WorkerConfigManagerClient,
+} from '@starui/host-data';
 import { buildGridHostContext, storageFactoryForPersistence } from './buildHostContext.js';
 import { StarGridAppProvider } from './StarGridAppContext.js';
 import type { StarGridAppOptions, StarGridAppState } from './types.js';
@@ -73,7 +77,10 @@ export function StarGridApp({
       let configManagerInner: ConfigManager | undefined;
       if (configManagerProp !== undefined) {
         const raw = await Promise.resolve(configManagerProp);
-        if (isConfigManager(raw)) {
+        if (isWorkerConfigManagerClient(raw)) {
+          await raw.ready();
+          configManagerInner = raw as unknown as ConfigManager;
+        } else if (isConfigManager(raw)) {
           await raw.init();
           configManagerInner = raw;
           configManager = createConfigClient({ configManager: raw });

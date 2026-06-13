@@ -125,9 +125,8 @@ function AppTree() {
             the SharedWorker alive across grid-window close/reopen. */}
         <Route path="/platform/provider" element={<ConfigGate><React.Suspense fallback={LOADING}><Provider /></React.Suspense></ConfigGate>} />
 
-        {/* Data-plane windows — full bootstrap. ConfigBrowser stays here
-            because it can edit data-provider rows, which must invalidate
-            the worker catalog (wireWorkerCatalogSync). */}
+        {/* Data-plane windows — full bootstrap. Config Browser reads/writes
+            via the worker ConfigManager (no main-thread Dexie). */}
         <Route path="/dataproviders" element={<FullGate><React.Suspense fallback={LOADING}><DataProviders /></React.Suspense></FullGate>} />
         <Route path="/config-browser" element={<FullGate><React.Suspense fallback={LOADING}><ConfigBrowser /></React.Suspense></FullGate>} />
 

@@ -1,8 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useRef, useState } from "react";
-// Import from the /config subpath so we don't drag @openfin/workspace-platform
-// into consumers running outside an OpenFin window (plain browser dev
-// harness, overlay mounts in non-OpenFin demo apps, etc.).
 import {
   getConfigManager,
   readHostEnv,
@@ -11,9 +8,16 @@ import {
 import {
   buildDeployExport,
   normalizeImportedAppConfigRow,
+  type AppRegistryRow,
   type DeployExportResult,
+  type PermissionRow,
+  type RoleRow,
+  type UserProfileRow,
 } from "@starui/host-config";
-import type { ConfigManager } from "@starui/host-config";
+import {
+  LocalConfigBrowserAccess,
+  type ConfigBrowserAccess,
+} from "@starui/host-data";
 import { TABLES, type TableKey, type TableMeta } from "../types";
 
 interface Counts {
@@ -110,76 +114,67 @@ const ZERO_COUNTS: Counts = {
   pendingSync: 0,
 };
 
-function tableOf(manager: ConfigManager, key: TableKey) {
-  const db = (manager as unknown as { db: any }).db;
-  switch (key) {
-    case "appConfig":   return db.appConfig;
-    case "appRegistry": return db.appRegistry;
-    case "userProfile": return db.userProfile;
-    case "roles":       return db.roles;
-    case "permissions": return db.permissions;
-    case "pendingSync": return db.pendingSync;
-  }
+export interface UseConfigBrowserOptions {
+  /**
+   * Supply worker-backed config access from a data-hub window.
+   * Defaults to OpenFin `getConfigManager()` wrapped in
+   * {@link LocalConfigBrowserAccess} for config-only popouts.
+   */
+  resolveConfigAccess?: () => Promise<ConfigBrowserAccess>;
 }
 
-export function useConfigBrowser(): UseConfigBrowserReturn {
+async function defaultResolveConfigAccess(): Promise<ConfigBrowserAccess> {
+  const cm = await getConfigManager();
+  return new LocalConfigBrowserAccess(cm);
+}
+
+async function readRestUrl(access: ConfigBrowserAccess): Promise<string | undefined> {
+  if (access.fetchRestUrl) return access.fetchRestUrl();
+  return access.getRestUrl?.();
+}
+
+export function useConfigBrowser(
+  opts: UseConfigBrowserOptions = {},
+): UseConfigBrowserReturn {
   const [hostEnv, setHostEnv] = useState<HostEnv>({ appId: "", configServiceUrl: "" });
   const [restUrl, setRestUrl] = useState<string | undefined>(undefined);
   const [selectedKey, setSelectedKey] = useState<TableKey>("appConfig");
   const [rows, setRows] = useState<any[]>([]);
   const [counts, setCounts] = useState<Counts>(ZERO_COUNTS);
   const [isLoading, setIsLoading] = useState(true);
-  const managerRef = useRef<ConfigManager | null>(null);
+  const accessRef = useRef<ConfigBrowserAccess | null>(null);
+  const resolveAccess = opts.resolveConfigAccess ?? defaultResolveConfigAccess;
 
   const selected = TABLES.find((t) => t.key === selectedKey)!;
 
-  const loadCounts = useCallback(async (manager: ConfigManager, appId: string) => {
-    const [a, r, u, ro, p, ps] = await Promise.all([
-      appId
-        ? (manager as any).db.appConfig.where("appId").equals(appId).count()
-        : (manager as any).db.appConfig.count(),
-      (manager as any).db.appRegistry.count(),
-      appId
-        ? (manager as any).db.userProfile.where("appId").equals(appId).count()
-        : (manager as any).db.userProfile.count(),
-      (manager as any).db.roles.count(),
-      (manager as any).db.permissions.count(),
-      (manager as any).db.pendingSync.count(),
-    ]);
-    setCounts({
-      appConfig: a, appRegistry: r, userProfile: u,
-      roles: ro, permissions: p, pendingSync: ps,
-    });
+  const loadCounts = useCallback(async (access: ConfigBrowserAccess, appId: string) => {
+    const counts = await access.getCounts(appId);
+    setCounts(counts);
   }, []);
 
   const loadRows = useCallback(
-    async (manager: ConfigManager, key: TableKey, appId: string) => {
+    async (access: ConfigBrowserAccess, key: TableKey, appId: string) => {
       setIsLoading(true);
-      const table = tableOf(manager, key);
-      const meta = TABLES.find((t) => t.key === key)!;
-      const collection = meta.scopable && appId
-        ? table.where("appId").equals(appId)
-        : table;
-      const data = await collection.toArray();
+      const data = await access.listTable(key, appId);
       setRows(data);
       setIsLoading(false);
     },
     [],
   );
 
-  // Boot: host env + manager + initial counts/rows
+  // Boot: host env + config access + initial counts/rows
   useEffect(() => {
     (async () => {
       try {
-        const [env, manager] = await Promise.all([
+        const [env, access] = await Promise.all([
           readHostEnv(),
-          getConfigManager(),
+          resolveAccess(),
         ]);
         setHostEnv(env);
-        setRestUrl(manager.getRestUrl?.());
-        managerRef.current = manager;
-        await loadCounts(manager, env.appId);
-        await loadRows(manager, selectedKey, env.appId);
+        setRestUrl(await readRestUrl(access));
+        accessRef.current = access;
+        await loadCounts(access, env.appId);
+        await loadRows(access, selectedKey, env.appId);
       } catch (err) {
         console.error("Config Browser boot failed:", err);
         setIsLoading(false);
@@ -190,17 +185,17 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
 
   // Reload rows when the selected table changes
   useEffect(() => {
-    const manager = managerRef.current;
-    if (!manager) return;
-    loadRows(manager, selectedKey, hostEnv.appId);
+    const access = accessRef.current;
+    if (!access) return;
+    loadRows(access, selectedKey, hostEnv.appId);
   }, [selectedKey, hostEnv.appId, loadRows]);
 
   const refresh = useCallback(async () => {
-    const manager = managerRef.current;
-    if (!manager) return;
+    const access = accessRef.current;
+    if (!access) return;
     await Promise.all([
-      loadCounts(manager, hostEnv.appId),
-      loadRows(manager, selectedKey, hostEnv.appId),
+      loadCounts(access, hostEnv.appId),
+      loadRows(access, selectedKey, hostEnv.appId),
     ]);
   }, [hostEnv.appId, selectedKey, loadRows, loadCounts]);
 
@@ -216,10 +211,10 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
    * `pendingSync` entry. The grid then diffs a single changed row, not 300.
    */
   const upsertRowLocal = useCallback(
-    async (manager: ConfigManager, key: TableKey, keyValue: string | number) => {
+    async (access: ConfigBrowserAccess, key: TableKey, keyValue: string | number) => {
       const meta = TABLES.find((t) => t.key === key)!;
       const pk = meta.primaryKey;
-      const saved = await tableOf(manager, key).get(keyValue);
+      const saved = await access.getTableRow(key, keyValue);
       const inScope =
         saved != null &&
         (!meta.scopable || !hostEnv.appId || (saved as any).appId === hostEnv.appId);
@@ -244,62 +239,61 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
 
   const saveRow = useCallback(
     async (row: any) => {
-      const manager = managerRef.current;
-      if (!manager) return;
+      const access = accessRef.current;
+      if (!access) return;
       switch (selectedKey) {
         case "appConfig":
-          await manager.saveConfig(row);
+          await access.saveConfig(row);
           break;
         case "appRegistry":
-          await manager.saveAppRegistry(row);
+          await access.saveAppRegistry(row);
           break;
         case "userProfile":
-          await manager.saveUserProfile(row);
+          await access.saveUserProfile(row);
           break;
         case "roles":
-          await manager.saveRole(row);
+          await access.saveRole(row);
           break;
         case "permissions":
-          await manager.savePermission(row);
+          await access.savePermission(row);
           break;
         case "pendingSync":
-          // No public write API — bypass via raw table.
-          await (manager as any).db.pendingSync.put(row);
+          await access.putPendingSync(row);
           break;
       }
       const pk = TABLES.find((t) => t.key === selectedKey)!.primaryKey;
-      await upsertRowLocal(manager, selectedKey, row[pk]);
-      await loadCounts(manager, hostEnv.appId);
+      await upsertRowLocal(access, selectedKey, row[pk]);
+      await loadCounts(access, hostEnv.appId);
     },
     [selectedKey, upsertRowLocal, loadCounts, hostEnv.appId],
   );
 
   const deleteRow = useCallback(
     async (id: string | number) => {
-      const manager = managerRef.current;
-      if (!manager) return;
+      const access = accessRef.current;
+      if (!access) return;
       switch (selectedKey) {
         case "appConfig":
-          await manager.deleteConfig(String(id));
+          await access.deleteConfig(String(id));
           break;
         case "appRegistry":
-          await manager.deleteAppRegistry(String(id));
+          await access.deleteAppRegistry(String(id));
           break;
         case "userProfile":
-          await manager.deleteUserProfile(String(id));
+          await access.deleteUserProfile(String(id));
           break;
         case "roles":
-          await manager.deleteRole(String(id));
+          await access.deleteRole(String(id));
           break;
         case "permissions":
-          await manager.deletePermission(String(id));
+          await access.deletePermission(String(id));
           break;
         case "pendingSync":
-          await (manager as any).db.pendingSync.delete(id);
+          await access.deletePendingSync(id);
           break;
       }
       removeRowLocal(selectedKey, id);
-      await loadCounts(manager, hostEnv.appId);
+      await loadCounts(access, hostEnv.appId);
     },
     [selectedKey, removeRowLocal, loadCounts, hostEnv.appId],
   );
@@ -359,10 +353,10 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
    */
   const reownForImport = useCallback((row: any): any => {
     if (!row || typeof row !== 'object') return row;
-    const manager = managerRef.current;
-    if (!manager) return row;
-    const activeAppId = manager.getAppId();
-    const activeUserId = manager.getIdentity().userId;
+    const access = accessRef.current;
+    if (!access) return row;
+    const activeAppId = access.getAppId();
+    const activeUserId = access.getIdentity().userId;
     if (selectedKey === 'appConfig') {
       const next = { ...row };
       if (next.config && !next.payload) next.payload = next.config;
@@ -376,9 +370,9 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
 
   const importRows = useCallback(
     async (incoming: any[], mode: ImportMode): Promise<ImportResult> => {
-      const manager = managerRef.current;
-      if (!manager) {
-        return { imported: 0, skipped: 0, failed: incoming.length, errors: ['ConfigManager not ready'] };
+      const access = accessRef.current;
+      if (!access) {
+        return { imported: 0, skipped: 0, failed: incoming.length, errors: ['Config access not ready'] };
       }
       const preview = previewImport(incoming);
       const toImport =
@@ -392,12 +386,12 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
         const row = reownForImport(toImport[i]);
         try {
           switch (selectedKey) {
-            case 'appConfig':   await manager.saveConfig(row); break;
-            case 'appRegistry': await manager.saveAppRegistry(row); break;
-            case 'userProfile': await manager.saveUserProfile(row); break;
-            case 'roles':       await manager.saveRole(row); break;
-            case 'permissions': await manager.savePermission(row); break;
-            case 'pendingSync': await (manager as any).db.pendingSync.put(row); break;
+            case 'appConfig':   await access.saveConfig(row); break;
+            case 'appRegistry': await access.saveAppRegistry(row); break;
+            case 'userProfile': await access.saveUserProfile(row); break;
+            case 'roles':       await access.saveRole(row); break;
+            case 'permissions': await access.savePermission(row); break;
+            case 'pendingSync': await access.putPendingSync(row); break;
           }
           imported++;
         } catch (err) {
@@ -421,29 +415,23 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
   );
 
   const exportAll = useCallback(async (): Promise<ExportBundle> => {
-    const manager = managerRef.current;
-    if (!manager) {
+    const access = accessRef.current;
+    if (!access) {
       return { appConfig: [], appRegistry: [], userProfiles: [], roles: [], permissions: [] };
     }
-    const db = (manager as any).db;
-    const appId = hostEnv.appId;
-    const [appConfig, appRegistry, userProfiles, roles, permissions] = await Promise.all([
-      appId ? db.appConfig.where('appId').equals(appId).toArray() : db.appConfig.toArray(),
-      db.appRegistry.toArray(),
-      appId ? db.userProfile.where('appId').equals(appId).toArray() : db.userProfile.toArray(),
-      db.roles.toArray(),
-      db.permissions.toArray(),
-    ]);
-    return { appConfig, appRegistry, userProfiles, roles, permissions };
+    const bundle = await access.exportBundle(hostEnv.appId);
+    return {
+      appConfig: bundle.appConfig,
+      appRegistry: bundle.appRegistry,
+      userProfiles: bundle.userProfiles,
+      roles: bundle.roles,
+      permissions: bundle.permissions,
+    };
   }, [hostEnv.appId]);
 
-  /**
-   * Full deploy snapshot — reads every appConfig row (unfiltered) so rows
-   * with stale appId still export, then normalizes + validates.
-   */
   const exportDeploy = useCallback(async (): Promise<DeployExportResult> => {
-    const manager = managerRef.current;
-    if (!manager) {
+    const access = accessRef.current;
+    if (!access) {
       return buildDeployExport({
         appConfig: [],
         appRegistry: [],
@@ -452,22 +440,15 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
         permissions: [],
       });
     }
-    const db = (manager as any).db;
-    const [appConfig, appRegistry, userProfiles, roles, permissions] = await Promise.all([
-      manager.getAllConfigsUnfiltered(),
-      db.appRegistry.toArray(),
-      db.userProfile.toArray(),
-      db.roles.toArray(),
-      db.permissions.toArray(),
-    ]);
+    const tables = await access.exportDeployTables();
     return buildDeployExport({
-      activeAppId: manager.getAppId(),
-      activeUserId: manager.getIdentity().userId,
-      appConfig,
-      appRegistry,
-      userProfiles,
-      roles,
-      permissions,
+      activeAppId: access.getAppId(),
+      activeUserId: access.getIdentity().userId,
+      appConfig: tables.appConfig,
+      appRegistry: tables.appRegistry as AppRegistryRow[],
+      userProfiles: tables.userProfiles as UserProfileRow[],
+      roles: tables.roles as RoleRow[],
+      permissions: tables.permissions as PermissionRow[],
     });
   }, []);
 
@@ -479,9 +460,9 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
    * REST sync stays consistent.
    */
   const deleteAllRows = useCallback(async () => {
-    const manager = managerRef.current;
-    if (!manager) {
-      return { deleted: 0, failed: rows.length, errors: ['ConfigManager not ready'] };
+    const access = accessRef.current;
+    if (!access) {
+      return { deleted: 0, failed: rows.length, errors: ['Config access not ready'] };
     }
     const pk = selected.primaryKey;
     let deleted = 0;
@@ -494,12 +475,12 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
       }
       try {
         switch (selectedKey) {
-          case 'appConfig':   await manager.deleteConfig(String(id)); break;
-          case 'appRegistry': await manager.deleteAppRegistry(String(id)); break;
-          case 'userProfile': await manager.deleteUserProfile(String(id)); break;
-          case 'roles':       await manager.deleteRole(String(id)); break;
-          case 'permissions': await manager.deletePermission(String(id)); break;
-          case 'pendingSync': await (manager as any).db.pendingSync.delete(id); break;
+          case 'appConfig':   await access.deleteConfig(String(id)); break;
+          case 'appRegistry': await access.deleteAppRegistry(String(id)); break;
+          case 'userProfile': await access.deleteUserProfile(String(id)); break;
+          case 'roles':       await access.deleteRole(String(id)); break;
+          case 'permissions': await access.deletePermission(String(id)); break;
+          case 'pendingSync': await access.deletePendingSync(id); break;
         }
         deleted++;
       } catch (err) {
