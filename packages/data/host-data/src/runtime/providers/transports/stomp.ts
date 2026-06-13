@@ -41,10 +41,13 @@
  *
  *   restart(extra):
  *     Disconnects, clears local state, emits `{ rows: [], replace:
- *     true }` + status: 'loading', re-runs start(). The `extra`
- *     overlay is merged into the trigger body (if it's JSON) — that
- *     lets the historical path send `{ asOfDate }` without
- *     re-authoring the cfg.
+ *     true }` + status: 'loading', re-runs start(). The previous
+ *     session's WebSocket close runs OFF the critical path (the new
+ *     dial does not wait for stompjs `deactivate()` — a bumped
+ *     `connectGeneration` fences stale frames), so a slow broker
+ *     disconnect no longer delays the new request. The `extra` overlay
+ *     is merged into the trigger body (if it's JSON) — that lets the
+ *     historical path send `{ asOfDate }` without re-authoring the cfg.
  *
  *   stop():
  *     Disconnects. No emit (Hub clears its cache when the slot
@@ -391,6 +394,8 @@ export function startStomp(
     connectAt: null as number | null,
     /** When the snapshot trigger frame was published. */
     publishAt: null as number | null,
+    /** When the first frame of the current cycle arrived from the broker. */
+    firstMessageAt: null as number | null,
   };
   const sinceClick = (now = Date.now()) =>
     timing.clickAt === null ? 'n/a' : `+${now - timing.clickAt}ms`;
@@ -460,6 +465,18 @@ export function startStomp(
 
   const handleFrame = (body: string) => {
     if (state.stopped) return;
+
+    // First frame of this connection cycle — report the request→first
+    // message latency to the diagnostics pane. `firstMessageAt` is reset
+    // to null on every (re)start via start().
+    if (timing.firstMessageAt === null) {
+      timing.firstMessageAt = Date.now();
+      trace(`first message — ${since(timing.publishAt, timing.firstMessageAt)} after publish`);
+      if (timing.publishAt !== null) {
+        emit({ timing: { firstMessageMs: timing.firstMessageAt - timing.publishAt } });
+      }
+    }
+
     const trimmed = body.trim();
     const byteSize = body.length;
 
@@ -625,6 +642,11 @@ export function startStomp(
           sinceConnect: since(timing.connectAt, timing.publishAt),
           sinceClick: sinceClick(timing.publishAt),
         });
+        // Report the click→request-sent latency to the diagnostics pane
+        // (only meaningful when a Restart click stamped `clickAt`).
+        if (timing.clickAt !== null) {
+          emit({ timing: { requestSentMs: timing.publishAt - timing.clickAt } });
+        }
         try {
           client.publish({ destination: destinations.requestMessage, body });
         } catch (err) {
@@ -659,6 +681,7 @@ export function startStomp(
       timing.dialAt = Date.now();
       timing.connectAt = null;
       timing.publishAt = null;
+      timing.firstMessageAt = null;
       trace(`activate() gen=${generation} — dialing ${cfg.websocketUrl} (reconnectDelay=${reconnectDelayMs}ms)`);
       client.activate();
     } catch (err) {
@@ -705,9 +728,21 @@ export function startStomp(
       const sub = state.sub;
       state.sub = null;
       state.client = null;
-      trace(`restart() begin — tearing down previous session (hadClient=${Boolean(client)})`);
-      await teardownStompConnection(client, sub);
-      trace(`restart() previous session torn down in ${since(timing.restartAt)}`);
+      // Tear down the previous session OFF the critical path. The
+      // synchronous portion of `teardownStompConnection` runs immediately
+      // (unsubscribe + null the old client's callbacks + `reconnectDelay=0`),
+      // so the old session stops delivering frames right away; only the
+      // stompjs `deactivate()` WebSocket close handshake lingers, and the
+      // bumped `connectGeneration` already fences any late frames from it.
+      // Awaiting that close here previously serialized it BEFORE the new
+      // dial — and a broker that doesn't promptly ack `DISCONNECT` makes
+      // `deactivate()` block for up to a full heartbeat interval (~4s),
+      // which landed squarely in the "Restart → request sent" latency.
+      // Dialing the new connection in parallel removes that wait entirely.
+      trace(`restart() begin — tearing down previous session off critical path (hadClient=${Boolean(client)})`);
+      void teardownStompConnection(client, sub).then(() => {
+        trace(`restart() previous session torn down in ${since(timing.restartAt)}`);
+      });
       // Reset snapshot tracking. `snapshotComplete` returns to its
       // initial value (`!buffering`) so the new connection re-buffers
       // its snapshot phase if buffering is enabled.

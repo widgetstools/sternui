@@ -123,6 +123,8 @@ function resetProviderStats(slot: ProviderSlot, now = Date.now()): void {
   slot.lastError = undefined;
   slot.snapshotFetchStartedAt = now;
   slot.snapshotFetchMs = null;
+  slot.restartRequestMs = null;
+  slot.firstMessageMs = null;
   slot.snapshotReady = false;
   slot.publishCount = 0;
   slot.pubsByBucket.fill(0);
@@ -196,6 +198,18 @@ interface ProviderSlot {
   snapshotFetchStartedAt: number;
   /** Duration of the last completed snapshot fetch, or null while in flight. */
   snapshotFetchMs: number | null;
+  /**
+   * Ms from the user's Restart click until the upstream request was
+   * sent (provider-reported via `emit({ timing })`). Null until the
+   * request goes out, or when there was no click to measure against.
+   */
+  restartRequestMs: number | null;
+  /**
+   * Ms from the upstream request being sent until the first message
+   * arrived back (provider-reported). Null until the first message of
+   * the current cycle lands.
+   */
+  firstMessageMs: number | null;
   /** True once the provider has emitted `ready` for the current cycle. */
   snapshotReady: boolean;
   /** Fan-out delta posts to data subscribers after snapshot ready. */
@@ -995,6 +1009,8 @@ export class SharedWorkerDataServicesHub {
       errorCount: 0,
       snapshotFetchStartedAt: now,
       snapshotFetchMs: null,
+      restartRequestMs: null,
+      firstMessageMs: null,
       snapshotReady: false,
       publishCount: 0,
       pubsByBucket: Array.from({ length: SEC_WINDOW }, () => 0),
@@ -1275,6 +1291,20 @@ export class SharedWorkerDataServicesHub {
           subId: '',
         });
       }
+      return;
+    }
+
+    if ('timing' in event) {
+      // Connection-latency samples for the diagnostics pane. Either
+      // field is optional; flush so the pane updates without waiting
+      // for the next 1 Hz sampler tick.
+      if (typeof event.timing.requestSentMs === 'number') {
+        slot.restartRequestMs = event.timing.requestSentMs;
+      }
+      if (typeof event.timing.firstMessageMs === 'number') {
+        slot.firstMessageMs = event.timing.firstMessageMs;
+      }
+      this.flushStatsToListeners(providerId);
     }
   }
 
@@ -1677,6 +1707,8 @@ export class SharedWorkerDataServicesHub {
       msgCount: slot.msgCount,
       msgPerSec,
       snapshotFetchMs: slot.snapshotFetchMs,
+      restartRequestMs: slot.restartRequestMs,
+      firstMessageMs: slot.firstMessageMs,
       publishCount: slot.publishCount,
       publishPerSec,
       publishPerMin,
@@ -1698,6 +1730,8 @@ function zeroedStats(): ProviderStats {
     msgCount: 0,
     msgPerSec: 0,
     snapshotFetchMs: null,
+    restartRequestMs: null,
+    firstMessageMs: null,
     publishCount: 0,
     publishPerSec: 0,
     publishPerMin: 0,

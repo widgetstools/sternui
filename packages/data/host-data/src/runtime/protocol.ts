@@ -53,6 +53,20 @@ export interface ProviderStats {
   msgPerSec: number;
   /** Milliseconds from start/restart until first `ready` status. Null while snapshot in flight. */
   snapshotFetchMs: number | null;
+  /**
+   * Milliseconds from the user's Restart click until the upstream
+   * request was actually sent to the server (e.g. the STOMP trigger
+   * frame publish — includes WebSocket dial + STOMP handshake). Null
+   * until the request goes out, or when there was no Restart click to
+   * measure against (plain cold start).
+   */
+  restartRequestMs: number | null;
+  /**
+   * Milliseconds from the upstream request being sent until the first
+   * message arrived back from the server. Null until the first message
+   * lands for the current cycle.
+   */
+  firstMessageMs: number | null;
   /** Cumulative fan-out delta posts to data subscribers after snapshot ready. */
   publishCount: number;
   /** Sliding-window publish throughput to subscribers (last 5s avg). */

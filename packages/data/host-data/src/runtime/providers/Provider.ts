@@ -15,6 +15,10 @@
  *     while the hub cache is still empty (STOMP snapshot buffer).
  *     Hub fans this out as wire `rows-received` events so consumers
  *     can drive loading overlays before the first chunked delta.
+ *   • `{ timing }` — connection-latency samples for the diagnostics
+ *     pane: `requestSentMs` (Restart click → upstream request sent)
+ *     and `firstMessageMs` (request sent → first upstream message).
+ *     Either field is optional; the Hub stores whichever is present.
  *
  * Keeping these as plain functions has two upsides over a Provider
  * class:
@@ -40,4 +44,16 @@ export type ProviderEmitEvent =
   | { rows: readonly unknown[]; replace?: boolean }
   | { status: ProviderStatus; error?: string }
   | { byteSize: number }
-  | { rowsReceived: number };
+  | { rowsReceived: number }
+  | { timing: ProviderTimingSample };
+
+/**
+ * Connection-latency sample for the diagnostics pane. Emitted by
+ * streaming transports on lifecycle transitions, not per-frame.
+ */
+export interface ProviderTimingSample {
+  /** Ms from the user's Restart click until the upstream request was sent. */
+  requestSentMs?: number;
+  /** Ms from the upstream request until the first message arrived. */
+  firstMessageMs?: number;
+}

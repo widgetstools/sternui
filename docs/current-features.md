@@ -611,7 +611,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `ConnectionTab` — connection string, auth, transport selection; "Test Connection" button (STOMP/REST) drives `useProviderProbe.test()`. STOMP runs a pure socket connect (`connectStomp` — handshake only, no subscribe/trigger/rows) and shows "Connected"; row-fetching transports (REST/mock) show "Connected — received N rows"
 - `FieldsTab` — discover provider fields, map to columns, infer types
 - `ColumnsTab` — derive AG Grid column defs from schema; collapsible Key Column + Add Custom Column panels and a scrollable body keep the columns table at a usable minimum height in short containers. A "Clear all columns" button (confirm dialog) wipes the column list and the now-stale key column in one action. Per-row ƒx button opens a Monaco `ExpressionEditor` (from `@starui/grid/customizer`) to author a column `valueGetter` DSL expression (column refs `[field]`, nested optional-chaining paths `[a.b.c]`, live-validated); persists onto `ColumnDefinition.valueGetter`, applied at runtime by `buildColumnDefs`
-- `DiagnosticsTab` — probe, request/response logging, debug; Snapshot card shows "Cache size (serialized)" (`stats.cacheBytes`, the worker-cache footprint that `projectFields` shrinks) alongside fetch time and row count; Throughput card's byte stat is labelled "Bytes received" (upstream wire traffic, unaffected by projection)
+- `DiagnosticsTab` — probe, request/response logging, debug; Snapshot card shows "Cache size (serialized)" (`stats.cacheBytes`, the worker-cache footprint that `projectFields` shrinks) alongside fetch time and row count; Connection latency card shows "Restart → request sent" (`stats.restartRequestMs`, click-to-upstream-request including dial + handshake) and "Request → first message" (`stats.firstMessageMs`, request-sent to first upstream frame); Throughput card's byte stat is labelled "Bytes received" (upstream wire traffic, unaffected by projection)
 
 #### Transport-specific editors
 
@@ -1186,8 +1186,9 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `DataServicesHubBundle` / `ResolvedDataServicesHubBundle` — hub bundle from `ensurePlatformReady` / `ensureDataServicesHub`. Hydration is split into parallel signals: `appDataReady` (AppData mirror snapshot) + `catalogReady` (worker catalog preload), with `ready = Promise.all([appDataReady, catalogReady])` for full-hydration callers. Plus `stopProvider`, `dispose`, legacy client handles
 - `ProviderCapabilities` — streaming / realtime / refresh / restart flags per transport
 - `ProviderHandle` — `stop()` + `restart()` lifecycle
-- `ProviderEmit` — callback for rows / status / byte-size / rowsReceived events
-- `ProviderEmitEvent` — structured event union (`rows`, `status`, `byteSize`, `rowsReceived`)
+- `ProviderEmit` — callback for rows / status / byte-size / rowsReceived / timing events
+- `ProviderEmitEvent` — structured event union (`rows`, `status`, `byteSize`, `rowsReceived`, `timing`)
+- `ProviderTimingSample` — connection-latency sample (`requestSentMs`, `firstMessageMs`) emitted by streaming transports on lifecycle transitions for the Diagnostics pane
 - `registerProvider()` — runtime/test factory registration
 
 #### Transports
@@ -1205,6 +1206,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
   - Thin field-level deltas (`cfg.thinDeltas`, default off) and columnar wire format (`cfg.wireFormat: 'json' | 'columnar'`, default json) — hub fan-out knobs honoured by `SharedWorkerDataServicesHub` for any keyed provider (see "SharedWorker data services" below); both require a provider Restart to change
   - Restart overlay (`extra`) for historical `asOfDate`; internal `__`-prefixed overlay keys (e.g. the Restart button's `__refresh` cache-buster) are stripped before the trigger body reaches the broker
   - `restart()` arriving while the initial connect is still pre-dial (the Hub's CREATE+RESTART / RESTART+RECONFIG paths call it synchronously after `startStomp()`) adopts its overlay into the in-flight start — one dial, no torn-down-then-redialed duplicate session
+  - `restart()` tears the previous session down **off the critical path** — the synchronous cleanup (unsubscribe + null old callbacks + `reconnectDelay=0`) runs immediately and `connectGeneration` fences stale frames, but the stompjs `deactivate()` WebSocket close is fire-and-forget so the new dial doesn't wait on it (previously the awaited graceful close could add a full heartbeat interval (~4s) to "Restart → request sent" when a broker was slow to ack `DISCONNECT`)
   - Lifecycle timing trace (`[v2/stomp][trace]` / `[v2/hub][trace]`, SharedWorker console): restart → teardown → dial → handshake → trigger publish → end-token, each line stamped with elapsed-since-Restart-click (`extra.__refresh` epoch) plus the effective stompjs `reconnectDelay` on socket error/disconnect — pinpoints whether a slow restart is teardown, reconnect backoff, or server snapshot time
   - `connectStomp()` — pure socket connection test for the editor's "Test Connection" button: opens the WebSocket + STOMP session and resolves on the broker handshake (`onConnect`) without subscribing, publishing a trigger, or waiting for rows (`reconnectDelay: 0` so a failed test fails fast)
   - `probeStomp()` — one-shot data probe (subscribe + trigger + collect up to `maxRows`); backs the editor's Infer Fields flow, which needs real rows to sample
@@ -1244,7 +1246,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 #### Statistics
 
-- `ProviderStats` — `rowCount, byteCount, cacheBytes, msgCount, msgPerSec, publishPerSec, publishPerMin, snapshotFetchMs, subscriberCount, startedAt, lastMessageAt, errorCount, lastError`; `cacheBytes` is the serialized worker-cache footprint (exact from the memoized replay-snapshot chunks when present, else one-sampled-row × rowCount estimate) — the number `projectFields` shrinks, surfaced in the Diagnostics tab as "Cache size (serialized)"
+- `ProviderStats` — `rowCount, byteCount, cacheBytes, msgCount, msgPerSec, publishPerSec, publishPerMin, snapshotFetchMs, restartRequestMs, firstMessageMs, subscriberCount, startedAt, lastMessageAt, errorCount, lastError`; `cacheBytes` is the serialized worker-cache footprint (exact from the memoized replay-snapshot chunks when present, else one-sampled-row × rowCount estimate) — the number `projectFields` shrinks, surfaced in the Diagnostics tab as "Cache size (serialized)"; `restartRequestMs` / `firstMessageMs` are provider-reported connection-latency samples (Restart click → upstream request sent; request sent → first upstream message), `null` until reported and reset on each (re)start
 - 1 Hz sampler with 5 s upstream + 60 s publish windows
 - Self-disabling when no stats listeners
 - Per-provider cache (`Map<rowKey, row>` keyed by `cfg.keyColumn`)

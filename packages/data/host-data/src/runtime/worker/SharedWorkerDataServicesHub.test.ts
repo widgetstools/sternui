@@ -819,6 +819,37 @@ describe('SharedWorkerDataServicesHub — stats sampler', () => {
     expect(liveStats.stats.publishPerMin).toBeGreaterThan(0);
   });
 
+  it('surfaces connection-latency timing samples and resets them on loading', () => {
+    const timers = makeFakeTimers();
+    const hub = new SharedWorkerDataServicesHub({ setTimer: timers.set, clearTimer: timers.clear });
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 'data', providerId: 'p1', mode: 'data', cfg: cfg() });
+    hub.handleRequest(port, { kind: 'attach', subId: 'stats', providerId: 'p1', mode: 'stats' });
+    const ctrl = controllers.get('default')!;
+
+    // Provider reports the click→request and request→first-message
+    // latencies; each flushes a stats snapshot immediately.
+    ctrl.emit({ timing: { requestSentMs: 42 } });
+    ctrl.emit({ timing: { firstMessageMs: 17 } });
+
+    const withTiming = [...port.messages].reverse().find((m) => m.kind === 'stats') as { stats: {
+      restartRequestMs: number | null;
+      firstMessageMs: number | null;
+    } };
+    expect(withTiming.stats.restartRequestMs).toBe(42);
+    expect(withTiming.stats.firstMessageMs).toBe(17);
+
+    // A restart (loading) clears the latency fields back to null.
+    port.messages.length = 0;
+    ctrl.emit({ status: 'loading' });
+    const afterReset = port.messages.find((m) => m.kind === 'stats') as { stats: {
+      restartRequestMs: number | null;
+      firstMessageMs: number | null;
+    } };
+    expect(afterReset.stats.restartRequestMs).toBeNull();
+    expect(afterReset.stats.firstMessageMs).toBeNull();
+  });
+
   it('resets all diagnostics counters when the provider emits loading (restart)', () => {
     const timers = makeFakeTimers();
     const hub = new SharedWorkerDataServicesHub({ setTimer: timers.set, clearTimer: timers.clear });

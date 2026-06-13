@@ -102,6 +102,16 @@ function Live({ providerId, cfg }: { providerId: string; cfg: ProviderConfig | n
           <Stat label="Cache size (serialized)" value={fmtBytes(stats?.cacheBytes)} />
         </Card>
 
+        <Card title="Connection latency">
+          {/* Time from the Restart click until the upstream request
+              (e.g. STOMP trigger frame) is sent — includes WebSocket
+              dial + handshake. Only populated after a Restart click. */}
+          <Stat label="Restart → request sent" value={fmtLatency(stats?.restartRequestMs, status)} />
+          {/* Time from the request being sent until the first message
+              arrives back from the server. */}
+          <Stat label="Request → first message" value={fmtLatency(stats?.firstMessageMs, status)} />
+        </Card>
+
         <Card title="Throughput">
           <Stat label="Messages (upstream)" value={fmtInt(stats?.msgCount)} />
           <Stat label="Upstream rate" value={stats ? `${stats.msgPerSec.toFixed(1)} msg/s` : '—'} />
@@ -187,6 +197,12 @@ function fmtDuration(ms: number | undefined | null): string {
 function fmtSnapshotFetch(ms: number | null | undefined, status: ProviderStatus | null): string {
   if (ms != null) return fmtDuration(ms);
   if (status === 'loading') return 'In progress…';
+  return '—';
+}
+
+function fmtLatency(ms: number | null | undefined, status: ProviderStatus | null): string {
+  if (ms != null) return fmtDuration(ms);
+  if (status === 'loading') return 'Waiting…';
   return '—';
 }
 
