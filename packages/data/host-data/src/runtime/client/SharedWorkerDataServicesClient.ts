@@ -587,8 +587,26 @@ export class SharedWorkerDataServicesClient {
     }
   }
 
+  /** True when this client still has an active hub subscription for `subId`. */
+  hasDataSubscription(subId: SubId): boolean {
+    return this.subs.has(subId);
+  }
+
   close(): void {
     if (this.closed) return;
+    // Tell the hub to drop our subscriptions before the port closes.
+    // Otherwise zombie listeners make postMessage throw during fan-out
+    // and every other window on the same provider stops getting ticks.
+    for (const [subId] of this.subs) {
+      try {
+        this.send({ kind: 'detach', subId });
+      } catch { /* port may already be dead */ }
+    }
+    for (const [subId] of this.appDataMirrors) {
+      try {
+        this.sendAppData({ kind: 'appdata-detach', subId });
+      } catch { /* port may already be dead */ }
+    }
     this.closed = true;
     this.subs.clear();
     this.thinSubs.clear();
@@ -675,11 +693,21 @@ export class SharedWorkerDataServicesClient {
         // delta path. The decoded array is freshly owned by this
         // client, exactly like a structured-clone `delta.rows`.
         if (sub.kind === 'data') {
-          const rows = event.enc === 'col'
-            ? decodeColumnar(event.buf)
-            : JSON.parse(SNAPSHOT_DECODER.decode(event.buf)) as unknown[];
-          this.trackThinRows(event.subId, rows, Boolean(event.replace));
-          sub.listener.onDelta(rows, Boolean(event.replace));
+          try {
+            const rows = event.enc === 'col'
+              ? decodeColumnar(event.buf)
+              : JSON.parse(SNAPSHOT_DECODER.decode(event.buf)) as unknown[];
+            this.trackThinRows(event.subId, rows, Boolean(event.replace));
+            sub.listener.onDelta(rows, Boolean(event.replace));
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.error(
+              '[SharedWorkerDataServicesClient] delta-bin decode failed subId=%s enc=%s',
+              event.subId,
+              event.enc ?? 'json',
+              err,
+            );
+          }
         }
         return;
       case 'sub-init':

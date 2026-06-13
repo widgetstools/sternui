@@ -896,6 +896,33 @@ describe('SharedWorkerDataServicesHub — port closure', () => {
     ctrl.emit({ rows: [{ id: 'r1' }] });
     expect(port.messages).toHaveLength(0);
   });
+
+  it('live ticks still reach healthy listeners when a zombie port throws on postMessage', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const dead = makePort();
+    const alive = makePort();
+    hub.handleRequest(dead, { kind: 'attach', subId: 'sDead', providerId: 'p1', mode: 'data', cfg: cfg() });
+    hub.handleRequest(alive, { kind: 'attach', subId: 'sAlive', providerId: 'p1', mode: 'data' });
+    const ctrl = controllers.get('default')!;
+
+    ctrl.emit({ rows: [{ id: 'r1' }], replace: true });
+    ctrl.emit({ status: 'ready' });
+
+    // Abrupt window close: listener lingers but the port is gone.
+    dead.postMessage = () => { throw new Error('port dead'); };
+    dead.messages.length = 0;
+    alive.messages.length = 0;
+
+    ctrl.emit({ rows: [{ id: 'r1', x: 99 }] });
+
+    const aliveDelta = alive.messages.find((m) => isAnyDelta(m));
+    expect(aliveDelta).toBeTruthy();
+    expect(rowsOf(aliveDelta!)).toEqual([{ id: 'r1', x: 99 }]);
+
+    alive.messages.length = 0;
+    ctrl.emit({ rows: [{ id: 'r1', x: 100 }] });
+    expect(alive.messages.find((m) => isAnyDelta(m))).toBeTruthy();
+  });
 });
 
 // ─── AppData wire round-trip ─────────────────────────────────────

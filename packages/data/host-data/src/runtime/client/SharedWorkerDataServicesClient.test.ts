@@ -648,6 +648,35 @@ describe('SharedWorkerDataServicesClient — config catalog RPC', () => {
     dual.close();
   });
 
+  it('live ticks reach every settled subscriber across two hub clients', async () => {
+    const dual = wireTwoClients();
+    const handleA = dual.clientA.subscribe<{ id: string; x: number }>('p1', cfg());
+    const handleB = dual.clientB.subscribe<{ id: string; x: number }>('p1');
+    await flush();
+    controllers.get('c-1')!.emit({
+      rows: [{ id: 'r1', x: 1 }],
+      replace: true,
+    });
+    controllers.get('c-1')!.emit({ status: 'ready' });
+    await handleA.snapshot;
+    await handleB.snapshot;
+
+    const updatesA: Array<readonly { id: string; x: number }[]> = [];
+    const updatesB: Array<readonly { id: string; x: number }[]> = [];
+    handleA.onUpdate((rows) => updatesA.push(rows));
+    handleB.onUpdate((rows) => updatesB.push(rows));
+
+    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', x: 42 }] });
+    await flush();
+
+    expect(updatesA).toEqual([[{ id: 'r1', x: 42 }]]);
+    expect(updatesB).toEqual([[{ id: 'r1', x: 42 }]]);
+
+    handleA.unsubscribe();
+    handleB.unsubscribe();
+    dual.close();
+  });
+
   it('configStore.save() invalidates the worker catalog so getProviderConfig sees updates', async () => {
     const cm = stubConfigManager();
     cm._rows.set('p1', mockProviderRow('p1'));

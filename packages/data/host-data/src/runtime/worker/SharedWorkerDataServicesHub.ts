@@ -138,10 +138,10 @@ function resetProviderStats(slot: ProviderSlot, now = Date.now()): void {
  *
  * CONTRACT: `postMessage` must consume (serialize/copy) the message
  * synchronously before returning — real `MessagePort`s structured-clone
- * during the call, per spec. The hub relies on this to REUSE one event
- * object across a fan-out loop (mutating `subId` between posts) instead
- * of allocating a fresh envelope per listener per tick. Test fakes that
- * capture messages must shallow-copy on capture.
+ * during the call, per spec. AppData fan-out still reuses one event
+ * object (mutating `subId` between posts). Data-provider fan-out posts
+ * a shallow copy per listener because OpenFin multi-window can defer
+ * clone — reusing one envelope there mis-delivers or drops ticks.
  */
 export interface PortLike {
   postMessage(message: unknown): void;
@@ -833,7 +833,9 @@ export class SharedWorkerDataServicesHub {
     const dataListeners = this.dataListeners.get(providerId);
     if (dataListeners) {
       for (const l of dataListeners.values()) {
-        l.port.postMessage({ subId: l.subId, kind: 'status', status: 'error', error: 'Provider stopped.' } satisfies Event);
+        try {
+          l.port.postMessage({ subId: l.subId, kind: 'status', status: 'error', error: 'Provider stopped.' } satisfies Event);
+        } catch { /* port dead — other windows must not be blocked */ }
       }
       this.dataListeners.delete(providerId);
     }
@@ -1482,6 +1484,46 @@ export class SharedWorkerDataServicesHub {
     this.ensureStatsSampler();
   }
 
+  /**
+   * Post one data event to a single listener. Returns false when the port
+   * is dead (caller should prune). Uses a shallow copy with the
+   * listener's `subId` so each `postMessage` owns its envelope — reusing
+   * one object across the fan-out loop is unsafe when structured-clone
+   * is deferred (observed under OpenFin multi-window).
+   */
+  private postDataEvent(l: DataListener, event: Event): boolean {
+    try {
+      l.port.postMessage({ ...event, subId: l.subId });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Drop data listeners whose port threw on `postMessage` (closed window
+   * without `detach`, dev HMR, etc.). Without pruning, one zombie port
+   * blocks delivery to listeners that appear later in the loop.
+   */
+  private pruneDeadDataListeners(providerId: string, deadSubIds: readonly string[]): void {
+    if (deadSubIds.length === 0) return;
+    const listeners = this.dataListeners.get(providerId);
+    if (!listeners) return;
+    for (const subId of deadSubIds) listeners.delete(subId);
+    if (listeners.size === 0) this.dataListeners.delete(providerId);
+  }
+
+  private pruneDeadStatsListeners(providerId: string, deadSubIds: readonly string[]): void {
+    if (deadSubIds.length === 0) return;
+    const listeners = this.statsListeners.get(providerId);
+    if (!listeners) return;
+    for (const subId of deadSubIds) listeners.delete(subId);
+    if (listeners.size === 0) {
+      this.statsListeners.delete(providerId);
+      this.maybeStopStatsSampler();
+    }
+  }
+
   private broadcastData(providerId: string, slot: ProviderSlot, eventTemplate: Event): void {
     const listeners = this.dataListeners.get(providerId);
     if (!listeners) return;
@@ -1502,17 +1544,15 @@ export class SharedWorkerDataServicesHub {
         console.log(`[v2/hub] broadcast provider=${providerId} kind=status status=${tpl.status}${tpl.error ? ' error=' + JSON.stringify(tpl.error) : ''} → ${listeners.size} listener(s)`);
       }
     }
-    // Reuse ONE event object across the loop, rewriting subId per
-    // listener. Safe because postMessage serializes synchronously
-    // (PortLike contract) — and it removes a per-listener-per-tick
-    // allocation, which at high message rates × many subscribers was
-    // a measurable share of young-gen GC churn. Callers always pass a
-    // fresh template, so mutating it here can't alias anything.
+    const dead: string[] = [];
     for (const l of listeners.values()) {
-      (eventTemplate as { subId: string }).subId = l.subId;
-      l.port.postMessage(eventTemplate);
+      if (!this.postDataEvent(l, eventTemplate)) {
+        dead.push(l.subId);
+        continue;
+      }
       if (countPublish) this.recordPublish(slot, 1);
     }
+    this.pruneDeadDataListeners(providerId, dead);
   }
 
   /** Count one fan-out delta post to a data subscriber (post-snapshot only). */
@@ -1545,9 +1585,15 @@ export class SharedWorkerDataServicesHub {
     const slot = this.providers.get(providerId);
     if (!listeners || !slot) return;
     const stats = this.snapshotStats(providerId, slot);
+    const dead: string[] = [];
     for (const l of listeners.values()) {
-      l.port.postMessage({ subId: l.subId, kind: 'stats', stats } satisfies Event);
+      try {
+        l.port.postMessage({ subId: l.subId, kind: 'stats', stats } satisfies Event);
+      } catch {
+        dead.push(l.subId);
+      }
     }
+    this.pruneDeadStatsListeners(providerId, dead);
   }
 
   private tickStats(): void {
@@ -1568,9 +1614,15 @@ export class SharedWorkerDataServicesHub {
       const slot = this.providers.get(providerId);
       if (!slot) continue;
       const stats = this.snapshotStats(providerId, slot);
+      const dead: string[] = [];
       for (const l of listeners.values()) {
-        l.port.postMessage({ subId: l.subId, kind: 'stats', stats } satisfies Event);
+        try {
+          l.port.postMessage({ subId: l.subId, kind: 'stats', stats } satisfies Event);
+        } catch {
+          dead.push(l.subId);
+        }
       }
+      this.pruneDeadStatsListeners(providerId, dead);
     }
   }
 
