@@ -70,6 +70,9 @@ function resolveAttachMode(config: PlatformBootstrapConfig): boolean {
  * {@link ensurePlatformReady}, skipping hub connect + AppData snapshot +
  * catalog preload. Idempotent per `appId`. Independent from
  * {@link ensurePlatformReady} — full bootstrap uses the worker ConfigManager.
+ * Prefer {@link configureWorkerConfigHub} + {@link resolveWorkerConfigManager}
+ * or {@link ensurePlatformReady} for production windows; this path remains
+ * for unit tests and plain-browser harnesses without SharedWorker.
  */
 export function ensureConfigReady(
   config: PlatformBootstrapConfig,

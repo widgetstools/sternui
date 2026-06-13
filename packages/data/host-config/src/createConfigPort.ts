@@ -1,8 +1,8 @@
 import type { ConfigPort } from '@starui/host';
-import type { ConfigManager } from './ConfigManager.js';
+import type { ConfigManagerForProfileStorage } from './profileStorage.js';
 
 export interface ConfigPortOptions {
-  readonly configManager: ConfigManager;
+  readonly configManager: ConfigManagerForProfileStorage;
   readonly appId: string;
   readonly userId: string;
 }

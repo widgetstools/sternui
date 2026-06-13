@@ -33,15 +33,10 @@ const WorkspaceSetup = React.lazy(() =>
 
 const LOADING = <div style={{ padding: 16 }}>Loading...</div>;
 
-// Warm the bootstrap tier this window's initial route needs. Routes that
-// never touch the data plane skip the SharedWorker hub entirely; the
-// gates below still upgrade on in-window navigation to a data route.
+// Warm platform bootstrap for every route except pure-fin dialogs.
+// Config-only and data-plane windows share the worker ConfigManager.
 const initialPath = typeof window !== "undefined" ? window.location.pathname : "";
-if (initialPath.startsWith("/rename-view-tab")) {
-  // pure-fin dialog — needs neither config rows nor the data plane
-} else if (initialPath.startsWith("/workspace-setup")) {
-  void initConfigBootstrap();
-} else {
+if (!initialPath.startsWith("/rename-view-tab")) {
   void initPlatformBootstrap();
 }
 
@@ -54,7 +49,7 @@ if (typeof window !== "undefined" && window.location.pathname.includes("/blotter
   ]).catch(() => { /* dev-only prebundle warm-up */ });
 }
 
-/** Suspend on the config-only bootstrap (ConfigManager, no data hub). */
+/** Suspend on the config-only bootstrap (worker config facade, no DataHubProvider). */
 function ConfigGate({ children }: { children: ReactNode }) {
   use(initConfigBootstrap());
   return children;
@@ -114,15 +109,11 @@ function AppTree() {
       }}
     >
       <Routes>
-        {/* Config-only windows — no data hub. RenameViewTab is pure fin
-            APIs + UI primitives and needs no bootstrap at all. */}
+        {/* Config-only windows — worker config facade, no DataHubProvider. */}
         <Route path="/rename-view-tab" element={<React.Suspense fallback={LOADING}><RenameViewTab /></React.Suspense>} />
         <Route path="/workspace-setup" element={<ConfigGate><React.Suspense fallback={LOADING}><WorkspaceSetup /></React.Suspense></ConfigGate>} />
 
-        {/* Provider window: dock + platform init only need the ConfigManager
-            (initWorkspace picks it up via peekConfigManager). The full hub
-            bootstrap is warmed in the background at module scope, keeping
-            the SharedWorker alive across grid-window close/reopen. */}
+        {/* Provider window: dock + platform init use peekConfigManager from bootstrap. */}
         <Route path="/platform/provider" element={<ConfigGate><React.Suspense fallback={LOADING}><Provider /></React.Suspense></ConfigGate>} />
 
         {/* Data-plane windows — full bootstrap. Config Browser reads/writes

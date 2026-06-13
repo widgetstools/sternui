@@ -18,6 +18,13 @@ export {
   type ConfigReadyBundle,
   type EnsurePlatformReadyOpts,
 } from './ensurePlatformReady.js';
+export {
+  configureWorkerConfigHub,
+  getWorkerConfigHubScriptUrl,
+  _resetWorkerConfigHubForTests,
+  type WorkerConfigHubOpts,
+} from './configureWorkerConfigHub.js';
+export { resolveWorkerConfigManager } from './resolveWorkerConfigManager.js';
 export type {
   AppDataBootstrapContext,
   AppDataBootstrapHook,

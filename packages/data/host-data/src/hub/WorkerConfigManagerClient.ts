@@ -71,6 +71,21 @@ export class WorkerConfigManagerClient implements ConfigBrowserAccess {
     return this.hub.configBrowserGet(table, pk);
   }
 
+  async getConfig(configId: string): Promise<AppConfigRow | undefined> {
+    const row = await this.hub.configBrowserGet('appConfig', configId);
+    return row as AppConfigRow | undefined;
+  }
+
+  async getConfigsByUserUnfiltered(userId: string): Promise<AppConfigRow[]> {
+    const all = await this.getAllConfigsUnfiltered();
+    return all.filter((r) => r.userId === userId);
+  }
+
+  async getConfigsByComponentTypesUnfiltered(types: readonly string[]): Promise<AppConfigRow[]> {
+    const all = await this.getAllConfigsUnfiltered();
+    return all.filter((r) => types.includes(r.componentType));
+  }
+
   saveConfig(row: AppConfigRow): Promise<void> {
     return this.hub.configBrowserSave('appConfig', row as unknown as Record<string, unknown>);
   }

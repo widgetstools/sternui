@@ -118,6 +118,7 @@ export {
   CONFIG_SERVICE_ADAPTER_BRAND,
   getConfigServiceAdapterBrand,
   type ConfigServiceStorageOptions,
+  type ConfigManagerForProfileStorage,
   type ProfileStorageFactory,
   type ProfileStorageFactoryOpts,
   type ProfileSnapshot,

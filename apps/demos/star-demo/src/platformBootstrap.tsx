@@ -4,12 +4,12 @@ import {
   type ReactNode,
 } from 'react';
 import {
-  ensureConfigReady,
+  configureWorkerConfigHub,
   ensurePlatformReady,
   resolvePlatformBootstrapFromJson,
-  type ConfigReadyBundle,
   type PlatformBootstrapConfig,
   type ResolvedDataServicesHubBundle,
+  type WorkerConfigManagerClient,
 } from '@starui/host-data';
 import type { ConfigManager } from '@starui/host-config';
 import {
@@ -18,15 +18,17 @@ import {
 } from '@starui/openfin-platform/config';
 import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
 
+configureWorkerConfigHub({ workerScriptUrl: workerAssetUrl });
+
 export interface PlatformBootstrapResult {
   config: PlatformBootstrapConfig;
   platform: ResolvedDataServicesHubBundle;
 }
 
-/** Config-only bootstrap result — ConfigManager without the data hub. */
+/** Config-only bootstrap result — worker config facade (same hub as full bootstrap). */
 export interface ConfigBootstrapResult {
   config: PlatformBootstrapConfig;
-  configManager: ConfigReadyBundle['configManager'];
+  configManager: ConfigManager | WorkerConfigManagerClient;
 }
 
 const PlatformBootstrapContext = createContext<PlatformBootstrapResult | null>(null);
@@ -60,50 +62,38 @@ function isOpenFinRuntime(): boolean {
   return Boolean(fin?.Platform?.getCurrentSync);
 }
 
-let configBootstrapPromise: Promise<ConfigBootstrapResult> | undefined;
 let platformBootstrapPromise: Promise<PlatformBootstrapResult> | undefined;
 
-/**
- * Config-only bootstrap: manifest/app-config identity + ConfigManager.
- * Windows that never touch the data plane (workspace setup, small fin
- * dialogs) suspend on this instead of {@link initPlatformBootstrap},
- * skipping the SharedWorker hub connect + AppData snapshot + catalog
- * preload that used to gate every route.
- *
- * Browser: `/app-config.json` (seedConfigUrl only). OpenFin: manifest
- * `customSettings` (prefer pinned `appId` / `userId`; else seed identity).
- */
-export function initConfigBootstrap(): Promise<ConfigBootstrapResult> {
-  if (!configBootstrapPromise) {
-    configBootstrapPromise = (async () => {
-      const config = isOpenFinRuntime()
-        ? await resolvePlatformBootstrapFromManifest()
-        : await resolvePlatformBootstrapFromJson('/app-config.json');
-      const { configManager } = await ensureConfigReady(config);
-      setConfigManager(configManager);
-      return { config, configManager };
-    })();
-  }
-  return configBootstrapPromise;
+async function resolveBootstrapConfig(): Promise<PlatformBootstrapConfig> {
+  return isOpenFinRuntime()
+    ? resolvePlatformBootstrapFromManifest()
+    : resolvePlatformBootstrapFromJson('/app-config.json');
 }
 
 /**
- * Full platform bootstrap: config bootstrap plus the data-services hub
- * (SharedWorker connect, AppData mirror snapshot, catalog preload).
- * `ensurePlatformReady` reuses the ConfigManager from
- * {@link initConfigBootstrap}, so upgrading a window from config-only
- * to full costs no second IndexedDB connection.
+ * Full platform bootstrap: SharedWorker hub connect, AppData mirror
+ * snapshot, catalog preload. Idempotent per window.
  */
 export function initPlatformBootstrap(): Promise<PlatformBootstrapResult> {
   if (!platformBootstrapPromise) {
     platformBootstrapPromise = (async () => {
-      const config = isOpenFinRuntime()
-        ? await resolvePlatformBootstrapFromManifest()
-        : await resolvePlatformBootstrapFromJson('/app-config.json');
+      const config = await resolveBootstrapConfig();
       const platform = await ensurePlatformReady(config, { workerScriptUrl: workerAssetUrl });
-      setConfigManager(platform.configManager as ConfigManager);
+      setConfigManager(platform.configManager);
       return { config, platform };
     })();
   }
   return platformBootstrapPromise;
+}
+
+/**
+ * Config-only bootstrap — same hub connection as {@link initPlatformBootstrap}
+ * (worker-authoritative Dexie). Used by routes that do not mount
+ * `DataHubProvider` but still read/write config rows.
+ */
+export function initConfigBootstrap(): Promise<ConfigBootstrapResult> {
+  return initPlatformBootstrap().then(({ config, platform }) => ({
+    config,
+    configManager: platform.configManager,
+  }));
 }

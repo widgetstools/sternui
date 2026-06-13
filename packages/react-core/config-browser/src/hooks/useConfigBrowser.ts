@@ -16,6 +16,7 @@ import {
 } from "@starui/host-config";
 import {
   LocalConfigBrowserAccess,
+  isWorkerConfigManagerClient,
   type ConfigBrowserAccess,
 } from "@starui/host-data";
 import { TABLES, type TableKey, type TableMeta } from "../types";
@@ -117,14 +118,16 @@ const ZERO_COUNTS: Counts = {
 export interface UseConfigBrowserOptions {
   /**
    * Supply worker-backed config access from a data-hub window.
-   * Defaults to OpenFin `getConfigManager()` wrapped in
-   * {@link LocalConfigBrowserAccess} for config-only popouts.
+   * Defaults to `getConfigManager()` — worker RPC when the app registered
+   * {@link configureWorkerConfigHub}, else main-thread Dexie via
+   * {@link LocalConfigBrowserAccess}.
    */
   resolveConfigAccess?: () => Promise<ConfigBrowserAccess>;
 }
 
 async function defaultResolveConfigAccess(): Promise<ConfigBrowserAccess> {
   const cm = await getConfigManager();
+  if (isWorkerConfigManagerClient(cm)) return cm;
   return new LocalConfigBrowserAccess(cm);
 }
 

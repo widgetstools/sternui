@@ -32,7 +32,18 @@ import type {
   RoleRow,
 } from '@starui/host-config';
 import { normalizeImportedAppConfigRow } from '@starui/host-config';
+import {
+  isWorkerConfigManagerClient,
+  LocalConfigBrowserAccess,
+  type ConfigBrowserAccess,
+} from '@starui/host-data';
 import { getConfigManager } from './db';
+
+async function resolveImportAccess(): Promise<ConfigBrowserAccess> {
+  const cm = await getConfigManager();
+  if (isWorkerConfigManagerClient(cm)) return cm;
+  return new LocalConfigBrowserAccess(cm);
+}
 
 /** Result of importing a single table. */
 export interface ImportTableResult {
@@ -133,9 +144,9 @@ export async function importConfigBundle(
   opts: ImportConfigBundleOptions = {},
 ): Promise<ImportConfigBundleResult> {
   const mode: ImportMode = opts.mode ?? 'overwrite';
-  const cm = await getConfigManager();
-  const activeAppId = cm.getAppId();
-  const activeUserId = cm.getIdentity().userId;
+  const access = await resolveImportAccess();
+  const activeAppId = access.getAppId();
+  const activeUserId = access.getIdentity().userId;
 
   const result: ImportConfigBundleResult = {
     appConfig: EMPTY_TABLE_RESULT(),
@@ -154,7 +165,7 @@ export async function importConfigBundle(
     for (const inv of invalid) result.appConfig.errors.push(`appConfig: ${inv.reason}`);
 
     const existingIds = mode === 'skip-existing'
-      ? new Set((await cm.getAllConfigsUnfiltered()).map((r) => r.configId))
+      ? new Set((await access.getAllConfigsUnfiltered()).map((r) => r.configId))
       : null;
 
     for (const row of valid) {
@@ -164,7 +175,7 @@ export async function importConfigBundle(
           result.appConfig.skipped++;
           continue;
         }
-        await cm.saveConfig(prepared);
+        await access.saveConfig(prepared);
         result.appConfig.imported++;
       } catch (err) {
         result.appConfig.failed++;
@@ -180,7 +191,11 @@ export async function importConfigBundle(
     for (const inv of invalid) result.appRegistry.errors.push(`appRegistry: ${inv.reason}`);
 
     const existingIds = mode === 'skip-existing'
-      ? new Set((await cm.getAllApps()).map((r) => r.appId))
+      ? new Set(
+          (await access.listTable('appRegistry', activeAppId)).map(
+            (r) => (r as AppRegistryRow).appId,
+          ),
+        )
       : null;
 
     for (const row of valid) {
@@ -189,7 +204,7 @@ export async function importConfigBundle(
           result.appRegistry.skipped++;
           continue;
         }
-        await cm.saveAppRegistry(row);
+        await access.saveAppRegistry(row as unknown as Record<string, unknown>);
         result.appRegistry.imported++;
       } catch (err) {
         result.appRegistry.failed++;
@@ -205,7 +220,11 @@ export async function importConfigBundle(
     for (const inv of invalid) result.roles.errors.push(`roles: ${inv.reason}`);
 
     const existingIds = mode === 'skip-existing'
-      ? new Set((await cm.getAllRoles()).map((r) => r.roleId))
+      ? new Set(
+          (await access.listTable('roles', activeAppId)).map(
+            (r) => (r as RoleRow).roleId,
+          ),
+        )
       : null;
 
     for (const row of valid) {
@@ -214,7 +233,7 @@ export async function importConfigBundle(
           result.roles.skipped++;
           continue;
         }
-        await cm.saveRole(row);
+        await access.saveRole(row as unknown as Record<string, unknown>);
         result.roles.imported++;
       } catch (err) {
         result.roles.failed++;
@@ -230,7 +249,11 @@ export async function importConfigBundle(
     for (const inv of invalid) result.permissions.errors.push(`permissions: ${inv.reason}`);
 
     const existingIds = mode === 'skip-existing'
-      ? new Set((await cm.getAllPermissions()).map((r) => r.permissionId))
+      ? new Set(
+          (await access.listTable('permissions', activeAppId)).map(
+            (r) => (r as PermissionRow).permissionId,
+          ),
+        )
       : null;
 
     for (const row of valid) {
@@ -239,7 +262,7 @@ export async function importConfigBundle(
           result.permissions.skipped++;
           continue;
         }
-        await cm.savePermission(row);
+        await access.savePermission(row as unknown as Record<string, unknown>);
         result.permissions.imported++;
       } catch (err) {
         result.permissions.failed++;

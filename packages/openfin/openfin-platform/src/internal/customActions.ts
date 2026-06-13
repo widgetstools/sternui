@@ -7,7 +7,7 @@ import {
   type CustomActionsMap,
 } from '@openfin/workspace-platform';
 import { type App } from '@openfin/workspace';
-import type { ConfigManager } from '@starui/host-config';
+import type { ConfigManagerHandle } from '../db.js';
 import {
   ACTION_EXPORT_CONFIG,
   ACTION_IMPORT_CONFIG,
@@ -44,9 +44,9 @@ export interface CustomActionDeps {
     extraOptions?: Record<string, any>,
   ) => Promise<void>;
   /** Lazy lookup of the shared ConfigManager — module-level state in workspace.ts. */
-  getConfigManager: () => ConfigManager | undefined;
+  getConfigManager: () => ConfigManagerHandle | undefined;
   /** Gather all config rows and trigger a JSON download. */
-  exportAllConfig: (cm: ConfigManager) => Promise<void>;
+  exportAllConfig: (cm: ConfigManagerHandle) => Promise<void>;
 }
 
 /**

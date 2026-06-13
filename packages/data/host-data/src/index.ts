@@ -45,6 +45,9 @@ export {
   resolvePlatformBootstrapFromObject,
   ensureConfigReady,
   ensurePlatformReady,
+  configureWorkerConfigHub,
+  resolveWorkerConfigManager,
+  getWorkerConfigHubScriptUrl,
   ensureDataServicesHub,
   SnapshotReassembler,
   runAppDataBootstrap,
@@ -62,6 +65,7 @@ export type {
   AppDataBootstrapHookRegistry,
   AppDataUpsertInput,
   RunAppDataBootstrapOpts,
+  WorkerConfigHubOpts,
 } from './bootstrap/index.js';
 
 // One-shot probes — pure main-thread functions for editor flows

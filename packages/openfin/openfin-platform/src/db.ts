@@ -29,69 +29,75 @@ import { COMPONENT_TYPES } from "@starui/types";
 import type { DockEditorConfig } from './dockConfigTypes';
 import { getConfigServiceRestUrlFromManifest } from './manifestConfig';
 import type { RegistryEditorConfig } from './registryConfigTypes';
-import { resolvePlatformBootstrapFromJson } from '@starui/host-data';
+import {
+  getWorkerConfigHubScriptUrl,
+  resolvePlatformBootstrapFromJson,
+  resolveWorkerConfigManager,
+  type WorkerConfigManagerClient,
+} from '@starui/host-data';
 import {
   resolveDeploymentIdentity,
   resolvePlatformBootstrapFromManifest,
 } from './platformBootstrap';
 import { resolveDefaultPlatformScope } from './platformScope';
 
+/** Main-thread ConfigManager or worker RPC facade. */
+export type ConfigManagerHandle = ConfigManager | WorkerConfigManagerClient;
+
 // ─── Singleton management ────────────────────────────────────────────
 
 /**
- * Module-level ConfigManager singleton.
+ * Module-level config singleton.
  *
- * Set by `setConfigManager()` (called from workspace.ts during init).
- * If not set, a fallback instance is created on first use so that
- * the dock-editor window (which runs in a separate process) still
- * has access to the same Dexie database.
+ * Set by `setConfigManager()` (called from app bootstrap / workspace init).
+ * If not set, {@link getConfigManager} connects the SharedWorker hub when
+ * {@link configureWorkerConfigHub} was registered at app entry; otherwise
+ * falls back to a per-window main-thread Dexie manager (tests only).
  */
-let configManagerInstance: ConfigManager | undefined;
+let configManagerInstance: ConfigManagerHandle | undefined;
 
 /**
- * Holds the in-progress init promise when the fallback ConfigManager
- * is being created. This prevents a race condition where two concurrent
- * callers both try to create separate instances before the first one
- * has finished initialising.
+ * Holds the in-progress init promise when the fallback path runs.
+ * Prevents concurrent callers from creating separate instances.
  */
-let initPromise: Promise<ConfigManager> | undefined;
+let initPromise: Promise<ConfigManagerHandle> | undefined;
 
 /**
- * Set the shared ConfigManager instance.
- *
- * Called once from workspace.ts after creating and initializing
- * the ConfigManager during platform startup. Once set, the
- * getConfigManager() fallback path is never used.
+ * Set the shared config handle for this window.
  */
-export function setConfigManager(manager: ConfigManager): void {
+export function setConfigManager(manager: ConfigManagerHandle): void {
   configManagerInstance = manager;
 }
 
 /** Synchronous peek — set by `setConfigManager` or `initWorkspace`. */
-export function peekConfigManager(): ConfigManager | undefined {
+export function peekConfigManager(): ConfigManagerHandle | undefined {
   return configManagerInstance;
 }
 
 /**
- * Returns the ConfigManager instance, creating a fallback if needed.
- *
- * Why a fallback? Child OpenFin windows (dock editor, Config Browser,
- * registry editor) run in their own JS realm and can't see the
- * Provider window's in-memory `configManagerInstance`. The fallback
- * creates a per-window manager that still connects to the same Dexie
- * database on disk, AND reads the same manifest customSettings the
- * Provider read so REST mode stays consistent across windows. Without
- * this, dock-launched diagnostic UIs would silently run local-only
- * even after the Provider switched into REST mode.
- *
- * The promise guard (initPromise) ensures that even if this function
- * is called multiple times before the first init completes, only one
- * ConfigManager is ever created.
+ * Returns the config handle, connecting the worker hub on first use when
+ * configured. Child OpenFin windows share the worker's authoritative Dexie
+ * instead of opening a second main-thread connection.
  */
-export async function getConfigManager(): Promise<ConfigManager> {
+export async function getConfigManager(): Promise<ConfigManagerHandle> {
   if (configManagerInstance) return configManagerInstance;
   if (!initPromise) {
     initPromise = (async () => {
+      if (getWorkerConfigHubScriptUrl()) {
+        const bootstrap = typeof globalThis !== 'undefined' && (globalThis as { fin?: unknown }).fin
+          ? await resolvePlatformBootstrapFromManifest()
+          : await resolvePlatformBootstrapFromJson('/app-config.json');
+        const manager = await resolveWorkerConfigManager(bootstrap);
+        const deployment = await resolveDeploymentIdentity();
+        setPlatformDefaultScope({
+          appId: manager.getAppId().trim() || deployment.appId,
+          userId: manager.getIdentity().userId.trim() || deployment.userId,
+        });
+        configManagerInstance = manager;
+        initPromise = undefined;
+        return manager;
+      }
+
       const configServiceRestUrl = await getConfigServiceRestUrlFromManifest();
       let seedConfigUrl: string | undefined;
       try {

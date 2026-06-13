@@ -1160,7 +1160,8 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `SharedWorkerDataServicesClient` — main-thread client routing events to listeners; catalog RPC (`waitForCatalogReady`, `getProviderConfig`, `listProviderConfigs`, `saveProviderConfig`, `deleteProviderConfig`, `invalidateConfig`, Config Browser `configBrowserCounts` / `List` / `Get` / `Save` / `Delete` / `Export` / `getConfigBrowserMeta`, `getHubIntrospect`, `isProviderRunning`, `waitForProviderRunning`, `onCatalogChange(detail)`); scoped `catalog-ready` broadcasts carry `providerId` (single row) or `full` (whole catalog); **Deprecated.** passing `cfg` on `attach` / `subscribe` for catalogued providers — use cfg-free attach
 - `wireWorkerCatalogSync()` / `isCatalogConfigRow()` — legacy main-thread invalidation bridge for config-only windows; full `ensurePlatformReady` bootstrap no longer wires it (catalog saves go through worker RPC + cache push)
 - `ensurePlatformReady` — connects SharedWorker hub only (no main-thread `ConfigManager`); worker `defaultEntry` owns seed/attach + Dexie; every completed full bootstrap sets `markPlatformWarm(appId)` in localStorage
-- `ensureConfigReady()` — config-only bootstrap (attach resolution + main-thread ConfigManager init, no hub connect / AppData snapshot / catalog preload); idempotent per `appId`; independent from `ensurePlatformReady` (config-only OpenFin tool windows)
+- `configureWorkerConfigHub()` / `resolveWorkerConfigManager()` — app registers the worker script URL once; library code (`getConfigManager()` fallback, `initWorkspace`) connects the hub without a Vite `?url` import
+- `ensureConfigReady()` — legacy main-thread Dexie bootstrap (tests / plain browser without SharedWorker); production windows use `ensurePlatformReady` or `resolveWorkerConfigManager`
 - one SharedWorker connection per window — `ensureDataServicesHub` owns a per-`appId` `HubConnection` (worker + `SharedWorkerDataServicesClient`); `warmHubConnection()` opens it early (never throws) so the worker spawns while ConfigManager init runs, and the hub bundle adopts the same port (`bootstrapDataServices({ client })`)
 - `writeWorkerBootstrapPayload` / `readWorkerBootstrapPayload` — main thread persists deployment bootstrap (`appId`, `userId`, seed URL, REST URL) in localStorage before `new SharedWorker()`; `defaultEntry` reads it via `self.name` (avoids Vite dev breaking `@fs/` worker URLs with extra query params)
 - `isCatalogReady()`, `platformWarmSession` (`markPlatformWarm` / `isPlatformWarm`)
@@ -1481,8 +1482,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 - `saveDockConfig` / `loadDockConfig` / `clearDockConfig`
 - `saveRegistryConfig` / `loadRegistryConfig` / `clearRegistryConfig`
-- `getConfigManager` — resolve `ConfigClient` for current scope
-- `setConfigManager` — override `ConfigClient`
+- `getConfigManager` / `setConfigManager` / `ConfigManagerHandle` — worker RPC facade when `configureWorkerConfigHub` is registered; legacy main-thread Dexie fallback for tests
 - `setPlatformDefaultScope` — set default `(appId, userId)` scope
 - `migrateLegacyPlatformScope` — v1 → v2 scope migration
 - `realignAllConfigsToPlatformScope` — batch-realign configs

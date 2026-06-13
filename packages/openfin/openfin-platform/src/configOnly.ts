@@ -42,7 +42,7 @@ export {
   loadRegistryConfig,
   clearRegistryConfig,
 } from './db';
-export type { ConfigScope } from './db';
+export type { ConfigScope, ConfigManagerHandle } from './db';
 
 // ── Bulk import of an exported config bundle ────────────────────────
 export {

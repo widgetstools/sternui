@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { LOGGED_IN_USER_ID } from '@starui/types';
 import { BrowserRuntime } from '@starui/host-browser';
 import type { RuntimePort } from '@starui/host';
-import type { ConfigClient, ConfigManager } from '@starui/host-config';
+import type { ConfigClient, ConfigManager, ConfigManagerForProfileStorage } from '@starui/host-config';
 import {
   createConfigClient,
   createConfigServiceStorage,
@@ -53,7 +53,7 @@ export function StarGridApp({
   const [resolved, setResolved] = useState<{
     runtime: RuntimePort;
     configManager?: ConfigClient;
-    configManagerInner?: ConfigManager;
+    configManagerInner?: ConfigManagerForProfileStorage;
     data?: import('@starui/host').DataPort;
   } | null>(null);
 
@@ -74,12 +74,12 @@ export function StarGridApp({
             });
 
       let configManager: ConfigClient | undefined;
-      let configManagerInner: ConfigManager | undefined;
+      let configManagerInner: ConfigManagerForProfileStorage | undefined;
       if (configManagerProp !== undefined) {
         const raw = await Promise.resolve(configManagerProp);
         if (isWorkerConfigManagerClient(raw)) {
           await raw.ready();
-          configManagerInner = raw as unknown as ConfigManager;
+          configManagerInner = raw;
         } else if (isConfigManager(raw)) {
           await raw.init();
           configManagerInner = raw;

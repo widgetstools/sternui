@@ -5,6 +5,13 @@ import { Home, Storefront, type App } from "@openfin/workspace";
 import { init, getCurrentSync, type WorkspacePlatformOverrideCallback } from "@openfin/workspace-platform";
 import { createConfigManager, type ConfigManager } from "@starui/host-config";
 import {
+  getWorkerConfigHubScriptUrl,
+  isWorkerConfigManagerClient,
+  LocalConfigBrowserAccess,
+  resolveWorkerConfigManager,
+  type ConfigBrowserAccess,
+} from '@starui/host-data';
+import {
   peekConfigManager,
   setConfigManager,
   setPlatformDefaultScope,
@@ -13,6 +20,7 @@ import {
   migrateRegistryToGlobalScope,
   migrateRegistryAppIdDrift,
   realignAllConfigsToPlatformScope,
+  type ConfigManagerHandle,
 } from './db';
 import {
   registerDock,
@@ -43,7 +51,7 @@ import { createWorkspacePersistenceOverride } from './workspacePersistence';
 import { gcOrphanedConfigs } from './workspaceGc';
 import { buildCustomActions } from './internal/customActions';
 import { resolveDefaultPlatformScope } from './platformScope';
-import { resolveDeploymentIdentity } from './platformBootstrap';
+import { resolveDeploymentIdentity, resolvePlatformBootstrapFromManifest } from './platformBootstrap';
 import { resolveSeedConfigUrl } from './resolveSeedConfigUrl';
 import {
   openChildToolWindow as openChildWindow,
@@ -132,8 +140,8 @@ function applyLocalDataTheme(isDark: boolean): void {
  */
 let isInitialized = false;
 
-/** The shared ConfigManager instance, created during platform init. */
-let configManager: ConfigManager | undefined;
+/** The shared config handle, created during platform init. */
+let configManager: import('./db.js').ConfigManagerHandle | undefined;
 
 
 /**
@@ -183,11 +191,15 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
     platform?: { providerUrl?: string };
   };
   const providerUrl = manifest.platform?.providerUrl;
+  const deployment = await resolveDeploymentIdentity(settings.customSettings, providerUrl);
   const prewired = peekConfigManager();
   if (prewired) {
     configManager = prewired;
+  } else if (getWorkerConfigHubScriptUrl()) {
+    const bootstrap = await resolvePlatformBootstrapFromManifest();
+    configManager = await resolveWorkerConfigManager(bootstrap);
+    setConfigManager(configManager);
   } else {
-    const deployment = await resolveDeploymentIdentity(settings.customSettings, providerUrl);
     const rawSeedUrl = settings.customSettings?.seedConfigUrl?.trim();
     const seedConfigUrl = rawSeedUrl
       ? await resolveSeedConfigUrl(rawSeedUrl, providerUrl)
@@ -203,11 +215,12 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
     setConfigManager(configManager);
   }
 
-  // Scope comes from seed.json activeAppId / activeUserId via ConfigManager.
-  const defaultScope = await resolveDefaultPlatformScope(
-    configManager,
-    settings.customSettings,
-  );
+  const defaultScope = isWorkerConfigManagerClient(configManager)
+    ? {
+        appId: configManager.getAppId().trim() || deployment.appId,
+        userId: configManager.getIdentity().userId.trim() || deployment.userId,
+      }
+    : await resolveDefaultPlatformScope(configManager, settings.customSettings);
   setPlatformDefaultScope(defaultScope);
   log(
     `Platform default scope: appId='${defaultScope.appId}' userId='${defaultScope.userId}' ` +
@@ -298,7 +311,7 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
   // onWorkspaceChange hook drives orphan-config GC after every workspace
   // mutation so per-instance config rows that no workspace references
   // anymore get reaped.
-  const cm = configManager;
+  const cm = configManager as ConfigManager;
   const workspaceOverride = createWorkspacePersistenceOverride({
     cm,
     appId: defaultScope.appId,
@@ -342,32 +355,17 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
  * Gather all config data from the config service and trigger a JSON download.
  * Shared between the customActions handler and the dockActionHandlers.
  */
-async function exportAllConfig(cm: ConfigManager): Promise<void> {
-  const allApps = await cm.getAllApps();
-  const allConfigs: any[] = [];
-  for (const app of allApps) {
-    // Export crosses app boundaries — the visibility filter would hide
-    // rows under any app other than the manager's own. Use the
-    // unfiltered admin variant so the export captures everything.
-    const configs = await cm.getConfigsByAppUnfiltered(app.appId);
-    allConfigs.push(...configs);
-  }
-  // Dock + registry persist as regular AppConfigRows keyed by a
-  // fixed configId (for the default `system`/`system` scope). Pick
-  // them up via the generic `getConfig()` API — the domain-specific
-  // shim methods were removed when persistence moved into
-  // `openfin-platform/db.ts`. See db.ts for the scoping scheme that
-  // lets per-user / per-app rows coexist.
-  const dockRow = await cm.getConfig('dock-config');
-  if (dockRow) allConfigs.push(dockRow);
-  const registryRow = await cm.getConfig('component-registry');
-  if (registryRow) allConfigs.push(registryRow);
+async function exportAllConfig(handle: ConfigManagerHandle): Promise<void> {
+  const access: ConfigBrowserAccess = isWorkerConfigManagerClient(handle)
+    ? handle
+    : new LocalConfigBrowserAccess(handle);
+  const tables = await access.exportDeployTables();
   const exportData = {
-    appRegistry: allApps,
-    appConfig: allConfigs,
-    userProfiles: [] as any[],
-    roles: await cm.getAllRoles(),
-    permissions: await cm.getAllPermissions(),
+    appRegistry: tables.appRegistry,
+    appConfig: tables.appConfig,
+    userProfiles: tables.userProfiles,
+    roles: tables.roles,
+    permissions: tables.permissions,
     exportedAt: new Date().toISOString(),
   };
   const json = JSON.stringify(exportData, null, 2);
