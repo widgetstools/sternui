@@ -9,6 +9,7 @@ applyTheme(getTheme());
 import { StarGridApp } from "@starui/app";
 import { BrowserRuntime } from "@starui/host-browser";
 import { OpenFinRuntime, isOpenFin } from "@starui/host-openfin";
+import { useOpenFinThemeSync } from "./useOpenFinThemeSync";
 import { DataHubProvider } from "@starui/host-data-react/runtime";
 import type { RuntimePort } from "@starui/host";
 import {
@@ -30,6 +31,13 @@ const DataProviders       = React.lazy(() => import("./views/DataProviders"));
 const WorkspaceSetup = React.lazy(() =>
   import("@starui/workspace-setup-react").then((m) => ({ default: m.WorkspaceSetup })),
 );
+
+/** Workspace-setup mounts outside StarGridApp/OpenFinRuntime, so it subscribes
+ *  to the dock theme toggle directly (otherwise it freezes on the boot theme). */
+function WorkspaceSetupRoute() {
+  useOpenFinThemeSync();
+  return <WorkspaceSetup />;
+}
 
 const LOADING = <div style={{ padding: 16 }}>Loading...</div>;
 
@@ -117,7 +125,7 @@ function AppTree() {
         {/* Config-only windows — no data hub. RenameViewTab is pure fin
             APIs + UI primitives and needs no bootstrap at all. */}
         <Route path="/rename-view-tab" element={<React.Suspense fallback={LOADING}><RenameViewTab /></React.Suspense>} />
-        <Route path="/workspace-setup" element={<ConfigGate><React.Suspense fallback={LOADING}><WorkspaceSetup /></React.Suspense></ConfigGate>} />
+        <Route path="/workspace-setup" element={<ConfigGate><React.Suspense fallback={LOADING}><WorkspaceSetupRoute /></React.Suspense></ConfigGate>} />
 
         {/* Provider window: dock + platform init only need the ConfigManager
             (initWorkspace picks it up via peekConfigManager). The full hub

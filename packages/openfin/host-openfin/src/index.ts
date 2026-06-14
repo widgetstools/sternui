@@ -26,3 +26,4 @@ export {
   type OpenFinNotificationsApi,
   type OpenFinNotificationInput,
 } from './notifications.js';
+export { subscribeThemeBroadcast, readThemePayload } from './themeBroadcast.js';

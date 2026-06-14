@@ -12,6 +12,7 @@ import type { RuntimePort } from '@starui/host';
 import type { IdentityOverrides } from '@starui/host-browser';
 import { resolveOpenFinIdentity, getCurrentView, isOpenFin } from './identity.js';
 import { openOpenFinPopout } from './popout.js';
+import { readThemePayload } from './themeBroadcast.js';
 
 export interface OpenFinRuntimeOptions {
   /** Mount-prop fallbacks for identity resolution. View customData wins when present. */
@@ -500,20 +501,6 @@ export class OpenFinRuntime implements RuntimePort {
       // it themselves until they upgrade.
     }
   }
-}
-
-/**
- * Read a theme value out of a `theme-changed` IAB payload. The dock
- * historically published `{ isDark: boolean }`; the runtime publishes
- * `{ theme: 'dark' | 'light', isDark }` for forward compat. Accepts
- * either shape so cross-version windows keep syncing.
- */
-function readThemePayload(msg: unknown): Theme | null {
-  if (!msg || typeof msg !== 'object') return null;
-  const m = msg as { theme?: unknown; isDark?: unknown };
-  if (m.theme === 'dark' || m.theme === 'light') return m.theme;
-  if (typeof m.isDark === 'boolean') return m.isDark ? 'dark' : 'light';
-  return null;
 }
 
 /** Shallow-equal helper — sufficient for customData payloads which are

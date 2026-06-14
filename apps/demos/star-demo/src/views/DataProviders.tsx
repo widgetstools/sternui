@@ -18,6 +18,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import { DataProviderEditor } from '@starui/widgets-react/provider-editor';
 import { LOGGED_IN_USER_ID } from '@starui/types';
+import { useOpenFinThemeSync } from '../useOpenFinThemeSync';
 
 // userId is single-user-pinned across the codebase — no env override,
 // no customData/URL pickup. See LOGGED_IN_USER_ID in runtime-port.
@@ -26,6 +27,10 @@ const userId = LOGGED_IN_USER_ID;
 function DataProviders() {
   const [params] = useSearchParams();
   const initialProviderId = useMemo(() => params.get('id'), [params]);
+
+  // This route mounts outside StarGridApp/OpenFinRuntime — sync the dock theme
+  // toggle directly so the editor flips with the rest of the platform.
+  useOpenFinThemeSync();
 
   useEffect(() => {
     const prev = document.title;

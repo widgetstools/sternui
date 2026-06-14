@@ -52,40 +52,51 @@ export function ConfigBrowserPanel() {
 
   useEffect(() => { injectEditorStyles(); }, []);
 
-  // Sync theme with OpenFin
+  // Sync theme with the dock toggle. This window mounts outside the
+  // StarGridApp/OpenFinRuntime shell, so it subscribes directly — on BOTH
+  // transports the dock fans out on:
+  //   • IAB `theme-changed` with a wildcard sender uuid (`{ uuid: "*" }`) —
+  //     the dock publishes from the platform provider, whose uuid can differ
+  //     from this window's own; the wildcard avoids that mismatch.
+  //   • same-origin `storage` events on the canonical `starui:theme` key,
+  //     which the dock writes synchronously on every toggle.
+  // The initial value is seeded from that same persisted key (rather than the
+  // hang-prone `platform.Theme.getSelectedScheme()`).
   useEffect(() => {
-    const openFinApi = (window as any).fin;
-    if (typeof openFinApi === "undefined") return;
-
-    async function detectInitialTheme() {
-      try {
-        const platform = openFinApi.Platform.getCurrentSync();
-        const scheme = await platform.Theme.getSelectedScheme();
-        setTheme(scheme === "dark" ? "dark" : "light");
-      } catch { /* keep default */ }
-    }
-    detectInitialTheme();
-
-    function onThemeChanged(data: { isDark: boolean }) {
-      setTheme(data.isDark ? "dark" : "light");
-    }
+    const THEME_KEY = "starui:theme";
+    const toTheme = (msg: any): "dark" | "light" | null => {
+      if (msg?.theme === "dark" || msg?.theme === "light") return msg.theme;
+      if (typeof msg?.isDark === "boolean") return msg.isDark ? "dark" : "light";
+      return null;
+    };
 
     try {
-      openFinApi.InterApplicationBus.subscribe(
-        { uuid: openFinApi.me.identity.uuid },
-        "theme-changed",
-        onThemeChanged,
-      );
-    } catch { /* IAB not ready */ }
+      const stored = window.localStorage.getItem(THEME_KEY);
+      if (stored === "dark" || stored === "light") setTheme(stored);
+    } catch { /* storage unavailable */ }
+
+    const openFinApi = (window as any).fin;
+    const onThemeMsg = (data: unknown) => {
+      const next = toTheme(data);
+      if (next) setTheme(next);
+    };
+    if (openFinApi?.InterApplicationBus?.subscribe) {
+      try {
+        openFinApi.InterApplicationBus.subscribe({ uuid: "*" }, "theme-changed", onThemeMsg);
+      } catch { /* IAB not ready */ }
+    }
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== THEME_KEY) return;
+      if (e.newValue === "dark" || e.newValue === "light") setTheme(e.newValue);
+    };
+    window.addEventListener("storage", onStorage);
 
     return () => {
       try {
-        openFinApi.InterApplicationBus.unsubscribe(
-          { uuid: openFinApi.me.identity.uuid },
-          "theme-changed",
-          onThemeChanged,
-        );
+        openFinApi?.InterApplicationBus?.unsubscribe?.({ uuid: "*" }, "theme-changed", onThemeMsg);
       } catch { /* cleanup */ }
+      window.removeEventListener("storage", onStorage);
     };
   }, []);
 

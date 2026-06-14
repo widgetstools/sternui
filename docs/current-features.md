@@ -961,12 +961,20 @@ modules).
   alignment and typography. No opaque cell renderers — so every auto-applied
   aspect stays editable from the formatter toolbar and saves to the active
   profile. Categorical fields (side/status/rating) are centred only; tickers
-  get bold + left-align
+  get bold + left-align. High-magnitude fields are scaled via Excel trailing
+  commas: P&L → `"K"` (÷1,000, sign-coloured), quantities/sizes → `"K"`,
+  notional / market value → `"M"` (÷1,000,000); small money (fees, commission,
+  accrued interest) stays on plain decimals so it isn't squashed to `0.0M`
 - `matchFieldToCatalog(field, headerName?, cellDataType?)` — resolve a column's
-  `AutoFormatAssignment` by exact field-name alias, then last-element suffix
-  (e.g. `bidPrice` → `price`), then a generic fallback by data type (number →
-  right-aligned grouped 2dp; date → localised; boolean → centred; else none)
+  `AutoFormatAssignment`. Nested paths match on their **last segment only**
+  (`position.marketValue` → `marketValue`). Resolution order: exact alias →
+  last-element suffix (e.g. `bidPrice` → `price`) → phonetic Soundex
+  (catches misspellings/variants, e.g. `yeild` → `yield`) → generic fallback by
+  data type (number → right-aligned grouped 2dp; date → localised; boolean →
+  centred; else none)
 - `normalizeToken()` — lowercase + strip non-alphanumerics for matching
+- `soundex()` — Russell Soundex code (first letter + 3 digits) powering the
+  phonetic match tier
 - `buildAutoFormatPlan(columns)` — map columns → `Record<colId, AutoFormatAssignment>`
 - Types: `FieldFormatEntry`, `AutoFormatAssignment`, `AutoFormatColumn`,
   `AutoFormatAlignment`, `AutoFormatTypography`
@@ -1461,6 +1469,18 @@ modules).
 
 - `subscribeWindowOptions` — listen for `fin.me.getWindowOptions()` changes
 
+#### Cross-window theme sync
+
+- `subscribeThemeBroadcast(onTheme)` — subscribe a window to the dock theme
+  toggle on BOTH transports the dock fans out on: IAB `theme-changed` with a
+  wildcard sender uuid (`{ uuid: '*' }`) **and** same-origin `storage` events on
+  `THEME_STORAGE_KEY`. Returns a disposer. Used by tool windows that mount
+  outside the `StarGridApp` / `OpenFinRuntime` shell (config browser,
+  data-provider editor, workspace setup) so they flip with the rest of the
+  platform; `OpenFinRuntime` itself reuses the shared `readThemePayload` parser.
+- `readThemePayload(msg)` — parse a `theme-changed` payload, accepting both the
+  `{ theme }` and legacy `{ isDark }` shapes.
+
 #### Notifications seam
 
 The single place that touches `@openfin/workspace/notifications`, so framework
@@ -1492,7 +1512,7 @@ of importing `@openfin/*` directly (architecture boundary).
 #### Workspace initialization
 
 - `resolveSeedConfigUrl(seedUrl, providerUrl?)` — resolve relative `seedConfigUrl` (e.g. `/seed.json`) against manifest `platform.providerUrl` origin for dev and production hosts
-- `initWorkspace()` — bootstrap dock + home + context menu + notifications. `WorkspaceConfig.dock.excludeTools?: string[]` hides built-in Tools-menu items by action ID (e.g. `[ACTION_EXPORT_CONFIG, ACTION_IMPORT_CONFIG]`); applies to both dock2 and dock3, default shows all. Workspace chrome palettes (`CustomPaletteSet` dark/light) are resolved at init from loaded `@starui/design-system/css` OKLCH tokens (`buildOpenFinPalettesFromDesignSystem` in `openfinPalette.ts`) by flipping `<html data-theme>` while sampling each scheme — dock, browser tab bar, home/store, and modals follow StarUI light/dark ramps; `defaultWindowOptions.backgroundColor` matches the active scheme backfill.
+- `initWorkspace()` — bootstrap dock + home + context menu + notifications. `WorkspaceConfig.dock.excludeTools?: string[]` hides built-in Tools-menu items by action ID (e.g. `[ACTION_EXPORT_CONFIG, ACTION_IMPORT_CONFIG]`); applies to both dock2 and dock3, default shows all. Workspace chrome palettes (`CustomPaletteSet` dark/light) are resolved at init from loaded `@starui/design-system/css` OKLCH tokens (`buildOpenFinPalettesFromDesignSystem` in `openfinPalette.ts`) by flipping `<html data-theme>` while sampling each scheme — dock, browser tab bar, home/store, and modals follow StarUI light/dark ramps; `defaultWindowOptions.backgroundColor` matches the active scheme backfill. Dark-chrome-only finishing (`finalizeDarkChromePalette`): `borderNeutral` is forced to a light grey and the window header surfaces (`backgroundPrimary` + `background2`) are lifted ~10% toward the foreground so the title bar / tab strip is perceptible against a dark desktop (the design-system `--card`/`--background` tokens are untouched).
 - `WorkspacePlatformOverrideCallback` — workspace lifecycle hooks
 - `workspace.options` — platform settings (name, icon, theme, notifications, dock)
 - `workspacePersistence` — save/load workspace (pinned windows, dock, layouts)
