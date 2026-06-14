@@ -107,9 +107,10 @@ describe('GridOptionsPanel (v4 schema-driven)', () => {
     commitIconInput(screen.getByTestId('go-filter-input'), 'stat');
 
     const toggle = screen.getByTestId('go-status-bar');
-    expect(toggle).toHaveAttribute('data-state', 'unchecked');
-    fireEvent.click(toggle);
+    // Status bar is ON by default — toggling turns it off.
     expect(toggle).toHaveAttribute('data-state', 'checked');
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('data-state', 'unchecked');
     expect((screen.getByTestId('go-save-btn') as HTMLButtonElement).disabled).toBe(false);
   });
 
@@ -127,12 +128,13 @@ describe('GridOptionsPanel (v4 schema-driven)', () => {
     const user = userEvent.setup();
     mount(platform);
     const trigger = screen.getByTestId('go-row-selection');
-    // Initial 'Off' = undefined (label from encoded `__none__` option).
-    expect(trigger).toHaveTextContent('Off');
-
-    await user.click(trigger);
-    await user.click(await screen.findByRole('option', { name: /Multiple rows/i }));
+    // Initial 'Multiple rows' = the default rowSelection mode.
     expect(trigger).toHaveTextContent('Multiple rows');
+
+    // Selecting 'Off' exercises the sentinel-encoded `undefined` option.
+    await user.click(trigger);
+    await user.click(await screen.findByRole('option', { name: 'Off' }));
+    expect(trigger).toHaveTextContent('Off');
   });
 
   it('conditional fields (PAGE SIZE) render only when pagination=true', () => {

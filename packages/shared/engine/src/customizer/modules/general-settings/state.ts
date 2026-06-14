@@ -120,10 +120,12 @@ export interface GeneralSettingsState {
    *  `headerName` values remain unchanged so switching this off restores the
    *  original camelCase / Title Case captions. */
   headerCaseUppercase: boolean;
-  /** Show every cell's value as a hover tooltip. Wired to AG-Grid via
-   *  `defaultColDef.tooltipValueGetter` so truncated cell content stays
-   *  readable on hover without per-column configuration. Off by default —
-   *  flipped via the formatter toolbar's "tooltip" pill. */
+  /** Show every cell's RAW underlying value as a hover tooltip. Wired to
+   *  AG-Grid via `defaultColDef.tooltipValueGetter` so clipped cell content
+   *  stays readable on hover without per-column configuration. On by default
+   *  and paired with `tooltipShowMode: 'whenTruncated'` so the tooltip only
+   *  surfaces when the text is actually truncated; also flipped via the
+   *  formatter toolbar's "tooltip" pill. */
   showCellTooltips: boolean;
 
   // ─── Default ColDef ──────────────────────────────────────────────────────
@@ -259,8 +261,8 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   paginationPageSize: 100,
   paginationAutoPageSize: false,
   suppressPaginationPanel: false,
-  rowSelection: undefined,
-  checkboxSelection: false,
+  rowSelection: 'multiRow',
+  checkboxSelection: true,
   cellSelection: true,
   rowDragging: false,
   animateRows: true,
@@ -270,9 +272,9 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   quickFilterText: '',
 
   // Tier 2
-  groupDisplayType: undefined,
+  groupDisplayType: 'singleColumn',
   groupDefaultExpanded: 0,
-  rowGroupPanelShow: 'never',
+  rowGroupPanelShow: 'always',
   pivotMode: false,
   pivotPanelShow: 'never',
   grandTotalRow: undefined,
@@ -307,13 +309,13 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   undoRedoCellEditing: false,
   undoRedoCellEditingLimit: 10,
   tooltipShowDelay: 2000,
-  tooltipShowMode: 'standard',
+  tooltipShowMode: 'whenTruncated',
 
   // Tier 5
   suppressRowHoverHighlight: false,
   columnHoverHighlight: false,
   headerCaseUppercase: false,
-  showCellTooltips: false,
+  showCellTooltips: true,
 
   // Default ColDef — sizing
   defaultResizable: true,
@@ -333,7 +335,7 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   suppressPaste: false,
   suppressNavigable: false,
   // Header
-  wrapHeaderText: false,
+  wrapHeaderText: true,
   autoHeaderHeight: false,
   suppressHeaderMenuButton: false,
   // Movement & locking
@@ -346,7 +348,7 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   autoHeight: false,
   enableCellChangeFlash: false,
   // Row grouping / pivoting
-  enableRowGroup: false,
+  enableRowGroup: true,
   enablePivot: false,
   enableValue: false,
   // Legacy / shared flags
@@ -354,19 +356,20 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   suppressDragLeaveHidesColumns: true,
   suppressColumnMoveAnimation: false,
 
-  // Side Bar — off by default; matches AG-Grid's stock behaviour. Both
-  // tool panels start as enabled-but-not-yet-visible so toggling the
-  // master switch on gives a usable sidebar without further config.
-  sideBar: false,
+  // Side Bar — ON by default so a fresh grid ships with the columns +
+  // filters tool panels reachable from the button strip. Both panels are
+  // enabled; `sideBarDefaultPanel: undefined` leaves the strip visible but
+  // no panel pre-opened, so it doesn't steal horizontal space until clicked.
+  sideBar: true,
   sideBarShowColumns: true,
   sideBarShowFilters: true,
   sideBarDefaultPanel: undefined,
 
-  // Status Bar — off by default. When enabled, the four standard
-  // counters are pre-checked because they're the typical "I want a
-  // status bar" use case; aggregation is opt-in since it requires
-  // cell-range selection to be useful.
-  statusBar: false,
+  // Status Bar — ON by default. The two row-count panels are pre-checked
+  // (total/filtered + selected) because that's the typical "I want a status
+  // bar" use case; aggregation is opt-in since it requires cell-range
+  // selection to be useful.
+  statusBar: true,
   statusBarShowTotalAndFilteredCount: true,
   statusBarShowFilteredCount: false,
   statusBarShowTotalCount: false,
