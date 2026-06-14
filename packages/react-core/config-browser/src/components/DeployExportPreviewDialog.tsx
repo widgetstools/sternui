@@ -5,7 +5,7 @@
  */
 
 import { useState } from "react";
-import { Button } from "@starui/ui";
+import { Button, Checkbox } from "@starui/ui";
 import { DynamicIcon as Icon } from "@starui/config-browser/icons";
 import type { DeployExportResult, DeployExportWarning } from "@starui/host-config";
 
@@ -92,10 +92,9 @@ export function DeployExportPreviewDialog({
 
           {hasIssues && (
             <label className="mt-4 flex items-start gap-2 text-[12px] text-[var(--de-text-secondary)] cursor-pointer">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={acknowledgeWarnings}
-                onChange={(e) => setAcknowledgeWarnings(e.target.checked)}
+                onCheckedChange={(v) => setAcknowledgeWarnings(v === true)}
                 className="mt-0.5"
               />
               <span>

@@ -12,7 +12,7 @@ const fakeHandle = {
   profiles: { saveActiveProfile } as any,
 };
 
-vi.mock('../../v2/markets-grid-container/index.js', () => ({
+vi.mock('../../container/markets-grid-container/index.js', () => ({
   MarketsGridContainer: (props: any) => {
     // Mimic real container behavior: onReady fires once after mount.
     setTimeout(() => props.onReady?.(fakeHandle), 0);

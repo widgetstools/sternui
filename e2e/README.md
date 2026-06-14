@@ -1,39 +1,27 @@
 # End-to-end tests
 
-Playwright suite for the demo app at `apps/demo`. Run with `npm run test:e2e`.
+Playwright suite for the demo apps (primary target `@starui/demo-react` on
+:5190). Run with `npm run e2e`.
 
 ## Current shape
 
-```
-e2e/
-├── helpers/
-│   └── settingsSheet.ts             bootCleanDemo, openPanel, forceNavigateToPanel, closeSettingsSheet
-├── v2-autosave.spec.ts              auto-save debounce + profile round-trip
-├── v2-conditional-styling.spec.ts   full behavioural coverage — rule authoring, paint pipeline, persist
-├── v2-filters-toolbar.spec.ts       pill create / toggle / rename / multi-filter
-├── v2-formatting-toolbar.spec.ts    B/I/U + align + color + borders + templates
-├── v2-perf.spec.ts                  render-timing smoke
-├── v2-calculated-columns.spec.ts    full behavioural coverage — virtual column CRUD + seed + persist
-├── v2-column-customization.spec.ts  full behavioural coverage — all 8 bands of ColumnSettingsPanel
-├── v2-column-groups.spec.ts         full behavioural coverage — tree mutation + openGroupIds persistence
-├── v2-column-templates.spec.ts      indirect editor — save from toolbar / apply / picker / remove
-├── v2-general-settings.spec.ts      full behavioural coverage — Grid Options panel controls + grid reflection
-├── v2-settings-panels.spec.ts       panel-mount smoke + nav helper guards (all 5 editors)
-└── v2-two-grid-isolation.spec.ts    per-grid state isolation under DockManager
-```
+The suite has grown well past its original handful of specs. As of
+2026-06-13 it collects:
 
-As of 2026-04-19 the suite is **109/109 green**. Two spec files were retired
-in that cleanup because they had diverged from the app's actual behaviour:
+- **Main suite** (`playwright.config.ts`) — **384 tests across 48 specs**.
+- **Container suite** (`playwright.container.config.ts`, the
+  `container-*.spec.ts` files excluded from the main config) — **16 tests
+  across 5 specs**, run with `npm run e2e:container`.
 
-- `v2-column-groups.spec.ts` — 18/21 tests failing due to settings-sheet
-  nav layout changes. Replace with fresh tests next time the column-
-  groups panel ships a feature change.
-- `v2-conditional-styling-columns.spec.ts` — 6/6 failing for the same
-  reason. Rewrite alongside the next conditional-styling change.
+`e2e/helpers/settingsSheet.ts` provides the shared harness
+(`bootCleanDemo`, `openPanel`, `forceNavigateToPanel`, `closeSettingsSheet`).
 
-Handful of failing tests in the two surviving specs
-(`v2-conditional-styling.spec.ts`, `v2-filters-toolbar.spec.ts`) were
-trimmed the same way.
+The full spec inventory, the seven-server `webServer` topology, known-fragile
+specs, and the procedure for capturing a fresh pass/fail baseline live in
+[`../docs/E2E_STATUS.md`](../docs/E2E_STATUS.md) — keep that file in sync when
+specs are added, removed, or re-pointed. Pass/fail counts are captured from a
+live run there rather than asserted here, because the multi-server topology
+makes a stale snapshot misleading.
 
 ## Policy: tests ride alongside features
 
@@ -110,12 +98,16 @@ Add a new `PanelModuleId` + root-testid entry to the helper when a new module sh
 ## Running locally
 
 ```
-npm run test:e2e                                   # full suite
+npm run e2e                                        # full main suite
+npm run e2e:container                              # container-* specs (own config + :5215 host)
 npx playwright test e2e/v2-filters-toolbar.spec.ts # single spec
 npx playwright test -g "captures current filter"   # grep test title
 npx playwright test --debug                        # interactive
 ```
 
-The dev server auto-starts on port 5190 if nothing is already there.
-Kill stale dev servers with `lsof -ti:5190 | xargs kill` before a run
-if a previous run's server is still alive with stale code.
+The main suite auto-starts its seven dev servers (see the topology table in
+[`../docs/E2E_STATUS.md`](../docs/E2E_STATUS.md)); each reuses an existing
+server on its port if one is already listening. Kill stale dev servers before
+a clean run so a previous run's stale code isn't silently reused — on Windows,
+`Get-Process node | Stop-Process -Force` (scope as needed); on Unix,
+`lsof -ti:5190 | xargs kill`.

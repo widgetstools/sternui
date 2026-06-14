@@ -11,6 +11,21 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.js"
+    },
+    "./configuration": {
+      "types": "./dist/configuration.d.ts",
+      "import": "./dist/configuration.js",
+      "require": "./dist/configuration.js"
+    },
+    "./dataProvider": {
+      "types": "./dist/dataProvider.d.ts",
+      "import": "./dist/dataProvider.js",
+      "require": "./dist/dataProvider.js"
+    },
+    "./fieldSelector": {
+      "types": "./dist/fieldSelector.d.ts",
+      "import": "./dist/fieldSelector.js",
+      "require": "./dist/fieldSelector.js"
     }
   },
   "scripts": {

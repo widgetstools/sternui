@@ -9,7 +9,7 @@ import type { ConfigManager } from '@starui/host-config';
 
 const lastProviderGridHost = { current: null as { available?: boolean } | null };
 
-vi.mock('../../v2/markets-grid-container/index.js', () => ({
+vi.mock('../../container/markets-grid-container/index.js', () => ({
   MarketsGridContainer: () => {
     lastProviderGridHost.current = { available: true };
     return <div data-testid="mds-stub" data-provider-host="1" />;

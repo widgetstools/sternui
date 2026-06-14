@@ -12,17 +12,17 @@
       "import": "./dist/index.js",
       "require": "./dist/index.js"
     },
-    "./v2/markets-grid-container": {
-      "types": "./dist/v2/markets-grid-container/index.d.ts",
-      "import": "./dist/v2/markets-grid-container/index.js"
+    "./markets-grid-container": {
+      "types": "./dist/container/markets-grid-container/index.d.ts",
+      "import": "./dist/container/markets-grid-container/index.js"
     },
-    "./v2/provider-editor": {
-      "types": "./dist/v2/provider-editor/index.d.ts",
-      "import": "./dist/v2/provider-editor/index.js"
+    "./provider-editor": {
+      "types": "./dist/container/provider-editor/index.d.ts",
+      "import": "./dist/container/provider-editor/index.js"
     },
-    "./v2/data-provider-selector": {
-      "types": "./dist/v2/data-provider-selector/index.d.ts",
-      "import": "./dist/v2/data-provider-selector/index.js"
+    "./data-provider-selector": {
+      "types": "./dist/container/data-provider-selector/index.d.ts",
+      "import": "./dist/container/data-provider-selector/index.js"
     },
     "./hosted": {
       "types": "./dist/hosted/index.d.ts",
@@ -36,7 +36,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "soak:value-getter": "npx cross-env SOAK=1 NODE_OPTIONS=--expose-gc vitest run src/v2/markets-grid-container/valueGetter.soak.test.ts --no-file-parallelism"
+    "soak:value-getter": "npx cross-env SOAK=1 NODE_OPTIONS=--expose-gc vitest run src/container/markets-grid-container/valueGetter.soak.test.ts --no-file-parallelism"
   },
   "peerDependencies": {
     "react": "^19.2.5",

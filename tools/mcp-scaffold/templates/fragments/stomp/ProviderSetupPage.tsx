@@ -1,4 +1,4 @@
-import { DataProviderEditor } from '@starui/widgets-react/v2/provider-editor';
+import { DataProviderEditor } from '@starui/widgets-react/provider-editor';
 import { LOGGED_IN_USER_ID } from '@starui/types';
 
 export function ProviderSetupPage() {

@@ -5,7 +5,7 @@ import type { ConfigManager } from '@starui/host-config';
 
 // Stubbed container records every prop it receives so we can assert
 // what HostedMarketsGrid forwards.
-vi.mock('../../v2/markets-grid-container/index.js', () => ({
+vi.mock('../../container/markets-grid-container/index.js', () => ({
   MarketsGridContainer: (props: any) => (
     <div
       data-testid="mds-stub"

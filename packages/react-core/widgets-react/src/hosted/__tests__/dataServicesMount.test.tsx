@@ -16,7 +16,7 @@ import { useDataServices } from '@starui/host-data-react/runtime';
 let captureClient: unknown = null;
 let throwsOnRead = false;
 
-vi.mock('../../v2/markets-grid-container/index.js', () => ({
+vi.mock('../../container/markets-grid-container/index.js', () => ({
   MarketsGridContainer: () => {
     try {
       const ctx = useDataServices();

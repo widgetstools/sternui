@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createMarketsGridLocalStorageStorage } from '@starui/grid';
-import { MarketsGridContainer } from '@starui/widgets-react/v2/markets-grid-container';
+import { MarketsGridContainer } from '@starui/widgets-react/markets-grid-container';
 import { useDataServices, useUserIdFromContext } from '@starui/host-data-react/runtime';
 import { gridEventHandlers } from './platform/gridEventHandlers.js';
 import { gridHandlerMeta } from './platform/hooksMeta.js';

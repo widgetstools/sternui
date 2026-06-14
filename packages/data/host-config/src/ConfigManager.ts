@@ -40,6 +40,18 @@ import type {
   UserProfileRow,
 } from './types';
 import { isVisible, type VisibilityContext } from './visibility';
+import {
+  type SeedLockManager,
+  APPLICATION_CONTEXT_NAME,
+  DEFAULT_APP_ID,
+  DEFAULT_IDENTITY,
+  GLOBAL_OWNER_USER_ID,
+  COMPONENT_TYPE_REGISTRY,
+  COMPONENT_TYPE_DATA_PROVIDER,
+  COMPONENT_TYPE_APPDATA,
+  PENDING_SYNC_INTERVAL_MS,
+  MAX_SYNC_RETRIES,
+} from './configManagerInternals';
 
 /**
  * Subset of `ApplicationContext.ImpersonatedUser` used by
@@ -48,27 +60,6 @@ import { isVisible, type VisibilityContext } from './visibility';
  * `LoggedInUser` shape they already hold.
  */
 export type ImpersonatedUser = { userId: string; displayName?: string };
-
-/**
- * Minimal structural view of the Web Locks `LockManager` used for the
- * cold-start seed lock. Declared locally so the package does not depend on the
- * DOM lib's `LockManager` type being present in every consuming tsconfig.
- */
-interface SeedLockManager {
-  request(
-    name: string,
-    options: { mode: 'exclusive' | 'shared' },
-    callback: () => Promise<void>,
-  ): Promise<void>;
-}
-
-/**
- * Fixed name of the framework-owned AppData provider (Decision 4 in
- * `config-manager-redesign.md`). Every ConfigManager that's wired
- * with `dataServices` writes its identity / profile keys into this
- * single named row; consumers read it via `appData.get(...)`.
- */
-const APPLICATION_CONTEXT_NAME = 'ApplicationContext';
 
 /**
  * Optional behavior knobs on a single `saveConfig` call. Adding fields
@@ -85,31 +76,6 @@ export interface SaveConfigOptions {
    */
   expectedUpdatedTime?: string;
 }
-
-// Dev placeholders used when the host app doesn't pass `appId` /
-// `identity`. Keep these aligned with the JSDoc on the option fields
-// so first-run docs and runtime defaults can never drift.
-const DEFAULT_APP_ID = 'dev-app';
-const DEFAULT_IDENTITY: AppIdentity = {
-  userId: 'dev-user',
-  displayName: 'Dev User',
-};
-
-/** Rows shared across every user of the app keep `userId: 'system'`. */
-const GLOBAL_OWNER_USER_ID = 'system';
-const COMPONENT_TYPE_REGISTRY = 'component-registry';
-const COMPONENT_TYPE_DATA_PROVIDER = 'data-provider';
-const COMPONENT_TYPE_APPDATA = 'appdata';
-
-// How often to retry failed REST writes.
-// 10 seconds is a balance: short enough to recover quickly after a
-// network blip, long enough not to flood the server with retries.
-const PENDING_SYNC_INTERVAL_MS = 10_000;
-
-// How many times to retry a failed REST write before giving up.
-// After MAX_SYNC_RETRIES, the row stays in PENDING_SYNC for manual
-// investigation — it is never automatically deleted on failure.
-const MAX_SYNC_RETRIES = 10;
 
 /**
  * Create a new ConfigManager instance.

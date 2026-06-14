@@ -7,7 +7,7 @@ import type { ConfigManager } from '@starui/host-config';
 // without bringing AG-Grid, the data-services runtime, or the live picker
 // into the test bundle. The wrapper's job is composition; this asserts
 // it gets to the point of rendering its child.
-vi.mock('../../v2/markets-grid-container/index.js', () => ({
+vi.mock('../../container/markets-grid-container/index.js', () => ({
   MarketsGridContainer: (props: any) => (
     <div
       data-testid="mds-stub"

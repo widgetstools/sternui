@@ -10,7 +10,7 @@ import { cleanup, render, waitFor } from '@testing-library/react';
 import type { ConfigManager } from '@starui/host-config';
 
 const mgcProps: any[] = [];
-vi.mock('../../v2/markets-grid-container/index.js', () => ({
+vi.mock('../../container/markets-grid-container/index.js', () => ({
   MarketsGridContainer: (props: any) => {
     mgcProps.push(props);
     return <div data-testid="mds-stub" data-has-storage={String(Boolean(props.storage))} />;

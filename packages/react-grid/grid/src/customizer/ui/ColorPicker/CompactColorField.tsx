@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Eye, EyeOff, Minus, Pipette } from 'lucide-react';
 import { FormatColorPicker } from '../format-editor';
-import { Popover, PopoverContent, PopoverTrigger, Input } from '@starui/ui';
+import { Popover, PopoverContent, PopoverTrigger, Input, Slider } from '@starui/ui';
 import { ChromeButton } from '../ChromeButton';
 
 /**
@@ -320,21 +320,17 @@ function CompactColorFieldPopover({
               {localAlpha}%
             </span>
           </div>
-          <input
-            type="range"
+          <Slider
             min={0}
             max={100}
-            value={localAlpha}
-            onChange={(e) => {
-              const next = Number(e.target.value);
+            step={1}
+            value={[localAlpha]}
+            onValueChange={(v) => {
+              const next = v[0] ?? 0;
               setLocalAlpha(next);
               if (value) onChange(value, next);
             }}
-            style={{
-              width: '100%',
-              accentColor: 'var(--ds-accent-positive)',
-              cursor: 'pointer',
-            }}
+            style={{ width: '100%', cursor: 'pointer' }}
           />
         </div>
 

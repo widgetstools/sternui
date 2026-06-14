@@ -20,3 +20,9 @@ export {
   debugOpenFin,
   openFinWindowOpener,
 } from './popoutWindow.js';
+export {
+  loadOpenFinNotificationsApi,
+  dispatchOpenFinNotification,
+  type OpenFinNotificationsApi,
+  type OpenFinNotificationInput,
+} from './notifications.js';

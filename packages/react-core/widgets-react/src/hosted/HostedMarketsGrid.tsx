@@ -22,7 +22,7 @@ import type { DataServices } from '@starui/host-data/runtime';
 import type { ResolvedDataServicesHubBundle } from '@starui/host-data';
 import { DataServicesProvider, DataHubProvider } from '@starui/host-data-react/runtime';
 import type { MarketsGridHandle } from '@starui/grid';
-import { MarketsGridContainer, type MarketsGridContainerProps } from '../v2/markets-grid-container/index.js';
+import { MarketsGridContainer, type MarketsGridContainerProps } from '../container/markets-grid-container/index.js';
 import { useHostedView } from './useHostedView.js';
 import { useGridContextLink, type GridContextLinkConfig } from './useGridContextLink.js';
 import type { AgGridThemeMode } from './useAgGridTheme.js';

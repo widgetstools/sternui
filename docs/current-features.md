@@ -576,9 +576,9 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 **Public exports:**
 
 - `.` — blotter components, hooks, provider, theme
-- `./v2/markets-grid-container` — `MarketsGridContainer`, `DatePicker`, `ProviderSelection`, `ProviderMode`
-- `./v2/provider-editor` — `DataProviderEditor`, `EditorForm`, `useProviderProbe`, `cloneProviderConfig`, `exportProviderConfig`, `parseProviderConfigImport`
-- `./v2/data-provider-selector` — `DataProviderSelector`
+- `./markets-grid-container` — `MarketsGridContainer`, `DatePicker`, `ProviderSelection`, `ProviderMode`
+- `./provider-editor` — `DataProviderEditor`, `EditorForm`, `useProviderProbe`, `cloneProviderConfig`, `exportProviderConfig`, `parseProviderConfigImport`
+- `./data-provider-selector` — `DataProviderSelector`
 - `./hosted` — `HostedMarketsGrid` (legacy wrapper)
 
 #### Blotter framework (v2)
@@ -766,7 +766,17 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 ### 5.1 `@starui/shared-types` & `@starui/types`
 
 **Paths:** `packages/shared/shared-types`, `packages/shared/types`
-**Purpose:** Shared type contracts for StarGrid host ports and runtime. `@starui/types` is the slim runtime subset; `@starui/shared-types` additionally exports `configuration` (`COMPONENT_TYPES`, `COMPONENT_SUBTYPES`, …), `dockConfig`, `dockTreeUtils`, `simpleBlotter`, and `widget` modules during the consolidation transition.
+**Purpose:** Shared type contracts for StarGrid host ports and runtime.
+`@starui/shared-types` is the **single source of truth** for the
+`dataProvider`, `configuration`, and `fieldSelector` modules — exposed as
+subpath exports (`@starui/shared-types/dataProvider`, `/configuration`,
+`/fieldSelector`) and re-exported by `@starui/types` so existing
+`@starui/types` consumers keep their import paths while definitions stay
+unified. `@starui/shared-types` additionally exports `configuration`
+(`COMPONENT_TYPES`, `COMPONENT_SUBTYPES`, …), `dockConfig`, `dockTreeUtils`,
+`simpleBlotter`, and `widget` modules. `@starui/types` remains the slim
+runtime subset (and depends on `@starui/shared-types` for the unified
+modules).
 
 #### Runtime constants
 
@@ -1424,6 +1434,17 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 #### Window options subscription
 
 - `subscribeWindowOptions` — listen for `fin.me.getWindowOptions()` changes
+
+#### Notifications seam
+
+The single place that touches `@openfin/workspace/notifications`, so framework
+adapters (e.g. `@starui/grid` alerts) dispatch via this injected seam instead
+of importing `@openfin/*` directly (architecture boundary).
+
+- `loadOpenFinNotificationsApi()` — dynamic, runtime-only loader; resolves
+  `null` in non-OpenFin apps
+- `dispatchOpenFinNotification(api, input)` — register + create a notification
+- `OpenFinNotificationsApi`, `OpenFinNotificationInput` — seam types
 
 ---
 

@@ -33,6 +33,30 @@ jobs:
       - name: npm install
         run: npm install
 
+  quality:
+    name: Lint + hygiene checks
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm install
+      - name: ESLint (packages)
+        run: npm run lint
+      - name: Package dependency cycles
+        run: npm run check:deps
+      - name: No native <select> in apps
+        run: npm run check:no-native-select
+      - name: Design-system dependency hygiene
+        run: npm run check:design-system-deps
+      # Informational only — the design-system token migration still has a
+      # known backlog of legitimate-hex exceptions. Surface it without gating.
+      - name: Design-system token policy (report-only)
+        run: npm run check:ds-tokens
+        continue-on-error: true
+
   packages:
     name: Packages (build + typecheck + test)
     needs: install
@@ -49,6 +73,28 @@ jobs:
         run: npm run typecheck:packages
       - name: Unit tests (packages)
         run: npm run test:packages
+
+  coverage:
+    name: Coverage (report-only)
+    needs: install
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm install
+      - name: Unit tests with coverage
+        run: npm run test:coverage
+        continue-on-error: true
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: packages/**/coverage
+          retention-days: 7
+          if-no-files-found: warn
 
   consumer:
     name: Consumer apps (installed build + typecheck)

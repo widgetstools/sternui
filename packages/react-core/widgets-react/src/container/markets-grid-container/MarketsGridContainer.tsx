@@ -44,7 +44,8 @@ import {
   useDataServices,
 } from '@starui/host-data-react/runtime';
 import { buildColumnDefs } from './buildColumnDefs.js';
-import { createApplyProviderToGridState } from './applyProviderToGrid.js';
+import { useProviderDataWiring } from './useProviderDataWiring.js';
+import { useGridLevelPersistence } from './useGridLevelPersistence.js';
 import { LOGGED_IN_USER_ID } from '@starui/types';
 import {
   createConfigBrowserAction,
@@ -55,18 +56,11 @@ import { ProviderEditorDialog } from './ProviderEditorDialog.js';
 import { MarketsGridLoadingOverlay } from './LoadingOverlay.js';
 import { isOpenFinRuntime } from './openFinRuntime.js';
 import {
-  DEFAULT_PROVIDER_SELECTION,
-  normalizeGridLevelData,
-  serializeGridLevelData,
-  type GridLevelStateV1,
   type ProviderMode,
   type ProviderSelection,
 } from './gridLevelState.js';
 
 export type { ProviderMode, ProviderSelection } from './gridLevelState.js';
-
-/** Historical restore only — brief peer race before `restartProvider()`. Live mode connects immediately. */
-const PEER_PROVIDER_WAIT_MS = 2_000;
 
 const EMPTY: never[] = [];
 
@@ -139,8 +133,6 @@ export interface MarketsGridContainerProps<TData extends Record<string, unknown>
   handlerMeta?: MarketsGridHandlerMeta;
 }
 
-const DEFAULT_SELECTION = DEFAULT_PROVIDER_SELECTION;
-
 export function MarketsGridContainer<TData extends Record<string, unknown> = Record<string, unknown>>(
   props: MarketsGridContainerProps<TData>,
 ) {
@@ -199,15 +191,29 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     });
   }, [storageFactory, props.instanceId, props.gridId, props.appId, props.userId]);
 
-  // ── Picker state ──────────────────────────────────────────────────
+  // ── Picker state + grid-level persistence ─────────────────────────
   //
-  // `loaded === false` while we wait for the first load. Once it
-  // flips, MarketsGrid mounts with the persisted selection in place
-  // — no second mount required when the load resolves.
-  const [selection, setSelection] = useState<ProviderSelection>(DEFAULT_SELECTION);
-  const [persistedCaption, setPersistedCaption] = useState<string | undefined>(undefined);
-  const [eventBindings, setEventBindings] = useState<Record<string, string[]>>({});
-  const [loaded, setLoaded] = useState(false);
+  // Selection / caption / event-binding state and the load/persist/import
+  // effects that keep them in sync with the storage adapter live in
+  // useGridLevelPersistence. `loaded === false` while the first load is
+  // pending — MarketsGrid mounts with the persisted selection in place once
+  // it flips, so no second mount is needed when the load resolves.
+  const {
+    selection,
+    setSelection,
+    persistedCaption,
+    setPersistedCaption,
+    eventBindings,
+    setEventBindings,
+    loaded,
+  } = useGridLevelPersistence({
+    adapter,
+    gridId: props.gridId,
+    defaultLiveProviderId,
+    defaultHistoricalProviderId,
+    gridHandle,
+  });
+
   const [asOfDate, setAsOfDate] = useState<string | null>(null);
   const [toolbarDate, setToolbarDate] = useState(todayIsoDate);
   // Carries the *intent* of a queued toolbar reload — the mode + asOfDate the
@@ -219,65 +225,6 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const [providerEditorOpen, setProviderEditorOpen] = useState(false);
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
   const [configBrowserOpen, setConfigBrowserOpen] = useState(false);
-  const lastSavedRef = useRef<GridLevelStateV1 | null>(null);
-  /** False when disk has no provider link yet — bootstrap should write once. */
-  const diskHadProviderLinkRef = useRef<boolean | null>(null);
-  const persistChainRef = useRef<Promise<void>>(Promise.resolve());
-
-  // Fill empty provider slots from the configured defaults. Shared by the
-  // initial load and the import-restore handler so both reconcile the
-  // persisted selection against host defaults identically.
-  const applyDefaults = useCallback(
-    (sel: ProviderSelection): ProviderSelection => {
-      let next = sel;
-      if (!next.liveProviderId && defaultLiveProviderId) {
-        next = { ...next, liveProviderId: defaultLiveProviderId, mode: 'live' };
-      }
-      if (!next.historicalProviderId && defaultHistoricalProviderId) {
-        next = { ...next, historicalProviderId: defaultHistoricalProviderId };
-      }
-      return next;
-    },
-    [defaultLiveProviderId, defaultHistoricalProviderId],
-  );
-
-  // Initial load. If the adapter doesn't implement grid-level data
-  // (older third-party adapters), or there's no adapter at all, we
-  // fall through to the default selection and mark as loaded.
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!adapter?.loadGridLevelData) {
-      diskHadProviderLinkRef.current = false;
-      if (defaultLiveProviderId || defaultHistoricalProviderId) {
-        setSelection(applyDefaults({ ...DEFAULT_SELECTION }));
-      }
-      setLoaded(true);
-      return;
-    }
-    void adapter
-      .loadGridLevelData(props.gridId)
-      .then((raw) => {
-        if (cancelled) return;
-        const state = normalizeGridLevelData(raw);
-        diskHadProviderLinkRef.current = Boolean(
-          state.provider.liveProviderId || state.provider.historicalProviderId,
-        );
-        setSelection(applyDefaults(state.provider));
-        setPersistedCaption(state.caption);
-        setEventBindings(state.eventBindings ?? {});
-        setLoaded(true);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        diskHadProviderLinkRef.current = false;
-        setSelection({ ...DEFAULT_SELECTION });
-        setPersistedCaption(undefined);
-        setEventBindings({});
-        setLoaded(true);
-      });
-    return () => { cancelled = true; };
-  }, [adapter, props.gridId, applyDefaults]);
 
   // Restore toolbar date from AppData when persisted mode is historical.
   useEffect(() => {
@@ -294,90 +241,6 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       // hub slot is already warm; restart only when this window cold-starts.
     }
   }, [loaded, selection.mode, historicalDateAppDataRef, appData.store]);
-
-  // Persist on mutation. `lastSavedRef` skips the initial sync when
-  // `loaded` flips (state just came FROM disk; saving back would be a
-  // no-op write) AND handles React StrictMode's double-effect correctly
-  // across remounts. Tracks both the picker selection and the persisted
-  // caption — they share the same gridLevelData blob.
-  useEffect(() => {
-    if (!loaded) return;
-    const next = serializeGridLevelData({
-      v: 1,
-      provider: selection,
-      caption: persistedCaption,
-      eventBindings: Object.keys(eventBindings).length > 0 ? eventBindings : undefined,
-    });
-    const enqueuePersist = (payload: GridLevelStateV1) => {
-      if (!adapter?.saveGridLevelData) return;
-      persistChainRef.current = persistChainRef.current
-        .then(() => adapter.saveGridLevelData!(props.gridId, payload))
-        .catch((err) => {
-          console.warn('[markets-grid-container] gridLevelData save failed:', err);
-        });
-    };
-
-    if (lastSavedRef.current === null) {
-      lastSavedRef.current = next;
-      const shouldBootstrapPersist =
-        diskHadProviderLinkRef.current === false
-        && Boolean(next.provider.liveProviderId || next.provider.historicalProviderId);
-      if (shouldBootstrapPersist) {
-        diskHadProviderLinkRef.current = true;
-        enqueuePersist(next);
-      }
-      return;
-    }
-    const prev = lastSavedRef.current;
-    if (
-      prev.provider.liveProviderId === next.provider.liveProviderId
-      && prev.provider.historicalProviderId === next.provider.historicalProviderId
-      && prev.provider.mode === next.provider.mode
-      && prev.caption === next.caption
-      && JSON.stringify(prev.eventBindings ?? {}) === JSON.stringify(next.eventBindings ?? {})
-    ) {
-      return;
-    }
-    lastSavedRef.current = next;
-    enqueuePersist(next);
-  }, [selection, persistedCaption, eventBindings, loaded, adapter, props.gridId]);
-
-  // Apply grid-level data restored by a profile import (schemaVersion 2).
-  // The ProfileManager has already written the blob to the same backing
-  // row and emitted `gridLevelData:imported`; this mirrors it into live
-  // picker/caption/binding state so the view updates without a reload.
-  // `lastSavedRef` is primed to the applied value so the persist effect
-  // above treats it as already-on-disk and skips a redundant write (which
-  // would also bump the row version unnecessarily).
-  const applyImportedGridLevelData = useCallback(
-    (raw: unknown) => {
-      const state = normalizeGridLevelData(raw);
-      const provider = applyDefaults(state.provider);
-      const bindings = state.eventBindings ?? {};
-      lastSavedRef.current = serializeGridLevelData({
-        v: 1,
-        provider,
-        caption: state.caption,
-        eventBindings: Object.keys(bindings).length > 0 ? bindings : undefined,
-      });
-      setSelection(provider);
-      setPersistedCaption(state.caption);
-      setEventBindings(bindings);
-    },
-    [applyDefaults],
-  );
-
-  // Subscribe to the grid's `gridLevelData:imported` event per mounted
-  // handle. A provider-switch remount swaps `gridHandle` (new platform),
-  // so re-binding on its identity keeps the listener on the live bus and
-  // cleans up the stale one.
-  useEffect(() => {
-    const events = gridHandle?.platform?.events;
-    if (!events) return;
-    return events.on('gridLevelData:imported', ({ data }) => {
-      applyImportedGridLevelData(data);
-    });
-  }, [gridHandle, applyImportedGridLevelData]);
 
   // Caller may also want to observe caption edits — chain.
   const callerOnCaptionChange = (marketsGridProps as { onCaptionChange?: (next: string) => void }).onCaptionChange;
@@ -697,188 +560,26 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     );
   }
 
-  useEffect(() => {
-    if (!liveApi || !provider || !activeId) {
-      if (DEBUG) {
-        // eslint-disable-next-line no-console
-        console.log(`[v2/grid]   provider wiring skipped: liveApi=%s provider=%s activeId=%s`,
-          Boolean(liveApi), Boolean(provider), activeId);
-      }
-      return;
-    }
-
-    setLoadRowCount(undefined);
-    setProviderDisconnected(false);
-    setDisconnectDetail(undefined);
-
-    const thisSubKey = subscriptionKey ?? `${activeId}::${rowIdFieldKey}`;
-    const t0 = performance.now();
-    // eslint-disable-next-line no-console
-    console.log(
-      '[refresh] %c5. provider wiring effect fired%c provider=%s',
-      'color:#ec4899', '', activeId,
-    );
-
-    let cancelled = false;
-    const gridApply = createApplyProviderToGridState();
-    const providerStatusRef = { current: 'loading' as 'loading' | 'ready' | 'error' };
-
-    const unsubRows = provider.onRowsReceived((count) => {
-      if (cancelled) return;
-      setLoadRowCount(count);
-    });
-
-    const unsubSnapshot = provider.onSnapshotData((rows) => {
-      if (cancelled) return;
-      Promise.resolve().then(() => {
-        if (cancelled) return;
-        // eslint-disable-next-line no-console
-        console.log(
-          '[refresh] %cflushAsyncTransactions BEFORE commit%c pendingAdds=%d gridRows=%d',
-          'color:#f97316;font-weight:bold', '',
-          gridApply.getPendingAddCount(), liveApi.getDisplayedRowCount(),
-        );
-        try { liveApi.flushAsyncTransactions(); } catch (e) {
-          // eslint-disable-next-line no-console
-          console.warn('[refresh]    flushAsyncTransactions threw:', e);
-        }
-        gridApply.clearPendingAdds();
-        // eslint-disable-next-line no-console
-        console.log(
-          '[refresh] %csnapshot commit%c %d rows (onSnapshotData)',
-          'color:#10b981;font-weight:bold', '', rows.length,
-        );
-        liveApi.setGridOption('rowData', rows.slice());
-        setLoadRowCount(rows.length);
-        setResolvedSubKey(thisSubKey);
-        setIsRefetching(false);
-        setProviderDisconnected(false);
-        setDisconnectDetail(undefined);
-        providerStatusRef.current = 'ready';
-      });
-    });
-
-    let updateBatchCount = 0;
-    const unsubTick = provider.onTick((updateRows) => {
-      if (cancelled || updateRows.length === 0) return;
-      updateBatchCount += 1;
-
-      if (!rowIdField) {
-        if (DEBUG) {
-          // eslint-disable-next-line no-console
-          console.log(`[v2/grid] %cupdate#%d%c %d rows (no rowIdField → all update)`, 'color:#f59e0b', '', updateBatchCount, updateRows.length);
-        }
-        gridApply.applyTick(liveApi, updateRows, undefined);
-        return;
-      }
-
-      const { coalescedPending, addCount, updateCount } = gridApply.applyTick(
-        liveApi,
-        updateRows,
-        rowIdField,
-      );
-      if (coalescedPending > 0) {
-        // eslint-disable-next-line no-console
-        console.log(
-          '[refresh]   %clive split (rows coalesced behind pending adds)%c add=%d update=%d coalescedPending=%d',
-          'color:#f97316', '',
-          addCount, updateCount, coalescedPending,
-        );
-      }
-    });
-
-    const unsubStatus = provider.onStatus((s, err) => {
-      // eslint-disable-next-line no-console
-      console.log(
-        `[refresh] %cstatus%c %s${err ? ' error=' + JSON.stringify(err) : ''} (+${(performance.now() - t0).toFixed(0)}ms) — pendingAdds=${gridApply.getPendingAddCount()}`,
-        'color:#a855f7;font-weight:bold', '', s,
-      );
-      if (cancelled) return;
-
-      if (s === 'loading') {
-        setIsRefetching(true);
-        setProviderDisconnected(false);
-        setDisconnectDetail(undefined);
-        if (providerStatusRef.current === 'ready' || providerStatusRef.current === 'error') {
-          gridApply.clearPendingAdds();
-        }
-        providerStatusRef.current = 'loading';
-      }
-
-      if (err) {
-        providerStatusRef.current = s;
-        setProviderDisconnected(true);
-        setDisconnectDetail(err);
-        setResolvedSubKey(thisSubKey);
-        setIsRefetching(false);
-        (onError ?? defaultOnError)(new Error(err));
-        return;
-      }
-
-      if (s !== 'loading') {
-        providerStatusRef.current = s;
-      }
-
-      containerEventBus.emit('provider:status', {
-        status: s,
-        error: err,
-        providerId: activeId,
-        mode: selection.mode,
-      });
-    });
-
-    const unsubError = provider.onError((err) => {
-      if (cancelled) return;
-      setResolvedSubKey(thisSubKey);
-      setIsRefetching(false);
-      (onError ?? defaultOnError)(err);
-    });
-
-    void (async () => {
-      try {
-        let running = await dataHubClient.isProviderRunning(activeId);
-        const asOfForRestart = selection.mode === 'historical'
-          ? (asOfDate ?? (isHistoricalToolbarDate(toolbarDate) ? toolbarDate : null))
-          : null;
-        // Live cold start connects immediately — hub attach dedupes concurrent
-        // windows. Historical restore waits briefly so a peer with the same
-        // overlay can finish starting instead of this window calling restart().
-        if (!running && asOfForRestart) {
-          running = await dataHubClient.waitForProviderRunning(activeId, {
-            timeoutMs: PEER_PROVIDER_WAIT_MS,
-          });
-        }
-        if (running) {
-          await provider.start();
-          return;
-        }
-        if (asOfForRestart) {
-          await restartProvider({ asOfDate: asOfForRestart });
-          return;
-        }
-        await provider.start();
-      } catch (err: unknown) {
-        if (cancelled) return;
-        setResolvedSubKey(thisSubKey);
-        (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      unsubRows();
-      unsubSnapshot();
-      unsubTick();
-      unsubStatus();
-      unsubError();
-      if (DEBUG) {
-        // eslint-disable-next-line no-console
-        console.log(`[v2/grid] %cunwire provider%c provider=%s (effect cleanup, +${(performance.now() - t0).toFixed(0)}ms)`,
-          'color:#6b7280', '', activeId);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveApi, provider, activeId, rowIdFieldKey, onError, dataHubClient, selection.mode, asOfDate, toolbarDate, restartProvider]);
+  useProviderDataWiring<TData>({
+    liveApi,
+    provider,
+    activeId,
+    subscriptionKey,
+    rowIdField,
+    rowIdFieldKey,
+    mode: selection.mode,
+    asOfDate,
+    toolbarDate,
+    dataHubClient,
+    restartProvider,
+    onError,
+    containerEventBus,
+    setLoadRowCount,
+    setProviderDisconnected,
+    setDisconnectDetail,
+    setResolvedSubKey,
+    setIsRefetching,
+  });
 
   /** Cache replay only — `IDataProvider.refresh()`; no upstream reconnect. */
   const refreshView = useCallback(() => {

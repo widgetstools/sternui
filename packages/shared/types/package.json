@@ -18,6 +18,9 @@
     "typecheck": "tsc --noEmit --project tsconfig.json",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@starui/shared-types": "*"
+  },
   "devDependencies": {
     "rimraf": "^6.0.1",
     "typescript": "~5.9.3",

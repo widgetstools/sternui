@@ -194,7 +194,7 @@ function EditorDocs() {
       <Section title="The component" icon={<Database size={12} strokeWidth={1.75} />}>
         <Prose>
           <Code>{`<DataProviderEditor userId={LOGGED_IN_USER_ID} initialProviderId={...} onClose={...} />`}</Code> from
-          <Code>@starui/widgets-react/v2/provider-editor</Code>. Self-contained:
+          <Code>@starui/widgets-react/provider-editor</Code>. Self-contained:
           a list sidebar (left), a tabbed form (right), create/delete dialogs.
           Requires only <Code>{`<DataHubProvider>`}</Code> in the tree —
           no other context.

@@ -40,9 +40,9 @@ export { useAgGridTheme } from './theme/index.js';
 // ─── Provider Editor (v2) and Data Provider Selector (v2) ─────────
 // The v1 mirrored editor/selector are gone; consumers import the
 // v2 surfaces directly via subpath:
-//   import { DataProviderEditor } from '@starui/widgets-react/v2/provider-editor';
-//   import { DataProviderSelector } from '@starui/widgets-react/v2/data-provider-selector';
-//   import { MarketsGridContainer } from '@starui/widgets-react/v2/markets-grid-container';
+//   import { DataProviderEditor } from '@starui/widgets-react/provider-editor';
+//   import { DataProviderSelector } from '@starui/widgets-react/data-provider-selector';
+//   import { MarketsGridContainer } from '@starui/widgets-react/markets-grid-container';
 
 // ─── Hosted-feature wrappers (public API) ────────
 // Subpath: '@starui/widgets-react/hosted'

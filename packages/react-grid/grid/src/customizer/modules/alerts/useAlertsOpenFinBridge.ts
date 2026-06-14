@@ -4,13 +4,13 @@
  * Mount this hook once per MarketsGrid instance (the grid does it automatically
  * via the alerts widget tree). The hook is a no-op in plain-browser apps:
  *
- *   - On first render we runtime-check `typeof window !== 'undefined' &&
- *     typeof (window as any).fin !== 'undefined'`. If `fin` is absent, the hook
- *     returns immediately and never imports the OpenFin notifications package.
- *   - When `fin` IS present, we dynamic-import `@openfin/workspace/notifications`
- *     so the dependency is only loaded for OpenFin-hosted apps. The import is
- *     wrapped in try/catch so the bridge degrades silently if the package isn't
- *     installed.
+ *   - On first render we runtime-check for the `fin` global. If `fin` is
+ *     absent, the hook returns immediately and never loads the OpenFin
+ *     notifications package.
+ *   - When `fin` IS present, we ask `@starui/host-openfin` to lazily load the
+ *     notifications API. Per docs/ARCHITECTURE.md the grid must not import
+ *     `@openfin/*` directly — the OpenFin dependency lives entirely in
+ *     `@starui/host-openfin` and is injected here as a pair of functions.
  *
  * Provider registration is one-shot per page (we attempt to register on first
  * `fin` detection). The notification source uses the OpenFin app's
@@ -22,6 +22,11 @@
  */
 
 import { useEffect, useRef } from 'react';
+import {
+  loadOpenFinNotificationsApi,
+  dispatchOpenFinNotification,
+  type OpenFinNotificationsApi,
+} from '@starui/host-openfin';
 import type {
   AlertNotification,
   AlertsState,
@@ -35,11 +40,6 @@ interface FinGlobal {
   me?: { identity?: { uuid?: string } };
 }
 
-interface OpenFinNotificationsApi {
-  register?: () => Promise<unknown>;
-  create: (options: Record<string, unknown>) => Promise<unknown>;
-}
-
 const SEVERITY_TO_CATEGORY: Record<AlertSeverity, string> = {
   info: 'info',
   success: 'success',
@@ -51,22 +51,6 @@ function getFin(): FinGlobal | null {
   if (typeof window === 'undefined') return null;
   const fin = (window as unknown as { fin?: FinGlobal }).fin;
   return fin && typeof fin === 'object' ? fin : null;
-}
-
-async function loadNotificationsApi(): Promise<OpenFinNotificationsApi | null> {
-  try {
-    // Dynamic + string-literal-only import; bundlers leave this as a
-    // runtime call so the package isn't required at build time.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/ban-ts-comment
-    // @ts-ignore — optional peer dependency; absent in non-OpenFin apps.
-    const mod = (await import('@openfin/workspace/notifications')) as unknown;
-    if (mod && typeof mod === 'object' && 'create' in mod) {
-      return mod as OpenFinNotificationsApi;
-    }
-    return null;
-  } catch {
-    return null;
-  }
 }
 
 export function useAlertsOpenFinBridge(platform: GridPlatform | null): void {
@@ -84,7 +68,7 @@ export function useAlertsOpenFinBridge(platform: GridPlatform | null): void {
     let unsubscribe: (() => void) | undefined;
 
     void (async () => {
-      const api = await loadNotificationsApi();
+      const api = await loadOpenFinNotificationsApi();
       if (cancelled || !api) return;
       apiRef.current = api;
 
@@ -131,7 +115,7 @@ export function useAlertsOpenFinBridge(platform: GridPlatform | null): void {
           if (!enabled) continue;
           const rule = rulesById.get(n.ruleId);
           if (!rule?.channels.includes('openfin')) continue;
-          void dispatchOpenFinNotification(apiRef.current!, n, fin);
+          void dispatchAlert(apiRef.current!, n, fin);
         }
       });
     })();
@@ -147,30 +131,27 @@ export function useAlertsOpenFinBridge(platform: GridPlatform | null): void {
   }, [platform]);
 }
 
-async function dispatchOpenFinNotification(
+/**
+ * Map an alerts-module notification onto the transport-agnostic OpenFin
+ * payload and dispatch it through `@starui/host-openfin`.
+ */
+function dispatchAlert(
   api: OpenFinNotificationsApi,
   notification: AlertNotification,
   fin: FinGlobal,
 ): Promise<void> {
-  try {
-    await api.create({
-      platform: fin.me?.identity?.uuid,
-      title: notification.ruleName,
-      body: notification.message,
-      toast: 'transient',
-      category: SEVERITY_TO_CATEGORY[notification.severity],
-      template: 'markdown',
-      customData: {
-        ruleId: notification.ruleId,
-        notificationId: notification.id,
-        rowId: notification.rowId,
-        column: notification.column,
-        severity: notification.severity,
-        firedAt: notification.firedAt,
-      },
-    });
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.warn('[alerts] OpenFin notification dispatch failed:', err);
-  }
+  return dispatchOpenFinNotification(api, {
+    platformUuid: fin.me?.identity?.uuid,
+    title: notification.ruleName,
+    body: notification.message,
+    category: SEVERITY_TO_CATEGORY[notification.severity],
+    customData: {
+      ruleId: notification.ruleId,
+      notificationId: notification.id,
+      rowId: notification.rowId,
+      column: notification.column,
+      severity: notification.severity,
+      firedAt: notification.firedAt,
+    },
+  });
 }

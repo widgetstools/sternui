@@ -16,7 +16,7 @@
 import { useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
-import { DataProviderEditor } from '@starui/widgets-react/v2/provider-editor';
+import { DataProviderEditor } from '@starui/widgets-react/provider-editor';
 import { LOGGED_IN_USER_ID } from '@starui/types';
 
 // userId is single-user-pinned across the codebase — no env override,

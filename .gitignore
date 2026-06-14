@@ -4,6 +4,8 @@ dist/
 !dist/packages/**
 .vite/
 .turbo/
+coverage/
+.eslintcache
 .propagate-staging/
 test-results/
 playwright-report/

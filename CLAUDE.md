@@ -157,9 +157,15 @@ Manifest: `libs/manifest.json` maps `@starui/<bucket>` → tarball +
 
 ## Testing
 
-- Vitest 4 + jsdom 29 for unit tests. Baseline: 653 passing.
-- Playwright 1.59 against `apps/demos/demo-react`. Baseline: 195/214 passing
-  (19 failures are pre-existing — see [`docs/E2E_STATUS.md`](./docs/E2E_STATUS.md)).
+- Vitest 4 + jsdom 29 for unit tests. Baseline (2026-06-13): **1821 passing,
+  1 skipped across 228 test files** (`npm test` — turbo across `packages/`,
+  excluding apps). Largest contributors: `grid` (546), `host-data` (355),
+  `engine` (241), `design-system` (193), `widgets-react` (171).
+- Playwright 1.59 — main suite (`playwright.config.ts`, primary target
+  `apps/demos/demo-react`) collects **384 tests across 48 specs**; the
+  container subsuite (`playwright.container.config.ts`) adds **16 across 5**.
+  Topology, spec inventory, known-fragile specs, and how to capture a fresh
+  pass/fail baseline live in [`docs/E2E_STATUS.md`](./docs/E2E_STATUS.md).
 
 ## UI stack rules (non-negotiable)
 
