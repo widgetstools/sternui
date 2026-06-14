@@ -36,6 +36,12 @@
  *     sections. The Excel colour tags resolve to `--ds-accent-positive` /
  *     `--ds-accent-negative` design-system tokens (theme-safe) via the
  *     column-customization transform's colour resolver.
+ *   - High-magnitude money/size fields are scaled with an Excel trailing
+ *     comma: one comma divides by 1,000 (a `"K"` suffix), two divide by
+ *     1,000,000 (an `"M"` suffix). So P&L shows `1.5K`, notional shows `2.4M`.
+ *     Quantities use K; notional / market value use M. Small money (fees,
+ *     commission, accrued interest) stays on plain decimals so it isn't
+ *     squashed to `0.0M`.
  */
 import type { FieldFormatEntry } from './types.js';
 
@@ -46,7 +52,8 @@ const num = (decimals: number, thousands = true): FieldFormatEntry['format'] => 
   options: { decimals, thousands },
 });
 
-/** Excel format string (used for sign-coloured `[Green]`/`[Red]` sections). */
+/** Excel format string (used for sign-coloured `[Green]`/`[Red]` and
+ *  magnitude-scaled `,"K"` / `,,"M"` formats). */
 const excel = (format: string): FieldFormatEntry['format'] => ({
   kind: 'excelFormat',
   format,
@@ -116,9 +123,10 @@ export const FIELD_FORMAT_CATALOG: readonly FieldFormatEntry[] = [
     alignment: 'right',
   },
 
-  // ─── P&L (sign-coloured via excelFormat) ──────────────────────────────
+  // ─── P&L (sign-coloured + K magnitude via excelFormat) ────────────────
   // 3 sections (positive;negative;zero): green / red / neutral. Negative
-  // section carries an explicit `-` so the minus shows.
+  // section carries an explicit `-` so the minus shows. The trailing comma
+  // divides by 1,000 and appends a "K" suffix (P&L is reported in thousands).
   {
     id: 'pnl',
     category: 'pnl',
@@ -129,7 +137,7 @@ export const FIELD_FORMAT_CATALOG: readonly FieldFormatEntry[] = [
       'commissionpnl', 'stresspnl', 'unrealpnl', 'totalpnl',
     ],
     suffixes: ['pnl', 'pandl'],
-    format: excel('[Green]#,##0.00;[Red]-#,##0.00;#,##0.00'),
+    format: excel('[Green]#,##0.0,"K";[Red]-#,##0.0,"K";0'),
     alignment: 'right',
   },
 
@@ -152,7 +160,9 @@ export const FIELD_FORMAT_CATALOG: readonly FieldFormatEntry[] = [
     alignment: 'right',
   },
 
-  // ─── Quantities / sizes (int / ccy MM) ────────────────────────────────
+  // ─── Quantities / sizes (K magnitude) ─────────────────────────────────
+  // Trailing comma divides by 1,000 and appends "K" — blotter sizes are
+  // conventionally shown in thousands (e.g. 250,000 → "250K").
   {
     id: 'quantity',
     category: 'quantity',
@@ -165,22 +175,37 @@ export const FIELD_FORMAT_CATALOG: readonly FieldFormatEntry[] = [
       'filled', 'openqty', 'quantityface', 'facevalue', 'shares',
     ],
     suffixes: ['qty', 'size', 'face'],
-    format: num(0, true),
+    format: excel('#,##0.0,"K"'),
     alignment: 'right',
   },
 
-  // ─── Money / value (ccy) ──────────────────────────────────────────────
+  // ─── Fees / small money (plain decimals — NOT scaled) ─────────────────
+  // Exact-alias matches here outrank the value-suffix tier below, so fees
+  // and accrued interest keep full decimals instead of squashing to 0.0M.
   {
-    id: 'value',
+    id: 'fee',
     category: 'value',
     aliases: [
-      'marketvalue', 'mktval', 'notional', 'principal', 'accruedint',
-      'accruedinterest', 'netmoney', 'commission', 'fees', 'secfee',
-      'costbasis', 'bookvalue', 'netsettleamt', 'minpiece', 'increment',
-      'marketcap', 'amount', 'avgcostbasis',
+      'commission', 'fees', 'fee', 'secfee', 'brokerage', 'accruedint',
+      'accruedinterest', 'minpiece', 'increment',
     ],
-    suffixes: ['value', 'money', 'amount', 'amt'],
     format: num(2, true),
+    alignment: 'right',
+  },
+
+  // ─── Notional / market value (M magnitude) ────────────────────────────
+  // Two trailing commas divide by 1,000,000 and append "M" — notionals and
+  // market values are reported in millions (e.g. 2,400,000 → "2.40M").
+  {
+    id: 'notional',
+    category: 'value',
+    aliases: [
+      'marketvalue', 'mktval', 'notional', 'principal', 'netmoney',
+      'costbasis', 'bookvalue', 'netsettleamt', 'marketcap', 'amount',
+      'avgcostbasis',
+    ],
+    suffixes: ['value', 'money', 'amount', 'amt', 'notional'],
+    format: excel('#,##0.00,,"M"'),
     alignment: 'right',
   },
 

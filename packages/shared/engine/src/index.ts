@@ -164,6 +164,7 @@ export {
   FIELD_FORMAT_CATALOG,
   matchFieldToCatalog,
   normalizeToken,
+  soundex,
   buildAutoFormatPlan,
 } from './colDef';
 export type { NestedFieldOptions } from './colDef';

@@ -49,6 +49,7 @@ export {
   FIELD_FORMAT_CATALOG,
   matchFieldToCatalog,
   normalizeToken,
+  soundex,
   buildAutoFormatPlan,
 } from './fieldFormatCatalog/index.js';
 export type {

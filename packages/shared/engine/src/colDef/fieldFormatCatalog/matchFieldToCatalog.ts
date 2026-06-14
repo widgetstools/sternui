@@ -2,12 +2,18 @@
  * matchFieldToCatalog — resolve the formatting for a single column from its
  * field name (and, as a fallback, its data type).
  *
- * Resolution order:
- *   1. Exact alias match against the full normalised field, OR its last
- *      dotted segment (e.g. `rating.moody` → `moody`).
- *   2. Longest `suffix` match against the last segment / full field
- *      ("last element of the field name", e.g. `bidPrice` → `price`).
- *   3. Generic fallback by `cellDataType`:
+ * Nested fields are matched on their **last segment only** (`position.
+ * marketValue` → `marketValue`), so the binding path's parent objects never
+ * skew the match.
+ *
+ * Resolution order (highest tier wins; longer match then earlier catalog
+ * entry break ties within a tier):
+ *   3. Exact alias match against the normalised matching token.
+ *   2. Longest `suffix` match ("last element of the field name",
+ *      e.g. `bidPrice` → `price`).
+ *   1. Phonetic (Soundex) match against an alias — catches misspellings and
+ *      spelling variants (`yeild` → `yield`, `quantites` → `quantity`).
+ *   0. Generic fallback by `cellDataType`:
  *        number  → right-aligned, grouped, 2dp
  *        date    → localised date
  *        boolean → centred
@@ -34,6 +40,41 @@ function leafOf(field: string): string {
 
 /** Minimum suffix length — guards against tiny tokens matching by accident. */
 const MIN_SUFFIX_LEN = 3;
+
+/** Minimum token length before phonetic matching is attempted — Soundex on
+ *  one- or two-letter tokens collapses far too aggressively. */
+const MIN_SOUNDEX_LEN = 4;
+
+const SOUNDEX_CODES: Readonly<Record<string, string>> = {
+  b: '1', f: '1', p: '1', v: '1',
+  c: '2', g: '2', j: '2', k: '2', q: '2', s: '2', x: '2', z: '2',
+  d: '3', t: '3',
+  l: '4',
+  m: '5', n: '5',
+  r: '6',
+};
+
+/**
+ * Russell Soundex code: the first letter followed by three digits encoding the
+ * consonant sounds. Adjacent same-coded letters (and ones split only by `h`/
+ * `w`) collapse to one digit; vowels and `y` reset so a repeated sound either
+ * side of a vowel is kept. Returns `''` for an empty/letter-free token.
+ */
+export function soundex(token: string): string {
+  const letters = token.toLowerCase().replace(/[^a-z]/g, '');
+  if (!letters) return '';
+  const first = letters[0];
+  let prev = SOUNDEX_CODES[first] ?? '';
+  let out = first.toUpperCase();
+  for (let i = 1; i < letters.length && out.length < 4; i++) {
+    const ch = letters[i];
+    const code = SOUNDEX_CODES[ch] ?? '';
+    if (code && code !== prev) out += code;
+    // `h`/`w` are transparent (don't reset `prev`); everything else does.
+    if (ch !== 'h' && ch !== 'w') prev = code;
+  }
+  return (out + '000').slice(0, 4);
+}
 
 function toAssignment(entry: FieldFormatEntry): AutoFormatAssignment {
   const out: AutoFormatAssignment = {};
@@ -63,8 +104,8 @@ function genericForType(cellDataType: string | undefined): AutoFormatAssignment 
 
 interface Candidate {
   entry: FieldFormatEntry;
-  /** 2 = exact alias, 1 = suffix. */
-  tier: 1 | 2;
+  /** 3 = exact alias, 2 = suffix, 1 = phonetic (Soundex). */
+  tier: 1 | 2 | 3;
   /** Matched-token length — longer wins within a tier. */
   len: number;
   /** Catalog index — earlier wins on a final tie. */
@@ -74,6 +115,7 @@ interface Candidate {
 /**
  * Match a column to the catalog. `field` is the column's bound field path or
  * colId; `cellDataType` drives the generic fallback when nothing matches.
+ * Nested paths match on their last segment only (`a.b.c` → `c`).
  * Returns `null` when neither the catalog nor the type fallback applies
  * (e.g. an untyped string column) — meaning "leave this column alone".
  */
@@ -84,9 +126,11 @@ export function matchFieldToCatalog(
 ): AutoFormatAssignment | null {
   if (!field) return genericForType(cellDataType);
 
-  const normFull = normalizeToken(field);
-  const normLeaf = normalizeToken(leafOf(field));
-  if (!normFull && !normLeaf) return genericForType(cellDataType);
+  // Nested fields match on the last segment only; flat fields match whole.
+  const token = normalizeToken(leafOf(field));
+  if (!token) return genericForType(cellDataType);
+
+  const tokenSoundex = token.length >= MIN_SOUNDEX_LEN ? soundex(token) : '';
 
   let best: Candidate | null = null;
   const consider = (c: Candidate) => {
@@ -103,15 +147,22 @@ export function matchFieldToCatalog(
   FIELD_FORMAT_CATALOG.forEach((entry, order) => {
     for (const alias of entry.aliases ?? []) {
       const a = normalizeToken(alias);
-      if (a && (a === normFull || a === normLeaf)) {
-        consider({ entry, tier: 2, len: a.length, order });
+      if (!a) continue;
+      if (a === token) {
+        consider({ entry, tier: 3, len: a.length, order });
+      } else if (
+        tokenSoundex &&
+        a.length >= MIN_SOUNDEX_LEN &&
+        soundex(a) === tokenSoundex
+      ) {
+        consider({ entry, tier: 1, len: a.length, order });
       }
     }
     for (const suffix of entry.suffixes ?? []) {
       const s = normalizeToken(suffix);
       if (s.length < MIN_SUFFIX_LEN) continue;
-      if (normLeaf.endsWith(s) || normFull.endsWith(s)) {
-        consider({ entry, tier: 1, len: s.length, order });
+      if (token.endsWith(s)) {
+        consider({ entry, tier: 2, len: s.length, order });
       }
     }
   });

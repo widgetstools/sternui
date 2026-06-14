@@ -7,7 +7,7 @@
  * toolbar action uses.
  */
 export { FIELD_FORMAT_CATALOG } from './fieldFormatCatalog.js';
-export { matchFieldToCatalog, normalizeToken } from './matchFieldToCatalog.js';
+export { matchFieldToCatalog, normalizeToken, soundex } from './matchFieldToCatalog.js';
 export { buildAutoFormatPlan } from './buildAutoFormatPlan.js';
 export type {
   AutoFormatAlignment,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matchFieldToCatalog, normalizeToken } from './matchFieldToCatalog.js';
+import { matchFieldToCatalog, normalizeToken, soundex } from './matchFieldToCatalog.js';
 import { buildAutoFormatPlan } from './buildAutoFormatPlan.js';
 
 describe('normalizeToken', () => {
@@ -10,16 +10,67 @@ describe('normalizeToken', () => {
   });
 });
 
+describe('soundex', () => {
+  it('encodes the canonical Russell examples', () => {
+    expect(soundex('Robert')).toBe('R163');
+    expect(soundex('Rupert')).toBe('R163');
+    expect(soundex('Ashcraft')).toBe('A261');
+    expect(soundex('Tymczak')).toBe('T522');
+    expect(soundex('Pfister')).toBe('P236');
+  });
+
+  it('returns empty for a letter-free token', () => {
+    expect(soundex('123')).toBe('');
+  });
+
+  it('collapses common spelling variants to the same code', () => {
+    expect(soundex('yield')).toBe(soundex('yeild'));
+    expect(soundex('Smith')).toBe(soundex('Smyth'));
+  });
+});
+
+describe('matchFieldToCatalog — nested fields match on the last segment', () => {
+  it('uses the leaf for a dotted path (position.marketValue → notional/M)', () => {
+    const r = matchFieldToCatalog('position.marketValue', undefined, 'number');
+    expect(r?.alignment).toBe('right');
+    expect(r?.valueFormatterTemplate).toEqual({ kind: 'excelFormat', format: '#,##0.00,,"M"' });
+  });
+
+  it('ignores parent segments (trade.execution.bidPrice → price suffix)', () => {
+    const r = matchFieldToCatalog('trade.execution.bidPrice', undefined, 'number');
+    expect(r?.valueFormatterTemplate).toEqual({ kind: 'preset', preset: 'number', options: { decimals: 4, thousands: false } });
+  });
+});
+
+describe('matchFieldToCatalog — phonetic (Soundex) fallback', () => {
+  it('matches a misspelled yield via Soundex', () => {
+    const r = matchFieldToCatalog('yeild', undefined, 'number');
+    expect(r?.alignment).toBe('right');
+    expect(r?.valueFormatterTemplate).toEqual({ kind: 'preset', preset: 'number', options: { decimals: 3, thousands: false } });
+  });
+
+  it('does not phonetically match tokens shorter than the minimum length', () => {
+    // "sp" is an exact rating alias, but a 2-char unknown token must not
+    // phonetically latch onto it.
+    expect(matchFieldToCatalog('id', undefined, 'text')).toBeNull();
+  });
+
+  it('exact alias still outranks a phonetic near-miss', () => {
+    const r = matchFieldToCatalog('symbol', undefined, 'text');
+    expect(r?.typography).toEqual({ bold: true });
+  });
+});
+
 describe('matchFieldToCatalog — P&L aliases (case / abbreviation variants)', () => {
   for (const field of ['unrealizedPnL', 'unrealizedPnl', 'unrealPnl', 'dailyPnL', 'mtdPnl', 'pnl']) {
-    it(`maps ${field} to a sign-coloured excelFormat, right-aligned`, () => {
+    it(`maps ${field} to a sign-coloured K-magnitude excelFormat, right-aligned`, () => {
       const r = matchFieldToCatalog(field, undefined, 'number');
       expect(r?.alignment).toBe('right');
       // Native sign colouring rides on the value formatter's [Green]/[Red]
-      // tags — no opaque cell renderer.
+      // tags; the trailing comma scales to thousands ("K") — no cell renderer.
       expect(r?.valueFormatterTemplate).toEqual({
         kind: 'excelFormat',
-        format: '[Green]#,##0.00;[Red]-#,##0.00;#,##0.00',
+        format: '[Green]#,##0.0,"K";[Red]-#,##0.0,"K";0',
       });
     });
   }
@@ -99,6 +150,7 @@ describe('buildAutoFormatPlan', () => {
 
   it('falls back to colId when field is absent', () => {
     const plan = buildAutoFormatPlan([{ colId: 'marketValue', cellDataType: 'number' }]);
-    expect(plan['marketValue'].valueFormatterTemplate).toEqual({ kind: 'preset', preset: 'number', options: { decimals: 2, thousands: true } });
+    // marketValue is a notional → millions ("M") magnitude scale.
+    expect(plan['marketValue'].valueFormatterTemplate).toEqual({ kind: 'excelFormat', format: '#,##0.00,,"M"' });
   });
 });
