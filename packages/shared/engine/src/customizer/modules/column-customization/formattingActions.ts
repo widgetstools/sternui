@@ -485,6 +485,13 @@ export function applyFloatingFilterReducer(
  *     the right kind so the picker's preset lands in the type-matched
  *     slot (currency / % → number; date / datetime → date). `colIds`
  *     is ignored in this branch.
+ *
+ * Formatter slot is template XOR renderer (same invariant as
+ * {@link applyAutoFormatPlanReducer}). Setting a per-column template clears
+ * any `cellRendererId` / `cellRendererConfig` first — otherwise a semantic
+ * renderer (e.g. one applied by Auto Format) keeps painting the cell and the
+ * manually-picked format never shows. Clearing the template leaves the
+ * renderer untouched.
  */
 export function applyFormatterReducer(
   colIds: readonly string[],
@@ -510,8 +517,16 @@ export function applyFormatterReducer(
     for (const colId of colIds) {
       const a: ColumnAssignment = assignments[colId] ?? { colId };
       const next: ColumnAssignment = { ...a };
-      if (template === undefined) delete next.valueFormatterTemplate;
-      else next.valueFormatterTemplate = template;
+      if (template === undefined) {
+        delete next.valueFormatterTemplate;
+      } else {
+        next.valueFormatterTemplate = template;
+        // Template XOR renderer: a semantic cell renderer (e.g. from Auto
+        // Format) paints the cell itself and ignores the value formatter,
+        // so clear it here or the user's manual format would never show.
+        delete next.cellRendererId;
+        delete next.cellRendererConfig;
+      }
       assignments[colId] = next;
     }
     return { ...base, assignments };

@@ -391,6 +391,34 @@ describe('applyFormatterReducer', () => {
     expect(next.assignments['price'].valueFormatterTemplate).toEqual(tpl);
   });
 
+  it('clears an existing cell renderer so the manual format wins', () => {
+    // Simulates a column auto-formatted with a semantic renderer (P&L,
+    // side, etc.). Picking a format preset must drop the renderer or the
+    // renderer keeps painting and the format never shows.
+    const seed: ColumnCustomizationState = {
+      assignments: {
+        pnl: {
+          colId: 'pnl',
+          cellRendererId: 'pnl-value',
+          cellRendererConfig: { kind: 'pnl-value', config: { mode: 'signed' } },
+        },
+      },
+    };
+    const next = applyFormatterReducer(['pnl'], tpl)(seed);
+    expect(next.assignments['pnl'].valueFormatterTemplate).toEqual(tpl);
+    expect(next.assignments['pnl'].cellRendererId).toBeUndefined();
+    expect(next.assignments['pnl'].cellRendererConfig).toBeUndefined();
+  });
+
+  it('leaves the renderer untouched when clearing the template', () => {
+    const seed: ColumnCustomizationState = {
+      assignments: { pnl: { colId: 'pnl', cellRendererId: 'pnl-value' } },
+    };
+    const next = applyFormatterReducer(['pnl'], undefined)(seed);
+    expect(next.assignments['pnl'].cellRendererId).toBe('pnl-value');
+    expect(next.assignments['pnl'].valueFormatterTemplate).toBeUndefined();
+  });
+
   it('is a no-op for empty colIds', () => {
     const reducer = applyFormatterReducer([], tpl);
     expect(reducer(EMPTY)).toBe(EMPTY);
