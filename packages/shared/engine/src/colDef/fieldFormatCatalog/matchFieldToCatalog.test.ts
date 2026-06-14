@@ -59,6 +59,22 @@ describe('matchFieldToCatalog — phonetic (Soundex) fallback', () => {
     const r = matchFieldToCatalog('symbol', undefined, 'text');
     expect(r?.typography).toEqual({ bold: true });
   });
+
+  it('does NOT phonetically match a text column (desk → daychg Soundex collision)', () => {
+    // `desk` and the `change` entry's `daychg` alias both encode to D200.
+    // A string field must stay left-aligned / untouched, never right-aligned.
+    expect(soundex('desk')).toBe(soundex('daychg'));
+    expect(matchFieldToCatalog('desk', undefined, 'text')).toBeNull();
+    expect(matchFieldToCatalog('desk', undefined, undefined)).toBeNull();
+  });
+
+  it('still phonetically matches the same collision token when the column IS numeric', () => {
+    // Gating is by data type, not by token — a numeric `desk` would still
+    // resolve (here to the sign-coloured change format), confirming the
+    // restriction is purely the text-column guard.
+    const r = matchFieldToCatalog('desk', undefined, 'number');
+    expect(r?.alignment).toBe('right');
+  });
 });
 
 describe('matchFieldToCatalog — P&L aliases (case / abbreviation variants)', () => {

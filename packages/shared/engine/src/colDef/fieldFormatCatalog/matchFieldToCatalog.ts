@@ -12,7 +12,11 @@
  *   2. Longest `suffix` match ("last element of the field name",
  *      e.g. `bidPrice` → `price`).
  *   1. Phonetic (Soundex) match against an alias — catches misspellings and
- *      spelling variants (`yeild` → `yield`, `quantites` → `quantity`).
+ *      spelling variants (`yeild` → `yield`, `quantites` → `quantity`). Only
+ *      attempted for NUMERIC columns: phonetic matching is fuzzy, so a plain
+ *      text column whose name merely shares a Soundex code with a numeric
+ *      alias (e.g. `desk` → `daychg`) must NOT be dragged into a right-aligned
+ *      numeric format — a string field stays left-aligned / untouched.
  *   0. Generic fallback by `cellDataType`:
  *        number  → right-aligned, grouped, 2dp
  *        date    → localised date
@@ -44,6 +48,15 @@ const MIN_SUFFIX_LEN = 3;
 /** Minimum token length before phonetic matching is attempted — Soundex on
  *  one- or two-letter tokens collapses far too aggressively. */
 const MIN_SOUNDEX_LEN = 4;
+
+/** AG-Grid `cellDataType` values treated as numeric. Phonetic matching is
+ *  gated on this so a text column never latches onto a numeric catalog entry
+ *  by Soundex collision. */
+function isNumericCellDataType(cellDataType: string | undefined): boolean {
+  if (!cellDataType) return false;
+  const t = cellDataType.toLowerCase();
+  return t === 'number' || t === 'numeric';
+}
 
 const SOUNDEX_CODES: Readonly<Record<string, string>> = {
   b: '1', f: '1', p: '1', v: '1',
@@ -130,7 +143,12 @@ export function matchFieldToCatalog(
   const token = normalizeToken(leafOf(field));
   if (!token) return genericForType(cellDataType);
 
-  const tokenSoundex = token.length >= MIN_SOUNDEX_LEN ? soundex(token) : '';
+  // Phonetic matching only fires for numeric columns (see resolution-order
+  // note above) — keeps fuzzy Soundex collisions off plain text fields.
+  const tokenSoundex =
+    isNumericCellDataType(cellDataType) && token.length >= MIN_SOUNDEX_LEN
+      ? soundex(token)
+      : '';
 
   let best: Candidate | null = null;
   const consider = (c: Candidate) => {
