@@ -17,7 +17,7 @@
 
 import { memo, useMemo, type CSSProperties, type ReactElement, type RefObject } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import type { GridReadyEvent } from 'ag-grid-community';
+import type { GetContextMenuItems, GridReadyEvent } from 'ag-grid-community';
 import type { MarketsGridProps } from './types';
 import { stripSurfaceManagedGridOptions } from './gridSurfaceOptions';
 import { buildStreamSafeComponents } from './buildStreamSafeComponents';
@@ -35,6 +35,10 @@ export interface MarketsGridSurfaceProps<TData> {
   readonly sideBar: MarketsGridProps<TData>['sideBar'];
   readonly statusBar: MarketsGridProps<TData>['statusBar'];
   readonly defaultColDef: MarketsGridProps<TData>['defaultColDef'];
+  /** Cell right-click menu builder. Must be referentially stable (built with
+   *  `useCallback` in the host) so this memo'd surface doesn't make
+   *  AgGridReact re-process the option each render. */
+  readonly getContextMenuItems?: GetContextMenuItems;
   readonly onGridReady: (event: GridReadyEvent) => void;
   readonly onGridPreDestroyed: () => void;
   /** When false, omit date floating filter from components map if unused. Default true. */
@@ -60,6 +64,7 @@ function surfacePropsEqual<TData>(
     && prev.sideBar === next.sideBar
     && prev.statusBar === next.statusBar
     && prev.defaultColDef === next.defaultColDef
+    && prev.getContextMenuItems === next.getContextMenuItems
     && prev.onGridReady === next.onGridReady
     && prev.onGridPreDestroyed === next.onGridPreDestroyed
     && prev.includeAllStreamSafeFilters === next.includeAllStreamSafeFilters
@@ -79,6 +84,7 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
   sideBar,
   statusBar,
   defaultColDef,
+  getContextMenuItems,
   onGridReady,
   onGridPreDestroyed,
   includeAllStreamSafeFilters = true,
@@ -137,6 +143,7 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
         // near-immediate grid updates end-to-end.
         asyncTransactionWaitMillis={0}
         components={streamSafeComponents}
+        getContextMenuItems={getContextMenuItems}
         onGridReady={onGridReady}
         onGridPreDestroyed={onGridPreDestroyed}
       />

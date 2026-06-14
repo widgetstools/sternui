@@ -65,6 +65,14 @@ export interface SettingsSheetProps {
   open: boolean;
   onClose: () => void;
   initialModuleId?: string;
+  /**
+   * Imperative "jump to this module + select this item" request. Each
+   * distinct `nonce` re-applies the navigation even when the same module /
+   * item is targeted twice (e.g. right-click → Settings on the same column
+   * after the sheet was closed). Drives the cell context menu's "Settings"
+   * action: navigate to Column Settings and pre-select the clicked column.
+   */
+  focusRequest?: { moduleId: string; itemId: string | null; nonce: number };
 }
 
 /**
@@ -80,6 +88,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
   open,
   onClose,
   initialModuleId,
+  focusRequest,
 }: SettingsSheetProps, ref) {
   // Every module panel is already mounted inside MarketsGrid's
   // <GridProvider>, so `useGridPlatform()` is always valid here. Pull
@@ -152,6 +161,22 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
     // would re-fire on identity churn from any module-state update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, panelModules.length, resolveDefaultModuleId]);
+
+  // Apply an imperative focus request (cell context menu → "Settings").
+  // Declared AFTER the open-reset + activeId-repair effects so that when a
+  // request opens the sheet (open false→true AND nonce changes in one
+  // commit), this runs last and its module wins over the default-module
+  // reset. The nonce ref guards against re-applying on unrelated renders.
+  const lastFocusNonce = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (!focusRequest) return;
+    if (focusRequest.nonce === lastFocusNonce.current) return;
+    if (!panelModules.some((m) => m.id === focusRequest.moduleId)) return;
+    lastFocusNonce.current = focusRequest.nonce;
+    setActiveId(focusRequest.moduleId);
+    setSelectedForModule(focusRequest.moduleId, focusRequest.itemId);
+    setHelpOpen(false);
+  }, [focusRequest, panelModules, setSelectedForModule]);
 
   // Keydown listener is registered once per `open` flip — NOT on every
   // `onClose` identity change. Callers often pass an inline arrow as

@@ -32,6 +32,7 @@ import {
 } from '@starui/engine';
 import {
   captureGridStateInto,
+  COLUMN_CUSTOMIZATION_MODULE_ID,
   exportVisualExcel,
   useGridApi,
   useGridPlatform,
@@ -70,10 +71,16 @@ export interface MarketsGridControllerHandle {
   readonly saveFlash: boolean;
   readonly settingsOpen: boolean;
   readonly setSettingsOpen: Dispatch<SetStateAction<boolean>>;
+  /** "Jump to module + select item" request for the settings sheet. Set by
+   *  {@link MarketsGridControllerHandle.openColumnSettings}. */
+  readonly settingsFocusRequest: { moduleId: string; itemId: string | null; nonce: number } | null;
   readonly styleToolbarOpen: boolean;
   readonly pendingSwitch: { id: string } | null;
   readonly setPendingSwitch: Dispatch<SetStateAction<{ id: string } | null>>;
   readonly handleOpenSettings: () => void;
+  /** Open the customizer on Column Settings, pre-selecting `colId`. Wired to
+   *  the grid cell context menu's "Settings" item. */
+  readonly openColumnSettings: (colId: string) => void;
   readonly handleToggleStyleToolbar: () => void;
   readonly editingToolbarOpen: boolean;
   readonly handleToggleEditingToolbar: () => void;
@@ -300,6 +307,31 @@ export function useMarketsGridController(
     setSettingsOpen(true);
   }, []);
 
+  // Cell context menu → "Settings": open the customizer on Column Settings
+  // with the clicked column pre-selected. The monotonic nonce makes each
+  // request distinct so the sheet re-navigates even when the same column is
+  // targeted twice (e.g. the sheet was closed in between). Setting the
+  // request BEFORE opening means the sheet's focus effect sees it on the
+  // same commit that flips `open`. Works whether the sheet is closed,
+  // already open inline, or popped into an OS window (handleOpenSettings
+  // raises the popout; the request still drives navigation there).
+  const [settingsFocusRequest, setSettingsFocusRequest] = useState<
+    { moduleId: string; itemId: string | null; nonce: number } | null
+  >(null);
+  const focusNonceRef = useRef(0);
+  const openColumnSettings = useCallback(
+    (colId: string) => {
+      focusNonceRef.current += 1;
+      setSettingsFocusRequest({
+        moduleId: COLUMN_CUSTOMIZATION_MODULE_ID,
+        itemId: colId,
+        nonce: focusNonceRef.current,
+      });
+      handleOpenSettings();
+    },
+    [handleOpenSettings],
+  );
+
   // Formatting toolbar — always starts hidden. The toolbar-control button on the
   // FiltersToolbar toggles it. The `showFormattingToolbar` prop only
   // controls whether the feature is available (i.e. whether the formatter
@@ -441,10 +473,12 @@ export function useMarketsGridController(
     saveFlash,
     settingsOpen,
     setSettingsOpen,
+    settingsFocusRequest,
     styleToolbarOpen,
     pendingSwitch,
     setPendingSwitch,
     handleOpenSettings,
+    openColumnSettings,
     handleToggleStyleToolbar,
     editingToolbarOpen,
     handleToggleEditingToolbar,

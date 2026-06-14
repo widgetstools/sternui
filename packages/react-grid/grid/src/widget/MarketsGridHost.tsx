@@ -25,7 +25,7 @@ import {
   type RefObject,
 } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import type { GridReadyEvent } from 'ag-grid-community';
+import type { GetContextMenuItemsParams, GridReadyEvent } from 'ag-grid-community';
 import { TooltipProvider } from '@starui/ui';
 import { resolveGridDensity } from '@starui/design-system/adapters/ag-grid';
 import type { AnyModule, StorageAdapter } from '@starui/engine';
@@ -40,6 +40,7 @@ import { useToolbarDateSettingsBridge } from '../customizer/modules/toolbar-date
 import { PrimaryToolbar } from './PrimaryToolbar';
 import { UnsavedSwitchDialog } from './UnsavedSwitchDialog';
 import { MarketsGridSurface } from './MarketsGridSurface';
+import { buildGridContextMenuItems } from './gridContextMenu';
 import { StaleDataBanner } from './StaleDataBanner';
 import { HistoricalViewBanner } from './HistoricalViewBanner';
 import { GridChromeProvider } from './GridChromeContext';
@@ -168,10 +169,12 @@ function MarketsGridHostInner<TData>({
     saveFlash,
     settingsOpen,
     setSettingsOpen,
+    settingsFocusRequest,
     styleToolbarOpen,
     pendingSwitch,
     setPendingSwitch,
     handleOpenSettings,
+    openColumnSettings,
     handleToggleStyleToolbar,
     editingToolbarOpen,
     handleToggleEditingToolbar,
@@ -199,6 +202,23 @@ function MarketsGridHostInner<TData>({
     setSettingsMounted(true);
     handleOpenSettings();
   }, [handleOpenSettings]);
+
+  // Cell right-click menu — prepend "Settings" + "Remove from Grid" to
+  // AG-Grid's defaults. "Settings" mounts + opens the customizer on the
+  // clicked column; "Remove from Grid" hides it via the native visibility
+  // API (re-showable from the side bar's Columns panel). Stable identity
+  // (deps are both stable callbacks) so MarketsGridSurface's memo doesn't
+  // make AgGridReact re-process the option each render.
+  const getContextMenuItems = useCallback(
+    (params: GetContextMenuItemsParams) =>
+      buildGridContextMenuItems(params, {
+        openColumnSettings: (colId) => {
+          setSettingsMounted(true);
+          openColumnSettings(colId);
+        },
+      }),
+    [openColumnSettings],
+  );
 
   // Warm the settings-sheet chunk while the grid is idle so the first
   // "Grid settings" click doesn't pay the lazy-chunk load. The sheet
@@ -341,6 +361,7 @@ function MarketsGridHostInner<TData>({
         sideBar={sideBar}
         statusBar={statusBar}
         defaultColDef={defaultColDef}
+        getContextMenuItems={getContextMenuItems}
         onGridReady={handleGridReady}
         onGridPreDestroyed={onGridPreDestroyed}
         includeAllStreamSafeFilters={includeAllStreamSafeFilters}
@@ -353,6 +374,7 @@ function MarketsGridHostInner<TData>({
           open={settingsOpen}
           onClose={handleCloseSettings}
           initialModuleId="general-settings"
+          focusRequest={settingsFocusRequest ?? undefined}
         />
       )}
 

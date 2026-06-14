@@ -341,6 +341,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `preloadSettingsSheet()` — warms the sheet chunk ahead of first open; `MarketsGridHost` calls it on idle, the ⋯ overflow menu on open, the inline settings button on pointer-enter
 - `GeneralSettingsProvider` / `useGeneralSettingsFromContext` — single subscription for density/header-case reads
 - `GridChromeProvider` / `useGridChromeState` — isolates frequently-changing toolbar UI state
+- `buildGridContextMenuItems` — cell right-click menu builder; prepends **Settings** (opens the customizer on Column Settings with the right-clicked column pre-selected, via the controller's `openColumnSettings` + the settings sheet's `focusRequest` nonce) and **Remove from Grid** (hides the column via native `api.setColumnsVisible`, re-showable from the side bar's Columns panel and persisted on Save like any grid-state visibility change) ahead of AG Grid's stock items (Copy / Export / Auto-size …). Pure builder (params + handlers) wired through `MarketsGridHost` → `MarketsGridSurface` `getContextMenuItems`
 - `mergeDefaultColDef`, `gridOptionCompare`, `buildStreamSafeComponents` — reference-stable pipeline → surface wiring
 - `useGridHost`, `useMarketsGridController` — imperative grid control hooks (internal to `MarketsGrid`; not on package `.` barrel)
 - `useFilterModel` — filter-model persistence + mutation
