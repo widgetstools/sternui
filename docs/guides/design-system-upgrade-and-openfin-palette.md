@@ -1,6 +1,6 @@
 # Design system upgrade & OpenFin palette integration
 
-How the monorepo was migrated to the **StarUI v1 OKLCH design system** (Azure / teal / rose, FT paper light + blue-graphite dark), and how **OpenFin Workspace chrome** (dock, browser tabs, modals) was wired to the same tokens.
+How the monorepo was migrated to the **StarUI v1 OKLCH design system** (cyan-blue accent / teal / rose, FT paper light + blue-graphite dark), and how **OpenFin Workspace chrome** (dock, browser tabs, modals) was wired to the same tokens. The accent family (`--primary` / `--ring` / `--accent` / `--accent-foreground`, light + dark) is kept aligned to the canonical `starui-design-system` source — one vivid accent, no separate `--highlight` token.
 
 Use this guide when:
 

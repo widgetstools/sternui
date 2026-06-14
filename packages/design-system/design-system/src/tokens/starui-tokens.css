@@ -24,9 +24,9 @@
   --popover:               0.986 0.009 67;
   --popover-foreground:    0.30 0.008 67;
 
-  /* ── Brand / accent — Azure ─────────────────────────────────────────────── */
-  --primary:               0.545 0.225 254;
-  --primary-foreground:    0.99 0.015 250;
+  /* ── Brand / accent — Cyan (canonical starui-design-system source) ──────── */
+  --primary:               0.54 0.135 220;
+  --primary-foreground:    0.99 0.012 220;
   --secondary:             0.934 0.020 67;
   --secondary-foreground:  0.34 0.012 67;
   --muted:                 0.934 0.020 67;
@@ -41,10 +41,7 @@
   --border-strong:         0.80 0.024 67;
   --input:                 0.896 0.020 67;
   --grid-border:           0.882 0.020 67;
-  --ring:                  0.545 0.225 254;
-  /* Selected / active highlight — light mode reuses the azure primary,
-     which already reads well on the paper surface. */
-  --highlight:             0.545 0.225 254;
+  --ring:                  0.54 0.135 220;
 
   /* ── Fixed-income semantics — Teal (up) / Rose (down), light ────────────── */
   --buy:                   0.52 0.105 192;
@@ -118,14 +115,18 @@
   --popover:               0.217 0.020 258;
   --popover-foreground:    0.96 0.006 258;
 
-  --primary:               0.555 0.225 256;
-  --primary-foreground:    0.99 0.02 252;
+  /* Brand / accent — single vivid accent, aligned to the canonical
+     starui-design-system source (bright cyan-blue, L≈0.72). It's light, so
+     the foreground is a deep navy for legible (AA) text on primary fills.
+     This is THE accent: buttons, ring, active toggles, formatter highlights. */
+  --primary:               0.72 0.145 218;
+  --primary-foreground:    0.16 0.04 222;
   --secondary:             0.260 0.023 258;
   --secondary-foreground:  0.93 0.006 258;
   --muted:                 0.251 0.023 258;
   --muted-foreground:      0.70 0.015 258;
-  --accent:                0.28 0.04 256;
-  --accent-foreground:     0.82 0.11 254;
+  --accent:                0.28 0.05 220;
+  --accent-foreground:     0.84 0.11 218;
 
   --destructive:           0.70 0.215 24;
   --destructive-foreground: 0.16 0.06 26;
@@ -134,11 +135,7 @@
   --border-strong:         0.525 0.022 258;
   --input:                 0.355 0.019 258;
   --grid-border:           0.365 0.019 258;
-  --ring:                  0.555 0.225 256;
-  /* Selected / active highlight — bright cyan-leaning blue (#4fc5fc, ~9:1 on
-     the dark toolbar). The mid-azure --primary (L≈0.55) sits too low in
-     lightness to pop on dark surfaces, like a dark red; this lifts it. */
-  --highlight:             0.78 0.13 232;
+  --ring:                  0.72 0.145 218;
 
   /* Teal (up) / Rose (down) — dark, AA text on fill */
   --buy:                   0.76 0.135 192;

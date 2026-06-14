@@ -238,12 +238,12 @@
 }
 .ds-primary-action[aria-pressed='true'],
 .ds-primary-action[data-active='true'] {
-  /* Active/selected uses the bright highlight token so it stands out on
-     dark (in light mode --highlight = the azure primary). */
-  color: oklch(var(--highlight));
-  background: oklch(var(--highlight) / 0.16);
-  border-color: oklch(var(--highlight) / 0.45);
-  box-shadow: inset 0 0 0 1px oklch(var(--highlight) / 0.22);
+  /* Active/selected uses the single vivid accent (--primary): bright
+     cyan-blue on dark, azure on light paper. */
+  color: oklch(var(--primary));
+  background: oklch(var(--primary) / 0.16);
+  border-color: oklch(var(--primary) / 0.45);
+  box-shadow: inset 0 0 0 1px oklch(var(--primary) / 0.22);
 }
 .ds-primary-action[data-state='dirty'] {
   color: var(--ds-accent-warning);
