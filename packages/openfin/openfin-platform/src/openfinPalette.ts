@@ -218,10 +218,31 @@ function finalizeLightChromePalette(palette: OpenFinPaletteSet): OpenFinPaletteS
  */
 const DARK_CHROME_BORDER_NEUTRAL = '#C0C1C2';
 
+/**
+ * How far to lift the dark-scheme window header (title bar + tab strip) toward
+ * the foreground, as a percent. Our dark `--card` token (which feeds
+ * `backgroundPrimary`) sits only a hair above the page `--background`, so the
+ * OpenFin window header reads as near-black and melts into a dark desktop.
+ * OpenFin's own reference dark palette deliberately makes `backgroundPrimary`
+ * (`#1E1F23`) clearly lighter than the page (`#111214`); a ~10% lift restores
+ * that separation, landing around the grid's header-row grey. Scoped to the
+ * dark chrome palette only — the design-system `--card` token is untouched.
+ */
+const DARK_CHROME_HEADER_LIGHTEN_PCT = 10;
+
 function finalizeDarkChromePalette(palette: OpenFinPaletteSet): OpenFinPaletteSet {
   const onPrimary = pickOnPrimaryText(palette.brandPrimaryText ?? ON_PRIMARY_WHITE, palette.brandPrimary);
+  const headerBg = mixHex(
+    palette.textDefault ?? ON_PRIMARY_WHITE,
+    palette.backgroundPrimary,
+    DARK_CHROME_HEADER_LIGHTEN_PCT,
+  );
   return {
     ...palette,
+    // Lift the chrome header surfaces (title bar + tab strip) only; the
+    // content ramp (`contentBackground*`) and page `background1` stay dark.
+    backgroundPrimary: headerBg,
+    background2: headerBg,
     brandPrimaryText: onPrimary,
     brandPrimaryFocused: onPrimary,
     borderNeutral: DARK_CHROME_BORDER_NEUTRAL,

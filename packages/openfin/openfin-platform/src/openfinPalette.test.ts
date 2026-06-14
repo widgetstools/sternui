@@ -80,4 +80,14 @@ describe('buildOpenFinPalettesFromDesignSystem', () => {
     expect(paletteContrastRatio(light.brandPrimaryText!, light.brandPrimary)).toBeGreaterThanOrEqual(4.5);
     expect(light.brandPrimaryFocused).toBe(light.brandPrimaryText);
   });
+
+  it('dark chrome header (backgroundPrimary) is lighter than the page so the window frame is perceptible', () => {
+    const { dark } = buildOpenFinPalettesFromDesignSystem();
+    expect(dark.backgroundPrimary).toMatch(/^#[0-9A-F]{6}$/);
+    // Header must be clearly lighter than the page background, not a hairline.
+    const lift = paletteContrastRatio(dark.backgroundPrimary, dark.background1!);
+    expect(lift).toBeGreaterThan(1.15);
+    // Title bar and tab-strip surface stay in lock-step.
+    expect(dark.background2).toBe(dark.backgroundPrimary);
+  });
 });
