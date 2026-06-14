@@ -32,6 +32,7 @@ import type {
   FilterKind,
   ValueFormatterTemplate,
 } from './state';
+import type { AutoFormatAssignment } from '../../../colDef/fieldFormatCatalog/types.js';
 import {
   getActiveTheme,
   patchActiveStyle,
@@ -621,5 +622,103 @@ export function clearAllStylesInProfileReducer(): (
     const base: ColumnCustomizationState = prev ?? { assignments: {} };
     if (Object.keys(base.assignments).length === 0) return base;
     return { ...base, assignments: {} };
+  };
+}
+
+// ─── Writers: auto-format (field-catalog driven) ──────────────────────
+
+/** Options for {@link applyAutoFormatPlanReducer}. */
+export interface AutoFormatApplyOptions {
+  /**
+   * When true (the default), columns that already carry user-authored
+   * formatting are left untouched, so the action is non-destructive — it
+   * only fills in columns the user hasn't styled. Pass `false` to overwrite.
+   */
+  onlyUnstyled?: boolean;
+}
+
+/**
+ * Does an assignment already carry formatting we shouldn't clobber on a
+ * non-destructive auto-format pass? Structural-only assignments (width,
+ * pin, sort) don't count — auto-format never touches those.
+ */
+function assignmentHasFormatting(a: ColumnAssignment | undefined): boolean {
+  if (!a) return false;
+  return (
+    a.cellStyleOverrides !== undefined ||
+    a.headerStyleOverrides !== undefined ||
+    a.valueFormatterTemplate !== undefined ||
+    (a.templateIds !== undefined && a.templateIds.length > 0) ||
+    a.cellRendererId !== undefined ||
+    a.cellRendererName !== undefined
+  );
+}
+
+/**
+ * Apply a whole field-catalog auto-format plan in ONE state update (one
+ * undo entry). Each `plan[colId]` carries the resolved
+ * {@link AutoFormatAssignment} produced by `buildAutoFormatPlan` — a value
+ * formatter and/or a semantic cell renderer plus an alignment.
+ *
+ * Alignment is written to BOTH theme slots because it is theme-agnostic:
+ * the dark→light read-time fold only inherits dark under light, so writing
+ * both guarantees the alignment shows whichever theme is active.
+ *
+ * The formatter slot is template XOR renderer: applying a renderer clears
+ * any prior value formatter on that column and vice versa, so an overwrite
+ * leaves no stale formatter. Columns are skipped entirely when
+ * `onlyUnstyled` and they already carry formatting; pass
+ * `onlyUnstyled: false` (e.g. the toolbar's Auto Format) to overwrite every
+ * matched column.
+ */
+export function applyAutoFormatPlanReducer(
+  plan: Record<string, AutoFormatAssignment>,
+  options: AutoFormatApplyOptions = {},
+): (prev: ColumnCustomizationState | undefined) => ColumnCustomizationState {
+  const onlyUnstyled = options.onlyUnstyled !== false;
+  return (prev) => {
+    const base: ColumnCustomizationState = prev ?? { assignments: {} };
+    const colIds = Object.keys(plan);
+    if (colIds.length === 0) return base;
+
+    let mutated = false;
+    const assignments = { ...base.assignments };
+    for (const colId of colIds) {
+      const spec = plan[colId];
+      const existing = assignments[colId];
+      if (onlyUnstyled && assignmentHasFormatting(existing)) continue;
+
+      const a: ColumnAssignment = existing ?? { colId };
+      const next: ColumnAssignment = { ...a };
+
+      // Formatter slot is template XOR renderer. Apply exactly what the
+      // catalog entry specifies and clear the other slot so an overwrite
+      // doesn't leave a stale formatter behind the new renderer (or vice
+      // versa). Fields the catalog doesn't own (typography, colours,
+      // borders, header rename) are left untouched.
+      if (spec.cellRendererId !== undefined) {
+        next.cellRendererId = spec.cellRendererId;
+        if (spec.cellRendererConfig !== undefined) next.cellRendererConfig = spec.cellRendererConfig;
+        else delete next.cellRendererConfig;
+        delete next.valueFormatterTemplate;
+      } else if (spec.valueFormatterTemplate !== undefined) {
+        next.valueFormatterTemplate = spec.valueFormatterTemplate;
+        delete next.cellRendererId;
+        delete next.cellRendererConfig;
+      }
+      if (spec.headerName !== undefined) next.headerName = spec.headerName;
+
+      if (spec.alignment !== undefined) {
+        const patch: Partial<CellStyleOverrides> = { alignment: { horizontal: spec.alignment } };
+        next.cellStyleOverrides = {
+          dark: mergeOverrides(a.cellStyleOverrides?.dark, patch) ?? (patch as CellStyleOverrides),
+          light: mergeOverrides(a.cellStyleOverrides?.light, patch) ?? (patch as CellStyleOverrides),
+        };
+      }
+
+      assignments[colId] = next;
+      mutated = true;
+    }
+    return mutated ? { ...base, assignments } : base;
   };
 }

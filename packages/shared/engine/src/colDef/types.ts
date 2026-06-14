@@ -82,7 +82,7 @@ export interface ThemedCellStyleOverrides {
 //   - `tick`         — fixed-income 32nds/64ths/128ths/256ths bond-price
 //                      formatter (US Treasuries etc.)
 
-export type PresetId = 'currency' | 'percent' | 'number' | 'date' | 'duration';
+export type PresetId = 'currency' | 'percent' | 'number' | 'date' | 'datetime' | 'duration';
 
 export type TickToken = 'TICK32' | 'TICK32_PLUS' | 'TICK64' | 'TICK128' | 'TICK256';
 

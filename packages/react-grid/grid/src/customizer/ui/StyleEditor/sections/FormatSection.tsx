@@ -32,7 +32,7 @@ export interface FormatSectionProps {
 
 const PRESETS_BY_TYPE: Record<StyleEditorDataType, PresetId[]> = {
   number: ['number', 'currency', 'percent', 'duration'],
-  date: ['date'],
+  date: ['date', 'datetime'],
   text: [],
   boolean: [],
 };
@@ -42,6 +42,7 @@ const PRESET_LABEL: Record<PresetId, string> = {
   currency: '$',
   percent: '%',
   date: 'DATE',
+  datetime: 'DATE+TIME',
   duration: 'DURATION',
 };
 

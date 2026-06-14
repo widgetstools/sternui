@@ -23,6 +23,7 @@ import type { GridDensity } from '@starui/design-system/adapters/ag-grid';
 import type { AdminAction } from './types';
 import { FiltersToolbar } from './FiltersToolbar';
 import { QuickSearch } from './QuickSearch';
+import { AutoFormatButton } from './AutoFormatButton';
 import { ProfileSelector } from './ProfileSelector';
 import { EditableCaption } from './EditableCaption';
 import { AlertsBadge } from '../customizer/modules/alerts';
@@ -42,6 +43,7 @@ export interface PrimaryToolbarProps {
   readonly onCaptionChange: ((next: string) => void) | undefined;
   readonly showFiltersToolbar: boolean;
   readonly showFormattingToolbar: boolean;
+  readonly showAutoFormat: boolean;
   readonly styleToolbarOpen: boolean;
   readonly onToggleStyleToolbar: () => void;
   readonly showEditingToolbar: boolean;
@@ -80,6 +82,7 @@ function PrimaryToolbarInner(props: PrimaryToolbarProps): ReactElement {
     onCaptionChange,
     showFiltersToolbar,
     showFormattingToolbar,
+    showAutoFormat,
     styleToolbarOpen,
     onToggleStyleToolbar,
     showEditingToolbar,
@@ -145,9 +148,11 @@ function PrimaryToolbarInner(props: PrimaryToolbarProps): ReactElement {
       <div className="ds-primary-actions">
         <QuickSearch />
 
-        {(showFormattingToolbar || showEditingToolbar) && (
+        {(showAutoFormat || showFormattingToolbar || showEditingToolbar) && (
           <span className="ds-primary-divider" aria-hidden />
         )}
+
+        {showAutoFormat && <AutoFormatButton />}
 
         {showFormattingToolbar && (
           <Button
@@ -181,7 +186,7 @@ function PrimaryToolbarInner(props: PrimaryToolbarProps): ReactElement {
           </Button>
         )}
 
-        {(showFormattingToolbar || showEditingToolbar) && (
+        {(showAutoFormat || showFormattingToolbar || showEditingToolbar) && (
           <span className="ds-primary-divider" aria-hidden />
         )}
 
@@ -248,6 +253,7 @@ function primaryToolbarPropsEqual(prev: PrimaryToolbarProps, next: PrimaryToolba
     && prev.onCaptionChange === next.onCaptionChange
     && prev.showFiltersToolbar === next.showFiltersToolbar
     && prev.showFormattingToolbar === next.showFormattingToolbar
+    && prev.showAutoFormat === next.showAutoFormat
     && prev.styleToolbarOpen === next.styleToolbarOpen
     && prev.onToggleStyleToolbar === next.onToggleStyleToolbar
     && prev.showEditingToolbar === next.showEditingToolbar

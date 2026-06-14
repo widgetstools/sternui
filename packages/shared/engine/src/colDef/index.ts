@@ -43,3 +43,18 @@ export {
 export { tickFormatter } from './adapters/tickFormatter';
 export { presetToExcelFormat } from './adapters/presetToExcelFormat';
 export { nestedField, defaultNullSafeComparator, type NestedFieldOptions } from './nestedField';
+
+// ─── Field-format catalog (Auto Format) ─────────────────────────────────────
+export {
+  FIELD_FORMAT_CATALOG,
+  matchFieldToCatalog,
+  normalizeToken,
+  buildAutoFormatPlan,
+} from './fieldFormatCatalog/index.js';
+export type {
+  AutoFormatAlignment,
+  AutoFormatAssignment,
+  AutoFormatColumn,
+  AutoFormatRendererId,
+  FieldFormatEntry,
+} from './fieldFormatCatalog/index.js';

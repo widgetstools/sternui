@@ -276,7 +276,9 @@ export {
   removeTemplateRefFromAssignmentsReducer,
   clearAllStylesReducer,
   clearAllStylesInProfileReducer,
+  applyAutoFormatPlanReducer,
   type TargetKind,
   type ScopeKind,
   type FormatterKind,
+  type AutoFormatApplyOptions,
 } from './formattingActions';

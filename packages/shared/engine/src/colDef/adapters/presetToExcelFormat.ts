@@ -50,6 +50,8 @@ export function presetToExcelFormat(t: ValueFormatterTemplate | undefined): stri
       return groupedBody;
     case 'date':
       return 'yyyy-mm-dd';
+    case 'datetime':
+      return 'yyyy-mm-dd hh:mm:ss';
     case 'duration':
       return '[hh]:mm:ss';
     default:

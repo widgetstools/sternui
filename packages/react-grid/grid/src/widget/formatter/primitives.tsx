@@ -51,9 +51,9 @@ export function pillClasses(variant: 'icon' | 'text' | 'narrow' = 'icon'): strin
     variant === 'icon' && 'min-w-7 px-1.5',
     variant === 'text' && 'min-w-[30px] px-2 font-mono text-[10px] tracking-[0.04em]',
     variant === 'narrow' && 'min-w-[18px] px-[3px]',
-    'hover:text-primary hover:bg-primary/10 hover:border-primary/25',
-    'data-[on=true]:text-primary data-[on=true]:bg-primary/12 data-[on=true]:border-primary/35',
-    'data-[on=true]:shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--primary)_14%,transparent)]',
+    'hover:text-[oklch(var(--highlight))] hover:bg-[oklch(var(--highlight)_/_0.12)] hover:border-[oklch(var(--highlight)_/_0.30)]',
+    'data-[on=true]:text-[oklch(var(--highlight))] data-[on=true]:bg-[oklch(var(--highlight)_/_0.18)] data-[on=true]:border-[oklch(var(--highlight)_/_0.55)]',
+    'data-[on=true]:shadow-[inset_0_0_0_1px_oklch(var(--highlight)_/_0.30)]',
     'focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary focus-visible:outline-offset-1 focus-visible:ring-0',
   ].filter(Boolean).join(' ');
 }

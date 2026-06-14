@@ -59,21 +59,51 @@ const number: PresetFactory = (opts) => {
   };
 };
 
+/** Coerce a cell value to a Date — accepts Date, epoch-ms number, or any
+ *  string `new Date` understands. Returns null when unparseable. */
+function toDate(value: unknown): Date | null {
+  if (value == null) return null;
+  const d =
+    value instanceof Date ? value
+      : typeof value === 'number' ? new Date(value)
+        : new Date(typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : (value as string));
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/** Resolve the formatting locale: explicit option wins, else the host
+ *  locale, else `en-US`. */
+function resolveLocale(opts?: Record<string, unknown>): string {
+  if (typeof opts?.locale === 'string' && opts.locale) return opts.locale;
+  if (typeof navigator !== 'undefined' && navigator.language) return navigator.language;
+  return 'en-US';
+}
+
+const isDateStyle = (v: unknown): v is 'full' | 'long' | 'medium' | 'short' =>
+  v === 'full' || v === 'long' || v === 'medium' || v === 'short';
+
+// Localised date — honours the host (or explicit) locale. `timeZone: 'UTC'`
+// is pinned deliberately: it keeps output deterministic across CI machines
+// (the original reason Intl was avoided here) while still localising the
+// pattern/ordering to the user's region.
 const date: PresetFactory = (opts) => {
-  // For v2.1 we ship a single fixed pattern (yyyy-MM-dd). The `pattern` option
-  // is reserved for a future minor release; documented in the spec.
-  const pattern = typeof opts?.pattern === 'string' ? opts.pattern : 'yyyy-MM-dd';
-  void pattern;
+  const locale = resolveLocale(opts);
+  const dateStyle = isDateStyle(opts?.dateStyle) ? opts.dateStyle : 'medium';
+  const fmt = new Intl.DateTimeFormat(locale, { dateStyle, timeZone: 'UTC' });
   return ({ value }) => {
-    if (value == null) return '';
-    const d = value instanceof Date ? value : new Date(Number(value));
-    if (isNaN(d.getTime())) return '';
-    // Manual ISO date slice — Intl.DateTimeFormat respects the host TZ which
-    // makes tests flaky on CI. Stick to UTC components.
-    const yyyy = d.getUTCFullYear();
-    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-    const dd = String(d.getUTCDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
+    const d = toDate(value);
+    return d ? fmt.format(d) : '';
+  };
+};
+
+// Localised date + time. Same UTC pinning as `date`.
+const datetime: PresetFactory = (opts) => {
+  const locale = resolveLocale(opts);
+  const dateStyle = isDateStyle(opts?.dateStyle) ? opts.dateStyle : 'medium';
+  const timeStyle = isDateStyle(opts?.timeStyle) ? opts.timeStyle : 'short';
+  const fmt = new Intl.DateTimeFormat(locale, { dateStyle, timeStyle, timeZone: 'UTC' });
+  return ({ value }) => {
+    const d = toDate(value);
+    return d ? fmt.format(d) : '';
   };
 };
 
@@ -96,6 +126,7 @@ const presetRegistry: Record<PresetId, PresetFactory> = {
   percent,
   number,
   date,
+  datetime,
   duration,
 };
 

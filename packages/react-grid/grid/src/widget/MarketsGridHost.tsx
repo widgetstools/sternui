@@ -280,6 +280,7 @@ function MarketsGridHostInner<TData>({
           onCaptionChange={onCaptionChange}
           showFiltersToolbar={showFiltersToolbar}
           showFormattingToolbar={showFormattingToolbar}
+          showAutoFormat={showFormattingToolbar}
           styleToolbarOpen={styleToolbarOpen}
           onToggleStyleToolbar={handleToggleStyleToolbar}
           showEditingToolbar={editingToolbarAllow.rowVisible}

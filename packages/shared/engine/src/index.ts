@@ -161,8 +161,19 @@ export {
   resolveEffectiveStyle,
   nestedField,
   defaultNullSafeComparator,
+  FIELD_FORMAT_CATALOG,
+  matchFieldToCatalog,
+  normalizeToken,
+  buildAutoFormatPlan,
 } from './colDef';
 export type { NestedFieldOptions } from './colDef';
+export type {
+  AutoFormatAlignment,
+  AutoFormatAssignment,
+  AutoFormatColumn,
+  AutoFormatRendererId,
+  FieldFormatEntry,
+} from './colDef';
 
 // ─── Style editor value shape (shared by customizer panels) ────────────────
 export type {
