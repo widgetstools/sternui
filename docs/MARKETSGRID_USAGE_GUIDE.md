@@ -15,8 +15,6 @@
 | [`PROFILE_PERSISTENCE.md`](./PROFILE_PERSISTENCE.md) | Profile keys, workspace save, storage adapters |
 | [`ARCHITECTURE.md`](./ARCHITECTURE.md) | Monorepo layer model |
 
-**PDF:** [`MARKETSGRID_USAGE_GUIDE.pdf`](./MARKETSGRID_USAGE_GUIDE.pdf) — regenerate with `npm run docs:marketsgrid-usage-pdf` from the repo root.
-
 ---
 
 ## 1. Component model — three layers

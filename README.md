@@ -510,7 +510,7 @@ CI runs package and consumer jobs separately; see `.github/workflows/ci.yml`.
 | [`docs/guides/consumer-app-sharedworker-and-tailwind.md`](./docs/guides/consumer-app-sharedworker-and-tailwind.md) | SharedWorker + Tailwind pitfalls for consumer apps |
 | [`docs/guides/design-system-upgrade-and-openfin-palette.md`](./docs/guides/design-system-upgrade-and-openfin-palette.md) | StarUI v1 OKLCH token upgrade + OpenFin `CustomPaletteSet` bridge |
 | [`docs/STOMP_DATAPROVIDER_MARKETSGRID_GUIDE.md`](./docs/STOMP_DATAPROVIDER_MARKETSGRID_GUIDE.md) | Fresh app + STOMP provider + MarketsGrid end-to-end |
-| [`docs/MARKETSGRID_USAGE_GUIDE.md`](./docs/MARKETSGRID_USAGE_GUIDE.md) | MarketsGrid scenarios (components, hub, OpenFin, persistence) — [PDF](./docs/MARKETSGRID_USAGE_GUIDE.pdf) |
+| [`docs/MARKETSGRID_USAGE_GUIDE.md`](./docs/MARKETSGRID_USAGE_GUIDE.md) | MarketsGrid scenarios (components, hub, OpenFin, persistence) |
 | [`docs/guides/platform-hooks-demo.md`](./docs/guides/platform-hooks-demo.md) | AppData bootstrap hooks + grid event callback bindings |
 | [`CLAUDE.md`](./CLAUDE.md) | Agent / contributor conventions |
 
@@ -669,8 +669,7 @@ npx -y ./libs/starui-mcp-scaffold-0.1.0-<sha>.tgz
 ```
 
 Templates: `basic`, `mockdata-provider`, `dataprovider-editor`, `stomp`, `openfin-platform`.
-See [`tools/mcp-scaffold/README.md`](./tools/mcp-scaffold/README.md) and
-[`docs/superpowers/specs/2026-05-27-starui-mcp-scaffold-design.md`](./docs/superpowers/specs/2026-05-27-starui-mcp-scaffold-design.md).
+See [`tools/mcp-scaffold/README.md`](./tools/mcp-scaffold/README.md).
 
 ---
 

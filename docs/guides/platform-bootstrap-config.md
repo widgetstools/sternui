@@ -2,8 +2,6 @@
 
 How browser and OpenFin apps resolve **`appId`**, **`userId`**, and config-service settings before `ensurePlatformReady()` spawns the SharedWorker hub.
 
-**Design spec:** [`../superpowers/specs/2026-05-28-data-services-hub-idataprovider-design.md`](../superpowers/specs/2026-05-28-data-services-hub-idataprovider-design.md)
-
 ---
 
 ## Unified shape

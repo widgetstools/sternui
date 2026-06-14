@@ -167,5 +167,5 @@ Use this app to verify **hub bootstrap**, **catalog persistence**, and **cfg-fre
 
 ## Further reading
 
-- **[MarketsGrid Usage Guide](../../docs/MARKETSGRID_USAGE_GUIDE.md)** — full scenario matrix (this app is **Scenario A**); [PDF](../../docs/MARKETSGRID_USAGE_GUIDE.pdf)
+- **[MarketsGrid Usage Guide](../../docs/MARKETSGRID_USAGE_GUIDE.md)** — full scenario matrix (this app is **Scenario A**)
 - **[STOMP DataProvider guide](../../docs/STOMP_DATAPROVIDER_MARKETSGRID_GUIDE.md)** — step-by-step STOMP wiring from scratch
