@@ -3,9 +3,11 @@
  * toolbar. It reads every column from the live grid, matches each field
  * name against the FI/equity field-format catalog (see
  * `@starui/engine` → `buildAutoFormatPlan`), and applies the resolved
- * number/date formats, right-alignment for numerics, and semantic cell
- * renderers (P&L red/green, side, status, rating, ticker) in ONE
- * profile-persisted state update.
+ * NATIVE formatting in ONE profile-persisted state update: number/date
+ * value formatters, sign-coloured P&L/change via `excelFormat` colour tags,
+ * right-alignment for numerics, localised dates, centred categoricals, and
+ * bold tickers. No opaque cell renderers — so every auto-applied aspect
+ * stays editable from the formatter toolbar and saves to the active profile.
  *
  * Self-contained like {@link QuickSearch}: it reaches the live `GridApi`
  * and the module store through the platform context rather than props, so
@@ -15,10 +17,10 @@
  * throwing.
  *
  * Overwrite mode: Auto Format re-applies the catalog to every matched
- * column (replacing prior formatting). The user can then override any
- * column afterward in the formatter toolbar — those manual edits persist
- * until Auto Format is clicked again. The reducer still supports a
- * non-destructive (`onlyUnstyled`) mode for other callers.
+ * column (replacing prior formatting and clearing any prior renderer). The
+ * user can then override any aspect afterward in the formatter toolbar —
+ * those manual edits persist until Auto Format is clicked again. The reducer
+ * still supports a non-destructive (`onlyUnstyled`) mode for other callers.
  */
 import { useCallback, useEffect, useState } from 'react';
 import type { GridApi } from 'ag-grid-community';

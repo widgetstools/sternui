@@ -39,7 +39,7 @@ function toAssignment(entry: FieldFormatEntry): AutoFormatAssignment {
   const out: AutoFormatAssignment = {};
   if (entry.format !== undefined) out.valueFormatterTemplate = entry.format;
   if (entry.alignment !== undefined) out.alignment = entry.alignment;
-  if (entry.cellRendererId !== undefined) out.cellRendererId = entry.cellRendererId;
+  if (entry.typography !== undefined) out.typography = entry.typography;
   if (entry.headerName !== undefined) out.headerName = entry.headerName;
   return out;
 }

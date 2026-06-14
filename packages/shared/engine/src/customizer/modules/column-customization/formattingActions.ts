@@ -672,19 +672,26 @@ function assignmentHasFormatting(a: ColumnAssignment | undefined): boolean {
 /**
  * Apply a whole field-catalog auto-format plan in ONE state update (one
  * undo entry). Each `plan[colId]` carries the resolved
- * {@link AutoFormatAssignment} produced by `buildAutoFormatPlan` — a value
- * formatter and/or a semantic cell renderer plus an alignment.
+ * {@link AutoFormatAssignment} produced by `buildAutoFormatPlan` — only
+ * **native formatting-system state**: a value formatter (presets or an
+ * `excelFormat` string whose `[Green]`/`[Red]` tags colour the cell),
+ * alignment, typography, and/or a header rename.
  *
- * Alignment is written to BOTH theme slots because it is theme-agnostic:
- * the dark→light read-time fold only inherits dark under light, so writing
- * both guarantees the alignment shows whichever theme is active.
+ * Alignment + typography are written to BOTH theme slots because they're
+ * theme-agnostic: the dark→light read-time fold only inherits dark under
+ * light, so writing both guarantees they show whichever theme is active.
+ * They share one merged patch so a column that sets both lands in a single
+ * `cellStyleOverrides` entry.
  *
- * The formatter slot is template XOR renderer: applying a renderer clears
- * any prior value formatter on that column and vice versa, so an overwrite
- * leaves no stale formatter. Columns are skipped entirely when
- * `onlyUnstyled` and they already carry formatting; pass
- * `onlyUnstyled: false` (e.g. the toolbar's Auto Format) to overwrite every
- * matched column.
+ * Auto Format is renderer-free by design: every matched column has any prior
+ * `cellRendererId` / `cellRendererConfig` cleared so an opaque renderer can't
+ * paint over (and hide) the native value formatter the plan applies. This is
+ * what keeps auto-formatted columns fully editable from the formatter toolbar
+ * and saveable to the active profile.
+ *
+ * Columns are skipped entirely when `onlyUnstyled` and they already carry
+ * formatting; pass `onlyUnstyled: false` (e.g. the toolbar's Auto Format) to
+ * overwrite every matched column.
  */
 export function applyAutoFormatPlanReducer(
   plan: Record<string, AutoFormatAssignment>,
@@ -706,25 +713,22 @@ export function applyAutoFormatPlanReducer(
       const a: ColumnAssignment = existing ?? { colId };
       const next: ColumnAssignment = { ...a };
 
-      // Formatter slot is template XOR renderer. Apply exactly what the
-      // catalog entry specifies and clear the other slot so an overwrite
-      // doesn't leave a stale formatter behind the new renderer (or vice
-      // versa). Fields the catalog doesn't own (typography, colours,
-      // borders, header rename) are left untouched.
-      if (spec.cellRendererId !== undefined) {
-        next.cellRendererId = spec.cellRendererId;
-        if (spec.cellRendererConfig !== undefined) next.cellRendererConfig = spec.cellRendererConfig;
-        else delete next.cellRendererConfig;
-        delete next.valueFormatterTemplate;
-      } else if (spec.valueFormatterTemplate !== undefined) {
+      // Renderer-free: drop any opaque cell renderer so the native value
+      // formatter below actually shows and stays toolbar-editable.
+      delete next.cellRendererId;
+      delete next.cellRendererConfig;
+
+      if (spec.valueFormatterTemplate !== undefined) {
         next.valueFormatterTemplate = spec.valueFormatterTemplate;
-        delete next.cellRendererId;
-        delete next.cellRendererConfig;
       }
       if (spec.headerName !== undefined) next.headerName = spec.headerName;
 
-      if (spec.alignment !== undefined) {
-        const patch: Partial<CellStyleOverrides> = { alignment: { horizontal: spec.alignment } };
+      // Alignment + typography both live in cellStyleOverrides — merge them
+      // into a single themed patch written to both slots.
+      if (spec.alignment !== undefined || spec.typography !== undefined) {
+        const patch: Partial<CellStyleOverrides> = {};
+        if (spec.alignment !== undefined) patch.alignment = { horizontal: spec.alignment };
+        if (spec.typography !== undefined) patch.typography = { ...spec.typography };
         next.cellStyleOverrides = {
           dark: mergeOverrides(a.cellStyleOverrides?.dark, patch) ?? (patch as CellStyleOverrides),
           light: mergeOverrides(a.cellStyleOverrides?.light, patch) ?? (patch as CellStyleOverrides),

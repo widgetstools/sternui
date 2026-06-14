@@ -1,46 +1,36 @@
 /**
  * Types for the field-format catalog — a curated repository of field names
  * used across fixed-income / equity trading systems, mapped to the format,
- * alignment and (theme-safe) semantic colour they are conventionally shown
- * with. Consumed by {@link matchFieldToCatalog} and
- * {@link buildAutoFormatPlan} to drive the toolbar's "Auto Format" action.
+ * alignment and typography they are conventionally shown with. Consumed by
+ * {@link matchFieldToCatalog} and {@link buildAutoFormatPlan} to drive the
+ * toolbar's "Auto Format" action.
  *
- * Colours are delivered through existing zero-config cell renderers (which
- * resolve their own dark/light palette) rather than hard-coded hex, so the
- * catalog never violates the design-system no-hex rule.
+ * Everything the catalog emits is **native formatting-system state** — value
+ * formatters (including `excelFormat` strings whose `[Green]`/`[Red]` colour
+ * tags resolve to design-system tokens at render time), alignment and
+ * typography. Auto Format never assigns an opaque cell renderer, so every
+ * auto-applied aspect stays editable from the formatter toolbar and saves to
+ * the active profile. Semantic colour (e.g. P&L red/green) rides on the value
+ * formatter's colour tags rather than a renderer or hard-coded hex, so the
+ * catalog honours the design-system no-hex rule.
  */
-import type { ValueFormatterTemplate } from '../types.js';
-
-/**
- * The zero-config cell renderers the catalog assigns for semantic colour.
- * Kept as a local string-literal union (NOT imported from
- * `@starui/design-system`) so the engine stays decoupled from the
- * design-system catalogue — the ids still match `CellRendererId` there.
- */
-export type AutoFormatRendererId =
-  | 'pnl-value'
-  | 'signed-value'
-  | 'change-value'
-  | 'side'
-  | 'status-badge'
-  | 'rfq-status'
-  | 'rating-badge'
-  | 'ticker';
+import type { CellStyleOverrides, ValueFormatterTemplate } from '../types.js';
 
 export type AutoFormatAlignment = 'left' | 'center' | 'right';
+
+/** Typography knobs the catalog can set — mirrors `CellStyleOverrides.typography`. */
+export type AutoFormatTypography = NonNullable<CellStyleOverrides['typography']>;
 
 /**
  * A resolved bundle of formatting to apply to a single column. Produced by
  * the matcher; consumed by `applyAutoFormatPlanReducer`. Every field is
  * optional so an entry can set only what it needs (e.g. a categorical field
- * sets just `cellRendererId`).
+ * sets just `alignment`). All slots are native formatting-system state.
  */
 export interface AutoFormatAssignment {
   valueFormatterTemplate?: ValueFormatterTemplate;
   alignment?: AutoFormatAlignment;
-  cellRendererId?: AutoFormatRendererId;
-  /** Reserved for configurable renderers; unused by the curated catalog. */
-  cellRendererConfig?: unknown;
+  typography?: AutoFormatTypography;
   headerName?: string;
 }
 
@@ -60,7 +50,7 @@ export interface FieldFormatEntry {
   suffixes?: readonly string[];
   format?: ValueFormatterTemplate;
   alignment?: AutoFormatAlignment;
-  cellRendererId?: AutoFormatRendererId;
+  typography?: AutoFormatTypography;
   headerName?: string;
 }
 

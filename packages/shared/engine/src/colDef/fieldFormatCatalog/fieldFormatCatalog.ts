@@ -1,18 +1,25 @@
 /**
  * FIELD_FORMAT_CATALOG — curated repository of common fixed-income (FI) and
  * equity trading-blotter field names, with the format, alignment and
- * semantic colour they are conventionally displayed with.
+ * typography they are conventionally displayed with.
  *
  * Field ids, captions and format/type hints are sourced from
  * `docs/blotter-field-catalog.md` (Identification, Reference, Order, Trade,
  * Position, Pricing, Risk, P&L, RFQ, Settlement sections) and its section-13
  * display conventions:
- *   - Signed change  → green up / red down  (change-value / signed-value)
- *   - Side           → Buy blue/green, Sell red  (side)
- *   - Status         → chip/pill by enum  (status-badge / rfq-status)
- *   - Ratings        → badge  (rating-badge)
+ *   - Signed P&L / change → green up / red down, via `excelFormat` colour
+ *     tags (NOT a cell renderer) so the colouring is part of the value
+ *     formatter and stays user-overridable
  *   - Yield / % / numeric → right-aligned, fixed decimals
  *   - Dates / timestamps  → localised (date / datetime presets)
+ *   - Categorical (side / status / rating) → centred (no auto badge; the
+ *     formatter toolbar's renderer picker still adds one on demand)
+ *   - Ticker / symbol → bold, left-aligned
+ *
+ * Everything here is **native formatting-system state** — value formatters,
+ * alignment and typography only. Auto Format never assigns an opaque cell
+ * renderer, so each auto-applied aspect is editable from the formatter
+ * toolbar and round-trips through profile persistence.
  *
  * Matching is by full field id (`aliases`) or the field's last element
  * (`suffixes`) — see {@link matchFieldToCatalog} — both normalised
@@ -25,9 +32,10 @@
  *     because trading systems store these as the percentage number itself
  *     (e.g. coupon `4.500`), not a fraction. The header caption conveys the
  *     unit.
- *   - Sign-colouring value renderers (`pnl-value`, `signed-value`,
- *     `change-value`) format AND colour their own cell, so those entries
- *     omit `format` to avoid double-formatting.
+ *   - Sign-coloured fields use an `excelFormat` string with `[Green]`/`[Red]`
+ *     sections. The Excel colour tags resolve to `--ds-accent-positive` /
+ *     `--ds-accent-negative` design-system tokens (theme-safe) via the
+ *     column-customization transform's colour resolver.
  */
 import type { FieldFormatEntry } from './types.js';
 
@@ -38,13 +46,19 @@ const num = (decimals: number, thousands = true): FieldFormatEntry['format'] => 
   options: { decimals, thousands },
 });
 
+/** Excel format string (used for sign-coloured `[Green]`/`[Red]` sections). */
+const excel = (format: string): FieldFormatEntry['format'] => ({
+  kind: 'excelFormat',
+  format,
+});
+
 export const FIELD_FORMAT_CATALOG: readonly FieldFormatEntry[] = [
   // ─── Tickers / symbols ────────────────────────────────────────────────
   {
     id: 'ticker',
     category: 'identifier',
     aliases: ['ticker', 'symbol', 'issuerticker', 'underlyingticker'],
-    cellRendererId: 'ticker',
+    typography: { bold: true },
     alignment: 'left',
   },
 
@@ -102,7 +116,9 @@ export const FIELD_FORMAT_CATALOG: readonly FieldFormatEntry[] = [
     alignment: 'right',
   },
 
-  // ─── P&L (sign-coloured) ──────────────────────────────────────────────
+  // ─── P&L (sign-coloured via excelFormat) ──────────────────────────────
+  // 3 sections (positive;negative;zero): green / red / neutral. Negative
+  // section carries an explicit `-` so the minus shows.
   {
     id: 'pnl',
     category: 'pnl',
@@ -113,17 +129,18 @@ export const FIELD_FORMAT_CATALOG: readonly FieldFormatEntry[] = [
       'commissionpnl', 'stresspnl', 'unrealpnl', 'totalpnl',
     ],
     suffixes: ['pnl', 'pandl'],
-    cellRendererId: 'pnl-value',
+    format: excel('[Green]#,##0.00;[Red]-#,##0.00;#,##0.00'),
     alignment: 'right',
   },
 
-  // ─── Change / return (sign-coloured) ──────────────────────────────────
+  // ─── Change / return (sign-coloured via excelFormat) ──────────────────
+  // Change shows an explicit +/- sign; percent change appends a literal "%".
   {
     id: 'change-pct',
     category: 'change',
     aliases: ['pctchange', 'pctchg', 'changepct', 'daychgpct', 'daychangepct', 'pricechangepct', 'returnpct', 'ytdreturn'],
     suffixes: ['chgpct', 'changepct', 'returnpct', 'pctchange'],
-    cellRendererId: 'change-value',
+    format: excel('[Green]+0.00"%";[Red]-0.00"%";0.00"%"'),
     alignment: 'right',
   },
   {
@@ -131,7 +148,7 @@ export const FIELD_FORMAT_CATALOG: readonly FieldFormatEntry[] = [
     category: 'change',
     aliases: ['change', 'netchange', 'pricechange', 'daychange', 'daychg'],
     suffixes: ['change', 'netchg'],
-    cellRendererId: 'signed-value',
+    format: excel('[Green]+#,##0.00;[Red]-#,##0.00;0.00'),
     alignment: 'right',
   },
 
@@ -213,31 +230,27 @@ export const FIELD_FORMAT_CATALOG: readonly FieldFormatEntry[] = [
     alignment: 'right',
   },
 
-  // ─── Ratings (badge) ──────────────────────────────────────────────────
+  // ─── Categorical (centred; no auto badge) ─────────────────────────────
+  // Per-value badges/colours aren't expressible as a value formatter, so
+  // Auto Format only centres these. Users can still add a `pill` / `side`
+  // renderer from the formatter toolbar's renderer picker on demand.
   {
     id: 'rating',
     category: 'rating',
     aliases: ['rating', 'ratingsp', 'ratingmoody', 'ratingfitch', 'ratingcomposite', 'compositerating', 'moodysrating', 'sprating', 'fitchrating', 'moody', 'moodys', 'sp', 'fitch', 'ighy', 'ratingoutlook'],
     suffixes: ['rating'],
-    cellRendererId: 'rating-badge',
     alignment: 'center',
   },
-
-  // ─── Side (badge) ─────────────────────────────────────────────────────
   {
     id: 'side',
     category: 'categorical',
     aliases: ['side', 'rfqside', 'direction', 'buysell', 'way', 'axeflag'],
-    cellRendererId: 'side',
     alignment: 'center',
   },
-
-  // ─── Status (badge) ───────────────────────────────────────────────────
   {
     id: 'rfq-status',
     category: 'categorical',
     aliases: ['rfqstatus'],
-    cellRendererId: 'rfq-status',
     alignment: 'center',
   },
   {
@@ -245,7 +258,6 @@ export const FIELD_FORMAT_CATALOG: readonly FieldFormatEntry[] = [
     category: 'categorical',
     aliases: ['status', 'ordstatus', 'orderstatus', 'tradestatus', 'allocstatus', 'settlestatus', 'settlementstatus', 'confirmstatus', 'state', 'rowstate'],
     suffixes: ['status'],
-    cellRendererId: 'status-badge',
     alignment: 'center',
   },
 

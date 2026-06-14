@@ -367,7 +367,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
   settings sheet toggle, always-visible inline editable caption (bound two-way to the OpenFin tab name via `useViewTabTitle`), editing-toolbar pencil toggle,
   secondary actions in ⋯ overflow menu by default (`toolbarActionsLayout`: `overflow` | `inline`); shadcn `ToolbarDatePicker` on the right edge (defaults to today; `showToolbarDatePicker`; `historyEnabled` gates past dates)
 - `QuickSearch` — primary-toolbar search icon that expands into a compact field on hover/focus (or click-to-pin via `data-open`) and drives AG-Grid's quick filter across all columns (`setGridOption('quickFilterText')`); self-contained (reaches `GridApi` via `useGridApi`, like `AlertsBadge`); Escape clears + collapses, an inline ✕ clears, and an active term keeps the field open and lights the icon (`data-has-text`)
-- `AutoFormatButton` — primary-toolbar "Auto Format" wand (shown via `PrimaryToolbar.showAutoFormat`, defaulted to `showFormattingToolbar`). Reads every grid column, resolves a plan from `FIELD_FORMAT_CATALOG` via `buildAutoFormatPlan`, and applies number/date formats, right-alignment for numerics, localised dates, and semantic renderers (P&L/side/status/rating/ticker) in one profile-persisted update via `applyAutoFormatPlanReducer`. **Overwrite mode** (`onlyUnstyled: false`): re-applies the catalog to every matched column, replacing prior formatting; the user then overrides individual columns afterward in the formatter toolbar (manual edits win until Auto Format is clicked again). The reducer's formatter slot is template XOR renderer (applying one clears the other) and leaves catalog-unowned fields (typography/colours/borders/header rename) intact. The same XOR invariant holds for manual edits — `applyFormatterReducer` (the formatter toolbar's format picker) clears any `cellRendererId`/`cellRendererConfig` when it writes a per-column template, so a manual format applied over an auto-formatted (semantic-renderer) column actually shows instead of being painted over by the renderer. Self-contained (optional platform + module store); flashes a check on apply
+- `AutoFormatButton` — primary-toolbar "Auto Format" wand (shown via `PrimaryToolbar.showAutoFormat`, defaulted to `showFormattingToolbar`). Reads every grid column, resolves a plan from `FIELD_FORMAT_CATALOG` via `buildAutoFormatPlan`, and applies **native formatting only** — number/date value formatters, sign-coloured P&L/change via `excelFormat` `[Green]`/`[Red]` tags, right-alignment for numerics, localised dates, centred categoricals, and bold tickers — in one profile-persisted update via `applyAutoFormatPlanReducer`. No opaque cell renderers, so every auto-applied aspect is fully editable from the formatter toolbar and round-trips through profile persistence. **Overwrite mode** (`onlyUnstyled: false`): re-applies the catalog to every matched column, replacing prior formatting and clearing any prior `cellRendererId`/`cellRendererConfig`; the user then overrides individual columns afterward in the formatter toolbar (manual edits win until Auto Format is clicked again). The reducer leaves catalog-unowned fields (colours/borders/header rename, and any typography the catalog doesn't set) intact. `applyFormatterReducer` (the formatter toolbar's format picker) also clears any `cellRendererId`/`cellRendererConfig` when it writes a per-column template, so a manual format applied over a renderer column shows instead of being painted over. Self-contained (optional platform + module store); flashes a check on apply
 - `FiltersToolbar` — quick filter, saved filter recall, server-side expression
   (shadcn `ChromeButton` / `Input` / `Textarea` controls)
 - `FormattingToolbar` — cell/header styling, conditional formats, value formatters (with popout); horizontal strip is **two rows** — row 1: Scope / Type / Paint; row 2: Format / Edit / Templates / Clear (Format moved off row 1 so the wide format cluster no longer wraps alone onto a third line)
@@ -954,8 +954,14 @@ modules).
 #### Field-format catalog (Auto Format)
 
 - `FIELD_FORMAT_CATALOG` — curated repository of FI/equity blotter field names
-  (sourced from `docs/blotter-field-catalog.md`) mapped to format, alignment and
-  theme-safe semantic colour (delivered via existing cell renderers, not hex)
+  (sourced from `docs/blotter-field-catalog.md`) mapped to **native
+  formatting-system state only**: value formatters (incl. `excelFormat`
+  `[Green]`/`[Red]` colour tags for P&L / change / signed numerics, which resolve
+  to `--ds-accent-positive`/`--ds-accent-negative` design-system tokens),
+  alignment and typography. No opaque cell renderers — so every auto-applied
+  aspect stays editable from the formatter toolbar and saves to the active
+  profile. Categorical fields (side/status/rating) are centred only; tickers
+  get bold + left-align
 - `matchFieldToCatalog(field, headerName?, cellDataType?)` — resolve a column's
   `AutoFormatAssignment` by exact field-name alias, then last-element suffix
   (e.g. `bidPrice` → `price`), then a generic fallback by data type (number →
@@ -963,7 +969,7 @@ modules).
 - `normalizeToken()` — lowercase + strip non-alphanumerics for matching
 - `buildAutoFormatPlan(columns)` — map columns → `Record<colId, AutoFormatAssignment>`
 - Types: `FieldFormatEntry`, `AutoFormatAssignment`, `AutoFormatColumn`,
-  `AutoFormatAlignment`, `AutoFormatRendererId`
+  `AutoFormatAlignment`, `AutoFormatTypography`
 
 #### Style editor model
 

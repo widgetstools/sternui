@@ -12,12 +12,15 @@ describe('normalizeToken', () => {
 
 describe('matchFieldToCatalog — P&L aliases (case / abbreviation variants)', () => {
   for (const field of ['unrealizedPnL', 'unrealizedPnl', 'unrealPnl', 'dailyPnL', 'mtdPnl', 'pnl']) {
-    it(`maps ${field} to the pnl-value renderer, right-aligned`, () => {
+    it(`maps ${field} to a sign-coloured excelFormat, right-aligned`, () => {
       const r = matchFieldToCatalog(field, undefined, 'number');
-      expect(r?.cellRendererId).toBe('pnl-value');
       expect(r?.alignment).toBe('right');
-      // sign-colouring renderer formats itself — no competing value formatter
-      expect(r?.valueFormatterTemplate).toBeUndefined();
+      // Native sign colouring rides on the value formatter's [Green]/[Red]
+      // tags — no opaque cell renderer.
+      expect(r?.valueFormatterTemplate).toEqual({
+        kind: 'excelFormat',
+        format: '[Green]#,##0.00;[Red]-#,##0.00;#,##0.00',
+      });
     });
   }
 });
@@ -29,9 +32,10 @@ describe('matchFieldToCatalog — suffix (last element) matching', () => {
     expect(r?.valueFormatterTemplate).toEqual({ kind: 'preset', preset: 'number', options: { decimals: 4, thousands: false } });
   });
 
-  it('matches a dotted leaf (rating.moody) to the rating badge', () => {
+  it('matches a dotted leaf (rating.moody) to centred (no renderer)', () => {
     const r = matchFieldToCatalog('rating.moody', undefined, 'text');
-    expect(r?.cellRendererId).toBe('rating-badge');
+    expect(r?.alignment).toBe('center');
+    expect(r?.valueFormatterTemplate).toBeUndefined();
   });
 
   it('matches *Date to a localised date format', () => {
@@ -39,21 +43,24 @@ describe('matchFieldToCatalog — suffix (last element) matching', () => {
     expect(r?.valueFormatterTemplate).toEqual({ kind: 'preset', preset: 'date' });
   });
 
-  it('matches *Status to the status badge', () => {
+  it('matches *Status to centred (no renderer)', () => {
     const r = matchFieldToCatalog('tradeStatus', undefined, 'text');
-    expect(r?.cellRendererId).toBe('status-badge');
+    expect(r?.alignment).toBe('center');
+    expect(r?.valueFormatterTemplate).toBeUndefined();
   });
 
-  it('matches symbol to the ticker renderer', () => {
+  it('matches symbol to bold typography (no renderer)', () => {
     const r = matchFieldToCatalog('symbol', undefined, 'text');
-    expect(r?.cellRendererId).toBe('ticker');
+    expect(r?.typography).toEqual({ bold: true });
+    expect(r?.alignment).toBe('left');
   });
 });
 
 describe('matchFieldToCatalog — exact alias outranks suffix', () => {
-  it('rfqStatus uses rfq-status (exact) not status-badge (suffix)', () => {
+  it('rfqStatus matches the rfq-status entry (centred), not generic', () => {
     const r = matchFieldToCatalog('rfqStatus', undefined, 'text');
-    expect(r?.cellRendererId).toBe('rfq-status');
+    expect(r?.alignment).toBe('center');
+    expect(r?.valueFormatterTemplate).toBeUndefined();
   });
 });
 
@@ -87,7 +94,7 @@ describe('buildAutoFormatPlan', () => {
     ]);
     expect(Object.keys(plan).sort()).toEqual(['bidPrice', 'rating.moody']);
     expect(plan['bidPrice'].alignment).toBe('right');
-    expect(plan['rating.moody'].cellRendererId).toBe('rating-badge');
+    expect(plan['rating.moody'].alignment).toBe('center');
   });
 
   it('falls back to colId when field is absent', () => {

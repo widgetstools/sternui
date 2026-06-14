@@ -171,7 +171,7 @@ export type {
   AutoFormatAlignment,
   AutoFormatAssignment,
   AutoFormatColumn,
-  AutoFormatRendererId,
+  AutoFormatTypography,
   FieldFormatEntry,
 } from './colDef';
 
