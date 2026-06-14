@@ -207,10 +207,10 @@ OpenFin Workspace does **not** read CSS variables. It requires a **`CustomPalett
 | `background1` … `background6` | `--background`, `--card`, `--secondary`, `--muted`, `--accent`, `--border-strong` | Surface ramp |
 | `contentBackground1` … `5` | Same ramp as backgrounds | Dock dropdown (`contentBackground4` = muted) |
 | `textDefault` / `textHelp` / `textInactive` | `--foreground`, `--muted-foreground` | |
-| `inputBackground` / `inputColor` / `inputBorder` | `--muted`, `--foreground`, `--border` | |
+| `inputBackground` / `inputColor` / `inputBorder` | `--muted`, `--foreground`, `--border` | Input-field hairline borders |
 | `statusSuccess` / `Warning` / `Critical` | `--positive`, `--warning`, `--negative` | |
 | `statusActive` | `--primary` (light scheme adjusted) | |
-| `borderNeutral` | `--border` | |
+| `borderNeutral` | `--border-strong` (light) / fixed `#C0C1C2` (dark) | Chrome dividers/outlines — stronger than the `--border` input hairline. In dark mode `finalizeDarkChromePalette` forces a light grey so a dark window frame stays distinguishable from a dark desktop |
 
 Optional `initWorkspace({ theme: { brandPrimary, brandSecondary, backgroundPrimary } })` overrides apply to the **dark** palette only; light scheme keeps its own ramp (reusing dark override knobs breaks light dock dropdowns).
 

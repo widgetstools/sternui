@@ -207,12 +207,24 @@ function finalizeLightChromePalette(palette: OpenFinPaletteSet): OpenFinPaletteS
   };
 }
 
+/**
+ * Light grey used for the dark-scheme chrome outline. The dark
+ * `--border-strong` token resolves to a mid-grey that's too close to the
+ * dark surfaces, so a dark OpenFin window blends into a dark desktop. A
+ * light-grey divider (matching OpenFin's own dark `borderNeutral` default)
+ * makes the window frame distinguishable from the background. Scoped to the
+ * dark chrome palette only — the design-system token is untouched, and the
+ * light palette keeps its darker border.
+ */
+const DARK_CHROME_BORDER_NEUTRAL = '#C0C1C2';
+
 function finalizeDarkChromePalette(palette: OpenFinPaletteSet): OpenFinPaletteSet {
   const onPrimary = pickOnPrimaryText(palette.brandPrimaryText ?? ON_PRIMARY_WHITE, palette.brandPrimary);
   return {
     ...palette,
     brandPrimaryText: onPrimary,
     brandPrimaryFocused: onPrimary,
+    borderNeutral: DARK_CHROME_BORDER_NEUTRAL,
   };
 }
 
@@ -384,7 +396,10 @@ export function buildPaletteFromThemeScope(scope: HTMLElement): OpenFinPaletteSe
     contentBackground3: secondary,
     contentBackground4: muted,
     contentBackground5: accent,
-    borderNeutral: border,
+    // Chrome dividers/outlines read off the stronger border token so the
+    // workspace frame separates from surfaces more distinctly than the
+    // hairline `--border` used for input fields (`inputBorder` below).
+    borderNeutral: borderStrong,
     inputBackground: muted,
     inputColor: foreground,
     inputPlaceholder: mutedFg,
