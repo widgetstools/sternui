@@ -69,5 +69,5 @@ Open the **STOMP Positions** view from the workspace Home/Store, or spawn the bl
 
 ## Further reading
 
-- [MarketsGrid Usage Guide](../../docs/MARKETSGRID_USAGE_GUIDE.md) — Scenario B; [PDF](../../docs/MARKETSGRID_USAGE_GUIDE.pdf)
+- [MarketsGrid Usage Guide](../../docs/MARKETSGRID_USAGE_GUIDE.md) — Scenario B
 - [STOMP DataProvider guide](../../docs/STOMP_DATAPROVIDER_MARKETSGRID_GUIDE.md)
