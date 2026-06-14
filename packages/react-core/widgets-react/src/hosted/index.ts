@@ -40,6 +40,7 @@ export type {
 } from './useOpenFinChannel.js';
 
 export { useTabsHidden, deriveTabsHidden } from './useTabsHidden.js';
+export { useViewTabTitle, type ViewTabTitle } from './useViewTabTitle.js';
 
 export { useColorLinking, deriveColorLinking } from './useColorLinking.js';
 export type { ColorLinkingState } from './useColorLinking.js';

@@ -1,6 +1,6 @@
 /**
  * PrimaryToolbar — the top action row of the grid frame. Renders the
- * editable caption (when tabsHidden), the FiltersToolbar slot, the
+ * editable caption, the FiltersToolbar slot, the
  * formatting-toolbar toggle, the ProfileSelector with its full
  * clone/rename/export/import action set, the save + settings buttons,
  * the host-supplied admin actions cluster, and the grid-info popover.
@@ -76,7 +76,6 @@ export interface PrimaryToolbarProps {
 
 function PrimaryToolbarInner(props: PrimaryToolbarProps): ReactElement {
   const {
-    tabsHidden,
     caption,
     onCaptionChange,
     showFiltersToolbar,
@@ -131,12 +130,10 @@ function PrimaryToolbarInner(props: PrimaryToolbarProps): ReactElement {
   return (
     <div className="ds-toolbar-primary ds-primary-row ds-primary-row--with-density">
       <GridDensityPill density={gridDensity} />
-      {tabsHidden ? (
-        <EditableCaption
-          caption={caption && caption.trim() ? caption : 'MarketsGrid'}
-          onCaptionChange={onCaptionChange}
-        />
-      ) : null}
+      <EditableCaption
+        caption={caption && caption.trim() ? caption : 'MarketsGrid'}
+        onCaptionChange={onCaptionChange}
+      />
       <div className="ds-primary-filters">
         {showFiltersToolbar ? (
           <FiltersToolbar />

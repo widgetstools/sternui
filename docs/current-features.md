@@ -364,7 +364,7 @@ Per-renderer config types (`PillRendererConfig`,
 Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are composed inside `MarketsGrid` and are **not** on the package `.` barrel. Public toolbar exports: `FiltersToolbar`, `FormattingToolbar`, `DraggableFloat`, `SettingsSheet`, `ProfileSelector`, `HelpPanel`.
 
 - `PrimaryToolbar` — actions, admin, export/import, Visual Excel spreadsheet export; center-top `GridDensityPill` (Ultra / Compact / Comfortable spacing presets via AG Grid `theme.withParams` + general-settings persistence)
-  settings sheet toggle, optional inline caption (`tabsHidden`), editing-toolbar pencil toggle,
+  settings sheet toggle, always-visible inline editable caption (bound two-way to the OpenFin tab name via `useViewTabTitle`), editing-toolbar pencil toggle,
   secondary actions in ⋯ overflow menu by default (`toolbarActionsLayout`: `overflow` | `inline`); shadcn `ToolbarDatePicker` on the right edge (defaults to today; `showToolbarDatePicker`; `historyEnabled` gates past dates)
 - `QuickSearch` — primary-toolbar search icon that expands into a compact field on hover/focus (or click-to-pin via `data-open`) and drives AG-Grid's quick filter across all columns (`setGridOption('quickFilterText')`); self-contained (reaches `GridApi` via `useGridApi`, like `AlertsBadge`); Escape clears + collapses, an inline ✕ clears, and an active term keeps the field open and lights the icon (`data-has-text`)
 - `FiltersToolbar` — quick filter, saved filter recall, server-side expression
@@ -632,6 +632,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `useColorLinking` — workspace colour-linking membership (`{ color, linked }`); flat peer group, no parent/child
 - `useGridContextLink` — grid-to-grid context linking over colored "Link" groups: publishes the selection and filters rows on peer selections. Two modes: `'rowId'` (default) broadcasts AG-Grid `getRowId` values (`node.id` = `composeRowId` over the provider key fields) and applies them as an external filter — no `rowIdField` config needed; `'fields'` broadcasts key-field values (or grouped colId + key) and applies a per-column set-filter. Exported helpers: `buildSelectionContext`, `defaultGridLinkResolver`, `applyGridLinkContext`, `deriveTabsHidden`, `deriveColorLinking`, `GRID_LINK_CONTEXT_TYPE`, `normalizeRowIdField`; `buildRowIdContext` / `applyRowIdExternalFilter` are internal to `gridContextLink.ts`
 - `useTabsHidden` — tab visibility detection
+- `useViewTabTitle` (+ `ViewTabTitle` type) — two-way binding between the grid caption and the host OpenFin view's tab name: seeds from `customData.savedTitle`, polls for external "Save Tab As…" renames, and `setTitle` writes back `document.title` + `savedTitle`. No-op (local-only) outside OpenFin
 - `useWorkspaceSaveEvent` — workspace save callback
 - Window options — hosted hooks use `subscribeWindowOptions` from `@starui/host-openfin` internally (not re-exported from `./hosted`)
 - `useAgGridTheme` — AG Grid theme resolution

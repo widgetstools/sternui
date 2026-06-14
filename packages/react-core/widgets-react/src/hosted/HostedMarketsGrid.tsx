@@ -24,6 +24,7 @@ import { DataServicesProvider, DataHubProvider } from '@starui/host-data-react/r
 import type { MarketsGridHandle } from '@starui/grid';
 import { MarketsGridContainer, type MarketsGridContainerProps } from '../container/markets-grid-container/index.js';
 import { useHostedView } from './useHostedView.js';
+import { useViewTabTitle } from './useViewTabTitle.js';
 import { useGridContextLink, type GridContextLinkConfig } from './useGridContextLink.js';
 import type { AgGridThemeMode } from './useAgGridTheme.js';
 import type { ConfigManager } from './types.js';
@@ -46,10 +47,11 @@ type ContainerOwnedKeys =
 export interface HostedMarketsGridProps<
   TData extends Record<string, unknown> = Record<string, unknown>,
 > extends Omit<MarketsGridContainerProps<TData>, ContainerOwnedKeys> {
-  /** Caption rendered top-left when the host OpenFin window has hidden
-   *  its tab strip. Falls back to `componentName`. The actual rendering
-   *  decision is made downstream in `MarketsGrid` (session 7); here we
-   *  forward both the caption and the `tabsHidden` flag verbatim. */
+  /** Initial caption rendered top-left in the primary toolbar. Falls
+   *  back to `componentName`. The caption is always visible and, under
+   *  OpenFin, is bound two-way to the view's tab name via
+   *  {@link useViewTabTitle}: a "Save Tab As…" rename updates the
+   *  caption, and a caption edit seeds the tab name. */
   caption?: string;
   /** Logical component name — surfaces in the toolbar info popover and
    *  is used for diagnostic identifiers. */
@@ -209,6 +211,26 @@ export function HostedMarketsGrid<
     onWorkspaceSave,
   });
 
+  // Two-way binding between the toolbar caption and the OpenFin view's
+  // tab name. `tabTitle` seeds from `customData.savedTitle` (the value
+  // "Save Tab As…" writes) and tracks external renames; `writeTabTitle`
+  // pushes a toolbar edit back onto the tab. Outside OpenFin this is a
+  // plain local value with a no-op writer.
+  const { title: tabTitle, setTitle: writeTabTitle } = useViewTabTitle(caption ?? componentName);
+
+  // A caption edit in the toolbar seeds the tab name; chain any
+  // consumer-supplied handler so we don't shadow it.
+  const consumerOnCaptionChange = (containerProps as {
+    onCaptionChange?: (next: string) => void;
+  }).onCaptionChange;
+  const handleCaptionChange = useCallback(
+    (next: string) => {
+      writeTabTitle(next);
+      consumerOnCaptionChange?.(next);
+    },
+    [writeTabTitle, consumerOnCaptionChange],
+  );
+
   // Grid-to-grid context linking over OpenFin's colored "Link" groups.
   // No-op unless `contextLink.enabled` is true; degrades cleanly outside
   // an FDC3 runtime.
@@ -260,12 +282,15 @@ export function HostedMarketsGrid<
     if (withStorage && !identity.storage) {
       return <div style={LOADING_STYLE}>Connecting to ConfigService…</div>;
     }
-    const headerCaption = tabsHidden ? (caption ?? componentName) : undefined;
+    // Caption is always shown (no longer gated on `tabsHidden`) and is
+    // driven by the OpenFin tab name so the two stay in lockstep.
+    const headerCaption = tabTitle || caption || componentName;
     return (
       <MarketsGridContainer<TData>
         {...(containerProps as MarketsGridContainerProps<TData>)}
         caption={headerCaption}
         tabsHidden={tabsHidden}
+        onCaptionChange={handleCaptionChange}
         instanceId={identity.instanceId}
         appId={identity.appId}
         userId={identity.userId}
@@ -289,6 +314,8 @@ export function HostedMarketsGrid<
     agTheme,
     containerProps,
     caption,
+    tabTitle,
+    handleCaptionChange,
     tabsHidden,
     handleReady,
   ]);

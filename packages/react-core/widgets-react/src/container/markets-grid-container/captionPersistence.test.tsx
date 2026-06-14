@@ -10,7 +10,7 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import type { StorageAdapter } from '@starui/engine';
 
@@ -165,5 +165,52 @@ describe('MarketsGridContainer — caption persistence', () => {
     });
 
     expect(callerOnCaptionChange).toHaveBeenCalledWith('Renamed Again');
+  });
+
+  describe('under OpenFin — an external tab rename is adopted', () => {
+    afterEach(() => {
+      delete (globalThis as any).fin;
+    });
+
+    it('keeps the persisted caption on first render but adopts a later prop change (Save Tab As…)', async () => {
+      (globalThis as any).fin = {};
+      const adapter = makeAdapter({
+        liveProviderId: null,
+        historicalProviderId: null,
+        mode: 'live',
+        caption: 'Persisted Name',
+      });
+      const storage = vi.fn(() => adapter);
+
+      const { rerender } = render(
+        <MarketsGridContainer
+          {...baseProps}
+          storage={storage as any}
+          caption="MarketsGrid"
+        />,
+      );
+
+      // First render: the existing persisted caption is preserved — the
+      // initial prop (the componentName fallback) does not shadow it.
+      await waitFor(() => {
+        expect(lastMarketsGridProps.current?.caption).toBe('Persisted Name');
+      });
+
+      // A later prop change models the live tab name updating after a
+      // "Save Tab As…" rename — the container adopts it.
+      rerender(
+        <MarketsGridContainer
+          {...baseProps}
+          storage={storage as any}
+          caption="Renamed Via Tab"
+        />,
+      );
+
+      await waitFor(() => {
+        expect(lastMarketsGridProps.current?.caption).toBe('Renamed Via Tab');
+      });
+      const saved = adapter.__getSaved() as { caption?: string };
+      expect(saved.caption).toBe('Renamed Via Tab');
+    });
   });
 });

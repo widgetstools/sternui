@@ -61,7 +61,7 @@ describe('HostedMarketsGrid — caption + tabsHidden forwarding', () => {
     useHostedViewMock.mockReset();
   });
 
-  it('forwards no caption when tabs are visible', async () => {
+  it('forwards the caption even when tabs are visible (caption is always shown)', async () => {
     setHostedView(false);
     const { getByTestId } = render(
       <HostedMarketsGrid
@@ -74,7 +74,7 @@ describe('HostedMarketsGrid — caption + tabsHidden forwarding', () => {
     );
     const stub = await waitFor(() => getByTestId('mds-stub'));
     expect(stub.getAttribute('data-tabs-hidden')).toBe('false');
-    expect(stub.getAttribute('data-caption')).toBe('');
+    expect(stub.getAttribute('data-caption')).toBe('Markets Blotter');
   });
 
   it('forwards caption when tabs are hidden', async () => {

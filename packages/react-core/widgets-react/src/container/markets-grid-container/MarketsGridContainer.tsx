@@ -249,12 +249,28 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     callerOnCaptionChange?.(next);
   }, [callerOnCaptionChange]);
 
-  // Effective caption: persisted value (once loaded) wins over the
-  // prop, which is treated as the initial / fallback. The downstream
-  // MarketsGrid still gates RENDER on `tabsHidden` — this just decides
-  // WHAT to show when render is allowed.
+  // Effective caption: the persisted value (once loaded) wins over the
+  // prop, which is the initial / fallback. This keeps the user's saved
+  // caption authoritative across reloads in every runtime.
   const propCaption = (marketsGridProps as { caption?: string }).caption;
   const effectiveCaption = persistedCaption ?? propCaption;
+
+  // Under OpenFin, HostedMarketsGrid binds the `caption` prop to the live
+  // view tab name (useViewTabTitle). A genuine post-mount change to that
+  // prop means the tab was renamed externally ("Save Tab As…") — adopt it
+  // into the persisted caption so the toolbar follows the tab and the new
+  // name is saved to grid-level data. The initial value is never adopted,
+  // so an existing persisted caption (stored before tab-name binding
+  // existed) is preserved until the tab is actually renamed.
+  const lastPropCaptionRef = useRef(propCaption);
+  useEffect(() => {
+    if (lastPropCaptionRef.current === propCaption) return;
+    lastPropCaptionRef.current = propCaption;
+    if (!isOpenFinRuntime()) return;
+    if (propCaption && propCaption !== persistedCaption) {
+      setPersistedCaption(propCaption);
+    }
+  }, [propCaption, persistedCaption, setPersistedCaption]);
 
   // Changing the live/historical provider or the mode changes `activeId`,
   // which is part of the <MarketsGrid> `key` — so the grid remounts and a

@@ -119,10 +119,7 @@
 }
 
 [data-theme="light"] .ds-primary-row {
-  background:
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--ds-surface-primary) 92%, var(--ds-surface-secondary)) 0%,
-      var(--ds-surface-primary) 100%);
+  background: var(--ds-surface-primary);
   border-bottom-color: color-mix(in srgb, var(--ds-border-primary) 82%, var(--ds-primary) 18%);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.88) inset, 0 1px 2px rgba(15, 23, 42, 0.05);
 }
@@ -154,6 +151,25 @@
   align-items: center;
   gap: 0;
   flex-shrink: 0;
+}
+
+/* Collapsible profile section. By default only the Save button shows; the
+   profile selector slides in when the user hovers the cluster (the Save
+   button is the always-visible hover anchor), keyboard-focuses into it, or
+   has the layouts dropdown open. */
+.ds-primary-profile-cluster .ds-profile-selector {
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: max-width 180ms ease, opacity 150ms ease;
+}
+.ds-primary-profile-cluster:hover .ds-profile-selector,
+.ds-primary-profile-cluster:focus-within .ds-profile-selector,
+.ds-primary-profile-cluster:has(.ds-ps-trigger[data-open="true"]) .ds-profile-selector {
+  max-width: 240px;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .ds-primary-date-picker {
@@ -364,7 +380,7 @@
   min-height: var(--ds-toolbar-chip-height, 30px);
   padding: 0;
   background: var(--ds-surface-secondary);
-  border: 1px solid var(--ds-border-secondary);
+  border: none;
   color: var(--ds-text-primary);
   opacity: 0.85;
   cursor: pointer;
@@ -393,7 +409,7 @@
   padding: 0 14px !important;
   margin: 0 2px;
   background: var(--ds-surface-secondary);
-  border: 1px solid var(--ds-border-secondary);
+  border: none;
   border-radius: 2px;
   color: var(--ds-text-primary);
   font-family: var(--ds-font-sans);

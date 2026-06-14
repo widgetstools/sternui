@@ -1,6 +1,6 @@
 /**
- * MarketsGrid — left-edge caption rendering and in-place editing when
- * the host's OpenFin tab strip is hidden.
+ * MarketsGrid — left-edge caption rendering and in-place editing. The
+ * caption is always shown (no longer gated on the host's tab strip).
  *
  * AG-Grid + the design-system module bundle are heavy to mount in
  * jsdom, so we stub the AG-Grid React wrapper to a minimal element and
@@ -152,12 +152,13 @@ const baseProps = {
   columnDefs: [],
 } as const;
 
-describe('MarketsGrid — tabs-hidden caption', () => {
-  it('does not render the caption when tabs are visible', () => {
-    const { container } = render(
+describe('MarketsGrid — caption', () => {
+  it('renders the caption even when tabs are visible (always shown)', () => {
+    const { container, getByTestId } = render(
       <MarketsGrid {...baseProps} tabsHidden={false} caption="Markets" />,
     );
-    expect(container.querySelector('[data-grid-caption]')).toBeNull();
+    expect(container.querySelector('[data-grid-caption]')).not.toBeNull();
+    expect(getByTestId('grid-caption-text').textContent).toBe('Markets');
   });
 
   it('falls back to "MarketsGrid" when caption is omitted or blank', () => {

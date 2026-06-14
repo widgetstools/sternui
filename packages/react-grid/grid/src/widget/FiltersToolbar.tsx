@@ -16,6 +16,8 @@ import {
   FunnelX,
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   MoreVertical,
 } from 'lucide-react';
 import { useFilterModel } from './useFilterModel';
@@ -160,9 +162,9 @@ function FiltersToolbarInner() {
         data-testid="filters-collapse-toggle"
       >
         {expanded ? (
-          <ChevronLeft size={16} strokeWidth={2.5} />
+          <ChevronsLeft size={18} strokeWidth={3} />
         ) : (
-          <ChevronRight size={16} strokeWidth={2.5} />
+          <ChevronsRight size={18} strokeWidth={3} />
         )}
       </ChromeButton>
 

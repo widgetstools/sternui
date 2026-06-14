@@ -1,6 +1,7 @@
 /**
  * EditableCaption — inline caption rendered at the left edge of the
- * primary toolbar row when the host's OpenFin tab strip is hidden.
+ * primary toolbar row. Always visible; under OpenFin its value is kept
+ * in lockstep with the view's tab name (see useViewTabTitle).
  *
  * View-only. Local UI state for the input draft (held until commit) is
  * the only state — no ProfileManager, no AG-Grid API, no storage.
