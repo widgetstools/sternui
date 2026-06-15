@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { FieldNode, ColumnDefinition } from '@starui/shared-types';
 import type { ProviderConfig } from '@starui/shared-types';
-import { FieldsTab } from './FieldsTab.js';
+import { FieldsTab, buildColumns } from './FieldsTab.js';
 
 const FIELDS: FieldNode[] = [
   { path: 'price', name: 'price', type: 'number', nullable: false },
@@ -49,6 +49,25 @@ function Harness({ onCols }: { onCols: (cols: ColumnDefinition[]) => void }) {
     />
   );
 }
+
+describe('buildColumns — inferred type → cellDataType', () => {
+  const TREE: FieldNode[] = [
+    { path: 'qty', name: 'qty', type: 'number', nullable: false },
+    { path: 'active', name: 'active', type: 'boolean', nullable: false },
+    { path: 'name', name: 'name', type: 'string', nullable: false },
+    { path: 'asOfDate', name: 'asOfDate', type: 'date', nullable: false },
+  ];
+
+  it("maps an inferred date field to 'dateString' (not 'date')", () => {
+    const cols = buildColumns(TREE, ['asOfDate']);
+    expect(cols[0].cellDataType).toBe('dateString');
+  });
+
+  it('preserves number / boolean / object and defaults the rest to text', () => {
+    const cols = buildColumns(TREE, ['qty', 'active', 'name']);
+    expect(cols.map((c) => c.cellDataType)).toEqual(['number', 'boolean', 'text']);
+  });
+});
 
 describe('FieldsTab — checkbox selection persists', () => {
   it('keeps a clicked field selected after the parent re-renders', () => {

@@ -275,7 +275,7 @@ function useWindowedRange(
 
 // ─── helpers ──────────────────────────────────────────────────────
 
-function buildColumns(fields: FieldNode[], selectedPaths: string[]): ColumnDefinition[] {
+export function buildColumns(fields: FieldNode[], selectedPaths: string[]): ColumnDefinition[] {
   const byPath = new Map<string, FieldNode>();
   const walk = (nodes: FieldNode[]) => {
     for (const n of nodes) {
@@ -305,7 +305,12 @@ function humanize(name: string): string {
 }
 
 function mapType(t: FieldNode['type']): ColumnDefinition['cellDataType'] {
-  if (t === 'number' || t === 'boolean' || t === 'date' || t === 'object') return t;
+  // Inferred "date" fields come from ISO date-ish STRINGS (see inferFields'
+  // typeOf heuristic), so the row value is a string. Map them to AG-Grid's
+  // `dateString` cellDataType rather than `date` — `date` expects native
+  // Date objects and would mis-handle the string value (sorting/filtering).
+  if (t === 'date') return 'dateString';
+  if (t === 'number' || t === 'boolean' || t === 'object') return t;
   return 'text';
 }
 
