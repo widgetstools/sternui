@@ -72,6 +72,13 @@ export interface GridContextLinkConfig {
    * No-op outside an OpenFin runtime. Default `false`.
    */
   notify?: boolean;
+  /**
+   * Emit verbose link diagnostics to the console (`[gridLink] publish` /
+   * `[gridLink] receive`, `[interop] setContext ok`, "not in a context group"
+   * notices). Off by default — turn on while wiring up / debugging color
+   * linking. Genuine error warnings are always logged regardless.
+   */
+  debug?: boolean;
 }
 
 export interface UseGridContextLinkArgs {
@@ -145,6 +152,11 @@ export function useGridContextLink({
   const channelRef = useRef<string | null>(fdc3.current);
   channelRef.current = fdc3.current;
 
+  // Verbose diagnostics gate (off by default). Ref-bridged so toggling it
+  // doesn't re-attach the listeners below.
+  const debugRef = useRef(false);
+  debugRef.current = config?.debug === true;
+
   const { addContextListener } = fdc3;
   const resolve = config?.resolve ?? defaultGridLinkResolver;
   const receive = config?.receive !== false;
@@ -155,14 +167,16 @@ export function useGridContextLink({
     const detach = addContextListener(contextType, (ctx) => {
       const context = ctx as GridLinkSelectionContext;
       const isEcho = Boolean(context.source) && context.source === sourceId;
-      // eslint-disable-next-line no-console
-      console.debug('[gridLink] receive', {
-        self: sourceId,
-        from: context.source,
-        channel: context.channel ?? null,
-        isEcho,
-        context,
-      });
+      if (debugRef.current) {
+        // eslint-disable-next-line no-console
+        console.debug('[gridLink] receive', {
+          self: sourceId,
+          from: context.source,
+          channel: context.channel ?? null,
+          isEcho,
+          context,
+        });
+      }
       if (isEcho) return;
       applyingRemoteRef.current = true;
       try {
@@ -208,12 +222,14 @@ export function useGridContextLink({
       // `null` channel here is the #1 reason peers receive nothing — the
       // window isn't on an FDC3 user channel despite the color "Link".
       context.channel = channelRef.current ?? undefined;
-      // eslint-disable-next-line no-console
-      console.debug('[gridLink] publish', {
-        self: sourceId,
-        channel: channelRef.current ?? null,
-        context,
-      });
+      if (debugRef.current) {
+        // eslint-disable-next-line no-console
+        console.debug('[gridLink] publish', {
+          self: sourceId,
+          channel: channelRef.current ?? null,
+          context,
+        });
+      }
       void broadcast(context);
       onPublishRef.current?.(context);
     };

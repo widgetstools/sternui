@@ -41,7 +41,12 @@ export function isInteropAvailable(): boolean {
   return getInterop() !== undefined;
 }
 
-export function useInteropChannel(): UseFdc3ChannelResult {
+export interface UseInteropChannelOptions {
+  /** Emit verbose `[interop]` diagnostics. Off by default. */
+  debug?: boolean;
+}
+
+export function useInteropChannel(opts: UseInteropChannelOptions = {}): UseFdc3ChannelResult {
   // Best-effort channel label for diagnostics only — the transport itself
   // needs no channel id (interop routes by current group membership).
   const { color, linked } = useColorLinking();
@@ -49,16 +54,25 @@ export function useInteropChannel(): UseFdc3ChannelResult {
 
   const cleanupsRef = useRef<Set<() => void>>(new Set());
 
+  // Ref-bridge the debug flag so callbacks below stay referentially stable.
+  const debugRef = useRef(false);
+  debugRef.current = opts.debug === true;
+
   const broadcast = useCallback<UseFdc3ChannelResult['broadcast']>(async (context) => {
     const interop = getInterop();
     if (!interop?.setContext) return;
     try {
       await interop.setContext(context as Fdc3Context);
-      // eslint-disable-next-line no-console
-      console.debug('[interop] setContext ok', context);
+      if (debugRef.current) {
+        // eslint-disable-next-line no-console
+        console.debug('[interop] setContext ok', context);
+      }
     } catch (err) {
-      // The usual cause: this entity isn't in a context group (not linked).
-      console.warn('[useInteropChannel] setContext failed (entity not in a context group?):', err);
+      // The usual cause: this entity isn't in a context group (not linked) —
+      // diagnostic, not a hard error, so only surfaced when debugging.
+      if (debugRef.current) {
+        console.warn('[useInteropChannel] setContext failed (entity not in a context group?):', err);
+      }
     }
   }, []);
 

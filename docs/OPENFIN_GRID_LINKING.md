@@ -51,6 +51,7 @@ Defined in `packages/react-core/widgets-react/src/hosted/useGridContextLink.ts`.
 | `receive` | `true` | Apply incoming peer selections as a filter. |
 | `rowIdField` | auto | `'fields'` mode key column(s). **Do not hardcode** — `HostedMarketsGrid` auto-fills it from the active provider's `keyColumn` (the same fields that drive `getRowId`). Only set it to override. |
 | `notify` | `false` | Post OpenFin Notification Center messages for sent/received link traffic. |
+| `debug` | `false` | Emit verbose `[gridLink]` / `[interop]` console diagnostics (see below). Genuine error warnings always log regardless. |
 | `contextType` | `'starui.gridSelection'` | Context type used on the wire. |
 | `resolve` / `buildContext` | defaults | Override the receive-side context→filter and publish-side selection→context mappings. |
 
@@ -169,8 +170,9 @@ user's own column filters (manual filters survive).
 
 ## Diagnostics
 
-When linking is active the hooks emit console diagnostics (open OpenFin DevTools
-via `chrome://inspect` on the runtime's `--remote-debugging-port`):
+Set `contextLink.debug: true` to emit console diagnostics (off by default; open
+OpenFin DevTools via `chrome://inspect` on the runtime's
+`--remote-debugging-port`). star-demo's blotter sets `debug: true`:
 
 - `[interop] setContext ok` — a broadcast went out (entity is in a group). A
   `setContext failed (entity not in a context group?)` warning means this window
@@ -181,10 +183,7 @@ via `chrome://inspect` on the runtime's `--remote-debugging-port`):
 
 With `notify: true`, each notification body also prints the channel, e.g.
 *"…on channel `purple`"* or *"…(no channel — peers won't receive)"*, so a
-channel/color mismatch is visible without DevTools.
-
-> These `console.debug`/`console.warn` lines are debugging aids; strip or gate
-> them behind a debug flag before shipping to production.
+channel/color mismatch is visible without DevTools (independent of `debug`).
 
 ---
 

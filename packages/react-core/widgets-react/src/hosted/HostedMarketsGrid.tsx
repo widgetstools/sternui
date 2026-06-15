@@ -256,7 +256,7 @@ export function HostedMarketsGrid<
   // `window.fdc3`'s channel tracking doesn't reliably reflect (a linked view
   // can report "no channel" and drop every broadcast). So prefer the interop
   // client when present; fall back to the FDC3 facade only outside OpenFin.
-  const interopChannel = useInteropChannel();
+  const interopChannel = useInteropChannel({ debug: contextLink?.debug === true });
   const linkTransport = isInteropAvailable() ? interopChannel : linking.fdc3;
 
   // Grid-to-grid context linking over OpenFin's colored "Link" groups.

@@ -63,6 +63,7 @@ function BlottersMarketsGrid(): ReactNode {
         enabled: true,
         mode: 'fields',
         notify: true,
+        debug: true,
       }}
     />
   );
