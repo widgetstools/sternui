@@ -11,7 +11,7 @@
  *   - Key Column picker (single or composite)
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import type {
   ColDef,
@@ -26,13 +26,14 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
   Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@starui/ui';
-import { ChevronDown, Plus, SquareFunction, Trash2 } from 'lucide-react';
+import { ChevronDown, Download, Plus, SquareFunction, Trash2, Upload } from 'lucide-react';
 import { ExpressionEditor } from '@starui/grid/customizer';
 import { ExpressionEngine } from '@starui/engine';
 import type { ColumnDefinition } from '@starui/shared-types';
 import { normalizeKeyColumns } from '@starui/shared-types';
 import { MultiSelect } from '../MultiSelect.js';
 import { ensureProviderEditorAgGridModules } from '../ensureProviderEditorAgGridModules.js';
+import { exportColumnDefs, parseColumnDefsImport } from '../columnDefsIo.js';
 import { useAgGridTheme } from '../../../theme/useAgGridTheme.js';
 
 const CELL_TYPES: ReadonlyArray<NonNullable<ColumnDefinition['cellDataType']>> = [
@@ -101,6 +102,64 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
     onKeyColumnChange([]);
     setConfirmClearOpen(false);
   }, [onChange, onKeyColumnChange]);
+
+  // ── Export / Import column defs (JSON) ────────────────────────────
+  // Export writes a plain JSON array at full fidelity — including each
+  // column's `valueGetter` DSL expression. Import replaces the column list
+  // and prunes the key column to fields that survive the import.
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const importErrorTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(
+    () => () => {
+      if (importErrorTimer.current) clearTimeout(importErrorTimer.current);
+    },
+    [],
+  );
+
+  const flashImportError = useCallback((message: string) => {
+    setImportError(message);
+    if (importErrorTimer.current) clearTimeout(importErrorTimer.current);
+    importErrorTimer.current = setTimeout(() => setImportError(null), 6000);
+  }, []);
+
+  const handleExport = useCallback(() => exportColumnDefs(columns), [columns]);
+
+  const handleImportClick = useCallback(() => {
+    setImportError(null);
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleImportFile = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      // Reset so re-importing the same file fires `change` again.
+      e.target.value = '';
+      if (!file) return;
+      try {
+        const imported = parseColumnDefsImport(await file.text());
+        onChange(imported);
+        // Drop any key-column entries whose field no longer exists.
+        const present = new Set(imported.map((c) => c.field));
+        const prunedKey = (normalizeKeyColumns(keyColumn) ?? []).filter((k) => present.has(k));
+        onKeyColumnChange(prunedKey);
+      } catch (err) {
+        flashImportError(err instanceof Error ? err.message : 'Import failed.');
+      }
+    },
+    [onChange, onKeyColumnChange, keyColumn, flashImportError],
+  );
+
+  const fileInput = (
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept="application/json,.json"
+      className="hidden"
+      data-testid="columns-tab-import-input"
+      onChange={handleImportFile}
+    />
+  );
 
   const handleAddColumn = useCallback(() => {
     if (!newFieldName.trim()) return;
@@ -284,7 +343,26 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
             Pick fields on the <strong>Fields</strong> tab and they'll appear here as
             grid columns. You can rename headers and adjust the cell type after.
           </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Or import column definitions from a JSON file.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs mt-3"
+            onClick={handleImportClick}
+            data-testid="columns-tab-import-empty"
+          >
+            <Upload className="h-3.5 w-3.5 mr-1" />
+            Import JSON
+          </Button>
+          {importError && (
+            <p className="text-[11px] text-destructive mt-2" data-testid="columns-tab-import-error">
+              {importError}
+            </p>
+          )}
         </div>
+        {fileInput}
       </div>
     );
   }
@@ -320,17 +398,51 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
           <span className="text-[11px] font-medium text-muted-foreground">
             Columns ({columns.length})
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs text-destructive hover:text-destructive"
-            onClick={() => setConfirmClearOpen(true)}
-            data-testid="columns-tab-clear-all"
-          >
-            <Trash2 className="h-3.5 w-3.5 mr-1" />
-            Clear all columns
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={handleExport}
+              data-testid="columns-tab-export"
+              title="Export column definitions as JSON (includes value expressions)"
+            >
+              <Download className="h-3.5 w-3.5 mr-1" />
+              Export JSON
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={handleImportClick}
+              data-testid="columns-tab-import"
+              title="Import column definitions from a JSON file"
+            >
+              <Upload className="h-3.5 w-3.5 mr-1" />
+              Import JSON
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-destructive hover:text-destructive"
+              onClick={() => setConfirmClearOpen(true)}
+              data-testid="columns-tab-clear-all"
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1" />
+              Clear all columns
+            </Button>
+          </div>
         </div>
+
+        {importError && (
+          <p
+            className="text-[11px] text-destructive flex-shrink-0 -mt-1"
+            data-testid="columns-tab-import-error"
+          >
+            {importError}
+          </p>
+        )}
+        {fileInput}
 
         <div className="flex-1 min-h-[220px]">
           <AgGridReact<RowData>
