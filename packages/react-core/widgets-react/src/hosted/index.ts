@@ -80,5 +80,19 @@ export type {
   GridLinkSelectionBuilder,
 } from './gridContextLink.js';
 
+export { useInteropChannel, isInteropAvailable } from './useInteropChannel.js';
+export { useGridLinkNotifications } from './useGridLinkNotifications.js';
+export type {
+  UseGridLinkNotificationsArgs,
+  GridLinkNotificationCallbacks,
+} from './useGridLinkNotifications.js';
+export {
+  summarizeCriteria,
+  summarizeLinkContext,
+  buildSelectionNotification,
+  buildAckNotification,
+} from './gridLinkNotifications.js';
+export type { GridLinkNotificationContent } from './gridLinkNotifications.js';
+
 export { HostedMarketsGrid } from './HostedMarketsGrid.js';
 export type { HostedMarketsGridProps } from './HostedMarketsGrid.js';

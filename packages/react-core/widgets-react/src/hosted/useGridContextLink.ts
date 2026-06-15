@@ -64,6 +64,14 @@ export interface GridContextLinkConfig {
   buildContext?: GridLinkSelectionBuilder;
   /** FDC3 context type for link messages. Defaults to `'starui.gridSelection'`. */
   contextType?: string;
+  /**
+   * Post OpenFin Notification Center messages for link traffic: a "sent"
+   * notification when this grid broadcasts a selection, and an
+   * acknowledgement when it receives a peer's. Wired by the host via the
+   * `onPublish` / `onReceive` callbacks (see {@link useGridLinkNotifications}).
+   * No-op outside an OpenFin runtime. Default `false`.
+   */
+  notify?: boolean;
 }
 
 export interface UseGridContextLinkArgs {
@@ -75,6 +83,29 @@ export interface UseGridContextLinkArgs {
   instanceId: string;
   /** Linking config; when omitted or `enabled !== true`, the hook does nothing. */
   config?: GridContextLinkConfig;
+  /** Invoked right after this grid broadcasts a selection context to peers. */
+  onPublish?: (context: GridLinkSelectionContext) => void;
+  /** Invoked right after a peer's selection context is received + applied. */
+  onReceive?: (context: GridLinkSelectionContext) => void;
+}
+
+/**
+ * A source id unique PER WINDOW, used for echo suppression. The app
+ * `instanceId` is NOT safe here: two instances of the same view share it, so
+ * each would discard the other's broadcast as its own echo (the classic "two
+ * linked grids never see each other" bug). Prefer the OpenFin window identity
+ * (`uuid/name`, unique per view); fall back to `instanceId` + a random suffix
+ * outside OpenFin so duplicate views still get distinct sources.
+ */
+function makeSourceId(instanceId: string): string {
+  try {
+    const fin = (window as unknown as { fin?: { me?: { identity?: { name?: string; uuid?: string } } } }).fin;
+    const id = fin?.me?.identity;
+    if (id?.name) return id.uuid ? `${id.uuid}/${id.name}` : id.name;
+  } catch {
+    /* not OpenFin */
+  }
+  return `${instanceId}::${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function useGridContextLink({
@@ -82,10 +113,17 @@ export function useGridContextLink({
   fdc3,
   instanceId,
   config,
+  onPublish,
+  onReceive,
 }: UseGridContextLinkArgs): void {
   const active = Boolean(config) && config?.enabled === true;
   const contextType = config?.contextType ?? GRID_LINK_CONTEXT_TYPE;
   const mode = config?.mode ?? 'rowId';
+
+  // Per-window source id (see makeSourceId). Stable for the hook's lifetime.
+  const sourceIdRef = useRef<string>('');
+  if (!sourceIdRef.current) sourceIdRef.current = makeSourceId(instanceId);
+  const sourceId = sourceIdRef.current;
 
   // Fields the most recent received context filtered on — so the next
   // context only clears the columns this link owns, not the user's.
@@ -93,6 +131,19 @@ export function useGridContextLink({
   // True while we apply a received context, so the resulting
   // selection/filter churn doesn't echo straight back out.
   const applyingRemoteRef = useRef(false);
+
+  // Ref-bridge the notify callbacks so changing their identity doesn't
+  // re-attach the grid / fdc3 listeners below.
+  const onPublishRef = useRef(onPublish);
+  const onReceiveRef = useRef(onReceive);
+  onPublishRef.current = onPublish;
+  onReceiveRef.current = onReceive;
+
+  // Latest joined channel, read fresh at selection time (the publish effect
+  // doesn't re-run on channel change, so reading a captured `fdc3.current`
+  // would go stale).
+  const channelRef = useRef<string | null>(fdc3.current);
+  channelRef.current = fdc3.current;
 
   const { addContextListener } = fdc3;
   const resolve = config?.resolve ?? defaultGridLinkResolver;
@@ -103,7 +154,16 @@ export function useGridContextLink({
     if (!active || !receive || !gridApi) return;
     const detach = addContextListener(contextType, (ctx) => {
       const context = ctx as GridLinkSelectionContext;
-      if (context.source && context.source === instanceId) return;
+      const isEcho = Boolean(context.source) && context.source === sourceId;
+      // eslint-disable-next-line no-console
+      console.debug('[gridLink] receive', {
+        self: sourceId,
+        from: context.source,
+        channel: context.channel ?? null,
+        isEcho,
+        context,
+      });
+      if (isEcho) return;
       applyingRemoteRef.current = true;
       try {
         if (mode === 'rowId') {
@@ -116,6 +176,9 @@ export function useGridContextLink({
             linkFieldsRef.current,
           );
         }
+        // Notify after applying so the ack reflects a received-and-handled
+        // context (e.g. an OpenFin Notification Center acknowledgement).
+        onReceiveRef.current?.(context);
       } finally {
         // Release after the filter/selection events have flushed.
         queueMicrotask(() => {
@@ -138,10 +201,21 @@ export function useGridContextLink({
     const fields = normalizeRowIdField(rowIdField);
     const onSelectionChanged = () => {
       if (applyingRemoteRef.current) return;
-      const context = build(gridApi, { instanceId, rowIdField: fields });
+      const context = build(gridApi, { instanceId: sourceId, rowIdField: fields });
       if (!context) return;
       context.type = contextType;
+      // Stamp the joined channel so peers + notifications can show it. A
+      // `null` channel here is the #1 reason peers receive nothing — the
+      // window isn't on an FDC3 user channel despite the color "Link".
+      context.channel = channelRef.current ?? undefined;
+      // eslint-disable-next-line no-console
+      console.debug('[gridLink] publish', {
+        self: sourceId,
+        channel: channelRef.current ?? null,
+        context,
+      });
       void broadcast(context);
+      onPublishRef.current?.(context);
     };
     gridApi.addEventListener('selectionChanged', onSelectionChanged);
     return () => {

@@ -21,6 +21,8 @@ import {
 function fakeApi(opts: {
   selectedNodes?: unknown[];
   filterModel?: Record<string, unknown>;
+  /** When set, `getColumn` only matches these ids; otherwise every id matches. */
+  ownedColumns?: string[];
 }): GridApi & { _model: Record<string, unknown> | null } {
   const state = { _model: (opts.filterModel ?? null) as Record<string, unknown> | null };
   return {
@@ -29,6 +31,8 @@ function fakeApi(opts: {
     setFilterModel: (m: Record<string, unknown> | null) => {
       state._model = m;
     },
+    getColumn: (id: string) =>
+      opts.ownedColumns ? (opts.ownedColumns.includes(id) ? { colId: id } : null) : { colId: id },
     get _model() {
       return state._model;
     },
@@ -58,12 +62,19 @@ describe('buildSelectionContext', () => {
     expect(ctx?.criteria.book).toEqual(['EQ1']); // de-duplicated
   });
 
-  it('uses the grouped column id + group key for group rows', () => {
+  it('expands a selected group to its leaf rows’ key columns (not the group dimension)', () => {
     const api = fakeApi({
-      selectedNodes: [{ group: true, field: 'sector', key: 'Tech' }],
+      selectedNodes: [
+        {
+          group: true,
+          field: 'sector',
+          key: 'Tech',
+          allLeafChildren: [{ data: { symbol: 'AAPL' } }, { data: { symbol: 'MSFT' } }],
+        },
+      ],
     });
     const ctx = buildSelectionContext(api, { instanceId: 'grid-a', rowIdField: ['symbol'] });
-    expect(ctx?.criteria).toEqual({ sector: ['Tech'] });
+    expect(ctx?.criteria).toEqual({ symbol: ['AAPL', 'MSFT'] });
   });
 
   it('skips null/undefined values', () => {
@@ -74,6 +85,27 @@ describe('buildSelectionContext', () => {
 
   it('returns empty criteria when nothing is selected (peers clear their filter)', () => {
     const api = fakeApi({ selectedNodes: [] });
+    const ctx = buildSelectionContext(api, { instanceId: 'g', rowIdField: ['symbol'] });
+    expect(ctx?.criteria).toEqual({});
+  });
+
+  it('handles a mixed selection: groups, sub-groups, and individual rows', () => {
+    // A whole top-level group (EM Debt → 2 leaves), a sub-group (Alpha → 1
+    // leaf), and a lone leaf row from a different group — all reduce to the
+    // union of leaf-row key columns.
+    const wholeGroup = {
+      group: true,
+      allLeafChildren: [{ data: { positionId: 'P1' } }, { data: { positionId: 'P2' } }],
+    };
+    const subGroup = { group: true, allLeafChildren: [{ data: { positionId: 'P3' } }] };
+    const loneRow = { group: false, data: { positionId: 'P9' } };
+    const api = fakeApi({ selectedNodes: [wholeGroup, subGroup, loneRow] });
+    const ctx = buildSelectionContext(api, { instanceId: 'g', rowIdField: ['positionId'] });
+    expect(ctx?.criteria.positionId).toEqual(['P1', 'P2', 'P3', 'P9']);
+  });
+
+  it('contributes nothing for a group whose leaves are not loaded (SSRM)', () => {
+    const api = fakeApi({ selectedNodes: [{ group: true, field: 'sector', key: 'Tech' }] });
     const ctx = buildSelectionContext(api, { instanceId: 'g', rowIdField: ['symbol'] });
     expect(ctx?.criteria).toEqual({});
   });
@@ -210,6 +242,28 @@ describe('applyGridLinkContext', () => {
     const api = fakeApi({ filterModel: { symbol: { filterType: 'set', values: ['AAPL'] } } });
     const empty: GridLinkSelectionContext = { type: GRID_LINK_CONTEXT_TYPE, criteria: {} };
     applyGridLinkContext(api, empty, defaultGridLinkResolver, ['symbol']);
+    expect(api._model).toBeNull();
+  });
+
+  it('applies only columns the receiver has — peer-only columns are ignored', () => {
+    const api = fakeApi({ ownedColumns: ['symbol', 'desk'] });
+    const ctx: GridLinkSelectionContext = {
+      type: GRID_LINK_CONTEXT_TYPE,
+      criteria: { symbol: ['AAPL'], desk: ['EM Debt'], peerOnly: ['x'] },
+    };
+    const owned = applyGridLinkContext(api, ctx, defaultGridLinkResolver, []);
+    expect([...owned].sort()).toEqual(['desk', 'symbol']);
+    expect(Object.keys(api._model ?? {}).sort()).toEqual(['desk', 'symbol']);
+  });
+
+  it('clears the link filter when the receiver shares no matching columns', () => {
+    const api = fakeApi({ ownedColumns: ['unrelated'] });
+    const ctx: GridLinkSelectionContext = {
+      type: GRID_LINK_CONTEXT_TYPE,
+      criteria: { symbol: ['AAPL'] },
+    };
+    const owned = applyGridLinkContext(api, ctx, defaultGridLinkResolver, []);
+    expect(owned).toEqual([]);
     expect(api._model).toBeNull();
   });
 });

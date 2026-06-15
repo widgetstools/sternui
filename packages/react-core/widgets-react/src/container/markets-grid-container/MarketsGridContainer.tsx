@@ -131,6 +131,13 @@ export interface MarketsGridContainerProps<TData extends Record<string, unknown>
   gridEventHandlers?: MarketsGridEventHandlerRegistry;
   /** Optional labels for Custom Settings event binding UI. */
   handlerMeta?: MarketsGridHandlerMeta;
+  /**
+   * Called whenever the resolved row-key field(s) change — the active
+   * provider's `keyColumn` that drives `getRowId`. Lets a host (e.g.
+   * `HostedMarketsGrid`) wire grid-to-grid context linking off the SAME
+   * fields without hardcoding them. `null` until a provider/key resolves.
+   */
+  onRowIdFieldChange?(rowIdField: string | readonly string[] | null): void;
 }
 
 export function MarketsGridContainer<TData extends Record<string, unknown> = Record<string, unknown>>(
@@ -146,6 +153,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     defaultHistoricalProviderId,
     gridEventHandlers,
     handlerMeta,
+    onRowIdFieldChange,
     ...marketsGridProps
   } = props;
 
@@ -414,6 +422,14 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // joining is fine — colon separator avoids collision with the data
   // separator (`-`).
   const rowIdFieldKey = Array.isArray(rowIdField) ? rowIdField.join(':') : rowIdField;
+
+  // Surface the resolved key column(s) to the host so context linking can
+  // broadcast the exact fields getRowId is composed from (no hardcoding).
+  // Keyed on the stable string form so arrays don't re-fire on identity churn.
+  useEffect(() => {
+    onRowIdFieldChange?.(rowIdField);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onRowIdFieldChange, rowIdFieldKey]);
 
   // Map the provider's persisted `columnDefinitions` into AG-Grid
   // ColDefs. `buildColumnDefs` handles three cases per column:

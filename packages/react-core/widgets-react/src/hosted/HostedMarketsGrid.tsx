@@ -26,6 +26,8 @@ import { MarketsGridContainer, type MarketsGridContainerProps } from '../contain
 import { useHostedView } from './useHostedView.js';
 import { useViewTabTitle } from './useViewTabTitle.js';
 import { useGridContextLink, type GridContextLinkConfig } from './useGridContextLink.js';
+import { useGridLinkNotifications } from './useGridLinkNotifications.js';
+import { useInteropChannel, isInteropAvailable } from './useInteropChannel.js';
 import type { AgGridThemeMode } from './useAgGridTheme.js';
 import type { ConfigManager } from './types.js';
 
@@ -174,6 +176,16 @@ export function HostedMarketsGrid<
   const [gridApi, setGridApi] = useState<GridApi | null>(null);
   const linkActive = contextLink?.enabled === true;
 
+  // Resolved row-key field(s) from the active provider (drives getRowId).
+  // The container reports it via onRowIdFieldChange; we feed it into the link
+  // config so broadcasts carry the real key columns + values — no hardcoding.
+  const [linkRowIdField, setLinkRowIdField] = useState<string | readonly string[] | null>(null);
+  const effectiveContextLink = useMemo<GridContextLinkConfig | undefined>(() => {
+    if (!contextLink) return contextLink;
+    const resolved = linkRowIdField ?? contextLink.rowIdField ?? undefined;
+    return resolved !== undefined ? { ...contextLink, rowIdField: resolved } : contextLink;
+  }, [contextLink, linkRowIdField]);
+
   // Chain any caller-supplied onReady so we don't shadow it.
   const callerOnReady = (containerProps as { onReady?: (h: MarketsGridHandle) => void }).onReady;
   const handleReady = useCallback(
@@ -231,14 +243,32 @@ export function HostedMarketsGrid<
     [writeTabTitle, consumerOnCaptionChange],
   );
 
+  // Notification Center messages for link traffic — a "sent" notification on
+  // local selection broadcast and an acknowledgement on receiving a peer's.
+  // Inert unless `contextLink.notify` is set (and only fires in an OpenFin host).
+  const linkNotifications = useGridLinkNotifications({
+    instanceId: identity.instanceId ?? defaultInstanceId,
+    enabled: linkActive && contextLink?.notify === true,
+  });
+
+  // Transport for grid-to-grid context linking. The workspace dock "Link"
+  // button joins windows to OpenFin INTEROP context groups, which
+  // `window.fdc3`'s channel tracking doesn't reliably reflect (a linked view
+  // can report "no channel" and drop every broadcast). So prefer the interop
+  // client when present; fall back to the FDC3 facade only outside OpenFin.
+  const interopChannel = useInteropChannel();
+  const linkTransport = isInteropAvailable() ? interopChannel : linking.fdc3;
+
   // Grid-to-grid context linking over OpenFin's colored "Link" groups.
   // No-op unless `contextLink.enabled` is true; degrades cleanly outside
-  // an FDC3 runtime.
+  // an OpenFin runtime.
   useGridContextLink({
     gridApi,
-    fdc3: linking.fdc3,
+    fdc3: linkTransport,
     instanceId: identity.instanceId ?? defaultInstanceId,
-    config: contextLink,
+    config: effectiveContextLink,
+    onPublish: linkNotifications.onPublish,
+    onReceive: linkNotifications.onReceive,
   });
 
   // Document title — restored on unmount.
@@ -298,6 +328,7 @@ export function HostedMarketsGrid<
         storage={identity.storage ?? undefined}
         theme={agTheme}
         onReady={handleReady}
+        onRowIdFieldChange={linkActive ? setLinkRowIdField : undefined}
       />
     );
     // containerProps changes per render; spread is shallow so we depend
@@ -318,6 +349,7 @@ export function HostedMarketsGrid<
     handleCaptionChange,
     tabsHidden,
     handleReady,
+    linkActive,
   ]);
 
   const dataServicesWrapped = identity.configManager

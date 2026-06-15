@@ -29,8 +29,21 @@ export const GRID_LINK_CONTEXT_TYPE = 'starui.gridSelection';
  */
 export interface GridLinkSelectionContext extends Fdc3Context {
   type: string;
-  /** Instance id of the publishing grid, so receivers ignore their own echo. */
+  /**
+   * Per-window unique id of the publishing grid, so receivers ignore their
+   * own echo. NOTE: this must be unique PER WINDOW, not per app `instanceId`
+   * — two instances of the same view share an `instanceId`, so keying echo
+   * suppression on `instanceId` makes each drop the other's broadcast as its
+   * own. See `useGridContextLink`'s `makeSourceId`.
+   */
   source?: string;
+  /**
+   * The FDC3 user channel (color link group) the publisher was joined to
+   * when it broadcast. Diagnostic only — surfaced in link notifications so
+   * mismatched colors are visible. `undefined` when the publisher wasn't on
+   * any channel (a common cause of "peers receive nothing").
+   */
+  channel?: string;
   /** `mode: 'fields'` payload — field → distinct values to match. */
   criteria: Record<string, unknown[]>;
   /**
@@ -71,27 +84,42 @@ export function normalizeRowIdField(
 }
 
 /**
- * Default publish builder. Leaf rows contribute their `rowIdField`
- * values; group rows contribute the grouped column id (`node.field`)
- * and group key. Values are de-duplicated. Returns a context with an
- * empty `criteria` when nothing is selected, so peers clear their filter
- * on deselect.
+ * Default publish builder, emitting a JSON `criteria` map of column → values
+ * the receiver can filter on. The payload is always **leaf-row key columns**
+ * — the `rowIdField` values that compose `getRowId` (sourced from the
+ * provider's `keyColumn`, never hardcoded):
+ *   - A selected **leaf row** contributes its own key columns + values.
+ *   - A selected **group row** is expanded to ALL its leaf descendants
+ *     (`allLeafChildren`), each contributing its key columns. This stays
+ *     accurate for every selection shape — a whole group, a sub-group,
+ *     individual rows, or any combination across different groups — because
+ *     the broadcast identifies the exact rows by key, not by a coarse group
+ *     dimension that would over-match on the receiver.
+ * Values are de-duplicated. An empty `criteria` (nothing selected) tells peers
+ * to clear the link filter.
  */
 export const buildSelectionContext: GridLinkSelectionBuilder = (api, opts) => {
   const criteria: Record<string, Set<unknown>> = {};
   const add = (field: string, value: unknown) => {
-    if (value === undefined || value === null) return;
+    if (!field || value === undefined || value === null) return;
     (criteria[field] ??= new Set<unknown>()).add(value);
+  };
+  const addLeaf = (leaf: IRowNode) => {
+    const data = leaf.data as Record<string, unknown> | undefined;
+    if (!data) return;
+    for (const field of opts.rowIdField) add(field, data[field]);
   };
 
   for (const node of api.getSelectedNodes() as IRowNode[]) {
     if (node.group) {
-      if (node.field) add(node.field, node.key);
+      // Expand the group to its leaf descendants and broadcast their keys.
+      // `allLeafChildren` is the full recursive leaf set (CSRM); empty under
+      // SSRM where descendants aren't loaded, in which case the group simply
+      // contributes nothing (its keys are unknown).
+      for (const leaf of (node.allLeafChildren ?? []) as IRowNode[]) addLeaf(leaf);
       continue;
     }
-    const data = node.data as Record<string, unknown> | undefined;
-    if (!data) continue;
-    for (const field of opts.rowIdField) add(field, data[field]);
+    addLeaf(node);
   }
 
   return {
@@ -174,7 +202,14 @@ export function applyGridLinkContext(
   resolve: GridLinkResolver,
   prevLinkFields: readonly string[],
 ): readonly string[] {
-  const linkModel = resolve(context, api) ?? {};
+  const resolved = resolve(context, api) ?? {};
+  // Apply only the fields this grid actually has a column for — "receiving
+  // grids try to apply the filters IF the columns match". A peer keyed/grouped
+  // on columns we don't have is silently ignored rather than erroring.
+  const linkModel: Record<string, unknown> = {};
+  for (const [field, model] of Object.entries(resolved)) {
+    if (api.getColumn(field)) linkModel[field] = model;
+  }
   const next = { ...(api.getFilterModel() ?? {}) } as Record<string, unknown>;
 
   // Drop fields the previous link context owned but the new one doesn't.
