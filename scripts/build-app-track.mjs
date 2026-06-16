@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 /**
- * Build or typecheck every app under apps/demos/ in one of two MODES:
+ * Build or typecheck every app under apps/demos/ from source — Vite aliases
+ * @starui/* to packages/ source (see scripts/staruiConsumerAliases.mjs). Apps
+ * no longer depend on libs/*.tgz tarballs; the tarballs are packed by
+ * `npm run propagate` for external (Artifactory) consumers only.
  *
- *   source    — default: Vite aliases @starui/* to packages/ source
- *   installed — STARUI_USE_TARBALLS=1: resolve from file:libs/*.tgz tarballs
- *               (consumer / publish parity). Runs `<task>` or `<task>:installed`.
- *
- *   node scripts/build-app-track.mjs installed build
- *   node scripts/build-app-track.mjs source typecheck
+ *   node scripts/build-app-track.mjs build
+ *   node scripts/build-app-track.mjs typecheck
  *
  * Runs each app's script from its own directory (avoids npm workspace-name
  * collisions and keeps cwd-relative config correct).
@@ -20,15 +19,10 @@ const REPO_ROOT = join(import.meta.dirname, '..');
 const APPS_ROOT = join(REPO_ROOT, 'apps', 'demos');
 const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
-const mode = process.argv[2];
-const task = process.argv[3] ?? 'build';
+const task = process.argv[2] ?? 'build';
 
-if (mode !== 'installed' && mode !== 'source') {
-  process.stderr.write('Usage: node scripts/build-app-track.mjs <installed|source> [build|typecheck]\n');
-  process.exit(1);
-}
 if (task !== 'build' && task !== 'typecheck') {
-  process.stderr.write(`Unknown task: ${task}\n`);
+  process.stderr.write('Usage: node scripts/build-app-track.mjs [build|typecheck]\n');
   process.exit(1);
 }
 if (!existsSync(APPS_ROOT)) {
@@ -36,23 +30,22 @@ if (!existsSync(APPS_ROOT)) {
   process.exit(1);
 }
 
-/** Pick the script to run for an app. Installed mode prefers `<task>:installed`. */
-function resolveScript(scripts) {
-  if (mode === 'installed' && scripts?.[`${task}:installed`]) return `${task}:installed`;
-  if (scripts?.[task]) return task;
-  return null;
+/** Angular apps are excluded — the build pipeline targets React + shared only. */
+function isAngularApp(pkg) {
+  const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+  return Boolean(deps['@angular/core']);
 }
 
-/** @type {{ dir: string, name: string, script: string }[]} */
+/** @type {{ dir: string, name: string }[]} */
 const apps = [];
 for (const entry of readdirSync(APPS_ROOT, { withFileTypes: true })) {
   if (!entry.isDirectory() || entry.name === 'node_modules') continue;
   const pkgPath = join(APPS_ROOT, entry.name, 'package.json');
   if (!existsSync(pkgPath)) continue;
   const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-  const script = resolveScript(pkg.scripts);
-  if (!script) continue;
-  apps.push({ dir: entry.name, name: pkg.name ?? entry.name, script });
+  if (!pkg.scripts?.[task]) continue;
+  if (isAngularApp(pkg)) continue;
+  apps.push({ dir: entry.name, name: pkg.name ?? entry.name });
 }
 apps.sort((a, b) => a.dir.localeCompare(b.dir));
 
@@ -61,21 +54,14 @@ if (apps.length === 0) {
   process.exit(1);
 }
 
-process.stdout.write(`[build-app-track] ${mode} ${task} — ${apps.length} app(s) in apps/demos/\n`);
+process.stdout.write(`[build-app-track] source ${task} — ${apps.length} app(s) in apps/demos/\n`);
 
 let failed = 0;
-for (const { dir, name, script } of apps) {
+for (const { dir, name } of apps) {
   const appDir = join(APPS_ROOT, dir);
-  process.stdout.write(`\n▶ ${name} (apps/demos/${dir}) → npm run ${script}\n`);
+  process.stdout.write(`\n▶ ${name} (apps/demos/${dir}) → npm run ${task}\n`);
   try {
-    execSync(`${npmCmd} run ${script}`, {
-      cwd: appDir,
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-        ...(mode === 'installed' ? { STARUI_USE_TARBALLS: '1' } : {}),
-      },
-    });
+    execSync(`${npmCmd} run ${task}`, { cwd: appDir, stdio: 'inherit' });
   } catch {
     failed++;
     process.stderr.write(`✗ ${name}\n`);
@@ -86,4 +72,4 @@ if (failed > 0) {
   process.stderr.write(`\n[build-app-track] ${failed}/${apps.length} failed\n`);
   process.exit(1);
 }
-process.stdout.write(`\n[build-app-track] ${mode} ${task} OK — ${apps.length} app(s)\n`);
+process.stdout.write(`\n[build-app-track] source ${task} OK — ${apps.length} app(s)\n`);

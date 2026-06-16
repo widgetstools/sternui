@@ -97,7 +97,7 @@ jobs:
           if-no-files-found: warn
 
   consumer:
-    name: Consumer apps (installed build + typecheck)
+    name: Consumer apps (source build + typecheck)
     needs: packages
     runs-on: ubuntu-latest
     steps:
@@ -108,14 +108,14 @@ jobs:
       - run: npm install
       - name: Build packages
         run: npm run build:packages
-      - name: Pack bucket tarballs + sync apps
+      - name: Pack bucket tarballs (Artifactory parity)
         run: node scripts/propagate.mjs
       - name: Install nested apps workspace
         run: npm run install:apps
-      - name: Build consumer apps (installed mode)
-        run: npm run build:apps:installed
-      - name: Typecheck consumer apps (installed mode)
-        run: npm run typecheck:apps:installed
+      - name: Build consumer apps (source mode)
+        run: npm run build:apps
+      - name: Typecheck consumer apps (source mode)
+        run: npm run typecheck:apps
       - name: Upload demo-react bundle
         uses: actions/upload-artifact@v4
         with:

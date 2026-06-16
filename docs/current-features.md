@@ -1716,7 +1716,7 @@ of importing `@openfin/*` directly (architecture boundary).
 
 ### Apps — platform bootstrap pilot
 
-**18 demos** under `apps/demos/` (nested `apps/package.json` workspace). Each consumer app runs in two modes via one folder: installed `file:libs/*.tgz` vs source `STARUI_DEV_SOURCE=1` (see `apps/demos/README.md`).
+**18 demos** under `apps/demos/` (nested `apps/package.json` workspace). Apps build **from source** — Vite + `tsc` resolve every `@starui/*` import out of `packages/` (apps declare no `@starui/*` deps and require no `libs/*.tgz`); `npm run propagate` packs tarballs for external Artifactory consumers only (see `apps/demos/README.md`).
 
 | App | Role |
 |-----|------|
@@ -1738,10 +1738,10 @@ of importing `@openfin/*` directly (architecture boundary).
 | `stomp-view-server` | Node STOMP wire mock for local dev (pairs with STOMP demos) |
 
 **Build / verify tooling:**
-- `docs/BUILD.md` + `apps/README.md` — three-layer build matrix: `build:packages` → `propagate` → `build:apps` (installed) / `build:apps-source` (source)
-- `scripts/build-app-track.mjs` — runs every app's `build` / `typecheck` in one mode (`installed` \| `source`)
+- `docs/BUILD.md` + `apps/README.md` — build matrix: `build:packages` → `build:apps` (source); `propagate` packs `libs/*.tgz` for external Artifactory consumers
+- `scripts/build-app-track.mjs` — runs every app's `build` / `typecheck` from source
 - `scripts/staruiConsumerVite.mjs` — shared Vite partial for consumer apps: `manualChunks` splits `ag-grid-community`, `ag-grid-enterprise`, and `ag-grid-react` into cacheable vendor chunks; `optimizeDeps.include` prebundles those packages for faster dev cold starts
-- `npm run verify:consumer` — CI parity: packages + propagate + `build:apps`
+- `npm run verify:consumer` — CI parity: `build:packages` + `propagate` (pack tarballs) + `install:apps` + `build:apps` (source)
 
 **MCP scaffold templates** (`stomp`, `mockdata-provider`, `dataprovider-editor`, `openfin-platform`, `basic`) emit `platformBootstrap.ts` + `public/app-config.json` (web) or manifest `customSettings.appId` (OpenFin)
 

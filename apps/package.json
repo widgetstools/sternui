@@ -2,18 +2,30 @@
   "name": "starui-apps",
   "version": "0.0.0",
   "private": true,
-  "description": "Nested workspace for StarUI consumer/reference demo apps. Default: Vite resolves @starui/* from packages/ source. Tarball mode: STARUI_USE_TARBALLS=1 or *:installed scripts.",
+  "description": "Nested workspace for StarUI consumer/reference demo apps (React + node only). Vite resolves @starui/* from packages/ source; tarballs are not required to build or run the apps. demo-angular is intentionally excluded — the build pipeline targets React + shared.",
   "workspaces": [
-    "demos/*"
+    "demos/basic",
+    "demos/dataprovider-editor",
+    "demos/demo-configservice-react",
+    "demos/demo-react",
+    "demos/demo-stomp-markets-grid",
+    "demos/e2e-browser-blotter",
+    "demos/e2e-openfin-vitest",
+    "demos/e2e-openfin-workspace",
+    "demos/markets-grid-lab",
+    "demos/markets-ui-react-reference",
+    "demos/marketsgrid-container-e2e",
+    "demos/mockdata-provider",
+    "demos/platform-hooks-demo",
+    "demos/star-demo",
+    "demos/stomp",
+    "demos/stomp-marketsgrid-minimal",
+    "demos/stomp-view-server"
   ],
   "scripts": {
     "install:apps": "npm install",
-    "build": "node ../scripts/build-app-track.mjs source build",
-    "build:installed": "node ../scripts/build-app-track.mjs installed build",
-    "build:source": "npm run build",
-    "typecheck": "node ../scripts/build-app-track.mjs source typecheck",
-    "typecheck:installed": "node ../scripts/build-app-track.mjs installed typecheck",
-    "typecheck:source": "npm run typecheck"
+    "build": "node ../scripts/build-app-track.mjs build",
+    "typecheck": "node ../scripts/build-app-track.mjs typecheck"
   },
   "engines": {
     "node": ">=20.0.0"

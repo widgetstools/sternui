@@ -14,28 +14,27 @@ Optional for e2e: Chromium (Playwright installs via `npx playwright install`).
 
 ---
 
-## Build matrix (three layers)
+## Build matrix
 
-There are **three separate build surfaces**. Run them in order when validating a full consumer release.
+There are **two app-facing build surfaces** plus one side artifact for external
+consumers. Apps build **from source** — they never depend on the tarballs.
 
 | Layer | What | Command (repo root) | Output |
 |-------|------|---------------------|--------|
-| **1. Packages** | `@starui/*` libraries under `packages/` | `npm run build:packages` | `packages/*/*/dist/` (and grid consumed as source) |
-| **2. Tarballs** | Architecture-bucket `.tgz` under `libs/` | `npm run propagate` | `libs/starui-*.tgz` (gitignored) |
-| **3a. Apps — installed mode** | Consumer / publish parity (`apps/demos/*`) | `npm run build:apps` | `apps/demos/<app>/dist/` |
-| **3b. Apps — source mode** | Live `packages/` source, `STARUI_DEV_SOURCE=1` (`apps/demos/*`) | `npm run build:apps-source` | `apps/demos/<app>/dist/` |
+| **1. Packages** | `@starui/*` libraries under `packages/` | `npm run build:packages` | `packages/*/*/dist/` |
+| **2. Apps** | Consumer / reference apps, `@starui/*` from `packages/` source | `npm run build:apps` | `apps/demos/<app>/dist/` |
+| **(side) Tarballs** | Architecture-bucket `.tgz` for external (Artifactory) consumers | `npm run propagate` | `libs/starui-*.tgz` (gitignored) |
 
-Apps live **once** under `apps/demos/*`; "installed" vs "source" is a build
-**mode** (which script runs), not a separate folder. See
-[apps/README.md](../apps/README.md).
+Apps resolve every `@starui/*` import straight from `packages/` source — Vite via
+the aliases in [`scripts/staruiConsumerAliases.mjs`](../scripts/staruiConsumerAliases.mjs),
+`tsc` via the repo-root workspace symlinks. Apps declare **no** `@starui/*` deps
+and require **no** `libs/*.tgz`. See [apps/README.md](../apps/README.md).
 
-**Install apps** (nested workspace) after `libs/` exists:
+**Install apps** (nested workspace — installs each app's own third-party deps):
 
 ```bash
 npm run install:apps    # npm install --prefix apps
 ```
-
-`npm run install:apps` alone **fails** on a fresh clone until `libs/` exists.
 
 ---
 
@@ -47,8 +46,6 @@ From repo root:
 npm install
 npm run build:packages
 ```
-
-Equivalent inside `npm run install:all` / `bootstrap` (step 1).
 
 **Unit tests (packages only):**
 
@@ -65,93 +62,65 @@ npm run typecheck:packages
 
 ---
 
-## 2. Pack tarballs (`libs/`)
-
-`libs/` is **not** in git. Generate it locally:
+## 2. Build apps (from source)
 
 ```bash
 npm run build:packages
-npm run propagate
-```
-
-`propagate` builds buckets, writes `libs/*.tgz`, runs `sync:app-deps` (updates every `apps/demos/*` `file:libs/…` dep), and refreshes installs.
-
-Force rebuild:
-
-```bash
-npm run bootstrap -- --force
-```
-
----
-
-## 3a. Build apps — installed mode (CI / consumer parity)
-
-Validates that apps work like external consumers (Artifactory / MCP) — `@starui/*`
-resolved from the installed `file:libs/*.tgz` tarballs.
-
-```bash
-npm run build:packages
-npm run propagate
 npm run install:apps
 npm run build:apps
 ```
 
-**CI-equivalent one-liner:**
+**CI-equivalent one-liner** (also packs tarballs for Artifactory parity):
 
 ```bash
 npm run verify:consumer
 ```
 
-(`verify:consumer` = packages build → propagate → `install:apps` → **installed-mode app production builds**.)
+(`verify:consumer` = `build:packages` → `propagate` (pack tarballs) →
+`install:apps` → `build:apps` source.)
 
-**Typecheck apps (optional):**
+**Typecheck apps:**
 
 ```bash
 npm run typecheck:apps
 ```
 
-App `tsc` may report duplicate `@types/react` errors when TypeScript resolves `@starui/grid` via the **root** workspace link instead of the installed bucket tarball. Production **`vite build` / `ng build`** is the supported consumer check; library types are covered by `npm run typecheck:packages`.
+App `tsc` resolves `@starui/grid` (consumed **as source**) via the **root**
+workspace link, so it deep-typechecks the grid internals. Each app's typecheck
+`tsconfig` therefore maps `react`/`react-dom` → the repo-root `@types/react`
+(`compilerOptions.paths`); without it a second `@types/react` (pulled into
+`apps/node_modules` transitively, e.g. by `react-markdown`) carries a different
+Radix `CSSProperties` augmentation than the grid source sees, breaking typecheck
+on a clean install.
 
----
-
-## 3b. Build apps — source mode (live `packages/` source)
-
-Builds the same `apps/demos/<app>/` with `STARUI_DEV_SOURCE=1` (same Vite aliases as `npm run dev:*`).
-
-```bash
-npm run build:packages
-npm run propagate
-npm run install:apps
-npm run build:apps-source
-```
-
-**Typecheck apps — source mode (optional):**
+**Run a dev server:**
 
 ```bash
-npm run typecheck:apps-source
-```
-
-**Run a dev server (source mode):**
-
-```bash
-npm run dev:demo-react          # @starui/demo-react (dev:source)
-npm run dev:markets-grid-lab    # @starui/markets-grid-lab (dev:source)
+npm run dev:demo-react          # @starui/demo-react
+npm run dev:markets-grid-lab    # @starui/markets-grid-lab
 ```
 
 See [apps/demos/README.md](../apps/demos/README.md).
 
+The Angular demo (`demo-angular`) consumes the **built** `@starui/design-system`
+`dist/` through the workspace symlink, so run `build:packages` before building it.
+The node `stomp-view-server` is a plain TypeScript app with no `@starui/*` deps.
+
 ---
 
-## App modes (one folder)
+## Tarballs (`libs/`) — external consumers only
 
-| Mode | Resolves `@starui/*` from | Per-app script | Root `npm run dev:*` |
-|------|---------------------------|----------------|----------------------|
-| **Installed** | `file:libs/*.tgz` (consumer parity) | `dev` / `build` | — |
-| **Source** | `packages/` via `STARUI_DEV_SOURCE=1` | `dev:source` / `build:source` | uses this |
+`libs/` is **not** in git and is **not** needed to build or run the apps. Generate
+it when validating the bundles published to Artifactory:
 
-Every app lives once under `apps/demos/<app>/` with the clean consumer name
-(`@starui/demo-react`, …). Angular (`demo-angular`) and the node
-`stomp-view-server` are installed-only (no Vite source mode).
+```bash
+npm run build:packages
+npm run propagate            # writes libs/starui-*.tgz + libs/manifest.json
+```
+
+`propagate` builds each architecture bucket and packs one stable-named `.tgz` per
+bucket. It does **not** touch the apps. Force a rebuild with
+`npm run bootstrap -- --force`. See [LIBS.md](./LIBS.md).
 
 ---
 
@@ -163,27 +132,17 @@ cd starui
 npm run install:all
 ```
 
-Runs **`bootstrap`**: `npm install` → `build:packages` → `propagate` → `npm install --prefix apps`.
+Runs **`bootstrap`**: `npm install` → `build:packages` → `propagate` (pack
+tarballs) → `npm install --prefix apps`. If `libs/` already exists, bootstrap
+**skips** the pack unless `npm run bootstrap -- --force`.
 
-If `libs/` already exists, bootstrap **skips** rebuild unless:
-
-```bash
-npm run bootstrap -- --force
-```
-
-### Packages only (faster)
+### Packages + apps only (skip tarballs)
 
 ```bash
 npm install
 npm run build:packages
-npm test
-```
-
-Add apps later:
-
-```bash
-npm run propagate
 npm run install:apps
+npm run build:apps
 ```
 
 ---
@@ -192,11 +151,11 @@ npm run install:apps
 
 ```bash
 npm run build:packages
-npm run propagate
-npm run install:apps
+npm run build:apps      # apps pick up the source change directly
 ```
 
-Commit `apps/package-lock.json` and any `apps/**/package.json` touched by propagate. Do **not** commit `libs/`.
+Re-run `npm run propagate` only when you need refreshed Artifactory tarballs.
+Do **not** commit `libs/`.
 
 ---
 
@@ -206,7 +165,8 @@ Commit `apps/package-lock.json` and any `apps/**/package.json` touched by propag
 npm run build:all
 ```
 
-Runs `build:consumer` (packages + propagate + install apps) then **`build:apps`** (installed) and **`build:apps-source`**.
+Runs `build:consumer` (packages + propagate + install apps) then **`build:apps`**
+(source).
 
 ---
 
@@ -225,8 +185,7 @@ npm run install:all
 |------|----------|
 | Fresh clone, everything | `npm run install:all` |
 | Libraries only | `npm install` → `npm run build:packages` → `npm test` |
-| Consumer CI (installed) | `npm run verify:consumer` |
-| App bundles — installed mode | `npm run build:apps` |
-| App bundles — source mode | `npm run build:apps-source` |
-| Run demo (dev, source mode) | `npm run dev` (`@starui/demo-react` via `dev:source`) |
-| Refresh tarballs | `npm run build:packages` → `npm run propagate` → `npm run install:apps` |
+| Consumer CI | `npm run verify:consumer` |
+| App bundles (source) | `npm run build:apps` |
+| Run demo (dev) | `npm run dev` (`@starui/demo-react`) |
+| Pack Artifactory tarballs | `npm run build:packages` → `npm run propagate` |

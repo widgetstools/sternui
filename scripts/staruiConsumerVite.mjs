@@ -8,6 +8,7 @@ import {
   reactResolveConfig,
   appDirFromConfig,
   staruiHostDataWorkerAssetPlugin,
+  staruiEnsureBuiltAssetsPlugin,
   stompJsEsmAlias,
 } from './staruiConsumerAliases.mjs';
 
@@ -21,7 +22,7 @@ export function staruiConsumerViteConfig(appDir, opts = {}) {
   const reactResolve = reactResolveConfig(appDir);
 
   return {
-    plugins: [staruiHostDataWorkerAssetPlugin(appDir)],
+    plugins: [staruiEnsureBuiltAssetsPlugin(), staruiHostDataWorkerAssetPlugin(appDir)],
     optimizeDeps: {
       ...reactResolve.optimizeDeps,
       ...staruiOptimizeDeps(),

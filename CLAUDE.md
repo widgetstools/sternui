@@ -51,6 +51,17 @@ architecture buckets (see
 | 9 | React Core | `react-core/` | `app`, `widgets-react`, `widget-sdk`, `host-wrapper-react`, `config-browser`, `workspace-setup-react` |
 | 10 | Core / Shared | `shared/` | `types`, `shared-types`, `engine`, `host`, `host-browser`, `widget`, `widget-browser` |
 
+> **Angular is excluded from the build pipeline.** The build/typecheck/test/
+> propagate flow and the apps workspace target **React + shared only**. The
+> Angular buckets (`angular-ui`, `angular-grid`, `angular-core`), the
+> `host-data-angular` member, and `apps/demos/demo-angular` are deliberately
+> left out of the root **and** apps `workspaces` (so they aren't installed,
+> linked, or built), out of `scripts/propagate.mjs` (`ANGULAR_BUCKETS` /
+> `ANGULAR_MEMBERS`), and skipped by `scripts/build-app-track.mjs`
+> (`isAngularApp`). The source dirs still exist; re-add the workspace globs to
+> bring Angular back. `build:packages` builds 23 packages; `build:apps` builds
+> 16 apps.
+
 **Apps** live under `apps/` and consume libraries via npm
 workspace `"*"` deps.
 
@@ -124,16 +135,31 @@ on the next run. Don't remove it.
 ## Install layout
 
 - **Root** `npm install` / `npm run install:all` — `packages/*` only (workspace `"*"`).
-- **Apps** nested under `apps/package.json` (`workspaces: ["demos/*"]`) — each
-  reference/demo app lives **once** under `apps/demos/<app>/`. `npm run install:apps`
-  (= `npm install --prefix apps`) after `libs/` exists; `@starui/*` bucket deps
-  from gitignored `libs/*.tgz` (`npm run propagate` / `npm run bootstrap`).
-- **Two run modes per app** (same folder, chosen by script): `dev`/`build` =
-  installed mode (resolves `@starui/*` from `file:libs/*.tgz`, consumer/publish
-  parity); `dev:source`/`build:source` set **`STARUI_DEV_SOURCE=1`** so Vite
-  aliases `@starui/*` into `packages/` source. Build all apps in a mode with
-  `npm run build:apps` / `npm run build:apps-source`. Angular + the node
-  `stomp-view-server` are installed-only.
+- **Apps** nested under `apps/package.json` — each reference/demo app lives
+  **once** under `apps/demos/<app>/`; the apps `workspaces` lists the React/node
+  demos explicitly (`demo-angular` excluded). `npm run install:apps`
+  (= `npm install --prefix apps`) installs each app's own third-party deps; it does
+  **not** require `libs/*.tgz`.
+- **Apps build from source only.** `dev`/`build` resolve every `@starui/*` import
+  straight out of `packages/` source — Vite via the aliases in
+  `scripts/staruiConsumerAliases.mjs`, `tsc` via the repo-root workspace symlinks
+  (`<root>/node_modules/@starui/<member>` → `packages/...`, reachable because
+  `apps/` sits inside the repo root). Apps declare **no** `@starui/*` deps; their
+  third-party transitive deps resolve from the hoisted repo-root `node_modules`.
+  Build/typecheck every app with `npm run build:apps` / `npm run typecheck:apps`.
+  `npm run propagate` still packs `libs/*.tgz` + `manifest.json` — but only for
+  **external (Artifactory) tarball consumers**, never for the apps.
+- **Build-generated assets self-heal.** Source mode aliases TS/TSX live, but the
+  design-system CSS (`dist/css/theme.css`) and host-data SharedWorker
+  (`dist/assets/data-services-worker.mjs`) are emitted by `build:packages`. The
+  shared Vite config (`staruiEnsureBuiltAssetsPlugin` in
+  `scripts/staruiConsumerAliases.mjs`) checks for them at `buildStart` and runs
+  `npm run build:packages` automatically if either is missing — so any app
+  `dev`/`build` works even after a `clean`/`rimraf` wiped `dist/`. Set
+  `STARUI_SKIP_ENSURE_BUILD=1` to bypass. App typecheck `tsconfig`s map
+  `react`/`react-dom` → the single repo-root `@types/react` (`compilerOptions.paths`)
+  so deep-typechecking `@starui/grid` source doesn't collide with a second
+  transitively-installed `@types/react`.
 
 ## Propagating package changes (external tarball consumers)
 

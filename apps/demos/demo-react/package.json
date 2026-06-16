@@ -4,21 +4,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:installed": "cross-env STARUI_USE_TARBALLS=1 vite",
-    "dev:source": "npm run dev",
     "build": "vite build",
-    "build:installed": "cross-env STARUI_USE_TARBALLS=1 vite build",
-    "build:source": "npm run build",
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test"
   },
   "dependencies": {
-    "@starui/data": "file:../../../libs/starui-data.tgz",
-    "@starui/design-system": "file:../../../libs/starui-design-system.tgz",
-    "@starui/react-core": "file:../../../libs/starui-react-core.tgz",
-    "@starui/react-grid": "file:../../../libs/starui-react-grid.tgz",
-    "@starui/react-ui": "file:../../../libs/starui-react-ui.tgz",
-    "@starui/shared": "file:../../../libs/starui-shared.tgz",
     "ag-grid-community": "35.1.0",
     "ag-grid-enterprise": "35.1.0",
     "ag-grid-react": "35.1.0",
@@ -27,8 +17,6 @@
     "react-dom": "~19.2.5"
   },
   "devDependencies": {
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "~4.5.2",
     "autoprefixer": "^10.4.27",
     "postcss": "^8.5.9",

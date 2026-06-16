@@ -40,7 +40,6 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
-  realpathSync,
   renameSync,
   rmSync,
   statSync,
@@ -126,10 +125,16 @@ function readMemberPackage(memberDir) {
   };
 }
 
+// Angular is excluded from the build pipeline — skip Angular buckets entirely
+// and the lone Angular member that lives inside the (otherwise shared) data bucket.
+const ANGULAR_BUCKETS = new Set(['angular-ui', 'angular-grid', 'angular-core']);
+const ANGULAR_MEMBERS = new Set(['@starui/host-data-angular']);
+
 function discoverBuckets() {
   const buckets = [];
   for (const entry of readdirSync(PACKAGES_ROOT, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
+    if (ANGULAR_BUCKETS.has(entry.name)) continue;
     const bucketDir = join(PACKAGES_ROOT, entry.name);
     const members = [];
     for (const child of readdirSync(bucketDir, { withFileTypes: true })) {
@@ -138,6 +143,7 @@ function discoverBuckets() {
       if (!hasPackageJson(memberDir)) continue;
       const member = readMemberPackage(memberDir);
       member.folder = child.name;
+      if (ANGULAR_MEMBERS.has(member.name)) continue;
       members.push(member);
     }
     if (members.length === 0) continue;
@@ -447,19 +453,6 @@ function syncRootLockfile() {
   execSync('npm install --no-audit --no-fund', { cwd: REPO_ROOT, stdio: 'inherit' });
 }
 
-function syncAppsLockfile() {
-  if (args.noInstall) {
-    log('apps install: skipped (--no-install)');
-    return;
-  }
-  if (args.dryRun) {
-    log('apps install: would run install:apps (dry-run)');
-    return;
-  }
-  log('apps install: fresh install via scripts/install-apps.mjs');
-  execSync('node scripts/install-apps.mjs', { cwd: REPO_ROOT, stdio: 'inherit' });
-}
-
 // ────────────────────────────────────────────────────────────────────────
 // Manifest
 // ────────────────────────────────────────────────────────────────────────
@@ -510,7 +503,8 @@ function writeManifest(manifest) {
 }
 
 // ────────────────────────────────────────────────────────────────────────
-// Sync apps/* package.json file: deps
+// Apps discovery (for tarball GC only — apps build from source and no longer
+// reference libs/*.tgz, so propagate does not rewrite or install app deps).
 // ────────────────────────────────────────────────────────────────────────
 
 const APPS_ROOT = join(REPO_ROOT, 'apps');
@@ -533,109 +527,6 @@ function findAppPackageJsons() {
   }
   walk(APPS_ROOT);
   return out;
-}
-
-function syncAppPackageJson(appPkgPath, updates) {
-  const original = readFileSync(appPkgPath, 'utf8');
-  const pkg = JSON.parse(original);
-  const rewritten = [];
-  for (const depKey of ['dependencies', 'devDependencies', 'optionalDependencies']) {
-    const deps = pkg[depKey];
-    if (!deps) continue;
-    for (const [name, spec] of Object.entries(deps)) {
-      if (typeof spec !== 'string') continue;
-      const m = spec.match(/^file:(.*\/libs\/)([^/]+\.tgz)$/);
-      if (!m) continue;
-      const upd = updates[name];
-      if (!upd) continue;
-      const next = `file:${m[1]}${upd.filename}`;
-      if (next === spec) continue;
-      deps[name] = next;
-      rewritten.push(name);
-    }
-  }
-  if (rewritten.length === 0) return [];
-  if (!args.dryRun) {
-    const suffix = original.endsWith('\n') ? '\n' : '';
-    writeFileSync(appPkgPath, `${JSON.stringify(pkg, null, 2)}${suffix}`);
-  }
-  log(`sync: ${relative(REPO_ROOT, appPkgPath)} ← ${rewritten.join(', ')}`);
-  return rewritten;
-}
-
-function appReferencesLibTarball(appPkgPath, packageName) {
-  const pkg = JSON.parse(readFileSync(appPkgPath, 'utf8'));
-  for (const depKey of ['dependencies', 'devDependencies', 'optionalDependencies']) {
-    const deps = pkg[depKey];
-    if (!deps || !(packageName in deps)) continue;
-    const spec = deps[packageName];
-    if (typeof spec === 'string' && /\/libs\/[^/]+\.tgz$/.test(spec)) return true;
-  }
-  return false;
-}
-
-function isRepoWorkspaceSymlink(nodeModulesPath) {
-  if (!existsSync(nodeModulesPath)) return false;
-  try {
-    const resolved = realpathSync(nodeModulesPath);
-    const packagesRoot = realpathSync(PACKAGES_ROOT);
-    return resolved.startsWith(packagesRoot);
-  } catch {
-    return false;
-  }
-}
-
-function installApp(appDir, depsToRefresh) {
-  if (args.noInstall) {
-    log(`install: ${relative(REPO_ROOT, appDir)} — skipped (--no-install)`);
-    return;
-  }
-  // Clear BOTH the app-local copy (standalone non-workspace consumers) and
-  // the apps-root hoisted copy (workspace-member apps resolve @starui/* from
-  // apps/node_modules). Without removing the hoisted copy, npm reports
-  // "up to date" and never re-extracts the new tarball content — its file:
-  // tarball handling does not reliably detect a content change.
-  //
-  // Do NOT remove repo-root workspace symlinks (packages/* → node_modules/@starui/*).
-  // That breaks `npm run build:packages` until someone runs root `npm install` again.
-  const appsRoot = join(REPO_ROOT, 'apps');
-  for (const dep of depsToRefresh) {
-    for (const base of [appDir, appsRoot]) {
-      const path = join(base, 'node_modules', dep);
-      if (existsSync(path)) {
-        if (args.dryRun) log(`  would remove: ${relative(REPO_ROOT, path) || dep}`);
-        else rmSync(path, { recursive: true, force: true });
-      }
-    }
-    const rootPath = join(REPO_ROOT, 'node_modules', dep);
-    if (existsSync(rootPath) && !isRepoWorkspaceSymlink(rootPath)) {
-      if (args.dryRun) log(`  would remove: ${relative(REPO_ROOT, rootPath)}`);
-      else rmSync(rootPath, { recursive: true, force: true });
-    } else if (existsSync(rootPath) && isRepoWorkspaceSymlink(rootPath)) {
-      log(`  keep workspace link: ${relative(REPO_ROOT, rootPath)}`);
-    }
-  }
-  const viteCache = join(appDir, 'node_modules', '.vite');
-  if (existsSync(viteCache)) {
-    if (args.dryRun) log('  would remove: node_modules/.vite');
-    else rmSync(viteCache, { recursive: true, force: true });
-  }
-  // apps/node_modules/.package-lock.json captures the repo-root workspace graph
-  // (via marketsui-platform: file:..) and breaks file:libs/*.tgz resolution.
-  for (const staleLock of [
-    join(appsRoot, 'package-lock.json'),
-    join(appsRoot, 'node_modules', '.package-lock.json'),
-  ]) {
-    if (!existsSync(staleLock)) continue;
-    if (args.dryRun) log(`  would remove: ${relative(REPO_ROOT, staleLock)}`);
-    else {
-      rmSync(staleLock, { force: true });
-      log(`  removed stale: ${relative(REPO_ROOT, staleLock)}`);
-    }
-  }
-  log(`install: ${relative(REPO_ROOT, appDir)}`);
-  if (args.dryRun) return;
-  execSync('npm install', { cwd: appDir, stdio: 'inherit' });
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -851,48 +742,20 @@ function main() {
 
   writeManifest(manifest);
 
-  // Rewrite app package.json deps to bucket tarballs (member imports unchanged in source).
-  if (!args.dryRun) {
-    execSync('node scripts/sync-app-tarball-deps.mjs', { cwd: REPO_ROOT, stdio: 'inherit' });
-  } else {
-    log('sync:app-deps skipped (dry-run)');
-  }
-
-  const appPkgPaths = findAppPackageJsons();
-  const affectedApps = new Map();
-  for (const appPkgPath of appPkgPaths) {
-    const rewritten = syncAppPackageJson(appPkgPath, updates);
-    const appDir = resolve(appPkgPath, '..');
-    const deps = affectedApps.get(appDir) ?? new Set();
-    for (const r of rewritten) deps.add(r);
-    for (const [name, entry] of Object.entries(updates)) {
-      if (!entry.contentChanged) continue;
-      if (appReferencesLibTarball(appPkgPath, name)) deps.add(name);
-    }
-    if (deps.size > 0) affectedApps.set(appDir, deps);
-  }
-  if (affectedApps.size === 0) {
-    log('no apps reference bucket tarballs — nothing to install');
-  } else {
-    for (const [appDir, deps] of affectedApps) {
-      installApp(appDir, deps);
-    }
-  }
+  // Apps build from source (Vite aliases @starui/* → packages/) and no longer
+  // depend on libs/*.tgz, so propagate neither rewrites nor installs app deps.
+  // The tarballs + manifest exist for external (Artifactory) consumers only.
 
   if (refreshLockfilePending) {
-    // Tarballs now exist and app package.json file: refs are rewritten, so a
-    // clean regen writes correct resolved/integrity nodes for every bucket.
+    // Tarballs now exist, so a clean regen writes correct resolved/integrity
+    // nodes for every bucket in the root lockfile.
     refreshRootLockfile();
   } else if (Object.keys(updates).length > 0) {
     syncRootLockfile();
   }
 
-  if (affectedApps.size > 0) {
-    syncAppsLockfile();
-  }
-
   if (args.gc) {
-    gcOrphanedTarballs(manifest, appPkgPaths);
+    gcOrphanedTarballs(manifest, findAppPackageJsons());
     gcOrphanedDist(manifest);
   }
 
@@ -906,10 +769,7 @@ function main() {
     }
   }
 
-  log(
-    `done — packed ${Object.keys(updates).length} bucket(s), `
-      + `${affectedApps.size} app(s) synced`,
-  );
+  log(`done — packed ${Object.keys(updates).length} bucket(s)`);
 }
 
 main();

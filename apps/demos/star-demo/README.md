@@ -35,9 +35,9 @@ This runs `dev:openfin:star-demo` — it starts the dev server, waits for
 ### Or two terminals
 
 ```bash
-# terminal 1 — dev server (source mode: aliases @starui/* to packages/src)
+# terminal 1 — dev server (aliases @starui/* to packages/src)
 npm run dev:star-demo            # from repo root
-# (equivalent: cd apps/demos/star-demo && npm run dev:source)
+# (equivalent: cd apps/demos/star-demo && npm run dev)
 
 # terminal 2 — OpenFin client
 cd apps/demos/star-demo && npm run client

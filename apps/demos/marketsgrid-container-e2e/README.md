@@ -24,7 +24,7 @@ mounts that path with one mock-backed grid, one server, one worker.
 
 ```bash
 # app only
-npm --prefix apps run dev:source -w @starui/marketsgrid-container-e2e
+npm --prefix apps run dev -w @starui/marketsgrid-container-e2e
 
 # the e2e suite (isolated config: only this server, 1 worker)
 npx playwright test -c playwright.container.config.ts

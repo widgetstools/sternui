@@ -6,6 +6,7 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { execSync } from 'node:child_process';
 
 const require = createRequire(import.meta.url);
 const {
@@ -410,6 +411,52 @@ export function staruiHostDataWorkerAssetPlugin(appDir) {
   };
 }
 
+// Build-generated assets that source mode cannot produce on the fly — design
+// system CSS and the host-data SharedWorker bundle. If either is missing, the
+// packages have not been built (or dist/ was wiped) and the app would fail with
+// a cryptic ENOENT / unresolved-import. These sentinels gate an auto-build.
+const BUILD_ASSET_SENTINELS = [
+  'packages/design-system/design-system/dist/css/theme.css',
+  'packages/data/host-data/dist/assets/data-services-worker.mjs',
+];
+
+/** True when every build-generated package asset an app needs is present. */
+export function staruiBuiltAssetsPresent() {
+  return BUILD_ASSET_SENTINELS.every((rel) => existsSync(join(REPO_ROOT, rel)));
+}
+
+/**
+ * Vite plugin — guarantees `@starui/*` build-generated assets (design-system
+ * CSS, host-data worker) exist before an app dev server or build starts.
+ * Source mode aliases TS/TSX live, but CSS and the worker are emitted by
+ * `npm run build:packages`; without this an app run after a clean/`rimraf`
+ * fails with `ENOENT … dist/css/theme.css`. Skips when assets are present
+ * (a cheap stat) or when STARUI_SKIP_ENSURE_BUILD=1.
+ */
+export function staruiEnsureBuiltAssetsPlugin() {
+  let ensured = false;
+  return {
+    name: 'starui-ensure-built-assets',
+    enforce: 'pre',
+    buildStart() {
+      if (ensured || process.env.STARUI_SKIP_ENSURE_BUILD === '1') return;
+      ensured = true;
+      if (staruiBuiltAssetsPresent()) return;
+      this.warn(
+        '@starui package build assets missing — running `npm run build:packages` '
+        + '(design-system CSS / host-data worker). This runs once.',
+      );
+      execSync('npm run build:packages', { cwd: REPO_ROOT, stdio: 'inherit' });
+      if (!staruiBuiltAssetsPresent()) {
+        this.error(
+          'build:packages did not produce the expected @starui assets. '
+          + 'Run `npm run build:packages` manually and check for errors.',
+        );
+      }
+    },
+  };
+}
+
 /** Tailwind `content` globs — absolute paths; prefer tailwindContentGlobs.mjs in tailwind.config.js. */
 export function staruiTailwindContent(appDir) {
   return staruiTailwindContentImpl(appDir);
@@ -418,10 +465,24 @@ export function staruiTailwindContent(appDir) {
 /** Force ESM entry — browser export resolves to UMD which breaks dynamic `import()` Client lookup. */
 export function stompJsEsmAlias(appDir) {
   const reactRootDir = findReactRoot(appDir);
-  return {
-    find: /^@stomp\/stompjs$/,
-    replacement: join(reactRootDir, 'node_modules/@stomp/stompjs/esm6/index.js'),
-  };
+  // @stomp/stompjs is a dep of @starui/widgets-react. In source mode the apps
+  // don't declare it, so it isn't hoisted into the app's node_modules — it
+  // lives at the repo root. Search the app's react root, every @starui install
+  // root, then REPO_ROOT, and alias to the first esm6 entry that exists.
+  const esm6 = 'node_modules/@stomp/stompjs/esm6/index.js';
+  const roots = [reactRootDir, ...collectStaruiInstallRoots(appDir), REPO_ROOT];
+  const seen = new Set();
+  let replacement = join(reactRootDir, esm6);
+  for (const root of roots) {
+    if (seen.has(root)) continue;
+    seen.add(root);
+    const candidate = join(root, esm6);
+    if (existsSync(candidate)) {
+      replacement = candidate;
+      break;
+    }
+  }
+  return { find: /^@stomp\/stompjs$/, replacement };
 }
 
 /** Paths Vite may read when aliases resolve into hoisted node_modules. */
