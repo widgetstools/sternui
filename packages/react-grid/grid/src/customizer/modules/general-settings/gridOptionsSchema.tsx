@@ -22,7 +22,7 @@ export const GRID_OPTIONS_SCHEMA: readonly BandSchema[] = [
     fields: [
       { kind: 'num', key: 'rowHeight', label: 'ROW HEIGHT', testId: 'go-row-height', min: 14, suffix: 'PX' },
       { kind: 'num', key: 'headerHeight', label: 'HEADER HEIGHT', testId: 'go-header-height', min: 14, suffix: 'PX' },
-      { kind: 'bool', key: 'animateRows', label: 'ANIMATE ROWS', hint: 'Disable for high-frequency tick feeds', testId: 'go-animate-rows' },
+      { kind: 'bool', key: 'animateRows', label: 'ANIMATE ROWS', hint: 'Off by default — row slide-in on change; enable for non-streaming UIs', testId: 'go-animate-rows' },
       {
         kind: 'select', key: 'rowSelection', label: 'ROW SELECTION', testId: 'go-row-selection',
         options: [

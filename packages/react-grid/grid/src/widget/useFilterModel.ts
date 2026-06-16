@@ -24,7 +24,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { GridApi } from 'ag-grid-community';
+import type { GridApi, IRowNode } from 'ag-grid-community';
+import type { RowChange } from '@starui/engine';
 import {
   useGridApi,
   useGridPlatform,
@@ -247,7 +248,8 @@ function useFilterNormalization(): {
  *  - the filters list changing (new pill, renamed pill — label stays;
  *    count stays too unless the filter model changed, which it does
  *    here because pills are immutable once captured)
- *  - AG-Grid's `rowDataUpdated` / `modelUpdated` events (data refresh)
+ *  - structural row changes (`RowChange.full` — sort / filter / setRowData)
+ *  - incremental delta updates on streaming ticks (changed rows only)
  *  - `firstDataRendered` (cold-mount: data arrives after the
  *    toolbar renders once with empty counts)
  */
@@ -255,44 +257,99 @@ function useFilterCounts(filters: readonly SavedFilter[]): Record<string, number
   const platform = useGridPlatform();
   const [filterCounts, setFilterCounts] = useState<Record<string, number>>({});
   const filterCountsRef = useRef<Record<string, number>>({});
+  const matchSetsRef = useRef<Map<string, Set<string>>>(new Map());
 
   useEffect(() => {
     const disposers: Array<() => void> = [];
     disposers.push(
       platform.api.onReady((liveApi) => {
-        const recomputeNow = () => {
+        const clearCounts = () => {
+          if (Object.keys(filterCountsRef.current).length === 0) return;
+          matchSetsRef.current = new Map();
+          filterCountsRef.current = {};
+          setFilterCounts({});
+        };
+
+        const fullRecompute = () => {
           if (filters.length === 0) {
-            if (Object.keys(filterCountsRef.current).length === 0) return;
-            filterCountsRef.current = {};
-            setFilterCounts({});
+            clearCounts();
             return;
           }
-          const rows: Record<string, unknown>[] = [];
+          const matchSets = new Map<string, Set<string>>();
+          const next: Record<string, number> = {};
+          for (const f of filters) {
+            matchSets.set(f.id, new Set());
+            next[f.id] = 0;
+          }
           try {
             liveApi.forEachNode((n) => {
-              if (n.data) rows.push(n.data as Record<string, unknown>);
+              const data = n.data as Record<string, unknown> | undefined;
+              const rowId = n.id;
+              if (!data || typeof rowId !== 'string') return;
+              for (const f of filters) {
+                if (doesRowMatchFilterModel(data, f.filterModel)) {
+                  matchSets.get(f.id)!.add(rowId);
+                  next[f.id] += 1;
+                }
+              }
             });
           } catch {
             /* api mid-teardown */
           }
-          const next: Record<string, number> = {};
-          for (const f of filters) {
-            let count = 0;
-            for (const row of rows) {
-              if (doesRowMatchFilterModel(row, f.filterModel)) count++;
-            }
-            next[f.id] = count;
-          }
+          matchSetsRef.current = matchSets;
           if (filterCountsEqual(filterCountsRef.current, next)) return;
           filterCountsRef.current = next;
           setFilterCounts(next);
         };
-        recomputeNow();
-        // Recompute on the shared, rAF-coalesced row-change signal instead of a
-        // private `modelUpdated` + rAF — the whole-grid walk now happens at most
-        // once per frame, shared with every other data-reactive module.
-        disposers.push(platform.rows.subscribe(recomputeNow));
-        disposers.push(platform.api.on('firstDataRendered', recomputeNow));
+
+        const applyRowChange = (change: RowChange) => {
+          if (filters.length === 0) {
+            clearCounts();
+            return;
+          }
+          if (change.full || matchSetsRef.current.size === 0) {
+            fullRecompute();
+            return;
+          }
+
+          const matchSets = matchSetsRef.current;
+          const next = { ...filterCountsRef.current };
+          let changed = false;
+
+          const touchNode = (node: IRowNode, removed: boolean) => {
+            const rowId = node.id;
+            if (typeof rowId !== 'string') return;
+            const data = node.data as Record<string, unknown> | undefined;
+            for (const f of filters) {
+              const set = matchSets.get(f.id);
+              if (!set) continue;
+              const was = set.has(rowId);
+              const now = !removed && !!data && doesRowMatchFilterModel(data, f.filterModel);
+              if (was === now) continue;
+              changed = true;
+              if (now) {
+                set.add(rowId);
+                next[f.id] = (next[f.id] ?? 0) + 1;
+              } else {
+                set.delete(rowId);
+                next[f.id] = Math.max(0, (next[f.id] ?? 0) - 1);
+              }
+            }
+          };
+
+          for (const node of change.removed) touchNode(node, true);
+          for (const node of change.added) touchNode(node, false);
+          for (const node of change.updated) touchNode(node, false);
+
+          if (!changed) return;
+          if (filterCountsEqual(filterCountsRef.current, next)) return;
+          filterCountsRef.current = next;
+          setFilterCounts(next);
+        };
+
+        fullRecompute();
+        disposers.push(platform.rows.subscribe(applyRowChange));
+        disposers.push(platform.api.on('firstDataRendered', fullRecompute));
       }),
     );
     return () => { for (const d of disposers) d(); };

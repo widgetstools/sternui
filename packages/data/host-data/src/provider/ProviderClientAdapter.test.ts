@@ -90,7 +90,7 @@ function wireCatalog(rows: AppConfigRow[], opts: { preload?: boolean } = {}): Wi
       else if (isAppDataRequest(ev.data)) hub.handleAppDataRequest(portLike, ev.data);
     });
     port.start();
-  });
+  }, { disablePageHideClose: true });
   return {
     hub,
     client: wiring.client,
@@ -159,6 +159,7 @@ describe('ProviderClientAdapter', () => {
 
     expect(snapshots).toHaveLength(1);
     expect(snapshots[0]).toHaveLength(2);
+    expect(adapter.getData()).toBe(snapshots[0]);
     expect(adapter.getData()).toEqual([{ id: 'r1', x: 1 }, { id: 'r2', x: 2 }]);
     expect(adapter.getConfig().providerType).toBe('mock');
     expect(adapter.getColumnDefs()).toEqual([{ field: 'id', headerName: 'ID' }]);
@@ -174,7 +175,6 @@ describe('ProviderClientAdapter', () => {
     controllers.get('default')!.emit({ rows, replace: true });
     controllers.get('default')!.emit({ status: 'ready' });
     await primer.snapshot;
-    primer.unsubscribe();
 
     const adapter = new ProviderClientAdapter<{ id: string; x: number }>({
       client: w.client,
@@ -190,6 +190,8 @@ describe('ProviderClientAdapter', () => {
     expect(counts.length).toBeGreaterThan(0);
     expect(counts[counts.length - 1]).toBe(1200);
     await adapter.stop();
+    await flush();
+    primer.unsubscribe();
   });
 
   it('routes live ticks to onTick after snapshot', async () => {
@@ -211,10 +213,11 @@ describe('ProviderClientAdapter', () => {
 
     expect(ticks).toHaveLength(1);
     expect(ticks[0]).toEqual([{ id: 'r1', x: 99 }]);
+    expect(adapter.getData()).toEqual([{ id: 'r1', x: 1 }]);
     await adapter.stop();
   });
 
-  it('stop() detaches without stopping the hub provider for other subscribers', async () => {
+  it('stop() detaches; hub stops upstream when this was the last subscriber', async () => {
     const adapter = new ProviderClientAdapter({ client: w.client, providerId: 'p1' });
     const startPromise = adapter.start();
     await flush();
@@ -222,13 +225,15 @@ describe('ProviderClientAdapter', () => {
     controllers.get('default')!.emit({ status: 'ready' });
     await startPromise;
     await adapter.stop();
+    await flush();
 
-    expect(controllers.get('default')!.stops).toBe(0);
+    expect(controllers.get('default')!.stops).toBe(1);
 
     const other = w.client.subscribe('p1', cfg());
     await flush();
-    controllers.get('default')!.emit({ rows: [{ id: 'r2' }] });
-    await flush();
+    controllers.get('default')!.emit({ rows: [{ id: 'r2' }], replace: true });
+    controllers.get('default')!.emit({ status: 'ready' });
+    await other.snapshot;
     other.unsubscribe();
   });
 

@@ -344,7 +344,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `buildGridContextMenuItems` — cell right-click menu builder; prepends **Settings** (opens the customizer on Column Settings with the right-clicked column pre-selected, via the controller's `openColumnSettings` + the settings sheet's `focusRequest` nonce) and **Remove from Grid** (hides the column via native `api.setColumnsVisible`, re-showable from the side bar's Columns panel and persisted on Save like any grid-state visibility change) ahead of AG Grid's stock items (Copy / Export / Auto-size …). Pure builder (params + handlers) wired through `MarketsGridHost` → `MarketsGridSurface` `getContextMenuItems`
 - `mergeDefaultColDef`, `gridOptionCompare`, `buildStreamSafeComponents` — reference-stable pipeline → surface wiring
 - `useGridHost`, `useMarketsGridController` — imperative grid control hooks (internal to `MarketsGrid`; not on package `.` barrel)
-- `useFilterModel` — filter-model persistence + mutation
+- `useFilterModel` — filter-model persistence + mutation; per-pill counts use incremental `RowChangeBus` deltas on streaming ticks (full-grid recompute only on structural changes / cold mount)
 - `useGridTheme` — resolves AG Grid theme from `data-theme`
 - `grid-chrome.css` — container/toolbar layout
 
@@ -447,7 +447,8 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 #### Customizer modules (under `./customizer`)
 
-- **General settings** — grid behaviour toggles; row selection maps to AG Grid 35
+- **General settings** — grid behaviour toggles; defaults `animateRows: false` and
+  `debounceVerticalScrollbar: true` for streaming-friendly grids; row selection maps to AG Grid 35
   `RowSelectionOptions` (`singleRow` / `multiRow`; checkbox column optional — when
   off, click-to-select with no selection column); **Default ColDef** band includes
   flash-on-change with theme-aware colour swatches (shown when enabled)
@@ -457,7 +458,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
   Row Grouping, Cell Editor, **Cell Renderer** (band 10 — picks any
   registered renderer from `@starui/design-system/cell-renderers-registry`
   and authors its per-renderer config)
-- **Conditional styling** — themed style rules (dark/light); per-rule bands for cell/row style, **flash on match** (`FlashConfig` — colour/mode/duration), **indicator** badge (`RuleIndicator`), value formatter, and **animate value** (`AnimationConfig` — `spin` / `spin-reverse` / `pulse`, cell-scope only). Animate spins the matching cell's value glyph via CSS keyframes scoped to `.ag-cell-value` (shipped once as `ds-anim-*`), e.g. an Excel value format maps `1 → 🔄` and a `value = 1` rule spins it — the no-code "in progress" spinner
+- **Conditional styling** — themed style rules (dark/light); per-rule bands for cell/row style, **flash on match** (`FlashConfig` — colour/mode/duration), **indicator** badge (`RuleIndicator`), value formatter, and **animate value** (`AnimationConfig` — `spin` / `spin-reverse` / `pulse`, cell-scope only). Animate spins the matching cell's value glyph via CSS keyframes scoped to `.ag-cell-value` (shipped once as `ds-anim-*`), e.g. an Excel value format maps `1 → 🔄` and a `value = 1` rule spins it — the no-code "in progress" spinner. Header flash/indicator painting (`headerPainter`, `hasHeaderPaintRules`) skips row scans when no header-targeted rules are enabled and is not invoked on live ticks unless header paint rules exist
 - **Visual Excel** — WYSIWYG `.xlsx` export preserving display formatters and
   conditional style-rule colours. Engine: `buildVisualExcelStyles`,
   `applyFormatExcelClasses`, `exportVisualExcel` (via `api.exportDataAsExcel` +
@@ -600,7 +601,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
   grid-level provider persistence; provider pickers live in grid customizer → Custom Settings (`providerGridHost`)
 - `MarketsGridContainer` — hub data via `useDataProvider` + `applyProviderToGrid` (no direct `client.subscribe` / cfg pass-through); optional `defaultLiveProviderId` for single-provider demos; live mode cold-starts STOMP immediately (hub attach dedupes concurrent windows); historical restore late-joins a running hub provider via `isProviderRunning` / `waitForProviderRunning` (≤2s) + `provider.start()` instead of `restartProvider` (avoids peer grid refresh and duplicate STOMP when several windows open at once)
 - `MarketsGridContainer` — when an active provider id is chosen but `useDataProviderConfig` is still loading, renders a lightweight placeholder (no throwaway `MarketsGrid` / AG Grid shell); the `__no_provider__` shell path is unchanged when no provider is selected or cfg is loaded but missing key/columns
-- `applyProviderToGrid` — live-tick add/update split with pending-add coalescing (`createApplyProviderToGridState`, `splitProviderRowsForGrid`, `splitProviderRowsWithResolver`); ticks for ids still in an async add queue retain the latest payload instead of being dropped so peer grids on the same hub provider stay row-count aligned; internal to `MarketsGridContainer` / `useBlotterDataConnection` (not on public barrel)
+- `applyProviderToGrid` — live-tick add/update split with pending-add coalescing (`createApplyProviderToGridState`, `splitProviderRowsForGrid`, `splitProviderRowsWithResolver`); after snapshot commit, `markSnapshotLoaded` indexes row ids so live ticks avoid O(n) `getRowNode`; ticks for ids still in an async add queue retain the latest payload instead of being dropped so peer grids on the same hub provider stay row-count aligned; internal to `MarketsGridContainer` / `useBlotterDataConnection` (not on public barrel)
 - `buildColumnDefs` — maps a provider's persisted `ColumnDefinition[]` to AG Grid `ColDef[]` for `MarketsGridContainer`. Per column: a `valueGetter` DSL expression compiles once (bounded FIFO cache) to a CSP-safe `@starui/engine` **compiled closure** (not per-cell AST walk); dotted `field` uses cached `getPathAccessor`; flat field stays on AG Grid's native path. Expression getters never throw — parse errors fall back to the field binding, runtime errors to the field value (warn once per expression); reusable per-getter `EvaluationContext` avoids per-cell allocations under high-frequency updates. Soak: `npm run soak:value-getter` (`valueGetter.soak.test.ts`, `SOAK=1`) — sustained eval load + heap-delta guard. **Internal** — not on public barrel
 - Custom Settings panel (`toolbar-date-settings` module) — four sections: Toolbar Date (historical date → AppData config), Data Provider (live/historical pickers, mode, as-of date) when `providerGridHost` is wired, Event Callbacks (event→handler bindings) when `gridEventBindingsHost` is wired, and Row Filter (row-exclusion expression). All settings are staged and applied only on the panel's explicit Save (Reset reverts); imperative actions (refresh/reload/edit) stay immediate
 - Row exclusion — implemented in `@starui/grid` `toolbar-date-settings` module (not widgets-react): multiline Monaco `ExpressionEditor` authors an EXCLUDE-when-true DSL predicate (column refs `[field]`, nested optional-chaining paths `[a.b.c]`, e.g. `[ccy] == "INR"`, `[active] == false`); keystrokes stage into the panel draft (applied on Save). `transformGridOptions` installs it as AG Grid's external filter (`isExternalFilterPresent` / `doesExternalFilterPass`) and the module's `activate` calls `api.onFilterChanged()` on cell edits, expression edits, and first ready. Rows are hidden, not removed — they reappear when the offending value changes; parse/eval failure excludes nothing (`rowExclusionFilter.ts`, fails open)
@@ -647,7 +648,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 #### Shared hooks
 
 - `IBlotterDataProvider` — deprecated alias of `IDataProvider`
-- `useBlotterDataConnection` — `IDataProvider` grid wiring (`onSnapshotData` / `onTick`); optional hub resolve via `useDataProvider`
+- `useBlotterDataConnection` — `IDataProvider` grid wiring (`onSnapshotData` / `onTick`); optional hub resolve via `useDataProvider`; snapshot commit flushes pending async transactions (parity with `useProviderDataWiring`); `rowCount` updates on snapshot and add ticks only (no React setState on update-only live ticks); `isConnected` reflects wiring lifecycle via React state
 - `useGridStateManager` — load/save grid state (cols, filter model, sort)
 
 ---
@@ -833,7 +834,7 @@ modules).
 - `GridPlatform` — per-grid singleton (store, api, events, rows, resources, pipeline)
 - `EventBus<T>` — typed pub-sub (`emit`, `on`, `off`)
 - `ApiHub` — reactive `GridApi` (`attach`, `whenReady`, event subscriptions; `on` forwards the AG event object)
-- `RowChangeBus` (`platform.rows`, type `RowChangeSignal`) — shared, timer-coalesced row-change emitter. Reads the exact changed nodes from AG `asyncTransactionsFlushed` and emits one `RowChange` (`added`/`updated`/`removed` deltas, or `full` for sort/filter/`setRowData`) per frame, so data-reactive modules (alerts, conditional-styling, filter counts) evaluate only changed rows instead of walking the whole grid on every streaming tick
+- `RowChangeBus` (`platform.rows`, type `RowChangeSignal`) — shared, timer-coalesced row-change emitter. Reads the exact changed nodes from AG `asyncTransactionsFlushed` and emits one `RowChange` (`added`/`updated`/`removed` deltas, or `full` for sort/filter/`setRowData`) per frame, so data-reactive modules (alerts, conditional-styling, filter counts) evaluate only changed rows instead of walking the whole grid on every streaming tick. Filter pill badge counts (`useFilterCounts` in `useFilterModel`) maintain per-filter row-id sets and adjust counts incrementally on delta emits
 - `ResourceScope` — `CssInjector` + `ExpressionEngine` + WeakMap caches
 - `PipelineRunner` — cached transform pipeline for `colDef` + `gridOptions`; per-module memo plus output structural sharing (returns previous refs when shallow-equal)
 - `topoSortModules()` — topological module-dependency sort
@@ -1231,7 +1232,7 @@ modules).
 
 - `IDataProvider` — uniform client contract (`start` / `stop` / `refresh` / `restart`, sync getters, event registrars); types + `ProviderClientAdapter` hub adapter (Phase 3)
 - `IDataProviderFactory` — `getProvider(providerId)` factory surface
-- `ProviderClientAdapter` — client-side `IDataProvider`; cfg-free subscribe, `SnapshotReassembler` snapshot assembly, `getProvider()` on hub bundle. `start()` resolves its one provider via the worker's on-demand `get-config` (single-row read, no full-catalog gate) so attach is race-safe even mid-preload
+- `ProviderClientAdapter` — client-side `IDataProvider`; cfg-free subscribe, `SnapshotReassembler` snapshot assembly, `getProvider()` on hub bundle. `getData()` returns the last snapshot commit by reference (not copied, not updated on live ticks). `start()` resolves its one provider via the worker's on-demand `get-config` (single-row read, no full-catalog gate) so attach is race-safe even mid-preload
 - `resolveProviderCapabilities()` — transport capability flags for STOMP / REST / mock / appdata
 - `DataServicesHubBundle` / `ResolvedDataServicesHubBundle` — hub bundle from `ensurePlatformReady` / `ensureDataServicesHub`. Hydration is split into parallel signals: `appDataReady` (AppData mirror snapshot) + `catalogReady` (worker catalog preload), with `ready = Promise.all([appDataReady, catalogReady])` for full-hydration callers. Plus `stopProvider`, `dispose`, legacy client handles
 - `ProviderCapabilities` — streaming / realtime / refresh / restart flags per transport
@@ -1283,10 +1284,13 @@ modules).
 - Columnar wire format (`cfg.wireFormat: 'columnar'`, default `'json'`): all binary frames (cache replay, pre-ready snapshot fan-out, large live ticks) encode via the typed-array columnar codec (`wire/columnarCodec.ts`, `COL1` frames) — numbers travel as raw little-endian Float64, booleans as bitmaps, strings/nested objects as one `JSON.parse` per **column**, presence/null bitmaps preserve ragged rows and null-vs-absent — cutting each window's main-thread decode several-fold on number-heavy feeds; frames that don't qualify (non-plain-object rows) fall back to JSON per chunk (`DeltaBinEvent.enc` discriminates per event); `tryEncodeColumnar` / `decodeColumnar` exported from `@starui/host-data/runtime`
 - Buffering between snapshot-resolve and update registration
 - Lazy provider create on first attach, reuse on subsequent attaches
+- **Idle auto-teardown** — when the last data *and* stats subscriber leaves (`detach`, `onPortClosed`, dead-port prune, or missed heartbeats), `SharedWorkerDataServicesHub` calls `stopProvider` (upstream STOMP/REST/mock stops, cache cleared); re-attach cold-starts
+- **Subscriber heartbeats** — clients send `{ kind: 'ping', subId, meta? }` every 15s; hub sweeps every 10s and evicts subs silent for >45s; `buildIntrospectSnapshot()` exposes per-subscriber `attachedAt`, `lastPingAt`, `stale`, and optional `meta.label` on each running provider row
+- `SharedWorkerDataServicesClient` registers `pagehide` (non-bfcache) → `close()` so blotter window teardown sends `detach` for every subscription before the port dies
 - `refresh-provider` RPC — replay hub cache to one subscriber without upstream I/O; `SubscribeHandle.refresh()` / `IDataProvider.refresh()`
 - `attach.extra` → `restart(extra)` on running provider; when the attach also carries `cfg` (editor Restart button), the slot is **rebuilt from the new cfg** (`recreateProvider`) so the reconnect picks up edited connection/column/behaviour settings instead of the stale config the slot was created with
 - Slots register in the provider map **before** their transport factory runs, so the synchronous `status: loading` every transport emits on start broadcasts to all attached windows — peer blotters show the refresh overlay the moment any window restarts the shared provider (previously that first emission was dropped by the unregistered-slot guard and peers erratically missed the restart signal)
-- `stop` keeps a provider's **stats listeners** registered (pushes one zeroed snapshot, doesn't drop the subscription) so the diagnostics pane survives a Stop and resumes automatically on the next Restart
+- `stop` request — explicit upstream teardown; stats listeners receive one zeroed snapshot (subscription stays registered for the diagnostics pane until the client detaches)
 
 #### Wire protocol (v2)
 

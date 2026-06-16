@@ -11,7 +11,8 @@
  *     in an "I haven't seen anything yet" state.
  *   • `attachStats(providerId, listener)` — subscribe to live stats.
  *   • `stop(providerId)` — explicit teardown of the upstream
- *     connection. The Hub does not auto-tear-down.
+ *     connection. The Hub also auto-stops providers when the last
+ *     subscriber detaches or misses heartbeats.
  *
  * No request/response correlation — attach + detach + stop are all
  * fire-and-forget. The port either delivers events back or it
@@ -42,7 +43,9 @@ import type {
   Request,
   RowPatch,
   StopRequest,
+  SubscriberMeta,
 } from '../protocol.js';
+import { SUBSCRIBER_PING_INTERVAL_MS } from '../worker/hubTypes.js';
 import { isCatalogEvent, isEvent, isAppDataEvent } from '../protocol.js';
 import { composeRowId, type DataProviderConfig, type ProviderConfig } from '@starui/types';
 import { decodeColumnar } from '../wire/columnarCodec.js';
@@ -81,6 +84,8 @@ export interface AttachOpts {
    *   - `{ __refresh: Date.now() }` for a manual refresh.
    */
   extra?: Record<string, unknown>;
+  /** Optional label surfaced in hub introspect (`HubSubscriberIntrospectRow`). */
+  meta?: SubscriberMeta;
 }
 
 /**
@@ -150,6 +155,8 @@ interface ThinSubState {
 export interface SharedWorkerDataServicesClientOpts {
   /** Inject for tests. Default: `() => crypto.randomUUID()`. */
   generateSubId?: () => string;
+  /** Disable window `pagehide` → `close()` wiring (tests). Default false. */
+  disablePageHideClose?: boolean;
 }
 
 export class SharedWorkerDataServicesClient {
@@ -171,12 +178,22 @@ export class SharedWorkerDataServicesClient {
   >();
   private readonly catalogReadyWaiters: Array<() => void> = [];
   private readonly catalogChangeListeners = new Set<(detail: CatalogChangeDetail) => void>();
+  private readonly heartbeatTimers = new Map<SubId, ReturnType<typeof setInterval>>();
+  private readonly heartbeatMeta = new Map<SubId, SubscriberMeta | undefined>();
+  private pageHideHandler: ((ev: PageTransitionEvent) => void) | null = null;
 
   constructor(port: MessagePort, opts: SharedWorkerDataServicesClientOpts = {}) {
     this.port = port;
     this.generateSubId = opts.generateSubId ?? (() => crypto.randomUUID());
     this.port.addEventListener('message', this.handleMessage);
     this.port.start();
+    if (!opts.disablePageHideClose && typeof globalThis.addEventListener === 'function') {
+      this.pageHideHandler = (ev: PageTransitionEvent) => {
+        if (ev.persisted) return;
+        this.close();
+      };
+      globalThis.addEventListener('pagehide', this.pageHideHandler);
+    }
   }
 
   // ─── public surface ───────────────────────────────────────────
@@ -204,6 +221,7 @@ export class SharedWorkerDataServicesClient {
       mode: 'data',
       extra: opts.extra,
     });
+    this.startHeartbeat(subId, opts.meta);
     return subId;
   }
 
@@ -369,6 +387,7 @@ export class SharedWorkerDataServicesClient {
       mode: 'data',
       extra: opts.extra,
     });
+    this.startHeartbeat(subId, opts.meta);
 
     return {
       subId,
@@ -412,6 +431,7 @@ export class SharedWorkerDataServicesClient {
       unsubscribe: () => {
         if (!this.subs.delete(subId)) return;
         this.thinSubs.delete(subId);
+        this.stopHeartbeat(subId);
         if (this.closed) return;
         this.send({ kind: 'detach', subId });
         // Reject the snapshot promise if it's still pending so awaiters
@@ -438,12 +458,14 @@ export class SharedWorkerDataServicesClient {
       providerId,
       mode: 'stats',
     });
+    this.startHeartbeat(subId);
     return subId;
   }
 
   detach(subId: SubId): void {
     if (!this.subs.delete(subId)) return;
     this.thinSubs.delete(subId);
+    this.stopHeartbeat(subId);
     if (this.closed) return;
     this.send({ kind: 'detach', subId });
   }
@@ -594,6 +616,11 @@ export class SharedWorkerDataServicesClient {
 
   close(): void {
     if (this.closed) return;
+    this.stopAllHeartbeats();
+    if (this.pageHideHandler && typeof globalThis.removeEventListener === 'function') {
+      globalThis.removeEventListener('pagehide', this.pageHideHandler);
+      this.pageHideHandler = null;
+    }
     // Tell the hub to drop our subscriptions before the port closes.
     // Otherwise zombie listeners make postMessage throw during fan-out
     // and every other window on the same provider stops getting ticks.
@@ -623,6 +650,39 @@ export class SharedWorkerDataServicesClient {
   }
 
   // ─── internals ────────────────────────────────────────────────
+
+  private startHeartbeat(subId: SubId, meta?: SubscriberMeta): void {
+    this.stopHeartbeat(subId);
+    this.heartbeatMeta.set(subId, meta);
+    const tick = () => {
+      if (this.closed) return;
+      this.send({
+        kind: 'ping',
+        subId,
+        meta: this.heartbeatMeta.get(subId),
+      });
+    };
+    tick();
+    this.heartbeatTimers.set(
+      subId,
+      setInterval(tick, SUBSCRIBER_PING_INTERVAL_MS),
+    );
+  }
+
+  private stopHeartbeat(subId: SubId): void {
+    const timer = this.heartbeatTimers.get(subId);
+    if (timer !== undefined) {
+      clearInterval(timer);
+      this.heartbeatTimers.delete(subId);
+    }
+    this.heartbeatMeta.delete(subId);
+  }
+
+  private stopAllHeartbeats(): void {
+    for (const timer of this.heartbeatTimers.values()) clearInterval(timer);
+    this.heartbeatTimers.clear();
+    this.heartbeatMeta.clear();
+  }
 
   private send(req: Request): void {
     try {

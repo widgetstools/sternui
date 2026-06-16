@@ -99,11 +99,13 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
 
     const thisSubKey = subscriptionKey ?? `${activeId}::${rowIdFieldKey}`;
     const t0 = performance.now();
-    // eslint-disable-next-line no-console
-    console.log(
-      '[refresh] %c5. provider wiring effect fired%c provider=%s',
-      'color:#ec4899', '', activeId,
-    );
+    if (DEBUG) {
+      // eslint-disable-next-line no-console
+      console.log(
+        '[refresh] %c5. provider wiring effect fired%c provider=%s',
+        'color:#ec4899', '', activeId,
+      );
+    }
 
     let cancelled = false;
     const gridApply = createApplyProviderToGridState();
@@ -118,22 +120,29 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
       if (cancelled) return;
       Promise.resolve().then(() => {
         if (cancelled) return;
-        // eslint-disable-next-line no-console
-        console.log(
-          '[refresh] %cflushAsyncTransactions BEFORE commit%c pendingAdds=%d gridRows=%d',
-          'color:#f97316;font-weight:bold', '',
-          gridApply.getPendingAddCount(), liveApi.getDisplayedRowCount(),
-        );
-        try { liveApi.flushAsyncTransactions(); } catch (e) {
+        if (DEBUG) {
           // eslint-disable-next-line no-console
-          console.warn('[refresh]    flushAsyncTransactions threw:', e);
+          console.log(
+            '[refresh] %cflushAsyncTransactions BEFORE commit%c pendingAdds=%d gridRows=%d',
+            'color:#f97316;font-weight:bold', '',
+            gridApply.getPendingAddCount(), liveApi.getDisplayedRowCount(),
+          );
+        }
+        try { liveApi.flushAsyncTransactions(); } catch (e) {
+          if (DEBUG) {
+            // eslint-disable-next-line no-console
+            console.warn('[refresh]    flushAsyncTransactions threw:', e);
+          }
         }
         gridApply.clearPendingAdds();
-        // eslint-disable-next-line no-console
-        console.log(
-          '[refresh] %csnapshot commit%c %d rows (onSnapshotData)',
-          'color:#10b981;font-weight:bold', '', rows.length,
-        );
+        gridApply.markSnapshotLoaded(rows, rowIdField ?? undefined);
+        if (DEBUG) {
+          // eslint-disable-next-line no-console
+          console.log(
+            '[refresh] %csnapshot commit%c %d rows (onSnapshotData)',
+            'color:#10b981;font-weight:bold', '', rows.length,
+          );
+        }
         liveApi.setGridOption('rowData', rows.slice());
         setLoadRowCount(rows.length);
         setResolvedSubKey(thisSubKey);
@@ -163,7 +172,7 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
         updateRows,
         rowIdField,
       );
-      if (coalescedPending > 0) {
+      if (coalescedPending > 0 && DEBUG) {
         // eslint-disable-next-line no-console
         console.log(
           '[refresh]   %clive split (rows coalesced behind pending adds)%c add=%d update=%d coalescedPending=%d',
@@ -174,11 +183,13 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
     });
 
     const unsubStatus = provider.onStatus((s, err) => {
-      // eslint-disable-next-line no-console
-      console.log(
-        `[refresh] %cstatus%c %s${err ? ' error=' + JSON.stringify(err) : ''} (+${(performance.now() - t0).toFixed(0)}ms) — pendingAdds=${gridApply.getPendingAddCount()}`,
-        'color:#a855f7;font-weight:bold', '', s,
-      );
+      if (DEBUG) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[refresh] %cstatus%c %s${err ? ' error=' + JSON.stringify(err) : ''} (+${(performance.now() - t0).toFixed(0)}ms) — pendingAdds=${gridApply.getPendingAddCount()}`,
+          'color:#a855f7;font-weight:bold', '', s,
+        );
+      }
       if (cancelled) return;
 
       if (s === 'loading') {

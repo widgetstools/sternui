@@ -60,7 +60,8 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
   private readonly inlineCfg?: ProviderConfig;
   private resolvedConfig: ProviderConfig | null = null;
   private handle: SubscribeHandle<T> | null = null;
-  private data: T[] = [];
+  /** Reference to the last snapshot commit — not copied, not updated on live ticks. */
+  private snapshotRows: readonly T[] = [];
 
   private readonly rowsReceivedHandlers = new Set<(count: number) => void>();
   private readonly snapshotHandlers = new Set<(rows: readonly T[]) => void>();
@@ -124,7 +125,7 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
   async refresh(): Promise<void> {
     this.assertStarted();
     const rows = await this.handle!.refresh();
-    this.data = [...rows];
+    this.snapshotRows = rows;
     for (const handler of this.snapshotHandlers) {
       handler(rows);
     }
@@ -156,7 +157,7 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
   }
 
   getData(): readonly T[] {
-    return this.data;
+    return this.snapshotRows;
   }
 
   getConfig(): ProviderConfig {
@@ -218,11 +219,11 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
     });
 
     handle.onReset(() => {
-      this.data = [];
+      this.snapshotRows = [];
     });
 
     const deliverSnapshot = (rows: readonly T[]) => {
-      this.data = [...rows];
+      this.snapshotRows = rows;
       for (const handler of this.snapshotHandlers) handler(rows);
     };
 
@@ -237,7 +238,7 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
   private detach(): void {
     this.handle?.unsubscribe();
     this.handle = null;
-    this.data = [];
+    this.snapshotRows = [];
   }
 
   private assertStarted(): void {

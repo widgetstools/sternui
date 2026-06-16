@@ -96,10 +96,10 @@ describe('GridOptionsPanel (v4 schema-driven)', () => {
   it('edits bool field (ANIMATE ROWS) via the switch', () => {
     mount(platform);
     const toggle = screen.getByTestId('go-animate-rows');
-    expect(toggle).toHaveAttribute('data-state', 'checked');
+    expect(toggle).toHaveAttribute('data-state', 'unchecked');
 
     fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute('data-state', 'unchecked');
+    expect(toggle).toHaveAttribute('data-state', 'checked');
   });
 
   it('edits status bar toggle while the options search filter is active', () => {

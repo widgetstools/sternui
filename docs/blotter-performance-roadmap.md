@@ -45,10 +45,9 @@ worst case for streaming.
    across windows) instead of per-listener structured clones. Reference:
    `apps/demos/stomp-marketsgrid-minimal/src/stompProvider.ts` already does
    `throttleMs: 100`, `conflateByKey: 'positionId'`.
-2. **`animateRows: false` for tick feeds.** Default `true`
-   (`packages/shared/engine/src/customizer/modules/general-settings/state.ts:266`);
-   schema hint already says "Disable for high-frequency tick feeds"
-   (`gridOptionsSchema.tsx:25`). Row animation re-layouts every transaction.
+2. **`animateRows: false` by default** for streaming-friendly grids
+   (`packages/shared/engine/src/customizer/modules/general-settings/state.ts`).
+   Enable manually for non-tick UIs via Grid Options.
 3. **`projectFields: true`** (default off). Prunes rows to
    `columnDefinitions + keyColumn` at parse time — shrinks hub cache, wire
    bytes, per-window decode, AND the AG Grid row store at once. Best
@@ -82,14 +81,12 @@ worst case for streaming.
 ## Tier 3 — memory cleanups (scale with window count)
 
 7. **Drop the stale per-subscription row copy.** `ProviderClientAdapter`
-   keeps `this.data = [...rows]` on every snapshot
-   (`packages/data/host-data/src/provider/ProviderClientAdapter.ts:127,225`)
-   but **never updates it on live ticks** (`onUpdate` at line 216 doesn't
-   touch it). So `getData()` (line 158) returns a stale full duplicate of
-   the snapshot (e.g. 20k wide rows) retained per window for little benefit.
-   Make it lazy (rebuild from grid on demand) or remove it — verify
-   `getData()` callers first.
-8. **AG Grid streaming defaults.** `debounceVerticalScrollbar: true`; keep
+   keeps a reference to the last snapshot commit for `getData()` (no
+   `[...rows]` copy; live ticks do not refresh it). ~~Make it lazy (rebuild
+   from grid on demand) or remove it — verify `getData()` callers first.~~
+   **Done** — reference-only snapshot in `ProviderClientAdapter`.
+8. **AG Grid streaming defaults.** `debounceVerticalScrollbar: true` by default
+   (`general-settings/state.ts`); keep
    `enableCellChangeFlash: false` (already default,
    `general-settings/state.ts:347`); review `cellFlashDuration` (500) /
    `cellFadeDuration` (1000) — only relevant if flashing is enabled, but
@@ -119,6 +116,7 @@ worst case for streaming.
 | `getRowId` | `packages/shared/engine/src/platform/GridPlatform.ts:74-76` |
 | Snapshot → `setGridOption('rowData')` | `packages/react-core/widgets-react/src/v2/markets-grid-container/MarketsGridContainer.tsx:751` |
 | Live → `applyTransactionAsync` | `packages/react-core/widgets-react/src/v2/markets-grid-container/applyProviderToGrid.ts:179` |
+| Snapshot id index (`markSnapshotLoaded`) | `packages/react-core/widgets-react/src/container/markets-grid-container/applyProviderToGrid.ts` |
 | `LIVE_BIN_MIN_ROWS = 64` | `packages/data/host-data/src/runtime/worker/SharedWorkerDataServicesHub.ts:112` |
 | `LATE_JOIN_CHUNK_SIZE = 500` | `packages/data/host-data/src/runtime/worker/SharedWorkerDataServicesHub.ts:97` |
 | `bufferedDispatch` defaults | `packages/data/host-data/src/runtime/providers/transports/bufferedDispatch.ts:81-84` |

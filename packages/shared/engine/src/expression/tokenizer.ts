@@ -1,9 +1,10 @@
 import type { Token, TokenType } from './types';
 
+/** Keyword lookup is case-insensitive — `in`, `In`, and `IN` are equivalent. */
 const KEYWORDS: Record<string, { type: TokenType; value: string }> = {
-  true: { type: 'BOOLEAN', value: 'true' },
-  false: { type: 'BOOLEAN', value: 'false' },
-  null: { type: 'NULL', value: 'null' },
+  TRUE: { type: 'BOOLEAN', value: 'true' },
+  FALSE: { type: 'BOOLEAN', value: 'false' },
+  NULL: { type: 'NULL', value: 'null' },
   AND: { type: 'LOGICAL', value: 'AND' },
   OR: { type: 'LOGICAL', value: 'OR' },
   NOT: { type: 'LOGICAL', value: 'NOT' },
@@ -161,7 +162,7 @@ export function tokenize(source: string): Token[] {
         j++;
       }
       const word = source.slice(i, j);
-      const keyword = KEYWORDS[word];
+      const keyword = KEYWORDS[word.toUpperCase()];
       if (keyword) {
         tokens.push({ ...keyword, position: pos });
       } else {

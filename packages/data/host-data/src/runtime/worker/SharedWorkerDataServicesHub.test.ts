@@ -6,9 +6,9 @@
  *      provider has already started gets the full cache as one
  *      `delta { replace: true }` event, plus the current status.
  *
- *   2. **No auto-teardown.** When the last subscriber detaches, the
- *      provider stays running. A subsequent attach reuses the
- *      existing instance (and its cache).
+ *   2. **Idle auto-teardown.** When the last subscriber detaches (or
+ *      misses heartbeats), the provider stops upstream. Re-attach
+ *      cold-starts and rebuilds cache.
  *
  *   3. **Restart via attach.extra.** Passing `extra` on attach to a
  *      running provider triggers `provider.restart(extra)`.
@@ -30,6 +30,10 @@ import type { Event, RowPatch } from '../protocol';
 import { decodeColumnar } from '../wire/columnarCodec';
 import type { ProviderConfig } from '@starui/types';
 import type { ConfigManager, AppConfigRow } from '@starui/host-config';
+import {
+  SUBSCRIBER_PING_TIMEOUT_MS,
+  SUBSCRIBER_SWEEP_INTERVAL_MS,
+} from './hubTypes.js';
 
 interface CapturedPort extends PortLike {
   messages: Event[];
@@ -77,12 +81,21 @@ interface FakeTimers {
 }
 
 function makeFakeTimers(): FakeTimers {
-  let cb: (() => void) | null = null;
+  const callbacks = new Map<number, () => void>();
+  let nextId = 1;
   return {
-    set(callback) { cb = callback; return 1; },
-    clear() { cb = null; },
-    tick() { cb?.(); },
-    get armed() { return cb !== null; },
+    set(callback) {
+      const id = nextId++;
+      callbacks.set(id, callback);
+      return id;
+    },
+    clear(handle) {
+      callbacks.delete(handle as number);
+    },
+    tick() {
+      for (const cb of [...callbacks.values()]) cb();
+    },
+    get armed() { return callbacks.size > 0; },
   };
 }
 
@@ -481,8 +494,8 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
   });
 });
 
-describe('SharedWorkerDataServicesHub — no auto-teardown', () => {
-  it('keeps the provider running after the last data subscriber detaches', () => {
+describe('SharedWorkerDataServicesHub — idle auto-teardown', () => {
+  it('stops the provider when the last data subscriber detaches', () => {
     const hub = new SharedWorkerDataServicesHub();
     const port = makePort();
     hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
@@ -491,15 +504,44 @@ describe('SharedWorkerDataServicesHub — no auto-teardown', () => {
 
     hub.handleRequest(port, { kind: 'detach', subId: 's1' });
 
+    expect(ctrl.stopCount).toBe(1);
+  });
+
+  it('keeps the provider running while any data subscriber remains', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const portA = makePort();
+    const portB = makePort();
+    hub.handleRequest(portA, { kind: 'attach', subId: 'sA', providerId: 'p1', mode: 'data', cfg: cfg() });
+    hub.handleRequest(portB, { kind: 'attach', subId: 'sB', providerId: 'p1', mode: 'data' });
+    const ctrl = controllers.get('default')!;
+
+    hub.handleRequest(portA, { kind: 'detach', subId: 'sA' });
     expect(ctrl.stopCount).toBe(0);
 
-    // Re-attaching reuses the existing provider; new listener gets
-    // the cached row in its first replace delta.
+    hub.handleRequest(portB, { kind: 'detach', subId: 'sB' });
+    expect(ctrl.stopCount).toBe(1);
+  });
+
+  it('re-attaching after idle teardown cold-starts and replays a fresh cache', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ rows: [{ id: 'r1' }] });
+
+    hub.handleRequest(port, { kind: 'detach', subId: 's1' });
+    expect(ctrl.stopCount).toBe(1);
+
     const portB = makePort();
-    hub.handleRequest(portB, { kind: 'attach', subId: 's2', providerId: 'p1', mode: 'data' });
-    const replace = portB.messages.find(isAnyDelta);
-    expect(rowsOf(replace!)).toEqual([{ id: 'r1' }]);
-    expect(ctrl.stopCount).toBe(0);
+    hub.handleRequest(portB, { kind: 'attach', subId: 's2', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const liveCtrl = controllers.get('default')!;
+    liveCtrl.emit({ rows: [{ id: 'r2' }], replace: true });
+    const replace = portB.messages
+      .filter(isAnyDelta)
+      .find((m) => rowsOf(m)?.some((r) => (r as { id: string }).id === 'r2'));
+    expect(rowsOf(replace!)).toEqual([{ id: 'r2' }]);
+    expect(ctrl.stopCount).toBe(1);
+    expect(liveCtrl.stopCount).toBe(0);
   });
 
   it('explicit stop tears the provider down and notifies subscribers', () => {
@@ -910,7 +952,7 @@ describe('SharedWorkerDataServicesHub — stats sampler', () => {
 });
 
 describe('SharedWorkerDataServicesHub — port closure', () => {
-  it('drops every subscription owned by the closed port', () => {
+  it('drops every subscription owned by the closed port and stops idle providers', () => {
     const hub = new SharedWorkerDataServicesHub();
     const port = makePort();
     hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
@@ -918,9 +960,8 @@ describe('SharedWorkerDataServicesHub — port closure', () => {
 
     hub.onPortClosed(port);
 
-    // Provider is still running (no auto-teardown).
     const ctrl = controllers.get('default')!;
-    expect(ctrl.stopCount).toBe(0);
+    expect(ctrl.stopCount).toBe(1);
 
     // But broadcasts no longer reach the dead port.
     port.messages.length = 0;
@@ -953,6 +994,45 @@ describe('SharedWorkerDataServicesHub — port closure', () => {
     alive.messages.length = 0;
     ctrl.emit({ rows: [{ id: 'r1', x: 100 }] });
     expect(alive.messages.find((m) => isAnyDelta(m))).toBeTruthy();
+  });
+});
+
+describe('SharedWorkerDataServicesHub — subscriber heartbeats', () => {
+  it('evicts stale subscribers and stops idle providers on sweep', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const timers = makeFakeTimers();
+    const hub = new SharedWorkerDataServicesHub({ setTimer: timers.set, clearTimer: timers.clear });
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ rows: [{ id: 'r1' }] });
+
+    vi.setSystemTime(SUBSCRIBER_PING_TIMEOUT_MS + SUBSCRIBER_SWEEP_INTERVAL_MS);
+    timers.tick();
+
+    expect(ctrl.stopCount).toBe(1);
+    vi.useRealTimers();
+    port.messages.length = 0;
+    ctrl.emit({ rows: [{ id: 'r2' }] });
+    expect(port.messages).toHaveLength(0);
+  });
+
+  it('ping refreshes liveness and keeps the provider running', () => {
+    const timers = makeFakeTimers();
+    const hub = new SharedWorkerDataServicesHub({ setTimer: timers.set, clearTimer: timers.clear });
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+
+    timers.tick(SUBSCRIBER_PING_TIMEOUT_MS / 2);
+    hub.handleRequest(port, { kind: 'ping', subId: 's1', meta: { label: 'grid-1' } });
+    timers.tick(SUBSCRIBER_PING_TIMEOUT_MS);
+
+    expect(ctrl.stopCount).toBe(0);
+    const intro = hub.buildIntrospectSnapshot();
+    expect(intro.providers[0]?.subscribers?.[0]?.meta?.label).toBe('grid-1');
+    expect(intro.providers[0]?.subscribers?.[0]?.stale).toBe(false);
   });
 });
 

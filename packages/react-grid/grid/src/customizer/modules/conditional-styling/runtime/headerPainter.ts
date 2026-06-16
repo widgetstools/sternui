@@ -27,6 +27,22 @@ export interface HeaderPainter {
   evaluate: () => void;
 }
 
+/** True when any enabled rule targets header flash or header indicators. */
+export function hasHeaderPaintRules(state: ConditionalStylingState): boolean {
+  return state.rules.some((r) => {
+    if (!r.enabled || r.scope.type !== 'cell') return false;
+    if (
+      r.flash?.enabled
+      && (r.flash.target === 'headers' || r.flash.target === 'cells+headers')
+    ) {
+      return true;
+    }
+    if (!r.indicator?.icon) return false;
+    const target = r.indicator.target ?? 'cells+headers';
+    return target === 'headers' || target === 'cells+headers';
+  });
+}
+
 export function createHeaderPainter(
   platform: PlatformHandle<ConditionalStylingState>,
   diffCacheByApi: DiffCacheByApi,
@@ -36,6 +52,34 @@ export function createHeaderPainter(
   // the headers flicker on every live tick.
   const lastFlashColsByRule = new Map<string, Set<string>>();
   const lastIndicatorColsByRule = new Map<string, Set<string>>();
+  const notFilter = ':not(.ag-floating-filter)';
+
+  const applyHeaderClassDelta = (
+    last: Map<string, Set<string>>,
+    next: Map<string, Set<string>>,
+    classFor: (ruleId: string) => string,
+  ) => {
+    const allRuleIds = new Set<string>([...last.keys(), ...next.keys()]);
+    for (const ruleId of allRuleIds) {
+      const lastCols = last.get(ruleId) ?? new Set<string>();
+      const nextCols = next.get(ruleId) ?? new Set<string>();
+      const cls = classFor(ruleId);
+      for (const colId of lastCols) {
+        if (nextCols.has(colId)) continue;
+        document.querySelectorAll(`.ag-header-cell${notFilter}[col-id="${CSS.escape(colId)}"]`).forEach((el) => {
+          el.classList.remove(cls);
+        });
+      }
+      for (const colId of nextCols) {
+        if (lastCols.has(colId)) continue;
+        document.querySelectorAll(`.ag-header-cell${notFilter}[col-id="${CSS.escape(colId)}"]`).forEach((el) => {
+          el.classList.add(cls);
+        });
+      }
+      if (nextCols.size === 0) last.delete(ruleId);
+      else last.set(ruleId, nextCols);
+    }
+  };
 
   const evaluate = (): void => {
     const api = platform.api.api;
@@ -43,7 +87,6 @@ export function createHeaderPainter(
     const rowDiffCache = diffCacheByApi.get(api as object);
     const state = platform.getState();
     const engine = platform.resources.expression();
-    const notFilter = ':not(.ag-floating-filter)';
 
     const headerFlashRules = state.rules.filter(
       (r) => r.enabled && r.flash?.enabled && r.scope.type === 'cell' &&
@@ -54,6 +97,20 @@ export function createHeaderPainter(
       const target = r.indicator.target ?? 'cells+headers';
       return target === 'headers' || target === 'cells+headers';
     });
+
+    if (headerFlashRules.length === 0 && headerIndicatorRules.length === 0) {
+      applyHeaderClassDelta(
+        lastFlashColsByRule,
+        new Map<string, Set<string>>(),
+        (ruleId) => `ds-flash-hdr-${cssEscapeColId(ruleId)}`,
+      );
+      applyHeaderClassDelta(
+        lastIndicatorColsByRule,
+        new Map<string, Set<string>>(),
+        (ruleId) => `ds-rule-${cssEscapeColId(ruleId)}`,
+      );
+      return;
+    }
 
     const anyRowMatches = (rule: ConditionalRule): boolean => {
       let match = false;
@@ -85,44 +142,12 @@ export function createHeaderPainter(
       if (anyRowMatches(rule)) nextIndicatorColsByRule.set(rule.id, new Set(rule.scope.columns));
     }
 
-    /**
-     * For one rule's column set, remove the class from columns that left
-     * the set, add it to columns that entered. No-op when the sets are
-     * identical (the common case under live ticks → zero DOM mutation).
-     */
-    const applyDelta = (
-      last: Map<string, Set<string>>,
-      next: Map<string, Set<string>>,
-      classFor: (ruleId: string) => string,
-    ) => {
-      const allRuleIds = new Set<string>([...last.keys(), ...next.keys()]);
-      for (const ruleId of allRuleIds) {
-        const lastCols = last.get(ruleId) ?? new Set<string>();
-        const nextCols = next.get(ruleId) ?? new Set<string>();
-        const cls = classFor(ruleId);
-        for (const colId of lastCols) {
-          if (nextCols.has(colId)) continue;
-          document.querySelectorAll(`.ag-header-cell${notFilter}[col-id="${CSS.escape(colId)}"]`).forEach((el) => {
-            el.classList.remove(cls);
-          });
-        }
-        for (const colId of nextCols) {
-          if (lastCols.has(colId)) continue;
-          document.querySelectorAll(`.ag-header-cell${notFilter}[col-id="${CSS.escape(colId)}"]`).forEach((el) => {
-            el.classList.add(cls);
-          });
-        }
-        if (nextCols.size === 0) last.delete(ruleId);
-        else last.set(ruleId, nextCols);
-      }
-    };
-
-    applyDelta(
+    applyHeaderClassDelta(
       lastFlashColsByRule,
       nextFlashColsByRule,
       (ruleId) => `ds-flash-hdr-${cssEscapeColId(ruleId)}`,
     );
-    applyDelta(
+    applyHeaderClassDelta(
       lastIndicatorColsByRule,
       nextIndicatorColsByRule,
       (ruleId) => `ds-rule-${cssEscapeColId(ruleId)}`,

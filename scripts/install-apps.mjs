@@ -8,14 +8,21 @@
  */
 import { execSync } from 'node:child_process';
 import { existsSync, unlinkSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 
 const APPS_ROOT = join(import.meta.dirname, '..', 'apps');
-const LOCKFILE = join(APPS_ROOT, 'package-lock.json');
+const STALE_LOCKFILES = [
+  join(APPS_ROOT, 'package-lock.json'),
+  // Written when npm install runs with `marketsui-platform: file:..` hoisted into the
+  // apps workspace — embeds the repo-root workspace graph and makes file:libs/*.tgz
+  // deps resolve against registry.npmjs.org instead of local tarballs (ETARGET).
+  join(APPS_ROOT, 'node_modules', '.package-lock.json'),
+];
 
-if (existsSync(LOCKFILE)) {
-  unlinkSync(LOCKFILE);
-  process.stdout.write('[install:apps] removed stale apps/package-lock.json\n');
+for (const lockfile of STALE_LOCKFILES) {
+  if (!existsSync(lockfile)) continue;
+  unlinkSync(lockfile);
+  process.stdout.write(`[install:apps] removed stale ${relative(join(import.meta.dirname, '..'), lockfile).replace(/\\/g, '/')}\n`);
 }
 
 execSync('npm install --no-audit --no-fund', { cwd: APPS_ROOT, stdio: 'inherit' });

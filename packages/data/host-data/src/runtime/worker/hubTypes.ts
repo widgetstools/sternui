@@ -6,7 +6,7 @@
  */
 
 import type { ProviderConfig } from '@starui/types';
-import type { ProviderStatus, WireEncoding, AppDataEvent } from '../protocol.js';
+import type { ProviderStatus, WireEncoding, AppDataEvent, SubscriberMeta } from '../protocol.js';
 import type { ProviderHandle } from '../providers/Provider.js';
 import type { ConfigManager } from '@starui/host-config';
 import type { ConfigCatalogCache } from '../../hub/ConfigCatalogCache.js';
@@ -39,6 +39,13 @@ export const LIVE_BIN_MIN_ROWS = 64;
 export const SEC_WINDOW = 5;
 /** Sliding-window length for publish /min rolling total. */
 export const MIN_WINDOW = 60;
+
+/** Client heartbeat interval (main thread). */
+export const SUBSCRIBER_PING_INTERVAL_MS = 15_000;
+/** Hub evicts subscribers with no ping within this window. */
+export const SUBSCRIBER_PING_TIMEOUT_MS = 45_000;
+/** How often the hub scans for stale subscribers. */
+export const SUBSCRIBER_SWEEP_INTERVAL_MS = 10_000;
 
 /**
  * Minimal port surface the hub posts to.
@@ -147,11 +154,17 @@ export interface ProviderSlot {
 export interface DataListener {
   subId: string;
   port: PortLike;
+  attachedAt: number;
+  lastPingAt: number;
+  meta?: SubscriberMeta;
 }
 
 export interface StatsListener {
   subId: string;
   port: PortLike;
+  attachedAt: number;
+  lastPingAt: number;
+  meta?: SubscriberMeta;
 }
 
 export interface AppDataListenerEntry {

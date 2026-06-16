@@ -9,8 +9,11 @@
  *      - Lazy-create on first `attach`. Subsequent attaches with the
  *        same providerId reuse the running provider and ignore the
  *        cfg payload.
- *      - **Never auto-tear-down** when the last subscriber detaches.
- *        Providers run until explicit `stop` or worker death.
+ *      - **Auto-dormant** when the last data *and* stats subscriber leaves
+ *        (explicit `detach`, port close, or missed heartbeats). Upstream
+ *        STOMP/REST/mock stops; cache is cleared. Re-attach cold-starts.
+ *      - Subscriber **heartbeats** (`ping`) track liveness; stale subs are
+ *        evicted on a periodic sweep so crashed windows cannot pin providers.
  *      - `attach.extra` triggers `provider.restart(extra)` on a
  *        running provider (the historical-mode date picker + refresh
  *        button paths).
@@ -40,6 +43,7 @@ import type {
   AttachRequest,
   DetachRequest,
   Event,
+  PingRequest,
   ProviderStats,
   ProviderStatus,
   Request,
@@ -63,6 +67,7 @@ import type {
   HubIntrospectRequest,
   HubIntrospectSnapshot,
   HubProviderIntrospectRow,
+  HubSubscriberIntrospectRow,
 } from '../protocol.js';
 import { startProvider } from '../providers/registry.js';
 import { diffTopLevel } from '../wire/rowDiff.js';
@@ -89,6 +94,8 @@ import {
   type AppDataListenerEntry,
   type AppDataDeltaEventMutable,
   type SharedWorkerDataServicesHubOpts,
+  SUBSCRIBER_PING_TIMEOUT_MS,
+  SUBSCRIBER_SWEEP_INTERVAL_MS,
 } from './hubTypes.js';
 import { encodeChunk, SNAPSHOT_ENCODER } from './hubEncoding.js';
 import {
@@ -129,6 +136,7 @@ export class SharedWorkerDataServicesHub {
   private readonly setTimer: (cb: () => void, ms: number) => unknown;
   private readonly clearTimer: (handle: unknown) => void;
   private statsTimer: unknown = null;
+  private subscriberSweepTimer: unknown = null;
 
   constructor(opts: SharedWorkerDataServicesHubOpts = {}) {
     this.statsIntervalMs = opts.statsIntervalMs ?? 1000;
@@ -170,6 +178,7 @@ export class SharedWorkerDataServicesHub {
     switch (req.kind) {
       case 'attach':  this.handleAttach(port, req); return;
       case 'detach':  this.handleDetach(req); return;
+      case 'ping':    this.handlePing(req); return;
       case 'stop':    this.handleStop(req); return;
       case 'hub-ready': this.handleHubReady(port, req); return;
       case 'get-config': void this.handleGetConfig(port, req); return;
@@ -260,6 +269,7 @@ export class SharedWorkerDataServicesHub {
         lastError: slot.lastError,
         keyDropCount: slot.keyDropCount,
         cfg: slot.cfg,
+        subscribers: this.buildSubscriberIntrospect(providerId),
       });
     }
 
@@ -359,18 +369,32 @@ export class SharedWorkerDataServicesHub {
   /** Drop every subscription owned by this port. Called on disconnect. */
   onPortClosed(port: PortLike): void {
     this.connectedPorts.delete(port);
+    const idleCandidates = new Set<string>();
     for (const [providerId, listeners] of this.dataListeners) {
-      for (const [subId, l] of listeners) if (l.port === port) listeners.delete(subId);
+      for (const [subId, l] of listeners) {
+        if (l.port !== port) continue;
+        listeners.delete(subId);
+        idleCandidates.add(providerId);
+      }
       if (listeners.size === 0) this.dataListeners.delete(providerId);
     }
     for (const [providerId, listeners] of this.statsListeners) {
-      for (const [subId, l] of listeners) if (l.port === port) listeners.delete(subId);
-      if (listeners.size === 0) this.statsListeners.delete(providerId);
+      for (const [subId, l] of listeners) {
+        if (l.port !== port) continue;
+        listeners.delete(subId);
+        idleCandidates.add(providerId);
+      }
+      if (listeners.size === 0) {
+        this.statsListeners.delete(providerId);
+        this.maybeStopStatsSampler();
+      }
     }
     for (const [subId, entry] of this.appDataListeners) {
       if (entry.port === port) this.appDataListeners.delete(subId);
     }
-    this.maybeStopStatsSampler();
+    for (const providerId of idleCandidates) {
+      this.maybeStopProviderIfIdle(providerId);
+    }
   }
 
   /** Stop every provider + cancel sampler. For shutdown only. */
@@ -381,6 +405,10 @@ export class SharedWorkerDataServicesHub {
     this.statsListeners.clear();
     this.appDataListeners.clear();
     this.connectedPorts.clear();
+    if (this.subscriberSweepTimer !== null) {
+      this.clearTimer(this.subscriberSweepTimer);
+      this.subscriberSweepTimer = null;
+    }
     this.maybeStopStatsSampler();
   }
 
@@ -592,19 +620,126 @@ export class SharedWorkerDataServicesHub {
   }
 
   private handleDetach(req: DetachRequest): void {
+    const providerId = this.removeSubscriber(req.subId);
+    if (providerId) this.maybeStopProviderIfIdle(providerId);
+  }
+
+  private handlePing(req: PingRequest): void {
+    const now = Date.now();
+    for (const listeners of this.dataListeners.values()) {
+      const l = listeners.get(req.subId);
+      if (!l) continue;
+      l.lastPingAt = now;
+      if (req.meta) l.meta = req.meta;
+      return;
+    }
+    for (const listeners of this.statsListeners.values()) {
+      const l = listeners.get(req.subId);
+      if (!l) continue;
+      l.lastPingAt = now;
+      if (req.meta) l.meta = req.meta;
+      return;
+    }
+  }
+
+  /** @returns providerId when a listener was removed, else undefined */
+  private removeSubscriber(subId: string): string | undefined {
     for (const [providerId, listeners] of this.dataListeners) {
-      if (listeners.delete(req.subId)) {
-        if (listeners.size === 0) this.dataListeners.delete(providerId);
-        return;
-      }
+      if (!listeners.delete(subId)) continue;
+      if (listeners.size === 0) this.dataListeners.delete(providerId);
+      return providerId;
     }
     for (const [providerId, listeners] of this.statsListeners) {
-      if (listeners.delete(req.subId)) {
-        if (listeners.size === 0) this.statsListeners.delete(providerId);
+      if (!listeners.delete(subId)) continue;
+      if (listeners.size === 0) {
+        this.statsListeners.delete(providerId);
         this.maybeStopStatsSampler();
-        return;
       }
+      return providerId;
     }
+    return undefined;
+  }
+
+  private maybeStopProviderIfIdle(providerId: string): void {
+    const dataCount = this.dataListeners.get(providerId)?.size ?? 0;
+    const statsCount = this.statsListeners.get(providerId)?.size ?? 0;
+    if (dataCount === 0 && statsCount === 0 && this.providers.has(providerId)) {
+      void this.stopProvider(providerId);
+    }
+    this.maybeStopSubscriberSweeper();
+  }
+
+  private maybeStopSubscriberSweeper(): void {
+    const hasDataSubs = [...this.dataListeners.values()].some((m) => m.size > 0);
+    const hasStatsSubs = [...this.statsListeners.values()].some((m) => m.size > 0);
+    if (hasDataSubs || hasStatsSubs || this.subscriberSweepTimer === null) return;
+    this.clearTimer(this.subscriberSweepTimer);
+    this.subscriberSweepTimer = null;
+  }
+
+  private newListener(subId: string, port: PortLike): DataListener {
+    const now = Date.now();
+    return { subId, port, attachedAt: now, lastPingAt: now };
+  }
+
+  private newStatsListener(subId: string, port: PortLike): StatsListener {
+    const now = Date.now();
+    return { subId, port, attachedAt: now, lastPingAt: now };
+  }
+
+  private ensureSubscriberSweeper(): void {
+    if (this.subscriberSweepTimer !== null) return;
+    this.subscriberSweepTimer = this.setTimer(
+      () => this.sweepStaleSubscribers(),
+      SUBSCRIBER_SWEEP_INTERVAL_MS,
+    );
+  }
+
+  private sweepStaleSubscribers(): void {
+    const now = Date.now();
+    const stale = new Set<string>();
+    const collect = (listeners: Map<string, DataListener | StatsListener>) => {
+      for (const [subId, l] of listeners) {
+        if (now - l.lastPingAt > SUBSCRIBER_PING_TIMEOUT_MS) stale.add(subId);
+      }
+    };
+    for (const listeners of this.dataListeners.values()) collect(listeners);
+    for (const listeners of this.statsListeners.values()) collect(listeners);
+    if (stale.size === 0) return;
+    const idleCandidates = new Set<string>();
+    for (const subId of stale) {
+      const providerId = this.removeSubscriber(subId);
+      if (providerId) idleCandidates.add(providerId);
+    }
+    for (const providerId of idleCandidates) {
+      this.maybeStopProviderIfIdle(providerId);
+    }
+  }
+
+  private buildSubscriberIntrospect(providerId: string): HubSubscriberIntrospectRow[] {
+    const now = Date.now();
+    const rows: HubSubscriberIntrospectRow[] = [];
+    for (const l of this.dataListeners.get(providerId)?.values() ?? []) {
+      rows.push({
+        subId: l.subId,
+        mode: 'data',
+        attachedAt: l.attachedAt,
+        lastPingAt: l.lastPingAt,
+        stale: now - l.lastPingAt > SUBSCRIBER_PING_TIMEOUT_MS,
+        meta: l.meta,
+      });
+    }
+    for (const l of this.statsListeners.get(providerId)?.values() ?? []) {
+      rows.push({
+        subId: l.subId,
+        mode: 'stats',
+        attachedAt: l.attachedAt,
+        lastPingAt: l.lastPingAt,
+        stale: now - l.lastPingAt > SUBSCRIBER_PING_TIMEOUT_MS,
+        meta: l.meta,
+      });
+    }
+    return rows;
   }
 
   private handleStop(req: StopRequest): void {
@@ -648,7 +783,9 @@ export class SharedWorkerDataServicesHub {
     this.emitStoppedStats(providerId);
     this.maybeStopStatsSampler();
 
-    await slot.handle.stop();
+    const stopResult = slot.handle.stop();
+    this.maybeStopSubscriberSweeper();
+    if (stopResult instanceof Promise) await stopResult;
   }
 
   /** Push a single zeroed stats snapshot to a provider's stats listeners. */
@@ -1190,8 +1327,9 @@ export class SharedWorkerDataServicesHub {
     opts?: { skipCacheReplay?: boolean },
   ): void {
     const set = this.dataListeners.get(providerId) ?? new Map<string, DataListener>();
-    set.set(subId, { subId, port });
+    set.set(subId, this.newListener(subId, port));
     this.dataListeners.set(providerId, set);
+    this.ensureSubscriberSweeper();
 
     // Thin-delta subscriptions need the provider's keyColumn so the
     // client can mirror full rows under the same composed key the hub
@@ -1281,8 +1419,9 @@ export class SharedWorkerDataServicesHub {
 
   private attachStatsListener(providerId: string, subId: string, port: PortLike): void {
     const set = this.statsListeners.get(providerId) ?? new Map<string, StatsListener>();
-    set.set(subId, { subId, port });
+    set.set(subId, this.newStatsListener(subId, port));
     this.statsListeners.set(providerId, set);
+    this.ensureSubscriberSweeper();
 
     // Send one stats snapshot immediately so the consumer doesn't
     // have to wait for the first sampler tick.
@@ -1325,6 +1464,7 @@ export class SharedWorkerDataServicesHub {
     if (!listeners) return;
     for (const subId of deadSubIds) listeners.delete(subId);
     if (listeners.size === 0) this.dataListeners.delete(providerId);
+    this.maybeStopProviderIfIdle(providerId);
   }
 
   private pruneDeadStatsListeners(providerId: string, deadSubIds: readonly string[]): void {
@@ -1336,6 +1476,7 @@ export class SharedWorkerDataServicesHub {
       this.statsListeners.delete(providerId);
       this.maybeStopStatsSampler();
     }
+    this.maybeStopProviderIfIdle(providerId);
   }
 
   private broadcastData(providerId: string, slot: ProviderSlot, eventTemplate: Event): void {

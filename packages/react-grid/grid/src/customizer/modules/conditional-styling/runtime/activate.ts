@@ -34,7 +34,7 @@ import {
   createTargetedRefreshScheduler,
 } from './schedulers';
 import { createTriggerCache } from './triggerCache';
-import { createHeaderPainter } from './headerPainter';
+import { createHeaderPainter, hasHeaderPaintRules } from './headerPainter';
 import { createTimedActivations } from './timedActivations';
 
 export function activateConditionalStyling(
@@ -80,9 +80,15 @@ export function activateConditionalStyling(
   // the delta payload.)
   disposers.push(platform.rows.subscribe(() => {
     timed.processTimedActivations();
-    headerPainter.evaluate();
+    if (hasHeaderPaintRules(platform.getState())) {
+      headerPainter.evaluate();
+    }
   }));
-  disposers.push(platform.api.on('filterChanged', headerPainter.evaluate));
+  disposers.push(platform.api.on('filterChanged', () => {
+    if (hasHeaderPaintRules(platform.getState())) {
+      headerPainter.evaluate();
+    }
+  }));
   // NOTE: cellValueChanged is wired by timedActivations.attachCellValueChangedListener —
   // don't double-register here; it already runs evaluate() in its own handler.
   disposers.push(platform.api.onReady(() => {

@@ -265,7 +265,7 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   checkboxSelection: true,
   cellSelection: true,
   rowDragging: false,
-  animateRows: true,
+  animateRows: false,
   cellFlashDuration: 500,
   cellFadeDuration: 1000,
   cellChangeFlashColor: 'amber',
@@ -383,5 +383,5 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   suppressRowVirtualisation: false,
   suppressMaxRenderedRowRestriction: false,
   suppressAnimationFrame: false,
-  debounceVerticalScrollbar: false,
+  debounceVerticalScrollbar: true,
 };

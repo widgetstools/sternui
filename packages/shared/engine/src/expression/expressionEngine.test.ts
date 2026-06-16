@@ -70,4 +70,26 @@ describe('ExpressionEngine nested dotted column references', () => {
 
     expect(engine.parseAndEvaluate('[1, 2, 3]', context)).toEqual([1, 2, 3]);
   });
+
+  it('accepts lowercase `in` for membership tests', () => {
+    const context = {
+      x: null,
+      value: null,
+      data: { compositeRating: 'BB' },
+      columns: {},
+    };
+
+    expect(
+      engine.parseAndEvaluate(
+        "data.compositeRating in ['BB+', 'BB', 'BB-', 'B+', 'B', 'B-', 'CCC']",
+        context,
+      ),
+    ).toBe(true);
+    expect(
+      engine.parseAndEvaluate(
+        "data.compositeRating in ['BB+', 'BB', 'BB-', 'B+', 'B', 'B-', 'CCC']",
+        { ...context, data: { compositeRating: 'AAA' } },
+      ),
+    ).toBe(false);
+  });
 });

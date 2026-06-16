@@ -8,8 +8,8 @@ export type Unsubscribe = () => void;
 /**
  * Uniform client contract for a hub-backed data provider.
  *
- * Lifecycle maps to SharedWorker attach/detach; global provider teardown
- * is {@link DataServicesHubBundle.stopProvider}, not {@link stop}.
+ * Lifecycle maps to SharedWorker attach/detach; the hub stops upstream
+ * when the last subscriber leaves (detach, port close, or missed pings).
  *
  * @typeParam T Row shape (defaults to opaque records).
  */
@@ -26,7 +26,7 @@ export interface IDataProvider<T = Record<string, unknown>> {
   /** Full re-acquire (STOMP reconnect, REST refetch, historical asOfDate, …). */
   restart(extra?: Record<string, unknown>): Promise<void>;
 
-  /** Last mirrored snapshot rows (client-side cache). */
+  /** Last snapshot commit by reference (not updated on live ticks). */
   getData(): readonly T[];
   /** Resolved provider configuration from hub catalog or attach cfg. */
   getConfig(): ProviderConfig;

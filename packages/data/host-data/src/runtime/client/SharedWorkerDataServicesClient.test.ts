@@ -88,7 +88,7 @@ function wire(opts: { configManager?: ConfigManager } = {}): Wiring {
   const hub = new SharedWorkerDataServicesHub({
     ...(opts.configManager ? { configManager: opts.configManager } : {}),
   });
-  const wiring = createInPageWiring(attachPortToHub(hub));
+  const wiring = createInPageWiring(attachPortToHub(hub), { disablePageHideClose: true });
   return {
     hub,
     client: wiring.client,
@@ -112,8 +112,8 @@ function wireTwoClients(opts: { configManager?: ConfigManager } = {}): DualClien
     ...(opts.configManager ? { configManager: opts.configManager } : {}),
   });
   const attach = attachPortToHub(hub);
-  const wiringA = createInPageWiring(attach);
-  const wiringB = createInPageWiring(attach);
+  const wiringA = createInPageWiring(attach, { disablePageHideClose: true });
+  const wiringB = createInPageWiring(attach, { disablePageHideClose: true });
   return {
     hub,
     clientA: wiringA.client,
@@ -241,7 +241,6 @@ describe('SharedWorkerDataServicesClient', () => {
     controllers.get('c-1')!.emit({ rows: [{ id: 'stale', x: 1 }], replace: true });
     controllers.get('c-1')!.emit({ status: 'ready' });
     await primer.snapshot;
-    primer.unsubscribe();
 
     const commits: Array<readonly { id: string; x: number }[]> = [];
     const handle = w.client.subscribe<{ id: string; x: number }>(
@@ -262,6 +261,7 @@ describe('SharedWorkerDataServicesClient', () => {
     expect(snapshot).toEqual([{ id: 'fresh', x: 2 }]);
     expect(commits).toEqual([[{ id: 'fresh', x: 2 }]]);
     handle.unsubscribe();
+    primer.unsubscribe();
   });
 
   it('onSnapshotCommit fires again when the provider re-snapshots on an existing subId', async () => {
@@ -347,7 +347,6 @@ describe('SharedWorkerDataServicesClient', () => {
     controllers.get('c-1')!.emit({ rows, replace: true });
     controllers.get('c-1')!.emit({ status: 'ready' });
     await primer.snapshot;
-    primer.unsubscribe();
 
     const counts: number[] = [];
     const late = w.client.subscribe<{ id: string }>('p1');
@@ -359,6 +358,7 @@ describe('SharedWorkerDataServicesClient', () => {
     expect(counts.length).toBeGreaterThan(0);
     expect(counts[counts.length - 1]).toBe(1200);
     late.unsubscribe();
+    primer.unsubscribe();
   });
 
   it('subscribe() to an already-ready provider resolves immediately with the cached snapshot', async () => {
@@ -368,16 +368,16 @@ describe('SharedWorkerDataServicesClient', () => {
     controllers.get('c-1')!.emit({ rows: [{ id: 'r1', x: 1 }, { id: 'r2', x: 2 }], replace: true });
     controllers.get('c-1')!.emit({ status: 'ready' });
     await primer.snapshot;
-    primer.unsubscribe();
 
-    // Provider 2: a fresh subscriber attaching AFTER ready. The Hub
-    // should replay the cache + ready status; the subscribe handle's
-    // snapshot promise should resolve without any further provider
-    // events.
+    // Provider 2: a fresh subscriber attaching AFTER ready while the
+    // provider is still warm. The Hub replays the cache + ready status;
+    // the subscribe handle's snapshot promise should resolve without
+    // any further provider events.
     const late = w.client.subscribe<{ id: string; x: number }>('p1');
     const snapshot = await late.snapshot;
     expect(snapshot).toHaveLength(2);
     late.unsubscribe();
+    primer.unsubscribe();
   });
 
   it('subscribe().refresh() replays hub cache without provider.restart', async () => {

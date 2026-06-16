@@ -125,6 +125,19 @@ export interface DetachRequest {
   subId: string;
 }
 
+/** Optional client metadata carried on subscriber heartbeats (introspect only). */
+export interface SubscriberMeta {
+  /** Human-readable attach site, e.g. component or hook name. */
+  label?: string;
+}
+
+/** Subscriber liveness ping — hub uses this to detect crashed / closed windows. */
+export interface PingRequest {
+  kind: 'ping';
+  subId: string;
+  meta?: SubscriberMeta;
+}
+
 export interface StopRequest {
   kind: 'stop';
   providerId: string;
@@ -165,6 +178,17 @@ export interface RefreshProviderRequest {
   providerId: string;
 }
 
+/** One attached hub subscriber (data or stats mode). */
+export interface HubSubscriberIntrospectRow {
+  subId: string;
+  mode: 'data' | 'stats';
+  attachedAt: number;
+  lastPingAt: number;
+  /** True when `lastPingAt` is older than the hub ping timeout. */
+  stale: boolean;
+  meta?: SubscriberMeta;
+}
+
 /** Snapshot of SharedWorker hub runtime state (providers, AppData, ports). */
 export interface HubProviderIntrospectRow {
   providerId: string;
@@ -192,6 +216,8 @@ export interface HubProviderIntrospectRow {
   keyDropCount?: number;
   /** Transport cfg held in the worker (runtime slot or catalog cache). */
   cfg?: ProviderConfig;
+  /** Live subscriber registry for this provider (empty when not running). */
+  subscribers?: readonly HubSubscriberIntrospectRow[];
 }
 
 export interface HubAppDataIntrospectRow {
@@ -286,6 +312,7 @@ export type AppDataRequest =
 export type Request =
   | AttachRequest
   | DetachRequest
+  | PingRequest
   | StopRequest
   | HubReadyRequest
   | GetConfigRequest
@@ -509,6 +536,7 @@ export function isRequest(value: unknown): value is Request {
   return (
     k === 'attach' ||
     k === 'detach' ||
+    k === 'ping' ||
     k === 'stop' ||
     k === 'hub-ready' ||
     k === 'get-config' ||

@@ -56,7 +56,7 @@ test.describe('v2 — general-settings (Grid Options) panel', () => {
 
     // Representative initial values — INITIAL_GENERAL_SETTINGS.
     await expect(page.locator('[data-testid="go-row-height"]')).toHaveValue('36');
-    await expect(page.locator('[data-testid="go-animate-rows"]')).toBeChecked();
+    await expect(page.locator('[data-testid="go-animate-rows"]')).not.toBeChecked();
     await expect(page.locator('[data-testid="go-pagination"]')).not.toBeChecked();
 
     // Meta strip: OVERRIDES starts at 0, DIRTY stays '—' until edit.
@@ -99,9 +99,9 @@ test.describe('v2 — general-settings (Grid Options) panel', () => {
     await toggleSwitch(page, 'go-animate-rows');
     await savePanel(page);
 
-    // OVERRIDES now 1 — animateRows moved off its initial true.
+    // OVERRIDES now 1 — animateRows turned on from its initial false default.
     await expect(metaCells.nth(1)).toContainText('1');
-    await expect(page.locator('[data-testid="go-animate-rows"]')).not.toBeChecked();
+    await expect(page.locator('[data-testid="go-animate-rows"]')).toBeChecked();
   });
 
   test('row-selection select persists after save + re-open', async ({ page }) => {

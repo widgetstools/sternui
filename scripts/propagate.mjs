@@ -620,6 +620,19 @@ function installApp(appDir, depsToRefresh) {
     if (args.dryRun) log('  would remove: node_modules/.vite');
     else rmSync(viteCache, { recursive: true, force: true });
   }
+  // apps/node_modules/.package-lock.json captures the repo-root workspace graph
+  // (via marketsui-platform: file:..) and breaks file:libs/*.tgz resolution.
+  for (const staleLock of [
+    join(appsRoot, 'package-lock.json'),
+    join(appsRoot, 'node_modules', '.package-lock.json'),
+  ]) {
+    if (!existsSync(staleLock)) continue;
+    if (args.dryRun) log(`  would remove: ${relative(REPO_ROOT, staleLock)}`);
+    else {
+      rmSync(staleLock, { force: true });
+      log(`  removed stale: ${relative(REPO_ROOT, staleLock)}`);
+    }
+  }
   log(`install: ${relative(REPO_ROOT, appDir)}`);
   if (args.dryRun) return;
   execSync('npm install', { cwd: appDir, stdio: 'inherit' });

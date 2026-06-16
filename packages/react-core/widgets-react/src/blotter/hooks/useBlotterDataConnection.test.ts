@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import type { GridApi } from 'ag-grid-community';
 import type { IDataProvider } from '@starui/host-data';
 import type { ProviderStatus } from '@starui/host-data/runtime';
@@ -53,17 +53,20 @@ function createMockProvider(): IDataProvider & {
 function makeGridApi(): GridApi & {
   setGridOption: ReturnType<typeof vi.fn>;
   applyTransactionAsync: ReturnType<typeof vi.fn>;
+  flushAsyncTransactions: ReturnType<typeof vi.fn>;
   getRowNode: ReturnType<typeof vi.fn>;
   getDisplayedRowCount: ReturnType<typeof vi.fn>;
 } {
   return {
     setGridOption: vi.fn(),
     applyTransactionAsync: vi.fn(),
+    flushAsyncTransactions: vi.fn(),
     getRowNode: vi.fn(() => null),
-    getDisplayedRowCount: vi.fn(() => 0),
+    getDisplayedRowCount: vi.fn(() => 2),
   } as unknown as GridApi & {
     setGridOption: ReturnType<typeof vi.fn>;
     applyTransactionAsync: ReturnType<typeof vi.fn>;
+    flushAsyncTransactions: ReturnType<typeof vi.fn>;
     getRowNode: ReturnType<typeof vi.fn>;
     getDisplayedRowCount: ReturnType<typeof vi.fn>;
   };
@@ -90,17 +93,69 @@ describe('useBlotterDataConnection', () => {
   });
 
   it('starts provider and applies snapshot rowData', async () => {
-    const { unmount } = renderHook(() =>
+    const { result, unmount } = renderHook(() =>
       useBlotterDataConnection({ gridApi, provider, providerId: 'p1' }),
     );
 
     await waitFor(() => expect(provider.start).toHaveBeenCalledTimes(1));
+    expect(result.current.isConnected).toBe(true);
 
-    provider.emitSnapshot([{ id: 'r1' }, { id: 'r2' }]);
+    await act(async () => {
+      provider.emitSnapshot([{ id: 'r1' }, { id: 'r2' }]);
+      await Promise.resolve();
+    });
+
+    expect(gridApi.flushAsyncTransactions).toHaveBeenCalled();
     expect(gridApi.setGridOption).toHaveBeenCalledWith('rowData', [{ id: 'r1' }, { id: 'r2' }]);
 
     unmount();
     await waitFor(() => expect(provider.stop).toHaveBeenCalledTimes(1));
+  });
+
+  it('sets rowCount on snapshot but not on update-only ticks', async () => {
+    gridApi.getRowNode.mockImplementation((id: string) => (id === 'r1' ? { id } : null));
+
+    const { result } = renderHook(() =>
+      useBlotterDataConnection({ gridApi, provider, getRowId: (row) => String(row.id) }),
+    );
+
+    await waitFor(() => expect(provider.start).toHaveBeenCalled());
+
+    await act(async () => {
+      provider.emitSnapshot([{ id: 'r1' }, { id: 'r2' }]);
+      await Promise.resolve();
+    });
+    expect(result.current.rowCount).toBe(2);
+
+    gridApi.getDisplayedRowCount.mockClear();
+    provider.emitTick([{ id: 'r1', x: 99 }]);
+    expect(gridApi.getDisplayedRowCount).not.toHaveBeenCalled();
+    expect(result.current.rowCount).toBe(2);
+  });
+
+  it('updates rowCount when live ticks add rows', async () => {
+    gridApi.getRowNode.mockImplementation((id: string) => (id === 'r1' ? { id } : null));
+    gridApi.getDisplayedRowCount.mockReturnValue(3);
+
+    const { result } = renderHook(() =>
+      useBlotterDataConnection({
+        gridApi,
+        provider,
+        getRowId: (row) => String(row.id),
+      }),
+    );
+
+    await waitFor(() => expect(provider.start).toHaveBeenCalled());
+
+    await act(async () => {
+      provider.emitSnapshot([{ id: 'r1' }, { id: 'r2' }]);
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      provider.emitTick([{ id: 'r1', x: 2 }, { id: 'r3', x: 1 }]);
+    });
+    expect(result.current.rowCount).toBe(3);
   });
 
   it('applies live ticks via applyTransactionAsync when getRowId is set', async () => {
