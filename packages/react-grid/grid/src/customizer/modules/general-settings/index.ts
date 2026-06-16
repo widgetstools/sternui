@@ -26,6 +26,27 @@ import {
 
 export const GENERAL_SETTINGS_MODULE_ID = 'general-settings';
 
+/** Materialise persisted row-selection mode into AG Grid 35 `RowSelectionOptions`. */
+function buildRowSelectionOptions(
+  mode: NonNullable<GeneralSettingsState['rowSelection']>,
+  checkboxSelection: boolean,
+): NonNullable<GridOptions['rowSelection']> {
+  if (checkboxSelection) {
+    // multiRow: header "select all" follows row checkboxes; singleRow has no header checkbox.
+    return mode === 'multiRow'
+      ? { mode, checkboxes: true, headerCheckbox: true }
+      : { mode, checkboxes: true };
+  }
+  // Checkbox-less selection: hide row + header checkboxes; click rows to select.
+  // AG Grid only removes the selection column when BOTH checkboxes and headerCheckbox are false.
+  return {
+    mode,
+    checkboxes: false,
+    headerCheckbox: false,
+    enableClickSelection: true,
+  };
+}
+
 export const generalSettingsModule: Module<GeneralSettingsState> = {
   id: GENERAL_SETTINGS_MODULE_ID,
   name: 'Grid Options',
@@ -148,7 +169,7 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
       paginationAutoPageSize: s.pagination ? s.paginationAutoPageSize : undefined,
       suppressPaginationPanel: s.pagination ? s.suppressPaginationPanel : undefined,
       rowSelection: s.rowSelection
-        ? { mode: s.rowSelection, checkboxes: s.checkboxSelection }
+        ? buildRowSelectionOptions(s.rowSelection, s.checkboxSelection)
         : undefined,
       // Re-emit AG-Grid's default selection column pinned to the left.
       // `pinned: 'left'` (NOT `initialPinned`) re-applies on every

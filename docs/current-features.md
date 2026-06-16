@@ -447,7 +447,9 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 #### Customizer modules (under `./customizer`)
 
-- **General settings** — grid behaviour toggles; **Default ColDef** band includes
+- **General settings** — grid behaviour toggles; row selection maps to AG Grid 35
+  `RowSelectionOptions` (`singleRow` / `multiRow`; checkbox column optional — when
+  off, click-to-select with no selection column); **Default ColDef** band includes
   flash-on-change with theme-aware colour swatches (shown when enabled)
 - **Column templates** — reusable column-state bundles
 - **Column customization** — 10 bands per column: Header, Layout,

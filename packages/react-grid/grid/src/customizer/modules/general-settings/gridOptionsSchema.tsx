@@ -31,7 +31,7 @@ export const GRID_OPTIONS_SCHEMA: readonly BandSchema[] = [
           { value: 'multiRow', label: 'Multiple rows' },
         ],
       },
-      { kind: 'bool', key: 'checkboxSelection', label: 'CHECKBOX SELECT', hint: 'Show a checkbox column when selection is enabled', testId: 'go-checkbox-select' },
+      { kind: 'bool', key: 'checkboxSelection', label: 'CHECKBOX SELECT', hint: 'Off = no checkbox column or header select-all; click rows to select', testId: 'go-checkbox-select' },
       { kind: 'bool', key: 'cellSelection', label: 'CELL SELECTION', hint: 'Enterprise · range selection for copy / fill', testId: 'go-cell-selection' },
       { kind: 'num', key: 'cellFlashDuration', label: 'FLASH DURATION', hint: 'ms · 0 disables cell-value-change flashing', testId: 'go-flash-duration', min: 0, suffix: 'MS' },
       { kind: 'num', key: 'cellFadeDuration', label: 'FADE DURATION', hint: 'ms · fade-out after the flash hold window', testId: 'go-fade-duration', min: 0, suffix: 'MS' },

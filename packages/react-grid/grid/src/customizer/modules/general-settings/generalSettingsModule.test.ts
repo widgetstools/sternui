@@ -41,6 +41,77 @@ describe('generalSettingsModule.transformColumnDefs', () => {
   });
 });
 
+describe('generalSettingsModule.transformGridOptions rowSelection', () => {
+  const ctx = makeCtx();
+
+  it('omits rowSelection when mode is off', () => {
+    const opts = generalSettingsModule.transformGridOptions!(
+      {},
+      { ...INITIAL_GENERAL_SETTINGS, rowSelection: undefined },
+      ctx,
+    );
+    expect(opts.rowSelection).toBeUndefined();
+    expect(opts.selectionColumnDef).toBeUndefined();
+  });
+
+  it('enables checkboxes and selectionColumnDef when checkbox selection is on', () => {
+    const opts = generalSettingsModule.transformGridOptions!(
+      {},
+      {
+        ...INITIAL_GENERAL_SETTINGS,
+        rowSelection: 'multiRow',
+        checkboxSelection: true,
+      },
+      ctx,
+    );
+    expect(opts.rowSelection).toEqual({
+      mode: 'multiRow',
+      checkboxes: true,
+      headerCheckbox: true,
+    });
+    expect(opts.selectionColumnDef).toEqual({
+      suppressMovable: false,
+      lockPosition: false,
+      pinned: 'left',
+    });
+  });
+
+  it('removes row and header checkboxes when checkbox selection is off', () => {
+    const multi = generalSettingsModule.transformGridOptions!(
+      {},
+      {
+        ...INITIAL_GENERAL_SETTINGS,
+        rowSelection: 'multiRow',
+        checkboxSelection: false,
+      },
+      ctx,
+    );
+    expect(multi.rowSelection).toEqual({
+      mode: 'multiRow',
+      checkboxes: false,
+      headerCheckbox: false,
+      enableClickSelection: true,
+    });
+    expect(multi.selectionColumnDef).toBeUndefined();
+
+    const single = generalSettingsModule.transformGridOptions!(
+      {},
+      {
+        ...INITIAL_GENERAL_SETTINGS,
+        rowSelection: 'singleRow',
+        checkboxSelection: false,
+      },
+      ctx,
+    );
+    expect(single.rowSelection).toEqual({
+      mode: 'singleRow',
+      checkboxes: false,
+      headerCheckbox: false,
+      enableClickSelection: true,
+    });
+  });
+});
+
 describe('generalSettingsModule cell change flash CSS', () => {
   it('injects scoped flash colour CSS when flash-on-change is enabled', () => {
     const addRule = vi.fn();
