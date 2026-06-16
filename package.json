@@ -123,6 +123,7 @@
     "@openfin/core": "43.101.2",
     "esbuild": "0.28.0",
     "hono": "^4.12.20",
-    "dompurify": "^3.4.8"
+    "dompurify": "^3.4.8",
+    "playwright-core": "^1.61.0-beta-1781513093000"
   }
 }
