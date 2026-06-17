@@ -195,18 +195,27 @@ function selectBuckets(buckets, requestedNames) {
 // Build + stage + pack
 // ────────────────────────────────────────────────────────────────────────
 
-function buildMember(member) {
-  if (args.noBuild) return;
-  if (!member.scripts.build) {
-    log(`build: ${member.name} — no build script, skipping`);
+/**
+ * Build every workspace package once, in dependency order, via the repo's
+ * `build:packages` (ensure-workspace-links + turbo). This replaces the old
+ * per-member `npm run build` loop, which built buckets alphabetically and so
+ * failed standalone: an early bucket (e.g. data/host-config) needs a later
+ * bucket's output (shared/engine, built last alphabetically) already present.
+ * Turbo honours the dependency graph and caches, so this is both correct and
+ * fast (a no-op on a warm cache). Makes `npm run propagate` self-sufficient —
+ * no separate `build:packages` step required first.
+ */
+function buildAllPackages() {
+  if (args.noBuild) {
+    log('build: skipped (--no-build)');
     return;
   }
-  log(`build: ${member.name}`);
-  if (args.dryRun) return;
-  execSync(`npm run build --workspace="${member.name}"`, {
-    cwd: REPO_ROOT,
-    stdio: 'inherit',
-  });
+  if (args.dryRun) {
+    log('build: would run `npm run build:packages` (turbo, dependency order)');
+    return;
+  }
+  log('build: npm run build:packages (turbo, dependency order)');
+  execSync('npm run build:packages', { cwd: REPO_ROOT, stdio: 'inherit' });
 }
 
 function resolveExportTarget(value) {
@@ -615,14 +624,9 @@ function runCheckOnly() {
   const manifest = readManifest();
   const stale = [];
 
+  buildAllPackages();
+
   for (const bucket of targets) {
-    for (const member of bucket.members) {
-      try {
-        buildMember(member);
-      } catch (err) {
-        die(`build failed for ${member.name}: ${err.message ?? err}`);
-      }
-    }
     const prev = manifest[bucket.name];
     const sha = computeBucketSha(bucket);
     const libsPath = prev?.filename ? join(LIBS_DIR, prev.filename) : null;
@@ -708,18 +712,13 @@ function main() {
   }
   log(`buckets: ${targets.length} (${targets.map((b) => b.bucket).join(', ')})`);
 
+  buildAllPackages();
+
   const manifest = readManifest();
   const updates = {};
   const now = new Date().toISOString();
 
   for (const bucket of targets) {
-    for (const member of bucket.members) {
-      try {
-        buildMember(member);
-      } catch (err) {
-        die(`build failed for ${member.name}: ${err.message ?? err}`);
-      }
-    }
     const prev = manifest[bucket.name];
     const result = packBucketToManifest(bucket, prev);
     manifest[bucket.name] = {

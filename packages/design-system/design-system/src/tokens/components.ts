@@ -20,12 +20,12 @@ export function componentTokens(scheme: ColorScheme) {
       fontFamily:    typography.fontFamily.sans,
       fontSize:      typography.fontSize.md,
       fontWeight:    typography.fontWeight.semibold,
-      // Stockflux button motif: subtle optical tightening on caps.
+      // Button motif: subtle optical tightening on caps.
       letterSpacing: typography.letterSpacing.snug,
       borderRadius:  radius.md,
       paddingX:      `${spacing[4]}px`,
       paddingY:      `${spacing[2]}px`,
-      // Stockflux button heights (sm/default/lg/icon). Reference for
+      // Button heights (sm/default/lg/icon). Reference for
       // the @starui/ui button variants — keep in sync.
       height: {
         sm:      '28px',
@@ -52,7 +52,7 @@ export function componentTokens(scheme: ColorScheme) {
         background:       'transparent',
         backgroundHover:  scheme.state.hoverOverlay,
         color:            scheme.text.secondary,
-        // Stockflux ghost button has no resting border (transparent);
+        // Ghost button has no resting border (transparent);
         // it reads against the surface, lifting only on hover.
         borderColor:      'transparent',
       },
@@ -83,7 +83,7 @@ export function componentTokens(scheme: ColorScheme) {
     tab: {
       fontFamily:     typography.fontFamily.sans,
       fontSize:       typography.fontSize.sm,
-      // Stockflux tabs are semibold + snug letter-spacing (the same
+      // Tabs are semibold + snug letter-spacing (the same
       // motif as buttons) so they read as part of the chrome.
       fontWeight:     typography.fontWeight.semibold,
       letterSpacing:  typography.letterSpacing.snug,
@@ -99,7 +99,7 @@ export function componentTokens(scheme: ColorScheme) {
     },
 
     badge: {
-      // Stockflux pill: sans-serif, uppercase, bold-700, fully rounded,
+      // Pill: sans-serif, uppercase, bold-700, fully rounded,
       // tracked widest (0.06em) for status legibility at small sizes.
       fontFamily:    typography.fontFamily.sans,
       fontSize:      typography.fontSize['2xs'],
@@ -138,7 +138,7 @@ export function componentTokens(scheme: ColorScheme) {
       borderColor:  scheme.border.primary,
       borderRadius: radius.md,
       shadow:       scheme.elevation.card,
-      // Stockflux card header: 16/16/12 padding, 4px gap (title ↔ desc).
+      // Card header: 16/16/12 padding, 4px gap (title ↔ desc).
       headerPaddingX: `${spacing[4]}px`,
       headerPaddingTop: `${spacing[4]}px`,
       headerPaddingBottom: `${spacing[3]}px`,
