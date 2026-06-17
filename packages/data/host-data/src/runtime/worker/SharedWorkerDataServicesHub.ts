@@ -83,7 +83,6 @@ import {
 } from '../template/templateTrace.js';
 import {
   LATE_JOIN_CHUNK_SIZE,
-  FIRST_PAINT_CHUNK_SIZE,
   LIVE_BIN_MIN_ROWS,
   SEC_WINDOW,
   MIN_WINDOW,
@@ -1411,16 +1410,11 @@ export class SharedWorkerDataServicesHub {
     if (slot.replaySnapshot) return slot.replaySnapshot;
     const chunks: EncodedChunk[] = [];
     const scratch: unknown[] = [];
-    // First chunk is small (FIRST_PAINT_CHUNK_SIZE) so the client paints the
-    // top of the snapshot on the first message; the remainder ships in
-    // full-size chunks and pipelines with the grid applying the earlier ones.
-    let limit = FIRST_PAINT_CHUNK_SIZE;
     for (const row of slot.cache.values()) {
       scratch.push(row);
-      if (scratch.length === limit) {
+      if (scratch.length === LATE_JOIN_CHUNK_SIZE) {
         chunks.push(encodeChunk(scratch, slot.columnar));
         scratch.length = 0;
-        limit = LATE_JOIN_CHUNK_SIZE;
       }
     }
     if (scratch.length > 0) chunks.push(encodeChunk(scratch, slot.columnar));

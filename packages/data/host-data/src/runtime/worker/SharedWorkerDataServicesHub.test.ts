@@ -175,27 +175,6 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
     expect(statusB).toMatchObject({ status: 'ready' });
   });
 
-  it('late-join replay ships a small first chunk (fast first paint)', () => {
-    const hub = new SharedWorkerDataServicesHub();
-    const portA = makePort();
-    hub.handleRequest(portA, { kind: 'attach', subId: 'sA', providerId: 'p1', mode: 'data', cfg: cfg() });
-    const ctrl = controllers.get('default')!;
-    // 250 rows → first replay chunk capped at FIRST_PAINT_CHUNK_SIZE (100),
-    // remainder in one LATE_JOIN_CHUNK_SIZE (500) chunk.
-    ctrl.emit({ rows: Array.from({ length: 250 }, (_, i) => ({ id: `r${i}`, x: i })) });
-    ctrl.emit({ status: 'ready' });
-
-    const portB = makePort();
-    hub.handleRequest(portB, { kind: 'attach', subId: 'sB', providerId: 'p1', mode: 'data' });
-
-    const bins = portB.messages.filter((m) => m.kind === 'delta-bin');
-    expect(bins).toHaveLength(2);
-    expect(rowsOf(bins[0]!)).toHaveLength(100);                 // small first chunk
-    expect(rowsOf(bins[1]!)).toHaveLength(150);                 // remainder
-    expect((bins[0] as { replace?: boolean }).replace).toBe(true);   // first replaces
-    expect((bins[1] as { replace?: boolean }).replace).toBe(false);  // rest append
-  });
-
   it('passes extra to provider.restart on a re-attach', () => {
     const hub = new SharedWorkerDataServicesHub();
     const port = makePort();
