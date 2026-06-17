@@ -21,6 +21,14 @@ import type { ConfigCatalogCache } from '../../hub/ConfigCatalogCache.js';
 export const LATE_JOIN_CHUNK_SIZE = 500;
 
 /**
+ * Rows in the FIRST replay chunk — deliberately small so a late-joining client
+ * can decode + paint the top of the snapshot almost immediately, then receive
+ * the bulk in {@link LATE_JOIN_CHUNK_SIZE} chunks that pipeline with AG Grid
+ * applying the earlier ones. Optimises time-to-first-paint, not throughput.
+ */
+export const FIRST_PAINT_CHUNK_SIZE = 100;
+
+/**
  * Post-ready live delta batches at or above this row count broadcast
  * as pre-encoded `delta-bin` instead of plain object deltas. A plain
  * delta costs one object-graph structured clone PER LISTENER per
@@ -145,8 +153,9 @@ export interface ProviderSlot {
    */
   thinDeltas: boolean;
   /**
-   * `cfg.wireFormat === 'columnar'` — binary frames use the typed-array
-   * columnar codec instead of UTF-8 JSON. Precomputed at slot creation.
+   * Binary frames use the typed-array columnar codec instead of UTF-8 JSON.
+   * Default true (`cfg.wireFormat !== 'json'`); columnar auto-falls-back to
+   * JSON per chunk for incompatible rows. Precomputed at slot creation.
    */
   columnar: boolean;
 }

@@ -343,7 +343,9 @@ export interface DeltaEvent {
  *   - `'col'` — typed-array columnar frame (`columnarCodec`); numbers
  *     travel as raw Float64 and booleans as bitmaps, cutting the
  *     receiving window's per-frame decode several-fold on numeric
- *     feeds. Opt-in via `cfg.wireFormat: 'columnar'`.
+ *     feeds. This is the **default** for object feeds (it auto-falls-back
+ *     to JSON per chunk for incompatible rows); opt out via
+ *     `cfg.wireFormat: 'json'`.
  */
 export type WireEncoding = 'json' | 'col';
 
@@ -351,8 +353,9 @@ export type WireEncoding = 'json' | 'col';
  * Binary sibling of {@link DeltaEvent} used for late-join cache replay.
  *
  * `buf` is the encoded form of what would otherwise be
- * `DeltaEvent.rows` (`enc` selects the codec — UTF-8 JSON by default,
- * typed-array columnar when the provider opts in). The hub encodes
+ * `DeltaEvent.rows` (`enc` selects the codec — typed-array columnar by
+ * default, UTF-8 JSON when `cfg.wireFormat: 'json'` or for non-columnar
+ * rows). The hub encodes
  * each replay chunk ONCE per cache generation and posts the same
  * `Uint8Array` to every attaching port — cloning a typed array across
  * the port is a flat byte copy, whereas cloning a rows array walks

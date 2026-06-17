@@ -83,6 +83,7 @@ import {
 } from '../template/templateTrace.js';
 import {
   LATE_JOIN_CHUNK_SIZE,
+  FIRST_PAINT_CHUNK_SIZE,
   LIVE_BIN_MIN_ROWS,
   SEC_WINDOW,
   MIN_WINDOW,
@@ -932,7 +933,12 @@ export class SharedWorkerDataServicesHub {
       // Thin deltas need a key to patch against — without keyColumn
       // every row would drop from the cache anyway, so gate on both.
       thinDeltas: flags.thinDeltas === true && flags.keyColumn !== undefined,
-      columnar: flags.wireFormat === 'columnar',
+      // Default object feeds to the columnar wire format. It auto-falls-back to
+      // JSON per chunk for non-object / incompatible rows (see encodeChunk), so
+      // this is safe, and it ~halves snapshot decode on the page main thread for
+      // wide/projected rows (≈ a plain structured-clone at N=1, faster at N>1).
+      // Opt out with cfg.wireFormat: 'json'.
+      columnar: flags.wireFormat !== 'json',
     };
 
     const emit: ProviderEmit = (event: ProviderEmitEvent) => {
@@ -1405,11 +1411,16 @@ export class SharedWorkerDataServicesHub {
     if (slot.replaySnapshot) return slot.replaySnapshot;
     const chunks: EncodedChunk[] = [];
     const scratch: unknown[] = [];
+    // First chunk is small (FIRST_PAINT_CHUNK_SIZE) so the client paints the
+    // top of the snapshot on the first message; the remainder ships in
+    // full-size chunks and pipelines with the grid applying the earlier ones.
+    let limit = FIRST_PAINT_CHUNK_SIZE;
     for (const row of slot.cache.values()) {
       scratch.push(row);
-      if (scratch.length === LATE_JOIN_CHUNK_SIZE) {
+      if (scratch.length === limit) {
         chunks.push(encodeChunk(scratch, slot.columnar));
         scratch.length = 0;
+        limit = LATE_JOIN_CHUNK_SIZE;
       }
     }
     if (scratch.length > 0) chunks.push(encodeChunk(scratch, slot.columnar));
