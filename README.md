@@ -438,6 +438,7 @@ CI runs package and consumer jobs separately; see `.github/workflows/ci.yml`.
 |---|---|
 | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | Layer model, import boundaries |
 | [`docs/PACKAGE_ORGANIZATION.md`](./docs/PACKAGE_ORGANIZATION.md) | Ten-bucket layout |
+| [`docs/PACKAGE_JSON_AND_PACKAGING.md`](./docs/PACKAGE_JSON_AND_PACKAGING.md) | Which `package.json` is used for dev vs `npm pack` |
 | [`docs/PARITY.md`](./docs/PARITY.md) | Package parity gate |
 | [`docs/guides/platform-bootstrap-config.md`](./docs/guides/platform-bootstrap-config.md) | Web `app-config.json` vs OpenFin manifest `customSettings` (`appId`, `userId`, hub bootstrap) |
 | [`docs/guides/consumer-app-sharedworker-and-tailwind.md`](./docs/guides/consumer-app-sharedworker-and-tailwind.md) | SharedWorker + Tailwind pitfalls for consumer apps |

@@ -61,3 +61,6 @@ them; **Data (6)** and **OpenFin (7)** are cross-cutting services.
 
 Package **names stay stable** (`@starui/grid`, not `@starui/react-grid`). Only
 **filesystem paths** change to match the architecture buckets.
+
+See [`PACKAGE_JSON_AND_PACKAGING.md`](./PACKAGE_JSON_AND_PACKAGING.md) for which
+`package.json` files drive **workspace build** vs **bucket tarball** (`propagate`).
