@@ -21,6 +21,7 @@ data-spine rewrite (Track A) without touching UI surfaces wholesale.
 | Document | Role |
 |----------|------|
 | [`MARKETSGRID_V2_STRATEGY.md`](./MARKETSGRID_V2_STRATEGY.md) | Spine strangler; UI rewrite explicitly forbidden |
+| [`V2_BASELINE_PROMOTION.md`](./V2_BASELINE_PROMOTION.md) | Integration branch → `main` promotion runbook |
 | [`MARKETSGRID_VS_ADAPTABLE_GAP_ANALYSIS.md`](./MARKETSGRID_VS_ADAPTABLE_GAP_ANALYSIS.md) | Product parity matrix + P0–P3 backlog |
 | [`current-features.md`](./current-features.md) | Granular inventory of shipped UI |
 | [`E2E_STATUS.md`](./E2E_STATUS.md) | Playwright baseline |
@@ -299,6 +300,10 @@ Copy into every Track B PR description.
 | `RowChangeBus` delta engine | Module **runtime** faster; panels unchanged |
 | Profile schema v2 envelope | Transparent migration; module blob shapes stable |
 | Deprecate `useBlotterDataConnection` | No customizer/toolbar changes |
+
+**Baseline promotion:** integration branch becomes `main` per
+[`V2_BASELINE_PROMOTION.md`](./V2_BASELINE_PROMOTION.md). Until promotion, all
+Track A + Track B work targets the integration branch only.
 
 If a spine PR touches any file under `widget/` or `customizer/ui/`, it requires
 **explicit UI parity review** and full `e2e/v2-*` run.

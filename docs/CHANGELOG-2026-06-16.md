@@ -254,6 +254,7 @@ Use this before treating the working-tree fixes as release-ready:
 - [`MARKETSGRID_V2_STRATEGY.md`](./MARKETSGRID_V2_STRATEGY.md) — strangler rewrite plan, phases, decision gates
 - [`MARKETSGRID_V2_DEPRECATION_LIST.md`](./MARKETSGRID_V2_DEPRECATION_LIST.md) — initial import inventory
 - [`MARKETSGRID_UI_PARITY_TRACK.md`](./MARKETSGRID_UI_PARITY_TRACK.md) — UI preservation charter + Track B backlog
+- [`V2_BASELINE_PROMOTION.md`](./V2_BASELINE_PROMOTION.md) — integration branch → `main` promotion runbook
 - [`MARKETSGRID_PERF_AND_MEMORY_AUDIT.md`](./MARKETSGRID_PERF_AND_MEMORY_AUDIT.md) — full-stack performance + memory audit
 - [`MEMORY_LEAK_AUDIT.md`](./MEMORY_LEAK_AUDIT.md) — proactive leak audit + monitoring playbook (host-data layer)
 - [`hub-fanout-optimizations.md`](./hub-fanout-optimizations.md) — fan-out architecture and §12 worker pool

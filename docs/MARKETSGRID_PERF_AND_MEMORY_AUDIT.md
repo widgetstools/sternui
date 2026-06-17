@@ -394,6 +394,7 @@ See [`MEMORY_LEAK_AUDIT.md` § Monitoring](./MEMORY_LEAK_AUDIT.md).
 
 - [`MARKETSGRID_V2_STRATEGY.md`](./MARKETSGRID_V2_STRATEGY.md) — strangler rewrite plan
 - [`MARKETSGRID_UI_PARITY_TRACK.md`](./MARKETSGRID_UI_PARITY_TRACK.md) — UI preservation + gap backlog
+- [`V2_BASELINE_PROMOTION.md`](./V2_BASELINE_PROMOTION.md) — integration branch → `main` promotion
 - [`MARKETSGRID_V2_DEPRECATION_LIST.md`](./MARKETSGRID_V2_DEPRECATION_LIST.md) — deprecation inventory
 - [`MEMORY_LEAK_AUDIT.md`](./MEMORY_LEAK_AUDIT.md) — SharedWorker / fan-out / client layer
 - [`CHANGELOG-2026-06-16.md`](./CHANGELOG-2026-06-16.md) — recent fixes

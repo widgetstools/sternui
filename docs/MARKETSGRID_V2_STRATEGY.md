@@ -17,6 +17,7 @@ incremental cleanup and a major rewrite.
 | [`CHANGELOG-2026-06-16.md`](./CHANGELOG-2026-06-16.md) | Recent retroactive fixes (incident source) |
 | [`MARKETSGRID_V2_DEPRECATION_LIST.md`](./MARKETSGRID_V2_DEPRECATION_LIST.md) | Phase 0 import inventory (living) |
 | [`MARKETSGRID_UI_PARITY_TRACK.md`](./MARKETSGRID_UI_PARITY_TRACK.md) | Track B — UI preservation + gap backlog |
+| [`V2_BASELINE_PROMOTION.md`](./V2_BASELINE_PROMOTION.md) | Integration branch → `main` promotion runbook |
 | [`MARKETSGRID_VS_ADAPTABLE_GAP_ANALYSIS.md`](./MARKETSGRID_VS_ADAPTABLE_GAP_ANALYSIS.md) | Product parity matrix |
 | [`blotter-performance-roadmap.md`](./blotter-performance-roadmap.md) | Performance backlog |
 | [`ARCHITECTURE.md`](./ARCHITECTURE.md) | Monorepo layer model |
@@ -39,6 +40,11 @@ gate. Experience from v1 becomes **tests and specs**, not copy-paste source.
 spec**. It does **not** mean rebuilding `@starui/grid/customizer` or the
 formatter/toolbar chrome. Those surfaces ship as-is and are completed
 incrementally on a separate **UI parity track** (see [§2.5](#25-ui-fidelity-constraint--why-a-full-ui-rewrite-fails)).
+
+**Baseline model:** v2 work lands on the **integration branch**
+(`feature/mjor-refactor`, rename to `integration/marketsgrid-v2` recommended)
+and **replaces `main`** when promotion gates pass — see
+[`V2_BASELINE_PROMOTION.md`](./V2_BASELINE_PROMOTION.md).
 
 ---
 
@@ -514,6 +520,15 @@ See [`MARKETSGRID_VS_ADAPTABLE_GAP_ANALYSIS.md`](./MARKETSGRID_VS_ADAPTABLE_GAP_
 - [ ] star-demo + reference on v2 for ≥2 release cycles
 - [ ] No consumer imports of deleted APIs (CI grep)
 
+### Gate E — Promote integration branch to `main` baseline
+
+Full checklist: [`V2_BASELINE_PROMOTION.md` §5–6](./V2_BASELINE_PROMOTION.md#5-promotion-gates-integration-branch--main).
+
+- [ ] All Gate C items green on integration branch tip
+- [ ] `legacy/pre-v2-baseline` tag on pre-promotion `main`
+- [ ] Fast-forward or merge integration branch → `main`
+- [ ] UI preservation gates (full `e2e/v2-*`, popout parity) signed off
+
 ---
 
 ## 11. Team & process changes (avoid repeating v1)
@@ -566,3 +581,4 @@ See [`MARKETSGRID_VS_ADAPTABLE_GAP_ANALYSIS.md`](./MARKETSGRID_VS_ADAPTABLE_GAP_
 | 2026-06-17 | Phase 0 deliverable: [`MARKETSGRID_V2_DEPRECATION_LIST.md`](./MARKETSGRID_V2_DEPRECATION_LIST.md); cross-links in audit docs |
 | 2026-06-17 | §2.5 UI fidelity constraint — two-track model; explicit non-goal of UI rewrite |
 | 2026-06-17 | Link to [`MARKETSGRID_UI_PARITY_TRACK.md`](./MARKETSGRID_UI_PARITY_TRACK.md) |
+| 2026-06-17 | Gate E + [`V2_BASELINE_PROMOTION.md`](./V2_BASELINE_PROMOTION.md) — integration branch becomes `main` |
