@@ -53,6 +53,14 @@ function BlottersMarketsGrid(): ReactNode {
       showFormattingToolbar
       showEditingToolbar
       defaultColDef={DEFAULT_COL_DEF}
+      // OpenFin color-link: share selection with peer grids on the same
+      // dock Link group (key fields from provider keyColumn / getRowId).
+      // notify + debug intentionally off — no Notification Center spam or
+      // console diagnostics during multi-blotter soak.
+      contextLink={{
+        enabled: true,
+        mode: 'fields',
+      }}
     />
   );
 }
