@@ -361,6 +361,7 @@ See [`MEMORY_LEAK_AUDIT.md` § Monitoring](./MEMORY_LEAK_AUDIT.md).
 
 | Priority | Item | Layer |
 |----------|------|-------|
+| P0 | Execute [v2 strategy Phase 0–1](./MARKETSGRID_V2_STRATEGY.md) — conformance harness | platform |
 | P1 | Wire conditional styling timed/header to `RowChangeBus` delta (not full scan) | engine |
 | P1 | Gate calculated-column `rowDataUpdated` refresh — delta or throttle | engine |
 | P2 | memlab / Playwright churn script for multi-blotter open/close | e2e |
@@ -391,6 +392,9 @@ See [`MEMORY_LEAK_AUDIT.md` § Monitoring](./MEMORY_LEAK_AUDIT.md).
 
 ## Related documentation
 
+- [`MARKETSGRID_V2_STRATEGY.md`](./MARKETSGRID_V2_STRATEGY.md) — strangler rewrite plan
+- [`MARKETSGRID_UI_PARITY_TRACK.md`](./MARKETSGRID_UI_PARITY_TRACK.md) — UI preservation + gap backlog
+- [`MARKETSGRID_V2_DEPRECATION_LIST.md`](./MARKETSGRID_V2_DEPRECATION_LIST.md) — deprecation inventory
 - [`MEMORY_LEAK_AUDIT.md`](./MEMORY_LEAK_AUDIT.md) — SharedWorker / fan-out / client layer
 - [`CHANGELOG-2026-06-16.md`](./CHANGELOG-2026-06-16.md) — recent fixes
 - [`blotter-performance-roadmap.md`](./blotter-performance-roadmap.md) — forward backlog

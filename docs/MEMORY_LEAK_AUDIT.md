@@ -203,6 +203,7 @@ to inline hub fan-out (no extra workers).
 
 ## Related docs
 
+- [`MARKETSGRID_V2_STRATEGY.md`](./MARKETSGRID_V2_STRATEGY.md) — strangler rewrite plan
 - [`hub-fanout-optimizations.md`](./hub-fanout-optimizations.md) — fan-out architecture
 - [`blotter-performance-roadmap.md`](./blotter-performance-roadmap.md) — per-window CPU/memory levers
 - [`CHANGELOG-2026-06-16.md`](./CHANGELOG-2026-06-16.md) — recent lifecycle fixes

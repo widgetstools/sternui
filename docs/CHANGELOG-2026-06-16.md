@@ -251,7 +251,10 @@ Use this before treating the working-tree fixes as release-ready:
 
 ## Related documentation
 
-- [`MARKETSGRID_PERF_AND_MEMORY_AUDIT.md`](./MARKETSGRID_PERF_AND_MEMORY_AUDIT.md) — full-stack MarketsGrid performance + memory audit
+- [`MARKETSGRID_V2_STRATEGY.md`](./MARKETSGRID_V2_STRATEGY.md) — strangler rewrite plan, phases, decision gates
+- [`MARKETSGRID_V2_DEPRECATION_LIST.md`](./MARKETSGRID_V2_DEPRECATION_LIST.md) — initial import inventory
+- [`MARKETSGRID_UI_PARITY_TRACK.md`](./MARKETSGRID_UI_PARITY_TRACK.md) — UI preservation charter + Track B backlog
+- [`MARKETSGRID_PERF_AND_MEMORY_AUDIT.md`](./MARKETSGRID_PERF_AND_MEMORY_AUDIT.md) — full-stack performance + memory audit
 - [`MEMORY_LEAK_AUDIT.md`](./MEMORY_LEAK_AUDIT.md) — proactive leak audit + monitoring playbook (host-data layer)
 - [`hub-fanout-optimizations.md`](./hub-fanout-optimizations.md) — fan-out architecture and §12 worker pool
 - [`blotter-performance-roadmap.md`](./blotter-performance-roadmap.md) — remaining performance backlog
