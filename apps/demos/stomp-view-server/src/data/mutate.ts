@@ -45,15 +45,17 @@ function updateDatesTrade(u: TradeRecord): TradeRecord {
 export function touchPosition(u: PositionRecord): PositionRecord {
   const now = new Date().toISOString();
   const notional = Number(u.notionalAmount) || 1;
+  // currentPrice: random walk, ±~3% per tick so the column visibly moves.
   const price =
-    Number(u.currentPrice) * (1 + (Math.random() - 0.5) * 0.02);
+    Number(u.currentPrice) * (1 + (Math.random() - 0.5) * 0.06);
   u.currentPrice = price;
   u.marketValue = (notional * price) / 100;
   u.totalValue =
     Number(u.marketValue) + Number(u.accruedInterest ?? 0);
-  u.pnl = Math.round(
-    Number(u.marketValue) - Number(u.bookValue ?? u.marketValue),
-  );
+  // pnl: mark-to-market base plus a random jump, so it ticks randomly each
+  // update rather than tracking price deterministically.
+  const base = Number(u.marketValue) - Number(u.bookValue ?? u.marketValue);
+  u.pnl = Math.round(base + (Math.random() - 0.5) * (Math.abs(base) * 0.5 + 5_000));
   if (typeof u.asOfDate === "string") u.asOfDate = now;
   return u;
 }
