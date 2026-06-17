@@ -16,6 +16,9 @@
  * Props are flat (no `gridProps` namespacing) per refactor decision D7.
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+declare const fin: any;
+
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { GridApi } from 'ag-grid-community';
 import type { DataServices } from '@starui/host-data/runtime';
@@ -199,7 +202,6 @@ export function HostedMarketsGrid<
 
   const onWorkspaceSave = useCallback(async () => {
     const handle = gridRef.current;
-    console.log('Saving workspace…', { hasHandle: !!handle });
     // Prefer `saveAll` — same path as the toolbar Save button, so the
     // container's busy overlay and grid-state capture both run. Fall
     // back to `profiles.saveActiveProfile` for older handle shapes.
@@ -212,7 +214,7 @@ export function HostedMarketsGrid<
     }
   }, []);
 
-  const { identity, agTheme, tabsHidden, linking } = useHostedView({
+  const { identity, ready, agTheme, tabsHidden, linking } = useHostedView({
     defaultInstanceId,
     defaultAppId,
     defaultUserId,
@@ -222,6 +224,41 @@ export function HostedMarketsGrid<
     theme,
     onWorkspaceSave,
   });
+
+  // Flush grid state on view teardown — workspace drag/move does not fire
+  // `workspace-saving`, so persist on unmount, page hide, and OpenFin destroy.
+  useEffect(() => {
+    const flush = () => {
+      void onWorkspaceSave();
+    };
+
+    window.addEventListener('beforeunload', flush);
+    window.addEventListener('pagehide', flush);
+
+    let view: {
+      on?: (event: string, cb: () => void) => void;
+      removeListener?: (event: string, cb: () => void) => void;
+    } | null = null;
+    try {
+      if (typeof fin !== 'undefined' && typeof fin.View?.getCurrentSync === 'function') {
+        view = fin.View.getCurrentSync();
+        view?.on?.('destroyed', flush);
+      }
+    } catch {
+      /* not running inside an OpenFin view */
+    }
+
+    return () => {
+      window.removeEventListener('beforeunload', flush);
+      window.removeEventListener('pagehide', flush);
+      flush();
+      try {
+        view?.removeListener?.('destroyed', flush);
+      } catch {
+        /* view already torn down */
+      }
+    };
+  }, [onWorkspaceSave]);
 
   // Two-way binding between the toolbar caption and the OpenFin view's
   // tab name. `tabTitle` seeds from `customData.savedTitle` (the value
@@ -306,7 +343,7 @@ export function HostedMarketsGrid<
   }, [identity.configManager, identity.instanceId]);
 
   const containerNode = useMemo(() => {
-    if (!identity.configManager || !identity.instanceId) {
+    if (!ready || !identity.configManager || !identity.instanceId) {
       return <div style={LOADING_STYLE}>Connecting to ConfigService…</div>;
     }
     if (withStorage && !identity.storage) {
@@ -335,6 +372,7 @@ export function HostedMarketsGrid<
     // on the underlying primitives indirectly via React's normal flow.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    ready,
     identity.configManager,
     identity.instanceId,
     identity.appId,

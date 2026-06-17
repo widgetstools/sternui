@@ -53,18 +53,6 @@ function BlottersMarketsGrid(): ReactNode {
       showFormattingToolbar
       showEditingToolbar
       defaultColDef={DEFAULT_COL_DEF}
-      // Color-link test: broadcast the selected row's key columns + values
-      // (auto-derived from the provider's keyColumn / getRowId — no hardcoding)
-      // and the group path for grouped selections, to color-linked peer grids.
-      // Posts Notification Center messages — "sent" here, "acknowledged" on the
-      // receiver. Open two of these blotters and link them by color (dock →
-      // Link) to exercise it.
-      contextLink={{
-        enabled: true,
-        mode: 'fields',
-        notify: true,
-        debug: true,
-      }}
     />
   );
 }

@@ -129,6 +129,12 @@ export interface DetachRequest {
 export interface SubscriberMeta {
   /** Human-readable attach site, e.g. component or hook name. */
   label?: string;
+  /**
+   * True when the subscribing window is not visible. The hub extends
+   * the ping grace window so background OpenFin views are not evicted
+   * when the browser throttles `setInterval` heartbeats.
+   */
+  hidden?: boolean;
 }
 
 /** Subscriber liveness ping — hub uses this to detect crashed / closed windows. */
@@ -450,6 +456,16 @@ export interface RowsReceivedEvent {
   count: number;
 }
 
+/**
+ * Hub evicted this subscriber (missed heartbeats or dead port). The
+ * client should re-attach with the same `subId` to resume delivery.
+ */
+export interface SubscriptionLostEvent {
+  subId: string;
+  kind: 'subscription-lost';
+  reason: 'stale' | 'port-dead';
+}
+
 export type Event =
   | DeltaEvent
   | DeltaBinEvent
@@ -457,7 +473,8 @@ export type Event =
   | SubInitEvent
   | StatusEvent
   | StatsEvent
-  | RowsReceivedEvent;
+  | RowsReceivedEvent
+  | SubscriptionLostEvent;
 
 /** Detail payload for {@link CatalogReadyEvent} broadcasts. */
 export interface CatalogChangeDetail {
@@ -561,7 +578,8 @@ export function isEvent(value: unknown): value is Event {
     v.kind === 'sub-init' ||
     v.kind === 'status' ||
     v.kind === 'stats' ||
-    v.kind === 'rows-received'
+    v.kind === 'rows-received' ||
+    v.kind === 'subscription-lost'
   );
 }
 

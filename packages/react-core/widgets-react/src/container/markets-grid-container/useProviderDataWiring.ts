@@ -108,8 +108,23 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
     }
 
     let cancelled = false;
+    let applyLiveTicks = typeof document === 'undefined' || !document.hidden;
     const gridApply = createApplyProviderToGridState();
     const providerStatusRef = { current: 'loading' as 'loading' | 'ready' | 'error' };
+
+    const onVisibilityChange = () => {
+      const wasPaused = !applyLiveTicks;
+      applyLiveTicks = !document.hidden;
+      if (wasPaused && applyLiveTicks && !cancelled) {
+        void provider.refresh().catch((err: unknown) => {
+          if (cancelled) return;
+          (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
+        });
+      }
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibilityChange);
+    }
 
     const unsubRows = provider.onRowsReceived((count) => {
       if (cancelled) return;
@@ -155,7 +170,7 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
 
     let updateBatchCount = 0;
     const unsubTick = provider.onTick((updateRows) => {
-      if (cancelled || updateRows.length === 0) return;
+      if (cancelled || updateRows.length === 0 || !applyLiveTicks) return;
       updateBatchCount += 1;
 
       if (!rowIdField) {
@@ -192,6 +207,8 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
       }
       if (cancelled) return;
 
+      const wasDisconnected = providerStatusRef.current === 'error';
+
       if (s === 'loading') {
         setIsRefetching(true);
         setProviderDisconnected(false);
@@ -212,7 +229,20 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
         return;
       }
 
-      if (s !== 'loading') {
+      if (s === 'ready') {
+        setProviderDisconnected(false);
+        setDisconnectDetail(undefined);
+        setIsRefetching(false);
+        providerStatusRef.current = 'ready';
+        if (wasDisconnected) {
+          void provider.refresh().catch((refreshErr: unknown) => {
+            if (cancelled) return;
+            (onError ?? defaultOnError)(
+              refreshErr instanceof Error ? refreshErr : new Error(String(refreshErr)),
+            );
+          });
+        }
+      } else if (s !== 'loading') {
         providerStatusRef.current = s;
       }
 
@@ -263,6 +293,9 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
 
     return () => {
       cancelled = true;
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+      }
       unsubRows();
       unsubSnapshot();
       unsubTick();

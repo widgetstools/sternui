@@ -27,12 +27,15 @@ const providerRow = {
 function createMockProvider(): IDataProvider & {
   start: ReturnType<typeof vi.fn>;
   emitStatus: (status: ProviderStatus, error?: string) => void;
+  emitSnapshot: (rows: unknown[]) => void;
 } {
   const statusHandlers = new Set<(status: ProviderStatus, error?: string) => void>();
+  const snapshotHandlers = new Set<(rows: unknown[]) => void>();
 
   const provider: IDataProvider & {
     start: ReturnType<typeof vi.fn>;
     emitStatus: (status: ProviderStatus, error?: string) => void;
+    emitSnapshot: (rows: unknown[]) => void;
   } = {
     id: PROVIDER_ID,
     capabilities: {
@@ -50,7 +53,10 @@ function createMockProvider(): IDataProvider & {
     getConfig: () => providerConfig,
     getColumnDefs: () => providerConfig.columnDefinitions,
     onRowsReceived: vi.fn(() => () => undefined),
-    onSnapshotData: vi.fn(() => () => undefined),
+    onSnapshotData: vi.fn((handler: (rows: unknown[]) => void): Unsubscribe => {
+      snapshotHandlers.add(handler);
+      return () => snapshotHandlers.delete(handler);
+    }),
     onTick: vi.fn(() => () => undefined),
     onError: vi.fn(() => () => undefined),
     onStatus: vi.fn((handler: (status: ProviderStatus, error?: string) => void): Unsubscribe => {
@@ -59,6 +65,9 @@ function createMockProvider(): IDataProvider & {
     }),
     emitStatus(status: ProviderStatus, error?: string) {
       for (const handler of statusHandlers) handler(status, error);
+    },
+    emitSnapshot(rows: unknown[]) {
+      for (const handler of snapshotHandlers) handler(rows);
     },
   };
 
@@ -238,6 +247,43 @@ describe('MarketsGridContainer — provider stale state', () => {
     });
 
     await waitFor(() => {
+      expect(lastMarketsGridProps.current?.dataStale).toBe(false);
+    });
+  }, 10_000);
+
+  it('auto-refreshes grid data after disconnect then ready', async () => {
+    const adapter = makeAdapter({
+      liveProviderId: PROVIDER_ID,
+      historicalProviderId: null,
+      mode: 'live',
+    });
+    const storage = vi.fn(() => adapter);
+    const refreshedRows = [{ id: 'r1', price: 42 }];
+
+    render(
+      <MarketsGridContainer
+        {...baseProps}
+        storage={storage as any}
+        onError={noopOnError}
+      />,
+    );
+
+    await waitFor(() => expect(latestProvider?.start).toHaveBeenCalled(), { timeout: 3000 });
+
+    latestProvider!.refresh = vi.fn().mockImplementation(async () => {
+      latestProvider!.emitSnapshot(refreshedRows);
+    });
+
+    await act(async () => {
+      latestProvider!.emitStatus('error', 'Provider disconnected');
+      await Promise.resolve();
+      latestProvider!.emitStatus('ready');
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(latestProvider!.refresh).toHaveBeenCalled();
       expect(lastMarketsGridProps.current?.dataStale).toBe(false);
     });
   }, 10_000);

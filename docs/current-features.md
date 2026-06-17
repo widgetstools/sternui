@@ -600,6 +600,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `MarketsGridContainer` — grid + two-provider picker + mode toggle (`Alt+Shift+P` /
   grid-level provider persistence; provider pickers live in grid customizer → Custom Settings (`providerGridHost`)
 - `MarketsGridContainer` — hub data via `useDataProvider` + `applyProviderToGrid` (no direct `client.subscribe` / cfg pass-through); optional `defaultLiveProviderId` for single-provider demos; live mode cold-starts STOMP immediately (hub attach dedupes concurrent windows); historical restore late-joins a running hub provider via `isProviderRunning` / `waitForProviderRunning` (≤2s) + `provider.start()` instead of `restartProvider` (avoids peer grid refresh and duplicate STOMP when several windows open at once)
+- `useProviderDataWiring` — provider→grid hot path inside `MarketsGridContainer`; pauses live-tick `applyTransactionAsync` while `document.hidden` (background OpenFin views) and runs one `provider.refresh()` cache replay when the view becomes visible again; on STOMP auto-reconnect (`error` → `ready`) clears the stale banner and triggers `provider.refresh()` so every blotter replays the hub cache without a manual Reload
 - `MarketsGridContainer` — when an active provider id is chosen but `useDataProviderConfig` is still loading, renders a lightweight placeholder (no throwaway `MarketsGrid` / AG Grid shell); the `__no_provider__` shell path is unchanged when no provider is selected or cfg is loaded but missing key/columns
 - `applyProviderToGrid` — live-tick add/update split with pending-add coalescing (`createApplyProviderToGridState`, `splitProviderRowsForGrid`, `splitProviderRowsWithResolver`); after snapshot commit, `markSnapshotLoaded` indexes row ids so live ticks avoid O(n) `getRowNode`; ticks for ids still in an async add queue retain the latest payload instead of being dropped so peer grids on the same hub provider stay row-count aligned; internal to `MarketsGridContainer` / `useBlotterDataConnection` (not on public barrel)
 - `buildColumnDefs` — maps a provider's persisted `ColumnDefinition[]` to AG Grid `ColDef[]` for `MarketsGridContainer`. Per column: a `valueGetter` DSL expression compiles once (bounded FIFO cache) to a CSP-safe `@starui/engine` **compiled closure** (not per-cell AST walk); dotted `field` uses cached `getPathAccessor`; flat field stays on AG Grid's native path. Expression getters never throw — parse errors fall back to the field binding, runtime errors to the field value (warn once per expression); reusable per-getter `EvaluationContext` avoids per-cell allocations under high-frequency updates. Soak: `npm run soak:value-getter` (`valueGetter.soak.test.ts`, `SOAK=1`) — sustained eval load + heap-delta guard. **Internal** — not on public barrel
@@ -629,9 +630,9 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 #### Hosted integration (legacy)
 
-- `HostedMarketsGrid` — hosted wrapper; accepts `platform` (hub bundle) or legacy `dataServices`; composes `MarketsGridContainer`. Opt-in `contextLink` prop wires grid-to-grid linking (interop transport preferred; `rowIdField` auto-derived from the provider `keyColumn` via the container's `onRowIdFieldChange`; `notify` posts Notification Center messages). See `useGridContextLink` + [`docs/OPENFIN_GRID_LINKING.md`](./OPENFIN_GRID_LINKING.md)
+- `HostedMarketsGrid` — hosted wrapper; accepts `platform` (hub bundle) or legacy `dataServices`; composes `MarketsGridContainer`. Flushes grid state on `workspace-saving`, `beforeunload` / `pagehide`, OpenFin view `destroyed`, and React unmount (covers workspace drag/move without a workspace save). Opt-in `contextLink` prop wires grid-to-grid linking (interop transport preferred; `rowIdField` auto-derived from the provider `keyColumn` via the container's `onRowIdFieldChange`; `notify` posts Notification Center messages). See `useGridContextLink` + [`docs/OPENFIN_GRID_LINKING.md`](./OPENFIN_GRID_LINKING.md)
 - `useHostedView` — window identity & lifecycle
-- `useHostedIdentity` — resolve current view identity. `instanceId` is seeded synchronously (URL `?instanceId=` → `defaultInstanceId`) so the grid mounts on first paint; OpenFin `customData` refines it via a single `fin.me.getOptions()` call hard-bounded to 3s (`readHostCustomData`), so a wedged runtime can't strand the window. Host ConfigManager resolution is peek-first (`peekConfigManager()`) then a slow-warned (8s) `getConfigManager()` fallback. `ready` is always `true` (kept for API compat) — gate data-readiness on `identity.configManager` / `identity.storage`
+- `useHostedIdentity` — resolve current view identity. URL `?instanceId=` / `?id=` wins synchronously; bare OpenFin views start `instanceId: null` and `ready: false` until `fin.me.getOptions().customData` settles (3s hard timeout → `defaultInstanceId`). Browser paths seed `defaultInstanceId` on first paint. Host ConfigManager resolution is peek-first (`peekConfigManager()`) then a slow-warned (8s) `getConfigManager()` fallback. Gate grid mount on `ready` plus `identity.configManager` / `identity.storage`
 - `useFdc3Channel` — FDC3 channel subscription
 - `useOpenFinChannel` — OpenFin IAB subscription
 - `useIab` — generic Inter-App Bus pub/sub
@@ -1222,7 +1223,7 @@ modules).
 - `writeWorkerBootstrapPayload` / `readWorkerBootstrapPayload` — main thread persists deployment bootstrap (`appId`, `userId`, seed URL, REST URL) in localStorage before `new SharedWorker()`; `defaultEntry` reads it via `self.name` (avoids Vite dev breaking `@fs/` worker URLs with extra query params)
 - `isCatalogReady()`, `platformWarmSession` (`markPlatformWarm` / `isPlatformWarm`)
 - `ConfigManager.init({ mode: 'attach' })` — attach-only init for warm worker sessions
-- `SharedWorkerDataServicesHub` — worker state machine (providers, cache, fan-out); attach with matching `extra` overlay (e.g. same historical `asOfDate`) late-joins without a second upstream `restart`; **`hydrateCatalog()`** preloads `ConfigCatalogCache` after ConfigManager init; **`get-config`** resolves the requested provider on demand (`ConfigCatalogCache.ensure`) so a grid attaches without waiting on the full preload; **`buildIntrospectSnapshot()`** / `hub-introspect` RPC for live provider + AppData diagnostics
+- `SharedWorkerDataServicesHub` — worker state machine (providers, cache, fan-out); attach with matching `extra` overlay (e.g. same historical `asOfDate`) late-joins without a second upstream `restart`; **`hydrateCatalog()`** preloads `ConfigCatalogCache` after ConfigManager init; **`get-config`** resolves the requested provider on demand (`ConfigCatalogCache.ensure`) so a grid attaches without waiting on the full preload; **`buildIntrospectSnapshot()`** / `hub-introspect` RPC for live provider + AppData diagnostics; **`FanOutWorkerPool`** — one dedicated fan-out worker per hub `subId` for non-binary object-graph broadcasts (spawned on `attach` with stale-slot recycle, terminated on `detach` or client disconnect); `delta-bin`, large buffered `delta-patch`, and `stats` post directly from the hub; partial fan-out failure retries only failed `subId`s inline (no duplicate delivery); worker `error` + job timeout fail fast; disable with `localStorage.STARUI_FANOUT_POOL_SIZE=0`; **`subscription-lost`** event + client auto re-attach when hub evicts stale subscribers; extended ping grace (`SUBSCRIBER_PING_TIMEOUT_HIDDEN_MS`) when client reports `meta.hidden`
 - `ConfigCatalogCache` — worker-side in-memory data-provider catalog (`loadAll`, `get`, `getProviderConfig`, `list`, `invalidate`, `upsert`); `ensure(providerId)` resolves one provider on demand (cached row, else a single `ConfigManager` read with no full `loadAll`) and caches it so the synchronous attach lookup finds it; used by hub before cfg-free attach
 - `DataProviderConfigStore` / `AppDataConfigStore` — persist provider rows with `ConfigManager.getAppId()` (no hard-coded `TestApp`); re-stamps `appId` on every save so drifted rows realign to the deployment scope
 - `AppDataMirror` — synchronous main-thread view of AppData
@@ -1232,7 +1233,7 @@ modules).
 
 - `IDataProvider` — uniform client contract (`start` / `stop` / `refresh` / `restart`, sync getters, event registrars); types + `ProviderClientAdapter` hub adapter (Phase 3)
 - `IDataProviderFactory` — `getProvider(providerId)` factory surface
-- `ProviderClientAdapter` — client-side `IDataProvider`; cfg-free subscribe, `SnapshotReassembler` snapshot assembly, `getProvider()` on hub bundle. `getData()` returns the last snapshot commit by reference (not copied, not updated on live ticks). `start()` resolves its one provider via the worker's on-demand `get-config` (single-row read, no full-catalog gate) so attach is race-safe even mid-preload
+- `ProviderClientAdapter` — client-side `IDataProvider`; cfg-free subscribe, `SnapshotReassembler` snapshot assembly, `getProvider()` on hub bundle. `getData()` returns the last snapshot commit by reference (not copied, not updated on live ticks). `onReset` deliveries update snapshot subscribers (mid-stream STOMP reconnect). `start()` resolves its one provider via the worker's on-demand `get-config` (single-row read, no full-catalog gate) so attach is race-safe even mid-preload
 - `resolveProviderCapabilities()` — transport capability flags for STOMP / REST / mock / appdata
 - `DataServicesHubBundle` / `ResolvedDataServicesHubBundle` — hub bundle from `ensurePlatformReady` / `ensureDataServicesHub`. Hydration is split into parallel signals: `appDataReady` (AppData mirror snapshot) + `catalogReady` (worker catalog preload), with `ready = Promise.all([appDataReady, catalogReady])` for full-hydration callers. Plus `stopProvider`, `dispose`, legacy client handles
 - `ProviderCapabilities` — streaming / realtime / refresh / restart flags per transport
@@ -1272,7 +1273,7 @@ modules).
 #### Stream subscription
 
 - Two-phase: snapshot promise + `onUpdate`/`onReset`/`onStatus`/`onRowsReceived`/`onSnapshotCommit`
-- `SnapshotReassembler` — client-side chunk assembly (head `replace: true` + tail `replace: false` → full snapshot on loading→ready; `onRowsReceived` progress; post-settle `onReset` / live `onTick`)
+- `SnapshotReassembler` — client-side chunk assembly (head `replace: true` + tail `replace: false` → full snapshot on loading→ready; `onRowsReceived` progress; post-settle `onReset` / live `onTick`; accepts `replace:true` during `error` phase for STOMP reconnect ordering; commits buffered rows on `ready` after `error` when `loading` was missed)
 - Late-joiner: immediate cache replay + current status on attach
 - Restart attach (`attach.extra`): posts `loading` only — skips stale cache replay so reload/restart waits for the fresh upstream snapshot
 - `onSnapshotCommit` — fires on every loading→ready assembly (initial + hub restarts on an existing subId)
@@ -1287,7 +1288,7 @@ modules).
 - **Idle auto-teardown** — when the last data *and* stats subscriber leaves (`detach`, `onPortClosed`, dead-port prune, or missed heartbeats), `SharedWorkerDataServicesHub` calls `stopProvider` (upstream STOMP/REST/mock stops, cache cleared); re-attach cold-starts
 - **Subscriber heartbeats** — clients send `{ kind: 'ping', subId, meta? }` every 15s; hub sweeps every 10s and evicts subs silent for >45s; `buildIntrospectSnapshot()` exposes per-subscriber `attachedAt`, `lastPingAt`, `stale`, and optional `meta.label` on each running provider row
 - `SharedWorkerDataServicesClient` registers `pagehide` (non-bfcache) → `close()` so blotter window teardown sends `detach` for every subscription before the port dies
-- `refresh-provider` RPC — replay hub cache to one subscriber without upstream I/O; `SubscribeHandle.refresh()` / `IDataProvider.refresh()`
+- `refresh-provider` RPC — replay hub cache to one subscriber in chunked `delta-bin` frames with `status: loading` → chunks → `status: ready` (no upstream I/O); `SubscribeHandle.refresh()` / `IDataProvider.refresh()`; drives the **Refresh view** busy overlay in `MarketsGridContainer`
 - `attach.extra` → `restart(extra)` on running provider; when the attach also carries `cfg` (editor Restart button), the slot is **rebuilt from the new cfg** (`recreateProvider`) so the reconnect picks up edited connection/column/behaviour settings instead of the stale config the slot was created with
 - Slots register in the provider map **before** their transport factory runs, so the synchronous `status: loading` every transport emits on start broadcasts to all attached windows — peer blotters show the refresh overlay the moment any window restarts the shared provider (previously that first emission was dropped by the unregistered-slot guard and peers erratically missed the restart signal)
 - `stop` request — explicit upstream teardown; stats listeners receive one zeroed snapshot (subscription stays registered for the diagnostics pane until the client detaches)
@@ -1531,7 +1532,7 @@ of importing `@openfin/*` directly (architecture boundary).
 #### Launch
 
 - `launchApp()` — launch registered app by id (config overrides supported)
-- `launchRegisteredComponent()` — create registered-component instance in new view; the template→instance config clone runs concurrently with `createWindow` / `createView` (window appears immediately; clone lands before the view's first config read)
+- `launchRegisteredComponent()` — create registered-component instance in new view; stamps `?instanceId=` and `?id=` on the launch URL (`appendLaunchIdentityParams`) so reloads and workspace GC resolve the per-instance id from the query string; the template→instance config clone runs concurrently with `createWindow` / `createView` (window appears immediately; clone lands before the view's first config read)
 - `LaunchRegisteredComponentOptions` — instance config (layout, properties, parent)
 
 #### Dock management
@@ -1611,6 +1612,7 @@ of importing `@openfin/*` directly (architecture boundary).
 - `resolvePlatformBootstrapFromCustomSettings()` — pure mapper for tests
 - `CustomSettings.appId` / `CustomSettings.userId` — deployment identity fields
 - `resolveHostUrl()` — environment-aware host URL (dev/staging/prod)
+- `appendLaunchIdentityParams()` — stamp `?instanceId=` + `?id=` on registered-component launch URLs
 
 #### Home (launcher)
 
@@ -1723,7 +1725,7 @@ of importing `@openfin/*` directly (architecture boundary).
 | `demo-react` (`@starui/demo-react`) | Primary React dev app + Playwright e2e target (`npm run dev`) |
 | `demo-angular` (`@starui/demo-angular`) | Angular consumer demo |
 | `demo-configservice-react` | Config-service REST/Dexie lab |
-| `star-demo` (`@starui/star-demo`) | Lean OpenFin workspace pilot — `HostedMarketsGrid` route, Workspace Setup, data providers, config browser (port 5175; `npm run dev:star-demo`); Import/Export Config removed from dock Tools; provider window prefetches tool-window route chunks on mount (before `initWorkspace` completes); `/blotters/marketsgrid` starts the `BlottersMarketsGrid` chunk and AG Grid vendor imports in parallel with platform bootstrap |
+| `star-demo` (`@starui/star-demo`) | Lean OpenFin workspace pilot — `HostedMarketsGrid` route, Workspace Setup, data providers, config browser (port 5175; `npm run dev:star-demo`); Import/Export Config removed from dock Tools; provider window prefetches tool-window route chunks on mount (before `initWorkspace` completes); `/blotters/marketsgrid` starts the `BlottersMarketsGrid` chunk and AG Grid vendor imports in parallel with platform bootstrap; `DataHubProvider` runs with `hubInspector={false}`; default STOMP provider (`dp-121e4569-…`) seeds with `throttleMs: 100`, conflation, `projectFields`, and `wireFormat: columnar`; grid profiles default `animateRows: false` |
 | `markets-ui-react-reference` | Full OpenFin reference shell; `ensurePlatformReady` + `DataHubProvider` |
 | `demo-stomp-markets-grid` | Minimal STOMP + MarketsGrid (web + OpenFin); `defaultLiveProviderId` |
 | `stomp-marketsgrid-minimal` | Lean STOMP → MarketsGrid dev track |

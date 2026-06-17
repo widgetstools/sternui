@@ -95,6 +95,7 @@ import {
   type AppDataDeltaEventMutable,
   type SharedWorkerDataServicesHubOpts,
   SUBSCRIBER_PING_TIMEOUT_MS,
+  SUBSCRIBER_PING_TIMEOUT_HIDDEN_MS,
   SUBSCRIBER_SWEEP_INTERVAL_MS,
 } from './hubTypes.js';
 import { encodeChunk, SNAPSHOT_ENCODER } from './hubEncoding.js';
@@ -104,6 +105,7 @@ import {
   restartClickLatency,
   restartExtrasEqual,
 } from './hubHelpers.js';
+import type { FanOutWorkerPool } from './FanOutWorkerPool.js';
 
 // Re-exported for back-compat with `worker/index.ts` consumers.
 export type { PortLike, SharedWorkerDataServicesHubOpts } from './hubTypes.js';
@@ -135,6 +137,8 @@ export class SharedWorkerDataServicesHub {
   private readonly statsIntervalMs: number;
   private readonly setTimer: (cb: () => void, ms: number) => unknown;
   private readonly clearTimer: (handle: unknown) => void;
+  private readonly fanOutPool: FanOutWorkerPool | null;
+  private readonly fanOutMinListeners: number;
   private statsTimer: unknown = null;
   private subscriberSweepTimer: unknown = null;
 
@@ -142,6 +146,8 @@ export class SharedWorkerDataServicesHub {
     this.statsIntervalMs = opts.statsIntervalMs ?? 1000;
     this.setTimer = opts.setTimer ?? ((cb, ms) => setInterval(cb, ms));
     this.clearTimer = opts.clearTimer ?? ((h) => clearInterval(h as ReturnType<typeof setInterval>));
+    this.fanOutPool = opts.fanOutPool ?? null;
+    this.fanOutMinListeners = opts.fanOutMinListeners ?? 1;
     this.appDataStore = opts.configManager ? new AppDataConfigStore(opts.configManager) : null;
     if (opts.configCatalog) {
       this.configCatalog = opts.configCatalog;
@@ -368,6 +374,7 @@ export class SharedWorkerDataServicesHub {
 
   /** Drop every subscription owned by this port. Called on disconnect. */
   onPortClosed(port: PortLike): void {
+    this.releaseFanOutWorker(port);
     this.connectedPorts.delete(port);
     const idleCandidates = new Set<string>();
     for (const [providerId, listeners] of this.dataListeners) {
@@ -410,6 +417,7 @@ export class SharedWorkerDataServicesHub {
       this.subscriberSweepTimer = null;
     }
     this.maybeStopStatsSampler();
+    this.fanOutPool?.dispose();
   }
 
   // ─── Request handlers ──────────────────────────────────────────
@@ -617,11 +625,13 @@ export class SharedWorkerDataServicesHub {
     } else {
       this.attachStatsListener(req.providerId, req.subId, port);
     }
+    this.maybeActivateFanOutWorker(req.subId, port);
   }
 
   private handleDetach(req: DetachRequest): void {
-    const providerId = this.removeSubscriber(req.subId);
-    if (providerId) this.maybeStopProviderIfIdle(providerId);
+    this.maybeReleaseFanOutWorker(req.subId);
+    const removed = this.removeSubscriber(req.subId);
+    if (removed.providerId) this.maybeStopProviderIfIdle(removed.providerId);
   }
 
   private handlePing(req: PingRequest): void {
@@ -630,34 +640,44 @@ export class SharedWorkerDataServicesHub {
       const l = listeners.get(req.subId);
       if (!l) continue;
       l.lastPingAt = now;
-      if (req.meta) l.meta = req.meta;
+      if (req.meta) {
+        l.meta = req.meta;
+        if (req.meta.hidden !== undefined) l.hidden = req.meta.hidden;
+      }
       return;
     }
     for (const listeners of this.statsListeners.values()) {
       const l = listeners.get(req.subId);
       if (!l) continue;
       l.lastPingAt = now;
-      if (req.meta) l.meta = req.meta;
+      if (req.meta) {
+        l.meta = req.meta;
+        if (req.meta.hidden !== undefined) l.hidden = req.meta.hidden;
+      }
       return;
     }
   }
 
-  /** @returns providerId when a listener was removed, else undefined */
-  private removeSubscriber(subId: string): string | undefined {
+  /** @returns removed listener metadata when a row was deleted */
+  private removeSubscriber(subId: string): { providerId?: string; port?: PortLike } {
     for (const [providerId, listeners] of this.dataListeners) {
-      if (!listeners.delete(subId)) continue;
+      const l = listeners.get(subId);
+      if (!l) continue;
+      listeners.delete(subId);
       if (listeners.size === 0) this.dataListeners.delete(providerId);
-      return providerId;
+      return { providerId, port: l.port };
     }
     for (const [providerId, listeners] of this.statsListeners) {
-      if (!listeners.delete(subId)) continue;
+      const l = listeners.get(subId);
+      if (!l) continue;
+      listeners.delete(subId);
       if (listeners.size === 0) {
         this.statsListeners.delete(providerId);
         this.maybeStopStatsSampler();
       }
-      return providerId;
+      return { providerId, port: l.port };
     }
-    return undefined;
+    return {};
   }
 
   private maybeStopProviderIfIdle(providerId: string): void {
@@ -700,7 +720,10 @@ export class SharedWorkerDataServicesHub {
     const stale = new Set<string>();
     const collect = (listeners: Map<string, DataListener | StatsListener>) => {
       for (const [subId, l] of listeners) {
-        if (now - l.lastPingAt > SUBSCRIBER_PING_TIMEOUT_MS) stale.add(subId);
+        const timeout = l.hidden
+          ? SUBSCRIBER_PING_TIMEOUT_HIDDEN_MS
+          : SUBSCRIBER_PING_TIMEOUT_MS;
+        if (now - l.lastPingAt > timeout) stale.add(subId);
       }
     };
     for (const listeners of this.dataListeners.values()) collect(listeners);
@@ -708,12 +731,69 @@ export class SharedWorkerDataServicesHub {
     if (stale.size === 0) return;
     const idleCandidates = new Set<string>();
     for (const subId of stale) {
-      const providerId = this.removeSubscriber(subId);
+      const providerId = this.evictStaleSubscriber(subId);
       if (providerId) idleCandidates.add(providerId);
     }
     for (const providerId of idleCandidates) {
       this.maybeStopProviderIfIdle(providerId);
     }
+  }
+
+  /** Notify the client, then drop the subscription. */
+  private evictStaleSubscriber(subId: string): string | undefined {
+    let port: PortLike | undefined;
+    for (const listeners of this.dataListeners.values()) {
+      const l = listeners.get(subId);
+      if (l) {
+        port = l.port;
+        break;
+      }
+    }
+    if (!port) {
+      for (const listeners of this.statsListeners.values()) {
+        const l = listeners.get(subId);
+        if (l) {
+          port = l.port;
+          break;
+        }
+      }
+    }
+    if (port) {
+      try {
+        port.postMessage({
+          kind: 'subscription-lost',
+          subId,
+          reason: 'stale',
+        } satisfies Event);
+      } catch {
+        /* port already dead */
+      }
+    }
+    this.maybeReleaseFanOutWorker(subId);
+    const removed = this.removeSubscriber(subId);
+    return removed.providerId;
+  }
+
+  private maybeActivateFanOutWorker(subId: string, port: PortLike): void {
+    const clientId = port.fanOutClientId;
+    if (!clientId || !this.fanOutPool) return;
+    this.fanOutPool.unregisterSubscriber(subId);
+    this.fanOutPool.activateSubscriber(subId, clientId);
+  }
+
+  private maybeReleaseFanOutWorker(subId: string): void {
+    if (!this.fanOutPool) return;
+    this.fanOutPool.unregisterSubscriber(subId);
+  }
+
+  private releaseFanOutWorker(port: PortLike): void {
+    const clientId = port.fanOutClientId;
+    if (!clientId || !this.fanOutPool) return;
+    this.fanOutPool.unregisterClient(clientId);
+  }
+
+  private pingTimeoutMs(l: DataListener | StatsListener): number {
+    return l.hidden ? SUBSCRIBER_PING_TIMEOUT_HIDDEN_MS : SUBSCRIBER_PING_TIMEOUT_MS;
   }
 
   private buildSubscriberIntrospect(providerId: string): HubSubscriberIntrospectRow[] {
@@ -725,7 +805,7 @@ export class SharedWorkerDataServicesHub {
         mode: 'data',
         attachedAt: l.attachedAt,
         lastPingAt: l.lastPingAt,
-        stale: now - l.lastPingAt > SUBSCRIBER_PING_TIMEOUT_MS,
+        stale: now - l.lastPingAt > this.pingTimeoutMs(l),
         meta: l.meta,
       });
     }
@@ -735,7 +815,7 @@ export class SharedWorkerDataServicesHub {
         mode: 'stats',
         attachedAt: l.attachedAt,
         lastPingAt: l.lastPingAt,
-        stale: now - l.lastPingAt > SUBSCRIBER_PING_TIMEOUT_MS,
+        stale: now - l.lastPingAt > this.pingTimeoutMs(l),
         meta: l.meta,
       });
     }
@@ -752,7 +832,7 @@ export class SharedWorkerDataServicesHub {
     if (!slot) return;
     const listener = this.dataListeners.get(req.providerId)?.get(req.subId);
     if (!listener) return;
-    this.replayCacheToPort(req.subId, listener.port, slot);
+    this.replayCacheToPort(req.subId, listener.port, slot, 'refresh');
   }
 
   private async stopProvider(providerId: string): Promise<void> {
@@ -1355,7 +1435,7 @@ export class SharedWorkerDataServicesHub {
       return;
     }
 
-    this.replayCacheToPort(subId, port, slot);
+    this.replayCacheToPort(subId, port, slot, 'attach');
   }
 
   /**
@@ -1369,13 +1449,19 @@ export class SharedWorkerDataServicesHub {
    * graph walk per subscriber, which is what made simultaneous
    * multi-window attaches GC-storm the worker.
    */
-  private replayCacheToPort(subId: string, port: PortLike, slot: ProviderSlot): void {
+  private replayCacheToPort(
+    subId: string,
+    port: PortLike,
+    slot: ProviderSlot,
+    mode: 'attach' | 'refresh',
+  ): void {
     // eslint-disable-next-line no-console
     if (DEBUG) console.log(
       `[v2/hub] → subId=${subId}: replay rows=${slot.cache.size} in ${
         Math.max(1, Math.ceil(slot.cache.size / LATE_JOIN_CHUNK_SIZE))
       } chunk(s), status=${slot.status}`,
     );
+    port.postMessage({ subId, kind: 'status', status: 'loading' } satisfies Event);
     if (slot.cache.size === 0) {
       port.postMessage({ subId, kind: 'delta', rows: [], replace: true } satisfies Event);
       this.recordPublish(slot, 1);
@@ -1392,12 +1478,20 @@ export class SharedWorkerDataServicesHub {
         this.recordPublish(slot, 1);
       }
     }
-    port.postMessage({
-      subId,
-      kind: 'status',
-      status: slot.status,
-      error: slot.lastError,
-    } satisfies Event);
+    // Refresh always ends with `ready` so the busy overlay clears. Attach
+    // replay on an empty cache must NOT settle the client snapshot — the
+    // upstream provider still owes rows + ready.
+    const emitReady = mode === 'refresh' || slot.cache.size > 0;
+    if (emitReady) {
+      port.postMessage({
+        subId,
+        kind: 'status',
+        // Replay succeeded — surface `ready` so the grid clears any stale
+        // banner even if the upstream transport is still recovering.
+        status: 'ready',
+        error: undefined,
+      } satisfies Event);
+    }
   }
 
   /**
@@ -1449,7 +1543,7 @@ export class SharedWorkerDataServicesHub {
    * one object across the fan-out loop is unsafe when structured-clone
    * is deferred (observed under OpenFin multi-window).
    */
-  private postDataEvent(l: DataListener, event: Event): boolean {
+  private postDataEvent(l: { subId: string; port: PortLike }, event: Event): boolean {
     try {
       l.port.postMessage({ ...event, subId: l.subId });
       return true;
@@ -1467,7 +1561,10 @@ export class SharedWorkerDataServicesHub {
     if (deadSubIds.length === 0) return;
     const listeners = this.dataListeners.get(providerId);
     if (!listeners) return;
-    for (const subId of deadSubIds) listeners.delete(subId);
+    for (const subId of deadSubIds) {
+      this.maybeReleaseFanOutWorker(subId);
+      listeners.delete(subId);
+    }
     if (listeners.size === 0) this.dataListeners.delete(providerId);
     this.maybeStopProviderIfIdle(providerId);
   }
@@ -1476,7 +1573,10 @@ export class SharedWorkerDataServicesHub {
     if (deadSubIds.length === 0) return;
     const listeners = this.statsListeners.get(providerId);
     if (!listeners) return;
-    for (const subId of deadSubIds) listeners.delete(subId);
+    for (const subId of deadSubIds) {
+      this.maybeReleaseFanOutWorker(subId);
+      listeners.delete(subId);
+    }
     if (listeners.size === 0) {
       this.statsListeners.delete(providerId);
       this.maybeStopStatsSampler();
@@ -1504,15 +1604,110 @@ export class SharedWorkerDataServicesHub {
         console.log(`[v2/hub] broadcast provider=${providerId} kind=status status=${tpl.status}${tpl.error ? ' error=' + JSON.stringify(tpl.error) : ''} → ${listeners.size} listener(s)`);
       }
     }
+    if (this.fanOutBroadcastListeners(providerId, listeners, eventTemplate, (dead, live) => {
+      this.pruneDeadDataListeners(providerId, dead);
+      if (countPublish && live > 0) this.recordPublish(slot, live);
+    })) {
+      return;
+    }
     const dead: string[] = [];
+    let live = 0;
     for (const l of listeners.values()) {
       if (!this.postDataEvent(l, eventTemplate)) {
         dead.push(l.subId);
         continue;
       }
-      if (countPublish) this.recordPublish(slot, 1);
+      live += 1;
     }
     this.pruneDeadDataListeners(providerId, dead);
+    if (countPublish && live > 0) this.recordPublish(slot, live);
+  }
+
+  /**
+   * Route a broadcast through the fan-out worker pool when enough pooled
+   * listeners exist. Returns true when the pool owns delivery (async).
+   * On pool failure, falls back to inline delivery for pooled targets
+   * only — never re-broadcasts to listeners that already received.
+   *
+   * Binary wire frames and stats always post directly from the hub.
+   */
+  private fanOutBroadcastListeners<L extends { subId: string; port: PortLike }>(
+    _providerId: string,
+    listeners: Map<string, L>,
+    eventTemplate: Event,
+    onDone: (deadSubIds: string[], liveCount: number) => void,
+  ): boolean {
+    if (this.bypassesFanOutWorker(eventTemplate)) return false;
+
+    const pool = this.fanOutPool;
+    if (!pool || listeners.size < this.fanOutMinListeners) return false;
+
+    const pooled: Array<{ clientId: string; subId: string }> = [];
+    const pooledListeners = new Map<string, L>();
+    const inline: L[] = [];
+    for (const l of listeners.values()) {
+      const clientId = l.port.fanOutClientId;
+      if (clientId && pool.isActive(l.subId)) {
+        pooled.push({ clientId, subId: l.subId });
+        pooledListeners.set(l.subId, l);
+      } else {
+        inline.push(l);
+      }
+    }
+    if (pooled.length < this.fanOutMinListeners) return false;
+
+    const deliverInline = () => {
+      const dead: string[] = [];
+      let live = 0;
+      for (const l of inline) {
+        if (this.postDataEvent(l, eventTemplate)) live += 1;
+        else dead.push(l.subId);
+      }
+      return { dead, live };
+    };
+
+    const deliverPooledInline = (subIds: ReadonlySet<string>) => {
+      const dead: string[] = [];
+      let live = 0;
+      for (const subId of subIds) {
+        const l = pooledListeners.get(subId);
+        if (!l) continue;
+        if (this.postDataEvent(l, eventTemplate)) live += 1;
+        else dead.push(subId);
+      }
+      return { dead, live };
+    };
+
+    void pool.broadcast(pooled, eventTemplate)
+      .then((deadSubIds) => {
+        const extra = deliverInline();
+        const failedPooled = new Set(deadSubIds);
+        const fallback = failedPooled.size > 0
+          ? deliverPooledInline(failedPooled)
+          : { dead: [] as string[], live: 0 };
+        const poolLive = pooled.length - deadSubIds.length;
+        onDone(
+          [...extra.dead, ...fallback.dead],
+          poolLive + fallback.live + extra.live,
+        );
+      })
+      .catch(() => {
+        const pooledSubIds = new Set(pooled.map((item) => item.subId));
+        const extra = deliverInline();
+        const fallback = deliverPooledInline(pooledSubIds);
+        onDone(
+          [...extra.dead, ...fallback.dead],
+          extra.live + fallback.live,
+        );
+      });
+    return true;
+  }
+
+  /** Frames that post directly from the hub (skip fan-out workers). */
+  private bypassesFanOutWorker(event: Event): boolean {
+    if (event.kind === 'delta-bin') return true;
+    if (event.kind === 'stats') return true;
+    return event.kind === 'delta-patch' && event.buf !== undefined;
   }
 
   /** Count one fan-out delta post to a data subscriber (post-snapshot only). */
@@ -1545,6 +1740,20 @@ export class SharedWorkerDataServicesHub {
     const slot = this.providers.get(providerId);
     if (!listeners || !slot) return;
     const stats = this.snapshotStats(providerId, slot);
+    this.postStatsToListeners(providerId, listeners, stats);
+  }
+
+  private postStatsToListeners(
+    providerId: string,
+    listeners: Map<string, StatsListener>,
+    stats: ProviderStats,
+  ): void {
+    const eventTemplate = { kind: 'stats' as const, stats, subId: '' };
+    if (this.fanOutBroadcastListeners(providerId, listeners, eventTemplate, (dead) => {
+      this.pruneDeadStatsListeners(providerId, dead);
+    })) {
+      return;
+    }
     const dead: string[] = [];
     for (const l of listeners.values()) {
       try {
@@ -1574,15 +1783,7 @@ export class SharedWorkerDataServicesHub {
       const slot = this.providers.get(providerId);
       if (!slot) continue;
       const stats = this.snapshotStats(providerId, slot);
-      const dead: string[] = [];
-      for (const l of listeners.values()) {
-        try {
-          l.port.postMessage({ subId: l.subId, kind: 'stats', stats } satisfies Event);
-        } catch {
-          dead.push(l.subId);
-        }
-      }
-      this.pruneDeadStatsListeners(providerId, dead);
+      this.postStatsToListeners(providerId, listeners, stats);
     }
   }
 

@@ -218,14 +218,14 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
       for (const handler of this.tickHandlers) handler(rows);
     });
 
-    handle.onReset(() => {
-      this.snapshotRows = [];
-    });
-
     const deliverSnapshot = (rows: readonly T[]) => {
       this.snapshotRows = rows;
       for (const handler of this.snapshotHandlers) handler(rows);
     };
+
+    handle.onReset((rows) => {
+      deliverSnapshot(rows);
+    });
 
     handle.onSnapshotCommit(deliverSnapshot);
 

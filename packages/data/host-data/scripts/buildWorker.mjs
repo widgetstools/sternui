@@ -14,13 +14,16 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pkgRoot = path.resolve(__dirname, '..');
 const outDir = path.join(pkgRoot, 'dist', 'assets');
-const outfile = path.join(outDir, 'data-services-worker.mjs');
 
 fs.mkdirSync(outDir, { recursive: true });
 
 await esbuild.build({
-  entryPoints: [path.join(pkgRoot, 'src/runtime/worker/defaultEntry.ts')],
-  outfile,
+  entryPoints: [
+    path.join(pkgRoot, 'src/runtime/worker/defaultEntry.ts'),
+    path.join(pkgRoot, 'src/runtime/worker/fanOutWorkerEntry.ts'),
+  ],
+  outdir: outDir,
+  entryNames: '[name]',
   bundle: true,
   format: 'esm',
   platform: 'browser',
@@ -28,7 +31,6 @@ await esbuild.build({
   sourcemap: true,
   logLevel: 'info',
   packages: 'bundle',
-  // Prefer ESM over the package's `browser` UMD entry for @stomp/stompjs.
   mainFields: ['module', 'import', 'main'],
   conditions: ['import', 'module', 'default'],
   alias: {
@@ -36,3 +38,41 @@ await esbuild.build({
   },
   legalComments: 'none',
 });
+
+// Stable public names for Vite ?url imports.
+const RENAMES = [
+  ['defaultEntry.js', 'data-services-worker.mjs'],
+  ['fanOutWorkerEntry.js', 'data-services-fanout-worker.mjs'],
+];
+
+for (const [srcName, destName] of RENAMES) {
+  publishWorkerAsset(outDir, srcName, destName);
+}
+
+/**
+ * Rename an esbuild output to the stable public asset name and fix the
+ * `sourceMappingURL` comment so Vite can resolve the sibling `.map`.
+ */
+function publishWorkerAsset(outDir, srcName, destName) {
+  const srcPath = path.join(outDir, srcName);
+  const destPath = path.join(outDir, destName);
+  if (!fs.existsSync(srcPath)) return;
+
+  const destMapName = `${destName}.map`;
+  let code = fs.readFileSync(srcPath, 'utf8');
+  code = code.replace(
+    /\/\/# sourceMappingURL=.+$/m,
+    `//# sourceMappingURL=${destMapName}`,
+  );
+  fs.writeFileSync(destPath, code);
+  fs.unlinkSync(srcPath);
+
+  const srcMapPath = `${srcPath}.map`;
+  const destMapPath = path.join(outDir, destMapName);
+  if (fs.existsSync(srcMapPath)) {
+    const map = JSON.parse(fs.readFileSync(srcMapPath, 'utf8'));
+    map.file = destName;
+    fs.writeFileSync(destMapPath, JSON.stringify(map));
+    fs.unlinkSync(srcMapPath);
+  }
+}

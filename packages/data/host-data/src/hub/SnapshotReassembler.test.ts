@@ -96,7 +96,7 @@ describe('SnapshotReassembler', () => {
     expect(onTick).toHaveBeenCalledWith([{ id: 2 }]);
   });
 
-  it('ignores deltas after error status', () => {
+  it('ignores non-replace deltas after error status', () => {
     const onTick = vi.fn();
     const r = new SnapshotReassembler({ onTick });
 
@@ -106,14 +106,46 @@ describe('SnapshotReassembler', () => {
     expect(r.getPhase()).toBe('error');
   });
 
+  it('accepts replace:true during error (STOMP reconnect ordering)', () => {
+    const onReset = vi.fn();
+    const r = new SnapshotReassembler<{ id: number }>({ onReset });
+
+    r.onDelta([{ id: 1 }], true);
+    r.onStatus('ready');
+    r.onStatus('error', 'boom');
+    r.onDelta([{ id: 2 }], true);
+
+    expect(onReset).toHaveBeenCalledWith([{ id: 2 }]);
+    expect(r.getPhase()).toBe('loading');
+    expect(r.getRowCount()).toBe(1);
+  });
+
+  it('commits buffered rows on ready after error when loading was missed', async () => {
+    const onSnapshotReady = vi.fn();
+    const r = new SnapshotReassembler<{ id: number }>({ onSnapshotReady });
+
+    r.onDelta([{ id: 1 }], true);
+    r.onStatus('ready');
+    await Promise.resolve();
+    r.onStatus('error', 'boom');
+    r.onDelta([{ id: 2 }], true);
+    r.onStatus('ready');
+    await Promise.resolve();
+
+    expect(onSnapshotReady).toHaveBeenLastCalledWith([{ id: 2 }]);
+    expect(r.isSettled()).toBe(true);
+  });
+
   it('assembles cache refresh replay without disturbing settled state', async () => {
     const onSnapshotReady = vi.fn();
     const onCacheRefresh = vi.fn<(rows: readonly { id: number }[]) => void>();
     const onReset = vi.fn();
+    const onTick = vi.fn();
     const r = new SnapshotReassembler<{ id: number }>({
       onSnapshotReady,
       onCacheRefresh,
       onReset,
+      onTick,
     });
 
     r.onDelta([{ id: 1 }], true);
@@ -122,6 +154,7 @@ describe('SnapshotReassembler', () => {
     expect(r.isSettled()).toBe(true);
 
     r.beginCacheRefresh();
+    r.onStatus('loading');
     r.onDelta(chunk(0, CHUNK), true);
     r.onDelta(chunk(CHUNK, CHUNK), false);
     r.onStatus('ready');
@@ -131,5 +164,9 @@ describe('SnapshotReassembler', () => {
     expect(onCacheRefresh.mock.calls[0]![0]).toHaveLength(CHUNK * 2);
     expect(onReset).not.toHaveBeenCalled();
     expect(r.isSettled()).toBe(true);
+    expect(r.getPhase()).toBe('ready');
+
+    r.onDelta([{ id: 99 }], false);
+    expect(onTick).toHaveBeenCalledWith([{ id: 99 }]);
   });
 });

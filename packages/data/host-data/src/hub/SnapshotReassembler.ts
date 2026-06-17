@@ -67,7 +67,19 @@ export class SnapshotReassembler<T = unknown> {
 
   /** Wire a hub delta event. */
   onDelta(rows: readonly T[], replace: boolean): void {
-    if (this.phase === 'error') return;
+    if (this.phase === 'error') {
+      if (!replace) return;
+      // STOMP auto-reconnect emits `replace:true` before `status:loading`.
+      // Without this, the replace is dropped while phase is still `error`
+      // and a later `ready` can land without a snapshot commit.
+      this.head = [...rows];
+      this.tail = [];
+      this.settled = false;
+      this.phase = 'loading';
+      this.callbacks.onReset?.(rows);
+      this.emitRowCount();
+      return;
+    }
 
     if (this.refreshActive) {
       if (replace) this.refreshHead = [...rows];
@@ -118,6 +130,11 @@ export class SnapshotReassembler<T = unknown> {
         this.refreshActive = false;
         this.refreshHead = [];
         this.refreshTail = [];
+        // Restore live-tick routing — `loading` during replay clears
+        // `settled`; without this, post-refresh deltas buffer in `tail`
+        // instead of reaching `onTick`.
+        this.settled = true;
+        this.phase = 'ready';
         this.callbacks.onCacheRefresh?.(assembled);
       });
       return;
@@ -137,6 +154,19 @@ export class SnapshotReassembler<T = unknown> {
       // ordering matches MarketsGridContainer (snapshot.then before commit).
       Promise.resolve().then(() => {
         if (this.phase !== 'loading' || this.settled) return;
+        const assembled = this.assemble();
+        this.settled = true;
+        this.phase = 'ready';
+        this.callbacks.onSnapshotReady?.(assembled);
+      });
+      return;
+    }
+
+    if (status === 'ready' && this.phase === 'error' && !error) {
+      // `loading` was missed (ordering) but upstream declared ready — treat
+      // any buffered head/tail as the reconnect snapshot.
+      Promise.resolve().then(() => {
+        if (this.phase !== 'error') return;
         const assembled = this.assemble();
         this.settled = true;
         this.phase = 'ready';
