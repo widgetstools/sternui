@@ -6,11 +6,10 @@ export interface AppConfig {
   port: number;
   nodeEnv: string;
   /**
-   * Snapshot row width (env `ROW_PROFILE`): `wide` (default) = full
-   * ~8.5 KB nested records, `slim` = top-level primitives only
-   * (~1.1 KB) — serialization stops being the bottleneck so the live
-   * sweep sustains 4x the row rate. Use `slim` for high-frequency
-   * blotter stress tests.
+   * Snapshot row width (env `ROW_PROFILE`): `slim` (default) = top-level
+   * primitives only (~1.1 KB) — serialization stops being the bottleneck so
+   * the live sweep sustains 4x the row rate, the right shape for the default
+   * 20k high-frequency blotter. `wide` = full ~8.5 KB nested records.
    */
   rowProfile: RowProfile;
   /** Rows delivered in snapshot unless overridden by STOMP header `snapshot-rows` */
@@ -19,9 +18,9 @@ export interface AppConfig {
   maxSnapshotRows: number;
   /**
    * Distinct rows mutated + sent per live-update tick unless overridden by
-   * STOMP header `updates-per-tick`. Default 1 (one row per frame, the
-   * original behaviour). Raise to push a high-frequency stream — aggregate
-   * row-updates/sec ≈ `rate × liveUpdatesPerTick`.
+   * STOMP header `updates-per-tick`. Default 200 (high-frequency stream for
+   * the 20k blotter) — aggregate row-updates/sec ≈ `rate × liveUpdatesPerTick`,
+   * capped by `maxSweepRowsPerSec`.
    */
   liveUpdatesPerTick: number;
   /**
@@ -30,9 +29,9 @@ export interface AppConfig {
    * in parity waves (evens, then odds), targeting full coverage every
    * second; above this cap it degrades to full coverage every
    * rowCount/cap seconds instead of saturating the event loop. Default
-   * tracks the row profile's measured single-thread ceiling: `wide`
-   * rows (~8.5 KB) serialize at ~12k rows/s → default 10000; `slim`
-   * rows (~1.1 KB) at ~60k rows/s → default 40000. Drop it back if
+   * tracks the row profile's measured single-thread ceiling: `slim`
+   * rows (~1.1 KB, the default) serialize at ~60k rows/s → default 60000;
+   * `wide` rows (~8.5 KB) at ~12k rows/s → default 10000. Drop it back if
    * running many simultaneous clients.
    */
   maxSweepRowsPerSec: number;
@@ -61,8 +60,8 @@ export interface AppConfig {
 
 export function loadConfig(): AppConfig {
   const port = Number(process.env.PORT ?? 8081);
-  const rawDefault = Number(process.env.DEFAULT_SNAPSHOT_ROWS ?? 1_000);
-  const rawMin = Number(process.env.MIN_SNAPSHOT_ROWS ?? 20_000);
+  const rawDefault = Number(process.env.DEFAULT_SNAPSHOT_ROWS ?? 20_000);
+  const rawMin = Number(process.env.MIN_SNAPSHOT_ROWS ?? 1_000);
   const rawMax = Number(process.env.MAX_SNAPSHOT_ROWS ?? 20_000);
 
   const minSnapshotRows = Number.isFinite(rawMin) ? rawMin : 1_000;
@@ -76,14 +75,14 @@ export function loadConfig(): AppConfig {
   );
 
   const rawUpdatesPerTick = Number.parseInt(
-    process.env.UPDATES_PER_TICK ?? "1",
+    process.env.UPDATES_PER_TICK ?? "200",
     10,
   );
 
   const rowProfile: RowProfile =
-    process.env.ROW_PROFILE === "slim" ? "slim" : "wide";
+    process.env.ROW_PROFILE === "wide" ? "wide" : "slim";
 
-  const defaultSweepRows = rowProfile === "slim" ? 40_000 : 10_000;
+  const defaultSweepRows = rowProfile === "slim" ? 60_000 : 10_000;
   const rawSweepRows = Number.parseInt(
     process.env.SWEEP_ROWS_PER_SEC ?? String(defaultSweepRows),
     10,
