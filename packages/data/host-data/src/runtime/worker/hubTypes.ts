@@ -63,6 +63,11 @@ export interface PortLike {
   postMessage(message: unknown): void;
   /** Set when a {@link FanOutWorkerPool} proxy owns the underlying port. */
   fanOutClientId?: string;
+  /**
+   * Optional teardown for raw `MessagePort` listeners (inline fan-out
+   * path). Called from {@link SharedWorkerDataServicesHub.onPortClosed}.
+   */
+  dispose?: () => void;
 }
 
 /**

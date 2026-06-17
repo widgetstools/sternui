@@ -375,6 +375,11 @@ export class SharedWorkerDataServicesHub {
   /** Drop every subscription owned by this port. Called on disconnect. */
   onPortClosed(port: PortLike): void {
     this.releaseFanOutWorker(port);
+    try {
+      port.dispose?.();
+    } catch {
+      /* port already torn down */
+    }
     this.connectedPorts.delete(port);
     const idleCandidates = new Set<string>();
     for (const [providerId, listeners] of this.dataListeners) {

@@ -118,10 +118,6 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
     await handle.snapshot;
   }
 
-  async stop(): Promise<void> {
-    this.detach();
-  }
-
   async refresh(): Promise<void> {
     this.assertStarted();
     const rows = await this.handle!.refresh();
@@ -233,6 +229,19 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
       const error = err instanceof Error ? err : new Error(String(err));
       for (const handler of this.errorHandlers) handler(error);
     });
+  }
+
+  async stop(): Promise<void> {
+    this.detach();
+    this.clearHandlers();
+  }
+
+  private clearHandlers(): void {
+    this.rowsReceivedHandlers.clear();
+    this.snapshotHandlers.clear();
+    this.tickHandlers.clear();
+    this.errorHandlers.clear();
+    this.statusHandlers.clear();
   }
 
   private detach(): void {

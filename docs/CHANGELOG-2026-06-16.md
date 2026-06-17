@@ -251,6 +251,8 @@ Use this before treating the working-tree fixes as release-ready:
 
 ## Related documentation
 
+- [`MARKETSGRID_PERF_AND_MEMORY_AUDIT.md`](./MARKETSGRID_PERF_AND_MEMORY_AUDIT.md) — full-stack MarketsGrid performance + memory audit
+- [`MEMORY_LEAK_AUDIT.md`](./MEMORY_LEAK_AUDIT.md) — proactive leak audit + monitoring playbook (host-data layer)
 - [`hub-fanout-optimizations.md`](./hub-fanout-optimizations.md) — fan-out architecture and §12 worker pool
 - [`blotter-performance-roadmap.md`](./blotter-performance-roadmap.md) — remaining performance backlog
 - [`MARKETSGRID_USAGE_GUIDE.md`](./MARKETSGRID_USAGE_GUIDE.md) — production integration layers

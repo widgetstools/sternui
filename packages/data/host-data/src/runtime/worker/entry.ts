@@ -106,12 +106,24 @@ export async function installSharedWorkerHub(opts: InstallOpts = {}): Promise<In
       };
       fanOutPool.registerPending(clientId, port, { onMessage, onError });
     } else {
-      portLike = { postMessage: (m) => port.postMessage(m) };
-      port.addEventListener('message', (ev: MessageEvent) => {
+      const onMessage = (ev: MessageEvent) => {
         if (isRequest(ev.data)) hub.handleRequest(portLike, ev.data);
         else if (isAppDataRequest(ev.data)) hub.handleAppDataRequest(portLike, ev.data);
-      });
-      port.addEventListener('messageerror', () => hub.onPortClosed(portLike));
+      };
+      const onError = () => hub.onPortClosed(portLike);
+      portLike = {
+        postMessage: (m) => port.postMessage(m),
+        dispose: () => {
+          try {
+            port.removeEventListener('message', onMessage);
+            port.removeEventListener('messageerror', onError);
+          } catch {
+            /* port may already be closed */
+          }
+        },
+      };
+      port.addEventListener('message', onMessage);
+      port.addEventListener('messageerror', onError);
       port.start();
     }
   };
