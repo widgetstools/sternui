@@ -18,7 +18,11 @@
  *      nested object (`row.a.b`) from a literal-dot key (`row['a.b']`);
  *      our helper tries the flat key first, then walks.
  *
- *   3. Flat field, no expression → untouched; AG-Grid's native fast path.
+ *   3. Flat field, no expression → native fast path (no valueGetter).
+ *
+ * Additionally, every column that doesn't declare its own `filter` defaults
+ * to AG-Grid's Multi Filter — tab 1 is the filter for the column's
+ * `cellDataType` (number / date / text), tab 2 is always the Set Filter.
  *
  * Compile + parse are memoised by expression string (bounded FIFO cache).
  * Per-row evaluation reuses one mutable `EvaluationContext` per getter
@@ -153,12 +157,58 @@ function makeExpressionGetter(
 }
 
 /**
- * Convert one persisted column definition into an AG-Grid ColDef.
+ * AG-Grid filter component appropriate for a column's `cellDataType` — used
+ * as the FIRST tab of the Multi Filter (the Set Filter is always the second
+ * tab; see {@link withMultiColumnFilter}). Number → Number Filter, date /
+ * dateString → Date Filter; everything else (text, object, boolean, or an
+ * un-set / inferred type) falls back to the Text Filter.
+ */
+function dataTypeFilter(cellDataType: string | undefined): string {
+  switch (cellDataType) {
+    case 'number':
+      return 'agNumberColumnFilter';
+    case 'date':
+    case 'dateString':
+      return 'agDateColumnFilter';
+    default:
+      return 'agTextColumnFilter';
+  }
+}
+
+/**
+ * Default a column to AG-Grid's Multi Filter (`agMultiColumnFilter`):
+ *   • tab 1 — the filter appropriate for the column's `cellDataType`
+ *             (number / date / text)
+ *   • tab 2 — always the Set Filter (`agSetColumnFilter`)
+ *
+ * A column that already declares its own `filter` is left untouched, so a
+ * per-column choice (the FilterEditor customizer, or a host-authored colDef)
+ * wins. The Multi Filter's floating filter (`agMultiColumnFloatingFilter`) is
+ * picked by AG-Grid automatically, so the `floatingFilter: true` default on
+ * the grid's defaultColDef keeps rendering the floating row.
+ */
+function withMultiColumnFilter<TData>(def: ColDef<TData>): ColDef<TData> {
+  if (def.filter !== undefined) return def;
+  const cellDataType = typeof def.cellDataType === 'string' ? def.cellDataType : undefined;
+  return {
+    ...def,
+    filter: 'agMultiColumnFilter',
+    filterParams: {
+      filters: [
+        { filter: dataTypeFilter(cellDataType) },
+        { filter: 'agSetColumnFilter' },
+      ],
+    },
+  };
+}
+
+/**
+ * Resolve the `valueGetter` for one persisted column definition.
  * `def` is the loosely-typed config object (a `ColumnDefinition` widened
  * to `ColDef` by the caller); it may carry a string `valueGetter` which
  * we always replace with a function or strip.
  */
-function toColDef<TData>(def: ColDef<TData>): ColDef<TData> {
+function resolveColDef<TData>(def: ColDef<TData>): ColDef<TData> {
   const field = typeof def.field === 'string' ? def.field : undefined;
   const expr = typeof def.valueGetter === 'string' ? def.valueGetter.trim() : '';
 
@@ -188,6 +238,14 @@ function toColDef<TData>(def: ColDef<TData>): ColDef<TData> {
   }
 
   return expr ? { ...def, valueGetter: undefined } : def;
+}
+
+/**
+ * Convert one persisted column definition into an AG-Grid ColDef: resolve its
+ * `valueGetter`, then apply the default Multi Filter ({@link withMultiColumnFilter}).
+ */
+function toColDef<TData>(def: ColDef<TData>): ColDef<TData> {
+  return withMultiColumnFilter(resolveColDef(def));
 }
 
 /**

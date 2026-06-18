@@ -31,6 +31,59 @@ describe('buildColumnDefs', () => {
     expect(def.valueGetter).toBeUndefined();
   });
 
+  describe('default Multi Filter', () => {
+    /** Read the configured sub-filter names off a built Multi Filter colDef. */
+    function subFilters(def: ColDef): unknown {
+      expect(def.filter).toBe('agMultiColumnFilter');
+      return (def.filterParams as { filters: Array<{ filter: string }> }).filters.map(
+        (f) => f.filter,
+      );
+    }
+
+    it('text / object / no cellDataType → Text Filter then Set Filter', () => {
+      expect(subFilters(buildColumnDefs([{ field: 'cusip' }])![0])).toEqual([
+        'agTextColumnFilter',
+        'agSetColumnFilter',
+      ]);
+      expect(
+        subFilters(buildColumnDefs([{ field: 'meta', cellDataType: 'object' }] as ColDef[])![0]),
+      ).toEqual(['agTextColumnFilter', 'agSetColumnFilter']);
+    });
+
+    it('number cellDataType → Number Filter then Set Filter', () => {
+      expect(
+        subFilters(buildColumnDefs([{ field: 'qty', cellDataType: 'number' }] as ColDef[])![0]),
+      ).toEqual(['agNumberColumnFilter', 'agSetColumnFilter']);
+    });
+
+    it('date / dateString cellDataType → Date Filter then Set Filter', () => {
+      expect(
+        subFilters(buildColumnDefs([{ field: 'tradeDate', cellDataType: 'date' }] as ColDef[])![0]),
+      ).toEqual(['agDateColumnFilter', 'agSetColumnFilter']);
+      expect(
+        subFilters(
+          buildColumnDefs([{ field: 'settle', cellDataType: 'dateString' }] as ColDef[])![0],
+        ),
+      ).toEqual(['agDateColumnFilter', 'agSetColumnFilter']);
+    });
+
+    it('respects a column that already declares its own filter', () => {
+      const [def] = buildColumnDefs([
+        { field: 'cusip', filter: 'agTextColumnFilter' },
+      ] as ColDef[])!;
+      expect(def.filter).toBe('agTextColumnFilter');
+      expect(def.filterParams).toBeUndefined();
+    });
+
+    it('applies the Multi Filter alongside a resolved expression getter', () => {
+      const [def] = buildColumnDefs([
+        { field: 'x', cellDataType: 'number', valueGetter: '[a] + [b]' },
+      ] as ColDef[])!;
+      expect(typeof def.valueGetter).toBe('function');
+      expect(subFilters(def)).toEqual(['agNumberColumnFilter', 'agSetColumnFilter']);
+    });
+  });
+
   it('installs a nested-path getter for a dotted field (no expression)', () => {
     const [def] = buildColumnDefs([{ field: 'pnl.wrapper.value' }])!;
     expect(def.colId).toBe('pnl.wrapper.value');

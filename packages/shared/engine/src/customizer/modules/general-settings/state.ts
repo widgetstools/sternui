@@ -201,6 +201,13 @@ export interface GeneralSettingsState {
   enablePivot: boolean;
   /** Allow dragging this column into the values / aggregations panel. */
   enableValue: boolean;
+  /** AG-Grid `defaultColDef.defaultAggFunc` — the aggregation function
+   *  pre-selected when a column is dragged into the values panel (or
+   *  aggregated from the tool panel). One of the built-ins `'sum'`, `'avg'`,
+   *  `'min'`, `'max'`, `'count'`, `'first'`, `'last'`. Unlike `aggFunc`, this
+   *  does NOT force columns to aggregate — it only changes the default pick
+   *  (AG-Grid's own default is `'sum'`). `undefined` falls back to AG-Grid's. */
+  defaultAggFunc: string | undefined;
 
   // Legacy / shared flags (kept on the state so existing profiles
   // migrate additively)
@@ -268,7 +275,7 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   animateRows: false,
   cellFlashDuration: 500,
   cellFadeDuration: 1000,
-  cellChangeFlashColor: 'amber',
+  cellChangeFlashColor: 'emerald',
   quickFilterText: '',
 
   // Tier 2
@@ -276,11 +283,11 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   groupDefaultExpanded: 0,
   rowGroupPanelShow: 'always',
   pivotMode: false,
-  pivotPanelShow: 'never',
-  grandTotalRow: undefined,
-  groupTotalRow: undefined,
+  pivotPanelShow: 'always',
+  grandTotalRow: 'pinnedBottom',
+  groupTotalRow: 'bottom',
   groupHideOpenParents: false,
-  suppressAggFuncInHeader: false,
+  suppressAggFuncInHeader: true,
   // Row grouping — extended options
   showOpenedGroup: false,
   groupHideColumnsUntilExpanded: false,
@@ -329,14 +336,14 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   defaultSortable: true,
   defaultFilterable: true,
   unSortIcon: false,
-  floatingFilter: false,
+  floatingFilter: true,
   // Editing
   defaultEditable: false,
   suppressPaste: false,
   suppressNavigable: false,
   // Header
   wrapHeaderText: true,
-  autoHeaderHeight: false,
+  autoHeaderHeight: true,
   suppressHeaderMenuButton: false,
   // Movement & locking
   suppressMovable: false,
@@ -346,11 +353,12 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   // Cell content
   wrapText: false,
   autoHeight: false,
-  enableCellChangeFlash: false,
+  enableCellChangeFlash: true,
   // Row grouping / pivoting
   enableRowGroup: true,
-  enablePivot: false,
-  enableValue: false,
+  enablePivot: true,
+  enableValue: true,
+  defaultAggFunc: 'sum',
   // Legacy / shared flags
   enableCellTextSelection: false,
   suppressDragLeaveHidesColumns: true,

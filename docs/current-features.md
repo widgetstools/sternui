@@ -409,12 +409,21 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
   sheet-local state (active module, per-module selection) survives reopen
 - Grid Options bands mount progressively — first commit mounts only the
   first 3 bands (≈ one viewport), the rest fill in one-per-`requestIdleCallback`
-  slice (200ms timeout cap) so the heavy ~92-control mount never lands inside
+  slice (200ms timeout cap) so the heavy ~93-control mount never lands inside
   the drawer slide-in animation; sidebar nav clicks force-mount their target
   band, an active search filter mounts all matching bands, and environments
   without `requestIdleCallback` (jsdom) mount everything up front; unmounted
   bands hold a fixed-height placeholder and mounted off-screen bands still
   use `content-visibility: auto` to skip paint work
+- `DEFAULT AGG` select (Pivot · Totals · Aggregation band) maps to AG-Grid's
+  `defaultColDef.defaultAggFunc` — the agg function pre-selected when a column
+  is dragged into the values panel (built-ins `sum`/`avg`/`min`/`max`/`count`/
+  `first`/`last`); unlike `aggFunc` it does **not** force columns to aggregate
+- Default profile (`INITIAL_GENERAL_SETTINGS`) ships aggregation-ready: pivot
+  panel `always`, grand-total `pinnedBottom`, group-total `bottom`,
+  `suppressAggFuncInHeader`, `enablePivot`/`enableValue` on, `defaultAggFunc`
+  `sum`, plus `floatingFilter` + `autoHeaderHeight` on the default ColDef and
+  cell-change-flash on in `emerald`
 
 #### Help, status & overlays
 
@@ -603,7 +612,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `useProviderDataWiring` — provider→grid hot path inside `MarketsGridContainer`; pauses live-tick `applyTransactionAsync` while `document.hidden` (background OpenFin views) and runs one `provider.refresh()` cache replay when the view becomes visible again; on STOMP auto-reconnect (`error` → `ready`) clears the stale banner and triggers `provider.refresh()` so every blotter replays the hub cache without a manual Reload
 - `MarketsGridContainer` — when an active provider id is chosen but `useDataProviderConfig` is still loading, renders a lightweight placeholder (no throwaway `MarketsGrid` / AG Grid shell); the `__no_provider__` shell path is unchanged when no provider is selected or cfg is loaded but missing key/columns
 - `applyProviderToGrid` — live-tick add/update split with pending-add coalescing (`createApplyProviderToGridState`, `splitProviderRowsForGrid`, `splitProviderRowsWithResolver`); after snapshot commit, `markSnapshotLoaded` indexes row ids so live ticks avoid O(n) `getRowNode`; ticks for ids still in an async add queue retain the latest payload instead of being dropped so peer grids on the same hub provider stay row-count aligned; internal to `MarketsGridContainer` / `useBlotterDataConnection` (not on public barrel)
-- `buildColumnDefs` — maps a provider's persisted `ColumnDefinition[]` to AG Grid `ColDef[]` for `MarketsGridContainer`. Per column: a `valueGetter` DSL expression compiles once (bounded FIFO cache) to a CSP-safe `@starui/engine` **compiled closure** (not per-cell AST walk); dotted `field` uses cached `getPathAccessor`; flat field stays on AG Grid's native path. Expression getters never throw — parse errors fall back to the field binding, runtime errors to the field value (warn once per expression); reusable per-getter `EvaluationContext` avoids per-cell allocations under high-frequency updates. Soak: `npm run soak:value-getter` (`valueGetter.soak.test.ts`, `SOAK=1`) — sustained eval load + heap-delta guard. **Internal** — not on public barrel
+- `buildColumnDefs` — maps a provider's persisted `ColumnDefinition[]` to AG Grid `ColDef[]` for `MarketsGridContainer`. Per column: a `valueGetter` DSL expression compiles once (bounded FIFO cache) to a CSP-safe `@starui/engine` **compiled closure** (not per-cell AST walk); dotted `field` uses cached `getPathAccessor`; flat field stays on AG Grid's native path. Every column with no explicit `filter` defaults to the **Multi Filter** (`agMultiColumnFilter`): tab 1 is the `cellDataType`-appropriate filter (`number`→`agNumberColumnFilter`, `date`/`dateString`→`agDateColumnFilter`, else `agTextColumnFilter`), tab 2 is always `agSetColumnFilter`; a column that already declares its own `filter` is left untouched (FilterEditor / host choice wins). Expression getters never throw — parse errors fall back to the field binding, runtime errors to the field value (warn once per expression); reusable per-getter `EvaluationContext` avoids per-cell allocations under high-frequency updates. Soak: `npm run soak:value-getter` (`valueGetter.soak.test.ts`, `SOAK=1`) — sustained eval load + heap-delta guard. **Internal** — not on public barrel
 - Custom Settings panel (`toolbar-date-settings` module) — four sections: Toolbar Date (historical date → AppData config), Data Provider (live/historical pickers, mode, as-of date) when `providerGridHost` is wired, Event Callbacks (event→handler bindings) when `gridEventBindingsHost` is wired, and Row Filter (row-exclusion expression). All settings are staged and applied only on the panel's explicit Save (Reset reverts); imperative actions (refresh/reload/edit) stay immediate
 - Row exclusion — implemented in `@starui/grid` `toolbar-date-settings` module (not widgets-react): multiline Monaco `ExpressionEditor` authors an EXCLUDE-when-true DSL predicate (column refs `[field]`, nested optional-chaining paths `[a.b.c]`, e.g. `[ccy] == "INR"`, `[active] == false`); keystrokes stage into the panel draft (applied on Save). `transformGridOptions` installs it as AG Grid's external filter (`isExternalFilterPresent` / `doesExternalFilterPass`) and the module's `activate` calls `api.onFilterChanged()` on cell edits, expression edits, and first ready. Rows are hidden, not removed — they reappear when the offending value changes; parse/eval failure excludes nothing (`rowExclusionFilter.ts`, fails open)
 - `ProviderEditorDialog` — modal hosting `DataProviderEditor`

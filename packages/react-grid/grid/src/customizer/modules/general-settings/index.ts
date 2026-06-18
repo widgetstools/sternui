@@ -273,6 +273,11 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
         enableRowGroup: s.enableRowGroup,
         enablePivot: s.enablePivot,
         enableValue: s.enableValue,
+        // AG-Grid ColDef `defaultAggFunc` — the agg function pre-selected
+        // when a column is dragged into the values panel (or aggregated via
+        // the tool panel). NOT `aggFunc`, which would force EVERY column to
+        // aggregate. AG-Grid's own default for this is 'sum'.
+        defaultAggFunc: s.defaultAggFunc,
         // Cell tooltip — show every cell's RAW underlying value on hover
         // (the unformatted datum, not `params.valueFormatted`), so the full
         // content is visible regardless of any currency/date `valueFormatter`.
