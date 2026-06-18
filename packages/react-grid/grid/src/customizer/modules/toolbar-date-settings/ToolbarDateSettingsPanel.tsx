@@ -267,6 +267,9 @@ export function ToolbarDateSettingsPanel(): ReactElement {
     if (bindingsHost?.available && bindingsStaged.dirty) {
       bindingsHost.setBindings(bindingsStaged.value);
     }
+    // `saveDate` (useModuleDraft.save) emits `settings:save-requested`, which
+    // flushes the active profile — so the toolbar-date + row-filter cards
+    // persist alongside the gridLevelData-backed provider/bindings cards.
   }, [
     saveDate,
     providerHost,
