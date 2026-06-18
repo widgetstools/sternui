@@ -5,7 +5,7 @@ import { controls, radius, spacing, typography } from '@starui/design-system/tok
 import { cn } from '@starui/ui';
 import { FormatPopover } from '../format-editor';
 import { Caps, IconInput, SubLabel } from '../SettingsPanel';
-import { ExcelReferencePopover } from './ExcelReferencePopover';
+import { ExcelReferenceList } from './ExcelReferenceList';
 import { EXCEL_EXAMPLES } from './excelExamples';
 import { CURRENCY_QUICK_INSERT, applyCurrencySymbol } from './currencyQuickInsert';
 import { GROUP_LABELS, groupKeyForPreset } from './presetGroups';
@@ -123,6 +123,11 @@ function CompactFormatterBody({
   const [showCustom, setShowCustom] = useState(
     () => !!draftExcel && !activePreset,
   );
+
+  // Excel reference expands inline, in-place — NOT as a second popover
+  // stacked on the picker popover (which was fragile: one mis-aimed
+  // click collapsed the whole stack).
+  const [showReference, setShowReference] = useState(false);
 
   return (
     <div
@@ -404,19 +409,56 @@ function CompactFormatterBody({
                 data-testid={testId ? `${testId}-apply` : undefined}
                 onClick={() => commitExcel(draftExcel)}
               />
-              <ExcelReferencePopover
-                onPick={(format) => {
-                  setDraftExcel(format);
-                  commitExcel(format);
-                }}
+              {/* Reference — toggles an INLINE example list (no nested
+               *  popover). Highlighted while open. */}
+              <ChromeButton
+                type="button"
+                onClick={() => setShowReference((s) => !s)}
+                aria-expanded={showReference}
+                title="Excel format reference"
+                aria-label="Excel format reference"
                 data-testid={testId ? `${testId}-info` : undefined}
-              />
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: controls.sm.height,
+                  height: controls.sm.height,
+                  padding: 0,
+                  background: showReference ? 'var(--ds-primary-soft)' : 'transparent',
+                  border: `1px solid ${
+                    showReference ? 'var(--ds-primary)' : 'var(--ds-border-secondary)'
+                  }`,
+                  borderRadius: radius.md,
+                  color: showReference ? 'var(--ds-primary)' : 'var(--ds-text-muted)',
+                  cursor: 'pointer',
+                  transition: 'background 100ms, border-color 100ms, color 100ms',
+                }}
+              >
+                <Info size={12} strokeWidth={1.75} />
+              </ChromeButton>
             </div>
-            <Caps size="2xs" color="var(--ds-text-faint)">
-              {EXCEL_EXAMPLES.length} categories of example formats in the{' '}
-              <Info size={9} strokeWidth={2} className="inline align-middle" />{' '}
-              reference.
-            </Caps>
+            {showReference ? (
+              <div
+                className="rounded-[2px] border border-border"
+                style={{ background: 'var(--ds-surface-ground)' }}
+              >
+                <ExcelReferenceList
+                  maxHeight={200}
+                  onPick={(format) => {
+                    setDraftExcel(format);
+                    commitExcel(format);
+                    setShowReference(false);
+                  }}
+                />
+              </div>
+            ) : (
+              <Caps size="2xs" color="var(--ds-text-faint)">
+                {EXCEL_EXAMPLES.length} categories of example formats in the{' '}
+                <Info size={9} strokeWidth={2} className="inline align-middle" />{' '}
+                reference.
+              </Caps>
+            )}
           </>
         ) : null}
       </div>
