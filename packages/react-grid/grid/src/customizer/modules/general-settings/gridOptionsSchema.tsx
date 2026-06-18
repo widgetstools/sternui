@@ -160,6 +160,20 @@ export const GRID_OPTIONS_SCHEMA: readonly BandSchema[] = [
         ],
       },
       { kind: 'bool', key: 'suppressAggFuncInHeader', label: 'SUPPRESS AGG', hint: 'Strip aggregation function names from group headers', testId: 'go-suppress-agg-in-header' },
+      {
+        kind: 'select', key: 'defaultAggFunc', label: 'DEFAULT AGG', testId: 'go-default-agg-func',
+        hint: 'Aggregation applied to value columns by default',
+        options: [
+          { value: undefined, label: 'None' },
+          { value: 'sum', label: 'Sum' },
+          { value: 'avg', label: 'Avg' },
+          { value: 'min', label: 'Min' },
+          { value: 'max', label: 'Max' },
+          { value: 'count', label: 'Count' },
+          { value: 'first', label: 'First' },
+          { value: 'last', label: 'Last' },
+        ],
+      },
     ],
   },
 
