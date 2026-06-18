@@ -2,9 +2,8 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { LOGGED_IN_USER_ID } from '@starui/types';
 import { BrowserRuntime } from '@starui/host-browser';
 import type { RuntimePort } from '@starui/host';
-import type { ConfigClient, ConfigManager } from '@starui/host-config';
+import type { ConfigManager } from '@starui/host-config';
 import {
-  createConfigClient,
   createConfigServiceStorage,
   createConfigPort,
 } from '@starui/host-config';
@@ -18,10 +17,6 @@ export interface StarGridAppProps extends StarGridAppOptions {
 
 /** Stable default — inline `[]` in destructuring is a new ref every render and retriggers bootstrap. */
 const EMPTY_PLUGINS = [] as const satisfies NonNullable<StarGridAppOptions['plugins']>;
-
-function isConfigManager(value: ConfigManager | ConfigClient): value is ConfigManager {
-  return typeof (value as ConfigManager).init === 'function';
-}
 
 /**
  * `<StarGridApp>` — declarative root for StarGrid consumer apps.
@@ -48,8 +43,7 @@ export function StarGridApp({
 }: StarGridAppProps): ReactNode {
   const [resolved, setResolved] = useState<{
     runtime: RuntimePort;
-    configManager?: ConfigClient;
-    configManagerInner?: ConfigManager;
+    configManager?: ConfigManager;
     data?: import('@starui/host').DataPort;
   } | null>(null);
 
@@ -69,23 +63,17 @@ export function StarGridApp({
               },
             });
 
-      let configManager: ConfigClient | undefined;
-      let configManagerInner: ConfigManager | undefined;
+      let configManager: ConfigManager | undefined;
       if (configManagerProp !== undefined) {
         const raw = await Promise.resolve(configManagerProp);
-        if (isConfigManager(raw)) {
-          await raw.init();
-          configManagerInner = raw;
-          configManager = createConfigClient({ configManager: raw });
-        } else {
-          configManager = raw;
-        }
+        await raw.init();
+        configManager = raw;
       }
 
       const data = dataProp !== undefined ? await Promise.resolve(dataProp) : undefined;
 
       if (!cancelled) {
-        setResolved({ runtime, configManager, configManagerInner, data });
+        setResolved({ runtime, configManager, data });
         for (const plugin of plugins) {
           await plugin.register?.({ appId });
         }
@@ -113,8 +101,8 @@ export function StarGridApp({
   const storageFactory = useMemo(() => {
     if (!resolved) return undefined;
     const configStorageFactory =
-      persistence === 'config' && resolved.configManagerInner
-        ? createConfigServiceStorage({ configManager: resolved.configManagerInner })
+      persistence === 'config' && resolved.configManager
+        ? createConfigServiceStorage({ configManager: resolved.configManager })
         : undefined;
     return storageFactoryForPersistence(persistence, configStorageFactory);
   }, [resolved, persistence, appId, userId]);
@@ -123,9 +111,9 @@ export function StarGridApp({
     if (!resolved || !storageFactory) return null;
 
     const configPort =
-      resolved.configManagerInner !== undefined
+      resolved.configManager !== undefined
         ? createConfigPort({
-            configManager: resolved.configManagerInner,
+            configManager: resolved.configManager,
             appId,
             userId,
           })

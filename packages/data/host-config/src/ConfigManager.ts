@@ -19,11 +19,11 @@
 import Dexie from 'dexie';
 import { ChangeNotifier } from './changeNotifier';
 import { ConfigDatabase } from './db';
-import { OptimisticLockError } from './errors';
+import { ConfigNotFoundError, OptimisticLockError } from './errors';
 import { normalizeImportedAppConfigRow, normalizeSeedData, parseSeedJson } from './normalizeSeedData';
 import { computeSeedDigest, seedDigestStorageKey } from './seedDigest';
-import { createProfilesNamespace } from './profiles';
-import type { ProfilesNamespace } from './profilesTypes';
+import { createProfilesNamespace } from './profileBundle';
+import type { ProfilesNamespace } from './profileBundle.types';
 import type {
   AppConfigRow,
   AppIdentity,
@@ -78,17 +78,25 @@ export interface SaveConfigOptions {
 }
 
 /**
- * Create a new ConfigManager instance.
- *
- * @deprecated Prefer `createConfigClient(...)` from `./client`. Per
- * Decision 13 (config-manager-redesign), `ConfigClient` is the canonical
- * forward-looking surface for component configuration; `ConfigManager`
- * is collapsing to a private implementation detail behind the
- * `LocalConfigClient` wrapper. Use `createConfigClient` for new feature
- * code; keep `createConfigManager` only for legacy paths that still
- * need the auth-table / dock-snapshot helper methods that haven't been
- * lifted onto `ConfigClient` yet (those follow in the next session-set,
- * after which this factory will be removed).
+ * Minimal fields to create a new `appConfig` row via
+ * {@link ConfigManager.createConfig} — `creationTime` / `updatedTime`
+ * are stamped by the manager.
+ */
+export type CreateConfigInput = Omit<AppConfigRow, 'creationTime' | 'updatedTime'>;
+
+/** Behavior knobs for {@link ConfigManager.updateConfig}. */
+export interface UpdateConfigOptions {
+  /**
+   * The `updatedTime` the caller observed at edit-start; rejects the
+   * write with {@link OptimisticLockError} if the row has moved on.
+   */
+  expectedUpdatedTime?: string;
+}
+
+/**
+ * Create a new ConfigManager instance — the single entry point for the
+ * config service. Local Dexie by default; pass `configServiceRestUrl`
+ * to sync writes to a REST backend with Dexie as a local cache.
  *
  * @example
  * ```typescript
@@ -106,15 +114,12 @@ export function createConfigManager(options: ConfigManagerOptions = {}): ConfigM
 }
 
 /**
- * The ConfigManager provides CRUD operations for all config service
- * database tables. It handles seeding, dual-mode persistence, and
- * sync retry logic.
- *
- * @deprecated New feature code should consume `ConfigClient` (from
- * `./client`) instead. `ConfigManager` is being collapsed behind
- * `LocalConfigClient` — see Decision 13 in
- * `docs/plans/plan-2026-05-07/config-manager-redesign.md` and the
- * follow-up session-set that removes the factory and class.
+ * The single config-service API. Provides CRUD over all six database
+ * tables (appConfig + the auth tables), the `profiles` namespace for
+ * bundled MarketsGrid profile-sets, seeding, dual-mode persistence
+ * (local Dexie / REST with retry), visibility filtering, and owner /
+ * audit stamping. One instance per execution context (window or
+ * SharedWorker); all share the same `marketsui-config` IndexedDB.
  */
 export class ConfigManager {
   private db: ConfigDatabase;
@@ -133,6 +138,24 @@ export class ConfigManager {
   /** Cross-tab + same-tab change notifier. Posted to from `saveConfig`
    *  and `deleteConfig`; subscribed by `profiles.subscribe`. */
   private readonly changeNotifier: ChangeNotifier;
+  /**
+   * Single-row read cache keyed by `configId` (negative results cached
+   * too, so a known-missing row doesn't re-hit Dexie). Write-through on
+   * `saveConfig`, evicted on `deleteConfig`, and invalidated by the
+   * change notifier on EVERY write — same-tab AND cross-tab (a sibling
+   * tab's write broadcasts `configChanged` → the listener registered in
+   * the constructor drops the key here, so the next read re-fetches the
+   * shared IndexedDB row). This collapses the documented "read the whole
+   * bundle 3-4× per profile save" into one Dexie hit without any staleness
+   * window the existing notifier didn't already close.
+   *
+   * Bounded by the config keyspace (hundreds of rows — see
+   * `docs/CONFIG_SERVICE_BASELINE.md` §3), with a hard cap as a backstop
+   * so a pathological caller can't grow it without bound.
+   */
+  private readonly rowCache = new Map<string, AppConfigRow | undefined>();
+  /** Backstop cap for {@link rowCache}; clears wholesale when exceeded. */
+  private static readonly ROW_CACHE_MAX = 1000;
   /** First-class `profiles` namespace — see `./profiles.ts` and
    *  `docs/PROFILE-STATE-CONSOLIDATION.md` for the API. Backed by the
    *  same bundled row that `createConfigServiceStorage` writes. */
@@ -147,6 +170,14 @@ export class ConfigManager {
     this.identity = options.identity ?? DEFAULT_IDENTITY;
     this.dataServices = options.dataServices;
     this.changeNotifier = new ChangeNotifier();
+    // Evict the read cache on every write — local and cross-tab. The
+    // notifier fires this for our own `notify` calls AND for inbound
+    // BroadcastChannel messages from sibling tabs, so a row another tab
+    // mutated never lingers stale here. Auto-released on `dispose()` when
+    // the notifier clears its global listeners.
+    this.changeNotifier.subscribeAll((configId) => {
+      this.rowCache.delete(configId);
+    });
     this.profiles = createProfilesNamespace(this, this.changeNotifier);
   }
 
@@ -587,6 +618,7 @@ export class ConfigManager {
       this.drainIntervalId = undefined;
     }
     this.changeNotifier.dispose();
+    this.rowCache.clear();
     this.db.close();
   }
 
@@ -614,9 +646,30 @@ export class ConfigManager {
   /**
    * Get a single config by its ID.
    * Returns undefined if no config exists with that ID.
+   *
+   * Served from {@link rowCache} when warm; otherwise reads Dexie once and
+   * memoizes the result (including a miss). The cache is invalidated on
+   * every write via the change notifier, so a hit is never staler than the
+   * shared IndexedDB row.
    */
   async getConfig(configId: string): Promise<AppConfigRow | undefined> {
-    return this.db.appConfig.get(configId);
+    if (this.rowCache.has(configId)) {
+      return this.rowCache.get(configId);
+    }
+    const row = await this.db.appConfig.get(configId);
+    this.cacheRow(configId, row);
+    return row;
+  }
+
+  /** Insert into {@link rowCache}, clearing wholesale past the cap. */
+  private cacheRow(configId: string, row: AppConfigRow | undefined): void {
+    if (
+      this.rowCache.size >= ConfigManager.ROW_CACHE_MAX &&
+      !this.rowCache.has(configId)
+    ) {
+      this.rowCache.clear();
+    }
+    this.rowCache.set(configId, row);
   }
 
   /**
@@ -640,7 +693,10 @@ export class ConfigManager {
    * writes are rare and the read is local Dexie.
    */
   async saveConfig(config: AppConfigRow, options?: SaveConfigOptions): Promise<void> {
-    const existing = await this.db.appConfig.get(config.configId);
+    // Read the prior row through the cache: on the profile-save hot path
+    // the bundle was already fetched by the caller, so this is a hit and
+    // the optimistic-lock check below costs no extra Dexie round-trip.
+    const existing = await this.getConfig(config.configId);
     const isInsert = existing === undefined;
 
     // Optimistic locking (Decision 12.5 / Session 6). When the caller
@@ -670,6 +726,72 @@ export class ConfigManager {
     // touches their `configId`. Fired AFTER Dexie's write resolves so
     // a refetch from the listener sees the new row.
     this.changeNotifier.notify(config.configId);
+    // Re-warm the cache with the row we just wrote. Ordered AFTER `notify`,
+    // whose invalidation listener first drops the key — so we land on the
+    // fresh row, not a value the eviction would clear.
+    this.cacheRow(config.configId, config);
+  }
+
+  /**
+   * Create a new config row, stamping `creationTime` / `updatedTime`.
+   * Convenience over {@link saveConfig} for callers that hold everything
+   * but the timestamps (e.g. widget layouts). Returns the persisted row.
+   */
+  async createConfig(input: CreateConfigInput): Promise<AppConfigRow> {
+    const now = new Date().toISOString();
+    const row: AppConfigRow = { ...input, creationTime: now, updatedTime: now };
+    await this.saveConfig(row);
+    return row;
+  }
+
+  /**
+   * Patch an existing config row (read-modify-write). Throws
+   * {@link ConfigNotFoundError} if the row is missing, and
+   * {@link OptimisticLockError} when `expectedUpdatedTime` no longer
+   * matches the stored row. Returns the merged, persisted row.
+   */
+  async updateConfig(
+    configId: string,
+    patch: Partial<AppConfigRow>,
+    options?: UpdateConfigOptions,
+  ): Promise<AppConfigRow> {
+    const existing = await this.getConfig(configId);
+    if (!existing) throw new ConfigNotFoundError(configId);
+    if (
+      options?.expectedUpdatedTime !== undefined &&
+      existing.updatedTime !== options.expectedUpdatedTime
+    ) {
+      throw new OptimisticLockError(existing);
+    }
+    const next: AppConfigRow = {
+      ...existing,
+      ...patch,
+      configId,
+      updatedTime: new Date().toISOString(),
+    };
+    await this.saveConfig(next);
+    return next;
+  }
+
+  /**
+   * Get every visible row whose `componentType` matches (optionally also
+   * `componentSubType`). Visibility-filtered — cross-app and not-mine
+   * private rows are excluded. For the unfiltered, index-backed bulk read
+   * used by the provider catalog, prefer
+   * {@link getConfigsByComponentTypesUnfiltered}.
+   */
+  async findByComponentType(
+    componentType: string,
+    componentSubType?: string,
+  ): Promise<AppConfigRow[]> {
+    const rows = await this.getAllConfigs();
+    return rows.filter((row) => {
+      if (row.componentType !== componentType) return false;
+      if (componentSubType !== undefined && row.componentSubType !== componentSubType) {
+        return false;
+      }
+      return true;
+    });
   }
 
   /**
@@ -682,6 +804,9 @@ export class ConfigManager {
     }
     await this.db.appConfig.delete(configId);
     this.changeNotifier.notify(configId);
+    // `notify` already evicted via the invalidation listener; this is a
+    // belt-and-braces drop in case the notifier was disabled.
+    this.rowCache.delete(configId);
   }
 
   /**
@@ -1069,75 +1194,6 @@ export class ConfigManager {
     return false;
   }
 
-  // ─── Workspace snapshot convenience methods ────────────────────────
-  // Snapshots are stored as APP_CONFIG rows with
-  // componentType = "WORKSPACE_SNAPSHOT". The config field holds
-  // the snapshot payload (e.g. { instanceIds: [...] }).
-
-  /**
-   * Save a workspace snapshot as an APP_CONFIG row.
-   * In REST mode, also sends to the remote backend.
-   *
-   * Owner / audit (Decisions 5 + 7): the row is owned by the manager's
-   * **effective** user (the impersonated user when impersonation is
-   * active, otherwise the real signed-in user). Audit fields always
-   * follow the real signed-in user. The previous `"system"` placeholder
-   * has been dropped now that `ConfigManager.saveConfig` centralises
-   * stamping.
-   *
-   * @param snapshotId - Unique ID for this snapshot
-   * @param appId - The app this snapshot belongs to
-   * @param snapshotData - The snapshot payload (e.g. { instanceIds: [...] })
-   */
-  async saveSnapshot(snapshotId: string, appId: string, snapshotData: any): Promise<void> {
-    // Owner / audit fields are filled by `saveConfig` → `stampWrite`.
-    // We deliberately omit them here so the central path is the single
-    // source of truth.
-    const row = {
-      configId: snapshotId,
-      appId,
-      // Snapshots are app-wide artefacts, visible to everyone using
-      // the app — public by definition. Decision 6.
-      isPublic: true,
-      displayText: `Snapshot ${snapshotId}`,
-      componentType: "WORKSPACE_SNAPSHOT",
-      componentSubType: "",
-      isTemplate: false,
-      payload: snapshotData,
-    } as unknown as AppConfigRow;
-    await this.saveConfig(row);
-  }
-
-  /**
-   * Get a specific workspace snapshot by its ID.
-   * Returns the snapshot's config payload, or undefined if not found.
-   */
-  async getSnapshot(snapshotId: string): Promise<any | undefined> {
-    const row = await this.getConfig(snapshotId);
-    if (!row || row.componentType !== "WORKSPACE_SNAPSHOT") {
-      return undefined;
-    }
-    return row.payload;
-  }
-
-  /**
-   * Get the most recently saved snapshot for a given app.
-   * Returns the snapshot's config payload, or undefined if none exist.
-   */
-  async getLatestSnapshot(appId: string): Promise<any | undefined> {
-    const allForApp = await this.getConfigsByApp(appId);
-
-    // Filter to only snapshots, then sort by updatedTime descending
-    const snapshots = allForApp
-      .filter((row) => row.componentType === "WORKSPACE_SNAPSHOT")
-      .sort((a, b) => b.updatedTime.localeCompare(a.updatedTime));
-
-    if (snapshots.length === 0) {
-      return undefined;
-    }
-    return snapshots[0].payload;
-  }
-
   // Note: dock + registry config persistence used to live here as
   // domain-specific shims (`saveDockConfig`, `loadDockConfig`, …).
   // They've been removed — ConfigManager stays a GENERIC (configId →
@@ -1285,6 +1341,11 @@ export class ConfigManager {
         },
       );
 
+      // Seeded rows land via `bulkPut`, bypassing `saveConfig`'s
+      // write-through, so drop any cache entries (notably negative hits a
+      // pre-seed read may have stored) to force a fresh read of the seeded
+      // rows.
+      this.rowCache.clear();
       this.writeSeedDigest(digestKey, digest);
       console.log('ConfigManager: Database seeding complete.');
     } catch (error) {
@@ -1331,6 +1392,8 @@ export class ConfigManager {
         ]);
       },
     );
+    // Tables wiped out-of-band from `deleteConfig`; flush the read cache.
+    this.rowCache.clear();
   }
 
   // ─── REST sync ────────────────────────────────────────────────────

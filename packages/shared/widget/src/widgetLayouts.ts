@@ -1,5 +1,18 @@
-import type { ConfigClient, AppConfigRow } from '@starui/host-config';
+import type { AppConfigRow, CreateConfigInput } from '@starui/host-config';
 import type { LayoutInfo } from '@starui/shared-types';
+
+/**
+ * The slice of `ConfigManager` these helpers need. Structural so
+ * `@starui/widget` stays decoupled from the concrete class — any object
+ * with these four methods (the real `ConfigManager`, or a test fake)
+ * satisfies it.
+ */
+export interface LayoutConfigStore {
+  findByComponentType(componentType: string, componentSubType?: string): Promise<AppConfigRow[]>;
+  createConfig(input: CreateConfigInput): Promise<AppConfigRow>;
+  getConfig(configId: string): Promise<AppConfigRow | undefined>;
+  deleteConfig(configId: string): Promise<void>;
+}
 
 /**
  * Layout helpers — layouts are regular configs with
@@ -22,7 +35,7 @@ function toLayoutInfo(row: AppConfigRow, parentConfigId: string): LayoutInfo {
 }
 
 export async function getLayouts(
-  client: ConfigClient,
+  client: LayoutConfigStore,
   parentConfigId: string,
 ): Promise<LayoutInfo[]> {
   const all = await client.findByComponentType(LAYOUT_COMPONENT_TYPE);
@@ -35,7 +48,7 @@ export async function getLayouts(
 }
 
 export async function saveLayout(
-  client: ConfigClient,
+  client: LayoutConfigStore,
   parentConfigId: string,
   name: string,
   state: unknown,
@@ -57,13 +70,13 @@ export async function saveLayout(
   return toLayoutInfo(created, parentConfigId);
 }
 
-export async function loadLayout(client: ConfigClient, layoutId: string): Promise<unknown> {
+export async function loadLayout(client: LayoutConfigStore, layoutId: string): Promise<unknown> {
   const row = await client.getConfig(layoutId);
   if (!row) return null;
   const p = row.payload as Record<string, unknown> | null | undefined;
   return p?.state ?? null;
 }
 
-export async function deleteLayout(client: ConfigClient, layoutId: string): Promise<void> {
+export async function deleteLayout(client: LayoutConfigStore, layoutId: string): Promise<void> {
   await client.deleteConfig(layoutId);
 }

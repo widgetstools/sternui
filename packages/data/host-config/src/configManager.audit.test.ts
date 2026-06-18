@@ -168,20 +168,6 @@ describe('ConfigManager — owner / audit stamping (Session 3)', () => {
     expect(provider.userId).toBe('system');
   });
 
-  // ─── saveSnapshot — owner now flows from identity, not "system" ─
-
-  it('saveSnapshot stamps owner + audit from current identity (no more "system")', async () => {
-    await cm.saveSnapshot('snap-1', 'TestApp', { instanceIds: ['a', 'b'] });
-
-    const row = (await cm.getConfig('snap-1'))!;
-    expect(row.userId).toBe('alice');
-    expect(row.createdBy).toBe('alice');
-    expect(row.updatedBy).toBe('alice');
-    expect(row.componentType).toBe('WORKSPACE_SNAPSHOT');
-    expect(row.isPublic).toBe(true);
-    expect(row.payload).toEqual({ instanceIds: ['a', 'b'] });
-  });
-
   // ─── Auth tables — audit only, no owner concept ─────────────────
 
   it('saveAppRegistry stamps audit fields on insert and update', async () => {

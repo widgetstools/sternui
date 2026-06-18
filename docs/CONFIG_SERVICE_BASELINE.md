@@ -260,8 +260,15 @@ its identity isn't cached yet; otherwise returns `isPlatformWarm(appId)`.
 These are the baseline behaviors the re-optimization is trying to make
 faster — **without breaking the contract in §5–§6**:
 
-1. **Dual seeding on cold start** — worker + main-thread both call
-   `seedIfEmpty`; second no-ops, but both fetch the seed bundle.
+1. **Cold-start seeding is serialized to a single fetch+write.** Worker +
+   main-thread may both enter `seedIfEmpty`, but it runs entirely inside a
+   `navigator.locks` web lock whose emptiness check (`appRegistry.count()` +
+   `appConfig.count()`) runs *before* the `fetch`. The first acquirer
+   fetches + bulk-writes; every later acquirer finds rows present and
+   returns after two `count()` reads — no second fetch, no second write.
+   The worker cannot read the cross-window warm marker (no localStorage in
+   a SharedWorker), so it stays the deterministic seeder and the
+   stale-warm safety net (§4.5.3); this is by design, not redundant work.
 2. **`bundle.ready` gates every data window** on AppData snapshot **and**
    catalog preload. Under heavy live-tick fan-out on the single worker
    thread, later blotters wait behind earlier ones — *this is the

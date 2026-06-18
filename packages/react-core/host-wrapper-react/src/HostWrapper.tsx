@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { IdentitySnapshot, Theme } from '@starui/types';
 import type { RuntimePort } from '@starui/host';
-import type { ConfigClient } from '@starui/host-config';
+import type { ConfigManager } from '@starui/host-config';
 import { HostContext, type HostContextValue } from './HostContext.js';
 
 export interface HostWrapperProps {
@@ -16,7 +16,7 @@ export interface HostWrapperProps {
    * The config manager (any backend). Pass an instance or a Promise.
    * Wrapper awaits before rendering children.
    */
-  readonly configManager: ConfigClient | Promise<ConfigClient>;
+  readonly configManager: ConfigManager | Promise<ConfigManager>;
 
   /** Optional URL of the config-service backend for downstream consumers. */
   readonly configUrl?: string;
@@ -50,7 +50,7 @@ export function HostWrapper({
   loading = null,
   children,
 }: HostWrapperProps): ReactNode {
-  const [resolved, setResolved] = useState<{ runtime: RuntimePort; configManager: ConfigClient } | null>(null);
+  const [resolved, setResolved] = useState<{ runtime: RuntimePort; configManager: ConfigManager } | null>(null);
 
   // Resolve runtime + configManager (each may be a Promise).
   useEffect(() => {

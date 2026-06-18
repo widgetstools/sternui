@@ -33,10 +33,10 @@ export {
   deleteLayout,
 } from '@starui/widget';
 
-export { createConfigClient } from '@starui/host-config';
+export { createConfigManager } from '@starui/host-config';
 export type {
-  ConfigClient,
-  CreateConfigClientOptions,
+  ConfigManager,
+  ConfigManagerOptions,
 } from '@starui/host-config';
 
 export { renderSlot } from './extensibility/renderSlot.js';

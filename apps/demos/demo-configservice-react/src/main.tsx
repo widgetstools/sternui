@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { applyTheme, getTheme } from '@starui/design-system';
 import '@starui/design-system/css';
 import { StarGridApp } from '@starui/app';
-import { createConfigClient } from '@starui/host-config';
+import { createConfigManager } from '@starui/host-config';
 import { BrowserRuntime } from '@starui/host-browser';
 import './globals.css';
 import { App } from './App';
@@ -23,8 +23,8 @@ const runtime = new BrowserRuntime({
   },
 });
 
-const configManager = createConfigClient({
-  baseUrl: import.meta.env.VITE_CONFIG_SERVICE_URL || undefined,
+const configManager = createConfigManager({
+  configServiceRestUrl: import.meta.env.VITE_CONFIG_SERVICE_URL || undefined,
 });
 
 createRoot(document.getElementById('root')!).render(

@@ -10,7 +10,7 @@ import { useWidgetHost } from '../providers/WidgetHost.js';
  * and provides save/close operations.
  */
 export function useSettingsScreen(): SettingsScreenContext {
-  const { configClient, platform, userId: _userId } = useWidgetHost();
+  const { configManager, platform, userId: _userId } = useWidgetHost();
   const queryClient = useQueryClient();
 
   // Parse parent identity from URL
@@ -37,12 +37,12 @@ export function useSettingsScreen(): SettingsScreenContext {
     error
   } = useQuery({
     queryKey: ['config', parentConfigId],
-    queryFn: async () => (await configClient.getConfig(parentConfigId)) ?? null,
+    queryFn: async () => (await configManager.getConfig(parentConfigId)) ?? null,
     enabled: !!parentConfigId
   });
 
   const saveConfig = useCallback(async (updates: Partial<WidgetConfig>) => {
-    await configClient.updateConfig(parentConfigId, updates);
+    await configManager.updateConfig(parentConfigId, updates);
     queryClient.invalidateQueries({ queryKey: ['config', parentConfigId] });
 
     // Notify parent via broadcast
@@ -51,7 +51,7 @@ export function useSettingsScreen(): SettingsScreenContext {
       parentInstanceId,
       updates
     });
-  }, [parentConfigId, parentInstanceId, configClient, queryClient, platform]);
+  }, [parentConfigId, parentInstanceId, configManager, queryClient, platform]);
 
   const close = useCallback((result?: unknown) => {
     // Send result back to parent via BroadcastChannel
