@@ -5,7 +5,7 @@ import { controls, radius, spacing } from '@starui/design-system/tokens';
 import { FormatDropdown } from '../format-editor';
 import { Caps, IconInput } from '../SettingsPanel';
 import { ExcelReferencePopover } from './ExcelReferencePopover';
-import { triggerCaption, type SharedBodyProps } from './formatterPickerShared';
+import { hintText, triggerCaption, type SharedBodyProps } from './formatterPickerShared';
 import { ChromeButton } from '../ChromeButton';
 
 /**
@@ -63,7 +63,7 @@ export function InlineFormatterPicker({
           }}
           options={presets.map((p) => ({
             value: p.id,
-            label: p.hint ? `${p.label} — ${p.hint}` : p.label,
+            label: hintText(p) ? `${p.label} — ${hintText(p)}` : p.label,
           }))}
           width={280}
           trigger={
