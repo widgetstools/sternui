@@ -51,7 +51,7 @@ vi.mock('@starui/grid/customizer', async () => {
     ProviderGridHostProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     GridEventBindingsHostProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     useGridApi: () => null,
-    useGridPlatform: () => ({}),
+    useGridPlatform: () => ({ events: { on: () => () => {}, emit: () => {} } }),
     useModuleState: () => [undefined, vi.fn()],
     GENERAL_SETTINGS_MODULE_ID: 'general-settings',
     useProfileManager: () => ({

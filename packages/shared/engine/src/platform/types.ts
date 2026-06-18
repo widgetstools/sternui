@@ -62,6 +62,15 @@ export interface PlatformEventMap {
    * `data` is the opaque blob as imported.
    */
   'gridLevelData:imported': { gridId: string; data: unknown };
+  /**
+   * A settings panel committed card edits into module state and wants the
+   * active profile flushed to disk NOW (explicit-save-only model — module
+   * state is otherwise only persisted by the grid's main Save). The host
+   * controller listens and runs its canonical save (capture live grid
+   * state → saveActiveProfile), so every customizer card persists on its
+   * own Save without the user hunting for a second button.
+   */
+  'settings:save-requested': { gridId: string };
 }
 
 export interface EventBus<M> {

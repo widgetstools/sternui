@@ -392,6 +392,20 @@ export function useMarketsGridController(
   // Keep the handle's saveAll bridge pointed at the latest closure.
   saveAllRef.current = handleSaveAll;
 
+  // Settings-panel Save → canonical profile persist. Module state is
+  // explicit-save-only (auto-save disabled above), so a customizer card's
+  // own "Save" commits to the store but does NOT reach disk until the
+  // active profile is flushed. Panels emit `settings:save-requested` after
+  // committing; we run the same path as the toolbar Save button so every
+  // card persists on its own Save (capture live grid state + saveActiveProfile
+  // + busy overlay). Routed through `saveAllRef` so this subscribes once and
+  // always calls the latest closure.
+  useEffect(() => {
+    return platform.events.on('settings:save-requested', () => {
+      void saveAllRef.current();
+    });
+  }, [platform]);
+
   // Active profile dirty state — wired to the Save button indicator,
   // the profile-switch AlertDialog, and the beforeunload warning.
   const isDirty = profiles.isDirty;

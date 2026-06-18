@@ -139,15 +139,20 @@ export function useModuleDraft<TState, TItem>({
   const save = useCallback(() => {
     if (draft === undefined) return;
     setModuleState(commitItem(draft));
-  }, [draft, commitItem, setModuleState]);
+    // A per-card Save persists the active profile. Module state is
+    // explicit-save-only (auto-save is disabled on the markets-grid host),
+    // so without this the commit would sit in memory until the user also
+    // clicked the grid's main Save — every customizer panel's own "Save"
+    // looked like it persisted but didn't. The host controller listens for
+    // this event and runs its canonical save (capture live grid state →
+    // saveActiveProfile). `setModuleState` writes the store synchronously,
+    // so the host's `serializeAll()` already sees this commit.
+    platform.events.emit('settings:save-requested', { gridId: platform.gridId });
+  }, [draft, commitItem, setModuleState, platform]);
 
   const discard = useCallback(() => {
     if (committedRef.current !== undefined) setDraftState(committedRef.current);
   }, []);
-
-  // Keep the platform reference warm so the hook doesn't trip the
-  // "unused platform" lint while still holding on to the context.
-  void platform;
 
   return {
     draft: (draft ?? committed) as TItem,
