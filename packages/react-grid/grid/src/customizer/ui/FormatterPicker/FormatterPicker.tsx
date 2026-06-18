@@ -108,9 +108,23 @@ export function FormatterPicker({
   layout = 'horizontal',
   'data-testid': testId,
 }: FormatterPickerProps) {
-  const presets = useMemo(() => presetsForDataType(dataType), [dataType]);
-  const activePreset = useMemo(() => findMatchingPreset(dataType, value), [dataType, value]);
-  const sample = sampleValue !== undefined ? sampleValue : defaultSampleValue(dataType);
+  // Local re-categorization. The host infers a dataType from the column,
+  // but inference is sometimes wrong (a numeric column typed as string).
+  // The compact popover's type pills let the user override it without
+  // dropping to raw Excel syntax. Reset whenever the host's prop changes
+  // (i.e. a different column is being edited).
+  const [typeOverride, setTypeOverride] = useState<FormatterPickerDataType | undefined>(undefined);
+  useEffect(() => {
+    setTypeOverride(undefined);
+  }, [dataType]);
+  const effectiveType = typeOverride ?? dataType;
+
+  const presets = useMemo(() => presetsForDataType(effectiveType), [effectiveType]);
+  const activePreset = useMemo(
+    () => findMatchingPreset(effectiveType, value),
+    [effectiveType, value],
+  );
+  const sample = sampleValue !== undefined ? sampleValue : defaultSampleValue(effectiveType);
 
   // Custom-input draft — source of truth stays the committed template,
   // but while the user is typing we hold the working string so a
@@ -175,7 +189,8 @@ export function FormatterPicker({
         isExcelValid={isExcelValid}
         commitExcel={commitExcel}
         pickPreset={pickPreset}
-        dataType={dataType}
+        dataType={effectiveType}
+        onSelectType={setTypeOverride}
         testId={testId}
       />
     );
@@ -193,7 +208,7 @@ export function FormatterPicker({
       isExcelValid={isExcelValid}
       commitExcel={commitExcel}
       pickPreset={pickPreset}
-      dataType={dataType}
+      dataType={effectiveType}
       defaultCollapsed={defaultCollapsed}
       layout={layout}
       testId={testId}

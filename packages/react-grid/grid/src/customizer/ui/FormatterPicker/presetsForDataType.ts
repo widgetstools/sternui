@@ -27,6 +27,27 @@ export interface FormatterPreset {
   label: string;
   /** Optional second-line hint (e.g. "101-16" sample output). */
   hint?: string;
+  /**
+   * Colored output sample(s) for the compact tile hint. Renders the
+   * *actual formatted result* (e.g. a red `(1,234.57)`) instead of
+   * leaking raw `[Red]`/`[Green]` Excel tokens into the hint text — the
+   * old hints showed format syntax, which read as "the cell will say
+   * [Red]". Tone tokens mirror the grid's own Excel color map
+   * (`positive` → `[Green]`, `negative` → `[Red]`), so the swatch color
+   * matches what the cell will actually render. Takes precedence over
+   * `hint` in the compact tile; `hint` remains the plain-text fallback
+   * (e.g. the inline dropdown label).
+   */
+  hintSamples?: ReadonlyArray<{ text: string; tone?: 'positive' | 'negative' | 'muted' }>;
+  /**
+   * Progressive-disclosure tier for the compact picker. `common`
+   * presets (the everyday Integer / 2-decimals / plain-currency set)
+   * show up front; `advanced` ones — trading-desk conventions like
+   * sign-coloring, parens-negatives, scientific, basis points, and
+   * fixed-income ticks — sit behind a "More formats" disclosure so they
+   * don't bury the 90% case. Defaults to `common` when omitted.
+   */
+  tier?: 'common' | 'advanced';
   /** The template emitted when the user picks this preset. */
   template: ValueFormatterTemplate;
   /** Stable sample-value the live preview renders against. When
@@ -64,7 +85,9 @@ const NUMBER_PRESETS: ReadonlyArray<FormatterPreset> = [
   {
     id: 'num-neg-red-parens',
     label: 'Red parens neg',
-    hint: '[Red](1,234.57)',
+    hint: '(1,234.57)',
+    hintSamples: [{ text: '(1,234.57)', tone: 'negative' }],
+    tier: 'advanced',
     template: { kind: 'excelFormat', format: '#,##0.00;[Red](#,##0.00)' },
   },
   {
@@ -76,7 +99,12 @@ const NUMBER_PRESETS: ReadonlyArray<FormatterPreset> = [
     // traders read at a glance.
     id: 'num-green-red-nosign',
     label: 'Green / Red (no sign)',
-    hint: '[Green]1,234.57 · [Red]1,234.57',
+    hint: '1,234.57 / 1,234.57',
+    hintSamples: [
+      { text: '1,234.57', tone: 'positive' },
+      { text: '1,234.57', tone: 'negative' },
+    ],
+    tier: 'advanced',
     template: {
       kind: 'excelFormat',
       format: '[Green]#,##0.00;[Red]#,##0.00',
@@ -90,7 +118,12 @@ const NUMBER_PRESETS: ReadonlyArray<FormatterPreset> = [
     // drops the minus — colour alone carries sign.
     id: 'num-green-red-usd',
     label: 'Green / Red $ (no sign)',
-    hint: '[Green]$1,234.57 · [Red]$1,234.57',
+    hint: '$1,234.57 / $1,234.57',
+    hintSamples: [
+      { text: '$1,234.57', tone: 'positive' },
+      { text: '$1,234.57', tone: 'negative' },
+    ],
+    tier: 'advanced',
     template: {
       kind: 'excelFormat',
       format: '[Green]$#,##0.00;[Red]$#,##0.00',
@@ -101,12 +134,14 @@ const NUMBER_PRESETS: ReadonlyArray<FormatterPreset> = [
     id: 'num-scientific',
     label: 'Scientific',
     hint: '1.23E+03',
+    tier: 'advanced',
     template: { kind: 'excelFormat', format: '0.00E+00' },
   },
   {
     id: 'num-bps',
     label: 'Basis points',
     hint: '+12.3 bps',
+    tier: 'advanced',
     template: { kind: 'expression', expression: "(x>=0?'+':'')+x.toFixed(1)+' bp'" },
     sampleValue: 12.345,
   },
@@ -115,6 +150,7 @@ const NUMBER_PRESETS: ReadonlyArray<FormatterPreset> = [
     id: 'tick-32',
     label: '32nds (bond price)',
     hint: '101-16',
+    tier: 'advanced',
     template: { kind: 'tick', tick: 'TICK32' },
     sampleValue: 101.5,
   },
@@ -122,6 +158,7 @@ const NUMBER_PRESETS: ReadonlyArray<FormatterPreset> = [
     id: 'tick-32-plus',
     label: '32nds + halves',
     hint: '101-16+',
+    tier: 'advanced',
     template: { kind: 'tick', tick: 'TICK32_PLUS' },
     sampleValue: 101.515625,
   },
@@ -129,6 +166,7 @@ const NUMBER_PRESETS: ReadonlyArray<FormatterPreset> = [
     id: 'tick-64',
     label: '64ths',
     hint: '101-161',
+    tier: 'advanced',
     template: { kind: 'tick', tick: 'TICK64' },
     sampleValue: 101.515625,
   },
@@ -136,6 +174,7 @@ const NUMBER_PRESETS: ReadonlyArray<FormatterPreset> = [
     id: 'tick-128',
     label: '128ths',
     hint: '101-162',
+    tier: 'advanced',
     template: { kind: 'tick', tick: 'TICK128' },
     sampleValue: 101.515625,
   },
@@ -143,6 +182,7 @@ const NUMBER_PRESETS: ReadonlyArray<FormatterPreset> = [
     id: 'tick-256',
     label: '256ths',
     hint: '101-161',
+    tier: 'advanced',
     template: { kind: 'tick', tick: 'TICK256' },
     sampleValue: 101.50390625,
   },
@@ -160,19 +200,27 @@ const CURRENCY_PRESETS: ReadonlyArray<FormatterPreset> = [
   {
     id: 'cur-usd-red-neg',
     label: 'USD red negative',
-    hint: '[Red]-$1,234.56',
+    hint: '-$1,234.56',
+    hintSamples: [{ text: '-$1,234.56', tone: 'negative' }],
+    tier: 'advanced',
     template: { kind: 'excelFormat', format: '$#,##0.00;[Red]-$#,##0.00' },
   },
   {
     id: 'cur-usd-parens',
     label: 'USD parens neg',
     hint: '($1,234.56)',
+    tier: 'advanced',
     template: { kind: 'excelFormat', format: '$#,##0.00;($#,##0.00)' },
   },
   {
     id: 'cur-usd-green-red-nosign',
     label: 'USD Green / Red (no sign)',
-    hint: '[Green]$1,234.57 · [Red]$1,234.57',
+    hint: '$1,234.57 / $1,234.57',
+    hintSamples: [
+      { text: '$1,234.57', tone: 'positive' },
+      { text: '$1,234.57', tone: 'negative' },
+    ],
+    tier: 'advanced',
     template: {
       kind: 'excelFormat',
       format: '[Green]$#,##0.00;[Red]$#,##0.00',
@@ -216,7 +264,12 @@ const CURRENCY_PRESETS: ReadonlyArray<FormatterPreset> = [
   {
     id: 'cur-eur-green-red-nosign',
     label: 'EUR Green / Red (no sign)',
-    hint: '[Green]€1,234.57 · [Red]€1,234.57',
+    hint: '€1,234.57 / €1,234.57',
+    hintSamples: [
+      { text: '€1,234.57', tone: 'positive' },
+      { text: '€1,234.57', tone: 'negative' },
+    ],
+    tier: 'advanced',
     template: {
       kind: 'excelFormat',
       format: '[Green]€#,##0.00;[Red]€#,##0.00',
@@ -228,7 +281,12 @@ const CURRENCY_PRESETS: ReadonlyArray<FormatterPreset> = [
     // for every currency char that isn't `$` or `€`.
     id: 'cur-gbp-green-red-nosign',
     label: 'GBP Green / Red (no sign)',
-    hint: '[Green]£1,234.57 · [Red]£1,234.57',
+    hint: '£1,234.57 / £1,234.57',
+    hintSamples: [
+      { text: '£1,234.57', tone: 'positive' },
+      { text: '£1,234.57', tone: 'negative' },
+    ],
+    tier: 'advanced',
     template: {
       kind: 'excelFormat',
       format: '[Green]"£"#,##0.00;[Red]"£"#,##0.00',
@@ -238,7 +296,12 @@ const CURRENCY_PRESETS: ReadonlyArray<FormatterPreset> = [
   {
     id: 'cur-jpy-green-red-nosign',
     label: 'JPY Green / Red (no sign)',
-    hint: '[Green]¥1,235 · [Red]¥1,235',
+    hint: '¥1,235 / ¥1,235',
+    hintSamples: [
+      { text: '¥1,235', tone: 'positive' },
+      { text: '¥1,235', tone: 'negative' },
+    ],
+    tier: 'advanced',
     // JPY: no decimal by convention.
     template: {
       kind: 'excelFormat',
@@ -249,7 +312,12 @@ const CURRENCY_PRESETS: ReadonlyArray<FormatterPreset> = [
   {
     id: 'cur-inr-green-red-nosign',
     label: 'INR Green / Red (no sign)',
-    hint: '[Green]₹1,234.57 · [Red]₹1,234.57',
+    hint: '₹1,234.57 / ₹1,234.57',
+    hintSamples: [
+      { text: '₹1,234.57', tone: 'positive' },
+      { text: '₹1,234.57', tone: 'negative' },
+    ],
+    tier: 'advanced',
     template: {
       kind: 'excelFormat',
       format: '[Green]"₹"#,##0.00;[Red]"₹"#,##0.00',
@@ -279,6 +347,7 @@ const PERCENT_PRESETS: ReadonlyArray<FormatterPreset> = [
     id: 'pct-bps',
     label: 'Basis points',
     hint: '+12.3 bps',
+    tier: 'advanced',
     template: { kind: 'expression', expression: "(x>=0?'+':'')+x.toFixed(1)+' bp'" },
     sampleValue: 12.345,
   },
