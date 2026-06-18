@@ -17,46 +17,21 @@
 //
 //   const config = await configManager.getConfig("my-component-1");
 
-// ─── ConfigClient (framework-agnostic, REST-shaped) ─────────────────
-// The recommended entry point for component configuration. Same
-// interface for local (Dexie) and remote (HTTP) modes.
-export {
-  createConfigClient,
-  LocalConfigClient,
-  RestConfigClient,
-  ConfigNotFoundError,
-  ConfigClientHttpError,
-  OptimisticLockError,
-} from './client';
-export type {
-  ConfigClient,
-  CreateConfigClientOptions,
-  ConfigFilter,
-  PageOptions,
-  PaginatedResult,
-  CompositeKey,
-  CreateConfigInput,
-  UpsertConfigInput,
-  UpdateConfigOptions,
-  BulkUpdateEntry,
-  BulkDeleteResult,
-  HealthStatus,
-  AppRegistryOps,
-  UserProfileOps,
-  RoleOps,
-  PermissionOps,
-} from './client';
-
-// ─── Lower-level ConfigManager (deprecated) ─────────────────────────
-// Exposed for consumers that still call auth-table getters
-// (appRegistry / userProfile / roles / permissions) or dock/snapshot
-// helpers directly. New feature code MUST prefer `ConfigClient` — these
-// re-exports collapse behind `LocalConfigClient` in the next
-// session-set. See Decision 13 and Session 16 of
-// `docs/plans/plan-2026-05-07/config-manager-redesign.md`.
-/** @deprecated Prefer `createConfigClient` from this same package. */
+// ─── ConfigManager — the single config-service API ──────────────────
+// One class for fetch/update/save of every config row, the auth tables
+// (appRegistry / userProfile / roles / permissions), and the `profiles`
+// namespace. Local Dexie by default; REST-synced when
+// `configServiceRestUrl` is supplied.
 export { createConfigManager, ConfigManager } from './ConfigManager';
-export type { ImpersonatedUser, SaveConfigOptions } from './ConfigManager';
+export type {
+  CreateConfigInput,
+  ImpersonatedUser,
+  SaveConfigOptions,
+  UpdateConfigOptions,
+} from './ConfigManager';
+
+// ─── Errors ──────────────────────────────────────────────────────────
+export { ConfigNotFoundError, OptimisticLockError } from './errors';
 
 // ─── Database (for advanced use cases only) ──────────────────────────
 export { ConfigDatabase } from './db';
@@ -104,11 +79,11 @@ export {
 // ConfigService-backed persistence for <MarketsGrid>. Pass the factory
 // to MarketsGrid's `storage` prop to opt-in to cross-device profile
 // sync scoped by (appId, userId, instanceId).
+// All three profile surfaces (StorageAdapter factory, the
+// `ConfigManager.profiles` namespace, and the ConfigPort adapter) plus
+// the bundle RMW helper live in one module now — see `profileBundle.ts`.
 export {
   readProfileSetPayload,
-} from './profileSet';
-
-export {
   createConfigServiceStorage,
   migrateProfilesToConfigService,
   ProfileSetVersionConflictError,
@@ -123,7 +98,7 @@ export {
   type ProfileSnapshot,
   type RegisteredComponentIdentity,
   type StorageAdapter,
-} from './profileStorage';
+} from './profileBundle';
 
 // ─── ConfigManager.profiles namespace ────────────────────────────────
 // First-class API for reading/writing the bundled profile-set row
@@ -133,7 +108,7 @@ export type {
   ProfilesNamespace,
   ProfilesScope,
   ProfilesSaveOptions,
-} from './profilesTypes';
+} from './profileBundle.types';
 
 // ─── Profile-state consolidation migration (Session 3.2) ────────────
 // One-shot copy from the legacy `gc-customizer-v2` Dexie DB into the
@@ -154,7 +129,7 @@ export {
 // in tests that simulate two managers sharing one BroadcastChannel.
 export { ChangeNotifier } from './changeNotifier';
 
-export { createConfigPort, type ConfigPortOptions } from './createConfigPort';
+export { createConfigPort, type ConfigPortOptions } from './profileBundle';
 
 export {
   CONFIG_BROWSER_TABLES,

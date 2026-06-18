@@ -73,6 +73,15 @@ async function boot(): Promise<void> {
     seedConfigUrl,
     seedConfigReload,
   });
+  // Full init (including seedIfEmpty) is intentional and must stay. The
+  // worker is the deterministic seeder + the stale-warm safety net: a
+  // SharedWorker has no localStorage/sessionStorage, so it cannot read
+  // the cross-window "warm" marker and therefore cannot attach the way a
+  // warm main-thread window does. seedIfEmpty's in-lock emptiness check
+  // makes this a no-op (no fetch, no write) whenever the DB is already
+  // populated, so there is no redundant work to "optimize away" here —
+  // converting this to attach mode would silently break recovery after a
+  // wiped IndexedDB. See docs/CONFIG_SERVICE_BASELINE.md §4.5.
   await configManager.init();
   await installSharedWorkerHub({ configManager });
   // eslint-disable-next-line no-console

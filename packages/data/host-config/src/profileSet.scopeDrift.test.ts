@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createConfigServiceStorage } from './profileStorage';
+import { createConfigServiceStorage } from './profileBundle';
 import type { AppConfigRow } from './types';
 import type { ConfigManager } from './ConfigManager';
-import { readProfileSetPayload, isProfileSetRow } from './profileSet';
+import { readProfileSetPayload, isProfileSetRow } from './profileBundle';
 import type { ProfileSnapshot } from '@starui/engine';
 
 function makeRow(over: Partial<AppConfigRow>): AppConfigRow {

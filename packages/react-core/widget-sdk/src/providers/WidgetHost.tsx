@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createConfigClient, type ConfigClient } from '@starui/host-config';
+import { createConfigManager, type ConfigManager } from '@starui/host-config';
 import type { PlatformAdapter } from '@starui/widget';
 import type { WidgetHostProps } from '../types/widgetHost.js';
 import { WidgetRegistry } from '../registry/WidgetRegistry.js';
@@ -11,7 +11,7 @@ export interface WidgetHostContextValue {
   userId: string;
   platform: PlatformAdapter;
   registry: WidgetRegistry;
-  configClient: ConfigClient;
+  configManager: ConfigManager;
 }
 
 const WidgetHostContext = createContext<WidgetHostContextValue | null>(null);
@@ -35,10 +35,10 @@ const defaultQueryClient = new QueryClient({
 
 /**
  * WidgetHost — top-level provider that supplies platform adapter, config
- * client, widget registry, and React Query to all widgets in the tree.
+ * manager, widget registry, and React Query to all widgets in the tree.
  *
- * `apiUrl` is forwarded to the config client as its REST base URL when
- * non-empty; when empty, the client runs in local Dexie-only mode.
+ * `apiUrl` is forwarded to the config manager as its REST base URL when
+ * non-empty; when empty, the manager runs in local Dexie-only mode.
  */
 export function WidgetHost({
   apiUrl,
@@ -48,15 +48,15 @@ export function WidgetHost({
   children,
 }: WidgetHostProps) {
   const value = useMemo<WidgetHostContextValue>(() => {
-    const configClient = createConfigClient({
-      baseUrl: apiUrl && apiUrl.trim().length > 0 ? apiUrl : undefined,
+    const configManager = createConfigManager({
+      configServiceRestUrl: apiUrl && apiUrl.trim().length > 0 ? apiUrl : undefined,
     });
     return {
       apiUrl,
       userId,
       platform: platform || new BrowserAdapter(apiUrl),
       registry: registry || new WidgetRegistry(),
-      configClient,
+      configManager,
     };
   }, [apiUrl, userId, platform, registry]);
 
@@ -64,14 +64,14 @@ export function WidgetHost({
   // sync loops (if any) tear down with the provider.
   useEffect(() => {
     let disposed = false;
-    value.configClient.init().catch((err) => {
-      if (!disposed) console.error('ConfigClient init failed', err);
+    value.configManager.init().catch((err) => {
+      if (!disposed) console.error('ConfigManager init failed', err);
     });
     return () => {
       disposed = true;
-      value.configClient.dispose();
+      value.configManager.dispose();
     };
-  }, [value.configClient]);
+  }, [value.configManager]);
 
   return (
     <QueryClientProvider client={defaultQueryClient}>

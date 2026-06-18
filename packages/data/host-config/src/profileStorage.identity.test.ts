@@ -29,7 +29,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createConfigServiceStorage } from './profileStorage';
+import { createConfigServiceStorage } from './profileBundle';
 import type { AppConfigRow } from './types';
 import type { ConfigManager } from './ConfigManager';
 import type { ProfileSnapshot } from '@starui/engine';

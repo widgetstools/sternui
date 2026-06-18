@@ -15,7 +15,7 @@ import {
  * Fetches config, manages layouts, wires lifecycle, and exposes platform communication.
  */
 export function useWidget(configId: string): WidgetContext {
-  const { platform, configClient, userId } = useWidgetHost();
+  const { platform, configManager, userId } = useWidgetHost();
   const queryClient = useQueryClient();
 
   const instanceId = useMemo(() => platform.getInstanceId(), [platform]);
@@ -29,7 +29,7 @@ export function useWidget(configId: string): WidgetContext {
     refetch
   } = useQuery({
     queryKey: ['config', configId],
-    queryFn: async () => (await configClient.getConfig(configId)) ?? null,
+    queryFn: async () => (await configManager.getConfig(configId)) ?? null,
     enabled: !!configId
   });
 
@@ -38,7 +38,7 @@ export function useWidget(configId: string): WidgetContext {
     data: layouts = []
   } = useQuery({
     queryKey: ['layouts', configId],
-    queryFn: () => layoutsGet(configClient, configId),
+    queryFn: () => layoutsGet(configManager, configId),
     enabled: !!configId
   });
 
@@ -74,18 +74,18 @@ export function useWidget(configId: string): WidgetContext {
 
   // ─── Config Operations ─────────────────────────────
   const updateConfig = useCallback(async (updates: Partial<WidgetConfig>) => {
-    await configClient.updateConfig(configId, updates);
+    await configManager.updateConfig(configId, updates);
     queryClient.invalidateQueries({ queryKey: ['config', configId] });
-  }, [configId, configClient, queryClient]);
+  }, [configId, configManager, queryClient]);
 
   const saveConfig = useCallback(async (fullConfig?: WidgetConfig) => {
     if (fullConfig) {
-      await configClient.updateConfig(configId, fullConfig);
+      await configManager.updateConfig(configId, fullConfig);
     } else if (config) {
-      await configClient.updateConfig(configId, config);
+      await configManager.updateConfig(configId, config);
     }
     queryClient.invalidateQueries({ queryKey: ['config', configId] });
-  }, [configId, config, configClient, queryClient]);
+  }, [configId, config, configManager, queryClient]);
 
   const refetchConfig = useCallback(async () => {
     await refetch();
@@ -93,24 +93,24 @@ export function useWidget(configId: string): WidgetContext {
 
   // ─── Layout Operations ─────────────────────────────
   const saveLayout = useCallback(async (name: string, state: unknown): Promise<LayoutInfo> => {
-    const layout = await layoutsSave(configClient, configId, name, state, userId, config?.appId || 'default-app');
+    const layout = await layoutsSave(configManager, configId, name, state, userId, config?.appId || 'default-app');
     queryClient.invalidateQueries({ queryKey: ['layouts', configId] });
     return layout;
-  }, [configId, userId, config, configClient, queryClient]);
+  }, [configId, userId, config, configManager, queryClient]);
 
   const loadLayout = useCallback(async (layoutId: string): Promise<unknown> => {
-    const state = await layoutsLoad(configClient, layoutId);
+    const state = await layoutsLoad(configManager, layoutId);
     setActiveLayoutId(layoutId);
     return state;
-  }, [configClient]);
+  }, [configManager]);
 
   const deleteLayout = useCallback(async (layoutId: string) => {
-    await layoutsDelete(configClient, layoutId);
+    await layoutsDelete(configManager, layoutId);
     if (activeLayoutId === layoutId) {
       setActiveLayoutId(null);
     }
     queryClient.invalidateQueries({ queryKey: ['layouts', configId] });
-  }, [configId, activeLayoutId, configClient, queryClient]);
+  }, [configId, activeLayoutId, configManager, queryClient]);
 
   const setActiveLayout = useCallback((layoutId: string) => {
     setActiveLayoutId(layoutId);

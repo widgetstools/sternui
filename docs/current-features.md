@@ -683,9 +683,9 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 #### Config + layout persistence
 
-- `createConfigClient` — factory for `ConfigClient` (delegates to `@starui/host-config`)
+- `createConfigManager` — factory for `ConfigManager` (re-export from `@starui/host-config`)
 - `BrowserAdapter` — re-export from `@starui/widget-browser` for browser widget hosts
-- `ConfigClient` — CRUD over app/user/role configs
+- `ConfigManager` — CRUD over app/user/role configs
 - `getLayouts`, `saveLayout`, `loadLayout`, `deleteLayout`
 
 ---
@@ -699,7 +699,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `HostContext` — React context (`runtime, configManager, instanceId, theme, onThemeChanged`)
 - `useHost` — hook to read host context
 - Reactive theme propagation from `RuntimePort`
-- Requires a caller-supplied `configManager: ConfigClient | Promise<ConfigClient>` (does not construct one)
+- Requires a caller-supplied `configManager: ConfigManager | Promise<ConfigManager>` (does not construct one)
 - `./test-bridge` subpath — `installTestBridge` for host-context mocking
 
 ---
@@ -1085,42 +1085,27 @@ modules).
 **Path:** `packages/data/host-config`
 **Purpose:** Dual-mode configuration service — Dexie/IndexedDB local store with optional REST backend sync. Backs all profile, role, permission, and app-config persistence.
 
-#### Configuration client
+#### ConfigManager — the single config-service API
 
-- `createConfigClient()` — factory choosing `LocalConfigClient` (Dexie) or `RestConfigClient` (HTTP) by `baseUrl`
-- `ConfigClient` — single interface for both backends
-- `LocalConfigClient` — Dexie-only persistence
-- `RestConfigClient` — HTTP backend with Dexie cache + offline queue
-- Seed-data JSON loading for first-run init
-- `ConfigFilter`, `PageOptions`, `PaginatedResult` — query API
-- `CreateConfigInput`, `UpsertConfigInput`, `UpdateConfigOptions` — mutation API
-- `BulkUpdateEntry`, `BulkDeleteResult` — batch operations
-- `HealthStatus` — backend health check
-
-#### ConfigManager (deprecated lower-level API)
-
+- `createConfigManager(options)` / `ConfigManager` — one class for fetch/update/save of every config row. Local Dexie by default; pass `configServiceRestUrl` to sync writes to a REST backend with Dexie as a local cache. (The former `ConfigClient` / `LocalConfigClient` / `RestConfigClient` facade has been removed — ConfigManager is the sole surface.)
 - CRUD for 6 tables: `appConfig`, `appRegistry`, `userProfile`, `roles`, `permissions`, `pendingSync`
+- Single-row read cache keyed by `configId`: `getConfig` memoizes Dexie reads (negative hits too), write-through on `saveConfig`, evicted on `deleteConfig` and on every change-notifier event — same-tab and cross-tab — so a hit is never staler than the shared IndexedDB row. Collapses the former "read the whole profile bundle 3-4× per save" into one Dexie hit. Bounded by the config keyspace with a 1000-entry backstop; cleared on `dispose()` and after bulk seed/clear.
+- Single-row CRUD: `getConfig`, `saveConfig` (with `expectedUpdatedTime` OCC), `deleteConfig`, `createConfig` (stamps timestamps), `updateConfig` (read-modify-write + OCC), `configExists`
+- Reads: `getConfigsByApp` / `getConfigsByUser` / `getAllConfigs` (visibility-filtered) + `…Unfiltered` admin variants, `findByComponentType`, `getTemplates`
 - `getConfigsByComponentTypesUnfiltered(types)` — fetch only the given `componentType`s via the `[componentType+componentSubType]` index (O(matching) not O(all rows)). Used by the data-provider / AppData stores so listing providers reads only provider rows instead of materialising every grid profile in `appConfig`
-- Dev mode (default) — all data in Dexie/IndexedDB
+- Auth-table methods: app-registry / user-profile / role / permission CRUD + `getUserPermissions` / `userHasPermission`
 - REST mode — writes sync to backend with Dexie as local cache
 - Failed REST writes → `PENDING_SYNC` table, auto-retry every 10 s (max 10 retries)
 - Impersonation via `setImpersonatedUser()` for admin previews
 - `ApplicationContext` tracking signed-in vs impersonated user
 - `getEffectiveUser()` — single source of truth for effective identity
 
-#### CRUD breadth
-
-- Single: `create`, `get`, `update`, `upsert`, `delete`
-- Bulk: `bulkCreate`, `bulkUpdate`, `bulkDelete`
-- Query: `queryConfigs`, `queryConfigsPaginated`
-- Specialised lookups: `findByCompositeKey`, `findByAppId`, `findByUserId`, `findByComponentType`, `cloneConfig`
-
 #### Auth tables
 
-- `AppRegistryOps` — registered apps (CRUD + list)
-- `UserProfileOps` — user ↔ app ↔ role mappings
-- `RoleOps` — role definitions
-- `PermissionOps` — fine-grained permissions (+ `listByCategory`, `getForUser`, `checkForUser`)
+- App registry — registered apps (`getAppRegistry` / `getAllApps` / `saveAppRegistry` / `deleteAppRegistry`)
+- User profiles — user ↔ app ↔ role mappings (`getUserProfile` / `getUsersByApp` / `getAllUserProfiles` / `saveUserProfile` / `deleteUserProfile`)
+- Roles — role definitions (`getRole` / `getAllRoles` / `saveRole` / `deleteRole`)
+- Permissions — fine-grained permissions (`getPermission` / `getAllPermissions` / `getPermissionsByCategory` / `savePermission` / `deletePermission`) + derived `getUserPermissions` / `userHasPermission`
 
 #### Visibility & access control
 
@@ -1130,10 +1115,11 @@ modules).
 
 #### MarketsGrid profile storage
 
+- All three profile surfaces live in one module (`profileBundle.ts`): the `StorageAdapter` factory, the `ConfigManager.profiles` namespace, and `createConfigPort`, over shared `loadProfileSet` / `saveProfileSet` RMW helpers.
 - `createConfigServiceStorage()` — `StorageAdapter` factory for `MarketsGrid` profile sync
-  (per-scope in-memory cache of the raw `AppConfigRow`: collapses a save's redundant
-  `getConfig` reads to one, fed into the shared helpers; invalidated on every local write
-  and on `subscribeToChanges` notifications so cross-tab writes never serve a stale row)
+  (thin per-scope row cache layered over ConfigManager's own single-row cache; invalidated on
+  every local write and on `subscribeToChanges` notifications so cross-tab writes never serve
+  a stale row)
 - `migrateProfilesToConfigService()` — one-shot legacy migration
 - Bundling: one `AppConfigRow` per `(appId, userId, instanceId)` with all profiles in payload
 - `loadProfileSet()` / `saveProfileSet()` accept an optional pre-fetched-row box so a
@@ -1186,13 +1172,13 @@ modules).
 
 #### Error & concurrency
 
-- `ConfigNotFoundError`, `ConfigClientHttpError`, `OptimisticLockError`
+- `ConfigNotFoundError`, `OptimisticLockError`
 - Optimistic concurrency control (`If-Match` / `expectedUpdatedTime`)
 - `PendingSyncRow` — failed-write retry tracking
 
 #### Adapters & utilities
 
-- `createConfigPort()` — `ConfigClient` → `StoragePort` adapter
+- `createConfigPort()` — `ConfigManager` → `StoragePort` adapter
 - `ConfigPortOptions`
 - `CONFIG_BROWSER_TABLES`, `TABLES` — config-browser metadata
 - `ConfigBrowserTableKey`, `ConfigBrowserTableMeta`
@@ -1564,8 +1550,8 @@ of importing `@openfin/*` directly (architecture boundary).
 
 - `saveDockConfig` / `loadDockConfig` / `clearDockConfig`
 - `saveRegistryConfig` / `loadRegistryConfig` / `clearRegistryConfig`
-- `getConfigManager` — resolve `ConfigClient` for current scope
-- `setConfigManager` — override `ConfigClient`
+- `getConfigManager` — resolve `ConfigManager` for current scope
+- `setConfigManager` — override `ConfigManager`
 - `setPlatformDefaultScope` — set default `(appId, userId)` scope
 - `migrateLegacyPlatformScope` — v1 → v2 scope migration
 - `realignAllConfigsToPlatformScope` — batch-realign configs

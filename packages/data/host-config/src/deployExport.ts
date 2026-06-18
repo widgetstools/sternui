@@ -5,7 +5,7 @@
  */
 
 import { activeAppIdFromSeed, activeUserIdFromSeed, normalizeSeedData } from './normalizeSeedData';
-import { MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE } from './profileSetTypes';
+import { MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE } from './profileBundle.types';
 import type { AppConfigRow, SeedData } from './types';
 
 /** Same shape as Config Browser `exportAll` / `SeedData`. */

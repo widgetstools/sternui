@@ -141,31 +141,6 @@ describe('ConfigManager — visibility filter on read paths (Session 4)', () => 
     expect(grids.map((r) => r.configId)).toEqual(['t-pub-grid']);
   });
 
-  it('getLatestSnapshot picks the latest visible snapshot only', async () => {
-    // Older private snapshot owned by bob → not visible to alice.
-    await plant(cm, makeRow({
-      configId: 'snap-old',
-      appId: 'A',
-      userId: 'bob',
-      isPublic: false,
-      componentType: 'WORKSPACE_SNAPSHOT',
-      payload: { instanceIds: ['old'] },
-    }));
-    // Newer public snapshot → visible.
-    await new Promise((r) => setTimeout(r, 5));
-    await plant(cm, makeRow({
-      configId: 'snap-new',
-      appId: 'A',
-      userId: 'bob',
-      isPublic: true,
-      componentType: 'WORKSPACE_SNAPSHOT',
-      payload: { instanceIds: ['new'] },
-    }));
-
-    const latest = await cm.getLatestSnapshot('A');
-    expect(latest).toEqual({ instanceIds: ['new'] });
-  });
-
   // ─── Unfiltered admin variants ───────────────────────────────────
 
   it('*Unfiltered variants bypass visibility (admin / migration paths)', async () => {

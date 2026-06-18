@@ -11,7 +11,7 @@ import type {
   Unsubscribe,
 } from '@starui/types';
 import type { RuntimePort } from '@starui/host';
-import type { ConfigClient } from '@starui/host-config';
+import type { ConfigManager } from '@starui/host-config';
 import { HostWrapper, useHost } from './index.js';
 
 class FakeRuntime implements RuntimePort {
@@ -105,11 +105,11 @@ function makeIdentity(overrides: Partial<IdentitySnapshot> = {}): IdentitySnapsh
   };
 }
 
-const fakeConfigClient: ConfigClient = {
+const fakeConfigManager: ConfigManager = {
   init: async () => {},
   dispose: () => {},
-  // The remaining methods on ConfigClient aren't called in these tests — cast for brevity.
-} as unknown as ConfigClient;
+  // The remaining methods on ConfigManager aren't called in these tests — cast for brevity.
+} as unknown as ConfigManager;
 
 function Probe() {
   const host = useHost();
@@ -132,7 +132,7 @@ describe('HostWrapper / useHost', () => {
     render(
       <HostWrapper
         runtime={runtimePromise}
-        configManager={fakeConfigClient}
+        configManager={fakeConfigManager}
         loading={<span data-testid="loading">…</span>}
       >
         <Probe />
@@ -148,7 +148,7 @@ describe('HostWrapper / useHost', () => {
   it('exposes identity + theme to consumers via useHost()', async () => {
     const runtime = new FakeRuntime(makeIdentity({ appId: 'a', userId: 'u' }));
     render(
-      <HostWrapper runtime={runtime} configManager={fakeConfigClient}>
+      <HostWrapper runtime={runtime} configManager={fakeConfigManager}>
         <Probe />
       </HostWrapper>,
     );
@@ -160,7 +160,7 @@ describe('HostWrapper / useHost', () => {
   it('re-renders consumers when the runtime broadcasts a theme change', async () => {
     const runtime = new FakeRuntime(makeIdentity());
     render(
-      <HostWrapper runtime={runtime} configManager={fakeConfigClient}>
+      <HostWrapper runtime={runtime} configManager={fakeConfigManager}>
         <Probe />
       </HostWrapper>,
     );
@@ -195,7 +195,7 @@ describe('HostWrapper / useHost', () => {
       return <span data-testid="listener-mounted">ok</span>;
     }
     render(
-      <HostWrapper runtime={runtime} configManager={fakeConfigClient}>
+      <HostWrapper runtime={runtime} configManager={fakeConfigManager}>
         <Listener />
       </HostWrapper>,
     );

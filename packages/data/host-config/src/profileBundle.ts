@@ -1,73 +1,320 @@
 /**
- * ConfigService-backed storage adapter for `<MarketsGrid>` profiles.
+ * Bundled profile-set persistence — one module, three public surfaces.
  *
- * One `AppConfigRow` per `(appId, userId, instanceId)` — the row's
- * `payload` is a bundle of every profile for that instance:
+ * A MarketsGrid instance stores every one of its profiles (plus
+ * `gridLevelData`) in a SINGLE `AppConfigRow` keyed by `instanceId`,
+ * with `payload = { version, profiles[], gridLevelData }`. This file
+ * owns the read-modify-write of that bundle and exposes it three ways:
  *
- *   {
- *     profiles: ProfileSnapshot[]
- *   }
+ *   1. `createProfilesNamespace` → `ConfigManager.profiles.*` — the
+ *      first-class scope-based API.
+ *   2. `createConfigServiceStorage` → a `StorageAdapter` for the
+ *      `<MarketsGrid storage=…>` prop (legacy per-profile API).
+ *   3. `createConfigPort` → a `ConfigPort` for GridHostContext.
  *
- * This matches the original storage design in
- * `docs/plans/MARKETS_GRID_API.md` §Storage ("one row per instance
- * carrying the whole profile set"). Each adapter method implements
- * read-modify-write on the bundle under the hood so ProfileManager
- * and its 242-test suite continue to call the standard per-profile
- * `StorageAdapter` API unchanged.
- *
- * Row-mapping contract:
- *   componentType    = "markets-grid-profile-set"
- *   componentSubType = ""
- *   appId            = <host app id>
- *   userId           = <signed-in user id>
- *   configId         = <instanceId>          (primary key scope)
- *   payload          = { profiles: ProfileSnapshot[] }
- *
- * Why bundled, not per-profile:
- *   - Config Browser shows one row per instance instead of N rows — a
- *     much clearer mental model for admins ("this is alice's state for
- *     bond-blotter").
- *   - Single round-trip to hydrate a grid at mount; no client-side
- *     filter across the whole user's config.
- *   - Profile list + switch semantics stay inside the payload shape
- *     we own, rather than leaking into configId naming.
- *
- * Consistency note:
- *   saveProfile does load-modify-write against a single row. Two
- *   tabs mutating the same instance concurrently could race; the
- *   later write wins. Acceptable for the current demo target; a
- *   production REST backend would want optimistic concurrency
- *   (If-Match / version field) to surface conflicts. Not in scope
- *   for v1.
- *
- * Usage at app bootstrap (typical):
- *
- *   const storage = createConfigServiceStorage({
- *     configManager,
- *     appId: host.appId,
- *     userId: currentUser.id,
- *   });
- *   <MarketsGrid storage={storage} ... />
+ * All three sit on the same `loadProfileSet` / `saveProfileSet`
+ * helpers so version-handling and component-type discrimination never
+ * drift between surfaces.
  */
 
 // Type-only import — @starui/engine is a peerDependency so the types
 // line up exactly with what MarketsGrid expects. No runtime dep on
 // core; consumers naturally satisfy the peer by depending on both.
 import type { ProfileSnapshot, StorageAdapter } from '@starui/engine';
-import type { ProfileSetConfigAccess } from './profileSetAccess';
-import { loadProfileSet, readProfileSetPayload, saveProfileSet } from './profileSet';
-import type { ProfilesNamespace } from './profilesTypes';
-import type { RegisteredComponentIdentity } from './profileSetTypes';
-import type { AppConfigRow } from './types';
+import type { ConfigPort } from '@starui/host';
 
+import type { ChangeNotifier } from './changeNotifier';
+import type { ConfigManager } from './ConfigManager.js';
+import type { AppConfigRow } from './types';
+import {
+  MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE,
+  ProfileSetVersionConflictError,
+  type ProfileSetPayload,
+  type ProfileSetSaveOptions,
+  type ProfileSetScope,
+  type ProfilesNamespace,
+  type ProfilesSaveOptions,
+  type ProfilesScope,
+  type RegisteredComponentIdentity,
+} from './profileBundle.types';
+
+// Re-export the names that external consumers import from this module's
+// public barrel (`index.ts`), so the package's export surface is stable.
 export {
   MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE,
   MARKETS_GRID_PROFILE_COMPONENT_TYPE,
   ProfileSetVersionConflictError,
-  type RegisteredComponentIdentity,
-} from './profileSetTypes';
+} from './profileBundle.types';
+export type {
+  ProfileSetPayload,
+  ProfileSetScope,
+  ProfileSetSaveOptions,
+  ProfilesNamespace,
+  ProfilesScope,
+  ProfilesSaveOptions,
+  RegisteredComponentIdentity,
+  ProfileSnapshot,
+  StorageAdapter,
+};
 
-export type { ProfileSnapshot, StorageAdapter };
+// ─── ConfigManager surfaces these helpers depend on ──────────────────
+
+/** Minimal ConfigManager surface used by bundled profile-set I/O. */
+export interface ProfileSetConfigAccess {
+  getConfig(configId: string): Promise<AppConfigRow | null | undefined>;
+  saveConfig(row: AppConfigRow): Promise<void>;
+}
+
+/** ConfigManager surface used by the `profiles` namespace factory. */
+export interface ProfilesHost extends ProfileSetConfigAccess {
+  getAppId(): string;
+  getIdentity(): { userId: string };
+}
+
+// ─── Read-modify-write helpers ───────────────────────────────────────
+
+/**
+ * A pre-fetched row, boxed so `{ row: undefined }` ("provided, no row on
+ * disk") is distinguishable from passing no argument ("fetch it yourself").
+ * Lets a caller that already holds the row — e.g. the config-service
+ * adapter's per-scope cache — skip a redundant `getConfig`. The shared
+ * version / normalize logic stays in one place either way.
+ */
+export interface PrefetchedRow {
+  row: AppConfigRow | undefined;
+}
+
+/**
+ * Read the bundled row for `scope`. Returns `null` when no row exists
+ * yet (consumer treats null as "first launch, start empty"). Filters
+ * defensively: a row that happens to share `configId` but belongs to a
+ * different `(appId, userId)` is treated as missing rather than
+ * misappropriated.
+ *
+ * `prefetched`, when supplied, is used in place of a `getConfig` call —
+ * the caller vouches it's the current row for `scope`.
+ */
+export async function loadProfileSet(
+  configManager: ProfileSetConfigAccess,
+  scope: ProfileSetScope,
+  prefetched?: PrefetchedRow,
+): Promise<ProfileSetPayload | null> {
+  const row = prefetched ? prefetched.row : await configManager.getConfig(scope.instanceId);
+  if (isProfileSetRow(row, scope.appId, scope.userId)) {
+    return normalizePayload(row.payload);
+  }
+  return null;
+}
+
+function hasProfileSetShape(row: AppConfigRow): boolean {
+  const payload = row.payload as { profiles?: unknown } | null | undefined;
+  return row.componentType === MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE
+    || Array.isArray(payload?.profiles);
+}
+
+/**
+ * Storage-adapter read: returns profile-set bytes when the row has bundle
+ * shape, even if `appId`/`userId` drifted (export/seed class), so
+ * gridLevelData / profile RMW does not wipe with `profiles: []`.
+ */
+export function readProfileSetPayload(
+  row: AppConfigRow | null | undefined,
+  scope: Pick<ProfileSetScope, 'appId' | 'userId'>,
+): ProfileSetPayload | null {
+  void scope;
+  if (!row || !hasProfileSetShape(row)) return null;
+  return normalizePayload(row.payload);
+}
+
+/**
+ * Write the bundle with optimistic-concurrency check.
+ */
+export async function saveProfileSet(
+  configManager: ProfileSetConfigAccess,
+  scope: ProfileSetScope,
+  set: ProfileSetPayload,
+  expectedVersion: number,
+  options: ProfileSetSaveOptions = {},
+  prefetched?: PrefetchedRow,
+): Promise<void> {
+  const { instanceId, appId, userId } = scope;
+  const now = new Date().toISOString();
+  const existing = prefetched ? prefetched.row : await configManager.getConfig(instanceId);
+  // Version lives on the payload regardless of scope drift — a row at this
+  // configId with mismatched appId must still participate in OCC so
+  // concurrent gridLevelData + profile writes do not silently clobber.
+  const actualVersion = existing ? readVersion(existing.payload) : 0;
+
+  if (actualVersion !== expectedVersion) {
+    throw new ProfileSetVersionConflictError(expectedVersion, actualVersion, instanceId);
+  }
+
+  const creationTime = isProfileSetRow(existing, appId, userId)
+    ? (existing?.creationTime ?? now)
+    : now;
+
+  const identity = options.identity;
+  const componentType = identity?.componentType ?? MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE;
+  const componentSubType = identity?.componentSubType ?? '';
+  const isTemplate = identity?.isTemplate === true;
+  const singleton = identity?.singleton === true;
+  const displayTextPrefix = options.displayTextPrefix ?? 'MarketsGrid profiles';
+
+  const row: AppConfigRow = {
+    configId: instanceId,
+    appId,
+    userId,
+    isPublic: existing?.isPublic ?? true,
+    displayText: `${displayTextPrefix}: ${instanceId}`,
+    componentType,
+    componentSubType,
+    isTemplate,
+    singleton,
+    payload: { ...set, version: expectedVersion + 1 },
+    createdBy: existing?.createdBy ?? userId,
+    updatedBy: userId,
+    creationTime,
+    updatedTime: now,
+  };
+  await configManager.saveConfig(row);
+}
+
+export function isProfileSetRow(
+  row: AppConfigRow | null | undefined,
+  appId: string,
+  userId: string,
+): row is AppConfigRow {
+  if (!row) return false;
+  if (row.appId !== appId || row.userId !== userId) return false;
+  const payload = row.payload as { profiles?: unknown } | null | undefined;
+  return Array.isArray(payload?.profiles)
+    || row.componentType === MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE;
+}
+
+export function normalizePayload(payload: unknown): ProfileSetPayload {
+  const p = payload as
+    | { profiles?: unknown; version?: unknown; gridLevelData?: unknown }
+    | null
+    | undefined;
+  const arr = Array.isArray(p?.profiles) ? p.profiles : [];
+  const profiles: ProfileSnapshot[] = [];
+  for (const raw of arr) {
+    const snap = normalizeSnapshot(raw);
+    if (snap) profiles.push(snap);
+  }
+  return { version: readVersion(p), profiles, gridLevelData: p?.gridLevelData };
+}
+
+export function readVersion(payload: unknown): number {
+  const v = (payload as { version?: unknown } | null | undefined)?.version;
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0;
+}
+
+function normalizeSnapshot(raw: unknown): ProfileSnapshot | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const p = raw as Partial<ProfileSnapshot> & { gridId?: string };
+  if (!p.id || !p.gridId) return null;
+  return {
+    id: String(p.id),
+    gridId: String(p.gridId),
+    name: String(p.name ?? ''),
+    state: (p.state ?? {}) as ProfileSnapshot['state'],
+    createdAt: Number(p.createdAt ?? Date.now()),
+    updatedAt: Number(p.updatedAt ?? Date.now()),
+  };
+}
+
+// ─── Surface 1: `ConfigManager.profiles` namespace ───────────────────
+
+export function createProfilesNamespace(
+  manager: ProfilesHost,
+  notifier: ChangeNotifier,
+): ProfilesNamespace {
+  function resolveScope(scope: ProfilesScope): { instanceId: string; appId: string; userId: string } {
+    const appId = scope.appId ?? manager.getAppId();
+    const userId = scope.userId ?? manager.getIdentity().userId;
+    return { instanceId: scope.instanceId, appId, userId };
+  }
+
+  function toSaveOptions(options: ProfilesSaveOptions | undefined): ProfileSetSaveOptions {
+    return {
+      identity: options?.identity,
+      displayTextPrefix: options?.displayTextPrefix,
+    };
+  }
+
+  return {
+    async list(scope) {
+      const resolved = resolveScope(scope);
+      const set = await loadProfileSet(manager, resolved);
+      return set?.profiles ?? [];
+    },
+
+    async save(scope, snapshot, options) {
+      const resolved = resolveScope(scope);
+      const loaded = await loadProfileSet(manager, resolved);
+      const expectedVersion = loaded?.version ?? 0;
+      const profiles = loaded?.profiles ?? [];
+      const idx = profiles.findIndex((p) => p.id === snapshot.id);
+      if (idx >= 0) {
+        profiles[idx] = snapshot;
+      } else {
+        profiles.push(snapshot);
+      }
+      await saveProfileSet(
+        manager,
+        resolved,
+        { version: expectedVersion, profiles, gridLevelData: loaded?.gridLevelData },
+        expectedVersion,
+        toSaveOptions(options),
+      );
+    },
+
+    async delete(scope, profileId, options) {
+      const resolved = resolveScope(scope);
+      const loaded = await loadProfileSet(manager, resolved);
+      if (!loaded) return;
+      const filtered = loaded.profiles.filter((p) => p.id !== profileId);
+      if (filtered.length === loaded.profiles.length) return;
+      await saveProfileSet(
+        manager,
+        resolved,
+        { version: loaded.version, profiles: filtered, gridLevelData: loaded?.gridLevelData },
+        loaded.version,
+        toSaveOptions(options),
+      );
+    },
+
+    async loadGridLevelData(scope) {
+      const resolved = resolveScope(scope);
+      const set = await loadProfileSet(manager, resolved);
+      return set?.gridLevelData ?? null;
+    },
+
+    async saveGridLevelData(scope, data, options) {
+      const resolved = resolveScope(scope);
+      const loaded = await loadProfileSet(manager, resolved);
+      const expectedVersion = loaded?.version ?? 0;
+      await saveProfileSet(
+        manager,
+        resolved,
+        {
+          version: expectedVersion,
+          profiles: loaded?.profiles ?? [],
+          gridLevelData: data,
+        },
+        expectedVersion,
+        toSaveOptions(options),
+      );
+    },
+
+    subscribe(scope, fn) {
+      return notifier.subscribe(scope.instanceId, fn);
+    },
+  };
+}
+
+// ─── Surface 2: `createConfigServiceStorage` (StorageAdapter) ─────────
 
 export interface ConfigManagerForProfileStorage extends ProfileSetConfigAccess {
   profiles: Pick<ProfilesNamespace, 'subscribe'>;
@@ -166,14 +413,12 @@ export function createConfigServiceStorage(
     const saveOptions = { identity, displayTextPrefix };
 
     // Per-scope cache of the raw AppConfigRow. `ConfigManager.getConfig`
-    // has no memory cache, so without this a single profile save reads +
-    // structured-clone-deserialises the whole bundle FOUR times before
-    // the write (ProfileManager's existence check, `saveProfile`'s load,
-    // the version-check inside `saveProfileSet`, plus a read inside
-    // `saveConfig`). Holding the row collapses the three reads this
-    // adapter controls into one. The shared version / normalize / metadata
-    // logic still lives in `loadProfileSet` / `saveProfileSet` — we just
-    // feed them the cached row instead of re-fetching.
+    // now memoizes single-row reads itself, so this layer's cache is a
+    // thin local optimization that also short-circuits the version-check
+    // read inside `saveProfileSet`. Holding the row collapses the reads
+    // this adapter controls into one. The shared version / normalize /
+    // metadata logic still lives in `loadProfileSet` / `saveProfileSet` —
+    // we just feed them the cached row instead of re-fetching.
     //
     // Invalidation: cleared after every local write AND on any change
     // notification for this scope (cross-tab writes, or writes via the
@@ -406,4 +651,26 @@ export async function migrateProfilesToConfigService(params: {
   }
 
   return { migrated: true, count: sourceProfiles.length };
+}
+
+// ─── Surface 3: `createConfigPort` (GridHostContext) ─────────────────
+
+export interface ConfigPortOptions {
+  readonly configManager: ConfigManager;
+  readonly appId: string;
+  readonly userId: string;
+}
+
+/**
+ * Minimal ConfigPort adapter over ConfigManager for GridHostContext.
+ */
+export function createConfigPort(opts: ConfigPortOptions): ConfigPort {
+  const { configManager, appId, userId } = opts;
+  return {
+    appId,
+    userId,
+    subscribe(instanceId: string, fn: () => void) {
+      return configManager.profiles.subscribe({ instanceId, appId, userId }, fn);
+    },
+  };
 }

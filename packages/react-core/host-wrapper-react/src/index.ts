@@ -8,10 +8,10 @@
  *
  *   import { HostWrapper, useHost } from '@starui/host-wrapper-react';
  *   import { BrowserRuntime } from '@starui/runtime-browser';
- *   import { createConfigClient } from '@starui/host-config';
+ *   import { createConfigManager } from '@starui/host-config';
  *
  *   const runtime = new BrowserRuntime({ identity: { appId, userId } });
- *   const configManager = createConfigClient({ baseUrl });
+ *   const configManager = createConfigManager({ configServiceRestUrl: baseUrl });
  *
  *   <HostWrapper runtime={runtime} configManager={configManager}>
  *     <YourComponent />

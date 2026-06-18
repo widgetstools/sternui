@@ -5,7 +5,7 @@ import type {
   Unsubscribe,
 } from '@starui/types';
 import type { RuntimePort } from '@starui/host';
-import type { ConfigClient } from '@starui/host-config';
+import type { ConfigManager } from '@starui/host-config';
 
 /**
  * `HostContext` — Seam #2 of the architecture (see docs/ARCHITECTURE.md).
@@ -23,8 +23,8 @@ export interface HostContextValue extends IdentitySnapshot {
   /** Underlying runtime port (OpenFin or Browser). */
   readonly runtime: RuntimePort;
 
-  /** ConfigManager — any backend (REST, IndexedDB, localStorage, Memory). */
-  readonly configManager: ConfigClient;
+  /** ConfigManager — local Dexie or REST-synced (per `configServiceRestUrl`). */
+  readonly configManager: ConfigManager;
 
   /** Current theme — flips when the runtime broadcasts a change. */
   readonly theme: Theme;
@@ -79,7 +79,7 @@ export function useHost(): HostContextValue {
     throw new Error(
       '[host-wrapper-react] useHost must be used within a <HostWrapper>. ' +
         'Wrap the component tree at the app entry point with a HostWrapper ' +
-        'that provides a RuntimePort and a ConfigClient.',
+        'that provides a RuntimePort and a ConfigManager.',
     );
   }
   return ctx;

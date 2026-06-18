@@ -17,3 +17,14 @@ export class OptimisticLockError extends Error {
     this.name = 'OptimisticLockError';
   }
 }
+
+/**
+ * Thrown by {@link ConfigManager.updateConfig} when the target row does
+ * not exist. Update is a read-modify-write; there is nothing to patch.
+ */
+export class ConfigNotFoundError extends Error {
+  constructor(public readonly configId: string) {
+    super(`Configuration not found: ${configId}`);
+    this.name = 'ConfigNotFoundError';
+  }
+}
