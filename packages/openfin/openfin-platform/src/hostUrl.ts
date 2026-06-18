@@ -40,3 +40,22 @@ export function resolveHostUrl(rawUrl: string): string {
     return rawUrl;
   }
 }
+
+/**
+ * Stamp launch identity onto a view/window URL so reloads and workspace
+ * snapshots resolve the per-instance id synchronously from the query string.
+ *
+ * Writes both `instanceId` (read by `useHostedIdentity`) and `id` (read by
+ * workspace GC via `instanceIdsFromSnapshot`).
+ */
+export function appendLaunchIdentityParams(url: string, instanceId: string): string {
+  if (!url || !instanceId) return url;
+  try {
+    const resolved = new URL(url, typeof window !== "undefined" ? window.location.href : undefined);
+    resolved.searchParams.set("instanceId", instanceId);
+    resolved.searchParams.set("id", instanceId);
+    return resolved.toString();
+  } catch {
+    return url;
+  }
+}

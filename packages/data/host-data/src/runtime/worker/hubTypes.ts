@@ -42,8 +42,10 @@ export const MIN_WINDOW = 60;
 
 /** Client heartbeat interval (main thread). */
 export const SUBSCRIBER_PING_INTERVAL_MS = 15_000;
-/** Hub evicts subscribers with no ping within this window. */
+/** Hub evicts subscribers with no ping within this window (visible windows). */
 export const SUBSCRIBER_PING_TIMEOUT_MS = 45_000;
+/** Extended grace for hidden windows — main-thread heartbeats are throttled. */
+export const SUBSCRIBER_PING_TIMEOUT_HIDDEN_MS = 180_000;
 /** How often the hub scans for stale subscribers. */
 export const SUBSCRIBER_SWEEP_INTERVAL_MS = 10_000;
 
@@ -59,6 +61,13 @@ export const SUBSCRIBER_SWEEP_INTERVAL_MS = 10_000;
  */
 export interface PortLike {
   postMessage(message: unknown): void;
+  /** Set when a {@link FanOutWorkerPool} proxy owns the underlying port. */
+  fanOutClientId?: string;
+  /**
+   * Optional teardown for raw `MessagePort` listeners (inline fan-out
+   * path). Called from {@link SharedWorkerDataServicesHub.onPortClosed}.
+   */
+  dispose?: () => void;
 }
 
 /**
@@ -158,6 +167,8 @@ export interface DataListener {
   attachedAt: number;
   lastPingAt: number;
   meta?: SubscriberMeta;
+  /** Last reported visibility from client heartbeats. */
+  hidden?: boolean;
 }
 
 export interface StatsListener {
@@ -166,6 +177,7 @@ export interface StatsListener {
   attachedAt: number;
   lastPingAt: number;
   meta?: SubscriberMeta;
+  hidden?: boolean;
 }
 
 export interface AppDataListenerEntry {
@@ -200,4 +212,17 @@ export interface SharedWorkerDataServicesHubOpts {
   setTimer?: (cb: () => void, ms: number) => unknown;
   /** Inject the timer cancel for tests. Default: clearInterval. */
   clearTimer?: (handle: unknown) => void;
+
+  /**
+   * Optional fan-out worker pool — parallelizes data/stats broadcast
+   * postMessage loops across dedicated workers. Created by
+   * `installSharedWorkerHub` in production; omit in unit tests.
+   */
+  fanOutPool?: import('./FanOutWorkerPool.js').FanOutWorkerPool | null;
+
+  /**
+   * Minimum data/stats listeners before routing broadcast through the
+   * fan-out pool (default 1 — one worker per connected subscriber).
+   */
+  fanOutMinListeners?: number;
 }

@@ -137,8 +137,8 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
     hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
 
     expect(port.messages).toHaveLength(2);
-    expect(port.messages[0]).toMatchObject({ subId: 's1', kind: 'delta', replace: true, rows: [] });
-    expect(port.messages[1]).toMatchObject({ subId: 's1', kind: 'status', status: 'loading' });
+    expect(port.messages[0]).toMatchObject({ subId: 's1', kind: 'status', status: 'loading' });
+    expect(port.messages[1]).toMatchObject({ subId: 's1', kind: 'delta', replace: true, rows: [] });
   });
 
   it('rejects with status:error if the providerId is not running and no cfg supplied', () => {
@@ -170,9 +170,9 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
     expect(replaceB).toBeTruthy();
     expect(rowsOf(replaceB!)).toHaveLength(2);
 
-    // ...and the current status.
-    const statusB = portB.messages.find((m) => m.kind === 'status');
-    expect(statusB).toMatchObject({ status: 'ready' });
+    // ...and the current status (loading precedes ready on replay).
+    const statusesB = portB.messages.filter((m) => m.kind === 'status');
+    expect(statusesB.map((s) => s.status)).toEqual(['loading', 'ready']);
   });
 
   it('passes extra to provider.restart on a re-attach', () => {
@@ -360,6 +360,9 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
 
     hub.handleRequest(portA, { kind: 'refresh-provider', subId: 'sA', providerId: 'p1' });
 
+    const statusesA = portA.messages.filter((m) => m.kind === 'status') as Array<Event & { status: string }>;
+    expect(statusesA[0]?.status).toBe('loading');
+    expect(statusesA.at(-1)?.status).toBe('ready');
     const deltasA = portA.messages.filter(isAnyDelta);
     expect(deltasA.length).toBeGreaterThan(0);
     expect(portB.messages).toHaveLength(0);
@@ -1011,11 +1014,29 @@ describe('SharedWorkerDataServicesHub — subscriber heartbeats', () => {
     vi.setSystemTime(SUBSCRIBER_PING_TIMEOUT_MS + SUBSCRIBER_SWEEP_INTERVAL_MS);
     timers.tick();
 
+    expect(port.messages.some((m) => m.kind === 'subscription-lost')).toBe(true);
     expect(ctrl.stopCount).toBe(1);
     vi.useRealTimers();
     port.messages.length = 0;
     ctrl.emit({ rows: [{ id: 'r2' }] });
     expect(port.messages).toHaveLength(0);
+  });
+
+  it('extends ping grace for hidden subscribers', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const timers = makeFakeTimers();
+    const hub = new SharedWorkerDataServicesHub({ setTimer: timers.set, clearTimer: timers.clear });
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    hub.handleRequest(port, { kind: 'ping', subId: 's1', meta: { hidden: true } });
+
+    vi.setSystemTime(SUBSCRIBER_PING_TIMEOUT_MS + SUBSCRIBER_SWEEP_INTERVAL_MS);
+    timers.tick();
+    expect(ctrl.stopCount).toBe(0);
+
+    vi.useRealTimers();
   });
 
   it('ping refreshes liveness and keeps the provider running', () => {
@@ -1674,7 +1695,8 @@ describe('SharedWorkerDataServicesHub — thin field-level deltas (cfg.thinDelta
       cfg: cfg('default', { thinDeltas: true }),
     });
     expect(port.messages[0]).toMatchObject({ kind: 'sub-init', subId: 's1', keyColumn: 'id' });
-    expect(port.messages[1]).toMatchObject({ kind: 'delta', replace: true });
+    expect(port.messages[1]).toMatchObject({ kind: 'status', status: 'loading' });
+    expect(port.messages[2]).toMatchObject({ kind: 'delta', replace: true });
   });
 
   it('broadcasts only the changed top-level fields for an updated row', () => {
@@ -1853,5 +1875,236 @@ describe('SharedWorkerDataServicesHub — columnar wire format (cfg.wireFormat)'
     const bins = port.messages.filter((m) => m.kind === 'delta-bin');
     expect(bins.length).toBeGreaterThan(0);
     expect(bins.every((b) => (b as { enc?: string }).enc === 'json')).toBe(true);
+  });
+});
+
+describe('SharedWorkerDataServicesHub — fan-out worker pool', () => {
+  interface PooledPort extends PortLike {
+    messages: Event[];
+    fanOutClientId: string;
+  }
+
+  function makePooledPort(clientId: string): PooledPort {
+    const messages: Event[] = [];
+    return {
+      fanOutClientId: clientId,
+      messages,
+      postMessage(m: unknown) {
+        messages.push({ ...(m as Event) });
+      },
+    };
+  }
+
+  /** Minimal pool double — synchronous broadcast like the real pool. */
+  function makeMockFanOutPool(ports: Map<string, PooledPort>) {
+    const activeSubIds = new Set<string>();
+    return {
+      createPortProxy(clientId: string): PortLike {
+        const existing = ports.get(clientId);
+        if (existing) return existing;
+        const port = makePooledPort(clientId);
+        ports.set(clientId, port);
+        return port;
+      },
+      getProxy(clientId: string) { return ports.get(clientId); },
+      registerPending() {},
+      activateSubscriber(subId: string) { activeSubIds.add(subId); },
+      unregisterSubscriber(subId: string) { activeSubIds.delete(subId); },
+      unregisterClient(clientId: string) { ports.delete(clientId); },
+      isActive(subId: string) { return activeSubIds.has(subId); },
+      async broadcast(
+        items: ReadonlyArray<{ clientId: string; subId: string }>,
+        event: unknown,
+      ) {
+        const dead: string[] = [];
+        for (const item of items) {
+          if (!activeSubIds.has(item.subId)) { dead.push(item.subId); continue; }
+          const port = ports.get(item.clientId);
+          if (!port) { dead.push(item.subId); continue; }
+          try {
+            port.postMessage({ ...(event as Event), subId: item.subId });
+          } catch {
+            dead.push(item.subId);
+          }
+        }
+        return dead;
+      },
+      dispose() {},
+    };
+  }
+
+  it('routes multi-listener broadcasts through the fan-out pool', async () => {
+    const pooled = new Map<string, PooledPort>();
+    const fanOutPool = makeMockFanOutPool(pooled);
+    const hub = new SharedWorkerDataServicesHub({ fanOutPool: fanOutPool as never, fanOutMinListeners: 1 });
+
+    const portA = fanOutPool.createPortProxy('client-a');
+    const portB = fanOutPool.createPortProxy('client-b');
+
+    hub.handleRequest(portA, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
+    hub.handleRequest(portB, { kind: 'attach', subId: 's2', providerId: 'p1', mode: 'data', cfg: cfg() });
+
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ status: 'ready' });
+    ctrl.emit({ rows: [{ id: '1' }, { id: '2' }] });
+
+    await vi.waitFor(() => {
+      expect(pooled.get('client-a')?.messages.some((m) => m.kind === 'delta')).toBe(true);
+      expect(pooled.get('client-b')?.messages.some((m) => m.kind === 'delta')).toBe(true);
+    });
+
+    const deltaA = pooled.get('client-a')!.messages.filter(
+      (m): m is Event & { kind: 'delta' } => m.kind === 'delta' && !(m as { replace?: boolean }).replace,
+    ).pop();
+    const deltaB = pooled.get('client-b')!.messages.filter(
+      (m): m is Event & { kind: 'delta' } => m.kind === 'delta' && !(m as { replace?: boolean }).replace,
+    ).pop();
+    expect(deltaA).toMatchObject({ subId: 's1', rows: [{ id: '1' }, { id: '2' }] });
+    expect(deltaB).toMatchObject({ subId: 's2', rows: [{ id: '1' }, { id: '2' }] });
+  });
+
+  it('posts delta-bin directly from the hub without fan-out worker round-trip', () => {
+    const pooled = new Map<string, PooledPort>();
+    let broadcastCalls = 0;
+    const base = makeMockFanOutPool(pooled);
+    const fanOutPool = {
+      ...base,
+      async broadcast(
+        items: ReadonlyArray<{ clientId: string; subId: string }>,
+        event: unknown,
+      ) {
+        broadcastCalls += 1;
+        return base.broadcast(items, event);
+      },
+    };
+    const hub = new SharedWorkerDataServicesHub({ fanOutPool: fanOutPool as never, fanOutMinListeners: 1 });
+
+    const portA = fanOutPool.createPortProxy('client-a');
+    const portB = fanOutPool.createPortProxy('client-b');
+    hub.handleRequest(portA, { kind: 'attach', subId: 'sA', providerId: 'p1', mode: 'data', cfg: cfg() });
+    hub.handleRequest(portB, { kind: 'attach', subId: 'sB', providerId: 'p1', mode: 'data' });
+
+    const ctrl = controllers.get('default')!;
+    pooled.get('client-a')!.messages.length = 0;
+    pooled.get('client-b')!.messages.length = 0;
+    broadcastCalls = 0;
+
+    ctrl.emit({
+      rows: Array.from({ length: 700 }, (_, i) => ({ id: `r${i}`, x: i })),
+      replace: true,
+    });
+
+    expect(broadcastCalls).toBe(0);
+    const chunksA = pooled.get('client-a')!.messages.filter((m) => m.kind === 'delta-bin');
+    const chunksB = pooled.get('client-b')!.messages.filter((m) => m.kind === 'delta-bin');
+    expect(chunksA).toHaveLength(2);
+    expect(chunksB).toHaveLength(2);
+    expect((chunksB[0] as { buf?: Uint8Array }).buf).toBe((chunksA[0] as { buf?: Uint8Array }).buf);
+    expect((chunksB[1] as { buf?: Uint8Array }).buf).toBe((chunksA[1] as { buf?: Uint8Array }).buf);
+    expect(chunksA.every((c) => c.subId === 'sA')).toBe(true);
+    expect(chunksB.every((c) => c.subId === 'sB')).toBe(true);
+  });
+
+  it('releases fan-out worker when a subscription detaches', () => {
+    const pooled = new Map<string, PooledPort>();
+    const unregistered: string[] = [];
+    const fanOutPool = {
+      ...makeMockFanOutPool(pooled),
+      unregisterSubscriber(subId: string) {
+        unregistered.push(subId);
+      },
+    };
+    const hub = new SharedWorkerDataServicesHub({ fanOutPool: fanOutPool as never, fanOutMinListeners: 1 });
+    const port = fanOutPool.createPortProxy('client-a');
+
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
+    hub.handleRequest(port, { kind: 'attach', subId: 's2', providerId: 'p1', mode: 'data', cfg: cfg() });
+    expect(unregistered).toEqual(['s1', 's2']);
+
+    hub.handleRequest(port, { kind: 'detach', subId: 's1' });
+    expect(unregistered).toEqual(['s1', 's2', 's1']);
+
+    hub.handleRequest(port, { kind: 'detach', subId: 's2' });
+    expect(unregistered).toEqual(['s1', 's2', 's1', 's2']);
+  });
+
+  it('posts stats directly from the hub without fan-out worker round-trip', () => {
+    const timers = makeFakeTimers();
+    const pooled = new Map<string, PooledPort>();
+    let broadcastCalls = 0;
+    const base = makeMockFanOutPool(pooled);
+    const fanOutPool = {
+      ...base,
+      async broadcast(
+        items: ReadonlyArray<{ clientId: string; subId: string }>,
+        event: unknown,
+      ) {
+        broadcastCalls += 1;
+        return base.broadcast(items, event);
+      },
+    };
+    const hub = new SharedWorkerDataServicesHub({
+      fanOutPool: fanOutPool as never,
+      fanOutMinListeners: 1,
+      setTimer: timers.set,
+      clearTimer: timers.clear,
+    });
+    const port = fanOutPool.createPortProxy('client-a');
+    hub.handleRequest(port, { kind: 'attach', subId: 'data', providerId: 'p1', mode: 'data', cfg: cfg() });
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'stats' });
+
+    pooled.get('client-a')!.messages.length = 0;
+    broadcastCalls = 0;
+    timers.tick();
+
+    expect(pooled.get('client-a')?.messages.some((m) => m.kind === 'stats')).toBe(true);
+    expect(broadcastCalls).toBe(0);
+  });
+
+  it('does not duplicate delivery when one pooled fan-out job fails', async () => {
+    const pooled = new Map<string, PooledPort>();
+    const base = makeMockFanOutPool(pooled);
+    const fanOutPool = {
+      ...base,
+      async broadcast(
+        items: ReadonlyArray<{ clientId: string; subId: string }>,
+        event: unknown,
+      ) {
+        const dead: string[] = [];
+        for (const item of items) {
+          if (item.subId === 's2') {
+            dead.push('s2');
+            continue;
+          }
+          const port = pooled.get(item.clientId);
+          if (!port) { dead.push(item.subId); continue; }
+          port.postMessage({ ...(event as Event), subId: item.subId });
+        }
+        return dead;
+      },
+    };
+    const hub = new SharedWorkerDataServicesHub({ fanOutPool: fanOutPool as never, fanOutMinListeners: 1 });
+    const portA = fanOutPool.createPortProxy('client-a');
+    const portB = fanOutPool.createPortProxy('client-b');
+    hub.handleRequest(portA, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
+    hub.handleRequest(portB, { kind: 'attach', subId: 's2', providerId: 'p1', mode: 'data', cfg: cfg() });
+
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ status: 'ready' });
+    pooled.get('client-a')!.messages.length = 0;
+    pooled.get('client-b')!.messages.length = 0;
+
+    ctrl.emit({ rows: [{ id: '1' }, { id: '2' }] });
+
+    await vi.waitFor(() => {
+      expect(pooled.get('client-a')?.messages.some((m) => m.kind === 'delta')).toBe(true);
+    });
+
+    const deltasA = pooled.get('client-a')!.messages.filter((m) => m.kind === 'delta');
+    const deltasB = pooled.get('client-b')!.messages.filter((m) => m.kind === 'delta');
+    expect(deltasA).toHaveLength(1);
+    expect(deltasB).toHaveLength(1);
+    expect(deltasA[0]).toMatchObject({ subId: 's1', rows: [{ id: '1' }, { id: '2' }] });
+    expect(deltasB[0]).toMatchObject({ subId: 's2', rows: [{ id: '1' }, { id: '2' }] });
   });
 });

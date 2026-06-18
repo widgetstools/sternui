@@ -7,6 +7,7 @@ import { useHostedIdentity } from '../useHostedIdentity.js';
 afterEach(() => {
   cleanup();
   delete (globalThis as any).fin;
+  window.history.replaceState({}, '', '/');
 });
 
 const fakeConfigManager = { __fake: true } as unknown as ConfigManager;
@@ -40,12 +41,26 @@ describe('useHostedIdentity — OpenFin path', () => {
         configManager: fakeConfigManager,
       }),
     );
-    // `ready` is now always true (instanceId is seeded synchronously); the
-    // OpenFin `customData` refine lands on the next tick, so wait for it.
-    expect(result.current.ready).toBe(true);
-    await waitFor(() => expect(result.current.identity.instanceId).toBe('OF-INSTANCE'));
+    expect(result.current.ready).toBe(false);
+    expect(result.current.identity.instanceId).toBeNull();
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    expect(result.current.identity.instanceId).toBe('OF-INSTANCE');
     expect(result.current.identity.appId).toBe('fallback-app');
     expect(result.current.identity.userId).toBe('fallback-user');
     expect(result.current.identity.configManager).toBe(fakeConfigManager);
+  });
+
+  it('is ready on first paint when the launch URL stamps ?instanceId=', async () => {
+    window.history.replaceState({}, '', '/?instanceId=URL-STAMPED');
+    const { result } = renderHook(() =>
+      useHostedIdentity({
+        defaultInstanceId: 'fallback-instance',
+        componentName: 'TestGrid',
+        configManager: fakeConfigManager,
+      }),
+    );
+    expect(result.current.ready).toBe(true);
+    expect(result.current.identity.instanceId).toBe('URL-STAMPED');
+    await waitFor(() => expect(result.current.identity.instanceId).toBe('OF-INSTANCE'));
   });
 });

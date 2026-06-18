@@ -933,11 +933,21 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
               title={
                 isSavingProfile
                   ? 'Saving…'
-                  : activeProviderName
-                    ? `Loading ${activeProviderName}`
-                    : 'Loading market data'
+                  : isRefetching && resolvedSubKey
+                    ? activeProviderName
+                      ? `Refreshing ${activeProviderName}`
+                      : 'Refreshing view'
+                    : activeProviderName
+                      ? `Loading ${activeProviderName}`
+                      : 'Loading market data'
               }
-              message={isSavingProfile ? 'Persisting profile' : undefined}
+              message={
+                isSavingProfile
+                  ? 'Persisting profile'
+                  : isRefetching && resolvedSubKey
+                    ? 'Replaying cached snapshot…'
+                    : undefined
+              }
               rowCount={isSavingProfile ? undefined : loadRowCount}
             />
           )}

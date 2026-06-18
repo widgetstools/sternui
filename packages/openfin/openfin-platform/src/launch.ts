@@ -10,7 +10,7 @@ import {
   type RegistryEntry,
 } from "./registryConfigTypes";
 import { DEFAULT_USER_ID } from "./registryHostEnv";
-import { resolveHostUrl } from "./hostUrl";
+import { appendLaunchIdentityParams, resolveHostUrl } from "./hostUrl";
 
 // ─── Singleton in-flight + opened registry ───────────────────────────
 //
@@ -322,7 +322,7 @@ async function createComponentInstance(
 
   // Resolve relative hostUrls (e.g. "/blotters/marketsgrid") against the
   // platform-provider window's origin before passing to OpenFin.
-  const resolvedUrl = resolveHostUrl(entry.hostUrl);
+  const resolvedUrl = appendLaunchIdentityParams(resolveHostUrl(entry.hostUrl), instanceId);
 
   if (opts.asWindow) {
     const platform = getCurrentSync();

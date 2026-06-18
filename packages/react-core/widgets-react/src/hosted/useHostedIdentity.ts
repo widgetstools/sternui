@@ -51,14 +51,14 @@ export interface UseHostedIdentityArgs {
  * Result of {@link useHostedIdentity}.
  */
 export interface UseHostedIdentityResult {
-  /** Resolved identity bundle. `instanceId` is seeded synchronously; the
-   *  ConfigManager / storage fields may begin `null` and resolve shortly. */
+  /** Resolved identity bundle. `instanceId` may be `null` while OpenFin
+   *  `customData` is in flight; ConfigManager / storage resolve shortly after. */
   identity: HostedContext;
   /**
-   * Always `true` — `instanceId` is seeded synchronously (URL/default), so
-   * identity is ready on first render. Retained for API compatibility with
-   * consumers that gate on it; it no longer reflects a pending OpenFin lookup.
-   * Gate on `identity.configManager` / `identity.storage` for data-readiness.
+   * `true` once `instanceId` is resolved. In OpenFin without a stamped
+   * `?instanceId=` / `?id=` URL param this stays `false` until
+   * `fin.me.getOptions().customData` settles (or times out). Browser
+   * paths and URL-stamped OpenFin views are ready on first paint.
    */
   ready: boolean;
 }
@@ -104,24 +104,40 @@ interface HostCustomData {
   singleton?: boolean;
 }
 
-/** Synchronously derive `instanceId` from the URL `?instanceId=` query param. */
+/** Synchronously derive `instanceId` from URL query params. */
 function readUrlInstanceId(): string | null {
   try {
-    const fromUrl = new URLSearchParams(window.location.search).get('instanceId');
-    return fromUrl && fromUrl.length > 0 ? fromUrl : null;
+    const params = new URLSearchParams(window.location.search);
+    const fromInstanceId = params.get('instanceId');
+    if (fromInstanceId && fromInstanceId.length > 0) return fromInstanceId;
+    const fromId = params.get('id');
+    if (fromId && fromId.length > 0) return fromId;
+    return null;
   } catch {
     /* SSR / no window */
     return null;
   }
 }
 
+function isOpenFinRuntime(): boolean {
+  return typeof fin !== 'undefined';
+}
+
 /**
- * The synchronous identity seed: URL `?instanceId=` wins, else the host
- * default. Used as the initial state so the grid mounts immediately — the
- * OpenFin `customData` refine (when present) overrides it on the next tick.
+ * Initial `instanceId` state. Browser and URL-stamped OpenFin views seed
+ * synchronously; bare OpenFin views start `null` so the grid does not mount
+ * under the host default before `customData` arrives.
  */
-function seedInstanceId(defaultId: string): string {
-  return readUrlInstanceId() ?? defaultId;
+function initialInstanceId(defaultId: string): string | null {
+  const fromUrl = readUrlInstanceId();
+  if (fromUrl) return fromUrl;
+  if (isOpenFinRuntime()) return null;
+  return defaultId;
+}
+
+/** True while an OpenFin view awaits `customData` without a URL-stamped id. */
+function initialIdentityPending(): boolean {
+  return isOpenFinRuntime() && readUrlInstanceId() === null;
 }
 
 /**
@@ -236,10 +252,10 @@ export function useHostedIdentity(args: UseHostedIdentityArgs): UseHostedIdentit
 
   const platformIdentity = usePlatformIdentityOrNull();
 
-  // Seed `instanceId` synchronously (URL ?instanceId= → default) so the grid
-  // mounts on first paint instead of gating on the async OpenFin lookup. In
-  // OpenFin the `customData` refine below overrides it on the next tick.
-  const [instanceId, setInstanceId] = useState<string>(() => seedInstanceId(defaultInstanceId));
+  const [instanceId, setInstanceId] = useState<string | null>(() =>
+    initialInstanceId(defaultInstanceId),
+  );
+  const [identityPending, setIdentityPending] = useState(initialIdentityPending);
   const [resolvedConfigManager, setResolvedConfigManager] = useState<ConfigManager | null>(
     () => configManagerOverride ?? null,
   );
@@ -259,29 +275,36 @@ export function useHostedIdentity(args: UseHostedIdentityArgs): UseHostedIdentit
     ?? readConfigManagerUserId(resolvedConfigManager)
     ?? defaultUserId;
 
-  // OpenFin refine — overrides the synchronous seed with `customData`
-  // (instanceId + registered-component metadata) when running inside a view.
-  // Bounded by HOST_OPTIONS_TIMEOUT_MS so a wedged runtime can't strand the
-  // window: on timeout/error we simply keep the seed. No-op in the browser.
+  // OpenFin refine — `customData` supplies instanceId + registered-component
+  // metadata. Bounded by HOST_OPTIONS_TIMEOUT_MS; on timeout/error fall back
+  // to the host default when no URL-stamped id is present.
   useEffect(() => {
-    if (typeof fin === 'undefined') return;
+    if (!isOpenFinRuntime()) return;
     let cancelled = false;
     readHostCustomData(HOST_OPTIONS_TIMEOUT_MS)
       .then((cd) => {
-        if (cancelled || !cd) return;
-        if (typeof cd.instanceId === 'string' && cd.instanceId.length > 0) {
+        if (cancelled) return;
+        if (typeof cd?.instanceId === 'string' && cd.instanceId.length > 0) {
           setInstanceId(cd.instanceId);
+        } else if (!readUrlInstanceId()) {
+          setInstanceId(defaultInstanceId);
         }
         const reg = toRegisteredIdentity(cd);
         if (reg) setRegisteredIdentity(reg);
       })
       .catch((err) => {
         console.error(`[useHostedIdentity:${componentName}] identity resolution failed:`, err);
+        if (!cancelled && !readUrlInstanceId()) {
+          setInstanceId(defaultInstanceId);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIdentityPending(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [componentName]);
+  }, [componentName, defaultInstanceId]);
 
   // ConfigManager — explicit override wins; otherwise resolve the host
   // singleton lazily (peek-first, then bounded getConfigManager fallback).
@@ -325,8 +348,6 @@ export function useHostedIdentity(args: UseHostedIdentityArgs): UseHostedIdentit
     [instanceId, appId, userId, resolvedConfigManager, storage],
   );
 
-  // `instanceId` is seeded synchronously, so identity is always ready on first
-  // render. The flag is retained for API compatibility with consumers that
-  // gate on it; it no longer reflects a pending OpenFin lookup.
-  return { identity, ready: true };
+  const ready = !identityPending && instanceId !== null;
+  return { identity, ready };
 }

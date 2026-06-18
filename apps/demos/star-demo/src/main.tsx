@@ -73,7 +73,7 @@ function FullGate({ children }: { children: ReactNode }) {
   const boot = use(initPlatformBootstrap());
   return (
     <PlatformBootstrapProvider value={boot}>
-      <DataHubProvider platform={boot.platform} userId={boot.config.userId}>
+      <DataHubProvider platform={boot.platform} userId={boot.config.userId} hubInspector={false}>
         {children}
       </DataHubProvider>
     </PlatformBootstrapProvider>

@@ -131,10 +131,20 @@ export interface SubscribeHandle<T = unknown> {
 interface DataSub {
   kind: 'data';
   listener: DataListener;
+  attach: {
+    providerId: string;
+    cfg?: ProviderConfig;
+    extra?: Record<string, unknown>;
+    meta?: SubscriberMeta;
+  };
 }
 interface StatsSub {
   kind: 'stats';
   listener: StatsListener;
+  attach: {
+    providerId: string;
+    meta?: SubscriberMeta;
+  };
 }
 type Sub = DataSub | StatsSub;
 
@@ -181,6 +191,7 @@ export class SharedWorkerDataServicesClient {
   private readonly heartbeatTimers = new Map<SubId, ReturnType<typeof setInterval>>();
   private readonly heartbeatMeta = new Map<SubId, SubscriberMeta | undefined>();
   private pageHideHandler: ((ev: PageTransitionEvent) => void) | null = null;
+  private visibilityHandler: (() => void) | null = null;
 
   constructor(port: MessagePort, opts: SharedWorkerDataServicesClientOpts = {}) {
     this.port = port;
@@ -193,6 +204,13 @@ export class SharedWorkerDataServicesClient {
         this.close();
       };
       globalThis.addEventListener('pagehide', this.pageHideHandler);
+    }
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+      this.visibilityHandler = () => {
+        if (document.hidden) return;
+        this.sendVisibilityPings();
+      };
+      document.addEventListener('visibilitychange', this.visibilityHandler);
     }
   }
 
@@ -212,7 +230,16 @@ export class SharedWorkerDataServicesClient {
   ): SubId {
     if (this.closed) throw new Error('[SharedWorkerDataServicesClient] client is closed');
     const subId = this.generateSubId();
-    this.subs.set(subId, { kind: 'data', listener: listener as DataListener });
+    this.subs.set(subId, {
+      kind: 'data',
+      listener: listener as DataListener,
+      attach: {
+        providerId,
+        cfg,
+        extra: opts.extra,
+        meta: opts.meta,
+      },
+    });
     this.send({
       kind: 'attach',
       subId,
@@ -378,7 +405,16 @@ export class SharedWorkerDataServicesClient {
       },
     };
 
-    this.subs.set(subId, { kind: 'data', listener: listener as DataListener });
+    this.subs.set(subId, {
+      kind: 'data',
+      listener: listener as DataListener,
+      attach: {
+        providerId,
+        cfg,
+        extra: opts.extra,
+        meta: opts.meta,
+      },
+    });
     this.send({
       kind: 'attach',
       subId,
@@ -451,7 +487,11 @@ export class SharedWorkerDataServicesClient {
   attachStats(providerId: string, listener: StatsListener): SubId {
     if (this.closed) throw new Error('[SharedWorkerDataServicesClient] client is closed');
     const subId = this.generateSubId();
-    this.subs.set(subId, { kind: 'stats', listener });
+    this.subs.set(subId, {
+      kind: 'stats',
+      listener,
+      attach: { providerId },
+    });
     this.send({
       kind: 'attach',
       subId,
@@ -621,6 +661,10 @@ export class SharedWorkerDataServicesClient {
       globalThis.removeEventListener('pagehide', this.pageHideHandler);
       this.pageHideHandler = null;
     }
+    if (this.visibilityHandler && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+      this.visibilityHandler = null;
+    }
     // Tell the hub to drop our subscriptions before the port closes.
     // Otherwise zombie listeners make postMessage throw during fan-out
     // and every other window on the same provider stops getting ticks.
@@ -656,10 +700,12 @@ export class SharedWorkerDataServicesClient {
     this.heartbeatMeta.set(subId, meta);
     const tick = () => {
       if (this.closed) return;
+      const base = this.heartbeatMeta.get(subId);
+      const hidden = typeof document !== 'undefined' && document.hidden;
       this.send({
         kind: 'ping',
         subId,
-        meta: this.heartbeatMeta.get(subId),
+        meta: { ...base, hidden },
       });
     };
     tick();
@@ -667,6 +713,47 @@ export class SharedWorkerDataServicesClient {
       subId,
       setInterval(tick, SUBSCRIBER_PING_INTERVAL_MS),
     );
+  }
+
+  /** Immediate pings when a hidden window becomes visible again. */
+  private sendVisibilityPings(): void {
+    if (this.closed) return;
+    for (const subId of this.subs.keys()) {
+      const base = this.heartbeatMeta.get(subId);
+      this.send({
+        kind: 'ping',
+        subId,
+        meta: { ...base, hidden: false },
+      });
+    }
+  }
+
+  /**
+   * Hub evicted our subscription (missed heartbeats). Re-attach with the
+   * same subId so delivery resumes without tearing down consumer handlers.
+   */
+  private handleSubscriptionLost(subId: SubId): void {
+    const sub = this.subs.get(subId);
+    if (!sub || this.closed) return;
+    if (sub.kind === 'data') {
+      this.send({
+        kind: 'attach',
+        subId,
+        providerId: sub.attach.providerId,
+        cfg: sub.attach.cfg,
+        mode: 'data',
+        extra: sub.attach.extra,
+      });
+      this.startHeartbeat(subId, sub.attach.meta);
+      return;
+    }
+    this.send({
+      kind: 'attach',
+      subId,
+      providerId: sub.attach.providerId,
+      mode: 'stats',
+    });
+    this.startHeartbeat(subId, sub.attach.meta);
   }
 
   private stopHeartbeat(subId: SubId): void {
@@ -795,6 +882,9 @@ export class SharedWorkerDataServicesClient {
         if (sub.kind === 'data') {
           sub.listener.onRowsReceived?.(event.count);
         }
+        return;
+      case 'subscription-lost':
+        this.handleSubscriptionLost(event.subId);
         return;
     }
   };

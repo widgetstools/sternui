@@ -29,6 +29,11 @@ import {
   type PortLike,
 } from './SharedWorkerDataServicesHub.js';
 import { isRequest, isAppDataRequest } from '../protocol.js';
+import {
+  createFanOutWorkerPool,
+  resolveFanOutWorkerUrl,
+  type FanOutWorkerPool,
+} from './FanOutWorkerPool.js';
 
 interface SharedWorkerLike {
   onconnect: ((ev: { ports: readonly MessagePort[] }) => void) | null;
@@ -48,6 +53,12 @@ export interface InstallOpts extends SharedWorkerDataServicesHubOpts {
    * `'worker'`.
    */
   hydrateUserId?: string;
+  /**
+   * Pre-built fan-out pool (tests). When omitted, a pool is created
+   * automatically when `Worker` is available. Pass `null` to force
+   * inline fan-out.
+   */
+  fanOutPool?: FanOutWorkerPool | null;
 }
 
 export interface InstalledWorker {
@@ -57,7 +68,22 @@ export interface InstalledWorker {
 }
 
 export async function installSharedWorkerHub(opts: InstallOpts = {}): Promise<InstalledWorker> {
-  const hub = new SharedWorkerDataServicesHub(opts);
+  let fanOutPool: FanOutWorkerPool | null = null;
+  let hub!: SharedWorkerDataServicesHub;
+
+  if (opts.fanOutPool !== undefined) {
+    fanOutPool = opts.fanOutPool;
+  } else {
+    fanOutPool = createFanOutWorkerPool({
+      workerUrl: resolveFanOutWorkerUrl(import.meta.url),
+      onClientDead: (clientId) => {
+        const portLike = fanOutPool?.getProxy(clientId);
+        if (portLike) hub.onPortClosed(portLike);
+      },
+    });
+  }
+
+  hub = new SharedWorkerDataServicesHub({ ...opts, fanOutPool });
 
   const globalRef = (opts.selfRef ?? globalThis) as
     Partial<SharedWorkerLike> & Partial<DedicatedWorkerLike>;
@@ -66,13 +92,40 @@ export async function installSharedWorkerHub(opts: InstallOpts = {}): Promise<In
   let attachPort: ((port: MessagePort) => void) | null = null;
 
   const attach = (port: MessagePort) => {
-    const portLike: PortLike = { postMessage: (m) => port.postMessage(m) };
-    port.addEventListener('message', (ev: MessageEvent) => {
-      if (isRequest(ev.data)) hub.handleRequest(portLike, ev.data);
-      else if (isAppDataRequest(ev.data)) hub.handleAppDataRequest(portLike, ev.data);
-    });
-    port.addEventListener('messageerror', () => hub.onPortClosed(portLike));
-    port.start();
+    let portLike: PortLike;
+    if (fanOutPool) {
+      const clientId = crypto.randomUUID();
+      portLike = fanOutPool.createPortProxy(clientId);
+      const onMessage = (ev: MessageEvent) => {
+        if (isRequest(ev.data)) hub.handleRequest(portLike, ev.data);
+        else if (isAppDataRequest(ev.data)) hub.handleAppDataRequest(portLike, ev.data);
+      };
+      const onError = () => {
+        fanOutPool!.unregisterClient(clientId);
+        hub.onPortClosed(portLike);
+      };
+      fanOutPool.registerPending(clientId, port, { onMessage, onError });
+    } else {
+      const onMessage = (ev: MessageEvent) => {
+        if (isRequest(ev.data)) hub.handleRequest(portLike, ev.data);
+        else if (isAppDataRequest(ev.data)) hub.handleAppDataRequest(portLike, ev.data);
+      };
+      const onError = () => hub.onPortClosed(portLike);
+      portLike = {
+        postMessage: (m) => port.postMessage(m),
+        dispose: () => {
+          try {
+            port.removeEventListener('message', onMessage);
+            port.removeEventListener('messageerror', onError);
+          } catch {
+            /* port may already be closed */
+          }
+        },
+      };
+      port.addEventListener('message', onMessage);
+      port.addEventListener('messageerror', onError);
+      port.start();
+    }
   };
 
   // Register onconnect BEFORE async hydration. Browsers fire `connect`

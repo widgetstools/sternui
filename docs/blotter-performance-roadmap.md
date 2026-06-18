@@ -59,16 +59,11 @@ worst case for streaming.
 
 ## Tier 2 — small code changes, high multi-window value
 
-5. **Visibility-aware throttling for background windows.** *(Likely the
-   single largest CPU saving in a many-window layout.)* Today every window
-   decodes + `applyTransactionAsync` at full rate even when hidden behind
-   other OpenFin windows. Plan: when `document.hidden`, stop applying live
-   ticks (the hub cache stays authoritative) and run one `refresh()`
-   cache-replay on focus/visibility regain. Wiring point:
-   `packages/react-core/widgets-react/src/v2/markets-grid-container/MarketsGridContainer.tsx`
-   tick subscription (~762-787). Note `RowChangeBus` uses a 0 ms timer (not
-   rAF) precisely because hidden OpenFin views pause rAF — reuse that
-   reasoning.
+5. **Visibility-aware throttling for background windows.** ✅ Implemented in
+   `useProviderDataWiring` — live ticks are skipped while `document.hidden`;
+   one `provider.refresh()` cache replay runs on `visibilitychange` to visible.
+   Wiring point:
+   `packages/react-core/widgets-react/src/container/markets-grid-container/useProviderDataWiring.ts`.
 6. **`thinDeltas: true` guidance for wide, sparse-update blotters.** Hub
    ships only changed top-level fields (`delta-patch`), cutting wire +
    decode. Costs the worker a `diffTopLevel` per row per frame — a win when
