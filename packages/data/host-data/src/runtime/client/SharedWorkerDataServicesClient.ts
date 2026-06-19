@@ -125,13 +125,6 @@ export interface SubscribeHandle<T = unknown> {
   onSnapshotCommit(cb: (rows: readonly T[]) => void): void;
   /** Replay hub cache to this subscriber without upstream I/O. */
   refresh(): Promise<readonly T[]>;
-  /** Stop receiving data deltas (provider keeps running; status still flows). */
-  pause(): void;
-  /** Resume data deltas; the hub replays its cache once so this subscriber
-   *  catches up to current state in a single batch. */
-  resume(): void;
-  /** Whether this subscriber is currently paused. */
-  isPaused(): boolean;
   unsubscribe(): void;
 }
 
@@ -335,12 +328,6 @@ export class SharedWorkerDataServicesClient {
     let refreshResolve!: (rows: readonly T[]) => void;
     let refreshReject!: (err: Error) => void;
     let refreshPending: Promise<readonly T[]> | null = null;
-    let paused = false;
-    /** True between resume() and the cache replay landing — routes the
-     *  consolidated cache refresh to `onReset` (a single rowData reset) so a
-     *  resumed subscriber catches up in one batch rather than via the
-     *  `refresh()` promise (which resume has no awaiter for). */
-    let resumePending = false;
 
     const flushBuffered = () => {
       if (!updateCb) return;
@@ -375,12 +362,6 @@ export class SharedWorkerDataServicesClient {
         if (refreshPending) {
           refreshPending = null;
           refreshResolve(rows);
-          return;
-        }
-        if (resumePending) {
-          resumePending = false;
-          if (resetCb) resetCb(rows);
-          else bufferedResets.push(rows);
         }
       },
     });
@@ -483,24 +464,6 @@ export class SharedWorkerDataServicesClient {
         this.send({ kind: 'refresh-provider', subId, providerId });
         return refreshPending;
       },
-      pause: () => {
-        if (paused || this.closed) return;
-        paused = true;
-        this.send({ kind: 'pause-provider', subId, providerId });
-      },
-      resume: () => {
-        if (!paused) return;
-        paused = false;
-        if (this.closed) return;
-        // The hub replays its cache on resume as a chunked replace + ready.
-        // beginCacheRefresh() collects it; resumePending routes the assembled
-        // result to onReset (one rowData reset) so the grid catches up in a
-        // single batch. Without resumePending the replay would be swallowed.
-        resumePending = true;
-        reassembler.beginCacheRefresh();
-        this.send({ kind: 'resume-provider', subId, providerId });
-      },
-      isPaused: () => paused,
       unsubscribe: () => {
         if (!this.subs.delete(subId)) return;
         this.thinSubs.delete(subId);

@@ -169,10 +169,6 @@ export interface DataListener {
   meta?: SubscriberMeta;
   /** Last reported visibility from client heartbeats. */
   hidden?: boolean;
-  /** When true, data deltas are NOT fanned out to this subscriber (the
-   *  provider keeps running + the cache stays current). Status / stats /
-   *  rows-received still flow. Cleared on resume, which replays the cache. */
-  paused?: boolean;
 }
 
 export interface StatsListener {

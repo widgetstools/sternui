@@ -18,12 +18,6 @@ export interface UseDataProviderResult<T = Record<string, unknown>> {
   start: () => Promise<void>;
   refresh: () => Promise<void>;
   restart: (extra?: Record<string, unknown>) => Promise<void>;
-  /** Pause realtime deltas for this subscriber (provider keeps running). */
-  pause: () => void;
-  /** Resume realtime deltas; the hub replays its cache to catch up. */
-  resume: () => void;
-  /** Reactive paused state (mirrors the provider). */
-  paused: boolean;
 }
 
 /**
@@ -39,7 +33,6 @@ export function useDataProvider<T = Record<string, unknown>>(
 
   const [status, setStatus] = useState<ProviderStatus>('loading');
   const [error, setError] = useState<string | undefined>(undefined);
-  const [paused, setPaused] = useState(false);
 
   const provider = useMemo(() => {
     if (!providerId) return null;
@@ -108,19 +101,6 @@ export function useDataProvider<T = Record<string, unknown>>(
     await providerRef.current?.refresh();
   }, []);
 
-  const pause = useCallback(() => {
-    providerRef.current?.pause();
-    setPaused(true);
-  }, []);
-
-  const resume = useCallback(() => {
-    providerRef.current?.resume();
-    setPaused(false);
-  }, []);
-
-  // A freshly-created provider (providerId change) starts unpaused.
-  useEffect(() => { setPaused(provider?.isPaused() ?? false); }, [provider]);
-
   const restart = useCallback(async (extra?: Record<string, unknown>) => {
     const active = providerRef.current;
     if (!active) return;
@@ -135,5 +115,5 @@ export function useDataProvider<T = Record<string, unknown>>(
     }
   }, []);
 
-  return { provider, status, error, start, refresh, restart, pause, resume, paused };
+  return { provider, status, error, start, refresh, restart };
 }

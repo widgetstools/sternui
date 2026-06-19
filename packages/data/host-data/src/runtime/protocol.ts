@@ -184,22 +184,6 @@ export interface RefreshProviderRequest {
   providerId: string;
 }
 
-/** Pause data-delta fan-out to this one subscriber. The provider keeps
- *  running and the hub cache stays current; status events still flow. */
-export interface PauseProviderRequest {
-  kind: 'pause-provider';
-  subId: string;
-  providerId: string;
-}
-
-/** Resume fan-out to this subscriber and replay the hub cache once as a
- *  consolidated `replace` so it catches up to current state in one batch. */
-export interface ResumeProviderRequest {
-  kind: 'resume-provider';
-  subId: string;
-  providerId: string;
-}
-
 /** One attached hub subscriber (data or stats mode). */
 export interface HubSubscriberIntrospectRow {
   subId: string;
@@ -341,8 +325,6 @@ export type Request =
   | ListConfigsRequest
   | ConfigInvalidateRequest
   | RefreshProviderRequest
-  | PauseProviderRequest
-  | ResumeProviderRequest
   | HubIntrospectRequest;
 
 // ─── Worker → Client events ────────────────────────────────────────
@@ -581,8 +563,6 @@ export function isRequest(value: unknown): value is Request {
     k === 'list-configs' ||
     k === 'config-invalidate' ||
     k === 'refresh-provider' ||
-    k === 'pause-provider' ||
-    k === 'resume-provider' ||
     k === 'hub-introspect'
   );
 }

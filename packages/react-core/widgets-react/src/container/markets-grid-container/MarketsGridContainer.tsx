@@ -512,9 +512,10 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   } = useDataProvider<TData>(providerReady ? activeId : null, { autoStart: false });
 
   // Pause realtime updates for this grid while the customizer drawer is open
-  // (and on a manual toggle) so heavy UI mounts on a free thread; the hub keeps
-  // the cache warm and resume replays it in one batch. See usePauseCoordinator.
-  const pauseCoordinator = usePauseCoordinator(provider);
+  // (and on a manual toggle) so heavy UI mounts on a free thread. The wiring
+  // gate stops applying live ticks while paused and catches up via refresh() in
+  // one batch on resume. See usePauseCoordinator / useProviderDataWiring.
+  const pauseCoordinator = usePauseCoordinator();
 
   // Loading-overlay state — derived synchronously from a "subscription
   // key" so the overlay appears on the SAME render that mounts the
@@ -617,6 +618,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     setDisconnectDetail,
     setResolvedSubKey,
     setIsRefetching,
+    paused: pauseCoordinator.paused,
   });
 
   /** Cache replay only — `IDataProvider.refresh()`; no upstream reconnect. */

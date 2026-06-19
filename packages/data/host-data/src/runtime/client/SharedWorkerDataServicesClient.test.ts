@@ -315,48 +315,6 @@ describe('SharedWorkerDataServicesClient', () => {
     handle.unsubscribe();
   });
 
-  it('pause() stops live deltas; resume() replays the cache once via onReset', async () => {
-    const handle = w.client.subscribe<{ id: string; x: number }>('p1', cfg());
-    const updates: Array<readonly { id: string; x: number }[]> = [];
-    const resets: Array<readonly { id: string; x: number }[]> = [];
-    handle.onUpdate((rows) => { updates.push(rows); });
-    handle.onReset((rows) => { resets.push(rows); });
-    await flush();
-    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', x: 1 }], replace: true });
-    controllers.get('c-1')!.emit({ status: 'ready' });
-    await handle.snapshot;
-
-    // Live tick flows before pause.
-    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', x: 2 }] });
-    await flush();
-    expect(updates).toHaveLength(1);
-
-    // Pause → live ticks do NOT reach onUpdate (hub stops fan-out).
-    handle.pause();
-    expect(handle.isPaused()).toBe(true);
-    await flush();
-    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', x: 3 }] });
-    controllers.get('c-1')!.emit({ rows: [{ id: 'r2', x: 7 }] });
-    await flush();
-    expect(updates).toHaveLength(1); // unchanged while paused
-
-    // Resume → one consolidated reset with the CURRENT cache; live resumes.
-    handle.resume();
-    expect(handle.isPaused()).toBe(false);
-    await flush();
-    const last = resets[resets.length - 1];
-    expect(last).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'r1', x: 3 }),
-      expect.objectContaining({ id: 'r2', x: 7 }),
-    ]));
-
-    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', x: 4 }] });
-    await flush();
-    expect(updates[updates.length - 1]).toEqual([{ id: 'r1', x: 4 }]);
-
-    handle.unsubscribe();
-  });
-
   it('subscribe() buffers updates that arrive before onUpdate is registered, flushes on registration', async () => {
     const handle = w.client.subscribe<{ id: string; x: number }>('p1', cfg());
     await flush();

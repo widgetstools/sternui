@@ -12,7 +12,7 @@
  * array, same eslint-disable. The container owns the state; this hook
  * just receives the inputs + setters it needs.
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { GridApi } from 'ag-grid-community';
 import type { IDataProvider } from '@starui/host-data';
 import { isHistoricalToolbarDate } from '@starui/grid/customizer';
@@ -52,6 +52,11 @@ export interface UseProviderDataWiringParams<TData extends Record<string, unknow
   setDisconnectDetail: (detail: string | undefined) => void;
   setResolvedSubKey: (key: string | null) => void;
   setIsRefetching: (refetching: boolean) => void;
+  /** When true, live ticks are not applied to the grid (the customizer drawer
+   *  is open, or the user toggled "Pause live updates"). On the false→true
+   *  transition back to applying, the grid catches up via `provider.refresh()`
+   *  in a single `rowData` reset — same path as the `document.hidden` gate. */
+  paused?: boolean;
 }
 
 function defaultOnError(err: Error): void {
@@ -81,7 +86,19 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
     setDisconnectDetail,
     setResolvedSubKey,
     setIsRefetching,
+    paused,
   } = params;
+
+  // The current pause state and a registration slot the live subscribe effect
+  // fills with its gate-recompute callback. A separate effect (below) flips the
+  // gate when `paused` changes WITHOUT re-running the subscribe effect, so we
+  // never tear down and re-establish the provider subscription just to pause.
+  const pausedRef = useRef(paused ?? false);
+  const recomputeGateRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    pausedRef.current = paused ?? false;
+    recomputeGateRef.current?.();
+  }, [paused]);
 
   useEffect(() => {
     if (!liveApi || !provider || !activeId) {
@@ -108,13 +125,19 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
     }
 
     let cancelled = false;
-    let applyLiveTicks = typeof document === 'undefined' || !document.hidden;
+    // Apply live ticks only when the tab is visible AND not paused by a reason
+    // (customizer open / manual toggle). Both inputs feed one gate; the recompute
+    // below triggers a one-shot catch-up refresh whenever we transition back to
+    // applying, so the grid never replays the intervening tick storm.
+    const computeApply = () =>
+      (typeof document === 'undefined' || !document.hidden) && !pausedRef.current;
+    let applyLiveTicks = computeApply();
     const gridApply = createApplyProviderToGridState();
     const providerStatusRef = { current: 'loading' as 'loading' | 'ready' | 'error' };
 
-    const onVisibilityChange = () => {
+    const recomputeGate = () => {
       const wasPaused = !applyLiveTicks;
-      applyLiveTicks = !document.hidden;
+      applyLiveTicks = computeApply();
       if (wasPaused && applyLiveTicks && !cancelled) {
         void provider.refresh().catch((err: unknown) => {
           if (cancelled) return;
@@ -122,8 +145,9 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
         });
       }
     };
+    recomputeGateRef.current = recomputeGate;
     if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', onVisibilityChange);
+      document.addEventListener('visibilitychange', recomputeGate);
     }
 
     const unsubRows = provider.onRowsReceived((count) => {
@@ -293,8 +317,9 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
 
     return () => {
       cancelled = true;
+      recomputeGateRef.current = null;
       if (typeof document !== 'undefined') {
-        document.removeEventListener('visibilitychange', onVisibilityChange);
+        document.removeEventListener('visibilitychange', recomputeGate);
       }
       unsubRows();
       unsubSnapshot();

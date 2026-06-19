@@ -129,63 +129,6 @@ beforeEach(() => {
 const cfg = (key = 'default', overrides: Record<string, unknown> = {}): ProviderConfig =>
   ({ providerType: 'mock', __testKey: key, keyColumn: 'id', ...overrides } as unknown as ProviderConfig);
 
-describe('SharedWorkerDataServicesHub — pause/resume', () => {
-  it('pauses data deltas for the subscriber but keeps status flowing', () => {
-    const hub = new SharedWorkerDataServicesHub();
-    const port = makePort();
-    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
-    const ctrl = controllers.get('default')!;
-    ctrl.emit({ rows: [{ id: 'r1', x: 1 }] });
-    ctrl.emit({ status: 'ready' });
-    port.messages.length = 0; // drop snapshot traffic
-
-    hub.handleRequest(port, { kind: 'pause-provider', subId: 's1', providerId: 'p1' });
-    ctrl.emit({ rows: [{ id: 'r1', x: 2 }] }); // live delta while paused
-    expect(port.messages.filter(isAnyDelta)).toHaveLength(0);
-
-    ctrl.emit({ status: 'loading' });
-    expect(port.messages.some((m) => m.kind === 'status')).toBe(true);
-  });
-
-  it('resume replays the current cache once as a consolidated replace', () => {
-    const hub = new SharedWorkerDataServicesHub();
-    const port = makePort();
-    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
-    const ctrl = controllers.get('default')!;
-    ctrl.emit({ rows: [{ id: 'r1', x: 1 }] });
-    ctrl.emit({ status: 'ready' });
-
-    hub.handleRequest(port, { kind: 'pause-provider', subId: 's1', providerId: 'p1' });
-    // Many live updates while paused — the cache conflates by key 'id'.
-    ctrl.emit({ rows: [{ id: 'r1', x: 2 }] });
-    ctrl.emit({ rows: [{ id: 'r2', y: 9 }] });
-    ctrl.emit({ rows: [{ id: 'r1', x: 3 }] });
-    port.messages.length = 0;
-
-    hub.handleRequest(port, { kind: 'resume-provider', subId: 's1', providerId: 'p1' });
-
-    const replaces = port.messages.filter(isReplaceDelta);
-    expect(replaces).toHaveLength(1);
-    const rows = rowsOf(replaces[0])!;
-    expect(rows).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'r1', x: 3 }),
-      expect.objectContaining({ id: 'r2', y: 9 }),
-    ]));
-    expect(rows).toHaveLength(2);
-  });
-
-  it('a paused-but-attached subscriber keeps the provider running (not idle)', () => {
-    const hub = new SharedWorkerDataServicesHub();
-    const port = makePort();
-    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
-    const ctrl = controllers.get('default')!;
-    ctrl.emit({ status: 'ready' });
-    hub.handleRequest(port, { kind: 'pause-provider', subId: 's1', providerId: 'p1' });
-    ctrl.emit({ rows: [{ id: 'r1', x: 1 }] });
-    expect(ctrl.stopCount).toBe(0);
-  });
-});
-
 describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
   it('first attach creates the provider and the listener immediately gets a replace + status', () => {
     const hub = new SharedWorkerDataServicesHub();
