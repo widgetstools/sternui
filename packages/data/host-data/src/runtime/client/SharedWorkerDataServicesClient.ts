@@ -336,6 +336,11 @@ export class SharedWorkerDataServicesClient {
     let refreshReject!: (err: Error) => void;
     let refreshPending: Promise<readonly T[]> | null = null;
     let paused = false;
+    /** True between resume() and the cache replay landing — routes the
+     *  consolidated cache refresh to `onReset` (a single rowData reset) so a
+     *  resumed subscriber catches up in one batch rather than via the
+     *  `refresh()` promise (which resume has no awaiter for). */
+    let resumePending = false;
 
     const flushBuffered = () => {
       if (!updateCb) return;
@@ -370,6 +375,12 @@ export class SharedWorkerDataServicesClient {
         if (refreshPending) {
           refreshPending = null;
           refreshResolve(rows);
+          return;
+        }
+        if (resumePending) {
+          resumePending = false;
+          if (resetCb) resetCb(rows);
+          else bufferedResets.push(rows);
         }
       },
     });
@@ -481,8 +492,11 @@ export class SharedWorkerDataServicesClient {
         if (!paused) return;
         paused = false;
         if (this.closed) return;
-        // The hub replays its cache on resume; the reassembler treats that
-        // replay like a refresh so it lands as a single onReset/onSnapshotCommit.
+        // The hub replays its cache on resume as a chunked replace + ready.
+        // beginCacheRefresh() collects it; resumePending routes the assembled
+        // result to onReset (one rowData reset) so the grid catches up in a
+        // single batch. Without resumePending the replay would be swallowed.
+        resumePending = true;
         reassembler.beginCacheRefresh();
         this.send({ kind: 'resume-provider', subId, providerId });
       },

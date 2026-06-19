@@ -581,6 +581,8 @@ export function isRequest(value: unknown): value is Request {
     k === 'list-configs' ||
     k === 'config-invalidate' ||
     k === 'refresh-provider' ||
+    k === 'pause-provider' ||
+    k === 'resume-provider' ||
     k === 'hub-introspect'
   );
 }
