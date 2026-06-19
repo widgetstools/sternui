@@ -75,12 +75,10 @@ export interface FormatterState {
   /** Save-as-template input draft + flash-confirm flag. */
   saveAsTplName: string;
   saveAsTplConfirmed: boolean;
-  /** Clear-all flash + dialog open flag. */
+  /** Clear-all flash (check icon) after a direct clear. */
   clearConfirmed: boolean;
-  clearDialogOpen: boolean;
-  /** Clear-selected (current column scope) flash + dialog open flag. */
+  /** Clear-selected (current column scope) flash after a direct clear. */
   clearSelectedConfirmed: boolean;
-  clearSelectedDialogOpen: boolean;
   /** Undo / redo affordances bound to column-customization. */
   canUndo: boolean;
   canRedo: boolean;
@@ -162,17 +160,10 @@ export interface FormatterActions {
   deleteTemplate: (tplId: string) => void;
   setSaveAsTplName: (v: string) => void;
   flashSaveAsTpl: () => void;
-  /** Open the destructive confirm dialog. Does NOT clear by itself. */
-  requestClearAll: () => void;
-  /** Imperative dialog control. */
-  setClearDialogOpen: (open: boolean) => void;
-  /** Actually clear — wired to the AlertDialog's Confirm action. */
+  /** Clear every column's styling in the active layout (fires immediately). */
   confirmClearAll: () => void;
-  /** Open the destructive confirm dialog for the currently-targeted
-   *  columns only. No-op when nothing is selected. */
-  requestClearSelected: () => void;
-  setClearSelectedDialogOpen: (open: boolean) => void;
-  /** Reset every targeted column's assignment to a bare `{ colId }`. */
+  /** Reset every targeted column's assignment to a bare `{ colId }` (fires
+   *  immediately; no-op when nothing is selected). */
   confirmClearSelected: () => void;
   undo: () => void;
   redo: () => void;
@@ -253,9 +244,7 @@ export function useFormatter(): UseFormatterResult {
       // Actions slice (state half)
       previewText: actions.state.previewText,
       clearConfirmed: actions.state.clearConfirmed,
-      clearDialogOpen: actions.state.clearDialogOpen,
       clearSelectedConfirmed: actions.state.clearSelectedConfirmed,
-      clearSelectedDialogOpen: actions.state.clearSelectedDialogOpen,
       canUndo: actions.state.canUndo,
       canRedo: actions.state.canRedo,
       cellsEditable: actions.state.cellsEditable,

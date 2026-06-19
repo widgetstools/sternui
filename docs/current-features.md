@@ -454,7 +454,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `ModuleEditorFilter` — column-target picker
 - `ModuleContext` — applied-column summary + copy-to-all; hosts the `FormatReadout` (`scopeSummary`) — a plain-language status line stating target + scope ("Cells · 3 columns") with a live value sample, doubling as the empty-state invitation ("Select a column to format"). Renders in both toolbar and popout
 - `FormatReadout` / `scopeSummary` — turns `(target, scope, selection)` into words + a live sample; empty-state guidance when nothing is selected
-- `ModuleClear` — clear formatting (with confirm)
+- `ModuleClear` — clear selected / clear-all formatting; fires immediately (no confirm dialog), flashes a check on success, reversible via undo/redo
 - `formatterPresets` — built-in numeric, date, currency, % presets; traffic-light / emoji patterns documented in `HelpPanel` and authored via Excel value-format strings in conditional styling
 - `formattingToolbarHooks` — `useFormatter` state + actions; `resolveToolbarPickerDataType()` maps `dateString` / `dateTimeString` (and `date` columns whose sample values include time) to datetime FormatterPicker presets so **Date + time** tiles (ISO with time, US short) appear in the toolbar
 

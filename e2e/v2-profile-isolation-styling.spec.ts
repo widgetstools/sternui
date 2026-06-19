@@ -189,9 +189,8 @@ test.describe('v2 profile isolation — column customization (formatter toolbar)
     await clickBold(page);
     await saveAll(page);
 
-    // Clear all on Beta via the toolbar button + AlertDialog.
+    // Clear all on Beta via the toolbar button (fires immediately, no dialog).
     await page.locator('[data-testid="formatting-clear-all"]').click();
-    await page.locator('[data-testid="formatting-clear-all-confirm-btn"]').click();
     await page.waitForTimeout(200);
     expect(await readCellFontWeight(page, 'yield')).not.toBe('700');
     await saveAll(page);
