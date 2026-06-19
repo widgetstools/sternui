@@ -30,6 +30,26 @@ const PEER_PROVIDER_WAIT_MS = 2_000;
  */
 const DEBUG = false;
 
+// DIAGNOSTIC (fix/sharedworker-fanout-blotter-limit): per-WINDOW AG Grid apply
+// cost — the synchronous time each blotter spends pushing live ticks into the
+// grid (applyTransactionAsync). Logged 1 Hz to the window console.
+const gridDiag = { applyMs: 0, rows: 0, ticks: 0, last: 0 };
+function noteGridApply(ms: number, rows: number): void {
+  gridDiag.applyMs += ms;
+  gridDiag.rows += rows;
+  gridDiag.ticks += 1;
+  const now = Date.now();
+  if (gridDiag.last === 0) { gridDiag.last = now; return; }
+  if (now - gridDiag.last >= 1000) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[grid-diag] applyMs/s=${gridDiag.applyMs.toFixed(1)} ` +
+      `rowsApplied/s=${gridDiag.rows} ticks/s=${gridDiag.ticks}`,
+    );
+    gridDiag.applyMs = 0; gridDiag.rows = 0; gridDiag.ticks = 0; gridDiag.last = now;
+  }
+}
+
 type DataHubClient = ReturnType<typeof useDataServices>['client'];
 type ContainerEventBus = ReturnType<typeof createMarketsGridContainerEventBus>;
 
@@ -178,15 +198,19 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
           // eslint-disable-next-line no-console
           console.log(`[v2/grid] %cupdate#%d%c %d rows (no rowIdField → all update)`, 'color:#f59e0b', '', updateBatchCount, updateRows.length);
         }
+        const t0 = performance.now();
         gridApply.applyTick(liveApi, updateRows, undefined);
+        noteGridApply(performance.now() - t0, updateRows.length);
         return;
       }
 
+      const tApply = performance.now();
       const { coalescedPending, addCount, updateCount } = gridApply.applyTick(
         liveApi,
         updateRows,
         rowIdField,
       );
+      noteGridApply(performance.now() - tApply, updateRows.length);
       if (coalescedPending > 0 && DEBUG) {
         // eslint-disable-next-line no-console
         console.log(
