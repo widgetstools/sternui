@@ -173,6 +173,9 @@ function bakeStaruiTheme(density: GridDensity = 'compact'): Theme {
     }, 'light')
     .withParams({
       browserColorScheme: 'dark',
+      // Mode-specific params don't inherit across modes, so repeat the
+      // hidden column-resize handle here too (light gets it via `shared`).
+      headerColumnResizeHandleHeight: '0%',
       ...STARUI_DARK_CHROME,
     }, 'dark');
 }
