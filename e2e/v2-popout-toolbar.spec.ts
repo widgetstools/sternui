@@ -168,6 +168,77 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
     expect(where.wrappersInPopout).toBeGreaterThanOrEqual(1);
   });
 
+  test('popover in the docked toolbar dismisses on an outside click', async ({ page }) => {
+    await page.locator('.ag-row .ag-cell[col-id="price"]').first().click();
+    await page.waitForTimeout(100);
+    // Do NOT pop out — open the Text colour picker in the inline toolbar.
+    await page.evaluate(() => {
+      const btn = document.querySelector('[data-testid="formatting-toolbar"] button[aria-label="Text color"]') as HTMLElement | null;
+      btn?.click();
+    });
+    await page.waitForTimeout(250);
+    const openCount = await page.evaluate(() => document.querySelectorAll('[data-radix-popper-content-wrapper]').length);
+    expect(openCount).toBeGreaterThanOrEqual(1);
+
+    await page.evaluate(() => {
+      const outside = document.querySelector('[data-testid="formatting-toolbar"]') as HTMLElement;
+      const o = { bubbles: true, cancelable: true, composed: true } as const;
+      outside.dispatchEvent(new PointerEvent('pointerdown', o));
+      outside.dispatchEvent(new MouseEvent('mousedown', o));
+      outside.dispatchEvent(new MouseEvent('mouseup', o));
+      outside.dispatchEvent(new MouseEvent('click', o));
+    });
+    await page.waitForTimeout(250);
+    const afterCount = await page.evaluate(() => document.querySelectorAll('[data-radix-popper-content-wrapper]').length);
+    expect(afterCount).toBe(0);
+  });
+
+  // Regression: in a real window.open popout the panel's DOM lives in another
+  // JS realm, so Radix's `target instanceof Node` guard was always false and
+  // outside-click dismissal never fired. `enableCrossRealmNodeInstanceOf`
+  // (applied in PopoutPortal) restores it. See crossRealmNodeInstanceOf.ts.
+  test('popover inside the popout dismisses on an outside click', async ({ page }) => {
+    await page.locator('.ag-row .ag-cell[col-id="price"]').first().click();
+    await page.waitForTimeout(100);
+    await page.locator('[data-testid="formatting-popout-btn"]').click();
+    await page.waitForTimeout(300);
+
+    // Open the Text colour picker inside the popout.
+    await page.evaluate(() => {
+      const iframe = document.querySelector('iframe[data-popout-iframe^="ds-popout-toolbar-"]') as HTMLIFrameElement | null;
+      const btn = iframe?.contentDocument?.querySelector('[data-section-index="03"] button[aria-label="Text color"]') as HTMLElement | null;
+      btn?.click();
+    });
+    await page.waitForTimeout(250);
+
+    const openCount = await page.evaluate(() => {
+      const iframe = document.querySelector('iframe[data-popout-iframe^="ds-popout-toolbar-"]') as HTMLIFrameElement | null;
+      return iframe?.contentDocument?.querySelectorAll('[data-radix-popper-content-wrapper]').length ?? 0;
+    });
+    expect(openCount).toBeGreaterThanOrEqual(1);
+
+    // Click an element OUTSIDE the popover, inside the popout document —
+    // a real pointerdown+click pair (Radix dismissal is pointerdown-driven).
+    await page.evaluate(() => {
+      const iframe = document.querySelector('iframe[data-popout-iframe^="ds-popout-toolbar-"]') as HTMLIFrameElement | null;
+      const doc = iframe!.contentDocument!;
+      const outside = doc.querySelector('[data-testid="fmt-panel-header"]') as HTMLElement;
+      const View = doc.defaultView as Window & typeof globalThis;
+      const o = { bubbles: true, cancelable: true, composed: true } as const;
+      outside.dispatchEvent(new View.PointerEvent('pointerdown', o));
+      outside.dispatchEvent(new View.MouseEvent('mousedown', o));
+      outside.dispatchEvent(new View.MouseEvent('mouseup', o));
+      outside.dispatchEvent(new View.MouseEvent('click', o));
+    });
+    await page.waitForTimeout(250);
+
+    const afterCount = await page.evaluate(() => {
+      const iframe = document.querySelector('iframe[data-popout-iframe^="ds-popout-toolbar-"]') as HTMLIFrameElement | null;
+      return iframe?.contentDocument?.querySelectorAll('[data-radix-popper-content-wrapper]').length ?? 0;
+    });
+    expect(afterCount).toBe(0);
+  });
+
   // The auto-grow/shrink dance is gone — the popout is now a
   // fixed 400×620 properties panel where every editor is inline,
   // so there's no popover tall enough to outgrow the window.
