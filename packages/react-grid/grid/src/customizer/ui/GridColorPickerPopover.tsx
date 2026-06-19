@@ -71,11 +71,14 @@ export function ColorPickerPopover({
       }
       width={240}
     >
-      <FormatColorPicker
-        value={value || '#000000'}
-        onChange={(c) => onChange(c || undefined)}
-        allowClear={allowClear}
-      />
+      {({ close }) => (
+        <FormatColorPicker
+          value={value || '#000000'}
+          onChange={(c) => onChange(c || undefined)}
+          allowClear={allowClear}
+          onCommit={close}
+        />
+      )}
     </FormatPopover>
   );
 }

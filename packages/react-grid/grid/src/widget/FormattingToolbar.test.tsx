@@ -365,6 +365,37 @@ describe('FormattingToolbar — ALL + HEADER scope writes to globalHeaderStyle',
     expect(getAssignment(platform, 'quantity')?.headerStyleOverrides).toBeUndefined();
   });
 
+  it('color picker dismisses on a discrete commit (Enter on a valid hex)', async () => {
+    const fake = makeFakeApi(COLS, ['price']);
+    mountToolbar({ platform, api: fake.api });
+
+    await switchToHeaderAndAll();
+
+    const textColor = screen.getByRole('button', { name: 'Text color' });
+    act(() => {
+      fireEvent.pointerDown(textColor);
+      fireEvent.click(textColor);
+    });
+    const input = await waitFor(() => {
+      const el = document.querySelector<HTMLInputElement>('input[type="text"][value="#000000"]');
+      expect(el).not.toBeNull();
+      return el!;
+    });
+
+    // Typing alone keeps the popover open so partial hexes stay editable.
+    act(() => fireEvent.change(input, { target: { value: '#ef4444' } }));
+    expect(document.querySelector('input[type="text"]')).not.toBeNull();
+
+    // Enter on a valid hex is an explicit commit — the popover closes.
+    act(() => fireEvent.keyDown(input, { key: 'Enter' }));
+    await waitFor(() => {
+      expect(document.body.contains(input)).toBe(false);
+    });
+
+    const cust = platform.store.getModuleState<ColumnCustomizationState>('column-customization');
+    expect(cust?.globalHeaderStyle?.dark?.colors?.text).toBe('#ef4444');
+  });
+
   it('header case toggle flips the grid-wide general-settings flag', async () => {
     const fake = makeFakeApi(COLS, []);
     mountToolbar({ platform, api: fake.api });
