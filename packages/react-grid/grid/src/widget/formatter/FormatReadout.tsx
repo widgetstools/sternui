@@ -28,16 +28,10 @@ export function FormatReadout({ state }: { state: FormatterState }) {
 
   return (
     <div
+      className="fx-readout"
       data-testid="formatting-readout"
       data-empty={summary.empty || undefined}
       title={title}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        minWidth: 0,
-        maxWidth: 200,
-      }}
     >
       {summary.empty ? (
         <span
