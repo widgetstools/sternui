@@ -60,6 +60,9 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
   private readonly inlineCfg?: ProviderConfig;
   private resolvedConfig: ProviderConfig | null = null;
   private handle: SubscribeHandle<T> | null = null;
+  /** Desired pause state — the source of truth, re-asserted onto each new
+   *  handle (start / restart) so pause survives reconnects (new subId). */
+  private pausedDesired = false;
   /** Reference to the last snapshot commit — not copied, not updated on live ticks. */
   private snapshotRows: readonly T[] = [];
 
@@ -125,6 +128,20 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
     for (const handler of this.snapshotHandlers) {
       handler(rows);
     }
+  }
+
+  pause(): void {
+    this.pausedDesired = true;
+    this.handle?.pause();
+  }
+
+  resume(): void {
+    this.pausedDesired = false;
+    this.handle?.resume();
+  }
+
+  isPaused(): boolean {
+    return this.pausedDesired;
   }
 
   async restart(extra?: Record<string, unknown>): Promise<void> {
@@ -229,6 +246,10 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
       const error = err instanceof Error ? err : new Error(String(err));
       for (const handler of this.errorHandlers) handler(error);
     });
+
+    // Re-assert pause onto the new handle (start / restart get a fresh subId),
+    // so a paused stream stays paused across reconnects.
+    if (this.pausedDesired) handle.pause();
   }
 
   async stop(): Promise<void> {

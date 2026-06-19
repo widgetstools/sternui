@@ -64,6 +64,8 @@ import type {
   HubReadyRequest,
   ListConfigsRequest,
   RefreshProviderRequest,
+  PauseProviderRequest,
+  ResumeProviderRequest,
   HubIntrospectRequest,
   HubIntrospectSnapshot,
   HubProviderIntrospectRow,
@@ -191,6 +193,8 @@ export class SharedWorkerDataServicesHub {
       case 'list-configs': this.handleListConfigs(port, req); return;
       case 'config-invalidate': void this.handleConfigInvalidate(port, req); return;
       case 'refresh-provider': this.handleRefreshProvider(req); return;
+      case 'pause-provider': this.handlePauseProvider(req); return;
+      case 'resume-provider': this.handleResumeProvider(req); return;
       case 'hub-introspect': this.handleHubIntrospect(port, req); return;
     }
   }
@@ -838,6 +842,28 @@ export class SharedWorkerDataServicesHub {
     const listener = this.dataListeners.get(req.providerId)?.get(req.subId);
     if (!listener) return;
     this.replayCacheToPort(req.subId, listener.port, slot, 'refresh');
+  }
+
+  /** Pause data-delta fan-out to one subscriber. The provider keeps running
+   *  (the listener stays in the map, so it is NOT treated as idle) and the
+   *  hub cache keeps absorbing upstream ticks. */
+  private handlePauseProvider(req: PauseProviderRequest): void {
+    const listener = this.dataListeners.get(req.providerId)?.get(req.subId);
+    if (!listener) return;
+    listener.paused = true;
+  }
+
+  /** Resume fan-out and replay the cache once as a consolidated `replace`, so
+   *  the subscriber catches up to current state in a single batch. Clearing
+   *  `paused` before the replay is safe — the worker is single-threaded, so no
+   *  live delta can interleave between here and the replay. */
+  private handleResumeProvider(req: ResumeProviderRequest): void {
+    const slot = this.providers.get(req.providerId);
+    const listener = this.dataListeners.get(req.providerId)?.get(req.subId);
+    if (!listener) return;
+    if (!listener.paused) return;
+    listener.paused = false;
+    if (slot) this.replayCacheToPort(req.subId, listener.port, slot, 'refresh');
   }
 
   private async stopProvider(providerId: string): Promise<void> {
@@ -1592,6 +1618,15 @@ export class SharedWorkerDataServicesHub {
   private broadcastData(providerId: string, slot: ProviderSlot, eventTemplate: Event): void {
     const listeners = this.dataListeners.get(providerId);
     if (!listeners) return;
+    const isDataEvent =
+      eventTemplate.kind === 'delta'
+      || eventTemplate.kind === 'delta-bin'
+      || eventTemplate.kind === 'delta-patch';
+    // Paused subscribers receive no DATA deltas (status / stats / rows-received
+    // still flow). On resume the hub replays the cache, so they catch up.
+    const effectiveListeners = isDataEvent
+      ? new Map([...listeners].filter(([, l]) => !l.paused))
+      : listeners;
     const countPublish =
       slot.snapshotReady
       && (
@@ -1609,7 +1644,7 @@ export class SharedWorkerDataServicesHub {
         console.log(`[v2/hub] broadcast provider=${providerId} kind=status status=${tpl.status}${tpl.error ? ' error=' + JSON.stringify(tpl.error) : ''} → ${listeners.size} listener(s)`);
       }
     }
-    if (this.fanOutBroadcastListeners(providerId, listeners, eventTemplate, (dead, live) => {
+    if (this.fanOutBroadcastListeners(providerId, effectiveListeners, eventTemplate, (dead, live) => {
       this.pruneDeadDataListeners(providerId, dead);
       if (countPublish && live > 0) this.recordPublish(slot, live);
     })) {
@@ -1617,7 +1652,7 @@ export class SharedWorkerDataServicesHub {
     }
     const dead: string[] = [];
     let live = 0;
-    for (const l of listeners.values()) {
+    for (const l of effectiveListeners.values()) {
       if (!this.postDataEvent(l, eventTemplate)) {
         dead.push(l.subId);
         continue;

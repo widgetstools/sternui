@@ -26,6 +26,19 @@ export interface IDataProvider<T = Record<string, unknown>> {
   /** Full re-acquire (STOMP reconnect, REST refetch, historical asOfDate, …). */
   restart(extra?: Record<string, unknown>): Promise<void>;
 
+  /**
+   * Pause realtime data deltas for THIS subscriber. The upstream provider keeps
+   * running and the hub cache stays current (no data loss); status events still
+   * flow. Useful to keep the UI thread free during heavy work (e.g. opening the
+   * customizer, applying a large link filter) under high-frequency update storms.
+   */
+  pause(): void;
+  /** Resume data deltas; the hub replays its cache once so this subscriber
+   *  catches up to current state in a single batch. */
+  resume(): void;
+  /** Whether this subscriber is currently paused. */
+  isPaused(): boolean;
+
   /** Last snapshot commit by reference (not updated on live ticks). */
   getData(): readonly T[];
   /** Resolved provider configuration from hub catalog or attach cfg. */
