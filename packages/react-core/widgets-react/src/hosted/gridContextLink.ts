@@ -154,23 +154,52 @@ export const buildRowIdContext: GridLinkSelectionBuilder = (api, opts) => {
 };
 
 /**
- * Apply a `mode: 'rowId'` context as an AG-Grid external filter that
- * keeps only the broadcast row ids (matched against `getRowId` via
- * `node.id`). Group rows always pass so their visibility follows their
- * children. An empty id set removes the filter. The external filter
- * AND's against the user's own column filters, so those survive with no
- * merge logic.
+ * Stateful AG-Grid external filter for `mode: 'rowId'` linking. Keeps only the
+ * broadcast row ids (matched against `getRowId` via `node.id`); group rows
+ * always pass so their visibility follows their children. The external filter
+ * AND's against the user's own column filters, so those survive with no merge
+ * logic.
+ *
+ * Built for the receive hot path:
+ *  - The predicate pair is installed on the grid **once** — subsequent updates
+ *    only swap the matched-id `Set` (O(1) membership) and fire a single
+ *    `onFilterChanged()`, so no per-context grid-option churn.
+ *  - Row animation is suppressed across the filter pass (restored on the next
+ *    microtask) so toggling tens of thousands of rows in/out doesn't pay
+ *    row-move animation cost. Mirrors `applyGridDensityLive`.
+ *
+ * One controller per grid api (re-create when the api changes).
  */
-export function applyRowIdExternalFilter(
-  api: GridApi,
-  context: GridLinkSelectionContext,
-): void {
-  const ids = new Set(context.rowIds ?? []);
-  api.setGridOption('isExternalFilterPresent', () => ids.size > 0);
-  api.setGridOption('doesExternalFilterPass', (node) =>
-    node.group ? true : ids.has(node.id as string),
-  );
-  api.onFilterChanged();
+export interface RowIdExternalFilter {
+  /** Replace the matched id set and re-run filtering once. Empty/absent clears it. */
+  apply(rowIds: Iterable<string> | undefined): void;
+}
+
+export function createRowIdExternalFilter(api: GridApi): RowIdExternalFilter {
+  let ids = new Set<string>();
+  let installed = false;
+
+  const install = () => {
+    if (installed) return;
+    installed = true;
+    // Predicates close over the mutable `ids` ref, so later swaps take effect
+    // without re-registering the grid options.
+    api.setGridOption('isExternalFilterPresent', () => ids.size > 0);
+    api.setGridOption('doesExternalFilterPass', (node: IRowNode) =>
+      node.group ? true : ids.has(node.id as string),
+    );
+  };
+
+  return {
+    apply(rowIds) {
+      install();
+      ids = rowIds instanceof Set ? rowIds : new Set(rowIds ?? []);
+      const hadAnimate = api.getGridOption?.('animateRows') === true;
+      if (hadAnimate) api.setGridOption('animateRows', false);
+      api.onFilterChanged();
+      if (hadAnimate) queueMicrotask(() => api.setGridOption('animateRows', true));
+    },
+  };
 }
 
 /**

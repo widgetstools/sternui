@@ -24,15 +24,18 @@ import type { UseFdc3ChannelResult } from './useFdc3Channel.js';
 import {
   GRID_LINK_CONTEXT_TYPE,
   applyGridLinkContext,
-  applyRowIdExternalFilter,
   buildRowIdContext,
   buildSelectionContext,
+  createRowIdExternalFilter,
   defaultGridLinkResolver,
   normalizeRowIdField,
   type GridLinkResolver,
   type GridLinkSelectionBuilder,
   type GridLinkSelectionContext,
 } from './gridContextLink.js';
+
+/** Default trailing-edge debounce for selection broadcasts (ms). */
+const DEFAULT_PUBLISH_DEBOUNCE_MS = 50;
 
 export interface GridContextLinkConfig {
   /** Master switch. Linking is inactive unless this is `true`. */
@@ -52,6 +55,14 @@ export interface GridContextLinkConfig {
   publish?: boolean;
   /** Apply incoming linked contexts to the grid. Default `true`. */
   receive?: boolean;
+  /**
+   * Trailing-edge debounce (ms) for selection broadcasts. A drag-select fires
+   * many `selectionChanged` events; coalescing them to the settled selection
+   * means linked peers run ONE filter pass instead of one per intermediate
+   * selection — the main lever for nimble large-selection linking. `0`
+   * broadcasts synchronously (legacy behaviour). Default `50`.
+   */
+  publishDebounceMs?: number;
   /**
    * `mode: 'fields'` only — row key field(s) describing a selected leaf
    * row. Set to the provider's `keyColumn` so peers match on the same
@@ -164,6 +175,10 @@ export function useGridContextLink({
   // ── RECEIVE ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!active || !receive || !gridApi) return;
+    // One external-filter controller per grid api: installs the predicate pair
+    // once, then each context only swaps the matched-id Set + fires a single
+    // (animation-suppressed) onFilterChanged. See createRowIdExternalFilter.
+    const rowIdFilter = createRowIdExternalFilter(gridApi);
     const detach = addContextListener(contextType, (ctx) => {
       const context = ctx as GridLinkSelectionContext;
       const isEcho = Boolean(context.source) && context.source === sourceId;
@@ -181,7 +196,7 @@ export function useGridContextLink({
       applyingRemoteRef.current = true;
       try {
         if (mode === 'rowId') {
-          applyRowIdExternalFilter(gridApi, context);
+          rowIdFilter.apply(context.rowIds);
         } else {
           linkFieldsRef.current = applyGridLinkContext(
             gridApi,
@@ -208,12 +223,24 @@ export function useGridContextLink({
     config?.buildContext ?? (mode === 'rowId' ? buildRowIdContext : buildSelectionContext);
   const publish = config?.publish !== false;
   const rowIdField = config?.rowIdField;
+  // Trailing-edge debounce window for selection broadcasts (see PUBLISH). 0
+  // publishes synchronously. Default keeps a drag-select to one broadcast.
+  const debounceMs = config?.publishDebounceMs ?? DEFAULT_PUBLISH_DEBOUNCE_MS;
 
   // ── PUBLISH ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!active || !publish || !gridApi) return;
     const fields = normalizeRowIdField(rowIdField);
-    const onSelectionChanged = () => {
+
+    // Trailing-edge debounce: a drag-select fires `selectionChanged` many times
+    // in quick succession; broadcasting each one makes every linked peer run a
+    // full filter pass per intermediate selection. Coalescing to the settled
+    // selection collapses that burst into ONE broadcast → one filter pass on
+    // peers. `build()` reads the live selection at flush time, so the trailing
+    // edge naturally captures the final set.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const flushPublish = () => {
+      timer = undefined;
       if (applyingRemoteRef.current) return;
       const context = build(gridApi, { instanceId: sourceId, rowIdField: fields });
       if (!context) return;
@@ -233,13 +260,19 @@ export function useGridContextLink({
       void broadcast(context);
       onPublishRef.current?.(context);
     };
+    const onSelectionChanged = () => {
+      if (applyingRemoteRef.current) return;
+      if (timer !== undefined) clearTimeout(timer);
+      timer = debounceMs > 0 ? setTimeout(flushPublish, debounceMs) : (flushPublish(), undefined);
+    };
     gridApi.addEventListener('selectionChanged', onSelectionChanged);
     return () => {
+      if (timer !== undefined) clearTimeout(timer);
       try {
         gridApi.removeEventListener('selectionChanged', onSelectionChanged);
       } catch {
         /* grid already destroyed */
       }
     };
-  }, [active, publish, gridApi, broadcast, build, contextType, instanceId, rowIdField]);
+  }, [active, publish, gridApi, broadcast, build, contextType, instanceId, rowIdField, debounceMs]);
 }

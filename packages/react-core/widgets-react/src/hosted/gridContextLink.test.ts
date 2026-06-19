@@ -12,7 +12,7 @@ import {
   buildRowIdContext,
   defaultGridLinkResolver,
   applyGridLinkContext,
-  applyRowIdExternalFilter,
+  createRowIdExternalFilter,
   normalizeRowIdField,
   type GridLinkSelectionContext,
 } from './gridContextLink.js';
@@ -140,38 +140,68 @@ describe('buildRowIdContext', () => {
   });
 });
 
-describe('applyRowIdExternalFilter', () => {
-  it('installs an external filter that passes only the broadcast ids (groups always pass)', () => {
+describe('createRowIdExternalFilter', () => {
+  function fakeFilterApi() {
     const opts: Record<string, unknown> = {};
     let filterChanged = 0;
     const api = {
       setGridOption: (k: string, v: unknown) => { opts[k] = v; },
+      getGridOption: (k: string) => opts[k],
       onFilterChanged: () => { filterChanged += 1; },
     } as unknown as GridApi;
+    return { api, opts, changes: () => filterChanged };
+  }
 
-    applyRowIdExternalFilter(api, {
-      type: GRID_LINK_CONTEXT_TYPE,
-      criteria: {},
-      rowIds: ['AAPL-EQ1', 'MSFT-EQ1'],
-    });
+  it('installs an external filter that passes only the broadcast ids (groups always pass)', () => {
+    const { api, opts, changes } = fakeFilterApi();
+    const filter = createRowIdExternalFilter(api);
+
+    filter.apply(['AAPL-EQ1', 'MSFT-EQ1']);
 
     expect((opts.isExternalFilterPresent as () => boolean)()).toBe(true);
     const pass = opts.doesExternalFilterPass as (n: { group?: boolean; id?: string }) => boolean;
     expect(pass({ id: 'AAPL-EQ1' })).toBe(true);
     expect(pass({ id: 'IBM-EQ1' })).toBe(false);
     expect(pass({ group: true })).toBe(true);
-    expect(filterChanged).toBe(1);
+    expect(changes()).toBe(1);
+  });
+
+  it('installs the predicate pair only once and swaps the id set on later applies', () => {
+    const { api, opts, changes } = fakeFilterApi();
+    const filter = createRowIdExternalFilter(api);
+
+    filter.apply(['AAPL-EQ1']);
+    const present = opts.isExternalFilterPresent;
+    const pass = opts.doesExternalFilterPass;
+
+    filter.apply(['MSFT-EQ1']);
+    // Same function instances — predicates were not re-registered.
+    expect(opts.isExternalFilterPresent).toBe(present);
+    expect(opts.doesExternalFilterPass).toBe(pass);
+    // But the swapped set is now in effect.
+    const passes = opts.doesExternalFilterPass as (n: { id?: string }) => boolean;
+    expect(passes({ id: 'MSFT-EQ1' })).toBe(true);
+    expect(passes({ id: 'AAPL-EQ1' })).toBe(false);
+    expect(changes()).toBe(2);
   });
 
   it('removes the external filter on an empty id set', () => {
-    const opts: Record<string, unknown> = {};
-    const api = {
-      setGridOption: (k: string, v: unknown) => { opts[k] = v; },
-      onFilterChanged: () => {},
-    } as unknown as GridApi;
+    const { api, opts } = fakeFilterApi();
+    const filter = createRowIdExternalFilter(api);
 
-    applyRowIdExternalFilter(api, { type: GRID_LINK_CONTEXT_TYPE, criteria: {}, rowIds: [] });
+    filter.apply([]);
     expect((opts.isExternalFilterPresent as () => boolean)()).toBe(false);
+  });
+
+  it('suppresses row animation across the filter pass when it was on', () => {
+    const { api, opts } = fakeFilterApi();
+    opts.animateRows = true;
+    const filter = createRowIdExternalFilter(api);
+
+    filter.apply(['AAPL-EQ1']);
+    // Disabled synchronously for the redraw; restored on the next microtask.
+    expect(opts.animateRows).toBe(false);
+    return Promise.resolve().then(() => expect(opts.animateRows).toBe(true));
   });
 });
 
