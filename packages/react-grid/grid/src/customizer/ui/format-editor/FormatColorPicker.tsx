@@ -157,7 +157,7 @@ export function FormatColorPicker({
   );
 
   const handlePad = useCallback(
-    (e: MouseEvent | React.MouseEvent) => {
+    (e: PointerEvent | React.PointerEvent) => {
       const rect = padRef.current!.getBoundingClientRect();
       const ns = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       const nv = Math.max(0, Math.min(1, 1 - (e.clientY - rect.top) / rect.height));
@@ -169,7 +169,7 @@ export function FormatColorPicker({
   );
 
   const handleHue = useCallback(
-    (e: MouseEvent | React.MouseEvent) => {
+    (e: PointerEvent | React.PointerEvent) => {
       const rect = hueRef.current!.getBoundingClientRect();
       const nh = Math.max(0, Math.min(360, ((e.clientX - rect.left) / rect.width) * 360));
       setH(nh);
@@ -178,8 +178,12 @@ export function FormatColorPicker({
     [s, v, emit],
   );
 
+  // Pointer Events (not mouse-only) so the SV pad + hue strip can be dragged
+  // by touch and pen as well as mouse. `touch-action: none` on the surfaces
+  // (below) stops a touch-drag from scrolling the popover instead of tuning.
   useEffect(() => {
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
+      if (!dragging.current) return;
       e.preventDefault();
       if (dragging.current === 'pad') handlePad(e);
       else if (dragging.current === 'hue') handleHue(e);
@@ -187,11 +191,13 @@ export function FormatColorPicker({
     const onUp = () => {
       dragging.current = null;
     };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
     return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
     };
   }, [handlePad, handleHue]);
 
@@ -242,7 +248,8 @@ export function FormatColorPicker({
       {/* SV Pad */}
       <div
         ref={padRef}
-        onMouseDown={(e) => {
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
           dragging.current = 'pad';
           handlePad(e);
         }}
@@ -254,6 +261,7 @@ export function FormatColorPicker({
           position: 'relative',
           overflow: 'hidden',
           marginBottom: 6,
+          touchAction: 'none',
           background: `hsl(${h}, 100%, 50%)`,
         }}
       >
@@ -282,7 +290,8 @@ export function FormatColorPicker({
       {/* Hue strip */}
       <div
         ref={hueRef}
-        onMouseDown={(e) => {
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
           dragging.current = 'hue';
           handleHue(e);
         }}
@@ -293,6 +302,7 @@ export function FormatColorPicker({
           cursor: 'pointer',
           position: 'relative',
           marginBottom: 8,
+          touchAction: 'none',
           // Hue strip = mathematical RGB spectrum, intentionally theme-independent.
           background: 'linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)',
         }}
