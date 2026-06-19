@@ -29,6 +29,7 @@ import {
   columnCaptionInputClasses,
   columnCaptionTriggerClasses,
 } from '../primitives';
+import { FormatReadout } from '../FormatReadout';
 import type { FormatterActions, FormatterState } from '../state';
 
 interface Props {
@@ -261,6 +262,9 @@ export function ModuleContext({ state, actions }: Props) {
           <Redo2 size={12} strokeWidth={1.75} />
         </Pill>
       </div>
+
+      <Hair />
+      <FormatReadout state={state} />
     </div>
   );
 }

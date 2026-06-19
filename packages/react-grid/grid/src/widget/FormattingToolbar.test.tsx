@@ -577,4 +577,25 @@ describe('FormattingToolbar — disabled state', () => {
       expect(b.disabled).toBe(true);
     });
   });
+
+  it('format readout invites selection when no column is active', async () => {
+    const fake = makeFakeApi(COLS, []);
+    mountToolbar({ platform, api: fake.api });
+    await waitFor(() => {
+      const readout = screen.getByTestId('formatting-readout');
+      expect(readout.getAttribute('data-empty')).toBe('true');
+      expect(readout.textContent).toContain('Select a column to format');
+    });
+  });
+
+  it('format readout names the target + scope for the active column', async () => {
+    const fake = makeFakeApi(COLS, ['price']);
+    mountToolbar({ platform, api: fake.api });
+    await waitFor(() => {
+      const readout = screen.getByTestId('formatting-readout');
+      expect(readout.getAttribute('data-empty')).toBeNull();
+      expect(readout.textContent).toContain('Cells');
+      expect(readout.textContent).toContain('Price');
+    });
+  });
 });

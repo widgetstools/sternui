@@ -45,6 +45,18 @@ describe('CompactFormatterPicker — tabbed selector', () => {
     expect(screen.getByTestId('fp-excel')).toBeTruthy();
   });
 
+  it('search flattens the tabs into a matching result list', () => {
+    render(<FormatterPicker compact dataType="number" value={undefined} onChange={() => {}} data-testid="fp" />);
+    open();
+    act(() => {
+      fireEvent.change(screen.getByTestId('fp-search'), { target: { value: 'paren' } });
+    });
+    expect(screen.getByTestId('fp-results')).toBeTruthy();
+    expect(screen.getByTestId('fp-preset-num-neg-parens')).toBeTruthy();
+    // The category rail is replaced by the flat results while searching.
+    expect(screen.queryByTestId('fp-tab-number')).toBeNull();
+  });
+
   it('shows Text transforms (camelCase etc.) for string columns', () => {
     render(<FormatterPicker compact dataType="string" value={undefined} onChange={() => {}} data-testid="fp" />);
     open();
