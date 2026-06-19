@@ -302,6 +302,14 @@ export interface MarketsGridProps<TData = unknown> {
   onSavingChange?: (saving: boolean) => void;
 
   /**
+   * Fires `true` when the customization drawer opens and `false` when it
+   * closes. Container shells use this to pause the provider's realtime stream
+   * while the heavy customizer tree mounts (then resume), so the drawer opens
+   * smoothly under high-frequency update storms.
+   */
+  onCustomizerOpenChange?: (open: boolean) => void;
+
+  /**
    * When true, the live data stream is disconnected and row values may
    * be stale. Shows a flashing banner in the grid header and disables
    * cell editing until cleared.

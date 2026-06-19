@@ -23,6 +23,10 @@ export interface ProviderGridHostApi {
   onRefreshView(): void;
   onReloadFromSource(): void;
   onEditProvider(providerId: string): void;
+  /** True while realtime updates are manually paused for this grid. */
+  paused: boolean;
+  /** Toggle the manual pause of realtime updates (freeze/resume the stream). */
+  onTogglePause(): void;
 }
 
 const ProviderGridHostContext = createContext<ProviderGridHostApi | null>(null);

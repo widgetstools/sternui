@@ -45,6 +45,7 @@ import {
 } from '@starui/host-data-react/runtime';
 import { buildColumnDefs } from './buildColumnDefs.js';
 import { useProviderDataWiring } from './useProviderDataWiring.js';
+import { usePauseCoordinator } from './usePauseCoordinator.js';
 import { useGridLevelPersistence } from './useGridLevelPersistence.js';
 import { LOGGED_IN_USER_ID } from '@starui/types';
 import {
@@ -510,6 +511,11 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     restart: restartProvider,
   } = useDataProvider<TData>(providerReady ? activeId : null, { autoStart: false });
 
+  // Pause realtime updates for this grid while the customizer drawer is open
+  // (and on a manual toggle) so heavy UI mounts on a free thread; the hub keeps
+  // the cache warm and resume replays it in one batch. See usePauseCoordinator.
+  const pauseCoordinator = usePauseCoordinator(provider);
+
   // Loading-overlay state — derived synchronously from a "subscription
   // key" so the overlay appears on the SAME render that mounts the
   // grid. If we used a useState+useEffect pair, AG-Grid would briefly
@@ -800,6 +806,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     onRefreshView: refreshView,
     onReloadFromSource: () => { void reloadFromSource(); },
     onEditProvider: handleProviderEdit,
+    paused: pauseCoordinator.paused,
+    onTogglePause: pauseCoordinator.toggleManual,
   }), [
     liveList.configs,
     histList.configs,
@@ -814,6 +822,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     refreshView,
     reloadFromSource,
     handleProviderEdit,
+    pauseCoordinator.paused,
+    pauseCoordinator.toggleManual,
   ]);
 
   const providerEditorDialog = (
@@ -920,6 +930,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
             caption={effectiveCaption}
             onCaptionChange={handleCaptionChange}
             onSavingChange={setIsSavingProfile}
+            onCustomizerOpenChange={(open) => pauseCoordinator.setReason('customizer', open)}
             dataStale={providerDisconnected}
             dataStaleMessage={dataStaleMessage}
             historicalViewMode={isHistoricalView}

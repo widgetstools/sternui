@@ -24,6 +24,7 @@ import type { AdminAction } from './types';
 import { FiltersToolbar } from './FiltersToolbar';
 import { QuickSearch } from './QuickSearch';
 import { AutoFormatButton } from './AutoFormatButton';
+import { PauseUpdatesButton } from './PauseUpdatesButton';
 import { ProfileSelector } from './ProfileSelector';
 import { EditableCaption } from './EditableCaption';
 import { AlertsBadge } from '../customizer/modules/alerts';
@@ -153,6 +154,8 @@ function PrimaryToolbarInner(props: PrimaryToolbarProps): ReactElement {
         )}
 
         {showAutoFormat && <AutoFormatButton />}
+
+        <PauseUpdatesButton />
 
         {showFormattingToolbar && (
           <Button

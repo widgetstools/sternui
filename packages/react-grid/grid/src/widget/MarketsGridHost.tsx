@@ -90,6 +90,7 @@ export interface MarketsGridHostProps<TData> {
   tabsHidden: boolean | undefined;
   onCaptionChange: ((next: string) => void) | undefined;
   onSavingChange: ((saving: boolean) => void) | undefined;
+  onCustomizerOpenChange: ((open: boolean) => void) | undefined;
   dataStale: boolean;
   dataStaleMessage: string | undefined;
   historicalViewMode: boolean;
@@ -145,6 +146,7 @@ function MarketsGridHostInner<TData>({
   tabsHidden,
   onCaptionChange,
   onSavingChange,
+  onCustomizerOpenChange,
   dataStale,
   dataStaleMessage,
   historicalViewMode,
@@ -193,6 +195,7 @@ function MarketsGridHostInner<TData>({
     gridLevelData,
     onGridLevelDataLoad,
     onSavingChange,
+    onCustomizerOpenChange,
     headerCaseAttr,
   });
 

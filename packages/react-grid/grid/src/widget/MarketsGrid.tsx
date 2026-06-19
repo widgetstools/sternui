@@ -267,6 +267,7 @@ function MarketsGridInner<TData = unknown>(
     tabsHidden,
     onCaptionChange,
     onSavingChange,
+    onCustomizerOpenChange,
     dataStale = false,
     dataStaleMessage,
     historicalViewMode = false,
@@ -386,6 +387,7 @@ function MarketsGridInner<TData = unknown>(
         tabsHidden={tabsHidden}
         onCaptionChange={onCaptionChange}
         onSavingChange={onSavingChange}
+        onCustomizerOpenChange={onCustomizerOpenChange}
         dataStale={dataStale}
         dataStaleMessage={dataStaleMessage}
         historicalViewMode={historicalViewMode}

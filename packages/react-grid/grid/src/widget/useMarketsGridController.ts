@@ -56,6 +56,7 @@ export interface UseMarketsGridControllerOpts {
   readonly gridLevelData: unknown;
   readonly onGridLevelDataLoad: ((data: unknown) => void) | undefined;
   readonly onSavingChange: ((saving: boolean) => void) | undefined;
+  readonly onCustomizerOpenChange: ((open: boolean) => void) | undefined;
   /** Derived from general-settings — supplied by host to avoid duplicate store subscription. */
   readonly headerCaseAttr?: 'upper' | undefined;
 }
@@ -104,6 +105,7 @@ export function useMarketsGridController(
     gridLevelData,
     onGridLevelDataLoad,
     onSavingChange,
+    onCustomizerOpenChange,
     headerCaseAttr: headerCaseAttrProp,
   } = opts;
 
@@ -292,6 +294,12 @@ export function useMarketsGridController(
 
   // Settings sheet — the Cockpit popout drawer.
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Notify the host when the drawer's visibility changes so it can pause the
+  // realtime stream while the heavy customizer tree mounts (and resume after).
+  useEffect(() => {
+    onCustomizerOpenChange?.(settingsOpen);
+  }, [settingsOpen, onCustomizerOpenChange]);
   // Imperative handle into the SettingsSheet so the settings-icon
   // click handler can raise a buried popout window to front instead
   // of no-op-opening an already-open sheet. See handleOpenSettings
