@@ -112,6 +112,7 @@ export const GRID_OPTIONS_SCHEMA: readonly BandSchema[] = [
       { kind: 'num', key: 'groupLockGroupColumns', label: 'LOCK GROUP COLS', hint: 'Lock the first N group columns. 0 = none · -1 = all', testId: 'go-group-lock-group-cols' },
       // UI label is positive ("DRAG LEAVE HIDES") but state is a suppress-flag — invert.
       { kind: 'bool', key: 'suppressDragLeaveHidesColumns', label: 'DRAG LEAVE HIDES', hint: 'Dragging a column to the row-group panel hides it in the grid', testId: 'go-drag-leave-hides', invert: true },
+      { kind: 'bool', key: 'allowDragFromColumnsToolPanel', label: 'DRAG FROM PANEL', hint: 'Drag columns from the Columns tool panel onto the grid to show, reorder, or pin them', testId: 'go-allow-drag-from-tool-panel' },
       {
         kind: 'select', key: 'suppressGroupChangesColumnVisibility', label: 'VIS ON GROUP CHG',
         hint: 'Keep column visibility stable when grouping changes', testId: 'go-suppress-group-changes-visibility',

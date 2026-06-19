@@ -214,6 +214,9 @@ export interface GeneralSettingsState {
   enableCellTextSelection: boolean;
   suppressDragLeaveHidesColumns: boolean;
   suppressColumnMoveAnimation: boolean;
+  /** Allow dragging columns from the Columns tool panel onto the grid to
+   *  show / reorder / pin them (AG Grid `allowDragFromColumnsToolPanel`). */
+  allowDragFromColumnsToolPanel: boolean;
 
   // ─── Side Bar ────────────────────────────────────────────────────────────
   // AG-Grid's tool-panel sidebar. The master switch flips the whole panel
@@ -363,6 +366,7 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   enableCellTextSelection: false,
   suppressDragLeaveHidesColumns: true,
   suppressColumnMoveAnimation: false,
+  allowDragFromColumnsToolPanel: true,
 
   // Side Bar — ON by default so a fresh grid ships with the columns +
   // filters tool panels reachable from the button strip. Both panels are
