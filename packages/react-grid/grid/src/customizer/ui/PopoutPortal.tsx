@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { PortalContainerProvider } from './PortalContainer';
+import { enableCrossRealmNodeInstanceOf } from './crossRealmNodeInstanceOf';
 
 // ─── StrictMode-safe window registry (module-level) ───────────────────
 // React StrictMode double-invokes useEffect in dev: mount → cleanup →
@@ -208,6 +209,11 @@ export function PopoutPortal({
     // Cancel any pending close from a StrictMode unmount that
     // preceded this remount — we want to reuse, not kill-and-reopen.
     cancelPendingClose(name);
+
+    // Popout DOM lives in a separate window realm; make `instanceof Node`
+    // cross-realm aware so Radix popovers/selects dismiss on outside click
+    // inside the popout (idempotent).
+    enableCrossRealmNodeInstanceOf();
 
     let cancelled = false;
 

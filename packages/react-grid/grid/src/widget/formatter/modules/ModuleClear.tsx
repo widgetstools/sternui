@@ -65,7 +65,7 @@ export function ModuleClear({
     <Button
       type="button"
       variant="outline"
-      onClick={actions.requestClearSelected}
+      onClick={actions.confirmClearSelected}
       disabled={state.disabled}
       data-testid={orientation === 'horizontal' ? 'formatting-clear-selected' : 'fmt-panel-clear-selected'}
       data-confirmed={state.clearSelectedConfirmed ? 'true' : undefined}
@@ -84,7 +84,7 @@ export function ModuleClear({
     <Button
       type="button"
       variant="outline"
-      onClick={actions.requestClearAll}
+      onClick={actions.confirmClearAll}
       data-testid={orientation === 'horizontal' ? 'formatting-clear-all' : 'fmt-panel-clear-all'}
       data-confirmed={state.clearConfirmed ? 'true' : undefined}
       title="Clear every column's styling, value formatter, borders, filter config, and template references from this layout"

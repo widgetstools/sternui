@@ -88,7 +88,6 @@
   padding: 6px 48px 8px 12px;
   min-height: 56px;
   background: var(--ds-surface-sunken);
-  border-bottom: 1px solid var(--ds-border-primary);
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -197,23 +196,25 @@
   top: 0;
   z-index: 2;
   flex-shrink: 0;
-  padding: 8px 12px 10px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--ds-border-primary);
   background: var(--ds-surface-ground);
 }
 
+/* The header reuses a PanelGroup but renders flat — the panel window's own
+   chrome is the only frame, so no nested sunken card here. */
 .fx-panel-header .fx-panel-group {
-  border: 1px solid color-mix(in srgb, var(--ds-border-primary) 85%, transparent);
-  border-radius: calc(var(--fx-radius) + 2px);
-  background: color-mix(in srgb, var(--fx-bg-sunken) 72%, var(--ds-surface-primary));
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
 }
-
 .fx-panel-header .fx-panel-group__label {
-  padding: 6px 10px 4px;
+  padding: 0 0 10px;
+  border-bottom: none;
 }
-
 .fx-panel-header .fx-panel-group__body {
-  padding: 8px 10px 10px;
+  padding: 0;
 }
 
 .fx-panel-header .fx-ctx {
@@ -239,34 +240,41 @@
 .fx-panel-sections {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px 14px 16px;
+  gap: 0;
+  padding: 0;
 }
 
+/* Flat sections — a single hairline divides them, no nested cards, so each
+   section is only as tall as its controls. One 16px gutter throughout keeps
+   every label and control aligned to the same edge. */
 .fx-panel-group {
-  border-radius: calc(var(--fx-radius) + 2px);
-  border: 1px solid color-mix(in srgb, var(--ds-border-primary) 85%, transparent);
-  background: color-mix(in srgb, var(--fx-bg-sunken) 72%, var(--ds-surface-primary));
-  overflow: hidden;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+  padding: 11px 16px;
+}
+.fx-panel-sections > .fx-panel-group + .fx-panel-group {
+  border-top: 1px solid color-mix(in srgb, var(--ds-border-primary) 55%, transparent);
 }
 
 .fx-panel-group__label {
   display: block;
-  margin: 0;
-  padding: 8px 12px 6px;
+  margin: 0 0 9px;
+  padding: 0;
   font-family: var(--ds-font-mono);
   font-size: 9px;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--fx-toolbar-label);
+  color: var(--ds-text-faint);
   line-height: 1;
-  border-bottom: 1px solid color-mix(in srgb, var(--ds-border-primary) 70%, transparent);
+  border-bottom: none;
   user-select: none;
 }
 
 .fx-panel-group__body {
-  padding: 10px 12px 12px;
+  padding: 0;
 }
 
 .fx-panel-group--destruct {
@@ -277,14 +285,13 @@
   color: color-mix(in srgb, var(--ds-accent-negative) 72%, var(--fx-toolbar-label));
 }
 
-/* Inside a panel card, module eyebrows duplicate the group label. */
+/* Flatten the inner module box inside a panel card — the PanelGroup is the
+   single enclosure; the module just lays out its controls (eyebrow hidden
+   globally below, so each section has one header: the PanelGroup label). */
 .fx-panel-group .fx-module {
   display: block;
   padding: 0;
   border-bottom: none;
-}
-.fx-panel-group .fx-eyebrow {
-  display: none;
 }
 .fx-panel-group .fx-module__body {
   gap: 8px;
@@ -356,13 +363,11 @@
   flex-shrink: 0;
 }
 
-/* Vertical-mode module — section card with eyebrow header. */
+/* Vertical-mode module — the PanelGroup now owns the section padding +
+   hairline divider, so the module is just a flush controls container. */
 .fx-shell--vertical .fx-module {
   display: block;
-  padding: 14px 18px 16px;
-  border-bottom: 1px solid var(--ds-border-primary);
-}
-.fx-shell--vertical .fx-module:last-child {
+  padding: 0;
   border-bottom: none;
 }
 
@@ -389,20 +394,29 @@
   opacity: 0.6;
 }
 
-/* In the in-grid horizontal toolbar the section eyebrows (`02 · TYPE`,
- * `03 · PAINT`, …) duplicate information already conveyed by the
- * tooltips on every action — and they crowd a strip that competes for
- * row real estate with the data grid below. Hide them in horizontal
- * mode only; the popped vertical panel still uses them as section
- * headers where the extra surface area exists. */
-.fx-shell--horizontal .fx-eyebrow {
+/* The section eyebrows (`02 · TYPE`, `03 · PAINT`, …) duplicate the labels
+ * already provided by the ToolbarGroup (horizontal) and PanelGroup
+ * (vertical), so they're hidden in both orientations — the surrounding
+ * group label is the single section header. Kept in the DOM for
+ * `data-module-index` hooks. */
+.fx-eyebrow {
   display: none;
 }
 
-/* Vertical eyebrow — bigger, becomes the section header. */
-.fx-shell--vertical .fx-eyebrow {
-  display: flex;
-  margin-bottom: 12px;
+/* ─── Format readout — scope summary + live sample ───────────────── */
+.fx-readout {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 200px;
+}
+/* In the vertical panel the readout drops onto its own full-width line
+   under the scope toggles, so it never collides with the section divider. */
+.fx-shell--vertical .fx-readout {
+  flex-basis: 100%;
+  max-width: none;
+  margin-top: 2px;
 }
 
 .fx-module__body {
@@ -488,17 +502,21 @@
  * own `overflow: hidden`, this guarantees the OS popout window
  * never grows scrollbars on its body.
  */
+/* The sticky chrome (border, background, padding) now lives on
+   `.fx-panel-header`; inside it the context row is a plain wrapping flex
+   line that grows to fit the scope toggles + the readout's own line. */
 .fx-shell--vertical .fx-ctx {
-  height: 48px;
-  padding: 0 18px;
-  border-bottom: 1px solid var(--ds-border-primary);
-  background: var(--ds-surface-ground);
-  flex-shrink: 0;
-  position: sticky;
-  top: 0;
-  z-index: 2;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border-bottom: none;
+  background: transparent;
+  position: static;
+  flex-wrap: wrap;
+  row-gap: 8px;
+  column-gap: 10px;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* Column label readout — secondary readout tier (11px mono, muted ink). */
@@ -724,8 +742,7 @@
 
 /* Vertical-mode footer — destruct zone. */
 .fx-footer {
-  height: 48px;
-  padding: 0 18px;
+  padding: 14px 16px;
   border-top: 1px solid var(--ds-border-primary);
   background: var(--ds-surface-ground);
   flex-shrink: 0;
@@ -741,21 +758,23 @@
 /* ─── Title bar (vertical / popped, OpenFin frameless mode) ────── */
 
 .fx-titlebar {
-  height: 32px;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 0 12px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--ds-border-primary);
-  background: var(--fx-bg-sunken);
+  /* A distinct, lighter design-system surface so the title bar reads as
+     window chrome, set apart from the `--ds-surface-ground` content below. */
+  background: var(--ds-surface-secondary);
   -webkit-app-region: drag;
   flex-shrink: 0;
   font-family: var(--ds-font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ds-text-faint);
+  color: var(--ds-text-muted);
   overflow: hidden;
 }
 /* Long gridIds (UUIDs) ellipsize instead of pushing the close button

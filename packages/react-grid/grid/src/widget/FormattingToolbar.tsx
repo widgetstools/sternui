@@ -3,8 +3,7 @@
  *
  * Thin shell that wires:
  *   1. The unified `useFormatter()` state/actions hook;
- *   2. The shared destructive `<ClearAllDialog />`;
- *   3. The `<Poppable />` host that turns the same component graph
+ *   2. The `<Poppable />` host that turns the same component graph
  *      into either an in-grid horizontal toolbar or a popped-out
  *      vertical inspector.
  *
@@ -22,8 +21,6 @@ import {
   type PoppableHandle,
 } from '@starui/grid/customizer';
 import {
-  ClearAllDialog,
-  ClearSelectedDialog,
   FormatterPanel,
   FormatterToolbar,
   useFormatter,
@@ -69,46 +66,32 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
           frame={false}
         >
           {({ popped, PopoutButton, close }) => {
-            // Confirm dialog lives INSIDE the render-prop so its Radix
-            // portal lands in the same document as the toolbar that
-            // triggered it. When popped, that's the popout window's
-            // body (via PopoutPortal's PortalContainerProvider); when
-            // inline, it's the main window. Hosting the dialog
-            // outside Poppable made the dialog render in the parent
-            // window even when the popped panel triggered it — the
-            // user sat in the popout watching nothing happen.
+            // Clear actions fire immediately (no confirm dialog) — the
+            // buttons flash a check on success and undo/redo covers misclicks.
             if (popped) {
               return (
-                <>
-                  <ClearAllDialog state={state} actions={actions} />
-                  <ClearSelectedDialog state={state} actions={actions} />
-                  <FormatterPanel
-                    state={state}
-                    actions={actions}
-                    frameless
-                    onClose={close}
-                    titleText={`Formatting — ${platform.gridId}`}
-                  />
-                </>
+                <FormatterPanel
+                  state={state}
+                  actions={actions}
+                  frameless
+                  onClose={close}
+                  titleText={`Formatting — ${platform.gridId}`}
+                />
               );
             }
             return (
-              <>
-                <ClearAllDialog state={state} actions={actions} />
-                <ClearSelectedDialog state={state} actions={actions} />
-                <FormatterToolbar
-                  state={state}
-                  actions={actions}
-                  popoutSlot={
-                    <PopoutButton
-                      className="fx-popout"
-                      title="Open toolbar in a separate window"
-                      data-testid="formatting-popout-btn"
-                      icon={<ExternalLink size={13} strokeWidth={2.25} />}
-                    />
-                  }
-                />
-              </>
+              <FormatterToolbar
+                state={state}
+                actions={actions}
+                popoutSlot={
+                  <PopoutButton
+                    className="fx-popout"
+                    title="Open toolbar in a separate window"
+                    data-testid="formatting-popout-btn"
+                    icon={<ExternalLink size={13} strokeWidth={2.25} />}
+                  />
+                }
+              />
             );
           }}
         </Poppable>

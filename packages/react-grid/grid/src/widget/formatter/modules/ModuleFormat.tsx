@@ -18,6 +18,7 @@ import {
   PERCENT_TEMPLATE,
   isCommaTemplate,
   isPercentTemplate,
+  templateDecimals,
 } from '../../formatterPresets';
 import { Hair, Module, Pill, ToolbarSelect } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
@@ -65,6 +66,7 @@ export function ModuleFormat({
 
   const currencyValue = currencyKeyFromTemplate(vft);
   const tickValue = currentTickToken(vft) ?? '';
+  const decimals = templateDecimals(vft);
 
   return (
     <Module index="04" label="Format">
@@ -124,13 +126,38 @@ export function ModuleFormat({
 
       <Hair />
 
-      {/* Decimals ±. */}
+      {/* Decimals ± with a live precision readout between them, so the
+          user sees the current decimal count instead of tapping blind. */}
       <Pill disabled={fmtDisabled} tooltip="Fewer decimals" onClick={actions.decreaseDecimals} variant="text">
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: spacing.px }}>
           <ArrowLeft size={9} strokeWidth={2} />
           .0
         </span>
       </Pill>
+      <span
+        data-testid="fmt-decimals-readout"
+        aria-hidden
+        title={
+          decimals == null
+            ? 'No fixed decimal places'
+            : `${decimals} decimal place${decimals === 1 ? '' : 's'}`
+        }
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minWidth: 14,
+          height: 18,
+          padding: `0 ${spacing[1]}px`,
+          fontFamily: 'var(--ds-font-mono)',
+          fontSize: 10,
+          fontVariantNumeric: 'tabular-nums',
+          color: fmtDisabled ? 'var(--ds-text-faint)' : 'var(--ds-text-secondary)',
+          opacity: fmtDisabled ? 0.5 : 1,
+        }}
+      >
+        {decimals == null ? '—' : decimals}
+      </span>
       <Pill disabled={fmtDisabled} tooltip="More decimals" onClick={actions.increaseDecimals} variant="text">
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: spacing.px }}>
           .0

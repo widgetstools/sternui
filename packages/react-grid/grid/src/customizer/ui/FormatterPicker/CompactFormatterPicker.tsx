@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown, Hash, X } from 'lucide-react';
+import { ChevronDown, Hash, Search, X } from 'lucide-react';
 import { controls, radius, spacing, typography } from '@starui/design-system/tokens';
-import { Tabs, TabsContent, TabsList, TabsTrigger, cn } from '@starui/ui';
+import { Input, Tabs, TabsContent, TabsList, TabsTrigger, cn } from '@starui/ui';
 import type { ValueFormatterTemplate } from '@starui/engine';
 import { FormatPopover } from '../format-editor';
 import { SubLabel } from '../SettingsPanel';
@@ -11,8 +11,10 @@ import { CustomFormatTab } from './CustomFormatTab';
 import {
   defaultSampleValue,
   presetsForCategory,
+  presetsForDataType,
   type FormatterPreset,
 } from './presetsForDataType';
+import { filterPresets } from './presetSearch';
 import { renderPreview, triggerCaption, type SharedBodyProps } from './formatterPickerShared';
 
 // Inline data-chip dimension (CURRENT preview, clear) — one step tighter
@@ -47,6 +49,13 @@ export function CompactFormatterPicker({
   const sample = useMemo(() => defaultSampleValue(dataType), [dataType]);
   // Open on the category of the applied format, else the primary category.
   const [tab, setTab] = useState<string>(activePreset?.category ?? categories[0] ?? CUSTOM_TAB);
+
+  // Free-text search across every preset for this data type. A non-blank
+  // query replaces the tabbed view with a flat result list.
+  const [query, setQuery] = useState('');
+  const allPresets = useMemo(() => presetsForDataType(dataType), [dataType]);
+  const results = useMemo(() => filterPresets(allPresets, query), [allPresets, query]);
+  const searching = query.trim().length > 0;
 
   return (
     <FormatPopover
@@ -127,7 +136,44 @@ export function CompactFormatterPicker({
             </ChromeButton>
           </div>
 
-          {/* Vertical category rail (shadcn Tabs) */}
+          {/* Search — a non-blank query flattens the tabs into one result list */}
+          <div className="relative shrink-0">
+            <Search
+              size={12}
+              strokeWidth={1.75}
+              className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 opacity-50"
+            />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search formats…"
+              aria-label="Search formats"
+              data-testid={testId ? `${testId}-search` : undefined}
+              className="h-7 rounded-[2px] pl-7 text-[11px]"
+            />
+          </div>
+
+          {searching ? (
+            <div className="min-h-0 flex-1" data-testid={testId ? `${testId}-results` : undefined}>
+              {results.length ? (
+                <PresetList
+                  presets={results}
+                  activeId={activePreset?.id}
+                  sample={sample}
+                  onPick={(p) => {
+                    pickPreset(p);
+                    close();
+                  }}
+                  testId={testId}
+                />
+              ) : (
+                <p className="px-1 py-6 text-center text-[11px]" style={{ color: 'var(--ds-text-faint)' }}>
+                  No formats match “{query.trim()}”. Try the Custom tab for an Excel format.
+                </p>
+              )}
+            </div>
+          ) : (
+          /* Vertical category rail (shadcn Tabs) */
           <Tabs
             orientation="vertical"
             value={tab}
@@ -201,6 +247,7 @@ export function CompactFormatterPicker({
               </TabsContent>
             </div>
           </Tabs>
+          )}
         </div>
       )}
     </FormatPopover>

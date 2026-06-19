@@ -504,7 +504,7 @@ describe('FormattingToolbar — clear flows', () => {
   let platform: GridPlatform;
   beforeEach(() => { platform = makePlatform(); });
 
-  it('Clear all → confirm wipes every column assignment', async () => {
+  it('Clear all wipes every column assignment immediately (no confirm dialog)', async () => {
     const fake = makeFakeApi(COLS, ['price']);
     mountToolbar({ platform, api: fake.api });
 
@@ -515,20 +515,16 @@ describe('FormattingToolbar — clear flows', () => {
     act(() => fireEvent.mouseDown(screen.getByRole('button', { name: 'Bold' })));
     expect(getAssignment(platform, 'price')?.cellStyleOverrides?.dark?.typography?.bold).toBe(true);
 
-    // Open clear-all dialog from the toolbar.
+    // Clicking Clear-all fires the clear directly — no confirm dialog.
     act(() => {
       fireEvent.click(screen.getByTestId('formatting-clear-all'));
     });
-    // Confirm.
-    await waitFor(() => screen.getByTestId('formatting-clear-all-confirm-btn'));
-    act(() => {
-      fireEvent.click(screen.getByTestId('formatting-clear-all-confirm-btn'));
-    });
+    expect(screen.queryByTestId('formatting-clear-all-confirm-btn')).toBeNull();
 
     expect(getCustState(platform).assignments).toEqual({});
   });
 
-  it('Clear selected → confirm wipes only the targeted column', async () => {
+  it('Clear selected wipes only the targeted column immediately (no confirm dialog)', async () => {
     const fake = makeFakeApi(COLS, ['price']);
     mountToolbar({ platform, api: fake.api });
 
@@ -552,10 +548,7 @@ describe('FormattingToolbar — clear flows', () => {
     act(() => {
       fireEvent.click(screen.getByTestId('formatting-clear-selected'));
     });
-    await waitFor(() => screen.getByTestId('formatting-clear-selected-confirm-btn'));
-    act(() => {
-      fireEvent.click(screen.getByTestId('formatting-clear-selected-confirm-btn'));
-    });
+    expect(screen.queryByTestId('formatting-clear-selected-confirm-btn')).toBeNull();
 
     expect(getAssignment(platform, 'price')).toEqual({ colId: 'price' });
     expect(getAssignment(platform, 'quantity')?.cellStyleOverrides?.dark?.typography?.bold).toBe(true);
@@ -575,6 +568,27 @@ describe('FormattingToolbar — disabled state', () => {
     await waitFor(() => {
       const b = screen.getByRole('button', { name: 'Bold' }) as HTMLButtonElement;
       expect(b.disabled).toBe(true);
+    });
+  });
+
+  it('format readout invites selection when no column is active', async () => {
+    const fake = makeFakeApi(COLS, []);
+    mountToolbar({ platform, api: fake.api });
+    await waitFor(() => {
+      const readout = screen.getByTestId('formatting-readout');
+      expect(readout.getAttribute('data-empty')).toBe('true');
+      expect(readout.textContent).toContain('Select a column to format');
+    });
+  });
+
+  it('format readout names the target + scope for the active column', async () => {
+    const fake = makeFakeApi(COLS, ['price']);
+    mountToolbar({ platform, api: fake.api });
+    await waitFor(() => {
+      const readout = screen.getByTestId('formatting-readout');
+      expect(readout.getAttribute('data-empty')).toBeNull();
+      expect(readout.textContent).toContain('Cells');
+      expect(readout.textContent).toContain('Price');
     });
   });
 });

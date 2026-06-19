@@ -70,9 +70,7 @@ export interface FormatterActionsSlice {
    *  undo/redo availability, global formatters). */
   state: {
     clearConfirmed: boolean;
-    clearDialogOpen: boolean;
     clearSelectedConfirmed: boolean;
-    clearSelectedDialogOpen: boolean;
     canUndo: boolean;
     canRedo: boolean;
     cellsEditable: boolean;
@@ -102,11 +100,7 @@ export interface FormatterActionsSlice {
     doFormat: (t: ValueFormatterTemplate | undefined, kind?: 'number' | 'date') => void;
     decreaseDecimals: () => void;
     increaseDecimals: () => void;
-    requestClearAll: () => void;
-    setClearDialogOpen: (open: boolean) => void;
     confirmClearAll: () => void;
-    requestClearSelected: () => void;
-    setClearSelectedDialogOpen: (open: boolean) => void;
     confirmClearSelected: () => void;
     undo: () => void;
     redo: () => void;
@@ -172,9 +166,7 @@ export function useFormatterActions(deps: FormatterActionsDeps): FormatterAction
 
   // ─── Clear-all + clear-selected state ────────────────────────────────
   const [clearConfirmed, flashClear] = useFlashConfirm();
-  const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [clearSelectedConfirmed, flashClearSelected] = useFlashConfirm();
-  const [clearSelectedDialogOpen, setClearSelectedDialogOpen] = useState(false);
 
   // ─── Typography + alignment + colours ────────────────────────────────
 
@@ -320,13 +312,6 @@ export function useFormatterActions(deps: FormatterActionsDeps): FormatterAction
     flashClear();
   }, [setCustStateWithHistory, flashClear]);
 
-  const requestClearAll = useCallback(() => setClearDialogOpen(true), []);
-
-  const requestClearSelected = useCallback(() => {
-    if (!colIdsRef.current.length) return;
-    setClearSelectedDialogOpen(true);
-  }, [colIdsRef]);
-
   const confirmClearSelected = useCallback(() => {
     if (!colIdsRef.current.length) return;
     setCustStateWithHistory(clearAllStylesReducer(colIdsRef.current));
@@ -451,9 +436,7 @@ export function useFormatterActions(deps: FormatterActionsDeps): FormatterAction
   return {
     state: {
       clearConfirmed,
-      clearDialogOpen,
       clearSelectedConfirmed,
-      clearSelectedDialogOpen,
       canUndo: undoRedo.canUndo,
       canRedo: undoRedo.canRedo,
       cellsEditable: !!fmt.editable,
@@ -481,11 +464,7 @@ export function useFormatterActions(deps: FormatterActionsDeps): FormatterAction
       doFormat,
       decreaseDecimals,
       increaseDecimals,
-      requestClearAll,
-      setClearDialogOpen,
       confirmClearAll,
-      requestClearSelected,
-      setClearSelectedDialogOpen,
       confirmClearSelected,
       undo: undoRedo.undo,
       redo: undoRedo.redo,

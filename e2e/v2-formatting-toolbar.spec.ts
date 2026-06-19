@@ -175,8 +175,8 @@ test.describe('v2 FormattingToolbar', () => {
     expect(['700', 'bold']).toContain(await getCellStyle(page, colId, 'font-weight'));
     expect(await getCellStyle(page, colId, 'font-style')).toBe('italic');
 
+    // Clear fires immediately — no confirm dialog.
     await page.locator('[data-testid="formatting-clear-selected"]').click();
-    await page.locator('[data-testid="formatting-clear-selected-confirm-btn"]').click();
     await page.waitForTimeout(400);
 
     expect(['400', 'normal']).toContain(await getCellStyle(page, colId, 'font-weight'));

@@ -141,6 +141,8 @@ const STARUI_DARK_CHROME = {
   headerTextColor: 'oklch(var(--secondary-foreground))',
   columnBorder: { style: 'solid' as const, width: 1, color: 'oklch(0.34 0.016 258 / 0.55)' },
   headerColumnBorder: { style: 'solid' as const, width: 1, color: 'oklch(0.36 0.017 258 / 0.6)' },
+  // Dark-mode selected-row tint (overrides the shared `--primary`-based value).
+  selectedRowBackgroundColor: '#73BBF626',
 };
 
 function gridParams(mode: 'dark' | 'light', density: GridDensity = 'compact') {
@@ -173,6 +175,9 @@ function bakeStaruiTheme(density: GridDensity = 'compact'): Theme {
     }, 'light')
     .withParams({
       browserColorScheme: 'dark',
+      // Mode-specific params don't inherit across modes, so repeat the
+      // hidden column-resize handle here too (light gets it via `shared`).
+      headerColumnResizeHandleHeight: '0%',
       ...STARUI_DARK_CHROME,
     }, 'dark');
 }

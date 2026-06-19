@@ -14,16 +14,6 @@
  * these components are pure render functions that take props.
  */
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@starui/grid/customizer';
 import { ModuleClear } from './modules/ModuleClear';
 import { ModuleContext } from './modules/ModuleContext';
 import { ModuleEditorFilter } from './modules/ModuleEditorFilter';
@@ -34,84 +24,6 @@ import { ModuleType } from './modules/ModuleType';
 import { ModuleDivider, PanelGroup, TitleBar, ToolbarGroup } from './primitives';
 import './formatter.css';
 import type { FormatterActions, FormatterState } from './state';
-
-// ─── Shared confirm dialog ────────────────────────────────────────
-
-export function ClearAllDialog({
-  state,
-  actions,
-}: {
-  state: FormatterState;
-  actions: FormatterActions;
-}) {
-  return (
-    <AlertDialog open={state.clearDialogOpen} onOpenChange={actions.setClearDialogOpen}>
-      <AlertDialogContent data-testid="formatting-clear-all-confirm">
-        <AlertDialogHeader>
-          <AlertDialogTitle>Clear all styles?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This removes every column's cell + header styling, value
-            formatters, border overrides, filter config, and template
-            references from the active layout. Saved templates are not
-            affected. This action cannot be undone.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={actions.confirmClearAll}
-            data-testid="formatting-clear-all-confirm-btn"
-          >
-            Clear all styles
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
-export function ClearSelectedDialog({
-  state,
-  actions,
-}: {
-  state: FormatterState;
-  actions: FormatterActions;
-}) {
-  const count = state.colIds.length;
-  const scopeLabel = count === 0
-    ? 'no columns'
-    : count === 1
-      ? `column "${state.colLabel}"`
-      : `${count} columns`;
-  return (
-    <AlertDialog
-      open={state.clearSelectedDialogOpen}
-      onOpenChange={actions.setClearSelectedDialogOpen}
-    >
-      <AlertDialogContent data-testid="formatting-clear-selected-confirm">
-        <AlertDialogHeader>
-          <AlertDialogTitle>Clear styles for {scopeLabel}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This removes the cell + header styling, value formatter,
-            border overrides, filter config, and template references
-            from {scopeLabel} in the active layout. Saved templates
-            and other columns are not affected. This action cannot be
-            undone (use Undo if you change your mind).
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={actions.confirmClearSelected}
-            data-testid="formatting-clear-selected-confirm-btn"
-          >
-            Clear styles
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
 
 // ─── Horizontal — in-grid toolbar ─────────────────────────────────
 
