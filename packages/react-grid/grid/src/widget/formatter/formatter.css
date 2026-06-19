@@ -88,7 +88,6 @@
   padding: 6px 48px 8px 12px;
   min-height: 56px;
   background: var(--ds-surface-sunken);
-  border-bottom: 1px solid var(--ds-border-primary);
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
