@@ -83,7 +83,8 @@ export function ModuleFormat({
           if (choice) actions.doFormat(choice.template);
         }}
         disabled={fmtDisabled}
-        icon={<DollarSign size={12} strokeWidth={1.75} />}
+        icon={<DollarSign size={13} strokeWidth={2.75} />}
+        iconClassName="opacity-100 text-[color:var(--ds-accent-positive)]"
         placeholder="Currency"
         tooltip="Pick a currency (USD, EUR, GBP, JPY, basis points)"
         aria-label="Currency format"
@@ -149,7 +150,11 @@ export function ModuleFormat({
           actions.doFormat({ kind: 'tick', tick: next as typeof TICK_MENU[number]['token'] });
         }}
         disabled={fmtDisabled}
-        placeholder="32"
+        icon={
+          <span className="font-mono text-[10px] font-bold leading-none tabular-nums">1/32</span>
+        }
+        iconClassName="opacity-100 text-[color:var(--ds-text-secondary)]"
+        placeholder="Tick"
         tooltip="Tick precision — choose denominator (32, 64, 128, 256)"
         aria-label="Tick format"
         data-testid="fmt-tick-select"
