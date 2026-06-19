@@ -29,6 +29,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pencil, Plus, RotateCw, Trash2, Check, X } from 'lucide-react';
 import { GhostIconButton, Input, ChromeButton, cn } from '@starui/grid/customizer';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@starui/ui';
 
 // Inactive-row hover tint. Co-located here (instead of marketsGrid.css)
 // so the row + its buttons stay self-contained — the row also serves
@@ -315,6 +316,7 @@ export function TemplateManager({
 }: TemplateManagerProps) {
   const isCompact = variant === 'compact';
   const isEmpty = templates.length === 0;
+  const activeTpl = templates.find((t) => t.id === activeTemplateId);
 
   // Inline rename state — at most one row in edit mode at a time.
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -387,8 +389,8 @@ export function TemplateManager({
         width: isCompact ? undefined : '100%',
       }}
     >
-      {/* List of templates */}
-      {!isEmpty && (
+      {/* Compact toolbar: scrolling row list (bounded inside its popover). */}
+      {!isEmpty && isCompact && (
         <div
           data-testid={`${testIdPrefix}-list`}
           className="flex flex-col gap-px max-h-60 overflow-y-auto pr-0.5"
@@ -416,6 +418,124 @@ export function TemplateManager({
               testId={`${testIdPrefix}-row-${tpl.id}`}
             />
           ))}
+        </div>
+      )}
+
+      {/* Popped-out panel: a Select (pick = apply) + an action cluster for
+          the chosen template. Fixed height — the section no longer grows as
+          templates accumulate. */}
+      {!isEmpty && !isCompact && (
+        <div className="flex items-center gap-1.5" data-testid={`${testIdPrefix}-picker`}>
+          {renamingId && activeTpl ? (
+            <Input
+              type="text"
+              autoFocus
+              value={renameDraft}
+              data-testid={`${testIdPrefix}-rename-input`}
+              onChange={(e) => setRenameDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
+                else if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
+              }}
+              onBlur={commitRename}
+              className="h-8 min-h-8 flex-1 min-w-0 rounded-[2px] text-[11px]"
+            />
+          ) : (
+            <Select
+              value={activeTemplateId ?? ''}
+              onValueChange={(id) => onApply(id)}
+              disabled={disabled}
+            >
+              <SelectTrigger
+                data-testid={`${testIdPrefix}-select`}
+                aria-label="Saved templates"
+                className="h-8 min-h-8 flex-1 min-w-0 rounded-[2px] text-[11px]"
+              >
+                <SelectValue placeholder="Choose a template…" />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.map((tpl) => (
+                  <SelectItem
+                    key={tpl.id}
+                    value={tpl.id}
+                    data-testid={`${testIdPrefix}-option-${tpl.id}`}
+                    className="text-[11px]"
+                  >
+                    {tpl.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {/* Actions for the selected template. Disabled until one is chosen. */}
+          {!renamingId && (
+            <div className="flex shrink-0 items-center gap-1">
+              {onUpdate && (
+                <GhostIconButton
+                  variant="accent"
+                  disabled={disabled || !activeTpl}
+                  onClick={() => activeTpl && onUpdate(activeTpl.id)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  title="Update the selected template with the current column's settings"
+                  aria-label="Update selected template"
+                  data-testid={`${testIdPrefix}-update-btn`}
+                >
+                  <RotateCw size={12} strokeWidth={2} />
+                </GhostIconButton>
+              )}
+              {onRename && (
+                <GhostIconButton
+                  variant="accent"
+                  disabled={disabled || !activeTpl}
+                  onClick={() => activeTpl && startRename(activeTpl.id, activeTpl.name)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  title="Rename the selected template"
+                  aria-label="Rename selected template"
+                  data-testid={`${testIdPrefix}-rename-btn`}
+                >
+                  <Pencil size={12} strokeWidth={2} />
+                </GhostIconButton>
+              )}
+              {pendingDeleteId && pendingDeleteId === activeTemplateId ? (
+                <ChromeButton
+                  type="button"
+                  onClick={() => activeTpl && confirmDelete(activeTpl.id)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  data-testid={`${testIdPrefix}-delete-confirm`}
+                  title="Click to confirm delete"
+                  aria-label="Confirm delete template"
+                  className="inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-[3px] border border-[var(--ds-accent-negative)] bg-[color-mix(in_srgb,var(--ds-accent-negative)_18%,transparent)] px-2 text-[9px] font-bold uppercase tracking-[0.08em] text-[var(--ds-accent-negative)]"
+                >
+                  <Trash2 size={11} strokeWidth={2.25} />
+                  <span>Delete</span>
+                </ChromeButton>
+              ) : (
+                <GhostIconButton
+                  variant="destructive"
+                  disabled={disabled || !activeTpl}
+                  onClick={() => activeTpl && armDelete(activeTpl.id)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  title="Delete the selected template"
+                  aria-label="Delete selected template"
+                  data-testid={`${testIdPrefix}-delete-btn`}
+                >
+                  <Trash2 size={12} strokeWidth={2} />
+                </GhostIconButton>
+              )}
+            </div>
+          )}
+
+          {renamingId && (
+            <GhostIconButton
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); cancelRename(); }}
+              title="Cancel rename"
+              aria-label="Cancel rename"
+              data-testid={`${testIdPrefix}-rename-cancel`}
+            >
+              <X size={12} strokeWidth={2} />
+            </GhostIconButton>
+          )}
         </div>
       )}
 

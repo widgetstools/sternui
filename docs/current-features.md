@@ -388,7 +388,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 #### Profile management UI
 
 - `ProfileSelector` — switch/create/rename/delete profiles
-- `TemplateManager` — column-template library (save/apply/manage)
+- `TemplateManager` — column-template library (save/apply/manage). Compact (toolbar popover) variant is a scrolling row list; **panel (popped-out) variant is a shadcn `Select`** (pick = apply) + an action cluster (update / rename / delete) for the chosen template, so the Templates section stays a fixed-height control as templates accumulate instead of growing
 - `UnsavedSwitchDialog` — guard for dirty profile switch
 - `SettingsSheet` — shadcn right-rail `Drawer` host for all customizer modules;
   opens on **Grid Options** (`general-settings`) by default; module navigation
