@@ -759,21 +759,23 @@
 /* ─── Title bar (vertical / popped, OpenFin frameless mode) ────── */
 
 .fx-titlebar {
-  height: 32px;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 0 12px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--ds-border-primary);
-  background: var(--fx-bg-sunken);
+  /* A distinct, lighter design-system surface so the title bar reads as
+     window chrome, set apart from the `--ds-surface-ground` content below. */
+  background: var(--ds-surface-secondary);
   -webkit-app-region: drag;
   flex-shrink: 0;
   font-family: var(--ds-font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ds-text-faint);
+  color: var(--ds-text-muted);
   overflow: hidden;
 }
 /* Long gridIds (UUIDs) ellipsize instead of pushing the close button
