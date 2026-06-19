@@ -745,8 +745,7 @@
 
 /* Vertical-mode footer — destruct zone. */
 .fx-footer {
-  height: 48px;
-  padding: 0 18px;
+  padding: 14px 16px;
   border-top: 1px solid var(--ds-border-primary);
   background: var(--ds-surface-ground);
   flex-shrink: 0;
