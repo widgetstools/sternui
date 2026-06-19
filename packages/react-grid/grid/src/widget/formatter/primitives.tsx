@@ -117,6 +117,7 @@ export function ToolbarSelect({
   options,
   disabled,
   icon,
+  iconClassName,
   placeholder = '—',
   tooltip,
   'aria-label': ariaLabel,
@@ -128,6 +129,10 @@ export function ToolbarSelect({
   options: ToolbarSelectOption[];
   disabled?: boolean;
   icon?: React.ReactNode;
+  /** Classes for the icon wrapper. Defaults to `opacity-75` (the quiet
+   *  tier). Pass `opacity-100` + a colour to make the icon a prominent
+   *  affordance — e.g. the currency `$` / tick `1/32` selectors. */
+  iconClassName?: string;
   placeholder?: string;
   tooltip?: string;
   'aria-label'?: string;
@@ -143,7 +148,7 @@ export function ToolbarSelect({
       title={tooltip}
       data-testid={dataTestId}
     >
-      {icon ? <span className="inline-flex shrink-0 opacity-75">{icon}</span> : null}
+      {icon ? <span className={cn('inline-flex shrink-0', iconClassName ?? 'opacity-75')}>{icon}</span> : null}
       <SelectValue placeholder={placeholder} />
     </SelectTrigger>
   );

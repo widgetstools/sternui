@@ -109,6 +109,14 @@ export interface FormatColorPickerProps {
   allowClear?: boolean;
   /** Height of the SV pad. Default 90. */
   svHeight?: number;
+  /**
+   * Called after a *discrete* color choice — a preset/recent swatch, the
+   * native OS picker, or Enter on a valid hex. NOT called during SV-pad /
+   * hue drag (continuous tuning), so the popover can stay open while the
+   * user dials in a color but dismiss the moment they pick a concrete one.
+   * The popover wrapper passes its `close` here.
+   */
+  onCommit?: () => void;
 }
 
 export function FormatColorPicker({
@@ -116,6 +124,7 @@ export function FormatColorPicker({
   onChange,
   allowClear = false,
   svHeight = 90,
+  onCommit,
 }: FormatColorPickerProps) {
   const hsv = hexToHsv(value || '#000000');
   const [h, setH] = useState(hsv.h);
@@ -195,6 +204,9 @@ export function FormatColorPicker({
     addRecent(c);
     setRecent(getRecent());
     onChange(c);
+    // A swatch / recent / native-picker click is a discrete decision —
+    // dismiss the popover so users aren't left clicking outside to close it.
+    onCommit?.();
   };
 
   const handleHexInput = (val: string) => {
@@ -375,6 +387,13 @@ export function FormatColorPicker({
           type="text"
           value={hex}
           onChange={(e) => handleHexInput(e.target.value)}
+          onKeyDown={(e) => {
+            // Enter on a valid hex is an explicit commit — close the popover.
+            // Typing alone never closes it, so partial hexes stay editable.
+            if (e.key === 'Enter' && /^#[0-9a-fA-F]{6}$/.test(hex)) {
+              onCommit?.();
+            }
+          }}
           className="h-auto flex-1 min-w-0 rounded px-2 font-mono font-medium text-[length:var(--ds-control-sm-font-size)] bg-background"
           style={{ height: controls.xs.height }}
         />
