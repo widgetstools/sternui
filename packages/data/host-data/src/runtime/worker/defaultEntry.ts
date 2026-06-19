@@ -83,7 +83,14 @@ async function boot(): Promise<void> {
   // converting this to attach mode would silently break recovery after a
   // wiped IndexedDB. See docs/CONFIG_SERVICE_BASELINE.md §4.5.
   await configManager.init();
-  await installSharedWorkerHub({ configManager });
+  // DIAGNOSTIC (fix/sharedworker-fanout-blotter-limit): force INLINE fan-out by
+  // passing `fanOutPool: null`. The per-subscriber fan-out worker pool (added in
+  // f79041e5) spawns one dedicated Worker per blotter; past ~3 blotters the
+  // SharedWorker renderer trips a nested-worker/thread ceiling and the 4th
+  // blotter's delivery stalls (10s broadcast timeout) — "stuck loading". Inline
+  // fan-out is the pre-f79041e5 path that scaled to ~10 blotters. If this
+  // restores capacity, the fix is a bounded shared pool, not one-worker-per-sub.
+  await installSharedWorkerHub({ configManager, fanOutPool: null });
   // eslint-disable-next-line no-console
   console.info(
     `[@starui/host-data worker] ConfigManager initialised (mode: ${configManager.isRestMode() ? 'REST' : 'local'})`,
