@@ -243,6 +243,7 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
       enableCellTextSelection: s.enableCellTextSelection,
       suppressDragLeaveHidesColumns: s.suppressDragLeaveHidesColumns,
       suppressColumnMoveAnimation: s.suppressColumnMoveAnimation,
+      allowDragFromColumnsToolPanel: s.allowDragFromColumnsToolPanel,
 
       // ── Default ColDef — host `opts.defaultColDef` wins on conflict ──
       defaultColDef: {
