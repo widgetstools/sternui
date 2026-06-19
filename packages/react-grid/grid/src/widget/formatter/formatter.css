@@ -277,14 +277,13 @@
   color: color-mix(in srgb, var(--ds-accent-negative) 72%, var(--fx-toolbar-label));
 }
 
-/* Inside a panel card, module eyebrows duplicate the group label. */
+/* Flatten the inner module box inside a panel card — the PanelGroup is the
+   single enclosure; the module just lays out its controls (eyebrow hidden
+   globally below, so each section has one header: the PanelGroup label). */
 .fx-panel-group .fx-module {
   display: block;
   padding: 0;
   border-bottom: none;
-}
-.fx-panel-group .fx-eyebrow {
-  display: none;
 }
 .fx-panel-group .fx-module__body {
   gap: 8px;
@@ -389,20 +388,13 @@
   opacity: 0.6;
 }
 
-/* In the in-grid horizontal toolbar the section eyebrows (`02 · TYPE`,
- * `03 · PAINT`, …) duplicate information already conveyed by the
- * tooltips on every action — and they crowd a strip that competes for
- * row real estate with the data grid below. Hide them in horizontal
- * mode only; the popped vertical panel still uses them as section
- * headers where the extra surface area exists. */
-.fx-shell--horizontal .fx-eyebrow {
+/* The section eyebrows (`02 · TYPE`, `03 · PAINT`, …) duplicate the labels
+ * already provided by the ToolbarGroup (horizontal) and PanelGroup
+ * (vertical), so they're hidden in both orientations — the surrounding
+ * group label is the single section header. Kept in the DOM for
+ * `data-module-index` hooks. */
+.fx-eyebrow {
   display: none;
-}
-
-/* Vertical eyebrow — bigger, becomes the section header. */
-.fx-shell--vertical .fx-eyebrow {
-  display: flex;
-  margin-bottom: 12px;
 }
 
 .fx-module__body {
