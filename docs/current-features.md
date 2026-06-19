@@ -446,6 +446,9 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `FormatterToolbar` / `FormatterPanel` — formatting orchestrator (toolbar or panel orientation; composed by `FormattingToolbar`)
 - `ModuleType` — data-type picker (number, date, duration, currency, percentage, …)
 - `ModuleFormat` — format-string editor with preset picker + example preview
+- `FormatterPicker` — value-format selector. Compact (toolbar) presentation is a **vertical shadcn `Tabs` rail** grouping presets by category, showing only the categories that fit the column's data type (`categoriesForDataType`) plus an always-on **Custom** tab; each preset row renders a **live sample** from the real cell value, and the Custom tab folds the Excel-format input + full reference examples inline (no nested popover). Inline (editor) presentation unchanged. Picking a preset / swatch dismisses the popover (discrete-commit close)
+- `formatCategories` — `FormatCategory` union, `CATEGORY_LABELS`, `categoriesForDataType()` (data-type → ordered rail categories; `custom` appended by the UI)
+- `presetsForDataType` exports — `ALL_PRESETS` (master catalog, each preset tagged with a `category`), `presetsForCategory()`, `presetsForDataType()`, `findMatchingPreset()`, `defaultSampleValue()`. Catalog now includes promoted formats (no-thousands, red-only, directional ▲▼ conditional, thresholds, prefix text) and an expanded **Text** category (UPPERCASE / lowercase / Title Case / camelCase / Capitalize / Trim / prefix / suffix)
 - `ModulePaint` — cell background/text colour editor
 - `ModuleLibrary` — preset library, add-to-library, delete
 - `ModuleEditorFilter` — column-target picker
