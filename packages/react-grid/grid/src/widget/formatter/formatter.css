@@ -253,7 +253,7 @@
   border-radius: 0;
   background: transparent;
   overflow: visible;
-  padding: 16px;
+  padding: 11px 16px;
 }
 .fx-panel-sections > .fx-panel-group + .fx-panel-group {
   border-top: 1px solid color-mix(in srgb, var(--ds-border-primary) 55%, transparent);
@@ -261,7 +261,7 @@
 
 .fx-panel-group__label {
   display: block;
-  margin: 0 0 12px;
+  margin: 0 0 9px;
   padding: 0;
   font-family: var(--ds-font-mono);
   font-size: 9px;
@@ -364,13 +364,11 @@
   flex-shrink: 0;
 }
 
-/* Vertical-mode module — section card with eyebrow header. */
+/* Vertical-mode module — the PanelGroup now owns the section padding +
+   hairline divider, so the module is just a flush controls container. */
 .fx-shell--vertical .fx-module {
   display: block;
-  padding: 14px 18px 16px;
-  border-bottom: 1px solid var(--ds-border-primary);
-}
-.fx-shell--vertical .fx-module:last-child {
+  padding: 0;
   border-bottom: none;
 }
 
