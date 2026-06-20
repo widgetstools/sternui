@@ -148,6 +148,7 @@ export class SharedWorkerDataServicesHub {
   private readonly fanOutMinListeners: number;
   private statsTimer: unknown = null;
   private subscriberSweepTimer: unknown = null;
+  private ssrmAggTimer: ReturnType<typeof setInterval> | null = null;
 
   // ─── DIAGNOSTIC (fix/sharedworker-fanout-blotter-limit) ──────────────────
   // 1 Hz heartbeat: event-loop lag is the decisive signal — if it spikes when
@@ -458,11 +459,16 @@ export class SharedWorkerDataServicesHub {
     this.providers.clear();
     this.dataListeners.clear();
     this.statsListeners.clear();
+    this.ssrmListeners.clear();
     this.appDataListeners.clear();
     this.connectedPorts.clear();
     if (this.subscriberSweepTimer !== null) {
       this.clearTimer(this.subscriberSweepTimer);
       this.subscriberSweepTimer = null;
+    }
+    if (this.ssrmAggTimer !== null) {
+      clearInterval(this.ssrmAggTimer);
+      this.ssrmAggTimer = null;
     }
     this.maybeStopStatsSampler();
     this.fanOutPool?.dispose();
@@ -908,13 +914,44 @@ export class SharedWorkerDataServicesHub {
     set.set(subId, {
       subId, port, providerId,
       loadedStart: Number.MAX_SAFE_INTEGER, loadedEnd: 0,
-      queryKey: '', result: [], grandTotal: null, view: null,
+      queryKey: '', lastQuery: null, result: [], grandTotal: null, aggDirty: false, view: null,
     });
     this.ssrmListeners.set(providerId, set);
+    this.ensureSsrmAggTimer();
     // Surface current status so the grid clears any loading overlay.
     port.postMessage({
       subId, kind: 'status', status: slot.status, error: slot.lastError,
     } satisfies Event);
+  }
+
+  /** Throttled live re-aggregation: ~5 Hz, re-totals only subscribers whose
+   *  rows changed since the last tick and pushes the grand total if it moved. */
+  private ensureSsrmAggTimer(): void {
+    if (this.ssrmAggTimer !== null) return;
+    this.ssrmAggTimer = setInterval(() => this.flushSsrmAggregates(), 200);
+  }
+
+  private flushSsrmAggregates(): void {
+    let anySubs = false;
+    for (const [providerId, subs] of this.ssrmListeners) {
+      const slot = this.providers.get(providerId);
+      for (const l of subs.values()) {
+        anySubs = true;
+        if (!l.aggDirty || !l.lastQuery?.valueCols?.length || !slot) continue;
+        l.aggDirty = false;
+        const filtered = ([...slot.cache.values()] as Row[]).filter(
+          compileFilter(l.lastQuery.filterModel),
+        );
+        const gt = aggregateAll(filtered, l.lastQuery.valueCols);
+        if (JSON.stringify(gt) === JSON.stringify(l.grandTotal)) continue;
+        l.grandTotal = gt;
+        l.port.postMessage({ subId: l.subId, kind: 'ssrm-tx', rows: [], grandTotal: gt } satisfies Event);
+      }
+    }
+    if (!anySubs && this.ssrmAggTimer !== null) {
+      clearInterval(this.ssrmAggTimer as ReturnType<typeof setInterval>);
+      this.ssrmAggTimer = null;
+    }
   }
 
   private static queryKeyOf(req: SsrmGetRowsRequest): string {
@@ -949,8 +986,10 @@ export class SharedWorkerDataServicesHub {
       };
       const allRows = [...slot.cache.values()] as Row[];
       listener.result = runQuery(allRows, queryReq);
+      listener.lastQuery = queryReq;
       // Grand total = value-column aggregation over the whole FILTERED set
-      // (independent of grouping/pagination). Recomputed only on query change.
+      // (independent of grouping/pagination). Recomputed on query change; the
+      // throttled aggregator keeps it live thereafter.
       listener.grandTotal = req.valueCols?.length
         ? aggregateAll(allRows.filter(compileFilter(queryReq.filterModel)), req.valueCols)
         : null;
@@ -1039,6 +1078,9 @@ export class SharedWorkerDataServicesHub {
       if (k !== null) changedByKey.set(k, row);
     }
     for (const l of subs.values()) {
+      // Rows changed → the grand total is stale; the throttled aggregator
+      // re-totals on its next tick.
+      if (l.lastQuery?.valueCols?.length) l.aggDirty = true;
       if (!l.view) continue; // grouped, or no block pulled yet
       const hits = l.view.changesInRange(changedByKey.keys(), l.loadedStart, l.loadedEnd);
       if (hits.length === 0) continue;

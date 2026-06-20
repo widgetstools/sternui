@@ -177,6 +177,8 @@ export interface ServerSideHandle<T = unknown> {
   getSetFilterValues(field: string): Promise<readonly (string | null)[]>;
   /** Live updates for rows currently inside a loaded block. */
   onTransaction(cb: (rows: readonly T[]) => void): void;
+  /** Live-recomputed grand total (throttled) — feed the grid's grand total row. */
+  onGrandTotal(cb: (grandTotal: Record<string, unknown> | null) => void): void;
   /** The hub replaced the whole row set — the grid should purge + re-pull. */
   onRefresh(cb: () => void): void;
   onStatus(cb: (status: ProviderStatus, error?: string) => void): void;
@@ -188,6 +190,7 @@ interface SsrmSubState {
   pending: Map<string, (r: { rows: readonly unknown[]; rowCount: number; grandTotal?: Record<string, unknown> | null }) => void>;
   valuesPending: Map<string, (values: readonly (string | null)[]) => void>;
   txCb: ((rows: readonly unknown[]) => void) | null;
+  grandTotalCb: ((grandTotal: Record<string, unknown> | null) => void) | null;
   refreshCb: (() => void) | null;
   statusCb: ((status: ProviderStatus, error?: string) => void) | null;
 }
@@ -585,6 +588,7 @@ export class SharedWorkerDataServicesClient {
       pending: new Map(),
       valuesPending: new Map(),
       txCb: null,
+      grandTotalCb: null,
       refreshCb: null,
       statusCb: null,
     };
@@ -615,6 +619,7 @@ export class SharedWorkerDataServicesClient {
           this.send({ kind: 'ssrm-values', subId, providerId, reqId, field });
         }),
       onTransaction: (cb) => { state.txCb = cb as (rows: readonly unknown[]) => void; },
+      onGrandTotal: (cb) => { state.grandTotalCb = cb; },
       onRefresh: (cb) => { state.refreshCb = cb; },
       onStatus: (cb) => { state.statusCb = cb; },
       unsubscribe: () => {
@@ -960,7 +965,8 @@ export class SharedWorkerDataServicesClient {
           resolve({ rows: event.rows, rowCount: event.rowCount, grandTotal: event.grandTotal });
         }
       } else if (event.kind === 'ssrm-tx') {
-        ssrm.txCb?.(event.rows);
+        if (event.grandTotal !== undefined) ssrm.grandTotalCb?.(event.grandTotal);
+        if (event.rows.length > 0) ssrm.txCb?.(event.rows);
       } else if (event.kind === 'ssrm-values') {
         const resolve = ssrm.valuesPending.get(event.reqId);
         if (resolve) {

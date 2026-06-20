@@ -511,6 +511,8 @@ export interface SsrmTxEvent {
   subId: string;
   kind: 'ssrm-tx';
   rows: readonly unknown[];
+  /** Live-recomputed grand total (throttled), when value columns are present. */
+  grandTotal?: Record<string, unknown> | null;
 }
 
 /** Response to {@link SsrmValuesRequest}: the column's distinct values. */

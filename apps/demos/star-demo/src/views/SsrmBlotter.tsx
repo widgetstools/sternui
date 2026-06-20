@@ -133,6 +133,19 @@ function SsrmBlotter(): ReactNode {
     });
   }, [cfgFields]);
 
+  // Numeric columns to total when AG-Grid sends no valueCols (i.e. a flat view
+  // with nothing dragged into Values) — so the grand total row always sums the
+  // numeric fields. When the user groups/aggregates, AG-Grid's valueCols win.
+  const numericValueCols = useMemo(
+    () =>
+      (cfgFields?.columnDefinitions ?? [])
+        .filter((d) => d.cellDataType === 'number')
+        .map((d) => ({ id: d.field, field: d.field, aggFunc: 'sum' })),
+    [cfgFields],
+  );
+  const numericValueColsRef = useRef(numericValueCols);
+  numericValueColsRef.current = numericValueCols;
+
   const keyColumn =
     (typeof cfgFields?.keyColumn === 'string' ? cfgFields.keyColumn : undefined) ?? 'positionId';
   // Leaf rows key by the provider key column; GROUP rows have no leaf key, so key
@@ -162,6 +175,10 @@ function SsrmBlotter(): ReactNode {
       probeRef.current(rows.length);
       apiRef.current?.applyServerSideTransactionAsync({ update: rows.slice() });
     });
+    // Live (throttled) grand total → keep the pinned bottom row current.
+    handle.onGrandTotal((grandTotal) => {
+      apiRef.current?.setGridOption('pinnedBottomRowData', grandTotal ? [grandTotal] : []);
+    });
     handle.onRefresh(() => apiRef.current?.refreshServerSide({ purge: true }));
     setDatasource({
       getRows: (params: IServerSideGetRowsParams) => {
@@ -171,7 +188,9 @@ function SsrmBlotter(): ReactNode {
             sortModel: r.sortModel as { colId: string; sort: 'asc' | 'desc' }[],
             filterModel: r.filterModel as Record<string, unknown>,
             rowGroupCols: r.rowGroupCols,
-            valueCols: r.valueCols,
+            // AG-Grid sends valueCols only when columns are in Values; fall back
+            // to the numeric columns so a flat view still gets a grand total.
+            valueCols: r.valueCols?.length ? r.valueCols : numericValueColsRef.current,
             groupKeys: r.groupKeys,
           })
           .then(({ rows, rowCount, grandTotal }) => {
@@ -229,7 +248,7 @@ function SsrmBlotter(): ReactNode {
     <div style={{ height: '100vh', width: '100%' }}>
       <AgGridReact
         columnDefs={columnDefs}
-        defaultColDef={{ sortable: true, resizable: true, floatingFilter: true, enableRowGroup: true }}
+        defaultColDef={{ sortable: true, resizable: true, floatingFilter: true, enableRowGroup: true, enableCellChangeFlash: true }}
         rowModelType="serverSide"
         serverSideDatasource={datasource}
         getRowId={getRowId}

@@ -199,11 +199,15 @@ export interface SsrmListener {
   loadedEnd: number;
   /** Signature of the last query (sort/filter/group) — recompute only when it changes. */
   queryKey: string;
+  /** Parsed last query — kept so the throttled aggregator can re-total live. */
+  lastQuery: import('./serverSideQuery.js').QueryRequest | null;
   /** Ordered result rows for the current query (leaf rows OR group rows). */
   result: readonly Record<string, unknown>[];
   /** Grand-total aggregation of the filtered set for the current query (value
    *  columns only), or null when there are no value columns. */
   grandTotal: Record<string, unknown> | null;
+  /** Set by a live tick; the throttled aggregator re-totals + pushes, then clears. */
+  aggDirty: boolean;
   /** Leaf key→position index for in-range live pushes; null for grouped levels
    *  (no live leaf push) or before the first block is pulled. */
   view: import('./RowOrderIndex.js').RowOrderIndex | null;

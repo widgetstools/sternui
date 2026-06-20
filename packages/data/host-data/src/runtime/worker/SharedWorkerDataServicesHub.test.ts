@@ -288,6 +288,23 @@ describe('SharedWorkerDataServicesHub — SSRM (server-side row model)', () => {
     // Filtered set is v in {2,3,4} → sum 9 (r0,r1 excluded).
     expect(evt.grandTotal).toEqual({ v: 9 });
   });
+
+  it('throttled aggregator re-totals live and pushes the moved grand total', () => {
+    const { hub, port, ctrl } = seeded(); // r0..r4, v:0..4 → sum 10
+    hub.handleRequest(port, {
+      kind: 'ssrm-get-rows', subId: 's1', providerId: 'p1', reqId: 'q1',
+      startRow: 0, endRow: 100, valueCols: [{ id: 'v', aggFunc: 'sum' }],
+    });
+    port.messages.length = 0;
+
+    // A tick bumps r0.v 0 → 100; the throttled flush re-totals to 110.
+    ctrl.emit({ rows: [{ id: 'r0', v: 100 }] });
+    (hub as unknown as { flushSsrmAggregates(): void }).flushSsrmAggregates();
+
+    const totalTx = (port.messages.filter((m) => m.kind === 'ssrm-tx') as Array<Event & { kind: 'ssrm-tx' }>)
+      .find((t) => t.grandTotal);
+    expect(totalTx?.grandTotal).toEqual({ v: 110 });
+  });
 });
 
 describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
