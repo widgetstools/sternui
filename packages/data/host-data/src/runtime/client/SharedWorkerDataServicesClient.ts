@@ -154,10 +154,22 @@ export interface SubscribeHandle<T = unknown> {
  * only for rows in loaded blocks, and {@link onRefresh} when the row set is
  * wholesale-replaced (restart). No snapshot replay — the grid pulls.
  */
+/** Query fields forwarded from AG-Grid's `IServerSideGetRowsRequest`. */
+export interface ServerSideQuery {
+  sortModel?: { colId: string; sort: 'asc' | 'desc' }[];
+  filterModel?: Record<string, unknown>;
+  rowGroupCols?: { id: string; field?: string }[];
+  valueCols?: { id: string; field?: string; aggFunc?: string }[];
+  groupKeys?: string[];
+}
+
 export interface ServerSideHandle<T = unknown> {
   subId: SubId;
-  /** Pull the half-open block `[startRow, endRow)`; resolves with rows + total count. */
-  getRows(startRow: number, endRow: number): Promise<{ rows: readonly T[]; rowCount: number }>;
+  /** Pull the half-open block `[startRow, endRow)` under the given sort/filter/
+   *  group query; resolves with rows + total count. */
+  getRows(startRow: number, endRow: number, query?: ServerSideQuery): Promise<{ rows: readonly T[]; rowCount: number }>;
+  /** Distinct values of a column, for the Set Filter's value list. */
+  getSetFilterValues(field: string): Promise<readonly (string | null)[]>;
   /** Live updates for rows currently inside a loaded block. */
   onTransaction(cb: (rows: readonly T[]) => void): void;
   /** The hub replaced the whole row set — the grid should purge + re-pull. */
@@ -169,6 +181,7 @@ export interface ServerSideHandle<T = unknown> {
 interface SsrmSubState {
   providerId: string;
   pending: Map<string, (r: { rows: readonly unknown[]; rowCount: number }) => void>;
+  valuesPending: Map<string, (values: readonly (string | null)[]) => void>;
   txCb: ((rows: readonly unknown[]) => void) | null;
   refreshCb: (() => void) | null;
   statusCb: ((status: ProviderStatus, error?: string) => void) | null;
@@ -565,6 +578,7 @@ export class SharedWorkerDataServicesClient {
     const state: SsrmSubState = {
       providerId,
       pending: new Map(),
+      valuesPending: new Map(),
       txCb: null,
       refreshCb: null,
       statusCb: null,
@@ -576,11 +590,24 @@ export class SharedWorkerDataServicesClient {
     let reqSeq = 0;
     return {
       subId,
-      getRows: (startRow, endRow) =>
+      getRows: (startRow, endRow, query) =>
         new Promise<{ rows: readonly T[]; rowCount: number }>((resolve) => {
           const reqId = `${subId}:${reqSeq++}`;
           state.pending.set(reqId, resolve as (r: { rows: readonly unknown[]; rowCount: number }) => void);
-          this.send({ kind: 'ssrm-get-rows', subId, providerId, reqId, startRow, endRow });
+          this.send({
+            kind: 'ssrm-get-rows', subId, providerId, reqId, startRow, endRow,
+            sortModel: query?.sortModel,
+            filterModel: query?.filterModel,
+            rowGroupCols: query?.rowGroupCols,
+            valueCols: query?.valueCols,
+            groupKeys: query?.groupKeys,
+          });
+        }),
+      getSetFilterValues: (field) =>
+        new Promise<readonly (string | null)[]>((resolve) => {
+          const reqId = `v:${subId}:${reqSeq++}`;
+          state.valuesPending.set(reqId, resolve);
+          this.send({ kind: 'ssrm-values', subId, providerId, reqId, field });
         }),
       onTransaction: (cb) => { state.txCb = cb as (rows: readonly unknown[]) => void; },
       onRefresh: (cb) => { state.refreshCb = cb; },
@@ -929,6 +956,12 @@ export class SharedWorkerDataServicesClient {
         }
       } else if (event.kind === 'ssrm-tx') {
         ssrm.txCb?.(event.rows);
+      } else if (event.kind === 'ssrm-values') {
+        const resolve = ssrm.valuesPending.get(event.reqId);
+        if (resolve) {
+          ssrm.valuesPending.delete(event.reqId);
+          resolve(event.values);
+        }
       } else if (event.kind === 'status') {
         ssrm.statusCb?.(event.status, event.error);
       }

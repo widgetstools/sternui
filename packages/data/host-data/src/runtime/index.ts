@@ -111,5 +111,7 @@ export {
   type AttachOpts,
   type SubId,
   type SubscribeHandle,
+  type ServerSideHandle,
+  type ServerSideQuery,
   type SharedWorkerDataServicesClientOpts,
 } from './client/SharedWorkerDataServicesClient.js';

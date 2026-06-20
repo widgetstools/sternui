@@ -65,6 +65,7 @@ import type {
   ListConfigsRequest,
   RefreshProviderRequest,
   SsrmGetRowsRequest,
+  SsrmValuesRequest,
   HubIntrospectRequest,
   HubIntrospectSnapshot,
   HubProviderIntrospectRow,
@@ -102,6 +103,7 @@ import {
 } from './hubTypes.js';
 import { encodeChunk, SNAPSHOT_ENCODER } from './hubEncoding.js';
 import { RowOrderIndex } from './RowOrderIndex.js';
+import { runQuery, distinctValues, type QueryRequest, type Row } from './serverSideQuery.js';
 import {
   resetProviderStats,
   keyOf,
@@ -231,6 +233,7 @@ export class SharedWorkerDataServicesHub {
       case 'config-invalidate': void this.handleConfigInvalidate(port, req); return;
       case 'refresh-provider': this.handleRefreshProvider(req); return;
       case 'ssrm-get-rows': this.handleSsrmGetRows(req); return;
+      case 'ssrm-values': this.handleSsrmValues(req); return;
       case 'hub-introspect': this.handleHubIntrospect(port, req); return;
     }
   }
@@ -892,16 +895,6 @@ export class SharedWorkerDataServicesHub {
 
   // ─── Server-Side Row Model (SSRM) ────────────────────────────────
 
-  /** Build the flat row-order index from the cache on first SSRM use. */
-  private ensureRowOrder(slot: ProviderSlot): RowOrderIndex {
-    if (!slot.rowOrder) {
-      const idx = new RowOrderIndex();
-      idx.reset(slot.cache.keys());
-      slot.rowOrder = idx;
-    }
-    return slot.rowOrder;
-  }
-
   /** Register an SSRM subscriber: no replay/fan-out — it pulls blocks and
    *  receives only in-range `ssrm-tx` pushes. */
   private attachSsrmListener(
@@ -910,11 +903,13 @@ export class SharedWorkerDataServicesHub {
     port: PortLike,
     slot: ProviderSlot,
   ): void {
-    this.ensureRowOrder(slot);
     const set = this.ssrmListeners.get(providerId) ?? new Map<string, SsrmListener>();
-    // Empty loaded range (start > end) until the grid pulls its first block,
-    // so no updates are pushed before anything is on screen.
-    set.set(subId, { subId, port, providerId, loadedStart: Number.MAX_SAFE_INTEGER, loadedEnd: 0 });
+    // Empty loaded range (start > end) until the grid pulls its first block.
+    set.set(subId, {
+      subId, port, providerId,
+      loadedStart: Number.MAX_SAFE_INTEGER, loadedEnd: 0,
+      queryKey: '', result: [], view: null,
+    });
     this.ssrmListeners.set(providerId, set);
     // Surface current status so the grid clears any loading overlay.
     port.postMessage({
@@ -922,62 +917,109 @@ export class SharedWorkerDataServicesHub {
     } satisfies Event);
   }
 
-  /** Answer a block pull `[startRow, endRow)` and widen the loaded range. */
+  private static queryKeyOf(req: SsrmGetRowsRequest): string {
+    return JSON.stringify({
+      s: req.sortModel ?? null,
+      f: req.filterModel ?? null,
+      g: req.rowGroupCols ?? null,
+      v: req.valueCols ?? null,
+      k: req.groupKeys ?? null,
+    });
+  }
+
+  /**
+   * Answer a block pull. Runs the hub query (filter → group/aggregate → sort)
+   * for the request's sort/filter/group model, caches the ordered result per
+   * subscriber (recomputed only when that model changes), slices
+   * `[startRow, endRow)`, and rebuilds the leaf in-range index for live pushes.
+   */
   private handleSsrmGetRows(req: SsrmGetRowsRequest): void {
     const slot = this.providers.get(req.providerId);
     const listener = this.ssrmListeners.get(req.providerId)?.get(req.subId);
     if (!slot || !listener) return;
-    const order = this.ensureRowOrder(slot);
-    const keys = order.rangeKeys(req.startRow, req.endRow);
-    const rows = keys.map((k) => slot.cache.get(k));
+
+    const key = SharedWorkerDataServicesHub.queryKeyOf(req);
+    if (listener.queryKey !== key) {
+      const queryReq: QueryRequest = {
+        filterModel: req.filterModel as QueryRequest['filterModel'],
+        sortModel: req.sortModel,
+        rowGroupCols: req.rowGroupCols,
+        valueCols: req.valueCols,
+        groupKeys: req.groupKeys,
+      };
+      listener.result = runQuery(slot.cache.values() as Iterable<Row>, queryReq);
+      listener.queryKey = key;
+      // A new sort/filter/group resets what the grid holds (it purges + re-pulls).
+      listener.loadedStart = Number.MAX_SAFE_INTEGER;
+      listener.loadedEnd = 0;
+
+      const grouped = (req.rowGroupCols?.length ?? 0) > (req.groupKeys?.length ?? 0);
+      if (grouped) {
+        // Group rows have no leaf key — no live leaf push (refresh on re-expand).
+        listener.view = null;
+      } else {
+        const keyColumn = (slot.cfg as { keyColumn?: string | readonly string[] }).keyColumn;
+        const idx = new RowOrderIndex();
+        idx.reset(
+          (listener.result as Row[])
+            .map((r) => keyOf(r, keyColumn))
+            .filter((k): k is string => k !== null),
+        );
+        listener.view = idx;
+      }
+    }
+
+    const block = listener.result.slice(req.startRow, req.endRow);
     listener.loadedStart = Math.min(listener.loadedStart, req.startRow);
     listener.loadedEnd = Math.max(listener.loadedEnd, req.endRow);
     listener.port.postMessage({
       subId: req.subId,
       kind: 'ssrm-rows',
       reqId: req.reqId,
-      rows,
-      rowCount: order.count(),
+      rows: block,
+      rowCount: listener.result.length,
+    } satisfies Event);
+  }
+
+  /** Distinct values of a column for the Set Filter's value list. */
+  private handleSsrmValues(req: SsrmValuesRequest): void {
+    const slot = this.providers.get(req.providerId);
+    const listener = this.ssrmListeners.get(req.providerId)?.get(req.subId);
+    if (!slot || !listener) return;
+    const values = distinctValues(slot.cache.values() as Iterable<Row>, req.field);
+    listener.port.postMessage({
+      subId: req.subId, kind: 'ssrm-values', reqId: req.reqId, values,
     } satisfies Event);
   }
 
   /**
-   * Keep the row-order index in sync with a cache mutation and push live
-   * updates to SSRM subscribers — but only the changed rows whose CURRENT
-   * position is inside each subscriber's loaded range. No SSRM subscriber →
-   * `slot.rowOrder` is null and this is a single branch, so CSRM-only
-   * providers pay nothing.
+   * Push live updates to SSRM subscribers — only the changed rows whose CURRENT
+   * position (in that subscriber's sorted/filtered view) is inside its loaded
+   * range. Values update in place; sort position / filter membership reconcile
+   * on the next pull. Grouped subscribers skip live leaf pushes (aggregates
+   * refresh on re-expand). No SSRM subscriber → single early return.
    */
   private updateSsrm(
     providerId: string,
-    slot: ProviderSlot,
+    _slot: ProviderSlot,
     changedRows: readonly unknown[],
     replace: boolean,
   ): void {
-    const order = slot.rowOrder;
-    if (!order) return;
-    const keyColumn = (slot.cfg as { keyColumn?: string | readonly string[] }).keyColumn;
-
-    if (replace) {
-      order.reset(slot.cache.keys());
-    } else {
-      for (const row of changedRows) {
-        const k = keyOf(row, keyColumn);
-        if (k !== null) order.add(k);
-      }
-    }
-
     const subs = this.ssrmListeners.get(providerId);
     if (!subs || subs.size === 0) return;
+    const keyColumn = (_slot.cfg as { keyColumn?: string | readonly string[] }).keyColumn;
 
     if (replace) {
-      // Row set wholesale-changed (restart/snapshot): the grid must purge and
-      // re-pull. Signalled by an `ssrm-rows` with the reserved reqId.
+      // Row set wholesale-changed (restart/snapshot): purge cached views + tell
+      // each grid to re-pull.
       for (const l of subs.values()) {
+        l.queryKey = '';
+        l.result = [];
+        l.view = null;
         l.loadedStart = Number.MAX_SAFE_INTEGER;
         l.loadedEnd = 0;
         l.port.postMessage({
-          subId: l.subId, kind: 'ssrm-rows', reqId: '__refresh__', rows: [], rowCount: order.count(),
+          subId: l.subId, kind: 'ssrm-rows', reqId: '__refresh__', rows: [], rowCount: 0,
         } satisfies Event);
       }
       return;
@@ -989,7 +1031,8 @@ export class SharedWorkerDataServicesHub {
       if (k !== null) changedByKey.set(k, row);
     }
     for (const l of subs.values()) {
-      const hits = order.changesInRange(changedByKey.keys(), l.loadedStart, l.loadedEnd);
+      if (!l.view) continue; // grouped, or no block pulled yet
+      const hits = l.view.changesInRange(changedByKey.keys(), l.loadedStart, l.loadedEnd);
       if (hits.length === 0) continue;
       l.port.postMessage({
         subId: l.subId,
@@ -1182,7 +1225,6 @@ export class SharedWorkerDataServicesHub {
       // wide/projected rows (≈ a plain structured-clone at N=1, faster at N>1).
       // Opt out with cfg.wireFormat: 'json'.
       columnar: flags.wireFormat !== 'json',
-      rowOrder: null,
     };
 
     const emit: ProviderEmit = (event: ProviderEmitEvent) => {
@@ -1522,8 +1564,8 @@ export class SharedWorkerDataServicesHub {
     if (patches.length === 0) return;
 
     // SSRM: the changed full rows are the freshly-cached values for the
-    // patched keys. Sync the index (new keys) + push only in-range ones.
-    if (slot.rowOrder) {
+    // patched keys. Push only the ones inside each subscriber's loaded range.
+    if (this.ssrmListeners.has(providerId)) {
       this.updateSsrm(providerId, slot, patches.map((p) => slot.cache.get(p.k)), false);
     }
 

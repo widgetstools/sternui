@@ -196,6 +196,85 @@ describe('SharedWorkerDataServicesHub — SSRM (server-side row model)', () => {
     // Only status events — never a delta / delta-bin replay.
     expect(port.messages.some(isAnyDelta)).toBe(false);
   });
+
+  it('get-rows applies the request sortModel', () => {
+    const { hub, port } = seeded();
+    hub.handleRequest(port, {
+      kind: 'ssrm-get-rows', subId: 's1', providerId: 'p1', reqId: 'q1',
+      startRow: 0, endRow: 2, sortModel: [{ colId: 'v', sort: 'desc' }],
+    });
+    const evt = port.messages.find((m) => m.kind === 'ssrm-rows') as Event & { kind: 'ssrm-rows' };
+    expect(evt.rows).toEqual([{ id: 'r4', v: 4 }, { id: 'r3', v: 3 }]);
+    expect(evt.rowCount).toBe(5);
+  });
+
+  it('get-rows applies the request filterModel (count reflects filtered set)', () => {
+    const { hub, port } = seeded();
+    hub.handleRequest(port, {
+      kind: 'ssrm-get-rows', subId: 's1', providerId: 'p1', reqId: 'q1',
+      startRow: 0, endRow: 100,
+      filterModel: { v: { filterType: 'number', type: 'greaterThan', filter: 2 } },
+    });
+    const evt = port.messages.find((m) => m.kind === 'ssrm-rows') as Event & { kind: 'ssrm-rows' };
+    expect(evt.rows).toEqual([{ id: 'r3', v: 3 }, { id: 'r4', v: 4 }]);
+    expect(evt.rowCount).toBe(2);
+  });
+
+  it('live tick respects the SORTED view for in-range push', () => {
+    const { hub, port, ctrl } = seeded();
+    // Sorted v desc → [r4,r3,r2,r1,r0]; load block [0,2) = r4,r3.
+    hub.handleRequest(port, {
+      kind: 'ssrm-get-rows', subId: 's1', providerId: 'p1', reqId: 'q1',
+      startRow: 0, endRow: 2, sortModel: [{ colId: 'v', sort: 'desc' }],
+    });
+    port.messages.length = 0;
+    // r3 is in the loaded block (sorted pos 1); r0 is not (sorted pos 4).
+    ctrl.emit({ rows: [{ id: 'r3', v: 33 }, { id: 'r0', v: 100 }] });
+    const tx = port.messages.filter((m) => m.kind === 'ssrm-tx') as Array<Event & { kind: 'ssrm-tx' }>;
+    expect(tx).toHaveLength(1);
+    expect(tx[0]!.rows).toEqual([{ id: 'r3', v: 33 }]);
+  });
+
+  it('ssrm-values returns the column distinct values', () => {
+    const { hub, port } = seeded();
+    hub.handleRequest(port, {
+      kind: 'ssrm-values', subId: 's1', providerId: 'p1', reqId: 'vq', field: 'v',
+    });
+    const evt = port.messages.find((m) => m.kind === 'ssrm-values') as Event & { kind: 'ssrm-values' };
+    expect(evt.values).toEqual(['0', '1', '2', '3', '4']);
+  });
+
+  it('grouping: get-rows returns group rows with aggregates; grouped sub gets no live tx', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'ssrm', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({
+      rows: [
+        { id: 'a', desk: 'EQ', qty: 10 }, { id: 'b', desk: 'FI', qty: 30 },
+        { id: 'c', desk: 'EQ', qty: 20 }, { id: 'd', desk: 'FI', qty: 5 },
+      ],
+      replace: true,
+    });
+    ctrl.emit({ status: 'ready' });
+    port.messages.length = 0;
+
+    hub.handleRequest(port, {
+      kind: 'ssrm-get-rows', subId: 's1', providerId: 'p1', reqId: 'g1',
+      startRow: 0, endRow: 100,
+      rowGroupCols: [{ id: 'desk' }],
+      valueCols: [{ id: 'qty', aggFunc: 'sum' }],
+      groupKeys: [],
+    });
+    const evt = port.messages.find((m) => m.kind === 'ssrm-rows') as Event & { kind: 'ssrm-rows' };
+    expect(evt.rows).toEqual([{ desk: 'EQ', qty: 30 }, { desk: 'FI', qty: 35 }]);
+    expect(evt.rowCount).toBe(2);
+
+    // A leaf tick must NOT push to a grouped subscriber (aggregates refresh on pull).
+    port.messages.length = 0;
+    ctrl.emit({ rows: [{ id: 'a', desk: 'EQ', qty: 999 }] });
+    expect(port.messages.some((m) => m.kind === 'ssrm-tx')).toBe(false);
+  });
 });
 
 describe('SharedWorkerDataServicesHub — attach lifecycle', () => {

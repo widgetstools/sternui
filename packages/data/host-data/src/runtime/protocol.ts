@@ -203,6 +203,22 @@ export interface SsrmGetRowsRequest {
   reqId: string;
   startRow: number;
   endRow: number;
+  // ── Phase 2 query fields (subset of AG-Grid IServerSideGetRowsRequest) ──
+  sortModel?: { colId: string; sort: 'asc' | 'desc' }[];
+  filterModel?: Record<string, unknown>;
+  rowGroupCols?: { id: string; field?: string }[];
+  valueCols?: { id: string; field?: string; aggFunc?: string }[];
+  /** The parent group path being expanded ([] = top level). */
+  groupKeys?: string[];
+}
+
+/** Distinct values of a column for the Set Filter's value list. */
+export interface SsrmValuesRequest {
+  kind: 'ssrm-values';
+  subId: string;
+  providerId: string;
+  reqId: string;
+  field: string;
 }
 
 /** One attached hub subscriber (data or stats mode). */
@@ -347,6 +363,7 @@ export type Request =
   | ConfigInvalidateRequest
   | RefreshProviderRequest
   | SsrmGetRowsRequest
+  | SsrmValuesRequest
   | HubIntrospectRequest;
 
 // ─── Worker → Client events ────────────────────────────────────────
@@ -493,6 +510,14 @@ export interface SsrmTxEvent {
   rows: readonly unknown[];
 }
 
+/** Response to {@link SsrmValuesRequest}: the column's distinct values. */
+export interface SsrmValuesEvent {
+  subId: string;
+  kind: 'ssrm-values';
+  reqId: string;
+  values: readonly (string | null)[];
+}
+
 /** Progressive snapshot row count while upstream is buffering (pre-cache). */
 export interface RowsReceivedEvent {
   subId: string;
@@ -519,6 +544,7 @@ export type Event =
   | StatsEvent
   | SsrmRowsEvent
   | SsrmTxEvent
+  | SsrmValuesEvent
   | RowsReceivedEvent
   | SubscriptionLostEvent;
 
@@ -610,6 +636,7 @@ export function isRequest(value: unknown): value is Request {
     k === 'config-invalidate' ||
     k === 'refresh-provider' ||
     k === 'ssrm-get-rows' ||
+    k === 'ssrm-values' ||
     k === 'hub-introspect'
   );
 }
@@ -627,6 +654,7 @@ export function isEvent(value: unknown): value is Event {
     v.kind === 'stats' ||
     v.kind === 'ssrm-rows' ||
     v.kind === 'ssrm-tx' ||
+    v.kind === 'ssrm-values' ||
     v.kind === 'rows-received' ||
     v.kind === 'subscription-lost'
   );

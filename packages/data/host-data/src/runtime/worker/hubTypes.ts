@@ -159,13 +159,6 @@ export interface ProviderSlot {
    * JSON per chunk for incompatible rows. Precomputed at slot creation.
    */
   columnar: boolean;
-  /**
-   * Lazily-built row-order index for Server-Side Row Model (SSRM)
-   * subscribers — maps cache keys to flat positions so blocks can be sliced
-   * and live ticks scoped to a subscriber's loaded range. Null until the
-   * first SSRM subscriber attaches; kept in sync with cache mutations.
-   */
-  rowOrder: import('./RowOrderIndex.js').RowOrderIndex | null;
 }
 
 export interface DataListener {
@@ -204,6 +197,13 @@ export interface SsrmListener {
   providerId: string;
   loadedStart: number;
   loadedEnd: number;
+  /** Signature of the last query (sort/filter/group) — recompute only when it changes. */
+  queryKey: string;
+  /** Ordered result rows for the current query (leaf rows OR group rows). */
+  result: readonly Record<string, unknown>[];
+  /** Leaf key→position index for in-range live pushes; null for grouped levels
+   *  (no live leaf push) or before the first block is pulled. */
+  view: import('./RowOrderIndex.js').RowOrderIndex | null;
 }
 
 /** Fan-out scratch shape — `subId` is rewritten per listener. */
