@@ -39,6 +39,18 @@ export interface MarketsGridProps<TData = unknown> {
   rowData: TData[];
   /** Base column definitions — modules can transform them. */
   columnDefs: ColDef<TData>[];
+  /**
+   * Row model. `'clientSide'` (default) uses `rowData` + transactions.
+   * `'serverSide'` switches to AG-Grid's Server-Side Row Model and uses
+   * `serverSideDatasource` (plus `getRowId`/`cacheBlockSize`/`maxBlocksInCache`)
+   * — the hub-backed SSRM layer. `rowData` is ignored in serverSide mode. The
+   * toolbar/customizer chrome is identical either way.
+   */
+  rowModelType?: 'clientSide' | 'serverSide';
+  serverSideDatasource?: import('ag-grid-community').IServerSideDatasource<TData>;
+  getRowId?: import('ag-grid-community').GetRowIdFunc<TData>;
+  cacheBlockSize?: number;
+  maxBlocksInCache?: number;
   /** Module list. Default passes {@link DEFAULT_MODULES}; use exported
    *  {@link MINIMAL_MODULES} for a lightweight embed preset. */
   modules?: AnyModule[];

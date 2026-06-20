@@ -49,6 +49,11 @@ import { useProfileSelectorActions } from './useProfileSelectorActions';
 
 export interface MarketsGridHostProps<TData> {
   rowData: TData[];
+  rowModelType?: 'clientSide' | 'serverSide';
+  serverSideDatasource?: import('ag-grid-community').IServerSideDatasource<TData>;
+  getRowId?: import('ag-grid-community').GetRowIdFunc<TData>;
+  cacheBlockSize?: number;
+  maxBlocksInCache?: number;
   columnDefs: unknown[];
   gridOptions: Record<string, unknown>;
   hostOverrideKeys: ReadonlySet<string>;
@@ -104,6 +109,11 @@ export interface MarketsGridHostProps<TData> {
 
 function MarketsGridHostInner<TData>({
   rowData,
+  rowModelType,
+  serverSideDatasource,
+  getRowId,
+  cacheBlockSize,
+  maxBlocksInCache,
   columnDefs,
   gridOptions,
   hostOverrideKeys,
@@ -355,6 +365,11 @@ function MarketsGridHostInner<TData>({
         theme={theme}
         rowData={rowData}
         columnDefs={columnDefs}
+        rowModelType={rowModelType}
+        serverSideDatasource={serverSideDatasource}
+        getRowId={getRowId}
+        cacheBlockSize={cacheBlockSize}
+        maxBlocksInCache={maxBlocksInCache}
         rowHeight={rowHeight}
         headerHeight={headerHeight}
         animateRows={animateRows}

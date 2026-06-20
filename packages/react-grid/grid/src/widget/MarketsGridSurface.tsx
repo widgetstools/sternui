@@ -17,7 +17,7 @@
 
 import { memo, useMemo, type CSSProperties, type ReactElement, type RefObject } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import type { GetContextMenuItems, GridReadyEvent } from 'ag-grid-community';
+import type { GetContextMenuItems, GetRowIdFunc, GridReadyEvent, IServerSideDatasource } from 'ag-grid-community';
 import type { MarketsGridProps } from './types';
 import { stripSurfaceManagedGridOptions } from './gridSurfaceOptions';
 import { buildStreamSafeComponents } from './buildStreamSafeComponents';
@@ -29,6 +29,13 @@ export interface MarketsGridSurfaceProps<TData> {
   readonly theme: MarketsGridProps<TData>['theme'];
   readonly rowData: TData[];
   readonly columnDefs: unknown[];
+  /** `'serverSide'` switches the grid to the Server-Side Row Model and uses
+   *  `serverSideDatasource` instead of `rowData`. Default `'clientSide'`. */
+  readonly rowModelType?: 'clientSide' | 'serverSide';
+  readonly serverSideDatasource?: IServerSideDatasource<TData>;
+  readonly getRowId?: GetRowIdFunc<TData>;
+  readonly cacheBlockSize?: number;
+  readonly maxBlocksInCache?: number;
   readonly rowHeight?: number;
   readonly headerHeight?: number;
   readonly animateRows?: boolean;
@@ -58,6 +65,11 @@ function surfacePropsEqual<TData>(
     && prev.theme === next.theme
     && prev.rowData === next.rowData
     && prev.columnDefs === next.columnDefs
+    && prev.rowModelType === next.rowModelType
+    && prev.serverSideDatasource === next.serverSideDatasource
+    && prev.getRowId === next.getRowId
+    && prev.cacheBlockSize === next.cacheBlockSize
+    && prev.maxBlocksInCache === next.maxBlocksInCache
     && prev.rowHeight === next.rowHeight
     && prev.headerHeight === next.headerHeight
     && prev.animateRows === next.animateRows
@@ -78,6 +90,11 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
   theme,
   rowData,
   columnDefs,
+  rowModelType,
+  serverSideDatasource,
+  getRowId,
+  cacheBlockSize,
+  maxBlocksInCache,
   rowHeight,
   headerHeight,
   animateRows,
@@ -89,6 +106,7 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
   onGridPreDestroyed,
   includeAllStreamSafeFilters = true,
 }: MarketsGridSurfaceProps<TData>) {
+  const serverSide = rowModelType === 'serverSide';
   const pipelineGridOptions = useMemo(
     () => stripSurfaceManagedGridOptions(gridOptions, hostOverrideKeys),
     [gridOptions, hostOverrideKeys],
@@ -128,7 +146,15 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
         {...pipelineGridOptions}
         {...hostOverrides}
         theme={theme}
-        rowData={rowData}
+        {...(serverSide
+          ? {
+              rowModelType: 'serverSide' as const,
+              serverSideDatasource,
+              getRowId,
+              cacheBlockSize,
+              maxBlocksInCache,
+            }
+          : { rowData })}
         columnDefs={columnDefs as never}
         maintainColumnOrder
         cellSelection={true}
