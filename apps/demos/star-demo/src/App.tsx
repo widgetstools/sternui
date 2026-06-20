@@ -43,7 +43,10 @@ function App() {
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             <Link to="/blotters/marketsgrid" className="text-sm text-primary hover:underline">
-              /blotters/marketsgrid &mdash; MarketsGrid blotter
+              /blotters/marketsgrid &mdash; MarketsGrid blotter (CSRM)
+            </Link>
+            <Link to="/blotters/ssrm" className="text-sm text-primary hover:underline">
+              /blotters/ssrm &mdash; SSRM blotter (hub-backed Server-Side Row Model · POC)
             </Link>
             <Link to="/dataproviders" className="text-sm text-primary hover:underline">
               /dataproviders &mdash; Create / edit STOMP, REST, Mock and AppData providers
