@@ -201,6 +201,9 @@ export interface SsrmListener {
   queryKey: string;
   /** Ordered result rows for the current query (leaf rows OR group rows). */
   result: readonly Record<string, unknown>[];
+  /** Grand-total aggregation of the filtered set for the current query (value
+   *  columns only), or null when there are no value columns. */
+  grandTotal: Record<string, unknown> | null;
   /** Leaf key→position index for in-range live pushes; null for grouped levels
    *  (no live leaf push) or before the first block is pulled. */
   view: import('./RowOrderIndex.js').RowOrderIndex | null;

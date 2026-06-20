@@ -488,13 +488,16 @@ export interface StatsEvent {
   stats: ProviderStats;
 }
 
-/** Response to {@link SsrmGetRowsRequest}: one block + the total row count. */
+/** Response to {@link SsrmGetRowsRequest}: one block + the total row count, plus
+ *  the grand-total aggregation of the filtered set when value columns are
+ *  present (the grid pins it as the grand total row). */
 export interface SsrmRowsEvent {
   subId: string;
   kind: 'ssrm-rows';
   reqId: string;
   rows: readonly unknown[];
   rowCount: number;
+  grandTotal?: Record<string, unknown> | null;
 }
 
 /**

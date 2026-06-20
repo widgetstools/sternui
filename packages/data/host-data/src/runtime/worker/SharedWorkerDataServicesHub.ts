@@ -103,7 +103,7 @@ import {
 } from './hubTypes.js';
 import { encodeChunk, SNAPSHOT_ENCODER } from './hubEncoding.js';
 import { RowOrderIndex } from './RowOrderIndex.js';
-import { runQuery, distinctValues, type QueryRequest, type Row } from './serverSideQuery.js';
+import { runQuery, distinctValues, compileFilter, aggregateAll, type QueryRequest, type Row } from './serverSideQuery.js';
 import {
   resetProviderStats,
   keyOf,
@@ -908,7 +908,7 @@ export class SharedWorkerDataServicesHub {
     set.set(subId, {
       subId, port, providerId,
       loadedStart: Number.MAX_SAFE_INTEGER, loadedEnd: 0,
-      queryKey: '', result: [], view: null,
+      queryKey: '', result: [], grandTotal: null, view: null,
     });
     this.ssrmListeners.set(providerId, set);
     // Surface current status so the grid clears any loading overlay.
@@ -947,7 +947,13 @@ export class SharedWorkerDataServicesHub {
         valueCols: req.valueCols,
         groupKeys: req.groupKeys,
       };
-      listener.result = runQuery(slot.cache.values() as Iterable<Row>, queryReq);
+      const allRows = [...slot.cache.values()] as Row[];
+      listener.result = runQuery(allRows, queryReq);
+      // Grand total = value-column aggregation over the whole FILTERED set
+      // (independent of grouping/pagination). Recomputed only on query change.
+      listener.grandTotal = req.valueCols?.length
+        ? aggregateAll(allRows.filter(compileFilter(queryReq.filterModel)), req.valueCols)
+        : null;
       listener.queryKey = key;
       // A new sort/filter/group resets what the grid holds (it purges + re-pulls).
       listener.loadedStart = Number.MAX_SAFE_INTEGER;
@@ -978,6 +984,7 @@ export class SharedWorkerDataServicesHub {
       reqId: req.reqId,
       rows: block,
       rowCount: listener.result.length,
+      grandTotal: listener.grandTotal,
     } satisfies Event);
   }
 
@@ -1015,6 +1022,7 @@ export class SharedWorkerDataServicesHub {
       for (const l of subs.values()) {
         l.queryKey = '';
         l.result = [];
+        l.grandTotal = null;
         l.view = null;
         l.loadedStart = Number.MAX_SAFE_INTEGER;
         l.loadedEnd = 0;

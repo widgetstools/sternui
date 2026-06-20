@@ -275,6 +275,19 @@ describe('SharedWorkerDataServicesHub — SSRM (server-side row model)', () => {
     ctrl.emit({ rows: [{ id: 'a', desk: 'EQ', qty: 999 }] });
     expect(port.messages.some((m) => m.kind === 'ssrm-tx')).toBe(false);
   });
+
+  it('get-rows returns a grand total of the FILTERED set when value columns are present', () => {
+    const { hub, port } = seeded(); // rows r0..r4 with v:0..4
+    hub.handleRequest(port, {
+      kind: 'ssrm-get-rows', subId: 's1', providerId: 'p1', reqId: 'q1',
+      startRow: 0, endRow: 100,
+      filterModel: { v: { filterType: 'number', type: 'greaterThan', filter: 1 } },
+      valueCols: [{ id: 'v', aggFunc: 'sum' }],
+    });
+    const evt = port.messages.find((m) => m.kind === 'ssrm-rows') as Event & { kind: 'ssrm-rows' };
+    // Filtered set is v in {2,3,4} → sum 9 (r0,r1 excluded).
+    expect(evt.grandTotal).toEqual({ v: 9 });
+  });
 });
 
 describe('SharedWorkerDataServicesHub — attach lifecycle', () => {

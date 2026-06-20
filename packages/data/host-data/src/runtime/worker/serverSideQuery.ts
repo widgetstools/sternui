@@ -234,6 +234,16 @@ function aggregateRows(rows: Row[], valueCols: ValueColumnVO[]): Row {
 }
 
 /**
+ * Aggregate the value columns over a whole set of rows — used for the grand
+ * total row (the hub aggregates the filtered set; the grid pins it at the
+ * bottom). Returns `null` when there are no value columns to total.
+ */
+export function aggregateAll(rows: Row[], valueCols: ValueColumnVO[] | undefined): Row | null {
+  if (!valueCols || valueCols.length === 0) return null;
+  return aggregateRows(rows, valueCols);
+}
+
+/**
  * Run a full SSRM query against the provider's rows for ONE block level:
  * filter → descend to `groupKeys` → either group+aggregate the next level or
  * return leaf rows → sort. Returns the ordered result rows; the hub slices the

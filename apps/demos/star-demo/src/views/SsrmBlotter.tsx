@@ -174,9 +174,17 @@ function SsrmBlotter(): ReactNode {
             valueCols: r.valueCols,
             groupKeys: r.groupKeys,
           })
-          .then(({ rows, rowCount }) =>
-            params.success({ rowData: rows.slice() as Record<string, unknown>[], rowCount }),
-          )
+          .then(({ rows, rowCount, grandTotal }) => {
+            // Grand total row: hub-computed aggregation of the filtered set,
+            // pinned at the bottom. Only the top-level pull carries it.
+            if ((r.groupKeys?.length ?? 0) === 0) {
+              apiRef.current?.setGridOption(
+                'pinnedBottomRowData',
+                grandTotal ? [grandTotal] : [],
+              );
+            }
+            params.success({ rowData: rows.slice() as Record<string, unknown>[], rowCount });
+          })
           .catch(() => params.fail());
       },
       destroy: () => handle.unsubscribe(),
@@ -229,6 +237,7 @@ function SsrmBlotter(): ReactNode {
         maxBlocksInCache={4}
         blockLoadDebounceMillis={50}
         rowGroupPanelShow="always"
+        groupTotalRow="bottom"
         sideBar={sideBar}
         statusBar={statusBar}
         cellSelection

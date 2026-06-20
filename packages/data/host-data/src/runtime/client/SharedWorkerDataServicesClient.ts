@@ -166,8 +166,13 @@ export interface ServerSideQuery {
 export interface ServerSideHandle<T = unknown> {
   subId: SubId;
   /** Pull the half-open block `[startRow, endRow)` under the given sort/filter/
-   *  group query; resolves with rows + total count. */
-  getRows(startRow: number, endRow: number, query?: ServerSideQuery): Promise<{ rows: readonly T[]; rowCount: number }>;
+   *  group query; resolves with rows, total count, and the grand-total
+   *  aggregation of the filtered set (when value columns are present). */
+  getRows(
+    startRow: number,
+    endRow: number,
+    query?: ServerSideQuery,
+  ): Promise<{ rows: readonly T[]; rowCount: number; grandTotal?: Record<string, unknown> | null }>;
   /** Distinct values of a column, for the Set Filter's value list. */
   getSetFilterValues(field: string): Promise<readonly (string | null)[]>;
   /** Live updates for rows currently inside a loaded block. */
@@ -180,7 +185,7 @@ export interface ServerSideHandle<T = unknown> {
 
 interface SsrmSubState {
   providerId: string;
-  pending: Map<string, (r: { rows: readonly unknown[]; rowCount: number }) => void>;
+  pending: Map<string, (r: { rows: readonly unknown[]; rowCount: number; grandTotal?: Record<string, unknown> | null }) => void>;
   valuesPending: Map<string, (values: readonly (string | null)[]) => void>;
   txCb: ((rows: readonly unknown[]) => void) | null;
   refreshCb: (() => void) | null;
@@ -591,9 +596,9 @@ export class SharedWorkerDataServicesClient {
     return {
       subId,
       getRows: (startRow, endRow, query) =>
-        new Promise<{ rows: readonly T[]; rowCount: number }>((resolve) => {
+        new Promise<{ rows: readonly T[]; rowCount: number; grandTotal?: Record<string, unknown> | null }>((resolve) => {
           const reqId = `${subId}:${reqSeq++}`;
-          state.pending.set(reqId, resolve as (r: { rows: readonly unknown[]; rowCount: number }) => void);
+          state.pending.set(reqId, resolve as (r: { rows: readonly unknown[]; rowCount: number; grandTotal?: Record<string, unknown> | null }) => void);
           this.send({
             kind: 'ssrm-get-rows', subId, providerId, reqId, startRow, endRow,
             sortModel: query?.sortModel,
@@ -952,7 +957,7 @@ export class SharedWorkerDataServicesClient {
         const resolve = ssrm.pending.get(event.reqId);
         if (resolve) {
           ssrm.pending.delete(event.reqId);
-          resolve({ rows: event.rows, rowCount: event.rowCount });
+          resolve({ rows: event.rows, rowCount: event.rowCount, grandTotal: event.grandTotal });
         }
       } else if (event.kind === 'ssrm-tx') {
         ssrm.txCb?.(event.rows);
