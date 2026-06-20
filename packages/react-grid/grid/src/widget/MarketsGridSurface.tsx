@@ -21,6 +21,7 @@ import type { GetContextMenuItems, GetRowIdFunc, GridReadyEvent, IServerSideData
 import type { MarketsGridProps } from './types';
 import { stripSurfaceManagedGridOptions } from './gridSurfaceOptions';
 import { buildStreamSafeComponents } from './buildStreamSafeComponents';
+import { adaptStatusBarForServerSide, SSRM_STATUS_BAR_COMPONENTS } from './ssrmStatusBar';
 
 export interface MarketsGridSurfaceProps<TData> {
   readonly gridRef: RefObject<AgGridReact<TData> | null>;
@@ -120,6 +121,20 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
     [columnDefs, includeAllStreamSafeFilters],
   );
 
+  // SSRM: register the row-count status panel + swap CSRM-only count panels for
+  // it (those don't render under SSRM, leaving the status bar empty/absent).
+  const components = useMemo(
+    () => (serverSide ? { ...streamSafeComponents, ...SSRM_STATUS_BAR_COMPONENTS } : streamSafeComponents),
+    [serverSide, streamSafeComponents],
+  );
+  const serverSideStatusBar = useMemo(() => {
+    if (!serverSide) return undefined;
+    const raw = hostOverrideKeys.has('statusBar')
+      ? statusBar
+      : (pipelineGridOptions as { statusBar?: unknown }).statusBar;
+    return adaptStatusBarForServerSide(raw);
+  }, [serverSide, hostOverrideKeys, statusBar, pipelineGridOptions]);
+
   const hostOverrides = useMemo(() => {
     const out: Record<string, unknown> = {};
     if (hostOverrideKeys.has('rowHeight')) out.rowHeight = rowHeight;
@@ -153,6 +168,9 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
               getRowId,
               cacheBlockSize,
               maxBlocksInCache,
+              ...(serverSideStatusBar !== undefined
+                ? { statusBar: serverSideStatusBar as MarketsGridProps<TData>['statusBar'] }
+                : {}),
             }
           : { rowData })}
         columnDefs={columnDefs as never}
@@ -168,7 +186,7 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
         // provider's throttle (StompProviderConfig.throttleEnabled) yields
         // near-immediate grid updates end-to-end.
         asyncTransactionWaitMillis={0}
-        components={streamSafeComponents}
+        components={components}
         getContextMenuItems={getContextMenuItems}
         onGridReady={onGridReady}
         onGridPreDestroyed={onGridPreDestroyed}
