@@ -30,8 +30,10 @@ import type { ServerSideHandle } from '@starui/host-data/runtime';
 
 ModuleRegistry.registerModules([AllEnterpriseModule]);
 
-/** Same STOMP provider the CSRM blotter route uses, so they share the hub cache. */
-const PROVIDER_ID = 'dp-121e4569-5100-4f6b-b946-c3423d8aff7c';
+/** Provider id from the route query (`?provider=<configId>`) — not hardcoded. */
+function useProviderIdFromQuery(): string | null {
+  return new URLSearchParams(window.location.search).get('provider');
+}
 
 interface ColumnDefinition {
   field: string;
@@ -84,7 +86,8 @@ function makeGridProbe() {
 
 function SsrmBlotter(): ReactNode {
   const { client } = useDataServices();
-  const activeRow = useDataProviderConfig(PROVIDER_ID);
+  const providerId = useProviderIdFromQuery();
+  const activeRow = useDataProviderConfig(providerId);
   const resolvedCfg = useResolvedCfg(activeRow.cfg?.config ?? null);
   const apiRef = useRef<GridApi | null>(null);
   const handleRef = useRef<ServerSideHandle<Record<string, unknown>> | null>(null);
@@ -176,8 +179,8 @@ function SsrmBlotter(): ReactNode {
   // Subscribe in SSRM mode once the cfg resolves; the datasource closes over the
   // live handle. Re-subscribes (and tears down) if the provider cfg changes.
   useEffect(() => {
-    if (!resolvedCfg) return;
-    const handle = client.subscribeServerSide<Record<string, unknown>>(PROVIDER_ID, resolvedCfg);
+    if (!providerId || !resolvedCfg) return;
+    const handle = client.subscribeServerSide<Record<string, unknown>>(providerId, resolvedCfg);
     handleRef.current = handle;
     handle.onTransaction((tx) => {
       probeRef.current(tx.rows.length);
@@ -233,7 +236,7 @@ function SsrmBlotter(): ReactNode {
       handleRef.current = null;
       setDatasource(null);
     };
-  }, [client, resolvedCfg]);
+  }, [client, providerId, resolvedCfg]);
 
   const onGridReady = useCallback((e: GridReadyEvent) => {
     apiRef.current = e.api;
@@ -260,8 +263,15 @@ function SsrmBlotter(): ReactNode {
     [],
   );
 
+  if (!providerId) {
+    return (
+      <div style={{ padding: 16 }}>
+        Pass a provider in the URL, e.g. <code>/blotters/ssrm?provider=&lt;configId&gt;</code>.
+      </div>
+    );
+  }
   if (activeRow.loading) return <div style={{ padding: 16 }}>Loading provider…</div>;
-  if (!resolvedCfg) return <div style={{ padding: 16 }}>Provider {PROVIDER_ID} not found.</div>;
+  if (!resolvedCfg) return <div style={{ padding: 16 }}>Provider {providerId} not found.</div>;
   if (!datasource) return <div style={{ padding: 16 }}>Connecting to data hub…</div>;
 
   return (
