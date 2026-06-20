@@ -566,7 +566,13 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // disables cell editing until status returns to ready.
   const [providerDisconnected, setProviderDisconnected] = useState(false);
   const [disconnectDetail, setDisconnectDetail] = useState<string | undefined>();
-  const isLoadingSnapshot = subscriptionKey !== null && subscriptionKey !== resolvedSubKey;
+  // SSRM has no CSRM snapshot-resolution (`resolvedSubKey` never sets), so drive
+  // the overlay off the SSRM provider status: loading until the hub snapshot is
+  // ready, then AG-Grid's own per-block loading takes over. CSRM keeps its
+  // subscription-key gate.
+  const isLoadingSnapshot = serverSide
+    ? ssrm.status === 'loading'
+    : subscriptionKey !== null && subscriptionKey !== resolvedSubKey;
   const showLoadingOverlay = isLoadingSnapshot || isRefetching || isSavingProfile;
 
   const dataStaleMessage = disconnectDetail

@@ -1543,6 +1543,14 @@ export class SharedWorkerDataServicesHub {
         error: event.error,
         subId: '',
       });
+      // SSRM subscribers aren't in dataListeners — forward status so their grids
+      // can clear the loading overlay on `ready` / show errors.
+      const ssrmSubs = this.ssrmListeners.get(providerId);
+      if (ssrmSubs) {
+        for (const l of ssrmSubs.values()) {
+          l.port.postMessage({ subId: l.subId, kind: 'status', status: event.status, error: event.error } satisfies Event);
+        }
+      }
       return;
     }
 

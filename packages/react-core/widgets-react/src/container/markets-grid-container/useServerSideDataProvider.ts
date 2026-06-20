@@ -19,6 +19,7 @@ import type {
 } from 'ag-grid-community';
 import { useDataServices } from '@starui/host-data-react/runtime';
 import type { ServerSideHandle } from '@starui/host-data/runtime';
+import type { ProviderStatus } from '@starui/host-data/runtime';
 
 export interface UseServerSideDataProviderParams {
   /** Active provider id, or null until one resolves. */
@@ -40,6 +41,10 @@ export interface ServerSideDataProvider<TData extends Record<string, unknown>> {
   setGroupCols: (colIds: string[]) => void;
   /** Total provider cache rows (for a status bar); read after a pull. */
   cacheRowCountRef: { readonly current: number };
+  /** Provider status — `'loading'` until the hub snapshot is ready. Drives the
+   *  loading overlay (the CSRM snapshot-resolution path doesn't run in SSRM). */
+  status: ProviderStatus;
+  error?: string;
 }
 
 const composeKey = (data: Record<string, unknown>, keyColumn: string | readonly string[]): string =>
@@ -59,6 +64,8 @@ export function useServerSideDataProvider<TData extends Record<string, unknown>>
   const valueColsRef = useRef(numericValueCols);
   valueColsRef.current = numericValueCols;
   const [datasource, setDatasource] = useState<IServerSideDatasource<TData> | null>(null);
+  const [status, setStatus] = useState<ProviderStatus>('loading');
+  const [error, setError] = useState<string | undefined>(undefined);
 
   const getRowId = useCallback<GetRowIdFunc<TData>>(
     (p) => {
@@ -81,8 +88,17 @@ export function useServerSideDataProvider<TData extends Record<string, unknown>>
 
   useEffect(() => {
     if (!providerId || !cfg) return;
+    setStatus('loading');
+    setError(undefined);
     const handle = client.subscribeServerSide<TData>(providerId, cfg as never);
 
+    handle.onStatus((s, err) => {
+      setStatus(s);
+      setError(err);
+      // The hub re-snapshots (loading→ready) on restart; re-pull so the grid
+      // shows the fresh data once ready.
+      if (s === 'ready') apiRef.current?.refreshServerSide({ purge: true });
+    });
     handle.onTransaction((tx) => {
       const api = apiRef.current;
       if (!api) return;
@@ -108,8 +124,8 @@ export function useServerSideDataProvider<TData extends Record<string, unknown>>
   }, [client, providerId, cfg]);
 
   return useMemo(
-    () => ({ datasource, getRowId, bindApi, setGroupCols, cacheRowCountRef }),
-    [datasource, getRowId, bindApi, setGroupCols],
+    () => ({ datasource, getRowId, bindApi, setGroupCols, cacheRowCountRef, status, error }),
+    [datasource, getRowId, bindApi, setGroupCols, status, error],
   );
 }
 
