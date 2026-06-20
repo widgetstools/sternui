@@ -64,6 +64,8 @@ function SsrmBlotter(): ReactNode {
   const apiRef = useRef<GridApi | null>(null);
   const handleRef = useRef<ServerSideHandle<Record<string, unknown>> | null>(null);
   const probeRef = useRef(makeGridProbe());
+  /** Active row-group column ids, so getRowId can key group rows by their level. */
+  const groupColsRef = useRef<string[]>([]);
   const [datasource, setDatasource] = useState<IServerSideDatasource | null>(null);
 
   // columnDefinitions / keyColumn live on the provider-type-specific configs
@@ -106,8 +108,20 @@ function SsrmBlotter(): ReactNode {
 
   const keyColumn =
     (typeof cfgFields?.keyColumn === 'string' ? cfgFields.keyColumn : undefined) ?? 'positionId';
+  // Leaf rows key by the provider key column; GROUP rows have no leaf key, so key
+  // them by their group path (parentKeys + the group column value at this level).
+  // Without this, every group row gets id `undefined` → AG-Grid warning #205.
   const getRowId = useCallback(
-    (p: { data: Record<string, unknown> }) => String(p.data[keyColumn]),
+    (p: { data: Record<string, unknown>; parentKeys?: string[] }) => {
+      const parentKeys = p.parentKeys ?? [];
+      const leaf = p.data[keyColumn];
+      if (leaf != null) {
+        return parentKeys.length ? `${parentKeys.join('/')}/${leaf}` : String(leaf);
+      }
+      const groupCol = groupColsRef.current[parentKeys.length];
+      const groupKey = groupCol ? p.data[groupCol] : undefined;
+      return `g:${[...parentKeys, String(groupKey)].join('/')}`;
+    },
     [keyColumn],
   );
 
@@ -151,17 +165,19 @@ function SsrmBlotter(): ReactNode {
     apiRef.current = e.api;
   }, []);
 
+  // Track active row-group columns for getRowId's group-row keys.
+  const onColumnRowGroupChanged = useCallback(() => {
+    groupColsRef.current = apiRef.current?.getRowGroupColumns().map((c) => c.getColId()) ?? [];
+  }, []);
+
   const sideBar = useMemo<SideBarDef>(
     () => ({ toolPanels: ['columns', 'filters'] }),
     [],
   );
+  // Row-count panels are CSRM-only (warning #224); under SSRM keep just the
+  // range-aggregation panel (works on selected cells).
   const statusBar = useMemo(
-    () => ({
-      statusPanels: [
-        { statusPanel: 'agTotalAndFilteredRowCountComponent', align: 'left' },
-        { statusPanel: 'agAggregationComponent', align: 'right' },
-      ],
-    }),
+    () => ({ statusPanels: [{ statusPanel: 'agAggregationComponent', align: 'right' }] }),
     [],
   );
 
@@ -184,6 +200,7 @@ function SsrmBlotter(): ReactNode {
         sideBar={sideBar}
         statusBar={statusBar}
         onGridReady={onGridReady}
+        onColumnRowGroupChanged={onColumnRowGroupChanged}
       />
     </div>
   );
