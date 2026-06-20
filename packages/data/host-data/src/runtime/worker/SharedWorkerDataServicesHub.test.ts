@@ -129,6 +129,75 @@ beforeEach(() => {
 const cfg = (key = 'default', overrides: Record<string, unknown> = {}): ProviderConfig =>
   ({ providerType: 'mock', __testKey: key, keyColumn: 'id', ...overrides } as unknown as ProviderConfig);
 
+describe('SharedWorkerDataServicesHub — SSRM (server-side row model)', () => {
+  /** Start a provider + seed a 5-row cache, return the hub + an SSRM port. */
+  function seeded() {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'ssrm', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({
+      rows: [
+        { id: 'r0', v: 0 }, { id: 'r1', v: 1 }, { id: 'r2', v: 2 },
+        { id: 'r3', v: 3 }, { id: 'r4', v: 4 },
+      ],
+      replace: true,
+    });
+    ctrl.emit({ status: 'ready' });
+    port.messages.length = 0;
+    return { hub, port, ctrl };
+  }
+
+  const ssrmRows = (m: Event) => (m as Event & { kind: 'ssrm-rows' });
+  const ssrmTx = (m: Event) => (m as Event & { kind: 'ssrm-tx' });
+
+  it('get-rows returns the requested block and the total row count', () => {
+    const { hub, port } = seeded();
+    hub.handleRequest(port, {
+      kind: 'ssrm-get-rows', subId: 's1', providerId: 'p1', reqId: 'q1', startRow: 1, endRow: 3,
+    });
+    const evt = port.messages.find((m) => m.kind === 'ssrm-rows');
+    expect(evt).toBeTruthy();
+    expect(ssrmRows(evt!).reqId).toBe('q1');
+    expect(ssrmRows(evt!).rowCount).toBe(5);
+    expect(ssrmRows(evt!).rows).toEqual([{ id: 'r1', v: 1 }, { id: 'r2', v: 2 }]);
+  });
+
+  it('pushes a live tick ONLY for rows inside the loaded block', () => {
+    const { hub, port, ctrl } = seeded();
+    // Grid has loaded rows [1,3).
+    hub.handleRequest(port, {
+      kind: 'ssrm-get-rows', subId: 's1', providerId: 'p1', reqId: 'q1', startRow: 1, endRow: 3,
+    });
+    port.messages.length = 0;
+
+    // Tick updates r2 (index 2, in range) and r4 (index 4, out of range).
+    ctrl.emit({ rows: [{ id: 'r2', v: 22 }, { id: 'r4', v: 44 }] });
+
+    const tx = port.messages.filter((m) => m.kind === 'ssrm-tx');
+    expect(tx).toHaveLength(1);
+    expect(ssrmTx(tx[0]!).rows).toEqual([{ id: 'r2', v: 22 }]);
+  });
+
+  it('pushes nothing before any block is pulled (empty loaded range)', () => {
+    const { port, ctrl } = seeded();
+    // No get-rows yet → loaded range empty.
+    ctrl.emit({ rows: [{ id: 'r2', v: 99 }] });
+    expect(port.messages.some((m) => m.kind === 'ssrm-tx')).toBe(false);
+  });
+
+  it('an SSRM subscriber gets NO cache replay / delta fan-out (it pulls)', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'ssrm', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ rows: [{ id: 'r0', v: 0 }], replace: true });
+    ctrl.emit({ status: 'ready' });
+    // Only status events — never a delta / delta-bin replay.
+    expect(port.messages.some(isAnyDelta)).toBe(false);
+  });
+});
+
 describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
   it('first attach creates the provider and the listener immediately gets a replace + status', () => {
     const hub = new SharedWorkerDataServicesHub();

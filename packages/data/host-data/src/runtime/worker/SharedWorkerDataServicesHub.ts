@@ -64,6 +64,7 @@ import type {
   HubReadyRequest,
   ListConfigsRequest,
   RefreshProviderRequest,
+  SsrmGetRowsRequest,
   HubIntrospectRequest,
   HubIntrospectSnapshot,
   HubProviderIntrospectRow,
@@ -91,6 +92,7 @@ import {
   type ProviderSlot,
   type DataListener,
   type StatsListener,
+  type SsrmListener,
   type AppDataListenerEntry,
   type AppDataDeltaEventMutable,
   type SharedWorkerDataServicesHubOpts,
@@ -99,6 +101,7 @@ import {
   SUBSCRIBER_SWEEP_INTERVAL_MS,
 } from './hubTypes.js';
 import { encodeChunk, SNAPSHOT_ENCODER } from './hubEncoding.js';
+import { RowOrderIndex } from './RowOrderIndex.js';
 import {
   resetProviderStats,
   keyOf,
@@ -122,6 +125,8 @@ export class SharedWorkerDataServicesHub {
   private readonly providers = new Map<string, ProviderSlot>();
   private readonly dataListeners = new Map<string, Map<string, DataListener>>();
   private readonly statsListeners = new Map<string, Map<string, StatsListener>>();
+  /** SSRM subscribers (providerId → subId → listener). See {@link SsrmListener}. */
+  private readonly ssrmListeners = new Map<string, Map<string, SsrmListener>>();
 
   // ─── AppData state (Steps 2 + worker-persistence) ──────────────
   // Single authoritative store per hub instance. Listeners are keyed
@@ -141,6 +146,14 @@ export class SharedWorkerDataServicesHub {
   private readonly fanOutMinListeners: number;
   private statsTimer: unknown = null;
   private subscriberSweepTimer: unknown = null;
+
+  // ─── DIAGNOSTIC (fix/sharedworker-fanout-blotter-limit) ──────────────────
+  // 1 Hz heartbeat: event-loop lag is the decisive signal — if it spikes when
+  // the 4th blotter opens, the hub thread is CPU-saturated (firehose decode /
+  // fan-out); if it stays low while the 4th stalls, delivery is the problem.
+  private dbgBroadcasts = 0;
+  private dbgRowsOut = 0;
+  private dbgBeatTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(opts: SharedWorkerDataServicesHubOpts = {}) {
     this.statsIntervalMs = opts.statsIntervalMs ?? 1000;
@@ -175,6 +188,32 @@ export class SharedWorkerDataServicesHub {
         catch { /* port dead; cleanup happens via onPortClosed */ }
       }
     });
+
+    this.startDiagnostics();
+  }
+
+  /** DIAGNOSTIC: 1 Hz heartbeat measuring event-loop lag + fan-out throughput. */
+  private startDiagnostics(): void {
+    const PERIOD = 1000;
+    let expected = Date.now() + PERIOD;
+    const beat = () => {
+      const now = Date.now();
+      const lag = now - expected; // ms the loop was busy past the scheduled tick
+      let subs = 0;
+      let providers = 0;
+      for (const [, m] of this.dataListeners) { providers += 1; subs += m.size; }
+      // eslint-disable-next-line no-console
+      console.log(
+        `[hub-diag] subs=${subs} providers=${providers} ` +
+        `bcast/s=${this.dbgBroadcasts} rowsOut/s=${this.dbgRowsOut} ` +
+        `loopLagMs=${lag}`,
+      );
+      this.dbgBroadcasts = 0;
+      this.dbgRowsOut = 0;
+      expected = now + PERIOD;
+      this.dbgBeatTimer = setTimeout(beat, PERIOD);
+    };
+    this.dbgBeatTimer = setTimeout(beat, PERIOD);
   }
 
   // ─── Public surface ────────────────────────────────────────────
@@ -191,6 +230,7 @@ export class SharedWorkerDataServicesHub {
       case 'list-configs': this.handleListConfigs(port, req); return;
       case 'config-invalidate': void this.handleConfigInvalidate(port, req); return;
       case 'refresh-provider': this.handleRefreshProvider(req); return;
+      case 'ssrm-get-rows': this.handleSsrmGetRows(req); return;
       case 'hub-introspect': this.handleHubIntrospect(port, req); return;
     }
   }
@@ -623,7 +663,9 @@ export class SharedWorkerDataServicesHub {
       if (DEBUG) console.log(`[v2/hub] attach LATE-JOINER subId=${req.subId} provider=${req.providerId} cacheSize=${slot.cache.size} status=${slot.status}`);
     }
 
-    if (req.mode === 'data') {
+    if (req.mode === 'ssrm') {
+      this.attachSsrmListener(req.providerId, req.subId, port, slot);
+    } else if (req.mode === 'data') {
       this.attachDataListener(req.providerId, req.subId, port, slot, {
         skipCacheReplay: isRestartAttach,
       });
@@ -682,13 +724,21 @@ export class SharedWorkerDataServicesHub {
       }
       return { providerId, port: l.port };
     }
+    for (const [providerId, listeners] of this.ssrmListeners) {
+      const l = listeners.get(subId);
+      if (!l) continue;
+      listeners.delete(subId);
+      if (listeners.size === 0) this.ssrmListeners.delete(providerId);
+      return { providerId, port: l.port };
+    }
     return {};
   }
 
   private maybeStopProviderIfIdle(providerId: string): void {
     const dataCount = this.dataListeners.get(providerId)?.size ?? 0;
     const statsCount = this.statsListeners.get(providerId)?.size ?? 0;
-    if (dataCount === 0 && statsCount === 0 && this.providers.has(providerId)) {
+    const ssrmCount = this.ssrmListeners.get(providerId)?.size ?? 0;
+    if (dataCount === 0 && statsCount === 0 && ssrmCount === 0 && this.providers.has(providerId)) {
       void this.stopProvider(providerId);
     }
     this.maybeStopSubscriberSweeper();
@@ -838,6 +888,115 @@ export class SharedWorkerDataServicesHub {
     const listener = this.dataListeners.get(req.providerId)?.get(req.subId);
     if (!listener) return;
     this.replayCacheToPort(req.subId, listener.port, slot, 'refresh');
+  }
+
+  // ─── Server-Side Row Model (SSRM) ────────────────────────────────
+
+  /** Build the flat row-order index from the cache on first SSRM use. */
+  private ensureRowOrder(slot: ProviderSlot): RowOrderIndex {
+    if (!slot.rowOrder) {
+      const idx = new RowOrderIndex();
+      idx.reset(slot.cache.keys());
+      slot.rowOrder = idx;
+    }
+    return slot.rowOrder;
+  }
+
+  /** Register an SSRM subscriber: no replay/fan-out — it pulls blocks and
+   *  receives only in-range `ssrm-tx` pushes. */
+  private attachSsrmListener(
+    providerId: string,
+    subId: string,
+    port: PortLike,
+    slot: ProviderSlot,
+  ): void {
+    this.ensureRowOrder(slot);
+    const set = this.ssrmListeners.get(providerId) ?? new Map<string, SsrmListener>();
+    // Empty loaded range (start > end) until the grid pulls its first block,
+    // so no updates are pushed before anything is on screen.
+    set.set(subId, { subId, port, providerId, loadedStart: Number.MAX_SAFE_INTEGER, loadedEnd: 0 });
+    this.ssrmListeners.set(providerId, set);
+    // Surface current status so the grid clears any loading overlay.
+    port.postMessage({
+      subId, kind: 'status', status: slot.status, error: slot.lastError,
+    } satisfies Event);
+  }
+
+  /** Answer a block pull `[startRow, endRow)` and widen the loaded range. */
+  private handleSsrmGetRows(req: SsrmGetRowsRequest): void {
+    const slot = this.providers.get(req.providerId);
+    const listener = this.ssrmListeners.get(req.providerId)?.get(req.subId);
+    if (!slot || !listener) return;
+    const order = this.ensureRowOrder(slot);
+    const keys = order.rangeKeys(req.startRow, req.endRow);
+    const rows = keys.map((k) => slot.cache.get(k));
+    listener.loadedStart = Math.min(listener.loadedStart, req.startRow);
+    listener.loadedEnd = Math.max(listener.loadedEnd, req.endRow);
+    listener.port.postMessage({
+      subId: req.subId,
+      kind: 'ssrm-rows',
+      reqId: req.reqId,
+      rows,
+      rowCount: order.count(),
+    } satisfies Event);
+  }
+
+  /**
+   * Keep the row-order index in sync with a cache mutation and push live
+   * updates to SSRM subscribers — but only the changed rows whose CURRENT
+   * position is inside each subscriber's loaded range. No SSRM subscriber →
+   * `slot.rowOrder` is null and this is a single branch, so CSRM-only
+   * providers pay nothing.
+   */
+  private updateSsrm(
+    providerId: string,
+    slot: ProviderSlot,
+    changedRows: readonly unknown[],
+    replace: boolean,
+  ): void {
+    const order = slot.rowOrder;
+    if (!order) return;
+    const keyColumn = (slot.cfg as { keyColumn?: string | readonly string[] }).keyColumn;
+
+    if (replace) {
+      order.reset(slot.cache.keys());
+    } else {
+      for (const row of changedRows) {
+        const k = keyOf(row, keyColumn);
+        if (k !== null) order.add(k);
+      }
+    }
+
+    const subs = this.ssrmListeners.get(providerId);
+    if (!subs || subs.size === 0) return;
+
+    if (replace) {
+      // Row set wholesale-changed (restart/snapshot): the grid must purge and
+      // re-pull. Signalled by an `ssrm-rows` with the reserved reqId.
+      for (const l of subs.values()) {
+        l.loadedStart = Number.MAX_SAFE_INTEGER;
+        l.loadedEnd = 0;
+        l.port.postMessage({
+          subId: l.subId, kind: 'ssrm-rows', reqId: '__refresh__', rows: [], rowCount: order.count(),
+        } satisfies Event);
+      }
+      return;
+    }
+
+    const changedByKey = new Map<string, unknown>();
+    for (const row of changedRows) {
+      const k = keyOf(row, keyColumn);
+      if (k !== null) changedByKey.set(k, row);
+    }
+    for (const l of subs.values()) {
+      const hits = order.changesInRange(changedByKey.keys(), l.loadedStart, l.loadedEnd);
+      if (hits.length === 0) continue;
+      l.port.postMessage({
+        subId: l.subId,
+        kind: 'ssrm-tx',
+        rows: hits.map((h) => changedByKey.get(h.key)),
+      } satisfies Event);
+    }
   }
 
   private async stopProvider(providerId: string): Promise<void> {
@@ -1023,6 +1182,7 @@ export class SharedWorkerDataServicesHub {
       // wide/projected rows (≈ a plain structured-clone at N=1, faster at N>1).
       // Opt out with cfg.wireFormat: 'json'.
       columnar: flags.wireFormat !== 'json',
+      rowOrder: null,
     };
 
     const emit: ProviderEmit = (event: ProviderEmitEvent) => {
@@ -1186,6 +1346,12 @@ export class SharedWorkerDataServicesHub {
         }
         broadcastRows = [...batch.values()];
       }
+
+      // SSRM: sync the row-order index + push in-range updates. Covers the
+      // initial snapshot/restart (`replace`) and non-thin live ticks; thin
+      // providers' live ticks are handled in applyThinDelta. No-op unless an
+      // SSRM subscriber has attached.
+      this.updateSsrm(providerId, slot, broadcastRows, event.replace === true);
 
       // Snapshot-phase chunks (pre-ready: initial load AND restarts —
       // `resetProviderStats` clears `snapshotReady` on every `loading`)
@@ -1355,6 +1521,12 @@ export class SharedWorkerDataServicesHub {
     slot.lastMessageAt = Date.now();
     if (patches.length === 0) return;
 
+    // SSRM: the changed full rows are the freshly-cached values for the
+    // patched keys. Sync the index (new keys) + push only in-range ones.
+    if (slot.rowOrder) {
+      this.updateSsrm(providerId, slot, patches.map((p) => slot.cache.get(p.k)), false);
+    }
+
     if (patches.length >= LIVE_BIN_MIN_ROWS) {
       this.broadcastData(providerId, slot, {
         kind: 'delta-patch',
@@ -1440,7 +1612,18 @@ export class SharedWorkerDataServicesHub {
       return;
     }
 
-    this.replayCacheToPort(subId, port, slot, 'attach');
+    // DIAGNOSTIC: time the late-join replay — if a new (e.g. 4th) blotter
+    // stalls here, this shows whether the replay starts and how long it takes.
+    {
+      const subs = this.dataListeners.get(providerId)?.size ?? 0;
+      const t0 = Date.now();
+      // eslint-disable-next-line no-console
+      console.log(`[hub-diag] ATTACH replay START subId=${subId} subs=${subs} cacheRows=${slot.cache.size}`);
+      this.replayCacheToPort(subId, port, slot, 'attach');
+      // eslint-disable-next-line no-console
+      console.log(`[hub-diag] ATTACH replay DONE subId=${subId} took=${Date.now() - t0}ms`);
+    }
+    return;
   }
 
   /**
@@ -1592,6 +1775,16 @@ export class SharedWorkerDataServicesHub {
   private broadcastData(providerId: string, slot: ProviderSlot, eventTemplate: Event): void {
     const listeners = this.dataListeners.get(providerId);
     if (!listeners) return;
+    // DIAGNOSTIC: count fan-out work (rows × listeners is the per-tick cost).
+    if (
+      eventTemplate.kind === 'delta'
+      || eventTemplate.kind === 'delta-bin'
+      || eventTemplate.kind === 'delta-patch'
+    ) {
+      this.dbgBroadcasts += 1;
+      const rows = (eventTemplate as { rows?: readonly unknown[] }).rows?.length ?? 0;
+      this.dbgRowsOut += rows * listeners.size;
+    }
     const countPublish =
       slot.snapshotReady
       && (

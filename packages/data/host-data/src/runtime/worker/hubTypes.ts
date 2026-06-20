@@ -159,6 +159,13 @@ export interface ProviderSlot {
    * JSON per chunk for incompatible rows. Precomputed at slot creation.
    */
   columnar: boolean;
+  /**
+   * Lazily-built row-order index for Server-Side Row Model (SSRM)
+   * subscribers — maps cache keys to flat positions so blocks can be sliced
+   * and live ticks scoped to a subscriber's loaded range. Null until the
+   * first SSRM subscriber attaches; kept in sync with cache mutations.
+   */
+  rowOrder: import('./RowOrderIndex.js').RowOrderIndex | null;
 }
 
 export interface DataListener {
@@ -183,6 +190,20 @@ export interface StatsListener {
 export interface AppDataListenerEntry {
   subId: string;
   port: PortLike;
+}
+
+/**
+ * Server-Side Row Model subscriber. Unlike {@link DataListener} it gets no
+ * cache replay or delta fan-out; it pulls blocks via `ssrm-get-rows` and
+ * receives `ssrm-tx` pushes only for rows whose current position is inside
+ * `[loadedStart, loadedEnd)` — the union span of blocks it has requested.
+ */
+export interface SsrmListener {
+  subId: string;
+  port: PortLike;
+  providerId: string;
+  loadedStart: number;
+  loadedEnd: number;
 }
 
 /** Fan-out scratch shape — `subId` is rewritten per listener. */

@@ -97,10 +97,14 @@ export interface AttachRequest {
   subId: string;
   providerId: string;
   /**
-   * `'data'` (default) — listener receives `delta` + `status` events.
+   * `'data'` (default) — listener receives `delta` + `status` events (CSRM:
+   * the full cache is replayed and every live tick fanned out).
    * `'stats'` — listener receives a `stats` event at 1 Hz.
+   * `'ssrm'` — Server-Side Row Model: NO full replay / delta fan-out. The
+   * client pulls blocks via `ssrm-get-rows` and the hub pushes `ssrm-tx`
+   * updates only for rows inside the subscriber's loaded range.
    */
-  mode: 'data' | 'stats';
+  mode: 'data' | 'stats' | 'ssrm';
   /**
    * Required on FIRST attach when `providerId` is not in the hub catalog.
    * Optional when the worker has preloaded the provider row via
@@ -182,6 +186,23 @@ export interface RefreshProviderRequest {
   kind: 'refresh-provider';
   subId: string;
   providerId: string;
+}
+
+/**
+ * SSRM block pull. The grid's `IServerSideDatasource.getRows` maps to this:
+ * the hub answers with an {@link SsrmRowsEvent} carrying the rows for the
+ * half-open block `[startRow, endRow)` plus the total `rowCount`. Each request
+ * also records the block as part of the subscriber's loaded range, so live
+ * `ssrm-tx` pushes are scoped to what the grid actually holds.
+ */
+export interface SsrmGetRowsRequest {
+  kind: 'ssrm-get-rows';
+  subId: string;
+  providerId: string;
+  /** Correlates the response to AG Grid's pending `getRows` callback. */
+  reqId: string;
+  startRow: number;
+  endRow: number;
 }
 
 /** One attached hub subscriber (data or stats mode). */
@@ -325,6 +346,7 @@ export type Request =
   | ListConfigsRequest
   | ConfigInvalidateRequest
   | RefreshProviderRequest
+  | SsrmGetRowsRequest
   | HubIntrospectRequest;
 
 // ─── Worker → Client events ────────────────────────────────────────
@@ -449,6 +471,28 @@ export interface StatsEvent {
   stats: ProviderStats;
 }
 
+/** Response to {@link SsrmGetRowsRequest}: one block + the total row count. */
+export interface SsrmRowsEvent {
+  subId: string;
+  kind: 'ssrm-rows';
+  reqId: string;
+  rows: readonly unknown[];
+  rowCount: number;
+}
+
+/**
+ * Live SSRM update: full rows (keyed by `cfg.keyColumn`) whose CURRENT
+ * position falls inside the subscriber's loaded range. The client feeds these
+ * to `applyServerSideTransactionAsync({ update })`, which matches them into
+ * loaded blocks by `getRowId`. Off-range changes are never sent — this is what
+ * makes per-window cost O(visible) instead of O(dataset).
+ */
+export interface SsrmTxEvent {
+  subId: string;
+  kind: 'ssrm-tx';
+  rows: readonly unknown[];
+}
+
 /** Progressive snapshot row count while upstream is buffering (pre-cache). */
 export interface RowsReceivedEvent {
   subId: string;
@@ -473,6 +517,8 @@ export type Event =
   | SubInitEvent
   | StatusEvent
   | StatsEvent
+  | SsrmRowsEvent
+  | SsrmTxEvent
   | RowsReceivedEvent
   | SubscriptionLostEvent;
 
@@ -563,6 +609,7 @@ export function isRequest(value: unknown): value is Request {
     k === 'list-configs' ||
     k === 'config-invalidate' ||
     k === 'refresh-provider' ||
+    k === 'ssrm-get-rows' ||
     k === 'hub-introspect'
   );
 }
@@ -578,6 +625,8 @@ export function isEvent(value: unknown): value is Event {
     v.kind === 'sub-init' ||
     v.kind === 'status' ||
     v.kind === 'stats' ||
+    v.kind === 'ssrm-rows' ||
+    v.kind === 'ssrm-tx' ||
     v.kind === 'rows-received' ||
     v.kind === 'subscription-lost'
   );
