@@ -46,7 +46,10 @@ function App() {
               /blotters/marketsgrid &mdash; MarketsGrid blotter (CSRM)
             </Link>
             <Link to="/blotters/ssrm" className="text-sm text-primary hover:underline">
-              /blotters/ssrm &mdash; SSRM blotter (hub-backed Server-Side Row Model · POC)
+              /blotters/ssrm &mdash; SSRM blotter (bare grid POC)
+            </Link>
+            <Link to="/blotters/marketsgrid-ssrm" className="text-sm text-primary hover:underline">
+              /blotters/marketsgrid-ssrm &mdash; MarketsGrid blotter (SSRM, full chrome)
             </Link>
             <Link to="/dataproviders" className="text-sm text-primary hover:underline">
               /dataproviders &mdash; Create / edit STOMP, REST, Mock and AppData providers

@@ -28,6 +28,7 @@ const blottersMarketsGridChunk = import("./views/BlottersMarketsGrid");
 const BlottersMarketsGrid = React.lazy(() => blottersMarketsGridChunk);
 const DataProviders       = React.lazy(() => import("./views/DataProviders"));
 const SsrmBlotter         = React.lazy(() => import("./views/SsrmBlotter"));
+const BlottersMarketsGridSsrm = React.lazy(() => import("./views/BlottersMarketsGridSsrm"));
 
 const WorkspaceSetup = React.lazy(() =>
   import("@starui/workspace-setup-react").then((m) => ({ default: m.WorkspaceSetup })),
@@ -155,6 +156,14 @@ function AppTree() {
             element={
               <React.Suspense fallback={LOADING}>
                 <SsrmBlotter />
+              </React.Suspense>
+            }
+          />
+          <Route
+            path="/blotters/marketsgrid-ssrm"
+            element={
+              <React.Suspense fallback={LOADING}>
+                <BlottersMarketsGridSsrm />
               </React.Suspense>
             }
           />

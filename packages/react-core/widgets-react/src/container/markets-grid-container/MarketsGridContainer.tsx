@@ -45,6 +45,7 @@ import {
 } from '@starui/host-data-react/runtime';
 import { buildColumnDefs } from './buildColumnDefs.js';
 import { useProviderDataWiring } from './useProviderDataWiring.js';
+import { useServerSideDataProvider } from './useServerSideDataProvider.js';
 import { useGridLevelPersistence } from './useGridLevelPersistence.js';
 import { LOGGED_IN_USER_ID } from '@starui/types';
 import {
@@ -154,8 +155,12 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     gridEventHandlers,
     handlerMeta,
     onRowIdFieldChange,
+    rowModelType = 'clientSide',
     ...marketsGridProps
   } = props;
+  /** When true, drive the grid via the hub-backed Server-Side Row Model
+   *  (block pulls) instead of streaming the full cache into rowData. */
+  const serverSide = rowModelType === 'serverSide';
 
   const containerEventBus = useMemo(() => createMarketsGridContainerEventBus(), []);
   const [gridHandle, setGridHandle] = useState<MarketsGridHandle | null>(null);
@@ -474,6 +479,22 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // closing over a stale handle.
   const gridHandleRef = useRef<MarketsGridHandle | null>(null);
 
+  // SSRM data provider — inert (providerId null) unless serverSide. Declared
+  // before onReady so the ready handler can bind the grid api to it.
+  const numericValueCols = useMemo(
+    () =>
+      (columnDefs ?? [])
+        .filter((c) => (c as { cellDataType?: string }).cellDataType === 'number' && (c as { field?: string }).field)
+        .map((c) => ({ id: (c as { field: string }).field, field: (c as { field: string }).field, aggFunc: 'sum' })),
+    [columnDefs],
+  );
+  const ssrm = useServerSideDataProvider<TData>({
+    providerId: serverSide && Boolean(activeId && !activeRow.loading && rowIdField && columnDefs) ? activeId : null,
+    cfg: activeCfg,
+    keyColumn: rowIdField ?? 'id',
+    numericValueCols,
+  });
+
   const onReady = useCallback((handle: MarketsGridHandle) => {
     const k = expectedKeyRef.current;
     if (k) {
@@ -481,8 +502,15 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     }
     gridHandleRef.current = handle;
     setGridHandle(handle);
+    if (serverSide) {
+      const api = handle.gridApi as unknown as GridApi<TData>;
+      ssrm.bindApi(api);
+      const syncGroups = () => ssrm.setGroupCols(api.getRowGroupColumns().map((c) => c.getColId()));
+      syncGroups();
+      api.addEventListener('columnRowGroupChanged', syncGroups);
+    }
     onReadyProp?.(handle);
-  }, [onReadyProp]);
+  }, [onReadyProp, serverSide, ssrm]);
 
   useMarketsGridEventBridge({
     handle: gridHandle,
@@ -504,11 +532,13 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // `useDataProviderConfig` / `useResolvedCfg` for column defs and
   // the picker only, not as an attach cfg pass-through.
   const providerReady = Boolean(activeId && !activeRow.loading && rowIdField && columnDefs);
+  // CSRM subscription — gated off in serverSide mode so the SSRM hook owns the
+  // hub subscription instead (same provider, different mode).
   const {
     provider,
     refresh: refreshProvider,
     restart: restartProvider,
-  } = useDataProvider<TData>(providerReady ? activeId : null, { autoStart: false });
+  } = useDataProvider<TData>(providerReady && !serverSide ? activeId : null, { autoStart: false });
 
   // Loading-overlay state — derived synchronously from a "subscription
   // key" so the overlay appears on the SAME render that mounts the
@@ -908,10 +938,19 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         <div style={{ position: 'relative', height: '100%', minHeight: 0 }}>
           <MarketsGrid<TData>
             {...(marketsGridProps as MarketsGridProps<TData>)}
-            key={`${activeId}::${rowIdFieldKey}`}
+            key={`${activeId}::${rowIdFieldKey}::${rowModelType}`}
             rowData={EMPTY as TData[]}
             rowIdField={rowIdField}
             columnDefs={columnDefs}
+            {...(serverSide
+              ? {
+                  rowModelType: 'serverSide' as const,
+                  serverSideDatasource: ssrm.datasource ?? undefined,
+                  getRowId: ssrm.getRowId,
+                  cacheBlockSize: 100,
+                  maxBlocksInCache: 4,
+                }
+              : {})}
             appData={appDataLookup}
             onReady={onReady}
             providerGridHost={providerGridHost}
