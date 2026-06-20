@@ -351,18 +351,6 @@ export function startStomp(
         clearTimer: opts.clearTimer,
       });
 
-  // DIAGNOSTIC (fix/sharedworker-fanout-blotter-limit): measure the RAW
-  // incoming firehose (pre-conflation) so we can see whether STOMP decode is
-  // what saturates the hub thread. Logged 1 Hz from inside the SharedWorker.
-  let dbgFrames = 0;
-  let dbgRowsIn = 0;
-  let dbgBytes = 0;
-  setInterval(() => {
-    // eslint-disable-next-line no-console
-    console.log(`[stomp-diag] frames/s=${dbgFrames} rowsIn/s=${dbgRowsIn} KB/s=${Math.round(dbgBytes / 1024)}`);
-    dbgFrames = 0; dbgRowsIn = 0; dbgBytes = 0;
-  }, 1000);
-
   const state = {
     client: null as StompClient | null,
     sub: null as { unsubscribe(): void } | null,
@@ -536,7 +524,6 @@ export function startStomp(
 
     // Live phase: route through the conflation/throttle dispatch (or
     // straight to emit on the probe passthrough path).
-    dbgFrames += 1; dbgRowsIn += rows.length; dbgBytes += byteSize;
     if (liveDispatch) liveDispatch.push(rows);
     else emit({ rows });
     emit({ byteSize });

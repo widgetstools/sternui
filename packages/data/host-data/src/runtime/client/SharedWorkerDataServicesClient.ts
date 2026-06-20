@@ -63,26 +63,6 @@ const DEBUG = false;
 /** Shared decoder for pre-serialized snapshot replay chunks (`delta-bin`). */
 const SNAPSHOT_DECODER = new TextDecoder();
 
-// DIAGNOSTIC (fix/sharedworker-fanout-blotter-limit): per-WINDOW client decode
-// cost. Logged 1 Hz to the window console — this is the main-thread work each
-// blotter pays to turn wire bytes into rows, before AG Grid even sees them.
-const clientDiag = { decodeMs: 0, rows: 0, msgs: 0, last: 0 };
-function noteClientDecode(ms: number, rows: number): void {
-  clientDiag.decodeMs += ms;
-  clientDiag.rows += rows;
-  clientDiag.msgs += 1;
-  const now = Date.now();
-  if (clientDiag.last === 0) { clientDiag.last = now; return; }
-  if (now - clientDiag.last >= 1000) {
-    // eslint-disable-next-line no-console
-    console.log(
-      `[client-diag] decodeMs/s=${clientDiag.decodeMs.toFixed(1)} ` +
-      `rowsDecoded/s=${clientDiag.rows} msgs/s=${clientDiag.msgs}`,
-    );
-    clientDiag.decodeMs = 0; clientDiag.rows = 0; clientDiag.msgs = 0; clientDiag.last = now;
-  }
-}
-
 export type SubId = string;
 
 export interface DataListener<T = unknown> {
@@ -998,7 +978,6 @@ export class SharedWorkerDataServicesClient {
     switch (event.kind) {
       case 'delta':
         if (sub.kind === 'data') {
-          noteClientDecode(0, event.rows.length);
           this.trackThinRows(event.subId, event.rows, Boolean(event.replace));
           sub.listener.onDelta(event.rows, Boolean(event.replace));
         }
@@ -1010,11 +989,9 @@ export class SharedWorkerDataServicesClient {
         // client, exactly like a structured-clone `delta.rows`.
         if (sub.kind === 'data') {
           try {
-            const t0 = performance.now();
             const rows = event.enc === 'col'
               ? decodeColumnar(event.buf)
               : JSON.parse(SNAPSHOT_DECODER.decode(event.buf)) as unknown[];
-            noteClientDecode(performance.now() - t0, rows.length);
             this.trackThinRows(event.subId, rows, Boolean(event.replace));
             sub.listener.onDelta(rows, Boolean(event.replace));
           } catch (err) {
@@ -1035,9 +1012,7 @@ export class SharedWorkerDataServicesClient {
         return;
       case 'delta-patch':
         if (sub.kind === 'data') {
-          const t0 = performance.now();
           const rows = this.mergeThinPatches(event);
-          noteClientDecode(performance.now() - t0, rows.length);
           if (rows.length > 0) sub.listener.onDelta(rows, false);
         }
         return;

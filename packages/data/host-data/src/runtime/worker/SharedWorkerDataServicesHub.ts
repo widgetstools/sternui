@@ -151,14 +151,6 @@ export class SharedWorkerDataServicesHub {
   private subscriberSweepTimer: unknown = null;
   private ssrmAggTimer: ReturnType<typeof setInterval> | null = null;
 
-  // ─── DIAGNOSTIC (fix/sharedworker-fanout-blotter-limit) ──────────────────
-  // 1 Hz heartbeat: event-loop lag is the decisive signal — if it spikes when
-  // the 4th blotter opens, the hub thread is CPU-saturated (firehose decode /
-  // fan-out); if it stays low while the 4th stalls, delivery is the problem.
-  private dbgBroadcasts = 0;
-  private dbgRowsOut = 0;
-  private dbgBeatTimer: ReturnType<typeof setTimeout> | null = null;
-
   constructor(opts: SharedWorkerDataServicesHubOpts = {}) {
     this.statsIntervalMs = opts.statsIntervalMs ?? 1000;
     this.setTimer = opts.setTimer ?? ((cb, ms) => setInterval(cb, ms));
@@ -192,32 +184,6 @@ export class SharedWorkerDataServicesHub {
         catch { /* port dead; cleanup happens via onPortClosed */ }
       }
     });
-
-    this.startDiagnostics();
-  }
-
-  /** DIAGNOSTIC: 1 Hz heartbeat measuring event-loop lag + fan-out throughput. */
-  private startDiagnostics(): void {
-    const PERIOD = 1000;
-    let expected = Date.now() + PERIOD;
-    const beat = () => {
-      const now = Date.now();
-      const lag = now - expected; // ms the loop was busy past the scheduled tick
-      let subs = 0;
-      let providers = 0;
-      for (const [, m] of this.dataListeners) { providers += 1; subs += m.size; }
-      // eslint-disable-next-line no-console
-      console.log(
-        `[hub-diag] subs=${subs} providers=${providers} ` +
-        `bcast/s=${this.dbgBroadcasts} rowsOut/s=${this.dbgRowsOut} ` +
-        `loopLagMs=${lag}`,
-      );
-      this.dbgBroadcasts = 0;
-      this.dbgRowsOut = 0;
-      expected = now + PERIOD;
-      this.dbgBeatTimer = setTimeout(beat, PERIOD);
-    };
-    this.dbgBeatTimer = setTimeout(beat, PERIOD);
   }
 
   // ─── Public surface ────────────────────────────────────────────
@@ -1729,17 +1695,7 @@ export class SharedWorkerDataServicesHub {
       return;
     }
 
-    // DIAGNOSTIC: time the late-join replay — if a new (e.g. 4th) blotter
-    // stalls here, this shows whether the replay starts and how long it takes.
-    {
-      const subs = this.dataListeners.get(providerId)?.size ?? 0;
-      const t0 = Date.now();
-      // eslint-disable-next-line no-console
-      console.log(`[hub-diag] ATTACH replay START subId=${subId} subs=${subs} cacheRows=${slot.cache.size}`);
-      this.replayCacheToPort(subId, port, slot, 'attach');
-      // eslint-disable-next-line no-console
-      console.log(`[hub-diag] ATTACH replay DONE subId=${subId} took=${Date.now() - t0}ms`);
-    }
+    this.replayCacheToPort(subId, port, slot, 'attach');
     return;
   }
 
@@ -1892,16 +1848,6 @@ export class SharedWorkerDataServicesHub {
   private broadcastData(providerId: string, slot: ProviderSlot, eventTemplate: Event): void {
     const listeners = this.dataListeners.get(providerId);
     if (!listeners) return;
-    // DIAGNOSTIC: count fan-out work (rows × listeners is the per-tick cost).
-    if (
-      eventTemplate.kind === 'delta'
-      || eventTemplate.kind === 'delta-bin'
-      || eventTemplate.kind === 'delta-patch'
-    ) {
-      this.dbgBroadcasts += 1;
-      const rows = (eventTemplate as { rows?: readonly unknown[] }).rows?.length ?? 0;
-      this.dbgRowsOut += rows * listeners.size;
-    }
     const countPublish =
       slot.snapshotReady
       && (
