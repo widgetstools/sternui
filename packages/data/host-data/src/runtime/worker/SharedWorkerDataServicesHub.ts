@@ -1038,6 +1038,7 @@ export class SharedWorkerDataServicesHub {
       reqId: req.reqId,
       rows: level.result.slice(req.startRow, req.endRow),
       rowCount: level.result.length,
+      cacheRowCount: slot.cache.size,
       grandTotal: listener.grandTotal,
     } satisfies Event);
   }
@@ -1080,6 +1081,7 @@ export class SharedWorkerDataServicesHub {
         l.aggDirty = false;
         l.port.postMessage({
           subId: l.subId, kind: 'ssrm-rows', reqId: '__refresh__', rows: [], rowCount: 0,
+          cacheRowCount: slot.cache.size,
         } satisfies Event);
       }
       return;

@@ -39,21 +39,27 @@ interface ColumnDefinition {
   cellDataType?: string;
 }
 
-/** Always-visible row-count status panel (the built-in count panels are CSRM-only). */
-function RowCountStatusPanel(props: { api: GridApi }): ReactNode {
-  const [count, setCount] = useState(0);
+/**
+ * Always-visible row-count status panel (the built-in count panels are
+ * CSRM-only). Shows the total rows in the hub cache (from `cacheCountRef`, fed
+ * by the datasource) and the currently shown/filtered count.
+ */
+function RowCountStatusPanel(props: { api: GridApi; cacheCountRef?: { current: number } }): ReactNode {
+  const [, force] = useState(0);
   useEffect(() => {
-    const update = () => setCount(props.api.getDisplayedRowCount());
-    update();
+    const update = () => force((n) => n + 1);
     props.api.addEventListener('modelUpdated', update);
     return () => {
       try { props.api.removeEventListener('modelUpdated', update); } catch { /* grid gone */ }
     };
   }, [props.api]);
+  const cacheTotal = props.cacheCountRef?.current ?? 0;
+  const shown = props.api.getDisplayedRowCount();
   return (
     <div className="ag-status-name-value" style={{ padding: '0 12px' }}>
-      <span>Rows:&nbsp;</span>
-      <span className="ag-status-name-value-value">{count.toLocaleString()}</span>
+      <span>Cache rows:&nbsp;</span>
+      <span className="ag-status-name-value-value">{cacheTotal.toLocaleString()}</span>
+      <span style={{ opacity: 0.6 }}>&nbsp;·&nbsp;shown {shown.toLocaleString()}</span>
     </div>
   );
 }
@@ -85,6 +91,8 @@ function SsrmBlotter(): ReactNode {
   const probeRef = useRef(makeGridProbe());
   /** Active row-group column ids, so getRowId can key group rows by their level. */
   const groupColsRef = useRef<string[]>([]);
+  /** Total provider cache rows (from the hub) for the status bar. */
+  const cacheCountRef = useRef(0);
   const [datasource, setDatasource] = useState<IServerSideDatasource | null>(null);
 
   // columnDefinitions / keyColumn live on the provider-type-specific configs
@@ -204,7 +212,8 @@ function SsrmBlotter(): ReactNode {
             valueCols: r.valueCols?.length ? r.valueCols : numericValueColsRef.current,
             groupKeys: r.groupKeys,
           })
-          .then(({ rows, rowCount, grandTotal }) => {
+          .then(({ rows, rowCount, cacheRowCount, grandTotal }) => {
+            cacheCountRef.current = cacheRowCount;
             // Grand total row: hub-computed aggregation of the filtered set,
             // pinned at the bottom. Only the top-level pull carries it.
             if ((r.groupKeys?.length ?? 0) === 0) {
@@ -244,7 +253,7 @@ function SsrmBlotter(): ReactNode {
   const statusBar = useMemo(
     () => ({
       statusPanels: [
-        { statusPanel: 'rowCountStatus', align: 'left' },
+        { statusPanel: 'rowCountStatus', statusPanelParams: { cacheCountRef }, align: 'left' },
         { statusPanel: 'agAggregationComponent', align: 'right' },
       ],
     }),

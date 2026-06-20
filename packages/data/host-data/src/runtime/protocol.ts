@@ -496,7 +496,10 @@ export interface SsrmRowsEvent {
   kind: 'ssrm-rows';
   reqId: string;
   rows: readonly unknown[];
+  /** Rows in THIS level's result (the filtered/grouped count). */
   rowCount: number;
+  /** Total rows in the provider cache (unfiltered) — for the status bar. */
+  cacheRowCount: number;
   grandTotal?: Record<string, unknown> | null;
 }
 
