@@ -305,6 +305,41 @@ describe('SharedWorkerDataServicesHub — SSRM (server-side row model)', () => {
       .find((t) => t.grandTotal);
     expect(totalTx?.grandTotal).toEqual({ v: 110 });
   });
+
+  it('grouped live: expanded leaf ticks push with route; throttle re-aggregates the group level', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'ssrm', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({
+      rows: [
+        { id: 'a', desk: 'EQ', qty: 10 }, { id: 'c', desk: 'EQ', qty: 20 }, { id: 'b', desk: 'FI', qty: 30 },
+      ],
+      replace: true,
+    });
+    ctrl.emit({ status: 'ready' });
+    const group = { rowGroupCols: [{ id: 'desk' }], valueCols: [{ id: 'qty', aggFunc: 'sum' }] } as const;
+    // Load the top group level, then expand EQ (leaf level).
+    hub.handleRequest(port, { kind: 'ssrm-get-rows', subId: 's1', providerId: 'p1', reqId: 'g0', startRow: 0, endRow: 100, ...group, groupKeys: [] });
+    hub.handleRequest(port, { kind: 'ssrm-get-rows', subId: 's1', providerId: 'p1', reqId: 'g1', startRow: 0, endRow: 100, ...group, groupKeys: ['EQ'] });
+    port.messages.length = 0;
+
+    // Tick a leaf in EQ → immediate in-place leaf update routed to ['EQ'].
+    ctrl.emit({ rows: [{ id: 'a', desk: 'EQ', qty: 111 }] });
+    const leafTx = port.messages.filter((m) => m.kind === 'ssrm-tx') as Array<Event & { kind: 'ssrm-tx' }>;
+    expect(leafTx).toHaveLength(1);
+    expect(leafTx[0]!.route).toEqual(['EQ']);
+    expect(leafTx[0]!.replaceLevel).toBeFalsy();
+    expect(leafTx[0]!.rows).toEqual([{ id: 'a', desk: 'EQ', qty: 111 }]);
+
+    // Throttled flush re-aggregates the top group level: EQ sum 111+20 = 131.
+    port.messages.length = 0;
+    (hub as unknown as { flushSsrmAggregates(): void }).flushSsrmAggregates();
+    const repl = (port.messages.filter((m) => m.kind === 'ssrm-tx') as Array<Event & { kind: 'ssrm-tx' }>)
+      .find((t) => t.replaceLevel);
+    expect(repl?.route).toEqual([]);
+    expect(repl?.rows).toContainEqual({ desk: 'EQ', qty: 131 });
+  });
 });
 
 describe('SharedWorkerDataServicesHub — attach lifecycle', () => {

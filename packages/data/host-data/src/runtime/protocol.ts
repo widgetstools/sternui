@@ -511,6 +511,16 @@ export interface SsrmTxEvent {
   subId: string;
   kind: 'ssrm-tx';
   rows: readonly unknown[];
+  /** AG-Grid transaction route — the group path these rows live under ([] =
+   *  top/flat). Lets grouped leaf-cell and subtotal updates target the group. */
+  route?: string[];
+  /**
+   * When true these `rows` REPLACE the level at `route` (re-aggregated group
+   * rows → applyServerSideRowData), with `rowCount` the level size. When false/
+   * absent they're an in-place cell update (leaf rows → transaction).
+   */
+  replaceLevel?: boolean;
+  rowCount?: number;
   /** Live-recomputed grand total (throttled), when value columns are present. */
   grandTotal?: Record<string, unknown> | null;
 }

@@ -186,31 +186,48 @@ export interface AppDataListenerEntry {
 }
 
 /**
+ * One loaded group level for an SSRM subscriber — the rows at a particular
+ * `groupKeys` path (top-level groups, an expanded group's children, or the flat
+ * leaf list when not grouping). Tracked per path so live updates can target the
+ * right group via the AG-Grid transaction `route`.
+ */
+export interface SsrmLevel {
+  /** The parent group path this level shows the children of ([] = top/flat). */
+  groupKeys: string[];
+  /** True when this level's rows are GROUP rows (aggregates) vs leaf rows. */
+  grouped: boolean;
+  /** Ordered result rows at this level. */
+  result: readonly Record<string, unknown>[];
+  /** Leaf key→position index for in-range live pushes (leaf levels only). */
+  view: import('./RowOrderIndex.js').RowOrderIndex | null;
+  loadedStart: number;
+  loadedEnd: number;
+  /** Group level needs re-aggregation on the next throttled flush. */
+  aggDirty: boolean;
+}
+
+/**
  * Server-Side Row Model subscriber. Unlike {@link DataListener} it gets no
- * cache replay or delta fan-out; it pulls blocks via `ssrm-get-rows` and
- * receives `ssrm-tx` pushes only for rows whose current position is inside
- * `[loadedStart, loadedEnd)` — the union span of blocks it has requested.
+ * cache replay or delta fan-out; it pulls blocks via `ssrm-get-rows`. Each
+ * loaded group level is tracked separately ({@link SsrmLevel}); live ticks push
+ * leaf-cell updates immediately (per level, with a `route`) and the throttled
+ * aggregator re-totals the grand total + re-aggregates loaded group levels.
  */
 export interface SsrmListener {
   subId: string;
   port: PortLike;
   providerId: string;
-  loadedStart: number;
-  loadedEnd: number;
-  /** Signature of the last query (sort/filter/group) — recompute only when it changes. */
-  queryKey: string;
-  /** Parsed last query — kept so the throttled aggregator can re-total live. */
-  lastQuery: import('./serverSideQuery.js').QueryRequest | null;
-  /** Ordered result rows for the current query (leaf rows OR group rows). */
-  result: readonly Record<string, unknown>[];
-  /** Grand-total aggregation of the filtered set for the current query (value
-   *  columns only), or null when there are no value columns. */
+  /** Signature of the base query (sort/filter/group COLUMNS, not groupKeys) —
+   *  a change purges every loaded level. */
+  baseKey: string;
+  /** Base query shared by all levels (sort/filter/rowGroupCols/valueCols). */
+  base: import('./serverSideQuery.js').QueryRequest | null;
+  /** Loaded levels keyed by `groupKeys.join(SEP)`. */
+  levels: Map<string, SsrmLevel>;
+  /** Grand-total aggregation of the filtered set (value columns only). */
   grandTotal: Record<string, unknown> | null;
-  /** Set by a live tick; the throttled aggregator re-totals + pushes, then clears. */
+  /** Grand total needs recompute on the next throttled flush. */
   aggDirty: boolean;
-  /** Leaf key→position index for in-range live pushes; null for grouped levels
-   *  (no live leaf push) or before the first block is pulled. */
-  view: import('./RowOrderIndex.js').RowOrderIndex | null;
 }
 
 /** Fan-out scratch shape — `subId` is rewritten per listener. */

@@ -94,6 +94,7 @@ import {
   type DataListener,
   type StatsListener,
   type SsrmListener,
+  type SsrmLevel,
   type AppDataListenerEntry,
   type AppDataDeltaEventMutable,
   type SharedWorkerDataServicesHubOpts,
@@ -901,8 +902,10 @@ export class SharedWorkerDataServicesHub {
 
   // ─── Server-Side Row Model (SSRM) ────────────────────────────────
 
-  /** Register an SSRM subscriber: no replay/fan-out — it pulls blocks and
-   *  receives only in-range `ssrm-tx` pushes. */
+  private static readonly SSRM_SEP = '';
+
+  /** Register an SSRM subscriber: no replay/fan-out — it pulls blocks per group
+   *  level and receives in-range `ssrm-tx` pushes. */
   private attachSsrmListener(
     providerId: string,
     subId: string,
@@ -910,22 +913,19 @@ export class SharedWorkerDataServicesHub {
     slot: ProviderSlot,
   ): void {
     const set = this.ssrmListeners.get(providerId) ?? new Map<string, SsrmListener>();
-    // Empty loaded range (start > end) until the grid pulls its first block.
     set.set(subId, {
       subId, port, providerId,
-      loadedStart: Number.MAX_SAFE_INTEGER, loadedEnd: 0,
-      queryKey: '', lastQuery: null, result: [], grandTotal: null, aggDirty: false, view: null,
+      baseKey: '', base: null, levels: new Map(), grandTotal: null, aggDirty: false,
     });
     this.ssrmListeners.set(providerId, set);
     this.ensureSsrmAggTimer();
-    // Surface current status so the grid clears any loading overlay.
     port.postMessage({
       subId, kind: 'status', status: slot.status, error: slot.lastError,
     } satisfies Event);
   }
 
-  /** Throttled live re-aggregation: ~5 Hz, re-totals only subscribers whose
-   *  rows changed since the last tick and pushes the grand total if it moved. */
+  /** Throttled (~5 Hz) live re-aggregation: re-totals the grand total and
+   *  re-aggregates any loaded GROUP level whose rows changed, then pushes. */
   private ensureSsrmAggTimer(): void {
     if (this.ssrmAggTimer !== null) return;
     this.ssrmAggTimer = setInterval(() => this.flushSsrmAggregates(), 200);
@@ -937,92 +937,107 @@ export class SharedWorkerDataServicesHub {
       const slot = this.providers.get(providerId);
       for (const l of subs.values()) {
         anySubs = true;
-        if (!l.aggDirty || !l.lastQuery?.valueCols?.length || !slot) continue;
-        l.aggDirty = false;
-        const filtered = ([...slot.cache.values()] as Row[]).filter(
-          compileFilter(l.lastQuery.filterModel),
-        );
-        const gt = aggregateAll(filtered, l.lastQuery.valueCols);
-        if (JSON.stringify(gt) === JSON.stringify(l.grandTotal)) continue;
-        l.grandTotal = gt;
-        l.port.postMessage({ subId: l.subId, kind: 'ssrm-tx', rows: [], grandTotal: gt } satisfies Event);
+        if (!slot || !l.base) continue;
+
+        // Grand total — value aggregation over the filtered set.
+        if (l.aggDirty && l.base.valueCols?.length) {
+          l.aggDirty = false;
+          const filtered = ([...slot.cache.values()] as Row[]).filter(compileFilter(l.base.filterModel));
+          const gt = aggregateAll(filtered, l.base.valueCols);
+          if (JSON.stringify(gt) !== JSON.stringify(l.grandTotal)) {
+            l.grandTotal = gt;
+            l.port.postMessage({ subId: l.subId, kind: 'ssrm-tx', rows: [], grandTotal: gt } satisfies Event);
+          }
+        }
+
+        // Group subtotals — re-run the query for each dirty group level and
+        // REPLACE the loaded block (group row ids are stable → cells update).
+        for (const level of l.levels.values()) {
+          if (!level.grouped || !level.aggDirty) continue;
+          level.aggDirty = false;
+          level.result = runQuery(slot.cache.values() as Iterable<Row>, { ...l.base, groupKeys: level.groupKeys });
+          const lo = Math.max(0, level.loadedStart);
+          const hi = Math.min(level.result.length, level.loadedEnd);
+          if (hi <= lo) continue;
+          l.port.postMessage({
+            subId: l.subId, kind: 'ssrm-tx', route: level.groupKeys,
+            replaceLevel: true, rowCount: level.result.length,
+            rows: level.result.slice(lo, hi),
+          } satisfies Event);
+        }
       }
     }
     if (!anySubs && this.ssrmAggTimer !== null) {
-      clearInterval(this.ssrmAggTimer as ReturnType<typeof setInterval>);
+      clearInterval(this.ssrmAggTimer);
       this.ssrmAggTimer = null;
     }
   }
 
-  private static queryKeyOf(req: SsrmGetRowsRequest): string {
+  /** Base query signature (sort/filter/group COLUMNS, excluding groupKeys). */
+  private static baseKeyOf(req: SsrmGetRowsRequest): string {
     return JSON.stringify({
       s: req.sortModel ?? null,
       f: req.filterModel ?? null,
       g: req.rowGroupCols ?? null,
       v: req.valueCols ?? null,
-      k: req.groupKeys ?? null,
     });
   }
 
+  private buildSsrmLevel(slot: ProviderSlot, base: QueryRequest, groupKeys: string[]): SsrmLevel {
+    const result = runQuery(slot.cache.values() as Iterable<Row>, { ...base, groupKeys });
+    const grouped = (base.rowGroupCols?.length ?? 0) > groupKeys.length;
+    let view: RowOrderIndex | null = null;
+    if (!grouped) {
+      const keyColumn = (slot.cfg as { keyColumn?: string | readonly string[] }).keyColumn;
+      view = new RowOrderIndex();
+      view.reset(
+        (result as Row[]).map((r) => keyOf(r, keyColumn)).filter((k): k is string => k !== null),
+      );
+    }
+    return { groupKeys, grouped, result, view, loadedStart: Number.MAX_SAFE_INTEGER, loadedEnd: 0, aggDirty: false };
+  }
+
   /**
-   * Answer a block pull. Runs the hub query (filter → group/aggregate → sort)
-   * for the request's sort/filter/group model, caches the ordered result per
-   * subscriber (recomputed only when that model changes), slices
-   * `[startRow, endRow)`, and rebuilds the leaf in-range index for live pushes.
+   * Answer a block pull for one group level. A change to the base query
+   * (sort/filter/group columns) purges every loaded level + the grand total;
+   * otherwise just the requested level is (lazily) built and its block sliced.
    */
   private handleSsrmGetRows(req: SsrmGetRowsRequest): void {
     const slot = this.providers.get(req.providerId);
     const listener = this.ssrmListeners.get(req.providerId)?.get(req.subId);
     if (!slot || !listener) return;
 
-    const key = SharedWorkerDataServicesHub.queryKeyOf(req);
-    if (listener.queryKey !== key) {
-      const queryReq: QueryRequest = {
+    const baseKey = SharedWorkerDataServicesHub.baseKeyOf(req);
+    if (listener.baseKey !== baseKey) {
+      listener.baseKey = baseKey;
+      listener.base = {
         filterModel: req.filterModel as QueryRequest['filterModel'],
         sortModel: req.sortModel,
         rowGroupCols: req.rowGroupCols,
         valueCols: req.valueCols,
-        groupKeys: req.groupKeys,
       };
-      const allRows = [...slot.cache.values()] as Row[];
-      listener.result = runQuery(allRows, queryReq);
-      listener.lastQuery = queryReq;
-      // Grand total = value-column aggregation over the whole FILTERED set
-      // (independent of grouping/pagination). Recomputed on query change; the
-      // throttled aggregator keeps it live thereafter.
+      listener.levels.clear();
       listener.grandTotal = req.valueCols?.length
-        ? aggregateAll(allRows.filter(compileFilter(queryReq.filterModel)), req.valueCols)
+        ? aggregateAll(([...slot.cache.values()] as Row[]).filter(compileFilter(listener.base.filterModel)), req.valueCols)
         : null;
-      listener.queryKey = key;
-      // A new sort/filter/group resets what the grid holds (it purges + re-pulls).
-      listener.loadedStart = Number.MAX_SAFE_INTEGER;
-      listener.loadedEnd = 0;
-
-      const grouped = (req.rowGroupCols?.length ?? 0) > (req.groupKeys?.length ?? 0);
-      if (grouped) {
-        // Group rows have no leaf key — no live leaf push (refresh on re-expand).
-        listener.view = null;
-      } else {
-        const keyColumn = (slot.cfg as { keyColumn?: string | readonly string[] }).keyColumn;
-        const idx = new RowOrderIndex();
-        idx.reset(
-          (listener.result as Row[])
-            .map((r) => keyOf(r, keyColumn))
-            .filter((k): k is string => k !== null),
-        );
-        listener.view = idx;
-      }
     }
 
-    const block = listener.result.slice(req.startRow, req.endRow);
-    listener.loadedStart = Math.min(listener.loadedStart, req.startRow);
-    listener.loadedEnd = Math.max(listener.loadedEnd, req.endRow);
+    const groupKeys = req.groupKeys ?? [];
+    const levelKey = groupKeys.join(SharedWorkerDataServicesHub.SSRM_SEP);
+    let level = listener.levels.get(levelKey);
+    if (!level) {
+      level = this.buildSsrmLevel(slot, listener.base!, groupKeys);
+      listener.levels.set(levelKey, level);
+    }
+
+    level.loadedStart = Math.min(level.loadedStart, req.startRow);
+    level.loadedEnd = Math.max(level.loadedEnd, req.endRow);
     listener.port.postMessage({
       subId: req.subId,
       kind: 'ssrm-rows',
       reqId: req.reqId,
-      rows: block,
-      rowCount: listener.result.length,
+      rows: level.result.slice(req.startRow, req.endRow),
+      rowCount: level.result.length,
       grandTotal: listener.grandTotal,
     } satisfies Event);
   }
@@ -1039,32 +1054,30 @@ export class SharedWorkerDataServicesHub {
   }
 
   /**
-   * Push live updates to SSRM subscribers — only the changed rows whose CURRENT
-   * position (in that subscriber's sorted/filtered view) is inside its loaded
-   * range. Values update in place; sort position / filter membership reconcile
-   * on the next pull. Grouped subscribers skip live leaf pushes (aggregates
-   * refresh on re-expand). No SSRM subscriber → single early return.
+   * Push live updates to SSRM subscribers. For each loaded LEAF level, the
+   * changed rows inside its loaded range go out immediately as an in-place
+   * transaction (with the group `route`). GROUP levels are marked dirty for the
+   * throttled re-aggregation. Sort position / filter membership reconcile on the
+   * next pull.
    */
   private updateSsrm(
     providerId: string,
-    _slot: ProviderSlot,
+    slot: ProviderSlot,
     changedRows: readonly unknown[],
     replace: boolean,
   ): void {
     const subs = this.ssrmListeners.get(providerId);
     if (!subs || subs.size === 0) return;
-    const keyColumn = (_slot.cfg as { keyColumn?: string | readonly string[] }).keyColumn;
+    const keyColumn = (slot.cfg as { keyColumn?: string | readonly string[] }).keyColumn;
 
     if (replace) {
-      // Row set wholesale-changed (restart/snapshot): purge cached views + tell
-      // each grid to re-pull.
+      // Row set wholesale-changed (restart/snapshot): purge everything + re-pull.
       for (const l of subs.values()) {
-        l.queryKey = '';
-        l.result = [];
+        l.baseKey = '';
+        l.base = null;
+        l.levels.clear();
         l.grandTotal = null;
-        l.view = null;
-        l.loadedStart = Number.MAX_SAFE_INTEGER;
-        l.loadedEnd = 0;
+        l.aggDirty = false;
         l.port.postMessage({
           subId: l.subId, kind: 'ssrm-rows', reqId: '__refresh__', rows: [], rowCount: 0,
         } satisfies Event);
@@ -1078,17 +1091,19 @@ export class SharedWorkerDataServicesHub {
       if (k !== null) changedByKey.set(k, row);
     }
     for (const l of subs.values()) {
-      // Rows changed → the grand total is stale; the throttled aggregator
-      // re-totals on its next tick.
-      if (l.lastQuery?.valueCols?.length) l.aggDirty = true;
-      if (!l.view) continue; // grouped, or no block pulled yet
-      const hits = l.view.changesInRange(changedByKey.keys(), l.loadedStart, l.loadedEnd);
-      if (hits.length === 0) continue;
-      l.port.postMessage({
-        subId: l.subId,
-        kind: 'ssrm-tx',
-        rows: hits.map((h) => changedByKey.get(h.key)),
-      } satisfies Event);
+      if (l.base?.valueCols?.length) l.aggDirty = true;
+      for (const level of l.levels.values()) {
+        if (level.grouped) { level.aggDirty = true; continue; } // subtotals via throttle
+        if (!level.view) continue;
+        const hits = level.view.changesInRange(changedByKey.keys(), level.loadedStart, level.loadedEnd);
+        if (hits.length === 0) continue;
+        l.port.postMessage({
+          subId: l.subId,
+          kind: 'ssrm-tx',
+          route: level.groupKeys,
+          rows: hits.map((h) => changedByKey.get(h.key)),
+        } satisfies Event);
+      }
     }
   }
 

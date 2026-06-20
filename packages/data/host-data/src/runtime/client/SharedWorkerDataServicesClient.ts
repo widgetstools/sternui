@@ -175,8 +175,14 @@ export interface ServerSideHandle<T = unknown> {
   ): Promise<{ rows: readonly T[]; rowCount: number; grandTotal?: Record<string, unknown> | null }>;
   /** Distinct values of a column, for the Set Filter's value list. */
   getSetFilterValues(field: string): Promise<readonly (string | null)[]>;
-  /** Live updates for rows currently inside a loaded block. */
-  onTransaction(cb: (rows: readonly T[]) => void): void;
+  /**
+   * Live updates for rows in a loaded level. `replaceLevel` rows REPLACE the
+   * level at `route` (re-aggregated group rows → `applyServerSideRowData`);
+   * otherwise they're in-place leaf updates (→ `applyServerSideTransactionAsync`).
+   */
+  onTransaction(
+    cb: (tx: { rows: readonly T[]; route?: string[]; replaceLevel?: boolean; rowCount?: number }) => void,
+  ): void;
   /** Live-recomputed grand total (throttled) — feed the grid's grand total row. */
   onGrandTotal(cb: (grandTotal: Record<string, unknown> | null) => void): void;
   /** The hub replaced the whole row set — the grid should purge + re-pull. */
@@ -189,7 +195,7 @@ interface SsrmSubState {
   providerId: string;
   pending: Map<string, (r: { rows: readonly unknown[]; rowCount: number; grandTotal?: Record<string, unknown> | null }) => void>;
   valuesPending: Map<string, (values: readonly (string | null)[]) => void>;
-  txCb: ((rows: readonly unknown[]) => void) | null;
+  txCb: ((tx: { rows: readonly unknown[]; route?: string[]; replaceLevel?: boolean; rowCount?: number }) => void) | null;
   grandTotalCb: ((grandTotal: Record<string, unknown> | null) => void) | null;
   refreshCb: (() => void) | null;
   statusCb: ((status: ProviderStatus, error?: string) => void) | null;
@@ -618,7 +624,9 @@ export class SharedWorkerDataServicesClient {
           state.valuesPending.set(reqId, resolve);
           this.send({ kind: 'ssrm-values', subId, providerId, reqId, field });
         }),
-      onTransaction: (cb) => { state.txCb = cb as (rows: readonly unknown[]) => void; },
+      onTransaction: (cb) => {
+        state.txCb = cb as (tx: { rows: readonly unknown[]; route?: string[]; replaceLevel?: boolean; rowCount?: number }) => void;
+      },
       onGrandTotal: (cb) => { state.grandTotalCb = cb; },
       onRefresh: (cb) => { state.refreshCb = cb; },
       onStatus: (cb) => { state.statusCb = cb; },
@@ -966,7 +974,14 @@ export class SharedWorkerDataServicesClient {
         }
       } else if (event.kind === 'ssrm-tx') {
         if (event.grandTotal !== undefined) ssrm.grandTotalCb?.(event.grandTotal);
-        if (event.rows.length > 0) ssrm.txCb?.(event.rows);
+        if (event.rows.length > 0) {
+          ssrm.txCb?.({
+            rows: event.rows,
+            route: event.route,
+            replaceLevel: event.replaceLevel,
+            rowCount: event.rowCount,
+          });
+        }
       } else if (event.kind === 'ssrm-values') {
         const resolve = ssrm.valuesPending.get(event.reqId);
         if (resolve) {

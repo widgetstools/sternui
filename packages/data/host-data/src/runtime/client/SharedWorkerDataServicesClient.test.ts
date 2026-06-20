@@ -170,7 +170,7 @@ describe('SharedWorkerDataServicesClient', () => {
     expect(block.rows).toEqual([{ id: 'r0', v: 0 }, { id: 'r1', v: 1 }]);
 
     const tx: Array<readonly { id: string; v: number }[]> = [];
-    h.onTransaction((rows) => tx.push(rows));
+    h.onTransaction(({ rows }) => tx.push(rows));
 
     // r1 is inside the loaded block [0,2) → pushed; r2 is outside → dropped.
     controllers.get('c-1')!.emit({ rows: [{ id: 'r1', v: 11 }, { id: 'r2', v: 22 }] });

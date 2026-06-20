@@ -171,9 +171,20 @@ function SsrmBlotter(): ReactNode {
     if (!resolvedCfg) return;
     const handle = client.subscribeServerSide<Record<string, unknown>>(PROVIDER_ID, resolvedCfg);
     handleRef.current = handle;
-    handle.onTransaction((rows) => {
-      probeRef.current(rows.length);
-      apiRef.current?.applyServerSideTransactionAsync({ update: rows.slice() });
+    handle.onTransaction((tx) => {
+      probeRef.current(tx.rows.length);
+      const api = apiRef.current;
+      if (!api) return;
+      if (tx.replaceLevel) {
+        // Re-aggregated group rows → overwrite the level (subtotals tick).
+        api.applyServerSideRowData({
+          route: tx.route,
+          successParams: { rowData: tx.rows.slice() as Record<string, unknown>[], rowCount: tx.rowCount ?? tx.rows.length },
+        });
+      } else {
+        // In-place leaf cell updates.
+        api.applyServerSideTransactionAsync({ route: tx.route, update: tx.rows.slice() as Record<string, unknown>[] });
+      }
     });
     // Live (throttled) grand total → keep the pinned bottom row current.
     handle.onGrandTotal((grandTotal) => {
