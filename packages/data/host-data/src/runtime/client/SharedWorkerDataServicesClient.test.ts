@@ -155,6 +155,31 @@ describe('SharedWorkerDataServicesClient', () => {
   beforeEach(() => { w = wire(); });
   afterEach(() => w.close());
 
+  it('subscribeServerSide(): pulls a block and receives in-range live updates', async () => {
+    const h = w.client.subscribeServerSide<{ id: string; v: number }>('p1', cfg());
+    await flush(); // let the attach reach the hub so the provider is created
+    controllers.get('c-1')!.emit({
+      rows: [{ id: 'r0', v: 0 }, { id: 'r1', v: 1 }, { id: 'r2', v: 2 }],
+      replace: true,
+    });
+    controllers.get('c-1')!.emit({ status: 'ready' });
+    await flush();
+
+    const block = await h.getRows(0, 2);
+    expect(block.rowCount).toBe(3);
+    expect(block.rows).toEqual([{ id: 'r0', v: 0 }, { id: 'r1', v: 1 }]);
+
+    const tx: Array<readonly { id: string; v: number }[]> = [];
+    h.onTransaction((rows) => tx.push(rows));
+
+    // r1 is inside the loaded block [0,2) → pushed; r2 is outside → dropped.
+    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', v: 11 }, { id: 'r2', v: 22 }] });
+    await flush();
+    expect(tx).toEqual([[{ id: 'r1', v: 11 }]]);
+
+    h.unsubscribe();
+  });
+
   it('attach() routes the first replace + status back to the listener', async () => {
     const { listener, captured } = makeListener();
     w.client.attach('p1', cfg(), listener);

@@ -148,6 +148,32 @@ export interface SubscribeHandle<T = unknown> {
   unsubscribe(): void;
 }
 
+/**
+ * Server-Side Row Model handle. The grid's `IServerSideDatasource` calls
+ * {@link getRows} for each block; the hub pushes {@link onTransaction} updates
+ * only for rows in loaded blocks, and {@link onRefresh} when the row set is
+ * wholesale-replaced (restart). No snapshot replay — the grid pulls.
+ */
+export interface ServerSideHandle<T = unknown> {
+  subId: SubId;
+  /** Pull the half-open block `[startRow, endRow)`; resolves with rows + total count. */
+  getRows(startRow: number, endRow: number): Promise<{ rows: readonly T[]; rowCount: number }>;
+  /** Live updates for rows currently inside a loaded block. */
+  onTransaction(cb: (rows: readonly T[]) => void): void;
+  /** The hub replaced the whole row set — the grid should purge + re-pull. */
+  onRefresh(cb: () => void): void;
+  onStatus(cb: (status: ProviderStatus, error?: string) => void): void;
+  unsubscribe(): void;
+}
+
+interface SsrmSubState {
+  providerId: string;
+  pending: Map<string, (r: { rows: readonly unknown[]; rowCount: number }) => void>;
+  txCb: ((rows: readonly unknown[]) => void) | null;
+  refreshCb: (() => void) | null;
+  statusCb: ((status: ProviderStatus, error?: string) => void) | null;
+}
+
 interface DataSub {
   kind: 'data';
   listener: DataListener;
@@ -193,6 +219,7 @@ export class SharedWorkerDataServicesClient {
   private readonly port: MessagePort;
   private readonly subs = new Map<SubId, Sub>();
   private readonly thinSubs = new Map<SubId, ThinSubState>();
+  private readonly ssrmSubs = new Map<SubId, SsrmSubState>();
   private readonly generateSubId: () => string;
   private closed = false;
 
@@ -522,6 +549,51 @@ export class SharedWorkerDataServicesClient {
     return subId;
   }
 
+  /**
+   * Subscribe in Server-Side Row Model mode: no cache replay or delta
+   * fan-out. The returned handle pulls blocks via {@link ServerSideHandle.getRows}
+   * and receives `onTransaction` pushes only for rows in loaded blocks. Backs
+   * an AG-Grid `IServerSideDatasource` so a blotter holds ~100 rows, not 20k.
+   */
+  subscribeServerSide<T = unknown>(
+    providerId: string,
+    cfg?: ProviderConfig,
+    opts: { extra?: Record<string, unknown>; meta?: SubscriberMeta } = {},
+  ): ServerSideHandle<T> {
+    if (this.closed) throw new Error('[SharedWorkerDataServicesClient] client is closed');
+    const subId = this.generateSubId();
+    const state: SsrmSubState = {
+      providerId,
+      pending: new Map(),
+      txCb: null,
+      refreshCb: null,
+      statusCb: null,
+    };
+    this.ssrmSubs.set(subId, state);
+    this.send({ kind: 'attach', subId, providerId, cfg, mode: 'ssrm', extra: opts.extra });
+    this.startHeartbeat(subId, opts.meta);
+
+    let reqSeq = 0;
+    return {
+      subId,
+      getRows: (startRow, endRow) =>
+        new Promise<{ rows: readonly T[]; rowCount: number }>((resolve) => {
+          const reqId = `${subId}:${reqSeq++}`;
+          state.pending.set(reqId, resolve as (r: { rows: readonly unknown[]; rowCount: number }) => void);
+          this.send({ kind: 'ssrm-get-rows', subId, providerId, reqId, startRow, endRow });
+        }),
+      onTransaction: (cb) => { state.txCb = cb as (rows: readonly unknown[]) => void; },
+      onRefresh: (cb) => { state.refreshCb = cb; },
+      onStatus: (cb) => { state.statusCb = cb; },
+      unsubscribe: () => {
+        if (!this.ssrmSubs.delete(subId)) return;
+        this.stopHeartbeat(subId);
+        if (this.closed) return;
+        this.send({ kind: 'detach', subId });
+      },
+    };
+  }
+
   detach(subId: SubId): void {
     if (!this.subs.delete(subId)) return;
     this.thinSubs.delete(subId);
@@ -845,6 +917,23 @@ export class SharedWorkerDataServicesClient {
     }
     if (!isEvent(ev.data)) return;
     const event: Event = ev.data;
+    // SSRM subscriptions live in their own map (no replay/fan-out path).
+    const ssrm = this.ssrmSubs.get(event.subId);
+    if (ssrm) {
+      if (event.kind === 'ssrm-rows') {
+        if (event.reqId === '__refresh__') { ssrm.refreshCb?.(); return; }
+        const resolve = ssrm.pending.get(event.reqId);
+        if (resolve) {
+          ssrm.pending.delete(event.reqId);
+          resolve({ rows: event.rows, rowCount: event.rowCount });
+        }
+      } else if (event.kind === 'ssrm-tx') {
+        ssrm.txCb?.(event.rows);
+      } else if (event.kind === 'status') {
+        ssrm.statusCb?.(event.status, event.error);
+      }
+      return;
+    }
     const sub = this.subs.get(event.subId);
     if (!sub) return; // listener detached before this event landed; drop.
     switch (event.kind) {
