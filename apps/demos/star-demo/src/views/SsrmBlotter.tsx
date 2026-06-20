@@ -39,6 +39,25 @@ interface ColumnDefinition {
   cellDataType?: string;
 }
 
+/** Always-visible row-count status panel (the built-in count panels are CSRM-only). */
+function RowCountStatusPanel(props: { api: GridApi }): ReactNode {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const update = () => setCount(props.api.getDisplayedRowCount());
+    update();
+    props.api.addEventListener('modelUpdated', update);
+    return () => {
+      try { props.api.removeEventListener('modelUpdated', update); } catch { /* grid gone */ }
+    };
+  }, [props.api]);
+  return (
+    <div className="ag-status-name-value" style={{ padding: '0 12px' }}>
+      <span>Rows:&nbsp;</span>
+      <span className="ag-status-name-value-value">{count.toLocaleString()}</span>
+    </div>
+  );
+}
+
 /** Per-window throughput probe: how many rows/sec this grid actually applies. */
 function makeGridProbe() {
   let rows = 0;
@@ -79,6 +98,7 @@ function SsrmBlotter(): ReactNode {
     return defs.map((d) => {
       const isNumber = d.cellDataType === 'number';
       const isDate = d.cellDataType === 'date' || d.cellDataType === 'dateString';
+      const typeFilter = isNumber ? 'agNumberColumnFilter' : isDate ? 'agDateColumnFilter' : 'agTextColumnFilter';
       return {
         field: d.field,
         headerName: d.headerName,
@@ -87,12 +107,17 @@ function SsrmBlotter(): ReactNode {
         enableRowGroup: !isNumber,
         enableValue: isNumber,
         ...(isNumber ? { aggFunc: 'sum' } : {}),
-        // Hub-resolved filters: number/date use the simple server filters; every
-        // other column uses the Set Filter, whose values come from the hub.
-        filter: isNumber ? 'agNumberColumnFilter' : isDate ? 'agDateColumnFilter' : 'agSetColumnFilter',
-        ...(isNumber || isDate
-          ? {}
-          : {
+        // Multi Filter (matches MarketsGrid): tab 1 = the cellDataType-appropriate
+        // filter (text/number/date), tab 2 = the Set Filter whose values come from
+        // the hub. The hub resolves all of these server-side (compileFilter handles
+        // 'multi'). The floating filter is the type filter's input (not the Set
+        // Filter's read-only box).
+        filter: 'agMultiColumnFilter',
+        filterParams: {
+          filters: [
+            { filter: typeFilter },
+            {
+              filter: 'agSetColumnFilter',
               filterParams: {
                 values: (p: SetFilterValuesFuncParams) => {
                   handleRef.current
@@ -101,7 +126,9 @@ function SsrmBlotter(): ReactNode {
                     .catch(() => p.success([]));
                 },
               },
-            }),
+            },
+          ],
+        },
       } satisfies ColDef;
     });
   }, [cfgFields]);
@@ -174,10 +201,15 @@ function SsrmBlotter(): ReactNode {
     () => ({ toolPanels: ['columns', 'filters'] }),
     [],
   );
-  // Row-count panels are CSRM-only (warning #224); under SSRM keep just the
-  // range-aggregation panel (works on selected cells).
+  // The built-in count panels are CSRM-only (warning #224); use a custom
+  // always-visible row-count panel + the range-aggregation panel (on selection).
   const statusBar = useMemo(
-    () => ({ statusPanels: [{ statusPanel: 'agAggregationComponent', align: 'right' }] }),
+    () => ({
+      statusPanels: [
+        { statusPanel: 'rowCountStatus', align: 'left' },
+        { statusPanel: 'agAggregationComponent', align: 'right' },
+      ],
+    }),
     [],
   );
 
@@ -199,6 +231,8 @@ function SsrmBlotter(): ReactNode {
         rowGroupPanelShow="always"
         sideBar={sideBar}
         statusBar={statusBar}
+        cellSelection
+        components={{ rowCountStatus: RowCountStatusPanel }}
         onGridReady={onGridReady}
         onColumnRowGroupChanged={onColumnRowGroupChanged}
       />
