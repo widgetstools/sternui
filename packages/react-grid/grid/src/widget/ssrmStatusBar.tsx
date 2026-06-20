@@ -6,9 +6,16 @@
  * `agTotalRowCountComponent`) are CLIENT-SIDE only — under SSRM they emit
  * warning #224 and render nothing, so a status bar made only of them appears
  * empty / absent. {@link adaptStatusBarForServerSide} swaps them for a single
- * SSRM-compatible row-count panel ({@link SsrmRowCountStatusPanel}) that reads
- * the grid's displayed row count; the aggregation / selected-count panels are
- * left as-is (they work in any row model).
+ * SSRM-compatible row-count panel ({@link SsrmRowCountStatusPanel}); the
+ * aggregation / selected-count panels are left as-is (they work in any row
+ * model).
+ *
+ * Row total: the panel prefers `context.getSsrmRowCount()` — the hub's total
+ * leaf-row count, which the container wires onto the grid context. That stays
+ * the full row total even when grouped (matching CSRM's count panel), whereas
+ * `getDisplayedRowCount()` would collapse to the visible group/expanded-row
+ * count under grouping. It falls back to the displayed count when no getter is
+ * present (e.g. ungrouped before the first block resolves).
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import type { GridApi } from 'ag-grid-community';
@@ -20,17 +27,25 @@ const CSRM_ONLY_COUNT_PANELS = new Set([
   'agTotalRowCountComponent',
 ]);
 
-/** SSRM-compatible row-count panel — shows the grid's displayed row count. */
-export function SsrmRowCountStatusPanel(props: { api: GridApi }): ReactNode {
+interface SsrmStatusPanelProps {
+  api: GridApi;
+  context?: { getSsrmRowCount?: () => number };
+}
+
+/** SSRM-compatible row-count panel — shows the hub's total leaf-row count. */
+export function SsrmRowCountStatusPanel(props: SsrmStatusPanelProps): ReactNode {
   const [count, setCount] = useState(0);
   useEffect(() => {
-    const update = () => setCount(props.api.getDisplayedRowCount());
+    const update = () => {
+      const fromHub = props.context?.getSsrmRowCount?.();
+      setCount(typeof fromHub === 'number' && fromHub > 0 ? fromHub : props.api.getDisplayedRowCount());
+    };
     update();
     props.api.addEventListener('modelUpdated', update);
     return () => {
       try { props.api.removeEventListener('modelUpdated', update); } catch { /* grid gone */ }
     };
-  }, [props.api]);
+  }, [props.api, props.context]);
   return (
     <div className="ag-status-name-value" style={{ paddingLeft: 12, paddingRight: 12 }}>
       <span>Rows:&nbsp;</span>

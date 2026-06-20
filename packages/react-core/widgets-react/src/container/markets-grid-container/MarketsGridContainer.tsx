@@ -508,6 +508,13 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       const syncGroups = () => ssrm.setGroupCols(api.getRowGroupColumns().map((c) => c.getColId()));
       syncGroups();
       api.addEventListener('columnRowGroupChanged', syncGroups);
+      // Expose the hub's total leaf-row count to the SSRM status-bar panel so it
+      // shows the full row total (stable under grouping, like CSRM's count
+      // panel) rather than the displayed group/expanded-row count.
+      api.setGridOption('context', {
+        ...(api.getGridOption('context') as Record<string, unknown> | undefined),
+        getSsrmRowCount: () => ssrm.cacheRowCountRef.current,
+      });
     }
     onReadyProp?.(handle);
   }, [onReadyProp, serverSide, ssrm]);
