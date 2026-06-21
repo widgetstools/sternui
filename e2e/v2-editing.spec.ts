@@ -47,7 +47,7 @@ async function bootEditingTab(page: Page): Promise<void> {
 test.describe('Editing lab tab (unified)', () => {
   test('shows unified editing toolbar with all segments', async ({ page }) => {
     await bootEditingTab(page);
-    await expect(page.getByTestId('editing-toolbar-toggle')).toBeVisible();
+    await expect(page.getByTestId('toolbar-view-menu-trigger')).toBeVisible();
     await openEditingToolbar(page);
     await expect(page.getByTestId('editing-toolbar-pinned')).toBeVisible();
     await expect(page.getByTestId('smart-edit-toolbar')).toBeVisible();

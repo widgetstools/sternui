@@ -38,6 +38,7 @@ import { LazySettingsSheet, preloadSettingsSheet } from './LazySettingsSheet';
 import { useMarketsGridController } from './useMarketsGridController';
 import { useToolbarDateSettingsBridge } from '../customizer/modules/toolbar-date-settings/useToolbarDateSettingsBridge';
 import { PrimaryToolbar } from './PrimaryToolbar';
+import { ColumnSelectorDialog } from './column-selector';
 import { UnsavedSwitchDialog } from './UnsavedSwitchDialog';
 import { MarketsGridSurface } from './MarketsGridSurface';
 import { buildGridContextMenuItems } from './gridContextMenu';
@@ -68,6 +69,7 @@ export interface MarketsGridHostProps<TData> {
   editingToolbarHostProps: EditingToolbarHostProps;
   showSaveButton: boolean;
   showSettingsButton: boolean;
+  showColumnSelector: boolean;
   showVisualExcelExport: boolean;
   showProfileSelector: boolean;
   modules: AnyModule[];
@@ -123,6 +125,7 @@ function MarketsGridHostInner<TData>({
   editingToolbarHostProps,
   showSaveButton,
   showSettingsButton,
+  showColumnSelector,
   showVisualExcelExport,
   showProfileSelector,
   modules,
@@ -162,7 +165,7 @@ function MarketsGridHostInner<TData>({
 
   const {
     profiles,
-    api: _api,
+    api,
     sheetRef,
     toolbarRef,
     isDirty,
@@ -175,6 +178,9 @@ function MarketsGridHostInner<TData>({
     setPendingSwitch,
     handleOpenSettings,
     openColumnSettings,
+    columnSelectorOpen,
+    setColumnSelectorOpen,
+    handleOpenColumnSelector,
     handleToggleStyleToolbar,
     editingToolbarOpen,
     handleToggleEditingToolbar,
@@ -256,8 +262,6 @@ function MarketsGridHostInner<TData>({
     [settingsOpen, setSettingsOpen, styleToolbarOpen, editingToolbarOpen, saveFlash, isDirty],
   );
 
-  void _api;
-
   return (
     <GridChromeProvider value={chromeState}>
     <TooltipProvider delayDuration={200}>
@@ -306,6 +310,8 @@ function MarketsGridHostInner<TData>({
           showEditingToolbar={editingToolbarAllow.rowVisible}
           editingToolbarOpen={editingToolbarOpen}
           onToggleEditingToolbar={handleToggleEditingToolbar}
+          showColumnSelector={showColumnSelector}
+          onOpenColumnSelector={handleOpenColumnSelector}
           showProfileSelector={showProfileSelector}
           profileList={profiles.profiles}
           activeProfileId={profiles.activeProfileId ?? ''}
@@ -384,6 +390,14 @@ function MarketsGridHostInner<TData>({
         onDiscard={confirmSwitchDiscard}
         onSave={confirmSwitchSave}
       />
+
+      {showColumnSelector && (
+        <ColumnSelectorDialog
+          open={columnSelectorOpen}
+          onOpenChange={setColumnSelectorOpen}
+          api={api}
+        />
+      )}
     </div>
     </TooltipProvider>
     </GridChromeProvider>

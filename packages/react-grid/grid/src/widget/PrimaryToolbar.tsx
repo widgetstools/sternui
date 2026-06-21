@@ -11,19 +11,14 @@
  */
 
 import { memo, type ReactElement } from 'react';
-import {
-  Save,
-  Check,
-  SlidersHorizontal,
-  PencilLine,
-} from 'lucide-react';
+import { Save, Check } from 'lucide-react';
 import { Button } from '@starui/ui';
 import type { ProfileMeta } from '@starui/engine';
 import type { GridDensity } from '@starui/design-system/adapters/ag-grid';
 import type { AdminAction } from './types';
 import { FiltersToolbar } from './FiltersToolbar';
 import { QuickSearch } from './QuickSearch';
-import { AutoFormatButton } from './AutoFormatButton';
+import { ViewMenu } from './ViewMenu';
 import { ProfileSelector } from './ProfileSelector';
 import { EditableCaption } from './EditableCaption';
 import { AlertsBadge } from '../customizer/modules/alerts';
@@ -49,6 +44,8 @@ export interface PrimaryToolbarProps {
   readonly showEditingToolbar: boolean;
   readonly editingToolbarOpen: boolean;
   readonly onToggleEditingToolbar: () => void;
+  readonly showColumnSelector: boolean;
+  readonly onOpenColumnSelector: () => void;
   readonly showProfileSelector: boolean;
   readonly profileList: readonly ProfileMeta[];
   readonly activeProfileId: string;
@@ -88,6 +85,8 @@ function PrimaryToolbarInner(props: PrimaryToolbarProps): ReactElement {
     showEditingToolbar,
     editingToolbarOpen,
     onToggleEditingToolbar,
+    showColumnSelector,
+    onOpenColumnSelector,
     showProfileSelector,
     profileList,
     activeProfileId,
@@ -148,47 +147,7 @@ function PrimaryToolbarInner(props: PrimaryToolbarProps): ReactElement {
       <div className="ds-primary-actions">
         <QuickSearch />
 
-        {(showAutoFormat || showFormattingToolbar || showEditingToolbar) && (
-          <span className="ds-primary-divider" aria-hidden />
-        )}
-
-        {showAutoFormat && <AutoFormatButton />}
-
-        {showFormattingToolbar && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="ds-primary-action"
-            onClick={onToggleStyleToolbar}
-            title={styleToolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'}
-            data-testid="style-toolbar-toggle"
-            data-active={styleToolbarOpen ? 'true' : 'false'}
-            aria-pressed={styleToolbarOpen}
-          >
-            <SlidersHorizontal size={14} strokeWidth={2} />
-          </Button>
-        )}
-
-        {showEditingToolbar && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="ds-primary-action"
-            onClick={onToggleEditingToolbar}
-            title={editingToolbarOpen ? 'Hide editing toolbar' : 'Show editing toolbar'}
-            data-testid="editing-toolbar-toggle"
-            data-active={editingToolbarOpen ? 'true' : 'false'}
-            aria-pressed={editingToolbarOpen}
-          >
-            <PencilLine size={14} strokeWidth={2} />
-          </Button>
-        )}
-
-        {(showAutoFormat || showFormattingToolbar || showEditingToolbar) && (
-          <span className="ds-primary-divider" aria-hidden />
-        )}
+        <span className="ds-primary-divider" aria-hidden />
 
         <AlertsBadge />
 
@@ -235,6 +194,17 @@ function PrimaryToolbarInner(props: PrimaryToolbarProps): ReactElement {
         )}
 
         <div className="ds-primary-actions-trailing">
+          <ViewMenu
+            showColumnSelector={showColumnSelector}
+            onOpenColumnSelector={onOpenColumnSelector}
+            showAutoFormat={showAutoFormat}
+            showFormattingToolbar={showFormattingToolbar}
+            styleToolbarOpen={styleToolbarOpen}
+            onToggleStyleToolbar={onToggleStyleToolbar}
+            showEditingToolbar={showEditingToolbar}
+            editingToolbarOpen={editingToolbarOpen}
+            onToggleEditingToolbar={onToggleEditingToolbar}
+          />
           {toolbarActionsLayout === 'inline' ? (
             <PrimaryToolbarInlineActions {...secondaryActionsProps} />
           ) : (
@@ -259,6 +229,8 @@ function primaryToolbarPropsEqual(prev: PrimaryToolbarProps, next: PrimaryToolba
     && prev.showEditingToolbar === next.showEditingToolbar
     && prev.editingToolbarOpen === next.editingToolbarOpen
     && prev.onToggleEditingToolbar === next.onToggleEditingToolbar
+    && prev.showColumnSelector === next.showColumnSelector
+    && prev.onOpenColumnSelector === next.onOpenColumnSelector
     && prev.showProfileSelector === next.showProfileSelector
     && prev.profileList === next.profileList
     && prev.activeProfileId === next.activeProfileId

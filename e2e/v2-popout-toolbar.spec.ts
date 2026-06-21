@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { openViewMenu } from './helpers/viewMenu';
 
 /**
  * E2E for the FormattingToolbar pop-out. Same shape as the settings
@@ -59,6 +60,7 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
     await waitForGrid(page);
     await stubWindowOpen(page);
     // Open the inline toolbar via the primary row's brush button.
+    await openViewMenu(page);
     await page.locator('[data-testid="style-toolbar-toggle"]').click();
     await expect(page.locator('[data-testid="formatting-toolbar"]')).toBeVisible();
   });
@@ -295,6 +297,7 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
     });
 
     // Re-click brush — should raise the popout, not toggle off.
+    await openViewMenu(page);
     await page.locator('[data-testid="style-toolbar-toggle"]').click();
     await page.waitForTimeout(200);
 

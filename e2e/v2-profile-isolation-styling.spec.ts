@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { openViewMenu } from './helpers/viewMenu';
 import { bootCleanDemo, openPanel, closeSettingsSheet } from './helpers/settingsSheet';
 import {
   createProfile,
@@ -41,6 +42,7 @@ async function openFormatterToolbar(page: Page): Promise<void> {
   const toggle = page.locator('[data-testid="style-toolbar-toggle"]');
   const toolbar = page.locator('[data-testid="formatting-toolbar"]');
   if (await toolbar.isVisible().catch(() => false)) return;
+  await openViewMenu(page);
   await toggle.click();
   await expect(toolbar).toBeVisible();
 }

@@ -1,4 +1,5 @@
 import { test, expect, type Page, type BrowserContext } from '@playwright/test';
+import { openViewMenu } from './helpers/viewMenu';
 import { bootCleanDemo } from './helpers/settingsSheet';
 
 /**
@@ -31,6 +32,7 @@ import { bootCleanDemo } from './helpers/settingsSheet';
 
 async function openToolbarAndPop(page: Page, context: BrowserContext) {
   const popupPromise = context.waitForEvent('page');
+  await openViewMenu(page);
   await page.locator('[data-testid="style-toolbar-toggle"]').click();
   await page.locator('[data-testid="formatting-popout-btn"]').click();
   const popup = await popupPromise;
