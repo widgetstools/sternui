@@ -1,4 +1,6 @@
 import type { FeatureGuide, FeatureGuidePropRow } from './types';
+import { CONDITIONAL_TAB_CS_RULES, LIVE_TAB_CS_RULES } from '../seeds/conditionalStyling';
+import { serializeConfig } from './serializeConfig';
 
 /** Mount props shared by every MarketsGrid in the lab — prepended to each guide's props. */
 export const BASE_PROPS: FeatureGuidePropRow[] = [
@@ -86,6 +88,13 @@ export const FEATURE_GUIDES: Record<string, FeatureGuide> = {
       { text: 'Fire a price-tick scenario from the Demo Console to see diff rules (`mid.new` vs `mid.old`) flash.' },
     ],
     props: [showProfileSelector, showSaveButton, showSettingsButton],
+    extraConfig: [
+      {
+        label: 'Conditional styling rules',
+        lang: 'json',
+        code: serializeConfig(CONDITIONAL_TAB_CS_RULES),
+      },
+    ],
   },
 
   toolbar: {
@@ -180,6 +189,13 @@ export const FEATURE_GUIDES: Record<string, FeatureGuide> = {
       { text: 'Watch price cells flash and P&L cells colour by direction.' },
     ],
     props: [showProfileSelector, showSaveButton, showSettingsButton],
+    extraConfig: [
+      {
+        label: 'Live tick + direction rules',
+        lang: 'json',
+        code: serializeConfig(LIVE_TAB_CS_RULES),
+      },
+    ],
   },
 
   alerts: {
