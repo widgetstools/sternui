@@ -218,7 +218,7 @@ export function RowDrawer({
           className={[
             'h-[30px] px-4 text-xs font-semibold font-[var(--de-font)]',
             parsedOk
-              ? 'bg-[var(--de-accent)] text-[hsl(var(--primary-foreground))] hover:bg-[var(--de-accent)]'
+              ? 'bg-[var(--de-accent)] text-[var(--de-accent-foreground)] hover:bg-[var(--de-accent)]'
               : 'bg-[var(--de-bg-surface)] text-[var(--de-text-tertiary)]',
           ].join(' ')}
         >

@@ -311,7 +311,7 @@ export function ConfigBrowserPanel() {
                 <Button
                   type="button"
                   onClick={openCreate}
-                  className="rounded-[var(--de-radius-sm)] border-none bg-[var(--de-accent)] px-4 py-2 text-xs font-semibold text-[hsl(var(--primary-foreground))] hover:bg-[var(--de-accent)]"
+                  className="rounded-[var(--de-radius-sm)] border-none bg-[var(--de-accent)] px-4 py-2 text-xs font-semibold text-[var(--de-accent-foreground)] hover:bg-[var(--de-accent)]"
                 >
                   Add first row
                 </Button>

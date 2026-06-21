@@ -113,7 +113,7 @@ export function DeployExportPreviewDialog({
             type="button"
             onClick={onConfirm}
             disabled={!canDownload}
-            className="text-xs h-8 bg-[var(--de-accent)] text-[hsl(var(--primary-foreground))] hover:bg-[var(--de-accent)] disabled:opacity-50"
+            className="text-xs h-8 bg-[var(--de-accent)] text-[var(--de-accent-foreground)] hover:bg-[var(--de-accent)] disabled:opacity-50"
           >
             Download seed.json
           </Button>
