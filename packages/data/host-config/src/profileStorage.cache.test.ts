@@ -70,7 +70,7 @@ describe('createConfigServiceStorage — per-scope row cache', () => {
     cm = makeFakeConfigManager();
   });
 
-  it('collapses the adapter’s redundant getConfig reads within a save', async () => {
+  it('serves the existence-check read from cache and version-checks the save authoritatively', async () => {
     const factory = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });
     const adapter = factory({ instanceId: 'i1', appId: 'A', userId: 'u' });
 
@@ -78,12 +78,18 @@ describe('createConfigServiceStorage — per-scope row cache', () => {
     await adapter.saveProfile(snapshot('Default', 'i1'));
 
     // Mimic ProfileManager.persistActive: an existence-check load, then
-    // the actual save. Pre-cache this was 3 getConfig calls (load +
-    // saveProfile's load + the version-check read); now it's 1.
+    // the actual save. The existence-check `loadProfile` is served from the
+    // per-scope cache (0 reads after the first fill), but the save no longer
+    // trusts that cache for its OCC version check — it reads the authoritative
+    // row so a concurrent write by ANOTHER adapter instance over the same row
+    // (gridLevelData vs profiles) can't be silently clobbered. That's 1
+    // getConfig for the cache fill + 1 for the save's authoritative version
+    // read = 2. In production ConfigManager.getConfig memoizes, so the
+    // authoritative read is a memo hit, not a second DB round-trip.
     const before = cm.getCount();
     await adapter.loadProfile('i1', '__default__');
     await adapter.saveProfile(snapshot('Default', 'i1'));
-    expect(cm.getCount() - before).toBe(1);
+    expect(cm.getCount() - before).toBe(2);
   });
 
   it('serves repeated reads from cache without re-reading', async () => {

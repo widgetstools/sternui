@@ -29,6 +29,18 @@ import {
 
 const DEFAULT_SELECTION = DEFAULT_PROVIDER_SELECTION;
 
+/** True when two serialized grid-level blobs carry identical persisted fields. */
+function gridLevelEqual(a: GridLevelStateV1 | null, b: GridLevelStateV1): boolean {
+  if (!a) return false;
+  return (
+    a.provider.liveProviderId === b.provider.liveProviderId
+    && a.provider.historicalProviderId === b.provider.historicalProviderId
+    && a.provider.mode === b.provider.mode
+    && a.caption === b.caption
+    && JSON.stringify(a.eventBindings ?? {}) === JSON.stringify(b.eventBindings ?? {})
+  );
+}
+
 export interface UseGridLevelPersistenceParams {
   adapter: StorageAdapter | null;
   gridId: string;
@@ -64,6 +76,18 @@ export function useGridLevelPersistence(
   /** False when disk has no provider link yet — bootstrap should write once. */
   const diskHadProviderLinkRef = useRef<boolean | null>(null);
   const persistChainRef = useRef<Promise<void>>(Promise.resolve());
+
+  // Live mirrors of the persisted fields so `flush` (called from a stable
+  // event listener) always serializes the latest committed values without
+  // re-subscribing on every keystroke.
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
+  const captionRef = useRef(persistedCaption);
+  captionRef.current = persistedCaption;
+  const eventBindingsRef = useRef(eventBindings);
+  eventBindingsRef.current = eventBindings;
+  const loadedRef = useRef(loaded);
+  loadedRef.current = loaded;
 
   // Fill empty provider slots from the configured defaults. Shared by the
   // initial load and the import-restore handler so both reconcile the
@@ -153,19 +177,38 @@ export function useGridLevelPersistence(
       }
       return;
     }
-    const prev = lastSavedRef.current;
-    if (
-      prev.provider.liveProviderId === next.provider.liveProviderId
-      && prev.provider.historicalProviderId === next.provider.historicalProviderId
-      && prev.provider.mode === next.provider.mode
-      && prev.caption === next.caption
-      && JSON.stringify(prev.eventBindings ?? {}) === JSON.stringify(next.eventBindings ?? {})
-    ) {
+    if (gridLevelEqual(lastSavedRef.current, next)) {
       return;
     }
     lastSavedRef.current = next;
     enqueuePersist(next);
   }, [selection, persistedCaption, eventBindings, loaded, adapter, gridId]);
+
+  // Flush the current grid-level data to storage. Called on every profile
+  // save so a registered/ConfigService component always stores its
+  // `gridLevelData.provider.liveProviderId` (and caption / event-bindings)
+  // alongside the profile — even if a just-changed selection hadn't yet been
+  // flushed by the effect above. Writes unconditionally (profiles are
+  // explicit-save-only, so this is at most one extra row write per user Save);
+  // `lastSavedRef` is primed so the reactive effect treats it as already
+  // persisted and skips a redundant write. The adapter's OCC read-modify-write
+  // keeps this coherent with the concurrent profile write to the same row.
+  const flush = useCallback(() => {
+    if (!loadedRef.current || !adapter?.saveGridLevelData) return;
+    const next = serializeGridLevelData({
+      v: 1,
+      provider: selectionRef.current,
+      caption: captionRef.current,
+      eventBindings:
+        Object.keys(eventBindingsRef.current).length > 0 ? eventBindingsRef.current : undefined,
+    });
+    lastSavedRef.current = next;
+    persistChainRef.current = persistChainRef.current
+      .then(() => adapter.saveGridLevelData!(gridId, next))
+      .catch((err) => {
+        console.warn('[markets-grid-container] gridLevelData flush-on-save failed:', err);
+      });
+  }, [adapter, gridId]);
 
   // Apply grid-level data restored by a profile import (schemaVersion 2).
   // The ProfileManager has already written the blob to the same backing
@@ -199,10 +242,21 @@ export function useGridLevelPersistence(
   useEffect(() => {
     const events = gridHandle?.platform?.events;
     if (!events) return;
-    return events.on('gridLevelData:imported', ({ data }) => {
+    const offImported = events.on('gridLevelData:imported', ({ data }) => {
       applyImportedGridLevelData(data);
     });
-  }, [gridHandle, applyImportedGridLevelData]);
+    // Co-persist grid-level data on every profile save. ProfileManager emits
+    // `profile:saved` from every save path (toolbar Save, customizer card
+    // Save, save-on-switch, external `saveAll`), so the provider selection is
+    // always written alongside the profile.
+    const offSaved = events.on('profile:saved', () => {
+      flush();
+    });
+    return () => {
+      offImported();
+      offSaved();
+    };
+  }, [gridHandle, applyImportedGridLevelData, flush]);
 
   return {
     selection,
