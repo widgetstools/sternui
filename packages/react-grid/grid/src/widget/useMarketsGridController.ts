@@ -81,6 +81,10 @@ export interface MarketsGridControllerHandle {
   /** Open the customizer on Column Settings, pre-selecting `colId`. Wired to
    *  the grid cell context menu's "Settings" item. */
   readonly openColumnSettings: (colId: string) => void;
+  /** Column-selector dialog open state + opener (toolbar "Columns" button). */
+  readonly columnSelectorOpen: boolean;
+  readonly setColumnSelectorOpen: Dispatch<SetStateAction<boolean>>;
+  readonly handleOpenColumnSelector: () => void;
   readonly handleToggleStyleToolbar: () => void;
   readonly editingToolbarOpen: boolean;
   readonly handleToggleEditingToolbar: () => void;
@@ -332,6 +336,12 @@ export function useMarketsGridController(
     [handleOpenSettings],
   );
 
+  // Column-selector dialog — opened from the primary toolbar's "Columns"
+  // button. Self-contained: it reads the live grid columns on open and applies
+  // order/visibility back via applyColumnState; persistence rides the normal Save.
+  const [columnSelectorOpen, setColumnSelectorOpen] = useState(false);
+  const handleOpenColumnSelector = useCallback(() => setColumnSelectorOpen(true), []);
+
   // Formatting toolbar — always starts hidden. The toolbar-control button on the
   // FiltersToolbar toggles it. The `showFormattingToolbar` prop only
   // controls whether the feature is available (i.e. whether the formatter
@@ -493,6 +503,9 @@ export function useMarketsGridController(
     setPendingSwitch,
     handleOpenSettings,
     openColumnSettings,
+    columnSelectorOpen,
+    setColumnSelectorOpen,
+    handleOpenColumnSelector,
     handleToggleStyleToolbar,
     editingToolbarOpen,
     handleToggleEditingToolbar,

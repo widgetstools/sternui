@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { openViewMenu } from './helpers/viewMenu';
 
 /**
  * E2E coverage for the FormattingToolbar.
@@ -55,6 +56,7 @@ async function clearV2(page: Page) {
 async function openFormattingToolbar(page: Page) {
   const pinned = page.locator('[data-testid="formatting-toolbar-pinned"]');
   if (!(await pinned.isVisible().catch(() => false))) {
+    await openViewMenu(page);
     await page.locator('[data-testid="style-toolbar-toggle"]').click();
   }
   await expect(page.locator('[data-testid="formatting-toolbar"]')).toBeVisible();

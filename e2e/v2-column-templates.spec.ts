@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { openViewMenu } from './helpers/viewMenu';
 import {
   bootCleanDemo,
   openPanel,
@@ -30,6 +31,7 @@ import {
 async function openFormattingToolbar(page: Page): Promise<void> {
   const pinned = page.locator('[data-testid="formatting-toolbar-pinned"]');
   if (!(await pinned.isVisible().catch(() => false))) {
+    await openViewMenu(page);
     await page.locator('[data-testid="style-toolbar-toggle"]').click();
   }
   await expect(page.locator('[data-testid="formatting-toolbar"]')).toBeVisible();

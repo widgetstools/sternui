@@ -249,6 +249,7 @@ function MarketsGridInner<TData = unknown>(
     showEditHistoryToolbar,
     showSaveButton = true,
     showSettingsButton = true,
+    showColumnSelector = true,
     showVisualExcelExport = true,
     showProfileSelector = true,
     modules = DEFAULT_MODULES,
@@ -364,6 +365,7 @@ function MarketsGridInner<TData = unknown>(
         editingToolbarHostProps={editingToolbarHostProps}
         showSaveButton={showSaveButton}
         showSettingsButton={showSettingsButton}
+        showColumnSelector={showColumnSelector}
         showVisualExcelExport={showVisualExcelExport}
         showProfileSelector={showProfileSelector}
         modules={modules}

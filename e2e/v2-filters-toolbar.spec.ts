@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { openViewMenu } from './helpers/viewMenu';
 
 /**
  * E2E tests for the v2 FiltersToolbar (/ demo mount).
@@ -469,16 +470,18 @@ test.describe('v2 FiltersToolbar', () => {
     // Brush was hoisted into the primary row's action cluster. Verify
     // the testid still exists but sits in `.ds-primary-actions`, NOT
     // inside `.ds-filters-actions`.
-    const toggle = page.locator('[data-testid="style-toolbar-toggle"]');
-    await expect(toggle).toBeVisible();
-    const insideFiltersActions = await toggle.evaluate(
+    const trigger = page.locator('[data-testid="toolbar-view-menu-trigger"]');
+    await expect(trigger).toBeVisible();
+    const insideFiltersActions = await trigger.evaluate(
       (el) => !!el.closest('.ds-filters-actions'),
     );
     expect(insideFiltersActions).toBe(false);
-    const insidePrimaryActions = await toggle.evaluate(
+    const insidePrimaryActions = await trigger.evaluate(
       (el) => !!el.closest('.ds-primary-actions'),
     );
     expect(insidePrimaryActions).toBe(true);
+    await openViewMenu(page);
+    await expect(page.locator('[data-testid="style-toolbar-toggle"]')).toBeVisible();
   });
 
   test('pill-row scroll container hides the browser scrollbar', async ({ page }) => {

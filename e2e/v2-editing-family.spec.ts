@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openViewMenu } from './helpers/viewMenu';
 import { openEditingToolbar } from './helpers/editingToolbar';
 import {
   bootLabTab,
@@ -31,14 +32,15 @@ test.describe('Editing family — unified tab integration', () => {
   test('editing toolbar toggle opens and closes the pinned row', async ({ page }) => {
     await bootLabTab(page, { tabTestId: 'editing', gridId: GRID_ID, openToolbar: false });
 
-    const toggle = page.getByTestId('editing-toolbar-toggle');
-    await expect(toggle).toBeVisible();
+    await expect(page.getByTestId('toolbar-view-menu-trigger')).toBeVisible();
     await expect(page.getByTestId('editing-toolbar-pinned')).not.toBeVisible();
 
     await openEditingToolbar(page);
     await expect(page.getByTestId('editing-toolbar-pinned')).toBeVisible();
 
-    await toggle.click();
+    // Toggle off again via the View menu.
+    await openViewMenu(page);
+    await page.getByTestId('editing-toolbar-toggle').click();
     await expect(page.getByTestId('editing-toolbar-pinned')).not.toBeVisible();
   });
 

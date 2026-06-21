@@ -438,6 +438,53 @@ export function createConfigServiceStorage(
       return cachedRow;
     };
 
+    // OCC read-modify-write with bounded retry. A single bundled row can be
+    // targeted by TWO adapter instances at once — MarketsGridContainer's
+    // adapter writes `gridLevelData` (provider selection) while MarketsGrid's
+    // controller adapter writes profiles — each holding an INDEPENDENT version
+    // cache, and the gridLevelData adapter does not subscribe to change
+    // notifications. When the other instance bumps the row version between our
+    // cached read and our write, `saveProfileSet` throws
+    // `ProfileSetVersionConflictError`. Dropping the write here is what
+    // silently lost the provider selection (the grid booted empty next launch).
+    // Instead: invalidate, re-read the current row, rebuild the payload from
+    // it (preserving the other writer's changes), and retry.
+    //
+    // `build` returns the next payload, or `null` to signal a no-op (e.g.
+    // deleting a profile that isn't there) so we skip the write entirely.
+    const MAX_COMMIT_ATTEMPTS = 5;
+    const commit = async (
+      build: (loaded: ProfileSetPayload | null) => ProfileSetPayload | null,
+    ): Promise<void> => {
+      for (let attempt = 1; ; attempt++) {
+        const loaded = readProfileSetPayload(await readRow(), scope);
+        const next = build(loaded);
+        if (next === null) return;
+        const expectedVersion = loaded?.version ?? 0;
+        try {
+          // Deliberately DON'T hand saveProfileSet our cached row as the
+          // prefetched OCC source — a second adapter instance over this row
+          // (e.g. MarketsGridContainer's gridLevelData adapter vs the grid's
+          // profile adapter) may have bumped the version since we cached it,
+          // and trusting the stale row would mask the conflict and clobber
+          // the other writer. saveProfileSet reads the authoritative row for
+          // the version check (ConfigManager memoizes that read).
+          await saveProfileSet(configManager, scope, next, expectedVersion, saveOptions);
+          invalidate();
+          return;
+        } catch (err) {
+          // Drop the stale cache so the retry re-reads the row the
+          // conflicting writer just committed, rebuilds on top of it, and
+          // re-writes — instead of silently dropping this write.
+          invalidate();
+          if (err instanceof ProfileSetVersionConflictError && attempt < MAX_COMMIT_ATTEMPTS) {
+            continue;
+          }
+          throw err;
+        }
+      }
+    };
+
     const adapter: StorageAdapter = {
       async loadProfile(gridId: string, profileId: string): Promise<ProfileSnapshot | null> {
         void gridId; // gridId maps 1:1 to instanceId at this seam
@@ -447,48 +494,31 @@ export function createConfigServiceStorage(
       },
 
       async saveProfile(snapshot: ProfileSnapshot): Promise<void> {
-        // Load the existing bundle, then upsert the snapshot and
-        // write back. The expected-version from the load is threaded
-        // into saveProfileSet so a second writer that landed in
-        // between gets caught on the version-compare. `gridLevelData`
-        // is preserved verbatim — saving a profile must not clobber it.
-        const row = await readRow();
-        const loaded = readProfileSetPayload(row, scope);
-        const expectedVersion = loaded?.version ?? 0;
-        const profiles = loaded?.profiles ?? [];
-        const idx = profiles.findIndex((p) => p.id === snapshot.id);
-        if (idx >= 0) {
-          profiles[idx] = snapshot;
-        } else {
-          profiles.push(snapshot);
-        }
-        await saveProfileSet(
-          configManager,
-          scope,
-          { version: expectedVersion, profiles, gridLevelData: loaded?.gridLevelData },
-          expectedVersion,
-          saveOptions,
-          { row },
-        );
-        invalidate();
+        // Load the existing bundle, then upsert the snapshot and write back.
+        // `commit` threads the expected-version into saveProfileSet (OCC) and
+        // retries on conflict so a concurrent gridLevelData / cross-tab write
+        // doesn't drop this one. `gridLevelData` is preserved verbatim —
+        // saving a profile must not clobber it.
+        await commit((loaded) => {
+          const profiles = loaded?.profiles ? [...loaded.profiles] : [];
+          const idx = profiles.findIndex((p) => p.id === snapshot.id);
+          if (idx >= 0) {
+            profiles[idx] = snapshot;
+          } else {
+            profiles.push(snapshot);
+          }
+          return { version: loaded?.version ?? 0, profiles, gridLevelData: loaded?.gridLevelData };
+        });
       },
 
       async deleteProfile(gridId: string, profileId: string): Promise<void> {
         void gridId;
-        const row = await readRow();
-        const loaded = readProfileSetPayload(row, scope);
-        if (!loaded) return;
-        const filtered = loaded.profiles.filter((p) => p.id !== profileId);
-        if (filtered.length === loaded.profiles.length) return; // not found; no-op
-        await saveProfileSet(
-          configManager,
-          scope,
-          { version: loaded.version, profiles: filtered, gridLevelData: loaded.gridLevelData },
-          loaded.version,
-          saveOptions,
-          { row },
-        );
-        invalidate();
+        await commit((loaded) => {
+          if (!loaded) return null;
+          const filtered = loaded.profiles.filter((p) => p.id !== profileId);
+          if (filtered.length === loaded.profiles.length) return null; // not found; no-op
+          return { version: loaded.version, profiles: filtered, gridLevelData: loaded.gridLevelData };
+        });
       },
 
       async listProfiles(gridId: string): Promise<ProfileSnapshot[]> {
@@ -505,24 +535,16 @@ export function createConfigServiceStorage(
 
       async saveGridLevelData(gridId: string, data: unknown): Promise<void> {
         void gridId;
-        // Read-modify-write the same bundled row. Keep profiles and
-        // version intact — only the `gridLevelData` field changes.
-        const row = await readRow();
-        const loaded = readProfileSetPayload(row, scope);
-        const expectedVersion = loaded?.version ?? 0;
-        await saveProfileSet(
-          configManager,
-          scope,
-          {
-            version: expectedVersion,
-            profiles: loaded?.profiles ?? [],
-            gridLevelData: data,
-          },
-          expectedVersion,
-          saveOptions,
-          { row },
-        );
-        invalidate();
+        // Read-modify-write the same bundled row. Keep profiles intact — only
+        // the `gridLevelData` field changes. `commit` retries on an OCC
+        // conflict (e.g. the controller's profile save bumped the version
+        // after this adapter cached it) so the provider selection is never
+        // silently dropped.
+        await commit((loaded) => ({
+          version: loaded?.version ?? 0,
+          profiles: loaded?.profiles ?? [],
+          gridLevelData: data,
+        }));
       },
 
       // Multi-tab subscribe (Session 3.2 / consolidation). When the

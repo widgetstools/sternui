@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { openViewMenu } from './helpers/viewMenu';
 
 /**
  * Cross-grid isolation e2e — proves the multi-grid claim.
@@ -72,7 +73,8 @@ async function openFormattingToolbar(page: Page, gridId: string) {
   const grid = page.locator(`[data-grid-id="${gridId}"]`);
   const pinned = grid.locator('[data-testid="formatting-toolbar-pinned"]');
   if (!(await pinned.isVisible().catch(() => false))) {
-    await grid.locator('[data-testid="style-toolbar-toggle"]').click();
+    await openViewMenu(grid);
+    await page.locator('[data-testid="style-toolbar-toggle"]').click();
   }
   await expect(pinned).toBeVisible();
 }
