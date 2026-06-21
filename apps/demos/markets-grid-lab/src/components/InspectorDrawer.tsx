@@ -40,9 +40,11 @@ export function InspectorDrawer({ guide, configBlocks, fullDocs }: InspectorDraw
   );
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     window.localStorage.setItem(OPEN_KEY, open ? '1' : '0');
   }, [open]);
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     window.localStorage.setItem(TAB_KEY, tab);
   }, [tab]);
 
@@ -135,7 +137,7 @@ export function InspectorDrawer({ guide, configBlocks, fullDocs }: InspectorDraw
 
             <TabsContent value="config" className="m-0 flex flex-col gap-3">
               {configBlocks.map((block, i) => (
-                <ConfigBlock key={i} block={block} />
+                <ConfigBlock key={block.label} block={block} />
               ))}
             </TabsContent>
 
