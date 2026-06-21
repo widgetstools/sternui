@@ -102,12 +102,7 @@ function ViewMenuInner(props: ViewMenuProps): ReactElement | null {
         {showFormattingToolbar ? (
           <DropdownMenuCheckboxItem
             checked={styleToolbarOpen}
-            onSelect={(e) => {
-              // Toggle without auto-closing isn't needed, but onSelect keeps the
-              // single handler (incl. popout-raise) in charge of the state.
-              e.preventDefault();
-              onToggleStyleToolbar();
-            }}
+            onSelect={() => onToggleStyleToolbar()}
             data-testid="style-toolbar-toggle"
             data-active={styleToolbarOpen ? 'true' : 'false'}
             className="gap-1.5 px-2 py-1"
@@ -119,10 +114,7 @@ function ViewMenuInner(props: ViewMenuProps): ReactElement | null {
         {showEditingToolbar ? (
           <DropdownMenuCheckboxItem
             checked={editingToolbarOpen}
-            onSelect={(e) => {
-              e.preventDefault();
-              onToggleEditingToolbar();
-            }}
+            onSelect={() => onToggleEditingToolbar()}
             data-testid="editing-toolbar-toggle"
             data-active={editingToolbarOpen ? 'true' : 'false'}
             className="gap-1.5 px-2 py-1"
