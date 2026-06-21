@@ -31,9 +31,21 @@ import { BaseStreamSafeFilter, readParamField } from './streamSafeFloatingFilter
  * | `Jan 2025` / `2025-01`         | month (expanded to month range)                      |
  * | `Q1 2025`                      | quarter (expanded to 3-month range)                  |
  * | `today` / `yesterday` / `tomorrow` | relative day at 00:00–23:59 range                 |
+ * | `last 10 minutes` / `last 5 seconds` | trailing window `[now − duration, now]`        |
+ * | `last 6 months` / `last six months`  | trailing window (digit or worded count)        |
+ * | `last year` / `last month`     | trailing window, count defaults to 1                 |
+ * | `> today` / `>= yesterday` / `< tomorrow` | comparator + relative keyword             |
  * | `1734268800`                   | Unix epoch seconds → date                            |
  * | `1734268800000`                | Unix epoch milliseconds → date                       |
  * | `(blank)`                      | clear filter                                         |
+ *
+ * **Relative trailing windows.** `last <count> <unit>` resolves to a
+ * period `[now − duration, now]`. Units (singular/plural/abbrev):
+ * second(s)/sec, minute(s)/min, hour(s)/hr, day(s), week(s)/wk,
+ * month(s)/mo, year(s)/yr. Count may be a digit (`last 18 months`), a
+ * word (`a`/`an`/`one`…`twelve`, e.g. `last six months`), or omitted
+ * for 1 (`last year`). Month/year subtraction clamps the day-of-month
+ * (`Mar 31` minus one month → `Feb 28`).
  *
  * **Smart period expansion.** Partial inputs like `2025`, `Jan 2025`,
  * or `Q1 2025` expand to inclusive day ranges so the filter matches
@@ -260,22 +272,32 @@ const RE_MON_DAY_YR     = /^([a-z]{3,9})[\s,/-]+(\d{1,2})[\s,/-]+(\d{2,4})$/i;
  *   3. No `Date.parse(input)` fallback — its locale-sensitive
  *      acceptance of malformed strings causes silent bugs.
  */
-function smartDateParse(input: string, locale: DateLocale = 'us'): SmartParse | null {
+function smartDateParse(input: string, locale: DateLocale = 'us', now: Date = new Date()): SmartParse | null {
   const raw = input.trim();
   if (!raw) return null;
 
   // Relative keywords. Cheap string-equality test before any regex.
+  // `now` is injectable so trailing-window math is deterministic in tests;
+  // it defaults to the current instant in production.
   const lower = raw.toLowerCase();
-  if (lower === 'today' || lower === 'now') return dayPeriod(new Date());
+  if (lower === 'today' || lower === 'now') return dayPeriod(new Date(now.getTime()));
   if (lower === 'yesterday') {
-    const d = new Date();
+    const d = new Date(now.getTime());
     d.setDate(d.getDate() - 1);
     return dayPeriod(d);
   }
   if (lower === 'tomorrow') {
-    const d = new Date();
+    const d = new Date(now.getTime());
     d.setDate(d.getDate() + 1);
     return dayPeriod(d);
+  }
+
+  // Relative trailing windows — `last 10 minutes`, `last 6 months`,
+  // `last year`. Resolves to a period `[now − duration, now]`.
+  if (lower.startsWith('last')) {
+    const rel = parseRelativeWindow(lower, now);
+    if (rel) return rel;
+    // Not a recognized window — fall through to the regex cascade.
   }
 
   // Strip ordinal suffixes (1st, 2nd, 3rd, 4th, 12th, 21st, …) so the
@@ -456,6 +478,96 @@ function dayPeriod(d: Date): PeriodParse {
   };
 }
 
+// ─── Relative trailing windows ─────────────────────────────────────────────
+
+/** Worded counts. Digits handle everything beyond twelve. `a`/`an` = 1. */
+const WORD_NUMBERS: Record<string, number> = {
+  a: 1, an: 1,
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6,
+  seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
+};
+
+type RelUnit = 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year';
+
+/** Singular / plural / common-abbreviation aliases → canonical unit. */
+const UNIT_ALIASES: Record<string, RelUnit> = {
+  second: 'second', seconds: 'second', sec: 'second', secs: 'second',
+  minute: 'minute', minutes: 'minute', min: 'minute', mins: 'minute',
+  hour: 'hour', hours: 'hour', hr: 'hour', hrs: 'hour',
+  day: 'day', days: 'day',
+  week: 'week', weeks: 'week', wk: 'week', wks: 'week',
+  month: 'month', months: 'month', mo: 'month', mos: 'month',
+  year: 'year', years: 'year', yr: 'year', yrs: 'year',
+};
+
+// `last [<count>|<word>] <unit>` — count optional (defaults to 1, e.g.
+// `last month`). Already lowercased by the caller.
+const RE_RELATIVE_WINDOW = /^last\s+(?:(\d+)\s+|([a-z]+)\s+)?([a-z]+)$/;
+
+/**
+ * Parse a relative trailing window (`last 10 minutes`, `last six months`,
+ * `last year`) into a period `[now − duration, now]`. Returns null when the
+ * count or unit isn't recognized so the caller falls through to the regex
+ * cascade (and ultimately leaves the previous filter in place on garbage).
+ */
+function parseRelativeWindow(input: string, now: Date): PeriodParse | null {
+  const m = RE_RELATIVE_WINDOW.exec(input.trim());
+  if (!m) return null;
+  const [, digits, word, unitRaw] = m;
+
+  let count: number;
+  if (digits != null) {
+    count = Number(digits);
+  } else if (word != null) {
+    const w = WORD_NUMBERS[word];
+    if (w === undefined) return null;
+    count = w;
+  } else {
+    count = 1; // bare `last month` / `last year`
+  }
+  if (!Number.isFinite(count) || count < 1) return null;
+
+  const unit = UNIT_ALIASES[unitRaw];
+  if (!unit) return null;
+
+  const from = subtractWindow(now, count, unit);
+  return { kind: 'period', from, to: new Date(now.getTime()) };
+}
+
+/** Subtract `count` of `unit` from `now`. Sub-day units use millisecond
+ *  arithmetic; day/week/month/year are calendar-aware (month/year clamp the
+ *  day-of-month so `Mar 31 − 1 month` lands on Feb 28, not a rolled-over
+ *  Mar 3). */
+function subtractWindow(now: Date, count: number, unit: RelUnit): Date {
+  switch (unit) {
+    case 'second': return new Date(now.getTime() - count * 1000);
+    case 'minute': return new Date(now.getTime() - count * 60_000);
+    case 'hour':   return new Date(now.getTime() - count * 3_600_000);
+    case 'day': {
+      const d = new Date(now.getTime());
+      d.setDate(d.getDate() - count);
+      return d;
+    }
+    case 'week': {
+      const d = new Date(now.getTime());
+      d.setDate(d.getDate() - count * 7);
+      return d;
+    }
+    case 'month': return subtractMonths(now, count);
+    case 'year':  return subtractMonths(now, count * 12);
+  }
+}
+
+/** Calendar month subtraction with day-of-month clamping. */
+function subtractMonths(now: Date, months: number): Date {
+  const total = now.getMonth() - months;
+  const targetYear = now.getFullYear() + Math.floor(total / 12);
+  const targetMonth = ((total % 12) + 12) % 12;
+  const lastDay = new Date(targetYear, targetMonth + 1, 0).getDate();
+  const day = Math.min(now.getDate(), lastDay);
+  return new Date(targetYear, targetMonth, day, now.getHours(), now.getMinutes(), now.getSeconds());
+}
+
 // ─── Date construction guards ────────────────────────────────────────────────
 
 /**
@@ -510,7 +622,7 @@ const COMPARATOR_TOKENS: Array<{ op: string; type: DateSingleModel['type'] | 'ge
  * `DateSingleModel` entries (one for most ops, two for compounds
  * synthesized from period equals, etc.).
  */
-function parseSingleCondition(s: string, locale: DateLocale = 'us'): DateSingleModel[] | null {
+function parseSingleCondition(s: string, locale: DateLocale = 'us', now: Date = new Date()): DateSingleModel[] | null {
   const t = s.trim();
   if (!t) return null;
 
@@ -518,7 +630,7 @@ function parseSingleCondition(s: string, locale: DateLocale = 'us'): DateSingleM
   for (const { op, type } of COMPARATOR_TOKENS) {
     if (t.startsWith(op)) {
       const rhs = t.slice(op.length).trim();
-      const parsed = smartDateParse(rhs, locale);
+      const parsed = smartDateParse(rhs, locale, now);
       if (!parsed) return null;
 
       const lower = parsed.kind === 'instant'
@@ -562,8 +674,8 @@ function parseSingleCondition(s: string, locale: DateLocale = 'us'): DateSingleM
   // `\s+to\s+` and `\s*\.\.\s*` we accept every common range form.
   const rangeMatch = /^(.+?)(?:\s+to\s+|\s*\.\.\s*|\s+-\s*|\s*-\s+)(.+)$/i.exec(t);
   if (rangeMatch) {
-    const a = smartDateParse(rangeMatch[1].trim(), locale);
-    const b = smartDateParse(rangeMatch[2].trim(), locale);
+    const a = smartDateParse(rangeMatch[1].trim(), locale, now);
+    const b = smartDateParse(rangeMatch[2].trim(), locale, now);
     if (a && b) {
       const from = a.kind === 'instant' ? a.date : a.from;
       const to = b.kind === 'instant' ? b.date : b.to;
@@ -578,7 +690,7 @@ function parseSingleCondition(s: string, locale: DateLocale = 'us'): DateSingleM
   }
 
   // Bare value → equals (for instants) or inRange (for periods).
-  const parsed = smartDateParse(t, locale);
+  const parsed = smartDateParse(t, locale, now);
   if (!parsed) return null;
   if (parsed.kind === 'period') {
     return [{
@@ -598,8 +710,16 @@ function parseSingleCondition(s: string, locale: DateLocale = 'us'): DateSingleM
 /**
  * Parse a full date expression. AND, OR, comma-shorthand, range, or
  * single value. Returns AG-Grid date filter model or null.
+ *
+ * Exported for unit testing — `now` is injectable so trailing-window
+ * expressions (`last 6 months`) resolve deterministically; it defaults
+ * to the current instant in production.
  */
-function parseDateExpression(input: string, locale: DateLocale = 'us'): DateModel | null {
+export function parseDateExpression(
+  input: string,
+  locale: DateLocale = 'us',
+  now: Date = new Date(),
+): DateModel | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
 
@@ -611,7 +731,7 @@ function parseDateExpression(input: string, locale: DateLocale = 'us'): DateMode
     // Mixed — best-effort: return the first parseable fragment.
     const parts = trimmed.split(/\s+(?:and|or)\s+/i);
     for (const p of parts) {
-      const single = parseSingleCondition(p, locale);
+      const single = parseSingleCondition(p, locale, now);
       if (single && single.length > 0) {
         return single.length === 1 ? single[0] : { filterType: 'date', operator: 'AND', conditions: single };
       }
@@ -625,7 +745,7 @@ function parseDateExpression(input: string, locale: DateLocale = 'us'): DateMode
     const parts = trimmed.split(splitter);
     const conditions: DateSingleModel[] = [];
     for (const p of parts) {
-      const single = parseSingleCondition(p, locale);
+      const single = parseSingleCondition(p, locale, now);
       if (single) conditions.push(...single);
     }
     if (conditions.length === 0) return null;
@@ -640,7 +760,7 @@ function parseDateExpression(input: string, locale: DateLocale = 'us'): DateMode
     const parts = trimmed.split(',').map((p) => p.trim()).filter((p) => p !== '');
     const conditions: DateSingleModel[] = [];
     for (const p of parts) {
-      const single = parseSingleCondition(p, locale);
+      const single = parseSingleCondition(p, locale, now);
       if (single) conditions.push(...single);
     }
     if (conditions.length >= 2) {
@@ -649,7 +769,7 @@ function parseDateExpression(input: string, locale: DateLocale = 'us'): DateMode
     // Fall through — couldn't split cleanly, try the whole string.
   }
 
-  const single = parseSingleCondition(trimmed, locale);
+  const single = parseSingleCondition(trimmed, locale, now);
   if (!single || single.length === 0) return null;
   if (single.length === 1) return single[0];
   return { filterType: 'date', operator: 'AND', conditions: single };
