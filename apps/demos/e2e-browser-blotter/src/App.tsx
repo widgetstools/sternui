@@ -28,9 +28,9 @@ function ModeBanner({ mode }: ModeBannerProps) {
       data-status="wired"
       style={{
         padding: '8px 12px',
-        background: 'var(--ds-surface-elevated, #1a1f26)',
-        color: 'var(--ds-text-primary, #eaecef)',
-        borderBottom: '1px solid var(--ds-border-subtle, #2a2f36)',
+        background: 'var(--ds-surface-primary)',
+        color: 'var(--ds-text-primary)',
+        borderBottom: '1px solid var(--ds-border-secondary)',
         fontFamily: 'IBM Plex Mono, monospace',
         fontSize: 12,
         display: 'flex',

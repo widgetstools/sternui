@@ -318,7 +318,7 @@ export function App() {
         <div className="ml-2 h-6 w-px bg-[color:var(--ds-border-primary)]" />
         <Menubar className="h-8 border-none bg-transparent p-0 shadow-none">
           <MenubarMenu>
-            <MenubarTrigger className="h-7 px-2 font-mono text-[11px] font-medium tracking-tight text-[color:var(--ds-text-secondary)] data-[state=open]:bg-[color:var(--ds-surface-raised)] data-[state=open]:text-[color:var(--ds-text-primary)]">
+            <MenubarTrigger className="h-7 px-2 font-mono text-[11px] font-medium tracking-tight text-[color:var(--ds-text-secondary)] data-[state=open]:bg-[color:var(--ds-surface-secondary)] data-[state=open]:text-[color:var(--ds-text-primary)]">
               View
             </MenubarTrigger>
             <MenubarContent align="start" className="min-w-[220px]">
@@ -346,7 +346,7 @@ export function App() {
                   size="icon"
                   onClick={handleSaveLayout}
                   aria-label="Save dock layout"
-                  className="h-7 w-7 border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-raised)] hover:text-[color:var(--ds-text-primary)]"
+                  className="h-7 w-7 border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-secondary)] hover:text-[color:var(--ds-text-primary)]"
                   data-testid="save-layout"
                 >
                   <Save size={13} strokeWidth={1.75} />
@@ -361,7 +361,7 @@ export function App() {
                   size="icon"
                   onClick={handleResetLayout}
                   aria-label="Reset dock layout to defaults"
-                  className="h-7 w-7 border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-raised)] hover:text-[color:var(--ds-text-primary)]"
+                  className="h-7 w-7 border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-secondary)] hover:text-[color:var(--ds-text-primary)]"
                   data-testid="reset-layout"
                 >
                   <LayoutTemplate size={13} strokeWidth={1.75} />
@@ -376,7 +376,7 @@ export function App() {
                   size="icon"
                   onClick={() => setHelpOpen(true)}
                   aria-label="Open help"
-                  className="h-7 w-7 border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-raised)] hover:text-[color:var(--ds-text-primary)]"
+                  className="h-7 w-7 border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-secondary)] hover:text-[color:var(--ds-text-primary)]"
                   data-testid="help-toggle"
                 >
                   <CircleHelp size={13} strokeWidth={1.75} />
@@ -391,7 +391,7 @@ export function App() {
                   size="icon"
                   onClick={handleToggleTheme}
                   aria-label={tooltipLabel}
-                  className="h-7 w-7 border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-raised)] hover:text-[color:var(--ds-text-primary)]"
+                  className="h-7 w-7 border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-secondary)] hover:text-[color:var(--ds-text-primary)]"
                   data-testid="theme-toggle"
                 >
                   {isDark ? <Sun size={13} strokeWidth={1.75} /> : <Moon size={13} strokeWidth={1.75} />}

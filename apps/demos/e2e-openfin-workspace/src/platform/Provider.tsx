@@ -49,10 +49,10 @@ export function Provider() {
       <h1 style={{ fontSize: 18, margin: '0 0 12px' }}>openfin-workspace provider</h1>
       <div>status: <strong>{status}</strong></div>
       {errorMsg && (
-        <pre style={{ color: 'var(--ds-accent-danger, #ff6b6b)', marginTop: 8 }}>{errorMsg}</pre>
+        <pre style={{ color: 'var(--ds-accent-negative)', marginTop: 8 }}>{errorMsg}</pre>
       )}
       {status === 'not-openfin' && (
-        <p style={{ marginTop: 12, color: 'var(--ds-text-secondary, #98a4b3)' }}>
+        <p style={{ marginTop: 12, color: 'var(--ds-text-secondary)' }}>
           This window is only useful inside the OpenFin runtime. Launch via
           <code style={{ marginLeft: 6 }}>npm run dev:openfin:openfin-workspace</code>.
         </p>

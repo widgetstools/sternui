@@ -353,8 +353,6 @@ function TabsGallery() {
 
 function TypeGallery() {
   const sizes = [
-    { tok: '5xl', label: 'Display', sample: 'Markets desk', cssSize: 'var(--ds-font-size-5xl)' },
-    { tok: '4xl', label: 'Hero',    sample: '$1,234,567.89', cssSize: 'var(--ds-font-size-4xl)' },
     { tok: '3xl', label: 'KPI',     sample: '+12.34%',       cssSize: 'var(--ds-font-size-3xl)' },
     { tok: '2xl', label: 'Headline', sample: 'Order ticket', cssSize: 'var(--ds-font-size-2xl)' },
     { tok: 'xl', label: 'Panel',    sample: 'Position blotter', cssSize: 'var(--ds-font-size-xl)' },

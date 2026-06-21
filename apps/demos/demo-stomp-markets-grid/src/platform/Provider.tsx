@@ -30,7 +30,7 @@ export function Provider() {
       <h1 className="mb-2 text-lg font-semibold">demo-stomp-markets-grid provider</h1>
       <div>status: <strong>{status}</strong></div>
       {errorMsg && (
-        <pre className="mt-2 text-[color:var(--ds-status-error-fg)]">{errorMsg}</pre>
+        <pre className="mt-2 text-[color:var(--ds-accent-negative)]">{errorMsg}</pre>
       )}
       {status === 'not-openfin' && (
         <p className="mt-3 text-[color:var(--ds-text-secondary)]">

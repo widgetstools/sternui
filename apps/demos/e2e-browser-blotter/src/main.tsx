@@ -6,7 +6,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { applyTheme, getTheme } from '@starui/design-system';
-import '@starui/design-system/css';
 import { DataHubProvider } from '@starui/host-data-react/runtime';
 import { App, type AppMode } from './App';
 import { initPlatformBootstrap } from './platformBootstrap';
