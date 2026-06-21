@@ -16,12 +16,12 @@ function BootstrapError({ error }: { error: Error }) {
     <div className="flex h-screen items-center justify-center bg-[color:var(--ds-surface-ground)] p-8">
       <Alert
         variant="destructive"
-        className="max-w-lg border-[color:var(--ds-status-error-border)] bg-[color:var(--ds-surface-primary)]"
+        className="max-w-lg border-[color:var(--ds-accent-negative)] bg-[color:var(--ds-surface-primary)]"
       >
         <AlertTitle>STOMP tutorial — data services unavailable</AlertTitle>
         <AlertDescription className="space-y-3 text-[color:var(--ds-text-secondary)]">
           <p>The SharedWorker hub failed to start. Live streams and the grid will not work until this is resolved.</p>
-          <pre className="overflow-x-auto rounded-md border border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-raised)] px-3 py-2 text-[12px] text-[color:var(--ds-status-error-fg)]">
+          <pre className="overflow-x-auto rounded-md border border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-secondary)] px-3 py-2 text-[12px] text-[color:var(--ds-accent-negative)]">
             {error.message}
           </pre>
         </AlertDescription>

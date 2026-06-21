@@ -67,7 +67,7 @@
 .lab-markdown li { color: var(--ds-text-primary); }
 .lab-markdown li::marker { color: var(--ds-text-secondary); }
 .lab-markdown a {
-  color: var(--ds-color-accent-fg, var(--ds-text-primary));
+  color: var(--ds-text-primary);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -76,14 +76,14 @@
   font-size: 12px;
   padding: 1px 5px;
   border-radius: 4px;
-  background: var(--ds-surface-raised);
+  background: var(--ds-surface-secondary);
   border: 1px solid var(--ds-border-primary);
   color: var(--ds-text-primary);
 }
 .lab-markdown pre {
   margin: 0.4em 0;
   padding: 12px 14px;
-  background: var(--ds-surface-raised);
+  background: var(--ds-surface-secondary);
   border: 1px solid var(--ds-border-primary);
   border-radius: 6px;
   overflow-x: auto;
@@ -102,7 +102,7 @@
   margin: 0;
   padding: 6px 12px;
   border-left: 3px solid var(--ds-border-primary);
-  background: color-mix(in srgb, var(--ds-surface-raised) 60%, transparent);
+  background: color-mix(in srgb, var(--ds-surface-secondary) 60%, transparent);
   color: var(--ds-text-secondary);
   border-radius: 0 4px 4px 0;
 }
@@ -132,17 +132,17 @@
 
 /* Preset gallery cell-class rules (Profiles tab). */
 .lab-cell-loser {
-  color: var(--ds-status-error-fg) !important;
+  color: var(--ds-accent-negative) !important;
   font-weight: 600;
 }
 .lab-cell-winner {
-  color: var(--ds-status-success-fg) !important;
+  color: var(--ds-accent-positive) !important;
   font-weight: 600;
 }
 .lab-cell-warn {
-  background: color-mix(in srgb, var(--ds-status-warning-bg) 65%, transparent) !important;
+  background: color-mix(in srgb, var(--ds-overlay-warning-soft) 65%, transparent) !important;
 }
 .lab-cell-junk {
-  background: color-mix(in srgb, var(--ds-status-error-bg) 50%, transparent) !important;
+  background: color-mix(in srgb, var(--ds-overlay-negative-soft) 50%, transparent) !important;
   font-weight: 600;
 }

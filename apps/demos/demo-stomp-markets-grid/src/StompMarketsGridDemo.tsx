@@ -35,7 +35,7 @@ export function StompMarketsGridDemo() {
 
   if (error) {
     return (
-      <div className="flex h-full items-center justify-center p-6 text-sm text-[color:var(--ds-status-error-fg)]">
+      <div className="flex h-full items-center justify-center p-6 text-sm text-[color:var(--ds-accent-negative)]">
         Failed to seed STOMP provider: {error}
       </div>
     );

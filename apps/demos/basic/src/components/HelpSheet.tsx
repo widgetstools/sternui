@@ -74,7 +74,7 @@ export function HelpSheet({ open, onOpenChange }: HelpSheetProps) {
               />
               Help & documentation
             </SheetTitle>
-            <Badge className="border-transparent bg-[color:var(--ds-overlay-info-soft,rgba(56,189,248,0.12))] font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--ds-accent-info)]">
+            <Badge className="border-transparent bg-[color:var(--ds-overlay-info-soft)] font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--ds-accent-info)]">
               Bond blotter
             </Badge>
           </div>

@@ -92,7 +92,7 @@ export function LabTabsNav({ tabs, activeId }: LabTabsNavProps) {
           ref={scrollerRef}
           className={`min-w-0 flex-1 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] ${SCROLL_HIDE}`}
         >
-          <TabsList className="inline-flex h-9 w-max min-w-full flex-nowrap justify-start gap-1 bg-[color:var(--ds-surface-raised)] p-1">
+          <TabsList className="inline-flex h-9 w-max min-w-full flex-nowrap justify-start gap-1 bg-[color:var(--ds-surface-secondary)] p-1">
             {tabs.map((t) => (
               <TabsTrigger
                 key={t.id}

@@ -99,7 +99,7 @@ export function ConfigInspector({
         <Button
           variant="outline"
           size="sm"
-          className="h-7 gap-1.5 border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] px-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-raised)] hover:text-[color:var(--ds-text-primary)]"
+          className="h-7 gap-1.5 border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] px-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-secondary)] hover:text-[color:var(--ds-text-primary)]"
           data-testid="config-inspector-trigger"
         >
           <Database size={12} strokeWidth={1.75} />
@@ -118,7 +118,7 @@ export function ConfigInspector({
             <SheetTitle className="font-mono text-[14px] tracking-tight text-[color:var(--ds-text-primary)]">
               Layout storage inspector
             </SheetTitle>
-            <Badge className="border-transparent bg-[color:var(--ds-overlay-info-soft,rgba(56,189,248,0.12))] font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--ds-accent-info)]">
+            <Badge className="border-transparent bg-[color:var(--ds-overlay-info-soft)] font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--ds-accent-info)]">
               localStorage
             </Badge>
           </div>
@@ -236,7 +236,7 @@ export function ConfigInspector({
                     variant="ghost"
                     size="icon"
                     onClick={handleRefresh}
-                    className="h-7 w-7 text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-raised)]"
+                    className="h-7 w-7 text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-secondary)]"
                     data-testid="inspector-refresh"
                   >
                     <RefreshCw size={13} strokeWidth={1.75} />
@@ -251,7 +251,7 @@ export function ConfigInspector({
                     size="icon"
                     onClick={handleCopy}
                     disabled={!snapshot.raw}
-                    className="h-7 w-7 text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-raised)]"
+                    className="h-7 w-7 text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-secondary)]"
                     data-testid="inspector-copy"
                   >
                     {copied ? (
@@ -273,7 +273,7 @@ export function ConfigInspector({
                     variant="ghost"
                     size="sm"
                     onClick={onClearAll}
-                    className="h-7 gap-1.5 px-2 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--ds-accent-negative)] hover:bg-[color:var(--ds-overlay-negative-soft,rgba(255,157,78,0.12))] hover:text-[color:var(--ds-accent-negative)]"
+                    className="h-7 gap-1.5 px-2 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--ds-accent-negative)] hover:bg-[color:var(--ds-overlay-negative-soft)] hover:text-[color:var(--ds-accent-negative)]"
                     data-testid="inspector-clear"
                   >
                     <Trash2 size={12} strokeWidth={1.75} />

@@ -47,11 +47,11 @@ export function Blotter() {
         data-testid="openfin-workspace-blotter-grid-id"
         style={{
           padding: '6px 10px',
-          background: 'var(--ds-surface-elevated, #1a1f26)',
-          color: 'var(--ds-text-primary, #eaecef)',
+          background: 'var(--ds-surface-primary)',
+          color: 'var(--ds-text-primary)',
           fontFamily: 'IBM Plex Mono, monospace',
           fontSize: 11,
-          borderBottom: '1px solid var(--ds-border-subtle, #2a2f36)',
+          borderBottom: '1px solid var(--ds-border-secondary)',
         }}
       >
         gridId: <code>{GRID_ID}</code>

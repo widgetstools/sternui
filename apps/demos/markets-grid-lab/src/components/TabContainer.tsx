@@ -62,7 +62,7 @@ export function TabContainer({
         {variants && variants.length > 0 && (
           <div className="ml-4">
             <Select value={activeVariant} onValueChange={onVariantChange}>
-              <SelectTrigger className="h-8 w-[220px] border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-raised)] text-[12px]">
+              <SelectTrigger className="h-8 w-[220px] border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-secondary)] text-[12px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -85,7 +85,7 @@ export function TabContainer({
                 size="icon"
                 onClick={() => setHelpOpen(true)}
                 aria-label="Open help"
-                className="h-8 w-8 border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-raised)] hover:text-[color:var(--ds-text-primary)]"
+                className="h-8 w-8 border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-secondary)] hover:text-[color:var(--ds-text-primary)]"
                 data-testid="tab-help"
               >
                 <CircleHelp size={14} strokeWidth={1.75} />

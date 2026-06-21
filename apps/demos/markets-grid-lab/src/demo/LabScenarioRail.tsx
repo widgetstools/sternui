@@ -15,27 +15,27 @@ import { useLabDemoRegistry } from './LabDemoContext';
 
 const ACCENT: Record<string, { btn: string; btnActive: string; dotClass: string }> = {
   positive: {
-    btn: 'border-[color:var(--ds-status-success-border)] bg-[color:var(--ds-surface-raised)]',
-    btnActive: 'border-[color:var(--ds-status-success-fg)] bg-[color:var(--ds-status-success-bg)]',
-    dotClass: 'bg-[color:var(--ds-status-success-fg)]',
+    btn: 'border-[color:var(--ds-accent-positive)] bg-[color:var(--ds-surface-secondary)]',
+    btnActive: 'border-[color:var(--ds-accent-positive)] bg-[color:var(--ds-overlay-positive-soft)]',
+    dotClass: 'bg-[color:var(--ds-accent-positive)]',
   },
   negative: {
-    btn: 'border-[color:var(--ds-status-error-border)] bg-[color:var(--ds-surface-raised)]',
-    btnActive: 'border-[color:var(--ds-status-error-fg)] bg-[color:var(--ds-status-error-bg)]',
-    dotClass: 'bg-[color:var(--ds-status-error-fg)]',
+    btn: 'border-[color:var(--ds-accent-negative)] bg-[color:var(--ds-surface-secondary)]',
+    btnActive: 'border-[color:var(--ds-accent-negative)] bg-[color:var(--ds-overlay-negative-soft)]',
+    dotClass: 'bg-[color:var(--ds-accent-negative)]',
   },
   warning: {
-    btn: 'border-[color:var(--ds-status-warning-border)] bg-[color:var(--ds-surface-raised)]',
-    btnActive: 'border-[color:var(--ds-status-warning-fg)] bg-[color:var(--ds-status-warning-bg)]',
-    dotClass: 'bg-[color:var(--ds-status-warning-fg)]',
+    btn: 'border-[color:var(--ds-accent-warning)] bg-[color:var(--ds-surface-secondary)]',
+    btnActive: 'border-[color:var(--ds-accent-warning)] bg-[color:var(--ds-overlay-warning-soft)]',
+    dotClass: 'bg-[color:var(--ds-accent-warning)]',
   },
   info: {
-    btn: 'border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-raised)]',
+    btn: 'border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-secondary)]',
     btnActive: 'border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)]',
     dotClass: 'bg-[color:var(--ds-primary)]',
   },
   neutral: {
-    btn: 'border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-raised)]',
+    btn: 'border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-secondary)]',
     btnActive: 'border-[color:var(--ds-text-secondary)] bg-[color:var(--ds-surface-primary)]',
     dotClass: 'bg-[color:var(--ds-text-secondary)]',
   },
@@ -109,7 +109,7 @@ export function LabScenarioRail({ activeTab }: { activeTab: string }) {
       </header>
 
       <div className="ds-scrollbar flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-        <section className="rounded-md border border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-raised)] p-3">
+        <section className="rounded-md border border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-secondary)] p-3">
           <div className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-[color:var(--ds-text-secondary)]">
             <Activity size={12} />
             Stream

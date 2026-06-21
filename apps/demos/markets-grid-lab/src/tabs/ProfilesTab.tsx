@@ -24,7 +24,7 @@ const ACCENT_CLASS: Record<ProfilePreset['accent'], string> = {
   green:  'before:bg-[color:var(--ds-accent-positive)]',
   amber:  'before:bg-[color:var(--ds-accent-warning)]',
   purple: 'before:bg-[color:var(--ds-accent-info)]',
-  pink:   'before:bg-[color:var(--ds-status-error-fg)]',
+  pink:   'before:bg-[color:var(--ds-accent-negative)]',
   slate:  'before:bg-[color:var(--ds-text-secondary)]',
 };
 
@@ -52,7 +52,7 @@ function PresetGallery({ onOpen }: { onOpen: (id: string) => void }) {
             type="button"
             variant="outline"
             onClick={() => onOpen(p.id)}
-            className={`group relative flex h-full flex-col gap-3 rounded-lg border border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-raised)] p-4 text-left transition-colors hover:border-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-primary)] before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] before:rounded-l-lg ${ACCENT_CLASS[p.accent]}`}
+            className={`group relative flex h-full flex-col gap-3 rounded-lg border border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-secondary)] p-4 text-left transition-colors hover:border-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-primary)] before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] before:rounded-l-lg ${ACCENT_CLASS[p.accent]}`}
           >
             <div className="flex items-baseline justify-between gap-2 pl-2">
               <h3 className="text-[14px] font-semibold tracking-tight text-[color:var(--ds-text-primary)]">

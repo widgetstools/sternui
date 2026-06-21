@@ -39,7 +39,7 @@ export function AppMenubar({
         <MenubarSeparator />
         <MenubarItem
           onSelect={onReset}
-          className="font-mono text-[12px] text-[color:var(--ds-accent-negative)] focus:bg-[color:var(--ds-overlay-negative-soft,rgba(255,157,78,0.12))] focus:text-[color:var(--ds-accent-negative)]"
+          className="font-mono text-[12px] text-[color:var(--ds-accent-negative)] focus:bg-[color:var(--ds-overlay-negative-soft)] focus:text-[color:var(--ds-accent-negative)]"
         >
           Reset all layouts
           <MenubarShortcut>Ctrl+Shift+R</MenubarShortcut>
@@ -97,7 +97,7 @@ function MenubarItemMenu({
 }) {
   return (
     <MenubarMenu>
-      <MenubarTrigger className="h-7 cursor-pointer rounded-sm px-2.5 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--ds-text-secondary)] data-[state=open]:bg-[color:var(--ds-surface-raised)] data-[state=open]:text-[color:var(--ds-text-primary)] hover:bg-[color:var(--ds-surface-raised)] hover:text-[color:var(--ds-text-primary)]">
+      <MenubarTrigger className="h-7 cursor-pointer rounded-sm px-2.5 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--ds-text-secondary)] data-[state=open]:bg-[color:var(--ds-surface-secondary)] data-[state=open]:text-[color:var(--ds-text-primary)] hover:bg-[color:var(--ds-surface-secondary)] hover:text-[color:var(--ds-text-primary)]">
         {label}
       </MenubarTrigger>
       <MenubarContent

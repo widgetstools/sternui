@@ -116,7 +116,7 @@ export function DataServicesGridPanel() {
         {streamError ? (
           <>
             <span className="h-3 w-px bg-[color:var(--ds-border-primary)]" />
-            <span className="text-[color:var(--ds-accent-danger,#f43f5e)]">error: {streamError}</span>
+            <span className="text-[color:var(--ds-accent-negative)]">error: {streamError}</span>
           </>
         ) : null}
       </div>

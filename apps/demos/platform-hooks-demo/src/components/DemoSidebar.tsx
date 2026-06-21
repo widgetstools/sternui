@@ -34,7 +34,7 @@ export function DemoSidebar({ gridId }: { gridId: string }): ReactElement {
 
   return (
     <aside
-      className="flex w-[380px] shrink-0 flex-col border-r border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-panel)]"
+      className="flex w-[380px] shrink-0 flex-col border-r border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)]"
       data-testid="platform-hooks-demo-sidebar"
     >
       <header className="border-b border-[color:var(--ds-border-primary)] px-4 py-3">
@@ -61,7 +61,7 @@ export function DemoSidebar({ gridId }: { gridId: string }): ReactElement {
             {t.icon}
             {t.label}
             {t.id === 'events' && events.length > 0 ? (
-              <span className="rounded bg-[color:var(--ds-surface-highlight)] px-1 font-mono text-[10px]">
+              <span className="rounded bg-[color:var(--ds-surface-tertiary)] px-1 font-mono text-[10px]">
                 {events.length}
               </span>
             ) : null}
@@ -130,7 +130,7 @@ export function DemoSidebar({ gridId }: { gridId: string }): ReactElement {
                   data-handler-id={entry.handlerId}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-[10px] text-[color:var(--ds-accent-primary)]">
+                    <span className="font-mono text-[10px] text-[color:var(--ds-accent-info)]">
                       {entry.handlerId}
                     </span>
                     <time className="font-mono text-[10px] text-[color:var(--ds-text-muted)]">

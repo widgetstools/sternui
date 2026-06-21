@@ -127,7 +127,7 @@ function Section({ label, children }: { label: string; children: ReactNode }) {
 
 function RadioRow({ value, label, caption }: { value: string; label: string; caption: string }) {
   return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-md border border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] px-3 py-2 transition-colors hover:bg-[color:var(--ds-surface-raised)]">
+    <label className="flex cursor-pointer items-start gap-3 rounded-md border border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] px-3 py-2 transition-colors hover:bg-[color:var(--ds-surface-secondary)]">
       <RadioGroupItem value={value} className="mt-[2px]" />
       <div className="flex flex-col gap-0.5">
         <span className="font-mono text-[12px] font-medium text-[color:var(--ds-text-primary)]">{label}</span>
