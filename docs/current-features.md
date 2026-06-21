@@ -1740,6 +1740,10 @@ of importing `@openfin/*` directly (architecture boundary).
 | `demo-stomp-markets-grid` | Minimal STOMP + MarketsGrid (web + OpenFin); `defaultLiveProviderId` |
 | `stomp-marketsgrid-minimal` | Lean STOMP → MarketsGrid dev track |
 | `markets-grid-lab` | Grid lab tabs + scenario rail + importable profiles |
+- `apps/demos/markets-grid-lab` — **Home landing tab** (`HomeTab`): hero, 30-second mount snippet, config-driven mental-model cards, recommended path, and a category feature map linking to every tab.
+- `apps/demos/markets-grid-lab` — **grouped sidebar nav** (`LabSidebarNav`) with a feature filter, replacing the horizontal tab strip; nav items keep `data-testid="lab-tab-<id>"`.
+- `apps/demos/markets-grid-lab` — **Inspector drawer** (`InspectorDrawer`) under every feature grid: What/Why, Try-this steps, derived Config blocks, and a Props/API table.
+- `apps/demos/markets-grid-lab` — **feature-guide registry** (`guides/featureGuides.ts`, `FeatureGuide`) and config-block derivation (`buildConfigBlocks`) sourced from each tab's `LabFeatureConfig` and seed rules.
 | `platform-hooks-demo` | AppData bootstrap hooks + grid event callback bindings (port 5214) |
 | `stomp`, `mockdata-provider`, `dataprovider-editor` | MCP tutorial apps; hub bootstrap + `useDataProvider` |
 | `basic` (`@starui/tutorial-basic`) | Minimal grid tutorial |
