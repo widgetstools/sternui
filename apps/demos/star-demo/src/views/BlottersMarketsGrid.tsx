@@ -44,7 +44,7 @@ function BlottersMarketsGrid(): ReactNode {
       withStorage
       theme="auto"
       configManager={configManager}
-      defaultLiveProviderId="dp-121e4569-5100-4f6b-b946-c3423d8aff7c"
+      
       gridId="star-demo-blotter"
       historicalDateAppDataRef="positions.asOfDate"
       onEditProvider={handleEditProvider}
