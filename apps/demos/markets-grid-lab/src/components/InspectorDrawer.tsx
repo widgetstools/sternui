@@ -137,7 +137,7 @@ export function InspectorDrawer({ guide, configBlocks, fullDocs }: InspectorDraw
 
             <TabsContent value="config" className="m-0 flex flex-col gap-3">
               {configBlocks.map((block, i) => (
-                <ConfigBlock key={block.label} block={block} />
+                <ConfigBlock key={`${i}-${block.label}`} block={block} />
               ))}
             </TabsContent>
 
