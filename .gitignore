@@ -64,3 +64,6 @@ apps/.npmrc
 # `npm install` (never `npm ci`), so no committed lock is required.
 package-lock.json
 apps/package-lock.json
+
+# Superpowers scratch (brainstorm mockups, SDD ledger)
+.superpowers/
