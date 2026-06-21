@@ -733,16 +733,17 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 #### Panels & dialogs
 
 - `ConfigBrowserPanel` — master table UI with sidebar (AppConfig, UserProfile, Role, Blotter); sole public export (internal `ConfigBrowser.tsx` composes toolbar, search, drawer, import/export)
-- `Toolbar` — search bar, import, delete-all, export
+- `Toolbar` — search bar, import, delete-all, reset-to-seed, export
 - `DataGrid` — AG Grid table with inline editing
 - `TableSidebar` — table selector, CRUD buttons, row counts
 - `RowDrawer` — JSON/form editor with validation
 - `DeleteAllDialog` — destructive-action confirmation
+- `ResetToSeedDialog` — wipe ALL config tables and re-seed from `ConfigManager.seedConfigUrl`; backup-only gate (Reset disabled until a full-database backup is downloaded). Toolbar button is disabled when no seed is configured
 - `ImportPreviewDialog` — pre-apply import bundle preview
 
 #### State, helpers, theming
 
-- `useConfigBrowser` — table state, filters, mutations; `exportDeploy()` full deploy seed bundle (unfiltered `appConfig`) + validation via `@starui/host-config` `buildDeployExport()`
+- `useConfigBrowser` — table state, filters, mutations; `exportDeploy()` full deploy seed bundle (unfiltered `appConfig`) + validation via `@starui/host-config` `buildDeployExport()`; `resetToSeed()` (delegates to `ConfigManager.resetToSeed()`, refreshes the view) and `seedConfigUrl` (gates the Reset button)
 - `DeployExportPreviewDialog` — pre-download validation summary; rocket download saves as `seed.json` (errors and warnings require acknowledge checkbox)
 - `buildDeployExport()`, `validateDeployExport()`, `parseSeedJson()`, `resolveActiveIdentityFromSeedUrl()` (`@starui/host-config`) — deploy export includes every `appConfig` row plus `activeAppId` / `activeUserId`; normalize scope drift against those fields; reject wrong `seed.json` shapes (e.g. `kind: starui.dataProvider`); emit `DeployExportWarning` codes (`MISSING_INSTANCE_ROW`, `EMPTY_PROFILE_STATE`, `UNREFERENCED_ROWS`, …); `resolveActiveIdentityFromSeedUrl()` cross-window-caches identity (single-flight + `localStorage`) so OpenFin child views do not re-fetch the full deploy bundle; manifest `customSettings.appId` / `userId` skip the seed fetch when both are pinned
 - `ConfigManager.onConfigChanged()` / `ChangeNotifier.subscribeAll()` — global write/delete subscription (same-tab + cross-tab) for worker catalog sync
@@ -1110,6 +1111,7 @@ modules).
 - Reads: `getConfigsByApp` / `getConfigsByUser` / `getAllConfigs` (visibility-filtered) + `…Unfiltered` admin variants, `findByComponentType`, `getTemplates`
 - `getConfigsByComponentTypesUnfiltered(types)` — fetch only the given `componentType`s via the `[componentType+componentSubType]` index (O(matching) not O(all rows)). Used by the data-provider / AppData stores so listing providers reads only provider rows instead of materialising every grid profile in `appConfig`
 - Auth-table methods: app-registry / user-profile / role / permission CRUD + `getUserPermissions` / `userHasPermission`
+- `resetToSeed()` — hard reset: fetch + parse the seed at `seedConfigUrl` FIRST (a fetch/parse failure throws before any wipe, so the DB is never stranded empty), then clear all config tables and bulkPut the seed in one transaction; updates the seed digest, flushes the row cache, returns per-table counts. `getSeedConfigUrl()` exposes the configured seed URL (drives the Config Browser "Reset to seed" button)
 - REST mode — writes sync to backend with Dexie as local cache
 - Failed REST writes → `PENDING_SYNC` table, auto-retry every 10 s (max 10 retries)
 - Impersonation via `setImpersonatedUser()` for admin previews

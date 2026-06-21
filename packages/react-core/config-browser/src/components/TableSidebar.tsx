@@ -48,7 +48,7 @@ export function TableSidebar({ selected, counts, onSelect }: TableSidebarProps) 
                 className={cn(
                   'min-w-[22px] rounded px-1.5 py-px text-center font-[var(--de-mono)] text-[10px]',
                   isActive
-                    ? 'bg-[var(--de-accent)] text-[hsl(var(--primary-foreground))]'
+                    ? 'bg-[var(--de-accent)] text-[var(--de-accent-foreground)]'
                     : 'bg-[var(--de-bg-surface)] text-[var(--de-text-tertiary)]',
                 )}
               >

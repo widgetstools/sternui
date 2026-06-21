@@ -156,8 +156,8 @@ export function DeleteAllDialog({
             className={cn(
               'h-[30px] gap-1.5 px-3.5 text-xs font-semibold font-[var(--de-font)] shadow-none',
               canDelete
-                ? 'bg-[var(--de-danger,var(--ds-accent-negative))] text-[hsl(var(--destructive-foreground))] hover:bg-[var(--de-danger,var(--ds-accent-negative))]'
-                : 'bg-[color-mix(in_srgb,var(--de-danger,var(--ds-accent-negative))_30%,transparent)] text-[hsl(var(--destructive-foreground))] opacity-60',
+                ? 'bg-[var(--de-danger,var(--ds-accent-negative))] text-[var(--de-danger-foreground)] hover:bg-[var(--de-danger,var(--ds-accent-negative))]'
+                : 'bg-[color-mix(in_srgb,var(--de-danger,var(--ds-accent-negative))_30%,transparent)] text-[var(--de-danger-foreground)] opacity-60',
             )}
           >
             <Icon icon="lucide:trash-2" className="h-3.5 w-3.5" />

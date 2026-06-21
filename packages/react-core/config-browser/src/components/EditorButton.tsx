@@ -31,7 +31,12 @@ export function EditorButton({
       size="sm"
       className={cn(
         'h-[30px] gap-1.5 px-2 text-xs font-medium font-[var(--de-font)] shadow-none',
-        variant === 'primary' && 'bg-[var(--de-accent)] text-[hsl(var(--primary-foreground))] hover:bg-[var(--de-accent)] border-none px-3',
+        // Primary uses the shadcn `default` variant (above), which already
+        // paints `bg-primary text-primary-foreground` from the design system
+        // (dark foreground on the brand primary). Only add layout padding —
+        // do NOT re-paint colours here. (The old override wrapped an OKLCH
+        // token in `hsl(...)`, which clamped the text to white.)
+        variant === 'primary' && 'px-3',
         variant === 'danger' &&
           'border-[color-mix(in_srgb,var(--de-danger,var(--ds-accent-negative))_35%,var(--de-border))] bg-[color-mix(in_srgb,var(--de-danger,var(--ds-accent-negative))_8%,var(--de-bg-surface))] text-[var(--de-danger,var(--ds-accent-negative))] hover:text-[var(--de-danger,var(--ds-accent-negative))]',
         variant === 'default' &&

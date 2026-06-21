@@ -8,9 +8,8 @@
  * the resolved values come from the one source of truth.
  *
  * Consumers must have the design-system theme CSS loaded at the app
- * root, e.g.:
- *   @import '@starui/design-system/themes/fi-dark.css';
- *   @import '@starui/design-system/themes/fi-light.css';
+ * root:
+ *   @import '@starui/design-system/css';
  * and set `<html data-theme="dark">` (or `light`). See
  * `packages/design-system/README.md`.
  */
@@ -54,8 +53,11 @@ const EDITOR_CSS = `
   --de-accent-subtle:    var(--ds-primary-soft);
   --de-accent-foreground:var(--ds-primary-foreground);
 
-  --de-danger:         var(--ds-accent-negative);
-  --de-danger-dim:     var(--ds-overlay-negative-soft);
+  --de-danger:            var(--ds-accent-negative);
+  --de-danger-dim:        var(--ds-overlay-negative-soft);
+  /* Foreground for filled danger surfaces — the design-system destructive
+   * foreground (dark text on the bright negative fill, themed per mode). */
+  --de-danger-foreground: oklch(var(--destructive-foreground));
   --de-success:        var(--ds-accent-positive);
 
   /* ── Radii — flow through --ds-radius-* so editor chrome matches the
@@ -67,10 +69,13 @@ const EDITOR_CSS = `
   --de-radius-lg: var(--ds-radius-lg);
   --de-radius-xl: var(--ds-radius-xl);
 
-  /* ── Shadows — composition tokens kept local to this package ── */
-  --de-shadow-sm:   0 1px 2px rgba(0,0,0,0.3);
-  --de-shadow-md:   0 4px 12px rgba(0,0,0,0.4);
-  --de-shadow-lg:   0 8px 32px rgba(0,0,0,0.5);
+  /* ── Shadows → design-system elevation tokens. These self-theme via
+   * --ds-* when [data-theme] flips, so no per-mode overrides are needed.
+   * The system ships two elevation tiers (card, overlay); md and lg both
+   * resolve to the overlay tier. ── */
+  --de-shadow-sm:   var(--ds-elevation-card);
+  --de-shadow-md:   var(--ds-elevation-overlay);
+  --de-shadow-lg:   var(--ds-elevation-overlay);
   --de-shadow-glow: 0 0 20px var(--ds-primary-soft);
 
   font-family: var(--de-font);
@@ -79,19 +84,9 @@ const EDITOR_CSS = `
   -moz-osx-font-smoothing: grayscale;
 }
 
-/*
- * Light-theme shadow overrides. All color-bearing tokens above already
- * re-resolve when the root [data-theme] attribute flips, because they
- * delegate to --ds-* which are themed by the design-system CSS.
- */
-/* Match the root-level [data-theme="light"] selector so light-theme
-   shadow overrides apply to portal content as well. */
-[data-theme="light"], [data-dock-editor][data-theme="light"] {
-  --de-shadow-sm:   0 1px 2px rgba(0,0,0,0.06);
-  --de-shadow-md:   0 4px 12px rgba(0,0,0,0.08);
-  --de-shadow-lg:   0 8px 32px rgba(0,0,0,0.12);
-  --de-shadow-glow: 0 0 20px var(--ds-primary-soft);
-}
+/* No per-theme shadow overrides needed: every --de-* token (including the
+ * shadows above) delegates to a --ds-* design-system token that re-resolves
+ * automatically when the root [data-theme] attribute flips. */
 
 @keyframes de-fade-in {
   from { opacity: 0; transform: translateY(6px); }
