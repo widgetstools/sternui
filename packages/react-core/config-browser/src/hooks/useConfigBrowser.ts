@@ -13,7 +13,7 @@ import {
   normalizeImportedAppConfigRow,
   type DeployExportResult,
 } from "@starui/host-config";
-import type { ConfigManager } from "@starui/host-config";
+import type { ConfigManager, ResetToSeedResult } from "@starui/host-config";
 import { TABLES, type TableKey, type TableMeta } from "../types";
 
 interface Counts {
@@ -99,6 +99,13 @@ export interface UseConfigBrowserReturn {
   exportAll: () => Promise<ExportBundle>;
   /** Scoped deploy bundle with validation warnings (seed-ready). */
   exportDeploy: () => Promise<DeployExportResult>;
+  /** The seed-config URL the ConfigManager will reset to, or `null` when no
+   *  seed is configured (REST-only / unconfigured) — gates the Reset button. */
+  seedConfigUrl: string | null;
+  /** Wipe every config table and re-seed from {@link seedConfigUrl}. Throws
+   *  if no seed is configured or the seed can't be fetched/parsed (the DB is
+   *  left untouched on fetch/parse failure). Refreshes the view on success. */
+  resetToSeed: () => Promise<ResetToSeedResult>;
 }
 
 const ZERO_COUNTS: Counts = {
@@ -125,6 +132,7 @@ function tableOf(manager: ConfigManager, key: TableKey) {
 export function useConfigBrowser(): UseConfigBrowserReturn {
   const [hostEnv, setHostEnv] = useState<HostEnv>({ appId: "", configServiceUrl: "" });
   const [restUrl, setRestUrl] = useState<string | undefined>(undefined);
+  const [seedConfigUrl, setSeedConfigUrl] = useState<string | null>(null);
   const [selectedKey, setSelectedKey] = useState<TableKey>("appConfig");
   const [rows, setRows] = useState<any[]>([]);
   const [counts, setCounts] = useState<Counts>(ZERO_COUNTS);
@@ -177,6 +185,7 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
         ]);
         setHostEnv(env);
         setRestUrl(manager.getRestUrl?.());
+        setSeedConfigUrl(manager.getSeedConfigUrl?.() ?? null);
         managerRef.current = manager;
         await loadCounts(manager, env.appId);
         await loadRows(manager, selectedKey, env.appId);
@@ -511,6 +520,16 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
     return { deleted, failed: errors.length, errors };
   }, [rows, selected.primaryKey, selectedKey, refresh]);
 
+  const resetToSeed = useCallback(async (): Promise<ResetToSeedResult> => {
+    const manager = managerRef.current;
+    if (!manager) {
+      throw new Error('ConfigManager not ready');
+    }
+    const result = await manager.resetToSeed();
+    await refresh();
+    return result;
+  }, [refresh]);
+
   return {
     hostEnv,
     restUrl,
@@ -527,5 +546,7 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
     deleteAllRows,
     exportAll,
     exportDeploy,
+    seedConfigUrl,
+    resetToSeed,
   };
 }

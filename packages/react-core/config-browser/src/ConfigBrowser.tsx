@@ -14,6 +14,7 @@ import { RowDrawer } from "./components/RowDrawer";
 import { ImportPreviewDialog } from "./components/ImportPreviewDialog";
 import { DeployExportPreviewDialog } from "./components/DeployExportPreviewDialog";
 import { DeleteAllDialog } from "./components/DeleteAllDialog";
+import { ResetToSeedDialog } from "./components/ResetToSeedDialog";
 import { injectEditorStyles } from "./editorStyles";
 import type { ImportMode, ImportPreview } from "./hooks/useConfigBrowser";
 import type { DeployExportResult } from "@starui/host-config";
@@ -37,12 +38,15 @@ export function ConfigBrowserPanel() {
     deleteAllRows,
     exportAll,
     exportDeploy,
+    seedConfigUrl,
+    resetToSeed,
   } = useConfigBrowser();
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [deployExportPreview, setDeployExportPreview] = useState<DeployExportResult | null>(null);
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
+  const [resetToSeedOpen, setResetToSeedOpen] = useState(false);
 
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [quickFilter, setQuickFilter] = useState("");
@@ -223,6 +227,23 @@ export function ConfigBrowserPanel() {
     alert(summary);
   };
 
+  const handleConfirmResetToSeed = async () => {
+    setResetToSeedOpen(false);
+    try {
+      const result = await resetToSeed();
+      const { counts } = result;
+      alert(
+        `Reset complete — re-seeded from ${result.seedUrl}:\n` +
+          `${counts.appConfig} app configs, ${counts.appRegistry} app registry, ` +
+          `${counts.userProfiles} user profiles, ${counts.roles} roles, ` +
+          `${counts.permissions} permissions.`,
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(`Reset to seed failed — your data was left untouched.\n\n${msg}`);
+    }
+  };
+
   return (
     <div
       data-dock-editor
@@ -284,6 +305,8 @@ export function ConfigBrowserPanel() {
             onExportDeploy={handleExportDeployClick}
             onImport={handleImportClick}
             onDeleteAll={() => setDeleteAllOpen(true)}
+            onResetToSeed={() => setResetToSeedOpen(true)}
+            canResetToSeed={!!seedConfigUrl}
           />
           <input
             ref={fileInputRef}
@@ -368,6 +391,15 @@ export function ConfigBrowserPanel() {
           onCancel={() => setDeleteAllOpen(false)}
           onDownloadBackup={handleExport}
           onConfirm={handleConfirmDeleteAll}
+        />
+      )}
+
+      {resetToSeedOpen && seedConfigUrl && (
+        <ResetToSeedDialog
+          seedUrl={seedConfigUrl}
+          onCancel={() => setResetToSeedOpen(false)}
+          onDownloadBackup={handleExportAll}
+          onConfirm={handleConfirmResetToSeed}
         />
       )}
 

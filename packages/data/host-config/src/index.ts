@@ -26,6 +26,7 @@ export { createConfigManager, ConfigManager } from './ConfigManager';
 export type {
   CreateConfigInput,
   ImpersonatedUser,
+  ResetToSeedResult,
   SaveConfigOptions,
   UpdateConfigOptions,
 } from './ConfigManager';

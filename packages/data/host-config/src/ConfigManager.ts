@@ -93,6 +93,20 @@ export interface UpdateConfigOptions {
   expectedUpdatedTime?: string;
 }
 
+/** Summary returned by {@link ConfigManager.resetToSeed}. */
+export interface ResetToSeedResult {
+  /** The seed-config URL the database was reset from. */
+  seedUrl: string;
+  /** Per-table row counts written from the seed. */
+  counts: {
+    appConfig: number;
+    appRegistry: number;
+    userProfiles: number;
+    roles: number;
+    permissions: number;
+  };
+}
+
 /**
  * Create a new ConfigManager instance — the single entry point for the
  * config service. Local Dexie by default; pass `configServiceRestUrl`
@@ -1250,6 +1264,121 @@ export class ConfigManager {
     });
   }
 
+  /** The seed-config URL this manager was constructed with, if any. */
+  getSeedConfigUrl(): string | undefined {
+    return this.seedConfigUrl;
+  }
+
+  /**
+   * Hard reset: replace EVERY config table with the contents of the seed
+   * file at {@link seedConfigUrl}. Unlike {@link seedIfEmpty} this runs
+   * unconditionally (regardless of `seedConfigReload` or whether the DB is
+   * empty / the digest changed).
+   *
+   * The seed is fetched, parsed and normalized BEFORE anything is wiped, so a
+   * network or parse failure throws and leaves the existing database
+   * untouched — a reset never strands the user with an empty store.
+   *
+   * Callers (e.g. the Config Browser "Reset to seed" action) are expected to
+   * force a backup first; this method itself performs no backup.
+   *
+   * @throws if the manager is disposed, has no `seedConfigUrl`, or the seed
+   *   cannot be fetched / parsed.
+   */
+  async resetToSeed(): Promise<ResetToSeedResult> {
+    if (this.disposed) {
+      throw new Error('ConfigManager: cannot reset a disposed manager.');
+    }
+    const url = this.seedConfigUrl;
+    if (!url) {
+      throw new Error(
+        'ConfigManager: no seedConfigUrl configured — there is no seed to reset to.',
+      );
+    }
+
+    // Fetch + parse FIRST — a failure here must abort before any wipe.
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(
+        `ConfigManager: failed to fetch seed data from ${url} (HTTP ${response.status}).`,
+      );
+    }
+    const parsed = parseSeedJson(await response.json());
+    if (!parsed) {
+      throw new Error(`ConfigManager: ${url} is not a valid seed file.`);
+    }
+    const seedData: SeedData = normalizeSeedData(parsed);
+
+    // Serialize against any concurrent seed/reset across windows + worker.
+    let counts: ResetToSeedResult['counts'] | undefined;
+    await this.runWithSeedLock(url, async () => {
+      counts = await this.replaceAllWithSeed(seedData);
+    });
+
+    // Persist the digest so a subsequent `when-changed` boot doesn't re-seed
+    // over the freshly-reset rows, and drop any stale cache entries.
+    this.writeSeedDigest(seedDigestStorageKey(url), await computeSeedDigest(seedData));
+    this.rowCache.clear();
+    console.log(`ConfigManager: reset complete — re-seeded from ${url}.`);
+    return { seedUrl: url, counts: counts! };
+  }
+
+  /**
+   * Clear all config tables and bulkPut the seed rows in a single `rw`
+   * transaction, so the replace is atomic. Returns per-table row counts.
+   * Shared by {@link resetToSeed} and {@link seedIfEmptyLocked}.
+   */
+  private async replaceAllWithSeed(
+    seedData: SeedData,
+    options: { clearFirst?: boolean } = {},
+  ): Promise<ResetToSeedResult['counts']> {
+    const { clearFirst = true } = options;
+    await this.db.transaction(
+      'rw',
+      [
+        this.db.appRegistry,
+        this.db.userProfile,
+        this.db.roles,
+        this.db.permissions,
+        this.db.appConfig,
+      ],
+      async () => {
+        if (clearFirst) {
+          await Promise.all([
+            this.db.appConfig.clear(),
+            this.db.appRegistry.clear(),
+            this.db.userProfile.clear(),
+            this.db.roles.clear(),
+            this.db.permissions.clear(),
+          ]);
+        }
+        if (seedData.permissions.length > 0) {
+          await this.db.permissions.bulkPut(seedData.permissions);
+        }
+        if (seedData.roles.length > 0) {
+          await this.db.roles.bulkPut(seedData.roles);
+        }
+        if (seedData.appRegistry.length > 0) {
+          await this.db.appRegistry.bulkPut(seedData.appRegistry);
+        }
+        if (seedData.userProfiles.length > 0) {
+          await this.db.userProfile.bulkPut(seedData.userProfiles);
+        }
+        if (seedData.appConfig && seedData.appConfig.length > 0) {
+          await this.db.appConfig.bulkPut(seedData.appConfig);
+        }
+      },
+    );
+    this.rowCache.clear();
+    return {
+      permissions: seedData.permissions.length,
+      roles: seedData.roles.length,
+      appRegistry: seedData.appRegistry.length,
+      userProfiles: seedData.userProfiles.length,
+      appConfig: seedData.appConfig?.length ?? 0,
+    };
+  }
+
   private async seedIfEmptyLocked(): Promise<void> {
     if (this.disposed || !this.seedConfigUrl) {
       return;
@@ -1297,57 +1426,26 @@ export class ConfigManager {
         console.log(
           `ConfigManager: seed.json changed — clearing config tables and re-seeding from ${this.seedConfigUrl}`,
         );
-        await this.clearSeedTables();
       }
 
       if (!hasData) {
         console.log(`ConfigManager: Seeding database from ${this.seedConfigUrl}`);
       }
 
-      await this.db.transaction(
-        'rw',
-        [
-          this.db.appRegistry,
-          this.db.userProfile,
-          this.db.roles,
-          this.db.permissions,
-          this.db.appConfig,
-        ],
-        async () => {
-          if (seedData.permissions.length > 0) {
-            await this.db.permissions.bulkPut(seedData.permissions);
-            console.log(`ConfigManager: Seeded ${seedData.permissions.length} permissions.`);
-          }
-
-          if (seedData.roles.length > 0) {
-            await this.db.roles.bulkPut(seedData.roles);
-            console.log(`ConfigManager: Seeded ${seedData.roles.length} roles.`);
-          }
-
-          if (seedData.appRegistry.length > 0) {
-            await this.db.appRegistry.bulkPut(seedData.appRegistry);
-            console.log(`ConfigManager: Seeded ${seedData.appRegistry.length} app registry entries.`);
-          }
-
-          if (seedData.userProfiles.length > 0) {
-            await this.db.userProfile.bulkPut(seedData.userProfiles);
-            console.log(`ConfigManager: Seeded ${seedData.userProfiles.length} user profiles.`);
-          }
-
-          if (seedData.appConfig && seedData.appConfig.length > 0) {
-            await this.db.appConfig.bulkPut(seedData.appConfig);
-            console.log(`ConfigManager: Seeded ${seedData.appConfig.length} component configs.`);
-          }
-        },
-      );
-
-      // Seeded rows land via `bulkPut`, bypassing `saveConfig`'s
-      // write-through, so drop any cache entries (notably negative hits a
-      // pre-seed read may have stored) to force a fresh read of the seeded
-      // rows.
-      this.rowCache.clear();
+      // Clear only on a `when-changed` re-seed of a non-empty DB; a cold seed
+      // bulkPuts straight into the already-empty tables. `replaceAllWithSeed`
+      // also flushes `rowCache` (seeded rows bypass `saveConfig`'s
+      // write-through, so any negative cache hits from a pre-seed read must
+      // be dropped).
+      const seeded = await this.replaceAllWithSeed(seedData, {
+        clearFirst: hasData && this.seedConfigReload === 'when-changed',
+      });
       this.writeSeedDigest(digestKey, digest);
-      console.log('ConfigManager: Database seeding complete.');
+      console.log(
+        `ConfigManager: Database seeding complete — ${seeded.permissions} permissions, ` +
+        `${seeded.roles} roles, ${seeded.appRegistry} app registry, ` +
+        `${seeded.userProfiles} user profiles, ${seeded.appConfig} component configs.`,
+      );
     } catch (error) {
       console.error('ConfigManager: Error seeding database.', error);
     }
@@ -1369,31 +1467,6 @@ export class ConfigManager {
     } catch {
       /* private mode / quota — seed still applied */
     }
-  }
-
-  /** Wipe auth + component tables before a `when-changed` re-seed. */
-  private async clearSeedTables(): Promise<void> {
-    await this.db.transaction(
-      'rw',
-      [
-        this.db.appRegistry,
-        this.db.userProfile,
-        this.db.roles,
-        this.db.permissions,
-        this.db.appConfig,
-      ],
-      async () => {
-        await Promise.all([
-          this.db.appConfig.clear(),
-          this.db.appRegistry.clear(),
-          this.db.userProfile.clear(),
-          this.db.roles.clear(),
-          this.db.permissions.clear(),
-        ]);
-      },
-    );
-    // Tables wiped out-of-band from `deleteConfig`; flush the read cache.
-    this.rowCache.clear();
   }
 
   // ─── REST sync ────────────────────────────────────────────────────

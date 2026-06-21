@@ -15,6 +15,9 @@ interface ToolbarProps {
   onExportDeploy: () => void;
   onImport: () => void;
   onDeleteAll: () => void;
+  onResetToSeed: () => void;
+  /** False when no `seedConfigUrl` is configured — disables Reset to seed. */
+  canResetToSeed: boolean;
 }
 
 export function Toolbar({
@@ -29,6 +32,8 @@ export function Toolbar({
   onExportDeploy,
   onImport,
   onDeleteAll,
+  onResetToSeed,
+  canResetToSeed,
 }: ToolbarProps) {
   return (
     <div className="flex items-center gap-2 border-b border-[var(--de-border)] bg-[var(--de-bg)] px-4 py-2.5">
@@ -68,6 +73,17 @@ export function Toolbar({
         onClick={onExportAll}
         title="Export ALL (raw) — full Dexie dump for debugging; may include orphan instance rows"
         icon="lucide:package"
+      />
+      <EditorButton
+        onClick={onResetToSeed}
+        title={
+          canResetToSeed
+            ? "Reset ALL config to seed.json (requires backup first)"
+            : "Reset to seed unavailable — no seed file is configured"
+        }
+        icon="lucide:database-backup"
+        disabled={!canResetToSeed}
+        variant="danger"
       />
       <EditorButton
         onClick={onDeleteAll}
