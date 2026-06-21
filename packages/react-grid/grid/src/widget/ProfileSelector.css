@@ -141,8 +141,8 @@
   /* ~2/3 of the previous default (288/340/480), and responsive: the
    * vw/vh caps shrink the popover on small host windows so it never
    * overflows its container. */
-  min-width: 192px;
-  max-width: min(228px, calc(100vw - 24px));
+  min-width: 240px;
+  max-width: min(300px, calc(100vw - 24px));
   max-height: min(320px, calc(100vh - 48px));
   border-radius: 2px !important;
   /* Beat shadcn PopoverContent (`border`, `bg-popover`, `shadow-md`). */
@@ -197,6 +197,40 @@
   line-height: 1.2 !important;
   letter-spacing: 0.01em;
   color: var(--ds-text-primary);
+}
+
+/* Hover action cluster — see ProfileSelector.tsx. Absolutely positioned
+ * over the row's right edge so the layout name keeps the FULL row width at
+ * rest (in-flow trailing icons used to reserve ~4×22px and collapse the
+ * flex name column to a single character). A short left-edge fade masks
+ * the name's tail so long captions don't read through the revealed icons.
+ * The cluster fades in on row hover OR keyboard focus-within. */
+.ds-ps-row-actions {
+  position: absolute;
+  top: 0;
+  right: 4px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-left: 24px;
+  opacity: 0;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--ds-surface-ground) 24px);
+  transition: opacity 120ms ease;
+}
+.ds-ps-row:hover .ds-ps-row-actions,
+.ds-ps-row:focus-within .ds-ps-row-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+/* Match the fade mask to the active row's tint so the cluster reads cleanly. */
+.ds-ps-row[data-active='true'] .ds-ps-row-actions {
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in srgb, var(--ds-primary-soft) 86%, var(--ds-surface-ground)) 24px
+  );
 }
 .ds-ps-row[data-active='true'] .ds-ps-row-name {
   font-weight: 600;

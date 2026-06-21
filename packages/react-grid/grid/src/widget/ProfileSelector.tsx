@@ -284,7 +284,7 @@ export function ProfileSelectorInner({
                       data-active={isActive ? 'true' : undefined}
                     />
                   ) : (
-                    <span className="ds-ps-row-name">
+                    <span className="ds-ps-row-name" title={p.name}>
                       {p.name}
                     </span>
                   )}
@@ -298,23 +298,15 @@ export function ProfileSelectorInner({
                     />
                   )}
 
-                  {/* Per-row rename button — switches the row into
-                      inline-edit mode. Hidden for the reserved Default
-                      profile (renaming would break the lookup contract). */}
-                  {onRename && !isReserved && !isRenaming && (
-                    <GhostIconButton
-                      reveal="on-row-hover"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setRenamingId(p.id);
-                        setRenameDraft(p.name);
-                      }}
-                      title={`Rename "${p.name}"`}
-                      aria-label={`Rename layout ${p.name}`}
-                      data-testid={`profile-rename-${p.id}`}
+                  {/* Reserved-default lock — a status indicator (not an
+                      action), so it stays in flow and is always visible. */}
+                  {isReserved && !isRenaming && (
+                    <span
+                      title="Built-in default layout"
+                      className="ds-ps-row-lock"
                     >
-                      <Pencil size={12} strokeWidth={2.25} />
-                    </GhostIconButton>
+                      <Lock size={12} strokeWidth={2.25} />
+                    </span>
                   )}
 
                   {/* Cancel-rename button — only rendered while this row
@@ -335,71 +327,85 @@ export function ProfileSelectorInner({
                     </GhostIconButton>
                   )}
 
-                  {/* Per-row clone button — duplicates the profile with
-                      a "(copy)" suffix and activates it. Revealed on
-                      hover just like export/delete. */}
-                  {onClone && !isRenaming && (
-                    <GhostIconButton
-                      reveal="on-row-hover"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void handleClone(p.id);
-                      }}
-                      title={`Clone "${p.name}"`}
-                      aria-label={`Clone layout ${p.name}`}
-                      data-testid={`profile-clone-${p.id}`}
-                    >
-                      <Copy size={12} strokeWidth={2.25} />
-                    </GhostIconButton>
-                  )}
+                  {/* Hover action cluster — absolutely positioned over the
+                      row's right edge so the layout name keeps the FULL row
+                      width at rest (otherwise these trailing icons reserve
+                      layout space and collapse the flex name column to a
+                      single character). The cluster + a short fade mask
+                      reveal together on row hover / keyboard focus. */}
+                  {!isRenaming && (onRename || onClone || onExport || !isReserved) && (
+                    <div className="ds-ps-row-actions" aria-hidden={false}>
+                      {/* Per-row rename — switches the row into inline-edit
+                          mode. Hidden for the reserved Default profile. */}
+                      {onRename && !isReserved && (
+                        <GhostIconButton
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRenamingId(p.id);
+                            setRenameDraft(p.name);
+                          }}
+                          title={`Rename "${p.name}"`}
+                          aria-label={`Rename layout ${p.name}`}
+                          data-testid={`profile-rename-${p.id}`}
+                        >
+                          <Pencil size={12} strokeWidth={2.25} />
+                        </GhostIconButton>
+                      )}
 
-                  {/* Per-row export button — revealed on hover next to delete */}
-                  {onExport && !isRenaming && (
-                    <GhostIconButton
-                      reveal="on-row-hover"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onExport(p.id);
-                      }}
-                      title={`Export "${p.name}" as JSON`}
-                      aria-label={`Export layout ${p.name}`}
-                      data-testid={`profile-export-${p.id}`}
-                    >
-                      <Download size={12} strokeWidth={2.25} />
-                    </GhostIconButton>
-                  )}
+                      {/* Per-row clone — duplicates the profile and activates it. */}
+                      {onClone && (
+                        <GhostIconButton
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleClone(p.id);
+                          }}
+                          title={`Clone "${p.name}"`}
+                          aria-label={`Clone layout ${p.name}`}
+                          data-testid={`profile-clone-${p.id}`}
+                        >
+                          <Copy size={12} strokeWidth={2.25} />
+                        </GhostIconButton>
+                      )}
 
-                  {/* Trailing affordance — suppressed while renaming so
-                      the input owns the row's right edge. */}
-                  {isRenaming ? null : isReserved ? (
-                    <span
-                      title="Built-in default layout"
-                      className="ds-ps-row-lock"
-                    >
-                      <Lock size={12} strokeWidth={2.25} />
-                    </span>
-                  ) : (
-                    <GhostIconButton
-                      variant="destructive"
-                      reveal="on-row-hover"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Close the profile popover as we open the confirm
-                        // dialog — otherwise clicks inside the dialog would
-                        // fall through to the popover's dismiss layer and
-                        // race with the AlertDialog's focus trap.
-                        setOpen(false);
-                        setPendingDelete(p);
-                      }}
-                      title="Delete layout"
-                      aria-label={`Delete layout ${p.name}`}
-                    >
-                      <Trash2 size={12} strokeWidth={2.25} />
-                    </GhostIconButton>
+                      {/* Per-row export */}
+                      {onExport && (
+                        <GhostIconButton
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onExport(p.id);
+                          }}
+                          title={`Export "${p.name}" as JSON`}
+                          aria-label={`Export layout ${p.name}`}
+                          data-testid={`profile-export-${p.id}`}
+                        >
+                          <Download size={12} strokeWidth={2.25} />
+                        </GhostIconButton>
+                      )}
+
+                      {/* Per-row delete (never for the reserved Default). */}
+                      {!isReserved && (
+                        <GhostIconButton
+                          variant="destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Close the profile popover as we open the confirm
+                            // dialog — otherwise clicks inside the dialog would
+                            // fall through to the popover's dismiss layer and
+                            // race with the AlertDialog's focus trap.
+                            setOpen(false);
+                            setPendingDelete(p);
+                          }}
+                          title="Delete layout"
+                          aria-label={`Delete layout ${p.name}`}
+                        >
+                          <Trash2 size={12} strokeWidth={2.25} />
+                        </GhostIconButton>
+                      )}
+                    </div>
                   )}
                 </div>
               );
