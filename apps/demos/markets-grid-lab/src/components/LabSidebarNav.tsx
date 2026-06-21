@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ChevronRight, Search } from 'lucide-react';
-import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Input } from '@starui/ui';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger, Input } from '@starui/ui';
 import { LAB_CATEGORIES } from '../guides/categories';
 
 export interface LabSidebarNavItem {
