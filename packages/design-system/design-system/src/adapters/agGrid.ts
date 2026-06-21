@@ -175,9 +175,12 @@ function bakeStaruiTheme(density: GridDensity = 'compact'): Theme {
     }, 'light')
     .withParams({
       browserColorScheme: 'dark',
-      // Mode-specific params don't inherit across modes, so repeat the
-      // hidden column-resize handle here too (light gets it via `shared`).
-      headerColumnResizeHandleHeight: '0%',
+      // Mode-specific params don't inherit across modes (AG Grid Theming
+      // API), so the structural + shared colour params MUST be repeated in
+      // the dark block — otherwise the cell body falls back to Quartz's
+      // default grey instead of the design-system `oklch(var(--card))`.
+      ...structural,
+      ...shared,
       ...STARUI_DARK_CHROME,
     }, 'dark');
 }
