@@ -1,3 +1,4 @@
+@import '@widgetstools/react-dock-manager/styles.css';
 @import '@starui/design-system/css';
 
 @tailwind base;

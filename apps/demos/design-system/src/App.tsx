@@ -1,14 +1,13 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, TooltipProvider } from '@starui/ui';
+import { DockManagerCore } from '@widgetstools/react-dock-manager';
+import type { DockManagerState } from '@widgetstools/dock-manager-core';
 import { TopBar } from './components/TopBar';
 import { useTickingStore } from './data/useTickingStore';
-import { DesignSystemTab } from './tabs/DesignSystemTab';
-import { MarketTab } from './tabs/MarketTab';
-import { OrdersTab } from './tabs/OrdersTab';
-import { AnalyticsTab } from './tabs/AnalyticsTab';
-import { RiskTab } from './tabs/RiskTab';
-import { ResearchTab } from './tabs/ResearchTab';
-import type { TerminalState } from './data/types';
+import { useThemeMode } from './lib/useThemeMode';
+import { WIDGETS } from './lib/dock/registry';
+import { TAB_LAYOUTS } from './lib/dock/layouts';
+import { loadLayout } from './lib/dock/persistence';
 
 interface TabDef {
   id: string;
@@ -24,35 +23,11 @@ const TABS: TabDef[] = [
   { id: 'design-system', label: 'Design System' },
 ];
 
-function renderTab(id: string, state: TerminalState) {
-  switch (id) {
-    case 'market':
-      return <MarketTab state={state} />;
-    case 'orders':
-      return <OrdersTab state={state} />;
-    case 'analytics':
-      return <AnalyticsTab state={state} />;
-    case 'risk':
-      return <RiskTab state={state} />;
-    case 'research':
-      return <ResearchTab />;
-    case 'design-system':
-      return <DesignSystemTab />;
-    default:
-      return (
-        <div
-          data-testid={`tab-${id}`}
-          className="flex min-h-0 flex-1 items-center justify-center text-[13px] text-[color:var(--ds-text-secondary)]"
-        >
-          {id} — coming soon
-        </div>
-      );
-  }
-}
-
 export function App() {
   const [active, setActive] = useState('market');
   const store = useTickingStore();
+  const { mode } = useThemeMode();
+  const layoutRef = useRef<Record<string, DockManagerState>>({});
 
   return (
     <TooltipProvider delayDuration={250}>
@@ -81,9 +56,15 @@ export function App() {
             <TabsContent
               key={t.id}
               value={t.id}
-              className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden p-3 data-[state=inactive]:hidden"
+              className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
             >
-              {renderTab(t.id, store.state)}
+              <DockManagerCore
+                key={t.id}
+                initialState={loadLayout(t.id) ?? TAB_LAYOUTS[t.id]()}
+                widgets={WIDGETS}
+                theme={mode}
+                onStateChange={(s) => { layoutRef.current[t.id] = s; }}
+              />
             </TabsContent>
           ))}
         </Tabs>
