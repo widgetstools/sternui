@@ -85,7 +85,10 @@ function formatLimit(def: LimitDef): string {
 
 function ColoredProgress({ value, color }: { value: number; color: string }) {
   return (
-    <div className="relative h-2 w-full overflow-hidden rounded-full bg-primary/20">
+    <div
+      className="relative h-2 w-full overflow-hidden rounded-full"
+      style={{ background: 'var(--ds-primary-soft)' }}
+    >
       <div
         className="h-full transition-all"
         style={{ width: `${value}%`, background: color }}
