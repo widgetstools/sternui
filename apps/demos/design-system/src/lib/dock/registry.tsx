@@ -16,6 +16,8 @@ import { Dv01ByBook } from '../../panels/risk/Dv01ByBook';
 import { RateScenarios } from '../../panels/risk/RateScenarios';
 import { VarTrend } from '../../panels/risk/VarTrend';
 import { RiskLimits } from '../../panels/risk/RiskLimits';
+import { ResearchList } from '../../panels/research/ResearchList';
+import { NoteDetail } from '../../panels/research/NoteDetail';
 
 function DesignSystemWidget(_props: WidgetProps) { return <DesignSystemTab />; }
 
@@ -42,6 +44,6 @@ export const WIDGETS: Record<WidgetId, ComponentType<WidgetProps>> = {
   historicalOas: HistoricalOas, oasDistribution: OasDistribution, pnlAttribution: PnlAttribution,
   riskKpi: RiskKpiStrip, bookRisk: BookRisk, dv01ByBook: Dv01ByBook,
   rateScenarios: RateScenarios, varTrend: VarTrend, riskLimits: RiskLimits,
-  researchList: Placeholder, noteDetail: Placeholder,
+  researchList: ResearchList, noteDetail: NoteDetail,
   designSystem: DesignSystemWidget,
 };

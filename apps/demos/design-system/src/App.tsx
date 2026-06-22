@@ -7,6 +7,7 @@ import { FloatingWindow } from './components/FloatingWindow';
 import { TradeTicket } from './panels/TradeTicket';
 import { RfqWorkbench } from './panels/RfqWorkbench';
 import { DemoStateProvider, useDemoState } from './state/DemoStateProvider';
+import { ResearchProvider } from './state/ResearchProvider';
 import { useThemeMode } from './lib/useThemeMode';
 import { WIDGETS } from './lib/dock/registry';
 import { TAB_LAYOUTS } from './lib/dock/layouts';
@@ -136,8 +137,10 @@ export function App() {
   return (
     <TooltipProvider delayDuration={250}>
       <DemoStateProvider>
-        <AppContent />
-        <Toaster />
+        <ResearchProvider>
+          <AppContent />
+          <Toaster />
+        </ResearchProvider>
       </DemoStateProvider>
     </TooltipProvider>
   );
