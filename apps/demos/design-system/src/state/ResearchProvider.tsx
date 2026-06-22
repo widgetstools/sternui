@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 import { RESEARCH_NOTES } from '../data/seeds';
 
 interface ResearchSelection {
@@ -8,7 +8,7 @@ interface ResearchSelection {
 
 const ResearchContext = createContext<ResearchSelection | null>(null);
 
-export function ResearchProvider({ children }: { children: React.ReactNode }) {
+export function ResearchProvider({ children }: { children: ReactNode }) {
   const [selectedNoteId, setSelectedNoteId] = useState<string>(
     RESEARCH_NOTES[0]?.id ?? '',
   );

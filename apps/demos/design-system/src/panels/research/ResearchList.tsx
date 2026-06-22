@@ -4,33 +4,7 @@ import { Badge, ScrollArea } from '@starui/ui';
 import { RESEARCH_NOTES } from '../../data/seeds';
 import type { ResearchNote } from '../../data/types';
 import { useResearchSelection } from '../../state/ResearchProvider';
-
-// ── Rating helpers ────────────────────────────────────────────────────────────
-
-type Rating = ResearchNote['rating'];
-
-function ratingBadgeStyle(rating: Rating): React.CSSProperties {
-  switch (rating) {
-    case 'Overweight':
-      return {
-        background: 'var(--ds-overlay-positive-soft)',
-        color: 'var(--ds-accent-positive)',
-        border: '1px solid var(--ds-overlay-positive-ring)',
-      };
-    case 'Underweight':
-      return {
-        background: 'var(--ds-overlay-negative-soft)',
-        color: 'var(--ds-accent-negative)',
-        border: '1px solid var(--ds-overlay-negative-ring)',
-      };
-    case 'Market Weight':
-      return {
-        background: 'var(--ds-overlay-warning-soft)',
-        color: 'var(--ds-accent-warning)',
-        border: '1px solid var(--ds-overlay-warning-ring)',
-      };
-  }
-}
+import { ratingBadgeStyle } from './ratingHelpers';
 
 // ── Sector filter helpers ──────────────────────────────────────────────────────
 
@@ -69,16 +43,10 @@ function NoteCard({ note, isSelected, onClick }: { note: ResearchNote; isSelecte
   return (
     <button
       onClick={onClick}
-      className="w-full rounded-none border-b px-3 py-2.5 text-left transition-colors"
+      className={`w-full rounded-none border-b px-3 py-2.5 text-left transition-colors${isSelected ? '' : ' hover:bg-[color:var(--ds-state-hover-overlay)]'}`}
       style={{
         borderColor: 'var(--ds-border-tertiary)',
-        background: isSelected ? 'var(--ds-state-selection)' : 'transparent',
-      }}
-      onMouseEnter={(e) => {
-        if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--ds-state-hover-overlay)';
-      }}
-      onMouseLeave={(e) => {
-        if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'transparent';
+        background: isSelected ? 'var(--ds-state-selection)' : undefined,
       }}
     >
       <div className="flex items-center justify-between gap-2">

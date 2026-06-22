@@ -3,33 +3,7 @@ import { Badge, Card, CardContent, CardHeader, CardTitle, ScrollArea } from '@st
 import { RESEARCH_NOTES } from '../../data/seeds';
 import type { ResearchNote } from '../../data/types';
 import { useResearchSelection } from '../../state/ResearchProvider';
-
-// ── Rating helpers ────────────────────────────────────────────────────────────
-
-type Rating = ResearchNote['rating'];
-
-function ratingBadgeStyle(rating: Rating): React.CSSProperties {
-  switch (rating) {
-    case 'Overweight':
-      return {
-        background: 'var(--ds-overlay-positive-soft)',
-        color: 'var(--ds-accent-positive)',
-        border: '1px solid var(--ds-overlay-positive-ring)',
-      };
-    case 'Underweight':
-      return {
-        background: 'var(--ds-overlay-negative-soft)',
-        color: 'var(--ds-accent-negative)',
-        border: '1px solid var(--ds-overlay-negative-ring)',
-      };
-    case 'Market Weight':
-      return {
-        background: 'var(--ds-overlay-warning-soft)',
-        color: 'var(--ds-accent-warning)',
-        border: '1px solid var(--ds-overlay-warning-ring)',
-      };
-  }
-}
+import { ratingBadgeStyle } from './ratingHelpers';
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -126,8 +100,8 @@ function KeyRisks({ risks }: { risks: string[] }) {
         }}
       >
         <ul className="flex flex-col gap-1.5">
-          {risks.map((risk, i) => (
-            <li key={i} className="flex gap-2 text-[12px]" style={{ color: 'var(--ds-text-secondary)' }}>
+          {risks.map((risk) => (
+            <li key={risk} className="flex gap-2 text-[12px]" style={{ color: 'var(--ds-text-secondary)' }}>
               <span style={{ color: 'var(--ds-accent-negative)' }}>▸</span>
               {risk}
             </li>
