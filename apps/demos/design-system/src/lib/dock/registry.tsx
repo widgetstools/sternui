@@ -4,6 +4,12 @@ import OrderBook from '../../panels/OrderBook';
 import { RecentPrints } from '../../panels/RecentPrints';
 import { BlotterWidget, PriceChartWidget } from '../../panels/MarketWidgets';
 import { DesignSystemTab } from '../../tabs/DesignSystemTab';
+import { OasDurationScatter } from '../../panels/analytics/OasDurationScatter';
+import { DurationBuckets } from '../../panels/analytics/DurationBuckets';
+import { SectorDonut } from '../../panels/analytics/SectorDonut';
+import { HistoricalOas } from '../../panels/analytics/HistoricalOas';
+import { OasDistribution } from '../../panels/analytics/OasDistribution';
+import { PnlAttribution } from '../../panels/analytics/PnlAttribution';
 
 function DesignSystemWidget(_props: WidgetProps) { return <DesignSystemTab />; }
 
@@ -26,8 +32,8 @@ function Placeholder({ panel }: WidgetProps) {
 export const WIDGETS: Record<WidgetId, ComponentType<WidgetProps>> = {
   blotter: BlotterWidget, priceChart: PriceChartWidget, orderBook: OrderBook, recentPrints: RecentPrints,
   ordersBlotter: Placeholder, orderEntry: Placeholder,
-  oasDuration: Placeholder, durationBuckets: Placeholder, sectorDonut: Placeholder,
-  historicalOas: Placeholder, oasDistribution: Placeholder, pnlAttribution: Placeholder,
+  oasDuration: OasDurationScatter, durationBuckets: DurationBuckets, sectorDonut: SectorDonut,
+  historicalOas: HistoricalOas, oasDistribution: OasDistribution, pnlAttribution: PnlAttribution,
   riskKpi: Placeholder, bookRisk: Placeholder, dv01ByBook: Placeholder, rateScenarios: Placeholder,
   varTrend: Placeholder, riskLimits: Placeholder,
   researchList: Placeholder, noteDetail: Placeholder,
