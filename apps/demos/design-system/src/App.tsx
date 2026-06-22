@@ -4,6 +4,7 @@ import { TopBar } from './components/TopBar';
 import { useTickingStore } from './data/useTickingStore';
 import { DesignSystemTab } from './tabs/DesignSystemTab';
 import { MarketTab } from './tabs/MarketTab';
+import { OrdersTab } from './tabs/OrdersTab';
 import type { TerminalState } from './data/types';
 
 interface TabDef {
@@ -24,6 +25,8 @@ function renderTab(id: string, state: TerminalState) {
   switch (id) {
     case 'market':
       return <MarketTab state={state} />;
+    case 'orders':
+      return <OrdersTab state={state} />;
     case 'design-system':
       return <DesignSystemTab />;
     default:
