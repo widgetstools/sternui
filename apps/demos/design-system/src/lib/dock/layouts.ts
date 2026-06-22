@@ -34,7 +34,7 @@ export const TAB_LAYOUTS: Record<string, () => DockManagerState> = {
     'oasDuration',
   ),
   risk: () => base(
-    sp('rsk', 'vertical', [14, 86], [
+    sp('rsk', 'vertical', [25, 75], [
       tg('g-kpi', ['riskKpi']),
       sp('rsk-bot', 'horizontal', [26, 48, 26], [
         tg('g-bookrisk', ['bookRisk']),
