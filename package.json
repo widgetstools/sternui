@@ -60,6 +60,7 @@
     "dev:markets-ui-react-reference": "npm --prefix apps run dev -w @starui/markets-ui-react-reference",
     "dev:star-demo": "npm --prefix apps run dev -w @starui/star-demo",
     "dev:markets-grid-lab": "npm --prefix apps run dev -w @starui/markets-grid-lab",
+    "dev:design-system": "npm --prefix apps run dev -w @starui/design-system-demo",
     "dev:demo-stomp-markets-grid": "npm --prefix apps run dev -w @starui/demo-stomp-markets-grid",
     "dev:stomp-marketsgrid-minimal": "npm --prefix apps run dev -w @starui/stomp-marketsgrid-minimal",
     "dev:platform-hooks-demo": "npm --prefix apps run dev -w @starui/platform-hooks-demo",

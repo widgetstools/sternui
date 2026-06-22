@@ -1728,7 +1728,7 @@ of importing `@openfin/*` directly (architecture boundary).
 
 ### Apps — platform bootstrap pilot
 
-**18 demos** under `apps/demos/` (nested `apps/package.json` workspace). Apps build **from source** — Vite + `tsc` resolve every `@starui/*` import out of `packages/` (apps declare no `@starui/*` deps and require no `libs/*.tgz`); `npm run propagate` packs tarballs for external Artifactory consumers only (see `apps/demos/README.md`).
+**19 demos** under `apps/demos/` (nested `apps/package.json` workspace). Apps build **from source** — Vite + `tsc` resolve every `@starui/*` import out of `packages/` (apps declare no `@starui/*` deps and require no `libs/*.tgz`); `npm run propagate` packs tarballs for external Artifactory consumers only (see `apps/demos/README.md`).
 
 | App | Role |
 |-----|------|
@@ -1740,6 +1740,7 @@ of importing `@openfin/*` directly (architecture boundary).
 | `demo-stomp-markets-grid` | Minimal STOMP + MarketsGrid (web + OpenFin); `defaultLiveProviderId` |
 | `stomp-marketsgrid-minimal` | Lean STOMP → MarketsGrid dev track |
 | `markets-grid-lab` | Developer-onboarding feature lab: Home landing + grouped sidebar nav + per-feature Inspector drawer; scenario rail + importable profiles |
+| `design-system` (`@starui/design-system-demo`) | FI trading terminal + live component/token reference, fully styled by `@starui/design-system` + `@starui/ui` (port 5310) |
 | `platform-hooks-demo` | AppData bootstrap hooks + grid event callback bindings (port 5214) |
 | `stomp`, `mockdata-provider`, `dataprovider-editor` | MCP tutorial apps; hub bootstrap + `useDataProvider` |
 | `basic` (`@starui/tutorial-basic`) | Minimal grid tutorial |
@@ -1754,6 +1755,19 @@ of importing `@openfin/*` directly (architecture boundary).
 - **Grouped sidebar nav** (`LabSidebarNav`) with a feature filter, replacing the horizontal tab strip; nav items keep `data-testid="lab-tab-<id>"`.
 - **Inspector drawer** (`InspectorDrawer`) under every feature grid: What/Why, Try-this steps, derived Config blocks, and a Props/API table.
 - **Feature-guide registry** (`guides/featureGuides.ts`, `FeatureGuide`) and config-block derivation (`buildConfigBlocks`) sourced from each tab's `LabFeatureConfig` and seed rules.
+
+**`design-system` demo app (consuming the design system in a client app):**
+- **FI trading terminal** — six dock-managed tabs (Market, Orders, Analytics, Risk, Research, Design System), each with a `@widgetstools/react-dock-manager` layout whose panels are persisted to `localStorage` (Save/Reset via TopBar); styled exclusively by `@starui/design-system` tokens + `@starui/ui` primitives. No native `<input>`/`<select>` anywhere.
+- **Live-ticking mock data** — pure `applyTick` reducer + `useTickingStore`; deterministic seeds (`makeRng`); no backend. `DemoStateProvider` exposes `store`, `selectedId`/`setSelectedId`, `clickedPrice`/`setClickedPrice` to all panels.
+- **Market tab** — four dock panels: `BlotterWidget` (AG Grid bond blotter, `data-testid="bond-blotter"`; row-click sets `selectedId`), `PriceChartWidget` (recharts area chart for the selected instrument, `data-testid="price-chart"`), `OrderBookWidget` (dealer-depth book with 5-level bid/ask ladder, bar-fill depth visualisation, spread/yield/Z-spread summary row; `data-testid="order-book"`), `RecentPrints` (trade tape; `data-testid="recent-prints"`).
+- **AG Grid theming** via `staruiGridTheme` / `agGridBlotterDarkTheme`; inherits `data-ag-theme-mode` from `<html data-theme>` so light/dark switch is zero-JS.
+- **Floating Trade Ticket** (`data-testid="float-ticket"` on wrapper, `"trade-ticket"` on inner form) — `FloatingWindow` + `TradeTicket` toggled by `+ New Order` (`data-testid="topbar-new-order"`); side toggle (Buy/Sell), order-type tabs (Limit/Market/Stop-Limit), notional quick-fractions, bid/ask click-to-fill, TIF toggle, order summary, CTA button; fires shadcn toast on submit.
+- **Floating RFQ Workbench** (`data-testid="float-rfq"` on wrapper, `"rfq-workbench"` on inner panel) — toggled by `RFQ` (`data-testid="topbar-rfq"`); `rfqReducer` state machine with dealer-quote ladder, expiry countdown, best-quote highlight, and manual/auto fill flow.
+- **Analytics tab** — six recharts panels in a 3×2 dock grid, each in its own group: `OasDurationScatter` (`panel-oasDuration`), `DurationBuckets` (`panel-durationBuckets`), `SectorDonut` (`panel-sectorDonut`), `HistoricalOas` CDX IG/HY line (`panel-historicalOas`), `OasDistribution` (`panel-oasDistribution`), `PnlAttribution` (`panel-pnlAttribution`). All use `ChartContainer` + design-system `--ds-chart-*` ramp.
+- **Risk tab** — KPI strip (`panel-riskKpi`) + `BookRisk` heatmap (`panel-bookRisk`) + `Dv01ByBook` bars (`panel-dv01ByBook`) + `RateScenarios` scenario table (`panel-rateScenarios`) + `VarTrend` line (`panel-varTrend`) + `RiskLimits` gauge/bar strip (`panel-riskLimits`).
+- **Research tab** — `ResearchList` note list (`panel-researchList`) + `NoteDetail` rich detail panel (`panel-noteDetail`); `ResearchProvider` context.
+- **Save / Reset layout** — TopBar `Save` (`data-testid="topbar-save"`) persists active tab's dock state; `Reset` (`data-testid="topbar-reset"`) clears persistence and remounts from `TAB_LAYOUTS` default; both fire toast confirmations.
+- **Design System reference tab** — Overview (consumption snippets), Palette (live `--ds-*` swatches), Typography, Foundations, and a data-driven gallery of **all 46 public `@starui/ui` components** (live preview + import + code; 6 non-visual utilities allowlisted), gated by a `registry.test.ts` completeness check against `packages/react-ui/ui/src/components`.
 
 **Build / verify tooling:**
 - `docs/BUILD.md` + `apps/README.md` — build matrix: `build:packages` → `build:apps` (source); `propagate` packs `libs/*.tgz` for external Artifactory consumers
