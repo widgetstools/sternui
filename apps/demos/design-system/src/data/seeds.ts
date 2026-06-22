@@ -1,7 +1,6 @@
 import type {
   BookRisk,
   CurvePoint,
-  Dealer,
   Instrument,
   MarketIndex,
   Order,
@@ -180,8 +179,6 @@ export function seedState(now: number): TerminalState {
   return { instruments, quotes, orders, positions, curve, history };
 }
 
-// Suppress unused-import warning — Dealer is exported for consumer use
-export type { Dealer };
 
 function round2(n: number) { return Math.round(n * 100) / 100; }
 function round3(n: number) { return Math.round(n * 1000) / 1000; }

@@ -65,8 +65,6 @@ export interface TerminalState {
   history: Record<string, number[]>;
 }
 
-export interface Dealer { code: string; name: string; }
-
 export interface BookRisk {
   book: string;       // e.g. 'CREDIT-IG'
   mv: number;         // market value $M
