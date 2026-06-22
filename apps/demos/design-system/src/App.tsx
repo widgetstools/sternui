@@ -7,6 +7,7 @@ import { MarketTab } from './tabs/MarketTab';
 import { OrdersTab } from './tabs/OrdersTab';
 import { AnalyticsTab } from './tabs/AnalyticsTab';
 import { RiskTab } from './tabs/RiskTab';
+import { ResearchTab } from './tabs/ResearchTab';
 import type { TerminalState } from './data/types';
 
 interface TabDef {
@@ -33,6 +34,8 @@ function renderTab(id: string, state: TerminalState) {
       return <AnalyticsTab state={state} />;
     case 'risk':
       return <RiskTab state={state} />;
+    case 'research':
+      return <ResearchTab />;
     case 'design-system':
       return <DesignSystemTab />;
     default:
