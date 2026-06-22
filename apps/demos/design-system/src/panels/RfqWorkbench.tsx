@@ -71,8 +71,7 @@ function StatusBadge({ status }: { status: RfqRequest['status'] }) {
     cancelled: { label: 'Cancelled', style: { background: 'var(--ds-border-secondary)', color: 'var(--ds-text-muted)' } },
   };
   const { label, style } = map[status];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <Badge style={style as any}>{label}</Badge>;
+  return <Badge style={style}>{label}</Badge>;
 }
 
 // ─── Dealer Toggle Chips ──────────────────────────────────────────────────────
@@ -210,8 +209,7 @@ function QuoteTableRow({ q, isBestBid, isBestAsk, canExecute, onHit, onLift }: Q
       : {};
 
   return (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    <TableRow style={statusStyle as any}>
+    <TableRow style={statusStyle}>
       <TableCell style={{ fontFamily: 'var(--ds-font-mono)', fontWeight: 600 }}>{q.dealer}</TableCell>
       <TableCell style={{ fontFamily: 'var(--ds-font-mono)', color: 'var(--ds-accent-positive)', textAlign: 'right' }}>
         {isBestBid && <span title="Best Bid" style={{ marginRight: 2, fontSize: 10 }}>▲</span>}

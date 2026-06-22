@@ -43,11 +43,9 @@ function AppContent() {
   const quote = instrument ? store.state.quotes[instrument.id] : undefined;
 
   const handleSave = () => {
-    const layout = layoutRef.current[active];
-    if (layout) {
-      saveLayout(active, layout);
-      toast({ title: 'Layout saved', description: `"${active}" tab layout saved.` });
-    }
+    const layout = layoutRef.current[active] ?? loadLayout(active) ?? TAB_LAYOUTS[active]();
+    saveLayout(active, layout);
+    toast({ title: 'Layout saved', description: `"${active}" tab layout saved.` });
   };
 
   const handleReset = () => {
@@ -107,7 +105,7 @@ function AppContent() {
           title="Trade Ticket"
           onClose={() => setTicketOpen(false)}
           initial={{ x: 120, y: 80, width: 380, height: 560 }}
-          testid="floating-trade-ticket"
+          testid="float-ticket"
         >
           <TradeTicket
             instrument={instrument}
@@ -123,7 +121,7 @@ function AppContent() {
           title="RFQ Workbench"
           onClose={() => setRfqOpen(false)}
           initial={{ x: 200, y: 60, width: 720, height: 560 }}
-          testid="floating-rfq-workbench"
+          testid="float-rfq"
         >
           <RfqWorkbench />
         </FloatingWindow>
