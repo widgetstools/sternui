@@ -6,9 +6,12 @@ const P = (id: WidgetId, title: string) => p(id, title, id);
 
 export const TAB_LAYOUTS: Record<string, () => DockManagerState> = {
   market: () => base(
-    sp('mkt', 'vertical', [60, 40], [
-      sp('mkt-top', 'horizontal', [62, 38], [tg('g-blotter', ['blotter']), tg('g-chart', ['priceChart'])]),
-      sp('mkt-bot', 'horizontal', [68, 32], [tg('g-book', ['orderBook']), tg('g-prints', ['recentPrints'])]),
+    sp('mkt', 'horizontal', [28, 72], [
+      tg('g-book', ['orderBook']),
+      sp('mkt-right', 'vertical', [50, 50], [
+        tg('g-blotter', ['blotter']),
+        sp('mkt-bot', 'horizontal', [58, 42], [tg('g-prints', ['recentPrints']), tg('g-chart', ['priceChart'])]),
+      ]),
     ]),
     { blotter: P('blotter', 'Bond Blotter'), priceChart: P('priceChart', 'Price'), orderBook: P('orderBook', 'Order Book'), recentPrints: P('recentPrints', 'Recent Prints') },
     'blotter',
