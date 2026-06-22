@@ -8,7 +8,7 @@ import { TradeTicket } from './panels/TradeTicket';
 import { RfqWorkbench } from './panels/RfqWorkbench';
 import { DemoStateProvider, useDemoState } from './state/DemoStateProvider';
 import { ResearchProvider } from './state/ResearchProvider';
-import { useThemeMode } from './lib/useThemeMode';
+import { ThemeModeProvider, useThemeMode } from './lib/useThemeMode';
 import { WIDGETS } from './lib/dock/registry';
 import { TAB_LAYOUTS } from './lib/dock/layouts';
 import { loadLayout, saveLayout, resetLayout } from './lib/dock/persistence';
@@ -90,8 +90,13 @@ function AppContent() {
             className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
           >
             <DockManagerCore
-              key={`${t.id}-${resetKey}`}
-              initialState={loadLayout(t.id) ?? TAB_LAYOUTS[t.id]()}
+              // Remount on theme toggle: the dock applies its light/dark root
+              // class only at construction (updateOptions doesn't re-theme), so
+              // a fresh mount is what re-themes the panel chrome. `mode` in the
+              // key forces that; reading the live in-memory layout as
+              // initialState preserves the current arrangement across remount.
+              key={`${t.id}-${resetKey}-${mode}`}
+              initialState={layoutRef.current[t.id] ?? loadLayout(t.id) ?? TAB_LAYOUTS[t.id]()}
               widgets={WIDGETS}
               theme={mode}
               onStateChange={(s) => { layoutRef.current[t.id] = s; }}
@@ -136,12 +141,14 @@ function AppContent() {
 export function App() {
   return (
     <TooltipProvider delayDuration={250}>
-      <DemoStateProvider>
-        <ResearchProvider>
-          <AppContent />
-          <Toaster />
-        </ResearchProvider>
-      </DemoStateProvider>
+      <ThemeModeProvider>
+        <DemoStateProvider>
+          <ResearchProvider>
+            <AppContent />
+            <Toaster />
+          </ResearchProvider>
+        </DemoStateProvider>
+      </ThemeModeProvider>
     </TooltipProvider>
   );
 }
