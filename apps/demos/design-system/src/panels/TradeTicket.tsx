@@ -85,6 +85,32 @@ function BidAskStrip({ quote, onPickPrice }: { quote: Quote; onPickPrice: (p: nu
   );
 }
 
+// ─── Suffixed input (e.g. price · USD, notional · MM) ──────────────────────────
+
+function SuffixInput({ value, onChange, suffix, placeholder }: {
+  value: string; onChange: (v: string) => void; suffix: string; placeholder?: string;
+}) {
+  return (
+    <div style={{ position: 'relative' }}>
+      <Input
+        inputMode="decimal"
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        style={{ fontFamily: 'var(--ds-font-mono)', fontSize: 'var(--ds-font-size-sm)', paddingRight: 40 }}
+      />
+      <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 'var(--ds-font-size-2xs)', color: 'var(--ds-text-muted)', pointerEvents: 'none', letterSpacing: '0.04em' }}>
+        {suffix}
+      </span>
+    </div>
+  );
+}
+
+const fieldLabel: React.CSSProperties = {
+  fontSize: 'var(--ds-font-size-2xs)', color: 'var(--ds-text-secondary)',
+  textTransform: 'uppercase', letterSpacing: '0.06em',
+};
+
 // ─── Notional Row ─────────────────────────────────────────────────────────────
 
 function NotionalRow({ notional, setNotional }: { notional: string; setNotional: (v: string) => void }) {
@@ -93,13 +119,8 @@ function NotionalRow({ notional, setNotional }: { notional: string; setNotional:
   };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <Label style={{ fontSize: 'var(--ds-font-size-xs)', color: 'var(--ds-text-secondary)' }}>Notional (MM)</Label>
-      <Input
-        inputMode="decimal"
-        value={notional}
-        onChange={(e) => setNotional(e.target.value)}
-        style={{ fontFamily: 'var(--ds-font-mono)', fontSize: 'var(--ds-font-size-sm)' }}
-      />
+      <Label style={fieldLabel}>Notional</Label>
+      <SuffixInput value={notional} onChange={setNotional} suffix="MM" placeholder="Face amount" />
       <div style={{ display: 'flex', gap: 4 }}>
         {[25, 50, 75, 100].map((pct) => (
           <Button key={pct} variant="outline" size="sm" onClick={() => setFraction(pct)}
@@ -123,25 +144,16 @@ function PriceRow({ orderType, price, setPrice, stop, setStop, quote }: {
   return (
     <>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <Label style={{ fontSize: 'var(--ds-font-size-xs)', color: 'var(--ds-text-secondary)' }}>
-          Limit Price &nbsp;<span style={{ color: 'var(--ds-text-faint)', fontFamily: 'var(--ds-font-mono)' }}>YTM {fmtYield(quote.ytm)}</span>
+        <Label style={{ ...fieldLabel, display: 'flex', justifyContent: 'space-between' }}>
+          <span>Limit Price</span>
+          <span style={{ color: 'var(--ds-text-faint)', fontFamily: 'var(--ds-font-mono)', textTransform: 'none', letterSpacing: 0 }}>YTM {fmtYield(quote.ytm)}</span>
         </Label>
-        <Input
-          inputMode="decimal"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          style={{ fontFamily: 'var(--ds-font-mono)', fontSize: 'var(--ds-font-size-sm)' }}
-        />
+        <SuffixInput value={price} onChange={setPrice} suffix="USD" />
       </div>
       {orderType === 'stop-limit' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <Label style={{ fontSize: 'var(--ds-font-size-xs)', color: 'var(--ds-text-secondary)' }}>Stop Price</Label>
-          <Input
-            inputMode="decimal"
-            value={stop}
-            onChange={(e) => setStop(e.target.value)}
-            style={{ fontFamily: 'var(--ds-font-mono)', fontSize: 'var(--ds-font-size-sm)' }}
-          />
+          <Label style={fieldLabel}>Stop Price</Label>
+          <SuffixInput value={stop} onChange={setStop} suffix="USD" />
         </div>
       )}
     </>
@@ -159,6 +171,7 @@ function OrderSummary({ side, notional, ticker, orderType, tif, price, estTotal 
   return (
     <div style={{
       background: 'var(--ds-surface-sunken)', border: '1px solid var(--ds-border-primary)',
+      borderLeft: `3px solid ${sideColor}`,
       borderRadius: 'var(--ds-radius-md)', padding: '8px 10px',
       fontSize: 'var(--ds-font-size-xs)', color: 'var(--ds-text-muted)',
       fontFamily: 'var(--ds-font-mono)',

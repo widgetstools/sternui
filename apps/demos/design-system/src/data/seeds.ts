@@ -120,15 +120,15 @@ export const RESEARCH_NOTES: ResearchNote[] = [
   },
 ];
 
-const ORDER_PLAN: { idx: number; side: 'buy' | 'sell'; qty: number; status: OrderStatus }[] = [
-  { idx: 0,  side: 'buy',  qty: 5_000_000, status: 'working' },
-  { idx: 2,  side: 'buy',  qty: 2_000_000, status: 'filled' },
-  { idx: 4,  side: 'sell', qty: 1_000_000, status: 'working' },
-  { idx: 5,  side: 'sell', qty: 3_000_000, status: 'cancelled' },
-  { idx: 7,  side: 'buy',  qty: 4_000_000, status: 'filled' },
-  { idx: 9,  side: 'sell', qty: 1_500_000, status: 'working' },
-  { idx: 12, side: 'buy',  qty: 2_500_000, status: 'filled' },
-  { idx: 14, side: 'sell', qty: 2_000_000, status: 'working' },
+const ORDER_PLAN: { idx: number; side: 'buy' | 'sell'; kind: 'RFQ' | 'Limit'; qty: number; fillPct: number; status: OrderStatus }[] = [
+  { idx: 0,  side: 'buy',  kind: 'RFQ',   qty: 6_000_000, fillPct: 1,    status: 'filled' },
+  { idx: 2,  side: 'sell', kind: 'RFQ',   qty: 3_000_000, fillPct: 1,    status: 'filled' },
+  { idx: 4,  side: 'buy',  kind: 'RFQ',   qty: 10_000_000, fillPct: 1,   status: 'filled' },
+  { idx: 5,  side: 'buy',  kind: 'Limit', qty: 7_000_000, fillPct: 0.29, status: 'partial' },
+  { idx: 7,  side: 'sell', kind: 'RFQ',   qty: 4_000_000, fillPct: 1,    status: 'filled' },
+  { idx: 9,  side: 'buy',  kind: 'RFQ',   qty: 15_000_000, fillPct: 1,   status: 'filled' },
+  { idx: 12, side: 'sell', kind: 'Limit', qty: 5_000_000, fillPct: 0,    status: 'pending' },
+  { idx: 14, side: 'buy',  kind: 'RFQ',   qty: 8_000_000, fillPct: 0,    status: 'cancelled' },
 ];
 
 const POSITION_PLAN: { idx: number; qty: number }[] = [
@@ -167,7 +167,12 @@ export function seedState(now: number): TerminalState {
   }
   const orders: Order[] = ORDER_PLAN.map((o, k) => {
     const inst = instruments[o.idx];
-    return { id: `o${k + 1}`, instrumentId: inst.id, ticker: inst.ticker, side: o.side, qty: o.qty, price: quotes[inst.id].mid, status: o.status, ts: now - k * 60_000 };
+    const q = quotes[inst.id];
+    return {
+      id: `o${k + 1}`, instrumentId: inst.id, ticker: inst.ticker, side: o.side, kind: o.kind,
+      qty: o.qty, filled: Math.round(o.qty * o.fillPct), price: round3(q.mid), ytm: q.ytm,
+      status: o.status, ts: now - k * 47 * 60_000,
+    };
   });
   const positions: Position[] = POSITION_PLAN.map((p) => {
     const inst = instruments[p.idx];

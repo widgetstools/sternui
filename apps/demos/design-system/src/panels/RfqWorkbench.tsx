@@ -1,4 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
+import { Zap } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -18,7 +19,7 @@ import { useDemoState } from '../state/DemoStateProvider';
 import { SideSelector } from '../components/SideSelector';
 import { fmtPrice } from '../data/formatters';
 
-const LADDER_COLS = '48px minmax(0,1fr) minmax(0,1fr) 44px 94px';
+const LADDER_COLS = '64px 88px 64px 88px 64px 60px 70px minmax(120px,1fr)';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -195,67 +196,76 @@ interface QuoteRowProps {
   onLift: () => void;
 }
 
+const num: React.CSSProperties = { fontFamily: 'var(--ds-font-mono)', fontSize: 'var(--ds-font-size-xs)', textAlign: 'right' };
+
 function QuoteRow({ q, isBestBid, isBestAsk, canExecute, onHit, onLift }: QuoteRowProps) {
   const spread = ((q.ask - q.bid) * 100).toFixed(1);
   const rowOpacity = q.status === 'stale' ? 0.4 : q.status === 'done' ? 0.7 : 1;
-  const mono: React.CSSProperties = { fontFamily: 'var(--ds-font-mono)', fontSize: 'var(--ds-font-size-xs)' };
   const live = canExecute && q.status === 'live';
 
   return (
     <div style={{
-      display: 'grid', gridTemplateColumns: LADDER_COLS, alignItems: 'center', gap: 6,
-      padding: '6px 10px', borderBottom: '1px solid var(--ds-border-primary)', opacity: rowOpacity,
+      display: 'grid', gridTemplateColumns: LADDER_COLS, alignItems: 'center', columnGap: 8,
+      padding: '7px 12px', borderBottom: '1px solid var(--ds-border-primary)', opacity: rowOpacity,
     }}>
-      <span style={{ ...mono, fontWeight: 600, color: 'var(--ds-text-primary)' }}>{q.dealer}</span>
+      <span style={{ fontFamily: 'var(--ds-font-mono)', fontSize: 'var(--ds-font-size-xs)', fontWeight: 600, color: 'var(--ds-text-primary)' }}>{q.dealer}</span>
 
-      {/* Bid + size */}
-      <span style={{ textAlign: 'right', minWidth: 0 }}>
-        <span style={{ ...mono, fontWeight: 600, color: 'var(--ds-accent-positive)' }}>
-          {isBestBid && <span title="Best bid" style={{ marginRight: 3, fontSize: 9 }}>▲</span>}
-          {fmtPrice(q.bid)}
-        </span>
-        <span style={{ marginLeft: 5, fontFamily: 'var(--ds-font-mono)', fontSize: 'var(--ds-font-size-2xs)', color: 'var(--ds-text-faint)' }}>{q.bidSizeMM.toFixed(0)}</span>
+      <span style={{ ...num, fontWeight: 600, color: 'var(--ds-accent-positive)' }}>
+        {isBestBid && <BestTag dir="up" />}{fmtPrice(q.bid)}
       </span>
+      <span style={{ ...num, color: 'var(--ds-text-secondary)' }}>${q.bidSizeMM.toFixed(0)}MM</span>
 
-      {/* Ask + size */}
-      <span style={{ textAlign: 'right', minWidth: 0 }}>
-        <span style={{ ...mono, fontWeight: 600, color: 'var(--ds-accent-negative)' }}>
-          {isBestAsk && <span title="Best ask" style={{ marginRight: 3, fontSize: 9 }}>▼</span>}
-          {fmtPrice(q.ask)}
-        </span>
-        <span style={{ marginLeft: 5, fontFamily: 'var(--ds-font-mono)', fontSize: 'var(--ds-font-size-2xs)', color: 'var(--ds-text-faint)' }}>{q.askSizeMM.toFixed(0)}</span>
+      <span style={{ ...num, fontWeight: 600, color: 'var(--ds-accent-negative)' }}>
+        {isBestAsk && <BestTag dir="down" />}{fmtPrice(q.ask)}
       </span>
+      <span style={{ ...num, color: 'var(--ds-text-secondary)' }}>${q.askSizeMM.toFixed(0)}MM</span>
 
-      <span style={{ ...mono, textAlign: 'right', color: 'var(--ds-text-muted)' }}>{spread}</span>
+      <span style={{ ...num, color: 'var(--ds-accent-warning)' }}>{spread}¢</span>
 
-      {/* Action */}
-      <span style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
-        {live ? (
+      <span><LiveTag status={q.status} /></span>
+
+      <span style={{ display: 'flex', justifyContent: 'flex-start', gap: 5 }}>
+        {live && (
           <>
-            <ActionButton label="HIT" side="buy" onClick={onHit} />
-            <ActionButton label="LIFT" side="sell" onClick={onLift} />
+            <ActionButton label="HIT" tone="info" onClick={onHit} />
+            <ActionButton label="LIFT" tone="positive" onClick={onLift} />
           </>
-        ) : (
-          <span style={{ fontSize: 'var(--ds-font-size-2xs)', color: 'var(--ds-text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            {q.status}
-          </span>
         )}
       </span>
     </div>
   );
 }
 
-function ActionButton({ label, side, onClick }: { label: string; side: 'buy' | 'sell'; onClick: () => void }) {
-  const bg = side === 'buy' ? 'var(--ds-action-buy-bg)' : 'var(--ds-action-sell-bg)';
-  const fg = side === 'buy' ? 'var(--ds-action-buy-fg)' : 'var(--ds-action-sell-fg)';
+function BestTag({ dir }: { dir: 'up' | 'down' }) {
+  return (
+    <span style={{ marginRight: 4, fontSize: 'var(--ds-font-size-2xs)', fontWeight: 700, color: 'var(--ds-text-muted)', letterSpacing: '0.04em' }}>
+      {dir === 'up' ? '▲' : '▼'}BEST
+    </span>
+  );
+}
+
+function LiveTag({ status }: { status: RfqQuote['status'] }) {
+  const label = status === 'live' ? 'LIVE' : status === 'done' ? 'DONE' : 'STALE';
+  const color = status === 'live' ? 'var(--ds-accent-positive)' : 'var(--ds-text-faint)';
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', padding: '1px 6px', borderRadius: 'var(--ds-radius-sm)',
+      border: '1px solid', borderColor: color, color, fontSize: 'var(--ds-font-size-2xs)',
+      fontWeight: 600, letterSpacing: '0.06em',
+    }}>{label}</span>
+  );
+}
+
+function ActionButton({ label, tone, onClick }: { label: string; tone: 'info' | 'positive'; onClick: () => void }) {
+  const color = tone === 'info' ? 'var(--ds-accent-info)' : 'var(--ds-accent-positive)';
   return (
     <button
       onClick={onClick}
       className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ds-state-focus-ring)]"
       style={{
-        padding: '2px 9px', borderRadius: 'var(--ds-radius-sm)', border: 'none', cursor: 'pointer',
-        background: bg, color: fg, fontFamily: 'var(--ds-font-sans)', fontSize: 'var(--ds-font-size-2xs)',
-        fontWeight: 700, letterSpacing: '0.04em',
+        padding: '3px 12px', borderRadius: 'var(--ds-radius-sm)', cursor: 'pointer',
+        background: 'transparent', border: '1px solid', borderColor: color, color,
+        fontFamily: 'var(--ds-font-sans)', fontSize: 'var(--ds-font-size-2xs)', fontWeight: 700, letterSpacing: '0.05em',
       }}
     >
       {label}
@@ -284,7 +294,7 @@ function QuoteLadder({ req, onHit, onLift }: QuoteLadderProps) {
   const bestBid = liveQuotes.length ? Math.max(...liveQuotes.map((q) => q.bid)) : null;
   const bestAsk = liveQuotes.length ? Math.min(...liveQuotes.map((q) => q.ask)) : null;
   const canExecute = req.status === 'quoted';
-  const head: React.CSSProperties = { fontSize: 'var(--ds-font-size-2xs)', color: 'var(--ds-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' };
+  const head: React.CSSProperties = { fontSize: 'var(--ds-font-size-2xs)', color: 'var(--ds-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' }}>
@@ -293,14 +303,17 @@ function QuoteLadder({ req, onHit, onLift }: QuoteLadderProps) {
 
       {/* Column header */}
       <div style={{
-        display: 'grid', gridTemplateColumns: LADDER_COLS, gap: 6, padding: '6px 10px',
-        borderBottom: '1px solid var(--ds-border-primary)', background: 'var(--ds-surface-secondary)',
+        display: 'grid', gridTemplateColumns: LADDER_COLS, columnGap: 8, padding: '7px 12px',
+        borderBottom: '1px solid var(--ds-border-primary)',
       }}>
         <span style={head}>Dealer</span>
         <span style={{ ...head, textAlign: 'right' }}>Bid</span>
+        <span style={{ ...head, textAlign: 'right' }}>Bid Size</span>
         <span style={{ ...head, textAlign: 'right' }}>Ask</span>
-        <span style={{ ...head, textAlign: 'right' }}>Spd¢</span>
-        <span style={{ ...head, textAlign: 'right' }}>Action</span>
+        <span style={{ ...head, textAlign: 'right' }}>Ask Size</span>
+        <span style={{ ...head, textAlign: 'right' }}>Spread</span>
+        <span style={head}>Status</span>
+        <span style={head}>Action</span>
       </div>
 
       <ScrollArea style={{ flex: 1, minHeight: 0 }}>
@@ -401,8 +414,8 @@ function NewRfqForm({ instruments, onSend }: NewRfqFormProps) {
 
       {/* Send */}
       <Button onClick={handleSend} disabled={!instrumentId || selectedDealers.size === 0}
-        style={{ background: side === 'buy' ? 'var(--ds-action-buy-bg)' : 'var(--ds-action-sell-bg)', color: side === 'buy' ? 'var(--ds-action-buy-fg)' : 'var(--ds-action-sell-fg)', border: 'none', fontWeight: 700 }}>
-        Send RFQ
+        style={{ gap: 6, background: 'var(--ds-accent-info)', color: 'var(--ds-surface-ground)', border: 'none', fontWeight: 700, letterSpacing: '0.04em' }}>
+        <Zap size={13} /> Send RFQ
       </Button>
     </div>
   );
@@ -447,18 +460,24 @@ export function RfqWorkbench() {
     dispatch({ type: 'clear' });
     setSelectedReqId(null);
   };
+  const handleCancel = () => {
+    if (selectedReqId) dispatch({ type: 'cancel', id: selectedReqId });
+  };
 
   const selectedReq = requests.find((r) => r.id === selectedReqId) ?? null;
+  const selectedTicker = selectedReq
+    ? instruments.find((i) => i.id === selectedReq.instrumentId)?.ticker ?? selectedReq.instrumentId
+    : '';
 
   return (
     <div data-testid="rfq-workbench"
       style={{ display: 'flex', height: '100%', background: 'var(--ds-surface-primary)', color: 'var(--ds-text-primary)', fontFamily: 'var(--ds-font-sans)' }}>
 
       {/* LEFT — form + history */}
-      <div style={{ width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--ds-border-primary)' }}>
+      <div style={{ width: 286, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--ds-border-primary)' }}>
         {/* Panel header */}
-        <div style={{ borderBottom: '1px solid var(--ds-border-primary)', padding: '8px 10px', fontSize: 'var(--ds-font-size-xs)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ds-text-secondary)' }}>
-          New RFQ
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--ds-border-primary)', padding: '8px 12px', fontSize: 'var(--ds-font-size-xs)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ds-accent-info)' }}>
+          <Zap size={13} /> New RFQ
         </div>
 
         {/* Form */}
@@ -490,10 +509,29 @@ export function RfqWorkbench() {
 
       {/* RIGHT — quote ladder */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <div style={{ borderBottom: '1px solid var(--ds-border-primary)', padding: '8px 10px', fontSize: 'var(--ds-font-size-xs)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ds-text-secondary)' }}>
-          {selectedReq
-            ? `${instruments.find((i) => i.id === selectedReq.instrumentId)?.ticker ?? selectedReq.instrumentId} — ${selectedReq.side.toUpperCase()} ${selectedReq.sizeMM}MM`
-            : 'Quote Ladder'}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, borderBottom: '1px solid var(--ds-border-primary)', padding: '8px 12px', minHeight: 40 }}>
+          {selectedReq ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, minWidth: 0 }}>
+                <span style={{ fontFamily: 'var(--ds-font-mono)', fontSize: 'var(--ds-font-size-sm)', fontWeight: 700, color: 'var(--ds-text-primary)' }}>{selectedReq.id.toUpperCase()}</span>
+                <span style={{ fontFamily: 'var(--ds-font-mono)', fontSize: 'var(--ds-font-size-xs)', color: 'var(--ds-accent-info)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedTicker}</span>
+                <span style={{ fontSize: 'var(--ds-font-size-2xs)', fontWeight: 700, letterSpacing: '0.06em', color: selectedReq.side === 'buy' ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)' }}>{selectedReq.side.toUpperCase()}</span>
+                <span style={{ fontFamily: 'var(--ds-font-mono)', fontSize: 'var(--ds-font-size-xs)', color: 'var(--ds-text-secondary)' }}>${selectedReq.sizeMM}MM</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                {selectedReq.status !== 'done' && selectedReq.status !== 'cancelled' && <CountdownRing ticks={selectedReq.ticks} />}
+                {(selectedReq.status === 'pending' || selectedReq.status === 'quoted') && (
+                  <button onClick={handleCancel}
+                    className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ds-state-focus-ring)]"
+                    style={{ padding: '3px 12px', borderRadius: 'var(--ds-radius-sm)', background: 'transparent', border: '1px solid var(--ds-accent-negative)', color: 'var(--ds-accent-negative)', cursor: 'pointer', fontSize: 'var(--ds-font-size-2xs)', fontWeight: 600, letterSpacing: '0.04em' }}>
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <span style={{ fontSize: 'var(--ds-font-size-xs)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ds-text-secondary)' }}>Quote Ladder</span>
+          )}
         </div>
         <QuoteLadder req={selectedReq} onHit={handleHit} onLift={handleLift} />
       </div>

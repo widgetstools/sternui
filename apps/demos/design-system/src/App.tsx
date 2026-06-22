@@ -121,7 +121,7 @@ function AppContent() {
         <FloatingWindow
           title="RFQ Workbench"
           onClose={() => setRfqOpen(false)}
-          initial={{ x: 160, y: 56, width: 840, height: 580 }}
+          initial={{ x: 90, y: 56, width: 1060, height: 590 }}
           testid="float-rfq"
         >
           <RfqWorkbench />

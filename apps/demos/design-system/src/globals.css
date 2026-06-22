@@ -1,6 +1,17 @@
 @import '@widgetstools/react-dock-manager/styles.css';
 @import '@starui/design-system/css';
 
+/* App-scoped type scale — denser than the design-system default to match a
+   professional FI trading terminal (fi-trading-terminal parity). Overrides the
+   --ds-font-size-* tokens for THIS app only; the shared package is untouched. */
+:root {
+  --ds-font-size-2xs: 9px;
+  --ds-font-size-xs: 10px;
+  --ds-font-size-sm: 11px;
+  --ds-font-size-body: 12px;
+  --ds-font-size-md: 13px;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

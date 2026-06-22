@@ -42,8 +42,8 @@ function SideButton({
   side, active, onClick, pad, fontSize,
 }: { side: Side; active: boolean; onClick: () => void; pad: string; fontSize: string }) {
   const activeStyle: CSSProperties = side === 'buy'
-    ? { background: 'var(--ds-action-buy-bg)', color: 'var(--ds-action-buy-fg)' }
-    : { background: 'var(--ds-action-sell-bg)', color: 'var(--ds-action-sell-fg)' };
+    ? { background: 'var(--ds-overlay-positive-soft)', color: 'var(--ds-accent-positive)', boxShadow: 'inset 0 0 0 1px var(--ds-overlay-positive-ring)' }
+    : { background: 'var(--ds-overlay-negative-soft)', color: 'var(--ds-accent-negative)', boxShadow: 'inset 0 0 0 1px var(--ds-overlay-negative-ring)' };
   const idleStyle: CSSProperties = { background: 'transparent', color: 'var(--ds-text-muted)' };
   return (
     <button

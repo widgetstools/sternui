@@ -1,5 +1,6 @@
 export type OrderSide = 'buy' | 'sell';
-export type OrderStatus = 'working' | 'filled' | 'cancelled';
+export type OrderStatus = 'pending' | 'partial' | 'filled' | 'cancelled';
+export type OrderKind = 'RFQ' | 'Limit';
 export type Direction = 'up' | 'down' | 'flat';
 
 export interface Instrument {
@@ -38,8 +39,11 @@ export interface Order {
   instrumentId: string;
   ticker: string;
   side: OrderSide;
-  qty: number;
+  kind: OrderKind;     // RFQ or Limit
+  qty: number;         // order face (USD)
+  filled: number;      // filled face (USD)
   price: number;
+  ytm: number;         // %
   status: OrderStatus;
   ts: number;          // epoch ms (passed in, never Date.now() in reducers)
 }

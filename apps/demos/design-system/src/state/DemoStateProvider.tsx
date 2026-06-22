@@ -8,6 +8,8 @@ export interface DemoState {
   setSelectedId: (id: string) => void;
   clickedPrice: number | null;
   setClickedPrice: (price: number | null) => void;
+  selectedOrderId: string | null;
+  setSelectedOrderId: (id: string | null) => void;
 }
 
 const DemoContext = createContext<DemoState | null>(null);
@@ -17,9 +19,10 @@ export function DemoStateProvider({ children }: { children: React.ReactNode }) {
   const firstId = store.state.instruments[0]?.id ?? '';
   const [selectedId, setSelectedId] = useState<string>(firstId);
   const [clickedPrice, setClickedPrice] = useState<number | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(store.state.orders[0]?.id ?? null);
 
   return (
-    <DemoContext.Provider value={{ store, selectedId, setSelectedId, clickedPrice, setClickedPrice }}>
+    <DemoContext.Provider value={{ store, selectedId, setSelectedId, clickedPrice, setClickedPrice, selectedOrderId, setSelectedOrderId }}>
       {children}
     </DemoContext.Provider>
   );

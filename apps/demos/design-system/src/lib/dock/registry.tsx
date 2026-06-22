@@ -2,7 +2,10 @@ import type { WidgetProps } from '@widgetstools/react-dock-manager';
 import type { ComponentType } from 'react';
 import OrderBook from '../../panels/OrderBook';
 import { RecentPrints } from '../../panels/RecentPrints';
-import { BlotterWidget, PriceChartWidget, OrdersBlotterWidget, OrderEntryWidget } from '../../panels/MarketWidgets';
+import { BlotterWidget, PriceChartWidget, OrderEntryWidget } from '../../panels/MarketWidgets';
+import { OrdersBlotter } from '../../panels/OrdersBlotter';
+import { OrdersKpiStrip } from '../../panels/orders/OrdersKpiStrip';
+import { OrderDetail } from '../../panels/orders/OrderDetail';
 import { DesignSystemTab } from '../../tabs/DesignSystemTab';
 import { OasDurationScatter } from '../../panels/analytics/OasDurationScatter';
 import { DurationBuckets } from '../../panels/analytics/DurationBuckets';
@@ -23,7 +26,7 @@ function DesignSystemWidget(_props: WidgetProps) { return <DesignSystemTab />; }
 
 export type WidgetId =
   | 'blotter' | 'priceChart' | 'orderBook' | 'recentPrints'
-  | 'ordersBlotter' | 'orderEntry'
+  | 'ordersKpi' | 'ordersBlotter' | 'orderEntry' | 'orderDetail'
   | 'oasDuration' | 'durationBuckets' | 'sectorDonut' | 'historicalOas' | 'oasDistribution' | 'pnlAttribution'
   | 'riskKpi' | 'bookRisk' | 'dv01ByBook' | 'rateScenarios' | 'varTrend' | 'riskLimits'
   | 'researchList' | 'noteDetail'
@@ -31,7 +34,7 @@ export type WidgetId =
 
 export const WIDGETS: Record<WidgetId, ComponentType<WidgetProps>> = {
   blotter: BlotterWidget, priceChart: PriceChartWidget, orderBook: OrderBook, recentPrints: RecentPrints,
-  ordersBlotter: OrdersBlotterWidget, orderEntry: OrderEntryWidget,
+  ordersKpi: OrdersKpiStrip, ordersBlotter: OrdersBlotter, orderEntry: OrderEntryWidget, orderDetail: OrderDetail,
   oasDuration: OasDurationScatter, durationBuckets: DurationBuckets, sectorDonut: SectorDonut,
   historicalOas: HistoricalOas, oasDistribution: OasDistribution, pnlAttribution: PnlAttribution,
   riskKpi: RiskKpiStrip, bookRisk: BookRisk, dv01ByBook: Dv01ByBook,
