@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, TooltipProvider } from '@starui/ui';
 import { TopBar } from './components/TopBar';
 import { useTickingStore } from './data/useTickingStore';
+import { DesignSystemTab } from './tabs/DesignSystemTab';
+import type { TerminalState } from './data/types';
 
 interface TabDef {
   id: string;
@@ -16,6 +18,22 @@ const TABS: TabDef[] = [
   { id: 'research', label: 'Research' },
   { id: 'design-system', label: 'Design System' },
 ];
+
+function renderTab(id: string, _state: TerminalState) {
+  switch (id) {
+    case 'design-system':
+      return <DesignSystemTab />;
+    default:
+      return (
+        <div
+          data-testid={`tab-${id}`}
+          className="flex min-h-0 flex-1 items-center justify-center text-[13px] text-[color:var(--ds-text-secondary)]"
+        >
+          {id} — coming soon
+        </div>
+      );
+  }
+}
 
 export function App() {
   const [active, setActive] = useState('market');
@@ -50,12 +68,7 @@ export function App() {
               value={t.id}
               className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden p-3 data-[state=inactive]:hidden"
             >
-              <div
-                data-testid={`tab-${t.id}`}
-                className="flex min-h-0 flex-1 items-center justify-center text-[13px] text-[color:var(--ds-text-secondary)]"
-              >
-                {t.label} — coming soon
-              </div>
+              {renderTab(t.id, store.state)}
             </TabsContent>
           ))}
         </Tabs>
