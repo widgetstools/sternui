@@ -69,7 +69,7 @@ export function OrderEntryForm({ state, onSubmit }: OrderEntryFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Quantity (face)</FormLabel>
-                <FormControl><Input type="number" {...field} onChange={(e) => field.onChange(e.target.valueAsNumber)} /></FormControl>
+                <FormControl><Input type="number" {...field} onChange={(e) => field.onChange(Number.isNaN(e.target.valueAsNumber) ? 0 : e.target.valueAsNumber)} /></FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -81,7 +81,7 @@ export function OrderEntryForm({ state, onSubmit }: OrderEntryFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Limit price</FormLabel>
-                <FormControl><Input type="number" step="0.001" {...field} onChange={(e) => field.onChange(e.target.valueAsNumber)} /></FormControl>
+                <FormControl><Input type="number" step="0.001" {...field} onChange={(e) => field.onChange(Number.isNaN(e.target.valueAsNumber) ? 0 : e.target.valueAsNumber)} /></FormControl>
                 <FormMessage />
               </FormItem>
             )}

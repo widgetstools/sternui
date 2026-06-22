@@ -15,7 +15,7 @@ function tickQuote(q: Quote, rng: () => number): Quote {
     ask: round3(mid + spread / 2),
     last: mid,
     ytm: round3(Math.max(0.2, q.ytm - delta * 0.05)),
-    changePct: round2(q.changePct + delta * 0.4),
+    changePct: round2(Math.max(-99, Math.min(99, q.changePct + delta * 0.4))),
     dir,
   };
 }

@@ -3,7 +3,6 @@ import { AgGridReact } from 'ag-grid-react';
 import type { ColDef } from 'ag-grid-community';
 import '../lib/agGridSetup';
 import { blotterTheme } from '../lib/agGridTheme';
-import { useThemeMode } from '../lib/useThemeMode';
 import type { TerminalState } from '../data/types';
 
 interface BlotterRow {
@@ -51,7 +50,6 @@ export interface BondBlotterProps {
 }
 
 export function BondBlotter({ state }: BondBlotterProps) {
-  const { mode } = useThemeMode();
   const rows = useMemo<BlotterRow[]>(
     () =>
       state.instruments.map((inst) => {
@@ -66,7 +64,7 @@ export function BondBlotter({ state }: BondBlotterProps) {
   );
 
   return (
-    <div data-ag-theme-mode={mode} className="h-full w-full" data-testid="bond-blotter">
+    <div className="h-full w-full" data-testid="bond-blotter">
       <AgGridReact<BlotterRow>
         theme={blotterTheme}
         rowData={rows}

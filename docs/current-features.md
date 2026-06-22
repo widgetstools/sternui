@@ -1760,7 +1760,7 @@ of importing `@openfin/*` directly (architecture boundary).
 - **FI trading terminal** — Market (bond blotter, watchlist, depth book, price chart, trade ticket), Orders (orders blotter, react-hook-form order entry, RFQ simulator), Analytics (yield-curve chart + KPI cards), Risk (sector exposure heat table + limit bars + VaR), Research (document-style cards/accordion/hover-cards) — all styled only by `@starui/design-system` tokens + `@starui/ui`.
 - **Live-ticking mock data** — pure `applyTick` reducer + `useTickingStore`; deterministic seeds; no backend.
 - **AG Grid theming** via the prebuilt `staruiGridTheme`/`agGridBlotterDarkTheme` with `data-ag-theme-mode`; recharts charts use the design-system chart ramp.
-- **Design System reference tab** — Overview (consumption snippets), Palette (live `--ds-*` swatches), Typography, Foundations, and a data-driven gallery of **all 52 `@starui/ui` components** (live preview + import + code), gated by a `registry.test.ts` completeness check against `packages/react-ui/ui/src/components`.
+- **Design System reference tab** — Overview (consumption snippets), Palette (live `--ds-*` swatches), Typography, Foundations, and a data-driven gallery of **all 46 public `@starui/ui` components** (live preview + import + code; 6 non-visual utilities allowlisted), gated by a `registry.test.ts` completeness check against `packages/react-ui/ui/src/components`.
 
 **Build / verify tooling:**
 - `docs/BUILD.md` + `apps/README.md` — build matrix: `build:packages` → `build:apps` (source); `propagate` packs `libs/*.tgz` for external Artifactory consumers

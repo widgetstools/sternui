@@ -4,7 +4,6 @@ import type { ColDef } from 'ag-grid-community';
 import { Badge } from '@starui/ui';
 import '../lib/agGridSetup';
 import { gridTheme } from '../lib/agGridTheme';
-import { useThemeMode } from '../lib/useThemeMode';
 import type { Order, OrderStatus, TerminalState } from '../data/types';
 
 const STATUS_VARIANT: Record<OrderStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -31,10 +30,9 @@ export interface OrdersBlotterProps {
 }
 
 export function OrdersBlotter({ state }: OrdersBlotterProps) {
-  const { mode } = useThemeMode();
   const rows = useMemo(() => state.orders, [state.orders]);
   return (
-    <div data-ag-theme-mode={mode} className="h-full w-full" data-testid="orders-blotter">
+    <div className="h-full w-full" data-testid="orders-blotter">
       <AgGridReact<Order>
         theme={gridTheme}
         rowData={rows}
