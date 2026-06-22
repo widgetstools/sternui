@@ -35,7 +35,7 @@ export function DesignSystemTab() {
   const activeCategory = SHOWCASE_CATEGORIES.find((c) => c.id === active);
 
   return (
-    <div className="flex min-h-0 flex-1 overflow-hidden rounded-md border border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)]" data-testid="ds-designsystem">
+    <div className="flex h-full min-h-0 w-full overflow-hidden rounded-md border border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)]" data-testid="ds-designsystem">
       <nav className="flex w-52 shrink-0 flex-col gap-3 overflow-y-auto border-r border-[color:var(--ds-border-primary)] p-3">
         <NavGroup title="Foundations">
           {SECTIONS.map((s) => (
