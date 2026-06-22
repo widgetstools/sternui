@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger, TooltipProvider } from '@star
 import { TopBar } from './components/TopBar';
 import { useTickingStore } from './data/useTickingStore';
 import { DesignSystemTab } from './tabs/DesignSystemTab';
+import { MarketTab } from './tabs/MarketTab';
 import type { TerminalState } from './data/types';
 
 interface TabDef {
@@ -19,8 +20,10 @@ const TABS: TabDef[] = [
   { id: 'design-system', label: 'Design System' },
 ];
 
-function renderTab(id: string, _state: TerminalState) {
+function renderTab(id: string, state: TerminalState) {
   switch (id) {
+    case 'market':
+      return <MarketTab state={state} />;
     case 'design-system':
       return <DesignSystemTab />;
     default:
