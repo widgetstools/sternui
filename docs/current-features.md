@@ -1728,7 +1728,7 @@ of importing `@openfin/*` directly (architecture boundary).
 
 ### Apps — platform bootstrap pilot
 
-**18 demos** under `apps/demos/` (nested `apps/package.json` workspace). Apps build **from source** — Vite + `tsc` resolve every `@starui/*` import out of `packages/` (apps declare no `@starui/*` deps and require no `libs/*.tgz`); `npm run propagate` packs tarballs for external Artifactory consumers only (see `apps/demos/README.md`).
+**19 demos** under `apps/demos/` (nested `apps/package.json` workspace). Apps build **from source** — Vite + `tsc` resolve every `@starui/*` import out of `packages/` (apps declare no `@starui/*` deps and require no `libs/*.tgz`); `npm run propagate` packs tarballs for external Artifactory consumers only (see `apps/demos/README.md`).
 
 | App | Role |
 |-----|------|
@@ -1740,6 +1740,7 @@ of importing `@openfin/*` directly (architecture boundary).
 | `demo-stomp-markets-grid` | Minimal STOMP + MarketsGrid (web + OpenFin); `defaultLiveProviderId` |
 | `stomp-marketsgrid-minimal` | Lean STOMP → MarketsGrid dev track |
 | `markets-grid-lab` | Developer-onboarding feature lab: Home landing + grouped sidebar nav + per-feature Inspector drawer; scenario rail + importable profiles |
+| `design-system` (`@starui/design-system-demo`) | FI trading terminal + live component/token reference, fully styled by `@starui/design-system` + `@starui/ui` (port 5310) |
 | `platform-hooks-demo` | AppData bootstrap hooks + grid event callback bindings (port 5214) |
 | `stomp`, `mockdata-provider`, `dataprovider-editor` | MCP tutorial apps; hub bootstrap + `useDataProvider` |
 | `basic` (`@starui/tutorial-basic`) | Minimal grid tutorial |
@@ -1754,6 +1755,12 @@ of importing `@openfin/*` directly (architecture boundary).
 - **Grouped sidebar nav** (`LabSidebarNav`) with a feature filter, replacing the horizontal tab strip; nav items keep `data-testid="lab-tab-<id>"`.
 - **Inspector drawer** (`InspectorDrawer`) under every feature grid: What/Why, Try-this steps, derived Config blocks, and a Props/API table.
 - **Feature-guide registry** (`guides/featureGuides.ts`, `FeatureGuide`) and config-block derivation (`buildConfigBlocks`) sourced from each tab's `LabFeatureConfig` and seed rules.
+
+**`design-system` demo app (consuming the design system in a client app):**
+- **FI trading terminal** — Market (bond blotter, watchlist, depth book, price chart, trade ticket), Orders (orders blotter, react-hook-form order entry, RFQ simulator), Analytics (yield-curve chart + KPI cards), Risk (sector exposure heat table + limit bars + VaR), Research (document-style cards/accordion/hover-cards) — all styled only by `@starui/design-system` tokens + `@starui/ui`.
+- **Live-ticking mock data** — pure `applyTick` reducer + `useTickingStore`; deterministic seeds; no backend.
+- **AG Grid theming** via the prebuilt `staruiGridTheme`/`agGridBlotterDarkTheme` with `data-ag-theme-mode`; recharts charts use the design-system chart ramp.
+- **Design System reference tab** — Overview (consumption snippets), Palette (live `--ds-*` swatches), Typography, Foundations, and a data-driven gallery of **all 52 `@starui/ui` components** (live preview + import + code), gated by a `registry.test.ts` completeness check against `packages/react-ui/ui/src/components`.
 
 **Build / verify tooling:**
 - `docs/BUILD.md` + `apps/README.md` — build matrix: `build:packages` → `build:apps` (source); `propagate` packs `libs/*.tgz` for external Artifactory consumers
