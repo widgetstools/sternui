@@ -5,7 +5,7 @@ import { buildDepth } from '../data/depth';
 import type { Level, MidRow } from '../data/depth';
 import { fmtPrice, fmtYield, fmtBps } from '../data/formatters';
 import { makeRng } from '../data/seeds';
-import type { Instrument, Quote, TerminalState } from '../data/types';
+import type { Instrument, Quote } from '../data/types';
 import { useDemoState } from '../state/DemoStateProvider';
 
 // ── OrderBookHeader ─────────────────────────────────────────────────────────
@@ -228,55 +228,3 @@ export default function OrderBookWidget(_props: WidgetProps) {
   );
 }
 
-// ── Legacy named export (backward compat with MarketTab) ──────────────────────
-
-export interface OrderBookProps {
-  state: TerminalState;
-  instrumentId: string;
-}
-
-export function OrderBook({ state, instrumentId }: OrderBookProps) {
-  const inst = state.instruments.find((i) => i.id === instrumentId) ?? state.instruments[0];
-  const quote = inst ? state.quotes[inst.id] : undefined;
-
-  const depth = useMemo(() => {
-    if (!inst || !quote) return null;
-    const seed = Math.round(quote.mid * 100);
-    return buildDepth(quote, inst, makeRng(seed));
-  }, [inst, quote]);
-
-  if (!inst || !quote || !depth) {
-    return (
-      <div className="flex h-full items-center justify-center text-[11px] text-[color:var(--ds-text-secondary)]">
-        No instrument selected
-      </div>
-    );
-  }
-
-  const bidDv01 = depth.bids.reduce((s, l) => s + l.dv01, 0);
-  const askDv01 = depth.asks.reduce((s, l) => s + l.dv01, 0);
-
-  return (
-    <div className="flex h-full flex-col" data-testid="order-book">
-      <OrderBookHeader inst={inst} quote={quote} />
-      <div className="flex min-h-0 flex-1 flex-col">
-        <ScrollArea className="flex-1">
-          <LevelSection
-            levels={depth.asks}
-            side="ask"
-            label="Offers"
-            onClick={() => undefined}
-          />
-          <MidRowBar midRow={depth.midRow} />
-          <LevelSection
-            levels={depth.bids}
-            side="bid"
-            label="Bids"
-            onClick={() => undefined}
-          />
-        </ScrollArea>
-      </div>
-      <OrderBookFooter bidDv01={bidDv01} askDv01={askDv01} />
-    </div>
-  );
-}
