@@ -10,6 +10,12 @@ import { SectorDonut } from '../../panels/analytics/SectorDonut';
 import { HistoricalOas } from '../../panels/analytics/HistoricalOas';
 import { OasDistribution } from '../../panels/analytics/OasDistribution';
 import { PnlAttribution } from '../../panels/analytics/PnlAttribution';
+import { RiskKpiStrip } from '../../panels/risk/RiskKpiStrip';
+import { BookRisk } from '../../panels/risk/BookRisk';
+import { Dv01ByBook } from '../../panels/risk/Dv01ByBook';
+import { RateScenarios } from '../../panels/risk/RateScenarios';
+import { VarTrend } from '../../panels/risk/VarTrend';
+import { RiskLimits } from '../../panels/risk/RiskLimits';
 
 function DesignSystemWidget(_props: WidgetProps) { return <DesignSystemTab />; }
 
@@ -34,8 +40,8 @@ export const WIDGETS: Record<WidgetId, ComponentType<WidgetProps>> = {
   ordersBlotter: Placeholder, orderEntry: Placeholder,
   oasDuration: OasDurationScatter, durationBuckets: DurationBuckets, sectorDonut: SectorDonut,
   historicalOas: HistoricalOas, oasDistribution: OasDistribution, pnlAttribution: PnlAttribution,
-  riskKpi: Placeholder, bookRisk: Placeholder, dv01ByBook: Placeholder, rateScenarios: Placeholder,
-  varTrend: Placeholder, riskLimits: Placeholder,
+  riskKpi: RiskKpiStrip, bookRisk: BookRisk, dv01ByBook: Dv01ByBook,
+  rateScenarios: RateScenarios, varTrend: VarTrend, riskLimits: RiskLimits,
   researchList: Placeholder, noteDetail: Placeholder,
   designSystem: DesignSystemWidget,
 };
