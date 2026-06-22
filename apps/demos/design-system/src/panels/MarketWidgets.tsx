@@ -1,6 +1,8 @@
 import type { WidgetProps } from '@widgetstools/react-dock-manager';
 import { BondBlotter } from './BondBlotter';
 import { PriceChart } from './PriceChart';
+import { OrdersBlotter } from './OrdersBlotter';
+import { OrderEntryForm } from './OrderEntryForm';
 import { useDemoState } from '../state/DemoStateProvider';
 
 /** Dock widget adapter: BondBlotter wired to DemoState; row-click sets selectedId. */
@@ -13,4 +15,16 @@ export function BlotterWidget(_props: WidgetProps) {
 export function PriceChartWidget(_props: WidgetProps) {
   const { store, selectedId } = useDemoState();
   return <PriceChart state={store.state} instrumentId={selectedId} />;
+}
+
+/** Dock widget adapter: OrdersBlotter wired to DemoState orders list. */
+export function OrdersBlotterWidget(_props: WidgetProps) {
+  const { store } = useDemoState();
+  return <OrdersBlotter state={store.state} />;
+}
+
+/** Dock widget adapter: OrderEntryForm wired to DemoState instruments list. */
+export function OrderEntryWidget(_props: WidgetProps) {
+  const { store } = useDemoState();
+  return <OrderEntryForm state={store.state} />;
 }

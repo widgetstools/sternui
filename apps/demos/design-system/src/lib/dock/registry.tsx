@@ -2,7 +2,7 @@ import type { WidgetProps } from '@widgetstools/react-dock-manager';
 import type { ComponentType } from 'react';
 import OrderBook from '../../panels/OrderBook';
 import { RecentPrints } from '../../panels/RecentPrints';
-import { BlotterWidget, PriceChartWidget } from '../../panels/MarketWidgets';
+import { BlotterWidget, PriceChartWidget, OrdersBlotterWidget, OrderEntryWidget } from '../../panels/MarketWidgets';
 import { DesignSystemTab } from '../../tabs/DesignSystemTab';
 import { OasDurationScatter } from '../../panels/analytics/OasDurationScatter';
 import { DurationBuckets } from '../../panels/analytics/DurationBuckets';
@@ -39,7 +39,7 @@ function Placeholder({ panel }: WidgetProps) {
 
 export const WIDGETS: Record<WidgetId, ComponentType<WidgetProps>> = {
   blotter: BlotterWidget, priceChart: PriceChartWidget, orderBook: OrderBook, recentPrints: RecentPrints,
-  ordersBlotter: Placeholder, orderEntry: Placeholder,
+  ordersBlotter: OrdersBlotterWidget, orderEntry: OrderEntryWidget,
   oasDuration: OasDurationScatter, durationBuckets: DurationBuckets, sectorDonut: SectorDonut,
   historicalOas: HistoricalOas, oasDistribution: OasDistribution, pnlAttribution: PnlAttribution,
   riskKpi: RiskKpiStrip, bookRisk: BookRisk, dv01ByBook: Dv01ByBook,
