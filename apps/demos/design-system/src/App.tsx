@@ -5,6 +5,8 @@ import { useTickingStore } from './data/useTickingStore';
 import { DesignSystemTab } from './tabs/DesignSystemTab';
 import { MarketTab } from './tabs/MarketTab';
 import { OrdersTab } from './tabs/OrdersTab';
+import { AnalyticsTab } from './tabs/AnalyticsTab';
+import { RiskTab } from './tabs/RiskTab';
 import type { TerminalState } from './data/types';
 
 interface TabDef {
@@ -27,6 +29,10 @@ function renderTab(id: string, state: TerminalState) {
       return <MarketTab state={state} />;
     case 'orders':
       return <OrdersTab state={state} />;
+    case 'analytics':
+      return <AnalyticsTab state={state} />;
+    case 'risk':
+      return <RiskTab state={state} />;
     case 'design-system':
       return <DesignSystemTab />;
     default:
