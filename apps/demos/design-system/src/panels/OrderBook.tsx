@@ -19,7 +19,7 @@ function OrderBookHeader({ inst, quote }: HeaderProps) {
   return (
     <div
       className="shrink-0 border-b border-[color:var(--ds-border-primary)] px-3 py-2"
-      style={{ font: 'var(--ds-font-body)', fontSize: 11 }}
+      style={{ fontFamily: 'var(--ds-font-sans)', fontSize: 11 }}
     >
       <div className="flex items-center justify-between">
         <span className="font-semibold text-[color:var(--ds-text-primary)]">{inst.ticker}</span>
@@ -30,6 +30,7 @@ function OrderBookHeader({ inst, quote }: HeaderProps) {
           ● LIVE
         </Badge>
       </div>
+      <div className="mt-0.5 text-[10px] text-[color:var(--ds-text-secondary)]">{inst.description}</div>
       <div className="mt-0.5 flex gap-3 text-[10px] text-[color:var(--ds-text-secondary)]">
         <span>{inst.coupon}% · {inst.maturity.slice(0, 7)}</span>
         <span>{inst.cusip}</span>
@@ -59,7 +60,7 @@ function LevelRow({ level, side, onClick }: LevelRowProps) {
 
   return (
     <div
-      className="relative flex cursor-pointer items-center gap-1 px-2 py-0.5 hover:bg-[color:var(--ds-bg-hover)]"
+      className="relative flex cursor-pointer items-center gap-1 px-2 py-0.5 hover:bg-[color:var(--ds-state-hover-overlay)]"
       onClick={() => onClick(level.price)}
       style={{ fontFamily: 'var(--ds-font-mono)', fontSize: 11 }}
     >
@@ -109,7 +110,7 @@ function LevelSection({ levels, side, label, onClick }: LevelSectionProps) {
   return (
     <div>
       <div
-        className="sticky top-0 z-10 border-b border-[color:var(--ds-border-primary)] bg-[color:var(--ds-bg-surface)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+        className="sticky top-0 z-10 border-b border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
         style={{ color: labelColor }}
       >
         {label}
@@ -126,7 +127,7 @@ function LevelSection({ levels, side, label, onClick }: LevelSectionProps) {
 function MidRowBar({ midRow }: { midRow: MidRow }) {
   return (
     <div
-      className="shrink-0 flex items-center justify-around border-y border-[color:var(--ds-border-primary)] bg-[color:var(--ds-bg-elevated)] px-3 py-1"
+      className="shrink-0 flex items-center justify-around border-y border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-secondary)] px-3 py-1"
       style={{ fontFamily: 'var(--ds-font-mono)', fontSize: 11 }}
     >
       <span>

@@ -58,7 +58,7 @@ function PrintRow({ print }: { print: Print }) {
 
   return (
     <tr
-      className="border-b border-[color:var(--ds-border-primary)] hover:bg-[color:var(--ds-bg-hover)]"
+      className="border-b border-[color:var(--ds-border-primary)] hover:bg-[color:var(--ds-state-hover-overlay)]"
       style={{ fontFamily: 'var(--ds-font-mono)', fontSize: 11 }}
     >
       <td className="px-2 py-0.5 font-semibold" style={{ color: sideColor }}>
@@ -87,7 +87,7 @@ function PrintsTableHeader() {
   return (
     <thead>
       <tr
-        className="border-b border-[color:var(--ds-border-primary)] bg-[color:var(--ds-bg-surface)]"
+        className="border-b border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)]"
         style={{ fontSize: 10 }}
       >
         {['Side', 'Cpty', 'Price', 'Yield', 'Face', 'Time'].map((col) => (
