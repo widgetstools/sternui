@@ -57,6 +57,14 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
+      // Design-system demo app — FI terminal + component gallery.
+      // Port matches `apps/demos/design-system/vite.config.ts`.
+      command: 'npm --prefix apps run dev -w @starui/design-system-demo -- --no-open --force',
+      port: 5310,
+      reuseExistingServer: true,
+      timeout: 120_000,
+    },
+    {
       // Platform hooks demo — AppData bootstrap + grid event bindings.
       // Port matches `apps/demos/platform-hooks-demo/vite.config.ts`.
       // host-data resolves to dist exports — build before dev so bootstrap JSON parsing is current.
