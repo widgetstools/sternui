@@ -26,12 +26,19 @@ function buildDistributionData(
   instruments: ReturnType<typeof useDemoState>['store']['state']['instruments'],
   quotes: ReturnType<typeof useDemoState>['store']['state']['quotes'],
 ) {
-  return instruments
-    .map((inst) => {
-      const q = quotes[inst.id];
-      const issuer = inst.ticker.split(' ')[0];
-      return { issuer, oas: q?.oas ?? inst.gSpd };
-    })
+  const issuerMap = new Map<string, number[]>();
+  for (const inst of instruments) {
+    const issuer = inst.ticker.split(' ')[0];
+    const oasVal = quotes[inst.id]?.oas ?? inst.gSpd;
+    const arr = issuerMap.get(issuer) ?? [];
+    arr.push(oasVal);
+    issuerMap.set(issuer, arr);
+  }
+  return Array.from(issuerMap.entries())
+    .map(([issuer, vals]) => ({
+      issuer,
+      oas: Math.round(vals.reduce((s, v) => s + v, 0) / vals.length),
+    }))
     .sort((a, b) => b.oas - a.oas);
 }
 

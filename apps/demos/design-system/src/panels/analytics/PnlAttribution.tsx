@@ -5,47 +5,68 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 import { useDemoState } from '../../state/DemoStateProvider';
 
 const CHART_CONFIG: ChartConfig = {
-  pnl:  { label: 'P&L ($k)', color: 'var(--ds-chart-1)' },
+  base:  { label: 'base',   color: 'transparent' },
+  delta: { label: 'P&L ($k)', color: 'var(--ds-chart-1)' },
 };
 
-interface PnlItem {
-  label: string;
-  pnl: number;
+interface WaterfallRow {
+  name: string;
+  base: number;
+  delta: number;
+  fill: string;
   isTotal: boolean;
+  signedTotal?: number;
 }
 
-function buildAttributionData(
+function buildWaterfallData(
   positions: ReturnType<typeof useDemoState>['store']['state']['positions'],
-): PnlItem[] {
+): WaterfallRow[] {
   const totalPnl = positions.reduce((s, p) => s + p.unrealizedPnl, 0);
-  const totalK = Math.round(totalPnl / 1000);
-  const carry   = Math.round(totalK * 0.42);
-  const spread  = Math.round(totalK * 0.31);
-  const rates   = Math.round(totalK * -0.18);
-  const fx      = Math.round(totalK * -0.08);
-  const costs   = Math.round(totalK * -0.05);
-  const total   = carry + spread + rates + fx + costs;
-  return [
-    { label: 'Carry',  pnl: carry,  isTotal: false },
-    { label: 'Spread', pnl: spread, isTotal: false },
-    { label: 'Rates',  pnl: rates,  isTotal: false },
-    { label: 'FX',     pnl: fx,     isTotal: false },
-    { label: 'Costs',  pnl: costs,  isTotal: false },
-    { label: 'Total',  pnl: total,  isTotal: true  },
-  ];
-}
+  const totalK   = Math.round(totalPnl / 1000);
 
-function cellColor(item: PnlItem): string {
-  if (item.isTotal) return item.pnl >= 0 ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)';
-  return item.pnl >= 0 ? 'var(--ds-chart-1)' : 'var(--ds-chart-4)';
+  const steps: Array<{ label: string; delta: number }> = [
+    { label: 'Carry',  delta: Math.round(totalK *  0.42) },
+    { label: 'Spread', delta: Math.round(totalK *  0.31) },
+    { label: 'Rates',  delta: Math.round(totalK * -0.18) },
+    { label: 'FX',     delta: Math.round(totalK * -0.08) },
+    { label: 'Costs',  delta: Math.round(totalK * -0.05) },
+  ];
+
+  const rows: WaterfallRow[] = [];
+  let running = 0;
+
+  for (const step of steps) {
+    const base = step.delta >= 0 ? running : running + step.delta;
+    rows.push({
+      name: step.label,
+      base,
+      delta: Math.abs(step.delta),
+      fill: step.delta >= 0 ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)',
+      isTotal: false,
+    });
+    running += step.delta;
+  }
+
+  const totalSum = steps.reduce((s, s2) => s + s2.delta, 0);
+  rows.push({
+    name: 'Total',
+    base: 0,
+    delta: Math.abs(totalSum),
+    fill: 'var(--ds-chart-1)',
+    isTotal: true,
+    signedTotal: totalSum,
+  });
+
+  return rows;
 }
 
 export function PnlAttribution(_props: WidgetProps) {
   const { store } = useDemoState();
   const { positions } = store.state;
 
-  const data = useMemo(() => buildAttributionData(positions), [positions]);
-  const netPnl = data.find((d) => d.isTotal)?.pnl ?? 0;
+  const data = useMemo(() => buildWaterfallData(positions), [positions]);
+  const totalRow = data.find((d) => d.isTotal);
+  const netPnl   = totalRow?.signedTotal ?? 0;
   const fmtK = (n: number) => `${n >= 0 ? '+' : ''}$${n.toLocaleString('en-US')}k`;
 
   return (
@@ -56,13 +77,14 @@ export function PnlAttribution(_props: WidgetProps) {
       <div className="min-h-0 flex-1 p-2">
         <ChartContainer config={CHART_CONFIG} className="h-full w-full">
           <BarChart data={data} margin={{ left: 4, right: 8, top: 8, bottom: 4 }}>
-            <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={10} />
+            <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={10} />
             <YAxis tickLine={false} axisLine={false} fontSize={10} width={38} unit="k" />
             <ChartTooltip content={<ChartTooltipContent />} />
             <ReferenceLine y={0} stroke="var(--ds-border-primary)" strokeWidth={1} />
-            <Bar dataKey="pnl" radius={[3, 3, 0, 0]} maxBarSize={40} isAnimationActive={false}>
-              {data.map((item, idx) => (
-                <Cell key={idx} fill={cellColor(item)} fillOpacity={0.85} />
+            <Bar dataKey="base" stackId="w" fill="transparent" isAnimationActive={false} />
+            <Bar dataKey="delta" stackId="w" maxBarSize={40} radius={[3, 3, 0, 0]} isAnimationActive={false}>
+              {data.map((row, idx) => (
+                <Cell key={idx} fill={row.fill} fillOpacity={0.85} />
               ))}
             </Bar>
           </BarChart>
@@ -71,7 +93,7 @@ export function PnlAttribution(_props: WidgetProps) {
       <div className="shrink-0 border-t border-[color:var(--ds-border-primary)] px-3 py-1.5 flex items-center gap-2 text-[11px]">
         <span className="text-[color:var(--ds-text-muted)]">Net P&amp;L MTD:</span>
         <span
-          className="font-[var(--ds-font-mono)] font-semibold"
+          className="font-[family-name:var(--ds-font-mono)] font-semibold"
           style={{ color: netPnl >= 0 ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)' }}
         >
           {fmtK(netPnl)}
