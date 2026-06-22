@@ -1,5 +1,7 @@
 import type { WidgetProps } from '@widgetstools/react-dock-manager';
 import type { ComponentType } from 'react';
+import OrderBook from '../../panels/OrderBook';
+import { RecentPrints } from '../../panels/RecentPrints';
 
 export type WidgetId =
   | 'blotter' | 'priceChart' | 'orderBook' | 'recentPrints'
@@ -18,7 +20,7 @@ function Placeholder({ panel }: WidgetProps) {
 }
 
 export const WIDGETS: Record<WidgetId, ComponentType<WidgetProps>> = {
-  blotter: Placeholder, priceChart: Placeholder, orderBook: Placeholder, recentPrints: Placeholder,
+  blotter: Placeholder, priceChart: Placeholder, orderBook: OrderBook, recentPrints: RecentPrints,
   ordersBlotter: Placeholder, orderEntry: Placeholder,
   oasDuration: Placeholder, durationBuckets: Placeholder, sectorDonut: Placeholder,
   historicalOas: Placeholder, oasDistribution: Placeholder, pnlAttribution: Placeholder,
