@@ -29,14 +29,6 @@ export type WidgetId =
   | 'researchList' | 'noteDetail'
   | 'designSystem';
 
-function Placeholder({ panel }: WidgetProps) {
-  return (
-    <div className="flex h-full w-full items-center justify-center text-[12px] text-[color:var(--ds-text-secondary)]">
-      {panel.title}
-    </div>
-  );
-}
-
 export const WIDGETS: Record<WidgetId, ComponentType<WidgetProps>> = {
   blotter: BlotterWidget, priceChart: PriceChartWidget, orderBook: OrderBook, recentPrints: RecentPrints,
   ordersBlotter: OrdersBlotterWidget, orderEntry: OrderEntryWidget,
