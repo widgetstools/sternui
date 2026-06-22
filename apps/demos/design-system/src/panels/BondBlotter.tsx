@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import type { ColDef } from 'ag-grid-community';
+import type { ColDef, RowClickedEvent } from 'ag-grid-community';
 import '../lib/agGridSetup';
 import { blotterTheme } from '../lib/agGridTheme';
 import type { TerminalState } from '../data/types';
@@ -47,9 +47,10 @@ const COLS: ColDef<BlotterRow>[] = [
 
 export interface BondBlotterProps {
   state: TerminalState;
+  onRowClicked?: (id: string) => void;
 }
 
-export function BondBlotter({ state }: BondBlotterProps) {
+export function BondBlotter({ state, onRowClicked }: BondBlotterProps) {
   const rows = useMemo<BlotterRow[]>(
     () =>
       state.instruments.map((inst) => {
@@ -63,6 +64,10 @@ export function BondBlotter({ state }: BondBlotterProps) {
     [state],
   );
 
+  const handleRowClicked = onRowClicked
+    ? (e: RowClickedEvent<BlotterRow>) => { if (e.data?.id) onRowClicked(e.data.id); }
+    : undefined;
+
   return (
     <div className="h-full w-full" data-testid="bond-blotter">
       <AgGridReact<BlotterRow>
@@ -72,6 +77,7 @@ export function BondBlotter({ state }: BondBlotterProps) {
         getRowId={(p) => p.data.id}
         defaultColDef={{ sortable: true, resizable: true }}
         animateRows={false}
+        onRowClicked={handleRowClicked}
       />
     </div>
   );

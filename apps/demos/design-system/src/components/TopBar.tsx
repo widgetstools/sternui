@@ -1,5 +1,5 @@
-import { Activity } from 'lucide-react';
-import { Badge } from '@starui/ui';
+import { Activity, Plus, MessageSquare, Save, RotateCcw } from 'lucide-react';
+import { Badge, Button } from '@starui/ui';
 import type { TerminalState } from '../data/types';
 import { fmtPrice, fmtSignedPct } from '../data/formatters';
 import { ThemeToggle } from './ThemeToggle';
@@ -8,9 +8,13 @@ const STRIP_IDS = ['i01', 'i03', 'i05', 'i07', 'i15'];
 
 export interface TopBarProps {
   state: TerminalState;
+  onNewOrder?: () => void;
+  onRfq?: () => void;
+  onSave?: () => void;
+  onReset?: () => void;
 }
 
-export function TopBar({ state }: TopBarProps) {
+export function TopBar({ state, onNewOrder, onRfq, onSave, onReset }: TopBarProps) {
   return (
     <header
       className="flex h-14 shrink-0 items-center gap-4 border-b border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] pl-5 pr-3"
@@ -46,6 +50,46 @@ export function TopBar({ state }: TopBarProps) {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onNewOrder}
+          data-testid="topbar-new-order"
+          className="gap-1.5 border-[color:var(--ds-border-primary)] text-[12px] text-[color:var(--ds-text-secondary)] hover:text-[color:var(--ds-text-primary)]"
+        >
+          <Plus size={13} />
+          New Order
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onRfq}
+          data-testid="topbar-rfq"
+          className="gap-1.5 border-[color:var(--ds-border-primary)] text-[12px] text-[color:var(--ds-text-secondary)] hover:text-[color:var(--ds-text-primary)]"
+        >
+          <MessageSquare size={13} />
+          RFQ
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onSave}
+          data-testid="topbar-save"
+          aria-label="Save layout"
+          className="h-8 w-8 text-[color:var(--ds-text-muted)] hover:text-[color:var(--ds-text-primary)]"
+        >
+          <Save size={14} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onReset}
+          data-testid="topbar-reset"
+          aria-label="Reset layout"
+          className="h-8 w-8 text-[color:var(--ds-text-muted)] hover:text-[color:var(--ds-text-primary)]"
+        >
+          <RotateCcw size={14} />
+        </Button>
         <ThemeToggle />
       </div>
     </header>

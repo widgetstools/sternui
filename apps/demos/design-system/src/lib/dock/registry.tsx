@@ -2,6 +2,10 @@ import type { WidgetProps } from '@widgetstools/react-dock-manager';
 import type { ComponentType } from 'react';
 import OrderBook from '../../panels/OrderBook';
 import { RecentPrints } from '../../panels/RecentPrints';
+import { BlotterWidget, PriceChartWidget } from '../../panels/MarketWidgets';
+import { DesignSystemTab } from '../../tabs/DesignSystemTab';
+
+function DesignSystemWidget(_props: WidgetProps) { return <DesignSystemTab />; }
 
 export type WidgetId =
   | 'blotter' | 'priceChart' | 'orderBook' | 'recentPrints'
@@ -20,12 +24,12 @@ function Placeholder({ panel }: WidgetProps) {
 }
 
 export const WIDGETS: Record<WidgetId, ComponentType<WidgetProps>> = {
-  blotter: Placeholder, priceChart: Placeholder, orderBook: OrderBook, recentPrints: RecentPrints,
+  blotter: BlotterWidget, priceChart: PriceChartWidget, orderBook: OrderBook, recentPrints: RecentPrints,
   ordersBlotter: Placeholder, orderEntry: Placeholder,
   oasDuration: Placeholder, durationBuckets: Placeholder, sectorDonut: Placeholder,
   historicalOas: Placeholder, oasDistribution: Placeholder, pnlAttribution: Placeholder,
   riskKpi: Placeholder, bookRisk: Placeholder, dv01ByBook: Placeholder, rateScenarios: Placeholder,
   varTrend: Placeholder, riskLimits: Placeholder,
   researchList: Placeholder, noteDetail: Placeholder,
-  designSystem: Placeholder,
+  designSystem: DesignSystemWidget,
 };

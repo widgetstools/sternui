@@ -1761,6 +1761,11 @@ of importing `@openfin/*` directly (architecture boundary).
 - **Live-ticking mock data** — pure `applyTick` reducer + `useTickingStore`; deterministic seeds; no backend.
 - **AG Grid theming** via the prebuilt `staruiGridTheme`/`agGridBlotterDarkTheme` with `data-ag-theme-mode`; recharts charts use the design-system chart ramp.
 - **Design System reference tab** — Overview (consumption snippets), Palette (live `--ds-*` swatches), Typography, Foundations, and a data-driven gallery of **all 46 public `@starui/ui` components** (live preview + import + code; 6 non-visual utilities allowlisted), gated by a `registry.test.ts` completeness check against `packages/react-ui/ui/src/components`.
+- **`DemoStateProvider`** — React context wrapping the entire app; exposes `store` (ticking), `selectedId`/`setSelectedId`, `clickedPrice`/`setClickedPrice`; consumed by `OrderBook`, `RecentPrints`, `BlotterWidget`, `PriceChartWidget`.
+- **Market dock wiring** — `BlotterWidget` (AG Grid bond blotter → `setSelectedId` on row-click) and `PriceChartWidget` (recharts area chart for `selectedId`) registered in the dock widget registry, replacing placeholders.
+- **Floating Trade Ticket** — `FloatingWindow` + `TradeTicket` toggled by `+ New Order` button in TopBar (`data-testid="topbar-new-order"`); draggable, themed, fires a shadcn toast on submit.
+- **Floating RFQ Workbench** — `FloatingWindow` + `RfqWorkbench` toggled by `RFQ` button (`data-testid="topbar-rfq"`); independent RFQ state machine with dealer-quote ladder.
+- **Save / Reset layout** — TopBar `Save` button (`data-testid="topbar-save"`) calls `saveLayout` for the active tab; `Reset` button (`data-testid="topbar-reset"`) calls `resetLayout` + bumps `resetKey` to remount the dock with the default layout; both fire toast confirmations.
 
 **Build / verify tooling:**
 - `docs/BUILD.md` + `apps/README.md` — build matrix: `build:packages` → `build:apps` (source); `propagate` packs `libs/*.tgz` for external Artifactory consumers
