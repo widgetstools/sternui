@@ -174,6 +174,35 @@ function OrderSummary({ side, notional, ticker, orderType, tif, price, estTotal 
   );
 }
 
+// ─── CTA Button ───────────────────────────────────────────────────────────────
+
+function CtaButton({ side, notional, ticker, onClick }: {
+  side: Side; notional: string; ticker: string; onClick: () => void;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <div style={{ padding: '10px 12px', borderTop: '1px solid var(--ds-border-primary)', flexShrink: 0 }}>
+      <button
+        onClick={onClick}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={{
+          width: '100%', padding: '10px', borderRadius: 'var(--ds-radius-md)',
+          background: side === 'buy' ? 'var(--ds-action-buy-bg)' : 'var(--ds-action-sell-bg)',
+          color: side === 'buy' ? 'var(--ds-action-buy-fg)' : 'var(--ds-action-sell-fg)',
+          border: 'none', cursor: 'pointer', fontWeight: 700,
+          fontSize: 'var(--ds-font-size-sm)', fontFamily: 'var(--ds-font-sans)',
+          letterSpacing: '0.02em',
+          outline: focused ? '2px solid var(--ds-state-focus-ring)' : 'none',
+          outlineOffset: focused ? '2px' : undefined,
+        }}
+      >
+        {side === 'buy' ? 'Buy' : 'Sell'} {notional}MM {ticker.split(' ')[0]}
+      </button>
+    </div>
+  );
+}
+
 // ─── Main TradeTicket ─────────────────────────────────────────────────────────
 
 export function TradeTicket({ instrument, quote, onClose = () => undefined }: TradeTicketProps) {
@@ -196,9 +225,6 @@ export function TradeTicket({ instrument, quote, onClose = () => undefined }: Tr
     });
     onClose();
   };
-
-  const buySellColor = side === 'buy' ? 'var(--ds-action-buy-bg)' : 'var(--ds-action-sell-bg)';
-  const buySellFg = side === 'buy' ? 'var(--ds-action-buy-fg)' : 'var(--ds-action-sell-fg)';
 
   return (
     <div data-testid="trade-ticket" style={{ display: 'flex', flexDirection: 'column', height: '100%', color: 'var(--ds-text-primary)' }}>
@@ -252,21 +278,7 @@ export function TradeTicket({ instrument, quote, onClose = () => undefined }: Tr
         />
       </div>
 
-      {/* CTA */}
-      <div style={{ padding: '10px 12px', borderTop: '1px solid var(--ds-border-primary)', flexShrink: 0 }}>
-        <button
-          onClick={handleSubmit}
-          style={{
-            width: '100%', padding: '10px', borderRadius: 'var(--ds-radius-md)',
-            background: buySellColor, color: buySellFg,
-            border: 'none', cursor: 'pointer', fontWeight: 700,
-            fontSize: 'var(--ds-font-size-sm)', fontFamily: 'var(--ds-font-sans)',
-            letterSpacing: '0.02em',
-          }}
-        >
-          {side === 'buy' ? 'Buy' : 'Sell'} {notional}MM {instrument.ticker.split(' ')[0]}
-        </button>
-      </div>
+      <CtaButton side={side} notional={notional} ticker={instrument.ticker} onClick={handleSubmit} />
     </div>
   );
 }
