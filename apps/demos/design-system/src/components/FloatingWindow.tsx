@@ -75,7 +75,14 @@ export function FloatingWindow({ title, onClose, initial, children, testid }: Fl
         <span style={{ fontSize: 'var(--ds-font-size-xs)', fontWeight: 600, color: 'var(--ds-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           {title}
         </span>
-        <Button variant="ghost" size="icon" onClick={onClose} style={{ width: 22, height: 22, color: 'var(--ds-text-muted)' }} aria-label="Close">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          onPointerDown={(e) => e.stopPropagation()}
+          style={{ width: 22, height: 22, color: 'var(--ds-text-muted)' }}
+          aria-label="Close"
+        >
           <X size={12} />
         </Button>
       </div>

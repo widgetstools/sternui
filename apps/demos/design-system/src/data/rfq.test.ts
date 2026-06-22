@@ -15,6 +15,7 @@ function sendPayload(id = 'r1') {
     instrumentId: 'i01',
     side: 'buy' as const,
     sizeMM: 5,
+    mid: 100,
     dealers: DEALERS,
   };
 }
@@ -105,6 +106,22 @@ describe('rfqReducer — tick', () => {
     const s0 = rfqReducer([], { type: 'send', req: sendPayload() }, rngMid);
     const s1 = rfqReducer(s0, { type: 'tick' }, rngMid);
     expect(s1).not.toBe(s0);
+  });
+
+  it('quotes cluster around the request mid (market never crosses)', () => {
+    let s = rfqReducer([], { type: 'send', req: sendPayload() }, rngHigh);
+    for (let i = 0; i < 8; i++) s = rfqReducer(s, { type: 'tick' }, rngHigh);
+    const live = s[0].quotes.filter((q) => q.status === 'live');
+    expect(live.length).toBeGreaterThan(0);
+    const bestBid = Math.max(...live.map((q) => q.bid));
+    const bestAsk = Math.min(...live.map((q) => q.ask));
+    // With a stable mid, the best bid must not exceed the best ask (no crossed/negative spread).
+    expect(bestBid).toBeLessThanOrEqual(bestAsk);
+    // And every quote sits within a tight band around the mid (100).
+    for (const q of live) {
+      expect(q.bid).toBeGreaterThan(99);
+      expect(q.ask).toBeLessThan(101);
+    }
   });
 });
 

@@ -7,6 +7,7 @@ import {
 import { toast } from '@starui/ui';
 import type { Instrument, Quote } from '../data/types';
 import { fmtPrice, fmtYield } from '../data/formatters';
+import { SideSelector } from '../components/SideSelector';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -232,13 +233,10 @@ export function TradeTicket({ instrument, quote, onClose = () => undefined }: Tr
       <BidAskStrip quote={quote} onPickPrice={(p) => setPrice(fmtPrice(p))} />
 
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, padding: '10px 12px' }}>
-        {/* Buy/Sell toggle */}
+        {/* Buy/Sell — conviction selector */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <Label style={{ fontSize: 'var(--ds-font-size-xs)', color: 'var(--ds-text-secondary)' }}>Side</Label>
-          <ToggleGroup type="single" value={side} onValueChange={(v) => v && setSide(v as Side)} className="justify-start w-full">
-            <ToggleGroupItem value="buy" style={{ flex: 1, color: side === 'buy' ? 'var(--ds-action-buy-fg)' : undefined }}>Buy</ToggleGroupItem>
-            <ToggleGroupItem value="sell" style={{ flex: 1, color: side === 'sell' ? 'var(--ds-action-sell-fg)' : undefined }}>Sell</ToggleGroupItem>
-          </ToggleGroup>
+          <SideSelector value={side} onChange={setSide} />
         </div>
 
         {/* Order type tabs */}

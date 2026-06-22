@@ -24,6 +24,8 @@ export interface RfqRequest {
   instrumentId: string;
   side: RfqSide;
   sizeMM: number;
+  /** Reference mid captured at send time — all dealer quotes cluster around it. */
+  mid: number;
   status: RfqRequestStatus;
   quotes: RfqQuote[];
   ticks: number;
@@ -38,6 +40,8 @@ export type RfqSendPayload = {
   instrumentId: string;
   side: RfqSide;
   sizeMM: number;
+  /** Reference mid (the instrument's current mid) — dealers quote around it. */
+  mid: number;
   dealers: string[];
 };
 
@@ -100,11 +104,6 @@ function streamQuotes(req: RfqRequest, rng: () => number, mid: number): RfqReque
 
 // ─── Tick handler ─────────────────────────────────────────────────────────────
 
-/** Compute a synthetic mid price. */
-function getMid(rng: () => number): number {
-  return round3(95 + rng() * 10);
-}
-
 function applyTick(requests: RfqRequest[], rng: () => number): RfqRequest[] {
   return requests.map((req) => {
     if (req.status === 'done' || req.status === 'cancelled') return req;
@@ -112,8 +111,8 @@ function applyTick(requests: RfqRequest[], rng: () => number): RfqRequest[] {
     if (ticks >= EXPIRY_TICKS) {
       return { ...req, ticks, status: 'cancelled' };
     }
-    const mid = getMid(rng);
-    return streamQuotes({ ...req, ticks }, rng, mid);
+    // Quote around the request's STABLE mid so the market never crosses.
+    return streamQuotes({ ...req, ticks }, rng, req.mid);
   });
 }
 
@@ -162,6 +161,7 @@ export function rfqReducer(
         instrumentId: action.req.instrumentId,
         side: action.req.side,
         sizeMM: action.req.sizeMM,
+        mid: action.req.mid,
         status: 'pending',
         quotes: [],
         ticks: 0,

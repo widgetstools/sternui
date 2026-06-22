@@ -10,20 +10,15 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  ToggleGroup,
-  ToggleGroupItem,
 } from '@starui/ui';
 import { DEALERS, makeRng } from '../data/seeds';
 import { rfqReducer, EXPIRY_TICKS } from '../data/rfq';
 import type { RfqAction, RfqQuote, RfqRequest, RfqSide } from '../data/rfq';
 import { useDemoState } from '../state/DemoStateProvider';
+import { SideSelector } from '../components/SideSelector';
 import { fmtPrice } from '../data/formatters';
+
+const LADDER_COLS = '48px minmax(0,1fr) minmax(0,1fr) 44px 94px';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -189,7 +184,7 @@ function ExecConfirm({ req }: { req: RfqRequest }) {
   );
 }
 
-// ─── Quote Table Row ──────────────────────────────────────────────────────────
+// ─── Quote Ladder Row (CSS grid — fits the pane, HIT/LIFT always visible) ──────
 
 interface QuoteRowProps {
   q: RfqQuote;
@@ -200,50 +195,71 @@ interface QuoteRowProps {
   onLift: () => void;
 }
 
-function QuoteTableRow({ q, isBestBid, isBestAsk, canExecute, onHit, onLift }: QuoteRowProps) {
-  const spread = ((q.ask - q.bid) * 100).toFixed(2);
-  const statusStyle: React.CSSProperties = q.status === 'stale'
-    ? { opacity: 0.45 }
-    : q.status === 'done'
-      ? { opacity: 0.7 }
-      : {};
+function QuoteRow({ q, isBestBid, isBestAsk, canExecute, onHit, onLift }: QuoteRowProps) {
+  const spread = ((q.ask - q.bid) * 100).toFixed(1);
+  const rowOpacity = q.status === 'stale' ? 0.4 : q.status === 'done' ? 0.7 : 1;
+  const mono: React.CSSProperties = { fontFamily: 'var(--ds-font-mono)', fontSize: 'var(--ds-font-size-xs)' };
+  const live = canExecute && q.status === 'live';
 
   return (
-    <TableRow style={statusStyle}>
-      <TableCell style={{ fontFamily: 'var(--ds-font-mono)', fontWeight: 600 }}>{q.dealer}</TableCell>
-      <TableCell style={{ fontFamily: 'var(--ds-font-mono)', color: 'var(--ds-accent-positive)', textAlign: 'right' }}>
-        {isBestBid && <span title="Best Bid" style={{ marginRight: 2, fontSize: 10 }}>▲</span>}
-        {fmtPrice(q.bid)}
-      </TableCell>
-      <TableCell style={{ fontFamily: 'var(--ds-font-mono)', textAlign: 'right', color: 'var(--ds-text-secondary)' }}>
-        {q.bidSizeMM.toFixed(1)}
-      </TableCell>
-      <TableCell style={{ fontFamily: 'var(--ds-font-mono)', color: 'var(--ds-accent-negative)', textAlign: 'right' }}>
-        {isBestAsk && <span title="Best Ask" style={{ marginRight: 2, fontSize: 10 }}>▼</span>}
-        {fmtPrice(q.ask)}
-      </TableCell>
-      <TableCell style={{ fontFamily: 'var(--ds-font-mono)', textAlign: 'right', color: 'var(--ds-text-secondary)' }}>
-        {q.askSizeMM.toFixed(1)}
-      </TableCell>
-      <TableCell style={{ fontFamily: 'var(--ds-font-mono)', textAlign: 'right', color: 'var(--ds-text-muted)' }}>
-        {spread}c
-      </TableCell>
-      <TableCell><StatusBadge status={q.status === 'live' ? 'quoted' : q.status === 'done' ? 'done' : 'cancelled'} /></TableCell>
-      <TableCell>
-        {canExecute && q.status === 'live' && (
-          <div style={{ display: 'flex', gap: 4 }}>
-            <Button size="sm" variant="outline" onClick={onHit}
-              style={{ fontSize: 'var(--ds-font-size-2xs)', padding: '1px 8px', borderColor: 'var(--ds-accent-positive)', color: 'var(--ds-accent-positive)' }}>
-              HIT
-            </Button>
-            <Button size="sm" variant="outline" onClick={onLift}
-              style={{ fontSize: 'var(--ds-font-size-2xs)', padding: '1px 8px', borderColor: 'var(--ds-accent-negative)', color: 'var(--ds-accent-negative)' }}>
-              LIFT
-            </Button>
-          </div>
+    <div style={{
+      display: 'grid', gridTemplateColumns: LADDER_COLS, alignItems: 'center', gap: 6,
+      padding: '6px 10px', borderBottom: '1px solid var(--ds-border-primary)', opacity: rowOpacity,
+    }}>
+      <span style={{ ...mono, fontWeight: 600, color: 'var(--ds-text-primary)' }}>{q.dealer}</span>
+
+      {/* Bid + size */}
+      <span style={{ textAlign: 'right', minWidth: 0 }}>
+        <span style={{ ...mono, fontWeight: 600, color: 'var(--ds-accent-positive)' }}>
+          {isBestBid && <span title="Best bid" style={{ marginRight: 3, fontSize: 9 }}>▲</span>}
+          {fmtPrice(q.bid)}
+        </span>
+        <span style={{ marginLeft: 5, fontFamily: 'var(--ds-font-mono)', fontSize: 'var(--ds-font-size-2xs)', color: 'var(--ds-text-faint)' }}>{q.bidSizeMM.toFixed(0)}</span>
+      </span>
+
+      {/* Ask + size */}
+      <span style={{ textAlign: 'right', minWidth: 0 }}>
+        <span style={{ ...mono, fontWeight: 600, color: 'var(--ds-accent-negative)' }}>
+          {isBestAsk && <span title="Best ask" style={{ marginRight: 3, fontSize: 9 }}>▼</span>}
+          {fmtPrice(q.ask)}
+        </span>
+        <span style={{ marginLeft: 5, fontFamily: 'var(--ds-font-mono)', fontSize: 'var(--ds-font-size-2xs)', color: 'var(--ds-text-faint)' }}>{q.askSizeMM.toFixed(0)}</span>
+      </span>
+
+      <span style={{ ...mono, textAlign: 'right', color: 'var(--ds-text-muted)' }}>{spread}</span>
+
+      {/* Action */}
+      <span style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+        {live ? (
+          <>
+            <ActionButton label="HIT" side="buy" onClick={onHit} />
+            <ActionButton label="LIFT" side="sell" onClick={onLift} />
+          </>
+        ) : (
+          <span style={{ fontSize: 'var(--ds-font-size-2xs)', color: 'var(--ds-text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {q.status}
+          </span>
         )}
-      </TableCell>
-    </TableRow>
+      </span>
+    </div>
+  );
+}
+
+function ActionButton({ label, side, onClick }: { label: string; side: 'buy' | 'sell'; onClick: () => void }) {
+  const bg = side === 'buy' ? 'var(--ds-action-buy-bg)' : 'var(--ds-action-sell-bg)';
+  const fg = side === 'buy' ? 'var(--ds-action-buy-fg)' : 'var(--ds-action-sell-fg)';
+  return (
+    <button
+      onClick={onClick}
+      className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ds-state-focus-ring)]"
+      style={{
+        padding: '2px 9px', borderRadius: 'var(--ds-radius-sm)', border: 'none', cursor: 'pointer',
+        background: bg, color: fg, fontFamily: 'var(--ds-font-sans)', fontSize: 'var(--ds-font-size-2xs)',
+        fontWeight: 700, letterSpacing: '0.04em',
+      }}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -268,40 +284,42 @@ function QuoteLadder({ req, onHit, onLift }: QuoteLadderProps) {
   const bestBid = liveQuotes.length ? Math.max(...liveQuotes.map((q) => q.bid)) : null;
   const bestAsk = liveQuotes.length ? Math.min(...liveQuotes.map((q) => q.ask)) : null;
   const canExecute = req.status === 'quoted';
+  const head: React.CSSProperties = { fontSize: 'var(--ds-font-size-2xs)', color: 'var(--ds-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' }}>
       <BestBanner req={req} />
       {req.exec && <ExecConfirm req={req} />}
-      <ScrollArea style={{ flex: 1 }}>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {['Dealer', 'Bid', 'BidMM', 'Ask', 'AskMM', 'Spd', 'Status', ''].map((h) => (
-                <TableHead key={h} style={{ fontSize: 'var(--ds-font-size-2xs)', color: 'var(--ds-text-muted)' }}>{h}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {req.quotes.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8} style={{ textAlign: 'center', color: 'var(--ds-text-faint)', fontSize: 'var(--ds-font-size-xs)' }}>
-                  Awaiting dealer responses…
-                </TableCell>
-              </TableRow>
-            )}
-            {req.quotes.map((q) => (
-              <QuoteTableRow
-                key={q.dealer} q={q}
-                isBestBid={bestBid !== null && q.bid === bestBid && q.status === 'live'}
-                isBestAsk={bestAsk !== null && q.ask === bestAsk && q.status === 'live'}
-                canExecute={canExecute}
-                onHit={() => onHit(q.dealer)}
-                onLift={() => onLift(q.dealer)}
-              />
-            ))}
-          </TableBody>
-        </Table>
+
+      {/* Column header */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: LADDER_COLS, gap: 6, padding: '6px 10px',
+        borderBottom: '1px solid var(--ds-border-primary)', background: 'var(--ds-surface-secondary)',
+      }}>
+        <span style={head}>Dealer</span>
+        <span style={{ ...head, textAlign: 'right' }}>Bid</span>
+        <span style={{ ...head, textAlign: 'right' }}>Ask</span>
+        <span style={{ ...head, textAlign: 'right' }}>Spd¢</span>
+        <span style={{ ...head, textAlign: 'right' }}>Action</span>
+      </div>
+
+      <ScrollArea style={{ flex: 1, minHeight: 0 }}>
+        {req.quotes.length === 0 ? (
+          <div style={{ padding: '16px 10px', textAlign: 'center', color: 'var(--ds-text-faint)', fontSize: 'var(--ds-font-size-xs)' }}>
+            Awaiting dealer responses…
+          </div>
+        ) : (
+          req.quotes.map((q) => (
+            <QuoteRow
+              key={q.dealer} q={q}
+              isBestBid={bestBid !== null && q.bid === bestBid && q.status === 'live'}
+              isBestAsk={bestAsk !== null && q.ask === bestAsk && q.status === 'live'}
+              canExecute={canExecute}
+              onHit={() => onHit(q.dealer)}
+              onLift={() => onLift(q.dealer)}
+            />
+          ))
+        )}
       </ScrollArea>
     </div>
   );
@@ -352,10 +370,7 @@ function NewRfqForm({ instruments, onSend }: NewRfqFormProps) {
       {/* Side */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <Label style={{ fontSize: 'var(--ds-font-size-xs)', color: 'var(--ds-text-secondary)' }}>Side</Label>
-        <ToggleGroup type="single" value={side} onValueChange={(v) => v && setSide(v as RfqSide)} className="justify-start w-full">
-          <ToggleGroupItem value="buy" style={{ flex: 1, color: side === 'buy' ? 'var(--ds-action-buy-fg)' : undefined }}>Buy</ToggleGroupItem>
-          <ToggleGroupItem value="sell" style={{ flex: 1, color: side === 'sell' ? 'var(--ds-action-sell-fg)' : undefined }}>Sell</ToggleGroupItem>
-        </ToggleGroup>
+        <SideSelector value={side} onChange={setSide} />
       </div>
 
       {/* Size */}
@@ -417,7 +432,8 @@ export function RfqWorkbench() {
 
   const handleSend = (payload: { instrumentId: string; side: RfqSide; sizeMM: number; dealers: string[] }) => {
     const id = nextId();
-    dispatch({ type: 'send', req: { id, ...payload } });
+    const mid = store.state.quotes[payload.instrumentId]?.mid ?? 100;
+    dispatch({ type: 'send', req: { id, mid, ...payload } });
     setSelectedReqId(id);
   };
 
