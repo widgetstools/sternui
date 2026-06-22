@@ -31,7 +31,10 @@ function StatusCell({ value }: { value: OrderStatus }) {
     <span style={{
       display: 'inline-flex', alignItems: 'center', padding: '1px 7px', borderRadius: 'var(--ds-radius-sm)',
       border: `1px solid ${c}`, color: c, fontSize: 'var(--ds-font-size-2xs)', fontWeight: 600,
-      textTransform: 'capitalize', letterSpacing: '0.03em',
+      // Explicit line-height: as a flex child the badge would otherwise inherit
+      // the AG cell's row-height line-height and grow taller than the cell,
+      // clipping its top/bottom borders under the cell's overflow:hidden.
+      lineHeight: 1.4, textTransform: 'capitalize', letterSpacing: '0.03em',
     }}>{value}</span>
   );
 }
@@ -47,7 +50,8 @@ const COLS: ColDef<Order>[] = [
     cellStyle: { color: 'var(--ds-accent-positive)' } },
   { field: 'price', headerName: 'Px', width: 84, type: 'rightAligned', valueFormatter: (p) => (p.value ? Number(p.value).toFixed(3) : '—') },
   { field: 'ytm', headerName: 'YTM', width: 78, type: 'rightAligned', valueFormatter: (p) => (p.value ? `${Number(p.value).toFixed(2)}%` : '—') },
-  { field: 'status', headerName: 'Status', width: 110, cellRenderer: StatusCell },
+  { field: 'status', headerName: 'Status', width: 124, cellRenderer: StatusCell,
+    cellStyle: { display: 'flex', alignItems: 'center' } },
 ];
 
 export function OrdersBlotter(_props: WidgetProps) {
