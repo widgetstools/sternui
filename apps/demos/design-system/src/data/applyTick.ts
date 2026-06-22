@@ -2,19 +2,21 @@ import type { Position, Quote, TerminalState } from './types';
 
 const HISTORY_CAP = 60;
 
-/** Nudge one quote by an rng-driven delta; recompute bid/ask/dir/changePct. */
+/** Nudge one quote by an rng-driven delta; recompute bid/ask/dir/changePct/oas. */
 function tickQuote(q: Quote, rng: () => number): Quote {
   const delta = (rng() - 0.5) * 0.12;          // ±0.06 max
   const mid = round3(Math.max(1, q.mid + delta));
   const spread = round3(q.ask - q.bid) || 0.1;
   const dir = delta > 0.002 ? 'up' : delta < -0.002 ? 'down' : 'flat';
+  const oasDelta = (rng() - 0.5) * 4;
   return {
     ...q,
     mid,
     bid: round3(mid - spread / 2),
     ask: round3(mid + spread / 2),
     last: mid,
-    ytm: round3(Math.max(0.2, q.ytm - delta * 0.05)),
+    ytm: round3(Math.max(0.2, Math.min(12, q.ytm - delta * 0.05))),
+    oas: Math.max(0, Math.round(q.oas + oasDelta)),
     changePct: round2(Math.max(-99, Math.min(99, q.changePct + delta * 0.4))),
     dir,
   };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyTick } from './applyTick';
-import { seedState } from './seeds';
+import { makeRng, seedState } from './seeds';
 
 const rngUp = () => 0.9;    // deterministic high → upward nudge
 const rngDown = () => 0.1;  // deterministic low → downward nudge
@@ -36,5 +36,16 @@ describe('applyTick', () => {
     let s = seedState(0);
     for (let i = 0; i < 100; i++) s = applyTick(s, rngUp);
     expect(s.history[id].length).toBeLessThanOrEqual(60);
+  });
+
+  it('keeps ytm in [0.2, 12] and oas >= 0 after many ticks', () => {
+    const rng = makeRng(0xdeadbeef);
+    let s = seedState(0);
+    for (let i = 0; i < 200; i++) s = applyTick(s, rng);
+    for (const q of Object.values(s.quotes)) {
+      expect(q.ytm).toBeGreaterThanOrEqual(0.2);
+      expect(q.ytm).toBeLessThanOrEqual(12);
+      expect(q.oas).toBeGreaterThanOrEqual(0);
+    }
   });
 });
