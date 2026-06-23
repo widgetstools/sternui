@@ -325,7 +325,7 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   suppressRowHoverHighlight: false,
   columnHoverHighlight: false,
   headerCaseUppercase: false,
-  showCellTooltips: true,
+  showCellTooltips: false,
 
   // Default ColDef — sizing
   defaultResizable: true,
@@ -356,7 +356,7 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   // Cell content
   wrapText: false,
   autoHeight: false,
-  enableCellChangeFlash: true,
+  enableCellChangeFlash: false,
   // Row grouping / pivoting
   enableRowGroup: true,
   enablePivot: true,
@@ -395,5 +395,8 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   suppressRowVirtualisation: false,
   suppressMaxRenderedRowRestriction: false,
   suppressAnimationFrame: false,
-  debounceVerticalScrollbar: true,
+  // false = AG Grid default: rows reposition continuously as the thumb drags.
+  // true debounces scroll events so rows only jump after the gesture settles —
+  // the "janky / rows-move-only-after-scroll" feel. Keep false for smooth tracking.
+  debounceVerticalScrollbar: false,
 };
