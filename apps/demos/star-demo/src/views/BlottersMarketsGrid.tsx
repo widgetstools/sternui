@@ -29,7 +29,7 @@ function BlottersMarketsGrid(): ReactNode {
   const handleOpenConfigBrowser = useCallback(() => {
     void runtime.openSurface({
       kind: 'popout',
-      url: `${window.location.origin}/config-browser`,
+      url: `${window.location.origin}/#/config-browser`,
       windowName: 'config-browser',
       width: 1100,
       height: 720,

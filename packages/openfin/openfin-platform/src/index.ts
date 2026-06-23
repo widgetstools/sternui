@@ -13,6 +13,7 @@ export { initWorkspace } from './workspace';
 export { launchApp, launchRegisteredComponent } from './launch';
 export type { LaunchRegisteredComponentOptions } from './launch';
 export { resolveHostUrl } from './hostUrl';
+export { buildPlatformChildUrl } from './buildPlatformChildUrl.js';
 export {
   openChildToolWindow,
   openDataProvidersToolWindow,

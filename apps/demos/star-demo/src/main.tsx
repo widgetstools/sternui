@@ -1,6 +1,6 @@
 import React, { Suspense, use, type ReactNode } from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
+import { HashRouter, Outlet, Route, Routes } from "react-router-dom";
 import App from "./App";
 import "./index.css";
 import { applyTheme, getTheme } from "@starui/design-system";
@@ -115,7 +115,7 @@ function ViewRoutesLayout() {
 
 function AppTree() {
   return (
-    <BrowserRouter
+    <HashRouter
       future={{
         v7_startTransition: true,
         v7_relativeSplatPath: true,
@@ -151,7 +151,7 @@ function AppTree() {
           />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 

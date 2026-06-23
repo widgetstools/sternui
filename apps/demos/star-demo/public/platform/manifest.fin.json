@@ -10,7 +10,7 @@
     "uuid": "star-demo",
     "icon": "http://localhost:5175/dock-provider.png",
     "autoShow": false,
-    "providerUrl": "http://localhost:5175/platform/provider",
+    "providerUrl": "http://localhost:5175/#/platform/provider",
     "preventQuitOnLastWindowClosed": true,
     "$comment-fdc3": "Enable the FDC3 API (window.fdc3) for EVERY view/window the platform creates. Without this window.fdc3 is undefined, so the grid color-link transport (useFdc3Channel → useGridContextLink) silently no-ops and color-linked grids never exchange selection context. The dock 'Link' button joins windows to interop context groups; fdc3 broadcast/addContextListener wrap interop.setContext/addContextHandler over that group.",
     "defaultViewOptions": {
