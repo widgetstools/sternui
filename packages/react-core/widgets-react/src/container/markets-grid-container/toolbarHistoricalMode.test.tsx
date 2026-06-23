@@ -86,6 +86,7 @@ const saveAllMock = vi.fn().mockResolvedValue(undefined);
 const lastMarketsGridProps: { current: any } = { current: null };
 
 vi.mock('@starui/grid', () => ({
+  useGeneralSettingsSnapshot: () => undefined,
   MarketsGrid: (props: any) => {
     lastMarketsGridProps.current = props;
     const readySentRef = React.useRef(false);

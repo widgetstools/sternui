@@ -24,7 +24,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, GridApi } from 'ag-grid-community';
-import { MarketsGrid } from '@starui/grid';
+import { MarketsGrid, useGeneralSettingsSnapshot } from '@starui/grid';
 import { isHistoricalToolbarDate } from '@starui/grid/customizer';
 import type { MarketsGridProps, MarketsGridHandle, StorageAdapterFactory, ProviderGridHostApi, GridEventBindingsHostApi, MarketsGridEventHandlerRegistry, MarketsGridHandlerMeta } from '@starui/grid';
 import {
@@ -498,6 +498,12 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   const liveApi = stamped && stamped.key === expectedKey ? stamped.api : null;
 
+  // Read the `pauseUpdatesWhenHidden` grid setting from the live platform so
+  // the provider-wiring can pause grid repaint on hidden/inactive views.
+  // Off by default; reactive — toggling it in Grid Options re-wires below.
+  const generalSettings = useGeneralSettingsSnapshot(gridHandle?.platform);
+  const pauseUpdatesWhenHidden = generalSettings?.pauseUpdatesWhenHidden ?? false;
+
   // ── IDataProvider hook ───────────────────────────────────────────
   //
   // Hub config comes from the worker catalog on `start()` — we keep
@@ -611,6 +617,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     setDisconnectDetail,
     setResolvedSubKey,
     setIsRefetching,
+    pauseUpdatesWhenHidden,
   });
 
   /** Cache replay only — `IDataProvider.refresh()`; no upstream reconnect. */

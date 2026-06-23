@@ -150,19 +150,21 @@ describe('GridOptionsPanel (v4 schema-driven)', () => {
 
   it('flash colour swatches render only when flash-on-change is enabled', () => {
     mount(platform);
-    // enableCellChangeFlash defaults to true → swatches visible on mount.
+    // enableCellChangeFlash defaults to false → swatches hidden on mount.
+    expect(screen.queryByTestId('go-cell-change-flash-color-amber')).toBeNull();
+
+    // Toggling flash on reveals the swatches.
+    fireEvent.click(screen.getByTestId('go-enable-cell-change-flash'));
     expect(screen.getByTestId('go-cell-change-flash-color-amber')).toBeTruthy();
     expect(screen.getByTestId('go-cell-change-flash-color-emerald')).toBeTruthy();
-
-    // Toggling flash off hides the swatches.
-    fireEvent.click(screen.getByTestId('go-enable-cell-change-flash'));
-    expect(screen.queryByTestId('go-cell-change-flash-color-amber')).toBeNull();
   });
 
   it('selects a flash colour swatch in the draft', () => {
     mount(platform);
-    // Flash is on by default with 'emerald' pre-selected; pick a different
-    // swatch to prove selection updates the draft.
+    // Flash defaults off — enable it first to reveal the swatches, then pick a
+    // different swatch to prove selection updates the draft ('emerald' is the
+    // pre-selected default colour).
+    fireEvent.click(screen.getByTestId('go-enable-cell-change-flash'));
     expect(
       screen.getByTestId('go-cell-change-flash-color-emerald').getAttribute('aria-checked'),
     ).toBe('true');

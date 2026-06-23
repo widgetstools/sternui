@@ -25,6 +25,7 @@ vi.mock('./openFinRuntime.js', () => ({
 
 const lastMarketsGridProps: { current: any } = { current: null };
 vi.mock('@starui/grid', () => ({
+  useGeneralSettingsSnapshot: () => undefined,
   MarketsGrid: (props: any) => {
     lastMarketsGridProps.current = props;
     return <div data-testid="markets-grid-stub" />;
