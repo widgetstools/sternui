@@ -11,8 +11,10 @@ import {
   useActiveThemeMode,
   useGridPlatform,
   useModuleState,
+  type AggFuncName,
   type ColumnCustomizationState,
   type ColumnTemplatesState,
+  type RowGroupingConfig,
 } from '@starui/grid/customizer';
 
 /**
@@ -226,6 +228,10 @@ export interface ResolvedFormatting {
   headerName?: string;
   /** Resolved `editable` override. `undefined` means inherit colDef. */
   editable?: boolean;
+  /** Resolved `rowGrouping.enableRowGroup` for the first selected column. */
+  enableRowGroup?: boolean;
+  /** Resolved `rowGrouping.aggFunc` for the first selected column. */
+  aggFunc?: AggFuncName;
 }
 
 export function useColumnFormatting(
@@ -252,6 +258,8 @@ export function useColumnFormatting(
     let valueFormatterTemplate: ValueFormatterTemplate | undefined;
     let headerName: string | undefined;
     let editable: boolean | undefined;
+    let enableRowGroup: boolean | undefined;
+    let aggFunc: AggFuncName | undefined;
 
     if (scope === 'all') {
       // Global readout — read the matching state-root slot. The toolbar
@@ -280,6 +288,9 @@ export function useColumnFormatting(
       valueFormatterTemplate = resolved.valueFormatterTemplate;
       headerName = resolved.headerName;
       editable = resolved.editable;
+      const rg = (resolved as { rowGrouping?: RowGroupingConfig }).rowGrouping;
+      enableRowGroup = rg?.enableRowGroup;
+      aggFunc = rg?.aggFunc;
     }
 
     // Read the active theme's slot — the toolbar's readout reflects the
@@ -299,6 +310,8 @@ export function useColumnFormatting(
       valueFormatterTemplate,
       headerName,
       editable,
+      enableRowGroup,
+      aggFunc,
       borders: {
         top: style?.borders?.top,
         right: style?.borders?.right,
