@@ -22,8 +22,8 @@ describe('scrollbar.css', () => {
     expect(css).not.toMatch(/scrollbar-width:\s*none/);
   });
 
-  it('uses minimalist 10px width with 2px transparent border for thumb thickness', () => {
-    expect(css).toMatch(/width:\s*10px/);
+  it('uses 14px track width with 2px transparent border for thumb thickness', () => {
+    expect(css).toMatch(/width:\s*14px/);
     expect(css).toMatch(/border:\s*2px\s+solid\s+transparent/);
   });
 });
