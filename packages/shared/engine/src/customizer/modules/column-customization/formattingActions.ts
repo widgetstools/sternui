@@ -26,10 +26,12 @@ import type {
   BorderSpec,
   CellStyleOverrides,
   CellEditorKind,
+  AggFuncName,
   ColumnAssignment,
   ColumnCustomizationState,
   ColumnFilterConfig,
   FilterKind,
+  RowGroupingConfig,
   ValueFormatterTemplate,
 } from './state';
 import type { AutoFormatAssignment } from '../../../colDef/fieldFormatCatalog/types.js';
@@ -196,6 +198,45 @@ export function applyTypographyReducer(
   scope: ScopeKind = 'selected',
 ): (prev: ColumnCustomizationState | undefined) => ColumnCustomizationState {
   return writeOverridesReducer(colIds, target, { typography: patch }, scope);
+}
+
+/**
+ * Row-grouping / aggregation convenience — merges `patch` into each selected
+ * column's `rowGrouping` config. Keys set to `undefined` are cleared; an empty
+ * `rowGrouping` object is removed so the column reverts to grid defaults.
+ *
+ * Capability / initial-state flags only — this never sets `rowGroup`
+ * (immediate grouping is out of scope for the quick toolbar). Column-level
+ * only: `scope === 'all'` is a no-op (there is no global rowGrouping slot).
+ */
+export function applyRowGroupingReducer(
+  colIds: readonly string[],
+  patch: {
+    enableRowGroup?: boolean | undefined;
+    aggFunc?: AggFuncName | undefined;
+    enableValue?: boolean | undefined;
+  },
+  scope: ScopeKind = 'selected',
+): (prev: ColumnCustomizationState | undefined) => ColumnCustomizationState {
+  return (prev) => {
+    const base: ColumnCustomizationState = prev ?? { assignments: {} };
+    if (scope === 'all' || colIds.length === 0) return base;
+
+    const assignments = { ...base.assignments };
+    for (const colId of colIds) {
+      const a: ColumnAssignment = assignments[colId] ?? { colId };
+      const rg: RowGroupingConfig = { ...(a.rowGrouping ?? {}) };
+      for (const [k, v] of Object.entries(patch) as Array<[keyof RowGroupingConfig, unknown]>) {
+        if (v === undefined) delete rg[k];
+        else (rg as Record<string, unknown>)[k] = v;
+      }
+      const next: ColumnAssignment = { ...a };
+      if (Object.keys(rg).length === 0) delete next.rowGrouping;
+      else next.rowGrouping = rg;
+      assignments[colId] = next;
+    }
+    return { ...base, assignments };
+  };
 }
 
 /** Colors-only convenience — merges `{ colors: patch }`. */
