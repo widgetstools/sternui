@@ -87,6 +87,7 @@ const { dataHubClientMock } = vi.hoisted(() => {
 const lastMarketsGridProps: { current: any } = { current: null };
 
 vi.mock('@starui/grid', () => ({
+  useGeneralSettingsSnapshot: () => undefined,
   MarketsGrid: (props: any) => {
     lastMarketsGridProps.current = props;
     const readySentRef = React.useRef(false);

@@ -257,6 +257,15 @@ export interface GeneralSettingsState {
   suppressAnimationFrame: boolean;
   /** Initial-only. */
   debounceVerticalScrollbar: boolean;
+  /**
+   * Pause applying live provider ticks to the grid while the document is
+   * hidden (background OpenFin view / inactive browser tab), then run one
+   * `provider.refresh()` cache replay when it becomes visible again. The
+   * upstream feed and worker cache keep running — only the grid repaint is
+   * paused — so no data is lost. OFF by default (the grid keeps updating even
+   * when hidden); enable to save CPU on backgrounded windows. Live-editable.
+   */
+  pauseUpdatesWhenHidden: boolean;
 }
 
 export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
@@ -399,4 +408,8 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   // true debounces scroll events so rows only jump after the gesture settles —
   // the "janky / rows-move-only-after-scroll" feel. Keep false for smooth tracking.
   debounceVerticalScrollbar: false,
+  // OFF by default — the grid keeps updating even when the view is hidden.
+  // Enable to pause grid repaint on backgrounded/inactive windows (one
+  // refresh replays the cache on return; no data lost).
+  pauseUpdatesWhenHidden: false,
 };

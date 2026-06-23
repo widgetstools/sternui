@@ -21,6 +21,7 @@ const liveProviderRow = {
 const lastMarketsGridProps: { current: unknown } = { current: null };
 
 vi.mock('@starui/grid', () => ({
+  useGeneralSettingsSnapshot: () => undefined,
   MarketsGrid: (props: unknown) => {
     lastMarketsGridProps.current = props;
     return <div data-testid="markets-grid-stub" />;

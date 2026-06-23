@@ -18,6 +18,7 @@ import type { StorageAdapter } from '@starui/engine';
 // onCaptionChange.
 const lastMarketsGridProps: { current: any } = { current: null };
 vi.mock('@starui/grid', () => ({
+  useGeneralSettingsSnapshot: () => undefined,
   MarketsGrid: (props: any) => {
     lastMarketsGridProps.current = props;
     return <div data-testid="markets-grid-stub" data-caption={props.caption ?? ''} />;

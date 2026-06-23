@@ -65,3 +65,5 @@ export {
 export { useMarketsGridEventBridge } from './events/useMarketsGridEventBridge.js';
 
 export { isOpenFin, openFinWindowOpener } from './runtime/openFin.js';
+
+export { useGeneralSettingsSnapshot } from './widget/useGeneralSettingsSnapshot.js';

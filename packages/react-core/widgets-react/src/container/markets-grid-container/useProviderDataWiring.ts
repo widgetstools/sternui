@@ -52,6 +52,13 @@ export interface UseProviderDataWiringParams<TData extends Record<string, unknow
   setDisconnectDetail: (detail: string | undefined) => void;
   setResolvedSubKey: (key: string | null) => void;
   setIsRefetching: (refetching: boolean) => void;
+  /**
+   * When true, pause applying live ticks to the grid while `document.hidden`
+   * (background view / inactive tab) and run one `provider.refresh()` on
+   * return. When false (default), live ticks always apply. Driven by the
+   * `pauseUpdatesWhenHidden` grid setting.
+   */
+  pauseUpdatesWhenHidden: boolean;
 }
 
 function defaultOnError(err: Error): void {
@@ -81,6 +88,7 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
     setDisconnectDetail,
     setResolvedSubKey,
     setIsRefetching,
+    pauseUpdatesWhenHidden,
   } = params;
 
   useEffect(() => {
@@ -108,7 +116,10 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
     }
 
     let cancelled = false;
-    let applyLiveTicks = typeof document === 'undefined' || !document.hidden;
+    // When the pause-when-hidden setting is OFF, live ticks always apply.
+    // When ON, start paused if the document is currently hidden.
+    let applyLiveTicks =
+      !pauseUpdatesWhenHidden || typeof document === 'undefined' || !document.hidden;
     const gridApply = createApplyProviderToGridState();
     const providerStatusRef = { current: 'loading' as 'loading' | 'ready' | 'error' };
 
@@ -122,7 +133,7 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
         });
       }
     };
-    if (typeof document !== 'undefined') {
+    if (pauseUpdatesWhenHidden && typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', onVisibilityChange);
     }
 
@@ -308,5 +319,5 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveApi, provider, activeId, rowIdFieldKey, onError, dataHubClient, mode, asOfDate, toolbarDate, restartProvider]);
+  }, [liveApi, provider, activeId, rowIdFieldKey, onError, dataHubClient, mode, asOfDate, toolbarDate, restartProvider, pauseUpdatesWhenHidden]);
 }

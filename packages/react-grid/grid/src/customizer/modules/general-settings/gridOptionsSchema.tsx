@@ -416,6 +416,7 @@ export const GRID_OPTIONS_SCHEMA: readonly BandSchema[] = [
       { kind: 'bool', key: 'suppressMaxRenderedRowRestriction', label: 'NO RENDER CAP', hint: 'Initial · remount required · only meaningful if row virt off', testId: 'go-suppress-render-cap' },
       { kind: 'bool', key: 'suppressAnimationFrame', label: 'NO RAF', hint: 'Initial · remount required · expert-only', testId: 'go-suppress-raf' },
       { kind: 'bool', key: 'debounceVerticalScrollbar', label: 'DEBOUNCE VSCROLL', hint: 'Initial · remount required', testId: 'go-debounce-vscroll' },
+      { kind: 'bool', key: 'pauseUpdatesWhenHidden', label: 'PAUSE WHEN HIDDEN', hint: 'Off · stop repainting live updates while the view is hidden / inactive; refreshes on return', testId: 'go-pause-updates-when-hidden' },
     ],
   },
 ];
