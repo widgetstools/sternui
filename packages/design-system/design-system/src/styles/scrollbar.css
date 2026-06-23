@@ -10,25 +10,32 @@
    ───────────────────────────────────────────────────────────── */
 
 * {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklch, oklch(var(--foreground)) 22%, transparent) transparent;
+  /* NOTE: do NOT set `scrollbar-color` here. Chromium 121+ switches to the
+     standard (un-styleable, fixed-rounded) scrollbar the moment scrollbar-color
+     is set, and ignores ALL ::-webkit-scrollbar styling below (width, radius,
+     hover/active). We style via ::-webkit-scrollbar for full control; Firefox
+     falls back to its default scrollbar (acceptable — runtime is Chromium). */
+  scrollbar-width: auto;
 }
 *::-webkit-scrollbar {
-  width:  10px;
-  height: 10px;
+  width:  14px;
+  height: 14px;
 }
 *::-webkit-scrollbar-track {
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background-color: color-mix(in oklch, oklch(var(--foreground)) 18%, transparent);
-  border-radius: 0;
+  background-color: color-mix(in oklch, oklch(var(--foreground)) 38%, transparent);
+  border-radius: 0px;
   border: 2px solid transparent;
   background-clip: padding-box;
   transition: background-color 120ms ease;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background-color: color-mix(in oklch, oklch(var(--foreground)) 32%, transparent);
+  background-color: color-mix(in oklch, oklch(var(--foreground)) 55%, transparent);
+}
+*::-webkit-scrollbar-thumb:active {
+  background-color: color-mix(in oklch, oklch(var(--foreground)) 72%, transparent);
 }
 /* Hide the up/down (and left/right) stepper arrows. */
 *::-webkit-scrollbar-button {
@@ -48,25 +55,32 @@
    ───────────────────────────────────────────────────────────── */
 
 .ds-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklch, oklch(var(--foreground)) 22%, transparent) transparent;
+  /* NOTE: do NOT set `scrollbar-color` here. Chromium 121+ switches to the
+     standard (un-styleable, fixed-rounded) scrollbar the moment scrollbar-color
+     is set, and ignores ALL ::-webkit-scrollbar styling below (width, radius,
+     hover/active). We style via ::-webkit-scrollbar for full control; Firefox
+     falls back to its default scrollbar (acceptable — runtime is Chromium). */
+  scrollbar-width: auto;
 }
 .ds-scrollbar::-webkit-scrollbar {
-  width:  10px;
-  height: 10px;
+  width:  14px;
+  height: 14px;
 }
 .ds-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 .ds-scrollbar::-webkit-scrollbar-thumb {
-  background-color: color-mix(in oklch, oklch(var(--foreground)) 18%, transparent);
-  border-radius: 0;
+  background-color: color-mix(in oklch, oklch(var(--foreground)) 38%, transparent);
+  border-radius: 0px;
   border: 2px solid transparent;
   background-clip: padding-box;
   transition: background-color 120ms ease;
 }
 .ds-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: color-mix(in oklch, oklch(var(--foreground)) 32%, transparent);
+  background-color: color-mix(in oklch, oklch(var(--foreground)) 55%, transparent);
+}
+.ds-scrollbar::-webkit-scrollbar-thumb:active {
+  background-color: color-mix(in oklch, oklch(var(--foreground)) 72%, transparent);
 }
 /* Hide the up/down (and left/right) stepper arrows. */
 .ds-scrollbar::-webkit-scrollbar-button {

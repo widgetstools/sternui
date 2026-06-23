@@ -375,7 +375,7 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
         columns table never collapses to nothing in a small container. Users
         can also collapse either panel to hand more space back to the grid.
       */}
-      <div className="flex-1 min-h-0 flex flex-col p-3 gap-3 overflow-y-auto scrollbar-thin">
+      <div className="flex-1 min-h-0 flex flex-col p-3 gap-3 overflow-y-auto">
         <KeyColumnPicker
           columns={columns}
           keyColumn={keyColumn}
