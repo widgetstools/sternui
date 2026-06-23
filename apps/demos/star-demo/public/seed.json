@@ -421,7 +421,7 @@
                             "zoom": true
                           },
                           "zoomLevel": 0,
-                          "url": "http://localhost:5175/blotters/marketsgrid",
+                          "url": "http://localhost:5175/#/blotters/marketsgrid",
                           "contextMenuOptions": {
                             "enabled": true,
                             "template": [
@@ -535,7 +535,7 @@
                           },
                           "componentName": "view",
                           "uuid": "star-demo",
-                          "initialUrl": "http://localhost:5175/blotters/marketsgrid",
+                          "initialUrl": "http://localhost:5175/#/blotters/marketsgrid",
                           "processAffinity": "star-demo"
                         },
                         "isClosable": true,
@@ -618,7 +618,7 @@
                                 "zoom": true
                               },
                               "zoomLevel": 0,
-                              "url": "http://localhost:5175/blotters/marketsgrid",
+                              "url": "http://localhost:5175/#/blotters/marketsgrid",
                               "contextMenuOptions": {
                                 "enabled": true,
                                 "template": [
@@ -732,7 +732,7 @@
                               },
                               "componentName": "view",
                               "uuid": "star-demo",
-                              "initialUrl": "http://localhost:5175/blotters/marketsgrid",
+                              "initialUrl": "http://localhost:5175/#/blotters/marketsgrid",
                               "processAffinity": "star-demo"
                             },
                             "isClosable": true,
@@ -825,7 +825,7 @@
                                   "zoom": true
                                 },
                                 "zoomLevel": 0,
-                                "url": "http://localhost:5175/blotters/marketsgrid",
+                                "url": "http://localhost:5175/#/blotters/marketsgrid",
                                 "contextMenuOptions": {
                                   "enabled": true,
                                   "template": [
@@ -939,7 +939,7 @@
                                 },
                                 "componentName": "view",
                                 "uuid": "star-demo",
-                                "initialUrl": "http://localhost:5175/blotters/marketsgrid",
+                                "initialUrl": "http://localhost:5175/#/blotters/marketsgrid",
                                 "processAffinity": "star-demo"
                               },
                               "isClosable": true,
@@ -1102,7 +1102,7 @@
         "entries": [
           {
             "id": "grid-test",
-            "hostUrl": "/blotters/marketsgrid",
+            "hostUrl": "/#/blotters/marketsgrid",
             "iconId": "",
             "componentType": "grid",
             "componentSubType": "test",

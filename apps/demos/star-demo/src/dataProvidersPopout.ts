@@ -58,5 +58,8 @@ function buildUrl(route: string, providerId?: string): string {
   // don't have that problem.
   const origin = window.location.origin;
   const qs = providerId ? `?id=${encodeURIComponent(providerId)}` : '';
-  return `${origin}${route}${qs}`;
+  // HashRouter: the route lives in the fragment so a static web server serves
+  // index.html for any deep link. The `?id=` stays inside the hash — the
+  // editor reads it via react-router's `useSearchParams`, which is hash-aware.
+  return `${origin}/#${route}${qs}`;
 }

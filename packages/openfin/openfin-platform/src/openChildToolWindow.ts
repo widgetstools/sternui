@@ -2,6 +2,7 @@
 declare const fin: any;
 
 import { getPlatformDefaultScope } from './db.js';
+import { buildPlatformChildUrl } from './buildPlatformChildUrl.js';
 
 function urlsSameDocument(a: string, b: string): boolean {
   try {
@@ -25,26 +26,27 @@ function urlsSameDocument(a: string, b: string): boolean {
  * opens skip two `fin` IPC round trips. Failed lookups are not cached
  * so a transient manifest error doesn't poison every later open.
  */
-let cachedProviderOrigin: Promise<string | undefined> | undefined;
+let cachedProviderUrl: Promise<string | undefined> | undefined;
 
-function resolveProviderOrigin(): Promise<string | undefined> {
-  if (!cachedProviderOrigin) {
-    cachedProviderOrigin = (async (): Promise<string | undefined> => {
+function resolveProviderUrl(): Promise<string | undefined> {
+  if (!cachedProviderUrl) {
+    cachedProviderUrl = (async (): Promise<string | undefined> => {
       try {
         const app = await fin.Application.getCurrent();
         const manifest: Record<string, unknown> = await app.getManifest();
         const platformConfig = manifest.platform as Record<string, string> | undefined;
         const providerUrl = platformConfig?.providerUrl ?? '';
-        return new URL(providerUrl).origin;
+        // Validate up front so a bad manifest doesn't get cached.
+        return new URL(providerUrl).href;
       } catch {
         return undefined;
       }
-    })().then((origin) => {
-      if (origin === undefined) cachedProviderOrigin = undefined;
-      return origin;
+    })().then((url) => {
+      if (url === undefined) cachedProviderUrl = undefined;
+      return url;
     });
   }
-  return cachedProviderOrigin;
+  return cachedProviderUrl;
 }
 
 /**
@@ -65,13 +67,13 @@ export async function openChildToolWindow(
   height: number,
   extraOptions?: Record<string, any>,
 ): Promise<void> {
-  const origin = await resolveProviderOrigin();
-  if (!origin) {
+  const providerUrl = await resolveProviderUrl();
+  const url = providerUrl ? buildPlatformChildUrl(providerUrl, path) : null;
+  if (!url) {
     console.error(`[openChildToolWindow] Could not determine origin for "${name}"`);
     return;
   }
 
-  const url = `${origin}${path}`;
   console.log(`[openChildToolWindow] Opening "${name}" at "${path}"`);
 
   try {

@@ -31,6 +31,7 @@ import { launchApp, launchRegisteredComponent } from '../launch';
 import { getPlatformDefaultScope } from '../db';
 import { createRenameViewTabAction } from './viewTabRename';
 import { openDataProvidersToolWindow } from '../openChildToolWindow.js';
+import { buildPlatformChildUrl } from '../buildPlatformChildUrl.js';
 
 export interface CustomActionDeps {
   /** Coalescing wrapper around the dark/light theme flip. */
@@ -169,12 +170,10 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
         const platformConfig = manifest['platform'] as Record<string, string> | undefined;
         const providerUrl = platformConfig?.['providerUrl'] ?? '';
 
-        // Extract just the origin (e.g. "http://localhost:5174") so we can
-        // build the correct URL for the dock editor route.
-        let origin: string;
-        try {
-          origin = new URL(providerUrl).origin;
-        } catch {
+        // Build against the manifest providerUrl so path- and hash-routed
+        // apps both resolve correctly (see buildPlatformChildUrl).
+        const url = buildPlatformChildUrl(providerUrl, '/dock-editor');
+        if (!url) {
           console.error('Could not determine app origin from providerUrl:', providerUrl);
           return;
         }
@@ -182,7 +181,7 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
         const platform = getCurrentSync();
         await platform.createWindow({
           name: 'dock-editor',
-          url: `${origin}/dock-editor`,
+          url,
           defaultWidth: 720,
           defaultHeight: 800,
           autoShow: true,
@@ -218,10 +217,8 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
         const platformConfig = manifest['platform'] as Record<string, string> | undefined;
         const providerUrl = platformConfig?.['providerUrl'] ?? '';
 
-        let origin: string;
-        try {
-          origin = new URL(providerUrl).origin;
-        } catch {
+        const url = buildPlatformChildUrl(providerUrl, '/registry-editor');
+        if (!url) {
           console.error('Could not determine app origin from providerUrl:', providerUrl);
           return;
         }
@@ -229,7 +226,7 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
         const platform = getCurrentSync();
         await platform.createWindow({
           name: 'registry-editor',
-          url: `${origin}/registry-editor`,
+          url,
           defaultWidth: 800,
           defaultHeight: 700,
           autoShow: true,
@@ -306,10 +303,8 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
         const platformConfig = manifest['platform'] as Record<string, string> | undefined;
         const providerUrl = platformConfig?.['providerUrl'] ?? '';
 
-        let origin: string;
-        try {
-          origin = new URL(providerUrl).origin;
-        } catch {
+        const url = buildPlatformChildUrl(providerUrl, '/config-browser');
+        if (!url) {
           console.error('Could not determine app origin from providerUrl:', providerUrl);
           return;
         }
@@ -317,7 +312,7 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
         const platform = getCurrentSync();
         await platform.createWindow({
           name: 'config-browser',
-          url: `${origin}/config-browser`,
+          url,
           defaultWidth: 1100,
           defaultHeight: 720,
           autoShow: true,
@@ -442,10 +437,8 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
         const platformConfig = manifest['platform'] as Record<string, string> | undefined;
         const providerUrl = platformConfig?.['providerUrl'] ?? '';
 
-        let origin: string;
-        try {
-          origin = new URL(providerUrl).origin;
-        } catch {
+        const url = buildPlatformChildUrl(providerUrl, '/import-config');
+        if (!url) {
           console.error('Could not determine app origin from providerUrl:', providerUrl);
           return;
         }
@@ -453,7 +446,7 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
         const platform = getCurrentSync();
         await platform.createWindow({
           name: 'import-config',
-          url: `${origin}/import-config`,
+          url,
           defaultWidth: 400,
           defaultHeight: 320,
           autoShow: true,
