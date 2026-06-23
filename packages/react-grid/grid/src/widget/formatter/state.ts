@@ -30,6 +30,7 @@ import {
   type ValueFormatterTemplate,
 } from '@starui/engine';
 import type {
+  AggFuncName,
   CellEditorKind,
   FilterKind,
 } from '@starui/grid/customizer';
@@ -173,6 +174,12 @@ export interface FormatterActions {
   /** Toggle the `editable` override on every targeted column. Active
    *  state writes `true`, inactive writes `false` (explicit lock). */
   toggleEditable: () => void;
+  /** Toggle `rowGrouping.enableRowGroup` (capability flag) on every targeted
+   *  column. On writes `true`; off clears it (reverts to grid default). */
+  toggleEnableRowGroup: () => void;
+  /** Set `rowGrouping.aggFunc` (+ `enableValue`) on every targeted column;
+   *  `null` clears both. */
+  setAggFunc: (name: AggFuncName | null) => void;
   /** Set or clear the structured cellEditor kind on every targeted
    *  column. Pass `undefined` to remove the override entirely. */
   setCellEditorKind: (kind: CellEditorKind | undefined) => void;

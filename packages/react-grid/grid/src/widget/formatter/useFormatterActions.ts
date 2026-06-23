@@ -35,6 +35,7 @@ import {
   applyFloatingFilterReducer,
   applyFormatterReducer,
   applyHeaderNameReducer,
+  applyRowGroupingReducer,
   applyTypographyReducer,
   clearAllStylesInProfileReducer,
   clearAllStylesReducer,
@@ -42,6 +43,7 @@ import {
   INITIAL_GENERAL_SETTINGS,
   useModuleState,
   useUndoRedo,
+  type AggFuncName,
   type CellEditorKind,
   type ColumnCustomizationState,
   type FilterKind,
@@ -106,6 +108,8 @@ export interface FormatterActionsSlice {
     redo: () => void;
     setHeaderName: (name: string) => void;
     toggleEditable: () => void;
+    toggleEnableRowGroup: () => void;
+    setAggFunc: (name: AggFuncName | null) => void;
     setCellEditorKind: (kind: CellEditorKind | undefined) => void;
     setCellEditorValues: (
       patch: { values?: Array<string | number> | undefined; valuesSource?: string | undefined },
@@ -331,6 +335,30 @@ export function useFormatterActions(deps: FormatterActionsDeps): FormatterAction
     setCustStateWithHistory(applyEditableReducer(colIdsRef.current, !current));
   }, [setCustStateWithHistory, fmt.editable, colIdsRef]);
 
+  // ─── Row grouping — enableRowGroup toggle + aggFunc (auto-enables value) ──
+  const toggleEnableRowGroup = useCallback(() => {
+    if (!colIdsRef.current.length) return;
+    const next = !fmt.enableRowGroup;
+    setCustStateWithHistory(
+      applyRowGroupingReducer(
+        colIdsRef.current,
+        { enableRowGroup: next ? true : undefined },
+        scopeRef.current,
+      ),
+    );
+  }, [setCustStateWithHistory, fmt.enableRowGroup, colIdsRef, scopeRef]);
+
+  const setAggFunc = useCallback((name: AggFuncName | null) => {
+    if (!colIdsRef.current.length) return;
+    setCustStateWithHistory(
+      applyRowGroupingReducer(
+        colIdsRef.current,
+        name ? { aggFunc: name, enableValue: true } : { aggFunc: undefined, enableValue: undefined },
+        scopeRef.current,
+      ),
+    );
+  }, [setCustStateWithHistory, colIdsRef, scopeRef]);
+
   // ─── Editor + filter quick-pick reads ────────────────────────────────
   //
   // Filter dropdown shows the streamSafe wrappers as Text/Number. Any
@@ -470,6 +498,8 @@ export function useFormatterActions(deps: FormatterActionsDeps): FormatterAction
       redo: undoRedo.redo,
       setHeaderName,
       toggleEditable,
+      toggleEnableRowGroup,
+      setAggFunc,
       setCellEditorKind,
       setCellEditorValues,
       setFilterPrimaryKind,
