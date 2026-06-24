@@ -66,6 +66,15 @@ import type { FormatterSelection } from './useFormatterSelection';
 import type { PickerDataType } from './state';
 import { useGridPlatform } from '@starui/grid/customizer';
 
+/** Grid-wide grouping / total settings surfaced in the Group popover. */
+export interface GroupingSettingsView {
+  suppressAggFuncInHeader: boolean;
+  groupTotalRow: GeneralSettingsState['groupTotalRow'];
+  grandTotalRow: GeneralSettingsState['grandTotalRow'];
+  groupDisplayType: GeneralSettingsState['groupDisplayType'];
+  rowGroupPanelShow: GeneralSettingsState['rowGroupPanelShow'];
+}
+
 export interface FormatterActionsSlice {
   /** Bundle of state values owned by this slice (clear flags, editor /
    *  filter quick-pick reads, general settings flags, preview text,
@@ -84,6 +93,7 @@ export interface FormatterActionsSlice {
     floatingFilterOn: boolean;
     headerCaseUppercase: boolean;
     showCellTooltips: boolean;
+    grouping: GroupingSettingsView;
     globalNumberFormatter?: ValueFormatterTemplate;
     globalDateFormatter?: ValueFormatterTemplate;
     previewText: string;
@@ -118,6 +128,11 @@ export interface FormatterActionsSlice {
     toggleFloatingFilter: () => void;
     toggleHeaderCaseUppercase: () => void;
     toggleCellTooltips: () => void;
+    toggleHideAggInHeader: () => void;
+    setGroupTotalRow: (v: GeneralSettingsState['groupTotalRow']) => void;
+    setGrandTotalRow: (v: GeneralSettingsState['grandTotalRow']) => void;
+    setGroupDisplayType: (v: GeneralSettingsState['groupDisplayType']) => void;
+    setRowGroupPanelShow: (v: GeneralSettingsState['rowGroupPanelShow']) => void;
   };
   /** Surfaces shared with the templates hook so it can route writes
    *  through the same history wrapper / module-state dispatcher. */
@@ -153,6 +168,13 @@ export function useFormatterActions(deps: FormatterActionsDeps): FormatterAction
   );
   const headerCaseUppercase = !!generalSettingsState?.headerCaseUppercase;
   const showCellTooltips = !!generalSettingsState?.showCellTooltips;
+  const grouping: GroupingSettingsView = {
+    suppressAggFuncInHeader: !!generalSettingsState?.suppressAggFuncInHeader,
+    groupTotalRow: generalSettingsState?.groupTotalRow,
+    grandTotalRow: generalSettingsState?.grandTotalRow,
+    groupDisplayType: generalSettingsState?.groupDisplayType,
+    rowGroupPanelShow: generalSettingsState?.rowGroupPanelShow ?? 'always',
+  };
 
   // ─── History wrapper ────────────────────────────────────────────────
   const undoRedo = useUndoRedo<ColumnCustomizationState | undefined>(
@@ -441,6 +463,30 @@ export function useFormatterActions(deps: FormatterActionsDeps): FormatterAction
     });
   }, [setGeneralSettingsState]);
 
+  // ─── Grid-wide grouping / total settings (Group popover) ──────────────
+  const toggleHideAggInHeader = useCallback(() => {
+    setGeneralSettingsState((prev) => {
+      const base = prev ?? INITIAL_GENERAL_SETTINGS;
+      return { ...base, suppressAggFuncInHeader: !base.suppressAggFuncInHeader };
+    });
+  }, [setGeneralSettingsState]);
+
+  const setGroupTotalRow = useCallback((v: GeneralSettingsState['groupTotalRow']) => {
+    setGeneralSettingsState((prev) => ({ ...(prev ?? INITIAL_GENERAL_SETTINGS), groupTotalRow: v }));
+  }, [setGeneralSettingsState]);
+
+  const setGrandTotalRow = useCallback((v: GeneralSettingsState['grandTotalRow']) => {
+    setGeneralSettingsState((prev) => ({ ...(prev ?? INITIAL_GENERAL_SETTINGS), grandTotalRow: v }));
+  }, [setGeneralSettingsState]);
+
+  const setGroupDisplayType = useCallback((v: GeneralSettingsState['groupDisplayType']) => {
+    setGeneralSettingsState((prev) => ({ ...(prev ?? INITIAL_GENERAL_SETTINGS), groupDisplayType: v }));
+  }, [setGeneralSettingsState]);
+
+  const setRowGroupPanelShow = useCallback((v: GeneralSettingsState['rowGroupPanelShow']) => {
+    setGeneralSettingsState((prev) => ({ ...(prev ?? INITIAL_GENERAL_SETTINGS), rowGroupPanelShow: v }));
+  }, [setGeneralSettingsState]);
+
   // ─── Live preview ────────────────────────────────────────────────────
 
   const previewSample: unknown =
@@ -476,6 +522,7 @@ export function useFormatterActions(deps: FormatterActionsDeps): FormatterAction
       floatingFilterOn: editorAndFilter.floatingFilterOn,
       headerCaseUppercase,
       showCellTooltips,
+      grouping,
       globalNumberFormatter: custState?.globalCellNumberFormatter,
       globalDateFormatter: custState?.globalCellDateFormatter,
       previewText,
@@ -506,6 +553,11 @@ export function useFormatterActions(deps: FormatterActionsDeps): FormatterAction
       toggleFloatingFilter,
       toggleHeaderCaseUppercase,
       toggleCellTooltips,
+      toggleHideAggInHeader,
+      setGroupTotalRow,
+      setGrandTotalRow,
+      setGroupDisplayType,
+      setRowGroupPanelShow,
     },
     shared: {
       custState,

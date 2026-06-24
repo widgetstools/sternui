@@ -627,3 +627,27 @@ describe('FormattingToolbar — row grouping', () => {
     await waitFor(() => expect(screen.getByTestId('fmt-agg-func')).toBeTruthy());
   });
 });
+
+describe('FormattingToolbar — grid-wide grouping options popover', () => {
+  let platform: GridPlatform;
+  beforeEach(() => { platform = makePlatform(); });
+
+  it('renders the grouping-options popover trigger', async () => {
+    const fake = makeFakeApi(COLS, ['price']);
+    mountToolbar({ platform, api: fake.api });
+    await waitFor(() => expect(screen.getByTestId('fmt-grouping-options')).toBeTruthy());
+  });
+
+  it('Hide Agg in Header toggle flips the grid-wide suppressAggFuncInHeader setting', async () => {
+    const fake = makeFakeApi(COLS, ['price']);
+    mountToolbar({ platform, api: fake.api });
+
+    await waitFor(() => expect(screen.getByTestId('fmt-grouping-options')).toBeTruthy());
+    act(() => { fireEvent.click(screen.getByTestId('fmt-grouping-options')); });
+
+    const toggle = await screen.findByTestId('fmt-hide-agg-in-header');
+    const before = getGeneralState(platform).suppressAggFuncInHeader;
+    act(() => { fireEvent.mouseDown(toggle); });
+    expect(getGeneralState(platform).suppressAggFuncInHeader).toBe(!before);
+  });
+});

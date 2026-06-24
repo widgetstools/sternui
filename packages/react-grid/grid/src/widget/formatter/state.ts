@@ -33,7 +33,9 @@ import type {
   AggFuncName,
   CellEditorKind,
   FilterKind,
+  GeneralSettingsState,
 } from '@starui/grid/customizer';
+import type { GroupingSettingsView } from './useFormatterActions';
 import type {
   ResolvedFormatting,
   ScopeKind,
@@ -123,6 +125,10 @@ export interface FormatterState {
    *  displayed value as a hover tooltip via AG-Grid's
    *  `defaultColDef.tooltipValueGetter`. */
   showCellTooltips: boolean;
+  /** Grid-wide grouping / total settings surfaced in the Group popover
+   *  (suppressAggFuncInHeader, groupTotalRow, grandTotalRow,
+   *  groupDisplayType, rowGroupPanelShow). */
+  grouping: GroupingSettingsView;
   /** Global number-formatter for the CELLS + ALL scope. Surfaces the
    *  current `globalCellNumberFormatter` slot so the toolbar's number
    *  dropdown can highlight what's already applied. */
@@ -199,6 +205,12 @@ export interface FormatterActions {
   /** Toggle every column header caption between natural case and UPPERCASE. */
   toggleHeaderCaseUppercase: () => void;
   toggleCellTooltips: () => void;
+  /** Grid-wide grouping/total setters (Group popover). */
+  toggleHideAggInHeader: () => void;
+  setGroupTotalRow: (v: GeneralSettingsState['groupTotalRow']) => void;
+  setGrandTotalRow: (v: GeneralSettingsState['grandTotalRow']) => void;
+  setGroupDisplayType: (v: GeneralSettingsState['groupDisplayType']) => void;
+  setRowGroupPanelShow: (v: GeneralSettingsState['rowGroupPanelShow']) => void;
 }
 
 export interface UseFormatterResult {
@@ -263,6 +275,7 @@ export function useFormatter(): UseFormatterResult {
       floatingFilterOn: actions.state.floatingFilterOn,
       headerCaseUppercase: actions.state.headerCaseUppercase,
       showCellTooltips: actions.state.showCellTooltips,
+      grouping: actions.state.grouping,
       globalNumberFormatter: actions.state.globalNumberFormatter,
       globalDateFormatter: actions.state.globalDateFormatter,
     },
