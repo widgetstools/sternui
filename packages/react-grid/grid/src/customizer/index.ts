@@ -271,6 +271,7 @@ export {
   clearAllBordersReducer,
   applyHeaderNameReducer,
   applyEditableReducer,
+  applyRowGroupingReducer,
   applyCellEditorKindReducer,
   applyCellEditorValuesReducer,
   applyFilterPrimaryKindReducer,

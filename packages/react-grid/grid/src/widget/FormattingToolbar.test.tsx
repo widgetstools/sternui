@@ -592,3 +592,62 @@ describe('FormattingToolbar — disabled state', () => {
     });
   });
 });
+
+describe('FormattingToolbar — row grouping', () => {
+  let platform: GridPlatform;
+  beforeEach(() => { platform = makePlatform(); });
+
+  it('Enable Row Group button sets rowGrouping.enableRowGroup on the active column', async () => {
+    const fake = makeFakeApi(COLS, ['price']);
+    mountToolbar({ platform, api: fake.api });
+    const btn = () => screen.getByRole('button', { name: 'Enable row group' }) as HTMLButtonElement;
+    await waitFor(() => expect(btn().disabled).toBe(false));
+
+    act(() => { fireEvent.mouseDown(btn()); });
+    expect(getAssignment(platform, 'price')?.rowGrouping?.enableRowGroup).toBe(true);
+  });
+
+  it('Enable Row Group is an idempotent toggle: second click clears it', async () => {
+    const fake = makeFakeApi(COLS, ['price']);
+    mountToolbar({ platform, api: fake.api });
+    const btn = () => screen.getByRole('button', { name: 'Enable row group' }) as HTMLButtonElement;
+    await waitFor(() => expect(btn().disabled).toBe(false));
+
+    act(() => { fireEvent.mouseDown(btn()); });
+    expect(getAssignment(platform, 'price')?.rowGrouping?.enableRowGroup).toBe(true);
+
+    act(() => { fireEvent.mouseDown(btn()); });
+    // Cleared → rowGrouping removed entirely (was the only key).
+    expect(getAssignment(platform, 'price')?.rowGrouping).toBeUndefined();
+  });
+
+  it('renders the aggregation-function control for the active column', async () => {
+    const fake = makeFakeApi(COLS, ['price']);
+    mountToolbar({ platform, api: fake.api });
+    await waitFor(() => expect(screen.getByTestId('fmt-agg-func')).toBeTruthy());
+  });
+});
+
+describe('FormattingToolbar — grid-wide grouping options popover', () => {
+  let platform: GridPlatform;
+  beforeEach(() => { platform = makePlatform(); });
+
+  it('renders the grouping-options popover trigger', async () => {
+    const fake = makeFakeApi(COLS, ['price']);
+    mountToolbar({ platform, api: fake.api });
+    await waitFor(() => expect(screen.getByTestId('fmt-grouping-options')).toBeTruthy());
+  });
+
+  it('Hide Agg in Header toggle flips the grid-wide suppressAggFuncInHeader setting', async () => {
+    const fake = makeFakeApi(COLS, ['price']);
+    mountToolbar({ platform, api: fake.api });
+
+    await waitFor(() => expect(screen.getByTestId('fmt-grouping-options')).toBeTruthy());
+    act(() => { fireEvent.click(screen.getByTestId('fmt-grouping-options')); });
+
+    const toggle = await screen.findByTestId('fmt-hide-agg-in-header');
+    const before = getGeneralState(platform).suppressAggFuncInHeader;
+    act(() => { fireEvent.mouseDown(toggle); });
+    expect(getGeneralState(platform).suppressAggFuncInHeader).toBe(!before);
+  });
+});

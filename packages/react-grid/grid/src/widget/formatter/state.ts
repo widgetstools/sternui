@@ -30,9 +30,12 @@ import {
   type ValueFormatterTemplate,
 } from '@starui/engine';
 import type {
+  AggFuncName,
   CellEditorKind,
   FilterKind,
+  GeneralSettingsState,
 } from '@starui/grid/customizer';
+import type { GroupingSettingsView } from './useFormatterActions';
 import type {
   ResolvedFormatting,
   ScopeKind,
@@ -122,6 +125,10 @@ export interface FormatterState {
    *  displayed value as a hover tooltip via AG-Grid's
    *  `defaultColDef.tooltipValueGetter`. */
   showCellTooltips: boolean;
+  /** Grid-wide grouping / total settings surfaced in the Group popover
+   *  (suppressAggFuncInHeader, groupTotalRow, grandTotalRow,
+   *  groupDisplayType, rowGroupPanelShow). */
+  grouping: GroupingSettingsView;
   /** Global number-formatter for the CELLS + ALL scope. Surfaces the
    *  current `globalCellNumberFormatter` slot so the toolbar's number
    *  dropdown can highlight what's already applied. */
@@ -173,6 +180,12 @@ export interface FormatterActions {
   /** Toggle the `editable` override on every targeted column. Active
    *  state writes `true`, inactive writes `false` (explicit lock). */
   toggleEditable: () => void;
+  /** Toggle `rowGrouping.enableRowGroup` (capability flag) on every targeted
+   *  column. On writes `true`; off clears it (reverts to grid default). */
+  toggleEnableRowGroup: () => void;
+  /** Set `rowGrouping.aggFunc` (+ `enableValue`) on every targeted column;
+   *  `null` clears both. */
+  setAggFunc: (name: AggFuncName | null) => void;
   /** Set or clear the structured cellEditor kind on every targeted
    *  column. Pass `undefined` to remove the override entirely. */
   setCellEditorKind: (kind: CellEditorKind | undefined) => void;
@@ -192,6 +205,12 @@ export interface FormatterActions {
   /** Toggle every column header caption between natural case and UPPERCASE. */
   toggleHeaderCaseUppercase: () => void;
   toggleCellTooltips: () => void;
+  /** Grid-wide grouping/total setters (Group popover). */
+  toggleHideAggInHeader: () => void;
+  setGroupTotalRow: (v: GeneralSettingsState['groupTotalRow']) => void;
+  setGrandTotalRow: (v: GeneralSettingsState['grandTotalRow']) => void;
+  setGroupDisplayType: (v: GeneralSettingsState['groupDisplayType']) => void;
+  setRowGroupPanelShow: (v: GeneralSettingsState['rowGroupPanelShow']) => void;
 }
 
 export interface UseFormatterResult {
@@ -256,6 +275,7 @@ export function useFormatter(): UseFormatterResult {
       floatingFilterOn: actions.state.floatingFilterOn,
       headerCaseUppercase: actions.state.headerCaseUppercase,
       showCellTooltips: actions.state.showCellTooltips,
+      grouping: actions.state.grouping,
       globalNumberFormatter: actions.state.globalNumberFormatter,
       globalDateFormatter: actions.state.globalDateFormatter,
     },
