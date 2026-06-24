@@ -18,6 +18,7 @@ import { ModuleClear } from './modules/ModuleClear';
 import { ModuleContext } from './modules/ModuleContext';
 import { ModuleEditorFilter } from './modules/ModuleEditorFilter';
 import { ModuleFormat } from './modules/ModuleFormat';
+import { ModuleGrouping } from './modules/ModuleGrouping';
 import { ModuleLibrary } from './modules/ModuleLibrary';
 import { ModulePaint } from './modules/ModulePaint';
 import { ModuleType } from './modules/ModuleType';
@@ -73,6 +74,9 @@ export function FormatterToolbar({
           </ToolbarGroup>
           <ToolbarGroup label="Edit" testId="fmt-group-edit">
             <ModuleEditorFilter state={state} actions={actions} />
+          </ToolbarGroup>
+          <ToolbarGroup label="Group" testId="fmt-group-grouping">
+            <ModuleGrouping state={state} actions={actions} />
           </ToolbarGroup>
           <ToolbarGroup label="Templates" testId="fmt-group-templates">
             <ModuleLibrary
@@ -137,7 +141,10 @@ export function FormatterPanel({
           <PanelGroup label="Edit" sectionIndex="05" testId="fmt-panel-group-edit">
             <ModuleEditorFilter state={state} actions={actions} />
           </PanelGroup>
-          <PanelGroup label="Templates" sectionIndex="06" testId="fmt-panel-group-templates">
+          <PanelGroup label="Group" sectionIndex="06" testId="fmt-panel-group-grouping">
+            <ModuleGrouping state={state} actions={actions} />
+          </PanelGroup>
+          <PanelGroup label="Templates" sectionIndex="07" testId="fmt-panel-group-templates">
             <ModuleLibrary
               state={state}
               actions={actions}

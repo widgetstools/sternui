@@ -592,3 +592,38 @@ describe('FormattingToolbar — disabled state', () => {
     });
   });
 });
+
+describe('FormattingToolbar — row grouping', () => {
+  let platform: GridPlatform;
+  beforeEach(() => { platform = makePlatform(); });
+
+  it('Enable Row Group button sets rowGrouping.enableRowGroup on the active column', async () => {
+    const fake = makeFakeApi(COLS, ['price']);
+    mountToolbar({ platform, api: fake.api });
+    const btn = () => screen.getByRole('button', { name: 'Enable row group' }) as HTMLButtonElement;
+    await waitFor(() => expect(btn().disabled).toBe(false));
+
+    act(() => { fireEvent.mouseDown(btn()); });
+    expect(getAssignment(platform, 'price')?.rowGrouping?.enableRowGroup).toBe(true);
+  });
+
+  it('Enable Row Group is an idempotent toggle: second click clears it', async () => {
+    const fake = makeFakeApi(COLS, ['price']);
+    mountToolbar({ platform, api: fake.api });
+    const btn = () => screen.getByRole('button', { name: 'Enable row group' }) as HTMLButtonElement;
+    await waitFor(() => expect(btn().disabled).toBe(false));
+
+    act(() => { fireEvent.mouseDown(btn()); });
+    expect(getAssignment(platform, 'price')?.rowGrouping?.enableRowGroup).toBe(true);
+
+    act(() => { fireEvent.mouseDown(btn()); });
+    // Cleared → rowGrouping removed entirely (was the only key).
+    expect(getAssignment(platform, 'price')?.rowGrouping).toBeUndefined();
+  });
+
+  it('renders the aggregation-function control for the active column', async () => {
+    const fake = makeFakeApi(COLS, ['price']);
+    mountToolbar({ platform, api: fake.api });
+    await waitFor(() => expect(screen.getByTestId('fmt-agg-func')).toBeTruthy());
+  });
+});
