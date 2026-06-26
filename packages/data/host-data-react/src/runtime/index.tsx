@@ -288,6 +288,14 @@ export {
   type UseDataProviderResult,
 } from './useDataProvider.js';
 
+// SSRM grid binding — plugs a worker-backed provider into MarketsGrid's
+// `serverSide` prop. See docs/SSRM_WORKER_PLAN.md.
+export {
+  useSsrmDataSource,
+  type UseSsrmDataSourceOptions,
+  type SsrmGridBinding,
+} from './useSsrmDataSource.js';
+
 // ─── Hook 5: provider data subscription (legacy) ───────────────
 //
 // Hides the manual subId tracking + detach-on-unmount. Listener

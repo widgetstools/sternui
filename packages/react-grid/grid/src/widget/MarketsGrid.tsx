@@ -10,7 +10,7 @@ import {
   type RefAttributes,
 } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import type { ColDef, GridReadyEvent } from 'ag-grid-community';
+import type { ColDef, GridOptions, GridReadyEvent } from 'ag-grid-community';
 import type { Module } from 'ag-grid-community';
 import { useGridTheme } from './theme/useGridTheme.js';
 import {
@@ -78,6 +78,7 @@ function useMarketsGridShell<TData>(
     style,
     dataStale = false,
     historicalViewMode = false,
+    serverSide,
     onGridReady: onGridReadyProp,
   } = props;
 
@@ -119,6 +120,27 @@ function useMarketsGridShell<TData>(
     appData: resolvedAppData,
     hostOverrideKeys,
   });
+
+  // SSRM: fold the server-side datasource + tuning into the pipeline grid
+  // options so they flow through the existing surface spread (rowModelType
+  // is set once at construction). When absent, identity is unchanged so
+  // there is zero overhead for client-side grids.
+  const gridOptionsWithServerSide = useMemo<Partial<GridOptions>>(() => {
+    if (!serverSide) return gridOptions;
+    const extra: Partial<GridOptions> = {
+      rowModelType: 'serverSide',
+      serverSideDatasource:
+        serverSide.serverSideDatasource as GridOptions['serverSideDatasource'],
+    };
+    if (serverSide.cacheBlockSize !== undefined) extra.cacheBlockSize = serverSide.cacheBlockSize;
+    if (serverSide.blockLoadDebounceMillis !== undefined) {
+      extra.blockLoadDebounceMillis = serverSide.blockLoadDebounceMillis;
+    }
+    if (serverSide.serverSideInitialRowCount !== undefined) {
+      extra.serverSideInitialRowCount = serverSide.serverSideInitialRowCount;
+    }
+    return { ...gridOptions, ...extra };
+  }, [gridOptions, serverSide]);
 
   const internalTheme = useGridTheme();
   const generalSettings = useGeneralSettingsSnapshot(platform);
@@ -172,6 +194,7 @@ function useMarketsGridShell<TData>(
   const handleGridReady = useCallback(
     (event: GridReadyEvent) => {
       onGridReady(event);
+      serverSide?.onGridReady?.(event.api);
       applyEditLockGuard(event.api);
       if (sizeColumnsToFitOnReady) {
         const suppressAll = event.api.getColumns()?.every((col) => {
@@ -184,8 +207,13 @@ function useMarketsGridShell<TData>(
       }
       onGridReadyProp?.(event);
     },
-    [onGridReady, onGridReadyProp, applyEditLockGuard, sizeColumnsToFitOnReady],
+    [onGridReady, onGridReadyProp, applyEditLockGuard, sizeColumnsToFitOnReady, serverSide],
   );
+
+  const handleGridPreDestroyed = useCallback(() => {
+    serverSide?.onGridPreDestroyed?.();
+    onGridPreDestroyed();
+  }, [serverSide, onGridPreDestroyed]);
 
   const rootStyle = useMemo(
     () => ({ display: 'flex', flexDirection: 'column' as const, height: '100%', ...style }),
@@ -213,8 +241,8 @@ function useMarketsGridShell<TData>(
   return {
     platform,
     columnDefs,
-    gridOptions,
-    onGridPreDestroyed,
+    gridOptions: gridOptionsWithServerSide,
+    onGridPreDestroyed: handleGridPreDestroyed,
     handleGridReady,
     theme,
     generalSettings,

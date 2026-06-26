@@ -12,6 +12,7 @@
  */
 
 import type { DataProviderConfig, ProviderConfig, ProviderType } from '@starui/types';
+import type { SsrmGetRowsRequest } from './ssrm/types.js';
 
 // ─── AppData row shape (mirrors AppDataConfig from probes/appdata) ─
 
@@ -99,8 +100,12 @@ export interface AttachRequest {
   /**
    * `'data'` (default) — listener receives `delta` + `status` events.
    * `'stats'` — listener receives a `stats` event at 1 Hz.
+   * `'control'` — SSRM grids: start + keep the provider alive and
+   * receive `status` events ONLY (no row `delta` fan-out). Rows are
+   * pulled on demand via the `query` RPC, so the full dataset never
+   * crosses to the main thread. See docs/SSRM_WORKER_PLAN.md.
    */
-  mode: 'data' | 'stats';
+  mode: 'data' | 'stats' | 'control';
   /**
    * Required on FIRST attach when `providerId` is not in the hub catalog.
    * Optional when the worker has preloaded the provider row via
@@ -182,6 +187,19 @@ export interface RefreshProviderRequest {
   kind: 'refresh-provider';
   subId: string;
   providerId: string;
+}
+
+/**
+ * SSRM block request (`getRows`). The hub runs filter/sort/paginate over
+ * the provider's cache off the UI thread and replies with a single
+ * {@link QueryResultEvent} correlated by `reqId` — same RPC pattern as
+ * `get-config` → `config-snapshot`.
+ */
+export interface QueryRequest {
+  kind: 'query';
+  reqId: string;
+  providerId: string;
+  request: SsrmGetRowsRequest;
 }
 
 /** One attached hub subscriber (data or stats mode). */
@@ -325,6 +343,7 @@ export type Request =
   | ListConfigsRequest
   | ConfigInvalidateRequest
   | RefreshProviderRequest
+  | QueryRequest
   | HubIntrospectRequest;
 
 // ─── Worker → Client events ────────────────────────────────────────
@@ -506,6 +525,23 @@ export interface ConfigSnapshotEvent {
 
 export type CatalogEvent = CatalogReadyEvent | ConfigSnapshotEvent;
 
+// ─── Worker → Client SSRM query events ─────────────────────────────
+
+/**
+ * Response to a {@link QueryRequest}, routed back by `reqId` (no
+ * `subId` — like {@link ConfigSnapshotEvent}). Carries one block of
+ * already-shaped rows plus the exact total row count of the filtered
+ * set so the grid never has to guess the dataset size.
+ */
+export interface QueryResultEvent {
+  kind: 'query-result';
+  reqId: string;
+  ok: boolean;
+  rows?: readonly unknown[];
+  lastRow?: number;
+  error?: string;
+}
+
 // ─── Worker → Client AppData events ────────────────────────────────
 
 /**
@@ -563,8 +599,14 @@ export function isRequest(value: unknown): value is Request {
     k === 'list-configs' ||
     k === 'config-invalidate' ||
     k === 'refresh-provider' ||
+    k === 'query' ||
     k === 'hub-introspect'
   );
+}
+
+export function isQueryEvent(value: unknown): value is QueryResultEvent {
+  if (!value || typeof value !== 'object') return false;
+  return (value as { kind?: string }).kind === 'query-result';
 }
 
 export function isEvent(value: unknown): value is Event {

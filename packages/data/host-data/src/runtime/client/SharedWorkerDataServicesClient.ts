@@ -40,13 +40,15 @@ import type {
   ListConfigsRequest,
   ProviderStats,
   ProviderStatus,
+  QueryResultEvent,
   Request,
   RowPatch,
   StopRequest,
   SubscriberMeta,
 } from '../protocol.js';
+import type { SsrmGetRowsRequest, SsrmQueryResult } from '../ssrm/types.js';
 import { SUBSCRIBER_PING_INTERVAL_MS } from '../worker/hubTypes.js';
-import { isCatalogEvent, isEvent, isAppDataEvent } from '../protocol.js';
+import { isCatalogEvent, isEvent, isAppDataEvent, isQueryEvent } from '../protocol.js';
 import { composeRowId, type DataProviderConfig, type ProviderConfig } from '@starui/types';
 import { decodeColumnar } from '../wire/columnarCodec.js';
 import type { ListOptions } from '../config/store.js';
@@ -146,7 +148,18 @@ interface StatsSub {
     meta?: SubscriberMeta;
   };
 }
-type Sub = DataSub | StatsSub;
+/** SSRM control subscription — receives `status` only, no row data. */
+interface ControlSub {
+  kind: 'control';
+  listener: ControlListener;
+  attach: { providerId: string };
+}
+type Sub = DataSub | StatsSub | ControlSub;
+
+/** Listener for an SSRM `control` subscription. */
+export interface ControlListener {
+  onStatus(status: ProviderStatus, error?: string): void;
+}
 
 /**
  * Per-subscription full-row mirror for thin-delta (`delta-patch`)
@@ -185,6 +198,11 @@ export class SharedWorkerDataServicesClient {
   private readonly catalogPending = new Map<
     string,
     { resolve: (event: ConfigSnapshotEvent) => void; reject: (err: Error) => void }
+  >();
+  /** In-flight SSRM `query` RPCs, keyed by reqId. */
+  private readonly queryPending = new Map<
+    string,
+    { resolve: (result: SsrmQueryResult) => void; reject: (err: Error) => void }
   >();
   private readonly catalogReadyWaiters: Array<() => void> = [];
   private readonly catalogChangeListeners = new Set<(detail: CatalogChangeDetail) => void>();
@@ -502,6 +520,39 @@ export class SharedWorkerDataServicesClient {
     return subId;
   }
 
+  /**
+   * SSRM control subscription — starts (or reuses) the provider in the
+   * worker and keeps it alive so {@link query} has a populated cache to
+   * read, WITHOUT streaming any row data to this window. Only `status`
+   * events flow back, so the consumer (e.g. an SSRM grid) can refresh
+   * its blocks once the provider reaches `ready`. Tear down with
+   * {@link detach}.
+   */
+  attachControl(providerId: string, listener: ControlListener): SubId {
+    if (this.closed) throw new Error('[SharedWorkerDataServicesClient] client is closed');
+    const subId = this.generateSubId();
+    this.subs.set(subId, { kind: 'control', listener, attach: { providerId } });
+    this.send({ kind: 'attach', subId, providerId, mode: 'control' });
+    return subId;
+  }
+
+  /**
+   * Run one SSRM block request against the provider's worker-side cache.
+   * Filtering, sorting, counting and shaping all happen off the UI
+   * thread; only the requested block + exact total row count come back.
+   * Correlated by `reqId` — same RPC pattern as the config catalog.
+   */
+  query(providerId: string, request: SsrmGetRowsRequest): Promise<SsrmQueryResult> {
+    if (this.closed) {
+      return Promise.reject(new Error('[SharedWorkerDataServicesClient] client is closed'));
+    }
+    const reqId = crypto.randomUUID();
+    return new Promise<SsrmQueryResult>((resolve, reject) => {
+      this.queryPending.set(reqId, { resolve, reject });
+      this.send({ kind: 'query', reqId, providerId, request });
+    });
+  }
+
   detach(subId: SubId): void {
     if (!this.subs.delete(subId)) return;
     this.thinSubs.delete(subId);
@@ -686,6 +737,10 @@ export class SharedWorkerDataServicesClient {
       pending.reject(new Error('[SharedWorkerDataServicesClient] client closed'));
     }
     this.catalogPending.clear();
+    for (const [, pending] of this.queryPending) {
+      pending.reject(new Error('[SharedWorkerDataServicesClient] client closed'));
+    }
+    this.queryPending.clear();
     for (const resolve of this.catalogReadyWaiters) resolve();
     this.catalogReadyWaiters.length = 0;
     this.catalogChangeListeners.clear();
@@ -745,6 +800,12 @@ export class SharedWorkerDataServicesClient {
         extra: sub.attach.extra,
       });
       this.startHeartbeat(subId, sub.attach.meta);
+      return;
+    }
+    if (sub.kind === 'control') {
+      // Control subs aren't heartbeat-swept by the hub, so this rarely
+      // fires; re-attach for safety without a heartbeat.
+      this.send({ kind: 'attach', subId, providerId: sub.attach.providerId, mode: 'control' });
       return;
     }
     this.send({
@@ -819,6 +880,10 @@ export class SharedWorkerDataServicesClient {
       this.routeCatalogEvent(ev.data);
       return;
     }
+    if (isQueryEvent(ev.data)) {
+      this.routeQueryEvent(ev.data);
+      return;
+    }
     if (isAppDataEvent(ev.data)) {
       this.routeAppDataEvent(ev.data);
       return;
@@ -869,7 +934,7 @@ export class SharedWorkerDataServicesClient {
         }
         return;
       case 'status':
-        if (sub.kind === 'data') {
+        if (sub.kind === 'data' || sub.kind === 'control') {
           sub.listener.onStatus(event.status, event.error);
         }
         return;
@@ -935,6 +1000,17 @@ export class SharedWorkerDataServicesClient {
       out.push(next);
     }
     return out;
+  }
+
+  private routeQueryEvent(event: QueryResultEvent): void {
+    const pending = this.queryPending.get(event.reqId);
+    if (!pending) return;
+    this.queryPending.delete(event.reqId);
+    if (event.ok) {
+      pending.resolve({ rows: [...(event.rows ?? [])], lastRow: event.lastRow ?? 0 });
+    } else {
+      pending.reject(new Error(event.error ?? 'SSRM query failed'));
+    }
   }
 
   private routeCatalogEvent(event: CatalogEvent): void {

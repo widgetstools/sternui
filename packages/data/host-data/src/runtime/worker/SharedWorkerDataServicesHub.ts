@@ -64,11 +64,14 @@ import type {
   HubReadyRequest,
   ListConfigsRequest,
   RefreshProviderRequest,
+  QueryRequest,
+  QueryResultEvent,
   HubIntrospectRequest,
   HubIntrospectSnapshot,
   HubProviderIntrospectRow,
   HubSubscriberIntrospectRow,
 } from '../protocol.js';
+import { runQuery } from '../ssrm/queryEngine.js';
 import { startProvider } from '../providers/registry.js';
 import { diffTopLevel } from '../wire/rowDiff.js';
 import type { ProviderEmit, ProviderEmitEvent, ProviderHandle } from '../providers/Provider.js';
@@ -122,6 +125,13 @@ export class SharedWorkerDataServicesHub {
   private readonly providers = new Map<string, ProviderSlot>();
   private readonly dataListeners = new Map<string, Map<string, DataListener>>();
   private readonly statsListeners = new Map<string, Map<string, StatsListener>>();
+  /**
+   * SSRM `control` subscribers — keep a provider running so its cache
+   * can answer `query` RPCs, and receive `status` events, but get NO
+   * row `delta` fan-out (the dataset never crosses to the main thread).
+   * Keyed providerId → subId → port.
+   */
+  private readonly controlListeners = new Map<string, Map<string, { subId: string; port: PortLike }>>();
 
   // ─── AppData state (Steps 2 + worker-persistence) ──────────────
   // Single authoritative store per hub instance. Listeners are keyed
@@ -191,7 +201,38 @@ export class SharedWorkerDataServicesHub {
       case 'list-configs': this.handleListConfigs(port, req); return;
       case 'config-invalidate': void this.handleConfigInvalidate(port, req); return;
       case 'refresh-provider': this.handleRefreshProvider(req); return;
+      case 'query': this.handleQuery(port, req); return;
       case 'hub-introspect': this.handleHubIntrospect(port, req); return;
+    }
+  }
+
+  /**
+   * SSRM block request. Runs filter/sort/paginate over the provider's
+   * cache off the UI thread and replies with one block + the exact
+   * total row count, correlated by `reqId`. No cache ⇒ empty result
+   * (the provider hasn't started or has no rows yet) rather than an
+   * error, so the grid simply shows nothing until a `control` attach
+   * has populated the cache.
+   */
+  private handleQuery(port: PortLike, req: QueryRequest): void {
+    try {
+      const slot = this.providers.get(req.providerId);
+      const rows = slot ? [...slot.cache.values()] : [];
+      const result = runQuery(rows, req.request);
+      port.postMessage({
+        kind: 'query-result',
+        reqId: req.reqId,
+        ok: true,
+        rows: result.rows,
+        lastRow: result.lastRow,
+      } satisfies QueryResultEvent);
+    } catch (err) {
+      port.postMessage({
+        kind: 'query-result',
+        reqId: req.reqId,
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      } satisfies QueryResultEvent);
     }
   }
 
@@ -627,10 +668,43 @@ export class SharedWorkerDataServicesHub {
       this.attachDataListener(req.providerId, req.subId, port, slot, {
         skipCacheReplay: isRestartAttach,
       });
+    } else if (req.mode === 'control') {
+      this.attachControlListener(req.providerId, req.subId, port, slot);
     } else {
       this.attachStatsListener(req.providerId, req.subId, port);
     }
     this.maybeActivateFanOutWorker(req.subId, port);
+  }
+
+  /**
+   * Register an SSRM `control` subscriber. The slot was already ensured
+   * by {@link handleAttach}; here we only track the subscriber (so the
+   * provider isn't stopped while a grid is pulling blocks) and post the
+   * current status so the grid can refresh once the cache is `ready`.
+   */
+  private attachControlListener(
+    providerId: string,
+    subId: string,
+    port: PortLike,
+    slot: ProviderSlot,
+  ): void {
+    const set = this.controlListeners.get(providerId) ?? new Map<string, { subId: string; port: PortLike }>();
+    set.set(subId, { subId, port });
+    this.controlListeners.set(providerId, set);
+    try {
+      port.postMessage({ subId, kind: 'status', status: slot.status, error: slot.lastError } satisfies Event);
+    } catch { /* port dead — sweeper/idle check will clean up */ }
+  }
+
+  /** Post a `status` event to every SSRM control subscriber of a provider. */
+  private broadcastControlStatus(providerId: string, status: ProviderStatus, error?: string): void {
+    const set = this.controlListeners.get(providerId);
+    if (!set) return;
+    for (const l of set.values()) {
+      try {
+        l.port.postMessage({ subId: l.subId, kind: 'status', status, error } satisfies Event);
+      } catch { /* port dead — cleaned up on next idle check */ }
+    }
   }
 
   private handleDetach(req: DetachRequest): void {
@@ -682,13 +756,21 @@ export class SharedWorkerDataServicesHub {
       }
       return { providerId, port: l.port };
     }
+    for (const [providerId, listeners] of this.controlListeners) {
+      const l = listeners.get(subId);
+      if (!l) continue;
+      listeners.delete(subId);
+      if (listeners.size === 0) this.controlListeners.delete(providerId);
+      return { providerId, port: l.port };
+    }
     return {};
   }
 
   private maybeStopProviderIfIdle(providerId: string): void {
     const dataCount = this.dataListeners.get(providerId)?.size ?? 0;
     const statsCount = this.statsListeners.get(providerId)?.size ?? 0;
-    if (dataCount === 0 && statsCount === 0 && this.providers.has(providerId)) {
+    const controlCount = this.controlListeners.get(providerId)?.size ?? 0;
+    if (dataCount === 0 && statsCount === 0 && controlCount === 0 && this.providers.has(providerId)) {
       void this.stopProvider(providerId);
     }
     this.maybeStopSubscriberSweeper();
@@ -1268,6 +1350,7 @@ export class SharedWorkerDataServicesHub {
         error: event.error,
         subId: '',
       });
+      this.broadcastControlStatus(providerId, event.status, event.error);
       return;
     }
 

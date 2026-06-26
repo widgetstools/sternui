@@ -18,6 +18,32 @@ export interface SavedFilter {
 }
 
 /**
+ * Server-Side Row Model binding for {@link MarketsGridProps.serverSide}.
+ *
+ * Produced by `useSsrmDataSource(providerId)` from `@starui/host-data-react`.
+ * Structural by design — MarketsGrid accepts any object of this shape so
+ * the grid package takes no dependency on the data layer. When supplied,
+ * the grid switches to SSRM: all filtering, sorting, paging (and, in
+ * later phases, grouping/aggregation/shaping) run in the SharedWorker,
+ * off the UI thread. See docs/SSRM_WORKER_PLAN.md.
+ */
+export interface MarketsGridServerSideBinding {
+  rowModelType: 'serverSide';
+  /** AG-Grid `IServerSideDatasource` (structural — a `{ getRows }` object). */
+  serverSideDatasource: unknown;
+  /** Rows per block request. */
+  cacheBlockSize?: number;
+  /** Async block flush latency in ms. */
+  blockLoadDebounceMillis?: number;
+  /** Pre-allocated row count for first paint. */
+  serverSideInitialRowCount?: number;
+  /** Invoked by the grid host inside `onGridReady`. */
+  onGridReady?(api: GridApi): void;
+  /** Invoked by the grid host inside `onGridPreDestroyed`. */
+  onGridPreDestroyed?(): void;
+}
+
+/**
  * Public host-component props. Narrow contract — the ONE place a consumer
  * app configures the grid.
  */
@@ -39,6 +65,15 @@ export interface MarketsGridProps<TData = unknown> {
   rowData: TData[];
   /** Base column definitions — modules can transform them. */
   columnDefs: ColDef<TData>[];
+  /**
+   * Server-Side Row Model binding. When provided, the grid pulls rows in
+   * blocks from a SharedWorker-backed datasource instead of binding
+   * `rowData` directly — filtering, sorting and paging happen off the UI
+   * thread. Build it with `useSsrmDataSource(providerId)` from
+   * `@starui/host-data-react` and pass it through; `rowData` is then
+   * ignored. See docs/SSRM_WORKER_PLAN.md.
+   */
+  serverSide?: MarketsGridServerSideBinding;
   /** Module list. Default passes {@link DEFAULT_MODULES}; use exported
    *  {@link MINIMAL_MODULES} for a lightweight embed preset. */
   modules?: AnyModule[];

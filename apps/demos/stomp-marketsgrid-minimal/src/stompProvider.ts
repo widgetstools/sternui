@@ -118,6 +118,14 @@ const stompLive: StompProviderConfig = {
   ],
 };
 
+/**
+ * Column definitions for the positions blotter, surfaced separately so a
+ * raw `<MarketsGrid>` (the SSRM demo path) can pass them as `columnDefs`
+ * without re-declaring. `HostedMarketsGrid` reads these from the catalog
+ * row instead.
+ */
+export const POSITIONS_COLUMN_DEFS = stompLive.columnDefinitions ?? [];
+
 // The HISTORICAL provider is a SECOND, separate catalog row. It reuses
 // every live setting (columns, keyColumn, conflation/throttle, chunk
 // size) but swaps in the date-templated destinations above. The grid

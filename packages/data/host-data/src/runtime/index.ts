@@ -43,8 +43,24 @@ export type {
   AppDataEvent,
   CatalogChangeDetail,
   CatalogReadyEvent,
+  QueryRequest,
+  QueryResultEvent,
 } from './protocol.js';
-export { isRequest, isEvent, isAppDataRequest, isAppDataEvent } from './protocol.js';
+export { isRequest, isEvent, isAppDataRequest, isAppDataEvent, isQueryEvent } from './protocol.js';
+
+// SSRM (Server-Side Row Model) query path — worker engine + client
+// datasource, both framework-agnostic. See docs/SSRM_WORKER_PLAN.md.
+export { runQuery, SsrmDataProvider } from './ssrm/index.js';
+export type {
+  SsrmDatasourceLike,
+  SsrmGetRowsParamsLike,
+  SsrmFetchBlock,
+  SsrmGetRowsRequest,
+  SsrmSortModelItem,
+  SsrmColumnVO,
+  SsrmQueryResult,
+  SsrmQueryOptions,
+} from './ssrm/index.js';
 
 // Wire codecs — typed-array columnar frames + thin-delta row diffing.
 export { tryEncodeColumnar, decodeColumnar } from './wire/columnarCodec.js';
@@ -108,6 +124,7 @@ export {
   SharedWorkerDataServicesClient,
   type DataListener,
   type StatsListener,
+  type ControlListener,
   type AttachOpts,
   type SubId,
   type SubscribeHandle,

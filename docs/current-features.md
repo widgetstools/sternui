@@ -318,7 +318,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 #### Core grid
 
-- `MarketsGrid` — main grid component (host integration, column defs, real-time rows)
+- `MarketsGrid` — main grid component (host integration, column defs, real-time rows); optional `serverSide` prop (`MarketsGridServerSideBinding` from `useSsrmDataSource`) switches the grid to the Server-Side Row Model — filter/sort/paginate run in the SharedWorker, off the UI thread, `rowData` then ignored (see `docs/SSRM_WORKER_PLAN.md`)
 - `MarketsGridCore` — grid platform + memo'd AG Grid surface only (no toolbar/settings/profile chrome); same pipeline as `MarketsGrid`
 - `MarketsGridHandle` — imperative ref (grid API + platform methods, `exportVisualExcel`)
 - `MarketsGridProps` — host context, storage factory, module overrides, callbacks;
@@ -1237,6 +1237,16 @@ modules).
 - `SharedWorkerDataServicesHub` — worker state machine (providers, cache, fan-out); attach with matching `extra` overlay (e.g. same historical `asOfDate`) late-joins without a second upstream `restart`; **`hydrateCatalog()`** preloads `ConfigCatalogCache` after ConfigManager init; **`get-config`** resolves the requested provider on demand (`ConfigCatalogCache.ensure`) so a grid attaches without waiting on the full preload; **`buildIntrospectSnapshot()`** / `hub-introspect` RPC for live provider + AppData diagnostics; **`FanOutWorkerPool`** — one dedicated fan-out worker per hub `subId` for non-binary object-graph broadcasts (spawned on `attach` with stale-slot recycle, terminated on `detach` or client disconnect); `delta-bin`, large buffered `delta-patch`, and `stats` post directly from the hub; partial fan-out failure retries only failed `subId`s inline (no duplicate delivery); worker `error` + job timeout fail fast; disable with `localStorage.STARUI_FANOUT_POOL_SIZE=0`; **`subscription-lost`** event + client auto re-attach when hub evicts stale subscribers; extended ping grace (`SUBSCRIBER_PING_TIMEOUT_HIDDEN_MS`) when client reports `meta.hidden`
 - `ConfigCatalogCache` — worker-side in-memory data-provider catalog (`loadAll`, `get`, `getProviderConfig`, `list`, `invalidate`, `upsert`); `ensure(providerId)` resolves one provider on demand (cached row, else a single `ConfigManager` read with no full `loadAll`) and caches it so the synchronous attach lookup finds it; used by hub before cfg-free attach
 - `DataProviderConfigStore` / `AppDataConfigStore` — persist provider rows with `ConfigManager.getAppId()` (no hard-coded `TestApp`); re-stamps `appId` on every save so drifted rows realign to the deployment scope
+
+#### SSRM query path (Server-Side Row Model — Phase 1)
+
+Moves filter/sort/paginate off the UI thread into the worker. The grid pulls rows in blocks; the dataset never crosses to the main thread. See `docs/SSRM_WORKER_PLAN.md`.
+
+- `runQuery(rows, request, opts?)` (`./runtime` → `ssrm/queryEngine`) — pure, worker-safe block query over an in-memory row set: text/number/date/set filters with AND/OR combined conditions, multi-column null-safe (nulls-last) sort, dot-path column ids, slice to block + **exact** `lastRow` (worker holds every row, so the grid never guesses dataset size)
+- `SsrmDataProvider` — vanilla `IServerSideDatasource` (structural, no AG-Grid/React import); turns each `getRows` into a worker `query` RPC
+- types: `SsrmGetRowsRequest`, `SsrmSortModelItem`, `SsrmColumnVO`, `SsrmQueryResult`, `SsrmQueryOptions`, `SsrmDatasourceLike`, `SsrmFetchBlock`
+- protocol: `query` / `query-result` reqId-correlated RPC; `attach` `mode: 'control'` — starts + keeps a provider alive so its cache answers queries, delivering `status` only (no row `delta` fan-out); `isQueryEvent`
+- `SharedWorkerDataServicesClient.query(providerId, request)` + `attachControl(providerId, { onStatus })`; hub `handleQuery` runs `runQuery` over `ProviderSlot.cache`; control listeners tracked for liveness/auto-stop and status broadcast
 - `AppDataMirror` — synchronous main-thread view of AppData
 - `WorkerAppDataStore` — worker-side IndexedDB persistence
 
@@ -1431,6 +1441,7 @@ modules).
   - Listener: `onDelta(rows, replace)`, `onStatus(status, error)`
   - `refresh(extra)` re-attaches with overlay
 - `useUserIdFromContext()` — read effective `userId` from `DataHubProvider` / `DataServicesProvider`
+- `useSsrmDataSource(providerId, opts?)` — SSRM grid binding: builds an `SsrmDataProvider` (block requests → worker `query` RPC) + opens a `control` subscription that starts/keeps the provider running and refreshes the grid on `ready`; returns `SsrmGridBinding` (`rowModelType`, `serverSideDatasource`, `cacheBlockSize`, `blockLoadDebounceMillis`, `onGridReady`/`onGridPreDestroyed`) for `<MarketsGrid serverSide={…}>`. `opts`: `cacheBlockSize`, `blockLoadDebounceMillis`, `serverSideInitialRowCount`
 
 #### Statistics hook
 
