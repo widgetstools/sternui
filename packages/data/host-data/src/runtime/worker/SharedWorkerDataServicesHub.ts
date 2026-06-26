@@ -707,6 +707,18 @@ export class SharedWorkerDataServicesHub {
     }
   }
 
+  /** Forward a live tick (changed rows) to every SSRM control subscriber. */
+  private broadcastControlTxn(providerId: string, rows: readonly unknown[]): void {
+    if (rows.length === 0) return;
+    const set = this.controlListeners.get(providerId);
+    if (!set) return;
+    for (const l of set.values()) {
+      try {
+        l.port.postMessage({ subId: l.subId, kind: 'ssrm-txn', rows } satisfies Event);
+      } catch { /* port dead — cleaned up on next idle check */ }
+    }
+  }
+
   private handleDetach(req: DetachRequest): void {
     this.maybeReleaseFanOutWorker(req.subId);
     const removed = this.removeSubscriber(req.subId);
@@ -1267,6 +1279,14 @@ export class SharedWorkerDataServicesHub {
           if (k !== null) batch.set(k, row);
         }
         broadcastRows = [...batch.values()];
+      }
+
+      // SSRM realtime: forward post-ready incremental ticks (not the
+      // snapshot, not replace re-snapshots) to control subscribers so
+      // their grids apply them via `applyServerSideTransactionAsync`.
+      // Only this small conflated delta crosses to the main thread.
+      if (slot.snapshotReady && !event.replace) {
+        this.broadcastControlTxn(providerId, broadcastRows);
       }
 
       // Snapshot-phase chunks (pre-ready: initial load AND restarts —

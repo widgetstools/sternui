@@ -1245,8 +1245,9 @@ Moves filter/sort/paginate off the UI thread into the worker. The grid pulls row
 - `runQuery(rows, request, opts?)` (`./runtime` → `ssrm/queryEngine`) — pure, worker-safe block query over an in-memory row set: text/number/date/set filters with AND/OR combined conditions, multi-column null-safe (nulls-last) sort, dot-path column ids, slice to block + **exact** `lastRow` (worker holds every row, so the grid never guesses dataset size)
 - `SsrmDataProvider` — vanilla `IServerSideDatasource` (structural, no AG-Grid/React import); turns each `getRows` into a worker `query` RPC
 - types: `SsrmGetRowsRequest`, `SsrmSortModelItem`, `SsrmColumnVO`, `SsrmQueryResult`, `SsrmQueryOptions`, `SsrmDatasourceLike`, `SsrmFetchBlock`
-- protocol: `query` / `query-result` reqId-correlated RPC; `attach` `mode: 'control'` — starts + keeps a provider alive so its cache answers queries, delivering `status` only (no row `delta` fan-out); `isQueryEvent`
-- `SharedWorkerDataServicesClient.query(providerId, request)` + `attachControl(providerId, { onStatus })`; hub `handleQuery` runs `runQuery` over `ProviderSlot.cache`; control listeners tracked for liveness/auto-stop and status broadcast
+- protocol: `query` / `query-result` reqId-correlated RPC; `attach` `mode: 'control'` — starts + keeps a provider alive so its cache answers queries, delivering `status` + realtime `ssrm-txn` only (no snapshot/full-dataset `delta` fan-out); `isQueryEvent`
+- `SharedWorkerDataServicesClient.query(providerId, request)` + `attachControl(providerId, { onStatus, onTxn? })`; hub `handleQuery` runs `runQuery` over `ProviderSlot.cache`; control listeners tracked for liveness/auto-stop, status broadcast, and post-ready realtime forwarding
+- **Realtime (Phase 3a):** hub forwards conflated post-ready live ticks (changed rows only — not the snapshot) to control subscribers as `ssrm-txn`; `useSsrmDataSource` applies them via `applyServerSideTransactionAsync({ update })`. Update-only for now (new rows / sort moves reconcile on next refresh)
 - `AppDataMirror` — synchronous main-thread view of AppData
 - `WorkerAppDataStore` — worker-side IndexedDB persistence
 

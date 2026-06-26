@@ -159,6 +159,8 @@ type Sub = DataSub | StatsSub | ControlSub;
 /** Listener for an SSRM `control` subscription. */
 export interface ControlListener {
   onStatus(status: ProviderStatus, error?: string): void;
+  /** Conflated post-ready live tick (changed rows) for transaction apply. */
+  onTxn?(rows: readonly unknown[]): void;
 }
 
 /**
@@ -936,6 +938,11 @@ export class SharedWorkerDataServicesClient {
       case 'status':
         if (sub.kind === 'data' || sub.kind === 'control') {
           sub.listener.onStatus(event.status, event.error);
+        }
+        return;
+      case 'ssrm-txn':
+        if (sub.kind === 'control') {
+          sub.listener.onTxn?.(event.rows);
         }
         return;
       case 'stats':

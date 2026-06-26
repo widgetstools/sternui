@@ -462,6 +462,20 @@ export interface StatusEvent {
   error?: string;
 }
 
+/**
+ * SSRM realtime delta → an `attach` `mode: 'control'` subscriber. Carries
+ * the worker's conflated post-ready live tick (changed rows only, keyed
+ * by `keyColumn`) so the grid can apply them via
+ * `applyServerSideTransactionAsync`. The full dataset never travels this
+ * way — only the small per-tick delta. Not sent for the initial snapshot
+ * (the grid pulls that via `query`) or pre-ready chunks.
+ */
+export interface SsrmTxnEvent {
+  subId: string;
+  kind: 'ssrm-txn';
+  rows: readonly unknown[];
+}
+
 export interface StatsEvent {
   subId: string;
   kind: 'stats';
@@ -492,6 +506,7 @@ export type Event =
   | SubInitEvent
   | StatusEvent
   | StatsEvent
+  | SsrmTxnEvent
   | RowsReceivedEvent
   | SubscriptionLostEvent;
 
@@ -620,6 +635,7 @@ export function isEvent(value: unknown): value is Event {
     v.kind === 'sub-init' ||
     v.kind === 'status' ||
     v.kind === 'stats' ||
+    v.kind === 'ssrm-txn' ||
     v.kind === 'rows-received' ||
     v.kind === 'subscription-lost'
   );

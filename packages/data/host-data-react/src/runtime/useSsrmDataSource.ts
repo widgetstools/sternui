@@ -23,6 +23,7 @@ import { useDataServicesContext } from './DataServicesProvider.js';
 /** Minimal structural view of the AG-Grid API this hook touches (no AG-Grid dep). */
 interface GridApiLike {
   refreshServerSide?(params?: { route?: readonly string[]; purge?: boolean }): void;
+  applyServerSideTransactionAsync?(transaction: { update?: unknown[]; add?: unknown[]; remove?: unknown[] }): void;
   isDestroyed?(): boolean;
 }
 
@@ -74,6 +75,15 @@ export function useSsrmDataSource(
         if (status !== 'ready') return;
         const api = apiRef.current;
         if (api && !api.isDestroyed?.()) api.refreshServerSide?.({ purge: true });
+      },
+      // Live ticks: apply the conflated delta to loaded blocks in place.
+      // Rows outside loaded blocks are ignored by AG-Grid; new rows and
+      // sort-position moves are reconciled on the next refresh (a later
+      // phase makes those surgical too — see docs/SSRM_WORKER_PLAN.md).
+      onTxn: (rows) => {
+        const api = apiRef.current;
+        if (!rows.length || !api || api.isDestroyed?.()) return;
+        api.applyServerSideTransactionAsync?.({ update: rows as unknown[] });
       },
     });
     return () => {

@@ -15,13 +15,27 @@
 > - `MarketsGrid` `serverSide` prop (merges into pipeline grid options;
 >   bridges `onGridReady`/`onGridPreDestroyed`).
 > - Demo: `apps/demos/stomp-marketsgrid-minimal` now runs on SSRM.
-> - 399 host-data tests green; host-data / host-data-react / grid / demo
->   typecheck clean.
+>
+> **Status — Phase 3a landed (realtime, basic).** Post-ready live ticks
+> now flow through SSRM:
+> - Hub forwards conflated post-ready deltas to `control` subscribers as a
+>   new `ssrm-txn` event (only the changed rows cross to the main thread —
+>   the dataset stays in the worker; snapshot/replace frames are not
+>   forwarded).
+> - Client routes `ssrm-txn` → `ControlListener.onTxn`; `useSsrmDataSource`
+>   applies it via `applyServerSideTransactionAsync({ update })`.
+> - 5 new hub tests (query RPC + control + realtime forwarding).
+> - **Known limits (Phase 3b):** update-only (new rows / sort-position
+>   moves reconcile on next refresh, not surgically); no conflation tuning
+>   knob yet beyond the provider's own throttle.
+>
+> Totals: 404 host-data tests green; host-data / host-data-react / grid /
+> demo typecheck clean.
 >
 > **Not yet (next):** row-shaping (calc cols / formatted strings / style
-> tokens baked into blocks), realtime→transaction reconciliation,
-> incremental indexes (set-filter values, aggregates), grouping/pivot.
-> See §7 phases 2–7.
+> tokens baked into blocks — needs the worker-safe engine extraction),
+> incremental indexes (set-filter values, aggregates over all rows),
+> grouping/pivot, surgical realtime (adds + re-sort). See §7 phases 2–7.
 
 
 
