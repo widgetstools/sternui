@@ -79,13 +79,30 @@
 >   columns are display-only (not yet sortable/filterable). Formatted
 >   strings + conditional-style tokens are the next shaping slice.
 >
-> Totals: 418 host-data tests + 289 engine tests green; host-data /
+> **Status — Phase 4 landed (grouping + aggregation).** Lazy server-side
+> row grouping runs in the worker — no protocol changes, since AG-Grid
+> already sends `rowGroupCols` / `groupKeys` / `valueCols`:
+> - `runQuery` branches to a grouping path when `rowGroupCols` is active.
+>   `level = groupKeys.length`: returns distinct group rows for
+>   `rowGroupCols[level]` under the expanded path (with `valueCols`
+>   aggregated per group via `computeAggregates` + a `__ssrmChildCount`),
+>   or the leaf rows once all group columns are consumed (sorted / sliced
+>   / shaped). Filters apply before grouping; groups sort by `sortModel`.
+> - AG-Grid `aggFunc` → engine aggregate (sum/avg/min/max/count; unknown
+>   custom → sum).
+> - `useSsrmDataSource().getChildCount` + `MarketsGrid` merge → grouped
+>   rows show "Value (N)". `SSRM_CHILD_COUNT_FIELD` exported.
+> - Demo groups region → desk with sums (money/P&L) + averages
+>   (price/yield) on group rows.
+> - 4 grouping tests (top level + agg + counts, nested, leaf, filter-then-group).
+>
+> Totals: 422 host-data tests + 289 engine tests green; host-data /
 > host-data-react / grid / demo typecheck clean; worker bundle DOM-free.
 >
-> **Not yet (next):** shaping — formatted strings + conditional-style
-> tokens baked into blocks; grouping/pivot; surgical realtime (adds +
-> re-sort); incremental indexes (replace on-demand scans); calc columns
-> sortable/filterable (shape before slice). See §7 phases 2–7.
+> **Not yet (next):** pivot; shaping — formatted strings + conditional-
+> style tokens baked into blocks; surgical realtime (adds + re-sort, group
+> membership on tick); incremental indexes (replace on-demand scans); calc
+> columns sortable/filterable (shape before slice). See §7 phases 5–7.
 
 
 

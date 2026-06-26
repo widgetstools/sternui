@@ -13,11 +13,15 @@
  */
 
 import type {
+  SsrmAggFunc,
+  SsrmAggregation,
+  SsrmColumnVO,
   SsrmGetRowsRequest,
   SsrmQueryOptions,
   SsrmQueryResult,
   SsrmSortModelItem,
 } from './types.js';
+import { computeAggregates } from './indexes.js';
 
 /** Read `obj.a.b.c` for colId `"a.b.c"`; plain key lookup for flat ids. */
 function getByPath(row: unknown, path: string): unknown {
@@ -246,6 +250,101 @@ function applySort(
   return out;
 }
 
+// ─── Grouping ───────────────────────────────────────────────────────
+
+const KNOWN_AGG: ReadonlySet<string> = new Set(['sum', 'avg', 'min', 'max', 'count']);
+
+/** AG-Grid `valueCol.aggFunc` → engine aggregate. Unknown custom funcs
+ *  fall back to `sum`; unset means the column isn't aggregated. */
+function mapAggFunc(aggFunc: string | null | undefined): SsrmAggFunc | null {
+  if (!aggFunc) return null;
+  return KNOWN_AGG.has(aggFunc) ? (aggFunc as SsrmAggFunc) : 'sum';
+}
+
+/** Field a group/value column resolves to (`field`, else its colId). */
+function colField(col: SsrmColumnVO): string {
+  return col.field ?? col.id;
+}
+
+/** Group-key equality — AG-Grid sends keys as strings, so compare as strings. */
+function keyEq(value: unknown, key: unknown): boolean {
+  return String(value ?? '') === String(key ?? '');
+}
+
+/** Field name carrying the per-group child count on a group row. */
+export const SSRM_CHILD_COUNT_FIELD = '__ssrmChildCount';
+
+/**
+ * Lazy server-side grouping. `groupKeys` is the path of already-expanded
+ * group values; `level = groupKeys.length`. Returns group rows for the
+ * next grouping column (with aggregated `valueCols` + a child count), or
+ * the leaf rows once every group column is consumed.
+ */
+function runGrouped(
+  rows: readonly unknown[],
+  request: SsrmGetRowsRequest,
+  getValue: (row: unknown, colId: string) => unknown,
+  shapeBlock?: SsrmShapeBlock,
+): SsrmQueryResult {
+  const groupCols = request.rowGroupCols ?? [];
+  const groupKeys = request.groupKeys ?? [];
+  const level = groupKeys.length;
+
+  const filtered = applyFilters(rows, request.filterModel, getValue);
+
+  // Narrow to the rows under the currently-expanded group path.
+  const subset = level === 0
+    ? filtered
+    : filtered.filter((row) =>
+        groupKeys.every((key, i) => keyEq(getValue(row, colField(groupCols[i])), key)),
+      );
+
+  const start = Math.max(0, request.startRow ?? 0);
+
+  // Leaf level — every group column consumed → return actual rows.
+  if (level >= groupCols.length) {
+    const sorted = applySort(subset, request.sortModel, getValue);
+    const end = request.endRow ?? sorted.length;
+    const block = sorted.slice(start, end);
+    const shaped = shapeBlock ? shapeBlock(block, subset) : (block as unknown[]);
+    return { rows: shaped, lastRow: subset.length };
+  }
+
+  // Group level — bucket by the next grouping column.
+  const field = colField(groupCols[level]);
+  const order: unknown[] = [];
+  const buckets = new Map<string, unknown[]>();
+  for (const row of subset) {
+    const v = getValue(row, field);
+    const k = String(v ?? '');
+    let bucket = buckets.get(k);
+    if (!bucket) {
+      bucket = [];
+      buckets.set(k, bucket);
+      order.push(v);
+    }
+    bucket.push(row);
+  }
+
+  const aggSpecs: SsrmAggregation[] = (request.valueCols ?? [])
+    .map((vc) => ({ colId: colField(vc), func: mapAggFunc(vc.aggFunc) }))
+    .filter((s): s is SsrmAggregation => s.func !== null);
+
+  const groupRows = order.map((v) => {
+    const members = buckets.get(String(v ?? ''))!;
+    const out: Record<string, unknown> = { [field]: v };
+    if (aggSpecs.length > 0) {
+      Object.assign(out, computeAggregates(members, aggSpecs, { getValue }));
+    }
+    out[SSRM_CHILD_COUNT_FIELD] = members.length;
+    return out;
+  });
+
+  const sortedGroups = applySort(groupRows, request.sortModel, getValue);
+  const end = request.endRow ?? sortedGroups.length;
+  return { rows: sortedGroups.slice(start, end), lastRow: sortedGroups.length };
+}
+
 // ─── Entry point ────────────────────────────────────────────────────
 
 /**
@@ -275,6 +374,12 @@ export function runQuery(
   shapeBlock?: SsrmShapeBlock,
 ): SsrmQueryResult {
   const getValue = options.getValue ?? getByPath;
+
+  // Active row grouping → lazy group/leaf levels. (Pivot is not yet
+  // handled; pivotMode falls through to the flat path.)
+  if ((request.rowGroupCols?.length ?? 0) > 0 && !request.pivotMode) {
+    return runGrouped(rows, request, getValue, shapeBlock);
+  }
 
   const filtered = applyFilters(rows, request.filterModel, getValue);
   const sorted = applySort(filtered, request.sortModel, getValue);

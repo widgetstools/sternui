@@ -59,7 +59,8 @@ export {
 // SSRM (Server-Side Row Model) query path — worker engine + client
 // datasource, both framework-agnostic. See docs/SSRM_WORKER_PLAN.md.
 export {
-  runQuery, filterRows, distinctValues, computeAggregates, shapeRows, SsrmDataProvider,
+  runQuery, filterRows, distinctValues, computeAggregates, shapeRows,
+  SSRM_CHILD_COUNT_FIELD, SsrmDataProvider,
 } from './ssrm/index.js';
 export type {
   SsrmDatasourceLike,

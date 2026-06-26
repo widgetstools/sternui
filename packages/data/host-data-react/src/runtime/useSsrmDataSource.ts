@@ -23,6 +23,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   SsrmDataProvider,
+  SSRM_CHILD_COUNT_FIELD,
   type SsrmDatasourceLike,
   type SsrmAggregation,
   type SsrmShapingSpec,
@@ -79,6 +80,9 @@ export interface SsrmGridBinding {
   onGridReady?(api: unknown): void;
   /** Called by the grid host inside its `onGridPreDestroyed`. */
   onGridPreDestroyed?(): void;
+  /** Reads the worker-computed child count off a group row (for AG-Grid's
+   *  `getChildCount` grid option), so grouped rows show "Value (N)". */
+  getChildCount(data: unknown): number | undefined;
   /**
    * Distinct values of a column across the FULL worker cache — wire into
    * an SSRM set filter's async `values` callback:
@@ -194,6 +198,11 @@ export function useSsrmDataSource(
     [client, providerId],
   );
 
+  const getChildCount = useCallback((data: unknown): number | undefined => {
+    const n = (data as Record<string, unknown> | null | undefined)?.[SSRM_CHILD_COUNT_FIELD];
+    return typeof n === 'number' ? n : undefined;
+  }, []);
+
   return useMemo(() => {
     if (!datasource) return null;
     return {
@@ -205,6 +214,7 @@ export function useSsrmDataSource(
       onGridReady,
       onGridPreDestroyed,
       getSetFilterValues,
+      getChildCount,
     };
   }, [
     datasource,
@@ -214,5 +224,6 @@ export function useSsrmDataSource(
     onGridReady,
     onGridPreDestroyed,
     getSetFilterValues,
+    getChildCount,
   ]);
 }

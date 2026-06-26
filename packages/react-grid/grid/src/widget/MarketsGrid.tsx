@@ -139,6 +139,9 @@ function useMarketsGridShell<TData>(
     if (serverSide.serverSideInitialRowCount !== undefined) {
       extra.serverSideInitialRowCount = serverSide.serverSideInitialRowCount;
     }
+    if (serverSide.getChildCount) {
+      extra.getChildCount = serverSide.getChildCount as GridOptions['getChildCount'];
+    }
     return { ...gridOptions, ...extra };
   }, [gridOptions, serverSide]);
 

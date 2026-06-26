@@ -6,7 +6,7 @@
  * pure TypeScript. See docs/SSRM_WORKER_PLAN.md.
  */
 
-export { runQuery, filterRows } from './queryEngine.js';
+export { runQuery, filterRows, SSRM_CHILD_COUNT_FIELD } from './queryEngine.js';
 export type { SsrmShapeBlock } from './queryEngine.js';
 export { distinctValues, computeAggregates } from './indexes.js';
 export { shapeRows } from './shaping.js';

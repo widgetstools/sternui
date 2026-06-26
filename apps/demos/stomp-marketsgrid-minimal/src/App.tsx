@@ -117,23 +117,40 @@ export function App() {
       'instrumentType', 'bookName', 'portfolio', 'trader', 'desk', 'region',
       'country', 'rating.moody', 'rating.sp', 'rating.fitch',
     ]);
-    const withFilters = getSetFilterValues
-      ? base.map((col) => {
-          const field = col.field;
-          if (!field || !SET_FILTER_FIELDS.has(field)) return col;
-          return {
-            ...col,
-            filter: 'agSetColumnFilter',
-            filterParams: {
-              values: (p: { success: (values: unknown[]) => void }) => {
-                void getSetFilterValues(field).then((values) => p.success(values));
-              },
-            },
-          } as ColDef;
-        })
-      : base;
+    // Default server-side grouping: region → desk (worker buckets + aggregates).
+    const GROUP_INDEX: Record<string, number> = { region: 0, desk: 1 };
+    // Columns the worker aggregates onto each group row.
+    const AGG_FUNC: Record<string, 'sum' | 'avg'> = {
+      notionalAmount: 'sum', marketValue: 'sum', pnl: 'sum',
+      unrealizedPnl: 'sum', realizedPnl: 'sum', dailyPnl: 'sum',
+      currentPrice: 'avg', yield: 'avg', spread: 'avg',
+    };
+
+    const mapped = base.map((col): ColDef => {
+      const field = col.field;
+      const next: ColDef = { ...col };
+      if (field && getSetFilterValues && SET_FILTER_FIELDS.has(field)) {
+        next.filter = 'agSetColumnFilter';
+        next.filterParams = {
+          values: (p: { success: (values: unknown[]) => void }) => {
+            void getSetFilterValues(field).then((values) => p.success(values));
+          },
+        };
+      }
+      if (field && field in GROUP_INDEX) {
+        next.rowGroup = true;
+        next.rowGroupIndex = GROUP_INDEX[field];
+        next.hide = true;
+      }
+      if (field && field in AGG_FUNC) {
+        next.aggFunc = AGG_FUNC[field];
+        next.enableValue = true;
+      }
+      return next;
+    });
+
     // Worker-baked calc column — plain field read, no valueGetter.
-    // Display-only for now (shaped after filter/sort).
+    // Display-only for now (shaped after filter/sort, leaf rows only).
     const calc: ColDef = {
       field: 'totalPnl',
       headerName: 'Total PnL',
@@ -142,7 +159,7 @@ export function App() {
       filter: false,
       resizable: true,
     };
-    return [...withFilters, calc];
+    return [...mapped, calc];
   }, [getSetFilterValues]);
 
   if (!providerId || !serverSide) return null;

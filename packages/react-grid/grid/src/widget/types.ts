@@ -41,6 +41,8 @@ export interface MarketsGridServerSideBinding {
   onGridReady?(api: GridApi): void;
   /** Invoked by the grid host inside `onGridPreDestroyed`. */
   onGridPreDestroyed?(): void;
+  /** Child count for grouped rows (AG-Grid `getChildCount` grid option). */
+  getChildCount?(data: unknown): number | undefined;
 }
 
 /**
