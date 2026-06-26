@@ -189,6 +189,19 @@ function applyFilters(
   );
 }
 
+/**
+ * Filter a row set by an AG-Grid filter model. Exposed so the aggregate
+ * pass can reuse the exact same predicates the query engine applies, so
+ * grand totals always match what the grid shows.
+ */
+export function filterRows(
+  rows: readonly unknown[],
+  filterModel: Record<string, unknown> | null | undefined,
+  options: SsrmQueryOptions = {},
+): readonly unknown[] {
+  return applyFilters(rows, filterModel, options.getValue ?? getByPath);
+}
+
 // ─── Sorting ────────────────────────────────────────────────────────
 
 const isNullish = (v: unknown): boolean => v == null || v === '';

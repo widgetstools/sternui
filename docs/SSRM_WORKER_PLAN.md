@@ -40,7 +40,19 @@
 >   `useSsrmDataSource` exposes `getSetFilterValues(colId)` for an SSRM set
 >   filter's async `values` callback.
 > - Demo wires set filters on the categorical columns.
-> - 5 new tests.
+>
+> **Status — Phase 2b landed (all-rows aggregates).** Grand totals now
+> compute over the **filtered full dataset** in the worker, not the
+> loaded rows:
+> - `ssrm/indexes.computeAggregates(rows, specs)` (sum/avg/min/max/count,
+>   one per column) + exported `filterRows` so totals reuse the query
+>   engine's exact filter predicates.
+> - `aggregate` reqId RPC + hub `handleAggregate` (filter → aggregate).
+> - `SharedWorkerDataServicesClient.aggregate(providerId, filterModel, specs)`.
+> - `useSsrmDataSource({ aggregations })` auto-maintains a grand-total
+>   pinned bottom row — recomputed on filter change, ready, and (debounced)
+>   live ticks.
+> - Demo shows sums (money/P&L) + averages (price/yield) in a pinned row.
 >
 > **Engine extraction (row-shaping) — deferred, by design.** The
 > expression engine + formatters are verified worker-safe *code*, but
@@ -50,13 +62,13 @@
 > change (it touches the 193-test engine package and every consumer), not
 > something to rush inline. Tracked as the Phase 0 build task.
 >
-> Totals: 409 host-data tests green; host-data / host-data-react / grid /
+> Totals: 414 host-data tests green; host-data / host-data-react / grid /
 > demo typecheck clean.
 >
 > **Not yet (next):** worker-safe engine extraction → row-shaping (calc
-> cols / formatted strings / style tokens), aggregates over all rows
-> (grand totals / status bar), grouping/pivot, surgical realtime (adds +
-> re-sort). See §7 phases 2–7.
+> cols / formatted strings / style tokens), grouping/pivot, surgical
+> realtime (adds + re-sort), incremental indexes (replace on-demand scans).
+> See §7 phases 2–7.
 
 
 

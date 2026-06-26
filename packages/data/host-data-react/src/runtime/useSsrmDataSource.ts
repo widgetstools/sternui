@@ -9,7 +9,11 @@
  *   2. Opens a `control` subscription so the worker starts and keeps the
  *      provider running (its cache feeds the queries) WITHOUT streaming
  *      the dataset to this window. When the provider reaches `ready` (or
- *      re-snapshots) it refreshes the grid so blocks re-pull.
+ *      re-snapshots) it refreshes the grid so blocks re-pull; live ticks
+ *      apply via `applyServerSideTransactionAsync`.
+ *   3. When `aggregations` are supplied, maintains a grand-total pinned
+ *      bottom row computed over the FILTERED full dataset in the worker
+ *      (re-pulled on filter change, ready, and live ticks).
  *
  * Returns a binding object that plugs straight into `MarketsGrid`'s
  * `serverSide` prop — no other grid wiring needed. See
@@ -17,13 +21,21 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { SsrmDataProvider, type SsrmDatasourceLike } from '@starui/host-data/runtime';
+import {
+  SsrmDataProvider,
+  type SsrmDatasourceLike,
+  type SsrmAggregation,
+} from '@starui/host-data/runtime';
 import { useDataServicesContext } from './DataServicesProvider.js';
 
 /** Minimal structural view of the AG-Grid API this hook touches (no AG-Grid dep). */
 interface GridApiLike {
   refreshServerSide?(params?: { route?: readonly string[]; purge?: boolean }): void;
   applyServerSideTransactionAsync?(transaction: { update?: unknown[]; add?: unknown[]; remove?: unknown[] }): void;
+  getFilterModel?(): Record<string, unknown>;
+  setGridOption?(key: string, value: unknown): void;
+  addEventListener?(event: string, listener: () => void): void;
+  removeEventListener?(event: string, listener: () => void): void;
   isDestroyed?(): boolean;
 }
 
@@ -34,6 +46,14 @@ export interface UseSsrmDataSourceOptions {
   blockLoadDebounceMillis?: number;
   /** Pre-allocated row count for the first paint. Optional. */
   serverSideInitialRowCount?: number;
+  /**
+   * Grand-total columns. When set, the hook maintains a pinned bottom row
+   * whose values are computed over the FILTERED full dataset in the
+   * worker (one aggregate per column id).
+   */
+  aggregations?: readonly SsrmAggregation[];
+  /** Debounce (ms) for recomputing grand totals on live ticks. Default 300. */
+  aggregateDebounceMs?: number;
 }
 
 /**
@@ -67,13 +87,45 @@ export function useSsrmDataSource(
   const { client } = useDataServicesContext();
   const apiRef = useRef<GridApiLike | null>(null);
 
+  // Keep the latest aggregation specs in a ref so the stable recompute
+  // callback always reads current values without re-subscribing.
+  const aggsRef = useRef<readonly SsrmAggregation[] | undefined>(options.aggregations);
+  aggsRef.current = options.aggregations;
+  const debounceMs = options.aggregateDebounceMs ?? 300;
+  const aggTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const datasource = useMemo(() => {
     if (!providerId) return null;
     return new SsrmDataProvider((request) => client.query(providerId, request));
   }, [client, providerId]);
 
+  // Recompute grand totals over the filtered full set and push them into
+  // the pinned bottom row. No-op when no aggregations are configured.
+  const recomputeAggregates = useCallback(() => {
+    const api = apiRef.current;
+    const specs = aggsRef.current;
+    if (!providerId || !api || api.isDestroyed?.() || !specs || specs.length === 0) return;
+    const filterModel = api.getFilterModel?.() ?? null;
+    client
+      .aggregate(providerId, filterModel, specs)
+      .then((values) => {
+        const live = apiRef.current;
+        if (live && !live.isDestroyed?.()) live.setGridOption?.('pinnedBottomRowData', [values]);
+      })
+      .catch(() => { /* transient — next trigger recomputes */ });
+  }, [client, providerId]);
+
+  const scheduleRecompute = useCallback(() => {
+    if (aggTimer.current) clearTimeout(aggTimer.current);
+    aggTimer.current = setTimeout(() => {
+      aggTimer.current = null;
+      recomputeAggregates();
+    }, debounceMs);
+  }, [recomputeAggregates, debounceMs]);
+
   // Open the control subscription: starts + keeps the provider alive so
-  // queries have data, and refreshes the grid when the cache is ready.
+  // queries have data, refreshes the grid when ready, and recomputes
+  // grand totals on ready + each live tick.
   useEffect(() => {
     if (!providerId || !datasource) return;
     const subId = client.attachControl(providerId, {
@@ -81,6 +133,7 @@ export function useSsrmDataSource(
         if (status !== 'ready') return;
         const api = apiRef.current;
         if (api && !api.isDestroyed?.()) api.refreshServerSide?.({ purge: true });
+        recomputeAggregates();
       },
       // Live ticks: apply the conflated delta to loaded blocks in place.
       // Rows outside loaded blocks are ignored by AG-Grid; new rows and
@@ -88,25 +141,36 @@ export function useSsrmDataSource(
       // phase makes those surgical too — see docs/SSRM_WORKER_PLAN.md).
       onTxn: (rows) => {
         const api = apiRef.current;
-        if (!rows.length || !api || api.isDestroyed?.()) return;
-        api.applyServerSideTransactionAsync?.({ update: rows as unknown[] });
+        if (rows.length && api && !api.isDestroyed?.()) {
+          api.applyServerSideTransactionAsync?.({ update: rows as unknown[] });
+        }
+        scheduleRecompute();
       },
     });
     return () => {
       client.detach(subId);
       datasource.destroy?.();
+      if (aggTimer.current) clearTimeout(aggTimer.current);
     };
-  }, [client, providerId, datasource]);
+  }, [client, providerId, datasource, recomputeAggregates, scheduleRecompute]);
+
+  // Stable handler so it can be removed on teardown.
+  const filterChangedRef = useRef<() => void>(() => {});
+  filterChangedRef.current = recomputeAggregates;
 
   const onGridReady = useCallback((api: unknown) => {
-    apiRef.current = api as GridApiLike;
+    const gridApi = api as GridApiLike;
+    apiRef.current = gridApi;
     // Cache may already be warm (a peer window started the provider) —
     // pull the first blocks immediately rather than waiting for a status.
-    (api as GridApiLike).refreshServerSide?.({ purge: true });
-  }, []);
+    gridApi.refreshServerSide?.({ purge: true });
+    gridApi.addEventListener?.('filterChanged', () => filterChangedRef.current());
+    recomputeAggregates();
+  }, [recomputeAggregates]);
 
   const onGridPreDestroyed = useCallback(() => {
     apiRef.current = null;
+    if (aggTimer.current) clearTimeout(aggTimer.current);
   }, []);
 
   const getSetFilterValues = useCallback(

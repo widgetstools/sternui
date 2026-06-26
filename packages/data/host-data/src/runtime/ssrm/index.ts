@@ -6,8 +6,8 @@
  * pure TypeScript. See docs/SSRM_WORKER_PLAN.md.
  */
 
-export { runQuery } from './queryEngine.js';
-export { distinctValues } from './indexes.js';
+export { runQuery, filterRows } from './queryEngine.js';
+export { distinctValues, computeAggregates } from './indexes.js';
 export { SsrmDataProvider } from './SsrmDataProvider.js';
 export type {
   SsrmDatasourceLike,
@@ -20,4 +20,6 @@ export type {
   SsrmColumnVO,
   SsrmQueryResult,
   SsrmQueryOptions,
+  SsrmAggregation,
+  SsrmAggFunc,
 } from './types.js';

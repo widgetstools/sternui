@@ -9,7 +9,7 @@
  * optimization (see docs/SSRM_WORKER_PLAN.md §5).
  */
 
-import type { SsrmQueryOptions } from './types.js';
+import type { SsrmAggregation, SsrmQueryOptions } from './types.js';
 
 /** Default dot-path value getter (mirrors the query engine's). */
 function getByPath(row: unknown, path: string): unknown {
@@ -49,5 +49,43 @@ export function distinctValues(
     if (typeof a === 'number' && typeof b === 'number') return a - b;
     return String(a).localeCompare(String(b));
   });
+  return out;
+}
+
+/**
+ * Grand-total aggregates over a row set (the caller filters first, so
+ * these are over the FILTERED full dataset, not the loaded rows). One
+ * aggregate per column id, keyed by colId. Nullish / non-numeric cells
+ * are skipped; an empty column yields 0.
+ */
+export function computeAggregates(
+  rows: readonly unknown[],
+  specs: readonly SsrmAggregation[],
+  options: SsrmQueryOptions = {},
+): Record<string, number> {
+  const getValue = options.getValue ?? getByPath;
+  const out: Record<string, number> = {};
+  for (const { colId, func } of specs) {
+    let sum = 0;
+    let count = 0;
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    for (const row of rows) {
+      const v = getValue(row, colId);
+      if (v == null || v === '') continue;
+      const n = typeof v === 'number' ? v : Number(v);
+      if (Number.isNaN(n)) continue;
+      sum += n;
+      count += 1;
+      if (n < min) min = n;
+      if (n > max) max = n;
+    }
+    out[colId] =
+      func === 'sum' ? sum
+      : func === 'avg' ? (count ? sum / count : 0)
+      : func === 'min' ? (count ? min : 0)
+      : func === 'max' ? (count ? max : 0)
+      : count;
+  }
   return out;
 }

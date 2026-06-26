@@ -48,6 +48,15 @@ export interface SsrmGetRowsRequest {
   pivotMode?: boolean;
 }
 
+/** Aggregation function supported by the worker grand-total pass. */
+export type SsrmAggFunc = 'sum' | 'avg' | 'min' | 'max' | 'count';
+
+/** One column's grand-total request (one aggregate per column). */
+export interface SsrmAggregation {
+  colId: string;
+  func: SsrmAggFunc;
+}
+
 /** Worker → grid block response. */
 export interface SsrmQueryResult {
   /** The shaped rows for the requested block. */

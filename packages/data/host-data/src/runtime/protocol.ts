@@ -12,7 +12,7 @@
  */
 
 import type { DataProviderConfig, ProviderConfig, ProviderType } from '@starui/types';
-import type { SsrmGetRowsRequest } from './ssrm/types.js';
+import type { SsrmGetRowsRequest, SsrmAggregation } from './ssrm/types.js';
 
 // ─── AppData row shape (mirrors AppDataConfig from probes/appdata) ─
 
@@ -214,6 +214,20 @@ export interface SetFilterValuesRequest {
   colId: string;
 }
 
+/**
+ * SSRM grand-total request. The hub filters the full cache by
+ * `filterModel`, then computes one aggregate per column over the
+ * resulting set (the filtered FULL dataset, not loaded rows). Correlated
+ * by `reqId`.
+ */
+export interface AggregateRequest {
+  kind: 'aggregate';
+  reqId: string;
+  providerId: string;
+  filterModel?: Record<string, unknown> | null;
+  aggregations: readonly SsrmAggregation[];
+}
+
 /** One attached hub subscriber (data or stats mode). */
 export interface HubSubscriberIntrospectRow {
   subId: string;
@@ -357,6 +371,7 @@ export type Request =
   | RefreshProviderRequest
   | QueryRequest
   | SetFilterValuesRequest
+  | AggregateRequest
   | HubIntrospectRequest;
 
 // ─── Worker → Client events ────────────────────────────────────────
@@ -579,6 +594,15 @@ export interface SetFilterValuesResultEvent {
   error?: string;
 }
 
+/** Response to an {@link AggregateRequest}, routed by `reqId`. Values keyed by colId. */
+export interface AggregateResultEvent {
+  kind: 'aggregate-result';
+  reqId: string;
+  ok: boolean;
+  values?: Record<string, number>;
+  error?: string;
+}
+
 // ─── Worker → Client AppData events ────────────────────────────────
 
 /**
@@ -638,6 +662,7 @@ export function isRequest(value: unknown): value is Request {
     k === 'refresh-provider' ||
     k === 'query' ||
     k === 'set-filter-values' ||
+    k === 'aggregate' ||
     k === 'hub-introspect'
   );
 }
@@ -650,6 +675,11 @@ export function isQueryEvent(value: unknown): value is QueryResultEvent {
 export function isSetFilterValuesEvent(value: unknown): value is SetFilterValuesResultEvent {
   if (!value || typeof value !== 'object') return false;
   return (value as { kind?: string }).kind === 'set-filter-values-result';
+}
+
+export function isAggregateEvent(value: unknown): value is AggregateResultEvent {
+  if (!value || typeof value !== 'object') return false;
+  return (value as { kind?: string }).kind === 'aggregate-result';
 }
 
 export function isEvent(value: unknown): value is Event {

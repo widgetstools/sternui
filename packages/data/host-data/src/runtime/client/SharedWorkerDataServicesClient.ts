@@ -44,12 +44,15 @@ import type {
   Request,
   RowPatch,
   SetFilterValuesResultEvent,
+  AggregateResultEvent,
   StopRequest,
   SubscriberMeta,
 } from '../protocol.js';
-import type { SsrmGetRowsRequest, SsrmQueryResult } from '../ssrm/types.js';
+import type { SsrmGetRowsRequest, SsrmQueryResult, SsrmAggregation } from '../ssrm/types.js';
 import { SUBSCRIBER_PING_INTERVAL_MS } from '../worker/hubTypes.js';
-import { isCatalogEvent, isEvent, isAppDataEvent, isQueryEvent, isSetFilterValuesEvent } from '../protocol.js';
+import {
+  isCatalogEvent, isEvent, isAppDataEvent, isQueryEvent, isSetFilterValuesEvent, isAggregateEvent,
+} from '../protocol.js';
 import { composeRowId, type DataProviderConfig, type ProviderConfig } from '@starui/types';
 import { decodeColumnar } from '../wire/columnarCodec.js';
 import type { ListOptions } from '../config/store.js';
@@ -211,6 +214,11 @@ export class SharedWorkerDataServicesClient {
   private readonly setFilterPending = new Map<
     string,
     { resolve: (values: unknown[]) => void; reject: (err: Error) => void }
+  >();
+  /** In-flight SSRM `aggregate` RPCs, keyed by reqId. */
+  private readonly aggregatePending = new Map<
+    string,
+    { resolve: (values: Record<string, number>) => void; reject: (err: Error) => void }
   >();
   private readonly catalogReadyWaiters: Array<() => void> = [];
   private readonly catalogChangeListeners = new Set<(detail: CatalogChangeDetail) => void>();
@@ -577,6 +585,26 @@ export class SharedWorkerDataServicesClient {
     });
   }
 
+  /**
+   * Grand-total aggregates over the provider's full cache filtered by
+   * `filterModel` — for an SSRM pinned grand-total row / status bar that
+   * reflects every matching row, not just the loaded ones.
+   */
+  aggregate(
+    providerId: string,
+    filterModel: Record<string, unknown> | null | undefined,
+    aggregations: readonly SsrmAggregation[],
+  ): Promise<Record<string, number>> {
+    if (this.closed) {
+      return Promise.reject(new Error('[SharedWorkerDataServicesClient] client is closed'));
+    }
+    const reqId = crypto.randomUUID();
+    return new Promise<Record<string, number>>((resolve, reject) => {
+      this.aggregatePending.set(reqId, { resolve, reject });
+      this.send({ kind: 'aggregate', reqId, providerId, filterModel, aggregations });
+    });
+  }
+
   detach(subId: SubId): void {
     if (!this.subs.delete(subId)) return;
     this.thinSubs.delete(subId);
@@ -769,6 +797,10 @@ export class SharedWorkerDataServicesClient {
       pending.reject(new Error('[SharedWorkerDataServicesClient] client closed'));
     }
     this.setFilterPending.clear();
+    for (const [, pending] of this.aggregatePending) {
+      pending.reject(new Error('[SharedWorkerDataServicesClient] client closed'));
+    }
+    this.aggregatePending.clear();
     for (const resolve of this.catalogReadyWaiters) resolve();
     this.catalogReadyWaiters.length = 0;
     this.catalogChangeListeners.clear();
@@ -916,6 +948,10 @@ export class SharedWorkerDataServicesClient {
       this.routeSetFilterValuesEvent(ev.data);
       return;
     }
+    if (isAggregateEvent(ev.data)) {
+      this.routeAggregateEvent(ev.data);
+      return;
+    }
     if (isAppDataEvent(ev.data)) {
       this.routeAppDataEvent(ev.data);
       return;
@@ -1056,6 +1092,14 @@ export class SharedWorkerDataServicesClient {
     this.setFilterPending.delete(event.reqId);
     if (event.ok) pending.resolve([...(event.values ?? [])]);
     else pending.reject(new Error(event.error ?? 'SSRM set-filter-values failed'));
+  }
+
+  private routeAggregateEvent(event: AggregateResultEvent): void {
+    const pending = this.aggregatePending.get(event.reqId);
+    if (!pending) return;
+    this.aggregatePending.delete(event.reqId);
+    if (event.ok) pending.resolve({ ...(event.values ?? {}) });
+    else pending.reject(new Error(event.error ?? 'SSRM aggregate failed'));
   }
 
   private routeCatalogEvent(event: CatalogEvent): void {

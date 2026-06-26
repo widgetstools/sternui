@@ -155,3 +155,31 @@ describe('SharedWorkerDataServicesHub — set-filter values', () => {
     expect(result?.values).toEqual(['APAC', 'EU', 'US']);
   });
 });
+
+describe('SharedWorkerDataServicesHub — aggregate', () => {
+  it('aggregates over the FILTERED full cache, not just loaded rows', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makePort();
+    attachControl(hub, port);
+    emitFn!({
+      rows: [
+        { id: 1, side: 'BUY', qty: 100 },
+        { id: 2, side: 'SELL', qty: 40 },
+        { id: 3, side: 'BUY', qty: 50 },
+      ],
+      replace: true,
+    });
+
+    hub.handleRequest(port, {
+      kind: 'aggregate',
+      reqId: 'a1',
+      providerId: 'p1',
+      filterModel: { side: { filterType: 'set', values: ['BUY'] } },
+      aggregations: [{ colId: 'qty', func: 'sum' }],
+    });
+
+    const result = port.messages.find((m) => m.kind === 'aggregate-result');
+    expect(result?.ok).toBe(true);
+    expect(result?.values).toEqual({ qty: 150 }); // 100 + 50 (BUY only)
+  });
+});

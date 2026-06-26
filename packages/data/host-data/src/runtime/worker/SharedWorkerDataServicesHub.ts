@@ -68,13 +68,15 @@ import type {
   QueryResultEvent,
   SetFilterValuesRequest,
   SetFilterValuesResultEvent,
+  AggregateRequest,
+  AggregateResultEvent,
   HubIntrospectRequest,
   HubIntrospectSnapshot,
   HubProviderIntrospectRow,
   HubSubscriberIntrospectRow,
 } from '../protocol.js';
-import { runQuery } from '../ssrm/queryEngine.js';
-import { distinctValues } from '../ssrm/indexes.js';
+import { runQuery, filterRows } from '../ssrm/queryEngine.js';
+import { distinctValues, computeAggregates } from '../ssrm/indexes.js';
 import { startProvider } from '../providers/registry.js';
 import { diffTopLevel } from '../wire/rowDiff.js';
 import type { ProviderEmit, ProviderEmitEvent, ProviderHandle } from '../providers/Provider.js';
@@ -206,6 +208,7 @@ export class SharedWorkerDataServicesHub {
       case 'refresh-provider': this.handleRefreshProvider(req); return;
       case 'query': this.handleQuery(port, req); return;
       case 'set-filter-values': this.handleSetFilterValues(port, req); return;
+      case 'aggregate': this.handleAggregate(port, req); return;
       case 'hub-introspect': this.handleHubIntrospect(port, req); return;
     }
   }
@@ -262,6 +265,32 @@ export class SharedWorkerDataServicesHub {
         ok: false,
         error: err instanceof Error ? err.message : String(err),
       } satisfies SetFilterValuesResultEvent);
+    }
+  }
+
+  /**
+   * SSRM grand totals: filter the full cache by `filterModel`, then
+   * aggregate over the result (so totals reflect the filtered FULL
+   * dataset, not loaded rows). Correlated by `reqId`.
+   */
+  private handleAggregate(port: PortLike, req: AggregateRequest): void {
+    try {
+      const slot = this.providers.get(req.providerId);
+      const rows = slot ? [...slot.cache.values()] : [];
+      const filtered = filterRows(rows, req.filterModel);
+      port.postMessage({
+        kind: 'aggregate-result',
+        reqId: req.reqId,
+        ok: true,
+        values: computeAggregates(filtered, req.aggregations),
+      } satisfies AggregateResultEvent);
+    } catch (err) {
+      port.postMessage({
+        kind: 'aggregate-result',
+        reqId: req.reqId,
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      } satisfies AggregateResultEvent);
     }
   }
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { MarketsGrid, createMarketsGridLocalStorageStorage } from '@starui/grid';
 import { useDataServices, useUserIdFromContext } from '@starui/host-data-react/runtime';
-import { useSsrmDataSource } from '@starui/host-data-react/runtime';
+import { useSsrmDataSource, type SsrmAggregation } from '@starui/host-data-react/runtime';
 import {
   stompHistoricalProviderDraft,
   stompProviderDraft,
@@ -31,6 +31,23 @@ const EMPTY: never[] = [];
 
 /** Persist grid layout/profiles in localStorage (no appId/userId needed). */
 const storage = createMarketsGridLocalStorageStorage();
+
+/**
+ * Grand-total columns — computed in the worker over the FILTERED full
+ * dataset (every matching row, not just the loaded blocks) and shown in
+ * a pinned bottom row. Sums for money/P&L, averages for price/yield.
+ */
+const AGGREGATIONS: SsrmAggregation[] = [
+  { colId: 'notionalAmount', func: 'sum' },
+  { colId: 'marketValue', func: 'sum' },
+  { colId: 'pnl', func: 'sum' },
+  { colId: 'unrealizedPnl', func: 'sum' },
+  { colId: 'realizedPnl', func: 'sum' },
+  { colId: 'dailyPnl', func: 'sum' },
+  { colId: 'currentPrice', func: 'avg' },
+  { colId: 'yield', func: 'avg' },
+  { colId: 'spread', func: 'avg' },
+];
 
 export function App() {
   const { configStore } = useDataServices();
@@ -68,7 +85,10 @@ export function App() {
 
   // SSRM binding — turns each grid block request into a worker `query`
   // RPC and keeps the provider running via a `control` subscription.
-  const serverSide = useSsrmDataSource(providerId, { cacheBlockSize: 200 });
+  const serverSide = useSsrmDataSource(providerId, {
+    cacheBlockSize: 200,
+    aggregations: AGGREGATIONS,
+  });
 
   // Categorical columns get a set filter whose options come from the
   // worker's distinct-values index over the FULL cache (not just loaded

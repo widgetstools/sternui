@@ -47,15 +47,18 @@ export type {
   QueryResultEvent,
   SetFilterValuesRequest,
   SetFilterValuesResultEvent,
+  AggregateRequest,
+  AggregateResultEvent,
   SsrmTxnEvent,
 } from './protocol.js';
 export {
-  isRequest, isEvent, isAppDataRequest, isAppDataEvent, isQueryEvent, isSetFilterValuesEvent,
+  isRequest, isEvent, isAppDataRequest, isAppDataEvent,
+  isQueryEvent, isSetFilterValuesEvent, isAggregateEvent,
 } from './protocol.js';
 
 // SSRM (Server-Side Row Model) query path — worker engine + client
 // datasource, both framework-agnostic. See docs/SSRM_WORKER_PLAN.md.
-export { runQuery, distinctValues, SsrmDataProvider } from './ssrm/index.js';
+export { runQuery, filterRows, distinctValues, computeAggregates, SsrmDataProvider } from './ssrm/index.js';
 export type {
   SsrmDatasourceLike,
   SsrmGetRowsParamsLike,
@@ -65,6 +68,8 @@ export type {
   SsrmColumnVO,
   SsrmQueryResult,
   SsrmQueryOptions,
+  SsrmAggregation,
+  SsrmAggFunc,
 } from './ssrm/index.js';
 
 // Wire codecs — typed-array columnar frames + thin-delta row diffing.
