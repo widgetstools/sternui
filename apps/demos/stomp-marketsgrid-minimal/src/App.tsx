@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { MarketsGrid, createMarketsGridLocalStorageStorage } from '@starui/grid';
 import { useDataServices, useUserIdFromContext } from '@starui/host-data-react/runtime';
-import { useSsrmDataSource, type SsrmAggregation } from '@starui/host-data-react/runtime';
+import {
+  useSsrmDataSource,
+  type SsrmAggregation,
+  type SsrmShapingSpec,
+} from '@starui/host-data-react/runtime';
 import {
   stompHistoricalProviderDraft,
   stompProviderDraft,
@@ -37,6 +41,18 @@ const storage = createMarketsGridLocalStorageStorage();
  * dataset (every matching row, not just the loaded blocks) and shown in
  * a pinned bottom row. Sums for money/P&L, averages for price/yield.
  */
+/**
+ * Calculated column baked in the worker: `Total PnL = realized +
+ * unrealized`. The value is written onto each row by the worker, so its
+ * colDef below is a plain `{ field: 'totalPnl' }` — NO `valueGetter`, so
+ * the per-cell expression cost never touches the UI thread. (Phase 1
+ * shaping bakes the block after filter/sort, so calc columns are
+ * display-only — not yet sortable/filterable.)
+ */
+const SHAPING: SsrmShapingSpec = {
+  calcColumns: [{ field: 'totalPnl', expression: '[realizedPnl] + [unrealizedPnl]' }],
+};
+
 const AGGREGATIONS: SsrmAggregation[] = [
   { colId: 'notionalAmount', func: 'sum' },
   { colId: 'marketValue', func: 'sum' },
@@ -88,6 +104,7 @@ export function App() {
   const serverSide = useSsrmDataSource(providerId, {
     cacheBlockSize: 200,
     aggregations: AGGREGATIONS,
+    shaping: SHAPING,
   });
 
   // Categorical columns get a set filter whose options come from the
@@ -96,24 +113,36 @@ export function App() {
   const getSetFilterValues = serverSide?.getSetFilterValues;
   const columnDefs = useMemo<ColDef[]>(() => {
     const base = POSITIONS_COLUMN_DEFS as unknown as ColDef[];
-    if (!getSetFilterValues) return base;
     const SET_FILTER_FIELDS = new Set([
       'instrumentType', 'bookName', 'portfolio', 'trader', 'desk', 'region',
       'country', 'rating.moody', 'rating.sp', 'rating.fitch',
     ]);
-    return base.map((col) => {
-      const field = col.field;
-      if (!field || !SET_FILTER_FIELDS.has(field)) return col;
-      return {
-        ...col,
-        filter: 'agSetColumnFilter',
-        filterParams: {
-          values: (p: { success: (values: unknown[]) => void }) => {
-            void getSetFilterValues(field).then((values) => p.success(values));
-          },
-        },
-      } as ColDef;
-    });
+    const withFilters = getSetFilterValues
+      ? base.map((col) => {
+          const field = col.field;
+          if (!field || !SET_FILTER_FIELDS.has(field)) return col;
+          return {
+            ...col,
+            filter: 'agSetColumnFilter',
+            filterParams: {
+              values: (p: { success: (values: unknown[]) => void }) => {
+                void getSetFilterValues(field).then((values) => p.success(values));
+              },
+            },
+          } as ColDef;
+        })
+      : base;
+    // Worker-baked calc column — plain field read, no valueGetter.
+    // Display-only for now (shaped after filter/sort).
+    const calc: ColDef = {
+      field: 'totalPnl',
+      headerName: 'Total PnL',
+      cellDataType: 'number',
+      sortable: false,
+      filter: false,
+      resizable: true,
+    };
+    return [...withFilters, calc];
   }, [getSetFilterValues]);
 
   if (!providerId || !serverSide) return null;

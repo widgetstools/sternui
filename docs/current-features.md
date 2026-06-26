@@ -848,6 +848,10 @@ modules).
 **Path:** `packages/shared/engine`
 **Purpose:** Framework-agnostic vanilla TS grid runtime engine — store, event bus, expression engine, customizer logic.
 
+**Subpaths:**
+- `@starui/engine` — full barrel.
+- `@starui/engine/worker` — pure, **DOM-free** slice for Web/Shared Workers: `ExpressionEngine` (+ `EvaluationContext`/`ExpressionNode`/`CompiledExpression` types) and `valueFormatterFromTemplate` (+ `Formatter`/`ValueFormatterTemplate`/`PresetId`). Used by the SSRM data worker to bake calc columns / formatted strings off the UI thread. Built as a separate `vite` lib entry so the rest of the engine (CSS injection, theme DOM reads) never reaches the worker.
+
 #### Platform runtime
 
 - `GridPlatform` — per-grid singleton (store, api, events, rows, resources, pipeline)
@@ -1250,6 +1254,7 @@ Moves filter/sort/paginate off the UI thread into the worker. The grid pulls row
 - **Realtime (Phase 3a):** hub forwards conflated post-ready live ticks (changed rows only — not the snapshot) to control subscribers as `ssrm-txn`; `useSsrmDataSource` applies them via `applyServerSideTransactionAsync({ update })`. Update-only for now (new rows / sort moves reconcile on next refresh)
 - **Set-filter values (Phase 2a):** `distinctValues(rows, colId)` (dedup, locale/numeric-sorted, nullish-dropped, dot-path aware); `set-filter-values` reqId RPC → hub `handleSetFilterValues` over the full cache; `SharedWorkerDataServicesClient.getSetFilterValues(providerId, colId)`; `useSsrmDataSource().getSetFilterValues(colId)` feeds an SSRM set filter's async `values` callback so it shows every option, not just loaded rows
 - **All-rows aggregates (Phase 2b):** `computeAggregates(rows, specs)` (`sum`/`avg`/`min`/`max`/`count`, one per column) + `filterRows(rows, filterModel)`; `aggregate` reqId RPC → hub `handleAggregate` (filter full cache → aggregate, so grand totals reflect the filtered FULL dataset not loaded rows); `SharedWorkerDataServicesClient.aggregate(providerId, filterModel, specs)`; `useSsrmDataSource({ aggregations })` auto-maintains a grand-total pinned bottom row (recomputed on filter change, ready, and debounced live ticks)
+- **Row shaping — calc columns (Phase 0 + 1):** `@starui/engine/worker` (new DOM-free engine subpath: `ExpressionEngine` + `valueFormatterFromTemplate`); `shapeRows(block, spec, allFiltered)` bakes calculated columns into each block as real fields (same `{ x, value, data, columns, allRows }` eval context as the main-thread `valueGetter`; `allRows` = filtered set so dataset-wide aggregate expressions work); `runQuery` `shapeBlock` hook keeps the query engine dependency-free; `useSsrmDataSource({ shaping })` threads `SsrmShapingSpec` (`{ calcColumns: [{ field, expression }] }`) into each block so calc-column colDefs are plain `{ field }` with no `valueGetter`. Display-only for now (shaped after filter/sort)
 - `AppDataMirror` — synchronous main-thread view of AppData
 - `WorkerAppDataStore` — worker-side IndexedDB persistence
 

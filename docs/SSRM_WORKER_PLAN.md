@@ -54,21 +54,38 @@
 >   live ticks.
 > - Demo shows sums (money/P&L) + averages (price/yield) in a pinned row.
 >
-> **Engine extraction (row-shaping) — deferred, by design.** The
-> expression engine + formatters are verified worker-safe *code*, but
-> `@starui/engine` ships as a single-entry bundled lib (`vite` lib mode +
-> `dts({ rollupTypes })`). Cleanly exposing a `/worker` subpath means
-> reworking that multi-entry + dts build — a focused, separately-verified
-> change (it touches the 193-test engine package and every consumer), not
-> something to rush inline. Tracked as the Phase 0 build task.
+> **Status — Phase 0 + Phase 1 shaping landed (engine extraction + calc
+> columns).** The worker now ships **render-ready rows**:
+> - `@starui/engine/worker` — a new, DOM-free lib entry re-exporting the
+>   pure shaping primitives (expression engine + `valueFormatterFromTemplate`).
+>   Engine `vite` build is now multi-entry (`index` + `worker`) with
+>   per-entry rolled `.d.ts`; the worker chunk has zero `document`/`window`/
+>   `getComputedStyle` (only guarded `navigator`, valid in workers). The
+>   main `.` export is byte-compatible — all 289 engine tests + every
+>   consumer still pass.
+> - `ssrm/shaping.shapeRows(block, spec, allFiltered)` — bakes calculated
+>   columns into each block as real fields using the SAME eval context the
+>   main-thread `valueGetter` uses (`{ x, value, data, columns, allRows }`),
+>   so a column means the same thing either way. `allRows` is the filtered
+>   set (the worker holds it), so dataset-wide aggregate expressions
+>   (`[v] / SUM([v])`) work — better than the main-thread path.
+> - `runQuery` gains an injected `shapeBlock` hook (query engine stays
+>   dependency-free); hub wires it from `request.shaping`.
+> - `useSsrmDataSource({ shaping })` threads a `SsrmShapingSpec` into every
+>   block request. Calc-column colDefs become plain `{ field }` — no
+>   `valueGetter`, so the per-cell cost leaves the UI thread.
+> - Demo bakes a `Total PnL` calc column.
+> - **Known limit:** shaping runs after filter/sort on the block, so calc
+>   columns are display-only (not yet sortable/filterable). Formatted
+>   strings + conditional-style tokens are the next shaping slice.
 >
-> Totals: 414 host-data tests green; host-data / host-data-react / grid /
-> demo typecheck clean.
+> Totals: 418 host-data tests + 289 engine tests green; host-data /
+> host-data-react / grid / demo typecheck clean; worker bundle DOM-free.
 >
-> **Not yet (next):** worker-safe engine extraction → row-shaping (calc
-> cols / formatted strings / style tokens), grouping/pivot, surgical
-> realtime (adds + re-sort), incremental indexes (replace on-demand scans).
-> See §7 phases 2–7.
+> **Not yet (next):** shaping — formatted strings + conditional-style
+> tokens baked into blocks; grouping/pivot; surgical realtime (adds +
+> re-sort); incremental indexes (replace on-demand scans); calc columns
+> sortable/filterable (shape before slice). See §7 phases 2–7.
 
 
 

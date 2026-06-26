@@ -29,6 +29,27 @@ export interface SsrmColumnVO {
 }
 
 /**
+ * A calculated column baked in the worker: its `expression` (the engine
+ * DSL) is evaluated per row and written to `field` as a real data value,
+ * so the grid's colDef is a plain `{ field }` with NO `valueGetter` —
+ * the per-cell expression cost leaves the UI thread entirely.
+ */
+export interface SsrmCalcColumn {
+  field: string;
+  expression: string;
+}
+
+/**
+ * Row-shaping directives the worker applies to each returned block, so
+ * the grid receives render-ready rows. Phase 1 covers calculated
+ * columns; formatted strings + conditional-style tokens follow. See
+ * docs/SSRM_WORKER_PLAN.md.
+ */
+export interface SsrmShapingSpec {
+  calcColumns?: readonly SsrmCalcColumn[];
+}
+
+/**
  * Block request the grid sends per `getRows`. A subset of AG-Grid's
  * `IServerSideGetRowsRequest`. `startRow`/`endRow` are the half-open
  * block bounds; the rest describe the current sort/filter/group state.
@@ -46,6 +67,8 @@ export interface SsrmGetRowsRequest {
   pivotCols?: readonly SsrmColumnVO[];
   groupKeys?: readonly unknown[];
   pivotMode?: boolean;
+  /** Worker row-shaping (calc columns, …). */
+  shaping?: SsrmShapingSpec;
 }
 
 /** Aggregation function supported by the worker grand-total pass. */

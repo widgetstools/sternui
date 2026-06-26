@@ -58,11 +58,14 @@ export {
 
 // SSRM (Server-Side Row Model) query path — worker engine + client
 // datasource, both framework-agnostic. See docs/SSRM_WORKER_PLAN.md.
-export { runQuery, filterRows, distinctValues, computeAggregates, SsrmDataProvider } from './ssrm/index.js';
+export {
+  runQuery, filterRows, distinctValues, computeAggregates, shapeRows, SsrmDataProvider,
+} from './ssrm/index.js';
 export type {
   SsrmDatasourceLike,
   SsrmGetRowsParamsLike,
   SsrmFetchBlock,
+  SsrmShapeBlock,
   SsrmGetRowsRequest,
   SsrmSortModelItem,
   SsrmColumnVO,
@@ -70,6 +73,8 @@ export type {
   SsrmQueryOptions,
   SsrmAggregation,
   SsrmAggFunc,
+  SsrmCalcColumn,
+  SsrmShapingSpec,
 } from './ssrm/index.js';
 
 // Wire codecs — typed-array columnar frames + thin-delta row diffing.

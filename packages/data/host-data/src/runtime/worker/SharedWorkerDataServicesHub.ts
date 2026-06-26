@@ -77,6 +77,7 @@ import type {
 } from '../protocol.js';
 import { runQuery, filterRows } from '../ssrm/queryEngine.js';
 import { distinctValues, computeAggregates } from '../ssrm/indexes.js';
+import { shapeRows } from '../ssrm/shaping.js';
 import { startProvider } from '../providers/registry.js';
 import { diffTopLevel } from '../wire/rowDiff.js';
 import type { ProviderEmit, ProviderEmitEvent, ProviderHandle } from '../providers/Provider.js';
@@ -225,7 +226,12 @@ export class SharedWorkerDataServicesHub {
     try {
       const slot = this.providers.get(req.providerId);
       const rows = slot ? [...slot.cache.values()] : [];
-      const result = runQuery(rows, req.request);
+      const shaping = req.request.shaping;
+      const shapeBlock = shaping
+        ? (block: readonly unknown[], allFiltered: readonly unknown[]) =>
+            shapeRows(block, shaping, allFiltered)
+        : undefined;
+      const result = runQuery(rows, req.request, {}, shapeBlock);
       port.postMessage({
         kind: 'query-result',
         reqId: req.reqId,

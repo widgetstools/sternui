@@ -6,10 +6,15 @@ export default defineConfig({
   plugins: [dts({ rollupTypes: true })],
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
-      name: 'StarGridEngine',
+      // Multi-entry: the main barrel plus a pure, DOM-free `worker` entry
+      // (expression engine + formatters) that the SSRM data worker bundles
+      // without dragging in the rest of the engine. Outputs index.{js,cjs}
+      // + worker.{js,cjs}. See src/worker/index.ts + docs/SSRM_WORKER_PLAN.md.
+      entry: {
+        index: resolve(__dirname, 'src/index.ts'),
+        worker: resolve(__dirname, 'src/worker/index.ts'),
+      },
       formats: ['es', 'cjs'],
-      fileName: 'index',
     },
     rollupOptions: {
       external: [

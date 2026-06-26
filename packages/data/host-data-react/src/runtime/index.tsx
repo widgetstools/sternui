@@ -397,6 +397,8 @@ export type {
   ProviderStatus,
   SsrmAggregation,
   SsrmAggFunc,
+  SsrmCalcColumn,
+  SsrmShapingSpec,
 } from '@starui/host-data/runtime';
 export type {
   HubIntrospectSnapshot,

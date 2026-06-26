@@ -249,16 +249,30 @@ function applySort(
 // ─── Entry point ────────────────────────────────────────────────────
 
 /**
+ * Row-shaping hook: given the sliced block and the full filtered set (for
+ * dataset-wide aggregate expressions), return render-ready rows. Injected
+ * by the caller so the query engine itself stays dependency-free — the
+ * shaper (which pulls in the expression engine) lives in `shaping.ts`.
+ */
+export type SsrmShapeBlock = (
+  block: readonly unknown[],
+  allFiltered: readonly unknown[],
+) => unknown[];
+
+/**
  * Run one SSRM block request against an in-memory row set.
  *
- * @param rows    The full row set (e.g. `[...providerSlot.cache.values()]`).
- * @param request The grid's block request.
- * @param options Value resolution overrides.
+ * @param rows       The full row set (e.g. `[...providerSlot.cache.values()]`).
+ * @param request    The grid's block request.
+ * @param options    Value resolution overrides.
+ * @param shapeBlock Optional shaper applied to the block before return
+ *                   (receives the full filtered set as `allRows`).
  */
 export function runQuery(
   rows: readonly unknown[],
   request: SsrmGetRowsRequest,
   options: SsrmQueryOptions = {},
+  shapeBlock?: SsrmShapeBlock,
 ): SsrmQueryResult {
   const getValue = options.getValue ?? getByPath;
 
@@ -269,5 +283,6 @@ export function runQuery(
   const end = request.endRow ?? sorted.length;
   const block = sorted.slice(start, end);
 
-  return { rows: block as unknown[], lastRow: sorted.length };
+  const shaped = shapeBlock ? shapeBlock(block, filtered) : (block as unknown[]);
+  return { rows: shaped, lastRow: sorted.length };
 }

@@ -25,6 +25,7 @@ import {
   SsrmDataProvider,
   type SsrmDatasourceLike,
   type SsrmAggregation,
+  type SsrmShapingSpec,
 } from '@starui/host-data/runtime';
 import { useDataServicesContext } from './DataServicesProvider.js';
 
@@ -54,6 +55,12 @@ export interface UseSsrmDataSourceOptions {
   aggregations?: readonly SsrmAggregation[];
   /** Debounce (ms) for recomputing grand totals on live ticks. Default 300. */
   aggregateDebounceMs?: number;
+  /**
+   * Worker row-shaping — e.g. calculated columns baked into each block as
+   * real fields, so their colDef is a plain `{ field }` with no
+   * `valueGetter` and the per-cell cost stays off the UI thread.
+   */
+  shaping?: SsrmShapingSpec;
 }
 
 /**
@@ -94,9 +101,17 @@ export function useSsrmDataSource(
   const debounceMs = options.aggregateDebounceMs ?? 300;
   const aggTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Shaping config is read through a ref so the datasource stays
+  // referentially stable (no grid reset) when only the spec changes.
+  const shapingRef = useRef<SsrmShapingSpec | undefined>(options.shaping);
+  shapingRef.current = options.shaping;
+
   const datasource = useMemo(() => {
     if (!providerId) return null;
-    return new SsrmDataProvider((request) => client.query(providerId, request));
+    return new SsrmDataProvider((request) => {
+      const shaping = shapingRef.current;
+      return client.query(providerId, shaping ? { ...request, shaping } : request);
+    });
   }, [client, providerId]);
 
   // Recompute grand totals over the filtered full set and push them into
