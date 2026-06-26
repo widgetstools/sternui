@@ -70,7 +70,31 @@ export function App() {
   // RPC and keeps the provider running via a `control` subscription.
   const serverSide = useSsrmDataSource(providerId, { cacheBlockSize: 200 });
 
-  const columnDefs = useMemo(() => POSITIONS_COLUMN_DEFS as unknown as ColDef[], []);
+  // Categorical columns get a set filter whose options come from the
+  // worker's distinct-values index over the FULL cache (not just loaded
+  // rows) — see useSsrmDataSource.getSetFilterValues.
+  const getSetFilterValues = serverSide?.getSetFilterValues;
+  const columnDefs = useMemo<ColDef[]>(() => {
+    const base = POSITIONS_COLUMN_DEFS as unknown as ColDef[];
+    if (!getSetFilterValues) return base;
+    const SET_FILTER_FIELDS = new Set([
+      'instrumentType', 'bookName', 'portfolio', 'trader', 'desk', 'region',
+      'country', 'rating.moody', 'rating.sp', 'rating.fitch',
+    ]);
+    return base.map((col) => {
+      const field = col.field;
+      if (!field || !SET_FILTER_FIELDS.has(field)) return col;
+      return {
+        ...col,
+        filter: 'agSetColumnFilter',
+        filterParams: {
+          values: (p: { success: (values: unknown[]) => void }) => {
+            void getSetFilterValues(field).then((values) => p.success(values));
+          },
+        },
+      } as ColDef;
+    });
+  }, [getSetFilterValues]);
 
   if (!providerId || !serverSide) return null;
 

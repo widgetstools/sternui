@@ -1248,6 +1248,7 @@ Moves filter/sort/paginate off the UI thread into the worker. The grid pulls row
 - protocol: `query` / `query-result` reqId-correlated RPC; `attach` `mode: 'control'` — starts + keeps a provider alive so its cache answers queries, delivering `status` + realtime `ssrm-txn` only (no snapshot/full-dataset `delta` fan-out); `isQueryEvent`
 - `SharedWorkerDataServicesClient.query(providerId, request)` + `attachControl(providerId, { onStatus, onTxn? })`; hub `handleQuery` runs `runQuery` over `ProviderSlot.cache`; control listeners tracked for liveness/auto-stop, status broadcast, and post-ready realtime forwarding
 - **Realtime (Phase 3a):** hub forwards conflated post-ready live ticks (changed rows only — not the snapshot) to control subscribers as `ssrm-txn`; `useSsrmDataSource` applies them via `applyServerSideTransactionAsync({ update })`. Update-only for now (new rows / sort moves reconcile on next refresh)
+- **Set-filter values (Phase 2a):** `distinctValues(rows, colId)` (dedup, locale/numeric-sorted, nullish-dropped, dot-path aware); `set-filter-values` reqId RPC → hub `handleSetFilterValues` over the full cache; `SharedWorkerDataServicesClient.getSetFilterValues(providerId, colId)`; `useSsrmDataSource().getSetFilterValues(colId)` feeds an SSRM set filter's async `values` callback so it shows every option, not just loaded rows
 - `AppDataMirror` — synchronous main-thread view of AppData
 - `WorkerAppDataStore` — worker-side IndexedDB persistence
 

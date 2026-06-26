@@ -45,12 +45,17 @@ export type {
   CatalogReadyEvent,
   QueryRequest,
   QueryResultEvent,
+  SetFilterValuesRequest,
+  SetFilterValuesResultEvent,
+  SsrmTxnEvent,
 } from './protocol.js';
-export { isRequest, isEvent, isAppDataRequest, isAppDataEvent, isQueryEvent } from './protocol.js';
+export {
+  isRequest, isEvent, isAppDataRequest, isAppDataEvent, isQueryEvent, isSetFilterValuesEvent,
+} from './protocol.js';
 
 // SSRM (Server-Side Row Model) query path — worker engine + client
 // datasource, both framework-agnostic. See docs/SSRM_WORKER_PLAN.md.
-export { runQuery, SsrmDataProvider } from './ssrm/index.js';
+export { runQuery, distinctValues, SsrmDataProvider } from './ssrm/index.js';
 export type {
   SsrmDatasourceLike,
   SsrmGetRowsParamsLike,

@@ -66,12 +66,15 @@ import type {
   RefreshProviderRequest,
   QueryRequest,
   QueryResultEvent,
+  SetFilterValuesRequest,
+  SetFilterValuesResultEvent,
   HubIntrospectRequest,
   HubIntrospectSnapshot,
   HubProviderIntrospectRow,
   HubSubscriberIntrospectRow,
 } from '../protocol.js';
 import { runQuery } from '../ssrm/queryEngine.js';
+import { distinctValues } from '../ssrm/indexes.js';
 import { startProvider } from '../providers/registry.js';
 import { diffTopLevel } from '../wire/rowDiff.js';
 import type { ProviderEmit, ProviderEmitEvent, ProviderHandle } from '../providers/Provider.js';
@@ -202,6 +205,7 @@ export class SharedWorkerDataServicesHub {
       case 'config-invalidate': void this.handleConfigInvalidate(port, req); return;
       case 'refresh-provider': this.handleRefreshProvider(req); return;
       case 'query': this.handleQuery(port, req); return;
+      case 'set-filter-values': this.handleSetFilterValues(port, req); return;
       case 'hub-introspect': this.handleHubIntrospect(port, req); return;
     }
   }
@@ -233,6 +237,31 @@ export class SharedWorkerDataServicesHub {
         ok: false,
         error: err instanceof Error ? err.message : String(err),
       } satisfies QueryResultEvent);
+    }
+  }
+
+  /**
+   * SSRM set-filter values: distinct values of a column across the full
+   * provider cache (every row, not just loaded blocks). Correlated by
+   * `reqId`. Empty when the provider has no cache yet.
+   */
+  private handleSetFilterValues(port: PortLike, req: SetFilterValuesRequest): void {
+    try {
+      const slot = this.providers.get(req.providerId);
+      const rows = slot ? [...slot.cache.values()] : [];
+      port.postMessage({
+        kind: 'set-filter-values-result',
+        reqId: req.reqId,
+        ok: true,
+        values: distinctValues(rows, req.colId),
+      } satisfies SetFilterValuesResultEvent);
+    } catch (err) {
+      port.postMessage({
+        kind: 'set-filter-values-result',
+        reqId: req.reqId,
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      } satisfies SetFilterValuesResultEvent);
     }
   }
 

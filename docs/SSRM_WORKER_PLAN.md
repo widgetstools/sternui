@@ -29,13 +29,34 @@
 >   moves reconcile on next refresh, not surgically); no conflation tuning
 >   knob yet beyond the provider's own throttle.
 >
-> Totals: 404 host-data tests green; host-data / host-data-react / grid /
+> **Status — Phase 2a landed (set-filter values).** SSRM set filters now
+> show every option across the **full** worker cache, not just loaded
+> rows:
+> - `ssrm/indexes.distinctValues(rows, colId)` — distinct, display-sorted,
+>   nullish-dropped, dot-path aware (scanned on demand; incremental
+>   `Map<value,count>` index is a later optimization).
+> - `set-filter-values` reqId RPC + hub `handleSetFilterValues`.
+> - `SharedWorkerDataServicesClient.getSetFilterValues(providerId, colId)`;
+>   `useSsrmDataSource` exposes `getSetFilterValues(colId)` for an SSRM set
+>   filter's async `values` callback.
+> - Demo wires set filters on the categorical columns.
+> - 5 new tests.
+>
+> **Engine extraction (row-shaping) — deferred, by design.** The
+> expression engine + formatters are verified worker-safe *code*, but
+> `@starui/engine` ships as a single-entry bundled lib (`vite` lib mode +
+> `dts({ rollupTypes })`). Cleanly exposing a `/worker` subpath means
+> reworking that multi-entry + dts build — a focused, separately-verified
+> change (it touches the 193-test engine package and every consumer), not
+> something to rush inline. Tracked as the Phase 0 build task.
+>
+> Totals: 409 host-data tests green; host-data / host-data-react / grid /
 > demo typecheck clean.
 >
-> **Not yet (next):** row-shaping (calc cols / formatted strings / style
-> tokens baked into blocks — needs the worker-safe engine extraction),
-> incremental indexes (set-filter values, aggregates over all rows),
-> grouping/pivot, surgical realtime (adds + re-sort). See §7 phases 2–7.
+> **Not yet (next):** worker-safe engine extraction → row-shaping (calc
+> cols / formatted strings / style tokens), aggregates over all rows
+> (grand totals / status bar), grouping/pivot, surgical realtime (adds +
+> re-sort). See §7 phases 2–7.
 
 
 

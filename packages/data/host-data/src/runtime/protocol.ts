@@ -202,6 +202,18 @@ export interface QueryRequest {
   request: SsrmGetRowsRequest;
 }
 
+/**
+ * SSRM set-filter values request. The hub returns the distinct values of
+ * `colId` across the FULL provider cache (not just loaded rows) so a
+ * paginated grid's set filter shows every option. Correlated by `reqId`.
+ */
+export interface SetFilterValuesRequest {
+  kind: 'set-filter-values';
+  reqId: string;
+  providerId: string;
+  colId: string;
+}
+
 /** One attached hub subscriber (data or stats mode). */
 export interface HubSubscriberIntrospectRow {
   subId: string;
@@ -344,6 +356,7 @@ export type Request =
   | ConfigInvalidateRequest
   | RefreshProviderRequest
   | QueryRequest
+  | SetFilterValuesRequest
   | HubIntrospectRequest;
 
 // ─── Worker → Client events ────────────────────────────────────────
@@ -557,6 +570,15 @@ export interface QueryResultEvent {
   error?: string;
 }
 
+/** Response to a {@link SetFilterValuesRequest}, routed by `reqId`. */
+export interface SetFilterValuesResultEvent {
+  kind: 'set-filter-values-result';
+  reqId: string;
+  ok: boolean;
+  values?: readonly unknown[];
+  error?: string;
+}
+
 // ─── Worker → Client AppData events ────────────────────────────────
 
 /**
@@ -615,6 +637,7 @@ export function isRequest(value: unknown): value is Request {
     k === 'config-invalidate' ||
     k === 'refresh-provider' ||
     k === 'query' ||
+    k === 'set-filter-values' ||
     k === 'hub-introspect'
   );
 }
@@ -622,6 +645,11 @@ export function isRequest(value: unknown): value is Request {
 export function isQueryEvent(value: unknown): value is QueryResultEvent {
   if (!value || typeof value !== 'object') return false;
   return (value as { kind?: string }).kind === 'query-result';
+}
+
+export function isSetFilterValuesEvent(value: unknown): value is SetFilterValuesResultEvent {
+  if (!value || typeof value !== 'object') return false;
+  return (value as { kind?: string }).kind === 'set-filter-values-result';
 }
 
 export function isEvent(value: unknown): value is Event {

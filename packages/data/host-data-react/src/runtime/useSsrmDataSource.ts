@@ -52,6 +52,12 @@ export interface SsrmGridBinding {
   onGridReady?(api: unknown): void;
   /** Called by the grid host inside its `onGridPreDestroyed`. */
   onGridPreDestroyed?(): void;
+  /**
+   * Distinct values of a column across the FULL worker cache — wire into
+   * an SSRM set filter's async `values` callback:
+   * `filterParams: { values: (p) => binding.getSetFilterValues(colId).then(p.success) }`.
+   */
+  getSetFilterValues(colId: string): Promise<unknown[]>;
 }
 
 export function useSsrmDataSource(
@@ -103,6 +109,12 @@ export function useSsrmDataSource(
     apiRef.current = null;
   }, []);
 
+  const getSetFilterValues = useCallback(
+    (colId: string): Promise<unknown[]> =>
+      providerId ? client.getSetFilterValues(providerId, colId) : Promise.resolve([]),
+    [client, providerId],
+  );
+
   return useMemo(() => {
     if (!datasource) return null;
     return {
@@ -113,6 +125,7 @@ export function useSsrmDataSource(
       serverSideInitialRowCount: options.serverSideInitialRowCount,
       onGridReady,
       onGridPreDestroyed,
+      getSetFilterValues,
     };
   }, [
     datasource,
@@ -121,5 +134,6 @@ export function useSsrmDataSource(
     options.serverSideInitialRowCount,
     onGridReady,
     onGridPreDestroyed,
+    getSetFilterValues,
   ]);
 }

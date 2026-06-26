@@ -43,12 +43,13 @@ import type {
   QueryResultEvent,
   Request,
   RowPatch,
+  SetFilterValuesResultEvent,
   StopRequest,
   SubscriberMeta,
 } from '../protocol.js';
 import type { SsrmGetRowsRequest, SsrmQueryResult } from '../ssrm/types.js';
 import { SUBSCRIBER_PING_INTERVAL_MS } from '../worker/hubTypes.js';
-import { isCatalogEvent, isEvent, isAppDataEvent, isQueryEvent } from '../protocol.js';
+import { isCatalogEvent, isEvent, isAppDataEvent, isQueryEvent, isSetFilterValuesEvent } from '../protocol.js';
 import { composeRowId, type DataProviderConfig, type ProviderConfig } from '@starui/types';
 import { decodeColumnar } from '../wire/columnarCodec.js';
 import type { ListOptions } from '../config/store.js';
@@ -205,6 +206,11 @@ export class SharedWorkerDataServicesClient {
   private readonly queryPending = new Map<
     string,
     { resolve: (result: SsrmQueryResult) => void; reject: (err: Error) => void }
+  >();
+  /** In-flight SSRM `set-filter-values` RPCs, keyed by reqId. */
+  private readonly setFilterPending = new Map<
+    string,
+    { resolve: (values: unknown[]) => void; reject: (err: Error) => void }
   >();
   private readonly catalogReadyWaiters: Array<() => void> = [];
   private readonly catalogChangeListeners = new Set<(detail: CatalogChangeDetail) => void>();
@@ -555,6 +561,22 @@ export class SharedWorkerDataServicesClient {
     });
   }
 
+  /**
+   * Distinct values of a column across the provider's full worker-side
+   * cache — feeds an SSRM set filter's async `values` callback so it
+   * shows every option, not just the loaded rows.
+   */
+  getSetFilterValues(providerId: string, colId: string): Promise<unknown[]> {
+    if (this.closed) {
+      return Promise.reject(new Error('[SharedWorkerDataServicesClient] client is closed'));
+    }
+    const reqId = crypto.randomUUID();
+    return new Promise<unknown[]>((resolve, reject) => {
+      this.setFilterPending.set(reqId, { resolve, reject });
+      this.send({ kind: 'set-filter-values', reqId, providerId, colId });
+    });
+  }
+
   detach(subId: SubId): void {
     if (!this.subs.delete(subId)) return;
     this.thinSubs.delete(subId);
@@ -743,6 +765,10 @@ export class SharedWorkerDataServicesClient {
       pending.reject(new Error('[SharedWorkerDataServicesClient] client closed'));
     }
     this.queryPending.clear();
+    for (const [, pending] of this.setFilterPending) {
+      pending.reject(new Error('[SharedWorkerDataServicesClient] client closed'));
+    }
+    this.setFilterPending.clear();
     for (const resolve of this.catalogReadyWaiters) resolve();
     this.catalogReadyWaiters.length = 0;
     this.catalogChangeListeners.clear();
@@ -886,6 +912,10 @@ export class SharedWorkerDataServicesClient {
       this.routeQueryEvent(ev.data);
       return;
     }
+    if (isSetFilterValuesEvent(ev.data)) {
+      this.routeSetFilterValuesEvent(ev.data);
+      return;
+    }
     if (isAppDataEvent(ev.data)) {
       this.routeAppDataEvent(ev.data);
       return;
@@ -1018,6 +1048,14 @@ export class SharedWorkerDataServicesClient {
     } else {
       pending.reject(new Error(event.error ?? 'SSRM query failed'));
     }
+  }
+
+  private routeSetFilterValuesEvent(event: SetFilterValuesResultEvent): void {
+    const pending = this.setFilterPending.get(event.reqId);
+    if (!pending) return;
+    this.setFilterPending.delete(event.reqId);
+    if (event.ok) pending.resolve([...(event.values ?? [])]);
+    else pending.reject(new Error(event.error ?? 'SSRM set-filter-values failed'));
   }
 
   private routeCatalogEvent(event: CatalogEvent): void {

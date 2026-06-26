@@ -7,6 +7,7 @@
  */
 
 export { runQuery } from './queryEngine.js';
+export { distinctValues } from './indexes.js';
 export { SsrmDataProvider } from './SsrmDataProvider.js';
 export type {
   SsrmDatasourceLike,

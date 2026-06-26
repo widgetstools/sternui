@@ -129,3 +129,29 @@ describe('SharedWorkerDataServicesHub — query RPC', () => {
     expect(result?.lastRow).toBe(0);
   });
 });
+
+describe('SharedWorkerDataServicesHub — set-filter values', () => {
+  it('returns distinct, sorted column values across the whole cache', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makePort();
+    attachControl(hub, port);
+    emitFn!({
+      rows: [
+        { id: 1, region: 'US' },
+        { id: 2, region: 'EU' },
+        { id: 3, region: 'US' },
+        { id: 4, region: null },
+        { id: 5, region: 'APAC' },
+      ],
+      replace: true,
+    });
+
+    hub.handleRequest(port, {
+      kind: 'set-filter-values', reqId: 'sf', providerId: 'p1', colId: 'region',
+    });
+    const result = port.messages.find((m) => m.kind === 'set-filter-values-result');
+    expect(result?.ok).toBe(true);
+    // Distinct, nullish dropped, locale-sorted.
+    expect(result?.values).toEqual(['APAC', 'EU', 'US']);
+  });
+});
