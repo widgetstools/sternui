@@ -94,6 +94,13 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
     [gridOptions, hostOverrideKeys],
   );
 
+  // In Server-Side Row Model the grid pulls rows from `serverSideDatasource`;
+  // passing `rowData` (even `[]`) makes AG-Grid demand ClientSideRowModelModule
+  // (#200). Omit it so SSRM grids never touch the client-side row model.
+  const isServerSide =
+    (pipelineGridOptions as { rowModelType?: string }).rowModelType === 'serverSide';
+  const effectiveRowData = isServerSide ? undefined : rowData;
+
   const streamSafeComponents = useMemo(
     () => buildStreamSafeComponents(
       columnDefs as Parameters<typeof buildStreamSafeComponents>[0],
@@ -128,7 +135,7 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
         {...pipelineGridOptions}
         {...hostOverrides}
         theme={theme}
-        rowData={rowData}
+        rowData={effectiveRowData}
         columnDefs={columnDefs as never}
         maintainColumnOrder
         cellSelection={true}

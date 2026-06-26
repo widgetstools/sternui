@@ -35,7 +35,16 @@ export function reactResolveConfig(appDir) {
   const reactDomRoot = join(reactRootDir, 'node_modules/react-dom');
 
   return {
-    dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+    dedupe: [
+      'react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime',
+      // AG-Grid keeps its module registry on a module-scoped singleton, so a
+      // second copy (e.g. an app that declares ag-grid directly while
+      // @starui/grid resolves the root copy) splits the registry — the grid
+      // renders against one instance while AllEnterpriseModule was registered
+      // into the other, surfacing as "module not registered" #200 errors
+      // (server-side row model, row grouping, …). Force one instance.
+      'ag-grid-community', 'ag-grid-enterprise', 'ag-grid-react',
+    ],
     alias: [
       { find: /^react$/, replacement: join(reactRoot, 'index.js') },
       { find: /^react-dom$/, replacement: join(reactDomRoot, 'index.js') },
