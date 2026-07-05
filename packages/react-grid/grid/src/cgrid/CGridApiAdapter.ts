@@ -314,10 +314,19 @@ export class CGridApiAdapter<TData extends AnyRow = AnyRow> {
   }
 
   addEventListener(eventType: string, listener: (event: unknown) => void): void {
+    // AG payload synthesis: cgrid events carry rowId/colId; StarUI's
+    // editing modules read AG's node/data/column/colDef off the event.
+    const enrich = (event: unknown): unknown => {
+      const e = event as { rowId?: string; colId?: string } & Record<string, unknown>;
+      if (typeof e?.rowId !== 'string' || typeof e?.colId !== 'string') return event;
+      const node = this.getRowNode(e.rowId);
+      const column = this.getColumn(e.colId);
+      return { ...e, node, data: node?.data, column, colDef: column?.getColDef() };
+    };
     const off = subscribeAgEvent(
       { on: (type, handler) => this.grid.on(type as never, handler as never) },
       eventType,
-      listener,
+      (event) => listener(enrich(event)),
     );
     this.unsubscribers.push(off);
     this.listenerOffs.set(listener, off);
