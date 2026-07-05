@@ -1,5 +1,6 @@
 import {
   forwardRef,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -39,6 +40,7 @@ import { ensureAgGridModules } from './ensureAgGridModules';
 import { mergeDefaultColDef } from './mergeDefaultColDef';
 import { GeneralSettingsProvider } from './GeneralSettingsContext';
 import { MarketsGridSurface } from './MarketsGridSurface';
+import { MarketsCgridSurfaceLazy } from '../cgrid/lazySurface';
 
 export { DEFAULT_MODULES, MINIMAL_MODULES } from './modules';
 
@@ -234,6 +236,7 @@ function MarketsGridInner<TData = unknown>(
   ref: ForwardedRef<MarketsGridHandle>,
 ) {
   const {
+    surface = 'ag',
     rowData,
     rowHeight,
     headerHeight,
@@ -345,6 +348,7 @@ function MarketsGridInner<TData = unknown>(
       <GridProvider platform={shell.platform}>
       <GeneralSettingsProvider value={shell.generalSettings}>
       <MarketsGridHost
+        surface={surface}
         rowData={rowData}
         columnDefs={shell.columnDefs}
         gridOptions={shell.gridOptions}
@@ -424,10 +428,38 @@ function MarketsGridCoreInner<TData = unknown>(
     gridId,
     className,
     includeAllStreamSafeFilters,
+    surface = 'ag',
   } = props;
 
   const gridRef = useRef<AgGridReact<TData>>(null);
   const shell = useMarketsGridShell(props);
+
+  if (surface === 'cgrid') {
+    return (
+      <GridProvider platform={shell.platform}>
+        <GeneralSettingsProvider value={shell.generalSettings}>
+          <div className={className} style={shell.rootStyle} data-grid-id={gridId}>
+            <Suspense fallback={null}>
+              <MarketsCgridSurfaceLazy
+                gridOptions={shell.gridOptions as Record<string, unknown>}
+                hostOverrideKeys={shell.hostOverrideKeys}
+                rowData={rowData as Record<string, unknown>[]}
+                columnDefs={shell.columnDefs as unknown[]}
+                rowHeight={rowHeight}
+                headerHeight={headerHeight}
+                animateRows={animateRows}
+                sideBar={sideBar}
+                statusBar={statusBar}
+                defaultColDef={shell.effectiveDefaultColDef as never}
+                onGridReady={shell.handleGridReady}
+                onGridPreDestroyed={shell.onGridPreDestroyed}
+              />
+            </Suspense>
+          </div>
+        </GeneralSettingsProvider>
+      </GridProvider>
+    );
+  }
 
   return (
     <GridProvider platform={shell.platform}>

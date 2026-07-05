@@ -31,6 +31,14 @@ export interface MarketsGridProps<TData = unknown> {
 
   /** Unique id per grid instance. Profile snapshots key off this. */
   gridId: string;
+  /**
+   * Grid rendering engine. `'ag'` (default) renders AG Grid Enterprise;
+   * `'cgrid'` renders the canvas-based cgrid engine behind the same
+   * platform plumbing (customizer, profiles, toolbars, providers) via
+   * `CGridApiAdapter`. The cgrid surface is lazy-loaded — AG-only
+   * consumers pay zero bundle cost. Pilot flag: flip per widget.
+   */
+  surface?: 'ag' | 'cgrid';
   /** Row data. Kept reactive — swapping triggers the usual AG-Grid diff.
    *  For live streaming, prefer keeping this prop referentially stable
    *  (e.g. pass a module-scoped `EMPTY` array) and push deltas via

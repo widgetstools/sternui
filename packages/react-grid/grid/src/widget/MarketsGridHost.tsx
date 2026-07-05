@@ -14,6 +14,7 @@
  */
 
 import {
+  Suspense,
   memo,
   useCallback,
   useEffect,
@@ -41,6 +42,7 @@ import { PrimaryToolbar } from './PrimaryToolbar';
 import { ColumnSelectorDialog } from './column-selector';
 import { UnsavedSwitchDialog } from './UnsavedSwitchDialog';
 import { MarketsGridSurface } from './MarketsGridSurface';
+import { MarketsCgridSurfaceLazy } from '../cgrid/lazySurface';
 import { buildGridContextMenuItems } from './gridContextMenu';
 import { StaleDataBanner } from './StaleDataBanner';
 import { HistoricalViewBanner } from './HistoricalViewBanner';
@@ -49,6 +51,8 @@ import { useGeneralSettingsFromContext } from './GeneralSettingsContext';
 import { useProfileSelectorActions } from './useProfileSelectorActions';
 
 export interface MarketsGridHostProps<TData> {
+  /** Grid rendering engine — see MarketsGridProps.surface. */
+  readonly surface?: 'ag' | 'cgrid';
   rowData: TData[];
   columnDefs: unknown[];
   gridOptions: Record<string, unknown>;
@@ -105,6 +109,7 @@ export interface MarketsGridHostProps<TData> {
 }
 
 function MarketsGridHostInner<TData>({
+  surface = 'ag',
   rowData,
   columnDefs,
   gridOptions,
@@ -354,24 +359,43 @@ function MarketsGridHostInner<TData>({
         </div>
       )}
 
-      <MarketsGridSurface
-        gridRef={gridRef}
-        gridOptions={gridOptions}
-        hostOverrideKeys={hostOverrideKeys}
-        theme={theme}
-        rowData={rowData}
-        columnDefs={columnDefs}
-        rowHeight={rowHeight}
-        headerHeight={headerHeight}
-        animateRows={animateRows}
-        sideBar={sideBar}
-        statusBar={statusBar}
-        defaultColDef={defaultColDef}
-        getContextMenuItems={getContextMenuItems}
-        onGridReady={handleGridReady}
-        onGridPreDestroyed={onGridPreDestroyed}
-        includeAllStreamSafeFilters={includeAllStreamSafeFilters}
-      />
+      {surface === 'cgrid' ? (
+        <Suspense fallback={null}>
+          <MarketsCgridSurfaceLazy
+            gridOptions={gridOptions as Record<string, unknown>}
+            hostOverrideKeys={hostOverrideKeys}
+            rowData={rowData as Record<string, unknown>[]}
+            columnDefs={columnDefs as unknown[]}
+            rowHeight={rowHeight}
+            headerHeight={headerHeight}
+            animateRows={animateRows}
+            sideBar={sideBar}
+            statusBar={statusBar}
+            defaultColDef={defaultColDef as never}
+            onGridReady={handleGridReady}
+            onGridPreDestroyed={onGridPreDestroyed}
+          />
+        </Suspense>
+      ) : (
+        <MarketsGridSurface
+          gridRef={gridRef}
+          gridOptions={gridOptions}
+          hostOverrideKeys={hostOverrideKeys}
+          theme={theme}
+          rowData={rowData}
+          columnDefs={columnDefs}
+          rowHeight={rowHeight}
+          headerHeight={headerHeight}
+          animateRows={animateRows}
+          sideBar={sideBar}
+          statusBar={statusBar}
+          defaultColDef={defaultColDef}
+          getContextMenuItems={getContextMenuItems}
+          onGridReady={handleGridReady}
+          onGridPreDestroyed={onGridPreDestroyed}
+          includeAllStreamSafeFilters={includeAllStreamSafeFilters}
+        />
+      )}
 
       {(settingsMounted || settingsOpen) && (
         <LazySettingsSheet

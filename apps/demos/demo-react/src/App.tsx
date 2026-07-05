@@ -23,7 +23,7 @@ import { FIXTURES, isFixtureName, type FixtureName } from './nestedFixtures';
 export const APP_ID = 'demo-react';
 export const DEMO_USER_ID = 'demo-user';
 
-type View = 'single' | 'dashboard' | 'depth' | 'fixture' | 'design-system';
+type View = 'single' | 'cgrid' | 'dashboard' | 'depth' | 'fixture' | 'design-system';
 const LIVE_TICK_INTERVAL_MS = 300;
 
 /**
@@ -36,6 +36,7 @@ function initialView(): View {
   if (typeof window === 'undefined') return 'single';
   const q = new URLSearchParams(window.location.search);
   const v = q.get('view');
+  if (v === 'cgrid') return 'cgrid';
   if (v === 'dashboard') return 'dashboard';
   if (v === 'depth') return 'depth';
   if (v === 'fixture') return 'fixture';
@@ -230,7 +231,8 @@ function AppInner({
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const q = new URLSearchParams(window.location.search);
-    if (view === 'dashboard') q.set('view', 'dashboard');
+    if (view === 'cgrid') q.set('view', 'cgrid');
+    else if (view === 'dashboard') q.set('view', 'dashboard');
     else if (view === 'depth') q.set('view', 'depth');
     else if (view === 'fixture') q.set('view', 'fixture');
     else if (view === 'design-system') q.set('view', 'design-system');
@@ -266,7 +268,7 @@ function AppInner({
   // the dirty cells (conditional styling's flash rule picks up the
   // cellValueChanged event and fires the pulse).
   useEffect(() => {
-    if (!ticking || view !== 'single') return;
+    if (!ticking || (view !== 'single' && view !== 'cgrid')) return;
     const stop = startLiveTicking(rowData, (updates) => {
       const api = gridApiRef.current;
       if (!api) return;
@@ -295,6 +297,9 @@ function AppInner({
         {/* View switcher — Single Grid vs Dashboard. Pins the demo to
             one of the two reference layouts that the e2e suites cover. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} data-testid="view-switcher">
+          <ViewTab active={view === 'cgrid'} onClick={() => setView('cgrid')} testId="view-tab-cgrid">
+            CGRID PILOT
+          </ViewTab>
           <ViewTab active={view === 'single'} onClick={() => setView('single')} testId="view-tab-single">
             Single grid
           </ViewTab>
@@ -396,6 +401,23 @@ function AppInner({
         >
           Pass <code>?view=fixture&amp;f=&lt;name&gt;</code> with one of:&nbsp;
           {Object.keys(FIXTURES).join(', ')}.
+        </div>
+      ) : view === 'cgrid' ? (
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <MarketsGrid
+            gridId="demo-blotter-cgrid"
+            surface="cgrid"
+            rowData={rowData}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            rowIdField="id"
+            storage={storage}
+            appId={APP_ID}
+            userId={DEMO_USER_ID}
+            onGridReady={handleGridReady}
+            sideBar={DEMO_BLOTTER_SIDE_BAR}
+            statusBar={DEMO_BLOTTER_STATUS_BAR}
+          />
         </div>
       ) : view === 'single' ? (
         <div style={{ flex: 1 }}>
