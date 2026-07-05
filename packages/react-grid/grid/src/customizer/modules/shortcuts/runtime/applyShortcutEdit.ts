@@ -1,4 +1,4 @@
-import type { GridApi } from 'ag-grid-community';
+import type { MarketsGridApi } from '@starui/engine';
 import {
   applyForwardPatches,
   buildShortcutPatches,
@@ -15,7 +15,7 @@ export interface ApplyShortcutOptions {
 }
 
 export async function applyShortcutEdit(
-  api: GridApi,
+  api: MarketsGridApi,
   options: {
     cells: Parameters<typeof buildShortcutPatches>[0]['cells'];
     key: string;

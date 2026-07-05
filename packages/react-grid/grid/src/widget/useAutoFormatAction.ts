@@ -6,22 +6,22 @@
  * Reads every column from the live grid, matches each field against the
  * FI/equity field-format catalog (`buildAutoFormatPlan`), and applies the
  * resolved NATIVE formatting in ONE profile-persisted state update (overwrite
- * mode). Self-contained: reaches the live `GridApi` + module store through the
+ * mode). Self-contained: reaches the live `MarketsGridApi` + module store through the
  * platform context, and no-ops harmlessly when mounted outside a
  * `<GridProvider>`.
  */
 import { useCallback, useEffect, useState } from 'react';
-import type { GridApi } from 'ag-grid-community';
 import {
   applyAutoFormatPlanReducer,
   buildAutoFormatPlan,
   type AutoFormatColumn,
   type ColumnCustomizationState,
 } from '@starui/engine';
+import type { MarketsGridApi } from '@starui/engine';
 import { useOptionalGridPlatform } from '../customizer/hooks/GridProvider';
 import { useFlashConfirm } from './formattingToolbarHooks';
 
-function readColumns(api: GridApi): AutoFormatColumn[] {
+function readColumns(api: MarketsGridApi): AutoFormatColumn[] {
   const out: AutoFormatColumn[] = [];
   for (const col of api.getColumns() ?? []) {
     const colId = col.getColId();
@@ -51,7 +51,7 @@ export interface AutoFormatAction {
 
 export function useAutoFormatAction(): AutoFormatAction {
   const platform = useOptionalGridPlatform();
-  const [api, setApi] = useState<GridApi | null>(platform?.api.api ?? null);
+  const [api, setApi] = useState<MarketsGridApi | null>(platform?.api.api ?? null);
   const [confirmed, flash] = useFlashConfirm();
 
   useEffect(() => {

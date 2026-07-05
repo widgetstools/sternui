@@ -1,4 +1,3 @@
-import type { GridApi } from 'ag-grid-community';
 import {
   applyForwardPatches,
   applyNumericOp,
@@ -10,9 +9,10 @@ import {
   type SmartEditOp,
   type TargetCell,
 } from '@starui/engine';
+import type { MarketsGridApi } from '@starui/engine';
 import { withJournalApplyGuard } from '../../../editing/journalApplyGuard.js';
 
-export function resolveTargetCells(api: GridApi, rowIdField = 'id'): TargetCell[] {
+export function resolveTargetCells(api: MarketsGridApi, rowIdField = 'id'): TargetCell[] {
   const getRowId = (data: Record<string, unknown>) => String(data[rowIdField] ?? data.id ?? '');
   const fromRange = collectTargetCells(api as never, getRowId);
   if (fromRange.length > 0) return fromRange;
@@ -38,7 +38,7 @@ export interface ApplyEditsOptions {
 }
 
 export async function applyEdits(
-  api: GridApi,
+  api: MarketsGridApi,
   cells: TargetCell[],
   op: SmartEditOp,
   operand: number,

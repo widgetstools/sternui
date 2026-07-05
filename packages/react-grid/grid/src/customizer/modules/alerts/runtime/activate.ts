@@ -25,7 +25,7 @@
  * falsely fire relativeChange alerts against a stale baseline.
  */
 
-import type { GridApi, Module, PlatformHandle, RowChange } from '@starui/engine';
+import type { MarketsGridApi, Module, PlatformHandle, RowChange } from '@starui/engine';
 import { detectRowChanges, type AlertsState } from '@starui/engine';
 
 /** Structural shape of an AG-Grid row node — avoids leaking an ag-grid import. */
@@ -57,7 +57,7 @@ function hasEnabledRowChangeRules(rules: ReadonlyArray<{ enabled: boolean; trigg
   return rules.some((r) => r.enabled && r.trigger.kind === 'rowChange');
 }
 
-function snapshotRowIds(api: GridApi): Set<string> {
+function snapshotRowIds(api: MarketsGridApi): Set<string> {
   const ids = new Set<string>();
   try {
     api.forEachNode((node) => {

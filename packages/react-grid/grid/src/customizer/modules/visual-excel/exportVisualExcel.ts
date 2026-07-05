@@ -1,8 +1,8 @@
-import type { GridApi } from 'ag-grid-community';
 import {
   defaultVisualExcelFileName,
   type VisualExcelState,
 } from '@starui/engine';
+import type { MarketsGridApi } from '@starui/engine';
 
 export interface VisualExcelExportOptions {
   fileName?: string;
@@ -14,7 +14,7 @@ export interface VisualExcelExportOptions {
 
 /** Export grid data to Excel preserving display formatters and style-rule colours. */
 export function exportVisualExcel(
-  api: GridApi,
+  api: MarketsGridApi,
   settings: VisualExcelState['settings'],
   options: VisualExcelExportOptions = {},
 ): void {
@@ -26,6 +26,6 @@ export function exportVisualExcel(
     author: 'MarketsGrid',
     exportedRows: options.exportedRows ?? 'filteredAndSorted',
     onlySelected: options.onlySelected ?? false,
-    processCellCallback: (params) => params.formatValue(params.value),
+    processCellCallback: (params: { value: unknown; formatValue: (v: unknown) => string }) => params.formatValue(params.value),
   });
 }

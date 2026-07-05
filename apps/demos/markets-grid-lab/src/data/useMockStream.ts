@@ -1,5 +1,5 @@
+import type { MarketsGridApi } from '@starui/engine';
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import type { GridApi } from 'ag-grid-community';
 import { useProviderStream } from '@starui/host-data-react/runtime';
 import type { MockProviderConfig } from '@starui/types';
 import { applyLabStreamDelta } from './applyLabStreamDelta';
@@ -13,7 +13,7 @@ export type StreamDeltaTransform = (
 
 export interface MockStreamBindings {
   /** Set from MarketsGrid `onReady` — ticks route through transactions once set. */
-  gridApiRef: RefObject<GridApi | null>;
+  gridApiRef: RefObject<MarketsGridApi | null>;
   /** Optional per-tick overlay (e.g. active demo scenario). */
   transformDelta?: StreamDeltaTransform;
 }

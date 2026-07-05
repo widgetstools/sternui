@@ -30,6 +30,106 @@ export type AnyColDef = ColDef | ColGroupDef;
 
 export type { GridApi, GridOptions, GetRowIdFunc, GetRowIdParams };
 
+// ─── MarketsGridApi — the structural grid-api seam ─────────────────────────
+//
+// The subset of AG's `GridApi` the platform + modules actually call,
+// with row/column objects loosened to structural facades. BOTH engines
+// satisfy it: AG's `GridApi` (its `Column`/`IRowNode` classes carry every
+// facade member) and the cgrid surface's `CGridApiAdapter`. The platform
+// is typed against THIS, never against `GridApi`, so swapping the engine
+// under a widget never touches module code.
+//
+// Grown strictly by usage: add a member here only when a module/host call
+// site needs it, and mirror it on `CGridApiAdapter` in the same change.
+
+/** Structural row-node facade — the slice of AG's `IRowNode` call sites use. */
+export interface MarketsRowNode<TData = any> {
+  readonly id: string | undefined;
+  readonly data: TData | undefined;
+  setData?(data: TData): void;
+  setDataValue?(colKey: string, value: unknown): void;
+}
+
+/** Structural column facade — the slice of AG's `Column` call sites use. */
+export interface MarketsColumn {
+  getColId(): string;
+  // `any`, not Record<…>: AG's ColDef class has no index signature, and
+  // call sites read typed fields off it (field, headerName, editable…).
+  getColDef(): any;
+  isVisible(): boolean;
+  getActualWidth(): number;
+  getLeft(): number | null;
+}
+
+export interface MarketsGridApi {
+  // Data pipeline
+  applyTransaction(tx: { add?: any[]; update?: any[]; remove?: any[] }): unknown;
+  applyTransactionAsync(tx: { add?: any[]; update?: any[]; remove?: any[] }, callback?: (res?: any) => void): void;
+  flushAsyncTransactions(): void;
+
+  // Options
+  setGridOption(key: string, value: any): void;
+  getGridOption(key: string): any;
+  updateGridOptions(options: Record<string, any>): void;
+
+  // Rows
+  getRowNode(id: string): MarketsRowNode<any> | undefined;
+  forEachNode(fn: (node: any, index?: number) => void): void;
+  forEachNodeAfterFilter(fn: (node: any, index?: number) => void): void;
+  getDisplayedRowCount(): number;
+  getDisplayedRowAtIndex(index: number): MarketsRowNode<any> | undefined;
+  getCellValue(params: { rowNode: any; colKey: string; useFormatter?: boolean }): any;
+
+  // Columns
+  getColumns(): MarketsColumn[] | null;
+  getAllDisplayedColumns(): MarketsColumn[];
+  getColumn(key: string): MarketsColumn | null | undefined;
+  getColumnState(): any[];
+  applyColumnState(params: { state?: any[]; applyOrder?: boolean; defaultState?: any }): unknown;
+  setColumnsVisible(keys: string[], visible: boolean): void;
+  sizeColumnsToFit(params?: any): void;
+  autoSizeColumns(keys: string[]): void;
+  autoSizeAllColumns(): void;
+
+  // Filters / search
+  getFilterModel(): any;
+  setFilterModel(model: any): void;
+  getColumnFilterModel(colId: string): any;
+  setColumnFilterModel(colId: string, model: any): Promise<void>;
+  onFilterChanged(): void;
+
+  // Selection / focus / ranges
+  getCellRanges(): any[] | null;
+  getFocusedCell(): any;
+
+  // Editing
+  stopEditing(cancel?: boolean): void;
+  getEditingCells(): any[];
+
+  // Refresh / flash
+  refreshCells(params?: any): void;
+  refreshHeader(): void;
+  flashCells(params?: any): void;
+
+  // Grid state (profiles)
+  getState(): any;
+  setState(state: any): void;
+
+  // Viewport
+  ensureIndexVisible(index: number, position?: 'auto' | 'top' | 'middle' | 'bottom' | null): void;
+  ensureColumnVisible(key: string, position?: 'auto' | 'start' | 'middle' | 'end'): void;
+  getFirstDisplayedRowIndex(): number;
+  getHorizontalPixelRange(): { left: number; right: number };
+
+  // Export (AG-native today; cgrid routes via @cgrid/export in M4+)
+  exportDataAsExcel(params?: any): void;
+
+  // Lifecycle / events
+  isDestroyed(): boolean;
+  addEventListener(eventType: string, listener: (event?: any) => void): void;
+  removeEventListener(eventType: string, listener: (event?: any) => void): void;
+}
+
 // ─── Persistence envelope ──────────────────────────────────────────────────
 
 /**
@@ -111,13 +211,13 @@ export type ApiEventName =
   | 'rowValueChanged';
 
 export interface ApiHub {
-  /** The live GridApi, or null if the grid hasn't mounted yet. */
-  readonly api: GridApi | null;
+  /** The live grid api (AG or cgrid adapter), or null if the grid hasn't mounted yet. */
+  readonly api: MarketsGridApi | null;
   /** Resolves when the grid fires `onGridReady`. Safe to await from anywhere. */
-  whenReady(): Promise<GridApi>;
+  whenReady(): Promise<MarketsGridApi>;
   /** Fire `fn` every time a grid mounts (or immediately if already ready).
    *  Returns a disposer. */
-  onReady(fn: (api: GridApi) => void): () => void;
+  onReady(fn: (api: MarketsGridApi) => void): () => void;
   /** Subscribe to an AG-Grid event. Returns a disposer. The handler receives
    *  the raw AG-Grid event object; most callers ignore it (a `() => void`
    *  handler is assignable here), but delta-carrying events like
@@ -125,7 +225,7 @@ export interface ApiHub {
   on(evt: ApiEventName, fn: (event?: unknown) => void): () => void;
   /** Run `fn` with the live api (null-safe). Returns `fallback` when api
    *  hasn't mounted. Pure — never subscribes. */
-  use<T>(fn: (api: GridApi) => T, fallback: T): T;
+  use<T>(fn: (api: MarketsGridApi) => T, fallback: T): T;
 }
 
 // ─── Shared row-change signal ──────────────────────────────────────────────
@@ -146,9 +246,9 @@ export interface ApiHub {
  *     Subscribers that need correctness fall back to a whole-grid pass.
  */
 export interface RowChange {
-  readonly added: ReadonlyArray<IRowNode>;
-  readonly updated: ReadonlyArray<IRowNode>;
-  readonly removed: ReadonlyArray<IRowNode>;
+  readonly added: ReadonlyArray<MarketsRowNode>;
+  readonly updated: ReadonlyArray<MarketsRowNode>;
+  readonly removed: ReadonlyArray<MarketsRowNode>;
   readonly full: boolean;
 }
 
@@ -323,7 +423,7 @@ export interface TransformContext {
   readonly getRowId: GetRowIdFunc;
   readonly getModuleState: <T>(moduleId: string) => T;
   readonly resources: ResourceScope;
-  readonly api: GridApi | null;
+  readonly api: MarketsGridApi | null;
 }
 
 // ─── UI slot props ─────────────────────────────────────────────────────────

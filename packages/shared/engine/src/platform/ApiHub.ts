@@ -1,5 +1,4 @@
-import type { GridApi } from 'ag-grid-community';
-import type { ApiEventName, ApiHub as IApiHub } from './types';
+import type { ApiEventName, ApiHub as IApiHub, MarketsGridApi } from './types';
 
 /**
  * Thin reactive wrapper over AG-Grid's api. Lives on the GridPlatform and
@@ -17,17 +16,17 @@ import type { ApiEventName, ApiHub as IApiHub } from './types';
  * this.
  */
 export class ApiHub implements IApiHub {
-  private _api: GridApi | null = null;
-  private readyResolvers: Array<(api: GridApi) => void> = [];
-  private readyHandlers = new Set<(api: GridApi) => void>();
+  private _api: MarketsGridApi | null = null;
+  private readyResolvers: Array<(api: MarketsGridApi) => void> = [];
+  private readyHandlers = new Set<(api: MarketsGridApi) => void>();
   private activeListeners = new Set<() => void>();
 
-  get api(): GridApi | null {
+  get api(): MarketsGridApi | null {
     return this._api;
   }
 
   /** Called by the host once AG-Grid fires `onGridReady`. */
-  attach(api: GridApi): void {
+  attach(api: MarketsGridApi): void {
     this._api = api;
     const resolvers = this.readyResolvers;
     this.readyResolvers = [];
@@ -43,19 +42,19 @@ export class ApiHub implements IApiHub {
     this._api = null;
   }
 
-  whenReady(): Promise<GridApi> {
+  whenReady(): Promise<MarketsGridApi> {
     if (this._api) return Promise.resolve(this._api);
     return new Promise((resolve) => this.readyResolvers.push(resolve));
   }
 
-  onReady(fn: (api: GridApi) => void): () => void {
+  onReady(fn: (api: MarketsGridApi) => void): () => void {
     this.readyHandlers.add(fn);
     if (this._api) fn(this._api);
     return () => this.readyHandlers.delete(fn);
   }
 
   on(evt: ApiEventName, fn: (event?: unknown) => void): () => void {
-    const attach = (api: GridApi): (() => void) => {
+    const attach = (api: MarketsGridApi): (() => void) => {
       try {
         // AG-Grid's addEventListener typing accepts known names via string
         // literal types; we narrow via the ApiEventName union. AG calls the
@@ -94,7 +93,7 @@ export class ApiHub implements IApiHub {
     return combined;
   }
 
-  use<T>(fn: (api: GridApi) => T, fallback: T): T {
+  use<T>(fn: (api: MarketsGridApi) => T, fallback: T): T {
     if (!this._api) return fallback;
     try {
       return fn(this._api);

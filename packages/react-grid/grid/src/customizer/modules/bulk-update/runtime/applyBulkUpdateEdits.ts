@@ -1,4 +1,3 @@
-import type { GridApi } from 'ag-grid-community';
 import {
   applyForwardPatches,
   buildBulkUpdatePatchesFromRaw,
@@ -6,9 +5,10 @@ import {
   type BulkUpdateTarget,
   type EditJournal,
 } from '@starui/engine';
+import type { MarketsGridApi } from '@starui/engine';
 import { withJournalApplyGuard } from '../../../editing/journalApplyGuard.js';
 
-export function resolveBulkUpdateTargets(api: GridApi, rowIdField = 'id'): BulkUpdateTarget[] {
+export function resolveBulkUpdateTargets(api: MarketsGridApi, rowIdField = 'id'): BulkUpdateTarget[] {
   const getRowId = (data: Record<string, unknown>) => String(data[rowIdField] ?? data.id ?? '');
   const fromRange = collectBulkUpdateTargets(api as never, getRowId);
   return fromRange;
@@ -23,7 +23,7 @@ export interface ApplyBulkUpdateOptions {
 }
 
 export async function applyBulkUpdateEdits(
-  api: GridApi,
+  api: MarketsGridApi,
   targets: BulkUpdateTarget[],
   rawValue: string,
   options: ApplyBulkUpdateOptions = {},

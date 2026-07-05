@@ -3,7 +3,7 @@
  * compact search field on hover / focus and drives AG-Grid's quick filter
  * (`gridOption.quickFilterText`), searching every column at once.
  *
- * Self-contained like {@link AlertsBadge}: it reaches the live `GridApi`
+ * Self-contained like {@link AlertsBadge}: it reaches the live `MarketsGridApi`
  * through the platform context rather than receiving it as a prop, so the
  * view-only `PrimaryToolbar` stays free of AG-Grid wiring. It uses the
  * *optional* platform accessor so it renders a harmless no-op when mounted
@@ -19,19 +19,19 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { GridApi } from 'ag-grid-community';
+import type { MarketsGridApi } from '@starui/engine';
 import { Search, X } from 'lucide-react';
 import { Button, Input } from '@starui/ui';
 import { useOptionalGridPlatform } from '../customizer/hooks/GridProvider';
 
 /**
- * Null-safe sibling of `useGridApi`: returns the live `GridApi` once
+ * Null-safe sibling of `useGridApi`: returns the live `MarketsGridApi` once
  * ready, or `null` both while AG-Grid is warming up AND when no
  * `<GridProvider>` is present at all.
  */
-function useOptionalGridApi(): GridApi | null {
+function useOptionalGridApi(): MarketsGridApi | null {
   const platform = useOptionalGridPlatform();
-  const [api, setApi] = useState<GridApi | null>(platform?.api.api ?? null);
+  const [api, setApi] = useState<MarketsGridApi | null>(platform?.api.api ?? null);
   useEffect(() => {
     if (!platform) return;
     return platform.api.onReady((a) => setApi(a));

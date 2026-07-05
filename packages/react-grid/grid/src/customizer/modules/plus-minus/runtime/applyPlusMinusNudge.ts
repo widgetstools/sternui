@@ -1,4 +1,4 @@
-import type { GridApi } from 'ag-grid-community';
+import type { MarketsGridApi } from '@starui/engine';
 import {
   applyForwardPatches,
   buildNudgePatches,
@@ -16,7 +16,7 @@ export interface ApplyPlusMinusOptions {
 }
 
 export async function applyPlusMinusNudge(
-  api: GridApi,
+  api: MarketsGridApi,
   options: Omit<BuildNudgePatchesOptions, 'getRowData'> & {
     getRowData?: BuildNudgePatchesOptions['getRowData'];
   },

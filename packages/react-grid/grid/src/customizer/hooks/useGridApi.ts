@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react';
-import type { GridApi } from 'ag-grid-community';
-import type { ApiEventName } from '@starui/engine';
+import type { MarketsGridApi, ApiEventName } from '@starui/engine';
 import { useGridPlatform } from './GridProvider';
 
 /**
- * Returns the live `GridApi` once ready, or `null` while we're waiting for
+ * Returns the live `MarketsGridApi` once ready, or `null` while we're waiting for
  * AG-Grid's `onGridReady`. Null-safe by design — consumers either render a
  * spinner or short-circuit.
  */
-export function useGridApi(): GridApi | null {
+export function useGridApi(): MarketsGridApi | null {
   const platform = useGridPlatform();
-  const [api, setApi] = useState<GridApi | null>(platform.api.api);
+  const [api, setApi] = useState<MarketsGridApi | null>(platform.api.api);
   useEffect(() => platform.api.onReady((a) => setApi(a)), [platform]);
   return api;
 }

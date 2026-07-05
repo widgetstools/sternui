@@ -1,3 +1,4 @@
+import type { MarketsGridApi } from '@starui/engine';
 import {
   forwardRef,
   Suspense,
@@ -146,7 +147,7 @@ function useMarketsGridShell<TData>(
   const editLockedRef = useRef(dataStale || historicalViewMode);
   editLockedRef.current = dataStale || historicalViewMode;
 
-  const applyEditLockGuard = useCallback((api: GridReadyEvent['api']) => {
+  const applyEditLockGuard = useCallback((api: MarketsGridApi) => {
     const locked = editLockedRef.current;
     api.setGridOption('readOnlyEdit', locked);
     api.setGridOption('suppressClickEdit', locked);

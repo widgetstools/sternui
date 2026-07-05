@@ -1,5 +1,5 @@
-import type { CellValueChangedEvent, GridApi } from 'ag-grid-community';
-import type { PlatformHandle } from '@starui/engine';
+import type { CellValueChangedEvent } from 'ag-grid-community';
+import type { MarketsGridApi, PlatformHandle } from '@starui/engine';
 import {
   DATA_CHANGE_HISTORY_MODULE_ID,
   type DataChangeHistoryState,
@@ -10,7 +10,7 @@ import { isUserCellEditorChange } from './isUserCellEditorChange.js';
 import { recordCellEditorPatch } from './recordCellEditorPatch.js';
 
 function resolveRowId(
-  api: GridApi,
+  api: MarketsGridApi,
   data: Record<string, unknown> | undefined,
   rowIdField = 'id',
 ): string | null {
@@ -32,7 +32,7 @@ function syncJournalSuspend(platform: PlatformHandle<DataChangeHistoryState>): v
 
 export function recordCellEditorChange(
   platform: PlatformHandle<DataChangeHistoryState>,
-  api: GridApi,
+  api: MarketsGridApi,
   event: CellValueChangedEvent,
 ): void {
   if (isJournalApplyInProgress(platform.gridId)) return;

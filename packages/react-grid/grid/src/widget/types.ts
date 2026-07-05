@@ -1,5 +1,5 @@
 import type { ColDef, GridApi, SideBarDef, StatusPanelDef, Theme } from 'ag-grid-community';
-import type { AnyModule, AppDataLookup, GridPlatform, MarketsGridLocalStorageConfig, StorageAdapter, StorageAdapterFactory, StorageAdapterFactoryOpts } from '@starui/engine';
+import type { MarketsGridApi, AnyModule, AppDataLookup, GridPlatform, MarketsGridLocalStorageConfig, StorageAdapter, StorageAdapterFactory, StorageAdapterFactoryOpts } from '@starui/engine';
 import type { GridHostContext } from '@starui/host';
 import type { UseProfileManagerResult, VisualExcelExportOptions, ProviderGridHostApi, GridEventBindingsHostApi } from '@starui/grid/customizer';
 
@@ -369,7 +369,7 @@ export interface MarketsGridProps<TData = unknown> {
  */
 export interface MarketsGridHandle {
   /** AG-Grid's GridApi — column manipulation, filters, sort, export, etc. */
-  gridApi: GridApi;
+  gridApi: MarketsGridApi;
   /** Our module-system handle — module state, transforms, expression engine. */
   platform: GridPlatform;
   /** The hook-shaped profile manager — `{ activeProfileId, profiles,

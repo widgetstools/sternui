@@ -1,4 +1,4 @@
-import type { GridApi } from 'ag-grid-community';
+import type { MarketsGridApi } from '@starui/engine';
 import { applyDelta } from './applyDelta';
 import { labRowsEqual } from './rowDiff';
 import type { LabRow } from './types';
@@ -6,7 +6,7 @@ import type { LabRow } from './types';
 const ID_FIELD = 'id' as const;
 
 function splitTransaction(
-  api: GridApi,
+  api: MarketsGridApi,
   rows: readonly LabRow[],
 ): { add: LabRow[]; update: LabRow[] } {
   const add: LabRow[] = [];
@@ -28,7 +28,7 @@ function splitTransaction(
  * (for scenarios / demo-console bookkeeping).
  */
 export function applyLabStreamDelta(
-  api: GridApi | null,
+  api: MarketsGridApi | null,
   snapshot: readonly LabRow[],
   incoming: readonly LabRow[],
   replace: boolean,
@@ -64,7 +64,7 @@ export function applyLabStreamDelta(
 }
 
 /** Push a one-shot scenario overlay as row updates. */
-export function applyLabRowUpdates(api: GridApi, updates: readonly LabRow[]): void {
+export function applyLabRowUpdates(api: MarketsGridApi, updates: readonly LabRow[]): void {
   if (updates.length === 0) return;
   try {
     api.applyTransactionAsync({ update: [...updates] });

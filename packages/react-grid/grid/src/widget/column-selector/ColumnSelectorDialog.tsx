@@ -12,6 +12,7 @@
  */
 
 import { type ReactElement, type ReactNode } from 'react';
+import type { MarketsGridApi } from '@starui/engine';
 import {
   ChevronLeft,
   ChevronRight,
@@ -27,14 +28,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@starui/ui';
-import type { GridApi } from 'ag-grid-community';
 import { ColumnList } from './ColumnList';
 import { useColumnSelectorState } from './useColumnSelectorState';
 
 export interface ColumnSelectorDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
-  readonly api: GridApi | null;
+  readonly api: MarketsGridApi | null;
 }
 
 /** Ghost icon button styled with `--ds-*` tokens (portal-safe in both themes). */

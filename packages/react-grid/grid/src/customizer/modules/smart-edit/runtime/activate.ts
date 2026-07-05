@@ -1,5 +1,4 @@
-import type { GridApi } from 'ag-grid-community';
-import type { PlatformHandle } from '@starui/engine';
+import type { MarketsGridApi, PlatformHandle } from '@starui/engine';
 import {
   PLUS_MINUS_MODULE_ID,
   SMART_EDIT_MODULE_ID,
@@ -9,7 +8,7 @@ import {
 import { resolveEditRecording } from '../../../editing/recordEdit.js';
 import { applyEdits, resolveTargetCells } from './applyEdits.js';
 
-function isEditingCell(api: GridApi): boolean {
+function isEditingCell(api: MarketsGridApi): boolean {
   try {
     return (api.getEditingCells?.() ?? []).length > 0;
   } catch {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { GridApi } from 'ag-grid-community';
+import type { MarketsGridApi } from '@starui/engine';
 import { useGridPlatform } from '../../hooks/GridProvider';
 import { resolveTargetCells } from './runtime/applyEdits';
 
@@ -26,7 +26,7 @@ export function useSmartEditSelection(): { cells: ReturnType<typeof resolveTarge
   }, [platform]);
 
   const getCells = useCallback(() => {
-    const api: GridApi | null = platform.api.api;
+    const api: MarketsGridApi | null = platform.api.api;
     if (!api) return [];
     return resolveTargetCells(api);
   }, [platform, tick]);

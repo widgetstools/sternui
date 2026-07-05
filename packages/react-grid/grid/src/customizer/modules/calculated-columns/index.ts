@@ -5,8 +5,7 @@
  * base defs (renames, resizes), and BEFORE conditional-styling (20) so
  * its rules can reference the new virtual colIds.
  */
-import type { GridApi } from 'ag-grid-community';
-import type { Module, PlatformHandle } from '@starui/engine';
+import type { MarketsGridApi, Module, PlatformHandle } from '@starui/engine';
 import {
   INITIAL_CALCULATED_COLUMNS,
   type CalculatedColumnsState,
@@ -66,7 +65,7 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
    * virtual valueGetter, which reads from the invalidated snapshot.
    */
   activate(platform: PlatformHandle<CalculatedColumnsState>): () => void {
-    const cache = platform.resources.cache<GridApi, AllRowsEntry>(ALL_ROWS_CACHE_KEY);
+    const cache = platform.resources.cache<MarketsGridApi, AllRowsEntry>(ALL_ROWS_CACHE_KEY);
 
     const onDataEvent = () => {
       const api = platform.api.api;
@@ -89,7 +88,7 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
   transformColumnDefs(defs, state, ctx) {
     if (state.virtualColumns.length === 0) return defs;
     const engine = ctx.resources.expression();
-    const cache = ctx.resources.cache<GridApi, AllRowsEntry>(ALL_ROWS_CACHE_KEY);
+    const cache = ctx.resources.cache<MarketsGridApi, AllRowsEntry>(ALL_ROWS_CACHE_KEY);
 
     // Sort by `position` so users can control relative ordering
     // without fighting AG-Grid's column-state machinery.

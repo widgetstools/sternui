@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { GridApi } from 'ag-grid-community';
+import type { MarketsGridApi } from '@starui/engine';
 import {
   buildInitialState,
   filterItems,
@@ -81,7 +81,7 @@ function nextSelection(
   return new Set([colId]);
 }
 
-export function useColumnSelectorState(api: GridApi | null, open: boolean): UseColumnSelectorState {
+export function useColumnSelectorState(api: MarketsGridApi | null, open: boolean): UseColumnSelectorState {
   const [state, setState] = useState<ColumnSelectorState>(EMPTY);
   const [availableSel, setAvailableSel] = useState<ReadonlySet<string>>(new Set());
   const [visibleSel, setVisibleSel] = useState<ReadonlySet<string>>(new Set());

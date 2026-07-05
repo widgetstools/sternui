@@ -20,7 +20,7 @@ function resolveRowId(
     return ctx.getRowId({
       data,
       level: 0,
-      api: ctx.api!,
+      api: ctx.api! as never,
       context: undefined,
       rowPinned: null,
     });

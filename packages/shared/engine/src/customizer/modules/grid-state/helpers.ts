@@ -1,12 +1,12 @@
 /**
- * Pure helpers — capture/apply grid state against a live GridApi.
+ * Pure helpers — capture/apply grid state against a live MarketsGridApi.
  *
  * Extracted from `agGridStateManager.ts` and kept framework-free so they can
  * be imported by the module's lifecycle hooks AND by the host (for the
  * "capture on explicit Save" wiring in MarketsGrid).
  */
-import type { GridApi } from 'ag-grid-community';
 import type { Store } from '@starui/engine';
+import type { MarketsGridApi } from '../../../platform/types';
 import {
   GRID_STATE_SCHEMA_VERSION,
   type GridStateState,
@@ -73,12 +73,12 @@ function sanitizeFilterEntry(entry: unknown, colId: string): unknown {
  * `onGridReady`. Never throws — on API shape drift returns a minimal
  * snapshot with empty gridState so the caller can still persist *something*.
  */
-export function captureGridState(api: GridApi): SavedGridState {
+export function captureGridState(api: MarketsGridApi): SavedGridState {
   const gridState = (() => {
     try {
       return api.getState();
     } catch {
-      return {} as ReturnType<GridApi['getState']>;
+      return {} as ReturnType<MarketsGridApi['getState']>;
     }
   })();
 
@@ -126,7 +126,7 @@ export function captureGridState(api: GridApi): SavedGridState {
  * handles columns/filters/sort/pagination/selection etc. natively; the
  * viewport anchor and quick-filter are replayed separately.
  */
-export function applyGridState(api: GridApi, saved: SavedGridState): void {
+export function applyGridState(api: MarketsGridApi, saved: SavedGridState): void {
   if (!api || !saved) return;
   if (saved.schemaVersion !== GRID_STATE_SCHEMA_VERSION) {
     console.warn(
@@ -325,7 +325,7 @@ export function applyGridState(api: GridApi, saved: SavedGridState): void {
  * `core.serializeAll()` that runs inside `persistSnapshot` then picks up the
  * just-captured state and persists it alongside every other module's state.
  */
-export function captureGridStateInto(store: Store, api: GridApi): void {
+export function captureGridStateInto(store: Store, api: MarketsGridApi): void {
   const saved = captureGridState(api);
   store.setModuleState<GridStateState>('grid-state', () => ({ saved }));
 }

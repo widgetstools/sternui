@@ -24,8 +24,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { GridApi, IRowNode } from 'ag-grid-community';
-import type { RowChange } from '@starui/engine';
+import type { MarketsRowNode, MarketsGridApi, RowChange } from '@starui/engine';
 import {
   useGridApi,
   useGridPlatform,
@@ -316,7 +315,7 @@ function useFilterCounts(filters: readonly SavedFilter[]): Record<string, number
           const next = { ...filterCountsRef.current };
           let changed = false;
 
-          const touchNode = (node: IRowNode, removed: boolean) => {
+          const touchNode = (node: MarketsRowNode, removed: boolean) => {
             const rowId = node.id;
             if (typeof rowId !== 'string') return;
             const data = node.data as Record<string, unknown> | undefined;
@@ -383,7 +382,7 @@ function useFilterModelSync(filters: readonly SavedFilter[]): boolean {
   // Compute and push the merged active filter model into a live api.
   // Centralised so the React effect, profile:loaded listener, and
   // firstDataRendered listener all use the exact same code path.
-  const pushActiveFilterModel = useCallback((liveApi: GridApi) => {
+  const pushActiveFilterModel = useCallback((liveApi: MarketsGridApi) => {
     const syncHasNewFilter = () => {
       const raw = liveApi.getFilterModel() as Record<string, unknown> | null;
       const live = sanitizeFilterModel(raw);

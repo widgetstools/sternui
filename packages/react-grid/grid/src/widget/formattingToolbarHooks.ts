@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { GridApi } from 'ag-grid-community';
-import type {
+import type { MarketsGridApi,
   BorderSpec,
   CellStyleOverrides,
   ValueFormatterTemplate,
@@ -35,7 +34,7 @@ import {
  *                           Ref-guarded timer clears on unmount.
  */
 
-// ─── GridApi micro-helpers ───────────────────────────────────────────────
+// ─── MarketsGridApi micro-helpers ───────────────────────────────────────────────
 
 export type RawCellDataType =
   | 'numeric'
@@ -49,7 +48,7 @@ export type RawCellDataType =
   | 'boolean'
   | undefined;
 
-export function readCellDataType(api: GridApi | null, colId: string): RawCellDataType {
+export function readCellDataType(api: MarketsGridApi | null, colId: string): RawCellDataType {
   if (!api) return undefined;
   try {
     return api.getColumn(colId)?.getColDef()?.cellDataType as RawCellDataType;
@@ -58,7 +57,7 @@ export function readCellDataType(api: GridApi | null, colId: string): RawCellDat
   }
 }
 
-export function readHeaderName(api: GridApi | null, colId: string): string | undefined {
+export function readHeaderName(api: MarketsGridApi | null, colId: string): string | undefined {
   if (!api) return undefined;
   try {
     return api.getColumn(colId)?.getColDef()?.headerName ?? undefined;
@@ -67,7 +66,7 @@ export function readHeaderName(api: GridApi | null, colId: string): string | und
   }
 }
 
-export function readAllColumnIds(api: GridApi | null): string[] {
+export function readAllColumnIds(api: MarketsGridApi | null): string[] {
   if (!api) return [];
   try {
     return (api.getColumns() ?? [])
@@ -78,7 +77,7 @@ export function readAllColumnIds(api: GridApi | null): string[] {
   }
 }
 
-export function readFirstRowValue(api: GridApi | null, colId: string): unknown {
+export function readFirstRowValue(api: MarketsGridApi | null, colId: string): unknown {
   if (!api) return undefined;
   try {
     const row = api.getDisplayedRowAtIndex(0);
@@ -112,7 +111,7 @@ function looksLikeDateTimeValue(value: unknown): boolean {
 
 /** Map a column's declared type + sample value → FormatterPicker dataType. */
 export function resolveToolbarPickerDataType(
-  api: GridApi | null,
+  api: MarketsGridApi | null,
   colId: string | undefined,
 ): ToolbarPickerDataType {
   if (!colId) return 'number';
@@ -138,7 +137,7 @@ export function useActiveColumns(): string[] {
 
   useEffect(() => {
     const getColIds = (): string[] => {
-      const api: GridApi | null = platform.api.api;
+      const api: MarketsGridApi | null = platform.api.api;
       if (!api) return lastColIds.current;
 
       // `CellRange.columns` is typed `Column[]`; `FocusedCell.column` is
@@ -240,7 +239,7 @@ export function useColumnFormatting(
   scope: ScopeKind = 'selected',
 ): ResolvedFormatting {
   // Everything the hook needs comes from the platform context: module
-  // state for the resolved assignment + live GridApi for the column's
+  // state for the resolved assignment + live MarketsGridApi for the column's
   // cellDataType. The component no longer threads a `core` prop.
   const platform = useGridPlatform();
   const [cust] = useModuleState<ColumnCustomizationState>('column-customization');

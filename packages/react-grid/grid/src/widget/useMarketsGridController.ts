@@ -24,12 +24,12 @@ import {
   type RefObject,
   type SetStateAction,
 } from 'react';
-import type { GridApi } from 'ag-grid-community';
 import {
   LocalStorageBundleAdapter,
   MemoryAdapter,
   type StorageAdapter,
 } from '@starui/engine';
+import type { MarketsGridApi } from '@starui/engine';
 import {
   captureGridStateInto,
   COLUMN_CUSTOMIZATION_MODULE_ID,
@@ -62,7 +62,7 @@ export interface UseMarketsGridControllerOpts {
 
 export interface MarketsGridControllerHandle {
   readonly profiles: ReturnType<typeof useProfileManager>;
-  readonly api: GridApi | null;
+  readonly api: MarketsGridApi | null;
   readonly platform: ReturnType<typeof useGridPlatform>;
   readonly headerCaseAttr: 'upper' | undefined;
   readonly sheetRef: RefObject<SettingsSheetHandle | null>;
@@ -260,7 +260,7 @@ export function useMarketsGridController(
     : null;
 
   // Reason: deps narrowed to `[api]` — the only field whose identity
-  // transition (null → live GridApi) needs to update the forwarded ref.
+  // transition (null → live MarketsGridApi) needs to update the forwarded ref.
   // `platform` is captured at mount via platformRef so it's identity-stable
   // anyway. `profiles` is a new object reference on every ProfileManager
   // store mutation, so listing it would rebuild the imperative handle on

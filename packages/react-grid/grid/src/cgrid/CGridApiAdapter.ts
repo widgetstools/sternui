@@ -21,10 +21,12 @@
  */
 
 import type { CGrid } from '@cgrid/kernel';
+import type { MarketsGridApi } from '@starui/engine';
 import { translateGridOption } from './gridOptionsTranslator';
 import { translateColumnDefs } from './colDefTranslator';
 import { subscribeAgEvent } from './eventBridge';
 import { makeColumn, makeRowNode, type ColumnLike, type RowNodeLike } from './facades';
+import { agStateFromCgrid, cgridStateFromAg, type CgridGridState } from './stateTranslator';
 
 type AnyRow = Record<string, unknown>;
 
@@ -162,12 +164,37 @@ export class CGridApiAdapter<TData extends AnyRow = AnyRow> {
     return this.grid.getDisplayedRowCount();
   }
 
+  getDisplayedRowAtIndex(_index: number): RowNodeLike<TData> | undefined {
+    // Displayed-order row access needs the M3 kernel API (sync displayed
+    // row ids); until then this accessor cannot answer faithfully.
+    warnOnce('getDisplayedRowAtIndex is unavailable on the cgrid surface until the displayed-order kernel API lands (M3)');
+    return undefined;
+  }
+
+  getCellValue(params: { rowNode: { id?: string; data?: TData }; colKey: string }): unknown {
+    // AG signature: value for a (row, column) pair. Resolve from the
+    // row cache via the AG def's field (JS valueGetters don't run on
+    // this surface — see colDefTranslator).
+    const data = params.rowNode?.data
+      ?? (params.rowNode?.id !== undefined ? this.rowCache.get(params.rowNode.id) : undefined);
+    if (!data) return undefined;
+    const def = this.agDefsByColId.get(params.colKey);
+    const field = (def?.field as string | undefined) ?? params.colKey;
+    return (data as Record<string, unknown>)[field];
+  }
+
   // ── Columns ────────────────────────────────────────────────────────
 
   getColumns(): ColumnLike[] {
-    return this.grid.getColumnState().map((s) =>
-      makeColumn(s, this.agDefsByColId.get(s.colId) ?? { colId: s.colId }),
-    );
+    // Cumulative left offsets over VISIBLE columns in state order — the
+    // grid-state viewport anchor reads getLeft() to find the leftmost
+    // visible column past the saved horizontal scroll.
+    let left = 0;
+    return this.grid.getColumnState().map((s) => {
+      const colLeft = s.hide === true ? null : left;
+      if (s.hide !== true) left += s.width ?? 0;
+      return makeColumn(s, this.agDefsByColId.get(s.colId) ?? { colId: s.colId }, colLeft);
+    });
   }
 
   getAllDisplayedColumns(): ColumnLike[] {
@@ -198,6 +225,41 @@ export class CGridApiAdapter<TData extends AnyRow = AnyRow> {
   }
   onFilterChanged(): void { this.grid.onFilterChanged(); }
 
+  // ── Grid state (profiles) ──────────────────────────────────────────
+  // Profiles keep the AG-shaped GridState on disk; the translator maps
+  // at this boundary so snapshots stay portable between surfaces.
+
+  getState(): unknown {
+    return agStateFromCgrid(this.grid.getState() as unknown as CgridGridState);
+  }
+
+  setState(state: unknown): void {
+    this.grid.setState(cgridStateFromAg((state ?? {}) as Record<string, unknown>) as never);
+  }
+
+  // ── Viewport (grid-state anchor) ───────────────────────────────────
+
+  ensureIndexVisible(index: number, position?: 'auto' | 'top' | 'middle' | 'bottom'): void {
+    this.grid.ensureIndexVisible(index, position);
+  }
+
+  ensureColumnVisible(colId: string, position?: 'auto' | 'start' | 'middle' | 'end'): void {
+    this.grid.ensureColumnVisible(colId, position);
+  }
+
+  getFirstDisplayedRowIndex(): number {
+    const scroll = (this.grid.getState() as unknown as CgridGridState).scroll;
+    const rowH = (this.grid.getGridOption('rowHeight' as never) as number | undefined)
+      ?? (this.grid as unknown as { theme?: { rowHeight?: number } }).theme?.rowHeight
+      ?? 30;
+    return scroll && rowH > 0 ? Math.floor(scroll.top / rowH) : 0;
+  }
+
+  getHorizontalPixelRange(): { left: number; right: number } {
+    const scroll = (this.grid.getState() as unknown as CgridGridState).scroll;
+    return { left: scroll?.left ?? 0, right: (scroll?.left ?? 0) + 1 };
+  }
+
   // ── Selection / focus / ranges ─────────────────────────────────────
 
   getCellRanges(): unknown[] { return this.grid.getCellRanges(); }
@@ -212,6 +274,12 @@ export class CGridApiAdapter<TData extends AnyRow = AnyRow> {
 
   stopEditing(cancel?: boolean): void { this.grid.stopEditing(cancel); }
 
+  getEditingCells(): unknown[] {
+    // No editing-cells accessor on the kernel yet (M4 editing work);
+    // callers only test `.length > 0` as an "is editing" guard.
+    return [];
+  }
+
   // ── Refresh / repaint ──────────────────────────────────────────────
 
   refreshCells(_params?: unknown): void {
@@ -221,6 +289,12 @@ export class CGridApiAdapter<TData extends AnyRow = AnyRow> {
   }
 
   refreshHeader(): void { this.grid.refresh(); }
+
+  flashCells(params?: unknown): void { this.grid.flashCells((params ?? {}) as never); }
+
+  exportDataAsExcel(_params?: unknown): void {
+    warnOnce('exportDataAsExcel routes via @cgrid/export in M4+ — no-op on the cgrid surface until then');
+  }
 
   // ── Lifecycle / events ─────────────────────────────────────────────
 
@@ -255,3 +329,9 @@ export class CGridApiAdapter<TData extends AnyRow = AnyRow> {
   /** The underlying cgrid instance for cgrid-aware call sites. */
   get cgrid(): CGrid<TData> { return this.grid; }
 }
+
+// Compile-time conformance: the adapter must satisfy the platform's
+// structural seam. If a member is added to `MarketsGridApi` without a
+// mirror here, this line is the build error that says so.
+const _seamConformance: MarketsGridApi = undefined as unknown as CGridApiAdapter;
+void _seamConformance;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { GridApi } from 'ag-grid-community';
+import type { MarketsGridApi } from '@starui/engine';
 import type { MarketsGridHandle } from '@starui/grid';
 import {
   applyLabRowUpdates,
@@ -55,7 +55,7 @@ export function useLabRows(
   onGridMount?: (handle: MarketsGridHandle) => void,
 ) {
   const { register } = useLabDemoRegistry();
-  const gridApiRef = useRef<GridApi | null>(null);
+  const gridApiRef = useRef<MarketsGridApi | null>(null);
   const scenarioIdRef = useRef<string | null>(null);
   const scenarioOverlayRef = useRef<ScenarioOverlay>(new Map());
 

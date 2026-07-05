@@ -8,18 +8,13 @@
  * crashes the grid.
  *
  * Column-wide aggregates (`SUM([price])`, `AVG([yield])`) need the full
- * row snapshot. Each GridApi gets ONE cached snapshot via
+ * row snapshot. Each MarketsGridApi gets ONE cached snapshot via
  * `ResourceScope.cache`; the module's `activate()` wires invalidation
  * through the ApiHub's rowDataUpdated / modelUpdated / cellValueChanged
  * events.
  */
-import type {
-  CellClassParams,
-  ColDef,
-  GridApi,
-  ValueFormatterParams,
-  ValueGetterParams,
-} from 'ag-grid-community';
+import type { CellClassParams, ColDef, ValueFormatterParams, ValueGetterParams } from 'ag-grid-community';
+import type { MarketsGridApi } from '../../../platform/types';
 import type { ExpressionEngineLike } from '@starui/engine';
 import {
   excelFormatColorResolver,
@@ -27,14 +22,14 @@ import {
 } from '@starui/engine';
 import type { VirtualColumnDef } from './state';
 
-/** Shape stored in ResourceScope.cache<GridApi, AllRowsEntry>. */
+/** Shape stored in ResourceScope.cache<MarketsGridApi, AllRowsEntry>. */
 export interface AllRowsEntry {
   rows: Record<string, unknown>[];
 }
 
 export function getAllRowsSnapshot(
-  api: GridApi | null | undefined,
-  cache: WeakMap<GridApi, AllRowsEntry>,
+  api: MarketsGridApi | null | undefined,
+  cache: WeakMap<MarketsGridApi, AllRowsEntry>,
 ): Record<string, unknown>[] {
   if (!api) return [];
   let entry = cache.get(api);
@@ -56,8 +51,8 @@ export function getAllRowsSnapshot(
 }
 
 export function invalidateAllRowsCache(
-  api: GridApi | null | undefined,
-  cache: WeakMap<GridApi, AllRowsEntry>,
+  api: MarketsGridApi | null | undefined,
+  cache: WeakMap<MarketsGridApi, AllRowsEntry>,
 ): void {
   if (!api) return;
   const entry = cache.get(api);
@@ -67,7 +62,7 @@ export function invalidateAllRowsCache(
 export function buildVirtualColDef(
   v: VirtualColumnDef,
   engine: ExpressionEngineLike,
-  cache: WeakMap<GridApi, AllRowsEntry>,
+  cache: WeakMap<MarketsGridApi, AllRowsEntry>,
 ): ColDef {
   let ast: unknown;
   try { ast = engine.parse(v.expression); }
@@ -119,7 +114,7 @@ export function buildVirtualColDef(
           // inside a row touches this. Expressions that don't use the
           // aggregateColumnRefs functions never pay the cache cost.
           get allRows() {
-            return getAllRowsSnapshot(params.api as GridApi, cache);
+            return getAllRowsSnapshot(params.api as MarketsGridApi, cache);
           },
         });
       } catch {

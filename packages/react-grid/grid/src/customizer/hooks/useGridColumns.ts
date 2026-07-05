@@ -1,5 +1,6 @@
 import { useMemo, useSyncExternalStore } from 'react';
-import type { Column, GridApi } from 'ag-grid-community';
+import type { MarketsGridApi } from '@starui/engine';
+import type { Column } from 'ag-grid-community';
 import { useGridPlatform } from './GridProvider';
 
 /**
@@ -69,7 +70,7 @@ export function useGridColumns(options?: {
  * is how we avoid gratuitous re-renders when we fire the subscriber for
  * unrelated reasons (e.g. a panel re-mounts).
  */
-function makeStableGetter(platform: { api: { api: GridApi | null } }, includeInternal: boolean) {
+function makeStableGetter(platform: { api: { api: MarketsGridApi | null } }, includeInternal: boolean) {
   let lastFingerprint = '';
   let lastResult: GridColumnInfo[] = [];
   return (): GridColumnInfo[] => {

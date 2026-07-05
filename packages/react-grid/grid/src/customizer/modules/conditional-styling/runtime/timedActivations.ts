@@ -24,8 +24,7 @@
  * to grab shared state.
  */
 
-import type { PlatformHandle } from '@starui/engine';
-import type { GridApi } from 'ag-grid-community';
+import type { MarketsGridApi, PlatformHandle } from '@starui/engine';
 import { getValueByPath } from '@starui/types';
 import {
   pruneTimedRuleState,
@@ -286,7 +285,7 @@ function onCellValueChangedHandler(
     oldValue?: unknown;
     newValue?: unknown;
   },
-  api: GridApi,
+  api: MarketsGridApi,
   rowDiffCache: WeakMap<object, Map<string, { oldValue: unknown; newValue: unknown }>>,
   platform: PlatformHandle<ConditionalStylingState>,
   deps: TimedActivationsDeps,

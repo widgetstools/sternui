@@ -9,7 +9,9 @@ export { CssInjector } from './CssInjector';
 export { DirtyBus } from './DirtyBus';
 export { PipelineRunner } from './PipelineRunner';
 
-export type {
+export type { MarketsColumn,
+  MarketsGridApi,
+  MarketsRowNode,
   AnyColDef,
   AnyModule,
   ApiEventName,

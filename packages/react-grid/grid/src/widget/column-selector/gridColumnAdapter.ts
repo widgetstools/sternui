@@ -1,10 +1,11 @@
 /**
- * gridColumnAdapter — the thin layer between AG-Grid's `GridApi` and the pure
+ * gridColumnAdapter — the thin layer between AG-Grid's `MarketsGridApi` and the pure
  * `columnSelectorModel`. Keeps all AG-Grid coupling in one place so the model
  * and the React state stay grid-agnostic and testable.
  */
 
-import type { Column, GridApi } from 'ag-grid-community';
+import type { Column } from 'ag-grid-community';
+import type { MarketsGridApi } from '@starui/engine';
 import {
   computeColumnState,
   type ColumnDescriptor,
@@ -20,7 +21,7 @@ function isInternal(colId: string): boolean {
  * Read the live grid columns into selector descriptors, in current column
  * order. Internal AG-Grid columns are skipped (not user-selectable).
  */
-export function readGridColumns(api: GridApi): ColumnDescriptor[] {
+export function readGridColumns(api: MarketsGridApi): ColumnDescriptor[] {
   const columns = (api.getColumns() ?? []) as Column[];
   const out: ColumnDescriptor[] = [];
   for (const col of columns) {
@@ -42,7 +43,7 @@ export function readGridColumns(api: GridApi): ColumnDescriptor[] {
  * first (shown) followed by available columns (hidden). Order + visibility
  * only — widths, pinning, sort, and filters are left untouched.
  */
-export function applyColumnSelection(api: GridApi, state: ColumnSelectorState): void {
+export function applyColumnSelection(api: MarketsGridApi, state: ColumnSelectorState): void {
   api.applyColumnState({
     state: computeColumnState(state).map((e) => ({ colId: e.colId, hide: e.hide })),
     applyOrder: true,

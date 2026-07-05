@@ -1,5 +1,4 @@
-import type { GridApi } from 'ag-grid-community';
-import type { PlatformHandle } from '@starui/engine';
+import type { MarketsGridApi, PlatformHandle } from '@starui/engine';
 import {
   PLUS_MINUS_MODULE_ID,
   type PlusMinusState,
@@ -8,7 +7,7 @@ import { resolveEditRecording } from '../../../editing/recordEdit.js';
 import { resolveTargetCells } from '../../smart-edit/runtime/applyEdits.js';
 import { applyPlusMinusNudge, type NudgeDirection } from './applyPlusMinusNudge.js';
 
-function isEditingCell(api: GridApi): boolean {
+function isEditingCell(api: MarketsGridApi): boolean {
   try {
     return (api.getEditingCells?.() ?? []).length > 0;
   } catch {

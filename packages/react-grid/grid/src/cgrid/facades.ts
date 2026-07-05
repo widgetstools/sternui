@@ -23,6 +23,10 @@ export interface ColumnLike {
   getColDef(): Record<string, unknown>;
   isVisible(): boolean;
   getActualWidth(): number;
+  /** Pixel offset of the column's left edge in the scrollable body
+   *  (cumulative visible widths — the grid-state viewport anchor's
+   *  only consumer). `null` for hidden columns, matching AG. */
+  getLeft(): number | null;
 }
 
 export interface RowWriteSink<T> {
@@ -56,11 +60,13 @@ export interface ColumnStateLike {
 export function makeColumn(
   state: ColumnStateLike,
   def: Record<string, unknown>,
+  left: number | null = null,
 ): ColumnLike {
   return {
     getColId: () => state.colId,
     getColDef: () => def,
     isVisible: () => state.hide !== true,
     getActualWidth: () => state.width ?? 0,
+    getLeft: () => (state.hide === true ? null : left),
   };
 }

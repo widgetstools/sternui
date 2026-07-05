@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { GridApi } from 'ag-grid-community';
+import type { MarketsGridApi } from '@starui/engine';
 import { useGridPlatform } from '../../hooks/GridProvider';
 import { resolveBulkUpdateTargets } from './runtime/applyBulkUpdateEdits';
 
@@ -29,7 +29,7 @@ export function useBulkUpdateSelection(): {
   }, [platform]);
 
   const getCells = useCallback(() => {
-    const api: GridApi | null = platform.api.api;
+    const api: MarketsGridApi | null = platform.api.api;
     if (!api) return [];
     return resolveBulkUpdateTargets(api);
   }, [platform, tick]);

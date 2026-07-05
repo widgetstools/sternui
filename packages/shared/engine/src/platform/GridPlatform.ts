@@ -1,4 +1,4 @@
-import type { GridApi, GridOptions, GetRowIdParams } from 'ag-grid-community';
+import type { GridOptions, GetRowIdParams } from 'ag-grid-community';
 import { composeRowId } from '@starui/types';
 import { createGridStore } from '../store/createGridStore';
 import { ApiHub } from './ApiHub';
@@ -7,7 +7,7 @@ import { PipelineRunner } from './PipelineRunner';
 import { ResourceScope } from './ResourceScope';
 import { RowChangeBus } from './RowChangeBus';
 import { topoSortModules } from './topoSort';
-import type {
+import type { MarketsGridApi,
   AnyColDef,
   AnyModule,
   AppDataLookup,
@@ -91,7 +91,7 @@ export class GridPlatform {
 
   /** Called by the host when AG-Grid fires `onGridReady`. Activates every
    *  module exactly once. */
-  onGridReady(api: GridApi): void {
+  onGridReady(api: MarketsGridApi): void {
     if (this.destroyed) return;
     this.api.attach(api);
     // Start the shared row-change emitter before modules activate so any
