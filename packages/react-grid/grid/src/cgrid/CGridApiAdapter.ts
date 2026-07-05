@@ -153,22 +153,28 @@ export class CGridApiAdapter<TData extends AnyRow = AnyRow> {
   }
 
   forEachNodeAfterFilter(fn: (node: RowNodeLike<TData>) => void): void {
-    // M3 (kernel: sync displayed-row order) upgrades this to the real
-    // filtered set; until then the unfiltered scan is the documented
-    // degradation.
-    warnOnce('forEachNodeAfterFilter iterates ALL rows on the cgrid surface until the displayed-order kernel API lands');
-    this.forEachNode(fn);
+    // Kernel M3 API: the worker mirrors its post-filter/post-sort row-id
+    // order to main (mirrorDisplayedRowIds — the surface always enables
+    // it). Iterate that order; fall back to the unfiltered cache scan if
+    // the mirror hasn't primed yet (first frame after mount).
+    const ids = this.grid.getDisplayedRowIds();
+    if (ids.length === 0 && this.rowCache.size > 0) {
+      this.forEachNode(fn);
+      return;
+    }
+    for (const id of ids) {
+      const node = this.getRowNode(id);
+      if (node) fn(node);
+    }
   }
 
   getDisplayedRowCount(): number {
     return this.grid.getDisplayedRowCount();
   }
 
-  getDisplayedRowAtIndex(_index: number): RowNodeLike<TData> | undefined {
-    // Displayed-order row access needs the M3 kernel API (sync displayed
-    // row ids); until then this accessor cannot answer faithfully.
-    warnOnce('getDisplayedRowAtIndex is unavailable on the cgrid surface until the displayed-order kernel API lands (M3)');
-    return undefined;
+  getDisplayedRowAtIndex(index: number): RowNodeLike<TData> | undefined {
+    const id = this.grid.getDisplayedRowIds()[index];
+    return id === undefined ? undefined : this.getRowNode(id);
   }
 
   getCellValue(params: { rowNode: { id?: string; data?: TData }; colKey: string }): unknown {

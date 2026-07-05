@@ -163,6 +163,10 @@ export const MarketsCgridSurface = memo(function MarketsCgridSurface<TData exten
       rowData: init.rowData,
       getRowId: getRowIdFn,
       rowIdField,
+      // AG-parity synchronous displayed-row access (forEachNodeAfterFilter,
+      // getDisplayedRowAtIndex, smart-edit/bulk-update collectors) — the
+      // adapter reads grid.getDisplayedRowIds() off this mirror.
+      mirrorDisplayedRowIds: true,
       cellSelection: {},
     } as never);
 
