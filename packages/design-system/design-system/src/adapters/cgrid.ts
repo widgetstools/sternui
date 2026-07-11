@@ -39,7 +39,7 @@ export const CGRID_THEME_CSS = `
   --cg-bg-color: oklch(var(--card));
   --cg-fg-color: oklch(var(--foreground));
   --cg-border-color: oklch(var(--grid-border));
-  --cg-grid-line-color: oklch(var(--grid-border) / 0.6);
+  --cg-grid-line-color: oklch(var(--grid-border) / 0.7);
   --cg-header-bg: oklch(var(--card));
   --cg-header-fg: oklch(var(--foreground));
   --cg-row-alt-bg: oklch(var(--primary) / 0.022);
@@ -64,6 +64,9 @@ export const CGRID_THEME_CSS = `
 }
 html[data-theme='dark'] .${CGRID_THEME_CLASS} {
   color-scheme: dark;
+  /* Header + chrome sit one step (~L +10%) above the data surface in dark
+     mode — 97.5% card + 2.5% white ≈ L 0.203 → 0.223 on graphite. */
+  --cg-header-bg: color-mix(in oklch, oklch(var(--card)) 97.5%, white);
 }
 /* Density presets — gridDensityStructuralParams parity. Scoped from the
    wrapper so the vars land ON the theme-class element (higher

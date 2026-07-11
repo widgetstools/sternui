@@ -42,6 +42,21 @@ export function staruiConsumerViteConfig(appDir, opts = {}) {
       fs: {
         allow: staruiServerFsAllow(appDir),
       },
+      // Cross-origin isolation — required for SharedArrayBuffer.
+      // COEP `require-corp` blocks any cross-origin subresource that
+      // doesn't opt in via CORP/CORS, so external images/scripts/fonts/
+      // iframes must send `Cross-Origin-Resource-Policy` or be loaded
+      // `crossorigin`. Production must set these on the serving host too.
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+      },
+    },
+    preview: {
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+      },
     },
     ...(opts.worker ? { worker: { format: 'es' } } : {}),
     build: {

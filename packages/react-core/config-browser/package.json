@@ -29,6 +29,7 @@
     "@starui/grid": "*",
     "ag-grid-community": "^35.1.0",
     "ag-grid-react": "^35.1.0",
+    "ag-grid-enterprise": "^35.1.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },
@@ -39,6 +40,7 @@
     "@starui/grid": "*",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "ag-grid-enterprise": "35.1.0",
     "typescript": "~5.9.3"
   }
 }
