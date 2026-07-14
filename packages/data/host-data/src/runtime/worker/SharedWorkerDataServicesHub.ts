@@ -77,6 +77,7 @@ import type { ConfigManager } from '@starui/host-config';
 import { AppDataConfigStore, type AppDataConfig } from '../providers/appdata/store.js';
 import { ConfigCatalogCache } from '../../hub/ConfigCatalogCache.js';
 import type { StompProviderConfig } from '@starui/types';
+import { usesPerspectiveRowStore } from '@starui/types';
 import {
   traceStompProviderCfg,
   traceWorkerAppDataSnapshot,
@@ -1077,6 +1078,23 @@ export class SharedWorkerDataServicesHub {
     if (this.providers.get(providerId) !== slot) return;
     if ('rows' in event) {
       const keyColumn = (slot.cfg as { keyColumn?: string | readonly string[] }).keyColumn;
+
+      // Perspective SSRM providers: fan-out rows to subscribers but do
+      // not materialize a second full row Map — the Perspective engine
+      // table is the sole row store for these providers.
+      if (usesPerspectiveRowStore(slot.cfg)) {
+        if (event.replace) {
+          slot.replaySnapshot = null;
+        }
+        this.broadcastData(providerId, slot, {
+          kind: 'delta',
+          rows: event.rows,
+          replace: event.replace,
+          subId: '',
+        });
+        return;
+      }
+
       if (event.replace) slot.cache.clear();
       // Any cache mutation invalidates the pre-encoded replay snapshot.
       // Invalidation is O(1); the next late-join attach rebuilds lazily.

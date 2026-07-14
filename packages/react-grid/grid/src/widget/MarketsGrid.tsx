@@ -235,6 +235,9 @@ function MarketsGridInner<TData = unknown>(
 ) {
   const {
     rowData,
+    rowModelType,
+    serverSideDatasource,
+    cacheBlockSize,
     rowHeight,
     headerHeight,
     animateRows,
@@ -346,6 +349,9 @@ function MarketsGridInner<TData = unknown>(
       <GeneralSettingsProvider value={shell.generalSettings}>
       <MarketsGridHost
         rowData={rowData}
+        rowModelType={rowModelType}
+        serverSideDatasource={serverSideDatasource}
+        cacheBlockSize={cacheBlockSize}
         columnDefs={shell.columnDefs}
         gridOptions={shell.gridOptions}
         hostOverrideKeys={shell.hostOverrideKeys}
@@ -416,6 +422,9 @@ function MarketsGridCoreInner<TData = unknown>(
 ) {
   const {
     rowData,
+    rowModelType,
+    serverSideDatasource,
+    cacheBlockSize,
     rowHeight,
     headerHeight,
     animateRows,
@@ -439,6 +448,9 @@ function MarketsGridCoreInner<TData = unknown>(
             hostOverrideKeys={shell.hostOverrideKeys}
             theme={shell.theme}
             rowData={rowData}
+            rowModelType={rowModelType}
+            serverSideDatasource={serverSideDatasource}
+            cacheBlockSize={cacheBlockSize}
             columnDefs={shell.columnDefs}
             rowHeight={rowHeight}
             headerHeight={headerHeight}

@@ -57,6 +57,7 @@
     "@starui/design-system": "*",
     "@starui/engine": "*",
     "@starui/host-data-react": "*",
+    "@starui/perspective-engine": "*",
     "@starui/host-openfin": "*",
     "@starui/shared-types": "*",
     "@starui/types": "*",

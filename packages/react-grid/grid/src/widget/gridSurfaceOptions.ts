@@ -24,6 +24,9 @@ export const SURFACE_FIXED_GRID_OPTION_KEYS = [
   'theme',
   'columnDefs',
   'rowData',
+  'rowModelType',
+  'serverSideDatasource',
+  'cacheBlockSize',
 ] as const;
 
 /** Host may override pipeline output when provided on `MarketsGrid`. */

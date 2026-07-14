@@ -14,12 +14,19 @@
  */
 import { useEffect } from 'react';
 import type { GridApi } from 'ag-grid-community';
+import type { IServerSideDatasource } from 'ag-grid-community';
 import type { IDataProvider } from '@starui/host-data';
 import { isHistoricalToolbarDate } from '@starui/grid/customizer';
+import { perspectiveEngineRegistry } from '@starui/perspective-engine';
 import { createApplyProviderToGridState } from './applyProviderToGrid.js';
+import {
+  resolvePerspectiveIndexColumn,
+  stampPerspectiveRows,
+} from './perspectiveSsrmUtils.js';
 import type { ProviderMode } from './gridLevelState.js';
 import type { useDataServices } from '@starui/host-data-react/runtime';
 import type { createMarketsGridContainerEventBus } from '@starui/grid';
+import type { ProviderRowStore } from '@starui/types';
 
 /** Historical restore only — brief peer race before `restartProvider()`. Live mode connects immediately. */
 const PEER_PROVIDER_WAIT_MS = 2_000;
@@ -59,6 +66,11 @@ export interface UseProviderDataWiringParams<TData extends Record<string, unknow
    * `pauseUpdatesWhenHidden` grid setting.
    */
   pauseUpdatesWhenHidden: boolean;
+  /** `memory` = CSRM (default). `perspective` = shared Perspective SSRM table. */
+  rowStore?: ProviderRowStore;
+  serverSideDatasource?: IServerSideDatasource | null;
+  ssrmCacheBlockSize?: number;
+  ssrmRefreshThrottleMs?: number;
 }
 
 function defaultOnError(err: Error): void {
@@ -89,6 +101,10 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
     setResolvedSubKey,
     setIsRefetching,
     pauseUpdatesWhenHidden,
+    rowStore = 'memory',
+    serverSideDatasource,
+    ssrmCacheBlockSize,
+    ssrmRefreshThrottleMs,
   } = params;
 
   useEffect(() => {
@@ -142,10 +158,41 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
       setLoadRowCount(count);
     });
 
+    const perspectiveMode = rowStore === 'perspective';
+    const indexColumn = resolvePerspectiveIndexColumn(rowIdField);
+
     const unsubSnapshot = provider.onSnapshotData((rows) => {
       if (cancelled) return;
       Promise.resolve().then(() => {
         if (cancelled) return;
+
+        if (perspectiveMode) {
+          const stamped = stampPerspectiveRows(rows, rowIdField ?? undefined);
+          void perspectiveEngineRegistry.replace(activeId!, stamped, indexColumn).then((count) => {
+            if (cancelled) return;
+            try {
+              liveApi.flushAsyncTransactions();
+            } catch {
+              // ignore
+            }
+            try {
+              liveApi.refreshServerSide({ purge: true });
+            } catch {
+              // SSRM not mounted yet
+            }
+            setLoadRowCount(count);
+            setResolvedSubKey(thisSubKey);
+            setIsRefetching(false);
+            setProviderDisconnected(false);
+            setDisconnectDetail(undefined);
+            providerStatusRef.current = 'ready';
+          }).catch((err: unknown) => {
+            if (cancelled) return;
+            (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
+          });
+          return;
+        }
+
         if (DEBUG) {
           // eslint-disable-next-line no-console
           console.log(
@@ -182,6 +229,17 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
     let updateBatchCount = 0;
     const unsubTick = provider.onTick((updateRows) => {
       if (cancelled || updateRows.length === 0 || !applyLiveTicks) return;
+
+      if (perspectiveMode) {
+        const stamped = stampPerspectiveRows(updateRows, rowIdField ?? undefined);
+        if (stamped.length === 0) return;
+        void perspectiveEngineRegistry.update(activeId!, stamped).catch((err: unknown) => {
+          if (cancelled) return;
+          (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
+        });
+        return;
+      }
+
       updateBatchCount += 1;
 
       if (!rowIdField) {
@@ -312,6 +370,9 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
       unsubTick();
       unsubStatus();
       unsubError();
+      if (perspectiveMode && activeId) {
+        perspectiveEngineRegistry.detach(activeId);
+      }
       if (DEBUG) {
         // eslint-disable-next-line no-console
         console.log(`[v2/grid] %cunwire provider%c provider=%s (effect cleanup, +${(performance.now() - t0).toFixed(0)}ms)`,
@@ -319,5 +380,5 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveApi, provider, activeId, rowIdFieldKey, onError, dataHubClient, mode, asOfDate, toolbarDate, restartProvider, pauseUpdatesWhenHidden]);
+  }, [liveApi, provider, activeId, rowIdFieldKey, onError, dataHubClient, mode, asOfDate, toolbarDate, restartProvider, pauseUpdatesWhenHidden, rowStore, ssrmCacheBlockSize, ssrmRefreshThrottleMs]);
 }

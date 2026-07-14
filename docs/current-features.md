@@ -334,7 +334,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `MINIMAL_MODULES` — lightweight embed preset (general-settings, saved-filters, grid-state)
 - `gridSurfaceOptions` — AG Grid defaults, DOM options, row styling, cell renderers
 - `GridDensityPill` — center-top primary-toolbar chip; Ultra / Compact / Comfortable presets (persists `gridDensity` + matching `rowHeight`/`headerHeight` in general-settings; `applyGridDensityLive` pushes heights immediately with row animation suppressed)
-- `MarketsGridSurface` — memo'd AgGridReact boundary; `buildStreamSafeComponents` optionally omits date floating filter when unused; folds the effective `rowHeight`/`headerHeight` (host
+- `MarketsGridSurface` — memo'd AgGridReact boundary; supports `rowModelType: 'serverSide'` + `serverSideDatasource` (omits `rowData` when SSRM); `buildStreamSafeComponents` optionally omits date floating filter when unused; folds the effective `rowHeight`/`headerHeight` (host
   override or general-settings pipeline) into the theme via `theme.withParams`,
   keeping `--ag-row-height` in sync with the live row height so cell text stays
   vertically centered at any height (parameter-based; no CSS overrides)
@@ -617,7 +617,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `MarketsGridContainer` — grid + two-provider picker + mode toggle (`Alt+Shift+P` /
   grid-level provider persistence; provider pickers live in grid customizer → Custom Settings (`providerGridHost`)
 - `MarketsGridContainer` — hub data via `useDataProvider` + `applyProviderToGrid` (no direct `client.subscribe` / cfg pass-through); optional `defaultLiveProviderId` for single-provider demos; live mode cold-starts STOMP immediately (hub attach dedupes concurrent windows); historical restore late-joins a running hub provider via `isProviderRunning` / `waitForProviderRunning` (≤2s) + `provider.start()` instead of `restartProvider` (avoids peer grid refresh and duplicate STOMP when several windows open at once)
-- `useProviderDataWiring` — provider→grid hot path inside `MarketsGridContainer`; pauses live-tick `applyTransactionAsync` while `document.hidden` (background OpenFin views) and runs one `provider.refresh()` cache replay when the view becomes visible again; on STOMP auto-reconnect (`error` → `ready`) clears the stale banner and triggers `provider.refresh()` so every blotter replays the hub cache without a manual Reload
+- `useProviderDataWiring` — provider→grid hot path inside `MarketsGridContainer`; **dual-mode**: CSRM (`setRowData` + `applyTransactionAsync`) when `rowStore: 'memory'` (default), Perspective SSRM (`perspectiveEngineRegistry.replace/update` + `refreshServerSide`) when `rowStore: 'perspective'`; pauses live-tick apply while `document.hidden` (background OpenFin views) and runs one `provider.refresh()` cache replay when the view becomes visible again; on STOMP auto-reconnect (`error` → `ready`) clears the stale banner and triggers `provider.refresh()` so every blotter replays the hub cache without a manual Reload
 - `MarketsGridContainer` — when an active provider id is chosen but `useDataProviderConfig` is still loading, renders a lightweight placeholder (no throwaway `MarketsGrid` / AG Grid shell); the `__no_provider__` shell path is unchanged when no provider is selected or cfg is loaded but missing key/columns
 - `applyProviderToGrid` — live-tick add/update split with pending-add coalescing (`createApplyProviderToGridState`, `splitProviderRowsForGrid`, `splitProviderRowsWithResolver`); after snapshot commit, `markSnapshotLoaded` indexes row ids so live ticks avoid O(n) `getRowNode`; ticks for ids still in an async add queue retain the latest payload instead of being dropped so peer grids on the same hub provider stay row-count aligned; internal to `MarketsGridContainer` / `useBlotterDataConnection` (not on public barrel)
 - `buildColumnDefs` — maps a provider's persisted `ColumnDefinition[]` to AG Grid `ColDef[]` for `MarketsGridContainer`. Per column: a `valueGetter` DSL expression compiles once (bounded FIFO cache) to a CSP-safe `@starui/engine` **compiled closure** (not per-cell AST walk); dotted `field` uses cached `getPathAccessor`; flat field stays on AG Grid's native path. Every column with no explicit `filter` defaults to the **Multi Filter** (`agMultiColumnFilter`): tab 1 is the `cellDataType`-appropriate filter (`number`→`agNumberColumnFilter`, `date`/`dateString`→`agDateColumnFilter`, else `agTextColumnFilter`), tab 2 is always `agSetColumnFilter`; a column that already declares its own `filter` is left untouched (FilterEditor / host choice wins). Expression getters never throw — parse errors fall back to the field binding, runtime errors to the field value (warn once per expression); reusable per-getter `EvaluationContext` avoids per-cell allocations under high-frequency updates. Soak: `npm run soak:value-getter` (`valueGetter.soak.test.ts`, `SOAK=1`) — sustained eval load + heap-delta guard. **Internal** — not on public barrel
@@ -1315,7 +1315,7 @@ modules).
 - `ProviderStats` — `rowCount, byteCount, cacheBytes, msgCount, msgPerSec, publishPerSec, publishPerMin, snapshotFetchMs, restartRequestMs, firstMessageMs, subscriberCount, startedAt, lastMessageAt, errorCount, lastError`; `cacheBytes` is the serialized worker-cache footprint (exact from the memoized replay-snapshot chunks when present, else one-sampled-row × rowCount estimate) — the number `projectFields` shrinks, surfaced in the Diagnostics tab as "Cache size (serialized)"; `restartRequestMs` / `firstMessageMs` are provider-reported connection-latency samples (Restart click → upstream request sent; request sent → first upstream message), `null` until reported and reset on each (re)start
 - 1 Hz sampler with 5 s upstream + 60 s publish windows
 - Self-disabling when no stats listeners
-- Per-provider cache (`Map<rowKey, row>` keyed by `cfg.keyColumn`)
+- Per-provider cache (`Map<rowKey, row>` keyed by `cfg.keyColumn`); **`rowStore: 'perspective'`** providers skip cache materialization — rows fan-out to subscribers only (Perspective engine table is the sole row store)
 - keyColumn-mismatch diagnostics: rows whose `composeRowId(row, cfg.keyColumn)` resolves null (name/case mismatch, e.g. `POSITIONID` vs `positionId`) are dropped from the cache + fan-out; the hub now warns once per (re)start cycle in the SharedWorker console (naming the key + sample row fields) and exposes `keyDropCount` on the `hub-introspect` row so "provider fetched data but the grid is empty" is no longer silent
 
 #### AppData system
@@ -1384,6 +1384,20 @@ modules).
 #### Mock provider presets
 
 - `createFiPositionsLargeConfig()`, `createFiPositionsSmallConfig()` — canned FI positions provider configs for demos/tests
+
+---
+
+### 6.2.1 `@starui/perspective-engine`
+
+**Path:** `packages/data/perspective-engine`
+**Purpose:** FINOS Perspective WASM SSRM query engine — shared in-browser row cache + `getRows` for MarketsGrid server-side row model.
+
+- `perspectiveEngineRegistry` — singleton ref-counted table registry (one Perspective `table` per `providerId`, shared across blotters in the same window)
+- `resolveRowStore()` — maps `rowStore` / `ssrm.enabled` provider config to `'memory' | 'perspective'`
+- `createPerspectiveDatasource()` — AG Grid `IServerSideDatasource` adapter → dedicated Perspective worker RPC
+- `createWorkerClient()` — main-thread RPC to `perspective-ssrm.worker.ts` (`replace`, `updateRows`, `getRows`, `getFilterValues`, `getAggregates`, `queryAll`, `releaseTable`)
+- Worker modules ported from agssrm prototype: `ssrmFilters`, `perspectiveHost` (dynamic schema per provider), `sumTotals`, `shareOfTotal`
+- `@finos/perspective` **3.8.0** peer with `ag-grid-community` **35.1.x**
 
 ---
 

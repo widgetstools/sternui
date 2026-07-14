@@ -1,4 +1,4 @@
-import type { ColDef, GridApi, SideBarDef, StatusPanelDef, Theme } from 'ag-grid-community';
+import type { ColDef, GridApi, IServerSideDatasource, SideBarDef, StatusPanelDef, Theme } from 'ag-grid-community';
 import type { AnyModule, AppDataLookup, GridPlatform, MarketsGridLocalStorageConfig, StorageAdapter, StorageAdapterFactory, StorageAdapterFactoryOpts } from '@starui/engine';
 import type { GridHostContext } from '@starui/host';
 import type { UseProfileManagerResult, VisualExcelExportOptions, ProviderGridHostApi, GridEventBindingsHostApi } from '@starui/grid/customizer';
@@ -37,6 +37,15 @@ export interface MarketsGridProps<TData = unknown> {
    *  `gridApi.applyTransactionAsync` — see `applyProviderToGrid` in
    *  `@starui/widgets-react` MarketsGridContainer for the reference pattern. */
   rowData: TData[];
+  /**
+   * Row model type. Defaults to `clientSide`. Set `serverSide` with
+   * `serverSideDatasource` for Perspective SSRM integration.
+   */
+  rowModelType?: 'clientSide' | 'serverSide';
+  /** Shared SSRM datasource (one per providerId across blotters). */
+  serverSideDatasource?: IServerSideDatasource;
+  /** SSRM block size when `rowModelType` is `serverSide`. Default 100. */
+  cacheBlockSize?: number;
   /** Base column definitions — modules can transform them. */
   columnDefs: ColDef<TData>[];
   /** Module list. Default passes {@link DEFAULT_MODULES}; use exported

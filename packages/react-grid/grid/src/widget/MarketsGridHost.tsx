@@ -25,7 +25,7 @@ import {
   type RefObject,
 } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import type { GetContextMenuItemsParams, GridReadyEvent } from 'ag-grid-community';
+import type { GetContextMenuItemsParams, GridReadyEvent, IServerSideDatasource } from 'ag-grid-community';
 import { TooltipProvider } from '@starui/ui';
 import { resolveGridDensity } from '@starui/design-system/adapters/ag-grid';
 import type { AnyModule, StorageAdapter } from '@starui/engine';
@@ -50,6 +50,9 @@ import { useProfileSelectorActions } from './useProfileSelectorActions';
 
 export interface MarketsGridHostProps<TData> {
   rowData: TData[];
+  rowModelType?: 'clientSide' | 'serverSide';
+  serverSideDatasource?: IServerSideDatasource;
+  cacheBlockSize?: number;
   columnDefs: unknown[];
   gridOptions: Record<string, unknown>;
   hostOverrideKeys: ReadonlySet<string>;
@@ -106,6 +109,9 @@ export interface MarketsGridHostProps<TData> {
 
 function MarketsGridHostInner<TData>({
   rowData,
+  rowModelType,
+  serverSideDatasource,
+  cacheBlockSize,
   columnDefs,
   gridOptions,
   hostOverrideKeys,
@@ -360,6 +366,9 @@ function MarketsGridHostInner<TData>({
         hostOverrideKeys={hostOverrideKeys}
         theme={theme}
         rowData={rowData}
+        rowModelType={rowModelType}
+        serverSideDatasource={serverSideDatasource}
+        cacheBlockSize={cacheBlockSize}
         columnDefs={columnDefs}
         rowHeight={rowHeight}
         headerHeight={headerHeight}

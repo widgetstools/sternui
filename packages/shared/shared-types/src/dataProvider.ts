@@ -100,9 +100,39 @@ export interface ColumnDefinition {
 }
 
 /**
+ * Row-store policy for provider → MarketsGrid wiring.
+ * `memory` (default) = CSRM via hub cache + `setRowData`.
+ * `perspective` = shared Perspective WASM table + AG Grid SSRM.
+ */
+export type ProviderRowStore = 'memory' | 'perspective';
+
+export interface ProviderSsrmConfig {
+  /** When true, always SSRM. When `'auto'`, enable above `thresholdRows`. */
+  enabled?: boolean | 'auto';
+  /** SSRM block size (default 100). */
+  cacheBlockSize?: number;
+  /** Row count threshold for `enabled: 'auto'` (default 5000). */
+  thresholdRows?: number;
+  /** Throttle dirty → `refreshServerSide` (default 150ms). */
+  refreshThrottleMs?: number;
+}
+
+export interface ProviderRowStoreConfig {
+  rowStore?: ProviderRowStore;
+  ssrm?: ProviderSsrmConfig;
+}
+
+export function usesPerspectiveRowStore(
+  config: ProviderRowStoreConfig | null | undefined,
+): boolean {
+  return config?.rowStore === 'perspective'
+    || config?.ssrm?.enabled === true;
+}
+
+/**
  * STOMP Provider Configuration
  */
-export interface StompProviderConfig {
+export interface StompProviderConfig extends ProviderRowStoreConfig {
   providerType: 'stomp';
   websocketUrl: string;
   listenerTopic: string;
@@ -229,7 +259,7 @@ export interface StompProviderConfig {
 /**
  * REST Provider Configuration
  */
-export interface RestProviderConfig {
+export interface RestProviderConfig extends ProviderRowStoreConfig {
   providerType: 'rest';
   baseUrl: string;
   endpoint: string;
@@ -270,7 +300,7 @@ export interface RestProviderConfig {
 /**
  * WebSocket Provider Configuration
  */
-export interface WebSocketProviderConfig {
+export interface WebSocketProviderConfig extends ProviderRowStoreConfig {
   providerType: 'websocket';
   url: string;
   protocol?: string;
@@ -285,7 +315,7 @@ export interface WebSocketProviderConfig {
 /**
  * Socket.IO Provider Configuration
  */
-export interface SocketIOProviderConfig {
+export interface SocketIOProviderConfig extends ProviderRowStoreConfig {
   providerType: 'socketio';
   url: string;
   namespace?: string;
@@ -305,7 +335,7 @@ export interface SocketIOProviderConfig {
 /**
  * Mock Provider Configuration
  */
-export interface MockProviderConfig {
+export interface MockProviderConfig extends ProviderRowStoreConfig {
   providerType: 'mock';
   dataType: 'positions' | 'trades' | 'orders' | 'custom';
   updateInterval?: number;
@@ -359,7 +389,7 @@ export interface AppDataVariable {
 /**
  * AppData Provider Configuration
  */
-export interface AppDataProviderConfig {
+export interface AppDataProviderConfig extends ProviderRowStoreConfig {
   providerType: 'appdata';
   variables: Record<string, AppDataVariable>;
 }

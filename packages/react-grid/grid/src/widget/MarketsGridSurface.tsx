@@ -17,7 +17,7 @@
 
 import { memo, useMemo, type CSSProperties, type ReactElement, type RefObject } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import type { GetContextMenuItems, GridReadyEvent } from 'ag-grid-community';
+import type { GetContextMenuItems, GridReadyEvent, IServerSideDatasource } from 'ag-grid-community';
 import type { MarketsGridProps } from './types';
 import { stripSurfaceManagedGridOptions } from './gridSurfaceOptions';
 import { buildStreamSafeComponents } from './buildStreamSafeComponents';
@@ -28,6 +28,9 @@ export interface MarketsGridSurfaceProps<TData> {
   readonly hostOverrideKeys: ReadonlySet<string>;
   readonly theme: MarketsGridProps<TData>['theme'];
   readonly rowData: TData[];
+  readonly rowModelType?: 'clientSide' | 'serverSide';
+  readonly serverSideDatasource?: IServerSideDatasource;
+  readonly cacheBlockSize?: number;
   readonly columnDefs: unknown[];
   readonly rowHeight?: number;
   readonly headerHeight?: number;
@@ -57,6 +60,9 @@ function surfacePropsEqual<TData>(
     && prev.hostOverrideKeys === next.hostOverrideKeys
     && prev.theme === next.theme
     && prev.rowData === next.rowData
+    && prev.rowModelType === next.rowModelType
+    && prev.serverSideDatasource === next.serverSideDatasource
+    && prev.cacheBlockSize === next.cacheBlockSize
     && prev.columnDefs === next.columnDefs
     && prev.rowHeight === next.rowHeight
     && prev.headerHeight === next.headerHeight
@@ -77,6 +83,9 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
   hostOverrideKeys,
   theme,
   rowData,
+  rowModelType = 'clientSide',
+  serverSideDatasource,
+  cacheBlockSize = 100,
   columnDefs,
   rowHeight,
   headerHeight,
@@ -128,7 +137,13 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
         {...pipelineGridOptions}
         {...hostOverrides}
         theme={theme}
-        rowData={rowData}
+        rowModelType={rowModelType}
+        {...(rowModelType === 'serverSide'
+          ? {
+              serverSideDatasource,
+              cacheBlockSize,
+            }
+          : { rowData })}
         columnDefs={columnDefs as never}
         maintainColumnOrder
         cellSelection={true}

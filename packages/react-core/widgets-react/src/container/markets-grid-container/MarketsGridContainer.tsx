@@ -32,7 +32,9 @@ import {
   createMarketsGridContainerEventBus,
   useMarketsGridEventBridge,
 } from '@starui/grid';
-import type { StompProviderConfig } from '@starui/types';
+import type { StompProviderConfig, ProviderRowStoreConfig } from '@starui/types';
+import { perspectiveEngineRegistry, resolveRowStore } from '@starui/perspective-engine';
+import { resolvePerspectiveIndexColumn } from './perspectiveSsrmUtils.js';
 import { traceStompProviderCfg } from '@starui/host-data/runtime';
 import type { AppDataLookup, StorageAdapter } from '@starui/engine';
 import {
@@ -497,6 +499,30 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   });
 
   const liveApi = stamped && stamped.key === expectedKey ? stamped.api : null;
+  const liveApiRef = useRef(liveApi);
+  liveApiRef.current = liveApi;
+
+  const rowStore = useMemo(
+    () => resolveRowStore(activeCfg as ProviderRowStoreConfig | null | undefined),
+    [activeCfg],
+  );
+
+  const ssrmDatasource = useMemo(() => {
+    if (rowStore !== 'perspective' || !activeId) return null;
+    return perspectiveEngineRegistry.attach({
+      providerId: activeId,
+      indexColumn: resolvePerspectiveIndexColumn(rowIdField),
+      cacheBlockSize: (activeCfg as ProviderRowStoreConfig | null)?.ssrm?.cacheBlockSize,
+      refreshThrottleMs: (activeCfg as ProviderRowStoreConfig | null)?.ssrm?.refreshThrottleMs,
+      onDirty: () => {
+        try {
+          liveApiRef.current?.refreshServerSide({ purge: false });
+        } catch {
+          // grid destroyed
+        }
+      },
+    });
+  }, [rowStore, activeId, rowIdField, activeCfg]);
 
   // Read the `pauseUpdatesWhenHidden` grid setting from the live platform so
   // the provider-wiring can pause grid repaint on hidden/inactive views.
@@ -618,6 +644,10 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     setResolvedSubKey,
     setIsRefetching,
     pauseUpdatesWhenHidden,
+    rowStore,
+    serverSideDatasource: ssrmDatasource,
+    ssrmCacheBlockSize: (activeCfg as ProviderRowStoreConfig | null)?.ssrm?.cacheBlockSize,
+    ssrmRefreshThrottleMs: (activeCfg as ProviderRowStoreConfig | null)?.ssrm?.refreshThrottleMs,
   });
 
   /** Cache replay only — `IDataProvider.refresh()`; no upstream reconnect. */
@@ -915,8 +945,11 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         <div style={{ position: 'relative', height: '100%', minHeight: 0 }}>
           <MarketsGrid<TData>
             {...(marketsGridProps as MarketsGridProps<TData>)}
-            key={`${activeId}::${rowIdFieldKey}`}
+            key={`${activeId}::${rowIdFieldKey}::${rowStore}`}
             rowData={EMPTY as TData[]}
+            rowModelType={rowStore === 'perspective' ? 'serverSide' : 'clientSide'}
+            serverSideDatasource={ssrmDatasource ?? undefined}
+            cacheBlockSize={(activeCfg as ProviderRowStoreConfig | null)?.ssrm?.cacheBlockSize ?? 100}
             rowIdField={rowIdField}
             columnDefs={columnDefs}
             appData={appDataLookup}
