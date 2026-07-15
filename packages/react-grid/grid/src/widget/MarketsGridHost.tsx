@@ -45,7 +45,8 @@ import { MarketsGridSurface } from './MarketsGridSurface';
 import { SsrmMarketsGridSurface } from '../engine/SsrmMarketsGridSurface';
 import type { SSRMColDef, SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
 import { useGridPlatform } from '../customizer/hooks/GridProvider.js';
-import { useSsrmColumnDefs } from '../engine/useSsrmColumnDefs.js';
+import { useSsrmCalcMaterialize, useSsrmColumnDefs } from '../engine/useSsrmColumnDefs.js';
+import { materializeCalcFields } from '../engine/ssrmCalcColumns.js';
 import { buildGridContextMenuItems } from './gridContextMenu';
 import { StaleDataBanner } from './StaleDataBanner';
 import { HistoricalViewBanner } from './HistoricalViewBanner';
@@ -175,6 +176,21 @@ function MarketsGridHostInner<TData>({
     columnDefs as SSRMColDef[],
     Boolean(useSSRM),
   );
+  const ssrmCalcMaterialize = useSsrmCalcMaterialize(
+    platform,
+    columnDefs,
+    Boolean(useSSRM),
+  );
+  const ssrmRowData = useMemo(() => {
+    if (!useSSRM || ssrmCalcMaterialize.materializePlans.length === 0) {
+      return rowData as Record<string, unknown>[];
+    }
+    return materializeCalcFields(
+      rowData as Record<string, unknown>[],
+      ssrmCalcMaterialize.materializePlans,
+      ssrmCalcMaterialize.evalRow,
+    );
+  }, [rowData, useSSRM, ssrmCalcMaterialize]);
   const generalSettings = useGeneralSettingsFromContext();
   const headerCaseAttr = generalSettings?.headerCaseUppercase ? 'upper' : undefined;
   const gridDensity = resolveGridDensity(generalSettings);
@@ -218,6 +234,7 @@ function MarketsGridHostInner<TData>({
     headerCaseAttr,
     useSSRM,
     ssrmRef,
+    ssrmCalcMaterialize,
   });
 
   const [settingsMounted, setSettingsMounted] = useState(false);
@@ -375,7 +392,7 @@ function MarketsGridHostInner<TData>({
       {useSSRM ? (
         <SsrmMarketsGridSurface
           ref={ssrmRef}
-          rowData={rowData as Record<string, unknown>[]}
+          rowData={ssrmRowData}
           columnDefs={ssrmColumnDefs}
           rowIdField={typeof rowIdField === 'string' ? rowIdField : 'id'}
         />

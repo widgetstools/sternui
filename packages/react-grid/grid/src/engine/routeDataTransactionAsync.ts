@@ -1,5 +1,6 @@
 import type { GridApi } from 'ag-grid-community';
 import { isSsrmCapabilityEnabled } from './ssrmCapabilities.js';
+import { materializeCalcFields, type SsrmCalcMaterializeContext } from './ssrmCalcColumns.js';
 import { recordSsrmTickDiffs } from './ssrmRowDiff.js';
 import type { SSRMGridHandle, SSRMTransaction } from './ssrmgrid-entry.js';
 
@@ -9,6 +10,29 @@ export type EngineDataTransaction = {
   remove?: unknown[];
 };
 
+function enrichTransactionRows(
+  rows: unknown[] | undefined,
+  materialize: SsrmCalcMaterializeContext | null | undefined,
+): unknown[] | undefined {
+  if (!rows?.length || !materialize?.materializePlans.length) return rows;
+  return materializeCalcFields(
+    rows as Record<string, unknown>[],
+    materialize.materializePlans,
+    materialize.evalRow,
+  );
+}
+
+function enrichTransaction(
+  tx: EngineDataTransaction,
+  materialize: SsrmCalcMaterializeContext | null | undefined,
+): EngineDataTransaction {
+  if (!materialize?.materializePlans.length) return tx;
+  const add = enrichTransactionRows(tx.add, materialize);
+  const update = enrichTransactionRows(tx.update, materialize);
+  if (add === tx.add && update === tx.update) return tx;
+  return { ...tx, add, update };
+}
+
 /** Engine-neutral transaction apply — SSRM handle vs CSRM GridApi. */
 export function routeDataTransactionAsync(
   useSSRM: boolean,
@@ -16,15 +40,17 @@ export function routeDataTransactionAsync(
   ssrmHandle: Pick<SSRMGridHandle, 'applyTransactionAsync'> | null | undefined,
   gridApi: Pick<GridApi, 'applyTransactionAsync'> | null | undefined,
   callback?: Parameters<GridApi['applyTransactionAsync']>[1],
+  materialize?: SsrmCalcMaterializeContext | null,
 ): void {
+  const enriched = useSSRM ? enrichTransaction(tx, materialize) : tx;
   if (useSSRM) {
-    if (isSsrmCapabilityEnabled('oldNewDiff') && tx.update?.length) {
-      recordSsrmTickDiffs(tx.update as Record<string, unknown>[]);
+    if (isSsrmCapabilityEnabled('oldNewDiff') && enriched.update?.length) {
+      recordSsrmTickDiffs(enriched.update as Record<string, unknown>[]);
     }
-    ssrmHandle?.applyTransactionAsync(tx as SSRMTransaction);
+    ssrmHandle?.applyTransactionAsync(enriched as SSRMTransaction);
     return;
   }
-  gridApi?.applyTransactionAsync(tx, callback);
+  gridApi?.applyTransactionAsync(enriched, callback);
 }
 
 export function resolveSsrmHandle(

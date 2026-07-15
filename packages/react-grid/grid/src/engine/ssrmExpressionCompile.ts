@@ -86,7 +86,7 @@ function compileNode(node: ExpressionNode): string {
         if (args.length !== 3) {
           throw new CompileError('IF requires exactly 3 arguments');
         }
-        return `if(${args[0]}, ${args[1]}, ${args[2]})`;
+        return `(${args[0]} ? ${args[1]} : ${args[2]})`;
       }
       return compileIfs(args);
     }
@@ -116,7 +116,7 @@ function compileIfs(args: string[]): string {
   for (let i = pairCount - 1; i >= 0; i--) {
     const cond = args[i * 2]!;
     const val = args[i * 2 + 1]!;
-    result = `if(${cond}, ${val}, ${result})`;
+    result = `(${cond} ? ${val} : ${result})`;
   }
 
   return result;

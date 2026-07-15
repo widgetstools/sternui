@@ -14,7 +14,7 @@ describe('ssrmExpressionCompile', () => {
     );
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.perspectiveExpression).toContain('if(');
+      expect(r.perspectiveExpression).toContain('?');
       expect(r.perspectiveExpression).toContain('"price"');
     }
   });
@@ -38,10 +38,10 @@ describe('ssrmExpressionCompile', () => {
     }
   });
 
-  it('compiles IF to perspective if()', () => {
+  it('compiles IF to Perspective ternary', () => {
     const r = compileStarUiExpressionToPerspective('IF([x] > 0, [x], 0)');
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.perspectiveExpression).toBe('if("x" > 0, "x", 0)');
+    if (r.ok) expect(r.perspectiveExpression).toBe('("x" > 0 ? "x" : 0)');
   });
 
   it('rejects unknown functions', () => {

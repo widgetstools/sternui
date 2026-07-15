@@ -31,6 +31,26 @@ describe('routeDataTransactionAsync', () => {
     expect(gridApply).toHaveBeenCalledWith(tx, callback);
     expect(ssrmApply).not.toHaveBeenCalled();
   });
+
+  it('materializes SSRM calc fields on update before routing', () => {
+    const ssrmApply = vi.fn();
+    const evalRow = vi.fn(() => 42);
+    routeDataTransactionAsync(
+      true,
+      tx,
+      { applyTransactionAsync: ssrmApply },
+      undefined,
+      undefined,
+      {
+        materializePlans: [{ kind: 'materialize', colId: 'calc', expression: '[pnl]' }],
+        evalRow,
+      },
+    );
+    expect(evalRow).toHaveBeenCalled();
+    expect(ssrmApply).toHaveBeenCalledWith({
+      update: [{ id: 'a', pnl: 1, calc: 42 }],
+    });
+  });
 });
 
 describe('resolveSsrmHandle', () => {

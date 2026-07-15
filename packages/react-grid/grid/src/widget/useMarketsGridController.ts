@@ -65,6 +65,7 @@ export interface UseMarketsGridControllerOpts {
   readonly headerCaseAttr?: 'upper' | undefined;
   readonly useSSRM?: boolean;
   readonly ssrmRef?: RefObject<SSRMGridHandle | null>;
+  readonly ssrmCalcMaterialize?: import('../engine/ssrmCalcColumns.js').SsrmCalcMaterializeContext | null;
 }
 
 export interface MarketsGridControllerHandle {
@@ -118,6 +119,7 @@ export function useMarketsGridController(
     headerCaseAttr: headerCaseAttrProp,
     useSSRM = false,
     ssrmRef,
+    ssrmCalcMaterialize = null,
   } = opts;
 
   // Construct a fallback adapter ONCE when the host doesn't provide one.
@@ -250,9 +252,9 @@ export function useMarketsGridController(
       tx: { add?: unknown[]; update?: unknown[]; remove?: unknown[] },
       callback?: Parameters<GridApi['applyTransactionAsync']>[1],
     ) => {
-      routeDataTransactionAsync(useSSRM, tx, ssrmRef?.current, api, callback);
+      routeDataTransactionAsync(useSSRM, tx, ssrmRef?.current, api, callback, ssrmCalcMaterialize);
     },
-    [useSSRM, ssrmRef, api],
+    [useSSRM, ssrmRef, api, ssrmCalcMaterialize],
   );
   const getSsrmHandle = useCallback(
     () => resolveSsrmHandle(useSSRM, ssrmRef?.current),

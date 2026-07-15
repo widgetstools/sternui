@@ -41,7 +41,8 @@ import { GeneralSettingsProvider } from './GeneralSettingsContext';
 import { MarketsGridSurface } from './MarketsGridSurface';
 import { SsrmMarketsGridSurface } from '../engine/SsrmMarketsGridSurface';
 import type { SSRMColDef, SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
-import { useSsrmColumnDefs } from '../engine/useSsrmColumnDefs.js';
+import { useSsrmCalcMaterialize, useSsrmColumnDefs } from '../engine/useSsrmColumnDefs.js';
+import { materializeCalcFields } from '../engine/ssrmCalcColumns.js';
 
 export { DEFAULT_MODULES, MINIMAL_MODULES } from './modules';
 
@@ -443,6 +444,21 @@ function MarketsGridCoreInner<TData = unknown>(
     shell.columnDefs as SSRMColDef[],
     Boolean(useSSRM),
   );
+  const ssrmCalcMaterialize = useSsrmCalcMaterialize(
+    shell.platform,
+    shell.columnDefs,
+    Boolean(useSSRM),
+  );
+  const ssrmRowData = useMemo(() => {
+    if (!useSSRM || ssrmCalcMaterialize.materializePlans.length === 0) {
+      return rowData as Record<string, unknown>[];
+    }
+    return materializeCalcFields(
+      rowData as Record<string, unknown>[],
+      ssrmCalcMaterialize.materializePlans,
+      ssrmCalcMaterialize.evalRow,
+    );
+  }, [rowData, useSSRM, ssrmCalcMaterialize]);
 
   return (
     <GridProvider platform={shell.platform} engineKind={useSSRM ? 'ssrm' : 'csrm'}>
@@ -451,7 +467,7 @@ function MarketsGridCoreInner<TData = unknown>(
           {useSSRM ? (
             <SsrmMarketsGridSurface
               ref={ssrmRef}
-              rowData={rowData as Record<string, unknown>[]}
+              rowData={ssrmRowData}
               columnDefs={ssrmColumnDefs}
               rowIdField={typeof rowIdField === 'string' ? rowIdField : 'id'}
             />
