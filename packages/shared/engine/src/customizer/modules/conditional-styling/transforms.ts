@@ -880,7 +880,7 @@ export function applyCellRulesToDefs(
               const data = params.data ?? {};
               const columns = buildColumnsContext(
                 data,
-                resolveRowDiffs(params.api, params.node, diffCacheByApi),
+                resolveRowDiffs(params.api, params.node, diffCacheByApi, rowDiffById).rowDiffs,
               );
               matched = Boolean(engine.parseAndEvaluate(c.expression, {
                 x: params.value, value: params.value, data, columns,
@@ -901,17 +901,6 @@ export function applyCellRulesToDefs(
 
     return { ...colDef, cellClassRules };
   });
-}
-
-function resolveRowDiffs(
-  api: unknown,
-  node: unknown,
-  diffCacheByApi?: DiffCacheByApi,
-): RowDiffMap | undefined {
-  if (!diffCacheByApi) return undefined;
-  if (!api || typeof api !== 'object') return undefined;
-  if (!node || typeof node !== 'object') return undefined;
-  return diffCacheByApi.get(api as object)?.get(node as object);
 }
 
 function resolveRowDiffs(

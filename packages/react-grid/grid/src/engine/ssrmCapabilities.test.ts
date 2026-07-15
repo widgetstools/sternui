@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { isSsrmCapabilityEnabled } from './ssrmCapabilities.js';
+import {
+  CURRENT_SSRM_PHASE,
+  isSsrmCapabilityEnabled,
+} from './ssrmCapabilities.js';
 
 describe('isSsrmCapabilityEnabled', () => {
   it('phase 0 enables presentation and excelFormat only', () => {
@@ -15,5 +18,13 @@ describe('isSsrmCapabilityEnabled', () => {
     expect(isSsrmCapabilityEnabled('oldNewDiff', 1)).toBe(true);
     expect(isSsrmCapabilityEnabled('trafficLightAgg', 1)).toBe(false);
     expect(isSsrmCapabilityEnabled('alerts', 1)).toBe(false);
+  });
+
+  it('CURRENT_SSRM_PHASE enables phase-1 capabilities by default', () => {
+    expect(CURRENT_SSRM_PHASE).toBe(1);
+    expect(isSsrmCapabilityEnabled('oldNewDiff')).toBe(true);
+    expect(isSsrmCapabilityEnabled('liveTicks')).toBe(true);
+    expect(isSsrmCapabilityEnabled('calcColumns')).toBe(false);
+    expect(isSsrmCapabilityEnabled('alerts')).toBe(false);
   });
 });

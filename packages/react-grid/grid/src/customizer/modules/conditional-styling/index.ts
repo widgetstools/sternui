@@ -44,8 +44,8 @@ import {
 } from './ConditionalStylingPanel';
 import { deserializeConditionalStylingState } from './deserializeMigration';
 import { activateConditionalStyling } from './runtime/activate';
-import { getSsrmRowDiff } from '../../engine/ssrmRowDiff.js';
-import { isSsrmCapabilityEnabled } from '../../engine/ssrmCapabilities.js';
+import { getSsrmRowDiff } from '../../../engine/ssrmRowDiff.js';
+import { isSsrmCapabilityEnabled } from '../../../engine/ssrmCapabilities.js';
 
 export const CONDITIONAL_STYLING_MODULE_ID = 'conditional-styling';
 
