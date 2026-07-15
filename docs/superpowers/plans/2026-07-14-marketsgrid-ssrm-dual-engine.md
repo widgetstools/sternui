@@ -656,6 +656,7 @@ git commit -m "feat(grid): enable SSRM phase 1 capabilities (blotter core + old/
 | 2 | `docs/superpowers/plans/YYYY-MM-DD-marketsgrid-ssrm-phase2-calcs.md` | `perspectiveExpression` transpile; `SUM`/`AVG`; **trafficLight/rag named agg**; gate unmappable custom aggs |
 | 3 | `...-phase3-alerts-edit.md` | Alerts on dirty/deltas; smart-edit via SSRM tx; context link without external filter |
 | 4 | `...-phase4-parity.md` | Matrix green; docs; perf at 50k+ / high tick; optional `rowModel` alias |
+| After 1–4 | `docs/superpowers/plans/2026-07-15-stomp-rowshape-ssrm.md` | STOMP `rowShape: 'ssrm'` — **DONE** (flatten + stream + Behaviour editor) |
 
 ---
 
