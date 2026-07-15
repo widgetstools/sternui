@@ -1,8 +1,8 @@
 # Calculated Columns — module-driven
 
-**Five toolbar profiles** (`lab-calculated-v5`) switch between the full
-**11** virtual columns and focused subsets (P&L, risk, spreads, overview
-derivatives). Import from
+**Six toolbar profiles** (`lab-calculated-v6`) switch between the full
+**11** virtual columns, focused subsets (P&L, risk, spreads, overview
+derivatives), and the **traffic-light (RAG)** recipe. Import from
 [`public/lab-profiles/calculated-columns/`](../../public/lab-profiles/calculated-columns/).
 
 Default profile **00 · All virtual** seeds every expression below.
@@ -27,6 +27,14 @@ the profile, and they ride the same persistence as any other module.
 | `calc_pnlPctMkt` | P&L % of Mkt | `IF([marketValue] > 0, ([dailyPnL] / [marketValue]) * 100, null)` | preset `number` |
 | `calc_cs01Notional` | CS01 × Qty | `[cs01] * [quantityFace] / 1000000` | preset `currency` |
 | `calc_yieldSpread` | YTW − YTM | `[yieldToWorst] - [yieldToMaturity]` | preset `number`, 3 dp |
+
+## Profile 05 · Traffic light (RAG)
+
+| ColId | Header | Expression | Formatter / agg |
+| --- | --- | --- | --- |
+| `trafficlight` | Traffic Light | `IFS([midPrice] >= 105, 1, [midPrice] >= 95, 2, 3)` | Excel `[=1]"🟢";[=2]"🟡";[=3]"🔴"`; group agg `trafficLight` |
+
+Also seeds **Asset Class** as the initial row group. Use with **Use SSRM** to prove leaf + group roll-up.
 
 ## Expression DSL
 

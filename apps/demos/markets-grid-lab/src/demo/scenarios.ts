@@ -305,6 +305,20 @@ const SCENARIOS: LabScenario[] = [
 
   // ─── Calculated columns ─────────────────────────────────────────────
   {
+    id: 'traffic-light-bands',
+    title: 'Traffic-light bands',
+    description: 'Force midPrice 110 / 100 / 90 on three rows — 🟢 / 🟡 / 🔴 on profile 05.',
+    accent: 'warning',
+    tabs: ['calc', 'overview', 'formatting'],
+    apply: (rows) => {
+      const next = cloneRows(rows);
+      patchRow(next, 0, { midPrice: 110, bidPrice: 109.5, askPrice: 110.5 });
+      patchRow(next, 1, { midPrice: 100, bidPrice: 99.5, askPrice: 100.5 });
+      patchRow(next, 2, { midPrice: 90, bidPrice: 89.5, askPrice: 90.5 });
+      return next;
+    },
+  },
+  {
     id: 'calc-ultra-duration',
     title: 'Ultra duration',
     description: 'Mod dur 18y — Risk Bucket calc column reads "Ultra".',

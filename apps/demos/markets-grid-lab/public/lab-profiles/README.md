@@ -11,7 +11,7 @@ or for sharing outside the app.
 | --- | --- | --- |
 | `overview/` | `lab-overview-v7` | 6 |
 | `conditional-styling/` | `lab-conditional-v7` | 6 |
-| `calculated-columns/` | `lab-calculated-v5` | 5 |
+| `calculated-columns/` | `lab-calculated-v6` | 6 |
 | `formatting/` | `lab-formatting-v7` | 6 |
 | `column-groups/` | `lab-column-groups-v5` | 5 |
 | `live-updates/` | `lab-live-v6` | 4 |

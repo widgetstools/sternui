@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "kind": "gc-profile",
-  "exportedAt": "2026-05-28T01:28:43.084Z",
+  "exportedAt": "2026-07-15T01:58:34.503Z",
   "profile": {
     "name": "00 · All virtual (11)",
-    "gridId": "lab-calculated-v5",
+    "gridId": "lab-calculated-v6",
     "state": {
       "calculated-columns": {
         "v": 1,

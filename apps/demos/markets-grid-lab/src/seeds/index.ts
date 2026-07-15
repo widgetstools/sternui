@@ -7,6 +7,7 @@ export {
 export {
   OVERVIEW_CALC_COLUMNS,
   CALCULATED_TAB_VIRTUAL,
+  TRAFFIC_LIGHT_VIRTUAL,
 } from './calculatedColumns';
 export { OVERVIEW_COLUMN_GROUPS } from './columnGroups';
 export {

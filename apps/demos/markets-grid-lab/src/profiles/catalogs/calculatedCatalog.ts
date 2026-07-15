@@ -1,10 +1,40 @@
+import type { ColumnCustomizationState } from '@starui/grid/customizer';
 import type { LabDemoProfileEntry } from '../labProfileKit';
-import { CALCULATED_TAB_VIRTUAL, OVERVIEW_CALC_COLUMNS } from '../../seeds';
+import {
+  CALCULATED_TAB_VIRTUAL,
+  OVERVIEW_CALC_COLUMNS,
+  TRAFFIC_LIGHT_VIRTUAL,
+} from '../../seeds';
 
-export const CALCULATED_GRID_ID = 'lab-calculated-v5';
+/** Bump when demo profiles change so first-mount reinstalls. */
+export const CALCULATED_GRID_ID = 'lab-calculated-v6';
 
 const ALL = CALCULATED_TAB_VIRTUAL;
 const pick = (...ids: string[]) => ALL.filter((c) => ids.includes(c.colId));
+
+const TRAFFIC_LIGHT_CC: ColumnCustomizationState = {
+  assignments: {
+    trafficlight: {
+      colId: 'trafficlight',
+      valueFormatterTemplate: {
+        kind: 'excelFormat',
+        format: '[=1]"🟢";[=2]"🟡";[=3]"🔴"',
+      },
+      rowGrouping: {
+        enableValue: true,
+        aggFunc: 'trafficLight',
+      },
+    },
+    assetClass: {
+      colId: 'assetClass',
+      rowGrouping: {
+        enableRowGroup: true,
+        rowGroup: true,
+        rowGroupIndex: 0,
+      },
+    },
+  },
+};
 
 export const CALCULATED_DEMO_PROFILES: LabDemoProfileEntry[] = [
   {
@@ -48,6 +78,15 @@ export const CALCULATED_DEMO_PROFILES: LabDemoProfileEntry[] = [
     name: '04 · Overview derivatives',
     blurb: 'The four virtual cols from the kitchen-sink tab.',
     seed: { 'calculated-columns': { virtualColumns: OVERVIEW_CALC_COLUMNS } },
+  },
+  {
+    id: 'calc-05-traffic-light',
+    name: '05 · Traffic light (RAG)',
+    blurb: 'IFS midPrice → 🟢/🟡/🔴; group by Asset Class with trafficLight agg (SSRM-ready).',
+    seed: {
+      'calculated-columns': { virtualColumns: [TRAFFIC_LIGHT_VIRTUAL] },
+      'column-customization': TRAFFIC_LIGHT_CC,
+    },
   },
 ];
 

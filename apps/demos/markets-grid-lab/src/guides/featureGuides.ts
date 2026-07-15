@@ -153,6 +153,8 @@ export const FEATURE_GUIDES: Record<string, FeatureGuide> = {
     trySteps: [
       { text: 'Open Settings → Calculated columns and read one expression.' },
       { text: 'Switch profiles to add more virtual columns; watch cell-change flash on recompute.' },
+      { text: 'Select profile “05 · Traffic light (RAG)” — midPrice bands paint 🟢/🟡/🔴; Asset Class is grouped with trafficLight agg.' },
+      { text: 'Check Use SSRM, then expand a group — leaf and group cells should both show the emoji fold.' },
     ],
     props: [
       { name: 'defaultColDef', type: 'ColDef', note: 'This tab sets enableCellChangeFlash:true so recomputes flash.' },

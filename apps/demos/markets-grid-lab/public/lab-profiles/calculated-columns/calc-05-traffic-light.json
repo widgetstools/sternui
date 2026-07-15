@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "kind": "gc-profile",
+  "exportedAt": "2026-07-15T01:58:34.503Z",
+  "profile": {
+    "name": "05 · Traffic light (RAG)",
+    "gridId": "lab-calculated-v6",
+    "state": {
+      "column-customization": {
+        "v": 1,
+        "data": {
+          "assignments": {
+            "trafficlight": {
+              "colId": "trafficlight",
+              "valueFormatterTemplate": {
+                "kind": "excelFormat",
+                "format": "[=1]\"🟢\";[=2]\"🟡\";[=3]\"🔴\""
+              },
+              "rowGrouping": {
+                "enableValue": true,
+                "aggFunc": "trafficLight"
+              }
+            },
+            "assetClass": {
+              "colId": "assetClass",
+              "rowGrouping": {
+                "enableRowGroup": true,
+                "rowGroup": true,
+                "rowGroupIndex": 0
+              }
+            }
+          }
+        }
+      },
+      "calculated-columns": {
+        "v": 1,
+        "data": {
+          "virtualColumns": [
+            {
+              "colId": "trafficlight",
+              "headerName": "Traffic Light",
+              "expression": "IFS([midPrice] >= 105, 1, [midPrice] >= 95, 2, 3)",
+              "cellDataType": "number",
+              "valueFormatterTemplate": {
+                "kind": "excelFormat",
+                "format": "[=1]\"🟢\";[=2]\"🟡\";[=3]\"🔴\""
+              },
+              "position": 110,
+              "initialWidth": 90
+            }
+          ]
+        }
+      }
+    }
+  }
+}
