@@ -24,9 +24,9 @@
     "@starui/design-system": "*",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "ag-grid-community": "^35.1.0",
-    "ag-grid-enterprise": "^35.1.0",
-    "ag-grid-react": "^35.1.0"
+    "ag-grid-community": "^36.0.0",
+    "ag-grid-enterprise": "^36.0.0",
+    "ag-grid-react": "^36.0.0"
   },
   "dependencies": {
     "@starui/engine": "*",
@@ -46,7 +46,8 @@
     "lucide-react": "^0.554.0",
     "monaco-editor": "^0.55.1",
     "tailwind-merge": "^3.5.0",
-    "zustand": "^5.0.12"
+    "zustand": "^5.0.12",
+    "ssrmgrid": "file:../../../../ssrmgrid"
   },
   "devDependencies": {
     "@starui/design-system": "*",
@@ -57,9 +58,9 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "~4.5.2",
-    "ag-grid-community": "35.1.0",
-    "ag-grid-enterprise": "35.1.0",
-    "ag-grid-react": "35.1.0",
+    "ag-grid-community": "36.0.0",
+    "ag-grid-enterprise": "36.0.0",
+    "ag-grid-react": "36.0.0",
     "jsdom": "^29.0.2",
     "react": "~19.2.5",
     "react-dom": "~19.2.5",
