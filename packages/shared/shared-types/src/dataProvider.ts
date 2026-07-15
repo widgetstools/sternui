@@ -184,6 +184,15 @@ export interface StompProviderConfig {
    */
   projectFields?: boolean;
   /**
+   * Row / snapshot delivery shape for hub consumers.
+   * - `'csrm'` | omitted — buffer snapshot; nested rows; `{ rowsReceived }`
+   *   until end-token (today's behaviour).
+   * - `'ssrm'` — flatten dotted column paths to scalar keys; stream snapshot
+   *   row batches as they arrive; flatten live ticks the same way.
+   * Changing this requires a provider Restart.
+   */
+  rowShape?: 'csrm' | 'ssrm';
+  /**
    * Thin field-level deltas. When ON, post-ready live updates broadcast
    * only the top-level fields that actually changed per row
    * (`delta-patch` wire events) instead of full replacement rows —
