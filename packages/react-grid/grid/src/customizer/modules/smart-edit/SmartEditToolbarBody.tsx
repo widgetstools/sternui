@@ -38,6 +38,7 @@ import type { EditingToolbarSegmentProps } from '../../editing/editingToolbarLay
 import { resolveEditRecording } from '../../editing/recordEdit';
 import { useGridPlatform } from '../../hooks/GridProvider';
 import { useModuleState } from '../../hooks/useModuleState';
+import { useSsrmCapabilityGate } from '../../hooks/useSsrmCapabilityGate';
 import {
   editingToolbarInputClasses,
   editingToolbarFieldWidthStyle,
@@ -53,6 +54,7 @@ import {
   buildSmartEditPatches,
   resolveTargetCells,
 } from './runtime/applyEdits';
+import { editWriterFromPlatform } from '../../editing/editWriterFromPlatform';
 
 const OP_LABELS: Record<SmartEditOp, string> = {
   multiply: '×',
@@ -71,6 +73,7 @@ const OP_TITLES: Record<Exclude<SmartEditOp, 'set'>, string> = {
 
 export function SmartEditToolbarBody({ layout = 'standalone' }: EditingToolbarSegmentProps) {
   const platform = useGridPlatform();
+  const smartEditGate = useSsrmCapabilityGate('smartEdit');
   const [settings] = useModuleState<SmartEditState>(SMART_EDIT_MODULE_ID);
   const { count, cells } = useSmartEditSelection();
   const [operand, setOperand] = useState('1');
@@ -111,6 +114,7 @@ export function SmartEditToolbarBody({ layout = 'standalone' }: EditingToolbarSe
       journal: journalRecording.record ? journalRecording.journal : null,
       patches,
       journalApplyGridId: platform.gridId,
+      writer: editWriterFromPlatform(platform) ?? undefined,
     });
   }, [platform, settings.settings.enabled, settings.settings.enforceSingleColumn, journalRecording]);
 
@@ -188,6 +192,20 @@ export function SmartEditToolbarBody({ layout = 'standalone' }: EditingToolbarSe
   };
 
   if (!settings.settings.enabled) return null;
+  if (!smartEditGate.enabled) {
+    return (
+      <EditingToolbarSegment
+        layout={layout}
+        label="Smart Edit"
+        data-testid="smart-edit-toolbar"
+        title={smartEditGate.tooltip}
+      >
+        <span className="text-[11px] text-[color:var(--ds-text-muted)]" data-testid="se-ssrm-gate-message">
+          {smartEditGate.tooltip}
+        </span>
+      </EditingToolbarSegment>
+    );
+  }
 
   const disabled = count === 0 || !columnGuard.ok;
   const ops = settings.settings.enabledOps;

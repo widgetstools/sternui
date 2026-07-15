@@ -10,6 +10,7 @@ import { useGridPlatform } from '../../hooks/GridProvider';
 import { useEditJournal } from '../../hooks/useEditJournal';
 import { journalUndoStackSize } from '../../editing/editJournalScope';
 import { journalUndo, journalRedo } from '../../editing/journalUndoRedo';
+import { editWriterFromPlatform } from '../../editing/editWriterFromPlatform';
 import { useModuleState } from '../../hooks/useModuleState';
 import {
   EditingToolbarIconButton,
@@ -23,15 +24,15 @@ export function EditHistoryToolbarBody({ layout = 'standalone' }: EditingToolbar
   const [history] = useModuleState<DataChangeHistoryState>(DATA_CHANGE_HISTORY_MODULE_ID);
 
   const handleUndo = useCallback(async () => {
-    const api = platform.api.api;
-    if (!api) return;
-    await journalUndo(platform, journal, api as never);
+    const writer = editWriterFromPlatform(platform);
+    if (!writer) return;
+    await journalUndo(platform, journal, writer);
   }, [journal, platform]);
 
   const handleRedo = useCallback(async () => {
-    const api = platform.api.api;
-    if (!api) return;
-    await journalRedo(platform, journal, api as never);
+    const writer = editWriterFromPlatform(platform);
+    if (!writer) return;
+    await journalRedo(platform, journal, writer);
   }, [journal, platform]);
 
   const entryCount = journalUndoStackSize(journal);

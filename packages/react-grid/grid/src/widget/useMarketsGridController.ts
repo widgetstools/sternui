@@ -269,6 +269,14 @@ export function useMarketsGridController(
     },
     [useSSRM, ssrmRef, api, ssrmCalcMaterialize, platform.rows, rowIdField],
   );
+
+  useEffect(() => {
+    platform.setDataTransactionApplier((tx) => {
+      applyDataTransactionAsync(tx);
+    });
+    return () => platform.setDataTransactionApplier(null);
+  }, [platform, applyDataTransactionAsync]);
+
   const getSsrmHandle = useCallback(
     () => resolveSsrmHandle(useSSRM, ssrmRef?.current),
     [useSSRM, ssrmRef],

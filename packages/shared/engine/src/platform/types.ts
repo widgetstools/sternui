@@ -276,6 +276,16 @@ export interface PlatformHandle<S> {
   /** Shared, rAF-coalesced row-change signal. Subscribe here instead of
    *  wiring a private `modelUpdated` listener that walks every row per tick. */
   readonly rows: RowChangeSignal;
+  /**
+   * Host-routed data transaction (SSRM Perspective + RowChangeBus, or CSRM
+   * GridApi). Editing modules should prefer this over raw
+   * `api.applyTransactionAsync`.
+   */
+  applyDataTransaction?(tx: {
+    add?: unknown[];
+    update?: unknown[];
+    remove?: unknown[];
+  }): void;
   /** Read + write THIS module's state. */
   getState(): S;
   setState(updater: (prev: S) => S): void;

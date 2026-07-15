@@ -2,6 +2,7 @@ import type { GridApi } from 'ag-grid-community';
 import {
   applyForwardPatches,
   buildShortcutPatches,
+  type EditGridWriter,
   type EditJournal,
   type ShortcutDefinition,
 } from '@starui/engine';
@@ -12,6 +13,7 @@ export interface ApplyShortcutOptions {
   journal?: EditJournal | null;
   journalApplyGridId?: string;
   journalLabel?: string;
+  writer?: EditGridWriter;
 }
 
 export async function applyShortcutEdit(
@@ -27,7 +29,8 @@ export async function applyShortcutEdit(
   const patches = buildShortcutPatches(options);
   if (patches.length === 0) return 0;
 
-  const apply = () => applyForwardPatches(api as never, patches, rowIdField);
+  const writer = applyOptions.writer ?? (api as never as EditGridWriter);
+  const apply = () => applyForwardPatches(writer, patches, rowIdField);
   if (applyOptions.journalApplyGridId) {
     await withJournalApplyGuard(applyOptions.journalApplyGridId, apply);
   } else {

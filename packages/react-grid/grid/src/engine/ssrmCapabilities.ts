@@ -17,7 +17,8 @@ const PHASE_MIN: Record<SsrmCapabilityId, SsrmPhase> = {
   // Alerts unblocked early once the SSRM→RowChangeBus bridge lands; keep
   // smartEdit / externalFilter at phase 3 (do not bump CURRENT_SSRM_PHASE).
   alerts: 2,
-  smartEdit: 3,
+  // Smart-edit (and shared editing writer) once host applyDataTransaction is wired.
+  smartEdit: 2,
   externalFilter: 3,
 };
 

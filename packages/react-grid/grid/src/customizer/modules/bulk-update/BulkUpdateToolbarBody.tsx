@@ -27,6 +27,7 @@ import {
 } from '@starui/ui';
 import type { EditingToolbarSegmentProps } from '../../editing/editingToolbarLayout';
 import { resolveEditRecording } from '../../editing/recordEdit';
+import { editWriterFromPlatform } from '../../editing/editWriterFromPlatform';
 import { useGridPlatform } from '../../hooks/GridProvider';
 import { useModuleState } from '../../hooks/useModuleState';
 import {
@@ -98,6 +99,7 @@ export function BulkUpdateToolbarBody({ layout = 'standalone' }: EditingToolbarS
       journal: journalRecording.record ? journalRecording.journal : null,
       journalLabel: `Bulk set ${colLabel} → ${value.trim()} · ${targets.length} cell${targets.length === 1 ? '' : 's'}`,
       journalApplyGridId: platform.gridId,
+      writer: editWriterFromPlatform(platform) ?? undefined,
     });
   }, [platform, settings.settings.enabled, settings.settings.enforceSingleColumn, value, journalRecording]);
 

@@ -67,6 +67,18 @@ export class GridPlatform {
   private readonly activeDisposers: Array<() => void> = [];
   private mountedGrid = false;
   private destroyed = false;
+  /**
+   * Host-routed data transactions (MarketsGrid `applyDataTransactionAsync`).
+   * When set, editing modules must use this instead of raw GridApi applies so
+   * SSRM hits Perspective + RowChangeBus.
+   */
+  private dataTransactionApplier:
+    | ((tx: {
+        add?: unknown[];
+        update?: unknown[];
+        remove?: unknown[];
+      }) => void)
+    | null = null;
 
   constructor(opts: GridPlatformOptions) {
     this.gridId = opts.gridId;
@@ -168,6 +180,39 @@ export class GridPlatform {
     }
   }
 
+  // ─── Host data transactions (SSRM / CSRM router) ─────────────────────────
+
+  /** MarketsGrid wires this to `applyDataTransactionAsync`. */
+  setDataTransactionApplier(
+    fn:
+      | ((tx: {
+          add?: unknown[];
+          update?: unknown[];
+          remove?: unknown[];
+        }) => void)
+      | null,
+  ): void {
+    this.dataTransactionApplier = fn;
+  }
+
+  /**
+   * Prefer the host applier (Perspective + RowChangeBus under SSRM). Falls
+   * back to GridApi when the host has not registered yet.
+   */
+  applyDataTransaction(tx: {
+    add?: unknown[];
+    update?: unknown[];
+    remove?: unknown[];
+  }): void {
+    if (this.dataTransactionApplier) {
+      this.dataTransactionApplier(tx);
+      return;
+    }
+    const api = this.api.api;
+    if (!api) return;
+    void api.applyTransactionAsync(tx as Parameters<GridApi['applyTransactionAsync']>[0]);
+  }
+
   // ─── Read-only accessors ─────────────────────────────────────────────────
 
   getModules(): readonly AnyModule[] {
@@ -183,6 +228,7 @@ export class GridPlatform {
       resources: this.resources,
       events: this.events,
       rows: this.rows,
+      applyDataTransaction: (tx) => this.applyDataTransaction(tx),
       getState: () => this.store.getModuleState<S>(module.id),
       setState: (updater) => this.store.setModuleState<S>(module.id, updater),
       getModuleState: <T,>(id: string) => this.store.getModuleState<T>(id),

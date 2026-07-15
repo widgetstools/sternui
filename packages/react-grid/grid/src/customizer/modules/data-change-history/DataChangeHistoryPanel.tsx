@@ -7,6 +7,7 @@ import {
 } from '@starui/engine';
 import { useGridPlatform } from '../../hooks/GridProvider';
 import { journalUndoEntry } from '../../editing/journalUndoRedo';
+import { editWriterFromPlatform } from '../../editing/editWriterFromPlatform';
 import { journalCanUndoEntry } from '../../editing/editJournalScope';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
 import { useEditJournal, useSyncJournalSuspend } from '../../hooks/useEditJournal';
@@ -56,9 +57,9 @@ function DataChangeHistoryPanelInner() {
   };
 
   const undoEntry = useCallback(async (entryId: string) => {
-    const api = platform.api.api;
-    if (!api) return;
-    await journalUndoEntry(platform, journal, api as never, entryId);
+    const writer = editWriterFromPlatform(platform);
+    if (!writer) return;
+    await journalUndoEntry(platform, journal, writer, entryId);
   }, [journal, platform]);
 
   return (

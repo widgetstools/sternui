@@ -4,6 +4,7 @@ import {
   buildBulkUpdatePatchesFromRaw,
   collectBulkUpdateTargets,
   type BulkUpdateTarget,
+  type EditGridWriter,
   type EditJournal,
 } from '@starui/engine';
 import { withJournalApplyGuard } from '../../../editing/journalApplyGuard.js';
@@ -20,6 +21,7 @@ export interface ApplyBulkUpdateOptions {
   journalLabel?: string;
   patches?: readonly import('@starui/engine').CellPatch[];
   journalApplyGridId?: string;
+  writer?: EditGridWriter;
 }
 
 export async function applyBulkUpdateEdits(
@@ -32,7 +34,8 @@ export async function applyBulkUpdateEdits(
   const patches = options.patches ?? buildBulkUpdatePatchesFromRaw(targets, rawValue);
   if (patches.length === 0) return 0;
 
-  const applyPatches = () => applyForwardPatches(api as never, patches, rowIdField);
+  const writer = options.writer ?? (api as never as EditGridWriter);
+  const applyPatches = () => applyForwardPatches(writer, patches, rowIdField);
   if (options.journalApplyGridId) {
     await withJournalApplyGuard(options.journalApplyGridId, applyPatches);
   } else {

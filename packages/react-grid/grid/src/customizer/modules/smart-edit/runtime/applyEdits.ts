@@ -6,6 +6,7 @@ import {
   collectFocusedCell,
   collectTargetCells,
   type CellPatch,
+  type EditGridWriter,
   type EditJournal,
   type SmartEditOp,
   type TargetCell,
@@ -35,6 +36,8 @@ export interface ApplyEditsOptions {
   patches?: readonly CellPatch[];
   /** Grid id — wraps patch apply so cellValueChanged does not re-record. */
   journalApplyGridId?: string;
+  /** Prefer host-routed writer (SSRM). Falls back to `api` when omitted. */
+  writer?: EditGridWriter;
 }
 
 export async function applyEdits(
@@ -48,7 +51,8 @@ export async function applyEdits(
   const patches = options.patches ?? buildSmartEditPatches(cells, op, operand);
   if (patches.length === 0) return 0;
 
-  const applyPatches = () => applyForwardPatches(api as never, patches, rowIdField);
+  const writer = options.writer ?? (api as never as EditGridWriter);
+  const applyPatches = () => applyForwardPatches(writer, patches, rowIdField);
   if (options.journalApplyGridId) {
     await withJournalApplyGuard(options.journalApplyGridId, applyPatches);
   } else {

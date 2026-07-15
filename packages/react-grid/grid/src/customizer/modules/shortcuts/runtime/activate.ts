@@ -5,6 +5,7 @@ import {
   type ShortcutsState,
 } from '@starui/engine';
 import { resolveEditRecording } from '../../../editing/recordEdit.js';
+import { editWriterFromPlatform } from '../../../editing/editWriterFromPlatform.js';
 import { resolveTargetCells } from '../../smart-edit/runtime/applyEdits.js';
 import { applyShortcutEdit } from './applyShortcutEdit.js';
 
@@ -55,6 +56,7 @@ export function activateShortcuts(platform: PlatformHandle<ShortcutsState>): () 
         {
           journal: record ? journal : null,
           journalApplyGridId: platform.gridId,
+          writer: editWriterFromPlatform(platform) ?? undefined,
         },
       );
     };

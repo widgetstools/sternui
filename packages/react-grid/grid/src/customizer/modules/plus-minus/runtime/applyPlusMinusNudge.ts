@@ -3,6 +3,7 @@ import {
   applyForwardPatches,
   buildNudgePatches,
   type BuildNudgePatchesOptions,
+  type EditGridWriter,
   type EditJournal,
   type NudgeDirection,
 } from '@starui/engine';
@@ -13,6 +14,7 @@ export interface ApplyPlusMinusOptions {
   journal?: EditJournal | null;
   journalApplyGridId?: string;
   journalLabel?: string;
+  writer?: EditGridWriter;
 }
 
 export async function applyPlusMinusNudge(
@@ -30,7 +32,8 @@ export async function applyPlusMinusNudge(
   const patches = buildNudgePatches({ ...options, getRowData });
   if (patches.length === 0) return 0;
 
-  const apply = () => applyForwardPatches(api as never, patches, rowIdField);
+  const writer = applyOptions.writer ?? (api as never as EditGridWriter);
+  const apply = () => applyForwardPatches(writer, patches, rowIdField);
   if (applyOptions.journalApplyGridId) {
     await withJournalApplyGuard(applyOptions.journalApplyGridId, apply);
   } else {

@@ -7,6 +7,7 @@ import {
   type SmartEditState,
 } from '@starui/engine';
 import { resolveEditRecording } from '../../../editing/recordEdit.js';
+import { editWriterFromPlatform } from '../../../editing/editWriterFromPlatform.js';
 import { applyEdits, resolveTargetCells } from './applyEdits.js';
 
 function isEditingCell(api: GridApi): boolean {
@@ -55,6 +56,7 @@ export function activateSmartEdit(platform: PlatformHandle<SmartEditState>): () 
       await applyEdits(api, cells, op, step, {
         journal: record ? journal : null,
         journalApplyGridId: platform.gridId,
+        writer: editWriterFromPlatform(platform) ?? undefined,
       });
     };
 
