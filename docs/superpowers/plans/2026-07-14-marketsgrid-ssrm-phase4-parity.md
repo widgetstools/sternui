@@ -17,7 +17,7 @@ I'm using the writing-plans skill to create this implementation plan.
 | 5 | Group publish via `allLeafChildren` under SSRM | **OUT** |
 | 6 | Perspective-backed row-exclusion DSL | **OUT** |
 | 7 | Auto-suggest SSRM / `rowModel` alias | **OUT** |
-| 8 | Large-N + high tick perf campaign | **OUT — later** |
+| 8 | Large-N + high tick perf campaign | **PARTIAL** — Stress Test lab (50k×400 CSRM/SSRM); high-tick campaign still later |
 
 **Rule:** Prefer disable + tooltip over silent no-ops (design spec).
 
