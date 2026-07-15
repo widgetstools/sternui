@@ -42,8 +42,23 @@ export interface MarketsGridProps<TData = unknown> {
    * When true, use SSRMGrid (Perspective + AG Grid SSRM) for large datasets.
    * Default false — classic CSRM MarketsGrid. SSRM features are gated by
    * `CURRENT_SSRM_PHASE` in `engine/ssrmCapabilities.ts`.
+   * Prefer {@link MarketsGridProps.rowModel} for new code; when both are set,
+   * `useSSRM` wins.
    */
   useSSRM?: boolean;
+  /**
+   * Row-model alias for {@link MarketsGridProps.useSSRM}:
+   * `'server'` → SSRM, `'client'` → CSRM (default). Ignored when `useSSRM` is set.
+   */
+  rowModel?: 'client' | 'server';
+  /**
+   * When set and the grid is on CSRM with `rowData.length >=` this value,
+   * show a dismissible banner suggesting SSRM. Does not auto-switch —
+   * confirm calls {@link MarketsGridProps.onSuggestSsrm}.
+   */
+  suggestSsrmAbove?: number;
+  /** Called when the user accepts the suggest-SSRM banner. */
+  onSuggestSsrm?: () => void;
   /** Base column definitions — modules can transform them. */
   columnDefs: ColDef<TData>[];
   /** Module list. Default passes {@link DEFAULT_MODULES}; use exported

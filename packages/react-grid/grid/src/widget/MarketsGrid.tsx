@@ -40,6 +40,7 @@ import { mergeDefaultColDef } from './mergeDefaultColDef';
 import { GeneralSettingsProvider } from './GeneralSettingsContext';
 import { MarketsGridSurface } from './MarketsGridSurface';
 import { SsrmMarketsGridSurfaceConnected as SsrmMarketsGridSurface } from '../engine/SsrmMarketsGridSurfaceConnected';
+import { resolveUseSsrm } from '../engine/resolveUseSsrm.js';
 import type { SSRMColDef, SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
 import { useSsrmCalcMaterialize, useSsrmColumnDefs } from '../engine/useSsrmColumnDefs.js';
 import { materializeCalcFields } from '../engine/ssrmCalcColumns.js';
@@ -285,9 +286,12 @@ function MarketsGridInner<TData = unknown>(
     storageAdapter,
     host,
     includeAllStreamSafeFilters,
-    useSSRM,
+    useSSRM: useSSRMProp,
+    rowModel,
     rowIdField = 'id',
   } = props;
+
+  const useSSRM = resolveUseSsrm({ useSSRM: useSSRMProp, rowModel });
 
   const [internalToolbarDate, setInternalToolbarDate] = useState(todayIsoDate);
   const toolbarDate = toolbarDateProp ?? internalToolbarDate;
@@ -405,6 +409,8 @@ function MarketsGridInner<TData = unknown>(
         toolbarActionsLayout={toolbarActionsLayout}
         includeAllStreamSafeFilters={includeAllStreamSafeFilters ?? true}
         useSSRM={useSSRM}
+        suggestSsrmAbove={props.suggestSsrmAbove}
+        onSuggestSsrm={props.onSuggestSsrm}
         rowIdField={rowIdField}
       />
       </GeneralSettingsProvider>
@@ -432,9 +438,12 @@ function MarketsGridCoreInner<TData = unknown>(
     gridId,
     className,
     includeAllStreamSafeFilters,
-    useSSRM,
+    useSSRM: useSSRMProp,
+    rowModel,
     rowIdField = 'id',
   } = props;
+
+  const useSSRM = resolveUseSsrm({ useSSRM: useSSRMProp, rowModel });
 
   const gridRef = useRef<AgGridReact<TData>>(null);
   const ssrmRef = useRef<SSRMGridHandle>(null);

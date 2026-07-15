@@ -43,6 +43,8 @@ import { ColumnSelectorDialog } from './column-selector';
 import { UnsavedSwitchDialog } from './UnsavedSwitchDialog';
 import { MarketsGridSurface } from './MarketsGridSurface';
 import { SsrmMarketsGridSurfaceConnected as SsrmMarketsGridSurface } from '../engine/SsrmMarketsGridSurfaceConnected';
+import { SsrmSuggestBanner } from '../engine/SsrmSuggestBanner.js';
+import { shouldSuggestSsrm } from '../engine/shouldSuggestSsrm.js';
 import type { SSRMColDef, SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
 import { useGridPlatform } from '../customizer/hooks/GridProvider.js';
 import { useSsrmCalcMaterialize, useSsrmColumnDefs } from '../engine/useSsrmColumnDefs.js';
@@ -109,6 +111,8 @@ export interface MarketsGridHostProps<TData> {
   toolbarActionsLayout: 'inline' | 'overflow';
   includeAllStreamSafeFilters: boolean;
   useSSRM?: boolean;
+  suggestSsrmAbove?: number;
+  onSuggestSsrm?: () => void;
   rowIdField: string | readonly string[];
 }
 
@@ -167,9 +171,18 @@ function MarketsGridHostInner<TData>({
   toolbarActionsLayout,
   includeAllStreamSafeFilters,
   useSSRM,
+  suggestSsrmAbove,
+  onSuggestSsrm,
   rowIdField,
 }: MarketsGridHostProps<TData>) {
   const ssrmRef = useRef<SSRMGridHandle>(null);
+  const [ssrmSuggestDismissed, setSsrmSuggestDismissed] = useState(false);
+  const showSsrmSuggest = shouldSuggestSsrm({
+    useSSRM: Boolean(useSSRM),
+    rowCount: Array.isArray(rowData) ? rowData.length : 0,
+    threshold: suggestSsrmAbove,
+    dismissed: ssrmSuggestDismissed,
+  });
   const platform = useGridPlatform();
   const ssrmColumnDefs = useSsrmColumnDefs(
     platform,
@@ -315,6 +328,17 @@ function MarketsGridHostInner<TData>({
             historicalViewMessage ??
             'Viewing historical data — editing is disabled.'
           }
+        />
+      ) : null}
+      {showSsrmSuggest && suggestSsrmAbove != null ? (
+        <SsrmSuggestBanner
+          rowCount={Array.isArray(rowData) ? rowData.length : 0}
+          threshold={suggestSsrmAbove}
+          onAccept={() => {
+            onSuggestSsrm?.();
+            setSsrmSuggestDismissed(true);
+          }}
+          onDismiss={() => setSsrmSuggestDismissed(true)}
         />
       ) : null}
       {dataStale ? (

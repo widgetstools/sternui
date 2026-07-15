@@ -25,6 +25,7 @@ import type { DataServices } from '@starui/host-data/runtime';
 import type { ResolvedDataServicesHubBundle } from '@starui/host-data';
 import { DataServicesProvider, DataHubProvider } from '@starui/host-data-react/runtime';
 import type { MarketsGridHandle } from '@starui/grid';
+import { resolveUseSsrm } from '@starui/grid';
 import { MarketsGridContainer, type MarketsGridContainerProps } from '../container/markets-grid-container/index.js';
 import { useHostedView } from './useHostedView.js';
 import { useViewTabTitle } from './useViewTabTitle.js';
@@ -183,7 +184,10 @@ export function HostedMarketsGrid<
   // The container reports it via onRowIdFieldChange; we feed it into the link
   // config so broadcasts carry the real key columns + values — no hardcoding.
   const useSSRM = Boolean(
-    (containerProps as { useSSRM?: boolean }).useSSRM,
+    resolveUseSsrm({
+      useSSRM: (containerProps as { useSSRM?: boolean }).useSSRM,
+      rowModel: (containerProps as { rowModel?: 'client' | 'server' }).rowModel,
+    }),
   );
   const [linkRowIdField, setLinkRowIdField] = useState<string | readonly string[] | null>(null);
   const effectiveContextLink = useMemo<GridContextLinkConfig | undefined>(() => {

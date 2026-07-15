@@ -35,8 +35,8 @@ describe('isSsrmCapabilityEnabled', () => {
     expect(isSsrmCapabilityEnabled('externalFilter', 3)).toBe(true);
   });
 
-  it('CURRENT_SSRM_PHASE enables through phase 3 by default', () => {
-    expect(CURRENT_SSRM_PHASE).toBe(3);
+  it('CURRENT_SSRM_PHASE enables through phase 4 by default', () => {
+    expect(CURRENT_SSRM_PHASE).toBe(4);
     expect(isSsrmCapabilityEnabled('calcColumns')).toBe(true);
     expect(isSsrmCapabilityEnabled('trafficLightAgg')).toBe(true);
     expect(isSsrmCapabilityEnabled('oldNewDiff')).toBe(true);

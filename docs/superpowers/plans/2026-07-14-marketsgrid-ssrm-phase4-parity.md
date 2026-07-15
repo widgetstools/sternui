@@ -16,8 +16,8 @@ I'm using the writing-plans skill to create this implementation plan.
 | 4 | Full-book alerts / edits / `mode: 'rowId'` external filter | **DONE (4b hybrid)** — rowId via PK set filter; alerts on-demand rescan |
 | 5 | Group publish via `allLeafChildren` under SSRM | **DONE (4a)** — Perspective uncapped leaf fetch |
 | 6 | Perspective-backed row-exclusion DSL | **DONE (4b)** — compile → `rowKeepExpression` |
-| 7 | Auto-suggest SSRM / `rowModel` alias | **OUT (4c)** |
-| 8 | Large-N + high tick perf campaign | **PARTIAL** — Stress Test lab (50k×400 CSRM/SSRM); high-tick campaign still later |
+| 7 | Auto-suggest SSRM / `rowModel` alias | **DONE (4c)** — `rowModel` + opt-in `suggestSsrmAbove` banner |
+| 8 | Large-N + high tick perf campaign | **DONE (4c)** — Stress Test high-tick (~200 ms) live updates |
 
 **Rule:** Prefer disable + tooltip over silent no-ops (design spec).
 
@@ -41,6 +41,9 @@ I'm using the writing-plans skill to create this implementation plan.
 | Row-exclusion DSL | Green | Phase 4b — Perspective keep expression (`not(exclude)`) |
 | Full-book relative alerts | Green / hybrid | Day-to-day delta; **Rescan full book** seeds baselines (4b) |
 | Group leaf expansion publish | Green | Phase 4a — Perspective `getGroupLeafRows` (uncapped) |
+| `rowModel` alias | Green | Phase 4c — `'server'` ≡ `useSSRM` |
+| Suggest SSRM banner | Green | Phase 4c — opt-in `suggestSsrmAbove` + user confirm |
+| High-tick stress lab | Green | Phase 4c — Stress Test live ~200 ms ticks |
 
 ## Lab smoke links
 
@@ -52,5 +55,5 @@ I'm using the writing-plans skill to create this implementation plan.
 
 ## Success criteria (Phase 4 doc slice)
 
-1. Matrix lives in-repo and matches shipped gates (`CURRENT_SSRM_PHASE === 3`).
-2. OUT items remain explicitly OUT (no silent deferral).
+1. Matrix lives in-repo and matches shipped gates (`CURRENT_SSRM_PHASE === 4`).
+2. Former OUT items absorbed in 4a–4c are Green (hybrid where noted).

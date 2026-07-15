@@ -22,7 +22,7 @@ export interface LabFeatureTabProps {
  * drawer (What/Why · Try · Config · Props) sourced from the feature guide.
  */
 export function LabFeatureTab({ config }: LabFeatureTabProps) {
-  const { useSSRM } = useLabDemoRegistry();
+  const { useSSRM, setUseSSRM } = useLabDemoRegistry();
   const onProfilesReady = useLabDemoProfiles(
     config.gridId,
     config.profiles,
@@ -49,6 +49,8 @@ export function LabFeatureTab({ config }: LabFeatureTabProps) {
     : config.subtitle;
 
   const grid = config.grid ?? {};
+  const suggestAbove =
+    config.tabId === 'stress' ? 10_000 : undefined;
 
   return (
     <TabContainer title={config.title} subtitle={subtitle} help={config.help}>
@@ -58,6 +60,8 @@ export function LabFeatureTab({ config }: LabFeatureTabProps) {
             key={useSSRM ? 'ssrm' : 'csrm'}
             gridId={config.gridId}
             useSSRM={useSSRM}
+            suggestSsrmAbove={suggestAbove}
+            onSuggestSsrm={() => setUseSSRM(true)}
             componentName={config.componentName}
             rowData={rowData}
             columnDefs={columnDefs}

@@ -8,8 +8,9 @@ same row/column shape and seeded modules.
 
 | Dimension | Value |
 |-----------|-------|
-| Rows | **50,000** (mock FI positions, updates off) |
+| Rows | **50,000** (mock FI positions) |
 | Columns | **400** (~34 real FI + synthetic `S000…` series) |
+| Live ticks | **On** — ~200 ms interval (Phase 4c high-tick stress) |
 | Default profile | Full stress — grouping, CS, formatters, calcs, pills |
 
 Synthetic columns use `valueGetter`s (derived from id + mid) so we do not
@@ -51,9 +52,11 @@ you care about large-N grouping/filter stability and heap after load.
 
 1. Open this tab and wait for the 50k snapshot (status bar / load banner).
 2. Expand a Class group, scroll horizontally across synthetic columns.
-3. Toggle **Use SSRM** and repeat — compare first paint, expand, scroll.
-4. Activate a Quick Filter pill (Rates / Corp IG / HY) and watch counts.
-5. Switch to **01 · Flat wide** for pure column-virtualisation pressure.
+3. Leave **Live ticks** on (Demo Console) — high-tick (~200 ms) stresses
+   CSRM vs SSRM under continuous deltas; pause ticks if you only want load/layout.
+4. Toggle **Use SSRM** and repeat — compare first paint, expand, scroll, tick cost.
+5. Activate a Quick Filter pill (Rates / Corp IG / HY) and watch counts.
+6. Switch to **01 · Flat wide** for pure column-virtualisation pressure.
 
 Expect CSRM to hold the full book in the browser heap; SSRM pushes the
 book into Perspective and pages leaves. Both should remain interactive

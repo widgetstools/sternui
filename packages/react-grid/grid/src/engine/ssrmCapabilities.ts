@@ -20,7 +20,7 @@ const PHASE_MIN: Record<SsrmCapabilityId, SsrmPhase> = {
 };
 
 /** Current shipped SSRM capability floor for MarketsGrid. Bump when a phase lands. */
-export const CURRENT_SSRM_PHASE: SsrmPhase = 3;
+export const CURRENT_SSRM_PHASE: SsrmPhase = 4;
 
 export function isSsrmCapabilityEnabled(
   id: SsrmCapabilityId,

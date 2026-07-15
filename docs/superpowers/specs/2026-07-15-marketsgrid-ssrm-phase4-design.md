@@ -1,7 +1,7 @@
 # MarketsGrid SSRM Phase 4 — Full polish + OUT absorption
 
 **Date:** 2026-07-15  
-**Status:** Approved (Approach 2, step-by-step)  
+**Status:** Approved (Approach 2, step-by-step) — slices 4a/4b/4c shipped  
 **Repos:** starui + ssrmgrid  
 **Parent:** [2026-07-14-marketsgrid-ssrm-dual-engine-design.md](./2026-07-14-marketsgrid-ssrm-dual-engine-design.md)
 
@@ -65,7 +65,7 @@ Implementation: reuse `queryAll` / leaf-mode SSRM mapping with `groupKeys` equal
 
 Document which alert rule shapes stay viewport-only vs full-book.
 
-## Slice 4c — Polish + phase bump
+## Slice 4c — Polish + phase bump ✅
 
 - `rowModel?: 'client' | 'server'` alias for `useSSRM` (same switch).
 - Optional “suggest SSRM” when row count ≥ threshold (banner / toast; user confirms).

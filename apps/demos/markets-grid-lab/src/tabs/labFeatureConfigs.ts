@@ -604,7 +604,7 @@ export const STRESS_TEST_FEATURE: LabFeatureConfig = {
   tabId: 'stress',
   providerId: 'mock-positions-stress-50k',
   title: 'Stress Test — 50k × 400',
-  subtitle: `${STRESS_DEMO_PROFILES.length} profiles · ${STRESS_ROW_COUNT.toLocaleString()} rows · ${STRESS_COL_COUNT} cols · grouping · CS · formatters · CSRM/SSRM`,
+  subtitle: `${STRESS_DEMO_PROFILES.length} profiles · ${STRESS_ROW_COUNT.toLocaleString()} rows · ${STRESS_COL_COUNT} cols · high-tick live · grouping · CSRM/SSRM`,
   help: HELP.stressTest,
   gridId: STRESS_GRID_ID,
   componentName: 'StressTest',
@@ -612,8 +612,9 @@ export const STRESS_TEST_FEATURE: LabFeatureConfig = {
   activeProfileId: STRESS_ACTIVE_PROFILE_ID,
   stream: {
     rowCount: STRESS_ROW_COUNT,
-    updateIntervalMs: 2_000,
-    enableUpdates: false,
+    /** High-tick stress (Phase 4c): live updates on so CSRM vs SSRM tick cost is comparable. */
+    updateIntervalMs: 200,
+    enableUpdates: true,
   },
   getColumnDefs: () => buildStressColumnDefs(STRESS_COL_COUNT),
   defaultColDef: stressDefaultColDef,

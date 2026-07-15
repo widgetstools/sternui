@@ -67,3 +67,6 @@ export { useMarketsGridEventBridge } from './events/useMarketsGridEventBridge.js
 export { isOpenFin, openFinWindowOpener } from './runtime/openFin.js';
 
 export { useGeneralSettingsSnapshot } from './widget/useGeneralSettingsSnapshot.js';
+export { resolveUseSsrm, type MarketsGridRowModel } from './engine/resolveUseSsrm.js';
+export { shouldSuggestSsrm } from './engine/shouldSuggestSsrm.js';
+export { CURRENT_SSRM_PHASE, isSsrmCapabilityEnabled } from './engine/ssrmCapabilities.js';
