@@ -112,7 +112,7 @@ describe('CalculatedColumnsPanel (v4)', () => {
     expect(editor).toBeTruthy();
   });
 
-  it('blocks ADD and SAVE on SSRM when calcColumns capability is disabled', () => {
+  it('allows ADD and SAVE on SSRM for supported calc expressions at phase 2', () => {
     render(
       <GridProvider platform={platform} engineKind="ssrm">
         <CalculatedColumnsList gridId="test-grid" selectedId="grossPnl" onSelect={() => {}} />
@@ -121,15 +121,38 @@ describe('CalculatedColumnsPanel (v4)', () => {
     );
 
     const addBtn = screen.getByTestId('cc-add-virtual-btn') as HTMLButtonElement;
-    expect(addBtn.disabled).toBe(true);
-    expect(addBtn.title).toContain('SSRM phase 2');
+    expect(addBtn.disabled).toBe(false);
 
     const header = screen.getByTestId('cc-virtual-header-grossPnl') as HTMLInputElement;
     fireEvent.change(header, { target: { value: 'Gross P&L v2' } });
 
     const saveBtn = screen.getByTestId('cc-virtual-save-grossPnl') as HTMLButtonElement;
+    expect(saveBtn.disabled).toBe(false);
+  });
+
+  it('blocks SAVE on SSRM when calc expression is unsupported', () => {
+    platform.store.setModuleState<CalculatedColumnsState>('calculated-columns', () => ({
+      virtualColumns: [{
+        colId: 'share',
+        headerName: 'Share',
+        expression: '[pnl] / SUM([pnl])',
+        position: 0,
+      }],
+    }));
+
+    render(
+      <GridProvider platform={platform} engineKind="ssrm">
+        <CalculatedColumnsList gridId="test-grid" selectedId="share" onSelect={() => {}} />
+        <CalculatedColumnsEditor gridId="test-grid" selectedId="share" />
+      </GridProvider>,
+    );
+
+    const header = screen.getByTestId('cc-virtual-header-share') as HTMLInputElement;
+    fireEvent.change(header, { target: { value: 'Share v2' } });
+
+    const saveBtn = screen.getByTestId('cc-virtual-save-share') as HTMLButtonElement;
     expect(saveBtn.disabled).toBe(true);
-    expect(saveBtn.title).toContain('SSRM phase 2');
+    expect(saveBtn.title).toMatch(/SUM|unsupported|function/i);
   });
 
   // ─── Editor pane ───────────────────────────────────────────────────

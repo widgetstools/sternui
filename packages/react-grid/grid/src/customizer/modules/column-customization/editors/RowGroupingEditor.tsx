@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { Caps, IconInput } from '../../../ui/SettingsPanel';
 import { Switch, Textarea } from '@starui/ui';
 import { Select } from '../../../ui/NativeOptionsSelect';
 import { useModuleState } from '../../../hooks/useModuleState';
 import { useSsrmCapabilityGate } from '../../../hooks/useSsrmCapabilityGate';
+import { isTrafficLightRagCustomAgg } from '../../../../engine/ssrmTrafficLightAgg.js';
 import type { GeneralSettingsState } from '../../general-settings/state';
 import type { AggFuncName, RowGroupingConfig } from '../state';
 import { Row } from './Row';
@@ -15,7 +17,7 @@ import { Row } from './Row';
  * see + tune both layers in one place.
  */
 
-const AGG_FUNC_OPTIONS: Array<{ value: AggFuncName | ''; label: string }> = [
+const BASE_AGG_FUNC_OPTIONS: Array<{ value: AggFuncName | ''; label: string }> = [
   { value: '', label: '— none —' },
   { value: 'sum', label: 'Sum' },
   { value: 'min', label: 'Min' },
@@ -24,8 +26,20 @@ const AGG_FUNC_OPTIONS: Array<{ value: AggFuncName | ''; label: string }> = [
   { value: 'avg', label: 'Average' },
   { value: 'first', label: 'First' },
   { value: 'last', label: 'Last' },
-  { value: 'custom', label: 'Custom expression…' },
 ];
+
+const TRAFFIC_LIGHT_AGG_OPTION = {
+  value: 'trafficLight' as const,
+  label: 'Traffic light (RAG)',
+};
+
+const CUSTOM_AGG_OPTION = {
+  value: 'custom' as const,
+  label: 'Custom expression…',
+};
+
+const UNMAPPABLE_CUSTOM_AGG_TOOLTIP =
+  'This custom aggregation is not supported on server row model. Use Traffic light (RAG) or the documented IFS recipe.';
 
 export function RowGroupingEditor({
   colId,
@@ -38,9 +52,33 @@ export function RowGroupingEditor({
 }) {
   const [gridOpts, setGridOpts] = useModuleState<GeneralSettingsState>('general-settings');
   const customAggGate = useSsrmCapabilityGate('customJsAgg');
-  const customAggBlocked = !customAggGate.enabled;
+  const trafficLightAggGate = useSsrmCapabilityGate('trafficLightAgg');
+  const customJsAggEnabled = customAggGate.enabled;
+  const trafficLightAggEnabled = trafficLightAggGate.enabled;
 
   const cfg = value ?? {};
+  const customAggCapabilityBlocked = !customJsAggEnabled;
+  const customExprBlocked =
+    customAggCapabilityBlocked ||
+    (cfg.aggFunc === 'custom' &&
+      !!cfg.customAggExpression?.trim() &&
+      !isTrafficLightRagCustomAgg(cfg.customAggExpression));
+  const customExprTooltip = customAggCapabilityBlocked
+    ? customAggGate.tooltip
+    : customExprBlocked
+      ? UNMAPPABLE_CUSTOM_AGG_TOOLTIP
+      : undefined;
+
+  const aggFuncOptions = useMemo(() => {
+    const options = [...BASE_AGG_FUNC_OPTIONS];
+    if (trafficLightAggEnabled || cfg.aggFunc === 'trafficLight') {
+      options.push(TRAFFIC_LIGHT_AGG_OPTION);
+    }
+    if (customJsAggEnabled || cfg.aggFunc === 'custom') {
+      options.push(CUSTOM_AGG_OPTION);
+    }
+    return options;
+  }, [trafficLightAggEnabled, customJsAggEnabled, cfg.aggFunc]);
   const update = (patch: Partial<RowGroupingConfig>) => {
     const next: RowGroupingConfig = { ...cfg, ...patch };
     // Drop empty keys so the assignment can still collapse to undefined.
@@ -115,20 +153,18 @@ export function RowGroupingEditor({
         label="AGG FUNCTION"
         hint="Built-in aggregation or a custom expression"
         control={
-          <span title={customAggBlocked ? customAggGate.tooltip : undefined}>
+          <span title={customAggCapabilityBlocked ? customAggGate.tooltip : undefined}>
             <Select
               value={cfg.aggFunc ?? ''}
               onChange={(e) => {
                 const v = e.target.value as AggFuncName | '';
-                if (v === 'custom' && customAggBlocked) return;
+                if (v === 'custom' && customAggCapabilityBlocked) return;
                 update({ aggFunc: v === '' ? undefined : v });
               }}
               data-testid={`cols-${colId}-rg-aggfunc`}
               style={{ maxWidth: 220 }}
             >
-              {AGG_FUNC_OPTIONS.filter(
-                (o) => o.value !== 'custom' || !customAggBlocked || cfg.aggFunc === 'custom',
-              ).map((o) => (
+              {aggFuncOptions.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
@@ -147,11 +183,11 @@ export function RowGroupingEditor({
             <Textarea
               value={cfg.customAggExpression ?? ''}
               onChange={(e) => {
-                if (customAggBlocked) return;
+                if (customAggCapabilityBlocked) return;
                 update({ customAggExpression: e.target.value || undefined });
               }}
-              disabled={customAggBlocked}
-              title={customAggBlocked ? customAggGate.tooltip : undefined}
+              disabled={customExprBlocked}
+              title={customExprTooltip}
               data-testid={`cols-${colId}-rg-custom-expr`}
               placeholder="SUM([value])"
               spellCheck={false}

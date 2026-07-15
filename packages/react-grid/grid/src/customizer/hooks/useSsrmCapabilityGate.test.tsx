@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { GridPlatform } from '@starui/engine';
 import { GridProvider } from './GridProvider';
 import { useSsrmCapabilityGate } from './useSsrmCapabilityGate';
-import { ssrmCapabilityTooltip } from '../../engine/ssrmCapabilities.js';
 
 function makePlatform() {
   return new GridPlatform({ gridId: 'test-grid', modules: [] });
@@ -23,7 +22,7 @@ describe('useSsrmCapabilityGate', () => {
     expect(result.current.tooltip).toBeUndefined();
   });
 
-  it('blocks calcColumns on SSRM at current phase with tooltip', () => {
+  it('allows calcColumns on SSRM at current phase', () => {
     const platform = makePlatform();
     const { result } = renderHook(() => useSsrmCapabilityGate('calcColumns'), {
       wrapper: ({ children }) => (
@@ -32,8 +31,8 @@ describe('useSsrmCapabilityGate', () => {
         </GridProvider>
       ),
     });
-    expect(result.current.enabled).toBe(false);
-    expect(result.current.tooltip).toBe(ssrmCapabilityTooltip('calcColumns'));
+    expect(result.current.enabled).toBe(true);
+    expect(result.current.tooltip).toBeUndefined();
   });
 
   it('allows oldNewDiff on SSRM at current phase', () => {

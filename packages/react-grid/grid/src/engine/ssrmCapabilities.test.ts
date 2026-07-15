@@ -20,11 +20,19 @@ describe('isSsrmCapabilityEnabled', () => {
     expect(isSsrmCapabilityEnabled('alerts', 1)).toBe(false);
   });
 
-  it('CURRENT_SSRM_PHASE enables phase-1 capabilities by default', () => {
-    expect(CURRENT_SSRM_PHASE).toBe(1);
+  it('phase 2 enables calc columns, custom JS agg, and traffic light', () => {
+    expect(isSsrmCapabilityEnabled('calcColumns', 2)).toBe(true);
+    expect(isSsrmCapabilityEnabled('customJsAgg', 2)).toBe(true);
+    expect(isSsrmCapabilityEnabled('trafficLightAgg', 2)).toBe(true);
+    expect(isSsrmCapabilityEnabled('alerts', 2)).toBe(false);
+  });
+
+  it('CURRENT_SSRM_PHASE enables phase-2 capabilities by default', () => {
+    expect(CURRENT_SSRM_PHASE).toBe(2);
+    expect(isSsrmCapabilityEnabled('calcColumns')).toBe(true);
+    expect(isSsrmCapabilityEnabled('trafficLightAgg')).toBe(true);
     expect(isSsrmCapabilityEnabled('oldNewDiff')).toBe(true);
     expect(isSsrmCapabilityEnabled('liveTicks')).toBe(true);
-    expect(isSsrmCapabilityEnabled('calcColumns')).toBe(false);
     expect(isSsrmCapabilityEnabled('alerts')).toBe(false);
   });
 });

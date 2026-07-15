@@ -21,7 +21,7 @@
  * settings sheet as `module.ListPane` + `module.EditorPane`. All
  * `cc-*` test-ids are preserved character-for-character.
  */
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus, RotateCcw, Save, Trash2 } from 'lucide-react';
 import { ExpressionEditor } from '../../ui/ExpressionEditor';
 import type { EditorPaneProps, ListPaneProps } from '@starui/engine';
@@ -30,6 +30,7 @@ import { useModuleDraft } from '../../hooks/useModuleDraft';
 import { useDirty } from '../../hooks/useDirty';
 import { useGridColumns } from '../../hooks/useGridColumns';
 import { useSsrmCapabilityGate } from '../../hooks/useSsrmCapabilityGate';
+import { planSsrmCalcColumn } from '../../../engine/ssrmCalcColumns.js';
 import {
   Band,
   Caps,
@@ -69,7 +70,7 @@ function DirtyListLed({ colId }: { colId: string }) {
 export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
   const [state, setState] = useModuleState<CalculatedColumnsState>(MODULE_ID);
   const calcColumnsGate = useSsrmCapabilityGate('calcColumns');
-  const calcColumnsBlocked = !calcColumnsGate.enabled;
+  const calcColumnsCapabilityBlocked = !calcColumnsGate.enabled;
 
   const addVirtualColumn = useCallback(() => {
     const id = generateId();
@@ -125,8 +126,8 @@ export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
         <ChromeButton
           type="button"
           onClick={addVirtualColumn}
-          disabled={calcColumnsBlocked}
-          title={calcColumnsBlocked ? calcColumnsGate.tooltip : 'Add virtual column'}
+          disabled={calcColumnsCapabilityBlocked}
+          title={calcColumnsCapabilityBlocked ? calcColumnsGate.tooltip : 'Add virtual column'}
           data-testid="cc-add-virtual-btn"
           style={{
             width: 22,
@@ -242,13 +243,25 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
     }),
   });
   const calcColumnsGate = useSsrmCapabilityGate('calcColumns');
-  const calcColumnsBlocked = !calcColumnsGate.enabled;
-  const saveBlocked = calcColumnsBlocked || !dirty;
-  const saveTitle = calcColumnsBlocked
+  const calcColumnsCapabilityBlocked = !calcColumnsGate.enabled;
+  const calcPlan = useMemo(
+    () =>
+      draft
+        ? planSsrmCalcColumn({ colId: draft.colId, expression: draft.expression })
+        : null,
+    [draft],
+  );
+  const expressionUnsupported = calcPlan?.kind === 'unsupported';
+  const unsupportedReason =
+    calcPlan?.kind === 'unsupported' ? calcPlan.reason : undefined;
+  const saveBlocked = calcColumnsCapabilityBlocked || expressionUnsupported || !dirty;
+  const saveTitle = calcColumnsCapabilityBlocked
     ? calcColumnsGate.tooltip
-    : dirty
-      ? undefined
-      : 'No unsaved changes';
+    : expressionUnsupported
+      ? unsupportedReason
+      : dirty
+        ? undefined
+        : 'No unsaved changes';
 
   if (missing || !draft) return null;
 
