@@ -27,12 +27,28 @@
 
 import type { RestProviderConfig } from '@starui/types';
 import type { ProviderEmit, ProviderHandle } from '../Provider.js';
+import { createSsrmRowFlattener } from '../ssrmRowFlatten.js';
 
 export type RestFetchFn = (input: string, init: RequestInit) => Promise<Response>;
 
 export interface RestOpts {
   /** Inject for tests. */
   fetchImpl?: RestFetchFn;
+}
+
+function maybeFlattenRows(
+  cfg: RestProviderConfig,
+  rows: unknown[],
+  overlay: Record<string, unknown> | undefined,
+): unknown[] {
+  const shape =
+    overlay?.rowShape === 'ssrm' || overlay?.rowShape === 'csrm'
+      ? overlay.rowShape
+      : cfg.rowShape;
+  if (shape !== 'ssrm') return rows;
+  const flatten = createSsrmRowFlattener(cfg.columnDefinitions, cfg.keyColumn);
+  if (!flatten) return rows;
+  return rows.map((r) => flatten(r));
 }
 
 export function startRest(
@@ -96,7 +112,7 @@ export function startRest(
     }
     if (state.stopped) return;
 
-    const rows = extractRows(body, cfg.rowsPath);
+    const rows = maybeFlattenRows(cfg, extractRows(body, cfg.rowsPath), state.overlay);
     emit({ rows, replace: true });
     emit({ byteSize: bodyText.length });
     emit({ status: 'ready' });

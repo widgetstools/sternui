@@ -428,6 +428,46 @@ describe('startStomp', () => {
     expect(live.replace).toBeUndefined();
   });
 
+  it('restart overlay rowShape ssrm enables flatten without catalog rowShape', async () => {
+    const events: ProviderEmitEvent[] = [];
+    const controllers: FakeController[] = [];
+    const handle = startStomp(
+      cfg({
+        keyColumn: 'id',
+        columnDefinitions: [
+          { field: 'px', headerName: 'Px' },
+          { field: 'risk.dv01', headerName: 'DV01' },
+        ],
+      }),
+      (e) => events.push(e),
+      {
+        createClient: () => {
+          const c = makeFakeClient();
+          controllers.push(c);
+          return c.client;
+        },
+      },
+    );
+    await Promise.resolve();
+    controllers[0].fireConnect();
+    controllers[0].deliver('Success');
+
+    await handle.restart({ rowShape: 'ssrm' });
+    await Promise.resolve();
+    await Promise.resolve();
+    controllers[1].fireConnect();
+    events.length = 0;
+
+    controllers[1].deliver(
+      JSON.stringify([{ id: 'r1', px: 1, risk: { dv01: 4 }, junk: true }]),
+    );
+    const rowEvents = events.filter(
+      (e): e is { rows: readonly unknown[]; replace?: boolean } => 'rows' in e,
+    );
+    expect(rowEvents[0]?.replace).toBe(true);
+    expect(rowEvents[0]?.rows[0]).toEqual({ id: 'r1', px: 1, 'risk.dv01': 4 });
+  });
+
   it('projectFields prunes snapshot and live rows to columnDefinitions + keyColumn', async () => {
     const events: ProviderEmitEvent[] = [];
     const ctrl = makeFakeClient();

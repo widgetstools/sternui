@@ -271,6 +271,12 @@ export interface RestProviderConfig {
   /** Persisted schema introspection — see StompProviderConfig. */
   inferredFields?: FieldInfo[];
   columnDefinitions?: ColumnDefinition[];
+  /**
+   * Row / snapshot delivery shape — see {@link StompProviderConfig.rowShape}.
+   * When `'ssrm'`, flatten dotted `columnDefinitions` paths before emit.
+   * REST has no live tail; streaming snapshot behaviour does not apply.
+   */
+  rowShape?: 'csrm' | 'ssrm';
   /** See StompProviderConfig — same fanout knobs apply. */
   conflateByKey?: string;
   throttleMs?: number;
@@ -336,6 +342,17 @@ export interface MockProviderConfig {
    * `'tradeId'` for trades, `'id'` for orders.
    */
   keyColumn?: string | readonly string[];
+  /**
+   * Optional AG Grid column defs — required for `rowShape: 'ssrm'`
+   * flatten (dotted paths → scalar keys). When omitted, SSRM mode is
+   * a no-op and nested rows are emitted unchanged.
+   */
+  columnDefinitions?: ColumnDefinition[];
+  /**
+   * Row delivery shape — see {@link StompProviderConfig.rowShape}.
+   * When `'ssrm'`, flatten snapshot and tick rows using columnDefinitions.
+   */
+  rowShape?: 'csrm' | 'ssrm';
 }
 
 /**

@@ -77,6 +77,29 @@ describe('startRest', () => {
     expect(replace.rows).toEqual([{ id: 'x' }, { id: 'y' }]);
   });
 
+  it('rowShape ssrm flattens dotted column paths before emit', async () => {
+    const payload = [
+      { id: 'r1', px: 1, risk: { dv01: 9, gamma: 2 }, junk: true },
+    ];
+    const { fetchImpl } = makeFetch(() => ({ status: 200, body: JSON.stringify(payload) }));
+    const events: ProviderEmitEvent[] = [];
+    startRest(
+      cfg({
+        rowShape: 'ssrm',
+        columnDefinitions: [
+          { field: 'px', headerName: 'Px' },
+          { field: 'risk.dv01', headerName: 'DV01' },
+        ],
+      }),
+      (e) => events.push(e),
+      { fetchImpl },
+    );
+    await flush();
+
+    const replace = events.find((e) => 'rows' in e && e.replace) as { rows: unknown[] };
+    expect(replace.rows[0]).toEqual({ id: 'r1', px: 1, 'risk.dv01': 9 });
+  });
+
   it('builds query params from cfg.queryParams', async () => {
     const { fetchImpl, calls } = makeFetch(() => ({ status: 200, body: '[]' }));
     startRest(

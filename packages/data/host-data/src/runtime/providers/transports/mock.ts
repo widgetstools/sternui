@@ -30,6 +30,7 @@
 
 import type { MockProviderConfig } from '@starui/types';
 import type { ProviderEmit, ProviderHandle } from '../Provider.js';
+import { createSsrmRowFlattener, type SsrmRowFlattener } from '../ssrmRowFlatten.js';
 import { getUniverse } from './mockUniverse.js';
 import { buildPosition, tickPosition, type PositionRow } from './mockPosition.js';
 import { buildTrade, tickTrade, pickTradingCusip, type TradeRow } from './mockTrade.js';
@@ -39,6 +40,21 @@ export interface MockProviderOpts {
   setTicker?: (cb: () => void, ms: number) => unknown;
   /** Companion to `setTicker`. Defaults to `clearInterval`. */
   clearTicker?: (handle: unknown) => void;
+}
+
+function ssrmFlattenerFor(cfg: MockProviderConfig): SsrmRowFlattener | null {
+  if (cfg.rowShape !== 'ssrm') return null;
+  return createSsrmRowFlattener(cfg.columnDefinitions, cfg.keyColumn);
+}
+
+function emitRows(
+  emit: ProviderEmit,
+  rows: unknown[],
+  flatten: SsrmRowFlattener | null,
+  replace?: boolean,
+): void {
+  const out = flatten ? rows.map((r) => flatten(r)) : rows;
+  emit(replace ? { rows: out, replace: true } : { rows: out });
 }
 
 export function startMock(
@@ -94,7 +110,7 @@ function startPositions(
         snapshot[idx] = ticked;
         batch.push(ticked);
       }
-      emit({ rows: batch });
+      emitRows(emit, batch, ssrmFlattenerFor(cfg));
     }, interval);
   };
 
@@ -104,7 +120,7 @@ function startPositions(
 
   const fireSnapshot = () => {
     snapshot = build();
-    emit({ rows: snapshot, replace: true });
+    emitRows(emit, snapshot, ssrmFlattenerFor(cfg), true);
     emit({ status: 'ready' });
     startTicker();
   };
@@ -194,7 +210,7 @@ function startTrades(
         batch.push(ticked);
       }
 
-      if (batch.length > 0) emit({ rows: batch });
+      if (batch.length > 0) emitRows(emit, batch, ssrmFlattenerFor(cfg));
     }, interval);
   };
 
@@ -205,7 +221,7 @@ function startTrades(
   const fireSnapshot = () => {
     book = build();
     rebuildIndex();
-    emit({ rows: book, replace: true });
+    emitRows(emit, book, ssrmFlattenerFor(cfg), true);
     emit({ status: 'ready' });
     startTicker();
   };
@@ -284,13 +300,13 @@ function startLegacy(
         timestamp: Date.now(),
       };
       snapshot[idx] = updated;
-      emit({ rows: [updated] });
+      emitRows(emit, [updated], ssrmFlattenerFor(cfg));
     }, interval);
   };
   const stopT = () => { if (ticker !== null) { clearTicker(ticker); ticker = null; } };
   const fire = () => {
     snapshot = buildSnap();
-    emit({ rows: snapshot, replace: true });
+    emitRows(emit, snapshot, ssrmFlattenerFor(cfg), true);
     emit({ status: 'ready' });
     startT();
   };
@@ -337,6 +353,10 @@ function applyOverlay(cfg: MockProviderConfig, extra: unknown): MockProviderConf
     updateIntervalMs: typeof o.updateIntervalMs === 'number' ? o.updateIntervalMs : cfg.updateIntervalMs,
     enableUpdates: typeof o.enableUpdates === 'boolean' ? o.enableUpdates : cfg.enableUpdates,
     dataType: (typeof o.dataType === 'string' ? o.dataType : cfg.dataType) as MockProviderConfig['dataType'],
+    rowShape:
+      o.rowShape === 'ssrm' || o.rowShape === 'csrm'
+        ? o.rowShape
+        : cfg.rowShape,
   };
 }
 
@@ -347,6 +367,9 @@ function isSoftRuntimePatch(extra: unknown, cfg: MockProviderConfig): boolean {
   if ('__scenarioClear' in o || '__refresh' in o) return false;
   if (typeof o.dataType === 'string' && o.dataType !== cfg.dataType) return false;
   if (typeof o.rowCount === 'number' && o.rowCount !== cfg.rowCount) return false;
+  if (o.rowShape === 'ssrm' || o.rowShape === 'csrm') {
+    if (o.rowShape !== (cfg.rowShape ?? 'csrm')) return false;
+  }
   return typeof o.updateIntervalMs === 'number' || typeof o.enableUpdates === 'boolean';
 }
 

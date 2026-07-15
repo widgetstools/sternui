@@ -329,15 +329,16 @@ export function startStomp(
   // or any window. The probe path must see RAW rows — Infer Fields
   // exists to discover the fields projection would strip.
   //
-  // `rowShape: 'ssrm'`: flatten dotted paths to literal scalar keys and
-  // stream snapshot batches as they arrive (Perspective-ready). CSRM
-  // default keeps nested buffering. Probe passthrough stays raw.
-  const ssrmMode = cfg.rowShape === 'ssrm' && !opts.passthroughSnapshot;
-  const ssrmFlatten = ssrmMode
-    ? createSsrmRowFlattener(cfg.columnDefinitions, cfg.keyColumn)
-    : null;
+  // `rowShape: 'ssrm'` (cfg or restart overlay): flatten dotted paths to
+  // literal scalar keys and stream snapshot batches as they arrive.
+  // Overlay wins over catalog cfg so MarketsGrid `useSSRM` can restart
+  // with `{ rowShape: 'ssrm' | 'csrm' }` without mutating the catalog.
+  const flattenReady =
+    !opts.passthroughSnapshot
+      ? createSsrmRowFlattener(cfg.columnDefinitions, cfg.keyColumn)
+      : null;
   const projector =
-    !ssrmMode && cfg.projectFields && !opts.passthroughSnapshot
+    cfg.projectFields && !opts.passthroughSnapshot
       ? createFieldProjector(cfg.columnDefinitions, cfg.keyColumn)
       : null;
 
@@ -386,6 +387,14 @@ export function startStomp(
     hadSuccessfulConnect: false,
     /** When set, the next onConnect restarts the snapshot from scratch. */
     reconnectRestartPending: false,
+  };
+
+  const isSsrmMode = (): boolean => {
+    if (opts.passthroughSnapshot) return false;
+    const overlayShape = state.overlay?.rowShape;
+    if (overlayShape === 'ssrm') return true;
+    if (overlayShape === 'csrm') return false;
+    return cfg.rowShape === 'ssrm';
   };
 
   // ─── Lifecycle timing trace ────────────────────────────────────
@@ -442,7 +451,7 @@ export function startStomp(
     // phase. Do not emit an empty replace:true here — that would wipe
     // the hub cache that progressive emits just filled. Zero-row SSRM
     // snapshots already got replace:[] from beginSnapshotPhase.
-    if (ssrmMode) {
+    if (isSsrmMode()) {
       state.snapshotBuffer = [];
       state.receivingSnapshot = false;
       return;
@@ -533,13 +542,15 @@ export function startStomp(
       emit({ byteSize });
       return;
     }
-    let rows: unknown[] = projector ? rawRows.map(projector) : rawRows;
-    if (ssrmFlatten) {
-      rows = rows.map((r) => ssrmFlatten(r));
+    let rows: unknown[] = rawRows;
+    if (isSsrmMode()) {
+      if (flattenReady) rows = rows.map((r) => flattenReady(r));
+    } else if (projector) {
+      rows = rawRows.map(projector);
     }
 
     if (!state.snapshotComplete) {
-      if (ssrmMode) {
+      if (isSsrmMode()) {
         // Stream flattened batches as they arrive; first data batch
         // carries replace:true (after beginSnapshotPhase's empty clear).
         if (rows.length > 0) {

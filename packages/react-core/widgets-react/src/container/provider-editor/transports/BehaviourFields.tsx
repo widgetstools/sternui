@@ -22,7 +22,12 @@ import {
   SelectValue,
   Switch,
 } from '@starui/ui';
-import type { ProviderConfig, StompProviderConfig } from '@starui/shared-types';
+import type {
+  ProviderConfig,
+  StompProviderConfig,
+  RestProviderConfig,
+  MockProviderConfig,
+} from '@starui/shared-types';
 
 export interface BehaviourFieldsProps {
   cfg: ProviderConfig;
@@ -32,9 +37,69 @@ export interface BehaviourFieldsProps {
 /** Sentinel for "no conflation column" — Radix Select forbids empty-string values. */
 const CONFLATE_NONE = '__none__';
 
+function RowShapeSelect({
+  value,
+  onChange,
+}: {
+  value: 'csrm' | 'ssrm' | undefined;
+  onChange(next: 'csrm' | 'ssrm' | undefined): void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-medium text-muted-foreground">Row shape</Label>
+      <Select
+        value={value === 'ssrm' ? 'ssrm' : 'csrm'}
+        onValueChange={(v) => onChange(v === 'ssrm' ? 'ssrm' : undefined)}
+      >
+        <SelectTrigger className="h-8 text-sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="csrm">CSRM (default)</SelectItem>
+          <SelectItem value="ssrm">SSRM</SelectItem>
+        </SelectContent>
+      </Select>
+      <p className="text-[11px] text-muted-foreground">
+        CSRM keeps nested rows (and for STOMP, buffers the snapshot until the end
+        token). SSRM flattens dotted column paths to scalar keys for Perspective
+        ingest; STOMP also streams snapshot batches as they arrive. Changing this
+        requires a provider Restart.
+      </p>
+    </div>
+  );
+}
+
 export function BehaviourFields({ cfg, onChange }: BehaviourFieldsProps) {
   if (cfg.providerType === 'stomp') {
     return <StompBehaviour cfg={cfg as StompProviderConfig} onChange={onChange as (n: Partial<StompProviderConfig>) => void} />;
+  }
+  if (cfg.providerType === 'rest') {
+    const rest = cfg as RestProviderConfig;
+    return (
+      <section className="rounded-lg border border-border bg-muted/30 p-4 space-y-5 max-w-md">
+        <div className="space-y-3.5">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Row fields</h3>
+          <RowShapeSelect
+            value={rest.rowShape}
+            onChange={(rowShape) => onChange({ rowShape } as Partial<RestProviderConfig>)}
+          />
+        </div>
+      </section>
+    );
+  }
+  if (cfg.providerType === 'mock') {
+    const mock = cfg as MockProviderConfig;
+    return (
+      <section className="rounded-lg border border-border bg-muted/30 p-4 space-y-5 max-w-md">
+        <div className="space-y-3.5">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Row fields</h3>
+          <RowShapeSelect
+            value={mock.rowShape}
+            onChange={(rowShape) => onChange({ rowShape } as Partial<MockProviderConfig>)}
+          />
+        </div>
+      </section>
+    );
   }
   return (
     <section className="rounded-lg border border-border bg-muted/30 p-4 text-xs text-muted-foreground">
@@ -216,27 +281,10 @@ function StompBehaviour({ cfg, onChange }: { cfg: StompProviderConfig; onChange(
       <div className="space-y-3.5">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Row fields</h3>
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-muted-foreground">Row shape</Label>
-          <Select
-            value={cfg.rowShape === 'ssrm' ? 'ssrm' : 'csrm'}
-            onValueChange={(v) =>
-              onChange({ rowShape: v === 'ssrm' ? 'ssrm' : undefined })
-            }
-          >
-            <SelectTrigger className="h-8 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="csrm">CSRM (default)</SelectItem>
-              <SelectItem value="ssrm">SSRM</SelectItem>
-            </SelectContent>
-          </Select>
-          <p className="text-[11px] text-muted-foreground">
-            CSRM keeps nested rows and buffers the snapshot until the end token.
-            SSRM flattens dotted column paths to scalar keys and streams snapshot
-            batches as they arrive (for Perspective ingest). Changing this requires
-            a provider Restart.
-          </p>
+          <RowShapeSelect
+            value={cfg.rowShape}
+            onChange={(rowShape) => onChange({ rowShape })}
+          />
         </div>
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">

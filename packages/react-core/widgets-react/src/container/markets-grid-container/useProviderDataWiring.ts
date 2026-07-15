@@ -311,15 +311,17 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
             timeoutMs: PEER_PROVIDER_WAIT_MS,
           });
         }
-        if (running) {
-          await provider.start();
-          return;
-        }
-        if (asOfForRestart) {
-          await restartProvider({ asOfDate: asOfForRestart });
-          return;
-        }
-        await provider.start();
+        // Align provider rowShape with the grid engine. Overlay wins over
+        // catalog cfg so SSRM↔CSRM toggles flatten/unflatten without mutating
+        // the saved provider definition.
+        const extra: Record<string, unknown> = {
+          rowShape: useSSRM ? 'ssrm' : 'csrm',
+        };
+        if (asOfForRestart) extra.asOfDate = asOfForRestart;
+        else if (!running) extra.__refresh = Date.now();
+        // Always restart so overlay rowShape is applied (start() alone would
+        // ignore overlay and keep a prior SSRM flatten after toggling back).
+        await restartProvider(extra);
       } catch (err: unknown) {
         if (cancelled) return;
         setResolvedSubKey(thisSubKey);

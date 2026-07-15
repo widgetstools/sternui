@@ -125,9 +125,9 @@ SSRM ingest path continues: hub deltas → `SSRMGrid.setRowData` / `updateRows` 
 
 ## Open follow-ups (post-implement)
 
-- Optional: grid `useSSRM` auto-restarts active STOMP provider with `rowShape` overlay.
-- Optional: REST / mock transports grow the same `rowShape` flag for symmetry.
-- Column-key sanitization if Perspective ever rejects dotted column names (today plan assumes literal `field` strings work as schema keys; validate during implement).
+- ~~Optional: grid `useSSRM` auto-restarts active STOMP provider with `rowShape` overlay.~~ **Done** — `useProviderDataWiring` passes `{ rowShape: 'ssrm'|'csrm' }` on restart; STOMP overlay wins over catalog.
+- ~~Optional: REST / mock transports grow the same `rowShape` flag for symmetry.~~ **Done**
+- ~~Column-key sanitization if Perspective ever rejects dotted column names~~ — **Not needed**: Perspective 3.x accepts literal dotted keys (`rating.moody`); covered by `perspectiveDottedColumns.test.ts` in ssrmgrid.
 
 ## Spec self-review
 
