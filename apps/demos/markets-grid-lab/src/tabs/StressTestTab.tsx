@@ -17,26 +17,38 @@ import { buildConfigBlocks } from '../guides/buildConfigBlocks';
 import { STRESS_TEST_FEATURE } from './labFeatureConfigs';
 import { LAB_STATUS_BAR } from './labStatusBar';
 import { PlainStressAgGrid } from './PlainStressAgGrid';
+import { PerspectiveStressGrid } from './altGrids/PerspectiveStressGrid';
+import { GlideStressGrid } from './altGrids/GlideStressGrid';
+import { CanvasStressGrid } from './altGrids/CanvasStressGrid';
 
-/** Lean baseline for isolating AG Grid scroll cost. */
+/** Lean baseline for isolating scroll cost across engines. */
 const BASELINE_ROWS = 20_000;
 const BASELINE_COLS = 40;
 
-type StressSurface = 'plain-20k40' | 'plain-50k400' | 'markets';
+type StressSurface =
+  | 'plain-20k40'
+  | 'perspective-20k40'
+  | 'glide-20k40'
+  | 'canvas-20k40'
+  | 'plain-50k400'
+  | 'markets';
 
 const VARIANTS = [
   { id: 'plain-20k40', label: 'Plain AG Grid · 20k × 40' },
+  { id: 'perspective-20k40', label: 'Perspective · 20k × 40' },
+  { id: 'glide-20k40', label: 'Glide Data Grid · 20k × 40' },
+  { id: 'canvas-20k40', label: 'Canvas / Bryntum stand-in · 20k × 40' },
   { id: 'plain-50k400', label: 'Plain AG Grid · 50k × 400' },
   { id: 'markets', label: 'MarketsGrid (modules)' },
 ] as const;
 
 /**
- * Stress Test — A/B bare AgGridReact shapes vs MarketsGrid so scroll jank
- * can be attributed to column/row cost vs product modules.
+ * Stress Test — A/B AG Grid vs Perspective / Glide / canvas (Bryntum-class)
+ * on the same mock stream so scroll + long-run cost can be compared.
  */
 export function StressTestTab() {
   const config = STRESS_TEST_FEATURE;
-  const [surface, setSurface] = useState<StressSurface>('plain-20k40');
+  const [surface, setSurface] = useState<StressSurface>('perspective-20k40');
   const { useSSRM, setUseSSRM } = useLabDemoRegistry();
 
   const onProfilesReady = useLabDemoProfiles(
@@ -45,14 +57,17 @@ export function StressTestTab() {
     config.activeProfileId,
   );
 
-  const isBaseline = surface === 'plain-20k40';
-  const isPlain = surface === 'plain-20k40' || surface === 'plain-50k400';
+  const isBaseline =
+    surface === 'plain-20k40' ||
+    surface === 'perspective-20k40' ||
+    surface === 'glide-20k40' ||
+    surface === 'canvas-20k40';
+  const isPlainAg = surface === 'plain-20k40' || surface === 'plain-50k400';
 
   const stream = useMemo(
     () => ({
       rowCount: isBaseline ? BASELINE_ROWS : (config.stream?.rowCount ?? 50_000),
       updateIntervalMs: config.stream?.updateIntervalMs ?? 200,
-      // Baseline scroll test: ticks off by default (Demo Console can re-enable).
       enableUpdates: isBaseline ? false : (config.stream?.enableUpdates ?? true),
     }),
     [config.stream, isBaseline],
@@ -66,6 +81,7 @@ export function StressTestTab() {
     config.tabId,
     providerId,
     stream,
+    // Alt grids skip onReady so ticks (when enabled) update React rowData.
     surface === 'markets' ? onProfilesReady : undefined,
   );
 
@@ -78,7 +94,6 @@ export function StressTestTab() {
   );
   const colDefBase = config.defaultColDef ?? stressDefaultColDef ?? defaultColDef;
 
-  // Strip floating filters / group chrome on the lean baseline.
   const plainDefaultColDef = useMemo(
     () =>
       isBaseline
@@ -100,18 +115,29 @@ export function StressTestTab() {
     [config, guide],
   );
 
-  const subtitle = isBaseline
-    ? `Plain AG Grid 36 CSRM · ${BASELINE_ROWS.toLocaleString()} × ${BASELINE_COLS} · ticks off`
-    : surface === 'plain-50k400'
-      ? `Plain AG Grid 36 CSRM · 50k × 400 · ${tickMs} ms ticks`
-      : `${config.subtitle} · ${tickMs} ms tick`;
+  const subtitle = (() => {
+    switch (surface) {
+      case 'perspective-20k40':
+        return `FINOS Perspective viewer · ${BASELINE_ROWS.toLocaleString()} × ${BASELINE_COLS} · ticks off`;
+      case 'glide-20k40':
+        return `Glide Data Grid (canvas cells) · ${BASELINE_ROWS.toLocaleString()} × ${BASELINE_COLS} · ticks off`;
+      case 'canvas-20k40':
+        return `Canvas virtualizer (Bryntum stand-in) · ${BASELINE_ROWS.toLocaleString()} × ${BASELINE_COLS} · ticks off`;
+      case 'plain-20k40':
+        return `Plain AG Grid 36 CSRM · ${BASELINE_ROWS.toLocaleString()} × ${BASELINE_COLS} · ticks off`;
+      case 'plain-50k400':
+        return `Plain AG Grid 36 CSRM · 50k × 400 · ${tickMs} ms ticks`;
+      default:
+        return `${config.subtitle} · ${tickMs} ms tick`;
+    }
+  })();
 
   const grid = config.grid ?? {};
   const suggestAbove = 10_000;
 
   const onVariantChange = useCallback((id: string) => {
-    if (id === 'plain-20k40' || id === 'plain-50k400' || id === 'markets') {
-      setSurface(id);
+    if (VARIANTS.some((v) => v.id === id)) {
+      setSurface(id as StressSurface);
     }
   }, []);
 
@@ -126,16 +152,39 @@ export function StressTestTab() {
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col">
-          {isPlain ? (
+          {surface === 'perspective-20k40' && (
+            <PerspectiveStressGrid
+              key="perspective-20k40"
+              rowData={rowData}
+              columnDefs={columnDefs}
+            />
+          )}
+          {surface === 'glide-20k40' && (
+            <GlideStressGrid
+              key="glide-20k40"
+              rowData={rowData}
+              columnDefs={columnDefs}
+            />
+          )}
+          {surface === 'canvas-20k40' && (
+            <CanvasStressGrid
+              key="canvas-20k40"
+              rowData={rowData}
+              columnDefs={columnDefs}
+              showBryntumNote
+            />
+          )}
+          {isPlainAg && (
             <PlainStressAgGrid
-              key={`${surface}-${providerId}`}
+              key={surface}
               rowData={rowData}
               columnDefs={columnDefs}
               defaultColDef={plainDefaultColDef}
               onReady={onReady}
               rowHeight={grid.rowHeight ?? 28}
             />
-          ) : (
+          )}
+          {surface === 'markets' && (
             <MarketsGrid
               key={useSSRM ? 'ssrm' : 'csrm'}
               gridId={config.gridId}
