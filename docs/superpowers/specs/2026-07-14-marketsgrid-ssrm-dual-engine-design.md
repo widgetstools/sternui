@@ -191,6 +191,10 @@ Traffic-light parity is a **Phase 2** deliverable (with calc + agg mapping), not
 - Feature matrix green for SSRM; docs; performance under large N + high tick rate.
 - Optional: `rowModel` alias; auto-suggest SSRM above a row-count threshold (not auto-switch without user consent).
 
+### After phases 1–4 — STOMP `rowShape: 'ssrm'`
+
+Provider-side flatten + progressive snapshot streaming for Perspective ingest (not a new provider type). Spec: [2026-07-15-stomp-rowshape-ssrm-design.md](./2026-07-15-stomp-rowshape-ssrm-design.md). Plan: [2026-07-15-stomp-rowshape-ssrm.md](../plans/2026-07-15-stomp-rowshape-ssrm.md).
+
 ## Capability matrix (product rule)
 
 When `useSSRM` and a module is not ready:

@@ -216,6 +216,29 @@ function StompBehaviour({ cfg, onChange }: { cfg: StompProviderConfig; onChange(
       <div className="space-y-3.5">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Row fields</h3>
         <div className="space-y-1.5">
+          <Label className="text-xs font-medium text-muted-foreground">Row shape</Label>
+          <Select
+            value={cfg.rowShape === 'ssrm' ? 'ssrm' : 'csrm'}
+            onValueChange={(v) =>
+              onChange({ rowShape: v === 'ssrm' ? 'ssrm' : undefined })
+            }
+          >
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="csrm">CSRM (default)</SelectItem>
+              <SelectItem value="ssrm">SSRM</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] text-muted-foreground">
+            CSRM keeps nested rows and buffers the snapshot until the end token.
+            SSRM flattens dotted column paths to scalar keys and streams snapshot
+            batches as they arrive (for Perspective ingest). Changing this requires
+            a provider Restart.
+          </p>
+        </div>
+        <div className="space-y-1.5">
           <div className="flex items-center gap-2">
             <Switch
               id="projectFields"
