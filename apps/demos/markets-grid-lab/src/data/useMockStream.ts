@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import type { GridApi } from 'ag-grid-community';
 import { useProviderStream } from '@starui/host-data-react/runtime';
 import type { MockProviderConfig } from '@starui/types';
-import { applyLabStreamDelta } from './applyLabStreamDelta';
-import { applyDelta } from './applyDelta';
+import {
+  applyLabStreamDelta,
+  type LabStreamApplyTx,
+} from './applyLabStreamDelta';
 import { useDebouncedValue } from './useDebouncedValue';
 import type { LabRow, StreamOptions } from './types';
 
@@ -14,6 +16,11 @@ export type StreamDeltaTransform = (
 export interface MockStreamBindings {
   /** Set from MarketsGrid `onReady` — ticks route through transactions once set. */
   gridApiRef: RefObject<GridApi | null>;
+  /**
+   * Prefer MarketsGridHandle.applyDataTransactionAsync (required for SSRM;
+   * optional for CSRM).
+   */
+  applyTxRef?: RefObject<LabStreamApplyTx | null>;
   /** Optional per-tick overlay (e.g. active demo scenario). */
   transformDelta?: StreamDeltaTransform;
 }
@@ -34,7 +41,7 @@ export interface MockStreamResult {
  * data-services SharedWorker, identified by a tab-scoped `providerId`.
  *
  * Full snapshots (`replace: true`) update React `rowData` once. Tick
- * deltas go through `gridApi.applyTransactionAsync` so AG-Grid only
+ * deltas go through applyTx / applyTransactionAsync so AG-Grid only
  * repaints changed rows (cell flash, conditional styling, alerts).
  */
 export function useMockStream(
@@ -43,7 +50,7 @@ export function useMockStream(
   bindings: MockStreamBindings,
 ): MockStreamResult {
   const { rowCount = 500, updateIntervalMs = 500, enableUpdates = true } = opts;
-  const { gridApiRef, transformDelta } = bindings;
+  const { gridApiRef, applyTxRef, transformDelta } = bindings;
 
   const cfg = useMemo<MockProviderConfig>(
     () => ({
@@ -75,7 +82,14 @@ export function useMockStream(
       const outbound = transform ? transform(incoming) : incoming;
 
       const api = gridApiRef.current;
-      const next = applyLabStreamDelta(api, rowsRef.current, outbound, replace);
+      const applyTx = applyTxRef?.current ?? null;
+      const next = applyLabStreamDelta(
+        api,
+        rowsRef.current,
+        outbound,
+        replace,
+        applyTx,
+      );
       rowsRef.current = next;
 
       if (replace || !api) {
@@ -83,7 +97,7 @@ export function useMockStream(
         setSnapshotRowCount(next.length);
       }
     },
-    [gridApiRef],
+    [gridApiRef, applyTxRef],
   );
 
   const { refresh, status } = useProviderStream<LabRow>(providerId, cfg, {
@@ -108,10 +122,13 @@ export function useMockStream(
     rowsRef.current = [];
     setRows([]);
     setSnapshotRowCount(0);
+    // CSRM only — SSRM forbids setGridOption('rowData'); React prop reset is enough.
     const api = gridApiRef.current;
     if (api) {
       try {
-        api.setGridOption('rowData', []);
+        if (api.getGridOption('rowModelType') !== 'serverSide') {
+          api.setGridOption('rowData', []);
+        }
       } catch {
         /* tearing down */
       }

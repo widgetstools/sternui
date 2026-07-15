@@ -4,6 +4,7 @@ import type { MarketsGridHandle } from '@starui/grid';
 import {
   applyLabRowUpdates,
   diffRowUpdates,
+  type LabStreamApplyTx,
 } from '../data/applyLabStreamDelta';
 import { labRowFieldPatch } from '../data/rowDiff';
 import { useMockStream } from '../data/useMockStream';
@@ -45,8 +46,9 @@ function buildScenarioOverlay(
  * Mock stream + optional scenario overlay + registration with the
  * right-hand Demo Console rail.
  *
- * Tick deltas use `applyTransactionAsync`; `rowData` only changes on
- * full snapshots (and before the grid API is ready).
+ * Tick deltas use `applyDataTransactionAsync` (SSRM-safe) or
+ * `applyTransactionAsync`; `rowData` only changes on full snapshots
+ * (and before the grid API is ready).
  */
 export function useLabRows(
   tabId: string,
@@ -56,6 +58,7 @@ export function useLabRows(
 ) {
   const { register } = useLabDemoRegistry();
   const gridApiRef = useRef<GridApi | null>(null);
+  const applyTxRef = useRef<LabStreamApplyTx | null>(null);
   const scenarioIdRef = useRef<string | null>(null);
   const scenarioOverlayRef = useRef<ScenarioOverlay>(new Map());
 
@@ -77,12 +80,14 @@ export function useLabRows(
       updateIntervalMs: tickMs,
       enableUpdates: paused ? false : (opts.enableUpdates ?? true),
     },
-    { gridApiRef, transformDelta },
+    { gridApiRef, applyTxRef, transformDelta },
   );
 
   const pushScenarioOverlay = useCallback((id: string | null) => {
     const api = gridApiRef.current;
-    if (!api || rowsRef.current.length === 0 || !id) return;
+    if ((!api && !applyTxRef.current) || rowsRef.current.length === 0 || !id) {
+      return;
+    }
 
     const scenario = getScenarioById(id);
     if (!scenario) return;
@@ -92,7 +97,7 @@ export function useLabRows(
     scenarioOverlayRef.current = buildScenarioOverlay(before, after);
     rowsRef.current = after;
     const updates = diffRowUpdates(before, after);
-    applyLabRowUpdates(api, updates);
+    applyLabRowUpdates(api, updates, applyTxRef.current);
   }, [rowsRef]);
 
   const applyScenario = useCallback(
@@ -116,6 +121,9 @@ export function useLabRows(
   const onReady = useCallback(
     (handle: MarketsGridHandle) => {
       gridApiRef.current = handle.gridApi;
+      applyTxRef.current = handle.applyDataTransactionAsync
+        ? (tx) => handle.applyDataTransactionAsync?.(tx)
+        : null;
       onGridMount?.(handle);
       if (import.meta.env?.DEV) {
         (globalThis as Record<string, unknown>).__labGrid = handle;

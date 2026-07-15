@@ -1,20 +1,32 @@
-import { forwardRef, useImperativeHandle, useRef } from 'react';
-import type { Theme } from 'ag-grid-community';
+import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
+import type { GridReadyEvent, Theme } from 'ag-grid-community';
+import { buildStreamSafeComponents } from '../widget/buildStreamSafeComponents.js';
 import { SSRMGrid, type SSRMGridHandle, type SSRMColDef } from './ssrmgrid-entry.js';
 
-export type SsrmMarketsGridSurfaceProps<TData> = {
-  rowData: TData[];
+export type SsrmMarketsGridSurfaceProps = {
+  rowData: Record<string, unknown>[];
   columnDefs: SSRMColDef[];
   rowIdField: string;
   height?: string | number;
   quickFilterText?: string;
-  /** StarUI design-system AG Grid theme (same as CSRM MarketsGridSurface). */
-  theme?: Theme;
+  /** Required from MarketsGrid — StarUI design-system AG Grid theme. */
+  theme: Theme;
+  rowHeight?: number;
+  headerHeight?: number;
+  sideBar?: unknown;
+  statusBar?: unknown;
+  defaultColDef?: SSRMColDef;
+  includeAllStreamSafeFilters?: boolean;
+  onGridReady?: (event: GridReadyEvent) => void;
 };
 
+/**
+ * SSRM presentation surface — peer to MarketsGridSurface.
+ * Owns design-system chrome passthrough; SSRMGrid owns the Perspective engine.
+ */
 export const SsrmMarketsGridSurface = forwardRef<
   SSRMGridHandle,
-  SsrmMarketsGridSurfaceProps<Record<string, unknown>>
+  SsrmMarketsGridSurfaceProps
 >(function SsrmMarketsGridSurface(props, ref) {
   const inner = useRef<SSRMGridHandle>(null);
   useImperativeHandle(ref, () => ({
@@ -29,17 +41,35 @@ export const SsrmMarketsGridSurface = forwardRef<
       inner.current?.chartFilteredData(opts) ?? Promise.resolve(null),
   }));
 
+  const streamSafeComponents = useMemo(
+    () =>
+      buildStreamSafeComponents(
+        props.columnDefs as Parameters<typeof buildStreamSafeComponents>[0],
+        props.includeAllStreamSafeFilters ?? true,
+      ),
+    [props.columnDefs, props.includeAllStreamSafeFilters],
+  );
+
   return (
     <div style={{ flex: 1, minHeight: 0, width: '100%' }}>
       <SSRMGrid
         ref={inner}
         columnDefs={props.columnDefs}
-        rowData={props.rowData as Record<string, unknown>[]}
+        rowData={props.rowData}
         getRowId={props.rowIdField}
-        height="100%"
+        height={props.height ?? '100%'}
         quickFilterText={props.quickFilterText}
         theme={props.theme}
         loadThemeGoogleFonts={false}
+        rowHeight={props.rowHeight}
+        headerHeight={props.headerHeight}
+        sideBar={props.sideBar}
+        statusBar={props.statusBar}
+        defaultColDef={props.defaultColDef}
+        components={streamSafeComponents as Record<string, unknown>}
+        suppressNoRowsOverlay
+        overlayNoRowsTemplate=" "
+        onGridReady={props.onGridReady}
       />
     </div>
   );

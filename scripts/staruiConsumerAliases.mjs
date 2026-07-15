@@ -2,7 +2,7 @@
  * Vite resolve aliases for apps consuming @starui/* bucket tarballs.
  * Maps legacy member import paths to installed bundle subpaths.
  */
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, realpathSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -498,6 +498,22 @@ export function staruiServerFsAllow(appDir) {
   for (const root of collectStaruiInstallRoots(appDir)) {
     allow.add(root);
     allow.add(join(root, 'node_modules'));
+  }
+  // Symlinked packages (e.g. `ln -sfn ~/ssrmgrid node_modules/ssrmgrid`)
+  // resolve outside the monorepo. Vite checks realpath and blocks Worker
+  // module loads unless the target is explicitly allowed — which leaves
+  // SSRMGrid stuck on "Loading..." with no datasource.
+  for (const nm of [
+    join(REPO_ROOT, 'node_modules'),
+    join(reactRootDir, 'node_modules'),
+  ]) {
+    const linked = join(nm, 'ssrmgrid');
+    if (!existsSync(linked)) continue;
+    try {
+      allow.add(realpathSync(linked));
+    } catch {
+      allow.add(linked);
+    }
   }
   return [...allow];
 }

@@ -260,15 +260,6 @@ export function useMarketsGridController(
     () => resolveSsrmHandle(useSSRM, ssrmRef?.current),
     [useSSRM, ssrmRef],
   );
-  const [ssrmBridgeReady, setSsrmBridgeReady] = useState(false);
-  useEffect(() => {
-    if (!useSSRM) {
-      setSsrmBridgeReady(false);
-      return;
-    }
-    setSsrmBridgeReady(true);
-    return () => setSsrmBridgeReady(false);
-  }, [useSSRM]);
   const bundleAdapter =
     adapterRef.current instanceof LocalStorageBundleAdapter ? adapterRef.current : null;
   const bundleHandle = bundleAdapter
@@ -281,8 +272,11 @@ export function useMarketsGridController(
         },
       }
     : {};
-  const handleReady = useSSRM ? ssrmBridgeReady : Boolean(api);
-  const effectiveGridApi = (useSSRM ? ssrmRef?.current?.getApi() : null) ?? api;
+  // SSRM registers the same GridApi via platform.onGridReady (wired from
+  // SsrmMarketsGridSurface → handleGridReady). Do not fake-ready on useSSRM
+  // alone — that delivered onReady with a null gridApi and broke lab snapshots.
+  const handleReady = Boolean(api);
+  const effectiveGridApi = api;
   handleRef.current = handleReady
     ? {
         gridApi: effectiveGridApi as GridApi,
@@ -296,7 +290,7 @@ export function useMarketsGridController(
       }
     : null;
 
-  // Reason: deps narrowed to `[api, useSSRM, ssrmBridgeReady]` — the only
+  // Reason: deps narrowed to `[api, useSSRM]` — the only
   // fields whose identity transition need to update the forwarded ref.
   // `platform` is captured at mount via platformRef so it's identity-stable
   // anyway. `profiles` is a new object reference on every ProfileManager
@@ -311,7 +305,7 @@ export function useMarketsGridController(
   useImperativeHandle(
     forwardedRef,
     () => handleRef.current as MarketsGridHandle,
-    [api, useSSRM, ssrmBridgeReady],
+    [api, useSSRM],
   );
 
   const readyFiredRef = useRef(false);
@@ -321,12 +315,12 @@ export function useMarketsGridController(
       // eslint-disable-next-line no-console
       console.log(
         useSSRM
-          ? `[v2/markets-grid] handle delivered to onReady (SSRM bridge alive — consumer can now subscribe)`
+          ? `[v2/markets-grid] handle delivered to onReady (SSRM gridApi alive — consumer can now subscribe)`
           : `[v2/markets-grid] handle delivered to onReady (gridApi alive — consumer can now subscribe)`,
       );
       onReady?.(handleRef.current);
     }
-  }, [api, useSSRM, ssrmBridgeReady, onReady]);
+  }, [api, useSSRM, onReady]);
 
   const [saveFlash, setSaveFlash] = useState(false);
   const saveFlashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);

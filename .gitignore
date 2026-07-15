@@ -67,3 +67,4 @@ apps/package-lock.json
 
 # Superpowers scratch (brainstorm mockups, SDD ledger)
 .superpowers/
+.worktrees/

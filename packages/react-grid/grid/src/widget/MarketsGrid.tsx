@@ -471,6 +471,13 @@ function MarketsGridCoreInner<TData = unknown>(
               columnDefs={ssrmColumnDefs}
               rowIdField={typeof rowIdField === 'string' ? rowIdField : 'id'}
               theme={shell.theme}
+              rowHeight={rowHeight}
+              headerHeight={headerHeight}
+              sideBar={sideBar}
+              statusBar={statusBar}
+              defaultColDef={shell.effectiveDefaultColDef as never}
+              includeAllStreamSafeFilters={includeAllStreamSafeFilters ?? true}
+              onGridReady={shell.handleGridReady}
             />
           ) : (
             <MarketsGridSurface

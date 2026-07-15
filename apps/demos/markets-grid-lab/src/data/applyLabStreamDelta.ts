@@ -5,6 +5,20 @@ import type { LabRow } from './types';
 
 const ID_FIELD = 'id' as const;
 
+export type LabStreamApplyTx = (tx: {
+  add?: LabRow[];
+  update?: LabRow[];
+  remove?: LabRow[];
+}) => void;
+
+function isServerSideRowModel(api: GridApi): boolean {
+  try {
+    return api.getGridOption('rowModelType') === 'serverSide';
+  } catch {
+    return false;
+  }
+}
+
 function splitTransaction(
   api: GridApi,
   rows: readonly LabRow[],
@@ -26,18 +40,23 @@ function splitTransaction(
  * Apply a mock-provider delta through AG-Grid transactions instead of
  * replacing `rowData` on every tick. Returns the updated lab snapshot
  * (for scenarios / demo-console bookkeeping).
+ *
+ * SSRM: never call `setGridOption('rowData')` (invalid under server-side
+ * row model). Full snapshots rely on React `rowData` → SSRMGrid. Ticks
+ * should prefer `applyTx` (MarketsGridHandle.applyDataTransactionAsync).
  */
 export function applyLabStreamDelta(
   api: GridApi | null,
   snapshot: readonly LabRow[],
   incoming: readonly LabRow[],
   replace: boolean,
+  applyTx?: LabStreamApplyTx | null,
 ): LabRow[] {
   if (incoming.length === 0 && !replace) return snapshot as LabRow[];
 
   if (replace) {
     const next = [...incoming];
-    if (api) {
+    if (api && !isServerSideRowModel(api)) {
       try {
         api.setGridOption('rowData', next);
       } catch {
@@ -49,13 +68,19 @@ export function applyLabStreamDelta(
 
   const nextSnapshot = applyDelta(snapshot, incoming, ID_FIELD);
 
-  if (!api) return nextSnapshot;
+  if (!api && !applyTx) return nextSnapshot;
 
-  const { add, update } = splitTransaction(api, incoming);
+  const { add, update } = api
+    ? splitTransaction(api, incoming)
+    : { add: [...incoming], update: [] as LabRow[] };
   if (add.length === 0 && update.length === 0) return nextSnapshot;
 
   try {
-    api.applyTransactionAsync({ add, update });
+    if (applyTx) {
+      applyTx({ add, update });
+    } else if (api) {
+      api.applyTransactionAsync({ add, update });
+    }
   } catch {
     /* grid tearing down */
   }
@@ -64,10 +89,18 @@ export function applyLabStreamDelta(
 }
 
 /** Push a one-shot scenario overlay as row updates. */
-export function applyLabRowUpdates(api: GridApi, updates: readonly LabRow[]): void {
+export function applyLabRowUpdates(
+  api: GridApi | null,
+  updates: readonly LabRow[],
+  applyTx?: LabStreamApplyTx | null,
+): void {
   if (updates.length === 0) return;
   try {
-    api.applyTransactionAsync({ update: [...updates] });
+    if (applyTx) {
+      applyTx({ update: [...updates] });
+    } else if (api) {
+      api.applyTransactionAsync({ update: [...updates] });
+    }
   } catch {
     /* grid tearing down */
   }

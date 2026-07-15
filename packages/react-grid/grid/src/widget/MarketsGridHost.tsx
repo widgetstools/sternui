@@ -396,6 +396,13 @@ function MarketsGridHostInner<TData>({
           columnDefs={ssrmColumnDefs}
           rowIdField={typeof rowIdField === 'string' ? rowIdField : 'id'}
           theme={theme}
+          rowHeight={rowHeight}
+          headerHeight={headerHeight}
+          sideBar={sideBar}
+          statusBar={statusBar}
+          defaultColDef={defaultColDef as never}
+          includeAllStreamSafeFilters={includeAllStreamSafeFilters}
+          onGridReady={handleGridReady}
         />
       ) : (
         <MarketsGridSurface

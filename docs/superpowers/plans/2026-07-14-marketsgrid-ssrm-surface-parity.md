@@ -6,15 +6,22 @@
 
 **Agreed scope (user choice B):** Grid chrome parity + Loading fix. Not traffic-light lab seed, not Phase 3, not full toolbar proof matrix.
 
-## IN vs OUT
+## IN vs OUT (this plan only — no silent deferrals)
 
-| IN (this plan) | OUT |
-|----------------|-----|
-| Fix SSRM perpetual Loading in lab | Traffic-light lab preset/toggle |
-| Pass StarUI theme + density heights into SSRM surface | Phase 3 alerts/edit/link |
-| Pass sideBar, statusBar, defaultColDef | Prove every toolbar on SSRM |
-| Stream-safe filter components + CSRM-equivalent overlays | Monorepo-wide AG Grid 36 build:packages |
-| ssrmgrid: host `theme` optional; demo keeps default | Rewriting SSRMGrid internals into MarketsGridSurface |
+| # | Item | Status |
+|---|------|--------|
+| 1 | Fix SSRM perpetual Loading (fake `ssrmBridgeReady` + lab `setGridOption('rowData')`) | **IN — code landed** |
+| 2 | Pass StarUI `theme` + density `rowHeight`/`headerHeight` into SSRM surface | **IN — code landed** |
+| 3 | Pass `sideBar`, `statusBar`, `defaultColDef`, stream-safe `components`, overlays | **IN — code landed** |
+| 4 | `onGridReady` wired so `onReady` gets a real `gridApi` | **IN — code landed** |
+| 5 | ssrmgrid: host presentation props (`theme`, heights, chrome) | **IN — done in SSRMGrid** |
+| 6 | Lab smoke note of residual gaps | **IN — see lab-pass note** |
+| 7 | Traffic-light lab preset / demo toggle | **OUT — next plan if asked** |
+| 8 | Phase 3 (alerts / edit / link) | **OUT — separate phase** |
+| 9 | Prove every toolbar action on SSRM | **OUT — follow-up matrix** |
+| 10 | Monorepo-wide `build:packages` AG Grid 36 clean | **OUT — unrelated** |
+
+**Rule:** Anything not in rows 1–6 is **not** being done in this pass. If you want 7–10, say which and we open a new plan.
 
 ## Architecture
 
