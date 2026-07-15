@@ -2,6 +2,7 @@ import type { ColDef, GridApi, SideBarDef, StatusPanelDef, Theme } from 'ag-grid
 import type { AnyModule, AppDataLookup, GridPlatform, MarketsGridLocalStorageConfig, StorageAdapter, StorageAdapterFactory, StorageAdapterFactoryOpts } from '@starui/engine';
 import type { GridHostContext } from '@starui/host';
 import type { UseProfileManagerResult, VisualExcelExportOptions, ProviderGridHostApi, GridEventBindingsHostApi } from '@starui/grid/customizer';
+import type { SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
 
 export type { ProviderGridHostApi, ProviderGridHostMode, GridEventBindingsHostApi } from '@starui/grid/customizer';
 export type { MarketsGridLocalStorageConfig, StorageAdapterFactory, StorageAdapterFactoryOpts } from '@starui/engine';
@@ -401,6 +402,16 @@ export interface MarketsGridHandle {
    * bundle in localStorage and reloads the active profile into the grid.
    */
   setConfig?: (config: MarketsGridLocalStorageConfig) => Promise<void>;
+
+  /** SSRM only — null when `useSSRM` is false. */
+  getSsrmHandle?: () => SSRMGridHandle | null;
+
+  /** Engine-neutral tick apply used by MarketsGridContainer provider wiring. */
+  applyDataTransactionAsync?: (tx: {
+    add?: unknown[];
+    update?: unknown[];
+    remove?: unknown[];
+  }) => void;
 }
 
 /**

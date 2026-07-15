@@ -46,6 +46,11 @@ import type { FormattingToolbarHandle } from './FormattingToolbar';
 import type { SettingsSheetHandle } from './SettingsSheet';
 import type { MarketsGridHandle, MarketsGridLocalStorageConfig } from './types';
 import { createOpenFinViewProfileSource } from './openfinViewProfile';
+import type { SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
+import {
+  resolveSsrmHandle,
+  routeDataTransactionAsync,
+} from '../engine/routeDataTransactionAsync.js';
 
 export interface UseMarketsGridControllerOpts {
   readonly gridId: string;
@@ -58,6 +63,8 @@ export interface UseMarketsGridControllerOpts {
   readonly onSavingChange: ((saving: boolean) => void) | undefined;
   /** Derived from general-settings — supplied by host to avoid duplicate store subscription. */
   readonly headerCaseAttr?: 'upper' | undefined;
+  readonly useSSRM?: boolean;
+  readonly ssrmRef?: RefObject<SSRMGridHandle | null>;
 }
 
 export interface MarketsGridControllerHandle {
@@ -109,6 +116,8 @@ export function useMarketsGridController(
     onGridLevelDataLoad,
     onSavingChange,
     headerCaseAttr: headerCaseAttrProp,
+    useSSRM = false,
+    ssrmRef,
   } = opts;
 
   // Construct a fallback adapter ONCE when the host doesn't provide one.
@@ -236,6 +245,28 @@ export function useMarketsGridController(
   const saveAllRef = useRef<() => Promise<void>>(() => Promise.resolve());
   const exportVisualExcelRef = useRef<(options?: VisualExcelExportOptions) => void>(() => {});
   const saveAll = useCallback(() => saveAllRef.current(), []);
+  const applyDataTransactionAsync = useCallback(
+    (
+      tx: { add?: unknown[]; update?: unknown[]; remove?: unknown[] },
+      callback?: Parameters<GridApi['applyTransactionAsync']>[1],
+    ) => {
+      routeDataTransactionAsync(useSSRM, tx, ssrmRef?.current, api, callback);
+    },
+    [useSSRM, ssrmRef, api],
+  );
+  const getSsrmHandle = useCallback(
+    () => resolveSsrmHandle(useSSRM, ssrmRef?.current),
+    [useSSRM, ssrmRef],
+  );
+  const [ssrmBridgeReady, setSsrmBridgeReady] = useState(false);
+  useEffect(() => {
+    if (!useSSRM) {
+      setSsrmBridgeReady(false);
+      return;
+    }
+    setSsrmBridgeReady(true);
+    return () => setSsrmBridgeReady(false);
+  }, [useSSRM]);
   const bundleAdapter =
     adapterRef.current instanceof LocalStorageBundleAdapter ? adapterRef.current : null;
   const bundleHandle = bundleAdapter
@@ -248,19 +279,23 @@ export function useMarketsGridController(
         },
       }
     : {};
-  handleRef.current = api
+  const handleReady = useSSRM ? ssrmBridgeReady : Boolean(api);
+  const effectiveGridApi = (useSSRM ? ssrmRef?.current?.getApi() : null) ?? api;
+  handleRef.current = handleReady
     ? {
-        gridApi: api,
+        gridApi: effectiveGridApi as GridApi,
         platform,
         profiles,
         saveAll,
         exportVisualExcel: (options) => exportVisualExcelRef.current(options),
+        getSsrmHandle,
+        applyDataTransactionAsync: (tx) => applyDataTransactionAsync(tx),
         ...bundleHandle,
       }
     : null;
 
-  // Reason: deps narrowed to `[api]` — the only field whose identity
-  // transition (null → live GridApi) needs to update the forwarded ref.
+  // Reason: deps narrowed to `[api, useSSRM, ssrmBridgeReady]` — the only
+  // fields whose identity transition need to update the forwarded ref.
   // `platform` is captured at mount via platformRef so it's identity-stable
   // anyway. `profiles` is a new object reference on every ProfileManager
   // store mutation, so listing it would rebuild the imperative handle on
@@ -271,17 +306,25 @@ export function useMarketsGridController(
   // should be read through useProfileManager (or its field selectors), not
   // off the frozen handle snapshot.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useImperativeHandle(forwardedRef, () => handleRef.current as MarketsGridHandle, [api]);
+  useImperativeHandle(
+    forwardedRef,
+    () => handleRef.current as MarketsGridHandle,
+    [api, useSSRM, ssrmBridgeReady],
+  );
 
   const readyFiredRef = useRef(false);
   useEffect(() => {
     if (!readyFiredRef.current && handleRef.current) {
       readyFiredRef.current = true;
       // eslint-disable-next-line no-console
-      console.log(`[v2/markets-grid] handle delivered to onReady (gridApi alive — consumer can now subscribe)`);
+      console.log(
+        useSSRM
+          ? `[v2/markets-grid] handle delivered to onReady (SSRM bridge alive — consumer can now subscribe)`
+          : `[v2/markets-grid] handle delivered to onReady (gridApi alive — consumer can now subscribe)`,
+      );
       onReady?.(handleRef.current);
     }
-  }, [api, onReady]);
+  }, [api, useSSRM, ssrmBridgeReady, onReady]);
 
   const [saveFlash, setSaveFlash] = useState(false);
   const saveFlashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);

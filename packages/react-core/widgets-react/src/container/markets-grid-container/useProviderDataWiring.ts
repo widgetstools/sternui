@@ -15,6 +15,7 @@
 import { useEffect } from 'react';
 import type { GridApi } from 'ag-grid-community';
 import type { IDataProvider } from '@starui/host-data';
+import type { MarketsGridHandle } from '@starui/grid';
 import { isHistoricalToolbarDate } from '@starui/grid/customizer';
 import { createApplyProviderToGridState } from './applyProviderToGrid.js';
 import type { ProviderMode } from './gridLevelState.js';
@@ -59,6 +60,9 @@ export interface UseProviderDataWiringParams<TData extends Record<string, unknow
    * `pauseUpdatesWhenHidden` grid setting.
    */
   pauseUpdatesWhenHidden: boolean;
+  /** When true, live ticks route through `gridHandle.applyDataTransactionAsync`. */
+  useSSRM?: boolean;
+  gridHandle: MarketsGridHandle | null;
 }
 
 function defaultOnError(err: Error): void {
@@ -89,14 +93,22 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
     setResolvedSubKey,
     setIsRefetching,
     pauseUpdatesWhenHidden,
+    useSSRM = false,
+    gridHandle,
   } = params;
 
+  const applyDataTransactionAsync = gridHandle?.applyDataTransactionAsync;
+
   useEffect(() => {
-    if (!liveApi || !provider || !activeId) {
+    const dataSurfaceReady = useSSRM
+      ? Boolean(applyDataTransactionAsync)
+      : Boolean(liveApi);
+
+    if (!dataSurfaceReady || !provider || !activeId) {
       if (DEBUG) {
         // eslint-disable-next-line no-console
-        console.log(`[v2/grid]   provider wiring skipped: liveApi=%s provider=%s activeId=%s`,
-          Boolean(liveApi), Boolean(provider), activeId);
+        console.log(`[v2/grid]   provider wiring skipped: dataSurface=%s provider=%s activeId=%s useSSRM=%s`,
+          dataSurfaceReady, Boolean(provider), activeId, useSSRM);
       }
       return;
     }
@@ -151,13 +163,15 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
           console.log(
             '[refresh] %cflushAsyncTransactions BEFORE commit%c pendingAdds=%d gridRows=%d',
             'color:#f97316;font-weight:bold', '',
-            gridApply.getPendingAddCount(), liveApi.getDisplayedRowCount(),
+            gridApply.getPendingAddCount(), liveApi?.getDisplayedRowCount() ?? -1,
           );
         }
-        try { liveApi.flushAsyncTransactions(); } catch (e) {
-          if (DEBUG) {
-            // eslint-disable-next-line no-console
-            console.warn('[refresh]    flushAsyncTransactions threw:', e);
+        if (liveApi) {
+          try { liveApi.flushAsyncTransactions(); } catch (e) {
+            if (DEBUG) {
+              // eslint-disable-next-line no-console
+              console.warn('[refresh]    flushAsyncTransactions threw:', e);
+            }
           }
         }
         gridApply.clearPendingAdds();
@@ -169,7 +183,9 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
             'color:#10b981;font-weight:bold', '', rows.length,
           );
         }
-        liveApi.setGridOption('rowData', rows.slice());
+        if (liveApi) {
+          liveApi.setGridOption('rowData', rows.slice());
+        }
         setLoadRowCount(rows.length);
         setResolvedSubKey(thisSubKey);
         setIsRefetching(false);
@@ -184,9 +200,14 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
       if (cancelled || updateRows.length === 0 || !applyLiveTicks) return;
       updateBatchCount += 1;
 
-      // TODO(Task 5): when `useSSRM` is true, route ticks through
-      // `MarketsGridHandle.applyDataTransactionAsync` → `applyTickToSsrm`
-      // instead of `gridApi.applyTransactionAsync` below.
+      if (useSSRM && applyDataTransactionAsync) {
+        applyDataTransactionAsync({
+          update: updateRows as unknown[],
+        });
+        return;
+      }
+
+      if (!liveApi) return;
 
       if (!rowIdField) {
         if (DEBUG) {
@@ -323,5 +344,5 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveApi, provider, activeId, rowIdFieldKey, onError, dataHubClient, mode, asOfDate, toolbarDate, restartProvider, pauseUpdatesWhenHidden]);
+  }, [liveApi, provider, activeId, rowIdFieldKey, onError, dataHubClient, mode, asOfDate, toolbarDate, restartProvider, pauseUpdatesWhenHidden, useSSRM, applyDataTransactionAsync]);
 }

@@ -476,13 +476,14 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   const onReady = useCallback((handle: MarketsGridHandle) => {
     const k = expectedKeyRef.current;
-    if (k) {
+    const ssrm = marketsGridProps.useSSRM ?? false;
+    if (k && !ssrm) {
       setStamped({ key: k, api: handle.gridApi as unknown as GridApi<TData> });
     }
     gridHandleRef.current = handle;
     setGridHandle(handle);
     onReadyProp?.(handle);
-  }, [onReadyProp]);
+  }, [onReadyProp, marketsGridProps.useSSRM]);
 
   useMarketsGridEventBridge({
     handle: gridHandle,
@@ -497,6 +498,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   });
 
   const liveApi = stamped && stamped.key === expectedKey ? stamped.api : null;
+  const useSSRM = marketsGridProps.useSSRM ?? false;
 
   // Read the `pauseUpdatesWhenHidden` grid setting from the live platform so
   // the provider-wiring can pause grid repaint on hidden/inactive views.
@@ -618,6 +620,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     setResolvedSubKey,
     setIsRefetching,
     pauseUpdatesWhenHidden,
+    useSSRM,
+    gridHandle,
   });
 
   /** Cache replay only — `IDataProvider.refresh()`; no upstream reconnect. */

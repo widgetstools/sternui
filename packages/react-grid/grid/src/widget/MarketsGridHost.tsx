@@ -208,6 +208,8 @@ function MarketsGridHostInner<TData>({
     onGridLevelDataLoad,
     onSavingChange,
     headerCaseAttr,
+    useSSRM,
+    ssrmRef,
   });
 
   const [settingsMounted, setSettingsMounted] = useState(false);
