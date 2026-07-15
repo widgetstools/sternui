@@ -1,12 +1,13 @@
 # Calculated Columns — module-driven
 
-**Six toolbar profiles** (`lab-calculated-v6`) switch between the full
+**Six toolbar profiles** (`lab-calculated-v7`) switch between the full
 **11** virtual columns, focused subsets (P&L, risk, spreads, overview
-derivatives), and the **traffic-light (RAG)** recipe. Import from
+derivatives), and the **traffic-light (RAG)** help recipe. Import from
 [`public/lab-profiles/calculated-columns/`](../../public/lab-profiles/calculated-columns/).
 
-Default profile **00 · All virtual** seeds every expression below.
-Open `Tools → Calculated Columns` to inspect or edit.
+Default profile **05 · Traffic light (RAG)** installs the help walkthrough
+(IFS on `midPrice`, emoji Excel format, center align, custom IFS group agg,
+Asset Class grouped). Open `Tools → Calculated Columns` to inspect or edit.
 
 Unlike `valueGetter`-based derived columns (which live in code), these
 columns are **profile state** — the expression is a string parsed by
@@ -28,15 +29,17 @@ the profile, and they ride the same persistence as any other module.
 | `calc_cs01Notional` | CS01 × Qty | `[cs01] * [quantityFace] / 1000000` | preset `currency` |
 | `calc_yieldSpread` | YTW − YTM | `[yieldToWorst] - [yieldToMaturity]` | preset `number`, 3 dp |
 
-## Profile 05 · Traffic light (RAG)
+## Profile 05 · Traffic light (RAG) — help §4 recipe
 
-| ColId | Header | Expression | Formatter / agg |
-| --- | --- | --- | --- |
-| `trafficlight` | Traffic Light | `IFS([midPrice] >= 105, 1, [midPrice] >= 95, 2, 3)` | Excel `[=1]"🟢";[=2]"🟡";[=3]"🔴"`; group agg `trafficLight` |
+| Step | Config |
+| --- | --- |
+| 1. Calc | `trafficlight` = `IFS([midPrice] >= 105, 1, [midPrice] >= 95, 2, 3)` |
+| 2. Excel format | `[=1]"🟢";[=2]"🟡";[=3]"🔴"` |
+| 3. Align | Center |
+| 4. Agg | Custom IFS `MIN/MAX([value])` RAG fold (SSRM → named `trafficLight`) |
+| 5. Group | Asset Class row-grouped |
 
-Also seeds **Asset Class** as the initial row group. Use with **Use SSRM** to prove leaf + group roll-up.
-
-## Expression DSL
+## Full catalog (profile 00)
 
 Field references use `[columnId]` syntax. Operators include `+ - * /`,
 comparisons `== != > < >= <=`, logical `&& || !`, set membership `in`,

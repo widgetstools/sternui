@@ -6,12 +6,30 @@ import {
   TRAFFIC_LIGHT_VIRTUAL,
 } from '../../seeds';
 
-/** Bump when demo profiles change so first-mount reinstalls. */
-export const CALCULATED_GRID_ID = 'lab-calculated-v6';
+/**
+ * Bump when demo profiles change so first-mount reinstalls.
+ * v7: traffic-light profile matches help recipe (excel + center + custom IFS agg).
+ */
+export const CALCULATED_GRID_ID = 'lab-calculated-v7';
 
 const ALL = CALCULATED_TAB_VIRTUAL;
 const pick = (...ids: string[]) => ALL.filter((c) => ids.includes(c.colId));
 
+/** Help §4 Step 4 — custom RAG fold (SSRM maps this to named `trafficLight`). */
+const TRAFFIC_LIGHT_CUSTOM_AGG = `IFS(
+  MIN([value]) = 1 AND MAX([value]) = 1, 1,
+  MIN([value]) = 3 AND MAX([value]) = 3, 3,
+  2
+)`;
+
+/**
+ * Full help walkthrough (Traffic Light §4) as a lab profile:
+ * 1. Calc col IFS([midPrice]…) — lab’s price field
+ * 2. Excel emoji format
+ * 3. Center alignment
+ * 4. Custom IFS aggregation
+ * 5. Group by Asset Class (lab stand-in for Desk)
+ */
 const TRAFFIC_LIGHT_CC: ColumnCustomizationState = {
   assignments: {
     trafficlight: {
@@ -20,9 +38,25 @@ const TRAFFIC_LIGHT_CC: ColumnCustomizationState = {
         kind: 'excelFormat',
         format: '[=1]"🟢";[=2]"🟡";[=3]"🔴"',
       },
+      cellStyleOverrides: {
+        dark: { alignment: { horizontal: 'center' } },
+        light: { alignment: { horizontal: 'center' } },
+      },
       rowGrouping: {
         enableValue: true,
-        aggFunc: 'trafficLight',
+        aggFunc: 'custom',
+        customAggExpression: TRAFFIC_LIGHT_CUSTOM_AGG,
+        allowedAggFuncs: [
+          'sum',
+          'min',
+          'max',
+          'count',
+          'avg',
+          'first',
+          'last',
+          'trafficLight',
+          'custom',
+        ],
       },
     },
     assetClass: {
@@ -82,7 +116,8 @@ export const CALCULATED_DEMO_PROFILES: LabDemoProfileEntry[] = [
   {
     id: 'calc-05-traffic-light',
     name: '05 · Traffic light (RAG)',
-    blurb: 'IFS midPrice → 🟢/🟡/🔴; group by Asset Class with trafficLight agg (SSRM-ready).',
+    blurb:
+      'Help recipe: IFS midPrice → emoji Excel format → custom IFS group agg → Asset Class grouped.',
     seed: {
       'calculated-columns': { virtualColumns: [TRAFFIC_LIGHT_VIRTUAL] },
       'column-customization': TRAFFIC_LIGHT_CC,
@@ -90,4 +125,5 @@ export const CALCULATED_DEMO_PROFILES: LabDemoProfileEntry[] = [
   },
 ];
 
-export const CALCULATED_ACTIVE_PROFILE_ID = 'calc-00-all-virtual';
+/** Open Calculated on the traffic-light walkthrough by default. */
+export const CALCULATED_ACTIVE_PROFILE_ID = 'calc-05-traffic-light';

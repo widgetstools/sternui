@@ -21,6 +21,7 @@ import type { GetContextMenuItems, GridReadyEvent } from 'ag-grid-community';
 import type { MarketsGridProps } from './types';
 import { stripSurfaceManagedGridOptions } from './gridSurfaceOptions';
 import { buildStreamSafeComponents } from './buildStreamSafeComponents';
+import { TRAFFIC_LIGHT_AGG_FUNCS } from '../engine/ssrmTrafficLightAgg.js';
 
 export interface MarketsGridSurfaceProps<TData> {
   readonly gridRef: RefObject<AgGridReact<TData> | null>;
@@ -132,6 +133,7 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
         columnDefs={columnDefs as never}
         maintainColumnOrder
         cellSelection={true}
+        aggFuncs={TRAFFIC_LIGHT_AGG_FUNCS}
         suppressNoRowsOverlay={true}
         overlayNoRowsTemplate=" "
         // Flush async transactions on the next animation frame instead of

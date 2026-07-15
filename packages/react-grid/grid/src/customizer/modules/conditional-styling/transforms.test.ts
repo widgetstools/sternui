@@ -148,6 +148,39 @@ describe('conditional-styling transforms', () => {
     } as CellClassParams)).toBe(false);
   });
 
+  it('matches column-ref rules on group/footer rows with empty data via cell value overlay', () => {
+    const engine = new ExpressionEngine();
+    const [price] = applyCellRulesToDefs(
+      [{ colId: 'price' }],
+      [cellRule({ expression: '[price] > 100' })],
+      engine,
+    ) as ColDef[];
+
+    const predicate = price.cellClassRules?.['ds-rule-rule-text'] as (
+      params: CellClassParams,
+    ) => boolean;
+
+    expect(
+      predicate({
+        value: 120,
+        data: undefined,
+        column: { getColId: () => 'price' },
+        node: { group: true },
+        api: {},
+      } as CellClassParams),
+    ).toBe(true);
+
+    expect(
+      predicate({
+        value: 50,
+        data: {},
+        column: { getColId: () => 'price' },
+        node: { footer: true, level: -1 },
+        api: {},
+      } as CellClassParams),
+    ).toBe(false);
+  });
+
   it('styles the side field green for BUY and red for SELL only when each condition matches', () => {
     const buyRule: ConditionalRule = {
       id: 'side-buy',

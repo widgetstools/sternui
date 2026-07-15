@@ -454,6 +454,11 @@ export function applyRowGroupingConfigToColDef(
     // doesn't silently drop aggregation while the user is still typing.
   } else if (cfg.aggFunc !== undefined) {
     merged.aggFunc = cfg.aggFunc;
+    if (cfg.aggFunc === 'trafficLight' || cfg.aggFunc === 'rag') {
+      // AG Grid Values panel falls back to sum/avg for unknown names unless
+      // defaultAggFunc matches a registered aggFuncs entry.
+      (merged as ColDef & { defaultAggFunc?: string }).defaultAggFunc = cfg.aggFunc;
+    }
   }
 }
 

@@ -18,6 +18,9 @@ export type SsrmMarketsGridSurfaceProps = {
   defaultColDef?: SSRMColDef;
   includeAllStreamSafeFilters?: boolean;
   onGridReady?: (event: GridReadyEvent) => void;
+  /** From general-settings (same defaults as CSRM). */
+  grandTotalRow?: boolean | 'top' | 'bottom' | 'pinnedTop' | 'pinnedBottom';
+  groupTotalRow?: 'top' | 'bottom';
 };
 
 /**
@@ -70,6 +73,8 @@ export const SsrmMarketsGridSurface = forwardRef<
         suppressNoRowsOverlay
         overlayNoRowsTemplate=" "
         onGridReady={props.onGridReady}
+        grandTotalRow={props.grandTotalRow}
+        groupTotalRow={props.groupTotalRow}
       />
     </div>
   );

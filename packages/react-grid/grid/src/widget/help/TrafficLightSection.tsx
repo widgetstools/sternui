@@ -40,6 +40,11 @@ export function TrafficLightSection() {
       <P>Name: <Code>Traffic Light</Code>, id: <Code>trafficlight</Code></P>
       <P>Expression:</P>
       <Pre>{'IFS([price] >= 105, 1, [price] >= 95, 2, 3)'}</Pre>
+      <P>
+        MarketsGrid Feature Lab uses <Code>[midPrice]</Code> instead of{' '}
+        <Code>[price]</Code> — profile <strong>05 · Traffic light (RAG)</strong>{' '}
+        on the Calculated tab installs this recipe for you.
+      </P>
 
       <H2>Step 2 — Render the emoji at row level</H2>
       <P>

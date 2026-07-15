@@ -732,17 +732,27 @@ function buildCellClassPredicate(
   // behaviourally identical — see compileToFunction parity tests.)
   const evalRule = engine.compile(rule.expression);
   return (params: CellClassParams) => {
-    const data = params.data ?? {};
+    const colId =
+      params.column && typeof params.column.getColId === 'function'
+        ? params.column.getColId()
+        : undefined;
+    // Group / footer / grand-total rows often have empty `data` while the
+    // cell value (agg) lives on `params.value`. Overlay so `[colId]` rules
+    // and Excel-format conditional formatters still match.
+    const data: Record<string, unknown> = { ...(params.data ?? {}) };
+    if (
+      colId != null &&
+      params.value !== undefined &&
+      data[colId] === undefined
+    ) {
+      data[colId] = params.value;
+    }
     const { rowDiffs, ssrmBacked } = resolveRowDiffs(
       params.api,
       params.node,
       diffCacheByApi,
       rowDiffById,
     );
-    const colId =
-      params.column && typeof params.column.getColId === 'function'
-        ? params.column.getColId()
-        : undefined;
     if (rowDiffs && colId && !ssrmBacked) {
       syncRowDiffEntry(rowDiffs, colId, params.value);
     }

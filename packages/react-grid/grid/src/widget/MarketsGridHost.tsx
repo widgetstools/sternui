@@ -403,6 +403,16 @@ function MarketsGridHostInner<TData>({
           defaultColDef={defaultColDef as never}
           includeAllStreamSafeFilters={includeAllStreamSafeFilters}
           onGridReady={handleGridReady}
+          grandTotalRow={
+            gridOptions.grandTotalRow as
+              | boolean
+              | 'top'
+              | 'bottom'
+              | 'pinnedTop'
+              | 'pinnedBottom'
+              | undefined
+          }
+          groupTotalRow={gridOptions.groupTotalRow as 'top' | 'bottom' | undefined}
         />
       ) : (
         <MarketsGridSurface

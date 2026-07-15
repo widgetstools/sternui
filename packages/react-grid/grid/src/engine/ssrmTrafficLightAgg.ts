@@ -40,6 +40,20 @@ export function foldTrafficLightFromAggs(
   return foldTrafficLight(bucket.min, bucket.max);
 }
 
+/** Register on AgGridReact so Values panel keeps `trafficLight` / `rag`. */
+export function trafficLightClientAggFunc(params: { values: unknown[] }): number | null {
+  const nums = params.values
+    .map((v) => (typeof v === 'number' ? v : Number(v)))
+    .filter((n): n is number => Number.isFinite(n));
+  if (nums.length === 0) return null;
+  return foldTrafficLight(Math.min(...nums), Math.max(...nums));
+}
+
+export const TRAFFIC_LIGHT_AGG_FUNCS = {
+  trafficLight: trafficLightClientAggFunc,
+  rag: trafficLightClientAggFunc,
+} as const;
+
 type AssignmentLike = {
   colId: string;
   rowGrouping?: {
@@ -81,6 +95,8 @@ function applyToColDef(colDef: ColDef, assignment: AssignmentLike | undefined): 
   return {
     ...colDef,
     aggFunc: 'trafficLight',
+    // Keep the name in the Columns → Values panel (unknown names fall back to avg/sum).
+    defaultAggFunc: 'trafficLight',
     valueGetter: buildTrafficLightValueGetter(field),
   };
 }

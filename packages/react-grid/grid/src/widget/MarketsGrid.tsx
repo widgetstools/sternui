@@ -478,6 +478,18 @@ function MarketsGridCoreInner<TData = unknown>(
               defaultColDef={shell.effectiveDefaultColDef as never}
               includeAllStreamSafeFilters={includeAllStreamSafeFilters ?? true}
               onGridReady={shell.handleGridReady}
+              grandTotalRow={
+                shell.gridOptions.grandTotalRow as
+                  | boolean
+                  | 'top'
+                  | 'bottom'
+                  | 'pinnedTop'
+                  | 'pinnedBottom'
+                  | undefined
+              }
+              groupTotalRow={
+                shell.gridOptions.groupTotalRow as 'top' | 'bottom' | undefined
+              }
             />
           ) : (
             <MarketsGridSurface

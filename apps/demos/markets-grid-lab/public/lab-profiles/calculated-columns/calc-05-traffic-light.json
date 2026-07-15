@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "kind": "gc-profile",
-  "exportedAt": "2026-07-15T01:58:34.503Z",
+  "exportedAt": "2026-07-15T02:42:18.730Z",
   "profile": {
     "name": "05 · Traffic light (RAG)",
-    "gridId": "lab-calculated-v6",
+    "gridId": "lab-calculated-v7",
     "state": {
       "column-customization": {
         "v": 1,
@@ -16,9 +16,33 @@
                 "kind": "excelFormat",
                 "format": "[=1]\"🟢\";[=2]\"🟡\";[=3]\"🔴\""
               },
+              "cellStyleOverrides": {
+                "dark": {
+                  "alignment": {
+                    "horizontal": "center"
+                  }
+                },
+                "light": {
+                  "alignment": {
+                    "horizontal": "center"
+                  }
+                }
+              },
               "rowGrouping": {
                 "enableValue": true,
-                "aggFunc": "trafficLight"
+                "aggFunc": "custom",
+                "customAggExpression": "IFS(\n  MIN([value]) = 1 AND MAX([value]) = 1, 1,\n  MIN([value]) = 3 AND MAX([value]) = 3, 3,\n  2\n)",
+                "allowedAggFuncs": [
+                  "sum",
+                  "min",
+                  "max",
+                  "count",
+                  "avg",
+                  "first",
+                  "last",
+                  "trafficLight",
+                  "custom"
+                ]
               }
             },
             "assetClass": {
@@ -46,7 +70,7 @@
                 "format": "[=1]\"🟢\";[=2]\"🟡\";[=3]\"🔴\""
               },
               "position": 110,
-              "initialWidth": 90
+              "initialWidth": 110
             }
           ]
         }

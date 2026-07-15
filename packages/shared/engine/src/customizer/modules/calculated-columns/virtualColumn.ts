@@ -95,17 +95,30 @@ export function buildVirtualColDef(
     sortable: true,
     filter: true,
     valueGetter: (params: ValueGetterParams) => {
-      // Group rows store the agg result on `node.aggData[colId]`. Return
-      // that here so the group row shows the aggregate instead of an
-      // empty cell. Calculated columns only read `params.data`, which is
-      // undefined on group nodes — without this branch every group row
-      // would render blank for every virtual column.
+      // Group / subtotal / grand-total rows store aggregates on
+      // `node.aggData[colId]`. Prefer that over evaluating the leaf
+      // expression (group `data` lacks leaf fields, and footer nodes
+      // may have an empty `data` object rather than `undefined`).
+      const colId = v.colId;
+      const node = params.node as
+        | { group?: boolean; footer?: boolean; level?: number; aggData?: Record<string, unknown> }
+        | null
+        | undefined;
+      const isAggRow =
+        node?.group === true ||
+        node?.footer === true ||
+        node?.level === -1;
+      const agg = node?.aggData?.[colId];
+      if (isAggRow) {
+        if (agg !== undefined) return agg;
+        // SSRM stamps the folded agg onto `data[field]`.
+        if (params.data && Object.prototype.hasOwnProperty.call(params.data, colId)) {
+          return (params.data as Record<string, unknown>)[colId];
+        }
+        return null;
+      }
       if (!params.data) {
-        const group = params.node?.group === true;
-        const colId = v.colId;
-        const agg = (params.node as { aggData?: Record<string, unknown> } | null | undefined)
-          ?.aggData?.[colId];
-        if (group && agg !== undefined) return agg;
+        if (agg !== undefined) return agg;
         return null;
       }
       if (!ast) return null;

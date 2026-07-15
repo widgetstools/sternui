@@ -101,7 +101,7 @@ export const CALCULATED_TAB_VIRTUAL: VirtualColumnDef[] = [
   },
 ];
 
-/** Phase 2 traffic-light recipe — leaf IFS on midPrice (1=green, 2=amber, 3=red). */
+/** Phase 2 / help §4 traffic-light recipe — leaf IFS on midPrice (lab’s price). */
 export const TRAFFIC_LIGHT_VIRTUAL: VirtualColumnDef = {
   colId: 'trafficlight',
   headerName: 'Traffic Light',
@@ -112,5 +112,5 @@ export const TRAFFIC_LIGHT_VIRTUAL: VirtualColumnDef = {
     format: '[=1]"🟢";[=2]"🟡";[=3]"🔴"',
   },
   position: 110,
-  initialWidth: 90,
+  initialWidth: 110,
 };
