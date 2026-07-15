@@ -44,6 +44,8 @@ import { UnsavedSwitchDialog } from './UnsavedSwitchDialog';
 import { MarketsGridSurface } from './MarketsGridSurface';
 import { SsrmMarketsGridSurface } from '../engine/SsrmMarketsGridSurface';
 import type { SSRMColDef, SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
+import { useGridPlatform } from '../customizer/hooks/GridProvider.js';
+import { useSsrmColumnDefs } from '../engine/useSsrmColumnDefs.js';
 import { buildGridContextMenuItems } from './gridContextMenu';
 import { StaleDataBanner } from './StaleDataBanner';
 import { HistoricalViewBanner } from './HistoricalViewBanner';
@@ -167,6 +169,12 @@ function MarketsGridHostInner<TData>({
   rowIdField,
 }: MarketsGridHostProps<TData>) {
   const ssrmRef = useRef<SSRMGridHandle>(null);
+  const platform = useGridPlatform();
+  const ssrmColumnDefs = useSsrmColumnDefs(
+    platform,
+    columnDefs as SSRMColDef[],
+    Boolean(useSSRM),
+  );
   const generalSettings = useGeneralSettingsFromContext();
   const headerCaseAttr = generalSettings?.headerCaseUppercase ? 'upper' : undefined;
   const gridDensity = resolveGridDensity(generalSettings);
@@ -368,7 +376,7 @@ function MarketsGridHostInner<TData>({
         <SsrmMarketsGridSurface
           ref={ssrmRef}
           rowData={rowData as Record<string, unknown>[]}
-          columnDefs={columnDefs as SSRMColDef[]}
+          columnDefs={ssrmColumnDefs}
           rowIdField={typeof rowIdField === 'string' ? rowIdField : 'id'}
         />
       ) : (

@@ -41,6 +41,7 @@ import { GeneralSettingsProvider } from './GeneralSettingsContext';
 import { MarketsGridSurface } from './MarketsGridSurface';
 import { SsrmMarketsGridSurface } from '../engine/SsrmMarketsGridSurface';
 import type { SSRMColDef, SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
+import { useSsrmColumnDefs } from '../engine/useSsrmColumnDefs.js';
 
 export { DEFAULT_MODULES, MINIMAL_MODULES } from './modules';
 
@@ -437,6 +438,11 @@ function MarketsGridCoreInner<TData = unknown>(
   const gridRef = useRef<AgGridReact<TData>>(null);
   const ssrmRef = useRef<SSRMGridHandle>(null);
   const shell = useMarketsGridShell(props);
+  const ssrmColumnDefs = useSsrmColumnDefs(
+    shell.platform,
+    shell.columnDefs as SSRMColDef[],
+    Boolean(useSSRM),
+  );
 
   return (
     <GridProvider platform={shell.platform} engineKind={useSSRM ? 'ssrm' : 'csrm'}>
@@ -446,7 +452,7 @@ function MarketsGridCoreInner<TData = unknown>(
             <SsrmMarketsGridSurface
               ref={ssrmRef}
               rowData={rowData as Record<string, unknown>[]}
-              columnDefs={shell.columnDefs as SSRMColDef[]}
+              columnDefs={ssrmColumnDefs}
               rowIdField={typeof rowIdField === 'string' ? rowIdField : 'id'}
             />
           ) : (
