@@ -51,6 +51,25 @@ describe('routeDataTransactionAsync', () => {
       update: [{ id: 'a', pnl: 1, calc: 42 }],
     });
   });
+
+  it('publishes SSRM transaction deltas onto the row-change bus', () => {
+    const ssrmApply = vi.fn();
+    const publishExternalDelta = vi.fn();
+    routeDataTransactionAsync(
+      true,
+      tx,
+      { applyTransactionAsync: ssrmApply },
+      undefined,
+      undefined,
+      undefined,
+      { rowChangeBus: { subscribe: () => () => {}, publishExternalDelta } },
+    );
+    expect(publishExternalDelta).toHaveBeenCalledWith({
+      updated: [{ id: 'a', data: { id: 'a', pnl: 1 } }],
+      added: [],
+      removed: [],
+    });
+  });
 });
 
 describe('resolveSsrmHandle', () => {

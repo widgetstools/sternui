@@ -1,9 +1,11 @@
+import type { RowChangeSignal } from '@starui/engine';
 import { isSsrmCapabilityEnabled } from './ssrmCapabilities.js';
 import {
   materializeCalcFields,
   type SsrmCalcMaterializeContext,
 } from './ssrmCalcColumns.js';
 import { recordSsrmTickDiffs } from './ssrmRowDiff.js';
+import { publishSsrmTransactionDelta } from './ssrmRowChangeBridge.js';
 import type { SSRMGridHandle } from './ssrmgrid-entry.js';
 
 export function applyTickToSsrm(
@@ -12,6 +14,7 @@ export function applyTickToSsrm(
   options?: {
     rowIdField?: string;
     materialize?: SsrmCalcMaterializeContext | null;
+    rowChangeBus?: RowChangeSignal | null;
   },
 ): void {
   if (rows.length === 0) return;
@@ -23,4 +26,9 @@ export function applyTickToSsrm(
     recordSsrmTickDiffs(enriched, options?.rowIdField);
   }
   handle.applyTransactionAsync({ update: enriched });
+  publishSsrmTransactionDelta(
+    options?.rowChangeBus,
+    { update: enriched },
+    options?.rowIdField ?? 'id',
+  );
 }

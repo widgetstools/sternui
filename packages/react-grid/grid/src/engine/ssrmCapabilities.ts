@@ -14,7 +14,9 @@ const PHASE_MIN: Record<SsrmCapabilityId, SsrmPhase> = {
   calcColumns: 2,
   customJsAgg: 2,
   trafficLightAgg: 2,
-  alerts: 3,
+  // Alerts unblocked early once the SSRM→RowChangeBus bridge lands; keep
+  // smartEdit / externalFilter at phase 3 (do not bump CURRENT_SSRM_PHASE).
+  alerts: 2,
   smartEdit: 3,
   externalFilter: 3,
 };

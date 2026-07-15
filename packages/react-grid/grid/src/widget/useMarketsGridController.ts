@@ -66,6 +66,7 @@ export interface UseMarketsGridControllerOpts {
   readonly useSSRM?: boolean;
   readonly ssrmRef?: RefObject<SSRMGridHandle | null>;
   readonly ssrmCalcMaterialize?: import('../engine/ssrmCalcColumns.js').SsrmCalcMaterializeContext | null;
+  readonly rowIdField?: string | readonly string[];
 }
 
 export interface MarketsGridControllerHandle {
@@ -120,6 +121,7 @@ export function useMarketsGridController(
     useSSRM = false,
     ssrmRef,
     ssrmCalcMaterialize = null,
+    rowIdField = 'id',
   } = opts;
 
   // Construct a fallback adapter ONCE when the host doesn't provide one.
@@ -252,9 +254,20 @@ export function useMarketsGridController(
       tx: { add?: unknown[]; update?: unknown[]; remove?: unknown[] },
       callback?: Parameters<GridApi['applyTransactionAsync']>[1],
     ) => {
-      routeDataTransactionAsync(useSSRM, tx, ssrmRef?.current, api, callback, ssrmCalcMaterialize);
+      routeDataTransactionAsync(
+        useSSRM,
+        tx,
+        ssrmRef?.current,
+        api,
+        callback,
+        ssrmCalcMaterialize,
+        {
+          rowChangeBus: platform.rows,
+          rowIdField: typeof rowIdField === 'string' ? rowIdField : 'id',
+        },
+      );
     },
-    [useSSRM, ssrmRef, api, ssrmCalcMaterialize],
+    [useSSRM, ssrmRef, api, ssrmCalcMaterialize, platform.rows, rowIdField],
   );
   const getSsrmHandle = useCallback(
     () => resolveSsrmHandle(useSSRM, ssrmRef?.current),

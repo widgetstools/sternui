@@ -28,4 +28,19 @@ describe('applyTickToSsrm', () => {
       update: [{ id: 'a', pnl: 1, calc: 99 }],
     });
   });
+
+  it('publishes tick deltas onto the row-change bus', () => {
+    const applyTransactionAsync = vi.fn();
+    const publishExternalDelta = vi.fn();
+    applyTickToSsrm(
+      { applyTransactionAsync },
+      [{ id: 'a', midPrice: 101 }],
+      { rowChangeBus: { subscribe: () => () => {}, publishExternalDelta } },
+    );
+    expect(publishExternalDelta).toHaveBeenCalledWith({
+      updated: [{ id: 'a', data: { id: 'a', midPrice: 101 } }],
+      added: [],
+      removed: [],
+    });
+  });
 });

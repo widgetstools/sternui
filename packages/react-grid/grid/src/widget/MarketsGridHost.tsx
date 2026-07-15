@@ -235,6 +235,7 @@ function MarketsGridHostInner<TData>({
     useSSRM,
     ssrmRef,
     ssrmCalcMaterialize,
+    rowIdField,
   });
 
   const [settingsMounted, setSettingsMounted] = useState(false);

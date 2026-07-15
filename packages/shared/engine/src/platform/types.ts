@@ -156,6 +156,16 @@ export interface RowChangeSignal {
   /** Subscribe to the coalesced per-frame row-change summary. Returns a
    *  disposer. Fires at most once per animation frame. */
   subscribe(fn: (change: RowChange) => void): () => void;
+  /**
+   * Inject a delta when the producer is not AG Grid's
+   * `asyncTransactionsFlushed` (e.g. SSRM Perspective transactions).
+   * Optional — only `RowChangeBus` implements it today.
+   */
+  publishExternalDelta?(delta: {
+    added?: ReadonlyArray<{ id: string; data?: Record<string, unknown> }>;
+    updated?: ReadonlyArray<{ id: string; data?: Record<string, unknown> }>;
+    removed?: ReadonlyArray<{ id: string; data?: Record<string, unknown> }>;
+  }): void;
 }
 
 // ─── Resource scope ───────────────────────────────────────────────────────

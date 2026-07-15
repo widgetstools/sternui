@@ -1,7 +1,9 @@
 import type { GridApi } from 'ag-grid-community';
+import type { RowChangeSignal } from '@starui/engine';
 import { isSsrmCapabilityEnabled } from './ssrmCapabilities.js';
 import { materializeCalcFields, type SsrmCalcMaterializeContext } from './ssrmCalcColumns.js';
 import { recordSsrmTickDiffs } from './ssrmRowDiff.js';
+import { publishSsrmTransactionDelta } from './ssrmRowChangeBridge.js';
 import type { SSRMGridHandle, SSRMTransaction } from './ssrmgrid-entry.js';
 
 export type EngineDataTransaction = {
@@ -41,6 +43,10 @@ export function routeDataTransactionAsync(
   gridApi: Pick<GridApi, 'applyTransactionAsync'> | null | undefined,
   callback?: Parameters<GridApi['applyTransactionAsync']>[1],
   materialize?: SsrmCalcMaterializeContext | null,
+  options?: {
+    rowChangeBus?: RowChangeSignal | null;
+    rowIdField?: string;
+  },
 ): void {
   const enriched = useSSRM ? enrichTransaction(tx, materialize) : tx;
   if (useSSRM) {
@@ -48,6 +54,11 @@ export function routeDataTransactionAsync(
       recordSsrmTickDiffs(enriched.update as Record<string, unknown>[]);
     }
     ssrmHandle?.applyTransactionAsync(enriched as SSRMTransaction);
+    publishSsrmTransactionDelta(
+      options?.rowChangeBus,
+      enriched,
+      options?.rowIdField ?? 'id',
+    );
     return;
   }
   gridApi?.applyTransactionAsync(enriched, callback);

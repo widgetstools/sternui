@@ -104,4 +104,27 @@ describe('RowChangeBus', () => {
     await nextFrame();
     expect(got).toHaveLength(0);
   });
+
+  it('publishExternalDelta coalesces into a non-full delta emit', async () => {
+    const hub = new ApiHub();
+    const { api } = makeFakeApi();
+    hub.attach(api);
+    const bus = new RowChangeBus(hub);
+    bus.start();
+    const got: RowChange[] = [];
+    bus.subscribe((c) => got.push(c));
+
+    bus.publishExternalDelta({
+      updated: [{ id: 'a', data: { midPrice: 101 } }],
+      added: [{ id: 'b', data: { midPrice: 99 } }],
+      removed: [{ id: 'c' }],
+    });
+    await nextFrame();
+
+    expect(got).toHaveLength(1);
+    expect(got[0].full).toBe(false);
+    expect(got[0].updated.map((n) => n.id)).toEqual(['a']);
+    expect(got[0].added.map((n) => n.id)).toEqual(['b']);
+    expect(got[0].removed.map((n) => n.id)).toEqual(['c']);
+  });
 });

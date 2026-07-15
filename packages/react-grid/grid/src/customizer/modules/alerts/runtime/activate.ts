@@ -230,34 +230,39 @@ export function activateAlerts(
   // Initial seeding + listener attachment, deferred until the grid is ready.
   disposers.push(
     platform.api.onReady((api) => {
-      knownRowIds = snapshotRowIds(api);
-      // Seed prev-value baselines so the FIRST cellValueChanged after activation
-      // isn't treated as a first observation — but ONLY for the columns alert
-      // rules actually watch, not every (row × column) cell. With no enabled
-      // data/relative rules there's nothing to observe, so skip the walk
-      // entirely. (The old all-columns seed was ~rows×cols `getValueByPath`+set
-      // on mount — ~1M ops at 5000 rows × 200 cols, even with zero rules — a
-      // pure load-time tax.) A rule added later seeds its column's baseline on
-      // its first observed change (scanNode treats `prev === undefined` as
-      // baseline-only, no fire), which is the correct conservative behaviour.
-      try {
-        const rules = platform.getState().rules;
-        const { dataChange, relativeChange } = partitionEnabledRules(rules);
-        if (dataChange.length > 0 || relativeChange.length > 0) {
-          const watchedCols = collectWatchedColIds(api, rules);
-          if (watchedCols.size > 0) {
-            api.forEachNode((node) => {
-              const id = resolveRowId(node);
-              if (!id) return;
-              const data = (node as { data?: Record<string, unknown> }).data ?? {};
-              for (const colId of watchedCols) {
-                prevValues.set(id, colId, getValueByPath(data, colId));
-              }
-            });
-          }
+      const isSsrm = (() => {
+        try {
+          return api.getGridOption?.('rowModelType') === 'serverSide';
+        } catch {
+          return false;
         }
-      } catch {
-        /* grid mid-teardown */
+      })();
+
+      // SSRM: do not forEachNode the (partial) viewport to seed baselines —
+      // first tick deltas seed via scanNode. CSRM keeps the mount-time seed.
+      if (!isSsrm) {
+        knownRowIds = snapshotRowIds(api);
+        try {
+          const rules = platform.getState().rules;
+          const { dataChange, relativeChange } = partitionEnabledRules(rules);
+          if (dataChange.length > 0 || relativeChange.length > 0) {
+            const watchedCols = collectWatchedColIds(api, rules);
+            if (watchedCols.size > 0) {
+              api.forEachNode((node) => {
+                const id = resolveRowId(node);
+                if (!id) return;
+                const data = (node as { data?: Record<string, unknown> }).data ?? {};
+                for (const colId of watchedCols) {
+                  prevValues.set(id, colId, getValueByPath(data, colId));
+                }
+              });
+            }
+          }
+        } catch {
+          /* grid mid-teardown */
+        }
+      } else {
+        knownRowIds = new Set();
       }
 
       // AG-Grid expects raw handlers; cast through to keep this file
@@ -275,8 +280,19 @@ export function activateAlerts(
       if (!isEvaluationActive()) return;
       const rules = platform.getState().rules;
       if (!rules.some((r) => r.enabled)) return;
-      if (change.full) runFullPass(rules);
-      else runDelta(change, rules);
+      if (change.full) {
+        // SSRM fires modelUpdated often without a meaningful book-wide delta.
+        // Alert deltas are published explicitly via publishExternalDelta.
+        try {
+          const api = platform.api.api;
+          if (api?.getGridOption?.('rowModelType') === 'serverSide') return;
+        } catch {
+          /* ignore */
+        }
+        runFullPass(rules);
+      } else {
+        runDelta(change, rules);
+      }
     }),
   );
 
