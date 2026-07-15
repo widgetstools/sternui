@@ -19,6 +19,7 @@ import {
 } from '../profiles/catalogs/calculatedCatalog';
 import { PRESETS } from '../profiles/presets';
 import type { ProfilePreset } from '../profiles/types';
+import { LAB_STATUS_BAR } from './labStatusBar';
 
 const ACCENT_CLASS: Record<ProfilePreset['accent'], string> = {
   blue:   'before:bg-[color:var(--ds-primary)]',
@@ -144,6 +145,7 @@ function PresetGridView({
           showProfileSelector
           showSaveButton
           showSettingsButton
+          statusBar={useSSRM ? undefined : LAB_STATUS_BAR}
         />
       </div>
     </TabContainer>

@@ -10,6 +10,7 @@ import { useLabRows } from '../demo/useLabRows';
 import { getFeatureGuide } from '../guides/featureGuides';
 import { buildConfigBlocks } from '../guides/buildConfigBlocks';
 import type { LabFeatureConfig } from './labFeatureConfigs';
+import { LAB_STATUS_BAR } from './labStatusBar';
 
 export interface LabFeatureTabProps {
   config: LabFeatureConfig;
@@ -75,7 +76,7 @@ export function LabFeatureTab({ config }: LabFeatureTabProps) {
             showEditHistoryToolbar={grid.showEditHistoryToolbar}
             showVisualExcelExport={grid.showVisualExcelExport}
             sideBar={grid.sideBar}
-            statusBar={grid.statusBar}
+            statusBar={useSSRM ? undefined : (grid.statusBar ?? LAB_STATUS_BAR)}
             rowHeight={grid.rowHeight}
           />
         </div>

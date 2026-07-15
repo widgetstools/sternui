@@ -167,6 +167,14 @@ export function useGridHost(opts: {
     for (const [key, value] of Object.entries(gridOptions)) {
       if (INITIAL_ONLY_GRID_OPTIONS.has(key)) continue;
       if (shouldSkipGridOptionSync(key, hostOverrideKeys)) continue;
+      // CSRM-only count panels warn and render blank under SSRM; SSRMGrid owns
+      // its ServerRowCount status bar (or an explicit host override).
+      if (
+        key === 'statusBar' &&
+        api.getGridOption('rowModelType') === 'serverSide'
+      ) {
+        continue;
+      }
       if (containsFunction(value)) {
         if (lastFuncSynced.current[key] === value) continue;
         lastFuncSynced.current[key] = value;

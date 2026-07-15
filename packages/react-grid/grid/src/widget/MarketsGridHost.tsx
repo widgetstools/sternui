@@ -400,7 +400,7 @@ function MarketsGridHostInner<TData>({
           rowHeight={rowHeight}
           headerHeight={headerHeight}
           sideBar={sideBar}
-          statusBar={statusBar}
+          statusBar={useSSRM ? undefined : statusBar}
           defaultColDef={defaultColDef as never}
           includeAllStreamSafeFilters={includeAllStreamSafeFilters}
           onGridReady={handleGridReady}
