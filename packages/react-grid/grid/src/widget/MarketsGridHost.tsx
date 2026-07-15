@@ -18,6 +18,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ForwardedRef,
@@ -41,6 +42,8 @@ import { PrimaryToolbar } from './PrimaryToolbar';
 import { ColumnSelectorDialog } from './column-selector';
 import { UnsavedSwitchDialog } from './UnsavedSwitchDialog';
 import { MarketsGridSurface } from './MarketsGridSurface';
+import { SsrmMarketsGridSurface } from '../engine/SsrmMarketsGridSurface';
+import type { SSRMColDef, SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
 import { buildGridContextMenuItems } from './gridContextMenu';
 import { StaleDataBanner } from './StaleDataBanner';
 import { HistoricalViewBanner } from './HistoricalViewBanner';
@@ -102,6 +105,8 @@ export interface MarketsGridHostProps<TData> {
   toolbarDateHistoryEnabled: boolean | undefined;
   toolbarActionsLayout: 'inline' | 'overflow';
   includeAllStreamSafeFilters: boolean;
+  useSSRM?: boolean;
+  rowIdField: string | readonly string[];
 }
 
 function MarketsGridHostInner<TData>({
@@ -158,7 +163,10 @@ function MarketsGridHostInner<TData>({
   toolbarDateHistoryEnabled,
   toolbarActionsLayout,
   includeAllStreamSafeFilters,
+  useSSRM,
+  rowIdField,
 }: MarketsGridHostProps<TData>) {
+  const ssrmRef = useRef<SSRMGridHandle>(null);
   const generalSettings = useGeneralSettingsFromContext();
   const headerCaseAttr = generalSettings?.headerCaseUppercase ? 'upper' : undefined;
   const gridDensity = resolveGridDensity(generalSettings);
@@ -354,24 +362,33 @@ function MarketsGridHostInner<TData>({
         </div>
       )}
 
-      <MarketsGridSurface
-        gridRef={gridRef}
-        gridOptions={gridOptions}
-        hostOverrideKeys={hostOverrideKeys}
-        theme={theme}
-        rowData={rowData}
-        columnDefs={columnDefs}
-        rowHeight={rowHeight}
-        headerHeight={headerHeight}
-        animateRows={animateRows}
-        sideBar={sideBar}
-        statusBar={statusBar}
-        defaultColDef={defaultColDef}
-        getContextMenuItems={getContextMenuItems}
-        onGridReady={handleGridReady}
-        onGridPreDestroyed={onGridPreDestroyed}
-        includeAllStreamSafeFilters={includeAllStreamSafeFilters}
-      />
+      {useSSRM ? (
+        <SsrmMarketsGridSurface
+          ref={ssrmRef}
+          rowData={rowData as Record<string, unknown>[]}
+          columnDefs={columnDefs as SSRMColDef[]}
+          rowIdField={typeof rowIdField === 'string' ? rowIdField : 'id'}
+        />
+      ) : (
+        <MarketsGridSurface
+          gridRef={gridRef}
+          gridOptions={gridOptions}
+          hostOverrideKeys={hostOverrideKeys}
+          theme={theme}
+          rowData={rowData}
+          columnDefs={columnDefs}
+          rowHeight={rowHeight}
+          headerHeight={headerHeight}
+          animateRows={animateRows}
+          sideBar={sideBar}
+          statusBar={statusBar}
+          defaultColDef={defaultColDef}
+          getContextMenuItems={getContextMenuItems}
+          onGridReady={handleGridReady}
+          onGridPreDestroyed={onGridPreDestroyed}
+          includeAllStreamSafeFilters={includeAllStreamSafeFilters}
+        />
+      )}
 
       {(settingsMounted || settingsOpen) && (
         <LazySettingsSheet

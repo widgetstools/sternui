@@ -39,6 +39,8 @@ import { ensureAgGridModules } from './ensureAgGridModules';
 import { mergeDefaultColDef } from './mergeDefaultColDef';
 import { GeneralSettingsProvider } from './GeneralSettingsContext';
 import { MarketsGridSurface } from './MarketsGridSurface';
+import { SsrmMarketsGridSurface } from '../engine/SsrmMarketsGridSurface';
+import type { SSRMColDef, SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
 
 export { DEFAULT_MODULES, MINIMAL_MODULES } from './modules';
 
@@ -281,6 +283,8 @@ function MarketsGridInner<TData = unknown>(
     storageAdapter,
     host,
     includeAllStreamSafeFilters,
+    useSSRM,
+    rowIdField = 'id',
   } = props;
 
   const [internalToolbarDate, setInternalToolbarDate] = useState(todayIsoDate);
@@ -398,6 +402,8 @@ function MarketsGridInner<TData = unknown>(
         toolbarDateHistoryEnabled={toolbarDateHistoryEnabled}
         toolbarActionsLayout={toolbarActionsLayout}
         includeAllStreamSafeFilters={includeAllStreamSafeFilters ?? true}
+        useSSRM={useSSRM}
+        rowIdField={rowIdField}
       />
       </GeneralSettingsProvider>
     </GridProvider>
@@ -424,32 +430,44 @@ function MarketsGridCoreInner<TData = unknown>(
     gridId,
     className,
     includeAllStreamSafeFilters,
+    useSSRM,
+    rowIdField = 'id',
   } = props;
 
   const gridRef = useRef<AgGridReact<TData>>(null);
+  const ssrmRef = useRef<SSRMGridHandle>(null);
   const shell = useMarketsGridShell(props);
 
   return (
     <GridProvider platform={shell.platform}>
       <GeneralSettingsProvider value={shell.generalSettings}>
         <div className={className} style={shell.rootStyle} data-grid-id={gridId}>
-          <MarketsGridSurface
-            gridRef={gridRef}
-            gridOptions={shell.gridOptions}
-            hostOverrideKeys={shell.hostOverrideKeys}
-            theme={shell.theme}
-            rowData={rowData}
-            columnDefs={shell.columnDefs}
-            rowHeight={rowHeight}
-            headerHeight={headerHeight}
-            animateRows={animateRows}
-            sideBar={sideBar}
-            statusBar={statusBar}
-            defaultColDef={shell.effectiveDefaultColDef}
-            onGridReady={shell.handleGridReady}
-            onGridPreDestroyed={shell.onGridPreDestroyed}
-            includeAllStreamSafeFilters={includeAllStreamSafeFilters ?? true}
-          />
+          {useSSRM ? (
+            <SsrmMarketsGridSurface
+              ref={ssrmRef}
+              rowData={rowData as Record<string, unknown>[]}
+              columnDefs={shell.columnDefs as SSRMColDef[]}
+              rowIdField={typeof rowIdField === 'string' ? rowIdField : 'id'}
+            />
+          ) : (
+            <MarketsGridSurface
+              gridRef={gridRef}
+              gridOptions={shell.gridOptions}
+              hostOverrideKeys={shell.hostOverrideKeys}
+              theme={shell.theme}
+              rowData={rowData}
+              columnDefs={shell.columnDefs}
+              rowHeight={rowHeight}
+              headerHeight={headerHeight}
+              animateRows={animateRows}
+              sideBar={sideBar}
+              statusBar={statusBar}
+              defaultColDef={shell.effectiveDefaultColDef}
+              onGridReady={shell.handleGridReady}
+              onGridPreDestroyed={shell.onGridPreDestroyed}
+              includeAllStreamSafeFilters={includeAllStreamSafeFilters ?? true}
+            />
+          )}
         </div>
       </GeneralSettingsProvider>
     </GridProvider>

@@ -37,6 +37,12 @@ export interface MarketsGridProps<TData = unknown> {
    *  `gridApi.applyTransactionAsync` — see `applyProviderToGrid` in
    *  `@starui/widgets-react` MarketsGridContainer for the reference pattern. */
   rowData: TData[];
+  /**
+   * When true, use SSRMGrid (Perspective + AG Grid SSRM) for large datasets.
+   * Default false — classic CSRM MarketsGrid. SSRM features are gated by
+   * `CURRENT_SSRM_PHASE` in `engine/ssrmCapabilities.ts`.
+   */
+  useSSRM?: boolean;
   /** Base column definitions — modules can transform them. */
   columnDefs: ColDef<TData>[];
   /** Module list. Default passes {@link DEFAULT_MODULES}; use exported
