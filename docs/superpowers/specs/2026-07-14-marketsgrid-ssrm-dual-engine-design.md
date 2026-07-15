@@ -70,7 +70,7 @@ MarketsGrid
 | Data ingest (hub snapshot + ticks) | Adapter | CSRM → GridApi transactions; SSRM → SSRMGrid handle |
 | Calculated columns (per-row expr) | Adapt | CSRM `valueGetter` → SSRM `perspectiveExpression` (transpile or materialize) |
 | Calculated columns (`SUM([x])` etc.) | Adapt | Perspective aggregates / `__ssrm_aggs` + helpers |
-| Custom JS `aggFunc` | Gate → redesign | Named Perspective aggs only on SSRM until equivalent exists |
+| Custom JS `aggFunc` (incl. traffic-light RAG) | Adapt / gate | Map known patterns (e.g. traffic light min/max IFS) to named server agg; gate unmappable expressions |
 | Conditional styling (static) | Yes | `cellClassRules` on loaded cells |
 | Conditional styling (`.old` / `.new`) | Adapt | See § Old vs new below |
 | Alerts / filter counts / header painters | Adapt | Viewport + dirty deltas; no full-book `forEachNode` |
@@ -120,6 +120,45 @@ Not a server feature. `timedActivations` / conditional-styling runtime keeps a *
 
 **SSRM v1 requirement:** port the previous-values store to `SsrmEngine` so expressions like `[price.old] < [price.new]` keep working for ticking visible rows.
 
+## Traffic lights (and other “classify → icon → aggregate up” patterns)
+
+MarketsGrid’s documented traffic-light recipe (`TrafficLightSection` help) is **three layers**, and grouping is where CSRM and SSRM diverge:
+
+| Layer | CSRM today | SSRM approach |
+|-------|------------|---------------|
+| 1. Classify leaf | Calc col `IFS([price]>=105,1,…)` via `valueGetter` | Same logic as `perspectiveExpression` on a real column (e.g. `trafficlight`) |
+| 2. Show icon | Excel format `[=1]"🟢";[=2]"🟡";[=3]"🔴"` | **Unchanged** — client `valueFormatter` |
+| 3. Group roll-up | **Custom JS `aggFunc`** with `MIN`/`MAX`/`IFS` over child values (hierarchical) | **Cannot run JS aggFunc on the server.** Must be a named/server aggregate or a small post-agg |
+
+### Why grouping is hard
+
+Under CSRM, AG Grid calls the custom agg at each group level with child values (which may themselves be subgroup aggs). Under SSRM, Perspective only offers named aggregates (`min`/`max`/`sum`/…). The traffic-light roll-up:
+
+```text
+all 1s → 1 (green)
+all 3s → 3 (red)
+else   → 2 (amber)
+```
+
+is expressible from **min + max of the classified column** (for this 1/2/3 scale, leaf min/max matches hierarchical RAG for the documented IFS). So SSRM can implement it without client JS over all children:
+
+1. Materialize `trafficlight` via Perspective expression (leaf).
+2. Request `min(trafficlight)` and `max(trafficlight)` (or a dedicated worker helper) on group queries.
+3. Map `(min,max) → 1|2|3` in one place:
+   - **Preferred:** ssrmgrid / MarketsGrid **named agg** e.g. `aggFunc: 'trafficLight'` (or generic `rag`) implemented in the worker after min/max; group cells get a single value; Excel format still paints the emoji.
+   - **Fallback:** group-only client mapper reading `__ssrm_aggs` / dual min–max fields (no `forEachNode`).
+
+Animate rules (`[trafficlight] = 1` + SPIN) stay client CSS on loaded cells — same as CSRM.
+
+### Product rule for custom agg expressions on SSRM
+
+- Keep the **Custom expression…** UI in column settings.
+- On `useSSRM`, either:
+  - **Compile** supported patterns (traffic-light / RAG min-max IFS) to a named server agg, or
+  - **Disable with explanation** if the expression cannot be mapped (do not silently show blank group cells — that was a CSRM bug they already fixed for virtual cols).
+
+Traffic-light parity is a **Phase 2** deliverable (with calc + agg mapping), not Phase 0.
+
 ## Phased delivery
 
 ### Phase 0 — Scaffold
@@ -138,7 +177,8 @@ Not a server feature. `timedActivations` / conditional-styling runtime keeps a *
 
 - Transpile StarUI per-row expressions → `perspectiveExpression` where possible; otherwise materialize on ingest.
 - Dataset aggregates (`SUM`/`AVG`) via Perspective / `__ssrm_aggs` / `shareOfTotal`.
-- Gate custom JS `aggFunc` with UI message; map common cases to named aggs.
+- **Traffic light / RAG:** leaf classify as Perspective expr + Excel format; group roll-up via named `trafficLight`/`rag` agg (min/max → 1|2|3) or documented compile of the standard IFS custom-agg pattern.
+- Gate unmappable custom JS `aggFunc` expressions with UI message (no blank group cells).
 
 ### Phase 3 — Alerts, editing, linking
 
@@ -179,4 +219,5 @@ When `useSSRM` and a module is not ready:
 2. `useSSRM={true}` — large book loads/filters/groups without holding all rows in AG Grid memory.  
 3. Excel formatting works on SSRM.  
 4. `[field.old]` / `[field.new]` conditional styling works for ticking viewport rows.  
-5. Phased path to full tooling parity without deleting CSRM.
+5. Traffic-light pattern works when grouped (leaf icons + correct group RAG), not blank group cells.  
+6. Phased path to full tooling parity without deleting CSRM.
