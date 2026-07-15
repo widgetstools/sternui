@@ -20,17 +20,23 @@ describe('isSsrmCapabilityEnabled', () => {
     expect(isSsrmCapabilityEnabled('alerts', 1)).toBe(false);
   });
 
-  it('phase 2 enables calc columns, traffic light, alerts, smart-edit, and context-link', () => {
+  it('phase 2 enables calc columns and traffic light; not phase-3 caps', () => {
     expect(isSsrmCapabilityEnabled('calcColumns', 2)).toBe(true);
     expect(isSsrmCapabilityEnabled('customJsAgg', 2)).toBe(true);
     expect(isSsrmCapabilityEnabled('trafficLightAgg', 2)).toBe(true);
-    expect(isSsrmCapabilityEnabled('alerts', 2)).toBe(true);
-    expect(isSsrmCapabilityEnabled('smartEdit', 2)).toBe(true);
-    expect(isSsrmCapabilityEnabled('externalFilter', 2)).toBe(true);
+    expect(isSsrmCapabilityEnabled('alerts', 2)).toBe(false);
+    expect(isSsrmCapabilityEnabled('smartEdit', 2)).toBe(false);
+    expect(isSsrmCapabilityEnabled('externalFilter', 2)).toBe(false);
   });
 
-  it('CURRENT_SSRM_PHASE enables phase-2 capabilities by default', () => {
-    expect(CURRENT_SSRM_PHASE).toBe(2);
+  it('phase 3 enables alerts, smart-edit, and context-link', () => {
+    expect(isSsrmCapabilityEnabled('alerts', 3)).toBe(true);
+    expect(isSsrmCapabilityEnabled('smartEdit', 3)).toBe(true);
+    expect(isSsrmCapabilityEnabled('externalFilter', 3)).toBe(true);
+  });
+
+  it('CURRENT_SSRM_PHASE enables through phase 3 by default', () => {
+    expect(CURRENT_SSRM_PHASE).toBe(3);
     expect(isSsrmCapabilityEnabled('calcColumns')).toBe(true);
     expect(isSsrmCapabilityEnabled('trafficLightAgg')).toBe(true);
     expect(isSsrmCapabilityEnabled('oldNewDiff')).toBe(true);
