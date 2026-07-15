@@ -345,6 +345,89 @@ describe('startStomp', () => {
     expect(JSON.parse(lastPublish.body)).toEqual({ clientId: 'X', asOfDate: '2026-04-01' });
   });
 
+  it('rowShape ssrm streams flattened snapshot batches before the end token', async () => {
+    const events: ProviderEmitEvent[] = [];
+    const ctrl = makeFakeClient();
+    startStomp(
+      cfg({
+        rowShape: 'ssrm',
+        keyColumn: 'positionId',
+        columnDefinitions: [
+          { field: 'cusip', headerName: 'Cusip' },
+          { field: 'rating.moody', headerName: 'Moody' },
+        ],
+      }),
+      (e) => events.push(e),
+      { createClient: () => ctrl.client },
+    );
+    await Promise.resolve();
+    ctrl.fireConnect();
+    // beginSnapshotPhase emits an empty replace:true — ignore pre-data frames.
+    events.length = 0;
+
+    ctrl.deliver(
+      JSON.stringify([
+        { positionId: 'p1', cusip: 'A', rating: { moody: 'Aa', junk: 1 }, extra: true },
+      ]),
+    );
+    ctrl.deliver(
+      JSON.stringify({
+        positionId: 'p2',
+        cusip: 'B',
+        rating: { moody: 'Baa' },
+      }),
+    );
+
+    const rowEvents = events.filter(
+      (e): e is { rows: readonly unknown[]; replace?: boolean } => 'rows' in e,
+    );
+    expect(rowEvents).toHaveLength(2);
+    expect(rowEvents[0].replace).toBe(true);
+    expect(rowEvents[0].rows).toEqual([
+      { positionId: 'p1', cusip: 'A', 'rating.moody': 'Aa' },
+    ]);
+    expect(rowEvents[1].replace).toBeUndefined();
+    expect(rowEvents[1].rows).toEqual([
+      { positionId: 'p2', cusip: 'B', 'rating.moody': 'Baa' },
+    ]);
+
+    const progress = events.filter((e): e is { rowsReceived: number } => 'rowsReceived' in e);
+    expect(progress.map((e) => e.rowsReceived)).toEqual([1, 2]);
+
+    events.length = 0;
+    ctrl.deliver('Success');
+    // End-token must NOT wipe progressive rows with an empty replace.
+    const afterReadyRows = events.filter((e) => 'rows' in e);
+    expect(afterReadyRows).toHaveLength(0);
+    expect(events.find((e) => 'status' in e && e.status === 'ready')).toBeTruthy();
+  });
+
+  it('rowShape ssrm flattens live ticks after ready', async () => {
+    const events: ProviderEmitEvent[] = [];
+    const ctrl = makeFakeClient();
+    startStomp(
+      cfg({
+        rowShape: 'ssrm',
+        keyColumn: 'id',
+        columnDefinitions: [
+          { field: 'px', headerName: 'Px' },
+          { field: 'risk.dv01', headerName: 'DV01' },
+        ],
+      }),
+      (e) => events.push(e),
+      { createClient: () => ctrl.client },
+    );
+    await Promise.resolve();
+    ctrl.fireConnect();
+    ctrl.deliver('Success');
+    events.length = 0;
+
+    ctrl.deliver(JSON.stringify({ id: 'r1', px: 10, risk: { dv01: 3, gamma: 9 }, junk: 1 }));
+    const live = events.find((e) => 'rows' in e) as { rows: readonly unknown[]; replace?: boolean };
+    expect(live.rows[0]).toEqual({ id: 'r1', px: 10, 'risk.dv01': 3 });
+    expect(live.replace).toBeUndefined();
+  });
+
   it('projectFields prunes snapshot and live rows to columnDefinitions + keyColumn', async () => {
     const events: ProviderEmitEvent[] = [];
     const ctrl = makeFakeClient();

@@ -59,6 +59,7 @@
 
 import type { StompProviderConfig } from '@starui/types';
 import { createFieldProjector } from '../fieldProjection.js';
+import { createSsrmRowFlattener } from '../ssrmRowFlatten.js';
 import { composeRowId } from '@starui/types';
 import type { ProviderEmit, ProviderHandle } from '../Provider.js';
 import { bufferedDispatch } from './bufferedDispatch.js';
@@ -327,8 +328,16 @@ export function startStomp(
   // unused upstream fields never enter the snapshot buffer, hub cache
   // or any window. The probe path must see RAW rows — Infer Fields
   // exists to discover the fields projection would strip.
+  //
+  // `rowShape: 'ssrm'`: flatten dotted paths to literal scalar keys and
+  // stream snapshot batches as they arrive (Perspective-ready). CSRM
+  // default keeps nested buffering. Probe passthrough stays raw.
+  const ssrmMode = cfg.rowShape === 'ssrm' && !opts.passthroughSnapshot;
+  const ssrmFlatten = ssrmMode
+    ? createSsrmRowFlattener(cfg.columnDefinitions, cfg.keyColumn)
+    : null;
   const projector =
-    cfg.projectFields && !opts.passthroughSnapshot
+    !ssrmMode && cfg.projectFields && !opts.passthroughSnapshot
       ? createFieldProjector(cfg.columnDefinitions, cfg.keyColumn)
       : null;
 
@@ -357,6 +366,10 @@ export function startStomp(
     snapshotComplete: !buffering, // no buffering → start in live phase
     receivingSnapshot: false,
     snapshotBuffer: [] as unknown[],
+    /** SSRM: first data batch of this snapshot generation already emitted. */
+    ssrmSnapshotStarted: false,
+    /** SSRM: cumulative rows emitted during the current snapshot phase. */
+    ssrmRowsReceived: 0,
     overlay: undefined as Record<string, unknown> | undefined,
     stopped: false,
     /** Bumped on stop/restart so in-flight connect callbacks are ignored. */
@@ -412,6 +425,8 @@ export function startStomp(
     state.snapshotComplete = !buffering;
     state.receivingSnapshot = false;
     state.snapshotBuffer = [];
+    state.ssrmSnapshotStarted = false;
+    state.ssrmRowsReceived = 0;
     emit({ rows: [], replace: true });
     emit({ status: 'loading' });
   };
@@ -423,6 +438,15 @@ export function startStomp(
   };
 
   const flushSnapshot = () => {
+    // SSRM already streamed flattened batches during the snapshot
+    // phase. Do not emit an empty replace:true here — that would wipe
+    // the hub cache that progressive emits just filled. Zero-row SSRM
+    // snapshots already got replace:[] from beginSnapshotPhase.
+    if (ssrmMode) {
+      state.snapshotBuffer = [];
+      state.receivingSnapshot = false;
+      return;
+    }
     // Stream the snapshot in chunks so each `postMessage` across the
     // worker→main boundary stays small enough that the receiving
     // `message` handler completes under Chromium's 50ms long-task
@@ -509,10 +533,27 @@ export function startStomp(
       emit({ byteSize });
       return;
     }
-    const rows = projector ? rawRows.map(projector) : rawRows;
+    let rows: unknown[] = projector ? rawRows.map(projector) : rawRows;
+    if (ssrmFlatten) {
+      rows = rows.map((r) => ssrmFlatten(r));
+    }
 
     if (!state.snapshotComplete) {
-      // Snapshot phase: accumulate in memory; surface progressive count.
+      if (ssrmMode) {
+        // Stream flattened batches as they arrive; first data batch
+        // carries replace:true (after beginSnapshotPhase's empty clear).
+        if (rows.length > 0) {
+          state.receivingSnapshot = true;
+          const isFirst = !state.ssrmSnapshotStarted;
+          state.ssrmSnapshotStarted = true;
+          state.ssrmRowsReceived += rows.length;
+          emit(isFirst ? { rows, replace: true } : { rows });
+          emit({ rowsReceived: state.ssrmRowsReceived });
+        }
+        emit({ byteSize });
+        return;
+      }
+      // CSRM: accumulate in memory; surface progressive count only.
       if (rows.length > 0) {
         state.receivingSnapshot = true;
       }
