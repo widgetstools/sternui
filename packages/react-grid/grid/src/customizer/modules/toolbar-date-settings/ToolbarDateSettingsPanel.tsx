@@ -19,6 +19,7 @@ import { ChromeButton } from '../../ui/ChromeButton';
 import { ExpressionEditor } from '../../ui/ExpressionEditor';
 import { useGridColumns } from '../../hooks/useGridColumns';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
+import { useGridEngineKind } from '../../hooks/GridProvider';
 import {
   useAppDataKeys,
   useAppDataLookup,
@@ -194,6 +195,8 @@ function SectionAnchor({
 }
 
 export function ToolbarDateSettingsPanel(): ReactElement {
+  const engineKind = useGridEngineKind();
+  const rowExclusionBlocked = engineKind === 'ssrm';
   const {
     draft,
     setDraft,
@@ -529,7 +532,16 @@ export function ToolbarDateSettingsPanel(): ReactElement {
             className="px-5 pb-4 pt-3"
           >
             <SectionAnchor index="04" title={SECTIONS[3].headerTitle} />
-            <p className="mb-3 text-[11px] leading-relaxed text-[color:var(--ds-text-secondary)]">
+            {rowExclusionBlocked ? (
+              <p
+                className="mb-3 text-[11px] leading-relaxed text-[color:var(--ds-text-muted)]"
+                data-testid="tds-row-filter-ssrm-unavailable"
+              >
+                Row exclusion via external filter is not available on the server
+                row model. Use column filters instead.
+              </p>
+            ) : (
+              <p className="mb-3 text-[11px] leading-relaxed text-[color:var(--ds-text-secondary)]">
               Hide rows whose values match an expression. A row is excluded when
               the expression is <strong>true</strong> — reference columns with{' '}
               <code className="font-mono text-[10px]">[field]</code> (e.g.{' '}
@@ -538,7 +550,8 @@ export function ToolbarDateSettingsPanel(): ReactElement {
               Type freely; column names autocomplete as you go. The row stays in
               the data and reappears if the value changes. Leave empty to show
               all rows. Applied when you press <strong>Save</strong>.
-            </p>
+              </p>
+            )}
 
             <div data-testid="tds-row-filter" className="space-y-2">
               <label className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-foreground/85">
@@ -551,8 +564,14 @@ export function ToolbarDateSettingsPanel(): ReactElement {
                 // latest text (no commit-on-blur surprise); onCommit trims on
                 // blur/Enter. Feeding the draft back as `value` is a no-op
                 // while typing (the editor only resets when text truly differs).
-                onChange={(expr) => update('rowExclusionExpression', expr)}
-                onCommit={(expr) => update('rowExclusionExpression', expr.trim())}
+                onChange={(expr) => {
+                  if (rowExclusionBlocked) return;
+                  update('rowExclusionExpression', expr);
+                }}
+                onCommit={(expr) => {
+                  if (rowExclusionBlocked) return;
+                  update('rowExclusionExpression', expr.trim());
+                }}
                 columnsProvider={columnsProvider}
                 multiline
                 lines={3}

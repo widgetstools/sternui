@@ -167,6 +167,13 @@ describe('buildExternalFilterOptions', () => {
     expect(doesExternalFilterPass?.(node({ ccy: 'USD', region: 'APAC' }))).toBe(true);
   });
 
+  it('returns empty options under SSRM (no doesExternalFilterPass)', () => {
+    const opts = buildExternalFilterOptions({ rowModelType: 'serverSide' }, makeCtx('[ccy] == "INR"').ctx);
+    expect(opts).toEqual({});
+    expect(opts.isExternalFilterPresent).toBeUndefined();
+    expect(opts.doesExternalFilterPass).toBeUndefined();
+  });
+
   it('still reports present when a prior filter is present but our expression is empty', () => {
     const { isExternalFilterPresent } = buildExternalFilterOptions(
       { isExternalFilterPresent: () => true },

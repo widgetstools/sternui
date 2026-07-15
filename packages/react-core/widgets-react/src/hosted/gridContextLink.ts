@@ -165,12 +165,44 @@ export function applyRowIdExternalFilter(
   api: GridApi,
   context: GridLinkSelectionContext,
 ): void {
+  // SSRM never evaluates doesExternalFilterPass over the full book — use
+  // mode: 'fields' → filterModel instead (see resolveGridLinkMode).
+  try {
+    if (api.getGridOption?.('rowModelType') === 'serverSide') {
+      if (typeof console !== 'undefined') {
+        // eslint-disable-next-line no-console
+        console.warn(
+          '[gridLink] applyRowIdExternalFilter ignored under SSRM — use mode: "fields"',
+        );
+      }
+      return;
+    }
+  } catch {
+    /* api mid-teardown */
+  }
+
   const ids = new Set(context.rowIds ?? []);
   api.setGridOption('isExternalFilterPresent', () => ids.size > 0);
   api.setGridOption('doesExternalFilterPass', (node) =>
     node.group ? true : ids.has(node.id as string),
   );
   api.onFilterChanged();
+}
+
+/**
+ * Effective link mode: SSRM always uses `'fields'` (filterModel). CSRM keeps
+ * the configured mode (default `'rowId'`).
+ */
+export function resolveGridLinkMode(
+  api: GridApi | null | undefined,
+  configured: 'rowId' | 'fields' | undefined,
+): 'rowId' | 'fields' {
+  try {
+    if (api?.getGridOption?.('rowModelType') === 'serverSide') return 'fields';
+  } catch {
+    /* ignore */
+  }
+  return configured ?? 'rowId';
 }
 
 /**

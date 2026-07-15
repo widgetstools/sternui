@@ -92,11 +92,25 @@ function liveExpression(ctx: TransformContext): string {
  * external filter another module may have set. Always emitted (even when the
  * expression is empty) so the host's `setGridOption` sync clears a previously
  * installed filter when the expression is removed.
+ *
+ * SSRM: returns `{}` — `doesExternalFilterPass` is client-viewport-only and
+ * must not be installed on the server row model.
  */
 export function buildExternalFilterOptions(
   opts: Partial<GridOptions>,
   ctx: TransformContext,
-): Pick<GridOptions, 'isExternalFilterPresent' | 'doesExternalFilterPass'> {
+): Pick<GridOptions, 'isExternalFilterPresent' | 'doesExternalFilterPass'> | Record<string, never> {
+  try {
+    if (
+      opts.rowModelType === 'serverSide'
+      || ctx.api?.getGridOption?.('rowModelType') === 'serverSide'
+    ) {
+      return {};
+    }
+  } catch {
+    /* api mid-teardown */
+  }
+
   const engine = ctx.resources.expression();
   const prevPresent = opts.isExternalFilterPresent;
   const prevPass = opts.doesExternalFilterPass;

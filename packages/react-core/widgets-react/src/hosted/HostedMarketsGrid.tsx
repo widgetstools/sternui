@@ -182,12 +182,19 @@ export function HostedMarketsGrid<
   // Resolved row-key field(s) from the active provider (drives getRowId).
   // The container reports it via onRowIdFieldChange; we feed it into the link
   // config so broadcasts carry the real key columns + values — no hardcoding.
+  const useSSRM = Boolean(
+    (containerProps as { useSSRM?: boolean }).useSSRM,
+  );
   const [linkRowIdField, setLinkRowIdField] = useState<string | readonly string[] | null>(null);
   const effectiveContextLink = useMemo<GridContextLinkConfig | undefined>(() => {
     if (!contextLink) return contextLink;
     const resolved = linkRowIdField ?? contextLink.rowIdField ?? undefined;
-    return resolved !== undefined ? { ...contextLink, rowIdField: resolved } : contextLink;
-  }, [contextLink, linkRowIdField]);
+    // SSRM cannot use doesExternalFilterPass — force fields → filterModel.
+    const base: GridContextLinkConfig = useSSRM
+      ? { ...contextLink, mode: 'fields' }
+      : contextLink;
+    return resolved !== undefined ? { ...base, rowIdField: resolved } : base;
+  }, [contextLink, linkRowIdField, useSSRM]);
 
   // Chain any caller-supplied onReady so we don't shadow it.
   const callerOnReady = (containerProps as { onReady?: (h: MarketsGridHandle) => void }).onReady;

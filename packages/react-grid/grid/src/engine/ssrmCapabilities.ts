@@ -14,12 +14,13 @@ const PHASE_MIN: Record<SsrmCapabilityId, SsrmPhase> = {
   calcColumns: 2,
   customJsAgg: 2,
   trafficLightAgg: 2,
-  // Alerts unblocked early once the SSRM→RowChangeBus bridge lands; keep
-  // smartEdit / externalFilter at phase 3 (do not bump CURRENT_SSRM_PHASE).
+  // Alerts / smart-edit unblocked early once their SSRM bridges land; keep
+  // CURRENT_SSRM_PHASE at 2 until context-link + remaining phase-3 work settle.
   alerts: 2,
   // Smart-edit (and shared editing writer) once host applyDataTransaction is wired.
   smartEdit: 2,
-  externalFilter: 3,
+  // Context-link under SSRM via mode:'fields' → filterModel (not doesExternalFilterPass).
+  externalFilter: 2,
 };
 
 /** Current shipped SSRM capability floor for MarketsGrid. Bump when a phase lands. */

@@ -73,6 +73,7 @@ export {
   defaultGridLinkResolver,
   applyGridLinkContext,
   normalizeRowIdField,
+  resolveGridLinkMode,
 } from './gridContextLink.js';
 export type {
   GridLinkSelectionContext,

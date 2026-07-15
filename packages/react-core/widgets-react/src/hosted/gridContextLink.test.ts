@@ -14,6 +14,7 @@ import {
   applyGridLinkContext,
   applyRowIdExternalFilter,
   normalizeRowIdField,
+  resolveGridLinkMode,
   type GridLinkSelectionContext,
 } from './gridContextLink.js';
 
@@ -145,6 +146,7 @@ describe('applyRowIdExternalFilter', () => {
     const opts: Record<string, unknown> = {};
     let filterChanged = 0;
     const api = {
+      getGridOption: () => 'clientSide',
       setGridOption: (k: string, v: unknown) => { opts[k] = v; },
       onFilterChanged: () => { filterChanged += 1; },
     } as unknown as GridApi;
@@ -166,12 +168,48 @@ describe('applyRowIdExternalFilter', () => {
   it('removes the external filter on an empty id set', () => {
     const opts: Record<string, unknown> = {};
     const api = {
+      getGridOption: () => 'clientSide',
       setGridOption: (k: string, v: unknown) => { opts[k] = v; },
       onFilterChanged: () => {},
     } as unknown as GridApi;
 
     applyRowIdExternalFilter(api, { type: GRID_LINK_CONTEXT_TYPE, criteria: {}, rowIds: [] });
     expect((opts.isExternalFilterPresent as () => boolean)()).toBe(false);
+  });
+
+  it('no-ops under SSRM (doesExternalFilterPass is client-only)', () => {
+    const setGridOption = vi.fn();
+    const api = {
+      getGridOption: (k: string) => (k === 'rowModelType' ? 'serverSide' : undefined),
+      setGridOption,
+      onFilterChanged: vi.fn(),
+    } as unknown as GridApi;
+
+    applyRowIdExternalFilter(api, {
+      type: GRID_LINK_CONTEXT_TYPE,
+      criteria: {},
+      rowIds: ['A'],
+    });
+    expect(setGridOption).not.toHaveBeenCalled();
+  });
+});
+
+describe('resolveGridLinkMode', () => {
+  it('forces fields mode under SSRM', () => {
+    const api = {
+      getGridOption: (k: string) => (k === 'rowModelType' ? 'serverSide' : undefined),
+    } as unknown as GridApi;
+    expect(resolveGridLinkMode(api, 'rowId')).toBe('fields');
+    expect(resolveGridLinkMode(api, 'fields')).toBe('fields');
+  });
+
+  it('keeps configured mode under CSRM', () => {
+    const api = {
+      getGridOption: () => 'clientSide',
+    } as unknown as GridApi;
+    expect(resolveGridLinkMode(api, 'rowId')).toBe('rowId');
+    expect(resolveGridLinkMode(api, undefined)).toBe('rowId');
+    expect(resolveGridLinkMode(api, 'fields')).toBe('fields');
   });
 });
 

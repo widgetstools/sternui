@@ -29,6 +29,7 @@ import {
   buildSelectionContext,
   defaultGridLinkResolver,
   normalizeRowIdField,
+  resolveGridLinkMode,
   type GridLinkResolver,
   type GridLinkSelectionBuilder,
   type GridLinkSelectionContext,
@@ -125,7 +126,7 @@ export function useGridContextLink({
 }: UseGridContextLinkArgs): void {
   const active = Boolean(config) && config?.enabled === true;
   const contextType = config?.contextType ?? GRID_LINK_CONTEXT_TYPE;
-  const mode = config?.mode ?? 'rowId';
+  const mode = resolveGridLinkMode(gridApi, config?.mode);
 
   // Per-window source id (see makeSourceId). Stable for the hook's lifetime.
   const sourceIdRef = useRef<string>('');
