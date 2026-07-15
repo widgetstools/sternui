@@ -13,7 +13,7 @@ I'm using the writing-plans skill to create this implementation plan.
 | 1 | Set `PHASE_MIN` for alerts/smartEdit/externalFilter to **3**; `CURRENT_SSRM_PHASE = 3` | **DONE** |
 | 2 | Update capability tests + Phase 3 progress note | **DONE** |
 | 3 | Phase 4 plan + SSRM feature matrix checklist (docs) | **DONE** |
-| 4 | Worker-emitted `dirty` events in ssrmgrid | **OUT** |
+| 4 | Worker-emitted `dirty` events in ssrmgrid | **DONE** — `2026-07-14-marketsgrid-ssrm-phase4-worker-dirty.md` |
 | 5 | Full-book alerts / edits / rowId external filter | **OUT** |
 | 6 | Group publish via `allLeafChildren` under SSRM | **OUT** |
 | 7 | Perspective-backed row-exclusion DSL | **OUT** |
