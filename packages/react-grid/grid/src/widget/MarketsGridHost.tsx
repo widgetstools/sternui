@@ -395,6 +395,7 @@ function MarketsGridHostInner<TData>({
           rowData={ssrmRowData}
           columnDefs={ssrmColumnDefs}
           rowIdField={typeof rowIdField === 'string' ? rowIdField : 'id'}
+          theme={theme}
         />
       ) : (
         <MarketsGridSurface

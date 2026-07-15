@@ -1,4 +1,5 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react';
+import type { Theme } from 'ag-grid-community';
 import { SSRMGrid, type SSRMGridHandle, type SSRMColDef } from './ssrmgrid-entry.js';
 
 export type SsrmMarketsGridSurfaceProps<TData> = {
@@ -7,6 +8,8 @@ export type SsrmMarketsGridSurfaceProps<TData> = {
   rowIdField: string;
   height?: string | number;
   quickFilterText?: string;
+  /** StarUI design-system AG Grid theme (same as CSRM MarketsGridSurface). */
+  theme?: Theme;
 };
 
 export const SsrmMarketsGridSurface = forwardRef<
@@ -35,6 +38,8 @@ export const SsrmMarketsGridSurface = forwardRef<
         getRowId={props.rowIdField}
         height="100%"
         quickFilterText={props.quickFilterText}
+        theme={props.theme}
+        loadThemeGoogleFonts={false}
       />
     </div>
   );

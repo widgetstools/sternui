@@ -470,6 +470,7 @@ function MarketsGridCoreInner<TData = unknown>(
               rowData={ssrmRowData}
               columnDefs={ssrmColumnDefs}
               rowIdField={typeof rowIdField === 'string' ? rowIdField : 'id'}
+              theme={shell.theme}
             />
           ) : (
             <MarketsGridSurface
