@@ -1,4 +1,6 @@
 import type { GridApi } from 'ag-grid-community';
+import { isSsrmCapabilityEnabled } from './ssrmCapabilities.js';
+import { recordSsrmTickDiffs } from './ssrmRowDiff.js';
 import type { SSRMGridHandle, SSRMTransaction } from './ssrmgrid-entry.js';
 
 export type EngineDataTransaction = {
@@ -16,6 +18,9 @@ export function routeDataTransactionAsync(
   callback?: Parameters<GridApi['applyTransactionAsync']>[1],
 ): void {
   if (useSSRM) {
+    if (isSsrmCapabilityEnabled('oldNewDiff') && tx.update?.length) {
+      recordSsrmTickDiffs(tx.update as Record<string, unknown>[]);
+    }
     ssrmHandle?.applyTransactionAsync(tx as SSRMTransaction);
     return;
   }

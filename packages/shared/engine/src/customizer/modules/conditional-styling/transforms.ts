@@ -37,6 +37,8 @@ export interface CellDiffEntry {
 export type RowDiffMap = Map<string, CellDiffEntry>;
 export type RowDiffCache = WeakMap<object, RowDiffMap>;
 export type DiffCacheByApi = WeakMap<object, RowDiffCache>;
+/** SSRM: row-id keyed diff lookup (Phase 1 `.old`/`.new` without cellValueChanged). */
+export type RowDiffByIdLookup = (rowId: string) => RowDiffMap | undefined;
 export type TimedRuleStateByRule = Map<string, { rowUntil?: number; cellsUntil: Map<string, number> }>;
 export type TimedRuleStateByRowId = Map<string, TimedRuleStateByRule>;
 export type TimedRuleStateByApi = WeakMap<object, TimedRuleStateByRowId>;
@@ -690,6 +692,7 @@ function buildCellClassPredicate(
   rule: ConditionalRule,
   diffCacheByApi?: DiffCacheByApi,
   timedRuleStateByApi?: TimedRuleStateByApi,
+  rowDiffById?: RowDiffByIdLookup,
 ): ((params: CellClassParams) => boolean) | string {
   const activeDurationMs = normalizeActiveDuration(rule.activeDurationMs);
   if (activeDurationMs != null) {
@@ -730,12 +733,17 @@ function buildCellClassPredicate(
   const evalRule = engine.compile(rule.expression);
   return (params: CellClassParams) => {
     const data = params.data ?? {};
-    const rowDiffs = getOrCreateRowDiffs(params.api, params.node, diffCacheByApi);
+    const { rowDiffs, ssrmBacked } = resolveRowDiffs(
+      params.api,
+      params.node,
+      diffCacheByApi,
+      rowDiffById,
+    );
     const colId =
       params.column && typeof params.column.getColId === 'function'
         ? params.column.getColId()
         : undefined;
-    if (rowDiffs && colId) {
+    if (rowDiffs && colId && !ssrmBacked) {
       syncRowDiffEntry(rowDiffs, colId, params.value);
     }
     const columns = buildColumnsContext(
@@ -762,6 +770,7 @@ export function buildRowClassPredicate(
   rule: ConditionalRule,
   diffCacheByApi?: DiffCacheByApi,
   timedRuleStateByApi?: TimedRuleStateByApi,
+  rowDiffById?: RowDiffByIdLookup,
 ): (params: RowClassParams) => boolean {
   const activeDurationMs = normalizeActiveDuration(rule.activeDurationMs);
   if (activeDurationMs != null) {
@@ -778,12 +787,13 @@ export function buildRowClassPredicate(
   const evalRule = engine.compile(rule.expression);
   return (params: RowClassParams) => {
     const data = params.data ?? {};
-    const rowDiffs = getOrCreateRowDiffs(
+    const { rowDiffs, ssrmBacked } = resolveRowDiffs(
       (params as RowClassParams & { api?: unknown }).api,
       params.node,
       diffCacheByApi,
+      rowDiffById,
     );
-    if (rowDiffs) {
+    if (rowDiffs && !ssrmBacked) {
       for (const [key, value] of Object.entries(data)) {
         syncRowDiffEntry(rowDiffs, key, value);
       }
@@ -815,10 +825,18 @@ export function applyCellRulesToDefs(
   engine: ExpressionEngineLike,
   diffCacheByApi?: DiffCacheByApi,
   timedRuleStateByApi?: TimedRuleStateByApi,
+  rowDiffById?: RowDiffByIdLookup,
 ): AnyColDef[] {
   return defs.map((def) => {
     if ('children' in def && Array.isArray(def.children)) {
-      const next = applyCellRulesToDefs(def.children, cellRules, engine);
+      const next = applyCellRulesToDefs(
+        def.children,
+        cellRules,
+        engine,
+        diffCacheByApi,
+        timedRuleStateByApi,
+        rowDiffById,
+      );
       const unchanged = next.length === def.children.length && next.every((c, i) => c === def.children[i]);
       return unchanged ? def : ({ ...def, children: next } as ColGroupDef);
     }
@@ -840,14 +858,14 @@ export function applyCellRulesToDefs(
       // The KEY of cellClassRules is what AG-Grid stamps on the cell
       // DOM — must match the encoded selector emitted by buildCssText.
       (cellClassRules as Record<string, unknown>)[`ds-rule-${cssEscapeColId(rule.id)}`] =
-        buildCellClassPredicate(engine, rule, diffCacheByApi, timedRuleStateByApi);
+        buildCellClassPredicate(engine, rule, diffCacheByApi, timedRuleStateByApi, rowDiffById);
     }
 
     // Per-rule value formatters — highest priority wins.
     const formatterRules = applicable.filter((r) => !!r.valueFormatter);
     if (formatterRules.length > 0) {
       const compiled = formatterRules.map((rule) => ({
-        predicate: buildCellClassPredicate(engine, rule, diffCacheByApi, timedRuleStateByApi),
+        predicate: buildCellClassPredicate(engine, rule, diffCacheByApi, timedRuleStateByApi, rowDiffById),
         formatter: valueFormatterFromTemplate(rule.valueFormatter!),
         expression: rule.expression,
       }));
@@ -894,6 +912,23 @@ function resolveRowDiffs(
   if (!api || typeof api !== 'object') return undefined;
   if (!node || typeof node !== 'object') return undefined;
   return diffCacheByApi.get(api as object)?.get(node as object);
+}
+
+function resolveRowDiffs(
+  api: unknown,
+  node: unknown,
+  diffCacheByApi?: DiffCacheByApi,
+  rowDiffById?: RowDiffByIdLookup,
+): { rowDiffs: RowDiffMap | undefined; ssrmBacked: boolean } {
+  if (rowDiffById) {
+    const rowId = resolveRowId(node);
+    if (rowId) {
+      const ssrmDiffs = rowDiffById(rowId);
+      if (ssrmDiffs) return { rowDiffs: ssrmDiffs, ssrmBacked: true };
+    }
+    return { rowDiffs: undefined, ssrmBacked: true };
+  }
+  return { rowDiffs: getOrCreateRowDiffs(api, node, diffCacheByApi), ssrmBacked: false };
 }
 
 function getOrCreateRowDiffs(

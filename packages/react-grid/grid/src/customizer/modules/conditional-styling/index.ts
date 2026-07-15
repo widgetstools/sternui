@@ -33,6 +33,7 @@ import {
   buildRowClassPredicate,
   CONDITIONAL_DIFF_CACHE_KEY,
   type DiffCacheByApi,
+  type RowDiffByIdLookup,
   reinjectAllRules,
 } from './transforms';
 import { cssEscapeColId } from '../column-customization/transforms';
@@ -43,10 +44,17 @@ import {
 } from './ConditionalStylingPanel';
 import { deserializeConditionalStylingState } from './deserializeMigration';
 import { activateConditionalStyling } from './runtime/activate';
+import { getSsrmRowDiff } from '../../engine/ssrmRowDiff.js';
+import { isSsrmCapabilityEnabled } from '../../engine/ssrmCapabilities.js';
 
 export const CONDITIONAL_STYLING_MODULE_ID = 'conditional-styling';
 
 const CSS_HANDLE_KEY = CONDITIONAL_STYLING_MODULE_ID;
+
+function ssrmRowDiffById(): RowDiffByIdLookup | undefined {
+  if (!isSsrmCapabilityEnabled('oldNewDiff')) return undefined;
+  return (rowId) => getSsrmRowDiff(rowId);
+}
 
 export const conditionalStylingModule: Module<ConditionalStylingState> = {
   id: CONDITIONAL_STYLING_MODULE_ID,
@@ -81,6 +89,7 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
       ctx.resources.expression(),
       diffCacheByApi,
       undefined,
+      ssrmRowDiffById(),
     );
   },
 
@@ -106,6 +115,7 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
           rule,
           diffCacheByApi,
           undefined,
+          ssrmRowDiffById(),
         );
     }
     return { ...opts, rowClassRules };
