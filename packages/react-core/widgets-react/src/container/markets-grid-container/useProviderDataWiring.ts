@@ -184,6 +184,10 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
       if (cancelled || updateRows.length === 0 || !applyLiveTicks) return;
       updateBatchCount += 1;
 
+      // TODO(Task 5): when `useSSRM` is true, route ticks through
+      // `MarketsGridHandle.applyDataTransactionAsync` → `applyTickToSsrm`
+      // instead of `gridApi.applyTransactionAsync` below.
+
       if (!rowIdField) {
         if (DEBUG) {
           // eslint-disable-next-line no-console
