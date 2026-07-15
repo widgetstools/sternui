@@ -39,7 +39,7 @@ import { ensureAgGridModules } from './ensureAgGridModules';
 import { mergeDefaultColDef } from './mergeDefaultColDef';
 import { GeneralSettingsProvider } from './GeneralSettingsContext';
 import { MarketsGridSurface } from './MarketsGridSurface';
-import { SsrmMarketsGridSurface } from '../engine/SsrmMarketsGridSurface';
+import { SsrmMarketsGridSurfaceConnected as SsrmMarketsGridSurface } from '../engine/SsrmMarketsGridSurfaceConnected';
 import type { SSRMColDef, SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
 import { useSsrmCalcMaterialize, useSsrmColumnDefs } from '../engine/useSsrmColumnDefs.js';
 import { materializeCalcFields } from '../engine/ssrmCalcColumns.js';

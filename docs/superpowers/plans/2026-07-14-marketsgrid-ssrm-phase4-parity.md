@@ -13,10 +13,10 @@ I'm using the writing-plans skill to create this implementation plan.
 | 1 | Feature matrix (this doc) — green / limited / red | **IN (this commit)** |
 | 2 | Lab smoke checklist cross-links (alerts / smart-edit / link / traffic-light) | **IN (this commit)** |
 | 3 | Worker-emitted `dirty` events in ssrmgrid | **DONE** — see `2026-07-14-marketsgrid-ssrm-phase4-worker-dirty.md` |
-| 4 | Full-book alerts / edits / `mode: 'rowId'` external filter | **OUT** |
+| 4 | Full-book alerts / edits / `mode: 'rowId'` external filter | **DONE (4b hybrid)** — rowId via PK set filter; alerts on-demand rescan |
 | 5 | Group publish via `allLeafChildren` under SSRM | **DONE (4a)** — Perspective uncapped leaf fetch |
-| 6 | Perspective-backed row-exclusion DSL | **OUT** |
-| 7 | Auto-suggest SSRM / `rowModel` alias | **OUT** |
+| 6 | Perspective-backed row-exclusion DSL | **DONE (4b)** — compile → `rowKeepExpression` |
+| 7 | Auto-suggest SSRM / `rowModel` alias | **OUT (4c)** |
 | 8 | Large-N + high tick perf campaign | **PARTIAL** — Stress Test lab (50k×400 CSRM/SSRM); high-tick campaign still later |
 
 **Rule:** Prefer disable + tooltip over silent no-ops (design spec).
@@ -35,11 +35,11 @@ I'm using the writing-plans skill to create this implementation plan.
 | Calc columns | Green | Phase 2 materialize |
 | Custom JS agg | Limited | Gate unmappable |
 | Traffic-light / RAG agg | Green | Phase 2 + lab seed |
-| Alerts (delta) | Green | Phase 3 — ticks/tx only; not unloaded rows |
+| Alerts (delta) | Green | Phase 3 — ticks/tx; full-book baseline via on-demand Rescan (4b) |
 | Smart-edit / bulk / +/- | Green / limited | Viewport / `getRowNode` rows |
-| Context link | Green / limited | `mode: 'fields'` → filterModel; no `rowId` external filter |
-| Row-exclusion DSL | Red → documented | Skipped under SSRM; UI message |
-| Full-book relative alerts | Red | OUT |
+| Context link | Green | `fields` + `rowId` (PK set filter under SSRM); group leaves via Perspective |
+| Row-exclusion DSL | Green | Phase 4b — Perspective keep expression (`not(exclude)`) |
+| Full-book relative alerts | Green / hybrid | Day-to-day delta; **Rescan full book** seeds baselines (4b) |
 | Group leaf expansion publish | Green | Phase 4a — Perspective `getGroupLeafRows` (uncapped) |
 
 ## Lab smoke links

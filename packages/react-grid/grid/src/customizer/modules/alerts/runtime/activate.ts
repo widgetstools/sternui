@@ -38,6 +38,7 @@ import {
   partitionEnabledRules,
 } from './evaluateCellDelta';
 import { createPreviousValuesStore } from './previousValues';
+import { registerAlertsBaselineSeedBinding } from './alertsFullBookRescan';
 
 function resolveRowId(node: unknown): string | null {
   if (!node || typeof node !== 'object') return null;
@@ -77,6 +78,13 @@ export function activateAlerts(
   const dispatcher = createAlertDispatcher(platform);
   const prevValues = createPreviousValuesStore();
   const engine = platform.resources.expression();
+
+  // Phase 4b: on-demand full-book baseline seed (SSRM Perspective fetch).
+  registerAlertsBaselineSeedBinding(platform, {
+    prevValues,
+    getRules: () => platform.getState().rules,
+  });
+  disposers.push(() => registerAlertsBaselineSeedBinding(platform, null));
 
   let knownRowIds: Set<string> = new Set();
 

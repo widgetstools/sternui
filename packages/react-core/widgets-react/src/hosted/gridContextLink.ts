@@ -240,31 +240,43 @@ export const buildRowIdContext: GridLinkSelectionBuilder = (api, opts) => {
 };
 
 /**
- * Apply a `mode: 'rowId'` context as an AG-Grid external filter that
- * keeps only the broadcast row ids (matched against `getRowId` via
- * `node.id`). Group rows always pass so their visibility follows their
- * children. An empty id set removes the filter. The external filter
- * AND's against the user's own column filters, so those survive with no
- * merge logic.
+ * Apply a `mode: 'rowId'` context.
+ *
+ * CSRM: AG-Grid external filter on `node.id`.
+ * SSRM: set filter on the primary-key column (`rowIdField`) — Perspective
+ * evaluates it over the full book (no `doesExternalFilterPass`).
+ *
+ * An empty id set clears the filter. Pass `rowIdField` (first key column)
+ * under SSRM; without it SSRM receive is a no-op with a console warning.
  */
 export function applyRowIdExternalFilter(
   api: GridApi,
   context: GridLinkSelectionContext,
+  opts?: { rowIdField?: string | readonly string[] },
 ): void {
-  // SSRM never evaluates doesExternalFilterPass over the full book — use
-  // mode: 'fields' → filterModel instead (see resolveGridLinkMode).
-  try {
-    if (api.getGridOption?.('rowModelType') === 'serverSide') {
+  const isSsrm = (() => {
+    try {
+      return api.getGridOption?.('rowModelType') === 'serverSide';
+    } catch {
+      return false;
+    }
+  })();
+
+  if (isSsrm) {
+    const fields = normalizeRowIdField(opts?.rowIdField);
+    const pk = fields[0];
+    if (!pk) {
       if (typeof console !== 'undefined') {
         // eslint-disable-next-line no-console
         console.warn(
-          '[gridLink] applyRowIdExternalFilter ignored under SSRM — use mode: "fields"',
+          '[gridLink] applyRowIdExternalFilter under SSRM needs rowIdField (PK column)',
         );
       }
       return;
     }
-  } catch {
-    /* api mid-teardown */
+    // Always treat the PK as link-owned so an empty broadcast clears it.
+    applyRowIdFilterModel(api, context, pk, [pk]);
+    return;
   }
 
   const ids = new Set(context.rowIds ?? []);
@@ -276,19 +288,94 @@ export function applyRowIdExternalFilter(
 }
 
 /**
- * Effective link mode: SSRM always uses `'fields'` (filterModel). CSRM keeps
- * the configured mode (default `'rowId'`).
+ * SSRM / filterModel path for `mode: 'rowId'`: set-filter on the PK column
+ * with the broadcast `rowIds`. Clears that field when `rowIds` is empty.
+ * Merges with other column filters (does not wipe the user's model).
+ */
+export function applyRowIdFilterModel(
+  api: GridApi,
+  context: GridLinkSelectionContext,
+  rowIdField: string,
+  prevLinkFields: readonly string[] = [],
+): readonly string[] {
+  const ids = (context.rowIds ?? []).map((id) => String(id));
+  const linkModel: Record<string, unknown> = {};
+  if (ids.length > 0 && api.getColumn(rowIdField)) {
+    linkModel[rowIdField] = { filterType: 'set', values: ids };
+  }
+  const next = { ...(api.getFilterModel() ?? {}) } as Record<string, unknown>;
+  for (const field of prevLinkFields) {
+    if (!(field in linkModel)) delete next[field];
+  }
+  Object.assign(next, linkModel);
+  api.setFilterModel(Object.keys(next).length > 0 ? next : null);
+  return Object.keys(linkModel);
+}
+
+/**
+ * Effective link mode. Phase 4b: SSRM supports both `'rowId'` (PK set filter)
+ * and `'fields'`. Default remains `'rowId'`.
  */
 export function resolveGridLinkMode(
-  api: GridApi | null | undefined,
+  _api: GridApi | null | undefined,
   configured: 'rowId' | 'fields' | undefined,
 ): 'rowId' | 'fields' {
-  try {
-    if (api?.getGridOption?.('rowModelType') === 'serverSide') return 'fields';
-  } catch {
-    /* ignore */
-  }
   return configured ?? 'rowId';
+}
+
+/**
+ * Async `mode: 'rowId'` publish: expands group selections via Perspective
+ * leaf fetch and collects primary-key values as `rowIds`.
+ */
+export async function buildRowIdContextAsync(
+  api: GridApi,
+  opts: {
+    instanceId: string;
+    rowIdField: readonly string[];
+    resolveGroupLeaves?: ResolveGroupLeaves;
+  },
+): Promise<GridLinkSelectionContext> {
+  const pk = opts.rowIdField[0] ?? 'id';
+  const ids = new Set<string>();
+  const addId = (value: unknown) => {
+    if (value === undefined || value === null) return;
+    ids.add(String(value));
+  };
+  const addLeafData = (data: Record<string, unknown> | undefined) => {
+    if (!data) return;
+    addId(data[pk]);
+  };
+  const filterModel = (api.getFilterModel() as Record<string, unknown>) ?? {};
+
+  for (const node of api.getSelectedNodes() as IRowNode[]) {
+    if (node.group) {
+      const loaded = (node.allLeafChildren ?? []) as IRowNode[];
+      if (loaded.length > 0) {
+        for (const leaf of loaded) {
+          if (leaf.id != null) ids.add(String(leaf.id));
+          else addLeafData(leaf.data as Record<string, unknown> | undefined);
+        }
+        continue;
+      }
+      if (opts.resolveGroupLeaves) {
+        const groupKeys = groupKeysFromNode(node);
+        if (groupKeys.length === 0) continue;
+        const leaves = await opts.resolveGroupLeaves({ groupKeys, filterModel });
+        for (const row of leaves) addLeafData(row);
+        continue;
+      }
+      continue;
+    }
+    if (node.id != null) ids.add(String(node.id));
+    else addLeafData(node.data as Record<string, unknown> | undefined);
+  }
+
+  return {
+    type: GRID_LINK_CONTEXT_TYPE,
+    source: opts.instanceId,
+    criteria: {},
+    rowIds: Array.from(ids),
+  };
 }
 
 /**

@@ -196,7 +196,7 @@ function SectionAnchor({
 
 export function ToolbarDateSettingsPanel(): ReactElement {
   const engineKind = useGridEngineKind();
-  const rowExclusionBlocked = engineKind === 'ssrm';
+  const rowExclusionSsrmNote = engineKind === 'ssrm';
   const {
     draft,
     setDraft,
@@ -532,13 +532,17 @@ export function ToolbarDateSettingsPanel(): ReactElement {
             className="px-5 pb-4 pt-3"
           >
             <SectionAnchor index="04" title={SECTIONS[3].headerTitle} />
-            {rowExclusionBlocked ? (
+            {rowExclusionSsrmNote ? (
               <p
-                className="mb-3 text-[11px] leading-relaxed text-[color:var(--ds-text-muted)]"
-                data-testid="tds-row-filter-ssrm-unavailable"
+                className="mb-3 text-[11px] leading-relaxed text-[color:var(--ds-text-secondary)]"
+                data-testid="tds-row-filter-ssrm-note"
               >
-                Row exclusion via external filter is not available on the server
-                row model. Use column filters instead.
+                Under the server row model, exclusion compiles to a Perspective
+                keep filter over the full book (not a client external filter).
+                Unsupported expressions are ignored (fail open). Hide rows when
+                the expression is <strong>true</strong> — e.g.{' '}
+                <code className="font-mono text-[10px]">{`[ccy] == "INR"`}</code>.
+                Applied when you press <strong>Save</strong>.
               </p>
             ) : (
               <p className="mb-3 text-[11px] leading-relaxed text-[color:var(--ds-text-secondary)]">
@@ -565,11 +569,9 @@ export function ToolbarDateSettingsPanel(): ReactElement {
                 // blur/Enter. Feeding the draft back as `value` is a no-op
                 // while typing (the editor only resets when text truly differs).
                 onChange={(expr) => {
-                  if (rowExclusionBlocked) return;
                   update('rowExclusionExpression', expr);
                 }}
                 onCommit={(expr) => {
-                  if (rowExclusionBlocked) return;
                   update('rowExclusionExpression', expr.trim());
                 }}
                 columnsProvider={columnsProvider}

@@ -45,12 +45,13 @@ import {
   type RelativeChangeDirection,
   type RelativeChangeMode,
 } from '@starui/engine';
-import { useGridPlatform } from '../../hooks/GridProvider';
+import { useGridEngineKind, useGridPlatform } from '../../hooks/GridProvider';
 import { useModuleState } from '../../hooks/useModuleState';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
 import { useSsrmCapabilityGate } from '../../hooks/useSsrmCapabilityGate';
 import { useDirty } from '../../hooks/useDirty';
 import { useGridColumns } from '../../hooks/useGridColumns';
+import { rescanAlertsFullBook } from './runtime/alertsFullBookRescan';
 import { RuleEditorHeader } from '../conditional-styling/editor/RuleEditorHeader';
 import { ExpressionBand } from '../conditional-styling/editor/ExpressionBand';
 import {
@@ -115,8 +116,32 @@ export function AlertsSettingsBand({ settings, onChange }: AlertsSettingsBandPro
   const openFinDetected = isOpenFinHost();
   const alertsGate = useSsrmCapabilityGate('alerts');
   const alertsBlocked = !alertsGate.enabled;
+  const engineKind = useGridEngineKind();
+  const platform = useGridPlatform();
+  const [rescanBusy, setRescanBusy] = useState(false);
+  const [rescanMsg, setRescanMsg] = useState<string | null>(null);
   const setEvalMode = (mode: EvaluationMode) =>
     onChange((prev) => ({ ...prev, evaluationMode: mode }));
+
+  const onRescanFullBook = () => {
+    if (rescanBusy) return;
+    setRescanBusy(true);
+    setRescanMsg(null);
+    void rescanAlertsFullBook(platform)
+      .then((result) => {
+        if (!result) {
+          setRescanMsg('Full-book rescan unavailable (SSRM handle not ready).');
+          return;
+        }
+        setRescanMsg(
+          `Seeded baselines for ${result.seededRows.toLocaleString()} rows (${result.seededCells.toLocaleString()} cells).`,
+        );
+      })
+      .catch((err) => {
+        setRescanMsg(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => setRescanBusy(false));
+  };
 
   return (
     <div
@@ -144,6 +169,32 @@ export function AlertsSettingsBand({ settings, onChange }: AlertsSettingsBandPro
               data-testid="alerts-enabled-switch"
             />
           </div>
+          {engineKind === 'ssrm' && !alertsBlocked ? (
+            <div className="space-y-1.5 py-1" data-testid="alerts-ssrm-fullbook">
+              <p className="text-[11px] leading-relaxed text-[color:var(--ds-text-muted)]">
+                Day-to-day alerts use live deltas. Rescan seeds relativeChange
+                baselines from the full filtered book via Perspective.
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={rescanBusy || !settings.enabled}
+                onClick={onRescanFullBook}
+                data-testid="alerts-rescan-full-book"
+              >
+                {rescanBusy ? 'Rescanning…' : 'Rescan full book'}
+              </Button>
+              {rescanMsg ? (
+                <p
+                  className="text-[11px] text-[color:var(--ds-text-secondary)]"
+                  data-testid="alerts-rescan-full-book-msg"
+                >
+                  {rescanMsg}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </Band>
 
         <Band title="Frequency">

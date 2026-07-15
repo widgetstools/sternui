@@ -11,6 +11,7 @@ import {
   buildSelectionContext,
   buildSelectionContextAsync,
   buildRowIdContext,
+  buildRowIdContextAsync,
   defaultGridLinkResolver,
   applyGridLinkContext,
   applyRowIdExternalFilter,
@@ -104,6 +105,29 @@ describe('buildSelectionContext', () => {
       filterModel: {},
     });
     expect(ctx.criteria).toEqual({ symbol: ['AAPL', 'MSFT'] });
+  });
+
+  it('async rowId builder collects PK values from Perspective group leaves', async () => {
+    const api = fakeApi({
+      selectedNodes: [
+        {
+          group: true,
+          key: 'Tech',
+          getRoute: () => ['Tech'],
+          allLeafChildren: [],
+        },
+      ],
+    });
+    const resolveGroupLeaves = vi.fn(async () => [
+      { positionId: 'p1' },
+      { positionId: 'p2' },
+    ]);
+    const ctx = await buildRowIdContextAsync(api, {
+      instanceId: 'grid-a',
+      rowIdField: ['positionId'],
+      resolveGroupLeaves,
+    });
+    expect(ctx.rowIds).toEqual(['p1', 'p2']);
   });
 
   it('skips null/undefined values', () => {
@@ -205,29 +229,49 @@ describe('applyRowIdExternalFilter', () => {
     expect((opts.isExternalFilterPresent as () => boolean)()).toBe(false);
   });
 
-  it('no-ops under SSRM (doesExternalFilterPass is client-only)', () => {
-    const setGridOption = vi.fn();
-    const api = {
-      getGridOption: (k: string) => (k === 'rowModelType' ? 'serverSide' : undefined),
-      setGridOption,
-      onFilterChanged: vi.fn(),
-    } as unknown as GridApi;
+  it('under SSRM applies a set filter on the PK column', () => {
+    const api = fakeApi({ filterModel: { desk: { filterType: 'set', values: ['A'] } } });
+    (api as unknown as { getGridOption: (k: string) => string }).getGridOption = (k: string) =>
+      k === 'rowModelType' ? 'serverSide' : 'clientSide';
 
-    applyRowIdExternalFilter(api, {
-      type: GRID_LINK_CONTEXT_TYPE,
-      criteria: {},
-      rowIds: ['A'],
+    applyRowIdExternalFilter(
+      api,
+      { type: GRID_LINK_CONTEXT_TYPE, criteria: {}, rowIds: ['r1', 'r2'] },
+      { rowIdField: 'positionId' },
+    );
+    expect(api._model).toEqual({
+      desk: { filterType: 'set', values: ['A'] },
+      positionId: { filterType: 'set', values: ['r1', 'r2'] },
     });
-    expect(setGridOption).not.toHaveBeenCalled();
+  });
+
+  it('under SSRM clears the PK set filter when rowIds empty', () => {
+    const api = fakeApi({
+      filterModel: {
+        positionId: { filterType: 'set', values: ['r1'] },
+        desk: { filterType: 'set', values: ['A'] },
+      },
+    });
+    (api as unknown as { getGridOption: (k: string) => string }).getGridOption = (k: string) =>
+      k === 'rowModelType' ? 'serverSide' : 'clientSide';
+
+    applyRowIdExternalFilter(
+      api,
+      { type: GRID_LINK_CONTEXT_TYPE, criteria: {}, rowIds: [] },
+      { rowIdField: 'positionId' },
+    );
+    expect(api._model).toEqual({
+      desk: { filterType: 'set', values: ['A'] },
+    });
   });
 });
 
 describe('resolveGridLinkMode', () => {
-  it('forces fields mode under SSRM', () => {
+  it('keeps configured mode under SSRM (Phase 4b rowId via set filter)', () => {
     const api = {
       getGridOption: (k: string) => (k === 'rowModelType' ? 'serverSide' : undefined),
     } as unknown as GridApi;
-    expect(resolveGridLinkMode(api, 'rowId')).toBe('fields');
+    expect(resolveGridLinkMode(api, 'rowId')).toBe('rowId');
     expect(resolveGridLinkMode(api, 'fields')).toBe('fields');
   });
 

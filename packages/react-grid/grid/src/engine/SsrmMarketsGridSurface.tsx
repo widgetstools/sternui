@@ -21,6 +21,11 @@ export type SsrmMarketsGridSurfaceProps = {
   /** From general-settings (same defaults as CSRM). */
   grandTotalRow?: boolean | 'top' | 'bottom' | 'pinnedTop' | 'pinnedBottom';
   groupTotalRow?: 'top' | 'bottom';
+  /**
+   * Perspective keep predicate for row-exclusion under SSRM
+   * (`not(excludeExpr)`). Compiled by MarketsGrid from toolbar DSL.
+   */
+  rowKeepExpression?: string;
 };
 
 /**
@@ -66,6 +71,7 @@ export const SsrmMarketsGridSurface = forwardRef<
         getRowId={props.rowIdField}
         height={props.height ?? '100%'}
         quickFilterText={props.quickFilterText}
+        rowKeepExpression={props.rowKeepExpression}
         theme={props.theme}
         loadThemeGoogleFonts={false}
         rowHeight={props.rowHeight}

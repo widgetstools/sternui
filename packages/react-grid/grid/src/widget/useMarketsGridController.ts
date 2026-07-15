@@ -51,6 +51,7 @@ import {
   resolveSsrmHandle,
   routeDataTransactionAsync,
 } from '../engine/routeDataTransactionAsync.js';
+import { registerAlertsSsrmLeafFetcher } from '../customizer/modules/alerts/runtime/alertsFullBookRescan.js';
 
 export interface UseMarketsGridControllerOpts {
   readonly gridId: string;
@@ -281,6 +282,25 @@ export function useMarketsGridController(
     () => resolveSsrmHandle(useSSRM, ssrmRef?.current),
     [useSSRM, ssrmRef],
   );
+
+  useEffect(() => {
+    if (!useSSRM) {
+      registerAlertsSsrmLeafFetcher(platform, null);
+      return;
+    }
+    const rowId =
+      typeof rowIdField === 'string'
+        ? rowIdField
+        : Array.isArray(rowIdField)
+          ? rowIdField[0] ?? 'id'
+          : 'id';
+    registerAlertsSsrmLeafFetcher(platform, {
+      rowIdField: rowId,
+      fetch: () =>
+        getSsrmHandle()?.getGroupLeafRows({ groupKeys: [] }) ?? Promise.resolve([]),
+    });
+    return () => registerAlertsSsrmLeafFetcher(platform, null);
+  }, [platform, useSSRM, getSsrmHandle, rowIdField]);
   const bundleAdapter =
     adapterRef.current instanceof LocalStorageBundleAdapter ? adapterRef.current : null;
   const bundleHandle = bundleAdapter

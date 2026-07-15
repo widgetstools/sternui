@@ -26,6 +26,7 @@ import {
   applyGridLinkContext,
   applyRowIdExternalFilter,
   buildRowIdContext,
+  buildRowIdContextAsync,
   buildSelectionContext,
   buildSelectionContextAsync,
   groupKeysFromNode,
@@ -67,9 +68,10 @@ export interface GridContextLinkConfig {
   /** Override the publish-side selection → context mapping. */
   buildContext?: GridLinkSelectionBuilder;
   /**
-   * SSRM Phase 4a — when set, group selections fetch **all** leaf rows via
+   * SSRM Phase 4a/4b — when set, group selections fetch **all** leaf rows via
    * Perspective (`getGroupLeafRows`) instead of empty `allLeafChildren`.
-   * Ignored when `buildContext` is overridden or mode is `'rowId'`.
+   * Used for both `'fields'` and `'rowId'` publish under SSRM.
+   * Ignored when `buildContext` is overridden.
    */
   resolveGroupLeaves?: ResolveGroupLeaves;
   /** FDC3 context type for link messages. Defaults to `'starui.gridSelection'`. */
@@ -170,6 +172,7 @@ export function useGridContextLink({
   const { addContextListener } = fdc3;
   const resolve = config?.resolve ?? defaultGridLinkResolver;
   const receive = config?.receive !== false;
+  const rowIdFieldForReceive = config?.rowIdField;
 
   // ── RECEIVE ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -191,7 +194,22 @@ export function useGridContextLink({
       applyingRemoteRef.current = true;
       try {
         if (mode === 'rowId') {
-          applyRowIdExternalFilter(gridApi, context);
+          applyRowIdExternalFilter(gridApi, context, {
+            rowIdField: rowIdFieldForReceive,
+          });
+          // Track PK field ownership when SSRM used set-filter path.
+          const pk = normalizeRowIdField(rowIdFieldForReceive)[0];
+          try {
+            if (
+              gridApi.getGridOption?.('rowModelType') === 'serverSide' &&
+              pk
+            ) {
+              linkFieldsRef.current =
+                (context.rowIds?.length ?? 0) > 0 ? [pk] : [];
+            }
+          } catch {
+            /* mid-teardown */
+          }
         } else {
           linkFieldsRef.current = applyGridLinkContext(
             gridApi,
@@ -211,7 +229,17 @@ export function useGridContextLink({
       }
     });
     return detach;
-  }, [active, receive, gridApi, addContextListener, contextType, instanceId, resolve, mode]);
+  }, [
+    active,
+    receive,
+    gridApi,
+    addContextListener,
+    contextType,
+    instanceId,
+    resolve,
+    mode,
+    rowIdFieldForReceive,
+  ]);
 
   const { broadcast } = fdc3;
   const build =
@@ -229,14 +257,23 @@ export function useGridContextLink({
       if (applyingRemoteRef.current) return;
       const myGen = ++gen;
       void (async () => {
-        const context =
-          mode === 'fields' && resolveGroupLeaves && !config?.buildContext
-            ? await buildSelectionContextAsync(gridApi, {
-                instanceId: sourceId,
-                rowIdField: fields,
-                resolveGroupLeaves,
-              })
-            : build(gridApi, { instanceId: sourceId, rowIdField: fields });
+        let context: GridLinkSelectionContext | null;
+        if (resolveGroupLeaves && !config?.buildContext) {
+          context =
+            mode === 'rowId'
+              ? await buildRowIdContextAsync(gridApi, {
+                  instanceId: sourceId,
+                  rowIdField: fields,
+                  resolveGroupLeaves,
+                })
+              : await buildSelectionContextAsync(gridApi, {
+                  instanceId: sourceId,
+                  rowIdField: fields,
+                  resolveGroupLeaves,
+                });
+        } else {
+          context = build(gridApi, { instanceId: sourceId, rowIdField: fields });
+        }
         if (!context || myGen !== gen) return;
         context.type = contextType;
         // Stamp the joined channel so peers + notifications can show it. A
@@ -247,7 +284,7 @@ export function useGridContextLink({
           // eslint-disable-next-line no-console
           console.debug('[gridLink] publish', {
             self: sourceId,
-            channel: channelRef.current ?? null,
+            channel: context.channel ?? null,
             context,
           });
         }

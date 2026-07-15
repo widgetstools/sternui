@@ -27,7 +27,19 @@ export function activateRowExclusion(
     (platform.getState().rowExclusionExpression ?? '').trim().length > 0;
 
   const refilter = (): void => {
-    platform.api.use((api) => api.onFilterChanged(), undefined);
+    platform.api.use((api) => {
+      try {
+        if (api.getGridOption?.('rowModelType') === 'serverSide') {
+          // Perspective keep expression is applied via SSRMGrid prop; purge
+          // so unloaded blocks re-query with the new predicate.
+          api.refreshServerSide?.({ purge: true });
+          return;
+        }
+      } catch {
+        /* mid-teardown */
+      }
+      api.onFilterChanged();
+    }, undefined);
   };
 
   const disposers: Array<() => void> = [

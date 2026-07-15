@@ -42,7 +42,7 @@ import { PrimaryToolbar } from './PrimaryToolbar';
 import { ColumnSelectorDialog } from './column-selector';
 import { UnsavedSwitchDialog } from './UnsavedSwitchDialog';
 import { MarketsGridSurface } from './MarketsGridSurface';
-import { SsrmMarketsGridSurface } from '../engine/SsrmMarketsGridSurface';
+import { SsrmMarketsGridSurfaceConnected as SsrmMarketsGridSurface } from '../engine/SsrmMarketsGridSurfaceConnected';
 import type { SSRMColDef, SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
 import { useGridPlatform } from '../customizer/hooks/GridProvider.js';
 import { useSsrmCalcMaterialize, useSsrmColumnDefs } from '../engine/useSsrmColumnDefs.js';
