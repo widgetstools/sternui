@@ -5,6 +5,7 @@ import { InspectorDrawer } from '../components/InspectorDrawer';
 import { defaultColDef } from '../data/columns';
 import { useLabDemoProfiles } from '../data/useLabDemoProfiles';
 import { labStorage } from '../data/storage';
+import { useLabDemoRegistry } from '../demo/LabDemoContext';
 import { useLabRows } from '../demo/useLabRows';
 import { getFeatureGuide } from '../guides/featureGuides';
 import { buildConfigBlocks } from '../guides/buildConfigBlocks';
@@ -20,6 +21,7 @@ export interface LabFeatureTabProps {
  * drawer (What/Why · Try · Config · Props) sourced from the feature guide.
  */
 export function LabFeatureTab({ config }: LabFeatureTabProps) {
+  const { useSSRM } = useLabDemoRegistry();
   const onProfilesReady = useLabDemoProfiles(
     config.gridId,
     config.profiles,
@@ -52,7 +54,9 @@ export function LabFeatureTab({ config }: LabFeatureTabProps) {
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col">
           <MarketsGrid
+            key={useSSRM ? 'ssrm' : 'csrm'}
             gridId={config.gridId}
+            useSSRM={useSSRM}
             componentName={config.componentName}
             rowData={rowData}
             columnDefs={columnDefs}

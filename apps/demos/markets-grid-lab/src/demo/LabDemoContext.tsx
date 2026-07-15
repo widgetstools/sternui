@@ -11,16 +11,22 @@ import type { LabStreamHandle } from './types';
 interface LabDemoContextValue {
   handle: LabStreamHandle | null;
   register: (next: LabStreamHandle | null) => void;
+  useSSRM: boolean;
+  setUseSSRM: (next: boolean) => void;
 }
 
 const LabDemoContext = createContext<LabDemoContextValue | null>(null);
 
 export function LabDemoProvider({ children }: { children: ReactNode }) {
   const [handle, setHandle] = useState<LabStreamHandle | null>(null);
+  const [useSSRM, setUseSSRM] = useState(false);
   const register = useCallback((next: LabStreamHandle | null) => {
     setHandle(next);
   }, []);
-  const value = useMemo(() => ({ handle, register }), [handle, register]);
+  const value = useMemo(
+    () => ({ handle, register, useSSRM, setUseSSRM }),
+    [handle, register, useSSRM],
+  );
   return <LabDemoContext.Provider value={value}>{children}</LabDemoContext.Provider>;
 }
 

@@ -2,6 +2,7 @@ import { lazy, Suspense, useState, type ComponentType } from 'react';
 import { Tabs, TabsContent, TooltipProvider } from '@starui/ui';
 import { LabSidebarNav } from './components/LabSidebarNav';
 import { ThemeToggle } from './components/ThemeToggle';
+import { UseSsrmToggle } from './components/UseSsrmToggle';
 import { HomeTab } from './tabs/HomeTab';
 import { LabDemoProvider } from './demo/LabDemoContext';
 import { LabScenarioRail } from './demo/LabScenarioRail';
@@ -86,7 +87,8 @@ export function App() {
                 · {HINT_BY_ID[active] ?? ''}
               </span>
             </div>
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex items-center gap-3">
+              <UseSsrmToggle />
               <ThemeToggle />
             </div>
           </header>
