@@ -8,6 +8,7 @@ import type { MarketsGridProps } from '@starui/grid';
 export const LAB_STATUS_BAR: NonNullable<MarketsGridProps['statusBar']> = {
   statusPanels: [
     { statusPanel: 'agTotalAndFilteredRowCountComponent', align: 'left' },
+    { statusPanel: 'agFilteredRowCountComponent', align: 'left' },
     { statusPanel: 'agSelectedRowCountComponent', align: 'center' },
     { statusPanel: 'agAggregationComponent', align: 'right' },
   ],

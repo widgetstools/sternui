@@ -76,6 +76,7 @@ export function LabFeatureTab({ config }: LabFeatureTabProps) {
             showEditHistoryToolbar={grid.showEditHistoryToolbar}
             showVisualExcelExport={grid.showVisualExcelExport}
             sideBar={grid.sideBar}
+            // Under SSRM omit so SSRMGrid's native-looking server count panels are used.
             statusBar={useSSRM ? undefined : (grid.statusBar ?? LAB_STATUS_BAR)}
             rowHeight={grid.rowHeight}
           />
