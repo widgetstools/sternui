@@ -1,6 +1,12 @@
 import type { ColDef } from 'ag-grid-community';
 import type { MarketsGridProps } from '@starui/grid';
 import { baseColumns, defaultColDef, pickColumns } from '../data/columns';
+import {
+  buildStressColumnDefs,
+  STRESS_COL_COUNT,
+  STRESS_ROW_COUNT,
+  stressDefaultColDef,
+} from '../data/stressColumns';
 import { HELP } from '../help';
 import type { LabDemoProfileEntry } from '../profiles/labProfileKit';
 import {
@@ -52,6 +58,9 @@ import {
   VISUAL_EXCEL_ACTIVE_PROFILE_ID,
   VISUAL_EXCEL_DEMO_PROFILES,
   VISUAL_EXCEL_GRID_ID,
+  STRESS_ACTIVE_PROFILE_ID,
+  STRESS_DEMO_PROFILES,
+  STRESS_GRID_ID,
 } from '../profiles/catalogs';
 import type { LabStreamOptions } from '../demo/types';
 
@@ -70,6 +79,7 @@ type GridChrome = Pick<
   | 'sideBar'
   | 'statusBar'
   | 'rowHeight'
+  | 'animateRows'
 >;
 
 export interface LabFeatureConfig {
@@ -587,5 +597,44 @@ export const EDITING_FEATURE: LabFeatureConfig = {
     showProfileSelector: true,
     showSaveButton: true,
     showSettingsButton: true,
+  },
+};
+
+export const STRESS_TEST_FEATURE: LabFeatureConfig = {
+  tabId: 'stress',
+  providerId: 'mock-positions-stress-50k',
+  title: 'Stress Test — 50k × 400',
+  subtitle: `${STRESS_DEMO_PROFILES.length} profiles · ${STRESS_ROW_COUNT.toLocaleString()} rows · ${STRESS_COL_COUNT} cols · grouping · CS · formatters · CSRM/SSRM`,
+  help: HELP.stressTest,
+  gridId: STRESS_GRID_ID,
+  componentName: 'StressTest',
+  profiles: STRESS_DEMO_PROFILES,
+  activeProfileId: STRESS_ACTIVE_PROFILE_ID,
+  stream: {
+    rowCount: STRESS_ROW_COUNT,
+    updateIntervalMs: 2_000,
+    enableUpdates: false,
+  },
+  getColumnDefs: () => buildStressColumnDefs(STRESS_COL_COUNT),
+  defaultColDef: stressDefaultColDef,
+  grid: {
+    showFiltersToolbar: true,
+    showFormattingToolbar: true,
+    showEditingToolbar: true,
+    showVisualExcelExport: true,
+    showProfileSelector: true,
+    showSaveButton: true,
+    showSettingsButton: true,
+    sideBar: { toolPanels: ['columns', 'filters'] },
+    animateRows: false,
+    rowHeight: 28,
+    statusBar: {
+      statusPanels: [
+        { statusPanel: 'agTotalAndFilteredRowCountComponent', align: 'left' },
+        { statusPanel: 'agFilteredRowCountComponent', align: 'left' },
+        { statusPanel: 'agSelectedRowCountComponent', align: 'center' },
+        { statusPanel: 'agAggregationComponent', align: 'right' },
+      ],
+    },
   },
 };

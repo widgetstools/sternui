@@ -11,6 +11,7 @@ export {
 } from './calculatedColumns';
 export { OVERVIEW_COLUMN_GROUPS } from './columnGroups';
 export {
+  FORMATTING_ASSIGNMENTS,
   FORMATTING_CC_STATE,
   OVERVIEW_CC_STATE,
 } from './columnCustomization';

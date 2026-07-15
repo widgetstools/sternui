@@ -7,6 +7,7 @@ const TAB_IDS = [
   'overview', 'formatting', 'visual-excel', 'renderers', 'toolbar',
   'groups', 'calc', 'conditional', 'filters', 'live', 'alerts',
   'editing', 'bulk-update', 'plus-minus', 'shortcuts', 'profiles',
+  'stress',
 ];
 
 describe('FEATURE_GUIDES registry', () => {

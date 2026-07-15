@@ -79,6 +79,7 @@ export function LabFeatureTab({ config }: LabFeatureTabProps) {
             // Under SSRM omit so SSRMGrid's native-looking server count panels are used.
             statusBar={useSSRM ? undefined : (grid.statusBar ?? LAB_STATUS_BAR)}
             rowHeight={grid.rowHeight}
+            animateRows={grid.animateRows}
           />
         </div>
         {guide && (

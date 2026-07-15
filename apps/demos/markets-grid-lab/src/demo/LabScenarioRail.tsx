@@ -53,6 +53,7 @@ const TAB_LABELS: Record<string, string> = {
   live: 'Live Updates',
   alerts: 'Alerts',
   profiles: 'Profiles',
+  stress: 'Stress Test',
 };
 
 export function LabScenarioRail({ activeTab }: { activeTab: string }) {

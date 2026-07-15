@@ -40,9 +40,15 @@ export interface MockStreamResult {
  * Subscribes to the canonical MockDataProvider hosted in the
  * data-services SharedWorker, identified by a tab-scoped `providerId`.
  *
- * Full snapshots (`replace: true`) update React `rowData` once. Tick
- * deltas go through applyTx / applyTransactionAsync so AG-Grid only
- * repaints changed rows (cell flash, conditional styling, alerts).
+ * Full snapshots update React `rowData` once the provider reports
+ * `ready`. The hub may split a large replace into ≤500-row delta-bin
+ * chunks (first `replace: true`, tail `replace: false`) — those tail
+ * chunks must still assemble into `rowsRef` / `rowData`, not be treated
+ * as live ticks. Otherwise SSRM (API often ready mid-snapshot) keeps
+ * only the first 500 rows.
+ *
+ * After `ready`, tick deltas go through applyTx / applyTransactionAsync
+ * so AG-Grid only repaints changed rows (cell flash, conditional styling).
  */
 export function useMockStream(
   providerId: string,
@@ -64,6 +70,8 @@ export function useMockStream(
     // Hub ignores cfg on re-attach for an already-running providerId — only
     // the first attach per providerId uses cfg. Runtime interval/pause/count
     // changes are pushed via refresh() below.
+    // rowCount is intentional in the factory body; providerId is the attach key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [providerId],
   );
 
@@ -73,6 +81,9 @@ export function useMockStream(
   const transformRef = useRef(transformDelta);
   transformRef.current = transformDelta;
 
+  /** False until provider `ready` — hub snapshot chunks are still arriving. */
+  const snapshotReadyRef = useRef(false);
+
   const runtimeRef = useRef({ rowCount, updateIntervalMs, enableUpdates });
   runtimeRef.current = { rowCount, updateIntervalMs, enableUpdates };
 
@@ -81,8 +92,12 @@ export function useMockStream(
       const transform = transformRef.current;
       const outbound = transform ? transform(incoming) : incoming;
 
-      const api = gridApiRef.current;
-      const applyTx = applyTxRef?.current ?? null;
+      const assembling = !snapshotReadyRef.current;
+      // While the hub is still streaming snapshot chunks, do not push
+      // through the grid API / applyTx — those paths assume live ticks and
+      // (under SSRM) would leave React `rowData` stuck on the first chunk.
+      const api = assembling ? null : gridApiRef.current;
+      const applyTx = assembling ? null : (applyTxRef?.current ?? null);
       const next = applyLabStreamDelta(
         api,
         rowsRef.current,
@@ -92,6 +107,12 @@ export function useMockStream(
       );
       rowsRef.current = next;
 
+      if (assembling) {
+        // Progress for the demo console; commit React `rowData` on ready.
+        setSnapshotRowCount(next.length);
+        return;
+      }
+
       if (replace || !api) {
         setRows(next);
         setSnapshotRowCount(next.length);
@@ -100,9 +121,24 @@ export function useMockStream(
     [gridApiRef, applyTxRef],
   );
 
+  const onStatus = useCallback((s: 'loading' | 'ready' | 'error' | string) => {
+    if (s === 'loading') {
+      snapshotReadyRef.current = false;
+      return;
+    }
+    if (s === 'ready') {
+      snapshotReadyRef.current = true;
+      // Commit the fully assembled snapshot once — includes every hub
+      // chunk that arrived as replace:false during loading.
+      const committed = rowsRef.current;
+      setRows(committed);
+      setSnapshotRowCount(committed.length);
+    }
+  }, []);
+
   const { refresh, status } = useProviderStream<LabRow>(providerId, cfg, {
     onDelta: applyIncoming,
-    onStatus: () => {},
+    onStatus,
   });
 
   // Debounce interval changes while the slider is dragged — each step used to
@@ -119,6 +155,7 @@ export function useMockStream(
   }, [status, debouncedIntervalMs, enableUpdates, rowCount, refresh]);
 
   useEffect(() => {
+    snapshotReadyRef.current = false;
     rowsRef.current = [];
     setRows([]);
     setSnapshotRowCount(0);

@@ -23,6 +23,7 @@ const PlusMinusTab = lazy(() => import('./tabs/PlusMinusTab').then((m) => ({ def
 const ShortcutsTab = lazy(() => import('./tabs/ShortcutsTab').then((m) => ({ default: m.ShortcutsTab })));
 const ProfilesTab = lazy(() => import('./tabs/ProfilesTab').then((m) => ({ default: m.ProfilesTab })));
 const VisualExcelTab = lazy(() => import('./tabs/VisualExcelTab').then((m) => ({ default: m.VisualExcelTab })));
+const StressTestTab = lazy(() => import('./tabs/StressTestTab').then((m) => ({ default: m.StressTestTab })));
 
 interface TabEntry {
   id: string;
@@ -50,6 +51,7 @@ const TABS: TabEntry[] = [
   { id: 'plus-minus', label: 'Plus / Minus', hint: 'Keyboard nudge rules', Component: PlusMinusTab },
   { id: 'shortcuts', label: 'Shortcuts', hint: 'Letter-key arithmetic', Component: ShortcutsTab },
   { id: 'profiles', label: 'Profiles', hint: 'Pre-baked configurations', Component: ProfilesTab },
+  { id: 'stress', label: 'Stress Test', hint: '50k rows × 400 cols · CSRM/SSRM', Component: StressTestTab },
 ];
 
 // Sidebar items include Home (synthetic) plus every real tab.

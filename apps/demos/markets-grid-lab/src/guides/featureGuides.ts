@@ -297,6 +297,27 @@ export const FEATURE_GUIDES: Record<string, FeatureGuide> = {
       { name: 'appId / userId / instanceId', type: 'string', note: 'Scope keys when persisting via a ConfigService instead of localStorage.' },
     ],
   },
+
+  stress: {
+    id: 'stress',
+    category: 'performance',
+    summary: '50k rows × 400 columns with grouping, conditional styling, and complex formatters — CSRM vs SSRM.',
+    whatWhy:
+      'Stress Test mounts a **50,000 × 400** blotter with row grouping (Class → Sector), aggregations, conditional styling, Excel/preset formatters, calculated columns, column groups, and quick-filter pills. Live updates are off so first paint is the bottleneck. Flip **Use SSRM** in the header to compare client-side vs Perspective SSRM on the same shape. Synthetic `S000…` columns are valueGetter-backed (wide scroll / paint stress without bloating row objects).',
+    trySteps: [
+      { text: 'Wait for the 50k snapshot, then expand an Asset Class group and scroll the synthetic columns.', hint: 'Groups start collapsed — expand gradually.' },
+      { text: 'Toggle Use SSRM and remount — compare first paint, expand, and horizontal scroll.' },
+      { text: 'Activate a Quick Filter pill (Rates / Corp IG) and check status-bar counts.' },
+      { text: 'Switch to profile “01 · Flat wide” for pure column-virtualisation pressure.' },
+    ],
+    props: [
+      { name: 'stream.rowCount', type: 'number', default: '50000', note: 'Mock FI positions snapshot size.' },
+      { name: 'stream.enableUpdates', type: 'boolean', default: 'false', note: 'Ticks off for load/layout stress.' },
+      { name: 'useSSRM', type: 'boolean', default: 'false', note: 'Header toggle — remounts MarketsGrid on SSRMGrid.' },
+      { name: 'sideBar', type: "{ toolPanels: ['columns','filters'] }", note: 'Columns + Filters tool panels.' },
+      showProfileSelector, showSaveButton, showSettingsButton,
+    ],
+  },
 };
 
 export function getFeatureGuide(id: string): FeatureGuide | undefined {
