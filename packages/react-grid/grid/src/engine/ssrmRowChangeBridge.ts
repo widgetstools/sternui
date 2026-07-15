@@ -42,8 +42,8 @@ export function publishSsrmTransactionDelta(
   tx: EngineDataTransaction,
   rowIdField = 'id',
 ): void {
-  const publish = rows?.publishExternalDelta;
-  if (!publish) return;
+  // Must call as a method — extracting the function drops `this` on RowChangeBus.
+  if (!rows?.publishExternalDelta) return;
 
   const updated = mapRows(tx.update, rowIdField);
   const added = mapRows(tx.add, rowIdField);
@@ -51,5 +51,5 @@ export function publishSsrmTransactionDelta(
   if (updated.length === 0 && added.length === 0 && removed.length === 0) {
     return;
   }
-  publish({ updated, added, removed });
+  rows.publishExternalDelta({ updated, added, removed });
 }

@@ -4,8 +4,9 @@ import { publishSsrmTransactionDelta } from './ssrmRowChangeBridge.js';
 describe('publishSsrmTransactionDelta', () => {
   it('maps update/add/remove rows onto publishExternalDelta', () => {
     const publishExternalDelta = vi.fn();
+    const rows = { subscribe: () => () => {}, publishExternalDelta };
     publishSsrmTransactionDelta(
-      { subscribe: () => () => {}, publishExternalDelta },
+      rows,
       {
         update: [{ id: 'a', midPrice: 101 }],
         add: [{ id: 'b', midPrice: 99 }],
@@ -18,6 +19,8 @@ describe('publishSsrmTransactionDelta', () => {
       added: [{ id: 'b', data: { id: 'b', midPrice: 99 } }],
       removed: [{ id: 'c', data: { id: 'c' } }],
     });
+    // Called as a method so RowChangeBus keeps `this`.
+    expect(publishExternalDelta.mock.contexts[0]).toBe(rows);
   });
 
   it('no-ops when the bus cannot publish', () => {

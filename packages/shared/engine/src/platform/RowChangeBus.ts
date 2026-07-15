@@ -52,12 +52,15 @@ export class RowChangeBus implements RowChangeSignal {
   /**
    * SSRM / non-AG producers: push row deltas into the same coalesced pipeline
    * as `asyncTransactionsFlushed` so alerts & peers stay on the hot path.
+   *
+   * Arrow property so callers may pass `bus.publishExternalDelta` without
+   * losing `this` (class methods are not auto-bound).
    */
-  publishExternalDelta(delta: {
+  publishExternalDelta = (delta: {
     added?: ReadonlyArray<{ id: string; data?: Record<string, unknown> }>;
     updated?: ReadonlyArray<{ id: string; data?: Record<string, unknown> }>;
     removed?: ReadonlyArray<{ id: string; data?: Record<string, unknown> }>;
-  }): void {
+  }): void => {
     const toNode = (row: {
       id: string;
       data?: Record<string, unknown>;
@@ -74,7 +77,7 @@ export class RowChangeBus implements RowChangeSignal {
     }
     this.sawFlush = true;
     this.schedule();
-  }
+  };
 
   /** Begin listening. Idempotent. Called by GridPlatform once the api attaches. */
   start(): void {

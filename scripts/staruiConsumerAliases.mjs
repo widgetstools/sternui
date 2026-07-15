@@ -204,6 +204,30 @@ function resolveMemberPath(resolveRoot, relTarget, useDevSource, exportKey = '.'
 
   const rel = relTarget.replace(/^\.\//, '');
   const primary = join(resolveRoot, rel);
+
+  // Dev/source mode: prefer live `src/` over stale `dist/` for TS packages.
+  // Otherwise lab/HMR can keep serving an old bundle that lacks new APIs
+  // (e.g. RowChangeBus.publishExternalDelta). Build-generated assets (css,
+  // workers) have no src substitute — keep those on dist.
+  if (useDevSource && rel.startsWith('dist/') && !isBuildGeneratedExport(relTarget)) {
+    const srcBase = rel.replace(/^dist\//, 'src/');
+    const srcCandidates = [
+      join(resolveRoot, srcBase.replace(/\.js$/, '.ts')),
+      join(resolveRoot, srcBase.replace(/\.js$/, '.tsx')),
+      join(resolveRoot, srcBase.replace(/\.mjs$/, '.ts')),
+      join(resolveRoot, srcBase),
+    ];
+    for (const candidate of srcCandidates) {
+      if (existsSync(candidate)) return candidate;
+    }
+    if (exportKey === '.') {
+      for (const entry of ['src/index.ts', 'src/index.tsx']) {
+        const candidate = join(resolveRoot, entry);
+        if (existsSync(candidate)) return candidate;
+      }
+    }
+  }
+
   const primaryUsable = existsSync(primary) && !(ignoreDist && rel.startsWith('dist/'));
   if (!useDevSource || primaryUsable) return primary;
 

@@ -95,6 +95,7 @@ export type AggFuncName =
   | 'first'
   | 'last'
   | 'trafficLight'
+  | 'rag'
   | 'custom';
 
 export interface RowGroupingConfig {
