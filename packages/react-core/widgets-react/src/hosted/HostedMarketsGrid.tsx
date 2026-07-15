@@ -190,8 +190,15 @@ export function HostedMarketsGrid<
     if (!contextLink) return contextLink;
     const resolved = linkRowIdField ?? contextLink.rowIdField ?? undefined;
     // SSRM cannot use doesExternalFilterPass — force fields → filterModel.
+    // Phase 4a: expand group selections via Perspective (uncapped leaf fetch).
     const base: GridContextLinkConfig = useSSRM
-      ? { ...contextLink, mode: 'fields' }
+      ? {
+          ...contextLink,
+          mode: 'fields',
+          resolveGroupLeaves: (opts) =>
+            gridRef.current?.getSsrmHandle?.()?.getGroupLeafRows(opts) ??
+            Promise.resolve([]),
+        }
       : contextLink;
     return resolved !== undefined ? { ...base, rowIdField: resolved } : base;
   }, [contextLink, linkRowIdField, useSSRM]);

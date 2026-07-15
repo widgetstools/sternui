@@ -14,7 +14,7 @@ I'm using the writing-plans skill to create this implementation plan.
 | 2 | Lab smoke checklist cross-links (alerts / smart-edit / link / traffic-light) | **IN (this commit)** |
 | 3 | Worker-emitted `dirty` events in ssrmgrid | **DONE** — see `2026-07-14-marketsgrid-ssrm-phase4-worker-dirty.md` |
 | 4 | Full-book alerts / edits / `mode: 'rowId'` external filter | **OUT** |
-| 5 | Group publish via `allLeafChildren` under SSRM | **OUT** |
+| 5 | Group publish via `allLeafChildren` under SSRM | **DONE (4a)** — Perspective uncapped leaf fetch |
 | 6 | Perspective-backed row-exclusion DSL | **OUT** |
 | 7 | Auto-suggest SSRM / `rowModel` alias | **OUT** |
 | 8 | Large-N + high tick perf campaign | **PARTIAL** — Stress Test lab (50k×400 CSRM/SSRM); high-tick campaign still later |
@@ -40,7 +40,7 @@ I'm using the writing-plans skill to create this implementation plan.
 | Context link | Green / limited | `mode: 'fields'` → filterModel; no `rowId` external filter |
 | Row-exclusion DSL | Red → documented | Skipped under SSRM; UI message |
 | Full-book relative alerts | Red | OUT |
-| Group leaf expansion publish | Limited | No `allLeafChildren` under SSRM |
+| Group leaf expansion publish | Green | Phase 4a — Perspective `getGroupLeafRows` (uncapped) |
 
 ## Lab smoke links
 

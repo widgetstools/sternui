@@ -9,6 +9,7 @@ import type { GridApi } from 'ag-grid-community';
 import {
   GRID_LINK_CONTEXT_TYPE,
   buildSelectionContext,
+  buildSelectionContextAsync,
   buildRowIdContext,
   defaultGridLinkResolver,
   applyGridLinkContext,
@@ -76,6 +77,33 @@ describe('buildSelectionContext', () => {
     });
     const ctx = buildSelectionContext(api, { instanceId: 'grid-a', rowIdField: ['symbol'] });
     expect(ctx?.criteria).toEqual({ symbol: ['AAPL', 'MSFT'] });
+  });
+
+  it('async builder fetches Perspective leaves when allLeafChildren is empty', async () => {
+    const api = fakeApi({
+      selectedNodes: [
+        {
+          group: true,
+          key: 'Tech',
+          getRoute: () => ['Tech'],
+          allLeafChildren: [],
+        },
+      ],
+    });
+    const resolveGroupLeaves = vi.fn(async () => [
+      { symbol: 'AAPL' },
+      { symbol: 'MSFT' },
+    ]);
+    const ctx = await buildSelectionContextAsync(api, {
+      instanceId: 'grid-a',
+      rowIdField: ['symbol'],
+      resolveGroupLeaves,
+    });
+    expect(resolveGroupLeaves).toHaveBeenCalledWith({
+      groupKeys: ['Tech'],
+      filterModel: {},
+    });
+    expect(ctx.criteria).toEqual({ symbol: ['AAPL', 'MSFT'] });
   });
 
   it('skips null/undefined values', () => {

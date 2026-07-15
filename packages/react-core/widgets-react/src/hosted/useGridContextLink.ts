@@ -27,12 +27,15 @@ import {
   applyRowIdExternalFilter,
   buildRowIdContext,
   buildSelectionContext,
+  buildSelectionContextAsync,
+  groupKeysFromNode,
   defaultGridLinkResolver,
   normalizeRowIdField,
   resolveGridLinkMode,
   type GridLinkResolver,
   type GridLinkSelectionBuilder,
   type GridLinkSelectionContext,
+  type ResolveGroupLeaves,
 } from './gridContextLink.js';
 
 export interface GridContextLinkConfig {
@@ -63,6 +66,12 @@ export interface GridContextLinkConfig {
   resolve?: GridLinkResolver;
   /** Override the publish-side selection → context mapping. */
   buildContext?: GridLinkSelectionBuilder;
+  /**
+   * SSRM Phase 4a — when set, group selections fetch **all** leaf rows via
+   * Perspective (`getGroupLeafRows`) instead of empty `allLeafChildren`.
+   * Ignored when `buildContext` is overridden or mode is `'rowId'`.
+   */
+  resolveGroupLeaves?: ResolveGroupLeaves;
   /** FDC3 context type for link messages. Defaults to `'starui.gridSelection'`. */
   contextType?: string;
   /**
@@ -207,6 +216,7 @@ export function useGridContextLink({
   const { broadcast } = fdc3;
   const build =
     config?.buildContext ?? (mode === 'rowId' ? buildRowIdContext : buildSelectionContext);
+  const resolveGroupLeaves = config?.resolveGroupLeaves;
   const publish = config?.publish !== false;
   const rowIdField = config?.rowIdField;
 
@@ -214,33 +224,57 @@ export function useGridContextLink({
   useEffect(() => {
     if (!active || !publish || !gridApi) return;
     const fields = normalizeRowIdField(rowIdField);
+    let gen = 0;
     const onSelectionChanged = () => {
       if (applyingRemoteRef.current) return;
-      const context = build(gridApi, { instanceId: sourceId, rowIdField: fields });
-      if (!context) return;
-      context.type = contextType;
-      // Stamp the joined channel so peers + notifications can show it. A
-      // `null` channel here is the #1 reason peers receive nothing — the
-      // window isn't on an FDC3 user channel despite the color "Link".
-      context.channel = channelRef.current ?? undefined;
-      if (debugRef.current) {
-        // eslint-disable-next-line no-console
-        console.debug('[gridLink] publish', {
-          self: sourceId,
-          channel: channelRef.current ?? null,
-          context,
-        });
-      }
-      void broadcast(context);
-      onPublishRef.current?.(context);
+      const myGen = ++gen;
+      void (async () => {
+        const context =
+          mode === 'fields' && resolveGroupLeaves && !config?.buildContext
+            ? await buildSelectionContextAsync(gridApi, {
+                instanceId: sourceId,
+                rowIdField: fields,
+                resolveGroupLeaves,
+              })
+            : build(gridApi, { instanceId: sourceId, rowIdField: fields });
+        if (!context || myGen !== gen) return;
+        context.type = contextType;
+        // Stamp the joined channel so peers + notifications can show it. A
+        // `null` channel here is the #1 reason peers receive nothing — the
+        // window isn't on an FDC3 user channel despite the color "Link".
+        context.channel = channelRef.current ?? undefined;
+        if (debugRef.current) {
+          // eslint-disable-next-line no-console
+          console.debug('[gridLink] publish', {
+            self: sourceId,
+            channel: channelRef.current ?? null,
+            context,
+          });
+        }
+        void broadcast(context);
+        onPublishRef.current?.(context);
+      })();
     };
     gridApi.addEventListener('selectionChanged', onSelectionChanged);
     return () => {
+      gen += 1;
       try {
         gridApi.removeEventListener('selectionChanged', onSelectionChanged);
       } catch {
         /* grid already destroyed */
       }
     };
-  }, [active, publish, gridApi, broadcast, build, contextType, instanceId, rowIdField]);
+  }, [
+    active,
+    publish,
+    gridApi,
+    broadcast,
+    build,
+    contextType,
+    instanceId,
+    rowIdField,
+    mode,
+    resolveGroupLeaves,
+    config?.buildContext,
+  ]);
 }

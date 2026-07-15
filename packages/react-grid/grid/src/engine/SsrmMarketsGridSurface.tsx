@@ -44,6 +44,8 @@ export const SsrmMarketsGridSurface = forwardRef<
       inner.current?.chartFilteredData(opts) ?? Promise.resolve(null),
     countMatching: (filterModel) =>
       inner.current?.countMatching(filterModel) ?? Promise.resolve(0),
+    getGroupLeafRows: (opts) =>
+      inner.current?.getGroupLeafRows(opts) ?? Promise.resolve([]),
   }));
 
   const streamSafeComponents = useMemo(

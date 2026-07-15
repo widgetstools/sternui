@@ -84,6 +84,89 @@ export function normalizeRowIdField(
 }
 
 /**
+ * Resolve groupKeys for an AG Grid group node (SSRM or CSRM).
+ * Prefers `getRoute()` (AG Grid 33+); falls back to walking parents.
+ */
+export function groupKeysFromNode(node: IRowNode): string[] {
+  const withRoute = node as IRowNode & { getRoute?: () => string[] | null };
+  if (typeof withRoute.getRoute === 'function') {
+    const route = withRoute.getRoute();
+    if (Array.isArray(route) && route.length > 0) {
+      return route.map((k) => String(k));
+    }
+  }
+  const keys: string[] = [];
+  let n: IRowNode | null | undefined = node;
+  while (n && n.group) {
+    if (n.key != null && n.key !== '') keys.unshift(String(n.key));
+    n = n.parent;
+  }
+  return keys;
+}
+
+export type ResolveGroupLeaves = (opts: {
+  groupKeys: string[];
+  filterModel?: Record<string, unknown>;
+}) => Promise<readonly Record<string, unknown>[]>;
+
+/**
+ * Async publish builder for SSRM: expands group selections via Perspective
+ * leaf fetch when `resolveGroupLeaves` is provided. Leaf rows still use
+ * in-memory `data`. CSRM can keep using sync {@link buildSelectionContext}.
+ */
+export async function buildSelectionContextAsync(
+  api: GridApi,
+  opts: {
+    instanceId: string;
+    rowIdField: readonly string[];
+    resolveGroupLeaves?: ResolveGroupLeaves;
+  },
+): Promise<GridLinkSelectionContext> {
+  const criteria: Record<string, Set<unknown>> = {};
+  const add = (field: string, value: unknown) => {
+    if (!field || value === undefined || value === null) return;
+    (criteria[field] ??= new Set<unknown>()).add(value);
+  };
+  const addLeafData = (data: Record<string, unknown> | undefined) => {
+    if (!data) return;
+    for (const field of opts.rowIdField) add(field, data[field]);
+  };
+  const addLeafNode = (leaf: IRowNode) => {
+    addLeafData(leaf.data as Record<string, unknown> | undefined);
+  };
+
+  const filterModel = (api.getFilterModel() as Record<string, unknown>) ?? {};
+
+  for (const node of api.getSelectedNodes() as IRowNode[]) {
+    if (node.group) {
+      const loaded = (node.allLeafChildren ?? []) as IRowNode[];
+      if (loaded.length > 0) {
+        for (const leaf of loaded) addLeafNode(leaf);
+        continue;
+      }
+      if (opts.resolveGroupLeaves) {
+        const groupKeys = groupKeysFromNode(node);
+        if (groupKeys.length === 0) continue;
+        const leaves = await opts.resolveGroupLeaves({ groupKeys, filterModel });
+        for (const row of leaves) addLeafData(row);
+        continue;
+      }
+      // SSRM without resolver — nothing to contribute (same as today).
+      continue;
+    }
+    addLeafNode(node);
+  }
+
+  return {
+    type: GRID_LINK_CONTEXT_TYPE,
+    source: opts.instanceId,
+    criteria: Object.fromEntries(
+      Object.entries(criteria).map(([field, values]) => [field, Array.from(values)]),
+    ),
+  };
+}
+
+/**
  * Default publish builder, emitting a JSON `criteria` map of column → values
  * the receiver can filter on. The payload is always **leaf-row key columns**
  * — the `rowIdField` values that compose `getRowId` (sourced from the
@@ -97,6 +180,9 @@ export function normalizeRowIdField(
  *     dimension that would over-match on the receiver.
  * Values are de-duplicated. An empty `criteria` (nothing selected) tells peers
  * to clear the link filter.
+ *
+ * Under SSRM `allLeafChildren` is empty — use {@link buildSelectionContextAsync}
+ * with `resolveGroupLeaves` (Perspective) instead.
  */
 export const buildSelectionContext: GridLinkSelectionBuilder = (api, opts) => {
   const criteria: Record<string, Set<unknown>> = {};

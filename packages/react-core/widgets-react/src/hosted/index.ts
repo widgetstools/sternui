@@ -70,6 +70,8 @@ export type {
 export {
   GRID_LINK_CONTEXT_TYPE,
   buildSelectionContext,
+  buildSelectionContextAsync,
+  groupKeysFromNode,
   defaultGridLinkResolver,
   applyGridLinkContext,
   normalizeRowIdField,
@@ -79,6 +81,7 @@ export type {
   GridLinkSelectionContext,
   GridLinkResolver,
   GridLinkSelectionBuilder,
+  ResolveGroupLeaves,
 } from './gridContextLink.js';
 
 export { useInteropChannel, isInteropAvailable } from './useInteropChannel.js';
