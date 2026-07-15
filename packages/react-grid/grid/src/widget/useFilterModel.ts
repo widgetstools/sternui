@@ -41,6 +41,7 @@ import {
   subtractFilterModel,
 } from './filtersToolbarLogic';
 import type { SavedFilter } from './types';
+import { useGridEngineKind } from '@starui/grid/customizer';
 
 // ─── AG-Grid v35 shape repair ──────────────────────────────────────────
 //
@@ -255,6 +256,7 @@ function useFilterNormalization(): {
  */
 function useFilterCounts(filters: readonly SavedFilter[]): Record<string, number> {
   const platform = useGridPlatform();
+  const engineKind = useGridEngineKind();
   const [filterCounts, setFilterCounts] = useState<Record<string, number>>({});
   const filterCountsRef = useRef<Record<string, number>>({});
   const matchSetsRef = useRef<Map<string, Set<string>>>(new Map());
@@ -270,7 +272,7 @@ function useFilterCounts(filters: readonly SavedFilter[]): Record<string, number
           setFilterCounts({});
         };
 
-        const fullRecompute = () => {
+        const fullRecomputeCsrm = () => {
           if (filters.length === 0) {
             clearCounts();
             return;
@@ -302,13 +304,59 @@ function useFilterCounts(filters: readonly SavedFilter[]): Record<string, number
           setFilterCounts(next);
         };
 
+        const fullRecomputeSsrm = async () => {
+          if (filters.length === 0) {
+            clearCounts();
+            return;
+          }
+          const ctx = liveApi.getGridOption('context') as
+            | {
+                ssrmCountMatching?: (
+                  filterModel: Record<string, unknown>,
+                ) => Promise<number>;
+                ssrmConfigured?: boolean;
+              }
+            | undefined;
+          const countMatching = ctx?.ssrmCountMatching;
+          if (!countMatching || !ctx?.ssrmConfigured) {
+            // Perspective not ready yet — retry via firstDataRendered / ssrmConfigured.
+            return;
+          }
+          const next: Record<string, number> = {};
+          await Promise.all(
+            filters.map(async (f) => {
+              try {
+                next[f.id] = await countMatching(f.filterModel);
+              } catch {
+                next[f.id] = 0;
+              }
+            }),
+          );
+          if (filterCountsEqual(filterCountsRef.current, next)) return;
+          filterCountsRef.current = next;
+          setFilterCounts(next);
+        };
+
+        const fullRecompute = () => {
+          if (engineKind === 'ssrm') {
+            void fullRecomputeSsrm();
+            return;
+          }
+          fullRecomputeCsrm();
+        };
+
         const applyRowChange = (change: RowChange) => {
+          if (engineKind === 'ssrm') {
+            // Deltas under SSRM don't cover the full book — recount via Perspective.
+            void fullRecomputeSsrm();
+            return;
+          }
           if (filters.length === 0) {
             clearCounts();
             return;
           }
           if (change.full || matchSetsRef.current.size === 0) {
-            fullRecompute();
+            fullRecomputeCsrm();
             return;
           }
 
@@ -350,10 +398,14 @@ function useFilterCounts(filters: readonly SavedFilter[]): Record<string, number
         fullRecompute();
         disposers.push(platform.rows.subscribe(applyRowChange));
         disposers.push(platform.api.on('firstDataRendered', fullRecompute));
+        if (engineKind === 'ssrm') {
+          // Fired by SSRMGrid after Perspective configure + set-filter value refresh.
+          disposers.push(platform.api.on('ssrmConfigured', fullRecompute));
+        }
       }),
     );
     return () => { for (const d of disposers) d(); };
-  }, [platform, filters]);
+  }, [platform, filters, engineKind]);
 
   return filterCounts;
 }
@@ -397,21 +449,19 @@ function useFilterModelSync(filters: readonly SavedFilter[]): boolean {
     else if (active.length === 1) model = active[0].filterModel;
     else model = mergeFilterModels(active.map((f) => f.filterModel));
     try {
-      // Guard: AG-Grid v35's SetFilterHandler.validateModel iterates
-      // `model.values` and crashes uncaught if it isn't an array. A
-      // malformed pill (set-filter entry whose `values` got serialized
-      // as undefined / object / string) would take down the whole grid
-      // mount. Sanitize first; on throw, log and skip so the grid stays
-      // usable.
       const nextModel = sanitizeFilterModel(model);
       const currentModel = sanitizeFilterModel(
         liveApi.getFilterModel() as Record<string, unknown> | null,
       );
-      if (filterModelsEqual(nextModel, currentModel)) {
+      const isSsrm = liveApi.getGridOption('rowModelType') === 'serverSide';
+      // Under SSRM, set-filter values load async — equality against a wiped
+      // empty model can skip a needed re-apply. Always push + onFilterChanged.
+      if (!isSsrm && filterModelsEqual(nextModel, currentModel)) {
         syncHasNewFilter();
         return;
       }
       liveApi.setFilterModel(nextModel);
+      liveApi.onFilterChanged();
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[FiltersToolbar] setFilterModel threw — ignoring this push so the grid stays usable.', { model, err });
@@ -458,6 +508,14 @@ function useFilterModelSync(filters: readonly SavedFilter[]): boolean {
       if (liveApi) pushActiveFilterModel(liveApi);
     });
     return dispose;
+  }, [platform, pushActiveFilterModel]);
+
+  // ─── SSRM: re-push after Perspective configure + set-filter values ready ─
+  useEffect(() => {
+    return platform.api.on('ssrmConfigured', () => {
+      const liveApi = platform.api.api;
+      if (liveApi) pushActiveFilterModel(liveApi);
+    });
   }, [platform, pushActiveFilterModel]);
 
   // ─── Watch AG-Grid for user-initiated filter edits ──────────────────────

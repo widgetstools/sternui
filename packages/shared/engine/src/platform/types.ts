@@ -108,7 +108,9 @@ export type ApiEventName =
   | 'modelUpdated'
   | 'rowDataUpdated'
   | 'asyncTransactionsFlushed'
-  | 'rowValueChanged';
+  | 'rowValueChanged'
+  /** Fired by SSRMGrid after Perspective configure + set-filter value refresh. */
+  | 'ssrmConfigured';
 
 export interface ApiHub {
   /** The live GridApi, or null if the grid hasn't mounted yet. */
