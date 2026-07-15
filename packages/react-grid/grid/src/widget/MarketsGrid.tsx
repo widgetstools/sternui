@@ -346,7 +346,7 @@ function MarketsGridInner<TData = unknown>(
   return (
     <ProviderGridHostProvider value={providerGridHost ?? null}>
     <GridEventBindingsHostProvider value={gridEventBindingsHost ?? null}>
-      <GridProvider platform={shell.platform}>
+      <GridProvider platform={shell.platform} engineKind={useSSRM ? 'ssrm' : 'csrm'}>
       <GeneralSettingsProvider value={shell.generalSettings}>
       <MarketsGridHost
         rowData={rowData}
@@ -439,7 +439,7 @@ function MarketsGridCoreInner<TData = unknown>(
   const shell = useMarketsGridShell(props);
 
   return (
-    <GridProvider platform={shell.platform}>
+    <GridProvider platform={shell.platform} engineKind={useSSRM ? 'ssrm' : 'csrm'}>
       <GeneralSettingsProvider value={shell.generalSettings}>
         <div className={className} style={shell.rootStyle} data-grid-id={gridId}>
           {useSSRM ? (

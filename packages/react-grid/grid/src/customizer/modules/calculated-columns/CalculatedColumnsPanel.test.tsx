@@ -112,6 +112,26 @@ describe('CalculatedColumnsPanel (v4)', () => {
     expect(editor).toBeTruthy();
   });
 
+  it('blocks ADD and SAVE on SSRM when calcColumns capability is disabled', () => {
+    render(
+      <GridProvider platform={platform} engineKind="ssrm">
+        <CalculatedColumnsList gridId="test-grid" selectedId="grossPnl" onSelect={() => {}} />
+        <CalculatedColumnsEditor gridId="test-grid" selectedId="grossPnl" />
+      </GridProvider>,
+    );
+
+    const addBtn = screen.getByTestId('cc-add-virtual-btn') as HTMLButtonElement;
+    expect(addBtn.disabled).toBe(true);
+    expect(addBtn.title).toContain('SSRM phase 2');
+
+    const header = screen.getByTestId('cc-virtual-header-grossPnl') as HTMLInputElement;
+    fireEvent.change(header, { target: { value: 'Gross P&L v2' } });
+
+    const saveBtn = screen.getByTestId('cc-virtual-save-grossPnl') as HTMLButtonElement;
+    expect(saveBtn.disabled).toBe(true);
+    expect(saveBtn.title).toContain('SSRM phase 2');
+  });
+
   // ─── Editor pane ───────────────────────────────────────────────────
 
   it('DELETE removes the selected column directly from the list item', () => {

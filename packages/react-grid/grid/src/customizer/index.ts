@@ -11,7 +11,8 @@
  */
 
 // ─── React bindings ──────────────────────────────────────────────────────
-export { GridProvider, useGridPlatform } from './hooks/GridProvider';
+export { GridProvider, useGridPlatform, useGridEngineKind } from './hooks/GridProvider';
+export { useSsrmCapabilityGate } from './hooks/useSsrmCapabilityGate';
 export { useModuleState } from './hooks/useModuleState';
 export { useGridApi, useGridEvent } from './hooks/useGridApi';
 export { useProfileManager } from './hooks/useProfileManager';

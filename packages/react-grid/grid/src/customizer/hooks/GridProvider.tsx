@@ -1,23 +1,42 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import type { GridPlatform } from '@starui/engine';
+import type { GridEngineKind } from '../../engine/types.js';
 
-const Ctx = createContext<GridPlatform | null>(null);
+interface GridContextValue {
+  platform: GridPlatform;
+  engineKind: GridEngineKind;
+}
+
+const Ctx = createContext<GridContextValue | null>(null);
 
 export function GridProvider({
   platform,
+  engineKind = 'csrm',
   children,
 }: {
   platform: GridPlatform;
+  engineKind?: GridEngineKind;
   children: ReactNode;
 }) {
-  return <Ctx.Provider value={platform}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={{ platform, engineKind }}>
+      {children}
+    </Ctx.Provider>
+  );
 }
 
 /** Access the active `GridPlatform`. Panels + hooks go through this. */
 export function useGridPlatform(): GridPlatform {
-  const p = useContext(Ctx);
-  if (!p) throw new Error('useGridPlatform() must be used inside <GridProvider>');
-  return p;
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error('useGridPlatform() must be used inside <GridProvider>');
+  return ctx.platform;
+}
+
+/** `'ssrm'` when MarketsGrid runs with `useSSRM`; otherwise `'csrm'`. */
+export function useGridEngineKind(): GridEngineKind {
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error('useGridEngineKind() must be used inside <GridProvider>');
+  return ctx.engineKind;
 }
 
 /**
@@ -26,5 +45,5 @@ export function useGridPlatform(): GridPlatform {
  * decorations rendered by host shells before the grid mounts).
  */
 export function useOptionalGridPlatform(): GridPlatform | null {
-  return useContext(Ctx);
+  return useContext(Ctx)?.platform ?? null;
 }

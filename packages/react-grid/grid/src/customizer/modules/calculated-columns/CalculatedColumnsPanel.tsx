@@ -29,6 +29,7 @@ import { useModuleState } from '../../hooks/useModuleState';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
 import { useDirty } from '../../hooks/useDirty';
 import { useGridColumns } from '../../hooks/useGridColumns';
+import { useSsrmCapabilityGate } from '../../hooks/useSsrmCapabilityGate';
 import {
   Band,
   Caps,
@@ -67,6 +68,8 @@ function DirtyListLed({ colId }: { colId: string }) {
 
 export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
   const [state, setState] = useModuleState<CalculatedColumnsState>(MODULE_ID);
+  const calcColumnsGate = useSsrmCapabilityGate('calcColumns');
+  const calcColumnsBlocked = !calcColumnsGate.enabled;
 
   const addVirtualColumn = useCallback(() => {
     const id = generateId();
@@ -122,7 +125,8 @@ export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
         <ChromeButton
           type="button"
           onClick={addVirtualColumn}
-          title="Add virtual column"
+          disabled={calcColumnsBlocked}
+          title={calcColumnsBlocked ? calcColumnsGate.tooltip : 'Add virtual column'}
           data-testid="cc-add-virtual-btn"
           style={{
             width: 22,
@@ -237,6 +241,14 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
       virtualColumns: state.virtualColumns.map((c) => (c.colId === colId ? next : c)),
     }),
   });
+  const calcColumnsGate = useSsrmCapabilityGate('calcColumns');
+  const calcColumnsBlocked = !calcColumnsGate.enabled;
+  const saveBlocked = calcColumnsBlocked || !dirty;
+  const saveTitle = calcColumnsBlocked
+    ? calcColumnsGate.tooltip
+    : dirty
+      ? undefined
+      : 'No unsaved changes';
 
   if (missing || !draft) return null;
 
@@ -273,8 +285,9 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
               </SharpBtn>
               <SharpBtn
                 variant={dirty ? 'action' : 'ghost'}
-                disabled={!dirty}
+                disabled={saveBlocked}
                 onClick={save}
+                title={saveTitle}
                 data-testid={`cc-virtual-save-${colId}`}
               >
                 <Save size={13} strokeWidth={2} /> SAVE

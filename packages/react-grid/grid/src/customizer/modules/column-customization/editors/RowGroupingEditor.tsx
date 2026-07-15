@@ -2,6 +2,7 @@ import { Caps, IconInput } from '../../../ui/SettingsPanel';
 import { Switch, Textarea } from '@starui/ui';
 import { Select } from '../../../ui/NativeOptionsSelect';
 import { useModuleState } from '../../../hooks/useModuleState';
+import { useSsrmCapabilityGate } from '../../../hooks/useSsrmCapabilityGate';
 import type { GeneralSettingsState } from '../../general-settings/state';
 import type { AggFuncName, RowGroupingConfig } from '../state';
 import { Row } from './Row';
@@ -36,6 +37,8 @@ export function RowGroupingEditor({
   onChange: (next: RowGroupingConfig | undefined) => void;
 }) {
   const [gridOpts, setGridOpts] = useModuleState<GeneralSettingsState>('general-settings');
+  const customAggGate = useSsrmCapabilityGate('customJsAgg');
+  const customAggBlocked = !customAggGate.enabled;
 
   const cfg = value ?? {};
   const update = (patch: Partial<RowGroupingConfig>) => {
@@ -112,21 +115,26 @@ export function RowGroupingEditor({
         label="AGG FUNCTION"
         hint="Built-in aggregation or a custom expression"
         control={
-          <Select
-            value={cfg.aggFunc ?? ''}
-            onChange={(e) => {
-              const v = e.target.value as AggFuncName | '';
-              update({ aggFunc: v === '' ? undefined : v });
-            }}
-            data-testid={`cols-${colId}-rg-aggfunc`}
-            style={{ maxWidth: 220 }}
-          >
-            {AGG_FUNC_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </Select>
+          <span title={customAggBlocked ? customAggGate.tooltip : undefined}>
+            <Select
+              value={cfg.aggFunc ?? ''}
+              onChange={(e) => {
+                const v = e.target.value as AggFuncName | '';
+                if (v === 'custom' && customAggBlocked) return;
+                update({ aggFunc: v === '' ? undefined : v });
+              }}
+              data-testid={`cols-${colId}-rg-aggfunc`}
+              style={{ maxWidth: 220 }}
+            >
+              {AGG_FUNC_OPTIONS.filter(
+                (o) => o.value !== 'custom' || !customAggBlocked || cfg.aggFunc === 'custom',
+              ).map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+          </span>
         }
       />
       {cfg.aggFunc === 'custom' && (
@@ -138,7 +146,12 @@ export function RowGroupingEditor({
             // settings-panel surfaces (per the v4 UI-primitives rule).
             <Textarea
               value={cfg.customAggExpression ?? ''}
-              onChange={(e) => update({ customAggExpression: e.target.value || undefined })}
+              onChange={(e) => {
+                if (customAggBlocked) return;
+                update({ customAggExpression: e.target.value || undefined });
+              }}
+              disabled={customAggBlocked}
+              title={customAggBlocked ? customAggGate.tooltip : undefined}
               data-testid={`cols-${colId}-rg-custom-expr`}
               placeholder="SUM([value])"
               spellCheck={false}

@@ -1,4 +1,5 @@
-export { GridProvider, useGridPlatform } from './GridProvider';
+export { GridProvider, useGridPlatform, useGridEngineKind } from './GridProvider';
+export { useSsrmCapabilityGate } from './useSsrmCapabilityGate';
 export { useModuleState } from './useModuleState';
 export { useGridApi, useGridEvent } from './useGridApi';
 export { type GridCoreLike } from './GridContext';
