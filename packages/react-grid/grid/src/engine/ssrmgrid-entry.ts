@@ -6,3 +6,12 @@
  */
 export { SSRMGrid } from 'ssrmgrid';
 export type { SSRMGridHandle, SSRMGridProps, SSRMColDef, SSRMTransaction } from 'ssrmgrid';
+export {
+  shareOfTotal,
+  shareOfAggregate,
+  formatShareOfTotal,
+  formatShareOfAggregate,
+  shareExceeds,
+  resolveAggregate,
+} from 'ssrmgrid';
+export { getSsrmShareOfTotal, type SsrmShareOfTotalParams } from './ssrmShareOfTotal.js';
