@@ -1,0 +1,398 @@
+import {
+  filterPlanIsMainThreadSafe,
+  mapFilterModel,
+  rowMatchesFilterPlan,
+  rowMatchesQuickFilter,
+  type PerspectiveFilter,
+} from "../filters/ssrmFilters.js";
+import {
+  aggregateMirrorGroupRows,
+  aggregateMirrorTotals,
+  type MirrorValueCol,
+} from "./mirrorGroupAgg";
+import { compileKeepPredicate } from "../engine/materializeCalcColumns.js";
+
+export type MirrorGetRowsRequest = {
+  startRow: number;
+  endRow: number;
+  rowGroupCols: { id: string; field: string }[];
+  groupKeys: string[];
+  pivotMode: boolean;
+  filterModel: Record<string, unknown>;
+  sortModel: { colId: string; sort: string; abs?: boolean }[];
+  valueCols?: MirrorValueCol[];
+  quickFilterText?: string;
+  quickFilterFields?: string[];
+  treeData?: boolean;
+  absSort?: boolean;
+  rowKeepExpression?: string;
+  /** Primary key — used to shape tree leaf `__treeKey`. */
+  idField?: string;
+};
+
+export type MirrorSlice = {
+  rowData: Record<string, unknown>[];
+  rowCount: number;
+  totals?: Record<string, unknown>;
+  aggregates?: Record<string, Record<string, unknown>>;
+  filteredRowCount?: number;
+};
+
+/**
+ * Main-thread ordered leaf book for sync SSRM getRows (Perspective-like scroll).
+ * Flat / leaf / group-header requests (safe filters) slice here without a worker
+ * round-trip.
+ */
+export class RowMirror {
+  private idField = "id";
+  private byId = new Map<string, Record<string, unknown>>();
+  /** Full book in ingest order (ids stable). */
+  private all: Record<string, unknown>[] = [];
+  /** Filtered + sorted leaf or group view for the active query shape. */
+  private view: Record<string, unknown>[] = [];
+  private viewKey = "";
+  /** Root totals for the cached view (avoid re-scanning 50k leaves per block). */
+  private viewRootRollup: {
+    totals: Record<string, unknown>;
+    aggregates: Record<string, Record<string, unknown>>;
+    filteredRowCount: number;
+  } | null = null;
+  private ready = false;
+
+  get isReady(): boolean {
+    return this.ready && this.all.length > 0;
+  }
+
+  get size(): number {
+    return this.all.length;
+  }
+
+  clear(): void {
+    this.byId.clear();
+    this.all = [];
+    this.view = [];
+    this.viewKey = "";
+    this.viewRootRollup = null;
+    this.ready = false;
+  }
+
+  /** Replace the full book (after configure / setRowData). */
+  replaceAll(rows: Record<string, unknown>[], idField: string): void {
+    this.idField = idField;
+    this.byId.clear();
+    this.all = rows.map((r) => ({ ...r }));
+    for (const row of this.all) {
+      const id = row[idField];
+      if (id != null && id !== "") this.byId.set(String(id), row);
+    }
+    this.view = [];
+    this.viewKey = "";
+    this.viewRootRollup = null;
+    this.ready = true;
+  }
+
+  /**
+   * Merge partial patches by id into the book and current view (in place).
+   * Returns merged rows suitable for AG SSRM transactions.
+   *
+   * In-place updates mutate the same row objects already held by a leaf view,
+   * so we keep `viewKey` and avoid a 50k filter/sort rebuild on every tick.
+   * Group views / rollups are invalidated (aggregates stale).
+   */
+  patchById(patches: Record<string, unknown>[]): Record<string, unknown>[] {
+    const merged: Record<string, unknown>[] = [];
+    let structural = false;
+    for (const patch of patches) {
+      const raw = patch[this.idField];
+      if (raw == null || raw === "") continue;
+      const id = String(raw);
+      const existing = this.byId.get(id);
+      if (!existing) {
+        const row = { ...patch };
+        this.byId.set(id, row);
+        this.all.push(row);
+        structural = true;
+        merged.push(row);
+        continue;
+      }
+      Object.assign(existing, patch);
+      merged.push(existing);
+    }
+    // Totals / group headers always stale after measure patches.
+    this.viewRootRollup = null;
+    if (structural || this.viewIsGroupOrTree()) {
+      this.viewKey = "";
+    }
+    return merged;
+  }
+
+  /** True when the cached view is group/tree headers (not leaf rows). */
+  private viewIsGroupOrTree(): boolean {
+    if (!this.viewKey) return false;
+    return (
+      this.viewKey.includes('"kind":"group"') ||
+      this.viewKey.includes('"kind":"tree-group"')
+    );
+  }
+
+  removeByIds(ids: (string | number)[]): void {
+    if (ids.length === 0) return;
+    const drop = new Set(ids.map(String));
+    this.all = this.all.filter((r) => !drop.has(String(r[this.idField])));
+    for (const id of drop) this.byId.delete(id);
+    this.viewKey = "";
+    this.viewRootRollup = null;
+  }
+
+  findById(id: string): Record<string, unknown> | undefined {
+    return this.byId.get(id);
+  }
+
+  /** Drop cached filtered/sorted view (next getRows / stub paint rebuilds). */
+  invalidateView(): void {
+    this.view = [];
+    this.viewKey = "";
+    this.viewRootRollup = null;
+  }
+
+  /** Snapshot of all leaf rows (custom engine set-filter / diagnostics). */
+  getAllRows(): Record<string, unknown>[] {
+    return this.all;
+  }
+
+  /**
+   * Leaf at a root-store index for stub/loading cells.
+   * Only valid for flat (ungrouped) root stores.
+   */
+  getLeafAt(index: number): Record<string, unknown> | undefined {
+    if (!this.ready || index < 0) return undefined;
+    const src = this.viewKey ? this.view : this.all;
+    return src[index];
+  }
+
+  /**
+   * Sync flat / leaf / group-header / tree slice, or null when unsupported
+   * (pivot or filters that need Perspective expression columns).
+   */
+  tryGetRows(req: MirrorGetRowsRequest): MirrorSlice | null {
+    if (!this.ready || this.all.length === 0) return null;
+    if (req.pivotMode) return null;
+
+    const plan = mapFilterModel(req.filterModel);
+    if (!filterPlanIsMainThreadSafe(plan)) return null;
+
+    const rowGroupCols = req.rowGroupCols ?? [];
+    const groupKeys = req.groupKeys ?? [];
+    const isGroupHeader =
+      rowGroupCols.length > 0 && groupKeys.length < rowGroupCols.length;
+    const treeData = Boolean(req.treeData);
+
+    const key = JSON.stringify({
+      kind: isGroupHeader ? (treeData ? "tree-group" : "group") : treeData ? "tree-leaf" : "leaf",
+      g: groupKeys,
+      rg: rowGroupCols.map((c) => c.field),
+      f: req.filterModel,
+      s: req.sortModel,
+      v: (req.valueCols ?? []).map((c) => `${c.field}:${c.aggFunc}`),
+      q: req.quickFilterText ?? "",
+      qf: req.quickFilterFields ?? null,
+      k: req.rowKeepExpression ?? "",
+      abs: Boolean(req.absSort),
+      tree: treeData,
+    });
+    if (key !== this.viewKey) {
+      const leaves = this.filterLeaves(req, plan);
+      if (!leaves) return null;
+      if (isGroupHeader) {
+        const groupField = rowGroupCols[groupKeys.length]?.field;
+        if (!groupField) return null;
+        let groups = aggregateMirrorGroupRows(
+          leaves,
+          groupField,
+          req.valueCols ?? [],
+          req.sortModel ?? [],
+        );
+        if (treeData) {
+          groups = groups.map((row) => ({
+            ...row,
+            group: true,
+            __treeKey: String(row.__ssrmGroupKey ?? ""),
+            __treeLabel: row[groupField],
+          }));
+        }
+        this.view = groups;
+      } else {
+        let sorted = this.sortLeaves(
+          leaves,
+          req.sortModel ?? [],
+          Boolean(req.absSort),
+        );
+        if (treeData) {
+          const pk = req.idField ?? this.idField;
+          sorted = sorted.map((row) => ({
+            ...row,
+            group: false,
+            __treeKey: String(row[pk] ?? ""),
+            __treeLabel: row[pk],
+          }));
+        }
+        this.view = sorted;
+      }
+      this.viewKey = key;
+      this.viewRootRollup = null;
+      if (groupKeys.length === 0 && (req.valueCols?.length ?? 0) > 0) {
+        const { totals, aggregates } = aggregateMirrorTotals(
+          leaves,
+          req.valueCols ?? [],
+        );
+        this.viewRootRollup = {
+          totals,
+          aggregates,
+          filteredRowCount: leaves.length,
+        };
+      }
+    } else if (
+      !this.viewRootRollup &&
+      groupKeys.length === 0 &&
+      (req.valueCols?.length ?? 0) > 0 &&
+      !isGroupHeader
+    ) {
+      // Leaf view still valid after in-place tick patches; only rebuild rollup.
+      const { totals, aggregates } = aggregateMirrorTotals(
+        this.view,
+        req.valueCols ?? [],
+      );
+      this.viewRootRollup = {
+        totals,
+        aggregates,
+        filteredRowCount: this.view.length,
+      };
+    }
+
+    const start = Math.max(0, req.startRow);
+    const end = Math.max(start, req.endRow);
+    let rowData = this.view.slice(start, end);
+    // Stamp filtered aggregates for shareOfTotal formatters on loaded rows.
+    if (this.viewRootRollup?.aggregates && groupKeys.length === 0) {
+      const aggs = this.viewRootRollup.aggregates;
+      const sums = this.viewRootRollup.totals;
+      rowData = rowData.map((r) => ({
+        ...r,
+        __ssrm_aggs: aggs,
+        __ssrm_sums: sums,
+      }));
+    }
+
+    const slice: MirrorSlice = {
+      rowData,
+      rowCount: this.view.length,
+    };
+
+    if (this.viewRootRollup && groupKeys.length === 0) {
+      slice.totals = this.viewRootRollup.totals;
+      slice.aggregates = this.viewRootRollup.aggregates;
+      slice.filteredRowCount = this.viewRootRollup.filteredRowCount;
+    }
+
+    return slice;
+  }
+
+  /**
+   * All group rows for a store route (used to surgically patch header aggs
+   * after leaf ticks without soft-refreshing the store).
+   */
+  getGroupRowsForRoute(
+    req: Omit<MirrorGetRowsRequest, "startRow" | "endRow">,
+  ): Record<string, unknown>[] | null {
+    const slice = this.tryGetRows({
+      ...req,
+      startRow: 0,
+      endRow: Number.MAX_SAFE_INTEGER,
+    });
+    if (!slice) return null;
+    const rowGroupCols = req.rowGroupCols ?? [];
+    const groupKeys = req.groupKeys ?? [];
+    if (!(rowGroupCols.length > 0 && groupKeys.length < rowGroupCols.length)) {
+      return null;
+    }
+    return slice.rowData;
+  }
+
+  private filterLeaves(
+    req: MirrorGetRowsRequest,
+    plan: ReturnType<typeof mapFilterModel>,
+  ): Record<string, unknown>[] | null {
+    const rowGroupCols = req.rowGroupCols ?? [];
+    const groupKeys = req.groupKeys ?? [];
+
+    const ancestorFilters: PerspectiveFilter[] = [];
+    for (let i = 0; i < groupKeys.length; i++) {
+      const field = rowGroupCols[i]?.field;
+      if (!field) return null;
+      ancestorFilters.push([field, "==", groupKeys[i]!]);
+    }
+
+    const qFields = req.quickFilterFields;
+    const keep = req.rowKeepExpression?.trim()
+      ? compileKeepPredicate(req.rowKeepExpression)
+      : null;
+
+    return this.all.filter((row) => {
+      for (const f of ancestorFilters) {
+        if (!rowMatchesFilterPlan({ filters: [f] }, row)) return false;
+      }
+      if (!rowMatchesFilterPlan(plan, row)) return false;
+      if (keep && !keep(row)) return false;
+      const fields =
+        qFields && qFields.length > 0
+          ? qFields
+          : Object.keys(row).filter((k) => k !== this.idField);
+      if (!rowMatchesQuickFilter(row, req.quickFilterText, fields)) return false;
+      return true;
+    });
+  }
+
+  private sortLeaves(
+    rows: Record<string, unknown>[],
+    sortModel: { colId: string; sort: string; abs?: boolean }[],
+    absSortAll = false,
+  ): Record<string, unknown>[] {
+    if (sortModel.length === 0) return rows;
+    return [...rows].sort((a, b) => {
+      for (const s of sortModel) {
+        const field = s.colId;
+        const useAbs = absSortAll || Boolean(s.abs);
+        let av = a[field];
+        let bv = b[field];
+        if (useAbs) {
+          av =
+            typeof av === "number"
+              ? Math.abs(av)
+              : av == null
+                ? null
+                : Math.abs(Number(av));
+          bv =
+            typeof bv === "number"
+              ? Math.abs(bv)
+              : bv == null
+                ? null
+                : Math.abs(Number(bv));
+        }
+        if (av == null && bv == null) continue;
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        let cmp = 0;
+        if (typeof av === "number" && typeof bv === "number") {
+          cmp = av - bv;
+        } else {
+          cmp = String(av).localeCompare(String(bv), undefined, {
+            numeric: true,
+            sensitivity: "base",
+          });
+        }
+        if (cmp !== 0) return s.sort === "desc" ? -cmp : cmp;
+      }
+      return 0;
+    });
+  }
+}
