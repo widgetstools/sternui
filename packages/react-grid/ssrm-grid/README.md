@@ -4,7 +4,7 @@ CustomSSRMGrid — AG Grid Server-Side Row Model over a main-thread RowMirror en
 
 ## Phase 1 (Custom only)
 
-This package is being introduced as the StarUI framework home for **CustomSSRMGrid** (main-thread RowMirror SSRM). Phase 1 scaffolds the package; CustomSSRMGrid source migration follows in subsequent tasks.
+This package is the StarUI framework home for **CustomSSRMGrid** (main-thread RowMirror SSRM). Phase 1 is complete: Custom engine, shared filters, and migrated tests live here; `@starui/grid` imports Custom from this package.
 
 **Perspective-backed `SSRMGrid`** remains in the external [`ssrmgrid`](../../../../ssrmgrid) repo and is re-exported temporarily via `@starui/grid` (`ssrmgrid-entry.ts`) until a `@starui/ssrm-grid/perspective` follow-up.
 
