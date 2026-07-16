@@ -1,5 +1,5 @@
 import type { ColDef, ValueGetterParams } from 'ag-grid-community';
-import { foldTrafficLight } from 'ssrmgrid';
+import { foldTrafficLight } from '@starui/ssrm-grid';
 
 /** Canonical RAG IFS group roll-up recipe (whitespace-stripped). */
 const TRAFFIC_LIGHT_RAG_PATTERN =
@@ -116,11 +116,12 @@ export function applySsrmTrafficLightToColumnDefs<T extends ColDef>(
     const key = fieldKey(def);
     const assignment = key ? assignments[key] : undefined;
     const next = applyToColDef(def, assignment);
-    if (def.children?.length) {
+    const children = (def as ColDef & { children?: T[] }).children;
+    if (children?.length) {
       return {
         ...next,
-        children: applySsrmTrafficLightToColumnDefs(def.children as T[], assignments),
-      } as T;
+        children: applySsrmTrafficLightToColumnDefs(children, assignments),
+      } as unknown as T;
     }
     return next as T;
   });

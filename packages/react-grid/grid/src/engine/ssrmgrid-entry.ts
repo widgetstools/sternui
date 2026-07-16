@@ -1,28 +1,31 @@
 /**
- * SSRM engine entry — re-exports ssrmgrid.
- * AG Grid: ssrmgrid requires 36.x. MarketsGrid CSRM historically used 35.1.
+ * SSRM engine entry — Custom from @starui/ssrm-grid; Perspective from ssrmgrid.
+ * AG Grid: both require 36.x. MarketsGrid CSRM historically used 35.1.
  * Strategy: align @starui/grid to ag-grid-community/enterprise/react 36.0.0
  * so one ModuleRegistry serves both surfaces.
  *
- * Default SSRM surface uses CustomSSRMGrid (RowMirror, no Perspective).
- * Perspective SSRMGrid remains exported for opt-in / large-book / pivot use.
+ * MarketsGrid surface defaults to CustomSSRMGrid (RowMirror). Perspective
+ * SSRMGrid remains exported for opt-in (`ssrmEngine="perspective"`).
  */
-export { CustomSSRMGrid, SSRMGrid } from 'ssrmgrid';
-export type {
-  CustomSSRMGridHandle,
-  CustomSSRMGridProps,
-  SSRMGridProps,
-  SSRMColDef,
-  SSRMTransaction,
-} from 'ssrmgrid';
-/** Handle type for MarketsGrid's SSRM path (CustomSSRMGrid). */
-export type { CustomSSRMGridHandle as SSRMGridHandle } from 'ssrmgrid';
 export {
+  CustomSSRMGrid,
   shareOfTotal,
   shareOfAggregate,
   formatShareOfTotal,
   formatShareOfAggregate,
   shareExceeds,
   resolveAggregate,
-} from 'ssrmgrid';
+} from '@starui/ssrm-grid';
+export type {
+  CustomSSRMGridHandle,
+  CustomSSRMGridProps,
+  SSRMColDef,
+  SSRMTransaction,
+} from '@starui/ssrm-grid';
+/** Handle type for MarketsGrid's SSRM path (either engine). */
+export type { CustomSSRMGridHandle as SSRMGridHandle } from '@starui/ssrm-grid';
+
+export { SSRMGrid } from 'ssrmgrid';
+export type { SSRMGridProps } from 'ssrmgrid';
+
 export { getSsrmShareOfTotal, type SsrmShareOfTotalParams } from './ssrmShareOfTotal.js';

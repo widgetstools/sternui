@@ -21,6 +21,7 @@ export default defineConfig({
       },
       { find: '@starui/grid/customizer', replacement: resolve(__dirname, 'src/customizer/index.ts') },
       { find: '@starui/grid', replacement: resolve(__dirname, 'src/index.ts') },
+      { find: '@starui/ssrm-grid', replacement: resolve(__dirname, '../ssrm-grid/src/index.ts') },
       { find: '@starui/engine', replacement: resolve(__dirname, '../../shared/engine/src/index.ts') },
       { find: '@starui/types', replacement: resolve(__dirname, '../../shared/types/src/index.ts') },
       { find: '@starui/host', replacement: resolve(__dirname, '../../shared/host/src/index.ts') },
