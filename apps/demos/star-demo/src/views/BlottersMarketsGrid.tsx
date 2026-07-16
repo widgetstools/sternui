@@ -40,12 +40,14 @@ function BlottersMarketsGrid(): ReactNode {
     <HostedMarketsGrid
       componentName="MarketsGrid"
       defaultInstanceId="star-demo-blotter"
-      documentTitle="MarketsGrid · Blotter"
+      documentTitle="MarketsGrid SSRM · Blotter"
       withStorage
       theme="auto"
       configManager={configManager}
-      
       gridId="star-demo-blotter"
+      // Same cfg-free STOMP attach pattern as stomp-marketsgrid-minimal:
+      // seed.json catalogs this provider; hub lazy-starts on attach.
+      defaultLiveProviderId="dp-121e4569-5100-4f6b-b946-c3423d8aff7c"
       historicalDateAppDataRef="positions.asOfDate"
       onEditProvider={handleEditProvider}
       onOpenConfigBrowser={handleOpenConfigBrowser}
@@ -53,6 +55,9 @@ function BlottersMarketsGrid(): ReactNode {
       showFormattingToolbar
       showEditingToolbar
       defaultColDef={DEFAULT_COL_DEF}
+      // CustomSSRMGrid (RowMirror) — snapshot via React rowData, ticks via
+      // applyDataTransactionAsync (see MarketsGridContainer / lab).
+      useSSRM
       // OpenFin colour-based grid linking: dock-link two blotters to the same
       // colour to share row selection (see docs/OPENFIN_GRID_LINKING.md).
       // `rowIdField` auto-derives from the active provider's key column.

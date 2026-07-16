@@ -1,24 +1,18 @@
-# @starui/ssrm-grid
+# `@starui/ssrm-grid`
 
-CustomSSRMGrid — AG Grid Server-Side Row Model over a main-thread RowMirror engine.
+CustomSSRMGrid — AG Grid Server-Side Row Model over a main-thread RowMirror
+engine. Part of the StarUI framework (`packages/react-grid/ssrm-grid`).
 
-## Phase 1 (Custom only)
+**Consumed as source** (same pattern as `@starui/grid`): no build emit;
+importers resolve TypeScript from `src/`.
 
-This package is the StarUI framework home for **CustomSSRMGrid** (main-thread RowMirror SSRM). Phase 1 is complete: Custom engine, shared filters, and migrated tests live here; `@starui/grid` imports Custom from this package.
+## MarketsGrid
 
-**Perspective-backed `SSRMGrid`** remains in the external [`ssrmgrid`](../../../../ssrmgrid) repo and is re-exported temporarily via `@starui/grid` (`ssrmgrid-entry.ts`) until a `@starui/ssrm-grid/perspective` follow-up.
+`@starui/grid` mounts this package when `useSSRM` is true. There is **no**
+Perspective / `SSRMGrid` integration on MarketsGrid.
 
-## Consumption
+## Peers
 
-Source-consumed package (no emit), like `@starui/grid`:
-
-```ts
-import { SSRM_GRID_PACKAGE } from '@starui/ssrm-grid';
-```
-
-## Peer dependencies
-
-- `react` / `react-dom` ^19.2.5
-- `ag-grid-community` / `ag-grid-enterprise` / `ag-grid-react` ^36.0.0
-
-No `@finos/perspective` in this package's dependency graph.
+- `react` / `react-dom` ^19
+- `ag-grid-community` / `ag-grid-enterprise` / `ag-grid-react` ^36
+- `ag-charts-enterprise` ^14 (registered via `agGrid/modules.ts`)

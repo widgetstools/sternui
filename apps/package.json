@@ -34,7 +34,10 @@
   "overrides": {
     "@openfin/core": "43.101.2",
     "esbuild": "0.28.0",
-    "hono": "^4.12.20"
+    "hono": "^4.12.20",
+    "ag-grid-community": "36.0.0",
+    "ag-grid-enterprise": "36.0.0",
+    "ag-grid-react": "36.0.0"
   },
   "dependencies": {
     "marketsui-platform": "file:.."

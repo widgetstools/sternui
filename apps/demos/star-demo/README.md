@@ -1,10 +1,10 @@
 # @starui/star-demo
 
-A **minimal** OpenFin workspace demo that hosts a **MarketsGrid** through a
-React Router route and lets you register it as a launchable **workspace
-component** via Workspace Setup. It is a trimmed-down clone of
-[`markets-ui-react-reference`](../markets-ui-react-reference) — same platform
-features, far less boilerplate:
+A **minimal** OpenFin workspace demo that hosts a **MarketsGrid (SSRM /
+CustomSSRMGrid)** through a React Router route and lets you register it as a
+launchable **workspace component** via Workspace Setup. It is a trimmed-down
+clone of [`markets-ui-react-reference`](../markets-ui-react-reference) — same
+platform features, far less boilerplate:
 
 - Generic OpenFin sample views (notifications / FDC3 demos, `view1`/`view2`)
   are removed.

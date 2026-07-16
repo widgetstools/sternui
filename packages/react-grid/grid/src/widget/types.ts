@@ -39,14 +39,21 @@ export interface MarketsGridProps<TData = unknown> {
    *  `@starui/widgets-react` MarketsGridContainer for the reference pattern. */
   rowData: TData[];
   /**
-   * When true, use CustomSSRMGrid (RowMirror SSRM) for large datasets.
-   * Perspective SSRMGrid remains available from ssrmgrid for pivot / scale.
+   * When true, use SSRM via CustomSSRMGrid (RowMirror).
    * Default false — classic CSRM MarketsGrid. SSRM features are gated by
    * `CURRENT_SSRM_PHASE` in `engine/ssrmCapabilities.ts`.
    * Prefer {@link MarketsGridProps.rowModel} for new code; when both are set,
    * `useSSRM` wins.
    */
   useSSRM?: boolean;
+  /**
+   * @deprecated Ignored — MarketsGrid SSRM is CustomSSRMGrid only.
+   */
+  ssrmEngine?: 'custom' | 'perspective' | 'auto';
+  /**
+   * @deprecated Ignored — reserved for older auto-engine heuristics.
+   */
+  ssrmExpectedRowCount?: number;
   /**
    * Row-model alias for {@link MarketsGridProps.useSSRM}:
    * `'server'` → SSRM, `'client'` → CSRM (default). Ignored when `useSSRM` is set.

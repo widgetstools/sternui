@@ -24,25 +24,28 @@ const EMPTY_MATERIALIZE: SsrmCalcMaterializeContext = {
 };
 
 /** SSRM-only ColDef prep — RAG IFS custom agg + calc column Perspective/materialize plans. */
-export function useSsrmColumnDefs<T extends ColDef>(
+export function useSsrmColumnDefs(
   platform: GridPlatform,
-  columnDefs: readonly T[],
+  columnDefs: readonly SSRMColDef[],
   useSSRM: boolean,
-): T[] {
+): SSRMColDef[] {
   return useMemo(() => {
-    if (!useSSRM) return columnDefs as T[];
+    if (!useSSRM) return columnDefs as SSRMColDef[];
     const cust = platform.store.getModuleState<ColumnCustomizationState>(
       COLUMN_CUSTOMIZATION_MODULE_ID,
     );
-    let defs = applySsrmTrafficLightToColumnDefs(columnDefs, cust?.assignments);
+    let defs = applySsrmTrafficLightToColumnDefs(
+      columnDefs as ColDef[],
+      cust?.assignments,
+    ) as SSRMColDef[];
 
     const calc = platform.store.getModuleState<CalculatedColumnsState>(
       CALCULATED_COLUMNS_MODULE_ID,
     );
     const plans = planSsrmCalcColumns(calc?.virtualColumns ?? []);
-    defs = applyPerspectivePlansToColDefs(defs as SSRMColDef[], plans) as T[];
+    defs = applyPerspectivePlansToColDefs(defs, plans);
 
-    return defs as T[];
+    return defs;
   }, [platform, columnDefs, useSSRM]);
 }
 

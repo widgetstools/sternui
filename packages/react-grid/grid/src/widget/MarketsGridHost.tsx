@@ -26,7 +26,7 @@ import {
   type RefObject,
 } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import type { GetContextMenuItemsParams, GridReadyEvent } from 'ag-grid-community';
+import type { ColDef, GetContextMenuItemsParams, GridReadyEvent } from 'ag-grid-community';
 import { TooltipProvider } from '@starui/ui';
 import { resolveGridDensity } from '@starui/design-system/adapters/ag-grid';
 import type { AnyModule, StorageAdapter } from '@starui/engine';
@@ -113,6 +113,8 @@ export interface MarketsGridHostProps<TData> {
   useSSRM?: boolean;
   suggestSsrmAbove?: number;
   onSuggestSsrm?: () => void;
+  ssrmEngine?: 'custom' | 'perspective' | 'auto';
+  ssrmExpectedRowCount?: number;
   rowIdField: string | readonly string[];
 }
 
@@ -173,6 +175,8 @@ function MarketsGridHostInner<TData>({
   useSSRM,
   suggestSsrmAbove,
   onSuggestSsrm,
+  ssrmEngine,
+  ssrmExpectedRowCount,
   rowIdField,
 }: MarketsGridHostProps<TData>) {
   const ssrmRef = useRef<SSRMGridHandle>(null);
@@ -191,7 +195,7 @@ function MarketsGridHostInner<TData>({
   );
   const ssrmCalcMaterialize = useSsrmCalcMaterialize(
     platform,
-    columnDefs,
+    columnDefs as ColDef[],
     Boolean(useSSRM),
   );
   const ssrmRowData = useMemo(() => {
@@ -428,6 +432,8 @@ function MarketsGridHostInner<TData>({
           defaultColDef={defaultColDef as never}
           includeAllStreamSafeFilters={includeAllStreamSafeFilters}
           onGridReady={handleGridReady}
+          ssrmEngine={ssrmEngine}
+          ssrmExpectedRowCount={ssrmExpectedRowCount}
           grandTotalRow={
             gridOptions.grandTotalRow as
               | boolean

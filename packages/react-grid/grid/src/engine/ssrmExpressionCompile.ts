@@ -123,7 +123,9 @@ function compileIfs(args: string[]): string {
   return result;
 }
 
-function inferPerspectiveType(node: ExpressionNode): SsrmExpressionCompileResult['perspectiveType'] {
+function inferPerspectiveType(
+  node: ExpressionNode,
+): Extract<SsrmExpressionCompileResult, { ok: true }>['perspectiveType'] {
   switch (node.type) {
     case 'literal':
       if (typeof node.value === 'boolean') return 'boolean';

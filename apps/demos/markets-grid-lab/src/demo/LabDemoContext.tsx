@@ -19,7 +19,7 @@ const LabDemoContext = createContext<LabDemoContextValue | null>(null);
 
 export function LabDemoProvider({ children }: { children: ReactNode }) {
   const [handle, setHandle] = useState<LabStreamHandle | null>(null);
-  const [useSSRM, setUseSSRM] = useState(false);
+  const [useSSRM, setUseSSRM] = useState(true);
   const register = useCallback((next: LabStreamHandle | null) => {
     setHandle(next);
   }, []);

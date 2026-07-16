@@ -21,16 +21,18 @@ export function EditingToolbarSegment({
   children,
   meta,
   layout = 'segment',
+  title,
   'data-testid': testId,
 }: {
   label: string;
   children: ReactNode;
   meta?: ReactNode;
   layout?: 'segment' | 'standalone';
+  title?: string;
   'data-testid'?: string;
 }) {
   const group = (
-    <div className="ex-toolbar-group" data-testid={testId}>
+    <div className="ex-toolbar-group" data-testid={testId} title={title}>
       <span className="ex-toolbar-group__label">{label}</span>
       <div className="ex-toolbar-group__body">{children}</div>
       {meta ? (

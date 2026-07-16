@@ -13,8 +13,8 @@ export type SsrmMarketsGridSurfaceProps = {
   rowIdField: string;
   height?: string | number;
   quickFilterText?: string;
-  /** Required from MarketsGrid — StarUI design-system AG Grid theme. */
-  theme: Theme;
+  /** StarUI design-system AG Grid theme. */
+  theme?: Theme;
   rowHeight?: number;
   headerHeight?: number;
   sideBar?: unknown;
@@ -30,12 +30,18 @@ export type SsrmMarketsGridSurfaceProps = {
    * Compiled by MarketsGrid from toolbar DSL; evaluated on the custom engine.
    */
   rowKeepExpression?: string;
+  /**
+   * @deprecated Ignored — MarketsGrid SSRM is CustomSSRMGrid only.
+   * Kept optional so existing call sites compile.
+   */
+  ssrmEngine?: 'custom' | 'auto' | 'perspective';
+  /** @deprecated Ignored — reserved for older auto-engine heuristics. */
+  ssrmExpectedRowCount?: number;
 };
 
 /**
  * SSRM presentation surface — peer to MarketsGridSurface.
- * Owns design-system chrome passthrough; CustomSSRMGrid owns the main-thread
- * RowMirror engine (no Perspective).
+ * Always mounts CustomSSRMGrid (main-thread RowMirror).
  */
 export const SsrmMarketsGridSurface = forwardRef<
   SSRMGridHandle,
@@ -101,6 +107,10 @@ export const SsrmMarketsGridSurface = forwardRef<
         onGridReady={props.onGridReady}
         grandTotalRow={props.grandTotalRow}
         groupTotalRow={props.groupTotalRow}
+        cacheBlockSize={100}
+        blockLoadDebounceMillis={50}
+        rowBuffer={10}
+        suppressAnimationFrame
       />
     </div>
   );

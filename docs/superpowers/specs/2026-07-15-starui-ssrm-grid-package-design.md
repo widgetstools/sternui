@@ -1,21 +1,20 @@
 # `@starui/ssrm-grid` package (CustomSSRMGrid) — Design
 
 **Date:** 2026-07-15  
-**Status:** Phase 1 complete (Custom-only; Perspective follow-up pending)  
+**Status:** Complete — Custom-only; no Perspective / `file:ssrmgrid` on MarketsGrid  
 **Branch / worktree:** `feat/marketsgrid-ssrm-dual-engine`  
-**Repos:** `/Users/develop/wfh/ssrmgrid` → starui monorepo  
+**Repos:** `/Users/develop/wfh/ssrmgrid` → starui monorepo (`@starui/ssrm-grid`)  
 **AG Grid:** 36.x
 
 ## Goal
 
 Make **CustomSSRMGrid** (main-thread RowMirror SSRM) a first-class StarUI framework package so MarketsGrid and other consumers no longer depend on a fragile out-of-repo `file:ssrmgrid` link.
 
-Phase 1 ships **Custom only**. Perspective-backed `SSRMGrid` stays in the external `ssrmgrid` repo until a follow-up (`@starui/ssrm-grid/perspective`).
+MarketsGrid SSRM mounts **Custom only**. There is no Perspective-backed `SSRMGrid` path and no `ssrmgrid` package dependency.
 
-## Non-goals (Phase 1)
+## Non-goals
 
-- Moving Perspective worker / WASM / `SSRMGrid.tsx` into starui.
-- Deleting or archiving `/Users/develop/wfh/ssrmgrid` (keep as sandbox until Perspective follow-up).
+- Perspective worker / WASM / `SSRMGrid.tsx` integration (not needed).
 - Folding SSRM into `@starui/grid` itself (keep engine package separate from MarketsGrid chrome).
 - Changing HostedMarketsGrid / STOMP provider APIs (already wired; stay as-is).
 - Making SSRM the MarketsGrid default (still `useSSRM` opt-in).
@@ -24,39 +23,25 @@ Phase 1 ships **Custom only**. Perspective-backed `SSRMGrid` stays in the extern
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Package layout | `packages/react-grid/ssrm-grid` → `@starui/ssrm-grid` | Matches `packages/react-grid/*`; not `@starui/engine` (no React AG shell there) |
+| Package layout | `packages/react-grid/ssrm-grid` → `@starui/ssrm-grid` | Matches `packages/react-grid/*` |
 | Move method | One-time **copy** of modules + tests | Private sandbox repo; avoid git-subtree noise |
-| Phase 1 scope | **Custom only** | Production path today; avoid WASM packaging in the first PR |
-| Perspective during Phase 1 | Keep temporary `ssrmgrid` (or `file:`) dep **only** for `SSRMGrid` / `ssrmEngine="perspective"` | Surface API unchanged; Custom becomes framework-owned |
+| Scope | **Custom only** | Production path; no WASM packaging |
+| Perspective | **Not integrated** | Dropped from MarketsGrid; `ssrmEngine` / `ssrmExpectedRowCount` are deprecated no-ops |
 | Public default entry | No `@finos/perspective` | Default import graph stays lean |
 
-## Current state
-
-- `@starui/grid` depends on `"ssrmgrid": "file:../../../../ssrmgrid"`.
-- Façade: `packages/react-grid/grid/src/engine/ssrmgrid-entry.ts`.
-- Mount: `SsrmMarketsGridSurface.tsx` — default `CustomSSRMGrid`; `ssrmEngine="perspective"` → `SSRMGrid`.
-- Apps (`star-demo`, `markets-grid-lab`) import SSRM only via `@starui/grid` / widgets-react.
-
-## Target architecture
+## Architecture
 
 ```text
-@starui/ssrm-grid          (NEW — Phase 1)
+@starui/ssrm-grid
   CustomSSRMGrid
   createCustomEngine / RowMirror
   SSRMColDef, filters, block cache, dirty helpers
   trafficLight / shareOfTotal / getGroupLeafRows / compile helpers
 
 @starui/grid
-  ssrmgrid-entry.ts
-    Custom*  ← @starui/ssrm-grid
-    SSRMGrid ← ssrmgrid (external, temporary)
-  SsrmMarketsGridSurface (unchanged public props)
-
-ssrmgrid (external repo — temporary)
-  SSRMGrid + Perspective worker only (until Phase 2)
+  ssrmgrid-entry.ts → CustomSSRMGrid ← @starui/ssrm-grid
+  SsrmMarketsGridSurface → always CustomSSRMGrid
 ```
-
-Phase 2 (out of scope here): `@starui/ssrm-grid/perspective`, drop `file:ssrmgrid`, lazy-load WASM.
 
 ## Package layout
 
@@ -75,7 +60,7 @@ packages/react-grid/ssrm-grid/
 
 Root workspaces already include `packages/react-grid/*`.
 
-## Public API (Phase 1)
+## Public API
 
 ```ts
 // @starui/ssrm-grid
@@ -91,7 +76,7 @@ export type {
 } from '…';
 
 export { createCustomEngine, materializeCalcColumns } from '…';
-export type { SsrmEngine /* custom-capable surface */ } from '…';
+export type { SsrmEngine } from '…';
 
 export {
   foldTrafficLight,
@@ -113,7 +98,7 @@ export {
 } from '…';
 ```
 
-**Not exported in Phase 1:** `SSRMGrid`, `createPerspectiveEngine`, worker client, Perspective host.
+**Not exported:** `SSRMGrid`, `createPerspectiveEngine`, worker client, Perspective host.
 
 ### Peers / deps
 
@@ -121,54 +106,20 @@ export {
 |------|----------|
 | peer | `react`, `react-dom`, `ag-grid-community`, `ag-grid-enterprise`, `ag-grid-react` (^36) |
 | dep | none for Perspective |
-| optional later | `@finos/perspective` on `/perspective` only |
 
-Charts helpers used by Custom stay as today (peer or same module registration pattern as `@starui/grid`).
+Note: helpers named `perspectiveExpression` / `perspectiveExpr` are **string expression** naming for the Custom engine — not the FINOS Perspective product.
 
-## Modules to copy (from `/Users/develop/wfh/ssrmgrid`)
+## `@starui/grid` changes (done)
 
-**In (Custom + shared):**
-
-- `src/ssrmgrid/CustomSSRMGrid.tsx`, `columnOverride.ts`, `QuickFilterHighlight*`, `ssrmStatusBarPanels.tsx`, `quickFilterHighlight.css`
-- `src/agGrid/modules.ts`, `theme.ts`
-- `src/ssrm/engine/customEngine.ts`, `types.ts`, `materializeCalcColumns.ts`, `index` pieces for custom
-- `src/ssrm/rowMirror.ts`, `mirrorGroupAgg.ts`, `mirrorLoadingCell.tsx`
-- `src/ssrm/createCustomDatasource.ts`, `configuredGate.ts`, `ssrmBlockCache.ts`
-- `src/ssrm/applyWorkerDirtyToGrid.ts`, `mergeLeafUpdateRows.ts`, `patchLoadedGroupAggregates.ts`
-- `src/ssrm/refreshAllLoadedStores.ts`, `getGroupLeafRows.ts`, `readGridQueryState.ts`
-- `src/ssrm/chartAllViaAgGrid.ts`, `exportAllViaAgGrid.ts`, `trafficLightAgg.ts`, `shareOfTotal.ts`
-- `src/ssrm/compileColExpression.ts`, `types.ts` (shared request/result types needed by Custom)
-- `src/workers/ssrmFilters.ts`, `perspectiveExpr.ts` (main-thread filter eval — **not** WASM; keep despite name)
-
-**Out (Perspective / demo):**
-
-- `SSRMGrid.tsx`, `createPerspectiveDatasource.ts`, `perspectiveEngine.ts`, `workerClient.ts`
-- `workers/perspective-ssrm.worker.ts`, `perspectiveHost.ts`, `perspectiveWorkerPolyfill.ts`, `ssrmQueryEngine.ts`, …
-- Vite demo app (`App.tsx`, `main.tsx`, `demo/`)
-
-**Tests:** copy Custom-relevant vitest files; skip or gate Perspective-only tests until Phase 2.
-
-## `@starui/grid` changes
-
-1. Add dependency `"@starui/ssrm-grid": "*"`.
-2. Keep temporary `"ssrmgrid": "file:…"` **only** while Perspective opt-in remains.
-3. Rewrite `ssrmgrid-entry.ts`:
-
-```ts
-export { CustomSSRMGrid, …helpers } from '@starui/ssrm-grid';
-export type { CustomSSRMGridHandle as SSRMGridHandle, … } from '@starui/ssrm-grid';
-export { SSRMGrid } from 'ssrmgrid';           // temporary
-export type { SSRMGridProps } from 'ssrmgrid'; // temporary
-```
-
-4. `ssrmTrafficLightAgg.ts` / `ssrmShareOfTotal.ts`: import from `@starui/ssrm-grid`.
-5. `SsrmMarketsGridSurface` public API unchanged (`ssrmEngine`, handle shape).
+1. Depend on `"@starui/ssrm-grid": "*"` only (no `file:ssrmgrid`).
+2. `ssrmgrid-entry.ts` re-exports Custom from `@starui/ssrm-grid`.
+3. `SsrmMarketsGridSurface` always mounts `CustomSSRMGrid`; `ssrmEngine` ignored.
 
 ## Success criteria
 
-- Fresh clone of the worktree builds/runs MarketsGrid SSRM **Custom** without a sibling checkout of `wfh/ssrmgrid` **for the Custom path** (Perspective still needs the file link until Phase 2 — document that clearly).
-- `@starui/ssrm-grid` tests pass (migrated Custom suite).
-- `markets-grid-lab` Custom stress + `star-demo` blotter (`useSSRM` + `ssrmEngine="custom"`) still work.
+- Fresh clone builds/runs MarketsGrid SSRM without a sibling checkout of `wfh/ssrmgrid`.
+- `@starui/ssrm-grid` tests pass.
+- `markets-grid-lab` Custom stress + `star-demo` blotter (`useSSRM`) still work.
 - Default `@starui/ssrm-grid` import graph does **not** resolve `@finos/perspective`.
 
 ## Risks / mitigations
@@ -176,20 +127,4 @@ export type { SSRMGridProps } from 'ssrmgrid'; // temporary
 | Risk | Mitigation |
 |------|------------|
 | Dual AG ModuleRegistry (`@starui/grid` + `@starui/ssrm-grid`) | Keep registration idempotent; long-term single site |
-| Shared filter files named `perspectiveExpr` confuse ownership | Rename optional in Phase 1.1; comment that Custom owns them |
-| Temporary dual deps (`@starui/ssrm-grid` + `ssrmgrid`) | Document in package README; remove in Perspective follow-up |
-| Pivot only on Perspective | Unchanged: `ssrmEngine="perspective"` escape hatch |
-| Worktree `file:` path depth | Less critical for Custom after move; still needed for Perspective |
-
-## Follow-up (Phase 2 — not this spec)
-
-1. Add `@starui/ssrm-grid/perspective` with worker + WASM Vite notes.
-2. Lazy-import from `SsrmMarketsGridSurface` when `ssrmEngine === 'perspective'`.
-3. Remove `file:ssrmgrid` from `@starui/grid`.
-4. Archive or thin-reexport external `ssrmgrid`.
-
-## Open items for implementer
-
-- Exact file tree under `src/custom` vs `src/shared` (match copy boundaries above).
-- Whether `tryValueGetterToPerspective` / calc-to-Perspective helpers stay in Phase 1 exports (yes if Custom `columnOverride` still uses them for string expressions).
-- CI workspace install: confirm `packages/react-grid/*` picks up the new package without root workspace edits.
+| Shared filter files named `perspectiveExpr` confuse ownership | Comment that Custom owns them; rename optional later |

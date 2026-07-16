@@ -399,7 +399,7 @@ function useFilterCounts(filters: readonly SavedFilter[]): Record<string, number
         disposers.push(platform.rows.subscribe(applyRowChange));
         disposers.push(platform.api.on('firstDataRendered', fullRecompute));
         if (engineKind === 'ssrm') {
-          // Fired by SSRMGrid after Perspective configure + set-filter value refresh.
+          // Fired by CustomSSRMGrid after configure + set-filter value refresh.
           disposers.push(platform.api.on('ssrmConfigured', fullRecompute));
         }
       }),

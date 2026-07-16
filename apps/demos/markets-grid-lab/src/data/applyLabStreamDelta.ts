@@ -23,6 +23,12 @@ function splitTransaction(
   api: GridApi,
   rows: readonly LabRow[],
 ): { add: LabRow[]; update: LabRow[] } {
+  // SSRM only materializes nodes for loaded blocks. Unloaded existing rows
+  // must not be classified as adds — CustomSSRMGrid / leaf dirty handlers
+  // treat add as insert-or-purge and that reloads the grid every tick.
+  if (isServerSideRowModel(api)) {
+    return { add: [], update: [...rows] };
+  }
   const add: LabRow[] = [];
   const update: LabRow[] = [];
   for (const row of rows) {

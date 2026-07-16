@@ -411,6 +411,8 @@ function MarketsGridInner<TData = unknown>(
         useSSRM={useSSRM}
         suggestSsrmAbove={props.suggestSsrmAbove}
         onSuggestSsrm={props.onSuggestSsrm}
+        ssrmEngine={props.ssrmEngine}
+        ssrmExpectedRowCount={props.ssrmExpectedRowCount}
         rowIdField={rowIdField}
       />
       </GeneralSettingsProvider>
@@ -455,7 +457,7 @@ function MarketsGridCoreInner<TData = unknown>(
   );
   const ssrmCalcMaterialize = useSsrmCalcMaterialize(
     shell.platform,
-    shell.columnDefs,
+    shell.columnDefs as ColDef[],
     Boolean(useSSRM),
   );
   const ssrmRowData = useMemo(() => {
@@ -487,6 +489,8 @@ function MarketsGridCoreInner<TData = unknown>(
               defaultColDef={shell.effectiveDefaultColDef as never}
               includeAllStreamSafeFilters={includeAllStreamSafeFilters ?? true}
               onGridReady={shell.handleGridReady}
+              ssrmEngine={props.ssrmEngine}
+              ssrmExpectedRowCount={props.ssrmExpectedRowCount}
               grandTotalRow={
                 shell.gridOptions.grandTotalRow as
                   | boolean

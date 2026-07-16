@@ -167,7 +167,7 @@ export function useGridHost(opts: {
     for (const [key, value] of Object.entries(gridOptions)) {
       if (INITIAL_ONLY_GRID_OPTIONS.has(key)) continue;
       if (shouldSkipGridOptionSync(key, hostOverrideKeys)) continue;
-      // CSRM-only count panels warn and render blank under SSRM; SSRMGrid owns
+      // CSRM-only count panels warn and render blank under SSRM; CustomSSRMGrid owns
       // its ServerRowCount status bar (or an explicit host override).
       if (
         key === 'statusBar' &&

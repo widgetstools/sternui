@@ -63,6 +63,12 @@ export interface UseProviderDataWiringParams<TData extends Record<string, unknow
   /** When true, live ticks route through `gridHandle.applyDataTransactionAsync`. */
   useSSRM?: boolean;
   gridHandle: MarketsGridHandle | null;
+  /**
+   * SSRM snapshot sink — lab/STOMP pattern: full book via React `rowData`
+   * (CustomSSRMGrid/SSRMGrid `setRowData`), ticks via `applyDataTransactionAsync`.
+   * CSRM ignores this and uses `liveApi.setGridOption('rowData')`.
+   */
+  onSsrmSnapshot?: (rows: TData[]) => void;
 }
 
 function defaultOnError(err: Error): void {
@@ -95,13 +101,16 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
     pauseUpdatesWhenHidden,
     useSSRM = false,
     gridHandle,
+    onSsrmSnapshot,
   } = params;
 
   const applyDataTransactionAsync = gridHandle?.applyDataTransactionAsync;
 
   useEffect(() => {
+    // SSRM needs the MarketsGrid handle (applyDataTransactionAsync) so ticks
+    // land after snapshot; snapshot itself goes through onSsrmSnapshot → rowData.
     const dataSurfaceReady = useSSRM
-      ? Boolean(applyDataTransactionAsync)
+      ? Boolean(applyDataTransactionAsync) && Boolean(onSsrmSnapshot)
       : Boolean(liveApi);
 
     if (!dataSurfaceReady || !provider || !activeId) {
@@ -183,7 +192,11 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
             'color:#10b981;font-weight:bold', '', rows.length,
           );
         }
-        if (liveApi) {
+        // SSRM: commit book via React rowData (see markets-grid-lab /
+        // stomp-marketsgrid-minimal docs — never setGridOption('rowData') under SSRM).
+        if (useSSRM && onSsrmSnapshot) {
+          onSsrmSnapshot(rows.slice() as TData[]);
+        } else if (liveApi) {
           liveApi.setGridOption('rowData', rows.slice());
         }
         setLoadRowCount(rows.length);
@@ -346,5 +359,5 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveApi, provider, activeId, rowIdFieldKey, onError, dataHubClient, mode, asOfDate, toolbarDate, restartProvider, pauseUpdatesWhenHidden, useSSRM, applyDataTransactionAsync]);
+  }, [liveApi, provider, activeId, rowIdFieldKey, onError, dataHubClient, mode, asOfDate, toolbarDate, restartProvider, pauseUpdatesWhenHidden, useSSRM, applyDataTransactionAsync, onSsrmSnapshot]);
 }

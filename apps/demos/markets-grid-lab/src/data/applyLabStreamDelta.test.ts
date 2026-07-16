@@ -69,6 +69,24 @@ describe('applyLabStreamDelta', () => {
     });
     expect(api.applyTransactionAsync).not.toHaveBeenCalled();
   });
+
+  it('SSRM ticks treat unloaded rows as updates (not adds)', () => {
+    const applyTx = vi.fn();
+    const api = {
+      setGridOption: vi.fn(),
+      getGridOption: vi.fn(() => 'serverSide'),
+      // Viewport only has row a loaded — b would be a false "add" under CSRM split.
+      getRowNode: vi.fn((id: string) => (id === 'a' ? { id: 'a' } : null)),
+      applyTransactionAsync: vi.fn(),
+    };
+    const snapshot = [row('a', 100), row('b', 50)];
+    const incoming = [row('a', 101), row('b', 51)];
+    applyLabStreamDelta(api as never, snapshot, incoming, false, applyTx);
+    expect(applyTx).toHaveBeenCalledWith({
+      add: [],
+      update: incoming,
+    });
+  });
 });
 
 describe('diffRowUpdates', () => {

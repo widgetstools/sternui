@@ -1,6 +1,5 @@
 /**
  * CustomSSRMGrid — AG Grid SSRM over the main-thread RowMirror engine.
- * No Perspective worker. Use `<SSRMGrid>` for Perspective-backed scale.
  */
 import {
   forwardRef,

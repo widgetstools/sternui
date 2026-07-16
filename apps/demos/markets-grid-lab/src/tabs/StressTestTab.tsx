@@ -24,6 +24,9 @@ import { CanvasStressGrid } from './altGrids/CanvasStressGrid';
 /** Lean baseline for isolating scroll cost across engines. */
 const BASELINE_ROWS = 20_000;
 const BASELINE_COLS = 40;
+/** Tall × narrow MarketsGrid CustomSSRM target (scroll isolation, ticks off). */
+const CUSTOM_STRESS_ROWS = 50_000;
+const CUSTOM_STRESS_COLS = 40;
 
 type StressSurface =
   | 'plain-20k40'
@@ -31,15 +34,17 @@ type StressSurface =
   | 'glide-20k40'
   | 'canvas-20k40'
   | 'plain-50k400'
+  | 'markets-50k40'
   | 'markets';
 
 const VARIANTS = [
+  { id: 'markets-50k40', label: 'MarketsGrid SSRM · 50k × 40' },
   { id: 'plain-20k40', label: 'Plain AG Grid · 20k × 40' },
   { id: 'perspective-20k40', label: 'Perspective · 20k × 40' },
   { id: 'glide-20k40', label: 'Glide Data Grid · 20k × 40' },
   { id: 'canvas-20k40', label: 'Canvas / Bryntum stand-in · 20k × 40' },
   { id: 'plain-50k400', label: 'Plain AG Grid · 50k × 400' },
-  { id: 'markets', label: 'MarketsGrid (modules)' },
+  { id: 'markets', label: 'MarketsGrid · 50k × 400 (modules)' },
 ] as const;
 
 /**
@@ -48,7 +53,7 @@ const VARIANTS = [
  */
 export function StressTestTab() {
   const config = STRESS_TEST_FEATURE;
-  const [surface, setSurface] = useState<StressSurface>('perspective-20k40');
+  const [surface, setSurface] = useState<StressSurface>('markets-50k40');
   const { useSSRM, setUseSSRM } = useLabDemoRegistry();
 
   const onProfilesReady = useLabDemoProfiles(
@@ -63,35 +68,53 @@ export function StressTestTab() {
     surface === 'glide-20k40' ||
     surface === 'canvas-20k40';
   const isPlainAg = surface === 'plain-20k40' || surface === 'plain-50k400';
+  const isMarkets50k40 = surface === 'markets-50k40';
+  const isMarkets = surface === 'markets' || isMarkets50k40;
 
-  const stream = useMemo(
-    () => ({
-      rowCount: isBaseline ? BASELINE_ROWS : (config.stream?.rowCount ?? 50_000),
+  const stream = useMemo(() => {
+    if (isBaseline) {
+      return {
+        rowCount: BASELINE_ROWS,
+        updateIntervalMs: config.stream?.updateIntervalMs ?? 200,
+        enableUpdates: false,
+      };
+    }
+    if (isMarkets50k40) {
+      return {
+        rowCount: CUSTOM_STRESS_ROWS,
+        updateIntervalMs: 600,
+        // Scroll isolation — live ticks fight SSRM thumb/horizontal paint.
+        enableUpdates: false,
+      };
+    }
+    return {
+      rowCount: config.stream?.rowCount ?? 50_000,
       updateIntervalMs: config.stream?.updateIntervalMs ?? 200,
-      enableUpdates: isBaseline ? false : (config.stream?.enableUpdates ?? true),
-    }),
-    [config.stream, isBaseline],
-  );
+      enableUpdates: config.stream?.enableUpdates ?? true,
+    };
+  }, [config.stream, isBaseline, isMarkets50k40]);
 
   const providerId = isBaseline
     ? 'mock-positions-stress-20k'
-    : config.providerId;
+    : isMarkets50k40
+      ? 'mock-positions-stress-50k40'
+      : config.providerId;
 
   const { rowData, onReady, tickMs } = useLabRows(
     config.tabId,
     providerId,
     stream,
-    // Alt grids skip onReady so ticks (when enabled) update React rowData.
-    surface === 'markets' ? onProfilesReady : undefined,
+    isMarkets ? onProfilesReady : undefined,
   );
 
-  const columnDefs = useMemo(
-    () =>
-      isBaseline
-        ? buildStressColumnDefs(BASELINE_COLS)
-        : buildStressColumnDefs(STRESS_COL_COUNT),
-    [isBaseline],
-  );
+  const columnDefs = useMemo(() => {
+    if (isBaseline || isMarkets50k40) {
+      return buildStressColumnDefs(
+        isMarkets50k40 ? CUSTOM_STRESS_COLS : BASELINE_COLS,
+      );
+    }
+    return buildStressColumnDefs(STRESS_COL_COUNT);
+  }, [isBaseline, isMarkets50k40]);
   const colDefBase = config.defaultColDef ?? stressDefaultColDef ?? defaultColDef;
 
   const plainDefaultColDef = useMemo(
@@ -117,6 +140,8 @@ export function StressTestTab() {
 
   const subtitle = (() => {
     switch (surface) {
+      case 'markets-50k40':
+        return `MarketsGrid CustomSSRM · ${CUSTOM_STRESS_ROWS.toLocaleString()} × ${CUSTOM_STRESS_COLS} · ticks off · scroll focus`;
       case 'perspective-20k40':
         return `FINOS Perspective viewer · ${BASELINE_ROWS.toLocaleString()} × ${BASELINE_COLS} · ticks off`;
       case 'glide-20k40':
@@ -128,7 +153,7 @@ export function StressTestTab() {
       case 'plain-50k400':
         return `Plain AG Grid 36 CSRM · 50k × 400 · ${tickMs} ms ticks`;
       default:
-        return `${config.subtitle} · ${tickMs} ms tick`;
+        return `${config.subtitle} · ${tickMs} ms tick · CustomSSRMGrid`;
     }
   })();
 
@@ -138,8 +163,9 @@ export function StressTestTab() {
   const onVariantChange = useCallback((id: string) => {
     if (VARIANTS.some((v) => v.id === id)) {
       setSurface(id as StressSurface);
+      if (id === 'markets-50k40') setUseSSRM(true);
     }
-  }, []);
+  }, [setUseSSRM]);
 
   return (
     <TabContainer
@@ -184,34 +210,44 @@ export function StressTestTab() {
               rowHeight={grid.rowHeight ?? 28}
             />
           )}
-          {surface === 'markets' && (
+          {isMarkets && (
             <MarketsGrid
-              key={useSSRM ? 'ssrm' : 'csrm'}
-              gridId={config.gridId}
+              key={`${surface}-${useSSRM ? 'ssrm' : 'csrm'}`}
+              gridId={isMarkets50k40 ? `${config.gridId}-50k40` : config.gridId}
               useSSRM={useSSRM}
               suggestSsrmAbove={suggestAbove}
               onSuggestSsrm={() => setUseSSRM(true)}
               componentName={config.componentName}
               rowData={rowData}
               columnDefs={columnDefs}
-              defaultColDef={colDefBase}
+              defaultColDef={
+                isMarkets50k40
+                  ? {
+                      ...colDefBase,
+                      floatingFilter: false,
+                      enableRowGroup: false,
+                      enablePivot: false,
+                      filter: false,
+                    }
+                  : colDefBase
+              }
               rowIdField="id"
               storage={labStorage}
               onReady={onReady}
-              showProfileSelector={grid.showProfileSelector ?? true}
+              showProfileSelector={isMarkets50k40 ? false : (grid.showProfileSelector ?? true)}
               showSaveButton={grid.showSaveButton ?? true}
               showSettingsButton={grid.showSettingsButton ?? true}
-              showFiltersToolbar={grid.showFiltersToolbar}
-              showFormattingToolbar={grid.showFormattingToolbar}
-              showEditingToolbar={grid.showEditingToolbar}
+              showFiltersToolbar={isMarkets50k40 ? false : grid.showFiltersToolbar}
+              showFormattingToolbar={isMarkets50k40 ? false : grid.showFormattingToolbar}
+              showEditingToolbar={isMarkets50k40 ? false : grid.showEditingToolbar}
               showSmartEditToolbar={grid.showSmartEditToolbar}
               showBulkUpdateToolbar={grid.showBulkUpdateToolbar}
               showEditHistoryToolbar={grid.showEditHistoryToolbar}
-              showVisualExcelExport={grid.showVisualExcelExport}
-              sideBar={grid.sideBar}
+              showVisualExcelExport={isMarkets50k40 ? false : grid.showVisualExcelExport}
+              sideBar={isMarkets50k40 ? false : grid.sideBar}
               statusBar={useSSRM ? undefined : (grid.statusBar ?? LAB_STATUS_BAR)}
               rowHeight={grid.rowHeight}
-              animateRows={grid.animateRows}
+              animateRows={false}
             />
           )}
         </div>

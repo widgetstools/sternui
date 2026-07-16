@@ -159,6 +159,11 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   const containerEventBus = useMemo(() => createMarketsGridContainerEventBus(), []);
   const [gridHandle, setGridHandle] = useState<MarketsGridHandle | null>(null);
+  /** SSRM book from provider snapshot — React `rowData` (lab / STOMP pattern). */
+  const [ssrmSnapshotRows, setSsrmSnapshotRows] = useState<TData[] | null>(null);
+  const onSsrmSnapshot = useCallback((rows: TData[]) => {
+    setSsrmSnapshotRows(rows);
+  }, []);
 
   const appData = useAppDataStore();
   const { client: dataHubClient } = useDataServices();
@@ -506,6 +511,11 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     rowModel: marketsGridProps.rowModel,
   });
 
+  // Drop previous book when the provider/key identity changes (SSRM remount key).
+  useEffect(() => {
+    setSsrmSnapshotRows(null);
+  }, [activeId, rowIdFieldKey]);
+
   // Read the `pauseUpdatesWhenHidden` grid setting from the live platform so
   // the provider-wiring can pause grid repaint on hidden/inactive views.
   // Off by default; reactive — toggling it in Grid Options re-wires below.
@@ -628,6 +638,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     pauseUpdatesWhenHidden,
     useSSRM,
     gridHandle,
+    onSsrmSnapshot: useSSRM ? onSsrmSnapshot : undefined,
   });
 
   /** Cache replay only — `IDataProvider.refresh()`; no upstream reconnect. */
@@ -702,6 +713,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         // eslint-disable-next-line no-console
         console.warn('[refresh]    Grid clear failed:', e);
       }
+    } else if (useSSRM) {
+      setSsrmSnapshotRows([]);
     }
     setIsRefetching(true);
     setLoadRowCount(undefined);
@@ -709,16 +722,16 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     void restartProvider(extra).catch((err: unknown) => {
       (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
     });
-  }, [activeId, provider, selection.mode, asOfDate, toolbarDate, liveApi, restartProvider, onError, activeRow.cfg, appData.store, historicalDateAppDataRef]);
+  }, [activeId, provider, selection.mode, asOfDate, toolbarDate, liveApi, useSSRM, restartProvider, onError, activeRow.cfg, appData.store, historicalDateAppDataRef]);
 
   // Restart the active provider after toolbar date / mode changes.
-  // Wait for `liveApi` so the provider wiring effect registers snapshot
-  // listeners before `restart()` — otherwise the first historical snapshot
-  // can arrive with no `onSnapshotData` handler attached.
+  // Wait for the data surface (CSRM liveApi / SSRM handle) so snapshot
+  // listeners are registered before `restart()`.
   useEffect(() => {
     const pending = pendingToolbarReloadRef.current;
     if (!pending) return;
-    if (!loaded || !provider || !activeId || !liveApi) return;
+    const dataSurfaceReady = useSSRM ? Boolean(gridHandle) : Boolean(liveApi);
+    if (!loaded || !provider || !activeId || !dataSurfaceReady) return;
     // Fire only once the committed state matches the intent that queued this
     // reload. The ref is set synchronously in the handler, but the matching
     // toolbar date / mode / asOfDate updates commit a render later — an
@@ -734,6 +747,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     provider,
     activeId,
     liveApi,
+    gridHandle,
+    useSSRM,
     selection.mode,
     asOfDate,
     toolbarDate,
@@ -926,7 +941,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
           <MarketsGrid<TData>
             {...(marketsGridProps as MarketsGridProps<TData>)}
             key={`${activeId}::${rowIdFieldKey}`}
-            rowData={EMPTY as TData[]}
+            rowData={(useSSRM ? (ssrmSnapshotRows ?? EMPTY) : EMPTY) as TData[]}
             rowIdField={rowIdField}
             columnDefs={columnDefs}
             appData={appDataLookup}

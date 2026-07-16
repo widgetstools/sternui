@@ -4,7 +4,8 @@ type Tx = { add?: unknown[]; update?: unknown[]; remove?: unknown[] };
 
 type ApiLike = {
   getRowNode?: (id: string) => { data?: unknown } | null | undefined;
-  applyTransactionAsync?: (tx: { update?: unknown[] }, callback?: unknown) => unknown;
+  // Parameter types must be *wider* than GridApi so GridPlatform is assignable.
+  applyTransactionAsync?: (tx: { update?: unknown[] }) => unknown;
 };
 
 type PlatformLike = {

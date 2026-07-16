@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import type { Theme } from 'ag-grid-community';
 
-const CustomSSRMGridMock = vi.fn(() => <div data-testid="ssrm-grid" />);
+const CustomSSRMGridMock = vi.fn(() => <div data-testid="custom-ssrm-grid" />);
 
 vi.mock('./ssrmgrid-entry.js', () => ({
   CustomSSRMGrid: (props: unknown) => CustomSSRMGridMock(props),
@@ -11,8 +11,9 @@ vi.mock('./ssrmgrid-entry.js', () => ({
 import { SsrmMarketsGridSurface } from './SsrmMarketsGridSurface.js';
 
 describe('SsrmMarketsGridSurface', () => {
-  it('renders CustomSSRMGrid host with design-system theme', () => {
-    const theme = { id: 'starui' } as unknown as Theme;
+  const theme = { id: 'starui' } as unknown as Theme;
+
+  it('mounts CustomSSRMGrid', () => {
     CustomSSRMGridMock.mockClear();
     const { getByTestId } = render(
       <SsrmMarketsGridSurface
@@ -22,12 +23,28 @@ describe('SsrmMarketsGridSurface', () => {
         theme={theme}
       />,
     );
-    expect(getByTestId('ssrm-grid')).toBeTruthy();
+    expect(getByTestId('custom-ssrm-grid')).toBeTruthy();
     expect(CustomSSRMGridMock).toHaveBeenCalledWith(
       expect.objectContaining({
         theme,
         loadThemeGoogleFonts: false,
       }),
     );
+  });
+
+  it('still mounts CustomSSRMGrid when deprecated ssrmEngine=perspective is passed', () => {
+    CustomSSRMGridMock.mockClear();
+    const { getByTestId, queryByTestId } = render(
+      <SsrmMarketsGridSurface
+        rowData={[]}
+        ssrmEngine="perspective"
+        ssrmExpectedRowCount={50_000}
+        columnDefs={[{ field: 'id' }]}
+        rowIdField="id"
+        theme={theme}
+      />,
+    );
+    expect(getByTestId('custom-ssrm-grid')).toBeTruthy();
+    expect(queryByTestId('perspective-ssrm-grid')).toBeNull();
   });
 });

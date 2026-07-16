@@ -16,7 +16,7 @@ export function UseSsrmToggle() {
         htmlFor="lab-use-ssrm"
         className="cursor-pointer text-[12px] font-normal text-[color:var(--ds-text-secondary)]"
       >
-        Use SSRM (large dataset)
+        Use SSRM
       </Label>
     </div>
   );
