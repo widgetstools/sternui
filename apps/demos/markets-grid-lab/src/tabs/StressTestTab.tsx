@@ -18,8 +18,6 @@ import { STRESS_TEST_FEATURE } from './labFeatureConfigs';
 import { LAB_STATUS_BAR } from './labStatusBar';
 import { PlainStressAgGrid } from './PlainStressAgGrid';
 import { PerspectiveStressGrid } from './altGrids/PerspectiveStressGrid';
-import { GlideStressGrid } from './altGrids/GlideStressGrid';
-import { CanvasStressGrid } from './altGrids/CanvasStressGrid';
 
 /** Lean baseline for isolating scroll cost across engines. */
 const BASELINE_ROWS = 20_000;
@@ -31,8 +29,6 @@ const CUSTOM_STRESS_COLS = 40;
 type StressSurface =
   | 'plain-20k40'
   | 'perspective-20k40'
-  | 'glide-20k40'
-  | 'canvas-20k40'
   | 'plain-50k400'
   | 'markets-50k40'
   | 'markets';
@@ -41,15 +37,13 @@ const VARIANTS = [
   { id: 'markets-50k40', label: 'MarketsGrid SSRM · 50k × 40' },
   { id: 'plain-20k40', label: 'Plain AG Grid · 20k × 40' },
   { id: 'perspective-20k40', label: 'Perspective · 20k × 40' },
-  { id: 'glide-20k40', label: 'Glide Data Grid · 20k × 40' },
-  { id: 'canvas-20k40', label: 'Canvas / Bryntum stand-in · 20k × 40' },
   { id: 'plain-50k400', label: 'Plain AG Grid · 50k × 400' },
   { id: 'markets', label: 'MarketsGrid · 50k × 400 (modules)' },
 ] as const;
 
 /**
- * Stress Test — A/B AG Grid vs Perspective / Glide / canvas (Bryntum-class)
- * on the same mock stream so scroll + long-run cost can be compared.
+ * Stress Test — A/B AG Grid vs Perspective on the same mock stream so
+ * scroll + long-run cost can be compared.
  */
 export function StressTestTab() {
   const config = STRESS_TEST_FEATURE;
@@ -63,10 +57,7 @@ export function StressTestTab() {
   );
 
   const isBaseline =
-    surface === 'plain-20k40' ||
-    surface === 'perspective-20k40' ||
-    surface === 'glide-20k40' ||
-    surface === 'canvas-20k40';
+    surface === 'plain-20k40' || surface === 'perspective-20k40';
   const isPlainAg = surface === 'plain-20k40' || surface === 'plain-50k400';
   const isMarkets50k40 = surface === 'markets-50k40';
   const isMarkets = surface === 'markets' || isMarkets50k40;
@@ -144,10 +135,6 @@ export function StressTestTab() {
         return `MarketsGrid CustomSSRM · ${CUSTOM_STRESS_ROWS.toLocaleString()} × ${CUSTOM_STRESS_COLS} · ticks off · scroll focus`;
       case 'perspective-20k40':
         return `FINOS Perspective viewer · ${BASELINE_ROWS.toLocaleString()} × ${BASELINE_COLS} · ticks off`;
-      case 'glide-20k40':
-        return `Glide Data Grid (canvas cells) · ${BASELINE_ROWS.toLocaleString()} × ${BASELINE_COLS} · ticks off`;
-      case 'canvas-20k40':
-        return `Canvas virtualizer (Bryntum stand-in) · ${BASELINE_ROWS.toLocaleString()} × ${BASELINE_COLS} · ticks off`;
       case 'plain-20k40':
         return `Plain AG Grid 36 CSRM · ${BASELINE_ROWS.toLocaleString()} × ${BASELINE_COLS} · ticks off`;
       case 'plain-50k400':
@@ -183,21 +170,6 @@ export function StressTestTab() {
               key="perspective-20k40"
               rowData={rowData}
               columnDefs={columnDefs}
-            />
-          )}
-          {surface === 'glide-20k40' && (
-            <GlideStressGrid
-              key="glide-20k40"
-              rowData={rowData}
-              columnDefs={columnDefs}
-            />
-          )}
-          {surface === 'canvas-20k40' && (
-            <CanvasStressGrid
-              key="canvas-20k40"
-              rowData={rowData}
-              columnDefs={columnDefs}
-              showBryntumNote
             />
           )}
           {isPlainAg && (
