@@ -2,18 +2,18 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import type { Theme } from 'ag-grid-community';
 
-const SSRMGridMock = vi.fn(() => <div data-testid="ssrm-grid" />);
+const CustomSSRMGridMock = vi.fn(() => <div data-testid="ssrm-grid" />);
 
 vi.mock('./ssrmgrid-entry.js', () => ({
-  SSRMGrid: (props: unknown) => SSRMGridMock(props),
+  CustomSSRMGrid: (props: unknown) => CustomSSRMGridMock(props),
 }));
 
 import { SsrmMarketsGridSurface } from './SsrmMarketsGridSurface.js';
 
 describe('SsrmMarketsGridSurface', () => {
-  it('renders SSRMGrid host with design-system theme', () => {
+  it('renders CustomSSRMGrid host with design-system theme', () => {
     const theme = { id: 'starui' } as unknown as Theme;
-    SSRMGridMock.mockClear();
+    CustomSSRMGridMock.mockClear();
     const { getByTestId } = render(
       <SsrmMarketsGridSurface
         rowData={[{ id: '1' }]}
@@ -23,7 +23,7 @@ describe('SsrmMarketsGridSurface', () => {
       />,
     );
     expect(getByTestId('ssrm-grid')).toBeTruthy();
-    expect(SSRMGridMock).toHaveBeenCalledWith(
+    expect(CustomSSRMGridMock).toHaveBeenCalledWith(
       expect.objectContaining({
         theme,
         loadThemeGoogleFonts: false,

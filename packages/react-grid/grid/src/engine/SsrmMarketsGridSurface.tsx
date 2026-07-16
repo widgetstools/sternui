@@ -1,7 +1,11 @@
 import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
 import type { GridReadyEvent, Theme } from 'ag-grid-community';
 import { buildStreamSafeComponents } from '../widget/buildStreamSafeComponents.js';
-import { SSRMGrid, type SSRMGridHandle, type SSRMColDef } from './ssrmgrid-entry.js';
+import {
+  CustomSSRMGrid,
+  type SSRMGridHandle,
+  type SSRMColDef,
+} from './ssrmgrid-entry.js';
 
 export type SsrmMarketsGridSurfaceProps = {
   rowData: Record<string, unknown>[];
@@ -22,15 +26,16 @@ export type SsrmMarketsGridSurfaceProps = {
   grandTotalRow?: boolean | 'top' | 'bottom' | 'pinnedTop' | 'pinnedBottom';
   groupTotalRow?: 'top' | 'bottom';
   /**
-   * Perspective keep predicate for row-exclusion under SSRM
-   * (`not(excludeExpr)`). Compiled by MarketsGrid from toolbar DSL.
+   * Keep predicate for row-exclusion under SSRM (`not(excludeExpr)`).
+   * Compiled by MarketsGrid from toolbar DSL; evaluated on the custom engine.
    */
   rowKeepExpression?: string;
 };
 
 /**
  * SSRM presentation surface — peer to MarketsGridSurface.
- * Owns design-system chrome passthrough; SSRMGrid owns the Perspective engine.
+ * Owns design-system chrome passthrough; CustomSSRMGrid owns the main-thread
+ * RowMirror engine (no Perspective).
  */
 export const SsrmMarketsGridSurface = forwardRef<
   SSRMGridHandle,
@@ -38,19 +43,30 @@ export const SsrmMarketsGridSurface = forwardRef<
 >(function SsrmMarketsGridSurface(props, ref) {
   const inner = useRef<SSRMGridHandle>(null);
   useImperativeHandle(ref, () => ({
-    applyTransaction: (tx) => inner.current?.applyTransaction(tx),
-    applyTransactionAsync: (tx) => inner.current?.applyTransactionAsync(tx),
+    applyTransaction: (tx) => {
+      inner.current?.applyTransaction(tx);
+    },
+    applyTransactionAsync: (tx) => {
+      inner.current?.applyTransactionAsync(tx);
+    },
     getApi: () => inner.current?.getApi() ?? null,
     getServerSideSelectionState: () =>
       inner.current?.getServerSideSelectionState() ?? null,
-    setServerSideSelectionState: (s) =>
-      inner.current?.setServerSideSelectionState(s),
+    setServerSideSelectionState: (s) => {
+      inner.current?.setServerSideSelectionState(s);
+    },
     chartFilteredData: (opts) =>
       inner.current?.chartFilteredData(opts) ?? Promise.resolve(null),
     countMatching: (filterModel) =>
       inner.current?.countMatching(filterModel) ?? Promise.resolve(0),
     getGroupLeafRows: (opts) =>
       inner.current?.getGroupLeafRows(opts) ?? Promise.resolve([]),
+    queryAll: (opts) =>
+      inner.current?.queryAll(opts) ??
+      Promise.resolve({ rowData: [], rowCount: 0 }),
+    forEachMatching: (cb, opts) =>
+      inner.current?.forEachMatching(cb, opts) ??
+      Promise.resolve({ rowCount: 0 }),
   }));
 
   const streamSafeComponents = useMemo(
@@ -64,7 +80,7 @@ export const SsrmMarketsGridSurface = forwardRef<
 
   return (
     <div style={{ flex: 1, minHeight: 0, width: '100%' }}>
-      <SSRMGrid
+      <CustomSSRMGrid
         ref={inner}
         columnDefs={props.columnDefs}
         rowData={props.rowData}
