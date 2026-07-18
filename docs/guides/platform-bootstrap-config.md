@@ -195,9 +195,11 @@ Do **not** force every OpenFin tool window through `ensurePlatformReady()`. Matc
 | Deferred data | Config first, then `ensurePlatformReady` without blocking shell | Data Provider editor (needs hub for probe/diagnostics) |
 | Full | `ensurePlatformReady` before blotter paint | MarketsGrid / hosted views that subscribe to feeds |
 
-**HashRouter caveat:** route lives in `location.hash` (`#/config-browser`). Warming logic must read the hash; using `pathname` alone incorrectly starts the SharedWorker for every tool window.
+**HashRouter caveat:** route lives in `location.hash` (`#/config-browser`). Warming logic must read the hash; using `pathname` alone incorrectly starts the data SharedWorker for every tool window.
 
-**Catalog sync without Config Browser on the hub:** provider-row writes go to Dexie and `ChangeNotifier` (`marketsui-config-changes`). A blotter window that already ran `wireWorkerCatalogSync` invalidates the worker catalog. If no hub window is open, the next hub boot loads from Dexie.
+**Config SharedWorker (ADR Phase 2):** pass `configWorkerScriptUrl` to `ensureConfigReady` / `ensurePlatformReady` (Vite: `import configWorkerUrl from '@starui/host-data/assets/config-catalog-worker.mjs?url'`). Named `starui-config:{appId}`. P1 tool windows get catalog cache + invalidate without the data hub. Main-thread ConfigManager remains the Dexie CRUD path; `wireConfigWorkerCatalogSync` keeps the Config SW aligned.
+
+**Catalog sync without Config Browser on the data hub:** provider-row writes go to Dexie and `ChangeNotifier` (`marketsui-config-changes`). A blotter window that already ran `wireWorkerCatalogSync` invalidates the data-hub catalog. The Config SW is invalidated via `wireConfigWorkerCatalogSync` when connected.
 
 See [`ADR-optional-data-plane-topology.md`](../ADR-optional-data-plane-topology.md).
 

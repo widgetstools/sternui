@@ -1960,6 +1960,7 @@ function emptyProviderStats(): ProviderStats {
     cacheBytes: 0,
     msgCount: 0,
     msgPerSec: 0,
+    publishCount: 0,
     publishPerSec: 0,
     publishPerMin: 0,
     snapshotFetchMs: null,

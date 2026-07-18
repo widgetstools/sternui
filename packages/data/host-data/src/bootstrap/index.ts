@@ -17,6 +17,7 @@ export {
   ensurePlatformReady,
   type ConfigReadyBundle,
   type EnsurePlatformReadyOpts,
+  type EnsureConfigReadyOpts,
 } from './ensurePlatformReady.js';
 export {
   markConfigReady,

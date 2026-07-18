@@ -16,6 +16,7 @@ import {
   setConfigManager,
 } from '@starui/openfin-platform/config';
 import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
+import configWorkerAssetUrl from '@starui/host-data/assets/config-catalog-worker.mjs?url';
 
 export interface PlatformBootstrapResult {
   config: PlatformBootstrapConfig;
@@ -26,6 +27,7 @@ export interface PlatformBootstrapResult {
 export interface ConfigBootstrapResult {
   config: PlatformBootstrapConfig;
   configManager: ConfigReadyBundle['configManager'];
+  configClient?: ConfigReadyBundle['configClient'];
 }
 
 const PlatformBootstrapContext = createContext<PlatformBootstrapResult | null>(null);
@@ -63,11 +65,10 @@ let configBootstrapPromise: Promise<ConfigBootstrapResult> | undefined;
 let platformBootstrapPromise: Promise<PlatformBootstrapResult> | undefined;
 
 /**
- * Config-only bootstrap: manifest/app-config identity + ConfigManager.
- * Windows that never touch the data plane (workspace setup, small fin
- * dialogs) suspend on this instead of {@link initPlatformBootstrap},
- * skipping the SharedWorker hub connect + AppData snapshot + catalog
- * preload that used to gate every route.
+ * Config-only bootstrap: manifest/app-config identity + ConfigManager +
+ * Config SharedWorker (`starui-config:{appId}`, ADR Phase 2). Windows that
+ * never touch the data plane suspend on this instead of
+ * {@link initPlatformBootstrap}.
  *
  * Browser: `/app-config.json` (seedConfigUrl only). OpenFin: manifest
  * `customSettings` (prefer pinned `appId` / `userId`; else seed identity).
@@ -78,9 +79,11 @@ export function initConfigBootstrap(): Promise<ConfigBootstrapResult> {
       const config = isOpenFinRuntime()
         ? await resolvePlatformBootstrapFromManifest()
         : await resolvePlatformBootstrapFromJson('/app-config.json');
-      const { configManager } = await ensureConfigReady(config);
+      const { configManager, configClient } = await ensureConfigReady(config, {
+        configWorkerScriptUrl: configWorkerAssetUrl,
+      });
       setConfigManager(configManager);
-      return { config, configManager };
+      return { config, configManager, configClient };
     })();
   }
   return configBootstrapPromise;
@@ -97,7 +100,10 @@ export function initPlatformBootstrap(): Promise<PlatformBootstrapResult> {
   if (!platformBootstrapPromise) {
     platformBootstrapPromise = (async () => {
       const { config } = await initConfigBootstrap();
-      const platform = await ensurePlatformReady(config, { workerScriptUrl: workerAssetUrl });
+      const platform = await ensurePlatformReady(config, {
+        workerScriptUrl: workerAssetUrl,
+        configWorkerScriptUrl: configWorkerAssetUrl,
+      });
       setConfigManager(platform.configManager);
       return { config, platform };
     })();

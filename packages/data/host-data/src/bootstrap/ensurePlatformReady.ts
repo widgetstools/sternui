@@ -12,6 +12,11 @@ import {
 } from '../hub/ensureDataServicesHub.js';
 import { wireWorkerCatalogSync } from '../hub/wireWorkerCatalogSync.js';
 import {
+  createConfigClient,
+  wireConfigWorkerCatalogSync,
+  type ConfigClient,
+} from '../runtime/configWorker/index.js';
+import {
   _resetPlatformWarmSessionForTests,
   isPlatformWarm,
   markPlatformWarm,
@@ -24,8 +29,19 @@ import {
 
 export interface EnsurePlatformReadyOpts {
   workerScriptUrl: string;
+  /**
+   * Optional Config SharedWorker asset URL (ADR Phase 2). When set,
+   * `ensureConfigReady` / platform bootstrap also connect
+   * `starui-config:{appId}` and wire catalog invalidate to it.
+   */
+  configWorkerScriptUrl?: string;
   /** App-authored hook registry keyed by stable ids from app-config.json. */
   appDataBootstrapHooks?: AppDataBootstrapHookRegistry;
+}
+
+export interface EnsureConfigReadyOpts {
+  /** Spawn/connect `starui-config:{appId}` and wire invalidate (ADR Phase 2). */
+  configWorkerScriptUrl?: string;
 }
 
 /** Result of {@link ensureConfigReady} — ConfigManager-only bootstrap. */
@@ -33,6 +49,8 @@ export interface ConfigReadyBundle {
   configManager: ConfigManager;
   /** True when seeding was skipped because a prior window already ran full bootstrap. */
   attachMode: boolean;
+  /** Present when {@link EnsureConfigReadyOpts.configWorkerScriptUrl} was provided. */
+  configClient?: ConfigClient;
 }
 
 const configReadyPromises = new Map<string, Promise<ConfigReadyBundle>>();
@@ -67,15 +85,18 @@ function resolveAttachMode(config: PlatformBootstrapConfig): boolean {
 
 /**
  * Lightweight bootstrap: resolve attach mode, init the window's ConfigManager.
- * Does NOT touch the SharedWorker hub — windows that only read/write config
- * rows (tool windows, editors) suspend on this instead of the full
- * {@link ensurePlatformReady}, skipping hub connect + AppData snapshot +
- * catalog preload. Idempotent per `appId`; {@link ensurePlatformReady} reuses
- * the same ConfigManager, so a window can upgrade from config-only to full
- * without a second IndexedDB connection.
+ * Does NOT touch the data-services SharedWorker hub — windows that only
+ * read/write config rows (tool windows, editors) suspend on this instead of
+ * the full {@link ensurePlatformReady}.
+ *
+ * When {@link EnsureConfigReadyOpts.configWorkerScriptUrl} is set, also
+ * connects the Config SharedWorker (`starui-config:{appId}`) and wires
+ * catalog invalidate (ADR Phase 2 / P1 profile). Idempotent per `appId`;
+ * {@link ensurePlatformReady} reuses the same ConfigManager.
  */
 export function ensureConfigReady(
   config: PlatformBootstrapConfig,
+  opts: EnsureConfigReadyOpts = {},
 ): Promise<ConfigReadyBundle> {
   try {
     validateOrThrow(config);
@@ -85,9 +106,14 @@ export function ensureConfigReady(
   }
 
   const existing = configReadyPromises.get(config.appId);
-  if (existing) return existing;
+  if (existing) {
+    // Upgrade path: first caller omitted config worker URL; a later caller
+    // wants it — still return the same promise (worker warm is best-effort
+    // fire-and-forget below on first creation only).
+    return existing;
+  }
 
-  const pending = bootstrapConfigOnce(config);
+  const pending = bootstrapConfigOnce(config, opts);
   configReadyPromises.set(config.appId, pending);
   pending.catch(() => {
     if (configReadyPromises.get(config.appId) === pending) {
@@ -100,6 +126,7 @@ export function ensureConfigReady(
 
 async function bootstrapConfigOnce(
   config: PlatformBootstrapConfig,
+  opts: EnsureConfigReadyOpts,
 ): Promise<ConfigReadyBundle> {
   const attachMode = resolveAttachMode(config);
   const configManager = createConfigManager({
@@ -111,7 +138,27 @@ async function bootstrapConfigOnce(
   });
   await configManager.init(attachMode ? { mode: 'attach' } : undefined);
   markConfigReady();
-  return { configManager, attachMode };
+
+  let configClient: ConfigClient | undefined;
+  if (opts.configWorkerScriptUrl) {
+    try {
+      configClient = await createConfigClient({
+        appId: config.appId,
+        userId: config.userId,
+        workerScriptUrl: opts.configWorkerScriptUrl,
+        seedConfigUrl: config.seedConfigUrl,
+        seedConfigReload: config.seedConfigReload,
+        configServiceRestUrl: resolveConfigServiceRestUrl(config),
+      });
+      wireConfigWorkerCatalogSync(configManager, configClient);
+    } catch (err) {
+      // Config SW is optional for CRUD — main-thread ConfigManager still works.
+      // eslint-disable-next-line no-console
+      console.warn('[ensureConfigReady] Config SharedWorker connect failed', err);
+    }
+  }
+
+  return { configManager, attachMode, configClient };
 }
 
 /**
@@ -148,7 +195,9 @@ async function bootstrapPlatformOnce(
   // one port per window, no throwaway probe connection.
   warmHubConnection({ ...config, workerScriptUrl: opts.workerScriptUrl });
 
-  const { configManager } = await ensureConfigReady(config);
+  const { configManager } = await ensureConfigReady(config, {
+    configWorkerScriptUrl: opts.configWorkerScriptUrl,
+  });
 
   const bundle = await ensureDataServicesHub({
     ...config,

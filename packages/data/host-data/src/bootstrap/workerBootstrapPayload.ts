@@ -69,6 +69,19 @@ export function appNameFromWorkerName(workerName: string): string | null {
   return appName.length > 0 ? appName : null;
 }
 
+/** Parse `appId` from Config SharedWorker `name` (`starui-config:${appId}`). */
+export function appIdFromConfigWorkerName(workerName: string): string | null {
+  const prefix = 'starui-config:';
+  if (!workerName.startsWith(prefix)) return null;
+  const appId = workerName.slice(prefix.length).trim();
+  return appId.length > 0 ? appId : null;
+}
+
+/** Stable SharedWorker name for the Config catalog service (ADR Phase 2). */
+export function configSharedWorkerName(appId: string): string {
+  return `starui-config:${appId}`;
+}
+
 /** Test-only — clears all worker bootstrap payloads. */
 export function _resetWorkerBootstrapPayloadForTests(): void {
   if (typeof localStorage === 'undefined' && typeof sessionStorage === 'undefined') {

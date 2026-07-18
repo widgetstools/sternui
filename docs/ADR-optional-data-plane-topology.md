@@ -196,7 +196,7 @@ Today main + worker both open Dexie. Under this ADR:
 |-------|------|----------------|
 | **0** | Keep monolith; QoS (provider `throttleMs` defaults, prioritize attach/replay over live, Config Browser off FullGate) | **Done on this branch:** star-demo ConfigGate / DeferredDataGate + hash-aware warm; STOMP default `throttleMs` 50ms; hub defers post-ready live fan-out during late-join/refresh replay and (in production) schedules live fan-out on a macrotask so attach can interleave. |
 | **1** | Formalize AppData + Config as service boundaries inside the hub (RPC-shaped APIs, no behavior change) | **Done on this branch:** `AppDataService` + `ConfigCatalogService` façades; hub/providers use `appData.lookup` / catalog service only; wire protocol unchanged. |
-| **2** | Extract **Config** SharedWorker + `createConfigClient`; retarget invalidate | P1 apps run with Config SW only |
+| **2** | Extract **Config** SharedWorker + `createConfigClient`; retarget invalidate | **Done on this branch:** `starui-config:{appId}` worker + `createConfigClient` / `wireConfigWorkerCatalogSync`; `ensureConfigReady({ configWorkerScriptUrl })`; star-demo ConfigGate warms Config SW. Data hub still keeps a local catalog cache (invalidate dual-path); full single-writer cutover is a follow-up. |
 | **3** | Extract **AppData** SharedWorker + mirror attach | Template resolution works across process boundary |
 | **4** | Extract **per-provider** SharedWorkers + façade; shrink/remove monolith hub | Hot provider cannot starve Config; P0 still zero SW |
 | **5** | (Optional) derived-provider ADR if product needs row-level cross-provider access | Explicit API; not ambient |

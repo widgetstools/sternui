@@ -63,6 +63,7 @@ export type {
   FetchLike,
   ConfigReadyBundle,
   EnsurePlatformReadyOpts,
+  EnsureConfigReadyOpts,
   EnsureHubOpts,
   ResolvedDataServicesHubBundle,
   SnapshotReassemblerCallbacks,
@@ -101,3 +102,22 @@ export {
 } from './services/index.js';
 
 export { createDataPort } from './createDataPort.js';
+
+// Config SharedWorker (ADR Phase 2) — P1 apps / catalog without data hub.
+export {
+  createConfigClient,
+  createConfigWorker,
+  CONFIG_WORKER_ASSET,
+  ConfigClient,
+  wireConfigWorkerCatalogSync,
+  ConfigCatalogHub,
+  installConfigCatalogHub,
+  type CreateConfigClientOpts,
+  type CreateConfigWorkerOpts,
+  type ConfigCatalogHubOpts,
+  type CatalogChangedHandler,
+} from './runtime/configWorker/index.js';
+export {
+  configSharedWorkerName,
+  appIdFromConfigWorkerName,
+} from './bootstrap/workerBootstrapPayload.js';
