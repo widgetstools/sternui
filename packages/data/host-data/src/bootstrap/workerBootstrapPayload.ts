@@ -82,6 +82,19 @@ export function configSharedWorkerName(appId: string): string {
   return `starui-config:${appId}`;
 }
 
+/** Parse `appId` from AppData SharedWorker `name` (`starui-appdata:${appId}`). */
+export function appIdFromAppDataWorkerName(workerName: string): string | null {
+  const prefix = 'starui-appdata:';
+  if (!workerName.startsWith(prefix)) return null;
+  const appId = workerName.slice(prefix.length).trim();
+  return appId.length > 0 ? appId : null;
+}
+
+/** Stable SharedWorker name for the AppData KV service (ADR Phase 3). */
+export function appDataSharedWorkerName(appId: string): string {
+  return `starui-appdata:${appId}`;
+}
+
 /** Test-only — clears all worker bootstrap payloads. */
 export function _resetWorkerBootstrapPayloadForTests(): void {
   if (typeof localStorage === 'undefined' && typeof sessionStorage === 'undefined') {

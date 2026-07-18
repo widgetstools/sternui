@@ -17,6 +17,10 @@ import {
   type ConfigClient,
 } from '../runtime/configWorker/index.js';
 import {
+  createAppDataClient,
+  type AppDataClient,
+} from '../runtime/appDataWorker/index.js';
+import {
   _resetPlatformWarmSessionForTests,
   isPlatformWarm,
   markPlatformWarm,
@@ -35,6 +39,14 @@ export interface EnsurePlatformReadyOpts {
    * `starui-config:{appId}` and wire catalog invalidate to it.
    */
   configWorkerScriptUrl?: string;
+  /**
+   * Optional AppData SharedWorker asset URL (ADR Phase 3). When set,
+   * `ensureConfigReady` / platform bootstrap also connect
+   * `starui-appdata:{appId}` (mirror attach + lookup RPC). Data hub
+   * still keeps in-process AppData for streaming providers (dual until
+   * Phase 4).
+   */
+  appDataWorkerScriptUrl?: string;
   /** App-authored hook registry keyed by stable ids from app-config.json. */
   appDataBootstrapHooks?: AppDataBootstrapHookRegistry;
 }
@@ -42,6 +54,8 @@ export interface EnsurePlatformReadyOpts {
 export interface EnsureConfigReadyOpts {
   /** Spawn/connect `starui-config:{appId}` and wire invalidate (ADR Phase 2). */
   configWorkerScriptUrl?: string;
+  /** Spawn/connect `starui-appdata:{appId}` (ADR Phase 3). */
+  appDataWorkerScriptUrl?: string;
 }
 
 /** Result of {@link ensureConfigReady} — ConfigManager-only bootstrap. */
@@ -51,6 +65,8 @@ export interface ConfigReadyBundle {
   attachMode: boolean;
   /** Present when {@link EnsureConfigReadyOpts.configWorkerScriptUrl} was provided. */
   configClient?: ConfigClient;
+  /** Present when {@link EnsureConfigReadyOpts.appDataWorkerScriptUrl} was provided. */
+  appDataClient?: AppDataClient;
 }
 
 const configReadyPromises = new Map<string, Promise<ConfigReadyBundle>>();
@@ -91,8 +107,11 @@ function resolveAttachMode(config: PlatformBootstrapConfig): boolean {
  *
  * When {@link EnsureConfigReadyOpts.configWorkerScriptUrl} is set, also
  * connects the Config SharedWorker (`starui-config:{appId}`) and wires
- * catalog invalidate (ADR Phase 2 / P1 profile). Idempotent per `appId`;
- * {@link ensurePlatformReady} reuses the same ConfigManager.
+ * catalog invalidate (ADR Phase 2 / P1 profile). When
+ * {@link EnsureConfigReadyOpts.appDataWorkerScriptUrl} is set, also
+ * connects the AppData SharedWorker (`starui-appdata:{appId}`, ADR Phase 3).
+ * Idempotent per `appId`; {@link ensurePlatformReady} reuses the same
+ * ConfigManager.
  */
 export function ensureConfigReady(
   config: PlatformBootstrapConfig,
@@ -158,7 +177,25 @@ async function bootstrapConfigOnce(
     }
   }
 
-  return { configManager, attachMode, configClient };
+  let appDataClient: AppDataClient | undefined;
+  if (opts.appDataWorkerScriptUrl) {
+    try {
+      appDataClient = await createAppDataClient({
+        appId: config.appId,
+        userId: config.userId,
+        workerScriptUrl: opts.appDataWorkerScriptUrl,
+        seedConfigUrl: config.seedConfigUrl,
+        seedConfigReload: config.seedConfigReload,
+        configServiceRestUrl: resolveConfigServiceRestUrl(config),
+      });
+    } catch (err) {
+      // AppData SW is optional until Phase 4 providers depend on it.
+      // eslint-disable-next-line no-console
+      console.warn('[ensureConfigReady] AppData SharedWorker connect failed', err);
+    }
+  }
+
+  return { configManager, attachMode, configClient, appDataClient };
 }
 
 /**
@@ -197,6 +234,7 @@ async function bootstrapPlatformOnce(
 
   const { configManager } = await ensureConfigReady(config, {
     configWorkerScriptUrl: opts.configWorkerScriptUrl,
+    appDataWorkerScriptUrl: opts.appDataWorkerScriptUrl,
   });
 
   const bundle = await ensureDataServicesHub({

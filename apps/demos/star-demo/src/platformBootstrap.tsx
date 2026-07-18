@@ -17,6 +17,7 @@ import {
 } from '@starui/openfin-platform/config';
 import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
 import configWorkerAssetUrl from '@starui/host-data/assets/config-catalog-worker.mjs?url';
+import appDataWorkerAssetUrl from '@starui/host-data/assets/appdata-worker.mjs?url';
 
 export interface PlatformBootstrapResult {
   config: PlatformBootstrapConfig;
@@ -28,6 +29,7 @@ export interface ConfigBootstrapResult {
   config: PlatformBootstrapConfig;
   configManager: ConfigReadyBundle['configManager'];
   configClient?: ConfigReadyBundle['configClient'];
+  appDataClient?: ConfigReadyBundle['appDataClient'];
 }
 
 const PlatformBootstrapContext = createContext<PlatformBootstrapResult | null>(null);
@@ -66,7 +68,8 @@ let platformBootstrapPromise: Promise<PlatformBootstrapResult> | undefined;
 
 /**
  * Config-only bootstrap: manifest/app-config identity + ConfigManager +
- * Config SharedWorker (`starui-config:{appId}`, ADR Phase 2). Windows that
+ * Config SharedWorker (`starui-config:{appId}`, ADR Phase 2) + AppData
+ * SharedWorker (`starui-appdata:{appId}`, ADR Phase 3). Windows that
  * never touch the data plane suspend on this instead of
  * {@link initPlatformBootstrap}.
  *
@@ -79,11 +82,12 @@ export function initConfigBootstrap(): Promise<ConfigBootstrapResult> {
       const config = isOpenFinRuntime()
         ? await resolvePlatformBootstrapFromManifest()
         : await resolvePlatformBootstrapFromJson('/app-config.json');
-      const { configManager, configClient } = await ensureConfigReady(config, {
+      const { configManager, configClient, appDataClient } = await ensureConfigReady(config, {
         configWorkerScriptUrl: configWorkerAssetUrl,
+        appDataWorkerScriptUrl: appDataWorkerAssetUrl,
       });
       setConfigManager(configManager);
-      return { config, configManager, configClient };
+      return { config, configManager, configClient, appDataClient };
     })();
   }
   return configBootstrapPromise;
@@ -103,6 +107,7 @@ export function initPlatformBootstrap(): Promise<PlatformBootstrapResult> {
       const platform = await ensurePlatformReady(config, {
         workerScriptUrl: workerAssetUrl,
         configWorkerScriptUrl: configWorkerAssetUrl,
+        appDataWorkerScriptUrl: appDataWorkerAssetUrl,
       });
       setConfigManager(platform.configManager);
       return { config, platform };

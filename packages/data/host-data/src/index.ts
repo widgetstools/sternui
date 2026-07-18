@@ -120,4 +120,19 @@ export {
 export {
   configSharedWorkerName,
   appIdFromConfigWorkerName,
+  appDataSharedWorkerName,
+  appIdFromAppDataWorkerName,
 } from './bootstrap/workerBootstrapPayload.js';
+
+// AppData SharedWorker (ADR Phase 3) — KV / template lookup without data hub.
+export {
+  createAppDataClient,
+  createAppDataWorker,
+  APPDATA_WORKER_ASSET,
+  AppDataClient,
+  AppDataHub,
+  installAppDataHub,
+  type CreateAppDataClientOpts,
+  type CreateAppDataWorkerOpts,
+  type AppDataHubOpts,
+} from './runtime/appDataWorker/index.js';

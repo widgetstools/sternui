@@ -22,6 +22,7 @@ await esbuild.build({
     path.join(pkgRoot, 'src/runtime/worker/defaultEntry.ts'),
     path.join(pkgRoot, 'src/runtime/worker/fanOutWorkerEntry.ts'),
     path.join(pkgRoot, 'src/runtime/configWorker/configWorkerEntry.ts'),
+    path.join(pkgRoot, 'src/runtime/appDataWorker/appDataWorkerEntry.ts'),
   ],
   outdir: outDir,
   entryNames: '[name]',
@@ -45,6 +46,7 @@ const RENAMES = [
   ['defaultEntry.js', 'data-services-worker.mjs'],
   ['fanOutWorkerEntry.js', 'data-services-fanout-worker.mjs'],
   ['configWorkerEntry.js', 'config-catalog-worker.mjs'],
+  ['appDataWorkerEntry.js', 'appdata-worker.mjs'],
 ];
 
 for (const [srcName, destName] of RENAMES) {

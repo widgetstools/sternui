@@ -199,6 +199,8 @@ Do **not** force every OpenFin tool window through `ensurePlatformReady()`. Matc
 
 **Config SharedWorker (ADR Phase 2):** pass `configWorkerScriptUrl` to `ensureConfigReady` / `ensurePlatformReady` (Vite: `import configWorkerUrl from '@starui/host-data/assets/config-catalog-worker.mjs?url'`). Named `starui-config:{appId}`. P1 tool windows get catalog cache + invalidate without the data hub. Main-thread ConfigManager remains the Dexie CRUD path; `wireConfigWorkerCatalogSync` keeps the Config SW aligned.
 
+**AppData SharedWorker (ADR Phase 3):** pass `appDataWorkerScriptUrl` to `ensureConfigReady` / `ensurePlatformReady` (Vite: `import appDataWorkerUrl from '@starui/host-data/assets/appdata-worker.mjs?url'`). Named `starui-appdata:{appId}`. Reuses the existing `appdata-*` protocol + `AppDataMirror`; adds `appdata-lookup` for cross-process template resolution. Data hub still owns in-process AppData for streaming providers until Phase 4.
+
 **Catalog sync without Config Browser on the data hub:** provider-row writes go to Dexie and `ChangeNotifier` (`marketsui-config-changes`). A blotter window that already ran `wireWorkerCatalogSync` invalidates the data-hub catalog. The Config SW is invalidated via `wireConfigWorkerCatalogSync` when connected.
 
 See [`ADR-optional-data-plane-topology.md`](../ADR-optional-data-plane-topology.md).

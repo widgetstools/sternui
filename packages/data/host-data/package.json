@@ -29,7 +29,8 @@
     },
     "./assets/data-services-worker.mjs": "./dist/assets/data-services-worker.mjs",
     "./assets/data-services-fanout-worker.mjs": "./dist/assets/data-services-fanout-worker.mjs",
-    "./assets/config-catalog-worker.mjs": "./dist/assets/config-catalog-worker.mjs"
+    "./assets/config-catalog-worker.mjs": "./dist/assets/config-catalog-worker.mjs",
+    "./assets/appdata-worker.mjs": "./dist/assets/appdata-worker.mjs"
   },
   "files": [
     "dist"
