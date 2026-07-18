@@ -135,7 +135,7 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
       this.resolvedConfig = row.config;
     }
 
-    const handle = await this.openSubscribe(this.inlineCfg);
+    const handle = await this.openSubscribe(this.inlineCfg ?? this.resolvedConfig ?? undefined);
     this.wireHandle(handle);
     this.handle = handle;
     await handle.snapshot;
@@ -167,7 +167,7 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
     }
 
     const handle = await this.openSubscribe(
-      this.inlineCfg,
+      this.inlineCfg ?? this.resolvedConfig ?? undefined,
       extra ? { extra } : {},
     );
     this.wireHandle(handle);

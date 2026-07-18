@@ -15,6 +15,10 @@ export interface CreateProviderWorkerOpts {
   configServiceRestUrl?: string;
   seedConfigUrl?: string;
   seedConfigReload?: 'empty-only' | 'when-changed';
+  /** Forwarded into bootstrap payload for provider-worker AppData bridge. */
+  appDataWorkerScriptUrl?: string;
+  /** Forwarded into bootstrap payload for provider-worker Config bridge. */
+  configWorkerScriptUrl?: string;
 }
 
 export const PROVIDER_WORKER_ASSET = '@wellsfargo-starui/host-data/assets/provider-worker.mjs';
@@ -41,6 +45,12 @@ export function createProviderWorker(
     seedConfigUrl: opts.seedConfigUrl,
     seedConfigReload: opts.seedConfigReload,
     configServiceRestUrl: opts.configServiceRestUrl,
+    appDataWorkerScriptUrl: opts.appDataWorkerScriptUrl
+      ? resolveWorkerScriptUrl(opts.appDataWorkerScriptUrl)
+      : undefined,
+    configWorkerScriptUrl: opts.configWorkerScriptUrl
+      ? resolveWorkerScriptUrl(opts.configWorkerScriptUrl)
+      : undefined,
   };
   writeWorkerBootstrapPayload(opts.appId, payload);
 

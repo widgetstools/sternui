@@ -9,7 +9,7 @@
  * -------------------------------------
  * Phase 0 — Split bootstrap APIs:
  *   • `initConfigBootstrap` → ConfigManager only (P1 tool windows).
- *   • `initPlatformBootstrap` → config + monolith `mkt-data-services` hub (P2 blotters).
+ *   • `initPlatformBootstrap` → config + hub (+ optional provider SWs) for P2.
  *   Routes pick a gate in `main.tsx` so Config Browser never awaits FullGate.
  *
  * Phase 2 — Config SharedWorker (`starui-config:{appId}`):
@@ -19,15 +19,15 @@
  *
  * Phase 3 — AppData SharedWorker (`starui-appdata:{appId}`):
  *   Pass `appDataWorkerScriptUrl` so named KV / template bags warm without
- *   requiring a streaming provider subscription. The monolith hub still keeps
- *   in-process AppData for live providers until Phase 4 cutover.
+ *   requiring a streaming provider subscription.
  *
- * Phase 4 — Per-provider workers (`starui-provider:{appId}:{id}`):
- *   Not wired here yet. Demos still subscribe through the monolith hub via
- *   `DataHubProvider`. Opt-in later with `ProviderClientAdapter({ providerWorker })`.
+ * Phase 4d — Per-provider workers (`starui-provider:{appId}:{id}`):
+ *   Pass `providerWorkerScriptUrl` so blotter `useDataProvider` / `getProvider`
+ *   subscribe on dedicated workers. The monolith hub remains for catalog RPC +
+ *   AppData mirror + hub inspector; live upstreams move off that thread.
  *
- * Dual-run note: Config SW + AppData SW are warmed alongside the data hub.
- * That is intentional during migration — single-writer cutover is a follow-up.
+ * Dual-run note: Config SW + AppData SW + monolith hub still coexist for
+ * catalog/AppData UI; provider SWs are the streaming cutover.
  */
 
 import {
@@ -48,12 +48,14 @@ import {
   setConfigManager,
 } from '@wellsfargo-starui/openfin-platform/config';
 
-/** Monolith data hub (streaming providers + fan-out) — still required for P2 blotters. */
+/** Monolith data hub — catalog + AppData mirror (+ legacy multi-provider path). */
 import workerAssetUrl from '@wellsfargo-starui/host-data/assets/data-services-worker.mjs?url';
-/** ADR Phase 2 — catalog authority worker (optional for P1; warmed here for all config boots). */
+/** ADR Phase 2 — catalog authority worker. */
 import configWorkerAssetUrl from '@wellsfargo-starui/host-data/assets/config-catalog-worker.mjs?url';
-/** ADR Phase 3 — AppData KV worker (template / session bags without the data hub). */
+/** ADR Phase 3 — AppData KV worker. */
 import appDataWorkerAssetUrl from '@wellsfargo-starui/host-data/assets/appdata-worker.mjs?url';
+/** ADR Phase 4d — one SharedWorker per streaming provider id. */
+import providerWorkerAssetUrl from '@wellsfargo-starui/host-data/assets/provider-worker.mjs?url';
 
 export interface PlatformBootstrapResult {
   config: PlatformBootstrapConfig;
@@ -114,7 +116,7 @@ let platformBootstrapPromise: Promise<PlatformBootstrapResult> | undefined;
  *   • main-thread ConfigManager (Dexie / REST)
  *   • `starui-config:{appId}` (Phase 2)
  *   • `starui-appdata:{appId}` (Phase 3)
- * Does **not** spawn `mkt-data-services:{appId}`.
+ * Does **not** spawn `mkt-data-services:{appId}` or provider workers.
  *
  * Browser: `/app-config.json`. OpenFin: manifest `customSettings`.
  */
@@ -124,8 +126,6 @@ export function initConfigBootstrap(): Promise<ConfigBootstrapResult> {
       const config = isOpenFinRuntime()
         ? await resolvePlatformBootstrapFromManifest()
         : await resolvePlatformBootstrapFromJson('/app-config.json');
-      // Worker script URLs are the ADR Phase 2–3 opt-in. Omitting them keeps
-      // ConfigManager-only behaviour (legacy); star-demo always passes both.
       const { configManager, configClient, appDataClient } = await ensureConfigReady(config, {
         configWorkerScriptUrl: configWorkerAssetUrl,
         appDataWorkerScriptUrl: appDataWorkerAssetUrl,
@@ -140,13 +140,9 @@ export function initConfigBootstrap(): Promise<ConfigBootstrapResult> {
 /**
  * P2 profile — full hosted blotter bootstrap.
  *
- * Reuses ConfigManager from {@link initConfigBootstrap} (no second IndexedDB
- * connection when upgrading ConfigGate → FullGate). Also re-passes Config /
- * AppData worker URLs so Phase 2–3 workers stay warm when a window opens
- * straight into a blotter route.
- *
- * Still connects the monolith data hub (`workerScriptUrl`). Per-provider
- * SharedWorkers (Phase 4) are not the demo default yet.
+ * Reuses ConfigManager from {@link initConfigBootstrap}. Connects the monolith
+ * hub for catalog/AppData mirror, and enables per-provider SharedWorkers for
+ * live subscribe (`providerWorkerScriptUrl` → `useDataProvider` demux).
  */
 export function initPlatformBootstrap(): Promise<PlatformBootstrapResult> {
   if (!platformBootstrapPromise) {
@@ -156,6 +152,7 @@ export function initPlatformBootstrap(): Promise<PlatformBootstrapResult> {
         workerScriptUrl: workerAssetUrl,
         configWorkerScriptUrl: configWorkerAssetUrl,
         appDataWorkerScriptUrl: appDataWorkerAssetUrl,
+        providerWorkerScriptUrl: providerWorkerAssetUrl,
       });
       setConfigManager(platform.configManager);
       return { config, platform };

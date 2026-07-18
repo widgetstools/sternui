@@ -83,7 +83,12 @@ function DataHubProviderInner({
   const showInspector = hubInspector ?? defaultHubInspectorEnabled();
 
   return (
-    <DataServicesProvider services={services} mode={mode} userId={effectiveUserId}>
+    <DataServicesProvider
+      services={services}
+      mode={mode}
+      userId={effectiveUserId}
+      providerWorkerRouting={platform.providerWorkerRouting}
+    >
       {showInspector ? <HubInspectorHost /> : null}
       {children}
     </DataServicesProvider>

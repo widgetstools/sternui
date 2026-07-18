@@ -15,7 +15,7 @@ import {
   DataProviderConfigStore,
   type DataServices,
 } from '@wellsfargo-starui/host-data/runtime';
-import { DEV_PLATFORM_BOOTSTRAP } from '@wellsfargo-starui/host-data';
+import { DEV_PLATFORM_BOOTSTRAP, type ProviderWorkerRoutingOpts } from '@wellsfargo-starui/host-data';
 import { LOGGED_IN_USER_ID } from '@wellsfargo-starui/types';
 import type { ConfigManager } from '@wellsfargo-starui/host-config';
 
@@ -33,6 +33,11 @@ export interface ContextValue {
   client: SharedWorkerDataServicesClient;
   appData: AppDataMirror;
   configStore: DataProviderConfigStore;
+  /**
+   * When set (ADR Phase 4d), `useDataProvider` routes subscribe to
+   * per-provider SharedWorkers via ProviderClientAdapter.
+   */
+  providerWorkerRouting?: ProviderWorkerRoutingOpts;
 }
 
 const DataServicesContext = createContext<ContextValue | null>(null);
@@ -61,6 +66,8 @@ export interface DataServicesProviderProps {
   userId?: string;
   /** Deployment app id — defaults to `services.configManager.getAppId()`. */
   appId?: string;
+  /** ADR Phase 4d — per-provider SharedWorker routing for `useDataProvider`. */
+  providerWorkerRouting?: ContextValue['providerWorkerRouting'];
   children?: ReactNode;
 }
 
@@ -69,6 +76,7 @@ export function DataServicesProvider({
   mode = 'lazy',
   userId,
   appId,
+  providerWorkerRouting,
   children,
 }: DataServicesProviderProps): ReactNode {
   if (mode === 'eager') use(services.ready);
@@ -83,7 +91,8 @@ export function DataServicesProvider({
       services.configManager,
       (providerId) => services.client.invalidateConfig(providerId),
     ),
-  }), [services]);
+    providerWorkerRouting,
+  }), [services, providerWorkerRouting]);
 
   return (
     <DataServicesContext.Provider value={value}>

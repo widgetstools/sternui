@@ -2,13 +2,23 @@ import { writeCrossWindowItem, readCrossWindowItem } from './crossWindowStorage.
 
 const WORKER_BOOTSTRAP_PREFIX = 'starui:worker-bootstrap:';
 
-/** Deployment fields consumed by the SharedWorker `defaultEntry` at hub boot. */
+/** Deployment fields consumed by SharedWorker entries at boot. */
 export interface WorkerBootstrapPayload {
   appId: string;
   userId: string;
   seedConfigUrl?: string;
   seedConfigReload?: 'empty-only' | 'when-changed';
   configServiceRestUrl?: string;
+  /**
+   * Absolute URL of the AppData SharedWorker asset (ADR Phase 4d).
+   * When set, provider workers prefetch `{{…}}` via `appdata-lookup`.
+   */
+  appDataWorkerScriptUrl?: string;
+  /**
+   * Absolute URL of the Config SharedWorker asset (ADR Phase 4d).
+   * Reserved for cfg-free attach via Config SW (dual with local CM for now).
+   */
+  configWorkerScriptUrl?: string;
 }
 
 function storageKey(appName: string): string {
@@ -52,6 +62,12 @@ export function readWorkerBootstrapPayload(
           : undefined,
         configServiceRestUrl: typeof parsed.configServiceRestUrl === 'string'
           ? parsed.configServiceRestUrl
+          : undefined,
+        appDataWorkerScriptUrl: typeof parsed.appDataWorkerScriptUrl === 'string'
+          ? parsed.appDataWorkerScriptUrl
+          : undefined,
+        configWorkerScriptUrl: typeof parsed.configWorkerScriptUrl === 'string'
+          ? parsed.configWorkerScriptUrl
           : undefined,
       };
     }

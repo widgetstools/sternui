@@ -28,7 +28,7 @@ export function useDataProvider<T = Record<string, unknown>>(
   providerId: string | null | undefined,
   opts: UseDataProviderOpts = {},
 ): UseDataProviderResult<T> {
-  const { client } = useDataServicesContext();
+  const { client, providerWorkerRouting } = useDataServicesContext();
   const { inlineCfg, autoStart = true } = opts;
 
   const [status, setStatus] = useState<ProviderStatus>('loading');
@@ -36,8 +36,13 @@ export function useDataProvider<T = Record<string, unknown>>(
 
   const provider = useMemo(() => {
     if (!providerId) return null;
-    return new ProviderClientAdapter<T>({ client, providerId, inlineCfg });
-  }, [client, providerId, inlineCfg]);
+    return new ProviderClientAdapter<T>({
+      client,
+      providerId,
+      inlineCfg,
+      providerWorker: providerWorkerRouting,
+    });
+  }, [client, providerId, inlineCfg, providerWorkerRouting]);
 
   const providerRef = useRef(provider);
   providerRef.current = provider;

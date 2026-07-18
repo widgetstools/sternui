@@ -7,7 +7,10 @@ import { createDataServicesWorker } from '../runtime/bootstrap/createDataService
 import { SharedWorkerDataServicesClient } from '../runtime/client/SharedWorkerDataServicesClient.js';
 import type { DataServicesHubBundle } from '../provider/IDataProvider.js';
 import type { IDataProvider } from '../provider/IDataProvider.js';
-import { ProviderClientAdapter } from '../provider/ProviderClientAdapter.js';
+import {
+  ProviderClientAdapter,
+  type ProviderWorkerRoutingOpts,
+} from '../provider/ProviderClientAdapter.js';
 import {
   markAppDataReady,
   markCatalogReady,
@@ -19,6 +22,11 @@ export interface ResolvedDataServicesHubBundle extends DataServicesHubBundle {
   readonly client: DataServices['client'];
   readonly appData: DataServices['appData'];
   readonly configManager: ConfigManager;
+  /**
+   * When set, {@link getProvider} / React `useDataProvider` route subscribe
+   * to per-provider SharedWorkers (ADR Phase 4d).
+   */
+  readonly providerWorkerRouting?: ProviderWorkerRoutingOpts;
 }
 
 /** Options for {@link ensureDataServicesHub}. */
@@ -26,6 +34,15 @@ export interface EnsureHubOpts extends PlatformBootstrapConfig {
   workerScriptUrl: string;
   /** Main-thread ConfigManager (initialized before hub connect). */
   mainThreadConfigManager: ConfigManager;
+  /**
+   * Opt-in per-provider SharedWorker asset URL (ADR Phase 4d).
+   * When set, `getProvider` uses `createProviderClient` for data subscribe.
+   */
+  providerWorkerScriptUrl?: string;
+  /** Forwarded into provider-worker bootstrap for AppData template bridge. */
+  appDataWorkerScriptUrl?: string;
+  /** Forwarded into provider-worker bootstrap for Config SW bridge. */
+  configWorkerScriptUrl?: string;
 }
 
 /** The window's single SharedWorker port + client for one `appId`. */
@@ -112,15 +129,32 @@ function adaptDataServicesToHubBundle(
   services: DataServices,
   appId: string,
   readiness: HubReadiness,
+  opts: EnsureHubOpts,
 ): ResolvedDataServicesHubBundle {
+  const providerWorkerRouting: ProviderWorkerRoutingOpts | undefined =
+    opts.providerWorkerScriptUrl
+      ? {
+          workerScriptUrl: opts.providerWorkerScriptUrl,
+          appId: opts.appId,
+          userId: opts.userId,
+          configServiceRestUrl: resolveConfigServiceRestUrl(opts),
+          seedConfigUrl: opts.seedConfigUrl,
+          seedConfigReload: opts.seedConfigReload,
+          appDataWorkerScriptUrl: opts.appDataWorkerScriptUrl,
+          configWorkerScriptUrl: opts.configWorkerScriptUrl,
+        }
+      : undefined;
+
   return {
     ready: readiness.ready,
     appDataReady: readiness.appDataReady,
     catalogReady: readiness.catalogReady,
+    providerWorkerRouting,
     getProvider(providerId: string): IDataProvider {
       return new ProviderClientAdapter({
         client: services.client,
         providerId,
+        providerWorker: providerWorkerRouting,
       });
     },
     stopProvider(providerId: string): Promise<void> {
@@ -151,7 +185,7 @@ async function bootstrapHubOnce(opts: EnsureHubOpts): Promise<ResolvedDataServic
   // Return as soon as the hub connection is established — the AppData snapshot
   // and catalog preload resolve in the background via the readiness promises.
   const readiness = buildReadiness(services);
-  return adaptDataServicesToHubBundle(services, opts.appId, readiness);
+  return adaptDataServicesToHubBundle(services, opts.appId, readiness, opts);
 }
 
 /**

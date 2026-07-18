@@ -1,13 +1,9 @@
 /**
  * One-provider SharedWorker hub (`starui-provider:{appId}:{providerId}`).
  *
- * ADR Phase 4a: scopes {@link SharedWorkerDataServicesHub} to a single
- * `providerId` so attach/delta/fan-out/replay stay identical to the
- * monolith while each hot feed runs on its own worker thread.
- *
- * AppData mirror traffic is rejected (use `starui-appdata`); local
- * {@link AppDataService} inside the wrapped hub still backs in-process
- * `{{…}}` lookup until the AppData SW bridge lands (4b).
+ * Scopes {@link SharedWorkerDataServicesHub} to a single `providerId`.
+ * Optional template cache prefetches AppData `{{…}}` (Phase 4d) before
+ * the inner hub starts the transport.
  */
 
 import type {
@@ -23,6 +19,10 @@ import {
   type PortLike,
   type SharedWorkerDataServicesHubOpts,
 } from '../worker/SharedWorkerDataServicesHub.js';
+import type {
+  AsyncAppDataLookup,
+  ProviderAppDataLookupCache,
+} from './providerAppDataLookupCache.js';
 
 export type ProviderWorkerReadyRequest = {
   kind: 'provider-worker-ready';
@@ -47,14 +47,24 @@ export interface ProviderHubOpts extends SharedWorkerDataServicesHubOpts {
   providerId: string;
   /** Injected hub (tests). */
   hub?: SharedWorkerDataServicesHub;
+  /**
+   * When set with {@link templateLookupAsync}, prefetch `{{…}}` from AppData SW
+   * before the transport starts (ADR Phase 4d).
+   */
+  templateCache?: ProviderAppDataLookupCache;
+  templateLookupAsync?: AsyncAppDataLookup;
 }
 
 export class ProviderHub {
   readonly providerId: string;
   private readonly hub: SharedWorkerDataServicesHub;
+  private readonly templateCache?: ProviderAppDataLookupCache;
+  private readonly templateLookupAsync?: AsyncAppDataLookup;
 
   constructor(opts: ProviderHubOpts) {
     this.providerId = opts.providerId;
+    this.templateCache = opts.templateCache;
+    this.templateLookupAsync = opts.templateLookupAsync;
     this.hub = opts.hub ?? new SharedWorkerDataServicesHub(opts);
   }
 
@@ -92,7 +102,7 @@ export class ProviderHub {
 
     switch (req.kind) {
       case 'attach':
-        this.handleAttach(port, req);
+        void this.handleAttach(port, req);
         return;
       case 'stop':
         this.handleStop(port, req);
@@ -116,7 +126,7 @@ export class ProviderHub {
     }
   }
 
-  private handleAttach(port: PortLike, req: AttachRequest): void {
+  private async handleAttach(port: PortLike, req: AttachRequest): Promise<void> {
     if (req.providerId !== this.providerId) {
       const event: Event = {
         subId: req.subId,
@@ -124,6 +134,30 @@ export class ProviderHub {
         status: 'error',
         error:
           `Provider worker '${this.providerId}' rejected attach for '${req.providerId}'.`,
+      };
+      try {
+        port.postMessage(event);
+      } catch {
+        /* port dead */
+      }
+      return;
+    }
+    try {
+      if (this.templateCache && this.templateLookupAsync) {
+        const cfg =
+          req.cfg ??
+          this.hub.getCatalogService()?.getProviderConfig(req.providerId) ??
+          undefined;
+        if (cfg) {
+          await this.templateCache.hydrateFromCfg(cfg, this.templateLookupAsync);
+        }
+      }
+    } catch (err) {
+      const event: Event = {
+        subId: req.subId,
+        kind: 'status',
+        status: 'error',
+        error: err instanceof Error ? err.message : String(err),
       };
       try {
         port.postMessage(event);

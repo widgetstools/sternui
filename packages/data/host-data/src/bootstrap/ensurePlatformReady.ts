@@ -42,11 +42,16 @@ export interface EnsurePlatformReadyOpts {
   /**
    * Optional AppData SharedWorker asset URL (ADR Phase 3). When set,
    * `ensureConfigReady` / platform bootstrap also connect
-   * `starui-appdata:{appId}` (mirror attach + lookup RPC). Data hub
-   * still keeps in-process AppData for streaming providers (dual until
-   * Phase 4).
+   * `starui-appdata:{appId}` (mirror attach + lookup RPC).
    */
   appDataWorkerScriptUrl?: string;
+  /**
+   * Optional per-provider SharedWorker asset URL (ADR Phase 4d). When set,
+   * `getProvider` / `useDataProvider` route live subscribe to
+   * `starui-provider:{appId}:{providerId}` instead of the monolith hub.
+   * The monolith hub remains for catalog + AppData mirror.
+   */
+  providerWorkerScriptUrl?: string;
   /** App-authored hook registry keyed by stable ids from app-config.json. */
   appDataBootstrapHooks?: AppDataBootstrapHookRegistry;
 }
@@ -241,6 +246,9 @@ async function bootstrapPlatformOnce(
     ...config,
     workerScriptUrl: opts.workerScriptUrl,
     mainThreadConfigManager: configManager,
+    providerWorkerScriptUrl: opts.providerWorkerScriptUrl,
+    appDataWorkerScriptUrl: opts.appDataWorkerScriptUrl,
+    configWorkerScriptUrl: opts.configWorkerScriptUrl,
   });
 
   wireWorkerCatalogSync(configManager, bundle.client);
