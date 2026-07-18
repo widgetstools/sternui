@@ -174,17 +174,24 @@ export interface DataProviderConfigView {
 }
 
 export function useDataProviderConfig(providerId: string | null | undefined): DataProviderConfigView {
-  const { client } = useDataServicesContext();
+  const { client, configClient } = useDataServicesContext();
   const [view, setView] = useState<DataProviderConfigView>({ cfg: null, loading: Boolean(providerId) });
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
+    if (configClient) {
+      return configClient.onCatalogChange((ev) => {
+        if (ev.full || ev.providerId === providerId) {
+          setTick((t) => t + 1);
+        }
+      });
+    }
     return client.onCatalogChange((detail) => {
       if (detail.full || detail.providerId === providerId) {
         setTick((t) => t + 1);
       }
     });
-  }, [client, providerId]);
+  }, [client, configClient, providerId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -197,7 +204,10 @@ export function useDataProviderConfig(providerId: string | null | undefined): Da
       loading: prev.cfg === null,
       error: undefined,
     }));
-    client.getProviderConfig(providerId)
+    const load = configClient
+      ? configClient.getProvider(providerId).then(({ provider }) => provider)
+      : client.getProviderConfig(providerId);
+    load
       .then((cfg) => { if (!cancelled) setView({ cfg, loading: false }); })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -209,7 +219,7 @@ export function useDataProviderConfig(providerId: string | null | undefined): Da
         }
       });
     return () => { cancelled = true; };
-  }, [providerId, client, tick]);
+  }, [providerId, client, configClient, tick]);
 
   return view;
 }
@@ -231,7 +241,7 @@ export interface DataProvidersListView {
 export function useDataProvidersList(
   opts: { subtype?: ProviderConfig['providerType']; includeAppData?: boolean } = {},
 ): DataProvidersListView {
-  const { client } = useDataServicesContext();
+  const { client, configClient } = useDataServicesContext();
   const [view, setView] = useState<{ configs: readonly DataProviderConfig[]; loading: boolean; error?: string }>(
     { configs: [], loading: true },
   );
@@ -239,12 +249,19 @@ export function useDataProvidersList(
   const refresh = useCallback(() => setTick((t) => t + 1), []);
 
   useEffect(() => {
+    if (configClient) {
+      return configClient.onCatalogChange((ev) => {
+        if (ev.full || ev.providerId) {
+          setTick((t) => t + 1);
+        }
+      });
+    }
     return client.onCatalogChange((detail) => {
       if (detail.full || detail.providerId) {
         setTick((t) => t + 1);
       }
     });
-  }, [client]);
+  }, [client, configClient]);
 
   useEffect(() => {
     let cancelled = false;
@@ -252,13 +269,16 @@ export function useDataProvidersList(
     const listOpts: { subtype?: ProviderConfig['providerType']; includeAppData?: boolean } = {};
     if (opts.subtype) listOpts.subtype = opts.subtype;
     if (opts.includeAppData) listOpts.includeAppData = true;
-    client.listProviderConfigs(listOpts)
+    const load = configClient
+      ? configClient.listProviders(listOpts)
+      : client.listProviderConfigs(listOpts);
+    load
       .then((rows) => { if (!cancelled) setView({ configs: rows, loading: false }); })
       .catch((err: unknown) => {
         if (!cancelled) setView({ configs: [], loading: false, error: err instanceof Error ? err.message : String(err) });
       });
     return () => { cancelled = true; };
-  }, [client, opts.subtype, opts.includeAppData, tick]);
+  }, [client, configClient, opts.subtype, opts.includeAppData, tick]);
 
   return { ...view, refresh };
 }

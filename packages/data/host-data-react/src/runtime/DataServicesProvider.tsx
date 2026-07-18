@@ -15,7 +15,11 @@ import {
   DataProviderConfigStore,
   type DataServices,
 } from '@wellsfargo-starui/host-data/runtime';
-import { DEV_PLATFORM_BOOTSTRAP, type ProviderWorkerRoutingOpts } from '@wellsfargo-starui/host-data';
+import {
+  DEV_PLATFORM_BOOTSTRAP,
+  type ConfigClient,
+  type ProviderWorkerRoutingOpts,
+} from '@wellsfargo-starui/host-data';
 import { LOGGED_IN_USER_ID } from '@wellsfargo-starui/types';
 import type { ConfigManager } from '@wellsfargo-starui/host-config';
 
@@ -38,6 +42,11 @@ export interface ContextValue {
    * per-provider SharedWorkers via ProviderClientAdapter.
    */
   providerWorkerRouting?: ProviderWorkerRoutingOpts;
+  /**
+   * Config SharedWorker client (ADR single-writer). When set, catalog
+   * hooks + invalidate prefer this over the monolith hub client.
+   */
+  configClient?: ConfigClient;
 }
 
 const DataServicesContext = createContext<ContextValue | null>(null);
@@ -68,6 +77,8 @@ export interface DataServicesProviderProps {
   appId?: string;
   /** ADR Phase 4d — per-provider SharedWorker routing for `useDataProvider`. */
   providerWorkerRouting?: ContextValue['providerWorkerRouting'];
+  /** ADR Config SW — sole catalog invalidate + React catalog reads. */
+  configClient?: ConfigClient;
   children?: ReactNode;
 }
 
@@ -77,6 +88,7 @@ export function DataServicesProvider({
   userId,
   appId,
   providerWorkerRouting,
+  configClient,
   children,
 }: DataServicesProviderProps): ReactNode {
   if (mode === 'eager') use(services.ready);
@@ -89,10 +101,14 @@ export function DataServicesProvider({
     appData: services.appData,
     configStore: new DataProviderConfigStore(
       services.configManager,
-      (providerId) => services.client.invalidateConfig(providerId),
+      (providerId) =>
+        configClient
+          ? configClient.invalidate(providerId)
+          : services.client.invalidateConfig(providerId),
     ),
     providerWorkerRouting,
-  }), [services, providerWorkerRouting]);
+    configClient,
+  }), [services, providerWorkerRouting, configClient]);
 
   return (
     <DataServicesContext.Provider value={value}>

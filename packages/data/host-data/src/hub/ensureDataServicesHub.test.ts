@@ -65,6 +65,7 @@ describe('ensureDataServicesHub', () => {
       seedConfigUrl: undefined,
       seedConfigReload: undefined,
       hubStreamingDisabled: false,
+      hubAppDataDisabled: false,
     });
     expect(bootstrapDataServicesMock).toHaveBeenCalledWith({
       appName: 'TestApp',
@@ -110,6 +111,7 @@ describe('ensureDataServicesHub', () => {
       seedConfigUrl: undefined,
       seedConfigReload: undefined,
       hubStreamingDisabled: false,
+      hubAppDataDisabled: false,
     });
   });
 
@@ -129,6 +131,7 @@ describe('ensureDataServicesHub', () => {
       seedConfigUrl: undefined,
       seedConfigReload: undefined,
       hubStreamingDisabled: true,
+      hubAppDataDisabled: false,
     });
     expect(bundle.providerWorkerRouting?.workerScriptUrl).toBe('/provider-worker.mjs');
   });

@@ -23,6 +23,7 @@ function readWorkerBootstrapParams(): {
   seedConfigUrl: string | undefined;
   seedConfigReload: 'empty-only' | 'when-changed' | undefined;
   hubStreamingDisabled: boolean;
+  hubAppDataDisabled: boolean;
 } {
   const workerName = typeof self.name === 'string' ? self.name : '';
   const appName = appNameFromWorkerName(workerName);
@@ -34,6 +35,7 @@ function readWorkerBootstrapParams(): {
       seedConfigUrl: undefined,
       seedConfigReload: undefined,
       hubStreamingDisabled: false,
+      hubAppDataDisabled: false,
     };
   }
 
@@ -46,6 +48,7 @@ function readWorkerBootstrapParams(): {
       seedConfigUrl: undefined,
       seedConfigReload: undefined,
       hubStreamingDisabled: false,
+      hubAppDataDisabled: false,
     };
   }
 
@@ -56,6 +59,7 @@ function readWorkerBootstrapParams(): {
     seedConfigUrl: payload.seedConfigUrl,
     seedConfigReload: payload.seedConfigReload,
     hubStreamingDisabled: payload.hubStreamingDisabled === true,
+    hubAppDataDisabled: payload.hubAppDataDisabled === true,
   };
 }
 
@@ -67,6 +71,7 @@ async function boot(): Promise<void> {
     seedConfigUrl,
     seedConfigReload,
     hubStreamingDisabled,
+    hubAppDataDisabled,
   } = readWorkerBootstrapParams();
 
   const configManager = createConfigManager({
@@ -91,6 +96,7 @@ async function boot(): Promise<void> {
   await installSharedWorkerHub({
     configManager,
     streamingDisabled: hubStreamingDisabled,
+    appDataDisabled: hubAppDataDisabled,
   });
   // eslint-disable-next-line no-console
   console.info(

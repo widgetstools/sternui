@@ -24,6 +24,11 @@ export interface WorkerBootstrapPayload {
    * split). Streaming lives on `starui-provider:*` workers instead.
    */
   hubStreamingDisabled?: boolean;
+  /**
+   * When true, the monolith hub skips AppData hydrate/serve (ADR).
+   * Authority is `starui-appdata:{appId}`.
+   */
+  hubAppDataDisabled?: boolean;
 }
 
 function storageKey(appName: string): string {
@@ -49,6 +54,7 @@ export function writeWorkerBootstrapPayload(
     appDataWorkerScriptUrl: payload.appDataWorkerScriptUrl ?? prev?.appDataWorkerScriptUrl,
     configWorkerScriptUrl: payload.configWorkerScriptUrl ?? prev?.configWorkerScriptUrl,
     hubStreamingDisabled: payload.hubStreamingDisabled ?? prev?.hubStreamingDisabled,
+    hubAppDataDisabled: payload.hubAppDataDisabled ?? prev?.hubAppDataDisabled,
   };
   writeCrossWindowItem(storageKey(appName), JSON.stringify(merged));
 }
@@ -86,6 +92,7 @@ export function readWorkerBootstrapPayload(
           ? parsed.configWorkerScriptUrl
           : undefined,
         hubStreamingDisabled: parsed.hubStreamingDisabled === true,
+        hubAppDataDisabled: parsed.hubAppDataDisabled === true,
       };
     }
   } catch {

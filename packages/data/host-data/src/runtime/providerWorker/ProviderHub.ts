@@ -74,7 +74,11 @@ export class ProviderHub {
 
   async hydrate(userId = 'worker'): Promise<void> {
     await this.hub.hydrateCatalog();
-    await this.hub.hydrateAppData(userId);
+    // When AppData SW bridge is present, skip in-process AppData hydrate
+    // (ADR — templates come from ProviderAppDataLookupCache).
+    if (!this.templateLookupAsync) {
+      await this.hub.hydrateAppData(userId);
+    }
   }
 
   onPortClosed(port: PortLike): void {

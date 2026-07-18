@@ -237,10 +237,12 @@ async function bootstrapPlatformOnce(
   // opens IndexedDB. The same connection is reused by the hub below —
   // one port per window, no throwaway probe connection.
   const hubStreamingDisabled = Boolean(opts.providerWorkerScriptUrl);
+  const hubAppDataDisabled = Boolean(opts.appDataWorkerScriptUrl);
   warmHubConnection({
     ...config,
     workerScriptUrl: opts.workerScriptUrl,
     hubStreamingDisabled,
+    hubAppDataDisabled,
   });
 
   const { configManager, configClient, appDataClient } = await ensureConfigReady(config, {
@@ -258,9 +260,14 @@ async function bootstrapPlatformOnce(
     appDataClient,
     configClient,
     hubStreamingDisabled,
+    hubAppDataDisabled,
   });
 
-  wireWorkerCatalogSync(configManager, bundle.client);
+  // Config SW is the sole catalog invalidate target when present (ADR
+  // single-writer). Hub invalidate stays for legacy monolith-only apps.
+  if (!configClient) {
+    wireWorkerCatalogSync(configManager, bundle.client);
+  }
 
   // Phase 2: return once config + hub connection are established. Full
   // hydration (AppData snapshot + catalog preload) settles in the background;

@@ -40,6 +40,11 @@ export interface CreateDataServicesWorkerOpts {
    * split — streaming on per-provider SharedWorkers).
    */
   hubStreamingDisabled?: boolean;
+  /**
+   * When true, monolith hub skips AppData hydrate/serve (ADR —
+   * AppData SW is authority).
+   */
+  hubAppDataDisabled?: boolean;
 }
 
 /** Package export path for the bundled worker (after `npm run build`). */
@@ -70,6 +75,7 @@ function persistWorkerBootstrap(opts: CreateDataServicesWorkerOpts): void {
     seedConfigReload: opts.seedConfigReload,
     configServiceRestUrl: opts.configServiceRestUrl,
     hubStreamingDisabled: opts.hubStreamingDisabled,
+    hubAppDataDisabled: opts.hubAppDataDisabled,
   };
   writeWorkerBootstrapPayload(opts.appName, payload);
 }

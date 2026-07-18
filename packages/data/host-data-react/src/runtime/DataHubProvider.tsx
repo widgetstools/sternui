@@ -88,6 +88,7 @@ function DataHubProviderInner({
       mode={mode}
       userId={effectiveUserId}
       providerWorkerRouting={platform.providerWorkerRouting}
+      configClient={platform.configClient}
     >
       {showInspector ? <HubInspectorHost /> : null}
       {children}

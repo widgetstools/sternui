@@ -169,6 +169,17 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
     expect(controllers.size).toBe(0);
   });
 
+  it('skips AppData hydrate and notes topology when appDataDisabled', async () => {
+    const hub = new SharedWorkerDataServicesHub({ appDataDisabled: true, streamingDisabled: true });
+    await hub.hydrateAppData('alice');
+    const snap = hub.buildIntrospectSnapshot();
+    expect(snap.appDataDisabled).toBe(true);
+    expect(snap.streamingDisabled).toBe(true);
+    expect(snap.appData.rows).toEqual([]);
+    expect(snap.topologyNote).toMatch(/starui-appdata/);
+    expect(snap.topologyNote).toMatch(/starui-provider/);
+  });
+
   it('late joiner gets the full cache as one replace delta', () => {
     const hub = new SharedWorkerDataServicesHub();
     const portA = makePort();

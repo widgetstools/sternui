@@ -243,6 +243,15 @@ export interface HubIntrospectSnapshot {
     listenerCount: number;
     rows: readonly HubAppDataIntrospectRow[];
   };
+  /**
+   * True when this hub rejects streaming attach (providers live on
+   * `starui-provider:*`). Inspector should treat running slots as empty.
+   */
+  streamingDisabled?: boolean;
+  /** True when AppData is served by `starui-appdata`, not this hub. */
+  appDataDisabled?: boolean;
+  /** Operator-facing note for demuxed / control-plane-only hubs. */
+  topologyNote?: string;
 }
 
 /** Query live hub diagnostics (providers, subscribers, cache sizes). */

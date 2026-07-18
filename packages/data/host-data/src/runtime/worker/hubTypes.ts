@@ -255,4 +255,11 @@ export interface SharedWorkerDataServicesHubOpts {
    * remains for catalog RPC / inspector only.
    */
   streamingDisabled?: boolean;
+
+  /**
+   * When true, skip AppData hydrate/serve/resync (ADR). Authority is
+   * `starui-appdata:{appId}` — UI mirrors and provider template bridges
+   * attach there instead.
+   */
+  appDataDisabled?: boolean;
 }

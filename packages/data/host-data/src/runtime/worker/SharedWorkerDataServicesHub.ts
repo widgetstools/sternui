@@ -158,6 +158,7 @@ export class SharedWorkerDataServicesHub {
   private readonly scheduleTask: (cb: () => void) => void;
   private readonly appDataLookupOverride: import('../template/resolver.js').AppDataLookup | null;
   private readonly streamingDisabled: boolean;
+  private readonly appDataDisabled: boolean;
   private statsTimer: unknown = null;
   private subscriberSweepTimer: unknown = null;
 
@@ -185,6 +186,7 @@ export class SharedWorkerDataServicesHub {
       });
     this.appDataLookupOverride = opts.appDataLookup ?? null;
     this.streamingDisabled = opts.streamingDisabled === true;
+    this.appDataDisabled = opts.appDataDisabled === true;
     this.appData = new AppDataService({ configManager: opts.configManager });
     this.configCatalog = resolveCatalogService(opts);
 
@@ -238,6 +240,27 @@ export class SharedWorkerDataServicesHub {
    */
   handleAppDataRequest(port: PortLike, req: AppDataRequest): void {
     this.trackPort(port);
+    if (this.appDataDisabled) {
+      if (req.kind === 'appdata-detach') return;
+      if (req.kind === 'appdata-attach') {
+        // Empty snapshot so mirrors do not hang on ready(); UI should
+        // attach to starui-appdata instead.
+        port.postMessage({
+          kind: 'appdata-snapshot',
+          subId: req.subId,
+          rows: [],
+        });
+        return;
+      }
+      port.postMessage({
+        kind: 'appdata-ack',
+        reqId: req.reqId,
+        ok: false,
+        error:
+          'AppData is disabled on the monolith hub; use starui-appdata SharedWorker (appDataWorkerScriptUrl).',
+      });
+      return;
+    }
     switch (req.kind) {
       case 'appdata-attach':  void this.handleAppDataAttach(port, req); return;
       case 'appdata-detach':  this.handleAppDataDetach(req); return;
@@ -338,15 +361,26 @@ export class SharedWorkerDataServicesHub {
 
     providers.sort((a, b) => a.providerId.localeCompare(b.providerId));
 
-    const appDataRows = this.appData.snapshot();
+    const appDataRows = this.appDataDisabled ? [] : this.appData.snapshot();
+    const topologyParts: string[] = [];
+    if (this.streamingDisabled) {
+      topologyParts.push(
+        'Streaming lives on starui-provider:{appId}:{providerId}; this hub has no live slots.',
+      );
+    }
+    if (this.appDataDisabled) {
+      topologyParts.push('AppData authority is starui-appdata:{appId}.');
+    }
     return {
       connectedPorts: this.connectedPorts.size,
       catalogReady: this.configCatalog?.isReady() ?? false,
       catalogProviderCount: this.configCatalog?.list({ includeAppData: true }).length ?? 0,
       runningProviderCount: this.providers.size,
-      providers,
+      providers: this.streamingDisabled
+        ? providers.filter((p) => !p.running)
+        : providers,
       appData: {
-        listenerCount: this.appDataListeners.size,
+        listenerCount: this.appDataDisabled ? 0 : this.appDataListeners.size,
         rows: appDataRows.map((r) => ({
           configId: r.configId,
           name: r.name,
@@ -354,6 +388,9 @@ export class SharedWorkerDataServicesHub {
           values: r.values,
         })),
       },
+      streamingDisabled: this.streamingDisabled || undefined,
+      appDataDisabled: this.appDataDisabled || undefined,
+      topologyNote: topologyParts.length > 0 ? topologyParts.join(' ') : undefined,
     };
   }
 
@@ -371,6 +408,7 @@ export class SharedWorkerDataServicesHub {
    * default).
    */
   async hydrateAppData(userId = 'worker'): Promise<void> {
+    if (this.appDataDisabled) return;
     await this.appData.hydrate(userId);
   }
 
@@ -380,6 +418,7 @@ export class SharedWorkerDataServicesHub {
    * mirror re-attach when the SharedWorker survives a page reload.
    */
   async resyncAppDataFromStore(userId = 'worker'): Promise<void> {
+    if (this.appDataDisabled) return;
     await this.appData.resync(userId);
   }
 
@@ -535,7 +574,9 @@ export class SharedWorkerDataServicesHub {
     }
     try {
       await this.configCatalog.invalidate(req.providerId);
-      await this.resyncAppDataFromStore();
+      if (!this.appDataDisabled) {
+        await this.resyncAppDataFromStore();
+      }
       this.replyConfigSnapshot(port, {
         kind: 'config-snapshot',
         reqId: req.reqId,

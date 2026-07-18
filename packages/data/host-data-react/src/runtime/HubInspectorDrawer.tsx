@@ -92,9 +92,12 @@ export function HubInspectorDrawer({ open, onOpenChange }: HubInspectorDrawerPro
         <DrawerHeader className="shrink-0 border-b border-border pb-3">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <DrawerTitle className="text-base">Data Services Hub</DrawerTitle>
+              <DrawerTitle className="text-base">
+                {snapshot?.streamingDisabled ? 'Data plane (control hub)' : 'Data Services Hub'}
+              </DrawerTitle>
               <DrawerDescription className="text-xs">
-                SharedWorker runtime — providers, loaded configs, subscribers, and cache sizes
+                {snapshot?.topologyNote
+                  ?? 'SharedWorker runtime — providers, loaded configs, subscribers, and cache sizes'}
               </DrawerDescription>
             </div>
             <div className="flex items-center gap-1">

@@ -30,6 +30,11 @@ export interface ResolvedDataServicesHubBundle extends DataServicesHubBundle {
    * to per-provider SharedWorkers (ADR Phase 4d).
    */
   readonly providerWorkerRouting?: ProviderWorkerRoutingOpts;
+  /**
+   * Config SharedWorker client when `configWorkerScriptUrl` was provided
+   * (ADR single-writer catalog path).
+   */
+  readonly configClient?: ConfigClient;
 }
 
 /** Options for {@link ensureDataServicesHub}. */
@@ -61,6 +66,11 @@ export interface EnsureHubOpts extends PlatformBootstrapConfig {
    * {@link providerWorkerScriptUrl} is set.
    */
   hubStreamingDisabled?: boolean;
+  /**
+   * Skip AppData hydrate/serve on the monolith hub. Default true when
+   * {@link appDataClient} or {@link appDataWorkerScriptUrl} is set.
+   */
+  hubAppDataDisabled?: boolean;
 }
 
 /** The window's single SharedWorker port + client for one `appId`. */
@@ -73,6 +83,7 @@ export interface HubConnection {
 export type WarmHubConnectionOpts = PlatformBootstrapConfig & {
   workerScriptUrl: string;
   hubStreamingDisabled?: boolean;
+  hubAppDataDisabled?: boolean;
 };
 
 const hubPromises = new Map<string, Promise<ResolvedDataServicesHubBundle>>();
@@ -96,6 +107,7 @@ function getOrCreateHubConnection(opts: WarmHubConnectionOpts): HubConnection {
     seedConfigUrl: opts.seedConfigUrl,
     seedConfigReload: opts.seedConfigReload,
     hubStreamingDisabled: opts.hubStreamingDisabled,
+    hubAppDataDisabled: opts.hubAppDataDisabled,
   });
   const connection: HubConnection = {
     worker,
@@ -126,13 +138,20 @@ interface HubReadiness {
   catalogReady: Promise<void>;
 }
 
-function buildReadiness(services: DataServices): HubReadiness {
+function buildReadiness(
+  services: DataServices,
+  configClient?: ConfigClient,
+): HubReadiness {
   const appDataReady = (async () => {
     await services.ready;
     markAppDataReady();
   })();
   const catalogReady = (async () => {
-    await services.client.waitForCatalogReady();
+    if (configClient) {
+      await configClient.ready;
+    } else {
+      await services.client.waitForCatalogReady();
+    }
     markCatalogReady();
   })();
   const ready = Promise.all([appDataReady, catalogReady]).then(() => undefined);
@@ -195,15 +214,20 @@ function adaptDataServicesToHubBundle(
     client: services.client,
     appData: services.appData,
     configManager: services.configManager,
+    configClient: opts.configClient,
   };
 }
 
 async function bootstrapHubOnce(opts: EnsureHubOpts): Promise<ResolvedDataServicesHubBundle> {
   const hubStreamingDisabled =
     opts.hubStreamingDisabled ?? Boolean(opts.providerWorkerScriptUrl);
+  const hubAppDataDisabled =
+    opts.hubAppDataDisabled
+    ?? Boolean(opts.appDataClient ?? opts.appDataWorkerScriptUrl);
   const connection = getOrCreateHubConnection({
     ...opts,
     hubStreamingDisabled,
+    hubAppDataDisabled,
   });
   const services = bootstrapDataServices({
     appName: opts.appId,
@@ -216,7 +240,7 @@ async function bootstrapHubOnce(opts: EnsureHubOpts): Promise<ResolvedDataServic
   markHubConnected();
   // Return as soon as the hub connection is established — the AppData snapshot
   // and catalog preload resolve in the background via the readiness promises.
-  const readiness = buildReadiness(services);
+  const readiness = buildReadiness(services, opts.configClient);
   return adaptDataServicesToHubBundle(services, opts.appId, readiness, opts);
 }
 
