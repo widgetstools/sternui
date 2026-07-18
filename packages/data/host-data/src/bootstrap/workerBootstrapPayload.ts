@@ -95,6 +95,32 @@ export function appDataSharedWorkerName(appId: string): string {
   return `starui-appdata:${appId}`;
 }
 
+/**
+ * Stable SharedWorker name for one streaming provider (ADR Phase 4).
+ * `appId` must not contain `:`; `providerId` may.
+ */
+export function providerSharedWorkerName(appId: string, providerId: string): string {
+  return `starui-provider:${appId}:${providerId}`;
+}
+
+/**
+ * Parse `starui-provider:{appId}:{providerId}` — first `:` after the
+ * prefix splits appId; the remainder is providerId (may contain `:`).
+ */
+export function parseProviderWorkerName(
+  workerName: string,
+): { appId: string; providerId: string } | null {
+  const prefix = 'starui-provider:';
+  if (!workerName.startsWith(prefix)) return null;
+  const rest = workerName.slice(prefix.length);
+  const i = rest.indexOf(':');
+  if (i <= 0 || i >= rest.length - 1) return null;
+  const appId = rest.slice(0, i).trim();
+  const providerId = rest.slice(i + 1).trim();
+  if (!appId || !providerId) return null;
+  return { appId, providerId };
+}
+
 /** Test-only — clears all worker bootstrap payloads. */
 export function _resetWorkerBootstrapPayloadForTests(): void {
   if (typeof localStorage === 'undefined' && typeof sessionStorage === 'undefined') {

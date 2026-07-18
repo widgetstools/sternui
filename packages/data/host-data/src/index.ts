@@ -122,6 +122,8 @@ export {
   appIdFromConfigWorkerName,
   appDataSharedWorkerName,
   appIdFromAppDataWorkerName,
+  providerSharedWorkerName,
+  parseProviderWorkerName,
 } from './bootstrap/workerBootstrapPayload.js';
 
 // AppData SharedWorker (ADR Phase 3) — KV / template lookup without data hub.
@@ -136,3 +138,16 @@ export {
   type CreateAppDataWorkerOpts,
   type AppDataHubOpts,
 } from './runtime/appDataWorker/index.js';
+
+// Provider SharedWorker (ADR Phase 4a) — one upstream per named worker.
+export {
+  createProviderClient,
+  createProviderWorker,
+  PROVIDER_WORKER_ASSET,
+  ProviderClient,
+  ProviderHub,
+  installProviderHub,
+  type CreateProviderClientOpts,
+  type CreateProviderWorkerOpts,
+  type ProviderHubOpts,
+} from './runtime/providerWorker/index.js';

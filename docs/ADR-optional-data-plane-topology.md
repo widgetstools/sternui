@@ -198,7 +198,7 @@ Today main + worker both open Dexie. Under this ADR:
 | **1** | Formalize AppData + Config as service boundaries inside the hub (RPC-shaped APIs, no behavior change) | **Done on this branch:** `AppDataService` + `ConfigCatalogService` façades; hub/providers use `appData.lookup` / catalog service only; wire protocol unchanged. |
 | **2** | Extract **Config** SharedWorker + `createConfigClient`; retarget invalidate | **Done on this branch:** `starui-config:{appId}` worker + `createConfigClient` / `wireConfigWorkerCatalogSync`; `ensureConfigReady({ configWorkerScriptUrl })`; star-demo ConfigGate warms Config SW. Data hub still keeps a local catalog cache (invalidate dual-path); full single-writer cutover is a follow-up. |
 | **3** | Extract **AppData** SharedWorker + mirror attach | **Done on this branch:** `starui-appdata:{appId}` worker + `createAppDataClient` / `AppDataMirror` attach + `appdata-lookup` RPC; `ensureConfigReady({ appDataWorkerScriptUrl })`; star-demo warms AppData SW. Data hub still keeps in-process AppData for streaming providers (dual until Phase 4). |
-| **4** | Extract **per-provider** SharedWorkers + façade; shrink/remove monolith hub | Hot provider cannot starve Config; P0 still zero SW |
+| **4** | Extract **per-provider** SharedWorkers + façade; shrink/remove monolith hub | **In progress (4a):** `starui-provider:{appId}:{providerId}` worker scopes the existing hub attach/delta/replay path to one id (`ProviderHub` / `createProviderClient` / asset `provider-worker.mjs`). Monolith hub still serves demos; Config/AppData bridges + façade flag + hub shrink are follow-ups (4b–4d). |
 | **5** | (Optional) derived-provider ADR if product needs row-level cross-provider access | Explicit API; not ambient |
 
 Phase 0 may ship on `main` independently; Phases 2–4 are the topology change this ADR accepts.
@@ -232,7 +232,8 @@ Phase 0 may ship on `main` independently; Phases 2–4 are the topology change t
 
 - Hub: `packages/data/host-data/src/runtime/worker/SharedWorkerDataServicesHub.ts`
 - Phase 1 services: `AppDataService.ts`, `ConfigCatalogService.ts` (same folder)
-- Worker name: `packages/data/host-data/src/runtime/bootstrap/createDataServicesWorker.ts` (`mkt-data-services:${appName}`)
+- Worker name: `packages/data/host-data/src/runtime/bootstrap/createDataServicesWorker.ts` (`mkt-data-services:${appName}`); provider SW: `providerSharedWorkerName` → `starui-provider:{appId}:{providerId}`
 - Bootstrap gates: `apps/demos/star-demo/src/main.tsx` (`ConfigGate` / `FullGate` / `DeferredDataGate`)
 - AppData: `WorkerAppDataStore` (via `AppDataService`), dedicated SW `starui-appdata:{appId}` (`AppDataHub` / `createAppDataClient`), `AppDataMirror`, `{{…}}` via `runtime/template/resolver.ts` (+ `appdata-lookup` RPC for cross-process)
+- Provider SW (Phase 4a): `runtime/providerWorker/` — `ProviderHub` wraps monolith slot logic for one id; `createProviderClient`
 - Catalog sync: `packages/data/host-data/src/hub/wireWorkerCatalogSync.ts`

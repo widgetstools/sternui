@@ -201,6 +201,8 @@ Do **not** force every OpenFin tool window through `ensurePlatformReady()`. Matc
 
 **AppData SharedWorker (ADR Phase 3):** pass `appDataWorkerScriptUrl` to `ensureConfigReady` / `ensurePlatformReady` (Vite: `import appDataWorkerUrl from '@starui/host-data/assets/appdata-worker.mjs?url'`). Named `starui-appdata:{appId}`. Reuses the existing `appdata-*` protocol + `AppDataMirror`; adds `appdata-lookup` for cross-process template resolution. Data hub still owns in-process AppData for streaming providers until Phase 4.
 
+**Provider SharedWorker (ADR Phase 4a):** `createProviderClient({ appId, providerId, workerScriptUrl })` spawns `starui-provider:{appId}:{providerId}` (Vite: `import providerWorkerUrl from '@starui/host-data/assets/provider-worker.mjs?url'`). Reuses attach/delta wire via `ProviderClient.subscribe`. Hosted demos still bootstrap the monolith `mkt-data-services` hub until the façade flag cutover.
+
 **Catalog sync without Config Browser on the data hub:** provider-row writes go to Dexie and `ChangeNotifier` (`marketsui-config-changes`). A blotter window that already ran `wireWorkerCatalogSync` invalidates the data-hub catalog. The Config SW is invalidated via `wireConfigWorkerCatalogSync` when connected.
 
 See [`ADR-optional-data-plane-topology.md`](../ADR-optional-data-plane-topology.md).
