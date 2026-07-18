@@ -225,4 +225,19 @@ export interface SharedWorkerDataServicesHubOpts {
    * fan-out pool (default 1 — one worker per connected subscriber).
    */
   fanOutMinListeners?: number;
+
+  /**
+   * When true (production default via {@link installSharedWorkerHub}),
+   * post-ready live delta fan-out is scheduled on a macrotask so queued
+   * `attach` / late-join replay can run between ticks instead of waiting
+   * behind a saturated sync broadcast loop (ADR Phase 0).
+   * Unit tests leave this unset (sync) unless they opt in.
+   */
+  deferLiveFanOut?: boolean;
+
+  /**
+   * Schedules a one-shot callback (default `setTimeout(0)`). Injected in
+   * tests to flush deferred live fan-out deterministically.
+   */
+  scheduleTask?: (cb: () => void) => void;
 }

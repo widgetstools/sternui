@@ -139,8 +139,21 @@ export class SharedWorkerDataServicesHub {
   private readonly clearTimer: (handle: unknown) => void;
   private readonly fanOutPool: FanOutWorkerPool | null;
   private readonly fanOutMinListeners: number;
+  private readonly deferLiveFanOut: boolean;
+  private readonly scheduleTask: (cb: () => void) => void;
   private statsTimer: unknown = null;
   private subscriberSweepTimer: unknown = null;
+
+  /**
+   * Active late-join / refresh replays. While > 0, post-ready live
+   * fan-out is deferred so replay chunks are not interleaved with ticks
+   * and so live `postMessage` work cannot extend the sync section that
+   * blocks other port traffic.
+   */
+  private replayDepth = 0;
+  /** Last-write-wins pending live batches per provider (deferred fan-out). */
+  private readonly pendingLiveBatch = new Map<string, { slot: ProviderSlot; events: Event[] }>();
+  private liveFlushScheduled = false;
 
   constructor(opts: SharedWorkerDataServicesHubOpts = {}) {
     this.statsIntervalMs = opts.statsIntervalMs ?? 1000;
@@ -148,6 +161,11 @@ export class SharedWorkerDataServicesHub {
     this.clearTimer = opts.clearTimer ?? ((h) => clearInterval(h as ReturnType<typeof setInterval>));
     this.fanOutPool = opts.fanOutPool ?? null;
     this.fanOutMinListeners = opts.fanOutMinListeners ?? 1;
+    this.deferLiveFanOut = opts.deferLiveFanOut === true;
+    this.scheduleTask = opts.scheduleTask
+      ?? ((cb) => {
+        setTimeout(cb, 0);
+      });
     this.appDataStore = opts.configManager ? new AppDataConfigStore(opts.configManager) : null;
     if (opts.configCatalog) {
       this.configCatalog = opts.configCatalog;
@@ -1227,8 +1245,9 @@ export class SharedWorkerDataServicesHub {
           prevReplay.push(...bufs);
           slot.replaySnapshot = prevReplay;
         }
+        const events: Event[] = [];
         for (let i = 0; i < bufs.length; i++) {
-          this.broadcastData(providerId, slot, {
+          events.push({
             kind: 'delta-bin',
             buf: bufs[i].buf,
             enc: bufs[i].enc,
@@ -1236,15 +1255,25 @@ export class SharedWorkerDataServicesHub {
             subId: '', // rewritten per listener in broadcastData
           });
         }
+        if (!slot.snapshotReady) {
+          for (const ev of events) this.broadcastData(providerId, slot, ev);
+        } else {
+          this.broadcastLiveBatch(providerId, slot, events);
+        }
         return;
       }
 
-      this.broadcastData(providerId, slot, {
+      const deltaEvent: Event = {
         kind: 'delta',
         rows: broadcastRows,
         replace: event.replace,
         subId: '', // rewritten per listener in broadcastData
-      });
+      };
+      if (!slot.snapshotReady) {
+        this.broadcastData(providerId, slot, deltaEvent);
+      } else {
+        this.broadcastLiveBatch(providerId, slot, [deltaEvent]);
+      }
       return;
     }
 
@@ -1356,17 +1385,17 @@ export class SharedWorkerDataServicesHub {
     if (patches.length === 0) return;
 
     if (patches.length >= LIVE_BIN_MIN_ROWS) {
-      this.broadcastData(providerId, slot, {
+      this.broadcastLiveBatch(providerId, slot, [{
         kind: 'delta-patch',
         buf: SNAPSHOT_ENCODER.encode(JSON.stringify(patches)),
         subId: '', // rewritten per listener in broadcastData
-      });
+      }]);
     } else {
-      this.broadcastData(providerId, slot, {
+      this.broadcastLiveBatch(providerId, slot, [{
         kind: 'delta-patch',
         patches,
         subId: '', // rewritten per listener in broadcastData
-      });
+      }]);
     }
   }
 
@@ -1453,8 +1482,29 @@ export class SharedWorkerDataServicesHub {
    * Uint8Array across the port is a flat memcpy — no per-row object
    * graph walk per subscriber, which is what made simultaneous
    * multi-window attaches GC-storm the worker.
+   *
+   * While replay runs, post-ready live fan-out is deferred (see
+   * {@link broadcastLiveBatch}) so ticks cannot interleave with chunks
+   * or starve the attach path (ADR Phase 0).
    */
   private replayCacheToPort(
+    subId: string,
+    port: PortLike,
+    slot: ProviderSlot,
+    mode: 'attach' | 'refresh',
+  ): void {
+    this.replayDepth += 1;
+    try {
+      this.replayCacheToPortBody(subId, port, slot, mode);
+    } finally {
+      this.replayDepth -= 1;
+      if (this.replayDepth === 0) {
+        this.flushPendingLive();
+      }
+    }
+  }
+
+  private replayCacheToPortBody(
     subId: string,
     port: PortLike,
     slot: ProviderSlot,
@@ -1496,6 +1546,55 @@ export class SharedWorkerDataServicesHub {
         status: 'ready',
         error: undefined,
       } satisfies Event);
+    }
+  }
+
+  /**
+   * Post-ready live fan-out with attach/replay priority (ADR Phase 0).
+   *
+   * - While a late-join/refresh replay is in progress, live frames are
+   *   buffered (last-write-wins per provider) and flushed after replay.
+   * - When `deferLiveFanOut` is on, live frames are also scheduled on a
+   *   macrotask so queued `attach` requests can run between ticks instead
+   *   of waiting behind a saturated sync broadcast loop.
+   */
+  private broadcastLiveBatch(
+    providerId: string,
+    slot: ProviderSlot,
+    events: Event[],
+  ): void {
+    if (events.length === 0) return;
+    if (this.replayDepth > 0 || this.deferLiveFanOut) {
+      this.pendingLiveBatch.set(providerId, { slot, events });
+      if (this.replayDepth > 0) return;
+      this.scheduleLiveFlush();
+      return;
+    }
+    for (const event of events) {
+      this.broadcastData(providerId, slot, event);
+    }
+  }
+
+  private scheduleLiveFlush(): void {
+    if (this.liveFlushScheduled) return;
+    this.liveFlushScheduled = true;
+    this.scheduleTask(() => {
+      this.liveFlushScheduled = false;
+      if (this.replayDepth > 0) return;
+      this.flushPendingLive();
+    });
+  }
+
+  private flushPendingLive(): void {
+    if (this.pendingLiveBatch.size === 0) return;
+    const pending = [...this.pendingLiveBatch.entries()];
+    this.pendingLiveBatch.clear();
+    for (const [providerId, { slot, events }] of pending) {
+      // Slot may have been recreated/stopped while deferred.
+      if (this.providers.get(providerId) !== slot) continue;
+      for (const event of events) {
+        this.broadcastData(providerId, slot, event);
+      }
     }
   }
 

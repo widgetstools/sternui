@@ -200,6 +200,7 @@ events carry an `enc` tag and the client picks the decoder.
 | Late joiner attach (20k rows, N windows already open) | full structured clone of cache per attach | one lazy encode, then byte copies; often zero encode (seeded by restart broadcast) |
 | Restart with 10 windows | 10 × 20k-row structured clones | 1 encode (40 chunks) + 10 × byte copies, replay memo seeded free |
 | Live tick fan-out (big frames) | 1 object-graph clone × N windows per frame (worker saturated at 3–4 windows) | 1 encode + N byte copies (~flat in N); windows 3–4 open normally under full load |
+| Late-join vs live backlog | Live sync broadcasts starve attach for minutes | **ADR Phase 0:** defer live during replay; production `deferLiveFanOut` schedules live on a macrotask so attach interleaves |
 | Live tick fan-out (small conflated frames) | plain delta | unchanged — plain delta (below 64-row threshold) |
 | Worker GC pressure | per-listener event allocations + dedup maps every tick | reused event objects, reference-shared row arrays on the clean path |
 | Cache memory (2000-field feed, 200 shown) | full rows cached and shipped | ~10× cut with `projectFields`, visible as "Cache size (serialized)" |

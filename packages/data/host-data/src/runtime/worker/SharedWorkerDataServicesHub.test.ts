@@ -2108,3 +2108,79 @@ describe('SharedWorkerDataServicesHub — fan-out worker pool', () => {
     expect(deltasB[0]).toMatchObject({ subId: 's2', rows: [{ id: '1' }, { id: '2' }] });
   });
 });
+
+describe('SharedWorkerDataServicesHub — attach/replay priority (ADR Phase 0)', () => {
+  it('defers live fan-out while late-join replay is in progress, then flushes', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const portA = makePort();
+    hub.handleRequest(portA, { kind: 'attach', subId: 'sA', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ rows: [{ id: 'r1', px: 1 }], replace: true });
+    ctrl.emit({ status: 'ready' });
+    portA.messages.length = 0;
+
+    // Instrument replay by wrapping postMessage on the late-joiner port:
+    // while the first replay status is being posted, emit a live tick.
+    const portB = makePort();
+    const originalPost = portB.postMessage.bind(portB);
+    let liveEmittedDuringReplay = false;
+    portB.postMessage = (m: unknown) => {
+      const ev = m as Event;
+      if (!liveEmittedDuringReplay && ev.kind === 'status' && ev.status === 'loading') {
+        liveEmittedDuringReplay = true;
+        ctrl.emit({ rows: [{ id: 'r1', px: 99 }] });
+        // Live must not reach established listeners mid-replay either.
+        expect(portA.messages.filter((msg) => isAnyDelta(msg))).toHaveLength(0);
+      }
+      originalPost(m);
+    };
+
+    hub.handleRequest(portB, { kind: 'attach', subId: 'sB', providerId: 'p1', mode: 'data' });
+    expect(liveEmittedDuringReplay).toBe(true);
+
+    // Late joiner finished replay with ready.
+    expect(portB.messages.some((m) => m.kind === 'status' && m.status === 'ready')).toBe(true);
+
+    // Deferred live tick flushed after replay to both listeners.
+    const liveA = portA.messages.filter((m) => isAnyDelta(m));
+    const liveB = portB.messages.filter((m) => isAnyDelta(m) && !(m as { replace?: boolean }).replace);
+    expect(liveA.length).toBeGreaterThanOrEqual(1);
+    expect(rowsOf(liveA[liveA.length - 1]!)).toEqual([{ id: 'r1', px: 99 }]);
+    // portB also receives the flushed live update after its replay replace.
+    expect(liveB.length).toBeGreaterThanOrEqual(1);
+    expect(rowsOf(liveB[liveB.length - 1]!)).toEqual([{ id: 'r1', px: 99 }]);
+  });
+
+  it('with deferLiveFanOut, coalesces ticks onto a macrotask so attach can run first', () => {
+    const tasks: Array<() => void> = [];
+    const hub = new SharedWorkerDataServicesHub({
+      deferLiveFanOut: true,
+      scheduleTask: (cb) => { tasks.push(cb); },
+    });
+    const portA = makePort();
+    hub.handleRequest(portA, { kind: 'attach', subId: 'sA', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ rows: [{ id: 'seed', px: 0 }], replace: true });
+    ctrl.emit({ status: 'ready' });
+    portA.messages.length = 0;
+    tasks.length = 0;
+
+    ctrl.emit({ rows: [{ id: 'seed', px: 1 }] });
+    ctrl.emit({ rows: [{ id: 'seed', px: 2 }] });
+    // Live not delivered yet — waiting for scheduled flush.
+    expect(portA.messages.filter((m) => isAnyDelta(m))).toHaveLength(0);
+    expect(tasks).toHaveLength(1);
+
+    // Attach late joiner before the deferred flush runs.
+    const portB = makePort();
+    hub.handleRequest(portB, { kind: 'attach', subId: 'sB', providerId: 'p1', mode: 'data' });
+    const replayRows = portB.messages.filter(isAnyDelta).flatMap((m) => rowsOf(m) ?? []);
+    expect(replayRows.some((r) => (r as { id: string }).id === 'seed')).toBe(true);
+
+    // Flush coalesced live (last-write-wins → px: 2).
+    tasks[0]!();
+    const liveA = portA.messages.filter(isAnyDelta);
+    expect(liveA).toHaveLength(1);
+    expect(rowsOf(liveA[0]!)).toEqual([{ id: 'seed', px: 2 }]);
+  });
+});

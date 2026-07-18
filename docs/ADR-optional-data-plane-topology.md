@@ -194,7 +194,7 @@ Today main + worker both open Dexie. Under this ADR:
 
 | Phase | Work | Exit criteria |
 |-------|------|----------------|
-| **0** | Keep monolith; QoS (provider `throttleMs` defaults, prioritize attach/replay over live, Config Browser off FullGate) | **In progress on this branch:** star-demo Config Browser → ConfigGate; Data Providers → DeferredDataGate; hash-aware bootstrap warm; STOMP default `throttleMs` 50ms. Remaining: hub attach/replay priority vs live fan-out. |
+| **0** | Keep monolith; QoS (provider `throttleMs` defaults, prioritize attach/replay over live, Config Browser off FullGate) | **Done on this branch:** star-demo ConfigGate / DeferredDataGate + hash-aware warm; STOMP default `throttleMs` 50ms; hub defers post-ready live fan-out during late-join/refresh replay and (in production) schedules live fan-out on a macrotask so attach can interleave. |
 | **1** | Formalize AppData + Config as service boundaries inside the hub (RPC-shaped APIs, no behavior change) | Providers/UI call service APIs only; no direct store poking across features |
 | **2** | Extract **Config** SharedWorker + `createConfigClient`; retarget invalidate | P1 apps run with Config SW only |
 | **3** | Extract **AppData** SharedWorker + mirror attach | Template resolution works across process boundary |

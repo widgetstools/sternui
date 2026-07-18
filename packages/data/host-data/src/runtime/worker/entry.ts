@@ -83,7 +83,12 @@ export async function installSharedWorkerHub(opts: InstallOpts = {}): Promise<In
     });
   }
 
-  hub = new SharedWorkerDataServicesHub({ ...opts, fanOutPool });
+  hub = new SharedWorkerDataServicesHub({
+    ...opts,
+    fanOutPool,
+    // ADR Phase 0: yield live fan-out so attach/late-join can run between ticks.
+    deferLiveFanOut: opts.deferLiveFanOut ?? true,
+  });
 
   const globalRef = (opts.selfRef ?? globalThis) as
     Partial<SharedWorkerLike> & Partial<DedicatedWorkerLike>;
