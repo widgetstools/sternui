@@ -1,6 +1,8 @@
 # StarUI Platform Architecture
 
-See also: root [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) and [`docs/ARCHITECTURE_GUIDE.md`](../../docs/ARCHITECTURE_GUIDE.md).
+See also: [`ARCHITECTURE_GUIDE.md`](./ARCHITECTURE_GUIDE.md) (if present),
+[`ADR-optional-data-plane-topology.md`](./ADR-optional-data-plane-topology.md)
+(proposed lazy named SharedWorkers; optional Config / AppData / per-provider workers).
 
 ## Layer model
 
