@@ -9,4 +9,5 @@ export {
   ProviderClientAdapter,
   resolveProviderCapabilities,
   type ProviderClientAdapterOpts,
+  type ProviderWorkerRoutingOpts,
 } from './ProviderClientAdapter.js';

@@ -1,14 +1,35 @@
 import type { ColumnDefinition, ProviderConfig, ProviderType } from '@starui/types';
-import type { SharedWorkerDataServicesClient, SubscribeHandle } from '../runtime/client/SharedWorkerDataServicesClient.js';
+import type {
+  AttachOpts,
+  SharedWorkerDataServicesClient,
+  SubscribeHandle,
+} from '../runtime/client/SharedWorkerDataServicesClient.js';
 import type { ProviderStatus } from '../runtime/protocol.js';
 import type { IDataProvider, Unsubscribe } from './IDataProvider.js';
 import type { ProviderCapabilities } from './ProviderCapabilities.js';
+import {
+  createProviderClient,
+  type CreateProviderClientOpts,
+  type ProviderClient,
+} from '../runtime/providerWorker/index.js';
+
+/**
+ * Route {@link ProviderClientAdapter} data subscribe to a per-provider
+ * SharedWorker (ADR Phase 4c). Catalog reads still use the monolith
+ * {@link SharedWorkerDataServicesClient} until Config SW is the sole path.
+ */
+export type ProviderWorkerRoutingOpts = Omit<CreateProviderClientOpts, 'providerId'>;
 
 export interface ProviderClientAdapterOpts {
   client: SharedWorkerDataServicesClient;
   providerId: string;
   /** Draft cfg when the provider row is not in the catalog yet. */
   inlineCfg?: ProviderConfig;
+  /**
+   * When set, `start` / `restart` open `starui-provider:{appId}:{providerId}`
+   * instead of the monolith hub (ADR Phase 4c). Default demos omit this.
+   */
+  providerWorker?: ProviderWorkerRoutingOpts;
 }
 
 export function resolveProviderCapabilities(providerType: ProviderType): ProviderCapabilities {
@@ -50,14 +71,17 @@ export function resolveProviderCapabilities(providerType: ProviderType): Provide
 }
 
 /**
- * Client-side {@link IDataProvider} backed by {@link SharedWorkerDataServicesClient}.
- * One adapter instance = one hub subscriber (attach/detach).
+ * Client-side {@link IDataProvider} backed by {@link SharedWorkerDataServicesClient}
+ * (monolith hub) or optionally a per-provider SharedWorker (ADR Phase 4c).
+ * One adapter instance = one hub/provider-SW subscriber (attach/detach).
  */
 export class ProviderClientAdapter<T = Record<string, unknown>> implements IDataProvider<T> {
   readonly id: string;
 
   private readonly client: SharedWorkerDataServicesClient;
   private readonly inlineCfg?: ProviderConfig;
+  private readonly providerWorker?: ProviderWorkerRoutingOpts;
+  private providerClient: ProviderClient | null = null;
   private resolvedConfig: ProviderConfig | null = null;
   private handle: SubscribeHandle<T> | null = null;
   /** Reference to the last snapshot commit — not copied, not updated on live ticks. */
@@ -73,6 +97,7 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
     this.id = opts.providerId;
     this.client = opts.client;
     this.inlineCfg = opts.inlineCfg;
+    this.providerWorker = opts.providerWorker;
   }
 
   get capabilities(): ProviderCapabilities {
@@ -89,6 +114,7 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
     // eslint-disable-next-line no-console
     console.info('[starui/stomp-template] main thread ProviderClientAdapter.start', {
       providerId: this.id,
+      providerWorker: Boolean(this.providerWorker),
       note: 'Hub loads catalog cfg in worker — see hub.attach / stomp.onConnect logs for wire destinations.',
     });
 
@@ -109,10 +135,7 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
       this.resolvedConfig = row.config;
     }
 
-    const handle = this.client.subscribe<T>(
-      this.id,
-      this.inlineCfg,
-    );
+    const handle = await this.openSubscribe(this.inlineCfg);
     this.wireHandle(handle);
     this.handle = handle;
     await handle.snapshot;
@@ -132,6 +155,7 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
     console.info('[starui/stomp-template] main thread ProviderClientAdapter.restart', {
       providerId: this.id,
       extra: extra ?? null,
+      providerWorker: Boolean(this.providerWorker),
     });
     this.detach();
     if (!this.resolvedConfig && !this.inlineCfg) {
@@ -142,8 +166,7 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
       this.resolvedConfig = row.config;
     }
 
-    const handle = this.client.subscribe<T>(
-      this.id,
+    const handle = await this.openSubscribe(
       this.inlineCfg,
       extra ? { extra } : {},
     );
@@ -195,6 +218,21 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
   onStatus(handler: (status: ProviderStatus, error?: string) => void): Unsubscribe {
     this.statusHandlers.add(handler);
     return () => this.statusHandlers.delete(handler);
+  }
+
+  private async openSubscribe(
+    cfg: ProviderConfig | undefined,
+    attachOpts: AttachOpts = {},
+  ): Promise<SubscribeHandle<T>> {
+    if (this.providerWorker) {
+      const pc = await createProviderClient({
+        ...this.providerWorker,
+        providerId: this.id,
+      });
+      this.providerClient = pc;
+      return pc.subscribe<T>(cfg, attachOpts);
+    }
+    return this.client.subscribe<T>(this.id, cfg, attachOpts);
   }
 
   private wireHandle(handle: SubscribeHandle<T>): void {

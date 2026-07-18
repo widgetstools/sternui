@@ -25,6 +25,7 @@ export type {
   ProviderCapabilities,
   Unsubscribe,
   ProviderClientAdapterOpts,
+  ProviderWorkerRoutingOpts,
 } from './provider/index.js';
 export {
   ProviderClientAdapter,
