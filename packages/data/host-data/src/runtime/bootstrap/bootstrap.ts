@@ -24,6 +24,7 @@
 import type { ConfigManager } from '@wellsfargo-starui/host-config';
 import { SharedWorkerDataServicesClient } from '../client/SharedWorkerDataServicesClient.js';
 import type { AppDataMirror } from '../mirror/AppDataMirror.js';
+import type { AppDataClient } from '../appDataWorker/AppDataClient.js';
 
 export interface BootstrapDataServicesOpts {
   /**
@@ -64,6 +65,12 @@ export interface BootstrapDataServicesOpts {
    * (`LOGGED_IN_USER_ID`).
    */
   userId: string;
+
+  /**
+   * When set (ADR control-plane split), attach the UI AppData mirror to
+   * the AppData SharedWorker instead of the monolith hub.
+   */
+  appDataClient?: AppDataClient;
 }
 
 export interface DataServices {
@@ -92,13 +99,10 @@ export function bootstrapDataServices(opts: BootstrapDataServicesOpts): DataServ
   if (existing) return existing;
 
   const client = opts.client ?? new SharedWorkerDataServicesClient(opts.worker.port);
-  // The mirror is now a pure RPC client — it sends operations to the
-  // hub and receives snapshot/delta events back. The hub owns
-  // IndexedDB persistence (it constructs its own ConfigManager inside
-  // the SharedWorker context). `opts.configManager` stays on the
-  // bundle for editor flows (`DataProviderConfigStore`) but doesn't
-  // flow into the mirror anymore.
-  const appData = client.attachAppData({ userId: opts.userId });
+  // Prefer AppData SW when available (ADR control-plane split). Otherwise
+  // the mirror attaches through the monolith hub client.
+  const appDataHost = opts.appDataClient ?? client;
+  const appData = appDataHost.attachAppData({ userId: opts.userId });
 
   // Fire the seed read + worker round-trip immediately. Errors here
   // surface through the mirror's existing `console.warn` path —
@@ -116,7 +120,7 @@ export function bootstrapDataServices(opts: BootstrapDataServicesOpts): DataServ
     dispose() {
       if (disposed) return;
       disposed = true;
-      try { client.detachAppData(appData); } catch { /* port may already be dead */ }
+      try { appDataHost.detachAppData(appData); } catch { /* port may already be dead */ }
       try { client.close(); } catch { /* idempotent */ }
       if (registry.get(opts.appName) === services) {
         registry.delete(opts.appName);

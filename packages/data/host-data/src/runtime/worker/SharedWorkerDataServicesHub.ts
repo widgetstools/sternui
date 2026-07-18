@@ -157,6 +157,7 @@ export class SharedWorkerDataServicesHub {
   private readonly deferLiveFanOut: boolean;
   private readonly scheduleTask: (cb: () => void) => void;
   private readonly appDataLookupOverride: import('../template/resolver.js').AppDataLookup | null;
+  private readonly streamingDisabled: boolean;
   private statsTimer: unknown = null;
   private subscriberSweepTimer: unknown = null;
 
@@ -183,6 +184,7 @@ export class SharedWorkerDataServicesHub {
         setTimeout(cb, 0);
       });
     this.appDataLookupOverride = opts.appDataLookup ?? null;
+    this.streamingDisabled = opts.streamingDisabled === true;
     this.appData = new AppDataService({ configManager: opts.configManager });
     this.configCatalog = resolveCatalogService(opts);
 
@@ -555,6 +557,18 @@ export class SharedWorkerDataServicesHub {
   }
 
   private handleAttach(port: PortLike, req: AttachRequest): void {
+    if (this.streamingDisabled) {
+      port.postMessage({
+        subId: req.subId,
+        kind: 'status',
+        status: 'error',
+        error:
+          `Provider '${req.providerId}' streaming is disabled on the monolith hub; ` +
+          'subscribe via starui-provider SharedWorkers (providerWorkerScriptUrl).',
+      } satisfies Event);
+      return;
+    }
+
     let slot = this.providers.get(req.providerId);
     let isRestartAttach = false;
 

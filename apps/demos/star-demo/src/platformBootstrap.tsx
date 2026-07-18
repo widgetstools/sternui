@@ -23,11 +23,17 @@
  *
  * Phase 4d — Per-provider workers (`starui-provider:{appId}:{id}`):
  *   Pass `providerWorkerScriptUrl` so blotter `useDataProvider` / `getProvider`
- *   subscribe on dedicated workers. The monolith hub remains for catalog RPC +
- *   AppData mirror + hub inspector; live upstreams move off that thread.
+ *   subscribe on dedicated workers. That also sets `hubStreamingDisabled` so
+ *   the monolith rejects live attach (control-plane only).
  *
- * Dual-run note: Config SW + AppData SW + monolith hub still coexist for
- * catalog/AppData UI; provider SWs are the streaming cutover.
+ * Control-plane split (post-4d):
+ *   With Config + AppData worker URLs, UI AppData mirror attaches to AppData SW
+ *   and `getProviderConfig` prefers Config SW. The monolith hub remains for
+ *   catalog invalidate dual-path, hub inspector, and legacy callers without
+ *   provider workers.
+ *
+ * Dual-run note: Config SW + AppData SW + thin monolith hub still coexist;
+ * provider SWs own streaming.
  */
 
 import {

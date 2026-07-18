@@ -16,6 +16,9 @@ import {
   markCatalogReady,
   markHubConnected,
 } from '../bootstrap/loadMarks.js';
+import type { AppDataClient } from '../runtime/appDataWorker/AppDataClient.js';
+import type { ConfigClient } from '../runtime/configWorker/ConfigClient.js';
+import { resolveProviderConfigFromConfigClient } from '../runtime/providerWorker/providerConfigBridge.js';
 
 /** Hub bundle including legacy {@link DataServices} handles for migration. */
 export interface ResolvedDataServicesHubBundle extends DataServicesHubBundle {
@@ -43,6 +46,21 @@ export interface EnsureHubOpts extends PlatformBootstrapConfig {
   appDataWorkerScriptUrl?: string;
   /** Forwarded into provider-worker bootstrap for Config SW bridge. */
   configWorkerScriptUrl?: string;
+  /**
+   * When set, UI AppData mirror attaches to AppData SW (ADR control-plane
+   * split) instead of the monolith hub.
+   */
+  appDataClient?: AppDataClient;
+  /**
+   * When set, {@link ProviderClientAdapter} resolves catalog cfg via
+   * Config SW instead of the monolith hub client.
+   */
+  configClient?: ConfigClient;
+  /**
+   * Reject streaming attach on the monolith hub. Default true when
+   * {@link providerWorkerScriptUrl} is set.
+   */
+  hubStreamingDisabled?: boolean;
 }
 
 /** The window's single SharedWorker port + client for one `appId`. */
@@ -54,6 +72,7 @@ export interface HubConnection {
 /** Options for {@link warmHubConnection} — hub opts minus the ConfigManager. */
 export type WarmHubConnectionOpts = PlatformBootstrapConfig & {
   workerScriptUrl: string;
+  hubStreamingDisabled?: boolean;
 };
 
 const hubPromises = new Map<string, Promise<ResolvedDataServicesHubBundle>>();
@@ -76,6 +95,7 @@ function getOrCreateHubConnection(opts: WarmHubConnectionOpts): HubConnection {
     userId: opts.userId,
     seedConfigUrl: opts.seedConfigUrl,
     seedConfigReload: opts.seedConfigReload,
+    hubStreamingDisabled: opts.hubStreamingDisabled,
   });
   const connection: HubConnection = {
     worker,
@@ -145,6 +165,11 @@ function adaptDataServicesToHubBundle(
         }
       : undefined;
 
+  const resolveProviderConfig = opts.configClient
+    ? (providerId: string) =>
+        resolveProviderConfigFromConfigClient(opts.configClient!, providerId)
+    : undefined;
+
   return {
     ready: readiness.ready,
     appDataReady: readiness.appDataReady,
@@ -155,6 +180,7 @@ function adaptDataServicesToHubBundle(
         client: services.client,
         providerId,
         providerWorker: providerWorkerRouting,
+        resolveProviderConfig,
       });
     },
     stopProvider(providerId: string): Promise<void> {
@@ -173,13 +199,19 @@ function adaptDataServicesToHubBundle(
 }
 
 async function bootstrapHubOnce(opts: EnsureHubOpts): Promise<ResolvedDataServicesHubBundle> {
-  const connection = getOrCreateHubConnection(opts);
+  const hubStreamingDisabled =
+    opts.hubStreamingDisabled ?? Boolean(opts.providerWorkerScriptUrl);
+  const connection = getOrCreateHubConnection({
+    ...opts,
+    hubStreamingDisabled,
+  });
   const services = bootstrapDataServices({
     appName: opts.appId,
     worker: connection.worker,
     client: connection.client,
     configManager: opts.mainThreadConfigManager,
     userId: opts.userId,
+    appDataClient: opts.appDataClient,
   });
   markHubConnected();
   // Return as soon as the hub connection is established — the AppData snapshot

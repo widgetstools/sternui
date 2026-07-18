@@ -19,6 +19,11 @@ export interface WorkerBootstrapPayload {
    * Reserved for cfg-free attach via Config SW (dual with local CM for now).
    */
   configWorkerScriptUrl?: string;
+  /**
+   * When true, the monolith hub rejects data/stats attach (ADR control-plane
+   * split). Streaming lives on `starui-provider:*` workers instead.
+   */
+  hubStreamingDisabled?: boolean;
 }
 
 function storageKey(appName: string): string {
@@ -26,15 +31,26 @@ function storageKey(appName: string): string {
 }
 
 /**
- * Persist bootstrap fields for the worker entry to read on first boot.
- * Uses localStorage (not the worker script URL) so Vite dev `@fs/` URLs
- * are not broken by extra query parameters.
+ * Persist bootstrap fields for worker entries to read on first boot.
+ * Merges with any existing payload for the same `appName` so Config /
+ * AppData / provider / hub writers do not wipe each other's fields.
  */
 export function writeWorkerBootstrapPayload(
   appName: string,
   payload: WorkerBootstrapPayload,
 ): void {
-  writeCrossWindowItem(storageKey(appName), JSON.stringify(payload));
+  const prev = readWorkerBootstrapPayload(appName);
+  const merged: WorkerBootstrapPayload = {
+    appId: payload.appId || prev?.appId || '',
+    userId: payload.userId || prev?.userId || '',
+    seedConfigUrl: payload.seedConfigUrl ?? prev?.seedConfigUrl,
+    seedConfigReload: payload.seedConfigReload ?? prev?.seedConfigReload,
+    configServiceRestUrl: payload.configServiceRestUrl ?? prev?.configServiceRestUrl,
+    appDataWorkerScriptUrl: payload.appDataWorkerScriptUrl ?? prev?.appDataWorkerScriptUrl,
+    configWorkerScriptUrl: payload.configWorkerScriptUrl ?? prev?.configWorkerScriptUrl,
+    hubStreamingDisabled: payload.hubStreamingDisabled ?? prev?.hubStreamingDisabled,
+  };
+  writeCrossWindowItem(storageKey(appName), JSON.stringify(merged));
 }
 
 /** Read bootstrap fields written by the main thread before worker spawn. */
@@ -69,6 +85,7 @@ export function readWorkerBootstrapPayload(
         configWorkerScriptUrl: typeof parsed.configWorkerScriptUrl === 'string'
           ? parsed.configWorkerScriptUrl
           : undefined,
+        hubStreamingDisabled: parsed.hubStreamingDisabled === true,
       };
     }
   } catch {

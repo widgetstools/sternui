@@ -64,6 +64,7 @@ describe('ensureDataServicesHub', () => {
       userId: 'dev1',
       seedConfigUrl: undefined,
       seedConfigReload: undefined,
+      hubStreamingDisabled: false,
     });
     expect(bootstrapDataServicesMock).toHaveBeenCalledWith({
       appName: 'TestApp',
@@ -71,6 +72,7 @@ describe('ensureDataServicesHub', () => {
       client: expect.any(Object),
       configManager: fakeCm,
       userId: 'dev1',
+      appDataClient: undefined,
     });
     expect(waitForCatalogReady).toHaveBeenCalledTimes(1);
     await bundle.ready;
@@ -107,7 +109,28 @@ describe('ensureDataServicesHub', () => {
       userId: 'dev1',
       seedConfigUrl: undefined,
       seedConfigReload: undefined,
+      hubStreamingDisabled: false,
     });
+  });
+
+  it('disables hub streaming and forwards providerWorker when URL is set', async () => {
+    const bundle = await ensureDataServicesHub({
+      ...DEV_PLATFORM_BOOTSTRAP,
+      workerScriptUrl: '/worker.mjs',
+      mainThreadConfigManager: fakeCm,
+      providerWorkerScriptUrl: '/provider-worker.mjs',
+    });
+
+    expect(createDataServicesWorkerMock).toHaveBeenCalledWith('/worker.mjs', {
+      appName: 'TestApp',
+      configServiceRestUrl: undefined,
+      appId: 'TestApp',
+      userId: 'dev1',
+      seedConfigUrl: undefined,
+      seedConfigReload: undefined,
+      hubStreamingDisabled: true,
+    });
+    expect(bundle.providerWorkerRouting?.workerScriptUrl).toBe('/provider-worker.mjs');
   });
 
   it('getProvider returns a ProviderClientAdapter bound to the hub client', async () => {

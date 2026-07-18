@@ -151,6 +151,24 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
     expect(port.messages[0]).toMatchObject({ kind: 'status', status: 'error' });
   });
 
+  it('rejects data attach when streamingDisabled (ADR control-plane split)', () => {
+    const hub = new SharedWorkerDataServicesHub({ streamingDisabled: true });
+    const port = makePort();
+
+    hub.handleRequest(port, {
+      kind: 'attach',
+      subId: 's1',
+      providerId: 'p1',
+      mode: 'data',
+      cfg: cfg(),
+    });
+
+    expect(port.messages).toHaveLength(1);
+    expect(port.messages[0]).toMatchObject({ kind: 'status', status: 'error' });
+    expect(String((port.messages[0] as { error?: string }).error)).toMatch(/streaming is disabled/);
+    expect(controllers.size).toBe(0);
+  });
+
   it('late joiner gets the full cache as one replace delta', () => {
     const hub = new SharedWorkerDataServicesHub();
     const portA = makePort();

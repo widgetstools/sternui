@@ -48,8 +48,9 @@ export interface EnsurePlatformReadyOpts {
   /**
    * Optional per-provider SharedWorker asset URL (ADR Phase 4d). When set,
    * `getProvider` / `useDataProvider` route live subscribe to
-   * `starui-provider:{appId}:{providerId}` instead of the monolith hub.
-   * The monolith hub remains for catalog + AppData mirror.
+   * `starui-provider:{appId}:{providerId}` instead of the monolith hub,
+   * and the monolith rejects streaming attach (`hubStreamingDisabled`).
+   * Catalog + AppData UI use Config/AppData SWs when those URLs are set.
    */
   providerWorkerScriptUrl?: string;
   /** App-authored hook registry keyed by stable ids from app-config.json. */
@@ -235,9 +236,14 @@ async function bootstrapPlatformOnce(
   // spawns (and seeds, on cold start) while the main-thread ConfigManager
   // opens IndexedDB. The same connection is reused by the hub below —
   // one port per window, no throwaway probe connection.
-  warmHubConnection({ ...config, workerScriptUrl: opts.workerScriptUrl });
+  const hubStreamingDisabled = Boolean(opts.providerWorkerScriptUrl);
+  warmHubConnection({
+    ...config,
+    workerScriptUrl: opts.workerScriptUrl,
+    hubStreamingDisabled,
+  });
 
-  const { configManager } = await ensureConfigReady(config, {
+  const { configManager, configClient, appDataClient } = await ensureConfigReady(config, {
     configWorkerScriptUrl: opts.configWorkerScriptUrl,
     appDataWorkerScriptUrl: opts.appDataWorkerScriptUrl,
   });
@@ -249,6 +255,9 @@ async function bootstrapPlatformOnce(
     providerWorkerScriptUrl: opts.providerWorkerScriptUrl,
     appDataWorkerScriptUrl: opts.appDataWorkerScriptUrl,
     configWorkerScriptUrl: opts.configWorkerScriptUrl,
+    appDataClient,
+    configClient,
+    hubStreamingDisabled,
   });
 
   wireWorkerCatalogSync(configManager, bundle.client);

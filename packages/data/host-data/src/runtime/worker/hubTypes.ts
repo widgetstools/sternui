@@ -248,4 +248,11 @@ export interface SharedWorkerDataServicesHubOpts {
    * tests to flush deferred live fan-out deterministically.
    */
   scheduleTask?: (cb: () => void) => void;
+
+  /**
+   * When true, reject data/stats `attach` (ADR control-plane split).
+   * Streaming lives on `starui-provider:*` workers; the monolith hub
+   * remains for catalog RPC / inspector only.
+   */
+  streamingDisabled?: boolean;
 }

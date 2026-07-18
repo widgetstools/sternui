@@ -22,6 +22,7 @@ function readWorkerBootstrapParams(): {
   userId: string | undefined;
   seedConfigUrl: string | undefined;
   seedConfigReload: 'empty-only' | 'when-changed' | undefined;
+  hubStreamingDisabled: boolean;
 } {
   const workerName = typeof self.name === 'string' ? self.name : '';
   const appName = appNameFromWorkerName(workerName);
@@ -32,6 +33,7 @@ function readWorkerBootstrapParams(): {
       userId: undefined,
       seedConfigUrl: undefined,
       seedConfigReload: undefined,
+      hubStreamingDisabled: false,
     };
   }
 
@@ -43,6 +45,7 @@ function readWorkerBootstrapParams(): {
       userId: undefined,
       seedConfigUrl: undefined,
       seedConfigReload: undefined,
+      hubStreamingDisabled: false,
     };
   }
 
@@ -52,6 +55,7 @@ function readWorkerBootstrapParams(): {
     userId: payload.userId,
     seedConfigUrl: payload.seedConfigUrl,
     seedConfigReload: payload.seedConfigReload,
+    hubStreamingDisabled: payload.hubStreamingDisabled === true,
   };
 }
 
@@ -62,6 +66,7 @@ async function boot(): Promise<void> {
     userId,
     seedConfigUrl,
     seedConfigReload,
+    hubStreamingDisabled,
   } = readWorkerBootstrapParams();
 
   const configManager = createConfigManager({
@@ -83,7 +88,10 @@ async function boot(): Promise<void> {
   // converting this to attach mode would silently break recovery after a
   // wiped IndexedDB. See docs/CONFIG_SERVICE_BASELINE.md §4.5.
   await configManager.init();
-  await installSharedWorkerHub({ configManager });
+  await installSharedWorkerHub({
+    configManager,
+    streamingDisabled: hubStreamingDisabled,
+  });
   // eslint-disable-next-line no-console
   console.info(
     `[@wellsfargo-starui/host-data worker] ConfigManager initialised (mode: ${configManager.isRestMode() ? 'REST' : 'local'})`,

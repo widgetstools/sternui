@@ -315,4 +315,23 @@ describe('ProviderClientAdapter', () => {
     expect(adapter.getData()).toEqual([{ id: 'x' }]);
     await adapter.stop();
   });
+
+  it('resolves catalog cfg via resolveProviderConfig when set (Config SW path)', async () => {
+    const resolveProviderConfig = vi.fn(async () => cfg('from-config-sw'));
+    const adapter = new ProviderClientAdapter<{ id: string }>({
+      client: w.client,
+      providerId: 'missing-from-hub',
+      resolveProviderConfig,
+    });
+
+    const startPromise = adapter.start();
+    await flush();
+    controllers.get('from-config-sw')!.emit({ rows: [{ id: 'z' }], replace: true });
+    controllers.get('from-config-sw')!.emit({ status: 'ready' });
+    await startPromise;
+
+    expect(resolveProviderConfig).toHaveBeenCalledWith('missing-from-hub');
+    expect(adapter.getData()).toEqual([{ id: 'z' }]);
+    await adapter.stop();
+  });
 });

@@ -35,6 +35,11 @@ export interface CreateDataServicesWorkerOpts {
    */
   seedConfigUrl?: string;
   seedConfigReload?: 'empty-only' | 'when-changed';
+  /**
+   * When true, monolith hub rejects data/stats attach (ADR control-plane
+   * split — streaming on per-provider SharedWorkers).
+   */
+  hubStreamingDisabled?: boolean;
 }
 
 /** Package export path for the bundled worker (after `npm run build`). */
@@ -64,6 +69,7 @@ function persistWorkerBootstrap(opts: CreateDataServicesWorkerOpts): void {
     seedConfigUrl: opts.seedConfigUrl,
     seedConfigReload: opts.seedConfigReload,
     configServiceRestUrl: opts.configServiceRestUrl,
+    hubStreamingDisabled: opts.hubStreamingDisabled,
   };
   writeWorkerBootstrapPayload(opts.appName, payload);
 }

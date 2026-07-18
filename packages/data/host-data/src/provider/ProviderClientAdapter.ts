@@ -15,8 +15,8 @@ import {
 
 /**
  * Route {@link ProviderClientAdapter} data subscribe to a per-provider
- * SharedWorker (ADR Phase 4c). Catalog reads still use the monolith
- * {@link SharedWorkerDataServicesClient} until Config SW is the sole path.
+ * SharedWorker (ADR Phase 4c). Catalog reads prefer Config SW via
+ * {@link ProviderClientAdapterOpts.resolveProviderConfig} when set.
  */
 export type ProviderWorkerRoutingOpts = Omit<CreateProviderClientOpts, 'providerId'>;
 
@@ -30,6 +30,11 @@ export interface ProviderClientAdapterOpts {
    * instead of the monolith hub (ADR Phase 4c). Default demos omit this.
    */
   providerWorker?: ProviderWorkerRoutingOpts;
+  /**
+   * Prefer Config SW (or any external catalog) over the monolith hub
+   * client's `getProviderConfig` (ADR control-plane split).
+   */
+  resolveProviderConfig?: (providerId: string) => Promise<ProviderConfig | null>;
 }
 
 export function resolveProviderCapabilities(providerType: ProviderType): ProviderCapabilities {
@@ -81,6 +86,9 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
   private readonly client: SharedWorkerDataServicesClient;
   private readonly inlineCfg?: ProviderConfig;
   private readonly providerWorker?: ProviderWorkerRoutingOpts;
+  private readonly resolveProviderConfig?: (
+    providerId: string,
+  ) => Promise<ProviderConfig | null>;
   private providerClient: ProviderClient | null = null;
   private resolvedConfig: ProviderConfig | null = null;
   private handle: SubscribeHandle<T> | null = null;
@@ -98,6 +106,7 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
     this.client = opts.client;
     this.inlineCfg = opts.inlineCfg;
     this.providerWorker = opts.providerWorker;
+    this.resolveProviderConfig = opts.resolveProviderConfig;
   }
 
   get capabilities(): ProviderCapabilities {
@@ -121,18 +130,15 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
     if (this.inlineCfg) {
       this.resolvedConfig = this.inlineCfg;
     } else {
-      // Phase 3: `getProviderConfig` resolves this one provider on demand in
-      // the worker (cached or a single-row read) — no need to gate on the full
-      // catalog preload. The worker caches the row, so the attach below finds
-      // it synchronously.
-      const row = await this.client.getProviderConfig(this.id);
-      if (!row?.config) {
+      // Prefer Config SW when wired; otherwise hub catalog RPC (Phase 3
+      // on-demand single-row read — no full catalog preload gate).
+      this.resolvedConfig = await this.loadProviderConfig();
+      if (!this.resolvedConfig) {
         throw new Error(
           `[ProviderClientAdapter] No config for providerId=${this.id}. ` +
             'Pass inlineCfg for drafts or ensure the catalog is hydrated.',
         );
       }
-      this.resolvedConfig = row.config;
     }
 
     const handle = await this.openSubscribe(this.inlineCfg ?? this.resolvedConfig ?? undefined);
@@ -159,11 +165,10 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
     });
     this.detach();
     if (!this.resolvedConfig && !this.inlineCfg) {
-      const row = await this.client.getProviderConfig(this.id);
-      if (!row?.config) {
+      this.resolvedConfig = await this.loadProviderConfig();
+      if (!this.resolvedConfig) {
         throw new Error(`[ProviderClientAdapter] No config for providerId=${this.id}`);
       }
-      this.resolvedConfig = row.config;
     }
 
     const handle = await this.openSubscribe(
@@ -218,6 +223,14 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
   onStatus(handler: (status: ProviderStatus, error?: string) => void): Unsubscribe {
     this.statusHandlers.add(handler);
     return () => this.statusHandlers.delete(handler);
+  }
+
+  private async loadProviderConfig(): Promise<ProviderConfig | null> {
+    if (this.resolveProviderConfig) {
+      return this.resolveProviderConfig(this.id);
+    }
+    const row = await this.client.getProviderConfig(this.id);
+    return row?.config ?? null;
   }
 
   private async openSubscribe(
