@@ -156,9 +156,12 @@ export interface StompProviderConfig {
   throttleEnabled?: boolean;
   /**
    * Coalesce row-update fanout into trailing-edge bursts every
-   * `throttleMs`. 0 / undefined → immediate fanout (no batching).
-   * The conflation window above only takes effect when this is set
-   * and `throttleEnabled` is not `false`.
+   * `throttleMs`. `0` → immediate fanout (no batching). When omitted
+   * and `throttleEnabled` is not `false`, STOMP applies a small default
+   * window (50ms) so high-frequency feeds do not saturate the hub.
+   * Set `throttleEnabled: false` to disable batching while keeping a
+   * configured `throttleMs` for later re-enable. Conflation only takes
+   * effect when a non-zero throttle window is live.
    */
   throttleMs?: number;
   /**

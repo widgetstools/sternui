@@ -184,6 +184,25 @@ First launch seeds Dexie from the bundled file; later launches use persisted con
 
 ---
 
+## Optional bootstrap tiers (ADR Phase 0)
+
+Do **not** force every OpenFin tool window through `ensurePlatformReady()`. Match the route to the lightest tier:
+
+| Tier | API | Use for |
+|------|-----|---------|
+| None | — | Pure fin dialogs (`/rename-view-tab`) |
+| Config-only | `ensureConfigReady` / `initConfigBootstrap` | Config Browser, Workspace Setup, dock provider chrome |
+| Deferred data | Config first, then `ensurePlatformReady` without blocking shell | Data Provider editor (needs hub for probe/diagnostics) |
+| Full | `ensurePlatformReady` before blotter paint | MarketsGrid / hosted views that subscribe to feeds |
+
+**HashRouter caveat:** route lives in `location.hash` (`#/config-browser`). Warming logic must read the hash; using `pathname` alone incorrectly starts the SharedWorker for every tool window.
+
+**Catalog sync without Config Browser on the hub:** provider-row writes go to Dexie and `ChangeNotifier` (`marketsui-config-changes`). A blotter window that already ran `wireWorkerCatalogSync` invalidates the worker catalog. If no hub window is open, the next hub boot loads from Dexie.
+
+See [`ADR-optional-data-plane-topology.md`](../ADR-optional-data-plane-topology.md).
+
+---
+
 ## Validation
 
 `validatePlatformBootstrapConfig(config)` returns `{ valid, errors, warnings }`:

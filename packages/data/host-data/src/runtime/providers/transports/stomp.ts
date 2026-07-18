@@ -87,6 +87,13 @@ import { validateStompPathContract } from './stompPathContract.js';
  * code or the provider editor); this is the fallback default.
  */
 const SNAPSHOT_CHUNK_SIZE = 500;
+/**
+ * Default live-phase throttle when `throttleMs` is omitted and
+ * `throttleEnabled` is not `false`. Protects the SharedWorker hub and
+ * subscriber main threads under high-frequency feeds (ADR Phase 0).
+ * Set `throttleMs: 0` or `throttleEnabled: false` for passthrough.
+ */
+const DEFAULT_LIVE_THROTTLE_MS = 50;
 
 // ─── Minimal structural type for the stompjs Client we use ────────
 
@@ -312,14 +319,17 @@ export function startStomp(
       : SNAPSHOT_CHUNK_SIZE;
 
   // Live-phase conflation + trailing-edge throttle. Driven by
-  // `cfg.throttleMs` (window) and `cfg.conflateByKey` / `cfg.keyColumn`
-  // (upsert key). Two explicit master switches (both default ON) let a
-  // config — or the provider editor — turn each off independently:
+  // `cfg.throttleMs` (window; default 50ms when omitted) and
+  // `cfg.conflateByKey` / `cfg.keyColumn` (upsert key). Two explicit
+  // master switches (both default ON) let a config — or the provider
+  // editor — turn each off independently:
   //   • `conflateEnabled: false` disables conflation even though
   //     `keyColumn` could supply a key (drops the `?? keyColumn`
   //     fallback that previously made conflation impossible to disable).
   //   • `throttleEnabled: false` disables batching while preserving the
   //     `throttleMs` value, so re-enabling restores the window.
+  //   • `throttleMs: 0` keeps throttling "on" but with a zero window
+  //     (immediate flush) — distinct from the omit → 50ms default.
   // Conflation still only takes effect when a throttle window is live;
   // without it the dispatch is a passthrough. The probe path
   // (`passthroughSnapshot`) wants raw frames ASAP, so it skips dispatch.
@@ -351,11 +361,17 @@ export function startStomp(
           ? composeRowId(row as Record<string, unknown>, conflateColumns)
           : null
     : undefined;
+  const resolvedThrottleMs = !throttleEnabled
+    ? 0
+    : cfg.throttleMs != null
+      ? cfg.throttleMs
+      : DEFAULT_LIVE_THROTTLE_MS;
+
   const liveDispatch = opts.passthroughSnapshot
     ? null
     : bufferedDispatch<unknown>({
         conflateKeyFn,
-        throttleMs: throttleEnabled ? cfg.throttleMs : 0,
+        throttleMs: resolvedThrottleMs,
         flush: (rows) => emit({ rows }),
         setTimer: opts.setTimer,
         clearTimer: opts.clearTimer,

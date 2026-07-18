@@ -1,4 +1,4 @@
-import React, { Suspense, use, type ReactNode } from "react";
+import React, { Suspense, use, useEffect, useState, type ReactNode } from "react";
 import ReactDOM from "react-dom/client";
 import { HashRouter, Outlet, Route, Routes } from "react-router-dom";
 import App from "./App";
@@ -32,29 +32,49 @@ const WorkspaceSetup = React.lazy(() =>
   import("@starui/workspace-setup-react").then((m) => ({ default: m.WorkspaceSetup })),
 );
 
-/** Workspace-setup mounts outside StarGridApp/OpenFinRuntime, so it subscribes
- *  to the dock theme toggle directly (otherwise it freezes on the boot theme). */
-function WorkspaceSetupRoute() {
-  useOpenFinThemeSync();
-  return <WorkspaceSetup />;
-}
-
 const LOADING = <div style={{ padding: 16 }}>Loading...</div>;
 
-// Warm the bootstrap tier this window's initial route needs. Routes that
-// never touch the data plane skip the SharedWorker hub entirely; the
-// gates below still upgrade on in-window navigation to a data route.
-const initialPath = typeof window !== "undefined" ? window.location.pathname : "";
-if (initialPath.startsWith("/rename-view-tab")) {
+/**
+ * HashRouter puts the route in `location.hash` (`#/config-browser`), so
+ * `pathname` is usually `/`. OpenFin tool windows open that way — using
+ * pathname alone incorrectly warmed the full SharedWorker hub for every
+ * tool window (ADR Phase 0 / R2).
+ */
+function resolveInitialRoute(): string {
+  if (typeof window === "undefined") return "";
+  const hash = window.location.hash.replace(/^#/, "");
+  if (hash.startsWith("/")) {
+    const path = hash.split("?")[0] ?? hash;
+    return path.length > 0 ? path : "/";
+  }
+  return window.location.pathname || "/";
+}
+
+// Warm only the bootstrap tier this window's initial route needs.
+// Catalog invalidation for Config Browser edits reaches a running hub via
+// ConfigManager ChangeNotifier → blotter `wireWorkerCatalogSync` (cross-window).
+const initialRoute = resolveInitialRoute();
+if (initialRoute.startsWith("/rename-view-tab")) {
   // pure-fin dialog — needs neither config rows nor the data plane
-} else if (initialPath.startsWith("/workspace-setup")) {
+} else if (
+  initialRoute.startsWith("/workspace-setup") ||
+  initialRoute.startsWith("/config-browser")
+) {
   void initConfigBootstrap();
+} else if (initialRoute.startsWith("/dataproviders")) {
+  // Config first (fast paint); hub warms in the background for the editor.
+  void initConfigBootstrap();
+  void initPlatformBootstrap();
+} else if (initialRoute.startsWith("/platform/provider")) {
+  // Dock paints on ConfigGate; keep hub warm across grid close/reopen.
+  void initConfigBootstrap();
+  void initPlatformBootstrap();
 } else {
   void initPlatformBootstrap();
 }
 
 /** Warm AG Grid vendor chunks while bootstrap runs (no-op if route chunk already started). */
-if (typeof window !== "undefined" && window.location.pathname.includes("/blotters/marketsgrid")) {
+if (typeof window !== "undefined" && initialRoute.includes("/blotters/marketsgrid")) {
   void Promise.all([
     import("ag-grid-community"),
     import("ag-grid-enterprise"),
@@ -71,6 +91,39 @@ function ConfigGate({ children }: { children: ReactNode }) {
 /** Suspend on the full bootstrap (config + SharedWorker data hub). */
 function FullGate({ children }: { children: ReactNode }) {
   const boot = use(initPlatformBootstrap());
+  return (
+    <PlatformBootstrapProvider value={boot}>
+      <DataHubProvider platform={boot.platform} userId={boot.config.userId} hubInspector={false}>
+        {children}
+      </DataHubProvider>
+    </PlatformBootstrapProvider>
+  );
+}
+
+/**
+ * Paint after config is ready; hydrate the SharedWorker hub without blocking
+ * the first interactive shell (ADR R2 paint-then-hydrate). Used by Data
+ * Providers — the editor needs DataHubProvider, but the window must not wait
+ * on hub connect before showing chrome.
+ */
+function DeferredDataGate({ children }: { children: ReactNode }) {
+  use(initConfigBootstrap());
+  const [boot, setBoot] = useState<PlatformBootstrapResult | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void initPlatformBootstrap().then((result) => {
+      if (!cancelled) setBoot(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!boot) {
+    return <div style={{ padding: 16 }}>Connecting data services…</div>;
+  }
+
   return (
     <PlatformBootstrapProvider value={boot}>
       <DataHubProvider platform={boot.platform} userId={boot.config.userId} hubInspector={false}>
@@ -133,11 +186,13 @@ function AppTree() {
             the SharedWorker alive across grid-window close/reopen. */}
         <Route path="/platform/provider" element={<ConfigGate><React.Suspense fallback={LOADING}><Provider /></React.Suspense></ConfigGate>} />
 
-        {/* Data-plane windows — full bootstrap. ConfigBrowser stays here
-            because it can edit data-provider rows, which must invalidate
-            the worker catalog (wireWorkerCatalogSync). */}
-        <Route path="/dataproviders" element={<FullGate><React.Suspense fallback={LOADING}><DataProviders /></React.Suspense></FullGate>} />
-        <Route path="/config-browser" element={<FullGate><React.Suspense fallback={LOADING}><ConfigBrowser /></React.Suspense></FullGate>} />
+        {/* Config Browser — ConfigManager only. Provider-row edits invalidate
+            a running hub via cross-window ChangeNotifier → wireWorkerCatalogSync
+            on blotter windows (ADR Phase 0 / R2). */}
+        <Route path="/config-browser" element={<ConfigGate><React.Suspense fallback={LOADING}><ConfigBrowser /></React.Suspense></ConfigGate>} />
+
+        {/* Data Providers — config-first paint, then hub for the editor. */}
+        <Route path="/dataproviders" element={<DeferredDataGate><React.Suspense fallback={LOADING}><DataProviders /></React.Suspense></DeferredDataGate>} />
 
         <Route element={<FullGate><ViewRoutesLayout /></FullGate>}>
           <Route path="/" element={<App />} />
@@ -153,6 +208,13 @@ function AppTree() {
       </Routes>
     </HashRouter>
   );
+}
+
+/** Workspace-setup mounts outside StarGridApp/OpenFinRuntime, so it subscribes
+ *  to the dock theme toggle directly (otherwise it freezes on the boot theme). */
+function WorkspaceSetupRoute() {
+  useOpenFinThemeSync();
+  return <WorkspaceSetup />;
 }
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);

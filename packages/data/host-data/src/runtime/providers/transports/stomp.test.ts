@@ -278,7 +278,7 @@ describe('startStomp', () => {
   it('treats post-Success frames as live updates (no replace, no new status)', async () => {
     const events: ProviderEmitEvent[] = [];
     const ctrl = makeFakeClient();
-    startStomp(cfg(), (e) => events.push(e), { createClient: () => ctrl.client });
+    startStomp(cfg({ throttleMs: 0 }), (e) => events.push(e), { createClient: () => ctrl.client });
     await Promise.resolve();
     ctrl.fireConnect();
     ctrl.deliver('Success');
@@ -408,6 +408,7 @@ describe('startStomp', () => {
     startStomp(
       cfg({
         rowShape: 'ssrm',
+        throttleMs: 0,
         keyColumn: 'id',
         columnDefinitions: [
           { field: 'px', headerName: 'Px' },
@@ -474,6 +475,7 @@ describe('startStomp', () => {
     startStomp(
       cfg({
         projectFields: true,
+        throttleMs: 0,
         keyColumn: 'id',
         columnDefinitions: [
           { field: 'px', headerName: 'Price' },
@@ -858,10 +860,34 @@ describe('startStomp — live conflation + throttle', () => {
     expect(events.filter((e) => 'rows' in e)).toHaveLength(0);
   });
 
-  it('passes live deltas straight through when throttleMs is unset', async () => {
+  it('applies default live throttle when throttleMs is unset', async () => {
     const events: ProviderEmitEvent[] = [];
     const ctrl = makeFakeClient();
-    startStomp(cfg(), (e) => events.push(e), { createClient: () => ctrl.client });
+    const t = fakeTimer();
+    startStomp(cfg(), (e) => events.push(e), {
+      createClient: () => ctrl.client,
+      setTimer: t.setTimer,
+      clearTimer: t.clearTimer,
+    });
+    await Promise.resolve();
+    ctrl.fireConnect();
+    ctrl.deliver('Success');
+    events.length = 0;
+
+    ctrl.deliver(JSON.stringify({ id: 'r1', price: 9 }));
+    expect(events.filter((e) => 'rows' in e)).toHaveLength(0);
+    expect(t.pending).toBe(true);
+
+    t.fire();
+    const deltas = events.filter((e): e is { rows: readonly unknown[] } => 'rows' in e);
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0].rows).toEqual([{ id: 'r1', price: 9 }]);
+  });
+
+  it('passes live deltas straight through when throttleMs is 0', async () => {
+    const events: ProviderEmitEvent[] = [];
+    const ctrl = makeFakeClient();
+    startStomp(cfg({ throttleMs: 0 }), (e) => events.push(e), { createClient: () => ctrl.client });
     await Promise.resolve();
     ctrl.fireConnect();
     ctrl.deliver('Success');
