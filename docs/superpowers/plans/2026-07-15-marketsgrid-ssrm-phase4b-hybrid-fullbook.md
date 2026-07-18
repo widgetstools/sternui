@@ -6,7 +6,7 @@
 
 **Architecture:** Day-to-day stays viewport/delta (Phase 3). Explicit / receive-side paths use Perspective: `rowId` receive → set filter on PK; exclusion → compile DSL to a keep expression; alerts → optional `queryAll` rescan via existing uncapped leaf fetch (`getGroupLeafRows({ groupKeys: [] })`).
 
-**Tech Stack:** TypeScript, Vitest, ssrmgrid Perspective worker, `@starui/widgets-react` context link, MarketsGrid toolbar-date-settings + alerts modules.
+**Tech Stack:** TypeScript, Vitest, ssrmgrid Perspective worker, `@wellsfargo-starui/widgets-react` context link, MarketsGrid toolbar-date-settings + alerts modules.
 
 **Spec:** `docs/superpowers/specs/2026-07-15-marketsgrid-ssrm-phase4-design.md` (slice 4b)
 

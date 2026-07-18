@@ -16,8 +16,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { COMPONENT_TYPES } from '@starui/types';
-import type { AppConfigRow, ConfigManager } from '@starui/host-config';
+import { COMPONENT_TYPES } from '@wellsfargo-starui/types';
+import type { AppConfigRow, ConfigManager } from '@wellsfargo-starui/host-config';
 import { gcOrphanedConfigs } from './workspaceGc';
 import { setConfigManager, setPlatformDefaultScope } from './db';
 import { deriveSingletonConfigId } from './registryConfigTypes';

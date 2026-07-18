@@ -1,4 +1,4 @@
-import type { DataServices } from '@starui/host-data/runtime';
+import type { DataServices } from '@wellsfargo-starui/host-data/runtime';
 
 /** Bridge hub bundle → legacy `DataServicesProvider` shape until Phase 3. */
 export function asLegacyDataServices(

@@ -87,7 +87,7 @@ export interface ColumnDefinition {
   cellRenderer?: string;
   /**
    * Optional DSL expression compiled to an AG-Grid `valueGetter` at
-   * runtime (via `@starui/engine`'s ExpressionEngine). Column refs use
+   * runtime (via `@wellsfargo-starui/engine`'s ExpressionEngine). Column refs use
    * bracket syntax — `[cusip]`, `[a.b.c]` for nested, optional-chaining
    * paths — e.g.
    *   `STARTS_WITH([cusip], "SPCL") AND [inventoryName] == null
@@ -661,7 +661,7 @@ export function getValueByPath(row: unknown, path: string): unknown {
 
 // ─── Compiled path accessor cache ─────────────────────────────────────
 // Closure-per-path cache shared between ColDef valueGetters (via
-// `nestedField()` in @starui/grid) and the expression engine's
+// `nestedField()` in @wellsfargo-starui/grid) and the expression engine's
 // `[…]` reference resolution. See:
 //   - docs/PUBLIC_API_SPEC.md §2.5 (nestedField factory)
 //   - docs/PUBLIC_API_SPEC.md §10.3 (bracket-reference syntax)

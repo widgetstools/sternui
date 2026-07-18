@@ -14,7 +14,7 @@
  * `cssEscapeColId` + `getValueByPath` fixes have a target to land on.
  */
 
-import type { ExportedProfilePayload } from '@starui/engine';
+import type { ExportedProfilePayload } from '@wellsfargo-starui/engine';
 
 export type FixtureName =
   | 'formatter'

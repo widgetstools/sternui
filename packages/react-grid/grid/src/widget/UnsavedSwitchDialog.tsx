@@ -19,7 +19,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@starui/grid/customizer';
+} from '@wellsfargo-starui/grid/customizer';
 
 export interface UnsavedSwitchDialogProps {
   readonly open: boolean;

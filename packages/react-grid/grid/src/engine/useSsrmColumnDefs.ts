@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { ColDef } from 'ag-grid-community';
-import type { GridPlatform } from '@starui/engine';
+import type { GridPlatform } from '@wellsfargo-starui/engine';
 import {
   COLUMN_CUSTOMIZATION_MODULE_ID,
   type ColumnCustomizationState,

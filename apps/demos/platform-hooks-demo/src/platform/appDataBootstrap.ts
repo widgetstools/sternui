@@ -1,4 +1,4 @@
-import type { AppDataBootstrapHookRegistry } from '@starui/host-data';
+import type { AppDataBootstrapHookRegistry } from '@wellsfargo-starui/host-data';
 
 /**
  * AppData bootstrap hooks — ids referenced from public/app-config.json.

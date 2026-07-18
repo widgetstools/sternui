@@ -29,7 +29,7 @@ import { pickSelectOption } from './helpers/shadcnSelect';
  *
  * Deep visual rendering of the cell (pill paint, gradient
  * interpolation, sparkline SVG paths) is exercised by the
- * cellRenderers.test.ts unit suite in @starui/design-system — no
+ * cellRenderers.test.ts unit suite in @wellsfargo-starui/design-system — no
  * point repeating that here since e2e is for the wiring, not the
  * pixel output.
  */

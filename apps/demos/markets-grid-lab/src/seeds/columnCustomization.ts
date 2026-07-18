@@ -1,8 +1,8 @@
 import type {
   ColumnAssignment,
   ColumnCustomizationState,
-} from '@starui/grid/customizer';
-import type { ValueFormatterTemplate } from '@starui/engine';
+} from '@wellsfargo-starui/grid/customizer';
+import type { ValueFormatterTemplate } from '@wellsfargo-starui/engine';
 
 // Helper builders so seed entries stay readable.
 function tpl(t: ValueFormatterTemplate): ValueFormatterTemplate { return t; }

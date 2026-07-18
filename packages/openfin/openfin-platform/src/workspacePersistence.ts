@@ -28,8 +28,8 @@ import type {
   OpenViewTabContextMenuPayload,
   WorkspacePlatformOverrideCallback,
 } from '@openfin/workspace-platform';
-import type { ConfigManager, AppConfigRow } from '@starui/host-config';
-import { COMPONENT_TYPES } from '@starui/types';
+import type { ConfigManager, AppConfigRow } from '@wellsfargo-starui/host-config';
+import { COMPONENT_TYPES } from '@wellsfargo-starui/types';
 import { injectRenameMenuItem } from './internal/viewTabRename';
 
 const WS_PREFIX = 'WS_';

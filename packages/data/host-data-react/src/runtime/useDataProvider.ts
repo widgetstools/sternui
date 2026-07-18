@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ProviderClientAdapter, type IDataProvider } from '@starui/host-data';
-import type { ProviderConfig } from '@starui/types';
-import type { ProviderStatus } from '@starui/host-data/runtime';
+import { ProviderClientAdapter, type IDataProvider } from '@wellsfargo-starui/host-data';
+import type { ProviderConfig } from '@wellsfargo-starui/types';
+import type { ProviderStatus } from '@wellsfargo-starui/host-data/runtime';
 import { useDataServicesContext } from './DataServicesProvider.js';
 
 export interface UseDataProviderOpts {

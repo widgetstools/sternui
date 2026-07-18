@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { ValueFormatterTemplate } from '@starui/engine';
+import type { ValueFormatterTemplate } from '@wellsfargo-starui/engine';
 import { FormatterPicker } from './FormatterPicker';
 
 function open(testId = 'fp') {

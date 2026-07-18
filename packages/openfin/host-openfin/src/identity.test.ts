@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { LOGGED_IN_USER_ID } from '@starui/types';
+import { LOGGED_IN_USER_ID } from '@wellsfargo-starui/types';
 import { resolveOpenFinIdentity, isOpenFin, getCurrentView } from './identity.js';
 
 /**

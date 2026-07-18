@@ -3,13 +3,13 @@
  *
  * Supports two icon sources:
  * 1. Lucide icons via Iconify CDN — iconId format: "lucide:icon-name"
- * 2. Custom market icons from @starui/icons-svg — iconId format: "mkt:icon-name"
+ * 2. Custom market icons from @wellsfargo-starui/icons-svg — iconId format: "mkt:icon-name"
  *
  * Custom market icons are embedded as SVG strings and converted to data URLs
  * with the requested color applied (replacing currentColor).
  */
 
-import { marketIconToDataUrl } from "@starui/icons-svg/all-icons";
+import { marketIconToDataUrl } from "@wellsfargo-starui/icons-svg/all-icons";
 import { buildOpenFinPalettesFromDesignSystem } from "../openfinPalette";
 
 function resolveThemedIconColors(): { dark: string; light: string } {
@@ -31,7 +31,7 @@ const DEFAULT_ICON_ID   = "lucide:file-text";
  * Build an SVG URL for the given icon ID and color.
  *
  * - "lucide:home"   → Iconify CDN URL
- * - "mkt:bond"      → inline data URL from @starui/icons-svg
+ * - "mkt:bond"      → inline data URL from @wellsfargo-starui/icons-svg
  *
  * @param iconId - Icon ID in "prefix:name" format
  * @param color  - Hex color for the icon stroke/fill (default: white)

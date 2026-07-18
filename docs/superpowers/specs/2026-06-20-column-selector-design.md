@@ -1,7 +1,7 @@
 # Column Selector — design spec
 
 **Date:** 2026-06-20
-**Package:** `@starui/grid` (`packages/react-grid/grid`)
+**Package:** `@wellsfargo-starui/grid` (`packages/react-grid/grid`)
 **Status:** approved, ready for implementation
 
 ## Goal
@@ -25,7 +25,7 @@ order automatically because it reads from `api.getColumns()`.
   flows through the existing toolbar Save / grid-state module — the dialog does
   not write to storage.
 - **Buttons:** Apply + Cancel. Apply commits and closes; Cancel discards.
-- **UI stack:** 100% shadcn primitives from `@starui/ui`; all colours/spacing via
+- **UI stack:** 100% shadcn primitives from `@wellsfargo-starui/ui`; all colours/spacing via
   `--ds-*` / `--bn-*` / `--fi-*` tokens; correct under both `[data-theme="dark"]`
   and `[data-theme="light"]`. No native `<input>`/`<select>`.
 - **Locked columns:** columns with `colDef.lockVisible === true` (and AG-Grid

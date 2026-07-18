@@ -1,4 +1,4 @@
-// ─── @starui/host-config ───────────────────────────────────────
+// ─── @wellsfargo-starui/host-config ───────────────────────────────────────
 //
 // A dual-mode configuration service for MarketsUI applications.
 //
@@ -8,7 +8,7 @@
 //
 // Usage:
 //
-//   import { createConfigManager } from "@starui/host-config";
+//   import { createConfigManager } from "@wellsfargo-starui/host-config";
 //
 //   const configManager = createConfigManager({
 //     seedConfigUrl: "http://localhost:5174/seed-config.json",

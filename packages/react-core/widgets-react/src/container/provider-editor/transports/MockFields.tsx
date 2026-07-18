@@ -3,8 +3,8 @@
  * upstream services aren't running.
  */
 
-import { Input, Label, Switch } from '@starui/ui';
-import type { MockProviderConfig } from '@starui/shared-types';
+import { Input, Label, Switch } from '@wellsfargo-starui/ui';
+import type { MockProviderConfig } from '@wellsfargo-starui/shared-types';
 
 export interface MockFieldsProps {
   cfg: MockProviderConfig;

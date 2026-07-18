@@ -24,7 +24,7 @@
  * doesn't skip the next.
  */
 
-import type { PlatformHandle } from '@starui/engine';
+import type { PlatformHandle } from '@wellsfargo-starui/engine';
 import {
   collectAndPruneExpiredTimedEntries,
   getNextTimedExpiry,

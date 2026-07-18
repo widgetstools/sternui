@@ -1,7 +1,7 @@
 import { useMemo, type ReactElement } from 'react';
-import { Button, Calendar, Popover, PopoverContent, PopoverTrigger, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@starui/ui';
+import { Button, Calendar, Popover, PopoverContent, PopoverTrigger, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@wellsfargo-starui/ui';
 import { CalendarIcon, Pencil, RefreshCw, RotateCw } from 'lucide-react';
-import type { DataProviderConfig } from '@starui/shared-types';
+import type { DataProviderConfig } from '@wellsfargo-starui/shared-types';
 import { SettingsRow as Row, SubLabel } from '../../ui/SettingsPanel';
 import {
   useProviderGridHost,

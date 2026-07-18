@@ -3,5 +3,5 @@ export type {
   ConfigBrowserTableMeta,
   TableKey,
   TableMeta,
-} from '@starui/host-config';
-export { CONFIG_BROWSER_TABLES, TABLES } from '@starui/host-config';
+} from '@wellsfargo-starui/host-config';
+export { CONFIG_BROWSER_TABLES, TABLES } from '@wellsfargo-starui/host-config';

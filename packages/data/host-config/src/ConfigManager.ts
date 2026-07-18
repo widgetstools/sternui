@@ -1212,7 +1212,7 @@ export class ConfigManager {
   // domain-specific shims (`saveDockConfig`, `loadDockConfig`, …).
   // They've been removed — ConfigManager stays a GENERIC (configId →
   // AppConfigRow) store, and domain helpers live in
-  // `@starui/openfin-platform/db.ts` alongside the types they
+  // `@wellsfargo-starui/openfin-platform/db.ts` alongside the types they
   // wrap. That file builds AppConfigRow instances directly and
   // passes them to `saveConfig`, matching the pattern MarketsGrid's
   // `createConfigServiceStorage` uses.

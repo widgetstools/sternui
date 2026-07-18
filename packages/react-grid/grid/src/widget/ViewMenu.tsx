@@ -26,7 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import { useAutoFormatAction } from './useAutoFormatAction';
 
 export interface ViewMenuProps {

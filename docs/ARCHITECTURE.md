@@ -12,23 +12,23 @@ See also: [`ARCHITECTURE_GUIDE.md`](./ARCHITECTURE_GUIDE.md) (if present),
 └──────────────────┬──────────────────────┘
                    │
 ┌──────────────────▼──────────────────────┐
-│  @starui/grid-react + @starui/app  │  React bindings, Hosted*
+│  @wellsfargo-starui/grid-react + @wellsfargo-starui/app  │  React bindings, Hosted*
 └──────────────────┬──────────────────────┘
                    │
 ┌──────────────────▼──────────────────────┐
-│  @starui/grid                         │  MarketsGrid product
+│  @wellsfargo-starui/grid                         │  MarketsGrid product
 └──────────────────┬──────────────────────┘
                    │
 ┌──────────────────▼──────────────────────┐
-│  @starui/engine                       │  Vanilla grid platform
+│  @wellsfargo-starui/engine                       │  Vanilla grid platform
 └──────────────────┬──────────────────────┘
                    │
 ┌──────────────────▼──────────────────────┐
-│  @starui/host + adapters              │  Ports + browser/openfin
+│  @wellsfargo-starui/host + adapters              │  Ports + browser/openfin
 └──────────────────┬──────────────────────┘
                    │
 ┌──────────────────▼──────────────────────┐
-│  @starui/types                        │  Foundation types
+│  @wellsfargo-starui/types                        │  Foundation types
 └─────────────────────────────────────────┘
 ```
 
@@ -36,7 +36,7 @@ See also: [`ARCHITECTURE_GUIDE.md`](./ARCHITECTURE_GUIDE.md) (if present),
 
 | Port | Required | Default |
 |---|---|---|
-| `RuntimePort` | Yes | `@starui/host-browser` |
+| `RuntimePort` | Yes | `@wellsfargo-starui/host-browser` |
 | `StoragePort` | Yes | localStorage (phase 3) |
 | `DataPort` | No | — |
 | `ConfigPort` | No | — |
@@ -50,8 +50,8 @@ Ten architecture buckets under `packages/` — see
 packages/design-system/   — (1) tokens, icons
 packages/angular-ui/      — (2) PrimeNG controls (scaffold)
 packages/react-ui/        — (3) shadcn primitives
-packages/angular-grid/    — (4) @starui/grid-angular
-packages/react-grid/      — (5) @starui/grid
+packages/angular-grid/    — (4) @wellsfargo-starui/grid-angular
+packages/react-grid/      — (5) @wellsfargo-starui/grid
 packages/data/            — (6) host-data, host-config
 packages/openfin/         — (7) host-openfin, openfin-platform
 packages/angular-core/    — (8) app, widgets, config-browser
@@ -68,19 +68,19 @@ packages/shared/          — (10) engine, host, types, widget contract
 
 ## Phase 1 packages (shipped)
 
-- `@starui/types`
-- `@starui/host`
-- `@starui/host-browser`
+- `@wellsfargo-starui/types`
+- `@wellsfargo-starui/host`
+- `@wellsfargo-starui/host-browser`
 
 ## Phase 2 packages (shipped)
 
-- `@starui/engine` — vanilla grid platform (ported from `@starui/core`, OpenFin shim removed)
+- `@wellsfargo-starui/engine` — vanilla grid platform (ported from `@wellsfargo-starui/core`, OpenFin shim removed)
 
 ## Phase 3 packages (shipped)
 
-- `@starui/grid` — merged MarketsGrid + customizer (`widget/`, `customizer/`, `runtime/openFin`)
+- `@wellsfargo-starui/grid` — merged MarketsGrid + customizer (`widget/`, `customizer/`, `runtime/openFin`)
 
 ## Phase 4 packages (shipped)
 
-- `@starui/design-system` — tokens, CSS, framework adapters
-- `@starui/ui` — shadcn/Radix primitives
+- `@wellsfargo-starui/design-system` — tokens, CSS, framework adapters
+- `@wellsfargo-starui/ui` — shadcn/Radix primitives

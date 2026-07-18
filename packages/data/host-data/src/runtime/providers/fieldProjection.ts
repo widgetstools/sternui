@@ -15,7 +15,7 @@
  * longer path would then write into.
  */
 
-import type { ColumnDefinition } from '@starui/types';
+import type { ColumnDefinition } from '@wellsfargo-starui/types';
 
 export type FieldProjector = (row: unknown) => unknown;
 

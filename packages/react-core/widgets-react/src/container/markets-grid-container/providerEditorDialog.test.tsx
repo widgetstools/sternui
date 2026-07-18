@@ -5,7 +5,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
-import type { StorageAdapter } from '@starui/engine';
+import type { StorageAdapter } from '@wellsfargo-starui/engine';
 
 vi.mock('./ProviderEditorDialog.js', () => ({
   ProviderEditorDialog: (props: any) => (
@@ -24,7 +24,7 @@ vi.mock('./openFinRuntime.js', () => ({
 }));
 
 const lastMarketsGridProps: { current: any } = { current: null };
-vi.mock('@starui/grid', () => ({
+vi.mock('@wellsfargo-starui/grid', () => ({
   useGeneralSettingsSnapshot: () => undefined,
   MarketsGrid: (props: any) => {
     lastMarketsGridProps.current = props;
@@ -38,7 +38,7 @@ vi.mock('@starui/grid', () => ({
   useMarketsGridEventBridge: vi.fn(),
 }));
 
-vi.mock('@starui/host-data-react/runtime', () => ({
+vi.mock('@wellsfargo-starui/host-data-react/runtime', () => ({
   useDataServices: () => ({
     client: {
       isProviderRunning: vi.fn().mockResolvedValue(false),
@@ -63,7 +63,7 @@ vi.mock('./LoadingOverlay.js', () => ({ MarketsGridLoadingOverlay: () => null })
 
 import { isOpenFinRuntime } from './openFinRuntime.js';
 import { MarketsGridContainer, DATA_PROVIDER_EDITOR_ACTION_ID } from './MarketsGridContainer.js';
-import { CONFIG_BROWSER_ACTION_ID } from '@starui/config-browser';
+import { CONFIG_BROWSER_ACTION_ID } from '@wellsfargo-starui/config-browser';
 
 afterEach(() => {
   cleanup();

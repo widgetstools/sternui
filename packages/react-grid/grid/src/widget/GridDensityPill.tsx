@@ -11,8 +11,8 @@ import {
   inferGridDensity,
   resolveGridDensity,
   type GridDensity,
-} from '@starui/design-system/adapters/ag-grid';
-import type { GeneralSettingsState } from '@starui/engine';
+} from '@wellsfargo-starui/design-system/adapters/ag-grid';
+import type { GeneralSettingsState } from '@wellsfargo-starui/engine';
 import { useOptionalGridPlatform } from '../customizer/hooks/GridProvider';
 import { applyGridDensityLive } from './applyGridDensityLive';
 

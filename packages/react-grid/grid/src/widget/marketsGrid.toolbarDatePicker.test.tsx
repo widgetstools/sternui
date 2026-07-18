@@ -8,8 +8,8 @@ vi.mock('ag-grid-react', () => ({
   AgGridReact: () => <div data-testid="ag-grid-stub" />,
 }));
 
-vi.mock('@starui/grid/customizer', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@starui/grid/customizer')>();
+vi.mock('@wellsfargo-starui/grid/customizer', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@wellsfargo-starui/grid/customizer')>();
   return {
     ...actual,
     useProfileManager: () => ({

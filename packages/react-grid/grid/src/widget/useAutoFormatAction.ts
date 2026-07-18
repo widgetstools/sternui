@@ -17,7 +17,7 @@ import {
   buildAutoFormatPlan,
   type AutoFormatColumn,
   type ColumnCustomizationState,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import { useOptionalGridPlatform } from '../customizer/hooks/GridProvider';
 import { useFlashConfirm } from './formattingToolbarHooks';
 

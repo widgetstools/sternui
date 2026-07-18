@@ -1,5 +1,5 @@
 import type { ColDef, ColGroupDef } from 'ag-grid-community';
-import type { AnyColDef } from '@starui/engine';
+import type { AnyColDef } from '@wellsfargo-starui/engine';
 import type { ColumnGroupChild, ColumnGroupNode, GroupHeaderStyle } from './state';
 import { cssEscapeColId } from '../column-customization/transforms';
 

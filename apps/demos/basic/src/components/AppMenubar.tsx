@@ -6,7 +6,7 @@ import {
   MenubarSeparator,
   MenubarShortcut,
   MenubarTrigger,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 
 interface AppMenubarProps {
   onReset: () => void;

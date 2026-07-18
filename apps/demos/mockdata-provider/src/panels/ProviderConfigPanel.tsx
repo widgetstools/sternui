@@ -8,7 +8,7 @@ import {
   Badge,
   ScrollArea,
   Separator,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import { useMockConfig } from '../state/MockConfigContext';
 import { columnDefsByType } from '../data/columnDefsByType';
 import { ConfigPreview } from '../components/ConfigPreview';

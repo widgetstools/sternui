@@ -1,4 +1,4 @@
-import { LOGGED_IN_USER_ID, type IdentitySnapshot } from '@starui/types';
+import { LOGGED_IN_USER_ID, type IdentitySnapshot } from '@wellsfargo-starui/types';
 
 const ROLE_DELIM = ',';
 

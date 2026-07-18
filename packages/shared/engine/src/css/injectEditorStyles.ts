@@ -1,5 +1,5 @@
 /**
- * Dock-editor design tokens — 100% derived from @starui/design-system.
+ * Dock-editor design tokens — 100% derived from @wellsfargo-starui/design-system.
  *
  * Every `--de-*` variable in this block resolves to a design-system token
  * (`--ds-*` unified token system). The
@@ -9,7 +9,7 @@
  *
  * Consumers must have the design-system theme CSS loaded at the app
  * root:
- *   @import '@starui/design-system/css';
+ *   @import '@wellsfargo-starui/design-system/css';
  * and set `<html data-theme="dark">` (or `light`). See
  * `packages/design-system/README.md`.
  */
@@ -19,7 +19,7 @@
 // render outside the component subtree still resolve every `--de-*` var.
 const EDITOR_CSS = `
 :root, [data-dock-editor] {
-  /* ── Typography aliases → @starui/design-system ── */
+  /* ── Typography aliases → @wellsfargo-starui/design-system ── */
   --de-font: var(--ds-font-sans);
   --de-mono: var(--ds-font-mono);
 
@@ -156,7 +156,7 @@ let injected = false;
 /**
  * Inject the dock-editor token alias block into the document head.
  *
- * All tokens resolve to `@starui/design-system` primitives, so the
+ * All tokens resolve to `@wellsfargo-starui/design-system` primitives, so the
  * design-system theme CSS (`fi-dark.css`, `fi-light.css`) MUST already
  * be loaded in the consuming app's root stylesheet, and `data-theme`
  * MUST be set on `<html>` (see the design-system README for the

@@ -1,4 +1,4 @@
-import type { ColumnDefinition, ProviderConfig, ProviderType } from '@starui/types';
+import type { ColumnDefinition, ProviderConfig, ProviderType } from '@wellsfargo-starui/types';
 import type {
   AttachOpts,
   SharedWorkerDataServicesClient,

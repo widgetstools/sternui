@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createSsrmRowFlattener, collectSsrmFlattenPaths } from './ssrmRowFlatten';
-import type { ColumnDefinition } from '@starui/types';
+import type { ColumnDefinition } from '@wellsfargo-starui/types';
 
 const col = (field: string): ColumnDefinition => ({ field, headerName: field });
 

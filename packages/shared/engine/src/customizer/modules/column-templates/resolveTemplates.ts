@@ -21,8 +21,8 @@
 import type {
   BaseColumnAssignment as ColumnAssignment,
   ColumnDataType,
-} from '@starui/engine';
-import { mergeCellStyleOverrides, mergeThemedStyle } from '@starui/engine';
+} from '@wellsfargo-starui/engine';
+import { mergeCellStyleOverrides, mergeThemedStyle } from '@wellsfargo-starui/engine';
 import type { ColumnTemplate, ColumnTemplatesState } from './state';
 
 export function resolveTemplates(

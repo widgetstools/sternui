@@ -57,10 +57,10 @@
  * never use STOMP don't pay for the dep.
  */
 
-import type { StompProviderConfig } from '@starui/types';
+import type { StompProviderConfig } from '@wellsfargo-starui/types';
 import { createFieldProjector } from '../fieldProjection.js';
 import { createSsrmRowFlattener } from '../ssrmRowFlatten.js';
-import { composeRowId } from '@starui/types';
+import { composeRowId } from '@wellsfargo-starui/types';
 import type { ProviderEmit, ProviderHandle } from '../Provider.js';
 import { bufferedDispatch } from './bufferedDispatch.js';
 import { resolveBracketCfg } from '../../template/bracketResolver.js';

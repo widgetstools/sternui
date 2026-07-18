@@ -1,10 +1,10 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { applyTheme, getTheme } from '@starui/design-system';
-import '@starui/design-system/css';
-import { StarGridApp } from '@starui/app';
-import { createConfigManager } from '@starui/host-config';
-import { BrowserRuntime } from '@starui/host-browser';
+import { applyTheme, getTheme } from '@wellsfargo-starui/design-system';
+import '@wellsfargo-starui/design-system/css';
+import { StarGridApp } from '@wellsfargo-starui/app';
+import { createConfigManager } from '@wellsfargo-starui/host-config';
+import { BrowserRuntime } from '@wellsfargo-starui/host-browser';
 import './globals.css';
 import { App } from './App';
 import { ConfigBrowserPopout } from './ConfigBrowserPopout';

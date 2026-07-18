@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ConfigManager, AppConfigRow } from '@starui/host-config';
-import type { DataProviderConfig } from '@starui/types';
+import type { ConfigManager, AppConfigRow } from '@wellsfargo-starui/host-config';
+import type { DataProviderConfig } from '@wellsfargo-starui/types';
 import { DataProviderConfigStore } from './store.js';
 
 function mockRow(id: string, name = id): AppConfigRow {

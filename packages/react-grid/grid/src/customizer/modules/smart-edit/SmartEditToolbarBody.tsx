@@ -6,7 +6,7 @@ import {
   type CellPatch,
   type SmartEditOp,
   type SmartEditState,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +33,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import type { EditingToolbarSegmentProps } from '../../editing/editingToolbarLayout';
 import { resolveEditRecording } from '../../editing/recordEdit';
 import { useGridPlatform } from '../../hooks/GridProvider';

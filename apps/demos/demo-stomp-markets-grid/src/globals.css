@@ -3,22 +3,22 @@
  *
  *   1. Unified design-system CSS (tokens + scrollbar + base resets).
  *   2. Web fonts (IBM Plex Sans + IBM Plex Mono + JetBrains Mono).
- *   3. MarketsGrid chrome via `@starui/grid/styles.css`
+ *   3. MarketsGrid chrome via `@wellsfargo-starui/grid/styles.css`
  *      (primary toolbar, filter pills, stacked-toolbar surfaces).
- *   4. Tailwind directives (shadcn primitives in grid customizer + @starui/ui).
+ *   4. Tailwind directives (shadcn primitives in grid customizer + @wellsfargo-starui/ui).
  *   5. App-local base layer (body typography + full-bleed shell).
  *
- * main.tsx side-effect-imports `@starui/design-system/css` so tokens load even
- * if PostCSS reorders @import rules. Keep `@starui/grid/styles.css` in this
+ * main.tsx side-effect-imports `@wellsfargo-starui/design-system/css` so tokens load even
+ * if PostCSS reorders @import rules. Keep `@wellsfargo-starui/grid/styles.css` in this
  * file only — it uses `@layer components` and must share globals.css's Tailwind
- * pipeline (never `import '@starui/grid/styles.css'` from TS).
+ * pipeline (never `import '@wellsfargo-starui/grid/styles.css'` from TS).
  */
 
-@import '@starui/design-system/css';
+@import '@wellsfargo-starui/design-system/css';
 
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
 
-@import '@starui/grid/styles.css';
+@import '@wellsfargo-starui/grid/styles.css';
 
 @tailwind base;
 @tailwind components;

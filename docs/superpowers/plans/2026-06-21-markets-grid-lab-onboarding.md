@@ -6,14 +6,14 @@
 
 **Architecture:** A new `guides/` data layer describes each feature declaratively (`FeatureGuide`). The existing `LabFeatureTab` evolves into a shell that renders the live grid plus an `InspectorDrawer` driven by the matching guide; config blocks are *derived* from the same `LabFeatureConfig` object that drives the grid (so shown config always matches reality). A grouped `LabSidebarNav` replaces the horizontal `LabTabsNav`, and a new `HomeTab` becomes the default landing with a feature map. `App.tsx` re-lays-out to sidebar + main + existing Demo Console rail.
 
-**Tech Stack:** React 19, Vite 7, TypeScript 5.9, `@starui/ui` (shadcn primitives), `@starui/grid` (`MarketsGrid`), Tailwind 3.4, Vitest 4, Playwright 1.59.
+**Tech Stack:** React 19, Vite 7, TypeScript 5.9, `@wellsfargo-starui/ui` (shadcn primitives), `@wellsfargo-starui/grid` (`MarketsGrid`), Tailwind 3.4, Vitest 4, Playwright 1.59.
 
 ## Global Constraints
 
 - **Preserve `data-testid="lab-tab-<id>"` on every nav item.** The existing e2e suite (`e2e/v2-*.spec.ts`, `e2e/helpers/labEditing.ts:65`) navigates tabs by clicking these testids. Items must be clickable and switch the active tab. Do **not** change any existing tab `id` (`overview`, `formatting`, `visual-excel`, `renderers`, `toolbar`, `groups`, `calc`, `conditional`, `filters`, `live`, `alerts`, `editing`, `bulk-update`, `plus-minus`, `shortcuts`, `profiles`).
 - **Keep the Radix `Tabs`/`TabsContent` value mechanism** in `App.tsx` so lazy tab content and existing specs keep working; the sidebar drives it via `onValueChange`.
 - **Design-system tokens only.** New chrome uses `--ds-*` CSS variables (e.g. `var(--ds-surface-primary)`, `var(--ds-text-secondary)`, `var(--ds-border-primary)`). No hardcoded hex in new components. Must render under both `[data-theme="dark"]` and `[data-theme="light"]`.
-- **shadcn primitives only** (from `@starui/ui`) — no native `<input>`/`<select>`/`<textarea>`. Icons from `lucide-react`.
+- **shadcn primitives only** (from `@wellsfargo-starui/ui`) — no native `<input>`/`<select>`/`<textarea>`. Icons from `lucide-react`.
 - **Lab runs on port 5300** (`playwright.config.ts`). Lab unit tests run from repo root with `npx vitest run <path>` (jsdom from the app's Vite config).
 - **File/symbol naming:** camelCase/PascalCase only in this React app (no kebab). Component files `PascalCase.tsx`, hooks `useX.ts`, plain modules `camelCase.ts`, types in `types.ts`.
 - **Complexity ceilings:** 800 LOC/file, 80 LOC/function.
@@ -804,7 +804,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - Create: `apps/demos/markets-grid-lab/src/components/InspectorDrawer.tsx`
 
 **Interfaces:**
-- Consumes: `FeatureGuide`, `FeatureGuidePropRow`, `FeatureGuideConfigBlock` (Task 1); `BASE_PROPS` (Task 2); `Markdown` (`./Markdown`); `@starui/ui` (`Tabs`, `TabsList`, `TabsTrigger`, `TabsContent`, `Button`, `Badge`, `ScrollArea`, `Table*`).
+- Consumes: `FeatureGuide`, `FeatureGuidePropRow`, `FeatureGuideConfigBlock` (Task 1); `BASE_PROPS` (Task 2); `Markdown` (`./Markdown`); `@wellsfargo-starui/ui` (`Tabs`, `TabsList`, `TabsTrigger`, `TabsContent`, `Button`, `Badge`, `ScrollArea`, `Table*`).
 - Produces: `InspectorDrawer({ guide, configBlocks, fullDocs })` where `fullDocs?: string` (markdown). Renders a collapsible bottom panel. Persists open/closed + active sub-tab to localStorage keys `lab-inspector-open`, `lab-inspector-tab`.
 
 - [ ] **Step 1: Implement the component**
@@ -822,7 +822,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import { Markdown } from './Markdown';
 import { BASE_PROPS } from '../guides/featureGuides';
 import type {
@@ -1024,7 +1024,7 @@ function PropsTable({ rows }: { rows: FeatureGuidePropRow[] }) {
 - [ ] **Step 2: Typecheck**
 
 Run: `npx tsc --noEmit -p apps/demos/markets-grid-lab/tsconfig.json`
-Expected: no errors. (If `Badge`/`ScrollArea` are not exported, they are — verified in `@starui/ui` barrel. Markdown is at `./Markdown`.)
+Expected: no errors. (If `Badge`/`ScrollArea` are not exported, they are — verified in `@wellsfargo-starui/ui` barrel. Markdown is at `./Markdown`.)
 
 - [ ] **Step 3: Commit**
 
@@ -1054,7 +1054,7 @@ Replace the entire contents of `apps/demos/markets-grid-lab/src/tabs/LabFeatureT
 
 ```tsx
 import { useMemo } from 'react';
-import { MarketsGrid } from '@starui/grid';
+import { MarketsGrid } from '@wellsfargo-starui/grid';
 import { TabContainer } from '../components/TabContainer';
 import { InspectorDrawer } from '../components/InspectorDrawer';
 import { defaultColDef } from '../data/columns';
@@ -1161,7 +1161,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - Create: `apps/demos/markets-grid-lab/src/components/LabSidebarNav.tsx`
 
 **Interfaces:**
-- Consumes: `LAB_CATEGORIES` (Task 1); `getFeatureGuide` (Task 2); `@starui/ui` (`Button`, `Input`, `Collapsible`, `CollapsibleTrigger`, `CollapsibleContent`).
+- Consumes: `LAB_CATEGORIES` (Task 1); `getFeatureGuide` (Task 2); `@wellsfargo-starui/ui` (`Button`, `Input`, `Collapsible`, `CollapsibleTrigger`, `CollapsibleContent`).
 - Produces: `LabSidebarNav({ items, activeId, onSelect, query, onQueryChange })` where `items: { id: string; label: string }[]`. Renders grouped, collapsible nav. **Each item button carries `data-testid="lab-tab-<id>"`** and calls `onSelect(id)`.
 
 - [ ] **Step 1: Implement the component**
@@ -1171,7 +1171,7 @@ Create `apps/demos/markets-grid-lab/src/components/LabSidebarNav.tsx`:
 ```tsx
 import { useMemo, useState } from 'react';
 import { ChevronRight, Search } from 'lucide-react';
-import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Input } from '@starui/ui';
+import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Input } from '@wellsfargo-starui/ui';
 import { LAB_CATEGORIES } from '../guides/categories';
 
 export interface LabSidebarNavItem {
@@ -1315,7 +1315,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - Create: `apps/demos/markets-grid-lab/src/tabs/HomeTab.tsx`
 
 **Interfaces:**
-- Consumes: `LAB_CATEGORIES` (Task 1); `getFeatureGuide` (Task 2); `@starui/ui` (`Card`, `CardContent`, `Badge`, `ScrollArea`); `lucide-react`.
+- Consumes: `LAB_CATEGORIES` (Task 1); `getFeatureGuide` (Task 2); `@wellsfargo-starui/ui` (`Card`, `CardContent`, `Badge`, `ScrollArea`); `lucide-react`.
 - Produces: `HomeTab({ items, onNavigate })` where `items: { id: string; label: string }[]`, `onNavigate: (id: string) => void`.
 
 - [ ] **Step 1: Implement the component**
@@ -1324,7 +1324,7 @@ Create `apps/demos/markets-grid-lab/src/tabs/HomeTab.tsx`:
 
 ```tsx
 import { ArrowRight, Layers, Settings2, Save, SlidersHorizontal } from 'lucide-react';
-import { Badge, Card, CardContent, ScrollArea } from '@starui/ui';
+import { Badge, Card, CardContent, ScrollArea } from '@wellsfargo-starui/ui';
 import { LAB_CATEGORIES } from '../guides/categories';
 import { getFeatureGuide } from '../guides/featureGuides';
 
@@ -1338,7 +1338,7 @@ export interface HomeTabProps {
   onNavigate: (id: string) => void;
 }
 
-const MOUNT_SNIPPET = `import { MarketsGrid, createMarketsGridLocalStorageStorage } from '@starui/grid';
+const MOUNT_SNIPPET = `import { MarketsGrid, createMarketsGridLocalStorageStorage } from '@wellsfargo-starui/grid';
 
 const storage = createMarketsGridLocalStorageStorage();
 
@@ -1542,7 +1542,7 @@ Replace the entire contents of `apps/demos/markets-grid-lab/src/App.tsx` with:
 
 ```tsx
 import { lazy, Suspense, useState, type ComponentType } from 'react';
-import { Tabs, TabsContent, TooltipProvider } from '@starui/ui';
+import { Tabs, TabsContent, TooltipProvider } from '@wellsfargo-starui/ui';
 import { LabSidebarNav } from './components/LabSidebarNav';
 import { ThemeToggle } from './components/ThemeToggle';
 import { HomeTab } from './tabs/HomeTab';
@@ -1694,7 +1694,7 @@ Expected: no errors.
 
 - [ ] **Step 4: Build the app to confirm it bundles**
 
-Run: `npm --prefix apps run build -w @starui/markets-grid-lab`
+Run: `npm --prefix apps run build -w @wellsfargo-starui/markets-grid-lab`
 Expected: Vite build succeeds (no unresolved imports).
 
 - [ ] **Step 5: Commit**
@@ -1784,7 +1784,7 @@ Expected: all lab tests pass (existing `data/*.test.ts` + the three new `guides/
 
 - [ ] **Step 5: Final typecheck + build**
 
-Run: `npx tsc --noEmit -p apps/demos/markets-grid-lab/tsconfig.json && npm --prefix apps run build -w @starui/markets-grid-lab`
+Run: `npx tsc --noEmit -p apps/demos/markets-grid-lab/tsconfig.json && npm --prefix apps run build -w @wellsfargo-starui/markets-grid-lab`
 Expected: no type errors; build succeeds.
 
 - [ ] **Step 6: Commit**

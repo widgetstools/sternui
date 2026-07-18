@@ -7,14 +7,14 @@
  *
  * The wrapper's job is only to forward props; this single spec
  * verifies forwarding for the props those rows depend on. Behavioural
- * coverage lives in `@starui/widgets-react`'s own
- * `markets-grid-container` tests and `@starui/grid`'s
+ * coverage lives in `@wellsfargo-starui/widgets-react`'s own
+ * `markets-grid-container` tests and `@wellsfargo-starui/grid`'s
  * tests.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import type { ConfigManager } from '@starui/host-config';
+import type { ConfigManager } from '@wellsfargo-starui/host-config';
 
 const mgcProps: any[] = [];
 vi.mock('../../container/markets-grid-container/index.js', () => ({

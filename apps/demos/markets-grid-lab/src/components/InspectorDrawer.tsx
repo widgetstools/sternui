@@ -8,7 +8,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import { Markdown } from './Markdown';
 import { BASE_PROPS } from '../guides/featureGuides';
 import type {

@@ -1,4 +1,4 @@
-import { ConfigBrowserPanel as StarConfigBrowserPanel } from '@starui/config-browser';
+import { ConfigBrowserPanel as StarConfigBrowserPanel } from '@wellsfargo-starui/config-browser';
 
 export function ConfigBrowserPanel() {
   return (

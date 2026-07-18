@@ -1,5 +1,5 @@
-import type { EditGridWriter } from '@starui/engine';
-import type { EditJournal } from '@starui/engine';
+import type { EditGridWriter } from '@wellsfargo-starui/engine';
+import type { EditJournal } from '@wellsfargo-starui/engine';
 import { withJournalApplyGuard } from './journalApplyGuard.js';
 
 export async function journalUndo(

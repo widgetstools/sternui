@@ -168,7 +168,7 @@ plain cells.
 
 ## 2. Conditional-styling engine (dominant cost when rules exist)
 
-All heavy logic lives in `@starui/engine`
+All heavy logic lives in `@wellsfargo-starui/engine`
 (`packages/shared/engine/src/customizer/modules/conditional-styling/transforms.ts`);
 the grid package re-exports it.
 

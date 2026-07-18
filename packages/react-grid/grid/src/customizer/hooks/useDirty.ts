@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
-import type { IDirtyBus } from '@starui/engine';
+import type { IDirtyBus } from '@wellsfargo-starui/engine';
 import { useGridPlatform } from './GridProvider';
 
 /**

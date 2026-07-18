@@ -1,5 +1,5 @@
 {
-  "name": "@starui/host-config",
+  "name": "@wellsfargo-starui/host-config",
   "version": "0.1.0",
   "private": true,
   "description": "ConfigManager + Dexie/REST persistence for StarGrid host ports",
@@ -22,16 +22,16 @@
     "dexie": "^4.4.2"
   },
   "peerDependencies": {
-    "@starui/engine": "*"
+    "@wellsfargo-starui/engine": "*"
   },
   "peerDependenciesMeta": {
-    "@starui/engine": {
+    "@wellsfargo-starui/engine": {
       "optional": true
     }
   },
   "devDependencies": {
-    "@starui/engine": "*",
-    "@starui/host": "*",
+    "@wellsfargo-starui/engine": "*",
+    "@wellsfargo-starui/host": "*",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^29.0.2",
     "rimraf": "^6.0.1",

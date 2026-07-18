@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { Input, cn } from '@starui/ui';
+import { Input, cn } from '@wellsfargo-starui/ui';
 import type { ComponentProps } from 'react';
 
 /**

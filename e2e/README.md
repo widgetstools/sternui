@@ -1,6 +1,6 @@
 # End-to-end tests
 
-Playwright suite for the demo apps (primary target `@starui/demo-react` on
+Playwright suite for the demo apps (primary target `@wellsfargo-starui/demo-react` on
 :5190). Run with `npm run e2e`.
 
 ## Current shape

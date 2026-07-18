@@ -1,7 +1,7 @@
 /*
  * FI Design System — Dark Theme
  * Canonical values: tokens/staruiHex.ts
- * Prefer @starui/design-system/css (dist/css/theme.css) in new apps.
+ * Prefer @wellsfargo-starui/design-system/css (dist/css/theme.css) in new apps.
  */
 
 :root, [data-theme="dark"] {

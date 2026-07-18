@@ -94,12 +94,12 @@ Replace the monolith hub with **role-split, lazy, named SharedWorkers** and **op
 
 | Profile | Mount | SharedWorkers | Example |
 |---------|-------|---------------|---------|
-| **P0 — Grid only** | `@starui/grid` + caller-supplied `rowData` / SSRM API | None | Embed MarketsGrid in a foreign app |
+| **P0 — Grid only** | `@wellsfargo-starui/grid` + caller-supplied `rowData` / SSRM API | None | Embed MarketsGrid in a foreign app |
 | **P1 — Config + OpenFin** | Config client + OpenFin runtime | Config only | Workspace setup, Config Browser, dock tools |
 | **P2 — Hosted blotter** | Grid + Config + AppData + subscribed providers | Config + AppData + **only active** provider ids | `star-demo` MarketsGrid view |
 | **P3 — Full lab** | P2 + Data Provider editor / probe | Same as P2; provider SW on probe/start | Data Providers tool |
 
-`@starui/grid` must not import SharedWorker bootstrap. Hosted wiring lives in `@starui/widgets-react` / `@starui/host-data` / app shells.
+`@wellsfargo-starui/grid` must not import SharedWorker bootstrap. Hosted wiring lives in `@wellsfargo-starui/widgets-react` / `@wellsfargo-starui/host-data` / app shells.
 
 ### Cross-access rules (locked)
 
@@ -207,7 +207,7 @@ Phase 0 may ship on `main` independently; Phases 2–4 are the topology change t
 
 ## Compliance checklist (for future PRs)
 
-- [ ] `@starui/grid` has no SharedWorker / `ensurePlatformReady` import
+- [ ] `@wellsfargo-starui/grid` has no SharedWorker / `ensurePlatformReady` import
 - [ ] New tool routes do not await provider workers before first paint
 - [ ] New streaming providers register as named `starui-provider:{appId}:{id}` singletons
 - [ ] `{{…}}` resolution goes through AppData client/service, not ad-hoc globals

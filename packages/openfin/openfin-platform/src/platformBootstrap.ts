@@ -1,21 +1,21 @@
 /**
  * OpenFin manifest → {@link PlatformBootstrapConfig} resolution.
  *
- * Browser-safe consumers import from `@starui/openfin-platform/config`.
+ * Browser-safe consumers import from `@wellsfargo-starui/openfin-platform/config`.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare const fin: any;
 
 import type OpenFin from '@openfin/core';
-import { resolveActiveIdentityFromSeedUrl } from '@starui/host-config';
+import { resolveActiveIdentityFromSeedUrl } from '@wellsfargo-starui/host-config';
 import {
   DEV_PLATFORM_BOOTSTRAP,
   PlatformBootstrapConfigError,
   resolvePlatformBootstrapFromJson,
   resolvePlatformBootstrapFromObject,
   type PlatformBootstrapConfig,
-} from '@starui/host-data';
+} from '@wellsfargo-starui/host-data';
 
 import { DEFAULT_APP_ID } from './registryHostEnv.js';
 import { resolveSeedConfigUrl } from './resolveSeedConfigUrl.js';

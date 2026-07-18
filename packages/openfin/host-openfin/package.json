@@ -1,5 +1,5 @@
 {
-  "name": "@starui/host-openfin",
+  "name": "@wellsfargo-starui/host-openfin",
   "version": "0.1.0",
   "private": true,
   "description": "OpenFin RuntimePort plugin for StarGrid",
@@ -19,9 +19,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@starui/host": "*",
-    "@starui/host-browser": "*",
-    "@starui/types": "*"
+    "@wellsfargo-starui/host": "*",
+    "@wellsfargo-starui/host-browser": "*",
+    "@wellsfargo-starui/types": "*"
   },
   "peerDependencies": {
     "@openfin/core": "43.101.2"

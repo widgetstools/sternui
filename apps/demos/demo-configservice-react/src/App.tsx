@@ -1,24 +1,24 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { ColDef, GridReadyEvent, GridApi } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
-import { MarketsGrid, type AdminAction, type StorageAdapterFactory } from '@starui/grid';
-import { activeProfileKey } from '@starui/engine';
-import type { ProfileSnapshot } from '@starui/engine';
+import { MarketsGrid, type AdminAction, type StorageAdapterFactory } from '@wellsfargo-starui/grid';
+import { activeProfileKey } from '@wellsfargo-starui/engine';
+import type { ProfileSnapshot } from '@wellsfargo-starui/engine';
 import {
   createConfigManager,
   createConfigServiceStorage,
   type ConfigManager,
-} from '@starui/host-config';
+} from '@wellsfargo-starui/host-config';
 // /config subpath avoids the @openfin/workspace-platform module-load
 // that would otherwise throw in this plain-browser dev harness.
 import {
   setConfigManager as publishSharedConfigManager,
   encodeHostEnvForQueryString,
-} from '@starui/openfin-platform/config';
-import { createConfigBrowserAction } from '@starui/config-browser';
+} from '@wellsfargo-starui/openfin-platform/config';
+import { createConfigBrowserAction } from '@wellsfargo-starui/config-browser';
 import { Sun, Moon, User, Database } from 'lucide-react';
-import { useStarGridApp } from '@starui/app';
-import { agGridDarkParams, agGridLightParams } from '@starui/design-system/adapters/ag-grid';
+import { useStarGridApp } from '@wellsfargo-starui/app';
+import { agGridDarkParams, agGridLightParams } from '@wellsfargo-starui/design-system/adapters/ag-grid';
 
 import { generateOrders, startLiveTicking, type Order } from './data';
 import { Dashboard } from './Dashboard';
@@ -93,7 +93,7 @@ function initialView(): View {
 
 // ─── AG-Grid Themes ─────────────────────────────────────────────────────────
 //
-// Built from @starui/design-system/adapters/ag-grid (reference-aligned
+// Built from @wellsfargo-starui/design-system/adapters/ag-grid (reference-aligned
 // Chroma Desk params) + app-specific tuning (mono font, smaller icons,
 // tighter cell padding, sharp corners). Theme attribute on <html> drives
 // the underlying --ds-* CSS vars; these params just point at them.
@@ -294,7 +294,7 @@ function AppInner() {
   // configuration — MarketsGrid's first listProfiles call doesn't
   // race a half-initialized Dexie table.
   //
-  // Also publish the instance to @starui/openfin-platform's shared
+  // Also publish the instance to @wellsfargo-starui/openfin-platform's shared
   // singleton so `<ConfigBrowserPanel>` (which reads via
   // getConfigManager()) sees the same ConfigManager.
   useEffect(() => {
@@ -335,7 +335,7 @@ function AppInner() {
   }, [userId]);
 
   // Admin actions surfaced at the right edge of MarketsGrid's primary
-  // toolbar row. One entry: launch the real @starui/config-browser
+  // toolbar row. One entry: launch the real @wellsfargo-starui/config-browser
   // in a popout browser window so the user can see the grid AND its
   // raw ConfigService rows side-by-side. Same-origin = Dexie is
   // shared → the popout sees writes from the main window on refresh.
@@ -473,7 +473,7 @@ function AppInner() {
           {/* ConfigService indicator — visual proof that profiles are
               being persisted through the factory, not a direct adapter. */}
           <span
-            title="Profiles persist via @starui/host-config — scoped by (appId, userId, instanceId)"
+            title="Profiles persist via @wellsfargo-starui/host-config — scoped by (appId, userId, instanceId)"
             style={{
               display: 'flex', alignItems: 'center', gap: 5,
               height: 26, padding: '0 10px', borderRadius: 5,

@@ -11,7 +11,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { startStomp, probeStomp, connectStomp, resolveStompClientCtor, resolveStompDestinations, resolveEffectiveStompCfg, validateStompWireReady } from './stomp';
 import type { ProviderEmitEvent } from '../Provider';
-import type { StompProviderConfig } from '@starui/types';
+import type { StompProviderConfig } from '@wellsfargo-starui/types';
 
 // Mocked @stomp/stompjs module — only reached by tests that do NOT
 // inject `createClient` (i.e. the dynamic-import path). Every other

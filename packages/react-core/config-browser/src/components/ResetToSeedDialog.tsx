@@ -9,8 +9,8 @@
  */
 
 import { useState } from "react";
-import { cn } from "@starui/ui";
-import { DynamicIcon as Icon } from "@starui/config-browser/icons";
+import { cn } from "@wellsfargo-starui/ui";
+import { DynamicIcon as Icon } from "@wellsfargo-starui/config-browser/icons";
 import { EditorButton } from "./EditorButton";
 
 interface ResetToSeedDialogProps {

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { GridApi } from 'ag-grid-community';
-import { StarGridApp } from '@starui/app';
-import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
-import { useDataServices, useUserIdFromContext } from '@starui/host-data-react/runtime';
+import { StarGridApp } from '@wellsfargo-starui/app';
+import { HostedMarketsGrid } from '@wellsfargo-starui/widgets-react/hosted';
+import { useDataServices, useUserIdFromContext } from '@wellsfargo-starui/host-data-react/runtime';
 import { getBootstrapConfig, getPlatform } from './platformBootstrap';
 import { E2E_MOCK_PROVIDER_ID, e2eMockProviderDraft } from './ensureE2eMockProvider';
 import { StandaloneBlotter } from './StandaloneBlotter';

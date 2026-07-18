@@ -8,7 +8,7 @@
  * By default, logs emit only when a traced string contains `{{...}}`.
  */
 
-import type { StompProviderConfig } from '@starui/types';
+import type { StompProviderConfig } from '@wellsfargo-starui/types';
 import type { AppDataLookup } from './resolver.js';
 
 const TOKEN_RE = /\{\{\s*([^{}]+?)\s*\}\}/g;

@@ -1,4 +1,4 @@
-import type { ConditionalRule } from '@starui/grid/customizer';
+import type { ConditionalRule } from '@wellsfargo-starui/grid/customizer';
 
 // ─── Expression syntax ───────────────────────────────────────────────
 //

@@ -1,4 +1,4 @@
-import type { AlertRule, AlertsState } from '@starui/engine';
+import type { AlertRule, AlertsState } from '@wellsfargo-starui/engine';
 
 /**
  * Demo alert rules for the Alerts tab. Mix every trigger family + every

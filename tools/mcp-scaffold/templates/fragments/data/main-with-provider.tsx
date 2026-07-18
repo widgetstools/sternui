@@ -1,7 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { DataServicesProvider } from '@starui/host-data-react';
-import { applyTheme, getTheme } from '@starui/design-system';
+import { DataServicesProvider } from '@wellsfargo-starui/host-data-react';
+import { applyTheme, getTheme } from '@wellsfargo-starui/design-system';
 import { dataServices } from './dataServices';
 import { App } from './App';
 import './globals.css';

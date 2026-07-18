@@ -6,10 +6,10 @@ import type {
   SurfaceSpec,
   Theme,
   Unsubscribe,
-} from '@starui/types';
-import { THEME_STORAGE_KEY } from '@starui/types';
-import type { RuntimePort } from '@starui/host';
-import type { IdentityOverrides } from '@starui/host-browser';
+} from '@wellsfargo-starui/types';
+import { THEME_STORAGE_KEY } from '@wellsfargo-starui/types';
+import type { RuntimePort } from '@wellsfargo-starui/host';
+import type { IdentityOverrides } from '@wellsfargo-starui/host-browser';
 import { resolveOpenFinIdentity, getCurrentView, isOpenFin } from './identity.js';
 import { openOpenFinPopout } from './popout.js';
 import { readThemePayload } from './themeBroadcast.js';

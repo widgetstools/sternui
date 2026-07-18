@@ -1,8 +1,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { applyTheme, getTheme } from '@starui/design-system';
-import { Alert, AlertDescription, AlertTitle } from '@starui/ui';
-import { DataHubProvider } from '@starui/host-data-react/runtime';
+import { applyTheme, getTheme } from '@wellsfargo-starui/design-system';
+import { Alert, AlertDescription, AlertTitle } from '@wellsfargo-starui/ui';
+import { DataHubProvider } from '@wellsfargo-starui/host-data-react/runtime';
 import { App } from './App';
 import { initPlatformBootstrap } from './platformBootstrap';
 import { MockConfigProvider } from './state/MockConfigContext';

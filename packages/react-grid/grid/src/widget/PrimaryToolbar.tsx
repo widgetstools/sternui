@@ -12,9 +12,9 @@
 
 import { memo, type ReactElement } from 'react';
 import { Save, Check } from 'lucide-react';
-import { Button } from '@starui/ui';
-import type { ProfileMeta } from '@starui/engine';
-import type { GridDensity } from '@starui/design-system/adapters/ag-grid';
+import { Button } from '@wellsfargo-starui/ui';
+import type { ProfileMeta } from '@wellsfargo-starui/engine';
+import type { GridDensity } from '@wellsfargo-starui/design-system/adapters/ag-grid';
 import type { AdminAction } from './types';
 import { FiltersToolbar } from './FiltersToolbar';
 import { QuickSearch } from './QuickSearch';

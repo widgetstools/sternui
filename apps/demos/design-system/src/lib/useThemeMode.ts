@@ -1,5 +1,5 @@
 import { createContext, createElement, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import { applyTheme, getTheme } from '@starui/design-system';
+import { applyTheme, getTheme } from '@wellsfargo-starui/design-system';
 
 type ThemeMode = 'dark' | 'light';
 

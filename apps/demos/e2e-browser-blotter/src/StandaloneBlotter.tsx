@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, GridApi, GridReadyEvent } from 'ag-grid-community';
-import { MarketsGrid } from '@starui/grid';
+import { MarketsGrid } from '@wellsfargo-starui/grid';
 import { GRID_ID, type RowShape } from './blotterColumns';
 
 export function StandaloneBlotter({

@@ -1,4 +1,4 @@
-import { ScrollArea } from '@starui/ui';
+import { ScrollArea } from '@wellsfargo-starui/ui';
 
 export function ConfigPreview({ label, value }: { label: string; value: unknown }) {
   return (

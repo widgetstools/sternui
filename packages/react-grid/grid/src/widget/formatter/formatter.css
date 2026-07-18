@@ -484,7 +484,7 @@
 }
 
 /* `.fx-seg` / `.fx-seg__opt` moved to primitives.tsx (SegmentedToggle)
-   as Tailwind utilities resolving through `@starui/design-system`
+   as Tailwind utilities resolving through `@wellsfargo-starui/design-system`
    tokens. The hand-rolled mousedown-driven radiogroup is preserved
    (radix ToggleGroup is click-driven, which conflicts with the popover
    focus-trap survival contract that the formatter tests assert). */
@@ -586,7 +586,7 @@
 }
 
 /* `.fx-col-input` moved to ModuleContext.tsx as a shadcn `<Input>`
-   styled via Tailwind utilities + `@starui/design-system` tokens. */
+   styled via Tailwind utilities + `@wellsfargo-starui/design-system` tokens. */
 
 @keyframes fxLivePulse {
   0%, 100% { opacity: 1; transform: scale(1); }
@@ -677,7 +677,7 @@
 }
 
 /* Menu / MenuItem / MenuSep moved to primitives.tsx as Tailwind
-   utilities resolving through `@starui/design-system` tokens. The
+   utilities resolving through `@wellsfargo-starui/design-system` tokens. The
    `.fx-menu*` rules used to live here. */
 
 /* ─── Pop-out trigger ──────────────────────────────────────────── */

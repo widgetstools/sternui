@@ -3,7 +3,7 @@
  */
 import { renderHook, act } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { GridPlatform } from '@starui/engine';
+import { GridPlatform } from '@wellsfargo-starui/engine';
 import { GridProvider } from '../../hooks/GridProvider';
 import { smartEditModule } from './index';
 import { useSmartEditSelection } from './useSmartEditSelection';

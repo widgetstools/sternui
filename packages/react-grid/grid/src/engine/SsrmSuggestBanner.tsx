@@ -3,7 +3,7 @@
  * the engine — parent must handle `onSuggestSsrm` (e.g. set useSSRM / rowModel).
  */
 
-import { Button } from '@starui/ui';
+import { Button } from '@wellsfargo-starui/ui';
 
 export type SsrmSuggestBannerProps = {
   rowCount: number;

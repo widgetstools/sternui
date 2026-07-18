@@ -6,7 +6,7 @@ describe('ssrmgrid-entry', () => {
     expect(mod.CustomSSRMGrid).toBeTypeOf('object'); // forwardRef component
   });
 
-  it('re-exports share-of-total helpers from @starui/ssrm-grid', async () => {
+  it('re-exports share-of-total helpers from @wellsfargo-starui/ssrm-grid', async () => {
     const mod = await import('./ssrmgrid-entry.js');
     expect(mod.shareOfTotal).toBeTypeOf('function');
     expect(mod.resolveAggregate).toBeTypeOf('function');

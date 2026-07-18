@@ -5,15 +5,15 @@
  * (useStompConnectionTest / useRestConnectionTest /
  *  useStompFieldInference / useRestFieldInference). The probe
  * functions are pure main-thread helpers exported from
- * `@starui/host-data` — they share their implementation with the
+ * `@wellsfargo-starui/host-data` — they share their implementation with the
  * SharedWorker hub but don't require a worker to call.
  */
 
 import { useCallback, useState } from 'react';
-import { probeStomp, connectStomp, probeRest, probeMock, inferFields } from '@starui/host-data';
-import { resolveCfg } from '@starui/host-data/runtime';
-import { useAppDataStore } from '@starui/host-data-react/runtime';
-import type { ProviderConfig, FieldNode } from '@starui/shared-types';
+import { probeStomp, connectStomp, probeRest, probeMock, inferFields } from '@wellsfargo-starui/host-data';
+import { resolveCfg } from '@wellsfargo-starui/host-data/runtime';
+import { useAppDataStore } from '@wellsfargo-starui/host-data-react/runtime';
+import type { ProviderConfig, FieldNode } from '@wellsfargo-starui/shared-types';
 
 export interface ProbeState {
   testing: boolean;

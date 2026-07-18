@@ -1,8 +1,8 @@
-# `@starui/e2e-browser-blotter`
+# `@wellsfargo-starui/e2e-browser-blotter`
 
 Single-page browser app whose only job is to be the canonical e2e
 target for the Playwright suite. Tarball-deps (consumes published-style
-`@starui/*` bundles from `libs/*.tgz`) so what the tests cover is what
+`@wellsfargo-starui/*` bundles from `libs/*.tgz`) so what the tests cover is what
 real consumers ship.
 
 ## URL modes

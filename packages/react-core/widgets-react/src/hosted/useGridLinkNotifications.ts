@@ -8,7 +8,7 @@
  *   • onReceive: a peer's selection arrived → post an acknowledgement
  *     "Linked selection received".
  *
- * The OpenFin dependency lives entirely in `@starui/host-openfin` (per
+ * The OpenFin dependency lives entirely in `@wellsfargo-starui/host-openfin` (per
  * docs/ARCHITECTURE.md the framework layer must not import `@openfin/*`
  * directly) — we consume the injected `loadOpenFinNotificationsApi` /
  * `dispatchOpenFinNotification` seam, exactly like the grid's alerts bridge.
@@ -22,7 +22,7 @@ import {
   loadOpenFinNotificationsApi,
   dispatchOpenFinNotification,
   type OpenFinNotificationsApi,
-} from '@starui/host-openfin';
+} from '@wellsfargo-starui/host-openfin';
 import type { GridLinkSelectionContext } from './gridContextLink.js';
 import {
   buildSelectionNotification,

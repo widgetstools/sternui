@@ -30,8 +30,8 @@ import type {
   AppRegistryRow,
   PermissionRow,
   RoleRow,
-} from '@starui/host-config';
-import { normalizeImportedAppConfigRow } from '@starui/host-config';
+} from '@wellsfargo-starui/host-config';
+import { normalizeImportedAppConfigRow } from '@wellsfargo-starui/host-config';
 import { getConfigManager } from './db';
 
 /** Result of importing a single table. */

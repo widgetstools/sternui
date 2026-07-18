@@ -1,11 +1,11 @@
-import type { GridPlatform, PlatformHandle } from '@starui/engine';
+import type { GridPlatform, PlatformHandle } from '@wellsfargo-starui/engine';
 import {
   DATA_CHANGE_HISTORY_MODULE_ID,
   recordSourceKey,
   type DataChangeHistoryState,
   type EditJournal,
   type EditSource,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import { getEditJournal, type JournalPlatform } from './editJournalScope.js';
 
 function readHistoryState(platform: JournalPlatform): DataChangeHistoryState | null {

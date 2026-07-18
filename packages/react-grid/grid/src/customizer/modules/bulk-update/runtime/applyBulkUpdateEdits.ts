@@ -6,7 +6,7 @@ import {
   type BulkUpdateTarget,
   type EditGridWriter,
   type EditJournal,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import { withJournalApplyGuard } from '../../../editing/journalApplyGuard.js';
 
 export function resolveBulkUpdateTargets(api: GridApi, rowIdField = 'id'): BulkUpdateTarget[] {
@@ -19,7 +19,7 @@ export interface ApplyBulkUpdateOptions {
   rowIdField?: string;
   journal?: EditJournal | null;
   journalLabel?: string;
-  patches?: readonly import('@starui/engine').CellPatch[];
+  patches?: readonly import('@wellsfargo-starui/engine').CellPatch[];
   journalApplyGridId?: string;
   writer?: EditGridWriter;
 }

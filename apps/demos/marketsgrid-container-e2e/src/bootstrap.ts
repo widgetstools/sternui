@@ -12,8 +12,8 @@ import {
   ensurePlatformReady,
   resolvePlatformBootstrapFromJson,
   type ResolvedDataServicesHubBundle,
-} from '@starui/host-data';
-import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
+} from '@wellsfargo-starui/host-data';
+import workerAssetUrl from '@wellsfargo-starui/host-data/assets/data-services-worker.mjs?url';
 
 let platform: ResolvedDataServicesHubBundle | undefined;
 

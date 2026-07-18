@@ -1,4 +1,4 @@
-import type { CellDiffEntry, RowDiffMap } from '@starui/engine';
+import type { CellDiffEntry, RowDiffMap } from '@wellsfargo-starui/engine';
 import { PreviousValuesStore, type FieldDiff } from './previousValuesStore.js';
 
 const previousValues = new PreviousValuesStore();

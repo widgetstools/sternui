@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AnyModule } from '@starui/engine';
+import type { AnyModule } from '@wellsfargo-starui/engine';
 import { groupModulesForMenubar } from './SettingsModuleMenubar';
 
 function mod(id: string, name = id): AnyModule {

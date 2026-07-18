@@ -12,7 +12,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import {
   BookOpen,
   Database,
@@ -288,7 +288,7 @@ function WiringDocs() {
           No keyColumn, no provider context.
         </Prose>
         <CodeBlock>
-{`import { startMock } from '@starui/host-data';
+{`import { startMock } from '@wellsfargo-starui/host-data';
 
 const { cfg } = useMockConfig();
 const { columnDefs, rowIdField } = columnDefsByType[cfg.dataType];
@@ -322,7 +322,7 @@ useEffect(() => {
           not yet in the catalog.
         </Prose>
         <CodeBlock>
-{`import { useDataProvider } from '@starui/host-data-react/runtime';
+{`import { useDataProvider } from '@wellsfargo-starui/host-data-react/runtime';
 
 const providerId = \`mock-\${cfg.dataType}\`;
 const { provider, status } = useDataProvider(providerId, { autoStart: true });

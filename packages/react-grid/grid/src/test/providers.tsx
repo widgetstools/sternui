@@ -1,9 +1,9 @@
 /**
  * Wraps @testing-library/react `render` with Radix providers required by
- * @starui/ui primitives (Tooltip, etc.) used across customizer tests.
+ * @wellsfargo-starui/ui primitives (Tooltip, etc.) used across customizer tests.
  */
 import * as React from 'react';
-import { TooltipProvider } from '@starui/ui';
+import { TooltipProvider } from '@wellsfargo-starui/ui';
 import { vi } from 'vitest';
 
 vi.mock('@testing-library/react', async (importOriginal) => {

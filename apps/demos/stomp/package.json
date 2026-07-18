@@ -1,5 +1,5 @@
 {
-  "name": "@starui/tutorial-stomp",
+  "name": "@wellsfargo-starui/tutorial-stomp",
   "private": true,
   "type": "module",
   "scripts": {

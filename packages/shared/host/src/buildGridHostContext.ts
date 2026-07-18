@@ -3,7 +3,7 @@ import {
   createMarketsGridLocalStorageStorage,
   type StorageAdapter,
   type StorageAdapterFactory,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import { createGridHostContext, type GridHostContext } from './GridHostContext.js';
 import type { ConfigPort } from './ConfigPort.js';
 import type { DataPort } from './DataPort.js';

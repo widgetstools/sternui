@@ -20,4 +20,4 @@ Run `starui_setup_stomp_dev` then `starui_generate_stomp_config`.
 HostedMarketsGrid → dpClient → SharedWorker → StompTransport → ws://localhost:8081
 ```
 
-AG Grid theme: `useGridTheme()` → `@starui/design-system/adapters/ag-grid`.
+AG Grid theme: `useGridTheme()` → `@wellsfargo-starui/design-system/adapters/ag-grid`.

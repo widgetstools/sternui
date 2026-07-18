@@ -1,4 +1,4 @@
-# `@starui/e2e-openfin`
+# `@wellsfargo-starui/e2e-openfin`
 
 OpenFin e2e harness — a Playwright runner attached over CDP to a real
 OpenFin runtime spawned via `@openfin/node-adapter`, driving the
@@ -29,7 +29,7 @@ npm --prefix e2e-openfin run test:e2e:headed
 ## How it works
 
 1. Playwright's `webServer` block boots two servers: the STOMP view
-   server ([`@starui/stomp-view-server`](../apps/demos/stomp-view-server/),
+   server ([`@wellsfargo-starui/stomp-view-server`](../apps/demos/stomp-view-server/),
    `:8081`, health-checked at `/health`) and star-demo's Vite dev server
    (`:5175`, **DEV mode** so the test bridge installs).
 2. The `launchOpenFin` fixture calls `@openfin/node-adapter`'s `launch()`

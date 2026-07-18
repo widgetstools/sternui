@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
 /**
- * Vitest config for `@starui/openfin-platform`.
+ * Vitest config for `@wellsfargo-starui/openfin-platform`.
  *
  * Runs in `jsdom` so the workspace-persistence override can use a fetch-
  * style URL parser when extracting instanceIds, and so any DOM-shape test

@@ -14,7 +14,7 @@
  * relearn anything when v2 ships.
  */
 
-import type { FieldNode } from '@starui/types';
+import type { FieldNode } from '@wellsfargo-starui/types';
 
 export interface InferOptions {
   /** Cap the number of rows considered. Default 200. */

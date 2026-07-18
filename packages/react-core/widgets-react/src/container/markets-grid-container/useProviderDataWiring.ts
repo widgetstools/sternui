@@ -14,13 +14,13 @@
  */
 import { useEffect } from 'react';
 import type { GridApi } from 'ag-grid-community';
-import type { IDataProvider } from '@starui/host-data';
-import type { MarketsGridHandle } from '@starui/grid';
-import { isHistoricalToolbarDate } from '@starui/grid/customizer';
+import type { IDataProvider } from '@wellsfargo-starui/host-data';
+import type { MarketsGridHandle } from '@wellsfargo-starui/grid';
+import { isHistoricalToolbarDate } from '@wellsfargo-starui/grid/customizer';
 import { createApplyProviderToGridState } from './applyProviderToGrid.js';
 import type { ProviderMode } from './gridLevelState.js';
-import type { useDataServices } from '@starui/host-data-react/runtime';
-import type { createMarketsGridContainerEventBus } from '@starui/grid';
+import type { useDataServices } from '@wellsfargo-starui/host-data-react/runtime';
+import type { createMarketsGridContainerEventBus } from '@wellsfargo-starui/grid';
 
 /** Historical restore only — brief peer race before `restartProvider()`. Live mode connects immediately. */
 const PEER_PROVIDER_WAIT_MS = 2_000;

@@ -3,11 +3,11 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@starui/grid": ["./src/index.ts"],
-      "@starui/grid/customizer": ["./src/customizer/index.ts"],
-      "@starui/engine": ["../../shared/engine/src/index.ts"],
-      "@starui/types": ["../../shared/types/src/index.ts"],
-      "@starui/host": ["../../shared/host/src/index.ts"]
+      "@wellsfargo-starui/grid": ["./src/index.ts"],
+      "@wellsfargo-starui/grid/customizer": ["./src/customizer/index.ts"],
+      "@wellsfargo-starui/engine": ["../../shared/engine/src/index.ts"],
+      "@wellsfargo-starui/types": ["../../shared/types/src/index.ts"],
+      "@wellsfargo-starui/host": ["../../shared/host/src/index.ts"]
     },
     "noEmit": true
   },

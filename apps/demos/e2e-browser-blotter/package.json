@@ -1,5 +1,5 @@
 {
-  "name": "@starui/e2e-browser-blotter",
+  "name": "@wellsfargo-starui/e2e-browser-blotter",
   "private": true,
   "type": "module",
   "scripts": {

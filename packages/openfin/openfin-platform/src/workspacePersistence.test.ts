@@ -16,8 +16,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { COMPONENT_TYPES } from '@starui/types';
-import type { AppConfigRow, ConfigManager } from '@starui/host-config';
+import { COMPONENT_TYPES } from '@wellsfargo-starui/types';
+import type { AppConfigRow, ConfigManager } from '@wellsfargo-starui/host-config';
 import {
   createWorkspacePersistenceOverride,
   instanceIdsFromSnapshot,

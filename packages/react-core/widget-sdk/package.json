@@ -1,7 +1,7 @@
 {
-  "name": "@starui/widget-sdk",
+  "name": "@wellsfargo-starui/widget-sdk",
   "version": "1.0.0",
-  "description": "Star Widget SDK — React hooks, WidgetHost, and extensibility over @starui/widget",
+  "description": "Star Widget SDK — React hooks, WidgetHost, and extensibility over @wellsfargo-starui/widget",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,15 +20,15 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@starui/shared-types": "*",
+    "@wellsfargo-starui/shared-types": "*",
     "@tanstack/react-query": "^5.80.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },
   "dependencies": {
-    "@starui/host-config": "*",
-    "@starui/widget": "*",
-    "@starui/widget-browser": "*"
+    "@wellsfargo-starui/host-config": "*",
+    "@wellsfargo-starui/widget": "*",
+    "@wellsfargo-starui/widget-browser": "*"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",

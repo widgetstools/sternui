@@ -5,14 +5,14 @@
 
 ## Goal
 
-A new React demo app that proves `@starui/design-system` + `@starui/ui` can dress
+A new React demo app that proves `@wellsfargo-starui/design-system` + `@wellsfargo-starui/ui` can dress
 a real client application. It has two faces:
 
 1. **A fixed-income trading terminal** (fi-trading-terminal-inspired) — Market,
    Orders, Analytics, Risk, Research tabs — entirely styled by our design system,
    with AG Grid token-themed and recharts charts using the design-system color ramp.
 2. **A Design System reference tab** — palette, typography, foundations, and a
-   live, copy-ready gallery of **all 52 `@starui/ui` components**.
+   live, copy-ready gallery of **all 52 `@wellsfargo-starui/ui` components**.
 
 The fi-trading-terminal at `/Users/develop/wfh/fi-trading-terminal` is **inspiration
 only** (our design system was extracted from it). The app consumes **our** packages
@@ -23,10 +23,10 @@ from this monorepo — no code is copied from fi.
 | Decision | Choice |
 |---|---|
 | Trading breadth | Full fi-style multi-tab terminal: Market · Orders · Analytics · Risk · Research |
-| Charts | Yes — yield-curve + price chart (recharts via `@starui/ui` chart + design-system 5-color ramp) |
+| Charts | Yes — yield-curve + price chart (recharts via `@wellsfargo-starui/ui` chart + design-system 5-color ramp) |
 | Design System tab depth | Live example **+ code + import** per component, all 52, grouped by category |
 | Data | Mock seed + **live ticking** (in-app interval reducer; no backend) |
-| App name / folder | folder `apps/demos/design-system`; workspace `@starui/design-system-demo` (bare name is the real package) |
+| App name / folder | folder `apps/demos/design-system`; workspace `@wellsfargo-starui/design-system-demo` (bare name is the real package) |
 | Dev port | 5310 (confirmed free) |
 
 ## Non-Goals (YAGNI)
@@ -40,22 +40,22 @@ from this monorepo — no code is copied from fi.
 
 ### A. Identity, stack, theming
 
-- **Folder:** `apps/demos/design-system`. **Workspace name:** `@starui/design-system-demo`. **Port:** 5310.
+- **Folder:** `apps/demos/design-system`. **Workspace name:** `@wellsfargo-starui/design-system-demo`. **Port:** 5310.
 - **Stack:** React 19.2.x, Vite 7 via `scripts/staruiConsumerVite.mjs`, Tailwind 3.4
   with `scripts/staruiTailwindPreset.cjs` + `scripts/tailwindContentGlobs.mjs`,
   `lucide-react`, `ag-grid-community`/`-enterprise`/`-react` 35.1.0, `recharts` ^3.6.0,
   `tailwindcss-animate`. (Mirror `markets-grid-lab/package.json` + recharts.)
-- **Consumes our packages from source** — `@starui/*` is resolved by the consumer Vite
-  aliases, so **no `@starui/*` deps** in `package.json`. Used:
-  `@starui/design-system` (`/css`, `applyTheme`/`getTheme`, tokens, `/adapters/ag-grid`),
-  `@starui/ui` (all 52 components).
-- **Theming:** `globals.css` imports `@starui/design-system/css`; `main.tsx` calls
+- **Consumes our packages from source** — `@wellsfargo-starui/*` is resolved by the consumer Vite
+  aliases, so **no `@wellsfargo-starui/*` deps** in `package.json`. Used:
+  `@wellsfargo-starui/design-system` (`/css`, `applyTheme`/`getTheme`, tokens, `/adapters/ag-grid`),
+  `@wellsfargo-starui/ui` (all 52 components).
+- **Theming:** `globals.css` imports `@wellsfargo-starui/design-system/css`; `main.tsx` calls
   `applyTheme(getTheme())` at module scope before render (no FOUC). A reused
   **ThemeToggle** (pattern from `markets-grid-lab/src/components/ThemeToggle.tsx`)
   flips `data-theme` dark↔light via `applyTheme({ theme })`. Every surface uses
   `--ds-*` tokens; no hardcoded hex.
 - **AG Grid theming:** import the prebuilt **`staruiGridTheme`** from
-  `@starui/design-system/adapters/ag-grid` (it reads live OKLCH `--*` token vars and
+  `@wellsfargo-starui/design-system/adapters/ag-grid` (it reads live OKLCH `--*` token vars and
   switches by the `data-ag-theme-mode` attribute). The grid wrapper sets
   `data-ag-theme-mode="dark"|"light"` to match the current theme. A density variant
   (`agGridBlotterDarkTheme`/`…Light` or `applyGridDensityToTheme`) may be used for the
@@ -69,12 +69,12 @@ global search, `ThemeToggle`) over a top tab nav — **Market · Orders · Analy
 Risk · Research · Design System** — driving Radix `Tabs`/`TabsContent`. Multi-panel
 trading views use `react-resizable-panels` (the shadcn `resizable` primitive).
 
-**Trading tabs** (composed from `@starui/ui` + AG Grid + tokens):
+**Trading tabs** (composed from `@wellsfargo-starui/ui` + AG Grid + tokens):
 - **Market** — `BondBlotter` (AG Grid, ticking, design-system cell renderers for
   price/yield/Δ), `Watchlist`, `OrderBook` (depth), `PriceChart`, and a `TradeTicket`
   (`Sheet`/`Dialog` + `Form`: side toggle, qty, price, settlement `Select`).
 - **Orders** — `OrdersBlotter` (status `Badge`s), `OrderEntryForm` (react-hook-form via
-  `@starui/ui` `Form`), `RfqSimulator` (light mock).
+  `@wellsfargo-starui/ui` `Form`), `RfqSimulator` (light mock).
 - **Analytics** — `YieldCurveChart` (recharts + chart ramp), `AnalyticsCards` (KPIs), a table.
 - **Risk** — exposure/limit tables with token-driven heat coloring, `Progress` limit bars, VaR KPI cards.
 - **Research** — `Card`s, `Accordion`s, `HoverCard`s, nested `Tabs` (non-grid composition).
@@ -88,7 +88,7 @@ Reducer + selectors are isolated and unit-testable.
 ### C. Design System tab
 
 Its own left sub-nav (sections), each a focused component:
-1. **Overview** — what the system is + how to consume it (`@starui/design-system/css`
+1. **Overview** — what the system is + how to consume it (`@wellsfargo-starui/design-system/css`
    import, `applyTheme`, Tailwind preset), with copyable setup snippets.
 2. **Palette** — swatch grids for every semantic token group (surface, text, border,
    accent, **trade** bid/ask/strips, **action** buy/sell, overlay, **chart ramp**,
@@ -96,7 +96,7 @@ Its own left sub-nav (sections), each a focused component:
    labels token name + role.
 3. **Typography** — the type scale (9/11/13/18px tiers), sans vs mono, weights, sample usages.
 4. **Foundations** — radius, spacing, elevation/shadow, focus ring — rendered live from tokens.
-5. **Components** — gallery of **all 52 `@starui/ui` components**, grouped by category
+5. **Components** — gallery of **all 52 `@wellsfargo-starui/ui` components**, grouped by category
    (Buttons & Actions, Inputs & Forms, Selection, Overlays & Dialogs, Navigation,
    Data Display, Feedback & Status, Layout & Disclosure, Charts).
 
@@ -146,7 +146,7 @@ apps/demos/design-system/
 
 - **Unit (Vitest, run from repo root via `npx vitest run apps/demos/design-system/src/...`):**
   - `applyTick` reducer — prices nudge within bounds, direction flags set, row ids stable.
-  - showcase **registry completeness** — every public `@starui/ui` component has an entry;
+  - showcase **registry completeness** — every public `@wellsfargo-starui/ui` component has an entry;
     categories valid; each entry has `importLine`, `code`, and a `Demo`.
   - palette token-group data integrity — every listed token name is non-empty/unique.
 - **Playwright smoke** (`e2e/design-system-demo.spec.ts`, port 5310): app loads on Market;
@@ -156,8 +156,8 @@ apps/demos/design-system/
 
 ## Success Criteria
 
-Runs on 5310; looks like a cohesive FI terminal fully styled by `@starui/design-system`
+Runs on 5310; looks like a cohesive FI terminal fully styled by `@wellsfargo-starui/design-system`
 in both dark and light; AG Grid is token-themed and switches with the theme; recharts
 charts use the design-system ramp; and the Design System tab is a complete, live,
-copy-ready reference for palette, typography, foundations, and all 52 `@starui/ui`
+copy-ready reference for palette, typography, foundations, and all 52 `@wellsfargo-starui/ui`
 components.

@@ -24,7 +24,7 @@ import {
   MarketsGrid,
   type AdminAction,
   type StorageAdapterFactory,
-} from '@starui/grid';
+} from '@wellsfargo-starui/grid';
 
 import { generateOrders, generateEquityOrders, type Order } from './data';
 

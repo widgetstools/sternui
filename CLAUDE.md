@@ -43,8 +43,8 @@ architecture buckets (see
 | 1 | UI Design System | `design-system/` | `design-system`, `icons-svg` |
 | 2 | Angular UI Controls | `angular-ui/` | *(scaffold — PrimeNG/tokens)* |
 | 3 | React UI Controls | `react-ui/` | `ui` |
-| 4 | Angular Grid | `angular-grid/` | `grid` → `@starui/grid-angular` |
-| 5 | React Grid | `react-grid/` | `grid` → `@starui/grid` |
+| 4 | Angular Grid | `angular-grid/` | `grid` → `@wellsfargo-starui/grid-angular` |
+| 5 | React Grid | `react-grid/` | `grid` → `@wellsfargo-starui/grid` |
 | 6 | Data Utilities | `data/` | `host-config`, `host-data`, `host-data-react`, `host-data-angular` |
 | 7 | OpenFin Utils | `openfin/` | `host-openfin`, `openfin-platform` |
 | 8 | Angular Core | `angular-core/` | `app`, `widgets`, `config-browser` |
@@ -110,8 +110,8 @@ muscle memory both depend on it.
 **Public subpath exports** in `package.json` `"exports"` may use kebab
 even when they point at camelCase files (subpath name is the package's
 public API; renaming breaks consumers). Examples:
-`@starui/icons-svg/all-icons` → `./allIcons.ts`,
-`@starui/design-system/cell-renderers` → `./dist/cellRenderers.js`.
+`@wellsfargo-starui/icons-svg/all-icons` → `./allIcons.ts`,
+`@wellsfargo-starui/design-system/cell-renderers` → `./dist/cellRenderers.js`.
 
 ESLint enforcement (`unicorn/filename-case` per-bucket) is a follow-up
 PR. Until then: convention enforcement happens in code review.
@@ -140,11 +140,11 @@ on the next run. Don't remove it.
   demos explicitly (`demo-angular` excluded). `npm run install:apps`
   (= `npm install --prefix apps`) installs each app's own third-party deps; it does
   **not** require `libs/*.tgz`.
-- **Apps build from source only.** `dev`/`build` resolve every `@starui/*` import
+- **Apps build from source only.** `dev`/`build` resolve every `@wellsfargo-starui/*` import
   straight out of `packages/` source — Vite via the aliases in
   `scripts/staruiConsumerAliases.mjs`, `tsc` via the repo-root workspace symlinks
-  (`<root>/node_modules/@starui/<member>` → `packages/...`, reachable because
-  `apps/` sits inside the repo root). Apps declare **no** `@starui/*` deps; their
+  (`<root>/node_modules/@wellsfargo-starui/<member>` → `packages/...`, reachable because
+  `apps/` sits inside the repo root). Apps declare **no** `@wellsfargo-starui/*` deps; their
   third-party transitive deps resolve from the hoisted repo-root `node_modules`.
   Build/typecheck every app with `npm run build:apps` / `npm run typecheck:apps`.
   `npm run propagate` still packs `libs/*.tgz` + `manifest.json` — but only for
@@ -158,7 +158,7 @@ on the next run. Don't remove it.
   `dev`/`build` works even after a `clean`/`rimraf` wiped `dist/`. Set
   `STARUI_SKIP_ENSURE_BUILD=1` to bypass. App typecheck `tsconfig`s map
   `react`/`react-dom` → the single repo-root `@types/react` (`compilerOptions.paths`)
-  so deep-typechecking `@starui/grid` source doesn't collide with a second
+  so deep-typechecking `@wellsfargo-starui/grid` source doesn't collide with a second
   transitively-installed `@types/react`.
 
 ## Propagating package changes (external tarball consumers)
@@ -178,7 +178,7 @@ in that bucket. Flags:
 - `--no-install` / `--no-build` — skip install or per-package build steps.
 - Pass a bucket name (`react-core`) or member package (`grid`) to pack one bucket.
 
-Manifest: `libs/manifest.json` maps `@starui/<bucket>` → tarball +
+Manifest: `libs/manifest.json` maps `@wellsfargo-starui/<bucket>` → tarball +
 `members` array (legacy member names resolve for MCP scaffolding).
 
 ## Testing
@@ -197,14 +197,14 @@ Manifest: `libs/manifest.json` maps `@starui/<bucket>` → tarball +
 
 Every UI component — new or updated — MUST:
 
-1. **Consume `@starui/design-system` tokens.** Never hardcode colors,
+1. **Consume `@wellsfargo-starui/design-system` tokens.** Never hardcode colors,
    spacing, typography. Resolve through `--bn-*` / `--fi-*` CSS variables
-   or the semantic exports from `@starui/design-system/tokens/semantic`.
+   or the semantic exports from `@wellsfargo-starui/design-system/tokens/semantic`.
 
 2. **Use the framework-matching primitive library:**
-   - **React** → shadcn/ui (via `@starui/ui` + `@starui/grid` customizer
+   - **React** → shadcn/ui (via `@wellsfargo-starui/ui` + `@wellsfargo-starui/grid` customizer
      primitives). **No native `<input>` / `<textarea>` / `<select>`.**
-   - **Angular** → PrimeNG (themed via `@starui/tokens-primeng`).
+   - **Angular** → PrimeNG (themed via `@wellsfargo-starui/tokens-primeng`).
      `pInputText`, `pButton`, `pDropdown`, `pDialog`, etc.
 
 3. **Be 100% dark/light compatible.** Every surface renders correctly
@@ -223,7 +223,7 @@ Enforced via convention (ESLint enforcement is a follow-up). See
 
 - Foundation packages (`shared-types`, `design-system`, `icons-svg`) must
   not import from anywhere except each other.
-- `@starui/engine` must not import from framework adapters (`widgets-react`, `grid`).
+- `@wellsfargo-starui/engine` must not import from framework adapters (`widgets-react`, `grid`).
 - Only `host-openfin` and `openfin-platform` may import from `@openfin/core`.
 - Apps import from packages, never the reverse.
 

@@ -311,11 +311,11 @@ blotters; pre-compute in the provider or use source columns only.
 
 ```bash
 # Hub lifecycle regressions
-npm test --workspace=@starui/host-data -- src/runtime/memoryLifecycle.test.ts
+npm test --workspace=@wellsfargo-starui/host-data -- src/runtime/memoryLifecycle.test.ts
 
 # Grid hot-path unit tests
-npm test --workspace=@starui/grid -- applyProviderToGrid
-npm test --workspace=@starui/engine -- RowChangeBus
+npm test --workspace=@wellsfargo-starui/grid -- applyProviderToGrid
+npm test --workspace=@wellsfargo-starui/engine -- RowChangeBus
 ```
 
 ### Manual — multi-blotter memory churn

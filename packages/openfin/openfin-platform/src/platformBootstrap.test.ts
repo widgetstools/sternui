@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { DEV_PLATFORM_BOOTSTRAP } from '@starui/host-data';
+import { DEV_PLATFORM_BOOTSTRAP } from '@wellsfargo-starui/host-data';
 import {
   DEFAULT_MANIFEST_USER_ID,
   resolvePlatformBootstrapFromCustomSettings,

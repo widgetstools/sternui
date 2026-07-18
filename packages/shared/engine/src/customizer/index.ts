@@ -1,6 +1,6 @@
 /**
  * Customizer module logic — framework-agnostic state, transforms, and helpers.
- * React panel registration stays in `@starui/grid`.
+ * React panel registration stays in `@wellsfargo-starui/grid`.
  */
 
 export * from './modules/calculated-columns/state.js';

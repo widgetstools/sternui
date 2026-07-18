@@ -22,7 +22,7 @@ export interface ProfileSnapshot {
  *    persistence.
  *  - `LocalStorageBundleAdapter` — localStorage-backed bundle, used by
  *    the offline reference app.
- *  - `createConfigServiceStorage(...)` from `@starui/config-service` —
+ *  - `createConfigServiceStorage(...)` from `@wellsfargo-starui/config-service` —
  *    the canonical IndexedDB-backed factory; bundles every profile for
  *    a `(appId, userId, instanceId)` tuple into one `appConfig` row.
  */

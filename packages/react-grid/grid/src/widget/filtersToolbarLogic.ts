@@ -9,4 +9,4 @@ export {
   subtractFilterModel,
   isNewFilter,
   type SavedFilterShape,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';

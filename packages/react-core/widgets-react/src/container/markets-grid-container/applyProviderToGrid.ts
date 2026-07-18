@@ -7,7 +7,7 @@
  */
 
 import type { GridApi, IRowNode } from 'ag-grid-community';
-import { composeRowId } from '@starui/shared-types';
+import { composeRowId } from '@wellsfargo-starui/shared-types';
 
 export interface SplitProviderRowsResult<TData> {
   adds: TData[];

@@ -5,7 +5,7 @@
  * from ConfigCatalogCache on attach; the grid never receives cfg inline.
  */
 
-import type { DataProviderConfig, StompProviderConfig } from '@starui/types';
+import type { DataProviderConfig, StompProviderConfig } from '@wellsfargo-starui/types';
 
 /** Must match a tag published by stomp-view-server (npm run dev:stomp). */
 const TAG = 'TRADER001';

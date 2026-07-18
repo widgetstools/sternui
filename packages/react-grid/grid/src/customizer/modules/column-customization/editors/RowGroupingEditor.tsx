@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Caps, IconInput } from '../../../ui/SettingsPanel';
-import { Switch, Textarea } from '@starui/ui';
+import { Switch, Textarea } from '@wellsfargo-starui/ui';
 import { Select } from '../../../ui/NativeOptionsSelect';
 import { useModuleState } from '../../../hooks/useModuleState';
 import { useSsrmCapabilityGate } from '../../../hooks/useSsrmCapabilityGate';

@@ -18,7 +18,7 @@
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { ChromeButton } from '@starui/grid/customizer';
+import { ChromeButton } from '@wellsfargo-starui/grid/customizer';
 import { GripVertical, X as XIcon } from 'lucide-react';
 import './grid-chrome.css';
 

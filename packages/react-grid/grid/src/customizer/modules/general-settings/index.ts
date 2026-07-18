@@ -15,7 +15,7 @@
  * v5 adds `gridDensity` (ultra / compact / comfortable Quartz preset).
  */
 import type { GridOptions } from 'ag-grid-community';
-import type { Module, TransformContext } from '@starui/engine';
+import type { Module, TransformContext } from '@wellsfargo-starui/engine';
 import { INITIAL_GENERAL_SETTINGS, type GeneralSettingsState } from './state';
 import { GridOptionsPanel } from './GridOptionsPanel';
 import {

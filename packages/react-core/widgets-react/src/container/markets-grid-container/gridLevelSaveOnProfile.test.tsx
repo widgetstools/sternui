@@ -10,8 +10,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import type { StorageAdapter } from '@starui/engine';
-import type { MarketsGridHandle } from '@starui/grid';
+import type { StorageAdapter } from '@wellsfargo-starui/engine';
+import type { MarketsGridHandle } from '@wellsfargo-starui/grid';
 import { useGridLevelPersistence } from './useGridLevelPersistence.js';
 
 /** Minimal sync pub-sub matching the platform EventBus surface the hook uses. */

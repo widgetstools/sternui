@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-declare module '@starui/host-data/assets/data-services-worker.mjs?url' {
+declare module '@wellsfargo-starui/host-data/assets/data-services-worker.mjs?url' {
   const url: string;
   export default url;
 }
@@ -14,7 +14,7 @@ declare module '@starui/host-data/assets/data-services-worker.mjs?url' {
 // var — it lives on the OpenFin manifest's
 // `customSettings.{useRest, configServiceRestUrl}` pair instead, read
 // via `getConfigServiceRestUrlFromManifest()` from
-// `@starui/openfin-platform/config`. See the matching JSDoc on
+// `@wellsfargo-starui/openfin-platform/config`. See the matching JSDoc on
 // `CustomSettings.useRest`.
 
 export {};

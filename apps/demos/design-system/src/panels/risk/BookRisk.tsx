@@ -2,7 +2,7 @@ import type { WidgetProps } from '@widgetstools/react-dock-manager';
 import {
   Card, CardContent, CardHeader, CardTitle,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import { BOOK_RISK, SEED_INSTRUMENTS } from '../../data/seeds';
 import { fmtMoney } from '../../data/formatters';
 

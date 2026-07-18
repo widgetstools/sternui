@@ -1,4 +1,4 @@
-import type { VirtualColumnDef } from '@starui/grid/customizer';
+import type { VirtualColumnDef } from '@wellsfargo-starui/grid/customizer';
 
 // Calculated columns authored against the module's expression DSL.
 // Field references use `[columnId]` syntax. Operators + IF/SUM/LOG10/ABS

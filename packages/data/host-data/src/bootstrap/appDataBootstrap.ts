@@ -1,4 +1,4 @@
-import type { ConfigManager } from '@starui/host-config';
+import type { ConfigManager } from '@wellsfargo-starui/host-config';
 import type { AppDataConfig } from '../runtime/providers/appdata/store.js';
 import type { AppDataMirror } from '../runtime/mirror/AppDataMirror.js';
 import type { AppDataBootstrapManifest } from './PlatformBootstrapConfig.js';
@@ -107,10 +107,10 @@ export function createAppDataBootstrapContext(
     log(message, detail) {
       if (detail !== undefined) {
         // eslint-disable-next-line no-console
-        console.info(`[@starui/host-data appDataBootstrap] ${message}`, detail);
+        console.info(`[@wellsfargo-starui/host-data appDataBootstrap] ${message}`, detail);
       } else {
         // eslint-disable-next-line no-console
-        console.info(`[@starui/host-data appDataBootstrap] ${message}`);
+        console.info(`[@wellsfargo-starui/host-data appDataBootstrap] ${message}`);
       }
     },
     async upsertAppData(input: AppDataUpsertInput): Promise<void> {

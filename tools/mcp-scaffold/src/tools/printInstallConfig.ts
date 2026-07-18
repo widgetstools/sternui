@@ -2,7 +2,7 @@ export function handlePrintInstallConfig(opts?: { staruiRoot?: string; tarballPa
   const staruiRoot = opts?.staruiRoot ?? process.env.STARUI_ROOT ?? '';
   const args = opts?.tarballPath
     ? ['-y', opts.tarballPath]
-    : ['-y', '@starui/mcp-scaffold'];
+    : ['-y', '@wellsfargo-starui/mcp-scaffold'];
   const env: Record<string, string> = {};
   if (staruiRoot) env.STARUI_ROOT = staruiRoot;
 

@@ -6,7 +6,7 @@
  * its rules can reference the new virtual colIds.
  */
 import type { GridApi } from 'ag-grid-community';
-import type { Module, PlatformHandle } from '@starui/engine';
+import type { Module, PlatformHandle } from '@wellsfargo-starui/engine';
 import {
   INITIAL_CALCULATED_COLUMNS,
   type CalculatedColumnsState,

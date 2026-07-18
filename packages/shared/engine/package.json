@@ -1,8 +1,8 @@
 {
-  "name": "@starui/engine",
+  "name": "@wellsfargo-starui/engine",
   "version": "0.1.0",
   "private": true,
-  "description": "Vanilla TS grid engine — GridPlatform, ProfileManager, ExpressionEngine (ported from @starui/core)",
+  "description": "Vanilla TS grid engine — GridPlatform, ProfileManager, ExpressionEngine (ported from @wellsfargo-starui/core)",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -30,7 +30,7 @@
     "ag-grid-react": "^36.0.0"
   },
   "dependencies": {
-    "@starui/types": "*",
+    "@wellsfargo-starui/types": "*",
     "ssf": "^0.11.2",
     "zustand": "^5.0.12"
   },

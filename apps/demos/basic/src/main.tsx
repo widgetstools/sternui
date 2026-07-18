@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { applyTheme, getTheme } from '@starui/design-system';
+import { applyTheme, getTheme } from '@wellsfargo-starui/design-system';
 import { App } from './App';
 import './globals.css';
 

@@ -79,7 +79,7 @@ export interface LoadTimings {
 }
 
 /**
- * Read the Phase-0 load-timing marks stamped by `@starui/host-data` bootstrap
+ * Read the Phase-0 load-timing marks stamped by `@wellsfargo-starui/host-data` bootstrap
  * (see `packages/data/host-data/src/bootstrap/loadMarks.ts`). Each value is the
  * milestone's time-to-interactive in ms relative to the page's `timeOrigin`.
  * Polls until `platform-ready` lands so the read is never racy against a grid

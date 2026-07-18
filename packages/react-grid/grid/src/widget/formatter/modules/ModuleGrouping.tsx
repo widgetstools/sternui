@@ -18,8 +18,8 @@
  */
 import type { ReactNode } from 'react';
 import { EyeOff, Group, SlidersHorizontal } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@starui/ui';
-import type { AggFuncName } from '@starui/grid/customizer';
+import { Popover, PopoverContent, PopoverTrigger } from '@wellsfargo-starui/ui';
+import type { AggFuncName } from '@wellsfargo-starui/grid/customizer';
 import { Hair, Module, Pill, PillButton, ToolbarSelect } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 

@@ -6,9 +6,9 @@
 import * as React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { act, render, waitFor } from '@testing-library/react';
-import type { StorageAdapter } from '@starui/engine';
-import type { IDataProvider, Unsubscribe } from '@starui/host-data';
-import type { ProviderStatus } from '@starui/host-data/runtime';
+import type { StorageAdapter } from '@wellsfargo-starui/engine';
+import type { IDataProvider, Unsubscribe } from '@wellsfargo-starui/host-data';
+import type { ProviderStatus } from '@wellsfargo-starui/host-data/runtime';
 
 const LIVE_PROVIDER_ID = 'dp-live';
 const HIST_PROVIDER_ID = 'dp-hist';
@@ -85,7 +85,7 @@ const appDataSet = vi.fn().mockResolvedValue(undefined);
 const saveAllMock = vi.fn().mockResolvedValue(undefined);
 const lastMarketsGridProps: { current: any } = { current: null };
 
-vi.mock('@starui/grid', () => ({
+vi.mock('@wellsfargo-starui/grid', () => ({
   useGeneralSettingsSnapshot: () => undefined,
   MarketsGrid: (props: any) => {
     lastMarketsGridProps.current = props;
@@ -127,7 +127,7 @@ vi.mock('@starui/grid', () => ({
   useMarketsGridEventBridge: vi.fn(),
 }));
 
-vi.mock('@starui/host-data-react/runtime', () => ({
+vi.mock('@wellsfargo-starui/host-data-react/runtime', () => ({
   useDataServices: () => ({ client: dataHubClientMock }),
   useDataProvider: (id: string | null | undefined) => {
     if (!id) {

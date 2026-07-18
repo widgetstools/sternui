@@ -14,7 +14,7 @@ npm run dev:platform-hooks-demo
 # → http://localhost:5214
 ```
 
-`STARUI_DEV_SOURCE=1` is set on the dev script so Vite resolves `@starui/*` from live `packages/` source.
+`STARUI_DEV_SOURCE=1` is set on the dev script so Vite resolves `@wellsfargo-starui/*` from live `packages/` source.
 
 ---
 
@@ -145,7 +145,7 @@ They **survive profile switches** — unlike profile modules, bindings are not p
 4. **Events** tab updates immediately.
 5. Reload — dropdown selections persist (stored in localStorage via `createMarketsGridLocalStorageStorage()`).
 
-Full event catalog: `@starui/grid` → `MARKETS_GRID_EVENT_CATALOG`.
+Full event catalog: `@wellsfargo-starui/grid` → `MARKETS_GRID_EVENT_CATALOG`.
 
 ---
 

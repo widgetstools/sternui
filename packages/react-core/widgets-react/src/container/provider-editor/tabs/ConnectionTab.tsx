@@ -3,14 +3,14 @@
  * surfaces a "Test Connection" button under it.
  *
  * The actual connection-test logic lives in `useProviderProbe`, which
- * dispatches to `probeStomp` / `probeRest` from `@starui/host-data/runtime`.
+ * dispatches to `probeStomp` / `probeRest` from `@wellsfargo-starui/host-data/runtime`.
  * The hook is owned by EditorForm and passed in (since FieldsTab also
  * needs the same probe state).
  */
 
-import { Button, ScrollArea } from '@starui/ui';
+import { Button, ScrollArea } from '@wellsfargo-starui/ui';
 import { CheckCircle2, Loader2, Plug, XCircle } from 'lucide-react';
-import type { ProviderConfig, StompProviderConfig, RestProviderConfig, MockProviderConfig, AppDataProviderConfig } from '@starui/shared-types';
+import type { ProviderConfig, StompProviderConfig, RestProviderConfig, MockProviderConfig, AppDataProviderConfig } from '@wellsfargo-starui/shared-types';
 import { StompFields } from '../transports/StompFields.js';
 import { RestFields } from '../transports/RestFields.js';
 import { MockFields } from '../transports/MockFields.js';

@@ -7,7 +7,7 @@ shells so React and Angular widgets can run side-by-side under one OpenFin
 workspace.
 
 This monorepo consolidates previously fragmented Markets UI / widget tooling
-into a single source of truth. Package names use the `@starui/*` scope; the
+into a single source of truth. Package names use the `@wellsfargo-starui/*` scope; the
 repo directory is `starui/`.
 
 See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the layer model and
@@ -18,7 +18,7 @@ architecture buckets.
 
 ```
 starui/                      # npm workspace root
-├── packages/                # ten architecture buckets (@starui/* libraries)
+├── packages/                # ten architecture buckets (@wellsfargo-starui/* libraries)
 ├── apps/                    # consumer/reference demos (apps/demos/*) — installed | source modes
 ├── docs/                    # architecture, parity, consumer guides
 ├── scripts/                 # propagate, Vite/Tailwind consumer helpers
@@ -35,26 +35,26 @@ starui/                      # npm workspace root
 - **AG Grid Enterprise** 35.1.x (`themeQuartz`, module registry)
 - **OpenFin** 43.101.x (Core / Workspace / Dock-Manager)
 - **Dexie** (IndexedDB) for local config persistence; SharedWorker for live data
-- **Radix UI** + shadcn primitives via `@starui/ui`
+- **Radix UI** + shadcn primitives via `@wellsfargo-starui/ui`
 - **Vitest** 4 + **Playwright** 1.59
 
 ## Package buckets
 
-Ten buckets under `packages/` — npm names stay `@starui/grid`, `@starui/app`, etc.
+Ten buckets under `packages/` — npm names stay `@wellsfargo-starui/grid`, `@wellsfargo-starui/app`, etc.
 Only filesystem paths carry the bucket prefix.
 
 | # | Bucket | Path | Key packages |
 |---|--------|------|--------------|
-| 1 | Design system | `design-system/` | `@starui/design-system`, `@starui/icons-svg` |
+| 1 | Design system | `design-system/` | `@wellsfargo-starui/design-system`, `@wellsfargo-starui/icons-svg` |
 | 2 | Angular UI | `angular-ui/` | *(scaffold — PrimeNG / tokens)* |
-| 3 | React UI | `react-ui/` | `@starui/ui` |
-| 4 | Angular grid | `angular-grid/` | `@starui/grid-angular` |
-| 5 | React grid | `react-grid/` | `@starui/grid` — MarketsGrid + customizer |
-| 6 | Data | `data/` | `@starui/host-data`, `@starui/host-data-react`, `@starui/host-config` |
-| 7 | OpenFin | `openfin/` | `@starui/host-openfin`, `@starui/openfin-platform` |
-| 8 | Angular core | `angular-core/` | `@starui/app-angular`, `@starui/widgets-angular` |
-| 9 | React core | `react-core/` | `@starui/app`, `@starui/widgets-react`, `@starui/widget-sdk` |
-| 10 | Shared | `shared/` | `@starui/engine`, `@starui/host`, `@starui/types`, `@starui/shared-types` |
+| 3 | React UI | `react-ui/` | `@wellsfargo-starui/ui` |
+| 4 | Angular grid | `angular-grid/` | `@wellsfargo-starui/grid-angular` |
+| 5 | React grid | `react-grid/` | `@wellsfargo-starui/grid` — MarketsGrid + customizer |
+| 6 | Data | `data/` | `@wellsfargo-starui/host-data`, `@wellsfargo-starui/host-data-react`, `@wellsfargo-starui/host-config` |
+| 7 | OpenFin | `openfin/` | `@wellsfargo-starui/host-openfin`, `@wellsfargo-starui/openfin-platform` |
+| 8 | Angular core | `angular-core/` | `@wellsfargo-starui/app-angular`, `@wellsfargo-starui/widgets-angular` |
+| 9 | React core | `react-core/` | `@wellsfargo-starui/app`, `@wellsfargo-starui/widgets-react`, `@wellsfargo-starui/widget-sdk` |
+| 10 | Shared | `shared/` | `@wellsfargo-starui/engine`, `@wellsfargo-starui/host`, `@wellsfargo-starui/types`, `@wellsfargo-starui/shared-types` |
 
 **Import rules (summary):** foundation packages never import framework adapters;
 only `host-openfin` / `openfin-platform` may import `@openfin/core`; apps import
@@ -88,10 +88,10 @@ Run `npm run verify:apps` to smoke-test dev servers.
 | **Apps** (from source) | `apps/demos/*` | `npm run build:apps` |
 | **Bucket tarballs** (external/Artifactory consumers only) | `libs/*.tgz` (gitignored) | `npm run propagate` |
 
-Apps build **from source**: Vite maps `@starui/grid`, `@starui/app`, … to
+Apps build **from source**: Vite maps `@wellsfargo-starui/grid`, `@wellsfargo-starui/app`, … to
 `packages/` via [`scripts/staruiConsumerAliases.mjs`](./scripts/staruiConsumerAliases.mjs),
 and `tsc` resolves them via the repo-root workspace symlinks. Apps declare **no**
-`@starui/*` deps and need **no** `libs/*.tgz`. The tarballs exist only for external
+`@wellsfargo-starui/*` deps and need **no** `libs/*.tgz`. The tarballs exist only for external
 (Artifactory) consumers — see [Running apps](#running-apps) below.
 
 After library changes, apps pick up edits live — just rebuild:
@@ -111,7 +111,7 @@ npm run check:source-aliases -- --strict   # fail until packages are built
 
 Full matrix: **[`docs/BUILD.md`](./docs/BUILD.md)** and **[`apps/README.md`](./apps/README.md)**.
 
-## Grid customizer modules (`@starui/grid`)
+## Grid customizer modules (`@wellsfargo-starui/grid`)
 
 | Module | Priority | Purpose |
 |---|---|---|
@@ -148,7 +148,7 @@ demo apps. (Angular is excluded from the build — see
 | Surface | Path | What gets installed |
 |---------|------|---------------------|
 | **Packages** | repo root | `packages/*` (React + shared), `tools/mcp-scaffold`, `e2e-openfin` — workspace `"*"` links between libraries |
-| **Apps** | `apps/` (nested workspace) | Demos — their own third-party deps (react, ag-grid, …); `@starui/*` resolves from `packages/` source (no tarballs) |
+| **Apps** | `apps/` (nested workspace) | Demos — their own third-party deps (react, ag-grid, …); `@wellsfargo-starui/*` resolves from `packages/` source (no tarballs) |
 
 ### Fresh clone
 
@@ -202,7 +202,7 @@ npm run build:packages   # build the 23 React + shared libraries
 npm run build:apps       # production-build all 16 React/node apps → apps/demos/<app>/dist
 ```
 
-`@starui/*` resolves from live `packages/` source, so after editing a library you
+`@wellsfargo-starui/*` resolves from live `packages/` source, so after editing a library you
 just re-run `build:apps` (or hot-reload in `dev`) — no re-`propagate` needed.
 
 ### Library-only work (faster)
@@ -232,13 +232,13 @@ CI parity for the whole pipeline: `npm run verify:consumer`
 
 Each Vite demo lives **once** under `apps/demos/<app>/` and builds **from source**:
 [`scripts/staruiConsumerAliases.mjs`](./scripts/staruiConsumerAliases.mjs) aliases
-`@starui/*` to live `packages/` source for Vite, and `tsc` resolves the same
-imports via the repo-root workspace symlinks. Apps declare **no** `@starui/*` deps
+`@wellsfargo-starui/*` to live `packages/` source for Vite, and `tsc` resolves the same
+imports via the repo-root workspace symlinks. Apps declare **no** `@wellsfargo-starui/*` deps
 and need **no** `libs/*.tgz`.
 
 > **Setup:** `npm install && npm run install:apps` once after clone (see
 > [Getting started](#getting-started)). `stomp-view-server` is a plain node app
-> (no `@starui/*` deps); `demo-angular` is excluded from the build.
+> (no `@wellsfargo-starui/*` deps); `demo-angular` is excluded from the build.
 
 #### From the repo root
 
@@ -253,12 +253,12 @@ npm run dev:star-demo                     # → http://localhost:5175
 npm run dev:markets-grid-lab
 
 # By workspace name (any Vite demo)
-npm --prefix apps run dev -w @starui/demo-react
-npm --prefix apps run dev -w @starui/star-demo
+npm --prefix apps run dev -w @wellsfargo-starui/demo-react
+npm --prefix apps run dev -w @wellsfargo-starui/star-demo
 
 # Production bundles — all apps, or one app
 npm run build:apps
-npm --prefix apps run build -w @starui/demo-react
+npm --prefix apps run build -w @wellsfargo-starui/demo-react
 ```
 
 #### From inside an app folder
@@ -317,7 +317,7 @@ npm run test:packages               npm run typecheck:apps
 | `typecheck:apps` | Typecheck demo apps from source |
 | `typecheck:consumer` | `build:packages` → `install:apps` → `typecheck:apps` (CI) |
 | `test:packages` | Vitest across library packages (`npm test`) |
-| `check:source-aliases` | Verify `@starui/*` Vite aliases resolve in source mode (`--strict` fails until `build:packages` done) |
+| `check:source-aliases` | Verify `@wellsfargo-starui/*` Vite aliases resolve in source mode (`--strict` fails until `build:packages` done) |
 | `check:tarballs` | Fail if local `libs/*.tgz` are stale vs `packages/` build (optional; `libs/` not in git) |
 | `verify:consumer` | CI parity: `build:packages` → `propagate` (pack tarballs) → `install:apps` → `build:apps` (source) |
 | `install:apps` | Fresh `npm install` in nested `apps/` workspace |
@@ -339,8 +339,8 @@ npm test             # test:packages
 Package-scoped:
 
 ```bash
-npm run build -w @starui/engine
-npm test  -w @starui/grid
+npm run build -w @wellsfargo-starui/engine
+npm test  -w @wellsfargo-starui/grid
 ```
 
 ### Tarballs (external consumers only)
@@ -349,7 +349,7 @@ The repo's own apps build from source and don't use these tarballs. `propagate`
 packs them for external (Artifactory) consumers:
 
 - `npm run propagate` writes one `.tgz` per architecture bucket under `libs/`
-  (e.g. `starui-react-grid.tgz` bundles `@starui/grid`). The name is stable —
+  (e.g. `starui-react-grid.tgz` bundles `@wellsfargo-starui/grid`). The name is stable —
   no version or content hash.
 - Manifest: `libs/manifest.json` when present, else `dist/packages/manifest.json`
   after a package build.
@@ -360,7 +360,7 @@ packs them for external (Artifactory) consumers:
 
 The React reference app (`apps/markets-ui-react-reference`) hosts blotters via
 plain client-side routes. Use `<HostedMarketsGrid>` from
-`@starui/widgets-react/hosted` — it replaces the older multi-layer
+`@wellsfargo-starui/widgets-react/hosted` — it replaces the older multi-layer
 HostedComponent / BlotterGrid stack with one call site.
 
 The wrapper owns identity (`instanceId`, `appId`, `userId`), ConfigService-backed
@@ -369,7 +369,7 @@ save hooks. The route view only supplies grid-specific props.
 
 ```tsx
 // apps/markets-ui-react-reference/src/views/BlottersMarketsGrid.tsx
-import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
+import { HostedMarketsGrid } from '@wellsfargo-starui/widgets-react/hosted';
 
 export default function BlottersMarketsGrid() {
   return (
@@ -492,12 +492,12 @@ npm test
 # same as: npm run test:packages
 
 # Single package
-npm run build -w @starui/grid
-npm run typecheck -w @starui/engine
-npm test -w @starui/grid
+npm run build -w @wellsfargo-starui/grid
+npm run typecheck -w @wellsfargo-starui/engine
+npm test -w @wellsfargo-starui/grid
 ```
 
-Use this loop while changing `@starui/engine`, `@starui/grid`, `@starui/ui`, etc.
+Use this loop while changing `@wellsfargo-starui/engine`, `@wellsfargo-starui/grid`, `@wellsfargo-starui/ui`, etc.
 No propagate step is required until demo apps or external consumers need the change.
 
 #### 2. Demo-app / consumer developers (apps in `apps/`)
@@ -543,7 +543,7 @@ rm -rf node_modules/.vite apps/*/node_modules/.vite
 External teams install bucket tarballs from Artifactory (or a copied `libs/*.tgz`
 set), not the monorepo workspace.
 
-1. Install the buckets your app needs (e.g. `@starui/react-grid`, `@starui/react-core`).
+1. Install the buckets your app needs (e.g. `@wellsfargo-starui/react-grid`, `@wellsfargo-starui/react-core`).
 2. Copy [`scripts/staruiConsumerVite.mjs`](./scripts/staruiConsumerVite.mjs) and
    [`scripts/staruiConsumerAliases.mjs`](./scripts/staruiConsumerAliases.mjs) into
    the app (or use your internal scaffold).
@@ -558,7 +558,7 @@ npm run propagate
 # tarballs land in libs/ — see libs/manifest.json for filenames + members
 ```
 
-#### 4. Scaffold apps with MCP (`@starui/mcp-scaffold`)
+#### 4. Scaffold apps with MCP (`@wellsfargo-starui/mcp-scaffold`)
 
 MCP server (tarball in `libs/starui-mcp-scaffold-*.tgz`) scaffolds external-consumer
 React apps with bundled `libs/` StarUI tarballs, design-system compliance, shadcn UI,
@@ -620,16 +620,16 @@ npm run build:apps
 Build a **single app**:
 
 ```bash
-npm run build --workspace=@starui/demo-react
-npm run build --workspace=@starui/markets-ui-react-reference
-npm run build --workspace=@starui/demo-angular
+npm run build --workspace=@wellsfargo-starui/demo-react
+npm run build --workspace=@wellsfargo-starui/markets-ui-react-reference
+npm run build --workspace=@wellsfargo-starui/demo-angular
 ```
 
 Preview a production build locally:
 
 ```bash
-npm run build --workspace=@starui/demo-react
-npm run preview --workspace=@starui/demo-react
+npm run build --workspace=@wellsfargo-starui/demo-react
+npm run preview --workspace=@wellsfargo-starui/demo-react
 ```
 
 Dev servers (no production build):
@@ -657,7 +657,7 @@ npm run propagate -- --dry-run
 # Pack one bucket only
 npm run propagate -- react-grid
 npm run propagate -- react-core
-npm run propagate -- @starui/grid          # resolves to containing bucket
+npm run propagate -- @wellsfargo-starui/grid          # resolves to containing bucket
 
 # Remove orphaned tarballs in libs/
 npm run propagate -- --gc
@@ -680,7 +680,7 @@ npm run propagate -- --no-install
 
 Each bucket tarball uses a stable, content-independent name, e.g.
 `libs/starui-react-grid.tgz`. `libs/manifest.json` maps
-`@starui/react-grid` → filename and lists member packages inside the bundle.
+`@wellsfargo-starui/react-grid` → filename and lists member packages inside the bundle.
 A version-stamped human-readable mirror is kept under `dist/packages/`.
 
 ---
@@ -717,11 +717,11 @@ rm -rf node_modules/.vite apps/*/node_modules/.vite
 npm test
 
 # One package
-npm test -w @starui/grid
-npm test -w @starui/engine
+npm test -w @wellsfargo-starui/grid
+npm test -w @wellsfargo-starui/engine
 
 # Watch mode (from a package directory)
-npm run test:watch -w @starui/grid
+npm run test:watch -w @wellsfargo-starui/grid
 ```
 
 #### Typecheck

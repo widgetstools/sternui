@@ -1,8 +1,8 @@
 {
-  "name": "@starui/widgets-angular",
+  "name": "@wellsfargo-starui/widgets-angular",
   "version": "0.1.0",
   "private": true,
-  "description": "HostedMarketsGrid + containers — Angular twin of @starui/widgets-react (scaffold)",
+  "description": "HostedMarketsGrid + containers — Angular twin of @wellsfargo-starui/widgets-react (scaffold)",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -10,9 +10,9 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "echo '@starui/widgets-angular: scaffold (no emit)'",
+    "build": "echo '@wellsfargo-starui/widgets-angular: scaffold (no emit)'",
     "typecheck": "tsc --noEmit",
-    "test": "echo '@starui/widgets-angular: no tests yet'"
+    "test": "echo '@wellsfargo-starui/widgets-angular: no tests yet'"
   },
   "peerDependencies": {
     "@angular/common": "^21.1.0",
@@ -20,11 +20,11 @@
     "@angular/forms": "^21.1.0"
   },
   "dependencies": {
-    "@starui/grid-angular": "*",
-    "@starui/host-config": "*",
-    "@starui/host-data-angular": "*",
-    "@starui/openfin-platform": "*",
-    "@starui/types": "*"
+    "@wellsfargo-starui/grid-angular": "*",
+    "@wellsfargo-starui/host-config": "*",
+    "@wellsfargo-starui/host-data-angular": "*",
+    "@wellsfargo-starui/openfin-platform": "*",
+    "@wellsfargo-starui/types": "*"
   },
   "devDependencies": {
     "@angular/common": "^21.1.0",

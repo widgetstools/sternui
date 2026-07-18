@@ -1,4 +1,4 @@
-import type { RowChangeSignal } from '@starui/engine';
+import type { RowChangeSignal } from '@wellsfargo-starui/engine';
 import { isSsrmCapabilityEnabled } from './ssrmCapabilities.js';
 import {
   materializeCalcFields,

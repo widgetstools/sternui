@@ -9,7 +9,7 @@
  */
 
 import type { ReactElement } from 'react';
-import { ChromeButton } from '@starui/grid/customizer';
+import { ChromeButton } from '@wellsfargo-starui/grid/customizer';
 import {
   Activity,
   BarChart3,

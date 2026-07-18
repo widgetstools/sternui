@@ -1,4 +1,4 @@
-import type { MarketsGridProps } from '@starui/grid';
+import type { MarketsGridProps } from '@wellsfargo-starui/grid';
 
 /**
  * Default AG Grid status bar for lab feature grids (CSRM).

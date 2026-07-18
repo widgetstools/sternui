@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * check-source-aliases.mjs — verify @starui/* paths resolve in source mode
+ * check-source-aliases.mjs — verify @wellsfargo-starui/* paths resolve in source mode
  * before running demo apps (without relying on dist/ being present).
  *
  *   npm run check:source-aliases
@@ -23,10 +23,10 @@ function die(msg) {
   process.exit(1);
 }
 
-/** Collect @starui/* specifiers used in demo app source (imports + CSS @import). */
+/** Collect @wellsfargo-starui/* specifiers used in demo app source (imports + CSS @import). */
 function collectAppStaruiImports() {
   const specs = new Set();
-  const re = /(?:from\s+|import\s+|@import\s+)['"](@starui\/[^'"]+)['"]/g;
+  const re = /(?:from\s+|import\s+|@import\s+)['"](@wellsfargo-starui\/[^'"]+)['"]/g;
 
   function walk(dir) {
     if (dir.split(/[\\/]/).includes('node_modules')) return;
@@ -81,7 +81,7 @@ if (buildImportHits.length > 0 && requiresBuild.length > 0) {
 
 if (broken.length > 0) {
   die(
-    `${broken.length} @starui export(s) have no source-mode fallback. `
+    `${broken.length} @wellsfargo-starui export(s) have no source-mode fallback. `
     + 'Fix scripts/staruiConsumerAliases.mjs or package exports.',
   );
 }
@@ -93,5 +93,5 @@ if (strict && requiresBuild.length > 0) {
 if (requiresBuild.length > 0) {
   log('OK with caveat — run `npm run build:packages` once before `npm run dev` (CSS, worker, …).');
 } else {
-  log('done — all @starui exports resolve in source mode without a prior package build.');
+  log('done — all @wellsfargo-starui exports resolve in source mode without a prior package build.');
 }

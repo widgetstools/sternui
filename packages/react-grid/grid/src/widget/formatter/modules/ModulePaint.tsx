@@ -10,7 +10,7 @@ import {
   PopoverContent as RadixPopoverContent,
   PopoverTrigger as RadixPopoverTrigger,
   Tooltip,
-} from '@starui/grid/customizer';
+} from '@wellsfargo-starui/grid/customizer';
 import { Hair, Module, PillButton, pillClasses } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 

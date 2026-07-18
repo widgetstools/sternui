@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import type { AppDataLookup, ApiEventName, PlatformEventMap } from '@starui/engine';
+import type { AppDataLookup, ApiEventName, PlatformEventMap } from '@wellsfargo-starui/engine';
 import type { MarketsGridHandle } from '../widget/types.js';
 import { isMarketsGridEventId, type MarketsGridEventId } from './marketsGridEventCatalog.js';
 import type {
@@ -59,7 +59,7 @@ async function invokeHandlers(
       await fn(payload, ctx);
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.warn(`[@starui/grid eventBridge] handler "${id}" failed`, err);
+      console.warn(`[@wellsfargo-starui/grid eventBridge] handler "${id}" failed`, err);
     }
   }
 }

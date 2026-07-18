@@ -33,10 +33,10 @@ import {
   Trash2,
   X as XIcon,
 } from 'lucide-react';
-import { Switch } from '@starui/ui';
+import { Switch } from '@wellsfargo-starui/ui';
 import { Select } from '../../ui/NativeOptionsSelect';
 import { Tooltip } from '../../ui/HoverTooltip';
-import type { EditorPaneProps, ListPaneProps } from '@starui/engine';
+import type { EditorPaneProps, ListPaneProps } from '@wellsfargo-starui/engine';
 import { useModuleState } from '../../hooks/useModuleState';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
 import { useDirty } from '../../hooks/useDirty';

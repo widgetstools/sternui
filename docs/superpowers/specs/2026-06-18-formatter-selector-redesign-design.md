@@ -25,7 +25,7 @@ Users find the value-format selector in the formatting toolbar confusing:
 
 - **Layout:** Vertical category **rail** (not a top tab strip) — "Option C".
 - **Implementation:** shadcn components — `Tabs` (`orientation="vertical"`),
-  `ScrollArea`, `Button`, `Tooltip` from `@starui/ui` (all already present).
+  `ScrollArea`, `Button`, `Tooltip` from `@wellsfargo-starui/ui` (all already present).
 - **Category visibility:** show **only the categories that fit the column's data
   type**, with an **always-on Custom** tab appended.
 - **Aesthetic:** matches the design system — resolved `--ds-*` tokens, `--radius:

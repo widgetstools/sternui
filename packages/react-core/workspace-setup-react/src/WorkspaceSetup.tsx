@@ -19,7 +19,7 @@
  */
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { injectEditorStyles } from "@starui/engine";
+import { injectEditorStyles } from "@wellsfargo-starui/engine";
 import { useRegistryEditor } from "./registry/useRegistryEditor";
 import {
   ACTION_LAUNCH_COMPONENT,
@@ -32,7 +32,7 @@ import {
   type DockButtonConfig,
   type DockDropdownButtonConfig,
   type DockMenuItemConfig,
-} from "@starui/openfin-platform/config";
+} from "@wellsfargo-starui/openfin-platform/config";
 import { useDockEditor } from "./hooks/useDockEditor";
 import { ComponentsPane } from "./components/workspace-setup/ComponentsPane";
 import { InspectorPane } from "./components/workspace-setup/InspectorPane";

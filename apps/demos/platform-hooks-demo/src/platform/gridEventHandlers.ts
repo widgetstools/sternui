@@ -1,4 +1,4 @@
-import type { MarketsGridEventHandlerRegistry } from '@starui/grid';
+import type { MarketsGridEventHandlerRegistry } from '@wellsfargo-starui/grid';
 import { appendDemoEventLog } from '../state/eventLogStore.js';
 
 function payloadPreview(payload: unknown): string {

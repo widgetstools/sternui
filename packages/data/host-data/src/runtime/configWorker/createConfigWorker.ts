@@ -16,7 +16,7 @@ export interface CreateConfigWorkerOpts {
   seedConfigReload?: 'empty-only' | 'when-changed';
 }
 
-export const CONFIG_WORKER_ASSET = '@starui/host-data/assets/config-catalog-worker.mjs';
+export const CONFIG_WORKER_ASSET = '@wellsfargo-starui/host-data/assets/config-catalog-worker.mjs';
 
 function resolveWorkerScriptUrl(scriptUrl: string): string {
   try {
@@ -52,7 +52,7 @@ export function createConfigWorker(
 
   worker.addEventListener('error', (ev) => {
     // eslint-disable-next-line no-console
-    console.error('[@starui/host-data] Config SharedWorker error event', ev);
+    console.error('[@wellsfargo-starui/host-data] Config SharedWorker error event', ev);
   });
 
   return worker;

@@ -13,10 +13,10 @@ import { createInPageWiring, SharedWorkerDataServicesClient } from './SharedWork
 import { SharedWorkerDataServicesHub, type PortLike } from '../worker/SharedWorkerDataServicesHub';
 import { registerProvider } from '../providers/registry';
 import { isAppDataRequest, isRequest } from '../protocol';
-import type { ProviderConfig } from '@starui/types';
+import type { ProviderConfig } from '@wellsfargo-starui/types';
 import type { ProviderEmit, ProviderHandle } from '../providers/Provider';
 import type { ProviderStats, ProviderStatus } from '../protocol';
-import type { ConfigManager, AppConfigRow } from '@starui/host-config';
+import type { ConfigManager, AppConfigRow } from '@wellsfargo-starui/host-config';
 import { DataProviderConfigStore } from '../config/store.js';
 
 interface TestController {

@@ -1,4 +1,4 @@
-/** Static platform knowledge for MCP tools — kept free of @starui/* imports. */
+/** Static platform knowledge for MCP tools — kept free of @wellsfargo-starui/* imports. */
 
 export interface TemplateRecommendationInput {
   needsOpenFin?: boolean;
@@ -74,55 +74,55 @@ export const PROVIDER_TYPES = [
 ] as const;
 
 export const IMPORT_ALIAS_MAP: Record<string, { tarballDep: string; importPath: string; note: string }> = {
-  '@starui/grid': {
-    tarballDep: '@starui/react-grid',
-    importPath: '@starui/grid',
-    note: 'Vite aliases map react-grid bucket tarball to @starui/grid.',
+  '@wellsfargo-starui/grid': {
+    tarballDep: '@wellsfargo-starui/react-grid',
+    importPath: '@wellsfargo-starui/grid',
+    note: 'Vite aliases map react-grid bucket tarball to @wellsfargo-starui/grid.',
   },
-  '@starui/ui': {
-    tarballDep: '@starui/react-ui',
-    importPath: '@starui/ui',
+  '@wellsfargo-starui/ui': {
+    tarballDep: '@wellsfargo-starui/react-ui',
+    importPath: '@wellsfargo-starui/ui',
     note: 'shadcn primitives live in react-ui bucket.',
   },
-  '@starui/host-data': {
-    tarballDep: '@starui/data',
-    importPath: '@starui/host-data',
+  '@wellsfargo-starui/host-data': {
+    tarballDep: '@wellsfargo-starui/data',
+    importPath: '@wellsfargo-starui/host-data',
     note: 'SharedWorker hub and provider transports.',
   },
-  '@starui/widgets-react': {
-    tarballDep: '@starui/react-core',
-    importPath: '@starui/widgets-react',
+  '@wellsfargo-starui/widgets-react': {
+    tarballDep: '@wellsfargo-starui/react-core',
+    importPath: '@wellsfargo-starui/widgets-react',
     note: 'HostedMarketsGrid and provider editor.',
   },
-  '@starui/app': {
-    tarballDep: '@starui/react-core',
-    importPath: '@starui/app',
+  '@wellsfargo-starui/app': {
+    tarballDep: '@wellsfargo-starui/react-core',
+    importPath: '@wellsfargo-starui/app',
     note: 'StarGridApp shell for OpenFin routes.',
   },
-  '@starui/openfin-platform': {
-    tarballDep: '@starui/openfin',
-    importPath: '@starui/openfin-platform',
+  '@wellsfargo-starui/openfin-platform': {
+    tarballDep: '@wellsfargo-starui/openfin',
+    importPath: '@wellsfargo-starui/openfin-platform',
     note: 'initWorkspace, dock, ConfigManager bridge.',
   },
 };
 
 export const BUCKET_GRAPH: Record<string, { members: string[]; dependsOn: string[] }> = {
-  'design-system': { members: ['@starui/design-system', '@starui/icons-svg'], dependsOn: [] },
-  'react-ui': { members: ['@starui/ui'], dependsOn: ['design-system'] },
+  'design-system': { members: ['@wellsfargo-starui/design-system', '@wellsfargo-starui/icons-svg'], dependsOn: [] },
+  'react-ui': { members: ['@wellsfargo-starui/ui'], dependsOn: ['design-system'] },
   shared: {
-    members: ['@starui/engine', '@starui/types', '@starui/shared-types', '@starui/host'],
+    members: ['@wellsfargo-starui/engine', '@wellsfargo-starui/types', '@wellsfargo-starui/shared-types', '@wellsfargo-starui/host'],
     dependsOn: ['design-system'],
   },
-  'react-grid': { members: ['@starui/grid'], dependsOn: ['design-system', 'shared'] },
+  'react-grid': { members: ['@wellsfargo-starui/grid'], dependsOn: ['design-system', 'shared'] },
   data: {
-    members: ['@starui/host-data', '@starui/host-data-react', '@starui/host-config'],
+    members: ['@wellsfargo-starui/host-data', '@wellsfargo-starui/host-data-react', '@wellsfargo-starui/host-config'],
     dependsOn: ['shared'],
   },
   'react-core': {
-    members: ['@starui/app', '@starui/widgets-react', '@starui/config-browser'],
+    members: ['@wellsfargo-starui/app', '@wellsfargo-starui/widgets-react', '@wellsfargo-starui/config-browser'],
     dependsOn: ['react-grid', 'data', 'react-ui'],
   },
-  openfin: { members: ['@starui/openfin-platform', '@starui/host-openfin'], dependsOn: ['data', 'react-core'] },
+  openfin: { members: ['@wellsfargo-starui/openfin-platform', '@wellsfargo-starui/host-openfin'], dependsOn: ['data', 'react-core'] },
 };
 
 export const GRID_MODULES = [

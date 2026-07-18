@@ -1,5 +1,5 @@
 /**
- * @starui/engine — vanilla grid platform (ported from @starui/core).
+ * @wellsfargo-starui/engine — vanilla grid platform (ported from @wellsfargo-starui/core).
  *
  *   platform/      GridPlatform, store, events, api hub
  *   expression/    CSP-safe expression engine
@@ -10,8 +10,8 @@
  *   colDef/        AG-Grid column-def helpers
  *   css/           CSS injection utilities
  *
- * React UI lives in `@starui/grid` (phase 3). OpenFin utilities removed
- * from engine — they belong in `@starui/host-openfin` or `@starui/grid`.
+ * React UI lives in `@wellsfargo-starui/grid` (phase 3). OpenFin utilities removed
+ * from engine — they belong in `@wellsfargo-starui/host-openfin` or `@wellsfargo-starui/grid`.
  */
 
 // ─── Platform runtime (framework-agnostic) ──────────────────────────────────
@@ -132,7 +132,7 @@ export { injectEditorStyles } from './css';
 // `ColumnAssignment` exported here is the BASE shape (with `unknown`
 // `filter` / `rowGrouping` slots) — exposed as `BaseColumnAssignment`
 // because the NARROWED variant lives next to its consumers in
-// `@starui/grid-react`'s column-customization module.
+// `@wellsfargo-starui/grid-react`'s column-customization module.
 export type {
   BorderSpec,
   CellStyleOverrides,

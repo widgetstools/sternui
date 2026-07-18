@@ -6,7 +6,7 @@
 
 **Architecture:** ssrmgrid owns named `trafficLight`/`rag` aggregation (min/max → 1|2|3). starui owns StarUI→Perspective expression compile, materialize fallback, RAG IFS layout compile + client fallback, share-of-total wiring, and capability ungating.
 
-**Tech Stack:** React 19, AG Grid 36 (SSRM path), `@starui/grid`, `ssrmgrid`, Vitest, FINOS Perspective (via ssrmgrid), `@starui/engine` expression package.
+**Tech Stack:** React 19, AG Grid 36 (SSRM path), `@wellsfargo-starui/grid`, `ssrmgrid`, Vitest, FINOS Perspective (via ssrmgrid), `@wellsfargo-starui/engine` expression package.
 
 **Spec:** `docs/superpowers/specs/2026-07-14-marketsgrid-ssrm-phase2-design.md`
 
@@ -242,7 +242,7 @@ export function compileStarUiExpressionToPerspective(
 - `IFS(...)` → nested `if(...)` (odd arg count = trailing default)
 - Unknown function / token → `{ ok: false, reason }`
 
-Prefer reusing `@starui/engine` tokenizer/parser AST — do not invent a second language.
+Prefer reusing `@wellsfargo-starui/engine` tokenizer/parser AST — do not invent a second language.
 
 - [ ] **Step 1: Failing tests**
 
@@ -320,7 +320,7 @@ export function materializeCalcFields(
 ): Record<string, unknown>[];
 ```
 
-**Policy:** try compile → else materialize (Phase 2 token subset via `@starui/engine` per row) → else unsupported.
+**Policy:** try compile → else materialize (Phase 2 token subset via `@wellsfargo-starui/engine` per row) → else unsupported.
 
 - [ ] **Step 1: Unit tests for plan + materialize enrich**
 
@@ -364,7 +364,7 @@ git commit -m "feat(grid): wire SSRM share-of-total via __ssrm_aggs helpers"
 - Modify: `ssrmCapabilities.test.ts`
 - Modify: `RowGroupingEditor.tsx` — `trafficLight` option when capability enabled; unmappable custom still gated
 - Modify: calculated-columns gate — allow add/save when `planSsrmCalcColumn` is not `unsupported`; otherwise tooltip with reason
-- Run: `npm test -w @starui/grid`
+- Run: `npm test -w @wellsfargo-starui/grid`
 
 - [ ] **Step 1: Update capability tests**
 
@@ -381,7 +381,7 @@ expect(isSsrmCapabilityEnabled('alerts')).toBe(false);
 
 ```bash
 cd /Users/develop/wfh/starui/.worktrees/marketsgrid-ssrm-dual-engine
-npm test -w @starui/grid
+npm test -w @wellsfargo-starui/grid
 ```
 
 Document bootstrap-blocked suites without chasing unrelated monorepo failures.

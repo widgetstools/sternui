@@ -3,7 +3,7 @@ import {
   BULK_UPDATE_MODULE_ID,
   type BulkUpdateSettings,
   type BulkUpdateState,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
 import { Band, ObjectTitleRow, SettingsRow as Row, SharpBtn } from '../../ui/SettingsPanel';
 import { BoolControl, NumberControl } from '../general-settings/fieldSchema';

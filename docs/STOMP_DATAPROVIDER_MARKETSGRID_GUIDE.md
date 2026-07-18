@@ -64,7 +64,7 @@ It mirrors the patterns used in `apps/markets-ui-react-reference`, `apps/demo-ap
 
 ## Step 1 — Scaffold the app
 
-**Recommended:** use the `@starui/mcp-scaffold` MCP server (`npm run pack:mcp` → `npx -y ./libs/starui-mcp-scaffold-*.tgz`) with template `stomp` or `openfin-platform`. See [`tools/mcp-scaffold/README.md`](../tools/mcp-scaffold/README.md).
+**Recommended:** use the `@wellsfargo-starui/mcp-scaffold` MCP server (`npm run pack:mcp` → `npx -y ./libs/starui-mcp-scaffold-*.tgz`) with template `stomp` or `openfin-platform`. See [`tools/mcp-scaffold/README.md`](../tools/mcp-scaffold/README.md).
 
 Alternatively, create a Vite + React app manually under `apps/` (in-repo) or in your own repo (external consumer).
 
@@ -76,7 +76,7 @@ Add a workspace entry in the root `package.json` `workspaces` array, then create
 
 ```json
 {
-  "name": "@starui/my-stomp-app",
+  "name": "@wellsfargo-starui/my-stomp-app",
   "private": true,
   "type": "module",
   "scripts": {
@@ -85,13 +85,13 @@ Add a workspace entry in the root `package.json` `workspaces` array, then create
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@starui/design-system": "*",
-    "@starui/host-data": "*",
-    "@starui/host-data-react": "*",
-    "@starui/react-grid": "*",
-    "@starui/react-ui": "*",
-    "@starui/shared-types": "*",
-    "@starui/widgets-react": "*",
+    "@wellsfargo-starui/design-system": "*",
+    "@wellsfargo-starui/host-data": "*",
+    "@wellsfargo-starui/host-data-react": "*",
+    "@wellsfargo-starui/react-grid": "*",
+    "@wellsfargo-starui/react-ui": "*",
+    "@wellsfargo-starui/shared-types": "*",
+    "@wellsfargo-starui/widgets-react": "*",
     "ag-grid-community": "35.1.0",
     "ag-grid-enterprise": "35.1.0",
     "ag-grid-react": "35.1.0",
@@ -128,7 +128,7 @@ export default defineConfig(
 **Styles** — import design-system CSS in your entry file:
 
 ```typescript
-import '@starui/design-system/styles.css';
+import '@wellsfargo-starui/design-system/styles.css';
 ```
 
 Set theme on `<html data-theme="dark">` or `"light"`.
@@ -159,8 +159,8 @@ Create **`src/platformBootstrap.ts`**:
 import {
   ensurePlatformReady,
   resolvePlatformBootstrapFromJson,
-} from '@starui/host-data';
-import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
+} from '@wellsfargo-starui/host-data';
+import workerAssetUrl from '@wellsfargo-starui/host-data/assets/data-services-worker.mjs?url';
 
 export async function initPlatformBootstrap() {
   const config = await resolvePlatformBootstrapFromJson('/app-config.json');
@@ -182,10 +182,10 @@ In `src/main.tsx`:
 ```tsx
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { DataHubProvider } from '@starui/host-data-react/runtime';
+import { DataHubProvider } from '@wellsfargo-starui/host-data-react/runtime';
 import { App } from './App';
 import { initPlatformBootstrap } from './platformBootstrap';
-import '@starui/design-system/styles.css';
+import '@wellsfargo-starui/design-system/styles.css';
 
 void initPlatformBootstrap().then(({ config, platform }) => {
   createRoot(document.getElementById('root')!).render(
@@ -204,7 +204,7 @@ void initPlatformBootstrap().then(({ config, platform }) => {
 
 ## Step 4 — Configure the STOMP provider
 
-A STOMP provider is a `DataProviderConfig` row whose `config` payload satisfies `StompProviderConfig` (`@starui/shared-types`).
+A STOMP provider is a `DataProviderConfig` row whose `config` payload satisfies `StompProviderConfig` (`@wellsfargo-starui/shared-types`).
 
 ### Field reference
 
@@ -244,7 +244,7 @@ Protocol (from `apps/demos/stomp-view-server/README.md`):
 Example programmatic config:
 
 ```typescript
-import type { DataProviderConfig, StompProviderConfig } from '@starui/shared-types';
+import type { DataProviderConfig, StompProviderConfig } from '@wellsfargo-starui/shared-types';
 
 const CLIENT_TAG = 'TRADER001';
 
@@ -283,8 +283,8 @@ export const positionsProviderDraft: DataProviderConfig = {
 Mount the editor anywhere inside `DataServicesProvider`:
 
 ```tsx
-import { DataProviderEditor } from '@starui/widgets-react/v2/provider-editor';
-import { LOGGED_IN_USER_ID } from '@starui/shared-types';
+import { DataProviderEditor } from '@wellsfargo-starui/widgets-react/v2/provider-editor';
+import { LOGGED_IN_USER_ID } from '@wellsfargo-starui/shared-types';
 
 export function ProviderSetupPage() {
   return <DataProviderEditor userId={LOGGED_IN_USER_ID} />;
@@ -303,10 +303,10 @@ Reference app: `apps/demo-apps/dataprovider-editor-starui-app`.
 ### Option B — Save programmatically on startup
 
 ```typescript
-import { DataProviderConfigStore } from '@starui/host-data/runtime';
+import { DataProviderConfigStore } from '@wellsfargo-starui/host-data/runtime';
 import { dataServices } from './dataServices';
 import { positionsProviderDraft } from './providers/positionsStomp';
-import { LOGGED_IN_USER_ID } from '@starui/types';
+import { LOGGED_IN_USER_ID } from '@wellsfargo-starui/types';
 
 const configStore = new DataProviderConfigStore(dataServices.configManager);
 
@@ -333,7 +333,7 @@ Call `ensureStompProvider()` once before rendering the grid (e.g. in `App` with 
 This is the production shell used in reference apps — it wires storage, toolbars, provider picker, and `MarketsGridContainer` for you.
 
 ```tsx
-import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
+import { HostedMarketsGrid } from '@wellsfargo-starui/widgets-react/hosted';
 import { dataServices } from './dataServices';
 
 export function PositionsBlotter() {
@@ -374,7 +374,7 @@ Understanding this flow helps when debugging or building custom layouts without 
 
 ### Container subscription (`MarketsGridContainer`)
 
-Located in `@starui/widgets-react/hosted` → `MarketsGridContainer.tsx`:
+Located in `@wellsfargo-starui/widgets-react/hosted` → `MarketsGridContainer.tsx`:
 
 1. **Resolve active provider** — reads `activeProviderId` from grid-level persisted state (Provider toolbar) or props.
 2. **Load config** — `useDataProviderConfig(activeId)` fetches the saved `DataProviderConfig`.
@@ -406,8 +406,8 @@ For a minimal panel without Hosted shell (see `apps/demos/mockdata-provider`):
 
 ```tsx
 import { useEffect, useState } from 'react';
-import { MarketsGrid } from '@starui/grid';
-import { useDataProvider } from '@starui/host-data-react/runtime';
+import { MarketsGrid } from '@wellsfargo-starui/grid';
+import { useDataProvider } from '@wellsfargo-starui/host-data-react/runtime';
 
 function StompGridPanel({ providerId }: { providerId: string }) {
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);

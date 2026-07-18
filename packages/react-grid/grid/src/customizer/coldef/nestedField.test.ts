@@ -3,7 +3,7 @@ import {
   getPathAccessor,
   getPathSetter,
   __resetPathAccessorCaches,
-} from '@starui/types';
+} from '@wellsfargo-starui/types';
 import { defaultNullSafeComparator, nestedField } from './nestedField';
 
 afterEach(() => {

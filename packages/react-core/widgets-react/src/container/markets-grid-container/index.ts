@@ -1,9 +1,9 @@
 /**
  * v2 MarketsGridContainer barrel.
  *
- * Subpath import: `@starui/widgets-react/markets-grid-container`
+ * Subpath import: `@wellsfargo-starui/widgets-react/markets-grid-container`
  *
- * The optional `@starui/grid` peer dep is unchanged from
+ * The optional `@wellsfargo-starui/grid` peer dep is unchanged from
  * v1: consumers who don't use MarketsGrid skip this barrel and the
  * dep stays out of their tree.
  */

@@ -142,7 +142,7 @@ export interface ColumnAssignment {
   /**
    * Registry id of a configurable cell renderer (kept as a bare string in
    * the engine — the concrete `CellRendererId` union lives in
-   * `@starui/design-system/cell-renderers-registry`, which the engine
+   * `@wellsfargo-starui/design-system/cell-renderers-registry`, which the engine
    * deliberately doesn't import). When set, the column-customization
    * transform emits `colDef.cellRenderer = cellRendererId` AND
    * `colDef.cellRendererParams = cellRendererConfig.config`. Takes

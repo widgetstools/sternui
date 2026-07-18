@@ -20,11 +20,11 @@ import type {
   ValueFormatterParams,
   ValueGetterParams,
 } from 'ag-grid-community';
-import type { ExpressionEngineLike } from '@starui/engine';
+import type { ExpressionEngineLike } from '@wellsfargo-starui/engine';
 import {
   excelFormatColorResolver,
   valueFormatterFromTemplate,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import type { VirtualColumnDef } from './state';
 
 /** Shape stored in ResourceScope.cache<GridApi, AllRowsEntry>. */

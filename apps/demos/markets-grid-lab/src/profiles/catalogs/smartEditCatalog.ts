@@ -1,7 +1,7 @@
 import type { LabDemoProfileEntry } from '../labProfileKit';
 import { SMART_EDIT_TAB_STATE } from '../../seeds/smartEdit';
-import type { SmartEditSettings, SmartEditState } from '@starui/engine';
-import { INITIAL_DATA_CHANGE_HISTORY, INITIAL_SMART_EDIT } from '@starui/engine';
+import type { SmartEditSettings, SmartEditState } from '@wellsfargo-starui/engine';
+import { INITIAL_DATA_CHANGE_HISTORY, INITIAL_SMART_EDIT } from '@wellsfargo-starui/engine';
 
 export const SMART_EDIT_GRID_ID = 'lab-smart-edit';
 

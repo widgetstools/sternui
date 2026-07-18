@@ -2,7 +2,7 @@ import { forwardRef, useCallback, useDeferredValue, useEffect, useMemo, useRef, 
 import './grid-chrome.css';
 import {
   type AnyModule,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import { isOpenFin } from '../runtime/openFin.js';
 import {
   Poppable,
@@ -11,8 +11,8 @@ import {
   useDirtyCount,
   useGridPlatform,
   type PoppableHandle,
-} from '@starui/grid/customizer';
-import { Drawer, DrawerContent, DrawerTitle } from '@starui/ui';
+} from '@wellsfargo-starui/grid/customizer';
+import { Drawer, DrawerContent, DrawerTitle } from '@wellsfargo-starui/ui';
 import { GENERAL_SETTINGS_MODULE_ID } from '../customizer/modules/general-settings';
 import {
   GripHorizontal,

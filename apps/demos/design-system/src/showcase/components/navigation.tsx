@@ -4,13 +4,13 @@ import {
   NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger,
   Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious,
   Tabs, TabsContent, TabsList, TabsTrigger,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import type { ShowcaseEntry } from '../types';
 
 export const navigationEntries: ShowcaseEntry[] = [
   {
     id: 'tabs', name: 'Tabs', category: 'navigation',
-    importLine: "import { Tabs, TabsList, TabsTrigger, TabsContent } from '@starui/ui';",
+    importLine: "import { Tabs, TabsList, TabsTrigger, TabsContent } from '@wellsfargo-starui/ui';",
     code: `<Tabs defaultValue="bid">
   <TabsList>
     <TabsTrigger value="bid">Bid</TabsTrigger>
@@ -32,7 +32,7 @@ export const navigationEntries: ShowcaseEntry[] = [
   },
   {
     id: 'accordion', name: 'Accordion', category: 'navigation',
-    importLine: "import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@starui/ui';",
+    importLine: "import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@wellsfargo-starui/ui';",
     code: `<Accordion type="single" collapsible>
   <AccordionItem value="a"><AccordionTrigger>Credit themes</AccordionTrigger><AccordionContent>…</AccordionContent></AccordionItem>
 </Accordion>`,
@@ -45,7 +45,7 @@ export const navigationEntries: ShowcaseEntry[] = [
   },
   {
     id: 'navigation-menu', name: 'Navigation Menu', category: 'navigation',
-    importLine: "import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuTrigger, NavigationMenuContent, NavigationMenuLink } from '@starui/ui';",
+    importLine: "import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuTrigger, NavigationMenuContent, NavigationMenuLink } from '@wellsfargo-starui/ui';",
     code: `<NavigationMenu>
   <NavigationMenuList>
     <NavigationMenuItem>
@@ -76,7 +76,7 @@ export const navigationEntries: ShowcaseEntry[] = [
   },
   {
     id: 'breadcrumb', name: 'Breadcrumb', category: 'navigation',
-    importLine: "import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator } from '@starui/ui';",
+    importLine: "import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator } from '@wellsfargo-starui/ui';",
     code: `<Breadcrumb>
   <BreadcrumbList>
     <BreadcrumbItem><BreadcrumbLink href="#">Markets</BreadcrumbLink></BreadcrumbItem>
@@ -98,7 +98,7 @@ export const navigationEntries: ShowcaseEntry[] = [
   },
   {
     id: 'pagination', name: 'Pagination', category: 'navigation',
-    importLine: "import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationPrevious, PaginationNext, PaginationEllipsis } from '@starui/ui';",
+    importLine: "import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationPrevious, PaginationNext, PaginationEllipsis } from '@wellsfargo-starui/ui';",
     code: `<Pagination>
   <PaginationContent>
     <PaginationItem><PaginationPrevious href="#" /></PaginationItem>

@@ -25,13 +25,13 @@ import {
   useState,
 } from 'react';
 import type { GridApi, IRowNode } from 'ag-grid-community';
-import type { RowChange } from '@starui/engine';
+import type { RowChange } from '@wellsfargo-starui/engine';
 import {
   useGridApi,
   useGridPlatform,
   useModuleState,
   type SavedFiltersState,
-} from '@starui/grid/customizer';
+} from '@wellsfargo-starui/grid/customizer';
 import {
   doesRowMatchFilterModel,
   generateLabel,
@@ -41,7 +41,7 @@ import {
   subtractFilterModel,
 } from './filtersToolbarLogic';
 import type { SavedFilter } from './types';
-import { useGridEngineKind } from '@starui/grid/customizer';
+import { useGridEngineKind } from '@wellsfargo-starui/grid/customizer';
 
 // ─── AG-Grid v35 shape repair ──────────────────────────────────────────
 //

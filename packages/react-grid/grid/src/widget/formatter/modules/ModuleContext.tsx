@@ -19,8 +19,8 @@ import {
   Table2,
   Undo2,
 } from 'lucide-react';
-import { ChromeButton } from '@starui/grid/customizer';
-import { Input, TooltipContent, Tooltip as TooltipRoot, TooltipTrigger } from '@starui/ui';
+import { ChromeButton } from '@wellsfargo-starui/grid/customizer';
+import { Input, TooltipContent, Tooltip as TooltipRoot, TooltipTrigger } from '@wellsfargo-starui/ui';
 import {
   ColumnLabel,
   Hair,
@@ -78,7 +78,7 @@ function InlineColumnLabel({
     };
     // Inline rename editor — shadcn Input styled to fit the toolbar
     // rhythm (28px height, mono font, brand-ring on focus). All visual
-    // properties resolve through `@starui/design-system` tokens; no
+    // properties resolve through `@wellsfargo-starui/design-system` tokens; no
     // `.fx-col-input` CSS class needed.
     return (
       <Input

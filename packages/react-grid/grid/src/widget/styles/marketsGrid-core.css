@@ -1,5 +1,5 @@
 /**
- * marketsGrid.css — layout + chrome styles for `@starui/markets-grid`.
+ * marketsGrid.css — layout + chrome styles for `@wellsfargo-starui/markets-grid`.
  *
  * Every `.gc-*` class the package's JSX stamps onto toolbar / filter
  * rows / stacked-toolbar surfaces is defined here. Ship this file
@@ -9,7 +9,7 @@
  * Import
  * ------
  * In an app's root CSS, after the design-system token imports:
- *     @import '@starui/markets-grid/styles.css';
+ *     @import '@wellsfargo-starui/markets-grid/styles.css';
  *
  * Dependencies on ambient CSS variables
  * -------------------------------------
@@ -25,7 +25,7 @@
  *
  *   @import '.../packages/design-system/src/themes/fi-dark.css';
  *   @import '.../packages/design-system/src/themes/fi-light.css';
- *   @import '@starui/markets-grid/styles.css';
+ *   @import '@wellsfargo-starui/markets-grid/styles.css';
  *
  * The shadcn tokens (`--popover`, `--card`, etc.) from fi-*.css
  * remain HSL triplets for Tailwind utility-class consumption

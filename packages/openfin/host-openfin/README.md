@@ -1,13 +1,13 @@
-# @starui/host-openfin (Phase 5 stub)
+# @wellsfargo-starui/host-openfin (Phase 5 stub)
 
 Optional OpenFin plugin — workspace, dock, registry, per-view profile.
 
 ## Planned API
 
 ```ts
-import { openfinHostPlugin } from '@starui/host-openfin';
+import { openfinHostPlugin } from '@wellsfargo-starui/host-openfin';
 
-// Registered via @starui/app
+// Registered via @wellsfargo-starui/app
 <StarGridApp plugins={[openfinHostPlugin]} />
 ```
 
@@ -23,4 +23,4 @@ import { openfinHostPlugin } from '@starui/host-openfin';
 - Legacy parent-monorepo sources (pre-port reference):
   - `../../../../packages/shared/runtime/runtime-openfin/`
   - `../../../../packages/shared/platform/openfin-platform/`
-- OpenFin-specific code removed from `@starui/engine` and `@starui/grid`
+- OpenFin-specific code removed from `@wellsfargo-starui/engine` and `@wellsfargo-starui/grid`

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { initWorkspace } from '@starui/openfin-platform';
+import { initWorkspace } from '@wellsfargo-starui/openfin-platform';
 
 export function Provider() {
   const [status, setStatus] = useState<'idle' | 'initializing' | 'ready' | 'error' | 'not-openfin'>('idle');

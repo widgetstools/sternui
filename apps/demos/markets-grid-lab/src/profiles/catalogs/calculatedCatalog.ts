@@ -1,4 +1,4 @@
-import type { ColumnCustomizationState } from '@starui/grid/customizer';
+import type { ColumnCustomizationState } from '@wellsfargo-starui/grid/customizer';
 import type { LabDemoProfileEntry } from '../labProfileKit';
 import {
   CALCULATED_TAB_VIRTUAL,

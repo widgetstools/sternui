@@ -3,22 +3,22 @@ import {
   MarketsGrid,
   createMarketsGridLocalStorageStorage,
   type MarketsGridHandle,
-} from '@starui/grid';
+} from '@wellsfargo-starui/grid';
 import {
   marketsGridLocalStorageBundleKey,
   activeProfileKey,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import {
   applyTheme,
   getTheme,
-} from '@starui/design-system';
+} from '@wellsfargo-starui/design-system';
 import {
   Button,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import { Sun, Moon, CircleHelp } from 'lucide-react';
 import { buildBondInventory } from './mockBonds';
 import { bondColumnDefs, bondDefaultColDef } from './bondColumns';

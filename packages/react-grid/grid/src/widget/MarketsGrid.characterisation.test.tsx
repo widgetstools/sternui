@@ -89,8 +89,8 @@ vi.mock('../customizer/hooks/useModuleState.js', () => ({
   useModuleState: () => [undefined, vi.fn()],
 }));
 
-vi.mock('@starui/engine', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@starui/engine')>();
+vi.mock('@wellsfargo-starui/engine', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@wellsfargo-starui/engine')>();
   return {
     ...actual,
     MemoryAdapter: class MemoryAdapter {
@@ -101,7 +101,7 @@ vi.mock('@starui/engine', async (importOriginal) => {
   };
 });
 
-vi.mock('@starui/grid/customizer', () => ({
+vi.mock('@wellsfargo-starui/grid/customizer', () => ({
   GridProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   ProviderGridHostProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   GridEventBindingsHostProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,

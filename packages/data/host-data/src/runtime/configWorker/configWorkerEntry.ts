@@ -2,7 +2,7 @@
  * Default entry for `starui-config:{appId}` SharedWorker.
  */
 
-import { createConfigManager } from '@starui/host-config';
+import { createConfigManager } from '@wellsfargo-starui/host-config';
 import { installConfigCatalogHub } from './installConfigCatalogHub.js';
 import {
   appIdFromConfigWorkerName,
@@ -30,12 +30,12 @@ async function boot(): Promise<void> {
   await installConfigCatalogHub({ configManager });
   // eslint-disable-next-line no-console
   console.info(
-    `[@starui/host-data config-worker] ready (appId=${appId ?? '?'}, mode=${configManager.isRestMode() ? 'REST' : 'local'})`,
+    `[@wellsfargo-starui/host-data config-worker] ready (appId=${appId ?? '?'}, mode=${configManager.isRestMode() ? 'REST' : 'local'})`,
   );
 }
 
 boot().catch((err) => {
   // eslint-disable-next-line no-console
-  console.error('[@starui/host-data config-worker] boot failed', err);
+  console.error('[@wellsfargo-starui/host-data config-worker] boot failed', err);
   throw err;
 });

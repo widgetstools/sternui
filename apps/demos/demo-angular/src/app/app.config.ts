@@ -1,7 +1,7 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { providePrimeNG } from 'primeng/config';
-import { primengPreset } from '@starui/design-system/primeng';
+import { primengPreset } from '@wellsfargo-starui/design-system/primeng';
 
 export const appConfig: ApplicationConfig = {
   providers: [

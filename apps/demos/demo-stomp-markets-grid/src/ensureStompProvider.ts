@@ -1,5 +1,5 @@
-import type { DataProviderConfigStore } from '@starui/host-data/runtime';
-import type { DataProviderConfig } from '@starui/types';
+import type { DataProviderConfigStore } from '@wellsfargo-starui/host-data/runtime';
+import type { DataProviderConfig } from '@wellsfargo-starui/types';
 import { positionsProviderDraft } from './providers/positionsStomp.js';
 
 /** Idempotently seed the STOMP provider row; returns catalog `providerId`. */

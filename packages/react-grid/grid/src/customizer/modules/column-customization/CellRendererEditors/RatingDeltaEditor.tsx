@@ -3,8 +3,8 @@
  */
 import { useCallback } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { Button, Input } from '@starui/ui';
-import type { RatingDeltaRendererConfig } from '@starui/design-system';
+import { Button, Input } from '@wellsfargo-starui/ui';
+import type { RatingDeltaRendererConfig } from '@wellsfargo-starui/design-system';
 import { Row } from '../editors/Row';
 import { ThemeAwareColorRow } from './themeColorRow';
 

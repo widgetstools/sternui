@@ -41,9 +41,9 @@ export function handleGenerateStompConfig(opts: {
     config: stompConfig,
   };
 
-  const ensureSnippet = `import { DataProviderConfigStore } from '@starui/host-data/runtime';
-import type { DataProviderConfig } from '@starui/types';
-import { useDataServices, useUserIdFromContext } from '@starui/host-data-react/runtime';
+  const ensureSnippet = `import { DataProviderConfigStore } from '@wellsfargo-starui/host-data/runtime';
+import type { DataProviderConfig } from '@wellsfargo-starui/types';
+import { useDataServices, useUserIdFromContext } from '@wellsfargo-starui/host-data-react/runtime';
 import { positionsProviderDraft } from './providers/positionsStomp';
 
 export async function ensureStompProvider(
@@ -94,7 +94,7 @@ export function handleAddProviderToProject(opts: {
     mkdirSync(providersDir, { recursive: true });
     writeFileSync(
       join(providersDir, 'positionsStomp.ts'),
-      `import type { DataProviderConfig } from '@starui/types';\n\nexport const positionsProviderDraft: DataProviderConfig = ${JSON.stringify(gen.dataProviderConfig, null, 2)};\n`,
+      `import type { DataProviderConfig } from '@wellsfargo-starui/types';\n\nexport const positionsProviderDraft: DataProviderConfig = ${JSON.stringify(gen.dataProviderConfig, null, 2)};\n`,
       'utf8',
     );
     writeFileSync(join(opts.projectDir, 'src/ensureStompProvider.ts'), gen.ensureStompProviderSnippet, 'utf8');

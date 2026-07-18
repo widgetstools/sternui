@@ -1,4 +1,4 @@
-// ─── Dock + Registry persistence (backed by @starui/host-config) ───
+// ─── Dock + Registry persistence (backed by @wellsfargo-starui/host-config) ───
 //
 // This file is the single entry point for dock-editor and
 // registry-editor persistence. Both save as `AppConfigRow` rows
@@ -9,7 +9,7 @@
 // Shared invariants with MarketsGrid profile rows:
 //   • `componentType` is a kebab-case domain discriminator
 //     (e.g. `'dock-config'`, `'component-registry'`) matching the
-//     canonical constants exported from `@starui/types`.
+//     canonical constants exported from `@wellsfargo-starui/types`.
 //   • `(appId, userId, configId)` triple uniquely identifies a row
 //     from a given owner's point of view. The Config Browser shows
 //     dock + registry rows alongside MarketsGrid profile-set rows
@@ -23,13 +23,13 @@
 // configIds so existing Dexie rows continue to work after upgrade.
 // The next save rewrites them in the canonical shape.
 
-import { createConfigManager, type ConfigManager } from "@starui/host-config";
-import type { AppConfigRow } from "@starui/host-config";
-import { COMPONENT_TYPES } from "@starui/types";
+import { createConfigManager, type ConfigManager } from "@wellsfargo-starui/host-config";
+import type { AppConfigRow } from "@wellsfargo-starui/host-config";
+import { COMPONENT_TYPES } from "@wellsfargo-starui/types";
 import type { DockEditorConfig } from './dockConfigTypes';
 import { getConfigServiceRestUrlFromManifest } from './manifestConfig';
 import type { RegistryEditorConfig } from './registryConfigTypes';
-import { resolvePlatformBootstrapFromJson } from '@starui/host-data';
+import { resolvePlatformBootstrapFromJson } from '@wellsfargo-starui/host-data';
 import {
   resolveDeploymentIdentity,
   resolvePlatformBootstrapFromManifest,

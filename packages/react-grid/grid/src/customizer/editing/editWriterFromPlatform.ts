@@ -1,4 +1,4 @@
-import type { EditGridWriter } from '@starui/engine';
+import type { EditGridWriter } from '@wellsfargo-starui/engine';
 
 type Tx = { add?: unknown[]; update?: unknown[]; remove?: unknown[] };
 

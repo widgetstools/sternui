@@ -4,7 +4,7 @@
  * share the same binding.
  */
 
-import type { AlertRule, PlatformHandle } from '@starui/engine';
+import type { AlertRule, PlatformHandle } from '@wellsfargo-starui/engine';
 import type { PreviousValuesStore } from './previousValues.js';
 import { seedAlertBaselinesFromRows } from './seedAlertBaselinesFromRows.js';
 

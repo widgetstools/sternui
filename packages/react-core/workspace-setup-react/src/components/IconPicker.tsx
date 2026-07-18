@@ -3,8 +3,8 @@
 /**
  * IconPicker — searchable grid of icons for selecting dock button icons.
  *
- * Displays curated Lucide icons + market icons from @starui/icons-svg.
- * Uses DynamicIcon from @starui/icons-svg/react for rendering.
+ * Displays curated Lucide icons + market icons from @wellsfargo-starui/icons-svg.
+ * Uses DynamicIcon from @wellsfargo-starui/icons-svg/react for rendering.
  *
  * Emits an iconId ("mkt:bond" or "lucide:settings") so callers can
  * persist a stable identifier and re-render the icon under either
@@ -13,10 +13,10 @@
  */
 
 import { useState, useMemo } from "react";
-import { DynamicIcon as Icon } from "@starui/icons-svg/react";
-import { MARKET_ICON_SVGS, svgToDataUrl } from "@starui/icons-svg/all-icons";
-import { ICON_META } from "@starui/icons-svg";
-import { Input, ScrollArea, cn } from "@starui/ui";
+import { DynamicIcon as Icon } from "@wellsfargo-starui/icons-svg/react";
+import { MARKET_ICON_SVGS, svgToDataUrl } from "@wellsfargo-starui/icons-svg/all-icons";
+import { ICON_META } from "@wellsfargo-starui/icons-svg";
+import { Input, ScrollArea, cn } from "@wellsfargo-starui/ui";
 import { ICON_OPTIONS } from "./dock-editor/icons";
 
 // ─── Types ───────────────────────────────────────────────────────────

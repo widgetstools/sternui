@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { GridPlatform } from '@starui/engine';
+import { GridPlatform } from '@wellsfargo-starui/engine';
 import { GridProvider } from './GridProvider';
 import { useSsrmCapabilityGate } from './useSsrmCapabilityGate';
 

@@ -1,4 +1,4 @@
-import type { SavedFiltersState } from '@starui/grid/customizer';
+import type { SavedFiltersState } from '@wellsfargo-starui/grid/customizer';
 
 interface FilterPill {
   id: string;

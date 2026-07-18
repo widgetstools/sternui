@@ -1,4 +1,4 @@
-# @starui/mcp-scaffold
+# @wellsfargo-starui/mcp-scaffold
 
 **StarUI Platform MCP** — scaffold apps, wire STOMP, diagnose empty grids, author **grid layouts**, OpenFin routes, design compliance.
 

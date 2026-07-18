@@ -2,7 +2,7 @@
  * Icon list for the dock editor.
  *
  * Two sources:
- * 1. Custom market icons from @starui/icons-svg (prefixed "mkt:")
+ * 1. Custom market icons from @wellsfargo-starui/icons-svg (prefixed "mkt:")
  * 2. Generic Lucide icons via Iconify CDN (prefixed "lucide:")
  *
  * Custom icons are rendered as inline data URLs from SVG strings.
@@ -18,7 +18,7 @@ export interface IconOption {
 
 export const ICON_OPTIONS: IconOption[] = [
 
-  // ─── Custom Market Icons (@starui/icons-svg) ───────────────────
+  // ─── Custom Market Icons (@wellsfargo-starui/icons-svg) ───────────────────
   // Trading
   { name: "Bond", icon: "mkt:bond" },
   { name: "Candlestick", icon: "mkt:candlestick" },

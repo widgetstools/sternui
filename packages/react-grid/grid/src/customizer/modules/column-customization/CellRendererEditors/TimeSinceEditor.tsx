@@ -1,8 +1,8 @@
 /**
  * TimeSinceEditor — authoring UI for `TimeSinceRendererConfig`.
  */
-import { Slider } from '@starui/ui';
-import type { TimeSinceRendererConfig } from '@starui/design-system';
+import { Slider } from '@wellsfargo-starui/ui';
+import type { TimeSinceRendererConfig } from '@wellsfargo-starui/design-system';
 import { Row } from '../editors/Row';
 import { ThemeAwareColorRow } from './themeColorRow';
 

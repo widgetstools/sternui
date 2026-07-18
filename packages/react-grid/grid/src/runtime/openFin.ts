@@ -2,4 +2,4 @@ export {
   isOpenFinWindow as isOpenFin,
   openFinWindowOpener,
   debugOpenFin,
-} from '@starui/host-openfin';
+} from '@wellsfargo-starui/host-openfin';

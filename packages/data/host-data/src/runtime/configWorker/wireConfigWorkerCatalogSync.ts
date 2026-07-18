@@ -6,7 +6,7 @@
  * never open the data hub still invalidate `starui-config:{appId}`.
  */
 
-import type { ConfigManager } from '@starui/host-config';
+import type { ConfigManager } from '@wellsfargo-starui/host-config';
 import { isCatalogConfigRow } from '../../hub/isCatalogConfigRow.js';
 import type { ConfigClient } from './ConfigClient.js';
 

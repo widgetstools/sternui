@@ -20,11 +20,11 @@
  *     - Private providers store under the active userId.
  *
  * The store is intentionally framework-agnostic — React bindings
- * live in `@starui/host-data-react`.
+ * live in `@wellsfargo-starui/host-data-react`.
  */
 
-import type { ConfigManager, AppConfigRow } from '@starui/host-config';
-import type { DataProviderConfig, ProviderConfig } from '@starui/types';
+import type { ConfigManager, AppConfigRow } from '@wellsfargo-starui/host-config';
+import type { DataProviderConfig, ProviderConfig } from '@wellsfargo-starui/types';
 import { COMPONENT_TYPE_APPDATA } from '../providers/appdata/store.js';
 
 export const PUBLIC_USER_ID = 'system';

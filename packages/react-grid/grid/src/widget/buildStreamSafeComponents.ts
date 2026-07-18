@@ -1,4 +1,4 @@
-import { cellRendererComponents } from '@starui/design-system';
+import { cellRendererComponents } from '@wellsfargo-starui/design-system';
 import { StreamSafeTextFloatingFilter } from './streamSafeFloatingFilter';
 import { StreamSafeNumberFloatingFilter } from './streamSafeNumberFloatingFilter';
 import { StreamSafeDateFloatingFilter } from './streamSafeDateFloatingFilter';

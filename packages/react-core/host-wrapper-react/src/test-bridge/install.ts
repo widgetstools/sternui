@@ -1,1 +1,1 @@
-export { installTestBridge } from '@starui/openfin-platform/test-bridge';
+export { installTestBridge } from '@wellsfargo-starui/openfin-platform/test-bridge';

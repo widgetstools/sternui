@@ -8,7 +8,7 @@
  */
 import { useState } from 'react';
 import { ChevronDown, LayoutTemplate } from 'lucide-react';
-import { PopoverCompat as Popover, Tooltip } from '@starui/grid/customizer';
+import { PopoverCompat as Popover, Tooltip } from '@wellsfargo-starui/grid/customizer';
 import { TemplateManager } from '../../TemplateManager';
 import { Module, PillButton, pillClasses, type Orientation } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';

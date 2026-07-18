@@ -18,7 +18,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Check, Filter, FilterX, MoreVertical, Pencil, X } from 'lucide-react';
-import { spacing, typography } from '@starui/design-system/tokens';
+import { spacing, typography } from '@wellsfargo-starui/design-system/tokens';
 import {
   Input,
   PopoverCompat as Popover,
@@ -30,7 +30,7 @@ import {
   useAppDataProviders,
   type CellEditorKind,
   type FilterKind,
-} from '@starui/grid/customizer';
+} from '@wellsfargo-starui/grid/customizer';
 import { Hair, Module, Pill, PillButton, ToolbarSelect, pillClasses } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 

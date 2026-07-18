@@ -28,7 +28,7 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
   webServer: [
     {
-      command: 'npm --prefix apps run dev -w @starui/marketsgrid-container-e2e -- --no-open',
+      command: 'npm --prefix apps run dev -w @wellsfargo-starui/marketsgrid-container-e2e -- --no-open',
       port: 5215,
       reuseExistingServer: true,
       timeout: 120_000,

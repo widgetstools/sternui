@@ -21,11 +21,11 @@ declare const fin: any;
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { GridApi } from 'ag-grid-community';
-import type { DataServices } from '@starui/host-data/runtime';
-import type { ResolvedDataServicesHubBundle } from '@starui/host-data';
-import { DataServicesProvider, DataHubProvider } from '@starui/host-data-react/runtime';
-import type { MarketsGridHandle } from '@starui/grid';
-import { resolveUseSsrm } from '@starui/grid';
+import type { DataServices } from '@wellsfargo-starui/host-data/runtime';
+import type { ResolvedDataServicesHubBundle } from '@wellsfargo-starui/host-data';
+import { DataServicesProvider, DataHubProvider } from '@wellsfargo-starui/host-data-react/runtime';
+import type { MarketsGridHandle } from '@wellsfargo-starui/grid';
+import { resolveUseSsrm } from '@wellsfargo-starui/grid';
 import { MarketsGridContainer, type MarketsGridContainerProps } from '../container/markets-grid-container/index.js';
 import { useHostedView } from './useHostedView.js';
 import { useViewTabTitle } from './useViewTabTitle.js';
@@ -78,7 +78,7 @@ export interface HostedMarketsGridProps<
   /** Passed to {@link MarketsGridContainer} — auto-select live provider when unset in storage. */
   defaultLiveProviderId?: string;
   /** Optional ConfigManager override. When omitted, the host singleton
-   *  is resolved via `@starui/openfin-platform/config`. Pass an
+   *  is resolved via `@wellsfargo-starui/openfin-platform/config`. Pass an
    *  explicit ConfigManager in tests / non-OpenFin runtimes. */
   configManager?: ConfigManager;
   /** Theme mode for the AG-Grid blotter preset. Defaults to `'auto'`

@@ -1,5 +1,5 @@
 {
-  "name": "@starui/marketsgrid-container-e2e",
+  "name": "@wellsfargo-starui/marketsgrid-container-e2e",
   "private": true,
   "type": "module",
   "scripts": {

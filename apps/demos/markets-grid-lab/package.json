@@ -1,5 +1,5 @@
 {
-  "name": "@starui/markets-grid-lab",
+  "name": "@wellsfargo-starui/markets-grid-lab",
   "private": true,
   "type": "module",
   "scripts": {

@@ -21,13 +21,13 @@ import {
   SelectTrigger,
   SelectValue,
   Switch,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import type {
   ProviderConfig,
   StompProviderConfig,
   RestProviderConfig,
   MockProviderConfig,
-} from '@starui/shared-types';
+} from '@wellsfargo-starui/shared-types';
 
 export interface BehaviourFieldsProps {
   cfg: ProviderConfig;

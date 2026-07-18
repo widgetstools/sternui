@@ -5,12 +5,12 @@
  * (Excel-format input + presets) attaches at the end. Header target
  * disables the whole module since headers don't carry formatters.
  */
-import { spacing } from '@starui/design-system/tokens';
+import { spacing } from '@wellsfargo-starui/design-system/tokens';
 import {
   ArrowLeft, ArrowRight, DollarSign, Hash, Percent,
 } from 'lucide-react';
-import type { ValueFormatterTemplate } from '@starui/engine';
-import { FormatterPicker } from '@starui/grid/customizer';
+import type { ValueFormatterTemplate } from '@wellsfargo-starui/engine';
+import { FormatterPicker } from '@wellsfargo-starui/grid/customizer';
 import {
   BPS_TEMPLATE,
   COMMA_TEMPLATE,

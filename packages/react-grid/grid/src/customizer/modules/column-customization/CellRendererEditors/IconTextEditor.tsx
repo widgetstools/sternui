@@ -2,14 +2,14 @@
  * IconTextEditor — authoring UI for `IconTextRendererConfig`.
  *
  * Surfaces an icon picker that resolves an icon id from
- * `@starui/icons-svg`'s `MARKET_ICON_SVGS` catalogue into the
+ * `@wellsfargo-starui/icons-svg`'s `MARKET_ICON_SVGS` catalogue into the
  * stored `iconSvg` (full SVG markup) at write time. The
  * renderer drops the markup into the cell verbatim.
  */
 import { useMemo, useState } from 'react';
-import { MARKET_ICON_SVGS } from '@starui/icons-svg/all-icons';
-import { Button, Input, Popover, PopoverContent, PopoverTrigger, RadioGroup, RadioGroupItem, Label } from '@starui/ui';
-import type { IconTextRendererConfig } from '@starui/design-system';
+import { MARKET_ICON_SVGS } from '@wellsfargo-starui/icons-svg/all-icons';
+import { Button, Input, Popover, PopoverContent, PopoverTrigger, RadioGroup, RadioGroupItem, Label } from '@wellsfargo-starui/ui';
+import type { IconTextRendererConfig } from '@wellsfargo-starui/design-system';
 import { ChromeButton } from '../../../ui/ChromeButton';
 import { Row } from '../editors/Row';
 import { ThemeAwareColorRow } from './themeColorRow';

@@ -43,7 +43,7 @@ The Formatting Toolbar already edits grid-wide `general-settings`
 
 - A `PillButton` (sliders/settings icon, tooltip "Grouping options",
   `data-testid="fmt-grouping-options"`) to the right of the per-column pills.
-- Opens a shadcn `Popover` (`@starui/ui`) with the 5 controls, each a labeled
+- Opens a shadcn `Popover` (`@wellsfargo-starui/ui`) with the 5 controls, each a labeled
   row:
   - **Hide Agg in Header** — toggle (`Pill`/switch).
   - **Group Sub-Total Row** — `SegmentedToggle`: Off / Top / Bottom.

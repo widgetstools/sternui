@@ -1,6 +1,6 @@
 /**
  * Runtime-agnostic foundation types for StarGrid host ports.
- * Ported from @starui/runtime-port — no legacy imports.
+ * Ported from @wellsfargo-starui/runtime-port — no legacy imports.
  */
 
 /** @deprecated Use `PlatformBootstrapConfig.userId` from `app-config.json` or OpenFin manifest `customSettings`, then `DataHubProvider` / `useUserIdFromContext`. */

@@ -1,8 +1,8 @@
-import { EditJournal } from '@starui/engine';
+import { EditJournal } from '@wellsfargo-starui/engine';
 import {
   DATA_CHANGE_HISTORY_MODULE_ID,
   type DataChangeHistoryState,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 
 /** One EditJournal per grid — shared by all editing modules on that grid. */
 const journalsByGridId = new Map<string, EditJournal>();

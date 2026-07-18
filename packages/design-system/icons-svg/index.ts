@@ -1,5 +1,5 @@
 /**
- * @starui/icons-svg
+ * @wellsfargo-starui/icons-svg
  *
  * Single flat icon library for capital markets applications.
  * All 80 icons live in svg/ and use `currentColor` so they inherit
@@ -8,11 +8,11 @@
  * ─── Usage: React ──────────────────────────────────────────────
  *
  *   // Via SVGR (recommended — supports currentColor + sizing)
- *   import { ReactComponent as BondIcon } from '@starui/icons-svg/svg/bond.svg';
+ *   import { ReactComponent as BondIcon } from '@wellsfargo-starui/icons-svg/svg/bond.svg';
  *   <BondIcon width={20} height={20} className="text-blue-500" />
  *
  *   // Via Vite asset import
- *   import bondUrl from '@starui/icons-svg/svg/bond.svg';
+ *   import bondUrl from '@wellsfargo-starui/icons-svg/svg/bond.svg';
  *   <img src={bondUrl} width={20} height={20} alt="Bond" />
  *
  * ─── Usage: Angular ────────────────────────────────────────────

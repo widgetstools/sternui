@@ -3,7 +3,7 @@ import { themeQuartz } from 'ag-grid-community';
 import {
   agGridBlotterDarkParams,
   agGridBlotterLightParams,
-} from '@starui/design-system';
+} from '@wellsfargo-starui/design-system';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAgGridTheme } from '../useAgGridTheme.js';
 

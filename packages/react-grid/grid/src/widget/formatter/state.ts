@@ -28,13 +28,13 @@
 import {
   type BorderSpec,
   type ValueFormatterTemplate,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import type {
   AggFuncName,
   CellEditorKind,
   FilterKind,
   GeneralSettingsState,
-} from '@starui/grid/customizer';
+} from '@wellsfargo-starui/grid/customizer';
 import type { GroupingSettingsView } from './useFormatterActions';
 import type {
   ResolvedFormatting,

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, type ChangeEvent } from 'react';
-import type { UseProfileManagerResult } from '@starui/grid/customizer';
-import type { ProfileMeta } from '@starui/engine';
+import type { UseProfileManagerResult } from '@wellsfargo-starui/grid/customizer';
+import type { ProfileMeta } from '@wellsfargo-starui/engine';
 
 export interface ProfileSelectorActions {
   readonly onCreate: (name: string) => void | Promise<unknown>;

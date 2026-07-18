@@ -25,7 +25,7 @@
  * full lifecycle here — there's no streaming complication.
  */
 
-import type { RestProviderConfig } from '@starui/types';
+import type { RestProviderConfig } from '@wellsfargo-starui/types';
 import type { ProviderEmit, ProviderHandle } from '../Provider.js';
 import { createSsrmRowFlattener } from '../ssrmRowFlatten.js';
 

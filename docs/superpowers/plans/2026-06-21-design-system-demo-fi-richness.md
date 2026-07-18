@@ -6,16 +6,16 @@
 
 **Architecture:** `App.tsx` becomes a dock host: a widget registry maps `widgetType` → panel components; each tab is a `DockManagerState` layout built from small helpers; layout persists per tab to localStorage. Trade Ticket and RFQ Workbench are app-level draggable floating overlays (not dockview floating groups — simpler, fully token-styled). A `DemoStateProvider` context shares selected-instrument/clicked-price/RFQ across panels. The data model expands to full FI fields + dealers + curve/scenario/book-risk/indices/research datasets; the ticking reducer stays pure/deterministic.
 
-**Tech Stack:** React 19, Vite 7, TS 5.9, `@starui/design-system` + `@starui/ui`, `@widgetstools/react-dock-manager` + `@widgetstools/dock-manager-core` ^1.0.0, `ag-grid-*` 35.1.0, recharts (hoisted), Vitest 4, Playwright 1.59.
+**Tech Stack:** React 19, Vite 7, TS 5.9, `@wellsfargo-starui/design-system` + `@wellsfargo-starui/ui`, `@widgetstools/react-dock-manager` + `@widgetstools/dock-manager-core` ^1.0.0, `ag-grid-*` 35.1.0, recharts (hoisted), Vitest 4, Playwright 1.59.
 
 ## Global Constraints
 
 - **Design-system tokens only** (`--ds-*`; no hardcoded hex). shadcn/recharts primitives only; no native `<input>/<select>/<textarea>`. Works dark + light.
 - **AG Grid** via `staruiGridTheme`/`blotterTheme` inheriting `<html data-ag-theme-mode>` (set by `applyTheme`) — do NOT add per-panel `data-ag-theme-mode` wrappers.
-- **No `@starui/*` in package.json**; recharts/react-hook-form/react-resizable-panels stay OUT of app deps (hoisted from `@starui/ui` at repo root — a separate copy causes duplicate-instance type collisions).
+- **No `@wellsfargo-starui/*` in package.json**; recharts/react-hook-form/react-resizable-panels stay OUT of app deps (hoisted from `@wellsfargo-starui/ui` at repo root — a separate copy causes duplicate-instance type collisions).
 - **Determinism:** data seeds + `applyTick` + `rfqReducer` must not call `Date.now()`/`Math.random()` — inject a seeded rng / pass `now`. Components own wall-clock/timers.
 - File/symbol naming camelCase/PascalCase. **Ceilings: 800 LOC/file, 80 LOC/function.**
-- Verify: `npx tsc --noEmit -p apps/demos/design-system/tsconfig.json`; `npm --prefix apps run build -w @starui/design-system-demo`; unit `npx vitest run apps/demos/design-system/src/...`; e2e `npx playwright test e2e/design-system-demo.spec.ts --project=chromium` (boots :5310).
+- Verify: `npx tsc --noEmit -p apps/demos/design-system/tsconfig.json`; `npm --prefix apps run build -w @wellsfargo-starui/design-system-demo`; unit `npx vitest run apps/demos/design-system/src/...`; e2e `npx playwright test e2e/design-system-demo.spec.ts --project=chromium` (boots :5310).
 - Commit trailer: `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
 - Branch `feat/design-system-demo-app` (deps already added to package.json + installed; commit them in Task 1).
 
@@ -239,7 +239,7 @@ describe('dock layouts', () => {
 
 Run: `npx vitest run apps/demos/design-system/src/lib/dock/layouts.test.ts` → PASS.
 Run: `npx tsc --noEmit -p apps/demos/design-system/tsconfig.json` → clean.
-Run: `npm --prefix apps run build -w @starui/design-system-demo` → builds.
+Run: `npm --prefix apps run build -w @wellsfargo-starui/design-system-demo` → builds.
 
 - [ ] **Step 9: Commit**
 
@@ -326,7 +326,7 @@ Run: `npx tsc --noEmit -p apps/demos/design-system/tsconfig.json` → clean.
 
 ## Phase 3 — Analytics / Risk / Research
 
-> Shared pattern for all chart panels: a small widget component reading `useDemoState`, rendering a recharts chart via `@starui/ui/chart` (`ChartContainer`/`ChartTooltip`/`ChartTooltipContent`, `type ChartConfig` from `@starui/ui/chart`) with colors from `--ds-chart-1..5` + accent tokens. Each panel `data-testid="panel-<id>"`, tokens only, under 80 LOC (extract config/data helpers if needed). Register each in `WIDGETS` replacing its placeholder.
+> Shared pattern for all chart panels: a small widget component reading `useDemoState`, rendering a recharts chart via `@wellsfargo-starui/ui/chart` (`ChartContainer`/`ChartTooltip`/`ChartTooltipContent`, `type ChartConfig` from `@wellsfargo-starui/ui/chart`) with colors from `--ds-chart-1..5` + accent tokens. Each panel `data-testid="panel-<id>"`, tokens only, under 80 LOC (extract config/data helpers if needed). Register each in `WIDGETS` replacing its placeholder.
 
 ### Task 7: Analytics — 6 chart panels
 
@@ -381,7 +381,7 @@ Expected: `no dangling refs`.
 - [ ] **Step 1:** Extend the smoke spec: Market boots and `order-book` is visible; clicking `+ New Order` (`getByTestId('topbar-new-order')`) shows `trade-ticket`; clicking `RFQ` shows `rfq-workbench`; navigate to Analytics and a `panel-oasDuration` chart is visible; Design System gallery still renders; theme toggle still flips `data-theme`. (Keep selectors robust; adjust to real testids.)
 - [ ] **Step 2:** Run e2e: `npx playwright test e2e/design-system-demo.spec.ts --project=chromium` → all pass. Fix selectors/timing (not assertions) until green.
 - [ ] **Step 3:** Update `docs/current-features.md` — revise the `design-system` sub-section: dock-manager layout, FI trade ticket, dealer-depth order book, RFQ workbench, chart-heavy Analytics/Risk/Research.
-- [ ] **Step 4:** Full verification: `npx vitest run apps/demos/design-system/src/` (all pass), `npx tsc --noEmit -p apps/demos/design-system/tsconfig.json`, `npm --prefix apps run build -w @starui/design-system-demo`.
+- [ ] **Step 4:** Full verification: `npx vitest run apps/demos/design-system/src/` (all pass), `npx tsc --noEmit -p apps/demos/design-system/tsconfig.json`, `npm --prefix apps run build -w @wellsfargo-starui/design-system-demo`.
 - [ ] **Step 5:** Commit — `test(design-system-demo): FI/dock smoke; docs: trading enrichment` (+ trailer).
 
 ---
@@ -390,7 +390,7 @@ Expected: `no dangling refs`.
 
 **Spec coverage:** dock shell + data model → Tasks 1–2; trade ticket + dealer depth + RFQ (spec §B) → Tasks 3–6; Analytics/Risk/Research charts (spec §C) → Tasks 7–9; Orders/Design-System + cleanup → Task 10; testing/docs → Task 11. Floating ticket/RFQ as app overlays (spec §A) → Tasks 4/6. Determinism, tokens, AG-Grid `<html>` inheritance, hoisted-dep rule → Global Constraints, applied per task. ✓
 
-**Placeholder scan:** Foundation tasks carry complete code (helpers/persistence/registry/layouts/tests). The numerous chart/risk panels are specified as a precise shared pattern (recharts via `@starui/ui/chart`, token colors, per-panel testids, data sources named) + the exact chart type per panel — gated by typecheck/build and the e2e, rather than 20 inline chart bodies. The dock API is verified against the installed package (reference block), not guessed. This delegation is deliberate and flagged.
+**Placeholder scan:** Foundation tasks carry complete code (helpers/persistence/registry/layouts/tests). The numerous chart/risk panels are specified as a precise shared pattern (recharts via `@wellsfargo-starui/ui/chart`, token colors, per-panel testids, data sources named) + the exact chart type per panel — gated by typecheck/build and the e2e, rather than 20 inline chart bodies. The dock API is verified against the installed package (reference block), not guessed. This delegation is deliberate and flagged.
 
 **Type consistency:** `WidgetId` union (Task 1) is the single source for registry keys + layout widget types + the completeness test. `DockManagerState`/`PanelConfig`/`LayoutNode` come from the package. `buildDepth`/`rfqReducer`/`applyTick` signatures match their tests. `useDemoState()` shape (Task 2) consumed by all panels. Floating overlays use `FloatingWindow` (Task 4) consistently.
 

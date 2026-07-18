@@ -28,10 +28,10 @@ vi.mock('../customizer/hooks/useModuleState.js', () => ({
   useModuleState: () => [undefined, vi.fn()],
 }));
 
-// Vanilla shells from @starui/engine — only the constants + the
+// Vanilla shells from @wellsfargo-starui/engine — only the constants + the
 // `MemoryAdapter` class that MarketsGrid uses for default storage.
-vi.mock('@starui/engine', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@starui/engine')>();
+vi.mock('@wellsfargo-starui/engine', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@wellsfargo-starui/engine')>();
   return {
     ...actual,
     MemoryAdapter: class { async loadGridLevelData() { return null; } async saveGridLevelData() {} },
@@ -39,9 +39,9 @@ vi.mock('@starui/engine', async (importOriginal) => {
   };
 });
 
-// React shells from @starui/grid/customizer — hooks, panel primitives,
+// React shells from @wellsfargo-starui/grid/customizer — hooks, panel primitives,
 // shadcn primitives, and module registry exports.
-vi.mock('@starui/grid/customizer', async () => {
+vi.mock('@wellsfargo-starui/grid/customizer', async () => {
   const actual: any = {};
   return {
     ...actual,

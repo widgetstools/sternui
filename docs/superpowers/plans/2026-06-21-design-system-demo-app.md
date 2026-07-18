@@ -2,22 +2,22 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build `apps/demos/design-system` — a fixed-income trading terminal plus a live component/token reference, both styled entirely by `@starui/design-system` + `@starui/ui`, proving the design system dresses a real client app.
+**Goal:** Build `apps/demos/design-system` — a fixed-income trading terminal plus a live component/token reference, both styled entirely by `@wellsfargo-starui/design-system` + `@wellsfargo-starui/ui`, proving the design system dresses a real client app.
 
-**Architecture:** A Vite/React consumer app (resolves `@starui/*` from source via the shared consumer Vite config). A self-contained ticking mock-data layer feeds five trading tabs (Market/Orders/Analytics/Risk/Research); a sixth "Design System" tab documents palette/typography/foundations and a data-driven gallery of all public `@starui/ui` components. AG Grid is themed with the prebuilt `staruiGridTheme`; charts use recharts via `@starui/ui`'s chart primitive and the design-system color ramp.
+**Architecture:** A Vite/React consumer app (resolves `@wellsfargo-starui/*` from source via the shared consumer Vite config). A self-contained ticking mock-data layer feeds five trading tabs (Market/Orders/Analytics/Risk/Research); a sixth "Design System" tab documents palette/typography/foundations and a data-driven gallery of all public `@wellsfargo-starui/ui` components. AG Grid is themed with the prebuilt `staruiGridTheme`; charts use recharts via `@wellsfargo-starui/ui`'s chart primitive and the design-system color ramp.
 
-**Tech Stack:** React 19.2.x, Vite 7, TypeScript 5.9, Tailwind 3.4 (starui preset), `@starui/design-system`, `@starui/ui` (shadcn), `ag-grid-*` 35.1.0, recharts ^3.6.0, react-hook-form ^7.72.1, react-resizable-panels ^4.9.0, lucide-react, Vitest 4, Playwright 1.59.
+**Tech Stack:** React 19.2.x, Vite 7, TypeScript 5.9, Tailwind 3.4 (starui preset), `@wellsfargo-starui/design-system`, `@wellsfargo-starui/ui` (shadcn), `ag-grid-*` 35.1.0, recharts ^3.6.0, react-hook-form ^7.72.1, react-resizable-panels ^4.9.0, lucide-react, Vitest 4, Playwright 1.59.
 
 ## Global Constraints
 
-- **Consume our packages, copy nothing from fi-trading-terminal.** `@starui/design-system` + `@starui/ui` only; fi is inspiration. No `@starui/*` entries in `package.json` (resolved by `scripts/staruiConsumerVite.mjs` aliases).
-- **Design-system tokens only.** All styling via `--ds-*` CSS variables or `@starui/ui` components; **no hardcoded hex**. Every surface renders under `[data-theme="dark"]` AND `[data-theme="light"]`.
-- **shadcn/recharts primitives only** — no native `<input>/<select>/<textarea>`; charts via `@starui/ui` chart + recharts.
-- **AG Grid theming** via `staruiGridTheme` from `@starui/design-system/adapters/ag-grid` (Theming API; set `data-ag-theme-mode` to match the active theme). No legacy ag-grid CSS imports.
+- **Consume our packages, copy nothing from fi-trading-terminal.** `@wellsfargo-starui/design-system` + `@wellsfargo-starui/ui` only; fi is inspiration. No `@wellsfargo-starui/*` entries in `package.json` (resolved by `scripts/staruiConsumerVite.mjs` aliases).
+- **Design-system tokens only.** All styling via `--ds-*` CSS variables or `@wellsfargo-starui/ui` components; **no hardcoded hex**. Every surface renders under `[data-theme="dark"]` AND `[data-theme="light"]`.
+- **shadcn/recharts primitives only** — no native `<input>/<select>/<textarea>`; charts via `@wellsfargo-starui/ui` chart + recharts.
+- **AG Grid theming** via `staruiGridTheme` from `@wellsfargo-starui/design-system/adapters/ag-grid` (Theming API; set `data-ag-theme-mode` to match the active theme). No legacy ag-grid CSS imports.
 - **File/symbol naming:** camelCase/PascalCase only (React bucket). Component files `PascalCase.tsx`, hooks `useX.ts`, plain modules `camelCase.ts`, types in `types.ts`.
 - **Complexity ceilings:** 800 LOC/file, 80 LOC/function.
-- **Workspace name** `@starui/design-system-demo` (folder `apps/demos/design-system`); **dev port 5310**.
-- **Lab unit tests** run from repo root: `npx vitest run apps/demos/design-system/src/...`. **Typecheck:** `npx tsc --noEmit -p apps/demos/design-system/tsconfig.json`. **Build:** `npm --prefix apps run build -w @starui/design-system-demo` (after the app is in `apps/package.json`).
+- **Workspace name** `@wellsfargo-starui/design-system-demo` (folder `apps/demos/design-system`); **dev port 5310**.
+- **Lab unit tests** run from repo root: `npx vitest run apps/demos/design-system/src/...`. **Typecheck:** `npx tsc --noEmit -p apps/demos/design-system/tsconfig.json`. **Build:** `npm --prefix apps run build -w @wellsfargo-starui/design-system-demo` (after the app is in `apps/package.json`).
 - **Commit trailer** on every commit: `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
 
 All work happens on branch `feat/design-system-demo-app` (already created; spec committed at `2e414805`).
@@ -61,7 +61,7 @@ Registration touch-points (Task 1): `apps/package.json` workspaces (add `demos/d
 
 ```json
 {
-  "name": "@starui/design-system-demo",
+  "name": "@wellsfargo-starui/design-system-demo",
   "private": true,
   "type": "module",
   "scripts": {
@@ -180,7 +180,7 @@ export default {
 - [ ] **Step 7: Create `src/globals.css`**
 
 ```css
-@import '@starui/design-system/css';
+@import '@wellsfargo-starui/design-system/css';
 
 @tailwind base;
 @tailwind components;
@@ -207,7 +207,7 @@ export default {
 ```tsx
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { applyTheme, getTheme } from '@starui/design-system';
+import { applyTheme, getTheme } from '@wellsfargo-starui/design-system';
 import { App } from './App';
 import './globals.css';
 
@@ -238,7 +238,7 @@ export function App() {
 
 ```ts
     {
-      command: 'npm --prefix apps run dev -w @starui/design-system-demo -- --no-open --force',
+      command: 'npm --prefix apps run dev -w @wellsfargo-starui/design-system-demo -- --no-open --force',
       port: 5310,
       reuseExistingServer: true,
       timeout: 120_000,
@@ -248,7 +248,7 @@ export function App() {
 - [ ] **Step 12: Install and verify build**
 
 Run: `npm run install:apps`
-Run: `npm --prefix apps run build -w @starui/design-system-demo`
+Run: `npm --prefix apps run build -w @wellsfargo-starui/design-system-demo`
 Expected: install succeeds; Vite build completes (the placeholder App bundles). If the design-system CSS/assets are missing, the consumer Vite plugin auto-runs `build:packages` — allow it.
 
 - [ ] **Step 13: Commit**
@@ -498,13 +498,13 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - Create: `src/lib/agGridTheme.ts`, `src/lib/useThemeMode.ts`, `src/components/ThemeToggle.tsx`, `src/components/CodeBlock.tsx`
 
 **Interfaces:**
-- Consumes: `@starui/design-system` (`applyTheme`, `getTheme`), `@starui/design-system/adapters/ag-grid` (`staruiGridTheme`, `agGridBlotterDarkTheme`), `@starui/ui` (`Button`).
+- Consumes: `@wellsfargo-starui/design-system` (`applyTheme`, `getTheme`), `@wellsfargo-starui/design-system/adapters/ag-grid` (`staruiGridTheme`, `agGridBlotterDarkTheme`), `@wellsfargo-starui/ui` (`Button`).
 - Produces: `staruiTheme` (re-export of `staruiGridTheme`), `blotterTheme`; `useThemeMode(): { mode: 'dark'|'light'; toggle: () => void }`; `ThemeToggle`; `CodeBlock({ code, lang? })`.
 
 - [ ] **Step 1: Create `src/lib/agGridTheme.ts`**
 
 ```ts
-import { staruiGridTheme, agGridBlotterDarkTheme } from '@starui/design-system/adapters/ag-grid';
+import { staruiGridTheme, agGridBlotterDarkTheme } from '@wellsfargo-starui/design-system/adapters/ag-grid';
 
 /** Standard density grid theme (token-driven, switches via data-ag-theme-mode). */
 export const gridTheme = staruiGridTheme;
@@ -518,7 +518,7 @@ A hook that tracks `'dark'|'light'` from `getTheme().theme`, exposes `toggle()` 
 
 ```ts
 import { useCallback, useState } from 'react';
-import { applyTheme, getTheme } from '@starui/design-system';
+import { applyTheme, getTheme } from '@wellsfargo-starui/design-system';
 
 export function useThemeMode() {
   const [mode, setMode] = useState<'dark' | 'light'>(() => getTheme().theme as 'dark' | 'light');
@@ -558,7 +558,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - Modify: `src/App.tsx` (replace placeholder)
 
 **Interfaces:**
-- Consumes: `@starui/ui` (`Tabs`, `TabsList`, `TabsTrigger`, `TabsContent`, `TooltipProvider`, `Badge`), `ThemeToggle` (Task 5), the six tab components (Tasks 8–16). Until those exist, render placeholder panels for each tab id so the shell builds standalone.
+- Consumes: `@wellsfargo-starui/ui` (`Tabs`, `TabsList`, `TabsTrigger`, `TabsContent`, `TooltipProvider`, `Badge`), `ThemeToggle` (Task 5), the six tab components (Tasks 8–16). Until those exist, render placeholder panels for each tab id so the shell builds standalone.
 - Produces: `App` with tabs `market · orders · analytics · risk · design-system` driven by Radix Tabs; `TopBar`.
 
 > Wiring note: this task builds the shell with **placeholder tab bodies** (`<div data-testid="tab-<id>" />`). Tasks 8–16 replace each placeholder with the real tab component. Tab ids: `market`, `orders`, `analytics`, `risk`, `research`, `design-system`. Default active tab: `market`. Each `TabsTrigger` carries `data-testid="ds-tab-<id>"`.
@@ -570,7 +570,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - [ ] **Step 3: Typecheck + build**
 
 Run: `npx tsc --noEmit -p apps/demos/design-system/tsconfig.json`
-Run: `npm --prefix apps run build -w @starui/design-system-demo`
+Run: `npm --prefix apps run build -w @wellsfargo-starui/design-system-demo`
 Expected: both clean (shell renders with placeholders).
 
 - [ ] **Step 4: Commit**
@@ -590,7 +590,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - Create: `src/showcase/types.ts`, `src/showcase/ComponentDemo.tsx`, `src/showcase/registry.ts`, `src/showcase/registry.test.ts`
 
 **Interfaces:**
-- Consumes: `@starui/ui` (`Tabs`/`TabsList`/`TabsTrigger`/`TabsContent`, `Button`), `CodeBlock` (Task 5).
+- Consumes: `@wellsfargo-starui/ui` (`Tabs`/`TabsList`/`TabsTrigger`/`TabsContent`, `Button`), `CodeBlock` (Task 5).
 - Produces: `ShowcaseCategory` (union), `ShowcaseEntry` (`{ id: string; name: string; category: ShowcaseCategory; importLine: string; code: string; Demo: () => ReactNode }`), `SHOWCASE_CATEGORIES` (ordered list); `ComponentDemo({ entry })`; `SHOWCASE_ENTRIES: ShowcaseEntry[]`, `entriesByCategory(): Record<ShowcaseCategory, ShowcaseEntry[]>`.
 - The registry barrel composes per-category arrays from `showcase/components/*` (Tasks 9–11). For THIS task, `SHOWCASE_ENTRIES` starts as `[]` and the per-category modules are imported and spread (they export empty arrays until their task fills them).
 
@@ -616,7 +616,7 @@ export const SHOWCASE_CATEGORIES: { id: ShowcaseCategory; label: string }[] = [
 ];
 
 export interface ShowcaseEntry {
-  /** Matches the `@starui/ui` component file basename, e.g. 'alert-dialog', 'button'. */
+  /** Matches the `@wellsfargo-starui/ui` component file basename, e.g. 'alert-dialog', 'button'. */
   id: string;
   name: string;
   category: ShowcaseCategory;
@@ -652,7 +652,7 @@ function publicComponentIds(): string[] {
 }
 
 describe('showcase registry completeness', () => {
-  it('has an entry for every public @starui/ui component', () => {
+  it('has an entry for every public @wellsfargo-starui/ui component', () => {
     const ids = new Set(SHOWCASE_ENTRIES.map((e) => e.id));
     const missing = publicComponentIds().filter((id) => !ids.has(id));
     expect(missing, `missing showcase entries: ${missing.join(', ')}`).toEqual([]);
@@ -730,10 +730,10 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - Create: `src/showcase/palette.ts`, `src/showcase/sections/PaletteSection.tsx`, `TypographySection.tsx`, `FoundationsSection.tsx`, `OverviewSection.tsx`
 
 **Interfaces:**
-- Consumes: `@starui/ui` (`Card`, `Separator`), `CodeBlock` (Task 5).
+- Consumes: `@wellsfargo-starui/ui` (`Card`, `Separator`), `CodeBlock` (Task 5).
 - Produces: `PALETTE_GROUPS` (data); `PaletteSection`, `TypographySection`, `FoundationsSection`, `OverviewSection` React components.
 
-- [ ] **Step 1: Create `src/showcase/palette.ts`** — a data structure of token groups, each listing the **CSS variable names** (so swatches render the live value). Cover the groups from the spec. Example shape (fill all groups; variable names must match the emitted `--ds-*` tokens — confirm against `@starui/design-system/css` output / `tokens/staruiHex.ts`):
+- [ ] **Step 1: Create `src/showcase/palette.ts`** — a data structure of token groups, each listing the **CSS variable names** (so swatches render the live value). Cover the groups from the spec. Example shape (fill all groups; variable names must match the emitted `--ds-*` tokens — confirm against `@wellsfargo-starui/design-system/css` output / `tokens/staruiHex.ts`):
 
 ```ts
 export interface PaletteSwatch { varName: string; label: string; role: string }
@@ -760,12 +760,12 @@ export const PALETTE_GROUPS: PaletteGroup[] = [
 
 - [ ] **Step 4: Create `FoundationsSection.tsx`** — radius, spacing, elevation/shadow (`var(--ds-elevation-card|overlay|glow)`), focus ring — each rendered live from tokens with labels.
 
-- [ ] **Step 5: Create `OverviewSection.tsx`** — prose + `CodeBlock`s for consuming the system: the `@starui/design-system/css` import, `applyTheme(getTheme())`, the Tailwind preset, and the AG Grid `staruiGridTheme` usage. Config-driven framing.
+- [ ] **Step 5: Create `OverviewSection.tsx`** — prose + `CodeBlock`s for consuming the system: the `@wellsfargo-starui/design-system/css` import, `applyTheme(getTheme())`, the Tailwind preset, and the AG Grid `staruiGridTheme` usage. Config-driven framing.
 
 - [ ] **Step 6: Typecheck + build**
 
 Run: `npx tsc --noEmit -p apps/demos/design-system/tsconfig.json`
-Run: `npm --prefix apps run build -w @starui/design-system-demo`
+Run: `npm --prefix apps run build -w @wellsfargo-starui/design-system-demo`
 Expected: clean.
 
 - [ ] **Step 7: Commit**
@@ -787,14 +787,14 @@ These three tasks fill the nine per-category entry files. They share one pattern
 
 ```tsx
 import type { ShowcaseEntry } from '../types';
-import { Button } from '@starui/ui';
+import { Button } from '@wellsfargo-starui/ui';
 
 export const buttonsEntries: ShowcaseEntry[] = [
   {
     id: 'button',
     name: 'Button',
     category: 'buttons',
-    importLine: "import { Button } from '@starui/ui';",
+    importLine: "import { Button } from '@wellsfargo-starui/ui';",
     code: `<div className="flex gap-2">
   <Button>Default</Button>
   <Button variant="secondary">Secondary</Button>
@@ -818,7 +818,7 @@ export const buttonsEntries: ShowcaseEntry[] = [
 
 **Rules for every entry:**
 - `id` = the component file basename in `packages/react-ui/ui/src/components` (e.g. `alert-dialog`, `dropdown-menu`, `scroll-area`).
-- Import the real exports from `@starui/ui` (read the component file to get exact export names).
+- Import the real exports from `@wellsfargo-starui/ui` (read the component file to get exact export names).
 - `Demo` renders a small, interactive, representative example using tokens only (no hardcoded hex).
 - `code` is the JSX of the demo as a copyable string (kept in sync with `Demo`).
 - Keep each category file under 800 LOC; if a file approaches it, that's fine — they are data.
@@ -859,7 +859,7 @@ export const buttonsEntries: ShowcaseEntry[] = [
 
 **Files:** `src/showcase/components/feedback.tsx`, `layout.tsx`, `charts.tsx`
 
-- [ ] **Step 1:** Fill the three arrays. `toast` demo uses `useToast`/`Toaster` (render a local `<Toaster />` + a trigger Button). `chart` demo uses `@starui/ui` chart primitives with a tiny recharts series and the design-system chart ramp.
+- [ ] **Step 1:** Fill the three arrays. `toast` demo uses `useToast`/`Toaster` (render a local `<Toaster />` + a trigger Button). `chart` demo uses `@wellsfargo-starui/ui` chart primitives with a tiny recharts series and the design-system chart ramp.
 - [ ] **Step 2: Typecheck** → clean.
 - [ ] **Step 3: Run completeness test (now fully green)**
 
@@ -877,7 +877,7 @@ Expected: all 3 `it` PASS — `missing` is `[]`. If any id is still missing, add
 - Modify: `src/App.tsx` (swap the `design-system` placeholder for `<DesignSystemTab />`)
 
 **Interfaces:**
-- Consumes: the four sections (Task 8), `entriesByCategory`/`SHOWCASE_CATEGORIES`/`ComponentDemo` (Tasks 7–11), `@starui/ui` (`ScrollArea`, `Separator`).
+- Consumes: the four sections (Task 8), `entriesByCategory`/`SHOWCASE_CATEGORIES`/`ComponentDemo` (Tasks 7–11), `@wellsfargo-starui/ui` (`ScrollArea`, `Separator`).
 - Produces: `DesignSystemTab` with a left sub-nav (Overview, Palette, Typography, Foundations, then each component category) and a scrollable content pane rendering the selected section / the category's `ComponentDemo`s.
 
 - [ ] **Step 1: Build `DesignSystemTab.tsx`** — left rail lists the 4 sections + 9 component categories (from `SHOWCASE_CATEGORIES`); selecting one shows the section component or maps `entriesByCategory()[cat]` to `<ComponentDemo entry={e} />`. `data-testid="ds-designsystem"`; sub-nav items `data-testid="ds-section-<id>"`. Reuse the sidebar styling idiom from markets-grid-lab's `LabSidebarNav` (tokens, active highlight) but keep it local/simple.
@@ -894,13 +894,13 @@ Expected: all 3 `it` PASS — `missing` is `[]`. If any id is still missing, add
 - Modify: `src/App.tsx` (swap the `market` placeholder)
 
 **Interfaces:**
-- Consumes: `TerminalState` (Task 2), `gridTheme`/`blotterTheme` (Task 5), `useThemeMode` (Task 5, for `data-ag-theme-mode`), `@starui/ui` (`Card`, `Sheet`/`Dialog`, `Form` parts, `Select`, `Button`, `ToggleGroup`, `ScrollArea`, `Badge`), recharts via `@starui/ui` chart, formatters (Task 2). `AgGridReact` from `ag-grid-react`, modules registered (`AllCommunityModule`/enterprise as needed).
+- Consumes: `TerminalState` (Task 2), `gridTheme`/`blotterTheme` (Task 5), `useThemeMode` (Task 5, for `data-ag-theme-mode`), `@wellsfargo-starui/ui` (`Card`, `Sheet`/`Dialog`, `Form` parts, `Select`, `Button`, `ToggleGroup`, `ScrollArea`, `Badge`), recharts via `@wellsfargo-starui/ui` chart, formatters (Task 2). `AgGridReact` from `ag-grid-react`, modules registered (`AllCommunityModule`/enterprise as needed).
 - Produces: the five panels + `MarketTab({ state })`.
 
 - [ ] **Step 1: `BondBlotter.tsx`** — `AgGridReact` with `theme={blotterTheme}`, a wrapper `div` setting `data-ag-theme-mode={mode}`, columns for cusip/ticker/coupon/maturity/bid/mid/ask/ytm/oas/changePct with token-aware cell styling (positive/negative via `--ds-accent-*`), `getRowId` by `id`, `rowData` from `state`. Register ag-grid modules once.
 - [ ] **Step 2: `Watchlist.tsx`** — compact list/`Card` of instruments with live mid + direction arrow + `fmtSignedPct`, color via tokens.
 - [ ] **Step 3: `OrderBook.tsx`** — a depth ladder derived from a selected instrument's bid/ask (synthesize ±levels), bid/ask fills via `--ds-trade-bidFill/askFill`.
-- [ ] **Step 4: `PriceChart.tsx`** — recharts line of `state.history[id]` via the `@starui/ui` chart wrapper + chart ramp token.
+- [ ] **Step 4: `PriceChart.tsx`** — recharts line of `state.history[id]` via the `@wellsfargo-starui/ui` chart wrapper + chart ramp token.
 - [ ] **Step 5: `TradeTicket.tsx`** — a `Sheet` (or `Dialog`) containing a `Form` (react-hook-form): side `ToggleGroup` (buy/sell), qty `Input`, price `Input`, settlement `Select`; submit logs to console + closes. No real order mutation required.
 - [ ] **Step 6: `MarketTab.tsx`** — compose the five panels in a `react-resizable-panels` layout; pass `state`.
 - [ ] **Step 7: Wire into `App.tsx`**, typecheck + build → clean.
@@ -915,11 +915,11 @@ Expected: all 3 `it` PASS — `missing` is `[]`. If any id is still missing, add
 - Modify: `src/App.tsx`
 
 **Interfaces:**
-- Consumes: `TerminalState`, `gridTheme`, `@starui/ui` (`Form` parts, `Input`, `Select`, `Button`, `ToggleGroup`, `Badge`, `Card`), formatters.
+- Consumes: `TerminalState`, `gridTheme`, `@wellsfargo-starui/ui` (`Form` parts, `Input`, `Select`, `Button`, `ToggleGroup`, `Badge`, `Card`), formatters.
 - Produces: the three panels + `OrdersTab({ state })`.
 
 - [ ] **Step 1: `OrdersBlotter.tsx`** — `AgGridReact` (`theme={gridTheme}`, `data-ag-theme-mode`) over `state.orders`, status as a token-colored `Badge` cell (working/filled/cancelled).
-- [ ] **Step 2: `OrderEntryForm.tsx`** — react-hook-form via `@starui/ui` `Form` (instrument `Select`, side `ToggleGroup`, qty/price `Input`s), client validation (required, qty>0), submit shows a toast.
+- [ ] **Step 2: `OrderEntryForm.tsx`** — react-hook-form via `@wellsfargo-starui/ui` `Form` (instrument `Select`, side `ToggleGroup`, qty/price `Input`s), client validation (required, qty>0), submit shows a toast.
 - [ ] **Step 3: `RfqSimulator.tsx`** — a light panel: pick instrument + size, click "Request quote", show 2–3 simulated dealer quotes (derived from mid ± spread) in a `Card`/table.
 - [ ] **Step 4: `OrdersTab.tsx`** — compose in a resizable layout.
 - [ ] **Step 5: Wire into `App.tsx`**, typecheck + build → clean.
@@ -934,10 +934,10 @@ Expected: all 3 `it` PASS — `missing` is `[]`. If any id is still missing, add
 - Modify: `src/App.tsx`
 
 **Interfaces:**
-- Consumes: `TerminalState`, `@starui/ui` (chart, `Card`, `Progress`, `Table` parts, `Badge`), recharts, formatters.
+- Consumes: `TerminalState`, `@wellsfargo-starui/ui` (chart, `Card`, `Progress`, `Table` parts, `Badge`), recharts, formatters.
 - Produces: the three panels + `AnalyticsTab({ state })`, `RiskTab({ state })`.
 
-- [ ] **Step 1: `YieldCurveChart.tsx`** — recharts line/area over `state.curve` via the `@starui/ui` chart wrapper + chart ramp.
+- [ ] **Step 1: `YieldCurveChart.tsx`** — recharts line/area over `state.curve` via the `@wellsfargo-starui/ui` chart wrapper + chart ramp.
 - [ ] **Step 2: `AnalyticsCards.tsx`** — KPI `Card`s (avg yield, total DV01, best/worst mover) computed from `state`.
 - [ ] **Step 3: `RiskPanels.tsx`** — exposure-by-sector table with token heat coloring, `Progress` bars for limit utilization, a VaR-style KPI card.
 - [ ] **Step 4: `AnalyticsTab.tsx` / `RiskTab.tsx`** — compose panels.
@@ -953,7 +953,7 @@ Expected: all 3 `it` PASS — `missing` is `[]`. If any id is still missing, add
 - Modify: `src/App.tsx`
 
 **Interfaces:**
-- Consumes: `@starui/ui` (`Card`, `Accordion`, `HoverCard`, `Tabs`, `Separator`, `Badge`, `ScrollArea`).
+- Consumes: `@wellsfargo-starui/ui` (`Card`, `Accordion`, `HoverCard`, `Tabs`, `Separator`, `Badge`, `ScrollArea`).
 - Produces: `ResearchTab` + `ResearchPanels`.
 
 - [ ] **Step 1: `ResearchPanels.tsx` / `ResearchTab.tsx`** — a document-style screen: research note `Card`s, an `Accordion` of credit themes, `HoverCard`s on tickers, nested `Tabs` (Summary/Details). Static content is fine (no ticking needed). Tokens only.
@@ -1008,13 +1008,13 @@ test.describe('design-system demo', () => {
 Run: `npx playwright test e2e/design-system-demo.spec.ts --project=chromium`
 Expected: 3 passed. (First run boots the dev server on :5310; allow ~1–2 min.) If a selector differs, adjust the test (not the assertions' intent) until green.
 
-- [ ] **Step 3: Update `docs/current-features.md`** — add an apps-table row for `design-system` and a sub-section (after the table, like the markets-grid-lab sub-section) describing: FI terminal (Market/Orders/Analytics/Risk/Research) styled by `@starui/design-system`, AG Grid via `staruiGridTheme`, recharts charts, and the Design System reference tab (palette/typography/foundations + full `@starui/ui` gallery).
+- [ ] **Step 3: Update `docs/current-features.md`** — add an apps-table row for `design-system` and a sub-section (after the table, like the markets-grid-lab sub-section) describing: FI terminal (Market/Orders/Analytics/Risk/Research) styled by `@wellsfargo-starui/design-system`, AG Grid via `staruiGridTheme`, recharts charts, and the Design System reference tab (palette/typography/foundations + full `@wellsfargo-starui/ui` gallery).
 
 - [ ] **Step 4: Full verification**
 
 Run: `npx vitest run apps/demos/design-system/src/` → all pass (applyTick + registry completeness green).
 Run: `npx tsc --noEmit -p apps/demos/design-system/tsconfig.json` → clean.
-Run: `npm --prefix apps run build -w @starui/design-system-demo` → builds.
+Run: `npm --prefix apps run build -w @wellsfargo-starui/design-system-demo` → builds.
 
 - [ ] **Step 5: Commit**
 
@@ -1043,4 +1043,4 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 **Type consistency:** `TerminalState`/`Quote`/`Order`/`Position` defined in Task 2 and consumed unchanged in Tasks 3–4, 13–16. `applyTick(state, rng)` signature matches its test (Task 3) and hook use (Task 4). `ShowcaseEntry`/`ShowcaseCategory`/`SHOWCASE_ENTRIES`/`entriesByCategory` defined in Task 7 and consumed in Tasks 8–12. `useThemeMode()` `{ mode, toggle }` defined in Task 5 and used by grids (Tasks 13–15) and ThemeToggle. Tab testids (`ds-tab-<id>`, `ds-section-<id>`, `ds-demo-<id>`, `ds-topbar`, `ds-designsystem`, `theme-toggle`) defined in Tasks 6/12/7/5 and asserted in Task 17.
 
-**Risk note for the implementer:** (1) Confirm exact `@starui/ui` export names by reading each component file before writing its gallery entry. (2) Verify each palette `varName` exists in the emitted theme CSS (swatches must render a real color). (3) The e2e grid selector `.ag-root-wrapper` and the `data-ag-theme-mode` wiring are the likeliest first-run snags — confirm against a built run.
+**Risk note for the implementer:** (1) Confirm exact `@wellsfargo-starui/ui` export names by reading each component file before writing its gallery entry. (2) Verify each palette `varName` exists in the emitted theme CSS (swatches must render a real color). (3) The e2e grid selector `.ag-root-wrapper` and the `data-ag-theme-mode` wiring are the likeliest first-run snags — confirm against a built run.

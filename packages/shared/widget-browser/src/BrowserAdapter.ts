@@ -1,4 +1,4 @@
-import type { PlatformAdapter, ParentIdentity } from '@starui/widget';
+import type { PlatformAdapter, ParentIdentity } from '@wellsfargo-starui/widget';
 
 /**
  * BrowserAdapter — default PlatformAdapter for running widgets in a standard browser.

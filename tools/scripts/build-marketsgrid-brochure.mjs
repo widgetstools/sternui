@@ -416,7 +416,7 @@ const html = /* html */ `<!doctype html>
   <div class="who">
     <strong>Built for:</strong> fixed-income, equity, FX, and credit desks running OpenFin, Workspace, or
     plain-browser deployments. Drop-in for AG-Grid Enterprise customers; pairs with
-    <code>@starui/config-service</code> for multi-app, multi-tenant config governance.
+    <code>@wellsfargo-starui/config-service</code> for multi-app, multi-tenant config governance.
   </div>
 </section>
 
@@ -436,7 +436,7 @@ const html = /* html */ `<!doctype html>
   <div class="colophon">
     <strong>About this document.</strong> Compiled directly from the MarketsGrid source tree.
     Sections are kept in lockstep with <code>MarketsGrid.DEFAULT_MODULES</code>, the
-    cockpit settings primitives, and the public exports of <code>@starui/core</code>.
+    cockpit settings primitives, and the public exports of <code>@wellsfargo-starui/core</code>.
     For the canonical, machine-readable source see
     <code>docs/2026-05-07/architecture-and-design/MARKETS_GRID_FEATURES.md</code>
     in the MarketsUI platform repository.

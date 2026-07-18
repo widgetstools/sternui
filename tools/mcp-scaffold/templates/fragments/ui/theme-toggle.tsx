@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import { applyTheme, getTheme } from '@starui/design-system';
-import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@starui/ui';
+import { applyTheme, getTheme } from '@wellsfargo-starui/design-system';
+import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@wellsfargo-starui/ui';
 import { Sun, Moon } from 'lucide-react';
 
 /** Theme toggle — shadcn Button + design-system applyTheme. */

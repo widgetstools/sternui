@@ -4,7 +4,7 @@
  * kept in sync with `data-theme` via `applyTheme()` from the design system.
  */
 
-import { staruiGridTheme } from '@starui/design-system/adapters/ag-grid';
+import { staruiGridTheme } from '@wellsfargo-starui/design-system/adapters/ag-grid';
 import type { Theme } from 'ag-grid-community';
 
 export function useGridTheme(): Theme {

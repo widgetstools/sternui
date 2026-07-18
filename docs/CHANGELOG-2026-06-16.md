@@ -27,7 +27,7 @@ For work through 2026-06-15 see [`CHANGELOG-2026-06-15.md`](./CHANGELOG-2026-06-
 
 ### Build & tooling (`6e71b3de`, `3c4be91d`, `f1713025`)
 
-- Apps consume `@starui/*` from **source** (Vite aliases + workspace symlinks); tarball `file:` deps removed from the apps workspace.
+- Apps consume `@wellsfargo-starui/*` from **source** (Vite aliases + workspace symlinks); tarball `file:` deps removed from the apps workspace.
 - Angular buckets excluded from the consumer build/typecheck/test pipeline.
 - `propagate.mjs` runs standalone; dependency ranges stabilized.
 - `stockflux` demo removed.

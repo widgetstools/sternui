@@ -24,17 +24,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, GridApi } from 'ag-grid-community';
-import { MarketsGrid, useGeneralSettingsSnapshot, resolveUseSsrm } from '@starui/grid';
-import { isHistoricalToolbarDate } from '@starui/grid/customizer';
-import type { MarketsGridProps, MarketsGridHandle, StorageAdapterFactory, ProviderGridHostApi, GridEventBindingsHostApi, MarketsGridEventHandlerRegistry, MarketsGridHandlerMeta } from '@starui/grid';
+import { MarketsGrid, useGeneralSettingsSnapshot, resolveUseSsrm } from '@wellsfargo-starui/grid';
+import { isHistoricalToolbarDate } from '@wellsfargo-starui/grid/customizer';
+import type { MarketsGridProps, MarketsGridHandle, StorageAdapterFactory, ProviderGridHostApi, GridEventBindingsHostApi, MarketsGridEventHandlerRegistry, MarketsGridHandlerMeta } from '@wellsfargo-starui/grid';
 import {
   MARKETS_GRID_EVENT_CATALOG,
   createMarketsGridContainerEventBus,
   useMarketsGridEventBridge,
-} from '@starui/grid';
-import type { StompProviderConfig } from '@starui/types';
-import { traceStompProviderCfg } from '@starui/host-data/runtime';
-import type { AppDataLookup, StorageAdapter } from '@starui/engine';
+} from '@wellsfargo-starui/grid';
+import type { StompProviderConfig } from '@wellsfargo-starui/types';
+import { traceStompProviderCfg } from '@wellsfargo-starui/host-data/runtime';
+import type { AppDataLookup, StorageAdapter } from '@wellsfargo-starui/engine';
 import {
   useDataProviderConfig,
   useResolvedCfg,
@@ -42,15 +42,15 @@ import {
   useAppDataStore,
   useDataProvider,
   useDataServices,
-} from '@starui/host-data-react/runtime';
+} from '@wellsfargo-starui/host-data-react/runtime';
 import { buildColumnDefs } from './buildColumnDefs.js';
 import { useProviderDataWiring } from './useProviderDataWiring.js';
 import { useGridLevelPersistence } from './useGridLevelPersistence.js';
-import { LOGGED_IN_USER_ID } from '@starui/types';
+import { LOGGED_IN_USER_ID } from '@wellsfargo-starui/types';
 import {
   createConfigBrowserAction,
-} from '@starui/config-browser';
-import type { AdminAction } from '@starui/grid';
+} from '@wellsfargo-starui/config-browser';
+import type { AdminAction } from '@wellsfargo-starui/grid';
 import { ConfigBrowserDialog } from './ConfigBrowserDialog.js';
 import { ProviderEditorDialog } from './ProviderEditorDialog.js';
 import { MarketsGridLoadingOverlay } from './LoadingOverlay.js';
@@ -416,7 +416,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   // `keyColumn` may be a single column name OR an array of column
   // names (composite key — values joined with `-`, see
-  // `composeRowId` in @starui/shared-types). We pass the raw shape
+  // `composeRowId` in @wellsfargo-starui/shared-types). We pass the raw shape
   // through to MarketsGrid + use it for the live-update add/update
   // dispatch below so the cache key matches AG-Grid's getRowId
   // byte-for-byte.

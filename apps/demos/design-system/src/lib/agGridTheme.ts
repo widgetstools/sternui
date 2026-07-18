@@ -1,4 +1,4 @@
-import { staruiGridTheme, agGridBlotterDarkTheme } from '@starui/design-system/adapters/ag-grid';
+import { staruiGridTheme, agGridBlotterDarkTheme } from '@wellsfargo-starui/design-system/adapters/ag-grid';
 
 /** Standard density grid theme (token-driven, switches via data-ag-theme-mode). */
 export const gridTheme = staruiGridTheme;

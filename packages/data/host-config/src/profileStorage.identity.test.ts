@@ -32,7 +32,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createConfigServiceStorage } from './profileBundle';
 import type { AppConfigRow } from './types';
 import type { ConfigManager } from './ConfigManager';
-import type { ProfileSnapshot } from '@starui/engine';
+import type { ProfileSnapshot } from '@wellsfargo-starui/engine';
 
 // ─── In-memory ConfigManager fake ───────────────────────────────────
 
@@ -217,7 +217,7 @@ describe('createConfigServiceStorage — back-compat (NO identity supplied)', ()
 // ─── Pre-cloned instance reads (launcher does the clone) ────────────
 //
 // Template-to-instance cloning now happens at LAUNCH time (in
-// `createComponentInstance` in @starui/openfin-platform), BEFORE
+// `createComponentInstance` in @wellsfargo-starui/openfin-platform), BEFORE
 // the view opens. The storage adapter's job is just "read by id";
 // it no longer has a seed-from-template branch, no race recovery,
 // and no special handling for missing rows.

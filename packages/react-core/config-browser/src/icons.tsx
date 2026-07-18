@@ -1,5 +1,5 @@
 /**
- * Lucide-backed DynamicIcon for config-browser (replaces @starui/icons-svg).
+ * Lucide-backed DynamicIcon for config-browser (replaces @wellsfargo-starui/icons-svg).
  */
 import type { CSSProperties } from 'react';
 import type { LucideIcon } from 'lucide-react';

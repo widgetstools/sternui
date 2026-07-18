@@ -1,6 +1,6 @@
 # {{appName}}
 
-StarUI external-consumer app scaffolded by `@starui/mcp-scaffold`.
+StarUI external-consumer app scaffolded by `@wellsfargo-starui/mcp-scaffold`.
 
 ## Prerequisites
 
@@ -18,10 +18,10 @@ Dev server: http://localhost:{{port}}
 
 ## Design system & AG Grid theme
 
-- `@import '@starui/design-system/css'` and `@import '@starui/grid/styles.css'` in `src/globals.css`
+- `@import '@wellsfargo-starui/design-system/css'` and `@import '@wellsfargo-starui/grid/styles.css'` in `src/globals.css`
 - Boot: `applyTheme(getTheme())` in `src/main.tsx` sets `[data-theme]` on `<html>`
-- MarketsGrid resolves AG Grid theme via `useGridTheme()` → `@starui/design-system/adapters/ag-grid` (`agGridDarkTheme` / `agGridLightTheme`)
-- App chrome uses **shadcn primitives from `@starui/ui` only** — no native form elements
+- MarketsGrid resolves AG Grid theme via `useGridTheme()` → `@wellsfargo-starui/design-system/adapters/ag-grid` (`agGridDarkTheme` / `agGridLightTheme`)
+- App chrome uses **shadcn primitives from `@wellsfargo-starui/ui` only** — no native form elements
 
 ## StarUI packages
 

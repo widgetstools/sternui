@@ -1,5 +1,5 @@
 {
-  "name": "@starui/widget",
+  "name": "@wellsfargo-starui/widget",
   "version": "0.1.0",
   "private": true,
   "description": "Framework-agnostic widget contract — PlatformAdapter, widget context types, layout helpers",
@@ -19,8 +19,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@starui/host-config": "*",
-    "@starui/shared-types": "*"
+    "@wellsfargo-starui/host-config": "*",
+    "@wellsfargo-starui/shared-types": "*"
   },
   "devDependencies": {
     "rimraf": "^6.0.1",

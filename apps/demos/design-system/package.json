@@ -1,5 +1,5 @@
 {
-  "name": "@starui/design-system-demo",
+  "name": "@wellsfargo-starui/design-system-demo",
   "private": true,
   "type": "module",
   "scripts": {

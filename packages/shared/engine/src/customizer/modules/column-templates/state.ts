@@ -25,7 +25,7 @@ import type {
   ColumnDataType,
   ThemedCellStyleOverrides,
   ValueFormatterTemplate,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import type {
   ColumnCellEditorConfig,
   ColumnFilterConfig,
@@ -92,4 +92,4 @@ export const INITIAL_COLUMN_TEMPLATES: ColumnTemplatesState = Object.freeze({
   typeDefaults: Object.freeze({}) as Partial<Record<ColumnDataType, string>>,
 }) as ColumnTemplatesState;
 
-export type { ColumnDataType } from '@starui/engine';
+export type { ColumnDataType } from '@wellsfargo-starui/engine';

@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 // ─────────────────────────────────────────────────────────────
 //  Fails when JSX/TSX under apps/ uses native <select>.
-//  React apps must use @starui/ui (shadcn/Radix) Select instead — see
+//  React apps must use @wellsfargo-starui/ui (shadcn/Radix) Select instead — see
 //  CLAUDE.md UI stack rules.
 // ─────────────────────────────────────────────────────────────
 
@@ -42,7 +42,7 @@ function main(): void {
     lines.forEach((line, i) => {
       if (!NATIVE_SELECT_RE.test(line)) return;
       failed = true;
-      console.error(`${relative(ROOT, file)}:${i + 1}  native <select> — use Select / SelectTrigger / SelectContent / SelectItem from @starui/ui`);
+      console.error(`${relative(ROOT, file)}:${i + 1}  native <select> — use Select / SelectTrigger / SelectContent / SelectItem from @wellsfargo-starui/ui`);
     });
   }
 

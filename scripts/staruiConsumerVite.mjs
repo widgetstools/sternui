@@ -1,5 +1,5 @@
 /**
- * Shared Vite partial config for apps consuming @starui/* packages.
+ * Shared Vite partial config for apps consuming @wellsfargo-starui/* packages.
  */
 import {
   staruiViteAliases,
@@ -45,7 +45,7 @@ export function staruiConsumerViteConfig(appDir, opts = {}) {
     },
     ...(opts.worker ? { worker: { format: 'es' } } : {}),
     build: {
-      // monaco-editor (via @starui/grid's ExpressionEditor) is irreducibly
+      // monaco-editor (via @wellsfargo-starui/grid's ExpressionEditor) is irreducibly
       // large (~3.8MB editor + multi-MB language workers). Keep the limit
       // above it so the known-large monaco chunk doesn't emit a noisy
       // warning, while genuinely oversized *app* chunks still surface.

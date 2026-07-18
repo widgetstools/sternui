@@ -1,14 +1,14 @@
-# `@starui/ssrm-grid`
+# `@wellsfargo-starui/ssrm-grid`
 
 CustomSSRMGrid — AG Grid Server-Side Row Model over a main-thread RowMirror
 engine. Part of the StarUI framework (`packages/react-grid/ssrm-grid`).
 
-**Consumed as source** (same pattern as `@starui/grid`): no build emit;
+**Consumed as source** (same pattern as `@wellsfargo-starui/grid`): no build emit;
 importers resolve TypeScript from `src/`.
 
 ## MarketsGrid
 
-`@starui/grid` mounts this package when `useSSRM` is true. There is **no**
+`@wellsfargo-starui/grid` mounts this package when `useSSRM` is true. There is **no**
 Perspective / `SSRMGrid` integration on MarketsGrid.
 
 ## Peers

@@ -7,7 +7,7 @@
 
 import { type ReactElement } from 'react';
 import { Search } from 'lucide-react';
-import { Input, ScrollArea, cn } from '@starui/ui';
+import { Input, ScrollArea, cn } from '@wellsfargo-starui/ui';
 import {
   DndContext,
   KeyboardSensor,

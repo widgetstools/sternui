@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { cn } from '@starui/ui';
+import { cn } from '@wellsfargo-starui/ui';
 
 /**
  * Canonical "label + control" row used by every editor panel in the

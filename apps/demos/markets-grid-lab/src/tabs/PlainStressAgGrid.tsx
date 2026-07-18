@@ -7,7 +7,7 @@ import {
   type GridReadyEvent,
 } from 'ag-grid-community';
 import { AllEnterpriseModule } from 'ag-grid-enterprise';
-import type { MarketsGridHandle } from '@starui/grid';
+import type { MarketsGridHandle } from '@wellsfargo-starui/grid';
 import type { LabRow } from '../data/types';
 
 ModuleRegistry.registerModules([AllEnterpriseModule]);

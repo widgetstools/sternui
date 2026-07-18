@@ -12,7 +12,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import { HelpSheet } from './HelpSheet';
 
 export interface TabVariant {

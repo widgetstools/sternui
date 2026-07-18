@@ -1,5 +1,5 @@
 /**
- * @starui/host-openfin — `RuntimePort` implementation that wraps
+ * @wellsfargo-starui/host-openfin — `RuntimePort` implementation that wraps
  * `fin.*`. See ARCHITECTURE.md "Seam #1 — RuntimePort" and the
  * `OpenFinRuntime` docstring.
  */

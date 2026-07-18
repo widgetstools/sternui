@@ -4,7 +4,7 @@
  *
  * One tarball per top-level folder under packages/ (e.g. react-core, shared,
  * design-system). Each bundle contains every workspace package in that bucket
- * and installs as `@starui/<bucket>` (see packages/angular-core/README.md).
+ * and installs as `@wellsfargo-starui/<bucket>` (see packages/angular-core/README.md).
  *
  * Layout
  * ------
@@ -22,8 +22,8 @@
  *   npm run propagate                       # pack ALL buckets (rebuilds members)
  *   npm run build:consumer                  # turbo build:packages then propagate --no-build
  *   npm run propagate -- react-core           # one bucket (folder name)
- *   npm run propagate -- grid                 # bucket containing @starui/grid
- *   npm run propagate -- @starui/react-core
+ *   npm run propagate -- grid                 # bucket containing @wellsfargo-starui/grid
+ *   npm run propagate -- @wellsfargo-starui/react-core
  *   npm run propagate -- --dry-run
  *   npm run propagate -- --gc                 # remove orphaned tarballs
  *   npm run propagate -- --no-install --no-build
@@ -128,7 +128,7 @@ function readMemberPackage(memberDir) {
 // Angular is excluded from the build pipeline — skip Angular buckets entirely
 // and the lone Angular member that lives inside the (otherwise shared) data bucket.
 const ANGULAR_BUCKETS = new Set(['angular-ui', 'angular-grid', 'angular-core']);
-const ANGULAR_MEMBERS = new Set(['@starui/host-data-angular']);
+const ANGULAR_MEMBERS = new Set(['@wellsfargo-starui/host-data-angular']);
 
 function discoverBuckets() {
   const buckets = [];
@@ -154,7 +154,7 @@ function discoverBuckets() {
     );
     buckets.push({
       bucket: entry.name,
-      name: `@starui/${entry.name}`,
+      name: `@wellsfargo-starui/${entry.name}`,
       version: bucketVersion,
       dir: bucketDir,
       members,
@@ -269,7 +269,7 @@ function writeBucketPackageJson(stageDir, bucket) {
     private: true,
     type: 'module',
     description:
-      `@starui/${bucket.bucket} architecture bucket — bundled tarball containing: `
+      `@wellsfargo-starui/${bucket.bucket} architecture bucket — bundled tarball containing: `
       + `${memberNames.join(', ')}`,
     exports: buildBucketExports(bucket),
   };
@@ -741,7 +741,7 @@ function main() {
 
   writeManifest(manifest);
 
-  // Apps build from source (Vite aliases @starui/* → packages/) and no longer
+  // Apps build from source (Vite aliases @wellsfargo-starui/* → packages/) and no longer
   // depend on libs/*.tgz, so propagate neither rewrites nor installs app deps.
   // The tarballs + manifest exist for external (Artifactory) consumers only.
 

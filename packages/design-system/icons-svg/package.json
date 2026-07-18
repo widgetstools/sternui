@@ -1,5 +1,5 @@
 {
-  "name": "@starui/icons-svg",
+  "name": "@wellsfargo-starui/icons-svg",
   "version": "1.0.0",
   "private": true,
   "description": "Framework-agnostic SVG icons for capital markets apps. Includes React and Angular bindings.",

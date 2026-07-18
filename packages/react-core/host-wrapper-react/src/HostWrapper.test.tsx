@@ -9,9 +9,9 @@ import type {
   SurfaceSpec,
   Theme,
   Unsubscribe,
-} from '@starui/types';
-import type { RuntimePort } from '@starui/host';
-import type { ConfigManager } from '@starui/host-config';
+} from '@wellsfargo-starui/types';
+import type { RuntimePort } from '@wellsfargo-starui/host';
+import type { ConfigManager } from '@wellsfargo-starui/host-config';
 import { HostWrapper, useHost } from './index.js';
 
 class FakeRuntime implements RuntimePort {

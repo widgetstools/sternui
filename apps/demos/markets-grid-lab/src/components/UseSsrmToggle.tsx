@@ -1,4 +1,4 @@
-import { Checkbox, Label } from '@starui/ui';
+import { Checkbox, Label } from '@wellsfargo-starui/ui';
 import { useLabDemoRegistry } from '../demo/LabDemoContext';
 
 export function UseSsrmToggle() {

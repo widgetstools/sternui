@@ -1,4 +1,4 @@
-import type { DataProviderConfig, StompProviderConfig } from '@starui/types';
+import type { DataProviderConfig, StompProviderConfig } from '@wellsfargo-starui/types';
 
 const CLIENT_TAG = 'TRADER001';
 

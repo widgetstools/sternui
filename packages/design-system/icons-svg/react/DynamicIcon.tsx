@@ -9,7 +9,7 @@
  * from the Iconify CDN so unknown icons still render.
  *
  * Usage:
- *   import { DynamicIcon } from '@starui/icons-svg/react';
+ *   import { DynamicIcon } from '@wellsfargo-starui/icons-svg/react';
  *   <DynamicIcon icon="lucide:file-text" style={{ width: 14, height: 14 }} />
  */
 
@@ -214,7 +214,7 @@ export function DynamicIcon({ icon, style, className }: DynamicIconProps) {
   if (!prefix || !name) return null;
 
   // 2. Custom market icons (mkt:bond, mkt:trade-blotter, etc.)
-  //    Render as inline SVG from @starui/icons-svg strings
+  //    Render as inline SVG from @wellsfargo-starui/icons-svg strings
   if (prefix === 'mkt') {
     const svgStr = MARKET_ICON_SVGS[name];
     if (svgStr) {

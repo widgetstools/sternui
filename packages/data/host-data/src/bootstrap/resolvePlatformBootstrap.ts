@@ -1,4 +1,4 @@
-import { resolveActiveIdentityFromSeedUrl } from '@starui/host-config';
+import { resolveActiveIdentityFromSeedUrl } from '@wellsfargo-starui/host-config';
 import {
   validatePlatformBootstrapConfig,
   type AppDataBootstrapManifest,

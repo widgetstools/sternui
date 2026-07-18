@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { applyTheme, getTheme } from "@starui/design-system";
-import { subscribeThemeBroadcast } from "@starui/host-openfin";
+import { applyTheme, getTheme } from "@wellsfargo-starui/design-system";
+import { subscribeThemeBroadcast } from "@wellsfargo-starui/host-openfin";
 
 /**
  * Keep a non-grid tool window in sync with the dock theme toggle.

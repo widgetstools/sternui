@@ -12,8 +12,8 @@
  */
 
 import { useState } from "react";
-import { Button, RadioGroup, RadioGroupItem } from "@starui/ui";
-import { DynamicIcon as Icon } from "@starui/config-browser/icons";
+import { Button, RadioGroup, RadioGroupItem } from "@wellsfargo-starui/ui";
+import { DynamicIcon as Icon } from "@wellsfargo-starui/config-browser/icons";
 import type { ImportPreview, ImportMode } from "../hooks/useConfigBrowser";
 
 interface ImportPreviewDialogProps {

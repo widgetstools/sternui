@@ -1,5 +1,5 @@
 import type { WidgetProps } from '@widgetstools/react-dock-manager';
-import { Badge, ScrollArea } from '@starui/ui';
+import { Badge, ScrollArea } from '@wellsfargo-starui/ui';
 import { useMemo } from 'react';
 import { buildDepth } from '../data/depth';
 import type { Level, MidRow } from '../data/depth';

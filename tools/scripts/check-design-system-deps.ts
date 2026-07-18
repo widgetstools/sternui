@@ -1,8 +1,8 @@
 #!/usr/bin/env tsx
 // ─────────────────────────────────────────────────────────────
 //  check-design-system-deps — workspace packages that reference
-//  unified tokens (`--ds-*`) or import `@starui/design-system/*`
-//  must declare `@starui/design-system` in dependencies,
+//  unified tokens (`--ds-*`) or import `@wellsfargo-starui/design-system/*`
+//  must declare `@wellsfargo-starui/design-system` in dependencies,
 //  peerDependencies, or devDependencies so consumers resolve one
 //  coherent theme graph (npm sees the contract).
 //
@@ -17,7 +17,7 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(SCRIPT_DIR, '..', '..');
 
 const SKIP_PKG_NAMES = new Set([
-  '@starui/design-system',
+  '@wellsfargo-starui/design-system',
 ]);
 
 const SKIP_DIRS = new Set([
@@ -29,8 +29,8 @@ const SKIP_DIRS = new Set([
 ]);
 
 const DS_TOKEN_RE = /--ds-/;
-const DS_IMPORT_RE = /from\s+['"]@starui\/design-system(?:\/|['"])/;
-const DS_DEP_KEY = '@starui/design-system';
+const DS_IMPORT_RE = /from\s+['"]@wellsfargo-starui\/design-system(?:\/|['"])/;
+const DS_DEP_KEY = '@wellsfargo-starui/design-system';
 
 function walkDirs(dir: string, depth: number, maxDepth: number): string[] {
   const dirs: string[] = [];
@@ -154,7 +154,7 @@ function main(): void {
 
     if (!hasDsDep(pkgJson)) {
       errors.push(
-        `${name}: references --ds-* or imports @starui/design-system but package.json lacks "${DS_DEP_KEY}" in dependencies / peerDependencies / devDependencies (${relative(ROOT, pkgDir)})`,
+        `${name}: references --ds-* or imports @wellsfargo-starui/design-system but package.json lacks "${DS_DEP_KEY}" in dependencies / peerDependencies / devDependencies (${relative(ROOT, pkgDir)})`,
       );
     }
   }

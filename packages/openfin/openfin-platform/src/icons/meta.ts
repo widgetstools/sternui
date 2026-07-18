@@ -1,4 +1,4 @@
-/** Icon metadata for dock/registry editors — ported from @starui/icons-svg index. */
+/** Icon metadata for dock/registry editors — ported from @wellsfargo-starui/icons-svg index. */
 
 export type IconCategory = 'trading' | 'blotters' | 'charts' | 'risk' | 'general' | 'system';
 

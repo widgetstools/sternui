@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import type { ConfigPort, DataPort, RuntimePort } from '@starui/host';
-import type { ConfigManager } from '@starui/host-config';
-import type { StorageAdapterFactory } from '@starui/engine';
-import type { Theme, Unsubscribe } from '@starui/types';
+import type { ConfigPort, DataPort, RuntimePort } from '@wellsfargo-starui/host';
+import type { ConfigManager } from '@wellsfargo-starui/host-config';
+import type { StorageAdapterFactory } from '@wellsfargo-starui/engine';
+import type { Theme, Unsubscribe } from '@wellsfargo-starui/types';
 
 /** Scope passed when resolving per-grid host storage. */
 export interface StarGridHostScope {
@@ -24,7 +24,7 @@ export interface StarGridAppState {
   setTheme(theme: Theme): void;
   onThemeChanged(fn: (theme: Theme) => void): Unsubscribe;
   /** Build a GridHostContext scoped to one grid instance. */
-  hostForGrid(scope: StarGridHostScope): import('@starui/host').GridHostContext;
+  hostForGrid(scope: StarGridHostScope): import('@wellsfargo-starui/host').GridHostContext;
 }
 
 export type StarGridPersistence = 'memory' | 'localStorage' | 'config';

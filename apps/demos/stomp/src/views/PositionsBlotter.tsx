@@ -1,4 +1,4 @@
-import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
+import { HostedMarketsGrid } from '@wellsfargo-starui/widgets-react/hosted';
 import { getPlatform } from '../platformBootstrap';
 
 export function PositionsBlotter() {

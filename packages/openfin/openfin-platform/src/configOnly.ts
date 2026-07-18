@@ -1,5 +1,5 @@
 /**
- * Side-effect-free config entry point for @starui/openfin-platform.
+ * Side-effect-free config entry point for @wellsfargo-starui/openfin-platform.
  *
  * Why this file exists:
  *   @openfin/workspace-platform performs module-top-level work that
@@ -13,14 +13,14 @@
  *   and `dock.ts`, which top-level-import workspace-platform. Tree-
  *   shaking can eliminate unused named exports at build time, but
  *   Vite's dev server evaluates the full module graph — so anyone who
- *   does `import { setConfigManager } from '@starui/openfin-platform'`
+ *   does `import { setConfigManager } from '@wellsfargo-starui/openfin-platform'`
  *   in a non-OpenFin dev environment triggers the crash.
  *
  *   This file re-exports ONLY the items that don't drag in workspace-
  *   platform: the ConfigManager singleton accessor, the host-env
  *   reader, the registry schema utilities. Consumers whose code runs
  *   outside OpenFin (the Config Browser mounted in a plain browser,
- *   the demo apps) import from `@starui/openfin-platform/config`
+ *   the demo apps) import from `@wellsfargo-starui/openfin-platform/config`
  *   instead of the main barrel.
  *
  *   The main `./index` barrel continues to re-export these same
@@ -145,4 +145,4 @@ export {
   resolvePlatformBootstrapFromCustomSettings,
   resolvePlatformBootstrapFromManifest,
 } from './platformBootstrap';
-export type { PlatformBootstrapConfig } from '@starui/host-data';
+export type { PlatformBootstrapConfig } from '@wellsfargo-starui/host-data';

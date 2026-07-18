@@ -5,7 +5,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
-      '@starui/engine': resolve(__dirname, 'src/index.ts'),
+      '@wellsfargo-starui/engine': resolve(__dirname, 'src/index.ts'),
     },
   },
   test: {

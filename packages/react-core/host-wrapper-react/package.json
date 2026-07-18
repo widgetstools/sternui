@@ -1,5 +1,5 @@
 {
-  "name": "@starui/host-wrapper-react",
+  "name": "@wellsfargo-starui/host-wrapper-react",
   "version": "0.1.0",
   "private": true,
   "description": "React HostWrapper component + HostContext + useHost hook.",
@@ -28,18 +28,18 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@starui/host": "*",
-    "@starui/openfin-platform": "*",
-    "@starui/types": "*"
+    "@wellsfargo-starui/host": "*",
+    "@wellsfargo-starui/openfin-platform": "*",
+    "@wellsfargo-starui/types": "*"
   },
   "peerDependencies": {
-    "@starui/host-config": "*",
+    "@wellsfargo-starui/host-config": "*",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },
   "devDependencies": {
     "@openfin/workspace-platform": "23.0.20",
-    "@starui/host-config": "*",
+    "@wellsfargo-starui/host-config": "*",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",

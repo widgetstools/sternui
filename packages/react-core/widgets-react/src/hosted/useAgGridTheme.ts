@@ -23,7 +23,7 @@ import { themeQuartz, type Theme } from 'ag-grid-community';
 import {
   agGridBlotterDarkParams,
   agGridBlotterLightParams,
-} from '@starui/design-system';
+} from '@wellsfargo-starui/design-system';
 
 export type AgGridThemeMode = 'auto' | 'dark' | 'light';
 

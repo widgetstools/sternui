@@ -4,7 +4,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import { Markdown } from './Markdown';
 
 export interface HelpSheetProps {

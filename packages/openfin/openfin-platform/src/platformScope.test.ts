@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { resolveDefaultPlatformScope } from './platformScope';
-import type { ConfigManager } from '@starui/host-config';
+import type { ConfigManager } from '@wellsfargo-starui/host-config';
 
 function fakeManager(over: {
   appId?: string;

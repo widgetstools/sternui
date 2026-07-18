@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { LayoutInfo } from '@starui/shared-types';
-import type { WidgetContext, WidgetConfig } from '@starui/widget';
+import type { LayoutInfo } from '@wellsfargo-starui/shared-types';
+import type { WidgetContext, WidgetConfig } from '@wellsfargo-starui/widget';
 import { useWidgetHost } from '../providers/WidgetHost.js';
 import {
   getLayouts as layoutsGet,
   saveLayout as layoutsSave,
   loadLayout as layoutsLoad,
   deleteLayout as layoutsDelete,
-} from '@starui/widget';
+} from '@wellsfargo-starui/widget';
 
 /**
  * useWidget(configId) — the main hook for all widget components.

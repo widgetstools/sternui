@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import * as Notifications from "@openfin/notifications";
-import { initWorkspace } from "@starui/openfin-platform";
+import { initWorkspace } from "@wellsfargo-starui/openfin-platform";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 
 /**
@@ -28,7 +28,7 @@ const TOOL_WINDOW_CHUNK_LOADERS: Record<string, () => Promise<unknown>> = {
   DataProviders: () => import("../views/DataProviders"),
   ConfigBrowser: () => import("../views/ConfigBrowser"),
   BlottersMarketsGrid: () => import("../views/BlottersMarketsGrid"),
-  WorkspaceSetupReact: () => import("@starui/workspace-setup-react"),
+  WorkspaceSetupReact: () => import("@wellsfargo-starui/workspace-setup-react"),
   RenameViewTab: () => import("../views/RenameViewTab"),
 };
 
@@ -104,7 +104,7 @@ function Provider() {
     })
       .then(() => {
         if (!isDev && !e2eBridge) return undefined;
-        return import("@starui/host-wrapper-react/test-bridge").then((m) => m.installTestBridge());
+        return import("@wellsfargo-starui/host-wrapper-react/test-bridge").then((m) => m.installTestBridge());
       })
       .then(() => {
         // Fire-and-forget prefetch of tool-window route chunks. Runs at

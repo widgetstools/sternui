@@ -1,4 +1,4 @@
-import { type AnyModule } from '@starui/engine';
+import { type AnyModule } from '@wellsfargo-starui/engine';
 import {
   alertsModule,
   bulkUpdateModule,
@@ -17,7 +17,7 @@ import {
   toolbarDateSettingsModule,
   toolbarVisibilityModule,
   visualExcelModule,
-} from '@starui/grid/customizer';
+} from '@wellsfargo-starui/grid/customizer';
 
 /**
  * Default module list — every shipped module, ordered the way the user's

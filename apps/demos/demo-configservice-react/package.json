@@ -1,8 +1,8 @@
 {
-  "name": "@starui/demo-configservice-react",
+  "name": "@wellsfargo-starui/demo-configservice-react",
   "private": true,
   "version": "0.1.0",
-  "description": "Integration demo: MarketsGrid + @starui/host-config storage factory — profile persistence scoped by (appId, userId, instanceId) through the ConfigService, with a user switcher that shows per-user profile isolation.",
+  "description": "Integration demo: MarketsGrid + @wellsfargo-starui/host-config storage factory — profile persistence scoped by (appId, userId, instanceId) through the ConfigService, with a user switcher that shows per-user profile isolation.",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -1,5 +1,5 @@
 {
-  "name": "@starui/demo-angular",
+  "name": "@wellsfargo-starui/demo-angular",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",

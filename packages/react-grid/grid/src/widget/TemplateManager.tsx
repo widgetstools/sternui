@@ -28,8 +28,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Pencil, Plus, RotateCw, Trash2, Check, X } from 'lucide-react';
-import { GhostIconButton, Input, ChromeButton, cn } from '@starui/grid/customizer';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@starui/ui';
+import { GhostIconButton, Input, ChromeButton, cn } from '@wellsfargo-starui/grid/customizer';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@wellsfargo-starui/ui';
 
 // Inactive-row hover tint. Co-located here (instead of marketsGrid.css)
 // so the row + its buttons stay self-contained — the row also serves

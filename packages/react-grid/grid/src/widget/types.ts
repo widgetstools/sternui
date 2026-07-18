@@ -1,11 +1,11 @@
 import type { ColDef, GridApi, SideBarDef, StatusPanelDef, Theme } from 'ag-grid-community';
-import type { AnyModule, AppDataLookup, GridPlatform, MarketsGridLocalStorageConfig, StorageAdapter, StorageAdapterFactory, StorageAdapterFactoryOpts } from '@starui/engine';
-import type { GridHostContext } from '@starui/host';
-import type { UseProfileManagerResult, VisualExcelExportOptions, ProviderGridHostApi, GridEventBindingsHostApi } from '@starui/grid/customizer';
+import type { AnyModule, AppDataLookup, GridPlatform, MarketsGridLocalStorageConfig, StorageAdapter, StorageAdapterFactory, StorageAdapterFactoryOpts } from '@wellsfargo-starui/engine';
+import type { GridHostContext } from '@wellsfargo-starui/host';
+import type { UseProfileManagerResult, VisualExcelExportOptions, ProviderGridHostApi, GridEventBindingsHostApi } from '@wellsfargo-starui/grid/customizer';
 import type { SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
 
-export type { ProviderGridHostApi, ProviderGridHostMode, GridEventBindingsHostApi } from '@starui/grid/customizer';
-export type { MarketsGridLocalStorageConfig, StorageAdapterFactory, StorageAdapterFactoryOpts } from '@starui/engine';
+export type { ProviderGridHostApi, ProviderGridHostMode, GridEventBindingsHostApi } from '@wellsfargo-starui/grid/customizer';
+export type { MarketsGridLocalStorageConfig, StorageAdapterFactory, StorageAdapterFactoryOpts } from '@wellsfargo-starui/engine';
 
 /**
  * One saved filter pinned to the toolbar. Shape is stable across
@@ -36,7 +36,7 @@ export interface MarketsGridProps<TData = unknown> {
    *  For live streaming, prefer keeping this prop referentially stable
    *  (e.g. pass a module-scoped `EMPTY` array) and push deltas via
    *  `gridApi.applyTransactionAsync` — see `applyProviderToGrid` in
-   *  `@starui/widgets-react` MarketsGridContainer for the reference pattern. */
+   *  `@wellsfargo-starui/widgets-react` MarketsGridContainer for the reference pattern. */
   rowData: TData[];
   /**
    * When true, use SSRM via CustomSSRMGrid (RowMirror).
@@ -397,7 +397,7 @@ export interface MarketsGridHandle {
   /** The hook-shaped profile manager — `{ activeProfileId, profiles,
    *  isDirty, saveActiveProfile(), loadProfile(id), cloneProfile(…),
    *  deleteProfile(…), renameProfile(…), exportProfile(), importProfile(),
-   *  … }`. This is `UseProfileManagerResult` (from @starui/engine) rather
+   *  … }`. This is `UseProfileManagerResult` (from @wellsfargo-starui/engine) rather
    *  than the raw ProfileManager class — matches how consumers already
    *  interact with profiles via the useProfileManager hook. */
   profiles: UseProfileManagerResult;

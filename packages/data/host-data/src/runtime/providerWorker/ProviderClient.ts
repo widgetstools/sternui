@@ -5,7 +5,7 @@
  * against a port scoped to a single `providerId`.
  */
 
-import type { ProviderConfig } from '@starui/types';
+import type { ProviderConfig } from '@wellsfargo-starui/types';
 import {
   SharedWorkerDataServicesClient,
   type AttachOpts,

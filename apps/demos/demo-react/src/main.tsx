@@ -1,9 +1,9 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { applyTheme, getTheme } from '@starui/design-system';
-import '@starui/design-system/css';
-import { StarGridApp } from '@starui/app';
-import { createConfigManager, migrateLegacyProfilesIfNeeded } from '@starui/host-config';
+import { applyTheme, getTheme } from '@wellsfargo-starui/design-system';
+import '@wellsfargo-starui/design-system/css';
+import { StarGridApp } from '@wellsfargo-starui/app';
+import { createConfigManager, migrateLegacyProfilesIfNeeded } from '@wellsfargo-starui/host-config';
 import { App, APP_ID, DEMO_USER_ID, GRID_ID } from './App';
 import './globals.css';
 

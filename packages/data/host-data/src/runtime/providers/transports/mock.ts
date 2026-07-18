@@ -28,7 +28,7 @@
  * existing config.
  */
 
-import type { MockProviderConfig } from '@starui/types';
+import type { MockProviderConfig } from '@wellsfargo-starui/types';
 import type { ProviderEmit, ProviderHandle } from '../Provider.js';
 import { createSsrmRowFlattener, type SsrmRowFlattener } from '../ssrmRowFlatten.js';
 import { getUniverse } from './mockUniverse.js';

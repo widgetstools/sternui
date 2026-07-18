@@ -13,8 +13,8 @@ import {
   SharpBtn,
 } from '../../ui/SettingsPanel';
 import { Select } from '../../ui/NativeOptionsSelect';
-import { cn } from '@starui/ui';
-import { ExpressionEngine } from '@starui/engine';
+import { cn } from '@wellsfargo-starui/ui';
+import { ExpressionEngine } from '@wellsfargo-starui/engine';
 import { ChromeButton } from '../../ui/ChromeButton';
 import { ExpressionEditor } from '../../ui/ExpressionEditor';
 import { useGridColumns } from '../../hooks/useGridColumns';

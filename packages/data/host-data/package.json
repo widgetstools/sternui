@@ -1,5 +1,5 @@
 {
-  "name": "@starui/host-data",
+  "name": "@wellsfargo-starui/host-data",
   "version": "0.1.0",
   "private": true,
   "description": "SharedWorker-backed data services for StarGrid DataPort",
@@ -42,9 +42,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@starui/host": "*",
-    "@starui/host-config": "*",
-    "@starui/types": "*"
+    "@wellsfargo-starui/host": "*",
+    "@wellsfargo-starui/host-config": "*",
+    "@wellsfargo-starui/types": "*"
   },
   "peerDependencies": {
     "@stomp/stompjs": "^7.3.0"

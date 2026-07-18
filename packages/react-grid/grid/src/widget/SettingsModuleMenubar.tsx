@@ -1,5 +1,5 @@
 import { useMemo, type CSSProperties } from 'react';
-import type { AnyModule } from '@starui/engine';
+import type { AnyModule } from '@wellsfargo-starui/engine';
 import {
   Menubar,
   MenubarContent,
@@ -7,7 +7,7 @@ import {
   MenubarRadioGroup,
   MenubarRadioItem,
   MenubarTrigger,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 
 /**
  * Grouped menubar navigation for Grid Customizer modules.

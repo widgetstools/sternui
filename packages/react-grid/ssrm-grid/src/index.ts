@@ -1,6 +1,6 @@
 /// <reference path="./vite-env.d.ts" />
 
-export const SSRM_GRID_PACKAGE = '@starui/ssrm-grid' as const;
+export const SSRM_GRID_PACKAGE = '@wellsfargo-starui/ssrm-grid' as const;
 
 export { CustomSSRMGrid } from './custom/CustomSSRMGrid.js';
 export type {

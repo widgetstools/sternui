@@ -7,7 +7,7 @@
  *
  * Run:
  *   npm run soak:value-getter
- *   npm run soak:value-getter -w @starui/widgets-react
+ *   npm run soak:value-getter -w @wellsfargo-starui/widgets-react
  *
  * Skipped by default (`npm test`) unless SOAK=1.
  *

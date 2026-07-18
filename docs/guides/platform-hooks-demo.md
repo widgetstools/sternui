@@ -153,7 +153,7 @@ Each catalog event maps to **at most one** handler. Custom Settings uses a shadc
 
 ### 2.2 Bindable events (catalog)
 
-From `@starui/grid` → `MARKETS_GRID_EVENT_CATALOG`:
+From `@wellsfargo-starui/grid` → `MARKETS_GRID_EVENT_CATALOG`:
 
 **Platform**
 
@@ -279,7 +279,7 @@ Then save a profile and change the toolbar date — three log lines confirm end-
 | Hook never runs | Hook id mismatch between JSON and registry; unknown ids warn + skip |
 | Hook runs every reload | Expected with `runPolicy: always`; use `if-missing` + `targets` |
 | Handler never fires | Binding not saved — check Custom Settings; handler id typo |
-| Handler fires but no UI log | Handler throws — check console for `[@starui/grid eventBridge]` warnings |
+| Handler fires but no UI log | Handler throws — check console for `[@wellsfargo-starui/grid eventBridge]` warnings |
 | Bindings lost | Wrong storage adapter; demo uses localStorage — production may use ConfigService |
 | AppData empty | Bootstrap before `DataHubProvider`; hub worker failed — check console |
 
@@ -289,20 +289,20 @@ Then save a profile and change the toolbar date — three log lines confirm end-
 
 ## API reference (library exports)
 
-### `@starui/host-data`
+### `@wellsfargo-starui/host-data`
 
 - `AppDataBootstrapManifest`, `AppDataBootstrapHookRegistry`
 - `runAppDataBootstrap()`, `createAppDataBootstrapContext()`
 - `ensurePlatformReady(..., { appDataBootstrapHooks })`
 
-### `@starui/grid`
+### `@wellsfargo-starui/grid`
 
 - `MARKETS_GRID_EVENT_CATALOG`, `MarketsGridEventId`
 - `MarketsGridEventHandlerRegistry`, `MarketsGridEventContext`
 - `useMarketsGridEventBridge()`, `createMarketsGridContainerEventBus()`
 - `GridEventBindingsHostApi`, `GridEventBindingsSection` (via customizer)
 
-### `@starui/widgets-react`
+### `@wellsfargo-starui/widgets-react`
 
 - `MarketsGridContainer` props: `gridEventHandlers`, `handlerMeta`
 - `normalizeGridLevelData()` / `GridLevelStateV1` in markets-grid-container module
@@ -330,5 +330,5 @@ cd packages/react-grid/grid && npx vitest run src/events/useMarketsGridEventBrid
 cd packages/react-core/widgets-react && npx vitest run src/v2/markets-grid-container/gridLevelState.test.ts
 
 # Typecheck demo app (after npm ci links workspace)
-npm run typecheck --workspace=@starui/platform-hooks-demo
+npm run typecheck --workspace=@wellsfargo-starui/platform-hooks-demo
 ```

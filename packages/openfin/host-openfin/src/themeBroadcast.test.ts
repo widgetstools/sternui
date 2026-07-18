@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { THEME_STORAGE_KEY } from '@starui/types';
+import { THEME_STORAGE_KEY } from '@wellsfargo-starui/types';
 import { readThemePayload, subscribeThemeBroadcast } from './themeBroadcast.js';
 
 describe('readThemePayload', () => {

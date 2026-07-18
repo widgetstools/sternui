@@ -10,8 +10,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import type { FieldNode, ColumnDefinition } from '@starui/shared-types';
-import type { ProviderConfig } from '@starui/shared-types';
+import type { FieldNode, ColumnDefinition } from '@wellsfargo-starui/shared-types';
+import type { ProviderConfig } from '@wellsfargo-starui/shared-types';
 import { FieldsTab, buildColumns } from './FieldsTab.js';
 
 const FIELDS: FieldNode[] = [

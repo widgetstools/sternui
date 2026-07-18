@@ -4,8 +4,8 @@ import type {
   BorderSpec,
   CellStyleOverrides,
   ValueFormatterTemplate,
-} from '@starui/engine';
-import { resolveActiveStyle } from '@starui/engine';
+} from '@wellsfargo-starui/engine';
+import { resolveActiveStyle } from '@wellsfargo-starui/engine';
 import {
   resolveTemplates,
   useActiveThemeMode,
@@ -15,7 +15,7 @@ import {
   type ColumnCustomizationState,
   type ColumnTemplatesState,
   type RowGroupingConfig,
-} from '@starui/grid/customizer';
+} from '@wellsfargo-starui/grid/customizer';
 
 /**
  * Reusable hooks + api helpers for the FormattingToolbar. Extracted from
@@ -254,7 +254,7 @@ export function useColumnFormatting(
     const empty: ResolvedFormatting = { bold: false, italic: false, underline: false, borders: {} };
     if (!cust) return empty;
 
-    let themedStyle: import('@starui/engine').ThemedCellStyleOverrides | undefined;
+    let themedStyle: import('@wellsfargo-starui/engine').ThemedCellStyleOverrides | undefined;
     let valueFormatterTemplate: ValueFormatterTemplate | undefined;
     let headerName: string | undefined;
     let editable: boolean | undefined;

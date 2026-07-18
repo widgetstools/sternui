@@ -20,7 +20,7 @@
  */
 
 import type { ColDef, ValueGetterParams, ValueSetterParams } from 'ag-grid-community';
-import { getPathAccessor, getPathSetter } from '@starui/types';
+import { getPathAccessor, getPathSetter } from '@wellsfargo-starui/types';
 
 export interface NestedFieldOptions {
   /**

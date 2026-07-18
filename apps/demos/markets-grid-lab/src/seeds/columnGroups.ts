@@ -1,4 +1,4 @@
-import type { ColumnGroupNode } from '@starui/grid/customizer';
+import type { ColumnGroupNode } from '@wellsfargo-starui/grid/customizer';
 
 // Column groups with optional bold-headers and per-child columnGroupShow
 // modes. `marryChildren: true` prevents drag-out. GroupHeaderStyle has

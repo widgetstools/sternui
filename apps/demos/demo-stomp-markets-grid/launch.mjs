@@ -2,7 +2,7 @@
 /**
  * Launch this demo in OpenFin Runtime.
  *
- *   npm run openfin --workspace=@starui/demo-stomp-markets-grid
+ *   npm run openfin --workspace=@wellsfargo-starui/demo-stomp-markets-grid
  *   # or from repo root (with dev server on :5210):
  *   node apps/demos/demo-stomp-markets-grid/launch.mjs
  */

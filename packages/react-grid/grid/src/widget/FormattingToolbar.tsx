@@ -19,7 +19,7 @@ import {
   Poppable,
   useGridPlatform,
   type PoppableHandle,
-} from '@starui/grid/customizer';
+} from '@wellsfargo-starui/grid/customizer';
 import {
   FormatterPanel,
   FormatterToolbar,

@@ -1,6 +1,6 @@
 /**
  * Tailwind preset for app tailwind.config.* — loaded by PostCSS/jiti (not Vite).
- * Resolves from installed @starui/design-system or monorepo dist after build:packages.
+ * Resolves from installed @wellsfargo-starui/design-system or monorepo dist after build:packages.
  */
 const { resolve } = require('node:path');
 const { existsSync } = require('node:fs');
@@ -49,7 +49,7 @@ function loadTailwindPreset() {
   const req = appsRequire();
 
   try {
-    const mod = req('@starui/design-system/tailwind');
+    const mod = req('@wellsfargo-starui/design-system/tailwind');
     if (mod?.tailwindPreset) return mod.tailwindPreset;
   } catch {
     /* tarball not installed — use monorepo dist */

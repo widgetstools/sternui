@@ -1,4 +1,4 @@
-import type { AppDataBootstrapHookRegistry } from '@starui/host-data';
+import type { AppDataBootstrapHookRegistry } from '@wellsfargo-starui/host-data';
 
 /**
  * Platform AppData bootstrap hooks for stomp-marketsgrid-minimal.

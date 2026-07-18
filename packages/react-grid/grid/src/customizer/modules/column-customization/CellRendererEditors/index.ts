@@ -4,7 +4,7 @@
  * `cellRendererId`.
  */
 import type { ComponentType } from 'react';
-import type { CellRendererId } from '@starui/design-system';
+import type { CellRendererId } from '@wellsfargo-starui/design-system';
 import { PillEditor } from './PillEditor';
 import { HeatmapEditor } from './HeatmapEditor';
 import { PercentBarEditor } from './PercentBarEditor';

@@ -7,7 +7,7 @@
 
 import { ArrowRight } from 'lucide-react';
 import { SECTION_META } from './sectionMeta';
-import { ChromeButton } from '@starui/grid/customizer';
+import { ChromeButton } from '@wellsfargo-starui/grid/customizer';
 import { Code, H1, H2, P, Table } from './primitives';
 import type { HelpSectionProps } from './types';
 

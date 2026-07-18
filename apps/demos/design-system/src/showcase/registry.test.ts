@@ -21,7 +21,7 @@ function publicComponentIds(): string[] {
 }
 
 describe('showcase registry completeness', () => {
-  it('has an entry for every public @starui/ui component', () => {
+  it('has an entry for every public @wellsfargo-starui/ui component', () => {
     const ids = new Set(SHOWCASE_ENTRIES.map((e) => e.id));
     const missing = publicComponentIds().filter((id) => !ids.has(id));
     expect(missing, `missing showcase entries: ${missing.join(', ')}`).toEqual([]);

@@ -40,40 +40,40 @@ const DEFAULT_IGNORES = [
 // icons-svg, shared-types). The extglob excludes those three.
 const NON_FOUNDATION_STARUI = {
   group: [
-    '@starui/!(design-system|icons-svg|shared-types)',
-    '@starui/!(design-system|icons-svg|shared-types)/**',
+    '@wellsfargo-starui/!(design-system|icons-svg|shared-types)',
+    '@wellsfargo-starui/!(design-system|icons-svg|shared-types)/**',
   ],
   message:
     'Foundation packages (design-system, icons-svg, shared-types) may only import each other.',
 };
 
-// @starui/engine is the framework-agnostic platform; it must never reach up
+// @wellsfargo-starui/engine is the framework-agnostic platform; it must never reach up
 // into a framework adapter.
 const FRAMEWORK_ADAPTERS = {
   group: [
-    '@starui/grid',
-    '@starui/grid-angular',
-    '@starui/widgets-react',
-    '@starui/widgets-angular',
-    '@starui/app',
-    '@starui/app-angular',
-    '@starui/ui',
+    '@wellsfargo-starui/grid',
+    '@wellsfargo-starui/grid-angular',
+    '@wellsfargo-starui/widgets-react',
+    '@wellsfargo-starui/widgets-angular',
+    '@wellsfargo-starui/app',
+    '@wellsfargo-starui/app-angular',
+    '@wellsfargo-starui/ui',
   ],
   message:
-    '@starui/engine must not import from framework adapters (grid/widgets/app/ui).',
+    '@wellsfargo-starui/engine must not import from framework adapters (grid/widgets/app/ui).',
 };
 
 const OPENFIN_CORE = {
   group: ['@openfin/*'],
   message:
-    'Only @starui/host-openfin and @starui/openfin-platform may import @openfin/*. Inject OpenFin behaviour via a port/callback instead.',
+    'Only @wellsfargo-starui/host-openfin and @wellsfargo-starui/openfin-platform may import @openfin/*. Inject OpenFin behaviour via a port/callback instead.',
 };
 
 // OpenFin bucket sits *below* the React core bucket; it must not import the app.
 const APP_REVERSE_DEP = {
-  group: ['@starui/app', '@starui/app/**'],
+  group: ['@wellsfargo-starui/app', '@wellsfargo-starui/app/**'],
   message:
-    '@starui/openfin-platform must not depend on @starui/app (reverse layer dependency). Move shared contracts down to @starui/types or @starui/host.',
+    '@wellsfargo-starui/openfin-platform must not depend on @wellsfargo-starui/app (reverse layer dependency). Move shared contracts down to @wellsfargo-starui/types or @wellsfargo-starui/host.',
 };
 
 const restrict = (...patterns) => ['error', { patterns }];
@@ -136,7 +136,7 @@ export default tseslint.config(
   },
 
   // Native form controls in React packages must use the shadcn/Radix
-  // primitives from @starui/ui (Input, Textarea, Select, Checkbox, Slider).
+  // primitives from @wellsfargo-starui/ui (Input, Textarea, Select, Checkbox, Slider).
   // See CLAUDE.md "UI stack rules". Carve-outs: hidden `type="file"` pickers
   // and the `type="color"` eyedropper have no shadcn equivalent and are
   // allowed; the shadcn primitive library itself (react-ui/ui) is excluded.
@@ -159,17 +159,17 @@ export default tseslint.config(
         {
           selector: "JSXOpeningElement[name.name='select']",
           message:
-            'Use Select/SelectTrigger/SelectContent/SelectItem from @starui/ui instead of a native <select>.',
+            'Use Select/SelectTrigger/SelectContent/SelectItem from @wellsfargo-starui/ui instead of a native <select>.',
         },
         {
           selector: "JSXOpeningElement[name.name='textarea']",
-          message: 'Use Textarea from @starui/ui instead of a native <textarea>.',
+          message: 'Use Textarea from @wellsfargo-starui/ui instead of a native <textarea>.',
         },
         {
           selector:
             "JSXOpeningElement[name.name='input']:not(:has(JSXAttribute[name.name='type'] Literal[value=/^(file|color)$/]))",
           message:
-            'Use Input/Checkbox/Slider/Select from @starui/ui instead of a native <input>. Native <input> is only allowed for type="file" and type="color".',
+            'Use Input/Checkbox/Slider/Select from @wellsfargo-starui/ui instead of a native <input>. Native <input> is only allowed for type="file" and type="color".',
         },
       ],
     },

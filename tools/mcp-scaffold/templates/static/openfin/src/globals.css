@@ -1,5 +1,5 @@
-@import '@starui/design-system/css';
-@import '@starui/grid/styles.css';
+@import '@wellsfargo-starui/design-system/css';
+@import '@wellsfargo-starui/grid/styles.css';
 
 /* Tailwind v3 directives — utilities resolve via the shadcn-compatible
    aliases exported by the design-system tokens. */

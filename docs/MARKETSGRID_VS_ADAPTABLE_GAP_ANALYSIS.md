@@ -112,10 +112,10 @@ column.
 
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
-| React integration | `@starui/grid` + `@starui/widgets-react` | 100 | 5 | Full React stack |
-| Angular integration | `@starui/grid-angular` (scaffold) | 25 | 4 | Marker export only |
+| React integration | `@wellsfargo-starui/grid` + `@wellsfargo-starui/widgets-react` | 100 | 5 | Full React stack |
+| Angular integration | `@wellsfargo-starui/grid-angular` (scaffold) | 25 | 4 | Marker export only |
 | Vue integration | — | 0 | 2 | Not in roadmap |
-| Custom Toolbar / Tool Panel / Settings Panel / Popups slots | Slot system in `@starui/widget-sdk` + customizer SettingsSheet | 50 | 5 | SDK exists; AdapTable-style per-surface slot API not exposed |
+| Custom Toolbar / Tool Panel / Settings Panel / Popups slots | Slot system in `@wellsfargo-starui/widget-sdk` + customizer SettingsSheet | 50 | 5 | SDK exists; AdapTable-style per-surface slot API not exposed |
 
 ### 4.2 Layouts
 
@@ -141,8 +141,8 @@ column.
 | Status Bar (configurable + custom) | — (no status bar customizer; `StaleDataBanner` covers staleness only) | 25 | 5 | Sparse coverage |
 | Column Menu (configurable + custom items) | AG Grid native column menu | 40 | 6 | No custom-item registration API |
 | Context Menu (configurable + custom + default structure) | OpenFin rename-tab context action; no in-grid context-menu customizer | 30 | 6 | OpenFin-side only |
-| Theming — custom themes, CSS variables, AG Grid themes | `@starui/design-system` tokens + AG Grid adapters + dark/light/CVD | 100 | 9 | Stronger than AdapTable: token-driven, three-axis (mode + CVD) |
-| UI guides — toasts, wizards, popups, custom palette, loading screen, progress, hiding, american english | `Toast` / `Toaster` / `useToast` / `Drawer` / `Dialog` / `Sheet` / portal provider | 70 | 5 | Most primitives present via `@starui/ui` |
+| Theming — custom themes, CSS variables, AG Grid themes | `@wellsfargo-starui/design-system` tokens + AG Grid adapters + dark/light/CVD | 100 | 9 | Stronger than AdapTable: token-driven, three-axis (mode + CVD) |
+| UI guides — toasts, wizards, popups, custom palette, loading screen, progress, hiding, american english | `Toast` / `Toaster` / `useToast` / `Drawer` / `Dialog` / `Sheet` / portal provider | 70 | 5 | Most primitives present via `@wellsfargo-starui/ui` |
 
 ### 4.4 Core features
 
@@ -161,7 +161,7 @@ column.
 | Alerts — Validation (rollback on bad edit) | — | 15 | 8 | — |
 | Alert notifications — toast, toolbar, dashboard highlight, auto-jump, log, custom, event | Toast + `AlertsBadge` + OpenFin NC bridges; no auto-jump/custom container | 70 | 8 | Dashboard highlight / event bus hooks partial |
 | Action Columns — dynamic per-row buttons, conditional visibility | — | 10 | 6 | — |
-| Charting — AG Grid Charts, persistent, multi-window, external chart libs | `Chart` wrapper in `@starui/ui` (Recharts) — not wired into grid | 15 | 7 | Primitive only |
+| Charting — AG Grid Charts, persistent, multi-window, external chart libs | `Chart` wrapper in `@wellsfargo-starui/ui` (Recharts) — not wired into grid | 15 | 7 | Primitive only |
 
 ### 4.5 Searching & filtering
 
@@ -195,7 +195,7 @@ column.
 
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
-| Smart Edit (multiply / divide / +/- across many cells) | `@starui/engine` smart-edit + unified `EditingToolbar` segment; preview-before-apply, journal, single-column guard | 85 | 7 | × ÷ + − Set, confirm threshold, `EditJournal` undo |
+| Smart Edit (multiply / divide / +/- across many cells) | `@wellsfargo-starui/engine` smart-edit + unified `EditingToolbar` segment; preview-before-apply, journal, single-column guard | 85 | 7 | × ÷ + − Set, confirm threshold, `EditJournal` undo |
 | Bulk Update (set N cells to same value) | Dedicated `bulk-update` module (`07`) + toolbar segment; distinct-value dropdown, date/text/number | 82 | 7 | Separate from Smart Edit Set… |
 | Plus / Minus increment via +/- keys | `plus-minus` module (`08`) — nudge rules with scope, step, optional expression gate | 78 | 5 | Takes +/- from smart-edit when enabled |
 | Shortcuts (M=million, K=thousand, etc.) | **Two layers:** K/M/B via `parseMagnitudeSuffix` + colDef transform; letter keys via `shortcuts` module (`09`) | 78 | 6 | K/M/B ≠ letter shortcuts (documented in panel) |
@@ -288,7 +288,7 @@ column.
 
 | AdapTable feature | MarketsGrid equivalent | Coverage | Weight | Notes |
 |---|---|---:|---:|---|
-| OpenFin (workspace, dock, home, notifications, FDC3 channels) | `@starui/host-openfin` + `@starui/openfin-platform` — full workspace shell, dock, home, IAB, notifications | 90 | 8 | Stronger in some areas (config browser, workspace-setup), thinner on home search providers |
+| OpenFin (workspace, dock, home, notifications, FDC3 channels) | `@wellsfargo-starui/host-openfin` + `@wellsfargo-starui/openfin-platform` — full workspace shell, dock, home, IAB, notifications | 90 | 8 | Stronger in some areas (config browser, workspace-setup), thinner on home search providers |
 | interop.io (Glue42-style) | — | 0 | 3 | Not supported |
 | ipushpull | — | 0 | 2 | Not supported |
 
@@ -392,8 +392,8 @@ AdapTable's four data-entry modules plus change history give traders
 10×-faster cell-edit ergonomics: arithmetic across many cells, bulk-set,
 +/- nudge rules, letter-key shortcuts, and undo through a tracked panel.
 
-MarketsGrid ships the **full editing family** in `@starui/engine` +
-`@starui/grid`:
+MarketsGrid ships the **full editing family** in `@wellsfargo-starui/engine` +
+`@wellsfargo-starui/grid`:
 
 | Module | Code | Shipped |
 |--------|------|---------|
@@ -468,7 +468,7 @@ rollback and alert-rule integration on preview.
 AdapTable wires AG Grid Charts into the dashboard with persistent state
 and multiple windows. External libraries plug in via a custom provider.
 
-MarketsGrid ships `Chart` (Recharts wrapper) in `@starui/ui` but doesn't
+MarketsGrid ships `Chart` (Recharts wrapper) in `@wellsfargo-starui/ui` but doesn't
 launch charts from the grid.
 
 **Impact:** *medium-high* — common power-user feature.

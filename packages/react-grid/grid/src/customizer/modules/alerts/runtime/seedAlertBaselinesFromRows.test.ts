@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createPreviousValuesStore } from './previousValues.js';
 import { seedAlertBaselinesFromRows } from './seedAlertBaselinesFromRows.js';
-import type { AlertRule } from '@starui/engine';
+import type { AlertRule } from '@wellsfargo-starui/engine';
 
 describe('seedAlertBaselinesFromRows', () => {
   it('seeds watched columns without firing', () => {

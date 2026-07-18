@@ -21,7 +21,7 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
-import { HistoryStack, type HistoryStackOptions } from '@starui/engine';
+import { HistoryStack, type HistoryStackOptions } from '@wellsfargo-starui/engine';
 
 export interface UseUndoRedoResult {
   canUndo: boolean;

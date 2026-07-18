@@ -8,16 +8,16 @@ import {
   IAB_RELOAD_AFTER_IMPORT,
   IAB_REGISTRY_CONFIG_UPDATE,
   type ImportConfigBundleResult,
-} from "@starui/openfin-platform/config";
-import { UPLOAD_SVG } from "@starui/icons-svg/all-icons";
-import { spacing, typography } from "@starui/design-system/tokens";
+} from "@wellsfargo-starui/openfin-platform/config";
+import { UPLOAD_SVG } from "@wellsfargo-starui/icons-svg/all-icons";
+import { spacing, typography } from "@wellsfargo-starui/design-system/tokens";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
 type ImportStatus = "idle" | "success" | "error";
 
 // ─── Design tokens ───────────────────────────────────────────────────
-// Maps to the --de-* editor design system from @starui/design-system.
+// Maps to the --de-* editor design system from @wellsfargo-starui/design-system.
 // This component always renders in dark mode (utility dialog).
 const COLORS = {
   accent:        "var(--de-accent)",

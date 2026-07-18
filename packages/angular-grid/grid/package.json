@@ -1,8 +1,8 @@
 {
-  "name": "@starui/grid-angular",
+  "name": "@wellsfargo-starui/grid-angular",
   "version": "0.1.0",
   "private": true,
-  "description": "MarketsGrid + grid customizer — Angular twin of @starui/grid (scaffold)",
+  "description": "MarketsGrid + grid customizer — Angular twin of @wellsfargo-starui/grid (scaffold)",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -10,9 +10,9 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "echo '@starui/grid-angular: scaffold (no emit)'",
+    "build": "echo '@wellsfargo-starui/grid-angular: scaffold (no emit)'",
     "typecheck": "tsc --noEmit",
-    "test": "echo '@starui/grid-angular: no tests yet'"
+    "test": "echo '@wellsfargo-starui/grid-angular: no tests yet'"
   },
   "peerDependencies": {
     "@angular/common": "^21.1.0",
@@ -22,9 +22,9 @@
     "ag-grid-enterprise": "^35.1.0"
   },
   "dependencies": {
-    "@starui/engine": "*",
-    "@starui/host": "*",
-    "@starui/types": "*"
+    "@wellsfargo-starui/engine": "*",
+    "@wellsfargo-starui/host": "*",
+    "@wellsfargo-starui/types": "*"
   },
   "devDependencies": {
     "@angular/common": "^21.1.0",

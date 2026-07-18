@@ -19,7 +19,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Column, GridApi } from 'ag-grid-community';
-import { GridPlatform } from '@starui/engine';
+import { GridPlatform } from '@wellsfargo-starui/engine';
 import {
   columnCustomizationModule,
   columnTemplatesModule,
@@ -29,7 +29,7 @@ import {
   type ColumnCustomizationState,
   type ColumnTemplatesState,
   type GeneralSettingsState,
-} from '@starui/grid/customizer';
+} from '@wellsfargo-starui/grid/customizer';
 import { FormattingToolbar } from './FormattingToolbar';
 
 // Per-column overrides are theme-keyed in profile state. jsdom has no

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, RemoveFormatting } from 'lucide-react';
 import { FormatColorPicker, FormatDropdown, FormatPopover } from '../format-editor';
-import type { BorderSpec } from '@starui/engine';
+import type { BorderSpec } from '@wellsfargo-starui/engine';
 import { ChromeButton } from '../ChromeButton';
 
 /**
@@ -20,7 +20,7 @@ import { ChromeButton } from '../ChromeButton';
  */
 const BORDER_STYLE_EDITOR_CSS = `
 /* BorderStyleEditor — scoped to .ds-be-editor.
-   All values reference --ds-* vars from @starui/design-system/css. */
+   All values reference --ds-* vars from @wellsfargo-starui/design-system/css. */
 
 .ds-be-editor {
   /* Local variable shortcuts for readability */

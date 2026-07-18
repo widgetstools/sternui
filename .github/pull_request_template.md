@@ -14,18 +14,18 @@
 
 <!-- Tick every package affected. Helps reviewers scope their read. -->
 
-- [ ] `@starui/core`
-- [ ] `@starui/markets-grid`
-- [ ] `@starui/design-system`
-- [ ] `@starui/shared-types`
-- [ ] `@starui/config-service`
-- [ ] `@starui/component-host`
-- [ ] `@starui/widget-sdk`
-- [ ] `@starui/openfin-platform`
-- [ ] `@starui/widgets-react`
-- [ ] `@starui/react-tools` / `@starui/angular-tools`
-- [ ] `@starui/dock-editor` / `@starui/angular-dock-editor`
-- [ ] `@starui/registry-editor` / `@starui/angular-registry-editor`
+- [ ] `@wellsfargo-starui/core`
+- [ ] `@wellsfargo-starui/markets-grid`
+- [ ] `@wellsfargo-starui/design-system`
+- [ ] `@wellsfargo-starui/shared-types`
+- [ ] `@wellsfargo-starui/config-service`
+- [ ] `@wellsfargo-starui/component-host`
+- [ ] `@wellsfargo-starui/widget-sdk`
+- [ ] `@wellsfargo-starui/openfin-platform`
+- [ ] `@wellsfargo-starui/widgets-react`
+- [ ] `@wellsfargo-starui/react-tools` / `@wellsfargo-starui/angular-tools`
+- [ ] `@wellsfargo-starui/dock-editor` / `@wellsfargo-starui/angular-dock-editor`
+- [ ] `@wellsfargo-starui/registry-editor` / `@wellsfargo-starui/angular-registry-editor`
 - [ ] `apps/demos/demo-react` / `apps/demo-angular`
 - [ ] Other: ___
 

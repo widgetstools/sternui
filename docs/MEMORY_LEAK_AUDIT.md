@@ -133,10 +133,10 @@ Regression: `memoryLifecycle.test.ts` — 25 attach/detach cycles terminate all 
 ### 1. Automated regression (CI)
 
 ```bash
-npm test --workspace=@starui/host-data -- src/runtime/memoryLifecycle.test.ts
+npm test --workspace=@wellsfargo-starui/host-data -- src/runtime/memoryLifecycle.test.ts
 ```
 
-Also run full `npm test --workspace=@starui/host-data` after hub/client changes.
+Also run full `npm test --workspace=@wellsfargo-starui/host-data` after hub/client changes.
 
 ### 2. Manual Chrome heap churn (OpenFin or browser)
 

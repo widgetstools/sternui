@@ -2,7 +2,7 @@
  * Main-thread client for the Config SharedWorker (ADR Phase 2).
  */
 
-import type { DataProviderConfig, ProviderConfig } from '@starui/types';
+import type { DataProviderConfig, ProviderConfig } from '@wellsfargo-starui/types';
 import type { ListOptions } from '../config/store.js';
 import type {
   ConfigWorkerEvent,

@@ -31,7 +31,7 @@ import type {
   GridOptions,
 } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
-import { agGridBlotterDarkParams, agGridBlotterLightParams } from '@starui/design-system/adapters/ag-grid';
+import { agGridBlotterDarkParams, agGridBlotterLightParams } from '@wellsfargo-starui/design-system/adapters/ag-grid';
 import { AgGridReact } from 'ag-grid-react';
 import { ArrowUp, ArrowDown, Minus } from 'lucide-react';
 
@@ -244,7 +244,7 @@ function PriceCellRenderer(props: ICellRendererParams<LadderRow>) {
 
 // ─── Grid config ──────────────────────────────────────────────────────
 //
-// Built from @starui/design-system/adapters/ag-grid blotter params
+// Built from @wellsfargo-starui/design-system/adapters/ag-grid blotter params
 // (reference-aligned Chroma Desk ultra-density) + depth-view overrides.
 // MarketDepth sits between blotter (22/26) and standard (28/32) — use
 // blotter as the base and override row/header heights to 24/28.

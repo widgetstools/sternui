@@ -12,7 +12,7 @@ import type {
   CellStyleOverrides,
   CssHandle,
   ExpressionEngineLike,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import type {
   ColumnAssignment,
   ColumnCustomizationState,
@@ -25,8 +25,8 @@ import {
   valueFormatterFromTemplate,
   excelFormatColorResolver,
   resolveEffectiveStyle,
-} from '@starui/engine';
-import type { GridThemeMode, ValueFormatterTemplate } from '@starui/engine';
+} from '@wellsfargo-starui/engine';
+import type { GridThemeMode, ValueFormatterTemplate } from '@wellsfargo-starui/engine';
 
 // ─── Runtime value-type dispatcher for the global cell formatters ─────────
 //

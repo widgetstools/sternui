@@ -1,5 +1,5 @@
-import { DynamicIcon as Icon } from "@starui/config-browser/icons";
-import { Input } from "@starui/ui";
+import { DynamicIcon as Icon } from "@wellsfargo-starui/config-browser/icons";
+import { Input } from "@wellsfargo-starui/ui";
 import type { TableMeta } from "../types";
 import { EditorButton } from "./EditorButton";
 

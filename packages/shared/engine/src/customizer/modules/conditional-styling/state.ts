@@ -7,16 +7,16 @@
  * theme switch via `:root.dark` selectors without recomputing rules.
  *
  * `CellStyleProperties` / `ThemeAwareStyle` / `ConditionalRule` are
- * re-exported from `@starui/engine` so on-disk profile
+ * re-exported from `@wellsfargo-starui/engine` so on-disk profile
  * snapshots from prior schema versions load cleanly without an
  * intermediate migration step.
  */
 export type {
   CellStyleProperties,
   ThemeAwareStyle,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 
-import type { ThemeAwareStyle, ValueFormatterTemplate } from '@starui/engine';
+import type { ThemeAwareStyle, ValueFormatterTemplate } from '@wellsfargo-starui/engine';
 
 /** A cell-scoped rule applies to specific column ids. A row-scoped rule
  *  paints the whole row when the expression is truthy. */

@@ -6,7 +6,7 @@
 
 **Architecture:** Introduce an engine adapter behind MarketsGrid: CSRM keeps `MarketsGridSurface` + `AgGridReact`; SSRM mounts `SSRMGrid` from the `ssrmgrid` package. Shared `GridPlatform` tooling stays; runtimes that walk all nodes are gated or adapted per phase. This plan delivers **Phase 0 (scaffold) + Phase 1 (blotter core + `.old`/`.new`)**. Phases 2–4 (calcs/traffic-light, alerts/editing, polish) are follow-on plans.
 
-**Tech Stack:** React 19, AG Grid (align to 36 for SSRM path), `@starui/grid`, `ssrmgrid`, Vitest, FINOS Perspective (via ssrmgrid).
+**Tech Stack:** React 19, AG Grid (align to 36 for SSRM path), `@wellsfargo-starui/grid`, `ssrmgrid`, Vitest, FINOS Perspective (via ssrmgrid).
 
 **Spec:** `docs/superpowers/specs/2026-07-14-marketsgrid-ssrm-dual-engine-design.md`
 
@@ -15,7 +15,7 @@
 - Keep CSRM path (`useSSRM={false}` / omitted) behaviour identical — zero regression.
 - Do not delete CSRM; do not make SSRM the default.
 - AG Grid **36+** APIs only on the SSRM path (no deprecated SSRM APIs).
-- starui `@starui/grid` currently peers `ag-grid-*@^35.1.0`; SSRM path must resolve **36.x** without breaking CSRM consumers (see Task 1).
+- starui `@wellsfargo-starui/grid` currently peers `ag-grid-*@^35.1.0`; SSRM path must resolve **36.x** without breaking CSRM consumers (see Task 1).
 - Capability matrix: unported SSRM features are **disabled with tooltip**, never silent no-ops.
 - Excel formatters / `valueFormatter` / `cellStyle` pass through unchanged on both engines.
 - `.old`/`.new` on SSRM = previous-values store for **viewport / recently updated** rows only.
@@ -54,7 +54,7 @@
 
 **Context:** starui grid uses AG Grid **35.1.0**; ssrmgrid uses **36.0.0**. Dual majors in one app are risky. Prefer:
 
-1. Bump `@starui/grid` (and consumers that share one AG Grid instance) peer/devDeps to `36.0.0` **or**
+1. Bump `@wellsfargo-starui/grid` (and consumers that share one AG Grid instance) peer/devDeps to `36.0.0` **or**
 2. If a full monorepo bump is blocked this sprint, document that `useSSRM` requires AG Grid 36 and fail fast with a clear error when versions mismatch.
 
 - [ ] **Step 1: Decide and record the version strategy in a comment at top of `ssrmgrid-entry.ts`**
@@ -63,7 +63,7 @@
 /**
  * SSRM engine entry — re-exports ssrmgrid.
  * AG Grid: ssrmgrid requires 36.x. MarketsGrid CSRM historically used 35.1.
- * Strategy: align @starui/grid to ag-grid-community/enterprise/react 36.0.0
+ * Strategy: align @wellsfargo-starui/grid to ag-grid-community/enterprise/react 36.0.0
  * so one ModuleRegistry serves both surfaces.
  */
 export { SSRMGrid } from 'ssrmgrid';
@@ -110,7 +110,7 @@ export {
 } from './ssrm/shareOfTotal';
 ```
 
-- [ ] **Step 3: Add file dependency from `@starui/grid`**
+- [ ] **Step 3: Add file dependency from `@wellsfargo-starui/grid`**
 
 In `packages/react-grid/grid/package.json` dependencies:
 
@@ -138,7 +138,7 @@ describe('ssrmgrid-entry', () => {
 
 - [ ] **Step 5: Run test**
 
-Run: `npm test -w @starui/grid -- src/engine/ssrmgrid-entry.test.ts`
+Run: `npm test -w @wellsfargo-starui/grid -- src/engine/ssrmgrid-entry.test.ts`
 
 Expected: PASS (or FAIL until export path fixed — iterate Step 2–3).
 
@@ -192,7 +192,7 @@ describe('isSsrmCapabilityEnabled', () => {
 
 - [ ] **Step 2: Run tests — expect FAIL**
 
-Run: `npm test -w @starui/grid -- src/engine/ssrmCapabilities.test.ts`
+Run: `npm test -w @wellsfargo-starui/grid -- src/engine/ssrmCapabilities.test.ts`
 
 - [ ] **Step 3: Implement**
 
@@ -635,8 +635,8 @@ git commit -m "feat(lab): toggle useSSRM on MarketsGrid feature lab"
 - [ ] **Step 2: Run**
 
 ```bash
-npm test -w @starui/grid
-npm test -w @starui/widgets-react
+npm test -w @wellsfargo-starui/grid
+npm test -w @wellsfargo-starui/widgets-react
 ```
 
 Expected: existing CSRM tests green; new SSRM unit tests green.

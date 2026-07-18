@@ -1,5 +1,5 @@
 /**
- * Vite resolve aliases for apps consuming @starui/* bucket tarballs.
+ * Vite resolve aliases for apps consuming @wellsfargo-starui/* bucket tarballs.
  * Maps legacy member import paths to installed bundle subpaths.
  */
 import { readFileSync, existsSync, readdirSync, realpathSync } from 'node:fs';
@@ -20,13 +20,13 @@ const {
 const REPO_ROOT = resolve(import.meta.dirname, '..');
 
 /** Monorepo root where hoisted node_modules lives. Walks up from appDir. */
-/** Root whose `node_modules` holds installed @starui/* bucket tarballs. */
+/** Root whose `node_modules` holds installed @wellsfargo-starui/* bucket tarballs. */
 export function monoRootFromApp(appDir) {
   return findStaruiPackageRoot(appDir);
 }
 
 /**
- * Force a single React + react-dom instance for apps that alias @starui/*
+ * Force a single React + react-dom instance for apps that alias @wellsfargo-starui/*
  * tarball sources.
  */
 export function reactResolveConfig(appDir) {
@@ -147,7 +147,7 @@ function installedMemberRoot(appDir, bucketName, bucketShort, memberName, folder
   }
 
   const memberShort = memberName.split('/').pop();
-  const memberLink = join(nmRoot, '@starui', memberShort);
+  const memberLink = join(nmRoot, '@wellsfargo-starui', memberShort);
   const memberPkgPath = join(memberLink, 'package.json');
   if (existsSync(memberPkgPath)) {
     const memberPkg = JSON.parse(readFileSync(memberPkgPath, 'utf8'));
@@ -187,7 +187,7 @@ function discoverManifestFromPackages() {
     }
     if (members.length === 0) continue;
     members.sort();
-    manifest[`@starui/${bucket.name}`] = { bucket: bucket.name, members };
+    manifest[`@wellsfargo-starui/${bucket.name}`] = { bucket: bucket.name, members };
   }
   return Object.keys(manifest).length > 0 ? manifest : null;
 }
@@ -303,7 +303,7 @@ export function staruiViteAliases(appDir) {
         exportEntries = readMemberExports(entry.bucket, folder);
         // Under STARUI_DEV_SOURCE=1, resolve targets to the *live* package
         // source directly. The default `installedMemberRoot` points at the
-        // bucket's snapshot under `node_modules/@starui/<bucket>/<folder>/`,
+        // bucket's snapshot under `node_modules/@wellsfargo-starui/<bucket>/<folder>/`,
         // which is a copy that goes stale the moment a developer adds a
         // file to `packages/` between `npm ci` runs. Bypassing it means
         // newly-added grid modules (alerts, etc.) load straight from source
@@ -346,7 +346,7 @@ export function staruiViteAliases(appDir) {
 }
 
 /**
- * Verify every @starui/* export resolves in source mode (optionally ignoring dist/).
+ * Verify every @wellsfargo-starui/* export resolves in source mode (optionally ignoring dist/).
  * @returns {{ broken: object[], requiresBuild: object[], ok: string[] }}
  */
 export function auditSourceModePaths(appDir, opts = {}) {
@@ -389,22 +389,22 @@ export function auditSourceModePaths(appDir, opts = {}) {
   const workerPath = join(REPO_ROOT, 'packages/data/host-data/dist/assets/data-services-worker.mjs');
   if (!existsSync(workerPath)) {
     requiresBuild.push({
-      label: '@starui/host-data/assets/data-services-worker.mjs',
+      label: '@wellsfargo-starui/host-data/assets/data-services-worker.mjs',
       relTarget: './dist/assets/data-services-worker.mjs',
       path: workerPath,
-      member: '@starui/host-data',
+      member: '@wellsfargo-starui/host-data',
     });
   } else {
-    ok.push('@starui/host-data/assets/data-services-worker.mjs');
+    ok.push('@wellsfargo-starui/host-data/assets/data-services-worker.mjs');
   }
 
   return { broken, requiresBuild, ok };
 }
 
 const HOST_DATA_WORKER_ASSET_RE =
-  /^@starui\/(?:data\/)?host-data\/assets\/data-services-worker\.mjs\?url$/;
+  /^@wellsfargo-starui\/(?:data\/)?host-data\/assets\/data-services-worker\.mjs\?url$/;
 
-/** Resolve `@starui/host-data/assets/data-services-worker.mjs?url` for Vite. */
+/** Resolve `@wellsfargo-starui/host-data/assets/data-services-worker.mjs?url` for Vite. */
 export function resolveHostDataWorkerAssetUrl(source, appDir) {
   if (!HOST_DATA_WORKER_ASSET_RE.test(source)) return null;
 
@@ -413,8 +413,8 @@ export function resolveHostDataWorkerAssetUrl(source, appDir) {
   ];
   for (const root of collectStaruiInstallRoots(appDir)) {
     candidates.push(
-      join(root, 'node_modules/@starui/host-data/dist/assets/data-services-worker.mjs'),
-      join(root, 'node_modules/@starui/data/host-data/dist/assets/data-services-worker.mjs'),
+      join(root, 'node_modules/@wellsfargo-starui/host-data/dist/assets/data-services-worker.mjs'),
+      join(root, 'node_modules/@wellsfargo-starui/data/host-data/dist/assets/data-services-worker.mjs'),
     );
   }
   const workerPath = candidates.find((p) => existsSync(p));
@@ -450,7 +450,7 @@ export function staruiBuiltAssetsPresent() {
 }
 
 /**
- * Vite plugin — guarantees `@starui/*` build-generated assets (design-system
+ * Vite plugin — guarantees `@wellsfargo-starui/*` build-generated assets (design-system
  * CSS, host-data worker) exist before an app dev server or build starts.
  * Source mode aliases TS/TSX live, but CSS and the worker are emitted by
  * `npm run build:packages`; without this an app run after a clean/`rimraf`
@@ -467,13 +467,13 @@ export function staruiEnsureBuiltAssetsPlugin() {
       ensured = true;
       if (staruiBuiltAssetsPresent()) return;
       this.warn(
-        '@starui package build assets missing — running `npm run build:packages` '
+        '@wellsfargo-starui package build assets missing — running `npm run build:packages` '
         + '(design-system CSS / host-data worker). This runs once.',
       );
       execSync('npm run build:packages', { cwd: REPO_ROOT, stdio: 'inherit' });
       if (!staruiBuiltAssetsPresent()) {
         this.error(
-          'build:packages did not produce the expected @starui assets. '
+          'build:packages did not produce the expected @wellsfargo-starui assets. '
           + 'Run `npm run build:packages` manually and check for errors.',
         );
       }
@@ -489,9 +489,9 @@ export function staruiTailwindContent(appDir) {
 /** Force ESM entry — browser export resolves to UMD which breaks dynamic `import()` Client lookup. */
 export function stompJsEsmAlias(appDir) {
   const reactRootDir = findReactRoot(appDir);
-  // @stomp/stompjs is a dep of @starui/widgets-react. In source mode the apps
+  // @stomp/stompjs is a dep of @wellsfargo-starui/widgets-react. In source mode the apps
   // don't declare it, so it isn't hoisted into the app's node_modules — it
-  // lives at the repo root. Search the app's react root, every @starui install
+  // lives at the repo root. Search the app's react root, every @wellsfargo-starui install
   // root, then REPO_ROOT, and alias to the first esm6 entry that exists.
   const esm6 = 'node_modules/@stomp/stompjs/esm6/index.js';
   const roots = [reactRootDir, ...collectStaruiInstallRoots(appDir), REPO_ROOT];
@@ -549,16 +549,16 @@ export function staruiOptimizeDeps() {
       // Keep host-data out of the deps prebundle — prebundling breaks
       // `new SharedWorker(new URL(..., import.meta.url))` inside the
       // library. Apps must construct SharedWorkers at the call site.
-      '@starui/host-data',
-      '@starui/host-data/runtime',
-      '@starui/data/host-data',
-      '@starui/data/host-data/runtime',
+      '@wellsfargo-starui/host-data',
+      '@wellsfargo-starui/host-data/runtime',
+      '@wellsfargo-starui/data/host-data',
+      '@wellsfargo-starui/data/host-data/runtime',
       // Single React context instance — prebundling widgets-react pulls
       // a second copy of host-data-react and breaks <DataServicesProvider>.
-      '@starui/host-data-react',
-      '@starui/host-data-react/runtime',
-      '@starui/data/host-data-react',
-      '@starui/data/host-data-react/runtime',
+      '@wellsfargo-starui/host-data-react',
+      '@wellsfargo-starui/host-data-react/runtime',
+      '@wellsfargo-starui/data/host-data-react',
+      '@wellsfargo-starui/data/host-data-react/runtime',
     ],
   };
 }

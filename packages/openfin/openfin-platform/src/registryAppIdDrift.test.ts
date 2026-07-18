@@ -4,8 +4,8 @@ import {
   setPlatformDefaultScope,
   migrateRegistryAppIdDrift,
 } from './db';
-import { COMPONENT_TYPES } from '@starui/types';
-import type { AppConfigRow, ConfigManager } from '@starui/host-config';
+import { COMPONENT_TYPES } from '@wellsfargo-starui/types';
+import type { AppConfigRow, ConfigManager } from '@wellsfargo-starui/host-config';
 
 function makeManager(rows: Map<string, AppConfigRow>): ConfigManager {
   return {

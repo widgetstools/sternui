@@ -3,9 +3,9 @@ import {
   resolvePlatformBootstrapFromJson,
   type PlatformBootstrapConfig,
   type ResolvedDataServicesHubBundle,
-} from '@starui/host-data';
-import type { DataServices } from '@starui/host-data/runtime';
-import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
+} from '@wellsfargo-starui/host-data';
+import type { DataServices } from '@wellsfargo-starui/host-data/runtime';
+import workerAssetUrl from '@wellsfargo-starui/host-data/assets/data-services-worker.mjs?url';
 import { asLegacyDataServices } from './bootstrap/asLegacyDataServices.js';
 
 export interface PlatformBootstrapResult {

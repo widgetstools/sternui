@@ -14,7 +14,7 @@
  */
 
 import type { ColDef } from 'ag-grid-community';
-import type { DataProviderConfig, MockProviderConfig } from '@starui/types';
+import type { DataProviderConfig, MockProviderConfig } from '@wellsfargo-starui/types';
 
 /** Stable, app-namespaced ids so configStore.save() upserts (idempotent
  *  under StrictMode's double-invoked seed effect). */

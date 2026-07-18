@@ -862,7 +862,7 @@ export class IconTextCellRenderer implements ICellRendererComp {
     icon.style.color = color;
     if (cfg?.iconSvg) {
       // The editor stores the full SVG markup string (from
-      // @starui/icons-svg `MARKET_ICON_SVGS`). Drop it in and force
+      // @wellsfargo-starui/icons-svg `MARKET_ICON_SVGS`). Drop it in and force
       // the inner <svg> to 14×14 — `currentColor` propagates from
       // the wrapper's `color` style.
       icon.innerHTML = cfg.iconSvg;

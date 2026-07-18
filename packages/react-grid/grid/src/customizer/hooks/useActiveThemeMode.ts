@@ -12,7 +12,7 @@
  * are handled by the browser cascade with no rebuild.
  */
 import { useEffect, useState } from 'react';
-import { getActiveTheme, type GridThemeMode } from '@starui/engine';
+import { getActiveTheme, type GridThemeMode } from '@wellsfargo-starui/engine';
 
 export function useActiveThemeMode(): GridThemeMode {
   const [mode, setMode] = useState<GridThemeMode>(getActiveTheme);

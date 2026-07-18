@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Button, cn } from '@starui/ui';
+import { Button, cn } from '@wellsfargo-starui/ui';
 import { TABLES, type TableKey } from '../types';
 
 interface Counts {

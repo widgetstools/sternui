@@ -6,7 +6,7 @@
  * resolution (provider workers / remote callers).
  */
 
-import type { ConfigManager } from '@starui/host-config';
+import type { ConfigManager } from '@wellsfargo-starui/host-config';
 import { AppDataService } from '../worker/AppDataService.js';
 import type {
   AppDataAttachRequest,

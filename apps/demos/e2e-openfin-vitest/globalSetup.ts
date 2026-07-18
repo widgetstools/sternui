@@ -65,14 +65,14 @@ export async function setup(): Promise<void> {
     );
   }
 
-  console.log(`[e2e-openfin] starting @starui/markets-ui-react-reference on port ${E2E_DEV_PORT}…`);
+  console.log(`[e2e-openfin] starting @wellsfargo-starui/markets-ui-react-reference on port ${E2E_DEV_PORT}…`);
   devServer = spawn(
     'npm',
     [
       'run',
       'dev',
       '-w',
-      '@starui/markets-ui-react-reference',
+      '@wellsfargo-starui/markets-ui-react-reference',
       '--',
       '--no-open',
       '--port',

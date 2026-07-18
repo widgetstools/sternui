@@ -2,8 +2,8 @@ import { useCallback } from 'react';
 import {
   DATA_CHANGE_HISTORY_MODULE_ID,
   type DataChangeHistoryState,
-} from '@starui/engine';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@starui/ui';
+} from '@wellsfargo-starui/engine';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@wellsfargo-starui/ui';
 import { Redo2, Undo2 } from 'lucide-react';
 import type { EditingToolbarSegmentProps } from '../../editing/editingToolbarLayout';
 import { useGridPlatform } from '../../hooks/GridProvider';

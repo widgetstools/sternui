@@ -1,4 +1,4 @@
-import type { AppDataSnapshot, Unsubscribe } from '@starui/types';
+import type { AppDataSnapshot, Unsubscribe } from '@wellsfargo-starui/types';
 
 /**
  * DataPort — live data feeds and AppData mirror for template resolution.

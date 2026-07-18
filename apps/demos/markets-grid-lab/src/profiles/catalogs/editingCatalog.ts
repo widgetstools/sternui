@@ -18,7 +18,7 @@ import {
   type ShortcutsState,
   type SmartEditSettings,
   type SmartEditState,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import { SMART_EDIT_TAB_STATE } from '../../seeds/smartEdit';
 
 export const EDITING_GRID_ID = 'lab-editing';

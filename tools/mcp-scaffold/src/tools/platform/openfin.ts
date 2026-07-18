@@ -35,7 +35,7 @@ export function handleAddBlotterRoute(opts: {
  * Route ${opts.routePath} — HostedMarketsGrid blotter.
  * Registered via react-router in main.tsx; componentName="${opts.componentName}" for ConfigManager.
  */
-import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
+import { HostedMarketsGrid } from '@wellsfargo-starui/widgets-react/hosted';
 import { getPlatform } from '../platformBootstrap';
 
 export default function ${viewName}Blotter() {

@@ -19,8 +19,8 @@
 
 import { useMemo, useState } from "react";
 import { Plus, PlayCircle, Copy, Trash2, Search, Box } from "lucide-react";
-import { Input } from "@starui/ui";
-import type { RegistryEntry } from "@starui/openfin-platform/config";
+import { Input } from "@wellsfargo-starui/ui";
+import type { RegistryEntry } from "@wellsfargo-starui/openfin-platform/config";
 import { iconIdToSvgUrl } from "../dock-editor/iconUtils";
 import type { EditorSelection, ComponentFilter } from "./types";
 

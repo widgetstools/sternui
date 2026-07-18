@@ -2,7 +2,7 @@
  * Stateless helpers for {@link SharedWorkerDataServicesHub}: stats
  * reset, row keying, and restart-overlay comparison. No hub state.
  */
-import { composeRowId } from '@starui/types';
+import { composeRowId } from '@wellsfargo-starui/types';
 import type { ProviderSlot } from './hubTypes.js';
 
 /** Reset every diagnostics counter when a provider (re)starts. */

@@ -1,5 +1,5 @@
 {
-  "name": "@starui/widgets-react",
+  "name": "@wellsfargo-starui/widgets-react",
   "version": "1.0.0",
   "description": "MarketsUI React widgets — HostedMarketsGrid and trading primitives",
   "main": "dist/index.js",
@@ -48,21 +48,21 @@
     "lucide-react": "^0.554.0",
     "@openfin/workspace": "23.0.20",
     "@openfin/workspace-platform": "23.0.20",
-    "@starui/grid": "*"
+    "@wellsfargo-starui/grid": "*"
   },
   "dependencies": {
-    "@starui/grid": "*",
-    "@starui/host-config": "*",
-    "@starui/host-data": "*",
-    "@starui/design-system": "*",
-    "@starui/engine": "*",
-    "@starui/host-data-react": "*",
-    "@starui/host-openfin": "*",
-    "@starui/shared-types": "*",
-    "@starui/types": "*",
-    "@starui/widget-sdk": "*",
-    "@starui/ui": "*",
-    "@starui/config-browser": "*",
+    "@wellsfargo-starui/grid": "*",
+    "@wellsfargo-starui/host-config": "*",
+    "@wellsfargo-starui/host-data": "*",
+    "@wellsfargo-starui/design-system": "*",
+    "@wellsfargo-starui/engine": "*",
+    "@wellsfargo-starui/host-data-react": "*",
+    "@wellsfargo-starui/host-openfin": "*",
+    "@wellsfargo-starui/shared-types": "*",
+    "@wellsfargo-starui/types": "*",
+    "@wellsfargo-starui/widget-sdk": "*",
+    "@wellsfargo-starui/ui": "*",
+    "@wellsfargo-starui/config-browser": "*",
     "@stomp/stompjs": "^7.3.0"
   },
   "devDependencies": {

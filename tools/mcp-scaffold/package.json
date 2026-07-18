@@ -1,5 +1,5 @@
 {
-  "name": "@starui/mcp-scaffold",
+  "name": "@wellsfargo-starui/mcp-scaffold",
   "version": "0.3.0",
   "description": "StarUI Platform MCP — scaffold apps, wire STOMP, diagnose empty grids, OpenFin routes",
   "type": "module",

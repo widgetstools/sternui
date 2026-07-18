@@ -3,8 +3,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@starui/ui';
-import { ConfigBrowserPanel } from '@starui/config-browser';
+} from '@wellsfargo-starui/ui';
+import { ConfigBrowserPanel } from '@wellsfargo-starui/config-browser';
 
 export interface ConfigBrowserDialogProps {
   open: boolean;

@@ -8,7 +8,7 @@
 //
 //  Storage keys (post-theme-reducer):
 //    `starui:theme` — the canonical theme storage key shared with
-//      `@starui/runtime-port`'s THEME_STORAGE_KEY constant. Stored
+//      `@wellsfargo-starui/runtime-port`'s THEME_STORAGE_KEY constant. Stored
 //      as the bare string `'dark'` | `'light'`. The runtime port
 //      reads and writes this key on every cross-window broadcast,
 //      so the design-system MUST use the same key — otherwise
@@ -22,13 +22,13 @@
 //    `starui:variant` — light-only surface variant: `clinical` |
 //      `paper`. Default `clinical` when light and absent.
 //
-//  Backwards compatibility: the legacy `@starui/theme` JSON blob
+//  Backwards compatibility: the legacy `@wellsfargo-starui/theme` JSON blob
 //  is read on first boot if the canonical keys are absent, then
 //  rewritten to the new shape. After the first migration, future
 //  reads only hit the new keys.
 // ─────────────────────────────────────────────────────────────
 
-import { THEME_STORAGE_KEY } from '@starui/shared-types';
+import { THEME_STORAGE_KEY } from '@wellsfargo-starui/shared-types';
 
 export type Mode = 'dark' | 'light';
 export type LightVariant = 'clinical' | 'paper';
@@ -42,7 +42,7 @@ export interface ThemeOptions {
 
 const CVD_KEY = 'starui:cvd';
 const VARIANT_KEY = 'starui:variant';
-const LEGACY_KEY = '@starui/theme';
+const LEGACY_KEY = '@wellsfargo-starui/theme';
 const LEGACY_THEME_KEY = 'starui:theme';
 
 function applyVariant(variant: LightVariant | undefined, theme: Mode): void {

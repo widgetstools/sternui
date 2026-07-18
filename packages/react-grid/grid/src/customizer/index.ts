@@ -1,12 +1,12 @@
 /**
- * @starui/grid/customizer — React UI for the MarketsUI grid customizer.
+ * @wellsfargo-starui/grid/customizer — React UI for the MarketsUI grid customizer.
  *
  * Hosts every React surface that previously lived under
- * `@starui/engine/src/{ui,hooks,modules}` (extracted in PR-8). Consumers
- * are `@starui/markets-grid` and any host app that needs the
+ * `@wellsfargo-starui/engine/src/{ui,hooks,modules}` (extracted in PR-8). Consumers
+ * are `@wellsfargo-starui/markets-grid` and any host app that needs the
  * settings-panel primitives, hooks, or module definitions.
  *
- * `@starui/engine` remains framework-agnostic vanilla TS: GridPlatform,
+ * `@wellsfargo-starui/engine` remains framework-agnostic vanilla TS: GridPlatform,
  * ProfileManager, expression engine, persistence adapters, etc.
  */
 
@@ -123,7 +123,7 @@ export type {
   StepperProps,
 } from './ui/SettingsPanel';
 
-// ─── shadcn primitives (@starui/ui) + grid-specific adapters ───────────────
+// ─── shadcn primitives (@wellsfargo-starui/ui) + grid-specific adapters ───────────────
 export {
   Button,
   buttonVariants,
@@ -150,8 +150,8 @@ export {
   AlertDialogAction,
   AlertDialogCancel,
   cn,
-} from '@starui/ui';
-export type { ButtonProps } from '@starui/ui';
+} from '@wellsfargo-starui/ui';
+export type { ButtonProps } from '@wellsfargo-starui/ui';
 export { GhostIconButton } from './ui/GhostIconButton';
 export {
   ChromeButton,
@@ -364,7 +364,7 @@ export {
   exportVisualExcel,
   type VisualExcelExportOptions,
 } from './modules/visual-excel';
-export type { VisualExcelState } from '@starui/engine';
+export type { VisualExcelState } from '@wellsfargo-starui/engine';
 export {
   toolbarVisibilityModule,
   TOOLBAR_VISIBILITY_MODULE_ID,

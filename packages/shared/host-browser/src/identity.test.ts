@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOGGED_IN_USER_ID } from '@starui/types';
+import { LOGGED_IN_USER_ID } from '@wellsfargo-starui/types';
 import { resolveBrowserIdentity } from './identity.js';
 
 describe('resolveBrowserIdentity', () => {

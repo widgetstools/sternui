@@ -3,7 +3,7 @@ import {
   VISUAL_EXCEL_MODULE_ID,
   type VisualExcelSettings,
   type VisualExcelState,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
 import { ObjectTitleRow, SettingsRow as Row, SharpBtn } from '../../ui/SettingsPanel';
 import { BoolControl } from '../general-settings/fieldSchema';

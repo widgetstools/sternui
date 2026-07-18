@@ -12,7 +12,7 @@
  *
  *   2. **Local mode** — routes every CRUD op through an injected
  *      `DataProviderLocalBackend`. Useful when the consumer ships an
- *      IndexedDB / Dexie persistence layer (`@starui/host-config`'s
+ *      IndexedDB / Dexie persistence layer (`@wellsfargo-starui/host-config`'s
  *      `ConfigManager` is the canonical implementation) and doesn't
  *      want to require a running config server.
  *
@@ -22,13 +22,13 @@
  * over REST — `configureLocal(undefined)` explicitly returns to REST.
  */
 
-import type { UnifiedConfig } from '@starui/types';
+import type { UnifiedConfig } from '@wellsfargo-starui/types';
 import {
   COMPONENT_TYPES,
   PROVIDER_TYPE_TO_COMPONENT_SUBTYPE,
   COMPONENT_SUBTYPE_TO_PROVIDER_TYPE,
-} from '@starui/types';
-import type { DataProviderConfig, ProviderConfig } from '@starui/types';
+} from '@wellsfargo-starui/types';
+import type { DataProviderConfig, ProviderConfig } from '@wellsfargo-starui/types';
 
 const DEFAULT_API_URL = 'http://localhost:3001';
 
@@ -105,7 +105,7 @@ export class DataProviderConfigService {
    * Switch into local-backend mode. Pass a backend to enable, pass
    * `undefined` to revert to REST.
    *
-   * The reference app wires `@starui/host-config`'s `ConfigManager`
+   * The reference app wires `@wellsfargo-starui/host-config`'s `ConfigManager`
    * as the backend so DataProviders persist into the same IndexedDB
    * the rest of the platform's config rows live in — no separate
    * server required for dev.

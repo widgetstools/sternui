@@ -20,7 +20,7 @@
  * `closed` event.
  */
 
-import type { SurfaceHandle, SurfaceKind } from '@starui/types';
+import type { SurfaceHandle, SurfaceKind } from '@wellsfargo-starui/types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare const fin: any;

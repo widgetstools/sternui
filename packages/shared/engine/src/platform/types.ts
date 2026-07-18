@@ -14,8 +14,8 @@ import type {
 } from 'ag-grid-community';
 /**
  * Framework-agnostic component slot. The `Module` interface accepts
- * React `ComponentType<X>` here because `@starui/grid-react` plugs in
- * actual React components, but `@starui/core` itself stays
+ * React `ComponentType<X>` here because `@wellsfargo-starui/grid-react` plugs in
+ * actual React components, but `@wellsfargo-starui/core` itself stays
  * vanilla-TypeScript: any `(props: P) => any` callable satisfies the
  * slot, including a `React.ComponentType<P>`. The `any` return is
  * deliberate so a host using `<module.SettingsPanel />` in JSX
@@ -328,7 +328,7 @@ export interface Module<S = unknown> {
   transformGridOptions?(opts: Partial<GridOptions>, state: S, ctx: TransformContext): Partial<GridOptions>;
 
   // Optional UI surface — slots filled by React bindings that live next
-  // to the module (in `@starui/grid-react`). Vanilla consumers can
+  // to the module (in `@wellsfargo-starui/grid-react`). Vanilla consumers can
   // ignore. Typed structurally as `(props) => unknown` so this file has
   // no React peer-dep.
   readonly code?: string;

@@ -28,8 +28,8 @@ import { registerProvider } from '../providers/registry';
 import type { ProviderEmit, ProviderHandle } from '../providers/Provider';
 import type { Event, RowPatch } from '../protocol';
 import { decodeColumnar } from '../wire/columnarCodec';
-import type { ProviderConfig } from '@starui/types';
-import type { ConfigManager, AppConfigRow } from '@starui/host-config';
+import type { ProviderConfig } from '@wellsfargo-starui/types';
+import type { ConfigManager, AppConfigRow } from '@wellsfargo-starui/host-config';
 import {
   SUBSCRIBER_PING_TIMEOUT_MS,
   SUBSCRIBER_SWEEP_INTERVAL_MS,

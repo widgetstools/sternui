@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Textarea } from "@starui/ui";
-import { DynamicIcon as Icon } from "@starui/config-browser/icons";
+import { Button, Textarea } from "@wellsfargo-starui/ui";
+import { DynamicIcon as Icon } from "@wellsfargo-starui/config-browser/icons";
 
 type Mode = "edit" | "create";
 

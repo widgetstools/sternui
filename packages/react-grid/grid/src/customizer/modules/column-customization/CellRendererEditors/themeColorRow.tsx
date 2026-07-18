@@ -6,7 +6,7 @@
  * `CompactColorField` inputs side-by-side. Either slot can be left
  * empty — the renderer falls back to whichever slot is present.
  */
-import type { ThemeAwareColor } from '@starui/design-system';
+import type { ThemeAwareColor } from '@wellsfargo-starui/design-system';
 import { CompactColorField } from '../../../ui/ColorPicker';
 
 export interface ThemeAwareColorRowProps {

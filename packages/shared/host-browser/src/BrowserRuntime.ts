@@ -1,12 +1,12 @@
-import type { RuntimePort } from '@starui/host';
+import type { RuntimePort } from '@wellsfargo-starui/host';
 import type {
   IdentitySnapshot,
   SurfaceHandle,
   SurfaceSpec,
   Theme,
   Unsubscribe,
-} from '@starui/types';
-import { THEME_BROADCAST_CHANNEL, THEME_STORAGE_KEY } from '@starui/types';
+} from '@wellsfargo-starui/types';
+import { THEME_BROADCAST_CHANNEL, THEME_STORAGE_KEY } from '@wellsfargo-starui/types';
 import { resolveBrowserIdentity, type IdentityOverrides } from './identity.js';
 
 export interface BrowserRuntimeOptions {

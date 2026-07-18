@@ -10,8 +10,8 @@
  * ResourceScope — no file-level state, cleaned up in one pass when the
  * grid is destroyed.
  */
-import type { Module } from '@starui/engine';
-import { migrateThemedStyle } from '@starui/engine';
+import type { Module } from '@wellsfargo-starui/engine';
+import { migrateThemedStyle } from '@wellsfargo-starui/engine';
 import {
   INITIAL_COLUMN_CUSTOMIZATION,
   type ColumnCustomizationState,

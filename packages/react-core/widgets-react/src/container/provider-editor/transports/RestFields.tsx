@@ -5,8 +5,8 @@
 import {
   Input, Label, Textarea,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@starui/ui';
-import type { RestProviderConfig } from '@starui/shared-types';
+} from '@wellsfargo-starui/ui';
+import type { RestProviderConfig } from '@wellsfargo-starui/shared-types';
 import { KeyValueEditor } from '../KeyValueEditor.js';
 
 export interface RestFieldsProps {

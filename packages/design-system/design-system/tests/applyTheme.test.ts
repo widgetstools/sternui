@@ -92,15 +92,15 @@ describe('applyTheme', () => {
     expect(getTheme()).toEqual({ theme: 'dark' });
   });
 
-  it('migrates from the legacy "@starui/theme" JSON blob on first read', () => {
+  it('migrates from the legacy "@wellsfargo-starui/theme" JSON blob on first read', () => {
     // Pre-existing user with the old JSON-blob storage layout.
-    localStorage.setItem('@starui/theme', JSON.stringify({ theme: 'light', cvd: true }));
+    localStorage.setItem('@wellsfargo-starui/theme', JSON.stringify({ theme: 'light', cvd: true }));
     expect(getTheme()).toEqual({ theme: 'light', cvd: true, variant: 'clinical' });
     // The next applyTheme() rewrites under the canonical keys and clears
     // the legacy blob so we don't keep reading it.
     applyTheme({ theme: 'light', cvd: true });
     expect(localStorage.getItem('starui:theme')).toBe('light');
     expect(localStorage.getItem('starui:cvd')).toBe('on');
-    expect(localStorage.getItem('@starui/theme')).toBeNull();
+    expect(localStorage.getItem('@wellsfargo-starui/theme')).toBeNull();
   });
 });

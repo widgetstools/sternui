@@ -24,7 +24,7 @@ import {
   useGridPlatform,
   type ColumnCustomizationState,
   type ColumnTemplatesState,
-} from '@starui/grid/customizer';
+} from '@wellsfargo-starui/grid/customizer';
 import {
   readCellDataType,
   useFlashConfirm,

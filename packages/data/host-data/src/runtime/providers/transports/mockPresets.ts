@@ -33,7 +33,7 @@
  * to the preset's defaults. To turn ticking off, pass
  * `{ enableUpdates: false }`.
  */
-import type { MockProviderConfig } from '@starui/types';
+import type { MockProviderConfig } from '@wellsfargo-starui/types';
 
 export interface FiPositionsConfigOverrides {
   /** Row count. Universe has 53 issuers; counts above 53 cycle with rotating account ids. */

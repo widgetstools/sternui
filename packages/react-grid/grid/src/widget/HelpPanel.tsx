@@ -15,7 +15,7 @@
  */
 
 import { useState } from 'react';
-import { ChromeButton } from '@starui/grid/customizer';
+import { ChromeButton } from '@wellsfargo-starui/grid/customizer';
 import './HelpPanel.css';
 import { SECTIONS } from './help/sections';
 import type { SectionId } from './help/types';

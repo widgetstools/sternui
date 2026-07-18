@@ -10,7 +10,7 @@
  * Note: AND/OR short-circuiting lives in the caller (it needs the un-evaluated
  * operands), so `applyBinary` deliberately does NOT handle them.
  */
-import { getValueByPath } from '@starui/types';
+import { getValueByPath } from '@wellsfargo-starui/types';
 import type { EvaluationContext, ExpressionNode, FunctionDefinition } from './types';
 
 export function isTruthy(val: unknown): boolean {

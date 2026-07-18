@@ -1,5 +1,5 @@
 import { Activity, Plus, MessageSquare, Save, RotateCcw } from 'lucide-react';
-import { Badge, Button } from '@starui/ui';
+import { Badge, Button } from '@wellsfargo-starui/ui';
 import type { TerminalState } from '../data/types';
 import { fmtPrice, fmtSignedPct } from '../data/formatters';
 import { ThemeToggle } from './ThemeToggle';

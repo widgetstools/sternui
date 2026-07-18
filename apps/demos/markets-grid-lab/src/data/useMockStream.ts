@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { GridApi } from 'ag-grid-community';
-import { useProviderStream } from '@starui/host-data-react/runtime';
-import type { MockProviderConfig } from '@starui/types';
+import { useProviderStream } from '@wellsfargo-starui/host-data-react/runtime';
+import type { MockProviderConfig } from '@wellsfargo-starui/types';
 import {
   applyLabStreamDelta,
   type LabStreamApplyTx,

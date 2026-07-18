@@ -19,7 +19,7 @@ import {
   type DockMenuItemConfig,
   type RegistryEditorConfig,
   type RegistryEntry,
-} from "@starui/openfin-platform/config";
+} from "@wellsfargo-starui/openfin-platform/config";
 
 /**
  * Options for `useDockEditor()`.

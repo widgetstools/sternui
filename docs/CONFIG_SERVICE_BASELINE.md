@@ -21,7 +21,7 @@ behaviors as executable guardrails.
 
 ## 1. Architecture at a glance
 
-The "config service" is the **`ConfigManager`** in `@starui/host-config`,
+The "config service" is the **`ConfigManager`** in `@wellsfargo-starui/host-config`,
 backed by a Dexie/IndexedDB database named **`marketsui-config`**, with an
 optional REST sync layer when running against a remote config service.
 
@@ -29,7 +29,7 @@ There are **two ConfigManager instances** in a running OpenFin deployment:
 
 | Instance | Lives on | Created by | Role |
 |----------|----------|------------|------|
-| **Main-thread ConfigManager** | Each window's main thread | `ensureConfigReady` (`@starui/host-data`) | Profile/gridLevelData CRUD, provider catalog reads, Config Browser, dock/registry, workspace persistence. Passed into the hub as `mainThreadConfigManager`. |
+| **Main-thread ConfigManager** | Each window's main thread | `ensureConfigReady` (`@wellsfargo-starui/host-data`) | Profile/gridLevelData CRUD, provider catalog reads, Config Browser, dock/registry, workspace persistence. Passed into the hub as `mainThreadConfigManager`. |
 | **Worker ConfigManager** | The SharedWorker (`mkt-data-services:${appId}`) | `defaultEntry.ts` (`createConfigManager` + full `init()`) | Sole IndexedDB writer for the AppData mirror; backs the worker catalog cache; always full-seeds on cold start. |
 
 Both open the **same** `marketsui-config` IndexedDB database (IndexedDB is

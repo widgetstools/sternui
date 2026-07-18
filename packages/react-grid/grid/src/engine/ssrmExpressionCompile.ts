@@ -1,5 +1,5 @@
-import { parse, tokenize } from '@starui/engine';
-import type { ExpressionNode } from '@starui/engine';
+import { parse, tokenize } from '@wellsfargo-starui/engine';
+import type { ExpressionNode } from '@wellsfargo-starui/engine';
 
 export type SsrmExpressionCompileResult =
   | {

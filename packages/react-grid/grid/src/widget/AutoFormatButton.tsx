@@ -2,7 +2,7 @@
  * AutoFormatButton — a one-click "Auto Format" action in the primary
  * toolbar. It reads every column from the live grid, matches each field
  * name against the FI/equity field-format catalog (see
- * `@starui/engine` → `buildAutoFormatPlan`), and applies the resolved
+ * `@wellsfargo-starui/engine` → `buildAutoFormatPlan`), and applies the resolved
  * NATIVE formatting in ONE profile-persisted state update: number/date
  * value formatters, sign-coloured P&L/change via `excelFormat` colour tags,
  * right-alignment for numerics, localised dates, centred categoricals, and
@@ -23,7 +23,7 @@
  * still supports a non-destructive (`onlyUnstyled`) mode for other callers.
  */
 import { Check, Wand2 } from 'lucide-react';
-import { Button } from '@starui/ui';
+import { Button } from '@wellsfargo-starui/ui';
 import { useAutoFormatAction } from './useAutoFormatAction';
 
 export function AutoFormatButton() {

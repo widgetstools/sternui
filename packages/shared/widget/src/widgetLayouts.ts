@@ -1,9 +1,9 @@
-import type { AppConfigRow, CreateConfigInput } from '@starui/host-config';
-import type { LayoutInfo } from '@starui/shared-types';
+import type { AppConfigRow, CreateConfigInput } from '@wellsfargo-starui/host-config';
+import type { LayoutInfo } from '@wellsfargo-starui/shared-types';
 
 /**
  * The slice of `ConfigManager` these helpers need. Structural so
- * `@starui/widget` stays decoupled from the concrete class — any object
+ * `@wellsfargo-starui/widget` stays decoupled from the concrete class — any object
  * with these four methods (the real `ConfigManager`, or a test fake)
  * satisfies it.
  */

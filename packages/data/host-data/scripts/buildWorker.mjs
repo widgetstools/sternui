@@ -1,7 +1,7 @@
 /**
  * Bundle the default SharedWorker entry into a single ESM asset.
  *
- * tsc emits `defaultEntry.js` with bare `@starui/*` imports that the
+ * tsc emits `defaultEntry.js` with bare `@wellsfargo-starui/*` imports that the
  * browser cannot resolve when loaded as a standalone worker script.
  * esbuild inlines host-data, host-config, dexie, and optional stomp
  * into `dist/assets/data-services-worker.mjs` for Vite `?url` imports.

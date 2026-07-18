@@ -26,10 +26,10 @@ npm run dev:demo-stomp-markets-grid
 
 This app uses the same CSS stack as `tutorials-workspace/stomp` and `demo-react`:
 
-- `@starui/design-system/css` — `--ds-*` tokens + shadcn HSL channels
-- `@starui/grid/styles.css` — primary toolbar + filter chrome (`.ds-*`)
-- `@starui/design-system/tailwind` preset — shadcn/Tailwind classes for grid customizer controls
-- Formatter toolbar CSS ships with `@starui/grid` (`.fx-*`, loaded when the toolbar opens)
+- `@wellsfargo-starui/design-system/css` — `--ds-*` tokens + shadcn HSL channels
+- `@wellsfargo-starui/grid/styles.css` — primary toolbar + filter chrome (`.ds-*`)
+- `@wellsfargo-starui/design-system/tailwind` preset — shadcn/Tailwind classes for grid customizer controls
+- Formatter toolbar CSS ships with `@wellsfargo-starui/grid` (`.fx-*`, loaded when the toolbar opens)
 
 If the grid looks unstyled (plain white boxes, missing toolbar chrome), stop the dev server and restart with the npm script above (it sets `STARUI_DEV_SOURCE=1`), then hard-refresh the browser. Tailwind config changes are not picked up by Vite HMR alone.
 

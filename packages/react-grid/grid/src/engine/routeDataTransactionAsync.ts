@@ -1,5 +1,5 @@
 import type { GridApi } from 'ag-grid-community';
-import type { RowChangeSignal } from '@starui/engine';
+import type { RowChangeSignal } from '@wellsfargo-starui/engine';
 import { isSsrmCapabilityEnabled } from './ssrmCapabilities.js';
 import { materializeCalcFields, type SsrmCalcMaterializeContext } from './ssrmCalcColumns.js';
 import { recordSsrmTickDiffs } from './ssrmRowDiff.js';

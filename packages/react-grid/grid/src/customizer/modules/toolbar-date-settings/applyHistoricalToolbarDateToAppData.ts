@@ -1,4 +1,4 @@
-import type { AppDataLookup } from '@starui/engine';
+import type { AppDataLookup } from '@wellsfargo-starui/engine';
 import { isoToDate, todayIsoDate } from '../../../widget/toolbarDateUtils';
 import type { ToolbarDateSettingsState } from './state';
 

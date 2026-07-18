@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { INITIAL_DATA_CHANGE_HISTORY } from '@starui/engine';
+import { INITIAL_DATA_CHANGE_HISTORY } from '@wellsfargo-starui/engine';
 import { dataChangeHistoryModule } from './index.js';
 
 describe('dataChangeHistoryModule', () => {

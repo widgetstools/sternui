@@ -2,9 +2,9 @@ import {
   ensurePlatformReady,
   type PlatformBootstrapConfig,
   type ResolvedDataServicesHubBundle,
-} from '@starui/host-data';
-import { resolvePlatformBootstrapFromManifest } from '@starui/openfin-platform/config';
-import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
+} from '@wellsfargo-starui/host-data';
+import { resolvePlatformBootstrapFromManifest } from '@wellsfargo-starui/openfin-platform/config';
+import workerAssetUrl from '@wellsfargo-starui/host-data/assets/data-services-worker.mjs?url';
 
 export interface PlatformBootstrapResult {
   config: PlatformBootstrapConfig;

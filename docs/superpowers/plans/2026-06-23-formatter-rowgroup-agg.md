@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- UI consumes `@starui/design-system` tokens + shadcn/`@starui/ui` primitives only. No native `<input>`/`<select>`. (CLAUDE.md UI rules.)
+- UI consumes `@wellsfargo-starui/design-system` tokens + shadcn/`@wellsfargo-starui/ui` primitives only. No native `<input>`/`<select>`. (CLAUDE.md UI rules.)
 - `AggFuncName` set is exactly: `sum, min, max, count, avg, first, last` (NO `custom` in the toolbar).
 - "Enable Row Group" sets `enableRowGroup` only (capability flag) — never `rowGroup`.
 - Picking an agg sets `aggFunc` + `enableValue: true`; "None" clears both.
@@ -142,7 +142,7 @@ git commit -m "feat(engine): applyRowGroupingReducer for column rowGrouping conf
 
 **Interfaces:**
 - Produces: `ResolvedFormatting.enableRowGroup?: boolean` and `ResolvedFormatting.aggFunc?: AggFuncName` (read from the first selected column's `assignment.rowGrouping`).
-- Consumes: `AggFuncName` from `@starui/grid/customizer`.
+- Consumes: `AggFuncName` from `@wellsfargo-starui/grid/customizer`.
 
 - [ ] **Step 1: Extend the interface**
 
@@ -155,7 +155,7 @@ In `formattingToolbarHooks.ts`, add to `interface ResolvedFormatting` (after `ed
   aggFunc?: AggFuncName;
 ```
 
-Add the import near the other `@starui/grid/customizer` type imports: `import type { AggFuncName } from '@starui/grid/customizer';` (verify it isn't already imported).
+Add the import near the other `@wellsfargo-starui/grid/customizer` type imports: `import type { AggFuncName } from '@wellsfargo-starui/grid/customizer';` (verify it isn't already imported).
 
 - [ ] **Step 2: Derive the values**
 
@@ -191,12 +191,12 @@ git commit -m "feat(grid): resolve enableRowGroup + aggFunc into ResolvedFormatt
 - Modify: `packages/react-grid/grid/src/widget/formatter/state.ts` (add to `FormatterActions` type + the composer that assembles `actions`)
 
 **Interfaces:**
-- Consumes: `applyRowGroupingReducer` (Task 1) via `@starui/engine`; `fmt.enableRowGroup` / `fmt.aggFunc` (Task 2).
+- Consumes: `applyRowGroupingReducer` (Task 1) via `@wellsfargo-starui/engine`; `fmt.enableRowGroup` / `fmt.aggFunc` (Task 2).
 - Produces: `actions.toggleEnableRowGroup(): void`, `actions.setAggFunc(name: AggFuncName | null): void`.
 
 - [ ] **Step 1: Add the callbacks in `useFormatterActions.ts`**
 
-Mirror `toggleEditable`. Import `applyRowGroupingReducer` from `@starui/engine` (alongside the other reducer imports) and `AggFuncName` type from `@starui/grid/customizer`:
+Mirror `toggleEditable`. Import `applyRowGroupingReducer` from `@wellsfargo-starui/engine` (alongside the other reducer imports) and `AggFuncName` type from `@wellsfargo-starui/grid/customizer`:
 
 ```ts
   const toggleEnableRowGroup = useCallback(() => {
@@ -232,7 +232,7 @@ Add to the `FormatterActions` interface:
   setAggFunc: (name: AggFuncName | null) => void;
 ```
 
-Import `AggFuncName` type in `state.ts` (from `@starui/grid/customizer`) and ensure the composer spreads these from `useFormatterActions` into the public `actions` bundle.
+Import `AggFuncName` type in `state.ts` (from `@wellsfargo-starui/grid/customizer`) and ensure the composer spreads these from `useFormatterActions` into the public `actions` bundle.
 
 - [ ] **Step 3: Typecheck**
 
@@ -256,7 +256,7 @@ git commit -m "feat(grid): formatter actions toggleEnableRowGroup + setAggFunc"
 - Test: `packages/react-grid/grid/src/widget/formatter/modules/ModuleGrouping.test.tsx`
 
 **Interfaces:**
-- Consumes: `FormatterState`, `FormatterActions` (state.ts); `Module`, `Pill`, `ToolbarSelect`, `Hair` (primitives.tsx); `AggFuncName` (`@starui/grid/customizer`).
+- Consumes: `FormatterState`, `FormatterActions` (state.ts); `Module`, `Pill`, `ToolbarSelect`, `Hair` (primitives.tsx); `AggFuncName` (`@wellsfargo-starui/grid/customizer`).
 
 - [ ] **Step 1: Write the component**
 
@@ -264,7 +264,7 @@ git commit -m "feat(grid): formatter actions toggleEnableRowGroup + setAggFunc"
 import { Group } from 'lucide-react';
 import { Hair, Module, Pill, ToolbarSelect, TOOLBAR_SELECT_EMPTY } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
-import type { AggFuncName } from '@starui/grid/customizer';
+import type { AggFuncName } from '@wellsfargo-starui/grid/customizer';
 
 const AGG_OPTIONS: Array<{ value: string; label: string }> = [
   { value: TOOLBAR_SELECT_EMPTY, label: 'None' },

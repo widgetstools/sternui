@@ -3,7 +3,7 @@ import {
   SHORTCUTS_MODULE_ID,
   type PlusMinusState,
   type ShortcutsState,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +14,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import { Keyboard } from 'lucide-react';
 import { useModuleState } from '../../customizer/hooks/useModuleState';
 import {

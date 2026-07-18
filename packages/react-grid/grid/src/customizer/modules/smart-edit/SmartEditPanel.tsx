@@ -4,8 +4,8 @@ import {
   type SmartEditOp,
   type SmartEditSettings,
   type SmartEditState,
-} from '@starui/engine';
-import { Button } from '@starui/ui';
+} from '@wellsfargo-starui/engine';
+import { Button } from '@wellsfargo-starui/ui';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
 import { useSsrmCapabilityGate } from '../../hooks/useSsrmCapabilityGate';
 import { Band, ObjectTitleRow, SettingsRow as Row, SharpBtn } from '../../ui/SettingsPanel';

@@ -11,7 +11,7 @@ function findPackageRoot(): string {
     if (existsSync(pkgPath)) {
       try {
         const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { name?: string };
-        if (pkg.name === '@starui/mcp-scaffold') return dir;
+        if (pkg.name === '@wellsfargo-starui/mcp-scaffold') return dir;
       } catch {
         /* continue */
       }

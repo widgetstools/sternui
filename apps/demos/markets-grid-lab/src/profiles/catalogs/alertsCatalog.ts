@@ -5,7 +5,7 @@ import {
   type AlertRule,
   type AlertsSettings,
   type AlertsState,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 
 export const ALERTS_GRID_ID = 'lab-alerts-v2';
 

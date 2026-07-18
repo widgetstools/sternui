@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
-import { Button } from '@starui/ui';
-import { useAppDataStore } from '@starui/host-data-react/runtime';
+import { Button } from '@wellsfargo-starui/ui';
+import { useAppDataStore } from '@wellsfargo-starui/host-data-react/runtime';
 import { BookOpen, Database, ListTree, Trash2 } from 'lucide-react';
 import {
   clearDemoEventLog,

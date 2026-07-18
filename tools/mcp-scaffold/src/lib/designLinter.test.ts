@@ -13,11 +13,11 @@ describe('designLinter', () => {
     const violations = lintDesignCompliance([
       {
         path: 'App.tsx',
-        content: "import { Button } from '@starui/ui';\n<div style={{ color: 'var(--ds-text-primary)' }}><Button /></div>",
+        content: "import { Button } from '@wellsfargo-starui/ui';\n<div style={{ color: 'var(--ds-text-primary)' }}><Button /></div>",
       },
       {
         path: 'src/globals.css',
-        content: "@import '@starui/design-system/css';\n@import '@starui/grid/styles.css';",
+        content: "@import '@wellsfargo-starui/design-system/css';\n@import '@wellsfargo-starui/grid/styles.css';",
       },
     ]);
     expect(violations).toHaveLength(0);

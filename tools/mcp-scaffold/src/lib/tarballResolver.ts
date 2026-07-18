@@ -28,13 +28,13 @@ export interface LibsManifest {
 
 /** npm dependency key → libs manifest bucket key */
 export const BUCKET_DEP_NAMES: Record<string, string> = {
-  '@starui/design-system': '@starui/design-system',
-  '@starui/react-ui': '@starui/react-ui',
-  '@starui/react-grid': '@starui/react-grid',
-  '@starui/shared': '@starui/shared',
-  '@starui/data': '@starui/data',
-  '@starui/react-core': '@starui/react-core',
-  '@starui/openfin': '@starui/openfin',
+  '@wellsfargo-starui/design-system': '@wellsfargo-starui/design-system',
+  '@wellsfargo-starui/react-ui': '@wellsfargo-starui/react-ui',
+  '@wellsfargo-starui/react-grid': '@wellsfargo-starui/react-grid',
+  '@wellsfargo-starui/shared': '@wellsfargo-starui/shared',
+  '@wellsfargo-starui/data': '@wellsfargo-starui/data',
+  '@wellsfargo-starui/react-core': '@wellsfargo-starui/react-core',
+  '@wellsfargo-starui/openfin': '@wellsfargo-starui/openfin',
 };
 
 export function readManifest(manifestPath: string): LibsManifest {
@@ -44,7 +44,7 @@ export function readManifest(manifestPath: string): LibsManifest {
 export function buildPackageDeps(manifest: LibsManifest, buckets: string[]): Record<string, string> {
   const deps: Record<string, string> = {};
   for (const bucket of buckets) {
-    const key = bucket.startsWith('@starui/') ? bucket : `@starui/${bucket}`;
+    const key = bucket.startsWith('@wellsfargo-starui/') ? bucket : `@wellsfargo-starui/${bucket}`;
     const entry = manifest[key];
     if (!entry) continue;
     const depName = BUCKET_DEP_NAMES[key] ?? key;

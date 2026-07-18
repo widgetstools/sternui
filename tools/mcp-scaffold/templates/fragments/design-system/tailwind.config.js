@@ -1,4 +1,4 @@
-import { tailwindPreset } from '@starui/design-system/tailwind';
+import { tailwindPreset } from '@wellsfargo-starui/design-system/tailwind';
 
 /** @type {import('tailwindcss').Config} */
 export default {

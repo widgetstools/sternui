@@ -7,7 +7,7 @@
  * it — descriptors pay off at 8+).
  */
 
-import type { ProviderConfig, StompProviderConfig } from '@starui/types';
+import type { ProviderConfig, StompProviderConfig } from '@wellsfargo-starui/types';
 import type { ProviderEmit, ProviderHandle } from './Provider.js';
 import { resolveBracketCfg, type BracketCache } from '../template/bracketResolver.js';
 import { assertAppDataResolved, resolveCfg, type AppDataLookup } from '../template/resolver.js';

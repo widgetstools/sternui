@@ -21,8 +21,8 @@ import {
   TooltipTrigger,
   cn,
   type ButtonProps,
-} from '@starui/ui';
-import { CHROME_BUTTON_RESET } from '@starui/grid/customizer';
+} from '@wellsfargo-starui/ui';
+import { CHROME_BUTTON_RESET } from '@wellsfargo-starui/grid/customizer';
 
 export type Orientation = 'horizontal' | 'vertical';
 
@@ -33,7 +33,7 @@ export type Orientation = 'horizontal' | 'vertical';
 // their own ref/onMouseDown wiring) can apply the same styling as the
 // Pill component without duplicating the class string. Both Pill and
 // every raw consumer resolve their visuals through the same chain →
-// design-system tokens → `@starui/design-system`.
+// design-system tokens → `@wellsfargo-starui/design-system`.
 
 /** Radix Select forbids `value=""` — map empty selections through this sentinel. */
 export const TOOLBAR_SELECT_EMPTY = '__STARUI_FMT_SELECT_EMPTY__';
@@ -200,7 +200,7 @@ export function Pill({
 }: PillProps) {
   // Toolbar pill — shadcn `<Button variant="ghost" size="sm">` styled
   // entirely via Tailwind utilities that resolve through the
-  // `@starui/design-system` token tree (no `.fx-*` CSS dependency).
+  // `@wellsfargo-starui/design-system` token tree (no `.fx-*` CSS dependency).
   //   • size="sm" → `h-[28px]` (matches the formatter's pill rhythm)
   //   • `border-input` → `--ds-border-secondary` (the "prominent" tier)
   //   • `bg-primary` / `text-primary-foreground` on `data-on="true"`
@@ -487,7 +487,7 @@ export function SegmentedToggle<T extends string>({
   // contract is incompatible with radix ToggleGroup's click-driven
   // `onValueChange`, so this primitive stays a hand-rolled radiogroup
   // of `<button role="radio">` elements. Every visual property flows
-  // through `@starui/design-system` tokens via Tailwind utilities.
+  // through `@wellsfargo-starui/design-system` tokens via Tailwind utilities.
   return (
     <div
       role="radiogroup"
@@ -589,7 +589,7 @@ export function TitleBar({
 
 // Menu / MenuItem / MenuSep primitives removed in PR #47.
 // Consumers migrated to shadcn `<DropdownMenu>` / `<DropdownMenuItem>` /
-// `<DropdownMenuSeparator>` from `@starui/ui`. The custom primitives
+// `<DropdownMenuSeparator>` from `@wellsfargo-starui/ui`. The custom primitives
 // duplicated radix DropdownMenu's surface + row + separator with no
 // behavioural win — radix gives us keyboard nav, focus management,
 // escape handling, and ARIA roles for free.

@@ -1,13 +1,13 @@
 // ─────────────────────────────────────────────────────────────
-//  @starui/design-system — Public API
+//  @wellsfargo-starui/design-system — Public API
 //
 //  Subpath imports for direct adapter access:
-//    @starui/design-system/tailwind  → tailwindPreset
-//    @starui/design-system/primeng   → primengPreset
-//    @starui/design-system/css       → bundled stylesheet (theme + scrollbar + base)
+//    @wellsfargo-starui/design-system/tailwind  → tailwindPreset
+//    @wellsfargo-starui/design-system/primeng   → primengPreset
+//    @wellsfargo-starui/design-system/css       → bundled stylesheet (theme + scrollbar + base)
 //
 //  Root import for tokens + helpers:
-//    import { dark, light, componentTokens, applyTheme } from '@starui/design-system';
+//    import { dark, light, componentTokens, applyTheme } from '@wellsfargo-starui/design-system';
 // ─────────────────────────────────────────────────────────────
 
 export * from './tokens';

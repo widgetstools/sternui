@@ -2,7 +2,7 @@
  * Shortcuts — letter-key arithmetic on focused/selected numeric cells.
  */
 
-import type { Module } from '@starui/engine';
+import type { Module } from '@wellsfargo-starui/engine';
 import {
   SHORTCUTS_MODULE_ID,
   SHORTCUTS_SCHEMA_VERSION,
@@ -10,7 +10,7 @@ import {
   deserializeShortcutsState,
   INITIAL_SHORTCUTS,
   type ShortcutsState,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import {
   ShortcutsEditor,
   ShortcutsList,

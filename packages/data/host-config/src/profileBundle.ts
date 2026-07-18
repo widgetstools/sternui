@@ -17,11 +17,11 @@
  * drift between surfaces.
  */
 
-// Type-only import — @starui/engine is a peerDependency so the types
+// Type-only import — @wellsfargo-starui/engine is a peerDependency so the types
 // line up exactly with what MarketsGrid expects. No runtime dep on
 // core; consumers naturally satisfy the peer by depending on both.
-import type { ProfileSnapshot, StorageAdapter } from '@starui/engine';
-import type { ConfigPort } from '@starui/host';
+import type { ProfileSnapshot, StorageAdapter } from '@wellsfargo-starui/engine';
+import type { ConfigPort } from '@wellsfargo-starui/host';
 
 import type { ChangeNotifier } from './changeNotifier';
 import type { ConfigManager } from './ConfigManager.js';
@@ -362,7 +362,7 @@ export interface ProfileStorageFactoryOpts {
   registeredIdentity?: RegisteredComponentIdentity;
 }
 
-/** Factory type — matches `StorageAdapterFactory` in @starui/markets-grid. */
+/** Factory type — matches `StorageAdapterFactory` in @wellsfargo-starui/markets-grid. */
 export type ProfileStorageFactory = (opts: ProfileStorageFactoryOpts) => StorageAdapter;
 
 /**
@@ -593,7 +593,7 @@ export function createConfigServiceStorage(
  * `getConfigServiceAdapterBrand(adapter)` to read.
  */
 export const CONFIG_SERVICE_ADAPTER_BRAND = Symbol.for(
-  '@starui/host-config/profile-storage-adapter',
+  '@wellsfargo-starui/host-config/profile-storage-adapter',
 );
 
 /** Recover the `{ configManager, scope }` brand from a StorageAdapter

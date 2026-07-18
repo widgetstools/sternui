@@ -438,7 +438,7 @@ export function buildPaletteFromThemeScope(scope: HTMLElement): OpenFinPaletteSe
 }
 
 /**
- * Resolve dark + light OpenFin palettes from loaded `@starui/design-system/css`.
+ * Resolve dark + light OpenFin palettes from loaded `@wellsfargo-starui/design-system/css`.
  * Falls back to reference palettes when `document` is missing or resolution fails.
  *
  * Light tokens live on `:root` / `[data-theme="light"]`; dark on `[data-theme="dark"]`.

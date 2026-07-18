@@ -1,4 +1,4 @@
-import type { ProviderType } from '@starui/types';
+import type { ProviderType } from '@wellsfargo-starui/types';
 
 /**
  * Declares what an {@link IDataProvider} instance can do for a given

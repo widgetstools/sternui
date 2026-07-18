@@ -1,11 +1,11 @@
 /**
- * @starui/icons-svg/react
+ * @wellsfargo-starui/icons-svg/react
  *
  * React icon bindings for the MarketsUI monorepo.
  * Wraps lucide-react so icon versions are centralised and consistent.
  *
  * Usage:
- *   import { Home, Settings, FileText } from '@starui/icons-svg/react';
+ *   import { Home, Settings, FileText } from '@wellsfargo-starui/icons-svg/react';
  *   <Home size={16} />
  *
  * To add a new icon, re-export it from lucide-react below.

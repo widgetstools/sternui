@@ -6,7 +6,7 @@
 
 **Architecture:** Add `SSRMGridHandle.getGroupLeafRows` that pages `queryAll` in leaf mode for the given `groupKeys` until exhausted. StarUI context-link publish becomes async under SSRM and calls that API for each selected group node.
 
-**Tech Stack:** TypeScript, Vitest, ssrmgrid Perspective worker, `@starui/widgets-react` context link.
+**Tech Stack:** TypeScript, Vitest, ssrmgrid Perspective worker, `@wellsfargo-starui/widgets-react` context link.
 
 **Spec:** `docs/superpowers/specs/2026-07-15-marketsgrid-ssrm-phase4-design.md` (slice 4a)
 

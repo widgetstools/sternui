@@ -1,6 +1,6 @@
 /* ─────────────────────────────────────────────────────────────
    Base layer — Tailwind primitives + minimal reset.
-   Apps import this once via @starui/design-system/css; no need
+   Apps import this once via @wellsfargo-starui/design-system/css; no need
    to also include @tailwind base in their own globals.css.
    ───────────────────────────────────────────────────────────── */
 

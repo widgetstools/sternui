@@ -1,5 +1,5 @@
 {
-  "name": "@starui/ssrm-grid",
+  "name": "@wellsfargo-starui/ssrm-grid",
   "version": "0.1.0",
   "private": true,
   "description": "CustomSSRMGrid — AG Grid SSRM over main-thread RowMirror (StarUI framework)",
@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "echo '@starui/ssrm-grid: consumed as source (no emit)'"
+    "build": "echo '@wellsfargo-starui/ssrm-grid: consumed as source (no emit)'"
   },
   "peerDependencies": {
     "react": "^19.2.5",

@@ -1,12 +1,12 @@
 import type { GridOptions } from 'ag-grid-community';
-import type { Module, PlatformHandle } from '@starui/engine';
+import type { Module, PlatformHandle } from '@wellsfargo-starui/engine';
 import {
   DATA_CHANGE_HISTORY_MODULE_ID,
   DATA_CHANGE_HISTORY_SCHEMA_VERSION,
   deserializeDataChangeHistoryState,
   INITIAL_DATA_CHANGE_HISTORY,
   type DataChangeHistoryState,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import { DataChangeHistoryPanel } from './DataChangeHistoryPanel.js';
 import { activateDataChangeHistory } from './runtime/activate.js';
 import { wrapEditableValueSetters } from './transforms/wrapEditableValueSetters.js';

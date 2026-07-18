@@ -1,6 +1,6 @@
 // Core AppConfigRow schema for the MarketsUI Configuration Service.
 //
-// This is the contract shared between `@starui/config-service`
+// This is the contract shared between `@wellsfargo-starui/config-service`
 // (Dexie / IndexedDB client) and every consumer that reads or writes
 // component configurations.
 

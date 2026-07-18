@@ -1,4 +1,4 @@
-import type { ColumnAssignment, ColumnCustomizationState } from '@starui/grid/customizer';
+import type { ColumnAssignment, ColumnCustomizationState } from '@wellsfargo-starui/grid/customizer';
 import { bgText } from './styleHelpers';
 
 const borderBottom = (dark: string, light: string) => ({

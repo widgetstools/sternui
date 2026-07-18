@@ -5,7 +5,7 @@
  * talk to `starui-config:{appId}` without loading the data plane.
  */
 
-import type { DataProviderConfig, ProviderConfig } from '@starui/types';
+import type { DataProviderConfig, ProviderConfig } from '@wellsfargo-starui/types';
 import type { ListOptions } from '../config/store.js';
 
 export type ConfigWorkerRequest =

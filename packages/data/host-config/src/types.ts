@@ -342,8 +342,8 @@ export interface AppIdentity {
  * `ConfigManager` writes into — see `DataServicesHandle` below.
  *
  * Defined here as a structural interface (rather than imported from
- * `@starui/host-data`) so the dependency stays one-way. The
- * `AppDataMirror` instance from `@starui/host-data` already
+ * `@wellsfargo-starui/host-data`) so the dependency stays one-way. The
+ * `AppDataMirror` instance from `@wellsfargo-starui/host-data` already
  * satisfies this shape verbatim, so consumers pass it through with no
  * adapter.
  *
@@ -381,7 +381,7 @@ export interface AppDataMirrorHandle {
  * config store) is opaque to us here.
  *
  * Pass through the `DataServices` object returned by
- * `bootstrapDataServices` from `@starui/host-data`; structural
+ * `bootstrapDataServices` from `@wellsfargo-starui/host-data`; structural
  * typing makes the assignment direct, no adapter required.
  */
 export interface DataServicesHandle {

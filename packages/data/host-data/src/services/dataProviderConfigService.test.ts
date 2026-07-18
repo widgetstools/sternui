@@ -13,7 +13,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataProviderConfigService } from './dataProviderConfigService';
-import type { DataProviderConfig } from '@starui/types';
+import type { DataProviderConfig } from '@wellsfargo-starui/types';
 
 function provider(
   id: string,

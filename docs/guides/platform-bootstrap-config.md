@@ -6,7 +6,7 @@ How browser and OpenFin apps resolve **`appId`**, **`userId`**, and config-servi
 
 ## Unified shape
 
-Every runtime resolves the same TypeScript interface (`PlatformBootstrapConfig` from `@starui/host-data`):
+Every runtime resolves the same TypeScript interface (`PlatformBootstrapConfig` from `@wellsfargo-starui/host-data`):
 
 | Field | Required | Purpose |
 |-------|----------|---------|
@@ -27,7 +27,7 @@ Seed AppData providers (entitlements, `SessionContext`, desk defaults) **after**
 ### App registry — `src/platform/appDataBootstrap.ts`
 
 ```typescript
-import type { AppDataBootstrapHookRegistry } from '@starui/host-data';
+import type { AppDataBootstrapHookRegistry } from '@wellsfargo-starui/host-data';
 
 export const appDataBootstrapHooks: AppDataBootstrapHookRegistry = {
   'session-context': async (ctx) => {
@@ -96,8 +96,8 @@ Place at **`public/app-config.json`** (served as `/app-config.json`):
 import {
   resolvePlatformBootstrapFromJson,
   ensurePlatformReady,
-} from '@starui/host-data';
-import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
+} from '@wellsfargo-starui/host-data';
+import workerAssetUrl from '@wellsfargo-starui/host-data/assets/data-services-worker.mjs?url';
 
 const config = await resolvePlatformBootstrapFromJson('/app-config.json');
 export const platform = await ensurePlatformReady(config, {
@@ -141,9 +141,9 @@ View **`customData`** carries per-window `instanceId` only — **not** hub `appI
 ### Loader
 
 ```typescript
-import { resolvePlatformBootstrapFromManifest } from '@starui/openfin-platform/config';
-import { ensurePlatformReady } from '@starui/host-data';
-import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
+import { resolvePlatformBootstrapFromManifest } from '@wellsfargo-starui/openfin-platform/config';
+import { ensurePlatformReady } from '@wellsfargo-starui/host-data';
+import workerAssetUrl from '@wellsfargo-starui/host-data/assets/data-services-worker.mjs?url';
 
 const config = await resolvePlatformBootstrapFromManifest();
 export const platform = await ensurePlatformReady(config, {
@@ -159,14 +159,14 @@ Pure helper for tests: `resolvePlatformBootstrapFromCustomSettings(customSetting
 
 ## Dev fallback
 
-Tests and local harnesses may use `DEV_PLATFORM_BOOTSTRAP` from `@starui/host-data`:
+Tests and local harnesses may use `DEV_PLATFORM_BOOTSTRAP` from `@wellsfargo-starui/host-data`:
 
 ```typescript
-import { DEV_PLATFORM_BOOTSTRAP } from '@starui/host-data';
+import { DEV_PLATFORM_BOOTSTRAP } from '@wellsfargo-starui/host-data';
 // { appId: 'TestApp', userId: 'dev1', useRest: false }
 ```
 
-Replace hardcoded `LOGGED_IN_USER_ID` / `DEFAULT_APP_ID` literals as apps migrate (Phase 6). **`useHostedIdentity`** and **`DataHubProvider`** now expose bootstrap `appId` / `userId` via React context; `LOGGED_IN_USER_ID` in `@starui/types` is deprecated.
+Replace hardcoded `LOGGED_IN_USER_ID` / `DEFAULT_APP_ID` literals as apps migrate (Phase 6). **`useHostedIdentity`** and **`DataHubProvider`** now expose bootstrap `appId` / `userId` via React context; `LOGGED_IN_USER_ID` in `@wellsfargo-starui/types` is deprecated.
 
 ---
 
@@ -197,11 +197,11 @@ Do **not** force every OpenFin tool window through `ensurePlatformReady()`. Matc
 
 **HashRouter caveat:** route lives in `location.hash` (`#/config-browser`). Warming logic must read the hash; using `pathname` alone incorrectly starts the data SharedWorker for every tool window.
 
-**Config SharedWorker (ADR Phase 2):** pass `configWorkerScriptUrl` to `ensureConfigReady` / `ensurePlatformReady` (Vite: `import configWorkerUrl from '@starui/host-data/assets/config-catalog-worker.mjs?url'`). Named `starui-config:{appId}`. P1 tool windows get catalog cache + invalidate without the data hub. Main-thread ConfigManager remains the Dexie CRUD path; `wireConfigWorkerCatalogSync` keeps the Config SW aligned.
+**Config SharedWorker (ADR Phase 2):** pass `configWorkerScriptUrl` to `ensureConfigReady` / `ensurePlatformReady` (Vite: `import configWorkerUrl from '@wellsfargo-starui/host-data/assets/config-catalog-worker.mjs?url'`). Named `starui-config:{appId}`. P1 tool windows get catalog cache + invalidate without the data hub. Main-thread ConfigManager remains the Dexie CRUD path; `wireConfigWorkerCatalogSync` keeps the Config SW aligned.
 
-**AppData SharedWorker (ADR Phase 3):** pass `appDataWorkerScriptUrl` to `ensureConfigReady` / `ensurePlatformReady` (Vite: `import appDataWorkerUrl from '@starui/host-data/assets/appdata-worker.mjs?url'`). Named `starui-appdata:{appId}`. Reuses the existing `appdata-*` protocol + `AppDataMirror`; adds `appdata-lookup` for cross-process template resolution. Data hub still owns in-process AppData for streaming providers until Phase 4.
+**AppData SharedWorker (ADR Phase 3):** pass `appDataWorkerScriptUrl` to `ensureConfigReady` / `ensurePlatformReady` (Vite: `import appDataWorkerUrl from '@wellsfargo-starui/host-data/assets/appdata-worker.mjs?url'`). Named `starui-appdata:{appId}`. Reuses the existing `appdata-*` protocol + `AppDataMirror`; adds `appdata-lookup` for cross-process template resolution. Data hub still owns in-process AppData for streaming providers until Phase 4.
 
-**Provider SharedWorker (ADR Phase 4a–4c):** `createProviderClient({ appId, providerId, workerScriptUrl })` spawns `starui-provider:{appId}:{providerId}` (Vite: `import providerWorkerUrl from '@starui/host-data/assets/provider-worker.mjs?url'`). Reuses attach/delta wire via `ProviderClient.subscribe`. Use `ProviderAppDataLookupCache` + hub `appDataLookup` for sync template resolution from AppData SW RPCs; `resolveProviderConfigFromConfigClient` for Config SW cfg. Opt-in: `new ProviderClientAdapter({ client, providerId, providerWorker: { appId, userId, workerScriptUrl } })` routes data subscribe to the provider SW while catalog still uses the monolith client. Hosted demos omit `providerWorker` until a pilot cutover.
+**Provider SharedWorker (ADR Phase 4a–4c):** `createProviderClient({ appId, providerId, workerScriptUrl })` spawns `starui-provider:{appId}:{providerId}` (Vite: `import providerWorkerUrl from '@wellsfargo-starui/host-data/assets/provider-worker.mjs?url'`). Reuses attach/delta wire via `ProviderClient.subscribe`. Use `ProviderAppDataLookupCache` + hub `appDataLookup` for sync template resolution from AppData SW RPCs; `resolveProviderConfigFromConfigClient` for Config SW cfg. Opt-in: `new ProviderClientAdapter({ client, providerId, providerWorker: { appId, userId, workerScriptUrl } })` routes data subscribe to the provider SW while catalog still uses the monolith client. Hosted demos omit `providerWorker` until a pilot cutover.
 
 **Catalog sync without Config Browser on the data hub:** provider-row writes go to Dexie and `ChangeNotifier` (`marketsui-config-changes`). A blotter window that already ran `wireWorkerCatalogSync` invalidates the data-hub catalog. The Config SW is invalidated via `wireConfigWorkerCatalogSync` when connected.
 

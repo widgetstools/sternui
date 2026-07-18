@@ -65,7 +65,7 @@ export async function scaffoldApp(raw: ScaffoldInput): Promise<ScaffoldResult> {
   const tarballDeps = buildPackageDeps(manifest, template.buckets);
   const port = input.port ?? template.defaultPort;
   const gridFeatures = mergeGridFeatures(input.template, input.gridFeatures);
-  const packageName = `@starui/${input.appName}`;
+  const packageName = `@wellsfargo-starui/${input.appName}`;
 
   const gridPropsLines: string[] = [];
   if (gridFeatures.showFiltersToolbar) gridPropsLines.push('showFiltersToolbar');

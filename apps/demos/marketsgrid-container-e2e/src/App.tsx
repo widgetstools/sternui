@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
-import { useDataServices, useUserIdFromContext } from '@starui/host-data-react/runtime';
+import { HostedMarketsGrid } from '@wellsfargo-starui/widgets-react/hosted';
+import { useDataServices, useUserIdFromContext } from '@wellsfargo-starui/host-data-react/runtime';
 import { getPlatform } from './bootstrap.js';
 import {
   mockProviderDraftA,

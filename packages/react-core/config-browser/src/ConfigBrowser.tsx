@@ -4,8 +4,8 @@
 declare const fin: any;
 
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@starui/ui";
-import { DynamicIcon as Icon } from "@starui/config-browser/icons";
+import { Button } from "@wellsfargo-starui/ui";
+import { DynamicIcon as Icon } from "@wellsfargo-starui/config-browser/icons";
 import { useConfigBrowser } from "./hooks/useConfigBrowser";
 import { TableSidebar } from "./components/TableSidebar";
 import { Toolbar } from "./components/Toolbar";
@@ -17,7 +17,7 @@ import { DeleteAllDialog } from "./components/DeleteAllDialog";
 import { ResetToSeedDialog } from "./components/ResetToSeedDialog";
 import { injectEditorStyles } from "./editorStyles";
 import type { ImportMode, ImportPreview } from "./hooks/useConfigBrowser";
-import type { DeployExportResult } from "@starui/host-config";
+import type { DeployExportResult } from "@wellsfargo-starui/host-config";
 
 // ─── Main Component ──────────────────────────────────────────────────
 

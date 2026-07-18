@@ -62,7 +62,7 @@ export async function handleSetupStompDev(opts: {
     const pkg = readProjectFile(opts.projectDir, 'package.json');
     const vite = readProjectFile(opts.projectDir, 'vite.config.ts');
     const bootstrap = hasPlatformBootstrap(opts.projectDir);
-    if (!pkg?.includes('@starui/data')) projectHints.push('Add @starui/data tarball to package.json');
+    if (!pkg?.includes('@wellsfargo-starui/data')) projectHints.push('Add @wellsfargo-starui/data tarball to package.json');
     if (vite && !vite.includes('worker: true')) projectHints.push('Enable worker: true in vite.config for SharedWorker');
     if (!bootstrap && !hasAppConfig(opts.projectDir)) {
       projectHints.push('Add public/app-config.json + src/platformBootstrap.ts (ensurePlatformReady)');
@@ -104,8 +104,8 @@ export async function handleDiagnoseDataPlane(opts: { projectDir: string; stompP
 
   if (!pkg) issues.push({ severity: 'error', message: 'No package.json', fix: 'Scaffold or cd to project root' });
   else {
-    if (pkg.includes('@starui/data') || pkg.includes('host-data')) passed.push('data bucket dependency present');
-    else issues.push({ severity: 'error', message: 'Missing @starui/data tarball dep', fix: 'Add file:libs/starui-data-*.tgz' });
+    if (pkg.includes('@wellsfargo-starui/data') || pkg.includes('host-data')) passed.push('data bucket dependency present');
+    else issues.push({ severity: 'error', message: 'Missing @wellsfargo-starui/data tarball dep', fix: 'Add file:libs/starui-data-*.tgz' });
   }
 
   if (vite?.includes('worker: true')) passed.push('Vite worker mode enabled');

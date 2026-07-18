@@ -1,8 +1,8 @@
 {
-  "name": "@starui/config-browser-angular",
+  "name": "@wellsfargo-starui/config-browser-angular",
   "version": "0.1.0",
   "private": true,
-  "description": "Config browser dev tool — Angular twin of @starui/config-browser (scaffold)",
+  "description": "Config browser dev tool — Angular twin of @wellsfargo-starui/config-browser (scaffold)",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -10,9 +10,9 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "echo '@starui/config-browser-angular: scaffold (no emit)'",
+    "build": "echo '@wellsfargo-starui/config-browser-angular: scaffold (no emit)'",
     "typecheck": "tsc --noEmit",
-    "test": "echo '@starui/config-browser-angular: no tests yet'"
+    "test": "echo '@wellsfargo-starui/config-browser-angular: no tests yet'"
   },
   "peerDependencies": {
     "@angular/common": "^21.1.0",
@@ -20,9 +20,9 @@
     "@angular/forms": "^21.1.0"
   },
   "dependencies": {
-    "@starui/engine": "*",
-    "@starui/host-config": "*",
-    "@starui/openfin-platform": "*"
+    "@wellsfargo-starui/engine": "*",
+    "@wellsfargo-starui/host-config": "*",
+    "@wellsfargo-starui/openfin-platform": "*"
   },
   "devDependencies": {
     "@angular/common": "^21.1.0",

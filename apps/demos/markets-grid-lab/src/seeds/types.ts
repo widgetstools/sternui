@@ -1,7 +1,7 @@
 /**
  * Tab seed envelope — pre-baked module state we push into the platform's
  * store the first time a tab's grid mounts. Reuses the engine's own state
- * types (re-exported via `@starui/grid/customizer` or `@starui/engine`) so
+ * types (re-exported via `@wellsfargo-starui/grid/customizer` or `@wellsfargo-starui/engine`) so
  * the shapes stay byte-compatible with the customizer UI.
  */
 import type {
@@ -11,8 +11,8 @@ import type {
   ConditionalStylingState,
   GeneralSettingsState,
   SavedFiltersState,
-} from '@starui/grid/customizer';
-import type { AlertsState, BulkUpdateState, DataChangeHistoryState, PlusMinusState, ShortcutsState, SmartEditState, VisualExcelState } from '@starui/engine';
+} from '@wellsfargo-starui/grid/customizer';
+import type { AlertsState, BulkUpdateState, DataChangeHistoryState, PlusMinusState, ShortcutsState, SmartEditState, VisualExcelState } from '@wellsfargo-starui/engine';
 
 export interface TabSeed {
   'conditional-styling'?: ConditionalStylingState;

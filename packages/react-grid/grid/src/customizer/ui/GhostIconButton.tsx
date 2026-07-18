@@ -1,5 +1,5 @@
 import { forwardRef, type ButtonHTMLAttributes } from 'react';
-import { Button, cn } from '@starui/ui';
+import { Button, cn } from '@wellsfargo-starui/ui';
 
 export type GhostIconButtonVariant = 'default' | 'accent' | 'destructive';
 export type GhostIconButtonSize = 'sm' | 'md';

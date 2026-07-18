@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import {
   MarketsGrid,
   createMarketsGridLocalStorageStorage,
-} from '@starui/grid';
-import { startMock } from '@starui/host-data';
+} from '@wellsfargo-starui/grid';
+import { startMock } from '@wellsfargo-starui/host-data';
 import { useMockConfig } from '../state/MockConfigContext';
 import { useStats } from '../state/StatsContext';
 import { columnDefsByType } from '../data/columnDefsByType';

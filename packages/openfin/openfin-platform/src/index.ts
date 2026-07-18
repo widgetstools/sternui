@@ -99,13 +99,13 @@ export {
 } from './registryHostEnv';
 
 // Re-export config service types for convenience
-export { createConfigManager, type ConfigManager } from "@starui/host-config";
+export { createConfigManager, type ConfigManager } from "@wellsfargo-starui/host-config";
 export type {
   AppConfigRow,
   AppRegistryRow,
   UserProfileRow,
   RoleRow,
-} from "@starui/host-config";
+} from "@wellsfargo-starui/host-config";
 
 // ─── Dock config types + converter ───────────────────────────────────
 export {

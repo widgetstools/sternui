@@ -1,5 +1,5 @@
-import type { DataPort } from '@starui/host';
-import type { AppDataSnapshot } from '@starui/types';
+import type { DataPort } from '@wellsfargo-starui/host';
+import type { AppDataSnapshot } from '@wellsfargo-starui/types';
 import type { AppDataMirror } from './runtime/mirror/AppDataMirror.js';
 
 let revision = 0;

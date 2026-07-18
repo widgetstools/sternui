@@ -16,7 +16,7 @@ import {
   useState,
   type ReactElement,
 } from 'react';
-import { Input, ChromeButton } from '@starui/grid/customizer';
+import { Input, ChromeButton } from '@wellsfargo-starui/grid/customizer';
 import { Pencil } from 'lucide-react';
 
 export interface EditableCaptionProps {

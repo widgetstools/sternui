@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { createMarketsGridLocalStorageStorage } from '@starui/grid';
-import { MarketsGridContainer } from '@starui/widgets-react/markets-grid-container';
-import { useDataServices, useUserIdFromContext } from '@starui/host-data-react/runtime';
+import { createMarketsGridLocalStorageStorage } from '@wellsfargo-starui/grid';
+import { MarketsGridContainer } from '@wellsfargo-starui/widgets-react/markets-grid-container';
+import { useDataServices, useUserIdFromContext } from '@wellsfargo-starui/host-data-react/runtime';
 import { gridEventHandlers } from './platform/gridEventHandlers.js';
 import { gridHandlerMeta } from './platform/hooksMeta.js';
 import { mockHistoricalProviderDraft, mockLiveProviderDraft, MOCK_PROVIDER_CFG_VERSION } from './mockProvider.js';

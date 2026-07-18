@@ -9,8 +9,8 @@
  */
 import { useCallback } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { Button, Input, RadioGroup, RadioGroupItem, Label } from '@starui/ui';
-import type { PillRendererConfig, ThemeAwareColor } from '@starui/design-system';
+import { Button, Input, RadioGroup, RadioGroupItem, Label } from '@wellsfargo-starui/ui';
+import type { PillRendererConfig, ThemeAwareColor } from '@wellsfargo-starui/design-system';
 import { Row } from '../editors/Row';
 import { ThemeAwareColorRow } from './themeColorRow';
 

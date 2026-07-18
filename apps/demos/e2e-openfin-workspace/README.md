@@ -1,4 +1,4 @@
-# `@starui/e2e-openfin-workspace`
+# `@wellsfargo-starui/e2e-openfin-workspace`
 
 The canonical OpenFin e2e target. Browser entry exists as a fallback
 so the same code is usable for ad-hoc dev inspection at
@@ -15,7 +15,7 @@ so the same code is usable for ad-hoc dev inspection at
 
 Single view (`blotter`) wired with the same in-app 500-row × 50ms
 ticker as `apps/demos/e2e-browser-blotter`. Provider window calls
-`initWorkspace()` from `@starui/openfin-platform` — that's enough to
+`initWorkspace()` from `@wellsfargo-starui/openfin-platform` — that's enough to
 bring up Home/Store/Dock/Notifications and validate the workspace
 shell.
 

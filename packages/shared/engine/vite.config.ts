@@ -13,7 +13,7 @@ export default defineConfig({
     },
     rollupOptions: {
       external: [
-        '@starui/types',
+        '@wellsfargo-starui/types',
         'ag-grid-community',
         'ag-grid-enterprise',
         'ag-grid-react',
@@ -31,7 +31,7 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, 'src'),
       // Self-imports in src/ use the package name; map to source during the lib build.
-      '@starui/engine': resolve(__dirname, 'src/index.ts'),
+      '@wellsfargo-starui/engine': resolve(__dirname, 'src/index.ts'),
     },
   },
 });

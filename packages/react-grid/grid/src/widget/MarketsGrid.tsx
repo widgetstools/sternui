@@ -16,17 +16,17 @@ import { useGridTheme } from './theme/useGridTheme.js';
 import {
   applyGridDensityToTheme,
   resolveGridDensity,
-} from '@starui/design-system/adapters/ag-grid';
+} from '@wellsfargo-starui/design-system/adapters/ag-grid';
 import type { Theme } from 'ag-grid-community';
 import { useGeneralSettingsSnapshot } from './useGeneralSettingsSnapshot';
-import { type AnyModule, type StorageAdapter } from '@starui/engine';
+import { type AnyModule, type StorageAdapter } from '@wellsfargo-starui/engine';
 import {
   GridProvider,
   ProviderGridHostProvider,
   type ProviderGridHostApi,
   GridEventBindingsHostProvider,
   type GridEventBindingsHostApi,
-} from '@starui/grid/customizer';
+} from '@wellsfargo-starui/grid/customizer';
 import type { MarketsGridHandle, MarketsGridProps } from './types';
 import { isMarketsGridLocalStorageStorageFactory } from './createMarketsGridLocalStorageStorage';
 import { useGridHost } from './useGridHost';
@@ -335,7 +335,7 @@ function MarketsGridInner<TData = unknown>(
     console.warn(
       '[MarketsGrid] No storage prop provided. Using in-memory storage — ' +
       'profiles, layouts and grid-level-data WILL be lost on reload. ' +
-      'Wire @starui/host-config via createConfigServiceStorage(...) or pass `host` with storage to persist.',
+      'Wire @wellsfargo-starui/host-config via createConfigServiceStorage(...) or pass `host` with storage to persist.',
     );
   }
 

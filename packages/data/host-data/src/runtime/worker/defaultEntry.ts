@@ -1,5 +1,5 @@
 /**
- * Default SharedWorker entry for `@starui/host-data`.
+ * Default SharedWorker entry for `@wellsfargo-starui/host-data`.
  *
  * Bootstrap fields (`appId`, `userId`, seed URL, REST URL) are read from
  * localStorage (written by `createDataServicesWorker` before spawn) — not
@@ -10,7 +10,7 @@
  */
 
 import { installSharedWorkerHub } from './index.js';
-import { createConfigManager } from '@starui/host-config';
+import { createConfigManager } from '@wellsfargo-starui/host-config';
 import {
   appNameFromWorkerName,
   readWorkerBootstrapPayload,
@@ -86,14 +86,14 @@ async function boot(): Promise<void> {
   await installSharedWorkerHub({ configManager });
   // eslint-disable-next-line no-console
   console.info(
-    `[@starui/host-data worker] ConfigManager initialised (mode: ${configManager.isRestMode() ? 'REST' : 'local'})`,
+    `[@wellsfargo-starui/host-data worker] ConfigManager initialised (mode: ${configManager.isRestMode() ? 'REST' : 'local'})`,
   );
   // eslint-disable-next-line no-console
-  console.info('[@starui/host-data worker] catalog + AppData hydrated; hub waiting for ports');
+  console.info('[@wellsfargo-starui/host-data worker] catalog + AppData hydrated; hub waiting for ports');
 }
 
 boot().catch((err) => {
   // eslint-disable-next-line no-console
-  console.error('[@starui/host-data worker] boot failed', err);
+  console.error('[@wellsfargo-starui/host-data worker] boot failed', err);
   throw err;
 });

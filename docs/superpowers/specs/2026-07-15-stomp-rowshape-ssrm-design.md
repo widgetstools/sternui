@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-15  
 **Status:** Implemented (see plan)  
-**Repos:** starui (`@starui/shared-types`, `host-data` STOMP transport, provider editor)  
+**Repos:** starui (`@wellsfargo-starui/shared-types`, `host-data` STOMP transport, provider editor)  
 **Depends on:** MarketsGrid dual engine SSRM phases ([2026-07-14-marketsgrid-ssrm-dual-engine-design.md](./2026-07-14-marketsgrid-ssrm-dual-engine-design.md))  
 **Plan:** [2026-07-15-stomp-rowshape-ssrm.md](../plans/2026-07-15-stomp-rowshape-ssrm.md)
 

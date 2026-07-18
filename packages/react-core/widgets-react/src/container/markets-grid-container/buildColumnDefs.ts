@@ -5,7 +5,7 @@
  * Three behaviours, in precedence order, per column:
  *
  *   1. `valueGetter` expression present → compile it once with the
- *      CSP-safe `@starui/engine` ExpressionEngine and install a
+ *      CSP-safe `@wellsfargo-starui/engine` ExpressionEngine and install a
  *      `valueGetter` that calls the compiled closure per row. Column
  *      refs use bracket syntax with optional-chaining nested paths:
  *      `[cusip]`, `[pnl.wrapper.rdiInventoryName]` (a missing segment
@@ -30,10 +30,10 @@
  */
 
 import type { ColDef, ValueGetterParams } from 'ag-grid-community';
-import { ExpressionEngine, type ExpressionNode } from '@starui/engine';
+import { ExpressionEngine, type ExpressionNode } from '@wellsfargo-starui/engine';
 
 type CompiledFn = ReturnType<ExpressionEngine['compile']>;
-import { getPathAccessor, getValueByPath } from '@starui/shared-types';
+import { getPathAccessor, getValueByPath } from '@wellsfargo-starui/shared-types';
 
 /** Match ExpressionEngine parse-cache policy — grids have few distinct expressions. */
 const COMPILE_CACHE_MAX = 1000;

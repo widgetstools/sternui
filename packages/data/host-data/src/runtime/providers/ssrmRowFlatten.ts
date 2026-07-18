@@ -7,8 +7,8 @@
  * match authored AG Grid `field` strings.
  */
 
-import type { ColumnDefinition } from '@starui/types';
-import { getValueByPath } from '@starui/types';
+import type { ColumnDefinition } from '@wellsfargo-starui/types';
+import { getValueByPath } from '@wellsfargo-starui/types';
 
 export type SsrmRowFlattener = (row: unknown) => Record<string, unknown>;
 

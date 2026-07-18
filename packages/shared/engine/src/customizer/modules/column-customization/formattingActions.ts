@@ -39,7 +39,7 @@ import {
   getActiveTheme,
   patchActiveStyle,
   resolveActiveStyle,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 
 export const COLUMN_CUSTOMIZATION_MODULE_ID = 'column-customization';
 

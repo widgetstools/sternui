@@ -3,9 +3,9 @@
 Demo and reference apps only — never deployed; only `packages/*` get published.
 Each app lives **once** under [`demos/<app>/`](./demos/).
 
-**Apps build from source.** Vite aliases `@starui/*` to live `packages/` source
+**Apps build from source.** Vite aliases `@wellsfargo-starui/*` to live `packages/` source
 and `tsc` resolves the same imports via the repo-root workspace symlinks. Apps
-declare **no** `@starui/*` deps and need **no** `libs/*.tgz` — `npm run propagate`
+declare **no** `@wellsfargo-starui/*` deps and need **no** `libs/*.tgz` — `npm run propagate`
 packs tarballs only for external (Artifactory) consumers.
 
 Full instructions (root + in-app commands): **[`../README.md` — Running apps](../README.md#running-apps)**.
@@ -23,7 +23,7 @@ npm install && npm run build:packages && npm run install:apps
 
 | Where | Dev | Build |
 |-------|-----|-------|
-| **Repo root** | `npm run dev:demo-react` · `npm --prefix apps run dev -w @starui/demo-react` | `npm run build:apps` |
+| **Repo root** | `npm run dev:demo-react` · `npm --prefix apps run dev -w @wellsfargo-starui/demo-react` | `npm run build:apps` |
 | **App folder** | `cd apps/demos/demo-react && npm run dev` | `npm run build` |
 
 CI: `npm run verify:consumer` from repo root (builds packages, packs tarballs,

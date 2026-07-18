@@ -9,7 +9,7 @@
 // on `localhost:5174` resolves correctly when imported on prod.
 //
 // Lives in its own file (no top-level workspace-platform imports) so
-// the side-effect-free `@starui/openfin-platform/config` subpath
+// the side-effect-free `@wellsfargo-starui/openfin-platform/config` subpath
 // can re-export it for in-browser consumers like the registry editor.
 
 /**

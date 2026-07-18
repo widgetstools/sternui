@@ -28,9 +28,9 @@ import type {
   DockDropdownButtonConfig,
   DockMenuItemConfig,
   RegistryEntry,
-} from "@starui/openfin-platform/config";
-import { ACTION_LAUNCH_COMPONENT } from "@starui/openfin-platform/config";
-import { Input, Popover, PopoverContent, PopoverTrigger } from "@starui/ui";
+} from "@wellsfargo-starui/openfin-platform/config";
+import { ACTION_LAUNCH_COMPONENT } from "@wellsfargo-starui/openfin-platform/config";
+import { Input, Popover, PopoverContent, PopoverTrigger } from "@wellsfargo-starui/ui";
 import { iconIdToSvgUrl } from "../dock-editor/iconUtils";
 import type { EditorSelection } from "./types";
 

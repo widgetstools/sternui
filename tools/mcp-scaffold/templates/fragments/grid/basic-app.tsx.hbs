@@ -1,15 +1,15 @@
 /**
  * Basic MarketsGrid shell — static bond inventory, localStorage profiles.
- * All chrome uses @starui/ui (shadcn). Surfaces use design-system tokens only.
+ * All chrome uses @wellsfargo-starui/ui (shadcn). Surfaces use design-system tokens only.
  * AG Grid theme: MarketsGrid → useGridTheme() → agGridDarkTheme / agGridLightTheme.
  */
 import { useCallback, useMemo, useState } from 'react';
 import {
   MarketsGrid,
   createMarketsGridLocalStorageStorage,
-} from '@starui/grid';
-import { applyTheme, getTheme } from '@starui/design-system';
-import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@starui/ui';
+} from '@wellsfargo-starui/grid';
+import { applyTheme, getTheme } from '@wellsfargo-starui/design-system';
+import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@wellsfargo-starui/ui';
 import { Sun, Moon } from 'lucide-react';
 import { buildBondInventory } from './mockBonds';
 import { bondColumnDefs, bondDefaultColDef } from './bondColumns';

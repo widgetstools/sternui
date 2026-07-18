@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'vitest';
 import { startRest, probeRest } from './rest';
 import type { ProviderEmitEvent } from '../Provider';
-import type { RestProviderConfig } from '@starui/types';
+import type { RestProviderConfig } from '@wellsfargo-starui/types';
 
 function cfg(overrides: Partial<RestProviderConfig> = {}): RestProviderConfig {
   return {

@@ -1,6 +1,6 @@
 # SharedWorker Hub — High-Volume Fan-Out Optimizations
 
-How the `@starui/host-data` SharedWorker hub publishes large snapshots
+How the `@wellsfargo-starui/host-data` SharedWorker hub publishes large snapshots
 and high-rate realtime streams to many subscriber windows, what was
 optimized, and the architectural trade-offs behind each choice.
 

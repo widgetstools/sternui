@@ -1,6 +1,6 @@
 name: E2E (OpenFin)
 
-# Runs the @starui/e2e-openfin harness against apps/demos/e2e-openfin-workspace.
+# Runs the @wellsfargo-starui/e2e-openfin harness against apps/demos/e2e-openfin-workspace.
 # The harness uses @openfin/node-adapter to spawn the OpenFin runtime
 # and Playwright (chromium.connectOverCDP) to drive the views.
 #

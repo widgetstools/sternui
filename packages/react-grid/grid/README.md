@@ -1,4 +1,4 @@
-# @starui/grid
+# @wellsfargo-starui/grid
 
 Merged MarketsGrid product surface (Phase 3).
 
@@ -6,24 +6,24 @@ Merged MarketsGrid product surface (Phase 3).
 
 ```
 src/
-├── widget/       MarketsGrid chrome, toolbars, formatter (was @starui/markets-grid)
-├── customizer/   Module pipeline UI, hooks, editors (was @starui/grid-react)
-└── runtime/      OpenFin popout helpers (removed from @starui/engine)
+├── widget/       MarketsGrid chrome, toolbars, formatter (was @wellsfargo-starui/markets-grid)
+├── customizer/   Module pipeline UI, hooks, editors (was @wellsfargo-starui/grid-react)
+└── runtime/      OpenFin popout helpers (removed from @wellsfargo-starui/engine)
 ```
 
 ## Exports
 
 | Import | Surface |
 |---|---|
-| `@starui/grid` | `MarketsGrid`, storage helpers, types |
-| `@starui/grid/customizer` | Hooks, modules, settings-panel primitives |
-| `@starui/grid/styles.css` | Widget stylesheet |
-| `@starui/grid/runtime/openfin` | `isOpenFin`, `openFinWindowOpener` |
+| `@wellsfargo-starui/grid` | `MarketsGrid`, storage helpers, types |
+| `@wellsfargo-starui/grid/customizer` | Hooks, modules, settings-panel primitives |
+| `@wellsfargo-starui/grid/styles.css` | Widget stylesheet |
+| `@wellsfargo-starui/grid/runtime/openfin` | `isOpenFin`, `openFinWindowOpener` |
 
 ## Dependencies
 
-- `@starui/engine`, `@starui/types`, `@starui/host` — StarGrid platform
-- `@starui/ui`, `@starui/design-system` — design system + primitives
+- `@wellsfargo-starui/engine`, `@wellsfargo-starui/types`, `@wellsfargo-starui/host` — StarGrid platform
+- `@wellsfargo-starui/ui`, `@wellsfargo-starui/design-system` — design system + primitives
 
 ## Host integration
 

@@ -1,5 +1,5 @@
 import { ArrowRight, Layers, Settings2, Save, SlidersHorizontal } from 'lucide-react';
-import { Badge, Card, CardContent, ScrollArea } from '@starui/ui';
+import { Badge, Card, CardContent, ScrollArea } from '@wellsfargo-starui/ui';
 import { LAB_CATEGORIES } from '../guides/categories';
 import { getFeatureGuide } from '../guides/featureGuides';
 
@@ -13,7 +13,7 @@ export interface HomeTabProps {
   onNavigate: (id: string) => void;
 }
 
-const MOUNT_SNIPPET = `import { MarketsGrid, createMarketsGridLocalStorageStorage } from '@starui/grid';
+const MOUNT_SNIPPET = `import { MarketsGrid, createMarketsGridLocalStorageStorage } from '@wellsfargo-starui/grid';
 
 const storage = createMarketsGridLocalStorageStorage();
 

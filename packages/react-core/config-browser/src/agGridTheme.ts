@@ -9,7 +9,7 @@
  */
 import { themeQuartz } from "ag-grid-community";
 import type { Theme } from "ag-grid-community";
-import { agGridDarkParams, agGridLightParams } from "@starui/design-system/adapters/ag-grid";
+import { agGridDarkParams, agGridLightParams } from "@wellsfargo-starui/design-system/adapters/ag-grid";
 
 // Tool-specific overrides: input chrome + structural borders not covered by adapter.
 const overrides = {

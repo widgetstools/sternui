@@ -2,7 +2,7 @@
  * Default entry for `starui-appdata:{appId}` SharedWorker.
  */
 
-import { createConfigManager } from '@starui/host-config';
+import { createConfigManager } from '@wellsfargo-starui/host-config';
 import { installAppDataHub } from './installAppDataHub.js';
 import {
   appIdFromAppDataWorkerName,
@@ -28,12 +28,12 @@ async function boot(): Promise<void> {
   await installAppDataHub({ configManager });
   // eslint-disable-next-line no-console
   console.info(
-    `[@starui/host-data appdata-worker] ready (appId=${appId ?? '?'}, mode=${configManager.isRestMode() ? 'REST' : 'local'})`,
+    `[@wellsfargo-starui/host-data appdata-worker] ready (appId=${appId ?? '?'}, mode=${configManager.isRestMode() ? 'REST' : 'local'})`,
   );
 }
 
 boot().catch((err) => {
   // eslint-disable-next-line no-console
-  console.error('[@starui/host-data appdata-worker] boot failed', err);
+  console.error('[@wellsfargo-starui/host-data appdata-worker] boot failed', err);
   throw err;
 });

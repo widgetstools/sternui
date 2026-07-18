@@ -5,7 +5,7 @@
  */
 
 import { useCallback, useState, type ReactElement } from 'react';
-import { applyTheme } from '@starui/design-system';
+import { applyTheme } from '@wellsfargo-starui/design-system';
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import {
   FileSpreadsheet,
   Info,
@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import type { AdminAction } from './types';
 import { AdminActionButtons, resolveAdminActionIcon } from './AdminActionButtons';
-import { ChromeButton, useActiveThemeMode } from '@starui/grid/customizer';
+import { ChromeButton, useActiveThemeMode } from '@wellsfargo-starui/grid/customizer';
 import { GridInfoButton } from './GridInfoButton';
 import { GridInfoContent } from './GridInfoContent';
 import { preloadSettingsSheet } from './LazySettingsSheet';

@@ -3,8 +3,8 @@ import {
   resolvePlatformBootstrapFromJson,
   type PlatformBootstrapConfig,
   type ResolvedDataServicesHubBundle,
-} from '@starui/host-data';
-import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
+} from '@wellsfargo-starui/host-data';
+import workerAssetUrl from '@wellsfargo-starui/host-data/assets/data-services-worker.mjs?url';
 
 export interface PlatformBootstrapResult {
   config: PlatformBootstrapConfig;

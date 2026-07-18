@@ -24,9 +24,9 @@
  * to grab shared state.
  */
 
-import type { PlatformHandle } from '@starui/engine';
+import type { PlatformHandle } from '@wellsfargo-starui/engine';
 import type { GridApi } from 'ag-grid-community';
-import { getValueByPath } from '@starui/types';
+import { getValueByPath } from '@wellsfargo-starui/types';
 import {
   pruneTimedRuleState,
   upsertTimedCellActivation,

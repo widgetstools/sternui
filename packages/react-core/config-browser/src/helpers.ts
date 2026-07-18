@@ -39,7 +39,7 @@
  *     }),
  *   });
  */
-import type { AdminAction } from '@starui/grid';
+import type { AdminAction } from '@wellsfargo-starui/grid';
 
 export interface CreateConfigBrowserActionOptions {
   /** What happens when the user picks "Config Browser" from the Tools

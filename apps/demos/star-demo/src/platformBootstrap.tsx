@@ -1,3 +1,35 @@
+/**
+ * star-demo platform bootstrap — optional data-plane topology (ADR).
+ *
+ * See `docs/ADR-optional-data-plane-topology.md`. This file is where the demo
+ * opts into the lazy named SharedWorkers so tool windows are not forced through
+ * the monolith data hub before paint.
+ *
+ * What changed for the new architecture
+ * -------------------------------------
+ * Phase 0 — Split bootstrap APIs:
+ *   • `initConfigBootstrap` → ConfigManager only (P1 tool windows).
+ *   • `initPlatformBootstrap` → config + monolith `mkt-data-services` hub (P2 blotters).
+ *   Routes pick a gate in `main.tsx` so Config Browser never awaits FullGate.
+ *
+ * Phase 2 — Config SharedWorker (`starui-config:{appId}`):
+ *   Pass `configWorkerScriptUrl` so catalog cache / invalidate can live off the
+ *   hot data hub. Main-thread ConfigManager remains the Dexie CRUD path;
+ *   `wireConfigWorkerCatalogSync` keeps the Config SW aligned.
+ *
+ * Phase 3 — AppData SharedWorker (`starui-appdata:{appId}`):
+ *   Pass `appDataWorkerScriptUrl` so named KV / template bags warm without
+ *   requiring a streaming provider subscription. The monolith hub still keeps
+ *   in-process AppData for live providers until Phase 4 cutover.
+ *
+ * Phase 4 — Per-provider workers (`starui-provider:{appId}:{id}`):
+ *   Not wired here yet. Demos still subscribe through the monolith hub via
+ *   `DataHubProvider`. Opt-in later with `ProviderClientAdapter({ providerWorker })`.
+ *
+ * Dual-run note: Config SW + AppData SW are warmed alongside the data hub.
+ * That is intentional during migration — single-writer cutover is a follow-up.
+ */
+
 import {
   createContext,
   useContext,
@@ -10,21 +42,29 @@ import {
   type ConfigReadyBundle,
   type PlatformBootstrapConfig,
   type ResolvedDataServicesHubBundle,
-} from '@starui/host-data';
+} from '@wellsfargo-starui/host-data';
 import {
   resolvePlatformBootstrapFromManifest,
   setConfigManager,
-} from '@starui/openfin-platform/config';
-import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
-import configWorkerAssetUrl from '@starui/host-data/assets/config-catalog-worker.mjs?url';
-import appDataWorkerAssetUrl from '@starui/host-data/assets/appdata-worker.mjs?url';
+} from '@wellsfargo-starui/openfin-platform/config';
+
+/** Monolith data hub (streaming providers + fan-out) — still required for P2 blotters. */
+import workerAssetUrl from '@wellsfargo-starui/host-data/assets/data-services-worker.mjs?url';
+/** ADR Phase 2 — catalog authority worker (optional for P1; warmed here for all config boots). */
+import configWorkerAssetUrl from '@wellsfargo-starui/host-data/assets/config-catalog-worker.mjs?url';
+/** ADR Phase 3 — AppData KV worker (template / session bags without the data hub). */
+import appDataWorkerAssetUrl from '@wellsfargo-starui/host-data/assets/appdata-worker.mjs?url';
 
 export interface PlatformBootstrapResult {
   config: PlatformBootstrapConfig;
   platform: ResolvedDataServicesHubBundle;
 }
 
-/** Config-only bootstrap result — ConfigManager without the data hub. */
+/**
+ * Config-only bootstrap result — no `DataHubProvider` / no streaming attach.
+ * `configClient` / `appDataClient` are present when the Phase 2–3 worker URLs
+ * were passed (always, in this demo).
+ */
 export interface ConfigBootstrapResult {
   config: PlatformBootstrapConfig;
   configManager: ConfigReadyBundle['configManager'];
@@ -67,14 +107,16 @@ let configBootstrapPromise: Promise<ConfigBootstrapResult> | undefined;
 let platformBootstrapPromise: Promise<PlatformBootstrapResult> | undefined;
 
 /**
- * Config-only bootstrap: manifest/app-config identity + ConfigManager +
- * Config SharedWorker (`starui-config:{appId}`, ADR Phase 2) + AppData
- * SharedWorker (`starui-appdata:{appId}`, ADR Phase 3). Windows that
- * never touch the data plane suspend on this instead of
- * {@link initPlatformBootstrap}.
+ * P1 profile — Config (+ optional AppData) without the streaming data plane.
  *
- * Browser: `/app-config.json` (seedConfigUrl only). OpenFin: manifest
- * `customSettings` (prefer pinned `appId` / `userId`; else seed identity).
+ * Used by ConfigGate routes (`/config-browser`, `/workspace-setup`, dock paint).
+ * Spawns/attaches:
+ *   • main-thread ConfigManager (Dexie / REST)
+ *   • `starui-config:{appId}` (Phase 2)
+ *   • `starui-appdata:{appId}` (Phase 3)
+ * Does **not** spawn `mkt-data-services:{appId}`.
+ *
+ * Browser: `/app-config.json`. OpenFin: manifest `customSettings`.
  */
 export function initConfigBootstrap(): Promise<ConfigBootstrapResult> {
   if (!configBootstrapPromise) {
@@ -82,6 +124,8 @@ export function initConfigBootstrap(): Promise<ConfigBootstrapResult> {
       const config = isOpenFinRuntime()
         ? await resolvePlatformBootstrapFromManifest()
         : await resolvePlatformBootstrapFromJson('/app-config.json');
+      // Worker script URLs are the ADR Phase 2–3 opt-in. Omitting them keeps
+      // ConfigManager-only behaviour (legacy); star-demo always passes both.
       const { configManager, configClient, appDataClient } = await ensureConfigReady(config, {
         configWorkerScriptUrl: configWorkerAssetUrl,
         appDataWorkerScriptUrl: appDataWorkerAssetUrl,
@@ -94,11 +138,15 @@ export function initConfigBootstrap(): Promise<ConfigBootstrapResult> {
 }
 
 /**
- * Full platform bootstrap: config bootstrap plus the data-services hub
- * (SharedWorker connect, AppData mirror snapshot, catalog preload).
- * `ensurePlatformReady` reuses the ConfigManager from
- * {@link initConfigBootstrap}, so upgrading a window from config-only
- * to full costs no second IndexedDB connection.
+ * P2 profile — full hosted blotter bootstrap.
+ *
+ * Reuses ConfigManager from {@link initConfigBootstrap} (no second IndexedDB
+ * connection when upgrading ConfigGate → FullGate). Also re-passes Config /
+ * AppData worker URLs so Phase 2–3 workers stay warm when a window opens
+ * straight into a blotter route.
+ *
+ * Still connects the monolith data hub (`workerScriptUrl`). Per-provider
+ * SharedWorkers (Phase 4) are not the demo default yet.
  */
 export function initPlatformBootstrap(): Promise<PlatformBootstrapResult> {
   if (!platformBootstrapPromise) {

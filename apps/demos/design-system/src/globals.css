@@ -1,5 +1,5 @@
 @import '@widgetstools/react-dock-manager/styles.css';
-@import '@starui/design-system/css';
+@import '@wellsfargo-starui/design-system/css';
 
 /* App-scoped type scale — denser than the design-system default to match a
    professional FI trading terminal (fi-trading-terminal parity). Overrides the

@@ -1,5 +1,5 @@
 {
-  "name": "@starui/stomp-marketsgrid-minimal",
+  "name": "@wellsfargo-starui/stomp-marketsgrid-minimal",
   "private": true,
   "type": "module",
   "scripts": {

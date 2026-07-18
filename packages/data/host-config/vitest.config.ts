@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
 /**
- * Vitest config for `@starui/host-config`.
+ * Vitest config for `@wellsfargo-starui/host-config`.
  *
  * Runs in `jsdom` because Dexie talks to `globalThis.indexedDB`. jsdom 29
  * does not ship IndexedDB — the per-test setup file in `test/setup.ts`

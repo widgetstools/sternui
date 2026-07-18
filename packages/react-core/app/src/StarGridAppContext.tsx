@@ -18,7 +18,7 @@ export function useStarGridApp(): StarGridAppState {
   const ctx = useContext(StarGridAppContext);
   if (!ctx) {
     throw new Error(
-      '[@starui/app] useStarGridApp must be used within <StarGridApp>. ' +
+      '[@wellsfargo-starui/app] useStarGridApp must be used within <StarGridApp>. ' +
         'Wrap your app tree at the entry point.',
     );
   }

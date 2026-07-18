@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GridOptions, GridReadyEvent } from 'ag-grid-community';
-import { GridPlatform, type AnyColDef, type AnyModule, type AppDataLookup } from '@starui/engine';
+import { GridPlatform, type AnyColDef, type AnyModule, type AppDataLookup } from '@wellsfargo-starui/engine';
 import { shouldSkipGridOptionSync } from './gridSurfaceOptions';
 import { gridOptionValuesEqual } from './gridOptionCompare';
 

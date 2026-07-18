@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { GridApi } from 'ag-grid-community';
-import type { ApiEventName } from '@starui/engine';
+import type { ApiEventName } from '@wellsfargo-starui/engine';
 import { useGridPlatform } from './GridProvider';
 
 /**

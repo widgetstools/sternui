@@ -5,9 +5,9 @@
  */
 
 import { useState } from "react";
-import { Button, Checkbox } from "@starui/ui";
-import { DynamicIcon as Icon } from "@starui/config-browser/icons";
-import type { DeployExportResult, DeployExportWarning } from "@starui/host-config";
+import { Button, Checkbox } from "@wellsfargo-starui/ui";
+import { DynamicIcon as Icon } from "@wellsfargo-starui/config-browser/icons";
+import type { DeployExportResult, DeployExportWarning } from "@wellsfargo-starui/host-config";
 
 interface DeployExportPreviewDialogProps {
   result: DeployExportResult;

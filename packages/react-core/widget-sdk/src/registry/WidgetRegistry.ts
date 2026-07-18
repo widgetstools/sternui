@@ -1,4 +1,4 @@
-import type { WidgetProps } from '@starui/widget';
+import type { WidgetProps } from '@wellsfargo-starui/widget';
 
 /**
  * WidgetRegistry — maps widget type strings to React components.

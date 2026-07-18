@@ -9,7 +9,7 @@
  * Module-level settings (enable, frequency, channels, history) live in the
  * editor pane above the selected rule — not in the list rail.
  *
- * All form controls are shadcn primitives from `@starui/ui` — no native
+ * All form controls are shadcn primitives from `@wellsfargo-starui/ui` — no native
  * `<input>`, `<select>`, or `<button>` (per CLAUDE.md UI stack rules).
  */
 
@@ -32,8 +32,8 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from '@starui/ui';
-import type { EditorPaneProps, ListPaneProps } from '@starui/engine';
+} from '@wellsfargo-starui/ui';
+import type { EditorPaneProps, ListPaneProps } from '@wellsfargo-starui/engine';
 import {
   DEFAULT_ALERTS_SETTINGS,
   type AlertChannel,
@@ -44,7 +44,7 @@ import {
   type EvaluationMode,
   type RelativeChangeDirection,
   type RelativeChangeMode,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import { useGridEngineKind, useGridPlatform } from '../../hooks/GridProvider';
 import { useModuleState } from '../../hooks/useModuleState';
 import { useModuleDraft } from '../../hooks/useModuleDraft';

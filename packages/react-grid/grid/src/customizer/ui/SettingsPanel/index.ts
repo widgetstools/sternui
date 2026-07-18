@@ -9,7 +9,7 @@
  *     ItemCard, IconInput, PillToggleGroup, PillToggleBtn,
  *     GhostIcon, DirtyDot, LedBar,
  *     Caps, Mono, SharpBtn, TGroup, TBtn, TDivider, Band, MetaCell, Stepper,
- *   } from '@starui/engine';
+ *   } from '@wellsfargo-starui/engine';
  *
  * Every primitive consumes `--ds-*` tokens from the unified design system
  * via Tailwind utility classes from the shared preset.

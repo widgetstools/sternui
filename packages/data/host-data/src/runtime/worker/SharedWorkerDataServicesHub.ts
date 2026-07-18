@@ -38,7 +38,7 @@
  *      - Self-disabling when no stats listeners exist anywhere.
  */
 
-import type { ProviderConfig } from '@starui/types';
+import type { ProviderConfig } from '@wellsfargo-starui/types';
 import type {
   AttachRequest,
   DetachRequest,
@@ -79,7 +79,7 @@ import {
   type ConfigCatalogService,
 } from './ConfigCatalogService.js';
 import { ConfigCatalogCache } from '../../hub/ConfigCatalogCache.js';
-import type { StompProviderConfig } from '@starui/types';
+import type { StompProviderConfig } from '@wellsfargo-starui/types';
 import {
   traceStompProviderCfg,
   traceWorkerAppDataSnapshot,

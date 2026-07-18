@@ -5,7 +5,7 @@ import type {
   SurfaceSpec,
   Theme,
   Unsubscribe,
-} from '@starui/types';
+} from '@wellsfargo-starui/types';
 
 /**
  * RuntimePort — abstracts browser vs OpenFin host capabilities.

@@ -17,7 +17,7 @@ import {
   type CellRendererCatalogueEntry,
   type CellRendererConfig,
   type CellRendererId,
-} from '@starui/design-system';
+} from '@wellsfargo-starui/design-system';
 import {
   Select,
   SelectContent,
@@ -26,7 +26,7 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import { Band } from '../../../ui/SettingsPanel';
 import { Row } from './Row';
 import { EDITORS_BY_ID } from '../CellRendererEditors';

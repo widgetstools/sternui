@@ -12,8 +12,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useGridPlatform, useModuleState } from '@starui/grid/customizer';
-import type { ColumnCustomizationState } from '@starui/grid/customizer';
+import { useGridPlatform, useModuleState } from '@wellsfargo-starui/grid/customizer';
+import type { ColumnCustomizationState } from '@wellsfargo-starui/grid/customizer';
 import {
   readHeaderName,
   resolveToolbarPickerDataType,

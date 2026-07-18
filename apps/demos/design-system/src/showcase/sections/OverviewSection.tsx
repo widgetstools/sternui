@@ -1,26 +1,26 @@
 import { CodeBlock } from '../../components/CodeBlock';
 
 const CSS_IMPORT = `/* globals.css */
-@import '@starui/design-system/css';   /* tokens + base + scrollbar */
+@import '@wellsfargo-starui/design-system/css';   /* tokens + base + scrollbar */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;`;
 
 const APPLY_THEME = `// main.tsx — set the theme before first paint (no FOUC)
-import { applyTheme, getTheme } from '@starui/design-system';
+import { applyTheme, getTheme } from '@wellsfargo-starui/design-system';
 
 applyTheme(getTheme());            // reads starui:theme, sets <html data-theme>
 // toggle at runtime:  applyTheme({ theme: 'light' });`;
 
 const TAILWIND = `// tailwind.config.js — consume the shared preset
-import { tailwindPreset } from '@starui/design-system/tailwind';
+import { tailwindPreset } from '@wellsfargo-starui/design-system/tailwind';
 
 export default { presets: [tailwindPreset], content: ['./src/**/*.{ts,tsx}'] };`;
 
 const AG_GRID = `// AG Grid picks up tokens via the prebuilt theme
 import { AgGridReact } from 'ag-grid-react';
-import { staruiGridTheme } from '@starui/design-system/adapters/ag-grid';
+import { staruiGridTheme } from '@wellsfargo-starui/design-system/adapters/ag-grid';
 
 <div data-ag-theme-mode={mode}>   {/* 'dark' | 'light' */}
   <AgGridReact theme={staruiGridTheme} rowData={rows} columnDefs={cols} />
@@ -35,8 +35,8 @@ export function OverviewSection() {
         </h2>
         <p className="text-[13px] text-[color:var(--ds-text-secondary)]">
           One token set styles shadcn components and AG Grid across light and dark. This terminal
-          consumes <code className="font-[var(--ds-font-mono)]">@starui/design-system</code> +{' '}
-          <code className="font-[var(--ds-font-mono)]">@starui/ui</code> — no bespoke styling.
+          consumes <code className="font-[var(--ds-font-mono)]">@wellsfargo-starui/design-system</code> +{' '}
+          <code className="font-[var(--ds-font-mono)]">@wellsfargo-starui/ui</code> — no bespoke styling.
         </p>
       </header>
 

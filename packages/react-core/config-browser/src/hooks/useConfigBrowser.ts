@@ -7,13 +7,13 @@ import {
   getConfigManager,
   readHostEnv,
   type HostEnv,
-} from "@starui/openfin-platform/config";
+} from "@wellsfargo-starui/openfin-platform/config";
 import {
   buildDeployExport,
   normalizeImportedAppConfigRow,
   type DeployExportResult,
-} from "@starui/host-config";
-import type { ConfigManager, ResetToSeedResult } from "@starui/host-config";
+} from "@wellsfargo-starui/host-config";
+import type { ConfigManager, ResetToSeedResult } from "@wellsfargo-starui/host-config";
 import { TABLES, type TableKey, type TableMeta } from "../types";
 
 interface Counts {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { EditJournal } from '@starui/engine';
+import { EditJournal } from '@wellsfargo-starui/engine';
 import { applyBulkUpdateEdits } from './applyBulkUpdateEdits.js';
 
 describe('applyBulkUpdateEdits', () => {

@@ -1,14 +1,14 @@
 import {
   bootstrapDataServicesWithWorkerAsset,
   type DataServices,
-} from '@starui/host-data/runtime';
-import { LOGGED_IN_USER_ID } from '@starui/types';
+} from '@wellsfargo-starui/host-data/runtime';
+import { LOGGED_IN_USER_ID } from '@wellsfargo-starui/types';
 
 export interface CreateAppDataServicesOpts {
   appName: string;
   userId?: string;
   /**
-   * Resolved URL of `@starui/host-data/assets/data-services-worker.mjs`
+   * Resolved URL of `@wellsfargo-starui/host-data/assets/data-services-worker.mjs`
    * from a Vite `?url` import at the app call site.
    */
   workerScriptUrl: string;

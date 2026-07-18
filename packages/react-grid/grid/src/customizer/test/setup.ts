@@ -1,5 +1,5 @@
 /**
- * Vitest global setup for @starui/grid/customizer.
+ * Vitest global setup for @wellsfargo-starui/grid/customizer.
  *
  * Mirrors the core-package setup (cmdk needs ResizeObserver +
  * Element.scrollIntoView shims under jsdom 29) and wires

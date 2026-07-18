@@ -3,7 +3,7 @@
 **Date:** 2026-07-14  
 **Status:** Approved for planning (pending user review of this file)  
 **Parent:** [2026-07-14-marketsgrid-ssrm-dual-engine-design.md](./2026-07-14-marketsgrid-ssrm-dual-engine-design.md)  
-**Repos:** starui (`@starui/grid`) + ssrmgrid  
+**Repos:** starui (`@wellsfargo-starui/grid`) + ssrmgrid  
 **Prerequisite:** Phase 0–1 landed (`CURRENT_SSRM_PHASE = 1`, dual-engine scaffold)
 
 ## Goal
@@ -99,7 +99,7 @@ CSRM path continues to use existing `valueGetter` / expression eval — unchange
 Where expressions or formatters need book-level `SUM([x])` / `AVG([x])` / share-of-total:
 
 - Prefer values already stamped on SSRM rows / context: `__ssrm_aggs`, legacy `__ssrm_sums`, grid context aggregates.
-- Use ssrmgrid helpers (`shareOfTotal`, `resolveAggregate`, etc.) from `@starui/grid` SSRM surface — do not reimplement aggregate math on the client over unloaded rows.
+- Use ssrmgrid helpers (`shareOfTotal`, `resolveAggregate`, etc.) from `@wellsfargo-starui/grid` SSRM surface — do not reimplement aggregate math on the client over unloaded rows.
 
 ## 2. Traffic light / RAG group roll-up
 

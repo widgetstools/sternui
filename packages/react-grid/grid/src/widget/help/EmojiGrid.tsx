@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { ChromeButton } from '@starui/grid/customizer';
+import { ChromeButton } from '@wellsfargo-starui/grid/customizer';
 import '../HelpPanel.css';
 
 export function EmojiGrid({ items }: { items: Array<{ emoji: string; label: string }> }) {

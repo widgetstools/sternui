@@ -10,7 +10,7 @@ import type {
   ConfigManager,
   PermissionRow,
   RoleRow,
-} from '@starui/host-config';
+} from '@wellsfargo-starui/host-config';
 
 class InMemoryConfigManager {
   configs = new Map<string, AppConfigRow>();

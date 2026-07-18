@@ -6,7 +6,7 @@
  * "capture on explicit Save" wiring in MarketsGrid).
  */
 import type { GridApi } from 'ag-grid-community';
-import type { Store } from '@starui/engine';
+import type { Store } from '@wellsfargo-starui/engine';
 import {
   GRID_STATE_SCHEMA_VERSION,
   type GridStateState,

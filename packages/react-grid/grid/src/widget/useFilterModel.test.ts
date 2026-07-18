@@ -21,12 +21,12 @@ import * as React from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { GridApi } from 'ag-grid-community';
-import { GridPlatform } from '@starui/engine';
+import { GridPlatform } from '@wellsfargo-starui/engine';
 import {
   GridProvider,
   savedFiltersModule,
   type SavedFiltersState,
-} from '@starui/grid/customizer';
+} from '@wellsfargo-starui/grid/customizer';
 import { useFilterModel } from './useFilterModel';
 import type { SavedFilter } from './types';
 

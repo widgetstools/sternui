@@ -4,8 +4,8 @@ import {
   Button,
   Input,
   Switch,
-} from '@starui/ui';
-import type { EditorPaneProps, ListPaneProps } from '@starui/engine';
+} from '@wellsfargo-starui/ui';
+import type { EditorPaneProps, ListPaneProps } from '@wellsfargo-starui/engine';
 import {
   defaultShortcut,
   SHORTCUTS_MODULE_ID,
@@ -13,7 +13,7 @@ import {
   type ShortcutOperation,
   type ShortcutsSettings,
   type ShortcutsState,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
 import { useModuleState } from '../../hooks/useModuleState';
 import { useGridColumns } from '../../hooks/useGridColumns';

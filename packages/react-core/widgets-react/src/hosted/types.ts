@@ -1,5 +1,5 @@
 /**
- * Public type contract for `@starui/widgets-react/hosted`.
+ * Public type contract for `@wellsfargo-starui/widgets-react/hosted`.
  *
  * These types are consumed by `<HostedMarketsGrid>` and any future
  * hosted-feature wrapper that needs the same identity / storage shape.
@@ -8,8 +8,8 @@
  * contract instead of importing app-internal symbols.
  */
 
-import type { ConfigManager } from '@starui/host-config';
-import type { StorageAdapterFactory } from '@starui/grid';
+import type { ConfigManager } from '@wellsfargo-starui/host-config';
+import type { StorageAdapterFactory } from '@wellsfargo-starui/grid';
 
 export type { ConfigManager, StorageAdapterFactory };
 

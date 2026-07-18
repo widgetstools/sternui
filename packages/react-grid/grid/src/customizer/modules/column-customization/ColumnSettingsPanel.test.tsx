@@ -14,7 +14,7 @@ import * as React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Column, GridApi } from 'ag-grid-community';
-import { GridPlatform } from '@starui/engine';
+import { GridPlatform } from '@wellsfargo-starui/engine';
 import { GridProvider } from '../../hooks/GridProvider';
 import {
   ColumnSettingsEditor,

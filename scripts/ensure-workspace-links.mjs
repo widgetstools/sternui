@@ -2,9 +2,9 @@
 /**
  * ensure-workspace-links.mjs — restore missing workspace symlinks before turbo build.
  *
- * propagate.mjs refreshes app tarballs by deleting hoisted @starui/* copies under
+ * propagate.mjs refreshes app tarballs by deleting hoisted @wellsfargo-starui/* copies under
  * apps/ (and historically the repo root). If root workspace links are removed,
- * `npm run build:packages` fails with TS2307 for @starui/design-system until a
+ * `npm run build:packages` fails with TS2307 for @wellsfargo-starui/design-system until a
  * manual root `npm install`. This script detects missing foundation links and
  * runs a root install once.
  */
@@ -17,15 +17,15 @@ const PACKAGES_ROOT = join(REPO_ROOT, 'packages');
 
 /** Workspace packages every package build expects hoisted at root. */
 const REQUIRED_WORKSPACE_PACKAGES = [
-  '@starui/design-system',
-  '@starui/shared-types',
-  '@starui/types',
-  '@starui/icons-svg',
+  '@wellsfargo-starui/design-system',
+  '@wellsfargo-starui/shared-types',
+  '@wellsfargo-starui/types',
+  '@wellsfargo-starui/icons-svg',
 ];
 
 function workspaceLinkPath(packageName) {
   const short = packageName.split('/')[1];
-  return join(REPO_ROOT, 'node_modules', '@starui', short);
+  return join(REPO_ROOT, 'node_modules', '@wellsfargo-starui', short);
 }
 
 function isRepoWorkspaceSymlink(path) {

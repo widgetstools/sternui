@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import type { GridPlatform } from '@starui/engine';
+import type { GridPlatform } from '@wellsfargo-starui/engine';
 import type { GridEngineKind } from '../../engine/types.js';
 
 interface GridContextValue {

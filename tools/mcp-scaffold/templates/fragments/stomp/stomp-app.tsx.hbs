@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { applyTheme, getTheme } from '@starui/design-system';
-import { Button } from '@starui/ui';
-import { useDataServices, useUserIdFromContext } from '@starui/host-data-react/runtime';
+import { applyTheme, getTheme } from '@wellsfargo-starui/design-system';
+import { Button } from '@wellsfargo-starui/ui';
+import { useDataServices, useUserIdFromContext } from '@wellsfargo-starui/host-data-react/runtime';
 import { Moon, Radio, Sun, Table2 } from 'lucide-react';
 import { ensureStompProvider } from './ensureStompProvider';
 import { PositionsBlotter } from './views/PositionsBlotter';

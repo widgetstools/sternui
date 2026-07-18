@@ -65,7 +65,7 @@ Defined in `packages/react-core/widgets-react/src/hosted/useGridContextLink.ts`.
 
 | Requirement | Why | Notes |
 |---|---|---|
-| OpenFin **Workspace platform** | Linking rides OpenFin interop; the dock supplies the color **Link** button. | `initWorkspace()` (see `@starui/openfin-platform`) registers Home/Dock/Store/Notifications. |
+| OpenFin **Workspace platform** | Linking rides OpenFin interop; the dock supplies the color **Link** button. | `initWorkspace()` (see `@wellsfargo-starui/openfin-platform`) registers Home/Dock/Store/Notifications. |
 | `fin.me.interop` available | The transport (`setContext` / `addContextHandler`) operates on the dock-linked context group. | Available **by default** in platform views — **no manifest flag required**. |
 | Notifications provider registered | For the Notification Center messages (`notify: true`). | Registered automatically by `initWorkspace()` via `registerNotifications()` — **no manifest entry required**. |
 | Two+ windows joined to the **same color** | The dock **Link** control joins each window to a color context group; only same-group windows exchange context. | Verify both show the same color; the link notifications print the channel for confirmation. |
@@ -126,7 +126,7 @@ All of the reusable implementation lives in
 | `useFdc3Channel.ts` | Fallback transport — minimal `window.fdc3` facade (`broadcast` / `addContextListener` / channel tracking). Used only when interop is absent. |
 | `useColorLinking.ts` | Derives the parent window's link color from OpenFin window options (diagnostic / channel label). |
 | `gridLinkNotifications.ts` | Pure notification formatters: `buildSelectionNotification`, `buildAckNotification`, `summarizeCriteria` (caps the displayed value list so a whole-group selection doesn't produce a giant toast). Unit tested in `gridLinkNotifications.test.ts`. |
-| `useGridLinkNotifications.ts` | Dispatches the formatted notifications via `@starui/host-openfin` (`loadOpenFinNotificationsApi` / `dispatchOpenFinNotification`); no-op outside OpenFin. Returns the `onPublish`/`onReceive` callbacks. |
+| `useGridLinkNotifications.ts` | Dispatches the formatted notifications via `@wellsfargo-starui/host-openfin` (`loadOpenFinNotificationsApi` / `dispatchOpenFinNotification`); no-op outside OpenFin. Returns the `onPublish`/`onReceive` callbacks. |
 | `HostedMarketsGrid.tsx` | Orchestration: picks the transport (interop preferred), auto-derives `rowIdField` from the provider (via the container callback), and wires `useGridContextLink` + `useGridLinkNotifications`. |
 
 Supporting pieces outside `hosted/`:

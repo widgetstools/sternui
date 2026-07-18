@@ -15,8 +15,8 @@ import type {
   CssHandle,
   ExpressionEngineLike,
   ExpressionNode,
-} from '@starui/engine';
-import { valueFormatterFromTemplate } from '@starui/engine';
+} from '@wellsfargo-starui/engine';
+import { valueFormatterFromTemplate } from '@wellsfargo-starui/engine';
 import { cssEscapeColId } from '../column-customization/transforms';
 import type {
   AnimationKind,

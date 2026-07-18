@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Input, Textarea, cn } from '@starui/ui';
+import { Input, Textarea, cn } from '@wellsfargo-starui/ui';
 import type { ExpressionEditorProps, ExpressionEditorHandle } from './types';
 
 /**

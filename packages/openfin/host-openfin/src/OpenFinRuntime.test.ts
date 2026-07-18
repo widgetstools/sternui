@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { OpenFinRuntime } from './OpenFinRuntime.js';
-import type { Theme } from '@starui/types';
+import type { Theme } from '@wellsfargo-starui/types';
 
 describe('OpenFinRuntime', () => {
   let originalFin: unknown;

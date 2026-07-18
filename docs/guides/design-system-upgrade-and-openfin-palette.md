@@ -9,7 +9,7 @@ Use this guide when:
 - Fixing Tailwind / shadcn / AG Grid colors after a token change
 - Re-validating OpenFin `CustomPaletteSet` contrast (page tabs, dock dropdowns)
 
-**Related docs:** [`consumer-app-sharedworker-and-tailwind.md`](./consumer-app-sharedworker-and-tailwind.md), [`BUILD.md`](../BUILD.md), [`current-features.md`](../current-features.md) § `@starui/design-system` and § `@starui/openfin-platform`.
+**Related docs:** [`consumer-app-sharedworker-and-tailwind.md`](./consumer-app-sharedworker-and-tailwind.md), [`BUILD.md`](../BUILD.md), [`current-features.md`](../current-features.md) § `@wellsfargo-starui/design-system` and § `@wellsfargo-starui/openfin-platform`.
 
 ---
 
@@ -17,7 +17,7 @@ Use this guide when:
 
 | Layer | What it styles | Mechanism | Package / file |
 |-------|----------------|-----------|----------------|
-| **App content** | React widgets, shadcn, AG Grid rows, provider window | CSS `data-theme` on `<html>` + `@starui/design-system/css` | `applyTheme()`, `starui-tokens.css` |
+| **App content** | React widgets, shadcn, AG Grid rows, provider window | CSS `data-theme` on `<html>` + `@wellsfargo-starui/design-system/css` | `applyTheme()`, `starui-tokens.css` |
 | **OpenFin workspace chrome** | Dock bar, browser page tabs, home/store, platform modals | `WorkspacePlatform.init({ theme: [{ palettes: { dark, light } }] })` | `openfinPalette.ts`, `workspace.ts` |
 
 Both must flip together on the dock theme toggle:
@@ -45,7 +45,7 @@ When upgrading from an external design-system repo, **replace this file** (and `
 
 ### 2.2 Built CSS bundle
 
-`npm run build` in `@starui/design-system` runs:
+`npm run build` in `@wellsfargo-starui/design-system` runs:
 
 1. `tsc` → `dist/`
 2. `scripts/build-css.ts` → **`dist/css/theme.css`**
@@ -63,7 +63,7 @@ The bundle concatenates:
 Apps import:
 
 ```css
-@import '@starui/design-system/css';
+@import '@wellsfargo-starui/design-system/css';
 ```
 
 ### 2.3 Compatibility layer (`compatCss.ts`)
@@ -75,16 +75,16 @@ Maps legacy variable names onto OKLCH tokens so existing code and shadcn aliases
 - `--p-*` PrimeNG aliases
 - Surface scale `--surface-50` … `--surface-950`
 
-After a token upgrade, run design-system tests (`npm test -w @starui/design-system`) — snapshot tests cover compat output.
+After a token upgrade, run design-system tests (`npm test -w @wellsfargo-starui/design-system`) — snapshot tests cover compat output.
 
 ### 2.4 Framework adapters
 
 | Adapter | Import | Role |
 |---------|--------|------|
-| Tailwind v3 preset | `@starui/design-system/tailwind` | `oklch(var(--token) / <alpha-value>)` colours, `h-control`, font sizes from `--text-*` |
-| AG Grid v33+ | `@starui/design-system/adapters/ag-grid` | Single `staruiGridTheme` with light/dark `withParams`; reads `data-ag-theme-mode` |
-| shadcn bridge | `@starui/design-system/shadcn` | Unified CSS generation |
-| PrimeNG | `@starui/design-system/primeng` | Angular token preset |
+| Tailwind v3 preset | `@wellsfargo-starui/design-system/tailwind` | `oklch(var(--token) / <alpha-value>)` colours, `h-control`, font sizes from `--text-*` |
+| AG Grid v33+ | `@wellsfargo-starui/design-system/adapters/ag-grid` | Single `staruiGridTheme` with light/dark `withParams`; reads `data-ag-theme-mode` |
+| shadcn bridge | `@wellsfargo-starui/design-system/shadcn` | Unified CSS generation |
+| PrimeNG | `@wellsfargo-starui/design-system/primeng` | Angular token preset |
 
 **Tailwind in apps:** PostCSS loads `tailwind.config.js` outside Vite, so apps use:
 
@@ -92,14 +92,14 @@ After a token upgrade, run design-system tests (`npm test -w @starui/design-syst
 const { tailwindPreset } = require('../../../scripts/staruiTailwindPreset.cjs');
 ```
 
-That loader resolves the preset from installed `@starui/design-system` or from `packages/design-system/design-system/dist/adapters/tailwind.js` after `npm run build:packages`.
+That loader resolves the preset from installed `@wellsfargo-starui/design-system` or from `packages/design-system/design-system/dist/adapters/tailwind.js` after `npm run build:packages`.
 
 ### 2.5 Runtime theme API
 
 **Path:** `packages/design-system/design-system/src/applyTheme.ts`
 
 ```ts
-import { applyTheme, getTheme } from '@starui/design-system';
+import { applyTheme, getTheme } from '@wellsfargo-starui/design-system';
 
 // Boot (before React render):
 applyTheme(getTheme());
@@ -132,9 +132,9 @@ npm run propagate -- design-system --no-build
 npm run install:apps
 ```
 
-`build:packages` runs `scripts/ensure-workspace-links.mjs` first so `@starui/design-system` stays linked in root `node_modules` (see § 6).
+`build:packages` runs `scripts/ensure-workspace-links.mjs` first so `@wellsfargo-starui/design-system` stays linked in root `node_modules` (see § 6).
 
-### 3.2 Align `@starui/ui` (shadcn primitives)
+### 3.2 Align `@wellsfargo-starui/ui` (shadcn primitives)
 
 Primitives in `packages/react-ui/ui/src/components/` must:
 
@@ -152,19 +152,19 @@ After token changes, spot-check dark + light in `demo-react` or `star-demo`.
 - Dark header/chrome uses `--muted` / `--secondary-foreground`, not legacy gray hex.
 - Apps set `data-ag-theme-mode` alongside `data-theme` (handled by `applyTheme` and runtime).
 
-Grid package imports `@starui/design-system/adapters/ag-grid` — ensure `npm install` at root after package.json dependency changes.
+Grid package imports `@wellsfargo-starui/design-system/adapters/ag-grid` — ensure `npm install` at root after package.json dependency changes.
 
 ### 3.4 Align grid customizer / formatter chrome
 
-Search for imports of `@starui/design-system/tokens` in `packages/react-grid/grid/` — colour swatches and pickers read semantic token exports.
+Search for imports of `@wellsfargo-starui/design-system/tokens` in `packages/react-grid/grid/` — colour swatches and pickers read semantic token exports.
 
 ### 3.5 Verification checklist
 
 | Check | Command / action |
 |-------|------------------|
-| Design-system unit tests | `npm test -w @starui/design-system` |
+| Design-system unit tests | `npm test -w @wellsfargo-starui/design-system` |
 | Full package build | `npm run build:packages` (28 tasks) |
-| star-demo Vite build | `npm run build -w @starui/star-demo` |
+| star-demo Vite build | `npm run build -w @wellsfargo-starui/star-demo` |
 | Dark + light toggle | Dock sun/moon → content + chrome + grid headers |
 | AG Grid headers in dark | No gray “default ag-grid” header band |
 | shadcn controls in dark | Inputs, selects, popovers use token backgrounds |
@@ -188,7 +188,7 @@ OpenFin Workspace does **not** read CSS variables. It requires a **`CustomPalett
 
 `buildOpenFinPalettesFromDesignSystem()`:
 
-1. Requires `@starui/design-system/css` already loaded in the provider window (star-demo: `main.tsx` imports `index.css` before `initWorkspace`).
+1. Requires `@wellsfargo-starui/design-system/css` already loaded in the provider window (star-demo: `main.tsx` imports `index.css` before `initWorkspace`).
 2. Temporarily sets `<html data-theme="dark">` and samples tokens into a hidden probe element.
 3. Sets `<html data-theme="light">` and samples again.
 4. Restores previous `data-theme` / `data-ag-theme-mode`.
@@ -282,27 +282,27 @@ Some demos map OpenFin-injected vars to StarUI tokens:
 }
 ```
 
-OpenFin may expose `--theme-*` on workspace surfaces; hosted apps still rely primarily on `data-theme` + `@starui/design-system/css`.
+OpenFin may expose `--theme-*` on workspace surfaces; hosted apps still rely primarily on `data-theme` + `@wellsfargo-starui/design-system/css`.
 
 ---
 
 ## 6. Build / install pitfalls
 
-### Missing `@starui/design-system` during `build:packages`
+### Missing `@wellsfargo-starui/design-system` during `build:packages`
 
-Symptom: `TS2307: Cannot find module '@starui/design-system'`.
+Symptom: `TS2307: Cannot find module '@wellsfargo-starui/design-system'`.
 
-Cause: `npm run propagate` used to delete root `node_modules/@starui/design-system` when refreshing app tarballs.
+Cause: `npm run propagate` used to delete root `node_modules/@wellsfargo-starui/design-system` when refreshing app tarballs.
 
 Fixes in repo:
 
 - `scripts/propagate.mjs` — does not remove workspace symlinks under root `node_modules`.
 - `scripts/ensure-workspace-links.mjs` — runs before `build:packages`.
-- Root `devDependencies` pin `@starui/design-system`, `@starui/shared-types`, `@starui/types`, `@starui/icons-svg`.
+- Root `devDependencies` pin `@wellsfargo-starui/design-system`, `@wellsfargo-starui/shared-types`, `@wellsfargo-starui/types`, `@wellsfargo-starui/icons-svg`.
 
 ### Tailwind preset not found in apps
 
-Symptom: `Cannot find module '@starui/design-system/tailwind'` from PostCSS.
+Symptom: `Cannot find module '@wellsfargo-starui/design-system/tailwind'` from PostCSS.
 
 Use `scripts/staruiTailwindPreset.cjs` in app `tailwind.config.js` (see § 2.4).
 
@@ -313,7 +313,7 @@ Use `scripts/staruiTailwindPreset.cjs` in app `tailwind.config.js` (see § 2.4).
 ### Design system token drop
 
 - [ ] Update `starui-tokens.css` (+ `tokens.json` if used)
-- [ ] Run `npm test -w @starui/design-system` (fix compat snapshots if intentional)
+- [ ] Run `npm test -w @wellsfargo-starui/design-system` (fix compat snapshots if intentional)
 - [ ] Run `npm run build:packages`
 - [ ] Grep for hardcoded hex in `packages/react-ui/ui` and grid customizer
 - [ ] Verify `applyTheme` + AG Grid dark headers in star-demo
@@ -321,12 +321,12 @@ Use `scripts/staruiTailwindPreset.cjs` in app `tailwind.config.js` (see § 2.4).
 
 ### OpenFin palette / chrome
 
-- [ ] Provider imports `@starui/design-system/css` **before** `initWorkspace()`
+- [ ] Provider imports `@wellsfargo-starui/design-system/css` **before** `initWorkspace()`
 - [ ] Restart OpenFin completely after `openfinPalette.ts` changes
 - [ ] Toggle light: dock + browser tabs + content all flip
 - [ ] Check active **page tab** contrast (top “Untitled Page” tab)
 - [ ] Check light dock dropdown (`contentBackground4`) — cancel buttons legible
-- [ ] Run `npm test -w @starui/openfin-platform` (`openfinPalette.test.ts`)
+- [ ] Run `npm test -w @wellsfargo-starui/openfin-platform` (`openfinPalette.test.ts`)
 
 ### Optional hardening
 

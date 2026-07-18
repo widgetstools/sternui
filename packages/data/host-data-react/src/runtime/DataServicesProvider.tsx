@@ -9,15 +9,15 @@ import {
   useMemo,
   type ReactNode,
 } from 'react';
-import type { SharedWorkerDataServicesClient } from '@starui/host-data/runtime/client';
+import type { SharedWorkerDataServicesClient } from '@wellsfargo-starui/host-data/runtime/client';
 import {
   AppDataMirror,
   DataProviderConfigStore,
   type DataServices,
-} from '@starui/host-data/runtime';
-import { DEV_PLATFORM_BOOTSTRAP } from '@starui/host-data';
-import { LOGGED_IN_USER_ID } from '@starui/types';
-import type { ConfigManager } from '@starui/host-config';
+} from '@wellsfargo-starui/host-data/runtime';
+import { DEV_PLATFORM_BOOTSTRAP } from '@wellsfargo-starui/host-data';
+import { LOGGED_IN_USER_ID } from '@wellsfargo-starui/types';
+import type { ConfigManager } from '@wellsfargo-starui/host-config';
 
 function readConfigManagerAppId(configManager: ConfigManager | undefined): string | undefined {
   if (!configManager || typeof configManager.getAppId !== 'function') return undefined;

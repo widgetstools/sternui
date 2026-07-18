@@ -4,8 +4,8 @@
  * only (same as CSRM mount-time seed).
  */
 
-import type { AlertRule } from '@starui/engine';
-import { getValueByPath } from '@starui/types';
+import type { AlertRule } from '@wellsfargo-starui/engine';
+import { getValueByPath } from '@wellsfargo-starui/types';
 import { partitionEnabledRules } from './evaluateCellDelta.js';
 import type { PreviousValuesStore } from './previousValues.js';
 

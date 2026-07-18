@@ -10,7 +10,7 @@ import {
 import type {
   PresetId,
   ValueFormatterTemplate,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import type { StyleEditorDataType, StyleEditorValue } from '../types';
 
 /**

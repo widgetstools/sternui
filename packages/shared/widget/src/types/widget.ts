@@ -1,4 +1,4 @@
-import type { LayoutInfo, UnifiedConfig } from '@starui/shared-types';
+import type { LayoutInfo, UnifiedConfig } from '@wellsfargo-starui/shared-types';
 import type { PlatformAdapter } from './platform.js';
 
 /**

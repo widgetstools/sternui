@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { GridApi } from 'ag-grid-community';
-import type { IDataProvider } from '@starui/host-data';
-import { useDataProvider } from '@starui/host-data-react/runtime';
+import type { IDataProvider } from '@wellsfargo-starui/host-data';
+import { useDataProvider } from '@wellsfargo-starui/host-data-react/runtime';
 import { createApplyProviderToGridState } from '../../container/markets-grid-container/applyProviderToGrid.js';
 
 export interface UseBlotterDataConnectionOptions {

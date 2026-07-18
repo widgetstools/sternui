@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { cn } from '@starui/ui';
+import { cn } from '@wellsfargo-starui/ui';
 import { Tooltip } from './HoverTooltip';
 import { FormatColorPicker } from './format-editor/FormatColorPicker';
 import { ChromeButton } from './ChromeButton';

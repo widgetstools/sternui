@@ -25,7 +25,7 @@ async function waitForGrid(page: Page) {
 }
 
 async function clearV2Persistence(page: Page) {
-  // demo-react persists in IndexedDB via @starui/config-service's bundled
+  // demo-react persists in IndexedDB via @wellsfargo-starui/config-service's bundled
   // appConfig row. Wipe the marketsui-config db and the active-profile
   // pointer so each test starts from a clean slate.
   await page.evaluate(async () => {

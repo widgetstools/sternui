@@ -12,12 +12,12 @@
 import * as React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
-import type { StorageAdapter } from '@starui/engine';
+import type { StorageAdapter } from '@wellsfargo-starui/engine';
 
 // Capture what MarketsGrid sees so tests can assert + invoke
 // onCaptionChange.
 const lastMarketsGridProps: { current: any } = { current: null };
-vi.mock('@starui/grid', () => ({
+vi.mock('@wellsfargo-starui/grid', () => ({
   useGeneralSettingsSnapshot: () => undefined,
   MarketsGrid: (props: any) => {
     lastMarketsGridProps.current = props;
@@ -31,7 +31,7 @@ vi.mock('@starui/grid', () => ({
   useMarketsGridEventBridge: vi.fn(),
 }));
 
-vi.mock('@starui/host-data-react/runtime', () => ({
+vi.mock('@wellsfargo-starui/host-data-react/runtime', () => ({
   useDataServices: () => ({
     client: {
       isProviderRunning: vi.fn().mockResolvedValue(false),

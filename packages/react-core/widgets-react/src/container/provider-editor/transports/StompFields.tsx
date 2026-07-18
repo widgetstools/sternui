@@ -7,8 +7,8 @@
  * explains the contract against the bundled stomp-server.
  */
 
-import { Input, Label } from '@starui/ui';
-import type { StompProviderConfig } from '@starui/shared-types';
+import { Input, Label } from '@wellsfargo-starui/ui';
+import type { StompProviderConfig } from '@wellsfargo-starui/shared-types';
 
 export interface StompFieldsProps {
   cfg: StompProviderConfig;

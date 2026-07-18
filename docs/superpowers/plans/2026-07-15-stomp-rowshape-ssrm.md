@@ -6,7 +6,7 @@
 
 **Architecture:** Extend `StompProviderConfig` with `rowShape`. When `'ssrm'`, the worker applies a flatten projector (dotted `columnDefinitions` paths → literal top-level keys via `getValueByPath`) on every inbound batch, emits `{ rows, replace }` progressively during the snapshot phase (no full-book buffer flush), and keeps `{ rowsReceived }` + end-token `ready`. Provider editor Behaviour tab exposes the mode. No new provider type.
 
-**Tech Stack:** TypeScript, Vitest, `@starui/host-data` STOMP transport, `@starui/shared-types`, `@starui/widgets-react` BehaviourFields, existing `getValueByPath` / `fieldProjection` patterns.
+**Tech Stack:** TypeScript, Vitest, `@wellsfargo-starui/host-data` STOMP transport, `@wellsfargo-starui/shared-types`, `@wellsfargo-starui/widgets-react` BehaviourFields, existing `getValueByPath` / `fieldProjection` patterns.
 
 **Spec:** `docs/superpowers/specs/2026-07-15-stomp-rowshape-ssrm-design.md`
 
@@ -66,7 +66,7 @@ rowShape?: 'csrm' | 'ssrm';
 ```ts
 import { describe, it, expect } from 'vitest';
 import { createSsrmRowFlattener } from './ssrmRowFlatten';
-import type { ColumnDefinition } from '@starui/types';
+import type { ColumnDefinition } from '@wellsfargo-starui/types';
 
 const col = (field: string): ColumnDefinition => ({ field, headerName: field });
 
@@ -120,7 +120,7 @@ cd packages/data/host-data && npm test -- src/runtime/providers/ssrmRowFlatten.t
 
 - [ ] **Step 4: Implement `createSsrmRowFlattener`**
 
-Reuse path collection similar to `collectProjectionPaths` (union columns + keyColumn; **do not** drop longer paths under a shorter prefix — SSRM wants each leaf path as its own key). Resolve with `getValueByPath` from `@starui/shared-types` (or `@starui/types` re-export). Keep only string/number/boolean/`Date`/null values (skip plain objects and arrays).
+Reuse path collection similar to `collectProjectionPaths` (union columns + keyColumn; **do not** drop longer paths under a shorter prefix — SSRM wants each leaf path as its own key). Resolve with `getValueByPath` from `@wellsfargo-starui/shared-types` (or `@wellsfargo-starui/types` re-export). Keep only string/number/boolean/`Date`/null values (skip plain objects and arrays).
 
 ```ts
 export type SsrmRowFlattener = (row: unknown) => Record<string, unknown>;

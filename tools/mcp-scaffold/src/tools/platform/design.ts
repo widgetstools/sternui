@@ -17,13 +17,13 @@ export function handleAuditAppDesign(opts: { projectDir: string }) {
       : '';
 
   if (!main.includes('applyTheme')) extras.push('main.tsx should call applyTheme(getTheme())');
-  if (!css.includes("@import '@starui/design-system/css'")) extras.push('Missing design-system CSS import');
-  if (!css.includes("@import '@starui/grid/styles.css'")) extras.push('Missing grid styles CSS import');
+  if (!css.includes("@import '@wellsfargo-starui/design-system/css'")) extras.push('Missing design-system CSS import');
+  if (!css.includes("@import '@wellsfargo-starui/grid/styles.css'")) extras.push('Missing grid styles CSS import');
 
   return {
     ...compliance,
     recommendations: extras,
-    agGridThemeNote: 'MarketsGrid uses @starui/design-system/adapters/ag-grid via useGridTheme()',
+    agGridThemeNote: 'MarketsGrid uses @wellsfargo-starui/design-system/adapters/ag-grid via useGridTheme()',
   };
 }
 
@@ -46,8 +46,8 @@ export function handleAddShellLayout(opts: { projectDir: string; recipes?: strin
 
 export function handleThemePlaygroundSnippet() {
   return {
-    snippet: `import { applyTheme, getTheme } from '@starui/design-system';
-import { Button } from '@starui/ui';
+    snippet: `import { applyTheme, getTheme } from '@wellsfargo-starui/design-system';
+import { Button } from '@wellsfargo-starui/ui';
 
 // Boot (main.tsx):
 applyTheme(getTheme());
@@ -57,7 +57,7 @@ applyTheme({ theme: getTheme().theme === 'dark' ? 'light' : 'dark' });
 
 // AG Grid follows [data-theme] via MarketsGrid useGridTheme() → agGridDarkTheme / agGridLightTheme
 `,
-    imports: ['@starui/design-system', '@starui/ui'],
+    imports: ['@wellsfargo-starui/design-system', '@wellsfargo-starui/ui'],
   };
 }
 
@@ -74,7 +74,7 @@ export function handleShadcnComponentPicker(description: string) {
   return {
     description,
     recommended: [...new Set(picks)],
-    importFrom: '@starui/ui',
-    rule: 'Never use native input/textarea/select — use @starui/ui shadcn primitives',
+    importFrom: '@wellsfargo-starui/ui',
+    rule: 'Never use native input/textarea/select — use @wellsfargo-starui/ui shadcn primitives',
   };
 }

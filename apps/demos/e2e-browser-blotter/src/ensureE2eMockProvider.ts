@@ -1,4 +1,4 @@
-import type { DataProviderConfig } from '@starui/types';
+import type { DataProviderConfig } from '@wellsfargo-starui/types';
 
 export const E2E_MOCK_PROVIDER_ID = 'e2e-browser-blotter-mock';
 

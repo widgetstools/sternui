@@ -18,14 +18,14 @@ import {
   TableCell,
   TableHead,
   TableRow,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import { ChevronDown, ChevronRight, Loader2, RefreshCw, X } from 'lucide-react';
 import type {
   HubAppDataIntrospectRow,
   HubIntrospectSnapshot,
   HubProviderIntrospectRow,
   ProviderStatus,
-} from '@starui/host-data/runtime';
+} from '@wellsfargo-starui/host-data/runtime';
 import {
   HubInspectorVirtualSection,
   type HubInspectorRowMeasureProps,

@@ -4,8 +4,8 @@
  * their own worker file:
  *
  *     // app/dataServices.sharedWorker.ts
- *     import { installSharedWorkerHub } from '@starui/host-data/runtime/sharedWorker';
- *     import { createConfigManager } from '@starui/host-config';
+ *     import { installSharedWorkerHub } from '@wellsfargo-starui/host-data/runtime/sharedWorker';
+ *     import { createConfigManager } from '@wellsfargo-starui/host-config';
  *
  *     const cm = createConfigManager({});
  *     await cm.init();

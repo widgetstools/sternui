@@ -1,4 +1,4 @@
-import type { ColumnAssignment, ColumnCustomizationState } from '@starui/grid/customizer';
+import type { ColumnAssignment, ColumnCustomizationState } from '@wellsfargo-starui/grid/customizer';
 
 function cr(
   kind: string,

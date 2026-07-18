@@ -1,6 +1,6 @@
 # MarketsGrid Usage Guide
 
-**Audience:** application developers integrating `@starui/grid` into browser or OpenFin apps.
+**Audience:** application developers integrating `@wellsfargo-starui/grid` into browser or OpenFin apps.
 
 **Scope:** how to choose and wire the three React entry points (`MarketsGrid`, `MarketsGridContainer`, `HostedMarketsGrid`), bootstrap the SharedWorker data hub, attach providers, and persist grid state — across common deployment scenarios.
 
@@ -23,14 +23,14 @@ MarketsGrid is never “just drop in a grid” in production streaming apps. Pic
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  HostedMarketsGrid          (@starui/widgets-react/hosted)      │
+│  HostedMarketsGrid          (@wellsfargo-starui/widgets-react/hosted)      │
 │  • Full-bleed layout, OpenFin identity, workspace-save hook     │
 │  • Optional nested DataHubProvider when `platform` prop set     │
 │  • Forwards toolbar / storage / theme props                     │
 └────────────────────────────┬────────────────────────────────────┘
                              │
 ┌────────────────────────────▼────────────────────────────────────┐
-│  MarketsGridContainer       (@starui/widgets-react)             │
+│  MarketsGridContainer       (@wellsfargo-starui/widgets-react)             │
 │  • Provider picker toolbar (Alt+Shift+P)                        │
 │  • Hub attach via useDataProvider / defaultLiveProviderId       │
 │  • Merges provider columnDefs + live row stream                 │
@@ -38,7 +38,7 @@ MarketsGrid is never “just drop in a grid” in production streaming apps. Pic
 └────────────────────────────┬────────────────────────────────────┘
                              │
 ┌────────────────────────────▼────────────────────────────────────┐
-│  MarketsGrid                (@starui/grid)                      │
+│  MarketsGrid                (@wellsfargo-starui/grid)                      │
 │  • AG Grid Enterprise blotter + customizer modules              │
 │  • Expects rowData + columnDefs (you supply data)               │
 │  • Profile / toolbar / side-bar features                        │
@@ -264,7 +264,7 @@ Useful when testing attach semantics (`data-status="wired"`) without OpenFin.
 **Reference:** `apps/demos/markets-grid-lab`
 
 ```tsx
-import { MarketsGrid } from '@starui/grid';
+import { MarketsGrid } from '@wellsfargo-starui/grid';
 
 <MarketsGrid
   gridId="lab-formatting"
@@ -434,7 +434,7 @@ Mounts a **nested** `DataHubProvider`. Avoid double-wrapping if ancestor already
 
 - [ ] `public/app-config.json` with `appId`, `userId`
 - [ ] `vite.config` → `staruiConsumerViteConfig(..., { worker: true })`
-- [ ] Worker asset: `@starui/host-data/assets/data-services-worker.mjs?url`
+- [ ] Worker asset: `@wellsfargo-starui/host-data/assets/data-services-worker.mjs?url`
 - [ ] `ensurePlatformReady` before render
 - [ ] `DataHubProvider` wrapping grid tree
 - [ ] Provider row in catalog (save or editor)
@@ -473,20 +473,20 @@ Mounts a **nested** `DataHubProvider`. Avoid double-wrapping if ancestor already
 
 ```typescript
 // Grid primitive (static data)
-import { MarketsGrid } from '@starui/grid';
+import { MarketsGrid } from '@wellsfargo-starui/grid';
 
 // Provider-aware container
-import { MarketsGridContainer } from '@starui/widgets-react';
+import { MarketsGridContainer } from '@wellsfargo-starui/widgets-react';
 
 // Production hosted shell (browser + OpenFin)
-import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
+import { HostedMarketsGrid } from '@wellsfargo-starui/widgets-react/hosted';
 
 // Hub bootstrap
 import {
   ensurePlatformReady,
   resolvePlatformBootstrapFromJson,
-} from '@starui/host-data';
-import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
+} from '@wellsfargo-starui/host-data';
+import workerAssetUrl from '@wellsfargo-starui/host-data/assets/data-services-worker.mjs?url';
 
 // React hub context + hooks
 import {
@@ -494,7 +494,7 @@ import {
   useDataServices,
   useDataProvider,
   useUserIdFromContext,
-} from '@starui/host-data-react/runtime';
+} from '@wellsfargo-starui/host-data-react/runtime';
 ```
 
 ---
@@ -510,7 +510,7 @@ import {
 | Full OpenFin platform reference | `apps/demos/markets-ui-react-reference` |
 | Grid UI features without hub | `apps/demos/markets-grid-lab` |
 | AppData bootstrap + grid event hooks (mock) | `apps/demos/platform-hooks-demo` |
-| MCP scaffold from scratch | `@starui/mcp-scaffold` templates `stomp`, `openfin-platform`, `dataprovider-editor` |
+| MCP scaffold from scratch | `@wellsfargo-starui/mcp-scaffold` templates `stomp`, `openfin-platform`, `dataprovider-editor` |
 
 ---
 
@@ -545,7 +545,7 @@ Provider pickers moved out of the primary toolbar into this panel; the toolbar k
 
 ### Chrome stack
 
-Toolbar, filter pills, formatter strip, and customizer controls use **shadcn/ui** primitives (`@starui/ui`) themed via `@starui/design-system` tokens — no native `<input>` / `<button>` in grid chrome.
+Toolbar, filter pills, formatter strip, and customizer controls use **shadcn/ui** primitives (`@wellsfargo-starui/ui`) themed via `@wellsfargo-starui/design-system` tokens — no native `<input>` / `<button>` in grid chrome.
 
 Try it: `apps/demos/markets-grid-lab` (all modules) or enable flash colour under Grid Options → DEFAULT COLDEF on any hosted grid.
 

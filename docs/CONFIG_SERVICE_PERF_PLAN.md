@@ -80,7 +80,7 @@ Written fresh against the baseline (not cherry-picked).
   Each mark's `startTime` is the time-to-milestone in ms from `timeOrigin`.
   Idempotent (a milestone marks at most once per realm) and a full no-op when
   `performance.mark` is unavailable, so it is always safe to call from
-  bootstrap. Exported from `@starui/host-data` (root + `bootstrap` barrel).
+  bootstrap. Exported from `@wellsfargo-starui/host-data` (root + `bootstrap` barrel).
   Unit-covered by `loadMarks.test.ts` (5 tests).
 - **B2 — instrumentation.** ✅ `ensureConfigReady` stamps `config-ready` after
   `ConfigManager.init`; `ensureDataServicesHub` stamps `hub-connected` (client
@@ -109,7 +109,7 @@ Written fresh against the baseline (not cherry-picked).
 > (`getWorkerConfigHubScriptUrl`). Source-mode Vite resolution prefers an
 > existing `dist/` file, so the container app failed to boot until the openfin
 > bucket was rebuilt + re-propagated. Unrelated to Phase 0 but was blocking the
-> guard; resolved by rebuilding `@starui/host-openfin` + `@starui/openfin-platform`.
+> guard; resolved by rebuilding `@wellsfargo-starui/host-openfin` + `@wellsfargo-starui/openfin-platform`.
 
 ---
 
@@ -281,8 +281,8 @@ OpenFin star-demo guardrails (cold three-blotter load ~16s, warm fast-attach
 ```
 npm run e2e:container                       # browser guardrails (fast)
 npm run e2e:openfin                         # multi-window guardrails (runtime)
-npx vitest run -w @starui/host-data         # bootstrap/hub units
-npx vitest run -w @starui/widgets-react     # hosted identity units
+npx vitest run -w @wellsfargo-starui/host-data         # bootstrap/hub units
+npx vitest run -w @wellsfargo-starui/widgets-react     # hosted identity units
 ```
 
 ## Risk & rollback

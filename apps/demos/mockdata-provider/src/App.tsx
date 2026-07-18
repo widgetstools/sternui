@@ -12,14 +12,14 @@ import {
   slateDark,
   vsCodeLight,
 } from '@widgetstools/dock-manager-core';
-import { applyTheme, getTheme } from '@starui/design-system';
+import { applyTheme, getTheme } from '@wellsfargo-starui/design-system';
 import {
   Button,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import { Sun, Moon, CircleHelp } from 'lucide-react';
 import { Brand } from './components/Brand';
 import { HelpSheet } from './components/HelpSheet';

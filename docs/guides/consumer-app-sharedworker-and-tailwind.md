@@ -1,6 +1,6 @@
 # Consumer apps: SharedWorker + Tailwind pitfalls
 
-Reference for apps under `apps/*` that consume `@starui/*` bucket tarballs via Vite
+Reference for apps under `apps/*` that consume `@wellsfargo-starui/*` bucket tarballs via Vite
 (`staruiConsumerVite.mjs`, `staruiConsumerAliases.mjs`, `tailwindContentGlobs.mjs`).
 
 This documents issues hit in `markets-ui-react-reference` (OpenFin workspace) after the
@@ -8,22 +8,22 @@ repo flatten and bucket-tarball migration, and the patterns that prevent recurre
 
 ---
 
-## SharedWorker (`@starui/host-data`)
+## SharedWorker (`@wellsfargo-starui/host-data`)
 
 ### Symptoms
 
 | Console / behaviour | Likely cause |
 |---|---|
 | `Failed to fetch a worker script` | Worker URL points at a prebundled `.vite/deps/` chunk or tarball `dist/` path Vite cannot serve as a worker entry |
-| `[@starui/host-data] SharedWorker error event` | Worker script failed to load or threw during boot |
+| `[@wellsfargo-starui/host-data] SharedWorker error event` | Worker script failed to load or threw during boot |
 | Blank page / infinite loading on routes using data services | `appData.ready()` never resolves → `ConfigManager.init()` hangs → `StarGridApp` returns `null` |
-| `useDataServices must be inside <DataServicesProvider>` | Duplicate `@starui/host-data-react` module from Vite prebundle (broken React context) |
+| `useDataServices must be inside <DataServicesProvider>` | Duplicate `@wellsfargo-starui/host-data-react` module from Vite prebundle (broken React context) |
 
 ### Root causes (there were three)
 
 #### 1. Prefer platform bootstrap + bundled worker asset
 
-`@starui/host-data` ships a self-contained worker at
+`@wellsfargo-starui/host-data` ships a self-contained worker at
 `dist/assets/data-services-worker.mjs`. Import its URL at the **app call site**
 with Vite's `?url` suffix, then call `ensurePlatformReady`:
 
@@ -32,8 +32,8 @@ with Vite's `?url` suffix, then call `ensurePlatformReady`:
 import {
   ensurePlatformReady,
   resolvePlatformBootstrapFromJson,
-} from '@starui/host-data';
-import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
+} from '@wellsfargo-starui/host-data';
+import workerAssetUrl from '@wellsfargo-starui/host-data/assets/data-services-worker.mjs?url';
 
 const config = await resolvePlatformBootstrapFromJson('/app-config.json');
 export const platform = await ensurePlatformReady(config, { workerScriptUrl: workerAssetUrl });
@@ -54,7 +54,7 @@ See:
 
 **Do not** use `createDataServicesClient()` in Vite apps — its
 `new URL(..., import.meta.url)` lives inside the library and breaks once
-Vite prebundles `@starui/host-data` into `.vite/deps/`.
+Vite prebundles `@wellsfargo-starui/host-data` into `.vite/deps/`.
 
 **Legacy escape hatch:** app-local `sharedWorker/entry.ts` that calls
 `installSharedWorkerHub` + `bootstrapDataServices({ worker, ... })` when
@@ -90,7 +90,7 @@ await configManager.init();
 await installed;
 ```
 
-**Fix (library — `@starui/host-data`):** `installSharedWorkerHub` registers `onconnect`
+**Fix (library — `@wellsfargo-starui/host-data`):** `installSharedWorkerHub` registers `onconnect`
 synchronously and queues ports until `hydrateAppData()` completes. After changing
 `packages/data/host-data`, run `npm run propagate -- data` so installed tarballs pick up
 the new `dist/`.
@@ -101,9 +101,9 @@ Prebundling breaks worker URLs **and** duplicates React context for `host-data-r
 
 In `scripts/staruiConsumerAliases.mjs` → `staruiOptimizeDeps().exclude`:
 
-- `@starui/host-data`, `@starui/host-data/runtime`
-- `@starui/host-data-react`, `@starui/host-data-react/runtime`
-- Bucket paths: `@starui/data/host-data`, `@starui/data/host-data-react`, etc.
+- `@wellsfargo-starui/host-data`, `@wellsfargo-starui/host-data/runtime`
+- `@wellsfargo-starui/host-data-react`, `@wellsfargo-starui/host-data-react/runtime`
+- Bucket paths: `@wellsfargo-starui/data/host-data`, `@wellsfargo-starui/data/host-data-react`, etc.
 
 Apps must pass `{ worker: true }` to `staruiConsumerViteConfig`:
 
@@ -164,9 +164,9 @@ await dataServices.ready; // must resolve, not hang
 | Symptom | Likely cause |
 |---|---|
 | PostCSS / Tailwind config load error mentioning `import.meta` | ESM-only code imported from `tailwind.config.js` (jiti cannot evaluate it) |
-| Library UI unstyled (missing utilities in `@starui/ui`, grids, widgets) | `content` globs don't scan tarball paths under `node_modules/@starui/...` |
+| Library UI unstyled (missing utilities in `@wellsfargo-starui/ui`, grids, widgets) | `content` globs don't scan tarball paths under `node_modules/@wellsfargo-starui/...` |
 | Styles worked before flatten/tarball migration, broken after | Stale relative paths (e.g. old `starui-platform/packages/...`) in `content` |
-| Vite warning: `duration-[120ms] is ambiguous` | Fixed in `@starui/grid` — use `[transition-duration:120ms]` instead of `duration-[120ms]` if you copy customizer classes |
+| Vite warning: `duration-[120ms] is ambiguous` | Fixed in `@wellsfargo-starui/grid` — use `[transition-duration:120ms]` instead of `duration-[120ms]` if you copy customizer classes |
 
 ### Root cause: PostCSS loads Tailwind config through jiti
 
@@ -189,7 +189,7 @@ Tailwind 3 loads `tailwind.config.js` via PostCSS → **jiti**, which does **not
 Example (`apps/markets-ui-react-reference/tailwind.config.js`):
 
 ```js
-import { tailwindPreset } from '@starui/design-system/tailwind';
+import { tailwindPreset } from '@wellsfargo-starui/design-system/tailwind';
 import { platformAppTailwindContent } from '../../scripts/tailwindContentGlobs.mjs';
 
 export default {
@@ -211,14 +211,14 @@ Apps depend on bucket tarballs (`file:../../libs/starui-react-ui-….tgz`). Tail
 scan **both**:
 
 1. Monorepo workspace paths (`packages/react-ui/ui/src/...`) — for dev against source
-2. Installed bucket paths (`node_modules/@starui/react-ui/ui/src|dist/...`) — for tarball
+2. Installed bucket paths (`node_modules/@wellsfargo-starui/react-ui/ui/src|dist/...`) — for tarball
    layout
 
 `scripts/tailwindContentGlobs.mjs` lists both. When adding a new package with Tailwind
 classes:
 
 1. Add workspace glob under `packages/...`
-2. Add matching `node_modules/@starui/<bucket>/<member>/...` globs (src **and** dist when
+2. Add matching `node_modules/@wellsfargo-starui/<bucket>/<member>/...` globs (src **and** dist when
    the package ships compiled JS)
 
 For dynamic resolution (optional), `scripts/staruiTailwindContent.cjs` builds absolute
@@ -226,7 +226,7 @@ globs from the app directory — **CommonJS only**, safe for PostCSS.
 
 ### Checklist — Tailwind in a consumer app
 
-1. [ ] `tailwind.config.js` uses `tailwindPreset` from `@starui/design-system/tailwind`
+1. [ ] `tailwind.config.js` uses `tailwindPreset` from `@wellsfargo-starui/design-system/tailwind`
 2. [ ] `content` includes `./src/**` + `platformAppTailwindContent` (or `demoAppTailwindContent`)
 3. [ ] `postcss.config.cjs` (not `.js` with `"type": "module"` pitfalls)
 4. [ ] No `import.meta` in the Tailwind config import graph
@@ -238,7 +238,7 @@ globs from the app directory — **CommonJS only**, safe for PostCSS.
 1. Search for stale paths: `starui-platform/`, wrong `../` depth in tailwind globs
 2. Clear Vite cache: `rm -rf apps/<app>/node_modules/.vite`
 3. Restart dev server on the port OpenFin manifest expects (`5174` for reference app)
-4. Verify a known utility from `@starui/ui` (e.g. shadcn `border-border`) appears in
+4. Verify a known utility from `@wellsfargo-starui/ui` (e.g. shadcn `border-border`) appears in
    compiled CSS in DevTools
 
 ---

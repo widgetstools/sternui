@@ -11,7 +11,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import { DEALERS, makeRng } from '../data/seeds';
 import { rfqReducer, EXPIRY_TICKS } from '../data/rfq';
 import type { RfqAction, RfqQuote, RfqRequest, RfqSide } from '../data/rfq';

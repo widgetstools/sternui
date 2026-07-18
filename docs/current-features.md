@@ -31,8 +31,8 @@ reaching into package internals. Visibility is determined in this order:
    — symbols re-exported here are public for that subpath. Source files that
    exist but aren't re-exported are **internal**.
 3. **Cross-package re-exports** — only list a symbol under the package that
-   actually exports it. If `@starui/engine` owns `StorageAdapter`, don't imply
-   it ships from `@starui/grid` unless the grid barrel re-exports it.
+   actually exports it. If `@wellsfargo-starui/engine` owns `StorageAdapter`, don't imply
+   it ships from `@wellsfargo-starui/grid` unless the grid barrel re-exports it.
 
 **How to tag visibility in bullets:**
 
@@ -76,7 +76,7 @@ module or a different package provides it.
 
 ## 1. UI Design System
 
-### 1.1 `@starui/design-system`
+### 1.1 `@wellsfargo-starui/design-system`
 
 **Path:** `packages/design-system/design-system`
 **Purpose:** Design tokens, theme runtime, CSS variable generation, and framework adapters for the MarketsUI platform.
@@ -105,7 +105,7 @@ module or a different package provides it.
 - **PrimeNG preset** — `definePreset(Aura, …)` Azure ramp + FI buy/sell semantics (`primeng/starui-primeng-preset` parity)
 - **AG Grid theme** — Quartz `staruiGridTheme` with light/dark `withParams` modes; OKLCH CSS vars; `data-ag-theme-mode` on `<html>` synced by `applyTheme` and runtime theme writers; density presets retained
 - **Tailwind preset** — OKLCH colors use `oklch(var(--token) / <alpha-value>)`; `fontSize` maps to `--text-*`; `h-control` / `size-control` map to `--control-h*` density tokens; shadcn opacity utilities resolve correctly in dark mode
-- **@starui/ui shadcn primitives** — aligned to StarUI v1 density (30px controls, 2px radius, semibold tracking-tight chrome, `shadow-card`/`shadow-overlay`, `bg-background` form surfaces, buy/sell badge variants)
+- **@wellsfargo-starui/ui shadcn primitives** — aligned to StarUI v1 density (30px controls, 2px radius, semibold tracking-tight chrome, `shadow-card`/`shadow-overlay`, `bg-background` form surfaces, buy/sell badge variants)
 
 #### Semantic tokens
 
@@ -120,7 +120,7 @@ module or a different package provides it.
 - `getTheme()` — read persisted theme with legacy key migration
 - `ThemeOptions` — `{ theme, cvd?, variant? }` shape; `variant`: `'clinical' | 'paper'` (light only; default `clinical`)
 - DOM: `data-theme="dark|light"`, optional `data-variant="clinical|paper"`, optional `data-cvd="on"`
-- Storage keys: `starui:theme` (canonical), `starui:cvd`, `starui:variant`, with `@starui/theme` legacy migration
+- Storage keys: `starui:theme` (canonical), `starui:cvd`, `starui:variant`, with `@wellsfargo-starui/theme` legacy migration
 
 #### CSS generation
 
@@ -179,7 +179,7 @@ with auto re-paint on `data-theme` change via `MutationObserver`):
   text from a sibling field (configurable size + colour)
 - `IconTextCellRenderer` (id `icon-text`) — leading or trailing icon
   (full SVG markup resolved at write time from
-  `@starui/icons-svg/all-icons`) + cell text
+  `@wellsfargo-starui/icons-svg/all-icons`) + cell text
 - `CountryFlagCellRenderer` (id `country-flag`) — 2-letter ISO code →
   regional-indicator emoji flag + optional label
 - `RatingDeltaCellRenderer` (id `rating-delta`) — credit-rating cell
@@ -197,7 +197,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 ---
 
-### 1.2 `@starui/icons-svg`
+### 1.2 `@wellsfargo-starui/icons-svg`
 
 **Path:** `packages/design-system/icons-svg`
 **Purpose:** Framework-agnostic SVG icon catalogue (113 icons) for trading UIs.
@@ -239,10 +239,10 @@ Per-renderer config types (`PillRendererConfig`,
 
 ## 2. React UI Controls
 
-### 2.1 `@starui/ui`
+### 2.1 `@wellsfargo-starui/ui`
 
 **Path:** `packages/react-ui/ui`
-**Purpose:** shadcn/Radix React primitives themed via `@starui/design-system`. Mandatory for any React UI in the monorepo (`<input>`/`<select>`/`<textarea>` forbidden — use these instead).
+**Purpose:** shadcn/Radix React primitives themed via `@wellsfargo-starui/design-system`. Mandatory for any React UI in the monorepo (`<input>`/`<select>`/`<textarea>` forbidden — use these instead).
 
 **Public exports:**
 
@@ -271,7 +271,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `Avatar`, `Badge`, `Calendar` (react-day-picker)
 - `Carousel` (Embla)
 - `Progress`, `Skeleton`, `Table` (semantic HTML rows/cells/headers/footers)
-- `Chart` primitives (`ChartContainer`, `ChartTooltip`, `ChartLegend`, …) — import via `@starui/ui/chart` subpath (not re-exported from root, to avoid pulling recharts into every consumer)
+- `Chart` primitives (`ChartContainer`, `ChartTooltip`, `ChartLegend`, …) — import via `@wellsfargo-starui/ui/chart` subpath (not re-exported from root, to avoid pulling recharts into every consumer)
 
 #### Feedback & overlays
 
@@ -295,7 +295,7 @@ Per-renderer config types (`PillRendererConfig`,
 
 ## 3. React Grid
 
-### 3.1 `@starui/grid`
+### 3.1 `@wellsfargo-starui/grid`
 
 **Path:** `packages/react-grid/grid`
 **Purpose:** Merged MarketsGrid product surface — AG Grid-backed React grid with the full customizer (formatters, conditional styles, calculated columns, saved filters, templates) and profile management.
@@ -353,8 +353,8 @@ Per-renderer config types (`PillRendererConfig`,
 
 - `createMarketsGridLocalStorageStorage()` — browser localStorage adapter factory
 - `isMarketsGridLocalStorageStorageFactory()` — type guard
-- `StorageAdapter` — load/save profile + grid-level data contract (type from `@starui/engine`)
-- `StorageAdapterFactory` / `StorageAdapterFactoryOpts` — runtime-injectable factory pattern (exported from `@starui/grid` types)
+- `StorageAdapter` — load/save profile + grid-level data contract (type from `@wellsfargo-starui/engine`)
+- `StorageAdapterFactory` / `StorageAdapterFactoryOpts` — runtime-injectable factory pattern (exported from `@wellsfargo-starui/grid` types)
 
 #### Grid event system (public on `.` barrel)
 
@@ -473,7 +473,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - **Column customization** — 10 bands per column: Header, Layout,
   Templates, Cell Style, Header Style, Value Format, Filter,
   Row Grouping, Cell Editor, **Cell Renderer** (band 10 — picks any
-  registered renderer from `@starui/design-system/cell-renderers-registry`
+  registered renderer from `@wellsfargo-starui/design-system/cell-renderers-registry`
   and authors its per-renderer config)
 - **Conditional styling** — themed style rules (dark/light); per-rule bands for cell/row style, **flash on match** (`FlashConfig` — colour/mode/duration), **indicator** badge (`RuleIndicator`), value formatter, and **animate value** (`AnimationConfig` — `spin` / `spin-reverse` / `pulse`, cell-scope only). Animate spins the matching cell's value glyph via CSS keyframes scoped to `.ag-cell-value` (shipped once as `ds-anim-*`), e.g. an Excel value format maps `1 → 🔄` and a `value = 1` rule spins it — the no-code "in progress" spinner. Header flash/indicator painting (`headerPainter`, `hasHeaderPaintRules`) skips row scans when no header-targeted rules are enabled and is not invoked on live ticks unless header paint rules exist
 - **Visual Excel** — WYSIWYG `.xlsx` export preserving display formatters and
@@ -482,7 +482,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
   `processCellCallback`). Primary toolbar spreadsheet icon when enabled.
   Settings panel: **Visual Excel**. Lab: **Visual Excel** tab (`lab-visual-excel-v1`).
 - **Editing family (overview)** — five customizer modules share a cell-patch
-  journal (`EditJournal` in `@starui/engine`). React wiring: `recordEdit.ts`
+  journal (`EditJournal` in `@wellsfargo-starui/engine`). React wiring: `recordEdit.ts`
   (`resolveEditRecording`), `useEditJournal`, `journalUndoRedo`,
   `journalApplyGuard`, `editJournalScope`. Unified **`EditingToolbar`** row
   composes edit-history, smart-edit, and bulk-update segments plus
@@ -500,8 +500,8 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
   toolbar **Set…** dialog, +/- keyboard increment, and K/M/B magnitude shortcuts
   via `valueParser` on editable numeric columns. Single-column guard, optional
   preview-before-apply, and cell-patch journal recording for undo (via shared
-  `EditJournal`). Framework-agnostic ops in `@starui/engine`; React module +
-  `SmartEditToolbarBody` in `@starui/grid`. Settings panel: **Smart Edit**.
+  `EditJournal`). Framework-agnostic ops in `@wellsfargo-starui/engine`; React module +
+  `SmartEditToolbarBody` in `@wellsfargo-starui/grid`. Settings panel: **Smart Edit**.
   Lab: unified **Editing** tab (`lab-editing`, 12 profiles); focused Smart Edit
   profiles under `public/lab-profiles/smart-edit/`.
 - **Edit History** — session-scoped undo/redo journal consumed by all editing
@@ -572,7 +572,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 ## 4. React Core
 
-### 4.1 `@starui/app`
+### 4.1 `@wellsfargo-starui/app`
 
 **Path:** `packages/react-core/app`
 **Purpose:** Declarative StarGridApp root — composes `GridHostContext` and provides React context for the grid + plugins.
@@ -583,14 +583,14 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `useStarGridHost` — read host context (runtime, storage, data, config)
 - `buildGridHostContext` — compose host context from `{ runtime, storage, data, config }`
 - `defineStarGridPlugin` — plugin registration (`StarGridPlugin`: `{ id, register?({ appId }) }`; `register` runs once at app mount)
-- `GridHostContext`, `createGridHostContext` — on `@starui/host` (not re-exported from `@starui/app`)
+- `GridHostContext`, `createGridHostContext` — on `@wellsfargo-starui/host` (not re-exported from `@wellsfargo-starui/app`)
 - `StarGridAppState` — persisted app state (profile, layout, theme, toolbar, settings)
 - `StarGridAppOptions` — init config (appId, userId, host, storage, persistence mode, plugins)
 - `StarGridPersistence` + `storageFactoryForPersistence` — pluggable persistence adapters
 
 ---
 
-### 4.2 `@starui/widgets-react`
+### 4.2 `@wellsfargo-starui/widgets-react`
 
 **Path:** `packages/react-core/widgets-react`
 **Purpose:** MarketsUI React widgets — v2 blotter framework, hosted grid containers, data-provider editor.
@@ -620,21 +620,21 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `useProviderDataWiring` — provider→grid hot path inside `MarketsGridContainer`; pauses live-tick `applyTransactionAsync` while `document.hidden` (background OpenFin views) and runs one `provider.refresh()` cache replay when the view becomes visible again; on STOMP auto-reconnect (`error` → `ready`) clears the stale banner and triggers `provider.refresh()` so every blotter replays the hub cache without a manual Reload
 - `MarketsGridContainer` — when an active provider id is chosen but `useDataProviderConfig` is still loading, renders a lightweight placeholder (no throwaway `MarketsGrid` / AG Grid shell); the `__no_provider__` shell path is unchanged when no provider is selected or cfg is loaded but missing key/columns
 - `applyProviderToGrid` — live-tick add/update split with pending-add coalescing (`createApplyProviderToGridState`, `splitProviderRowsForGrid`, `splitProviderRowsWithResolver`); after snapshot commit, `markSnapshotLoaded` indexes row ids so live ticks avoid O(n) `getRowNode`; ticks for ids still in an async add queue retain the latest payload instead of being dropped so peer grids on the same hub provider stay row-count aligned; internal to `MarketsGridContainer` / `useBlotterDataConnection` (not on public barrel)
-- `buildColumnDefs` — maps a provider's persisted `ColumnDefinition[]` to AG Grid `ColDef[]` for `MarketsGridContainer`. Per column: a `valueGetter` DSL expression compiles once (bounded FIFO cache) to a CSP-safe `@starui/engine` **compiled closure** (not per-cell AST walk); dotted `field` uses cached `getPathAccessor`; flat field stays on AG Grid's native path. Every column with no explicit `filter` defaults to the **Multi Filter** (`agMultiColumnFilter`): tab 1 is the `cellDataType`-appropriate filter (`number`→`agNumberColumnFilter`, `date`/`dateString`→`agDateColumnFilter`, else `agTextColumnFilter`), tab 2 is always `agSetColumnFilter`; a column that already declares its own `filter` is left untouched (FilterEditor / host choice wins). Expression getters never throw — parse errors fall back to the field binding, runtime errors to the field value (warn once per expression); reusable per-getter `EvaluationContext` avoids per-cell allocations under high-frequency updates. Soak: `npm run soak:value-getter` (`valueGetter.soak.test.ts`, `SOAK=1`) — sustained eval load + heap-delta guard. **Internal** — not on public barrel
+- `buildColumnDefs` — maps a provider's persisted `ColumnDefinition[]` to AG Grid `ColDef[]` for `MarketsGridContainer`. Per column: a `valueGetter` DSL expression compiles once (bounded FIFO cache) to a CSP-safe `@wellsfargo-starui/engine` **compiled closure** (not per-cell AST walk); dotted `field` uses cached `getPathAccessor`; flat field stays on AG Grid's native path. Every column with no explicit `filter` defaults to the **Multi Filter** (`agMultiColumnFilter`): tab 1 is the `cellDataType`-appropriate filter (`number`→`agNumberColumnFilter`, `date`/`dateString`→`agDateColumnFilter`, else `agTextColumnFilter`), tab 2 is always `agSetColumnFilter`; a column that already declares its own `filter` is left untouched (FilterEditor / host choice wins). Expression getters never throw — parse errors fall back to the field binding, runtime errors to the field value (warn once per expression); reusable per-getter `EvaluationContext` avoids per-cell allocations under high-frequency updates. Soak: `npm run soak:value-getter` (`valueGetter.soak.test.ts`, `SOAK=1`) — sustained eval load + heap-delta guard. **Internal** — not on public barrel
 - Custom Settings panel (`toolbar-date-settings` module) — four sections: Toolbar Date (historical date → AppData config), Data Provider (live/historical pickers, mode, as-of date) when `providerGridHost` is wired, Event Callbacks (event→handler bindings) when `gridEventBindingsHost` is wired, and Row Filter (row-exclusion expression). All settings are staged and applied only on the panel's explicit Save (Reset reverts); imperative actions (refresh/reload/edit) stay immediate
-- Row exclusion — implemented in `@starui/grid` `toolbar-date-settings` module (not widgets-react): multiline Monaco `ExpressionEditor` authors an EXCLUDE-when-true DSL predicate (column refs `[field]`, nested optional-chaining paths `[a.b.c]`, e.g. `[ccy] == "INR"`, `[active] == false`); keystrokes stage into the panel draft (applied on Save). `transformGridOptions` installs it as AG Grid's external filter (`isExternalFilterPresent` / `doesExternalFilterPass`) and the module's `activate` calls `api.onFilterChanged()` on cell edits, expression edits, and first ready. Rows are hidden, not removed — they reappear when the offending value changes; parse/eval failure excludes nothing (`rowExclusionFilter.ts`, fails open)
+- Row exclusion — implemented in `@wellsfargo-starui/grid` `toolbar-date-settings` module (not widgets-react): multiline Monaco `ExpressionEditor` authors an EXCLUDE-when-true DSL predicate (column refs `[field]`, nested optional-chaining paths `[a.b.c]`, e.g. `[ccy] == "INR"`, `[active] == false`); keystrokes stage into the panel draft (applied on Save). `transformGridOptions` installs it as AG Grid's external filter (`isExternalFilterPresent` / `doesExternalFilterPass`) and the module's `activate` calls `api.onFilterChanged()` on cell edits, expression edits, and first ready. Rows are hidden, not removed — they reappear when the offending value changes; parse/eval failure excludes nothing (`rowExclusionFilter.ts`, fails open)
 - `ProviderEditorDialog` — modal hosting `DataProviderEditor`
 - `DataProviderEditor` — connection + tabs (Connections, Fields, Columns, Diagnostics). Sidebar **Import** button creates a brand-new persisted provider from an exported JSON config (`configStore.save` mints a fresh `providerId`, owned by the current user — or `system` when the config is public), then selects and opens it for editing; footer **Export** button downloads the current working config — including unsaved edits — as JSON. **Clone** (sidebar row or form footer) deep-clones the provider config into an unsaved draft that appears immediately in the sidebar list (tagged **Unsaved**) until the user saves — then `configStore.save` mints a real `providerId` and the row becomes persisted
 - `providerConfigIo` — `exportProviderConfig` (downloads a `{ kind, version, exportedAt, provider }` envelope with `providerId`/`userId`/`isDefault` stripped so bundles are portable), `parseProviderConfigImport` (accepts the wrapped envelope or a bare provider object; validates `providerType`/`config`, defaults a missing name, re-strips identity), `toPortableProviderConfig`
 - `columnDefsIo` — column-definitions JSON IO for the Columns tab. `serializeColumnDefs` / `exportColumnDefs` write a plain `ColumnDefinition[]` array at full fidelity (every field preserved, including each column's `valueGetter` DSL expression) and trigger a `starui-column-defs.json` download; `parseColumnDefsImport` accepts a bare array, `{ columns }`, or the `{ kind, columns }` envelope, sanitizes each entry to known keys (requires a non-empty `field`, defaults `headerName`→`field`, validates `cellDataType`, keeps `valueGetter`), and throws user-readable errors
 - `DataProviderSelector` — compact provider dropdown with quick-add
-- `useChordHotkey` — chord keybinding helper (internal to markets-grid-container; also in `@starui/host-data-react` for hub inspector); `PROVIDER_TOOLBAR_TOGGLE_CHORDS` (`Alt+Shift+P`, `Meta+Shift+P`); capture-phase listener so AG-Grid cells cannot swallow the chord
+- `useChordHotkey` — chord keybinding helper (internal to markets-grid-container; also in `@wellsfargo-starui/host-data-react` for hub inspector); `PROVIDER_TOOLBAR_TOGGLE_CHORDS` (`Alt+Shift+P`, `Meta+Shift+P`); capture-phase listener so AG-Grid cells cannot swallow the chord
 
 #### Provider editor tabs (internal to `DataProviderEditor`; not separately importable)
 
 - `ConnectionTab` — connection string, auth, transport selection; "Test Connection" button (STOMP/REST) drives `useProviderProbe.test()`. STOMP runs a pure socket connect (`connectStomp` — handshake only, no subscribe/trigger/rows) and shows "Connected"; row-fetching transports (REST/mock) show "Connected — received N rows"
 - `FieldsTab` — discover provider fields, map to columns, infer types; `buildColumns` maps each inferred `FieldNode.type` to a `cellDataType` (number/boolean/object pass through, everything else → `text`), and **inferred date fields → `dateString`** (not `date`) because `inferFields` detects ISO date *strings*, which AG-Grid's `date` type — expecting native `Date` objects — would mis-sort/filter
-- `ColumnsTab` — derive AG Grid column defs from schema; collapsible Key Column + Add Custom Column panels and a scrollable body keep the columns table at a usable minimum height in short containers. **Export JSON / Import JSON** buttons (header cluster, plus an Import button in the empty state) round-trip the full `ColumnDefinition[]` via `columnDefsIo` — export preserves `valueGetter`; import replaces the columns and prunes the key column to surviving fields, surfacing parse errors inline. A "Clear all columns" button (confirm dialog) wipes the column list and the now-stale key column in one action. Per-row ƒx button opens a Monaco `ExpressionEditor` (from `@starui/grid/customizer`) to author a column `valueGetter` DSL expression (column refs `[field]`, nested optional-chaining paths `[a.b.c]`, live-validated); persists onto `ColumnDefinition.valueGetter`, applied at runtime by `buildColumnDefs`
+- `ColumnsTab` — derive AG Grid column defs from schema; collapsible Key Column + Add Custom Column panels and a scrollable body keep the columns table at a usable minimum height in short containers. **Export JSON / Import JSON** buttons (header cluster, plus an Import button in the empty state) round-trip the full `ColumnDefinition[]` via `columnDefsIo` — export preserves `valueGetter`; import replaces the columns and prunes the key column to surviving fields, surfacing parse errors inline. A "Clear all columns" button (confirm dialog) wipes the column list and the now-stale key column in one action. Per-row ƒx button opens a Monaco `ExpressionEditor` (from `@wellsfargo-starui/grid/customizer`) to author a column `valueGetter` DSL expression (column refs `[field]`, nested optional-chaining paths `[a.b.c]`, live-validated); persists onto `ColumnDefinition.valueGetter`, applied at runtime by `buildColumnDefs`
 - `DiagnosticsTab` — probe, request/response logging, debug; Snapshot card shows "Cache size (serialized)" (`stats.cacheBytes`, the worker-cache footprint that `projectFields` shrinks) alongside fetch time and row count; Connection latency card shows "Restart → request sent" (`stats.restartRequestMs`, click-to-upstream-request including dial + handshake) and "Request → first message" (`stats.firstMessageMs`, request-sent to first upstream frame); Throughput card's byte stat is labelled "Bytes received" (upstream wire traffic, unaffected by projection)
 
 #### Transport-specific editors
@@ -642,7 +642,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `RestFields` — URL, headers, auth, body template
 - `StompFields` — broker URL, login, subscribe topics, parsing
 - `MockFields` — seed data, latency, mutation playback
-- `AppDataFields` — read from `@starui/host-data` AppData
+- `AppDataFields` — read from `@wellsfargo-starui/host-data` AppData
 - `BehaviourFields` — per-transport behaviour knobs; STOMP: reconnect initial delay, realtime throttle (on/off switch + ms) + conflation (on/off switch + conflate-by-key), "Thin field-level deltas" switch (`thinDeltas`), snapshot chunk size, "Wire format" select (`wireFormat`: JSON / Columnar), "Keep only column fields" projection switch (`projectFields`) (all written to `cfg`, also settable in code)
 
 #### Hosted integration (legacy)
@@ -656,11 +656,11 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `useColorLinking` — workspace colour-linking membership (`{ color, linked }`); flat peer group, no parent/child
 - `useGridContextLink` — grid-to-grid context linking over colored "Link" groups: publishes the selection and filters rows on peer selections. Echo suppression keys on a **per-window** source id (`makeSourceId` → OpenFin `uuid/name`), so two instances of the same view don't drop each other's broadcasts. Two modes: `'rowId'` (default) broadcasts AG-Grid `getRowId` values (`node.id` = `composeRowId` over the provider key fields) and applies them as an external filter; `'fields'` broadcasts **key columns + values** (the fields that compose `getRowId`) and applies a per-column set-filter — a selected **group expands to its `allLeafChildren`** so any mix of groups/sub-groups/rows resolves to precise leaf-row keys. Receivers apply only the columns they own (`api.getColumn`), merged with the user's manual filters. `onPublish`/`onReceive` callbacks drive notifications. `GridContextLinkConfig`: `enabled`, `mode`, `publish`, `receive`, `rowIdField` (auto-filled by `HostedMarketsGrid` from the provider `keyColumn`), `resolve`, `buildContext`, `contextType`, `notify`. Exported helpers: `buildSelectionContext`, `defaultGridLinkResolver`, `applyGridLinkContext`, `GRID_LINK_CONTEXT_TYPE`, `normalizeRowIdField`. See [`docs/OPENFIN_GRID_LINKING.md`](./OPENFIN_GRID_LINKING.md)
 - `useInteropChannel` (+ `isInteropAvailable`) — **primary** link transport: OpenFin interop facade (`fin.me.interop.setContext` / `addContextHandler`), shape-compatible with `useFdc3Channel`. Used because the dock "Link" joins **interop context groups** that `window.fdc3`'s channel tracking doesn't reliably reflect; `HostedMarketsGrid` prefers it and falls back to `useFdc3Channel` only when interop is absent
-- `useGridLinkNotifications` + `gridLinkNotifications` helpers (`buildSelectionNotification`, `buildAckNotification`, `summarizeCriteria`, `summarizeLinkContext`) — post OpenFin Notification Center messages for link traffic (a "sent" on broadcast, an "acknowledged" on receive) via `@starui/host-openfin`; gated by `contextLink.notify`, no-op outside OpenFin
+- `useGridLinkNotifications` + `gridLinkNotifications` helpers (`buildSelectionNotification`, `buildAckNotification`, `summarizeCriteria`, `summarizeLinkContext`) — post OpenFin Notification Center messages for link traffic (a "sent" on broadcast, an "acknowledged" on receive) via `@wellsfargo-starui/host-openfin`; gated by `contextLink.notify`, no-op outside OpenFin
 - `useTabsHidden` — tab visibility detection
 - `useViewTabTitle` (+ `ViewTabTitle` type) — two-way binding between the grid caption and the host OpenFin view's tab name: seeds from `customData.savedTitle`, polls for external "Save Tab As…" renames, and `setTitle` writes back `document.title` + `savedTitle`. No-op (local-only) outside OpenFin
 - `useWorkspaceSaveEvent` — workspace save callback
-- Window options — hosted hooks use `subscribeWindowOptions` from `@starui/host-openfin` internally (not re-exported from `./hosted`)
+- Window options — hosted hooks use `subscribeWindowOptions` from `@wellsfargo-starui/host-openfin` internally (not re-exported from `./hosted`)
 - `useAgGridTheme` — AG Grid theme resolution
 
 #### Shared hooks
@@ -671,10 +671,10 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 ---
 
-### 4.3 `@starui/widget-sdk`
+### 4.3 `@wellsfargo-starui/widget-sdk`
 
 **Path:** `packages/react-core/widget-sdk`
-**Purpose:** Star Widget SDK — React extensibility over `@starui/widget`.
+**Purpose:** Star Widget SDK — React extensibility over `@wellsfargo-starui/widget`.
 
 #### Widget host runtime
 
@@ -700,14 +700,14 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 #### Config + layout persistence
 
-- `createConfigManager` — factory for `ConfigManager` (re-export from `@starui/host-config`)
-- `BrowserAdapter` — re-export from `@starui/widget-browser` for browser widget hosts
+- `createConfigManager` — factory for `ConfigManager` (re-export from `@wellsfargo-starui/host-config`)
+- `BrowserAdapter` — re-export from `@wellsfargo-starui/widget-browser` for browser widget hosts
 - `ConfigManager` — CRUD over app/user/role configs
 - `getLayouts`, `saveLayout`, `loadLayout`, `deleteLayout`
 
 ---
 
-### 4.4 `@starui/host-wrapper-react`
+### 4.4 `@wellsfargo-starui/host-wrapper-react`
 
 **Path:** `packages/react-core/host-wrapper-react`
 **Purpose:** React seam (Seam #2) — bridges `RuntimePort` + `ConfigManager` into React context.
@@ -721,7 +721,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 ---
 
-### 4.5 `@starui/config-browser`
+### 4.5 `@wellsfargo-starui/config-browser`
 
 **Path:** `packages/react-core/config-browser`
 **Purpose:** Configuration-browser dev tool — view/search/import/export configs.
@@ -744,12 +744,12 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 #### State, helpers, theming
 
-- `useConfigBrowser` — table state, filters, mutations; `exportDeploy()` full deploy seed bundle (unfiltered `appConfig`) + validation via `@starui/host-config` `buildDeployExport()`; `resetToSeed()` (delegates to `ConfigManager.resetToSeed()`, refreshes the view) and `seedConfigUrl` (gates the Reset button)
+- `useConfigBrowser` — table state, filters, mutations; `exportDeploy()` full deploy seed bundle (unfiltered `appConfig`) + validation via `@wellsfargo-starui/host-config` `buildDeployExport()`; `resetToSeed()` (delegates to `ConfigManager.resetToSeed()`, refreshes the view) and `seedConfigUrl` (gates the Reset button)
 - `DeployExportPreviewDialog` — pre-download validation summary; rocket download saves as `seed.json` (errors and warnings require acknowledge checkbox)
-- `buildDeployExport()`, `validateDeployExport()`, `parseSeedJson()`, `resolveActiveIdentityFromSeedUrl()` (`@starui/host-config`) — deploy export includes every `appConfig` row plus `activeAppId` / `activeUserId`; normalize scope drift against those fields; reject wrong `seed.json` shapes (e.g. `kind: starui.dataProvider`); emit `DeployExportWarning` codes (`MISSING_INSTANCE_ROW`, `EMPTY_PROFILE_STATE`, `UNREFERENCED_ROWS`, …); `resolveActiveIdentityFromSeedUrl()` cross-window-caches identity (single-flight + `localStorage`) so OpenFin child views do not re-fetch the full deploy bundle; manifest `customSettings.appId` / `userId` skip the seed fetch when both are pinned
+- `buildDeployExport()`, `validateDeployExport()`, `parseSeedJson()`, `resolveActiveIdentityFromSeedUrl()` (`@wellsfargo-starui/host-config`) — deploy export includes every `appConfig` row plus `activeAppId` / `activeUserId`; normalize scope drift against those fields; reject wrong `seed.json` shapes (e.g. `kind: starui.dataProvider`); emit `DeployExportWarning` codes (`MISSING_INSTANCE_ROW`, `EMPTY_PROFILE_STATE`, `UNREFERENCED_ROWS`, …); `resolveActiveIdentityFromSeedUrl()` cross-window-caches identity (single-flight + `localStorage`) so OpenFin child views do not re-fetch the full deploy bundle; manifest `customSettings.appId` / `userId` skip the seed fetch when both are pinned
 - `ConfigManager.onConfigChanged()` / `ChangeNotifier.subscribeAll()` — global write/delete subscription (same-tab + cross-tab) for worker catalog sync
-- `readProfileSetPayload()` (`@starui/host-config`) — storage adapter reads profile-set bytes even when row `appId` drifted, so `gridLevelData` / profile saves do not wipe `profiles: []`; re-stamps correct scope on write
-- Platform scope realignment — `initWorkspace` reads manifest / `app-config.json` `appId` instead of hard-coded `TestApp`; `migrateRegistryAppIdDrift()` runs inside workspace init (not a public `@starui/openfin-platform` export); `readHostEnv()` uses the same bootstrap before dev fallback
+- `readProfileSetPayload()` (`@wellsfargo-starui/host-config`) — storage adapter reads profile-set bytes even when row `appId` drifted, so `gridLevelData` / profile saves do not wipe `profiles: []`; re-stamps correct scope on write
+- Platform scope realignment — `initWorkspace` reads manifest / `app-config.json` `appId` instead of hard-coded `TestApp`; `migrateRegistryAppIdDrift()` runs inside workspace init (not a public `@wellsfargo-starui/openfin-platform` export); `readHostEnv()` uses the same bootstrap before dev fallback
 - `TABLES` — table enumeration
 - `createConfigBrowserAction` — wire config browser as OpenFin context-menu action
 - `agGridThemeFor()` — AG Grid theme adapter (internal helper; not on package barrel)
@@ -758,7 +758,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 ---
 
-### 4.6 `@starui/workspace-setup-react`
+### 4.6 `@wellsfargo-starui/workspace-setup-react`
 
 **Path:** `packages/react-core/workspace-setup-react`
 **Purpose:** OpenFin workspace setup UI — dock config, registry, component picker.
@@ -767,7 +767,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 - `WorkspaceSetup` — 3-pane editor (Dock / Inspector / Components+Registry); embeds `ComponentsPane`, `DockPane`, `InspectorPane`, `IconPicker` internally (not separately importable)
 - `ImportConfig` — standalone import-config utility window
-- `ComponentsPane` — browse registered components, drag to dock; per-row hover actions: configure (test-launch), **clone**, delete. Clone (`WorkspaceSetup.handleClone`) duplicates a registry entry into a fresh draft — deep-copies all definition fields, gives it a de-duplicated `(copy)` display name and a unique `componentSubType` (`<sub>-copy`) so its derived `${type}-${subtype}` id can't collide with the source on save, resets `id`/`configId` (re-derived at save), and selects it for immediate editing in the inspector. **`cloneRegistryTemplateConfig`** (`@starui/openfin-platform`) deep-clones the source template **AppConfigRow** (profiles, grid options, styling, theme via `structuredClone` on `payload`) onto the clone's derived template id immediately on clone (retried at save if the first attempt failed)
+- `ComponentsPane` — browse registered components, drag to dock; per-row hover actions: configure (test-launch), **clone**, delete. Clone (`WorkspaceSetup.handleClone`) duplicates a registry entry into a fresh draft — deep-copies all definition fields, gives it a de-duplicated `(copy)` display name and a unique `componentSubType` (`<sub>-copy`) so its derived `${type}-${subtype}` id can't collide with the source on save, resets `id`/`configId` (re-derived at save), and selects it for immediate editing in the inspector. **`cloneRegistryTemplateConfig`** (`@wellsfargo-starui/openfin-platform`) deep-clones the source template **AppConfigRow** (profiles, grid options, styling, theme via `structuredClone` on `payload`) onto the clone's derived template id immediately on clone (retried at save if the first attempt failed)
 - `DEFAULT_ICON` — fallback icon id for dock/registry entries
 - `DockPane` — dock toolbar editor (buttons, folders, menus, icons, actions)
 - `InspectorPane` — selected dock-item property editor
@@ -791,19 +791,19 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 ## 5. Shared / Core
 
-### 5.1 `@starui/shared-types` & `@starui/types`
+### 5.1 `@wellsfargo-starui/shared-types` & `@wellsfargo-starui/types`
 
 **Paths:** `packages/shared/shared-types`, `packages/shared/types`
 **Purpose:** Shared type contracts for StarGrid host ports and runtime.
-`@starui/shared-types` is the **single source of truth** for the
+`@wellsfargo-starui/shared-types` is the **single source of truth** for the
 `dataProvider`, `configuration`, and `fieldSelector` modules — exposed as
-subpath exports (`@starui/shared-types/dataProvider`, `/configuration`,
-`/fieldSelector`) and re-exported by `@starui/types` so existing
-`@starui/types` consumers keep their import paths while definitions stay
-unified. `@starui/shared-types` additionally exports `configuration`
+subpath exports (`@wellsfargo-starui/shared-types/dataProvider`, `/configuration`,
+`/fieldSelector`) and re-exported by `@wellsfargo-starui/types` so existing
+`@wellsfargo-starui/types` consumers keep their import paths while definitions stay
+unified. `@wellsfargo-starui/shared-types` additionally exports `configuration`
 (`COMPONENT_TYPES`, `COMPONENT_SUBTYPES`, …), `dockConfig`, `dockTreeUtils`,
-`simpleBlotter`, and `widget` modules. `@starui/types` remains the slim
-runtime subset (and depends on `@starui/shared-types` for the unified
+`simpleBlotter`, and `widget` modules. `@wellsfargo-starui/types` remains the slim
+runtime subset (and depends on `@wellsfargo-starui/shared-types` for the unified
 modules).
 
 #### Runtime constants
@@ -843,7 +843,7 @@ modules).
 
 ---
 
-### 5.2 `@starui/engine`
+### 5.2 `@wellsfargo-starui/engine`
 
 **Path:** `packages/shared/engine`
 **Purpose:** Framework-agnostic vanilla TS grid runtime engine — store, event bus, expression engine, customizer logic.
@@ -1039,7 +1039,7 @@ modules).
 
 ---
 
-### 5.3 `@starui/host`
+### 5.3 `@wellsfargo-starui/host`
 
 **Path:** `packages/shared/host`
 **Purpose:** Host port interfaces and `GridHostContext` factory.
@@ -1059,7 +1059,7 @@ modules).
 
 ---
 
-### 5.4 `@starui/host-browser`
+### 5.4 `@wellsfargo-starui/host-browser`
 
 **Path:** `packages/shared/host-browser`
 **Purpose:** Browser `RuntimePort` implementation.
@@ -1071,7 +1071,7 @@ modules).
 
 ---
 
-### 5.5 `@starui/widget`
+### 5.5 `@wellsfargo-starui/widget`
 
 **Path:** `packages/shared/widget`
 **Purpose:** Framework-agnostic widget contract.
@@ -1087,7 +1087,7 @@ modules).
 
 ---
 
-### 5.6 `@starui/widget-browser`
+### 5.6 `@wellsfargo-starui/widget-browser`
 
 **Path:** `packages/shared/widget-browser`
 **Purpose:** Browser `PlatformAdapter` implementation.
@@ -1098,7 +1098,7 @@ modules).
 
 ## 6. Data Utilities
 
-### 6.1 `@starui/host-config`
+### 6.1 `@wellsfargo-starui/host-config`
 
 **Path:** `packages/data/host-config`
 **Purpose:** Dual-mode configuration service — Dexie/IndexedDB local store with optional REST backend sync. Backs all profile, role, permission, and app-config persistence.
@@ -1210,7 +1210,7 @@ modules).
 
 ---
 
-### 6.2 `@starui/host-data`
+### 6.2 `@wellsfargo-starui/host-data`
 
 **Path:** `packages/data/host-data`
 **Purpose:** SharedWorker-backed data services — real-time provider orchestration, connection management, stream subscriptions, AppData.
@@ -1298,7 +1298,7 @@ modules).
 - Binary snapshot broadcast: **pre-ready** row broadcasts (initial load AND restarts — `snapshotReady` clears on every `loading`) also fan out as `delta-bin`, sliced to ≤`LATE_JOIN_CHUNK_SIZE` rows and encoded once for all attached ports — a 10-window restart costs one serialization per chunk instead of 10 structured clones; the broadcast encoding **seeds the replay snapshot** (replace chunk → chunk 0; clean key-appending chunks extend it) so the next late joiner replays with zero re-encoding. **Post-ready live ticks ≥ `LIVE_BIN_MIN_ROWS` (64) rows also fan out as `delta-bin`** — large sweep frames (all-distinct keys, immune to conflation) otherwise cost one object-graph structured clone per window per frame, saturating the worker at 3+ windows and stalling late-joiner replays behind the backlog; smaller conflated ticks stay plain object `delta`s (straight into `applyTransactionAsync`)
 - Fan-out allocation discipline: data-provider `broadcastData` posts a **shallow copy per listener** (`{ ...event, subId }`) because OpenFin multi-window can defer structured-clone — reusing one envelope and rewriting `subId` mis-delivered ticks; AppData fan-out still reuses one event object (mutating `subId` between posts); a clean live batch (keyed, no intra-batch duplicates) is broadcast **by reference** inside the copied envelope — the dedup `Map`/`Set` and copied arrays are built only when a batch actually carries drops or duplicate keys; **dead-port resilience** — if `postMessage` throws on a zombie listener (window closed without `detach`, HMR, etc.) the hub prunes that `subId` and continues fan-out so other windows keep receiving ticks; `SharedWorkerDataServicesClient.close()` sends `detach` for every subscription before closing the port
 - Thin field-level deltas (`cfg.thinDeltas`, default off, requires `keyColumn`): post-ready live frames broadcast as `delta-patch` events carrying only the **changed top-level fields** per row (`RowPatch { k, s?, d?, f? }`, `diffTopLevel` in `wire/rowDiff.ts`) — touch updates that change a few fields of a wide row shrink the hub→window wire by the touch ratio; inserts / non-diffable rows ship full under `f`, observably-unchanged rows are skipped entirely (free conflation); the hub cache keeps full rows so replace frames + late-join replay are unaffected; patch batches ≥ `LIVE_BIN_MIN_ROWS` encode to UTF-8 JSON once and byte-copy per port; the client mirrors full rows per thin subscription (`sub-init` handshake carries `keyColumn`) and merges each patch into a **new** full-row object — the rows-are-immutable-values contract holds, the merge contract lives only in `SharedWorkerDataServicesClient`
-- Columnar wire format (`cfg.wireFormat: 'columnar'`, default `'json'`): all binary frames (cache replay, pre-ready snapshot fan-out, large live ticks) encode via the typed-array columnar codec (`wire/columnarCodec.ts`, `COL1` frames) — numbers travel as raw little-endian Float64, booleans as bitmaps, strings/nested objects as one `JSON.parse` per **column**, presence/null bitmaps preserve ragged rows and null-vs-absent — cutting each window's main-thread decode several-fold on number-heavy feeds; frames that don't qualify (non-plain-object rows) fall back to JSON per chunk (`DeltaBinEvent.enc` discriminates per event); `tryEncodeColumnar` / `decodeColumnar` exported from `@starui/host-data/runtime`
+- Columnar wire format (`cfg.wireFormat: 'columnar'`, default `'json'`): all binary frames (cache replay, pre-ready snapshot fan-out, large live ticks) encode via the typed-array columnar codec (`wire/columnarCodec.ts`, `COL1` frames) — numbers travel as raw little-endian Float64, booleans as bitmaps, strings/nested objects as one `JSON.parse` per **column**, presence/null bitmaps preserve ragged rows and null-vs-absent — cutting each window's main-thread decode several-fold on number-heavy feeds; frames that don't qualify (non-plain-object rows) fall back to JSON per chunk (`DeltaBinEvent.enc` discriminates per event); `tryEncodeColumnar` / `decodeColumnar` exported from `@wellsfargo-starui/host-data/runtime`
 - Buffering between snapshot-resolve and update registration
 - Lazy provider create on first attach, reuse on subsequent attaches
 - **Idle auto-teardown** — when the last data *and* stats subscriber leaves (`detach`, `onPortClosed`, dead-port prune, or missed heartbeats), `SharedWorkerDataServicesHub` calls `stopProvider` (upstream STOMP/REST/mock stops, cache cleared); re-attach cold-starts
@@ -1392,10 +1392,10 @@ modules).
 
 ---
 
-### 6.3 `@starui/host-data-react`
+### 6.3 `@wellsfargo-starui/host-data-react`
 
 **Path:** `packages/data/host-data-react`
-**Purpose:** React bindings for `@starui/host-data` — provider + focused hooks for data subscriptions.
+**Purpose:** React bindings for `@wellsfargo-starui/host-data` — provider + focused hooks for data subscriptions.
 
 - `DataHubProvider` / `PlatformProvider` (alias) — hub-first provider; `platform` from `ensurePlatformReady()` or self-bootstrap via `bootstrapConfig` + `workerScriptUrl`; optional `hubInspector` mounts **Alt+Shift+S** dev drawer (default on in development)
 - `DataServicesProvider` — legacy wrapper over `DataServices` bootstrap result; exposes `appId` + `userId` React context
@@ -1462,7 +1462,7 @@ modules).
 
 ---
 
-### 6.4 `@starui/host-data-angular`
+### 6.4 `@wellsfargo-starui/host-data-angular`
 
 **Path:** `packages/data/host-data-angular`
 **Status:** **Scaffold.** Angular twin of `host-data-react` — implementation deferred. Exposes the marker `HOST_DATA_ANGULAR_SCAFFOLD = true`.
@@ -1471,7 +1471,7 @@ modules).
 
 ## 7. OpenFin Utils
 
-### 7.1 `@starui/host-openfin`
+### 7.1 `@wellsfargo-starui/host-openfin`
 
 **Path:** `packages/openfin/host-openfin`
 **Purpose:** OpenFin `RuntimePort` plugin (Seam #1) — only this package may import `@openfin/core`.
@@ -1511,7 +1511,7 @@ modules).
 #### Notifications seam
 
 The single place that touches `@openfin/workspace/notifications`, so framework
-adapters (e.g. `@starui/grid` alerts) dispatch via this injected seam instead
+adapters (e.g. `@wellsfargo-starui/grid` alerts) dispatch via this injected seam instead
 of importing `@openfin/*` directly (architecture boundary).
 
 - `loadOpenFinNotificationsApi()` — dynamic, runtime-only loader; resolves
@@ -1521,7 +1521,7 @@ of importing `@openfin/*` directly (architecture boundary).
 
 ---
 
-### 7.2 `@starui/openfin-platform`
+### 7.2 `@wellsfargo-starui/openfin-platform`
 
 **Path:** `packages/openfin/openfin-platform`
 **Purpose:** OpenFin workspace shell — dock, home, notifications, child windows, config import/export.
@@ -1532,14 +1532,14 @@ of importing `@openfin/*` directly (architecture boundary).
 
 - `.` — main platform API (workspace init, config, dock, launch)
 - `./config` — config-only entry (no runtime deps, browser-safe)
-- `./plugin` — `openFinPlatformPlugin` factory (OpenFin workspace plugin entry; `StarGridPlugin` contract lives in `@starui/host`)
+- `./plugin` — `openFinPlatformPlugin` factory (OpenFin workspace plugin entry; `StarGridPlugin` contract lives in `@wellsfargo-starui/host`)
 - `./test-bridge` — test utilities
-- `./dock-editor` — icon helpers only (`ICON_OPTIONS`, `iconIdToSvgUrl`, `iconIdToThemedUrls`, `parseIconUrl`); dock editor React UI lives in `@starui/workspace-setup-react`
+- `./dock-editor` — icon helpers only (`ICON_OPTIONS`, `iconIdToSvgUrl`, `iconIdToThemedUrls`, `parseIconUrl`); dock editor React UI lives in `@wellsfargo-starui/workspace-setup-react`
 
 #### Workspace initialization
 
 - `resolveSeedConfigUrl(seedUrl, providerUrl?)` — resolve relative `seedConfigUrl` (e.g. `/seed.json`) against manifest `platform.providerUrl` origin for dev and production hosts
-- `initWorkspace()` — bootstrap dock + home + context menu + notifications. `WorkspaceConfig.dock.excludeTools?: string[]` hides built-in Tools-menu items by action ID (e.g. `[ACTION_EXPORT_CONFIG, ACTION_IMPORT_CONFIG]`); applies to both dock2 and dock3, default shows all. Workspace chrome palettes (`CustomPaletteSet` dark/light) are resolved at init from loaded `@starui/design-system/css` OKLCH tokens (`buildOpenFinPalettesFromDesignSystem` in `openfinPalette.ts`) by flipping `<html data-theme>` while sampling each scheme — dock, browser tab bar, home/store, and modals follow StarUI light/dark ramps; `defaultWindowOptions.backgroundColor` matches the active scheme backfill. Dark-chrome-only finishing (`finalizeDarkChromePalette`): `borderNeutral` is forced to a light grey and the window header surfaces (`backgroundPrimary` + `background2`) are lifted ~10% toward the foreground so the title bar / tab strip is perceptible against a dark desktop (the design-system `--card`/`--background` tokens are untouched).
+- `initWorkspace()` — bootstrap dock + home + context menu + notifications. `WorkspaceConfig.dock.excludeTools?: string[]` hides built-in Tools-menu items by action ID (e.g. `[ACTION_EXPORT_CONFIG, ACTION_IMPORT_CONFIG]`); applies to both dock2 and dock3, default shows all. Workspace chrome palettes (`CustomPaletteSet` dark/light) are resolved at init from loaded `@wellsfargo-starui/design-system/css` OKLCH tokens (`buildOpenFinPalettesFromDesignSystem` in `openfinPalette.ts`) by flipping `<html data-theme>` while sampling each scheme — dock, browser tab bar, home/store, and modals follow StarUI light/dark ramps; `defaultWindowOptions.backgroundColor` matches the active scheme backfill. Dark-chrome-only finishing (`finalizeDarkChromePalette`): `borderNeutral` is forced to a light grey and the window header surfaces (`backgroundPrimary` + `background2`) are lifted ~10% toward the foreground so the title bar / tab strip is perceptible against a dark desktop (the design-system `--card`/`--background` tokens are untouched).
 - `WorkspacePlatformOverrideCallback` — workspace lifecycle hooks
 - `workspace.options` — platform settings (name, icon, theme, notifications, dock)
 - `workspacePersistence` — save/load workspace (pinned windows, dock, layouts)
@@ -1667,48 +1667,48 @@ of importing `@openfin/*` directly (architecture boundary).
 #### Plugin system
 
 - `plugin.ts` — OpenFin workspace plugin factory (`openFinPlatformPlugin`)
-- `./plugin` export — workspace lifecycle wiring; app-level `StarGridPlugin` contract is in `@starui/host`
+- `./plugin` export — workspace lifecycle wiring; app-level `StarGridPlugin` contract is in `@wellsfargo-starui/host`
 
 ---
 
 ## 8. Angular UI Controls
 
 **Path:** `packages/angular-ui/`
-**Status:** **Scaffold only** — README placeholder, no source. PrimeNG-themed primitives + `@starui/tokens-primeng` integration deferred. Use React UI controls (`@starui/ui`) for any React surface; no cross-bucket import allowed.
+**Status:** **Scaffold only** — README placeholder, no source. PrimeNG-themed primitives + `@wellsfargo-starui/tokens-primeng` integration deferred. Use React UI controls (`@wellsfargo-starui/ui`) for any React surface; no cross-bucket import allowed.
 
 ---
 
 ## 9. Angular Grid
 
-### 9.1 `@starui/grid-angular`
+### 9.1 `@wellsfargo-starui/grid-angular`
 
 **Path:** `packages/angular-grid/grid`
-**Status:** **Scaffold.** Angular twin of `@starui/grid`. Single marker export `GRID_ANGULAR_SCAFFOLD = true`. Peer-deps already pinned to `ag-grid-angular`, `ag-grid-community`, `ag-grid-enterprise` 35.1.0. Implementation deferred.
+**Status:** **Scaffold.** Angular twin of `@wellsfargo-starui/grid`. Single marker export `GRID_ANGULAR_SCAFFOLD = true`. Peer-deps already pinned to `ag-grid-angular`, `ag-grid-community`, `ag-grid-enterprise` 35.1.0. Implementation deferred.
 
 ---
 
 ## 10. Angular Core
 
-### 10.1 `@starui/app-angular`
+### 10.1 `@wellsfargo-starui/app-angular`
 
 **Path:** `packages/angular-core/app`
-**Status:** **Scaffold.** Angular twin of `@starui/app`. Marker export `APP_ANGULAR_SCAFFOLD = true`. Depends on `@starui/engine`, `@starui/grid-angular`, `@starui/host`, `@starui/host-browser`, `@starui/host-config`, `@starui/types`.
+**Status:** **Scaffold.** Angular twin of `@wellsfargo-starui/app`. Marker export `APP_ANGULAR_SCAFFOLD = true`. Depends on `@wellsfargo-starui/engine`, `@wellsfargo-starui/grid-angular`, `@wellsfargo-starui/host`, `@wellsfargo-starui/host-browser`, `@wellsfargo-starui/host-config`, `@wellsfargo-starui/types`.
 
-### 10.2 `@starui/widgets-angular`
+### 10.2 `@wellsfargo-starui/widgets-angular`
 
 **Path:** `packages/angular-core/widgets`
-**Status:** **Scaffold.** Angular twin of `@starui/widgets-react`. Marker export `WIDGETS_ANGULAR_SCAFFOLD = true`. Depends on `@starui/grid-angular`, `@starui/host-config`, `@starui/host-data-angular`, `@starui/openfin-platform`, `@starui/types`.
+**Status:** **Scaffold.** Angular twin of `@wellsfargo-starui/widgets-react`. Marker export `WIDGETS_ANGULAR_SCAFFOLD = true`. Depends on `@wellsfargo-starui/grid-angular`, `@wellsfargo-starui/host-config`, `@wellsfargo-starui/host-data-angular`, `@wellsfargo-starui/openfin-platform`, `@wellsfargo-starui/types`.
 
-### 10.3 `@starui/config-browser-angular`
+### 10.3 `@wellsfargo-starui/config-browser-angular`
 
 **Path:** `packages/angular-core/config-browser`
-**Status:** **Scaffold.** Angular twin of `@starui/config-browser`. Marker export `CONFIG_BROWSER_ANGULAR_SCAFFOLD = true`. Depends on `@starui/engine`, `@starui/host-config`, `@starui/openfin-platform`.
+**Status:** **Scaffold.** Angular twin of `@wellsfargo-starui/config-browser`. Marker export `CONFIG_BROWSER_ANGULAR_SCAFFOLD = true`. Depends on `@wellsfargo-starui/engine`, `@wellsfargo-starui/host-config`, `@wellsfargo-starui/openfin-platform`.
 
 ---
 
 ## Repo tooling
 
-### `@starui/mcp-scaffold`
+### `@wellsfargo-starui/mcp-scaffold`
 
 **Path:** `tools/mcp-scaffold`
 **Deliverable:** `libs/starui-mcp-scaffold-*.tgz` (via `npm run pack:mcp`)
@@ -1727,29 +1727,29 @@ of importing `@openfin/*` directly (architecture boundary).
 
 **MCP resources (9):** `starui://design-rules`, `starui://guides/stomp-marketsgrid`, `starui://guides/layout-persistence`, `starui://guides/customizer-modules`, `starui://guides/wire-stomp`, `starui://troubleshooting/empty-grid`, `starui://troubleshooting/wire-stomp`, `starui://recipes/provider-stomp-positions`, `starui://recipes/openfin-blotter-route`
 
-**Run:** `npx -y @starui/mcp-scaffold` or `npx -y ./libs/starui-mcp-scaffold-*.tgz`
+**Run:** `npx -y @wellsfargo-starui/mcp-scaffold` or `npx -y ./libs/starui-mcp-scaffold-*.tgz`
 
 ---
 
 
 ### Apps — platform bootstrap pilot
 
-**19 demos** under `apps/demos/` (nested `apps/package.json` workspace). Apps build **from source** — Vite + `tsc` resolve every `@starui/*` import out of `packages/` (apps declare no `@starui/*` deps and require no `libs/*.tgz`); `npm run propagate` packs tarballs for external Artifactory consumers only (see `apps/demos/README.md`).
+**19 demos** under `apps/demos/` (nested `apps/package.json` workspace). Apps build **from source** — Vite + `tsc` resolve every `@wellsfargo-starui/*` import out of `packages/` (apps declare no `@wellsfargo-starui/*` deps and require no `libs/*.tgz`); `npm run propagate` packs tarballs for external Artifactory consumers only (see `apps/demos/README.md`).
 
 | App | Role |
 |-----|------|
-| `demo-react` (`@starui/demo-react`) | Primary React dev app + Playwright e2e target (`npm run dev`) |
-| `demo-angular` (`@starui/demo-angular`) | Angular consumer demo |
+| `demo-react` (`@wellsfargo-starui/demo-react`) | Primary React dev app + Playwright e2e target (`npm run dev`) |
+| `demo-angular` (`@wellsfargo-starui/demo-angular`) | Angular consumer demo |
 | `demo-configservice-react` | Config-service REST/Dexie lab |
-| `star-demo` (`@starui/star-demo`) | Lean OpenFin workspace pilot — `HostedMarketsGrid` route, Workspace Setup, data providers, config browser (port 5175; `npm run dev:star-demo`); Import/Export Config removed from dock Tools; provider window prefetches tool-window route chunks on mount (before `initWorkspace` completes); `/blotters/marketsgrid` starts the `BlottersMarketsGrid` chunk and AG Grid vendor imports in parallel with platform bootstrap; `DataHubProvider` runs with `hubInspector={false}`; **tool windows (ADR Phase 0):** hash-aware bootstrap warm — `/config-browser` uses `ConfigGate` only (no data-hub await); `/dataproviders` uses `DeferredDataGate` (config-first paint, hub hydrate after); catalog edits reach a running data hub via cross-window `ChangeNotifier` → blotter `wireWorkerCatalogSync`; **Config + AppData SharedWorkers (ADR Phases 2–3):** `initConfigBootstrap` / `initPlatformBootstrap` pass `configWorkerScriptUrl` + `appDataWorkerScriptUrl` so `starui-config:{appId}` and `starui-appdata:{appId}` warm for P1 tool windows; default STOMP live throttle is 50ms when `throttleMs` omitted (`throttleMs: 0` / `throttleEnabled: false` for passthrough); seed default STOMP provider still sets `throttleMs: 100`, conflation, `projectFields`, and `wireFormat: columnar`; grid profiles default `animateRows: false` |
+| `star-demo` (`@wellsfargo-starui/star-demo`) | Lean OpenFin workspace pilot — `HostedMarketsGrid` route, Workspace Setup, data providers, config browser (port 5175; `npm run dev:star-demo`); Import/Export Config removed from dock Tools; provider window prefetches tool-window route chunks on mount (before `initWorkspace` completes); `/blotters/marketsgrid` starts the `BlottersMarketsGrid` chunk and AG Grid vendor imports in parallel with platform bootstrap; `DataHubProvider` runs with `hubInspector={false}`; **tool windows (ADR Phase 0):** hash-aware bootstrap warm — `/config-browser` uses `ConfigGate` only (no data-hub await); `/dataproviders` uses `DeferredDataGate` (config-first paint, hub hydrate after); catalog edits reach a running data hub via cross-window `ChangeNotifier` → blotter `wireWorkerCatalogSync`; **Config + AppData SharedWorkers (ADR Phases 2–3):** `initConfigBootstrap` / `initPlatformBootstrap` pass `configWorkerScriptUrl` + `appDataWorkerScriptUrl` so `starui-config:{appId}` and `starui-appdata:{appId}` warm for P1 tool windows; default STOMP live throttle is 50ms when `throttleMs` omitted (`throttleMs: 0` / `throttleEnabled: false` for passthrough); seed default STOMP provider still sets `throttleMs: 100`, conflation, `projectFields`, and `wireFormat: columnar`; grid profiles default `animateRows: false` |
 | `markets-ui-react-reference` | Full OpenFin reference shell; `ensurePlatformReady` + `DataHubProvider` |
 | `demo-stomp-markets-grid` | Minimal STOMP + MarketsGrid (web + OpenFin); `defaultLiveProviderId` |
 | `stomp-marketsgrid-minimal` | Lean STOMP → MarketsGrid dev track |
 | `markets-grid-lab` | Developer-onboarding feature lab: Home landing + grouped sidebar nav + per-feature Inspector drawer; scenario rail + importable profiles |
-| `design-system` (`@starui/design-system-demo`) | FI trading terminal + live component/token reference, fully styled by `@starui/design-system` + `@starui/ui` (port 5310) |
+| `design-system` (`@wellsfargo-starui/design-system-demo`) | FI trading terminal + live component/token reference, fully styled by `@wellsfargo-starui/design-system` + `@wellsfargo-starui/ui` (port 5310) |
 | `platform-hooks-demo` | AppData bootstrap hooks + grid event callback bindings (port 5214) |
 | `stomp`, `mockdata-provider`, `dataprovider-editor` | MCP tutorial apps; hub bootstrap + `useDataProvider` |
-| `basic` (`@starui/tutorial-basic`) | Minimal grid tutorial |
+| `basic` (`@wellsfargo-starui/tutorial-basic`) | Minimal grid tutorial |
 | `e2e-browser-blotter` | Browser blotter e2e (`standalone` / `provider` / `config` / `full` hub modes) |
 | `e2e-openfin-workspace` | OpenFin workspace e2e; `HostedMarketsGrid` + hub mock provider |
 | `e2e-openfin-vitest` | OpenFin Vitest harness |
@@ -1763,7 +1763,7 @@ of importing `@openfin/*` directly (architecture boundary).
 - **Feature-guide registry** (`guides/featureGuides.ts`, `FeatureGuide`) and config-block derivation (`buildConfigBlocks`) sourced from each tab's `LabFeatureConfig` and seed rules.
 
 **`design-system` demo app (consuming the design system in a client app):**
-- **FI trading terminal** — six dock-managed tabs (Market, Orders, Analytics, Risk, Research, Design System), each with a `@widgetstools/react-dock-manager` layout whose panels are persisted to `localStorage` (Save/Reset via TopBar); styled exclusively by `@starui/design-system` tokens + `@starui/ui` primitives. No native `<input>`/`<select>` anywhere.
+- **FI trading terminal** — six dock-managed tabs (Market, Orders, Analytics, Risk, Research, Design System), each with a `@widgetstools/react-dock-manager` layout whose panels are persisted to `localStorage` (Save/Reset via TopBar); styled exclusively by `@wellsfargo-starui/design-system` tokens + `@wellsfargo-starui/ui` primitives. No native `<input>`/`<select>` anywhere.
 - **Live-ticking mock data** — pure `applyTick` reducer + `useTickingStore`; deterministic seeds (`makeRng`); no backend. `DemoStateProvider` exposes `store`, `selectedId`/`setSelectedId`, `clickedPrice`/`setClickedPrice` to all panels.
 - **Market tab** — four dock panels: `BlotterWidget` (AG Grid bond blotter, `data-testid="bond-blotter"`; row-click sets `selectedId`), `PriceChartWidget` (recharts area chart for the selected instrument, `data-testid="price-chart"`), `OrderBookWidget` (dealer-depth book with 5-level bid/ask ladder, bar-fill depth visualisation, spread/yield/Z-spread summary row; `data-testid="order-book"`), `RecentPrints` (trade tape; `data-testid="recent-prints"`).
 - **AG Grid theming** via `staruiGridTheme` / `agGridBlotterDarkTheme`; inherits `data-ag-theme-mode` from `<html data-theme>` so light/dark switch is zero-JS.
@@ -1773,7 +1773,7 @@ of importing `@openfin/*` directly (architecture boundary).
 - **Risk tab** — KPI strip (`panel-riskKpi`) + `BookRisk` heatmap (`panel-bookRisk`) + `Dv01ByBook` bars (`panel-dv01ByBook`) + `RateScenarios` scenario table (`panel-rateScenarios`) + `VarTrend` line (`panel-varTrend`) + `RiskLimits` gauge/bar strip (`panel-riskLimits`).
 - **Research tab** — `ResearchList` note list (`panel-researchList`) + `NoteDetail` rich detail panel (`panel-noteDetail`); `ResearchProvider` context.
 - **Save / Reset layout** — TopBar `Save` (`data-testid="topbar-save"`) persists active tab's dock state; `Reset` (`data-testid="topbar-reset"`) clears persistence and remounts from `TAB_LAYOUTS` default; both fire toast confirmations.
-- **Design System reference tab** — Overview (consumption snippets), Palette (live `--ds-*` swatches), Typography, Foundations, and a data-driven gallery of **all 46 public `@starui/ui` components** (live preview + import + code; 6 non-visual utilities allowlisted), gated by a `registry.test.ts` completeness check against `packages/react-ui/ui/src/components`.
+- **Design System reference tab** — Overview (consumption snippets), Palette (live `--ds-*` swatches), Typography, Foundations, and a data-driven gallery of **all 46 public `@wellsfargo-starui/ui` components** (live preview + import + code; 6 non-visual utilities allowlisted), gated by a `registry.test.ts` completeness check against `packages/react-ui/ui/src/components`.
 
 **Build / verify tooling:**
 - `docs/BUILD.md` + `apps/README.md` — build matrix: `build:packages` → `build:apps` (source); `propagate` packs `libs/*.tgz` for external Artifactory consumers
@@ -1787,15 +1787,15 @@ of importing `@openfin/*` directly (architecture boundary).
 
 - `docs/MARKETSGRID_USAGE_GUIDE.md` — scenario matrix for MarketsGrid (`MarketsGrid` / `MarketsGridContainer` / `HostedMarketsGrid`), hub bootstrap, OpenFin vs browser, persistence, customizer UI (§22), troubleshooting
 - `docs/guides/platform-hooks-demo.md` — AppData bootstrap hooks + grid event callback bindings (`apps/demos/platform-hooks-demo`, port 5214)
-- `docs/EXPRESSION_DSL.md` — authoritative reference for the `@starui/engine` expression DSL (grammar, operator semantics, the full 44-function catalog, coercion/null rules, conditional sugar) plus an explicit JavaScript→DSL conversion guide written for an AI agent to translate JS expressions into DSL correctly
+- `docs/EXPRESSION_DSL.md` — authoritative reference for the `@wellsfargo-starui/engine` expression DSL (grammar, operator semantics, the full 44-function catalog, coercion/null rules, conditional sugar) plus an explicit JavaScript→DSL conversion guide written for an AI agent to translate JS expressions into DSL correctly
 - `docs/OPENFIN_GRID_LINKING.md` — OpenFin grid-to-grid color linking: how to enable (`HostedMarketsGrid` `contextLink`), prerequisites, manifest notes (interop needs none; optional `fdc3InteropApi` fallback), the file map, wire format, group→leaf expansion, receiver column matching, notifications, and diagnostics
 
 ## Cross-cutting architecture notes
 
 These aren't a single feature, but they are platform invariants worth remembering when reading the inventory:
 
-- **Seam #1 — RuntimePort** (`@starui/host-openfin` vs `@starui/host-browser`). Only OpenFin packages may import `@openfin/core`.
-- **Seam #2 — React host bridge** (`@starui/host-wrapper-react`). All React features consume the host via `useHost()`.
+- **Seam #1 — RuntimePort** (`@wellsfargo-starui/host-openfin` vs `@wellsfargo-starui/host-browser`). Only OpenFin packages may import `@openfin/core`.
+- **Seam #2 — React host bridge** (`@wellsfargo-starui/host-wrapper-react`). All React features consume the host via `useHost()`.
 - **Customizer pipeline** — `DEFAULT_MODULES` runs general-settings →
   column-templates → column-customization → calculated-columns → column-groups →
   conditional-styling → visual-excel → smart-edit → bulk-update → plus-minus → shortcuts →
@@ -1807,7 +1807,7 @@ These aren't a single feature, but they are platform invariants worth rememberin
   - **Co-save on profile save** — `useGridLevelPersistence` subscribes to the grid's `profile:saved` event and flushes the current grid-level data (provider selection + caption + event-bindings) on every profile save (toolbar Save, customizer card Save, save-on-switch, external `saveAll`). Guarantees `gridLevelData.provider.liveProviderId` is always written alongside the profile — together with the storage adapter's OCC-retry RMW, this is what prevents a registered/ConfigService component from persisting a profile without its provider link (which booted the grid empty next launch).
 - **Expression engine** — CSP-safe parser/evaluator drives calculated columns, conditional rules, and filter expressions; `tryCompileToAgString()` transpiles to AG Grid `valueFormatter` strings.
 - **Theme integration** — reactive dark/light switching via `RuntimePort` + `data-theme` attribute; AG Grid theme + StarUI tokens stay in lockstep.
-- **Extensibility surfaces** — slot-based widget extensions in `@starui/widget-sdk`; `StarGridPlugin.register` in `@starui/host` / `@starui/app`; OpenFin workspace plugin via `openFinPlatformPlugin` in `@starui/openfin-platform/plugin`.
+- **Extensibility surfaces** — slot-based widget extensions in `@wellsfargo-starui/widget-sdk`; `StarGridPlugin.register` in `@wellsfargo-starui/host` / `@wellsfargo-starui/app`; OpenFin workspace plugin via `openFinPlatformPlugin` in `@wellsfargo-starui/openfin-platform/plugin`.
 
 ---
 

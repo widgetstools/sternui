@@ -1,4 +1,4 @@
-import type { ColumnDefinition, ProviderConfig } from '@starui/types';
+import type { ColumnDefinition, ProviderConfig } from '@wellsfargo-starui/types';
 import type { ProviderStatus } from '../runtime/protocol.js';
 import type { ProviderCapabilities } from './ProviderCapabilities.js';
 

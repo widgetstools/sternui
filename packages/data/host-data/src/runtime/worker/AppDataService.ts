@@ -11,7 +11,7 @@
  * speaks the existing appdata-* RPC protocol.
  */
 
-import type { ConfigManager } from '@starui/host-config';
+import type { ConfigManager } from '@wellsfargo-starui/host-config';
 import type { AppDataRow } from '../protocol.js';
 import {
   AppDataConfigStore,

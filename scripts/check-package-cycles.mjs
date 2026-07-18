@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * check-package-cycles.mjs — fail if @starui/* packages form dependency cycles.
+ * check-package-cycles.mjs — fail if @wellsfargo-starui/* packages form dependency cycles.
  *
  * Checks:
  *   1. package.json declared deps (dependencies + peer + dev + optional)
- *   2. Source imports (`from '@starui/…'`) between packages under packages/
+ *   2. Source imports (`from '@wellsfargo-starui/…'`) between packages under packages/
  *   3. Undeclared cross-package imports (warn by default; --strict exits non-zero)
  *
  * Usage:
@@ -45,7 +45,7 @@ function staruiDepsFromPkg(pkg) {
     'optionalDependencies',
   ]) {
     for (const name of Object.keys(pkg[section] ?? {})) {
-      if (name.startsWith('@starui/')) deps.add(name);
+      if (name.startsWith('@wellsfargo-starui/')) deps.add(name);
     }
   }
   return deps;
@@ -58,7 +58,7 @@ function loadPackageGraph() {
 
   for (const pkgPath of findPackageJsons(PACKAGES_ROOT)) {
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-    if (!pkg.name?.startsWith('@starui/')) continue;
+    if (!pkg.name?.startsWith('@wellsfargo-starui/')) continue;
     const dir = dirname(pkgPath);
     dirToName.set(dir, pkg.name);
     graph.set(pkg.name, new Set());
@@ -103,7 +103,7 @@ function loadImportGraph(dirToName) {
         IMPORT_RE.lastIndex = 0;
         while ((match = IMPORT_RE.exec(src))) {
           const spec = match[1];
-          if (!spec.startsWith('@starui/')) continue;
+          if (!spec.startsWith('@wellsfargo-starui/')) continue;
           const to = spec.split('/').slice(0, 2).join('/');
           if (graph.has(to) && to !== from) graph.get(from).add(to);
         }
@@ -177,8 +177,8 @@ const importCycles = findCycles(importGraph);
 const undeclared = findUndeclared(importGraph, declared);
 
 let ok = true;
-ok = reportCycles('package.json @starui/* dependencies', pkgCycles) && ok;
-ok = reportCycles('source @starui/* imports between packages', importCycles) && ok;
+ok = reportCycles('package.json @wellsfargo-starui/* dependencies', pkgCycles) && ok;
+ok = reportCycles('source @wellsfargo-starui/* imports between packages', importCycles) && ok;
 
 console.log(
   `info packages=${pkgGraph.size} declared-edges=${[...pkgGraph.values()].reduce((n, s) => n + s.size, 0)} import-edges=${[...importGraph.values()].reduce((n, s) => n + s.size, 0)}`,

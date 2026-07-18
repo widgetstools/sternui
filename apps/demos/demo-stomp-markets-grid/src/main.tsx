@@ -1,10 +1,10 @@
 import { StrictMode, lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
-import { applyTheme, getTheme } from '@starui/design-system';
+import { applyTheme, getTheme } from '@wellsfargo-starui/design-system';
 /** Tokens + shadcn channels — safe as a standalone Vite CSS entry (includes @tailwind). */
-import '@starui/design-system/css';
-import { Alert, AlertDescription, AlertTitle } from '@starui/ui';
-import { DataHubProvider } from '@starui/host-data-react/runtime';
+import '@wellsfargo-starui/design-system/css';
+import { Alert, AlertDescription, AlertTitle } from '@wellsfargo-starui/ui';
+import { DataHubProvider } from '@wellsfargo-starui/host-data-react/runtime';
 import { initPlatformBootstrap } from './platformBootstrap.js';
 import { BrowserApp } from './BrowserApp.js';
 import './globals.css';

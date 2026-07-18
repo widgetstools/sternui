@@ -2,7 +2,7 @@
  * Default entry for `starui-provider:{appId}:{providerId}` SharedWorker.
  */
 
-import { createConfigManager } from '@starui/host-config';
+import { createConfigManager } from '@wellsfargo-starui/host-config';
 import { installProviderHub } from './installProviderHub.js';
 import {
   parseProviderWorkerName,
@@ -14,7 +14,7 @@ async function boot(): Promise<void> {
   const parsed = parseProviderWorkerName(workerName);
   if (!parsed) {
     throw new Error(
-      `[@starui/host-data provider-worker] invalid SharedWorker name '${workerName}' ` +
+      `[@wellsfargo-starui/host-data provider-worker] invalid SharedWorker name '${workerName}' ` +
         `(expected starui-provider:{appId}:{providerId})`,
     );
   }
@@ -39,13 +39,13 @@ async function boot(): Promise<void> {
   });
   // eslint-disable-next-line no-console
   console.info(
-    `[@starui/host-data provider-worker] ready ` +
+    `[@wellsfargo-starui/host-data provider-worker] ready ` +
       `(appId=${appId}, providerId=${providerId}, mode=${configManager.isRestMode() ? 'REST' : 'local'})`,
   );
 }
 
 boot().catch((err) => {
   // eslint-disable-next-line no-console
-  console.error('[@starui/host-data provider-worker] boot failed', err);
+  console.error('[@wellsfargo-starui/host-data provider-worker] boot failed', err);
   throw err;
 });

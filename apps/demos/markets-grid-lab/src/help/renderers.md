@@ -19,7 +19,7 @@ Open `Tools → Column Settings → Cell renderer` on any column to inspect
 the persisted `cellRendererId` + config envelope.
 
 Registry reference:
-[`@starui/design-system/cell-renderers-registry`](../../packages/design-system/design-system/src/cellRendererRegistry.ts).
+[`@wellsfargo-starui/design-system/cell-renderers-registry`](../../packages/design-system/design-system/src/cellRendererRegistry.ts).
 
 Reset:
 

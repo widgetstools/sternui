@@ -6,7 +6,7 @@ import {
   type EditGridWriter,
   type EditJournal,
   type NudgeDirection,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import { withJournalApplyGuard } from '../../../editing/journalApplyGuard.js';
 
 export interface ApplyPlusMinusOptions {

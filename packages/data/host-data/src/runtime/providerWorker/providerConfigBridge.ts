@@ -6,7 +6,7 @@
  * via ConfigManager at boot (dual with Config SW until single-writer).
  */
 
-import type { ProviderConfig } from '@starui/types';
+import type { ProviderConfig } from '@wellsfargo-starui/types';
 import type { ConfigClient } from '../configWorker/ConfigClient.js';
 
 /**

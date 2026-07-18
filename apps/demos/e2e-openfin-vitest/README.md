@@ -21,14 +21,14 @@ These specs are intentionally NOT part of the default `npm test` run — see
 ## Pre-requisites
 
 1. **Markets-UI E2E dev server on port 5197.** The suite auto-starts
-   `@starui/markets-ui-react-reference` via `globalSetup.ts` if nothing
+   `@wellsfargo-starui/markets-ui-react-reference` via `globalSetup.ts` if nothing
    is listening. Do **not** point tests at port 5174 unless that port is
    definitely this repo's reference app — another Vite app on 5174 will
    boot OpenFin without the test bridge.
 
    Manual start (optional):
    ```
-   npm run dev -w @starui/markets-ui-react-reference -- --port 5197
+   npm run dev -w @wellsfargo-starui/markets-ui-react-reference -- --port 5197
    ```
 
 2. **OpenFin runtime.** `@openfin/node-adapter` auto-downloads the runtime
@@ -46,7 +46,7 @@ From the repo root:
 npm run test:e2e:openfin
 ```
 
-…which is shorthand for `npm test -w @starui/e2e-openfin`. Default manifest:
+…which is shorthand for `npm test -w @wellsfargo-starui/e2e-openfin`. Default manifest:
 
 ```
 http://localhost:5197/platform/manifest.e2e.fin.json
@@ -66,13 +66,13 @@ shared Dexie DBs would just confuse each other.
 
 ## How it works
 
-1. `globalSetup.ts` ensures `@starui/markets-ui-react-reference` is reachable at port 5174 (starts it if needed).
+1. `globalSetup.ts` ensures `@wellsfargo-starui/markets-ui-react-reference` is reachable at port 5174 (starts it if needed).
 2. Spec `beforeAll` calls `launchPlatform(manifestUrl)` from `helpers/platform.ts`.
 3. `launchPlatform` invokes `@openfin/node-adapter`'s `launch()` to boot
    the runtime, waits for CDP port **9090**, connects the `fin` proxy,
    waits for the provider window, then polls the test bridge channel.
 4. The provider window loads `/platform/provider`, which calls `initWorkspace()`. In dev mode it then dynamically imports
-   `@starui/host-wrapper-react/test-bridge` which
+   `@wellsfargo-starui/host-wrapper-react/test-bridge` which
    creates an OpenFin Channel named `marketsui-test-bridge`.
 5. The helper's `BridgeClient` connects to that channel and exposes
    typed methods (`saveWorkspace`, `getWorkspaces`, `getWorkspace`,
@@ -102,7 +102,7 @@ If you want to wire these into CI:
 - Use `windows-latest` (or macOS) runners with desktop session enabled
 - Install OpenFin runtime ahead of time (or accept the first-launch
   download cost in your CI time budget)
-- Spin up the markets-ui dev server (`npm run dev -w @starui/markets-ui-react-reference &`) and `wait-on http://localhost:5174`
+- Spin up the markets-ui dev server (`npm run dev -w @wellsfargo-starui/markets-ui-react-reference &`) and `wait-on http://localhost:5174`
 - Then run `npm run test:e2e:openfin`
 - Expect 1–2 minute runtimes per spec file; cache the OpenFin runtime
   download between runs
@@ -112,7 +112,7 @@ If you want to wire these into CI:
 1. Drop a file at `specs/<your-name>.e2e.spec.ts`.
 2. Use `launchPlatform()` in `beforeAll` and `quit()` in `afterAll`.
 3. If you need new bridge actions, add them to
-   `@starui/host-wrapper-react/src/test-bridge/install.ts` AND
+   `@wellsfargo-starui/host-wrapper-react/src/test-bridge/install.ts` AND
    `e2e-openfin/helpers/platform.ts`'s `BridgeClient` interface.
 
 ## Files

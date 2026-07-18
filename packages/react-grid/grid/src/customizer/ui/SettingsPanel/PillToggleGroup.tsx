@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { controls } from '@starui/design-system/tokens';
+import { controls } from '@wellsfargo-starui/design-system/tokens';
 import { ChromeButton } from '../ChromeButton';
 
 /**

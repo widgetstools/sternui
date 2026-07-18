@@ -1,5 +1,5 @@
 {
-  "name": "@starui/app",
+  "name": "@wellsfargo-starui/app",
   "version": "0.1.0",
   "private": true,
   "description": "Declarative StarGridApp root — GridHostContext + React context for MarketsGrid",
@@ -23,12 +23,12 @@
     "react-dom": "^19.2.5"
   },
   "dependencies": {
-    "@starui/design-system": "*",
-    "@starui/engine": "*",
-    "@starui/host": "*",
-    "@starui/host-browser": "*",
-    "@starui/host-config": "*",
-    "@starui/types": "*"
+    "@wellsfargo-starui/design-system": "*",
+    "@wellsfargo-starui/engine": "*",
+    "@wellsfargo-starui/host": "*",
+    "@wellsfargo-starui/host-browser": "*",
+    "@wellsfargo-starui/host-config": "*",
+    "@wellsfargo-starui/types": "*"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",

@@ -5,7 +5,7 @@
  * `transport: 'main'` mode.
  *
  * Usage:
- *   import { probeStomp, probeRest, inferFields } from '@starui/host-data';
+ *   import { probeStomp, probeRest, inferFields } from '@wellsfargo-starui/host-data';
  *   const r = await probeStomp(cfg, { maxRows: 100 });
  *   if (!r.ok) throw new Error(r.error);
  *   const { fields } = inferFields(r.rows!, { targetSampleSize: 100 });
@@ -13,7 +13,7 @@
  * ─── Adding a new transport ─────────────────────────────────────
  *
  * 1. Declare the config interface in
- *    `@starui/types/dataProvider.ts` with
+ *    `@wellsfargo-starui/types/dataProvider.ts` with
  *    `providerType: '<your-id>'` and add it to the `ProviderConfig`
  *    union.
  * 2. Implement the factory in
@@ -26,7 +26,7 @@
  *    `factories` map (one line).
  * 4. (Optional) Re-export `probe<YourId>` from this barrel and add
  *    it to the package root in `src/index.ts` so editor consumers
- *    can `import { probe<YourId> } from '@starui/host-data'`.
+ *    can `import { probe<YourId> } from '@wellsfargo-starui/host-data'`.
  * 5. Update each editor's selectable-type list (React's
  *    `SUPPORTED_TYPES` in `DataProviderEditor.tsx`; Angular's
  *    `providerTypes` in `data-provider-editor.component.ts`).

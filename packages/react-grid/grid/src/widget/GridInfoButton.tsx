@@ -14,7 +14,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@starui/grid/customizer';
+} from '@wellsfargo-starui/grid/customizer';
 import { Info } from 'lucide-react';
 import { GridInfoContent } from './GridInfoContent';
 

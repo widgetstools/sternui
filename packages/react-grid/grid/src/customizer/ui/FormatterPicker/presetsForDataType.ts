@@ -1,4 +1,4 @@
-import type { ValueFormatterTemplate } from '@starui/engine';
+import type { ValueFormatterTemplate } from '@wellsfargo-starui/engine';
 import { categoriesForDataType, type FormatCategory } from './formatCategories';
 
 /**

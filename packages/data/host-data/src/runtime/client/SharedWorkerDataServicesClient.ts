@@ -47,7 +47,7 @@ import type {
 } from '../protocol.js';
 import { SUBSCRIBER_PING_INTERVAL_MS } from '../worker/hubTypes.js';
 import { isCatalogEvent, isEvent, isAppDataEvent } from '../protocol.js';
-import { composeRowId, type DataProviderConfig, type ProviderConfig } from '@starui/types';
+import { composeRowId, type DataProviderConfig, type ProviderConfig } from '@wellsfargo-starui/types';
 import { decodeColumnar } from '../wire/columnarCodec.js';
 import type { ListOptions } from '../config/store.js';
 import { AppDataMirror } from '../mirror/AppDataMirror.js';

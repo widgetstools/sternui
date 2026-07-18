@@ -1,5 +1,5 @@
 {
-  "name": "@starui/grid",
+  "name": "@wellsfargo-starui/grid",
   "version": "0.1.0",
   "private": true,
   "description": "MarketsGrid + grid customizer — merged product surface (phase 3)",
@@ -18,10 +18,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "echo '@starui/grid: consumed as source (no emit)'"
+    "build": "echo '@wellsfargo-starui/grid: consumed as source (no emit)'"
   },
   "peerDependencies": {
-    "@starui/design-system": "*",
+    "@wellsfargo-starui/design-system": "*",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "ag-grid-community": "^36.0.0",
@@ -29,12 +29,12 @@
     "ag-grid-react": "^36.0.0"
   },
   "dependencies": {
-    "@starui/engine": "*",
-    "@starui/host": "*",
-    "@starui/host-openfin": "*",
-    "@starui/types": "*",
-    "@starui/design-system": "*",
-    "@starui/ui": "*",
+    "@wellsfargo-starui/engine": "*",
+    "@wellsfargo-starui/host": "*",
+    "@wellsfargo-starui/host-openfin": "*",
+    "@wellsfargo-starui/types": "*",
+    "@wellsfargo-starui/design-system": "*",
+    "@wellsfargo-starui/ui": "*",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -47,10 +47,10 @@
     "monaco-editor": "^0.55.1",
     "tailwind-merge": "^3.5.0",
     "zustand": "^5.0.12",
-    "@starui/ssrm-grid": "*"
+    "@wellsfargo-starui/ssrm-grid": "*"
   },
   "devDependencies": {
-    "@starui/design-system": "*",
+    "@wellsfargo-starui/design-system": "*",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

@@ -7,10 +7,10 @@
  *   - On first render we runtime-check for the `fin` global. If `fin` is
  *     absent, the hook returns immediately and never loads the OpenFin
  *     notifications package.
- *   - When `fin` IS present, we ask `@starui/host-openfin` to lazily load the
+ *   - When `fin` IS present, we ask `@wellsfargo-starui/host-openfin` to lazily load the
  *     notifications API. Per docs/ARCHITECTURE.md the grid must not import
  *     `@openfin/*` directly — the OpenFin dependency lives entirely in
- *     `@starui/host-openfin` and is injected here as a pair of functions.
+ *     `@wellsfargo-starui/host-openfin` and is injected here as a pair of functions.
  *
  * Provider registration is one-shot per page (we attempt to register on first
  * `fin` detection). The notification source uses the OpenFin app's
@@ -26,13 +26,13 @@ import {
   loadOpenFinNotificationsApi,
   dispatchOpenFinNotification,
   type OpenFinNotificationsApi,
-} from '@starui/host-openfin';
+} from '@wellsfargo-starui/host-openfin';
 import type {
   AlertNotification,
   AlertsState,
   AlertSeverity,
   GridPlatform,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 
 const MODULE_ID = 'alerts';
 
@@ -133,7 +133,7 @@ export function useAlertsOpenFinBridge(platform: GridPlatform | null): void {
 
 /**
  * Map an alerts-module notification onto the transport-agnostic OpenFin
- * payload and dispatch it through `@starui/host-openfin`.
+ * payload and dispatch it through `@wellsfargo-starui/host-openfin`.
  */
 function dispatchAlert(
   api: OpenFinNotificationsApi,

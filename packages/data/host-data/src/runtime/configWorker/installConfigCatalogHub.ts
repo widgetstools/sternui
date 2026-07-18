@@ -4,7 +4,7 @@
 
 import { ConfigCatalogHub, type ConfigPortLike } from './ConfigCatalogHub.js';
 import { isConfigWorkerRequest } from './protocol.js';
-import type { ConfigManager } from '@starui/host-config';
+import type { ConfigManager } from '@wellsfargo-starui/host-config';
 
 interface SharedWorkerLike {
   onconnect: ((ev: { ports: readonly MessagePort[] }) => void) | null;

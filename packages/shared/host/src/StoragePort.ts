@@ -1,4 +1,4 @@
-import type { ProfileSnapshot } from '@starui/types';
+import type { ProfileSnapshot } from '@wellsfargo-starui/types';
 
 /**
  * StoragePort — profile persistence for a grid instance.

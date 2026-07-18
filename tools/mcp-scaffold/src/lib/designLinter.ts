@@ -46,7 +46,7 @@ export function lintDesignCompliance(files: DesignFile[]): DesignViolation[] {
             rule: 'no-native-form-elements',
             path: file.path,
             line: lineNo,
-            message: 'Use Input from @starui/ui instead of native <input>.',
+            message: 'Use Input from @wellsfargo-starui/ui instead of native <input>.',
           });
         }
         if (NATIVE_TEXTAREA_RE.test(line)) {
@@ -54,7 +54,7 @@ export function lintDesignCompliance(files: DesignFile[]): DesignViolation[] {
             rule: 'no-native-form-elements',
             path: file.path,
             line: lineNo,
-            message: 'Use Textarea from @starui/ui instead of native <textarea>.',
+            message: 'Use Textarea from @wellsfargo-starui/ui instead of native <textarea>.',
           });
         }
         if (NATIVE_SELECT_RE.test(line)) {
@@ -62,25 +62,25 @@ export function lintDesignCompliance(files: DesignFile[]): DesignViolation[] {
             rule: 'no-native-form-elements',
             path: file.path,
             line: lineNo,
-            message: 'Use Select from @starui/ui instead of native <select>.',
+            message: 'Use Select from @wellsfargo-starui/ui instead of native <select>.',
           });
         }
       }
     }
 
     if (file.path.endsWith('globals.css') || file.path.endsWith('index.css')) {
-      if (!file.content.includes("@import '@starui/design-system/css'")) {
+      if (!file.content.includes("@import '@wellsfargo-starui/design-system/css'")) {
         violations.push({
           rule: 'require-design-system-css-import',
           path: file.path,
-          message: "globals.css must @import '@starui/design-system/css'.",
+          message: "globals.css must @import '@wellsfargo-starui/design-system/css'.",
         });
       }
-      if (!file.content.includes("@import '@starui/grid/styles.css'")) {
+      if (!file.content.includes("@import '@wellsfargo-starui/grid/styles.css'")) {
         violations.push({
           rule: 'require-grid-css-import',
           path: file.path,
-          message: "globals.css must @import '@starui/grid/styles.css'.",
+          message: "globals.css must @import '@wellsfargo-starui/grid/styles.css'.",
         });
       }
     }

@@ -1,5 +1,5 @@
 {
-  "name": "@starui/tutorial-mockdata-provider",
+  "name": "@wellsfargo-starui/tutorial-mockdata-provider",
   "private": true,
   "type": "module",
   "scripts": {

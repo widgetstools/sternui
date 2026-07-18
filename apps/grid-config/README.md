@@ -8,7 +8,7 @@ when working on the editors.
 
 ## Quick start
 
-1. Boot the demo: `npm run dev --workspace=@starui/demo-react` (or any
+1. Boot the demo: `npm run dev --workspace=@wellsfargo-starui/demo-react` (or any
    other consumer that runs the MarketsGrid against the
    `demo-blotter-v2` grid id).
 2. Open the **Profile selector** in the primary toolbar.
@@ -89,7 +89,7 @@ Each file is plain JSON. The shape is:
 ```
 
 The renderer ids and their `config` shapes are exported from
-`@starui/design-system` — see `cellRendererRegistry.ts` for the
+`@wellsfargo-starui/design-system` — see `cellRendererRegistry.ts` for the
 authoritative types
 (`PillRendererConfig`, `HeatmapRendererConfig`, etc.).
 

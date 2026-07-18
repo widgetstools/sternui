@@ -1,4 +1,4 @@
-// @starui/widget-sdk — React bindings for the Star Widget Framework
+// @wellsfargo-starui/widget-sdk — React bindings for the Star Widget Framework
 
 export type {
   WidgetConfig,
@@ -8,7 +8,7 @@ export type {
   ParentIdentity,
   SettingsScreenContext,
   ActionContext,
-} from '@starui/widget';
+} from '@wellsfargo-starui/widget';
 
 export type { SettingsScreenDefinition } from './types/settings.js';
 
@@ -25,19 +25,19 @@ export { WidgetHost, useWidgetHost } from './providers/WidgetHost.js';
 export { useWidget } from './hooks/useWidget.js';
 export { useSettingsScreen } from './hooks/useSettingsScreen.js';
 
-export { BrowserAdapter } from '@starui/widget-browser';
+export { BrowserAdapter } from '@wellsfargo-starui/widget-browser';
 export {
   getLayouts,
   saveLayout,
   loadLayout,
   deleteLayout,
-} from '@starui/widget';
+} from '@wellsfargo-starui/widget';
 
-export { createConfigManager } from '@starui/host-config';
+export { createConfigManager } from '@wellsfargo-starui/host-config';
 export type {
   ConfigManager,
   ConfigManagerOptions,
-} from '@starui/host-config';
+} from '@wellsfargo-starui/host-config';
 
 export { renderSlot } from './extensibility/renderSlot.js';
 export { createExtendedWidget } from './extensibility/createExtendedWidget.js';

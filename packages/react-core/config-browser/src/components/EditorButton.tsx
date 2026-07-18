@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { Button, cn } from '@starui/ui';
-import { DynamicIcon as Icon } from '@starui/config-browser/icons';
+import { Button, cn } from '@wellsfargo-starui/ui';
+import { DynamicIcon as Icon } from '@wellsfargo-starui/config-browser/icons';
 
 type EditorButtonVariant = 'default' | 'primary' | 'danger';
 

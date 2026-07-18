@@ -10,7 +10,7 @@ export interface PaletteGroup {
 }
 
 /** Token groups for the Palette section. Every varName is emitted by
- *  `@starui/design-system/css` (verified against dist/css/theme.css), so each
+ *  `@wellsfargo-starui/design-system/css` (verified against dist/css/theme.css), so each
  *  swatch renders the live, theme-reactive value. */
 export const PALETTE_GROUPS: PaletteGroup[] = [
   {

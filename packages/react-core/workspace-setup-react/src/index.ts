@@ -1,5 +1,5 @@
 /**
- * @starui/workspace-setup-react — public surface.
+ * @wellsfargo-starui/workspace-setup-react — public surface.
  *
  * The 3-pane WorkspaceSetup editor and the ImportConfig utility window,
  * hosted in OpenFin child windows by the markets-ui-react-reference shell.

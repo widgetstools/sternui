@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { GridApi } from 'ag-grid-community';
-import type { IDataProvider } from '@starui/host-data';
-import type { ProviderStatus } from '@starui/host-data/runtime';
+import type { IDataProvider } from '@wellsfargo-starui/host-data';
+import type { ProviderStatus } from '@wellsfargo-starui/host-data/runtime';
 import { useBlotterDataConnection } from './useBlotterDataConnection.js';
 
 function createMockProvider(): IDataProvider & {
@@ -72,7 +72,7 @@ function makeGridApi(): GridApi & {
   };
 }
 
-vi.mock('@starui/host-data-react/runtime', () => ({
+vi.mock('@wellsfargo-starui/host-data-react/runtime', () => ({
   useDataProvider: () => ({
     provider: null,
     status: 'loading' as ProviderStatus,

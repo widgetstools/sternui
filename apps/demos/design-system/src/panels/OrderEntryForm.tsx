@@ -3,7 +3,7 @@ import {
   Button, Form, FormControl, FormField, FormItem, FormLabel, FormMessage, Input,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   ToggleGroup, ToggleGroupItem,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import type { TerminalState } from '../data/types';
 
 interface OrderForm {

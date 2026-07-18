@@ -35,7 +35,7 @@ MarketsGridHost / MarketsGrid
               theme from host; no StarUI dependency inside ssrmgrid
 ```
 
-**Rule:** Presentation chrome is owned by `@starui/grid`. `ssrmgrid` stays engine + optional demo theme.
+**Rule:** Presentation chrome is owned by `@wellsfargo-starui/grid`. `ssrmgrid` stays engine + optional demo theme.
 
 ---
 

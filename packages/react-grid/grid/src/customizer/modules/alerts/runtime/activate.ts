@@ -25,12 +25,12 @@
  * falsely fire relativeChange alerts against a stale baseline.
  */
 
-import type { GridApi, Module, PlatformHandle, RowChange } from '@starui/engine';
-import { detectRowChanges, type AlertsState } from '@starui/engine';
+import type { GridApi, Module, PlatformHandle, RowChange } from '@wellsfargo-starui/engine';
+import { detectRowChanges, type AlertsState } from '@wellsfargo-starui/engine';
 
 /** Structural shape of an AG-Grid row node — avoids leaking an ag-grid import. */
 type RowNodeLike = { id?: unknown; data?: Record<string, unknown> };
-import { getValueByPath } from '@starui/types';
+import { getValueByPath } from '@wellsfargo-starui/types';
 import { createAlertDispatcher } from './dispatch';
 import {
   collectWatchedColIds,

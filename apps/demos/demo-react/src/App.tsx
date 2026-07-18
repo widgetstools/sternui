@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { ColDef, GridReadyEvent, GridApi } from 'ag-grid-community';
-import { MarketsGrid, type StorageAdapterFactory } from '@starui/grid';
-import { activeProfileKey } from '@starui/engine';
-import type { ProfileSnapshot } from '@starui/engine';
+import { MarketsGrid, type StorageAdapterFactory } from '@wellsfargo-starui/grid';
+import { activeProfileKey } from '@wellsfargo-starui/engine';
+import type { ProfileSnapshot } from '@wellsfargo-starui/engine';
 import { Sun, Moon } from 'lucide-react';
-import { Button, cn } from '@starui/ui';
-import { useStarGridApp } from '@starui/app';
-import { ProfileSetVersionConflictError } from '@starui/host-config';
+import { Button, cn } from '@wellsfargo-starui/ui';
+import { useStarGridApp } from '@wellsfargo-starui/app';
+import { ProfileSetVersionConflictError } from '@wellsfargo-starui/host-config';
 
 import { generateOrders, startLiveTicking, type Order } from './data';
 import { Dashboard } from './Dashboard';

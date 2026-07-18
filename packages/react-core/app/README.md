@@ -1,4 +1,4 @@
-# @starui/app
+# @wellsfargo-starui/app
 
 Declarative app root for StarGrid consumer apps. Replaces the legacy
 `AppShell` + nested provider stack with a single `GridHostContext` model.
@@ -6,9 +6,9 @@ Declarative app root for StarGrid consumer apps. Replaces the legacy
 ## Usage
 
 ```tsx
-import { applyTheme, getTheme } from '@starui/design-system';
-import { StarGridApp, useStarGridHost } from '@starui/app';
-import { MarketsGrid } from '@starui/grid';
+import { applyTheme, getTheme } from '@wellsfargo-starui/design-system';
+import { StarGridApp, useStarGridHost } from '@wellsfargo-starui/app';
+import { MarketsGrid } from '@wellsfargo-starui/grid';
 
 applyTheme(getTheme());
 

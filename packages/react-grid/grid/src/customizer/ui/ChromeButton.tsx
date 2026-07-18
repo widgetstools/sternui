@@ -1,5 +1,5 @@
 import { forwardRef, type ComponentProps } from 'react';
-import { Button, cn } from '@starui/ui';
+import { Button, cn } from '@wellsfargo-starui/ui';
 
 /**
  * shadcn `Button` (`variant="chrome"` / `size="chrome"`) with Tailwind resets so

@@ -2,9 +2,9 @@
  * OpenFin notifications loader + dispatch.
  *
  * This is the single place in the platform that touches
- * `@openfin/workspace/notifications`. Framework adapters (e.g. `@starui/grid`'s
+ * `@openfin/workspace/notifications`. Framework adapters (e.g. `@wellsfargo-starui/grid`'s
  * alerts module) must NOT import `@openfin/*` directly — per
- * docs/ARCHITECTURE.md only `@starui/host-openfin` / `@starui/openfin-platform`
+ * docs/ARCHITECTURE.md only `@wellsfargo-starui/host-openfin` / `@wellsfargo-starui/openfin-platform`
  * may. Those packages consume the seam below via an injected function instead.
  *
  * The import is dynamic + string-literal-only and wrapped in try/catch, so:

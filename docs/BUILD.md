@@ -21,13 +21,13 @@ consumers. Apps build **from source** — they never depend on the tarballs.
 
 | Layer | What | Command (repo root) | Output |
 |-------|------|---------------------|--------|
-| **1. Packages** | `@starui/*` libraries under `packages/` | `npm run build:packages` | `packages/*/*/dist/` |
-| **2. Apps** | Consumer / reference apps, `@starui/*` from `packages/` source | `npm run build:apps` | `apps/demos/<app>/dist/` |
+| **1. Packages** | `@wellsfargo-starui/*` libraries under `packages/` | `npm run build:packages` | `packages/*/*/dist/` |
+| **2. Apps** | Consumer / reference apps, `@wellsfargo-starui/*` from `packages/` source | `npm run build:apps` | `apps/demos/<app>/dist/` |
 | **(side) Tarballs** | Architecture-bucket `.tgz` for external (Artifactory) consumers | `npm run propagate` | `libs/starui-*.tgz` (gitignored) |
 
-Apps resolve every `@starui/*` import straight from `packages/` source — Vite via
+Apps resolve every `@wellsfargo-starui/*` import straight from `packages/` source — Vite via
 the aliases in [`scripts/staruiConsumerAliases.mjs`](../scripts/staruiConsumerAliases.mjs),
-`tsc` via the repo-root workspace symlinks. Apps declare **no** `@starui/*` deps
+`tsc` via the repo-root workspace symlinks. Apps declare **no** `@wellsfargo-starui/*` deps
 and require **no** `libs/*.tgz`. See [apps/README.md](../apps/README.md).
 
 **Install apps** (nested workspace — installs each app's own third-party deps):
@@ -85,7 +85,7 @@ npm run verify:consumer
 npm run typecheck:apps
 ```
 
-App `tsc` resolves `@starui/grid` (consumed **as source**) via the **root**
+App `tsc` resolves `@wellsfargo-starui/grid` (consumed **as source**) via the **root**
 workspace link, so it deep-typechecks the grid internals. Each app's typecheck
 `tsconfig` therefore maps `react`/`react-dom` → the repo-root `@types/react`
 (`compilerOptions.paths`); without it a second `@types/react` (pulled into
@@ -96,15 +96,15 @@ on a clean install.
 **Run a dev server:**
 
 ```bash
-npm run dev:demo-react          # @starui/demo-react
-npm run dev:markets-grid-lab    # @starui/markets-grid-lab
+npm run dev:demo-react          # @wellsfargo-starui/demo-react
+npm run dev:markets-grid-lab    # @wellsfargo-starui/markets-grid-lab
 ```
 
 See [apps/demos/README.md](../apps/demos/README.md).
 
-The Angular demo (`demo-angular`) consumes the **built** `@starui/design-system`
+The Angular demo (`demo-angular`) consumes the **built** `@wellsfargo-starui/design-system`
 `dist/` through the workspace symlink, so run `build:packages` before building it.
-The node `stomp-view-server` is a plain TypeScript app with no `@starui/*` deps.
+The node `stomp-view-server` is a plain TypeScript app with no `@wellsfargo-starui/*` deps.
 
 ---
 
@@ -187,5 +187,5 @@ npm run install:all
 | Libraries only | `npm install` → `npm run build:packages` → `npm test` |
 | Consumer CI | `npm run verify:consumer` |
 | App bundles (source) | `npm run build:apps` |
-| Run demo (dev) | `npm run dev` (`@starui/demo-react`) |
+| Run demo (dev) | `npm run dev` (`@wellsfargo-starui/demo-react`) |
 | Pack Artifactory tarballs | `npm run build:packages` → `npm run propagate` |

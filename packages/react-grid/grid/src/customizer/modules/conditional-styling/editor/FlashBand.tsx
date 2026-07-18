@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { controls, radius, spacing, typography } from '@starui/design-system/tokens';
+import { controls, radius, spacing, typography } from '@wellsfargo-starui/design-system/tokens';
 import {
   Band,
   Caps,
@@ -10,7 +10,7 @@ import {
 } from '../../../ui/SettingsPanel';
 import { ChromeButton } from '../../../ui/ChromeButton';
 import { SettingsRow } from '../../../ui/SettingsPanel/SettingsRow';
-import { Switch } from '@starui/ui';
+import { Switch } from '@wellsfargo-starui/ui';
 import type {
   ConditionalRule,
   FlashColor,

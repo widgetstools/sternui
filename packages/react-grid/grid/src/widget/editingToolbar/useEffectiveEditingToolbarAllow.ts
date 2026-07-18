@@ -6,7 +6,7 @@ import {
   type BulkUpdateState,
   type DataChangeHistoryState,
   type SmartEditState,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import { useModuleState } from '../../customizer/hooks/useModuleState';
 import {
   mergeEditingToolbarAllowWithModules,

@@ -25,12 +25,12 @@ import {
   Button, Collapsible, CollapsibleContent, CollapsibleTrigger,
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
   Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import { ChevronDown, Download, Plus, SquareFunction, Trash2, Upload } from 'lucide-react';
-import { ExpressionEditor } from '@starui/grid/customizer';
-import { ExpressionEngine } from '@starui/engine';
-import type { ColumnDefinition } from '@starui/shared-types';
-import { normalizeKeyColumns } from '@starui/shared-types';
+import { ExpressionEditor } from '@wellsfargo-starui/grid/customizer';
+import { ExpressionEngine } from '@wellsfargo-starui/engine';
+import type { ColumnDefinition } from '@wellsfargo-starui/shared-types';
+import { normalizeKeyColumns } from '@wellsfargo-starui/shared-types';
 import { MultiSelect } from '../MultiSelect.js';
 import { ensureProviderEditorAgGridModules } from '../ensureProviderEditorAgGridModules.js';
 import { exportColumnDefs, parseColumnDefsImport } from '../columnDefsIo.js';

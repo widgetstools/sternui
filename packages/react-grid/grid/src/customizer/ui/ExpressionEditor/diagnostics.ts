@@ -1,5 +1,5 @@
 import type * as MonacoNS from 'monaco-editor';
-import { ExpressionEngine } from '@starui/engine';
+import { ExpressionEngine } from '@wellsfargo-starui/engine';
 
 /**
  * Attach a parse-error marker provider to a single Monaco model. Re-runs on

@@ -6,7 +6,7 @@
  * backs provider template lookup until Phase 4b bridge.
  */
 
-import type { ConfigManager } from '@starui/host-config';
+import type { ConfigManager } from '@wellsfargo-starui/host-config';
 import { isProviderHubRequest, ProviderHub, type ProviderHubOpts } from './ProviderHub.js';
 import type { PortLike } from '../worker/hubTypes.js';
 

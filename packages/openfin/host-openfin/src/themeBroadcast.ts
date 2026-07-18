@@ -20,8 +20,8 @@
  *     other window of the origin when the dock writes `localStorage`, so the
  *     sync works even if IAB is unreachable.
  */
-import type { Theme } from '@starui/types';
-import { THEME_STORAGE_KEY } from '@starui/types';
+import type { Theme } from '@wellsfargo-starui/types';
+import { THEME_STORAGE_KEY } from '@wellsfargo-starui/types';
 
 /**
  * Read a theme value out of a `theme-changed` IAB payload. The dock

@@ -3,7 +3,7 @@
 > **Status:** Planned — not started  
 > **Created:** 2026-06-09  
 > **Estimated effort:** 1–2 focused PRs  
-> **Trigger:** Duplicate app-level route views in `star-demo` and `markets-ui-react-reference`; layering smell (`RenameViewTab` imports `@starui/grid/customizer` for non-grid UI).
+> **Trigger:** Duplicate app-level route views in `star-demo` and `markets-ui-react-reference`; layering smell (`RenameViewTab` imports `@wellsfargo-starui/grid/customizer` for non-grid UI).
 
 ## Goal
 
@@ -13,9 +13,9 @@ Apps keep **route registration** (`/config-browser`, `/dataproviders`, `/rename-
 
 ## Non-goals
 
-- **Not `@starui/grid`.** These are platform shell tools, not MarketsGrid product surface. Do not add them to `packages/react-grid/`.
-- **Not `@starui/openfin-platform` React UI.** That package stays vanilla TS (workspace init, `openChildToolWindow`, custom actions). It already opens the URLs; it should not gain a React peer for popout bodies.
-- **No change to OpenFin URL paths** — `@starui/openfin-platform` hard-codes `/config-browser`, `/dataproviders`, `/rename-view-tab`. Route paths in apps must stay aligned.
+- **Not `@wellsfargo-starui/grid`.** These are platform shell tools, not MarketsGrid product surface. Do not add them to `packages/react-grid/`.
+- **Not `@wellsfargo-starui/openfin-platform` React UI.** That package stays vanilla TS (workspace init, `openChildToolWindow`, custom actions). It already opens the URLs; it should not gain a React peer for popout bodies.
+- **No change to OpenFin URL paths** — `@wellsfargo-starui/openfin-platform` hard-codes `/config-browser`, `/dataproviders`, `/rename-view-tab`. Route paths in apps must stay aligned.
 - **No mandatory router inside packages** — export plain components; apps choose `react-router` lazy routes.
 
 ---
@@ -39,17 +39,17 @@ Both apps also register the same lazy imports in:
 
 | Capability | Package | Export today |
 |------------|---------|--------------|
-| Config browser UI | `@starui/config-browser` | `ConfigBrowserPanel` |
-| In-grid config browser shell | `@starui/widgets-react` | `ConfigBrowserDialog` (internal to markets-grid-container) |
-| Provider editor form | `@starui/widgets-react/v2/provider-editor` | `DataProviderEditor`, `useProviderProbe`, … |
-| Open child window at path | `@starui/openfin-platform` | `openChildToolWindow`, `openDataProvidersToolWindow` |
-| Rename tab action + URL | `@starui/openfin-platform` | `createRenameViewTabAction`, `RENAME_VIEW_TAB_WINDOW_NAME`, path `/rename-view-tab` |
+| Config browser UI | `@wellsfargo-starui/config-browser` | `ConfigBrowserPanel` |
+| In-grid config browser shell | `@wellsfargo-starui/widgets-react` | `ConfigBrowserDialog` (internal to markets-grid-container) |
+| Provider editor form | `@wellsfargo-starui/widgets-react/v2/provider-editor` | `DataProviderEditor`, `useProviderProbe`, … |
+| Open child window at path | `@wellsfargo-starui/openfin-platform` | `openChildToolWindow`, `openDataProvidersToolWindow` |
+| Rename tab action + URL | `@wellsfargo-starui/openfin-platform` | `createRenameViewTabAction`, `RENAME_VIEW_TAB_WINDOW_NAME`, path `/rename-view-tab` |
 
 The **gap** is route-level shells (full-window layout, popout body reset, URL `?id=` wiring, OpenFin `fin.me` customData) — not the core widgets.
 
 ### Layering issue
 
-`RenameViewTab.tsx` imports `Button` and `Input` from `@starui/grid/customizer`. That UI has no grid dependency; refactor must switch to `@starui/ui`.
+`RenameViewTab.tsx` imports `Button` and `Input` from `@wellsfargo-starui/grid/customizer`. That UI has no grid dependency; refactor must switch to `@wellsfargo-starui/ui`.
 
 ---
 
@@ -64,16 +64,16 @@ The **gap** is route-level shells (full-window layout, popout body reset, URL `?
                              │ imports
      ┌───────────────────────┼───────────────────────┐
      ▼                       ▼                       ▼
-@starui/config-browser   @starui/widgets-react    @starui/widgets-react
+@wellsfargo-starui/config-browser   @wellsfargo-starui/widgets-react    @wellsfargo-starui/widgets-react
 ConfigBrowserView        /v2/provider-editor       /hosted
                          DataProviderEditorPage    RenameViewTabView
 ```
 
 | View | Target package | Proposed export | Subpath |
 |------|----------------|-----------------|---------|
-| Config browser full-page | `@starui/config-browser` | `ConfigBrowserView` | `.` |
-| Data providers editor page | `@starui/widgets-react` | `DataProviderEditorPage` | `./v2/provider-editor` |
-| Rename view tab popout | `@starui/widgets-react` | `RenameViewTabView` | `./hosted` |
+| Config browser full-page | `@wellsfargo-starui/config-browser` | `ConfigBrowserView` | `.` |
+| Data providers editor page | `@wellsfargo-starui/widgets-react` | `DataProviderEditorPage` | `./v2/provider-editor` |
+| Rename view tab popout | `@wellsfargo-starui/widgets-react` | `RenameViewTabView` | `./hosted` |
 
 **Why `./hosted` for rename:** OpenFin view lifecycle + `fin.*` integration already lives in `widgets-react/hosted` (`useHostedView`, `useOpenFinChannel`, …). Rename tab is workspace chrome, not provider editing.
 
@@ -81,7 +81,7 @@ ConfigBrowserView        /v2/provider-editor       /hosted
 
 ## Proposed public APIs
 
-### 1. `ConfigBrowserView` — `@starui/config-browser`
+### 1. `ConfigBrowserView` — `@wellsfargo-starui/config-browser`
 
 Thin full-page wrapper around existing `ConfigBrowserPanel`.
 
@@ -91,10 +91,10 @@ export function ConfigBrowserView(): JSX.Element;
 ```
 
 - **Behavior:** Render `<ConfigBrowserPanel />` full viewport (optional `className` / `style` props if needed for popout chrome).
-- **Deps:** Already has `@starui/ui`, `@starui/grid` peer — no new deps.
+- **Deps:** Already has `@wellsfargo-starui/ui`, `@wellsfargo-starui/grid` peer — no new deps.
 - **Today’s app equivalent:** 6-line `views/ConfigBrowser.tsx`.
 
-### 2. `DataProviderEditorPage` — `@starui/widgets-react/v2/provider-editor`
+### 2. `DataProviderEditorPage` — `@wellsfargo-starui/widgets-react/v2/provider-editor`
 
 Full-window shell for the provider editor popout.
 
@@ -121,7 +121,7 @@ export function DataProviderEditorPage(props?: DataProviderEditorPageProps): JSX
 - **Deps:** Add `react-router-dom` as **optional peer** (`peerDependenciesMeta.optional: true`) OR accept `initialProviderId` only and drop router dep — prefer optional peer so apps with router get `?id=` for free.
 - **Alternative:** Export `useDataProviderEditorPageLayout()` hook + unstyled shell; page component composes hook + `DataProviderEditor`. Only worth it if a second layout is needed.
 
-### 3. `RenameViewTabView` — `@starui/widgets-react/hosted`
+### 3. `RenameViewTabView` — `@wellsfargo-starui/widgets-react/hosted`
 
 Frameless popout for “Save Tab As…” (pairs with `createRenameViewTabAction`).
 
@@ -135,8 +135,8 @@ export function RenameViewTabView(): JSX.Element;
   - Save: `target.executeJavaScript(\`document.title = …\`)` + persist `customData.savedTitle` on target view
   - Close current window on save/cancel
   - Guard when `!isOpenFin` (render nothing or minimal fallback)
-- **UI:** `@starui/ui` `Button` + `Input` (remove `@starui/grid/customizer` import).
-- **Constants:** Re-export or document linkage to `@starui/openfin-platform` `ACTION_RENAME_VIEW_TAB`, `RENAME_VIEW_TAB_WINDOW_NAME`, path `/rename-view-tab`.
+- **UI:** `@wellsfargo-starui/ui` `Button` + `Input` (remove `@wellsfargo-starui/grid/customizer` import).
+- **Constants:** Re-export or document linkage to `@wellsfargo-starui/openfin-platform` `ACTION_RENAME_VIEW_TAB`, `RENAME_VIEW_TAB_WINDOW_NAME`, path `/rename-view-tab`.
 
 ---
 
@@ -158,7 +158,7 @@ Source of truth: `packages/openfin/openfin-platform/src/openChildToolWindow.ts`,
 
 - [ ] **config-browser:** Add `ConfigBrowserView.tsx`; export from `src/index.ts`.
 - [ ] **widgets-react/provider-editor:** Add `DataProviderEditorPage.tsx`; export from `v2/provider-editor/index.ts`; optional `react-router-dom` peer.
-- [ ] **widgets-react/hosted:** Add `RenameViewTabView.tsx`; export from `hosted/index.ts`; use `@starui/ui` primitives.
+- [ ] **widgets-react/hosted:** Add `RenameViewTabView.tsx`; export from `hosted/index.ts`; use `@wellsfargo-starui/ui` primitives.
 - [ ] **star-demo:** Delete `src/views/ConfigBrowser.tsx`, `DataProviders.tsx`, `RenameViewTab.tsx`; update `main.tsx` + `platform/Provider.tsx` lazy imports to package exports.
 - [ ] **markets-ui-react-reference:** Same deletion/migration.
 - [ ] **docs/current-features.md** — add the three public view exports under the correct package sections.
@@ -176,9 +176,9 @@ Source of truth: `packages/openfin/openfin-platform/src/openChildToolWindow.ts`,
 
 ```tsx
 // main.tsx — star-demo / markets-ui-react-reference
-import { ConfigBrowserView } from '@starui/config-browser';
-import { DataProviderEditorPage } from '@starui/widgets-react/v2/provider-editor';
-import { RenameViewTabView } from '@starui/widgets-react/hosted';
+import { ConfigBrowserView } from '@wellsfargo-starui/config-browser';
+import { DataProviderEditorPage } from '@wellsfargo-starui/widgets-react/v2/provider-editor';
+import { RenameViewTabView } from '@wellsfargo-starui/widgets-react/hosted';
 
 <Route path="/dataproviders" element={<DataProviderEditorPage />} />
 <Route path="/config-browser" element={<ConfigBrowserView />} />
@@ -189,7 +189,7 @@ Lazy loading can wrap package exports the same way as today:
 
 ```tsx
 const ConfigBrowser = React.lazy(() =>
-  import('@starui/config-browser').then((m) => ({ default: m.ConfigBrowserView })),
+  import('@wellsfargo-starui/config-browser').then((m) => ({ default: m.ConfigBrowserView })),
 );
 ```
 
@@ -200,7 +200,7 @@ const ConfigBrowser = React.lazy(() =>
 - [ ] No `views/ConfigBrowser.tsx`, `views/DataProviders.tsx`, or `views/RenameViewTab.tsx` under `star-demo` or `markets-ui-react-reference`.
 - [ ] OpenFin dock Tools → Config Browser, Data Providers, and view-tab “Save Tab As…” still work unchanged.
 - [ ] `openDataProvidersToolWindow({ providerId })` still selects the row via `?id=`.
-- [ ] `RenameViewTabView` uses `@starui/ui`, not `@starui/grid/customizer`.
+- [ ] `RenameViewTabView` uses `@wellsfargo-starui/ui`, not `@wellsfargo-starui/grid/customizer`.
 - [ ] `npx turbo typecheck build test` green.
 - [ ] `docs/current-features.md` lists the new exports with correct package attribution (per [Public vs internal](./current-features.md#public-vs-internal)).
 
@@ -220,7 +220,7 @@ const ConfigBrowser = React.lazy(() =>
 ## Related docs & code
 
 - [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md) — bucket import rules (why not react-grid / openfin-platform React)
-- [`docs/current-features.md`](./current-features.md) — `@starui/config-browser`, `@starui/widgets-react`, `@starui/openfin-platform` §7.2
+- [`docs/current-features.md`](./current-features.md) — `@wellsfargo-starui/config-browser`, `@wellsfargo-starui/widgets-react`, `@wellsfargo-starui/openfin-platform` §7.2
 - [`docs/guides/platform-bootstrap-config.md`](./guides/platform-bootstrap-config.md) — app bootstrap
 - `packages/openfin/openfin-platform/src/openChildToolWindow.ts`
 - `packages/openfin/openfin-platform/src/internal/viewTabRename.ts`
@@ -232,6 +232,6 @@ const ConfigBrowser = React.lazy(() =>
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
-| 2026-06-09 | Do **not** place views in `@starui/grid` | Grid bucket = MarketsGrid + customizer only |
-| 2026-06-09 | Rename view → `@starui/widgets-react/hosted` | OpenFin hosted integration already lives there |
+| 2026-06-09 | Do **not** place views in `@wellsfargo-starui/grid` | Grid bucket = MarketsGrid + customizer only |
+| 2026-06-09 | Rename view → `@wellsfargo-starui/widgets-react/hosted` | OpenFin hosted integration already lives there |
 | 2026-06-09 | Keep URL paths app-owned, components package-owned | `openfin-platform` already hard-codes paths; apps must register matching routes |

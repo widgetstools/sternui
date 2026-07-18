@@ -1,5 +1,5 @@
 {
-  "name": "@starui/tutorial-dataprovider-editor",
+  "name": "@wellsfargo-starui/tutorial-dataprovider-editor",
   "private": true,
   "type": "module",
   "scripts": {

@@ -1,5 +1,5 @@
 import type { ValueSetterParams } from 'ag-grid-community';
-import type { AnyColDef, DataChangeHistoryState, TransformContext } from '@starui/engine';
+import type { AnyColDef, DataChangeHistoryState, TransformContext } from '@wellsfargo-starui/engine';
 import { recordCellEditorPatch } from '../runtime/recordCellEditorPatch.js';
 
 const WRAPPED = Symbol('dchValueSetter');

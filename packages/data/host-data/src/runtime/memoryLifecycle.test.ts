@@ -3,7 +3,7 @@
  * does not retain workers, timers, or hub listeners.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ProviderConfig } from '@starui/types';
+import type { ProviderConfig } from '@wellsfargo-starui/types';
 import { SharedWorkerDataServicesClient } from './client/SharedWorkerDataServicesClient.js';
 import { FanOutWorkerPool, type WorkerLike } from './worker/FanOutWorkerPool.js';
 import { SharedWorkerDataServicesHub, type PortLike } from './worker/SharedWorkerDataServicesHub.js';

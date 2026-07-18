@@ -7,7 +7,7 @@ import { ProviderHub } from './ProviderHub.js';
 import { ProviderClient } from './ProviderClient.js';
 import { registerProvider } from '../providers/registry.js';
 import type { ProviderEmit, ProviderHandle } from '../providers/Provider.js';
-import type { ProviderConfig } from '@starui/types';
+import type { ProviderConfig } from '@wellsfargo-starui/types';
 import type { Event } from '../protocol.js';
 import type { PortLike } from '../worker/hubTypes.js';
 import { parseProviderWorkerName, providerSharedWorkerName } from '../../bootstrap/workerBootstrapPayload.js';

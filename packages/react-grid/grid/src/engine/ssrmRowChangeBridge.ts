@@ -1,4 +1,4 @@
-import type { RowChangeSignal } from '@starui/engine';
+import type { RowChangeSignal } from '@wellsfargo-starui/engine';
 import type { EngineDataTransaction } from './routeDataTransactionAsync.js';
 
 function rowIdOf(row: unknown, rowIdField: string): string | null {

@@ -1,5 +1,5 @@
 import type { GridApi, GridOptions, GetRowIdParams } from 'ag-grid-community';
-import { composeRowId } from '@starui/types';
+import { composeRowId } from '@wellsfargo-starui/types';
 import { createGridStore } from '../store/createGridStore';
 import { ApiHub } from './ApiHub';
 import { EventBus } from './EventBus';

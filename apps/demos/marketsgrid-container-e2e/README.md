@@ -24,7 +24,7 @@ mounts that path with one mock-backed grid, one server, one worker.
 
 ```bash
 # app only
-npm --prefix apps run dev -w @starui/marketsgrid-container-e2e
+npm --prefix apps run dev -w @wellsfargo-starui/marketsgrid-container-e2e
 
 # the e2e suite (isolated config: only this server, 1 worker)
 npx playwright test -c playwright.container.config.ts
@@ -35,7 +35,7 @@ the root `@playwright/test`). The config starts only port 5215.
 
 ## Note on dev:source resolution
 
-`@starui/grid` is consumed as **source**; `@starui/widgets-react` (where
+`@wellsfargo-starui/grid` is consumed as **source**; `@wellsfargo-starui/widgets-react` (where
 `MarketsGridContainer` lives) resolves to its **dist**. So changes to the
-container require `npm run build --workspace=@starui/widgets-react` before the
+container require `npm run build --workspace=@wellsfargo-starui/widgets-react` before the
 app reflects them — the e2e config does not rebuild for you.

@@ -1,5 +1,5 @@
 {
-  "name": "@starui/design-system",
+  "name": "@wellsfargo-starui/design-system",
   "version": "0.1.0",
   "private": true,
   "description": "MarketsUI design system — primitives, semantic tokens, themes, and framework adapters. Consolidates fi-trading-terminal tokens + star UI wrappers.",
@@ -85,7 +85,7 @@
   ],
   "dependencies": {
     "@primeuix/themes": "^1.2.3",
-    "@starui/shared-types": "*",
+    "@wellsfargo-starui/shared-types": "*",
     "ag-grid-enterprise": "^36.0.0",
     "ag-grid-react": "^36.0.0",
     "tailwindcss-animate": "^1.0.7",

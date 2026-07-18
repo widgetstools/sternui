@@ -2,7 +2,7 @@
  * Install {@link AppDataHub} on a SharedWorker / dedicated Worker global.
  */
 
-import type { ConfigManager } from '@starui/host-config';
+import type { ConfigManager } from '@wellsfargo-starui/host-config';
 import { AppDataHub, isAppDataHubRequest, type AppDataPortLike } from './AppDataHub.js';
 
 interface SharedWorkerLike {

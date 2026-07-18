@@ -8,8 +8,8 @@
  * call sites.
  */
 
-import type { ConfigManager } from '@starui/host-config';
-import type { DataProviderConfig, ProviderConfig } from '@starui/types';
+import type { ConfigManager } from '@wellsfargo-starui/host-config';
+import type { DataProviderConfig, ProviderConfig } from '@wellsfargo-starui/types';
 import type { ListOptions } from '../config/store.js';
 import { ConfigCatalogCache } from '../../hub/ConfigCatalogCache.js';
 

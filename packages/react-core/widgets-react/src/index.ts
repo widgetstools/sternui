@@ -1,4 +1,4 @@
-// @starui/widgets-react — Star Widget Components
+// @wellsfargo-starui/widgets-react — Star Widget Components
 
 // ─── Blotter primitives ──────────────────────────
 export { BlotterToolbar } from './blotter/BlotterToolbar.js';
@@ -31,7 +31,7 @@ export type { BlotterDependencies, BlotterProviderProps } from './BlotterProvide
 export type { IBlotterDataProvider, IActionRegistry } from './interfaces.js';
 
 // ─── AG Grid Theme ───────────────────────────────
-// Theme objects live in `@starui/design-system/adapters/ag-grid` —
+// Theme objects live in `@wellsfargo-starui/design-system/adapters/ag-grid` —
 // import `agGridDarkTheme` / `agGridLightTheme` from there directly.
 // This hook still reads the runtime `[data-theme]` and returns the
 // matching theme.
@@ -40,12 +40,12 @@ export { useAgGridTheme } from './theme/index.js';
 // ─── Provider Editor (v2) and Data Provider Selector (v2) ─────────
 // The v1 mirrored editor/selector are gone; consumers import the
 // v2 surfaces directly via subpath:
-//   import { DataProviderEditor } from '@starui/widgets-react/provider-editor';
-//   import { DataProviderSelector } from '@starui/widgets-react/data-provider-selector';
-//   import { MarketsGridContainer } from '@starui/widgets-react/markets-grid-container';
+//   import { DataProviderEditor } from '@wellsfargo-starui/widgets-react/provider-editor';
+//   import { DataProviderSelector } from '@wellsfargo-starui/widgets-react/data-provider-selector';
+//   import { MarketsGridContainer } from '@wellsfargo-starui/widgets-react/markets-grid-container';
 
 // ─── Hosted-feature wrappers (public API) ────────
-// Subpath: '@starui/widgets-react/hosted'
+// Subpath: '@wellsfargo-starui/widgets-react/hosted'
 // Re-exported here for convenience; new consumers should prefer the
 // subpath import for treeshakability.
 export type {

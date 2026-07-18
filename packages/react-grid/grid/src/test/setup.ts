@@ -1,5 +1,5 @@
 /**
- * Vitest global setup for @starui/grid (widget + customizer).
+ * Vitest global setup for @wellsfargo-starui/grid (widget + customizer).
  *
  * Wires jest-dom matchers, jsdom shims for cmdk/Radix (ResizeObserver,
  * scrollIntoView, pointer capture), and per-test cleanup.

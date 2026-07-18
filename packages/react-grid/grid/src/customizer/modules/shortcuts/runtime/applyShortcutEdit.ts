@@ -5,7 +5,7 @@ import {
   type EditGridWriter,
   type EditJournal,
   type ShortcutDefinition,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import { withJournalApplyGuard } from '../../../editing/journalApplyGuard.js';
 
 export interface ApplyShortcutOptions {

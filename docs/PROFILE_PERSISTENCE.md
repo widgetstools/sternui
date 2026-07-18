@@ -96,14 +96,14 @@ OpenFin. It talks to a `StorageAdapter`. Three implementations ship:
 |---|---|---|
 | `MemoryAdapter` | A `Map` in memory | Tests; ephemeral demos. No durability across reloads. |
 | `LocalStorageBundleAdapter` | One `localStorage` key (`gc-bundle:<gridId>`) holding all profiles + active id | Small demos that need durability but no server. |
-| `createConfigServiceStorage(...)` (in `@starui/host-config`) | Dexie via `ConfigManager`, scoped by `(appId, userId, instanceId)` | Production. Survives reloads, isolates users, supports cross-tab broadcast. |
+| `createConfigServiceStorage(...)` (in `@wellsfargo-starui/host-config`) | Dexie via `ConfigManager`, scoped by `(appId, userId, instanceId)` | Production. Survives reloads, isolates users, supports cross-tab broadcast. |
 
 The adapter is built by a `ProfileStorageFactory` and passed via
 `<MarketsGrid storage={factory} appId={...} userId={...} />`. The
 factory is called once per grid mount with `{ instanceId, appId,
 userId, gridId }` so adapter scope follows the props naturally.
 
-`HostedMarketsGrid` (in `@starui/widgets-react/hosted`) builds the
+`HostedMarketsGrid` (in `@wellsfargo-starui/widgets-react/hosted`) builds the
 ConfigService factory automatically when you pass `withStorage` and
 resolves `appId`/`userId`/`instanceId` from OpenFin view `customData`
 (or props in browser mode). See

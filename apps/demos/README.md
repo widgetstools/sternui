@@ -1,8 +1,8 @@
 # Demo apps (`apps/demos/`)
 
-Each folder is one consumer/reference app. Apps resolve `@starui/*` straight from
+Each folder is one consumer/reference app. Apps resolve `@wellsfargo-starui/*` straight from
 live `packages/` source (Vite aliases + repo-root workspace symlinks) — they
-declare no `@starui/*` deps and need no `libs/*.tgz`.
+declare no `@wellsfargo-starui/*` deps and need no `libs/*.tgz`.
 
 ## Running an app
 

@@ -1,4 +1,4 @@
-import type { GeneralSettingsState } from '@starui/grid/customizer';
+import type { GeneralSettingsState } from '@wellsfargo-starui/grid/customizer';
 
 // Partial general-settings overrides. The hook merges these into the
 // module's current state via setModuleState so we only touch the fields

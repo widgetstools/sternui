@@ -5,8 +5,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ConfigCatalogHub } from './ConfigCatalogHub.js';
 import { ConfigClient } from './ConfigClient.js';
-import type { ConfigManager, AppConfigRow } from '@starui/host-config';
-import type { DataProviderConfig } from '@starui/types';
+import type { ConfigManager, AppConfigRow } from '@wellsfargo-starui/host-config';
+import type { DataProviderConfig } from '@wellsfargo-starui/types';
 
 function makeConfigManager(rows: Map<string, AppConfigRow>): ConfigManager {
   return {

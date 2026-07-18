@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Build or typecheck every app under apps/demos/ from source — Vite aliases
- * @starui/* to packages/ source (see scripts/staruiConsumerAliases.mjs). Apps
+ * @wellsfargo-starui/* to packages/ source (see scripts/staruiConsumerAliases.mjs). Apps
  * no longer depend on libs/*.tgz tarballs; the tarballs are packed by
  * `npm run propagate` for external (Artifactory) consumers only.
  *

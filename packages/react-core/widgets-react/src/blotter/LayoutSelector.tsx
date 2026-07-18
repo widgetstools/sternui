@@ -1,12 +1,12 @@
 import React from 'react';
-import type { LayoutInfo } from '@starui/shared-types';
+import type { LayoutInfo } from '@wellsfargo-starui/shared-types';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 
 export interface LayoutSelectorProps {
   layouts: LayoutInfo[];

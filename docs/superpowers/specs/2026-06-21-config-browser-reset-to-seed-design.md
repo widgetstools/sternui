@@ -20,12 +20,12 @@ gated by a **forced full-database backup download**.
   `roles`, `permissions`).
 - **Seed source:** the runtime `seedConfigUrl` the `ConfigManager` was
   constructed with (per-app). When none is configured, the button is disabled.
-- **Layer:** built into shared `@starui/config-browser` + `ConfigManager`, so
+- **Layer:** built into shared `@wellsfargo-starui/config-browser` + `ConfigManager`, so
   every app mounting the Config Browser gets it.
 
 ## Changes
 
-### 1. `ConfigManager` (`@starui/host-config`)
+### 1. `ConfigManager` (`@wellsfargo-starui/host-config`)
 - Extract the existing inline bulkPut-from-seed transaction (in
   `seedIfEmptyLocked`) into a private `replaceAllWithSeed(seedData)` that
   **clears all tables and bulkPuts in one `rw` transaction**, returning per-table

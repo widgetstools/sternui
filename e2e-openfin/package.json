@@ -1,5 +1,5 @@
 {
-  "name": "@starui/e2e-openfin",
+  "name": "@wellsfargo-starui/e2e-openfin",
   "private": true,
   "type": "module",
   "scripts": {

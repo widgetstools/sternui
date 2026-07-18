@@ -27,7 +27,7 @@
  * Worker URL constraint (Vite + tarball consumers):
  *   Prefer the bundled worker asset + `bootstrapDataServicesWithWorkerAsset`:
  *
- *     import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
+ *     import workerAssetUrl from '@wellsfargo-starui/host-data/assets/data-services-worker.mjs?url';
  *     export const dataServices = bootstrapDataServicesWithWorkerAsset(workerAssetUrl, { ... });
  *
  *   The `?url` import must stay in app code; the library ships a
@@ -44,7 +44,7 @@
  *   directly. This factory is the default for the 99% case.
  */
 
-import { createConfigManager, type ConfigManager } from '@starui/host-config';
+import { createConfigManager, type ConfigManager } from '@wellsfargo-starui/host-config';
 import { bootstrapDataServices, type DataServices } from './bootstrap.js';
 
 export interface CreateDataServicesClientOpts {
@@ -98,7 +98,7 @@ export function createDataServicesClient(
 
   worker.addEventListener('error', (ev) => {
     // eslint-disable-next-line no-console
-    console.error('[@starui/host-data] SharedWorker error event', ev);
+    console.error('[@wellsfargo-starui/host-data] SharedWorker error event', ev);
   });
 
   const configManager =

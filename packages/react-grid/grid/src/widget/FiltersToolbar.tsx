@@ -8,7 +8,7 @@ import {
   Textarea,
   Input,
   ChromeButton,
-} from '@starui/grid/customizer';
+} from '@wellsfargo-starui/grid/customizer';
 import {
   Plus,
   Pencil,

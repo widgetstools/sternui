@@ -1,5 +1,5 @@
 /*
- * Design-system showcase — exercises @starui/ui components against
+ * Design-system showcase — exercises @wellsfargo-starui/ui components against
  * the blue-slate token set. This page is the visual-review surface:
  * if a token swap regresses something, you see it here first.
  *
@@ -18,7 +18,7 @@ import {
   Switch,
   Tabs, TabsContent, TabsList, TabsTrigger,
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import { ArrowUp, ArrowDown, AlertCircle, CheckCircle2, Info, Plus, Search } from 'lucide-react';
 
 export function DesignSystem() {

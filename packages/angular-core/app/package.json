@@ -1,8 +1,8 @@
 {
-  "name": "@starui/app-angular",
+  "name": "@wellsfargo-starui/app-angular",
   "version": "0.1.0",
   "private": true,
-  "description": "Declarative StarGridApp root — Angular twin of @starui/app (scaffold)",
+  "description": "Declarative StarGridApp root — Angular twin of @wellsfargo-starui/app (scaffold)",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -10,21 +10,21 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "echo '@starui/app-angular: scaffold (no emit)'",
+    "build": "echo '@wellsfargo-starui/app-angular: scaffold (no emit)'",
     "typecheck": "tsc --noEmit",
-    "test": "echo '@starui/app-angular: no tests yet'"
+    "test": "echo '@wellsfargo-starui/app-angular: no tests yet'"
   },
   "peerDependencies": {
     "@angular/common": "^21.1.0",
     "@angular/core": "^21.1.0"
   },
   "dependencies": {
-    "@starui/engine": "*",
-    "@starui/grid-angular": "*",
-    "@starui/host": "*",
-    "@starui/host-browser": "*",
-    "@starui/host-config": "*",
-    "@starui/types": "*"
+    "@wellsfargo-starui/engine": "*",
+    "@wellsfargo-starui/grid-angular": "*",
+    "@wellsfargo-starui/host": "*",
+    "@wellsfargo-starui/host-browser": "*",
+    "@wellsfargo-starui/host-config": "*",
+    "@wellsfargo-starui/types": "*"
   },
   "devDependencies": {
     "@angular/common": "^21.1.0",

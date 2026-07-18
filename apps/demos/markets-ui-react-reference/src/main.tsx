@@ -3,14 +3,14 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
 import App from "./App";
 import "./index.css";
-import { applyTheme, getTheme } from "@starui/design-system";
+import { applyTheme, getTheme } from "@wellsfargo-starui/design-system";
 applyTheme(getTheme());
 
-import { StarGridApp } from "@starui/app";
-import { BrowserRuntime } from "@starui/host-browser";
-import { OpenFinRuntime, isOpenFin } from "@starui/host-openfin";
-import { DataHubProvider } from "@starui/host-data-react/runtime";
-import type { RuntimePort } from "@starui/host";
+import { StarGridApp } from "@wellsfargo-starui/app";
+import { BrowserRuntime } from "@wellsfargo-starui/host-browser";
+import { OpenFinRuntime, isOpenFin } from "@wellsfargo-starui/host-openfin";
+import { DataHubProvider } from "@wellsfargo-starui/host-data-react/runtime";
+import type { RuntimePort } from "@wellsfargo-starui/host";
 import {
   getBootstrapConfig,
   getPlatform,
@@ -26,10 +26,10 @@ const BlottersMarketsGrid = React.lazy(() => import("./views/BlottersMarketsGrid
 const DataProviders = React.lazy(() => import("./views/DataProviders"));
 
 const ImportConfig = React.lazy(() =>
-  import("@starui/workspace-setup-react").then((m) => ({ default: m.ImportConfig })),
+  import("@wellsfargo-starui/workspace-setup-react").then((m) => ({ default: m.ImportConfig })),
 );
 const WorkspaceSetup = React.lazy(() =>
-  import("@starui/workspace-setup-react").then((m) => ({ default: m.WorkspaceSetup })),
+  import("@wellsfargo-starui/workspace-setup-react").then((m) => ({ default: m.WorkspaceSetup })),
 );
 
 const LOADING = <div style={{ padding: 16 }}>Loading...</div>;

@@ -18,7 +18,7 @@
  * consumes it directly.
  */
 
-import type { ExportedProfilePayload } from '@starui/engine';
+import type { ExportedProfilePayload } from '@wellsfargo-starui/engine';
 
 export const SHOWCASE_PROFILE_ID_HINT = 'showcase';
 export const SHOWCASE_PROFILE_NAME = 'Showcase';

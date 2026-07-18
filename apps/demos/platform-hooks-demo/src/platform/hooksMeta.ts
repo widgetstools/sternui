@@ -1,4 +1,4 @@
-import type { MarketsGridHandlerMeta } from '@starui/grid';
+import type { MarketsGridHandlerMeta } from '@wellsfargo-starui/grid';
 
 export const gridHandlerMeta: MarketsGridHandlerMeta = {
   'log-grid-ready': {

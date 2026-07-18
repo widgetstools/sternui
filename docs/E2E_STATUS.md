@@ -28,21 +28,21 @@ spec file can hold many `test()` blocks).
 ## Server topology (main suite)
 
 The main suite boots **seven** dev servers via `webServer`, all in
-`dev:source` mode (Vite aliases `@starui/*` to `packages/` source — except
-`@starui/widgets-react`, consumed from its built `dist/`, so it is rebuilt
+`dev:source` mode (Vite aliases `@wellsfargo-starui/*` to `packages/` source — except
+`@wellsfargo-starui/widgets-react`, consumed from its built `dist/`, so it is rebuilt
 in the relevant `webServer` commands). `reuseExistingServer` is `true`, so a
 **stale server left running on one of these ports will be reused without a
 rebuild** — kill stragglers before a clean run.
 
 | Port | App | Notes |
 |---|---|---|
-| 5190 | `@starui/demo-react` | primary app under test (`baseURL`) |
-| 5191 | `@starui/demo-configservice-react` | ConfigService storage round-trips |
-| 5174 | `@starui/markets-ui-react-reference` | reference views |
-| 5180 | `@starui/e2e-browser-blotter` | browser blotter smoke |
-| 5300 | `@starui/markets-grid-lab` | grid source (`--force` clobbers stale `.vite/deps`) |
-| 5214 | `@starui/platform-hooks-demo` | builds `host-data` + `widgets-react` first |
-| 5213 | `@starui/stomp-marketsgrid-minimal` | builds `widgets-react` first (editor Columns tab) |
+| 5190 | `@wellsfargo-starui/demo-react` | primary app under test (`baseURL`) |
+| 5191 | `@wellsfargo-starui/demo-configservice-react` | ConfigService storage round-trips |
+| 5174 | `@wellsfargo-starui/markets-ui-react-reference` | reference views |
+| 5180 | `@wellsfargo-starui/e2e-browser-blotter` | browser blotter smoke |
+| 5300 | `@wellsfargo-starui/markets-grid-lab` | grid source (`--force` clobbers stale `.vite/deps`) |
+| 5214 | `@wellsfargo-starui/platform-hooks-demo` | builds `host-data` + `widgets-react` first |
+| 5213 | `@wellsfargo-starui/stomp-marketsgrid-minimal` | builds `widgets-react` first (editor Columns tab) |
 
 The container suite uses its own single mock host on **:5215** with one
 worker.
@@ -95,7 +95,7 @@ trusting a red result:
 - **Stale `widgets-react` `dist/`**: any app consumed from `dist`
   (`platform-hooks-demo`, `stomp-marketsgrid-minimal`) fails its Vite
   dep-scan if `widgets-react` hasn't been rebuilt after a source change
-  (`npm run build --workspace=@starui/widgets-react`). The `webServer`
+  (`npm run build --workspace=@wellsfargo-starui/widgets-react`). The `webServer`
   commands rebuild it, but only when the server is actually (re)started.
 
 ## Capturing a baseline
@@ -103,8 +103,8 @@ trusting a red result:
 ```bash
 # 0. Kill any stale dev servers on the suite's ports first.
 # 1. Build the packages consumed from dist:
-npm run build --workspace=@starui/host-data
-npm run build --workspace=@starui/widgets-react
+npm run build --workspace=@wellsfargo-starui/host-data
+npm run build --workspace=@wellsfargo-starui/widgets-react
 
 # 2. Main suite (boots its own seven servers):
 npm run e2e -- --reporter=line

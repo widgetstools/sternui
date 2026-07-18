@@ -51,7 +51,7 @@ same Monaco expression editor (`[columnId]` syntax, column completions).
 The bell popover shows history; **Mark read** clears the badge without wiping entries.
 
 > Dev must use `STARUI_DEV_SOURCE=1` (the lab `dev` script sets this) so
-> Vite resolves `@starui/grid` from `packages/react-grid` source, not a
+> Vite resolves `@wellsfargo-starui/grid` from `packages/react-grid` source, not a
 > stale tarball.
 
 ---

@@ -3,8 +3,8 @@ import {
   Button, Input, Label,
   ToggleGroup, ToggleGroupItem,
   Tabs, TabsContent, TabsList, TabsTrigger,
-} from '@starui/ui';
-import { toast } from '@starui/ui';
+} from '@wellsfargo-starui/ui';
+import { toast } from '@wellsfargo-starui/ui';
 import type { Instrument, Quote } from '../data/types';
 import { fmtPrice, fmtYield } from '../data/formatters';
 import { SideSelector } from '../components/SideSelector';

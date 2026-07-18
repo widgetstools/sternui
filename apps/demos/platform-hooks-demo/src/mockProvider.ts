@@ -1,4 +1,4 @@
-import type { ColumnDefinition, DataProviderConfig, MockProviderConfig } from '@starui/types';
+import type { ColumnDefinition, DataProviderConfig, MockProviderConfig } from '@wellsfargo-starui/types';
 
 /** Columns required by MarketsGridContainer — without these the grid stays on the empty placeholder. */
 const mockColumns: ColumnDefinition[] = [

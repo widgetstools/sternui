@@ -22,8 +22,8 @@ import {
   PopoverTrigger,
   ScrollArea,
   Separator,
-} from '@starui/ui';
-import type { AlertsState } from '@starui/engine';
+} from '@wellsfargo-starui/ui';
+import type { AlertsState } from '@wellsfargo-starui/engine';
 import { useOptionalGridPlatform } from '../../hooks/GridProvider';
 import { useModuleState } from '../../hooks/useModuleState';
 import { useAlertsToastBridge } from './useAlertsToastBridge';

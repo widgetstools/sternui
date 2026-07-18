@@ -1,4 +1,4 @@
-# `@starui/widgets-react/hosted`
+# `@wellsfargo-starui/widgets-react/hosted`
 
 Hosted-feature wrappers for MarketsUI React apps. The flagship export is
 `<HostedMarketsGrid>` — a single component that collapses what was
@@ -14,7 +14,7 @@ supply the data-services client.
 ## Minimum-viable usage
 
 ```tsx
-import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
+import { HostedMarketsGrid } from '@wellsfargo-starui/widgets-react/hosted';
 
 export default function Blotter() {
   return (
@@ -54,7 +54,7 @@ namespacing).
 | `defaultUserId` | `string?` | `'dev1'` | Fallback `userId` when OpenFin customData omits one. |
 | `documentTitle` | `string?` | `componentName` | `document.title` while the wrapper is mounted. The previous title is restored on unmount. |
 | `withStorage` | `boolean?` | `false` | When true, build a `StorageAdapterFactory` from the host ConfigManager and pass it to the grid. The factory is wrapped to auto-inject `componentType` / `componentSubType` / `isTemplate` / `singleton` from the OpenFin Registry on every call. |
-| `configManager` | `ConfigManager?` | resolved lazily from `@starui/openfin-platform/config` | Explicit override. Use in tests or in non-OpenFin runtimes that supply their own ConfigManager. |
+| `configManager` | `ConfigManager?` | resolved lazily from `@wellsfargo-starui/openfin-platform/config` | Explicit override. Use in tests or in non-OpenFin runtimes that supply their own ConfigManager. |
 | `theme` | `'auto' \| 'dark' \| 'light'` | `'auto'` | AG-Grid blotter theme mode. `'auto'` follows the host's `[data-theme]` attribute on `<html>` via a MutationObserver. |
 | `dataServicesClient` | `SharedWorkerDataServicesClient?` | — | Optional data-services client. When provided, the wrapper mounts a `<DataServicesProvider>`. Omit when an ancestor already provides data-services context. |
 | `caption` | `string?` | `componentName` | Caption forwarded to `MarketsGridContainer` *only when the host OpenFin window has hidden its tab strip*. When tabs are visible nothing is forwarded; when hidden and `caption` is omitted, `componentName` is used as the fallback. The wrapper does not render the caption itself — it forwards both the resolved string and the `tabsHidden` flag, leaving the layout decision to the grid. |
@@ -220,8 +220,8 @@ call site works inside the OpenFin browser and inside `apps/demos/demo-react`.
 
 ```tsx
 import { useRef } from 'react';
-import { useHostedView } from '@starui/widgets-react/hosted';
-import { MarketsGridContainer, type MarketsGridHandle } from '@starui/markets-grid';
+import { useHostedView } from '@wellsfargo-starui/widgets-react/hosted';
+import { MarketsGridContainer, type MarketsGridHandle } from '@wellsfargo-starui/markets-grid';
 
 export function HostedBlotter() {
   const gridRef = useRef<MarketsGridHandle>(null);

@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { controls, typography } from '@starui/design-system/tokens';
+import { controls, typography } from '@wellsfargo-starui/design-system/tokens';
 import {
   Band,
   IconInput,
@@ -8,7 +8,7 @@ import {
   PillToggleGroup,
 } from '../../../ui/SettingsPanel';
 import { SettingsRow } from '../../../ui/SettingsPanel/SettingsRow';
-import { Switch } from '@starui/ui';
+import { Switch } from '@wellsfargo-starui/ui';
 import type { AnimationConfig, AnimationKind, ConditionalRule } from '../state';
 
 const DEFAULT_ANIMATION_KIND: AnimationKind = 'spin';

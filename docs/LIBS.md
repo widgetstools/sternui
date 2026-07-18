@@ -6,12 +6,12 @@ tarball consumers** — e.g. published bundles and MCP scaffolding. The director
 
 The repo's own demo apps under `apps/` do **not** use these tarballs — they build
 from `packages/` source (Vite aliases + repo-root workspace symlinks) and declare
-no `@starui/*` deps. You only need `libs/` when validating what external consumers
+no `@wellsfargo-starui/*` deps. You only need `libs/` when validating what external consumers
 install.
 
 | File | Role |
 |------|------|
-| `manifest.json` | Maps `@starui/<bucket>` → tarball filename + member packages |
+| `manifest.json` | Maps `@wellsfargo-starui/<bucket>` → tarball filename + member packages |
 | `starui-<bucket>.tgz` | One packed bundle per bucket under `packages/` (stable name, no version/hash) |
 
 ## Generate the tarballs

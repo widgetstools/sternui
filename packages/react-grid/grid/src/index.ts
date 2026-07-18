@@ -1,8 +1,8 @@
 /**
- * @starui/grid — merged MarketsGrid widget + grid customizer.
+ * @wellsfargo-starui/grid — merged MarketsGrid widget + grid customizer.
  *
- *   widget/      MarketsGrid product surface (was @starui/markets-grid)
- *   customizer/  Module pipeline UI, hooks, editors (was @starui/grid-react)
+ *   widget/      MarketsGrid product surface (was @wellsfargo-starui/markets-grid)
+ *   customizer/  Module pipeline UI, hooks, editors (was @wellsfargo-starui/grid-react)
  *   runtime/     Host-runtime helpers (OpenFin popout — not in engine)
  */
 

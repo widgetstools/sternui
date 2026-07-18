@@ -1,5 +1,5 @@
-import type { DataProviderConfig, StompProviderConfig } from '@starui/types';
-import { LOGGED_IN_USER_ID } from '@starui/types';
+import type { DataProviderConfig, StompProviderConfig } from '@wellsfargo-starui/types';
+import { LOGGED_IN_USER_ID } from '@wellsfargo-starui/types';
 
 const CLIENT_TAG = 'TRADER001';
 

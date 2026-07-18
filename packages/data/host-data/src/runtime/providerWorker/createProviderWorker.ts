@@ -17,7 +17,7 @@ export interface CreateProviderWorkerOpts {
   seedConfigReload?: 'empty-only' | 'when-changed';
 }
 
-export const PROVIDER_WORKER_ASSET = '@starui/host-data/assets/provider-worker.mjs';
+export const PROVIDER_WORKER_ASSET = '@wellsfargo-starui/host-data/assets/provider-worker.mjs';
 
 function resolveWorkerScriptUrl(scriptUrl: string): string {
   try {
@@ -52,7 +52,7 @@ export function createProviderWorker(
   worker.addEventListener('error', (ev) => {
     // eslint-disable-next-line no-console
     console.error(
-      `[@starui/host-data] Provider SharedWorker error (providerId=${opts.providerId})`,
+      `[@wellsfargo-starui/host-data] Provider SharedWorker error (providerId=${opts.providerId})`,
       ev,
     );
   });

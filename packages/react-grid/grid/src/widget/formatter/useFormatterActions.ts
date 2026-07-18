@@ -23,7 +23,7 @@ import {
   valueFormatterFromTemplate,
   type BorderSpec,
   type ValueFormatterTemplate,
-} from '@starui/engine';
+} from '@wellsfargo-starui/engine';
 import {
   applyAlignmentReducer,
   applyBordersReducer,
@@ -48,7 +48,7 @@ import {
   type ColumnCustomizationState,
   type FilterKind,
   type GeneralSettingsState,
-} from '@starui/grid/customizer';
+} from '@wellsfargo-starui/grid/customizer';
 import {
   numberTemplate,
   templateDecimals,
@@ -56,7 +56,7 @@ import {
 import {
   resolveTemplates,
   type ColumnTemplatesState,
-} from '@starui/grid/customizer';
+} from '@wellsfargo-starui/grid/customizer';
 import {
   readFirstRowValue,
   useFlashConfirm,
@@ -64,7 +64,7 @@ import {
 } from '../formattingToolbarHooks';
 import type { FormatterSelection } from './useFormatterSelection';
 import type { PickerDataType } from './state';
-import { useGridPlatform } from '@starui/grid/customizer';
+import { useGridPlatform } from '@wellsfargo-starui/grid/customizer';
 
 /** Grid-wide grouping / total settings surfaced in the Group popover. */
 export interface GroupingSettingsView {

@@ -21,7 +21,7 @@
  * full reasoning.
  */
 
-import type { ProfileSnapshot } from '@starui/engine';
+import type { ProfileSnapshot } from '@wellsfargo-starui/engine';
 
 import type { ConfigManager } from '../ConfigManager';
 

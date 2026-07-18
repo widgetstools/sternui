@@ -1,7 +1,7 @@
 # Design System Demo — FI-Realism + Dock-Manager Enhancement
 
 **Date:** 2026-06-21
-**App:** `apps/demos/design-system` (`@starui/design-system-demo`)
+**App:** `apps/demos/design-system` (`@wellsfargo-starui/design-system-demo`)
 **Status:** Approved design, ready for implementation planning
 **Builds on:** the v1 app (spec `2026-06-21-design-system-demo-app-design.md`); branch `feat/design-system-demo-app`.
 
@@ -21,13 +21,13 @@ an innovative RFQ workbench, and chart-heavy Analytics/Risk/Research — all lai
 | Layout engine | **`@widgetstools/react-dock-manager`** (`^1.0.0`, public npm — clean install, NO local tarball) replaces `react-resizable-panels` for tab layouts. |
 | Execution | One spec, **phased plan**. |
 | FI realism | All instruments are **bonds** (coupon/maturity/yield); no equity semantics. Ticket/depth/RFQ use notional-in-MM, yields, dealers, settlement. |
-| Charts | `@starui/ui` chart wrapper + recharts, colored from `--ds-chart-1..5` + accent tokens. |
+| Charts | `@wellsfargo-starui/ui` chart wrapper + recharts, colored from `--ds-chart-1..5` + accent tokens. |
 
 ## Non-Goals (YAGNI)
 
 - No real execution/backend, no OpenFin, no Angular. Deterministic mock data only.
 - Charts limited to the sets listed below. Design System tab content unchanged.
-- The gallery's `resizable` component demo stays (it documents the `@starui/ui` primitive); only the *tab layouts* move to dock-manager.
+- The gallery's `resizable` component demo stays (it documents the `@wellsfargo-starui/ui` primitive); only the *tab layouts* move to dock-manager.
 
 ## Architecture
 
@@ -95,7 +95,7 @@ Market dock layout: blotter + price chart (top); dealer order book + recent prin
 - **Research**: sector-filtered note list (left) + rich note detail (right): ticker+rating, meta grid, **OAS
   Target (12M) vs Current OAS** cards, summary, **Key Risks** box.
 
-All chart series derive from the expanded data; recharts via `@starui/ui/chart`; colors from tokens only.
+All chart series derive from the expanded data; recharts via `@wellsfargo-starui/ui/chart`; colors from tokens only.
 
 ### D. File structure (new/changed under `apps/demos/design-system/src/`)
 
@@ -137,4 +137,4 @@ Design-system tokens only (`--ds-*`; no hardcoded hex); shadcn/recharts primitiv
 The Market tab reads as a real FI desk: a dealer-depth order book with full product context, an FI trade
 ticket (notional MM, yields, TIF, order types), and an RFQ workbench with HIT/LIFT and countdowns — all in a
 dock-manager workspace with save/reset and floating ticket/RFQ. Analytics/Risk/Research are chart-rich and
-FI-specific. Everything is styled only by `@starui/design-system` + `@starui/ui`, dark and light, deterministic.
+FI-specific. Everything is styled only by `@wellsfargo-starui/design-system` + `@wellsfargo-starui/ui`, dark and light, deterministic.

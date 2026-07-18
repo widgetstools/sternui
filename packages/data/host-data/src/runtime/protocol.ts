@@ -11,7 +11,7 @@
  * late-joiner race that v1 needed cache replay to patch over.
  */
 
-import type { DataProviderConfig, ProviderConfig, ProviderType } from '@starui/types';
+import type { DataProviderConfig, ProviderConfig, ProviderType } from '@wellsfargo-starui/types';
 
 // ─── AppData row shape (mirrors AppDataConfig from probes/appdata) ─
 
@@ -19,7 +19,7 @@ import type { DataProviderConfig, ProviderConfig, ProviderType } from '@starui/t
  * Wire-shape for an AppData row crossing the port. Identical to
  * `AppDataConfig` from `runtime/providers/appdata/store.ts` but
  * inlined here so the protocol module has no internal-package
- * coupling other than `@starui/types`.
+ * coupling other than `@wellsfargo-starui/types`.
  */
 export interface AppDataRow {
   configId: string;

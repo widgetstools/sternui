@@ -1,10 +1,10 @@
-# `@starui/ssrm-grid` (Custom only) Implementation Plan
+# `@wellsfargo-starui/ssrm-grid` (Custom only) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Move CustomSSRMGrid + RowMirror SSRM stack into a first-class `@starui/ssrm-grid` package in the starui monorepo, and retarget `@starui/grid` to use it for the default Custom path while leaving Perspective `SSRMGrid` on temporary `file:ssrmgrid`.
+**Goal:** Move CustomSSRMGrid + RowMirror SSRM stack into a first-class `@wellsfargo-starui/ssrm-grid` package in the starui monorepo, and retarget `@wellsfargo-starui/grid` to use it for the default Custom path while leaving Perspective `SSRMGrid` on temporary `file:ssrmgrid`.
 
-**Architecture:** One-time copy of Custom + shared modules from `/Users/develop/wfh/ssrmgrid` into `packages/react-grid/ssrm-grid`. Extract shared types (`SSRMTransaction`, grand/group total modes) out of `SSRMGrid.tsx` so Custom has no Perspective import. `@starui/grid` `ssrmgrid-entry.ts` re-exports Custom from `@starui/ssrm-grid` and Perspective from `ssrmgrid`.
+**Architecture:** One-time copy of Custom + shared modules from `/Users/develop/wfh/ssrmgrid` into `packages/react-grid/ssrm-grid`. Extract shared types (`SSRMTransaction`, grand/group total modes) out of `SSRMGrid.tsx` so Custom has no Perspective import. `@wellsfargo-starui/grid` `ssrmgrid-entry.ts` re-exports Custom from `@wellsfargo-starui/ssrm-grid` and Perspective from `ssrmgrid`.
 
 **Tech Stack:** TypeScript, React 19, AG Grid 36, Vitest, npm workspaces (`packages/react-grid/*`).
 
@@ -13,9 +13,9 @@
 ## Global Constraints
 
 - AG Grid peers: `ag-grid-community` / `enterprise` / `react` `^36.0.0`
-- Phase 1: **no** `@finos/perspective` in `@starui/ssrm-grid` dependency graph
-- Do not delete `/Users/develop/wfh/ssrmgrid`; keep `file:ssrmgrid` on `@starui/grid` for Perspective only
-- Consume as source (no emit), same as `@starui/grid`: `"build": "echo '… no emit'"`
+- Phase 1: **no** `@finos/perspective` in `@wellsfargo-starui/ssrm-grid` dependency graph
+- Do not delete `/Users/develop/wfh/ssrmgrid`; keep `file:ssrmgrid` on `@wellsfargo-starui/grid` for Perspective only
+- Consume as source (no emit), same as `@wellsfargo-starui/grid`: `"build": "echo '… no emit'"`
 - Worktree: `/Users/develop/wfh/starui/.worktrees/marketsgrid-ssrm-dual-engine` on branch `feat/marketsgrid-ssrm-dual-engine`
 - Source of truth for copy: `/Users/develop/wfh/ssrmgrid`
 
@@ -75,15 +75,15 @@ packages/react-grid/ssrm-grid/
 
 **Modify:**
 
-- `packages/react-grid/grid/package.json` — add `@starui/ssrm-grid`; keep `ssrmgrid` file dep
+- `packages/react-grid/grid/package.json` — add `@wellsfargo-starui/ssrm-grid`; keep `ssrmgrid` file dep
 - `packages/react-grid/grid/src/engine/ssrmgrid-entry.ts` — split imports
-- `packages/react-grid/grid/src/engine/ssrmTrafficLightAgg.ts` — import from `@starui/ssrm-grid` if it currently imports `ssrmgrid`
+- `packages/react-grid/grid/src/engine/ssrmTrafficLightAgg.ts` — import from `@wellsfargo-starui/ssrm-grid` if it currently imports `ssrmgrid`
 - `packages/react-grid/grid/src/engine/ssrmShareOfTotal.ts` — same
-- `packages/react-grid/grid/vitest.config.ts` — alias `@starui/ssrm-grid` if needed for tests
+- `packages/react-grid/grid/vitest.config.ts` — alias `@wellsfargo-starui/ssrm-grid` if needed for tests
 
 ---
 
-### Task 1: Scaffold `@starui/ssrm-grid` package
+### Task 1: Scaffold `@wellsfargo-starui/ssrm-grid` package
 
 **Files:**
 - Create: `packages/react-grid/ssrm-grid/package.json`
@@ -95,13 +95,13 @@ packages/react-grid/ssrm-grid/
 - Create: `packages/react-grid/ssrm-grid/src/tests/packageSmoke.test.ts`
 
 **Interfaces:**
-- Produces: workspace package `@starui/ssrm-grid` resolvable as `"*"` from `@starui/grid`
+- Produces: workspace package `@wellsfargo-starui/ssrm-grid` resolvable as `"*"` from `@wellsfargo-starui/grid`
 
 - [ ] **Step 1: Write package.json**
 
 ```json
 {
-  "name": "@starui/ssrm-grid",
+  "name": "@wellsfargo-starui/ssrm-grid",
   "version": "0.1.0",
   "private": true,
   "description": "CustomSSRMGrid — AG Grid SSRM over main-thread RowMirror (StarUI framework)",
@@ -115,7 +115,7 @@ packages/react-grid/ssrm-grid/
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "echo '@starui/ssrm-grid: consumed as source (no emit)'"
+    "build": "echo '@wellsfargo-starui/ssrm-grid: consumed as source (no emit)'"
   },
   "peerDependencies": {
     "react": "^19.2.5",
@@ -145,7 +145,7 @@ Do **not** add `@finos/perspective`. If `agGrid/modules.ts` requires charts ente
 
 - [ ] **Step 2: Write tsconfig.json**
 
-Mirror `@starui/grid` `tsconfig.json` (verify with `cat packages/react-grid/grid/tsconfig.json` and match `extends` / `jsx`).
+Mirror `@wellsfargo-starui/grid` `tsconfig.json` (verify with `cat packages/react-grid/grid/tsconfig.json` and match `extends` / `jsx`).
 
 - [ ] **Step 3: Write vitest.config.ts**
 
@@ -170,7 +170,7 @@ export default defineConfig({
 `src/index.ts`:
 
 ```ts
-export const SSRM_GRID_PACKAGE = '@starui/ssrm-grid' as const;
+export const SSRM_GRID_PACKAGE = '@wellsfargo-starui/ssrm-grid' as const;
 ```
 
 `src/tests/packageSmoke.test.ts`:
@@ -179,9 +179,9 @@ export const SSRM_GRID_PACKAGE = '@starui/ssrm-grid' as const;
 import { describe, expect, it } from 'vitest';
 import { SSRM_GRID_PACKAGE } from '../index.js';
 
-describe('@starui/ssrm-grid', () => {
+describe('@wellsfargo-starui/ssrm-grid', () => {
   it('exports package id', () => {
-    expect(SSRM_GRID_PACKAGE).toBe('@starui/ssrm-grid');
+    expect(SSRM_GRID_PACKAGE).toBe('@wellsfargo-starui/ssrm-grid');
   });
 });
 ```
@@ -192,14 +192,14 @@ describe('@starui/ssrm-grid', () => {
 /// <reference types="vite/client" />
 ```
 
-`README.md` — Custom-only Phase 1; Perspective remains in external `ssrmgrid` via `@starui/grid`.
+`README.md` — Custom-only Phase 1; Perspective remains in external `ssrmgrid` via `@wellsfargo-starui/grid`.
 
 - [ ] **Step 5: Install + run smoke test**
 
 ```bash
 cd /Users/develop/wfh/starui/.worktrees/marketsgrid-ssrm-dual-engine
-npm install -w @starui/ssrm-grid
-npm run test -w @starui/ssrm-grid
+npm install -w @wellsfargo-starui/ssrm-grid
+npm run test -w @wellsfargo-starui/ssrm-grid
 ```
 
 Expected: 1 test pass.
@@ -209,7 +209,7 @@ Expected: 1 test pass.
 ```bash
 git add packages/react-grid/ssrm-grid
 git commit -m "$(cat <<'EOF'
-chore(ssrm-grid): scaffold @starui/ssrm-grid package
+chore(ssrm-grid): scaffold @wellsfargo-starui/ssrm-grid package
 
 EOF
 )"
@@ -316,7 +316,7 @@ Export the full design-spec public API (`CustomSSRMGrid`, types, `createCustomEn
 - [ ] **Step 3: Run package typecheck**
 
 ```bash
-npm run typecheck -w @starui/ssrm-grid
+npm run typecheck -w @wellsfargo-starui/ssrm-grid
 ```
 
 Expected: exit 0.
@@ -349,7 +349,7 @@ EOF
 - [ ] **Step 2: Run tests**
 
 ```bash
-npm run test -w @starui/ssrm-grid
+npm run test -w @wellsfargo-starui/ssrm-grid
 ```
 
 Expected: all copied tests pass.
@@ -367,7 +367,7 @@ EOF
 
 ---
 
-### Task 5: Retarget `@starui/grid` entry to `@starui/ssrm-grid`
+### Task 5: Retarget `@wellsfargo-starui/grid` entry to `@wellsfargo-starui/ssrm-grid`
 
 **Files:**
 - Modify: `packages/react-grid/grid/package.json`
@@ -376,13 +376,13 @@ EOF
 - Modify: `packages/react-grid/grid/vitest.config.ts`
 
 **Interfaces:**
-- Consumes: `@starui/ssrm-grid` for Custom; `ssrmgrid` for `SSRMGrid` only
+- Consumes: `@wellsfargo-starui/ssrm-grid` for Custom; `ssrmgrid` for `SSRMGrid` only
 - Produces: unchanged `ssrmgrid-entry` surface (`CustomSSRMGridHandle as SSRMGridHandle`)
 
 - [ ] **Step 1: Add dependency**
 
 ```json
-"@starui/ssrm-grid": "*",
+"@wellsfargo-starui/ssrm-grid": "*",
 "ssrmgrid": "file:../../../../ssrmgrid"
 ```
 
@@ -397,14 +397,14 @@ export {
   formatShareOfAggregate,
   shareExceeds,
   resolveAggregate,
-} from '@starui/ssrm-grid';
+} from '@wellsfargo-starui/ssrm-grid';
 export type {
   CustomSSRMGridHandle,
   CustomSSRMGridProps,
   SSRMColDef,
   SSRMTransaction,
-} from '@starui/ssrm-grid';
-export type { CustomSSRMGridHandle as SSRMGridHandle } from '@starui/ssrm-grid';
+} from '@wellsfargo-starui/ssrm-grid';
+export type { CustomSSRMGridHandle as SSRMGridHandle } from '@wellsfargo-starui/ssrm-grid';
 
 export { SSRMGrid } from 'ssrmgrid';
 export type { SSRMGridProps } from 'ssrmgrid';
@@ -412,20 +412,20 @@ export type { SSRMGridProps } from 'ssrmgrid';
 export { getSsrmShareOfTotal, type SsrmShareOfTotalParams } from './ssrmShareOfTotal.js';
 ```
 
-- [ ] **Step 3: Point helper imports at `@starui/ssrm-grid`**
+- [ ] **Step 3: Point helper imports at `@wellsfargo-starui/ssrm-grid`**
 
 - [ ] **Step 4: Vitest alias**
 
 ```ts
-{ find: '@starui/ssrm-grid', replacement: resolve(__dirname, '../ssrm-grid/src/index.ts') },
+{ find: '@wellsfargo-starui/ssrm-grid', replacement: resolve(__dirname, '../ssrm-grid/src/index.ts') },
 ```
 
 - [ ] **Step 5: Install + verify**
 
 ```bash
-npm install -w @starui/grid
-npm run typecheck -w @starui/grid
-npm run test -w @starui/grid -- src/engine
+npm install -w @wellsfargo-starui/grid
+npm run typecheck -w @wellsfargo-starui/grid
+npm run test -w @wellsfargo-starui/grid -- src/engine
 ```
 
 - [ ] **Step 6: Commit**
@@ -433,7 +433,7 @@ npm run test -w @starui/grid -- src/engine
 ```bash
 git add packages/react-grid/grid/package.json packages/react-grid/grid/src/engine packages/react-grid/grid/vitest.config.ts
 git commit -m "$(cat <<'EOF'
-feat(grid): use @starui/ssrm-grid for CustomSSRMGrid
+feat(grid): use @wellsfargo-starui/ssrm-grid for CustomSSRMGrid
 
 Perspective SSRMGrid remains on temporary file:ssrmgrid.
 
@@ -450,7 +450,7 @@ EOF
 - [ ] **Step 1: Typecheck star-demo**
 
 ```bash
-npm run typecheck -w @starui/star-demo
+npm run typecheck -w @wellsfargo-starui/star-demo
 ```
 
 Expected: exit 0.
@@ -503,13 +503,13 @@ EOF
 | Extract types away from `SSRMGrid.tsx` | 2–3 |
 | Public API exports | 3 |
 | Migrated Custom tests | 4 |
-| `@starui/grid` uses `@starui/ssrm-grid` for Custom | 5 |
+| `@wellsfargo-starui/grid` uses `@wellsfargo-starui/ssrm-grid` for Custom | 5 |
 | Keep `file:ssrmgrid` for Perspective | 5 |
-| star-demo / lab still work via `@starui/grid` | 6 |
+| star-demo / lab still work via `@wellsfargo-starui/grid` | 6 |
 
 ## Out of scope
 
-- `@starui/ssrm-grid/perspective` subpath
+- `@wellsfargo-starui/ssrm-grid/perspective` subpath
 - Removing `file:ssrmgrid`
 - Archiving `/Users/develop/wfh/ssrmgrid`
 - Changing `useSSRM` / STOMP snapshot wiring

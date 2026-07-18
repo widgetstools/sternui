@@ -22,10 +22,10 @@ import {
   Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
   DialogTitle, DialogTrigger, Input, Label, ScrollArea,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@starui/ui';
+} from '@wellsfargo-starui/ui';
 import { Database, Copy, Globe, Plus, Radio, Search, Trash2, TestTube2, Upload } from 'lucide-react';
-import type { DataProviderConfig, ProviderConfig, ProviderType } from '@starui/shared-types';
-import { useDataServices, useDataProvidersList } from '@starui/host-data-react/runtime';
+import type { DataProviderConfig, ProviderConfig, ProviderType } from '@wellsfargo-starui/shared-types';
+import { useDataServices, useDataProvidersList } from '@wellsfargo-starui/host-data-react/runtime';
 import { cloneProviderConfig } from './cloneProviderConfig.js';
 import { parseProviderConfigImport, type PortableProviderConfig } from './providerConfigIo.js';
 import { buildProviderSidebarConfigs, isDraftListId, providerMatchesSearch, toDraftListId } from './providerSidebarList.js';

@@ -3,7 +3,7 @@
  *
  * Vite apps import the bundled script at the app call site:
  *
- *     import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
+ *     import workerAssetUrl from '@wellsfargo-starui/host-data/assets/data-services-worker.mjs?url';
  *     const worker = createDataServicesWorker(workerAssetUrl, { appName, ... });
  *
  * The `?url` import must live in app code so Vite copies/serves the
@@ -39,7 +39,7 @@ export interface CreateDataServicesWorkerOpts {
 
 /** Package export path for the bundled worker (after `npm run build`). */
 export const DATA_SERVICES_WORKER_ASSET =
-  '@starui/host-data/assets/data-services-worker.mjs';
+  '@wellsfargo-starui/host-data/assets/data-services-worker.mjs';
 
 function resolveWorkerScriptUrl(scriptUrl: string): string {
   try {
@@ -81,7 +81,7 @@ export function createDataServicesWorker(
 
   worker.addEventListener('error', (ev) => {
     // eslint-disable-next-line no-console
-    console.error('[@starui/host-data] SharedWorker error event', ev);
+    console.error('[@wellsfargo-starui/host-data] SharedWorker error event', ev);
   });
 
   return worker;

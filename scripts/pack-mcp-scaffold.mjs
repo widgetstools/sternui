@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * pack-mcp-scaffold.mjs — build @starui/mcp-scaffold and emit libs/starui-mcp-scaffold-*.tgz
+ * pack-mcp-scaffold.mjs — build @wellsfargo-starui/mcp-scaffold and emit libs/starui-mcp-scaffold-*.tgz
  */
 import { execSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
@@ -39,7 +39,7 @@ if (!dryRun) {
     }
   }
   log(`copied tarballs to ${BUNDLED}`);
-  execSync('npm run build --workspace=@starui/mcp-scaffold', { cwd: REPO_ROOT, stdio: 'inherit' });
+  execSync('npm run build --workspace=@wellsfargo-starui/mcp-scaffold', { cwd: REPO_ROOT, stdio: 'inherit' });
   const pkg = JSON.parse(readFileSync(join(MCP_DIR, 'package.json'), 'utf8'));
   execSync('npm pack', { cwd: MCP_DIR, stdio: 'inherit' });
   const packed = readdirSync(MCP_DIR).find((f) => f.endsWith('.tgz') && f.startsWith('starui-mcp-scaffold'));

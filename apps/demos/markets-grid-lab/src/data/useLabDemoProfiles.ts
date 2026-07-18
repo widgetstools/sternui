@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { MarketsGridHandle } from '@starui/grid';
+import type { MarketsGridHandle } from '@wellsfargo-starui/grid';
 import {
   buildLabDemoBundle,
   type LabDemoProfileEntry,

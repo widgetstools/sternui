@@ -1,4 +1,4 @@
-# @starui/design-system — Chroma Desk
+# @wellsfargo-starui/design-system — Chroma Desk
 
 Single token tree → Tailwind preset + PrimeNG preset + CSS variables.
 Used by every React and Angular app and package in the monorepo.
@@ -11,20 +11,20 @@ Already a workspace dep of every consuming package. Nothing to install.
 
 | Path | Use |
 |---|---|
-| `@starui/design-system` | tokens, `componentTokens()`, `applyTheme`, `getTheme`, cell renderers |
-| `@starui/design-system/css` | the bundled stylesheet — import once in app's globals.css/styles.scss |
-| `@starui/design-system/tailwind` | `tailwindPreset` for tailwind.config.js |
-| `@starui/design-system/primeng` | `primengPreset` for `definePreset(Aura, …)` |
-| `@starui/design-system/shadcn` | `generateUnifiedCSS()` (advanced — apps don't usually need this directly) |
-| `@starui/design-system/adapters/ag-grid` | `agGridDarkParams` / `agGridLightParams` |
-| `@starui/design-system/tokens/{primitives,semantic,components}` | direct token access |
-| `@starui/design-system/cell-renderers` | AG Grid cell renderer components |
+| `@wellsfargo-starui/design-system` | tokens, `componentTokens()`, `applyTheme`, `getTheme`, cell renderers |
+| `@wellsfargo-starui/design-system/css` | the bundled stylesheet — import once in app's globals.css/styles.scss |
+| `@wellsfargo-starui/design-system/tailwind` | `tailwindPreset` for tailwind.config.js |
+| `@wellsfargo-starui/design-system/primeng` | `primengPreset` for `definePreset(Aura, …)` |
+| `@wellsfargo-starui/design-system/shadcn` | `generateUnifiedCSS()` (advanced — apps don't usually need this directly) |
+| `@wellsfargo-starui/design-system/adapters/ag-grid` | `agGridDarkParams` / `agGridLightParams` |
+| `@wellsfargo-starui/design-system/tokens/{primitives,semantic,components}` | direct token access |
+| `@wellsfargo-starui/design-system/cell-renderers` | AG Grid cell renderer components |
 
 ## How to change a color
 
 1. Open `src/tokens/primitives.ts` (palette) or `src/tokens/semantic.ts` (role mapping).
 2. Edit the value.
-3. Run `npm run build --workspace=@starui/design-system` to regenerate `dist/css/theme.css`.
+3. Run `npm run build --workspace=@wellsfargo-starui/design-system` to regenerate `dist/css/theme.css`.
 4. Apps pick up the change on next dev reload.
 5. The contrast audit (`tests/tokens/contrast-audit.test.ts`) runs as part of `npm test` — fixes must keep WCAG ratios in spec.
 
@@ -38,15 +38,15 @@ Already a workspace dep of every consuming package. Nothing to install.
 ## How to test a token change locally
 
 ```bash
-npm test --workspace=@starui/design-system
+npm test --workspace=@wellsfargo-starui/design-system
 ```
 
-Snapshots in `tests/adapters/__snapshots__/` will fail if the change ripples through. Review the diff carefully and update with `npm test --workspace=@starui/design-system -- -u` only after verifying the visual change is intentional.
+Snapshots in `tests/adapters/__snapshots__/` will fail if the change ripples through. Review the diff carefully and update with `npm test --workspace=@wellsfargo-starui/design-system -- -u` only after verifying the visual change is intentional.
 
 ## What is NOT in this package
 
 - No app-specific component variants — those live in their consuming package
-- No layout components (cards, modals, etc.) — those live in `@starui/ui`
+- No layout components (cards, modals, etc.) — those live in `@wellsfargo-starui/ui`
 - No business logic — pure design tokens + adapter glue
 - No font assets — apps load Geist + JetBrains Mono via Google Fonts or local @font-face
 

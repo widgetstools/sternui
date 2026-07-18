@@ -1,5 +1,5 @@
 {
-  "name": "@starui/types",
+  "name": "@wellsfargo-starui/types",
   "version": "0.1.0",
   "private": true,
   "description": "Shared types for the StarGrid platform — identity, theme, surfaces",
@@ -19,7 +19,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@starui/shared-types": "*"
+    "@wellsfargo-starui/shared-types": "*"
   },
   "devDependencies": {
     "rimraf": "^6.0.1",

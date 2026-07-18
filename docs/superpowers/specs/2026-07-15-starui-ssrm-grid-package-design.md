@@ -1,9 +1,9 @@
-# `@starui/ssrm-grid` package (CustomSSRMGrid) — Design
+# `@wellsfargo-starui/ssrm-grid` package (CustomSSRMGrid) — Design
 
 **Date:** 2026-07-15  
 **Status:** Complete — Custom-only; no Perspective / `file:ssrmgrid` on MarketsGrid  
 **Branch / worktree:** `feat/marketsgrid-ssrm-dual-engine`  
-**Repos:** `/Users/develop/wfh/ssrmgrid` → starui monorepo (`@starui/ssrm-grid`)  
+**Repos:** `/Users/develop/wfh/ssrmgrid` → starui monorepo (`@wellsfargo-starui/ssrm-grid`)  
 **AG Grid:** 36.x
 
 ## Goal
@@ -15,7 +15,7 @@ MarketsGrid SSRM mounts **Custom only**. There is no Perspective-backed `SSRMGri
 ## Non-goals
 
 - Perspective worker / WASM / `SSRMGrid.tsx` integration (not needed).
-- Folding SSRM into `@starui/grid` itself (keep engine package separate from MarketsGrid chrome).
+- Folding SSRM into `@wellsfargo-starui/grid` itself (keep engine package separate from MarketsGrid chrome).
 - Changing HostedMarketsGrid / STOMP provider APIs (already wired; stay as-is).
 - Making SSRM the MarketsGrid default (still `useSSRM` opt-in).
 
@@ -23,7 +23,7 @@ MarketsGrid SSRM mounts **Custom only**. There is no Perspective-backed `SSRMGri
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Package layout | `packages/react-grid/ssrm-grid` → `@starui/ssrm-grid` | Matches `packages/react-grid/*` |
+| Package layout | `packages/react-grid/ssrm-grid` → `@wellsfargo-starui/ssrm-grid` | Matches `packages/react-grid/*` |
 | Move method | One-time **copy** of modules + tests | Private sandbox repo; avoid git-subtree noise |
 | Scope | **Custom only** | Production path; no WASM packaging |
 | Perspective | **Not integrated** | Dropped from MarketsGrid; `ssrmEngine` / `ssrmExpectedRowCount` are deprecated no-ops |
@@ -32,14 +32,14 @@ MarketsGrid SSRM mounts **Custom only**. There is no Perspective-backed `SSRMGri
 ## Architecture
 
 ```text
-@starui/ssrm-grid
+@wellsfargo-starui/ssrm-grid
   CustomSSRMGrid
   createCustomEngine / RowMirror
   SSRMColDef, filters, block cache, dirty helpers
   trafficLight / shareOfTotal / getGroupLeafRows / compile helpers
 
-@starui/grid
-  ssrmgrid-entry.ts → CustomSSRMGrid ← @starui/ssrm-grid
+@wellsfargo-starui/grid
+  ssrmgrid-entry.ts → CustomSSRMGrid ← @wellsfargo-starui/ssrm-grid
   SsrmMarketsGridSurface → always CustomSSRMGrid
 ```
 
@@ -47,7 +47,7 @@ MarketsGrid SSRM mounts **Custom only**. There is no Perspective-backed `SSRMGri
 
 ```text
 packages/react-grid/ssrm-grid/
-  package.json                 # name: @starui/ssrm-grid
+  package.json                 # name: @wellsfargo-starui/ssrm-grid
   src/
     index.ts                   # public Custom API
     agGrid/                    # modules + theme (idempotent register)
@@ -63,7 +63,7 @@ Root workspaces already include `packages/react-grid/*`.
 ## Public API
 
 ```ts
-// @starui/ssrm-grid
+// @wellsfargo-starui/ssrm-grid
 export { CustomSSRMGrid } from '…';
 export type {
   CustomSSRMGridHandle,
@@ -109,22 +109,22 @@ export {
 
 Note: helpers named `perspectiveExpression` / `perspectiveExpr` are **string expression** naming for the Custom engine — not the FINOS Perspective product.
 
-## `@starui/grid` changes (done)
+## `@wellsfargo-starui/grid` changes (done)
 
-1. Depend on `"@starui/ssrm-grid": "*"` only (no `file:ssrmgrid`).
-2. `ssrmgrid-entry.ts` re-exports Custom from `@starui/ssrm-grid`.
+1. Depend on `"@wellsfargo-starui/ssrm-grid": "*"` only (no `file:ssrmgrid`).
+2. `ssrmgrid-entry.ts` re-exports Custom from `@wellsfargo-starui/ssrm-grid`.
 3. `SsrmMarketsGridSurface` always mounts `CustomSSRMGrid`; `ssrmEngine` ignored.
 
 ## Success criteria
 
 - Fresh clone builds/runs MarketsGrid SSRM without a sibling checkout of `wfh/ssrmgrid`.
-- `@starui/ssrm-grid` tests pass.
+- `@wellsfargo-starui/ssrm-grid` tests pass.
 - `markets-grid-lab` Custom stress + `star-demo` blotter (`useSSRM`) still work.
-- Default `@starui/ssrm-grid` import graph does **not** resolve `@finos/perspective`.
+- Default `@wellsfargo-starui/ssrm-grid` import graph does **not** resolve `@finos/perspective`.
 
 ## Risks / mitigations
 
 | Risk | Mitigation |
 |------|------------|
-| Dual AG ModuleRegistry (`@starui/grid` + `@starui/ssrm-grid`) | Keep registration idempotent; long-term single site |
+| Dual AG ModuleRegistry (`@wellsfargo-starui/grid` + `@wellsfargo-starui/ssrm-grid`) | Keep registration idempotent; long-term single site |
 | Shared filter files named `perspectiveExpr` confuse ownership | Comment that Custom owns them; rename optional later |

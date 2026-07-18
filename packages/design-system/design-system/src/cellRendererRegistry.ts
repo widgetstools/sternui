@@ -154,7 +154,7 @@ export interface MultiLineRendererConfig {
 /**
  * IconTextCellRenderer — leading or trailing icon plus the cell
  * value as text. The editor resolves the icon (from
- * `@starui/icons-svg`) at write time and stores both the source
+ * `@wellsfargo-starui/icons-svg`) at write time and stores both the source
  * `iconId` (for re-editing) and the raw inner SVG markup
  * (`iconSvg`) the renderer drops into an inline `<svg>` element.
  * Vanilla TS — no runtime SVG-file fetching.
@@ -389,7 +389,7 @@ export const cellRendererCatalogue: ReadonlyArray<CellRendererCatalogueEntry> = 
   {
     id: 'icon-text',
     label: 'Icon + Text',
-    description: 'Icon from @starui/icons-svg next to the value.',
+    description: 'Icon from @wellsfargo-starui/icons-svg next to the value.',
     category: 'composite',
     configurable: true,
   },

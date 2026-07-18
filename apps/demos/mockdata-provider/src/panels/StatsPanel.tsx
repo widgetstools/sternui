@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useStats, type SourceStats } from '../state/StatsContext';
 import { useMockConfig } from '../state/MockConfigContext';
-import { Badge } from '@starui/ui';
+import { Badge } from '@wellsfargo-starui/ui';
 import { Activity, Cog } from 'lucide-react';
 
 export function StatsPanel() {

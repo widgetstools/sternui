@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { LOGGED_IN_USER_ID } from '@starui/types';
-import { BrowserRuntime } from '@starui/host-browser';
-import type { RuntimePort } from '@starui/host';
-import type { ConfigManager } from '@starui/host-config';
+import { LOGGED_IN_USER_ID } from '@wellsfargo-starui/types';
+import { BrowserRuntime } from '@wellsfargo-starui/host-browser';
+import type { RuntimePort } from '@wellsfargo-starui/host';
+import type { ConfigManager } from '@wellsfargo-starui/host-config';
 import {
   createConfigServiceStorage,
   createConfigPort,
-} from '@starui/host-config';
+} from '@wellsfargo-starui/host-config';
 import { buildGridHostContext, storageFactoryForPersistence } from './buildHostContext.js';
 import { StarGridAppProvider } from './StarGridAppContext.js';
 import type { StarGridAppOptions, StarGridAppState } from './types.js';
@@ -44,7 +44,7 @@ export function StarGridApp({
   const [resolved, setResolved] = useState<{
     runtime: RuntimePort;
     configManager?: ConfigManager;
-    data?: import('@starui/host').DataPort;
+    data?: import('@wellsfargo-starui/host').DataPort;
   } | null>(null);
 
   useEffect(() => {

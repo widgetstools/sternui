@@ -7,9 +7,9 @@
 
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { applyTheme, getTheme } from '@starui/design-system';
-import '@starui/design-system/css';
-import { DataHubProvider } from '@starui/host-data-react/runtime';
+import { applyTheme, getTheme } from '@wellsfargo-starui/design-system';
+import '@wellsfargo-starui/design-system/css';
+import { DataHubProvider } from '@wellsfargo-starui/host-data-react/runtime';
 import { App } from './App.js';
 import { bootstrap } from './bootstrap.js';
 import './globals.css';

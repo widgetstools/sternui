@@ -1,4 +1,4 @@
-# @starui/star-demo
+# @wellsfargo-starui/star-demo
 
 A **minimal** OpenFin workspace demo that hosts a **MarketsGrid (SSRM /
 CustomSSRMGrid)** through a React Router route and lets you register it as a
@@ -18,7 +18,7 @@ platform features, far less boilerplate:
 ## Run it
 
 Two processes: the Vite dev server, then the OpenFin client that loads the
-manifest. The app resolves `@starui/*` from the prebuilt tarballs in
+manifest. The app resolves `@wellsfargo-starui/*` from the prebuilt tarballs in
 `libs/` (consumer parity), so build/propagate the packages first if you
 haven't (`npm run build` at the repo root).
 
@@ -35,7 +35,7 @@ This runs `dev:openfin:star-demo` — it starts the dev server, waits for
 ### Or two terminals
 
 ```bash
-# terminal 1 — dev server (aliases @starui/* to packages/src)
+# terminal 1 — dev server (aliases @wellsfargo-starui/* to packages/src)
 npm run dev:star-demo            # from repo root
 # (equivalent: cd apps/demos/star-demo && npm run dev)
 
@@ -111,8 +111,8 @@ column layouts, filters, and formatting persist per instance via
    `/blotters/marketsgrid` as a view with a freshly minted `instanceId`, so
    multiple independent blotters can coexist, each with its own saved layout.
 
-The registry is read/written by `@starui/openfin-platform` and the
-`@starui/workspace-setup-react` UI; this app only has to **expose the route**.
+The registry is read/written by `@wellsfargo-starui/openfin-platform` and the
+`@wellsfargo-starui/workspace-setup-react` UI; this app only has to **expose the route**.
 No per-component wiring is needed in the app beyond the route declaration.
 
 ---
@@ -120,13 +120,13 @@ No per-component wiring is needed in the app beyond the route declaration.
 ## Dock Tools menu — no Import/Export Config
 
 The built-in Tools menu (Workspace Setup, Data Providers, Config Browser,
-Reload Dock, Developer Tools, …) is provided by `@starui/openfin-platform`.
+Reload Dock, Developer Tools, …) is provided by `@wellsfargo-starui/openfin-platform`.
 This app hides the two config-bundle items by passing their action IDs to the
 new opt-in `dock.excludeTools` option in
 [`src/platform/Provider.tsx`](src/platform/Provider.tsx):
 
 ```ts
-import { initWorkspace, ACTION_EXPORT_CONFIG, ACTION_IMPORT_CONFIG } from "@starui/openfin-platform";
+import { initWorkspace, ACTION_EXPORT_CONFIG, ACTION_IMPORT_CONFIG } from "@wellsfargo-starui/openfin-platform";
 
 initWorkspace({
   dockIcon: "http://localhost:5175/dock-provider.png",

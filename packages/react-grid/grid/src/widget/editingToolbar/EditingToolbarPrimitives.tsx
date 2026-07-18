@@ -1,7 +1,7 @@
 import type { ComponentProps, CSSProperties, ReactNode } from 'react';
 import { Check } from 'lucide-react';
-import { Button, cn } from '@starui/ui';
-import { CHROME_BUTTON_RESET } from '@starui/grid/customizer';
+import { Button, cn } from '@wellsfargo-starui/ui';
+import { CHROME_BUTTON_RESET } from '@wellsfargo-starui/grid/customizer';
 import {
   pillClasses,
   toolbarSelectContentClasses,

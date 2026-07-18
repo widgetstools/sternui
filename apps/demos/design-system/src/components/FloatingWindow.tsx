@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { X } from 'lucide-react';
-import { Button } from '@starui/ui';
+import { Button } from '@wellsfargo-starui/ui';
 
 export interface FloatingWindowProps {
   title: string;

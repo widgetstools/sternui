@@ -1,6 +1,6 @@
 import type * as MonacoNS from 'monaco-editor';
 import { LANGUAGE_ID } from './language';
-import { ExpressionEngine } from '@starui/engine';
+import { ExpressionEngine } from '@wellsfargo-starui/engine';
 
 /**
  * Operator / keyword catalogue surfaced in the completion widget.

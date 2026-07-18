@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { INITIAL_DATA_CHANGE_HISTORY } from '@starui/engine';
+import { INITIAL_DATA_CHANGE_HISTORY } from '@wellsfargo-starui/engine';
 import { clearEditJournalRegistry, getEditJournal } from '../../../editing/editJournalScope.js';
 import { wrapEditableValueSetters } from './wrapEditableValueSetters.js';
 

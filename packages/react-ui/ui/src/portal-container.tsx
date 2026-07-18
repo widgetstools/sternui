@@ -4,12 +4,12 @@ import { createContext, useContext, type ReactNode } from 'react';
  * Target element for Radix/shadcn `*Portal` components.
  *
  * When UI is rendered inside a detached window (e.g. `PopoutPortal` in
- * `@starui/grid-react`), React still runs in the parent window, so
+ * `@wellsfargo-starui/grid-react`), React still runs in the parent window, so
  * `document.body` is the **parent** document. Radix portals default to
  * that body — menus and popovers appear behind/in the wrong window.
  *
  * Wrap the popped-out subtree with `<PortalContainerProvider
- * container={thatWindow.document.body}>` so every `@starui/ui` portal
+ * container={thatWindow.document.body}>` so every `@wellsfargo-starui/ui` portal
  * receives `container={...}` and mounts into the correct document.
  */
 const PortalContainerContext = createContext<HTMLElement | null>(null);

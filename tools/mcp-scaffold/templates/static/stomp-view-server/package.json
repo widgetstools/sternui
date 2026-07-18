@@ -1,5 +1,5 @@
 {
-  "name": "@starui/stomp-view-server",
+  "name": "@wellsfargo-starui/stomp-view-server",
   "private": true,
   "version": "1.0.0",
   "description": "Lightweight TypeScript STOMP view server for demo apps. Serves synthetic fixed-income snapshots + live updates; consumed in-monorepo by the StompDataProvider via ws://localhost:8081.",

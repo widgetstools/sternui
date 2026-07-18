@@ -1,5 +1,5 @@
 /**
- * @starui/icons-svg/angular
+ * @wellsfargo-starui/icons-svg/angular
  *
  * Angular icon bindings for the MarketsUI monorepo.
  * Wraps @lucide/angular so icon versions are centralised and consistent.
@@ -11,7 +11,7 @@
  * the dynamic, name-driven flow.
  *
  * Usage (per-icon standalone component):
- *   import { FileText, Home } from '@starui/icons-svg/angular';
+ *   import { FileText, Home } from '@wellsfargo-starui/icons-svg/angular';
  *
  *   @Component({
  *     imports: [FileText, Home],
@@ -20,7 +20,7 @@
  *   export class MyComponent {}
  *
  * Usage (dynamic, name-driven):
- *   import { LucideComponent, provideLucideIcons, FileText, Home } from '@starui/icons-svg/angular';
+ *   import { LucideComponent, provideLucideIcons, FileText, Home } from '@wellsfargo-starui/icons-svg/angular';
  *
  *   // app config — register the icons you use:
  *   providers: [provideLucideIcons({ FileText, Home })]

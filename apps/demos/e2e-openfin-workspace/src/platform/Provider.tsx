@@ -3,14 +3,14 @@
  *
  * Mounted by `?view=provider` (which the platform manifest's
  * `providerUrl` points at). Calls `initWorkspace()` from
- * `@starui/openfin-platform` to bring up Home / Store / Dock /
+ * `@wellsfargo-starui/openfin-platform` to bring up Home / Store / Dock /
  * Notifications.
  *
  * Outside OpenFin the component renders a friendly diagnostic so
  * a stray dev-server visit doesn't look broken.
  */
 import { useEffect, useState } from 'react';
-import { initWorkspace } from '@starui/openfin-platform';
+import { initWorkspace } from '@wellsfargo-starui/openfin-platform';
 
 export function Provider() {
   const [status, setStatus] = useState<'idle' | 'initializing' | 'ready' | 'error' | 'not-openfin'>('idle');

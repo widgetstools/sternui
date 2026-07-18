@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import type { ProviderConfig } from '@starui/shared-types';
+import type { ProviderConfig } from '@wellsfargo-starui/shared-types';
 import { DiagnosticsTab } from './DiagnosticsTab.js';
 
 const attach = vi.fn();
 const detach = vi.fn();
 const stop = vi.fn();
 
-vi.mock('@starui/host-data-react/runtime', () => ({
+vi.mock('@wellsfargo-starui/host-data-react/runtime', () => ({
   useDataServices: () => ({
     client: { attach, detach, stop },
   }),
