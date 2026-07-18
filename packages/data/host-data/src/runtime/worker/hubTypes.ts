@@ -9,7 +9,6 @@ import type { ProviderConfig } from '@starui/types';
 import type { ProviderStatus, WireEncoding, AppDataEvent, SubscriberMeta } from '../protocol.js';
 import type { ProviderHandle } from '../providers/Provider.js';
 import type { ConfigManager } from '@starui/host-config';
-import type { ConfigCatalogCache } from '../../hub/ConfigCatalogCache.js';
 
 /**
  * Maximum rows shipped in a single late-join replay `postMessage`.
@@ -202,9 +201,11 @@ export interface SharedWorkerDataServicesHubOpts {
 
   /**
    * Preloaded data-provider catalog. When omitted but `configManager`
-   * is set, the hub constructs one automatically.
+   * is set, the hub constructs a {@link ConfigCatalogService} automatically.
+   * Prefer injecting a service (or cache via {@link asConfigCatalogService}).
    */
-  configCatalog?: ConfigCatalogCache;
+  configCatalog?: import('./ConfigCatalogService.js').ConfigCatalogService
+    | import('../../hub/ConfigCatalogCache.js').ConfigCatalogCache;
 
   /** Tick interval for the stats sampler (default 1000ms). */
   statsIntervalMs?: number;

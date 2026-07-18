@@ -72,9 +72,12 @@ import type {
 import { startProvider } from '../providers/registry.js';
 import { diffTopLevel } from '../wire/rowDiff.js';
 import type { ProviderEmit, ProviderEmitEvent, ProviderHandle } from '../providers/Provider.js';
-import { WorkerAppDataStore } from './WorkerAppDataStore.js';
-import type { ConfigManager } from '@starui/host-config';
-import { AppDataConfigStore, type AppDataConfig } from '../providers/appdata/store.js';
+import { AppDataService } from './AppDataService.js';
+import {
+  asConfigCatalogService,
+  createConfigCatalogService,
+  type ConfigCatalogService,
+} from './ConfigCatalogService.js';
 import { ConfigCatalogCache } from '../../hub/ConfigCatalogCache.js';
 import type { StompProviderConfig } from '@starui/types';
 import {
@@ -107,6 +110,20 @@ import {
 } from './hubHelpers.js';
 import type { FanOutWorkerPool } from './FanOutWorkerPool.js';
 
+function resolveCatalogService(
+  opts: SharedWorkerDataServicesHubOpts,
+): ConfigCatalogService | null {
+  if (opts.configCatalog) {
+    return opts.configCatalog instanceof ConfigCatalogCache
+      ? asConfigCatalogService(opts.configCatalog)
+      : opts.configCatalog;
+  }
+  if (opts.configManager) {
+    return createConfigCatalogService(opts.configManager);
+  }
+  return null;
+}
+
 // Re-exported for back-compat with `worker/index.ts` consumers.
 export type { PortLike, SharedWorkerDataServicesHubOpts } from './hubTypes.js';
 
@@ -123,15 +140,13 @@ export class SharedWorkerDataServicesHub {
   private readonly dataListeners = new Map<string, Map<string, DataListener>>();
   private readonly statsListeners = new Map<string, Map<string, StatsListener>>();
 
-  // ─── AppData state (Steps 2 + worker-persistence) ──────────────
-  // Single authoritative store per hub instance. Listeners are keyed
-  // by subId for direct lookup on detach. The hub also owns the
-  // IndexedDB writer (`appDataStore`); main-thread mirrors send pure
-  // RPC requests for set/upsert/remove and never touch Dexie themselves.
-  private readonly appData = new WorkerAppDataStore();
+  // ─── AppData + Config catalog services (ADR Phase 1) ───────────
+  // Providers and handlers talk only to these façades — never to
+  // WorkerAppDataStore / ConfigCatalogCache / AppDataConfigStore
+  // directly. Wire protocol unchanged.
+  private readonly appData: AppDataService;
+  private readonly configCatalog: ConfigCatalogService | null;
   private readonly appDataListeners = new Map<string, AppDataListenerEntry>();
-  private readonly appDataStore: AppDataConfigStore | null;
-  private readonly configCatalog: ConfigCatalogCache | null;
   private readonly connectedPorts = new Set<PortLike>();
 
   private readonly statsIntervalMs: number;
@@ -166,14 +181,8 @@ export class SharedWorkerDataServicesHub {
       ?? ((cb) => {
         setTimeout(cb, 0);
       });
-    this.appDataStore = opts.configManager ? new AppDataConfigStore(opts.configManager) : null;
-    if (opts.configCatalog) {
-      this.configCatalog = opts.configCatalog;
-    } else if (opts.configManager) {
-      this.configCatalog = new ConfigCatalogCache(opts.configManager);
-    } else {
-      this.configCatalog = null;
-    }
+    this.appData = new AppDataService({ configManager: opts.configManager });
+    this.configCatalog = resolveCatalogService(opts);
 
     // Wire the AppData store to fan deltas to every attached listener.
     // Set up here once; re-attaching listeners doesn't re-subscribe.
@@ -245,7 +254,7 @@ export class SharedWorkerDataServicesHub {
     if (!this.configCatalog) return;
     if (this.configCatalog.isReady()) return;
     try {
-      await this.configCatalog.loadAll();
+      await this.configCatalog.hydrate();
       this.broadcastCatalogEvent({ kind: 'catalog-ready', full: true });
     } catch (err) {
       // Hydration failure is non-fatal — attach with inline cfg still
@@ -255,8 +264,20 @@ export class SharedWorkerDataServicesHub {
     }
   }
 
-  /** Worker-side catalog cache, or null when no ConfigManager was supplied. */
-  getConfigCatalog(): ConfigCatalogCache | null {
+  /**
+   * Hub-internal catalog service (ADR Phase 1). Prefer this over poking
+   * {@link ConfigCatalogCache} directly. Null when no ConfigManager /
+   * catalog was supplied.
+   */
+  getCatalogService(): ConfigCatalogService | null {
+    return this.configCatalog;
+  }
+
+  /**
+   * @deprecated Use {@link getCatalogService}. Returns the same service
+   * (not a raw cache) — kept so older call sites keep compiling.
+   */
+  getConfigCatalog(): ConfigCatalogService | null {
     return this.configCatalog;
   }
 
@@ -346,21 +367,7 @@ export class SharedWorkerDataServicesHub {
    * default).
    */
   async hydrateAppData(userId = 'worker'): Promise<void> {
-    if (!this.appDataStore) return;
-    if (this.appData.isHydrated()) return;
-    let configs: AppDataConfig[];
-    try {
-      configs = await this.appDataStore.list(userId);
-    } catch (err) {
-      // Hydration failure is non-fatal — store stays un-hydrated and
-      // first-attach mirrors send seeds (back-compat path). Log so
-      // operators can see the issue in worker DevTools.
-      // eslint-disable-next-line no-console
-      console.error('[hub] AppData hydrate failed', err);
-      return;
-    }
-    const rows: AppDataRow[] = configs.map(toAppDataRow);
-    this.appData.hydrate(rows);
+    await this.appData.hydrate(userId);
   }
 
   /**
@@ -369,25 +376,7 @@ export class SharedWorkerDataServicesHub {
    * mirror re-attach when the SharedWorker survives a page reload.
    */
   async resyncAppDataFromStore(userId = 'worker'): Promise<void> {
-    if (!this.appDataStore) return;
-    let configs: AppDataConfig[];
-    try {
-      configs = await this.appDataStore.list(userId);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('[hub] AppData resync failed', err);
-      return;
-    }
-    const rows = configs.map(toAppDataRow);
-    const nextIds = new Set(rows.map((row) => row.configId));
-    for (const existing of this.appData.snapshot()) {
-      if (!nextIds.has(existing.configId)) {
-        this.appData.remove(existing.configId);
-      }
-    }
-    for (const row of rows) {
-      this.appData.upsert(row);
-    }
+    await this.appData.resync(userId);
   }
 
   /** Drop every subscription owned by this port. Called on disconnect. */
@@ -907,10 +896,10 @@ export class SharedWorkerDataServicesHub {
     // SharedWorkers survive page reloads. Re-read IndexedDB before
     // serving the snapshot so editor-saved AppData providers appear
     // without requiring a worker restart.
-    if (this.appDataStore && this.appData.isHydrated()) {
-      await this.resyncAppDataFromStore();
+    if (this.appData.hasPersist && this.appData.isHydrated()) {
+      await this.appData.resync();
     } else if (req.seed && !this.appData.isHydrated()) {
-      this.appData.hydrate(req.seed);
+      this.appData.hydrateFromSeed(req.seed);
     }
     this.appDataListeners.set(req.subId, { subId: req.subId, port });
     const event: AppDataEvent = {
@@ -928,17 +917,14 @@ export class SharedWorkerDataServicesHub {
 
   private async handleAppDataSet(port: PortLike, req: AppDataSetRequest): Promise<void> {
     try {
-      // Persist first, in-memory upsert second — if persistence fails,
-      // the in-memory state isn't dirtied and the client gets a
-      // surfaceable error. AppDataConfigStore.save assigns/preserves
-      // configId; we re-read the persisted row so listeners see the
-      // hub's final canonical shape (including any timestamp / ownerUserId
-      // adjustments).
-      const persisted = this.appDataStore
-        ? await this.appDataStore.save(toAppDataConfig(req.row), req.row.userId)
-        : null;
-      const finalRow = persisted ? toAppDataRow(persisted) : req.row;
-      this.appData.upsert(finalRow);
+      // Keep the no-persist path fully synchronous (no `await`) so unit tests
+      // and same-turn attach+set observe delta+ack without a microtask gap —
+      // matching the pre–AppDataService hub behaviour.
+      if (this.appData.hasPersist) {
+        await this.appData.persistUpsert(req.row);
+      } else {
+        this.appData.upsert(req.row);
+      }
       this.ackAppData(port, req.reqId, true);
     } catch (err) {
       this.ackAppData(port, req.reqId, false, err);
@@ -950,11 +936,11 @@ export class SharedWorkerDataServicesHub {
     // a full row. Kept as a separate kind so future API additions
     // (e.g. partial-merge upsert) don't have to overload `set`.
     try {
-      const persisted = this.appDataStore
-        ? await this.appDataStore.save(toAppDataConfig(req.row), req.row.userId)
-        : null;
-      const finalRow = persisted ? toAppDataRow(persisted) : req.row;
-      this.appData.upsert(finalRow);
+      if (this.appData.hasPersist) {
+        await this.appData.persistUpsert(req.row);
+      } else {
+        this.appData.upsert(req.row);
+      }
       this.ackAppData(port, req.reqId, true);
     } catch (err) {
       this.ackAppData(port, req.reqId, false, err);
@@ -963,8 +949,11 @@ export class SharedWorkerDataServicesHub {
 
   private async handleAppDataRemove(port: PortLike, req: AppDataRemoveRequest): Promise<void> {
     try {
-      if (this.appDataStore) await this.appDataStore.remove(req.configId);
-      this.appData.remove(req.configId);
+      if (this.appData.hasPersist) {
+        await this.appData.persistRemove(req.configId);
+      } else {
+        this.appData.remove(req.configId);
+      }
       this.ackAppData(port, req.reqId, true);
     } catch (err) {
       this.ackAppData(port, req.reqId, false, err);
@@ -994,7 +983,7 @@ export class SharedWorkerDataServicesHub {
     traceStompProviderCfg(phase, cfg as StompProviderConfig, {
       providerId,
       extra,
-      lookup: (name, key) => this.appData.get(name, key),
+      lookup: this.appData.lookup,
     });
   }
 
@@ -1057,7 +1046,7 @@ export class SharedWorkerDataServicesHub {
     this.providers.set(providerId, slot);
     try {
       slot.handle = startProvider(cfg, emit, {
-        appDataLookup: (name, key) => this.appData.get(name, key),
+        appDataLookup: this.appData.lookup,
       });
     } catch (err) {
       this.providers.delete(providerId);
@@ -1964,30 +1953,21 @@ function zeroedStats(): ProviderStats {
   };
 }
 
-// ─── AppData row ↔ config bridges ──────────────────────────────────
-// Wire-shape `AppDataRow` and persistence-shape `AppDataConfig` carry
-// the same data; the hub speaks both since it sits between the wire
-// (rows in/out via postMessage) and IndexedDB (configs in/out via
-// AppDataConfigStore).
-
-function toAppDataConfig(r: AppDataRow): AppDataConfig {
+function emptyProviderStats(): ProviderStats {
   return {
-    configId: r.configId,
-    name: r.name,
-    description: r.description,
-    isPublic: r.isPublic,
-    values: r.values,
-    userId: r.userId,
-  };
-}
-
-function toAppDataRow(c: AppDataConfig): AppDataRow {
-  return {
-    configId: c.configId,
-    name: c.name,
-    description: c.description,
-    isPublic: c.isPublic,
-    values: c.values,
-    userId: c.userId,
+    rowCount: 0,
+    byteCount: 0,
+    cacheBytes: 0,
+    msgCount: 0,
+    msgPerSec: 0,
+    publishPerSec: 0,
+    publishPerMin: 0,
+    snapshotFetchMs: null,
+    restartRequestMs: null,
+    firstMessageMs: null,
+    subscriberCount: 0,
+    startedAt: 0,
+    lastMessageAt: null,
+    errorCount: 0,
   };
 }
