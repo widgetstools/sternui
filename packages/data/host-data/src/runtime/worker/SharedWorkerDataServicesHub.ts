@@ -156,6 +156,7 @@ export class SharedWorkerDataServicesHub {
   private readonly fanOutMinListeners: number;
   private readonly deferLiveFanOut: boolean;
   private readonly scheduleTask: (cb: () => void) => void;
+  private readonly appDataLookupOverride: import('../template/resolver.js').AppDataLookup | null;
   private statsTimer: unknown = null;
   private subscriberSweepTimer: unknown = null;
 
@@ -181,6 +182,7 @@ export class SharedWorkerDataServicesHub {
       ?? ((cb) => {
         setTimeout(cb, 0);
       });
+    this.appDataLookupOverride = opts.appDataLookup ?? null;
     this.appData = new AppDataService({ configManager: opts.configManager });
     this.configCatalog = resolveCatalogService(opts);
 
@@ -983,7 +985,7 @@ export class SharedWorkerDataServicesHub {
     traceStompProviderCfg(phase, cfg as StompProviderConfig, {
       providerId,
       extra,
-      lookup: this.appData.lookup,
+      lookup: this.appDataLookupOverride ?? this.appData.lookup,
     });
   }
 
@@ -1046,7 +1048,7 @@ export class SharedWorkerDataServicesHub {
     this.providers.set(providerId, slot);
     try {
       slot.handle = startProvider(cfg, emit, {
-        appDataLookup: this.appData.lookup,
+        appDataLookup: this.appDataLookupOverride ?? this.appData.lookup,
       });
     } catch (err) {
       this.providers.delete(providerId);

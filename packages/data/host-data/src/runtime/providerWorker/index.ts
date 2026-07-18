@@ -30,3 +30,11 @@ export {
   _resetProviderClientsForTests,
   type CreateProviderClientOpts,
 } from './createProviderClient.js';
+
+export {
+  ProviderAppDataLookupCache,
+  createProviderAppDataLookupCache,
+  type AsyncAppDataLookup,
+} from './providerAppDataLookupCache.js';
+
+export { resolveProviderConfigFromConfigClient } from './providerConfigBridge.js';

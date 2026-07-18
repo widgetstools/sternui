@@ -200,6 +200,13 @@ export interface SharedWorkerDataServicesHubOpts {
   configManager?: ConfigManager;
 
   /**
+   * Override sync `{{name.key}}` lookup for provider start/restart
+   * (ADR Phase 4b — provider SW AppData cache). When omitted, uses
+   * the hub's in-process {@link AppDataService.lookup}.
+   */
+  appDataLookup?: import('../template/resolver.js').AppDataLookup;
+
+  /**
    * Preloaded data-provider catalog. When omitted but `configManager`
    * is set, the hub constructs a {@link ConfigCatalogService} automatically.
    * Prefer injecting a service (or cache via {@link asConfigCatalogService}).
