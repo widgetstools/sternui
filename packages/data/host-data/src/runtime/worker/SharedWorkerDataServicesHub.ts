@@ -107,8 +107,8 @@ import {
   keyOf,
   restartClickLatency,
   restartExtrasEqual,
+  providerCfgsEqual,
 } from './hubHelpers.js';
-import type { FanOutWorkerPool } from './FanOutWorkerPool.js';
 
 function resolveCatalogService(
   opts: SharedWorkerDataServicesHubOpts,
@@ -152,8 +152,6 @@ export class SharedWorkerDataServicesHub {
   private readonly statsIntervalMs: number;
   private readonly setTimer: (cb: () => void, ms: number) => unknown;
   private readonly clearTimer: (handle: unknown) => void;
-  private readonly fanOutPool: FanOutWorkerPool | null;
-  private readonly fanOutMinListeners: number;
   private readonly deferLiveFanOut: boolean;
   private readonly scheduleTask: (cb: () => void) => void;
   private readonly appDataLookupOverride: import('../template/resolver.js').AppDataLookup | null;
@@ -177,8 +175,6 @@ export class SharedWorkerDataServicesHub {
     this.statsIntervalMs = opts.statsIntervalMs ?? 1000;
     this.setTimer = opts.setTimer ?? ((cb, ms) => setInterval(cb, ms));
     this.clearTimer = opts.clearTimer ?? ((h) => clearInterval(h as ReturnType<typeof setInterval>));
-    this.fanOutPool = opts.fanOutPool ?? null;
-    this.fanOutMinListeners = opts.fanOutMinListeners ?? 1;
     this.deferLiveFanOut = opts.deferLiveFanOut === true;
     this.scheduleTask = opts.scheduleTask
       ?? ((cb) => {
@@ -424,7 +420,6 @@ export class SharedWorkerDataServicesHub {
 
   /** Drop every subscription owned by this port. Called on disconnect. */
   onPortClosed(port: PortLike): void {
-    this.releaseFanOutWorker(port);
     try {
       port.dispose?.();
     } catch {
@@ -472,7 +467,6 @@ export class SharedWorkerDataServicesHub {
       this.subscriberSweepTimer = null;
     }
     this.maybeStopStatsSampler();
-    this.fanOutPool?.dispose();
   }
 
   // ─── Request handlers ──────────────────────────────────────────
@@ -655,15 +649,30 @@ export class SharedWorkerDataServicesHub {
         slot.activeRestartExtra = req.extra;
       }
     } else if (req.extra) {
-      // Existing provider + restart payload. When the caller supplies a
-      // cfg (the provider editor's Restart button always sends the current
-      // draft), the connection / column / behaviour settings may have been
-      // edited since the slot was created — the running provider captured
-      // the OLD cfg, so a plain restart() would reconnect with stale
-      // values. Rebuild the slot from the new cfg first. Normal grid
-      // subscribers omit cfg and just get a plain restart(extra) (e.g. the
-      // historical `asOfDate` overlay), which keeps the existing config.
-      if (req.cfg) {
+      // Late-join FIRST when the stable overlay matches (rowShape / asOfDate).
+      // Catalog grids often re-send cfg + a fresh `__refresh` because
+      // monolith `isProviderRunning` is blind under provider-SW demux —
+      // matching overlay must not tear down STOMP for settled peers.
+      //
+      // Ready cache + matching overlay wins even when catalog cfg JSON
+      // differs (main-thread vs worker hydrate) — peer blotters must not
+      // RESTART+RECONFIG a live 20k snapshot.
+      const overlayMatches = restartExtrasEqual(slot.activeRestartExtra, req.extra);
+      const cfgChanged = Boolean(req.cfg && !providerCfgsEqual(slot.cfg, req.cfg));
+      const lateJoin =
+        overlayMatches && (!cfgChanged || slot.snapshotReady || slot.cache.size > 0);
+
+      if (lateJoin) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[v2/hub][trace] attach LATE-JOIN provider=${req.providerId} subId=${req.subId} ` +
+            `cacheSize=${slot.cache.size} status=${slot.status} cfgNoise=${cfgChanged}`,
+        );
+        if (slot.activeRestartExtra == null) {
+          slot.activeRestartExtra = req.extra;
+        }
+      } else if (cfgChanged && req.cfg) {
+        // Editor draft / reconnect with edited settings.
         this.traceStompAttachCfg('hub.attach RESTART+RECONFIG (running provider)', req.providerId, req.cfg, req.extra);
         // eslint-disable-next-line no-console
         console.log(`[v2/hub][trace] attach RESTART+RECONFIG provider=${req.providerId} extra=${JSON.stringify(req.extra)} ${restartClickLatency(req.extra)}`);
@@ -671,20 +680,20 @@ export class SharedWorkerDataServicesHub {
         void slot.handle.restart(req.extra);
         slot.activeRestartExtra = req.extra;
         isRestartAttach = true;
-      } else if (!restartExtrasEqual(slot.activeRestartExtra, req.extra)) {
+      } else {
         this.traceStompAttachCfg('hub.attach RESTART (running provider)', req.providerId, slot.cfg, req.extra);
         // eslint-disable-next-line no-console
         console.log(`[v2/hub][trace] attach RESTART provider=${req.providerId} extra=${JSON.stringify(req.extra)} ${restartClickLatency(req.extra)}`);
         void slot.handle.restart(req.extra);
         slot.activeRestartExtra = req.extra;
         isRestartAttach = true;
-      } else {
-        // eslint-disable-next-line no-console
-        if (DEBUG) console.log(`[v2/hub] attach LATE-JOINER (same extra) subId=${req.subId} provider=${req.providerId} cacheSize=${slot.cache.size} status=${slot.status}`);
       }
     } else {
       // eslint-disable-next-line no-console
-      if (DEBUG) console.log(`[v2/hub] attach LATE-JOINER subId=${req.subId} provider=${req.providerId} cacheSize=${slot.cache.size} status=${slot.status}`);
+      console.log(
+        `[v2/hub][trace] attach LATE-JOIN (no extra) provider=${req.providerId} subId=${req.subId} ` +
+          `cacheSize=${slot.cache.size} status=${slot.status}`,
+      );
     }
 
     if (req.mode === 'data') {
@@ -694,11 +703,9 @@ export class SharedWorkerDataServicesHub {
     } else {
       this.attachStatsListener(req.providerId, req.subId, port);
     }
-    this.maybeActivateFanOutWorker(req.subId, port);
   }
 
   private handleDetach(req: DetachRequest): void {
-    this.maybeReleaseFanOutWorker(req.subId);
     const removed = this.removeSubscriber(req.subId);
     if (removed.providerId) this.maybeStopProviderIfIdle(removed.providerId);
   }
@@ -838,27 +845,8 @@ export class SharedWorkerDataServicesHub {
         /* port already dead */
       }
     }
-    this.maybeReleaseFanOutWorker(subId);
     const removed = this.removeSubscriber(subId);
     return removed.providerId;
-  }
-
-  private maybeActivateFanOutWorker(subId: string, port: PortLike): void {
-    const clientId = port.fanOutClientId;
-    if (!clientId || !this.fanOutPool) return;
-    this.fanOutPool.unregisterSubscriber(subId);
-    this.fanOutPool.activateSubscriber(subId, clientId);
-  }
-
-  private maybeReleaseFanOutWorker(subId: string): void {
-    if (!this.fanOutPool) return;
-    this.fanOutPool.unregisterSubscriber(subId);
-  }
-
-  private releaseFanOutWorker(port: PortLike): void {
-    const clientId = port.fanOutClientId;
-    if (!clientId || !this.fanOutPool) return;
-    this.fanOutPool.unregisterClient(clientId);
   }
 
   private pingTimeoutMs(l: DataListener | StatsListener): number {
@@ -1529,9 +1517,11 @@ export class SharedWorkerDataServicesHub {
    * graph walk per subscriber, which is what made simultaneous
    * multi-window attaches GC-storm the worker.
    *
-   * While replay runs, post-ready live fan-out is deferred (see
-   * {@link broadcastLiveBatch}) so ticks cannot interleave with chunks
-   * or starve the attach path (ADR Phase 0).
+   * Multi-chunk replays **yield between chunks** so STOMP parse, pings,
+   * and other port traffic can run on this SharedWorker — without that,
+   * a 20k-row late-join (40× sync `postMessage`) starved the provider SW
+   * and froze OpenFin tool-window opens. Live fan-out stays deferred for
+   * the whole replay (ADR Phase 0).
    */
   private replayCacheToPort(
     subId: string,
@@ -1539,15 +1529,50 @@ export class SharedWorkerDataServicesHub {
     slot: ProviderSlot,
     mode: 'attach' | 'refresh',
   ): void {
+    const chunks = slot.cache.size === 0 ? null : this.ensureReplaySnapshot(slot);
+    const multiChunk = Boolean(chunks && chunks.length > 1);
+
     this.replayDepth += 1;
-    try {
-      this.replayCacheToPortBody(subId, port, slot, mode);
-    } finally {
-      this.replayDepth -= 1;
-      if (this.replayDepth === 0) {
-        this.flushPendingLive();
+    if (!multiChunk) {
+      try {
+        this.replayCacheToPortBody(subId, port, slot, mode, chunks);
+      } finally {
+        this.finishReplay();
       }
+      return;
     }
+
+    void this.replayCacheToPortBodyAsync(subId, port, slot, mode, chunks!)
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error(`[v2/hub] late-join replay failed subId=${subId}`, err);
+        try {
+          port.postMessage({
+            subId,
+            kind: 'status',
+            status: 'error',
+            error: err instanceof Error ? err.message : String(err),
+          } satisfies Event);
+        } catch {
+          /* port dead */
+        }
+      })
+      .finally(() => {
+        this.finishReplay();
+      });
+  }
+
+  private finishReplay(): void {
+    this.replayDepth -= 1;
+    if (this.replayDepth === 0) {
+      this.flushPendingLive();
+    }
+  }
+
+  private yieldHubTurn(): Promise<void> {
+    return new Promise((resolve) => {
+      this.scheduleTask(() => resolve());
+    });
   }
 
   private replayCacheToPortBody(
@@ -1555,6 +1580,7 @@ export class SharedWorkerDataServicesHub {
     port: PortLike,
     slot: ProviderSlot,
     mode: 'attach' | 'refresh',
+    chunks: readonly EncodedChunk[] | null,
   ): void {
     // eslint-disable-next-line no-console
     if (DEBUG) console.log(
@@ -1563,11 +1589,10 @@ export class SharedWorkerDataServicesHub {
       } chunk(s), status=${slot.status}`,
     );
     port.postMessage({ subId, kind: 'status', status: 'loading' } satisfies Event);
-    if (slot.cache.size === 0) {
+    if (!chunks || chunks.length === 0) {
       port.postMessage({ subId, kind: 'delta', rows: [], replace: true } satisfies Event);
       this.recordPublish(slot, 1);
     } else {
-      const chunks = this.ensureReplaySnapshot(slot);
       for (let i = 0; i < chunks.length; i++) {
         port.postMessage({
           subId,
@@ -1579,20 +1604,63 @@ export class SharedWorkerDataServicesHub {
         this.recordPublish(slot, 1);
       }
     }
+    this.emitReplayReady(subId, port, slot, mode);
+  }
+
+  private async replayCacheToPortBodyAsync(
+    subId: string,
+    port: PortLike,
+    slot: ProviderSlot,
+    mode: 'attach' | 'refresh',
+    chunks: readonly EncodedChunk[],
+  ): Promise<void> {
+    // eslint-disable-next-line no-console
+    if (DEBUG) console.log(
+      `[v2/hub] → subId=${subId}: async replay rows=${slot.cache.size} in ${chunks.length} chunk(s)`,
+    );
+    port.postMessage({ subId, kind: 'status', status: 'loading' } satisfies Event);
+    for (let i = 0; i < chunks.length; i++) {
+      if (!this.hasDataSubscriber(subId)) return;
+      port.postMessage({
+        subId,
+        kind: 'delta-bin',
+        buf: chunks[i].buf,
+        enc: chunks[i].enc,
+        replace: i === 0,
+      } satisfies Event);
+      this.recordPublish(slot, 1);
+      if (i + 1 < chunks.length) {
+        await this.yieldHubTurn();
+      }
+    }
+    if (!this.hasDataSubscriber(subId)) return;
+    this.emitReplayReady(subId, port, slot, mode);
+  }
+
+  private hasDataSubscriber(subId: string): boolean {
+    for (const listeners of this.dataListeners.values()) {
+      if (listeners.has(subId)) return true;
+    }
+    return false;
+  }
+
+  private emitReplayReady(
+    subId: string,
+    port: PortLike,
+    slot: ProviderSlot,
+    mode: 'attach' | 'refresh',
+  ): void {
     // Refresh always ends with `ready` so the busy overlay clears. Attach
     // replay on an empty cache must NOT settle the client snapshot — the
     // upstream provider still owes rows + ready.
     const emitReady = mode === 'refresh' || slot.cache.size > 0;
-    if (emitReady) {
-      port.postMessage({
-        subId,
-        kind: 'status',
-        // Replay succeeded — surface `ready` so the grid clears any stale
-        // banner even if the upstream transport is still recovering.
-        status: 'ready',
-        error: undefined,
-      } satisfies Event);
-    }
+    if (!emitReady) return;
+    port.postMessage({
+      subId,
+      kind: 'status',
+      status: 'ready',
+      error: undefined,
+    } satisfies Event);
   }
 
   /**
@@ -1712,7 +1780,6 @@ export class SharedWorkerDataServicesHub {
     const listeners = this.dataListeners.get(providerId);
     if (!listeners) return;
     for (const subId of deadSubIds) {
-      this.maybeReleaseFanOutWorker(subId);
       listeners.delete(subId);
     }
     if (listeners.size === 0) this.dataListeners.delete(providerId);
@@ -1724,7 +1791,6 @@ export class SharedWorkerDataServicesHub {
     const listeners = this.statsListeners.get(providerId);
     if (!listeners) return;
     for (const subId of deadSubIds) {
-      this.maybeReleaseFanOutWorker(subId);
       listeners.delete(subId);
     }
     if (listeners.size === 0) {
@@ -1754,12 +1820,6 @@ export class SharedWorkerDataServicesHub {
         console.log(`[v2/hub] broadcast provider=${providerId} kind=status status=${tpl.status}${tpl.error ? ' error=' + JSON.stringify(tpl.error) : ''} → ${listeners.size} listener(s)`);
       }
     }
-    if (this.fanOutBroadcastListeners(providerId, listeners, eventTemplate, (dead, live) => {
-      this.pruneDeadDataListeners(providerId, dead);
-      if (countPublish && live > 0) this.recordPublish(slot, live);
-    })) {
-      return;
-    }
     const dead: string[] = [];
     let live = 0;
     for (const l of listeners.values()) {
@@ -1771,93 +1831,6 @@ export class SharedWorkerDataServicesHub {
     }
     this.pruneDeadDataListeners(providerId, dead);
     if (countPublish && live > 0) this.recordPublish(slot, live);
-  }
-
-  /**
-   * Route a broadcast through the fan-out worker pool when enough pooled
-   * listeners exist. Returns true when the pool owns delivery (async).
-   * On pool failure, falls back to inline delivery for pooled targets
-   * only — never re-broadcasts to listeners that already received.
-   *
-   * Binary wire frames and stats always post directly from the hub.
-   */
-  private fanOutBroadcastListeners<L extends { subId: string; port: PortLike }>(
-    _providerId: string,
-    listeners: Map<string, L>,
-    eventTemplate: Event,
-    onDone: (deadSubIds: string[], liveCount: number) => void,
-  ): boolean {
-    if (this.bypassesFanOutWorker(eventTemplate)) return false;
-
-    const pool = this.fanOutPool;
-    if (!pool || listeners.size < this.fanOutMinListeners) return false;
-
-    const pooled: Array<{ clientId: string; subId: string }> = [];
-    const pooledListeners = new Map<string, L>();
-    const inline: L[] = [];
-    for (const l of listeners.values()) {
-      const clientId = l.port.fanOutClientId;
-      if (clientId && pool.isActive(l.subId)) {
-        pooled.push({ clientId, subId: l.subId });
-        pooledListeners.set(l.subId, l);
-      } else {
-        inline.push(l);
-      }
-    }
-    if (pooled.length < this.fanOutMinListeners) return false;
-
-    const deliverInline = () => {
-      const dead: string[] = [];
-      let live = 0;
-      for (const l of inline) {
-        if (this.postDataEvent(l, eventTemplate)) live += 1;
-        else dead.push(l.subId);
-      }
-      return { dead, live };
-    };
-
-    const deliverPooledInline = (subIds: ReadonlySet<string>) => {
-      const dead: string[] = [];
-      let live = 0;
-      for (const subId of subIds) {
-        const l = pooledListeners.get(subId);
-        if (!l) continue;
-        if (this.postDataEvent(l, eventTemplate)) live += 1;
-        else dead.push(subId);
-      }
-      return { dead, live };
-    };
-
-    void pool.broadcast(pooled, eventTemplate)
-      .then((deadSubIds) => {
-        const extra = deliverInline();
-        const failedPooled = new Set(deadSubIds);
-        const fallback = failedPooled.size > 0
-          ? deliverPooledInline(failedPooled)
-          : { dead: [] as string[], live: 0 };
-        const poolLive = pooled.length - deadSubIds.length;
-        onDone(
-          [...extra.dead, ...fallback.dead],
-          poolLive + fallback.live + extra.live,
-        );
-      })
-      .catch(() => {
-        const pooledSubIds = new Set(pooled.map((item) => item.subId));
-        const extra = deliverInline();
-        const fallback = deliverPooledInline(pooledSubIds);
-        onDone(
-          [...extra.dead, ...fallback.dead],
-          extra.live + fallback.live,
-        );
-      });
-    return true;
-  }
-
-  /** Frames that post directly from the hub (skip fan-out workers). */
-  private bypassesFanOutWorker(event: Event): boolean {
-    if (event.kind === 'delta-bin') return true;
-    if (event.kind === 'stats') return true;
-    return event.kind === 'delta-patch' && event.buf !== undefined;
   }
 
   /** Count one fan-out delta post to a data subscriber (post-snapshot only). */
@@ -1898,12 +1871,6 @@ export class SharedWorkerDataServicesHub {
     listeners: Map<string, StatsListener>,
     stats: ProviderStats,
   ): void {
-    const eventTemplate = { kind: 'stats' as const, stats, subId: '' };
-    if (this.fanOutBroadcastListeners(providerId, listeners, eventTemplate, (dead) => {
-      this.pruneDeadStatsListeners(providerId, dead);
-    })) {
-      return;
-    }
     const dead: string[] = [];
     for (const l of listeners.values()) {
       try {

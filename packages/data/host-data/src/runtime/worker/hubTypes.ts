@@ -60,11 +60,9 @@ export const SUBSCRIBER_SWEEP_INTERVAL_MS = 10_000;
  */
 export interface PortLike {
   postMessage(message: unknown): void;
-  /** Set when a {@link FanOutWorkerPool} proxy owns the underlying port. */
-  fanOutClientId?: string;
   /**
-   * Optional teardown for raw `MessagePort` listeners (inline fan-out
-   * path). Called from {@link SharedWorkerDataServicesHub.onPortClosed}.
+   * Optional teardown for raw `MessagePort` listeners. Called from
+   * {@link SharedWorkerDataServicesHub.onPortClosed}.
    */
   dispose?: () => void;
 }
@@ -220,19 +218,6 @@ export interface SharedWorkerDataServicesHubOpts {
   setTimer?: (cb: () => void, ms: number) => unknown;
   /** Inject the timer cancel for tests. Default: clearInterval. */
   clearTimer?: (handle: unknown) => void;
-
-  /**
-   * Optional fan-out worker pool — parallelizes data/stats broadcast
-   * postMessage loops across dedicated workers. Created by
-   * `installSharedWorkerHub` in production; omit in unit tests.
-   */
-  fanOutPool?: import('./FanOutWorkerPool.js').FanOutWorkerPool | null;
-
-  /**
-   * Minimum data/stats listeners before routing broadcast through the
-   * fan-out pool (default 1 — one worker per connected subscriber).
-   */
-  fanOutMinListeners?: number;
 
   /**
    * When true (production default via {@link installSharedWorkerHub}),

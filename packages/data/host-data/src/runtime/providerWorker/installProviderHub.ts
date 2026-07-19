@@ -28,13 +28,17 @@ export interface InstallProviderHubOpts extends Omit<ProviderHubOpts, 'providerI
 
 export interface InstalledProviderWorker {
   hub: ProviderHub;
+  /** Stop accepting new ports, dispose the Hub. Used by tests. */
   stop(): Promise<void>;
 }
 
 export async function installProviderHub(
   opts: InstallProviderHubOpts,
 ): Promise<InstalledProviderWorker> {
-  const hub = new ProviderHub(opts);
+  const hub = new ProviderHub({
+    ...opts,
+    deferLiveFanOut: opts.deferLiveFanOut ?? true,
+  });
 
   const globalRef = (opts.selfRef ?? globalThis) as
     Partial<SharedWorkerLike> & Partial<DedicatedWorkerLike>;
@@ -43,12 +47,13 @@ export async function installProviderHub(
   let attachPort: ((port: MessagePort) => void) | null = null;
 
   const attach = (port: MessagePort) => {
+    let portLike: PortLike;
     const onMessage = (ev: MessageEvent) => {
       if (!isProviderHubRequest(ev.data)) return;
       hub.handleRequest(portLike, ev.data);
     };
     const onError = () => hub.onPortClosed(portLike);
-    const portLike: PortLike = {
+    portLike = {
       postMessage: (m) => port.postMessage(m),
       dispose: () => {
         try {

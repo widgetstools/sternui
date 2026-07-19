@@ -31,6 +31,7 @@ import { decodeColumnar } from '../wire/columnarCodec';
 import type { ProviderConfig } from '@wellsfargo-starui/types';
 import type { ConfigManager, AppConfigRow } from '@wellsfargo-starui/host-config';
 import {
+  LATE_JOIN_CHUNK_SIZE,
   SUBSCRIBER_PING_TIMEOUT_MS,
   SUBSCRIBER_SWEEP_INTERVAL_MS,
 } from './hubTypes.js';
@@ -70,6 +71,13 @@ function rowsOf(m: Event): unknown[] | null {
 const isAnyDelta = (m: Event): boolean => m.kind === 'delta' || m.kind === 'delta-bin';
 const isReplaceDelta = (m: Event): boolean =>
   isAnyDelta(m) && Boolean((m as { replace?: boolean }).replace);
+
+/** Drain default `setTimeout(0)` yields used by multi-chunk late-join replay. */
+async function drainAsyncReplay(turns = 24): Promise<void> {
+  for (let i = 0; i < turns; i++) {
+    await new Promise<void>((r) => setTimeout(r, 0));
+  }
+}
 
 interface FakeTimers {
   set: (cb: () => void, ms: number) => unknown;
@@ -243,6 +251,204 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
     expect(replaceB).toBeTruthy();
   });
 
+  it('late-joins a peer when the first window cold-started with __refresh + rowShape', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const portA = makePort();
+    const portB = makePort();
+    hub.handleRequest(portA, {
+      kind: 'attach',
+      subId: 'sA',
+      providerId: 'p1',
+      mode: 'data',
+      cfg: cfg(),
+      // Matches MarketsGrid cold-start: rowShape + __refresh cache-buster.
+      extra: { rowShape: 'csrm', __refresh: 1 },
+    });
+    const ctrl = controllers.get('default')!;
+    expect(ctrl.restartLog).toEqual([{ rowShape: 'csrm', __refresh: 1 }]);
+    ctrl.emit({ status: 'ready' });
+    // Settle peer A so a spurious broadcast loading would be observable.
+    portA.messages.length = 0;
+
+    hub.handleRequest(portB, {
+      kind: 'attach',
+      subId: 'sB',
+      providerId: 'p1',
+      mode: 'data',
+      // Peer blotter: same stable overlay, no __refresh (provider already running).
+      extra: { rowShape: 'csrm' },
+    });
+
+    expect(ctrl.restartLog).toEqual([{ rowShape: 'csrm', __refresh: 1 }]);
+    const loadingOnA = portA.messages.filter(
+      (m) => m.kind === 'status' && (m as { status?: string }).status === 'loading',
+    );
+    expect(loadingOnA).toHaveLength(0);
+    expect(portB.messages.find(isReplaceDelta)).toBeTruthy();
+  });
+
+  it('late-joins a peer after cfg-only cold start (null activeRestartExtra) without restarting STOMP', () => {
+    // Regression for settled blotter "Refreshing… / Replaying cached snapshot…"
+    // when a peer opens: first window sometimes recorded no overlay, so
+    // restartExtrasEqual(null, {rowShape}) used to force RESTART.
+    const hub = new SharedWorkerDataServicesHub();
+    const portA = makePort();
+    const portB = makePort();
+    hub.handleRequest(portA, {
+      kind: 'attach',
+      subId: 'sA',
+      providerId: 'p1',
+      mode: 'data',
+      cfg: cfg(),
+      // No extra — activeRestartExtra stays null on the slot.
+    });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({
+      rows: Array.from({ length: 50 }, (_, i) => ({ id: `r${i}` })),
+      replace: true,
+    });
+    ctrl.emit({ status: 'ready' });
+    portA.messages.length = 0;
+
+    hub.handleRequest(portB, {
+      kind: 'attach',
+      subId: 'sB',
+      providerId: 'p1',
+      mode: 'data',
+      cfg: { ...cfg(), __catalogNoise: true } as unknown as ProviderConfig,
+      extra: { rowShape: 'csrm', __refresh: Date.now() },
+    });
+
+    expect(ctrl.restartLog).toEqual([]);
+    expect(
+      portA.messages.filter(
+        (m) => m.kind === 'status' && (m as { status?: string }).status === 'loading',
+      ),
+    ).toHaveLength(0);
+    expect(portB.messages.find(isReplaceDelta)).toBeTruthy();
+  });
+
+  it('late-joins when peer stamps a fresh __refresh but stable rowShape matches', () => {
+    // Demux blind spot: every window used to add __refresh because monolith
+    // isProviderRunning was false — must still late-join on stable overlay.
+    const hub = new SharedWorkerDataServicesHub();
+    const portA = makePort();
+    const portB = makePort();
+    hub.handleRequest(portA, {
+      kind: 'attach',
+      subId: 'sA',
+      providerId: 'p1',
+      mode: 'data',
+      cfg: cfg(),
+      extra: { rowShape: 'csrm', __refresh: 1 },
+    });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ status: 'ready' });
+    portA.messages.length = 0;
+
+    hub.handleRequest(portB, {
+      kind: 'attach',
+      subId: 'sB',
+      providerId: 'p1',
+      mode: 'data',
+      cfg: cfg(),
+      extra: { rowShape: 'csrm', __refresh: 2 },
+    });
+
+    expect(ctrl.restartLog).toEqual([{ rowShape: 'csrm', __refresh: 1 }]);
+    expect(
+      portA.messages.filter(
+        (m) => m.kind === 'status' && (m as { status?: string }).status === 'loading',
+      ),
+    ).toHaveLength(0);
+  });
+
+  it('yields between multi-chunk late-join replays so the hub turn can interleave', async () => {
+    const scheduled: Array<() => void> = [];
+    const hub = new SharedWorkerDataServicesHub({
+      scheduleTask: (cb) => {
+        scheduled.push(cb);
+      },
+    });
+    const portA = makePort();
+    const portB = makePort();
+    hub.handleRequest(portA, {
+      kind: 'attach',
+      subId: 'sA',
+      providerId: 'p1',
+      mode: 'data',
+      cfg: cfg(),
+      extra: { rowShape: 'csrm' },
+    });
+    const ctrl = controllers.get('default')!;
+    const rows = Array.from({ length: LATE_JOIN_CHUNK_SIZE + 10 }, (_, i) => ({ id: `r${i}` }));
+    ctrl.emit({ rows, replace: true });
+    ctrl.emit({ status: 'ready' });
+
+    hub.handleRequest(portB, {
+      kind: 'attach',
+      subId: 'sB',
+      providerId: 'p1',
+      mode: 'data',
+      extra: { rowShape: 'csrm' },
+    });
+
+    // First chunk posts synchronously; remaining chunks wait on scheduleTask.
+    expect(portB.messages.some(isReplaceDelta)).toBe(true);
+    expect(portB.messages.some((m) => m.kind === 'status' && (m as { status?: string }).status === 'ready')).toBe(false);
+    expect(scheduled.length).toBeGreaterThan(0);
+
+    // Drain yields + microtasks until ready (async replay resumes after resolve()).
+    for (let i = 0; i < 40; i++) {
+      if (portB.messages.some((m) => m.kind === 'status' && (m as { status?: string }).status === 'ready')) break;
+      const batch = scheduled.splice(0, scheduled.length);
+      for (const cb of batch) cb();
+      await Promise.resolve();
+      await Promise.resolve();
+    }
+    expect(portB.messages.some((m) => m.kind === 'status' && (m as { status?: string }).status === 'ready')).toBe(true);
+    const allRows = portB.messages.filter(isAnyDelta).flatMap((m) => rowsOf(m) ?? []);
+    expect(allRows).toHaveLength(rows.length);
+  });
+
+  it('late-joins even when the peer re-sends the same catalog cfg with matching rowShape', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const portA = makePort();
+    const portB = makePort();
+    const providerCfg = cfg();
+    hub.handleRequest(portA, {
+      kind: 'attach',
+      subId: 'sA',
+      providerId: 'p1',
+      mode: 'data',
+      cfg: providerCfg,
+      extra: { rowShape: 'csrm', __refresh: 1 },
+    });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ status: 'ready' });
+    const stopBefore = ctrl.stopCount;
+    portA.messages.length = 0;
+
+    // Realistic ProviderClientAdapter.restart before cfg-free fix: same cfg + stable extra.
+    hub.handleRequest(portB, {
+      kind: 'attach',
+      subId: 'sB',
+      providerId: 'p1',
+      mode: 'data',
+      cfg: providerCfg,
+      extra: { rowShape: 'csrm' },
+    });
+
+    expect(ctrl.stopCount).toBe(stopBefore);
+    expect(ctrl.restartLog).toEqual([{ rowShape: 'csrm', __refresh: 1 }]);
+    expect(
+      portA.messages.filter(
+        (m) => m.kind === 'status' && (m as { status?: string }).status === 'loading',
+      ),
+    ).toHaveLength(0);
+    expect(portB.messages.find(isReplaceDelta)).toBeTruthy();
+  });
+
   it('rebuilds the slot from a new cfg when a running provider is restarted with cfg (editor reconnect)', () => {
     const hub = new SharedWorkerDataServicesHub();
     const port = makePort();
@@ -252,7 +458,7 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
     expect(v1.stopCount).toBe(0);
 
     // Editor edits the connection settings and hits Restart: the attach
-    // carries the NEW cfg plus a __refresh extra. The old slot is torn
+    // carries the NEW cfg plus a `__reload` force flag. The old slot is torn
     // down and a fresh provider is built from the new cfg, so the
     // reconnect uses the latest values rather than the stale ones.
     hub.handleRequest(port, {
@@ -261,13 +467,13 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
       providerId: 'p1',
       mode: 'data',
       cfg: cfg('v2'),
-      extra: { __refresh: 1 },
+      extra: { __reload: 1 },
     });
 
     expect(v1.stopCount).toBe(1);
     const v2 = controllers.get('v2')!;
     expect(v2).toBeTruthy();
-    expect(v2.restartLog).toEqual([{ __refresh: 1 }]);
+    expect(v2.restartLog).toEqual([{ __reload: 1 }]);
   });
 
   it('peer windows receive the loading status when one window restarts with a new cfg (RESTART+RECONFIG)', () => {
@@ -295,7 +501,7 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
     peer.messages.length = 0;
 
     // Window 1's adapter restarts: detach old sub, re-attach with the
-    // current cfg + a __refresh extra (the editor/diagnostics flow).
+    // current cfg + `__reload` (editor/diagnostics intentional reconnect).
     hub.handleRequest(clicker, { kind: 'detach', subId: 's1' });
     hub.handleRequest(clicker, {
       kind: 'attach',
@@ -303,7 +509,7 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
       providerId: 'p1',
       mode: 'data',
       cfg: cfg('v2'),
-      extra: { __refresh: 1 },
+      extra: { __reload: 1 },
     });
 
     // The peer must see the refresh begin...
@@ -352,7 +558,7 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
       subId: 's2',
       providerId: 'p1',
       mode: 'data',
-      extra: { __refresh: 1 },
+      extra: { __reload: 1 },
     });
 
     const deltasB = portB.messages.filter(isAnyDelta);
@@ -629,10 +835,11 @@ describe('SharedWorkerDataServicesHub — snapshot replay memoization', () => {
     return { hub, ctrl };
   }
 
-  it('replays the cache as pre-encoded delta-bin chunks of ≤500 rows, first chunk replace=true', () => {
+  it('replays the cache as pre-encoded delta-bin chunks of ≤500 rows, first chunk replace=true', async () => {
     const { hub } = readyHub(1200);
     const port = makePort();
     hub.handleRequest(port, { kind: 'attach', subId: 'late', providerId: 'p1', mode: 'data' });
+    await drainAsyncReplay();
 
     const chunks = binChunks(port);
     expect(chunks).toHaveLength(3); // 500 + 500 + 200
@@ -645,12 +852,13 @@ describe('SharedWorkerDataServicesHub — snapshot replay memoization', () => {
     expect(port.messages[port.messages.length - 1]).toMatchObject({ kind: 'status', status: 'ready' });
   });
 
-  it('concurrent late joiners reuse the SAME encoded buffers — one serialization per cache generation', () => {
+  it('concurrent late joiners reuse the SAME encoded buffers — one serialization per cache generation', async () => {
     const { hub } = readyHub(700);
     const portB = makePort();
     const portC = makePort();
     hub.handleRequest(portB, { kind: 'attach', subId: 'sB', providerId: 'p1', mode: 'data' });
     hub.handleRequest(portC, { kind: 'attach', subId: 'sC', providerId: 'p1', mode: 'data' });
+    await drainAsyncReplay();
 
     const bufsB = binChunks(portB).map((c) => c.buf);
     const bufsC = binChunks(portC).map((c) => c.buf);
@@ -725,7 +933,7 @@ describe('SharedWorkerDataServicesHub — binary snapshot broadcast (restart/ini
     expect(chunksB.every((c) => c.subId === 'sB')).toBe(true);
   });
 
-  it('the broadcast encoding seeds the replay snapshot — a late joiner reuses the SAME buffers', () => {
+  it('the broadcast encoding seeds the replay snapshot — a late joiner reuses the SAME buffers', async () => {
     const hub = new SharedWorkerDataServicesHub();
     const primer = makePort();
     hub.handleRequest(primer, { kind: 'attach', subId: 'primer', providerId: 'p1', mode: 'data', cfg: cfg() });
@@ -742,6 +950,7 @@ describe('SharedWorkerDataServicesHub — binary snapshot broadcast (restart/ini
 
     const late = makePort();
     hub.handleRequest(late, { kind: 'attach', subId: 'late', providerId: 'p1', mode: 'data' });
+    await drainAsyncReplay();
     const replayBufs = binChunks(late).map((c) => c.buf);
     // No re-serialization on attach: the replay IS the broadcast encoding.
     expect(replayBufs).toHaveLength(2);
@@ -1907,237 +2116,6 @@ describe('SharedWorkerDataServicesHub — columnar wire format (cfg.wireFormat)'
   });
 });
 
-describe('SharedWorkerDataServicesHub — fan-out worker pool', () => {
-  interface PooledPort extends PortLike {
-    messages: Event[];
-    fanOutClientId: string;
-  }
-
-  function makePooledPort(clientId: string): PooledPort {
-    const messages: Event[] = [];
-    return {
-      fanOutClientId: clientId,
-      messages,
-      postMessage(m: unknown) {
-        messages.push({ ...(m as Event) });
-      },
-    };
-  }
-
-  /** Minimal pool double — synchronous broadcast like the real pool. */
-  function makeMockFanOutPool(ports: Map<string, PooledPort>) {
-    const activeSubIds = new Set<string>();
-    return {
-      createPortProxy(clientId: string): PortLike {
-        const existing = ports.get(clientId);
-        if (existing) return existing;
-        const port = makePooledPort(clientId);
-        ports.set(clientId, port);
-        return port;
-      },
-      getProxy(clientId: string) { return ports.get(clientId); },
-      registerPending() {},
-      activateSubscriber(subId: string) { activeSubIds.add(subId); },
-      unregisterSubscriber(subId: string) { activeSubIds.delete(subId); },
-      unregisterClient(clientId: string) { ports.delete(clientId); },
-      isActive(subId: string) { return activeSubIds.has(subId); },
-      async broadcast(
-        items: ReadonlyArray<{ clientId: string; subId: string }>,
-        event: unknown,
-      ) {
-        const dead: string[] = [];
-        for (const item of items) {
-          if (!activeSubIds.has(item.subId)) { dead.push(item.subId); continue; }
-          const port = ports.get(item.clientId);
-          if (!port) { dead.push(item.subId); continue; }
-          try {
-            port.postMessage({ ...(event as Event), subId: item.subId });
-          } catch {
-            dead.push(item.subId);
-          }
-        }
-        return dead;
-      },
-      dispose() {},
-    };
-  }
-
-  it('routes multi-listener broadcasts through the fan-out pool', async () => {
-    const pooled = new Map<string, PooledPort>();
-    const fanOutPool = makeMockFanOutPool(pooled);
-    const hub = new SharedWorkerDataServicesHub({ fanOutPool: fanOutPool as never, fanOutMinListeners: 1 });
-
-    const portA = fanOutPool.createPortProxy('client-a');
-    const portB = fanOutPool.createPortProxy('client-b');
-
-    hub.handleRequest(portA, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
-    hub.handleRequest(portB, { kind: 'attach', subId: 's2', providerId: 'p1', mode: 'data', cfg: cfg() });
-
-    const ctrl = controllers.get('default')!;
-    ctrl.emit({ status: 'ready' });
-    ctrl.emit({ rows: [{ id: '1' }, { id: '2' }] });
-
-    await vi.waitFor(() => {
-      expect(pooled.get('client-a')?.messages.some((m) => m.kind === 'delta')).toBe(true);
-      expect(pooled.get('client-b')?.messages.some((m) => m.kind === 'delta')).toBe(true);
-    });
-
-    const deltaA = pooled.get('client-a')!.messages.filter(
-      (m): m is Event & { kind: 'delta' } => m.kind === 'delta' && !(m as { replace?: boolean }).replace,
-    ).pop();
-    const deltaB = pooled.get('client-b')!.messages.filter(
-      (m): m is Event & { kind: 'delta' } => m.kind === 'delta' && !(m as { replace?: boolean }).replace,
-    ).pop();
-    expect(deltaA).toMatchObject({ subId: 's1', rows: [{ id: '1' }, { id: '2' }] });
-    expect(deltaB).toMatchObject({ subId: 's2', rows: [{ id: '1' }, { id: '2' }] });
-  });
-
-  it('posts delta-bin directly from the hub without fan-out worker round-trip', () => {
-    const pooled = new Map<string, PooledPort>();
-    let broadcastCalls = 0;
-    const base = makeMockFanOutPool(pooled);
-    const fanOutPool = {
-      ...base,
-      async broadcast(
-        items: ReadonlyArray<{ clientId: string; subId: string }>,
-        event: unknown,
-      ) {
-        broadcastCalls += 1;
-        return base.broadcast(items, event);
-      },
-    };
-    const hub = new SharedWorkerDataServicesHub({ fanOutPool: fanOutPool as never, fanOutMinListeners: 1 });
-
-    const portA = fanOutPool.createPortProxy('client-a');
-    const portB = fanOutPool.createPortProxy('client-b');
-    hub.handleRequest(portA, { kind: 'attach', subId: 'sA', providerId: 'p1', mode: 'data', cfg: cfg() });
-    hub.handleRequest(portB, { kind: 'attach', subId: 'sB', providerId: 'p1', mode: 'data' });
-
-    const ctrl = controllers.get('default')!;
-    pooled.get('client-a')!.messages.length = 0;
-    pooled.get('client-b')!.messages.length = 0;
-    broadcastCalls = 0;
-
-    ctrl.emit({
-      rows: Array.from({ length: 700 }, (_, i) => ({ id: `r${i}`, x: i })),
-      replace: true,
-    });
-
-    expect(broadcastCalls).toBe(0);
-    const chunksA = pooled.get('client-a')!.messages.filter((m) => m.kind === 'delta-bin');
-    const chunksB = pooled.get('client-b')!.messages.filter((m) => m.kind === 'delta-bin');
-    expect(chunksA).toHaveLength(2);
-    expect(chunksB).toHaveLength(2);
-    expect((chunksB[0] as { buf?: Uint8Array }).buf).toBe((chunksA[0] as { buf?: Uint8Array }).buf);
-    expect((chunksB[1] as { buf?: Uint8Array }).buf).toBe((chunksA[1] as { buf?: Uint8Array }).buf);
-    expect(chunksA.every((c) => c.subId === 'sA')).toBe(true);
-    expect(chunksB.every((c) => c.subId === 'sB')).toBe(true);
-  });
-
-  it('releases fan-out worker when a subscription detaches', () => {
-    const pooled = new Map<string, PooledPort>();
-    const unregistered: string[] = [];
-    const fanOutPool = {
-      ...makeMockFanOutPool(pooled),
-      unregisterSubscriber(subId: string) {
-        unregistered.push(subId);
-      },
-    };
-    const hub = new SharedWorkerDataServicesHub({ fanOutPool: fanOutPool as never, fanOutMinListeners: 1 });
-    const port = fanOutPool.createPortProxy('client-a');
-
-    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
-    hub.handleRequest(port, { kind: 'attach', subId: 's2', providerId: 'p1', mode: 'data', cfg: cfg() });
-    expect(unregistered).toEqual(['s1', 's2']);
-
-    hub.handleRequest(port, { kind: 'detach', subId: 's1' });
-    expect(unregistered).toEqual(['s1', 's2', 's1']);
-
-    hub.handleRequest(port, { kind: 'detach', subId: 's2' });
-    expect(unregistered).toEqual(['s1', 's2', 's1', 's2']);
-  });
-
-  it('posts stats directly from the hub without fan-out worker round-trip', () => {
-    const timers = makeFakeTimers();
-    const pooled = new Map<string, PooledPort>();
-    let broadcastCalls = 0;
-    const base = makeMockFanOutPool(pooled);
-    const fanOutPool = {
-      ...base,
-      async broadcast(
-        items: ReadonlyArray<{ clientId: string; subId: string }>,
-        event: unknown,
-      ) {
-        broadcastCalls += 1;
-        return base.broadcast(items, event);
-      },
-    };
-    const hub = new SharedWorkerDataServicesHub({
-      fanOutPool: fanOutPool as never,
-      fanOutMinListeners: 1,
-      setTimer: timers.set,
-      clearTimer: timers.clear,
-    });
-    const port = fanOutPool.createPortProxy('client-a');
-    hub.handleRequest(port, { kind: 'attach', subId: 'data', providerId: 'p1', mode: 'data', cfg: cfg() });
-    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'stats' });
-
-    pooled.get('client-a')!.messages.length = 0;
-    broadcastCalls = 0;
-    timers.tick();
-
-    expect(pooled.get('client-a')?.messages.some((m) => m.kind === 'stats')).toBe(true);
-    expect(broadcastCalls).toBe(0);
-  });
-
-  it('does not duplicate delivery when one pooled fan-out job fails', async () => {
-    const pooled = new Map<string, PooledPort>();
-    const base = makeMockFanOutPool(pooled);
-    const fanOutPool = {
-      ...base,
-      async broadcast(
-        items: ReadonlyArray<{ clientId: string; subId: string }>,
-        event: unknown,
-      ) {
-        const dead: string[] = [];
-        for (const item of items) {
-          if (item.subId === 's2') {
-            dead.push('s2');
-            continue;
-          }
-          const port = pooled.get(item.clientId);
-          if (!port) { dead.push(item.subId); continue; }
-          port.postMessage({ ...(event as Event), subId: item.subId });
-        }
-        return dead;
-      },
-    };
-    const hub = new SharedWorkerDataServicesHub({ fanOutPool: fanOutPool as never, fanOutMinListeners: 1 });
-    const portA = fanOutPool.createPortProxy('client-a');
-    const portB = fanOutPool.createPortProxy('client-b');
-    hub.handleRequest(portA, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
-    hub.handleRequest(portB, { kind: 'attach', subId: 's2', providerId: 'p1', mode: 'data', cfg: cfg() });
-
-    const ctrl = controllers.get('default')!;
-    ctrl.emit({ status: 'ready' });
-    pooled.get('client-a')!.messages.length = 0;
-    pooled.get('client-b')!.messages.length = 0;
-
-    ctrl.emit({ rows: [{ id: '1' }, { id: '2' }] });
-
-    await vi.waitFor(() => {
-      expect(pooled.get('client-a')?.messages.some((m) => m.kind === 'delta')).toBe(true);
-    });
-
-    const deltasA = pooled.get('client-a')!.messages.filter((m) => m.kind === 'delta');
-    const deltasB = pooled.get('client-b')!.messages.filter((m) => m.kind === 'delta');
-    expect(deltasA).toHaveLength(1);
-    expect(deltasB).toHaveLength(1);
-    expect(deltasA[0]).toMatchObject({ subId: 's1', rows: [{ id: '1' }, { id: '2' }] });
-    expect(deltasB[0]).toMatchObject({ subId: 's2', rows: [{ id: '1' }, { id: '2' }] });
-  });
-});
-
 describe('SharedWorkerDataServicesHub — attach/replay priority (ADR Phase 0)', () => {
   it('defers live fan-out while late-join replay is in progress, then flushes', () => {
     const hub = new SharedWorkerDataServicesHub();
@@ -2178,6 +2156,35 @@ describe('SharedWorkerDataServicesHub — attach/replay priority (ADR Phase 0)',
     // portB also receives the flushed live update after its replay replace.
     expect(liveB.length).toBeGreaterThanOrEqual(1);
     expect(rowsOf(liveB[liveB.length - 1]!)).toEqual([{ id: 'r1', px: 99 }]);
+  });
+
+  it('delivers small object deltas and large binary frames in emit order', () => {
+    // Regression: the removed fan-out worker pool delivered object-graph
+    // deltas asynchronously (hub → worker → hub → port) while `delta-bin`
+    // posted synchronously, so a large binary frame could overtake an
+    // earlier small delta and land a stale value for keys in both.
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    ctrl.emit({ rows: [{ id: 'r1', px: 0 }], replace: true });
+    ctrl.emit({ status: 'ready' });
+    port.messages.length = 0;
+
+    // Small frame (< LIVE_BIN_MIN_ROWS = 64) — object delta.
+    ctrl.emit({ rows: [{ id: 'r1', px: 1 }] });
+    // Large sweep frame (>= 64 distinct keys) — pre-encoded delta-bin.
+    ctrl.emit({
+      rows: Array.from({ length: 80 }, (_, i) => ({ id: `sweep${i}`, px: i })),
+    });
+
+    const deltas = port.messages.filter(isAnyDelta);
+    expect(deltas).toHaveLength(2);
+    // Order preserved: the small object delta precedes the binary sweep.
+    expect(deltas[0]!.kind).toBe('delta');
+    expect(rowsOf(deltas[0]!)).toEqual([{ id: 'r1', px: 1 }]);
+    expect(deltas[1]!.kind).toBe('delta-bin');
+    expect(rowsOf(deltas[1]!)).toHaveLength(80);
   });
 
   it('with deferLiveFanOut, coalesces ticks onto a macrotask so attach can run first', () => {
