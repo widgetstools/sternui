@@ -33,10 +33,10 @@ Related docs: [MARKETSGRID_PERF_AND_MEMORY_AUDIT.md](./MARKETSGRID_PERF_AND_MEMO
    `refreshCells({force:true})` per activating frame, and
    `Object.create(data)` allocation per cell per evaluation.
 4. **The transport layer has no safety net**: conflation exists only in
-   the provider's optional `throttleMs`; the fan-out worker pool
-   *pessimizes* small deltas (3 structured clones, 2 on the hub
-   thread) and introduces an ordering hazard; no transferables; no
-   bounded queue.
+   the provider's optional `throttleMs`; no transferables; no bounded
+   queue. (The fan-out worker pool, which *pessimized* small deltas with
+   3 structured clones — 2 on the hub thread — and introduced an
+   ordering hazard, has since been removed; see §3.2.)
 5. **Windows multipliers the app does nothing about**: no GPU flags in
    OpenFin manifests (silent SwiftShader risk), `pauseUpdatesWhenHidden`
    defaults off (hidden views burn full tick cost), Defender-sensitive
@@ -241,22 +241,29 @@ the client does zero throttling; and the surface hardcodes
 deliberately relying on the provider throttle. The entire backpressure
 story hangs on one optional config field.
 
-### 3.2 FanOutWorkerPool pessimizes small deltas
+### 3.2 FanOutWorkerPool pessimized small deltas — **RESOLVED (removed)**
 
-Small object deltas (< `LIVE_BIN_MIN_ROWS = 64`) route through the
+Small object deltas (< `LIVE_BIN_MIN_ROWS = 64`) routed through the
 pool: hub → fan-out worker → back to hub → window port = **three
 structured clones, two on the hub thread**, plus an async round-trip
-with a per-job timeout timer
-(`runtime/worker/FanOutWorkerPool.ts:264-269`, `:213-227`;
-routing at `SharedWorkerDataServicesHub.ts:1712-1716`). The expensive
-clone into the window port stays on the hub thread either way — the
-pool doubles work rather than offloading it. It also spawns one Worker
-per subscription.
+with a per-job timeout timer. The expensive clone into the window port
+stays on the hub thread either way — the pool doubled work rather than
+offloading it. It also spawned one Worker per subscription, and its
+documented kill switch (`localStorage.STARUI_FANOUT_POOL_SIZE=0`) could
+never fire because `localStorage` is `undefined` inside a SharedWorker.
 
-**Ordering hazard:** ≥64-row `delta-bin` frames bypass the pool and are
-posted synchronously; a newer binary frame can overtake an older pooled
-small delta, so stale values can land last for keys present in both. A
-feed hovering around the 64-row threshold straddles this every frame.
+**Ordering hazard (also resolved):** ≥64-row `delta-bin` frames bypassed
+the pool and were posted synchronously; a newer binary frame could
+overtake an older pooled small delta, so stale values could land last
+for keys present in both. A feed hovering around the 64-row threshold
+straddled this every frame.
+
+The pool has been removed — fan-out is a synchronous inline loop again,
+so all frames for a subscription are ordered and each costs one clone.
+Rationale and the only shape that could pay off (one worker holding many
+window ports, requiring a second `MessageChannel` per subscription) are
+recorded in
+[hub-fanout-optimizations.md §12](./hub-fanout-optimizations.md).
 
 ### 3.3 Other transport costs
 
@@ -271,9 +278,11 @@ feed hovering around the 64-row threshold straddles this every frame.
   fields per row (`rowDiff.ts:38-42`).
 - **No bounded queue** hub→window: if the grid main thread can't drain,
   the MessagePort queue grows unbounded with no backpressure signal.
-- Snapshot/late-join replay is the well-optimized part: 500-row chunks,
-  one serialization shared across simultaneous attaches
-  (`hub.ts:1508-1522`).
+- Snapshot/late-join replay uses 500-row chunks and one serialization
+  shared across simultaneous attaches; multi-chunk late-join also
+  **yields between chunks** on the provider SharedWorker so a peer
+  attach cannot monopolize STOMP/pings (and starve OpenFin tool-window
+  opens that share the process).
 - Windows timers: hidden windows clamp `setTimeout`, ballooning the
   throttle window → burst dumps on unhide.
 

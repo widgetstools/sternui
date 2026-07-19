@@ -206,27 +206,42 @@ events carry an `enc` tag and the client picks the decoder.
 | Cache memory (2000-field feed, 200 shown) | full rows cached and shipped | ~10× cut with `projectFields`, visible as "Cache size (serialized)" |
 | Touch updates (few fields of a wide row) | full replacement row per tick per window | with `thinDeltas`: changed fields only on the wire (~touch-ratio shrink); unchanged rows skipped entirely |
 | Window decode of binary frames (numeric feeds) | `JSON.parse` over every byte | with `wireFormat: 'columnar'`: Float64/bitmap columns, several-fold faster decode |
-| Multi-listener broadcast loop | serial `postMessage` loop on SharedWorker thread | one dedicated fan-out worker per connected subscriber; hub encodes once, each worker posts to its port in parallel |
+| Multi-listener broadcast loop | serial `postMessage` loop on SharedWorker thread | unchanged — serial loop, but each post is a flat byte copy for the frames that matter (see §12 for why the fan-out worker pool was removed) |
 
 ---
 
-## 12. Fan-out worker pool — one worker per subscriber
+## 12. Fan-out worker pool — tried, measured against, removed
+
+A dedicated fan-out worker per hub `subId` was added to move the
+multi-listener `postMessage` loop off the SharedWorker thread. **It was
+removed**: given the constraint that made it shippable, it could not
+help, and it broke frame ordering. Recorded here so it isn't rebuilt.
 
 ```mermaid
 flowchart LR
-    STOMP[STOMP provider] --> HUB[SharedWorker hub<br/>cache + encode ONCE]
-    HUB -->|broadcast job| W1[Fan-out worker 1<br/>blotter A]
-    HUB -->|broadcast job| W2[Fan-out worker 2<br/>blotter B]
-    HUB -->|broadcast job| W3[Fan-out worker 3<br/>blotter C]
-    W1 --> B1[Window A]
-    W2 --> B2[Window B]
-    W3 --> B3[Window C]
+    subgraph REMOVED [what it did — 3 serializations on the hub thread]
+        H1[hub] -->|1 serialize| WK[fan-out worker<br/>spread + re-post]
+        WK -->|2 deserialize on hub| H2[hub]
+        H2 -->|3 serialize| WIN[Window]
+    end
+    subgraph NOW [inline — 1 serialization]
+        H3[hub] -->|1 serialize| WIN2[Window]
+    end
 ```
 
 | Technical | In plain words |
 |---|---|
-| Each hub `subId` gets a dedicated fan-out worker on `attach` for object-graph frames (`delta`, `status`, small `delta-patch`). Pre-encoded binary (`delta-bin`, large `delta-patch` with `buf`) and `stats` post directly from the hub. Workers recycle on re-attach; partial fan-out failure retries only failed subscriptions inline. Worker script errors fail fast via `error` handler. | One worker per grid subscription for object deltas; binary + stats skip the extra hop; no duplicate ticks on partial failure. |
-| Disable entirely with `localStorage.STARUI_FANOUT_POOL_SIZE=0`. Asset: `data-services-fanout-worker.mjs` (sibling of `data-services-worker.mjs`). | Set the localStorage knob to zero to fall back to inline hub fan-out. |
+| **Why it couldn't work.** Transferring the window `MessagePort` into the worker breaks inbound pings under Chromium/OpenFin (the subscriber sweeper then drops the blotter after ~45s), so the port had to stay on the hub. But if the hub holds the port, *the hub thread must serialize every byte the window receives* — that cost is unavoidable and unmovable. The worker hop therefore added a serialize-to-worker **plus** a deserialize-back-on-the-hub on top of it: 3 structured clones per listener per frame where inline does 1. The worker's entire job was `{...template, subId}`. | The mailroom couldn't hand the mailbox to the side office without breaking the heartbeat letters — so every letter still had to be stamped by the mailroom. Sending each letter to the side office and back just to have a sticker put on it made three trips where one would do. |
+| **Why it was also incorrect.** `pool.broadcast` resolved asynchronously while pre-encoded binary (`delta-bin`, large `delta-patch`) and `stats` posted synchronously from the hub-held port. A small `delta` issued at T0 could be overtaken by a large `delta-bin` issued at T1 — the grid then applied an older row value over a newer one, with no correction until the next tick for that key. | Two mail routes, one slower: yesterday's price could arrive after today's and overwrite it. |
+| **What it was optimizing anyway.** Frames ≥ `LIVE_BIN_MIN_ROWS` (64) already bypassed the pool as pre-encoded binary — those are the expensive ones, and §6 already made them flat in window count. The pool only ever handled small conflated ticks and `status`, i.e. the frames that were already cheap. | The new machinery was reserved for the post-its, while the books already had a printing press. |
+| The documented kill switch never worked either: `isFanOutEnabled()` read `localStorage`, which is `undefined` inside a SharedWorker, so it always returned `true`. | The off switch wasn't wired to anything. |
+
+**If this is revisited:** the only shape that can pay off is *one* worker
+holding *many* window data-ports, so the hub serializes each frame once
+instead of once per window. That needs a second `MessageChannel` per
+subscription (control stays on the hub port, data arrives on the worker
+port) and a client-side change to listen on both. Measure first — §6
+already gives flat-in-N for the frames that dominate.
 
 Diagnostics: Provider editor → **Diagnostics** tab — `Cache size
 (serialized)`, `Bytes received`, publish rates (binary fan-out posts
@@ -235,8 +250,6 @@ count as publishes), snapshot fetch time.
 Related code:
 
 - `packages/data/host-data/src/runtime/worker/SharedWorkerDataServicesHub.ts` — cache, replay memo, binary fan-out, thin-delta diffing, broadcast loop
-- `packages/data/host-data/src/runtime/worker/FanOutWorkerPool.ts` — dedicated fan-out worker pool (parallel multi-listener postMessage)
-- `packages/data/host-data/src/runtime/worker/fanOutWorkerEntry.ts` — fan-out worker entry (`data-services-fanout-worker.mjs`)
 - `packages/data/host-data/src/runtime/client/SharedWorkerDataServicesClient.ts` — `delta-bin` / `delta-patch` decode + thin-delta merge mirror
 - `packages/data/host-data/src/runtime/wire/columnarCodec.ts` — typed-array columnar codec (`COL1`)
 - `packages/data/host-data/src/runtime/wire/rowDiff.ts` — top-level row diffing for thin deltas

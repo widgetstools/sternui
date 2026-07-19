@@ -4,7 +4,7 @@
 **Status:** Proposed  
 **Branch:** `docs/optional-data-plane-topology`  
 **Supersedes (runtime topology):** monolithic `mkt-data-services:${appId}` hub hosting config catalog + AppData + all streaming providers  
-**Related:** [hub-fanout-optimizations.md](./hub-fanout-optimizations.md), [MARKETSGRID_WINDOWS_PERF_ANALYSIS.md](./MARKETSGRID_WINDOWS_PERF_ANALYSIS.md), [CONFIG_SERVICE_BASELINE.md](./CONFIG_SERVICE_BASELINE.md), [guides/platform-bootstrap-config.md](./guides/platform-bootstrap-config.md), [ARCHITECTURE.md](./ARCHITECTURE.md)
+**Related:** [ADR-ssrm-worker-hosted-engine.md](./ADR-ssrm-worker-hosted-engine.md) (pull-based blotter data path on top of this topology), [hub-fanout-optimizations.md](./hub-fanout-optimizations.md), [MARKETSGRID_WINDOWS_PERF_ANALYSIS.md](./MARKETSGRID_WINDOWS_PERF_ANALYSIS.md), [CONFIG_SERVICE_BASELINE.md](./CONFIG_SERVICE_BASELINE.md), [guides/platform-bootstrap-config.md](./guides/platform-bootstrap-config.md), [ARCHITECTURE.md](./ARCHITECTURE.md)
 
 ---
 
