@@ -428,8 +428,10 @@ function MarketsGridHostInner<TData>({
           rowHeight={rowHeight}
           headerHeight={headerHeight}
           sideBar={sideBar}
-          statusBar={useSSRM ? undefined : statusBar}
+          statusBar={statusBar}
           defaultColDef={defaultColDef as never}
+          gridOptions={gridOptions}
+          hostOverrideKeys={hostOverrideKeys}
           includeAllStreamSafeFilters={includeAllStreamSafeFilters}
           onGridReady={handleGridReady}
           ssrmEngine={ssrmEngine}

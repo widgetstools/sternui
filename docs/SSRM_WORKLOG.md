@@ -162,12 +162,30 @@ refresh policy rather than reinventing inline throttling.
 **Do not** attempt customizer parity — the customizer stays in `grid` and is
 row-model agnostic. This is a surface, not a product re-implementation.
 
-### T5 — Fix the general-settings whitelist · `TODO`
+### T5 — Fix the general-settings whitelist · `DONE`
 
-`SsrmMarketsGridSurface` accepts a narrow prop whitelist, so ~100 computed
-gridOptions — **including `rowSelection`** — are discarded, and the status bar
-is hard-nulled (`MarketsGrid.tsx:488`). The panel shows toggles that do nothing.
-Structural; T4 must not re-create it.
+Landed: the SSRM surface now forwards the module-pipeline gridOptions instead
+of a prop whitelist, mirroring the CSRM surface's precedence:
+
+- `CustomSSRMGrid` gained a `gridOptions` pass-through prop, applied in three
+  tiers — SSRM defaults the pipeline may override (`rowSelection`,
+  `cellSelection`, pagination, `rowGroupPanelShow`, `undoRedoCellEditing`, …)
+  → pipeline options → SSRM-structural wiring that always wins
+  (`ssrmGridOptionsPassthrough.ts` strips row-model wiring, block/scroll
+  tuning, component-owned handlers, surface-prop keys, and
+  client-row-model-only options like `pivotMode` / `rowDragManaged` /
+  `quickFilterText`).
+- `SsrmMarketsGridSurface` accepts `gridOptions` + `hostOverrideKeys`, strips
+  surface-managed keys (`stripSurfaceManagedGridOptions`, same as CSRM) and
+  forwards the rest; both call sites (`MarketsGridHost`,
+  `MarketsGridCoreInner`) pass the computed `shell.gridOptions`.
+- The `statusBar` hard-null is gone — the host's `statusBar` prop reaches the
+  SSRM grid. Pipeline `statusBar` stays stripped: general-settings emits AG's
+  client-side count/aggregation panels, which read the client row model and
+  render blanks under SSRM (translation to the SSRM panels → T8).
+
+Verified: grid **726** passing (724 + 2 new surface tests), ssrm-grid **149**
+(145 + 4 strip tests), `tsc` clean in both.
 
 ### T6 — Edit/export paths: fetch-or-refuse · `TODO` · **data integrity**
 

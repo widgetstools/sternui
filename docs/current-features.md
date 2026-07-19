@@ -579,6 +579,18 @@ from an engine instead of holding the dataset. Engine-agnostic behind
 > component surface (`CustomSSRMGrid`, filters, chart/export helpers) predates
 > this file's coverage and is still undocumented.
 
+- `CustomSSRMGrid.gridOptions` + `stripSsrmStructuralGridOptions` — module-
+  pipeline gridOptions pass-through (worklog T5): general-settings toggles
+  (`rowSelection`, pagination, editing, grouping, hover/clipboard, …) reach
+  the SSRM grid in three precedence tiers (overridable SSRM defaults →
+  pipeline → SSRM-structural wiring that always wins); row-model wiring,
+  block/scroll tuning, component-owned handlers, and client-row-model-only
+  keys (`pivotMode`, `rowDragManaged`, `quickFilterText`) are stripped.
+  `SsrmMarketsGridSurface` (grid pkg) forwards `shell.gridOptions` +
+  `hostOverrideKeys` and no longer hard-nulls the host `statusBar`; pipeline
+  `statusBar` stays stripped (AG's client-side count panels render blanks
+  under SSRM)
+
 - `SsrmEngine` — data-plane contract shared by every engine (`configure`,
   `setRowData`, `getRows`, `applyTransaction`, `getAggregates`, `queryAll`,
   `setDirtyHandler`, `dispose`); every method is `T | Promise<T>` so an engine

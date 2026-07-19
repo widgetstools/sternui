@@ -56,6 +56,7 @@ import { SsrmBlockCache } from "../ssrm/ssrmBlockCache";
 import type { FeedConfig, QueryAllRequest, QueryAllResult } from "../ssrm/types";
 import { foldTrafficLight } from "../ssrm/trafficLightAgg";
 import { buildColumnOverride, type SSRMColDef } from "./columnOverride";
+import { stripSsrmStructuralGridOptions } from "./ssrmGridOptionsPassthrough";
 import { QuickFilterHighlightCellRenderer } from "./QuickFilterHighlightCellRenderer";
 import "./quickFilterHighlight.css";
 import { SSRM_DEFAULT_STATUS_BAR } from "./ssrmStatusBarPanels";
@@ -179,6 +180,13 @@ export interface CustomSSRMGridProps {
     detailLimit?: number;
     isRowMaster?: (row: Record<string, unknown>) => boolean;
   };
+  /**
+   * Module-pipeline gridOptions pass-through (general-settings et al —
+   * worklog T5). SSRM-structural keys are stripped
+   * (`ssrmGridOptionsPassthrough`); the rest override the component's
+   * defaults but never its server-row-model wiring.
+   */
+  gridOptions?: Record<string, unknown>;
 }
 
 function formatTotals(totals: Record<string, unknown>): string {
@@ -1001,71 +1009,81 @@ export const CustomSSRMGrid = forwardRef<
 
   const resolvedTheme = props.theme ?? defaultTheme;
 
+  // Module-pipeline gridOptions (general-settings et al) with the
+  // SSRM-structural keys removed — see ssrmGridOptionsPassthrough.
+  const passthroughGridOptions = useMemo(
+    () => stripSsrmStructuralGridOptions(props.gridOptions ?? {}),
+    [props.gridOptions],
+  );
+
+  // Three precedence tiers: SSRM defaults the pipeline may override, the
+  // pipeline pass-through, then SSRM-structural wiring that always wins.
+  const agGridProps = {
+    // ── Tier 1: overridable defaults ──
+    autoGroupColumnDef,
+    rowGroupPanelShow: "always",
+    pivotPanelShow: "never",
+    rowSelection,
+    cellSelection,
+    undoRedoCellEditing: true,
+    rowBuffer: props.rowBuffer ?? 10,
+    cellFlashDuration: props.enableCellChangeFlash ? 500 : 0,
+    pagination: props.pagination,
+    paginationPageSize: props.paginationPageSize ?? 100,
+    enableAdvancedFilter: props.advancedFilter,
+
+    // ── Tier 2: host module pipeline (worklog T5) ──
+    ...passthroughGridOptions,
+
+    // ── Tier 3: SSRM-structural — always win ──
+    theme: resolvedTheme,
+    loadThemeGoogleFonts: props.loadThemeGoogleFonts ?? props.theme == null,
+    columnDefs: override.agGridColumnDefs,
+    defaultColDef,
+    rowModelType: "serverSide",
+    serverSideDatasource: datasource,
+    cacheBlockSize: props.cacheBlockSize ?? 100,
+    ...(props.maxBlocksInCache != null
+      ? { maxBlocksInCache: props.maxBlocksInCache }
+      : {}),
+    maxConcurrentDatasourceRequests: 4,
+    blockLoadDebounceMillis: props.blockLoadDebounceMillis ?? 50,
+    suppressAnimationFrame: props.suppressAnimationFrame ?? true,
+    animateRows: false,
+    suppressServerSideFullWidthLoadingRow: !(props.showLoadingOverlay ?? false),
+    rowHeight: props.rowHeight,
+    headerHeight: props.headerHeight,
+    asyncTransactionWaitMillis: 50,
+    ...(treeData ? { rowGroupPanelShow: "never" } : {}),
+    sideBar: (props.sideBar ?? { toolPanels: ["columns", "filters"] }) as never,
+    statusBar: (props.statusBar ?? SSRM_DEFAULT_STATUS_BAR) as never,
+    components: {
+      ...(props.components ?? {}),
+      agLoadingCellRenderer: MirrorLoadingCellRenderer,
+    } as never,
+    suppressNoRowsOverlay: props.suppressNoRowsOverlay ?? true,
+    overlayNoRowsTemplate: props.overlayNoRowsTemplate ?? " ",
+    aggFuncs,
+    enableCharts: props.enableCharts,
+    calculatedColumns: props.calculatedColumns !== false,
+    grandTotalRow: grandTotalRowOpt,
+    groupTotalRow: props.groupTotalRow,
+    pinnedTopRowData: props.pinnedTopRowData,
+    pinnedBottomRowData: props.pinnedBottomRowData,
+    treeData,
+    isServerSideGroup: treeData ? isServerSideGroup : undefined,
+    getServerSideGroupKey: treeData ? getServerSideGroupKey : undefined,
+    masterDetail: Boolean(md),
+    isRowMaster: md ? isRowMaster : undefined,
+    detailCellRendererParams,
+    getContextMenuItems,
+    getRowId: getRowIdCb,
+  } as Record<string, unknown>;
+
   return (
     <div style={{ height: props.height ?? "100%", width: "100%" }}>
       <AgGridReact
-        theme={resolvedTheme}
-        loadThemeGoogleFonts={
-          props.loadThemeGoogleFonts ?? props.theme == null
-        }
-        columnDefs={override.agGridColumnDefs}
-        defaultColDef={defaultColDef}
-        autoGroupColumnDef={autoGroupColumnDef}
-        rowModelType="serverSide"
-        serverSideDatasource={datasource}
-        cacheBlockSize={props.cacheBlockSize ?? 100}
-        {...(props.maxBlocksInCache != null
-          ? { maxBlocksInCache: props.maxBlocksInCache }
-          : {})}
-        maxConcurrentDatasourceRequests={4}
-        rowBuffer={props.rowBuffer ?? 10}
-        blockLoadDebounceMillis={props.blockLoadDebounceMillis ?? 50}
-        suppressAnimationFrame={props.suppressAnimationFrame ?? true}
-        animateRows={false}
-        suppressServerSideFullWidthLoadingRow={
-          !(props.showLoadingOverlay ?? false)
-        }
-        rowHeight={props.rowHeight}
-        headerHeight={props.headerHeight}
-        {...(props.enableCellChangeFlash
-          ? { cellFlashDuration: 500 }
-          : { cellFlashDuration: 0 })}
-        asyncTransactionWaitMillis={50}
-        rowGroupPanelShow={treeData ? "never" : "always"}
-        pivotPanelShow="never"
-        sideBar={
-          (props.sideBar ?? { toolPanels: ["columns", "filters"] }) as never
-        }
-        statusBar={(props.statusBar ?? SSRM_DEFAULT_STATUS_BAR) as never}
-        components={
-          {
-            ...(props.components ?? {}),
-            agLoadingCellRenderer: MirrorLoadingCellRenderer,
-          } as never
-        }
-        suppressNoRowsOverlay={props.suppressNoRowsOverlay ?? true}
-        overlayNoRowsTemplate={props.overlayNoRowsTemplate ?? " "}
-        rowSelection={rowSelection}
-        cellSelection={cellSelection}
-        aggFuncs={aggFuncs}
-        undoRedoCellEditing
-        pagination={props.pagination}
-        paginationPageSize={props.paginationPageSize ?? 100}
-        enableAdvancedFilter={props.advancedFilter}
-        enableCharts={props.enableCharts}
-        calculatedColumns={props.calculatedColumns !== false}
-        grandTotalRow={grandTotalRowOpt}
-        groupTotalRow={props.groupTotalRow}
-        pinnedTopRowData={props.pinnedTopRowData}
-        pinnedBottomRowData={props.pinnedBottomRowData}
-        treeData={treeData}
-        isServerSideGroup={treeData ? isServerSideGroup : undefined}
-        getServerSideGroupKey={treeData ? getServerSideGroupKey : undefined}
-        masterDetail={Boolean(md)}
-        isRowMaster={md ? isRowMaster : undefined}
-        detailCellRendererParams={detailCellRendererParams}
-        getContextMenuItems={getContextMenuItems}
-        getRowId={getRowIdCb}
+        {...agGridProps}
         getChildCount={(data) =>
           typeof data?.childCount === "number" ? data.childCount : undefined
         }

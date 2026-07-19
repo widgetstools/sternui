@@ -1,11 +1,14 @@
 import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
 import type { GridReadyEvent, Theme } from 'ag-grid-community';
 import { buildStreamSafeComponents } from '../widget/buildStreamSafeComponents.js';
+import { stripSurfaceManagedGridOptions } from '../widget/gridSurfaceOptions.js';
 import {
   CustomSSRMGrid,
   type SSRMGridHandle,
   type SSRMColDef,
 } from './ssrmgrid-entry.js';
+
+const EMPTY_OVERRIDE_KEYS: ReadonlySet<string> = new Set();
 
 export type SsrmMarketsGridSurfaceProps = {
   rowData: Record<string, unknown>[];
@@ -22,6 +25,14 @@ export type SsrmMarketsGridSurfaceProps = {
   defaultColDef?: SSRMColDef;
   includeAllStreamSafeFilters?: boolean;
   onGridReady?: (event: GridReadyEvent) => void;
+  /**
+   * Module-pipeline gridOptions (general-settings et al — worklog T5).
+   * Forwarded to the SSRM grid after stripping surface-managed keys; the
+   * grid strips its own SSRM-structural keys on top.
+   */
+  gridOptions?: Record<string, unknown>;
+  /** Keys the host passed explicitly — pipeline must not fight these. */
+  hostOverrideKeys?: ReadonlySet<string>;
   /** From general-settings (same defaults as CSRM). */
   grandTotalRow?: boolean | 'top' | 'bottom' | 'pinnedTop' | 'pinnedBottom';
   groupTotalRow?: 'top' | 'bottom';
@@ -84,6 +95,15 @@ export const SsrmMarketsGridSurface = forwardRef<
     [props.columnDefs, props.includeAllStreamSafeFilters],
   );
 
+  const pipelineGridOptions = useMemo(
+    () =>
+      stripSurfaceManagedGridOptions(
+        props.gridOptions ?? {},
+        props.hostOverrideKeys ?? EMPTY_OVERRIDE_KEYS,
+      ),
+    [props.gridOptions, props.hostOverrideKeys],
+  );
+
   return (
     <div style={{ flex: 1, minHeight: 0, width: '100%' }}>
       <CustomSSRMGrid
@@ -101,6 +121,7 @@ export const SsrmMarketsGridSurface = forwardRef<
         sideBar={props.sideBar}
         statusBar={props.statusBar}
         defaultColDef={props.defaultColDef}
+        gridOptions={pipelineGridOptions}
         components={streamSafeComponents as Record<string, unknown>}
         suppressNoRowsOverlay
         overlayNoRowsTemplate=" "
