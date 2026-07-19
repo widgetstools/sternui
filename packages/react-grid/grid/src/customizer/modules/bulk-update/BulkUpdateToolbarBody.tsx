@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   BULK_UPDATE_MODULE_ID,
   assertSingleColumnSelection,
@@ -72,7 +72,43 @@ export function BulkUpdateToolbarBody({ layout = 'standalone' }: EditingToolbarS
     [cells],
   );
 
+  // SSRM (worklog T8): distinct values from the ENGINE (full book) — the
+  // client scan below sees loaded blocks only. Falls back when the grid is
+  // client-side or the engine is not ready.
+  const [engineDistinctValues, setEngineDistinctValues] = useState<unknown[] | null>(null);
+  useEffect(() => {
+    const api = platform.api.api;
+    const colId = cells[0]?.colId;
+    const field = cells[0]?.field ?? colId;
+    if (!api || !field || !settings.settings.showDistinctValues) {
+      setEngineDistinctValues(null);
+      return;
+    }
+    const ctx = (api as { getGridOption?: (key: string) => unknown })
+      .getGridOption?.('context') as
+      | { ssrmDistinctValues?: (f: string) => Promise<(string | null)[]> }
+      | undefined;
+    const fetchValues = ctx?.ssrmDistinctValues;
+    if (!fetchValues) {
+      setEngineDistinctValues(null);
+      return;
+    }
+    let cancelled = false;
+    fetchValues(field)
+      .then((vals) => {
+        if (cancelled) return;
+        setEngineDistinctValues(vals.slice(0, settings.settings.maxDropdownValues));
+      })
+      .catch(() => {
+        if (!cancelled) setEngineDistinctValues(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [platform, cells, settings.settings.showDistinctValues, settings.settings.maxDropdownValues]);
+
   const distinctValues = useMemo(() => {
+    if (engineDistinctValues) return engineDistinctValues;
     const api = platform.api.api;
     const colId = cells[0]?.colId;
     if (!api || !colId || !settings.settings.showDistinctValues) return [];
@@ -81,7 +117,7 @@ export function BulkUpdateToolbarBody({ layout = 'standalone' }: EditingToolbarS
       colId,
       settings.settings.maxDropdownValues,
     );
-  }, [platform, cells, settings.settings.showDistinctValues, settings.settings.maxDropdownValues]);
+  }, [engineDistinctValues, platform, cells, settings.settings.showDistinctValues, settings.settings.maxDropdownValues]);
 
   const executeApply = useCallback(async () => {
     const api = platform.api.api;

@@ -139,7 +139,17 @@ Unit: `installProviderHub.pullPath.test.ts` (tee, seeding, routing, dedupe)
 (the `__refresh` client test — backlog B8 — was updated to the `__reload`
 contract in passing).
 
-### T4 — New SSRM surface · `TODO` · depends on T1, T2
+### T4 — New SSRM surface · `TODO` · depends on T1, T2 (both `DONE`)
+
+> **State after this session:** every prerequisite is in place and the swap
+> is smaller than when this task was written. T1 made `CustomSSRMGrid`
+> engine-polymorphic (typed against `SsrmEngine`; zero RowMirror channels).
+> T2 restored the MarketsGrid mount-contract safety net (grid suite green).
+> T5 removed the props whitelist (the new surface must keep the
+> `gridOptions` three-tier precedence). T6 added `exportAll` to the handle
+> (now 11 methods). The component is ~1,150 LOC — still over the 800
+> ceiling; the extraction seams are visible in-file (dirty-handler effect,
+> configureAndLoad, datasource memo, handle, agGridProps tiers).
 
 Replaces `CustomSSRMGrid` (1,086 LOC, **zero tests**, over the 800 LOC ceiling).
 Built on the reusable layer (~2,600 LOC, all tested). **Delete `CustomSSRMGrid`
@@ -236,12 +246,24 @@ Landed:
 Verified: grid **729** passing (+3 SSRM header-painter tests), ssrm-grid
 **149**, both `tsc` clean.
 
-### T8 — Remaining customizer gaps · `TODO`
+### T8 — Remaining customizer gaps · `WIP`
 
-Ranked: grid-state (async viewport restore, quickFilter reconciliation) →
-bulk-update (distinct values from engine, not a client scan) →
-data-change-history (verify partial-row merge on undo/redo) → shortcuts /
-plus-minus capability ids.
+**Landed:** bulk-update distinct values from the engine — the SSRM grid
+publishes `ssrmDistinctValues` (engine `getFilterValues`, full book) in grid
+context; `BulkUpdateToolbarBody` prefers it and falls back to the client
+scan (loaded blocks) on CSRM / engine-not-ready. Also landed earlier under
+T5/T6/T7: general-settings pass-through, edit refusal, visual-excel full
+export, header-painter book counting.
+
+**Remaining, ranked:**
+1. grid-state — async viewport restore, quickFilter reconciliation.
+2. general-settings `statusBar` translation to the SSRM panels (pipeline
+   `statusBar` is currently stripped — AG's client-side count panels render
+   blanks under SSRM; see T5 note).
+3. data-change-history — verify partial-row merge on undo/redo.
+4. shortcuts / plus-minus capability ids — blocked on deciding B1 (the
+   capability gate is inert; either advance `PHASE_MIN`s or delete the gate).
+5. A visible toast for T6 edit refusals (today: console warning only).
 
 ---
 

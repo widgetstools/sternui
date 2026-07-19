@@ -1148,6 +1148,9 @@ export const CustomSSRMGrid = forwardRef<
             ...(e.api.getGridOption("context") as object | undefined),
             ssrmLeafAt: stubLeafAt,
             ssrmCountMatching: countMatching,
+            // Full-book distinct values (bulk-update dropdown, worklog T8) —
+            // a client scan over displayed rows sees loaded blocks only.
+            ssrmDistinctValues: getFilterValues,
             ssrmConfigured: configuredRef.current,
             quickFilterText: props.quickFilterText ?? "",
             quickFilterTokens: parseQuickFilterTokens(props.quickFilterText),
