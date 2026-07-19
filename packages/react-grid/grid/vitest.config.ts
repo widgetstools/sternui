@@ -21,6 +21,12 @@ export default defineConfig({
       },
       { find: '@wellsfargo-starui/grid/customizer', replacement: resolve(__dirname, 'src/customizer/index.ts') },
       { find: '@wellsfargo-starui/grid', replacement: resolve(__dirname, 'src/index.ts') },
+      // Pure helpers first — this subpath deliberately avoids the ssrm-grid
+      // barrel, which pulls CustomSSRMGrid and its AG Grid module registration
+      // into scope. Order matters: the bare specifier below would otherwise
+      // swallow it.
+      { find: '@wellsfargo-starui/ssrm-grid/aggregations', replacement: resolve(__dirname, '../ssrm-grid/src/ssrm/aggregations.ts') },
+      { find: '@wellsfargo-starui/ssrm-grid/engine', replacement: resolve(__dirname, '../ssrm-grid/src/engine/index.ts') },
       { find: '@wellsfargo-starui/ssrm-grid', replacement: resolve(__dirname, '../ssrm-grid/src/index.ts') },
       { find: '@wellsfargo-starui/engine', replacement: resolve(__dirname, '../../shared/engine/src/index.ts') },
       { find: '@wellsfargo-starui/types', replacement: resolve(__dirname, '../../shared/types/src/index.ts') },

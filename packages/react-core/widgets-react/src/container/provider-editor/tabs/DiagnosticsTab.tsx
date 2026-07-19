@@ -44,11 +44,9 @@ function Live({ providerId, cfg }: { providerId: string; cfg: ProviderConfig | n
   useProviderStats(providerId, { onStats: setStats });
 
   const onRestart = () => {
-    // Send a no-op data attach with __refresh; the Hub forwards into
-    // provider.restart(extra) when running, or uses cfg to cold-start
-    // a stopped provider. We discard the subId immediately.
+    // `__reload` forces upstream restart (hub ignores bare `__refresh`).
     const noop = { onDelta: () => undefined, onStatus: (s: ProviderStatus, err?: string) => setStatusBanner({ status: s, error: err }) };
-    const sub = client.attach(providerId, cfg ?? undefined, noop, { extra: { __refresh: Date.now() } });
+    const sub = client.attach(providerId, cfg ?? undefined, noop, { extra: { __reload: Date.now() } });
     setTimeout(() => client.detach(sub), 200);
   };
 

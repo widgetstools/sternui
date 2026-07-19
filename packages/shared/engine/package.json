@@ -25,9 +25,9 @@
     "bench": "vitest bench --run"
   },
   "peerDependencies": {
-    "ag-grid-community": "^36.0.0",
-    "ag-grid-enterprise": "^36.0.0",
-    "ag-grid-react": "^36.0.0"
+    "ag-grid-community": "36.0.0",
+    "ag-grid-enterprise": "36.0.0",
+    "ag-grid-react": "36.0.0"
   },
   "dependencies": {
     "@wellsfargo-starui/types": "*",

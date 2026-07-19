@@ -166,7 +166,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   }, []);
 
   const appData = useAppDataStore();
-  const { client: dataHubClient } = useDataServices();
+  const { client: dataHubClient, providerWorkerRouting } = useDataServices();
 
   // Adapt AppDataStore → AppDataLookup for the platform's
   // resources.appData(). Plumbed into MarketsGrid so column-customization's
@@ -545,10 +545,10 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     activeId && rowIdField ? `${activeId}::${rowIdFieldKey}` : null;
   const [resolvedSubKey, setResolvedSubKey] = useState<string | null>(null);
   const [loadRowCount, setLoadRowCount] = useState<number | undefined>(undefined);
-  // True while the provider is in the 'loading' phase of a peer-
-  // triggered re-snapshot. Driven by the worker's status events, which
-  // every subscriber receives — so all connected windows show the
-  // overlay together, not just the one that pressed the refresh button.
+  // True while THIS window sees provider status `loading` after it was
+  // already settled — real upstream restarts (Reload / editor) broadcast
+  // that to every subscriber. Late-join attaches must not broadcast
+  // `loading` (hub compares stable restart overlays only).
   const [isRefetching, setIsRefetching] = useState(false);
   // Bubbled up from MarketsGrid whenever the active profile is being
   // persisted (Save button or save-on-switch). We reuse the same
@@ -627,6 +627,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     asOfDate,
     toolbarDate,
     dataHubClient,
+    providerWorkerRouting,
     restartProvider,
     onError,
     containerEventBus,
@@ -660,9 +661,12 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     const asOfForRestart = selection.mode === 'historical'
       ? (asOfDate ?? (isHistoricalToolbarDate(toolbarDate) ? toolbarDate : null))
       : null;
+    // `__reload` forces hub upstream restart; `__refresh` is timing-only
+    // and must not appear alone (peer blotters used to stamp it and
+    // restarted every settled window).
     const extra = asOfForRestart
-      ? { asOfDate: asOfForRestart }
-      : { __refresh: Date.now() };
+      ? { asOfDate: asOfForRestart, __reload: Date.now() }
+      : { __reload: Date.now() };
     if (
       selection.mode === 'historical'
       && asOfForRestart

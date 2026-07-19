@@ -24,9 +24,9 @@
     "@wellsfargo-starui/design-system": "*",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "ag-grid-community": "^36.0.0",
-    "ag-grid-enterprise": "^36.0.0",
-    "ag-grid-react": "^36.0.0"
+    "ag-grid-community": "36.0.0",
+    "ag-grid-enterprise": "36.0.0",
+    "ag-grid-react": "36.0.0"
   },
   "dependencies": {
     "@wellsfargo-starui/engine": "*",

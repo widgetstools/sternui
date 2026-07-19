@@ -14,7 +14,11 @@
  */
 import { useEffect } from 'react';
 import type { GridApi } from 'ag-grid-community';
-import type { IDataProvider } from '@wellsfargo-starui/host-data';
+import {
+  isProviderWorkerRunning,
+  type IDataProvider,
+  type ProviderWorkerRoutingOpts,
+} from '@wellsfargo-starui/host-data';
 import type { MarketsGridHandle } from '@wellsfargo-starui/grid';
 import { isHistoricalToolbarDate } from '@wellsfargo-starui/grid/customizer';
 import { createApplyProviderToGridState } from './applyProviderToGrid.js';
@@ -45,6 +49,11 @@ export interface UseProviderDataWiringParams<TData extends Record<string, unknow
   asOfDate: string | null;
   toolbarDate: string;
   dataHubClient: DataHubClient;
+  /**
+   * When set (star-demo demux), peer-running checks use the provider
+   * SharedWorker — monolith introspect has no streaming slots.
+   */
+  providerWorkerRouting?: ProviderWorkerRoutingOpts;
   restartProvider: (extra?: Record<string, unknown>) => Promise<void>;
   onError?: (error: Error) => void;
   containerEventBus: ContainerEventBus;
@@ -90,6 +99,7 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
     asOfDate,
     toolbarDate,
     dataHubClient,
+    providerWorkerRouting,
     restartProvider,
     onError,
     containerEventBus,
@@ -312,7 +322,12 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
 
     void (async () => {
       try {
-        let running = await dataHubClient.isProviderRunning(activeId);
+        let running = providerWorkerRouting
+          ? await isProviderWorkerRunning({
+              ...providerWorkerRouting,
+              providerId: activeId,
+            })
+          : await dataHubClient.isProviderRunning(activeId);
         const asOfForRestart = mode === 'historical'
           ? (asOfDate ?? (isHistoricalToolbarDate(toolbarDate) ? toolbarDate : null))
           : null;
@@ -320,20 +335,33 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
         // windows. Historical restore waits briefly so a peer with the same
         // overlay can finish starting instead of this window calling restart().
         if (!running && asOfForRestart) {
-          running = await dataHubClient.waitForProviderRunning(activeId, {
-            timeoutMs: PEER_PROVIDER_WAIT_MS,
-          });
+          if (providerWorkerRouting) {
+            const deadline = Date.now() + PEER_PROVIDER_WAIT_MS;
+            while (!running && Date.now() < deadline) {
+              await new Promise((r) => setTimeout(r, 50));
+              running = await isProviderWorkerRunning({
+                ...providerWorkerRouting,
+                providerId: activeId,
+              });
+            }
+          } else {
+            running = await dataHubClient.waitForProviderRunning(activeId, {
+              timeoutMs: PEER_PROVIDER_WAIT_MS,
+            });
+          }
         }
-        // Align provider rowShape with the grid engine. Overlay wins over
-        // catalog cfg so SSRM↔CSRM toggles flatten/unflatten without mutating
-        // the saved provider definition.
+        // Stable overlay only. Do NOT stamp `__refresh` here — under
+        // provider-SW demux, monolith `isProviderRunning` is always false, so
+        // a per-window `__refresh` forced STOMP restart and flashed
+        // "Refreshing…" / "Replaying cached snapshot…" on settled peers.
+        // Intentional Reload stamps `__reload` via `reloadFromSource` only.
         const extra: Record<string, unknown> = {
           rowShape: useSSRM ? 'ssrm' : 'csrm',
         };
         if (asOfForRestart) extra.asOfDate = asOfForRestart;
-        else if (!running) extra.__refresh = Date.now();
-        // Always restart so overlay rowShape is applied (start() alone would
-        // ignore overlay and keep a prior SSRM flatten after toggling back).
+        // restart() re-attaches with overlay; hub late-joins when the
+        // stable overlay matches (rowShape / asOfDate), without upstream
+        // restart. start() alone would drop rowShape overlay.
         await restartProvider(extra);
       } catch (err: unknown) {
         if (cancelled) return;

@@ -47,6 +47,22 @@ export function createProviderClient(
   return pending;
 }
 
+/**
+ * Whether `starui-provider:{appId}:{providerId}` already has a running
+ * slot. Prefer this over monolith `client.isProviderRunning` when demux
+ * is enabled — the monolith hub reports no streaming providers.
+ */
+export async function isProviderWorkerRunning(
+  opts: CreateProviderClientOpts,
+): Promise<boolean> {
+  try {
+    const client = await createProviderClient(opts);
+    return client.asDataServicesClient().isProviderRunning(opts.providerId);
+  } catch {
+    return false;
+  }
+}
+
 /** Test-only — drop cached clients. */
 export function _resetProviderClientsForTests(): void {
   for (const [, p] of clients) {

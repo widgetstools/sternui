@@ -1,4 +1,4 @@
-import { shareOfAggregate } from '@wellsfargo-starui/ssrm-grid';
+import { shareOfAggregate } from '@wellsfargo-starui/ssrm-grid/aggregations';
 
 export type SsrmShareOfTotalParams = {
   value: unknown;

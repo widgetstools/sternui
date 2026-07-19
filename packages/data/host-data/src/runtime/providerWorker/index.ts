@@ -27,6 +27,7 @@ export { ProviderClient } from './ProviderClient.js';
 
 export {
   createProviderClient,
+  isProviderWorkerRunning,
   _resetProviderClientsForTests,
   type CreateProviderClientOpts,
 } from './createProviderClient.js';

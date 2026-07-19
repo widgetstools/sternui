@@ -171,6 +171,9 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
       }
     }
 
+    // May re-send catalog cfg; hub late-joins when that cfg matches the
+    // running slot and the stable overlay matches (see providerCfgsEqual /
+    // restartExtrasEqual) — peers must not get a STOMP restart.
     const handle = await this.openSubscribe(
       this.inlineCfg ?? this.resolvedConfig ?? undefined,
       extra ? { extra } : {},

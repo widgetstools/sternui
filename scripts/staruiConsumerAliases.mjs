@@ -442,6 +442,9 @@ export function staruiHostDataWorkerAssetPlugin(appDir) {
 const BUILD_ASSET_SENTINELS = [
   'packages/design-system/design-system/dist/css/theme.css',
   'packages/data/host-data/dist/assets/data-services-worker.mjs',
+  // Demux blotters load this URL; missing it leaves OpenFin on a stale
+  // SharedWorker script from a prior session (peer-refresh regressions).
+  'packages/data/host-data/dist/assets/provider-worker.mjs',
 ];
 
 /** True when every build-generated package asset an app needs is present. */

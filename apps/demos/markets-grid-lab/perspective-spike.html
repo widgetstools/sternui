@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SSRM pull architecture — live demo</title>
+    <style>
+      /* Spike/demo page — deliberately not design-system wired; deleted with the spike. */
+      body { font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+             background: #0f1115; color: #d5dae2; margin: 0; padding: 20px 26px; }
+      h1 { font-size: 14px; letter-spacing: .05em; text-transform: uppercase;
+           color: #8a94a6; margin: 0 0 2px; }
+      p.sub { color: #6b7686; margin: 0 0 16px; }
+      .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+      .stat { background: #161a22; border: 1px solid #232936; border-radius: 6px;
+              padding: 8px 12px; min-width: 116px; }
+      .stat b { display: block; font-size: 17px; color: #e8edf5; font-weight: 600; }
+      .stat span { color: #6b7686; font-size: 11px; text-transform: uppercase;
+                   letter-spacing: .05em; }
+      .cols { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+      table { border-collapse: collapse; background: #12151c; font-size: 12px; }
+      th { text-align: left; color: #8a94a6; font-weight: 500; border-bottom: 1px solid #232936;
+           padding: 4px 10px; position: sticky; top: 0; background: #12151c; }
+      td { padding: 3px 10px; border-bottom: 1px solid #191d26; white-space: nowrap; }
+      .wrap { max-height: 420px; overflow: auto; border: 1px solid #232936; border-radius: 6px; }
+      h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+           color: #6b7686; margin: 0 0 6px; }
+      #log { margin-top: 16px; }
+      #log div { padding: 2px 0; border-bottom: 1px solid #1b1f28; }
+      .ok { color: #6ee7a8; } .bad { color: #ff8189; } .big { font-size: 15px; }
+      code { background: #1b1f28; padding: 1px 5px; border-radius: 3px; }
+    </style>
+  </head>
+  <body>
+    <h1>SSRM pull architecture — live demo</h1>
+    <p class="sub">
+      Live STOMP feed → <code>ProviderTableBridge</code> → Perspective table in a
+      SharedWorker → <code>createPerspectiveEngine</code> viewport reads.
+      Needs <code>npm run dev:stomp</code>. <b>Open a second window</b> — it
+      attaches to the same table instead of copying it.
+    </p>
+
+    <div class="stats">
+      <div class="stat"><b id="role">…</b><span>this window</span></div>
+      <div class="stat"><b id="boot">…</b><span>worker boot</span></div>
+      <div class="stat"><b id="rows">0</b><span>rows in table</span></div>
+      <div class="stat"><b id="blockMs">…</b><span>25-row block read</span></div>
+      <div class="stat"><b id="upstream">0</b><span>upstream rows</span></div>
+      <div class="stat"><b id="ticks">0</b><span>live frames</span></div>
+      <div class="stat"><b id="flushed">0</b><span>rows per flush</span></div>
+      <div class="stat"><b id="pending">0</b><span>conflating now</span></div>
+    </div>
+
+    <div class="cols">
+      <div>
+        <h2>Viewport — top 25 by market value (pulled, not pushed)</h2>
+        <div class="wrap"><table id="grid"></table></div>
+      </div>
+      <div>
+        <h2>Grouped by currency — aggregated in the engine</h2>
+        <div class="wrap"><table id="groups"></table></div>
+      </div>
+    </div>
+
+    <div id="log"></div>
+    <script type="module" src="/src/spikes/perspectiveSharedWorkerSpike.ts"></script>
+  </body>
+</html>

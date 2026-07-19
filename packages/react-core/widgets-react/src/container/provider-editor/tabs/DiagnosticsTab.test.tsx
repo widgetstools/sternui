@@ -48,7 +48,7 @@ describe('DiagnosticsTab', () => {
         onDelta: expect.any(Function),
         onStatus: expect.any(Function),
       }),
-      { extra: expect.objectContaining({ __refresh: expect.any(Number) }) },
+      { extra: expect.objectContaining({ __reload: expect.any(Number) }) },
     );
   });
 });

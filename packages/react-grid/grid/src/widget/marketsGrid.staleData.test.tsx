@@ -16,8 +16,12 @@ vi.mock('ag-grid-react', () => ({
   )),
 }));
 
-vi.mock('ag-grid-enterprise', () => ({
-  AllEnterpriseModule: {},
+// Keep every real enterprise export: MarketsGrid renders the SSRM surface,
+// which registers a specific module list (ssrm-grid/src/agGrid/modules.ts).
+// Enumerating those here breaks whenever that list changes, so spread the
+// real module and neuter only the registry — nothing is installed in jsdom.
+vi.mock('ag-grid-enterprise', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
   ModuleRegistry: { registerModules: () => {} },
 }));
 

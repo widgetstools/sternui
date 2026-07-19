@@ -1,5 +1,5 @@
 import type { ColDef, ValueGetterParams } from 'ag-grid-community';
-import { foldTrafficLight } from '@wellsfargo-starui/ssrm-grid';
+import { foldTrafficLight } from '@wellsfargo-starui/ssrm-grid/aggregations';
 
 /** Canonical RAG IFS group roll-up recipe (whitespace-stripped). */
 const TRAFFIC_LIGHT_RAG_PATTERN =
