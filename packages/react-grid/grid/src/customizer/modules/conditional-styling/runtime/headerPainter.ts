@@ -18,6 +18,7 @@
 
 import type { PlatformHandle } from '@wellsfargo-starui/engine';
 import { cssEscapeColId } from '../../column-customization/transforms';
+import { planSsrmCalcColumn } from '../../../../engine/ssrmCalcColumns.js';
 import type { ConditionalRule, ConditionalStylingState } from '../state';
 import type { DiffCacheByApi } from '../transforms';
 import { buildColumnsContextFromDiffs } from './utils';
@@ -26,6 +27,15 @@ export interface HeaderPainter {
   /** Paint headers based on the current rule predicates + filtered rows. */
   evaluate: () => void;
 }
+
+/** SSRM context slice published by the SSRM grid (see CustomSSRMGrid). */
+type SsrmHeaderContext = {
+  ssrmConfigured?: boolean;
+  ssrmCountMatching?: (
+    filterModel: Record<string, unknown>,
+    opts?: { rowKeepExpression?: string },
+  ) => Promise<number>;
+};
 
 /** True when any enabled rule targets header flash or header indicators. */
 export function hasHeaderPaintRules(state: ConditionalStylingState): boolean {
@@ -53,6 +63,21 @@ export function createHeaderPainter(
   const lastFlashColsByRule = new Map<string, Set<string>>();
   const lastIndicatorColsByRule = new Map<string, Set<string>>();
   const notFilter = ':not(.ag-floating-filter)';
+  // Rule DSL → Perspective keep-expression, memoised per rule id. `null`
+  // means the rule cannot run engine-side (.old/.new diff refs, x/value
+  // bindings) and stays on the on-screen scan.
+  const keepByRule = new Map<string, { expression: string; keep: string | null }>();
+  // Async book-side pass id — stale resolutions must not paint.
+  let ssrmPass = 0;
+
+  const keepExpressionFor = (rule: ConditionalRule): string | null => {
+    const hit = keepByRule.get(rule.id);
+    if (hit && hit.expression === rule.expression) return hit.keep;
+    const plan = planSsrmCalcColumn({ colId: rule.id, expression: rule.expression });
+    const keep = plan.kind === 'perspective' ? plan.perspectiveExpression : null;
+    keepByRule.set(rule.id, { expression: rule.expression, keep });
+    return keep;
+  };
 
   const applyHeaderClassDelta = (
     last: Map<string, Set<string>>,
@@ -131,27 +156,79 @@ export function createHeaderPainter(
     };
 
     // Compute the *next* per-rule column sets that should be painted.
-    const nextFlashColsByRule = new Map<string, Set<string>>();
-    const nextIndicatorColsByRule = new Map<string, Set<string>>();
-    for (const rule of headerFlashRules) {
-      if (rule.scope.type !== 'cell') continue;
-      if (anyRowMatches(rule)) nextFlashColsByRule.set(rule.id, new Set(rule.scope.columns));
-    }
-    for (const rule of headerIndicatorRules) {
-      if (rule.scope.type !== 'cell') continue;
-      if (anyRowMatches(rule)) nextIndicatorColsByRule.set(rule.id, new Set(rule.scope.columns));
-    }
+    const screenVerdicts = new Map<string, boolean>();
+    const verdictFor = (rule: ConditionalRule): boolean => {
+      let v = screenVerdicts.get(rule.id);
+      if (v === undefined) {
+        v = anyRowMatches(rule);
+        screenVerdicts.set(rule.id, v);
+      }
+      return v;
+    };
+    const buildNextMaps = (verdict: (rule: ConditionalRule) => boolean) => {
+      const nextFlash = new Map<string, Set<string>>();
+      const nextIndicator = new Map<string, Set<string>>();
+      for (const rule of headerFlashRules) {
+        if (rule.scope.type !== 'cell') continue;
+        if (verdict(rule)) nextFlash.set(rule.id, new Set(rule.scope.columns));
+      }
+      for (const rule of headerIndicatorRules) {
+        if (rule.scope.type !== 'cell') continue;
+        if (verdict(rule)) nextIndicator.set(rule.id, new Set(rule.scope.columns));
+      }
+      return { nextFlash, nextIndicator };
+    };
+    const paint = (maps: ReturnType<typeof buildNextMaps>) => {
+      applyHeaderClassDelta(
+        lastFlashColsByRule,
+        maps.nextFlash,
+        (ruleId) => `ds-flash-hdr-${cssEscapeColId(ruleId)}`,
+      );
+      applyHeaderClassDelta(
+        lastIndicatorColsByRule,
+        maps.nextIndicator,
+        (ruleId) => `ds-rule-${cssEscapeColId(ruleId)}`,
+      );
+    };
 
-    applyHeaderClassDelta(
-      lastFlashColsByRule,
-      nextFlashColsByRule,
-      (ruleId) => `ds-flash-hdr-${cssEscapeColId(ruleId)}`,
-    );
-    applyHeaderClassDelta(
-      lastIndicatorColsByRule,
-      nextIndicatorColsByRule,
-      (ruleId) => `ds-rule-${cssEscapeColId(ruleId)}`,
-    );
+    // Immediate paint from the on-screen scan (loaded rows).
+    paint(buildNextMaps(verdictFor));
+
+    // SSRM (worklog T7): the on-screen scan sees only loaded blocks, so an
+    // indicator would silently mean "matches on screen" rather than
+    // "matches in book". For rules whose DSL compiles to a Perspective
+    // keep-expression, recount over the FULL displayed book engine-side and
+    // repaint; diff-based rules (.old/.new) stay on-screen — their context
+    // is tick-local by construction.
+    const ctx = api.getGridOption?.('context') as SsrmHeaderContext | undefined;
+    const countMatching = ctx?.ssrmCountMatching;
+    if (!countMatching || !ctx?.ssrmConfigured) return;
+
+    const allRules = [...new Map(
+      [...headerFlashRules, ...headerIndicatorRules].map((r) => [r.id, r]),
+    ).values()];
+    const bookRules = allRules.filter((r) => keepExpressionFor(r) != null);
+    if (bookRules.length === 0) return;
+
+    const pass = ++ssrmPass;
+    const filterModel =
+      (api.getFilterModel?.() as Record<string, unknown> | null) ?? {};
+    void Promise.all(
+      bookRules.map(async (rule) => {
+        try {
+          const count = await countMatching(filterModel, {
+            rowKeepExpression: keepExpressionFor(rule)!,
+          });
+          return [rule.id, count > 0] as const;
+        } catch {
+          return [rule.id, verdictFor(rule)] as const;
+        }
+      }),
+    ).then((entries) => {
+      if (pass !== ssrmPass) return;
+      const bookVerdicts = new Map(entries);
+      paint(buildNextMaps((rule) => bookVerdicts.get(rule.id) ?? verdictFor(rule)));
+    });
   };
 
   return { evaluate };

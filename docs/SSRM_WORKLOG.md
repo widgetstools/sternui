@@ -213,13 +213,28 @@ selection-state-aware (`getServerSideSelectionState`) row-selection edits.
 
 Verified: engine **297**, ssrm-grid **149**, grid **726** — all passing.
 
-### T7 — Conditional-styling runtime under SSRM · `TODO`
+### T7 — Conditional-styling runtime under SSRM · `DONE`
 
-Rules are fine (`ssrmRowDiff.ts` keys previous values by row id from the tick
-stream, so block refetch doesn't lose them). The **runtime** is unguarded:
-`headerPainter.ts:117` uses `forEachNodeAfterFilter`, `timedActivations.ts:120`
-uses `forEachNode`. Header indicators silently mean "matches on screen" rather
-than "matches in book". Needs engine-side `countMatching`.
+Landed:
+
+- **Header painter — engine-side counting.** `ssrmCountMatching` (published
+  in grid context) now accepts `{ rowKeepExpression }`: the count runs over
+  the DISPLAYED book (quick filter + the grid's own keep composed with the
+  rule keep via `and(...)`). The painter compiles each rule's DSL to a
+  Perspective keep-expression (`planSsrmCalcColumn`, memoised per rule);
+  compilable rules paint from the async full-book verdict (stale-pass
+  guarded), diff-based rules (`.old`/`.new` — tick-local by construction)
+  keep the on-screen scan. Immediate on-screen paint is preserved for
+  latency; the book verdict corrects it when it lands.
+- **Timed activations — prune guard.** Under `rowModelType: 'serverSide'`,
+  `forEachNode` covers loaded blocks only, so an absent rowId means
+  "scrolled out of cache", not "left the book" — the per-pass
+  `pruneTimedRuleState` is skipped (activations stay bounded by their own
+  TTL expiry), so block unload/reload inside the TTL no longer drops live
+  timed styles.
+
+Verified: grid **729** passing (+3 SSRM header-painter tests), ssrm-grid
+**149**, both `tsc` clean.
 
 ### T8 — Remaining customizer gaps · `TODO`
 

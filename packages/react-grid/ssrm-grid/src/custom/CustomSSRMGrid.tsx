@@ -608,12 +608,32 @@ export const CustomSSRMGrid = forwardRef<
   );
 
   const countMatching = useCallback(
-    async (filterModel: Record<string, unknown>) => {
+    async (
+      filterModel: Record<string, unknown>,
+      opts?: { rowKeepExpression?: string },
+    ) => {
+      // With opts (conditional-styling header painter, worklog T7): count
+      // over the DISPLAYED book — quick filter + the grid's own keep compose
+      // with the rule's keep via `and(...)`. Without opts (status bar /
+      // filter chips): unchanged full-book count for the filter model.
+      const ownKeep = rowKeepExpressionRef.current || undefined;
+      const ruleKeep = opts?.rowKeepExpression;
+      const rowKeepExpression =
+        ownKeep && ruleKeep
+          ? `and((${ownKeep}), (${ruleKeep}))`
+          : (ruleKeep ?? (opts ? ownKeep : undefined));
       const result = await Promise.resolve(
         engineRef.current.getAggregates({
           dataset: DATASET,
           valueCols: [],
           filterModel,
+          ...(opts
+            ? {
+                quickFilterText: quickFilterRef.current || undefined,
+                quickFilterFields: quickFilterFieldsRef.current,
+                rowKeepExpression,
+              }
+            : {}),
         }),
       );
       return result.rowCount;

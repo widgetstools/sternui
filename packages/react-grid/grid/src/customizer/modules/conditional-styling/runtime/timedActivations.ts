@@ -224,7 +224,13 @@ export function createTimedActivations(
     for (const rowId of previousByRow.keys()) {
       if (!activeRowIds.has(rowId)) previousByRow.delete(rowId);
     }
-    pruneTimedRuleState(activeRowIds);
+    // SSRM (worklog T7): `forEachNode` covers LOADED blocks only, so an
+    // absent rowId means "scrolled out of the cache", not "left the book".
+    // Pruning on that partial set dropped live activations when a block
+    // unloaded and reloaded inside the TTL window; activations are already
+    // bounded by their own expiry (`armNextExpiry`), so skip the prune.
+    const serverSide = api.getGridOption?.('rowModelType') === 'serverSide';
+    if (!serverSide) pruneTimedRuleState(activeRowIds);
 
     // Rearm coalesced expiry timer once per pass — cheaper than one
     // setTimeout per cell activation, regardless of mutationsPerTick.

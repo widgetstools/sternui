@@ -579,6 +579,19 @@ from an engine instead of holding the dataset. Engine-agnostic behind
 > component surface (`CustomSSRMGrid`, filters, chart/export helpers) predates
 > this file's coverage and is still undocumented.
 
+- `CustomSSRMGridHandle.exportAll({format, fileName, visual})` — exports the
+  FULL filtered set through the engine (`exportAllViaAgGrid`, which accepts a
+  `processCellCallback` so display formatters survive); visual-excel under
+  SSRM routes here instead of `api.exportDataAsExcel` (loaded blocks only) —
+  worklog T6 fetch-or-refuse. Edit-side refusal lives in `engine`
+  (`scanTargetCells` / `scanBulkUpdateTargets` report `unloadedRowCount`;
+  smart-edit / shortcuts / plus-minus / bulk-update refuse the whole edit
+  when a selection spans unloaded rows)
+- `ssrmCountMatching(filterModel, { rowKeepExpression? })` (grid context) —
+  with opts, counts over the DISPLAYED book (quick filter + grid keep
+  composed with the rule keep via `and(...)`); the conditional-styling
+  header painter uses it so indicators mean "matches in book" under SSRM
+  (worklog T7); diff-based rules stay on the on-screen scan
 - `CustomSSRMGrid.gridOptions` + `stripSsrmStructuralGridOptions` — module-
   pipeline gridOptions pass-through (worklog T5): general-settings toggles
   (`rowSelection`, pagination, editing, grouping, hover/clipboard, …) reach
