@@ -58,6 +58,12 @@ export interface PerspectiveAttachRequest {
   dataset: string;
   /** Key column; becomes the Perspective table `index`. */
   keyColumn: string;
+  /**
+   * Column → Perspective type for table creation. Optional: when omitted the
+   * provider worker infers the schema from the first cached rows (waiting for
+   * the snapshot if the link raced it).
+   */
+  schema?: Record<string, string>;
 }
 
 /** Provider worker → window, once the link is live (or already was). */
@@ -99,6 +105,8 @@ export interface LinkProviderToPerspectiveOpts {
   providerId: string;
   dataset: string;
   keyColumn: string;
+  /** Optional creation schema (see {@link PerspectiveAttachRequest.schema}). */
+  schema?: Record<string, string>;
   /** Bundled Perspective server worker asset URL. */
   workerScriptUrl: string;
   /** Port to the provider SharedWorker — the hand-off is posted here. */
@@ -136,6 +144,7 @@ export function linkProviderToPerspective(
     providerId: opts.providerId,
     dataset: opts.dataset,
     keyColumn: opts.keyColumn,
+    ...(opts.schema ? { schema: opts.schema } : {}),
   };
   opts.providerPort.postMessage(request, [writePort]);
 

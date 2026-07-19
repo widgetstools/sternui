@@ -48,10 +48,23 @@ export interface PerspectiveAttachHandlerOpts {
    * tests inject a fake.
    */
   connect: (port: MessagePort) => Promise<AttachClient>;
-  /** Column schema for table creation; omit to create from first rows. */
-  schemaFor?: (req: PerspectiveAttachRequest) => Record<string, string> | undefined;
+  /**
+   * Column schema for table creation when the attach request carries none.
+   * May resolve asynchronously (e.g. wait for the provider's first cached
+   * rows and infer). When neither source yields a schema, the attach is
+   * acked as an error — the window may retry once data exists.
+   */
+  schemaFor?: (
+    req: PerspectiveAttachRequest,
+  ) => Record<string, string> | undefined | Promise<Record<string, string> | undefined>;
   /** Flush window handed to the bridge (default: bridge default). */
   flushMs?: number;
+  /**
+   * Fired once a link is live, before the requesting window is acked.
+   * The host uses this to seed the table with rows received before the
+   * link came up (hub cache → `bridge.snapshot`).
+   */
+  onLinked?: (providerId: string, bridge: ProviderTableBridge) => void;
   onError?: (err: unknown) => void;
 }
 
@@ -119,22 +132,35 @@ export class PerspectiveAttachHandler {
     const build = (async () => {
       const client = await this.opts.connect(port);
       const hosted = await client.get_hosted_table_names();
-      const table = hosted.includes(req.dataset)
-        ? await client.open_table(req.dataset)
-        : await client.table(this.opts.schemaFor?.(req) ?? {}, {
-            index: req.keyColumn,
-            name: req.dataset,
-          });
+      let table: BridgeTable;
+      if (hosted.includes(req.dataset)) {
+        table = await client.open_table(req.dataset);
+      } else {
+        const schema = req.schema ?? (await this.opts.schemaFor?.(req));
+        if (!schema || Object.keys(schema).length === 0) {
+          throw new Error(
+            `no schema available to create table '${req.dataset}' — provider `
+            + `has no rows yet and the attach carried none; retry once data exists`,
+          );
+        }
+        // The index column must exist in the schema or Perspective aborts.
+        const withKey = schema[req.keyColumn]
+          ? schema
+          : { ...schema, [req.keyColumn]: 'string' };
+        table = await client.table(withKey, {
+          index: req.keyColumn,
+          name: req.dataset,
+        });
+      }
 
-      this.links.set(req.providerId, {
-        dataset: req.dataset,
-        bridge: new ProviderTableBridge({
-          table,
-          keyColumn: req.keyColumn,
-          flushMs: this.opts.flushMs,
-          onError: this.opts.onError,
-        }),
+      const bridge = new ProviderTableBridge({
+        table,
+        keyColumn: req.keyColumn,
+        flushMs: this.opts.flushMs,
+        onError: this.opts.onError,
       });
+      this.links.set(req.providerId, { dataset: req.dataset, bridge });
+      this.opts.onLinked?.(req.providerId, bridge);
     })();
 
     this.pending.set(req.providerId, build.then(() => undefined, () => undefined));

@@ -100,18 +100,44 @@ lowers to nested Perspective `if()` (ternary output was dropped).
 
 Verified: `grid` suite **724 passing, 0 failing** (was 681/43).
 
-### T3 — Wire the provider worker to host a table · `TODO`
+### T3 — Wire the provider worker to host a table · `DONE`
 
-Depends on: D3–D5 (done).
+Landed:
 
-- Route `psp-attach` in `installProviderHub` → `PerspectiveAttachHandler`
-- Provider slot writes rows into `bridgeFor(providerId)` via
-  `createSsrmTableProvider` instead of hub cache + fan-out
-- Implement the real `connect` using `connectPerspectivePort`
+- `installProviderHub` routes `psp-attach` → `PerspectiveAttachHandler`
+  ahead of the hub protocol (SharedWorker and dedicated paths).
+- Row routing is a **tee, not a replacement** (per the ADR, the cache stays
+  the loader + push-compat authority): the hub's new `pullSinkFor` hook feeds
+  every frame into `bridgeFor(providerId)` (`replace` → `snapshot`, live →
+  `push`, thin deltas included); on link the table is seeded from
+  `getCachedRows`. `createSsrmTableProvider` remains the standalone sink for
+  non-hub hosts.
+- Real `connect` = `createProviderPerspectiveConnect` over
+  `connectPerspectivePort`: WASM fetched as siblings of the worker bundle,
+  **stage-0 self-extracting packaging unwrapped** (both artifacts), and the
+  **standalone** `dist/wasm/perspective-js.js` module initialised (the root
+  bundle's inlined glue copy is a split-brain trap — `__wbindgen_*` dies if
+  you mix them). `buildWorker.mjs` copies both `.wasm` next to
+  `provider-worker.mjs`; new export
+  `@wellsfargo-starui/host-data/assets/perspective-server.worker.mjs`.
+- Table schema: `PerspectiveAttachRequest.schema` (window-supplied) or
+  row-inference from the first cached rows (waits up to 30s for the
+  snapshot); key column injected if absent; schema-less create acks a
+  retryable error.
 
-**Acceptance:** a provider feeds a worker-hosted table end-to-end with no
-window in the data path; verify against `dev:stomp` with
-`SWEEP_ROWS_PER_SEC=2000`.
+**Acceptance verified live** (`dev:stomp`, `SWEEP_ROWS_PER_SEC=2000`,
+headless Chromium driving `apps/demos/markets-grid-lab/pull-path-spike.html`
+— the REAL `provider-worker.mjs` bundle):
+`{linked: true, tableSize: 20000, blockMs: 1.1, updatesSeen: 42}` — STOMP
+runs inside the provider worker, the table lives in `starui-psp:*`, the page
+only performs the port hand-off and reads viewports. Snapshot at this sweep
+rate takes ~35 s to assemble; the link waits for it (schema inference) and
+seeds in one `replace`.
+
+Unit: `installProviderHub.pullPath.test.ts` (tee, seeding, routing, dedupe)
++ attach-handler schema tests. host-data suite: **484 passing, 0 failing**
+(the `__refresh` client test — backlog B8 — was updated to the `__reload`
+contract in passing).
 
 ### T4 — New SSRM surface · `TODO` · depends on T1, T2
 
@@ -184,7 +210,7 @@ plus-minus capability ids.
 | B5 | `agGrid/theme.ts` hardcodes `#8AAAA7` / `#8AAAA766` and forces `colorSchemeDark` — violates the UI stack rule, dark-only | `ssrm-grid/src/agGrid/theme.ts` |
 | B6 | No bounded queue hub→window on the push path; a window that falls behind grows unbounded (observed: one renderer at 11 GB) | `SharedWorkerDataServicesHub` |
 | B7 | Dead code: `applyTickToSsrm.ts` (tested, unused), `getSsrmShareOfTotal` (exported, no consumer), `engine/index.ts` subpath (no importer) | — |
-| B8 | `__refresh` client test fails — encodes the pre-`stableRestartExtra` contract | `SharedWorkerDataServicesClient.test.ts:254` |
+| B8 | ~~`__refresh` client test fails~~ **Fixed with T3** — test updated to the `__reload` contract; host-data fully green | `SharedWorkerDataServicesClient.test.ts` |
 | B9 | No e2e coverage of SSRM at all — zero matches for `ssrm`/`rowModel` under `e2e/` | — |
 
 ---

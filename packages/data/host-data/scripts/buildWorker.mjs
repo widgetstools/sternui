@@ -80,6 +80,13 @@ function publishPerspectiveWorker(outDir) {
   if (fs.existsSync(srcMap)) {
     fs.copyFileSync(srcMap, `${dest}.map`);
   }
+
+  // WASM payloads the provider worker fetches as siblings of its own bundle
+  // (createProviderPerspectiveConnect): client ~0.2 MB, server ~2.2 MB.
+  const wasmDir = path.join(path.dirname(src), '..', 'wasm');
+  for (const name of ['perspective-js.wasm', 'perspective-server.wasm']) {
+    fs.copyFileSync(path.join(wasmDir, name), path.join(outDir, name));
+  }
 }
 
 /**

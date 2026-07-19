@@ -35,6 +35,7 @@ const req = (over: Record<string, unknown> = {}) => ({
   providerId: 'dp-1',
   dataset: 'main',
   keyColumn: 'positionId',
+  schema: { positionId: 'string', px: 'float' },
   ...over,
 });
 
@@ -53,15 +54,51 @@ describe('PerspectiveAttachHandler', () => {
     expect(h.bridgeFor('dp-1')).toBeDefined();
   });
 
-  it('creates the table with the key column as index when not hosted', async () => {
+  it('creates the table from the request schema with the key column as index', async () => {
     const { client } = fakeClient([]);
     const h = new PerspectiveAttachHandler({ connect: async () => client });
     h.handleMessage(req(), [fakePort()], () => undefined);
     await vi.waitFor(() => expect(h.isLinked('dp-1')).toBe(true));
     expect(client.table).toHaveBeenCalledWith(
-      {},
+      { positionId: 'string', px: 'float' },
       { index: 'positionId', name: 'main' },
     );
+  });
+
+  it('injects the key column when the schema lacks it', async () => {
+    const { client } = fakeClient([]);
+    const h = new PerspectiveAttachHandler({ connect: async () => client });
+    h.handleMessage(req({ schema: { px: 'float' } }), [fakePort()], () => undefined);
+    await vi.waitFor(() => expect(h.isLinked('dp-1')).toBe(true));
+    expect(client.table).toHaveBeenCalledWith(
+      { px: 'float', positionId: 'string' },
+      { index: 'positionId', name: 'main' },
+    );
+  });
+
+  it('falls back to an async schemaFor when the request carries no schema', async () => {
+    const { client } = fakeClient([]);
+    const h = new PerspectiveAttachHandler({
+      connect: async () => client,
+      schemaFor: async () => ({ positionId: 'string', qty: 'float' }),
+    });
+    h.handleMessage(req({ schema: undefined }), [fakePort()], () => undefined);
+    await vi.waitFor(() => expect(h.isLinked('dp-1')).toBe(true));
+    expect(client.table).toHaveBeenCalledWith(
+      { positionId: 'string', qty: 'float' },
+      { index: 'positionId', name: 'main' },
+    );
+  });
+
+  it('acks an error when no schema is available for a new table', async () => {
+    const { client } = fakeClient([]);
+    const acks: PerspectiveAttachAck[] = [];
+    const h = new PerspectiveAttachHandler({ connect: async () => client });
+    h.handleMessage(req({ schema: undefined }), [fakePort()], (a) => acks.push(a));
+    await vi.waitFor(() => expect(acks).toHaveLength(1));
+    expect(acks[0]).toMatchObject({ linked: false });
+    expect(acks[0]?.error).toMatch(/no schema available/);
+    expect(h.isLinked('dp-1')).toBe(false);
   });
 
   it('opens an existing table instead of recreating it', async () => {
@@ -155,6 +192,24 @@ describe('PerspectiveAttachHandler', () => {
     const h = new PerspectiveAttachHandler({ connect: async () => client });
     expect(h.handleMessage({ kind: 'attach', subId: 's1' }, [], () => undefined)).toBe(false);
     expect(h.handleMessage(null, [], () => undefined)).toBe(false);
+  });
+
+  it('fires onLinked with the new bridge before acking (seed window)', async () => {
+    const { client, table } = fakeClient();
+    const events: string[] = [];
+    const h = new PerspectiveAttachHandler({
+      connect: async () => client,
+      onLinked: (providerId, bridge) => {
+        events.push(`linked:${providerId}`);
+        void bridge.snapshot([{ positionId: 'x' }]);
+      },
+    });
+
+    h.handleMessage(req(), [fakePort()], () => events.push('ack'));
+    await vi.waitFor(() => expect(events).toContain('ack'));
+
+    expect(events[0]).toBe('linked:dp-1');
+    expect(table.replace).toHaveBeenCalledWith([{ positionId: 'x' }]);
   });
 
   it('release() drops one link and dispose() drops all', async () => {

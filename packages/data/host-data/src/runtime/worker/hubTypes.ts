@@ -247,4 +247,20 @@ export interface SharedWorkerDataServicesHubOpts {
    * attach there instead.
    */
   appDataDisabled?: boolean;
+
+  /**
+   * Pull data path (ADR-ssrm-worker-hosted-engine): sink for a provider's
+   * row frames once a Perspective table link is up. Consulted per emit;
+   * return undefined while unlinked. The hub cache stays authoritative —
+   * it seeds the table on link and keeps serving push subscribers.
+   */
+  pullSinkFor?: (providerId: string) => ProviderPullSink | undefined;
+}
+
+/** Write half of the pull path — structurally matches `ProviderTableBridge`. */
+export interface ProviderPullSink {
+  /** Full book replace (provider `replace: true` frames). */
+  snapshot(rows: readonly Record<string, unknown>[]): Promise<void>;
+  /** Live frame — conflated by key downstream. */
+  push(rows: readonly Record<string, unknown>[]): void;
 }

@@ -8,6 +8,7 @@
 
 import { createConfigManager } from '@wellsfargo-starui/host-config';
 import { installProviderHub } from './installProviderHub.js';
+import { createProviderPerspectiveConnect } from '../perspective/createProviderPerspectiveConnect.js';
 import {
   parseProviderWorkerName,
   readWorkerBootstrapPayload,
@@ -91,6 +92,11 @@ async function boot(): Promise<void> {
     templateLookupAsync: appDataClient
       ? (name, key) => appDataClient!.lookup(name, key)
       : undefined,
+    // Pull path (ADR-ssrm-worker-hosted-engine): serve psp-attach hand-offs.
+    // WASM assets are siblings of this bundle in dist/assets (buildWorker.mjs).
+    perspectiveConnect: createProviderPerspectiveConnect({
+      baseUrl: import.meta.url,
+    }),
   });
 
   // eslint-disable-next-line no-console

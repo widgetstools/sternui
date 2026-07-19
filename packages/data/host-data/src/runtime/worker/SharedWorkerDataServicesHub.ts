@@ -96,6 +96,7 @@ import {
   type StatsListener,
   type AppDataListenerEntry,
   type AppDataDeltaEventMutable,
+  type ProviderPullSink,
   type SharedWorkerDataServicesHubOpts,
   SUBSCRIBER_PING_TIMEOUT_MS,
   SUBSCRIBER_PING_TIMEOUT_HIDDEN_MS,
@@ -157,6 +158,7 @@ export class SharedWorkerDataServicesHub {
   private readonly appDataLookupOverride: import('../template/resolver.js').AppDataLookup | null;
   private readonly streamingDisabled: boolean;
   private readonly appDataDisabled: boolean;
+  private readonly pullSinkFor: ((providerId: string) => ProviderPullSink | undefined) | null;
   private statsTimer: unknown = null;
   private subscriberSweepTimer: unknown = null;
 
@@ -183,6 +185,7 @@ export class SharedWorkerDataServicesHub {
     this.appDataLookupOverride = opts.appDataLookup ?? null;
     this.streamingDisabled = opts.streamingDisabled === true;
     this.appDataDisabled = opts.appDataDisabled === true;
+    this.pullSinkFor = opts.pullSinkFor ?? null;
     this.appData = new AppDataService({ configManager: opts.configManager });
     this.configCatalog = resolveCatalogService(opts);
 
@@ -388,6 +391,18 @@ export class SharedWorkerDataServicesHub {
       appDataDisabled: this.appDataDisabled || undefined,
       topologyNote: topologyParts.length > 0 ? topologyParts.join(' ') : undefined,
     };
+  }
+
+  /**
+   * Snapshot of a provider's cached rows. Seeds a freshly-linked pull
+   * table with everything received before the link came up (the cache's
+   * "loader" role in ADR-ssrm-worker-hosted-engine); later frames reach
+   * the table via the `pullSinkFor` tee in {@link applyEmit}.
+   */
+  getCachedRows(providerId: string): Record<string, unknown>[] {
+    const slot = this.providers.get(providerId);
+    if (!slot) return [];
+    return [...slot.cache.values()] as Record<string, unknown>[];
   }
 
   /**
@@ -1128,6 +1143,17 @@ export class SharedWorkerDataServicesHub {
     // is silently ignored, so stale frames never leak into the new cache.
     if (this.providers.get(providerId) !== slot) return;
     if ('rows' in event) {
+      // Pull path tee (ADR-ssrm-worker-hosted-engine): when a Perspective
+      // table link is up, the same frames also land in the table. `replace`
+      // frames replace the book; live frames conflate downstream (the bridge
+      // drops key-less rows itself). The snapshot promise never rejects —
+      // ProviderTableBridge routes write failures to its onError.
+      const pullSink = this.pullSinkFor?.(providerId);
+      if (pullSink) {
+        const rows = event.rows as Record<string, unknown>[];
+        if (event.replace) void pullSink.snapshot(rows);
+        else pullSink.push(rows);
+      }
       const keyColumn = (slot.cfg as { keyColumn?: string | readonly string[] }).keyColumn;
       if (event.replace) slot.cache.clear();
       // Any cache mutation invalidates the pre-encoded replay snapshot.

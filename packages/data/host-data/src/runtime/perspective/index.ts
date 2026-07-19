@@ -23,6 +23,11 @@ export {
 } from './connectPerspectivePort.js';
 
 export {
+  createProviderPerspectiveConnect,
+  type CreateProviderPerspectiveConnectOpts,
+} from './createProviderPerspectiveConnect.js';
+
+export {
   linkProviderToPerspective,
   perspectiveSharedWorkerName,
   parsePerspectiveWorkerName,

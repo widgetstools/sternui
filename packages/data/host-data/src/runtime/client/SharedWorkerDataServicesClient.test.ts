@@ -235,7 +235,11 @@ describe('SharedWorkerDataServicesClient', () => {
     expect(await waitP).toBe(true);
   });
 
-  it('subscribe with extra waits for fresh snapshot instead of stale cache replay', async () => {
+  it('subscribe with __reload waits for fresh snapshot instead of stale cache replay', async () => {
+    // A bare `__refresh` no longer forces an upstream restart (it is
+    // timing-only; peers late-join on a matching stable overlay). The
+    // wait-for-fresh contract belongs to `__reload` — see hubHelpers
+    // restartExtrasEqual and the DiagnosticsTab reload path.
     const primer = w.client.subscribe('p1', cfg());
     await flush();
     controllers.get('c-1')!.emit({ rows: [{ id: 'stale', x: 1 }], replace: true });
@@ -246,7 +250,7 @@ describe('SharedWorkerDataServicesClient', () => {
     const handle = w.client.subscribe<{ id: string; x: number }>(
       'p1',
       undefined,
-      { extra: { __refresh: 1 } },
+      { extra: { __reload: 1 } },
     );
     handle.onSnapshotCommit((rows) => commits.push(rows));
     await flush();

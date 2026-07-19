@@ -30,7 +30,8 @@
     "./assets/data-services-worker.mjs": "./dist/assets/data-services-worker.mjs",
     "./assets/config-catalog-worker.mjs": "./dist/assets/config-catalog-worker.mjs",
     "./assets/appdata-worker.mjs": "./dist/assets/appdata-worker.mjs",
-    "./assets/provider-worker.mjs": "./dist/assets/provider-worker.mjs"
+    "./assets/provider-worker.mjs": "./dist/assets/provider-worker.mjs",
+    "./assets/perspective-server.worker.mjs": "./dist/assets/perspective-server.worker.mjs"
   },
   "files": [
     "dist"

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>T3 — provider worker → Perspective table</title>
+    <style>
+      /* Spike/verification page — deliberately not design-system wired; deleted with the spike. */
+      body { font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+             background: #0f1115; color: #d5dae2; margin: 0; padding: 20px 26px; }
+      h1 { font-size: 14px; letter-spacing: .05em; text-transform: uppercase;
+           color: #8a94a6; margin: 0 0 2px; }
+      p.sub { color: #6b7686; margin: 0 0 16px; }
+      .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+      .stat { background: #161a22; border: 1px solid #232936; border-radius: 6px;
+              padding: 8px 12px; min-width: 116px; }
+      .stat b { display: block; font-size: 17px; color: #e8edf5; font-weight: 600; }
+      .stat span { color: #6b7686; font-size: 11px; text-transform: uppercase;
+                   letter-spacing: .05em; }
+      table { border-collapse: collapse; background: #12151c; font-size: 12px; }
+      th { text-align: left; color: #8a94a6; font-weight: 500; border-bottom: 1px solid #232936;
+           padding: 4px 10px; position: sticky; top: 0; background: #12151c; }
+      td { padding: 3px 10px; border-bottom: 1px solid #191d26; white-space: nowrap; }
+      .wrap { max-height: 420px; overflow: auto; border: 1px solid #232936; border-radius: 6px; }
+      #log { margin-top: 16px; }
+      #log div { padding: 2px 0; border-bottom: 1px solid #1b1f28; }
+      .ok { color: #6ee7a8; } .bad { color: #ff8189; } .big { font-size: 15px; }
+      code { background: #1b1f28; padding: 1px 5px; border-radius: 3px; }
+      #result { display: block; margin-top: 14px; color: #6b7686; word-break: break-all; }
+    </style>
+  </head>
+  <body>
+    <h1>Worklog T3 — real provider worker feeds the table</h1>
+    <p class="sub">
+      <code>starui-provider:lab:pullpos</code> (built bundle) runs STOMP and
+      writes rows into a Perspective table in
+      <code>starui-psp:lab:pullpos</code>. This page only performs the port
+      hand-off and reads viewports. Needs <code>npm run dev:stomp</code>.
+    </p>
+
+    <div class="stats">
+      <div class="stat"><b id="status">…</b><span>provider status</span></div>
+      <div class="stat"><b id="rows">0</b><span>rows in table</span></div>
+      <div class="stat"><b id="blockMs">…</b><span>25-row block read</span></div>
+      <div class="stat"><b id="updates">0</b><span>table updates seen</span></div>
+      <div class="stat"><b id="pushDeltas">0</b><span>push deltas (status attach)</span></div>
+    </div>
+
+    <div class="wrap"><table id="grid"></table></div>
+    <code id="result"></code>
+    <div id="log"></div>
+    <script type="module" src="/src/spikes/pullPathProviderWorkerSpike.ts"></script>
+  </body>
+</html>
