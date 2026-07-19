@@ -87,6 +87,7 @@ const { dataHubClientMock } = vi.hoisted(() => {
 const lastMarketsGridProps: { current: any } = { current: null };
 
 vi.mock('@wellsfargo-starui/grid', () => ({
+  resolveUseSsrm: (opts: { useSSRM?: boolean } | undefined) => Boolean(opts?.useSSRM),
   useGeneralSettingsSnapshot: () => undefined,
   MarketsGrid: (props: any) => {
     lastMarketsGridProps.current = props;
@@ -214,7 +215,10 @@ describe('MarketsGridContainer — provider stale state', () => {
       />,
     );
 
-    await waitFor(() => expect(latestProvider?.start).toHaveBeenCalled(), { timeout: 3000 });
+    // Wire-up always goes through restart() so the overlay rowShape applies
+    // (see useProviderDataWiring) - start() is never called directly.
+    await waitFor(() => expect(restartMock).toHaveBeenCalled(), { timeout: 3000 });
+    await waitFor(() => expect(latestProvider).not.toBeNull());
 
     await act(async () => {
       latestProvider!.emitStatus('loading');
@@ -269,7 +273,10 @@ describe('MarketsGridContainer — provider stale state', () => {
       />,
     );
 
-    await waitFor(() => expect(latestProvider?.start).toHaveBeenCalled(), { timeout: 3000 });
+    // Wire-up always goes through restart() so the overlay rowShape applies
+    // (see useProviderDataWiring) - start() is never called directly.
+    await waitFor(() => expect(restartMock).toHaveBeenCalled(), { timeout: 3000 });
+    await waitFor(() => expect(latestProvider).not.toBeNull());
 
     latestProvider!.refresh = vi.fn().mockImplementation(async () => {
       latestProvider!.emitSnapshot(refreshedRows);

@@ -18,6 +18,7 @@ import type { StorageAdapter } from '@wellsfargo-starui/engine';
 // onCaptionChange.
 const lastMarketsGridProps: { current: any } = { current: null };
 vi.mock('@wellsfargo-starui/grid', () => ({
+  resolveUseSsrm: (opts: { useSSRM?: boolean } | undefined) => Boolean(opts?.useSSRM),
   useGeneralSettingsSnapshot: () => undefined,
   MarketsGrid: (props: any) => {
     lastMarketsGridProps.current = props;

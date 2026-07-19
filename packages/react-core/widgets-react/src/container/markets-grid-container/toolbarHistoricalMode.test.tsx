@@ -86,6 +86,7 @@ const saveAllMock = vi.fn().mockResolvedValue(undefined);
 const lastMarketsGridProps: { current: any } = { current: null };
 
 vi.mock('@wellsfargo-starui/grid', () => ({
+  resolveUseSsrm: (opts: { useSSRM?: boolean } | undefined) => Boolean(opts?.useSSRM),
   useGeneralSettingsSnapshot: () => undefined,
   MarketsGrid: (props: any) => {
     lastMarketsGridProps.current = props;
