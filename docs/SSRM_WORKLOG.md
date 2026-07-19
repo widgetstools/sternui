@@ -143,17 +143,41 @@ Unit: `installProviderHub.pullPath.test.ts` (tee, seeding, routing, dedupe)
 (the `__refresh` client test — backlog B8 — was updated to the `__reload`
 contract in passing).
 
-### T4 — New SSRM surface · `TODO` · depends on T1, T2 (both `DONE`)
+### T4 — New SSRM surface · `DONE`
 
-> **State after this session:** every prerequisite is in place and the swap
-> is smaller than when this task was written. T1 made `CustomSSRMGrid`
-> engine-polymorphic (typed against `SsrmEngine`; zero RowMirror channels).
-> T2 restored the MarketsGrid mount-contract safety net (grid suite green).
-> T5 removed the props whitelist (the new surface must keep the
-> `gridOptions` three-tier precedence). T6 added `exportAll` to the handle
-> (now 11 methods). The component is ~1,150 LOC — still over the 800
-> ceiling; the extraction seams are visible in-file (dirty-handler effect,
-> configureAndLoad, datasource memo, handle, agGridProps tiers).
+Landed: **`CustomSSRMGrid` (1,167 LOC, zero tests) is deleted**, replaced by
+a decomposed, tested surface built on the reusable layer:
+
+| File | LOC | Role |
+|---|---|---|
+| `custom/SsrmGrid.tsx` | 193 | render + the T5 three-tier gridOptions merge |
+| `custom/useSsrmGridController.ts` | 548 | engine lifecycle, configure/load, datasource, context publication, grid callbacks |
+| `custom/useSsrmGridHandle.ts` | 346 | the 11-method imperative handle + export/chart context-menu items |
+| `custom/ssrmDirtyRouter.ts` | 179 | dirty routing over **`RefreshScheduler`** (the worklog-mandated policy — no inline quiet-window timers) |
+| `custom/types.ts` | 126 | `SsrmGridHandle` / `SsrmGridProps` |
+
+Public rename: `CustomSSRMGrid`/`CustomSSRMGridHandle`/`CustomSSRMGridProps`
+→ `SsrmGrid`/`SsrmGridHandle`/`SsrmGridProps` (grid's `SSRMGridHandle` alias
+unchanged for its consumers). Everything on the must-reproduce list carries
+over verbatim from the old component (sync block serving + block cache with
+fingerprint/generation invalidation, context publication, `g:`/`t:`/`tl:`/
+grand-total `getRowId` encodings, tree data, master-detail, set-filter
+values, cell-edit write-back, export/chart menu overrides). What changed
+behaviorally is the refresh policy, deliberately: leaf transactions conflate
+by row id and flush through the scheduler (scroll-deferred, purge-subsuming,
+`maxStallMs`-bounded) instead of the 1 s quiet window; purges invalidate
+cache/generation/view immediately but defer the grid store purge until
+motion settles; the 250 ms agg patch throttle is kept and skipped mid-scroll.
+
+New coverage: `ssrmDirtyRouter.test.ts` (7 — conflation, immediate cache
+patching, cache-only unloaded adds, scroll deferral, purge subsumption,
+agg throttle, dispose) + `ssrmGrid.mount.test.tsx` (6 — AG wiring, row-id
+encodings, gridOptions tiers, context publication, handle-through-engine,
+edit write-back with schema coercion).
+
+Verified: ssrm-grid **156**, grid **735**, widgets-react **222**, engine
+**297**, host-data **484** — all green; every file under the 800 ceiling.
+Customizer parity was NOT attempted, per the task's own scope note.
 
 Replaces `CustomSSRMGrid` (1,086 LOC, **zero tests**, over the 800 LOC ceiling).
 Built on the reusable layer (~2,600 LOC, all tested). **Delete `CustomSSRMGrid`

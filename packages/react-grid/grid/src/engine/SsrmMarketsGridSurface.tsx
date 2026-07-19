@@ -3,7 +3,7 @@ import type { GridReadyEvent, Theme } from 'ag-grid-community';
 import { buildStreamSafeComponents } from '../widget/buildStreamSafeComponents.js';
 import { stripSurfaceManagedGridOptions } from '../widget/gridSurfaceOptions.js';
 import {
-  CustomSSRMGrid,
+  SsrmGrid,
   type SSRMGridHandle,
   type SSRMColDef,
 } from './ssrmgrid-entry.js';
@@ -42,7 +42,7 @@ export type SsrmMarketsGridSurfaceProps = {
    */
   rowKeepExpression?: string;
   /**
-   * @deprecated Ignored — MarketsGrid SSRM is CustomSSRMGrid only.
+   * @deprecated Ignored — MarketsGrid SSRM is SsrmGrid only.
    * Kept optional so existing call sites compile.
    */
   ssrmEngine?: 'custom' | 'auto' | 'perspective';
@@ -52,7 +52,7 @@ export type SsrmMarketsGridSurfaceProps = {
 
 /**
  * SSRM presentation surface — peer to MarketsGridSurface.
- * Always mounts CustomSSRMGrid (main-thread RowMirror).
+ * Always mounts SsrmGrid (main-thread RowMirror).
  */
 export const SsrmMarketsGridSurface = forwardRef<
   SSRMGridHandle,
@@ -108,7 +108,7 @@ export const SsrmMarketsGridSurface = forwardRef<
 
   return (
     <div style={{ flex: 1, minHeight: 0, width: '100%' }}>
-      <CustomSSRMGrid
+      <SsrmGrid
         ref={inner}
         columnDefs={props.columnDefs}
         rowData={props.rowData}

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 describe('ssrmgrid-entry', () => {
-  it('exports CustomSSRMGrid', async () => {
+  it('exports SsrmGrid', async () => {
     const mod = await import('./ssrmgrid-entry.js');
-    expect(mod.CustomSSRMGrid).toBeTypeOf('object'); // forwardRef component
+    expect(mod.SsrmGrid).toBeTypeOf('object'); // forwardRef component
   });
 
   it('re-exports share-of-total helpers from @wellsfargo-starui/ssrm-grid', async () => {

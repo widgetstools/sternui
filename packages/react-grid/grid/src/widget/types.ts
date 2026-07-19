@@ -39,7 +39,7 @@ export interface MarketsGridProps<TData = unknown> {
    *  `@wellsfargo-starui/widgets-react` MarketsGridContainer for the reference pattern. */
   rowData: TData[];
   /**
-   * When true, use SSRM via CustomSSRMGrid (RowMirror).
+   * When true, use SSRM via SsrmGrid (RowMirror).
    * Default false — classic CSRM MarketsGrid. SSRM features are gated by
    * `CURRENT_SSRM_PHASE` in `engine/ssrmCapabilities.ts`.
    * Prefer {@link MarketsGridProps.rowModel} for new code; when both are set,
@@ -47,7 +47,7 @@ export interface MarketsGridProps<TData = unknown> {
    */
   useSSRM?: boolean;
   /**
-   * @deprecated Ignored — MarketsGrid SSRM is CustomSSRMGrid only.
+   * @deprecated Ignored — MarketsGrid SSRM is SsrmGrid only.
    */
   ssrmEngine?: 'custom' | 'perspective' | 'auto';
   /**

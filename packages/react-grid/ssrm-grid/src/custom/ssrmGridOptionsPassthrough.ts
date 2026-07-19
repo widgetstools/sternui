@@ -1,7 +1,7 @@
 /**
  * Which module-pipeline gridOptions may pass through to the SSRM grid.
  *
- * `CustomSSRMGrid` accepts the host's computed gridOptions (general-settings
+ * `SsrmGrid` accepts the host's computed gridOptions (general-settings
  * et al) via its `gridOptions` prop so panel toggles reach the SSRM surface
  * instead of being silently discarded (worklog T5). The keys below are
  * SSRM-structural — the component owns them (row model wiring, datasource,

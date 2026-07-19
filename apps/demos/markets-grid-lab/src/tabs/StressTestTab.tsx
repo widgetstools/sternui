@@ -140,7 +140,7 @@ export function StressTestTab() {
       case 'plain-50k400':
         return `Plain AG Grid 36 CSRM · 50k × 400 · ${tickMs} ms ticks`;
       default:
-        return `${config.subtitle} · ${tickMs} ms tick · CustomSSRMGrid`;
+        return `${config.subtitle} · ${tickMs} ms tick · SsrmGrid`;
     }
   })();
 

@@ -74,7 +74,7 @@ export interface UseProviderDataWiringParams<TData extends Record<string, unknow
   gridHandle: MarketsGridHandle | null;
   /**
    * SSRM snapshot sink — lab/STOMP pattern: full book via React `rowData`
-   * (CustomSSRMGrid/SSRMGrid `setRowData`), ticks via `applyDataTransactionAsync`.
+   * (SsrmGrid `setRowData`), ticks via `applyDataTransactionAsync`.
    * CSRM ignores this and uses `liveApi.setGridOption('rowData')`.
    */
   onSsrmSnapshot?: (rows: TData[]) => void;

@@ -16,7 +16,7 @@ import type { DirtyMessage } from "../ssrm/applyWorkerDirtyToGrid.js";
 
 /**
  * Shared data-plane contract for `<SSRMGrid>` (Perspective) and
- * `<CustomSSRMGrid>` (RowMirror / main-thread).
+ * `<SsrmGrid>` (RowMirror / main-thread).
  *
  * Grid chrome, ColDefs, and AG Grid SSRM wiring stay shared; only the engine
  * behind getRows / mutations / full-set queries changes.

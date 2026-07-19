@@ -30,7 +30,7 @@ export function activateRowExclusion(
     platform.api.use((api) => {
       try {
         if (api.getGridOption?.('rowModelType') === 'serverSide') {
-          // Row-keep expression is applied via CustomSSRMGrid prop; purge
+          // Row-keep expression is applied via SsrmGrid prop; purge
           // so unloaded blocks re-query with the new predicate.
           api.refreshServerSide?.({ purge: true });
           return;

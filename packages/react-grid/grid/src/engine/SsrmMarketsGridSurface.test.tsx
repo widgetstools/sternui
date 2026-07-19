@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import type { Theme } from 'ag-grid-community';
 
-const CustomSSRMGridMock = vi.fn(() => <div data-testid="custom-ssrm-grid" />);
+const SsrmGridMock = vi.fn(() => <div data-testid="ssrm-grid" />);
 
 vi.mock('./ssrmgrid-entry.js', () => ({
-  CustomSSRMGrid: (props: unknown) => CustomSSRMGridMock(props),
+  SsrmGrid: (props: unknown) => SsrmGridMock(props),
 }));
 
 import { SsrmMarketsGridSurface } from './SsrmMarketsGridSurface.js';
@@ -13,8 +13,8 @@ import { SsrmMarketsGridSurface } from './SsrmMarketsGridSurface.js';
 describe('SsrmMarketsGridSurface', () => {
   const theme = { id: 'starui' } as unknown as Theme;
 
-  it('mounts CustomSSRMGrid', () => {
-    CustomSSRMGridMock.mockClear();
+  it('mounts SsrmGrid', () => {
+    SsrmGridMock.mockClear();
     const { getByTestId } = render(
       <SsrmMarketsGridSurface
         rowData={[{ id: '1' }]}
@@ -23,8 +23,8 @@ describe('SsrmMarketsGridSurface', () => {
         theme={theme}
       />,
     );
-    expect(getByTestId('custom-ssrm-grid')).toBeTruthy();
-    expect(CustomSSRMGridMock).toHaveBeenCalledWith(
+    expect(getByTestId('ssrm-grid')).toBeTruthy();
+    expect(SsrmGridMock).toHaveBeenCalledWith(
       expect.objectContaining({
         theme,
         loadThemeGoogleFonts: false,
@@ -32,8 +32,8 @@ describe('SsrmMarketsGridSurface', () => {
     );
   });
 
-  it('still mounts CustomSSRMGrid when deprecated ssrmEngine=perspective is passed', () => {
-    CustomSSRMGridMock.mockClear();
+  it('still mounts SsrmGrid when deprecated ssrmEngine=perspective is passed', () => {
+    SsrmGridMock.mockClear();
     const { getByTestId, queryByTestId } = render(
       <SsrmMarketsGridSurface
         rowData={[]}
@@ -44,7 +44,7 @@ describe('SsrmMarketsGridSurface', () => {
         theme={theme}
       />,
     );
-    expect(getByTestId('custom-ssrm-grid')).toBeTruthy();
+    expect(getByTestId('ssrm-grid')).toBeTruthy();
     expect(queryByTestId('perspective-ssrm-grid')).toBeNull();
   });
 });

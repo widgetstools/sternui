@@ -2,11 +2,8 @@
 
 export const SSRM_GRID_PACKAGE = '@wellsfargo-starui/ssrm-grid' as const;
 
-export { CustomSSRMGrid } from './custom/CustomSSRMGrid.js';
-export type {
-  CustomSSRMGridHandle,
-  CustomSSRMGridProps,
-} from './custom/CustomSSRMGrid.js';
+export { SsrmGrid } from './custom/SsrmGrid.js';
+export type { SsrmGridHandle, SsrmGridProps } from './custom/types.js';
 export type { SSRMColDef } from './custom/columnOverride.js';
 export type {
   SSRMTransaction,

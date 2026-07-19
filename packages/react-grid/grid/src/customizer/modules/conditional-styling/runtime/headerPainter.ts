@@ -28,7 +28,7 @@ export interface HeaderPainter {
   evaluate: () => void;
 }
 
-/** SSRM context slice published by the SSRM grid (see CustomSSRMGrid). */
+/** SSRM context slice published by the SSRM grid (see SsrmGrid). */
 type SsrmHeaderContext = {
   ssrmConfigured?: boolean;
   ssrmCountMatching?: (

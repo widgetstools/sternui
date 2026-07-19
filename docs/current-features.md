@@ -575,11 +575,23 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 from an engine instead of holding the dataset. Engine-agnostic behind
 `SsrmEngine`.
 
-> Coverage note: this section documents the **engine layer** only. The
-> component surface (`CustomSSRMGrid`, filters, chart/export helpers) predates
-> this file's coverage and is still undocumented.
+- **`SsrmGrid`** (worklog T4 — replaces `CustomSSRMGrid`, deleted) — the SSRM
+  component surface, decomposed and tested: `SsrmGrid.tsx` (render + the
+  three-tier gridOptions merge), `useSsrmGridController` (engine lifecycle,
+  configure/load, datasource, context publication), `useSsrmGridHandle` (the
+  11-method imperative handle: transactions, countMatching, getGroupLeafRows,
+  queryAll, forEachMatching, chartFilteredData, exportAll, selection state),
+  `ssrmDirtyRouter` (dirty routing over `RefreshScheduler` — leaf txs
+  conflate by row id and flush scroll-deferred/purge-subsuming/staleness-
+  bounded; the block cache is patched immediately so sync serving never goes
+  stale; purges invalidate cache/generation/view at signal time and defer
+  only the grid store purge), `custom/types.ts` (`SsrmGridHandle`,
+  `SsrmGridProps`). Row-id encodings (`g:`/`t:`/`tl:`/grand-total), tree
+  data, master-detail, set-filter values, cell-edit write-back with schema
+  coercion, and export/chart context-menu overrides carry over from the old
+  component; covered by dirty-router unit tests + a mount-contract suite
 
-- `CustomSSRMGridHandle.exportAll({format, fileName, visual})` — exports the
+- `SsrmGridHandle.exportAll({format, fileName, visual})` — exports the
   FULL filtered set through the engine (`exportAllViaAgGrid`, which accepts a
   `processCellCallback` so display formatters survive); visual-excel under
   SSRM routes here instead of `api.exportDataAsExcel` (loaded blocks only) —
@@ -592,7 +604,7 @@ from an engine instead of holding the dataset. Engine-agnostic behind
   composed with the rule keep via `and(...)`); the conditional-styling
   header painter uses it so indicators mean "matches in book" under SSRM
   (worklog T7); diff-based rules stay on the on-screen scan
-- `CustomSSRMGrid.gridOptions` + `stripSsrmStructuralGridOptions` — module-
+- `SsrmGrid.gridOptions` + `stripSsrmStructuralGridOptions` — module-
   pipeline gridOptions pass-through (worklog T5): general-settings toggles
   (`rowSelection`, pagination, editing, grouping, hover/clipboard, …) reach
   the SSRM grid in three precedence tiers (overridable SSRM defaults →
@@ -611,7 +623,7 @@ from an engine instead of holding the dataset. Engine-agnostic behind
   Optional **sync capabilities** (`trySyncRows`, `tryLeafAt`, `tryFindById`,
   `invalidateView`) let a main-thread engine serve blocks / loading-stub text
   / leaf-merge lookups without a round-trip; async-only engines omit them and
-  callers fall back to the async methods. `CustomSSRMGrid` consumes engines
+  callers fall back to the async methods. `SsrmGrid` consumes engines
   **only** through this contract (no `RowMirror` leak — the datasource, the
   loading-cell stub reader, and the group/grand-total agg patchers are all
   engine-driven)

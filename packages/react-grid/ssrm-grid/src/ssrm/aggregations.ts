@@ -3,7 +3,7 @@
  *
  * Exposed as the `@wellsfargo-starui/ssrm-grid/aggregations` subpath so
  * consumers that need only these functions do not import the package barrel.
- * The barrel re-exports `CustomSSRMGrid`, which does `import "../agGrid/modules"`
+ * The barrel re-exports `SsrmGrid`, which does `import "../agGrid/modules"`
  * — a module-scope `ModuleRegistry.registerModules([...])` side effect. Pulling
  * a grid component and AG Grid Enterprise registration into scope to call
  * `foldTrafficLight` is both wasteful and, in tests, actively breaking: any

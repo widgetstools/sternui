@@ -1,9 +1,9 @@
 /**
- * SSRM engine entry — CustomSSRMGrid from @wellsfargo-starui/ssrm-grid.
+ * SSRM engine entry — SsrmGrid from @wellsfargo-starui/ssrm-grid.
  * MarketsGrid SSRM uses the main-thread RowMirror engine only (no Perspective).
  */
 export {
-  CustomSSRMGrid,
+  SsrmGrid,
   shareOfTotal,
   shareOfAggregate,
   formatShareOfTotal,
@@ -12,12 +12,12 @@ export {
   resolveAggregate,
 } from '@wellsfargo-starui/ssrm-grid';
 export type {
-  CustomSSRMGridHandle,
-  CustomSSRMGridProps,
+  SsrmGridHandle,
+  SsrmGridProps,
   SSRMColDef,
   SSRMTransaction,
 } from '@wellsfargo-starui/ssrm-grid';
 /** Handle type for MarketsGrid's SSRM path. */
-export type { CustomSSRMGridHandle as SSRMGridHandle } from '@wellsfargo-starui/ssrm-grid';
+export type { SsrmGridHandle as SSRMGridHandle } from '@wellsfargo-starui/ssrm-grid';
 
 export { getSsrmShareOfTotal, type SsrmShareOfTotalParams } from './ssrmShareOfTotal.js';

@@ -11,7 +11,7 @@ import { cleanup, render } from '@testing-library/react';
 const captured: { props: Record<string, unknown> | null } = { props: null };
 
 vi.mock('./ssrmgrid-entry.js', () => ({
-  CustomSSRMGrid: React.forwardRef<unknown, any>((props, _ref) => {
+  SsrmGrid: React.forwardRef<unknown, any>((props, _ref) => {
     captured.props = props;
     return <div data-testid="ssrm-grid-stub" />;
   }),
