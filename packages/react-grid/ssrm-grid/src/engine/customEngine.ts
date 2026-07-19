@@ -60,8 +60,43 @@ export function createCustomEngine(): SsrmEngine & {
     return request.rowGroupCols ?? [];
   };
 
+  const trySyncRows = (
+    request: SsrmGetRowsRequest,
+  ): SsrmGetRowsResult | null => {
+    if (request.pivotMode) return null;
+    const slice = mirror.tryGetRows({
+      startRow: request.startRow,
+      endRow: request.endRow,
+      rowGroupCols: resolveRowGroupCols(request),
+      groupKeys: request.groupKeys ?? [],
+      pivotMode: false,
+      filterModel: request.filterModel ?? {},
+      sortModel: request.sortModel ?? [],
+      valueCols: request.valueCols,
+      quickFilterText: request.quickFilterText,
+      quickFilterFields: request.quickFilterFields,
+      treeData: request.treeData,
+      absSort: request.absSort,
+      rowKeepExpression: request.rowKeepExpression,
+      idField: index,
+    });
+    if (!slice) return null;
+    return {
+      rowData: slice.rowData,
+      rowCount: slice.rowCount,
+      totals: slice.totals,
+      aggregates: slice.aggregates,
+      filteredRowCount: slice.filteredRowCount,
+    };
+  };
+
   const engine: SsrmEngine & { getMirror(): RowMirror } = {
     getMirror: () => mirror,
+
+    trySyncRows,
+    tryLeafAt: (viewIndex) => mirror.getLeafAt(viewIndex) ?? null,
+    tryFindById: (id) => mirror.findById(id) ?? null,
+    invalidateView: () => mirror.invalidateView(),
 
     configure(config: FeedConfig) {
       index = config.index;
@@ -81,35 +116,13 @@ export function createCustomEngine(): SsrmEngine & {
       if (request.pivotMode) {
         throw new Error("CustomEngine: pivot mode is not supported");
       }
-      const rowGroupCols = resolveRowGroupCols(request);
-      const slice = mirror.tryGetRows({
-        startRow: request.startRow,
-        endRow: request.endRow,
-        rowGroupCols,
-        groupKeys: request.groupKeys ?? [],
-        pivotMode: false,
-        filterModel: request.filterModel ?? {},
-        sortModel: request.sortModel ?? [],
-        valueCols: request.valueCols,
-        quickFilterText: request.quickFilterText,
-        quickFilterFields: request.quickFilterFields,
-        treeData: request.treeData,
-        absSort: request.absSort,
-        rowKeepExpression: request.rowKeepExpression,
-        idField: index,
-      });
-      if (!slice) {
+      const result = trySyncRows(request);
+      if (!result) {
         throw new Error(
           "CustomEngine: request not supported (unsafe filter / empty book)",
         );
       }
-      return {
-        rowData: slice.rowData,
-        rowCount: slice.rowCount,
-        totals: slice.totals,
-        aggregates: slice.aggregates,
-        filteredRowCount: slice.filteredRowCount,
-      };
+      return result;
     },
 
     getFilterValues(_dataset: DatasetId, field: string) {

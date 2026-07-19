@@ -582,8 +582,16 @@ from an engine instead of holding the dataset. Engine-agnostic behind
 - `SsrmEngine` — data-plane contract shared by every engine (`configure`,
   `setRowData`, `getRows`, `applyTransaction`, `getAggregates`, `queryAll`,
   `setDirtyHandler`, `dispose`); every method is `T | Promise<T>` so an engine
-  may be local or remote. `SsrmEngineKind = 'perspective' | 'custom'`
-- `createCustomEngine` — main-thread engine over `RowMirror`. Holds **one**
+  may be local or remote. `SsrmEngineKind = 'perspective' | 'custom'`.
+  Optional **sync capabilities** (`trySyncRows`, `tryLeafAt`, `tryFindById`,
+  `invalidateView`) let a main-thread engine serve blocks / loading-stub text
+  / leaf-merge lookups without a round-trip; async-only engines omit them and
+  callers fall back to the async methods. `CustomSSRMGrid` consumes engines
+  **only** through this contract (no `RowMirror` leak — the datasource, the
+  loading-cell stub reader, and the group/grand-total agg patchers are all
+  engine-driven)
+- `createCustomEngine` — main-thread engine over `RowMirror`; implements the
+  optional sync capabilities from the mirror. Holds **one**
   materialised view behind a single-slot memo (`view`/`viewKey`), so N blotters
   with distinct group/sort/filter thrash it; suited to a single view per window
 - **`createPerspectiveEngine`** — Perspective-backed engine

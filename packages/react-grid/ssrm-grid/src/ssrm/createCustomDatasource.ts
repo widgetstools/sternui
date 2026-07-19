@@ -1,7 +1,10 @@
 import type { IServerSideDatasource } from "ag-grid-community";
 import type { SsrmEngine } from "../engine/types.js";
-import type { DatasetId, SsrmGetRowsResult } from "./types";
-import type { RowMirror } from "./rowMirror";
+import type {
+  DatasetId,
+  SsrmGetRowsRequest,
+  SsrmGetRowsResult,
+} from "./types";
 import {
   fingerprintBlockRequest,
   type BlockCacheKeyParts,
@@ -49,7 +52,6 @@ export type CustomDatasourceExtras = {
   includeGrandTotal?: boolean;
   isConfigured?: boolean;
   waitUntilConfigured?: () => Promise<boolean>;
-  rowMirror?: RowMirror | null;
   treeData?: boolean;
   absSort?: boolean;
   rowKeepExpression?: string;
@@ -58,9 +60,9 @@ export type CustomDatasourceExtras = {
 };
 
 /**
- * AG Grid SSRM datasource backed by {@link SsrmEngine} (custom / RowMirror).
- * Sync-serves mirror + block-cache hits (Perspective parity) so scroll does not
- * wait a microtask / paint stubs.
+ * AG Grid SSRM datasource backed by {@link SsrmEngine}. Engines exposing
+ * `trySyncRows` (RowMirror) serve blocks synchronously so scroll does not
+ * wait a microtask / paint stubs; async-only engines fall back to getRows.
  */
 export function createCustomDatasource(
   getEngine: () => SsrmEngine | null,
@@ -121,6 +123,35 @@ export function createCustomDatasource(
       };
       const cacheKey = fingerprintBlockRequest(keyParts);
 
+      const buildRequest = (x: CustomDatasourceExtras): SsrmGetRowsRequest => ({
+        dataset: getDataset(),
+        startRow,
+        endRow,
+        rowGroupCols: (req.rowGroupCols ?? []).map((c) => ({
+          id: c.id,
+          field: c.field ?? "",
+          displayName: c.displayName ?? c.field ?? c.id,
+        })),
+        valueCols,
+        pivotCols: (req.pivotCols ?? []).map((c) => ({
+          id: c.id,
+          field: c.field ?? "",
+          displayName: c.displayName ?? c.field ?? c.id,
+        })),
+        pivotMode: Boolean(req.pivotMode),
+        groupKeys,
+        filterModel: (req.filterModel ?? {}) as Record<string, unknown>,
+        sortModel: (req.sortModel ?? []).map((s) => ({
+          colId: s.colId,
+          sort: s.sort as "asc" | "desc",
+        })),
+        quickFilterText: x.quickFilterText,
+        quickFilterFields: x.quickFilterFields,
+        treeData: x.treeData,
+        absSort: x.absSort,
+        rowKeepExpression: x.rowKeepExpression,
+      });
+
       const deliver = (result: CachedGetRows) => {
         // Counts only — avoid status-bar churn when totals are empty and unchanged.
         if (onTotals && groupKeys.length === 0) {
@@ -151,26 +182,11 @@ export function createCustomDatasource(
         });
       };
 
-      // Sync path: RowMirror → no blank placeholder rows on fling.
-      if (extras.isConfigured && extras.rowMirror?.isReady) {
-        const mirrored = extras.rowMirror.tryGetRows({
-          startRow,
-          endRow,
-          rowGroupCols: keyParts.rowGroupCols,
-          groupKeys,
-          pivotMode: keyParts.pivotMode,
-          filterModel: keyParts.filterModel,
-          sortModel: keyParts.sortModel,
-          valueCols,
-          quickFilterText: extras.quickFilterText,
-          quickFilterFields: extras.quickFilterFields,
-          treeData: extras.treeData,
-          absSort: extras.absSort,
-          rowKeepExpression: extras.rowKeepExpression,
-          idField: undefined,
-        });
-        if (mirrored) {
-          const cached = toCached(mirrored);
+      // Sync path: engine fast path → no blank placeholder rows on fling.
+      if (extras.isConfigured && engine.trySyncRows) {
+        const synced = engine.trySyncRows(buildRequest(extras));
+        if (synced) {
+          const cached = toCached(synced);
           blockCache?.set(cacheKey, cached);
           deliver(cached);
           return;
@@ -199,24 +215,11 @@ export function createCustomDatasource(
         }
 
         // Re-check sync paths after the gate (configure may have filled the book).
-        if (live.rowMirror?.isReady) {
-          const mirrored = live.rowMirror.tryGetRows({
-            startRow,
-            endRow,
-            rowGroupCols: keyParts.rowGroupCols,
-            groupKeys,
-            pivotMode: keyParts.pivotMode,
-            filterModel: keyParts.filterModel,
-            sortModel: keyParts.sortModel,
-            valueCols,
-            quickFilterText: live.quickFilterText,
-            quickFilterFields: live.quickFilterFields,
-            treeData: live.treeData,
-            absSort: live.absSort,
-            rowKeepExpression: live.rowKeepExpression,
-          });
-          if (mirrored) {
-            const cached = toCached(mirrored);
+        const liveRequest = buildRequest(live);
+        if (engine.trySyncRows) {
+          const synced = engine.trySyncRows(liveRequest);
+          if (synced) {
+            const cached = toCached(synced);
             blockCache?.set(cacheKey, cached);
             deliver(cached);
             return;
@@ -229,37 +232,7 @@ export function createCustomDatasource(
         }
 
         try {
-          const result = await Promise.resolve(
-            engine.getRows({
-              dataset: getDataset(),
-              startRow,
-              endRow,
-              rowGroupCols: (req.rowGroupCols ?? []).map((c) => ({
-                id: c.id,
-                field: c.field ?? "",
-                displayName: c.displayName ?? c.field ?? c.id,
-              })),
-              valueCols,
-              pivotCols: (req.pivotCols ?? []).map((c) => ({
-                id: c.id,
-                field: c.field ?? "",
-                displayName: c.displayName ?? c.field ?? c.id,
-              })),
-              pivotMode: Boolean(req.pivotMode),
-              groupKeys,
-              filterModel: (req.filterModel ?? {}) as Record<string, unknown>,
-              sortModel: (req.sortModel ?? []).map((s) => ({
-                colId: s.colId,
-                sort: s.sort as "asc" | "desc",
-              })),
-              quickFilterText: live.quickFilterText,
-              quickFilterFields: live.quickFilterFields,
-              treeData: live.treeData,
-              absSort: live.absSort,
-              rowKeepExpression: live.rowKeepExpression,
-            }),
-          );
-
+          const result = await Promise.resolve(engine.getRows(liveRequest));
           blockCache?.set(cacheKey, toCached(result));
           deliver(toCached(result));
         } catch {

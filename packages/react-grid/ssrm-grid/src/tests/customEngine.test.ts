@@ -270,6 +270,85 @@ describe("createCustomEngine", () => {
     engine.dispose();
   });
 
+  it("trySyncRows serves sync and returns null when unsupported", () => {
+    const engine = createCustomEngine();
+    engine.configure({
+      dataset: "main",
+      schema: { id: "string", pnl: "float" },
+      index: "id",
+    });
+
+    // Empty book — not ready yet.
+    expect(
+      engine.trySyncRows?.({
+        dataset: "main",
+        startRow: 0,
+        endRow: 10,
+        rowGroupCols: [],
+        valueCols: [],
+        pivotCols: [],
+        pivotMode: false,
+        groupKeys: [],
+        filterModel: {},
+        sortModel: [],
+      }),
+    ).toBeNull();
+
+    engine.setRowData("main", [
+      { id: "1", pnl: 10 },
+      { id: "2", pnl: 20 },
+    ]);
+    const page = engine.trySyncRows?.({
+      dataset: "main",
+      startRow: 0,
+      endRow: 10,
+      rowGroupCols: [],
+      valueCols: [],
+      pivotCols: [],
+      pivotMode: false,
+      groupKeys: [],
+      filterModel: {},
+      sortModel: [],
+    });
+    expect(page?.rowCount).toBe(2);
+
+    // Pivot is never sync-servable.
+    expect(
+      engine.trySyncRows?.({
+        dataset: "main",
+        startRow: 0,
+        endRow: 10,
+        rowGroupCols: [],
+        valueCols: [],
+        pivotCols: [],
+        pivotMode: true,
+        groupKeys: [],
+        filterModel: {},
+        sortModel: [],
+      }),
+    ).toBeNull();
+    engine.dispose();
+  });
+
+  it("tryLeafAt / tryFindById / invalidateView expose the sync book", () => {
+    const engine = createCustomEngine();
+    engine.configure({
+      dataset: "main",
+      schema: { id: "string", book: "string" },
+      index: "id",
+    });
+    engine.setRowData("main", [
+      { id: "1", book: "HY" },
+      { id: "2", book: "IG" },
+    ]);
+    expect(engine.tryLeafAt?.(1)?.book).toBe("IG");
+    expect(engine.tryLeafAt?.(9)).toBeNull();
+    expect(engine.tryFindById?.("1")?.book).toBe("HY");
+    expect(engine.tryFindById?.("nope")).toBeNull();
+    expect(() => engine.invalidateView?.()).not.toThrow();
+    engine.dispose();
+  });
+
   it("emits surgical dirty for add+update (no bare purge)", () => {
     const engine = createCustomEngine();
     const dirties: unknown[] = [];

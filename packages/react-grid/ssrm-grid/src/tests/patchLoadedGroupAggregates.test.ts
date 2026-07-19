@@ -2,21 +2,28 @@ import { GRAND_TOTAL_ROW_ID } from "ag-grid-community";
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  patchGrandTotalFromMirror,
-  patchLoadedGroupAggregatesFromMirror,
+  patchGrandTotalFromEngine,
+  patchLoadedGroupAggregatesFromEngine,
 } from "../ssrm/patchLoadedGroupAggregates.js";
-import { RowMirror } from "../ssrm/rowMirror.js";
+import { createCustomEngine } from "../engine/customEngine.js";
 
-describe("patchLoadedGroupAggregatesFromMirror", () => {
+function engineWith(rows: Record<string, unknown>[]) {
+  const engine = createCustomEngine();
+  engine.configure({
+    dataset: "main",
+    schema: {},
+    index: "id",
+  });
+  engine.setRowData("main", rows);
+  return engine;
+}
+
+describe("patchLoadedGroupAggregatesFromEngine", () => {
   it("patches root group store with recomputed sums", () => {
-    const mirror = new RowMirror();
-    mirror.replaceAll(
-      [
-        { id: "1", book: "A", pnl: 10 },
-        { id: "2", book: "A", pnl: 20 },
-      ],
-      "id",
-    );
+    const engine = engineWith([
+      { id: "1", book: "A", pnl: 10 },
+      { id: "2", book: "A", pnl: 20 },
+    ]);
     const apply = vi.fn();
     const api = {
       getRowGroupColumns: () => [
@@ -35,7 +42,7 @@ describe("patchLoadedGroupAggregatesFromMirror", () => {
       applyServerSideTransactionAsync: apply,
     };
 
-    patchLoadedGroupAggregatesFromMirror(api as never, mirror);
+    patchLoadedGroupAggregatesFromEngine(api as never, engine);
 
     expect(apply).toHaveBeenCalledTimes(1);
     expect(apply).toHaveBeenCalledWith(
@@ -51,18 +58,30 @@ describe("patchLoadedGroupAggregatesFromMirror", () => {
       }),
     );
   });
+
+  it("no-ops on engines without trySyncRows", () => {
+    const apply = vi.fn();
+    const api = {
+      getRowGroupColumns: () => [
+        { getColId: () => "book", getColDef: () => ({ field: "book" }) },
+      ],
+      getValueColumns: () => [],
+      getFilterModel: () => ({}),
+      isPivotMode: () => false,
+      getServerSideGroupLevelState: () => [{ route: [] }],
+      applyServerSideTransactionAsync: apply,
+    };
+    patchLoadedGroupAggregatesFromEngine(api as never, { getRows: vi.fn() } as never);
+    expect(apply).not.toHaveBeenCalled();
+  });
 });
 
-describe("patchGrandTotalFromMirror", () => {
+describe("patchGrandTotalFromEngine", () => {
   it("updates grand total via GRAND_TOTAL_ROW_ID transaction", () => {
-    const mirror = new RowMirror();
-    mirror.replaceAll(
-      [
-        { id: "1", book: "A", pnl: 10 },
-        { id: "2", book: "A", pnl: 20 },
-      ],
-      "id",
-    );
+    const engine = engineWith([
+      { id: "1", book: "A", pnl: 10 },
+      { id: "2", book: "A", pnl: 20 },
+    ]);
     const apply = vi.fn();
     const api = {
       getRowGroupColumns: () => [
@@ -80,7 +99,7 @@ describe("patchGrandTotalFromMirror", () => {
       applyServerSideTransactionAsync: apply,
     };
 
-    patchGrandTotalFromMirror(api as never, mirror, { idField: "id" });
+    patchGrandTotalFromEngine(api as never, engine, { idField: "id" });
 
     expect(apply).toHaveBeenCalledTimes(1);
     expect(apply).toHaveBeenCalledWith({
@@ -89,15 +108,11 @@ describe("patchGrandTotalFromMirror", () => {
   });
 
   it("recomputes after leaf patches", () => {
-    const mirror = new RowMirror();
-    mirror.replaceAll(
-      [
-        { id: "1", book: "A", pnl: 10 },
-        { id: "2", book: "A", pnl: 20 },
-      ],
-      "id",
-    );
-    mirror.patchById([{ id: "1", pnl: 100 }]);
+    const engine = engineWith([
+      { id: "1", book: "A", pnl: 10 },
+      { id: "2", book: "A", pnl: 20 },
+    ]);
+    engine.updateRows("main", [{ id: "1", pnl: 100 }]);
     const apply = vi.fn();
     const api = {
       getRowGroupColumns: () => [],
@@ -113,7 +128,7 @@ describe("patchGrandTotalFromMirror", () => {
       applyServerSideTransactionAsync: apply,
     };
 
-    patchGrandTotalFromMirror(api as never, mirror, { idField: "id" });
+    patchGrandTotalFromEngine(api as never, engine, { idField: "id" });
 
     expect(apply).toHaveBeenCalledWith({
       update: [{ id: GRAND_TOTAL_ROW_ID, pnl: 120 }],
@@ -121,14 +136,10 @@ describe("patchGrandTotalFromMirror", () => {
   });
 
   it("skips transaction when grand total measures are unchanged", () => {
-    const mirror = new RowMirror();
-    mirror.replaceAll(
-      [
-        { id: "1", book: "A", pnl: 10 },
-        { id: "2", book: "A", pnl: 20 },
-      ],
-      "id",
-    );
+    const engine = engineWith([
+      { id: "1", book: "A", pnl: 10 },
+      { id: "2", book: "A", pnl: 20 },
+    ]);
     const apply = vi.fn();
     const api = {
       getRowGroupColumns: () => [],
@@ -147,21 +158,17 @@ describe("patchGrandTotalFromMirror", () => {
       applyServerSideTransactionAsync: apply,
     };
 
-    patchGrandTotalFromMirror(api as never, mirror, { idField: "id" });
+    patchGrandTotalFromEngine(api as never, engine, { idField: "id" });
 
     expect(apply).not.toHaveBeenCalled();
   });
 
   it("patches avg when raw mean moves even slightly", () => {
-    const mirror = new RowMirror();
-    mirror.replaceAll(
-      [
-        { id: "1", book: "A", price: 10 },
-        { id: "2", book: "A", price: 10 },
-      ],
-      "id",
-    );
-    mirror.patchById([{ id: "1", price: 10.5 }]);
+    const engine = engineWith([
+      { id: "1", book: "A", price: 10 },
+      { id: "2", book: "A", price: 10 },
+    ]);
+    engine.updateRows("main", [{ id: "1", price: 10.5 }]);
     const apply = vi.fn();
     const api = {
       getRowGroupColumns: () => [],
@@ -180,10 +187,42 @@ describe("patchGrandTotalFromMirror", () => {
       applyServerSideTransactionAsync: apply,
     };
 
-    patchGrandTotalFromMirror(api as never, mirror, { idField: "id" });
+    patchGrandTotalFromEngine(api as never, engine, { idField: "id" });
 
     expect(apply).toHaveBeenCalledWith({
       update: [{ id: GRAND_TOTAL_ROW_ID, price: 10.25 }],
+    });
+  });
+
+  it("applies quick filter and keep expression from extras", () => {
+    const engine = engineWith([
+      { id: "1", book: "FX", pnl: 10 },
+      { id: "2", book: "EQ", pnl: 20 },
+      { id: "3", book: "FX", pnl: -5 },
+    ]);
+    const apply = vi.fn();
+    const api = {
+      getRowGroupColumns: () => [],
+      getValueColumns: () => [
+        {
+          getColId: () => "pnl",
+          getColDef: () => ({ field: "pnl", aggFunc: "sum" }),
+          getAggFunc: () => "sum",
+        },
+      ],
+      getFilterModel: () => ({}),
+      isPivotMode: () => false,
+      applyServerSideTransactionAsync: apply,
+    };
+
+    patchGrandTotalFromEngine(api as never, engine, {
+      idField: "id",
+      quickFilterText: "FX",
+      rowKeepExpression: '"pnl" > 0',
+    });
+
+    expect(apply).toHaveBeenCalledWith({
+      update: [{ id: GRAND_TOTAL_ROW_ID, pnl: 10 }],
     });
   });
 });

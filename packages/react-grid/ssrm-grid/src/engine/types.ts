@@ -35,6 +35,22 @@ export interface SsrmEngine {
   getDetailRows(request: DetailRowsRequest): Promise<Record<string, unknown>[]> | Record<string, unknown>[];
   setDirtyHandler?(handler: ((msg: DirtyMessage) => void) | null): void;
   dispose(): void;
+
+  // Optional synchronous capabilities. Engines that can serve reads without a
+  // worker round-trip (RowMirror) implement these; async-only engines
+  // (Perspective) omit them and callers fall back to the async methods.
+
+  /**
+   * Synchronous getRows fast path. Returns null when the request cannot be
+   * served synchronously (unconfigured, empty book, pivot, unsafe filter).
+   */
+  trySyncRows?(request: SsrmGetRowsRequest): SsrmGetRowsResult | null;
+  /** Leaf at an absolute index of the current root view (loading-stub paint). */
+  tryLeafAt?(viewIndex: number): Record<string, unknown> | null;
+  /** Row lookup by primary key (leaf-update merge fast path). */
+  tryFindById?(id: string): Record<string, unknown> | null;
+  /** Drop memoized view state after an external invalidation (filter / data replace). */
+  invalidateView?(): void;
 }
 
 export type SsrmEngineKind = "perspective" | "custom";

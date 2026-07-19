@@ -37,16 +37,18 @@ import { chartAllViaAgGrid } from "../ssrm/chartAllViaAgGrid";
 import { ConfiguredGate } from "../ssrm/configuredGate";
 import { createCustomDatasource } from "../ssrm/createCustomDatasource";
 import { createCustomEngine } from "../engine/customEngine.js";
+import type { SsrmEngine } from "../engine/types";
 import { exportAllViaAgGrid } from "../ssrm/exportAllViaAgGrid";
 import { fetchAllGroupLeafRows, toGroupLeafCols } from "../ssrm/getGroupLeafRows";
 import { mergeLeafUpdateRows } from "../ssrm/mergeLeafUpdateRows";
 import {
   MirrorLoadingCellRenderer,
-  setActiveRowMirror,
+  setActiveStubLeafReader,
+  type SsrmStubLeafReader,
 } from "../ssrm/mirrorLoadingCell";
 import {
-  patchGrandTotalFromMirror,
-  patchLoadedGroupAggregatesFromMirror,
+  patchGrandTotalFromEngine,
+  patchLoadedGroupAggregatesFromEngine,
 } from "../ssrm/patchLoadedGroupAggregates";
 import { buildQueryAllRequestFromApi } from "../ssrm/readGridQueryState";
 import { refreshAllLoadedServerSideStores } from "../ssrm/refreshAllLoadedStores";
@@ -213,7 +215,8 @@ export const CustomSSRMGrid = forwardRef<
 >(function CustomSSRMGrid(props, ref) {
   const { columnDefs, rowData, getRowId: idField } = props;
   const apiRef = useRef<GridApi | null>(null);
-  const engineRef = useRef(createCustomEngine());
+  // Typed as the seam — compile-time proof the component works with any engine.
+  const engineRef = useRef<SsrmEngine>(createCustomEngine());
   const configuredGateRef = useRef(new ConfiguredGate());
   const configuredRef = useRef(false);
   const configureInFlightRef = useRef(false);
@@ -230,8 +233,12 @@ export const CustomSSRMGrid = forwardRef<
   grandTotalRowRef.current = props.grandTotalRow;
   const grandTotalRowOpt = resolveGrandTotalRow(props.grandTotalRow);
 
-  const mirror = engineRef.current.getMirror();
-  setActiveRowMirror(mirror);
+  const engine = engineRef.current;
+  const stubLeafAt = useMemo<SsrmStubLeafReader | null>(
+    () => (engine.tryLeafAt ? (i) => engine.tryLeafAt!(i) : null),
+    [engine],
+  );
+  setActiveStubLeafReader(stubLeafAt);
 
   const quickFilterRef = useRef(props.quickFilterText ?? "");
   quickFilterRef.current = props.quickFilterText ?? "";
@@ -312,11 +319,19 @@ export const CustomSSRMGrid = forwardRef<
       groupAggPatchTimerRef.current = setTimeout(() => {
         groupAggPatchTimerRef.current = null;
         if (Date.now() < tickQuietUntilRef.current) return;
+        const patchExtras = {
+          dataset: DATASET,
+          quickFilterText: quickFilterRef.current || undefined,
+          quickFilterFields: quickFilterFieldsRef.current,
+          absSort: absSortRef.current,
+          rowKeepExpression: rowKeepExpressionRef.current || undefined,
+          idField,
+        };
         if (usesNativeGrandTotal(grandTotalRowRef.current)) {
-          patchGrandTotalFromMirror(api, mirror);
+          patchGrandTotalFromEngine(api, engine, patchExtras);
         }
         if ((api.getRowGroupColumns?.() ?? []).length > 0) {
-          patchLoadedGroupAggregatesFromMirror(api, mirror);
+          patchLoadedGroupAggregatesFromEngine(api, engine, patchExtras);
         }
       }, 250);
     };
@@ -358,7 +373,7 @@ export const CustomSSRMGrid = forwardRef<
               idField,
               loadedUpdates,
               (id) =>
-                mirror.findById(id) ??
+                engine.tryFindById?.(id) ??
                 blockCacheRef.current.findRow(idField, id) ??
                 (api.getRowNode(id)?.data as
                   | Record<string, unknown>
@@ -376,14 +391,14 @@ export const CustomSSRMGrid = forwardRef<
         purgeRefresh: () => {
           refreshGenerationRef.current += 1;
           blockCacheRef.current.clear();
-          mirror.invalidateView();
+          engine.invalidateView?.();
           refreshAllLoadedServerSideStores(api, { purge: true });
         },
       });
     });
     return () => {
       engine.setDirtyHandler?.(null);
-      setActiveRowMirror(null);
+      setActiveStubLeafReader(null);
       if (groupAggPatchTimerRef.current) {
         clearTimeout(groupAggPatchTimerRef.current);
       }
@@ -434,7 +449,6 @@ export const CustomSSRMGrid = forwardRef<
     const gen = ++configureGenRef.current;
     configuredRef.current = false;
     configuredGateRef.current.reset();
-    mirror.clear();
     refreshGenerationRef.current += 1;
     blockCacheRef.current.clear();
     try {
@@ -449,7 +463,7 @@ export const CustomSSRMGrid = forwardRef<
       if (api) {
         api.setGridOption("context", {
           ...(api.getGridOption("context") as object | undefined),
-          rowMirror: mirror,
+          ssrmLeafAt: stubLeafAt,
           ssrmConfigured: true,
           totalRowCount: rows.length,
           filteredRowCount: rows.length,
@@ -461,7 +475,7 @@ export const CustomSSRMGrid = forwardRef<
         configureInFlightRef.current = false;
       }
     }
-  }, [mirror, publishRowCounts]);
+  }, [publishRowCounts, stubLeafAt]);
 
   useEffect(() => {
     void configureAndLoad();
@@ -476,7 +490,7 @@ export const CustomSSRMGrid = forwardRef<
         refreshGenerationRef.current += 1;
         blockCacheRef.current.clear();
         // In-place book replace — leaf objects are new; drop cached view.
-        mirror.invalidateView();
+        engineRef.current.invalidateView?.();
         const api = apiRef.current;
         if (api) refreshAllLoadedServerSideStores(api, { purge: true });
       },
@@ -486,7 +500,7 @@ export const CustomSSRMGrid = forwardRef<
   }, [rowData, publishRowCounts]);
 
   useEffect(() => {
-    mirror.invalidateView();
+    engineRef.current.invalidateView?.();
     refreshGenerationRef.current += 1;
     blockCacheRef.current.clear();
     const api = apiRef.current;
@@ -506,7 +520,6 @@ export const CustomSSRMGrid = forwardRef<
     props.highlightQuickFilter,
     props.rowKeepExpression,
     props.absSort,
-    mirror,
   ]);
 
   const commit = useCallback(
@@ -535,7 +548,6 @@ export const CustomSSRMGrid = forwardRef<
           includeGrandTotal: usesNativeGrandTotal(grandTotalRowRef.current),
           isConfigured: configuredRef.current,
           waitUntilConfigured: () => configuredGateRef.current.wait(10_000),
-          rowMirror: mirror,
           treeData,
           absSort: absSortRef.current,
           rowKeepExpression: rowKeepExpressionRef.current || undefined,
@@ -574,7 +586,7 @@ export const CustomSSRMGrid = forwardRef<
         },
         blockCacheRef.current,
       ),
-    [mirror, treeData],
+    [treeData],
   );
 
   const countMatching = useCallback(
@@ -916,9 +928,9 @@ export const CustomSSRMGrid = forwardRef<
   const onStructureChanged = useCallback(() => {
     refreshGenerationRef.current += 1;
     blockCacheRef.current.clear();
-    mirror.invalidateView();
+    engineRef.current.invalidateView?.();
     tickQuietUntilRef.current = Date.now() + 300;
-  }, [mirror]);
+  }, []);
 
   const hasQuickFilterHighlight =
     props.highlightQuickFilter !== false &&
@@ -1060,7 +1072,7 @@ export const CustomSSRMGrid = forwardRef<
         onColumnRowGroupChanged={onStructureChanged}
         onBodyScroll={onBodyScroll}
         onFilterChanged={() => {
-          mirror.invalidateView();
+          engineRef.current.invalidateView?.();
           blockCacheRef.current.clear();
         }}
         onCellValueChanged={onCellValueChanged}
@@ -1068,7 +1080,7 @@ export const CustomSSRMGrid = forwardRef<
           apiRef.current = e.api;
           e.api.setGridOption("context", {
             ...(e.api.getGridOption("context") as object | undefined),
-            rowMirror: mirror,
+            ssrmLeafAt: stubLeafAt,
             ssrmCountMatching: countMatching,
             ssrmConfigured: configuredRef.current,
             quickFilterText: props.quickFilterText ?? "",

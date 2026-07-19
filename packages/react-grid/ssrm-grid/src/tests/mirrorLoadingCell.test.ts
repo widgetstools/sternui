@@ -2,13 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import {
   MirrorLoadingCellRenderer,
-  setActiveRowMirror,
-  stubDisplayFromMirror,
+  setActiveStubLeafReader,
+  stubDisplayFromLeafReader,
+  type SsrmStubLeafReader,
 } from "../ssrm/mirrorLoadingCell.js";
 import { RowMirror } from "../ssrm/rowMirror.js";
 
-describe("stubDisplayFromMirror", () => {
-  it("renders root-store stub text from the mirror", () => {
+function readerFrom(mirror: RowMirror): SsrmStubLeafReader {
+  return (i) => mirror.getLeafAt(i) ?? null;
+}
+
+describe("stubDisplayFromLeafReader", () => {
+  it("renders root-store stub text from the leaf reader", () => {
     const mirror = new RowMirror();
     mirror.replaceAll(
       [
@@ -18,8 +23,8 @@ describe("stubDisplayFromMirror", () => {
       "id",
     );
     expect(
-      stubDisplayFromMirror(
-        mirror,
+      stubDisplayFromLeafReader(
+        readerFrom(mirror),
         { rowIndex: 1, parent: { level: -1 } as never },
         "book",
       ),
@@ -30,8 +35,8 @@ describe("stubDisplayFromMirror", () => {
     const mirror = new RowMirror();
     mirror.replaceAll([{ id: "1", book: "Rates-A" }], "id");
     expect(
-      stubDisplayFromMirror(
-        mirror,
+      stubDisplayFromLeafReader(
+        readerFrom(mirror),
         { rowIndex: 0, stub: true, parent: { level: 0 } as never },
         "book",
       ),
@@ -42,8 +47,8 @@ describe("stubDisplayFromMirror", () => {
     const mirror = new RowMirror();
     mirror.replaceAll([{ id: "1", book: "A" }], "id");
     expect(
-      stubDisplayFromMirror(
-        mirror,
+      stubDisplayFromLeafReader(
+        readerFrom(mirror),
         {
           rowIndex: 0,
           level: 1,
@@ -54,20 +59,20 @@ describe("stubDisplayFromMirror", () => {
     ).toBe("");
   });
 
-  it("falls back to the active mirror registry", () => {
+  it("falls back to the active reader registry", () => {
     const mirror = new RowMirror();
     mirror.replaceAll([{ id: "1", book: "Desk-A" }], "id");
-    setActiveRowMirror(mirror);
+    setActiveStubLeafReader(readerFrom(mirror));
     try {
       expect(
-        stubDisplayFromMirror(
+        stubDisplayFromLeafReader(
           null,
           { rowIndex: 0, parent: { level: -1 } as never },
           "book",
         ),
       ).toBe("Desk-A");
     } finally {
-      setActiveRowMirror(null);
+      setActiveStubLeafReader(null);
     }
   });
 });
@@ -82,7 +87,8 @@ describe("MirrorLoadingCellRenderer", () => {
       ],
       "id",
     );
-    setActiveRowMirror(mirror);
+    const reader = readerFrom(mirror);
+    setActiveStubLeafReader(reader);
 
     // Vitest node env — stub minimal DOM for the imperative cell.
     const span = {
@@ -103,7 +109,7 @@ describe("MirrorLoadingCellRenderer", () => {
       };
       cell.init({
         node: node as never,
-        context: { rowMirror: mirror },
+        context: { ssrmLeafAt: reader },
         colDef: { field: "book" },
         column: undefined,
       } as never);
@@ -112,14 +118,14 @@ describe("MirrorLoadingCellRenderer", () => {
       node.rowIndex = 1;
       cell.refresh({
         node: node as never,
-        context: { rowMirror: mirror },
+        context: { ssrmLeafAt: reader },
         colDef: { field: "book" },
         column: undefined,
       } as never);
       expect(span.textContent).toBe("B");
     } finally {
       (globalThis as { document: unknown }).document = prevDoc;
-      setActiveRowMirror(null);
+      setActiveStubLeafReader(null);
     }
   });
 });

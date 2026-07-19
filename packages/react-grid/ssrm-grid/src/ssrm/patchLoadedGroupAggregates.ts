@@ -6,7 +6,8 @@ import {
 } from "ag-grid-community";
 
 import type { MirrorValueCol } from "./mirrorGroupAgg";
-import type { RowMirror } from "./rowMirror";
+import type { SsrmEngine } from "../engine/types";
+import type { DatasetId, SsrmGetRowsRequest } from "./types";
 import { resolveAggFuncName } from "./compileColExpression";
 
 function readValueCols(api: GridApi): MirrorValueCol[] {
@@ -21,12 +22,16 @@ function readValueCols(api: GridApi): MirrorValueCol[] {
   });
 }
 
-function readRowGroupCols(api: GridApi): { id: string; field: string }[] {
+function readRowGroupCols(
+  api: GridApi,
+): { id: string; field: string; displayName: string }[] {
   return (api.getRowGroupColumns?.() ?? []).map((col) => {
     const def = col.getColDef() as ColDef;
+    const field = def.field ?? col.getColId();
     return {
       id: col.getColId(),
-      field: def.field ?? col.getColId(),
+      field,
+      displayName: def.headerName ?? field,
     };
   });
 }
@@ -67,7 +72,8 @@ function buildGrandTotalData(
   return hasValue ? row : undefined;
 }
 
-export type MirrorAggPatchExtras = {
+export type SsrmAggPatchExtras = {
+  dataset?: DatasetId;
   quickFilterText?: string;
   quickFilterFields?: string[];
   absSort?: boolean;
@@ -76,37 +82,48 @@ export type MirrorAggPatchExtras = {
   idField?: string;
 };
 
-/**
- * Patch the native AG Grid `grandTotalRow` from the main-thread leaf book.
- * SSRM only refreshes grand totals via getRows / transactions with
- * `getRowId === GRAND_TOTAL_ROW_ID` — leaf txs alone leave the footer stale.
- */
-export function patchGrandTotalFromMirror(
+function buildRequest(
   api: GridApi,
-  mirror: RowMirror,
-  extras?: MirrorAggPatchExtras,
-): void {
-  if (!mirror.isReady) return;
-  const valueCols = readValueCols(api);
-  if (valueCols.length === 0) return;
-
-  const rowGroupCols = readRowGroupCols(api);
-  const filterModel =
-    (api.getFilterModel?.() as Record<string, unknown> | null) ?? {};
-  const slice = mirror.tryGetRows({
+  valueCols: MirrorValueCol[],
+  groupKeys: string[],
+  endRow: number,
+  extras?: SsrmAggPatchExtras,
+): SsrmGetRowsRequest {
+  return {
+    dataset: extras?.dataset ?? "main",
     startRow: 0,
-    endRow: 0,
-    rowGroupCols,
-    groupKeys: [],
-    pivotMode: Boolean(api.isPivotMode?.()),
-    filterModel,
-    sortModel: [],
+    endRow,
+    rowGroupCols: readRowGroupCols(api),
     valueCols,
+    pivotCols: [],
+    pivotMode: Boolean(api.isPivotMode?.()),
+    groupKeys,
+    filterModel:
+      (api.getFilterModel?.() as Record<string, unknown> | null) ?? {},
+    sortModel: [],
     quickFilterText: extras?.quickFilterText,
     quickFilterFields: extras?.quickFilterFields,
     absSort: extras?.absSort,
     rowKeepExpression: extras?.rowKeepExpression,
-  });
+  };
+}
+
+/**
+ * Patch the native AG Grid `grandTotalRow` from the engine's sync read path.
+ * SSRM only refreshes grand totals via getRows / transactions with
+ * `getRowId === GRAND_TOTAL_ROW_ID` — leaf txs alone leave the footer stale.
+ * No-op on engines without `trySyncRows` (their views aggregate server-side).
+ */
+export function patchGrandTotalFromEngine(
+  api: GridApi,
+  engine: SsrmEngine,
+  extras?: SsrmAggPatchExtras,
+): void {
+  if (!engine.trySyncRows) return;
+  const valueCols = readValueCols(api);
+  if (valueCols.length === 0) return;
+
+  const slice = engine.trySyncRows(buildRequest(api, valueCols, [], 0, extras));
   if (!slice?.totals && !slice?.aggregates) return;
 
   const grandTotalData = buildGrandTotalData(
@@ -131,22 +148,20 @@ export function patchGrandTotalFromMirror(
 }
 
 /**
- * Recompute group-header aggregates from the main-thread leaf book and patch
+ * Recompute group-header aggregates from the engine's sync read path and patch
  * every loaded group store in place (keeps ticks live under row grouping).
  */
-export function patchLoadedGroupAggregatesFromMirror(
+export function patchLoadedGroupAggregatesFromEngine(
   api: GridApi,
-  mirror: RowMirror,
-  extras?: MirrorAggPatchExtras,
+  engine: SsrmEngine,
+  extras?: SsrmAggPatchExtras,
 ): void {
-  if (!mirror.isReady) return;
+  if (!engine.trySyncRows) return;
   const rowGroupCols = readRowGroupCols(api);
   if (rowGroupCols.length === 0) return;
 
   const valueCols = readValueCols(api);
   const measureFields = valueCols.map((vc) => vc.field).filter(Boolean);
-  const filterModel =
-    (api.getFilterModel?.() as Record<string, unknown> | null) ?? {};
   const levels = api.getServerSideGroupLevelState?.() ?? [];
 
   for (const level of levels) {
@@ -154,18 +169,10 @@ export function patchLoadedGroupAggregatesFromMirror(
     // Leaf stores have route length === rowGroupCols.length — skip.
     if (route.length >= rowGroupCols.length) continue;
 
-    const groups = mirror.getGroupRowsForRoute({
-      rowGroupCols,
-      groupKeys: route,
-      pivotMode: Boolean(api.isPivotMode?.()),
-      filterModel,
-      sortModel: [],
-      valueCols,
-      quickFilterText: extras?.quickFilterText,
-      quickFilterFields: extras?.quickFilterFields,
-      absSort: extras?.absSort,
-      rowKeepExpression: extras?.rowKeepExpression,
-    });
+    const slice = engine.trySyncRows(
+      buildRequest(api, valueCols, route, Number.MAX_SAFE_INTEGER, extras),
+    );
+    const groups = slice?.rowData;
     if (!groups?.length) continue;
 
     const changed: Record<string, unknown>[] = [];

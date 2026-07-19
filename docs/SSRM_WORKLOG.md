@@ -66,26 +66,25 @@ D5–D8 and the analysis docs are **uncommitted** at time of writing.
 
 ## Tasks
 
-### T1 — Close the `SsrmEngine` seam · `TODO` · **do this first**
+### T1 — Close the `SsrmEngine` seam · `DONE`
 
-`CustomSSRMGrid.tsx:233` calls `engineRef.current.getMirror()` — a method on
-`createCustomEngine`'s return type, **not** on `SsrmEngine`. RowMirror then
-spreads through ~16 sites plus three more channels:
-`CustomDatasourceExtras.rowMirror` (`createCustomDatasource.ts:57`), the
-`setActiveRowMirror` module singleton (`mirrorLoadingCell.tsx:16`), and AG
-`context.rowMirror` (`CustomSSRMGrid.tsx:452,538,1071`).
+Landed: optional sync capabilities on `SsrmEngine` — `trySyncRows`,
+`tryLeafAt`, `tryFindById`, `invalidateView` — implemented by `customEngine`
+from the mirror; async-only engines omit them. All four RowMirror channels
+removed: the datasource sync path calls `engine.trySyncRows`
+(`CustomDatasourceExtras.rowMirror` deleted), the loading-cell stub reads an
+engine-agnostic `SsrmStubLeafReader` (singleton `setActiveStubLeafReader` +
+`context.ssrmLeafAt`), and the agg patchers became
+`patchGrandTotalFromEngine` / `patchLoadedGroupAggregatesFromEngine`.
+`engineRef` in `CustomSSRMGrid` is typed as `SsrmEngine` — compile-time proof
+the component takes either engine. `getMirror` exists only inside
+`customEngine.ts`.
 
-**Consequence:** no component can be handed `createPerspectiveEngine` today.
+Also fixes **B2** in passing: the agg patchers now receive
+quick-filter/absSort/rowKeepExpression/idField extras at the call site.
 
-Approach: promote the capability RowMirror actually provides — synchronous
-block reads — onto `SsrmEngine` as optional, e.g. `trySyncRows?(request):
-SsrmGetRowsResult | null`. `customEngine` implements it from the mirror;
-`perspectiveEngine` returns `null` (always async). Then remove the four
-channels.
-
-**Acceptance:** `ssrm-grid` 141 tests still pass; no reference to `getMirror`
-outside `customEngine.ts`; `CustomSSRMGrid` compiles when handed either engine.
-**Independently valuable** — unblocks both the swap-engine and new-component paths.
+Verified: ssrm-grid **145** passing (141 baseline + 4 new capability tests);
+`tsc --noEmit` clean.
 
 ### T2 — Revive the 43 dead MarketsGrid tests · `TODO` · **before any component swap**
 
@@ -179,7 +178,7 @@ plus-minus capability ids.
 | # | Defect | Where |
 |---|---|---|
 | B1 | SSRM capability gate inert — `CURRENT_SSRM_PHASE = 4`, all `PHASE_MIN` ≤ 3, so every gate returns enabled and all `disabled`/tooltip paths are dead | `engine/ssrmCapabilities.ts:5-23` |
-| B2 | `patchGrandTotalFromMirror` / `patchLoadedGroupAggregatesFromMirror` called without `extras` — quick-filter, `absSort`, `rowKeepExpression`, `idField` not applied | `CustomSSRMGrid.tsx:316,319` |
+| B2 | ~~`patchGrandTotalFromMirror` / `patchLoadedGroupAggregatesFromMirror` called without `extras`~~ **Fixed with T1** — extras passed at the (engine-based) call site | `CustomSSRMGrid.tsx` |
 | B3 | `ssrmRowDiff` module-scope globals shared across grid instances; `clearSsrmRowDiffs`/`forgetSsrmRowDiff` have no callers → unbounded growth | `engine/ssrmRowDiff.ts:4-5,56-64` |
 | B4 | Row exclusion **fails open** — a rejected expression silently shows *more* rows | `useSsrmRowKeepExpression.ts:23` |
 | B5 | `agGrid/theme.ts` hardcodes `#8AAAA7` / `#8AAAA766` and forces `colorSchemeDark` — violates the UI stack rule, dark-only | `ssrm-grid/src/agGrid/theme.ts` |

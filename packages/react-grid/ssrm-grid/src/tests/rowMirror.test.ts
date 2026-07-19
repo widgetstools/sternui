@@ -212,8 +212,8 @@ describe("RowMirror", () => {
   });
 });
 
-describe("createCustomDatasource + RowMirror", () => {
-  it("calls params.success synchronously from the mirror", () => {
+describe("createCustomDatasource + trySyncRows", () => {
+  it("calls params.success synchronously from the engine sync path", () => {
     const mirror = new RowMirror();
     mirror.replaceAll(
       [
@@ -227,12 +227,13 @@ describe("createCustomDatasource + RowMirror", () => {
       () =>
         ({
           getRows: engineGetRows,
+          trySyncRows: (req: Parameters<RowMirror["tryGetRows"]>[0]) =>
+            mirror.tryGetRows(req),
         }) as never,
       () => "main",
       () => ({
         isConfigured: true,
         refreshGeneration: 0,
-        rowMirror: mirror,
       }),
       undefined,
       new SsrmBlockCache(),

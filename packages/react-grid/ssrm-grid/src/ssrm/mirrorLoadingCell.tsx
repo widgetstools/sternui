@@ -4,37 +4,46 @@ import type {
   IRowNode,
 } from "ag-grid-community";
 
-import type { RowMirror } from "./rowMirror";
+/**
+ * Sync leaf lookup by absolute root-view index — the engine capability
+ * (`SsrmEngine.tryLeafAt`) behind loading-stub paint. Engine-agnostic: no
+ * RowMirror types leak here.
+ */
+export type SsrmStubLeafReader = (
+  viewIndex: number,
+) => Record<string, unknown> | null;
 
 export type MirrorLoadingContext = {
-  rowMirror?: RowMirror | null;
+  ssrmLeafAt?: SsrmStubLeafReader | null;
 };
 
 /** Set by SSRMGrid so loaders do not depend on context surviving setGridOption merges. */
-let activeRowMirror: RowMirror | null = null;
+let activeLeafReader: SsrmStubLeafReader | null = null;
 
-export function setActiveRowMirror(mirror: RowMirror | null): void {
-  activeRowMirror = mirror;
+export function setActiveStubLeafReader(
+  reader: SsrmStubLeafReader | null,
+): void {
+  activeLeafReader = reader;
 }
 
-export function getActiveRowMirror(): RowMirror | null {
-  return activeRowMirror;
+export function getActiveStubLeafReader(): SsrmStubLeafReader | null {
+  return activeLeafReader;
 }
 
 /**
- * Text for an SSRM stub/loading cell from the main-thread leaf book.
+ * Text for an SSRM stub/loading cell from the engine's sync leaf book.
  * Root store / stubs only — grouped child stores use local indices.
  */
-export function stubDisplayFromMirror(
-  mirror: RowMirror | null | undefined,
+export function stubDisplayFromLeafReader(
+  reader: SsrmStubLeafReader | null | undefined,
   node: Pick<IRowNode, "rowIndex" | "parent" | "stub" | "level">,
   field: string | undefined | null,
 ): string {
-  const book = mirror ?? activeRowMirror;
-  if (!book?.isReady || field == null || field === "") return "";
+  const leafAt = reader ?? activeLeafReader;
+  if (!leafAt || field == null || field === "") return "";
   if (node.rowIndex == null || node.rowIndex < 0) return "";
 
-  // Grouped child stores use local indices that may not match the root mirror view.
+  // Grouped child stores use local indices that may not match the root view.
   // Stubs always paint (they are placeholders for a store index about to load).
   if (!node.stub) {
     const level = node.level ?? 0;
@@ -42,7 +51,7 @@ export function stubDisplayFromMirror(
     if (node.parent != null && node.parent.level !== -1) return "";
   }
 
-  const row = book.getLeafAt(node.rowIndex);
+  const row = leafAt(node.rowIndex);
   if (!row) return "";
   const v = row[field];
   if (v == null) return "";
@@ -86,9 +95,9 @@ export class MirrorLoadingCellRenderer implements ILoadingCellRendererComp {
 
   private paint(): void {
     const ctx = this.params.context as MirrorLoadingContext | undefined;
-    const mirror = ctx?.rowMirror ?? activeRowMirror;
-    this.gui.textContent = stubDisplayFromMirror(
-      mirror,
+    const reader = ctx?.ssrmLeafAt ?? activeLeafReader;
+    this.gui.textContent = stubDisplayFromLeafReader(
+      reader,
       this.params.node,
       fieldFromParams(this.params),
     );
