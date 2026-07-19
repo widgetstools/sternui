@@ -28,17 +28,21 @@ plans; `calcExpressions` are Perspective expressions). Do **not** re-litigate.
 
 ## Ground truth — verify before trusting
 
-Commands a new session should run to confirm the baseline still holds:
+Commands a new session should run to confirm the baseline still holds
+(numbers as of 2026-07-19 end of session — T1–T3, T5–T7 + T8 partial landed):
 
 ```bash
-# host-data: expect 476 passing, 1 failing (__refresh, pre-existing)
+# host-data: expect 484 passing, 0 failing
 cd packages/data/host-data && npx vitest run
 
-# ssrm-grid: expect 141 passing, 0 failing
+# ssrm-grid: expect 149 passing, 0 failing
 cd packages/react-grid/ssrm-grid && npx vitest run
 
-# grid: expect 681 passing, 43 failing (see T2 — these were dead, now revealed)
+# grid: expect 729 passing, 0 failing
 cd packages/react-grid/grid && npx vitest run
+
+# engine: 297 · widgets-react: 222 (+1 skipped)
+# Repo-wide gate: `npx turbo typecheck build test` — 67/67 green.
 ```
 
 `cd` matters — running vitest from the repo root picks up the wrong config and
