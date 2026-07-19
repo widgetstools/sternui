@@ -10,6 +10,7 @@ import * as esbuild from 'esbuild';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pkgRoot = path.resolve(__dirname, '..');
@@ -20,7 +21,6 @@ fs.mkdirSync(outDir, { recursive: true });
 await esbuild.build({
   entryPoints: [
     path.join(pkgRoot, 'src/runtime/worker/defaultEntry.ts'),
-    path.join(pkgRoot, 'src/runtime/worker/fanOutWorkerEntry.ts'),
     path.join(pkgRoot, 'src/runtime/configWorker/configWorkerEntry.ts'),
     path.join(pkgRoot, 'src/runtime/appDataWorker/appDataWorkerEntry.ts'),
     path.join(pkgRoot, 'src/runtime/providerWorker/providerWorkerEntry.ts'),
@@ -45,7 +45,6 @@ await esbuild.build({
 // Stable public names for Vite ?url imports.
 const RENAMES = [
   ['defaultEntry.js', 'data-services-worker.mjs'],
-  ['fanOutWorkerEntry.js', 'data-services-fanout-worker.mjs'],
   ['configWorkerEntry.js', 'config-catalog-worker.mjs'],
   ['appDataWorkerEntry.js', 'appdata-worker.mjs'],
   ['providerWorkerEntry.js', 'provider-worker.mjs'],
@@ -53,6 +52,34 @@ const RENAMES = [
 
 for (const [srcName, destName] of RENAMES) {
   publishWorkerAsset(outDir, srcName, destName);
+}
+
+// Perspective's engine SharedWorker ships prebuilt — copy it alongside our
+// own worker assets so `resolvePerspectiveWorkerUrl` finds it as a sibling
+// (ADR-ssrm-worker-hosted-engine.md). Bundling it ourselves would mean
+// pulling Perspective's internal wasm/engine modules; the published artifact
+// is the supported entry point.
+publishPerspectiveWorker(outDir);
+
+function publishPerspectiveWorker(outDir) {
+  const dest = path.join(outDir, 'perspective-server.worker.mjs');
+  let src;
+  try {
+    src = createRequire(import.meta.url).resolve(
+      '@finos/perspective/dist/cdn/perspective-server.worker.js',
+    );
+  } catch {
+    console.warn(
+      '[buildWorker] @finos/perspective not resolvable — skipping engine worker asset. '
+        + 'The pull/SSRM data path will be unavailable.',
+    );
+    return;
+  }
+  fs.copyFileSync(src, dest);
+  const srcMap = `${src}.map`;
+  if (fs.existsSync(srcMap)) {
+    fs.copyFileSync(srcMap, `${dest}.map`);
+  }
 }
 
 /**

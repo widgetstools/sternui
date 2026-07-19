@@ -143,6 +143,7 @@ export {
 // Provider SharedWorker (ADR Phase 4a) — one upstream per named worker.
 export {
   createProviderClient,
+  isProviderWorkerRunning,
   createProviderWorker,
   PROVIDER_WORKER_ASSET,
   ProviderClient,
@@ -155,3 +156,25 @@ export {
   type CreateProviderWorkerOpts,
   type ProviderHubOpts,
 } from './runtime/providerWorker/index.js';
+
+// Pull data path — dataset hosted once in a Perspective table, windows read
+// viewports (docs/ADR-ssrm-worker-hosted-engine.md).
+export {
+  ProviderTableBridge,
+  PerspectiveAttachHandler,
+  connectPerspectivePort,
+  PERSPECTIVE_HANDSHAKE_TIMEOUT_MS,
+  linkProviderToPerspective,
+  perspectiveSharedWorkerName,
+  parsePerspectiveWorkerName,
+  resolvePerspectiveWorkerUrl,
+  isPerspectiveAttachRequest,
+  isPerspectiveAttachAck,
+  type BridgeTable,
+  type ProviderTableBridgeOpts,
+  type AttachClient,
+  type PerspectiveAttachHandlerOpts,
+  type PerspectiveAttachRequest,
+  type PerspectiveAttachAck,
+  type ConnectPerspectivePortOpts,
+} from './runtime/perspective/index.js';
