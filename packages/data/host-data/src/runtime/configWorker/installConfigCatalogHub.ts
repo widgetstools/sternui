@@ -4,6 +4,7 @@
 
 import { ConfigCatalogHub, type ConfigPortLike } from './ConfigCatalogHub.js';
 import { isConfigWorkerRequest } from './protocol.js';
+import { SUBSCRIBER_SWEEP_INTERVAL_MS } from '../worker/hubTypes.js';
 import type { ConfigManager } from '@wellsfargo-starui/host-config';
 
 interface SharedWorkerLike {
@@ -47,6 +48,7 @@ export async function installConfigCatalogHub(
       void hub.handleRequest(portLike, data);
     };
     port.addEventListener('message', onMessage);
+    port.addEventListener('messageerror', () => hub.onPortClosed(portLike));
     port.start();
   };
 
@@ -79,10 +81,17 @@ export async function installConfigCatalogHub(
     };
   }
 
+  // Ports from closed windows are undetectable otherwise: MessagePort has
+  // no close event and postMessage to a dead port does not throw, so every
+  // invalidate would fan out to them for the life of the worker.
+  const sweepTimer = setInterval(() => {
+    hub.sweepStalePorts();
+  }, SUBSCRIBER_SWEEP_INTERVAL_MS);
+
   return {
     hub,
     stop() {
-      /* ports tear down with the worker realm */
+      clearInterval(sweepTimer);
     },
   };
 }

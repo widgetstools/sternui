@@ -155,4 +155,77 @@ describe('ConfigClient over MessageChannel', () => {
     client.close();
     port2.close();
   });
+
+  it('rejects rather than hanging when the worker never replies', async () => {
+    vi.useFakeTimers();
+    try {
+      // Port with no hub behind it — the shape of a worker asset that
+      // 404s or is CSP-blocked (SharedWorker fires `error`, never throws).
+      const { port1, port2 } = new MessageChannel();
+      const client = new ConfigClient(port1, { timeoutMs: 1000 });
+      const settled = client.ready.then(
+        () => 'resolved',
+        (err: Error) => err.message,
+      );
+      await vi.advanceTimersByTimeAsync(1001);
+      expect(await settled).toMatch(/did not reply to 'config-ready' within 1000ms/);
+      client.close();
+      port2.close();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('ConfigCatalogHub port liveness', () => {
+  const catalogStub = () => ({
+    isReady: () => true,
+    hydrate: vi.fn(async () => undefined),
+    get: vi.fn(() => null),
+    ensure: vi.fn(async () => null),
+    getProviderConfig: vi.fn(() => null),
+    list: vi.fn(() => []),
+    invalidate: vi.fn(async () => undefined),
+    upsert: vi.fn(),
+  });
+
+  it('evicts ports that stop pinging and keeps ones that do', async () => {
+    let now = 1_000_000;
+    const hub = new ConfigCatalogHub({
+      configManager: makeConfigManager(new Map()),
+      catalog: catalogStub(),
+      portTimeoutMs: 60_000,
+      now: () => now,
+    });
+
+    const livePort = { postMessage: vi.fn() };
+    const deadPort = { postMessage: vi.fn() };
+    hub.trackPort(livePort);
+    hub.trackPort(deadPort);
+    expect(hub.portCount()).toBe(2);
+
+    // `deadPort`'s window closed: no further inbound messages. A dead
+    // MessagePort never throws on postMessage, so only the heartbeat
+    // gap distinguishes it.
+    now += 90_000;
+    await hub.handleRequest(livePort, { kind: 'config-ping' });
+
+    expect(hub.sweepStalePorts()).toBe(1);
+    expect(hub.portCount()).toBe(1);
+
+    await hub.handleRequest(livePort, { kind: 'config-invalidate', reqId: 'i1' });
+    expect(deadPort.postMessage).not.toHaveBeenCalled();
+    expect(livePort.postMessage).toHaveBeenCalled();
+  });
+
+  it('answers config-ping without replying', async () => {
+    const hub = new ConfigCatalogHub({
+      configManager: makeConfigManager(new Map()),
+      catalog: catalogStub(),
+    });
+    const port = { postMessage: vi.fn() };
+    await hub.handleRequest(port, { kind: 'config-ping' });
+    expect(port.postMessage).not.toHaveBeenCalled();
+    expect(hub.portCount()).toBe(1);
+  });
 });

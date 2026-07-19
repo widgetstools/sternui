@@ -4,6 +4,7 @@
 
 import type { ConfigManager } from '@wellsfargo-starui/host-config';
 import { AppDataHub, isAppDataHubRequest, type AppDataPortLike } from './AppDataHub.js';
+import { SUBSCRIBER_SWEEP_INTERVAL_MS } from '../worker/hubTypes.js';
 
 interface SharedWorkerLike {
   onconnect: ((ev: { ports: readonly MessagePort[] }) => void) | null;
@@ -45,6 +46,7 @@ export async function installAppDataHub(
       void hub.handleRequest(portLike, ev.data);
     };
     port.addEventListener('message', onMessage);
+    port.addEventListener('messageerror', () => hub.onPortClosed(portLike));
     port.start();
   };
 
@@ -75,10 +77,17 @@ export async function installAppDataHub(
     };
   }
 
+  // Ports from closed windows are undetectable otherwise: MessagePort has
+  // no close event and postMessage to a dead port does not throw, so every
+  // AppData write would fan deltas out to them for the worker's lifetime.
+  const sweepTimer = setInterval(() => {
+    hub.sweepStalePorts();
+  }, SUBSCRIBER_SWEEP_INTERVAL_MS);
+
   return {
     hub,
     stop() {
-      /* ports tear down with the worker realm */
+      clearInterval(sweepTimer);
     },
   };
 }

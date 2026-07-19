@@ -23,6 +23,15 @@ vi.mock('./appDataBootstrap.js', async (importOriginal) => {
 
 const createConfigManagerMock = vi.fn();
 const ensureDataServicesHubMock = vi.fn();
+const createAppDataClientMock = vi.fn();
+
+vi.mock('../runtime/appDataWorker/index.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../runtime/appDataWorker/index.js')>();
+  return {
+    ...actual,
+    createAppDataClient: (...args: unknown[]) => createAppDataClientMock(...args),
+  };
+});
 
 vi.mock('@wellsfargo-starui/host-config', () => ({
   createConfigManager: (...args: unknown[]) => createConfigManagerMock(...args),
@@ -268,5 +277,63 @@ describe('ensureConfigReady', () => {
     await expect(
       ensureConfigReady({ appId: '', userId: 'dev1' }),
     ).rejects.toBeInstanceOf(PlatformBootstrapConfigError);
+  });
+});
+
+describe('ensurePlatformReady AppData topology flag', () => {
+  beforeEach(() => {
+    vi.mocked(isSeedIdentityCached).mockReturnValue(false);
+    createConfigManagerMock.mockImplementation(() => ({
+      init: vi.fn().mockResolvedValue(undefined),
+      onConfigChanged: vi.fn(() => () => {}),
+    }));
+    ensureDataServicesHubMock.mockImplementation(() =>
+      Promise.resolve({
+        client: { stop: vi.fn(), invalidateConfig: vi.fn().mockResolvedValue(undefined) },
+        appData: {},
+        configManager: {},
+        ready: Promise.resolve(),
+        appDataReady: Promise.resolve(),
+        catalogReady: Promise.resolve(),
+        dispose: vi.fn(),
+        getProvider: vi.fn(),
+        stopProvider: vi.fn(),
+      }),
+    );
+  });
+
+  afterEach(() => {
+    _resetEnsurePlatformReadyForTests();
+    _resetEnsureDataServicesHubForTests();
+    vi.clearAllMocks();
+  });
+
+  it('disables hub AppData only when the AppData SW actually connected', async () => {
+    createAppDataClientMock.mockResolvedValue({ ready: Promise.resolve() });
+
+    await ensurePlatformReady(DEV_PLATFORM_BOOTSTRAP, {
+      workerScriptUrl: '/worker.mjs',
+      appDataWorkerScriptUrl: '/appdata-worker.mjs',
+    });
+
+    expect(ensureDataServicesHubMock).toHaveBeenCalledWith(
+      expect.objectContaining({ hubAppDataDisabled: true }),
+    );
+  });
+
+  it('keeps hub AppData enabled when the AppData SW fails to connect', async () => {
+    // Deriving the flag from the URL instead of the outcome left the hub
+    // with AppData disabled and no other authority: empty snapshots,
+    // `{{name.key}}` resolving undefined, and every write nacked.
+    createAppDataClientMock.mockRejectedValue(new Error('worker asset 404'));
+
+    await ensurePlatformReady(DEV_PLATFORM_BOOTSTRAP, {
+      workerScriptUrl: '/worker.mjs',
+      appDataWorkerScriptUrl: '/appdata-worker.mjs',
+    });
+
+    expect(ensureDataServicesHubMock).toHaveBeenCalledWith(
+      expect.objectContaining({ hubAppDataDisabled: false, appDataClient: undefined }),
+    );
   });
 });

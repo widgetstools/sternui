@@ -26,6 +26,11 @@ describe('workerBootstrapPayload', () => {
       seedConfigUrl: '/seed.json',
       seedConfigReload: undefined,
       configServiceRestUrl: 'http://localhost:3001/api/v1',
+      // Topology fields (ADR Phase 4) default off when the writer omits them.
+      appDataWorkerScriptUrl: undefined,
+      configWorkerScriptUrl: undefined,
+      hubStreamingDisabled: false,
+      hubAppDataDisabled: false,
     });
   });
 

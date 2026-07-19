@@ -232,23 +232,46 @@ async function bootstrapPlatformOnce(
   config: PlatformBootstrapConfig,
   opts: EnsurePlatformReadyOpts,
 ): Promise<ResolvedDataServicesHubBundle> {
+  const hubStreamingDisabled = Boolean(opts.providerWorkerScriptUrl);
+
   // Open the window's single SharedWorker connection now so the worker
   // spawns (and seeds, on cold start) while the main-thread ConfigManager
   // opens IndexedDB. The same connection is reused by the hub below —
   // one port per window, no throwaway probe connection.
-  const hubStreamingDisabled = Boolean(opts.providerWorkerScriptUrl);
-  const hubAppDataDisabled = Boolean(opts.appDataWorkerScriptUrl);
-  warmHubConnection({
-    ...config,
-    workerScriptUrl: opts.workerScriptUrl,
-    hubStreamingDisabled,
-    hubAppDataDisabled,
-  });
+  //
+  // `hubAppDataDisabled` is baked into the worker's bootstrap payload and
+  // read ONCE at boot, so it must reflect what actually connected — not
+  // what the caller intended. Deriving it from `appDataWorkerScriptUrl`
+  // here would disable AppData on the monolith even when the AppData SW
+  // failed to boot, leaving no authority at all: attach returns an empty
+  // snapshot, every `{{name.key}}` resolves undefined, and every write is
+  // nacked. So when an AppData SW is requested we resolve config first and
+  // spawn the hub with the real outcome, trading the cold-start overlap
+  // for a working fallback. Non-demuxed apps keep the overlap.
+  const wantsAppDataWorker = Boolean(opts.appDataWorkerScriptUrl);
+  if (!wantsAppDataWorker) {
+    warmHubConnection({
+      ...config,
+      workerScriptUrl: opts.workerScriptUrl,
+      hubStreamingDisabled,
+      hubAppDataDisabled: false,
+    });
+  }
 
   const { configManager, configClient, appDataClient } = await ensureConfigReady(config, {
     configWorkerScriptUrl: opts.configWorkerScriptUrl,
     appDataWorkerScriptUrl: opts.appDataWorkerScriptUrl,
   });
+
+  const hubAppDataDisabled = Boolean(appDataClient);
+
+  if (wantsAppDataWorker && !appDataClient) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[ensurePlatformReady] AppData SharedWorker unavailable — '
+        + 'falling back to in-process AppData on the data hub',
+    );
+  }
 
   const bundle = await ensureDataServicesHub({
     ...config,

@@ -10,6 +10,7 @@ import {
   asConfigCatalogService,
   type ConfigCatalogService,
 } from '../worker/ConfigCatalogService.js';
+import { SUBSCRIBER_PING_TIMEOUT_HIDDEN_MS } from '../worker/hubTypes.js';
 import type {
   ConfigWorkerEvent,
   ConfigWorkerRequest,
@@ -24,18 +25,31 @@ export interface ConfigCatalogHubOpts {
   configManager: ConfigManager;
   /** Pre-built catalog; default constructs from configManager. */
   catalog?: ConfigCatalogService;
+  /**
+   * Evict ports with no `config-ping` within this window. Defaults to the
+   * hidden-window grace — these clients don't report visibility, and
+   * background windows throttle their heartbeat timers.
+   */
+  portTimeoutMs?: number;
+  /** Injectable clock for tests. */
+  now?: () => number;
 }
 
 export class ConfigCatalogHub {
   private readonly configManager: ConfigManager;
   private readonly catalog: ConfigCatalogService;
-  private readonly ports = new Set<ConfigPortLike>();
+  /** port → last inbound message timestamp (liveness). */
+  private readonly ports = new Map<ConfigPortLike, number>();
+  private readonly portTimeoutMs: number;
+  private readonly now: () => number;
   private hydratePromise: Promise<void> | null = null;
 
   constructor(opts: ConfigCatalogHubOpts) {
     this.configManager = opts.configManager;
     this.catalog = opts.catalog
       ?? asConfigCatalogService(new ConfigCatalogCache(opts.configManager));
+    this.portTimeoutMs = opts.portTimeoutMs ?? SUBSCRIBER_PING_TIMEOUT_HIDDEN_MS;
+    this.now = opts.now ?? (() => Date.now());
   }
 
   /** Preload catalog (idempotent). Call before accepting port traffic. */
@@ -51,15 +65,38 @@ export class ConfigCatalogHub {
   }
 
   trackPort(port: ConfigPortLike): void {
-    this.ports.add(port);
+    this.ports.set(port, this.now());
   }
 
   onPortClosed(port: ConfigPortLike): void {
     this.ports.delete(port);
   }
 
+  /** Live port count — diagnostics / tests. */
+  portCount(): number {
+    return this.ports.size;
+  }
+
+  /**
+   * Drop ports that have not sent anything within {@link portTimeoutMs}.
+   * Driven by the installer's interval; returns the number evicted.
+   */
+  sweepStalePorts(): number {
+    const cutoff = this.now() - this.portTimeoutMs;
+    let evicted = 0;
+    for (const [port, lastSeenAt] of [...this.ports]) {
+      if (lastSeenAt <= cutoff) {
+        this.onPortClosed(port);
+        evicted += 1;
+      }
+    }
+    return evicted;
+  }
+
   async handleRequest(port: ConfigPortLike, req: ConfigWorkerRequest): Promise<void> {
     this.trackPort(port);
+    // Heartbeat only — liveness is recorded by trackPort above, no reply.
+    if (req.kind === 'config-ping') return;
     try {
       switch (req.kind) {
         case 'config-ready': {
@@ -126,6 +163,7 @@ export class ConfigCatalogHub {
   }
 
   private replyError(port: ConfigPortLike, req: ConfigWorkerRequest, err: unknown): void {
+    if (req.kind === 'config-ping') return;
     const error = err instanceof Error ? err.message : String(err);
     const reqId = req.reqId;
     switch (req.kind) {
@@ -149,7 +187,7 @@ export class ConfigCatalogHub {
   }
 
   private broadcast(event: ConfigWorkerEvent): void {
-    for (const port of [...this.ports]) {
+    for (const port of [...this.ports.keys()]) {
       try {
         port.postMessage(event);
       } catch {

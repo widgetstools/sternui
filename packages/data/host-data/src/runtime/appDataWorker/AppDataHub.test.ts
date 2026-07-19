@@ -2,7 +2,7 @@
  * AppDataHub + AppDataClient in-process tests (ADR Phase 3).
  */
 
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { AppDataHub } from './AppDataHub.js';
 import { AppDataClient } from './AppDataClient.js';
 import type { AppDataRow } from '../protocol.js';
@@ -110,5 +110,75 @@ describe('AppDataClient over MessageChannel', () => {
 
     client.close();
     port2.close();
+  });
+
+  it('rejects rather than hanging when the worker never replies', async () => {
+    vi.useFakeTimers();
+    try {
+      // No hub behind the port — the shape of a worker asset that 404s or
+      // is CSP-blocked. Without a timeout this hangs bootstrap forever
+      // instead of falling back to in-process AppData on the data hub.
+      const { port1, port2 } = new MessageChannel();
+      const client = new AppDataClient(port1, { timeoutMs: 1000 });
+      const settled = client.ready.then(
+        () => 'resolved',
+        (err: Error) => err.message,
+      );
+      await vi.advanceTimersByTimeAsync(1001);
+      expect(await settled).toMatch(
+        /did not reply to 'appdata-worker-ready' within 1000ms/,
+      );
+      client.close();
+      port2.close();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('AppDataHub port liveness', () => {
+  it('evicts stale ports and their mirror subscriptions', async () => {
+    let now = 1_000_000;
+    const hub = new AppDataHub({ portTimeoutMs: 60_000, now: () => now });
+    hub.getService().hydrateFromSeed([
+      row({ configId: 'c1', name: 'positions', values: { asOfDate: '2026-07-18' } }),
+    ]);
+
+    const livePort = { postMessage: vi.fn() };
+    const deadPort = { postMessage: vi.fn() };
+    await hub.handleRequest(livePort, { kind: 'appdata-attach', subId: 's-live', userId: 'alice' });
+    await hub.handleRequest(deadPort, { kind: 'appdata-attach', subId: 's-dead', userId: 'bob' });
+    expect(hub.portCount()).toBe(2);
+    expect(hub.listenerCount()).toBe(2);
+
+    // `deadPort`'s window closed mid-session: no detach, no throw on post.
+    now += 90_000;
+    await hub.handleRequest(livePort, { kind: 'appdata-ping' });
+
+    expect(hub.sweepStalePorts()).toBe(1);
+    expect(hub.portCount()).toBe(1);
+    expect(hub.listenerCount()).toBe(1);
+
+    livePort.postMessage.mockClear();
+    deadPort.postMessage.mockClear();
+    await hub.handleRequest(livePort, {
+      kind: 'appdata-set',
+      subId: 's-live',
+      name: 'positions',
+      key: 'asOfDate',
+      value: '2026-07-19',
+    });
+
+    // The evicted window no longer receives delta fan-out.
+    expect(deadPort.postMessage).not.toHaveBeenCalled();
+    expect(livePort.postMessage).toHaveBeenCalled();
+  });
+
+  it('answers appdata-ping without replying', async () => {
+    const hub = new AppDataHub();
+    const port = { postMessage: vi.fn() };
+    await hub.handleRequest(port, { kind: 'appdata-ping' });
+    expect(port.postMessage).not.toHaveBeenCalled();
+    expect(hub.portCount()).toBe(1);
   });
 });

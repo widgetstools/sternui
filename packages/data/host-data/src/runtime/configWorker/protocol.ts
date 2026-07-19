@@ -12,7 +12,14 @@ export type ConfigWorkerRequest =
   | { kind: 'config-ready'; reqId: string }
   | { kind: 'config-get-provider'; reqId: string; providerId: string }
   | { kind: 'config-list-providers'; reqId: string; opts?: ListOptions }
-  | { kind: 'config-invalidate'; reqId: string; providerId?: string };
+  | { kind: 'config-invalidate'; reqId: string; providerId?: string }
+  /**
+   * Liveness heartbeat — no reply. `MessagePort` has no close event and
+   * `postMessage` to a port whose window is gone does not throw, so
+   * without this the hub's port set grows for the life of the origin and
+   * every invalidate fans out to dead windows.
+   */
+  | { kind: 'config-ping' };
 
 export type ConfigWorkerResponse =
   | { kind: 'config-ready-ok'; reqId: string; ok: true }
@@ -49,5 +56,6 @@ export function isConfigWorkerRequest(msg: unknown): msg is ConfigWorkerRequest 
     || kind === 'config-get-provider'
     || kind === 'config-list-providers'
     || kind === 'config-invalidate'
+    || kind === 'config-ping'
   );
 }
