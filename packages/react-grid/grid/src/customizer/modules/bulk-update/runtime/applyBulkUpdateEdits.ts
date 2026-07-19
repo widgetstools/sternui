@@ -2,17 +2,29 @@ import type { GridApi } from 'ag-grid-community';
 import {
   applyForwardPatches,
   buildBulkUpdatePatchesFromRaw,
-  collectBulkUpdateTargets,
+  scanBulkUpdateTargets,
   type BulkUpdateTarget,
+  type BulkUpdateTargetScan,
   type EditGridWriter,
   type EditJournal,
 } from '@wellsfargo-starui/engine';
 import { withJournalApplyGuard } from '../../../editing/journalApplyGuard.js';
 
-export function resolveBulkUpdateTargets(api: GridApi, rowIdField = 'id'): BulkUpdateTarget[] {
+/**
+ * Targets + unloaded-row count. When `unloadedRowCount > 0` the caller MUST
+ * refuse the edit (worklog T6) — an SSRM range spanning unloaded rows would
+ * otherwise apply to the loaded subset silently.
+ */
+export function resolveBulkUpdateTargetScan(
+  api: GridApi,
+  rowIdField = 'id',
+): BulkUpdateTargetScan {
   const getRowId = (data: Record<string, unknown>) => String(data[rowIdField] ?? data.id ?? '');
-  const fromRange = collectBulkUpdateTargets(api as never, getRowId);
-  return fromRange;
+  return scanBulkUpdateTargets(api as never, getRowId);
+}
+
+export function resolveBulkUpdateTargets(api: GridApi, rowIdField = 'id'): BulkUpdateTarget[] {
+  return resolveBulkUpdateTargetScan(api, rowIdField).targets;
 }
 
 export interface ApplyBulkUpdateOptions {

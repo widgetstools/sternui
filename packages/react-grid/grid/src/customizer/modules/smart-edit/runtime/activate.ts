@@ -8,7 +8,11 @@ import {
 } from '@wellsfargo-starui/engine';
 import { resolveEditRecording } from '../../../editing/recordEdit.js';
 import { editWriterFromPlatform } from '../../../editing/editWriterFromPlatform.js';
-import { applyEdits, resolveTargetCells } from './applyEdits.js';
+import {
+  applyEdits,
+  resolveTargetCellScan,
+  warnRefusedUnloadedTargets,
+} from './applyEdits.js';
 
 function isEditingCell(api: GridApi): boolean {
   try {
@@ -43,7 +47,11 @@ export function activateSmartEdit(platform: PlatformHandle<SmartEditState>): () 
 
       ke.preventDefault();
 
-      const cells = resolveTargetCells(api);
+      const { cells, unloadedRowCount } = resolveTargetCellScan(api);
+      if (unloadedRowCount > 0) {
+        warnRefusedUnloadedTargets('smart-edit', unloadedRowCount);
+        return;
+      }
       if (cells.length === 0) return;
 
       const step = state.settings.incrementStep;

@@ -1,4 +1,8 @@
 import { isBulkUpdateCellType } from './isBulkUpdateCellType.js';
+import {
+  isUnloadedRangeRow,
+  type SmartEditRowNode,
+} from '../smart-edit/collectTargetCells.js';
 
 /** Minimal grid reader — framework-agnostic. */
 export interface BulkUpdateGridReader {
@@ -7,7 +11,7 @@ export interface BulkUpdateGridReader {
     startRow?: { rowIndex: number };
     endRow?: { rowIndex: number };
   }> | null;
-  getDisplayedRowAtIndex(index: number): { id?: string; data?: Record<string, unknown> } | undefined;
+  getDisplayedRowAtIndex(index: number): SmartEditRowNode | undefined;
   getColumn(colId: string): {
     getColDef(): {
       editable?: boolean | ((p: unknown) => boolean);
@@ -47,6 +51,7 @@ function collectFromRange(
   getRowId: (data: Record<string, unknown>) => string,
   seen: Set<string>,
   out: BulkUpdateTarget[],
+  unloadedRows: Set<number>,
 ): void {
   const ranges = api.getCellRanges() ?? [];
   for (const range of ranges) {
@@ -57,7 +62,10 @@ function collectFromRange(
 
     for (let ri = rowFrom; ri <= rowTo; ri += 1) {
       const rowNode = api.getDisplayedRowAtIndex(ri);
-      if (!rowNode?.data) continue;
+      if (!rowNode?.data) {
+        if (isUnloadedRangeRow(rowNode)) unloadedRows.add(ri);
+        continue;
+      }
       const data = rowNode.data;
       const rowId = rowNode.id ?? getRowId(data);
 
@@ -127,15 +135,33 @@ function collectFromFocus(
   });
 }
 
+export interface BulkUpdateTargetScan {
+  targets: BulkUpdateTarget[];
+  /** See `TargetCellScan.unloadedRowCount` — non-zero means REFUSE. */
+  unloadedRowCount: number;
+}
+
+/**
+ * Range scan that also reports unloaded rows so callers can refuse partial
+ * edits under SSRM instead of silently applying to the loaded subset.
+ */
+export function scanBulkUpdateTargets(
+  api: BulkUpdateGridReader,
+  getRowId: (data: Record<string, unknown>) => string,
+): BulkUpdateTargetScan {
+  const seen = new Set<string>();
+  const out: BulkUpdateTarget[] = [];
+  const unloadedRows = new Set<number>();
+  collectFromRange(api, getRowId, seen, out, unloadedRows);
+  if (out.length === 0 && unloadedRows.size === 0) {
+    collectFromFocus(api, getRowId, seen, out);
+  }
+  return { targets: out, unloadedRowCount: unloadedRows.size };
+}
+
 export function collectBulkUpdateTargets(
   api: BulkUpdateGridReader,
   getRowId: (data: Record<string, unknown>) => string,
 ): BulkUpdateTarget[] {
-  const seen = new Set<string>();
-  const out: BulkUpdateTarget[] = [];
-  collectFromRange(api, getRowId, seen, out);
-  if (out.length === 0) {
-    collectFromFocus(api, getRowId, seen, out);
-  }
-  return out;
+  return scanBulkUpdateTargets(api, getRowId).targets;
 }

@@ -84,6 +84,8 @@ export const SsrmMarketsGridSurface = forwardRef<
     forEachMatching: (cb, opts) =>
       inner.current?.forEachMatching(cb, opts) ??
       Promise.resolve({ rowCount: 0 }),
+    exportAll: (opts) =>
+      inner.current?.exportAll(opts) ?? Promise.resolve({ rowCount: 0 }),
   }));
 
   const streamSafeComponents = useMemo(

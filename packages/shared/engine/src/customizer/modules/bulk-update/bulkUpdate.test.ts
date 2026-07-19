@@ -4,7 +4,10 @@ import {
   buildBulkUpdatePatchesFromRaw,
   parseBulkUpdateValue,
 } from './applyBulkUpdate.js';
-import { collectBulkUpdateTargets } from './collectBulkUpdateTargets.js';
+import {
+  collectBulkUpdateTargets,
+  scanBulkUpdateTargets,
+} from './collectBulkUpdateTargets.js';
 import { isBulkUpdateCellType } from './isBulkUpdateCellType.js';
 import { resolveColumnDistinctValues } from './resolveColumnDistinctValues.js';
 import { deserializeBulkUpdateState, INITIAL_BULK_UPDATE } from './state.js';
@@ -63,6 +66,30 @@ describe('collectBulkUpdateTargets', () => {
       getFocusedCell: () => null,
     };
     expect(collectBulkUpdateTargets(api, (d) => String(d.id))).toHaveLength(0);
+  });
+});
+
+describe('scanBulkUpdateTargets (worklog T6 — fetch-or-refuse)', () => {
+  it('reports unloaded stub rows and suppresses the focus fallback', () => {
+    const api = {
+      getCellRanges: () => [{
+        columns: [{ getColId: () => 'currency' }],
+        startRow: { rowIndex: 0 },
+        endRow: { rowIndex: 1 },
+      }],
+      getDisplayedRowAtIndex: (i: number) =>
+        i === 0 ? { stub: true } : undefined,
+      getColumn: () => ({
+        getColDef: () => ({ editable: true, field: 'currency', cellDataType: 'text' }),
+      }),
+      getCellValue: () => 'USD',
+      // A focused cell exists — but the range carried unloaded rows, so the
+      // scan must NOT quietly fall back to it.
+      getFocusedCell: () => ({ rowIndex: 5, column: { getColId: () => 'currency' } }),
+    };
+    const scan = scanBulkUpdateTargets(api, (d) => String(d.id));
+    expect(scan.targets).toHaveLength(0);
+    expect(scan.unloadedRowCount).toBe(2);
   });
 });
 

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { collectFocusedCell, collectTargetCells, type SmartEditGridReader } from './collectTargetCells.js';
+import {
+  collectFocusedCell,
+  collectTargetCells,
+  scanTargetCells,
+  type SmartEditGridReader,
+} from './collectTargetCells.js';
 
 function mockApi(overrides: Partial<SmartEditGridReader & {
   getFocusedCell(): { rowIndex: number; column: { getColId(): string } } | null;
@@ -62,6 +67,57 @@ describe('collectTargetCells', () => {
       }],
     });
     expect(collectTargetCells(api, (d) => String(d.id))).toHaveLength(1);
+  });
+});
+
+describe('scanTargetCells (worklog T6 — fetch-or-refuse)', () => {
+  it('counts SSRM stub rows in the range as unloaded', () => {
+    const api = mockApi({
+      getCellRanges: () => [{
+        columns: [{ getColId: () => 'quantityFace' }],
+        startRow: { rowIndex: 0 },
+        endRow: { rowIndex: 2 },
+      }],
+      getDisplayedRowAtIndex: (i) => {
+        if (i === 0) return { id: 'r1', data: { id: 'r1', quantityFace: 1 } };
+        if (i === 1) return { stub: true };
+        return undefined; // beyond loaded blocks — no node at all
+      },
+    });
+    const scan = scanTargetCells(api, (d) => String(d.id));
+    expect(scan.cells).toHaveLength(1);
+    expect(scan.unloadedRowCount).toBe(2);
+  });
+
+  it('does not count group headers or footers as unloaded', () => {
+    const api = mockApi({
+      getCellRanges: () => [{
+        columns: [{ getColId: () => 'quantityFace' }],
+        startRow: { rowIndex: 0 },
+        endRow: { rowIndex: 2 },
+      }],
+      getDisplayedRowAtIndex: (i) => {
+        if (i === 0) return { group: true };
+        if (i === 1) return { footer: true };
+        return { id: 'r1', data: { id: 'r1', quantityFace: 1 } };
+      },
+    });
+    const scan = scanTargetCells(api, (d) => String(d.id));
+    expect(scan.cells).toHaveLength(1);
+    expect(scan.unloadedRowCount).toBe(0);
+  });
+
+  it('counts an unloaded row once across overlapping ranges', () => {
+    const range = {
+      columns: [{ getColId: () => 'quantityFace' }],
+      startRow: { rowIndex: 1 },
+      endRow: { rowIndex: 1 },
+    };
+    const api = mockApi({
+      getCellRanges: () => [range, range],
+      getDisplayedRowAtIndex: (i) => (i === 1 ? { stub: true } : undefined),
+    });
+    expect(scanTargetCells(api, (d) => String(d.id)).unloadedRowCount).toBe(1);
   });
 });
 

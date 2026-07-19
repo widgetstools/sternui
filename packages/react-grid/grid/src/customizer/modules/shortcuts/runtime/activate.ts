@@ -6,7 +6,10 @@ import {
 } from '@wellsfargo-starui/engine';
 import { resolveEditRecording } from '../../../editing/recordEdit.js';
 import { editWriterFromPlatform } from '../../../editing/editWriterFromPlatform.js';
-import { resolveTargetCells } from '../../smart-edit/runtime/applyEdits.js';
+import {
+  resolveTargetCellScan,
+  warnRefusedUnloadedTargets,
+} from '../../smart-edit/runtime/applyEdits.js';
 import { applyShortcutEdit } from './applyShortcutEdit.js';
 
 function isEditingCell(api: GridApi): boolean {
@@ -34,7 +37,13 @@ export function activateShortcuts(platform: PlatformHandle<ShortcutsState>): () 
       if (!isShortcutKey(ke.key)) return;
       if (isEditingCell(api)) return;
 
-      const cells = resolveTargetCells(api);
+      const { cells, unloadedRowCount } = resolveTargetCellScan(api);
+      if (unloadedRowCount > 0) {
+        warnRefusedUnloadedTargets('shortcuts', unloadedRowCount);
+        ke.preventDefault();
+        ke.stopPropagation();
+        return;
+      }
       if (cells.length === 0) return;
 
       ke.preventDefault();

@@ -7,11 +7,22 @@ export interface SmartEditGridReader {
     startRow?: { rowIndex: number };
     endRow?: { rowIndex: number };
   }> | null;
-  getDisplayedRowAtIndex(index: number): { id?: string; data?: Record<string, unknown> } | undefined;
+  getDisplayedRowAtIndex(index: number): SmartEditRowNode | undefined;
   getColumn(colId: string): {
     getColDef(): { editable?: boolean | ((p: unknown) => boolean); field?: string; cellDataType?: string };
   } | null;
   getCellValue(params: { rowNode: unknown; colKey: string }): unknown;
+}
+
+export interface SmartEditRowNode {
+  id?: string;
+  data?: Record<string, unknown>;
+  /** SSRM loading placeholder — the row is NOT loaded. */
+  stub?: boolean;
+  /** Group header — legitimately has no leaf data. */
+  group?: boolean;
+  /** Aggregate footer — legitimately has no leaf data. */
+  footer?: boolean;
 }
 
 export interface TargetCell {
@@ -19,6 +30,23 @@ export interface TargetCell {
   colId: string;
   field: string;
   value: unknown;
+}
+
+export interface TargetCellScan {
+  cells: TargetCell[];
+  /**
+   * Rows inside the selection that are not loaded (SSRM stubs / missing
+   * nodes). Callers MUST refuse the edit when this is non-zero — applying
+   * to the loaded subset silently is a data-integrity bug (worklog T6).
+   */
+  unloadedRowCount: number;
+}
+
+/** True when the range row is an unloaded SSRM placeholder (not a group/footer). */
+export function isUnloadedRangeRow(node: SmartEditRowNode | undefined): boolean {
+  if (!node) return true;
+  if (node.stub === true) return true;
+  return node.data == null && node.group !== true && node.footer !== true;
 }
 
 function isEditable(
@@ -36,13 +64,18 @@ function isEditable(
   return true;
 }
 
-export function collectTargetCells(
+/**
+ * Range scan that also reports unloaded rows so callers can refuse partial
+ * edits under SSRM instead of silently applying to the loaded subset.
+ */
+export function scanTargetCells(
   api: SmartEditGridReader,
   getRowId: (data: Record<string, unknown>) => string,
-): TargetCell[] {
+): TargetCellScan {
   const ranges = api.getCellRanges() ?? [];
   const out: TargetCell[] = [];
   const seen = new Set<string>();
+  const unloadedRows = new Set<number>();
 
   for (const range of ranges) {
     const start = range.startRow?.rowIndex ?? 0;
@@ -52,7 +85,10 @@ export function collectTargetCells(
 
     for (let ri = rowFrom; ri <= rowTo; ri += 1) {
       const rowNode = api.getDisplayedRowAtIndex(ri);
-      if (!rowNode?.data) continue;
+      if (!rowNode?.data) {
+        if (isUnloadedRangeRow(rowNode)) unloadedRows.add(ri);
+        continue;
+      }
       const data = rowNode.data;
       const rowId = rowNode.id ?? getRowId(data);
 
@@ -77,7 +113,14 @@ export function collectTargetCells(
     }
   }
 
-  return out;
+  return { cells: out, unloadedRowCount: unloadedRows.size };
+}
+
+export function collectTargetCells(
+  api: SmartEditGridReader,
+  getRowId: (data: Record<string, unknown>) => string,
+): TargetCell[] {
+  return scanTargetCells(api, getRowId).cells;
 }
 
 /** Single focused cell when no range selection exists. */

@@ -26,6 +26,7 @@ import {
 } from 'react';
 import type { GridApi } from 'ag-grid-community';
 import {
+  defaultVisualExcelFileName,
   LocalStorageBundleAdapter,
   MemoryAdapter,
   type StorageAdapter,
@@ -450,8 +451,20 @@ export function useMarketsGridController(
   const handleExportVisualExcel = useCallback(() => {
     if (!api) return;
     const state = platform.store.getModuleState<VisualExcelState>(VISUAL_EXCEL_MODULE_ID);
-    exportVisualExcel(api, state?.settings ?? { enabled: true, fileNamePrefix: 'markets-grid' });
-  }, [api, platform]);
+    const settings = state?.settings ?? { enabled: true, fileNamePrefix: 'markets-grid' };
+    // SSRM: `api.exportDataAsExcel` sees only loaded blocks — fetch the FULL
+    // filtered set through the engine instead (worklog T6 fetch-or-refuse).
+    const ssrmHandle = resolveSsrmHandle(useSSRM, ssrmRef?.current);
+    if (ssrmHandle) {
+      void ssrmHandle.exportAll({
+        format: 'excel',
+        fileName: defaultVisualExcelFileName(settings.fileNamePrefix),
+        visual: true,
+      });
+      return;
+    }
+    exportVisualExcel(api, settings);
+  }, [api, platform, useSSRM, ssrmRef]);
 
   exportVisualExcelRef.current = handleExportVisualExcel;
 

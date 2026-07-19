@@ -187,18 +187,31 @@ of a prop whitelist, mirroring the CSRM surface's precedence:
 Verified: grid **726** passing (724 + 2 new surface tests), ssrm-grid **149**
 (145 + 4 strip tests), `tsc` clean in both.
 
-### T6 — Edit/export paths: fetch-or-refuse · `TODO` · **data integrity**
+### T6 — Edit/export paths: fetch-or-refuse · `DONE`
 
-Currently silent-wrong under SSRM:
-- select-all + bulk-update edits **only loaded blocks** — no module consumes
-  `getServerSideSelectionState()` (zero uses outside the status bar)
-- smart-edit / shortcuts / plus-minus drop unloaded targets silently
-  (`collectTargetCells.ts:55`)
-- visual-excel exports only loaded blocks (`exportVisualExcel.ts:24-30`) despite
-  `exportAllViaAgGrid` existing and being reachable
+Landed:
 
-Silent wrong results on an edit path are worse than refusal. Independent of the
-grid decision — worth doing regardless.
+- **Refuse** — `scanTargetCells` / `scanBulkUpdateTargets` (engine) report an
+  `unloadedRowCount` alongside the collected targets: a range row is
+  "unloaded" when its node is missing, an SSRM `stub`, or data-less without
+  being a group/footer. Every edit entry point — smart-edit
+  (keyboard + toolbar apply/preview/confirm), shortcuts, plus-minus,
+  bulk-update (apply + confirm) — refuses the whole edit with a console
+  warning (`warnRefusedUnloadedTargets`) when the count is non-zero, instead
+  of silently applying to the loaded subset. The bulk-update scan also
+  suppresses the focused-cell fallback when the range carried unloaded rows.
+  Old `collect*` signatures remain as thin delegates.
+- **Fetch** — visual-excel under SSRM routes through the engine:
+  `CustomSSRMGridHandle.exportAll({format, fileName, visual})` (new, forwarded
+  by `SsrmMarketsGridSurface`) → `exportAllViaAgGrid` (now takes
+  `processCellCallback` so display formatters survive) with the full filtered
+  set from `queryAll`; `useMarketsGridController.handleExportVisualExcel`
+  detects the SSRM handle and exports the whole book, not loaded blocks.
+
+Follow-up (unchanged scope, tracked in T8): a UI toast for refusals, and
+selection-state-aware (`getServerSideSelectionState`) row-selection edits.
+
+Verified: engine **297**, ssrm-grid **149**, grid **726** — all passing.
 
 ### T7 — Conditional-styling runtime under SSRM · `TODO`
 

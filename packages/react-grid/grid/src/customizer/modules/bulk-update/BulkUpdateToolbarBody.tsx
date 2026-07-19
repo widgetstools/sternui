@@ -42,7 +42,8 @@ import {
   EditingToolbarSegment,
 } from '../../../widget/editingToolbar/EditingToolbarPrimitives';
 import { useBulkUpdateSelection } from './useBulkUpdateSelection';
-import { applyBulkUpdateEdits, resolveBulkUpdateTargets } from './runtime/applyBulkUpdateEdits';
+import { applyBulkUpdateEdits, resolveBulkUpdateTargetScan } from './runtime/applyBulkUpdateEdits';
+import { warnRefusedUnloadedTargets } from '../smart-edit/runtime/applyEdits.js';
 
 function formatDistinctLabel(value: unknown): string {
   if (value == null || value === '') return '(empty)';
@@ -86,7 +87,12 @@ export function BulkUpdateToolbarBody({ layout = 'standalone' }: EditingToolbarS
     const api = platform.api.api;
     if (!api || !settings.settings.enabled || !value.trim()) return;
 
-    const targets = resolveBulkUpdateTargets(api);
+    const scan = resolveBulkUpdateTargetScan(api);
+    if (scan.unloadedRowCount > 0) {
+      warnRefusedUnloadedTargets('bulk-update', scan.unloadedRowCount);
+      return;
+    }
+    const targets = scan.targets;
     if (targets.length === 0) return;
 
     if (settings.settings.enforceSingleColumn) {
@@ -107,7 +113,12 @@ export function BulkUpdateToolbarBody({ layout = 'standalone' }: EditingToolbarS
     const api = platform.api.api;
     if (!api || !settings.settings.enabled || !value.trim()) return;
 
-    const targets = resolveBulkUpdateTargets(api);
+    const scan = resolveBulkUpdateTargetScan(api);
+    if (scan.unloadedRowCount > 0) {
+      warnRefusedUnloadedTargets('bulk-update', scan.unloadedRowCount);
+      return;
+    }
+    const targets = scan.targets;
     if (targets.length === 0) return;
 
     if (settings.settings.enforceSingleColumn) {

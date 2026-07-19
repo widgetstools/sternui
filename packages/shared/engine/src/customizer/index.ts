@@ -61,8 +61,12 @@ export { isNumericCellDataType } from './modules/smart-edit/isNumericCellDataTyp
 export {
   collectTargetCells,
   collectFocusedCell,
+  scanTargetCells,
+  isUnloadedRangeRow,
   type SmartEditGridReader,
+  type SmartEditRowNode,
   type TargetCell,
+  type TargetCellScan,
 } from './modules/smart-edit/collectTargetCells.js';
 
 export * from './modules/editing-core/index.js';
@@ -73,8 +77,10 @@ export * from './modules/bulk-update/state.js';
 export { isBulkUpdateCellType, bulkUpdateValueKind } from './modules/bulk-update/isBulkUpdateCellType.js';
 export {
   collectBulkUpdateTargets,
+  scanBulkUpdateTargets,
   type BulkUpdateGridReader,
   type BulkUpdateTarget,
+  type BulkUpdateTargetScan,
 } from './modules/bulk-update/collectBulkUpdateTargets.js';
 export {
   buildBulkUpdatePatches,

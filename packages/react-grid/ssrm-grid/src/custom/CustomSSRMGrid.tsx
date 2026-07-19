@@ -123,6 +123,16 @@ export interface CustomSSRMGridHandle {
     categoryField?: string;
     chartType?: ChartType;
   }): Promise<{ rowCount: number; chartId?: string } | null>;
+  /**
+   * Export the FULL filtered set via the engine (not just loaded blocks —
+   * worklog T6 fetch-or-refuse). `visual: true` runs each cell through its
+   * display formatter, matching visual-excel's output.
+   */
+  exportAll(opts: {
+    format: "excel" | "csv";
+    fileName?: string;
+    visual?: boolean;
+  }): Promise<{ rowCount: number }>;
 }
 
 export interface CustomSSRMGridProps {
@@ -711,21 +721,33 @@ export const CustomSSRMGrid = forwardRef<
   );
 
   const handleExportAll = useCallback(
-    async (format: "excel" | "csv") => {
+    async (
+      format: "excel" | "csv",
+      opts?: { fileName?: string; visual?: boolean },
+    ) => {
       const api = apiRef.current;
-      if (!api) return;
-      await exportAllViaAgGrid({
+      if (!api) return { rowCount: 0 };
+      return exportAllViaAgGrid({
         liveApi: api,
         client: engineRef.current,
         dataset: DATASET,
         format,
-        fileName: `export-all.${format === "excel" ? "xlsx" : "csv"}`,
+        fileName:
+          opts?.fileName ?? `export-all.${format === "excel" ? "xlsx" : "csv"}`,
         limit: 100_000,
         quickFilterText: quickFilterRef.current,
         quickFilterFields: quickFilterFieldsRef.current,
         rowKeepExpression: rowKeepExpressionRef.current || undefined,
         treeData,
         absSort: absSortRef.current,
+        ...(opts?.visual
+          ? {
+              processCellCallback: (p: {
+                value: unknown;
+                formatValue: (value: unknown) => string;
+              }) => p.formatValue(p.value),
+            }
+          : {}),
       });
     },
     [treeData],
@@ -882,6 +904,11 @@ export const CustomSSRMGrid = forwardRef<
       queryAll,
       forEachMatching,
       chartFilteredData: (opts) => handleChartAll(opts),
+      exportAll: (opts) =>
+        handleExportAll(opts.format, {
+          fileName: opts.fileName,
+          visual: opts.visual,
+        }),
     }),
     [
       commit,
@@ -890,6 +917,7 @@ export const CustomSSRMGrid = forwardRef<
       queryAll,
       forEachMatching,
       handleChartAll,
+      handleExportAll,
     ],
   );
 

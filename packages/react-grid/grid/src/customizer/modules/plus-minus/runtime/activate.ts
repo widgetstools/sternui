@@ -6,7 +6,10 @@ import {
 } from '@wellsfargo-starui/engine';
 import { resolveEditRecording } from '../../../editing/recordEdit.js';
 import { editWriterFromPlatform } from '../../../editing/editWriterFromPlatform.js';
-import { resolveTargetCells } from '../../smart-edit/runtime/applyEdits.js';
+import {
+  resolveTargetCellScan,
+  warnRefusedUnloadedTargets,
+} from '../../smart-edit/runtime/applyEdits.js';
 import { applyPlusMinusNudge, type NudgeDirection } from './applyPlusMinusNudge.js';
 
 function isEditingCell(api: GridApi): boolean {
@@ -38,7 +41,13 @@ export function activatePlusMinus(platform: PlatformHandle<PlusMinusState>): () 
       if (!direction) return;
       if (isEditingCell(api)) return;
 
-      const cells = resolveTargetCells(api);
+      const { cells, unloadedRowCount } = resolveTargetCellScan(api);
+      if (unloadedRowCount > 0) {
+        warnRefusedUnloadedTargets('plus-minus', unloadedRowCount);
+        ke.preventDefault();
+        ke.stopPropagation();
+        return;
+      }
       if (cells.length === 0) return;
 
       ke.preventDefault();

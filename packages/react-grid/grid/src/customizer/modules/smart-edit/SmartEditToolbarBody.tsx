@@ -53,6 +53,8 @@ import {
   applyEdits,
   buildSmartEditPatches,
   resolveTargetCells,
+  resolveTargetCellScan,
+  warnRefusedUnloadedTargets,
 } from './runtime/applyEdits';
 import { editWriterFromPlatform } from '../../editing/editWriterFromPlatform';
 
@@ -102,7 +104,12 @@ export function SmartEditToolbarBody({ layout = 'standalone' }: EditingToolbarSe
     const api = platform.api.api;
     if (!api || !settings.settings.enabled) return;
 
-    const targets = resolveTargetCells(api);
+    const scan = resolveTargetCellScan(api);
+    if (scan.unloadedRowCount > 0) {
+      warnRefusedUnloadedTargets('smart-edit', scan.unloadedRowCount);
+      return;
+    }
+    const targets = scan.cells;
     if (targets.length === 0) return;
 
     if (settings.settings.enforceSingleColumn) {
@@ -122,7 +129,12 @@ export function SmartEditToolbarBody({ layout = 'standalone' }: EditingToolbarSe
     const api = platform.api.api;
     if (!api || !settings.settings.enabled) return;
 
-    const targets = resolveTargetCells(api);
+    const scan = resolveTargetCellScan(api);
+    if (scan.unloadedRowCount > 0) {
+      warnRefusedUnloadedTargets('smart-edit', scan.unloadedRowCount);
+      return;
+    }
+    const targets = scan.cells;
     if (targets.length === 0) return;
 
     if (settings.settings.enforceSingleColumn) {

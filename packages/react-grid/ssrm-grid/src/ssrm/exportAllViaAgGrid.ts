@@ -47,6 +47,14 @@ export async function exportAllViaAgGrid(options: {
   rowKeepExpression?: string;
   treeData?: boolean;
   absSort?: boolean;
+  /**
+   * Per-cell value hook for the export (e.g. visual-excel's
+   * `formatValue` pass so display formatters survive the export).
+   */
+  processCellCallback?: (params: {
+    value: unknown;
+    formatValue: (value: unknown) => string;
+  }) => unknown;
 }): Promise<{ rowCount: number }> {
   const {
     liveApi,
@@ -101,10 +109,11 @@ export async function exportAllViaAgGrid(options: {
     });
 
     try {
+      const processCellCallback = options.processCellCallback as never;
       if (format === "excel") {
-        exportApi.exportDataAsExcel({ fileName });
+        exportApi.exportDataAsExcel({ fileName, processCellCallback });
       } else {
-        exportApi.exportDataAsCsv({ fileName });
+        exportApi.exportDataAsCsv({ fileName, processCellCallback });
       }
     } finally {
       exportApi.destroy();

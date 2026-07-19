@@ -4,20 +4,39 @@ import {
   applyNumericOp,
   buildPatchesFromTargets,
   collectFocusedCell,
-  collectTargetCells,
+  scanTargetCells,
   type CellPatch,
   type EditGridWriter,
   type EditJournal,
   type SmartEditOp,
   type TargetCell,
+  type TargetCellScan,
 } from '@wellsfargo-starui/engine';
 import { withJournalApplyGuard } from '../../../editing/journalApplyGuard.js';
 
-export function resolveTargetCells(api: GridApi, rowIdField = 'id'): TargetCell[] {
+/**
+ * Range targets + unloaded-row count. When `unloadedRowCount > 0` the caller
+ * MUST refuse the edit (worklog T6) — an SSRM range spanning unloaded rows
+ * would otherwise apply to the loaded subset silently.
+ */
+export function resolveTargetCellScan(api: GridApi, rowIdField = 'id'): TargetCellScan {
   const getRowId = (data: Record<string, unknown>) => String(data[rowIdField] ?? data.id ?? '');
-  const fromRange = collectTargetCells(api as never, getRowId);
-  if (fromRange.length > 0) return fromRange;
-  return collectFocusedCell(api as never, getRowId);
+  const scan = scanTargetCells(api as never, getRowId);
+  if (scan.cells.length > 0 || scan.unloadedRowCount > 0) return scan;
+  return { cells: collectFocusedCell(api as never, getRowId), unloadedRowCount: 0 };
+}
+
+export function resolveTargetCells(api: GridApi, rowIdField = 'id'): TargetCell[] {
+  return resolveTargetCellScan(api, rowIdField).cells;
+}
+
+/** Refusal notice — never partially apply an edit over unloaded rows. */
+export function warnRefusedUnloadedTargets(module: string, unloadedRowCount: number): void {
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[markets-grid] ${module}: edit refused — ${unloadedRowCount} row(s) in the selection `
+    + 'are not loaded (server row model). Narrow the selection or scroll the rows into view.',
+  );
 }
 
 export function buildSmartEditPatches(
