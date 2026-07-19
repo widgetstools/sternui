@@ -86,19 +86,19 @@ quick-filter/absSort/rowKeepExpression/idField extras at the call site.
 Verified: ssrm-grid **145** passing (141 baseline + 4 new capability tests);
 `tsc --noEmit` clean.
 
-### T2 — Revive the 43 dead MarketsGrid tests · `TODO` · **before any component swap**
+### T2 — Revive the 43 dead MarketsGrid tests · `DONE`
 
-Four files failed to *collect* (incomplete `ag-grid-enterprise` mock), so their
-tests never ran and drifted. D8 fixed collection; they now run and 43 fail,
-mostly `useGridPlatform() must be used inside <GridProvider>`.
+Landed: the four widget test files drifted because `MarketsGridHost` consumes
+`useGridPlatform` via the **relative** module
+(`../customizer/hooks/GridProvider.js`), which the tests'
+`@wellsfargo-starui/grid/customizer` package mock cannot intercept — the real
+hook then threw outside a real provider. Each file now also mocks the relative
+module, and every platform stub carries the members the current controller
+touches (`setDataTransactionApplier`, `rows`, `store.getModuleState`,
+`events.on` → unsubscribe, `gridId`). `ssrmCalcColumns.test.ts` updated: IFS
+lowers to nested Perspective `if()` (ternary output was dropped).
 
-Files: `marketsGrid.caption`, `MarketsGrid.characterisation`,
-`MarketsGrid.devwarning`, `marketsGrid.staleData` (all in `grid/src/widget/`).
-Plus `ssrmCalcColumns.test.ts:34`, which asserts old ternary output the
-compiler no longer emits.
-
-**Acceptance:** `grid` suite green. These are currently the only coverage of
-MarketsGrid's mount contract — without them a component swap has no safety net.
+Verified: `grid` suite **724 passing, 0 failing** (was 681/43).
 
 ### T3 — Wire the provider worker to host a table · `TODO`
 

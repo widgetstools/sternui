@@ -93,6 +93,24 @@ vi.mock('../customizer/hooks/useModuleState.js', () => ({
   useModuleState: () => [undefined, vi.fn()],
 }));
 
+// MarketsGridHost consumes the platform context via this RELATIVE module,
+// which the `@wellsfargo-starui/grid/customizer` package mock cannot
+// intercept - stub it to the same shells (see worklog T2).
+vi.mock('../customizer/hooks/GridProvider.js', () => ({
+  GridProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useGridPlatform: () => ({
+    gridId: 'test-grid',
+    api: { api: null },
+    rows: { on: () => () => {}, emit: () => {} },
+    store: { getModuleState: () => undefined },
+    events: { on: () => () => {}, emit: () => {} },
+    setDataTransactionApplier: () => {},
+    resources: { expression: () => ({}) },
+  }),
+  useGridEngineKind: () => 'csrm',
+  useOptionalGridPlatform: () => null,
+}));
+
 vi.mock('@wellsfargo-starui/engine', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@wellsfargo-starui/engine')>();
   return {
@@ -110,7 +128,15 @@ vi.mock('@wellsfargo-starui/grid/customizer', () => ({
   ProviderGridHostProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   GridEventBindingsHostProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useGridApi: () => mocks.api,
-  useGridPlatform: () => ({ store: {}, gridId: 'test-grid', events: { on: () => () => {}, emit: () => {} } }),
+  useGridPlatform: () => ({
+    gridId: 'test-grid',
+    api: { api: null },
+    rows: { on: () => () => {}, emit: () => {} },
+    store: { getModuleState: () => undefined },
+    events: { on: () => () => {}, emit: () => {} },
+    setDataTransactionApplier: () => {},
+    resources: { expression: () => ({}) },
+  }),
   useModuleState: () => [undefined, vi.fn()],
   GENERAL_SETTINGS_MODULE_ID: 'general-settings',
   useProfileManager: (opts: any) => {

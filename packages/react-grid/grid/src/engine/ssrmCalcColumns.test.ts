@@ -30,8 +30,11 @@ describe('ssrmCalcColumns', () => {
       });
       expect(plan.kind).toBe('perspective');
       if (plan.kind === 'perspective') {
+        // IFS lowers to nested Perspective if() calls (ternary output was
+        // dropped by the compiler).
         expect(plan.perspectiveExpression).toContain('"price"');
-        expect(plan.perspectiveExpression).toContain('?');
+        expect(plan.perspectiveExpression).toMatch(/^if\(/);
+        expect(plan.perspectiveExpression).toContain('if("price" >= 95');
       }
     });
 
