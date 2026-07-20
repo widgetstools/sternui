@@ -168,6 +168,26 @@ export const SsrmGrid = forwardRef<SsrmGridHandle, SsrmGridProps>(
       [],
     );
 
+    // The general-settings pipeline stamps `enableCellChangeFlash` onto
+    // EVERY column def (transformColumnDefs), and column-level overrides
+    // the defaultColDef force-off below — strip it here too, or AG's
+    // whole-row SSRM flash comes straight back through the columns.
+    const sanitizedColumnDefs = useMemo(() => {
+      const strip = (defs: readonly unknown[]): unknown[] =>
+        defs.map((d) => {
+          const def = d as Record<string, unknown>;
+          const out: Record<string, unknown> = {
+            ...def,
+            enableCellChangeFlash: false,
+          };
+          if (Array.isArray(def.children)) {
+            out.children = strip(def.children as unknown[]);
+          }
+          return out;
+        });
+      return strip(c.override.agGridColumnDefs as unknown[]);
+    }, [c.override.agGridColumnDefs]);
+
     const resolvedTheme = props.theme ?? defaultTheme;
 
     // Module-pipeline gridOptions (general-settings et al) with the
@@ -210,7 +230,7 @@ export const SsrmGrid = forwardRef<SsrmGridHandle, SsrmGridProps>(
       // ── Tier 3: SSRM-structural — always win ──
       theme: resolvedTheme,
       loadThemeGoogleFonts: props.loadThemeGoogleFonts ?? props.theme == null,
-      columnDefs: c.override.agGridColumnDefs,
+      columnDefs: sanitizedColumnDefs,
       defaultColDef,
       rowModelType: "serverSide",
       serverSideDatasource: c.datasource,

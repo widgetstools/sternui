@@ -82,6 +82,24 @@ describe('SsrmGrid mount contract', () => {
     cleanup();
   });
 
+  it('strips enableCellChangeFlash from every column (AG row-flash stays off under SSRM)', () => {
+    // The general-settings pipeline stamps this onto each column def;
+    // column-level would override the defaultColDef force-off and bring
+    // back the whole-row gold flash. Value-aware flashCells replaces it.
+    mount({
+      columnDefs: [
+        { field: 'id', enableCellChangeFlash: true },
+        { field: 'px', enableCellChangeFlash: true },
+      ] as never,
+    });
+    const p = captured.props!;
+    for (const def of p.columnDefs as Array<{ enableCellChangeFlash?: boolean }>) {
+      expect(def.enableCellChangeFlash).toBe(false);
+    }
+    expect((p.defaultColDef as { enableCellChangeFlash?: boolean }).enableCellChangeFlash).toBe(false);
+    cleanup();
+  });
+
   it('encodes group / tree / grand-total / leaf row ids', () => {
     mount({ treeFields: undefined });
     const getRowId = captured.props!.getRowId as (p: unknown) => string;

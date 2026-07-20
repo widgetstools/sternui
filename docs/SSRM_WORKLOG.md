@@ -38,7 +38,7 @@ cd packages/data/host-data && npx vitest run
 # ssrm-grid: expect 178 passing, 0 failing
 cd packages/react-grid/ssrm-grid && npx vitest run
 
-# grid: expect 727 passing, 0 failing (capability-gate + applyTickToSsrm tests deleted with B1/B7)
+# grid: expect 728 passing, 0 failing (capability-gate + applyTickToSsrm tests deleted with B1/B7)
 cd packages/react-grid/grid && npx vitest run
 
 # engine: 301 · widgets-react: 226 (+1 skipped)
