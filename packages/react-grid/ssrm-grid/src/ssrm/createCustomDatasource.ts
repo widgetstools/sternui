@@ -209,6 +209,7 @@ export function createCustomDatasource(
         void (async () => {
           try {
             const live = getExtras?.() ?? extras;
+            const prev = blockCache.get(cacheKey);
             const result = await Promise.resolve(
               engine.getRows(buildRequest(live)),
             );
@@ -216,12 +217,30 @@ export function createCustomDatasource(
             blockCache.set(cacheKey, fresh);
             const idField = live.idField;
             if (isFlatLeaf && idField) {
+              // Patch ONLY rows that actually changed vs the stale copy —
+              // re-applying unchanged rows re-rendered the whole viewport
+              // every reconcile and re-triggered update-keyed styling
+              // (field report: whole-grid flashing).
+              const prevById = new Map<string, Record<string, unknown>>();
+              for (const r of prev?.rowData ?? []) {
+                const raw = r[idField];
+                if (raw != null && raw !== "") prevById.set(String(raw), r);
+              }
+              const changed = (r: Record<string, unknown>): boolean => {
+                const old = prevById.get(String(r[idField]));
+                if (!old) return true;
+                for (const k of Object.keys(r)) {
+                  if (!Object.is(r[k], old[k])) return true;
+                }
+                return false;
+              };
               const update = fresh.rowData.filter((r) => {
                 const raw = r[idField];
                 return (
                   raw != null &&
                   raw !== "" &&
-                  params.api.getRowNode(String(raw)) != null
+                  params.api.getRowNode(String(raw)) != null &&
+                  changed(r)
                 );
               });
               if (update.length > 0) {

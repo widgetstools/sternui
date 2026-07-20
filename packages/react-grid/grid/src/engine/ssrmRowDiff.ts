@@ -12,8 +12,19 @@ import { PreviousValuesStore, type FieldDiff } from './previousValuesStore.js';
  */
 const MAX_TRACKED_ROWS = 50_000;
 
+/**
+ * Tick-locality window: `.old`/`.new` styling is a "this just changed"
+ * signal, not a permanent property. Without expiry, a full-book update
+ * sweep eventually leaves a diff on EVERY row and diff-based rules light
+ * the whole grid permanently (field report: "conditional styling flashes
+ * the whole grid"). A diff is readable for this window after it was
+ * recorded, then reads as absent — the style clears on the row's next
+ * repaint.
+ */
+const SSRM_DIFF_TTL_MS = 2_000;
+
 const previousValues = new PreviousValuesStore(MAX_TRACKED_ROWS);
-const latestDiffsByRow = new Map<string, RowDiffMap>();
+const latestDiffsByRow = new Map<string, { at: number; map: RowDiffMap }>();
 
 function evictDiffOverflow(): void {
   while (latestDiffsByRow.size > MAX_TRACKED_ROWS) {
@@ -58,19 +69,34 @@ export function recordSsrmTickDiffs(
     if (diffs.size === 0) continue;
     const hasPriorValues = [...diffs.values()].some((d) => d.oldValue !== undefined);
     if (!hasPriorValues) continue;
-    let rowMap = latestDiffsByRow.get(rowId);
-    if (!rowMap) {
-      rowMap = new Map();
-      latestDiffsByRow.set(rowId, rowMap);
-    }
-    for (const [k, v] of diffs) rowMap.set(k, v);
+    const existing = latestDiffsByRow.get(rowId);
+    // A fresh tick supersedes an expired window entirely — stale field
+    // diffs from a prior tick must not ride along with the new one.
+    const rowEntry =
+      existing && Date.now() - existing.at <= SSRM_DIFF_TTL_MS
+        ? existing
+        : { at: Date.now(), map: new Map() as RowDiffMap };
+    rowEntry.at = Date.now();
+    for (const [k, v] of diffs) rowEntry.map.set(k, v);
+    // Re-insert to refresh eviction order.
+    latestDiffsByRow.delete(rowId);
+    latestDiffsByRow.set(rowId, rowEntry);
   }
   evictDiffOverflow();
 }
 
-/** Latest tick diffs for a row — used by SSRM conditional-styling `.old`/`.new` refs. */
+/**
+ * Latest tick diffs for a row — used by SSRM conditional-styling
+ * `.old`/`.new` refs. Tick-local: reads as absent once the TTL passes.
+ */
 export function getSsrmRowDiff(rowId: string): RowDiffMap | undefined {
-  return latestDiffsByRow.get(rowId);
+  const entry = latestDiffsByRow.get(rowId);
+  if (!entry) return undefined;
+  if (Date.now() - entry.at > SSRM_DIFF_TTL_MS) {
+    latestDiffsByRow.delete(rowId);
+    return undefined;
+  }
+  return entry.map;
 }
 
 export function clearSsrmRowDiffs(): void {

@@ -249,6 +249,49 @@ describe("createCustomDatasource sync cache", () => {
     );
   });
 
+  it("revalidate patches ONLY rows that actually changed (no whole-viewport re-render)", async () => {
+    const cache = new SsrmBlockCache();
+    const getRows = vi.fn(async () => ({
+      rowData: [
+        { id: "a", px: 1 }, // unchanged
+        { id: "b", px: 9 }, // changed
+      ],
+      rowCount: 2,
+    }));
+    const applyServerSideTransactionAsync = vi.fn();
+    const ds = createCustomDatasource(
+      () => ({ getRows }) as never,
+      () => "main",
+      () => ({ isConfigured: true, refreshGeneration: 0, idField: "id" }),
+      undefined,
+      cache,
+    );
+
+    const prime = mockParams();
+    (prime as Record<string, unknown>).api = { getRowNode: () => null };
+    getRows.mockResolvedValueOnce({
+      rowData: [
+        { id: "a", px: 1 },
+        { id: "b", px: 2 },
+      ],
+      rowCount: 2,
+    } as never);
+    ds.getRows(prime as never);
+    await vi.waitFor(() => expect(prime.success).toHaveBeenCalled());
+    cache.markAllStale();
+
+    const params = mockParams();
+    (params as Record<string, unknown>).api = {
+      getRowNode: () => ({ data: {} }), // both rows rendered
+      applyServerSideTransactionAsync,
+    };
+    ds.getRows(params as never);
+    await vi.waitFor(() => expect(applyServerSideTransactionAsync).toHaveBeenCalled());
+    expect(applyServerSideTransactionAsync).toHaveBeenCalledWith({
+      update: [{ id: "b", px: 9 }], // "a" untouched
+    });
+  });
+
   it("skips revalidation for OFF-SCREEN stale blocks (engine stays quiet)", async () => {
     const cache = new SsrmBlockCache();
     const getRows = vi.fn(async () => ({ rowData: [{ id: "a", px: 1 }], rowCount: 1 }));

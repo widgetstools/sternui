@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it, beforeEach, vi } from 'vitest';
 import {
   clearSsrmRowDiffs,
   getSsrmRowDiff,
@@ -22,6 +22,36 @@ describe('ssrmRowDiff', () => {
 
     recordSsrmTickDiffs([{ id: 'r1', price: 105 }]);
     expect(getSsrmRowDiff('r1')?.get('price')).toEqual({ oldValue: 100, newValue: 105 });
+  });
+
+  it('diffs are TICK-LOCAL: expire after the TTL so styling clears', () => {
+    // Without expiry a full-book sweep leaves a diff on every row and
+    // `.old/.new` rules light the whole grid permanently.
+    vi.useFakeTimers();
+    try {
+      recordSsrmTickDiffs([{ id: 'r1', price: 100 }]); // prime
+      recordSsrmTickDiffs([{ id: 'r1', price: 105 }]); // diff
+      expect(getSsrmRowDiff('r1')?.get('price')).toEqual({
+        oldValue: 100,
+        newValue: 105,
+      });
+
+      vi.advanceTimersByTime(2_100); // past SSRM_DIFF_TTL_MS
+      expect(getSsrmRowDiff('r1')).toBeUndefined();
+
+      // A fresh tick after expiry starts a clean window — no stale fields.
+      recordSsrmTickDiffs([{ id: 'r1', price: 110 }]);
+      expect(getSsrmRowDiff('r1')?.get('price')).toEqual({
+        oldValue: 105,
+        newValue: 110,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('evicts oldest tracked rows once the cap is exceeded (B3)', () => {

@@ -35,10 +35,10 @@ Commands a new session should run to confirm the baseline still holds
 # host-data: expect 485 passing, 0 failing
 cd packages/data/host-data && npx vitest run
 
-# ssrm-grid: expect 176 passing, 0 failing
+# ssrm-grid: expect 177 passing, 0 failing
 cd packages/react-grid/ssrm-grid && npx vitest run
 
-# grid: expect 726 passing, 0 failing (capability-gate + applyTickToSsrm tests deleted with B1/B7)
+# grid: expect 727 passing, 0 failing (capability-gate + applyTickToSsrm tests deleted with B1/B7)
 cd packages/react-grid/grid && npx vitest run
 
 # engine: 301 · widgets-react: 226 (+1 skipped)
@@ -475,6 +475,15 @@ report: sluggish scroll, slow sort, "no" realtime updates, wrong statusBar):**
   tick repaint parity with the refresh loop (9/60 cells / 4 s both modes,
   reduced sweep); drag improved further — cold post-drag populate 202 ms
   (was 462), revisited 8 ms.
+- **Whole-grid styling flash fixed (field report after row deltas).** Two
+  causes: (1) the `.old/.new` diff store never expired — once the sweep
+  touched every row, diff-based rules were permanently true grid-wide.
+  Diffs are now TICK-LOCAL by TTL (`SSRM_DIFF_TTL_MS` 2 s): readable for
+  the flash window, absent afterwards, and a post-expiry tick starts a
+  clean window. (2) the stale-block revalidate re-applied EVERY rendered
+  row (unchanged included) each reconcile, re-rendering the whole
+  viewport and re-triggering update-keyed styling — it now diffs against
+  the cached copy and patches only rows that actually changed.
 - NOTE the field report also had an environmental factor: the STOMP demo
   server at its default sweep ceiling (~20k rows/s into a 20k book — reads
   degrade to ~150 ms). See Environment notes; run with
