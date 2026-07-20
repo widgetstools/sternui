@@ -26,7 +26,8 @@
     "ag-charts-enterprise": "^14.0.0"
   },
   "dependencies": {
-    "@finos/perspective": "^3.8.0"
+    "@finos/perspective": "^3.8.0",
+    "@wellsfargo-starui/design-system": "*"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",

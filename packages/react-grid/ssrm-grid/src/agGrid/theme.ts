@@ -1,26 +1,10 @@
-import { colorSchemeDark, themeQuartz } from "ag-grid-community";
+/**
+ * Default SsrmGrid theme — the canonical StarUI design-system AG Grid theme
+ * (live OKLCH tokens, light + dark via `data-ag-theme-mode` on `<html>`).
+ * Hosts that pass `props.theme` (MarketsGrid) override this; standalone
+ * mounts (labs, demos) get the same tokened chrome instead of a bespoke
+ * dark-only palette (worklog B5 — no hardcoded hex, 100% theme-compatible).
+ */
+import { staruiGridTheme } from "@wellsfargo-starui/design-system/adapters/ag-grid";
 
-// AG Grid's built-in neutral dark colour scheme (all backgrounds / foregrounds /
-// hover / odd-row colours derived by the theme), plus a few brand tweaks.
-export const theme = themeQuartz.withPart(colorSchemeDark).withParams({
-  accentColor: "#8AAAA7",
-  borderRadius: 2,
-  buttonBorderRadius: 2,
-  checkboxBorderRadius: 2,
-  columnBorder: true,
-  fontFamily: {
-    googleFont: "Inter",
-  },
-  fontSize: 14,
-  headerFontFamily: {
-    googleFont: "Inter",
-  },
-  headerFontSize: 14,
-  headerFontWeight: 500,
-  iconButtonBorderRadius: 1,
-  iconSize: 12,
-  inputBorderRadius: 2,
-  spacing: 6,
-  wrapperBorderRadius: 2,
-  valueChangeValueHighlightBackgroundColor: "#8AAAA766",
-});
+export const theme = staruiGridTheme;
