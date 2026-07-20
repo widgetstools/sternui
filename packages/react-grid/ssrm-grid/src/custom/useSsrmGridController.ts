@@ -260,6 +260,7 @@ export function useSsrmGridController(props: SsrmGridProps) {
     [],
   );
 
+  const configureRetryRef = useRef(0);
   const configureAndLoad = useCallback(async () => {
     const engineNow = engineRef.current;
     const rows = rowDataRef.current;
@@ -274,8 +275,37 @@ export function useSsrmGridController(props: SsrmGridProps) {
     refreshGenerationRef.current += 1;
     blockCacheRef.current.clear();
     try {
-      await Promise.resolve(engineNow.configure(feedConfigRef.current));
+      try {
+        await Promise.resolve(engineNow.configure(feedConfigRef.current));
+      } catch (err) {
+        // Remote engines can fail transiently while the worker-hosted table
+        // is being created/seeded by another party. Without a retry the grid
+        // is dead until remount — retry bounded, generation-guarded.
+        if (gen !== configureGenRef.current) return;
+        if (configureRetryRef.current < 3) {
+          configureRetryRef.current += 1;
+          const attempt = configureRetryRef.current;
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[ssrm-grid] engine.configure failed (attempt ${attempt}/3) — retrying`,
+            err,
+          );
+          setTimeout(() => {
+            if (gen === configureGenRef.current) {
+              configureInFlightRef.current = false;
+              void configureAndLoad();
+            }
+          }, 300 * attempt);
+          return;
+        }
+        // Out of retries — leave the grid unconfigured (datasource fails
+        // its gate) rather than rejecting a floating promise.
+        // eslint-disable-next-line no-console
+        console.error('[ssrm-grid] engine.configure failed permanently', err);
+        return;
+      }
       if (gen !== configureGenRef.current) return;
+      configureRetryRef.current = 0;
       if (rows !== undefined) {
         await Promise.resolve(engineNow.setRowData(DATASET, rows));
         if (gen !== configureGenRef.current) return;
