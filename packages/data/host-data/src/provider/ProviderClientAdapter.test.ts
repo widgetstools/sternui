@@ -237,7 +237,11 @@ describe('ProviderClientAdapter', () => {
     other.unsubscribe();
   });
 
-  it('restart() re-attaches with extra and delivers a fresh snapshot', async () => {
+  it('restart() with an intentional __reload restarts upstream and delivers a fresh snapshot', async () => {
+    // NOTE: `__refresh` deliberately does NOT force an upstream restart on a
+    // running provider (see restartExtrasEqual — late-join by design; the
+    // old detach-first restart only "worked" by killing the provider first).
+    // Intentional re-acquire is `__reload` — the MarketsGrid Reload path.
     const adapter = new ProviderClientAdapter<{ id: string }>({
       client: w.client,
       providerId: 'p1',
@@ -251,9 +255,9 @@ describe('ProviderClientAdapter', () => {
     controllers.get('default')!.emit({ status: 'ready' });
     await startPromise;
 
-    const restartPromise = adapter.restart({ __refresh: 1 });
+    const restartPromise = adapter.restart({ __reload: 1 });
     await flush();
-    expect(controllers.get('default')!.restarts).toEqual([{ __refresh: 1 }]);
+    expect(controllers.get('default')!.restarts).toEqual([{ __reload: 1 }]);
 
     controllers.get('default')!.emit({ status: 'loading' });
     controllers.get('default')!.emit({ rows: [{ id: 'r2' }], replace: true });
@@ -262,6 +266,40 @@ describe('ProviderClientAdapter', () => {
 
     expect(snapshots).toEqual([1, 1]);
     expect(adapter.getData()).toEqual([{ id: 'r2' }]);
+  });
+
+  it('restart() is make-before-break — no upstream teardown, no spurious cancellation (B10)', async () => {
+    const adapter = new ProviderClientAdapter<{ id: string }>({
+      client: w.client,
+      providerId: 'p1',
+    });
+    const errors: Error[] = [];
+    adapter.onError((e) => errors.push(e));
+
+    // Cold start: the wiring's first run restarts with the stable overlay;
+    // the snapshot is still assembling when the second run fires.
+    const first = adapter.restart({ rowShape: 'ssrm' });
+    await flush();
+    const ctrl = controllers.get('default')!;
+    expect(ctrl.stops).toBe(0);
+    expect(ctrl.restarts).toEqual([{ rowShape: 'ssrm' }]);
+
+    // Same overlay ~1s later (cfg hydration re-run). Attach-first means the
+    // hub never sees zero subscribers: LATE-JOIN, no stop, no re-dial, and
+    // the superseded subscription's cancellation stays silent.
+    const second = adapter.restart({ rowShape: 'ssrm' });
+    await flush();
+    expect(ctrl.stops).toBe(0); // upstream never torn down
+    expect(controllers.get('default')).toBe(ctrl); // same slot, not recreated
+    expect(ctrl.restarts).toHaveLength(1); // late-join — no second upstream restart
+
+    ctrl.emit({ rows: [{ id: 'r1' }], replace: true });
+    ctrl.emit({ status: 'ready' });
+    await second;
+    await first; // superseded — resolves quietly instead of rejecting
+    expect(errors).toEqual([]);
+    expect(adapter.getData()).toEqual([{ id: 'r1' }]);
+    await adapter.stop();
   });
 
   it('refresh() replays hub cache through onSnapshotData', async () => {

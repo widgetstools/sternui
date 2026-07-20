@@ -32,7 +32,7 @@ Commands a new session should run to confirm the baseline still holds
 (numbers as of 2026-07-20 — T1–T7, T9 + T8 partial landed; B1/B3/B5 fixed):
 
 ```bash
-# host-data: expect 484 passing, 0 failing
+# host-data: expect 485 passing, 0 failing
 cd packages/data/host-data && npx vitest run
 
 # ssrm-grid: expect 170 passing, 0 failing
@@ -435,7 +435,7 @@ unconditionally on, per the parity directive.)
 | B7 | Dead code: ~~`applyTickToSsrm.ts`~~ (deleted with B1), `getSsrmShareOfTotal` (exported, smoke-tested, no runtime consumer), `engine/index.ts` subpath (no importer) | — |
 | B8 | ~~`__refresh` client test fails~~ **Fixed with T3** — test updated to the `__reload` contract; host-data fully green | `SharedWorkerDataServicesClient.test.ts` |
 | B9 | No e2e coverage of SSRM at all — zero matches for `ssrm`/`rowModel` under `e2e/` | — |
-| B10 | Cold-start double restart: the provider wiring effect re-fires when the catalog row finishes hydrating (~1 s in), cancelling the first mid-snapshot subscription (console noise "Subscription cancelled before snapshot arrived" surfaced as a container ERROR) and tearing down + redialing STOMP. Recovers, but wastes a full snapshot start and alarms users. Dedupe the restart when only cfg *identity* (not content) changed | `useProviderDataWiring` / `useDataProvider` |
+| B10 | ~~Cold-start double restart~~ **Fixed — make-before-break restart.** `ProviderClientAdapter.restart()` now attaches the replacement subscription BEFORE detaching the old one, so the worker never sees a zero-subscriber gap: the cfg-hydration re-run late-joins (hub `restartExtrasEqual`) instead of stop+teardown+redial, and superseded handles go silent (their "Subscription cancelled" rejection is our teardown, not an error — it used to resolve the busy overlay early and flash "Loading → Refreshing"). Verified live: ONE ws dial for the whole cold start, second attach = LATE-JOIN, no spurious error, one continuous overlay. NOTE the intentional-restart contract is now uniform: `__refresh` never forces upstream (late-join by design); Reload uses `__reload` — the adapter test that pinned single-window `__refresh`-forces-restart was corrected to `__reload` | `ProviderClientAdapter.ts` |
 | B11 | star-demo seed provider requests `/snapshot/positions/trd1/1000/10` — 10-row batches ⇒ a 20k snapshot trickles for ~60 s (the lab spike uses `/1000/2000` ⇒ ~10 s). Bump the seed's batch segment | `apps/demos/star-demo/public/seed.json` |
 | B12 | `useSsrmPullEngine` leaves `linkProviderToPerspective`'s returned `readPort` connection unused (the hook opens a THIRD connection via `createPerspectiveReadClient`) — one idle SharedWorker port per blotter | `useSsrmPullEngine.ts` |
 

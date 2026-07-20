@@ -144,7 +144,12 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
     const handle = await this.openSubscribe(this.inlineCfg ?? this.resolvedConfig ?? undefined);
     this.wireHandle(handle);
     this.handle = handle;
-    await handle.snapshot;
+    try {
+      await handle.snapshot;
+    } catch (err) {
+      // Superseded mid-snapshot by a restart — not a provider failure.
+      if (this.handle === handle) throw err;
+    }
   }
 
   async refresh(): Promise<void> {
@@ -163,7 +168,6 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
       extra: extra ?? null,
       providerWorker: Boolean(this.providerWorker),
     });
-    this.detach();
     if (!this.resolvedConfig && !this.inlineCfg) {
       this.resolvedConfig = await this.loadProviderConfig();
       if (!this.resolvedConfig) {
@@ -171,16 +175,31 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
       }
     }
 
-    // May re-send catalog cfg; hub late-joins when that cfg matches the
-    // running slot and the stable overlay matches (see providerCfgsEqual /
-    // restartExtrasEqual) — peers must not get a STOMP restart.
+    // MAKE-BEFORE-BREAK (worklog B10): attach the replacement BEFORE
+    // detaching the old subscription, so the worker never sees a
+    // zero-subscriber gap. Detach-first stopped the provider (last
+    // subscriber → stopProvider → upstream STOMP teardown) and re-dialed
+    // ~1 s into every cold start when the wiring effect re-fired on cfg
+    // hydration — the "Loading → Refreshing" overlay flip-flop. Attach-
+    // first lets the hub LATE-JOIN when cfg + overlay match (no upstream
+    // restart; see providerCfgsEqual / restartExtrasEqual); a genuinely
+    // changed overlay still restarts upstream, just without the gap.
+    const superseded = this.handle;
     const handle = await this.openSubscribe(
       this.inlineCfg ?? this.resolvedConfig ?? undefined,
       extra ? { extra } : {},
     );
     this.wireHandle(handle);
     this.handle = handle;
-    await handle.snapshot;
+    superseded?.unsubscribe();
+    try {
+      await handle.snapshot;
+    } catch (err) {
+      // Only a live handle's failure is the caller's problem — if THIS
+      // restart was itself superseded mid-snapshot, the replacement owns
+      // the lifecycle now.
+      if (this.handle === handle) throw err;
+    }
   }
 
   getData(): readonly T[] {
@@ -252,11 +271,20 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
   }
 
   private wireHandle(handle: SubscribeHandle<T>): void {
+    // Superseded handles (make-before-break restart) must go silent: their
+    // late events — and especially their "Subscription cancelled" snapshot
+    // rejection — are OUR teardown, not provider state. Forwarding them
+    // resolved busy overlays early and logged spurious container errors on
+    // every cold start (worklog B10).
+    const live = () => this.handle === handle;
+
     handle.onRowsReceived((count) => {
+      if (!live()) return;
       for (const handler of this.rowsReceivedHandlers) handler(count);
     });
 
     handle.onStatus((status, error) => {
+      if (!live()) return;
       for (const handler of this.statusHandlers) handler(status, error);
       if (status === 'error') {
         const err = new Error(error ?? 'Provider error');
@@ -265,10 +293,12 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
     });
 
     handle.onUpdate((rows) => {
+      if (!live()) return;
       for (const handler of this.tickHandlers) handler(rows);
     });
 
     const deliverSnapshot = (rows: readonly T[]) => {
+      if (!live()) return;
       this.snapshotRows = rows;
       for (const handler of this.snapshotHandlers) handler(rows);
     };
@@ -280,6 +310,7 @@ export class ProviderClientAdapter<T = Record<string, unknown>> implements IData
     handle.onSnapshotCommit(deliverSnapshot);
 
     void handle.snapshot.catch((err: unknown) => {
+      if (!live()) return;
       const error = err instanceof Error ? err : new Error(String(err));
       for (const handler of this.errorHandlers) handler(error);
     });
