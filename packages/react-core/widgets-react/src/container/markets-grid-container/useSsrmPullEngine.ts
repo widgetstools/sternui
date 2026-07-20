@@ -17,6 +17,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   createPerspectiveReadClient,
+  isPerspectiveAttachAck,
   linkProviderToPerspective,
   type ProviderWorkerRoutingOpts,
 } from '@wellsfargo-starui/host-data';
@@ -55,29 +56,52 @@ export function useSsrmPullEngine(opts: UseSsrmPullEngineOpts): SsrmEngine | nul
     }
     let cancelled = false;
     let built: SsrmEngine | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempt = 0;
 
     // 1. Hand-off. Every window may try; the provider worker dedupes. The
     //    attach handler infers the table schema from the provider's first
-    //    cached rows, so this needs no data to have arrived yet.
-    try {
-      const providerSW = new SharedWorker(providerUrl, {
-        type: 'module',
-        name: `starui-provider:${appId}:${providerId}`,
-      });
-      providerSW.port.start();
-      linkProviderToPerspective({
-        appId,
-        providerId,
-        dataset: PULL_DATASET,
-        keyColumn,
-        workerScriptUrl: pspUrl,
-        providerPort: providerSW.port,
-      });
-    } catch (err) {
-      onErrorRef.current?.(
-        err instanceof Error ? err : new Error(String(err)),
-      );
-    }
+    //    cached rows — which can FAIL RETRYABLY when the provider has no
+    //    rows yet (feed down / restarting during blotter open). Nothing
+    //    used to retry: the table was never created, the engine's open-only
+    //    configure exhausted its wait, and the blotter sat BLANK with
+    //    "Rows: …". Listen for the ack and re-post the hand-off with
+    //    backoff until it links (or another window's link wins).
+    const postAttach = () => {
+      if (cancelled) return;
+      try {
+        const providerSW = new SharedWorker(providerUrl, {
+          type: 'module',
+          name: `starui-provider:${appId}:${providerId}`,
+        });
+        providerSW.port.onmessage = (ev: MessageEvent) => {
+          const ack = ev.data;
+          if (!isPerspectiveAttachAck(ack) || ack.providerId !== providerId) return;
+          if (cancelled || ack.linked || !ack.error) return;
+          attempt += 1;
+          const delayMs = Math.min(30_000, 1000 * 2 ** Math.min(attempt, 5));
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[useSsrmPullEngine] psp-attach failed (retrying in ${delayMs}ms): ${ack.error}`,
+          );
+          retryTimer = setTimeout(postAttach, delayMs);
+        };
+        providerSW.port.start();
+        linkProviderToPerspective({
+          appId,
+          providerId,
+          dataset: PULL_DATASET,
+          keyColumn,
+          workerScriptUrl: pspUrl,
+          providerPort: providerSW.port,
+        });
+      } catch (err) {
+        onErrorRef.current?.(
+          err instanceof Error ? err : new Error(String(err)),
+        );
+      }
+    };
+    postAttach();
 
     // 2. Read side — this window's own client over the shared engine worker.
     void createPerspectiveReadClient({
@@ -105,6 +129,7 @@ export function useSsrmPullEngine(opts: UseSsrmPullEngineOpts): SsrmEngine | nul
 
     return () => {
       cancelled = true;
+      if (retryTimer !== null) clearTimeout(retryTimer);
       built?.dispose();
       setEngine(null);
     };

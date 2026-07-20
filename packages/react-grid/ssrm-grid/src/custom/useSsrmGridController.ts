@@ -339,10 +339,22 @@ export function useSsrmGridController(props: SsrmGridProps) {
           }, 300 * attempt);
           return;
         }
-        // Out of retries — leave the grid unconfigured (datasource fails
-        // its gate) rather than rejecting a floating promise.
+        // Out of fast retries — but the table may simply not exist yet
+        // (feed down, link still building). Re-arm a slow retry loop
+        // instead of leaving the grid dead-blank until remount: a pull
+        // grid self-heals the moment the provider comes alive.
         // eslint-disable-next-line no-console
-        console.error('[ssrm-grid] engine.configure failed permanently', err);
+        console.error(
+          '[ssrm-grid] engine.configure failed after retries — re-arming in 5s',
+          err,
+        );
+        setTimeout(() => {
+          if (gen === configureGenRef.current) {
+            configureInFlightRef.current = false;
+            configureRetryRef.current = 0;
+            void configureAndLoad();
+          }
+        }, 5_000);
         return;
       }
       if (gen !== configureGenRef.current) return;
