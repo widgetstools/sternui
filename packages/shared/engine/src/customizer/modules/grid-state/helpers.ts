@@ -281,11 +281,19 @@ export function applyGridState(api: GridApi, saved: SavedGridState): void {
   }
 
   // Viewport — wait for rows to render so ensureIndexVisible has something
-  // to scroll to.
-  const restoreViewport = () => {
+  // to scroll to. Returns false when the anchor row is beyond the current
+  // row count, so the caller keeps retrying: under SSRM the count lands
+  // asynchronously (root store count query — with the pull engine, possibly
+  // only after the shared table fills), and can even pass through a small
+  // intermediate value before the real total. A `firstDataRendered`-only
+  // one-shot restore silently loses the anchor in those cases.
+  const tryRestoreViewport = (): boolean => {
     try {
       const { firstRowIndex, leftColId, horizontalPixel } = saved.viewportAnchor;
-      if (firstRowIndex >= 0 && firstRowIndex < api.getDisplayedRowCount()) {
+      if (firstRowIndex > 0 && firstRowIndex >= api.getDisplayedRowCount()) {
+        return false;
+      }
+      if (firstRowIndex > 0) {
         api.ensureIndexVisible(firstRowIndex, 'top');
       }
       if (leftColId && api.getColumn(leftColId)) {
@@ -294,25 +302,37 @@ export function applyGridState(api: GridApi, saved: SavedGridState): void {
         const body = document.querySelector<HTMLElement>('.ag-body-viewport');
         if (body) body.scrollLeft = horizontalPixel;
       }
+      return true;
     } catch {
-      /* best-effort */
+      return true; // don't retry on API errors — best-effort only
     }
   };
 
   try {
-    if (api.getDisplayedRowCount() > 0) {
-      queueMicrotask(restoreViewport);
-    } else {
-      const handler = () => {
-        restoreViewport();
-        try {
-          api.removeEventListener('firstDataRendered', handler);
-        } catch {
-          /* ignore */
-        }
-      };
-      api.addEventListener('firstDataRendered', handler);
-    }
+    const deadline = Date.now() + 15_000;
+    const detach = () => {
+      try {
+        api.removeEventListener('firstDataRendered', retry);
+        api.removeEventListener('modelUpdated', retry);
+      } catch {
+        /* ignore */
+      }
+    };
+    const retry = () => {
+      if (tryRestoreViewport() || Date.now() > deadline) detach();
+    };
+    // First attempt on the next microtask so setState settles first; the
+    // listeners cover the async row-count case (CSRM: rows arrive later;
+    // SSRM: count query / block loads land via modelUpdated).
+    queueMicrotask(() => {
+      if (tryRestoreViewport()) return;
+      try {
+        api.addEventListener('firstDataRendered', retry);
+        api.addEventListener('modelUpdated', retry);
+      } catch {
+        /* ignore */
+      }
+    });
   } catch {
     /* ignore */
   }

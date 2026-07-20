@@ -40,10 +40,31 @@ function useOptionalGridApi(): GridApi | null {
 }
 
 export function QuickSearch() {
+  const platform = useOptionalGridPlatform();
   const api = useOptionalGridApi();
   const [text, setText] = useState('');
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Reconcile the input with a quick filter applied from OUTSIDE this box —
+  // grid-state restore replays the saved `quickFilterText` option on
+  // profile load, and without this the filter would be live while the box
+  // reads empty. Skipped while the field has focus so it never fights the
+  // user's typing.
+  useEffect(() => {
+    if (!api || !platform) return;
+    const sync = () => {
+      if (document.activeElement === inputRef.current) return;
+      try {
+        const current = api.getGridOption('quickFilterText');
+        setText(typeof current === 'string' ? current : '');
+      } catch {
+        /* ignore */
+      }
+    };
+    sync();
+    return platform.events.on('profile:loaded', sync);
+  }, [api, platform]);
 
   // Quick filter re-runs a full pass over every row on each
   // `setGridOption('quickFilterText')`. Debounce that push so fast typing on a

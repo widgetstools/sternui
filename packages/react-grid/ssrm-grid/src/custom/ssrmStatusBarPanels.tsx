@@ -108,6 +108,21 @@ export function ServerFilteredRowCountPanel({ api }: CustomStatusPanelProps) {
   );
 }
 
+/**
+ * SSRM stand-in for `agTotalRowCountComponent`.
+ * Always visible: `Total Rows : N` — matches CSRM.
+ */
+export function ServerTotalRowCountPanel({ api }: CustomStatusPanelProps) {
+  const { total } = useModelAndContextCounts(api);
+  return (
+    <StatusNameValue
+      panelClass="ag-status-panel-total-row-count"
+      label="Total Rows"
+      value={total == null ? "…" : total.toLocaleString()}
+    />
+  );
+}
+
 function readSsrmSelectedCount(api: GridApi): number {
   const state = api.getServerSideSelectionState?.() as
     | IServerSideSelectionState
@@ -152,6 +167,46 @@ export function ServerSelectedRowCountPanel({ api }: CustomStatusPanelProps) {
       hidden={count === 0}
     />
   );
+}
+
+/**
+ * AG client-side status panel id → SSRM stand-in. `agAggregationComponent`
+ * is absent on purpose: it aggregates the current cell-range selection,
+ * which only ever spans loaded rows, so the native panel works under SSRM.
+ */
+const CLIENT_PANEL_TO_SSRM: Record<string, unknown> = {
+  agTotalAndFilteredRowCountComponent: ServerTotalAndFilteredRowCountPanel,
+  agFilteredRowCountComponent: ServerFilteredRowCountPanel,
+  agTotalRowCountComponent: ServerTotalRowCountPanel,
+  agSelectedRowCountComponent: ServerSelectedRowCountPanel,
+};
+
+/**
+ * Translate a pipeline `statusBar` gridOption (general-settings emits AG's
+ * client-side count panels, which read the client row model and render
+ * blanks under SSRM) into the SSRM stand-in panels (worklog T8).
+ *
+ * Panels without a mapping — `agAggregationComponent`, app-custom panels —
+ * pass through untouched, as do extra per-panel keys (`align`,
+ * `statusPanelParams`). Returns `undefined` when the input isn't a
+ * `{ statusPanels: [...] }` shape, so callers fall back to their default.
+ */
+export function translateSsrmStatusBar(
+  statusBar: unknown,
+): { statusPanels: unknown[] } | undefined {
+  if (statusBar == null || typeof statusBar !== "object") return undefined;
+  const panels = (statusBar as { statusPanels?: unknown }).statusPanels;
+  if (!Array.isArray(panels)) return undefined;
+  return {
+    statusPanels: panels.map((p) => {
+      const id =
+        p != null && typeof p === "object"
+          ? (p as { statusPanel?: unknown }).statusPanel
+          : undefined;
+      const mapped = typeof id === "string" ? CLIENT_PANEL_TO_SSRM[id] : undefined;
+      return mapped ? { ...(p as object), statusPanel: mapped } : p;
+    }),
+  };
 }
 
 /** Default SSRM status bar — mirrors CSRM Overview / lab chrome. */

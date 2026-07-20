@@ -5,14 +5,23 @@
  * wiring in three precedence tiers, with all behavior in
  * {@link useSsrmGridController}. Replaces the monolithic CustomSSRMGrid.
  */
-import { forwardRef, useImperativeHandle, useMemo } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from "react";
 import { AgGridReact } from "ag-grid-react";
-import type { ColDef } from "ag-grid-community";
+import type { ColDef, GridReadyEvent } from "ag-grid-community";
 import "../agGrid/modules";
 import { theme as defaultTheme } from "../agGrid/theme";
 import { MirrorLoadingCellRenderer } from "../ssrm/mirrorLoadingCell";
 import { foldTrafficLight } from "../ssrm/trafficLightAgg";
-import { SSRM_DEFAULT_STATUS_BAR } from "./ssrmStatusBarPanels";
+import {
+  SSRM_DEFAULT_STATUS_BAR,
+  translateSsrmStatusBar,
+} from "./ssrmStatusBarPanels";
 import { QuickFilterHighlightCellRenderer } from "./QuickFilterHighlightCellRenderer";
 import "./quickFilterHighlight.css";
 import { stripSsrmStructuralGridOptions } from "./ssrmGridOptionsPassthrough";
@@ -31,12 +40,45 @@ function trafficLightAggFunc(params: { values: unknown[] }): number | null {
 
 export const SsrmGrid = forwardRef<SsrmGridHandle, SsrmGridProps>(
   function SsrmGrid(props, ref) {
-    const c = useSsrmGridController(props);
+    // AG's `quickFilterText` gridOption is client-row-model-only — the SSRM
+    // query reads the React prop instead. Widget chrome (QuickSearch,
+    // grid-state restore) writes the OPTION, so intercept those writes and
+    // fold them into the controller's quick filter. The prop, when the host
+    // passes one, stays the controlled source and wins.
+    const [optionQuickFilter, setOptionQuickFilter] = useState<
+      string | undefined
+    >(undefined);
+    const effectiveQuickFilter = props.quickFilterText ?? optionQuickFilter;
+    const controllerProps =
+      effectiveQuickFilter === props.quickFilterText
+        ? props
+        : { ...props, quickFilterText: effectiveQuickFilter };
+
+    const c = useSsrmGridController(controllerProps);
     useImperativeHandle(ref, () => c.handle, [c.handle]);
+
+    const controllerGridReady = c.onGridReady;
+    const onGridReady = useCallback(
+      (e: GridReadyEvent) => {
+        const api = e.api;
+        const orig = api.setGridOption.bind(api);
+        // Keep calling through so `getGridOption('quickFilterText')` still
+        // answers (grid-state capture reads it back on Save).
+        (api as { setGridOption: (key: never, value: never) => void }).setGridOption =
+          (key: never, value: never) => {
+            orig(key, value);
+            if ((key as string) === "quickFilterText") {
+              setOptionQuickFilter(typeof value === "string" ? value : "");
+            }
+          };
+        controllerGridReady(e);
+      },
+      [controllerGridReady],
+    );
 
     const hasQuickFilterHighlight =
       props.highlightQuickFilter !== false &&
-      Boolean((props.quickFilterText ?? "").trim());
+      Boolean((effectiveQuickFilter ?? "").trim());
 
     const defaultColDef = useMemo(
       () =>
@@ -110,6 +152,17 @@ export const SsrmGrid = forwardRef<SsrmGridHandle, SsrmGridProps>(
       [props.gridOptions],
     );
 
+    // Pipeline statusBar (general-settings) translated to the SSRM panels;
+    // wins over the surface prop when present — same precedence as CSRM,
+    // where the pipeline statusBar overrides the host's when the toggle is on.
+    const pipelineStatusBar = useMemo(
+      () =>
+        translateSsrmStatusBar(
+          (props.gridOptions as Record<string, unknown> | undefined)?.statusBar,
+        ),
+      [props.gridOptions],
+    );
+
     // Three precedence tiers: SSRM defaults the pipeline may override, the
     // pipeline pass-through, then SSRM-structural wiring that always wins.
     const agGridProps = {
@@ -150,7 +203,7 @@ export const SsrmGrid = forwardRef<SsrmGridHandle, SsrmGridProps>(
       asyncTransactionWaitMillis: 50,
       ...(c.treeData ? { rowGroupPanelShow: "never" } : {}),
       sideBar: (props.sideBar ?? { toolPanels: ["columns", "filters"] }) as never,
-      statusBar: (props.statusBar ?? SSRM_DEFAULT_STATUS_BAR) as never,
+      statusBar: (pipelineStatusBar ?? props.statusBar ?? SSRM_DEFAULT_STATUS_BAR) as never,
       components: {
         ...(props.components ?? {}),
         agLoadingCellRenderer: MirrorLoadingCellRenderer,
@@ -185,7 +238,7 @@ export const SsrmGrid = forwardRef<SsrmGridHandle, SsrmGridProps>(
           onBodyScroll={c.onBodyScroll}
           onFilterChanged={c.onFilterChanged}
           onCellValueChanged={c.onCellValueChanged}
-          onGridReady={c.onGridReady}
+          onGridReady={onGridReady}
         />
       </div>
     );

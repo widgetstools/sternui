@@ -63,11 +63,10 @@ export const SSRM_STRUCTURAL_GRID_OPTION_KEYS = [
 ] as const;
 
 /**
- * Note: the pipeline `statusBar` stays stripped even though the surface
- * forwards its own `statusBar` prop — general-settings emits AG's
- * client-side count/aggregation panels, which read the client row model and
- * render blanks under SSRM. The SSRM default panels remain until a
- * translation exists (worklog T8).
+ * Note: `statusBar` stays in the strip list because it is not blanket-
+ * forwarded — `SsrmGrid` reads the pipeline `statusBar` explicitly and
+ * translates AG's client-side count panels to the SSRM stand-ins
+ * (`translateSsrmStatusBar`, worklog T8) before merging.
  */
 export function stripSsrmStructuralGridOptions(
   opts: Record<string, unknown>,
