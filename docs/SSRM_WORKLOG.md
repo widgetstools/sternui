@@ -35,7 +35,7 @@ Commands a new session should run to confirm the baseline still holds
 # host-data: expect 485 passing, 0 failing
 cd packages/data/host-data && npx vitest run
 
-# ssrm-grid: expect 172 passing, 0 failing
+# ssrm-grid: expect 176 passing, 0 failing
 cd packages/react-grid/ssrm-grid && npx vitest run
 
 # grid: expect 726 passing, 0 failing (capability-gate + applyTickToSsrm tests deleted with B1/B7)
@@ -455,6 +455,26 @@ report: sluggish scroll, slow sort, "no" realtime updates, wrong statusBar):**
   mid-sweep — and the full-width loading row is styled QUIET
   (`ssrmLoadingRow.css` hides AG's per-row spinner + "Loading…" text; an
   empty theme-colored row is the calm placeholder).
+- **Row-delta transactions landed (AG's sanctioned high-frequency path;
+  deep-research recommendation).** `createPerspectiveEngine({rowDeltas})`
+  subscribes the PLAIN root view (ungrouped, unsorted, unfiltered — the
+  default blotter steady state) with `on_update({mode:'row'})`, decodes the
+  Arrow delta via a throwaway worker table, and emits the changed rows as a
+  leaf TRANSACTION dirty — the router's conflate→`applyServerSideTransactionAsync`
+  path patches cells in place with NO refresh round-trip. Sorted/filtered/
+  grouped shapes keep the ping (deltas can't express membership/order
+  changes); deltas > `maxDeltaRows` (2k) fall back to the ping (mass
+  replace); a `reconcileMs` (5 s) bare ping corrects count/order drift.
+  `useSsrmPullEngine` enables it. **`.old/.new` parity in pull:** the
+  transaction dirt now reaches `SsrmMarketsGridSurface.onDirty`, which
+  records `recordSsrmTickDiffs` BEFORE the grid applies — diff-based
+  conditional styling + delta alerts work under pull. ALSO: the surface's
+  stale pinned tuning props (`blockLoadDebounceMillis={50}`,
+  `suppressAnimationFrame`, …) were REMOVED — they had been silently
+  overriding the tuned SsrmGrid defaults on the product path. A/B live:
+  tick repaint parity with the refresh loop (9/60 cells / 4 s both modes,
+  reduced sweep); drag improved further — cold post-drag populate 202 ms
+  (was 462), revisited 8 ms.
 - NOTE the field report also had an environmental factor: the STOMP demo
   server at its default sweep ceiling (~20k rows/s into a 20k book — reads
   degrade to ~150 ms). See Environment notes; run with

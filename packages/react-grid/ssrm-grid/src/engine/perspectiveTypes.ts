@@ -11,6 +11,15 @@
  * See ADR-ssrm-worker-hosted-engine.md.
  */
 
+/**
+ * Payload delivered to `on_update` subscribers. With `{ mode: "row" }`,
+ * `delta` carries the changed rows as an Apache Arrow IPC buffer.
+ */
+export interface PerspectiveUpdatePayload {
+  port_id?: number;
+  delta?: ArrayBuffer;
+}
+
 /** A Perspective `View` — a query over a table, maintained incrementally. */
 export interface PerspectiveView {
   to_columns(window?: {
@@ -18,7 +27,10 @@ export interface PerspectiveView {
     end_row?: number;
   }): Promise<Record<string, unknown[]>>;
   num_rows(): Promise<number>;
-  on_update(callback: (updated: unknown) => void, options?: unknown): Promise<number>;
+  on_update(
+    callback: (updated: PerspectiveUpdatePayload) => void | Promise<void>,
+    options?: { mode?: "row" },
+  ): Promise<number>;
   delete(): Promise<void>;
 }
 
@@ -51,7 +63,11 @@ export interface PerspectiveTable {
  */
 export interface PerspectiveClient {
   table(
-    data: Record<string, unknown>[] | Record<string, string> | string,
+    data:
+      | Record<string, unknown>[]
+      | Record<string, string>
+      | string
+      | ArrayBuffer,
     options?: { index?: string; name?: string; limit?: number },
   ): Promise<PerspectiveTable>;
   open_table(name: string): Promise<PerspectiveTable>;

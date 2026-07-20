@@ -19,6 +19,7 @@ interface Harness {
   client: PerspectiveClient;
   configs: PerspectiveViewConfig[];
   viewsCreated: number;
+  views: PerspectiveView[];
   updates: Record<string, unknown>[][];
   removed: (string | number)[][];
   /** Table names the client reports as already hosted in the worker. */
@@ -33,6 +34,7 @@ function harness(over: Partial<Harness> = {}): Harness {
   const h: Harness = {
     configs: [],
     viewsCreated: 0,
+    views: [],
     updates: [],
     removed: [],
     hosted: [],
@@ -43,12 +45,16 @@ function harness(over: Partial<Harness> = {}): Harness {
     ...over,
   };
 
-  const makeView = (): PerspectiveView => ({
-    to_columns: vi.fn(async () => h.columns),
-    num_rows: vi.fn(async () => h.numRows),
-    on_update: vi.fn(async () => 1),
-    delete: vi.fn(async () => undefined),
-  });
+  const makeView = (): PerspectiveView => {
+    const view: PerspectiveView = {
+      to_columns: vi.fn(async () => h.columns),
+      num_rows: vi.fn(async () => h.numRows),
+      on_update: vi.fn(async () => 1),
+      delete: vi.fn(async () => undefined),
+    };
+    h.views.push(view);
+    return view;
+  };
 
   const table: PerspectiveTable = {
     view: vi.fn(async (config?: PerspectiveViewConfig) => {
@@ -99,6 +105,88 @@ describe("createPerspectiveEngine — request translation", () => {
     await engine.configure(feed);
     await engine.getRows(req({ sortModel: [{ colId: "px", sort: "desc" }] }));
     expect(h.configs[0]?.sort).toEqual([["px", "desc"]]);
+  });
+
+  it("row-delta mode: plain root view emits changed rows as a leaf TRANSACTION", async () => {
+    const h = harness();
+    const engine = createPerspectiveEngine({ client: h.client, rowDeltas: true });
+    const dirt: unknown[] = [];
+    engine.setDirtyHandler?.((m) => dirt.push(m));
+    await engine.configure(feed);
+    await engine.getRows(req()); // plain: no sort / filter / groups
+
+    const onUpdate = h.views[0]!.on_update as ReturnType<typeof vi.fn>;
+    expect(onUpdate.mock.calls[0]![1]).toEqual({ mode: "row" }); // delta-subscribed
+
+    // Fire an update whose Arrow delta decodes (via the temp-table path)
+    // to two changed rows.
+    h.columns = { positionId: ["p1", "p2"], px: [1.5, 2.5] };
+    await onUpdate.mock.calls[0]![0]({ delta: new ArrayBuffer(8) });
+    const tx = dirt.find(
+      (d) => (d as { transaction?: unknown }).transaction != null,
+    ) as { transaction: { dataset: string; update: Record<string, unknown>[] } };
+    expect(tx).toBeTruthy();
+    expect(tx.transaction.dataset).toBe("main");
+    expect(tx.transaction.update).toEqual([
+      { positionId: "p1", px: 1.5 },
+      { positionId: "p2", px: 2.5 },
+    ]);
+    engine.dispose();
+  });
+
+  it("row-delta mode: sorted/filtered views keep the bare ping", async () => {
+    const h = harness();
+    const engine = createPerspectiveEngine({ client: h.client, rowDeltas: true });
+    await engine.configure(feed);
+    await engine.getRows(req({ sortModel: [{ colId: "px", sort: "desc" }] }));
+
+    const onUpdate = h.views[0]!.on_update as ReturnType<typeof vi.fn>;
+    expect(onUpdate.mock.calls[0]![1]).toBeUndefined(); // ping subscription
+    engine.dispose();
+  });
+
+  it("row-delta mode: oversized deltas fall back to the bare ping", async () => {
+    const h = harness();
+    const engine = createPerspectiveEngine({
+      client: h.client,
+      rowDeltas: true,
+      maxDeltaRows: 1,
+    });
+    const dirt: Array<{ transaction?: unknown }> = [];
+    engine.setDirtyHandler?.((m) => dirt.push(m as never));
+    await engine.configure(feed);
+    await engine.getRows(req());
+
+    const onUpdate = h.views[0]!.on_update as ReturnType<typeof vi.fn>;
+    h.columns = { positionId: ["p1", "p2"], px: [1, 2] }; // 2 rows > max 1
+    await onUpdate.mock.calls[0]![0]({ delta: new ArrayBuffer(8) });
+    expect(dirt.length).toBeGreaterThan(0);
+    expect(dirt.every((d) => d.transaction == null)).toBe(true); // ping only
+    engine.dispose();
+  });
+
+  it("row-delta mode: reconcile ping fires on the low-cadence timer", async () => {
+    vi.useFakeTimers();
+    try {
+      const h = harness();
+      const engine = createPerspectiveEngine({
+        client: h.client,
+        rowDeltas: true,
+        reconcileMs: 1000,
+      });
+      const dirt: Array<{ transaction?: unknown }> = [];
+      engine.setDirtyHandler?.((m) => dirt.push(m as never));
+      await engine.configure(feed);
+      await vi.advanceTimersByTimeAsync(2100);
+      expect(dirt.length).toBeGreaterThanOrEqual(2);
+      expect(dirt.every((d) => d.transaction == null)).toBe(true);
+      engine.dispose();
+      const n = dirt.length;
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(dirt.length).toBe(n); // timer cleared on dispose
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("open-only attach WAITS for the hosted table instead of creating it", async () => {

@@ -1,7 +1,8 @@
-import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
+import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from 'react';
 import type { GridReadyEvent, Theme } from 'ag-grid-community';
 import { buildStreamSafeComponents } from '../widget/buildStreamSafeComponents.js';
 import { stripSurfaceManagedGridOptions } from '../widget/gridSurfaceOptions.js';
+import { recordSsrmTickDiffs } from './ssrmRowDiff.js';
 import {
   SsrmGrid,
   type SsrmEngine,
@@ -112,6 +113,20 @@ export const SsrmMarketsGridSurface = forwardRef<
     [props.gridOptions, props.hostOverrideKeys],
   );
 
+  // Row-delta dirty (pull mode) carries the changed rows — record old/new
+  // field diffs BEFORE the grid applies them so `.old`/`.new` conditional-
+  // styling expressions and delta alerts see real before/after values.
+  // Push mode records diffs upstream in routeDataTransactionAsync; this is
+  // the pull-plane equivalent (worklog: .old/.new parity).
+  const rowIdField = props.rowIdField;
+  const onDirty = useCallback(
+    (msg: { transaction?: { update?: Record<string, unknown>[] } }) => {
+      const update = msg.transaction?.update;
+      if (update && update.length > 0) recordSsrmTickDiffs(update, rowIdField);
+    },
+    [rowIdField],
+  );
+
   return (
     <div style={{ flex: 1, minHeight: 0, width: '100%' }}>
       <SsrmGrid
@@ -138,10 +153,7 @@ export const SsrmMarketsGridSurface = forwardRef<
         onGridReady={props.onGridReady}
         grandTotalRow={props.grandTotalRow}
         groupTotalRow={props.groupTotalRow}
-        cacheBlockSize={100}
-        blockLoadDebounceMillis={50}
-        rowBuffer={10}
-        suppressAnimationFrame
+        onDirty={onDirty}
       />
     </div>
   );

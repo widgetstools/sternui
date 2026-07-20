@@ -78,6 +78,22 @@ export interface PerspectiveEngineOpts {
    * shared table (and a live feed would clobber window edits anyway).
    */
   readOnly?: boolean;
+  /**
+   * ROW-DELTA MODE (AG's sanctioned high-frequency path): subscribe the
+   * plain root view (ungrouped, unsorted, unfiltered — the default blotter
+   * steady state) with `on_update({mode:'row'})` and emit the changed rows
+   * as a leaf TRANSACTION dirty instead of a bare ping. The grid then
+   * patches cells in place with no refresh round-trip; `.old/.new` diff
+   * expressions get real before/after values. Sorted/filtered/grouped
+   * shapes keep the bare ping (delta rows can't express membership/order
+   * changes), and a low-cadence reconcile ping still corrects row-count /
+   * ordering drift. Oversized deltas (mass replace) fall back to the ping.
+   */
+  rowDeltas?: boolean;
+  /** Reconcile-ping cadence when row deltas are active. Default 5000ms. */
+  reconcileMs?: number;
+  /** Deltas larger than this fall back to a bare ping. Default 2000 rows. */
+  maxDeltaRows?: number;
   /** Open-only attach wait budget before configure fails (default 15s). */
   attachWaitMs?: number;
   /** Open-only attach poll cadence (default 250ms). */
@@ -97,6 +113,16 @@ export function createPerspectiveEngine(opts: PerspectiveEngineOpts): SsrmEngine
   const datasets = new Map<DatasetId, DatasetState>();
   let dirtyHandler: ((msg: DirtyMessage) => void) | null = null;
   let warnedReadOnly = false;
+  /** Low-cadence bare ping while row deltas carry the steady state — deltas
+   * cannot express adds/removes/membership changes, so a periodic soft
+   * refresh reconciles row count and ordering (cheap: stale-serving cache). */
+  let reconcileTimer: ReturnType<typeof setInterval> | null = null;
+  const ensureReconcileTimer = (): void => {
+    if (!opts.rowDeltas || reconcileTimer !== null) return;
+    reconcileTimer = setInterval(() => {
+      dirtyHandler?.({ type: 'dirty', at: Date.now() });
+    }, opts.reconcileMs ?? 5_000);
+  };
 
   /** True (and warns once) when a write must be refused in read-only mode. */
   const refuseWrite = (method: string): boolean => {
@@ -117,6 +143,43 @@ export function createPerspectiveEngine(opts: PerspectiveEngineOpts): SsrmEngine
     if (!s) throw new Error(`[perspectiveEngine] dataset '${dataset}' not configured`);
     return s;
   };
+
+  /** Changed-rows Arrow buffer → row objects, via a throwaway worker table. */
+  async function arrowDeltaToRows(
+    delta: ArrayBuffer,
+  ): Promise<Record<string, unknown>[]> {
+    const temp = await client.table(delta);
+    try {
+      const view = await temp.view();
+      try {
+        return toRows(await view.to_columns());
+      } finally {
+        await view.delete();
+      }
+    } finally {
+      await temp.delete();
+    }
+  }
+
+  /**
+   * True for the one shape whose deltas translate losslessly into leaf
+   * transactions: the plain root view — no grouping, no sort, no filter.
+   * Sorts/filters change row ORDER/MEMBERSHIP, which a changed-rows delta
+   * cannot express; those shapes stay on the ping → soft-refresh loop.
+   */
+  function deltaEligible(
+    config: PerspectiveViewConfig,
+    groupKeys: readonly string[],
+  ): boolean {
+    return (
+      opts.rowDeltas === true &&
+      groupKeys.length === 0 &&
+      (config.group_by?.length ?? 0) === 0 &&
+      (config.split_by?.length ?? 0) === 0 &&
+      (config.sort?.length ?? 0) === 0 &&
+      (config.filter?.length ?? 0) === 0
+    );
+  }
 
   /**
    * Resolve a view for one request shape, creating and caching on miss.
@@ -147,13 +210,45 @@ export function createPerspectiveEngine(opts: PerspectiveEngineOpts): SsrmEngine
     await ds.views.put(key, view);
 
     // Coalescing lives downstream in the client (throttleMs); here we only
-    // announce that this shape changed.
+    // announce that this shape changed — except the delta-eligible plain
+    // root view, whose changed rows ship as a leaf TRANSACTION so the grid
+    // patches cells in place with no refresh round-trip.
     if (!ds.views.hasSubscription(key)) {
       ds.views.markSubscribed(key);
+      const maxDeltaRows = opts.maxDeltaRows ?? 2_000;
       try {
-        await view.on_update(() => {
-          dirtyHandler?.({ type: 'dirty', at: Date.now() });
-        });
+        if (deltaEligible(config, groupKeys)) {
+          await view.on_update(
+            async (updated) => {
+              const delta = updated?.delta;
+              if (!delta || !dirtyHandler) {
+                dirtyHandler?.({ type: 'dirty', at: Date.now() });
+                return;
+              }
+              try {
+                const rows = await arrowDeltaToRows(delta);
+                if (rows.length > 0 && rows.length <= maxDeltaRows) {
+                  dirtyHandler?.({
+                    type: 'dirty',
+                    at: Date.now(),
+                    transaction: { dataset, update: rows },
+                  });
+                } else if (rows.length > 0) {
+                  // Mass change (replace-scale) — a giant tx costs more
+                  // than an in-place refresh; fall back to the ping.
+                  dirtyHandler?.({ type: 'dirty', at: Date.now() });
+                }
+              } catch {
+                dirtyHandler?.({ type: 'dirty', at: Date.now() });
+              }
+            },
+            { mode: 'row' },
+          );
+        } else {
+          await view.on_update(() => {
+            dirtyHandler?.({ type: 'dirty', at: Date.now() });
+          });
+        }
       } catch {
         /* view evicted before subscribe landed */
       }
@@ -404,6 +499,7 @@ export function createPerspectiveEngine(opts: PerspectiveEngineOpts): SsrmEngine
         config,
         views: new PerspectiveViewCache({ maxViews: opts.maxViews }),
       });
+      ensureReconcileTimer();
     },
 
     async setRowData(dataset: DatasetId, rows: Record<string, unknown>[]): Promise<number> {
@@ -512,6 +608,10 @@ export function createPerspectiveEngine(opts: PerspectiveEngineOpts): SsrmEngine
 
     dispose(): void {
       dirtyHandler = null;
+      if (reconcileTimer !== null) {
+        clearInterval(reconcileTimer);
+        reconcileTimer = null;
+      }
       for (const ds of datasets.values()) {
         void ds.views.dispose();
         // The table is shared with other windows — never delete it here.

@@ -680,7 +680,17 @@ from an engine instead of holding the dataset. Engine-agnostic behind
   that makes the Nth blotter an attach, not a copy. `readOnly` (set by the
   pull path) refuses `setRowData`/`updateRows`/`removeRows`/`applyTransaction`
   with a one-shot warning: blotters are view consumers; only the provider
-  worker writes the shared table
+  worker writes the shared table. `rowDeltas` (set by the pull path)
+  subscribes the plain root view (ungrouped/unsorted/unfiltered) with
+  `on_update({mode:'row'})` and emits the Arrow-decoded changed rows as a
+  leaf TRANSACTION dirty — steady-state ticks patch cells in place via
+  `applyServerSideTransactionAsync` with no refresh round-trip (AG's
+  documented high-frequency path); other shapes keep the bare ping,
+  oversized deltas (`maxDeltaRows`, default 2k) fall back to it, and a
+  `reconcileMs` (5 s) ping corrects count/order drift.
+  `SsrmMarketsGridSurface` records these transaction rows into
+  `recordSsrmTickDiffs` before apply, so `.old`/`.new` styling rules and
+  delta alerts work under pull
 - `PerspectiveViewCache` / `viewCacheKey` — LRU cache of `View`s keyed by query
   shape, so blotters sharing a layout share one view and cost scales with
   distinct shapes rather than window count. Views hold **WASM-heap allocations

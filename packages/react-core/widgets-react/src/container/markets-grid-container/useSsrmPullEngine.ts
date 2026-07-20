@@ -117,6 +117,10 @@ export function useSsrmPullEngine(opts: UseSsrmPullEngineOpts): SsrmEngine | nul
           // Blotters are view consumers: only the provider worker writes
           // the shared table. Edits are refused with a console warning.
           readOnly: true,
+          // Steady-state ticks arrive as row-delta TRANSACTIONS on the
+          // plain root view (AG's sanctioned high-frequency path) instead
+          // of ping → soft-refresh; also feeds `.old/.new` diff rules.
+          rowDeltas: true,
         });
         setEngine(built);
       })
