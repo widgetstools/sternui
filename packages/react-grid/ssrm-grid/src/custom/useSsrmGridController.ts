@@ -114,6 +114,8 @@ export function useSsrmGridController(props: SsrmGridProps) {
   rowKeepExpressionRef.current = props.rowKeepExpression ?? "";
   const absSortRef = useRef(props.absSort ?? false);
   absSortRef.current = props.absSort ?? false;
+  const flashChangedCellsRef = useRef(props.flashChangedCells ?? false);
+  flashChangedCellsRef.current = props.flashChangedCells ?? false;
   /** Unfiltered book size for status bar (`Rows : N` / `N of M`). */
   const totalRowCountRef = useRef<number | null>(null);
   const onTotalsPropRef = useRef(props.onTotals);
@@ -196,6 +198,7 @@ export function useSsrmGridController(props: SsrmGridProps) {
       },
       getApi: () => apiRef.current,
       isConfigured: () => configuredRef.current,
+      shouldFlashChangedCells: () => flashChangedCellsRef.current,
       bumpGeneration: () => {
         refreshGenerationRef.current += 1;
       },
@@ -447,6 +450,7 @@ export function useSsrmGridController(props: SsrmGridProps) {
           rowKeepExpression: rowKeepExpressionRef.current || undefined,
           refreshGeneration: refreshGenerationRef.current,
           idField,
+          flashChangedCells: flashChangedCellsRef.current,
         }),
         (totals, filteredRowCount, aggregates, totalRowCount) => {
           const api = apiRef.current;

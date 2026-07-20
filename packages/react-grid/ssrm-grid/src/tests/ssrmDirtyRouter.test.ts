@@ -242,6 +242,42 @@ describe("createSsrmDirtyRouter", () => {
     expect(apiMock.refreshServerSide).toHaveBeenCalledWith({ purge: false });
   });
 
+  it("flashes EXACTLY the changed cells when enabled (AG row-flash stays off)", () => {
+    const timers = fakeTimers();
+    const flashCells = vi.fn();
+    const api = {
+      getRowNode: (id: string) =>
+        id === "a" ? { data: { id: "a", px: 1, book: "FX" } } : undefined,
+      applyServerSideTransactionAsync: vi.fn(),
+      refreshServerSide: vi.fn(),
+      getServerSideGroupLevelState: () => [],
+      getRowGroupColumns: () => [],
+      flashCells,
+    } as never;
+    const blockCache = new SsrmBlockCache();
+    const bumpGeneration = vi.fn();
+    const router = createSsrmDirtyRouter({
+      engine: { invalidateView: vi.fn(), tryFindById: () => null } as never,
+      blockCache,
+      idField: "id",
+      getApi: () => api,
+      isConfigured: () => true,
+      shouldFlashChangedCells: () => true,
+      bumpGeneration,
+      patchAggregates: () => undefined,
+      setTimer: timers.set,
+      clearTimer: timers.clear,
+      scheduler: { setTimer: timers.set, clearTimer: timers.clear },
+    });
+
+    // px changes, book does not — only px may flash.
+    router.handleDirty(leafDirty([{ id: "a", px: 2, book: "FX" }]));
+    timers.fireAll();
+    expect(flashCells).toHaveBeenCalledTimes(1);
+    expect(flashCells.mock.calls[0]![0].columns).toEqual(["px"]);
+    router.dispose();
+  });
+
   it("throttles aggregate patching and skips it mid-scroll", () => {
     const timers = fakeTimers();
     const api = makeApi(["a"]);

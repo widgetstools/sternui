@@ -50,10 +50,29 @@ export const SsrmGrid = forwardRef<SsrmGridHandle, SsrmGridProps>(
       string | undefined
     >(undefined);
     const effectiveQuickFilter = props.quickFilterText ?? optionQuickFilter;
-    const controllerProps =
-      effectiveQuickFilter === props.quickFilterText
-        ? props
-        : { ...props, quickFilterText: effectiveQuickFilter };
+
+    // Cell-change flash intent, from any of the places hosts express it.
+    // AG's OWN flash is force-disabled under SSRM (see defaultColDef) — an
+    // SSRM transaction update flashes the ENTIRE row, so a full-book feed
+    // turned the whole grid gold (CSRM's per-cell change detection never
+    // does this). When the user wants flashing, the controller flashes
+    // EXACTLY the changed cells via api.flashCells instead.
+    const pipelineDefaultColDef = (
+      props.gridOptions as { defaultColDef?: { enableCellChangeFlash?: boolean } } | undefined
+    )?.defaultColDef;
+    const flashChangedCells = Boolean(
+      props.enableCellChangeFlash ??
+        (props.defaultColDef as { enableCellChangeFlash?: boolean } | undefined)
+          ?.enableCellChangeFlash ??
+        pipelineDefaultColDef?.enableCellChangeFlash ??
+        false,
+    );
+
+    const controllerProps = {
+      ...props,
+      quickFilterText: effectiveQuickFilter,
+      flashChangedCells,
+    };
 
     const c = useSsrmGridController(controllerProps);
     useImperativeHandle(ref, () => c.handle, [c.handle]);
@@ -92,7 +111,6 @@ export const SsrmGrid = forwardRef<SsrmGridHandle, SsrmGridProps>(
           enableValue: true,
           enableRowGroup: true,
           enablePivot: false,
-          enableCellChangeFlash: props.enableCellChangeFlash ?? false,
           ...((props.showLoadingOverlay ?? false)
             ? {}
             : { loadingCellRenderer: MirrorLoadingCellRenderer }),
@@ -102,11 +120,17 @@ export const SsrmGrid = forwardRef<SsrmGridHandle, SsrmGridProps>(
             ? { cellRenderer: QuickFilterHighlightCellRenderer }
             : {}),
           ...(props.defaultColDef ?? {}),
+          // FORCED OFF under SSRM: AG flashes the whole row on an SSRM
+          // transaction update, so a sweeping feed turns the entire grid
+          // gold. Value-aware flashing (changed cells only) is done via
+          // api.flashCells in the dirty router / revalidate instead —
+          // gated on `flashChangedCells` above, honoring the same user
+          // setting with CSRM-equivalent per-cell semantics.
+          enableCellChangeFlash: false,
         }) as ColDef,
       [
         props.defaultColDef,
         hasQuickFilterHighlight,
-        props.enableCellChangeFlash,
         props.showLoadingOverlay,
       ],
     );
@@ -175,7 +199,7 @@ export const SsrmGrid = forwardRef<SsrmGridHandle, SsrmGridProps>(
       cellSelection,
       undoRedoCellEditing: true,
       rowBuffer: props.rowBuffer ?? 10,
-      cellFlashDuration: props.enableCellChangeFlash ? 500 : 0,
+      cellFlashDuration: flashChangedCells ? 500 : 0,
       pagination: props.pagination,
       paginationPageSize: props.paginationPageSize ?? 100,
       enableAdvancedFilter: props.advancedFilter,

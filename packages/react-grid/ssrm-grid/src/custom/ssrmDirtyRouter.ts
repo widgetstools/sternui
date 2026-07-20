@@ -47,6 +47,12 @@ export interface SsrmDirtyRouterOpts {
   idField: string;
   getApi: () => GridApi | null;
   isConfigured: () => boolean;
+  /**
+   * When true, flash exactly the cells a leaf transaction changed
+   * (api.flashCells). AG's own enableCellChangeFlash is force-disabled
+   * under SSRM — it flashes the WHOLE row per transaction update.
+   */
+  shouldFlashChangedCells?: () => boolean;
   /** Bumped on purge so stale async block results miss the cache. */
   bumpGeneration: () => void;
   /** Recompute + patch grand-total / group-header aggregates (throttled). */
@@ -129,6 +135,25 @@ export function createSsrmDirtyRouter(opts: SsrmDirtyRouterOpts): SsrmDirtyRoute
     if (pendingLeaf.size > 0) {
       const patches = [...pendingLeaf.values()];
       pendingLeaf.clear();
+      // Value-aware flash targets: compare each patch against the row's
+      // CURRENTLY DISPLAYED data before the transaction lands.
+      const flash = opts.shouldFlashChangedCells?.() === true;
+      const flashTargets: Array<{ id: string; columns: string[] }> = [];
+      if (flash) {
+        for (const patch of patches) {
+          const raw = patch[idField];
+          if (raw == null || raw === "") continue;
+          const id = String(raw);
+          const old = api.getRowNode(id)?.data as
+            | Record<string, unknown>
+            | undefined;
+          if (!old) continue;
+          const columns = Object.keys(patch).filter(
+            (k) => k !== idField && k in old && !Object.is(patch[k], old[k]),
+          );
+          if (columns.length > 0) flashTargets.push({ id, columns });
+        }
+      }
       const update = mergeLeafUpdateRows(
         idField,
         patches,
@@ -138,6 +163,19 @@ export function createSsrmDirtyRouter(opts: SsrmDirtyRouterOpts): SsrmDirtyRoute
           (api.getRowNode(id)?.data as Record<string, unknown> | undefined),
       );
       api.applyServerSideTransactionAsync({ update });
+      if (flashTargets.length > 0) {
+        // Apply now so the flash lands with the new values on screen.
+        (api as { flushServerSideAsyncTransactions?: () => void })
+          .flushServerSideAsyncTransactions?.();
+        for (const t of flashTargets) {
+          const node = api.getRowNode(t.id);
+          if (node) {
+            (api as {
+              flashCells?: (p: { rowNodes: unknown[]; columns: string[] }) => void;
+            }).flashCells?.({ rowNodes: [node], columns: t.columns });
+          }
+        }
+      }
     }
     if (softPending) {
       if (midScroll) {

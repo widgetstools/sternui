@@ -35,7 +35,7 @@ Commands a new session should run to confirm the baseline still holds
 # host-data: expect 485 passing, 0 failing
 cd packages/data/host-data && npx vitest run
 
-# ssrm-grid: expect 177 passing, 0 failing
+# ssrm-grid: expect 178 passing, 0 failing
 cd packages/react-grid/ssrm-grid && npx vitest run
 
 # grid: expect 727 passing, 0 failing (capability-gate + applyTickToSsrm tests deleted with B1/B7)
@@ -484,6 +484,19 @@ report: sluggish scroll, slow sort, "no" realtime updates, wrong statusBar):**
   row (unchanged included) each reconcile, re-rendering the whole
   viewport and re-triggering update-keyed styling — it now diffs against
   the cached copy and patches only rows that actually changed.
+- **Whole-grid GOLD flash fixed — AG row-level flash replaced with
+  value-aware `flashCells`.** Field report: with `enableCellChangeFlash`
+  on, the entire grid strobed gold under SSRM while CSRM with the same
+  profile twinkled correctly. Root cause: an SSRM transaction update
+  flashes the WHOLE row (CSRM's per-cell change detection only flashes
+  changed cells) — and cell-stability probing proved only `pnl` +
+  `currentPrice` values actually change under the sparse feed. Fix:
+  `SsrmGrid` force-disables AG's `enableCellChangeFlash` (from any
+  source: prop, defaultColDef, pipeline) and computes `flashChangedCells`
+  intent instead; the dirty router (leaf txs) and the datasource
+  revalidate now call `api.flashCells` for EXACTLY the cells whose values
+  differ from what is displayed — CSRM-equivalent per-cell flash
+  semantics under SSRM, same user setting.
 - NOTE the field report also had an environmental factor: the STOMP demo
   server at its default sweep ceiling (~20k rows/s into a 20k book — reads
   degrade to ~150 ms). See Environment notes; run with

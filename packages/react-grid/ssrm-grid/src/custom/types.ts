@@ -97,6 +97,13 @@ export interface SsrmGridProps {
   defaultColDef?: SSRMColDef;
   onTotals?: (summary: string) => void;
   onDirty?: (msg: DirtyMessage) => void;
+  /**
+   * INTERNAL (computed by SsrmGrid from the user's cell-change-flash
+   * setting): flash exactly the changed cells via `api.flashCells` when
+   * ticks apply. AG's own `enableCellChangeFlash` is force-disabled under
+   * SSRM — it flashes the whole row per transaction update.
+   */
+  flashChangedCells?: boolean;
   height?: string | number;
   theme?: Theme;
   loadThemeGoogleFonts?: boolean;

@@ -62,6 +62,11 @@ export type CustomDatasourceExtras = {
   refreshGeneration?: number;
   /** Row-id field — enables in-place patching after a stale-block revalidate. */
   idField?: string;
+  /**
+   * Flash exactly the cells a revalidate patch changed (api.flashCells).
+   * AG's own enableCellChangeFlash is force-disabled under SSRM.
+   */
+  flashChangedCells?: boolean;
 };
 
 /**
@@ -226,25 +231,46 @@ export function createCustomDatasource(
                 const raw = r[idField];
                 if (raw != null && raw !== "") prevById.set(String(raw), r);
               }
-              const changed = (r: Record<string, unknown>): boolean => {
+              const changedColumns = (
+                r: Record<string, unknown>,
+              ): string[] | null => {
                 const old = prevById.get(String(r[idField]));
-                if (!old) return true;
-                for (const k of Object.keys(r)) {
-                  if (!Object.is(r[k], old[k])) return true;
-                }
-                return false;
-              };
-              const update = fresh.rowData.filter((r) => {
-                const raw = r[idField];
-                return (
-                  raw != null &&
-                  raw !== "" &&
-                  params.api.getRowNode(String(raw)) != null &&
-                  changed(r)
+                if (!old) return null; // unknown before — apply, don't flash
+                const cols = Object.keys(r).filter(
+                  (k) => k !== idField && !Object.is(r[k], old[k]),
                 );
-              });
+                return cols.length > 0 ? cols : [];
+              };
+              const update: Record<string, unknown>[] = [];
+              const flashTargets: Array<{ id: string; columns: string[] }> = [];
+              for (const r of fresh.rowData) {
+                const raw = r[idField];
+                if (raw == null || raw === "") continue;
+                const id = String(raw);
+                if (params.api.getRowNode(id) == null) continue;
+                const cols = changedColumns(r);
+                if (cols !== null && cols.length === 0) continue; // unchanged
+                update.push(r);
+                if (cols && cols.length > 0) flashTargets.push({ id, columns: cols });
+              }
               if (update.length > 0) {
                 params.api.applyServerSideTransactionAsync({ update });
+                if (live.flashChangedCells && flashTargets.length > 0) {
+                  (params.api as {
+                    flushServerSideAsyncTransactions?: () => void;
+                  }).flushServerSideAsyncTransactions?.();
+                  for (const t of flashTargets) {
+                    const node = params.api.getRowNode(t.id);
+                    if (node) {
+                      (params.api as {
+                        flashCells?: (p: {
+                          rowNodes: unknown[];
+                          columns: string[];
+                        }) => void;
+                      }).flashCells?.({ rowNodes: [node], columns: t.columns });
+                    }
+                  }
+                }
               }
             }
             if (onTotals && groupKeys.length === 0) {
