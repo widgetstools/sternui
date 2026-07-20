@@ -12,6 +12,7 @@ import type {
   IServerSideSelectionState,
   Theme,
 } from "ag-grid-community";
+import type { SsrmEngine } from "../engine/types";
 import type { DirtyMessage } from "../ssrm/applyWorkerDirtyToGrid";
 import type { QueryAllRequest, QueryAllResult } from "../ssrm/types";
 import type { SSRMColDef } from "./columnOverride";
@@ -63,7 +64,21 @@ export interface SsrmGridHandle {
 
 export interface SsrmGridProps {
   columnDefs: SSRMColDef[];
+  /**
+   * Push mode: the full book, loaded into the engine via `setRowData` and
+   * replaced when the prop identity changes. **Omit entirely for pull mode**
+   * (an injected engine that already owns the data — e.g.
+   * `createPerspectiveEngine` attached to a worker-hosted table): the grid
+   * then only fetches viewport blocks and never writes the dataset.
+   */
   rowData?: Record<string, unknown>[];
+  /**
+   * Engine to drive instead of the built-in main-thread RowMirror engine
+   * (`createCustomEngine`). Captured on mount; the grid owns its lifecycle
+   * from then on (disposed on unmount) — pass a fresh instance per grid.
+   * This is the T1 seam: pair with `rowData` omitted for the pull path.
+   */
+  engine?: SsrmEngine;
   getRowId: string;
   refreshThrottleMs?: number;
   cacheBlockSize?: number;

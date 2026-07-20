@@ -84,8 +84,9 @@ function coerceEdited(
 export function useSsrmGridController(props: SsrmGridProps) {
   const { columnDefs, rowData, getRowId: idField } = props;
   const apiRef = useRef<GridApi | null>(null);
-  // Typed as the seam — compile-time proof the controller works with any engine.
-  const engineRef = useRef<SsrmEngine>(createCustomEngine());
+  // Typed as the seam — compile-time proof the controller works with any
+  // engine. An injected engine (pull path) is captured once on mount.
+  const engineRef = useRef<SsrmEngine>(props.engine ?? createCustomEngine());
   const configuredGateRef = useRef(new ConfiguredGate());
   const configuredRef = useRef(false);
   const configureInFlightRef = useRef(false);
@@ -252,8 +253,10 @@ export function useSsrmGridController(props: SsrmGridProps) {
 
   const configureAndLoad = useCallback(async () => {
     const engineNow = engineRef.current;
-    const rows = rowDataRef.current ?? [];
-    if (!sampleRowRef.current && rows.length === 0) return;
+    const rows = rowDataRef.current;
+    // Push mode waits for a first non-empty book; pull mode (no rowData —
+    // the engine owns the data) configures immediately and never writes it.
+    if (rows !== undefined && !sampleRowRef.current && rows.length === 0) return;
     if (configureInFlightRef.current) return;
     configureInFlightRef.current = true;
     const gen = ++configureGenRef.current;
@@ -264,19 +267,22 @@ export function useSsrmGridController(props: SsrmGridProps) {
     try {
       await Promise.resolve(engineNow.configure(feedConfigRef.current));
       if (gen !== configureGenRef.current) return;
-      await Promise.resolve(engineNow.setRowData(DATASET, rows));
-      if (gen !== configureGenRef.current) return;
+      if (rows !== undefined) {
+        await Promise.resolve(engineNow.setRowData(DATASET, rows));
+        if (gen !== configureGenRef.current) return;
+      }
       configuredRef.current = true;
       configuredGateRef.current.markReady();
-      publishRowCounts(rows.length, rows.length);
+      if (rows !== undefined) publishRowCounts(rows.length, rows.length);
       const api = apiRef.current;
       if (api) {
         api.setGridOption("context", {
           ...(api.getGridOption("context") as object | undefined),
           ssrmLeafAt: stubLeafAt,
           ssrmConfigured: true,
-          totalRowCount: rows.length,
-          filteredRowCount: rows.length,
+          ...(rows !== undefined
+            ? { totalRowCount: rows.length, filteredRowCount: rows.length }
+            : {}),
         });
         refreshAllLoadedServerSideStores(api, { purge: true });
       }
@@ -293,7 +299,9 @@ export function useSsrmGridController(props: SsrmGridProps) {
 
   useEffect(() => {
     if (!configuredRef.current || configureInFlightRef.current) return;
-    const rows = rowDataRef.current ?? [];
+    // Pull mode: the engine owns the data — there is no book to replace.
+    if (rowDataRef.current === undefined) return;
+    const rows = rowDataRef.current;
     void Promise.resolve(engineRef.current.setRowData(DATASET, rows)).then(
       () => {
         publishRowCounts(rows.length, rows.length);

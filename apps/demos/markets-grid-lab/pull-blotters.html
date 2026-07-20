@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pull blotters — N grids, one provider, one table</title>
+    <style>
+      /* Spike/demo page — deliberately not design-system wired; deleted with the spike. */
+      body { font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+             background: #0f1115; color: #d5dae2; margin: 0; padding: 20px 26px; }
+      h1 { font-size: 14px; letter-spacing: .05em; text-transform: uppercase;
+           color: #8a94a6; margin: 0 0 2px; }
+      p.sub { color: #6b7686; margin: 0 0 14px; }
+      .stats { display: flex; gap: 10px; margin-bottom: 14px; }
+      .stat { background: #161a22; border: 1px solid #232936; border-radius: 6px;
+              padding: 8px 12px; min-width: 140px; }
+      .stat b { display: block; font-size: 15px; color: #e8edf5; font-weight: 600; }
+      .stat span { color: #6b7686; font-size: 11px; text-transform: uppercase;
+                   letter-spacing: .05em; }
+      #log { margin-top: 16px; }
+      #log div { padding: 2px 0; border-bottom: 1px solid #1b1f28; }
+      .ok { color: #6ee7a8; } .bad { color: #ff8189; }
+      code { background: #1b1f28; padding: 1px 5px; border-radius: 3px; }
+    </style>
+  </head>
+  <body>
+    <h1>Pull blotters — N production SsrmGrids, one provider, one table</h1>
+    <p class="sub">
+      STOMP → <code>starui-provider:lab:pullblot</code> →
+      Perspective table in <code>starui-psp:lab:pullblot</code> →
+      each blotter is <code>SsrmGrid</code> + <code>createPerspectiveEngine</code>
+      reading viewport blocks. Needs <code>npm run dev:stomp</code>.
+    </p>
+    <div class="stats">
+      <div class="stat"><b id="status">…</b><span>provider / table</span></div>
+    </div>
+    <div id="root"></div>
+    <div id="log"></div>
+    <script type="module" src="/src/spikes/pullBlottersDemo.tsx"></script>
+  </body>
+</html>
