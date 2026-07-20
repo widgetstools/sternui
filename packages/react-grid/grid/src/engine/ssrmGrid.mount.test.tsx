@@ -137,6 +137,61 @@ describe('SsrmGrid mount contract', () => {
     cleanup();
   });
 
+  it('StrictMode double-mount keeps the dirty router alive (pull-path live updates)', async () => {
+    // Regression (star-demo field report): the mount-once effect's cleanup
+    // disposed the ref-held router; the strict remount rewired the engine's
+    // dirty handler to that CORPSE, so every on_update dirty was silently
+    // dropped — no refresh, no live updates, frozen status bar.
+    const handlers: Array<((msg: unknown) => void) | null> = [];
+    const engine = {
+      kind: 'perspective',
+      configure: vi.fn(async () => undefined),
+      setRowData: vi.fn(async () => ROWS.length),
+      getRows: vi.fn(async () => ({ rowData: ROWS, rowCount: ROWS.length })),
+      getFilterValues: vi.fn(async () => []),
+      updateRows: vi.fn(async () => undefined),
+      removeRows: vi.fn(async () => undefined),
+      applyTransaction: vi.fn(async () => undefined),
+      getAggregates: vi.fn(async () => ({ totals: {}, aggregates: {}, rowCount: 0 })),
+      queryAll: vi.fn(async () => ({ rowData: [] })),
+      getSeriesData: vi.fn(),
+      getDetailRows: vi.fn(),
+      setDirtyHandler: vi.fn((h: ((msg: unknown) => void) | null) => {
+        handlers.push(h);
+      }),
+      dispose: vi.fn(),
+    };
+
+    render(
+      <React.StrictMode>
+        <SsrmGrid
+          columnDefs={[{ field: 'id' }, { field: 'book' }, { field: 'px' }] as never}
+          engine={engine as never}
+          getRowId="id"
+        />
+      </React.StrictMode>,
+    );
+    const api = makeFakeApi();
+    (captured.props!.onGridReady as (e: unknown) => void)({ api });
+    await waitFor(() =>
+      expect((api.context as Record<string, unknown>).ssrmConfigured).toBe(true),
+    );
+
+    // Injected engines are never disposed by the grid — strict cleanup included.
+    expect(engine.dispose).not.toHaveBeenCalled();
+
+    // The handler wired by the FINAL mount must route to a LIVE router:
+    // a bare dirty must reach the grid as a soft refresh.
+    api.refreshServerSide.mockClear();
+    const live = [...handlers].reverse().find((h) => h != null)!;
+    expect(live).toBeTruthy();
+    live({ type: 'dirty', at: Date.now() });
+    await waitFor(() =>
+      expect(api.refreshServerSide).toHaveBeenCalledWith({ purge: false }),
+    );
+    cleanup();
+  });
+
   it('handle routes transactions/queries through the engine; exportAll exists', async () => {
     const { ref } = mount();
     const api = makeFakeApi();

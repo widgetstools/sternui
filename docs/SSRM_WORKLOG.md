@@ -38,7 +38,7 @@ cd packages/data/host-data && npx vitest run
 # ssrm-grid: expect 163 passing, 0 failing
 cd packages/react-grid/ssrm-grid && npx vitest run
 
-# grid: expect 725 passing, 0 failing (capability-gate + applyTickToSsrm tests deleted with B1/B7)
+# grid: expect 726 passing, 0 failing (capability-gate + applyTickToSsrm tests deleted with B1/B7)
 cd packages/react-grid/grid && npx vitest run
 
 # engine: 301 · widgets-react: 226 (+1 skipped)
@@ -363,9 +363,24 @@ report: sluggish scroll, slow sort, "no" realtime updates, wrong statusBar):**
   N rows", "Connecting…", "Re-syncing…") instead of claiming the window is
   buffering a snapshot; the pull cold-start mount gate shows the animated
   overlay with live `loadRowCount` progress instead of a static text line.
-- NOTE the field report's dominant factor was environmental: the STOMP
-  demo server at its default sweep ceiling (~20k rows/s into a 20k book —
-  reads degrade to ~150 ms). See Environment notes; run with
+- **ROOT CAUSE of "no realtime updates" found and fixed — StrictMode-dead
+  dirty router.** Traced live (headless Chromium + CDP into the provider
+  SW): STOMP, hub, tee, bridge, table, and subscriber delivery were ALL
+  healthy — `view.on_update` fired continuously in the window — but every
+  dirty was silently dropped. `useSsrmGridController`'s mount-once effect
+  cleanup disposed the ref-held router (and any owned engine); dev
+  StrictMode remounts re-ran the effect, which rewired the engine's dirty
+  handler to the DISPOSED router (`handleDirty` bails on its `disposed`
+  guard). Fix: the effect now re-creates what its cleanup tears down —
+  router recreated per mount (`routerRef` nulled in cleanup), owned engines
+  recreated on remount with the in-flight configure invalidated so the
+  re-run configure effect reseeds the fresh engine; injected (pull)
+  engines untouched. Regression test: StrictMode double-mount case in
+  `ssrmGrid.mount.test.tsx` (grid pkg). Verified live: status total now
+  tracks the shared table to 20,000 during snapshot fill.
+- NOTE the field report also had an environmental factor: the STOMP demo
+  server at its default sweep ceiling (~20k rows/s into a 20k book — reads
+  degrade to ~150 ms). See Environment notes; run with
   `SWEEP_ROWS_PER_SEC=2000`.
 
 **Remaining, ranked:**
@@ -398,6 +413,9 @@ unconditionally on, per the parity directive.)
 | B7 | Dead code: ~~`applyTickToSsrm.ts`~~ (deleted with B1), `getSsrmShareOfTotal` (exported, smoke-tested, no runtime consumer), `engine/index.ts` subpath (no importer) | — |
 | B8 | ~~`__refresh` client test fails~~ **Fixed with T3** — test updated to the `__reload` contract; host-data fully green | `SharedWorkerDataServicesClient.test.ts` |
 | B9 | No e2e coverage of SSRM at all — zero matches for `ssrm`/`rowModel` under `e2e/` | — |
+| B10 | Cold-start double restart: the provider wiring effect re-fires when the catalog row finishes hydrating (~1 s in), cancelling the first mid-snapshot subscription (console noise "Subscription cancelled before snapshot arrived" surfaced as a container ERROR) and tearing down + redialing STOMP. Recovers, but wastes a full snapshot start and alarms users. Dedupe the restart when only cfg *identity* (not content) changed | `useProviderDataWiring` / `useDataProvider` |
+| B11 | star-demo seed provider requests `/snapshot/positions/trd1/1000/10` — 10-row batches ⇒ a 20k snapshot trickles for ~60 s (the lab spike uses `/1000/2000` ⇒ ~10 s). Bump the seed's batch segment | `apps/demos/star-demo/public/seed.json` |
+| B12 | `useSsrmPullEngine` leaves `linkProviderToPerspective`'s returned `readPort` connection unused (the hook opens a THIRD connection via `createPerspectiveReadClient`) — one idle SharedWorker port per blotter | `useSsrmPullEngine.ts` |
 
 ---
 

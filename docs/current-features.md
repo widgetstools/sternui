@@ -597,7 +597,10 @@ from an engine instead of holding the dataset. Engine-agnostic behind
   generation bump + view invalidation) is CONFLATED INTO THE FLUSH — one
   invalidation + one soft refresh per scheduler interval however many
   subscribed views fire per tick batch, so the sync scroll fast path stays
-  warm under a live feed), `custom/types.ts` (`SsrmGridHandle`,
+  warm under a live feed; router + owned-engine lifecycle is
+  StrictMode-safe — the mount effect re-creates what its cleanup disposes,
+  so dev double-mounts cannot wire the dirty handler to a disposed
+  router), `custom/types.ts` (`SsrmGridHandle`,
   `SsrmGridProps`). Row-id encodings (`g:`/`t:`/`tl:`/grand-total), tree
   data, master-detail, set-filter values, cell-edit write-back with schema
   coercion, and export/chart context-menu overrides carry over from the old

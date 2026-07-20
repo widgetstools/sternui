@@ -177,9 +177,12 @@ export function useSsrmGridController(props: SsrmGridProps) {
 
   // ── Dirty routing (RefreshScheduler policy) ─────────────────────────
   const routerRef = useRef<ReturnType<typeof createSsrmDirtyRouter> | null>(null);
-  if (!routerRef.current) {
-    routerRef.current = createSsrmDirtyRouter({
-      engine,
+  const makeRouter = () => {
+    // Reads engineRef.current at CREATE time so a StrictMode-revived owned
+    // engine (below) is the one the router patches/queries.
+    const engineNow = engineRef.current;
+    return createSsrmDirtyRouter({
+      engine: engineNow,
       blockCache: blockCacheRef.current,
       idField,
       // Live-refresh cadence. The scheduler's own 60ms floor is tuned for
@@ -206,26 +209,61 @@ export function useSsrmGridController(props: SsrmGridProps) {
           idField,
         };
         if (usesNativeGrandTotal(grandTotalRowRef.current)) {
-          patchGrandTotalFromEngine(api, engine, extras);
+          patchGrandTotalFromEngine(api, engineNow, extras);
         }
         if ((api.getRowGroupColumns?.() ?? []).length > 0) {
-          patchLoadedGroupAggregatesFromEngine(api, engine, extras);
+          patchLoadedGroupAggregatesFromEngine(api, engineNow, extras);
         }
       },
     });
+  };
+  if (!routerRef.current) {
+    routerRef.current = makeRouter();
   }
+  /** True after cleanup disposed an OWNED engine (StrictMode remount marker). */
+  const engineDisposedRef = useRef(false);
 
   useEffect(() => {
-    const router = routerRef.current!;
-    engine.setDirtyHandler?.((msg) => {
+    // StrictMode-safe: everything this cleanup tears down is re-created
+    // here. Dev StrictMode runs mount → cleanup → mount on the SAME
+    // component instance; wiring the dirty handler to the FIRST (disposed)
+    // router silently dropped every engine dirty signal — live updates
+    // never reached the grid (worklog: star-demo pull-path field report).
+    if (ownsEngineRef.current && engineDisposedRef.current) {
+      engineRef.current = createCustomEngine();
+      engineDisposedRef.current = false;
+      // Invalidate any configure still in flight against the disposed
+      // engine (generation guard makes its post-await steps bail) so the
+      // configure effect — which re-runs on remount — starts a fresh
+      // configure + reseed against THIS engine instead of early-returning
+      // on the stale in-flight flag.
+      configureGenRef.current += 1;
+      configureInFlightRef.current = false;
+      configuredRef.current = false;
+      configuredGateRef.current.reset();
+    }
+    if (!routerRef.current) {
+      routerRef.current = makeRouter();
+    }
+    const router = routerRef.current;
+    const engineNow = engineRef.current;
+    // Cleanup nulled the leaf reader — restore it from the live engine.
+    setActiveStubLeafReader(
+      engineNow.tryLeafAt ? (i) => engineNow.tryLeafAt!(i) : null,
+    );
+    engineNow.setDirtyHandler?.((msg) => {
       onDirtyPropRef.current?.(msg);
       router.handleDirty(msg);
     });
     return () => {
-      engine.setDirtyHandler?.(null);
+      engineNow.setDirtyHandler?.(null);
       setActiveStubLeafReader(null);
       router.dispose();
-      if (ownsEngineRef.current) engine.dispose();
+      routerRef.current = null;
+      if (ownsEngineRef.current) {
+        engineNow.dispose();
+        engineDisposedRef.current = true;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount once
   }, []);
