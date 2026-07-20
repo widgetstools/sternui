@@ -144,7 +144,7 @@ describe("createSsrmDirtyRouter", () => {
     expect(apply).toHaveBeenCalledTimes(1);
   });
 
-  it("purge invalidates cache/generation/view IMMEDIATELY, defers the grid purge, and subsumes pending leafs", () => {
+  it("bare dirty invalidates cache/generation/view IMMEDIATELY, then refreshes SOFT (no stub flicker)", () => {
     const timers = fakeTimers();
     const api = makeApi(["a"]);
     const blockCache = new SsrmBlockCache();
@@ -152,7 +152,7 @@ describe("createSsrmDirtyRouter", () => {
     const { router, bumpGeneration, engine } = makeRouter({ api, timers, blockCache });
 
     router.handleDirty(leafDirty([{ id: "a", px: 1 }]));
-    router.handleDirty({ type: "dirty", at: 0 }); // no transaction → purge path
+    router.handleDirty({ type: "dirty", at: 0 }); // no transaction — async-engine tick / replace
 
     // Correctness effects happen at signal time…
     expect(bumpGeneration).toHaveBeenCalled();
@@ -165,12 +165,14 @@ describe("createSsrmDirtyRouter", () => {
     expect(apiMock.refreshServerSide).not.toHaveBeenCalled();
 
     timers.fireAll();
-    // …the grid purge waits for the scheduler and swallows the leaf tx.
-    expect(apiMock.refreshServerSide).toHaveBeenCalledWith({ purge: true });
+    // …the grid refresh waits for the scheduler, refetches IN PLACE (soft —
+    // a hard purge would stub out every loaded block on every tick batch),
+    // and swallows the superseded leaf tx.
+    expect(apiMock.refreshServerSide).toHaveBeenCalledWith({ purge: false });
     expect(apiMock.applyServerSideTransactionAsync).not.toHaveBeenCalled();
   });
 
-  it("an empty transaction routes to purge (replace / removes)", () => {
+  it("an empty transaction also refreshes soft", () => {
     const timers = fakeTimers();
     const api = makeApi([]);
     const { router } = makeRouter({ api, timers });
@@ -178,11 +180,11 @@ describe("createSsrmDirtyRouter", () => {
     router.handleDirty({
       type: "dirty",
       at: 0,
-      transaction: { dataset: "main" }, // no update/add → purge path
+      transaction: { dataset: "main" }, // no update/add
     });
     timers.fireAll();
     const apiMock = api as never as { refreshServerSide: ReturnType<typeof vi.fn> };
-    expect(apiMock.refreshServerSide).toHaveBeenCalledWith({ purge: true });
+    expect(apiMock.refreshServerSide).toHaveBeenCalledWith({ purge: false });
   });
 
   it("throttles aggregate patching and skips it mid-scroll", () => {

@@ -9,11 +9,14 @@
  *    `applyServerSideTransactionAsync({ update })` on flush. The block cache is
  *    patched IMMEDIATELY so sync serving never returns stale rows, even while
  *    the grid mutation is deferred behind a scroll.
- *  - **soft refresh** — `refreshAllLoadedServerSideStores({ purge: false })`
- *    on the next surgical flush; keeps the block cache (scroll still hits sync).
- *  - **purge** — cache clear + generation bump + engine view invalidation run
- *    IMMEDIATELY (correctness: nothing may serve the dead book), only the grid
- *    store purge waits for the scheduler (a purge mid-drag resets the viewport).
+ *  - **bare dirty (no transaction)** — replace/remove/structural change, and
+ *    the steady-state signal of async engines (Perspective `view.on_update`
+ *    announces "this shape changed", nothing more). Cache clear + generation
+ *    bump + engine view invalidation run IMMEDIATELY (correctness: nothing
+ *    may serve the dead book), then the grid refreshes **softly** on the next
+ *    flush — loaded rows stay painted while their blocks refetch in place. A
+ *    hard purge here would drop every loaded block into loading stubs on
+ *    every tick batch, which reads as full-grid flicker under a live feed.
  *
  * Group/grand-total aggregate patching keeps its own trailing-edge throttle
  * (`aggPatchThrottleMs`, default 250ms) and is skipped while scrolling — the
@@ -93,8 +96,8 @@ export function createSsrmDirtyRouter(opts: SsrmDirtyRouterOpts): SsrmDirtyRoute
       return;
     }
     if (kind === "purge") {
-      // Cache/generation/view were already invalidated when the signal
-      // arrived; withheld leaf patches describe the dead book.
+      // Defensive only — nothing requests 'purge' today (bare dirt flushes
+      // softly; dataset replacement purges directly in the controller).
       pendingLeaf.clear();
       softPending = false;
       refreshAllLoadedServerSideStores(api, { purge: true });
@@ -155,10 +158,15 @@ export function createSsrmDirtyRouter(opts: SsrmDirtyRouterOpts): SsrmDirtyRoute
         scheduler.request("surgical");
       },
       purgeRefresh: () => {
+        // Invalidate sync serving NOW; refresh SOFT so painted rows stay up
+        // while their blocks refetch (see module doc — hard purges here are
+        // the full-grid-flicker failure mode under live async-engine ticks).
         bumpGeneration();
         blockCache.clear();
         engine.invalidateView?.();
-        scheduler.request("purge");
+        pendingLeaf.clear(); // superseded — the refetch delivers fresh rows
+        softPending = true;
+        scheduler.request("surgical");
       },
     });
   };
