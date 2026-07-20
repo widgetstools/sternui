@@ -435,6 +435,59 @@ export function staruiHostDataWorkerAssetPlugin(appDir) {
   };
 }
 
+/**
+ * Emit the Perspective WASM binaries as UNHASHED siblings of the emitted
+ * Perspective worker asset in production builds (worklog B14).
+ *
+ * The psp engine worker and the window read client fetch
+ * `perspective-server.wasm` / `perspective-js.wasm` RELATIVE to the worker
+ * script URL (`siblingAssetUrl`). Dev serves them straight from host-data's
+ * `dist/assets`, but `vite build` only copies the `?url`-imported `.mjs`
+ * workers — the wasm siblings were never emitted, so production pull-plane
+ * apps 404'd to the SPA fallback and the link died with
+ * `WebAssembly.instantiate(): expected magic word … found 3c 21 64 6f`
+ * (that's `<!do` — index.html). Emitting next to the (hashed) worker file
+ * keeps the sibling lookup working regardless of Vite's asset hashing or a
+ * custom assetsDir.
+ */
+export function staruiPerspectiveWasmAssetsPlugin(appDir) {
+  return {
+    name: 'starui-perspective-wasm-assets',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const workerKey = Object.keys(bundle).find((f) =>
+        /perspective-server\.worker[^/]*\.mjs$/.test(f),
+      );
+      if (!workerKey) return; // app does not bundle the pull plane
+      const dir = workerKey.replace(/[^/]*$/, '');
+      for (const name of ['perspective-server.wasm', 'perspective-js.wasm']) {
+        const candidates = [
+          join(REPO_ROOT, 'packages/data/host-data/dist/assets', name),
+        ];
+        for (const root of collectStaruiInstallRoots(appDir)) {
+          candidates.push(
+            join(root, 'node_modules/@wellsfargo-starui/host-data/dist/assets', name),
+            join(root, 'node_modules/@wellsfargo-starui/data/host-data/dist/assets', name),
+          );
+        }
+        const src = candidates.find((p) => existsSync(p));
+        if (!src) {
+          this.warn(
+            `[starui-perspective-wasm-assets] ${name} not found — build host-data first; `
+            + 'the production pull plane will fail to link without it',
+          );
+          continue;
+        }
+        this.emitFile({
+          type: 'asset',
+          fileName: `${dir}${name}`,
+          source: readFileSync(src),
+        });
+      }
+    },
+  };
+}
+
 // Build-generated assets that source mode cannot produce on the fly — design
 // system CSS and the host-data SharedWorker bundle. If either is missing, the
 // packages have not been built (or dist/ was wiped) and the app would fail with
