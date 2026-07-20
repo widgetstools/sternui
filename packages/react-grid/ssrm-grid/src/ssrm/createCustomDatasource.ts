@@ -191,6 +191,20 @@ export function createCustomDatasource(
        */
       const revalidate = (): void => {
         if (!blockCache || revalidating.has(cacheKey)) return;
+        // Visibility gate: an off-screen stale block gains nothing from a
+        // background refetch — it re-serves (stale) and revalidates when
+        // it next scrolls into view. Without this, every loaded block
+        // refetched every refresh cycle and the engine port drowned
+        // during/after long scrollbar drags.
+        const idFieldNow = (getExtras?.() ?? extras).idField;
+        if (isFlatLeaf && idFieldNow) {
+          const cached = blockCache.get(cacheKey);
+          const anyRendered = cached?.rowData.some((r) => {
+            const raw = r[idFieldNow];
+            return raw != null && raw !== "" && params.api.getRowNode(String(raw)) != null;
+          });
+          if (cached && !anyRendered) return; // stays stale until visible
+        }
         revalidating.add(cacheKey);
         void (async () => {
           try {

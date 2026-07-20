@@ -191,15 +191,24 @@ export const SsrmGrid = forwardRef<SsrmGridHandle, SsrmGridProps>(
       serverSideDatasource: c.datasource,
       cacheBlockSize: props.cacheBlockSize ?? 100,
       // BOUNDED — unbounded, every block a scrollbar drag passed stayed
-      // "loaded" forever, and each soft-refresh cycle re-requested ALL of
-      // them (each stale hit spawning a background revalidate): after a
-      // long drag the engine port drowned in revalidation traffic and the
-      // viewport's own blocks queued behind it. Evicted blocks revisit via
-      // the stale-serving main-thread cache, so eviction costs ~nothing.
-      maxBlocksInCache: props.maxBlocksInCache ?? 10,
+      // "loaded" forever and each soft-refresh cycle re-requested ALL of
+      // them: after a long drag the refresh fan-out drowned the engine
+      // port and the viewport's own blocks queued behind it. 30 blocks
+      // (~3k rows) keeps up/down scrubbing inside a churn-free window;
+      // evicted blocks revisit via the stale-serving main-thread cache,
+      // so eviction costs ~nothing. (Revalidation is visibility-gated in
+      // the datasource, so this bound no longer scales background fetch
+      // traffic.)
+      maxBlocksInCache: props.maxBlocksInCache ?? 30,
       maxConcurrentDatasourceRequests: 4,
       blockLoadDebounceMillis: props.blockLoadDebounceMillis ?? 50,
-      suppressAnimationFrame: props.suppressAnimationFrame ?? true,
+      // OFF: `true` (the legacy CustomSSRMGrid carry-over) makes AG render
+      // rows SYNCHRONOUSLY inside the scroll event handler — the scrollbar
+      // thumb then lags the cursor by exactly that render cost. With rAF
+      // rendering the scroll handler stays light (thumb tracks natively)
+      // and rows appear a frame later — which the sync block cache fills
+      // with real data, not stubs.
+      suppressAnimationFrame: props.suppressAnimationFrame ?? false,
       animateRows: false,
       suppressServerSideFullWidthLoadingRow: !(props.showLoadingOverlay ?? false),
       rowHeight: props.rowHeight,

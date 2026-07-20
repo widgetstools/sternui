@@ -37,8 +37,11 @@ export interface RefreshSchedulerOpts {
    */
   flush: (kind: RefreshKind, midScroll?: boolean) => void;
   /**
-   * Quiet period after the last scroll event before refreshing. ~2 frames:
-   * long enough to ride out momentum, short enough to feel immediate.
+   * Quiet period after the last scroll event before refreshing. Long
+   * enough that up/down SCRUBBING (whose micro-pauses routinely exceed a
+   * couple of frames) never collides with a store refresh — a refresh
+   * landing right as the user resumes a drag is what makes the scrollbar
+   * thumb feel stuck. Staleness stays bounded by `maxStallMs`.
    */
   scrollSettleMs?: number;
   /** Minimum gap between flushes when not scrolling. */
@@ -51,7 +54,7 @@ export interface RefreshSchedulerOpts {
 }
 
 export const REFRESH_DEFAULTS = {
-  scrollSettleMs: 32,
+  scrollSettleMs: 250,
   minIntervalMs: 60,
   maxStallMs: 1_000,
 } as const;

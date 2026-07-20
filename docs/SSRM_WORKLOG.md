@@ -35,7 +35,7 @@ Commands a new session should run to confirm the baseline still holds
 # host-data: expect 485 passing, 0 failing
 cd packages/data/host-data && npx vitest run
 
-# ssrm-grid: expect 171 passing, 0 failing
+# ssrm-grid: expect 172 passing, 0 failing
 cd packages/react-grid/ssrm-grid && npx vitest run
 
 # grid: expect 726 passing, 0 failing (capability-gate + applyTickToSsrm tests deleted with B1/B7)
@@ -412,9 +412,19 @@ report: sluggish scroll, slow sort, "no" realtime updates, wrong statusBar):**
   stale-serving main-thread cache, so eviction is ~free), and the
   scheduler now tags stall-ceiling flushes `midScroll` — the router keeps
   the store refresh pending until the settle flush (leaf txs +
-  stale-marking still run mid-drag). Measured (headless, full-book 4 s
-  drag): cold post-drag populate **797 ms**, revisited drag **15 ms** with
-  rows painting DURING the drag from the stale cache.
+  stale-marking still run mid-drag). Round 2 (thumb-must-track-the-cursor
+  directive): `suppressAnimationFrame` default flipped to **false** (the
+  legacy `true` rendered rows SYNCHRONOUSLY inside the scroll handler —
+  the thumb lagged by exactly that render cost; the sync block cache fills
+  the one-frame-later rAF render with real data, not stubs);
+  `scrollSettleMs` 32 → **250** (up/down scrubbing micro-pauses no longer
+  collide with store refreshes — the "thumb feels stuck" trigger);
+  revalidation is **visibility-gated** (off-screen stale blocks don't
+  refetch — they revalidate when next served), which let
+  `maxBlocksInCache` relax to 30 (~3k-row churn-free scrub window).
+  Measured (headless, full-book 4 s drag): cold post-drag populate
+  **462 ms**, revisited drag **26 ms** with rows painting DURING the drag
+  from the stale cache.
 - NOTE the field report also had an environmental factor: the STOMP demo
   server at its default sweep ceiling (~20k rows/s into a 20k book — reads
   degrade to ~150 ms). See Environment notes; run with

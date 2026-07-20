@@ -249,6 +249,41 @@ describe("createCustomDatasource sync cache", () => {
     );
   });
 
+  it("skips revalidation for OFF-SCREEN stale blocks (engine stays quiet)", async () => {
+    const cache = new SsrmBlockCache();
+    const getRows = vi.fn(async () => ({ rowData: [{ id: "a", px: 1 }], rowCount: 1 }));
+    const ds = createCustomDatasource(
+      () => ({ getRows }) as never,
+      () => "main",
+      () => ({ isConfigured: true, refreshGeneration: 0, idField: "id" }),
+      undefined,
+      cache,
+    );
+
+    const prime = mockParams();
+    (prime as Record<string, unknown>).api = { getRowNode: () => null };
+    ds.getRows(prime as never);
+    await vi.waitFor(() => expect(prime.success).toHaveBeenCalled());
+    cache.markAllStale();
+
+    // Refresh-cycle re-request while the block's rows are NOT rendered:
+    // serve stale synchronously, but do NOT refetch in the background.
+    getRows.mockClear();
+    const offscreen = mockParams();
+    (offscreen as Record<string, unknown>).api = {
+      getRowNode: () => null, // nothing from this block is on screen
+      applyServerSideTransactionAsync: vi.fn(),
+    };
+    ds.getRows(offscreen as never);
+    expect(offscreen.success).toHaveBeenCalledTimes(1);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(getRows).not.toHaveBeenCalled();
+    expect(cache.isStale(
+      // still stale — it revalidates when it scrolls into view
+      [...(cache as never as { blocks: Map<string, unknown> })["blocks"].keys()][0]!,
+    )).toBe(true);
+  });
+
   it("prefetches the neighbor block after an async miss", async () => {
     const cache = new SsrmBlockCache();
     const getRows = vi.fn(async (req: { startRow: number; endRow: number }) => ({
