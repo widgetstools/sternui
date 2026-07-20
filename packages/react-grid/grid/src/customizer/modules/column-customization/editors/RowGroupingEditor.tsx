@@ -3,7 +3,6 @@ import { Caps, IconInput } from '../../../ui/SettingsPanel';
 import { Switch, Textarea } from '@wellsfargo-starui/ui';
 import { Select } from '../../../ui/NativeOptionsSelect';
 import { useModuleState } from '../../../hooks/useModuleState';
-import { useSsrmCapabilityGate } from '../../../hooks/useSsrmCapabilityGate';
 import { isTrafficLightRagCustomAgg } from '../../../../engine/ssrmTrafficLightAgg.js';
 import type { GeneralSettingsState } from '../../general-settings/state';
 import type { AggFuncName, RowGroupingConfig } from '../state';
@@ -51,34 +50,20 @@ export function RowGroupingEditor({
   onChange: (next: RowGroupingConfig | undefined) => void;
 }) {
   const [gridOpts, setGridOpts] = useModuleState<GeneralSettingsState>('general-settings');
-  const customAggGate = useSsrmCapabilityGate('customJsAgg');
-  const trafficLightAggGate = useSsrmCapabilityGate('trafficLightAgg');
-  const customJsAggEnabled = customAggGate.enabled;
-  const trafficLightAggEnabled = trafficLightAggGate.enabled;
 
   const cfg = value ?? {};
-  const customAggCapabilityBlocked = !customJsAggEnabled;
   const customExprBlocked =
-    customAggCapabilityBlocked ||
-    (cfg.aggFunc === 'custom' &&
-      !!cfg.customAggExpression?.trim() &&
-      !isTrafficLightRagCustomAgg(cfg.customAggExpression));
-  const customExprTooltip = customAggCapabilityBlocked
-    ? customAggGate.tooltip
-    : customExprBlocked
-      ? UNMAPPABLE_CUSTOM_AGG_TOOLTIP
-      : undefined;
+    cfg.aggFunc === 'custom' &&
+    !!cfg.customAggExpression?.trim() &&
+    !isTrafficLightRagCustomAgg(cfg.customAggExpression);
+  const customExprTooltip = customExprBlocked
+    ? UNMAPPABLE_CUSTOM_AGG_TOOLTIP
+    : undefined;
 
-  const aggFuncOptions = useMemo(() => {
-    const options = [...BASE_AGG_FUNC_OPTIONS];
-    if (trafficLightAggEnabled || cfg.aggFunc === 'trafficLight') {
-      options.push(TRAFFIC_LIGHT_AGG_OPTION);
-    }
-    if (customJsAggEnabled || cfg.aggFunc === 'custom') {
-      options.push(CUSTOM_AGG_OPTION);
-    }
-    return options;
-  }, [trafficLightAggEnabled, customJsAggEnabled, cfg.aggFunc]);
+  const aggFuncOptions = useMemo(
+    () => [...BASE_AGG_FUNC_OPTIONS, TRAFFIC_LIGHT_AGG_OPTION, CUSTOM_AGG_OPTION],
+    [],
+  );
   const update = (patch: Partial<RowGroupingConfig>) => {
     const next: RowGroupingConfig = { ...cfg, ...patch };
     // Drop empty keys so the assignment can still collapse to undefined.
@@ -153,12 +138,11 @@ export function RowGroupingEditor({
         label="AGG FUNCTION"
         hint="Built-in aggregation or a custom expression"
         control={
-          <span title={customAggCapabilityBlocked ? customAggGate.tooltip : undefined}>
+          <span>
             <Select
               value={cfg.aggFunc ?? ''}
               onChange={(e) => {
                 const v = e.target.value as AggFuncName | '';
-                if (v === 'custom' && customAggCapabilityBlocked) return;
                 update({ aggFunc: v === '' ? undefined : v });
               }}
               data-testid={`cols-${colId}-rg-aggfunc`}
@@ -183,7 +167,6 @@ export function RowGroupingEditor({
             <Textarea
               value={cfg.customAggExpression ?? ''}
               onChange={(e) => {
-                if (customAggCapabilityBlocked) return;
                 update({ customAggExpression: e.target.value || undefined });
               }}
               disabled={customExprBlocked}

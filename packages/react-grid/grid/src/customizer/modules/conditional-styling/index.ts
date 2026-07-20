@@ -45,14 +45,12 @@ import {
 import { deserializeConditionalStylingState } from './deserializeMigration';
 import { activateConditionalStyling } from './runtime/activate';
 import { getSsrmRowDiff } from '../../../engine/ssrmRowDiff.js';
-import { isSsrmCapabilityEnabled } from '../../../engine/ssrmCapabilities.js';
 
 export const CONDITIONAL_STYLING_MODULE_ID = 'conditional-styling';
 
 const CSS_HANDLE_KEY = CONDITIONAL_STYLING_MODULE_ID;
 
 function ssrmRowDiffById(): RowDiffByIdLookup | undefined {
-  if (!isSsrmCapabilityEnabled('oldNewDiff')) return undefined;
   return (rowId) => getSsrmRowDiff(rowId);
 }
 

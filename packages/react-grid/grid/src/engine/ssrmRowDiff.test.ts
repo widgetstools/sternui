@@ -23,4 +23,18 @@ describe('ssrmRowDiff', () => {
     recordSsrmTickDiffs([{ id: 'r1', price: 105 }]);
     expect(getSsrmRowDiff('r1')?.get('price')).toEqual({ oldValue: 100, newValue: 105 });
   });
+
+  it('evicts oldest tracked rows once the cap is exceeded (B3)', () => {
+    // Establish baselines, then diff, for cap+1 rows — oldest must fall out.
+    const cap = 50_000;
+    const batchOf = (offset: number, n: number, price: number) =>
+      Array.from({ length: n }, (_, i) => ({ id: `row-${offset + i}`, price }));
+    for (let offset = 0; offset < cap + 1; offset += 10_000) {
+      const n = Math.min(10_000, cap + 1 - offset);
+      recordSsrmTickDiffs(batchOf(offset, n, 1));
+      recordSsrmTickDiffs(batchOf(offset, n, 2));
+    }
+    expect(getSsrmRowDiff('row-0')).toBeUndefined();
+    expect(getSsrmRowDiff(`row-${cap}`)?.get('price')).toEqual({ oldValue: 1, newValue: 2 });
+  });
 });

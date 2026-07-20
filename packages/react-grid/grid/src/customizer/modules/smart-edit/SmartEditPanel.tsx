@@ -7,7 +7,6 @@ import {
 } from '@wellsfargo-starui/engine';
 import { Button } from '@wellsfargo-starui/ui';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
-import { useSsrmCapabilityGate } from '../../hooks/useSsrmCapabilityGate';
 import { Band, ObjectTitleRow, SettingsRow as Row, SharpBtn } from '../../ui/SettingsPanel';
 import { BoolControl, NumberControl } from '../general-settings/fieldSchema';
 
@@ -20,8 +19,6 @@ const ALL_OPS: { op: SmartEditOp; label: string }[] = [
 ];
 
 function SmartEditPanelInner() {
-  const smartEditGate = useSsrmCapabilityGate('smartEdit');
-  const smartEditBlocked = !smartEditGate.enabled;
   const { draft, setDraft, dirty, save, discard } = useModuleDraft<
     SmartEditState,
     SmartEditSettings
@@ -57,25 +54,15 @@ function SmartEditPanelInner() {
         )}
       />
       <div className="ds-editor-scroll flex-1 overflow-y-auto p-3">
-        {smartEditBlocked ? (
-          <div
-            className="mb-3 text-xs text-[color:var(--ds-text-muted)]"
-            data-testid="se-ssrm-gate-message"
-            title={smartEditGate.tooltip}
-          >
-            {smartEditGate.tooltip}
-          </div>
-        ) : null}
         <Band index="01" title="GLOBAL">
           <Row
             label="ENABLED"
             data-testid="se-enabled"
             control={(
-              <span title={smartEditBlocked ? smartEditGate.tooltip : undefined}>
+              <span>
                 <BoolControl
                   checked={draft.enabled}
                   onChange={(v) => {
-                    if (smartEditBlocked) return;
                     updateSetting('enabled', v);
                   }}
                   testId="se-enabled-toggle"

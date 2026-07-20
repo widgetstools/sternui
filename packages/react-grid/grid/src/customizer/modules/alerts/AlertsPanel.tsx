@@ -48,7 +48,6 @@ import {
 import { useGridEngineKind, useGridPlatform } from '../../hooks/GridProvider';
 import { useModuleState } from '../../hooks/useModuleState';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
-import { useSsrmCapabilityGate } from '../../hooks/useSsrmCapabilityGate';
 import { useDirty } from '../../hooks/useDirty';
 import { useGridColumns } from '../../hooks/useGridColumns';
 import { rescanAlertsFullBook } from './runtime/alertsFullBookRescan';
@@ -114,8 +113,6 @@ interface AlertsSettingsBandProps {
 
 export function AlertsSettingsBand({ settings, onChange }: AlertsSettingsBandProps) {
   const openFinDetected = isOpenFinHost();
-  const alertsGate = useSsrmCapabilityGate('alerts');
-  const alertsBlocked = !alertsGate.enabled;
   const engineKind = useGridEngineKind();
   const platform = useGridPlatform();
   const [rescanBusy, setRescanBusy] = useState(false);
@@ -148,15 +145,6 @@ export function AlertsSettingsBand({ settings, onChange }: AlertsSettingsBandPro
       className="ds-alerts-settings-band grid grid-cols-2 gap-x-3 gap-y-0 [&_section]:px-4"
       data-testid="alerts-settings-band"
     >
-      {alertsBlocked ? (
-        <div
-          className="col-span-2 px-4 py-2 text-xs text-[color:var(--ds-text-muted)]"
-          data-testid="alerts-ssrm-gate-message"
-          title={alertsGate.tooltip}
-        >
-          {alertsGate.tooltip}
-        </div>
-      ) : null}
       <div className="min-w-0">
         <Band title="Alerts">
           <div className="flex items-center justify-between gap-3 py-1">
@@ -164,12 +152,11 @@ export function AlertsSettingsBand({ settings, onChange }: AlertsSettingsBandPro
             <Switch
               checked={settings.enabled}
               onCheckedChange={(v) => onChange((prev) => ({ ...prev, enabled: v }))}
-              disabled={alertsBlocked}
               aria-label="Enable alerts"
               data-testid="alerts-enabled-switch"
             />
           </div>
-          {engineKind === 'ssrm' && !alertsBlocked ? (
+          {engineKind === 'ssrm' ? (
             <div className="space-y-1.5 py-1" data-testid="alerts-ssrm-fullbook">
               <p className="text-[11px] leading-relaxed text-[color:var(--ds-text-muted)]">
                 Day-to-day alerts use live deltas. Rescan seeds relativeChange
@@ -452,8 +439,6 @@ function AlertsRulesList({
   onSelect,
 }: ListPaneProps) {
   const [state, setState] = useModuleState<AlertsState>(MODULE_ID);
-  const alertsGate = useSsrmCapabilityGate('alerts');
-  const alertsBlocked = !alertsGate.enabled;
 
   const addRule = useCallback(() => {
     const rule = defaultRule();
@@ -489,8 +474,7 @@ function AlertsRulesList({
           variant="ghost"
           size="icon"
           onClick={addRule}
-          disabled={alertsBlocked}
-          title={alertsBlocked ? alertsGate.tooltip : 'Add rule'}
+          title="Add rule"
           aria-label="Add rule"
           data-testid="alerts-add-rule"
         >

@@ -1,8 +1,27 @@
 import type { CellDiffEntry, RowDiffMap } from '@wellsfargo-starui/engine';
 import { PreviousValuesStore, type FieldDiff } from './previousValuesStore.js';
 
-const previousValues = new PreviousValuesStore();
+/**
+ * Both stores are module-scope and therefore shared by every grid instance
+ * in the window; rows key by row id, so two grids on the SAME provider
+ * share identical diffs harmlessly, while distinct providers with
+ * colliding generic ids may cross-read (accepted — diffs are transient
+ * styling hints). Growth is BOUNDED: oldest-inserted rows evict once the
+ * cap is exceeded, so a long-running window can't grow without limit
+ * (worklog B3).
+ */
+const MAX_TRACKED_ROWS = 50_000;
+
+const previousValues = new PreviousValuesStore(MAX_TRACKED_ROWS);
 const latestDiffsByRow = new Map<string, RowDiffMap>();
+
+function evictDiffOverflow(): void {
+  while (latestDiffsByRow.size > MAX_TRACKED_ROWS) {
+    const oldest = latestDiffsByRow.keys().next().value;
+    if (oldest === undefined) break;
+    latestDiffsByRow.delete(oldest);
+  }
+}
 
 /** Resolve row id from tick payload — prefer `id`, else configured rowIdField. */
 export function resolveSsrmTickRowId(
@@ -46,16 +65,12 @@ export function recordSsrmTickDiffs(
     }
     for (const [k, v] of diffs) rowMap.set(k, v);
   }
+  evictDiffOverflow();
 }
 
 /** Latest tick diffs for a row — used by SSRM conditional-styling `.old`/`.new` refs. */
 export function getSsrmRowDiff(rowId: string): RowDiffMap | undefined {
   return latestDiffsByRow.get(rowId);
-}
-
-export function forgetSsrmRowDiff(rowId: string): void {
-  previousValues.forget(rowId);
-  latestDiffsByRow.delete(rowId);
 }
 
 export function clearSsrmRowDiffs(): void {

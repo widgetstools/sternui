@@ -29,7 +29,6 @@ import { useModuleState } from '../../hooks/useModuleState';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
 import { useDirty } from '../../hooks/useDirty';
 import { useGridColumns } from '../../hooks/useGridColumns';
-import { useSsrmCapabilityGate } from '../../hooks/useSsrmCapabilityGate';
 import { planSsrmCalcColumn } from '../../../engine/ssrmCalcColumns.js';
 import {
   Band,
@@ -69,8 +68,6 @@ function DirtyListLed({ colId }: { colId: string }) {
 
 export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
   const [state, setState] = useModuleState<CalculatedColumnsState>(MODULE_ID);
-  const calcColumnsGate = useSsrmCapabilityGate('calcColumns');
-  const calcColumnsCapabilityBlocked = !calcColumnsGate.enabled;
 
   const addVirtualColumn = useCallback(() => {
     const id = generateId();
@@ -126,8 +123,7 @@ export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
         <ChromeButton
           type="button"
           onClick={addVirtualColumn}
-          disabled={calcColumnsCapabilityBlocked}
-          title={calcColumnsCapabilityBlocked ? calcColumnsGate.tooltip : 'Add virtual column'}
+          title="Add virtual column"
           data-testid="cc-add-virtual-btn"
           style={{
             width: 22,
@@ -242,8 +238,6 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
       virtualColumns: state.virtualColumns.map((c) => (c.colId === colId ? next : c)),
     }),
   });
-  const calcColumnsGate = useSsrmCapabilityGate('calcColumns');
-  const calcColumnsCapabilityBlocked = !calcColumnsGate.enabled;
   const calcPlan = useMemo(
     () =>
       draft
@@ -254,14 +248,12 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
   const expressionUnsupported = calcPlan?.kind === 'unsupported';
   const unsupportedReason =
     calcPlan?.kind === 'unsupported' ? calcPlan.reason : undefined;
-  const saveBlocked = calcColumnsCapabilityBlocked || expressionUnsupported || !dirty;
-  const saveTitle = calcColumnsCapabilityBlocked
-    ? calcColumnsGate.tooltip
-    : expressionUnsupported
-      ? unsupportedReason
-      : dirty
-        ? undefined
-        : 'No unsaved changes';
+  const saveBlocked = expressionUnsupported || !dirty;
+  const saveTitle = expressionUnsupported
+    ? unsupportedReason
+    : dirty
+      ? undefined
+      : 'No unsaved changes';
 
   if (missing || !draft) return null;
 

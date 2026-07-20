@@ -1,6 +1,5 @@
 import type { GridApi } from 'ag-grid-community';
 import type { RowChangeSignal } from '@wellsfargo-starui/engine';
-import { isSsrmCapabilityEnabled } from './ssrmCapabilities.js';
 import { materializeCalcFields, type SsrmCalcMaterializeContext } from './ssrmCalcColumns.js';
 import { recordSsrmTickDiffs } from './ssrmRowDiff.js';
 import { publishSsrmTransactionDelta } from './ssrmRowChangeBridge.js';
@@ -50,7 +49,7 @@ export function routeDataTransactionAsync(
 ): void {
   const enriched = useSSRM ? enrichTransaction(tx, materialize) : tx;
   if (useSSRM) {
-    if (isSsrmCapabilityEnabled('oldNewDiff') && enriched.update?.length) {
+    if (enriched.update?.length) {
       recordSsrmTickDiffs(enriched.update as Record<string, unknown>[]);
     }
     ssrmHandle?.applyTransactionAsync(enriched as SSRMTransaction);

@@ -2,11 +2,26 @@ export type FieldDiff = { oldValue: unknown; newValue: unknown };
 
 export class PreviousValuesStore {
   #byRow = new Map<string, Map<string, unknown>>();
+  readonly #maxRows: number;
+
+  /** `maxRows` bounds the store — oldest-inserted rows evict first. */
+  constructor(maxRows = Number.POSITIVE_INFINITY) {
+    this.#maxRows = maxRows;
+  }
+
+  #evictOverflow(): void {
+    while (this.#byRow.size > this.#maxRows) {
+      const oldest = this.#byRow.keys().next().value;
+      if (oldest === undefined) break;
+      this.#byRow.delete(oldest);
+    }
+  }
 
   remember(rowId: string, fields: Record<string, unknown>): void {
     const m = new Map<string, unknown>();
     for (const [k, v] of Object.entries(fields)) m.set(k, v);
     this.#byRow.set(rowId, m);
+    this.#evictOverflow();
   }
 
   diffAndUpdate(rowId: string, next: Record<string, unknown>): Map<string, FieldDiff> {
@@ -21,6 +36,7 @@ export class PreviousValuesStore {
       updated.set(k, newValue);
     }
     this.#byRow.set(rowId, updated);
+    this.#evictOverflow();
     return diffs;
   }
 
