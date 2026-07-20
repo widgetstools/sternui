@@ -35,7 +35,7 @@ Commands a new session should run to confirm the baseline still holds
 # host-data: expect 484 passing, 0 failing
 cd packages/data/host-data && npx vitest run
 
-# ssrm-grid: expect 163 passing, 0 failing
+# ssrm-grid: expect 170 passing, 0 failing
 cd packages/react-grid/ssrm-grid && npx vitest run
 
 # grid: expect 726 passing, 0 failing (capability-gate + applyTickToSsrm tests deleted with B1/B7)
@@ -378,6 +378,28 @@ report: sluggish scroll, slow sort, "no" realtime updates, wrong statusBar):**
   engines untouched. Regression test: StrictMode double-mount case in
   `ssrmGrid.mount.test.tsx` (grid pkg). Verified live: status total now
   tracks the shared table to 20,000 during snapshot fill.
+- **Scroll jank fixed — stale-while-revalidate block serving.** Even with
+  flush-conflated invalidation, wiping the block cache per flush kept it
+  permanently cold under a live feed: every fling frame waited an async
+  worker round trip and painted stubs. Now a bare-dirty flush
+  `markAllStale()`s the cache (entries stay servable, LRU-capped at 256);
+  the datasource serves stale hits SYNCHRONOUSLY, refetches in the
+  background, and patches painted rows in place
+  (`applyServerSideTransactionAsync`); async misses prefetch neighbor
+  blocks. Verified live (headless fling over the star-demo blotter,
+  snapshot still filling): revisited ranges 10/12 steps stub-free served
+  sync; ticks repaint post-snapshot (18/60 sampled cells / 4 s).
+- **View-consumer invariant enforced (user directive: "blotters connect
+  to a view on the table, not the table").** Reads already went through
+  shared per-shape Perspective views; the two direct-table edges are now
+  closed: `attachToHostedTable` is OPEN-ONLY (bounded wait for the
+  provider worker to create + seed; windows never create the shared
+  table — kills the cold-start schema-race where a window built an empty
+  table from guessed column defs), and the pull engine is `readOnly`
+  (`setRowData`/`updateRows`/`removeRows`/`applyTransaction` refused with
+  a one-shot warning — only the provider worker writes the table).
+  Follow-up if pull-mode editing is ever needed: proxy writes through the
+  provider worker.
 - NOTE the field report also had an environmental factor: the STOMP demo
   server at its default sweep ceiling (~20k rows/s into a 20k book — reads
   degrade to ~150 ms). See Environment notes; run with

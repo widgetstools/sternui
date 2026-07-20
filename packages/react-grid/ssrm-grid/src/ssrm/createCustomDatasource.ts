@@ -60,12 +60,24 @@ export type CustomDatasourceExtras = {
   rowKeepExpression?: string;
   /** Bumped on purge / data replace — stale async results must miss. */
   refreshGeneration?: number;
+  /** Row-id field — enables in-place patching after a stale-block revalidate. */
+  idField?: string;
 };
 
 /**
  * AG Grid SSRM datasource backed by {@link SsrmEngine}. Engines exposing
  * `trySyncRows` (RowMirror) serve blocks synchronously so scroll does not
  * wait a microtask / paint stubs; async-only engines fall back to getRows.
+ *
+ * Anti-jank for async engines (Perspective pull path):
+ *  - **Stale-while-revalidate** — a block flagged stale by the dirty router
+ *    still serves SYNCHRONOUSLY (at worst one refresh interval behind, the
+ *    same staleness the painted grid shows) and a background refetch then
+ *    patches the painted rows in place. Without this, every live tick made
+ *    the whole cache miss and every fling frame waited a worker round trip.
+ *  - **Neighbor prefetch** — after an async block miss resolves, the
+ *    adjacent blocks are fetched into the cache so directional scrolling
+ *    mostly stays on the sync path.
  */
 export function createCustomDatasource(
   getEngine: () => SsrmEngine | null,
@@ -79,6 +91,9 @@ export function createCustomDatasource(
   ) => void,
   blockCache?: SsrmBlockCache,
 ): IServerSideDatasource {
+  /** Blocks with a background refetch in flight (stale revalidation). */
+  const revalidating = new Set<string>();
+
   return {
     getRows(params) {
       const engine = getEngine();
@@ -97,11 +112,17 @@ export function createCustomDatasource(
       const endRow = req.endRow ?? 100;
       const groupKeys = (req.groupKeys ?? []).map(String);
       const generationAtStart = extras.refreshGeneration ?? 0;
+      // Flat leaf blocks can be revalidated/prefetched by range and patched
+      // by row id; grouped/pivot shapes converge on the soft-refresh cycle.
+      const isFlatLeaf =
+        groupKeys.length === 0 &&
+        (req.rowGroupCols ?? []).length === 0 &&
+        !req.pivotMode;
 
-      const keyParts: BlockCacheKeyParts = {
+      const keyPartsFor = (s: number, e: number): BlockCacheKeyParts => ({
         dataset: getDataset(),
-        startRow,
-        endRow,
+        startRow: s,
+        endRow: e,
         rowGroupCols: (req.rowGroupCols ?? []).map((c) => ({
           id: c.id,
           field: c.field ?? "",
@@ -124,13 +145,17 @@ export function createCustomDatasource(
         absSort: extras.absSort,
         rowKeepExpression: extras.rowKeepExpression,
         refreshGeneration: generationAtStart,
-      };
-      const cacheKey = fingerprintBlockRequest(keyParts);
+      });
+      const cacheKey = fingerprintBlockRequest(keyPartsFor(startRow, endRow));
 
-      const buildRequest = (x: CustomDatasourceExtras): SsrmGetRowsRequest => ({
+      const buildRequestFor = (
+        x: CustomDatasourceExtras,
+        s: number,
+        e: number,
+      ): SsrmGetRowsRequest => ({
         dataset: getDataset(),
-        startRow,
-        endRow,
+        startRow: s,
+        endRow: e,
         rowGroupCols: (req.rowGroupCols ?? []).map((c) => ({
           id: c.id,
           field: c.field ?? "",
@@ -145,9 +170,9 @@ export function createCustomDatasource(
         pivotMode: Boolean(req.pivotMode),
         groupKeys,
         filterModel: (req.filterModel ?? {}) as Record<string, unknown>,
-        sortModel: (req.sortModel ?? []).map((s) => ({
-          colId: s.colId,
-          sort: s.sort as "asc" | "desc",
+        sortModel: (req.sortModel ?? []).map((s2) => ({
+          colId: s2.colId,
+          sort: s2.sort as "asc" | "desc",
         })),
         quickFilterText: x.quickFilterText,
         quickFilterFields: x.quickFilterFields,
@@ -155,6 +180,80 @@ export function createCustomDatasource(
         absSort: x.absSort,
         rowKeepExpression: x.rowKeepExpression,
       });
+      const buildRequest = (x: CustomDatasourceExtras): SsrmGetRowsRequest =>
+        buildRequestFor(x, startRow, endRow);
+
+      /**
+       * Background refetch of a stale block: refresh the cache entry, then
+       * patch the painted rows in place (no store reload, no stubs). Row
+       * counts converge one cycle later — the next request for this range
+       * serves the fresh entry.
+       */
+      const revalidate = (): void => {
+        if (!blockCache || revalidating.has(cacheKey)) return;
+        revalidating.add(cacheKey);
+        void (async () => {
+          try {
+            const live = getExtras?.() ?? extras;
+            const result = await Promise.resolve(
+              engine.getRows(buildRequest(live)),
+            );
+            const fresh = toCached(result);
+            blockCache.set(cacheKey, fresh);
+            const idField = live.idField;
+            if (isFlatLeaf && idField) {
+              const update = fresh.rowData.filter((r) => {
+                const raw = r[idField];
+                return (
+                  raw != null &&
+                  raw !== "" &&
+                  params.api.getRowNode(String(raw)) != null
+                );
+              });
+              if (update.length > 0) {
+                params.api.applyServerSideTransactionAsync({ update });
+              }
+            }
+            if (onTotals && groupKeys.length === 0) {
+              onTotals(
+                fresh.totals ?? {},
+                fresh.filteredRowCount ?? fresh.rowCount,
+                fresh.aggregates,
+                fresh.totalRowCount,
+              );
+            }
+          } catch {
+            /* stale entry stays servable; the next cycle retries */
+          } finally {
+            revalidating.delete(cacheKey);
+          }
+        })();
+      };
+
+      /** Warm the adjacent blocks so directional fling stays sync-served. */
+      const prefetchNeighbors = (rowCount: number): void => {
+        if (!blockCache || !isFlatLeaf) return;
+        const blockSize = endRow - startRow;
+        if (blockSize <= 0) return;
+        const ranges: Array<[number, number]> = [];
+        if (startRow - blockSize >= 0) {
+          ranges.push([startRow - blockSize, startRow]);
+        }
+        if (endRow < rowCount) ranges.push([endRow, endRow + blockSize]);
+        for (const [s, e] of ranges) {
+          const nKey = fingerprintBlockRequest(keyPartsFor(s, e));
+          if (blockCache.get(nKey) !== undefined) continue;
+          void blockCache
+            .getOrLoad(nKey, async () =>
+              toCached(
+                await Promise.resolve(
+                  engine.getRows(buildRequestFor(getExtras?.() ?? extras, s, e)),
+                ),
+              ),
+            )
+            .catch(() => undefined);
+        }
+      };
 
       const deliver = (result: CachedGetRows) => {
         // Counts only — avoid status-bar churn when totals are empty and unchanged.
@@ -198,11 +297,13 @@ export function createCustomDatasource(
         }
       }
 
-      // Sync path: block cache hit.
+      // Sync path: block cache hit. Stale hits still serve synchronously —
+      // the fling never waits — and revalidate in the background.
       if (blockCache && extras.isConfigured) {
         const hit = blockCache.get(cacheKey);
         if (hit) {
           deliver(hit);
+          if (blockCache.isStale(cacheKey)) revalidate();
           return;
         }
       }
@@ -233,6 +334,7 @@ export function createCustomDatasource(
         const hit = blockCache?.get(cacheKey);
         if (hit) {
           deliver(hit);
+          if (blockCache?.isStale(cacheKey)) revalidate();
           return;
         }
 
@@ -240,6 +342,7 @@ export function createCustomDatasource(
           const result = await Promise.resolve(engine.getRows(liveRequest));
           blockCache?.set(cacheKey, toCached(result));
           deliver(toCached(result));
+          prefetchNeighbors(result.rowCount);
         } catch {
           params.fail();
         }

@@ -434,6 +434,7 @@ export function useSsrmGridController(props: SsrmGridProps) {
           absSort: absSortRef.current,
           rowKeepExpression: rowKeepExpressionRef.current || undefined,
           refreshGeneration: refreshGenerationRef.current,
+          idField,
         }),
         (totals, filteredRowCount, aggregates, totalRowCount) => {
           const api = apiRef.current;

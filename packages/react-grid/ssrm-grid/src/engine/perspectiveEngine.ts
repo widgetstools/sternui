@@ -64,10 +64,26 @@ export interface PerspectiveEngineOpts {
   /** Max concurrently live views before LRU eviction. Default 32. */
   maxViews?: number;
   /**
-   * Reuse a table already hosted under this name instead of creating one.
-   * This is what makes the Nth blotter cost an attach rather than a copy.
+   * OPEN-ONLY attach: reuse the table hosted under this name — never create
+   * it. Table creation and seeding belong to the provider worker
+   * (`PerspectiveAttachHandler`); a window racing the seed WAITS (bounded)
+   * instead of standing up its own empty table with a guessed schema. This
+   * is what makes the Nth blotter cost an attach rather than a copy.
    */
   attachToHostedTable?: boolean;
+  /**
+   * Refuse writes (`setRowData` / `updateRows` / `removeRows` /
+   * `applyTransaction`) with a one-shot console warning. The pull path sets
+   * this: blotters are VIEW CONSUMERS — only the provider worker writes the
+   * shared table (and a live feed would clobber window edits anyway).
+   */
+  readOnly?: boolean;
+  /** Open-only attach wait budget before configure fails (default 15s). */
+  attachWaitMs?: number;
+  /** Open-only attach poll cadence (default 250ms). */
+  attachPollMs?: number;
+  /** Injected for tests. */
+  sleep?: (ms: number) => Promise<void>;
 }
 
 interface DatasetState {
@@ -80,6 +96,21 @@ export function createPerspectiveEngine(opts: PerspectiveEngineOpts): SsrmEngine
   const { client } = opts;
   const datasets = new Map<DatasetId, DatasetState>();
   let dirtyHandler: ((msg: DirtyMessage) => void) | null = null;
+  let warnedReadOnly = false;
+
+  /** True (and warns once) when a write must be refused in read-only mode. */
+  const refuseWrite = (method: string): boolean => {
+    if (!opts.readOnly) return false;
+    if (!warnedReadOnly) {
+      warnedReadOnly = true;
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[perspectiveEngine] ${method} refused — read-only pull engine: `
+        + 'only the provider worker writes the shared table',
+      );
+    }
+    return true;
+  };
 
   const state = (dataset: DatasetId): DatasetState => {
     const s = datasets.get(dataset);
@@ -337,10 +368,28 @@ export function createPerspectiveEngine(opts: PerspectiveEngineOpts): SsrmEngine
       }
 
       let table: PerspectiveTable;
-      const hosted = opts.attachToHostedTable
-        ? await client.get_hosted_table_names()
-        : [];
-      if (hosted.includes(config.dataset)) {
+      if (opts.attachToHostedTable) {
+        // OPEN-ONLY: the provider worker owns table creation + seeding. A
+        // window racing the seed waits (bounded) rather than creating an
+        // empty table from its guessed column-def schema — a window-created
+        // table splits ownership of the book and races the row-inferred
+        // schema. On timeout, throw: the controller's bounded configure
+        // retry covers slow seeds; a dead link surfaces as a real error.
+        const deadline = Date.now() + (opts.attachWaitMs ?? 15_000);
+        const pollMs = opts.attachPollMs ?? 250;
+        const sleep =
+          opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+        for (;;) {
+          const hosted = await client.get_hosted_table_names();
+          if (hosted.includes(config.dataset)) break;
+          if (Date.now() >= deadline) {
+            throw new Error(
+              `[perspectiveEngine] table '${config.dataset}' is not hosted yet — `
+              + 'the provider worker owns creation; retry once the link has seeded',
+            );
+          }
+          await sleep(pollMs);
+        }
         // Nth blotter: attach to the book already in the worker — no copy.
         table = await client.open_table(config.dataset);
       } else {
@@ -359,6 +408,7 @@ export function createPerspectiveEngine(opts: PerspectiveEngineOpts): SsrmEngine
 
     async setRowData(dataset: DatasetId, rows: Record<string, unknown>[]): Promise<number> {
       const ds = state(dataset);
+      if (refuseWrite('setRowData')) return ds.table.size();
       await ds.table.replace(rows);
       return ds.table.size();
     },
@@ -383,14 +433,17 @@ export function createPerspectiveEngine(opts: PerspectiveEngineOpts): SsrmEngine
     },
 
     async updateRows(dataset: DatasetId, rows: Record<string, unknown>[]): Promise<void> {
+      if (refuseWrite('updateRows')) return;
       await state(dataset).table.update(rows);
     },
 
     async removeRows(dataset: DatasetId, ids: (string | number)[]): Promise<void> {
+      if (refuseWrite('removeRows')) return;
       await state(dataset).table.remove(ids);
     },
 
     async applyTransaction(request: TransactionRequest): Promise<void> {
+      if (refuseWrite('applyTransaction')) return;
       const ds = state(request.dataset);
       const add = request.add ?? [];
       const update = request.update ?? [];

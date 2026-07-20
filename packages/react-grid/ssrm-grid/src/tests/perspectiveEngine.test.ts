@@ -101,6 +101,56 @@ describe("createPerspectiveEngine — request translation", () => {
     expect(h.configs[0]?.sort).toEqual([["px", "desc"]]);
   });
 
+  it("open-only attach WAITS for the hosted table instead of creating it", async () => {
+    const h = harness(); // nothing hosted yet — provider still seeding
+    let polls = 0;
+    const engine = createPerspectiveEngine({
+      client: h.client,
+      attachToHostedTable: true,
+      attachPollMs: 1,
+      sleep: async () => {
+        polls += 1;
+        if (polls === 2) h.hosted.push("main"); // provider seeds mid-wait
+      },
+    });
+    await engine.configure(feed);
+    expect(h.opened).toEqual(["main"]);
+    expect(h.client.table).not.toHaveBeenCalled(); // windows never create
+  });
+
+  it("open-only attach FAILS rather than creating when the table never appears", async () => {
+    const h = harness();
+    const engine = createPerspectiveEngine({
+      client: h.client,
+      attachToHostedTable: true,
+      attachWaitMs: 0,
+    });
+    await expect(engine.configure(feed)).rejects.toThrow(/not hosted yet/);
+    expect(h.client.table).not.toHaveBeenCalled();
+  });
+
+  it("readOnly refuses writes — the shared table is provider-owned", async () => {
+    const h = harness({ hosted: ["main"] });
+    const engine = createPerspectiveEngine({
+      client: h.client,
+      attachToHostedTable: true,
+      readOnly: true,
+    });
+    await engine.configure(feed);
+
+    await engine.updateRows("main", [{ positionId: "p1", px: 1 }]);
+    await engine.applyTransaction({
+      dataset: "main",
+      update: [{ positionId: "p1", px: 2 }],
+    });
+    await engine.removeRows("main", ["p1"]);
+    expect(h.updates).toEqual([]);
+    expect(h.removed).toEqual([]);
+
+    const size = await engine.setRowData("main", [{ positionId: "x" }]);
+    expect(size).toBe(42); // reports current size; table untouched
+  });
+
   it("reports the unfiltered table size as totalRowCount (status-bar total)", async () => {
     const h = harness({ numRows: 7 }); // filtered view count ≠ table size (42)
     const engine = createPerspectiveEngine({ client: h.client });

@@ -593,11 +593,14 @@ from an engine instead of holding the dataset. Engine-agnostic behind
   `ssrmDirtyRouter` (dirty routing over `RefreshScheduler` — leaf txs
   conflate by row id and flush scroll-deferred/purge-subsuming/staleness-
   bounded; the block cache is patched immediately on leaf txs so sync
-  serving never goes stale; bare-dirty invalidation (cache clear +
-  generation bump + view invalidation) is CONFLATED INTO THE FLUSH — one
-  invalidation + one soft refresh per scheduler interval however many
-  subscribed views fire per tick batch, so the sync scroll fast path stays
-  warm under a live feed; router + owned-engine lifecycle is
+  serving never goes stale; bare-dirty handling is CONFLATED INTO THE FLUSH
+  as a STALE-MARKING, not a cache wipe — one `markAllStale` + one soft
+  refresh per scheduler interval however many subscribed views fire per
+  tick batch; stale blocks stay servable for synchronous scroll delivery
+  (stale-while-revalidate in the datasource: stale hits serve instantly,
+  refetch in the background, and patch painted rows in place; async misses
+  prefetch neighbor blocks) so fling scrolling stays on the sync path
+  under a live feed; router + owned-engine lifecycle is
   StrictMode-safe — the mount effect re-creates what its cleanup disposes,
   so dev double-mounts cannot wire the dirty handler to a disposed
   router), `custom/types.ts` (`SsrmGridHandle`,
@@ -671,9 +674,13 @@ from an engine instead of holding the dataset. Engine-agnostic behind
   level, so AG Grid keeps owning expand state per window and it is never
   mirrored into Perspective. Grouped views are windowed past Perspective's
   root aggregate row; group rows are shaped to the `__ssrmGroupKey` /
-  `childCount` contract. `attachToHostedTable` opens a table already hosted in
-  the worker instead of rebuilding it — the property that makes the Nth blotter
-  an attach, not a copy
+  `childCount` contract. `attachToHostedTable` is **open-only**: it opens the
+  table hosted in the worker (waiting, bounded, for the provider worker to
+  create + seed it — windows NEVER create the shared table) — the property
+  that makes the Nth blotter an attach, not a copy. `readOnly` (set by the
+  pull path) refuses `setRowData`/`updateRows`/`removeRows`/`applyTransaction`
+  with a one-shot warning: blotters are view consumers; only the provider
+  worker writes the shared table
 - `PerspectiveViewCache` / `viewCacheKey` — LRU cache of `View`s keyed by query
   shape, so blotters sharing a layout share one view and cost scales with
   distinct shapes rather than window count. Views hold **WASM-heap allocations

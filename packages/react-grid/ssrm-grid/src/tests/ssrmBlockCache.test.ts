@@ -76,6 +76,35 @@ describe("SsrmBlockCache", () => {
       { id: "b", mid: 99 },
     ]);
   });
+
+  it("markAllStale keeps entries servable; set() refreshes; clear() drops", () => {
+    const cache = new SsrmBlockCache();
+    cache.set("b0", { rowData: [{ id: "a" }], rowCount: 1 });
+    cache.set("b1", { rowData: [{ id: "b" }], rowCount: 1 });
+
+    cache.markAllStale();
+    expect(cache.get("b0")).toBeTruthy(); // stale ≠ gone
+    expect(cache.isStale("b0")).toBe(true);
+    expect(cache.isStale("b1")).toBe(true);
+
+    cache.set("b0", { rowData: [{ id: "a", px: 2 }], rowCount: 1 });
+    expect(cache.isStale("b0")).toBe(false); // revalidated
+    expect(cache.isStale("b1")).toBe(true);
+
+    cache.clear();
+    expect(cache.get("b1")).toBeUndefined();
+    expect(cache.isStale("b1")).toBe(false);
+  });
+
+  it("caps retained blocks (oldest-inserted evicted)", () => {
+    const cache = new SsrmBlockCache();
+    for (let i = 0; i < 257; i++) {
+      cache.set(`k${i}`, { rowData: [], rowCount: 0 });
+    }
+    expect(cache.size).toBe(256);
+    expect(cache.get("k0")).toBeUndefined(); // oldest evicted
+    expect(cache.get("k256")).toBeTruthy();
+  });
 });
 
 describe("createCustomDatasource sync cache", () => {
@@ -173,6 +202,77 @@ describe("createCustomDatasource sync cache", () => {
       rowCount: 10,
     });
     expect(getRows).toHaveBeenCalledTimes(1);
+  });
+
+  it("serves a STALE block synchronously, then revalidates and patches loaded rows", async () => {
+    const cache = new SsrmBlockCache();
+    const fresh = { rowData: [{ id: "a", px: 2 }], rowCount: 1 };
+    const getRows = vi.fn(async () => fresh);
+    const applyServerSideTransactionAsync = vi.fn();
+    const ds = createCustomDatasource(
+      () => ({ getRows }) as never,
+      () => "main",
+      () => ({ isConfigured: true, refreshGeneration: 0, idField: "id" }),
+      undefined,
+      cache,
+    );
+
+    // Prime the cache via an async miss, then mark stale (live tick).
+    const prime = mockParams();
+    (prime as Record<string, unknown>).api = { getRowNode: () => null };
+    getRows.mockResolvedValueOnce({ rowData: [{ id: "a", px: 1 }], rowCount: 1 } as never);
+    ds.getRows(prime as never);
+    await vi.waitFor(() => expect(prime.success).toHaveBeenCalled());
+    cache.markAllStale();
+
+    // Stale hit: params.success fires SYNCHRONOUSLY with the stale rows…
+    const params = mockParams();
+    (params as Record<string, unknown>).api = {
+      getRowNode: (id: string) => (id === "a" ? { data: {} } : null),
+      applyServerSideTransactionAsync,
+    };
+    ds.getRows(params as never);
+    expect(params.success).toHaveBeenCalledTimes(1);
+    expect(params.success).toHaveBeenCalledWith(
+      expect.objectContaining({ rowData: [{ id: "a", px: 1 }] }),
+    );
+
+    // …and the background revalidate refreshes the cache + patches in place.
+    await vi.waitFor(() => expect(applyServerSideTransactionAsync).toHaveBeenCalled());
+    expect(applyServerSideTransactionAsync).toHaveBeenCalledWith({
+      update: [{ id: "a", px: 2 }],
+    });
+    const third = mockParams();
+    ds.getRows(third as never);
+    expect(third.success).toHaveBeenCalledWith(
+      expect.objectContaining({ rowData: [{ id: "a", px: 2 }] }),
+    );
+  });
+
+  it("prefetches the neighbor block after an async miss", async () => {
+    const cache = new SsrmBlockCache();
+    const getRows = vi.fn(async (req: { startRow: number; endRow: number }) => ({
+      rowData: [{ id: `r${req.startRow}` }],
+      rowCount: 500, // book larger than the requested block → forward neighbor exists
+    }));
+    const ds = createCustomDatasource(
+      () => ({ getRows }) as never,
+      () => "main",
+      () => ({ isConfigured: true, refreshGeneration: 0 }),
+      undefined,
+      cache,
+    );
+
+    ds.getRows(mockParams() as never); // 0-100
+    await vi.waitFor(() => expect(getRows).toHaveBeenCalledTimes(2));
+    const ranges = getRows.mock.calls.map((c) => [c[0].startRow, c[0].endRow]);
+    expect(ranges).toContainEqual([0, 100]);
+    expect(ranges).toContainEqual([100, 200]); // warmed for the fling
+
+    // The prefetched block now serves synchronously.
+    const next = mockParams({ startRow: 100, endRow: 200 });
+    ds.getRows(next as never);
+    expect(next.success).toHaveBeenCalledTimes(1);
   });
 
   it("forwards the engine's totalRowCount to onTotals (status-bar total)", async () => {

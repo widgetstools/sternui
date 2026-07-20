@@ -11,17 +11,17 @@
  *    the grid mutation is deferred behind a scroll.
  *  - **bare dirty (no transaction)** — replace/remove/structural change, and
  *    the steady-state signal of async engines (Perspective `view.on_update`
- *    announces "this shape changed", nothing more). Cache clear + generation
- *    bump + engine view invalidation are CONFLATED INTO THE FLUSH — under a
- *    live feed every subscribed view fires per tick batch, and invalidating
- *    per signal keeps the block cache permanently cold, which kills the sync
- *    scroll fast path (every fling frame waits an async engine round trip).
- *    Between flushes sync serving may return rows up to one scheduler
- *    interval stale — the same staleness the painted grid already shows.
- *    On flush the invalidation runs, then the grid refreshes **softly** —
- *    loaded rows stay painted while their blocks refetch in place. A hard
- *    purge here would drop every loaded block into loading stubs on every
- *    tick batch, which reads as full-grid flicker under a live feed.
+ *    announces "this shape changed", nothing more). CONFLATED INTO THE
+ *    FLUSH as a STALE-MARKING, not a cache wipe: under a live feed every
+ *    subscribed view fires per tick batch, and dropping cache entries per
+ *    signal (or even per flush) keeps the block cache permanently cold —
+ *    every fling frame then waits an async engine round trip, which is the
+ *    scroll jank. On flush the cache is flagged stale (entries stay
+ *    servable for synchronous scroll delivery; the datasource revalidates
+ *    stale hits in the background and patches painted rows in place), then
+ *    the grid refreshes **softly** — loaded rows stay painted. A hard purge
+ *    here would drop every loaded block into loading stubs on every tick
+ *    batch, which reads as full-grid flicker under a live feed.
  *
  * Group/grand-total aggregate patching keeps its own trailing-edge throttle
  * (`aggPatchThrottleMs`, default 250ms) and is skipped while scrolling — the
@@ -109,18 +109,22 @@ export function createSsrmDirtyRouter(opts: SsrmDirtyRouterOpts): SsrmDirtyRoute
       pendingLeaf.clear();
       softPending = false;
       invalidatePending = false;
+      bumpGeneration();
+      blockCache.clear();
       refreshAllLoadedServerSideStores(api, { purge: true });
       return;
     }
     if (invalidatePending) {
-      // One invalidation per flush, however many bare-dirty signals arrived
-      // since the last one. The generation bump re-keys every block request
-      // so the soft refresh below refetches from the engine, not the cache.
+      // One stale-marking per flush, however many bare-dirty signals
+      // arrived since the last one. Entries stay SERVABLE for sync scroll
+      // (stale-while-revalidate in the datasource): the soft refresh below
+      // re-requests loaded blocks, which serve instantly from cache and
+      // refetch fresh in the background — no cold cache, no stub flicker,
+      // no fling frame waiting on a worker round trip.
       invalidatePending = false;
-      bumpGeneration();
-      blockCache.clear();
+      blockCache.markAllStale();
       engine.invalidateView?.();
-      pendingLeaf.clear(); // superseded — the refetch delivers fresh rows
+      pendingLeaf.clear(); // superseded — the revalidate delivers fresh rows
     }
     if (pendingLeaf.size > 0) {
       const patches = [...pendingLeaf.values()];

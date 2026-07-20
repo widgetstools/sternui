@@ -39,11 +39,25 @@ export function fingerprintBlockRequest(parts: BlockCacheKeyParts): string {
 }
 
 /**
+ * Bound on retained blocks — enough for many visited viewports per query
+ * shape; oldest-inserted evicted beyond it (a fling revisit misses and
+ * refetches, which is the pre-cache behavior, not an error).
+ */
+const MAX_CACHED_BLOCKS = 256;
+
+/**
  * Main-thread cache of SSRM blocks from the Perspective worker.
  * Cache hits allow `params.success` synchronously (no Loading flash).
+ *
+ * Live-feed staleness model (anti-jank): a tick does NOT drop entries —
+ * `markAllStale()` flags them. Stale blocks stay servable for synchronous
+ * scroll delivery (at worst one refresh interval behind — the same
+ * staleness the painted grid shows) while the caller revalidates in the
+ * background. Only hard purges (dataset replace / reconfigure) `clear()`.
  */
 export class SsrmBlockCache {
   private readonly blocks = new Map<string, CachedGetRows>();
+  private readonly staleKeys = new Set<string>();
   private readonly inflight = new Map<string, Promise<CachedGetRows>>();
   /** Bumped on clear() so late in-flight loads do not repopulate. */
   private epoch = 0;
@@ -52,8 +66,32 @@ export class SsrmBlockCache {
     return this.blocks.get(key);
   }
 
+  /** True when the entry exists but predates the last `markAllStale()`. */
+  isStale(key: string): boolean {
+    return this.staleKeys.has(key);
+  }
+
   set(key: string, value: CachedGetRows): void {
+    // Re-insert to refresh insertion order (Map iteration = eviction order).
+    this.blocks.delete(key);
     this.blocks.set(key, value);
+    this.staleKeys.delete(key);
+    if (this.blocks.size > MAX_CACHED_BLOCKS) {
+      const oldest = this.blocks.keys().next().value as string | undefined;
+      if (oldest !== undefined) {
+        this.blocks.delete(oldest);
+        this.staleKeys.delete(oldest);
+      }
+    }
+  }
+
+  /**
+   * Flag every entry stale — servable for sync scroll, due a revalidate.
+   * The live-feed alternative to `clear()`: dropping entries per tick kept
+   * the cache permanently cold and every fling frame waited a round trip.
+   */
+  markAllStale(): void {
+    for (const key of this.blocks.keys()) this.staleKeys.add(key);
   }
 
   /**
@@ -64,6 +102,7 @@ export class SsrmBlockCache {
   clear(): void {
     this.epoch += 1;
     this.blocks.clear();
+    this.staleKeys.clear();
     this.inflight.clear();
   }
 

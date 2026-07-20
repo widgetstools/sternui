@@ -90,6 +90,9 @@ export function useSsrmPullEngine(opts: UseSsrmPullEngineOpts): SsrmEngine | nul
         built = createPerspectiveEngine({
           client: client as unknown as PerspectiveClient,
           attachToHostedTable: true,
+          // Blotters are view consumers: only the provider worker writes
+          // the shared table. Edits are refused with a console warning.
+          readOnly: true,
         });
         setEngine(built);
       })
