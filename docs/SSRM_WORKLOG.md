@@ -29,19 +29,19 @@ plans; `calcExpressions` are Perspective expressions). Do **not** re-litigate.
 ## Ground truth — verify before trusting
 
 Commands a new session should run to confirm the baseline still holds
-(numbers as of 2026-07-19 end of session — T1–T3, T5–T7 + T8 partial landed):
+(numbers as of 2026-07-20 — T1–T7, T9 + T8 partial landed; B1/B3/B5 fixed):
 
 ```bash
 # host-data: expect 484 passing, 0 failing
 cd packages/data/host-data && npx vitest run
 
-# ssrm-grid: expect 149 passing, 0 failing
+# ssrm-grid: expect 160 passing, 0 failing
 cd packages/react-grid/ssrm-grid && npx vitest run
 
-# grid: expect 729 passing, 0 failing
+# grid: expect 725 passing, 0 failing (capability-gate + applyTickToSsrm tests deleted with B1/B7)
 cd packages/react-grid/grid && npx vitest run
 
-# engine: 297 · widgets-react: 222 (+1 skipped)
+# engine: 301 · widgets-react: 222 (+1 skipped)
 # Repo-wide gate: `npx turbo typecheck build test` — 67/67 green.
 ```
 
@@ -274,6 +274,37 @@ Landed:
 Verified: grid **729** passing (+3 SSRM header-painter tests), ssrm-grid
 **149**, both `tsc` clean.
 
+### T9 — Container pull opt-in (ADR Phase 4) · `DONE`
+
+Landed — `MarketsGridContainer` runs the pull plane end-to-end:
+
+- **host-data** — `createPerspectiveReadClient` (window-side WASM init +
+  `perspective.worker()` over the shared engine worker; `@finos/perspective`
+  imported LAZILY so its Node entry can't wasm-compile inside vitest);
+  `perspectiveWorkerScriptUrl` threaded through `CreateProviderClientOpts` →
+  `ProviderWorkerRoutingOpts` → `EnsureHubOpts` → `EnsurePlatformReadyOpts`.
+- **grid** — `MarketsGridProps.ssrmPullEngine` forwarded (both render paths)
+  to `SsrmMarketsGridSurface`, which passes `engine` and OMITS `rowData` when
+  present (pull mode: the grid must never `setRowData` into the shared table).
+- **widgets-react** — `MarketsGridContainerProps.dataPlane?: 'push' | 'pull'`;
+  `pull = requested && live-mode && routing.perspectiveWorkerScriptUrl` (one-shot
+  fallback warning otherwise); `useSsrmPullEngine` does the `psp-attach`
+  hand-off + read client and OWNS engine disposal; the container gates
+  MarketsGrid mount on the engine ("Connecting to the shared data table…").
+  `useProviderDataWiring` under pull keeps provider start/status/overlay
+  bookkeeping but applies NO rows: snapshot handler only updates overlay
+  state (`setLoadRowCount`/`setResolvedSubKey`/…), tick handler returns early
+  (either would write back into the SHARED table through the engine).
+- **star-demo** — `platformBootstrap` passes the engine worker asset URL;
+  `BlottersMarketsGrid` sets `dataPlane="pull"`.
+
+Verified live (headless Chromium, STOMP @ `SWEEP_ROWS_PER_SEC=2000`, seed
+provider `test.dp`, 20k book): window 1 renders at snapshot end (~34 s —
+dominated by the seed's slow STOMP trickle config, not the pull path); ticks
+repaint 35/36 visible price cells in 4 s; a SECOND window reaches the full
+20,000-row grid in **3.5 s** with no snapshot re-fetch; zero page errors.
+`Rows: 20,000` SSRM status panel correct in both windows.
+
 ### T8 — Remaining customizer gaps · `WIP`
 
 > **Directive (2026-07-19, user):** SSRM must reach feature parity with
@@ -289,15 +320,34 @@ scan (loaded blocks) on CSRM / engine-not-ready. Also landed earlier under
 T5/T6/T7: general-settings pass-through, edit refusal, visual-excel full
 export, header-painter book counting.
 
+**Landed (statusBar translation):** `translateSsrmStatusBar` maps
+general-settings' client-side panel ids (`agTotalAndFilteredRowCount…` /
+`agFilteredRowCount…` / `agTotalRowCount…` — new `ServerTotalRowCountPanel`
+— / `agSelectedRowCount…`) to the SSRM stand-ins; `agAggregationComponent`
+and custom panels pass through untouched. `SsrmGrid` merges pipeline
+statusBar (translated) → surface prop → SSRM default, same precedence as
+CSRM.
+
+**Landed (grid-state under SSRM):**
+- Viewport anchor restore RETRIES on `modelUpdated`/`firstDataRendered`
+  until the row count covers the saved index (15 s deadline) — under SSRM
+  the count lands async (pull engine: after the shared table fills) and the
+  old one-shot `firstDataRendered` restore silently dropped the anchor.
+- Quick filter: `SsrmGrid` intercepts `setGridOption('quickFilterText')`
+  (still calling through so capture reads it back) and folds the value into
+  the engine query + highlight — QuickSearch and grid-state restore now
+  work under SSRM unchanged; a host-passed `quickFilterText` prop remains
+  the controlled source. `QuickSearch` syncs its input from the grid option
+  on ready/`profile:loaded` (skipped while focused) so a restored filter is
+  visible in the box.
+
 **Remaining, ranked:**
-1. grid-state — async viewport restore, quickFilter reconciliation.
-2. general-settings `statusBar` translation to the SSRM panels (pipeline
-   `statusBar` is currently stripped — AG's client-side count panels render
-   blanks under SSRM; see T5 note).
-3. data-change-history — verify partial-row merge on undo/redo.
-4. shortcuts / plus-minus capability ids — blocked on deciding B1 (the
-   capability gate is inert; either advance `PHASE_MIN`s or delete the gate).
-5. A visible toast for T6 edit refusals (today: console warning only).
+1. data-change-history — verify partial-row merge on undo/redo.
+2. A visible toast for T6 edit refusals (today: console warning only).
+
+(The former "shortcuts / plus-minus capability ids" item is moot: B1 was
+resolved by DELETING the capability gate — every SSRM capability is
+unconditionally on, per the parity directive.)
 
 ---
 
@@ -305,13 +355,13 @@ export, header-painter book counting.
 
 | # | Defect | Where |
 |---|---|---|
-| B1 | SSRM capability gate inert — `CURRENT_SSRM_PHASE = 4`, all `PHASE_MIN` ≤ 3, so every gate returns enabled and all `disabled`/tooltip paths are dead | `engine/ssrmCapabilities.ts:5-23` |
+| B1 | ~~SSRM capability gate inert~~ **Fixed — gate DELETED** (parity directive: every capability unconditionally on). `ssrmCapabilities.ts`, `useSsrmCapabilityGate`, the `SsrmCapabilityId`/`SsrmPhase` types, and all `disabled`/tooltip dead paths removed; panels simplified | — |
 | B2 | ~~`patchGrandTotalFromMirror` / `patchLoadedGroupAggregatesFromMirror` called without `extras`~~ **Fixed with T1** — extras passed at the (engine-based) call site | `CustomSSRMGrid.tsx` |
-| B3 | `ssrmRowDiff` module-scope globals shared across grid instances; `clearSsrmRowDiffs`/`forgetSsrmRowDiff` have no callers → unbounded growth | `engine/ssrmRowDiff.ts:4-5,56-64` |
+| B3 | ~~`ssrmRowDiff` unbounded growth~~ **Fixed — bounded**: 50k-row cap with oldest-first eviction (both `PreviousValuesStore` and the diff map); dead `forgetSsrmRowDiff` deleted. Stores stay module-scope (same-provider grids share identical diffs harmlessly; documented) | `engine/ssrmRowDiff.ts` |
 | B4 | Row exclusion **fails open** — a rejected expression silently shows *more* rows | `useSsrmRowKeepExpression.ts:23` |
-| B5 | `agGrid/theme.ts` hardcodes `#8AAAA7` / `#8AAAA766` and forces `colorSchemeDark` — violates the UI stack rule, dark-only | `ssrm-grid/src/agGrid/theme.ts` |
+| B5 | ~~`agGrid/theme.ts` hardcoded hex, dark-only~~ **Fixed** — default theme is now the design-system `staruiGridTheme` (live OKLCH tokens, light+dark via `data-ag-theme-mode`) | `ssrm-grid/src/agGrid/theme.ts` |
 | B6 | No bounded queue hub→window on the push path; a window that falls behind grows unbounded (observed: one renderer at 11 GB) | `SharedWorkerDataServicesHub` |
-| B7 | Dead code: `applyTickToSsrm.ts` (tested, unused), `getSsrmShareOfTotal` (exported, no consumer), `engine/index.ts` subpath (no importer) | — |
+| B7 | Dead code: ~~`applyTickToSsrm.ts`~~ (deleted with B1), `getSsrmShareOfTotal` (exported, smoke-tested, no runtime consumer), `engine/index.ts` subpath (no importer) | — |
 | B8 | ~~`__refresh` client test fails~~ **Fixed with T3** — test updated to the `__reload` contract; host-data fully green | `SharedWorkerDataServicesClient.test.ts` |
 | B9 | No e2e coverage of SSRM at all — zero matches for `ssrm`/`rowModel` under `e2e/` | — |
 
@@ -326,8 +376,9 @@ export, header-painter book counting.
   `set SWEEP_ROWS_PER_SEC=2000 && npm run dev:stomp` (cmd) /
   `$env:SWEEP_ROWS_PER_SEC=2000; npm run dev:stomp` (PowerShell).
   At the default (~20k rows/s into a 20k book) reads degrade to ~150 ms.
-- star-demo blotters currently run **client-side** (`useSSRM` is commented out
-  at `BlottersMarketsGrid.tsx:60`).
+- star-demo blotters run the **pull plane** (`dataPlane="pull"` in
+  `BlottersMarketsGrid.tsx`; auto-falls back to push when the bootstrap lacks
+  `perspectiveWorkerScriptUrl`, and in historical mode).
 - OpenFin SharedWorker inspection: `chrome://inspect#devices` → Configure →
   `localhost:9091` (manifest sets `devtools_port` + `--remote-debugging-port`).
 
