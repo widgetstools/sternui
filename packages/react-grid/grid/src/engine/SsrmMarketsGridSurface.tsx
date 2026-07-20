@@ -4,6 +4,7 @@ import { buildStreamSafeComponents } from '../widget/buildStreamSafeComponents.j
 import { stripSurfaceManagedGridOptions } from '../widget/gridSurfaceOptions.js';
 import {
   SsrmGrid,
+  type SsrmEngine,
   type SSRMGridHandle,
   type SSRMColDef,
 } from './ssrmgrid-entry.js';
@@ -33,6 +34,11 @@ export type SsrmMarketsGridSurfaceProps = {
   gridOptions?: Record<string, unknown>;
   /** Keys the host passed explicitly — pipeline must not fight these. */
   hostOverrideKeys?: ReadonlySet<string>;
+  /**
+   * Pull data path: externally-owned engine (worker-hosted table). When set,
+   * `rowData` is ignored — the grid fetches viewport blocks only.
+   */
+  ssrmPullEngine?: SsrmEngine;
   /** From general-settings (same defaults as CSRM). */
   grandTotalRow?: boolean | 'top' | 'bottom' | 'pinnedTop' | 'pinnedBottom';
   groupTotalRow?: 'top' | 'bottom';
@@ -111,7 +117,9 @@ export const SsrmMarketsGridSurface = forwardRef<
       <SsrmGrid
         ref={inner}
         columnDefs={props.columnDefs}
-        rowData={props.rowData}
+        {...(props.ssrmPullEngine
+          ? { engine: props.ssrmPullEngine } // pull: no rowData — blocks only
+          : { rowData: props.rowData })}
         getRowId={props.rowIdField}
         height={props.height ?? '100%'}
         quickFilterText={props.quickFilterText}

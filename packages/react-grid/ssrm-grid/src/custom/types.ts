@@ -74,9 +74,9 @@ export interface SsrmGridProps {
   rowData?: Record<string, unknown>[];
   /**
    * Engine to drive instead of the built-in main-thread RowMirror engine
-   * (`createCustomEngine`). Captured on mount; the grid owns its lifecycle
-   * from then on (disposed on unmount) — pass a fresh instance per grid.
-   * This is the T1 seam: pair with `rowData` omitted for the pull path.
+   * (`createCustomEngine`). Captured on mount and OWNED BY THE INJECTOR —
+   * the grid never disposes it, so it survives grid remounts. This is the
+   * T1 seam: pair with `rowData` omitted for the pull path.
    */
   engine?: SsrmEngine;
   getRowId: string;

@@ -412,6 +412,7 @@ function MarketsGridInner<TData = unknown>(
         suggestSsrmAbove={props.suggestSsrmAbove}
         onSuggestSsrm={props.onSuggestSsrm}
         ssrmEngine={props.ssrmEngine}
+        ssrmPullEngine={props.ssrmPullEngine}
         ssrmExpectedRowCount={props.ssrmExpectedRowCount}
         rowIdField={rowIdField}
       />
@@ -492,6 +493,7 @@ function MarketsGridCoreInner<TData = unknown>(
               includeAllStreamSafeFilters={includeAllStreamSafeFilters ?? true}
               onGridReady={shell.handleGridReady}
               ssrmEngine={props.ssrmEngine}
+              ssrmPullEngine={props.ssrmPullEngine}
               ssrmExpectedRowCount={props.ssrmExpectedRowCount}
               grandTotalRow={
                 shell.gridOptions.grandTotalRow as

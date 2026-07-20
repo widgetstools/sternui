@@ -55,6 +55,14 @@ export interface UseProviderDataWiringParams<TData extends Record<string, unknow
    */
   providerWorkerRouting?: ProviderWorkerRoutingOpts;
   restartProvider: (extra?: Record<string, unknown>) => Promise<void>;
+  /**
+   * `'pull'`: the dataset lives in a worker-hosted Perspective table and the
+   * grid reads viewport blocks through its own engine — this wiring must NOT
+   * apply snapshot rows or ticks to the grid (the pull engine would write
+   * them back into the shared table). Provider start/restart, status, and
+   * overlay bookkeeping still run. Default `'push'`.
+   */
+  dataPlane?: 'push' | 'pull';
   onError?: (error: Error) => void;
   containerEventBus: ContainerEventBus;
   setLoadRowCount: (count: number | undefined) => void;
@@ -101,6 +109,7 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
     dataHubClient,
     providerWorkerRouting,
     restartProvider,
+    dataPlane,
     onError,
     containerEventBus,
     setLoadRowCount,
@@ -115,13 +124,17 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
   } = params;
 
   const applyDataTransactionAsync = gridHandle?.applyDataTransactionAsync;
+  const pull = dataPlane === 'pull';
 
   useEffect(() => {
     // SSRM needs the MarketsGrid handle (applyDataTransactionAsync) so ticks
     // land after snapshot; snapshot itself goes through onSsrmSnapshot → rowData.
-    const dataSurfaceReady = useSSRM
-      ? Boolean(applyDataTransactionAsync) && Boolean(onSsrmSnapshot)
-      : Boolean(liveApi);
+    // Pull plane needs NO data surface — rows never flow through this window.
+    const dataSurfaceReady = pull
+      ? true
+      : useSSRM
+        ? Boolean(applyDataTransactionAsync) && Boolean(onSsrmSnapshot)
+        : Boolean(liveApi);
 
     if (!dataSurfaceReady || !provider || !activeId) {
       if (DEBUG) {
@@ -175,6 +188,17 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
 
     const unsubSnapshot = provider.onSnapshotData((rows) => {
       if (cancelled) return;
+      if (pull) {
+        // Pull plane: the worker already teed this snapshot into the table.
+        // Only the overlay bookkeeping runs — no grid/row application.
+        setLoadRowCount(rows.length);
+        setResolvedSubKey(thisSubKey);
+        setIsRefetching(false);
+        setProviderDisconnected(false);
+        setDisconnectDetail(undefined);
+        providerStatusRef.current = 'ready';
+        return;
+      }
       Promise.resolve().then(() => {
         if (cancelled) return;
         if (DEBUG) {
@@ -221,6 +245,10 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
     let updateBatchCount = 0;
     const unsubTick = provider.onTick((updateRows) => {
       if (cancelled || updateRows.length === 0 || !applyLiveTicks) return;
+      // Pull plane: ticks reach the grid via the worker table + engine
+      // dirty notifications; applying them here would write into the
+      // SHARED table through the pull engine.
+      if (pull) return;
       updateBatchCount += 1;
 
       if (useSSRM && applyDataTransactionAsync) {
@@ -387,5 +415,5 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveApi, provider, activeId, rowIdFieldKey, onError, dataHubClient, mode, asOfDate, toolbarDate, restartProvider, pauseUpdatesWhenHidden, useSSRM, applyDataTransactionAsync, onSsrmSnapshot]);
+  }, [liveApi, provider, activeId, rowIdFieldKey, onError, dataHubClient, mode, asOfDate, toolbarDate, restartProvider, pauseUpdatesWhenHidden, useSSRM, pull, applyDataTransactionAsync, onSsrmSnapshot]);
 }

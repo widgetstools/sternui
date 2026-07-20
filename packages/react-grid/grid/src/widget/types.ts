@@ -40,8 +40,7 @@ export interface MarketsGridProps<TData = unknown> {
   rowData: TData[];
   /**
    * When true, use SSRM via SsrmGrid (RowMirror).
-   * Default false — classic CSRM MarketsGrid. SSRM features are gated by
-   * `CURRENT_SSRM_PHASE` in `engine/ssrmCapabilities.ts`.
+   * Default false — classic CSRM MarketsGrid.
    * Prefer {@link MarketsGridProps.rowModel} for new code; when both are set,
    * `useSSRM` wins.
    */
@@ -50,6 +49,14 @@ export interface MarketsGridProps<TData = unknown> {
    * @deprecated Ignored — MarketsGrid SSRM is SsrmGrid only.
    */
   ssrmEngine?: 'custom' | 'perspective' | 'auto';
+  /**
+   * Pull data path (ADR-ssrm-worker-hosted-engine): an externally-owned
+   * `SsrmEngine` (e.g. `createPerspectiveEngine` over a worker-hosted
+   * table). When set with SSRM active, the grid reads viewport blocks from
+   * this engine and IGNORES `rowData` — the window holds no dataset. The
+   * injector owns the engine's lifecycle.
+   */
+  ssrmPullEngine?: import('../engine/ssrmgrid-entry.js').SsrmEngine;
   /**
    * @deprecated Ignored — reserved for older auto-engine heuristics.
    */

@@ -4,6 +4,7 @@
  */
 export {
   SsrmGrid,
+  createPerspectiveEngine,
   shareOfTotal,
   shareOfAggregate,
   formatShareOfTotal,
@@ -14,6 +15,8 @@ export {
 export type {
   SsrmGridHandle,
   SsrmGridProps,
+  SsrmEngine,
+  PerspectiveClient,
   SSRMColDef,
   SSRMTransaction,
 } from '@wellsfargo-starui/ssrm-grid';

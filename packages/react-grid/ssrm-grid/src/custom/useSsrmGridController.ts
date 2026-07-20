@@ -85,7 +85,10 @@ export function useSsrmGridController(props: SsrmGridProps) {
   const { columnDefs, rowData, getRowId: idField } = props;
   const apiRef = useRef<GridApi | null>(null);
   // Typed as the seam — compile-time proof the controller works with any
-  // engine. An injected engine (pull path) is captured once on mount.
+  // engine. An injected engine (pull path) is captured once on mount and
+  // stays OWNED BY THE INJECTOR — the grid must not dispose it, or a grid
+  // remount (profile switch, useSSRM toggle) would kill the shared engine.
+  const ownsEngineRef = useRef(props.engine == null);
   const engineRef = useRef<SsrmEngine>(props.engine ?? createCustomEngine());
   const configuredGateRef = useRef(new ConfiguredGate());
   const configuredRef = useRef(false);
@@ -222,7 +225,7 @@ export function useSsrmGridController(props: SsrmGridProps) {
       engine.setDirtyHandler?.(null);
       setActiveStubLeafReader(null);
       router.dispose();
-      engine.dispose();
+      if (ownsEngineRef.current) engine.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount once
   }, []);

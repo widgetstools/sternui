@@ -28,6 +28,12 @@ export {
 } from './createProviderPerspectiveConnect.js';
 
 export {
+  createPerspectiveReadClient,
+  type CreatePerspectiveReadClientOpts,
+  type PerspectiveReadClient,
+} from './createPerspectiveReadClient.js';
+
+export {
   linkProviderToPerspective,
   perspectiveSharedWorkerName,
   parsePerspectiveWorkerName,

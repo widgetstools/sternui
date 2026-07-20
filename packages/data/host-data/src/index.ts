@@ -165,6 +165,7 @@ export {
   connectPerspectivePort,
   PERSPECTIVE_HANDSHAKE_TIMEOUT_MS,
   linkProviderToPerspective,
+  createPerspectiveReadClient,
   perspectiveSharedWorkerName,
   parsePerspectiveWorkerName,
   resolvePerspectiveWorkerUrl,
@@ -177,4 +178,6 @@ export {
   type PerspectiveAttachRequest,
   type PerspectiveAttachAck,
   type ConnectPerspectivePortOpts,
+  type CreatePerspectiveReadClientOpts,
+  type PerspectiveReadClient,
 } from './runtime/perspective/index.js';

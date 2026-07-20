@@ -114,6 +114,7 @@ export interface MarketsGridHostProps<TData> {
   suggestSsrmAbove?: number;
   onSuggestSsrm?: () => void;
   ssrmEngine?: 'custom' | 'perspective' | 'auto';
+  ssrmPullEngine?: import('../engine/ssrmgrid-entry.js').SsrmEngine;
   ssrmExpectedRowCount?: number;
   rowIdField: string | readonly string[];
 }
@@ -176,6 +177,7 @@ function MarketsGridHostInner<TData>({
   suggestSsrmAbove,
   onSuggestSsrm,
   ssrmEngine,
+  ssrmPullEngine,
   ssrmExpectedRowCount,
   rowIdField,
 }: MarketsGridHostProps<TData>) {
@@ -435,6 +437,7 @@ function MarketsGridHostInner<TData>({
           includeAllStreamSafeFilters={includeAllStreamSafeFilters}
           onGridReady={handleGridReady}
           ssrmEngine={ssrmEngine}
+          ssrmPullEngine={ssrmPullEngine}
           ssrmExpectedRowCount={ssrmExpectedRowCount}
           grandTotalRow={
             gridOptions.grandTotalRow as

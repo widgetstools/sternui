@@ -14,9 +14,14 @@ export type { DirtyMessage } from './ssrm/applyWorkerDirtyToGrid.js';
 
 export {
   createCustomEngine,
+  createPerspectiveEngine,
   materializeCalcColumns,
 } from './engine/index.js';
-export type { SsrmEngine } from './engine/index.js';
+export type {
+  SsrmEngine,
+  PerspectiveEngineOpts,
+  PerspectiveClient,
+} from './engine/index.js';
 
 export { foldTrafficLight, isTrafficLightAgg } from './ssrm/trafficLightAgg.js';
 export {

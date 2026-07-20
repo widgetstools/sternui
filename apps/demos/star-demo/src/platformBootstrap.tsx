@@ -62,6 +62,8 @@ import configWorkerAssetUrl from '@wellsfargo-starui/host-data/assets/config-cat
 import appDataWorkerAssetUrl from '@wellsfargo-starui/host-data/assets/appdata-worker.mjs?url';
 /** ADR Phase 4d — one SharedWorker per streaming provider id. */
 import providerWorkerAssetUrl from '@wellsfargo-starui/host-data/assets/provider-worker.mjs?url';
+/** SSRM pull plane — worker-hosted Perspective engine (`starui-psp:{appId}:{id}`). */
+import perspectiveWorkerAssetUrl from '@wellsfargo-starui/host-data/assets/perspective-server.worker.mjs?url';
 
 export interface PlatformBootstrapResult {
   config: PlatformBootstrapConfig;
@@ -159,6 +161,7 @@ export function initPlatformBootstrap(): Promise<PlatformBootstrapResult> {
         configWorkerScriptUrl: configWorkerAssetUrl,
         appDataWorkerScriptUrl: appDataWorkerAssetUrl,
         providerWorkerScriptUrl: providerWorkerAssetUrl,
+        perspectiveWorkerScriptUrl: perspectiveWorkerAssetUrl,
       });
       setConfigManager(platform.configManager);
       return { config, platform };

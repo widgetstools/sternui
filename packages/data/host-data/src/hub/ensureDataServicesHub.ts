@@ -47,6 +47,14 @@ export interface EnsureHubOpts extends PlatformBootstrapConfig {
    * When set, `getProvider` uses `createProviderClient` for data subscribe.
    */
   providerWorkerScriptUrl?: string;
+  /**
+   * Engine worker asset for the pull data path
+   * (`assets/perspective-server.worker.mjs`). When set alongside
+   * {@link providerWorkerScriptUrl}, pull-capable consumers
+   * (`MarketsGridContainer dataPlane='pull'`) can attach worker-hosted
+   * Perspective tables.
+   */
+  perspectiveWorkerScriptUrl?: string;
   /** Forwarded into provider-worker bootstrap for AppData template bridge. */
   appDataWorkerScriptUrl?: string;
   /** Forwarded into provider-worker bootstrap for Config SW bridge. */
@@ -174,6 +182,7 @@ function adaptDataServicesToHubBundle(
     opts.providerWorkerScriptUrl
       ? {
           workerScriptUrl: opts.providerWorkerScriptUrl,
+          perspectiveWorkerScriptUrl: opts.perspectiveWorkerScriptUrl,
           appId: opts.appId,
           userId: opts.userId,
           configServiceRestUrl: resolveConfigServiceRestUrl(opts),

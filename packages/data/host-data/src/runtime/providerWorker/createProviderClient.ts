@@ -8,6 +8,13 @@ import { ProviderClient } from './ProviderClient.js';
 export interface CreateProviderClientOpts extends CreateProviderWorkerOpts {
   /** Bundled worker asset URL (`?url` import from the app). */
   workerScriptUrl: string;
+  /**
+   * Engine worker asset URL
+   * (`@wellsfargo-starui/host-data/assets/perspective-server.worker.mjs`).
+   * Enables the pull data path (worker-hosted Perspective table); omit to
+   * keep the push path only.
+   */
+  perspectiveWorkerScriptUrl?: string;
 }
 
 const clients = new Map<string, Promise<ProviderClient>>();

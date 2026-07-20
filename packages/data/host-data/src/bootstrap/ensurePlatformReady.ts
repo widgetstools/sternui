@@ -53,6 +53,14 @@ export interface EnsurePlatformReadyOpts {
    * Catalog + AppData UI use Config/AppData SWs when those URLs are set.
    */
   providerWorkerScriptUrl?: string;
+  /**
+   * Optional Perspective engine worker asset URL
+   * (`assets/perspective-server.worker.mjs`). Requires
+   * {@link providerWorkerScriptUrl}; enables `MarketsGridContainer
+   * dataPlane='pull'` to attach worker-hosted tables
+   * (`starui-psp:{appId}:{providerId}`).
+   */
+  perspectiveWorkerScriptUrl?: string;
   /** App-authored hook registry keyed by stable ids from app-config.json. */
   appDataBootstrapHooks?: AppDataBootstrapHookRegistry;
 }
@@ -278,6 +286,7 @@ async function bootstrapPlatformOnce(
     workerScriptUrl: opts.workerScriptUrl,
     mainThreadConfigManager: configManager,
     providerWorkerScriptUrl: opts.providerWorkerScriptUrl,
+    perspectiveWorkerScriptUrl: opts.perspectiveWorkerScriptUrl,
     appDataWorkerScriptUrl: opts.appDataWorkerScriptUrl,
     configWorkerScriptUrl: opts.configWorkerScriptUrl,
     appDataClient,

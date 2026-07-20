@@ -68,5 +68,8 @@ export { isOpenFin, openFinWindowOpener } from './runtime/openFin.js';
 
 export { useGeneralSettingsSnapshot } from './widget/useGeneralSettingsSnapshot.js';
 export { resolveUseSsrm, type MarketsGridRowModel } from './engine/resolveUseSsrm.js';
+// Pull data path (ADR-ssrm-worker-hosted-engine): engine factory + types for
+// hosts that hand MarketsGrid an `ssrmPullEngine`.
+export { createPerspectiveEngine } from './engine/ssrmgrid-entry.js';
+export type { SsrmEngine, PerspectiveClient } from './engine/ssrmgrid-entry.js';
 export { shouldSuggestSsrm } from './engine/shouldSuggestSsrm.js';
-export { CURRENT_SSRM_PHASE, isSsrmCapabilityEnabled } from './engine/ssrmCapabilities.js';

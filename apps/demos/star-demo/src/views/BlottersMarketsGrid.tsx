@@ -55,9 +55,12 @@ function BlottersMarketsGrid(): ReactNode {
       showFormattingToolbar
       showEditingToolbar
       defaultColDef={DEFAULT_COL_DEF}
-      // SsrmGrid (RowMirror) — snapshot via React rowData, ticks via
-      // applyDataTransactionAsync (see MarketsGridContainer / lab).
-      //useSSRM
+      // SSRM pull plane: live rows land once in the provider worker's
+      // Perspective table; every blotter window reads viewport blocks
+      // through its own view (no snapshot/tick fan-out into React). Falls
+      // back to push automatically if the platform bootstrap didn't pass
+      // `perspectiveWorkerScriptUrl`, and in historical mode.
+      dataPlane="pull"
       // OpenFin colour-based grid linking: dock-link two blotters to the same
       // colour to share row selection (see docs/OPENFIN_GRID_LINKING.md).
       // `rowIdField` auto-derives from the active provider's key column.

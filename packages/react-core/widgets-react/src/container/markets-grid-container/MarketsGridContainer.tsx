@@ -45,6 +45,7 @@ import {
 } from '@wellsfargo-starui/host-data-react/runtime';
 import { buildColumnDefs } from './buildColumnDefs.js';
 import { useProviderDataWiring } from './useProviderDataWiring.js';
+import { useSsrmPullEngine } from './useSsrmPullEngine.js';
 import { useGridLevelPersistence } from './useGridLevelPersistence.js';
 import { LOGGED_IN_USER_ID } from '@wellsfargo-starui/types';
 import {
@@ -138,6 +139,16 @@ export interface MarketsGridContainerProps<TData extends Record<string, unknown>
    * fields without hardcoding them. `null` until a provider/key resolves.
    */
   onRowIdFieldChange?(rowIdField: string | readonly string[] | null): void;
+  /**
+   * Data plane for the live provider (ADR-ssrm-worker-hosted-engine).
+   * `'push'` (default): rows stream into the window (snapshot + ticks).
+   * `'pull'`: the dataset lives ONCE in a worker-hosted Perspective table;
+   * the grid runs SSRM and fetches viewport blocks only — the window never
+   * holds the book. Requires demux routing with
+   * `perspectiveWorkerScriptUrl` (see `ensurePlatformReady`); falls back to
+   * push when unavailable.
+   */
+  dataPlane?: 'push' | 'pull';
 }
 
 export function MarketsGridContainer<TData extends Record<string, unknown> = Record<string, unknown>>(
@@ -154,6 +165,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     gridEventHandlers,
     handlerMeta,
     onRowIdFieldChange,
+    dataPlane,
     ...marketsGridProps
   } = props;
 
@@ -506,7 +518,21 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   });
 
   const liveApi = stamped && stamped.key === expectedKey ? stamped.api : null;
-  const useSSRM = resolveUseSsrm({
+  // Pull data plane (ADR): requires demux routing with the engine worker
+  // asset; falls back to push (with a one-shot warning) when unavailable.
+  const pullRequested = dataPlane === 'pull' && selection.mode === 'live';
+  const pullAvailable = Boolean(providerWorkerRouting?.perspectiveWorkerScriptUrl);
+  const pull = pullRequested && pullAvailable;
+  const pullFallbackWarnedRef = useRef(false);
+  if (pullRequested && !pullAvailable && !pullFallbackWarnedRef.current) {
+    pullFallbackWarnedRef.current = true;
+    // eslint-disable-next-line no-console
+    console.warn(
+      "[markets-grid-container] dataPlane='pull' requested but demux routing "
+      + 'has no perspectiveWorkerScriptUrl — falling back to push.',
+    );
+  }
+  const useSSRM = pull || resolveUseSsrm({
     useSSRM: marketsGridProps.useSSRM,
     rowModel: marketsGridProps.rowModel,
   });
@@ -533,6 +559,16 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     refresh: refreshProvider,
     restart: restartProvider,
   } = useDataProvider<TData>(providerReady ? activeId : null, { autoStart: false });
+
+  // Pull plane: window-side engine over the worker-hosted table. The engine
+  // (and its view cache) outlives grid remounts; the hook owns disposal.
+  const pullEngine = useSsrmPullEngine({
+    enabled: pull && providerReady,
+    providerId: activeId,
+    keyColumn: typeof rowIdField === 'string' ? rowIdField : null,
+    routing: providerWorkerRouting,
+    onError,
+  });
 
   // Loading-overlay state — derived synchronously from a "subscription
   // key" so the overlay appears on the SAME render that mounts the
@@ -638,8 +674,9 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     setIsRefetching,
     pauseUpdatesWhenHidden,
     useSSRM,
+    dataPlane: pull ? 'pull' : 'push',
     gridHandle,
-    onSsrmSnapshot: useSSRM ? onSsrmSnapshot : undefined,
+    onSsrmSnapshot: useSSRM && !pull ? onSsrmSnapshot : undefined,
   });
 
   /** Cache replay only — `IDataProvider.refresh()`; no upstream reconnect. */
@@ -924,13 +961,18 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // Provider id chosen but catalog row still loading — avoid mounting a
   // throwaway MarketsGrid shell (AG Grid + enterprise modules) that would
   // immediately unmount when cfg arrives.
-  if (activeId && activeRow.loading) {
+  // Pull plane also waits here for the window-side engine (worker link +
+  // read client) so MarketsGrid mounts with the engine in hand — SsrmGrid
+  // captures the injected engine once on mount.
+  if (activeId && (activeRow.loading || (pull && providerReady && !pullEngine))) {
     return (
       <>
         <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-          {activeProviderName
-            ? `Loading ${activeProviderName}…`
-            : 'Loading provider configuration…'}
+          {activeRow.loading
+            ? activeProviderName
+              ? `Loading ${activeProviderName}…`
+              : 'Loading provider configuration…'
+            : 'Connecting to the shared data table…'}
         </div>
         {dataDialogs}
       </>
@@ -945,7 +987,9 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
           <MarketsGrid<TData>
             {...(marketsGridProps as MarketsGridProps<TData>)}
             key={`${activeId}::${rowIdFieldKey}`}
-            rowData={(useSSRM ? (ssrmSnapshotRows ?? EMPTY) : EMPTY) as TData[]}
+            rowData={(useSSRM && !pull ? (ssrmSnapshotRows ?? EMPTY) : EMPTY) as TData[]}
+            useSSRM={useSSRM}
+            ssrmPullEngine={pull ? (pullEngine ?? undefined) : undefined}
             rowIdField={rowIdField}
             columnDefs={columnDefs}
             appData={appDataLookup}
