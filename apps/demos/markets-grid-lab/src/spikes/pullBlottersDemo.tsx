@@ -104,7 +104,7 @@ function Blotter({ client, index }: { client: PerspectiveClient; index: number }
   return (
     <div
       ref={hostRef}
-      style={{ flex: 1, minWidth: 480, display: 'flex', flexDirection: 'column', gap: 4 }}
+      style={{ flex: 1, minWidth: 560, display: 'flex', flexDirection: 'column', gap: 4 }}
     >
       <div style={{ font: '12px ui-monospace, monospace', color: '#8a94a6' }}>
         blotter #{index + 1} ·{' '}
@@ -120,13 +120,17 @@ function Blotter({ client, index }: { client: PerspectiveClient; index: number }
         )}{' '}
         · viewport blocks only — no dataset copy
       </div>
-      <div style={{ height: 420 }}>
+      <div style={{ height: '66vh' }}>
         <SsrmGrid
           ref={ref}
           engine={engine}
           columnDefs={COLUMN_DEFS}
           getRowId={KEY}
           height="100%"
+          sideBar={{
+            toolPanels: ['columns', 'filters'],
+            defaultToolPanel: 'columns',
+          }}
         />
       </div>
     </div>
@@ -225,19 +229,26 @@ async function main(): Promise<void> {
   const client = (await perspective.worker(Promise.resolve(readSW))) as unknown as PerspectiveClient;
   log('read-side Perspective client connected');
 
-  // 4. Mount blotters the moment the table exists (first-ever run waits for
-  //    the upstream snapshot; every later window/blotter attaches instantly).
+  // 4. Mount blotters once the table exists AND is seeded — the table is
+  //    created empty and the 20k replace lands moments later; mounting into
+  //    that window races the seed (first-ever run waits for the upstream
+  //    snapshot; every later window/blotter attaches instantly).
   const t0 = performance.now();
   for (;;) {
     const hosted = (await (client as unknown as {
       get_hosted_table_names(): Promise<string[]>;
     }).get_hosted_table_names());
-    if (hosted.includes(DATASET)) break;
+    if (hosted.includes(DATASET)) {
+      const table = await (client as unknown as {
+        open_table(name: string): Promise<{ size(): Promise<number> }>;
+      }).open_table(DATASET);
+      if ((await table.size()) > 0) break;
+    }
     el('status').textContent = `waiting for first snapshot… ${((performance.now() - t0) / 1000).toFixed(0)}s`;
     await new Promise((r) => setTimeout(r, 200));
   }
-  el('status').textContent = 'table hosted';
-  log(`<b>table available after ${((performance.now() - t0) / 1000).toFixed(1)}s — mounting blotters</b>`, 'ok');
+  el('status').textContent = 'table seeded';
+  log(`<b>table seeded after ${((performance.now() - t0) / 1000).toFixed(1)}s — mounting blotters</b>`, 'ok');
 
   createRoot(el('root')).render(<App client={client} />);
 }
