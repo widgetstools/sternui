@@ -216,9 +216,23 @@ export const SsrmGrid = forwardRef<SsrmGridHandle, SsrmGridProps>(
       // of px behind the cursor. Debounced, the scrollbar scrolls natively
       // (thumb glued to the cursor) and rows catch up when the motion
       // pauses — instantly, from the stale-serving block cache.
-      debounceVerticalScrollbar: props.debounceVerticalScrollbar ?? true,
+      // OFF (continuous row flow). The thumb-drag input starvation this
+      // used to cause (profiled: 53s of React.createElement in a 126s
+      // drag) came from PER-CELL loading stubs — ag-grid-react wraps every
+      // cell in a React component, so each viewport-jump event mounted
+      // ~900 components even for UNLOADED territory. With the full-width
+      // loading row below, cold-drag frames are ~45 cheap components and
+      // per-event rendering is affordable again. `true` remains available
+      // as an opt-in (thumb fully decoupled, rows render on idle only).
+      debounceVerticalScrollbar: props.debounceVerticalScrollbar ?? false,
       animateRows: false,
-      suppressServerSideFullWidthLoadingRow: !(props.showLoadingOverlay ?? false),
+      // Pull engines have no sync leaf reader, so per-cell loading stubs
+      // paint nothing — render AG's single full-width loading row instead
+      // (1 component/row vs ~20 React cells/row: cold drag frames get
+      // ~20× cheaper). Push engines keep per-cell stubs, which paint real
+      // values from the mirror.
+      suppressServerSideFullWidthLoadingRow:
+        c.hasStubLeafReader && !(props.showLoadingOverlay ?? false),
       rowHeight: props.rowHeight,
       headerHeight: props.headerHeight,
       asyncTransactionWaitMillis: 50,

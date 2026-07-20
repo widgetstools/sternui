@@ -636,6 +636,9 @@ export function useSsrmGridController(props: SsrmGridProps) {
     override,
     datasource,
     handle,
+    /** Push engines paint real values into per-cell loading stubs; pull
+     * engines cannot — SsrmGrid picks the loading-row strategy from this. */
+    hasStubLeafReader: stubLeafAt != null,
     grandTotalRowOpt: resolveGrandTotalRow(props.grandTotalRow),
     md,
     getRowIdCb,

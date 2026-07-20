@@ -431,12 +431,23 @@ report: sluggish scroll, slow sort, "no" realtime updates, wrong statusBar):**
   dispatch itself starved (a scripted 3 s drag took 97 s to execute), the
   thumb thousands of px behind the cursor. Wheel scrolling never hits
   this (small deltas → incremental row shifts), which is why synthetic
-  probes looked clean. Fix: `debounceVerticalScrollbar` defaults ON — the
-  scrollbar scrolls natively (thumb glued to the cursor) and rows catch
-  up when motion pauses, instantly via the stale cache. Re-measured with
-  a real mouse drag: p50/p95 frame time **16.7/16.8 ms** (was 233/550),
-  17/847 frames over 33 ms (was 749/949), content within 2–6 ms of the
-  release point.
+  probes looked clean. Fix evolution: `debounceVerticalScrollbar: true`
+  gave a perfectly glued thumb (p50/p95 16.7/16.8 ms, content 2–6 ms
+  behind release) but froze rows until motion stopped — rejected (rows
+  must FLOW while dragging). The profiled root of the per-event cost was
+  PER-CELL LOADING STUBS: ag-grid-react wraps every cell in a React
+  component, so one viewport-jump event mounted ~900 components even for
+  UNLOADED territory. Final state: full-width loading rows whenever the
+  engine lacks a sync leaf reader (`hasStubLeafReader` — i.e. pull mode;
+  ~45 cheap components per cold frame, ~20× less) and
+  `debounceVerticalScrollbar` back to **false** so rows render
+  continuously; `true` remains an opt-in prop for the frozen-but-glued
+  tradeoff. A DOM-level throttled thumb→viewport sync middle ground was
+  tried and REVERTED — writing `viewport.scrollTop` mid-drag makes AG's
+  reverse mirror yank the scrollbar out of the user's hand. NOTE: React
+  dev mode inflates every number here (the profile was dominated by
+  `createTask`/`validateProperty` dev-only instrumentation) — judge the
+  final scroll feel on a PRODUCTION build.
 - NOTE the field report also had an environmental factor: the STOMP demo
   server at its default sweep ceiling (~20k rows/s into a 20k book — reads
   degrade to ~150 ms). See Environment notes; run with
