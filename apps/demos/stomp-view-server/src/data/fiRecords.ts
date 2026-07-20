@@ -587,12 +587,22 @@ export function slimRecord<T extends Record<string, unknown>>(record: T): T {
   return out as T;
 }
 
+/** Deterministic per (dataType, rowCount, seedBase, profile) — memoise so a
+ * reconnect / second client on the same feed does not regenerate 20k wide
+ * rows (bounded: a handful of demo feeds exist per server run). */
+const snapshotMemo = new Map<string, (PositionRecord | TradeRecord)[]>();
+const SNAPSHOT_MEMO_MAX = 8;
+
 export function buildSnapshot(
   dataType: "positions" | "trades",
   rowCount: number,
   seedBase: number,
   profile: RowProfile = "wide",
 ): (PositionRecord | TradeRecord)[] {
+  const memoKey = `${dataType}:${rowCount}:${seedBase}:${profile}`;
+  const hit = snapshotMemo.get(memoKey);
+  if (hit) return hit;
+
   const out: (PositionRecord | TradeRecord)[] = [];
   for (let i = 0; i < rowCount; i++) {
     const seed = seedBase + Math.imul(i, 1_000_003);
@@ -602,6 +612,12 @@ export function buildSnapshot(
         : generateTrade(seed);
     out.push(profile === "slim" ? slimRecord(record) : record);
   }
+
+  if (snapshotMemo.size >= SNAPSHOT_MEMO_MAX) {
+    const oldest = snapshotMemo.keys().next().value;
+    if (oldest !== undefined) snapshotMemo.delete(oldest);
+  }
+  snapshotMemo.set(memoKey, out);
   return out;
 }
 

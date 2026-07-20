@@ -31,7 +31,10 @@ const STOMP_CFG = {
   providerType: 'stomp',
   websocketUrl: 'ws://localhost:8081',
   listenerTopic: '/snapshot/positions/trd1',
-  requestMessage: '/snapshot/positions/trd1/1000/10',
+  // rate=1000 (live pace); batchSize=2000 rows per 10ms server batch -
+  // the third segment is BATCH SIZE, not rate; 10 meant 1k rows/s and a
+  // 20s snapshot.
+  requestMessage: '/snapshot/positions/trd1/1000/2000',
   snapshotEndToken: 'Success',
   keyColumn: KEY,
   throttleEnabled: true,

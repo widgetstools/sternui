@@ -11,6 +11,11 @@ export function pick<T>(rng: () => number, arr: readonly T[]): T {
   return arr[Math.floor(rng() * arr.length)]!;
 }
 
+/** Powers of ten for arithmetic rounding — `toFixed` (string round-trip) was
+ * the snapshot generator's hot spot: ~250 calls/row × 20k rows ≈ 5M string
+ * allocations, several SECONDS per snapshot build. */
+const POW10 = [1, 10, 100, 1_000, 10_000, 100_000, 1_000_000];
+
 export function randBetween(
   rng: () => number,
   min: number,
@@ -19,7 +24,8 @@ export function randBetween(
 ): number {
   const v = rng() * (max - min) + min;
   if (decimals === null) return v;
-  return Number(v.toFixed(decimals));
+  const p = POW10[decimals] ?? 10 ** decimals;
+  return Math.round(v * p) / p;
 }
 
 export function randInt(rng: () => number, min: number, max: number): number {

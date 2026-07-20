@@ -38,7 +38,10 @@ const STOMP_CFG = {
   providerType: 'stomp',
   websocketUrl: 'ws://localhost:8081',
   listenerTopic: '/snapshot/positions/trd1',
-  requestMessage: '/snapshot/positions/trd1/1000/10',
+  // rate=1000 (live pace); batchSize=2000 rows per 10ms server batch -
+  // the third segment is BATCH SIZE, not rate; 10 meant 1k rows/s and a
+  // 20s snapshot.
+  requestMessage: '/snapshot/positions/trd1/1000/2000',
   snapshotEndToken: 'Success',
   keyColumn: KEY,
   throttleEnabled: true,
@@ -166,24 +169,10 @@ async function main(): Promise<void> {
     name: `starui-provider:${APP_ID}:${PROVIDER_ID}`,
   });
   providerSW.port.start();
-  let linkPosted = false;
   providerSW.port.addEventListener('message', (ev: MessageEvent) => {
     const data = ev.data as { kind?: string; status?: string; linked?: boolean; error?: string };
     if (data?.kind === 'status') {
       el('status').textContent = data.status ?? '…';
-      if (data.status === 'ready' && !linkPosted) {
-        linkPosted = true;
-        // 2. Hand-off: this window introduces provider worker ↔ engine worker.
-        linkProviderToPerspective({
-          appId: APP_ID,
-          providerId: PROVIDER_ID,
-          dataset: DATASET,
-          keyColumn: KEY,
-          workerScriptUrl: pspWorkerUrl,
-          providerPort: providerSW.port,
-        });
-        log('psp-attach hand-off posted');
-      }
     } else if (data?.kind === 'psp-attach-ok') {
       log(
         data.linked
@@ -196,6 +185,18 @@ async function main(): Promise<void> {
   providerSW.port.postMessage({
     kind: 'attach', subId: SUB_ID, providerId: PROVIDER_ID, mode: 'data', cfg: STOMP_CFG,
   });
+  // 2. Hand-off IMMEDIATELY — the attach handler infers the table schema from
+  //    the provider's first cached rows, so the engine worker's WASM
+  //    fetch/compile overlaps the STOMP snapshot instead of following it.
+  linkProviderToPerspective({
+    appId: APP_ID,
+    providerId: PROVIDER_ID,
+    dataset: DATASET,
+    keyColumn: KEY,
+    workerScriptUrl: pspWorkerUrl,
+    providerPort: providerSW.port,
+  });
+  log('psp-attach hand-off posted (parallel with the snapshot)');
   setInterval(() => {
     providerSW.port.postMessage({ kind: 'ping', subId: SUB_ID });
   }, 10_000);
