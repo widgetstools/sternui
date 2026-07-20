@@ -447,7 +447,14 @@ report: sluggish scroll, slow sort, "no" realtime updates, wrong statusBar):**
   reverse mirror yank the scrollbar out of the user's hand. NOTE: React
   dev mode inflates every number here (the profile was dominated by
   `createTask`/`validateProperty` dev-only instrumentation) — judge the
-  final scroll feel on a PRODUCTION build.
+  final scroll feel on a PRODUCTION build. Round 4 (fling flicker + thumb
+  jitter; the scroll trace showed ZERO reversals and rock-stable
+  geometry, so both were paint strobing, not scroll mechanics):
+  `blockLoadDebounceMillis` 50 → **150** — blocks load on DWELL, not
+  passage, so a fling no longer strobes skeleton→cells→skeleton
+  mid-sweep — and the full-width loading row is styled QUIET
+  (`ssrmLoadingRow.css` hides AG's per-row spinner + "Loading…" text; an
+  empty theme-colored row is the calm placeholder).
 - NOTE the field report also had an environmental factor: the STOMP demo
   server at its default sweep ceiling (~20k rows/s into a 20k book — reads
   degrade to ~150 ms). See Environment notes; run with

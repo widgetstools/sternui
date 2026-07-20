@@ -1,0 +1,15 @@
+/*
+ * Quiet SSRM loading rows.
+ *
+ * AG's full-width loading row renders a spinner icon + "Loading…" text per
+ * row — during a fling that's up to ~46 of them strobing against real
+ * cell rows, which reads as heavy flicker. A fast local engine fills rows
+ * within ~150ms of a pause, so the calm presentation is an EMPTY row at
+ * row height: no spinner, no text, no shimmer (motion is itself flicker).
+ * Theme-correct by construction — an empty row shows the theme's own row
+ * background/borders.
+ */
+.ag-row-loading .ag-loading-icon,
+.ag-row-loading .ag-loading-text {
+  display: none;
+}

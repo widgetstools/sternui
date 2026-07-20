@@ -24,6 +24,7 @@ import {
 } from "./ssrmStatusBarPanels";
 import { QuickFilterHighlightCellRenderer } from "./QuickFilterHighlightCellRenderer";
 import "./quickFilterHighlight.css";
+import "./ssrmLoadingRow.css";
 import { stripSsrmStructuralGridOptions } from "./ssrmGridOptionsPassthrough";
 import { useSsrmGridController } from "./useSsrmGridController";
 import type { SsrmGridHandle, SsrmGridProps } from "./types";
@@ -201,7 +202,13 @@ export const SsrmGrid = forwardRef<SsrmGridHandle, SsrmGridProps>(
       // traffic.)
       maxBlocksInCache: props.maxBlocksInCache ?? 30,
       maxConcurrentDatasourceRequests: 4,
-      blockLoadDebounceMillis: props.blockLoadDebounceMillis ?? 50,
+      // 150: blocks load on DWELL, not on passage. At 50ms a fling loaded
+      // every block it swept past — up to ~46 rows at a time strobing
+      // skeleton → cells → skeleton (the "flickering"), and the burst of
+      // swap work stuttered the scrollbar mirror (the thumb "bounce").
+      // Positions you pause on still fill in ~150ms + a millisecond-scale
+      // engine read; revisited ranges come from the stale cache instantly.
+      blockLoadDebounceMillis: props.blockLoadDebounceMillis ?? 150,
       // OFF: `true` (the legacy CustomSSRMGrid carry-over) makes AG render
       // rows SYNCHRONOUSLY inside the scroll event handler — the scrollbar
       // thumb then lags the cursor by exactly that render cost. With rAF
