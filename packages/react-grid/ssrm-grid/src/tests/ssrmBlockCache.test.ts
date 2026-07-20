@@ -174,4 +174,24 @@ describe("createCustomDatasource sync cache", () => {
     });
     expect(getRows).toHaveBeenCalledTimes(1);
   });
+
+  it("forwards the engine's totalRowCount to onTotals (status-bar total)", async () => {
+    const getRows = vi.fn(async () => ({
+      rowData: [{ id: "b" }],
+      rowCount: 400, // partial: the shared table is still filling
+      totalRowCount: 20_000,
+    }));
+    const onTotals = vi.fn();
+    const ds = createCustomDatasource(
+      () => ({ getRows }) as never,
+      () => "main",
+      () => ({ isConfigured: true, refreshGeneration: 0 }),
+      onTotals,
+      new SsrmBlockCache(),
+    );
+
+    ds.getRows(mockParams() as never);
+    await vi.waitFor(() => expect(onTotals).toHaveBeenCalledTimes(1));
+    expect(onTotals).toHaveBeenCalledWith({}, 400, undefined, 20_000);
+  });
 });

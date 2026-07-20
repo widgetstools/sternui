@@ -592,9 +592,12 @@ from an engine instead of holding the dataset. Engine-agnostic behind
   queryAll, forEachMatching, chartFilteredData, exportAll, selection state),
   `ssrmDirtyRouter` (dirty routing over `RefreshScheduler` — leaf txs
   conflate by row id and flush scroll-deferred/purge-subsuming/staleness-
-  bounded; the block cache is patched immediately so sync serving never goes
-  stale; purges invalidate cache/generation/view at signal time and defer
-  only the grid store purge), `custom/types.ts` (`SsrmGridHandle`,
+  bounded; the block cache is patched immediately on leaf txs so sync
+  serving never goes stale; bare-dirty invalidation (cache clear +
+  generation bump + view invalidation) is CONFLATED INTO THE FLUSH — one
+  invalidation + one soft refresh per scheduler interval however many
+  subscribed views fire per tick batch, so the sync scroll fast path stays
+  warm under a live feed), `custom/types.ts` (`SsrmGridHandle`,
   `SsrmGridProps`). Row-id encodings (`g:`/`t:`/`tl:`/grand-total), tree
   data, master-detail, set-filter values, cell-edit write-back with schema
   coercion, and export/chart context-menu overrides carry over from the old
@@ -628,7 +631,11 @@ from an engine instead of holding the dataset. Engine-agnostic behind
   `ServerTotalRowCountPanel`, `ServerSelectedRowCountPanel`);
   `agAggregationComponent` and custom panels pass through. `SsrmGrid` merges
   pipeline statusBar (translated) → surface `statusBar` prop → SSRM default,
-  mirroring CSRM precedence (worklog T8)
+  mirroring CSRM precedence (worklog T8). The total row count stays LIVE
+  under pull: `SsrmGetRowsResult.totalRowCount` (Perspective engine:
+  `table.size()`) flows through the datasource `onTotals` into
+  `context.totalRowCount`, so the panels track the shared table as it fills
+  instead of latching the first partial count
 - Quick-filter option intercept — `SsrmGrid` wraps `api.setGridOption` on
   grid-ready: `quickFilterText` writes (QuickSearch, grid-state restore)
   fold into the engine query + highlight while still reaching AG so
@@ -727,7 +734,8 @@ from an engine instead of holding the dataset. Engine-agnostic behind
   grid-level provider persistence; provider pickers live in grid customizer → Custom Settings (`providerGridHost`)
 - `MarketsGridContainer` — hub data via `useDataProvider` + `applyProviderToGrid` (no direct `client.subscribe` / cfg pass-through); optional `defaultLiveProviderId` for single-provider demos; live mode cold-starts STOMP immediately (hub attach dedupes concurrent windows); peer blotters late-join when the stable restart overlay matches (`rowShape` / `asOfDate`); wire-up never stamps `__refresh` (demux: monolith `isProviderRunning` is blind — uses `isProviderWorkerRunning` when routed); intentional Reload uses `__reload`; historical restore waits on the provider SW when demuxed
 - `useProviderDataWiring` — provider→grid hot path inside `MarketsGridContainer`; pauses live-tick `applyTransactionAsync` while `document.hidden` (background OpenFin views) and runs one `provider.refresh()` cache replay when the view becomes visible again; on STOMP auto-reconnect (`error` → `ready`) clears the stale banner and triggers `provider.refresh()` so every blotter replays the hub cache without a manual Reload
-- `MarketsGridContainer.dataPlane` (`'push' | 'pull'`, default push) — SSRM pull-plane opt-in ([ADR](./ADR-ssrm-worker-hosted-engine.md) Phase 4): with `'pull'` in live mode and a bootstrap that passed `perspectiveWorkerScriptUrl`, the container forces SSRM, builds the window-side engine via `useSsrmPullEngine`, gates MarketsGrid mount on it ("Connecting to the shared data table…"), and hands MarketsGrid `ssrmPullEngine` instead of snapshot rows; falls back to push (one-shot console warning) when the routing lacks the engine worker URL, and in historical mode. Under pull, `useProviderDataWiring` keeps provider start/status/overlay bookkeeping but applies NO rows — the snapshot handler only updates overlay state and the tick handler returns early (either would write back into the SHARED table through the engine)
+- `MarketsGridContainer.dataPlane` (`'push' | 'pull'`, default push) — SSRM pull-plane opt-in ([ADR](./ADR-ssrm-worker-hosted-engine.md) Phase 4): with `'pull'` in live mode and a bootstrap that passed `perspectiveWorkerScriptUrl`, the container forces SSRM, builds the window-side engine via `useSsrmPullEngine`, gates MarketsGrid mount on it, and hands MarketsGrid `ssrmPullEngine` instead of snapshot rows; falls back to push (one-shot console warning) when the routing lacks the engine worker URL, and in historical mode. Under pull, `useProviderDataWiring` keeps provider start/status/overlay bookkeeping but applies NO rows — the snapshot handler only updates overlay state and the tick handler returns early (either would write back into the SHARED table through the engine)
+- `MarketsGridLoadingOverlay.dataPlane` (`'push' | 'pull'`) — pull-aware busy indicator: pull subtitles say "Loading shared data table · N rows" / "Connecting to the shared data table…" (never "Buffering snapshot … received" — the dataset never enters the window), refetch shows "Re-syncing shared data table…", and the pull cold-start mount gate renders the SAME animated overlay with live `loadRowCount` progress instead of a static text line
 - `useSsrmPullEngine` — per (appId, providerId): posts the `psp-attach` SharedWorker port hand-off (`linkProviderToPerspective`, idempotent — the provider worker dedupes) and opens this window's read connection (`createPerspectiveReadClient`) wrapped in `createPerspectiveEngine({ attachToHostedTable: true })`; the hook OWNS engine disposal (SsrmGrid never disposes injected engines), so profile-switch grid remounts keep the engine + view cache alive
 - `MarketsGridContainer` — when an active provider id is chosen but `useDataProviderConfig` is still loading, renders a lightweight placeholder (no throwaway `MarketsGrid` / AG Grid shell); the `__no_provider__` shell path is unchanged when no provider is selected or cfg is loaded but missing key/columns
 - `applyProviderToGrid` — live-tick add/update split with pending-add coalescing (`createApplyProviderToGridState`, `splitProviderRowsForGrid`, `splitProviderRowsWithResolver`); after snapshot commit, `markSnapshotLoaded` indexes row ids so live ticks avoid O(n) `getRowNode`; ticks for ids still in an async add queue retain the latest payload instead of being dropped so peer grids on the same hub provider stay row-count aligned; internal to `MarketsGridContainer` / `useBlotterDataConnection` (not on public barrel)

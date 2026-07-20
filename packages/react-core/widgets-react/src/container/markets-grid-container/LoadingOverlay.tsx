@@ -13,17 +13,29 @@ export interface LoadingOverlayProps {
   message?: string;
   /** Optional row count — shown when a snapshot is actively streaming. */
   rowCount?: number;
+  /**
+   * `'pull'`: the dataset lives in a worker-hosted shared table and this
+   * window never buffers it — default subtitles say so instead of implying
+   * rows are being fetched into the window. Default `'push'`.
+   */
+  dataPlane?: 'push' | 'pull';
 }
 
 export function MarketsGridLoadingOverlay({
   title = 'Loading market data',
   message,
   rowCount,
+  dataPlane = 'push',
 }: LoadingOverlayProps) {
+  const pull = dataPlane === 'pull';
   const subtitle =
     message ?? (typeof rowCount === 'number'
-      ? `Buffering snapshot · ${rowCount.toLocaleString()} row${rowCount === 1 ? '' : 's'} received`
-      : 'Fetching snapshot…');
+      ? pull
+        ? `Loading shared data table · ${rowCount.toLocaleString()} row${rowCount === 1 ? '' : 's'}`
+        : `Buffering snapshot · ${rowCount.toLocaleString()} row${rowCount === 1 ? '' : 's'} received`
+      : pull
+        ? 'Connecting to the shared data table…'
+        : 'Fetching snapshot…');
 
   return (
     <>

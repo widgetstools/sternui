@@ -397,9 +397,13 @@ export function useSsrmGridController(props: SsrmGridProps) {
           rowKeepExpression: rowKeepExpressionRef.current || undefined,
           refreshGeneration: refreshGenerationRef.current,
         }),
-        (totals, filteredRowCount, aggregates) => {
+        (totals, filteredRowCount, aggregates, totalRowCount) => {
           const api = apiRef.current;
           if (!api) return;
+          // Engine-supplied book size (pull: the shared table's row count)
+          // keeps the total LIVE while the table fills — the ref fallback
+          // alone latches whatever count the first block fetch saw.
+          if (totalRowCount != null) totalRowCountRef.current = totalRowCount;
           const prev =
             (api.getGridOption("context") as
               | Record<string, unknown>

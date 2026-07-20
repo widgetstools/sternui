@@ -43,6 +43,9 @@ function toCached(result: SsrmGetRowsResult): CachedGetRows {
     ...(result.filteredRowCount != null
       ? { filteredRowCount: result.filteredRowCount }
       : {}),
+    ...(result.totalRowCount != null
+      ? { totalRowCount: result.totalRowCount }
+      : {}),
   };
 }
 
@@ -72,6 +75,7 @@ export function createCustomDatasource(
     totals: Record<string, unknown>,
     filteredRowCount: number,
     aggregates?: Record<string, Record<string, unknown>>,
+    totalRowCount?: number,
   ) => void,
   blockCache?: SsrmBlockCache,
 ): IServerSideDatasource {
@@ -159,6 +163,7 @@ export function createCustomDatasource(
             result.totals ?? {},
             result.filteredRowCount ?? result.rowCount,
             result.aggregates,
+            result.totalRowCount,
           );
         }
 

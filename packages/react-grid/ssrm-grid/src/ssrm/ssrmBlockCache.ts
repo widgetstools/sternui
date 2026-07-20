@@ -9,6 +9,7 @@ export type CachedGetRows = Pick<
   | "totals"
   | "aggregates"
   | "filteredRowCount"
+  | "totalRowCount"
 >;
 
 /** Fields that uniquely identify a Perspective SSRM block slice. */

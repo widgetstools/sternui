@@ -226,9 +226,10 @@ export function createPerspectiveEngine(opts: PerspectiveEngineOpts): SsrmEngine
     const start = Math.max(0, req.startRow) + rootOffset;
     const end = Math.max(req.startRow, req.endRow) + rootOffset;
 
-    const [columns, total] = await Promise.all([
+    const [columns, total, tableSize] = await Promise.all([
       view.to_columns({ start_row: start, end_row: end }),
       view.num_rows(),
+      ds.table.size(),
     ]);
 
     let rowData = toRows(columns);
@@ -248,7 +249,7 @@ export function createPerspectiveEngine(opts: PerspectiveEngineOpts): SsrmEngine
       });
     }
 
-    const result: SsrmGetRowsResult = { rowData, rowCount };
+    const result: SsrmGetRowsResult = { rowData, rowCount, totalRowCount: tableSize };
 
     // Root-level requests carry filtered totals for share-of-total formatters.
     if (groupKeys.length === 0 && (req.valueCols?.length ?? 0) > 0) {

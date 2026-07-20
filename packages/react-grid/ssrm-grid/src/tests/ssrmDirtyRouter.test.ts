@@ -144,7 +144,7 @@ describe("createSsrmDirtyRouter", () => {
     expect(apply).toHaveBeenCalledTimes(1);
   });
 
-  it("bare dirty invalidates cache/generation/view IMMEDIATELY, then refreshes SOFT (no stub flicker)", () => {
+  it("bare dirty withholds invalidation until the flush, then refreshes SOFT (no stub flicker)", () => {
     const timers = fakeTimers();
     const api = makeApi(["a"]);
     const blockCache = new SsrmBlockCache();
@@ -154,10 +154,12 @@ describe("createSsrmDirtyRouter", () => {
     router.handleDirty(leafDirty([{ id: "a", px: 1 }]));
     router.handleDirty({ type: "dirty", at: 0 }); // no transaction — async-engine tick / replace
 
-    // Correctness effects happen at signal time…
-    expect(bumpGeneration).toHaveBeenCalled();
-    expect(blockCache.size).toBe(0);
-    expect(engine.invalidateView).toHaveBeenCalled();
+    // The cache stays SERVABLE between signal and flush — invalidating per
+    // signal under a live feed keeps the cache permanently cold and kills
+    // the sync scroll fast path.
+    expect(bumpGeneration).not.toHaveBeenCalled();
+    expect(blockCache.size).toBe(1);
+    expect(engine.invalidateView).not.toHaveBeenCalled();
     const apiMock = api as never as {
       refreshServerSide: ReturnType<typeof vi.fn>;
       applyServerSideTransactionAsync: ReturnType<typeof vi.fn>;
@@ -165,11 +167,32 @@ describe("createSsrmDirtyRouter", () => {
     expect(apiMock.refreshServerSide).not.toHaveBeenCalled();
 
     timers.fireAll();
-    // …the grid refresh waits for the scheduler, refetches IN PLACE (soft —
-    // a hard purge would stub out every loaded block on every tick batch),
-    // and swallows the superseded leaf tx.
+    // At flush: invalidate (so refetches miss the cache), refetch IN PLACE
+    // (soft — a hard purge would stub out every loaded block on every tick
+    // batch), and swallow the superseded leaf tx.
+    expect(bumpGeneration).toHaveBeenCalledTimes(1);
+    expect(blockCache.size).toBe(0);
+    expect(engine.invalidateView).toHaveBeenCalledTimes(1);
     expect(apiMock.refreshServerSide).toHaveBeenCalledWith({ purge: false });
     expect(apiMock.applyServerSideTransactionAsync).not.toHaveBeenCalled();
+  });
+
+  it("conflates a tick storm into ONE invalidation + refresh per flush", () => {
+    const timers = fakeTimers();
+    const api = makeApi(["a"]);
+    const blockCache = new SsrmBlockCache();
+    blockCache.set("blk", { rowData: [{ id: "a" }], rowCount: 1 });
+    const { router, bumpGeneration } = makeRouter({ api, timers, blockCache });
+
+    // Live feed: every subscribed view announces every tick batch.
+    for (let i = 0; i < 25; i++) router.handleDirty({ type: "dirty", at: i });
+    expect(bumpGeneration).not.toHaveBeenCalled();
+    expect(blockCache.size).toBe(1); // sync serving still hits mid-storm
+
+    timers.fireAll();
+    const apiMock = api as never as { refreshServerSide: ReturnType<typeof vi.fn> };
+    expect(bumpGeneration).toHaveBeenCalledTimes(1);
+    expect(apiMock.refreshServerSide).toHaveBeenCalledTimes(1);
   });
 
   it("an empty transaction also refreshes soft", () => {

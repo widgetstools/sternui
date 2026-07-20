@@ -35,13 +35,13 @@ Commands a new session should run to confirm the baseline still holds
 # host-data: expect 484 passing, 0 failing
 cd packages/data/host-data && npx vitest run
 
-# ssrm-grid: expect 160 passing, 0 failing
+# ssrm-grid: expect 163 passing, 0 failing
 cd packages/react-grid/ssrm-grid && npx vitest run
 
 # grid: expect 725 passing, 0 failing (capability-gate + applyTickToSsrm tests deleted with B1/B7)
 cd packages/react-grid/grid && npx vitest run
 
-# engine: 301 · widgets-react: 222 (+1 skipped)
+# engine: 301 · widgets-react: 226 (+1 skipped)
 # Repo-wide gate: `npx turbo typecheck build test` — 67/67 green.
 ```
 
@@ -341,9 +341,43 @@ CSRM.
   on ready/`profile:loaded` (skipped while focused) so a restored filter is
   visible in the box.
 
+**Landed (pull-path live-feed fixes, 2026-07-20 — from star-demo field
+report: sluggish scroll, slow sort, "no" realtime updates, wrong statusBar):**
+- **statusBar total live under pull** — `SsrmGetRowsResult.totalRowCount`
+  (Perspective engine: `table.size()` alongside every block read) flows
+  through the datasource `onTotals` into `context.totalRowCount`. Before:
+  pull mode never seeded `totalRowCountRef`, so the fallback latched the
+  FIRST filtered count seen while the table was still filling → permanent
+  "Rows: 20,000 of 400" + phantom "Filtered" panel.
+- **bare-dirty invalidation conflated into the flush** (`ssrmDirtyRouter`)
+  — every subscribed Perspective view fires `on_update` per tick batch, and
+  invalidating (cache clear + generation bump + view invalidation) per
+  signal kept the block cache permanently cold: sync scroll serving never
+  hit, every fling frame waited an async round trip, and the per-interval
+  refetch storm competed with sort/expand. Now ONE invalidation + ONE soft
+  refresh per scheduler flush (≥`refreshThrottleMs`, scroll-deferred,
+  `maxStallMs`-bounded); between flushes sync serving may be up to one
+  interval stale — the same staleness the painted grid already shows.
+- **pull-aware busy indicator** (`MarketsGridLoadingOverlay.dataPlane`) —
+  pull subtitles describe the shared table ("Loading shared data table ·
+  N rows", "Connecting…", "Re-syncing…") instead of claiming the window is
+  buffering a snapshot; the pull cold-start mount gate shows the animated
+  overlay with live `loadRowCount` progress instead of a static text line.
+- NOTE the field report's dominant factor was environmental: the STOMP
+  demo server at its default sweep ceiling (~20k rows/s into a 20k book —
+  reads degrade to ~150 ms). See Environment notes; run with
+  `SWEEP_ROWS_PER_SEC=2000`.
+
 **Remaining, ranked:**
 1. data-change-history — verify partial-row merge on undo/redo.
 2. A visible toast for T6 edit refusals (today: console warning only).
+3. Pull windows still receive the full snapshot replay (worker→window row
+   copy) solely to resolve the overlay / status bookkeeping — resolving
+   from an attach-ack `tableSize` (needs the ack to carry it) would drop
+   the copy and speed warm attach.
+4. Stale subscribed views in the LRU keep firing `on_update` per tick
+   (cheap now that dirt conflates to a bool, but eviction/unsubscribe on
+   shape change would silence them).
 
 (The former "shortcuts / plus-minus capability ids" item is moot: B1 was
 resolved by DELETING the capability gate — every SSRM capability is

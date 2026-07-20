@@ -12,11 +12,16 @@
  *  - **bare dirty (no transaction)** — replace/remove/structural change, and
  *    the steady-state signal of async engines (Perspective `view.on_update`
  *    announces "this shape changed", nothing more). Cache clear + generation
- *    bump + engine view invalidation run IMMEDIATELY (correctness: nothing
- *    may serve the dead book), then the grid refreshes **softly** on the next
- *    flush — loaded rows stay painted while their blocks refetch in place. A
- *    hard purge here would drop every loaded block into loading stubs on
- *    every tick batch, which reads as full-grid flicker under a live feed.
+ *    bump + engine view invalidation are CONFLATED INTO THE FLUSH — under a
+ *    live feed every subscribed view fires per tick batch, and invalidating
+ *    per signal keeps the block cache permanently cold, which kills the sync
+ *    scroll fast path (every fling frame waits an async engine round trip).
+ *    Between flushes sync serving may return rows up to one scheduler
+ *    interval stale — the same staleness the painted grid already shows.
+ *    On flush the invalidation runs, then the grid refreshes **softly** —
+ *    loaded rows stay painted while their blocks refetch in place. A hard
+ *    purge here would drop every loaded block into loading stubs on every
+ *    tick batch, which reads as full-grid flicker under a live feed.
  *
  * Group/grand-total aggregate patching keeps its own trailing-edge throttle
  * (`aggPatchThrottleMs`, default 250ms) and is skipped while scrolling — the
@@ -78,6 +83,8 @@ export function createSsrmDirtyRouter(opts: SsrmDirtyRouterOpts): SsrmDirtyRoute
   /** Withheld leaf patches, conflated by row id (later fields win). */
   const pendingLeaf = new Map<string, Record<string, unknown>>();
   let softPending = false;
+  /** Bare-dirty invalidation withheld until flush (see module doc). */
+  let invalidatePending = false;
   let aggTimer: unknown = null;
   let disposed = false;
 
@@ -93,6 +100,7 @@ export function createSsrmDirtyRouter(opts: SsrmDirtyRouterOpts): SsrmDirtyRoute
     if (!api || disposed) {
       pendingLeaf.clear();
       softPending = false;
+      invalidatePending = false;
       return;
     }
     if (kind === "purge") {
@@ -100,8 +108,19 @@ export function createSsrmDirtyRouter(opts: SsrmDirtyRouterOpts): SsrmDirtyRoute
       // softly; dataset replacement purges directly in the controller).
       pendingLeaf.clear();
       softPending = false;
+      invalidatePending = false;
       refreshAllLoadedServerSideStores(api, { purge: true });
       return;
+    }
+    if (invalidatePending) {
+      // One invalidation per flush, however many bare-dirty signals arrived
+      // since the last one. The generation bump re-keys every block request
+      // so the soft refresh below refetches from the engine, not the cache.
+      invalidatePending = false;
+      bumpGeneration();
+      blockCache.clear();
+      engine.invalidateView?.();
+      pendingLeaf.clear(); // superseded — the refetch delivers fresh rows
     }
     if (pendingLeaf.size > 0) {
       const patches = [...pendingLeaf.values()];
@@ -158,13 +177,12 @@ export function createSsrmDirtyRouter(opts: SsrmDirtyRouterOpts): SsrmDirtyRoute
         scheduler.request("surgical");
       },
       purgeRefresh: () => {
-        // Invalidate sync serving NOW; refresh SOFT so painted rows stay up
-        // while their blocks refetch (see module doc — hard purges here are
-        // the full-grid-flicker failure mode under live async-engine ticks).
-        bumpGeneration();
-        blockCache.clear();
-        engine.invalidateView?.();
-        pendingLeaf.clear(); // superseded — the refetch delivers fresh rows
+        // Withhold the invalidation until the flush (see module doc): per-
+        // signal invalidation under a live feed keeps the cache permanently
+        // cold and defeats sync scroll serving. Refresh stays SOFT so
+        // painted rows repaint in place (hard purges here are the full-grid-
+        // flicker failure mode under live async-engine ticks).
+        invalidatePending = true;
         softPending = true;
         scheduler.request("surgical");
       },

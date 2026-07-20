@@ -967,12 +967,28 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   if (activeId && (activeRow.loading || (pull && providerReady && !pullEngine))) {
     return (
       <>
-        <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-          {activeRow.loading
-            ? activeProviderName
-              ? `Loading ${activeProviderName}…`
-              : 'Loading provider configuration…'
-            : 'Connecting to the shared data table…'}
+        <div style={{ position: 'relative', height: '100%', minHeight: 0 }}>
+          {activeRow.loading ? (
+            <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
+              {activeProviderName
+                ? `Loading ${activeProviderName}…`
+                : 'Loading provider configuration…'}
+            </div>
+          ) : (
+            // Pull cold start: the provider worker is assembling the shared
+            // table (can take the whole snapshot). Same overlay as the
+            // mounted grid, with live progress — `loadRowCount` streams in
+            // from the provider wiring before the grid ever mounts.
+            <MarketsGridLoadingOverlay
+              title={
+                activeProviderName
+                  ? `Loading ${activeProviderName}`
+                  : 'Loading market data'
+              }
+              rowCount={loadRowCount}
+              dataPlane="pull"
+            />
+          )}
         </div>
         {dataDialogs}
       </>
@@ -1025,10 +1041,13 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
                 isSavingProfile
                   ? 'Persisting profile'
                   : isRefetching && resolvedSubKey
-                    ? 'Replaying cached snapshot…'
+                    ? pull
+                      ? 'Re-syncing shared data table…'
+                      : 'Replaying cached snapshot…'
                     : undefined
               }
               rowCount={isSavingProfile ? undefined : loadRowCount}
+              dataPlane={pull ? 'pull' : 'push'}
             />
           )}
         </div>

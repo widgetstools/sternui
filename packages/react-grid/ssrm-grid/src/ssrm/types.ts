@@ -86,6 +86,12 @@ export interface SsrmGetRowsResult {
   aggregates?: Record<string, Record<string, unknown>>;
   /** Row count of the filtered set used for aggregates (leaf-level). */
   filteredRowCount?: number;
+  /**
+   * Unfiltered book size (pull engines: the shared table's row count).
+   * Keeps the status-bar total live while the table fills — without it the
+   * grid latches the first filtered count it ever sees as "total".
+   */
+  totalRowCount?: number;
 }
 
 export interface AggregateRequest {

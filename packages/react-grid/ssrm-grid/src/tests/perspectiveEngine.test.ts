@@ -101,6 +101,17 @@ describe("createPerspectiveEngine — request translation", () => {
     expect(h.configs[0]?.sort).toEqual([["px", "desc"]]);
   });
 
+  it("reports the unfiltered table size as totalRowCount (status-bar total)", async () => {
+    const h = harness({ numRows: 7 }); // filtered view count ≠ table size (42)
+    const engine = createPerspectiveEngine({ client: h.client });
+    await engine.configure(feed);
+    const result = await engine.getRows(
+      req({ filterModel: { desk: { filterType: "text", type: "equals", filter: "EM Debt" } } }),
+    );
+    expect(result.rowCount).toBe(7);
+    expect(result.totalRowCount).toBe(42);
+  });
+
   it("turns groupKeys into ancestor equality filters (drill-down path)", async () => {
     const h = harness();
     const engine = createPerspectiveEngine({ client: h.client });
