@@ -179,6 +179,15 @@ export function useSsrmGridController(props: SsrmGridProps) {
       engine,
       blockCache: blockCacheRef.current,
       idField,
+      // Live-refresh cadence. The scheduler's own 60ms floor is tuned for
+      // surgical row txs; bare-dirty SOFT refreshes refetch every loaded
+      // block, and under a live async engine (every subscribed view fires
+      // per tick batch) a 60ms cadence is a refetch storm that competes
+      // with the user's sort/group interactions. Pace it at the documented
+      // refreshThrottleMs default instead.
+      scheduler: {
+        minIntervalMs: Math.max(60, props.refreshThrottleMs ?? 150),
+      },
       getApi: () => apiRef.current,
       isConfigured: () => configuredRef.current,
       bumpGeneration: () => {

@@ -64,10 +64,20 @@ const COLUMN_DEFS: SSRMColDef[] = [
   { field: 'pnl', headerName: 'PnL', cellDataType: 'number' },
 ];
 
+/** Test hook — blotter handles, for headless driving (spike page only). */
+const blotterHandles: (SsrmGridHandle | null)[] =
+  ((window as { __blotters?: (SsrmGridHandle | null)[] }).__blotters ??= []);
+
 /** One production SsrmGrid over its own Perspective engine (pull mode). */
 function Blotter({ client, index }: { client: PerspectiveClient; index: number }) {
   const ref = React.useRef<SsrmGridHandle>(null);
   const hostRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    blotterHandles[index] = ref.current;
+    return () => {
+      blotterHandles[index] = null;
+    };
+  }, [index]);
   const engine = React.useMemo(
     () => createPerspectiveEngine({ client, attachToHostedTable: true }),
     [client],

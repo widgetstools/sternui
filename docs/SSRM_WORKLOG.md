@@ -276,6 +276,12 @@ Verified: grid **729** passing (+3 SSRM header-painter tests), ssrm-grid
 
 ### T8 — Remaining customizer gaps · `WIP`
 
+> **Directive (2026-07-19, user):** SSRM must reach feature parity with
+> CSRM. This section is the parity backlog; treat its items as required,
+> not optional polish. Interaction performance targets for the pull path:
+> sort/expand ≤ ~250 ms, group ≤ ~600 ms on a 20k live book (measured
+> baselines — hold or beat these as parity items land).
+
 **Landed:** bulk-update distinct values from the engine — the SSRM grid
 publishes `ssrmDistinctValues` (engine `getFilterValues`, full book) in grid
 context; `BulkUpdateToolbarBody` prefers it and falls back to the client
