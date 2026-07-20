@@ -216,6 +216,32 @@ describe("createSsrmDirtyRouter", () => {
     expect(apiMock.refreshServerSide).toHaveBeenCalledWith({ purge: false });
   });
 
+  it("stall-ceiling flush mid-drag defers the store refresh to the settle flush", () => {
+    // A long scrollbar drag: dirty signals accumulate, the maxStallMs
+    // ceiling forces a flush WHILE still dragging. Refreshing every loaded
+    // store mid-drag makes AG's scroll bookkeeping fight the thumb — the
+    // heavy refresh must wait for settle; only cheap work runs mid-drag.
+    const timers = fakeTimers();
+    const api = makeApi(["a"]);
+    const blockCache = new SsrmBlockCache();
+    blockCache.set("blk", { rowData: [{ id: "a" }], rowCount: 1 });
+    let t = 0;
+    const { router } = makeRouter({ api, timers, blockCache, now: () => t });
+
+    router.handleDirty({ type: "dirty", at: 0 }); // bare dirty at t=0
+    router.onScroll(); // drag begins
+    t = 1001; // past maxStallMs while STILL dragging
+    router.onScroll(); // stall ceiling → forced flush, midScroll=true
+
+    const apiMock = api as never as { refreshServerSide: ReturnType<typeof vi.fn> };
+    expect(apiMock.refreshServerSide).not.toHaveBeenCalled(); // deferred
+    expect(blockCache.isStale("blk")).toBe(true); // cheap work still ran
+
+    t = 1300; // drag ended; settle timer fires
+    timers.fireAll();
+    expect(apiMock.refreshServerSide).toHaveBeenCalledWith({ purge: false });
+  });
+
   it("throttles aggregate patching and skips it mid-scroll", () => {
     const timers = fakeTimers();
     const api = makeApi(["a"]);

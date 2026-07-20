@@ -35,7 +35,7 @@ Commands a new session should run to confirm the baseline still holds
 # host-data: expect 485 passing, 0 failing
 cd packages/data/host-data && npx vitest run
 
-# ssrm-grid: expect 170 passing, 0 failing
+# ssrm-grid: expect 171 passing, 0 failing
 cd packages/react-grid/ssrm-grid && npx vitest run
 
 # grid: expect 726 passing, 0 failing (capability-gate + applyTickToSsrm tests deleted with B1/B7)
@@ -400,6 +400,21 @@ report: sluggish scroll, slow sort, "no" realtime updates, wrong statusBar):**
   a one-shot warning — only the provider worker writes the table).
   Follow-up if pull-mode editing is ever needed: proxy writes through the
   provider worker.
+- **Scrollbar-thumb drag fixed (field report: thumb lags the cursor, blank
+  rows, slow post-drag populate).** Two compounding causes: (1)
+  `maxBlocksInCache` was UNSET — every block a drag passed stayed loaded
+  forever, every 150 ms soft-refresh re-requested ALL of them, and each
+  stale hit spawned a background revalidate → after a long drag the engine
+  port drowned in revalidation traffic and the viewport's own fetches
+  queued behind it; (2) the `maxStallMs` ceiling forced a full store
+  refresh MID-DRAG, and AG's scroll bookkeeping fought the thumb. Fixes:
+  `maxBlocksInCache` defaults to 10 (evicted blocks revisit via the
+  stale-serving main-thread cache, so eviction is ~free), and the
+  scheduler now tags stall-ceiling flushes `midScroll` — the router keeps
+  the store refresh pending until the settle flush (leaf txs +
+  stale-marking still run mid-drag). Measured (headless, full-book 4 s
+  drag): cold post-drag populate **797 ms**, revisited drag **15 ms** with
+  rows painting DURING the drag from the stale cache.
 - NOTE the field report also had an environmental factor: the STOMP demo
   server at its default sweep ceiling (~20k rows/s into a 20k book — reads
   degrade to ~150 ms). See Environment notes; run with

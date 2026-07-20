@@ -30,8 +30,12 @@
 export type RefreshKind = 'surgical' | 'purge';
 
 export interface RefreshSchedulerOpts {
-  /** Applies a coalesced refresh. */
-  flush: (kind: RefreshKind) => void;
+  /**
+   * Applies a coalesced refresh. `midScroll` is true when the flush was
+   * forced by the `maxStallMs` ceiling while the user was still scrolling —
+   * heavy work (store refreshes) should be deferred to the settle flush.
+   */
+  flush: (kind: RefreshKind, midScroll?: boolean) => void;
   /**
    * Quiet period after the last scroll event before refreshing. ~2 frames:
    * long enough to ride out momentum, short enough to feel immediate.
@@ -53,7 +57,7 @@ export const REFRESH_DEFAULTS = {
 } as const;
 
 export class RefreshScheduler {
-  private readonly flushFn: (kind: RefreshKind) => void;
+  private readonly flushFn: (kind: RefreshKind, midScroll?: boolean) => void;
   private readonly scrollSettleMs: number;
   private readonly minIntervalMs: number;
   private readonly maxStallMs: number;
@@ -117,9 +121,12 @@ export class RefreshScheduler {
     const kind = this.pending;
     this.pending = null;
     if (kind === null) return;
+    // Stall-ceiling flushes fire while the drag is still in motion; the
+    // settle-timer path clears `scrolling` before calling here.
+    const midScroll = this.scrolling;
     this.lastFlushAt = this.now();
     this.scrolling = false;
-    this.flushFn(kind);
+    this.flushFn(kind, midScroll);
   }
 
   dispose(): void {

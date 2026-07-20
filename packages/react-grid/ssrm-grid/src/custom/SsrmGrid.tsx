@@ -190,9 +190,13 @@ export const SsrmGrid = forwardRef<SsrmGridHandle, SsrmGridProps>(
       rowModelType: "serverSide",
       serverSideDatasource: c.datasource,
       cacheBlockSize: props.cacheBlockSize ?? 100,
-      ...(props.maxBlocksInCache != null
-        ? { maxBlocksInCache: props.maxBlocksInCache }
-        : {}),
+      // BOUNDED — unbounded, every block a scrollbar drag passed stayed
+      // "loaded" forever, and each soft-refresh cycle re-requested ALL of
+      // them (each stale hit spawning a background revalidate): after a
+      // long drag the engine port drowned in revalidation traffic and the
+      // viewport's own blocks queued behind it. Evicted blocks revisit via
+      // the stale-serving main-thread cache, so eviction costs ~nothing.
+      maxBlocksInCache: props.maxBlocksInCache ?? 10,
       maxConcurrentDatasourceRequests: 4,
       blockLoadDebounceMillis: props.blockLoadDebounceMillis ?? 50,
       suppressAnimationFrame: props.suppressAnimationFrame ?? true,

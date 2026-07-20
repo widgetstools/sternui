@@ -92,10 +92,10 @@ export function createSsrmDirtyRouter(opts: SsrmDirtyRouterOpts): SsrmDirtyRoute
     ...opts.scheduler,
     setTimer: opts.scheduler?.setTimer ?? setTimer,
     clearTimer: opts.scheduler?.clearTimer ?? clearTimer,
-    flush: (kind) => flush(kind),
+    flush: (kind, midScroll) => flush(kind, midScroll),
   });
 
-  const flush = (kind: RefreshKind): void => {
+  const flush = (kind: RefreshKind, midScroll?: boolean): void => {
     const api = getApi();
     if (!api || disposed) {
       pendingLeaf.clear();
@@ -140,6 +140,15 @@ export function createSsrmDirtyRouter(opts: SsrmDirtyRouterOpts): SsrmDirtyRoute
       api.applyServerSideTransactionAsync({ update });
     }
     if (softPending) {
+      if (midScroll) {
+        // Stall-ceiling flush while the drag is still in motion: a store
+        // refresh here re-requests every loaded block and AG's scroll
+        // bookkeeping fights the thumb (it visibly stops tracking the
+        // cursor). Leaf txs + stale-marking above already ran; keep the
+        // store refresh pending so it lands on the settle flush instead.
+        scheduler.request("surgical");
+        return;
+      }
       softPending = false;
       refreshAllLoadedServerSideStores(api, { purge: false });
     }
