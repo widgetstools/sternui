@@ -424,7 +424,19 @@ report: sluggish scroll, slow sort, "no" realtime updates, wrong statusBar):**
   `maxBlocksInCache` relax to 30 (~3k-row churn-free scrub window).
   Measured (headless, full-book 4 s drag): cold post-drag populate
   **462 ms**, revisited drag **26 ms** with rows painting DURING the drag
-  from the stale cache.
+  from the stale cache. Round 3 — the REAL-mouse reproduction (headed
+  Chromium, native thumb drag): a thumb drag jumps MORE THAN A VIEWPORT
+  PER INPUT EVENT, so AG remounted the entire row set (~45 rows × ~20
+  React cells) on every mouse move — p50 frame time 233 ms, input
+  dispatch itself starved (a scripted 3 s drag took 97 s to execute), the
+  thumb thousands of px behind the cursor. Wheel scrolling never hits
+  this (small deltas → incremental row shifts), which is why synthetic
+  probes looked clean. Fix: `debounceVerticalScrollbar` defaults ON — the
+  scrollbar scrolls natively (thumb glued to the cursor) and rows catch
+  up when motion pauses, instantly via the stale cache. Re-measured with
+  a real mouse drag: p50/p95 frame time **16.7/16.8 ms** (was 233/550),
+  17/847 frames over 33 ms (was 749/949), content within 2–6 ms of the
+  release point.
 - NOTE the field report also had an environmental factor: the STOMP demo
   server at its default sweep ceiling (~20k rows/s into a 20k book — reads
   degrade to ~150 ms). See Environment notes; run with

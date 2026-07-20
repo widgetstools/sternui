@@ -86,6 +86,13 @@ export interface SsrmGridProps {
   maxBlocksInCache?: number;
   rowBuffer?: number;
   suppressAnimationFrame?: boolean;
+  /**
+   * Default true: the vertical scrollbar scrolls natively (thumb glued to
+   * the cursor) and row rendering catches up debounced — a thumb drag
+   * jumps more than a viewport per input event, and rendering the full
+   * row set per event starves input dispatch (the thumb visibly lags).
+   */
+  debounceVerticalScrollbar?: boolean;
   enableCellChangeFlash?: boolean;
   defaultColDef?: SSRMColDef;
   onTotals?: (summary: string) => void;

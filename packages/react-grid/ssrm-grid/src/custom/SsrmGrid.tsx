@@ -209,6 +209,14 @@ export const SsrmGrid = forwardRef<SsrmGridHandle, SsrmGridProps>(
       // and rows appear a frame later — which the sync block cache fills
       // with real data, not stubs.
       suppressAnimationFrame: props.suppressAnimationFrame ?? false,
+      // ON: a thumb drag jumps more than a viewport PER INPUT EVENT, and
+      // rendering the full row set synchronously with every thumb position
+      // (~45 rows × ~20 cells each) starves input dispatch itself —
+      // measured p50 frame time 233ms during a real drag, thumb thousands
+      // of px behind the cursor. Debounced, the scrollbar scrolls natively
+      // (thumb glued to the cursor) and rows catch up when the motion
+      // pauses — instantly, from the stale-serving block cache.
+      debounceVerticalScrollbar: props.debounceVerticalScrollbar ?? true,
       animateRows: false,
       suppressServerSideFullWidthLoadingRow: !(props.showLoadingOverlay ?? false),
       rowHeight: props.rowHeight,

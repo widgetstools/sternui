@@ -28,6 +28,7 @@ export const SSRM_STRUCTURAL_GRID_OPTION_KEYS = [
   'maxConcurrentDatasourceRequests',
   'blockLoadDebounceMillis',
   'suppressAnimationFrame',
+  'debounceVerticalScrollbar',
   'suppressServerSideFullWidthLoadingRow',
   'asyncTransactionWaitMillis',
   'animateRows',
