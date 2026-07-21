@@ -35,7 +35,7 @@ Commands a new session should run to confirm the baseline still holds
 # host-data: expect 485 passing, 0 failing
 cd packages/data/host-data && npx vitest run
 
-# ssrm-grid: expect 178 passing, 0 failing
+# ssrm-grid: expect 180 passing, 0 failing
 cd packages/react-grid/ssrm-grid && npx vitest run
 
 # grid: expect 728 passing, 0 failing (capability-gate + applyTickToSsrm tests deleted with B1/B7)
@@ -497,6 +497,18 @@ report: sluggish scroll, slow sort, "no" realtime updates, wrong statusBar):**
   revalidate now call `api.flashCells` for EXACTLY the cells whose values
   differ from what is displayed — CSRM-equivalent per-cell flash
   semantics under SSRM, same user setting.
+- **Pipeline-vs-SSRM sanitation made systematic (post-flash due
+  diligence).** Audit of all 13 customizer modules with
+  `transformGridOptions`/`transformColumnDefs`: the colDef boundary is
+  now a documented strip — `SSRM_STRUCTURAL_COL_DEF_KEYS`
+  (`enableCellChangeFlash`, `rowDrag`, `dndSource`) removed from every
+  column def recursively via `sanitizeSsrmColumnDefs` regardless of
+  source (pipeline stamps, templates, host defs) — column-level always
+  beats defaultColDef in AG, so per-offender defaults were whack-a-mole.
+  Audit also caught `groupDefaultExpanded` reaching AG (it warned "not
+  supported with the 'serverSide' row model" on every mount) — added to
+  the gridOptions strip list. Future pipeline additions get audited
+  against these two lists in ONE file (ssrmGridOptionsPassthrough.ts).
 - NOTE the field report also had an environmental factor: the STOMP demo
   server at its default sweep ceiling (~20k rows/s into a 20k book — reads
   degrade to ~150 ms). See Environment notes; run with

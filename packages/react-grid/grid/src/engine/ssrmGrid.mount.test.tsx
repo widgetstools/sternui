@@ -94,7 +94,7 @@ describe('SsrmGrid mount contract', () => {
     });
     const p = captured.props!;
     for (const def of p.columnDefs as Array<{ enableCellChangeFlash?: boolean }>) {
-      expect(def.enableCellChangeFlash).toBe(false);
+      expect(def.enableCellChangeFlash).toBeUndefined(); // stripped at the boundary
     }
     expect((p.defaultColDef as { enableCellChangeFlash?: boolean }).enableCellChangeFlash).toBe(false);
     cleanup();

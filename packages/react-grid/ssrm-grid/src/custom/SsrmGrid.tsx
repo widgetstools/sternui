@@ -25,7 +25,10 @@ import {
 import { QuickFilterHighlightCellRenderer } from "./QuickFilterHighlightCellRenderer";
 import "./quickFilterHighlight.css";
 import "./ssrmLoadingRow.css";
-import { stripSsrmStructuralGridOptions } from "./ssrmGridOptionsPassthrough";
+import {
+  sanitizeSsrmColumnDefs,
+  stripSsrmStructuralGridOptions,
+} from "./ssrmGridOptionsPassthrough";
 import { useSsrmGridController } from "./useSsrmGridController";
 import type { SsrmGridHandle, SsrmGridProps } from "./types";
 
@@ -168,25 +171,15 @@ export const SsrmGrid = forwardRef<SsrmGridHandle, SsrmGridProps>(
       [],
     );
 
-    // The general-settings pipeline stamps `enableCellChangeFlash` onto
-    // EVERY column def (transformColumnDefs), and column-level overrides
-    // the defaultColDef force-off below — strip it here too, or AG's
-    // whole-row SSRM flash comes straight back through the columns.
-    const sanitizedColumnDefs = useMemo(() => {
-      const strip = (defs: readonly unknown[]): unknown[] =>
-        defs.map((d) => {
-          const def = d as Record<string, unknown>;
-          const out: Record<string, unknown> = {
-            ...def,
-            enableCellChangeFlash: false,
-          };
-          if (Array.isArray(def.children)) {
-            out.children = strip(def.children as unknown[]);
-          }
-          return out;
-        });
-      return strip(c.override.agGridColumnDefs as unknown[]);
-    }, [c.override.agGridColumnDefs]);
+    // SSRM-structural colDef keys are stripped from every column,
+    // whatever their source (pipeline transformColumnDefs, templates,
+    // host defs) — column-level always overrides defaultColDef in AG, so
+    // the boundary must sanitize the final defs. See
+    // SSRM_STRUCTURAL_COL_DEF_KEYS for the documented list + rationale.
+    const sanitizedColumnDefs = useMemo(
+      () => sanitizeSsrmColumnDefs(c.override.agGridColumnDefs as unknown[]),
+      [c.override.agGridColumnDefs],
+    );
 
     const resolvedTheme = props.theme ?? defaultTheme;
 

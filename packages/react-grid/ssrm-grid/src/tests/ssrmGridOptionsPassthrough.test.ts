@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   SSRM_STRUCTURAL_GRID_OPTION_KEYS,
-  stripSsrmStructuralGridOptions,
-} from "../custom/ssrmGridOptionsPassthrough.js";
+  stripSsrmStructuralGridOptions, sanitizeSsrmColumnDefs, } from "../custom/ssrmGridOptionsPassthrough.js";
 
 describe("stripSsrmStructuralGridOptions", () => {
   it("passes panel-controlled options through", () => {
@@ -14,6 +13,8 @@ describe("stripSsrmStructuralGridOptions", () => {
       paginationPageSize: 250,
       singleClickEdit: true,
       rowGroupPanelShow: "never",
+      // groupDefaultExpanded is now STRIPPED — AG warns "not supported
+      // with the 'serverSide' row model" when it reaches the grid.
       groupDefaultExpanded: 1,
       enableCellTextSelection: true,
       undoRedoCellEditing: false,
@@ -25,7 +26,6 @@ describe("stripSsrmStructuralGridOptions", () => {
       paginationPageSize: 250,
       singleClickEdit: true,
       rowGroupPanelShow: "never",
-      groupDefaultExpanded: 1,
       enableCellTextSelection: true,
       undoRedoCellEditing: false,
     });
@@ -67,5 +67,26 @@ describe("stripSsrmStructuralGridOptions", () => {
       SSRM_STRUCTURAL_GRID_OPTION_KEYS.map((k) => [k, "x"]),
     );
     expect(stripSsrmStructuralGridOptions(input)).toEqual({});
+  });
+});
+
+describe("sanitizeSsrmColumnDefs", () => {
+  it("strips SSRM-structural colDef keys from every column, groups included", () => {
+    const out = sanitizeSsrmColumnDefs([
+      { field: "px", enableCellChangeFlash: true, rowDrag: true, sortable: true },
+      {
+        headerName: "Group",
+        children: [{ field: "qty", dndSource: true, enableCellChangeFlash: true }],
+      },
+    ] as never[]);
+    expect(out[0]).toEqual({ field: "px", sortable: true });
+    const child = (out[1] as { children: Record<string, unknown>[] }).children[0];
+    expect(child).toEqual({ field: "qty" });
+  });
+
+  it("does not mutate the input defs", () => {
+    const input = [{ field: "px", enableCellChangeFlash: true }];
+    sanitizeSsrmColumnDefs(input as never[]);
+    expect(input[0]).toEqual({ field: "px", enableCellChangeFlash: true });
   });
 });

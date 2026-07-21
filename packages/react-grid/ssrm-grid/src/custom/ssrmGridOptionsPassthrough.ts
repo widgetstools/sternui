@@ -61,7 +61,43 @@ export const SSRM_STRUCTURAL_GRID_OPTION_KEYS = [
   'quickFilterText',
   'pivotMode',
   'rowDragManaged',
+  // AG warns "not supported with the 'serverSide' row model" on every
+  // mount when general-settings passes this through.
+  'groupDefaultExpanded',
 ] as const;
+
+/**
+ * Column-def keys the SSRM surface owns, stripped from EVERY column def
+ * (recursively through groups) regardless of source — the module pipeline
+ * stamps some per column (`transformColumnDefs`), and column templates can
+ * carry arbitrary colDef keys, so a defaultColDef override is not enough:
+ * column-level always wins in AG.
+ *
+ * - `enableCellChangeFlash`: an SSRM transaction update flashes the WHOLE
+ *   row (CSRM flashes only changed cells) — a sweeping feed turns the
+ *   entire grid gold. The SSRM surface honors the user's flash setting via
+ *   value-aware `api.flashCells` (changed cells only) instead.
+ * - `rowDrag` / `dndSource`: managed row drag does not exist under the
+ *   server row model; a template-carried flag renders a dead drag handle.
+ */
+export const SSRM_STRUCTURAL_COL_DEF_KEYS = [
+  'enableCellChangeFlash',
+  'rowDrag',
+  'dndSource',
+] as const;
+
+/** Strip SSRM-structural keys from every column def, groups included. */
+export function sanitizeSsrmColumnDefs<T>(defs: readonly T[]): T[] {
+  return defs.map((d) => {
+    const def = d as Record<string, unknown>;
+    const out: Record<string, unknown> = { ...def };
+    for (const key of SSRM_STRUCTURAL_COL_DEF_KEYS) delete out[key];
+    if (Array.isArray(def.children)) {
+      out.children = sanitizeSsrmColumnDefs(def.children as unknown[]);
+    }
+    return out as T;
+  });
+}
 
 /**
  * Note: `statusBar` stays in the strip list because it is not blanket-
