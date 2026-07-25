@@ -1,6 +1,7 @@
 # SSRM STOMP data provider V2 — clean-room design
 
-Status: **DESIGN APPROVED DIRECTION — implementation starting.**
+Status: **P0–P5 SHIPPED** (2026-07-25). Consumer-facing usage guide:
+[`SSRM_PROVIDER_V2.md`](./SSRM_PROVIDER_V2.md).
 Base: **`main` @ `9945ebd6`** (fresh branch; the old pull-path branch
 `docs/optional-data-plane-topology` is retained untouched as a *measurement*
 reference only). Author: agent, 2026-07-25.
@@ -290,6 +291,49 @@ fling anti-jank; loading/empty/error UX from DatasetState.
     for bulk edits.)*
 - **P5** — multi-window + live-feed + reload soak and e2e in CI (the coverage
   gap that hid the V1 bugs); docs; then decide the old branch's disposition.
+  ✅ *(2026-07-25 —
+  **e2e suite** `e2e/ssrm-pull/` (own config `playwright.ssrm.config.ts`,
+  `npm run e2e:ssrm`; boots stomp-view-server :8081 + markets-grid-lab :5300
+  via Playwright `webServer`, 1 worker, excluded from the main suite's
+  collection): 7 specs against the lab spike — cold seed (connecting →
+  seeding with monotonically rising mid-seed rowCounts → live at the full
+  count, one mount, no stuck overlay), two-tabs-one-worker (second tab's
+  ENTIRE timeline is live gen-1 at the full count — zero re-stream; peer
+  undisturbed; both viewports read the same table), peer-reload (reloaded
+  tab's fresh timeline never leaves live gen-1 — repopulated from the live
+  table, no re-seed), restart-generation (ack carries gen 2; both tabs
+  observe gen-2 seeding, remount exactly once each, refill), edit-convergence
+  (string `'777.25'` typed into the float `quantity` in tab A lands as
+  NUMBER 777.25 in the table and BOTH grids — strict-equality asserted),
+  grouped-aggregates (sandwiched exact child counts Σ = book; grand-total +
+  group-header pnl each take ≥2 distinct values across 12 samples over 6 s
+  with 0 loading stubs and no remount), tree-child-counts (root books =
+  distinct set, every level's counts sandwiched-exact vs control reads,
+  leaves route-pinned; tree nodes detected by the plane's GROUP_KEY_FIELD
+  stamp — AG's `node.group` is a row-grouping flag only). **7/7 green
+  headless, twice consecutively (~1.1 min/run).** Live-feed exactness uses
+  quiet-window sandwiches (control → probe → control, retried until the
+  control reads agree).
+  **Memory soak** `scripts/soakSsrm.mjs` (`npm run soak:ssrm`, opt-in, NOT
+  CI-blocking): two tabs one worker for N minutes (default 5), post-GC page
+  heaps via CDP + whole browser process-tree RSS (the worker's WASM side),
+  table + per-metric first-third→last-third median verdict (LEAK = >15% AND
+  >20 MB growth; exit 1). 2-min smoke @10k rows, 5 t/s × 500: heap A
+  61.6→62.3 MB (+1.2%), heap B 60.8→61.5 MB (+1.1%), RSS 788.8→752.5 MB
+  (−4.6%) — **VERDICT: FLAT**.
+  **Editor completion** (the P4b-2 deferred item): `StompSsrmFields` now
+  exposes Calculated Columns (name→expression rows via the shared
+  KeyValueEditor), Tree Data (ordered level rows) and the Wide-Book Refresh
+  Gate (threshold + throttle) — design-system primitives only;
+  `validateStompSsrmConfig` grew the matching structured rules
+  (blank/colliding/reserved-`__ssrm`-prefix/cross-referencing calc names,
+  blank/duplicate/undeclared tree levels, non-positive gate numbers) shown
+  inline per card; types suite 22, editor suite 12 green.
+  **Docs:** usage guide `docs/SSRM_PROVIDER_V2.md` (catalog row → editor →
+  grid wiring, DatasetState contract, operational notes, e2e/soak how-to).
+  Still deferred (unchanged): tree-level aggregates exercised live, periodic
+  ordered-block refresh under active sort, fetch-unloaded-targets for bulk
+  edits; the old branch's disposition stays a user decision.)*
 
 ## Deliberately dropped from V1
 

@@ -62,8 +62,10 @@ export interface StompSsrmProviderConfig {
    * columns sort, filter, aggregate and export like real columns. NOT
    * part of the worker's table schema and not mapped by
    * `toSsrmDatasetConfig`. Names must not collide with
-   * `columnDefinitions` fields, must not use the reserved `__ssrm_`
-   * prefix, and cannot reference other calc columns (engine limit).
+   * `columnDefinitions` fields, must not use the reserved `__ssrm`
+   * prefix (the plane's expression/stamp namespace), and cannot
+   * reference other calc columns (engine limit). Enforced by
+   * `validateStompSsrmConfig`.
    */
   calcExpressions?: Record<string, string>;
   /**
@@ -115,13 +117,25 @@ export interface StompSsrmProviderConfig {
 // ─── Validation ───────────────────────────────────────────────────────
 
 /** Config fields a validation issue can point at (drives inline editor errors). */
-export type StompSsrmIssueField = 'websocketUrl' | 'listenerTopic' | 'keyColumn';
+export type StompSsrmIssueField =
+  | 'websocketUrl'
+  | 'listenerTopic'
+  | 'keyColumn'
+  | 'calcExpressions'
+  | 'treePathFields'
+  | 'wideColumnThreshold'
+  | 'sweepThrottleWideMs';
 
 export type StompSsrmIssueCode =
   | 'missing'
   | 'malformed'
   | 'composite-key'
-  | 'key-not-in-columns';
+  | 'key-not-in-columns'
+  | 'calc-name-collision'
+  | 'calc-reserved-prefix'
+  | 'calc-cross-reference'
+  | 'tree-field-not-in-columns'
+  | 'tree-field-duplicate';
 
 export interface StompSsrmValidationIssue {
   field: StompSsrmIssueField;
@@ -148,6 +162,19 @@ function hasTemplateTokens(value: string): boolean {
  *   (only checked when columns are declared — an empty list means the
  *   schema is refined from the first snapshot rows, and the worker
  *   always injects the key column into the table schema).
+ * - `calcExpressions` (window-side, P4b-2): a blank name or blank
+ *   expression → `missing`; a name colliding with a declared column →
+ *   `calc-name-collision`; a name under the plane's reserved `__ssrm_`
+ *   prefix → `calc-reserved-prefix`; an expression referencing another
+ *   calc alias (as a quoted `"column"` term) → `calc-cross-reference`
+ *   (Perspective expressions cannot see other expression aliases).
+ * - `treePathFields`: a blank level → `missing`; a repeated level →
+ *   `tree-field-duplicate`; a level not among the declared columns →
+ *   `tree-field-not-in-columns` (only when columns are declared, same
+ *   rule as `keyColumn`).
+ * - `wideColumnThreshold` / `sweepThrottleWideMs`: present but not a
+ *   positive finite number (threshold additionally an integer) →
+ *   `malformed`.
  *
  * Accepts `Partial` + unknown-shaped `keyColumn` because editor drafts
  * and hand-authored catalog rows routinely hold both.
@@ -208,7 +235,127 @@ export function validateStompSsrmConfig(
     }
   }
 
+  const columnFields = (cfg.columnDefinitions ?? []).map((c) => c.field);
+  validateCalcExpressions(cfg.calcExpressions, columnFields, issues);
+  validateTreePathFields(cfg.treePathFields, columnFields, issues);
+  validatePositiveNumber(cfg.wideColumnThreshold, 'wideColumnThreshold', true, issues);
+  validatePositiveNumber(cfg.sweepThrottleWideMs, 'sweepThrottleWideMs', false, issues);
+
   return issues;
+}
+
+/** Aliases the pull plane reserves for its own stamps/expressions. */
+const RESERVED_CALC_PREFIX = '__ssrm';
+
+function validateCalcExpressions(
+  calc: Record<string, string> | undefined,
+  columnFields: string[],
+  issues: StompSsrmValidationIssue[],
+): void {
+  if (!calc) return;
+  const names = Object.keys(calc);
+  for (const [name, expression] of Object.entries(calc)) {
+    const label = name.trim() === '' ? '(unnamed)' : name;
+    if (name.trim() === '') {
+      issues.push({
+        field: 'calcExpressions',
+        code: 'missing',
+        message: 'Calc columns need a name.',
+      });
+    } else if (name.startsWith(RESERVED_CALC_PREFIX)) {
+      issues.push({
+        field: 'calcExpressions',
+        code: 'calc-reserved-prefix',
+        message: `Calc column '${name}' uses the reserved '${RESERVED_CALC_PREFIX}' prefix.`,
+      });
+    } else if (columnFields.includes(name)) {
+      issues.push({
+        field: 'calcExpressions',
+        code: 'calc-name-collision',
+        message: `Calc column '${name}' collides with a declared column of the same name.`,
+      });
+    }
+    if (typeof expression !== 'string' || expression.trim() === '') {
+      issues.push({
+        field: 'calcExpressions',
+        code: 'missing',
+        message: `Calc column '${label}' needs an expression.`,
+      });
+      continue;
+    }
+    // Perspective expressions can only reference REAL columns —
+    // an alias quoted as a "column" term inside another expression
+    // silently reads as unknown (engine limit, verified P4b-2).
+    const referenced = names.find(
+      (other) => other !== '' && other !== name && expression.includes(`"${other}"`),
+    );
+    if (referenced !== undefined) {
+      issues.push({
+        field: 'calcExpressions',
+        code: 'calc-cross-reference',
+        message: `Calc column '${label}' references calc column '${referenced}' — expressions can only use real columns.`,
+      });
+    }
+  }
+}
+
+function validateTreePathFields(
+  treePathFields: string[] | undefined,
+  columnFields: string[],
+  issues: StompSsrmValidationIssue[],
+): void {
+  if (!treePathFields || treePathFields.length === 0) return;
+  const seen = new Set<string>();
+  for (const level of treePathFields) {
+    const trimmedLevel = typeof level === 'string' ? level.trim() : '';
+    if (trimmedLevel === '') {
+      issues.push({
+        field: 'treePathFields',
+        code: 'missing',
+        message: 'Tree levels cannot be blank.',
+      });
+      continue;
+    }
+    if (seen.has(trimmedLevel)) {
+      issues.push({
+        field: 'treePathFields',
+        code: 'tree-field-duplicate',
+        message: `Tree level '${trimmedLevel}' is repeated.`,
+      });
+    }
+    seen.add(trimmedLevel);
+    if (columnFields.length > 0 && !columnFields.includes(trimmedLevel)) {
+      issues.push({
+        field: 'treePathFields',
+        code: 'tree-field-not-in-columns',
+        message: `Tree level '${trimmedLevel}' must appear in the column definitions.`,
+      });
+    }
+  }
+}
+
+function validatePositiveNumber(
+  value: number | undefined,
+  field: 'wideColumnThreshold' | 'sweepThrottleWideMs',
+  integer: boolean,
+  issues: StompSsrmValidationIssue[],
+): void {
+  if (value === undefined) return;
+  const bad =
+    typeof value !== 'number' ||
+    !Number.isFinite(value) ||
+    value < 1 ||
+    (integer && !Number.isInteger(value));
+  if (bad) {
+    issues.push({
+      field,
+      code: 'malformed',
+      message:
+        field === 'wideColumnThreshold'
+          ? 'Wide-column threshold must be a positive whole number of columns.'
+          : 'Wide sweep throttle must be a positive number of milliseconds.',
+    });
+  }
 }
 
 function isWsUrl(value: string): boolean {

@@ -138,6 +138,99 @@ describe('validateStompSsrmConfig', () => {
   });
 });
 
+describe('validateStompSsrmConfig — window-side query knobs (P4b-2)', () => {
+  it('accepts well-formed calc expressions, tree levels and gate knobs', () => {
+    expect(
+      validateStompSsrmConfig({
+        ...VALID,
+        calcExpressions: { pnlPerUnit: '"pnl.total" / 2' },
+        treePathFields: ['positionId'],
+        wideColumnThreshold: 80,
+        sweepThrottleWideMs: 1000,
+      }),
+    ).toEqual([]);
+  });
+
+  it('flags a calc column with a blank name or blank expression', () => {
+    expect(
+      validateStompSsrmConfig({ ...VALID, calcExpressions: { '': '"pnl.total" * 2' } }),
+    ).toContainEqual(expect.objectContaining({ field: 'calcExpressions', code: 'missing' }));
+    expect(
+      validateStompSsrmConfig({ ...VALID, calcExpressions: { ppu: '   ' } }),
+    ).toContainEqual(expect.objectContaining({ field: 'calcExpressions', code: 'missing' }));
+  });
+
+  it('flags a calc column colliding with a declared column', () => {
+    expect(
+      validateStompSsrmConfig({ ...VALID, calcExpressions: { positionId: '1 + 1' } }),
+    ).toContainEqual(
+      expect.objectContaining({ field: 'calcExpressions', code: 'calc-name-collision' }),
+    );
+  });
+
+  it("flags a calc column under the plane's reserved __ssrm prefix", () => {
+    for (const name of ['__ssrm_expr', '__ssrmChildCount']) {
+      expect(
+        validateStompSsrmConfig({ ...VALID, calcExpressions: { [name]: '1' } }),
+      ).toContainEqual(
+        expect.objectContaining({ field: 'calcExpressions', code: 'calc-reserved-prefix' }),
+      );
+    }
+  });
+
+  it('flags a calc expression referencing another calc alias (engine limit)', () => {
+    const issues = validateStompSsrmConfig({
+      ...VALID,
+      calcExpressions: { ppu: '"pnl.total" / 2', doubled: '"ppu" * 2' },
+    });
+    expect(issues).toContainEqual(
+      expect.objectContaining({ field: 'calcExpressions', code: 'calc-cross-reference' }),
+    );
+    expect(issues.filter((i) => i.field === 'calcExpressions')).toHaveLength(1);
+  });
+
+  it('flags blank, duplicate and undeclared tree levels', () => {
+    expect(
+      validateStompSsrmConfig({ ...VALID, treePathFields: [' '] }),
+    ).toContainEqual(expect.objectContaining({ field: 'treePathFields', code: 'missing' }));
+    expect(
+      validateStompSsrmConfig({ ...VALID, treePathFields: ['positionId', 'positionId'] }),
+    ).toContainEqual(
+      expect.objectContaining({ field: 'treePathFields', code: 'tree-field-duplicate' }),
+    );
+    expect(
+      validateStompSsrmConfig({ ...VALID, treePathFields: ['notAColumn'] }),
+    ).toContainEqual(
+      expect.objectContaining({ field: 'treePathFields', code: 'tree-field-not-in-columns' }),
+    );
+  });
+
+  it('skips the tree-level column-membership check when no columns are declared', () => {
+    expect(
+      validateStompSsrmConfig({ ...VALID, columnDefinitions: [], treePathFields: ['anything'], keyColumn: 'k' }),
+    ).toEqual([]);
+  });
+
+  it('flags non-positive / non-integer wide-gate knobs', () => {
+    for (const bad of [0, -5, 2.5, Number.NaN]) {
+      expect(
+        validateStompSsrmConfig({ ...VALID, wideColumnThreshold: bad }),
+      ).toContainEqual(
+        expect.objectContaining({ field: 'wideColumnThreshold', code: 'malformed' }),
+      );
+    }
+    for (const bad of [0, -100, Number.NaN]) {
+      expect(
+        validateStompSsrmConfig({ ...VALID, sweepThrottleWideMs: bad }),
+      ).toContainEqual(
+        expect.objectContaining({ field: 'sweepThrottleWideMs', code: 'malformed' }),
+      );
+    }
+    // A fractional throttle is fine — only the threshold is a count.
+    expect(validateStompSsrmConfig({ ...VALID, sweepThrottleWideMs: 750.5 })).toEqual([]);
+  });
+});
+
 describe('validateProviderConfig — stomp-ssrm integration', () => {
   it('routes stomp-ssrm rows through the structured validator as hard errors', () => {
     const result = validateProviderConfig({

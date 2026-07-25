@@ -3,10 +3,12 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
   // `container-*.spec.ts` need the single-server mock host on :5215 and run
-  // under `playwright.container.config.ts` (own baseURL + 1 worker). Exclude
-  // them here so the main multi-server suite doesn't collect + fail them
-  // against demo-react's :5190. Run them with `npm run e2e:container`.
-  testIgnore: 'container-*.spec.ts',
+  // under `playwright.container.config.ts` (own baseURL + 1 worker). The
+  // `ssrm-pull/` group needs the STOMP feed server and runs under
+  // `playwright.ssrm.config.ts` (`npm run e2e:ssrm`). Exclude both here so
+  // the main multi-server suite doesn't collect + fail them against
+  // demo-react's :5190. Run containers with `npm run e2e:container`.
+  testIgnore: ['container-*.spec.ts', 'ssrm-pull/**'],
   timeout: 30_000,
   retries: 0,
   workers: 4,

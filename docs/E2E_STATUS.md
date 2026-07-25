@@ -14,12 +14,13 @@ _Last inventory: 2026-06-13._
 |---|---|---|---|---|
 | Main | [`playwright.config.ts`](../playwright.config.ts) | **384** | 48 | `npm run e2e` |
 | Container | [`playwright.container.config.ts`](../playwright.container.config.ts) | **16** | 5 (`container-*.spec.ts`) | `npm run e2e:container` |
+| SSRM pull | [`playwright.ssrm.config.ts`](../playwright.ssrm.config.ts) | **7** | 7 (`e2e/ssrm-pull/`) | `npm run e2e:ssrm` |
 | OpenFin | [`e2e-openfin/playwright.config.ts`](../e2e-openfin/playwright.config.ts) | 4 spec files | 4 | `npm run e2e:openfin` (OpenFin runtime only) |
 
-The main config sets `testIgnore: 'container-*.spec.ts'`, so the 53 spec
-files under `e2e/` split into **48 main + 5 container**. Counts above are
-what `playwright test --list` collects, the authoritative figure (a single
-spec file can hold many `test()` blocks).
+The main config sets `testIgnore: ['container-*.spec.ts', 'ssrm-pull/**']`,
+so the spec files under `e2e/` split into **48 main + 5 container + 7 SSRM
+pull**. Counts above are what `playwright test --list` collects, the
+authoritative figure (a single spec file can hold many `test()` blocks).
 
 > Counts are collection counts, not pass counts. Capture pass/fail from a
 > real run — the multi-server topology below means a snapshot taken with a
@@ -46,6 +47,16 @@ rebuild** — kill stragglers before a clean run.
 
 The container suite uses its own single mock host on **:5215** with one
 worker.
+
+The SSRM pull suite (`e2e/ssrm-pull/`, 1 worker) boots the STOMP feed
+server `@starui/stomp-view-server` on **:8081** plus the lab on :5300, and
+drives the lab spike `/spikes/ssrmGrid.html` two-tabs-per-context (one
+SharedWorker) — cold seed, attach/reload/restart generation adoption,
+cross-tab edit convergence, live grouped aggregates, tree child counts.
+Shared harness: `e2e/ssrm-pull/ssrmSpike.ts` (quiet-window sandwich for
+live-feed exactness). See
+[`SSRM_PROVIDER_V2.md`](./SSRM_PROVIDER_V2.md) §6. Baseline 2026-07-25:
+**7/7 passing headless (~1.1 min)**.
 
 ## Spec inventory (main suite)
 

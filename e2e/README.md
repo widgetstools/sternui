@@ -12,6 +12,11 @@ The suite has grown well past its original handful of specs. As of
 - **Container suite** (`playwright.container.config.ts`, the
   `container-*.spec.ts` files excluded from the main config) — **16 tests
   across 5 specs**, run with `npm run e2e:container`.
+- **SSRM pull suite** (`playwright.ssrm.config.ts`, the `ssrm-pull/` dir
+  excluded from the main config) — **7 tests across 7 specs** driving the
+  lab spike against the live stomp-view-server feed (multi-tab SharedWorker
+  sharing, reload/restart adoption, edit convergence, live aggregates, tree
+  counts), run with `npm run e2e:ssrm`.
 
 `e2e/helpers/settingsSheet.ts` provides the shared harness
 (`bootCleanDemo`, `openPanel`, `forceNavigateToPanel`, `closeSettingsSheet`).
@@ -100,6 +105,7 @@ Add a new `PanelModuleId` + root-testid entry to the helper when a new module sh
 ```
 npm run e2e                                        # full main suite
 npm run e2e:container                              # container-* specs (own config + :5215 host)
+npm run e2e:ssrm                                   # ssrm-pull/ specs (own config + :8081 feed)
 npx playwright test e2e/v2-filters-toolbar.spec.ts # single spec
 npx playwright test -g "captures current filter"   # grep test title
 npx playwright test --debug                        # interactive
