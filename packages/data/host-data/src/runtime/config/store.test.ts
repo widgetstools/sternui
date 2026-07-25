@@ -104,6 +104,58 @@ describe('DataProviderConfigStore — hub catalog invalidation', () => {
     await expect(store.save(mockProvider('p1', 'First'), 'dev1')).resolves.toBeDefined();
   });
 
+  it('round-trips a stomp-ssrm provider (save → get → list) without touching stomp rows', async () => {
+    const cm = mockConfigManager([mockRow('csrm-1', 'positions-live')]);
+    const store = new DataProviderConfigStore(cm);
+
+    const ssrmConfig = {
+      providerType: 'stomp-ssrm' as const,
+      websocketUrl: 'ws://localhost:8081',
+      listenerTopic: '/snapshot/positions/GRID1',
+      requestMessage: '/snapshot/positions/GRID1/5/1000',
+      requestHeaders: { 'snapshot-rows': '20000' },
+      snapshotEndToken: 'Success',
+      keyColumn: 'positionId',
+      columnDefinitions: [
+        { field: 'positionId', headerName: 'Position', cellDataType: 'text' as const },
+        { field: 'pnl.total', headerName: 'PnL', cellDataType: 'number' as const },
+      ],
+      tableName: 'positions',
+    };
+
+    const saved = await store.save({
+      name: 'positions-ssrm',
+      description: 'pull-plane blotter feed',
+      providerType: 'stomp-ssrm',
+      config: ssrmConfig as never,
+      userId: 'dev1',
+      public: false,
+    }, 'dev1');
+    expect(saved.providerId).toBeTruthy();
+
+    // Row shape: componentSubType discriminates the provider type.
+    const row = await cm.getConfig(saved.providerId!);
+    expect(row?.componentType).toBe('data-provider');
+    expect(row?.componentSubType).toBe('stomp-ssrm');
+
+    // get() rehydrates the exact config (keyColumn + dotted-leaf columns intact).
+    const loaded = await store.get(saved.providerId!);
+    expect(loaded?.providerType).toBe('stomp-ssrm');
+    expect(loaded?.config).toEqual(ssrmConfig);
+    expect(loaded?.description).toBe('pull-plane blotter feed');
+
+    // list() surfaces it, and the subtype filters cut BOTH ways — a
+    // picker scoped to another transport must never see SSRM rows, and
+    // the SSRM scope must not leak the pre-existing row (the seeded
+    // mockRow is componentSubType 'mock', standing in for any CSRM row).
+    const all = await store.list('dev1');
+    expect(all.map((c) => c.name).sort()).toEqual(['positions-live', 'positions-ssrm']);
+    const ssrmOnly = await store.list('dev1', { subtype: 'stomp-ssrm' });
+    expect(ssrmOnly.map((c) => c.name)).toEqual(['positions-ssrm']);
+    const mockOnly = await store.list('dev1', { subtype: 'mock' });
+    expect(mockOnly.map((c) => c.name)).toEqual(['positions-live']);
+  });
+
   it('list(includeAppData) returns unified and legacy AppData rows', async () => {
     const stompRow: AppConfigRow = {
       configId: 'stomp-1',

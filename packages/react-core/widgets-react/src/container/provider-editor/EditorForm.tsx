@@ -168,6 +168,13 @@ export function EditorForm({ initial, userId, onCancel, onSaved, onClone }: Edit
   const isExisting = Boolean(provider.providerId);
   const saveLabel = isExisting ? 'Update DataProvider' : 'Create DataProvider';
 
+  // Diagnostics attaches through the CSRM hub client (`client.attach`)
+  // to read live stats — but `stomp-ssrm` providers run on their own
+  // SSRM SharedWorker (the hub has no factory for them), so the tab
+  // would only surface a worker error. The pull plane's diagnostic
+  // surface is its DatasetState, consumed where the grid mounts.
+  const hasHubDiagnostics = isExisting && provider.config.providerType !== 'stomp-ssrm';
+
   // Pull selected column field-paths for FieldsTab. While the user is
   // editing in FieldsTab the draft buffer (`pendingFieldsCols`) is the
   // source of truth — sourcing this from `currentColumns` instead would
@@ -206,7 +213,7 @@ export function EditorForm({ initial, userId, onCancel, onSaved, onClone }: Edit
             <TabsTrigger value="fields" className="text-xs">Fields</TabsTrigger>
             <TabsTrigger value="columns" className="text-xs">Columns</TabsTrigger>
             <TabsTrigger value="behaviour" className="text-xs">Behaviour</TabsTrigger>
-            {isExisting && <TabsTrigger value="diagnostics" className="text-xs">Diagnostics</TabsTrigger>}
+            {hasHubDiagnostics && <TabsTrigger value="diagnostics" className="text-xs">Diagnostics</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="connection" className="flex-1 min-h-0 overflow-hidden m-0 mt-3">
@@ -241,7 +248,7 @@ export function EditorForm({ initial, userId, onCancel, onSaved, onClone }: Edit
             <BehaviourFields cfg={provider.config} onChange={updateCfg} />
           </TabsContent>
 
-          {isExisting && (
+          {hasHubDiagnostics && (
             <TabsContent value="diagnostics" className="flex-1 min-h-0 overflow-hidden m-0 mt-3">
               <DiagnosticsTab providerId={provider.providerId ?? null} cfg={provider.config} />
             </TabsContent>

@@ -149,7 +149,29 @@ fling anti-jank; loading/empty/error UX from DatasetState.
   `'group-level'`, `group_by` carried), OR-combined/date/notContains filter
   ops, ordering drift under an active sort between user refreshes.)*
 - **P3** — `StompSsrmProviderConfig` + the SSRM config editor + catalog/registry
-  integration ("New SSRM STOMP provider" in the browser).
+  integration ("New SSRM STOMP provider" in the browser). ✅ *(2026-07-25 —
+  `providerType: 'stomp-ssrm'` in shared-types (`stompSsrm.ts`, re-exported via
+  `@starui/types`): required single-column `keyColumn`, `columnDefinitions` as
+  the one schema/columns declaration, worker-consumed knobs only (`heartbeat`,
+  `maxBufferedRows`); `reconnect` reserved-documented, no asOfDate config field
+  (CSRM's asOfDate is a restart overlay, not config). Pure structured
+  `validateStompSsrmConfig` (blank/malformed URL, empty topic, missing /
+  composite / not-in-columns keyColumn) also routed through
+  `validateProviderConfig`. `toSsrmDatasetConfig` in host-data
+  `runtime/ssrm` (re-exported from `@starui/ssrm-grid/pull`) is the documented
+  catalog→worker mapping. Dedicated editor `StompSsrmFields` registered in the
+  provider editor's per-transport switches (Connection + Behaviour) with inline
+  validation errors; "New Provider" picker lists STOMP SSRM; Diagnostics tab
+  (a CSRM-hub surface) hidden for SSRM rows; probes (Test Connection / Infer
+  Fields) ride the field-identical STOMP transport helpers. Catalog round-trip
+  unit-tested at the `DataProviderConfigStore` seam (componentSubType
+  `stomp-ssrm`; subtype filters isolate both planes). Grid spike now seeds a
+  catalog row programmatically, reads it back, validates, maps — headless
+  proof: live 5000-row seed from the seeded row's own requestHeaders, grid
+  columns = the row's columnDefinitions headerNames, sort + restart→gen-2
+  remount probes intact; editor smoke (star-demo `/dataproviders`): SSRM
+  fields render, blank keyColumn shows its inline error, zero push-plane
+  knobs.)*
 - **P4** — feature-parity pass (grouping/aggregates/edit/export/chart/tree),
   each with unit tests; race-class tests with injected transport/clock/ports.
 - **P5** — multi-window + live-feed + reload soak and e2e in CI (the coverage

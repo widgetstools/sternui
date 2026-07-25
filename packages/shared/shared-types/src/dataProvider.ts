@@ -1,11 +1,20 @@
 // DataProvider configuration types for Star Trading Platform
 // These configs are stored as UnifiedConfig with componentType='datasource'
 
+import type { StompSsrmProviderConfig } from './stompSsrm.js';
+import { validateStompSsrmConfig } from './stompSsrm.js';
+
+// The `stomp-ssrm` config lives in its own module (./stompSsrm.ts) but
+// is part of this file's public surface — everything provider-config
+// related resolves from `@starui/shared-types/dataProvider`.
+export * from './stompSsrm.js';
+
 /**
  * Provider type enumeration
  */
 export const PROVIDER_TYPES = {
   STOMP: 'stomp',
+  STOMP_SSRM: 'stomp-ssrm',
   REST: 'rest',
   WEBSOCKET: 'websocket',
   SOCKETIO: 'socketio',
@@ -20,6 +29,7 @@ export type ProviderType = typeof PROVIDER_TYPES[keyof typeof PROVIDER_TYPES];
  */
 export const PROVIDER_TYPE_TO_COMPONENT_SUBTYPE: Record<ProviderType, string> = {
   [PROVIDER_TYPES.STOMP]: 'stomp',
+  [PROVIDER_TYPES.STOMP_SSRM]: 'stomp-ssrm',
   [PROVIDER_TYPES.REST]: 'rest',
   [PROVIDER_TYPES.WEBSOCKET]: 'websocket',
   [PROVIDER_TYPES.SOCKETIO]: 'socketio',
@@ -32,6 +42,7 @@ export const PROVIDER_TYPE_TO_COMPONENT_SUBTYPE: Record<ProviderType, string> = 
  */
 export const COMPONENT_SUBTYPE_TO_PROVIDER_TYPE: Record<string, ProviderType> = {
   'stomp': PROVIDER_TYPES.STOMP,
+  'stomp-ssrm': PROVIDER_TYPES.STOMP_SSRM,
   'rest': PROVIDER_TYPES.REST,
   'websocket': PROVIDER_TYPES.WEBSOCKET,
   'socketio': PROVIDER_TYPES.SOCKETIO,
@@ -395,6 +406,7 @@ export interface AppDataProviderConfig {
  */
 export type ProviderConfig =
   | StompProviderConfig
+  | StompSsrmProviderConfig
   | RestProviderConfig
   | WebSocketProviderConfig
   | SocketIOProviderConfig
@@ -512,6 +524,20 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, Partial<ProviderConf
     inferredFields: [],
     columnDefinitions: []
   },
+  'stomp-ssrm': {
+    providerType: 'stomp-ssrm',
+    websocketUrl: '',
+    listenerTopic: '',
+    requestBody: '',
+    snapshotEndToken: 'Success',
+    keyColumn: '',
+    heartbeat: {
+      outgoing: 4000,
+      incoming: 4000
+    },
+    inferredFields: [],
+    columnDefinitions: []
+  },
   rest: {
     providerType: 'rest',
     baseUrl: '',
@@ -568,6 +594,15 @@ export function validateProviderConfig(config: ProviderConfig): ProviderValidati
   }
 
   switch (config.providerType) {
+    case 'stomp-ssrm': {
+      // The SSRM provider ships a dedicated structured validator (the
+      // editor renders its issues inline) — surface the same messages
+      // as hard errors through this generic entry point.
+      for (const issue of validateStompSsrmConfig(config as StompSsrmProviderConfig)) {
+        errors.push(issue.message);
+      }
+      break;
+    }
     case 'stomp': {
       const stompConfig = config as StompProviderConfig;
       if (stompConfig.websocketUrl && !stompConfig.websocketUrl.startsWith('ws://') && !stompConfig.websocketUrl.startsWith('wss://')) {

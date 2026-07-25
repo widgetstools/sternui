@@ -23,7 +23,7 @@ import {
   DialogTitle, DialogTrigger, Input, Label, ScrollArea,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@starui/ui';
-import { Database, Copy, Globe, Plus, Radio, Search, Trash2, TestTube2, Upload } from 'lucide-react';
+import { Database, Copy, Globe, Plus, Radio, Rows3, Search, Trash2, TestTube2, Upload } from 'lucide-react';
 import type { DataProviderConfig, ProviderConfig, ProviderType } from '@starui/shared-types';
 import { useDataServices, useDataProvidersList } from '@starui/host-data-react/runtime';
 import { cloneProviderConfig } from './cloneProviderConfig.js';
@@ -36,6 +36,7 @@ import { EditorForm } from './EditorForm.js';
 
 const PROVIDER_TYPE_META: Record<ProviderType, { label: string; description: string; icon: typeof Database }> = {
   stomp: { label: 'STOMP', description: 'WebSocket streaming with snapshot + delta semantics.', icon: Radio },
+  'stomp-ssrm': { label: 'STOMP SSRM', description: 'STOMP snapshot + ticks into a worker-hosted Perspective table; grids read it via the server-side row model.', icon: Rows3 },
   rest: { label: 'REST', description: 'One-shot HTTP fetch — no live updates.', icon: Globe },
   websocket: { label: 'WebSocket', description: 'Raw WebSocket, framed by you.', icon: Radio },
   socketio: { label: 'Socket.IO', description: 'Socket.IO event-driven channel.', icon: Radio },
@@ -43,7 +44,7 @@ const PROVIDER_TYPE_META: Record<ProviderType, { label: string; description: str
   appdata: { label: 'AppData', description: 'Key/value store referenced by other providers via {{name.key}}.', icon: Database },
 };
 
-const SUPPORTED_TYPES: ProviderType[] = ['stomp', 'rest', 'mock', 'appdata'];
+const SUPPORTED_TYPES: ProviderType[] = ['stomp', 'stomp-ssrm', 'rest', 'mock', 'appdata'];
 
 export interface DataProviderEditorProps {
   userId: string;

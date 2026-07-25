@@ -50,5 +50,10 @@ export type {
   DatasetPhase,
   DatasetStateSnapshot,
   SsrmDatasetConfig,
+  StompSsrmProviderConfig,
 } from '@starui/host-data/runtime/ssrm';
-export { ssrmWorkerName, SSRM_WORKER_ASSET } from '@starui/host-data/runtime/ssrm';
+export {
+  ssrmWorkerName,
+  SSRM_WORKER_ASSET,
+  toSsrmDatasetConfig,
+} from '@starui/host-data/runtime/ssrm';

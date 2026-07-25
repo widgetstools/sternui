@@ -40,6 +40,11 @@ export {
 } from './tableSchema.js';
 export { classifyFrame, matchesEndToken, type FrameClass } from './stompFrames.js';
 
+// Catalog config (`providerType: 'stomp-ssrm'`) → worker config. The
+// catalog type itself lives in @starui/types; re-exported here so pull
+// consumers get the pair from one import.
+export { toSsrmDatasetConfig, type StompSsrmProviderConfig } from './toSsrmDatasetConfig.js';
+
 export {
   SsrmControlClient,
   type SsrmControlClientOpts,

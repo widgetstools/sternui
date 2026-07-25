@@ -25,6 +25,7 @@ import {
 import type {
   ProviderConfig,
   StompProviderConfig,
+  StompSsrmProviderConfig,
   RestProviderConfig,
   MockProviderConfig,
 } from '@starui/shared-types';
@@ -73,6 +74,9 @@ export function BehaviourFields({ cfg, onChange }: BehaviourFieldsProps) {
   if (cfg.providerType === 'stomp') {
     return <StompBehaviour cfg={cfg as StompProviderConfig} onChange={onChange as (n: Partial<StompProviderConfig>) => void} />;
   }
+  if (cfg.providerType === 'stomp-ssrm') {
+    return <StompSsrmBehaviour cfg={cfg as StompSsrmProviderConfig} onChange={onChange as (n: Partial<StompSsrmProviderConfig>) => void} />;
+  }
   if (cfg.providerType === 'rest') {
     const rest = cfg as RestProviderConfig;
     return (
@@ -104,6 +108,88 @@ export function BehaviourFields({ cfg, onChange }: BehaviourFieldsProps) {
   return (
     <section className="rounded-lg border border-border bg-muted/30 p-4 text-xs text-muted-foreground">
       No behaviour settings for {cfg.providerType.toUpperCase()} providers.
+    </section>
+  );
+}
+
+/**
+ * SSRM (pull-plane) behaviour — ONLY the knobs the provider worker
+ * actually consumes: STOMP heartbeat and the pre-table buffer bound.
+ * There are deliberately NO fan-out/throttle/conflation/chunk/wire
+ * options here: windows read the worker-hosted Perspective table
+ * directly, so nothing is fanned out to throttle.
+ */
+function StompSsrmBehaviour({ cfg, onChange }: { cfg: StompSsrmProviderConfig; onChange(next: Partial<StompSsrmProviderConfig>): void }) {
+  return (
+    <section className="rounded-lg border border-border bg-muted/30 p-4 space-y-5 max-w-md">
+      <div className="space-y-3.5">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Ingest</h3>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium text-muted-foreground">Max buffered rows (pre-table)</Label>
+          <Input
+            type="number"
+            className="h-8 text-sm"
+            min={1000}
+            max={1_000_000}
+            step={1000}
+            value={cfg.maxBufferedRows ?? 100_000}
+            onChange={(e) => {
+              const v = Math.floor(Number(e.target.value) || 0);
+              onChange({ maxBufferedRows: v > 0 ? v : undefined });
+            }}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Bound on rows parked before the first snapshot batch creates the
+            Perspective table. Overflow is a hard dataset error — the buffer is a
+            startup shim, never a second copy of the book. Default 100000.
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-3.5">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Heartbeat</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Outgoing (ms)</Label>
+            <Input
+              type="number"
+              className="h-8 text-sm"
+              min={0}
+              max={60_000}
+              step={500}
+              value={cfg.heartbeat?.outgoing ?? 4000}
+              onChange={(e) => onChange({
+                heartbeat: { ...(cfg.heartbeat ?? {}), outgoing: Number(e.target.value) || 0 },
+              })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Incoming (ms)</Label>
+            <Input
+              type="number"
+              className="h-8 text-sm"
+              min={0}
+              max={60_000}
+              step={500}
+              value={cfg.heartbeat?.incoming ?? 4000}
+              onChange={(e) => onChange({
+                heartbeat: { ...(cfg.heartbeat ?? {}), incoming: Number(e.target.value) || 0 },
+              })}
+            />
+          </div>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          STOMP heartbeat negotiation. A broken session is surfaced as a dataset
+          error — recovery is an explicit Restart (no silent redial on the pull plane),
+          so keep heartbeats tight enough to detect dead brokers promptly.
+        </p>
+      </div>
+
+      <p className="text-[11px] text-muted-foreground">
+        No fan-out, throttle or conflation settings exist for SSRM providers: every
+        window reads the single worker-hosted Perspective table directly through the
+        server-side row model.
+      </p>
     </section>
   );
 }

@@ -13,7 +13,7 @@ import { useCallback, useState } from 'react';
 import { probeStomp, connectStomp, probeRest, probeMock, inferFields } from '@starui/host-data';
 import { resolveCfg } from '@starui/host-data/runtime';
 import { useAppDataStore } from '@starui/host-data-react/runtime';
-import type { ProviderConfig, FieldNode } from '@starui/shared-types';
+import type { ProviderConfig, FieldNode, StompProviderConfig, StompSsrmProviderConfig } from '@starui/shared-types';
 
 export interface ProbeState {
   testing: boolean;
@@ -128,11 +128,23 @@ async function testConnectionOnce(
 ): Promise<{ ok: boolean; rows?: readonly unknown[]; error?: string }> {
   switch (cfg.providerType) {
     case 'stomp': return connectStomp(cfg, { timeoutMs: opts.timeoutMs });
+    case 'stomp-ssrm': return connectStomp(asStompTransport(cfg), { timeoutMs: opts.timeoutMs });
     case 'rest':  return probeRest(cfg);
     case 'mock':  return probeMock(cfg, { maxRows: opts.maxRows });
     case 'appdata': return { ok: true, rows: [] };
     default:      return { ok: false, error: `Test not implemented for ${cfg.providerType}` };
   }
+}
+
+/**
+ * The SSRM config's transport subset (websocketUrl / listenerTopic /
+ * requestMessage / requestBody / snapshotEndToken / heartbeat) is
+ * field-for-field identical to the push-plane STOMP config, so the
+ * editor's probe helpers serve both. Only the delivery plane differs —
+ * and probes never attach a plane.
+ */
+function asStompTransport(cfg: StompSsrmProviderConfig): StompProviderConfig {
+  return { ...cfg, providerType: 'stomp' } as unknown as StompProviderConfig;
 }
 
 /**
@@ -146,6 +158,7 @@ async function probeOnce(
 ): Promise<{ ok: boolean; rows?: readonly unknown[]; error?: string }> {
   switch (cfg.providerType) {
     case 'stomp': return probeStomp(cfg, opts);
+    case 'stomp-ssrm': return probeStomp(asStompTransport(cfg), opts);
     case 'rest':  return probeRest(cfg);
     case 'mock':  return probeMock(cfg, { maxRows: opts.maxRows });
     case 'appdata': return { ok: true, rows: [] };
