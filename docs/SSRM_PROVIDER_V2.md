@@ -151,10 +151,12 @@ the window is done with the provider.
 
 Beyond blocks, the datasource serves: `setQuickFilter(text)` (safe to
 call per keystroke — debounced via `quickFilterDebounceMs`, default
-250 ms; the settled change refreshes with `purge: true`, which is
-required for correctness: a soft refresh cannot shrink AG's lazy-store
-row count, so the pre-fix behavior left the scrollbar on the unfiltered
-total), `getDistinctValues(field)` (set filters), and `queryAll({ columns?,
+150 ms; the settled change refreshes SOFT on flat stores — rows morph
+in place with the count enforced via `setRowCount`, since a soft
+refresh alone never resizes AG's lazy store — and purges on
+grouped/tree stores, where `setRowCount` is forbidden (AG #28);
+measured ~100–250 ms from last keystroke on a 20k live book with zero
+loading-stub frames), `getDistinctValues(field)` (set filters), and `queryAll({ columns?,
 chunkSize?, onChunk? })` — the FULL filtered+sorted leaf set for
 export/chart (AG's own SSRM export and integrated charts walk only
 loaded blocks; build CSV via `rowsToCsv`, Excel via an off-screen

@@ -46,14 +46,16 @@
  * • **Quick filter (P4a; hardened for perf + correctness).**
  *   `setQuickFilter(text)` folds a case-insensitive multi-token match
  *   across `quickFilterColumns` into every plan (a boolean expression
- *   column). Calls are DEBOUNCED (`quickFilterDebounceMs`, default
- *   250ms trailing) — per-keystroke application built one full
- *   Perspective view per key and queued a refresh behind each. The
- *   settled change refreshes with `purge: true`: a quick-filter change
- *   is a structural store change (same as a column-filter change under
- *   SSRM) — a soft refresh repaints loaded blocks but NEVER applies a
- *   smaller row count to AG's lazy store, leaving the scrollbar and
- *   row indices on the pre-filter count forever.
+ *   column, evaluated ENGINE-side — Perspective's own filter mechanism
+ *   for multi-column OR, which its view-global `filter_op` cannot
+ *   express as native clauses). Calls are DEBOUNCED
+ *   (`quickFilterDebounceMs`, default 150ms trailing) — per-keystroke
+ *   application built one full Perspective view per key. The settled
+ *   change refreshes SOFT on flat stores (rows morph in place, no stub
+ *   blank; `setRowCount` in finishLoad/refreshBlock enforces the new
+ *   count — a soft refresh alone never resizes AG's lazy store) and
+ *   PURGES on grouped/tree stores (membership changes structurally;
+ *   `setRowCount` is forbidden under grouping, AG #28).
  * • **Tree data (P4b-2).** `treePathFields` synthesizes a serverSide
  *   tree from categorical fields — tree levels are served by the SAME
  *   group-level plans as row grouping (see `buildQueryPlan`), leaf
@@ -112,7 +114,7 @@ export interface SsrmPullDatasourceOpts {
   /**
    * Trailing debounce for `setQuickFilter` so per-keystroke input
    * collapses into ONE view build + ONE store refresh. `0` applies
-   * synchronously (tests / programmatic callers). Default 250ms.
+   * synchronously (tests / programmatic callers). Default 150ms.
    */
   quickFilterDebounceMs?: number;
   /**
@@ -177,9 +179,9 @@ export interface SsrmPullDatasource extends IServerSideDatasource {
   /**
    * Quick filter: matches every whitespace-separated token
    * case-insensitively against `quickFilterColumns`; null/empty clears.
-   * Debounced (`quickFilterDebounceMs`); the settled change refreshes
-   * with `purge: true` so the store row count is authoritative (a soft
-   * refresh cannot shrink AG's lazy store).
+   * Debounced (`quickFilterDebounceMs`). The settled change refreshes
+   * SOFT on flat stores (in-place repaint + `setRowCount` keeps the
+   * count authoritative) and purges on grouped/tree stores (AG #28).
    */
   setQuickFilter(text: string | null): void;
   /**
@@ -592,6 +594,12 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     // view's exact count — a count that grows mid-seed is refreshed by
     // the seeding→live no-purge refresh (and by later user loads).
     params.success({ rowData: rows, rowCount: total, ...extra });
+    // Flat root at live/empty: ENFORCE the count. AG's lazy store never
+    // SHRINKS from a success rowCount alone (a soft refresh after a
+    // quick-filter change left the scrollbar on the unfiltered total),
+    // and never grows from one either once marked final. setRowCount is
+    // authoritative both ways and legal only here (AG #28 under grouping).
+    if (isFlatRoot(plan)) params.api.setRowCount(total, true);
   }
 
   /** Serve-then-refresh: replace a cache-hit block with a fresh read. */
@@ -617,7 +625,10 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         ? { rowData: read.rows }
         : { rowData: read.rows, rowCount: read.total },
     });
+    // Flat root: keep the store count authoritative on refreshes too —
+    // shrink (filter narrowed) and growth (live inserts) both apply.
     if (seedingFlatRoot) api.setRowCount(read.total, false);
+    else if (isFlatRoot(plan)) api.setRowCount(read.total, true);
   }
 
   return {
@@ -639,13 +650,18 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         quickFilterTimer = null;
         if (destroyed || pendingQuickFilter === quickFilter) return;
         quickFilter = pendingQuickFilter;
-        // Structural store change: PURGE. A soft refresh repaints loaded
-        // blocks but never applies a smaller rowCount to the lazy store —
-        // the count (and scrollbar) would stay on the pre-filter total
-        // forever. An armed rollup rebuilds on the next root load.
-        api?.refreshServerSide({ purge: true });
+        // FLAT store: refresh SOFT — rows morph in place (no stub blank),
+        // and finishLoad/refreshBlock enforce the shrunken/grown count via
+        // setRowCount (a soft refresh alone never resizes the lazy store).
+        // GROUPED/TREE store: purge — group membership/counts change
+        // structurally and setRowCount is forbidden under grouping (AG #28).
+        // An armed rollup rebuilds on the next root load either way.
+        const grouped =
+          (lastRootRequest?.rowGroupCols?.length ?? 0) > 0
+          || (opts.treePathFields?.length ?? 0) > 0;
+        api?.refreshServerSide({ purge: grouped });
       };
-      const debounceMs = opts.quickFilterDebounceMs ?? 250;
+      const debounceMs = opts.quickFilterDebounceMs ?? 150;
       if (debounceMs <= 0) apply();
       else quickFilterTimer = setTimeout(apply, debounceMs);
     },

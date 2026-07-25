@@ -559,10 +559,10 @@ describe('createSsrmPullDatasource', () => {
     await flush();
 
     ds.setQuickFilter('bookA');
-    // Structural store change → PURGE (a soft refresh cannot shrink AG's
-    // lazy-store row count; the pre-fix purge:false left the scrollbar on
-    // the unfiltered total forever).
-    expect(api.calls.refreshes).toEqual([{ purge: true }]);
+    // FLAT store → SOFT refresh (rows morph in place); the count is
+    // enforced by finishLoad's setRowCount, not by the refresh itself
+    // (a soft refresh alone never resizes AG's lazy store).
+    expect(api.calls.refreshes).toEqual([{ purge: false }]);
     const params = loadParams(api); // the refresh re-issues getRows
     ds.getRows(params);
     await flush();
@@ -608,18 +608,18 @@ describe('createSsrmPullDatasource', () => {
       expect(api.calls.refreshes).toEqual([]); // nothing applied mid-typing
 
       vi.advanceTimersByTime(200); // trailing edge
-      expect(api.calls.refreshes).toEqual([{ purge: true }]); // exactly one
+      expect(api.calls.refreshes).toEqual([{ purge: false }]); // exactly one (flat → soft)
 
       // Re-setting the SAME settled value must not refresh again.
       ds.setQuickFilter('BOOK003');
       vi.advanceTimersByTime(300);
-      expect(api.calls.refreshes).toEqual([{ purge: true }]);
+      expect(api.calls.refreshes).toEqual([{ purge: false }]);
 
       // destroy() cancels a pending apply.
       ds.setQuickFilter('other');
       ds.destroy();
       vi.advanceTimersByTime(300);
-      expect(api.calls.refreshes).toEqual([{ purge: true }]);
+      expect(api.calls.refreshes).toEqual([{ purge: false }]);
     } finally {
       vi.useRealTimers();
     }
