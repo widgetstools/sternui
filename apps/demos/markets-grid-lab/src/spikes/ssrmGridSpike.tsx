@@ -36,6 +36,19 @@
  *   `queryAll` rows (AG's integrated charts under SSRM also see only
  *   loaded blocks, so the chart is fed from the data plane).
  *
+ * P4b-2 adds:
+ * • **tree data** (`?tree=1`) — the catalog row's `treePathFields`
+ *   (`['bookName', 'trader']`) synthesize a serverSide tree; the grid
+ *   wires AG 36's tree contract (`isServerSideGroup` /
+ *   `getServerSideGroupKey`) to the plane's group-row stamps;
+ * • **master-detail** (`?master=1`) — expanding a row fetches its
+ *   detail on demand via `createSsrmDetailFetcher` (default: keyed
+ *   single-row read of the hosted table — always the CURRENT values);
+ * • **calc column** — the catalog row's `calcExpressions`
+ *   (`pnlPerUnit = pnl / quantity`) flows into every view: it sorts,
+ *   filters, aggregates (grouped views + grand total) and exports
+ *   (queryAll) like a real column.
+ *
  * Mount-once contract: the grid mounts only once DatasetState is
  * known, keyed by `(providerId, generation)` — a restart bumps the
  * generation and REMOUNTS the grid; loading/empty/error are rendered
@@ -77,8 +90,12 @@ import {
   CHILD_COUNT_FIELD,
   connectSsrmProvider,
   createSsrmCellEditHandler,
+  createSsrmDetailFetcher,
   createSsrmPullDatasource,
   createSsrmRowIdGetter,
+  createSsrmRowMasterGetter,
+  getSsrmServerSideGroupKey,
+  isSsrmServerSideGroup,
   rowsToCsv,
   toSsrmDatasetConfig,
   type DatasetStateSnapshot,
@@ -105,6 +122,10 @@ const params = new URLSearchParams(window.location.search);
 const SNAPSHOT_ROWS = Number(params.get('rows') ?? 20_000);
 const TICK_RATE = Number(params.get('rate') ?? 5); // ticks/sec
 const UPDATES_PER_TICK = Number(params.get('upt') ?? 500);
+/** P4b-2: `?tree=1` serves the config's treePathFields as a serverSide tree. */
+const TREE_MODE = params.get('tree') === '1';
+/** P4b-2: `?master=1` enables master-detail (tree and master are exclusive). */
+const MASTER_MODE = !TREE_MODE && params.get('master') === '1';
 
 /** The catalog draft — ONE declaration of transport + schema + columns. */
 function buildProviderDraft(): DataProviderConfig {
@@ -131,6 +152,9 @@ function buildProviderDraft(): DataProviderConfig {
       { field: 'currentPrice', headerName: 'Price', cellDataType: 'number' },
       { field: 'pnl', headerName: 'PnL', cellDataType: 'number' },
     ],
+    // P4b-2: window-side knobs — calc column + the synthesized tree.
+    calcExpressions: { pnlPerUnit: '"pnl" / "quantity"' },
+    treePathFields: ['bookName', 'trader'],
   };
   return {
     name: PROVIDER_NAME,
@@ -213,6 +237,21 @@ function toColDefs(columns: readonly ColumnDefinition[] | undefined): ColDef[] {
   });
 }
 
+/** P4b-2: calc columns are first-class grid columns (computed per view). */
+function toCalcColDefs(calc: Record<string, string> | undefined): ColDef[] {
+  return Object.keys(calc ?? {}).map((name): ColDef => ({
+    field: name,
+    headerName: name,
+    filter: 'agNumberColumnFilter',
+    enableValue: true,
+    editable: false, // computed — nothing to write back
+  }));
+}
+
+/** P4b-2: detail panel columns (real table columns; the detail read is a keyed single-row table read). */
+const DETAIL_COL_DEFS: ColDef[] = ['positionId', 'cusip', 'bookName', 'trader', 'quantity', 'currentPrice', 'pnl']
+  .map((field): ColDef => ({ field }));
+
 // ─── P4b actions (populated by main(); buttons + probes share them) ─
 
 const p4b: {
@@ -282,6 +321,12 @@ interface SsrmGridSpikeProbes {
   exportFilteredExcel: () => Promise<{ total: number; gridRows: number; blobBytes: number }>;
   /** P4b — queryAll → AG Charts standalone; returns plotted-point count. */
   chartFilteredSet: (yField?: string) => Promise<{ total: number; points: number }>;
+  /** P4b-2 — full filtered+sorted leaf rows (control math for calc/tree probes). */
+  queryAllRows: (columns?: string[]) => Promise<Record<string, unknown>[]>;
+  /** P4b-2 — every mounted detail grid's rows (master-detail evidence). */
+  detailGrids: () => Array<{ id: string; rows: Record<string, unknown>[] }>;
+  /** P4b-2 — CONTROL read: the hosted table's CURRENT row for a key. */
+  readRowByKey: (key: unknown) => Promise<Record<string, unknown> | null>;
 }
 
 declare global {
@@ -298,22 +343,53 @@ function GridHost({
   keyColumn,
   columnDefs,
   quickFilterColumns,
+  calcExpressions,
+  treePathFields,
 }: {
   connection: SsrmProviderConnection;
   generation: number;
   keyColumn: string;
   columnDefs: ColDef[];
   quickFilterColumns: string[];
+  calcExpressions?: Record<string, string>;
+  treePathFields?: string[];
 }): React.JSX.Element {
   const datasource = useMemo(
-    () => createSsrmPullDatasource({ connection, keyColumn, quickFilterColumns }),
-    [connection, generation, keyColumn, quickFilterColumns],
+    () =>
+      createSsrmPullDatasource({
+        connection,
+        keyColumn,
+        quickFilterColumns,
+        ...(calcExpressions ? { calcExpressions } : {}),
+        // P4b-2: tree mode serves the config's synthesized hierarchy.
+        ...(TREE_MODE && treePathFields ? { treePathFields } : {}),
+      }),
+    [connection, generation, keyColumn, quickFilterColumns, calcExpressions, treePathFields],
   );
   const getRowId = useMemo(() => createSsrmRowIdGetter(keyColumn), [keyColumn]);
   // P4b: edits post keyed partial rows to the worker-hosted table.
   const onCellValueChanged = useMemo(
     () => createSsrmCellEditHandler({ connection, keyColumn }),
     [connection, keyColumn],
+  );
+  // P4b-2: master-detail — expand fetches the row's detail on demand
+  // (keyed single-row read of the hosted table = CURRENT values).
+  const isRowMaster = useMemo(() => createSsrmRowMasterGetter(keyColumn), [keyColumn]);
+  const detailCellRendererParams = useMemo(
+    () => ({
+      detailGridOptions: { columnDefs: DETAIL_COL_DEFS, defaultColDef: { resizable: true } },
+      getDetailRowData: createSsrmDetailFetcher({ connection, keyColumn }),
+    }),
+    [connection, keyColumn],
+  );
+  const displayColumnDefs = useMemo(
+    () =>
+      MASTER_MODE
+        ? columnDefs.map((def, i) =>
+            i === 0 ? { ...def, cellRenderer: 'agGroupCellRenderer' } : def,
+          )
+        : columnDefs,
+    [columnDefs],
   );
   useEffect(() => {
     window.__ssrmGridSpike.mounts += 1;
@@ -332,15 +408,26 @@ function GridHost({
       serverSideDatasource={datasource}
       cacheBlockSize={100}
       maxBlocksInCache={10}
-      columnDefs={columnDefs}
+      columnDefs={displayColumnDefs}
       defaultColDef={{ sortable: true, resizable: true, enableCellChangeFlash: true }}
-      autoGroupColumnDef={{ headerName: 'Group', minWidth: 220 }}
+      autoGroupColumnDef={{ headerName: TREE_MODE ? 'Tree' : 'Group', minWidth: 220 }}
       grandTotalRow="bottom"
       suppressAggFuncInHeader
       getChildCount={(data) =>
         (data as Record<string, unknown> | undefined)?.[CHILD_COUNT_FIELD] as number
       }
       getRowId={getRowId}
+      // P4b-2: AG 36 serverSide tree-data contract → the plane's stamps.
+      {...(TREE_MODE
+        ? {
+            treeData: true,
+            isServerSideGroup: isSsrmServerSideGroup,
+            getServerSideGroupKey: getSsrmServerSideGroupKey,
+          }
+        : {})}
+      {...(MASTER_MODE
+        ? { masterDetail: true, isRowMaster, detailCellRendererParams, detailRowAutoHeight: true }
+        : {})}
       onCellValueChanged={(event: CellValueChangedEvent) => onCellValueChanged(event)}
       onGridReady={(event) => {
         window.__ssrmGridSpike.api = event.api;
@@ -358,12 +445,16 @@ function App({
   keyColumn,
   columnDefs,
   quickFilterColumns,
+  calcExpressions,
+  treePathFields,
 }: {
   connection: SsrmProviderConnection;
   providerId: string;
   keyColumn: string;
   columnDefs: ColDef[];
   quickFilterColumns: string[];
+  calcExpressions?: Record<string, string>;
+  treePathFields?: string[];
 }): React.JSX.Element {
   const [state, setState] = useState<DatasetStateSnapshot | null>(connection.state);
   useEffect(() => connection.onState(setState), [connection]);
@@ -420,6 +511,8 @@ function App({
           keyColumn={keyColumn}
           columnDefs={columnDefs}
           quickFilterColumns={quickFilterColumns}
+          calcExpressions={calcExpressions}
+          treePathFields={treePathFields}
         />
       </div>
       {/* P4b chart overlay — hidden until the first chart render. */}
@@ -471,6 +564,8 @@ async function main(): Promise<void> {
                 { colId, rowGroup: true },
                 { colId: 'pnl', aggFunc: 'sum' },
                 { colId: 'marketValue', aggFunc: 'sum' },
+                // P4b-2: the calc column aggregates like a real column
+                { colId: 'pnlPerUnit', aggFunc: 'sum' },
               ],
         defaultState: { rowGroup: false, aggFunc: null },
       });
@@ -518,6 +613,21 @@ async function main(): Promise<void> {
     exportFilteredCsv: () => Promise.reject(new Error('not connected yet')),
     exportFilteredExcel: () => Promise.reject(new Error('not connected yet')),
     chartFilteredSet: () => Promise.reject(new Error('not connected yet')),
+    queryAllRows: () => Promise.reject(new Error('not connected yet')),
+    detailGrids: () => {
+      const api = window.__ssrmGridSpike.api;
+      if (!api) return [];
+      const out: Array<{ id: string; rows: Record<string, unknown>[] }> = [];
+      api.forEachDetailGridInfo((info) => {
+        const rows: Record<string, unknown>[] = [];
+        info.api?.forEachNode((node) => {
+          if (node.data) rows.push(node.data as Record<string, unknown>);
+        });
+        out.push({ id: info.id, rows });
+      });
+      return out;
+    },
+    readRowByKey: () => Promise.reject(new Error('not connected yet')),
   };
 
   // P3 seam: catalog row → validated config → worker config.
@@ -549,13 +659,30 @@ async function main(): Promise<void> {
       void view.delete().catch(() => undefined);
     }
   };
+  window.__ssrmGridSpike.readRowByKey = async (key) => {
+    const table = await connection.openTable();
+    const view = await table.view({ filter: [[config.keyColumn, '==', key]] as never });
+    try {
+      const rows = (await view.to_json()) as Record<string, unknown>[];
+      return rows[0] ?? null;
+    } finally {
+      void view.delete().catch(() => undefined);
+    }
+  };
 
   // ─── P4b: full-filtered-set export + chart (queryAll data plane) ──
 
-  const exportColumns = (config.columnDefinitions ?? []).map((c) => ({
-    field: c.field,
-    headerName: c.headerName,
-  }));
+  const exportColumns = [
+    ...(config.columnDefinitions ?? []).map((c) => ({
+      field: c.field,
+      headerName: c.headerName,
+    })),
+    // P4b-2: calc columns export like real columns (queryAll serves them)
+    ...Object.keys(config.calcExpressions ?? {}).map((name) => ({
+      field: name,
+      headerName: name,
+    })),
+  ];
 
   const liveDatasource = (): SsrmPullDatasource => {
     const ds = window.__ssrmGridSpike.datasource;
@@ -626,6 +753,10 @@ async function main(): Promise<void> {
     const { rows, total } = await liveDatasource().queryAll(chunkSize ? { chunkSize } : {});
     return { total, rows: rows.length };
   };
+  window.__ssrmGridSpike.queryAllRows = async (columns) => {
+    const { rows } = await liveDatasource().queryAll(columns ? { columns } : {});
+    return rows;
+  };
   window.__ssrmGridSpike.exportFilteredCsv = async () => {
     const { csv, rows, total } = await buildCsv();
     const lines = csv === '' ? 0 : csv.split('\r\n').length - 1; // minus header
@@ -658,8 +789,10 @@ async function main(): Promise<void> {
       connection={connection}
       providerId={providerId}
       keyColumn={config.keyColumn}
-      columnDefs={toColDefs(config.columnDefinitions)}
+      columnDefs={[...toColDefs(config.columnDefinitions), ...toCalcColDefs(config.calcExpressions)]}
       quickFilterColumns={quickFilterColumns}
+      calcExpressions={config.calcExpressions}
+      treePathFields={config.treePathFields}
     />,
   );
 }

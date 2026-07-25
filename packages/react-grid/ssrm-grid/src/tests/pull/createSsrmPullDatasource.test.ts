@@ -3,7 +3,13 @@ import { GRAND_TOTAL_ROW_ID } from 'ag-grid-community';
 import type { GridApi, IServerSideGetRowsParams, IServerSideGetRowsRequest } from 'ag-grid-community';
 import type { DatasetStateSnapshot } from '@starui/host-data/runtime/ssrm';
 import { createSsrmPullDatasource, diffRowsByKey } from '../../pull/createSsrmPullDatasource.js';
-import { CHILD_COUNT_FIELD, GROUP_ID_FIELD, encodeGroupRowId } from '../../pull/groupRows.js';
+import {
+  CHILD_COUNT_FIELD,
+  GROUP_ID_FIELD,
+  GROUP_KEY_FIELD,
+  encodeGroupRowId,
+} from '../../pull/groupRows.js';
+import { WIDE_SWEEP_MAX_BLOCKS } from '../../pull/sweepGate.js';
 import { QUICK_FILTER_EXPR } from '../../pull/filterExpressions.js';
 import { FakeConnection, type Row } from './fakePerspective.js';
 
@@ -367,18 +373,21 @@ describe('createSsrmPullDatasource', () => {
         pnl: 9,
         [CHILD_COUNT_FIELD]: 3,
         [GROUP_ID_FIELD]: encodeGroupRowId(['BOOKA']),
+        [GROUP_KEY_FIELD]: 'BOOKA',
       },
       {
         book: 'BOOKB',
         pnl: 12,
         [CHILD_COUNT_FIELD]: 3,
         [GROUP_ID_FIELD]: encodeGroupRowId(['BOOKB']),
+        [GROUP_KEY_FIELD]: 'BOOKB',
       },
       {
         book: 'BOOKC',
         pnl: 15,
         [CHILD_COUNT_FIELD]: 3,
         [GROUP_ID_FIELD]: encodeGroupRowId(['BOOKC']),
+        [GROUP_KEY_FIELD]: 'BOOKC',
       },
     ]);
     // group view shape: group_by next level, unique label agg, key count
@@ -471,6 +480,7 @@ describe('createSsrmPullDatasource', () => {
         pnl: 1009,
         [CHILD_COUNT_FIELD]: 3,
         [GROUP_ID_FIELD]: encodeGroupRowId(['BOOKA']),
+        [GROUP_KEY_FIELD]: 'BOOKA',
       },
     ]);
     expect(api.calls.refreshes).toEqual([]);
@@ -579,6 +589,171 @@ describe('createSsrmPullDatasource', () => {
     const values = await ds.getDistinctValues('book');
     expect(values).toEqual(['BOOKA', 'BOOKB', 'BOOKC', null]);
     expect(connection.table.views.at(-1)!.deleted).toBe(true);
+    ds.destroy();
+  });
+
+  // ─── P4b-2: tree data ─────────────────────────────────────────────
+
+  /** book (2) × trader (2) × 2 leaves = 8 rows. */
+  const treeRows = (): Row[] =>
+    Array.from({ length: 8 }, (_, i) => ({
+      positionId: `POS${i}`,
+      book: `BOOK${String.fromCharCode(65 + (i % 2))}`,
+      trader: `T${Math.floor(i / 2) % 2}`,
+      pnl: i,
+    }));
+
+  const TREE_OPTS = { treePathFields: ['book', 'trader'] };
+
+  it('tree root: serves level-0 group rows with keys, child counts and path ids', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = treeRows();
+    connection.emit(liveState(8));
+    const ds = makeDatasource(connection, TREE_OPTS);
+    const params = loadParams(fakeApi()); // tree requests carry NO rowGroupCols
+    ds.getRows(params);
+    await flush();
+    const arg = params.success.mock.calls[0]![0] as { rowData: Row[]; rowCount?: number };
+    expect(arg.rowCount).toBe(2);
+    expect(arg.rowData.map((r) => r.book)).toEqual(['BOOKA', 'BOOKB']);
+    expect(arg.rowData.map((r) => r[GROUP_KEY_FIELD])).toEqual(['BOOKA', 'BOOKB']);
+    expect(arg.rowData.map((r) => r[CHILD_COUNT_FIELD])).toEqual([4, 4]);
+    expect(arg.rowData.map((r) => r[GROUP_ID_FIELD])).toEqual([
+      encodeGroupRowId(['BOOKA']),
+      encodeGroupRowId(['BOOKB']),
+    ]);
+    expect(connection.table.views[0]!.config.group_by).toEqual(['book']);
+    ds.destroy();
+  });
+
+  it('tree mid-level: groups the next path field under the ancestor filter', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = treeRows();
+    connection.emit(liveState(8));
+    const ds = makeDatasource(connection, TREE_OPTS);
+    const params = loadParams(fakeApi(), { groupKeys: ['BOOKA'] });
+    ds.getRows(params);
+    await flush();
+    const arg = params.success.mock.calls[0]![0] as { rowData: Row[]; rowCount?: number };
+    expect(arg.rowCount).toBe(2);
+    expect(arg.rowData.map((r) => r[GROUP_KEY_FIELD])).toEqual(['T0', 'T1']);
+    expect(arg.rowData.map((r) => r[CHILD_COUNT_FIELD])).toEqual([2, 2]);
+    expect(arg.rowData.map((r) => r[GROUP_ID_FIELD])).toEqual([
+      encodeGroupRowId(['BOOKA', 'T0']),
+      encodeGroupRowId(['BOOKA', 'T1']),
+    ]);
+    expect(connection.table.views[0]!.config.filter).toEqual([['book', '==', 'BOOKA']]);
+    ds.destroy();
+  });
+
+  it('tree full-depth route: serves leaf rows pinned by every ancestor', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = treeRows();
+    connection.emit(liveState(8));
+    const ds = makeDatasource(connection, TREE_OPTS);
+    const params = loadParams(fakeApi(), { groupKeys: ['BOOKA', 'T1'] });
+    ds.getRows(params);
+    await flush();
+    const arg = params.success.mock.calls[0]![0] as { rowData: Row[]; rowCount?: number };
+    expect(arg.rowCount).toBe(2);
+    expect(arg.rowData.map((r) => r.positionId)).toEqual(['POS2', 'POS6']);
+    expect(arg.rowData.every((r) => !(GROUP_ID_FIELD in r))).toBe(true); // leaves, not groups
+    expect(connection.table.views[0]!.config.filter).toEqual([
+      ['book', '==', 'BOOKA'],
+      ['trader', '==', 'T1'],
+    ]);
+    ds.destroy();
+  });
+
+  it('queryAll strips tree levels to leaves like it strips grouping', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = treeRows();
+    connection.emit(liveState(8));
+    const ds = makeDatasource(connection, TREE_OPTS);
+    ds.getRows(loadParams(fakeApi())); // tree root shape is the live root
+    await flush();
+    const { rows, total } = await ds.queryAll();
+    expect(total).toBe(8);
+    expect(rows.map((r) => r.positionId)).toHaveLength(8);
+    ds.destroy();
+  });
+
+  // ─── P4b-2: calc expressions through the datasource ───────────────
+
+  it('attaches calcExpressions to block views and distinct-value reads', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = seedRows(10);
+    connection.emit(liveState(10));
+    const calcExpressions = { pnlPerUnit: '"pnl" / "px"' };
+    const ds = makeDatasource(connection, { calcExpressions });
+    ds.getRows(loadParams(fakeApi()));
+    await flush();
+    expect(connection.table.views[0]!.config.expressions).toEqual(calcExpressions);
+
+    await ds.getDistinctValues('pnlPerUnit'); // calc alias → expression attached
+    expect(connection.table.views.at(-1)!.config.expressions).toEqual(calcExpressions);
+    await ds.getDistinctValues('px'); // real column → no per-row calc compute
+    expect(connection.table.views.at(-1)!.config.expressions).toBeUndefined();
+    ds.destroy();
+  });
+
+  // ─── P4b-2: wide-book delta gate ──────────────────────────────────
+
+  /** Load `n` consecutive 100-row blocks (LRU order = load order). */
+  const loadBlocks = async (
+    ds: ReturnType<typeof makeDatasource>,
+    api: GridApi,
+    n: number,
+  ): Promise<void> => {
+    for (let i = 0; i < n; i += 1) {
+      ds.getRows(loadParams(api, { startRow: i * 100, endRow: (i + 1) * 100 }));
+      await flush(); // sequential loads → deterministic LRU order
+    }
+  };
+
+  it('wide books sweep only the MRU visible blocks on ticks', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = seedRows(600);
+    connection.emit(liveState(600));
+    // seedRows are 3 columns wide → threshold 3 marks the book WIDE
+    const ds = makeDatasource(connection, { wideColumnThreshold: 3, sweepThrottleWideMs: 0 });
+    const api = fakeApi();
+    await loadBlocks(ds, api, 6);
+
+    connection.table.rows = connection.table.rows.map((row) => ({
+      ...row,
+      px: (row.px as number) + 1_000_000, // every block has changes
+    }));
+    connection.table.fireAll();
+    await flush();
+
+    // only the WIDE_SWEEP_MAX_BLOCKS most-recent blocks were patched
+    expect(api.calls.transactions).toHaveLength(WIDE_SWEEP_MAX_BLOCKS);
+    const patched = new Set(
+      api.calls.transactions.flatMap((t) =>
+        (t.update ?? []).map((r) => Math.floor(Number(String(r.positionId).slice(3)) / 100)),
+      ),
+    );
+    expect([...patched].sort()).toEqual([2, 3, 4, 5]); // MRU 4 of blocks 0..5
+    ds.destroy();
+  });
+
+  it('narrow books keep the full sweep (every cached block patched)', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = seedRows(600);
+    connection.emit(liveState(600));
+    const ds = makeDatasource(connection, { wideColumnThreshold: 100 });
+    const api = fakeApi();
+    await loadBlocks(ds, api, 6);
+
+    connection.table.rows = connection.table.rows.map((row) => ({
+      ...row,
+      px: (row.px as number) + 1_000_000,
+    }));
+    connection.table.fireAll();
+    await flush();
+
+    expect(api.calls.transactions).toHaveLength(6);
     ds.destroy();
   });
 });

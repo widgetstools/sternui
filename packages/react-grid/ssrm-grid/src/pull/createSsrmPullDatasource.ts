@@ -47,8 +47,22 @@
  *   case-insensitive multi-token match across `quickFilterColumns` into
  *   every plan (a boolean expression column) and refreshes without
  *   purging.
- * • Row-delta materialization is width-gated by design fact #5 — the
- *   plain path here uses bare `on_update` → refetch, no row deltas.
+ * • **Tree data (P4b-2).** `treePathFields` synthesizes a serverSide
+ *   tree from categorical fields — tree levels are served by the SAME
+ *   group-level plans as row grouping (see `buildQueryPlan`), leaf
+ *   routes by ancestor-filtered leaf reads; the grid wires AG 36's
+ *   tree contract via `isSsrmServerSideGroup` /
+ *   `getSsrmServerSideGroupKey` (`groupRows.ts`).
+ * • **Calc columns (P4b-2).** `calcExpressions` attach to EVERY view
+ *   built here (leaf, group-level, rollup, distinct-values, queryAll)
+ *   so calc columns sort/filter/aggregate/export like real columns.
+ * • **Wide-book delta gate (P4b-2, design fact #5).** The tick sweep
+ *   is width-gated (`sweepGate.ts`): at/above `wideColumnThreshold`
+ *   columns the throttle degrades to `sweepThrottleWideMs` and the
+ *   sweep refetches only the `WIDE_SWEEP_MAX_BLOCKS` most-recently-used
+ *   blocks (≈ the viewport; off-screen blocks catch up via plain
+ *   cache-miss reads when scrolled back). Narrow books keep the plain
+ *   bare `on_update` → refetch-everything path, no row deltas.
  */
 
 import { GRAND_TOTAL_ROW_ID } from 'ag-grid-community';
@@ -67,6 +81,12 @@ import {
   type RollupPlan,
 } from './buildQueryPlan.js';
 import { GROUP_ID_FIELD, toGroupRowData } from './groupRows.js';
+import {
+  DEFAULT_SWEEP_THROTTLE_WIDE_MS,
+  DEFAULT_WIDE_COLUMN_THRESHOLD,
+  resolveSweepGate,
+  WIDE_SWEEP_MAX_BLOCKS,
+} from './sweepGate.js';
 import { ViewCache } from './ViewCache.js';
 import type { PullDatasourceConnection, PullView } from './types.js';
 
@@ -82,12 +102,32 @@ export interface SsrmPullDatasourceOpts {
   columns?: string[];
   /** String columns the quick filter matches against. */
   quickFilterColumns?: string[];
+  /**
+   * Calc/expression columns (name → Perspective expression over real
+   * columns), attached to every view — the config's `calcExpressions`.
+   */
+  calcExpressions?: Record<string, string>;
+  /**
+   * Server-side TREE data: ordered categorical fields synthesizing the
+   * hierarchy — the config's `treePathFields`. The grid must set
+   * `treeData: true` + `isServerSideGroup`/`getServerSideGroupKey`
+   * (see `groupRows.ts`). Mutually exclusive with row grouping.
+   */
+  treePathFields?: string[];
   /** Live-view LRU capacity. Default 8. */
   maxViews?: number;
   /** Viewport block LRU capacity. Default 12. */
   maxBlocks?: number;
   /** Tick→refetch trailing throttle. Default 250ms. */
   tickRefreshMs?: number;
+  /**
+   * Wide-book delta gate (design fact #5): column count at/above which
+   * tick sweeps degrade to `sweepThrottleWideMs` + visible-blocks-only.
+   * Default 80.
+   */
+  wideColumnThreshold?: number;
+  /** Degraded tick sweep throttle for wide books. Default 1000ms. */
+  sweepThrottleWideMs?: number;
   /** Seeding rowCount growth trailing throttle. Default 200ms. */
   seedCountRefreshMs?: number;
   /** Block span when the grid omits `endRow`. Default 100. */
@@ -182,7 +222,29 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     ...(opts.columns ? { columns: opts.columns } : {}),
     ...(quickFilter ? { quickFilter } : {}),
     ...(opts.quickFilterColumns ? { quickFilterColumns: opts.quickFilterColumns } : {}),
+    ...(opts.calcExpressions ? { calcExpressions: opts.calcExpressions } : {}),
+    ...(opts.treePathFields ? { treePathFields: opts.treePathFields } : {}),
   });
+
+  // ─── wide-book delta gate (design fact #5) ────────────────────────
+
+  const gateConfig = {
+    tickRefreshMs: opts.tickRefreshMs ?? 250,
+    wideColumnThreshold: opts.wideColumnThreshold ?? DEFAULT_WIDE_COLUMN_THRESHOLD,
+    sweepThrottleWideMs: opts.sweepThrottleWideMs ?? DEFAULT_SWEEP_THROTTLE_WIDE_MS,
+  };
+  /**
+   * Book width: configured columns (+ key + calc columns) when given,
+   * else observed from the first leaf read; null = not yet known.
+   */
+  let observedColumnCount: number | null = opts.columns
+    ? new Set([
+        keyColumn,
+        ...opts.columns,
+        ...Object.keys(opts.calcExpressions ?? {}),
+      ]).size
+    : null;
+  const sweepGate = () => resolveSweepGate(observedColumnCount, gateConfig);
 
   // ─── shared async helpers ───────────────────────────────────────
 
@@ -234,6 +296,9 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
             string,
             unknown
           >[]);
+    if (observedColumnCount === null && rows.length > 0) {
+      observedColumnCount = Object.keys(rows[0]!).length; // width, once, from a leaf read
+    }
     return { rows, total: numRows };
   };
 
@@ -271,24 +336,36 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
 
   const scheduleTickRefresh = throttleTrailing(
     () => void runTickRefresh().catch(() => undefined),
-    opts.tickRefreshMs ?? 250,
+    () => sweepGate().throttleMs, // wide books degrade (design fact #5)
   );
 
   /**
-   * Refetch EVERY cached block of the current generation (all shapes —
+   * Refetch the cached blocks of the current generation (all shapes —
    * flat, group-level, expanded leaves) and patch changed rows via
    * keyed update transactions; then refresh the grand total. Views are
-   * only PEEKED — a tick never resurrects an evicted shape.
+   * only PEEKED — a tick never resurrects an evicted shape. On WIDE
+   * books the sweep is gated to the MRU `WIDE_SWEEP_MAX_BLOCKS` blocks
+   * (≈ the viewport — see `sweepGate.ts`).
    */
   async function runTickRefresh(): Promise<void> {
     const snap = connection.state;
     if (destroyed || !api || !snap || snap.generation !== generation) return;
     const requestGen = generation;
+    const visibleOnly =
+      sweepGate().scope === 'visible-blocks'
+        ? new Set(
+            blockCache
+              .recentEntries(requestGen, WIDE_SWEEP_MAX_BLOCKS)
+              .map((entry) => `${entry.viewKey}#${entry.startRow}`),
+          )
+        : null;
     let rootTotal: number | null = null;
     for (const plan of planByKey.values()) {
       const pendingView = viewCache.peek(plan.key);
       if (!pendingView) continue;
-      const entries = blockCache.entriesFor(plan.key, requestGen);
+      const entries = blockCache
+        .entriesFor(plan.key, requestGen)
+        .filter((entry) => visibleOnly === null || visibleOnly.has(`${plan.key}#${entry.startRow}`));
       if (entries.length === 0) continue;
       let view: PullView;
       try {
@@ -554,6 +631,8 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       // Leaf rows of the CURRENT root shape: grouping/aggregation
       // stripped, filter model + sort model + quick filter kept
       // (rowsSort drops the auto-column sort — constant across leaves).
+      // `treePathFields: []` strips TREE levels the same way grouping
+      // is stripped — queryAll always reads leaves.
       const flatRequest: IServerSideGetRowsParams['request'] = {
         ...(lastRootRequest ?? EMPTY_ROOT_REQUEST),
         rowGroupCols: [],
@@ -567,6 +646,7 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       const plan = buildQueryPlan(flatRequest, {
         ...planOpts(),
         ...(o.columns ? { columns: o.columns } : {}),
+        treePathFields: [],
       });
       // TRANSIENT view — never the LRU: a full-set read must not evict
       // hot viewport views or steal the tick subscription.
@@ -598,7 +678,15 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     },
     async getDistinctValues(field: string): Promise<unknown[]> {
       const table = await connection.openTable();
-      const view = await table.view({ group_by: [field], columns: [] });
+      // Calc columns group_by their alias like real columns — the view
+      // just needs the expression defined (engine-verified). Real
+      // columns skip the expression map (no per-row calc compute).
+      const calcExpr = opts.calcExpressions?.[field];
+      const view = await table.view({
+        group_by: [field],
+        columns: [],
+        ...(calcExpr !== undefined ? { expressions: { [field]: calcExpr } } : {}),
+      });
       try {
         const rows = (await view.to_json()) as Array<{ __ROW_PATH__?: unknown[] }>;
         return rows
@@ -642,15 +730,22 @@ const EMPTY_ROOT_REQUEST: IServerSideGetRowsParams['request'] = {
   sortModel: [],
 };
 
-/** Trailing-edge throttle: at most one `fn` per `ms`, always deferred. */
-function throttleTrailing(fn: () => void, ms: number): () => void {
+/**
+ * Trailing-edge throttle: at most one `fn` per `ms`, always deferred.
+ * `ms` may be a getter — evaluated when each cycle is scheduled, so the
+ * wide-book gate can change the cadence without rebuilding the throttle.
+ */
+function throttleTrailing(fn: () => void, ms: number | (() => number)): () => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
   return () => {
     if (timer !== null) return;
-    timer = setTimeout(() => {
-      timer = null;
-      fn();
-    }, ms);
+    timer = setTimeout(
+      () => {
+        timer = null;
+        fn();
+      },
+      typeof ms === 'function' ? ms() : ms,
+    );
   };
 }
 

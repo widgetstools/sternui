@@ -3,8 +3,11 @@ import type { GetRowIdParams } from 'ag-grid-community';
 import {
   CHILD_COUNT_FIELD,
   GROUP_ID_FIELD,
+  GROUP_KEY_FIELD,
   createSsrmRowIdGetter,
   encodeGroupRowId,
+  getSsrmServerSideGroupKey,
+  isSsrmServerSideGroup,
   toGroupRowData,
 } from '../../pull/groupRows.js';
 
@@ -38,6 +41,7 @@ describe('toGroupRowData', () => {
         mv: 5.5,
         [CHILD_COUNT_FIELD]: 42,
         [GROUP_ID_FIELD]: encodeGroupRowId(['Rates']),
+        [GROUP_KEY_FIELD]: 'Rates',
       },
     ]);
   });
@@ -66,6 +70,40 @@ describe('toGroupRowData', () => {
     );
     expect(rows[0]!.desk).toBeNull();
     expect(rows[0]![GROUP_ID_FIELD]).toBe(encodeGroupRowId([null]));
+    expect(rows[0]![GROUP_KEY_FIELD]).toBeNull();
+  });
+
+  it('stamps the own group key as a string (numeric labels stringify)', () => {
+    const rows = toGroupRowData(
+      [{ __ROW_PATH__: [42], pnl: 1, mv: 2, positionId: 3 }],
+      group,
+      ['Rates'],
+      'positionId',
+    );
+    expect(rows[0]![GROUP_KEY_FIELD]).toBe('42');
+  });
+});
+
+// ─── AG 36 serverSide tree-data contract (P4b-2) ─────────────────────
+
+describe('isSsrmServerSideGroup / getSsrmServerSideGroupKey', () => {
+  const groupRow = toGroupRowData(
+    [{ __ROW_PATH__: ['BOOKA'], pnl: 1, bookName: 'BOOKA', positionId: 5 }],
+    { field: 'bookName', valueFields: ['pnl'] },
+    [],
+    'positionId',
+  )[0]!;
+
+  it('group rows expand; their key is the stamped label', () => {
+    expect(isSsrmServerSideGroup(groupRow)).toBe(true);
+    expect(getSsrmServerSideGroupKey(groupRow)).toBe('BOOKA');
+  });
+
+  it('leaf rows and malformed data never expand', () => {
+    expect(isSsrmServerSideGroup({ positionId: 'POS1', pnl: 3 })).toBe(false);
+    expect(isSsrmServerSideGroup(undefined)).toBe(false);
+    expect(isSsrmServerSideGroup(null)).toBe(false);
+    expect(getSsrmServerSideGroupKey({ positionId: 'POS1' })).toBe('');
   });
 });
 

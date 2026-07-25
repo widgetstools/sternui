@@ -74,6 +74,30 @@ export class BlockCache {
     return out;
   }
 
+  /**
+   * The `limit` most-recently-used blocks of `generation` across EVERY
+   * view shape, MRU first. Recency order is viewport order (every
+   * serve/refresh touch is a viewport touch) — the wide-book gate
+   * sweeps exactly this slice (see `sweepGate.ts`).
+   */
+  recentEntries(
+    generation: number,
+    limit: number,
+  ): Array<{ viewKey: string; startRow: number; block: CachedBlock }> {
+    const out: Array<{ viewKey: string; startRow: number; block: CachedBlock }> = [];
+    const keys = [...this.blocks.keys()];
+    for (let i = keys.length - 1; i >= 0 && out.length < limit; i -= 1) {
+      const key = keys[i]!;
+      const block = this.blocks.get(key)!;
+      if (block.generation !== generation) continue;
+      // The startRow rides after the LAST '#' — view keys are JSON and
+      // may contain '#' inside filter strings.
+      const hash = key.lastIndexOf('#');
+      out.push({ viewKey: key.slice(0, hash), startRow: Number(key.slice(hash + 1)), block });
+    }
+    return out;
+  }
+
   clear(): void {
     this.blocks.clear();
   }

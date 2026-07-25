@@ -14,6 +14,34 @@
  *   counts. Group-view reads skip the leading `__ROW_PATH__: []` total
  *   row (see `groupRows.ts`).
  *
+ * **Tree data (P4b-2).** `treePathFields` synthesizes a serverSide
+ * tree from ordered categorical fields (the dataset has no natural
+ * parent/child). AG 36 tree requests carry NO `rowGroupCols` — only
+ * `groupKeys` (the keys returned by `getServerSideGroupKey` up the
+ * expanded path) — so with `treePathFields` configured every request
+ * whose route is shorter than the path list becomes a `'group-level'`
+ * plan on `treePathFields[route.length]`, and a full-depth route reads
+ * leaf rows. Ancestor keys pin the route exactly as row grouping does;
+ * row ids are the same stable path-encoded group ids (`groupRows.ts`).
+ *
+ * **Calc/expression columns (P4b-2).** `calcExpressions` (name →
+ * Perspective expression over REAL columns) flows into EVERY view
+ * config built here, so calc columns sort / filter / aggregate /
+ * export like real columns (engine-verified: a view with `columns`
+ * omitted serves expression columns alongside the table columns;
+ * native filter ops, sorts, group_by and aggregates all accept the
+ * alias). Two cost/limit rules shape the mapping:
+ * • an expression cannot reference ANOTHER expression's alias (engine
+ *   limit) — internal boolean filter expressions (OR-combined
+ *   conditions, `notContains`, set-with-null, quick filter) that
+ *   reference a calc column are dropped and reported, never guessed;
+ * • Perspective computes every attached expression per row, so plans
+ *   with EXPLICIT `columns` (group-level, rollup, configured-column
+ *   rows) PRUNE calc expressions the view doesn't reference
+ *   (columns/sort/filter/group_by) — measured ~120 ms off a 20k group
+ *   load. Only column-omitted rows plans keep them all (calc columns
+ *   are displayed payload there).
+ *
  * `buildRollupPlan` builds the grand-total read: a single-group view
  * over the SAME filtered set (group_by on a constant expression), read
  * at row 0 (Perspective's total row).
@@ -30,7 +58,13 @@
 
 import type { IServerSideGetRowsRequest, SortModelItem } from 'ag-grid-community';
 import { agFilterModelToPerspective } from './agFilterToPerspective.js';
-import { QUICK_FILTER_EXPR, ROLLUP_GROUP_EXPR, quickFilterExpr } from './filterExpressions.js';
+import {
+  columnRef,
+  EXPR_PREFIX,
+  QUICK_FILTER_EXPR,
+  ROLLUP_GROUP_EXPR,
+  quickFilterExpr,
+} from './filterExpressions.js';
 import type { PullFilter, PullSort, PullViewConfig } from './types.js';
 
 /** AG's synthetic colId for the row-group auto column. */
@@ -39,12 +73,30 @@ export const AUTO_COLUMN_ID = 'ag-Grid-AutoColumn';
 export interface QueryPlanOpts {
   /** Table index / row identity — always projected into `columns`. */
   keyColumn: string;
-  /** Columns to read; omit for every table column. */
+  /**
+   * Columns to read; omit for every table column (calc columns ride
+   * along automatically when omitted — engine behavior). When given,
+   * calc columns must be LISTED here to be projected, exactly like
+   * real columns.
+   */
   columns?: string[];
   /** Quick-filter text (already trimmed; empty/undefined = off). */
   quickFilter?: string;
   /** String columns the quick filter matches against. */
   quickFilterColumns?: string[];
+  /**
+   * Calc/expression columns (name → Perspective expression over REAL
+   * table columns) attached to every view this builder emits. Names
+   * must not use the reserved `__ssrm_` prefix.
+   */
+  calcExpressions?: Record<string, string>;
+  /**
+   * Server-side TREE data: ordered categorical fields synthesizing the
+   * hierarchy — level i groups by `treePathFields[i]`; a route as deep
+   * as the list reads leaf rows. Mutually exclusive with row grouping
+   * (AG never issues `rowGroupCols` under `treeData`).
+   */
+  treePathFields?: string[];
 }
 
 export interface GroupPlanInfo {
@@ -76,12 +128,86 @@ const AGG_FUNC_MAP: Record<string, string> = {
   count: 'count',
 };
 
-/** Expanded ancestor group keys pin reads to their group route. */
-function ancestorFilters(request: IServerSideGetRowsRequest): PullFilter[] {
+/**
+ * Expanded ancestor group keys pin reads to their group route. Under
+ * tree data the level's field comes from `treePathFields` (tree
+ * requests carry no `rowGroupCols`).
+ */
+function ancestorFilters(
+  request: IServerSideGetRowsRequest,
+  treeFields: readonly string[],
+): PullFilter[] {
   return request.groupKeys.map((key, level): PullFilter => {
+    if (treeFields.length > 0) return [treeFields[level] ?? '', '==', key];
     const col = request.rowGroupCols[level];
     return [col?.field ?? col?.id ?? '', '==', key];
   });
+}
+
+/**
+ * Calc expressions minus reserved-prefix names (reported, never
+ * silently accepted — `__ssrm_*` aliases are this plane's namespace).
+ */
+function sanitizeCalcExpressions(
+  calc: Record<string, string> | undefined,
+  unsupported: string[],
+): Record<string, string> {
+  if (!calc) return {};
+  const out: Record<string, string> = {};
+  for (const [name, expression] of Object.entries(calc)) {
+    if (name.startsWith(EXPR_PREFIX)) {
+      unsupported.push(`calc column '${name}' (reserved '${EXPR_PREFIX}' prefix)`);
+      continue;
+    }
+    out[name] = expression;
+  }
+  return out;
+}
+
+/**
+ * Perspective expressions cannot reference OTHER expression aliases
+ * (engine-verified: "Input column does not exist"). An internal
+ * boolean filter expression that references a calc column is therefore
+ * inexpressible — drop the expression AND its `== true` clause, report.
+ */
+function dropCalcRefFilterExprs(
+  expressions: Record<string, string>,
+  filter: PullFilter[],
+  calcNames: readonly string[],
+  unsupported: string[],
+): void {
+  for (const [name, text] of Object.entries(expressions)) {
+    if (!name.startsWith(EXPR_PREFIX)) continue;
+    const hit = calcNames.find((calcName) => text.includes(columnRef(calcName)));
+    if (hit === undefined) continue;
+    delete expressions[name];
+    const clause = filter.findIndex(([col]) => col === name);
+    if (clause >= 0) filter.splice(clause, 1);
+    unsupported.push(
+      `filter '${name}' references calc column '${hit}' (expressions cannot reference expression columns)`,
+    );
+  }
+}
+
+/**
+ * Drop calc expressions the finished view config never references —
+ * Perspective computes every attached expression per row, so an
+ * unreferenced calc column is pure waste on group/rollup reads. Only
+ * applied when `columns` is EXPLICIT (a column-omitted view serves
+ * calc columns as payload, so they are all referenced by definition).
+ */
+function pruneUnreferencedCalc(config: PullViewConfig, calcNames: readonly string[]): void {
+  if (!config.columns || !config.expressions || calcNames.length === 0) return;
+  const referenced = new Set<string>([
+    ...config.columns,
+    ...(config.group_by ?? []),
+    ...(config.sort ?? []).map(([col]) => col),
+    ...(config.filter ?? []).map(([col]) => col),
+  ]);
+  for (const name of calcNames) {
+    if (!referenced.has(name)) delete config.expressions[name];
+  }
+  if (Object.keys(config.expressions).length === 0) delete config.expressions;
 }
 
 /** Shared base: filters (model + quick filter + ancestors) + expressions. */
@@ -95,8 +221,12 @@ function baseConfig(
     (request.filterModel ?? null) as Record<string, unknown> | null,
   );
   unsupported.push(...mapped.unsupported);
-  const filter = [...(withAncestors ? ancestorFilters(request) : []), ...mapped.filters];
-  const expressions = { ...mapped.expressions };
+  const filter = [
+    ...(withAncestors ? ancestorFilters(request, opts.treePathFields ?? []) : []),
+    ...mapped.filters,
+  ];
+  const calc = sanitizeCalcExpressions(opts.calcExpressions, unsupported);
+  const expressions = { ...calc, ...mapped.expressions };
   if (opts.quickFilter) {
     const expr = quickFilterExpr(opts.quickFilter, opts.quickFilterColumns ?? []);
     if (expr) {
@@ -106,6 +236,8 @@ function baseConfig(
       unsupported.push(`quick filter '${opts.quickFilter}' (no quickFilterColumns configured)`);
     }
   }
+  const calcNames = Object.keys(calc);
+  if (calcNames.length > 0) dropCalcRefFilterExprs(expressions, filter, calcNames, unsupported);
   const config: PullViewConfig = {};
   if (filter.length > 0) config.filter = filter;
   if (Object.keys(expressions).length > 0) config.expressions = expressions;
@@ -163,12 +295,20 @@ export function buildQueryPlan(
 ): QueryPlan {
   const unsupported: string[] = [];
   const route = [...request.groupKeys];
+  // Tree mode: AG tree requests carry NO rowGroupCols — the configured
+  // path fields decide whether this route still has group levels below.
+  const treeFields = request.rowGroupCols.length === 0 ? (opts.treePathFields ?? []) : [];
+  const isGroupLevel =
+    request.rowGroupCols.length > request.groupKeys.length ||
+    treeFields.length > request.groupKeys.length;
 
-  if (request.rowGroupCols.length > request.groupKeys.length) {
+  if (isGroupLevel) {
     // ── group-level: group_by the NEXT level under the ancestor route ──
     const level = request.groupKeys.length;
-    const groupCol = request.rowGroupCols[level]!;
-    const groupField = groupCol.field ?? groupCol.id;
+    const groupField =
+      treeFields.length > 0
+        ? treeFields[level]!
+        : (request.rowGroupCols[level]!.field ?? request.rowGroupCols[level]!.id);
     const { valueFields, aggregates } = mapValueCols(request, unsupported);
 
     const viewConfig = baseConfig(request, opts, unsupported, true);
@@ -184,6 +324,7 @@ export function buildQueryPlan(
     }
     const sort = groupSort(request.sortModel, groupField, valueFields, unsupported);
     if (sort.length > 0) viewConfig.sort = sort;
+    pruneUnreferencedCalc(viewConfig, calcNamesOf(opts));
 
     return {
       kind: 'group-level',
@@ -204,6 +345,7 @@ export function buildQueryPlan(
   }
   const sort = rowsSort(request);
   if (sort.length > 0) viewConfig.sort = sort;
+  pruneUnreferencedCalc(viewConfig, calcNamesOf(opts));
 
   return {
     kind: 'rows',
@@ -212,6 +354,11 @@ export function buildQueryPlan(
     route,
     unsupportedFilters: unsupported,
   };
+}
+
+/** The usable (non-reserved) calc column names of a plan's opts. */
+function calcNamesOf(opts: QueryPlanOpts): string[] {
+  return Object.keys(opts.calcExpressions ?? {}).filter((name) => !name.startsWith(EXPR_PREFIX));
 }
 
 export interface RollupPlan {
@@ -241,6 +388,7 @@ export function buildRollupPlan(
   viewConfig.group_by = [ROLLUP_GROUP_EXPR];
   viewConfig.columns = valueFields;
   viewConfig.aggregates = aggregates;
+  pruneUnreferencedCalc(viewConfig, calcNamesOf(opts));
 
   return {
     viewConfig,

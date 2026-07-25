@@ -12,12 +12,19 @@
  *       `requestMessage` must NOT publish a trigger frame).
  *   requestMessage / requestBody / requestHeaders → 1:1, same dropping.
  *
- * Deliberately NOT mapped:
+ * Deliberately NOT mapped (window-side knobs — the worker's table and
+ * ingest never see them):
  *   inferredFields — editor-side schema introspection only.
  *   reconnect      — reserved in the catalog type; the V2 ingest
  *                    session never silently redials (a broken session
  *                    is a dataset `error`; recovery is an explicit
  *                    restart that bumps THE generation token).
+ *   calcExpressions / treePathFields / wideColumnThreshold /
+ *   sweepThrottleWideMs — consumed by `createSsrmPullDatasource` (and
+ *                    the consuming grid's tree wiring) in the WINDOW;
+ *                    calc columns are per-view expressions, never
+ *                    table schema, so the hosted table stays exactly
+ *                    the declared `columnDefinitions`.
  *
  * The mapping is pure and total — catalog-level validity is the
  * caller's concern (`validateStompSsrmConfig` in @starui/types).

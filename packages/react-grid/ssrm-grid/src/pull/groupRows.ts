@@ -14,10 +14,18 @@
  *   `count` aggregate) for AG's `getChildCount`,
  * • `GROUP_ID_FIELD` — a row id encoded from the FULL group path
  *   (route + own label), stable across refreshes and ticks; live
- *   group-header patches are keyed update transactions on it.
+ *   group-header patches are keyed update transactions on it,
+ * • `GROUP_KEY_FIELD` — the row's own group key (its label as a
+ *   string) for AG 36's serverSide TREE-data contract
+ *   (`getServerSideGroupKey`).
  *
  * Consumers wire `getRowId` via `createSsrmRowIdGetter` (group rows →
- * the stamped path id; leaf rows → the key column).
+ * the stamped path id; leaf rows → the key column). Tree-data grids
+ * additionally wire `isServerSideGroup` / `getServerSideGroupKey` via
+ * {@link isSsrmServerSideGroup} / {@link getSsrmServerSideGroupKey} —
+ * tree levels are served by the SAME group-level plans (see
+ * `buildQueryPlan`'s `treePathFields`), so tree group rows are plain
+ * group rows with these stamps.
  */
 
 import type { GetRowIdParams } from 'ag-grid-community';
@@ -27,6 +35,8 @@ import type { GroupPlanInfo } from './buildQueryPlan.js';
 export const GROUP_ID_FIELD = '__ssrmGroupId';
 /** Stamped on group rows: leaf child count (for AG `getChildCount`). */
 export const CHILD_COUNT_FIELD = '__ssrmChildCount';
+/** Stamped on group rows: own group key (AG tree `getServerSideGroupKey`). */
+export const GROUP_KEY_FIELD = '__ssrmGroupKey';
 
 /** Stable id for a group row from its full path (route + own label). */
 export function encodeGroupRowId(path: ReadonlyArray<unknown>): string {
@@ -67,6 +77,26 @@ export function toGroupRowData(
     data[group.field] = label ?? row[group.field] ?? null;
     if (keyCountField !== null) data[CHILD_COUNT_FIELD] = row[keyCountField];
     data[GROUP_ID_FIELD] = encodeGroupRowId([...route, label]);
+    data[GROUP_KEY_FIELD] = label === null || label === undefined ? null : String(label);
     return data;
   });
+}
+
+// ─── AG 36 serverSide tree-data contract ─────────────────────────────
+//
+// Under `treeData: true` + SSRM, AG asks the DATA which rows expand
+// (`isServerSideGroup`) and what key an expanded row contributes to the
+// request's `groupKeys` path (`getServerSideGroupKey`) — there are no
+// `rowGroupCols` in tree requests. Group rows served by this plane
+// carry both answers as stamps.
+
+/** AG `isServerSideGroup`: group rows (stamped path id) expand; leaves don't. */
+export function isSsrmServerSideGroup(data: unknown): boolean {
+  return typeof (data as Record<string, unknown> | null | undefined)?.[GROUP_ID_FIELD] === 'string';
+}
+
+/** AG `getServerSideGroupKey`: the group row's own stamped key. */
+export function getSsrmServerSideGroupKey(data: unknown): string {
+  const key = (data as Record<string, unknown> | null | undefined)?.[GROUP_KEY_FIELD];
+  return key === null || key === undefined ? '' : String(key);
 }

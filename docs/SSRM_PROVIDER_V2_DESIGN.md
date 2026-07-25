@@ -98,7 +98,12 @@ New `providerType: 'stomp-ssrm'`, `StompSsrmProviderConfig`:
 - **column definitions / dotted-leaf projection** — the table schema and the
   grid columns (single declaration, no drift)
 - ingest tuning: batch size, conflation window; wide-book row-delta gate
-- optional calc/expression columns
+  *(shipped P4b-2 as `wideColumnThreshold` + `sweepThrottleWideMs` —
+  window-side, see below)*
+- optional calc/expression columns *(shipped P4b-2 as `calcExpressions` —
+  window-side per-view expressions, never table schema)*
+- tree hierarchy: `treePathFields` *(P4b-2 — synthesizes serverSide tree
+  data from categorical fields; window-side)*
 
 **Own editor:** a dedicated SSRM editor component registered alongside the
 existing provider editor (design-system primitives only, no native inputs),
@@ -222,6 +227,67 @@ fling anti-jank; loading/empty/error UX from DatasetState.
     1000). ssrm-grid 225 / host-data 460 green. Deferred: tree data,
     master-detail, periodic ordered-block refresh under active sort,
     fetch-unloaded-targets for bulk edits.)*
+  - **P4b-2 — tree data / master-detail / calc columns / wide-book
+    gate. ✅** *(2026-07-25 —
+    **Tree data:** config `treePathFields` (e.g.
+    `['bookName','trader']`) synthesizes a serverSide tree from
+    categorical fields — the dataset needs no parent/child column. AG
+    36's SSRM tree contract (studied in the shipped types): tree
+    requests carry NO `rowGroupCols`, only `groupKeys` accumulated from
+    `getServerSideGroupKey`, with `isServerSideGroup` deciding
+    expandability — so routes shorter than the path list reuse the SAME
+    group-level plans as row grouping (ancestor equality filters,
+    stable path-encoded row ids) and full-depth routes read leaves;
+    group rows now also stamp `GROUP_KEY_FIELD`, wired via
+    `isSsrmServerSideGroup`/`getSsrmServerSideGroupKey`; `queryAll`
+    strips tree levels to leaves like grouping.
+    **Master-detail:** `createSsrmDetailFetcher` answers
+    `detailCellRendererParams.getDetailRowData` (successCallback-only
+    params — failures warn + deliver empty, never a hung spinner);
+    default detail source is a keyed single-row read of the hosted
+    table over a transient view (the panel always shows the table's
+    CURRENT values), richer sources via the documented
+    `detailQuery(masterRow, { table, keyColumn, key })` hook;
+    `createSsrmRowMasterGetter` keeps group/keyless rows unexpandable.
+    **Calc columns:** config `calcExpressions` (name → Perspective
+    expression) — WINDOW-side by design (per-view expressions, never
+    worker table schema; `toSsrmDatasetConfig` documents them unmapped)
+    — flow into every view the plan builder emits (leaf, group-level,
+    rollup, distinct-values, queryAll) so calc columns sort / filter /
+    aggregate / export like real columns. Engine-verified (3.8):
+    column-omitted views serve expression columns as payload; native
+    ops/sorts/group_by/aggregates accept aliases; expressions canNOT
+    reference other expression aliases — so OR-combined/`notContains`/
+    set-with-null filters on calc columns are dropped + reported; and
+    Perspective computes every attached expression per row, so
+    explicit-columns plans PRUNE unreferenced calc expressions
+    (recovered ~120 ms on the 20k group load).
+    **Wide-book delta gate (design fact #5):** `wideColumnThreshold`
+    (default 80; configured or observed width) + `sweepThrottleWideMs`
+    (default 1000 ms, clamped ≥ the narrow throttle): wide books
+    degrade the tick sweep to the longer throttle and refetch only the
+    `WIDE_SWEEP_MAX_BLOCKS` (4) MRU cached blocks — block-LRU recency
+    IS viewport order, so that slice is what's on screen; off-screen
+    blocks catch up on scroll-back cache misses. Pure decision
+    (`resolveSweepGate`) + datasource-level MRU-sweep unit-tested (no
+    live wide dataset needed).
+    Headless proof (20k live book): tree root 5 book nodes, child
+    counts exactly = direct-table control reads (Σ 20000), trader level
+    6/6 exact, leaves pinned to their two-key route; master-detail
+    expand → detail grid = the table's current row (identity + numerics
+    exact vs control read), collapse tears it down; calc column sorts
+    (ppu == pnl/qty on every sampled viewport row), grouped sums +
+    grand total BIT-EXACT vs a client-side Σ pnl/qty control read in a
+    tick-quiet window, and appears in queryAll + CSV for all 20000
+    rows. Timing re-probe (P4a shape): group 205–267 ms (P4a 241),
+    expand 43–113 ms (P4a 146) — budgets hold; with the calc aggregate
+    added to the group request: ~375/~173 ms. ssrm-grid 260 green.
+    Deferred to P5: editor fields for the P4b-2 knobs (StompSsrmFields
+    doesn't expose calcExpressions/treePathFields/gate knobs yet),
+    tree-level aggregates exercised live (plans support valueCols on
+    tree levels; the spike tree runs label+counts only), periodic
+    ordered-block refresh under active sort, fetch-unloaded-targets
+    for bulk edits.)*
 - **P5** — multi-window + live-feed + reload soak and e2e in CI (the coverage
   gap that hid the V1 bugs); docs; then decide the old branch's disposition.
 

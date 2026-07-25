@@ -54,6 +54,37 @@ export interface StompSsrmProviderConfig {
   /** Persisted schema introspection — same role as on the push-plane configs. */
   inferredFields?: FieldInfo[];
   /**
+   * Calc/expression columns: column name → Perspective (ExprTK)
+   * expression over REAL columns, e.g.
+   * `{ pnlPerUnit: '"pnl" / "quantity"' }`. WINDOW-side: the pull
+   * datasource attaches these to every Perspective view it builds
+   * (leaf, group-level, rollup, distinct-values, queryAll), so calc
+   * columns sort, filter, aggregate and export like real columns. NOT
+   * part of the worker's table schema and not mapped by
+   * `toSsrmDatasetConfig`. Names must not collide with
+   * `columnDefinitions` fields, must not use the reserved `__ssrm_`
+   * prefix, and cannot reference other calc columns (engine limit).
+   */
+  calcExpressions?: Record<string, string>;
+  /**
+   * Server-side TREE data: ordered categorical fields that synthesize
+   * the hierarchy (level i groups by `treePathFields[i]`; the deepest
+   * route reads leaf rows), e.g. `['bookName', 'trader']` — the
+   * dataset needs no natural parent/child column. WINDOW-side
+   * (datasource + grid wiring), not mapped by `toSsrmDatasetConfig`.
+   * Mutually exclusive with row grouping in the consuming grid.
+   */
+  treePathFields?: string[];
+  /**
+   * Wide-book delta gate (design fact #5): column count at/above which
+   * the tick sweep degrades to `sweepThrottleWideMs` and refreshes
+   * only the viewport's blocks. WINDOW-side, not mapped by
+   * `toSsrmDatasetConfig`. Default 80.
+   */
+  wideColumnThreshold?: number;
+  /** Degraded tick-sweep throttle (ms) for wide books. Window-side. Default 1000. */
+  sweepThrottleWideMs?: number;
+  /**
    * Perspective table name windows `open_table(...)`. Default
    * `'dataset'`. One provider hosts one table.
    */

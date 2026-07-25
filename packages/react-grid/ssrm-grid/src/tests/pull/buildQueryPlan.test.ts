@@ -250,6 +250,187 @@ describe('buildQueryPlan', () => {
     expect(a.key).toBe(canonicalViewKey(a.viewConfig));
   });
 
+  // ─── P4b-2: tree data (treePathFields) ────────────────────────────
+
+  const TREE = { keyColumn: 'positionId', treePathFields: ['bookName', 'trader'] };
+
+  it('tree root (no groupKeys, no rowGroupCols) is a group-level plan on level 0', () => {
+    const plan = buildQueryPlan(request(), TREE);
+    expect(plan.kind).toBe('group-level');
+    expect(plan.route).toEqual([]);
+    expect(plan.group?.field).toBe('bookName');
+    expect(plan.viewConfig.group_by).toEqual(['bookName']);
+    expect(plan.viewConfig.aggregates).toEqual({ bookName: 'unique', positionId: 'count' });
+    expect(plan.viewConfig.filter).toBeUndefined();
+  });
+
+  it('tree mid-level groups the NEXT path field under ancestor filters', () => {
+    const plan = buildQueryPlan(request({ groupKeys: ['BOOKA'] }), TREE);
+    expect(plan.kind).toBe('group-level');
+    expect(plan.route).toEqual(['BOOKA']);
+    expect(plan.group?.field).toBe('trader');
+    expect(plan.viewConfig.group_by).toEqual(['trader']);
+    expect(plan.viewConfig.filter).toEqual([['bookName', '==', 'BOOKA']]);
+  });
+
+  it('tree full-depth route reads leaf rows pinned by every ancestor', () => {
+    const plan = buildQueryPlan(request({ groupKeys: ['BOOKA', 'Jane'] }), TREE);
+    expect(plan.kind).toBe('rows');
+    expect(plan.route).toEqual(['BOOKA', 'Jane']);
+    expect(plan.viewConfig.group_by).toBeUndefined();
+    expect(plan.viewConfig.filter).toEqual([
+      ['bookName', '==', 'BOOKA'],
+      ['trader', '==', 'Jane'],
+    ]);
+  });
+
+  it('tree group levels map the auto-column sort to the level path field', () => {
+    const plan = buildQueryPlan(
+      request({ sortModel: [{ colId: AUTO_COLUMN_ID, sort: 'desc' }] }),
+      TREE,
+    );
+    expect(plan.viewConfig.sort).toEqual([['bookName', 'desc']]);
+  });
+
+  it('row grouping wins over treePathFields when rowGroupCols are present', () => {
+    // AG never issues rowGroupCols under treeData — but a consumer
+    // misconfig must not corrupt plain grouping.
+    const plan = buildQueryPlan(
+      request({
+        rowGroupCols: [{ id: 'desk', displayName: 'Desk', field: 'desk' }],
+        groupKeys: [],
+      }),
+      TREE,
+    );
+    expect(plan.group?.field).toBe('desk');
+  });
+
+  it('empty treePathFields disables tree mode (queryAll leaf strip)', () => {
+    const plan = buildQueryPlan(request(), { ...TREE, treePathFields: [] });
+    expect(plan.kind).toBe('rows');
+  });
+
+  // ─── P4b-2: calc/expression columns ───────────────────────────────
+
+  const CALC = {
+    keyColumn: 'positionId',
+    calcExpressions: { pnlPerUnit: '"pnl" / "quantity"' },
+  };
+
+  it('attaches calc expressions to flat plans; alias sorts/filters natively', () => {
+    const plan = buildQueryPlan(
+      request({
+        sortModel: [{ colId: 'pnlPerUnit', sort: 'desc' }],
+        filterModel: {
+          pnlPerUnit: { filterType: 'number', type: 'greaterThan', filter: 5 },
+        },
+      }),
+      CALC,
+    );
+    expect(plan.viewConfig.expressions).toEqual({ pnlPerUnit: '"pnl" / "quantity"' });
+    expect(plan.viewConfig.sort).toEqual([['pnlPerUnit', 'desc']]);
+    expect(plan.viewConfig.filter).toEqual([['pnlPerUnit', '>', 5]]);
+    expect(plan.unsupportedFilters).toEqual([]);
+  });
+
+  it('attaches calc expressions to group-level plans (alias aggregates)', () => {
+    const plan = buildQueryPlan(
+      request({
+        rowGroupCols: [{ id: 'desk', displayName: 'Desk', field: 'desk' }],
+        valueCols: [{ id: 'pnlPerUnit', displayName: 'PPU', field: 'pnlPerUnit', aggFunc: 'sum' }],
+      }),
+      CALC,
+    );
+    expect(plan.kind).toBe('group-level');
+    expect(plan.viewConfig.expressions).toEqual({ pnlPerUnit: '"pnl" / "quantity"' });
+    expect(plan.viewConfig.aggregates?.pnlPerUnit).toBe('sum');
+    expect(plan.viewConfig.columns).toContain('pnlPerUnit');
+  });
+
+  it('attaches calc expressions to the rollup plan alongside the rollup group', () => {
+    const plan = buildRollupPlan(
+      request({
+        valueCols: [{ id: 'pnlPerUnit', displayName: 'PPU', field: 'pnlPerUnit', aggFunc: 'avg' }],
+      }),
+      CALC,
+    );
+    expect(plan!.viewConfig.expressions).toEqual({
+      pnlPerUnit: '"pnl" / "quantity"',
+      [ROLLUP_GROUP_EXPR]: "'total'",
+    });
+    expect(plan!.viewConfig.aggregates).toEqual({ pnlPerUnit: 'avg' });
+  });
+
+  it('drops + reports internal filter expressions that reference a calc alias', () => {
+    // Engine limit: expressions cannot reference other expression
+    // columns — an OR-combined condition on a calc column is
+    // inexpressible, never guessed.
+    const plan = buildQueryPlan(
+      request({
+        filterModel: {
+          pnlPerUnit: {
+            filterType: 'number',
+            operator: 'OR',
+            conditions: [
+              { filterType: 'number', type: 'greaterThan', filter: 100 },
+              { filterType: 'number', type: 'lessThan', filter: -100 },
+            ],
+          },
+        },
+      }),
+      CALC,
+    );
+    expect(plan.viewConfig.filter).toBeUndefined();
+    expect(plan.viewConfig.expressions).toEqual({ pnlPerUnit: '"pnl" / "quantity"' });
+    expect(plan.unsupportedFilters.some((m) => m.includes("calc column 'pnlPerUnit'"))).toBe(true);
+  });
+
+  it('reports calc names using the reserved __ssrm_ prefix — never accepts them', () => {
+    const plan = buildQueryPlan(request(), {
+      keyColumn: 'positionId',
+      calcExpressions: { __ssrm_evil: '1' },
+    });
+    expect(plan.viewConfig.expressions).toBeUndefined();
+    expect(plan.unsupportedFilters).toEqual(["calc column '__ssrm_evil' (reserved '__ssrm_' prefix)"]);
+  });
+
+  it('calc columns project only when listed in explicit columns (first-class rule)', () => {
+    const listed = buildQueryPlan(request(), {
+      ...CALC,
+      columns: ['pnl', 'pnlPerUnit'],
+    });
+    expect(listed.viewConfig.columns).toEqual(['positionId', 'pnl', 'pnlPerUnit']);
+    expect(listed.viewConfig.expressions).toEqual({ pnlPerUnit: '"pnl" / "quantity"' });
+    const unlisted = buildQueryPlan(request(), { ...CALC, columns: ['pnl'] });
+    expect(unlisted.viewConfig.columns).toEqual(['positionId', 'pnl']);
+    // unreferenced on an explicit-columns plan → pruned (per-row compute)
+    expect(unlisted.viewConfig.expressions).toBeUndefined();
+  });
+
+  it('prunes calc expressions unreferenced by explicit-columns plans, keeps referenced ones', () => {
+    // group-level plan that never touches the calc column → pruned
+    const grouped = buildQueryPlan(
+      request({
+        rowGroupCols: [{ id: 'desk', displayName: 'Desk', field: 'desk' }],
+        valueCols: [{ id: 'pnl', displayName: 'PnL', field: 'pnl', aggFunc: 'sum' }],
+      }),
+      CALC,
+    );
+    expect(grouped.viewConfig.expressions).toBeUndefined();
+    // referenced by a sort on an explicit-columns rows plan → kept
+    const sorted = buildQueryPlan(
+      request({ sortModel: [{ colId: 'pnlPerUnit', sort: 'desc' }] }),
+      { ...CALC, columns: ['pnl'] },
+    );
+    expect(sorted.viewConfig.expressions).toEqual({ pnlPerUnit: '"pnl" / "quantity"' });
+    // rollup without a calc aggregate → only the rollup group expression
+    const rollup = buildRollupPlan(
+      request({ valueCols: [{ id: 'pnl', displayName: 'PnL', field: 'pnl', aggFunc: 'sum' }] }),
+      CALC,
+    );
+    expect(rollup!.viewConfig.expressions).toEqual({ [ROLLUP_GROUP_EXPR]: "'total'" });
+  });
+
   it('cache keys distinguish expression/aggregate shapes', () => {
     const flat = buildQueryPlan(request(), { keyColumn: 'positionId' });
     const quick = buildQueryPlan(request(), {

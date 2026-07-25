@@ -70,9 +70,29 @@ export {
   CHILD_COUNT_FIELD,
   createSsrmRowIdGetter,
   encodeGroupRowId,
+  getSsrmServerSideGroupKey,
   GROUP_ID_FIELD,
+  GROUP_KEY_FIELD,
+  isSsrmServerSideGroup,
   toGroupRowData,
 } from './groupRows.js';
+export {
+  createSsrmDetailFetcher,
+  createSsrmRowMasterGetter,
+  type SsrmDetailConnection,
+  type SsrmDetailFetcherOpts,
+  type SsrmDetailQuery,
+  type SsrmDetailQueryContext,
+  type SsrmGetDetailParams,
+} from './detailRows.js';
+export {
+  DEFAULT_SWEEP_THROTTLE_WIDE_MS,
+  DEFAULT_WIDE_COLUMN_THRESHOLD,
+  resolveSweepGate,
+  WIDE_SWEEP_MAX_BLOCKS,
+  type SweepGateConfig,
+  type SweepGateDecision,
+} from './sweepGate.js';
 export {
   conditionExpr,
   filterExprName,
