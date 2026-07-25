@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,8 +10,18 @@
       #root {
         height: 100%;
         margin: 0;
+        /* Dark before tokens load; --ds-* takes over once globals.css lands. */
+        background: var(--ds-surface-ground, #14171a);
+        color: var(--ds-text-primary, #d7dde3);
       }
     </style>
+    <script type="module">
+      // Design-system tokens + tailwind (styles the shadcn Input/Buttons) and
+      // the theme attribute — dark, matching the lab's applyTheme convention.
+      import '/src/globals.css';
+      import { applyTheme } from '@starui/design-system';
+      applyTheme({ theme: 'dark' });
+    </script>
   </head>
   <body>
     <!--

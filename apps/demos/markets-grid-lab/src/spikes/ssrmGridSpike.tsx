@@ -58,23 +58,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AgGridReact } from 'ag-grid-react';
+// Dark StarUI AG theme (quartz + colorSchemeDark). Relative import — the
+// package doesn't export it yet (same precedent as other lab spikes).
+import { theme as agDarkTheme } from '../../../../../packages/react-grid/ssrm-grid/src/agGrid/theme.js';
 import {
-  ColumnApiModule,
-  createGrid,
-  ModuleRegistry,
-  RenderApiModule,
-  RowApiModule,
-  type CellValueChangedEvent,
-  type ColDef,
-  type GridApi,
+  ColumnApiModule, createGrid, ModuleRegistry, RenderApiModule, RowApiModule,
+  type CellValueChangedEvent, type ColDef, type GridApi,
   type SetFilterValuesFuncParams,
 } from 'ag-grid-community';
 import {
-  AgCharts,
-  AllCommunityModule,
-  ModuleRegistry as AgChartsModuleRegistry,
-  type AgCartesianChartOptions,
-  type AgChartInstance,
+  AgCharts, AllCommunityModule, ModuleRegistry as AgChartsModuleRegistry,
+  type AgCartesianChartOptions, type AgChartInstance,
 } from 'ag-charts-community';
 import '@starui/ssrm-grid/ag-grid-modules';
 
@@ -404,6 +398,7 @@ function GridHost({
 
   return (
     <AgGridReact
+      theme={agDarkTheme}
       rowModelType="serverSide"
       serverSideDatasource={datasource}
       cacheBlockSize={100}
