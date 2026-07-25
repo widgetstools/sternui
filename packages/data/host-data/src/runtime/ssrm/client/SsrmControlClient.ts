@@ -69,6 +69,18 @@ export class SsrmControlClient {
     return this.request({ kind: 'ssrm-state', reqId: 0 });
   }
 
+  /**
+   * Cell-edit write-back: keyed partial rows + the generation they
+   * were computed against. Rejects (nothing written) when the worker
+   * fences a stale generation or a row is missing the key column.
+   */
+  updateRows(
+    generation: number,
+    rows: Array<Record<string, unknown>>,
+  ): Promise<{ state: DatasetStateSnapshot; tableName: string | null }> {
+    return this.request({ kind: 'ssrm-update-rows', reqId: 0, generation, rows });
+  }
+
   close(): void {
     this.port.close?.();
     this.pending.clear();

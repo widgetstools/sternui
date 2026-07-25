@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { ColumnDefinition } from '@starui/types';
 import {
+  coerceRowToSchema,
+  coerceValueToType,
   inferPerspectiveType,
   projectRowToSchema,
   refineSchemaFromRows,
@@ -110,5 +112,64 @@ describe('projectRowToSchema', () => {
 
   it('nulls non-primitive values instead of stringifying', () => {
     expect(projectRowToSchema(schema, { id: 'a', px: { bid: 1 } })).toEqual({ id: 'a', px: null });
+  });
+});
+
+describe('coerceValueToType (P4b cell-edit write-back)', () => {
+  it('coerces string editor input on float/integer columns to numbers', () => {
+    expect(coerceValueToType('float', '123.5')).toBe(123.5);
+    expect(coerceValueToType('float', ' 42 ')).toBe(42);
+    expect(coerceValueToType('integer', '7.9')).toBe(7);
+    expect(coerceValueToType('integer', 7.9)).toBe(7);
+  });
+
+  it('nulls unrepresentable numeric input instead of corrupting the column', () => {
+    expect(coerceValueToType('float', 'abc')).toBeNull();
+    expect(coerceValueToType('float', '')).toBeNull();
+    expect(coerceValueToType('float', Number.NaN)).toBeNull();
+    expect(coerceValueToType('integer', Infinity)).toBeNull();
+  });
+
+  it('parses boolean strings/numbers; garbage nulls', () => {
+    expect(coerceValueToType('boolean', 'true')).toBe(true);
+    expect(coerceValueToType('boolean', ' FALSE ')).toBe(false);
+    expect(coerceValueToType('boolean', 1)).toBe(true);
+    expect(coerceValueToType('boolean', 0)).toBe(false);
+    expect(coerceValueToType('boolean', 'yep')).toBeNull();
+  });
+
+  it('stringifies primitives on string columns; objects null', () => {
+    expect(coerceValueToType('string', 12)).toBe('12');
+    expect(coerceValueToType('string', true)).toBe('true');
+    expect(coerceValueToType('string', 'x')).toBe('x');
+    expect(coerceValueToType('string', { a: 1 })).toBeNull();
+  });
+
+  it('datetime: Date → ISO string (projector-safe), epoch/parseable pass, garbage nulls', () => {
+    const d = new Date('2026-07-25T10:00:00.000Z');
+    expect(coerceValueToType('datetime', d)).toBe('2026-07-25T10:00:00.000Z');
+    expect(coerceValueToType('datetime', 1_753_437_600_000)).toBe(1_753_437_600_000);
+    expect(coerceValueToType('datetime', '2026-07-25')).toBe('2026-07-25');
+    expect(coerceValueToType('datetime', 'not a date')).toBeNull();
+    expect(coerceValueToType('date', new Date(Number.NaN))).toBeNull();
+  });
+
+  it('null stays null (clears the cell); undefined stays undefined (untouched)', () => {
+    expect(coerceValueToType('float', null)).toBeNull();
+    expect(coerceValueToType('float', undefined)).toBeUndefined();
+  });
+});
+
+describe('coerceRowToSchema', () => {
+  const schema = { id: 'string', px: 'float', live: 'boolean' } as const;
+
+  it('coerces schema fields, drops unknown fields, skips undefined', () => {
+    expect(
+      coerceRowToSchema(schema, { id: 'a', px: '101.25', junk: 'x', live: undefined }),
+    ).toEqual({ id: 'a', px: 101.25 });
+  });
+
+  it('keeps the keyed partial-row shape (only edited fields present)', () => {
+    expect(coerceRowToSchema(schema, { id: 'a', live: 'true' })).toEqual({ id: 'a', live: true });
   });
 });

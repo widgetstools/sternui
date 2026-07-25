@@ -11,6 +11,7 @@
     "@finos/perspective": "^3.8.0",
     "@finos/perspective-viewer": "^3.8.0",
     "@finos/perspective-viewer-datagrid": "^3.8.0",
+    "ag-charts-community": "14.0.0",
     "ag-grid-community": "36.0.0",
     "ag-grid-enterprise": "36.0.0",
     "ag-grid-react": "36.0.0",

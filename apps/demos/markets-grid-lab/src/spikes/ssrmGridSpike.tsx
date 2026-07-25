@@ -21,6 +21,21 @@
  * reads, a set filter on `bookName` backed by `getDistinctValues`, and
  * a quick-filter box (design-system Input) folded into the query plan.
  *
+ * P4b adds:
+ * • **cell-edit write-back** — editable columns wired to
+ *   `createSsrmCellEditHandler`: an edit posts a keyed partial row to
+ *   the worker (`ssrm-update-rows`, generation-fenced, schema-coerced),
+ *   so EVERY window converges on the next tick-refresh cycle;
+ * • **full-filtered-set export** — `datasource.queryAll()` (bounded
+ *   10k-row windowed reads over the current filtered+sorted view) →
+ *   CSV via direct sheet building (`rowsToCsv`; AG's own SSRM export
+ *   only walks loaded blocks) and Excel via AG's ExcelExportModule on
+ *   a transient OFF-SCREEN client-side grid (the supported way to emit
+ *   real .xlsx without hand-rolling OOXML);
+ * • **full-filtered-set chart** — AG Charts standalone over the SAME
+ *   `queryAll` rows (AG's integrated charts under SSRM also see only
+ *   loaded blocks, so the chart is fed from the data plane).
+ *
  * Mount-once contract: the grid mounts only once DatasetState is
  * known, keyed by `(providerId, generation)` — a restart bumps the
  * generation and REMOUNTS the grid; loading/empty/error are rendered
@@ -32,14 +47,27 @@ import { createRoot } from 'react-dom/client';
 import { AgGridReact } from 'ag-grid-react';
 import {
   ColumnApiModule,
+  createGrid,
   ModuleRegistry,
   RenderApiModule,
   RowApiModule,
+  type CellValueChangedEvent,
   type ColDef,
   type GridApi,
   type SetFilterValuesFuncParams,
 } from 'ag-grid-community';
+import {
+  AgCharts,
+  AllCommunityModule,
+  ModuleRegistry as AgChartsModuleRegistry,
+  type AgCartesianChartOptions,
+  type AgChartInstance,
+} from 'ag-charts-community';
 import '@starui/ssrm-grid/ag-grid-modules';
+
+// P4b: the STANDALONE chart path (the shared registration only wires
+// charts for AG Grid's integrated pathway).
+AgChartsModuleRegistry.registerModules(AllCommunityModule);
 
 // The shared ssrm-grid registration covers the grid itself; the spike's
 // probe surface additionally reads rows/columns through the api, and the
@@ -48,15 +76,17 @@ ModuleRegistry.registerModules([RowApiModule, ColumnApiModule, RenderApiModule])
 import {
   CHILD_COUNT_FIELD,
   connectSsrmProvider,
+  createSsrmCellEditHandler,
   createSsrmPullDatasource,
   createSsrmRowIdGetter,
+  rowsToCsv,
   toSsrmDatasetConfig,
   type DatasetStateSnapshot,
   type SsrmProviderConnection,
   type SsrmPullDatasource,
   type StompSsrmProviderConfig,
 } from '@starui/ssrm-grid/pull';
-import { Input } from '@starui/ui';
+import { Button, Input } from '@starui/ui';
 import { createConfigManager } from '@starui/host-config';
 import { DataProviderConfigStore } from '@starui/host-data/runtime';
 import { validateStompSsrmConfig, type ColumnDefinition, type DataProviderConfig } from '@starui/types';
@@ -157,6 +187,10 @@ function toColDefs(columns: readonly ColumnDefinition[] | undefined): ColDef[] {
       filter: numeric ? 'agNumberColumnFilter' : 'agTextColumnFilter',
       enableRowGroup: !numeric,
       enableValue: numeric,
+      // P4b: every non-identity column is editable; the key column is
+      // row identity (a re-keyed write would INSERT, not update) and
+      // the edit handler refuses it anyway.
+      editable: c.field !== 'positionId',
     };
     if (c.field === 'bookName') {
       // P4a: set filter fed by the datasource's distinct-values read.
@@ -177,6 +211,23 @@ function toColDefs(columns: readonly ColumnDefinition[] | undefined): ColDef[] {
     }
     return def;
   });
+}
+
+// ─── P4b actions (populated by main(); buttons + probes share them) ─
+
+const p4b: {
+  downloadCsv?: () => Promise<void>;
+  downloadExcel?: () => Promise<void>;
+  chart?: () => Promise<void>;
+} = {};
+
+function downloadBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
 // ─── probe surface ──────────────────────────────────────────────────
@@ -217,6 +268,20 @@ interface SsrmGridSpikeProbes {
   loadingRowCount: () => number;
   loadingOverlayVisible: () => boolean;
   restart: () => Promise<DatasetStateSnapshot>;
+  /**
+   * P4b — programmatic stand-in for typing into a cell: sets the value
+   * on the displayed row node, which fires `onCellValueChanged` → the
+   * write-back handler. Returns false when the row is not displayed.
+   */
+  setCellValue: (i: number, field: string, value: unknown) => boolean;
+  /** P4b — full-filtered-set read: exact view total + rows fetched. */
+  queryAllCount: (chunkSize?: number) => Promise<{ total: number; rows: number }>;
+  /** P4b — queryAll → rowsToCsv. `lines` excludes the header row. */
+  exportFilteredCsv: () => Promise<{ total: number; rows: number; lines: number }>;
+  /** P4b — queryAll → off-screen CSRM grid → ExcelExportModule blob. */
+  exportFilteredExcel: () => Promise<{ total: number; gridRows: number; blobBytes: number }>;
+  /** P4b — queryAll → AG Charts standalone; returns plotted-point count. */
+  chartFilteredSet: (yField?: string) => Promise<{ total: number; points: number }>;
 }
 
 declare global {
@@ -245,6 +310,11 @@ function GridHost({
     [connection, generation, keyColumn, quickFilterColumns],
   );
   const getRowId = useMemo(() => createSsrmRowIdGetter(keyColumn), [keyColumn]);
+  // P4b: edits post keyed partial rows to the worker-hosted table.
+  const onCellValueChanged = useMemo(
+    () => createSsrmCellEditHandler({ connection, keyColumn }),
+    [connection, keyColumn],
+  );
   useEffect(() => {
     window.__ssrmGridSpike.mounts += 1;
     window.__ssrmGridSpike.datasource = datasource;
@@ -271,6 +341,7 @@ function GridHost({
         (data as Record<string, unknown> | undefined)?.[CHILD_COUNT_FIELD] as number
       }
       getRowId={getRowId}
+      onCellValueChanged={(event: CellValueChangedEvent) => onCellValueChanged(event)}
       onGridReady={(event) => {
         window.__ssrmGridSpike.api = event.api;
       }}
@@ -308,12 +379,38 @@ function App({
   }
   return (
     <div data-phase={state.phase} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: 4 }}>
+      <div style={{ padding: 4, display: 'flex', gap: 8, alignItems: 'center' }}>
         <Input
           data-testid="quick-filter"
           placeholder="Quick filter…"
+          style={{ maxWidth: 240 }}
           onChange={(e) => window.__ssrmGridSpike.setQuickFilter(e.target.value)}
         />
+        {/* P4b: full-FILTERED-set actions (queryAll, not loaded blocks) */}
+        <Button
+          data-testid="export-csv-full"
+          variant="outline"
+          size="sm"
+          onClick={() => void p4b.downloadCsv?.().catch(console.warn)}
+        >
+          Export CSV (full set)
+        </Button>
+        <Button
+          data-testid="export-excel-full"
+          variant="outline"
+          size="sm"
+          onClick={() => void p4b.downloadExcel?.().catch(console.warn)}
+        >
+          Export Excel (full set)
+        </Button>
+        <Button
+          data-testid="chart-full"
+          variant="outline"
+          size="sm"
+          onClick={() => void p4b.chart?.().catch(console.warn)}
+        >
+          Chart PnL (full set)
+        </Button>
       </div>
       <div style={{ flex: 1, minHeight: 0 }}>
         <GridHost
@@ -325,6 +422,12 @@ function App({
           quickFilterColumns={quickFilterColumns}
         />
       </div>
+      {/* P4b chart overlay — hidden until the first chart render. */}
+      <div
+        id="ssrm-chart-full"
+        data-testid="ssrm-chart-full"
+        style={{ display: 'none', height: 320, minHeight: 320 }}
+      />
     </div>
   );
 }
@@ -405,6 +508,16 @@ async function main(): Promise<void> {
       document.querySelectorAll('.ag-loading').length,
     loadingOverlayVisible: () => document.querySelector('.ag-overlay-loading-center') !== null,
     restart: () => Promise.reject(new Error('not connected yet')),
+    setCellValue: (i, field, value) => {
+      const node = window.__ssrmGridSpike.api?.getDisplayedRowAtIndex(i);
+      if (!node) return false;
+      node.setDataValue(field, value);
+      return true;
+    },
+    queryAllCount: () => Promise.reject(new Error('not connected yet')),
+    exportFilteredCsv: () => Promise.reject(new Error('not connected yet')),
+    exportFilteredExcel: () => Promise.reject(new Error('not connected yet')),
+    chartFilteredSet: () => Promise.reject(new Error('not connected yet')),
   };
 
   // P3 seam: catalog row → validated config → worker config.
@@ -435,6 +548,105 @@ async function main(): Promise<void> {
     } finally {
       void view.delete().catch(() => undefined);
     }
+  };
+
+  // ─── P4b: full-filtered-set export + chart (queryAll data plane) ──
+
+  const exportColumns = (config.columnDefinitions ?? []).map((c) => ({
+    field: c.field,
+    headerName: c.headerName,
+  }));
+
+  const liveDatasource = (): SsrmPullDatasource => {
+    const ds = window.__ssrmGridSpike.datasource;
+    if (!ds) throw new Error('[ssrm-grid-spike] datasource not mounted');
+    return ds;
+  };
+
+  const buildCsv = async (): Promise<{ csv: string; rows: number; total: number }> => {
+    const { rows, total } = await liveDatasource().queryAll();
+    return { csv: rowsToCsv(rows, exportColumns), rows: rows.length, total };
+  };
+
+  /**
+   * Excel route: AG's ExcelExportModule on a transient OFF-SCREEN
+   * client-side grid fed with the queryAll rows — the supported way to
+   * emit a real .xlsx (AG's own SSRM export walks only loaded blocks).
+   */
+  const buildExcel = async (): Promise<{ blob: Blob; gridRows: number; total: number }> => {
+    const { rows, total } = await liveDatasource().queryAll();
+    const holder = document.createElement('div');
+    holder.style.cssText = 'position:fixed;left:-10000px;top:0;width:1000px;height:500px;';
+    document.body.appendChild(holder);
+    const offscreen = createGrid(holder, {
+      columnDefs: exportColumns.map((c): ColDef => ({ field: c.field, headerName: c.headerName })),
+      rowData: rows,
+    });
+    try {
+      const deadline = Date.now() + 10_000;
+      while (offscreen.getDisplayedRowCount() < total && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      const data = offscreen.getDataAsExcel();
+      const blob =
+        data instanceof Blob
+          ? data
+          : new Blob([String(data ?? '')], { type: 'application/vnd.ms-excel' });
+      return { blob, gridRows: offscreen.getDisplayedRowCount(), total };
+    } finally {
+      offscreen.destroy();
+      holder.remove();
+    }
+  };
+
+  /** Chart route: AG Charts STANDALONE over the queryAll series. */
+  let chartInstance: AgChartInstance | null = null;
+  const renderChart = async (yField: string): Promise<{ total: number; points: number }> => {
+    const { rows, total } = await liveDatasource().queryAll({ columns: [yField] });
+    const data = rows.map((row, idx) => ({ idx, value: Number(row[yField] ?? 0) }));
+    const container = document.getElementById('ssrm-chart-full');
+    if (!container) throw new Error('[ssrm-grid-spike] chart container missing');
+    container.style.display = 'block';
+    chartInstance?.destroy();
+    const options: AgCartesianChartOptions = {
+      container,
+      data,
+      series: [{ type: 'line', xKey: 'idx', yKey: 'value', marker: { enabled: false } }],
+      axes: {
+        x: { type: 'number', title: { text: 'row # (filtered+sorted order)' } },
+        y: { type: 'number', title: { text: yField } },
+      },
+      title: { text: `${yField} — full filtered set (${total} rows)` },
+    };
+    chartInstance = AgCharts.create(options);
+    return { total, points: data.length };
+  };
+
+  window.__ssrmGridSpike.queryAllCount = async (chunkSize) => {
+    const { rows, total } = await liveDatasource().queryAll(chunkSize ? { chunkSize } : {});
+    return { total, rows: rows.length };
+  };
+  window.__ssrmGridSpike.exportFilteredCsv = async () => {
+    const { csv, rows, total } = await buildCsv();
+    const lines = csv === '' ? 0 : csv.split('\r\n').length - 1; // minus header
+    return { total, rows, lines };
+  };
+  window.__ssrmGridSpike.exportFilteredExcel = async () => {
+    const { blob, gridRows, total } = await buildExcel();
+    return { total, gridRows, blobBytes: blob.size };
+  };
+  window.__ssrmGridSpike.chartFilteredSet = (yField = 'pnl') => renderChart(yField);
+
+  p4b.downloadCsv = async () => {
+    const { csv } = await buildCsv();
+    downloadBlob(new Blob([csv], { type: 'text/csv' }), 'ssrm-filtered-set.csv');
+  };
+  p4b.downloadExcel = async () => {
+    const { blob } = await buildExcel();
+    downloadBlob(blob, 'ssrm-filtered-set.xlsx');
+  };
+  p4b.chart = async () => {
+    await renderChart('pnl');
   };
 
   const quickFilterColumns = (config.columnDefinitions ?? [])

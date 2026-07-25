@@ -198,6 +198,30 @@ fling anti-jank; loading/empty/error UX from DatasetState.
     green. Deferred to P4b: edit/export/chart/tree/master-detail,
     day-equals on datetime columns, ordered-block refresh under active
     sort, mid-seed new-group discovery on grouped stores.)*
+  - **P4b-1 — edit / export / chart. ✅** *(2026-07-25 — cell-edit
+    write-back: `ssrm-update-rows` control message (keyed partial rows
+    + the generation they were computed against; worker fences stale
+    generations, schema-coerces values — `coerceRowToSchema` — and
+    rides the serialized TableWriter path), `connection.updateRows` +
+    `createSsrmCellEditHandler` (refuses key-column/unkeyed edits) +
+    fetch-or-refuse guard for bulk shapes (`fetchLoadedRowsOrRefuse` /
+    `updateLoadedRowsOrRefuse` — any unloaded target row ⇒ one warn +
+    no-op, never a subset edit). Full-filtered-set export + chart ride
+    `datasource.queryAll` (grouping stripped to leaves, filters/sort/
+    quick-filter kept; bounded 10k-row windowed reads over a TRANSIENT
+    view; `onChunk` streaming; generation-fenced) — AG's own SSRM
+    export/integrated charts walk only loaded blocks, so CSV is direct
+    sheet building (`rowsToCsv`, RFC 4180), Excel is AG's
+    ExcelExportModule on an off-screen client-side grid, chart is AG
+    Charts standalone over the queryAll series (routes documented in
+    `exportRows.ts` / the spike). Headless proof (two tabs, 20k live
+    book): edit in A visible in B in ~340 ms; string `'777.25'` on the
+    float `quantity` column converges to number `777.25` in BOTH tabs;
+    under a 2-book set filter CSV rows = off-screen-grid rows = chart
+    points = 7995 = direct-table control count (loaded-block ceiling
+    1000). ssrm-grid 225 / host-data 460 green. Deferred: tree data,
+    master-detail, periodic ordered-block refresh under active sort,
+    fetch-unloaded-targets for bulk edits.)*
 - **P5** — multi-window + live-feed + reload soak and e2e in CI (the coverage
   gap that hid the V1 bugs); docs; then decide the old branch's disposition.
 

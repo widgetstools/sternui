@@ -68,6 +68,17 @@ export interface SsrmProviderConnection extends PullDatasourceConnection {
   configure(config: SsrmDatasetConfig): Promise<DatasetStateSnapshot>;
   /** Bump THE generation and reseed. Consumers remount on the new one. */
   restart(): Promise<DatasetStateSnapshot>;
+  /**
+   * Cell-edit write-back (P4b): keyed PARTIAL rows written into the
+   * worker-hosted table so EVERY window converges. `generation`
+   * defaults to the latest known one; the worker fences stale
+   * generations (the returned promise rejects, nothing is written).
+   * Values are schema-coerced worker-side.
+   */
+  updateRows(
+    rows: Array<Record<string, unknown>>,
+    generation?: number,
+  ): Promise<DatasetStateSnapshot>;
   dispose(): void;
 }
 
@@ -145,6 +156,15 @@ export async function connectSsrmProvider(
     },
     async restart() {
       const result = await control.restart();
+      record(result.state, result.tableName);
+      return result.state;
+    },
+    async updateRows(rows, generation) {
+      const gen = generation ?? latest?.state.generation;
+      if (gen === undefined) {
+        throw new Error('[ssrm] updateRows before any DatasetState — no generation to stamp');
+      }
+      const result = await control.updateRows(gen, rows);
       record(result.state, result.tableName);
       return result.state;
     },

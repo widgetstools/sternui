@@ -152,3 +152,81 @@ export function createRowProjector(schema: PerspectiveSchema): (row: SsrmRow) =>
 export function projectRowToSchema(schema: PerspectiveSchema, row: SsrmRow): SsrmRow {
   return createRowProjector(schema)(row);
 }
+
+// ─── Edit coercion (P4b cell-edit write-back) ──────────────────────
+//
+// Grid editors hand back strings (and the wire hands back whatever the
+// window sent) — the worker owns the schema, so it owns the coercion:
+// an edited value is coerced to its column's Perspective type BEFORE
+// the keyed update, or nulled when it cannot represent one (a keyed
+// partial update with null clears the cell; it never corrupts the
+// column). `undefined` stays undefined = "leave the cell untouched".
+
+/** Coerce one edited value to a Perspective column type (null = unrepresentable). */
+export function coerceValueToType(
+  type: PerspectiveColumnType,
+  value: unknown,
+): unknown {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  switch (type) {
+    case 'float':
+    case 'integer': {
+      const num =
+        typeof value === 'number'
+          ? value
+          : typeof value === 'string' && value.trim() !== ''
+            ? Number(value)
+            : typeof value === 'boolean'
+              ? Number(value)
+              : Number.NaN;
+      if (!Number.isFinite(num)) return null;
+      return type === 'integer' ? Math.trunc(num) : num;
+    }
+    case 'boolean': {
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'number') return value !== 0;
+      if (typeof value === 'string') {
+        const lowered = value.trim().toLowerCase();
+        if (lowered === 'true') return true;
+        if (lowered === 'false') return false;
+      }
+      return null;
+    }
+    case 'string': {
+      if (typeof value === 'string') return value;
+      if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+      return null;
+    }
+    case 'datetime':
+    case 'date': {
+      // Dates flatten to ISO strings (the ingest row projector nulls
+      // object values); numbers are epoch ms; strings must parse —
+      // Perspective accepts both on json updates.
+      if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value.toISOString();
+      }
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+      if (typeof value === 'string' && !Number.isNaN(Date.parse(value))) return value;
+      return null;
+    }
+    default:
+      return null;
+  }
+}
+
+/**
+ * Coerce a keyed PARTIAL row to the table schema: schema'd fields are
+ * value-coerced ({@link coerceValueToType}), fields the table does not
+ * carry are DROPPED (Perspective rejects unknown columns on keyed
+ * updates), `undefined` values are skipped (partial update semantics).
+ */
+export function coerceRowToSchema(schema: PerspectiveSchema, row: SsrmRow): SsrmRow {
+  const out: SsrmRow = {};
+  for (const [field, value] of Object.entries(row)) {
+    const type = schema[field];
+    if (!type || value === undefined) continue;
+    out[field] = coerceValueToType(type, value);
+  }
+  return out;
+}

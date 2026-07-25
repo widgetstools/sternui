@@ -27,9 +27,30 @@ export {
 export {
   createSsrmPullDatasource,
   diffRowsByKey,
+  type QueryAllOpts,
+  type QueryAllResult,
   type SsrmPullDatasource,
   type SsrmPullDatasourceOpts,
 } from './createSsrmPullDatasource.js';
+
+export {
+  createSsrmCellEditHandler,
+  fetchLoadedRowsOrRefuse,
+  updateLoadedRowsOrRefuse,
+  type LoadedRowReader,
+  type SsrmCellEdit,
+  type SsrmCellEditHandlerOpts,
+  type SsrmCellValueChange,
+  type SsrmEditConnection,
+  type UpdateLoadedRowsOpts,
+} from './editRows.js';
+
+export {
+  csvEscapeCell,
+  rowsToCsv,
+  type CsvColumn,
+  type RowsToCsvOpts,
+} from './exportRows.js';
 
 export {
   agFilterModelToPerspective,

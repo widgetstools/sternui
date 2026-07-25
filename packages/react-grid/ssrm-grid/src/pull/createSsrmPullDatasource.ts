@@ -95,6 +95,31 @@ export interface SsrmPullDatasourceOpts {
   warn?: (message: string) => void;
 }
 
+export interface QueryAllOpts {
+  /** Rows per windowed read (bounded chunks). Default 10_000. */
+  chunkSize?: number;
+  /** Columns to read; defaults to the datasource's configured columns. */
+  columns?: string[];
+  /**
+   * Streaming consumer — called once per chunk, in order. When given,
+   * the resolved `rows` array is EMPTY (bounded memory: only one chunk
+   * is ever held here).
+   */
+  onChunk?: (
+    rows: Record<string, unknown>[],
+    info: { startRow: number; total: number },
+  ) => void;
+}
+
+export interface QueryAllResult {
+  /** Every filtered+sorted leaf row (empty when `onChunk` streams them). */
+  rows: Record<string, unknown>[];
+  /** Exact filtered row count of the view at read time. */
+  total: number;
+  /** THE generation the read was fenced against. */
+  generation: number;
+}
+
 export interface SsrmPullDatasource extends IServerSideDatasource {
   /**
    * Quick filter: matches every whitespace-separated token
@@ -108,6 +133,14 @@ export interface SsrmPullDatasource extends IServerSideDatasource {
    * May include `null`.
    */
   getDistinctValues(field: string): Promise<unknown[]>;
+  /**
+   * P4b — the ENTIRE current filtered+sorted set (leaf rows; grouping
+   * stripped, filters/sort/quick filter kept), read in bounded windowed
+   * chunks over a TRANSIENT Perspective view. This is the data plane
+   * for full-set export and charting — AG's own SSRM export/charts see
+   * only loaded blocks. Rejects when the generation changes mid-read.
+   */
+  queryAll(opts?: QueryAllOpts): Promise<QueryAllResult>;
   destroy(): void;
 }
 
@@ -138,6 +171,8 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
   const planByKey = new Map<string, QueryPlan>();
   /** The most recent root-route plan — owns the root store's rowCount. */
   let rootPlan: QueryPlan | null = null;
+  /** The most recent root-route AG request — queryAll rebuilds a FLAT plan from it. */
+  let lastRootRequest: IServerSideGetRowsParams['request'] | null = null;
   /** Active grand-total rollup (null until AG asks via needsGrandTotal). */
   let rollup: RollupPlan | null = null;
   const warnedPlans = new Set<string>();
@@ -400,7 +435,10 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       warn(`[ssrm-pull] unsupported filter clauses ignored: ${plan.unsupportedFilters.join('; ')}`);
     }
     planByKey.set(plan.key, plan);
-    if (plan.route.length === 0) rootPlan = plan;
+    if (plan.route.length === 0) {
+      rootPlan = plan;
+      lastRootRequest = params.request;
+    }
 
     // Grand total — root-level loads only; armed by AG's hint, kept
     // fresh on every later root load (filters/quick filter changes).
@@ -502,6 +540,62 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       // An armed rollup rebuilds with the new filter on the next root load.
       api?.refreshServerSide({ purge: false });
     },
+    async queryAll(o: QueryAllOpts = {}): Promise<QueryAllResult> {
+      const snap = connection.state;
+      if (!snap || snap.phase === 'connecting') {
+        throw new Error('[ssrm-pull] queryAll before the dataset is ready');
+      }
+      if (snap.phase === 'error') {
+        throw new Error(`[ssrm-pull] queryAll refused: dataset error ${snap.error ?? ''}`.trim());
+      }
+      const requestGen = snap.generation;
+      if (snap.phase === 'empty') return { rows: [], total: 0, generation: requestGen };
+      const chunkSize = Math.max(1, o.chunkSize ?? 10_000);
+      // Leaf rows of the CURRENT root shape: grouping/aggregation
+      // stripped, filter model + sort model + quick filter kept
+      // (rowsSort drops the auto-column sort — constant across leaves).
+      const flatRequest: IServerSideGetRowsParams['request'] = {
+        ...(lastRootRequest ?? EMPTY_ROOT_REQUEST),
+        rowGroupCols: [],
+        groupKeys: [],
+        valueCols: [],
+        pivotCols: [],
+        pivotMode: false,
+        startRow: 0,
+        endRow: 0,
+      };
+      const plan = buildQueryPlan(flatRequest, {
+        ...planOpts(),
+        ...(o.columns ? { columns: o.columns } : {}),
+      });
+      // TRANSIENT view — never the LRU: a full-set read must not evict
+      // hot viewport views or steal the tick subscription.
+      const table = await connection.openTable();
+      const view = await table.view(plan.viewConfig);
+      try {
+        const fence = (): void => {
+          if (destroyed || generation !== requestGen) {
+            throw new Error('[ssrm-pull] queryAll aborted: generation changed mid-read');
+          }
+        };
+        fence();
+        const total = await view.num_rows();
+        const rows: Record<string, unknown>[] = [];
+        for (let start = 0; start < total; start += chunkSize) {
+          fence();
+          const chunk = (await view.to_json({
+            start_row: start,
+            end_row: Math.min(start + chunkSize, total),
+          })) as Record<string, unknown>[];
+          if (o.onChunk) o.onChunk(chunk, { startRow: start, total });
+          else rows.push(...chunk);
+        }
+        fence();
+        return { rows, total, generation: requestGen };
+      } finally {
+        void view.delete().catch(() => undefined);
+      }
+    },
     async getDistinctValues(field: string): Promise<unknown[]> {
       const table = await connection.openTable();
       const view = await table.view({ group_by: [field], columns: [] });
@@ -526,6 +620,7 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       blockCache.clear();
       planByKey.clear();
       rootPlan = null;
+      lastRootRequest = null;
       rollup = null;
       api = null;
     },
@@ -533,6 +628,19 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
 }
 
 // ─── small pure helpers ──────────────────────────────────────────────
+
+/** queryAll's base when no root load has happened yet (no filters/sort). */
+const EMPTY_ROOT_REQUEST: IServerSideGetRowsParams['request'] = {
+  startRow: 0,
+  endRow: 0,
+  rowGroupCols: [],
+  valueCols: [],
+  pivotCols: [],
+  pivotMode: false,
+  groupKeys: [],
+  filterModel: null,
+  sortModel: [],
+};
 
 /** Trailing-edge throttle: at most one `fn` per `ms`, always deferred. */
 function throttleTrailing(fn: () => void, ms: number): () => void {

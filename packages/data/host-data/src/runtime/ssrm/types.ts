@@ -111,10 +111,27 @@ export interface SsrmStateRequest {
   reqId: number;
 }
 
+/**
+ * Cell-edit write-back (P4b): keyed PARTIAL rows written into the
+ * hosted table so every window converges on the same book. The worker
+ * owns the table, so edits route through it — never a window-side
+ * table write. Each row MUST carry the config `keyColumn`; values are
+ * schema-coerced worker-side (string input on a float column → number).
+ * `generation` is the token the edit was computed against — a stale
+ * generation is REFUSED (acked with an error, nothing written).
+ */
+export interface SsrmUpdateRowsRequest {
+  kind: 'ssrm-update-rows';
+  reqId: number;
+  generation: number;
+  rows: Array<Record<string, unknown>>;
+}
+
 export type SsrmControlRequest =
   | SsrmConfigureRequest
   | SsrmRestartRequest
-  | SsrmStateRequest;
+  | SsrmStateRequest
+  | SsrmUpdateRowsRequest;
 
 /** Reply to a specific request (carries its `reqId`). */
 export interface SsrmAckEvent {
@@ -137,7 +154,12 @@ export type SsrmControlEvent = SsrmAckEvent | SsrmStateEvent;
 export function isSsrmControlRequest(data: unknown): data is SsrmControlRequest {
   if (!data || typeof data !== 'object') return false;
   const kind = (data as { kind?: unknown }).kind;
-  return kind === 'ssrm-configure' || kind === 'ssrm-restart' || kind === 'ssrm-state';
+  return (
+    kind === 'ssrm-configure' ||
+    kind === 'ssrm-restart' ||
+    kind === 'ssrm-state' ||
+    kind === 'ssrm-update-rows'
+  );
 }
 
 export function isSsrmControlEvent(data: unknown): data is SsrmControlEvent {

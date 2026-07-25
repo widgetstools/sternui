@@ -24,6 +24,7 @@ import type { DatasetStateSnapshot, SsrmDatasetConfig } from '../types.js';
 import { DatasetStateMachine } from '../DatasetStateMachine.js';
 import { TableWriter, type SsrmRow, type SsrmTableSurface } from '../TableWriter.js';
 import {
+  coerceRowToSchema,
   createRowProjector,
   refineSchemaFromRows,
   schemaFromColumnDefinitions,
@@ -103,6 +104,36 @@ export class SsrmDataset {
     const session = this.session;
     this.session = null;
     if (session) await session.close();
+  }
+
+  /**
+   * Cell-edit write-back (P4b): apply keyed PARTIAL rows to the hosted
+   * table. Values are coerced to the table schema (grid editors hand
+   * back strings); rows ride the SAME serialized writer path as ingest
+   * so an edit never overtakes a tick. Throws (→ acked as an error,
+   * nothing written) when:
+   * • `generation` is stale — the edit was computed against a dead book;
+   * • the table/schema does not exist yet (nothing to edit);
+   * • a row is missing the key column (unkeyed write = insert, not edit).
+   */
+  updateRows(generation: number, rows: readonly SsrmRow[]): void {
+    if (generation !== this.machine.generation) {
+      throw new Error(
+        `[ssrm] update-rows refused: stale generation ${generation} (current ${this.machine.generation})`,
+      );
+    }
+    const schema = this.schema;
+    if (!this.table || !schema) {
+      throw new Error('[ssrm] update-rows refused: table not created yet');
+    }
+    const key = this.config.keyColumn;
+    const coerced = rows.map((row) => {
+      if (row[key] === undefined || row[key] === null) {
+        throw new Error(`[ssrm] update-rows refused: row missing key column '${key}'`);
+      }
+      return coerceRowToSchema(schema, row);
+    });
+    this.writer.enqueue(generation, coerced);
   }
 
   // ─── ingest events ────────────────────────────────────────────

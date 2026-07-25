@@ -150,6 +150,18 @@ export function installSsrmWorker(opts: InstallSsrmWorkerOpts = {}): SsrmWorkerH
           ack(dataset?.state ?? unconfigured, dataset ? undefined : 'not configured');
           return;
         }
+        case 'ssrm-update-rows': {
+          // Cell-edit write-back: the worker owns the table, so edits
+          // route through it. Stale generations / unkeyed rows throw
+          // inside updateRows → acked as an error, nothing written.
+          if (!dataset) {
+            ack(unconfigured, 'update-rows before configure');
+            return;
+          }
+          dataset.updateRows(req.generation, req.rows);
+          ack(dataset.state);
+          return;
+        }
       }
     } catch (err) {
       ack(
