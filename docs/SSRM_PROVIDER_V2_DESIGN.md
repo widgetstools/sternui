@@ -132,7 +132,22 @@ fling anti-jank; loading/empty/error UX from DatasetState.
   rows/s sweep cap → **single worker confirmed**; top costs at saturation
   are JSON parse + Perspective write WASM + per-row schema projection.)*
 - **P2** — window engine + AG SSRM datasource + viewport LRU; grid consumer
-  wired; multi-window + reload behavior verified.
+  wired; multi-window + reload behavior verified. ✅ *(2026-07-25 —
+  `@starui/ssrm-grid/pull`: `connectSsrmProvider` (control port + direct
+  `perspective.worker(sharedWorker)` data client) +
+  `createSsrmPullDatasource` (DatasetState-owned rowCount — seeding never
+  finalizes, empty is an honest 0; generation-fenced responses; view LRU 8 +
+  viewport block LRU 12 with serve-then-refresh; throttled bare `on_update` →
+  refetch → keyed `applyServerSideTransactionAsync`, no purges) + lab spike
+  `/spikes/ssrmGrid.html` (mount-once per `(providerId, generation)`).
+  Headless proof over 20k live positions: progressive seed fill → live 20000
+  with no stuck overlay; numeric sort re-orders in ~200 ms; ticks repaint
+  28/100 viewport rows over 4 s with 0/37 loading-stub samples; second tab
+  attaches straight to `live` gen-1 (no re-dial, both at 20000); solo-tab
+  reload repopulates from the live table in <1 s; `restart()` → gen 2, both
+  tabs remount + refill. Deferred to P4: group-level rows (plan flags
+  `'group-level'`, `group_by` carried), OR-combined/date/notContains filter
+  ops, ordering drift under an active sort between user refreshes.)*
 - **P3** — `StompSsrmProviderConfig` + the SSRM config editor + catalog/registry
   integration ("New SSRM STOMP provider" in the browser).
 - **P4** — feature-parity pass (grouping/aggregates/edit/export/chart/tree),

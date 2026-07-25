@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SSRM STOMP provider V2 — P2 grid consumer spike</title>
+    <style>
+      html,
+      body,
+      #root {
+        height: 100%;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      Headless P2 spike (Playwright-driven): a real AG Grid enterprise
+      serverSide row model over connectSsrmProvider + the pull
+      datasource, mounted once per (providerId, generation) and gated
+      on DatasetState. Probes on window.__ssrmGridSpike. See
+      docs/SSRM_PROVIDER_V2_DESIGN.md (P2).
+    -->
+    <div id="root"></div>
+    <script type="module" src="/src/spikes/ssrmGridSpike.tsx"></script>
+  </body>
+</html>

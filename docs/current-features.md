@@ -570,6 +570,28 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 
 ---
 
+### 3.2 `@starui/ssrm-grid`
+
+**Path:** `packages/react-grid/ssrm-grid`
+**Purpose:** AG Grid SSRM surfaces — `CustomSSRMGrid` (main-thread RowMirror engine, export `.`) and the SSRM STOMP provider V2 pull plane (export `./pull`).
+
+**Public exports:** `.` (CustomSSRMGrid + engine), `./pull` (V2 pull plane), `./ag-grid-modules` (shared AG enterprise module registration, side-effect import)
+
+#### SSRM pull plane (`@starui/ssrm-grid/pull`) — V2, P2
+
+Window plane over the P1 provider worker (docs/SSRM_PROVIDER_V2_DESIGN.md): connect both ports to the one SharedWorker and serve AG's server-side row model straight from the hosted Perspective table — no window-side row copy.
+
+- `connectSsrmProvider({ appId, providerId, workerUrl, config, wasm? })` — control port (`SsrmControlClient`; configure idempotent worker-side) + direct Perspective data client (`perspective.worker(sharedWorker)`, lazily imported); exposes `state`/`onState` (replay + broadcasts), `configure`, `restart`, `openTable()` (memoized, retries while the seed creates the table), `dispose`; test seams `createWorker`/`openDataClient`
+- `createSsrmPullDatasource({ connection, keyColumn, columns? })` — AG `IServerSideDatasource`: rowCount semantics from DatasetState never inferred (`seeding` delivers without finalizing + reopens the lazy count, `live`/`empty` finalize with the view count, `error` fails); generation fencing drops stale responses; viewport block LRU + serve-then-refresh (cache hit answers synchronously, fresh read lands via index-addressed `applyServerSideRowData`); ticks patch changed rows via `applyServerSideTransactionAsync` keyed by `keyColumn` (throttled bare `on_update` → refetch, never purges); seeding→live refreshes loaded blocks without purge
+- `buildQueryPlan` — AG request → Perspective view config: sortModel → `sort`, groupKeys → ancestor equality filters, group-level requests flagged `'group-level'` (TODO P4: `group_by` + aggregates); `canonicalViewKey` cache identity
+- `agFilterModelToPerspective` — small tested mapping (text equals/notEqual/contains/startsWith/endsWith/blank/notBlank; number comparisons + inRange; set → `in`; AND-combined flattened); OR-combined/date/unknown ops reported `unsupported`, never guessed (full parity P4)
+- `ViewCache` — LRU (8) of live views keyed by query shape; evicted views `delete()`d; memoized creation
+- `BlockCache` — viewport block LRU (12), generation-stamped (design fact #6 anti-jank)
+- `PullTable`/`PullView`/`PullViewConfig`/`PullDatasourceConnection` — structural vendor surfaces so the datasource unit-tests with injected fakes
+- Lab spike `apps/demos/markets-grid-lab/spikes/ssrmGrid.html` — real AG enterprise grid mounted once per `(providerId, generation)`, gated on DatasetState; headless-verified: progressive seed fill → live 20k, sort ≤250 ms, tick repaint with zero loading stubs, second-tab attach with zero re-stream, solo-tab reload repopulating from the live table, restart → remount + refill
+
+---
+
 ## 4. React Core
 
 ### 4.1 `@starui/app`

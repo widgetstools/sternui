@@ -1,0 +1,84 @@
+/**
+ * BlockCache — the window-side viewport block LRU (design fact #6).
+ *
+ * Every block read is an async worker hop; during a fling scroll the
+ * grid re-requests blocks faster than the round trip. Caching the
+ * most recent blocks lets the datasource serve-then-refresh: answer
+ * `getRows` from cache instantly (no loading stubs), then patch the
+ * grid with the fresh read when it lands.
+ *
+ * Entries are stamped with the generation and the view-shape key —
+ * a restart or a sort/filter change never serves stale rows.
+ */
+
+export interface CachedBlock {
+  rows: Record<string, unknown>[];
+  /** View total row count observed by the read that produced `rows`. */
+  total: number;
+  generation: number;
+  /** Requested block end (exclusive) — refreshes re-read the same span. */
+  endRow: number;
+}
+
+export class BlockCache {
+  private readonly maxBlocks: number;
+  /** Insertion order = LRU order. Key: `${viewKey}#${startRow}`. */
+  private readonly blocks = new Map<string, CachedBlock>();
+
+  constructor(maxBlocks = 12) {
+    this.maxBlocks = maxBlocks;
+  }
+
+  get size(): number {
+    return this.blocks.size;
+  }
+
+  get(viewKey: string, startRow: number, generation: number): CachedBlock | undefined {
+    const key = blockKey(viewKey, startRow);
+    const entry = this.blocks.get(key);
+    if (!entry) return undefined;
+    if (entry.generation !== generation) {
+      this.blocks.delete(key); // stale generation — never serve it
+      return undefined;
+    }
+    this.blocks.delete(key);
+    this.blocks.set(key, entry); // refresh recency
+    return entry;
+  }
+
+  set(
+    viewKey: string,
+    startRow: number,
+    entry: CachedBlock,
+  ): void {
+    const key = blockKey(viewKey, startRow);
+    this.blocks.delete(key);
+    this.blocks.set(key, entry);
+    while (this.blocks.size > this.maxBlocks) {
+      const oldest = this.blocks.keys().next().value as string;
+      this.blocks.delete(oldest);
+    }
+  }
+
+  /** Blocks currently cached for one view shape + generation (LRU→MRU). */
+  entriesFor(
+    viewKey: string,
+    generation: number,
+  ): Array<{ startRow: number; block: CachedBlock }> {
+    const prefix = `${viewKey}#`;
+    const out: Array<{ startRow: number; block: CachedBlock }> = [];
+    for (const [key, block] of this.blocks) {
+      if (!key.startsWith(prefix) || block.generation !== generation) continue;
+      out.push({ startRow: Number(key.slice(prefix.length)), block });
+    }
+    return out;
+  }
+
+  clear(): void {
+    this.blocks.clear();
+  }
+}
+
+function blockKey(viewKey: string, startRow: number): string {
+  return `${viewKey}#${startRow}`;
+}
