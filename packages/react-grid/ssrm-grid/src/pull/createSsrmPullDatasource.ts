@@ -43,10 +43,17 @@
  *   read over the SAME filtered set; ticks keep it live via
  *   `rowNode.updateData` on the grand-total node (the row lives outside
  *   every store, so transactions cannot reach it).
- * • **Quick filter (P4a).** `setQuickFilter(text)` folds a
- *   case-insensitive multi-token match across `quickFilterColumns` into
- *   every plan (a boolean expression column) and refreshes without
- *   purging.
+ * • **Quick filter (P4a; hardened for perf + correctness).**
+ *   `setQuickFilter(text)` folds a case-insensitive multi-token match
+ *   across `quickFilterColumns` into every plan (a boolean expression
+ *   column). Calls are DEBOUNCED (`quickFilterDebounceMs`, default
+ *   250ms trailing) — per-keystroke application built one full
+ *   Perspective view per key and queued a refresh behind each. The
+ *   settled change refreshes with `purge: true`: a quick-filter change
+ *   is a structural store change (same as a column-filter change under
+ *   SSRM) — a soft refresh repaints loaded blocks but NEVER applies a
+ *   smaller row count to AG's lazy store, leaving the scrollbar and
+ *   row indices on the pre-filter count forever.
  * • **Tree data (P4b-2).** `treePathFields` synthesizes a serverSide
  *   tree from categorical fields — tree levels are served by the SAME
  *   group-level plans as row grouping (see `buildQueryPlan`), leaf
@@ -102,6 +109,12 @@ export interface SsrmPullDatasourceOpts {
   columns?: string[];
   /** String columns the quick filter matches against. */
   quickFilterColumns?: string[];
+  /**
+   * Trailing debounce for `setQuickFilter` so per-keystroke input
+   * collapses into ONE view build + ONE store refresh. `0` applies
+   * synchronously (tests / programmatic callers). Default 250ms.
+   */
+  quickFilterDebounceMs?: number;
   /**
    * Calc/expression columns (name → Perspective expression over real
    * columns), attached to every view — the config's `calcExpressions`.
@@ -164,7 +177,9 @@ export interface SsrmPullDatasource extends IServerSideDatasource {
   /**
    * Quick filter: matches every whitespace-separated token
    * case-insensitively against `quickFilterColumns`; null/empty clears.
-   * Refreshes loaded blocks without purging.
+   * Debounced (`quickFilterDebounceMs`); the settled change refreshes
+   * with `purge: true` so the store row count is authoritative (a soft
+   * refresh cannot shrink AG's lazy store).
    */
   setQuickFilter(text: string | null): void;
   /**
@@ -207,6 +222,9 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
   let tickSub: TickSubscription | null = null;
   let destroyed = false;
   let quickFilter: string | undefined;
+  /** setQuickFilter debounce: the value awaiting apply + its timer. */
+  let pendingQuickFilter: string | undefined;
+  let quickFilterTimer: ReturnType<typeof setTimeout> | null = null;
   /** Plans with (potentially) cached blocks — the tick-refresh sweep set. */
   const planByKey = new Map<string, QueryPlan>();
   /** The most recent root-route plan — owns the root store's rowCount. */
@@ -612,10 +630,24 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     },
     setQuickFilter(text: string | null): void {
       const next = text?.trim() || undefined;
-      if (next === quickFilter) return;
-      quickFilter = next;
-      // An armed rollup rebuilds with the new filter on the next root load.
-      api?.refreshServerSide({ purge: false });
+      pendingQuickFilter = next;
+      if (quickFilterTimer !== null) {
+        clearTimeout(quickFilterTimer);
+        quickFilterTimer = null;
+      }
+      const apply = (): void => {
+        quickFilterTimer = null;
+        if (destroyed || pendingQuickFilter === quickFilter) return;
+        quickFilter = pendingQuickFilter;
+        // Structural store change: PURGE. A soft refresh repaints loaded
+        // blocks but never applies a smaller rowCount to the lazy store —
+        // the count (and scrollbar) would stay on the pre-filter total
+        // forever. An armed rollup rebuilds on the next root load.
+        api?.refreshServerSide({ purge: true });
+      };
+      const debounceMs = opts.quickFilterDebounceMs ?? 250;
+      if (debounceMs <= 0) apply();
+      else quickFilterTimer = setTimeout(apply, debounceMs);
     },
     async queryAll(o: QueryAllOpts = {}): Promise<QueryAllResult> {
       const snap = connection.state;
@@ -700,6 +732,10 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     destroy(): void {
       destroyed = true;
       offState();
+      if (quickFilterTimer !== null) {
+        clearTimeout(quickFilterTimer);
+        quickFilterTimer = null;
+      }
       if (tickSub?.id != null) {
         void tickSub.view.remove_update(tickSub.id).catch(() => undefined);
       }

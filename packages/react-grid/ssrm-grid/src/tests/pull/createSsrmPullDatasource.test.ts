@@ -132,6 +132,7 @@ function makeDatasource(connection: FakeConnection, overrides = {}) {
     keyColumn: 'positionId',
     tickRefreshMs: 0,
     seedCountRefreshMs: 0,
+    quickFilterDebounceMs: 0, // synchronous in tests; debounce covered explicitly
     warn: () => undefined,
     ...overrides,
   });
@@ -558,7 +559,10 @@ describe('createSsrmPullDatasource', () => {
     await flush();
 
     ds.setQuickFilter('bookA');
-    expect(api.calls.refreshes).toEqual([{ purge: false }]);
+    // Structural store change → PURGE (a soft refresh cannot shrink AG's
+    // lazy-store row count; the pre-fix purge:false left the scrollbar on
+    // the unfiltered total forever).
+    expect(api.calls.refreshes).toEqual([{ purge: true }]);
     const params = loadParams(api); // the refresh re-issues getRows
     ds.getRows(params);
     await flush();
@@ -579,6 +583,46 @@ describe('createSsrmPullDatasource', () => {
     const clearedArg = cleared.success.mock.calls[0]![0] as { rowCount?: number };
     expect(clearedArg.rowCount).toBe(9);
     ds.destroy();
+  });
+
+  it('debounces per-keystroke setQuickFilter into ONE purge refresh (perf fix)', () => {
+    // Pre-fix, each keystroke built a full Perspective view and queued a
+    // refresh behind it — typing "BOOK003" cost 7 stacked re-queries.
+    vi.useFakeTimers();
+    try {
+      const connection = new FakeConnection();
+      connection.table.rows = bookRows(9);
+      connection.emit(liveState(9));
+      const ds = makeDatasource(connection, {
+        quickFilterColumns: ['book'],
+        quickFilterDebounceMs: 200,
+      });
+      const api = fakeApi();
+      ds.getRows(loadParams(api));
+
+      // Simulate typing: 7 calls, 50ms apart — inside the debounce window.
+      for (const prefix of ['B', 'BO', 'BOO', 'BOOK', 'BOOK0', 'BOOK00', 'BOOK003']) {
+        ds.setQuickFilter(prefix);
+        vi.advanceTimersByTime(50);
+      }
+      expect(api.calls.refreshes).toEqual([]); // nothing applied mid-typing
+
+      vi.advanceTimersByTime(200); // trailing edge
+      expect(api.calls.refreshes).toEqual([{ purge: true }]); // exactly one
+
+      // Re-setting the SAME settled value must not refresh again.
+      ds.setQuickFilter('BOOK003');
+      vi.advanceTimersByTime(300);
+      expect(api.calls.refreshes).toEqual([{ purge: true }]);
+
+      // destroy() cancels a pending apply.
+      ds.setQuickFilter('other');
+      ds.destroy();
+      vi.advanceTimersByTime(300);
+      expect(api.calls.refreshes).toEqual([{ purge: true }]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('getDistinctValues reads group labels and deletes the transient view', async () => {
