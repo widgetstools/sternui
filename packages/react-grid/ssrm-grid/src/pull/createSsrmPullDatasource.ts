@@ -599,7 +599,22 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     // quick-filter change left the scrollbar on the unfiltered total),
     // and never grows from one either once marked final. setRowCount is
     // authoritative both ways and legal only here (AG #28 under grouping).
-    if (isFlatRoot(plan)) params.api.setRowCount(total, true);
+    if (isFlatRoot(plan)) enforceFlatRootCount(params.api, total);
+  }
+
+  /**
+   * setRowCount + stale-DOM cleanup. Shrinking the row MODEL does not
+   * remove already-RENDERED row DOM (field report: quick filter "did
+   * nothing" — the API said 1 row while the screen still painted the
+   * whole unfiltered book). On shrink, redrawRows() rebuilds the row DOM
+   * from the model. No-op on the steady tick path (total unchanged).
+   */
+  function enforceFlatRootCount(gridApi: GridApi, total: number): void {
+    const before = gridApi.getDisplayedRowCount?.() ?? total;
+    gridApi.setRowCount(total, true);
+    if (total < before) {
+      (gridApi as { redrawRows?: () => void }).redrawRows?.();
+    }
   }
 
   /** Serve-then-refresh: replace a cache-hit block with a fresh read. */
@@ -628,7 +643,7 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     // Flat root: keep the store count authoritative on refreshes too —
     // shrink (filter narrowed) and growth (live inserts) both apply.
     if (seedingFlatRoot) api.setRowCount(read.total, false);
-    else if (isFlatRoot(plan)) api.setRowCount(read.total, true);
+    else if (isFlatRoot(plan)) enforceFlatRootCount(api, read.total);
   }
 
   return {
