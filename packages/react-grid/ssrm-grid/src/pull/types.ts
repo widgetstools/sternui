@@ -47,8 +47,12 @@ export interface PullViewConfig {
   columns?: string[];
   sort?: PullSort[];
   filter?: PullFilter[];
-  /** P4 (grouping) — carried in the plan today, never sent by P2. */
+  /** Row grouping — ONE level per view (the request's next level). */
   group_by?: string[];
+  /** Boolean/constant expression columns (filters, quick filter, rollup). */
+  expressions?: Record<string, string>;
+  /** Per-column aggregates for grouped/rollup views. */
+  aggregates?: Record<string, string>;
 }
 
 /** Structural surface of a vendor `View`. */

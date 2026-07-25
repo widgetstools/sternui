@@ -1,133 +1,66 @@
 import { describe, expect, it, vi } from 'vitest';
+import { GRAND_TOTAL_ROW_ID } from 'ag-grid-community';
 import type { GridApi, IServerSideGetRowsParams, IServerSideGetRowsRequest } from 'ag-grid-community';
 import type { DatasetStateSnapshot } from '@starui/host-data/runtime/ssrm';
 import { createSsrmPullDatasource, diffRowsByKey } from '../../pull/createSsrmPullDatasource.js';
-import type {
-  PullDatasourceConnection,
-  PullTable,
-  PullView,
-  PullViewConfig,
-} from '../../pull/types.js';
+import { CHILD_COUNT_FIELD, GROUP_ID_FIELD, encodeGroupRowId } from '../../pull/groupRows.js';
+import { QUICK_FILTER_EXPR } from '../../pull/filterExpressions.js';
+import { FakeConnection, type Row } from './fakePerspective.js';
 
-// ─── fakes ───────────────────────────────────────────────────────────
+// ─── grid-api fake ───────────────────────────────────────────────────
 
-type Row = Record<string, unknown>;
-
-class FakeView implements PullView {
-  readonly config: PullViewConfig;
-  readonly table: FakeTable;
-  readonly updateCallbacks = new Map<number, () => void>();
-  deleted = false;
-  private nextCallbackId = 1;
-
-  constructor(table: FakeTable, config: PullViewConfig) {
-    this.table = table;
-    this.config = config;
-  }
-
-  async num_rows(): Promise<number> {
-    return this.table.rows.length;
-  }
-
-  async to_json(window?: { start_row?: number; end_row?: number }): Promise<Row[]> {
-    const start = window?.start_row ?? 0;
-    const end = window?.end_row ?? this.table.rows.length;
-    return this.table.rows.slice(start, end).map((row) => ({ ...row }));
-  }
-
-  async on_update(callback: () => void): Promise<number> {
-    const id = this.nextCallbackId++;
-    this.updateCallbacks.set(id, callback);
-    return id;
-  }
-
-  async remove_update(id: number): Promise<void> {
-    this.updateCallbacks.delete(id);
-  }
-
-  async delete(): Promise<void> {
-    this.deleted = true;
-    this.updateCallbacks.clear();
-  }
-
-  fireUpdate(): void {
-    for (const callback of this.updateCallbacks.values()) callback();
-  }
-}
-
-class FakeTable implements PullTable {
-  rows: Row[] = [];
-  readonly views: FakeView[] = [];
-
-  async view(config?: PullViewConfig): Promise<PullView> {
-    const view = new FakeView(this, config ?? {});
-    this.views.push(view);
-    return view;
-  }
-
-  async size(): Promise<number> {
-    return this.rows.length;
-  }
-}
-
-class FakeConnection implements PullDatasourceConnection {
-  state: DatasetStateSnapshot | null = null;
-  readonly table = new FakeTable();
-  private readonly listeners = new Set<(s: DatasetStateSnapshot) => void>();
-  openTableCalls = 0;
-  private tableGate: Promise<void> = Promise.resolve();
-  private releaseGate: (() => void) | null = null;
-
-  onState(listener: (s: DatasetStateSnapshot) => void): () => void {
-    this.listeners.add(listener);
-    if (this.state) listener(this.state);
-    return () => this.listeners.delete(listener);
-  }
-
-  async openTable(): Promise<PullTable> {
-    this.openTableCalls += 1;
-    await this.tableGate;
-    return this.table;
-  }
-
-  emit(state: DatasetStateSnapshot): void {
-    this.state = state;
-    for (const listener of [...this.listeners]) listener(state);
-  }
-
-  /** Make openTable hang until releaseTable() — for fencing tests. */
-  holdTable(): void {
-    this.tableGate = new Promise((resolve) => {
-      this.releaseGate = resolve;
-    });
-  }
-
-  releaseTable(): void {
-    this.releaseGate?.();
-    this.releaseGate = null;
-  }
+interface FakeNode {
+  data: Row;
+  updateData: ReturnType<typeof vi.fn>;
 }
 
 function fakeApi(): GridApi & {
   calls: {
     setRowCount: Array<[number, boolean | undefined]>;
-    transactions: Array<{ update?: Row[] }>;
-    rowData: Array<{ startRow?: number; successParams: { rowData: Row[]; rowCount?: number } }>;
+    transactions: Array<{ route?: string[]; update?: Row[] }>;
+    rowData: Array<{
+      startRow?: number;
+      route?: string[];
+      successParams: { rowData: Row[]; rowCount?: number };
+    }>;
     refreshes: Array<{ purge?: boolean } | undefined>;
+    refreshCells: Array<unknown>;
   };
+  nodes: Map<string, FakeNode>;
+  seedNode(id: string, data: Row): FakeNode;
 } {
   const calls = {
     setRowCount: [] as Array<[number, boolean | undefined]>,
-    transactions: [] as Array<{ update?: Row[] }>,
-    rowData: [] as Array<{ startRow?: number; successParams: { rowData: Row[]; rowCount?: number } }>,
+    transactions: [] as Array<{ route?: string[]; update?: Row[] }>,
+    rowData: [] as Array<{
+      startRow?: number;
+      route?: string[];
+      successParams: { rowData: Row[]; rowCount?: number };
+    }>,
     refreshes: [] as Array<{ purge?: boolean } | undefined>,
+    refreshCells: [] as Array<unknown>,
   };
+  const nodes = new Map<string, FakeNode>();
   return {
     calls,
+    nodes,
+    seedNode(id: string, data: Row): FakeNode {
+      const node: FakeNode = {
+        data,
+        updateData: vi.fn((next: Row) => {
+          node.data = next;
+        }),
+      };
+      nodes.set(id, node);
+      return node;
+    },
     setRowCount: (count: number, known?: boolean) => calls.setRowCount.push([count, known]),
-    applyServerSideTransactionAsync: (txn: { update?: Row[] }) => calls.transactions.push(txn),
+    applyServerSideTransactionAsync: (txn: { route?: string[]; update?: Row[] }) =>
+      calls.transactions.push(txn),
     applyServerSideRowData: (p: never) => calls.rowData.push(p),
     refreshServerSide: (p?: { purge?: boolean }) => calls.refreshes.push(p),
+    getRowNode: (id: string) => nodes.get(id),
+    refreshCells: (p: unknown) => calls.refreshCells.push(p),
   } as unknown as ReturnType<typeof fakeApi>;
 }
 
@@ -149,6 +82,7 @@ function agRequest(overrides: Partial<IServerSideGetRowsRequest> = {}): IServerS
 function loadParams(
   api: GridApi,
   overrides: Partial<IServerSideGetRowsRequest> = {},
+  extras: { needsGrandTotal?: boolean } = {},
 ): IServerSideGetRowsParams & { success: ReturnType<typeof vi.fn>; fail: ReturnType<typeof vi.fn> } {
   return {
     request: agRequest(overrides),
@@ -156,7 +90,7 @@ function loadParams(
     success: vi.fn(),
     fail: vi.fn(),
     parentNode: {},
-    needsGrandTotal: false,
+    needsGrandTotal: extras.needsGrandTotal ?? false,
     context: undefined,
   } as unknown as IServerSideGetRowsParams & {
     success: ReturnType<typeof vi.fn>;
@@ -173,6 +107,15 @@ const flush = async (times = 4): Promise<void> => {
 const seedRows = (n: number): Row[] =>
   Array.from({ length: n }, (_, i) => ({ positionId: `POS${i}`, px: i * 10, pnl: i }));
 
+/** Rows with a categorical column for grouping tests: books A/B/C. */
+const bookRows = (n: number): Row[] =>
+  Array.from({ length: n }, (_, i) => ({
+    positionId: `POS${i}`,
+    book: `BOOK${String.fromCharCode(65 + (i % 3))}`,
+    pnl: i,
+    px: i * 10,
+  }));
+
 function liveState(rowCount: number, generation = 1): DatasetStateSnapshot {
   return { phase: 'live', rowCount, generation };
 }
@@ -187,6 +130,11 @@ function makeDatasource(connection: FakeConnection, overrides = {}) {
     ...overrides,
   });
 }
+
+const GROUP_REQUEST: Partial<IServerSideGetRowsRequest> = {
+  rowGroupCols: [{ id: 'book', displayName: 'Book', field: 'book' }],
+  valueCols: [{ id: 'pnl', displayName: 'PnL', field: 'pnl', aggFunc: 'sum' }],
+};
 
 // ─── tests ───────────────────────────────────────────────────────────
 
@@ -347,6 +295,7 @@ describe('createSsrmPullDatasource', () => {
 
     expect(api.calls.transactions).toHaveLength(1);
     expect(api.calls.transactions[0]!.update).toEqual([{ positionId: 'POS3', px: 999, pnl: 3 }]);
+    expect(api.calls.transactions[0]!.route).toEqual([]);
     expect(api.calls.refreshes).toEqual([]); // no purge path ever taken
     expect(params.success).toHaveBeenCalledTimes(1); // block not re-served
     expect(api.calls.setRowCount).toContainEqual([50, true]);
@@ -383,22 +332,6 @@ describe('createSsrmPullDatasource', () => {
     ds.destroy();
   });
 
-  it('fails group-level requests with a typed P4 TODO', async () => {
-    const connection = new FakeConnection();
-    connection.table.rows = seedRows(10);
-    connection.emit(liveState(10));
-    const warnings: string[] = [];
-    const ds = makeDatasource(connection, { warn: (m: string) => warnings.push(m) });
-    const params = loadParams(fakeApi(), {
-      rowGroupCols: [{ id: 'desk', displayName: 'Desk', field: 'desk' }],
-    });
-    ds.getRows(params);
-    await flush();
-    expect(params.fail).toHaveBeenCalledTimes(1);
-    expect(warnings.some((w) => w.includes('P4'))).toBe(true);
-    ds.destroy();
-  });
-
   it('destroy() removes the tick subscription and deletes cached views', async () => {
     const connection = new FakeConnection();
     connection.table.rows = seedRows(10);
@@ -412,6 +345,241 @@ describe('createSsrmPullDatasource', () => {
     await flush();
     expect(view.deleted).toBe(true);
     expect(view.updateCallbacks.size).toBe(0);
+  });
+
+  // ─── P4a: row grouping ───────────────────────────────────────────
+
+  it('serves group rows with labels, aggregates, child counts and stable path ids', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = bookRows(9); // A: 0,3,6 → pnl 9; B: 1,4,7 → 12; C: 2,5,8 → 15
+    connection.emit(liveState(9));
+    const ds = makeDatasource(connection);
+    const api = fakeApi();
+    const params = loadParams(api, GROUP_REQUEST);
+    ds.getRows(params);
+    await flush();
+    expect(params.fail).not.toHaveBeenCalled();
+    const arg = params.success.mock.calls[0]![0] as { rowData: Row[]; rowCount?: number };
+    expect(arg.rowCount).toBe(3); // groups, NOT the leading total row
+    expect(arg.rowData).toEqual([
+      {
+        book: 'BOOKA',
+        pnl: 9,
+        [CHILD_COUNT_FIELD]: 3,
+        [GROUP_ID_FIELD]: encodeGroupRowId(['BOOKA']),
+      },
+      {
+        book: 'BOOKB',
+        pnl: 12,
+        [CHILD_COUNT_FIELD]: 3,
+        [GROUP_ID_FIELD]: encodeGroupRowId(['BOOKB']),
+      },
+      {
+        book: 'BOOKC',
+        pnl: 15,
+        [CHILD_COUNT_FIELD]: 3,
+        [GROUP_ID_FIELD]: encodeGroupRowId(['BOOKC']),
+      },
+    ]);
+    // group view shape: group_by next level, unique label agg, key count
+    expect(connection.table.views[0]!.config.group_by).toEqual(['book']);
+    expect(connection.table.views[0]!.config.aggregates).toEqual({
+      pnl: 'sum',
+      book: 'unique',
+      positionId: 'count',
+    });
+    ds.destroy();
+  });
+
+  it('group row ids are identical across refreshes (path-encoded, not positional)', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = bookRows(9);
+    connection.emit(liveState(9));
+    const ds = makeDatasource(connection);
+    const api = fakeApi();
+    const first = loadParams(api, GROUP_REQUEST);
+    ds.getRows(first);
+    await flush();
+    const firstArg = first.success.mock.calls[0]![0] as { rowData: Row[] };
+    const firstIds = firstArg.rowData.map((r) => r[GROUP_ID_FIELD]);
+    expect(firstIds.every((id) => typeof id === 'string')).toBe(true);
+
+    // aggregates change; a second load of the same block (cache hit +
+    // serve-then-refresh) delivers fresh values under the SAME ids
+    connection.table.rows = connection.table.rows.map((row) => ({
+      ...row,
+      pnl: (row.pnl as number) + 100,
+    }));
+    ds.getRows(loadParams(api, GROUP_REQUEST));
+    await flush();
+    const refreshed = api.calls.rowData.at(-1)!.successParams.rowData;
+    expect(refreshed.map((r) => r[GROUP_ID_FIELD])).toEqual(firstIds);
+    expect(refreshed.map((r) => r.pnl)).toEqual([309, 312, 315]); // fresh aggregates
+    ds.destroy();
+  });
+
+  it('serves leaf rows under an expanded group and routes their tick patches', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = bookRows(9);
+    connection.emit(liveState(9));
+    const ds = makeDatasource(connection);
+    const api = fakeApi();
+    const params = loadParams(api, { ...GROUP_REQUEST, groupKeys: ['BOOKA'] });
+    ds.getRows(params);
+    await flush();
+    const arg = params.success.mock.calls[0]![0] as { rowData: Row[]; rowCount?: number };
+    expect(arg.rowData.map((r) => r.positionId)).toEqual(['POS0', 'POS3', 'POS6']);
+    expect(arg.rowCount).toBe(3);
+
+    // leaf tick under the route → transaction routed to the child store
+    connection.table.rows = connection.table.rows.map((row) =>
+      row.positionId === 'POS3' ? { ...row, pnl: 777 } : row,
+    );
+    connection.table.fireAll();
+    await flush();
+    const leafTxn = api.calls.transactions.find((t) =>
+      t.update?.some((r) => r.positionId === 'POS3'),
+    );
+    expect(leafTxn).toBeDefined();
+    expect(leafTxn!.route).toEqual(['BOOKA']);
+    ds.destroy();
+  });
+
+  it('keeps loaded group headers live on ticks (keyed group-row transactions, no purge)', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = bookRows(9);
+    connection.emit(liveState(9));
+    const ds = makeDatasource(connection);
+    const api = fakeApi();
+    ds.getRows(loadParams(api, GROUP_REQUEST));
+    await flush();
+
+    connection.table.rows = connection.table.rows.map((row) =>
+      row.positionId === 'POS0' ? { ...row, pnl: 1000 } : row, // BOOKA: 9 → 1009
+    );
+    connection.table.fireAll();
+    await flush();
+
+    const groupTxn = api.calls.transactions.find((t) =>
+      t.update?.some((r) => typeof r[GROUP_ID_FIELD] === 'string'),
+    );
+    expect(groupTxn).toBeDefined();
+    expect(groupTxn!.route).toEqual([]);
+    expect(groupTxn!.update).toEqual([
+      {
+        book: 'BOOKA',
+        pnl: 1009,
+        [CHILD_COUNT_FIELD]: 3,
+        [GROUP_ID_FIELD]: encodeGroupRowId(['BOOKA']),
+      },
+    ]);
+    expect(api.calls.refreshes).toEqual([]);
+    ds.destroy();
+  });
+
+  it('NEVER calls setRowCount for grouped stores (AG #28) — counts ride on successes', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = bookRows(9);
+    connection.emit({ phase: 'seeding', rowCount: 9, generation: 1 });
+    const ds = makeDatasource(connection);
+    const api = fakeApi();
+    const params = loadParams(api, GROUP_REQUEST);
+    ds.getRows(params);
+    await flush();
+    // grouped store: success carries the group count even while seeding
+    const arg = params.success.mock.calls[0]![0] as { rowData: Row[]; rowCount?: number };
+    expect(arg.rowCount).toBe(3);
+    // seeding growth events must not touch setRowCount under grouping
+    connection.emit({ phase: 'seeding', rowCount: 5000, generation: 1 });
+    await flush();
+    connection.table.fireAll(); // nor may the tick refresh
+    await flush();
+    expect(api.calls.setRowCount).toEqual([]);
+    ds.destroy();
+  });
+
+  // ─── P4a: grand total ────────────────────────────────────────────
+
+  it('answers needsGrandTotal with grandTotalData from a rollup read', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = bookRows(9);
+    connection.emit(liveState(9));
+    const ds = makeDatasource(connection);
+    const api = fakeApi();
+    const params = loadParams(api, GROUP_REQUEST, { needsGrandTotal: true });
+    ds.getRows(params);
+    await flush();
+    const arg = params.success.mock.calls[0]![0] as { grandTotalData?: Row };
+    expect(arg.grandTotalData).toEqual({ pnl: 36 }); // Σ 0..8
+    ds.destroy();
+  });
+
+  it('keeps the grand total live: ticks patch the grand-total node in place', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = bookRows(9);
+    connection.emit(liveState(9));
+    const ds = makeDatasource(connection);
+    const api = fakeApi();
+    ds.getRows(loadParams(api, GROUP_REQUEST, { needsGrandTotal: true }));
+    await flush();
+    const node = api.seedNode(GRAND_TOTAL_ROW_ID, { pnl: 36 });
+
+    connection.table.rows = connection.table.rows.map((row) =>
+      row.positionId === 'POS0' ? { ...row, pnl: 1000 } : row,
+    );
+    connection.table.fireAll();
+    await flush();
+
+    expect(node.updateData).toHaveBeenCalled();
+    expect(node.data).toEqual({ pnl: 1036 });
+    expect(api.calls.refreshCells.length).toBeGreaterThan(0);
+    ds.destroy();
+  });
+
+  // ─── P4a: quick filter + distinct values ─────────────────────────
+
+  it('folds the quick filter into the plan and refreshes without purging', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = bookRows(9);
+    connection.emit(liveState(9));
+    const ds = makeDatasource(connection, { quickFilterColumns: ['book', 'positionId'] });
+    const api = fakeApi();
+    ds.getRows(loadParams(api));
+    await flush();
+
+    ds.setQuickFilter('bookA');
+    expect(api.calls.refreshes).toEqual([{ purge: false }]);
+    const params = loadParams(api); // the refresh re-issues getRows
+    ds.getRows(params);
+    await flush();
+    const view = connection.table.views.at(-1)!;
+    expect(view.config.filter).toEqual([[QUICK_FILTER_EXPR, '==', true]]);
+    expect(view.config.expressions).toEqual({
+      [QUICK_FILTER_EXPR]:
+        `(match(lower("book"), 'booka') or match(lower("positionId"), 'booka'))`,
+    });
+
+    ds.setQuickFilter(null); // clears — back to the original flat shape
+    const cleared = loadParams(api);
+    ds.getRows(cleared);
+    await flush();
+    // the cleared plan reuses the ORIGINAL unfiltered view (same key) —
+    // exactly one quick-filter view was ever created
+    expect(connection.table.views.filter((v) => v.config.expressions).length).toBe(1);
+    const clearedArg = cleared.success.mock.calls[0]![0] as { rowCount?: number };
+    expect(clearedArg.rowCount).toBe(9);
+    ds.destroy();
+  });
+
+  it('getDistinctValues reads group labels and deletes the transient view', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = [...bookRows(9), { positionId: 'POSX', book: null, pnl: 0, px: 0 }];
+    connection.emit(liveState(10));
+    const ds = makeDatasource(connection);
+    const values = await ds.getDistinctValues('book');
+    expect(values).toEqual(['BOOKA', 'BOOKB', 'BOOKC', null]);
+    expect(connection.table.views.at(-1)!.deleted).toBe(true);
+    ds.destroy();
   });
 });
 

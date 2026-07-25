@@ -2,7 +2,7 @@
  * createSsrmPullDatasource — AG Grid server-side datasource over the
  * SSRM provider's hosted Perspective table (the pull plane).
  *
- * Contracts (docs/SSRM_PROVIDER_V2_DESIGN.md, P2):
+ * Contracts (docs/SSRM_PROVIDER_V2_DESIGN.md, P2 + P4a):
  *
  * • **rowCount comes from DatasetState, never inferred.** While
  *   `seeding` blocks are delivered WITHOUT a final `rowCount` (and the
@@ -19,17 +19,39 @@
  *   then the fresh read replaces the block in place
  *   (`applyServerSideRowData` — index-addressed, handles reorders,
  *   never purges).
- * • **Ticks never purge.** `view.on_update` (throttled trailing)
- *   refetches the cached blocks of the active query shape and patches
- *   changed rows via `applyServerSideTransactionAsync`, keyed by the
- *   provider's `keyColumn` (the grid MUST set `getRowId` accordingly).
- *   Update transactions cannot re-order rows — ordering drift under an
- *   active sort between user refreshes is accepted in P2 (TODO(P4):
- *   periodic ordered block refresh).
+ * • **Ticks never purge.** ONE live `on_update` subscription (kept on a
+ *   root-route view — it observes the whole filtered set) triggers a
+ *   throttled trailing refresh that refetches EVERY cached block of the
+ *   current generation — flat blocks, group-level blocks, expanded-leaf
+ *   blocks — and patches changed rows via
+ *   `applyServerSideTransactionAsync({ route, update })`: leaf rows
+ *   keyed by the provider's `keyColumn`, group rows keyed by their
+ *   stamped path id (`GROUP_ID_FIELD`). The grid MUST set `getRowId`
+ *   via `createSsrmRowIdGetter(keyColumn)`. Update transactions cannot
+ *   re-order rows — ordering drift under an active sort between user
+ *   refreshes is accepted (TODO(P4b): periodic ordered block refresh).
+ * • **Row grouping (P4a).** Group-level requests are served from a
+ *   Perspective `group_by` view on the request's next level (ancestor
+ *   equality filters pin the route); group rows carry the group label,
+ *   the requested `valueCols` aggregates, a leaf child count
+ *   (`CHILD_COUNT_FIELD` → AG `getChildCount`) and their stable path id.
+ * • **Grand total (P4a).** Root-level loads answering AG's
+ *   `needsGrandTotal` hint (gridOption `grandTotalRow` — AG 36's native
+ *   SSRM grand total; chosen over a hand-rolled pinned row because the
+ *   grid owns the row's id `GRAND_TOTAL_ROW_ID` and accepts server data
+ *   via `LoadSuccessParams.grandTotalData`) get a single-group rollup
+ *   read over the SAME filtered set; ticks keep it live via
+ *   `rowNode.updateData` on the grand-total node (the row lives outside
+ *   every store, so transactions cannot reach it).
+ * • **Quick filter (P4a).** `setQuickFilter(text)` folds a
+ *   case-insensitive multi-token match across `quickFilterColumns` into
+ *   every plan (a boolean expression column) and refreshes without
+ *   purging.
  * • Row-delta materialization is width-gated by design fact #5 — the
  *   plain path here uses bare `on_update` → refetch, no row deltas.
  */
 
+import { GRAND_TOTAL_ROW_ID } from 'ag-grid-community';
 import type {
   GridApi,
   IServerSideDatasource,
@@ -37,7 +59,14 @@ import type {
 } from 'ag-grid-community';
 import type { DatasetStateSnapshot } from '@starui/host-data/runtime/ssrm';
 import { BlockCache } from './BlockCache.js';
-import { buildQueryPlan, type QueryPlan } from './buildQueryPlan.js';
+import {
+  buildQueryPlan,
+  buildRollupPlan,
+  type QueryPlan,
+  type QueryPlanOpts,
+  type RollupPlan,
+} from './buildQueryPlan.js';
+import { GROUP_ID_FIELD, toGroupRowData } from './groupRows.js';
 import { ViewCache } from './ViewCache.js';
 import type { PullDatasourceConnection, PullView } from './types.js';
 
@@ -45,12 +74,14 @@ export interface SsrmPullDatasourceOpts {
   connection: PullDatasourceConnection;
   /**
    * Row identity — the provider config's `keyColumn`. The consuming
-   * grid MUST set `getRowId: ({ data }) => String(data[keyColumn])`
-   * (tick patches are keyed update transactions).
+   * grid MUST set `getRowId: createSsrmRowIdGetter(keyColumn)` (tick
+   * patches are keyed update transactions; group rows use path ids).
    */
   keyColumn: string;
   /** Columns to read per block; omit for every table column. */
   columns?: string[];
+  /** String columns the quick filter matches against. */
+  quickFilterColumns?: string[];
   /** Live-view LRU capacity. Default 8. */
   maxViews?: number;
   /** Viewport block LRU capacity. Default 12. */
@@ -65,6 +96,18 @@ export interface SsrmPullDatasourceOpts {
 }
 
 export interface SsrmPullDatasource extends IServerSideDatasource {
+  /**
+   * Quick filter: matches every whitespace-separated token
+   * case-insensitively against `quickFilterColumns`; null/empty clears.
+   * Refreshes loaded blocks without purging.
+   */
+  setQuickFilter(text: string | null): void;
+  /**
+   * Distinct values of `field` over the WHOLE table (unfiltered — AG
+   * set-filter convention), via a transient Perspective group_by read.
+   * May include `null`.
+   */
+  getDistinctValues(field: string): Promise<unknown[]>;
   destroy(): void;
 }
 
@@ -90,7 +133,21 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
   let generation = connection.state?.generation ?? 0;
   let tickSub: TickSubscription | null = null;
   let destroyed = false;
+  let quickFilter: string | undefined;
+  /** Plans with (potentially) cached blocks — the tick-refresh sweep set. */
+  const planByKey = new Map<string, QueryPlan>();
+  /** The most recent root-route plan — owns the root store's rowCount. */
+  let rootPlan: QueryPlan | null = null;
+  /** Active grand-total rollup (null until AG asks via needsGrandTotal). */
+  let rollup: RollupPlan | null = null;
   const warnedPlans = new Set<string>();
+
+  const planOpts = (): QueryPlanOpts => ({
+    keyColumn,
+    ...(opts.columns ? { columns: opts.columns } : {}),
+    ...(quickFilter ? { quickFilter } : {}),
+    ...(opts.quickFilterColumns ? { quickFilterColumns: opts.quickFilterColumns } : {}),
+  });
 
   // ─── shared async helpers ───────────────────────────────────────
 
@@ -111,32 +168,57 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       if (settled) off();
     });
 
-  const readRange = async (
+  /**
+   * Read one AG block through `plan`'s view. For group-level plans the
+   * window shifts past Perspective's leading total row, `total` is the
+   * group count, and rows are materialized as AG group row data.
+   */
+  const readPlanBlock = async (
+    plan: QueryPlan,
     view: PullView,
     startRow: number,
     endRow: number,
   ): Promise<{ rows: Record<string, unknown>[]; total: number }> => {
-    const total = await view.num_rows();
+    const numRows = await view.num_rows();
+    if (plan.kind === 'group-level') {
+      const total = Math.max(0, numRows - 1); // row 0 is the total row
+      const raw =
+        startRow >= total
+          ? []
+          : ((await view.to_json({ start_row: startRow + 1, end_row: endRow + 1 })) as Record<
+              string,
+              unknown
+            >[]);
+      const keyCountField = plan.viewConfig.aggregates?.[keyColumn] === 'count' ? keyColumn : null;
+      return { rows: toGroupRowData(raw, plan.group!, plan.route, keyCountField), total };
+    }
     const rows =
-      startRow >= total
+      startRow >= numRows
         ? []
         : ((await view.to_json({ start_row: startRow, end_row: endRow })) as Record<
             string,
             unknown
           >[]);
-    return { rows, total };
+    return { rows, total: numRows };
   };
 
-  const acquireView = async (plan: QueryPlan): Promise<PullView> => {
-    const view = await viewCache.acquire(plan.key, plan.viewConfig, async (config) => {
+  const acquireView = async (
+    key: string,
+    viewConfig: QueryPlan['viewConfig'],
+    isRootShape: boolean,
+  ): Promise<PullView> => {
+    const view = await viewCache.acquire(key, viewConfig, async (config) => {
       const table = await connection.openTable();
       return table.view(config);
     });
-    await ensureTickSubscription(plan.key, view);
+    // The tick signal lives on a root-route view — it observes the whole
+    // filtered set, so leaf/child acquires never steal the subscription
+    // onto a slice that might sit out a tick.
+    if (isRootShape || tickSub === null) await ensureTickSubscription(key, view);
     return view;
   };
 
-  /** Exactly one live `on_update` subscription — on the active shape. */
+  /** Exactly one live `on_update` subscription — on the root shape. */
   const ensureTickSubscription = async (key: string, view: PullView): Promise<void> => {
     if (tickSub && tickSub.key === key && tickSub.view === view) return;
     const previous = tickSub;
@@ -157,28 +239,93 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     opts.tickRefreshMs ?? 250,
   );
 
+  /**
+   * Refetch EVERY cached block of the current generation (all shapes —
+   * flat, group-level, expanded leaves) and patch changed rows via
+   * keyed update transactions; then refresh the grand total. Views are
+   * only PEEKED — a tick never resurrects an evicted shape.
+   */
   async function runTickRefresh(): Promise<void> {
-    const sub = tickSub;
     const snap = connection.state;
-    if (destroyed || !api || !sub || !snap || snap.generation !== generation) return;
+    if (destroyed || !api || !snap || snap.generation !== generation) return;
     const requestGen = generation;
-    let latestTotal: number | null = null;
-    for (const { startRow, block } of blockCache.entriesFor(sub.key, requestGen)) {
-      let read: { rows: Record<string, unknown>[]; total: number };
+    let rootTotal: number | null = null;
+    for (const plan of planByKey.values()) {
+      const pendingView = viewCache.peek(plan.key);
+      if (!pendingView) continue;
+      const entries = blockCache.entriesFor(plan.key, requestGen);
+      if (entries.length === 0) continue;
+      let view: PullView;
       try {
-        read = await readRange(sub.view, startRow, block.endRow);
+        view = await pendingView;
       } catch {
-        return; // view evicted/deleted mid-read — the next tick repairs
+        continue;
       }
-      if (destroyed || generation !== requestGen) return;
-      blockCache.set(sub.key, startRow, { ...read, generation: requestGen, endRow: block.endRow });
-      const changed = diffRowsByKey(block.rows, read.rows, keyColumn);
-      if (changed.length > 0) api.applyServerSideTransactionAsync({ update: changed });
-      latestTotal = read.total;
+      const idField = plan.kind === 'group-level' ? GROUP_ID_FIELD : keyColumn;
+      for (const { startRow, block } of entries) {
+        let read: { rows: Record<string, unknown>[]; total: number };
+        try {
+          read = await readPlanBlock(plan, view, startRow, block.endRow);
+        } catch {
+          break; // view evicted/deleted mid-read — the next tick repairs
+        }
+        if (destroyed || generation !== requestGen) return;
+        blockCache.set(plan.key, startRow, { ...read, generation: requestGen, endRow: block.endRow });
+        const changed = diffRowsByKey(block.rows, read.rows, idField);
+        if (changed.length > 0) {
+          api.applyServerSideTransactionAsync({ route: plan.route, update: changed });
+        }
+        if (plan === rootPlan) rootTotal = read.total;
+      }
     }
     const now = connection.state;
-    if (latestTotal !== null && now?.phase === 'live' && now.generation === requestGen) {
-      api.setRowCount(latestTotal, true);
+    // AG error #28: setRowCount is forbidden while row grouping is
+    // active — group/child store counts ride on load successes instead.
+    if (
+      rootTotal !== null &&
+      rootPlan?.kind === 'rows' &&
+      now?.phase === 'live' &&
+      now.generation === requestGen
+    ) {
+      api.setRowCount(rootTotal, true);
+    }
+    await refreshGrandTotal(requestGen);
+    prunePlans();
+  }
+
+  /** Live grand total: refetch the rollup, patch the grand-total node. */
+  async function refreshGrandTotal(requestGen: number): Promise<void> {
+    if (!rollup || !api || destroyed) return;
+    const pendingView = viewCache.peek(rollup.key);
+    if (!pendingView) return;
+    let totals: Record<string, unknown> | null;
+    try {
+      totals = await readRollupRow(await pendingView);
+    } catch {
+      return;
+    }
+    if (!totals || destroyed || generation !== requestGen || !api) return;
+    const node = api.getRowNode(GRAND_TOTAL_ROW_ID);
+    if (!node) return;
+    node.updateData({ ...(node.data as Record<string, unknown>), ...totals });
+    api.refreshCells({ rowNodes: [node], force: true });
+  }
+
+  /** Row 0 of a rollup view = Perspective's total row over the filtered set. */
+  const readRollupRow = async (view: PullView): Promise<Record<string, unknown> | null> => {
+    const raw = (await view.to_json({ start_row: 0, end_row: 1 })) as Record<string, unknown>[];
+    if (raw.length === 0) return null;
+    const { __ROW_PATH__: _path, ...totals } = raw[0]!;
+    return totals;
+  };
+
+  /** Keep the sweep set bounded: drop plans with no cached blocks. */
+  function prunePlans(): void {
+    if (planByKey.size <= 32) return;
+    for (const [key, plan] of planByKey) {
+      if (plan !== rootPlan && blockCache.entriesFor(key, generation).length === 0) {
+        planByKey.delete(key);
+      }
     }
   }
 
@@ -187,6 +334,10 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
   const scheduleSeedCount = throttleTrailing(() => {
     const snap = connection.state;
     if (destroyed || !api || !snap) return;
+    // Only a FLAT root store takes its count from the seed's leaf-row
+    // count; under grouping the root holds GROUP rows (counted by the
+    // group-view reads) and AG forbids setRowCount outright (error #28).
+    if (rootPlan?.kind !== 'rows') return;
     if (snap.generation === generation && snap.phase === 'seeding') {
       api.setRowCount(snap.rowCount, false);
     }
@@ -202,6 +353,9 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       generation = state.generation;
       blockCache.clear();
       viewCache.clear();
+      planByKey.clear();
+      rootPlan = null;
+      rollup = null;
       tickSub = null;
       return;
     }
@@ -240,54 +394,71 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       return;
     }
 
-    const plan = buildQueryPlan(params.request, {
-      keyColumn,
-      ...(opts.columns ? { columns: opts.columns } : {}),
-    });
+    const plan = buildQueryPlan(params.request, planOpts());
     if (plan.unsupportedFilters.length > 0 && !warnedPlans.has(plan.key)) {
       warnedPlans.add(plan.key);
-      warn(`[ssrm-pull] unsupported filter clauses ignored (P4): ${plan.unsupportedFilters.join('; ')}`);
+      warn(`[ssrm-pull] unsupported filter clauses ignored: ${plan.unsupportedFilters.join('; ')}`);
     }
-    if (plan.kind === 'group-level') {
-      // TODO(P4): serve group rows via Perspective group_by + aggregates.
-      warn('[ssrm-pull] row-group level requests are not served yet (P4) — failing the load');
-      params.fail();
-      return;
+    planByKey.set(plan.key, plan);
+    if (plan.route.length === 0) rootPlan = plan;
+
+    // Grand total — root-level loads only; armed by AG's hint, kept
+    // fresh on every later root load (filters/quick filter changes).
+    let grandTotal: Record<string, unknown> | undefined;
+    if (plan.route.length === 0 && (params.needsGrandTotal || rollup !== null)) {
+      const rollupPlan = buildRollupPlan(params.request, planOpts());
+      rollup = rollupPlan;
+      if (rollupPlan) {
+        const view = await acquireView(rollupPlan.key, rollupPlan.viewConfig, true);
+        const totals = await readRollupRow(view);
+        if (destroyed || generation !== requestGen) return; // fence: drop
+        if (totals) grandTotal = totals;
+      }
     }
 
     const startRow = params.request.startRow ?? 0;
     const endRow = params.request.endRow ?? startRow + defaultBlockSize;
     const cached = blockCache.get(plan.key, startRow, requestGen);
     if (cached) {
-      finishLoad(params, cached.rows, cached.total, requestGen);
+      finishLoad(params, plan, cached.rows, cached.total, requestGen, grandTotal);
       void refreshBlock(plan, startRow, endRow, requestGen).catch(() => undefined);
       return;
     }
 
-    const view = await acquireView(plan);
-    const read = await readRange(view, startRow, endRow);
+    const view = await acquireView(plan.key, plan.viewConfig, plan.route.length === 0);
+    const read = await readPlanBlock(plan, view, startRow, endRow);
     if (destroyed || generation !== requestGen) return; // fence: drop
     blockCache.set(plan.key, startRow, { ...read, generation: requestGen, endRow });
-    finishLoad(params, read.rows, read.total, requestGen);
+    finishLoad(params, plan, read.rows, read.total, requestGen, grandTotal);
   }
+
+  /** A flat root store — the only store `setRowCount` may touch (AG #28). */
+  const isFlatRoot = (plan: QueryPlan): boolean =>
+    plan.kind === 'rows' && plan.route.length === 0;
 
   /** Deliver one block honoring the DatasetState rowCount contract. */
   function finishLoad(
     params: IServerSideGetRowsParams,
+    plan: QueryPlan,
     rows: Record<string, unknown>[],
     total: number,
     requestGen: number,
+    grandTotal?: Record<string, unknown>,
   ): void {
     const snap = connection.state;
     if (!snap || snap.generation !== requestGen) return; // fence: drop
-    if (snap.phase === 'seeding') {
-      params.success({ rowData: rows });
+    const extra = grandTotal !== undefined ? { grandTotalData: grandTotal } : {};
+    if (snap.phase === 'seeding' && isFlatRoot(plan)) {
+      params.success({ rowData: rows, ...extra });
       // An under-filled block makes AG's lazy cache mark the row count
       // final — reopen it; the seed is still growing the book.
       params.api.setRowCount(total, false);
       return;
     }
-    params.success({ rowData: rows, rowCount: total });
+    // Group-level and routed child stores always finalize with the
+    // view's exact count — a count that grows mid-seed is refreshed by
+    // the seeding→live no-purge refresh (and by later user loads).
+    params.success({ rowData: rows, rowCount: total, ...extra });
   }
 
   /** Serve-then-refresh: replace a cache-hit block with a fresh read. */
@@ -297,22 +468,23 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     endRow: number,
     requestGen: number,
   ): Promise<void> {
-    const view = await acquireView(plan);
-    const read = await readRange(view, startRow, endRow);
+    const view = await acquireView(plan.key, plan.viewConfig, plan.route.length === 0);
+    const read = await readPlanBlock(plan, view, startRow, endRow);
     const snap = connection.state;
     if (destroyed || !api || generation !== requestGen) return;
     if (!snap || snap.generation !== requestGen) return;
     blockCache.set(plan.key, startRow, { ...read, generation: requestGen, endRow });
     // Index-addressed replacement: fills, reorders and updates the
     // block in place — loaded rows stay visible (never a purge).
+    const seedingFlatRoot = snap.phase === 'seeding' && isFlatRoot(plan);
     api.applyServerSideRowData({
       startRow,
-      successParams:
-        snap.phase === 'seeding'
-          ? { rowData: read.rows }
-          : { rowData: read.rows, rowCount: read.total },
+      route: plan.route,
+      successParams: seedingFlatRoot
+        ? { rowData: read.rows }
+        : { rowData: read.rows, rowCount: read.total },
     });
-    if (snap.phase === 'seeding') api.setRowCount(read.total, false);
+    if (seedingFlatRoot) api.setRowCount(read.total, false);
   }
 
   return {
@@ -323,6 +495,26 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         params.fail();
       });
     },
+    setQuickFilter(text: string | null): void {
+      const next = text?.trim() || undefined;
+      if (next === quickFilter) return;
+      quickFilter = next;
+      // An armed rollup rebuilds with the new filter on the next root load.
+      api?.refreshServerSide({ purge: false });
+    },
+    async getDistinctValues(field: string): Promise<unknown[]> {
+      const table = await connection.openTable();
+      const view = await table.view({ group_by: [field], columns: [] });
+      try {
+        const rows = (await view.to_json()) as Array<{ __ROW_PATH__?: unknown[] }>;
+        return rows
+          .map((row) => row.__ROW_PATH__ ?? [])
+          .filter((path) => path.length > 0)
+          .map((path) => path[path.length - 1]);
+      } finally {
+        void view.delete().catch(() => undefined);
+      }
+    },
     destroy(): void {
       destroyed = true;
       offState();
@@ -332,6 +524,9 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       tickSub = null;
       viewCache.clear();
       blockCache.clear();
+      planByKey.clear();
+      rootPlan = null;
+      rollup = null;
       api = null;
     },
   };

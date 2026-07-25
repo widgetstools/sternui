@@ -56,6 +56,14 @@ export class ViewCache {
     return created;
   }
 
+  /**
+   * The cached view for `key` WITHOUT creating or refreshing recency —
+   * tick refreshes use it so they never resurrect evicted shapes.
+   */
+  peek(key: string): Promise<PullView> | undefined {
+    return this.views.get(key);
+  }
+
   /** Delete every cached view (e.g. on generation change / dispose). */
   clear(): void {
     this.evictOver(0);

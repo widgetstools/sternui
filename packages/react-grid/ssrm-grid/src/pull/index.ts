@@ -36,11 +36,31 @@ export {
   type FilterMappingResult,
 } from './agFilterToPerspective.js';
 export {
+  AUTO_COLUMN_ID,
   buildQueryPlan,
+  buildRollupPlan,
   canonicalViewKey,
+  type GroupPlanInfo,
   type QueryPlan,
   type QueryPlanOpts,
+  type RollupPlan,
 } from './buildQueryPlan.js';
+export {
+  CHILD_COUNT_FIELD,
+  createSsrmRowIdGetter,
+  encodeGroupRowId,
+  GROUP_ID_FIELD,
+  toGroupRowData,
+} from './groupRows.js';
+export {
+  conditionExpr,
+  filterExprName,
+  QUICK_FILTER_EXPR,
+  quickFilterExpr,
+  regexNeedle,
+  ROLLUP_GROUP_EXPR,
+  setWithNullExpr,
+} from './filterExpressions.js';
 export { ViewCache, type ViewCacheOpts } from './ViewCache.js';
 export { BlockCache, type CachedBlock } from './BlockCache.js';
 

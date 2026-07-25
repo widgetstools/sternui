@@ -174,6 +174,30 @@ fling anti-jank; loading/empty/error UX from DatasetState.
   knobs.)*
 - **P4** — feature-parity pass (grouping/aggregates/edit/export/chart/tree),
   each with unit tests; race-class tests with injected transport/clock/ports.
+  - **P4a — query-feature parity. ✅** *(2026-07-25 — row grouping
+    (multi-level; one `group_by` level per view + ancestor filters; group
+    rows carry label, sum/min/max/avg/count aggregates, leaf child count,
+    refresh-stable path row-ids via `createSsrmRowIdGetter`); live grand
+    total (AG 36 native `grandTotalRow` + `grandTotalData`, rollup view =
+    `group_by` on a constant expression, tick-patched via
+    `rowNode.updateData` — the row lives outside every store); filter
+    parity (OR-combined per-column conditions / `notContains` /
+    set-with-null via boolean expression columns filtered `== true` —
+    Perspective's `filter_op` is view-global so mixed AND/OR is natively
+    inexpressible; date filters with date-only terms; engine-verified:
+    native `contains`/`begins with`/`ends with` are case-insensitive
+    literal matches); set-filter `getDistinctValues` (group-labels read);
+    quick filter (`setQuickFilter`, expression across configured string
+    columns). Tick refresh now sweeps EVERY cached block (flat / group /
+    leaf-under-route) with route-aware keyed transactions; `setRowCount`
+    confined to flat root stores (AG error #28 under grouping). Headless
+    proof on the 20k live book: group 241 ms (≤600), expand 146 ms
+    (≤250), all 5 group aggregates + grand total ticking over 5 s with
+    0 loading stubs / no remount, OR + number-range + quick-filter counts
+    exactly matching direct-table control reads. ssrm-grid suite 200
+    green. Deferred to P4b: edit/export/chart/tree/master-detail,
+    day-equals on datetime columns, ordered-block refresh under active
+    sort, mid-seed new-group discovery on grouped stores.)*
 - **P5** — multi-window + live-feed + reload soak and e2e in CI (the coverage
   gap that hid the V1 bugs); docs; then decide the old branch's disposition.
 

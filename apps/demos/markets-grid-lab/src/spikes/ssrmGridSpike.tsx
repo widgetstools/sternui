@@ -1,5 +1,5 @@
 /**
- * SSRM STOMP provider V2 — P2/P3 grid consumer spike (served at
+ * SSRM STOMP provider V2 — P2/P3/P4a grid consumer spike (served at
  * /spikes/ssrmGrid.html, driven by Playwright).
  *
  * A real AG Grid (enterprise, serverSide row model) reads THE hosted
@@ -15,6 +15,12 @@
  * row's `columnDefinitions` are the SINGLE declaration driving both
  * the worker's table schema and the grid columns below.
  *
+ * P4a adds the query-feature-parity surface: row grouping (multi-level
+ * capable) with live group-header aggregates + child counts, AG's
+ * native `grandTotalRow: 'bottom'` fed by the datasource's rollup
+ * reads, a set filter on `bookName` backed by `getDistinctValues`, and
+ * a quick-filter box (design-system Input) folded into the query plan.
+ *
  * Mount-once contract: the grid mounts only once DatasetState is
  * known, keyed by `(providerId, generation)` — a restart bumps the
  * generation and REMOUNTS the grid; loading/empty/error are rendered
@@ -27,24 +33,30 @@ import { AgGridReact } from 'ag-grid-react';
 import {
   ColumnApiModule,
   ModuleRegistry,
+  RenderApiModule,
   RowApiModule,
   type ColDef,
-  type GetRowIdParams,
   type GridApi,
+  type SetFilterValuesFuncParams,
 } from 'ag-grid-community';
 import '@starui/ssrm-grid/ag-grid-modules';
 
 // The shared ssrm-grid registration covers the grid itself; the spike's
-// probe surface additionally reads rows/columns through the api.
-ModuleRegistry.registerModules([RowApiModule, ColumnApiModule]);
+// probe surface additionally reads rows/columns through the api, and the
+// datasource's live grand-total patch needs getRowNode + refreshCells.
+ModuleRegistry.registerModules([RowApiModule, ColumnApiModule, RenderApiModule]);
 import {
+  CHILD_COUNT_FIELD,
   connectSsrmProvider,
   createSsrmPullDatasource,
+  createSsrmRowIdGetter,
   toSsrmDatasetConfig,
   type DatasetStateSnapshot,
   type SsrmProviderConnection,
+  type SsrmPullDatasource,
   type StompSsrmProviderConfig,
 } from '@starui/ssrm-grid/pull';
+import { Input } from '@starui/ui';
 import { createConfigManager } from '@starui/host-config';
 import { DataProviderConfigStore } from '@starui/host-data/runtime';
 import { validateStompSsrmConfig, type ColumnDefinition, type DataProviderConfig } from '@starui/types';
@@ -137,11 +149,34 @@ async function loadSeededProvider(): Promise<{
 
 /** Grid columns derived from the SAME declaration the table schema uses. */
 function toColDefs(columns: readonly ColumnDefinition[] | undefined): ColDef[] {
-  return (columns ?? []).map((c) => ({
-    field: c.field,
-    headerName: c.headerName,
-    filter: c.cellDataType === 'number' ? 'agNumberColumnFilter' : 'agTextColumnFilter',
-  }));
+  return (columns ?? []).map((c): ColDef => {
+    const numeric = c.cellDataType === 'number';
+    const def: ColDef = {
+      field: c.field,
+      headerName: c.headerName,
+      filter: numeric ? 'agNumberColumnFilter' : 'agTextColumnFilter',
+      enableRowGroup: !numeric,
+      enableValue: numeric,
+    };
+    if (c.field === 'bookName') {
+      // P4a: set filter fed by the datasource's distinct-values read.
+      def.filter = 'agSetColumnFilter';
+      def.filterParams = {
+        values: (p: SetFilterValuesFuncParams) => {
+          const ds = window.__ssrmGridSpike.datasource;
+          if (!ds) {
+            p.success([]);
+            return;
+          }
+          void ds
+            .getDistinctValues('bookName')
+            .then((vals) => p.success(vals.map((v) => (v == null ? null : String(v)))))
+            .catch(() => p.success([]));
+        },
+      };
+    }
+    return def;
+  });
 }
 
 // ─── probe surface ──────────────────────────────────────────────────
@@ -154,12 +189,31 @@ interface SsrmGridSpikeProbes {
   timeline: TimelineEntry[];
   mounts: number;
   api: GridApi | null;
+  /** P4a — the live datasource (quick filter / distinct values). */
+  datasource: SsrmPullDatasource | null;
   /** P3 — the seeded catalog row driving the whole path. */
   catalog: { providerId: string; name: string } | null;
   state: () => DatasetStateSnapshot | null;
   displayedRowCount: () => number;
   viewportColumn: (colId: string, n?: number) => unknown[];
   sortBy: (colId: string, dir: 'asc' | 'desc' | null) => void;
+  /** P4a — group by a column (sum PnL/MV ride along); null clears. */
+  groupBy: (colId: string | null) => void;
+  /** P4a — displayed row data + group metadata at an index. */
+  displayedRow: (i: number) => Record<string, unknown> | null;
+  /** P4a — expand/collapse the displayed row at an index. */
+  expandDisplayedRow: (i: number, expanded: boolean) => void;
+  /** P4a — the grand-total row's current data (null until present). */
+  grandTotalData: () => Record<string, unknown> | null;
+  setFilterModel: (model: Record<string, unknown> | null) => void;
+  setQuickFilter: (text: string | null) => void;
+  getDistinctValues: (field: string) => Promise<unknown[]>;
+  /**
+   * CONTROL read for filter probes: row count of a transient
+   * Perspective view with NATIVE clauses, straight off the hosted
+   * table — bypasses AG, the filter mapping and the datasource.
+   */
+  countRows: (filter: Array<[string, string, unknown]>) => Promise<number>;
   loadingRowCount: () => number;
   loadingOverlayVisible: () => boolean;
   restart: () => Promise<DatasetStateSnapshot>;
@@ -178,19 +232,28 @@ function GridHost({
   generation,
   keyColumn,
   columnDefs,
+  quickFilterColumns,
 }: {
   connection: SsrmProviderConnection;
   generation: number;
   keyColumn: string;
   columnDefs: ColDef[];
+  quickFilterColumns: string[];
 }): React.JSX.Element {
   const datasource = useMemo(
-    () => createSsrmPullDatasource({ connection, keyColumn }),
-    [connection, generation, keyColumn],
+    () => createSsrmPullDatasource({ connection, keyColumn, quickFilterColumns }),
+    [connection, generation, keyColumn, quickFilterColumns],
   );
+  const getRowId = useMemo(() => createSsrmRowIdGetter(keyColumn), [keyColumn]);
   useEffect(() => {
     window.__ssrmGridSpike.mounts += 1;
-    return () => datasource.destroy();
+    window.__ssrmGridSpike.datasource = datasource;
+    return () => {
+      if (window.__ssrmGridSpike.datasource === datasource) {
+        window.__ssrmGridSpike.datasource = null;
+      }
+      datasource.destroy();
+    };
   }, [datasource]);
 
   return (
@@ -201,7 +264,13 @@ function GridHost({
       maxBlocksInCache={10}
       columnDefs={columnDefs}
       defaultColDef={{ sortable: true, resizable: true, enableCellChangeFlash: true }}
-      getRowId={(p: GetRowIdParams) => String((p.data as Record<string, unknown>)[keyColumn])}
+      autoGroupColumnDef={{ headerName: 'Group', minWidth: 220 }}
+      grandTotalRow="bottom"
+      suppressAggFuncInHeader
+      getChildCount={(data) =>
+        (data as Record<string, unknown> | undefined)?.[CHILD_COUNT_FIELD] as number
+      }
+      getRowId={getRowId}
       onGridReady={(event) => {
         window.__ssrmGridSpike.api = event.api;
       }}
@@ -217,11 +286,13 @@ function App({
   providerId,
   keyColumn,
   columnDefs,
+  quickFilterColumns,
 }: {
   connection: SsrmProviderConnection;
   providerId: string;
   keyColumn: string;
   columnDefs: ColDef[];
+  quickFilterColumns: string[];
 }): React.JSX.Element {
   const [state, setState] = useState<DatasetStateSnapshot | null>(connection.state);
   useEffect(() => connection.onState(setState), [connection]);
@@ -236,14 +307,24 @@ function App({
     return <div data-phase="empty">dataset is empty (0 rows)</div>;
   }
   return (
-    <div data-phase={state.phase} style={{ height: '100%' }}>
-      <GridHost
-        key={`${providerId}:${state.generation}`}
-        connection={connection}
-        generation={state.generation}
-        keyColumn={keyColumn}
-        columnDefs={columnDefs}
-      />
+    <div data-phase={state.phase} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: 4 }}>
+        <Input
+          data-testid="quick-filter"
+          placeholder="Quick filter…"
+          onChange={(e) => window.__ssrmGridSpike.setQuickFilter(e.target.value)}
+        />
+      </div>
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <GridHost
+          key={`${providerId}:${state.generation}`}
+          connection={connection}
+          generation={state.generation}
+          keyColumn={keyColumn}
+          columnDefs={columnDefs}
+          quickFilterColumns={quickFilterColumns}
+        />
+      </div>
     </div>
   );
 }
@@ -256,6 +337,7 @@ async function main(): Promise<void> {
     timeline,
     mounts: 0,
     api: null,
+    datasource: null,
     catalog: null,
     state: () => null,
     displayedRowCount: () => window.__ssrmGridSpike.api?.getDisplayedRowCount() ?? -1,
@@ -275,6 +357,49 @@ async function main(): Promise<void> {
         defaultState: { sort: null },
       });
     },
+    groupBy: (colId) => {
+      const api = window.__ssrmGridSpike.api;
+      if (!api) return;
+      api.applyColumnState({
+        state:
+          colId === null
+            ? []
+            : [
+                { colId, rowGroup: true },
+                { colId: 'pnl', aggFunc: 'sum' },
+                { colId: 'marketValue', aggFunc: 'sum' },
+              ],
+        defaultState: { rowGroup: false, aggFunc: null },
+      });
+    },
+    displayedRow: (i) => {
+      const node = window.__ssrmGridSpike.api?.getDisplayedRowAtIndex(i);
+      if (!node) return null;
+      return {
+        ...(node.data as Record<string, unknown> | undefined),
+        __group: node.group ?? false,
+        __expanded: node.expanded ?? false,
+        __key: node.key,
+      };
+    },
+    expandDisplayedRow: (i, expanded) => {
+      window.__ssrmGridSpike.api?.getDisplayedRowAtIndex(i)?.setExpanded(expanded);
+    },
+    grandTotalData: () => {
+      const api = window.__ssrmGridSpike.api;
+      if (!api) return null;
+      const node = api.getRowNode('rowGroupFooter_ROOT_NODE_ID');
+      return (node?.data as Record<string, unknown> | undefined) ?? null;
+    },
+    setFilterModel: (model) => {
+      void window.__ssrmGridSpike.api?.setFilterModel(model as never);
+    },
+    setQuickFilter: (text) => {
+      window.__ssrmGridSpike.datasource?.setQuickFilter(text);
+    },
+    getDistinctValues: (field) =>
+      window.__ssrmGridSpike.datasource?.getDistinctValues(field) ?? Promise.resolve([]),
+    countRows: () => Promise.reject(new Error('not connected yet')),
     loadingRowCount: () =>
       document.querySelectorAll('.ag-row-loading').length +
       document.querySelectorAll('.ag-loading').length,
@@ -302,6 +427,19 @@ async function main(): Promise<void> {
   });
   window.__ssrmGridSpike.state = () => connection.state;
   window.__ssrmGridSpike.restart = () => connection.restart();
+  window.__ssrmGridSpike.countRows = async (filter) => {
+    const table = await connection.openTable();
+    const view = await table.view({ filter: filter as never });
+    try {
+      return await view.num_rows();
+    } finally {
+      void view.delete().catch(() => undefined);
+    }
+  };
+
+  const quickFilterColumns = (config.columnDefinitions ?? [])
+    .filter((c) => c.cellDataType === 'text')
+    .map((c) => c.field);
 
   createRoot(document.getElementById('root')!).render(
     <App
@@ -309,6 +447,7 @@ async function main(): Promise<void> {
       providerId={providerId}
       keyColumn={config.keyColumn}
       columnDefs={toColDefs(config.columnDefinitions)}
+      quickFilterColumns={quickFilterColumns}
     />,
   );
 }
