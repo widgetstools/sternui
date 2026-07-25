@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SSRM STOMP provider V2 — P1 worker spike</title>
+  </head>
+  <body>
+    <!--
+      Headless spike page (Playwright-driven, no UI components):
+      boots the SSRM provider SharedWorker against stomp-view-server
+      and exposes the probe API on window.__ssrmSpike. See
+      docs/SSRM_PROVIDER_V2_DESIGN.md (P1).
+    -->
+    <pre id="log" style="white-space: pre-wrap"></pre>
+    <script type="module" src="/src/spikes/ssrmWorkerSpike.ts"></script>
+  </body>
+</html>

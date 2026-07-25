@@ -1385,6 +1385,18 @@ modules).
 
 - `createFiPositionsLargeConfig()`, `createFiPositionsSmallConfig()` — canned FI positions provider configs for demos/tests
 
+#### SSRM pull-plane runtime (`@starui/host-data/runtime/ssrm`) — V2, P1
+
+Clean-room SSRM STOMP provider core (docs/SSRM_PROVIDER_V2_DESIGN.md): a dedicated SharedWorker ingests the STOMP snapshot + live ticks straight into a Perspective Table it hosts — the only copy of the book; windows connect directly with the Perspective client wire protocol. The existing CSRM `stomp` provider is untouched.
+
+- `DatasetStateMachine` — worker-owned lifecycle `connecting → seeding(rowCount) → live(rowCount, generation) | empty | error(detail)`; ONE generation token bumped per restart; every transport event generation-fenced (configure-vs-seed ordering, 0-rows ambiguity, restart adoption designed out); pure + injectable
+- `TableWriter` — frame→table path: serialized, backpressure-coalescing keyed writes through an injectable `SsrmTableSurface`; bounded pre-table buffer flushed once on `attachTable` then dropped (overflow = hard error); generation fencing incl. reseed `clear()` on a kept table identity
+- `tableSchema` — `schemaFromColumnDefinitions` (config is the single schema/columns declaration) + `refineSchemaFromRows` (first-rows refinement while seeding; discovery mode when no columns declared) + `createRowProjector` (hot-path row projection to the table schema)
+- `classifyFrame` / `matchesEndToken` — pure STOMP frame-body classification (JSON batches / case-insensitive end token / ignore)
+- `SsrmControlClient` — window-side control port: `configure` / `restart` / `requestState` + `onState` broadcasts; `ssrmWorkerName(appId, providerId)` (`starui-ssrm:{appId}:{providerId}`); `SSRM_WORKER_ASSET` subpath constant
+- Worker asset `@starui/host-data/assets/data-services-ssrm-worker.mjs` (entry `runtime/ssrm/worker/ssrmWorkerEntry.ts`, bundled by `scripts/buildWorker.mjs` with `perspective-server.wasm` + `perspective-js.wasm` copied as siblings): boots the Perspective server engine from vendor sources (`perspectiveVendor.mjs` bridge) + a loopback local client; per-port dialect discrimination — first message `{cmd:'init'}` speaks the vendor Perspective client protocol (`perspective.worker(sharedWorker)` connects unmodified), `{kind:'ssrm-*'}` speaks the control protocol
+- `openStompSession` — lean one-generation STOMP ingest (no hub frames/conflation; `requestHeaders` support; no silent auto-redial — failures surface as `error`, restart recovers); injectable client factory for tests
+
 ---
 
 ### 6.3 `@starui/host-data-react`

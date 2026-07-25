@@ -121,7 +121,16 @@ fling anti-jank; loading/empty/error UX from DatasetState.
   token; a window read client connecting directly (vendor protocol). Driven
   headless against `stomp-view-server` (main has it; add a NEW wide test
   dataset to it if needed — written fresh). **Measure worker CPU at the
-  target feed rate → confirm single- vs two-worker.**
+  target feed rate → confirm single- vs two-worker.** ✅ *(2026-07-25 —
+  `host-data/src/runtime/ssrm/` + `data-services-ssrm-worker.mjs` asset +
+  `markets-grid-lab` spike page `/spikes/ssrmWorker.html`. Headless proof:
+  connecting→seeding(rising)→live over 20k positions; direct
+  `perspective.worker(sharedWorker)` viewport read (100 rows, sorted); live
+  ticks land; restart → gen 2 + full reseed. Worker CPU busy (CDP Profiler,
+  200µs sampling, ~40-col slim rows): **11% @ 3k rows/s** (the design's
+  stress figure), 52% @ 20k rows/s, saturates ~99% only at the mock's 60k
+  rows/s sweep cap → **single worker confirmed**; top costs at saturation
+  are JSON parse + Perspective write WASM + per-row schema projection.)*
 - **P2** — window engine + AG SSRM datasource + viewport LRU; grid consumer
   wired; multi-window + reload behavior verified.
 - **P3** — `StompSsrmProviderConfig` + the SSRM config editor + catalog/registry

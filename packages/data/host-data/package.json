@@ -27,8 +27,15 @@
       "types": "./dist/runtime/worker/defaultEntry.d.ts",
       "import": "./dist/runtime/worker/defaultEntry.js"
     },
+    "./runtime/ssrm": {
+      "types": "./dist/runtime/ssrm/index.d.ts",
+      "import": "./dist/runtime/ssrm/index.js"
+    },
     "./assets/data-services-worker.mjs": "./dist/assets/data-services-worker.mjs",
-    "./assets/data-services-fanout-worker.mjs": "./dist/assets/data-services-fanout-worker.mjs"
+    "./assets/data-services-fanout-worker.mjs": "./dist/assets/data-services-fanout-worker.mjs",
+    "./assets/data-services-ssrm-worker.mjs": "./dist/assets/data-services-ssrm-worker.mjs",
+    "./assets/perspective-server.wasm": "./dist/assets/perspective-server.wasm",
+    "./assets/perspective-js.wasm": "./dist/assets/perspective-js.wasm"
   },
   "files": [
     "dist"
@@ -44,14 +51,19 @@
     "@starui/types": "*"
   },
   "peerDependencies": {
+    "@finos/perspective": "^3.8.0",
     "@stomp/stompjs": "^7.3.0"
   },
   "peerDependenciesMeta": {
+    "@finos/perspective": {
+      "optional": true
+    },
     "@stomp/stompjs": {
       "optional": true
     }
   },
   "devDependencies": {
+    "@finos/perspective": "^3.8.0",
     "@stomp/stompjs": "^7.3.0",
     "@types/node": "^22.19.17",
     "esbuild": "^0.28.0",
