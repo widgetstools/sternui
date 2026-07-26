@@ -44,6 +44,16 @@ export interface SpikeOpts {
   upt?: number;
   /** Serve the config's treePathFields as a serverSide tree. */
   tree?: boolean;
+  /**
+   * Column set. Defaults to the curated 8 (`basic`) so specs stay
+   * deterministic: the spike's interactive default is `all`, which
+   * declares no columns and lets the worker discover the feed's whole
+   * record (~40 fields slim, ~160 wide). At that width AG virtualizes
+   * columns horizontally, so a cell read for an off-screen column
+   * silently finds nothing. Pass 'all' deliberately when that is the
+   * thing under test.
+   */
+  cols?: 'basic' | 'all';
 }
 
 export function spikeUrl(opts: SpikeOpts): string {
@@ -51,6 +61,7 @@ export function spikeUrl(opts: SpikeOpts): string {
     rows: String(opts.rows),
     rate: String(opts.rate ?? 5),
     upt: String(opts.upt ?? 500),
+    cols: opts.cols ?? 'basic',
   });
   if (opts.tree) q.set('tree', '1');
   return `/spikes/ssrmGrid.html?${q.toString()}`;

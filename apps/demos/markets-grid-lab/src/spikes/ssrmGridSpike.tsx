@@ -125,6 +125,27 @@ const UPDATES_PER_TICK = Number(params.get('upt') ?? 500);
 const TREE_MODE = params.get('tree') === '1';
 /** P4b-2: `?master=1` enables master-detail (tree and master are exclusive). */
 const MASTER_MODE = !TREE_MODE && params.get('master') === '1';
+/**
+ * `?cols=all` (default) declares NO columnDefinitions, so the worker
+ * discovers the WHOLE record shape from the snapshot rows
+ * (`refineSchemaFromRows` switches to discover-all when nothing is
+ * declared) and the grid builds its columns from the resulting table
+ * schema. That is every field stomp-view-server publishes — ~40 in the
+ * `slim` profile, ~160 in `wide`.
+ *
+ * `?cols=basic` keeps the curated 8-column set. e2e defaults to it: a
+ * fixed, narrow column set keeps specs deterministic and clear of AG's
+ * horizontal column virtualization.
+ */
+const COLS_MODE = params.get('cols') === 'basic' ? 'basic' : 'all';
+/**
+ * How many string columns the quick filter searches. Each searched
+ * column is a `match()` over every row on every rebuild — measured
+ * ~16-70ms per column at 100k rows — so searching all ~90 string columns
+ * of the wide record would make the quick filter unusable. Capped, with
+ * `?qf=<n>` to override for experiments.
+ */
+const QUICK_FILTER_MAX_COLUMNS = Number(params.get('qf') ?? 6);
 
 /** The catalog draft — ONE declaration of transport + schema + columns. */
 function buildProviderDraft(): DataProviderConfig {
@@ -141,16 +162,24 @@ function buildProviderDraft(): DataProviderConfig {
     snapshotEndToken: 'Success',
     keyColumn: 'positionId',
     tableName: 'positions',
-    columnDefinitions: [
-      { field: 'positionId', headerName: 'Position', cellDataType: 'text' },
-      { field: 'cusip', headerName: 'CUSIP', cellDataType: 'text' },
-      { field: 'bookName', headerName: 'Book', cellDataType: 'text' },
-      { field: 'trader', headerName: 'Trader', cellDataType: 'text' },
-      { field: 'quantity', headerName: 'Quantity', cellDataType: 'number' },
-      { field: 'marketValue', headerName: 'Market Value', cellDataType: 'number' },
-      { field: 'currentPrice', headerName: 'Price', cellDataType: 'number' },
-      { field: 'pnl', headerName: 'PnL', cellDataType: 'number' },
-    ],
+    // EMPTY in `cols=all`: with nothing declared the worker refines the
+    // schema from the snapshot rows and hosts EVERY field the feed
+    // publishes. The grid then derives its columns from the table's own
+    // schema (see `useTableSchema`), so this stays correct whichever row
+    // profile the server is serving.
+    columnDefinitions:
+      COLS_MODE === 'basic'
+        ? [
+            { field: 'positionId', headerName: 'Position', cellDataType: 'text' },
+            { field: 'cusip', headerName: 'CUSIP', cellDataType: 'text' },
+            { field: 'bookName', headerName: 'Book', cellDataType: 'text' },
+            { field: 'trader', headerName: 'Trader', cellDataType: 'text' },
+            { field: 'quantity', headerName: 'Quantity', cellDataType: 'number' },
+            { field: 'marketValue', headerName: 'Market Value', cellDataType: 'number' },
+            { field: 'currentPrice', headerName: 'Price', cellDataType: 'number' },
+            { field: 'pnl', headerName: 'PnL', cellDataType: 'number' },
+          ]
+        : [],
     // P4b-2: window-side knobs — calc column + the synthesized tree.
     calcExpressions: { pnlPerUnit: '"pnl" / "quantity"' },
     treePathFields: ['bookName', 'trader'],
@@ -242,6 +271,66 @@ function toColDefs(columns: readonly ColumnDefinition[] | undefined): ColDef[] {
 }
 
 /** P4b-2: calc columns are first-class grid columns (computed per view). */
+/**
+ * Perspective's own table schema → AG column defs. Used in `cols=all`,
+ * where nothing was declared up front and the worker inferred the shape
+ * from the feed, so the table is the only source of truth for what
+ * columns exist and what type they are.
+ */
+function schemaToColDefs(schema: Record<string, string>, keyColumn: string): ColDef[] {
+  return Object.entries(schema)
+    // Expression columns the plane adds for its own use are not data.
+    .filter(([field]) => !field.startsWith('__ssrm'))
+    .map(([field, type]): ColDef => {
+      const numeric = type === 'float' || type === 'integer';
+      const temporal = type === 'date' || type === 'datetime';
+      return {
+        field,
+        filter: numeric
+          ? 'agNumberColumnFilter'
+          : temporal
+            ? 'agDateColumnFilter'
+            : 'agTextColumnFilter',
+        enableRowGroup: true,
+        enableValue: numeric,
+        enablePivot: true,
+        editable: field !== keyColumn, // a re-keyed write would INSERT
+        ...(numeric ? { type: 'numericColumn' } : {}),
+      };
+    });
+}
+
+/**
+ * The hosted table's schema, read once the dataset exists. `openTable`
+ * is only safe past `connecting` — the worker creates the table on the
+ * first snapshot batch — so callers gate on DatasetState first.
+ */
+function useTableSchema(
+  connection: SsrmProviderConnection,
+  enabled: boolean,
+): Record<string, string> | null {
+  const [schema, setSchema] = useState<Record<string, string> | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const table = (await connection.openTable()) as {
+          schema?: () => Promise<Record<string, string>>;
+        };
+        const resolved = await table.schema?.();
+        if (!cancelled && resolved) setSchema(resolved);
+      } catch (err) {
+        console.warn('[spike] could not read the table schema', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [connection, enabled]);
+  return schema;
+}
+
 function toCalcColDefs(calc: Record<string, string> | undefined): ColDef[] {
   return Object.keys(calc ?? {}).map((name): ColDef => ({
     field: name,
@@ -551,6 +640,36 @@ function App({
   const [state, setState] = useState<DatasetStateSnapshot | null>(connection.state);
   useEffect(() => connection.onState(setState), [connection]);
 
+  // `cols=all`: nothing was declared, so the table's own schema is the
+  // only source of truth for the column set. Safe to read once the
+  // dataset is past `connecting` (the table exists from the first batch).
+  const live = state != null && state.phase !== 'connecting' && state.phase !== 'error';
+  const discovered = useTableSchema(connection, live && columnDefs.length === 0);
+  const resolvedColumnDefs = useMemo(
+    () =>
+      columnDefs.length > 0
+        ? columnDefs
+        : discovered
+          ? [...schemaToColDefs(discovered, keyColumn), ...toCalcColDefs(calcExpressions)]
+          : [],
+    [columnDefs, discovered, keyColumn, calcExpressions],
+  );
+  // Quick filter searches only STRING columns, and only a bounded number
+  // of them — every searched column is a match() over the whole book on
+  // each rebuild (see QUICK_FILTER_MAX_COLUMNS).
+  const resolvedQuickFilterColumns = useMemo(
+    () =>
+      quickFilterColumns.length > 0
+        ? quickFilterColumns
+        : discovered
+          ? Object.entries(discovered)
+              .filter(([f, t]) => t === 'string' && !f.startsWith('__ssrm'))
+              .map(([f]) => f)
+              .slice(0, QUICK_FILTER_MAX_COLUMNS)
+          : [],
+    [quickFilterColumns, discovered],
+  );
+
   if (!state || state.phase === 'connecting') {
     return <div data-phase={state?.phase ?? 'unknown'}>connecting to the SSRM provider…</div>;
   }
@@ -559,6 +678,9 @@ function App({
   }
   if (state.phase === 'empty') {
     return <div data-phase="empty">dataset is empty (0 rows)</div>;
+  }
+  if (resolvedColumnDefs.length === 0) {
+    return <div data-phase={state.phase}>resolving the table schema…</div>;
   }
   return (
     <div data-phase={state.phase} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -601,8 +723,8 @@ function App({
           connection={connection}
           generation={state.generation}
           keyColumn={keyColumn}
-          columnDefs={columnDefs}
-          quickFilterColumns={quickFilterColumns}
+          columnDefs={resolvedColumnDefs}
+          quickFilterColumns={resolvedQuickFilterColumns}
           calcExpressions={calcExpressions}
           treePathFields={treePathFields}
         />
@@ -881,7 +1003,16 @@ async function main(): Promise<void> {
       connection={connection}
       providerId={providerId}
       keyColumn={config.keyColumn}
-      columnDefs={[...toColDefs(config.columnDefinitions), ...toCalcColDefs(config.calcExpressions)]}
+      // EMPTY when nothing was declared (`cols=all`) — that is the signal
+      // for App to derive the columns from the hosted table's schema
+      // instead. Calc columns are appended there too, so they are not
+      // added here; otherwise this array would never be empty and
+      // discovery would never run.
+      columnDefs={
+        (config.columnDefinitions ?? []).length === 0
+          ? []
+          : [...toColDefs(config.columnDefinitions), ...toCalcColDefs(config.calcExpressions)]
+      }
       quickFilterColumns={quickFilterColumns}
       calcExpressions={config.calcExpressions}
       treePathFields={config.treePathFields}
