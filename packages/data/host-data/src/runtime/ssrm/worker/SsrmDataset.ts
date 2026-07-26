@@ -77,7 +77,9 @@ export class SsrmDataset {
   }
 
   get state(): DatasetStateSnapshot {
-    return this.machine.state;
+    // Ingest telemetry rides every snapshot so windows can see
+    // backpressure without a second channel. Observational only.
+    return { ...this.machine.state, ingest: this.writer.getStats() };
   }
 
   /** Begin generation 1. Call once, right after construction. */

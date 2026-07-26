@@ -194,6 +194,69 @@ describe('TableWriter — restart adoption (generation fencing)', () => {
     expect(ops).toEqual([{ op: 'update', rows: rows(4) }]);
   });
 
+  // ─── bounded writes + telemetry ───────────────────────────────────
+
+  it('splits an oversized drain so reads can interleave', async () => {
+    const { table, ops } = fakeTable();
+    const writer = new TableWriter({ maxRowsPerWrite: 10 });
+    await writer.attachTable(1, table);
+    writer.enqueue(1, rows(...Array.from({ length: 25 }, (_, i) => i + 1)));
+    await writer.settled();
+
+    // 25 rows / bound 10 -> 3 writes, in order, covering every row once.
+    expect(ops).toHaveLength(3);
+    expect(ops.map((o) => (o.op === 'update' ? o.rows.length : 0))).toEqual([10, 10, 5]);
+    const written = ops.flatMap((o) => (o.op === 'update' ? o.rows.map((r) => r.id) : []));
+    expect(written).toEqual(Array.from({ length: 25 }, (_, i) => i + 1));
+    expect(writer.getStats().chunkedWrites).toBe(1);
+  });
+
+  it('leaves ordinary batches on the single-write path', async () => {
+    const { table, ops } = fakeTable();
+    const writer = new TableWriter(); // default bound 25_000
+    await writer.attachTable(1, table);
+    writer.enqueue(1, rows(1, 2, 3));
+    await writer.settled();
+    expect(ops).toEqual([{ op: 'update', rows: rows(1, 2, 3) }]);
+    expect(writer.getStats().chunkedWrites).toBe(0);
+  });
+
+  it('reports ingest telemetry', async () => {
+    const { table } = fakeTable();
+    const writer = new TableWriter();
+    expect(writer.getStats().writes).toBe(0);
+    await writer.attachTable(1, table);
+    writer.enqueue(1, rows(1, 2, 3));
+    await writer.settled();
+
+    const stats = writer.getStats();
+    expect(stats.writes).toBe(1);
+    expect(stats.rowsWritten).toBe(3);
+    expect(stats.pendingRows).toBe(0);
+    expect(stats.bufferedRows).toBe(0);
+    expect(stats.maxWriteMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('surfaces a growing backlog while a write is in flight', async () => {
+    const { table, releaseAll } = fakeTable({ manual: true });
+    const writer = new TableWriter();
+    const attached = writer.attachTable(1, table);
+    writer.enqueue(1, rows(1));
+    await tick();
+    // Rows arriving behind an in-flight write are the backlog signal.
+    writer.enqueue(1, rows(2, 3, 4));
+    expect(writer.getStats().pendingRows).toBe(3);
+
+    // Each release only frees the writes gated SO FAR; draining the
+    // backlog opens another one, so pump until it settles.
+    for (let i = 0; i < 5 && writer.getStats().pendingRows > 0; i += 1) {
+      releaseAll();
+      await tick();
+    }
+    await attached;
+    expect(writer.getStats().pendingRows).toBe(0);
+  });
+
   it('attachTable for a superseded generation is a no-op', async () => {
     const { table, ops } = fakeTable();
     const writer = new TableWriter();

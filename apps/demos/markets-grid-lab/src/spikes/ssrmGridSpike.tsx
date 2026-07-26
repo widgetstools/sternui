@@ -692,6 +692,25 @@ function App({
   return (
     <div data-phase={state.phase} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: 4, display: 'flex', gap: 8, alignItems: 'center' }}>
+        {/* Ingest backpressure, straight off DatasetState. `pending` is
+            the one to watch: sustained growth means the feed is
+            outrunning the table writer. `max` is the slowest single
+            write — the tail that stalls block reads, since a write holds
+            the worker thread for its whole duration. */}
+        {state.ingest ? (
+          <span
+            data-testid="ingest-telemetry"
+            title="ingest backlog / last write / slowest write"
+            style={{
+              fontFamily: 'monospace',
+              fontSize: 11,
+              opacity: 0.75,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {`pending ${state.ingest.pendingRows} · write ${state.ingest.lastWriteMs}ms · max ${state.ingest.maxWriteMs}ms`}
+          </span>
+        ) : null}
         <Input
           data-testid="quick-filter"
           placeholder="Quick filter…"

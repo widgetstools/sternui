@@ -45,9 +45,42 @@ export interface TableWriterOpts {
   onError?: (generation: number, error: unknown) => void;
   /** Fires after each successful table write with the written row count. */
   onWrite?: (generation: number, rows: number) => void;
+  /**
+   * Largest single `table.update()` this writer will issue. A drain
+   * bigger than this is split, yielding the worker between chunks.
+   *
+   * This bounds WRITE LATENCY, not total work: one 100k-row write pins
+   * the thread for its whole duration, and every window read queues
+   * behind it. Chunking lets reads interleave, which is what keeps a
+   * grid responsive while a snapshot lands.
+   *
+   * Default 25_000 — high enough that ordinary live ticks (hundreds of
+   * rows) take exactly the same single-write path as before, so this is
+   * inert outside seeding and burst catch-up.
+   */
+  maxRowsPerWrite?: number;
+}
+
+/** Ingest counters for backpressure telemetry — monotonic within a generation. */
+export interface TableWriterStats {
+  /** Rows waiting for the next drain. Sustained growth = falling behind. */
+  pendingRows: number;
+  /** Rows still parked pre-table (the table has not been created yet). */
+  bufferedRows: number;
+  /** `table.update()` calls issued. */
+  writes: number;
+  /** Rows written. */
+  rowsWritten: number;
+  /** Duration of the most recent write. */
+  lastWriteMs: number;
+  /** Slowest single write seen — the tail that stalls reads. */
+  maxWriteMs: number;
+  /** Drains split because they exceeded `maxRowsPerWrite`. */
+  chunkedWrites: number;
 }
 
 const DEFAULT_MAX_BUFFERED_ROWS = 100_000;
+const DEFAULT_MAX_ROWS_PER_WRITE = 25_000;
 
 export class TableWriter {
   private readonly maxBufferedRows: number;
@@ -65,10 +98,31 @@ export class TableWriter {
   private chain: Promise<void> = Promise.resolve();
   private draining = false;
 
+  private readonly maxRowsPerWrite: number;
+  private readonly stats: TableWriterStats = {
+    pendingRows: 0,
+    bufferedRows: 0,
+    writes: 0,
+    rowsWritten: 0,
+    lastWriteMs: 0,
+    maxWriteMs: 0,
+    chunkedWrites: 0,
+  };
+
   constructor(opts: TableWriterOpts = {}) {
     this.maxBufferedRows = opts.maxBufferedRows ?? DEFAULT_MAX_BUFFERED_ROWS;
+    this.maxRowsPerWrite = Math.max(1, opts.maxRowsPerWrite ?? DEFAULT_MAX_ROWS_PER_WRITE);
     this.onError = opts.onError;
     this.onWrite = opts.onWrite;
+  }
+
+  /** Ingest telemetry — surface it; a growing `pendingRows` is the warning. */
+  getStats(): TableWriterStats {
+    return {
+      ...this.stats,
+      pendingRows: this.pending.length,
+      bufferedRows: this.buffer?.length ?? 0,
+    };
   }
 
   get currentGeneration(): number {
@@ -149,8 +203,26 @@ export class TableWriter {
       this.pending = [];
       this.draining = false;
       if (generation !== this.generation || rows.length === 0) return;
-      await this.table!.update(rows);
-      this.onWrite?.(generation, rows.length);
+      // Bounded writes: a drain larger than `maxRowsPerWrite` is split so
+      // window reads can interleave instead of queueing behind one long
+      // update. Ordinary ticks are far below the bound and take the
+      // identical single-write path.
+      if (rows.length > this.maxRowsPerWrite) this.stats.chunkedWrites += 1;
+      for (let offset = 0; offset < rows.length; offset += this.maxRowsPerWrite) {
+        if (generation !== this.generation) return; // fenced mid-drain
+        const chunk =
+          rows.length <= this.maxRowsPerWrite
+            ? rows
+            : rows.slice(offset, offset + this.maxRowsPerWrite);
+        const started = Date.now();
+        await this.table!.update(chunk);
+        const elapsed = Date.now() - started;
+        this.stats.writes += 1;
+        this.stats.rowsWritten += chunk.length;
+        this.stats.lastWriteMs = elapsed;
+        if (elapsed > this.stats.maxWriteMs) this.stats.maxWriteMs = elapsed;
+        this.onWrite?.(generation, chunk.length);
+      }
       // Rows may have landed while the update was in-flight.
       this.scheduleDrain(this.generation);
     });

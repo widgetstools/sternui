@@ -43,6 +43,32 @@ export interface DatasetStateSnapshot {
   generation: number;
   /** Present only when `phase === 'error'`. */
   error?: string;
+  /**
+   * Ingest backpressure, when the worker reports it. OPTIONAL and purely
+   * observational — nothing in the pull plane branches on it. A steadily
+   * rising `pendingRows` means the feed is outrunning the table writer;
+   * `maxWriteMs` is the tail that stalls window reads, since a write
+   * holds the worker thread for its whole duration.
+   */
+  ingest?: IngestTelemetry;
+}
+
+/** Worker-side ingest counters, broadcast with DatasetState. */
+export interface IngestTelemetry {
+  /** Rows awaiting the next table write. Sustained growth = falling behind. */
+  pendingRows: number;
+  /** Rows parked before the table exists. */
+  bufferedRows: number;
+  /** `table.update()` calls issued this generation. */
+  writes: number;
+  /** Rows written this generation. */
+  rowsWritten: number;
+  /** Duration of the most recent write. */
+  lastWriteMs: number;
+  /** Slowest single write — the tail that blocks reads. */
+  maxWriteMs: number;
+  /** Drains split because they exceeded the per-write row bound. */
+  chunkedWrites: number;
 }
 
 // ─── Provider config (P1 transport scope) ──────────────────────────

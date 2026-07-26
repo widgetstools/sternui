@@ -100,7 +100,9 @@ export function installSsrmWorker(opts: InstallSsrmWorkerOpts = {}): SsrmWorkerH
   });
 
   const broadcastState = (state: DatasetStateSnapshot): void => {
-    const event = stateEvent(state);
+    // The machine hands us its own snapshot; re-read through the dataset
+    // so the broadcast carries the current ingest telemetry too.
+    const event = stateEvent(dataset?.state ?? state);
     for (const port of controlPorts) {
       try {
         port.postMessage(event);
