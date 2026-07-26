@@ -26,6 +26,13 @@ export declare class PerspectiveSession {
 
 export declare class PerspectiveServer {
   constructor(module: PerspectiveServerModule, options?: PerspectiveServerOptions);
+  /**
+   * `client_id -> response callback`, populated by `make_session`. Public
+   * because the vendor reads it with a non-null assertion in three
+   * places (`engine.ts:98`, `:134`, `:151`); we substitute a hardened Map
+   * so an unknown id can never throw out of `decode_api_responses`.
+   */
+  clients: Map<number, (buffer: Uint8Array) => Promise<void>>;
   make_session(callback: (buffer: Uint8Array) => Promise<void>): PerspectiveSession;
   poll(): Promise<void>;
   delete(): void;
