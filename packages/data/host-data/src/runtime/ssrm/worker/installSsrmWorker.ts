@@ -195,9 +195,18 @@ export function installSsrmWorker(opts: InstallSsrmWorkerOpts = {}): SsrmWorkerH
       });
       return;
     }
-    const session = psp.makeSession(async (resp) => {
+    // Copy synchronously and do NO allocating work: the vendor decodes
+    // responses over views into the wasm heap and re-reads them after
+    // awaiting this callback, so anything that can grow the heap in
+    // here detaches those views and fails the whole in-flight batch.
+    // Safety is a GLOBAL invariant — one session awaiting engine work
+    // inline endangers every other session's decodes, including poll().
+    // postMessage never touches the wasm heap, so this is safe as long
+    // as it stays synchronous and returns an already-resolved promise.
+    const session = psp.makeSession((resp) => {
       const buffer = resp.slice().buffer;
       port.postMessage(buffer, { transfer: [buffer] });
+      return Promise.resolve();
     });
     pspSessions.add(session);
     port.addEventListener('message', (ev) => {

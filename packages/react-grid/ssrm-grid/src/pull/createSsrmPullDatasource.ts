@@ -294,8 +294,8 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
   const warn = opts.warn ?? ((message: string) => console.warn(message));
   const blockCache = new BlockCache(opts.maxBlocks ?? 32);
   const viewCache = new ViewCache({
-    maxViews: opts.maxViews ?? 8,
-    onEvict: (_key, view) => {
+    maxViews: opts.maxViews ?? 4,
+    onRetire: (_key, view) => {
       if (tickSub?.view === view) tickSub = null; // deletion kills its callbacks
     },
   });
@@ -447,21 +447,30 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     return { rows, total: numRows };
   };
 
-  const acquireView = async (
+  const viewFactory = async (config: QueryPlan['viewConfig']): Promise<PullView> => {
+    const table = await connection.openTable();
+    return table.view(config);
+  };
+
+  /**
+   * Run `use` against the view for a plan, holding a LEASE for its whole
+   * duration so the view cannot be deleted mid-read (which would leak it
+   * permanently — see ViewCache). Every read in this file goes through
+   * here or `tryWithView`; nothing holds a bare view across an await.
+   */
+  const withPlanView = <T>(
     key: string,
     viewConfig: QueryPlan['viewConfig'],
     isRootShape: boolean,
-  ): Promise<PullView> => {
-    const view = await viewCache.acquire(key, viewConfig, async (config) => {
-      const table = await connection.openTable();
-      return table.view(config);
+    use: (view: PullView) => Promise<T>,
+  ): Promise<T> =>
+    viewCache.withView(key, viewConfig, viewFactory, async (view) => {
+      // The tick signal lives on a root-route view — it observes the
+      // whole filtered set, so leaf/child reads never steal the
+      // subscription onto a slice that might sit out a tick.
+      if (isRootShape || tickSub === null) await ensureTickSubscription(key, view);
+      return use(view);
     });
-    // The tick signal lives on a root-route view — it observes the whole
-    // filtered set, so leaf/child acquires never steal the subscription
-    // onto a slice that might sit out a tick.
-    if (isRootShape || tickSub === null) await ensureTickSubscription(key, view);
-    return view;
-  };
 
   /** Exactly one live `on_update` subscription — on the root shape. */
   const ensureTickSubscription = async (key: string, view: PullView): Promise<void> => {
@@ -504,6 +513,7 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
   async function runTickRefresh(): Promise<void> {
     const snap = connection.state;
     if (destroyed || !api || !snap || snap.generation !== generation) return;
+    const gridApi = api; // narrowed once; `api` is nulled by destroy()
     // Scroll-aware deferral: while the user scrolls (settle window) or a
     // cold getRows read is in flight, the sweep yields the worker —
     // coalescing to ONE retry on settle, so idle ticks are never starved.
@@ -527,39 +537,43 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     );
     let rootTotal: number | null = null;
     for (const plan of planByKey.values()) {
-      const pendingView = viewCache.peek(plan.key);
-      if (!pendingView) continue;
       const entries = blockCache
         .entriesFor(plan.key, requestGen)
         .filter((entry) => sweepSet.has(`${plan.key}#${entry.startRow}`));
       if (entries.length === 0) continue;
-      let view: PullView;
-      try {
-        view = await pendingView;
-      } catch {
-        continue;
-      }
       const idField = plan.kind === 'group-level' ? GROUP_ID_FIELD : keyColumn;
-      for (const { startRow, block } of entries) {
-        let read: { rows: Record<string, unknown>[]; total: number };
-        try {
-          stats.sweepBlockReads += 1;
-          read = await readPlanBlock(plan, view, startRow, block.endRow);
-        } catch {
-          break; // view evicted/deleted mid-read — the next tick repairs
+      // ONE lease for the plan's whole slice of the sweep. tryWithView
+      // never creates and never refreshes recency, so a background sweep
+      // cannot resurrect (or keep alive) a shape the user left behind —
+      // but for as long as it IS reading, the view cannot be deleted.
+      const aborted = await viewCache.tryWithView(plan.key, async (view) => {
+        for (const { startRow, block } of entries) {
+          let read: { rows: Record<string, unknown>[]; total: number };
+          try {
+            stats.sweepBlockReads += 1;
+            read = await readPlanBlock(plan, view, startRow, block.endRow);
+          } catch {
+            return false; // read failed — the next tick repairs
+          }
+          if (destroyed || generation !== requestGen) return true;
+          if (planEpoch !== requestEpoch) {
+            stats.droppedStale += 1;
+            return true; // shape changed mid-sweep — stale rows, drop all
+          }
+          blockCache.set(plan.key, startRow, {
+            ...read,
+            generation: requestGen,
+            endRow: block.endRow,
+          });
+          const changed = diffRowsByKey(block.rows, read.rows, idField);
+          if (changed.length > 0) {
+            gridApi.applyServerSideTransactionAsync({ route: plan.route, update: changed });
+          }
+          if (plan === rootPlan) rootTotal = read.total;
         }
-        if (destroyed || generation !== requestGen) return;
-        if (planEpoch !== requestEpoch) {
-          stats.droppedStale += 1;
-          return; // query shape changed mid-sweep — stale rows, drop all
-        }
-        blockCache.set(plan.key, startRow, { ...read, generation: requestGen, endRow: block.endRow });
-        const changed = diffRowsByKey(block.rows, read.rows, idField);
-        if (changed.length > 0) {
-          api.applyServerSideTransactionAsync({ route: plan.route, update: changed });
-        }
-        if (plan === rootPlan) rootTotal = read.total;
-      }
+        return false;
+      });
+      if (aborted) return;
     }
     const now = connection.state;
     // AG error #28: setRowCount is forbidden while row grouping is
@@ -584,14 +598,13 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
   /** Live grand total: refetch the rollup, patch the grand-total node. */
   async function refreshGrandTotal(requestGen: number): Promise<void> {
     if (!rollup || !api || destroyed) return;
-    const pendingView = viewCache.peek(rollup.key);
-    if (!pendingView) return;
-    let totals: Record<string, unknown> | null;
+    let totals: Record<string, unknown> | null | undefined;
     try {
-      totals = await readRollupRow(await pendingView);
+      totals = await viewCache.tryWithView(rollup.key, (view) => readRollupRow(view));
     } catch {
       return;
     }
+    if (totals === undefined) return; // shape no longer cached
     if (!totals || destroyed || generation !== requestGen || !api) return;
     const node = api.getRowNode(GRAND_TOTAL_ROW_ID);
     if (!node) return;
@@ -643,7 +656,11 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       // one. The consumer remounts the grid; we just stop serving stale.
       generation = state.generation;
       blockCache.clear();
-      viewCache.clear();
+      // RETIRE, not delete-now: a restart is exactly when reads are most
+      // likely in flight, and deleting a view under a live read leaks it
+      // permanently (uncatchable, never settles). Leased views are
+      // deleted as their reads finish.
+      viewCache.retireAll();
       planByKey.clear();
       rootPlan = null;
       rollup = null;
@@ -737,8 +754,9 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         const rollupPlan = buildRollupPlan(params.request, planOpts());
         rollup = rollupPlan;
         if (rollupPlan) {
-          const view = await acquireView(rollupPlan.key, rollupPlan.viewConfig, true);
-          const totals = await readRollupRow(view);
+          const totals = await withPlanView(rollupPlan.key, rollupPlan.viewConfig, true, (view) =>
+            readRollupRow(view),
+          );
           if (destroyed) {
             fail();
             return;
@@ -771,8 +789,9 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         stats.missReads += 1;
         pendingMissReads += 1;
         try {
-          const view = await acquireView(plan.key, plan.viewConfig, isRoot);
-          read = await readPlanBlock(plan, view, startRow, endRow);
+          read = await withPlanView(plan.key, plan.viewConfig, isRoot, (view) =>
+            readPlanBlock(plan, view, startRow, endRow),
+          );
         } finally {
           pendingMissReads -= 1;
         }
@@ -836,8 +855,12 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       void (async () => {
         if (destroyed || generation !== requestGen || planEpoch !== requestEpoch) return;
         stats.prefetchReads += 1;
-        const view = await acquireView(plan.key, plan.viewConfig, plan.route.length === 0);
-        const read = await readPlanBlock(plan, view, neighborStart, neighborStart + span);
+        const read = await withPlanView(
+          plan.key,
+          plan.viewConfig,
+          plan.route.length === 0,
+          (view) => readPlanBlock(plan, view, neighborStart, neighborStart + span),
+        );
         if (destroyed || generation !== requestGen || planEpoch !== requestEpoch) {
           stats.droppedStale += 1;
           return;
@@ -920,8 +943,9 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     requestEpoch: number,
   ): Promise<void> {
     stats.refreshReads += 1;
-    const view = await acquireView(plan.key, plan.viewConfig, plan.route.length === 0);
-    const read = await readPlanBlock(plan, view, startRow, endRow);
+    const read = await withPlanView(plan.key, plan.viewConfig, plan.route.length === 0, (view) =>
+      readPlanBlock(plan, view, startRow, endRow),
+    );
     const snap = connection.state;
     if (destroyed || !api || generation !== requestGen) return;
     if (!snap || snap.generation !== requestGen) return;
@@ -1025,7 +1049,7 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         // first block's critical path. (Memoized by key: the real
         // loads reuse this very view.)
         const warmPlan = buildQueryPlan(lastRootRequest ?? EMPTY_ROOT_REQUEST, planOpts());
-        void acquireView(warmPlan.key, warmPlan.viewConfig, true).catch(() => undefined);
+        void viewCache.warm(warmPlan.key, warmPlan.viewConfig, viewFactory).catch(() => undefined);
         api?.refreshServerSide({ route: [], purge: true });
       };
       const debounceMs = opts.quickFilterDebounceMs ?? 150;
@@ -1138,7 +1162,9 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         void tickSub.view.remove_update(tickSub.id).catch(() => undefined);
       }
       tickSub = null;
-      viewCache.clear();
+      // Retire rather than delete: an in-flight read still holds a lease,
+      // and yanking its view leaks the view for the life of the worker.
+      viewCache.retireAll();
       blockCache.clear();
       planByKey.clear();
       rootPlan = null;
