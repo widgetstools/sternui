@@ -265,7 +265,23 @@ describe('createSsrmPullDatasource', () => {
     ds.destroy();
   });
 
-  it('DROPS a response whose generation went stale mid-flight (no success, no fail)', async () => {
+  // ─── the getRows termination contract ─────────────────────────────
+  //
+  // AG Grid 36 increments a GRID-GLOBAL `outboundRequests` counter before
+  // calling getRows and decrements it ONLY from success/fail. With
+  // `maxConcurrentDatasourceRequests` defaulting to 2, two unanswered
+  // calls zero the grid's load bandwidth permanently — for every store,
+  // and a purge does not recover it. Sorting and filtering then silently
+  // stop working. Every path out of getRows MUST answer exactly once.
+  //
+  // (These tests replace one that asserted the opposite — it required
+  // "no success, no fail" on a stale generation, which is the bug.)
+
+  /** Total answers delivered — the invariant is always exactly 1. */
+  const answerCount = (p: { success: { mock: { calls: unknown[] } }; fail: { mock: { calls: unknown[] } } }): number =>
+    p.success.mock.calls.length + p.fail.mock.calls.length;
+
+  it('answers exactly once when the generation goes stale mid-flight', async () => {
     const connection = new FakeConnection();
     connection.table.rows = seedRows(100);
     connection.emit(liveState(100, 1));
@@ -277,8 +293,56 @@ describe('createSsrmPullDatasource', () => {
     connection.emit({ phase: 'connecting', rowCount: 0, generation: 2 }); // restart adopted
     connection.releaseTable();
     await flush();
-    expect(params.success).not.toHaveBeenCalled();
-    expect(params.fail).not.toHaveBeenCalled();
+    expect(answerCount(params)).toBe(1);
+    ds.destroy();
+  });
+
+  it('answers exactly once when destroyed while parked waiting for state', async () => {
+    const connection = new FakeConnection();
+    // Never leaves `connecting`: the load parks in stateWhere. Before the
+    // fix this waiter was never settled and the slot was lost forever.
+    connection.emit({ phase: 'connecting', rowCount: 0, generation: 1 });
+    const ds = makeDatasource(connection);
+    const params = loadParams(fakeApi());
+    ds.getRows(params);
+    await flush();
+    expect(answerCount(params)).toBe(0); // still legitimately waiting
+    ds.destroy();
+    await flush();
+    expect(answerCount(params)).toBe(1);
+  });
+
+  it('answers exactly once when the query shape changes mid-read', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = seedRows(100);
+    connection.emit(liveState(100, 1));
+    connection.holdTable();
+    const ds = makeDatasource(connection, { quickFilterDebounceMs: 0 });
+    const params = loadParams(fakeApi());
+    ds.getRows(params);
+    await flush();
+    ds.setQuickFilter('POS1'); // bumps the plan epoch under the in-flight read
+    connection.releaseTable();
+    await flush();
+    expect(answerCount(params)).toBe(1);
+    ds.destroy();
+  });
+
+  it('answers every one of a burst of loads across repeated shape churn', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = seedRows(500);
+    connection.emit(liveState(500, 1));
+    const ds = makeDatasource(connection, { quickFilterDebounceMs: 0 });
+    const loads = [0, 100, 200, 300].map((startRow) =>
+      loadParams(fakeApi(), { startRow, endRow: startRow + 100 }),
+    );
+    for (const params of loads) ds.getRows(params);
+    // Churn the shape while they are all in flight.
+    ds.setQuickFilter('POS');
+    ds.setQuickFilter('POS1');
+    ds.setQuickFilter(null);
+    await flush(8);
+    for (const params of loads) expect(answerCount(params)).toBe(1);
     ds.destroy();
   });
 

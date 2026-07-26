@@ -94,6 +94,8 @@ import type {
   GridApi,
   IServerSideDatasource,
   IServerSideGetRowsParams,
+  IServerSideGetRowsRequest,
+  LoadSuccessParams,
 } from 'ag-grid-community';
 import type { DatasetStateSnapshot } from '@starui/host-data/runtime/ssrm';
 import { BlockCache } from './BlockCache.js';
@@ -218,6 +220,8 @@ export interface SsrmPullDatasourceStats {
   redraws: number;
   /** Sweep cycles deferred because the user was scrolling / a miss was in flight. */
   sweepDeferrals: number;
+  /** `getRows` calls that exhausted their re-plan attempts and answered stale. */
+  serveExhausted: number;
 }
 
 export interface SsrmPullDatasource extends IServerSideDatasource {
@@ -261,6 +265,31 @@ interface TickSubscription {
   id: number | null;
 }
 
+/**
+ * How many times one `getRows` will re-plan when the query shape changes
+ * mid-read before it gives up and answers with what it has. Bounded so a
+ * pathological shape-churn loop cannot spin forever.
+ */
+const MAX_SERVE_ATTEMPTS = 4;
+
+/**
+ * Deep-copy an AG request. `IServerSideGetRowsRequest` handed to the
+ * datasource is a live reference into the grid's ONE mutable
+ * `ssrmParams` object, which AG's sort/filter listeners rewrite in
+ * place. Anything we retain past the call must be a copy, or we corrupt
+ * the `oldSortModel` AG diffs against on the next sort (group levels
+ * then compute an empty `changedColumns` and skip the refresh entirely).
+ */
+function cloneRequest(request: IServerSideGetRowsRequest): IServerSideGetRowsRequest {
+  // structuredClone (not JSON) so Date values inside date filter models
+  // survive as Dates.
+  try {
+    return structuredClone(request);
+  } catch {
+    return JSON.parse(JSON.stringify(request)) as IServerSideGetRowsRequest;
+  }
+}
+
 export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPullDatasource {
   const { connection, keyColumn } = opts;
   const defaultBlockSize = opts.defaultBlockSize ?? 100;
@@ -282,6 +311,7 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     droppedStale: 0,
     redraws: 0,
     sweepDeferrals: 0,
+    serveExhausted: 0,
   };
   let lastScrollAt = 0;
   /** In-flight cold `getRows` reads — sweeps yield while any is pending. */
@@ -351,19 +381,34 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
 
   // ─── shared async helpers ───────────────────────────────────────
 
+  /**
+   * Pending `stateWhere` waiters. `destroy()` settles every one of them:
+   * a `getRows` blocked here would otherwise never answer, and an
+   * unanswered `getRows` permanently burns one of AG's TWO global
+   * datasource-request slots (see the contract note on `getRows`).
+   */
+  const stateWaiters = new Set<() => void>();
+
+  /** Resolves with the first accepted state, or `null` if we were torn down. */
   const stateWhere = (
     accept: (state: DatasetStateSnapshot) => boolean,
-  ): Promise<DatasetStateSnapshot> =>
+  ): Promise<DatasetStateSnapshot | null> =>
     new Promise((resolve) => {
       // onState replays the latest snapshot synchronously — the
       // unsubscribe handle may not exist yet inside the listener.
       let off: (() => void) | null = null;
       let settled = false;
-      off = connection.onState((state) => {
-        if (settled || (!accept(state) && !destroyed)) return;
+      const finish = (value: DatasetStateSnapshot | null): void => {
+        if (settled) return;
         settled = true;
         off?.();
-        resolve(state);
+        stateWaiters.delete(abort);
+        resolve(value);
+      };
+      const abort = (): void => finish(connection.state ?? null);
+      stateWaiters.add(abort);
+      off = connection.onState((state) => {
+        if (accept(state)) finish(state);
       });
       if (settled) off();
     });
@@ -619,29 +664,48 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
 
   // ─── the datasource ───────────────────────────────────────────────
 
-  async function serveRows(params: IServerSideGetRowsParams): Promise<void> {
+  async function serveRows(
+    params: IServerSideGetRowsParams,
+    succeed: (result: LoadSuccessParams) => void,
+    fail: () => void,
+  ): Promise<void> {
     api ??= params.api;
     let snap = connection.state ?? (await stateWhere(() => true));
-    if (destroyed) return;
-    const requestGen = snap.generation;
-    if (snap.phase === 'connecting') {
+    if (snap?.phase === 'connecting') {
       snap = await stateWhere((state) => state.phase !== 'connecting');
-      if (destroyed || snap.generation !== requestGen) return; // dropped
+    }
+    // NOTE: a generation change while we waited is NOT a reason to drop.
+    // We re-snapshot and serve the CURRENT book — dropping would leave
+    // AG's request slot burned (see the `getRows` contract note).
+    if (destroyed || !snap) {
+      fail();
+      return;
     }
     if (snap.phase === 'error') {
-      params.fail();
+      fail();
       return;
     }
     if (snap.phase === 'empty') {
-      params.success({ rowData: [], rowCount: 0 });
+      succeed({ rowData: [], rowCount: 0 });
       return;
     }
+    let requestGen = snap.generation;
 
     // The plan-epoch fence may demand a re-serve: if the query shape
     // changed while THIS load was reading (quick filter settled), the
     // stale read is dropped and the load re-plans against the current
     // shape — AG's callback is always answered with current-shape rows.
-    for (let attempt = 0; attempt < 4; attempt += 1) {
+    // The LAST rows we managed to read, whatever shape they were for.
+    // If the query shape churns faster than we can read it we still owe
+    // AG an answer, and slightly-stale rows beat a dead grid: a shape
+    // change always purges/refreshes the store, so AG re-requests.
+    let lastRead: { rows: Record<string, unknown>[]; total: number } | null = null;
+    let lastPlan: QueryPlan | null = null;
+
+    for (let attempt = 0; attempt < MAX_SERVE_ATTEMPTS; attempt += 1) {
+      // Re-planned from `params.request` EVERY attempt on purpose: AG
+      // mutates that object in place, so a re-read reflects the current
+      // sort/filter rather than the shape we were first called for.
       const plan = buildQueryPlan(params.request, planOpts());
       if (plan.unsupportedFilters.length > 0 && !warnedPlans.has(plan.key)) {
         warnedPlans.add(plan.key);
@@ -655,7 +719,10 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         // PREVIOUS shape can never land after this one.
         if (rootPlan !== null && rootPlan.key !== plan.key) planEpoch += 1;
         rootPlan = plan;
-        lastRootRequest = params.request;
+        // CLONE: `request` is a live reference into AG's single mutable
+        // ssrmParams. Retaining it corrupts the `oldSortModel` AG diffs
+        // against, which makes group-level sorts stop refreshing.
+        lastRootRequest = cloneRequest(params.request);
       }
       const requestEpoch = planEpoch;
 
@@ -668,16 +735,24 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         if (rollupPlan) {
           const view = await acquireView(rollupPlan.key, rollupPlan.viewConfig, true);
           const totals = await readRollupRow(view);
-          if (destroyed || generation !== requestGen) return; // fence: drop
+          if (destroyed) {
+            fail();
+            return;
+          }
           if (totals) grandTotal = totals;
         }
       }
 
-      if (planEpoch !== requestEpoch) {
-        // Shape changed during the rollup read — re-plan before reading.
+      // Book replaced under us — adopt the new generation and re-read
+      // rather than dropping the load on the floor.
+      if (generation !== requestGen) {
         stats.droppedStale += 1;
-        if (isRoot && rootPlan === plan) continue;
-        return;
+        requestGen = generation;
+        continue;
+      }
+      if (planEpoch !== requestEpoch) {
+        stats.droppedStale += 1;
+        continue; // shape changed during the rollup read — re-plan
       }
 
       const startRow = params.request.startRow ?? 0;
@@ -697,23 +772,24 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         } finally {
           pendingMissReads -= 1;
         }
-        if (destroyed || generation !== requestGen) {
-          stats.droppedStale += 1;
-          return; // generation fence: the grid remounts — drop
-        }
+      }
+      lastRead = read;
+      lastPlan = plan;
+      if (destroyed) {
+        fail();
+        return;
+      }
+      if (generation !== requestGen) {
+        stats.droppedStale += 1;
+        requestGen = generation;
+        continue; // re-read against the live book
       }
       if (planEpoch !== requestEpoch) {
         stats.droppedStale += 1;
-        // Shape changed mid-read. If this load still owns the root
-        // store, re-serve it against the CURRENT shape (quick-filter
-        // soft refresh keeps the store — its callback must be answered
-        // with current rows). If a newer root load took over, drop —
-        // that load answers with fresh data.
-        if (isRoot && rootPlan === plan) continue;
-        return;
+        continue; // re-read against the current shape
       }
       if (!cacheHit) blockCache.set(plan.key, startRow, { ...read, generation: requestGen, endRow });
-      finishLoad(params, plan, read.rows, read.total, requestGen, grandTotal);
+      finishLoad(params, succeed, plan, read.rows, read.total, requestGen, grandTotal);
       if (cacheHit) {
         void refreshBlock(plan, startRow, endRow, requestGen, requestEpoch).catch(() => undefined);
       } else {
@@ -721,7 +797,15 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       }
       return;
     }
-    params.fail(); // shape churned 4 times mid-flight — let AG retry
+
+    // Shape churned every attempt. Answer anyway — an unanswered
+    // getRows costs one of AG's two global request slots permanently.
+    stats.serveExhausted += 1;
+    if (lastRead && lastPlan) {
+      finishLoad(params, succeed, lastPlan, lastRead.rows, lastRead.total, requestGen);
+    } else {
+      fail();
+    }
   }
 
   /**
@@ -767,9 +851,16 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
   const isFlatRoot = (plan: QueryPlan): boolean =>
     plan.kind === 'rows' && plan.route.length === 0;
 
-  /** Deliver one block honoring the DatasetState rowCount contract. */
+  /**
+   * Deliver one block honoring the DatasetState rowCount contract.
+   * ALWAYS answers: a generation change here used to `return` silently,
+   * which stranded AG's request slot. Rows read against a superseded
+   * generation are harmless — the store is rebuilt on remount, and AG
+   * discards deliveries into a dead cache on its own.
+   */
   function finishLoad(
     params: IServerSideGetRowsParams,
+    succeed: (result: LoadSuccessParams) => void,
     plan: QueryPlan,
     rows: Record<string, unknown>[],
     total: number,
@@ -777,10 +868,13 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     grandTotal?: Record<string, unknown>,
   ): void {
     const snap = connection.state;
-    if (!snap || snap.generation !== requestGen) return; // fence: drop
     const extra = grandTotal !== undefined ? { grandTotalData: grandTotal } : {};
+    if (!snap || snap.generation !== requestGen) {
+      succeed({ rowData: rows, rowCount: total, ...extra });
+      return;
+    }
     if (snap.phase === 'seeding' && isFlatRoot(plan)) {
-      params.success({ rowData: rows, ...extra });
+      succeed({ rowData: rows, ...extra });
       // An under-filled block makes AG's lazy cache mark the row count
       // final — reopen it; the seed is still growing the book.
       params.api.setRowCount(total, false);
@@ -789,7 +883,7 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     // Group-level and routed child stores always finalize with the
     // view's exact count — a count that grows mid-seed is refreshed by
     // the seeding→live no-purge refresh (and by later user loads).
-    params.success({ rowData: rows, rowCount: total, ...extra });
+    succeed({ rowData: rows, rowCount: total, ...extra });
     // Flat root at live/empty: ENFORCE the count. AG's lazy store never
     // SHRINKS from a success rowCount alone (a soft refresh after a
     // quick-filter change left the scrollbar on the unfiltered total),
@@ -854,12 +948,46 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
   }
 
   return {
+    /**
+     * CONTRACT (AG Grid 36, verified in the shipped bundle): the grid
+     * increments a GRID-GLOBAL `outboundRequests` counter before calling
+     * this, and decrements it ONLY from inside `success`/`fail`. With
+     * `maxConcurrentDatasourceRequests` defaulting to 2, TWO calls that
+     * never answer reduce the grid's load bandwidth to zero — for every
+     * store, permanently. Purging does not recover it. So: every path
+     * out of here answers exactly once, and the `finally` below is a
+     * structural backstop, not decoration.
+     */
     getRows(params: IServerSideGetRowsParams): void {
-      void serveRows(params).catch((err) => {
-        if (destroyed) return;
-        warn(`[ssrm-pull] getRows failed: ${err instanceof Error ? err.message : String(err)}`);
-        params.fail();
-      });
+      let answered = false;
+      const succeed = (result: LoadSuccessParams): void => {
+        if (answered) return;
+        answered = true;
+        try {
+          params.success(result);
+        } catch (err) {
+          warn(`[ssrm-pull] success() threw: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      };
+      const fail = (): void => {
+        if (answered) return;
+        answered = true;
+        try {
+          params.fail();
+        } catch {
+          /* grid already torn down */
+        }
+      };
+      void serveRows(params, succeed, fail)
+        .catch((err) => {
+          warn(`[ssrm-pull] getRows failed: ${err instanceof Error ? err.message : String(err)}`);
+          fail();
+        })
+        .finally(() => {
+          if (answered) return;
+          warn('[ssrm-pull] BUG: getRows completed without answering — failing to free the slot');
+          fail();
+        });
     },
     setQuickFilter(text: string | null): void {
       const next = text?.trim() || undefined;
@@ -987,6 +1115,11 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     destroy(): void {
       destroyed = true;
       offState();
+      // Settle anything parked in `stateWhere` FIRST: a getRows waiting
+      // on a state transition would otherwise never answer, and an
+      // unanswered getRows permanently burns an AG request slot.
+      for (const abort of [...stateWaiters]) abort();
+      stateWaiters.clear();
       if (quickFilterTimer !== null) {
         clearTimeout(quickFilterTimer);
         quickFilterTimer = null;
