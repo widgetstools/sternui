@@ -111,7 +111,13 @@ import {
   type QueryPlanOpts,
   type RollupPlan,
 } from './buildQueryPlan.js';
-import { GROUP_ID_FIELD, toGroupRowData } from './groupRows.js';
+import {
+  CHILD_COUNT_FIELD,
+  GROUP_ID_FIELD,
+  GROUP_KEY_FIELD,
+  TREE_HAS_CHILDREN_FIELD,
+  toGroupRowData,
+} from './groupRows.js';
 import {
   DEFAULT_SWEEP_THROTTLE_WIDE_MS,
   DEFAULT_WIDE_COLUMN_THRESHOLD,
@@ -183,6 +189,25 @@ export interface SsrmPullDatasourceOpts {
    * (see `groupRows.ts`). Mutually exclusive with row grouping.
    */
   treePathFields?: string[];
+  /**
+   * Server-side TREE from a PARENT-ID adjacency column, for data with a
+   * natural hierarchy. Mutually exclusive with `treePathFields`.
+   *
+   * Levels are filtered leaf reads (root = no parent; an expanded route
+   * = rows whose parent is its last key), so rows keep their natural key
+   * as the AG row id. Which rows expand is answered from ONE `group_by`
+   * histogram over the parent column — that single read yields both the
+   * has-children set and each parent's child count, and it is cached per
+   * generation rather than asked per row.
+   */
+  treeParentField?: string;
+  /**
+   * How long the parent-id child histogram may be reused before a tree
+   * read refreshes it. Live inserts create new parents, so it cannot be
+   * cached forever; it is far too coarse to rebuild per read. Default
+   * 2000ms.
+   */
+  treeChildCountRefreshMs?: number;
   /**
    * Weighted-mean sources: value field → WEIGHT field, for columns the
    * grid aggregates with `aggFunc: 'wavg'` (OAS by DV01, WAL by
@@ -459,8 +484,71 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     ...(opts.quickFilterColumns ? { quickFilterColumns: opts.quickFilterColumns } : {}),
     ...(opts.calcExpressions ? { calcExpressions: opts.calcExpressions } : {}),
     ...(opts.treePathFields ? { treePathFields: opts.treePathFields } : {}),
+    ...(opts.treeParentField ? { treeParentField: opts.treeParentField } : {}),
     ...(opts.weightedAggregates ? { weightedAggregates: opts.weightedAggregates } : {}),
   });
+
+  // ─── parent-id tree: the child histogram ──────────────────────────
+  //
+  // ONE `group_by` over the parent column answers both questions the
+  // tree needs — which rows have children, and how many — for the whole
+  // book. Asking per row would be a query per rendered row.
+  let childCounts: Map<string, number> | null = null;
+  let childCountsAt = 0;
+  let childCountsGen = -1;
+
+  const refreshChildCounts = async (requestGen: number): Promise<void> => {
+    const parentField = opts.treeParentField;
+    if (!parentField) return;
+    const maxAge = opts.treeChildCountRefreshMs ?? 2000;
+    const fresh =
+      childCounts !== null &&
+      childCountsGen === requestGen &&
+      Date.now() - childCountsAt < maxAge;
+    if (fresh) return;
+    const view = await connection
+      .openTable()
+      .then((table) =>
+        table.view({
+          group_by: [parentField],
+          columns: [keyColumn],
+          aggregates: { [keyColumn]: 'count' },
+        }),
+      );
+    try {
+      const rows = (await view.to_json()) as Array<Record<string, unknown>>;
+      const next = new Map<string, number>();
+      for (const row of rows) {
+        const path = row.__ROW_PATH__ as unknown[] | undefined;
+        // Row 0 is Perspective's grand total (empty path) — not a parent.
+        if (!path || path.length === 0) continue;
+        const parent = path[path.length - 1];
+        if (parent === null || parent === undefined || parent === '') continue;
+        next.set(String(parent), Number(row[keyColumn] ?? 0));
+      }
+      childCounts = next;
+      childCountsAt = Date.now();
+      childCountsGen = requestGen;
+    } finally {
+      void view.delete().catch(() => undefined);
+    }
+  };
+
+  /** Stamp tree answers onto parent-id rows: expandable, key, child count. */
+  const stampTreeRows = (rows: Record<string, unknown>[]): Record<string, unknown>[] => {
+    if (!opts.treeParentField || !childCounts) return rows;
+    for (const row of rows) {
+      const id = row[keyColumn];
+      const count = id === null || id === undefined ? undefined : childCounts.get(String(id));
+      if (count !== undefined && count > 0) {
+        row[TREE_HAS_CHILDREN_FIELD] = true;
+        row[CHILD_COUNT_FIELD] = count;
+      }
+      // The key AG contributes to the next request's groupKeys path.
+      row[GROUP_KEY_FIELD] = id === null || id === undefined ? '' : String(id);
+    }
+    return rows;
+  };
 
   // ─── wide-book delta gate (design fact #5) ────────────────────────
 
@@ -550,7 +638,9 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     if (observedColumnCount === null && rows.length > 0) {
       observedColumnCount = Object.keys(rows[0]!).length; // width, once, from a leaf read
     }
-    return { rows, total: numRows };
+    // Parent-id tree: tell AG which of these rows expand, and with what
+    // key. No-op unless `treeParentField` is configured.
+    return { rows: stampTreeRows(rows), total: numRows };
   };
 
   const viewFactory = async (config: QueryPlan['viewConfig']): Promise<PullView> => {
@@ -889,6 +979,20 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       return;
     }
     let requestGen = snap.generation;
+
+    // Parent-id tree: the child histogram must exist before any row is
+    // stamped, or the first level renders with nothing expandable.
+    // Cached per generation and time-bounded, so this is one read on the
+    // first tree load and then almost always a no-op.
+    if (opts.treeParentField) {
+      try {
+        await refreshChildCounts(requestGen);
+      } catch (err) {
+        warn(
+          `[ssrm-pull] tree child counts failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
 
     // The plan-epoch fence may demand a re-serve: if the query shape
     // changed while THIS load was reading (quick filter settled), the

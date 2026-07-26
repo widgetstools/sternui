@@ -90,9 +90,23 @@ export function toGroupRowData(
 // `rowGroupCols` in tree requests. Group rows served by this plane
 // carry both answers as stamps.
 
+/**
+ * Marks a PARENT-ID tree row that has children.
+ *
+ * Path-based trees synthesize aggregate group rows, which announce
+ * themselves with `GROUP_ID_FIELD`. A parent-id tree is different: every
+ * row is a real DATA row with its own natural key, and whether it
+ * expands depends on whether anything points at it. Such a row must keep
+ * its natural row id, so it cannot be stamped with `GROUP_ID_FIELD`
+ * (that would replace its identity) — hence a separate flag.
+ */
+export const TREE_HAS_CHILDREN_FIELD = '__ssrmHasChildren';
+
 /** AG `isServerSideGroup`: group rows (stamped path id) expand; leaves don't. */
 export function isSsrmServerSideGroup(data: unknown): boolean {
-  return typeof (data as Record<string, unknown> | null | undefined)?.[GROUP_ID_FIELD] === 'string';
+  const row = data as Record<string, unknown> | null | undefined;
+  if (row?.[TREE_HAS_CHILDREN_FIELD] === true) return true; // parent-id tree
+  return typeof row?.[GROUP_ID_FIELD] === 'string';
 }
 
 /** AG `getServerSideGroupKey`: the group row's own stamped key. */

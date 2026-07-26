@@ -19,6 +19,11 @@ import { GRAND_TOTAL_ROW_ID } from 'ag-grid-community';
 import type { GridApi, IServerSideGetRowsParams, IServerSideGetRowsRequest } from 'ag-grid-community';
 import type { DatasetStateSnapshot } from '@starui/host-data/runtime/ssrm';
 import { createSsrmPullDatasource } from '../../pull/createSsrmPullDatasource.js';
+import {
+  CHILD_COUNT_FIELD,
+  getSsrmServerSideGroupKey,
+  isSsrmServerSideGroup,
+} from '../../pull/groupRows.js';
 import type { PullDatasourceConnection, PullTable } from '../../pull/types.js';
 
 interface PerspectiveModule {
@@ -652,6 +657,80 @@ describe('pull datasource against a REAL Perspective engine', () => {
     let expected = 0;
     for (let i = 0; i < 201; i += 1) if (i % 3 === 0 && i * 1.5 > 100) expected += 1;
     expect(result.rowCount).toBe(expected);
+    ds.destroy();
+  });
+
+  // ─── #3 parent-id tree data ───────────────────────────────────────
+
+  it('serves a PARENT-ID tree: roots, children, and expandability', async () => {
+    // A natural hierarchy: 3 roots (no parent), each with 2 children,
+    // and one grandchild under the first child.
+    tableSeq += 1;
+    const table = await perspective.table(
+      { positionId: 'string', parentId: 'string', pnl: 'float' },
+      { index: 'positionId', name: `tree_${tableSeq}` },
+    );
+    await table.update([
+      { positionId: 'R1', parentId: null, pnl: 1 },
+      { positionId: 'R2', parentId: null, pnl: 2 },
+      { positionId: 'R3', parentId: null, pnl: 3 },
+      { positionId: 'R1a', parentId: 'R1', pnl: 10 },
+      { positionId: 'R1b', parentId: 'R1', pnl: 11 },
+      { positionId: 'R2a', parentId: 'R2', pnl: 20 },
+      { positionId: 'R2b', parentId: 'R2', pnl: 21 },
+      { positionId: 'R1a1', parentId: 'R1a', pnl: 100 },
+    ]);
+    disposers.push(async () => {
+      await table.delete();
+    });
+
+    const snapshot = { phase: 'live', rowCount: 8, generation: 1 } as DatasetStateSnapshot;
+    const connection: PullDatasourceConnection = {
+      get state() {
+        return snapshot;
+      },
+      onState(listener) {
+        listener(snapshot);
+        return () => undefined;
+      },
+      async openTable() {
+        return table as unknown as PullTable;
+      },
+    };
+    const api = fakeApi();
+    const ds = createSsrmPullDatasource({
+      connection,
+      keyColumn: 'positionId',
+      treeParentField: 'parentId',
+      quickFilterDebounceMs: 0,
+      tickRefreshMs: 0,
+      warn: () => undefined,
+    });
+    disposers.push(async () => ds.destroy());
+
+    // Root level: the three parentless rows.
+    const roots = await load(ds, api);
+    expect(roots.rowCount).toBe(3);
+    expect(roots.rowData.map((r) => r.positionId).sort()).toEqual(['R1', 'R2', 'R3']);
+
+    // R1 and R2 expand (2 children each); R3 is a leaf.
+    const byId = new Map(roots.rowData.map((r) => [r.positionId, r]));
+    expect(isSsrmServerSideGroup(byId.get('R1'))).toBe(true);
+    expect(isSsrmServerSideGroup(byId.get('R3'))).toBe(false);
+    expect(byId.get('R1')![CHILD_COUNT_FIELD]).toBe(2);
+    expect(getSsrmServerSideGroupKey(byId.get('R1'))).toBe('R1');
+
+    // Expanding R1 reads its children — and R1a itself expands.
+    const children = await load(ds, api, { groupKeys: ['R1'] } as never);
+    expect(children.rowCount).toBe(2);
+    expect(children.rowData.map((r) => r.positionId).sort()).toEqual(['R1a', 'R1b']);
+    const kids = new Map(children.rowData.map((r) => [r.positionId, r]));
+    expect(isSsrmServerSideGroup(kids.get('R1a'))).toBe(true);
+    expect(isSsrmServerSideGroup(kids.get('R1b'))).toBe(false);
+
+    // Third level.
+    const grandkids = await load(ds, api, { groupKeys: ['R1', 'R1a'] } as never);
+    expect(grandkids.rowData.map((r) => r.positionId)).toEqual(['R1a1']);
     ds.destroy();
   });
 

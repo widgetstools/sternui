@@ -98,6 +98,19 @@ export interface QueryPlanOpts {
    */
   treePathFields?: string[];
   /**
+   * Server-side TREE data from a PARENT-ID adjacency column, for data
+   * with a natural hierarchy (as opposed to `treePathFields`, which
+   * synthesizes one from categorical columns). Mutually exclusive with
+   * `treePathFields` and with row grouping.
+   *
+   * Every level is a filtered LEAF read, not a `group_by`: the root
+   * level is the rows with no parent, and an expanded route reads the
+   * rows whose parent is the last key on the route. Rows keep their
+   * natural key as the AG row id; the ones with children are stamped
+   * `TREE_HAS_CHILDREN_FIELD` so `isServerSideGroup` lets them expand.
+   */
+  treeParentField?: string;
+  /**
    * Weighted-mean sources: value field → WEIGHT field. Required for any
    * column the grid aggregates with `wavg` — AG's `valueCols` carries no
    * weight slot, and Perspective needs one for its
@@ -363,6 +376,44 @@ export function buildQueryPlan(
 ): QueryPlan {
   const unsupported: string[] = [];
   const route = [...request.groupKeys];
+
+  // ── PARENT-ID tree: every level is a filtered LEAF read ──
+  // Root = rows with no parent; an expanded route = rows whose parent is
+  // the last key on it. No group_by anywhere: these are real data rows
+  // that happen to have children, so they keep their natural row id.
+  if (opts.treeParentField && request.rowGroupCols.length === 0) {
+    const parentField = opts.treeParentField;
+    const viewConfig = baseConfig(request, opts, unsupported, false);
+    const parentClause: PullFilter =
+      route.length === 0
+        ? [parentField, 'is null', null]
+        : [parentField, '==', route[route.length - 1]!];
+    // Prepend so the route clause survives the fast paths in baseConfig
+    // and always ANDs with anything the user filtered on.
+    viewConfig.filter = [parentClause, ...(viewConfig.filter ?? [])];
+    // The parent clause is a second clause, so a view-global OR from the
+    // quick-filter fast path would WIDEN the level to the whole book.
+    delete viewConfig.filter_op;
+    if (opts.columns) {
+      viewConfig.columns = opts.columns.includes(opts.keyColumn)
+        ? [...opts.columns]
+        : [opts.keyColumn, ...opts.columns];
+      // The parent column drives the NEXT level's read and the
+      // has-children stamp, so it must survive a narrowed projection.
+      if (!viewConfig.columns.includes(parentField)) viewConfig.columns.push(parentField);
+    }
+    const sort = rowsSort(request);
+    if (sort.length > 0) viewConfig.sort = sort;
+    pruneUnreferencedCalc(viewConfig, calcNamesOf(opts));
+    return {
+      kind: 'rows',
+      viewConfig,
+      key: canonicalViewKey(viewConfig),
+      route,
+      unsupportedFilters: unsupported,
+    };
+  }
+
   // Tree mode: AG tree requests carry NO rowGroupCols — the configured
   // path fields decide whether this route still has group levels below.
   const treeFields = request.rowGroupCols.length === 0 ? (opts.treePathFields ?? []) : [];
