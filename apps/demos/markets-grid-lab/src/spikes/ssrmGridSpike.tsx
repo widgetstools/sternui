@@ -386,6 +386,17 @@ interface SsrmGridSpikeProbes {
   sortBy: (colId: string, dir: 'asc' | 'desc' | null) => void;
   /** P4a — group by a column (sum PnL/MV ride along); null clears. */
   groupBy: (colId: string | null) => void;
+  /** Multi-level grouping with explicit aggregations (level order is fixed). */
+  groupByLevels: (
+    colIds: string[],
+    valueCols: Array<{ colId: string; aggFunc: string }>,
+  ) => void;
+  /** Jump the viewport to a row index (loads blocks → MRU pressure). */
+  scrollToIndex: (i: number) => void;
+  /** Rendered cell TEXT at a displayed row index — DOM, not row model. */
+  renderedCell: (rowIndex: number, colId: string) => string | null;
+  /** Count of painted `.ag-row` elements. */
+  renderedRowCount: () => number;
   /** P4a — displayed row data + group metadata at an index. */
   displayedRow: (i: number) => Record<string, unknown> | null;
   /** P4a — expand/collapse the displayed row at an index. */
@@ -810,6 +821,44 @@ async function main(): Promise<void> {
         defaultState: { rowGroup: false, aggFunc: null },
       });
     },
+    groupByLevels: (colIds, valueCols) => {
+      const api = window.__ssrmGridSpike.api;
+      if (!api) return;
+      api.applyColumnState({
+        state: [
+          // `rowGroupIndex` (not just `rowGroup`) so the LEVEL ORDER is
+          // deterministic — with plain `rowGroup: true` the order falls
+          // out of column order, which is not what a multi-level tick
+          // test can rely on.
+          ...colIds.map((colId, index) => ({ colId, rowGroup: true, rowGroupIndex: index })),
+          // PINNED LEFT on purpose: AG virtualizes columns horizontally,
+          // so on a wide book (cols=all is ~160 columns) an aggregated
+          // column sits outside the render window and is absent from the
+          // DOM entirely. A probe that reads painted cells would find
+          // nothing. Pinning keeps them rendered at any scroll position.
+          ...valueCols.map((v) => ({ colId: v.colId, aggFunc: v.aggFunc, pinned: 'left' as const })),
+        ],
+        defaultState: { rowGroup: false, rowGroupIndex: null, aggFunc: null, pinned: null },
+      });
+    },
+    /**
+     * Jump the viewport to a row index, loading whatever blocks that
+     * needs. Used to generate MRU pressure: the tick sweep only refetches
+     * the most-recently-used blocks, so churning leaf blocks is what
+     * evicts a group level from the sweep window.
+     */
+    scrollToIndex: (i) => {
+      window.__ssrmGridSpike.api?.ensureIndexVisible(i, 'top');
+    },
+    /** Rendered CELL TEXT for a displayed row — the DOM, not the model. */
+    renderedCell: (rowIndex, colId) => {
+      const cell = document.querySelector(
+        `.ag-row[row-index="${rowIndex}"] [col-id="${colId}"]`,
+      );
+      return cell ? (cell.textContent ?? '') : null;
+    },
+    /** How many `.ag-row` elements are actually painted right now. */
+    renderedRowCount: () => document.querySelectorAll('.ag-row').length,
     displayedRow: (i) => {
       const node = window.__ssrmGridSpike.api?.getDisplayedRowAtIndex(i);
       if (!node) return null;

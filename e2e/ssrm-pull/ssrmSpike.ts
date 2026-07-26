@@ -122,6 +122,10 @@ interface SpikeProbes {
   viewportColumn(colId: string, n?: number): unknown[];
   sortBy(colId: string, dir: 'asc' | 'desc' | null): void;
   groupBy(colId: string | null): void;
+  groupByLevels(colIds: string[], valueCols: Array<{ colId: string; aggFunc: string }>): void;
+  scrollToIndex(i: number): void;
+  renderedCell(rowIndex: number, colId: string): string | null;
+  renderedRowCount(): number;
   displayedRow(i: number): Record<string, unknown> | null;
   expandDisplayedRow(i: number, expanded: boolean): void;
   grandTotalData(): Record<string, unknown> | null;
@@ -190,6 +194,124 @@ export function groupBy(page: Page, colId: string | null): Promise<void> {
     (c) => (window as never as SpikeWindow).__ssrmGridSpike.groupBy(c),
     colId,
   );
+}
+
+/** Multi-level grouping with explicit aggregations; level order is fixed. */
+export function groupByLevels(
+  page: Page,
+  colIds: string[],
+  valueCols: Array<{ colId: string; aggFunc: string }>,
+): Promise<void> {
+  return page.evaluate(
+    (a: { colIds: string[]; valueCols: Array<{ colId: string; aggFunc: string }> }) =>
+      (window as never as SpikeWindow).__ssrmGridSpike.groupByLevels(a.colIds, a.valueCols),
+    { colIds, valueCols },
+  );
+}
+
+/**
+ * Rendered cell TEXT at a displayed row index.
+ *
+ * Deliberately the DOM and not `getDisplayedRowAtIndex().data`: this repo
+ * has been burned by a row MODEL that read correctly while the screen
+ * painted stale values, so a ticking assertion is only worth anything if
+ * it reads what the user sees.
+ */
+export function renderedCell(
+  page: Page,
+  rowIndex: number,
+  colId: string,
+): Promise<string | null> {
+  return page.evaluate(
+    (a: { rowIndex: number; colId: string }) =>
+      (window as never as SpikeWindow).__ssrmGridSpike.renderedCell(a.rowIndex, a.colId),
+    { rowIndex, colId },
+  );
+}
+
+/**
+ * Churn leaf blocks by jumping the viewport around.
+ *
+ * This is the PRECONDITION for the group-level starvation bug, not
+ * decoration: the tick sweep refetches only the most-recently-used
+ * blocks, so a group level only falls out of that window once enough
+ * leaf blocks have been loaded. Without this a spec passes even with the
+ * bug reintroduced — verified.
+ */
+export async function churnLeafBlocks(
+  page: Page,
+  indices: number[],
+  settleMs = 350,
+): Promise<void> {
+  for (const index of indices) {
+    await page.evaluate(
+      (i) => (window as never as SpikeWindow).__ssrmGridSpike.scrollToIndex(i),
+      index,
+    );
+    await page.waitForTimeout(settleMs);
+  }
+}
+
+export function renderedRowCount(page: Page): Promise<number> {
+  return page.evaluate(() =>
+    (window as never as SpikeWindow).__ssrmGridSpike.renderedRowCount(),
+  );
+}
+
+/**
+ * Wait until a rendered cell has non-empty text, and return it.
+ *
+ * A group row is painted before its aggregate arrives, so reading the
+ * cell the moment the row exists yields "". Waiting for a real value
+ * also makes the tick assertion below meaningful — "" -> "123" is a
+ * first paint, not a tick.
+ */
+export async function waitForCellText(
+  page: Page,
+  rowIndex: number,
+  colId: string,
+  opts: { timeoutMs?: number; label?: string } = {},
+): Promise<string> {
+  return pollUntil(
+    async () => {
+      const text = await renderedCell(page, rowIndex, colId);
+      return text !== null && text.trim() !== '' ? text : null;
+    },
+    {
+      timeoutMs: opts.timeoutMs ?? 60_000,
+      intervalMs: 200,
+      label: opts.label ?? `cell(${rowIndex}, ${colId}) never painted a value`,
+    },
+  );
+}
+
+/**
+ * Wait until a rendered cell's text CHANGES from what it is now, and
+ * return both values. This is the live-ticking assertion: it proves the
+ * painted aggregate moved, not merely that a transaction was issued.
+ */
+export async function waitForCellToTick(
+  page: Page,
+  rowIndex: number,
+  colId: string,
+  opts: { timeoutMs?: number; label?: string } = {},
+): Promise<{ before: string; after: string }> {
+  // Anchor on a REAL value, so a first paint cannot be mistaken for a tick.
+  const before = await waitForCellText(page, rowIndex, colId, {
+    timeoutMs: opts.timeoutMs ?? 45_000,
+  });
+  const after = await pollUntil(
+    async () => {
+      const now = await renderedCell(page, rowIndex, colId);
+      return now !== null && now !== before ? now : null;
+    },
+    {
+      timeoutMs: opts.timeoutMs ?? 45_000,
+      intervalMs: 250,
+      label: opts.label ?? `cell(${rowIndex}, ${colId}) never changed from "${before}"`,
+    },
+  );
+  return { before, after };
 }
 
 export function expandDisplayedRow(page: Page, i: number, expanded: boolean): Promise<void> {
