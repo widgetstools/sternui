@@ -787,11 +787,24 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         .filter((entry) => sweepSet.has(`${plan.key}#${entry.startRow}`));
       if (entries.length === 0) continue;
       const idField = plan.kind === 'group-level' ? GROUP_ID_FIELD : keyColumn;
-      // ONE lease for the plan's whole slice of the sweep. tryWithView
-      // never creates and never refreshes recency, so a background sweep
-      // cannot resurrect (or keep alive) a shape the user left behind —
-      // but for as long as it IS reading, the view cannot be deleted.
-      const aborted = await viewCache.tryWithView(plan.key, async (view) => {
+      // ONE lease for the plan's whole slice of the sweep.
+      //
+      // GROUP levels are re-ACQUIRED (`withPlanView`): their rows are the
+      // aggregates on screen, so the view is a live requirement. Peeking
+      // never refreshed recency, so a group level could drift to LRU,
+      // get evicted, and then stop ticking for good — nothing recreates
+      // it while the user just watches. Re-acquiring also keeps it MRU,
+      // so in steady state it is never the eviction victim and the
+      // recreate cost is not actually paid.
+      //
+      // LEAF plans stay on `tryWithView`: never create, never refresh
+      // recency, so a background sweep cannot resurrect or pin a shape
+      // the user has scrolled away from.
+      const sweepPlan = async (use: (view: PullView) => Promise<boolean>): Promise<boolean | undefined> =>
+        plan.kind === 'group-level'
+          ? withPlanView(plan.key, plan.viewConfig, false, use)
+          : viewCache.tryWithView(plan.key, use);
+      const aborted = await sweepPlan(async (view) => {
         for (const { startRow, block } of entries) {
           let read: { rows: Record<string, unknown>[]; total: number };
           try {
@@ -868,11 +881,21 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     if (!rollup || !api || destroyed) return;
     let totals: Record<string, unknown> | null | undefined;
     try {
-      totals = await viewCache.tryWithView(rollup.key, (view) => readRollupRow(view));
+      // withPlanView, NOT tryWithView. While a grand total is on screen
+      // the rollup is a LIVE REQUIREMENT, not an optional cache entry.
+      // Peeking never refreshed its recency, so the rollup drifted to
+      // LRU while group and leaf views were re-acquired on every read —
+      // and once evicted nothing recreated it, because AG issues no
+      // further ROOT load while the user simply watches ticks. The total
+      // then froze for the rest of the session. Re-acquiring here both
+      // recreates it if needed and keeps it warm.
+      totals = await withPlanView(rollup.key, rollup.viewConfig, false, (view) =>
+        readRollupRow(view),
+      );
     } catch {
       return;
     }
-    if (totals === undefined) return; // shape no longer cached
+    if (totals === undefined) return;
     if (!totals || destroyed || generation !== requestGen || !api) return;
     const node = api.getRowNode(GRAND_TOTAL_ROW_ID);
     if (!node) return;

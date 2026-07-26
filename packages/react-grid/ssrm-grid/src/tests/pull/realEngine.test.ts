@@ -230,7 +230,10 @@ describe('pull datasource against a REAL Perspective engine', () => {
     disposers = [];
   });
 
-  const harness = async (rows = 201) => {
+  const harness = async (
+    rows = 201,
+    overrides: Partial<Parameters<typeof createSsrmPullDatasource>[0]> = {},
+  ) => {
     const connection = await realConnection(rows);
     disposers.push(() => connection.dispose());
     const api = fakeApi();
@@ -243,6 +246,7 @@ describe('pull datasource against a REAL Perspective engine', () => {
       seedCountRefreshMs: 0,
       weightedAggregates: { pnl: 'quantity' },
       warn: () => undefined,
+      ...overrides,
     });
     disposers.push(async () => {
       ds.destroy();
@@ -731,6 +735,110 @@ describe('pull datasource against a REAL Perspective engine', () => {
     // Third level.
     const grandkids = await load(ds, api, { groupKeys: ['R1', 'R1a'] } as never);
     expect(grandkids.rowData.map((r) => r.positionId)).toEqual(['R1a1']);
+    ds.destroy();
+  });
+
+  it('grand total ticks WITH projectDisplayedColumns enabled (as the spike runs)', async () => {
+    // The spike now sets projectDisplayedColumns. Every existing
+    // grand-total test runs without it, so this is the untested
+    // combination — single-level grouping + grand total + narrowed
+    // projection, i.e. exactly the screenshot.
+    const connection = await realConnection(201);
+    disposers.push(() => connection.dispose());
+    const api = fakeApi();
+    api.displayedColumns = ['bookName', 'pnl']; // group col + one measure
+    const ds = createSsrmPullDatasource({
+      connection,
+      keyColumn: 'positionId',
+      projectDisplayedColumns: true,
+      quickFilterDebounceMs: 0,
+      tickRefreshMs: 0,
+      warn: () => undefined,
+    });
+    disposers.push(async () => ds.destroy());
+
+    await load(ds, api, GROUP_REQ as never, { needsGrandTotal: true });
+    const node = api.seedNode(GRAND_TOTAL_ROW_ID, { pnl: 0 });
+
+    await connection.bump('P7', { pnl: 987_654 });
+    await new Promise((r) => setTimeout(r, 200));
+
+    expect(node.data.pnl).not.toBe(0);
+  });
+
+  it('grand total ticks on a WIDE book (the sweep gate degrades, the total must not stop)', async () => {
+    // The spike now defaults to cols=all (~160 columns), which crosses
+    // wideColumnThreshold. That degrades the sweep throttle and the MRU
+    // window — but the grand total is one tiny rollup read and must keep
+    // up regardless.
+    const { connection, api, ds } = await harness(201, {
+      wideColumnThreshold: 3, // seed rows are 6 columns → WIDE
+      sweepThrottleWideMs: 50, // keep the test quick; still the wide path
+    });
+    await load(ds, api, GROUP_REQ as never, { needsGrandTotal: true });
+    const node = api.seedNode(GRAND_TOTAL_ROW_ID, { pnl: 0 });
+
+    await connection.bump('P7', { pnl: 987_654 });
+    await new Promise((r) => setTimeout(r, 400));
+
+    expect(node.data.pnl).not.toBe(0);
+    ds.destroy();
+  });
+
+  it('grand total survives view-cache pressure (the rollup must not be evicted for good)', async () => {
+    // refreshGrandTotal only PEEKS the rollup view, and peeking does not
+    // refresh recency — so while group and leaf views are re-acquired on
+    // every read, the rollup drifts to LRU. Once evicted nothing
+    // recreates it (AG issues no new root load while you just watch
+    // ticks), and the total is frozen for the rest of the session.
+    const { connection, api, ds } = await harness(2000, { maxViews: 3 });
+    await load(ds, api, GROUP_REQ as never, { needsGrandTotal: true });
+    const node = api.seedNode(GRAND_TOTAL_ROW_ID, { pnl: 0 });
+
+    // Ordinary browsing: expand a few groups. Each distinct route is
+    // another view, pushing the rollup out of the pool. Deliberately NO
+    // further ROOT load afterwards — a root load re-arms the rollup and
+    // would mask the leak; while the user just watches ticks, AG issues
+    // none.
+    for (const key of ['ALPHA', 'BETA', 'ALPHA']) {
+      await load(ds, api, { ...GROUP_REQ, groupKeys: [key] } as never);
+    }
+
+    await connection.bump('P7', { pnl: 555_000 });
+    await new Promise((r) => setTimeout(r, 250));
+
+    expect(node.data.pnl).not.toBe(0);
+    ds.destroy();
+  });
+
+  it('group levels keep ticking under view-cache pressure too', async () => {
+    // Same defect class as the grand total: a group-level view that got
+    // evicted was only PEEKED by the sweep, so that level went silent
+    // for good. Group rows are on-screen aggregates — the view is a live
+    // requirement.
+    const { connection, api, ds } = await harness(2000, { maxViews: 3 });
+    const TWO_LEVEL = {
+      rowGroupCols: [
+        { id: 'bookName', displayName: 'Book', field: 'bookName' },
+        { id: 'trader', displayName: 'Trader', field: 'trader' },
+      ],
+      valueCols: [{ id: 'pnl', displayName: 'PnL', field: 'pnl', aggFunc: 'sum' }],
+    } as Partial<IServerSideGetRowsRequest>;
+
+    await load(ds, api, TWO_LEVEL as never); // root group level
+    await load(ds, api, { ...TWO_LEVEL, groupKeys: ['ALPHA'] } as never); // mid level
+    // Churn leaf views until the group-level views are evicted.
+    for (const trader of ['jdoe', 'asmith', 'jdoe']) {
+      await load(ds, api, { ...TWO_LEVEL, groupKeys: ['ALPHA', trader] } as never);
+    }
+    const before = api.transactions.length;
+
+    await connection.bump('P15', { pnl: 321_000 });
+    await new Promise((r) => setTimeout(r, 250));
+
+    const fresh = api.transactions.slice(before);
+    expect(fresh.filter((t) => t.route?.length === 0 && t.update?.length).length).toBeGreaterThan(0);
+    expect(fresh.filter((t) => t.route?.length === 1 && t.update?.length).length).toBeGreaterThan(0);
     ds.destroy();
   });
 
