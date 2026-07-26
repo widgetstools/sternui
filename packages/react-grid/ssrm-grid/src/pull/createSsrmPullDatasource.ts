@@ -214,10 +214,8 @@ export interface SsrmPullDatasourceStats {
   refreshReads: number;
   /** Neighbor blocks prefetched after a cold miss. */
   prefetchReads: number;
-  /** Async results dropped by the generation/plan-epoch fences. */
+  /** Async reads re-planned because the generation/query shape moved. */
   droppedStale: number;
-  /** Full-row-DOM rebuilds issued by the shrink path. */
-  redraws: number;
   /** Sweep cycles deferred because the user was scrolling / a miss was in flight. */
   sweepDeferrals: number;
   /** `getRows` calls that exhausted their re-plan attempts and answered stale. */
@@ -309,7 +307,6 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     refreshReads: 0,
     prefetchReads: 0,
     droppedStale: 0,
-    redraws: 0,
     sweepDeferrals: 0,
     serveExhausted: 0,
   };
@@ -567,6 +564,10 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     const now = connection.state;
     // AG error #28: setRowCount is forbidden while row grouping is
     // active — group/child store counts ride on load successes instead.
+    // GROWTH ONLY (see growFlatRootCount): live ticks insert keys, and a
+    // fully-loaded store issues no further getRows to carry the count.
+    // A shrink here would strand orphan nodes; it is left to the next
+    // load's `success({rowCount})`, which cleans up properly.
     if (
       rootTotal !== null &&
       rootPlan?.kind === 'rows' &&
@@ -574,7 +575,7 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       now.generation === requestGen &&
       planEpoch === requestEpoch
     ) {
-      enforceFlatRootCount(api, rootTotal);
+      growFlatRootCount(api, rootTotal);
     }
     await refreshGrandTotal(requestGen);
     prunePlans();
@@ -626,7 +627,10 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     // group-view reads) and AG forbids setRowCount outright (error #28).
     if (rootPlan?.kind !== 'rows') return;
     if (snap.generation === generation && snap.phase === 'seeding') {
-      api.setRowCount(snap.rowCount, false);
+      // One-arg growth: the seed only ever adds rows, and the two-arg
+      // `false` variant would ALSO add a phantom discovery row
+      // (`numberOfRows = n; numberOfRows += 1`).
+      growFlatRootCount(api, snap.rowCount);
     }
   }, opts.seedCountRefreshMs ?? 200);
 
@@ -873,43 +877,38 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       succeed({ rowData: rows, rowCount: total, ...extra });
       return;
     }
-    if (snap.phase === 'seeding' && isFlatRoot(plan)) {
-      succeed({ rowData: rows, ...extra });
-      // An under-filled block makes AG's lazy cache mark the row count
-      // final — reopen it; the seed is still growing the book.
-      params.api.setRowCount(total, false);
-      return;
-    }
-    // Group-level and routed child stores always finalize with the
-    // view's exact count — a count that grows mid-seed is refreshed by
-    // the seeding→live no-purge refresh (and by later user loads).
+    // `rowCount` on EVERY success is the whole resize strategy. In AG 36
+    // a success carrying rowCount is an UNGATED assignment followed by
+    // the past-the-end node cleanup, so the store self-corrects in both
+    // directions AND sheds orphan nodes. `setRowCount` does neither: it
+    // never cleans up (in either variant), and the `true` variant arms
+    // the sort deadlock. So this datasource no longer resizes with it —
+    // growth between loads goes through the one-arg form only.
     succeed({ rowData: rows, rowCount: total, ...extra });
-    // Flat root at live/empty: ENFORCE the count. AG's lazy store never
-    // SHRINKS from a success rowCount alone (a soft refresh after a
-    // quick-filter change left the scrollbar on the unfiltered total),
-    // and never grows from one either once marked final. setRowCount is
-    // authoritative both ways and legal only here (AG #28 under grouping).
-    if (isFlatRoot(plan)) enforceFlatRootCount(params.api, total);
+    if (isFlatRoot(plan)) lastRootTotal = total;
   }
 
   /**
-   * setRowCount + stale-DOM cleanup. Shrinking the row MODEL does not
-   * remove already-RENDERED row DOM (field report: quick filter "did
-   * nothing" — the API said 1 row while the screen still painted the
-   * whole unfiltered book). On shrink, redrawRows() rebuilds the row DOM
-   * from the model. SHRINK-ONLY, judged against the last total THIS
-   * datasource delivered — never against `getDisplayedRowCount()`,
-   * which counts footer/loading rows and would over-fire the (full-DOM,
-   * expensive) redraw on the steady serve-then-refresh path.
+   * GROWTH-ONLY resize between loads — the live feed adds keys without
+   * any user action, and a fully-loaded known store issues no further
+   * `getRows` (no stubs), so nothing would otherwise carry the new
+   * total. The ONE-ARG form is the only count channel that leaves
+   * `isLastRowKnown` untouched (`if (isLastRowIndexKnown != null)`
+   * skips the whole flag block), so it can neither arm the sort
+   * deadlock nor reopen a finalized store.
+   *
+   * SHRINKS ARE NEVER APPLIED HERE. `setRowCount` performs no
+   * past-the-end node cleanup in EITHER variant, so shrinking through
+   * it strands orphan nodes and drives `setDisplayIndexes` to a
+   * negative skip count — stale painted rows over a correct model.
+   * Shrink is owned by `success({rowCount})` (which does clean up) and
+   * by the purge on membership change.
    */
-  function enforceFlatRootCount(gridApi: GridApi, total: number): void {
+  function growFlatRootCount(gridApi: GridApi, total: number): void {
     const before = lastRootTotal;
+    if (before !== null && total <= before) return;
     lastRootTotal = total;
-    gridApi.setRowCount(total, true);
-    if (before !== null && total < before) {
-      stats.redraws += 1;
-      (gridApi as { redrawRows?: () => void }).redrawRows?.();
-    }
+    gridApi.setRowCount(total);
   }
 
   /** Serve-then-refresh: replace a cache-hit block with a fresh read. */
@@ -933,18 +932,16 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     blockCache.set(plan.key, startRow, { ...read, generation: requestGen, endRow });
     // Index-addressed replacement: fills, reorders and updates the
     // block in place — loaded rows stay visible (never a purge).
-    const seedingFlatRoot = snap.phase === 'seeding' && isFlatRoot(plan);
+    // `rowCount` rides along here too: applyServerSideRowData passes
+    // `expectedRows = rowData.length`, so the short-block "last row
+    // known" inference can never misfire from it, and the count keeps
+    // the store self-correcting (and orphan-free) in both directions.
     api.applyServerSideRowData({
       startRow,
       route: plan.route,
-      successParams: seedingFlatRoot
-        ? { rowData: read.rows }
-        : { rowData: read.rows, rowCount: read.total },
+      successParams: { rowData: read.rows, rowCount: read.total },
     });
-    // Flat root: keep the store count authoritative on refreshes too —
-    // shrink (filter narrowed) and growth (live inserts) both apply.
-    if (seedingFlatRoot) api.setRowCount(read.total, false);
-    else if (isFlatRoot(plan)) enforceFlatRootCount(api, read.total);
+    if (isFlatRoot(plan)) lastRootTotal = read.total;
   }
 
   return {
@@ -1003,15 +1000,24 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         // Epoch fence: every in-flight read for the pre-change shape is
         // now stale — bump BEFORE the refresh so none of them can paint.
         planEpoch += 1;
-        // FLAT store: refresh SOFT — rows morph in place (no stub blank),
-        // and finishLoad/refreshBlock enforce the shrunken/grown count via
-        // setRowCount (a soft refresh alone never resizes the lazy store).
-        // GROUPED/TREE store: purge — group membership/counts change
-        // structurally and setRowCount is forbidden under grouping (AG #28).
-        // An armed rollup rebuilds on the next root load either way.
-        const grouped =
-          (lastRootRequest?.rowGroupCols?.length ?? 0) > 0
-          || (opts.treePathFields?.length ?? 0) > 0;
+        // PURGE — for flat stores too. A quick-filter change is a
+        // MEMBERSHIP change, so every cached block index is meaningless
+        // and this is exactly what AG's own column-filter path does
+        // (`refreshAfterFilter` -> `refreshStore(true)`). It costs ONE
+        // request instead of one per cached block.
+        //
+        // The previous soft-refresh-plus-`setRowCount(n, true)` pairing
+        // was the worst of both: `setRowCount` performs no past-the-end
+        // node cleanup, so the shrink stranded orphan rows and drove
+        // negative display indices (the "filter did nothing, the whole
+        // book is still painted" report — treated then with a
+        // `redrawRows()` band-aid), AND it armed the sort deadlock,
+        // because `refreshAfterSort` preserves `isLastRowKnown`.
+        //
+        // Visible cost, accepted: loading rows flash and the viewport
+        // lands at the top (the store collapses to one row, so the
+        // browser clamps scrollTop — AG issues no scroll call).
+        //
         // Pre-warm the NEW shape's view while AG spins up its refresh
         // cycle: building the quick-filter expression view over the
         // whole book is the long pole of the first post-change read —
@@ -1020,7 +1026,7 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         // loads reuse this very view.)
         const warmPlan = buildQueryPlan(lastRootRequest ?? EMPTY_ROOT_REQUEST, planOpts());
         void acquireView(warmPlan.key, warmPlan.viewConfig, true).catch(() => undefined);
-        api?.refreshServerSide({ purge: grouped });
+        api?.refreshServerSide({ route: [], purge: true });
       };
       const debounceMs = opts.quickFilterDebounceMs ?? 150;
       if (debounceMs <= 0) apply();

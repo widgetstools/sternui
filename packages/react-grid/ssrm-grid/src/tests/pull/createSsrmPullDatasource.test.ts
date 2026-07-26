@@ -196,7 +196,13 @@ describe('createSsrmPullDatasource', () => {
     ds.destroy();
   });
 
-  it('NEVER finalizes while seeding: success without rowCount + reopened count', async () => {
+  // rowCount rides EVERY success (AG 36: an ungated assignment followed
+  // by the past-the-end node cleanup, so the store self-corrects in both
+  // directions and sheds orphans). Growth between loads uses the ONE-ARG
+  // setRowCount — the only count channel that leaves `isLastRowKnown`
+  // untouched, so it can neither arm the sort deadlock nor append the
+  // phantom discovery row the two-arg `false` variant adds.
+  it('sends rowCount on every success, including mid-seed', async () => {
     const connection = new FakeConnection();
     connection.table.rows = seedRows(37); // partial seed so far
     connection.emit({ phase: 'seeding', rowCount: 37, generation: 1 });
@@ -207,13 +213,13 @@ describe('createSsrmPullDatasource', () => {
     await flush();
     const arg = params.success.mock.calls[0]![0] as { rowData: Row[]; rowCount?: number };
     expect(arg.rowData).toHaveLength(37);
-    expect('rowCount' in arg).toBe(false);
-    // the under-filled block finalizes AG's lazy count — must be reopened
-    expect(api.calls.setRowCount).toContainEqual([37, false]);
+    expect(arg.rowCount).toBe(37);
+    // never the trap form
+    expect(api.calls.setRowCount.some(([, known]) => known === true)).toBe(false);
     ds.destroy();
   });
 
-  it('grows the AG row count from seeding DatasetState events', async () => {
+  it('grows the AG row count from seeding events via the one-arg form', async () => {
     const connection = new FakeConnection();
     connection.table.rows = seedRows(10);
     connection.emit({ phase: 'seeding', rowCount: 10, generation: 1 });
@@ -223,7 +229,27 @@ describe('createSsrmPullDatasource', () => {
     await flush();
     connection.emit({ phase: 'seeding', rowCount: 5000, generation: 1 });
     await flush();
-    expect(api.calls.setRowCount).toContainEqual([5000, false]);
+    expect(api.calls.setRowCount).toContainEqual([5000, undefined]);
+    ds.destroy();
+  });
+
+  it('never SHRINKS through setRowCount (it strands orphan row nodes)', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = seedRows(500);
+    connection.emit(liveState(500, 1));
+    const ds = makeDatasource(connection);
+    const api = fakeApi();
+    ds.getRows(loadParams(api));
+    await flush();
+    // The book collapses. The count must come down through
+    // success({rowCount}) — which runs AG's past-the-end cleanup — and
+    // never through setRowCount, which performs no cleanup in either
+    // variant and leaves orphans driving negative display indices.
+    connection.table.rows = seedRows(4);
+    connection.emit(liveState(4, 1));
+    ds.getRows(loadParams(api, { startRow: 0, endRow: 100 }));
+    await flush();
+    expect(api.calls.setRowCount.filter(([n]) => n < 500)).toEqual([]);
     ds.destroy();
   });
 
@@ -369,7 +395,27 @@ describe('createSsrmPullDatasource', () => {
     expect(api.calls.transactions[0]!.route).toEqual([]);
     expect(api.calls.refreshes).toEqual([]); // no purge path ever taken
     expect(params.success).toHaveBeenCalledTimes(1); // block not re-served
-    expect(api.calls.setRowCount).toContainEqual([50, true]);
+    // Steady tick, count unchanged → no resize at all. The sweep only
+    // ever GROWS the count, and never through the trap form.
+    expect(api.calls.setRowCount).toEqual([]);
+    ds.destroy();
+  });
+
+  it('grows the flat root count from a tick that adds keys', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = seedRows(50);
+    connection.emit(liveState(50));
+    const ds = makeDatasource(connection);
+    const api = fakeApi();
+    ds.getRows(loadParams(api, { startRow: 0, endRow: 50 }));
+    await flush();
+
+    connection.table.rows = seedRows(70); // live inserts
+    connection.emit(liveState(70));
+    connection.table.views[0]!.fireUpdate();
+    await flush();
+
+    expect(api.calls.setRowCount).toContainEqual([70, undefined]); // one-arg
     ds.destroy();
   });
 
@@ -613,7 +659,7 @@ describe('createSsrmPullDatasource', () => {
 
   // ─── P4a: quick filter + distinct values ─────────────────────────
 
-  it('folds the quick filter into the plan and refreshes without purging', async () => {
+  it('folds the quick filter into the plan and PURGES the root store', async () => {
     const connection = new FakeConnection();
     connection.table.rows = bookRows(9);
     connection.emit(liveState(9));
@@ -623,10 +669,10 @@ describe('createSsrmPullDatasource', () => {
     await flush();
 
     ds.setQuickFilter('bookA');
-    // FLAT store → SOFT refresh (rows morph in place); the count is
-    // enforced by finishLoad's setRowCount, not by the refresh itself
-    // (a soft refresh alone never resizes AG's lazy store).
-    expect(api.calls.refreshes).toEqual([{ purge: false }]);
+    // A quick-filter change is a MEMBERSHIP change: every cached block
+    // index is meaningless, so the root store is purged — the same thing
+    // AG's own column-filter path does. One request, not one per block.
+    expect(api.calls.refreshes).toEqual([{ route: [], purge: true }]);
     const params = loadParams(api); // the refresh re-issues getRows
     ds.getRows(params);
     await flush();
@@ -672,18 +718,18 @@ describe('createSsrmPullDatasource', () => {
       expect(api.calls.refreshes).toEqual([]); // nothing applied mid-typing
 
       vi.advanceTimersByTime(200); // trailing edge
-      expect(api.calls.refreshes).toEqual([{ purge: false }]); // exactly one (flat → soft)
+      expect(api.calls.refreshes).toEqual([{ route: [], purge: true }]); // exactly one
 
       // Re-setting the SAME settled value must not refresh again.
       ds.setQuickFilter('BOOK003');
       vi.advanceTimersByTime(300);
-      expect(api.calls.refreshes).toEqual([{ purge: false }]);
+      expect(api.calls.refreshes).toEqual([{ route: [], purge: true }]);
 
       // destroy() cancels a pending apply.
       ds.setQuickFilter('other');
       ds.destroy();
       vi.advanceTimersByTime(300);
-      expect(api.calls.refreshes).toEqual([{ purge: false }]);
+      expect(api.calls.refreshes).toEqual([{ route: [], purge: true }]);
     } finally {
       vi.useRealTimers();
     }
@@ -1034,7 +1080,12 @@ describe('createSsrmPullDatasource', () => {
     ds.destroy();
   });
 
-  it('redraws row DOM only on a REAL count shrink (never on the steady tick path)', async () => {
+  it('narrows via success({rowCount}) alone — no setRowCount, no redrawRows', async () => {
+    // Previously a shrink went through setRowCount(n, true) plus a
+    // redrawRows() band-aid: setRowCount does no past-the-end node
+    // cleanup, so orphan nodes survived and painted over a correct
+    // model, and the `true` flag armed the sort deadlock. The shrink now
+    // rides success({rowCount}), which cleans up on AG's own path.
     const connection = new FakeConnection();
     connection.table.rows = seedRows(100);
     connection.emit(liveState(100));
@@ -1046,22 +1097,18 @@ describe('createSsrmPullDatasource', () => {
     await flush();
     connection.table.fireAll(); // steady tick — total unchanged
     await flush();
+
+    // filter narrows the set → the count shrinks
+    const narrowed = loadParams(api, {
+      filterModel: { pnl: { filterType: 'number', type: 'greaterThan', filter: 90 } },
+    });
+    ds.getRows(narrowed);
+    await flush();
+
+    const arg = narrowed.success.mock.calls[0]![0] as { rowCount?: number };
+    expect(arg.rowCount).toBe(9); // pnl 91..99
     expect(redrawRows).not.toHaveBeenCalled();
-    expect(ds.getStats().redraws).toBe(0);
-
-    // filter narrows the set → count shrinks → one redraw (stale-DOM cleanup)
-    ds.getRows(
-      loadParams(api, {
-        filterModel: { pnl: { filterType: 'number', type: 'greaterThan', filter: 90 } },
-      }),
-    );
-    await flush();
-    expect(ds.getStats().redraws).toBe(1);
-
-    // widening back → count grows → NO redraw
-    ds.getRows(loadParams(api));
-    await flush();
-    expect(ds.getStats().redraws).toBe(1);
+    expect(api.calls.setRowCount.filter(([n]) => n < 100)).toEqual([]);
     ds.destroy();
   });
 });
