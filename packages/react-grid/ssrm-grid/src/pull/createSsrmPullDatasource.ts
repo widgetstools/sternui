@@ -287,6 +287,14 @@ interface TickSubscription {
 const MAX_SERVE_ATTEMPTS = 4;
 
 /**
+ * Blocks of the CURRENT root route that always join the tick sweep, on
+ * top of the global MRU window. Under grouping these carry the group
+ * aggregates, which are usually a single block — small enough to
+ * guarantee, and the thing users notice first when it goes stale.
+ */
+const ROOT_SWEEP_RESERVE = 2;
+
+/**
  * Deep-copy an AG request. `IServerSideGetRowsRequest` handed to the
  * datasource is a live reference into the grid's ONE mutable
  * `ssrmParams` object, which AG's sort/filter listeners rewrite in
@@ -555,6 +563,12 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     if (sinceScroll < scrollSettleMs || pendingMissReads > 0) {
       stats.sweepDeferrals += 1;
       scheduleSettleSweep(scrollSettleMs - sinceScroll);
+      // The BLOCK sweep defers — but the grand total does not. It is a
+      // single one-row read off an already-built rollup view, and it is
+      // the most visible number on the screen. Leaving it behind the
+      // sweep's scroll/miss budget froze it for as long as the user kept
+      // scrolling or blocks kept loading.
+      await refreshGrandTotal(generation);
       return;
     }
     const requestGen = generation;
@@ -569,6 +583,24 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         .recentEntries(requestGen, gate.maxSweepBlocks)
         .map((entry) => `${entry.viewKey}#${entry.startRow}`),
     );
+    // GROUP-LEVEL root blocks always sweep, on top of the MRU window.
+    // The root store then holds the GROUP rows — the aggregates the user
+    // is actually watching — and they are typically one block, but the
+    // MRU window is global: scrolling leaves inside an expanded group
+    // pushed that block out and the group totals silently stopped
+    // repainting ("sometimes the sub-group totals tick"). Bounded by
+    // ROOT_SWEEP_RESERVE so a wide book cannot pay for the whole store.
+    //
+    // Deliberately NOT done for a flat root: there the root blocks ARE
+    // the viewport blocks and are already MRU, so reserving would only
+    // drag the OLDEST blocks back in and defeat the wide-book gate.
+    if (rootPlan?.kind === 'group-level') {
+      for (const entry of blockCache
+        .entriesFor(rootPlan.key, requestGen)
+        .slice(0, ROOT_SWEEP_RESERVE)) {
+        sweepSet.add(`${rootPlan.key}#${entry.startRow}`);
+      }
+    }
     let rootTotal: number | null = null;
     for (const plan of planByKey.values()) {
       const entries = blockCache
@@ -607,7 +639,10 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         }
         return false;
       });
-      if (aborted) return;
+      // The block sweep gives up (generation or query shape moved), but
+      // the grand total is read against the CURRENT state below, so it
+      // must not be skipped with it.
+      if (aborted) break;
     }
     const now = connection.state;
     // AG error #28: setRowCount is forbidden while row grouping is

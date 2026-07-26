@@ -15,6 +15,7 @@
  */
 
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
+import { GRAND_TOTAL_ROW_ID } from 'ag-grid-community';
 import type { GridApi, IServerSideGetRowsParams, IServerSideGetRowsRequest } from 'ag-grid-community';
 import type { DatasetStateSnapshot } from '@starui/host-data/runtime/ssrm';
 import { createSsrmPullDatasource } from '../../pull/createSsrmPullDatasource.js';
@@ -25,6 +26,7 @@ interface PerspectiveModule {
 }
 
 let perspective: PerspectiveModule;
+let tableSeq = 0;
 
 const SCHEMA = {
   positionId: 'string',
@@ -54,9 +56,20 @@ function seedRows(n: number): Record<string, unknown>[] {
 
 /** A PullDatasourceConnection backed by a genuine hosted table. */
 async function realConnection(rowCount: number): Promise<
-  PullDatasourceConnection & { dispose(): Promise<void> }
+  PullDatasourceConnection & {
+    dispose(): Promise<void>;
+    /** Apply a keyed partial update — a real tick, driving real on_update. */
+    bump(id: string, patch: Record<string, unknown>): Promise<void>;
+  }
 > {
-  const table = await perspective.table(SCHEMA, { index: 'positionId', name: 'positions' });
+  // UNIQUE name per harness: hosted tables share a namespace on the
+  // server, so reusing one name lets an earlier test's table leak into a
+  // later one.
+  tableSeq += 1;
+  const table = await perspective.table(SCHEMA, {
+    index: 'positionId',
+    name: `positions_${tableSeq}`,
+  });
   await table.update(seedRows(rowCount));
   const snapshot: DatasetStateSnapshot = {
     phase: 'live',
@@ -76,23 +89,52 @@ async function realConnection(rowCount: number): Promise<
     async openTable() {
       return table;
     },
+    async bump(id, patch) {
+      await table.update([{ positionId: id, ...patch }]);
+    },
     async dispose() {
       await table.delete();
     },
   };
 }
 
-function fakeApi(): GridApi & { refreshes: Array<{ purge?: boolean } | undefined> } {
+interface FakeNode {
+  data: Record<string, unknown>;
+  updateData: (next: Record<string, unknown>) => void;
+}
+
+type FakeApi = GridApi & {
+  refreshes: Array<{ purge?: boolean } | undefined>;
+  transactions: Array<{ route?: string[]; update?: Record<string, unknown>[] }>;
+  nodes: Map<string, FakeNode>;
+  seedNode(id: string, data: Record<string, unknown>): FakeNode;
+};
+
+function fakeApi(): FakeApi {
   const refreshes: Array<{ purge?: boolean } | undefined> = [];
+  const transactions: Array<{ route?: string[]; update?: Record<string, unknown>[] }> = [];
+  const nodes = new Map<string, FakeNode>();
   return {
     refreshes,
+    transactions,
+    nodes,
+    seedNode(id: string, data: Record<string, unknown>): FakeNode {
+      const node: FakeNode = {
+        data,
+        updateData(next) {
+          node.data = next;
+        },
+      };
+      nodes.set(id, node);
+      return node;
+    },
     setRowCount: () => undefined,
-    applyServerSideTransactionAsync: () => undefined,
+    applyServerSideTransactionAsync: (tx: { route?: string[] }) => transactions.push(tx),
     applyServerSideRowData: () => undefined,
     refreshServerSide: (p?: { purge?: boolean }) => refreshes.push(p),
-    getRowNode: () => undefined,
+    getRowNode: (id: string) => nodes.get(id),
     refreshCells: () => undefined,
-  } as unknown as GridApi & { refreshes: Array<{ purge?: boolean } | undefined> };
+  } as unknown as FakeApi;
 }
 
 function agRequest(overrides: Partial<IServerSideGetRowsRequest> = {}): IServerSideGetRowsRequest {
@@ -110,14 +152,20 @@ function agRequest(overrides: Partial<IServerSideGetRowsRequest> = {}): IServerS
   } as IServerSideGetRowsRequest;
 }
 
-function loadParams(api: GridApi, overrides: Partial<IServerSideGetRowsRequest> = {}) {
+function loadParams(
+  api: GridApi,
+  overrides: Partial<IServerSideGetRowsRequest> = {},
+  // `needsGrandTotal` is a PARAMS-level hint, not part of the request —
+  // putting it in the request silently arms nothing.
+  extras: { needsGrandTotal?: boolean } = {},
+) {
   return {
     request: agRequest(overrides),
     api,
     success: vi.fn(),
     fail: vi.fn(),
     parentNode: {},
-    needsGrandTotal: false,
+    needsGrandTotal: extras.needsGrandTotal ?? false,
     context: undefined,
   } as unknown as IServerSideGetRowsParams & {
     success: ReturnType<typeof vi.fn>;
@@ -130,8 +178,9 @@ async function load(
   ds: ReturnType<typeof createSsrmPullDatasource>,
   api: GridApi,
   overrides: Partial<IServerSideGetRowsRequest> = {},
+  extras: { needsGrandTotal?: boolean } = {},
 ): Promise<{ rowData: Record<string, unknown>[]; rowCount?: number }> {
-  const params = loadParams(api, overrides);
+  const params = loadParams(api, overrides, extras);
   ds.getRows(params);
   for (let i = 0; i < 30 && params.success.mock.calls.length + params.fail.mock.calls.length === 0; i += 1) {
     await new Promise((r) => setTimeout(r, 5));
@@ -250,6 +299,105 @@ describe('pull datasource against a REAL Perspective engine', () => {
     // Served from the block cache against the retained unfiltered view.
     // Generous bound — the point is "no rebuild", not a precise number.
     expect(elapsed).toBeLessThan(60);
+  });
+
+  // ─── grouped aggregates + grand total must keep ticking ───────────
+  //
+  // Field report: "grand total and group totals are not ticking, and
+  // sometimes the sub-group totals tick". The single-view happy path is
+  // already covered elsewhere; what was NOT covered is grouping with
+  // several EXPANDED routes, where the view pool and the MRU sweep gate
+  // start competing for slots — which is where the intermittency comes
+  // from.
+
+  const GROUP_REQ = {
+    rowGroupCols: [{ id: 'bookName', displayName: 'Book', field: 'bookName' }],
+    valueCols: [{ id: 'pnl', displayName: 'PnL', field: 'pnl', aggFunc: 'sum' }],
+  } as Partial<IServerSideGetRowsRequest>;
+
+  it('keeps the GRAND TOTAL ticking with several expanded routes open', async () => {
+    const { connection, api, ds } = await harness();
+
+    // Root (group) level, grand total armed.
+    const root = await load(ds, api, GROUP_REQ as never, { needsGrandTotal: true });
+    expect(root.rowCount).toBeGreaterThan(0);
+    const node = api.seedNode(GRAND_TOTAL_ROW_ID, { pnl: 0 });
+
+    // Expand several groups — each distinct route is another live view,
+    // which is what pushes the rollup view down the LRU.
+    for (const key of ['ALPHA', 'BETA']) {
+      await load(ds, api, { ...GROUP_REQ, groupKeys: [key] } as never);
+    }
+
+    // A tick lands.
+    await connection.bump('P7', { pnl: 999_999 });
+    await new Promise((r) => setTimeout(r, 150));
+
+    expect(node.data.pnl).not.toBe(0); // grand total must have repainted
+    ds.destroy();
+  });
+
+  it('keeps GROUP-LEVEL aggregates ticking (update transaction on the root route)', async () => {
+    const { connection, api, ds } = await harness();
+    await load(ds, api, GROUP_REQ as never);
+    for (const key of ['ALPHA', 'BETA']) {
+      await load(ds, api, { ...GROUP_REQ, groupKeys: [key] } as never);
+    }
+    const before = api.transactions.length;
+
+    await connection.bump('P7', { pnl: 555_555 });
+    await new Promise((r) => setTimeout(r, 150));
+
+    const fresh = api.transactions.slice(before);
+    const rootTxn = fresh.filter((t) => (t.route?.length ?? 0) === 0 && t.update?.length);
+    expect(rootTxn.length).toBeGreaterThan(0); // group rows repainted
+    ds.destroy();
+  });
+
+  it('group rows keep ticking when MRU pressure pushes their block out of the sweep set', async () => {
+    // The sweep only refetches the `maxSweepBlocks` most-recently-used
+    // blocks GLOBALLY (narrow 6, wide 4). Scrolling leaves inside an
+    // expanded group evicts the group-level block from that window, and
+    // the group totals then stop repainting — the reported "sometimes
+    // the sub-group totals tick".
+    const { connection, api, ds } = await harness(2000);
+    await load(ds, api, GROUP_REQ as never); // root: group rows
+
+    // Churn plenty of leaf blocks so the root block is no longer MRU.
+    for (let start = 0; start < 800; start += 100) {
+      await load(ds, api, {
+        ...GROUP_REQ,
+        groupKeys: ['ALPHA'],
+        startRow: start,
+        endRow: start + 100,
+      } as never);
+    }
+    const before = api.transactions.length;
+
+    await connection.bump('P7', { pnl: 777_777 });
+    await new Promise((r) => setTimeout(r, 200));
+
+    const rootTxn = api.transactions
+      .slice(before)
+      .filter((t) => (t.route?.length ?? 0) === 0 && t.update?.length);
+    expect(rootTxn.length).toBeGreaterThan(0);
+    ds.destroy();
+  });
+
+  it('grand total still refreshes when the sweep is deferred by scrolling', async () => {
+    // The grand total read is one tiny rollup query, but it lives at the
+    // END of the block sweep — so a sweep deferred by scroll settle (or
+    // an in-flight cold miss) starves it too.
+    const { connection, api, ds } = await harness();
+    await load(ds, api, GROUP_REQ as never, { needsGrandTotal: true });
+    const node = api.seedNode(GRAND_TOTAL_ROW_ID, { pnl: 0 });
+
+    ds.onScroll(); // user is scrolling: block sweeps defer
+    await connection.bump('P7', { pnl: 888_888 });
+    await new Promise((r) => setTimeout(r, 200));
+
+    expect(node.data.pnl).not.toBe(0);
+    ds.destroy();
   });
 
   it('column filter actually filters', async () => {
