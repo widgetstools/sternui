@@ -19,12 +19,20 @@
  *                    session never silently redials (a broken session
  *                    is a dataset `error`; recovery is an explicit
  *                    restart that bumps THE generation token).
- *   calcExpressions / treePathFields / wideColumnThreshold /
+ *   calcExpressions / treePathFields / treeParentField /
+ *   weightedAggregates / projectDisplayedColumns /
+ *   alwaysProjectColumns / wideColumnThreshold /
  *   sweepThrottleWideMs — consumed by `createSsrmPullDatasource` (and
- *                    the consuming grid's tree wiring) in the WINDOW;
- *                    calc columns are per-view expressions, never
- *                    table schema, so the hosted table stays exactly
- *                    the declared `columnDefinitions`.
+ *                    the consuming grid's tree wiring) in the WINDOW.
+ *                    Every one is a per-VIEW concern — which expressions
+ *                    are attached, which columns are projected, how a
+ *                    hierarchy is walked, which aggregate a value column
+ *                    takes — and views are built window-side, per grid.
+ *                    The worker hosts ONE table, and it stays exactly
+ *                    the declared `columnDefinitions`; two windows on the
+ *                    same provider can disagree about all of the above
+ *                    and both be right. Mapping any of them here would
+ *                    make one window's grid state the worker's problem.
  *
  * The mapping is pure and total — catalog-level validity is the
  * caller's concern (`validateStompSsrmConfig` in @starui/types).

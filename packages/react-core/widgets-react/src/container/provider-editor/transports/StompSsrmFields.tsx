@@ -4,11 +4,12 @@
  *
  * Exposes exactly the SSRM surface: broker/topic/trigger, snapshot end
  * token, the REQUIRED key column (Perspective table index), the table
- * name, and the WINDOW-side query knobs (P4b-2): calc/expression
- * columns, tree path levels and the wide-book refresh gate. None of
- * the push-plane knobs exist here — windows read the worker-hosted
- * Perspective table directly, so there is nothing to fan out, throttle
- * or conflate.
+ * name, and every WINDOW-side query knob the pull datasource takes:
+ * calc/expression columns, weighted-mean sources, BOTH tree shapes
+ * (path levels or a parent-id column), column-projection narrowing and
+ * the wide-book refresh gate. None of the push-plane knobs exist here —
+ * windows read the worker-hosted Perspective table directly, so there
+ * is nothing to fan out, throttle or conflate.
  *
  * Validation is inline: `validateStompSsrmConfig` runs on every render
  * and each issue is shown under the field it points at (the same
@@ -19,7 +20,7 @@
  * controls; colors via design-system tokens only).
  */
 
-import { Button, Input, Label } from '@starui/ui';
+import { Button, Input, Label, Switch } from '@starui/ui';
 import { Plus, Trash2 } from 'lucide-react';
 import type { StompSsrmProviderConfig, StompSsrmIssueField } from '@starui/shared-types';
 import { validateStompSsrmConfig } from '@starui/shared-types';
@@ -155,8 +156,42 @@ export function StompSsrmFields({ cfg, onChange }: StompSsrmFieldsProps) {
         </Help>
       </Card>
 
+      <Card title="Weighted Aggregates">
+        <div data-testid="ssrm-weighted-aggregates">
+          <KeyValueEditor
+            label="Weighted Means"
+            description="Value column → weight column (OAS by DV01, WAL by notional)"
+            value={cfg.weightedAggregates ?? {}}
+            onChange={(next) =>
+              onChange({ weightedAggregates: Object.keys(next).length > 0 ? next : undefined })
+            }
+            keyPlaceholder="oas"
+            valuePlaceholder="dv01"
+          />
+        </div>
+        <FieldErrors
+          testId="ssrm-weighted-aggregates-error"
+          errors={errorsFor('weightedAggregates')}
+        />
+        <Help>
+          AG's value columns carry no weight slot, so a column aggregated with
+          'wavg' takes its weight from here. A weighted column with no weight is
+          REFUSED, never downgraded to a plain average — a weighted spread served
+          unweighted is a wrong number that looks right. The weight must be a
+          declared numeric column.
+        </Help>
+      </Card>
+
       <Card title="Tree Data">
-        <TreePathFieldsEditor
+        <ColumnListEditor
+          label="Tree Levels"
+          addLabel="Add Level"
+          emptyLabel="No tree levels configured"
+          placeholder="bookName"
+          testId="ssrm-tree-path-fields"
+          addTestId="ssrm-tree-path-add"
+          rowTestId="ssrm-tree-path-level"
+          ordered
           value={cfg.treePathFields ?? []}
           onChange={(levels) =>
             onChange({ treePathFields: levels.length > 0 ? levels : undefined })
@@ -168,6 +203,72 @@ export function StompSsrmFields({ cfg, onChange }: StompSsrmFieldsProps) {
           groups by the first field, and so on; the deepest route reads leaf rows) —
           the dataset needs no parent/child column. Leave empty for flat data.
           Mutually exclusive with row grouping in the consuming grid.
+        </Help>
+        <Field label="Tree Parent Column">
+          <Input
+            className="h-8 text-sm font-mono"
+            value={cfg.treeParentField ?? ''}
+            onChange={(e) =>
+              onChange({ treeParentField: e.target.value === '' ? undefined : e.target.value })
+            }
+            placeholder="parentPositionId"
+            data-testid="ssrm-tree-parent-field"
+          />
+          <FieldErrors
+            testId="ssrm-tree-parent-field-error"
+            errors={errorsFor('treeParentField')}
+          />
+          <Help>
+            The OTHER tree shape: a natural parent-id adjacency column (each row names
+            its parent's key; roots have none). Rows keep their own key as the grid row
+            id. Use this OR the levels above — never both.
+          </Help>
+        </Field>
+      </Card>
+
+      <Card title="Column Projection">
+        <div className="flex items-center gap-2">
+          <Switch
+            id="ssrm-project-displayed-columns"
+            checked={cfg.projectDisplayedColumns === true}
+            onCheckedChange={(v) =>
+              onChange({ projectDisplayedColumns: v ? true : undefined })
+            }
+            data-testid="ssrm-project-displayed-columns"
+          />
+          <Label
+            htmlFor="ssrm-project-displayed-columns"
+            className="text-xs font-medium text-muted-foreground"
+          >
+            Read only displayed columns
+          </Label>
+        </div>
+        <Help>
+          Narrows every read to the columns the grid is actually rendering. View build
+          cost scales with projected width, so this is worth real time on a wide book —
+          but it is OPT-IN: a cell renderer reading a SIBLING field that is not itself
+          a displayed column would find it missing. List those below.
+        </Help>
+        <ColumnListEditor
+          label="Always Projected"
+          addLabel="Add Column"
+          emptyLabel="No always-projected columns configured"
+          placeholder="pnlPrev"
+          testId="ssrm-always-project-columns"
+          addTestId="ssrm-always-project-add"
+          rowTestId="ssrm-always-project-column"
+          value={cfg.alwaysProjectColumns ?? []}
+          onChange={(columns) =>
+            onChange({ alwaysProjectColumns: columns.length > 0 ? columns : undefined })
+          }
+        />
+        <FieldErrors
+          testId="ssrm-always-project-columns-error"
+          errors={errorsFor('alwaysProjectColumns')}
+        />
+        <Help>
+          Projected even when not displayed. Only consulted while the switch above is
+          on.
         </Help>
       </Card>
 
@@ -223,44 +324,68 @@ export function StompSsrmFields({ cfg, onChange }: StompSsrmFieldsProps) {
   );
 }
 
-/** Ordered list of tree levels — index-keyed rows, same feel as KeyValueEditor. */
-function TreePathFieldsEditor({
+/**
+ * Column-name list — index-keyed rows, same feel as KeyValueEditor.
+ * `ordered` numbers the rows for lists where position is meaning (tree
+ * levels); the projection list is a set, so it stays unnumbered.
+ */
+function ColumnListEditor({
+  label,
+  addLabel,
+  emptyLabel,
+  placeholder,
+  testId,
+  addTestId,
+  rowTestId,
+  ordered,
   value,
   onChange,
 }: {
+  label: string;
+  addLabel: string;
+  emptyLabel: string;
+  placeholder: string;
+  testId: string;
+  addTestId: string;
+  rowTestId: string;
+  ordered?: boolean;
   value: string[];
-  onChange(levels: string[]): void;
+  onChange(next: string[]): void;
 }) {
   return (
-    <div className="space-y-3" data-testid="ssrm-tree-path-fields">
+    <div className="space-y-3" data-testid={testId}>
       <div className="flex items-center justify-between">
-        <Label className="text-xs font-medium text-muted-foreground">Tree Levels</Label>
+        <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
         <Button
           variant="outline"
           size="sm"
           onClick={() => onChange([...value, ''])}
           className="h-7 gap-1 text-xs"
-          data-testid="ssrm-tree-path-add"
+          data-testid={addTestId}
         >
           <Plus className="h-3 w-3" />
-          Add Level
+          {addLabel}
         </Button>
       </div>
       {value.length === 0 ? (
-        <p className="text-[11px] text-muted-foreground italic">No tree levels configured</p>
+        <p className="text-[11px] text-muted-foreground italic">{emptyLabel}</p>
       ) : (
         <div className="space-y-2">
-          {value.map((level, index) => (
+          {value.map((entry, index) => (
             <div key={index} className="flex items-center gap-2">
-              <span className="text-[11px] text-muted-foreground w-4 text-right">{index + 1}</span>
+              {ordered && (
+                <span className="text-[11px] text-muted-foreground w-4 text-right">
+                  {index + 1}
+                </span>
+              )}
               <Input
-                value={level}
+                value={entry}
                 onChange={(e) =>
                   onChange(value.map((v, i) => (i === index ? e.target.value : v)))
                 }
-                placeholder="bookName"
+                placeholder={placeholder}
                 className="flex-1 h-8 text-sm font-mono"
-                data-testid={`ssrm-tree-path-level-${index}`}
+                data-testid={`${rowTestId}-${index}`}
               />
               <Button
                 variant="ghost"

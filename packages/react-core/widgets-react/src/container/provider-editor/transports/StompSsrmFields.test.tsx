@@ -23,6 +23,19 @@ const VALID: StompSsrmProviderConfig = {
   ],
 };
 
+/** A wider book, so the S1 knobs have declared columns to point at. */
+const WEIGHTED: StompSsrmProviderConfig = {
+  ...VALID,
+  columnDefinitions: [
+    { field: 'positionId', headerName: 'Position', cellDataType: 'text' },
+    { field: 'oas', headerName: 'OAS', cellDataType: 'number' },
+    { field: 'dv01', headerName: 'DV01', cellDataType: 'number' },
+    { field: 'notional', headerName: 'Notional', cellDataType: 'number' },
+    { field: 'bookName', headerName: 'Book', cellDataType: 'text' },
+    { field: 'parentId', headerName: 'Parent', cellDataType: 'text' },
+  ],
+};
+
 describe('StompSsrmFields', () => {
   it('renders the SSRM transport fields and none of the push-plane knobs', () => {
     render(<StompSsrmFields cfg={VALID} onChange={() => {}} />);
@@ -145,6 +158,169 @@ describe('StompSsrmFields', () => {
     const error = screen.getByTestId('ssrm-tree-path-fields-error');
     expect(error.textContent).toMatch(/repeated/);
     expect(error.textContent).toMatch(/must appear in the column definitions/);
+  });
+
+  // ─── S1: the knobs that were datasource-only arguments ────────────
+  //
+  // The bar for each is ROUND-TRIP: the card must render what the
+  // catalog row holds and patch it back in the shape the row stores.
+
+  it('renders weighted-mean rows and edits patch weightedAggregates', () => {
+    const onChange = vi.fn();
+    render(
+      <StompSsrmFields
+        cfg={{ ...WEIGHTED, weightedAggregates: { oas: 'dv01' } }}
+        onChange={onChange}
+      />,
+    );
+    const card = screen.getByTestId('ssrm-weighted-aggregates');
+    expect(within(card).getByDisplayValue('oas')).toBeTruthy();
+    expect(within(card).getByDisplayValue('dv01')).toBeTruthy();
+
+    fireEvent.change(within(card).getByDisplayValue('dv01'), { target: { value: 'notional' } });
+    expect(onChange).toHaveBeenCalledWith({ weightedAggregates: { oas: 'notional' } });
+  });
+
+  it('removing the last weighted row clears weightedAggregates entirely', () => {
+    const onChange = vi.fn();
+    render(
+      <StompSsrmFields
+        cfg={{ ...WEIGHTED, weightedAggregates: { oas: 'dv01' } }}
+        onChange={onChange}
+      />,
+    );
+    const card = screen.getByTestId('ssrm-weighted-aggregates');
+    const buttons = within(card).getAllByRole('button');
+    fireEvent.click(buttons[buttons.length - 1]!); // the row's trash button
+    expect(onChange).toHaveBeenCalledWith({ weightedAggregates: undefined });
+  });
+
+  it('shows the refusal inline when a weighted column has no weight', () => {
+    render(
+      <StompSsrmFields cfg={{ ...WEIGHTED, weightedAggregates: { oas: '' } }} onChange={() => {}} />,
+    );
+    expect(screen.getByTestId('ssrm-weighted-aggregates-error').textContent).toMatch(
+      /never downgraded to a plain average/,
+    );
+  });
+
+  it('shows inline errors for an undeclared and a non-numeric weight column', () => {
+    const { rerender } = render(
+      <StompSsrmFields
+        cfg={{ ...WEIGHTED, weightedAggregates: { oas: 'notAColumn' } }}
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('ssrm-weighted-aggregates-error').textContent).toMatch(
+      /must appear in the column definitions/,
+    );
+    rerender(
+      <StompSsrmFields
+        cfg={{ ...WEIGHTED, weightedAggregates: { oas: 'bookName' } }}
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('ssrm-weighted-aggregates-error').textContent).toMatch(
+      /needs a numeric weight/,
+    );
+  });
+
+  it('renders the tree parent column and edits patch treeParentField', () => {
+    const onChange = vi.fn();
+    render(<StompSsrmFields cfg={{ ...WEIGHTED, treeParentField: 'parentId' }} onChange={onChange} />);
+    expect(screen.getByTestId('ssrm-tree-parent-field')).toHaveProperty('value', 'parentId');
+
+    fireEvent.change(screen.getByTestId('ssrm-tree-parent-field'), {
+      target: { value: 'bookName' },
+    });
+    expect(onChange).toHaveBeenCalledWith({ treeParentField: 'bookName' });
+  });
+
+  it('clearing the tree parent column drops the field rather than storing a blank', () => {
+    const onChange = vi.fn();
+    render(<StompSsrmFields cfg={{ ...WEIGHTED, treeParentField: 'parentId' }} onChange={onChange} />);
+    fireEvent.change(screen.getByTestId('ssrm-tree-parent-field'), { target: { value: '' } });
+    expect(onChange).toHaveBeenCalledWith({ treeParentField: undefined });
+  });
+
+  it('shows the two-tree-modes conflict under BOTH tree cards', () => {
+    render(
+      <StompSsrmFields
+        cfg={{ ...WEIGHTED, treeParentField: 'parentId', treePathFields: ['bookName'] }}
+        onChange={() => {}}
+      />,
+    );
+    // Whichever card the user is looking at has to explain the refusal —
+    // a precedence rule applied silently is the thing being prevented.
+    expect(screen.getByTestId('ssrm-tree-parent-field-error').textContent).toMatch(/not both/);
+    expect(screen.getByTestId('ssrm-tree-path-fields-error').textContent).toMatch(/not both/);
+  });
+
+  it('toggles projectDisplayedColumns on and back off', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(<StompSsrmFields cfg={WEIGHTED} onChange={onChange} />);
+    const toggle = screen.getByTestId('ssrm-project-displayed-columns');
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+
+    fireEvent.click(toggle);
+    expect(onChange).toHaveBeenCalledWith({ projectDisplayedColumns: true });
+
+    rerender(
+      <StompSsrmFields cfg={{ ...WEIGHTED, projectDisplayedColumns: true }} onChange={onChange} />,
+    );
+    const on = screen.getByTestId('ssrm-project-displayed-columns');
+    expect(on.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(on);
+    // Dropped, not stored as `false` — absent and off mean the same
+    // thing to the datasource, and the catalog row stays minimal.
+    expect(onChange).toHaveBeenCalledWith({ projectDisplayedColumns: undefined });
+  });
+
+  it('renders always-projected columns; add/edit/remove patch alwaysProjectColumns', () => {
+    const onChange = vi.fn();
+    render(
+      <StompSsrmFields
+        cfg={{ ...WEIGHTED, projectDisplayedColumns: true, alwaysProjectColumns: ['dv01'] }}
+        onChange={onChange}
+      />,
+    );
+    expect(screen.getByTestId('ssrm-always-project-column-0')).toHaveProperty('value', 'dv01');
+
+    fireEvent.click(screen.getByTestId('ssrm-always-project-add'));
+    expect(onChange).toHaveBeenCalledWith({ alwaysProjectColumns: ['dv01', ''] });
+
+    fireEvent.change(screen.getByTestId('ssrm-always-project-column-0'), {
+      target: { value: 'notional' },
+    });
+    expect(onChange).toHaveBeenCalledWith({ alwaysProjectColumns: ['notional'] });
+  });
+
+  it('shows an inline error for an undeclared always-projected column', () => {
+    render(
+      <StompSsrmFields
+        cfg={{ ...WEIGHTED, alwaysProjectColumns: ['notAColumn'] }}
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('ssrm-always-project-columns-error').textContent).toMatch(
+      /must appear in the column definitions/,
+    );
+  });
+
+  it('shows no errors for a row exercising every new knob at once', () => {
+    render(
+      <StompSsrmFields
+        cfg={{
+          ...WEIGHTED,
+          weightedAggregates: { oas: 'dv01' },
+          treeParentField: 'parentId',
+          projectDisplayedColumns: true,
+          alwaysProjectColumns: ['notional'],
+        }}
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('wide-gate inputs patch the config and show malformed-value errors', () => {

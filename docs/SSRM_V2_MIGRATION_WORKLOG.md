@@ -165,7 +165,7 @@ Sessions are sized to be independently landable. Each ends green
 
 ---
 
-### S1 — Config + editor surface  ·  `TODO`
+### S1 — Config + editor surface  ·  `DONE`
 
 **Goal.** Make every pull-plane capability expressible in a catalog row.
 Nothing downstream can be configured until this exists.
@@ -176,33 +176,60 @@ datasource arguments the spike hardcodes.
 
 **Tasks**
 
-1. `TODO` Extend `StompSsrmProviderConfig` (`packages/shared/types/src/`)
-   with: `weightedAggregates?: Record<string,string>` (value field →
-   weight field), `treeParentField?: string`,
+1. `DONE` Extend `StompSsrmProviderConfig` with:
+   `weightedAggregates?: Record<string,string>` (value field → weight
+   field), `treeParentField?: string`,
    `projectDisplayedColumns?: boolean`, `alwaysProjectColumns?: string[]`.
-2. `TODO` Extend `validateStompSsrmConfig` with structured issues:
-   - weight field must be declared in `columnDefinitions` and numeric;
-   - `treeParentField` must be declared, and is mutually exclusive with
-     `treePathFields` (both set = an issue, not a silent precedence);
-   - `alwaysProjectColumns` entries must be declared;
-   - a `wavg` aggregate with no weight entry is refused at the catalog
-     seam, matching the datasource's existing refusal.
-3. `TODO` `StompSsrmFields` cards for each, following the existing
-   Calculated Columns / Tree Data pattern (design-system primitives only;
-   no native inputs).
-4. `TODO` `toSsrmDatasetConfig` passthrough where worker-side relevance
-   applies; window-only knobs stay window-side.
-5. `TODO` **Clear the docs debt**: `docs/current-features.md` is
-   unchanged across ~14 commits of new capability (weighted aggregation,
-   `first`/`last`/`distinctCount`, parent-id tree, projection narrowing,
-   native contains fast path, ingest telemetry, bounded writes, status
-   bar exports). CLAUDE.md mandates same-commit updates.
+   Definitions live in `packages/shared/shared-types/src/stompSsrm.ts`
+   (`@starui/types` re-exports them; `packages/shared/types` owns the
+   vitest runner — the worklog's original path pointer was to the runner,
+   not the source).
+2. `DONE` Extend `validateStompSsrmConfig` with structured issues:
+   - `weight-not-in-columns` / `weight-not-numeric` — the weight must be
+     declared, and its declared `cellDataType` must be `number`;
+   - `treeParentField` must be declared (`tree-field-not-in-columns`) and
+     is mutually exclusive with `treePathFields` — `tree-mode-conflict`
+     is emitted under BOTH fields, so whichever card the user is looking
+     at explains the refusal;
+   - `project-column-not-in-columns` for `alwaysProjectColumns`;
+   - `weight-missing` — a weighted value column with no weight entry,
+     the catalog-seam twin of `buildQueryPlan`'s refusal.
+3. `DONE` `StompSsrmFields`: **Weighted Aggregates** (`KeyValueEditor`),
+   **Tree Parent Column** (inside the existing Tree Data card) and
+   **Column Projection** (`Switch` + column list). `TreePathFieldsEditor`
+   generalized to a local `ColumnListEditor` shared by both lists.
+   Design-system primitives only.
+4. `DONE` `toSsrmDatasetConfig`: **no passthrough** — verified against
+   `SsrmDatasetConfig`, all four are per-VIEW concerns and views are
+   built window-side, so two windows on one provider can legitimately
+   disagree about every one of them. Documented and pinned by a test
+   that fails if any of the eight window knobs leaks into `configure`.
+5. `DONE` **Docs debt cleared**: `current-features.md` gained bullets for
+   weighted aggregation, `first`/`last`/`distinctCount`, parent-id tree,
+   projection narrowing, the native `contains` fast path, sorted-block
+   reflow, every-level live aggregates, the SSRM status-bar stand-ins,
+   bounded writes and ingest telemetry; the config / validator / editor /
+   mapping bullets were rewritten to match.
 
-**Acceptance**
+**Acceptance** — met.
 - A catalog row can express weighted aggregation, a parent-id tree and
   projection narrowing; the editor round-trips each.
 - Invalid combinations produce inline issues, never silent precedence.
-- `types` and `widgets-react` editor suites green.
+- `types` (39) and `widgets-react` editor (23) suites green.
+
+**Test falsifiability** (per "Testing principle"). 31 new tests, every
+one verified red with its target defect present:
+- the 9 negative validator tests failed against the pre-S1 validator;
+- 8 positive guards (the "this must NOT be flagged" cases) failed under
+  two over-flagging mutations — an unconditional issue per knob, and
+  treating an undeclared `cellDataType` / a calc alias as invalid;
+- 10 of 11 editor tests failed with the component reverted to pre-S1;
+  the 11th ("no errors for a row exercising every new knob") is a
+  false-positive guard, so it was falsified by mutating the validator
+  instead — component removal cannot fail it;
+- the `toSsrmDatasetConfig` leak test failed with a `weightedAggregates`
+  passthrough added.
+No test resisted falsification.
 
 ---
 
@@ -464,3 +491,4 @@ what surprised you. Keep it short; the value is the surprises.
 | Date | Session | Landed | Notes |
 |---|---|---|---|
 | 2026-07-26 | (pre-S1) | Worklog created | Established that P1–P5 built the pull plane but nothing switched to it; production and the lab both still run RowMirror. |
+| 2026-07-26 | S1 | Four pull-plane knobs reachable from a catalog row: config + validator + editor cards + docs debt cleared | Surprises: (1) the catalog cannot see an `aggFunc` at all — `ColumnDefinition` has no such field and nothing in the provider editor sets one — so "refuse a `wavg` with no weight" can only mean refusing an INCOMPLETE weighted entry, not an aggFunc↔weight mismatch; the pairing's other half lives in grid column state. (2) Calc columns had to count as "declared" for the new membership checks: Perspective takes an expression alias anywhere a column goes, so a calc-column weight or projection is legitimate and a `columnDefinitions`-only check would hard-fail it. (3) `toSsrmDatasetConfig` needed no passthrough whatsoever — all four are per-view, and the worker hosts one table shared by every window. (4) The first test run resolved `@starui/shared-types` from a stale `dist`, which turned out to be a free falsifiability proof: exactly the 9 new negative tests went red and every positive one stayed green. |

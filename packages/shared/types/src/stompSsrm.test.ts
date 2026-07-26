@@ -231,6 +231,179 @@ describe('validateStompSsrmConfig — window-side query knobs (P4b-2)', () => {
   });
 });
 
+// ─── S1: the pull-plane knobs that were datasource-only arguments ────
+//
+// Written fresh against the new validator (never ported): the point of
+// each case is a config a real consumer can author and get WRONG, and
+// every one was verified to go red with its check removed.
+
+const WEIGHTED: StompSsrmProviderConfig = {
+  ...VALID,
+  columnDefinitions: [
+    { field: 'positionId', headerName: 'Position', cellDataType: 'text' },
+    { field: 'oas', headerName: 'OAS', cellDataType: 'number' },
+    { field: 'dv01', headerName: 'DV01', cellDataType: 'number' },
+    { field: 'bookName', headerName: 'Book', cellDataType: 'text' },
+    { field: 'parentId', headerName: 'Parent', cellDataType: 'text' },
+    // Declared with no cellDataType — refined from the first snapshot
+    // rows, so its type cannot be judged at the catalog seam.
+    { field: 'notional', headerName: 'Notional' },
+  ],
+};
+
+describe('validateStompSsrmConfig — weighted aggregates', () => {
+  it('accepts a value column weighted by a declared numeric column', () => {
+    expect(
+      validateStompSsrmConfig({ ...WEIGHTED, weightedAggregates: { oas: 'dv01' } }),
+    ).toEqual([]);
+  });
+
+  it('refuses a weighted column with no weight, matching the datasource refusal', () => {
+    const issues = validateStompSsrmConfig({ ...WEIGHTED, weightedAggregates: { oas: '' } });
+    expect(issues).toContainEqual(
+      expect.objectContaining({ field: 'weightedAggregates', code: 'weight-missing' }),
+    );
+    // The refusal is the point: a weighted mean served unweighted is a
+    // wrong number that looks right.
+    expect(issues.find((i) => i.code === 'weight-missing')!.message).toMatch(
+      /never downgraded to a plain average/,
+    );
+  });
+
+  it('flags a weight column that is not declared', () => {
+    expect(
+      validateStompSsrmConfig({ ...WEIGHTED, weightedAggregates: { oas: 'notAColumn' } }),
+    ).toContainEqual(
+      expect.objectContaining({ field: 'weightedAggregates', code: 'weight-not-in-columns' }),
+    );
+  });
+
+  it('flags a weight column declared as a non-numeric type', () => {
+    const issues = validateStompSsrmConfig({
+      ...WEIGHTED,
+      weightedAggregates: { oas: 'bookName' },
+    });
+    expect(issues).toContainEqual(
+      expect.objectContaining({ field: 'weightedAggregates', code: 'weight-not-numeric' }),
+    );
+    expect(issues.find((i) => i.code === 'weight-not-numeric')!.message).toMatch(
+      /declared 'text'/,
+    );
+  });
+
+  it('does not judge the type of a weight column whose cellDataType is undeclared', () => {
+    // `notional` carries no cellDataType — the worker refines it from the
+    // first snapshot rows, so the seam has nothing to judge.
+    expect(
+      validateStompSsrmConfig({ ...WEIGHTED, weightedAggregates: { oas: 'notional' } }),
+    ).toEqual([]);
+  });
+
+  it('accepts a calc column as the weight — calc columns are real columns to the plane', () => {
+    expect(
+      validateStompSsrmConfig({
+        ...WEIGHTED,
+        calcExpressions: { riskWeight: '"dv01" * 2' },
+        weightedAggregates: { oas: 'riskWeight' },
+      }),
+    ).toEqual([]);
+  });
+
+  it('flags a blank value column', () => {
+    expect(
+      validateStompSsrmConfig({ ...WEIGHTED, weightedAggregates: { '': 'dv01' } }),
+    ).toContainEqual(
+      expect.objectContaining({ field: 'weightedAggregates', code: 'missing' }),
+    );
+  });
+
+  it('skips the weight column-membership check when no columns are declared', () => {
+    expect(
+      validateStompSsrmConfig({
+        ...WEIGHTED,
+        columnDefinitions: [],
+        keyColumn: 'k',
+        weightedAggregates: { oas: 'anything' },
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe('validateStompSsrmConfig — parent-id tree', () => {
+  it('accepts a declared parent column', () => {
+    expect(validateStompSsrmConfig({ ...WEIGHTED, treeParentField: 'parentId' })).toEqual([]);
+  });
+
+  it('flags a parent column that is not declared', () => {
+    expect(
+      validateStompSsrmConfig({ ...WEIGHTED, treeParentField: 'notAColumn' }),
+    ).toContainEqual(
+      expect.objectContaining({ field: 'treeParentField', code: 'tree-field-not-in-columns' }),
+    );
+  });
+
+  it('flags a blank parent column', () => {
+    expect(validateStompSsrmConfig({ ...WEIGHTED, treeParentField: '  ' })).toContainEqual(
+      expect.objectContaining({ field: 'treeParentField', code: 'missing' }),
+    );
+  });
+
+  it('refuses both tree modes at once, under BOTH fields — never a silent precedence', () => {
+    const issues = validateStompSsrmConfig({
+      ...WEIGHTED,
+      treeParentField: 'parentId',
+      treePathFields: ['bookName'],
+    });
+    const conflicts = issues.filter((i) => i.code === 'tree-mode-conflict');
+    expect(conflicts.map((i) => i.field).sort()).toEqual(['treeParentField', 'treePathFields']);
+  });
+});
+
+describe('validateStompSsrmConfig — projection narrowing', () => {
+  it('accepts the toggle on its own', () => {
+    expect(
+      validateStompSsrmConfig({ ...WEIGHTED, projectDisplayedColumns: true }),
+    ).toEqual([]);
+  });
+
+  it('accepts always-projected columns that are declared', () => {
+    expect(
+      validateStompSsrmConfig({
+        ...WEIGHTED,
+        projectDisplayedColumns: true,
+        alwaysProjectColumns: ['dv01', 'notional'],
+      }),
+    ).toEqual([]);
+  });
+
+  it('flags an always-projected column that is not declared', () => {
+    expect(
+      validateStompSsrmConfig({ ...WEIGHTED, alwaysProjectColumns: ['notAColumn'] }),
+    ).toContainEqual(
+      expect.objectContaining({
+        field: 'alwaysProjectColumns',
+        code: 'project-column-not-in-columns',
+      }),
+    );
+  });
+
+  it('flags a blank always-projected column', () => {
+    expect(validateStompSsrmConfig({ ...WEIGHTED, alwaysProjectColumns: [''] })).toContainEqual(
+      expect.objectContaining({ field: 'alwaysProjectColumns', code: 'missing' }),
+    );
+  });
+
+  it('accepts a calc column as an always-projected column', () => {
+    expect(
+      validateStompSsrmConfig({
+        ...WEIGHTED,
+        calcExpressions: { pnlPerUnit: '"oas" / "dv01"' },
+        alwaysProjectColumns: ['pnlPerUnit'],
+      }),
+    ).toEqual([]);
+  });
+});
+
 describe('validateProviderConfig — stomp-ssrm integration', () => {
   it('routes stomp-ssrm rows through the structured validator as hard errors', () => {
     const result = validateProviderConfig({

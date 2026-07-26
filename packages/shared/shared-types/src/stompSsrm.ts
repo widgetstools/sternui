@@ -78,6 +78,44 @@ export interface StompSsrmProviderConfig {
    */
   treePathFields?: string[];
   /**
+   * Server-side TREE from a natural PARENT-ID adjacency column (each row
+   * names its parent's key; roots have none), e.g. `'parentPositionId'`.
+   * Every level is a filtered LEAF read, so rows keep their natural key
+   * as the AG row id. WINDOW-side (datasource + grid wiring), not mapped
+   * by `toSsrmDatasetConfig`.
+   *
+   * Mutually exclusive with `treePathFields` — the two describe
+   * incompatible hierarchies (synthesized vs natural). Setting both is a
+   * validation issue, never a silent precedence.
+   */
+  treeParentField?: string;
+  /**
+   * Weighted-mean sources: value field → WEIGHT field, for columns the
+   * grid aggregates with `aggFunc: 'wavg'` (OAS by DV01, WAL by
+   * notional). AG's `valueCols` carries no weight slot, so the pairing
+   * lives here; Perspective serves it as `['weighted mean', [weight]]`.
+   * A weighted column with no weight is REFUSED (reported unsupported),
+   * never downgraded to a plain average — a weighted spread served
+   * unweighted is a wrong number that looks right. WINDOW-side, not
+   * mapped by `toSsrmDatasetConfig`.
+   */
+  weightedAggregates?: Record<string, string>;
+  /**
+   * Read only the columns the grid is DISPLAYING rather than every table
+   * column. View build cost scales with projected width, so this is
+   * worth real time on a wide book. OPT-IN: a cell renderer reading a
+   * SIBLING field that is not itself displayed would find it missing —
+   * list those in `alwaysProjectColumns`. WINDOW-side, not mapped by
+   * `toSsrmDatasetConfig`.
+   */
+  projectDisplayedColumns?: boolean;
+  /**
+   * Fields to project even when not displayed — the sibling fields cell
+   * renderers read. Only consulted with `projectDisplayedColumns`.
+   * WINDOW-side, not mapped by `toSsrmDatasetConfig`.
+   */
+  alwaysProjectColumns?: string[];
+  /**
    * Wide-book delta gate (design fact #5): column count at/above which
    * the tick sweep degrades to `sweepThrottleWideMs` and refreshes
    * only the viewport's blocks. WINDOW-side, not mapped by
@@ -123,6 +161,9 @@ export type StompSsrmIssueField =
   | 'keyColumn'
   | 'calcExpressions'
   | 'treePathFields'
+  | 'treeParentField'
+  | 'weightedAggregates'
+  | 'alwaysProjectColumns'
   | 'wideColumnThreshold'
   | 'sweepThrottleWideMs';
 
@@ -135,7 +176,12 @@ export type StompSsrmIssueCode =
   | 'calc-reserved-prefix'
   | 'calc-cross-reference'
   | 'tree-field-not-in-columns'
-  | 'tree-field-duplicate';
+  | 'tree-field-duplicate'
+  | 'tree-mode-conflict'
+  | 'weight-missing'
+  | 'weight-not-in-columns'
+  | 'weight-not-numeric'
+  | 'project-column-not-in-columns';
 
 export interface StompSsrmValidationIssue {
   field: StompSsrmIssueField;
@@ -172,9 +218,28 @@ function hasTemplateTokens(value: string): boolean {
  *   `tree-field-duplicate`; a level not among the declared columns →
  *   `tree-field-not-in-columns` (only when columns are declared, same
  *   rule as `keyColumn`).
+ * - `treeParentField`: blank → `missing`; not among the declared columns
+ *   → `tree-field-not-in-columns`; set alongside a non-empty
+ *   `treePathFields` → `tree-mode-conflict`, reported on BOTH fields
+ *   (synthesized and natural hierarchies are incompatible, and the
+ *   editor must say so under either card — never a silent precedence).
+ * - `weightedAggregates` (value field → weight field): a blank value
+ *   field → `missing`; a value field with no weight → `weight-missing`,
+ *   the catalog-seam twin of the datasource's refusal to downgrade a
+ *   weighted mean to a plain average; a weight not among the declared
+ *   columns → `weight-not-in-columns`; a weight whose declared
+ *   `cellDataType` is not `number` → `weight-not-numeric`.
+ * - `alwaysProjectColumns`: a blank entry → `missing`; an entry not
+ *   among the declared columns → `project-column-not-in-columns`.
  * - `wideColumnThreshold` / `sweepThrottleWideMs`: present but not a
  *   positive finite number (threshold additionally an integer) →
  *   `malformed`.
+ *
+ * "Declared" everywhere below means `columnDefinitions` PLUS the
+ * `calcExpressions` names: calc columns are real grid columns to the
+ * pull plane (Perspective accepts an expression alias anywhere a column
+ * goes — `group_by`, aggregates, projection), so treating them as
+ * undeclared would hard-fail legitimate configs.
  *
  * Accepts `Partial` + unknown-shaped `keyColumn` because editor drafts
  * and hand-authored catalog rows routinely hold both.
@@ -236,8 +301,13 @@ export function validateStompSsrmConfig(
   }
 
   const columnFields = (cfg.columnDefinitions ?? []).map((c) => c.field);
+  // Calc columns are real columns to the pull plane — see the docblock.
+  const declared = [...columnFields, ...Object.keys(cfg.calcExpressions ?? {})];
   validateCalcExpressions(cfg.calcExpressions, columnFields, issues);
-  validateTreePathFields(cfg.treePathFields, columnFields, issues);
+  validateTreePathFields(cfg.treePathFields, declared, issues);
+  validateTreeParentField(cfg.treeParentField, cfg.treePathFields, declared, issues);
+  validateWeightedAggregates(cfg.weightedAggregates, cfg.columnDefinitions, declared, issues);
+  validateAlwaysProjectColumns(cfg.alwaysProjectColumns, declared, issues);
   validatePositiveNumber(cfg.wideColumnThreshold, 'wideColumnThreshold', true, issues);
   validatePositiveNumber(cfg.sweepThrottleWideMs, 'sweepThrottleWideMs', false, issues);
 
@@ -329,6 +399,125 @@ function validateTreePathFields(
         field: 'treePathFields',
         code: 'tree-field-not-in-columns',
         message: `Tree level '${trimmedLevel}' must appear in the column definitions.`,
+      });
+    }
+  }
+}
+
+/**
+ * Parent-id tree. The conflict with `treePathFields` is reported under
+ * BOTH fields: each has its own editor card, and a user looking at
+ * either one has to see why the tree is refused.
+ */
+function validateTreeParentField(
+  treeParentField: string | undefined,
+  treePathFields: string[] | undefined,
+  declared: string[],
+  issues: StompSsrmValidationIssue[],
+): void {
+  if (treeParentField === undefined) return;
+  const field = typeof treeParentField === 'string' ? treeParentField.trim() : '';
+  if (field === '') {
+    issues.push({
+      field: 'treeParentField',
+      code: 'missing',
+      message: 'Tree parent column cannot be blank — clear it to use flat or path-based data.',
+    });
+    return;
+  }
+  if (declared.length > 0 && !declared.includes(field)) {
+    issues.push({
+      field: 'treeParentField',
+      code: 'tree-field-not-in-columns',
+      message: `Tree parent column '${field}' must appear in the column definitions.`,
+    });
+  }
+  if (treePathFields && treePathFields.length > 0) {
+    const message =
+      'A tree is either path-based (Tree Levels) or parent-id based (Tree Parent Column) — not both. Clear one.';
+    issues.push({ field: 'treeParentField', code: 'tree-mode-conflict', message });
+    issues.push({ field: 'treePathFields', code: 'tree-mode-conflict', message });
+  }
+}
+
+/**
+ * Weighted-mean sources. The `weight-missing` case is the catalog-seam
+ * twin of `buildQueryPlan`'s refusal: a weighted column with no weight
+ * is reported, never quietly served as a plain average.
+ *
+ * The VALUE field is only required to be non-blank. Which columns carry
+ * `aggFunc: 'wavg'` lives in grid column state, not the catalog row, so
+ * the seam cannot tell a stale entry from a forward-looking one — and
+ * an entry for a column the grid never aggregates costs nothing.
+ */
+function validateWeightedAggregates(
+  weighted: Record<string, string> | undefined,
+  columnDefinitions: ColumnDefinition[] | undefined,
+  declared: string[],
+  issues: StompSsrmValidationIssue[],
+): void {
+  if (!weighted) return;
+  for (const [valueField, weightField] of Object.entries(weighted)) {
+    const label = valueField.trim() === '' ? '(unnamed)' : valueField.trim();
+    if (valueField.trim() === '') {
+      issues.push({
+        field: 'weightedAggregates',
+        code: 'missing',
+        message: 'Weighted aggregates need a value column.',
+      });
+    }
+    const weight = typeof weightField === 'string' ? weightField.trim() : '';
+    if (weight === '') {
+      issues.push({
+        field: 'weightedAggregates',
+        code: 'weight-missing',
+        message: `Weighted aggregate '${label}' needs a weight column — a weighted average is refused, never downgraded to a plain average.`,
+      });
+      continue;
+    }
+    if (declared.length > 0 && !declared.includes(weight)) {
+      issues.push({
+        field: 'weightedAggregates',
+        code: 'weight-not-in-columns',
+        message: `Weight column '${weight}' must appear in the column definitions.`,
+      });
+      continue;
+    }
+    // Only a DECLARED type can be judged: columns whose `cellDataType`
+    // is absent are refined from the first snapshot rows, and calc
+    // aliases have no declared type at all.
+    const declaredType = (columnDefinitions ?? []).find((c) => c.field === weight)?.cellDataType;
+    if (declaredType !== undefined && declaredType !== 'number') {
+      issues.push({
+        field: 'weightedAggregates',
+        code: 'weight-not-numeric',
+        message: `Weight column '${weight}' is declared '${declaredType}' — a weighted mean needs a numeric weight.`,
+      });
+    }
+  }
+}
+
+function validateAlwaysProjectColumns(
+  columns: string[] | undefined,
+  declared: string[],
+  issues: StompSsrmValidationIssue[],
+): void {
+  if (!columns || columns.length === 0) return;
+  for (const entry of columns) {
+    const field = typeof entry === 'string' ? entry.trim() : '';
+    if (field === '') {
+      issues.push({
+        field: 'alwaysProjectColumns',
+        code: 'missing',
+        message: 'Always-projected columns cannot be blank.',
+      });
+      continue;
+    }
+    if (declared.length > 0 && !declared.includes(field)) {
+      issues.push({
+        field: 'alwaysProjectColumns',
+        code: 'project-column-not-in-columns',
+        message: `Always-projected column '${field}' must appear in the column definitions.`,
       });
     }
   }

@@ -46,6 +46,40 @@ describe('toSsrmDatasetConfig', () => {
     expect(mapped).not.toHaveProperty('providerType');
   });
 
+  it('leaks no WINDOW-side query knob into the worker config', () => {
+    // Every one of these is a per-VIEW concern, and views are built
+    // window-side: two windows on the same provider can legitimately
+    // disagree about all of them. Mapping any into the `configure`
+    // message would make one grid's state the worker's problem — and
+    // would silently reconfigure the shared table for every other
+    // window attached to it.
+    const mapped = toSsrmDatasetConfig({
+      ...FULL,
+      calcExpressions: { pnlPerUnit: '"pnl.total" / 2' },
+      treePathFields: ['positionId'],
+      treeParentField: 'parentId',
+      weightedAggregates: { oas: 'dv01' },
+      projectDisplayedColumns: true,
+      alwaysProjectColumns: ['pnl.total'],
+      wideColumnThreshold: 120,
+      sweepThrottleWideMs: 2000,
+    }) as Record<string, unknown>;
+    for (const knob of [
+      'calcExpressions',
+      'treePathFields',
+      'treeParentField',
+      'weightedAggregates',
+      'projectDisplayedColumns',
+      'alwaysProjectColumns',
+      'wideColumnThreshold',
+      'sweepThrottleWideMs',
+    ]) {
+      expect(mapped).not.toHaveProperty(knob);
+    }
+    // …and the mapping is otherwise unchanged by their presence.
+    expect(mapped).toEqual(toSsrmDatasetConfig(FULL));
+  });
+
   it('omits blank optionals so worker "absent means skip" semantics hold', () => {
     const minimal = toSsrmDatasetConfig({
       providerType: 'stomp-ssrm',
