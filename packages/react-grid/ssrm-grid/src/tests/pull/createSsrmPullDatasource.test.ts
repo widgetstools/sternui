@@ -678,22 +678,43 @@ describe('createSsrmPullDatasource', () => {
     const params = loadParams(api); // the refresh re-issues getRows
     ds.getRows(params);
     await flush();
+    // ONE token and no other filter → the NATIVE fast path: literal,
+    // case-insensitive `contains` OR-ed across the configured columns,
+    // no ExprTK expression column at all.
     const view = connection.table.views.at(-1)!;
-    expect(view.config.filter).toEqual([[QUICK_FILTER_EXPR, '==', true]]);
-    expect(view.config.expressions).toEqual({
-      [QUICK_FILTER_EXPR]:
-        `(match("book", '(?i)bookA') or match("positionId", '(?i)bookA'))`,
-    });
+    expect(view.config.filter).toEqual([
+      ['book', 'contains', 'bookA'],
+      ['positionId', 'contains', 'bookA'],
+    ]);
+    expect(view.config.filter_op).toBe('or');
+    expect(view.config.expressions).toBeUndefined();
 
     ds.setQuickFilter(null); // clears — back to the original flat shape
     const cleared = loadParams(api);
     ds.getRows(cleared);
     await flush();
-    // the cleared plan reuses the ORIGINAL unfiltered view (same key) —
-    // exactly one quick-filter view was ever created
-    expect(connection.table.views.filter((v) => v.config.expressions).length).toBe(1);
     const clearedArg = cleared.success.mock.calls[0]![0] as { rowCount?: number };
     expect(clearedArg.rowCount).toBe(9);
+    ds.destroy();
+  });
+
+  it('MULTI-token quick filter keeps the expression path (tokens AND, filter_op cannot)', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = bookRows(9);
+    connection.emit(liveState(9));
+    const ds = makeDatasource(connection, { quickFilterColumns: ['book', 'positionId'] });
+    const api = fakeApi();
+    ds.getRows(loadParams(api));
+    await flush();
+
+    ds.setQuickFilter('bookA POS1');
+    ds.getRows(loadParams(api));
+    await flush();
+
+    const view = connection.table.views.at(-1)!;
+    expect(view.config.filter).toEqual([[QUICK_FILTER_EXPR, '==', true]]);
+    expect(view.config.filter_op).toBeUndefined(); // AND across clauses
+    expect(view.config.expressions?.[QUICK_FILTER_EXPR]).toContain(' and ');
     ds.destroy();
   });
 
@@ -959,7 +980,9 @@ describe('createSsrmPullDatasource', () => {
     expect(params.success).toHaveBeenCalledTimes(1);
     expect(params.fail).not.toHaveBeenCalled();
     const servedView = connection.table.views.at(-1)!;
-    expect(servedView.config.filter).toEqual([[QUICK_FILTER_EXPR, '==', true]]);
+    // Single token, no other filter → native contains fast path.
+    expect(servedView.config.filter).toEqual([['book', 'contains', 'bookA']]);
+    expect(servedView.config.filter_op).toBe('or');
     expect(ds.getStats().droppedStale).toBeGreaterThanOrEqual(1);
     expect(api.calls.rowData).toEqual([]); // no stale block replacement
     ds.destroy();
@@ -1080,7 +1103,8 @@ describe('createSsrmPullDatasource', () => {
     // the quick-filtered view already exists (built during AG's refresh
     // cycle), so the first post-change block read skips view construction
     const warmed = connection.table.views.at(-1)!;
-    expect(warmed.config.filter).toEqual([[QUICK_FILTER_EXPR, '==', true]]);
+    expect(warmed.config.filter).toEqual([['book', 'contains', 'bookA']]);
+    expect(warmed.config.filter_op).toBe('or');
 
     ds.getRows(loadParams(api)); // the real load REUSES the warmed view
     await flush();

@@ -49,6 +49,14 @@ export interface PullViewConfig {
   filter?: PullFilter[];
   /** Row grouping — ONE level per view (the request's next level). */
   group_by?: string[];
+  /**
+   * How the `filter` clauses combine. VIEW-GLOBAL, hence the default
+   * (AND) for everything except the single-token quick-filter fast path,
+   * where the clauses are the only ones present and must OR across
+   * columns. Setting this with any other clause in `filter` would widen
+   * the result instead of narrowing it.
+   */
+  filter_op?: 'and' | 'or';
   /** Boolean/constant expression columns (filters, quick filter, rollup). */
   expressions?: Record<string, string>;
   /** Per-column aggregates for grouped/rollup views. */

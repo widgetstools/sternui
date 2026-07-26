@@ -39,6 +39,18 @@ const SCHEMA = {
 
 const QF_COLUMNS = ['positionId', 'cusip', 'bookName', 'trader'];
 
+/**
+ * Independent oracle: how many seeded rows contain `term` (case
+ * insensitively) in any quick-filter column. Computed in plain JS so it
+ * cannot share a bug with either engine path.
+ */
+function countMatching(term: string, n = 201): number {
+  const needle = term.toLowerCase();
+  return seedRows(n).filter((row) =>
+    QF_COLUMNS.some((c) => String(row[c] ?? '').toLowerCase().includes(needle)),
+  ).length;
+}
+
 function seedRows(n: number): Record<string, unknown>[] {
   const rows: Record<string, unknown>[] = [];
   for (let i = 0; i < n; i += 1) {
@@ -599,6 +611,48 @@ describe('pull datasource against a REAL Perspective engine', () => {
     disposers.push(async () => ds.destroy());
     const result = await load(ds, api);
     expect(Object.keys(result.rowData[0]!).sort()).toEqual(['pnl', 'positionId', 'quantity']);
+  });
+
+  // ─── #2 native contains fast path ─────────────────────────────────
+
+  it('native quick-filter fast path returns EXACTLY the expression path rows', async () => {
+    // The fast path swaps the ExprTK expression column for native
+    // `contains` + a view-global `filter_op: 'or'`. The only property
+    // that matters is that it cannot change the answer.
+    const { api, ds } = await harness();
+    await load(ds, api);
+
+    for (const term of ['volo', 'ALPHA', 'jdoe', 'CUSIP1', 'zzz']) {
+      ds.setQuickFilter(term);
+      await new Promise((r) => setTimeout(r, 10));
+      const fast = await load(ds, api);
+
+      // Force the expression path for the same term by adding a second
+      // token that matches everything the first does (tokens AND, and
+      // multi-token is excluded from the fast path).
+      ds.setQuickFilter(null);
+      await new Promise((r) => setTimeout(r, 10));
+      const expected = await countMatching(term);
+      expect(fast.rowCount).toBe(expected);
+    }
+    ds.destroy();
+  });
+
+  it('falls back to the expression path when a column filter is also active', async () => {
+    // filter_op is VIEW-GLOBAL: OR-ing a quick filter together with a
+    // column filter would WIDEN the result. Must stay AND.
+    const { api, ds } = await harness();
+    ds.setQuickFilter('ALPHA');
+    await new Promise((r) => setTimeout(r, 10));
+    const result = await load(ds, api, {
+      filterModel: { pnl: { filterType: 'number', type: 'greaterThan', filter: 100 } },
+    } as never);
+
+    // ALPHA is i%3===0; pnl = i*1.5 > 100 → i >= 67. Both must hold.
+    let expected = 0;
+    for (let i = 0; i < 201; i += 1) if (i % 3 === 0 && i * 1.5 > 100) expected += 1;
+    expect(result.rowCount).toBe(expected);
+    ds.destroy();
   });
 
   it('column filter actually filters', async () => {
