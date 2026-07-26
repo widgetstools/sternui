@@ -457,6 +457,13 @@ function GridHost({
         connection,
         keyColumn,
         quickFilterColumns,
+        // Read only what is on screen. Matters most in `cols=all`, where
+        // the feed's full record is ~160 columns and view build cost
+        // scales with the projected width. Safe because the engine
+        // filters/sorts/groups on unprojected columns; the spike has no
+        // renderer reading a hidden sibling field, so no
+        // `alwaysProjectColumns` is needed here.
+        projectDisplayedColumns: true,
         ...(calcExpressions ? { calcExpressions } : {}),
         // P4b-2: tree mode serves the config's synthesized hierarchy.
         ...(TREE_MODE && treePathFields ? { treePathFields } : {}),

@@ -109,6 +109,8 @@ type FakeApi = GridApi & {
   rowDataCalls: Array<{ startRow?: number; route?: string[] }>;
   nodes: Map<string, FakeNode>;
   seedNode(id: string, data: Record<string, unknown>): FakeNode;
+  /** Drives `getAllDisplayedColumns` for the projection tests. */
+  displayedColumns: string[];
 };
 
 function fakeApi(): FakeApi {
@@ -116,11 +118,14 @@ function fakeApi(): FakeApi {
   const transactions: Array<{ route?: string[]; update?: Record<string, unknown>[] }> = [];
   const rowDataCalls: Array<{ startRow?: number; route?: string[] }> = [];
   const nodes = new Map<string, FakeNode>();
-  return {
+  const self = {
     refreshes,
     transactions,
     rowDataCalls,
     nodes,
+    displayedColumns: [] as string[],
+    getAllDisplayedColumns: () =>
+      self.displayedColumns.map((id) => ({ getColId: () => id })),
     seedNode(id: string, data: Record<string, unknown>): FakeNode {
       const node: FakeNode = {
         data,
@@ -138,6 +143,7 @@ function fakeApi(): FakeApi {
     getRowNode: (id: string) => nodes.get(id),
     refreshCells: () => undefined,
   } as unknown as FakeApi;
+  return self;
 }
 
 function agRequest(overrides: Partial<IServerSideGetRowsRequest> = {}): IServerSideGetRowsRequest {
@@ -526,6 +532,73 @@ describe('pull datasource against a REAL Perspective engine', () => {
     expect(api.transactions.length).toBeGreaterThan(txnsBefore);
     expect(api.rowDataCalls.length).toBe(replacementsBefore);
     ds.destroy();
+  });
+
+  // ─── #1 projection narrowing ──────────────────────────────────────
+
+  it('projects ONLY displayed columns, while still filtering/sorting on hidden ones', async () => {
+    const connection = await realConnection(201);
+    disposers.push(() => connection.dispose());
+    const api = fakeApi();
+    // The grid renders two columns; cusip/bookName/trader/quantity are not shown.
+    api.displayedColumns = ['positionId', 'pnl'];
+    const ds = createSsrmPullDatasource({
+      connection,
+      keyColumn: 'positionId',
+      projectDisplayedColumns: true,
+      quickFilterDebounceMs: 0,
+      tickRefreshMs: 0,
+      warn: () => undefined,
+    });
+    disposers.push(async () => ds.destroy());
+
+    // Filter AND sort on columns that are NOT projected — engine-verified
+    // to work, and the whole reason narrowing is safe.
+    const result = await load(ds, api, {
+      filterModel: { quantity: { filterType: 'number', type: 'greaterThan', filter: 100 } },
+      sortModel: [{ colId: 'cusip', sort: 'desc' }],
+    } as never);
+
+    expect(result.rowCount).toBe(100); // quantity = i, i > 100 → 101..200
+    const keys = Object.keys(result.rowData[0]!).sort();
+    expect(keys).toEqual(['pnl', 'positionId']); // nothing else travelled
+  });
+
+  it('falls back to the full projection before the grid reports columns', async () => {
+    const connection = await realConnection(201);
+    disposers.push(() => connection.dispose());
+    const api = fakeApi();
+    api.displayedColumns = []; // grid not laid out yet
+    const ds = createSsrmPullDatasource({
+      connection,
+      keyColumn: 'positionId',
+      projectDisplayedColumns: true,
+      quickFilterDebounceMs: 0,
+      tickRefreshMs: 0,
+      warn: () => undefined,
+    });
+    disposers.push(async () => ds.destroy());
+    const result = await load(ds, api);
+    expect(Object.keys(result.rowData[0]!).length).toBeGreaterThan(2);
+  });
+
+  it('honours alwaysProjectColumns for renderer sibling fields', async () => {
+    const connection = await realConnection(201);
+    disposers.push(() => connection.dispose());
+    const api = fakeApi();
+    api.displayedColumns = ['positionId', 'pnl'];
+    const ds = createSsrmPullDatasource({
+      connection,
+      keyColumn: 'positionId',
+      projectDisplayedColumns: true,
+      alwaysProjectColumns: ['quantity'], // a bar renderer's `max`
+      quickFilterDebounceMs: 0,
+      tickRefreshMs: 0,
+      warn: () => undefined,
+    });
+    disposers.push(async () => ds.destroy());
+    const result = await load(ds, api);
+    expect(Object.keys(result.rowData[0]!).sort()).toEqual(['pnl', 'positionId', 'quantity']);
   });
 
   it('column filter actually filters', async () => {
