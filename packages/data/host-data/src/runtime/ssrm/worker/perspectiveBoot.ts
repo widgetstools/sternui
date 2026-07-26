@@ -81,11 +81,11 @@ export async function bootPerspective(urls: PerspectiveWasmUrls): Promise<Booted
 
   // Loopback client — vendor perspective.node.ts SYNC_CLIENT/SESSION.
   let localClient: PerspectiveClient;
-  const localSession = server.make_session((resp: Uint8Array) => {
-    return localClient.handle_response(resp);
+  const localSession = server.make_session(async (resp: Uint8Array) => {
+    await localClient.handle_response(resp);
   });
-  localClient = new perspectiveClient.Client((req: Uint8Array) => {
-    return localSession.handle_request(req);
+  localClient = new perspectiveClient.Client(async (req: Uint8Array) => {
+    await localSession.handle_request(req);
   });
 
   return {
