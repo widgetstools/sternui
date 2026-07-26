@@ -131,6 +131,14 @@ export interface SsrmPullDatasourceOpts {
    * Trailing debounce for `setQuickFilter` so per-keystroke input
    * collapses into ONE view build + ONE store refresh. `0` applies
    * synchronously (tests / programmatic callers). Default 150ms.
+   *
+   * DO NOT remove this to make the filter "feel quicker" — it is the
+   * only thing standing between typing and multi-second stalls. Every
+   * distinct term is a whole new Perspective view, and the build is the
+   * entire cost. Measured, seven keystrokes with no debounce:
+   * 613ms @ 20k x 12 cols, 2.9s @ 100k x 34, 5.9s @ 100k x 158.
+   * Debounced, the user pays ONE build (116ms / 359ms / 750ms) and the
+   * pre-warm in `setQuickFilter` overlaps most of it with AG's refresh.
    */
   quickFilterDebounceMs?: number;
   /**
@@ -1041,33 +1049,37 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         // Epoch fence: every in-flight read for the pre-change shape is
         // now stale — bump BEFORE the refresh so none of them can paint.
         planEpoch += 1;
-        // PURGE — for flat stores too. A quick-filter change is a
-        // MEMBERSHIP change, so every cached block index is meaningless
-        // and this is exactly what AG's own column-filter path does
-        // (`refreshAfterFilter` -> `refreshStore(true)`). It costs ONE
-        // request instead of one per cached block.
+        // FLAT store: refresh SOFT (purge:false). Rows stay on screen and
+        // in place while the new view builds, the scroll position holds,
+        // and no loading stubs flash. Correctness comes from `rowCount`
+        // riding EVERY success: that is an ungated assignment followed by
+        // AG's past-the-end node cleanup, so the store shrinks AND sheds
+        // orphans on its own.
         //
-        // The previous soft-refresh-plus-`setRowCount(n, true)` pairing
-        // was the worst of both: `setRowCount` performs no past-the-end
-        // node cleanup, so the shrink stranded orphan rows and drove
-        // negative display indices (the "filter did nothing, the whole
-        // book is still painted" report — treated then with a
-        // `redrawRows()` band-aid), AND it armed the sort deadlock,
-        // because `refreshAfterSort` preserves `isLastRowKnown`.
+        // It was `setRowCount` that made a soft shrink leave the whole
+        // unfiltered book painted (no cleanup in either variant), not
+        // `purge:false`. With setRowCount gone, soft is both correct and
+        // the fast path — purging here was an over-correction that cost
+        // a loading flash and a jump to the top of the book on every
+        // keystroke AND on clear.
         //
-        // Visible cost, accepted: loading rows flash and the viewport
-        // lands at the top (the store collapses to one row, so the
-        // browser clamps scrollTop — AG issues no scroll call).
-        //
+        // GROUPED/TREE store: still PURGE. A membership change restructures
+        // the group set itself, so cached group-level blocks are not merely
+        // stale but wrong, and `setRowCount` is illegal under grouping
+        // (AG #28) so the count cannot be corrected in place.
+        const grouped =
+          (lastRootRequest?.rowGroupCols?.length ?? 0) > 0 ||
+          (opts.treePathFields?.length ?? 0) > 0;
         // Pre-warm the NEW shape's view while AG spins up its refresh
-        // cycle: building the quick-filter expression view over the
-        // whole book is the long pole of the first post-change read —
-        // overlapping it with AG's store refresh takes it off the
-        // first block's critical path. (Memoized by key: the real
-        // loads reuse this very view.)
+        // cycle. Measured, this is the ONLY meaningful cost of a quick
+        // filter: building the expression view over the whole book runs
+        // 116ms @ 20k x 12 cols and 750ms @ 100k x 158, while counting
+        // and reading a block are 0.1-11ms. Overlapping the build with
+        // AG's refresh takes it off the first block's critical path.
+        // (Memoized by key — the real loads reuse this very view.)
         const warmPlan = buildQueryPlan(lastRootRequest ?? EMPTY_ROOT_REQUEST, planOpts());
         void viewCache.warm(warmPlan.key, warmPlan.viewConfig, viewFactory).catch(() => undefined);
-        api?.refreshServerSide({ route: [], purge: true });
+        api?.refreshServerSide({ route: [], purge: grouped });
       };
       const debounceMs = opts.quickFilterDebounceMs ?? 150;
       if (debounceMs <= 0) apply();

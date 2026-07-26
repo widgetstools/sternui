@@ -189,9 +189,9 @@ describe('pull datasource against a REAL Perspective engine', () => {
 
     ds.setQuickFilter('volo');
     await new Promise((r) => setTimeout(r, 10));
-    expect(api.refreshes).toEqual([{ route: [], purge: true }]);
+    expect(api.refreshes).toEqual([{ route: [], purge: false }]);
 
-    // AG's purge re-requests block 0 — this is that reload.
+    // AG's refresh re-requests block 0 — this is that reload.
     const filtered = await load(ds, api);
     expect(filtered.rowCount).toBe(1);
     expect(filtered.rowData).toHaveLength(1);
@@ -213,6 +213,43 @@ describe('pull datasource against a REAL Perspective engine', () => {
     ds.setQuickFilter(null); // cleared
     await new Promise((r) => setTimeout(r, 10));
     expect((await load(ds, api)).rowCount).toBe(201);
+  });
+
+  // The two behaviours the CSRM comparison demands: applying the filter
+  // must not throw the painted rows away, and CLEARING must come back
+  // immediately. Measured on the real engine, the whole cost of a quick
+  // filter is the VIEW BUILD (116ms @ 20k x 12 cols, 750ms @ 100k x 158);
+  // counting and reading are 0.1-11ms, and re-reading a retained
+  // unfiltered view is ~1ms. So: never purge a flat store (keeps rows on
+  // screen while the build runs) and never drop the unfiltered blocks.
+
+  it('does NOT purge a flat store — rows stay painted while the view builds', async () => {
+    const { api, ds } = await harness();
+    await load(ds, api);
+    ds.setQuickFilter('volo');
+    await new Promise((r) => setTimeout(r, 10));
+    expect(api.refreshes).toEqual([{ route: [], purge: false }]);
+  });
+
+  it('CLEARING the quick filter serves the full book from cache, immediately', async () => {
+    const { api, ds } = await harness();
+    await load(ds, api);
+
+    ds.setQuickFilter('volo');
+    await new Promise((r) => setTimeout(r, 10));
+    expect((await load(ds, api)).rowCount).toBe(1);
+
+    ds.setQuickFilter(null);
+    await new Promise((r) => setTimeout(r, 10));
+    const started = performance.now();
+    const cleared = await load(ds, api);
+    const elapsed = performance.now() - started;
+
+    expect(cleared.rowCount).toBe(201);
+    expect(cleared.rowData).toHaveLength(100);
+    // Served from the block cache against the retained unfiltered view.
+    // Generous bound — the point is "no rebuild", not a precise number.
+    expect(elapsed).toBeLessThan(60);
   });
 
   it('column filter actually filters', async () => {

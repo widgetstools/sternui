@@ -669,10 +669,12 @@ describe('createSsrmPullDatasource', () => {
     await flush();
 
     ds.setQuickFilter('bookA');
-    // A quick-filter change is a MEMBERSHIP change: every cached block
-    // index is meaningless, so the root store is purged — the same thing
-    // AG's own column-filter path does. One request, not one per block.
-    expect(api.calls.refreshes).toEqual([{ route: [], purge: true }]);
+    // FLAT store: SOFT refresh. Rows stay painted and in place while the
+    // new view builds, scroll position holds, no loading flash. The
+    // shrink is carried by `rowCount` on every success (which runs AG's
+    // past-the-end cleanup) — NOT by setRowCount, which does no cleanup
+    // and was what previously left the whole book painted.
+    expect(api.calls.refreshes).toEqual([{ route: [], purge: false }]);
     const params = loadParams(api); // the refresh re-issues getRows
     ds.getRows(params);
     await flush();
@@ -695,7 +697,24 @@ describe('createSsrmPullDatasource', () => {
     ds.destroy();
   });
 
-  it('debounces per-keystroke setQuickFilter into ONE purge refresh (perf fix)', () => {
+  it('PURGES on a grouped store — group membership changes structurally', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = bookRows(9);
+    connection.emit(liveState(9));
+    const ds = makeDatasource(connection, { quickFilterColumns: ['book'] });
+    const api = fakeApi();
+    ds.getRows(loadParams(api, GROUP_REQUEST)); // establishes a grouped root
+    await flush();
+
+    ds.setQuickFilter('bookA');
+    // Under grouping the cached group-level blocks are not merely stale
+    // but wrong (the group SET changes), and setRowCount is illegal
+    // (AG #28) so the count cannot be corrected in place.
+    expect(api.calls.refreshes).toEqual([{ route: [], purge: true }]);
+    ds.destroy();
+  });
+
+  it('debounces per-keystroke setQuickFilter into ONE refresh (perf fix)', () => {
     // Pre-fix, each keystroke built a full Perspective view and queued a
     // refresh behind it — typing "BOOK003" cost 7 stacked re-queries.
     vi.useFakeTimers();
@@ -718,18 +737,18 @@ describe('createSsrmPullDatasource', () => {
       expect(api.calls.refreshes).toEqual([]); // nothing applied mid-typing
 
       vi.advanceTimersByTime(200); // trailing edge
-      expect(api.calls.refreshes).toEqual([{ route: [], purge: true }]); // exactly one
+      expect(api.calls.refreshes).toEqual([{ route: [], purge: false }]); // exactly one, and SOFT
 
       // Re-setting the SAME settled value must not refresh again.
       ds.setQuickFilter('BOOK003');
       vi.advanceTimersByTime(300);
-      expect(api.calls.refreshes).toEqual([{ route: [], purge: true }]);
+      expect(api.calls.refreshes).toEqual([{ route: [], purge: false }]);
 
       // destroy() cancels a pending apply.
       ds.setQuickFilter('other');
       ds.destroy();
       vi.advanceTimersByTime(300);
-      expect(api.calls.refreshes).toEqual([{ route: [], purge: true }]);
+      expect(api.calls.refreshes).toEqual([{ route: [], purge: false }]);
     } finally {
       vi.useRealTimers();
     }
