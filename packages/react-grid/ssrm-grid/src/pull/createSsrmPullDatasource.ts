@@ -497,26 +497,31 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       } catch {
         continue;
       }
-      const idField = plan.kind === 'group-level' ? GROUP_ID_FIELD : keyColumn;
-      for (const { startRow, block } of entries) {
-        let read: { rows: Record<string, unknown>[]; total: number };
-        try {
-          stats.sweepBlockReads += 1;
-          read = await readPlanBlock(plan, view, startRow, block.endRow);
-        } catch {
-          break; // view evicted/deleted mid-read — the next tick repairs
+      viewCache.hold(plan.key);
+      try {
+        const idField = plan.kind === 'group-level' ? GROUP_ID_FIELD : keyColumn;
+        for (const { startRow, block } of entries) {
+          let read: { rows: Record<string, unknown>[]; total: number };
+          try {
+            stats.sweepBlockReads += 1;
+            read = await readPlanBlock(plan, view, startRow, block.endRow);
+          } catch {
+            break; // view evicted/deleted mid-read — the next tick repairs
+          }
+          if (destroyed || generation !== requestGen) return;
+          if (planEpoch !== requestEpoch) {
+            stats.droppedStale += 1;
+            return; // query shape changed mid-sweep — stale rows, drop all
+          }
+          blockCache.set(plan.key, startRow, { ...read, generation: requestGen, endRow: block.endRow });
+          const changed = diffRowsByKey(block.rows, read.rows, idField);
+          if (changed.length > 0) {
+            api.applyServerSideTransactionAsync({ route: plan.route, update: changed });
+          }
+          if (plan === rootPlan) rootTotal = read.total;
         }
-        if (destroyed || generation !== requestGen) return;
-        if (planEpoch !== requestEpoch) {
-          stats.droppedStale += 1;
-          return; // query shape changed mid-sweep — stale rows, drop all
-        }
-        blockCache.set(plan.key, startRow, { ...read, generation: requestGen, endRow: block.endRow });
-        const changed = diffRowsByKey(block.rows, read.rows, idField);
-        if (changed.length > 0) {
-          api.applyServerSideTransactionAsync({ route: plan.route, update: changed });
-        }
-        if (plan === rootPlan) rootTotal = read.total;
+      } finally {
+        viewCache.release(plan.key);
       }
     }
     const now = connection.state;
@@ -540,17 +545,22 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     if (!rollup || !api || destroyed) return;
     const pendingView = viewCache.peek(rollup.key);
     if (!pendingView) return;
-    let totals: Record<string, unknown> | null;
+    viewCache.hold(rollup.key);
     try {
-      totals = await readRollupRow(await pendingView);
-    } catch {
-      return;
+      let totals: Record<string, unknown> | null;
+      try {
+        totals = await readRollupRow(await pendingView);
+      } catch {
+        return;
+      }
+      if (!totals || destroyed || generation !== requestGen || !api) return;
+      const node = api.getRowNode(GRAND_TOTAL_ROW_ID);
+      if (!node) return;
+      node.updateData({ ...(node.data as Record<string, unknown>), ...totals });
+      api.refreshCells({ rowNodes: [node], force: true });
+    } finally {
+      viewCache.release(rollup.key);
     }
-    if (!totals || destroyed || generation !== requestGen || !api) return;
-    const node = api.getRowNode(GRAND_TOTAL_ROW_ID);
-    if (!node) return;
-    node.updateData({ ...(node.data as Record<string, unknown>), ...totals });
-    api.refreshCells({ rowNodes: [node], force: true });
   }
 
   /** Row 0 of a rollup view = Perspective's total row over the filtered set. */
