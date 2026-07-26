@@ -97,6 +97,11 @@ import {
   type SsrmPullDatasource,
   type StompSsrmProviderConfig,
 } from '@starui/ssrm-grid/pull';
+// AG 36 gates its built-in row-count status panels to the CLIENT-side row
+// model (AgStatusBarValidationMap) and silently drops them under
+// serverSide — an empty status bar with no error. These stand-ins render
+// the same CSRM chrome from counts we supply via the grid `context`.
+import { SSRM_DEFAULT_STATUS_BAR } from '@starui/ssrm-grid';
 import { Button, Input } from '@starui/ui';
 import { createConfigManager } from '@starui/host-config';
 import { DataProviderConfigStore } from '@starui/host-data/runtime';
@@ -369,6 +374,35 @@ function GridHost({
       }),
     [connection, generation, keyColumn, quickFilterColumns, calcExpressions, treePathFields],
   );
+  // Status-bar counts. A STABLE object handed to the grid as `context`
+  // and MUTATED in place: the SSRM status panels poll
+  // `api.getGridOption('context')`, so mutation avoids a grid option
+  // write (and a re-render) on every tick.
+  //   totalRowCount    — the whole book, from DatasetState
+  //   filteredRowCount — the current server-side filtered set, i.e. the
+  //                      last flat-root count the datasource delivered
+  const statusCounts = useMemo(
+    () => ({ totalRowCount: undefined as number | undefined, filteredRowCount: undefined as number | undefined }),
+    [],
+  );
+  useEffect(() => {
+    const sync = (): void => {
+      const snap = connection.state;
+      if (snap && snap.phase !== 'connecting') statusCounts.totalRowCount = snap.rowCount;
+      const root = datasource.getStats().rootRowCount;
+      // null while grouping — the root then holds GROUP rows, whose
+      // count is not the leaf count, so "x of y" would lie.
+      statusCounts.filteredRowCount = root ?? undefined;
+    };
+    sync();
+    const off = connection.onState(sync);
+    const id = window.setInterval(sync, 300);
+    return () => {
+      off();
+      window.clearInterval(id);
+    };
+  }, [connection, datasource, statusCounts]);
+
   const getRowId = useMemo(() => createSsrmRowIdGetter(keyColumn), [keyColumn]);
   // P4b: edits post keyed partial rows to the worker-hosted table.
   const onCellValueChanged = useMemo(
@@ -459,22 +493,15 @@ function GridHost({
           },
         ],
       }}
-      // Status bar. Row counts come from the store, which the datasource
-      // keeps authoritative via `rowCount` on every load success, so they
-      // track the server-side filtered set rather than loaded blocks.
-      // The aggregation panel needs a cell selection to have anything to
-      // sum, hence `cellSelection` below.
-      statusBar={{
-        statusPanels: [
-          { statusPanel: 'agTotalAndFilteredRowCountComponent', align: 'left' },
-          { statusPanel: 'agSelectedRowCountComponent', align: 'center' },
-          {
-            statusPanel: 'agAggregationComponent',
-            align: 'right',
-            statusPanelParams: { aggFuncs: ['count', 'sum', 'min', 'max', 'avg'] },
-          },
-        ],
-      }}
+      // Status bar: SSRM stand-ins, NOT the built-ins. AG 36 restricts
+      // agTotalRowCount / agFilteredRowCount / agTotalAndFilteredRowCount
+      // to the clientSide row model and drops them here without an error.
+      // These read `context.{totalRowCount,filteredRowCount}`, which
+      // `statusCounts` below keeps current. agAggregationComponent (the
+      // one built-in that IS serverSide-supported) needs a selection to
+      // have anything to sum, hence `cellSelection`.
+      statusBar={SSRM_DEFAULT_STATUS_BAR}
+      context={statusCounts}
       cellSelection
       grandTotalRow="bottom"
       suppressAggFuncInHeader

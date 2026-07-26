@@ -228,6 +228,14 @@ export interface SsrmPullDatasourceStats {
   sweepDeferrals: number;
   /** `getRows` calls that exhausted their re-plan attempts and answered stale. */
   serveExhausted: number;
+  /**
+   * Last flat-root total delivered to the grid — i.e. the size of the
+   * CURRENT server-side filtered set, not of the loaded blocks. `null`
+   * before the first root load, or while grouping (the root then holds
+   * group rows, whose count is not the leaf count). Drives the status
+   * bar's "Rows: x of y".
+   */
+  rootRowCount: number | null;
 }
 
 export interface SsrmPullDatasource extends IServerSideDatasource {
@@ -317,6 +325,7 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     droppedStale: 0,
     sweepDeferrals: 0,
     serveExhausted: 0,
+    rootRowCount: null,
   };
   let lastScrollAt = 0;
   /** In-flight cold `getRows` reads — sweeps yield while any is pending. */
@@ -1169,7 +1178,7 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       lastScrollAt = Date.now();
     },
     getStats(): SsrmPullDatasourceStats {
-      return { ...stats };
+      return { ...stats, rootRowCount: lastRootTotal };
     },
     destroy(): void {
       destroyed = true;
