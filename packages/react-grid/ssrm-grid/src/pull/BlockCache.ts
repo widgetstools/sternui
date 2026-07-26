@@ -25,12 +25,18 @@ export class BlockCache {
   /** Insertion order = LRU order. Key: `${viewKey}#${startRow}`. */
   private readonly blocks = new Map<string, CachedBlock>();
 
-  constructor(maxBlocks = 12) {
+  constructor(maxBlocks = 32) {
     this.maxBlocks = maxBlocks;
   }
 
   get size(): number {
     return this.blocks.size;
+  }
+
+  /** Existence check WITHOUT a recency touch (prefetch dedupe). */
+  has(viewKey: string, startRow: number, generation: number): boolean {
+    const entry = this.blocks.get(blockKey(viewKey, startRow));
+    return entry !== undefined && entry.generation === generation;
   }
 
   get(viewKey: string, startRow: number, generation: number): CachedBlock | undefined {

@@ -31,6 +31,7 @@ export {
   type QueryAllResult,
   type SsrmPullDatasource,
   type SsrmPullDatasourceOpts,
+  type SsrmPullDatasourceStats,
 } from './createSsrmPullDatasource.js';
 
 export {
@@ -88,6 +89,7 @@ export {
 export {
   DEFAULT_SWEEP_THROTTLE_WIDE_MS,
   DEFAULT_WIDE_COLUMN_THRESHOLD,
+  NARROW_SWEEP_MAX_BLOCKS,
   resolveSweepGate,
   WIDE_SWEEP_MAX_BLOCKS,
   type SweepGateConfig,

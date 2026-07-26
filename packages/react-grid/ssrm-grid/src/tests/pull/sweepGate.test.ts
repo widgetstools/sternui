@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_SWEEP_THROTTLE_WIDE_MS,
   DEFAULT_WIDE_COLUMN_THRESHOLD,
+  NARROW_SWEEP_MAX_BLOCKS,
   resolveSweepGate,
   WIDE_SWEEP_MAX_BLOCKS,
 } from '../../pull/sweepGate.js';
@@ -13,19 +14,19 @@ const CONFIG = {
 };
 
 describe('resolveSweepGate', () => {
-  it('narrow books keep the base throttle and the full sweep', () => {
+  it('narrow books keep the base throttle with the narrow MRU budget', () => {
     expect(resolveSweepGate(40, CONFIG)).toEqual({
       wide: false,
       throttleMs: 250,
-      scope: 'all-blocks',
+      maxSweepBlocks: NARROW_SWEEP_MAX_BLOCKS,
     });
   });
 
-  it('wide books degrade: longer throttle, visible blocks only', () => {
+  it('wide books degrade: longer throttle, tighter MRU budget', () => {
     expect(resolveSweepGate(120, CONFIG)).toEqual({
       wide: true,
       throttleMs: 1000,
-      scope: 'visible-blocks',
+      maxSweepBlocks: WIDE_SWEEP_MAX_BLOCKS,
     });
   });
 
@@ -38,7 +39,7 @@ describe('resolveSweepGate', () => {
     expect(resolveSweepGate(null, CONFIG)).toEqual({
       wide: false,
       throttleMs: 250,
-      scope: 'all-blocks',
+      maxSweepBlocks: NARROW_SWEEP_MAX_BLOCKS,
     });
   });
 
@@ -47,9 +48,10 @@ describe('resolveSweepGate', () => {
     expect(decision.throttleMs).toBe(250); // clamped up to tickRefreshMs
   });
 
-  it('ships sane defaults', () => {
+  it('ships sane defaults (every width is MRU-gated; narrow ≥ wide budget)', () => {
     expect(DEFAULT_WIDE_COLUMN_THRESHOLD).toBe(80);
     expect(DEFAULT_SWEEP_THROTTLE_WIDE_MS).toBe(1000);
     expect(WIDE_SWEEP_MAX_BLOCKS).toBeGreaterThan(0);
+    expect(NARROW_SWEEP_MAX_BLOCKS).toBeGreaterThanOrEqual(WIDE_SWEEP_MAX_BLOCKS);
   });
 });

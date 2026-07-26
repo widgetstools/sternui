@@ -402,7 +402,15 @@ function GridHost({
       rowModelType="serverSide"
       serverSideDatasource={datasource}
       cacheBlockSize={100}
-      maxBlocksInCache={10}
+      // 24 (was 10): AG evicting blocks the datasource still holds
+      // defeats serve-then-refresh — a re-request of an AG-evicted block
+      // became a cold stub read even though the data plane had it. Keep
+      // this BELOW the datasource's maxBlocks (32) so the BlockCache
+      // always covers what AG can re-request.
+      maxBlocksInCache={24}
+      // Scroll-aware sweep deferral: while the user scrolls, tick sweeps
+      // yield the worker to viewport block reads (one sweep on settle).
+      onBodyScroll={() => datasource.onScroll()}
       columnDefs={displayColumnDefs}
       defaultColDef={{ sortable: true, resizable: true, enableCellChangeFlash: true }}
       autoGroupColumnDef={{ headerName: TREE_MODE ? 'Tree' : 'Group', minWidth: 220 }}

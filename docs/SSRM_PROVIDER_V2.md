@@ -132,7 +132,10 @@ const datasource = createSsrmPullDatasource({
   rowModelType="serverSide"
   serverSideDatasource={datasource}
   cacheBlockSize={100}
-  maxBlocksInCache={10}
+  maxBlocksInCache={24}          // keep BELOW the datasource's maxBlocks (32) —
+                                 // AG evicting a block the data plane still holds
+                                 // defeats serve-then-refresh
+  onBodyScroll={() => datasource.onScroll()}  // sweeps yield to scrolling
   getRowId={createSsrmRowIdGetter(config.keyColumn)}   // REQUIRED — keyed tick patches
   grandTotalRow="bottom"                               // optional live grand total
   getChildCount={(d) => d?.[CHILD_COUNT_FIELD]}        // group child counts

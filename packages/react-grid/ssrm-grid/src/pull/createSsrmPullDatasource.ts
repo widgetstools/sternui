@@ -67,11 +67,26 @@
  *   so calc columns sort/filter/aggregate/export like real columns.
  * • **Wide-book delta gate (P4b-2, design fact #5).** The tick sweep
  *   is width-gated (`sweepGate.ts`): at/above `wideColumnThreshold`
- *   columns the throttle degrades to `sweepThrottleWideMs` and the
- *   sweep refetches only the `WIDE_SWEEP_MAX_BLOCKS` most-recently-used
- *   blocks (≈ the viewport; off-screen blocks catch up via plain
- *   cache-miss reads when scrolled back). Narrow books keep the plain
- *   bare `on_update` → refetch-everything path, no row deltas.
+ *   columns the throttle degrades to `sweepThrottleWideMs`. EVERY
+ *   width's sweep is MRU-gated (`maxSweepBlocks` — wide 4, narrow 6):
+ *   the block LRU's recency order is viewport order, so the sweep
+ *   refetches ≈ the painted blocks; off-screen blocks catch up via
+ *   serve-then-refresh cache hits when scrolled back.
+ * • **Interactive-perf hardening (2026-07).**
+ *   – *Plan-epoch fence*: the epoch bumps when the effective query
+ *     shape changes (quick-filter apply; root filter/sort fingerprint
+ *     change on a root load); every async read captures it and stale
+ *     results are dropped everywhere they could touch the grid or the
+ *     cache — in-flight old-shape reads can never repaint over the
+ *     current shape (the transient-wrong-rows race). A root load whose
+ *     shape went stale mid-read re-serves against the current shape.
+ *   – *Scroll-aware sweep deferral*: the consumer wires AG's
+ *     `onBodyScroll` → `datasource.onScroll()`; sweeps wait out the
+ *     scroll (+`scrollSettleMs`) and any in-flight cold miss, then run
+ *     ONE coalesced sweep on settle (idle ticks are never starved).
+ *   – *Neighbor prefetch* (design fact #6): a resolved cold miss on a
+ *     flat leaf plan warms its adjacent blocks into the BlockCache
+ *     (cache-only) so directional scrolling stays a cache hit.
  */
 
 import { GRAND_TOTAL_ROW_ID } from 'ag-grid-community';
@@ -94,7 +109,6 @@ import {
   DEFAULT_SWEEP_THROTTLE_WIDE_MS,
   DEFAULT_WIDE_COLUMN_THRESHOLD,
   resolveSweepGate,
-  WIDE_SWEEP_MAX_BLOCKS,
 } from './sweepGate.js';
 import { ViewCache } from './ViewCache.js';
 import type { PullDatasourceConnection, PullView } from './types.js';
@@ -131,10 +145,21 @@ export interface SsrmPullDatasourceOpts {
   treePathFields?: string[];
   /** Live-view LRU capacity. Default 8. */
   maxViews?: number;
-  /** Viewport block LRU capacity. Default 12. */
+  /**
+   * Viewport block LRU capacity. Default 32 — sized ABOVE the grid's
+   * `maxBlocksInCache` so AG evicting a block never implies the
+   * datasource lost it too (an AG re-request after eviction should be
+   * a serve-then-refresh cache hit, not a cold stub read).
+   */
   maxBlocks?: number;
   /** Tick→refetch trailing throttle. Default 250ms. */
   tickRefreshMs?: number;
+  /**
+   * Scroll settle window (ms): after the last `onScroll()` signal the
+   * tick sweep stays deferred this long (coalesced to ONE sweep on
+   * settle) so user-facing block reads own the worker. Default 300.
+   */
+  scrollSettleMs?: number;
   /**
    * Wide-book delta gate (design fact #5): column count at/above which
    * tick sweeps degrade to `sweepThrottleWideMs` + visible-blocks-only.
@@ -175,6 +200,26 @@ export interface QueryAllResult {
   generation: number;
 }
 
+/** Internal read/paint counters — perf probes + unit-test assertions. */
+export interface SsrmPullDatasourceStats {
+  /** Tick sweeps that actually ran (past the destroyed/gen guards). */
+  sweepRuns: number;
+  /** Block refetches issued by tick sweeps. */
+  sweepBlockReads: number;
+  /** Cold `getRows` block reads (cache miss). */
+  missReads: number;
+  /** Serve-then-refresh background block reads (cache hit). */
+  refreshReads: number;
+  /** Neighbor blocks prefetched after a cold miss. */
+  prefetchReads: number;
+  /** Async results dropped by the generation/plan-epoch fences. */
+  droppedStale: number;
+  /** Full-row-DOM rebuilds issued by the shrink path. */
+  redraws: number;
+  /** Sweep cycles deferred because the user was scrolling / a miss was in flight. */
+  sweepDeferrals: number;
+}
+
 export interface SsrmPullDatasource extends IServerSideDatasource {
   /**
    * Quick filter: matches every whitespace-separated token
@@ -198,6 +243,15 @@ export interface SsrmPullDatasource extends IServerSideDatasource {
    * only loaded blocks. Rejects when the generation changes mid-read.
    */
   queryAll(opts?: QueryAllOpts): Promise<QueryAllResult>;
+  /**
+   * Scroll signal from the consuming grid (wire AG's `onBodyScroll`).
+   * While scrolling (and for a short settle window) tick sweeps are
+   * DEFERRED — user-facing block reads keep the worker to themselves;
+   * one coalesced sweep runs on settle so ticks are never starved.
+   */
+  onScroll(): void;
+  /** Live counters (monotonic) — perf probes and tests. */
+  getStats(): SsrmPullDatasourceStats;
   destroy(): void;
 }
 
@@ -211,13 +265,42 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
   const { connection, keyColumn } = opts;
   const defaultBlockSize = opts.defaultBlockSize ?? 100;
   const warn = opts.warn ?? ((message: string) => console.warn(message));
-  const blockCache = new BlockCache(opts.maxBlocks ?? 12);
+  const blockCache = new BlockCache(opts.maxBlocks ?? 32);
   const viewCache = new ViewCache({
     maxViews: opts.maxViews ?? 8,
     onEvict: (_key, view) => {
       if (tickSub?.view === view) tickSub = null; // deletion kills its callbacks
     },
   });
+
+  const stats: SsrmPullDatasourceStats = {
+    sweepRuns: 0,
+    sweepBlockReads: 0,
+    missReads: 0,
+    refreshReads: 0,
+    prefetchReads: 0,
+    droppedStale: 0,
+    redraws: 0,
+    sweepDeferrals: 0,
+  };
+  let lastScrollAt = 0;
+  /** In-flight cold `getRows` reads — sweeps yield while any is pending. */
+  let pendingMissReads = 0;
+  /** Coalesced deferred-sweep retry (one at a time). */
+  let settleTimer: ReturnType<typeof setTimeout> | null = null;
+  const scrollSettleMs = opts.scrollSettleMs ?? 300;
+  /**
+   * Plan epoch — bumped whenever the effective QUERY SHAPE changes
+   * (quick-filter apply; root filter/sort fingerprint change observed
+   * on a root load). Every async block read captures the epoch at
+   * start; results from an older epoch are DROPPED (cache writes,
+   * `applyServerSideRowData`, transactions and `setRowCount` are all
+   * fenced) — an in-flight read for a superseded shape can never paint
+   * over the current one (the transient-wrong-rows race).
+   */
+  let planEpoch = 0;
+  /** Last flat-root total delivered — the shrink-redraw trigger. */
+  let lastRootTotal: number | null = null;
 
   let api: GridApi | null = null;
   let generation = connection.state?.generation ?? 0;
@@ -367,25 +450,46 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
    * books the sweep is gated to the MRU `WIDE_SWEEP_MAX_BLOCKS` blocks
    * (≈ the viewport — see `sweepGate.ts`).
    */
+  /** One coalesced sweep retry once the scroll/miss pressure clears. */
+  function scheduleSettleSweep(delayMs: number): void {
+    if (settleTimer !== null || destroyed) return;
+    settleTimer = setTimeout(() => {
+      settleTimer = null;
+      void runTickRefresh().catch(() => undefined);
+    }, Math.max(delayMs, 50));
+  }
+
   async function runTickRefresh(): Promise<void> {
     const snap = connection.state;
     if (destroyed || !api || !snap || snap.generation !== generation) return;
+    // Scroll-aware deferral: while the user scrolls (settle window) or a
+    // cold getRows read is in flight, the sweep yields the worker —
+    // coalescing to ONE retry on settle, so idle ticks are never starved.
+    const sinceScroll = Date.now() - lastScrollAt;
+    if (sinceScroll < scrollSettleMs || pendingMissReads > 0) {
+      stats.sweepDeferrals += 1;
+      scheduleSettleSweep(scrollSettleMs - sinceScroll);
+      return;
+    }
     const requestGen = generation;
-    const visibleOnly =
-      sweepGate().scope === 'visible-blocks'
-        ? new Set(
-            blockCache
-              .recentEntries(requestGen, WIDE_SWEEP_MAX_BLOCKS)
-              .map((entry) => `${entry.viewKey}#${entry.startRow}`),
-          )
-        : null;
+    const requestEpoch = planEpoch;
+    stats.sweepRuns += 1;
+    // MRU gate for EVERY width (narrow books formerly refetched every
+    // cached block per cycle): the block LRU's recency order is viewport
+    // order, so this slice ≈ what is painted + the latest neighborhood.
+    const gate = sweepGate();
+    const sweepSet = new Set(
+      blockCache
+        .recentEntries(requestGen, gate.maxSweepBlocks)
+        .map((entry) => `${entry.viewKey}#${entry.startRow}`),
+    );
     let rootTotal: number | null = null;
     for (const plan of planByKey.values()) {
       const pendingView = viewCache.peek(plan.key);
       if (!pendingView) continue;
       const entries = blockCache
         .entriesFor(plan.key, requestGen)
-        .filter((entry) => visibleOnly === null || visibleOnly.has(`${plan.key}#${entry.startRow}`));
+        .filter((entry) => sweepSet.has(`${plan.key}#${entry.startRow}`));
       if (entries.length === 0) continue;
       let view: PullView;
       try {
@@ -397,11 +501,16 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       for (const { startRow, block } of entries) {
         let read: { rows: Record<string, unknown>[]; total: number };
         try {
+          stats.sweepBlockReads += 1;
           read = await readPlanBlock(plan, view, startRow, block.endRow);
         } catch {
           break; // view evicted/deleted mid-read — the next tick repairs
         }
         if (destroyed || generation !== requestGen) return;
+        if (planEpoch !== requestEpoch) {
+          stats.droppedStale += 1;
+          return; // query shape changed mid-sweep — stale rows, drop all
+        }
         blockCache.set(plan.key, startRow, { ...read, generation: requestGen, endRow: block.endRow });
         const changed = diffRowsByKey(block.rows, read.rows, idField);
         if (changed.length > 0) {
@@ -417,9 +526,10 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       rootTotal !== null &&
       rootPlan?.kind === 'rows' &&
       now?.phase === 'live' &&
-      now.generation === requestGen
+      now.generation === requestGen &&
+      planEpoch === requestEpoch
     ) {
-      api.setRowCount(rootTotal, true);
+      enforceFlatRootCount(api, rootTotal);
     }
     await refreshGrandTotal(requestGen);
     prunePlans();
@@ -489,6 +599,7 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       rootPlan = null;
       rollup = null;
       tickSub = null;
+      lastRootTotal = null;
       return;
     }
     if (!api) return;
@@ -526,45 +637,130 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       return;
     }
 
-    const plan = buildQueryPlan(params.request, planOpts());
-    if (plan.unsupportedFilters.length > 0 && !warnedPlans.has(plan.key)) {
-      warnedPlans.add(plan.key);
-      warn(`[ssrm-pull] unsupported filter clauses ignored: ${plan.unsupportedFilters.join('; ')}`);
-    }
-    planByKey.set(plan.key, plan);
-    if (plan.route.length === 0) {
-      rootPlan = plan;
-      lastRootRequest = params.request;
-    }
-
-    // Grand total — root-level loads only; armed by AG's hint, kept
-    // fresh on every later root load (filters/quick filter changes).
-    let grandTotal: Record<string, unknown> | undefined;
-    if (plan.route.length === 0 && (params.needsGrandTotal || rollup !== null)) {
-      const rollupPlan = buildRollupPlan(params.request, planOpts());
-      rollup = rollupPlan;
-      if (rollupPlan) {
-        const view = await acquireView(rollupPlan.key, rollupPlan.viewConfig, true);
-        const totals = await readRollupRow(view);
-        if (destroyed || generation !== requestGen) return; // fence: drop
-        if (totals) grandTotal = totals;
+    // The plan-epoch fence may demand a re-serve: if the query shape
+    // changed while THIS load was reading (quick filter settled), the
+    // stale read is dropped and the load re-plans against the current
+    // shape — AG's callback is always answered with current-shape rows.
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const plan = buildQueryPlan(params.request, planOpts());
+      if (plan.unsupportedFilters.length > 0 && !warnedPlans.has(plan.key)) {
+        warnedPlans.add(plan.key);
+        warn(`[ssrm-pull] unsupported filter clauses ignored: ${plan.unsupportedFilters.join('; ')}`);
       }
-    }
+      planByKey.set(plan.key, plan);
+      const isRoot = plan.route.length === 0;
+      if (isRoot) {
+        // Root shape fingerprint changed (filter/sort model, quick
+        // filter, grouping) — bump the epoch so in-flight reads for the
+        // PREVIOUS shape can never land after this one.
+        if (rootPlan !== null && rootPlan.key !== plan.key) planEpoch += 1;
+        rootPlan = plan;
+        lastRootRequest = params.request;
+      }
+      const requestEpoch = planEpoch;
 
-    const startRow = params.request.startRow ?? 0;
-    const endRow = params.request.endRow ?? startRow + defaultBlockSize;
-    const cached = blockCache.get(plan.key, startRow, requestGen);
-    if (cached) {
-      finishLoad(params, plan, cached.rows, cached.total, requestGen, grandTotal);
-      void refreshBlock(plan, startRow, endRow, requestGen).catch(() => undefined);
+      // Grand total — root-level loads only; armed by AG's hint, kept
+      // fresh on every later root load (filters/quick filter changes).
+      let grandTotal: Record<string, unknown> | undefined;
+      if (isRoot && (params.needsGrandTotal || rollup !== null)) {
+        const rollupPlan = buildRollupPlan(params.request, planOpts());
+        rollup = rollupPlan;
+        if (rollupPlan) {
+          const view = await acquireView(rollupPlan.key, rollupPlan.viewConfig, true);
+          const totals = await readRollupRow(view);
+          if (destroyed || generation !== requestGen) return; // fence: drop
+          if (totals) grandTotal = totals;
+        }
+      }
+
+      if (planEpoch !== requestEpoch) {
+        // Shape changed during the rollup read — re-plan before reading.
+        stats.droppedStale += 1;
+        if (isRoot && rootPlan === plan) continue;
+        return;
+      }
+
+      const startRow = params.request.startRow ?? 0;
+      const endRow = params.request.endRow ?? startRow + defaultBlockSize;
+      let read: { rows: Record<string, unknown>[]; total: number };
+      let cacheHit = false;
+      const cached = blockCache.get(plan.key, startRow, requestGen);
+      if (cached) {
+        read = cached;
+        cacheHit = true;
+      } else {
+        stats.missReads += 1;
+        pendingMissReads += 1;
+        try {
+          const view = await acquireView(plan.key, plan.viewConfig, isRoot);
+          read = await readPlanBlock(plan, view, startRow, endRow);
+        } finally {
+          pendingMissReads -= 1;
+        }
+        if (destroyed || generation !== requestGen) {
+          stats.droppedStale += 1;
+          return; // generation fence: the grid remounts — drop
+        }
+      }
+      if (planEpoch !== requestEpoch) {
+        stats.droppedStale += 1;
+        // Shape changed mid-read. If this load still owns the root
+        // store, re-serve it against the CURRENT shape (quick-filter
+        // soft refresh keeps the store — its callback must be answered
+        // with current rows). If a newer root load took over, drop —
+        // that load answers with fresh data.
+        if (isRoot && rootPlan === plan) continue;
+        return;
+      }
+      if (!cacheHit) blockCache.set(plan.key, startRow, { ...read, generation: requestGen, endRow });
+      finishLoad(params, plan, read.rows, read.total, requestGen, grandTotal);
+      if (cacheHit) {
+        void refreshBlock(plan, startRow, endRow, requestGen, requestEpoch).catch(() => undefined);
+      } else {
+        prefetchNeighbors(plan, startRow, endRow, read.total, requestGen, requestEpoch);
+      }
       return;
     }
+    params.fail(); // shape churned 4 times mid-flight — let AG retry
+  }
 
-    const view = await acquireView(plan.key, plan.viewConfig, plan.route.length === 0);
-    const read = await readPlanBlock(plan, view, startRow, endRow);
-    if (destroyed || generation !== requestGen) return; // fence: drop
-    blockCache.set(plan.key, startRow, { ...read, generation: requestGen, endRow });
-    finishLoad(params, plan, read.rows, read.total, requestGen, grandTotal);
+  /**
+   * Neighbor prefetch (design fact #6): after a COLD miss resolves on a
+   * flat leaf plan, warm the adjacent block(s) into the BlockCache so
+   * directional scrolling stays a serve-then-refresh cache hit. Cache
+   * write ONLY — AG has not asked for these rows, nothing is painted.
+   * Best-effort: skipped while another user miss is already in flight.
+   */
+  function prefetchNeighbors(
+    plan: QueryPlan,
+    startRow: number,
+    endRow: number,
+    total: number,
+    requestGen: number,
+    requestEpoch: number,
+  ): void {
+    if (plan.kind !== 'rows') return; // leaf plans only
+    const span = Math.max(1, endRow - startRow);
+    for (const neighborStart of [startRow + span, startRow - span]) {
+      if (neighborStart < 0 || neighborStart >= total) continue;
+      if (blockCache.has(plan.key, neighborStart, requestGen)) continue;
+      if (pendingMissReads > 0) return; // user demand owns the worker
+      void (async () => {
+        if (destroyed || generation !== requestGen || planEpoch !== requestEpoch) return;
+        stats.prefetchReads += 1;
+        const view = await acquireView(plan.key, plan.viewConfig, plan.route.length === 0);
+        const read = await readPlanBlock(plan, view, neighborStart, neighborStart + span);
+        if (destroyed || generation !== requestGen || planEpoch !== requestEpoch) {
+          stats.droppedStale += 1;
+          return;
+        }
+        blockCache.set(plan.key, neighborStart, {
+          ...read,
+          generation: requestGen,
+          endRow: neighborStart + span,
+        });
+      })().catch(() => undefined);
+    }
   }
 
   /** A flat root store — the only store `setRowCount` may touch (AG #28). */
@@ -607,12 +803,17 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
    * remove already-RENDERED row DOM (field report: quick filter "did
    * nothing" — the API said 1 row while the screen still painted the
    * whole unfiltered book). On shrink, redrawRows() rebuilds the row DOM
-   * from the model. No-op on the steady tick path (total unchanged).
+   * from the model. SHRINK-ONLY, judged against the last total THIS
+   * datasource delivered — never against `getDisplayedRowCount()`,
+   * which counts footer/loading rows and would over-fire the (full-DOM,
+   * expensive) redraw on the steady serve-then-refresh path.
    */
   function enforceFlatRootCount(gridApi: GridApi, total: number): void {
-    const before = gridApi.getDisplayedRowCount?.() ?? total;
+    const before = lastRootTotal;
+    lastRootTotal = total;
     gridApi.setRowCount(total, true);
-    if (total < before) {
+    if (before !== null && total < before) {
+      stats.redraws += 1;
       (gridApi as { redrawRows?: () => void }).redrawRows?.();
     }
   }
@@ -623,12 +824,18 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     startRow: number,
     endRow: number,
     requestGen: number,
+    requestEpoch: number,
   ): Promise<void> {
+    stats.refreshReads += 1;
     const view = await acquireView(plan.key, plan.viewConfig, plan.route.length === 0);
     const read = await readPlanBlock(plan, view, startRow, endRow);
     const snap = connection.state;
     if (destroyed || !api || generation !== requestGen) return;
     if (!snap || snap.generation !== requestGen) return;
+    if (planEpoch !== requestEpoch) {
+      stats.droppedStale += 1;
+      return; // epoch fence: stale-shape rows never paint over current
+    }
     blockCache.set(plan.key, startRow, { ...read, generation: requestGen, endRow });
     // Index-addressed replacement: fills, reorders and updates the
     // block in place — loaded rows stay visible (never a purge).
@@ -665,6 +872,9 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         quickFilterTimer = null;
         if (destroyed || pendingQuickFilter === quickFilter) return;
         quickFilter = pendingQuickFilter;
+        // Epoch fence: every in-flight read for the pre-change shape is
+        // now stale — bump BEFORE the refresh so none of them can paint.
+        planEpoch += 1;
         // FLAT store: refresh SOFT — rows morph in place (no stub blank),
         // and finishLoad/refreshBlock enforce the shrunken/grown count via
         // setRowCount (a soft refresh alone never resizes the lazy store).
@@ -674,6 +884,14 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         const grouped =
           (lastRootRequest?.rowGroupCols?.length ?? 0) > 0
           || (opts.treePathFields?.length ?? 0) > 0;
+        // Pre-warm the NEW shape's view while AG spins up its refresh
+        // cycle: building the quick-filter expression view over the
+        // whole book is the long pole of the first post-change read —
+        // overlapping it with AG's store refresh takes it off the
+        // first block's critical path. (Memoized by key: the real
+        // loads reuse this very view.)
+        const warmPlan = buildQueryPlan(lastRootRequest ?? EMPTY_ROOT_REQUEST, planOpts());
+        void acquireView(warmPlan.key, warmPlan.viewConfig, true).catch(() => undefined);
         api?.refreshServerSide({ purge: grouped });
       };
       const debounceMs = opts.quickFilterDebounceMs ?? 150;
@@ -760,12 +978,22 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         void view.delete().catch(() => undefined);
       }
     },
+    onScroll(): void {
+      lastScrollAt = Date.now();
+    },
+    getStats(): SsrmPullDatasourceStats {
+      return { ...stats };
+    },
     destroy(): void {
       destroyed = true;
       offState();
       if (quickFilterTimer !== null) {
         clearTimeout(quickFilterTimer);
         quickFilterTimer = null;
+      }
+      if (settleTimer !== null) {
+        clearTimeout(settleTimer);
+        settleTimer = null;
       }
       if (tickSub?.id != null) {
         void tickSub.view.remove_update(tickSub.id).catch(() => undefined);

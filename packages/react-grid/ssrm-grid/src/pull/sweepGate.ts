@@ -29,6 +29,15 @@ export const DEFAULT_WIDE_COLUMN_THRESHOLD = 80;
 export const DEFAULT_SWEEP_THROTTLE_WIDE_MS = 1000;
 /** Wide sweeps refetch at most this many MRU blocks (~the viewport). */
 export const WIDE_SWEEP_MAX_BLOCKS = 4;
+/**
+ * Narrow sweeps are MRU-gated too (perf pass 2026-07): refetching EVERY
+ * cached block per cycle cost ~29 block reads/s at steady state on a
+ * 20k book — the viewport is ~1 block. The MRU slice (viewport + the
+ * most recently visited neighborhood) keeps painted rows ticking;
+ * off-screen blocks catch up via serve-then-refresh when scrolled back.
+ * Larger than the wide budget because narrow blocks are cheap to read.
+ */
+export const NARROW_SWEEP_MAX_BLOCKS = 6;
 
 export interface SweepGateConfig {
   /** Narrow-book tick→refetch trailing throttle (ms). */
@@ -43,8 +52,8 @@ export interface SweepGateDecision {
   wide: boolean;
   /** The tick sweep's trailing throttle under this decision. */
   throttleMs: number;
-  /** `'visible-blocks'` = the MRU `WIDE_SWEEP_MAX_BLOCKS` only. */
-  scope: 'all-blocks' | 'visible-blocks';
+  /** Sweeps refetch at most this many MRU cached blocks per cycle. */
+  maxSweepBlocks: number;
 }
 
 /**
@@ -61,6 +70,6 @@ export function resolveSweepGate(
     throttleMs: wide
       ? Math.max(config.sweepThrottleWideMs, config.tickRefreshMs)
       : config.tickRefreshMs,
-    scope: wide ? 'visible-blocks' : 'all-blocks',
+    maxSweepBlocks: wide ? WIDE_SWEEP_MAX_BLOCKS : NARROW_SWEEP_MAX_BLOCKS,
   };
 }

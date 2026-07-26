@@ -9,7 +9,7 @@ import {
   GROUP_KEY_FIELD,
   encodeGroupRowId,
 } from '../../pull/groupRows.js';
-import { WIDE_SWEEP_MAX_BLOCKS } from '../../pull/sweepGate.js';
+import { NARROW_SWEEP_MAX_BLOCKS, WIDE_SWEEP_MAX_BLOCKS } from '../../pull/sweepGate.js';
 import { QUICK_FILTER_EXPR } from '../../pull/filterExpressions.js';
 import { FakeConnection, type Row } from './fakePerspective.js';
 
@@ -782,22 +782,222 @@ describe('createSsrmPullDatasource', () => {
     ds.destroy();
   });
 
-  it('narrow books keep the full sweep (every cached block patched)', async () => {
+  it('narrow books sweep only the NARROW_SWEEP_MAX_BLOCKS MRU blocks (never every cached block)', async () => {
     const connection = new FakeConnection();
-    connection.table.rows = seedRows(600);
-    connection.emit(liveState(600));
+    connection.table.rows = seedRows(900);
+    connection.emit(liveState(900));
     const ds = makeDatasource(connection, { wideColumnThreshold: 100 });
     const api = fakeApi();
-    await loadBlocks(ds, api, 6);
+    await loadBlocks(ds, api, 8); // 8 cached blocks > the narrow budget
 
     connection.table.rows = connection.table.rows.map((row) => ({
       ...row,
-      px: (row.px as number) + 1_000_000,
+      px: (row.px as number) + 1_000_000, // every block has changes
     }));
     connection.table.fireAll();
     await flush();
 
-    expect(api.calls.transactions).toHaveLength(6);
+    expect(api.calls.transactions).toHaveLength(NARROW_SWEEP_MAX_BLOCKS);
+    const patched = new Set(
+      api.calls.transactions.flatMap((t) =>
+        (t.update ?? []).map((r) => Math.floor(Number(String(r.positionId).slice(3)) / 100)),
+      ),
+    );
+    expect([...patched].sort()).toEqual([2, 3, 4, 5, 6, 7]); // MRU 6 of blocks 0..7
+    ds.destroy();
+  });
+
+  // ─── perf hardening: epoch fence, sweep deferral, prefetch ────────
+
+  it('plan-epoch fence: a quick-filter change mid-read drops the stale block and re-serves the new shape', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = bookRows(9);
+    connection.emit(liveState(9));
+    connection.holdTable(); // the first read hangs at openTable
+    const ds = makeDatasource(connection, { quickFilterColumns: ['book'] });
+    const api = fakeApi();
+    const params = loadParams(api);
+    ds.getRows(params);
+    await flush();
+    expect(params.success).not.toHaveBeenCalled(); // still held
+
+    ds.setQuickFilter('bookA'); // shape changes UNDER the in-flight read
+    connection.releaseTable();
+    await flush();
+
+    // answered exactly once, with the CURRENT (quick-filtered) shape —
+    // the stale unfiltered read was dropped, never painted, never cached
+    expect(params.success).toHaveBeenCalledTimes(1);
+    expect(params.fail).not.toHaveBeenCalled();
+    const servedView = connection.table.views.at(-1)!;
+    expect(servedView.config.filter).toEqual([[QUICK_FILTER_EXPR, '==', true]]);
+    expect(ds.getStats().droppedStale).toBeGreaterThanOrEqual(1);
+    expect(api.calls.rowData).toEqual([]); // no stale block replacement
+    ds.destroy();
+  });
+
+  it('plan-epoch fence: serve-then-refresh from a superseded shape never paints', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = bookRows(9);
+    connection.emit(liveState(9));
+    const ds = makeDatasource(connection, { quickFilterColumns: ['book'] });
+    const api = fakeApi();
+    ds.getRows(loadParams(api)); // block cached under the unfiltered shape
+    await flush();
+
+    // Cache-hit load starts the background refresh, THEN the shape flips
+    // before the refresh lands (the refresh's awaits are still queued):
+    // its applyServerSideRowData must be dropped.
+    const second = loadParams(api);
+    ds.getRows(second);
+    expect(second.success).toHaveBeenCalledTimes(1); // cache hit, synchronous
+    ds.setQuickFilter('bookA'); // bump the epoch under the in-flight refresh
+    await flush();
+
+    expect(api.calls.rowData).toEqual([]); // stale refresh dropped
+    expect(ds.getStats().droppedStale).toBeGreaterThanOrEqual(1);
+    ds.destroy();
+  });
+
+  it('defers the tick sweep while scrolling and coalesces to ONE sweep on settle', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = seedRows(50);
+    connection.emit(liveState(50));
+    const ds = makeDatasource(connection, { scrollSettleMs: 40 });
+    const api = fakeApi();
+    ds.getRows(loadParams(api, { startRow: 0, endRow: 50 }));
+    await flush();
+
+    connection.table.rows = connection.table.rows.map((row) =>
+      row.positionId === 'POS3' ? { ...row, px: 999 } : row,
+    );
+    ds.onScroll(); // user is scrolling
+    connection.table.views[0]!.fireUpdate();
+    connection.table.views[0]!.fireUpdate(); // several ticks mid-scroll
+    await flush();
+    expect(api.calls.transactions).toEqual([]); // no sweep reads mid-scroll
+    expect(ds.getStats().sweepDeferrals).toBeGreaterThanOrEqual(1);
+    expect(ds.getStats().sweepBlockReads).toBe(0);
+
+    await new Promise((resolve) => setTimeout(resolve, 80)); // settle window passes
+    await flush();
+    expect(ds.getStats().sweepRuns).toBe(1); // ONE coalesced sweep — ticks not starved
+    expect(api.calls.transactions).toHaveLength(1);
+    expect(api.calls.transactions[0]!.update).toEqual([{ positionId: 'POS3', px: 999, pnl: 3 }]);
+    ds.destroy();
+  });
+
+  it('skips the sweep cycle while a cold getRows miss is in flight', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = seedRows(300);
+    connection.emit(liveState(300));
+    const ds = makeDatasource(connection);
+    const api = fakeApi();
+    ds.getRows(loadParams(api)); // block 0 cached
+    await flush();
+    const statsBefore = ds.getStats();
+
+    connection.holdTable();
+    // A DIFFERENT shape forces a fresh view → openTable → held = a
+    // pending user miss.
+    ds.getRows(loadParams(api, { sortModel: [{ colId: 'px', sort: 'desc' }] }));
+    await flush();
+    connection.table.fireAll(); // tick lands while the miss is pending
+    await flush();
+    expect(ds.getStats().sweepBlockReads).toBe(statsBefore.sweepBlockReads); // sweep yielded
+    expect(ds.getStats().sweepDeferrals).toBeGreaterThanOrEqual(1);
+
+    connection.releaseTable();
+    await flush();
+    await new Promise((resolve) => setTimeout(resolve, 80)); // settle retry (min 50ms)
+    await flush();
+    expect(ds.getStats().sweepBlockReads).toBeGreaterThan(statsBefore.sweepBlockReads);
+    ds.destroy();
+  });
+
+  it('prefetches the neighbor block after a cold flat miss — the next scroll block is a cache hit', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = seedRows(300);
+    connection.emit(liveState(300));
+    const ds = makeDatasource(connection);
+    const api = fakeApi();
+    ds.getRows(loadParams(api)); // cold miss 0..100 → prefetch 100..200
+    await flush();
+    expect(ds.getStats().missReads).toBe(1);
+    expect(ds.getStats().prefetchReads).toBe(1); // startRow-100 is out of range
+
+    const next = loadParams(api, { startRow: 100, endRow: 200 });
+    ds.getRows(next);
+    // prefetched → served synchronously from cache, NOT a cold miss
+    expect(next.success).toHaveBeenCalledTimes(1);
+    expect(ds.getStats().missReads).toBe(1);
+    const served = next.success.mock.calls[0]![0] as { rowData: Row[] };
+    expect(served.rowData[0]).toEqual({ positionId: 'POS100', px: 1000, pnl: 100 });
+    ds.destroy();
+  });
+
+  it('pre-warms the new-shape view on quick-filter apply, before any load arrives', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = bookRows(9);
+    connection.emit(liveState(9));
+    const ds = makeDatasource(connection, { quickFilterColumns: ['book'] });
+    const api = fakeApi();
+    ds.getRows(loadParams(api));
+    await flush();
+    expect(connection.table.views).toHaveLength(1);
+
+    ds.setQuickFilter('bookA'); // apply only — NO getRows issued yet
+    await flush();
+    // the quick-filtered view already exists (built during AG's refresh
+    // cycle), so the first post-change block read skips view construction
+    const warmed = connection.table.views.at(-1)!;
+    expect(warmed.config.filter).toEqual([[QUICK_FILTER_EXPR, '==', true]]);
+
+    ds.getRows(loadParams(api)); // the real load REUSES the warmed view
+    await flush();
+    expect(connection.table.views).toHaveLength(2);
+    ds.destroy();
+  });
+
+  it('never prefetches for group-level plans', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = bookRows(9);
+    connection.emit(liveState(9));
+    const ds = makeDatasource(connection);
+    ds.getRows(loadParams(fakeApi(), GROUP_REQUEST));
+    await flush();
+    expect(ds.getStats().prefetchReads).toBe(0);
+    ds.destroy();
+  });
+
+  it('redraws row DOM only on a REAL count shrink (never on the steady tick path)', async () => {
+    const connection = new FakeConnection();
+    connection.table.rows = seedRows(100);
+    connection.emit(liveState(100));
+    const ds = makeDatasource(connection);
+    const api = fakeApi();
+    const redrawRows = vi.fn();
+    (api as unknown as { redrawRows: () => void }).redrawRows = redrawRows;
+    ds.getRows(loadParams(api)); // total 100
+    await flush();
+    connection.table.fireAll(); // steady tick — total unchanged
+    await flush();
+    expect(redrawRows).not.toHaveBeenCalled();
+    expect(ds.getStats().redraws).toBe(0);
+
+    // filter narrows the set → count shrinks → one redraw (stale-DOM cleanup)
+    ds.getRows(
+      loadParams(api, {
+        filterModel: { pnl: { filterType: 'number', type: 'greaterThan', filter: 90 } },
+      }),
+    );
+    await flush();
+    expect(ds.getStats().redraws).toBe(1);
+
+    // widening back → count grows → NO redraw
+    ds.getRows(loadParams(api));
+    await flush();
+    expect(ds.getStats().redraws).toBe(1);
     ds.destroy();
   });
 });
