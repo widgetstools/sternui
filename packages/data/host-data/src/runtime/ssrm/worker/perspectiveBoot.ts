@@ -70,12 +70,9 @@ export async function bootPerspective(urls: PerspectiveWasmUrls): Promise<Booted
 
   // Server engine — vendor perspective-server.worker.ts bindPort().
   const module = await compile_perspective(serverWasm.buffer as ArrayBuffer);
-  let pollThread: PerspectivePollThread | null = null;
+  let pollThread: PerspectivePollThread;
   const server: PerspectiveServer = new PerspectiveServer(module, {
-    on_poll_request: (_server: PerspectiveServer) => {
-      if (!pollThread) throw new Error('[ssrm] poll before pollThread initialized');
-      return pollThread.on_poll_request();
-    },
+    on_poll_request: () => pollThread.on_poll_request(),
   });
   pollThread = new PerspectivePollThread(server);
 
