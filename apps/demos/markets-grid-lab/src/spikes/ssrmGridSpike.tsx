@@ -203,8 +203,13 @@ function toColDefs(columns: readonly ColumnDefinition[] | undefined): ColDef[] {
       field: c.field,
       headerName: c.headerName,
       filter: numeric ? 'agNumberColumnFilter' : 'agTextColumnFilter',
-      enableRowGroup: !numeric,
+      // EVERY column is groupable — the engine groups by any column via
+      // Perspective `group_by`. Grouping by a high-cardinality numeric
+      // (e.g. pnl) is legal but produces ~one group per row; that is the
+      // user's call to make, and group levels are paged like any other.
+      enableRowGroup: true,
       enableValue: numeric,
+      enablePivot: true,
       // P4b: every non-identity column is editable; the key column is
       // row identity (a re-keyed write would INSERT, not update) and
       // the edit handler refuses it anyway.
@@ -238,6 +243,10 @@ function toCalcColDefs(calc: Record<string, string> | undefined): ColDef[] {
     headerName: name,
     filter: 'agNumberColumnFilter',
     enableValue: true,
+    // Calc columns group/aggregate like real ones — the expression is
+    // attached to every view the plane builds, including group-level.
+    enableRowGroup: true,
+    enablePivot: true,
     editable: false, // computed — nothing to write back
   }));
 }
@@ -412,8 +421,61 @@ function GridHost({
       // yield the worker to viewport block reads (one sweep on settle).
       onBodyScroll={() => datasource.onScroll()}
       columnDefs={displayColumnDefs}
-      defaultColDef={{ sortable: true, resizable: true, enableCellChangeFlash: true }}
+      defaultColDef={{
+        sortable: true,
+        resizable: true,
+        enableCellChangeFlash: true,
+        // Belt-and-braces: anything not covered by toColDefs/toCalcColDefs
+        // (e.g. a column added later) is still groupable from the panel.
+        enableRowGroup: true,
+      }}
       autoGroupColumnDef={{ headerName: TREE_MODE ? 'Tree' : 'Group', minWidth: 220 }}
+      // Drag-to-group. Hidden in TREE_MODE: AG tree data and row grouping
+      // are mutually exclusive, and the plane serves the tree from
+      // `treePathFields` rather than from rowGroupCols.
+      rowGroupPanelShow={TREE_MODE ? 'never' : 'always'}
+      // Columns + filters tool panels. Collapsed by default (no
+      // `defaultToolPanel`) so the grid keeps its full width until asked.
+      sideBar={{
+        toolPanels: [
+          {
+            id: 'columns',
+            labelDefault: 'Columns',
+            labelKey: 'columns',
+            iconKey: 'columns',
+            toolPanel: 'agColumnsToolPanel',
+            toolPanelParams: {
+              suppressPivotMode: true, // pivot is not incremental on this plane
+              suppressValues: false,
+              suppressRowGroups: TREE_MODE,
+            },
+          },
+          {
+            id: 'filters',
+            labelDefault: 'Filters',
+            labelKey: 'filters',
+            iconKey: 'filter',
+            toolPanel: 'agFiltersToolPanel',
+          },
+        ],
+      }}
+      // Status bar. Row counts come from the store, which the datasource
+      // keeps authoritative via `rowCount` on every load success, so they
+      // track the server-side filtered set rather than loaded blocks.
+      // The aggregation panel needs a cell selection to have anything to
+      // sum, hence `cellSelection` below.
+      statusBar={{
+        statusPanels: [
+          { statusPanel: 'agTotalAndFilteredRowCountComponent', align: 'left' },
+          { statusPanel: 'agSelectedRowCountComponent', align: 'center' },
+          {
+            statusPanel: 'agAggregationComponent',
+            align: 'right',
+            statusPanelParams: { aggFuncs: ['count', 'sum', 'min', 'max', 'avg'] },
+          },
+        ],
+      }}
+      cellSelection
       grandTotalRow="bottom"
       suppressAggFuncInHeader
       getChildCount={(data) =>

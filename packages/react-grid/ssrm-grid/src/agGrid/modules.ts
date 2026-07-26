@@ -20,6 +20,7 @@ import {
   RowGroupingModule,
   RowGroupingPanelModule,
   PivotModule,
+  SideBarModule,
   ColumnsToolPanelModule,
   FiltersToolPanelModule,
   ColumnMenuModule,
@@ -49,6 +50,9 @@ ModuleRegistry.registerModules([
   TreeDataModule,
   CalculatedColumnsModule,
   IntegratedChartsModule.with(AgChartsEnterpriseModule),
+  // SideBarModule is its own module in v36 — the tool panels do not
+  // imply it, and without it `sideBar` is silently ignored.
+  SideBarModule,
   ColumnsToolPanelModule,
   FiltersToolPanelModule,
   ColumnMenuModule,
