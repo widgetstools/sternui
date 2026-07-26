@@ -682,7 +682,7 @@ describe('createSsrmPullDatasource', () => {
     expect(view.config.filter).toEqual([[QUICK_FILTER_EXPR, '==', true]]);
     expect(view.config.expressions).toEqual({
       [QUICK_FILTER_EXPR]:
-        `(match(lower("book"), 'booka') or match(lower("positionId"), 'booka'))`,
+        `(match("book", '(?i)bookA') or match("positionId", '(?i)bookA'))`,
     });
 
     ds.setQuickFilter(null); // clears — back to the original flat shape

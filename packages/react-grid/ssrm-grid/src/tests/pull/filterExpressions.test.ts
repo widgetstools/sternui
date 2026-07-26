@@ -77,13 +77,13 @@ describe('setWithNullExpr', () => {
 describe('quickFilterExpr', () => {
   it('every token must match at least one configured column', () => {
     expect(quickFilterExpr('gov bond', ['a', 'b'])).toBe(
-      `(match(lower("a"), 'gov') or match(lower("b"), 'gov')) and ` +
-        `(match(lower("a"), 'bond') or match(lower("b"), 'bond'))`,
+      `(match("a", '(?i)gov') or match("b", '(?i)gov')) and ` +
+        `(match("a", '(?i)bond') or match("b", '(?i)bond'))`,
     );
   });
 
   it('single column needs no parens; empty inputs return null', () => {
-    expect(quickFilterExpr('x', ['a'])).toBe(`match(lower("a"), 'x')`);
+    expect(quickFilterExpr('x', ['a'])).toBe(`match("a", '(?i)x')`);
     expect(quickFilterExpr('   ', ['a'])).toBeNull();
     expect(quickFilterExpr('x', [])).toBeNull();
   });

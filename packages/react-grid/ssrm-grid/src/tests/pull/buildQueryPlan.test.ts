@@ -203,8 +203,8 @@ describe('buildQueryPlan', () => {
     expect(plan.viewConfig.filter).toEqual([[QUICK_FILTER_EXPR, '==', true]]);
     expect(plan.viewConfig.expressions).toEqual({
       [QUICK_FILTER_EXPR]:
-        `(match(lower("cusip"), 'gov') or match(lower("desk"), 'gov')) and ` +
-        `(match(lower("cusip"), 'bond') or match(lower("desk"), 'bond'))`,
+        `(match("cusip", '(?i)gov') or match("desk", '(?i)gov')) and ` +
+        `(match("cusip", '(?i)bond') or match("desk", '(?i)bond'))`,
     });
   });
 

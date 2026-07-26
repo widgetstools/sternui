@@ -56,6 +56,21 @@ export function regexNeedle(needle: string): string {
   return escapePerspectiveString(needle.toLowerCase().replace(REGEX_SPECIALS, '\\$&'));
 }
 
+/**
+ * Same, but WITHOUT lowering the needle — for use with the inline `(?i)`
+ * regex flag instead of wrapping the column in `lower()`.
+ *
+ * `lower(col)` allocates a lowercased copy of every cell it touches, and
+ * that dominates the quick filter. Measured, 4 searched columns:
+ *   100k rows: lower() 405ms -> (?i) 235ms
+ *    20k rows: lower() 114ms -> (?i)  43ms
+ * `(?i)` is verified equivalent on this engine build (matches HELLO /
+ * hello / HeLLo identically; without the flag only the exact case hits).
+ */
+export function ciRegexNeedle(needle: string): string {
+  return escapePerspectiveString(needle.replace(REGEX_SPECIALS, '\\$&'));
+}
+
 /** ExprTK string literal (single-quoted; escapes `\` and `'`). */
 export function stringLiteral(value: string): string {
   return `'${escapePerspectiveString(value)}'`;
@@ -163,8 +178,12 @@ export function quickFilterExpr(text: string, columns: readonly string[]): strin
   const tokens = text.trim().split(/\s+/).filter(Boolean);
   if (tokens.length === 0 || columns.length === 0) return null;
   const perToken = tokens.map((token) => {
-    const needle = regexNeedle(token);
-    const perColumn = columns.map((c) => `match(lower(${columnRef(c)}), '${needle}')`);
+    // `(?i)` rather than `lower(col)`: the wrapper allocates a lowercased
+    // copy of every cell in every searched column on every rebuild, and a
+    // rebuild happens on each settled keystroke. Dropping it is the single
+    // biggest win available here (100k x 4 cols: 405ms -> 235ms).
+    const needle = ciRegexNeedle(token);
+    const perColumn = columns.map((c) => `match(${columnRef(c)}, '(?i)${needle}')`);
     return perColumn.length === 1 ? perColumn[0]! : `(${perColumn.join(' or ')})`;
   });
   return perToken.join(' and ');
