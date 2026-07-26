@@ -153,6 +153,15 @@ export interface SsrmPullDatasourceOpts {
    * (see `groupRows.ts`). Mutually exclusive with row grouping.
    */
   treePathFields?: string[];
+  /**
+   * Weighted-mean sources: value field → WEIGHT field, for columns the
+   * grid aggregates with `aggFunc: 'wavg'` (OAS by DV01, WAL by
+   * notional). AG's `valueCols` has no weight slot, so it comes from
+   * here; Perspective serves it natively as
+   * `['weighted mean', [weightField]]`. A `wavg` column with no entry is
+   * reported as unsupported, never downgraded to a plain average.
+   */
+  weightedAggregates?: Record<string, string>;
   /** Live-view LRU capacity. Default 8. */
   maxViews?: number;
   /**
@@ -379,6 +388,7 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     ...(opts.quickFilterColumns ? { quickFilterColumns: opts.quickFilterColumns } : {}),
     ...(opts.calcExpressions ? { calcExpressions: opts.calcExpressions } : {}),
     ...(opts.treePathFields ? { treePathFields: opts.treePathFields } : {}),
+    ...(opts.weightedAggregates ? { weightedAggregates: opts.weightedAggregates } : {}),
   });
 
   // ─── wide-book delta gate (design fact #5) ────────────────────────

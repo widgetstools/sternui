@@ -183,13 +183,39 @@ describe('buildQueryPlan', () => {
         rowGroupCols: [{ id: 'desk', displayName: 'Desk', field: 'desk' }],
         valueCols: [
           { id: 'pnl', displayName: 'PnL', field: 'pnl', aggFunc: 'sum' },
-          { id: 'px', displayName: 'Px', field: 'px', aggFunc: 'first' },
+          // `first`/`last` ARE supported now; this needs one the engine
+          // genuinely has no aggregate for.
+          { id: 'px', displayName: 'Px', field: 'px', aggFunc: 'median' },
         ],
       }),
       { keyColumn: 'positionId' },
     );
     expect(plan.group?.valueFields).toEqual(['pnl']);
-    expect(plan.unsupportedFilters).toEqual(["px: aggFunc 'first'"]);
+    expect(plan.unsupportedFilters).toEqual(["px: aggFunc 'median'"]);
+  });
+
+  it('maps a weighted mean to the engine tuple, and refuses one with no weight', () => {
+    const weighted = buildQueryPlan(
+      request({
+        rowGroupCols: [{ id: 'desk', displayName: 'Desk', field: 'desk' }],
+        valueCols: [{ id: 'oas', displayName: 'OAS', field: 'oas', aggFunc: 'wavg' }],
+      }),
+      { keyColumn: 'positionId', weightedAggregates: { oas: 'dv01' } },
+    );
+    expect(weighted.viewConfig.aggregates?.oas).toEqual(['weighted mean', ['dv01']]);
+    expect(weighted.unsupportedFilters).toEqual([]);
+
+    // No weight column: reported, and the column is dropped rather than
+    // silently served as a plain average.
+    const unweighted = buildQueryPlan(
+      request({
+        rowGroupCols: [{ id: 'desk', displayName: 'Desk', field: 'desk' }],
+        valueCols: [{ id: 'oas', displayName: 'OAS', field: 'oas', aggFunc: 'wavg' }],
+      }),
+      { keyColumn: 'positionId' },
+    );
+    expect(unweighted.group?.valueFields).toEqual([]);
+    expect(unweighted.unsupportedFilters[0]).toMatch(/needs a weight column/);
   });
 
   // ─── P4a: quick filter ────────────────────────────────────────────

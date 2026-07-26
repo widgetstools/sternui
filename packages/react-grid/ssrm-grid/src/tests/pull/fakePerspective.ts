@@ -127,7 +127,21 @@ export class FakeView implements PullView {
     }
     const aggRow = (rows: Row[]): Row => {
       const out: Row = {};
-      for (const col of columns) out[col] = aggregate(rows, col, aggs[col] ?? 'sum');
+      for (const col of columns) {
+        const spec = aggs[col] ?? 'sum';
+        if (Array.isArray(spec)) {
+          // ['weighted mean', [weightField]] — the real engine's spelling.
+          const weightField = spec[1]?.[0];
+          const weight = (r: Row): number => Number(r[weightField ?? ''] ?? 0);
+          const total = rows.reduce((n, r) => n + weight(r), 0);
+          out[col] =
+            total === 0
+              ? null
+              : rows.reduce((n, r) => n + Number(r[col] ?? 0) * weight(r), 0) / total;
+          continue;
+        }
+        out[col] = aggregate(rows, col, spec);
+      }
       return out;
     };
     const groups = [...byLabel.entries()]

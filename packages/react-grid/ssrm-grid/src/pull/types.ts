@@ -52,8 +52,17 @@ export interface PullViewConfig {
   /** Boolean/constant expression columns (filters, quick filter, rollup). */
   expressions?: Record<string, string>;
   /** Per-column aggregates for grouped/rollup views. */
-  aggregates?: Record<string, string>;
+  aggregates?: PullAggregates;
 }
+
+/**
+ * Per-column aggregate spec. Usually a name (`'sum'`, `'avg'`, `'first'`
+ * …), but weighted mean is a TUPLE — `['weighted mean', [weightField]]`
+ * — because the weight lives in another column. There is no bare
+ * `wavg` in this engine build.
+ */
+export type PullAggregate = string | [string, string[]];
+export type PullAggregates = Record<string, PullAggregate>;
 
 /** Structural surface of a vendor `View`. */
 export interface PullView {

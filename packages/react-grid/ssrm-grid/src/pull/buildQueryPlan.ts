@@ -65,7 +65,7 @@ import {
   ROLLUP_GROUP_EXPR,
   quickFilterExpr,
 } from './filterExpressions.js';
-import type { PullFilter, PullSort, PullViewConfig } from './types.js';
+import type { PullAggregates, PullFilter, PullSort, PullViewConfig } from './types.js';
 
 /** AG's synthetic colId for the row-group auto column. */
 export const AUTO_COLUMN_ID = 'ag-Grid-AutoColumn';
@@ -97,6 +97,16 @@ export interface QueryPlanOpts {
    * (AG never issues `rowGroupCols` under `treeData`).
    */
   treePathFields?: string[];
+  /**
+   * Weighted-mean sources: value field → WEIGHT field. Required for any
+   * column the grid aggregates with `wavg` — AG's `valueCols` carries no
+   * weight slot, and Perspective needs one for its
+   * `['weighted mean', [weightField]]` tuple. A `wavg` column with no
+   * entry here is REPORTED as unsupported rather than served as a plain
+   * average: a spread that is silently unweighted is a wrong number that
+   * looks right. Example: `{ oas: 'dv01', wal: 'notional' }`.
+   */
+  weightedAggregates?: Record<string, string>;
 }
 
 export interface GroupPlanInfo {
@@ -126,7 +136,21 @@ const AGG_FUNC_MAP: Record<string, string> = {
   max: 'max',
   avg: 'avg',
   count: 'count',
+  // AG ships `first`/`last` as built-ins; Perspective has both under the
+  // same names (engine-verified).
+  first: 'first',
+  last: 'last',
+  distinctCount: 'distinct count',
 };
+
+/**
+ * AG aggFunc names that mean "weighted mean". Perspective spells it as a
+ * TUPLE — `['weighted mean', [weightField]]`; there is no bare `wavg`
+ * (engine-verified: it aborts with "unknown aggregate operation"). The
+ * weight column cannot come from AG — `valueCols` has no slot for it —
+ * so it is supplied by `weightedAggregates` (value field → weight field).
+ */
+const WEIGHTED_AGG_FUNCS = new Set(['wavg', 'weightedAvg', 'weightedMean']);
 
 /**
  * Expanded ancestor group keys pin reads to their group route. Under
@@ -248,14 +272,33 @@ function baseConfig(
 function mapValueCols(
   request: IServerSideGetRowsRequest,
   unsupported: string[],
-): { valueFields: string[]; aggregates: Record<string, string> } {
+  weightedAggregates: Record<string, string> = {},
+): { valueFields: string[]; aggregates: PullAggregates } {
   const valueFields: string[] = [];
-  const aggregates: Record<string, string> = {};
+  const aggregates: PullAggregates = {};
   for (const col of request.valueCols) {
     const field = col.field ?? col.id;
-    const agg = col.aggFunc ? AGG_FUNC_MAP[col.aggFunc] : undefined;
+    const aggFunc = col.aggFunc;
+
+    if (aggFunc && WEIGHTED_AGG_FUNCS.has(aggFunc)) {
+      const weightField = weightedAggregates[field];
+      if (!weightField) {
+        // Reported, never silently downgraded to a plain average: a
+        // weighted spread quietly served unweighted is a wrong number
+        // that looks right.
+        unsupported.push(
+          `${field}: aggFunc '${aggFunc}' needs a weight column — add it to weightedAggregates`,
+        );
+        continue;
+      }
+      valueFields.push(field);
+      aggregates[field] = ['weighted mean', [weightField]];
+      continue;
+    }
+
+    const agg = aggFunc ? AGG_FUNC_MAP[aggFunc] : undefined;
     if (!agg) {
-      unsupported.push(`${field}: aggFunc '${String(col.aggFunc)}'`);
+      unsupported.push(`${field}: aggFunc '${String(aggFunc)}'`);
       continue;
     }
     valueFields.push(field);
@@ -309,7 +352,7 @@ export function buildQueryPlan(
       treeFields.length > 0
         ? treeFields[level]!
         : (request.rowGroupCols[level]!.field ?? request.rowGroupCols[level]!.id);
-    const { valueFields, aggregates } = mapValueCols(request, unsupported);
+    const { valueFields, aggregates } = mapValueCols(request, unsupported, opts.weightedAggregates);
 
     const viewConfig = baseConfig(request, opts, unsupported, true);
     viewConfig.group_by = [groupField];
@@ -317,10 +360,11 @@ export function buildQueryPlan(
     // own group → the label; also the handle for label sorts). The key
     // column rides with `count` → the group's leaf child count.
     viewConfig.columns = [...valueFields, groupField];
-    viewConfig.aggregates = { ...aggregates, [groupField]: 'unique' };
+    const groupAggregates: PullAggregates = { ...aggregates, [groupField]: 'unique' };
+    viewConfig.aggregates = groupAggregates;
     if (!valueFields.includes(opts.keyColumn) && opts.keyColumn !== groupField) {
       viewConfig.columns.push(opts.keyColumn);
-      viewConfig.aggregates[opts.keyColumn] = 'count';
+      groupAggregates[opts.keyColumn] = 'count';
     }
     const sort = groupSort(request.sortModel, groupField, valueFields, unsupported);
     if (sort.length > 0) viewConfig.sort = sort;
@@ -380,7 +424,7 @@ export function buildRollupPlan(
   opts: QueryPlanOpts,
 ): RollupPlan | null {
   const unsupported: string[] = [];
-  const { valueFields, aggregates } = mapValueCols(request, unsupported);
+  const { valueFields, aggregates } = mapValueCols(request, unsupported, opts.weightedAggregates);
   if (valueFields.length === 0) return null;
 
   const viewConfig = baseConfig(request, opts, unsupported, false);

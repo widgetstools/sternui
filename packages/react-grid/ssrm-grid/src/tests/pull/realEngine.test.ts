@@ -215,6 +215,7 @@ describe('pull datasource against a REAL Perspective engine', () => {
       quickFilterDebounceMs: 0,
       tickRefreshMs: 0,
       seedCountRefreshMs: 0,
+      weightedAggregates: { pnl: 'quantity' },
       warn: () => undefined,
     });
     disposers.push(async () => {
@@ -398,6 +399,51 @@ describe('pull datasource against a REAL Perspective engine', () => {
 
     expect(node.data.pnl).not.toBe(0);
     ds.destroy();
+  });
+
+  it('WEIGHTED aggregation returns a genuinely weighted mean', async () => {
+    // quantity is the weight; pnl the value. Group ALPHA is rows where
+    // i % 3 === 0, so a plain average and a quantity-weighted average
+    // differ — which is the whole point of asserting it against the real
+    // engine rather than a fake that would happily return either.
+    const { api, ds } = await harness();
+    const result = await load(ds, api, {
+      rowGroupCols: [{ id: 'bookName', displayName: 'Book', field: 'bookName' }],
+      valueCols: [{ id: 'pnl', displayName: 'PnL', field: 'pnl', aggFunc: 'wavg' }],
+    } as never);
+
+    const alpha = result.rowData.find((r) => r.bookName === 'ALPHA')!;
+    // rows i = 0,3,6,... ; pnl = i*1.5, weight (quantity) = i
+    let num = 0;
+    let den = 0;
+    for (let i = 0; i < 201; i += 1) {
+      if (i % 3 !== 0) continue;
+      num += i * 1.5 * i;
+      den += i;
+    }
+    expect(alpha.pnl as number).toBeCloseTo(num / den, 6);
+    ds.destroy();
+  });
+
+  it('refuses a wavg column with no weight rather than serving a plain average', async () => {
+    const warnings: string[] = [];
+    const connection = await realConnection(201);
+    disposers.push(() => connection.dispose());
+    const ds = createSsrmPullDatasource({
+      connection,
+      keyColumn: 'positionId',
+      quickFilterDebounceMs: 0,
+      tickRefreshMs: 0,
+      warn: (m) => warnings.push(m),
+      // NOTE: no weightedAggregates
+    });
+    disposers.push(async () => ds.destroy());
+    const api = fakeApi();
+    await load(ds, api, {
+      rowGroupCols: [{ id: 'bookName', displayName: 'Book', field: 'bookName' }],
+      valueCols: [{ id: 'pnl', displayName: 'PnL', field: 'pnl', aggFunc: 'wavg' }],
+    } as never);
+    expect(warnings.join(' ')).toMatch(/needs a weight column/);
   });
 
   it('column filter actually filters', async () => {
