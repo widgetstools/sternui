@@ -472,13 +472,30 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
       return use(view);
     });
 
+  /**
+   * Drop a tick subscription UNDER A LEASE.
+   *
+   * `remove_update` is an async `&self` call that borrows the view for
+   * its whole duration. Deleting the view concurrently throws
+   * "attempted to take ownership of Rust value while it was borrowed"
+   * from a wasm microtask — uncatchable at the call site, never settles,
+   * and leaks the view. Going through the cache means any concurrent
+   * retire waits for the unsubscribe to finish. `tryWithView` resolves
+   * undefined if the shape is already gone, which is fine: a deleted
+   * view has no callbacks left to remove.
+   */
+  const unsubscribeTick = (sub: TickSubscription): void => {
+    if (sub.id === null) return;
+    const id = sub.id;
+    sub.id = null;
+    void viewCache.tryWithView(sub.key, (view) => view.remove_update(id)).catch(() => undefined);
+  };
+
   /** Exactly one live `on_update` subscription — on the root shape. */
   const ensureTickSubscription = async (key: string, view: PullView): Promise<void> => {
     if (tickSub && tickSub.key === key && tickSub.view === view) return;
     const previous = tickSub;
-    if (previous?.id != null) {
-      void previous.view.remove_update(previous.id).catch(() => undefined);
-    }
+    if (previous) unsubscribeTick(previous);
     const next: TickSubscription = { key, view, id: null };
     tickSub = next;
     const id = await view.on_update(() => scheduleTickRefresh());
@@ -1158,9 +1175,9 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         clearTimeout(settleTimer);
         settleTimer = null;
       }
-      if (tickSub?.id != null) {
-        void tickSub.view.remove_update(tickSub.id).catch(() => undefined);
-      }
+      // Under a lease — see unsubscribeTick. The retireAll() below then
+      // waits for it instead of deleting the view mid-borrow.
+      if (tickSub) unsubscribeTick(tickSub);
       tickSub = null;
       // Retire rather than delete: an in-flight read still holds a lease,
       // and yanking its view leaks the view for the life of the worker.
