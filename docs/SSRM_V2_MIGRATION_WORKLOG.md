@@ -268,12 +268,18 @@ had years of behaviour accreted onto it.
 4. `TODO` Classify each gap: **blocker** (must close before deletion),
    **deferrable** (ship without, track), **dropped** (deliberate, with a
    reason).
-5. `TODO` Write `docs/SSRM_V2_PARITY.md` with the table and the
+5. `TODO` Flag any gap that needs a CONFIG FIELD that does not exist.
+   S1 closed the four knobs known to be missing, but it only knew about
+   the ones `createSsrmPullDatasource` already took. A legacy capability
+   that needs a new catalog field is a second config pass — surface it
+   here, in S2, rather than discovering it mid-S5.
+6. `TODO` Write `docs/SSRM_V2_PARITY.md` with the table and the
    classification.
 
 **Acceptance**
 - Every legacy capability is accounted for with a named disposition.
 - The blocker list is the S5 backlog, sized.
+- Any missing config field is named, so S5 doesn't reopen S1 blind.
 
 ---
 
@@ -288,9 +294,28 @@ real container.
 
 1. `TODO` In `MarketsGridContainer`, for `providerType === 'stomp-ssrm'`,
    build the connection (`connectSsrmProvider`) + datasource
-   (`createSsrmPullDatasource`) from the catalog row via
-   `toSsrmDatasetConfig`, replacing the `useProviderDataWiring` push
-   path for that provider type.
+   (`createSsrmPullDatasource`) from the catalog row, replacing the
+   `useProviderDataWiring` push path for that provider type.
+
+   **Two mappings, not one** (corrected by S1 — the original wording here
+   said "via `toSsrmDatasetConfig`", which is only half of it):
+   - `toSsrmDatasetConfig(cfg)` → the WORKER's `configure`. Transport +
+     schema only. It deliberately maps NONE of the window knobs, and a
+     test fails if any leaks in.
+   - catalog row → `SsrmPullDatasourceOpts` in the WINDOW. This mapping
+     **does not exist yet** and is S3's to write: `keyColumn`,
+     `calcExpressions`, `treePathFields`, `treeParentField`,
+     `weightedAggregates`, `projectDisplayedColumns`,
+     `alwaysProjectColumns`, `wideColumnThreshold`,
+     `sweepThrottleWideMs` — plus the window-only opts with no catalog
+     field (`quickFilterColumns`, `maxViews`, `maxBlocks`,
+     `tickRefreshMs`, `scrollSettleMs`, `treeChildCountRefreshMs`).
+     Decide whether those last ones get catalog fields or stay
+     call-site defaults; if they stay, say so here rather than leaving
+     it implicit.
+   Validate with `validateStompSsrmConfig` before either mapping and
+   surface issues where the user can see them — the container is the
+   first consumer that can hit a hand-authored row.
 2. `TODO` Gate the grid mount on `DatasetState`; key it by
    `(providerId, generation)` — a restart must remount, not adopt.
 3. `TODO` Wire the required AG contract: `getRowId`
@@ -298,6 +323,18 @@ real container.
    `cacheBlockSize`/`maxBlocksInCache` **below** the datasource's
    `maxBlocks`, `SSRM_DEFAULT_STATUS_BAR` + `context` counts, cell-edit
    handler, tree/master-detail callbacks where configured.
+
+   **`weightedAggregates` is only half a pairing** (S1 finding). The
+   catalog row names value field → weight field; the OTHER half is
+   `aggFunc: 'wavg'` on the grid's column def, which lives in grid
+   column state and which the catalog cannot see — so
+   `validateStompSsrmConfig` cannot check the two agree, and a weight
+   entry whose column is never aggregated `wavg` is silently inert.
+   S3 owns making the column defs carry the aggFunc (and deciding
+   whether that comes from the catalog, the profile, or the call site).
+   Verify end-to-end that a configured weighted column actually reaches
+   `['weighted mean', [weight]]` rather than assuming the config alone
+   did it.
 4. `TODO` A **short-lived** `dataPlane` switch may coexist during this
    session so the old path stays reachable for comparison. It is removed
    in S7 — it must not outlive the migration (CLAUDE.md: no versioned
