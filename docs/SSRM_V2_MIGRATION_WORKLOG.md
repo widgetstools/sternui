@@ -73,6 +73,41 @@ dual-engine seam** and are expected to disappear with it in S7 — do not
 
 ---
 
+## Testing principle for this migration
+
+**Write new tests for the new implementation. Do not port old ones.**
+
+Evidence from this repo, not theory. Two tests inherited by the pull
+plane encoded DEFECTS as requirements:
+
+- `"DROPS a response whose generation went stale mid-flight (no success,
+  no fail)"` — that is the AG load-bandwidth deadlock (C1), written down
+  as intended behaviour;
+- an assertion on `setRowCount(n, false)` — the resize trap (C2), pinned
+  as correct.
+
+Porting either faithfully would have preserved the bug and produced a
+green suite over a broken grid. Both had to be deleted and rewritten
+before the real defect could even be described.
+
+Three piles, three dispositions:
+
+| Pile | Disposition |
+|---|---|
+| Tests for DELETED subjects (`custom/`, `customEngine`, `ssrm/`) | **Never ported.** Read once in S2 as a *requirements inventory* — they record which behaviours once mattered — then deleted with their subject in S7. Harvest the knowledge, not the code. |
+| Tests for the pull plane written against `fakePerspective` | **Rewritten, not migrated.** They target the right subject but through a fake whose filter stub passes every row, so their filtering assertions are unfalsifiable. |
+| Tests asserting a user-visible CONTRACT | **Kept and re-expressed** against the new implementation. "Every `getRows` answers exactly once", "a stale generation never paints", "aggregates repaint at every group level" outlive any engine. |
+
+The discriminator is **contract vs mechanism**. A test that breaks
+because the implementation changed was testing mechanism, and every
+"update the test to match" is a signal it was never protecting anything.
+A test that survives a rewrite untouched was testing contract.
+
+Corollary, learned the hard way twice today: after writing a test,
+**verify it can fail** — reintroduce the defect and watch it go red. An
+unfalsifiable test is worse than no test, because it advertises
+protection it does not provide.
+
 ## Hard-won constraints
 
 These cost real time to discover. Violating one silently produces a
@@ -196,10 +231,17 @@ had years of behaviour accreted onto it.
      the legacy surface)
 2. `TODO` For each: mark Present / Partial / Absent in `pull/`, with the
    file that provides it (or the gap).
-3. `TODO` Classify each gap: **blocker** (must close before deletion),
+3. `TODO` **Mine the legacy test suites as a requirements source.** The
+   tests under `custom/`, `engine/` and `ssrm/` record which behaviours
+   once mattered enough to assert — read them for coverage IDEAS and
+   feed those into the table above. Do NOT plan to port them: they are
+   written against a deleted subject, and inherited assertions have
+   already been shown here to encode defects as requirements (see
+   "Testing principle"). Harvest the knowledge, delete the code.
+4. `TODO` Classify each gap: **blocker** (must close before deletion),
    **deferrable** (ship without, track), **dropped** (deliberate, with a
    reason).
-4. `TODO` Write `docs/SSRM_V2_PARITY.md` with the table and the
+5. `TODO` Write `docs/SSRM_V2_PARITY.md` with the table and the
    classification.
 
 **Acceptance**
@@ -370,20 +412,27 @@ engine ≈ 132% of one core). That was never re-run.
 **Goal.** The suite proves the product, and cannot pass while broken.
 
 **Tasks**
-1. `TODO` Migrate the remaining fake-backed query-semantics tests
-   (~44 in `createSsrmPullDatasource.test.ts`) to the real-engine suite.
-   `fakePerspective`'s filter stub passes **every** row for any
-   `__ssrm_*` clause, so filtering assertions against it are vacuous —
-   this is the exact gap that let the original bugs ship.
-2. `TODO` DOM-asserting e2e for **sort**, **column filter** and **quick
+1. `TODO` **Write a fresh contract-first suite** for the pull plane
+   against the REAL engine, derived from `SSRM_PROVIDER_V2.md` and the
+   C1–C8 constraints — not by porting the ~44 fake-backed tests in
+   `createSsrmPullDatasource.test.ts`. Delete those once the new suite
+   covers their intent. `fakePerspective`'s filter stub passes **every**
+   row for any `__ssrm_*` clause, so their filtering assertions are
+   unfalsifiable; porting them would carry that blindness forward. Read
+   them once for coverage ideas, then drop them.
+   See "Testing principle" above.
+2. `TODO` For each new test, **verify it fails** with its target defect
+   reintroduced. Record any test that cannot be made to fail, and either
+   strengthen it or state the limit next to it.
+3. `TODO` DOM-asserting e2e for **sort**, **column filter** and **quick
    filter** (the multi-level spec covers ticking only). These are the
    behaviours originally reported broken and still have no browser guard.
-3. `TODO` Give `multi-level-tick.spec.ts` real teeth or document the
+4. `TODO` Give `multi-level-tick.spec.ts` real teeth or document the
    limit. It currently pins the user-visible contract but was verified
    NOT to fail when the root-only sweep reserve was reintroduced — a
    stats-based probe (which group plans were swept per tick) would fail
    on reintroduction, at the cost of testing mechanism over behaviour.
-4. `TODO` Final pass on `SSRM_PROVIDER_V2.md`, `SSRM_PROVIDER_V2_DESIGN.md`
+5. `TODO` Final pass on `SSRM_PROVIDER_V2.md`, `SSRM_PROVIDER_V2_DESIGN.md`
    (its "still deferred" list is stale — periodic ordered-block refresh
    under active sort is **done**), and `current-features.md`.
 
