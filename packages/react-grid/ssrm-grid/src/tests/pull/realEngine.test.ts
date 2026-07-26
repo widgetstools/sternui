@@ -446,6 +446,45 @@ describe('pull datasource against a REAL Perspective engine', () => {
     expect(warnings.join(' ')).toMatch(/needs a weight column/);
   });
 
+  it('INTERMEDIATE group levels keep ticking, not just the root level', async () => {
+    // Field report (screenshot): Region > Book Name > Trader, all
+    // expanded. The Region rows (root route) tick, but the Book Name
+    // rows — an intermediate group level at route ['ALPHA'] — do not.
+    // Reserving sweep slots for the ROOT route only fixed the top level
+    // and left every level beneath it in the global MRU window, where
+    // leaf scrolling evicts them.
+    const TWO_LEVEL = {
+      rowGroupCols: [
+        { id: 'bookName', displayName: 'Book', field: 'bookName' },
+        { id: 'trader', displayName: 'Trader', field: 'trader' },
+      ],
+      valueCols: [{ id: 'pnl', displayName: 'PnL', field: 'pnl', aggFunc: 'sum' }],
+    } as Partial<IServerSideGetRowsRequest>;
+
+    const { connection, api, ds } = await harness(2000);
+    await load(ds, api, TWO_LEVEL as never); // root: book groups
+    await load(ds, api, { ...TWO_LEVEL, groupKeys: ['ALPHA'] } as never); // mid: trader groups
+
+    // Expand a trader and churn its leaf blocks, as a user reading rows does.
+    for (let start = 0; start < 600; start += 100) {
+      await load(ds, api, {
+        ...TWO_LEVEL,
+        groupKeys: ['ALPHA', 'jdoe'],
+        startRow: start,
+        endRow: start + 100,
+      } as never);
+    }
+    const before = api.transactions.length;
+
+    await connection.bump('P15', { pnl: 424_242 });
+    await new Promise((r) => setTimeout(r, 250));
+
+    const fresh = api.transactions.slice(before);
+    const midLevel = fresh.filter((t) => t.route?.length === 1 && t.update?.length);
+    expect(midLevel.length).toBeGreaterThan(0);
+    ds.destroy();
+  });
+
   it('column filter actually filters', async () => {
     const { api, ds } = await harness();
     await load(ds, api);

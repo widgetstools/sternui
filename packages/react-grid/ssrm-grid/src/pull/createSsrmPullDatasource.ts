@@ -296,12 +296,18 @@ interface TickSubscription {
 const MAX_SERVE_ATTEMPTS = 4;
 
 /**
- * Blocks of the CURRENT root route that always join the tick sweep, on
- * top of the global MRU window. Under grouping these carry the group
- * aggregates, which are usually a single block — small enough to
- * guarantee, and the thing users notice first when it goes stale.
+ * Blocks per GROUP LEVEL that always join the tick sweep, on top of the
+ * global MRU window — and the total across all levels.
+ *
+ * Group rows carry the aggregates the user is watching, there is
+ * typically ONE block per expanded level, and every level is on screen
+ * at once. Leaf blocks are the numerous ones the MRU window exists to
+ * bound. Reserving only the ROOT level fixed the top of the tree and
+ * left `Region > Book > Trader` with a dead middle: scrolling leaves
+ * inside an expanded trader evicted the Book-level block.
  */
-const ROOT_SWEEP_RESERVE = 2;
+const GROUP_SWEEP_BLOCKS_PER_LEVEL = 2;
+const GROUP_SWEEP_RESERVE_TOTAL = 8;
 
 /**
  * Deep-copy an AG request. `IServerSideGetRowsRequest` handed to the
@@ -593,22 +599,30 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
         .recentEntries(requestGen, gate.maxSweepBlocks)
         .map((entry) => `${entry.viewKey}#${entry.startRow}`),
     );
-    // GROUP-LEVEL root blocks always sweep, on top of the MRU window.
-    // The root store then holds the GROUP rows — the aggregates the user
-    // is actually watching — and they are typically one block, but the
-    // MRU window is global: scrolling leaves inside an expanded group
-    // pushed that block out and the group totals silently stopped
-    // repainting ("sometimes the sub-group totals tick"). Bounded by
-    // ROOT_SWEEP_RESERVE so a wide book cannot pay for the whole store.
+    // EVERY group level always sweeps, on top of the MRU window — root
+    // AND intermediate. With `Region > Book > Trader` expanded, the Book
+    // rows live at route ['APAC']: not the root, so reserving the root
+    // alone left them in the global MRU window, where scrolling a
+    // trader's leaves evicted them and the Book aggregates froze while
+    // the Region row above and the Trader rows below kept ticking.
     //
-    // Deliberately NOT done for a flat root: there the root blocks ARE
+    // Cheap to guarantee: one block per expanded level, all on screen.
+    // Bounded per level and in total so a deep tree cannot crowd out the
+    // leaf blocks the MRU window is there to serve.
+    //
+    // Deliberately NOT done for flat ('rows') plans: their blocks ARE
     // the viewport blocks and are already MRU, so reserving would only
-    // drag the OLDEST blocks back in and defeat the wide-book gate.
-    if (rootPlan?.kind === 'group-level') {
+    // drag the OLDEST ones back in and defeat the wide-book gate.
+    let groupReserved = 0;
+    for (const plan of planByKey.values()) {
+      if (groupReserved >= GROUP_SWEEP_RESERVE_TOTAL) break;
+      if (plan.kind !== 'group-level') continue;
       for (const entry of blockCache
-        .entriesFor(rootPlan.key, requestGen)
-        .slice(0, ROOT_SWEEP_RESERVE)) {
-        sweepSet.add(`${rootPlan.key}#${entry.startRow}`);
+        .entriesFor(plan.key, requestGen)
+        .slice(0, GROUP_SWEEP_BLOCKS_PER_LEVEL)) {
+        sweepSet.add(`${plan.key}#${entry.startRow}`);
+        groupReserved += 1;
+        if (groupReserved >= GROUP_SWEEP_RESERVE_TOTAL) break;
       }
     }
     let rootTotal: number | null = null;
