@@ -27,9 +27,13 @@
  *   `applyServerSideTransactionAsync({ route, update })`: leaf rows
  *   keyed by the provider's `keyColumn`, group rows keyed by their
  *   stamped path id (`GROUP_ID_FIELD`). The grid MUST set `getRowId`
- *   via `createSsrmRowIdGetter(keyColumn)`. Update transactions cannot
- *   re-order rows — ordering drift under an active sort between user
- *   refreshes is accepted (TODO(P4b): periodic ordered block refresh).
+ *   via `createSsrmRowIdGetter(keyColumn)`. A keyed update cannot MOVE a
+ *   row, so a block whose key ORDER changed (a tick touched the sort
+ *   key, or rows entered/left the index range) is instead replaced
+ *   index-addressed via `applyServerSideRowData` — see `sameKeyOrder`.
+ *   Left as a transaction the reorder is invisible: the surviving keys
+ *   carry unchanged values and the row that moved in is a new key the
+ *   diff discards.
  * • **Row grouping (P4a).** Group-level requests are served from a
  *   Perspective `group_by` view on the request's next level (ancestor
  *   equality filters pin the route); group rows carry the group label,
@@ -235,6 +239,13 @@ export interface SsrmPullDatasourceStats {
   droppedStale: number;
   /** Sweep cycles deferred because the user was scrolling / a miss was in flight. */
   sweepDeferrals: number;
+  /**
+   * Sweep blocks replaced wholesale because a tick RE-ORDERED them
+   * (a keyed update transaction cannot move a row). Expected to be a
+   * small fraction of sweeps; if it dominates, the active sort is on a
+   * hot column and the sweep is doing block-replacement work every tick.
+   */
+  blockReflows: number;
   /** `getRows` calls that exhausted their re-plan attempts and answered stale. */
   serveExhausted: number;
   /**
@@ -347,6 +358,7 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
     prefetchReads: 0,
     droppedStale: 0,
     sweepDeferrals: 0,
+    blockReflows: 0,
     serveExhausted: 0,
     rootRowCount: null,
   };
@@ -655,9 +667,29 @@ export function createSsrmPullDatasource(opts: SsrmPullDatasourceOpts): SsrmPull
             generation: requestGen,
             endRow: block.endRow,
           });
-          const changed = diffRowsByKey(block.rows, read.rows, idField);
-          if (changed.length > 0) {
-            gridApi.applyServerSideTransactionAsync({ route: plan.route, update: changed });
+          if (sameKeyOrder(block.rows, read.rows, idField)) {
+            // Values-only change: patch the cells that moved. Cheap, and
+            // it keeps row identity, selection and scroll untouched.
+            const changed = diffRowsByKey(block.rows, read.rows, idField);
+            if (changed.length > 0) {
+              gridApi.applyServerSideTransactionAsync({ route: plan.route, update: changed });
+            }
+          } else {
+            // The block RE-ORDERED (a tick changed a sort key, or rows
+            // entered/left this index range). A keyed update transaction
+            // cannot move a row, and the diff cannot even see it: the
+            // surviving keys hold unchanged values and the row that
+            // moved IN is a new key, which diffRowsByKey drops as "not
+            // an update". Left alone the block silently keeps the old
+            // order and never shows the new row. Index-addressed
+            // replacement is the documented reorder path, and it does
+            // not purge, so rows stay on screen.
+            stats.blockReflows += 1;
+            gridApi.applyServerSideRowData({
+              startRow,
+              route: plan.route,
+              successParams: { rowData: read.rows, rowCount: read.total },
+            });
           }
           if (plan === rootPlan) rootTotal = read.total;
         }
@@ -1304,6 +1336,28 @@ function throttleTrailing(fn: () => void, ms: number | (() => number)): () => vo
       typeof ms === 'function' ? ms() : ms,
     );
   };
+}
+
+/**
+ * Do both reads hold the SAME keys in the SAME positions?
+ *
+ * When false the block re-ordered, and a keyed update transaction cannot
+ * express that — AG's `update` patches a row where it already is. Note
+ * `diffRowsByKey` cannot detect it either: after a reorder the surviving
+ * keys still carry unchanged values, and a row that moved INTO the range
+ * is a new key, which the diff drops. So this check is the only signal
+ * that a reflow is needed.
+ */
+export function sameKeyOrder(
+  previous: readonly Record<string, unknown>[],
+  next: readonly Record<string, unknown>[],
+  idField: string,
+): boolean {
+  if (previous.length !== next.length) return false;
+  for (let i = 0; i < next.length; i += 1) {
+    if (previous[i]?.[idField] !== next[i]?.[idField]) return false;
+  }
+  return true;
 }
 
 /** Fresh rows whose key existed before but whose cells changed. */

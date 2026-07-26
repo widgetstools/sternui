@@ -106,6 +106,7 @@ interface FakeNode {
 type FakeApi = GridApi & {
   refreshes: Array<{ purge?: boolean } | undefined>;
   transactions: Array<{ route?: string[]; update?: Record<string, unknown>[] }>;
+  rowDataCalls: Array<{ startRow?: number; route?: string[] }>;
   nodes: Map<string, FakeNode>;
   seedNode(id: string, data: Record<string, unknown>): FakeNode;
 };
@@ -113,10 +114,12 @@ type FakeApi = GridApi & {
 function fakeApi(): FakeApi {
   const refreshes: Array<{ purge?: boolean } | undefined> = [];
   const transactions: Array<{ route?: string[]; update?: Record<string, unknown>[] }> = [];
+  const rowDataCalls: Array<{ startRow?: number; route?: string[] }> = [];
   const nodes = new Map<string, FakeNode>();
   return {
     refreshes,
     transactions,
+    rowDataCalls,
     nodes,
     seedNode(id: string, data: Record<string, unknown>): FakeNode {
       const node: FakeNode = {
@@ -130,7 +133,7 @@ function fakeApi(): FakeApi {
     },
     setRowCount: () => undefined,
     applyServerSideTransactionAsync: (tx: { route?: string[] }) => transactions.push(tx),
-    applyServerSideRowData: () => undefined,
+    applyServerSideRowData: (p: { startRow?: number; route?: string[] }) => rowDataCalls.push(p),
     refreshServerSide: (p?: { purge?: boolean }) => refreshes.push(p),
     getRowNode: (id: string) => nodes.get(id),
     refreshCells: () => undefined,
@@ -482,6 +485,46 @@ describe('pull datasource against a REAL Perspective engine', () => {
     const fresh = api.transactions.slice(before);
     const midLevel = fresh.filter((t) => t.route?.length === 1 && t.update?.length);
     expect(midLevel.length).toBeGreaterThan(0);
+    ds.destroy();
+  });
+
+  it('a tick that RE-ORDERS a sorted block reflows it instead of silently rotting', async () => {
+    // Standing TODO in the source: "Update transactions cannot re-order
+    // rows — ordering drift under an active sort ... is accepted".
+    // Measured, it is worse than drift: the sweep diffs BY KEY, so after
+    // a reorder the values at each surviving key are unchanged and the
+    // row that moved INTO the block is a new key that diffRowsByKey
+    // classifies as "not an update" and drops. Result: zero updates,
+    // zero replacements — the row that should have jumped to the top
+    // never appears, and the order rots until a manual reload.
+    const { connection, api, ds } = await harness();
+    await load(ds, api, { sortModel: [{ colId: 'pnl', sort: 'asc' }] } as never);
+    const before = api.rowDataCalls.length;
+
+    // A row that sorted LAST is pushed to the very front.
+    await connection.bump('P200', { pnl: -999_999 });
+    await new Promise((r) => setTimeout(r, 200));
+
+    // The block must be REPLACED (index-addressed, handles reorders) —
+    // a keyed update transaction cannot move a row.
+    expect(api.rowDataCalls.length).toBeGreaterThan(before);
+    ds.destroy();
+  });
+
+  it('a tick with no re-ordering still uses cheap keyed update transactions', async () => {
+    // The reflow path must not become the default: replacing a block is
+    // far heavier than patching the cells that changed.
+    const { connection, api, ds } = await harness();
+    await load(ds, api, { sortModel: [{ colId: 'positionId', sort: 'asc' }] } as never);
+    const replacementsBefore = api.rowDataCalls.length;
+    const txnsBefore = api.transactions.length;
+
+    // pnl is not the sort key, so ordering is untouched.
+    await connection.bump('P3', { pnl: 12_345 });
+    await new Promise((r) => setTimeout(r, 200));
+
+    expect(api.transactions.length).toBeGreaterThan(txnsBefore);
+    expect(api.rowDataCalls.length).toBe(replacementsBefore);
     ds.destroy();
   });
 
