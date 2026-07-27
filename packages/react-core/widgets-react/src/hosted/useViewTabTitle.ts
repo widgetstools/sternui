@@ -70,10 +70,35 @@ export function useViewTabTitle(fallback: string): ViewTabTitle {
     };
 
     void sync();
-    const timer = setInterval(() => void sync(), POLL_MS);
+
+    // Event-driven: an external "Save Tab As…" rename writes savedTitle via
+    // updateOptions, which fires `options-changed` on this view (OpenFin
+    // 43.101+). Subscribe so the caption catches up immediately, instead of
+    // relying on a forever-poll. (Untyped on View — guarded.)
+    let offOptionsChanged: (() => void) | null = null;
+    try {
+      if (typeof fin?.me?.on === 'function') {
+        const handler = () => void sync();
+        fin.me.on('options-changed', handler);
+        offOptionsChanged = () => {
+          try { fin.me.removeListener?.('options-changed', handler); } catch { /* swallow */ }
+        };
+      }
+    } catch {
+      /* options-changed unsupported — the visible-only interval covers it */
+    }
+
+    // Visible-only fallback: covers runtimes without options-changed and
+    // self-heals on reconnect, but a hidden/background tab no longer polls
+    // the broker every second.
+    const timer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      void sync();
+    }, POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(timer);
+      offOptionsChanged?.();
     };
   }, []);
 

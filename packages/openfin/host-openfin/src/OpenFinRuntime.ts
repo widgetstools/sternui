@@ -422,30 +422,58 @@ export class OpenFinRuntime implements RuntimePort {
       }
     }
 
-    // CustomData polling. OpenFin doesn't broadcast options-updated, so
-    // we sample on a slow interval. Stops as soon as listeners drop or
-    // the runtime is disposed.
+    // CustomData watching. OpenFin 43.101+ fires `options-changed` on the
+    // view after `updateOptions` (the popout's rename path), so we prefer the
+    // EVENT and demote the interval to a VISIBLE-ONLY fallback. Previously
+    // every view polled `getOptions()` every 500ms forever — N views on a
+    // desk hammered the OpenFin broker continuously, which is the same broker
+    // that services window creation, so it contended with opening windows.
+    const sampleCustomData = async (): Promise<void> => {
+      if (this.disposed || this.customDataListeners.size === 0) return;
+      try {
+        const options = await view.getOptions?.();
+        const cd = options?.customData;
+        if (!cd || typeof cd !== 'object' || Array.isArray(cd)) return;
+        if (sameShallow(cd as Record<string, unknown>, this.lastCustomData)) return;
+        this.lastCustomData = cd as Readonly<Record<string, unknown>>;
+        // Live rename: when the popout writes a new savedTitle into this
+        // view's customData, reflect it in document.title.
+        this.applyTitleFromCustomData(this.lastCustomData);
+        for (const fn of this.customDataListeners) {
+          try { fn(this.lastCustomData); } catch { /* swallow */ }
+        }
+      } catch {
+        // View not reachable — the fallback interval self-heals on reconnect.
+      }
+    };
+
+    // Event-driven path: fire immediately on a real options change, no poll.
+    // `options-changed` is documented on Window and demonstrated on Views by
+    // OpenFin's own docs, but is absent from the View event typing — guard it.
+    if (typeof view.on === 'function') {
+      try {
+        const onOptionsChanged = (): void => { void sampleCustomData(); };
+        (view as { on: (t: string, l: () => void) => void }).on('options-changed', onOptionsChanged);
+        if (typeof view.removeListener === 'function') {
+          this.disposers.push(() => {
+            try {
+              (view as { removeListener: (t: string, l: () => void) => void })
+                .removeListener('options-changed', onOptionsChanged);
+            } catch { /* swallow */ }
+          });
+        }
+      } catch {
+        // Stub without options-changed — the interval below covers it.
+      }
+    }
+
+    // Visible-only fallback: covers stubs/runtimes without options-changed and
+    // self-heals if the view reconnects — but a HIDDEN/background view no
+    // longer polls the broker at all (the source of the N×forever contention).
     const intervalMs = 500;
     const timer = setInterval(() => {
-      if (this.disposed || this.customDataListeners.size === 0) return;
-      void (async () => {
-        try {
-          const options = await view.getOptions?.();
-          const cd = options?.customData;
-          if (!cd || typeof cd !== 'object' || Array.isArray(cd)) return;
-          if (sameShallow(cd as Record<string, unknown>, this.lastCustomData)) return;
-          this.lastCustomData = cd as Readonly<Record<string, unknown>>;
-          // Live rename: when the popout writes a new savedTitle into
-          // this view's customData, reflect it in document.title.
-          this.applyTitleFromCustomData(this.lastCustomData);
-          for (const fn of this.customDataListeners) {
-            try { fn(this.lastCustomData); } catch { /* swallow */ }
-          }
-        } catch {
-          // View not reachable any more — keep polling so the runtime
-          // recovers if the view becomes available again.
-        }
-      })();
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      void sampleCustomData();
     }, intervalMs);
     this.disposers.push(() => clearInterval(timer));
   }

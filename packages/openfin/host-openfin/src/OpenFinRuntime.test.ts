@@ -201,7 +201,9 @@ describe('OpenFinRuntime', () => {
       (globalThis as any).fin = { View: { getCurrentSync: () => fakeView } };
       rt = await OpenFinRuntime.create();
       rt.dispose();
-      expect(removeCalls.sort()).toEqual(['destroyed', 'shown']);
+      // 'options-changed' joins 'shown'/'destroyed': the customData watcher
+      // now prefers the event over the forever-poll, and cleans it up too.
+      expect(removeCalls.sort()).toEqual(['destroyed', 'options-changed', 'shown']);
       rt = null; // already disposed
     });
 
