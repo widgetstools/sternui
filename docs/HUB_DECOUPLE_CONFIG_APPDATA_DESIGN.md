@@ -219,14 +219,30 @@ after the cold/hot split + the conflation defaults already shipped.
   not the template-resolved `activeCfg`, which also sidesteps the
   AppData-tick identity churn (`useDataProvider` memoizes on `inlineCfg`
   identity). Instrument the hub's catalog path to confirm it goes cold.
+  - **P1a — landed.** `MarketsGridContainer` passes the raw `activeRow`
+    config as `inlineCfg`; hub prefers `req.cfg` and logs a `[decouple]
+    CATALOG fallback` only when a window supplies none (verified silent).
+  - **P1b — landed.** The config **read hooks** now source the
+    main-thread resolver, not the hub: `useDataProviderConfig` /
+    `useDataProvidersList` read via the context `configStore`
+    (`DataProviderConfigStore` over `boot.platform.configManager`) and
+    tick off `configManager.onConfigChanged` — the same notifier whose
+    constructor listener evicts `ConfigManager.rowCache` (same-tab + cross-
+    tab via BroadcastChannel), so single-row re-reads are always fresh and
+    the list read is IDB-fresh by construction. Both fall back to
+    `client.getProviderConfig` / `onCatalogChange` only in a manager-less
+    bootstrap. This is the read-hook half of **P3**, pulled forward so the
+    window is a full config resolver before P2/P4.
 - **P2 — Hub stops resolving templates.** Remove `appDataLookup` from
   `startProvider` (the passed cfg is pre-resolved). `assertAppDataResolved`
   now guarantees I1 from the window side. Delete the hub's template path.
-- **P3 — Hub stops resolving/serving config.** Route `getProviderConfig`
-  / `listProviderConfigs` (tool windows) to the main-thread ConfigManager
-  (or the cold worker in P4), not the hub catalog. Drop the hub's
-  `configCatalog.ensure` from the start path. `buildIntrospectSnapshot`'s
-  provider list re-sourced or slimmed.
+- **P3 — Hub stops resolving/serving config.** The window-side read half
+  landed early in **P1b** (`getProviderConfig` / `listProviderConfigs` now
+  read the main-thread ConfigManager, not the hub client). P3 remaining:
+  drop the hub's *own* catalog reads — `configCatalog.ensure` from the
+  start path (now that P1 supplies `req.cfg`) — and re-source or slim
+  `buildIntrospectSnapshot`'s provider list. The cold worker (P4) can then
+  take over serving without any live hub read path to preserve.
 - **P4 — Stand up the cold-state worker, behind `ConfigSource`.** New
   SharedWorker hosting Config + AppData as a cache behind the
   **`ConfigSource`** interface (`load` / `subscribe` / `save`) — Dexie

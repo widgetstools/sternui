@@ -174,17 +174,28 @@ export interface DataProviderConfigView {
 }
 
 export function useDataProviderConfig(providerId: string | null | undefined): DataProviderConfigView {
-  const { client } = useDataServicesContext();
+  const { client, configStore, configManager } = useDataServicesContext();
   const [view, setView] = useState<DataProviderConfigView>({ cfg: null, loading: Boolean(providerId) });
   const [tick, setTick] = useState(0);
 
+  // Invalidation ticks off the window's own ConfigManager notifier — the
+  // SAME notifier whose constructor-registered listener evicts this row from
+  // `rowCache` (same-tab AND cross-tab via BroadcastChannel), so the re-read
+  // below is always fresh. Falls back to the hub catalog broadcast only when
+  // no main-thread manager is present (degraded bootstrap). See P1b in
+  // docs/HUB_DECOUPLE_CONFIG_APPDATA_DESIGN.md.
   useEffect(() => {
+    if (configManager) {
+      return configManager.onConfigChanged((changedId) => {
+        if (changedId === providerId) setTick((t) => t + 1);
+      });
+    }
     return client.onCatalogChange((detail) => {
       if (detail.full || detail.providerId === providerId) {
         setTick((t) => t + 1);
       }
     });
-  }, [client, providerId]);
+  }, [configManager, client, providerId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -197,7 +208,12 @@ export function useDataProviderConfig(providerId: string | null | undefined): Da
       loading: prev.cfg === null,
       error: undefined,
     }));
-    client.getProviderConfig(providerId)
+    // Read off the main-thread store (hub-free) when a manager is present;
+    // else fall back to the hub client's catalog.
+    const read = configManager
+      ? configStore.get(providerId)
+      : client.getProviderConfig(providerId);
+    read
       .then((cfg) => { if (!cancelled) setView({ cfg, loading: false }); })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -209,7 +225,7 @@ export function useDataProviderConfig(providerId: string | null | undefined): Da
         }
       });
     return () => { cancelled = true; };
-  }, [providerId, client, tick]);
+  }, [providerId, client, configStore, configManager, tick]);
 
   return view;
 }
@@ -231,20 +247,28 @@ export interface DataProvidersListView {
 export function useDataProvidersList(
   opts: { subtype?: ProviderConfig['providerType']; includeAppData?: boolean } = {},
 ): DataProvidersListView {
-  const { client } = useDataServicesContext();
+  const { client, configStore, configManager } = useDataServicesContext();
+  const userId = useUserIdFromContext();
   const [view, setView] = useState<{ configs: readonly DataProviderConfig[]; loading: boolean; error?: string }>(
     { configs: [], loading: true },
   );
   const [tick, setTick] = useState(0);
   const refresh = useCallback(() => setTick((t) => t + 1), []);
 
+  // Any config write (this window or a sibling tab) re-lists. The list read
+  // below hits `getConfigsByComponentTypesUnfiltered`, which is always
+  // IndexedDB-fresh (no rowCache), so no eviction-ordering concern here.
+  // Falls back to the hub catalog broadcast only in a manager-less bootstrap.
   useEffect(() => {
+    if (configManager) {
+      return configManager.onConfigChanged(() => setTick((t) => t + 1));
+    }
     return client.onCatalogChange((detail) => {
       if (detail.full || detail.providerId) {
         setTick((t) => t + 1);
       }
     });
-  }, [client]);
+  }, [configManager, client]);
 
   useEffect(() => {
     let cancelled = false;
@@ -252,13 +276,19 @@ export function useDataProvidersList(
     const listOpts: { subtype?: ProviderConfig['providerType']; includeAppData?: boolean } = {};
     if (opts.subtype) listOpts.subtype = opts.subtype;
     if (opts.includeAppData) listOpts.includeAppData = true;
-    client.listProviderConfigs(listOpts)
+    // Read off the main-thread store (hub-free) when a manager is present;
+    // else fall back to the hub client's catalog. `list` treats userId as
+    // platform-global (providers are shared), so the value is informational.
+    const read = configManager
+      ? configStore.list(userId, listOpts)
+      : client.listProviderConfigs(listOpts);
+    read
       .then((rows) => { if (!cancelled) setView({ configs: rows, loading: false }); })
       .catch((err: unknown) => {
         if (!cancelled) setView({ configs: [], loading: false, error: err instanceof Error ? err.message : String(err) });
       });
     return () => { cancelled = true; };
-  }, [client, opts.subtype, opts.includeAppData, tick]);
+  }, [client, configStore, configManager, userId, opts.subtype, opts.includeAppData, tick]);
 
   return { ...view, refresh };
 }

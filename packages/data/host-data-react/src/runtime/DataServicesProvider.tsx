@@ -33,6 +33,15 @@ export interface ContextValue {
   client: SharedWorkerDataServicesClient;
   appData: AppDataMirror;
   configStore: DataProviderConfigStore;
+  /**
+   * Main-thread ConfigManager (the window's own resolver). Config READS
+   * (`useDataProviderConfig` / `useDataProvidersList`) go through
+   * `configStore` on top of this, and invalidation ticks off its
+   * `onConfigChanged` notifier — so the hot data-hub worker never serves
+   * config. `undefined` only in degraded bootstraps without a manager;
+   * the read hooks fall back to the hub client's catalog there.
+   */
+  configManager: ConfigManager | undefined;
 }
 
 const DataServicesContext = createContext<ContextValue | null>(null);
@@ -83,6 +92,7 @@ export function DataServicesProvider({
       services.configManager,
       (providerId) => services.client.invalidateConfig(providerId),
     ),
+    configManager: services.configManager,
   }), [services]);
 
   return (
