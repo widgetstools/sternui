@@ -278,7 +278,9 @@ describe('startStomp', () => {
   it('treats post-Success frames as live updates (no replace, no new status)', async () => {
     const events: ProviderEmitEvent[] = [];
     const ctrl = makeFakeClient();
-    startStomp(cfg(), (e) => events.push(e), { createClient: () => ctrl.client });
+    // throttleMs:0 → immediate fanout; this test is about post-Success
+    // live handling, not the default throttle window.
+    startStomp(cfg({ throttleMs: 0 }), (e) => events.push(e), { createClient: () => ctrl.client });
     await Promise.resolve();
     ctrl.fireConnect();
     ctrl.deliver('Success');
@@ -407,6 +409,7 @@ describe('startStomp', () => {
     const ctrl = makeFakeClient();
     startStomp(
       cfg({
+        throttleMs: 0, // immediate fanout — this test is about ssrm flatten, not throttle
         rowShape: 'ssrm',
         keyColumn: 'id',
         columnDefinitions: [
@@ -473,6 +476,7 @@ describe('startStomp', () => {
     const ctrl = makeFakeClient();
     startStomp(
       cfg({
+        throttleMs: 0, // immediate fanout — this test is about projectFields, not throttle
         projectFields: true,
         keyColumn: 'id',
         columnDefinitions: [
@@ -774,11 +778,13 @@ describe('startStomp — snapshot chunk size', () => {
 describe('startStomp — live conflation + throttle', () => {
   function fakeTimer() {
     let scheduled: (() => void) | null = null;
+    let lastMs = 0;
     return {
-      setTimer: (cb: () => void) => { scheduled = cb; return 'tok'; },
+      setTimer: (cb: () => void, ms: number) => { scheduled = cb; lastMs = ms; return 'tok'; },
       clearTimer: () => { scheduled = null; },
       fire: () => { const c = scheduled; scheduled = null; c?.(); },
       get pending() { return scheduled !== null; },
+      get lastMs() { return lastMs; },
     };
   }
 
@@ -858,17 +864,30 @@ describe('startStomp — live conflation + throttle', () => {
     expect(events.filter((e) => 'rows' in e)).toHaveLength(0);
   });
 
-  it('passes live deltas straight through when throttleMs is unset', async () => {
+  it('defaults to a 200ms throttle window when throttleMs is unset', async () => {
     const events: ProviderEmitEvent[] = [];
     const ctrl = makeFakeClient();
-    startStomp(cfg(), (e) => events.push(e), { createClient: () => ctrl.client });
+    const t = fakeTimer();
+    startStomp(cfg(), (e) => events.push(e), {
+      createClient: () => ctrl.client,
+      setTimer: t.setTimer,
+      clearTimer: t.clearTimer,
+    });
     await Promise.resolve();
     ctrl.fireConnect();
     ctrl.deliver('Success');
     events.length = 0;
 
+    // No throttleMs on the config → the transport applies the 200ms default,
+    // so a live delta is BUFFERED (a timer is pending), not passed straight
+    // through. This is the on-by-default throttle+conflation behaviour.
     ctrl.deliver(JSON.stringify({ id: 'r1', price: 9 }));
+    expect(events.filter((e) => 'rows' in e)).toHaveLength(0);
+    expect(t.pending).toBe(true);
+    expect(t.lastMs).toBe(200);
 
+    // Trailing-edge flush delivers the delta once the window elapses.
+    t.fire();
     const deltas = events.filter((e): e is { rows: readonly unknown[] } => 'rows' in e);
     expect(deltas).toHaveLength(1);
     expect(deltas[0].rows).toEqual([{ id: 'r1', price: 9 }]);

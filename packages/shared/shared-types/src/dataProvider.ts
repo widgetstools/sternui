@@ -156,9 +156,12 @@ export interface StompProviderConfig {
   throttleEnabled?: boolean;
   /**
    * Coalesce row-update fanout into trailing-edge bursts every
-   * `throttleMs`. 0 / undefined → immediate fanout (no batching).
-   * The conflation window above only takes effect when this is set
-   * and `throttleEnabled` is not `false`.
+   * `throttleMs`. **Defaults to 200ms** when unset (with
+   * `throttleEnabled` not `false`), so a busy feed batches into ~5
+   * flushes/sec and the conflation window above takes effect by default.
+   * Set an explicit value to tune it, `0` for immediate fanout (no
+   * batching), or `throttleEnabled: false` to disable while keeping the
+   * ms value.
    */
   throttleMs?: number;
   /**

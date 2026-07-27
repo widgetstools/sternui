@@ -342,6 +342,17 @@ export function startStomp(
       ? createFieldProjector(cfg.columnDefinitions, cfg.keyColumn)
       : null;
 
+  // Live-update throttle defaults to 200ms when the provider config does
+  // not set one. Batching the live fan-out into ~5 flushes/sec (with
+  // conflation collapsing repeated ticks per key inside each window) is the
+  // safe default for a busy trading feed, and it is what makes the
+  // `throttleEnabled` / `conflateEnabled` master switches (both default ON)
+  // actually take effect — without a window, `bufferedDispatch` is a
+  // passthrough and neither throttle nor conflation runs. An explicit
+  // `cfg.throttleMs` still wins (including `0`, via `??`, for a provider
+  // that deliberately wants immediate fan-out), and `throttleEnabled: false`
+  // still forces immediate fan-out while preserving the ms value.
+  const DEFAULT_LIVE_THROTTLE_MS = 200;
   const conflateEnabled = cfg.conflateEnabled !== false;
   const throttleEnabled = cfg.throttleEnabled !== false;
   const conflateColumns = conflateEnabled ? cfg.conflateByKey ?? cfg.keyColumn : undefined;
@@ -355,7 +366,7 @@ export function startStomp(
     ? null
     : bufferedDispatch<unknown>({
         conflateKeyFn,
-        throttleMs: throttleEnabled ? cfg.throttleMs : 0,
+        throttleMs: throttleEnabled ? cfg.throttleMs ?? DEFAULT_LIVE_THROTTLE_MS : 0,
         flush: (rows) => emit({ rows }),
         setTimer: opts.setTimer,
         clearTimer: opts.clearTimer,
