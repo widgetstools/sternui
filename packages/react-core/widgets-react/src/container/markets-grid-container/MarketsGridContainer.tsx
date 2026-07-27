@@ -524,15 +524,27 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   // ── IDataProvider hook ───────────────────────────────────────────
   //
-  // Hub config comes from the worker catalog on `start()` — we keep
-  // `useDataProviderConfig` / `useResolvedCfg` for column defs and
-  // the picker only, not as an attach cfg pass-through.
+  // P1 (hub decouple, see docs/HUB_DECOUPLE_CONFIG_APPDATA_DESIGN.md):
+  // pass the RAW catalog config to the provider so the hub starts it from
+  // the WINDOW-supplied `req.cfg` (handleAttach:553) instead of resolving
+  // from its own worker catalog — the first step toward a config-free data
+  // hub. This is the raw (un-resolved) config on purpose: templates
+  // (incl. `{{...asOfDate}}`) still resolve hub-side via appDataLookup +
+  // the restart `extra` until P2, so historical mode is unaffected. If the
+  // config isn't loaded yet the pass-through is omitted and the hub falls
+  // back to its catalog — no behaviour change. `activeRow.cfg.config` is
+  // stable state (not the AppData-resolved `activeCfg`), so passing it does
+  // not churn the provider adapter on live ticks.
+  const attachCfg = activeRow.cfg?.config;
   const providerReady = Boolean(activeId && !activeRow.loading && rowIdField && columnDefs);
   const {
     provider,
     refresh: refreshProvider,
     restart: restartProvider,
-  } = useDataProvider<TData>(providerReady ? activeId : null, { autoStart: false });
+  } = useDataProvider<TData>(providerReady ? activeId : null, {
+    autoStart: false,
+    ...(attachCfg ? { inlineCfg: attachCfg } : {}),
+  });
 
   // Loading-overlay state — derived synchronously from a "subscription
   // key" so the overlay appears on the SAME render that mounts the

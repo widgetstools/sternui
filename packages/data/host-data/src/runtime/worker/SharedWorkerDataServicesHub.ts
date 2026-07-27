@@ -550,7 +550,18 @@ export class SharedWorkerDataServicesHub {
     let isRestartAttach = false;
 
     if (!slot) {
+      const cfgFromWindow = req.cfg != null;
       let cfg = req.cfg ?? this.configCatalog?.getProviderConfig(req.providerId) ?? undefined;
+      // P1 (hub decouple, docs/HUB_DECOUPLE_CONFIG_APPDATA_DESIGN.md): the
+      // window should supply `req.cfg` so the hub never resolves a provider
+      // from its own catalog. A CATALOG fallback here means the window did
+      // NOT pass a config — log it (dev-only) so P1 can confirm the catalog
+      // path goes cold. Silence = decoupled.
+      // NOT DEBUG-gated on purpose: fires at most once per provider start,
+      // only on the fallback path, so P1 verification needs no source edit —
+      // after P1 the window always supplies req.cfg and this is silent.
+      // eslint-disable-next-line no-console
+      if (cfg && !cfgFromWindow) console.log(`[v2/hub][decouple] provider=${req.providerId} started from CATALOG fallback (window supplied no req.cfg)`);
       if (!cfg) {
         // eslint-disable-next-line no-console
         if (DEBUG) console.log(`[v2/hub] attach REJECTED subId=${req.subId} provider=${req.providerId}: not running and no cfg`);
