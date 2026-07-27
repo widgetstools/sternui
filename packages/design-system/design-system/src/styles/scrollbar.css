@@ -14,7 +14,10 @@
      standard (un-styleable, fixed-rounded) scrollbar the moment scrollbar-color
      is set, and ignores ALL ::-webkit-scrollbar styling below (width, radius,
      hover/active). We style via ::-webkit-scrollbar for full control; Firefox
-     falls back to its default scrollbar (acceptable — runtime is Chromium). */
+     falls back to its default scrollbar (acceptable — runtime is Chromium).
+     EXCEPTION: AG Grid viewports are deliberately carved out at the bottom of
+     this file (they opt INTO the native scrollbar) to keep grid scrolling on
+     the GPU compositor — see "AG Grid viewport carve-out". */
   scrollbar-width: auto;
 }
 *::-webkit-scrollbar {
@@ -45,6 +48,31 @@
 }
 *::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   AG Grid viewport carve-out — native, GPU-composited scrolling.
+
+   Styled `::-webkit-scrollbar` viewports are painted by Blink on the
+   MAIN thread; on Windows Chromium that demotes the scroller off the
+   compositor's fast path — a primary cause of grid scroll jank (fine on
+   macOS overlay scrollbars, janky on Windows). Setting the standard
+   `scrollbar-color` makes Chromium IGNORE the `::-webkit-scrollbar` rules
+   above for these elements and paint the NATIVE, compositor-painted
+   scrollbar, restoring GPU-thread scrolling.
+
+   `--foreground` still flips under [data-theme], so the scrollbar stays
+   theme-aware (Firefox gets themed grid scrollbars too). Trade-off,
+   accepted deliberately: the grid loses the exact 14px square-cornered
+   custom look — native shape, brand colours (the compromise VS Code makes).
+   Scoped to `.ag-root-wrapper` so ONLY grid viewports are affected; every
+   other scrollable surface keeps the custom `::-webkit-scrollbar` look.
+   ───────────────────────────────────────────────────────────── */
+.ag-root-wrapper,
+.ag-root-wrapper * {
+  scrollbar-color: color-mix(in oklch, oklch(var(--foreground)) 38%, transparent)
+                   transparent;
+  scrollbar-width: auto;
 }
 
 /* ─────────────────────────────────────────────────────────────
