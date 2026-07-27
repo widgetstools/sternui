@@ -46,6 +46,21 @@ export function createRefreshScheduler(
 ): RefreshScheduler {
   let refreshRaf: number | null = null;
 
+  // Scroll-quiet gate. A full-grid `refreshCells({ force: true })` is the
+  // dominant per-tick cost when styling rules are active; running it while
+  // the user is flinging the grid makes scroll frames compete with a
+  // whole-viewport restyle — the reported scroll jank. During an active
+  // scroll we DEFER the restyle and coalesce it into ONE refresh the moment
+  // scrolling settles. Only the VISUAL re-evaluation waits: data keeps
+  // flowing (transactions still apply), so styles are at most a moment stale
+  // mid-fling and snap correct as soon as the user stops. `cellSelection`
+  // and filters are untouched.
+  const SCROLL_SETTLE_MS = 120;
+  let scrolling = false;
+  let deferredWhileScrolling = false;
+  let settleTimer: ReturnType<typeof setTimeout> | null = null;
+  let unwireScroll: (() => void) | null = null;
+
   /**
    * Force `cellClassRules` / `rowClassRules` to re-evaluate. NEVER call
    * `redrawRows()` or `refreshHeader()` here — they rebuild DOM and
@@ -61,7 +76,7 @@ export function createRefreshScheduler(
     try { api.refreshCells({ force: true }); } catch { /* grid mid-teardown */ }
   };
 
-  const scheduleRefresh = () => {
+  const runRaf = () => {
     if (typeof window === 'undefined') {
       refreshGridVisuals();
       return;
@@ -73,11 +88,68 @@ export function createRefreshScheduler(
     });
   };
 
+  const onScrollSettled = () => {
+    scrolling = false;
+    settleTimer = null;
+    if (deferredWhileScrolling) {
+      deferredWhileScrolling = false;
+      runRaf();
+    }
+  };
+
+  const armSettle = () => {
+    if (typeof window === 'undefined') { onScrollSettled(); return; }
+    if (settleTimer != null) clearTimeout(settleTimer);
+    settleTimer = setTimeout(onScrollSettled, SCROLL_SETTLE_MS);
+  };
+
+  const onBodyScroll = () => {
+    scrolling = true;
+    armSettle();
+  };
+
+  // Wire scroll listeners lazily — the grid api may not exist when the
+  // scheduler is constructed. Idempotent; wires once, on first use with a
+  // live api. `bodyScrollEnd` is a hint; the settle timer is the source of
+  // truth (it also covers scroll kinds that don't fire a clean end event).
+  const ensureScrollWiring = () => {
+    if (unwireScroll) return;
+    const api = platform.api.api as unknown as {
+      addEventListener?: (t: string, l: () => void) => void;
+      removeEventListener?: (t: string, l: () => void) => void;
+    } | null;
+    if (!api?.addEventListener) return;
+    api.addEventListener('bodyScroll', onBodyScroll);
+    api.addEventListener('bodyScrollEnd', armSettle);
+    unwireScroll = () => {
+      try { api.removeEventListener?.('bodyScroll', onBodyScroll); } catch { /* torn down */ }
+      try { api.removeEventListener?.('bodyScrollEnd', armSettle); } catch { /* torn down */ }
+    };
+  };
+
+  const scheduleRefresh = () => {
+    ensureScrollWiring();
+    if (scrolling) {
+      // Fling in progress — hold the restyle; it flushes once on settle.
+      deferredWhileScrolling = true;
+      return;
+    }
+    runRaf();
+  };
+
   const dispose = () => {
     if (refreshRaf != null && typeof window !== 'undefined') {
       window.cancelAnimationFrame(refreshRaf);
       refreshRaf = null;
     }
+    if (settleTimer != null) {
+      clearTimeout(settleTimer);
+      settleTimer = null;
+    }
+    unwireScroll?.();
+    unwireScroll = null;
+    scrolling = false;
+    deferredWhileScrolling = false;
   };
 
   return { scheduleRefresh, dispose };
