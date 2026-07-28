@@ -6,13 +6,17 @@ import {
   splitProviderRowsForGrid,
 } from './applyProviderToGrid.js';
 
-type Row = { id: string; price?: number };
+type Row = { id: string; price?: number; name?: string };
 
 function makeGridApi(opts: {
   existingIds?: Set<string>;
+  /** Existing full-row data by id, so `getRowNode(id).data` drives merges. */
+  existingData?: Record<string, Row>;
   onApply?: (tx: { add?: Row[]; update?: Row[] }, cb?: (result: { add: { id: string }[] }) => void) => void;
 } = {}): GridApi<Row> {
-  const existing = opts.existingIds ?? new Set<string>();
+  const existing =
+    opts.existingIds ??
+    (opts.existingData ? new Set(Object.keys(opts.existingData)) : new Set<string>());
   const applyTransactionAsync = vi.fn((
     tx: { add?: Row[]; update?: Row[] },
     cb?: (result: { add: { id: string }[] }) => void,
@@ -26,7 +30,8 @@ function makeGridApi(opts: {
 
   return {
     applyTransactionAsync,
-    getRowNode: (id: string) => (existing.has(id) ? { id } as never : null),
+    getRowNode: (id: string) =>
+      existing.has(id) ? ({ id, data: opts.existingData?.[id] } as never) : null,
   } as unknown as GridApi<Row>;
 }
 
@@ -100,10 +105,11 @@ describe('splitProviderRowsForGrid', () => {
     expect(coalescedPending).toBe(0);
   });
 
-  it('uses knownRowIds instead of getRowNode on the live-tick hot path', () => {
+  it('classifies via knownRowIds; reads getRowNode only to merge update data', () => {
     const pending = new Set<string>();
     const known = new Set(['r1', 'r2']);
-    const getRowNode = vi.fn(() => null);
+    // No existing data on the nodes → merge is identity, updates stay raw.
+    const getRowNode = vi.fn((id: string) => ({ id, data: undefined }) as never);
     const api = { getRowNode } as unknown as GridApi<Row>;
 
     const { adds, updates } = splitProviderRowsForGrid(
@@ -117,7 +123,45 @@ describe('splitProviderRowsForGrid', () => {
 
     expect(updates).toEqual([{ id: 'r1', price: 1 }, { id: 'r2', price: 2 }]);
     expect(adds).toEqual([]);
-    expect(getRowNode).not.toHaveBeenCalled();
+    // Classification came from knownRowIds (both were updates), and each update
+    // read getRowNode once to fetch existing data for the merge.
+    expect(getRowNode).toHaveBeenCalledTimes(2);
+  });
+
+  it('merges partial (sparse) deltas onto the existing row so no field blanks', () => {
+    const pending = new Set<string>();
+    const known = new Set(['r1']);
+    // Existing full row; delta carries only id + one changed field.
+    const api = makeGridApi({ existingData: { r1: { id: 'r1', price: 10, name: 'ACME' } as Row } });
+
+    const { updates } = splitProviderRowsForGrid(
+      [{ id: 'r1', price: 11 }],
+      'id',
+      api,
+      pending,
+      undefined,
+      known,
+    );
+
+    // price updated, name preserved (not wiped to undefined).
+    expect(updates).toEqual([{ id: 'r1', price: 11, name: 'ACME' }]);
+  });
+
+  it('full-row deltas overwrite every field (merge is a superset of replace)', () => {
+    const pending = new Set<string>();
+    const known = new Set(['r1']);
+    const api = makeGridApi({ existingData: { r1: { id: 'r1', price: 10, name: 'ACME' } as Row } });
+
+    const { updates } = splitProviderRowsForGrid(
+      [{ id: 'r1', price: 11, name: 'BETA' } as Row],
+      'id',
+      api,
+      pending,
+      undefined,
+      known,
+    );
+
+    expect(updates).toEqual([{ id: 'r1', price: 11, name: 'BETA' }]);
   });
 
   it('queues brand-new ids as adds when knownRowIds is populated', () => {
@@ -180,6 +224,24 @@ describe('createApplyProviderToGridState', () => {
     });
   });
 
+  it('merges coalesced partial deltas onto the just-added row', () => {
+    const state = createApplyProviderToGridState();
+    const api = makeGridApi();
+
+    // r1 arrives as a full add, then a partial delta (id + price) coalesces.
+    state.applyTick(api, [{ id: 'r1', price: 1, name: 'ACME' } as Row], 'id');
+    state.applyTick(api, [{ id: 'r1', price: 99 }], 'id');
+
+    // The add lands carrying the full row data.
+    const cb = vi.mocked(api.applyTransactionAsync).mock.calls[0][1]!;
+    cb({ add: [{ id: 'r1', data: { id: 'r1', price: 1, name: 'ACME' } } as never], update: [], remove: [] });
+
+    // Coalesced delta merged onto the added row — name preserved, price updated.
+    expect(api.applyTransactionAsync).toHaveBeenLastCalledWith({
+      update: [{ id: 'r1', price: 99, name: 'ACME' }],
+    });
+  });
+
   it('clearPendingAdds resets pending bookkeeping', () => {
     const pending = new Set<string>(['r1', 'r2']);
     const known = new Set<string>(['r1']);
@@ -194,18 +256,26 @@ describe('createApplyProviderToGridState', () => {
     expect(state.getPendingAddCount()).toBe(0);
   });
 
-  it('markSnapshotLoaded enables getRowNode-free live ticks', () => {
+  it('markSnapshotLoaded classifies without getRowNode; updates merge onto existing rows', () => {
     const state = createApplyProviderToGridState();
-    const getRowNode = vi.fn(() => null);
-    const api = { applyTransactionAsync: vi.fn(), getRowNode } as unknown as GridApi<Row>;
+    // Existing full rows carry a categorical field the deltas omit.
+    const api = makeGridApi({
+      existingData: {
+        r1: { id: 'r1', price: 1, name: 'ACME' } as Row,
+        r2: { id: 'r2', price: 2, name: 'BETA' } as Row,
+      },
+    });
 
     state.markSnapshotLoaded([{ id: 'r1' }, { id: 'r2' }], 'id');
     state.applyTick(api, [{ id: 'r1', price: 9 }, { id: 'r2', price: 8 }], 'id');
 
-    expect(getRowNode).not.toHaveBeenCalled();
+    // Partial deltas (id + price) merged onto existing rows — name preserved.
     expect(api.applyTransactionAsync).toHaveBeenCalledWith({
       add: [],
-      update: [{ id: 'r1', price: 9 }, { id: 'r2', price: 8 }],
+      update: [
+        { id: 'r1', price: 9, name: 'ACME' },
+        { id: 'r2', price: 8, name: 'BETA' },
+      ],
     }, expect.any(Function));
   });
 });

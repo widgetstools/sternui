@@ -54,6 +54,24 @@ export interface ApplyProviderToGridState {
   ): ApplyProviderTickResult;
 }
 
+/**
+ * Merge a live update row onto the existing grid row's data.
+ *
+ * AG Grid's `applyTransactionAsync({ update })` *replaces* `rowNode.data`
+ * wholesale — it does not merge fields. A STOMP feed may send partial
+ * (sparse) deltas carrying only the key + changed fields; replacing with
+ * such a payload blanks every field absent from the delta. Spreading the
+ * delta over the existing row preserves untouched fields. Feed-agnostic:
+ * a full-row delta spreads over the existing row to the same result as a
+ * plain replace, so this is safe whether the server sends sparse or full
+ * rows. `existing` comes from `gridApi.getRowNode(id)?.data`, which relies
+ * on `getRowId` being configured (it is — the same id drives the classify).
+ */
+function mergeUpdateRow<TData>(row: TData, existing: TData | undefined): TData {
+  if (existing === undefined || existing === null) return row;
+  return { ...(existing as object), ...(row as object) } as TData;
+}
+
 /** Clear pending-add bookkeeping after AG Grid applies an add transaction. */
 export function clearPendingAddsFromTransaction(
   pendingAddIds: Set<string>,
@@ -80,7 +98,7 @@ function classifyRow<TData>(
 ): number {
   if (knownRowIds && knownRowIds.size > 0) {
     if (knownRowIds.has(id)) {
-      updates.push(row);
+      updates.push(mergeUpdateRow(row, gridApi.getRowNode(id)?.data));
       return 0;
     }
     if (pendingAddIds.has(id)) {
@@ -93,8 +111,9 @@ function classifyRow<TData>(
   }
 
   // Before the snapshot id index exists, fall back to AG Grid lookup.
-  if (gridApi.getRowNode(id)) {
-    updates.push(row);
+  const existingNode = gridApi.getRowNode(id);
+  if (existingNode) {
+    updates.push(mergeUpdateRow(row, existingNode.data));
     return 0;
   }
   if (pendingAddIds.has(id)) {
@@ -187,7 +206,7 @@ export function createApplyProviderToGridState(): ApplyProviderToGridState {
       if (typeof nodeId !== 'string') continue;
       const latest = pendingAddLatest.get(nodeId);
       if (latest === undefined) continue;
-      updates.push(latest as TData);
+      updates.push(mergeUpdateRow(latest as TData, node.data as TData));
       pendingAddLatest.delete(nodeId);
     }
     if (updates.length > 0) {
