@@ -9,19 +9,14 @@ const appDir = appDirFromConfig(import.meta.url);
 const repoRoot = resolve(appDir, '../../..');
 
 /**
- * Resolve the two packages this demo needs straight from source.
- *
- * The shared consumer aliases are built from `libs/manifest.json`, which only
- * lists packages `propagate` packs — and `@starui/perspective-grid` is private,
- * so it is not in there. These are UNSHIFTED ahead of the shared list because
- * Vite takes the first matching alias.
+ * `@starui/perspective-grid` resolves through the shared consumer aliases now
+ * that it is a packed member of the react-grid bucket. These two remain
+ * explicit because they are deep module paths rather than package roots:
+ * host-data's export map points at `dist/`, which a dev checkout does not
+ * build from source. UNSHIFTED because Vite takes the first matching alias.
  */
 const base = staruiConsumerViteConfig(appDir, { worker: true });
 base.resolve.alias.unshift(
-  {
-    find: /^@starui\/perspective-grid$/,
-    replacement: resolve(repoRoot, 'packages/react-grid/perspective-grid/src/index.ts'),
-  },
   {
     find: /^@starui\/host-data\/runtime\/perspective$/,
     replacement: resolve(repoRoot, 'packages/data/host-data/src/runtime/perspective/index.ts'),
