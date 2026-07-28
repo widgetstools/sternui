@@ -87,17 +87,22 @@ export function MarketsGridBlotter() {
   }, [schema]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: 10 }}>
-      <div className="bar">
-        <span className="stat" id="who">
-          {status}
-        </span>
+    // No harness classes here — `bar`/`stat`/`sub` belong to the probe
+    // stylesheet, which carries its own palette and would fight the grid.
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div className="page-status" id="who">
+        {status}
       </div>
       {table === null ? (
-        <div className="sub" style={{ padding: 12 }}>
+        <div className="page-waiting">
           Waiting for the worker to load the book from the broker…
         </div>
       ) : (
+        // MarketsGrid's root is `height: 100%`, which resolves against THIS
+        // box — so it needs a flex child that actually claims the space.
+        // `minHeight: 0` stops the grid's own content forcing the flex item
+        // taller than the viewport.
+        <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
         <MarketsGrid
           gridId="perspective-blotter"
           rowModel="perspective"
@@ -110,11 +115,13 @@ export function MarketsGridBlotter() {
           showProfileSelector={false}
           showSettingsButton
           showColumnSelector
+          style={{ flex: 1, minWidth: 0 }}
           onGridReady={(event) => {
             // Debug handle, same affordance the raw-AG-Grid page has.
             (globalThis as Record<string, unknown>).__mg = { api: event.api };
           }}
         />
+        </div>
       )}
     </div>
   );

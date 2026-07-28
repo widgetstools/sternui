@@ -1,0 +1,58 @@
+/*
+ * MarketsGrid's chrome is built on `@starui/ui` (shadcn), whose layout comes
+ * from Tailwind UTILITY classes. Those are generated per-app by the app's own
+ * Tailwind build scanning the starui package sources — importing the
+ * design-system stylesheet alone gives you the tokens and none of the layout,
+ * so every `flex`/`gap`/`items-center` resolves to nothing and the toolbar
+ * stacks into a narrow column. That is what "the theming is messed up" looks
+ * like in practice.
+ */
+@import '@starui/design-system/css';
+@import '@starui/grid/styles.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  * {
+    @apply border-border;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  html {
+    overflow: hidden;
+  }
+  body {
+    overflow: hidden;
+    background: var(--ds-surface-ground);
+    color: var(--ds-text-primary);
+    font-family: var(--ds-font-sans), -apple-system, sans-serif;
+    font-size: var(--ds-font-size-body);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Page chrome around the grid — tokens only, no bare colour values. */
+.page-status {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--ds-text-muted);
+  border-bottom: 1px solid var(--ds-surface-tertiary);
+}
+
+.page-waiting {
+  padding: 16px;
+  color: var(--ds-text-secondary);
+}
