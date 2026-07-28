@@ -108,8 +108,10 @@ describe('createPerspectiveDatasource', () => {
     const arg = params.success.mock.calls[0][0];
     expect(arg.rowData).toHaveLength(100);
     expect(arg.rowData[0]).toEqual({ positionId: 'positionId100', price: 'price100' });
-    // Full block => no rowCount claim, so isLastRowKnown stays false.
-    expect(arg.rowCount).toBeUndefined();
+    // The MEASURED total travels with every block. Withholding it (the old
+    // behaviour) left `lastRowIndexKnown: false`, so the store sized itself to
+    // what had loaded and the scrollbar spanned ~125 rows of a 20,000-row book.
+    expect(arg.rowCount).toBe(1000);
     expect(params.fail).not.toHaveBeenCalled();
   });
 
@@ -263,5 +265,50 @@ describe('createPerspectiveDatasource — grand total', () => {
     datasource.getRows(params);
     await vi.waitFor(() => expect(params.success).toHaveBeenCalled());
     expect(params.success.mock.calls[0][0]).not.toHaveProperty('grandTotalData');
+  });
+});
+
+describe('createPerspectiveDatasource — row count', () => {
+  // THE scrollbar bug: without a total, AG leaves `lastRowIndexKnown: false`
+  // and sizes the store to what has loaded, so dragging the thumb to the
+  // bottom lands ~125 rows into a 20,000-row book instead of at the end.
+  it('reports the measured total on a mid-book block, not just the last one', async () => {
+    const view = makeView(20_000);
+    const ds = createPerspectiveDatasource({ getView: async () => view });
+    const params = makeParams({ startRow: 5_000, endRow: 5_100 });
+
+    ds.getRows(params);
+    await vi.waitFor(() => expect(params.success).toHaveBeenCalled());
+
+    expect(params.success.mock.calls[0][0].rowCount).toBe(20_000);
+  });
+
+  it('falls back to the short-block signal when the view cannot report a total', async () => {
+    const view: PerspectiveViewLike = {
+      to_columns: async () => ({ positionId: ['a', 'b'] }),
+      num_rows: async () => {
+        throw new Error('num_rows unavailable');
+      },
+    };
+    const ds = createPerspectiveDatasource({ getView: async () => view });
+    const params = makeParams({ startRow: 100, endRow: 200 });
+
+    ds.getRows(params);
+    await vi.waitFor(() => expect(params.success).toHaveBeenCalled());
+
+    // 2 rows for a 100-row request => the book ends at 102.
+    expect(params.success.mock.calls[0][0].rowCount).toBe(102);
+  });
+
+  it('still omits rowCount on an empty resolution, which would cap the store', async () => {
+    // A fabricated total is the trap; a measured one is the fix. Stale and
+    // missing views must keep fabricating nothing.
+    const ds = createPerspectiveDatasource({ getView: async () => null });
+    const params = makeParams({ startRow: 300, endRow: 400 });
+
+    ds.getRows(params);
+    await vi.waitFor(() => expect(params.success).toHaveBeenCalled());
+
+    expect(params.success).toHaveBeenCalledWith({ rowData: [] });
   });
 });

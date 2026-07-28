@@ -188,16 +188,44 @@ export function createPerspectiveDatasource(
           });
           const rowData = columnsToRows(columns);
 
-          // Only claim a total when the block came up short — that is the
-          // signal AG uses to finalize the row count. Shrinking via
-          // `success({rowCount})` is correct; `setRowCount(n, true)` is the
-          // sort-specific trap that leaves sorting permanently dead.
-          const short = rowData.length < endRow - startRow;
+          /**
+           * Report the EXACT total on every block.
+           *
+           * Perspective knows it — `num_rows()` on the View being read — and
+           * it is effectively free. Without it AG never learns the size of the
+           * book: a block that arrives with no `rowCount` leaves
+           * `lastRowIndexKnown: false` and the store sizes itself to what has
+           * loaded, so the scrollbar spans ~125 rows of a 20,000-row book and
+           * grows a block at a time as you drag. Measured on the real feed:
+           * `rowCount: 102, lastRowIndexKnown: false`. Sending it makes the
+           * thumb map to the whole dataset, which is what a blotter needs.
+           *
+           * This does NOT contradict "empty resolutions omit rowCount" — that
+           * rule is about never FABRICATING a total (a forced 0 or a
+           * too-small guess caps the store permanently). A measured count is
+           * the opposite: it is the number AG is otherwise trying to discover
+           * by walking off the end.
+           */
+          let rowCount: number | undefined;
+          try {
+            const total = await view.num_rows();
+            if (Number.isFinite(total)) rowCount = total;
+          } catch {
+            // A missing total must never cost the block; fall through to the
+            // short-block signal below.
+          }
+
+          if (rowCount === undefined && rowData.length < endRow - startRow) {
+            // No measured total, but the block came up short — that is AG's
+            // own signal for the end of the book.
+            rowCount = startRow + rowData.length;
+          }
+
           const result: {
             rowData: Record<string, unknown>[];
             rowCount?: number;
             grandTotalData?: Record<string, unknown> | null;
-          } = short ? { rowData, rowCount: startRow + rowData.length } : { rowData };
+          } = rowCount === undefined ? { rowData } : { rowData, rowCount };
 
           // A missing total must never cost the block: this is a separate
           // try/catch so a failure here still settles the rows (rule 1).
