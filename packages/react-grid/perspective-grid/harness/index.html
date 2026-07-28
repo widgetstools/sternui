@@ -50,7 +50,7 @@
       // Sequence the probes so timings are not fighting each other.
       const steps = [
         () => pa.postMessage({ cmd: 'introspect' }),
-        () => pa.postMessage({ cmd: 'discover' }),
+        () => pa.postMessage({ cmd: 'bind' }),
         () => pa.postMessage({ cmd: 'init' }),
         () => pa.postMessage({ cmd: 'view', start: 0, portId: 'A' }),
         () => pb.postMessage({ cmd: 'view', start: 10000, portId: 'B (2nd window)' }),

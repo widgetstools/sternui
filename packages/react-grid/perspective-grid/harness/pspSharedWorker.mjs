@@ -52,6 +52,53 @@ const ports = [];
 async function handle(port, msg) {
   const reply = (payload) => port.postMessage(payload);
   try {
+    if (msg.cmd === 'bind') {
+      // The inline build self-inits client+server wasm in this context.
+      // `worker(port?)` is the Client factory; find the endpoint it accepts.
+      const attempts = [
+        [
+          'worker(MessageChannel.port1)',
+          async () => {
+            const ch = new MessageChannel();
+            return await perspective.worker(Promise.resolve(ch.port1));
+          },
+        ],
+        [
+          'worker(self)',
+          async () => await perspective.worker(Promise.resolve(self)),
+        ],
+        [
+          'createMessageHandler(undefined) -> worker(port)',
+          async () => {
+            const port = await perspective.createMessageHandler(undefined);
+            return await perspective.worker(Promise.resolve(port));
+          },
+        ],
+      ];
+      const lines = [];
+      for (const [label, fn] of attempts) {
+        try {
+          const c = await Promise.race([
+            fn(),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('timeout 4s')), 4000)),
+          ]);
+          const hasTable = typeof c?.table === 'function';
+          let probe = '';
+          if (hasTable) {
+            const t = await c.table({ a: 'integer' }, {});
+            await t.update([{ a: 1 }, { a: 2 }]);
+            probe = ` LIVE size=${await t.size()}`;
+            await t.delete();
+          }
+          lines.push(`${label} => table=${hasTable}${probe}`);
+        } catch (e) {
+          lines.push(`${label} => ${String(e?.message ?? e).slice(0, 55)}`);
+        }
+      }
+      reply({ ok: true, step: 'bind', detail: lines.join('  ||  ') });
+      return;
+    }
+
     if (msg.cmd === 'discover') {
       // Find the path that yields a client exposing `.table()` INSIDE a
       // SharedWorker: no DOM, no nested worker, engine hosted in-process.
