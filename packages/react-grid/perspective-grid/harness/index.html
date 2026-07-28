@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Perspective in SharedWorker — proof</title>
+    <style>
+      body { font: 13px ui-monospace, monospace; background: #111; color: #ddd; padding: 16px; }
+      #out { white-space: pre-wrap; line-height: 1.6; }
+      .ok { color: #4ade80; }
+      .bad { color: #f87171; }
+      h1 { font-size: 14px; color: #7dd3fc; }
+    </style>
+  </head>
+  <body>
+    <h1>Perspective wasm inside a SharedWorker</h1>
+    <div id="out">running…</div>
+    <script type="module">
+      const out = document.getElementById('out');
+      const log = (ok, step, detail) => {
+        const line = `${ok ? 'OK  ' : 'FAIL'}  ${step} — ${detail}`;
+        out.innerHTML += `<div class="${ok ? 'ok' : 'bad'}">${line}</div>`;
+        console.log(`[PSP-SW] ${line}`);
+      };
+
+      // Two ports => the production shape: one SharedWorker, many windows.
+      const mk = () =>
+        new SharedWorker(new URL('./pspSharedWorker.mjs', import.meta.url), {
+          type: 'module',
+          name: 'psp-proof',
+        });
+
+      const a = mk();
+      const b = mk();
+
+      const pending = [];
+      const wire = (w, id) => {
+        w.port.onmessage = (e) => {
+          const { ok, step, detail } = e.data;
+          log(ok, `${step}`, detail);
+          const next = pending.shift();
+          if (next) next();
+        };
+        w.port.start();
+        return w.port;
+      };
+
+      const pa = wire(a, 'A');
+      const pb = wire(b, 'B');
+
+      // Sequence the probes so timings are not fighting each other.
+      const steps = [
+        () => pa.postMessage({ cmd: 'introspect' }),
+        () => pa.postMessage({ cmd: 'discover' }),
+        () => pa.postMessage({ cmd: 'init' }),
+        () => pa.postMessage({ cmd: 'view', start: 0, portId: 'A' }),
+        () => pb.postMessage({ cmd: 'view', start: 10000, portId: 'B (2nd window)' }),
+        () => pa.postMessage({ cmd: 'concurrentViews', n: 6 }),
+        () => pa.postMessage({ cmd: 'liveUpdate', views: 0 }),
+        () => pa.postMessage({ cmd: 'liveUpdate', views: 6 }),
+        () => log(true, 'DONE', 'all probes completed'),
+      ];
+      pending.push(...steps.slice(1));
+      // connect messages arrive first (2 of them); kick off after a beat.
+      setTimeout(() => steps[0](), 250);
+
+      window.onerror = (m) => log(false, 'window.onerror', String(m));
+      window.onunhandledrejection = (e) => log(false, 'unhandledrejection', String(e.reason));
+    </script>
+  </body>
+</html>
