@@ -28,6 +28,14 @@ export {
 } from './perspectiveDatasource.js';
 export { createSafeView, type SafeView, type DeletableView } from './safeView.js';
 export {
+  createViewManager,
+  type ViewManager,
+  type ViewManagerOpts,
+  type ViewManagerEvent,
+  type PerspectiveTableLike,
+  type UpdatableView,
+} from './viewManager.js';
+export {
   toPerspectiveViewConfig,
   toPerspectiveGroupLevel,
   toGroupColumns,

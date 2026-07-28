@@ -31,7 +31,7 @@ import {
 
 import { createPerspectiveDatasource } from '../src/perspectiveDatasource.js';
 import { createHostHandle } from './hostClient.mjs';
-import { createViewManager } from './viewManager.mjs';
+import { createViewManager } from '../src/viewManager.js';
 import { BOOK_COLUMNS, BOOK_NAME } from './mockBook.mjs';
 
 // The whole community bundle rather than a hand-picked list. AG Grid 36 gates

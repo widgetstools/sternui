@@ -594,6 +594,12 @@ lifecycle rules live in the package's `ARCHITECTURE.md`.
   the children AG asked for. Row 0 of the result is that level's own total
 - `toGroupColumns(columns, groupColId)` — remaps Perspective's `__ROW_PATH__`
   onto the group column that AG builds its group rows from
+- `createViewManager({ table, onEvent?, onUpdate?, maxViews? })` — per-window View
+  lifecycle: a keyed map of live Views (one per open group level, LRU-capped),
+  `getView(request)` resolving the View a block should read from,
+  `readGrandTotal(request)`, `invalidate()` and `close()`. Skips the level total
+  row on grouped reads, re-opens a View retired under an in-flight block rather
+  than settling short, and never moves the generation on a request-driven swap
 - `createSafeView(view)` — deletion-safe View wrapper: `read()` refcounts
   in-flight reads and `close()` drains them before deleting. **Mandatory for all
   View disposal** — deleting under a read throws an uncatchable wasm borrow
