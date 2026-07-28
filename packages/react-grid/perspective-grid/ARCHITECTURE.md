@@ -140,6 +140,68 @@ replaced mid-flight re-reads from the current View instead: settling short
 would cap the store, and AG discards the rows anyway because a sort or filter
 change purges the store.
 
+## The real feed, measured
+
+Against the in-repo STOMP view server (`apps/demos/stomp-view-server`,
+`ws://localhost:8081`, sparse blotter profile: `rate=7`, `snapshot-rows=20000`,
+`live-mode: sparse`, `updates-per-tick: 100`). Probes:
+`scripts/stompFeedProbe.mjs` (load shape) and `scripts/stompSchemaProbe.mjs`
+(type stability over the whole snapshot).
+
+| | measured |
+|---|---|
+| Snapshot | 20,000 rows in 400 batches of 50 — **18.4 s**, 23.5 MB, 1,175 B/row |
+| Row width | **52 columns** — 21 string, 13 integer, 18 float, no nesting (`slim`) |
+| Live frames | 5.13/s, mean gap 194 ms, p95 **521 ms** |
+| Live rows | ~100 per frame (65–134), **514 rows/s** |
+| Live payload | **4.18 of 52 fields per row** (sparse partial deltas), 46.7 KB/s |
+| Churn | 13,037 distinct rows touched in 41 s |
+
+Two things follow. First, the harness mock (500 rows / 200 ms = 2,500 rows/s,
+full rows) is **~5x heavier than production** — the Milestone 1 numbers were
+conservative, not optimistic. Second, the **18.4 s snapshot is the real prize**:
+under CSRM every window pays a full replay of it, while a worker-held Table
+pays it once and every later window opens against a Table that is already
+loaded.
+
+### Schema: sampling row types is unsafe
+
+Perspective needs one declared type per column up front and silently COERCES
+anything that disagrees — a float arriving in an `integer` column is
+truncated, not rejected. Scanning all 20,000 snapshot rows rather than a
+sample:
+
+| column | integer rows | float rows |
+|---|---|---|
+| `totalValue` | **1** | 19,999 |
+| `averagePrice` / `currentPrice` | **2** | 19,998 |
+| `accruedInterest` | 192 | 19,808 |
+| `dv01` / `pv01` / `cs01` | ~200 | ~19,800 |
+
+A sampler that happens to see that one `totalValue` row types the column
+`integer` and truncates the other 19,999 values, permanently and silently, in
+every window. **Rule: a numeric column is `float` unless it is integral across
+the entire observed sample AND its live deltas.** Thirteen columns qualify
+here (`quantity`, `notionalAmount`, the six P&L columns, `couponFrequency`,
+and the four spread columns) — and even those need their live deltas checked,
+because the sparse feed reprices `pnl` and `spread`.
+
+Four columns are date-like strings and consistent across all 20,000 rows:
+`asOfDate` is an ISO **datetime**, `maturityDate` / `issueDate` /
+`nextCouponDate` are ISO **dates**. Typing them `string` loses date sorting and
+range filtering server-side. No nulls and no missing columns in this profile;
+the `wide` row profile does carry nested payloads, which need a flattening
+rule since Perspective is flat.
+
+### Where the Table is fed
+
+`startStomp(cfg, emit)` already emits exactly what a Table needs:
+`{ rows, replace: true }` for snapshot chunks and `{ rows }` for live deltas
+(`packages/data/host-data/src/runtime/providers/Provider.ts`). So the Table is
+fed by **decorating `ProviderEmit`** — no change to the provider, and the
+sparse partial rows map straight onto `table.update()`, which upserts by index
+and leaves omitted columns alone.
+
 ## Row grouping and totals
 
 AG Grid pulls a group tree **one level at a time** — it asks for the children
