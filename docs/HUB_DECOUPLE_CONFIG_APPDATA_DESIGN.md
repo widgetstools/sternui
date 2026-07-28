@@ -233,9 +233,33 @@ after the cold/hot split + the conflation defaults already shipped.
     `client.getProviderConfig` / `onCatalogChange` only in a manager-less
     bootstrap. This is the read-hook half of **P3**, pulled forward so the
     window is a full config resolver before P2/P4.
-- **P2 — Hub stops resolving templates.** Remove `appDataLookup` from
-  `startProvider` (the passed cfg is pre-resolved). `assertAppDataResolved`
-  now guarantees I1 from the window side. Delete the hub's template path.
+- **P2 — Hub stops resolving templates. (REFINED — NOT a one-line delete;
+  needs a real STOMP broker + historical-mode app run to verify.)** The naive
+  "remove `appDataLookup` from `startProvider`" is wrong: the STOMP transport
+  re-runs `resolveEffectiveStompCfg(cfg, appDataLookup, overlay)` on **every
+  `onConnect`** — initial connect AND every autonomous broker reconnect
+  (`stomp.ts:642`, `resolver.ts:5`) — resolving `{{name.key}}` against
+  **worker AppData + the restart overlay** and publishing the resolved body to
+  the broker. The overlay is the historical-mode `asOfDate` wire path
+  (`state.overlay` ← restart `extra`). So resolution can't just be dropped;
+  it has to move somewhere that still produces the correct wire body at connect
+  time. Two sub-steps:
+  - **P2a — Window resolves; hub re-resolves idempotently (additive, safe).**
+    Resolve the cfg window-side against `AppDataMirror` (+ the restart overlay)
+    at each subscribe/restart, pass the resolved cfg. The hub keeps
+    `appDataLookup` wired — but `resolveCfg` on an already-resolved cfg is a
+    no-op (no `{{}}` remain), so the hub becomes a redundant resolver, not a
+    behaviour change. Verify wire-body parity (window-resolved == hub-resolved)
+    across: initial connect, `asOfDate` change → restart, and autonomous
+    reconnect. **Gap to close before P2b:** autonomous broker reconnects have
+    no window in the loop — decide whether the transport caches the
+    last window-resolved values or the window re-pushes on reconnect.
+  - **P2b — Remove the hub's resolver (after P2a parity holds in the app).**
+    Drop `appDataLookup` from `startProvider` / the STOMP factory;
+    `assertAppDataResolved` at the transport now guarantees I1 from the window
+    side (throws if any `{{}}` reached the wire). Delete the hub template path.
+  Both sub-steps touch the live trading wire and MUST be validated against a
+  real broker in live + historical mode — not CLI-only.
 - **P3 — Hub stops resolving/serving config.** The window-side read half
   landed early in **P1b** (`getProviderConfig` / `listProviderConfigs` now
   read the main-thread ConfigManager, not the hub client). P3 remaining:
