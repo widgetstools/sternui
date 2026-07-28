@@ -563,6 +563,7 @@ export class SharedWorkerDataServicesHub {
   private handleAttach(port: PortLike, req: AttachRequest): void {
     let slot = this.providers.get(req.providerId);
     let isRestartAttach = false;
+    let isNewProvider = false;
 
     if (!slot) {
       let cfg = req.cfg ?? this.configCatalog?.getProviderConfig(req.providerId) ?? undefined;
@@ -595,6 +596,7 @@ export class SharedWorkerDataServicesHub {
       // createProvider registered the slot (pre-start, so synchronous
       // emissions broadcast).
       this.ensureStatsSampler();
+      isNewProvider = true;
       // First attach can carry `extra` (historical asOfDate). Without this,
       // `ProviderClientAdapter.restart()` on a fresh provider would create
       // the slot but drop the overlay — STOMP would publish unresolved
@@ -636,6 +638,41 @@ export class SharedWorkerDataServicesHub {
     } else {
       // eslint-disable-next-line no-console
       if (DEBUG) console.log(`[v2/hub] attach LATE-JOINER subId=${req.subId} provider=${req.providerId} cacheSize=${slot.cache.size} status=${slot.status}`);
+    }
+
+    // Request coalescing: when multiple blotters open simultaneously requesting
+    // the same snapshot, only the first makes the server request. Subsequent
+    // attaches queue here and wait for that snapshot to arrive. Once the
+    // snapshot reaches 'ready', all queued attaches are processed together
+    // (single serialization, byte-copied to all ports). This reduces redundant
+    // server requests and GC pressure from repeated snapshot encoding.
+    //
+    // Queue if:
+    // - This is NOT a new provider (was already running)
+    // - Snapshot NOT ready (still fetching)
+    // - This is NOT a restart attach (those bypass the cache)
+    // - This is a DATA mode attach (stats subscribers don't need coalescing)
+    // - There are ALREADY listeners registered (i.e., first fetch is in progress)
+    // - The cache has data OR is currently being populated (cache.size > 0)
+    const existingListeners = this.dataListeners.get(req.providerId)?.size ?? 0;
+    const hasCachedData = slot.cache.size > 0;
+    if (
+      !isNewProvider &&
+      !slot.snapshotReady &&
+      !isRestartAttach &&
+      req.mode === 'data' &&
+      existingListeners > 0 &&
+      hasCachedData
+    ) {
+      // eslint-disable-next-line no-console
+      if (DEBUG) console.log(`[v2/hub] attach COALESCED subId=${req.subId} provider=${req.providerId} (waiting for snapshot, ${existingListeners} existing listeners, ${slot.cache.size} cached rows)`);
+      // Send initial loading status immediately so the client knows we got the attach request
+      port.postMessage({ subId: req.subId, kind: 'status', status: 'loading' } satisfies Event);
+      slot.pendingAttaches.push({
+        port,
+        req: { providerId: req.providerId, subId: req.subId, mode: req.mode },
+      });
+      return;
     }
 
     if (req.mode === 'data') {
@@ -1058,6 +1095,9 @@ export class SharedWorkerDataServicesHub {
       // wide/projected rows (≈ a plain structured-clone at N=1, faster at N>1).
       // Opt out with cfg.wireFormat: 'json'.
       columnar: flags.wireFormat !== 'json',
+      // Queue for attaches that arrive while the first snapshot is being fetched.
+      // Reduces redundant server requests when many windows open simultaneously.
+      pendingAttaches: [],
     };
 
     const emit: ProviderEmit = (event: ProviderEmitEvent) => {
@@ -1291,6 +1331,42 @@ export class SharedWorkerDataServicesHub {
         slot.snapshotFetchMs = Date.now() - slot.snapshotFetchStartedAt;
         slot.snapshotReady = true;
         slot.publishWindowSeconds = 0;
+
+        // Process all pending attaches that were queued while the first
+        // snapshot was being fetched. They all replay the same cache
+        // (single serialization, byte-copied to all ports).
+        if (slot.pendingAttaches.length > 0) {
+          // eslint-disable-next-line no-console
+          if (DEBUG) console.log(`[v2/hub] SNAPSHOT READY processing ${slot.pendingAttaches.length} queued attach(es) for provider=${providerId}`);
+          const pending = slot.pendingAttaches;
+          slot.pendingAttaches = [];
+          for (const { port, req } of pending) {
+            if (req.mode === 'data') {
+              this.attachDataListener(providerId, req.subId, port, slot, {
+                skipCacheReplay: false,
+              });
+            }
+            this.maybeActivateFanOutWorker(req.subId, port);
+          }
+        }
+      } else if (event.status === 'error' && slot.pendingAttaches.length > 0) {
+        // Error occurred while attaches were pending. Process them immediately
+        // so they receive the error status and don't hang indefinitely.
+        // eslint-disable-next-line no-console
+        if (DEBUG) console.log(`[v2/hub] SNAPSHOT ERROR processing ${slot.pendingAttaches.length} queued attach(es) for provider=${providerId}`);
+        const pending = slot.pendingAttaches;
+        slot.pendingAttaches = [];
+        for (const { port, req } of pending) {
+          if (req.mode === 'data') {
+            // Send error status directly to port
+            port.postMessage({
+              subId: req.subId,
+              kind: 'status',
+              status: 'error',
+              error: event.error,
+            } satisfies Event);
+          }
+        }
       }
       slot.status = event.status;
       if (event.status === 'error') {
