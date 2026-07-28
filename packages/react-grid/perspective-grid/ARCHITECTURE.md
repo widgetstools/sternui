@@ -181,16 +181,27 @@ while the host wrote 500 rows every 200 ms: block round trips (AG asks ->
 rows delivered) averaged 3.7 / 4.3 / 5.2 ms, worst 12.1 ms, **0 failed
 blocks**. The host absorbed 226 ticks at a mean of 2.54 ms with 3 live views.
 
+**Live ticks reach the grid by pull, not push.** The feed writes to the Table
+in the worker; Perspective notifies each window's View through
+`view.on_update` (default mode — notification only, no row payload); the window
+re-reads the blocks it already holds via
+`refreshServerSide({purge:false})`, throttled to 250 ms. Verified: over 6 s of
+feed, 50 of the 100 loaded rows changed value in the grid's row model, 11
+refreshes, 0 failed blocks. `purge:false` keeps scroll position and row nodes,
+so AG updates rows in place by id and `enableCellChangeFlash` marks them.
+The subscription belongs to the View and must be re-made on every swap.
+
 **Sort and filter, server-side, six permutations** (sort, sort+filter, filter
 swap, clear): every change rebuilt the right View — `sector == 'Energy'`
 3,333 rows, `quantity > 5000` 5,050 rows — every block settled, nothing
 wedged. `maxConcurrentDatasourceRequests` was left at its default of 2, so a
 single leaked `getRows` would have shown up as a dead grid.
 
-Not measured here: frame timing during a real scroll. `harness/blotter.mjs`
-has the scripted scroll test, but it needs a **visible** window —
-`requestAnimationFrame` is starved in a hidden tab and AG Grid defers row
-rendering to it.
+Take these in a **visible** window. A background tab starves
+`requestAnimationFrame` — which AG Grid defers row rendering to — and clamps
+`setTimeout` to ≥1 s, so the scripted scroll test cannot run at all and the
+live-refresh throttle drops from 4 Hz to 1 Hz. Frame timing during a real
+scroll is the one figure above still unmeasured for that reason.
 
 ## Status
 

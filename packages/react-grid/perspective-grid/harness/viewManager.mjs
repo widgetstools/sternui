@@ -24,7 +24,7 @@
 import { createSafeView } from '../src/safeView.js';
 import { toPerspectiveViewConfig, viewConfigKey } from '../src/viewConfig.js';
 
-export function createViewManager({ table, onEvent = () => {} }) {
+export function createViewManager({ table, onEvent = () => {}, onUpdate = null }) {
   /** `{ key, config, safe, rows }` for the View currently serving blocks. */
   let current = null;
   let generation = 0;
@@ -41,6 +41,18 @@ export function createViewManager({ table, onEvent = () => {} }) {
     const view = await table.view(config);
     const safe = createSafeView(view);
     const previous = current;
+
+    // How the window learns the book moved. The default (no `mode`) delivers
+    // notification only — no rows — so the cost is a callback, not a delta of
+    // every changed row. The subscription belongs to this View and dies with
+    // it, so it has to be re-made on every swap.
+    if (onUpdate) {
+      await view.on_update(() => {
+        // A tick that lands during a swap belongs to the View being replaced;
+        // firing it would refresh against rows the grid is already discarding.
+        if (current?.safe === safe) onUpdate();
+      });
+    }
 
     current = { key, config, safe };
 

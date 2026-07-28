@@ -60,6 +60,7 @@ const metrics = {
   blocks: 0,
   blockMs: [],
   failed: 0,
+  refreshes: 0,
   firstRowsAt: null,
   worstFrameMs: 0,
 };
@@ -72,6 +73,7 @@ function renderStats() {
   const worst = metrics.blockMs.length > 0 ? Math.max(...metrics.blockMs) : 0;
   statsEl.innerHTML =
     `blocks <b>${metrics.blocks}</b> · mean <b>${ms(mean)}</b> · worst <b>${ms(worst)}</b>` +
+    (metrics.refreshes ? ` · refreshes <b>${metrics.refreshes}</b>` : '') +
     (metrics.failed ? ` · <b>failed ${metrics.failed}</b>` : '') +
     (metrics.firstRowsAt !== null ? ` · first rows <b>${ms(metrics.firstRowsAt)}</b>` : '');
 }
@@ -121,8 +123,38 @@ async function main() {
     if (gridApi && typeof rows === 'number') gridApi.setRowCount(rows);
   };
 
+  /**
+   * Live updates. The feed writes to the Table in the worker; Perspective
+   * notifies this window's View; the window re-reads the blocks it already
+   * holds. Nothing is pushed — the pull path stays the only way rows reach the
+   * grid, which is the whole architecture in miniature.
+   *
+   * Throttled because the feed ticks faster than a re-read is worth doing, and
+   * `refreshServerSide({purge:false})` re-requests EVERY loaded block, not just
+   * the visible one. `purge:false` keeps scroll position and row nodes, so AG
+   * updates rows in place by id and the changed cells flash.
+   */
+  const REFRESH_MS = 250;
+  let live = true;
+  let refreshTimer = null;
+  let pendingUpdate = false;
+
+  const scheduleRefresh = () => {
+    if (!live || !gridApi) return;
+    pendingUpdate = true;
+    if (refreshTimer !== null) return;
+    refreshTimer = setTimeout(() => {
+      refreshTimer = null;
+      if (!pendingUpdate || !live) return;
+      pendingUpdate = false;
+      metrics.refreshes += 1;
+      gridApi.refreshServerSide({ purge: false });
+    }, REFRESH_MS);
+  };
+
   const views = createViewManager({
     table,
+    onUpdate: scheduleRefresh,
     onEvent: (event) => {
       if (event.type === 'view') {
         log(`view rebuilt in ${ms(event.ms)} — ${event.rows.toLocaleString()} rows — ${event.key}`);
@@ -147,12 +179,18 @@ async function main() {
       inner.getRows({
         request: params.request,
         success: (result) => {
+          const took = performance.now() - started;
           metrics.blocks += 1;
-          metrics.blockMs.push(performance.now() - started);
-          log(
-            `block ${startRow}-${endRow} -> ${result.rowData.length} rows in ` +
-              `${ms(performance.now() - started)}${result.rowCount === undefined ? '' : ` (rowCount ${result.rowCount})`}`,
-          );
+          metrics.blockMs.push(took);
+          // A live feed re-reads every loaded block several times a second, so
+          // only the opening blocks and the slow ones are worth a line — the
+          // rest would bury the view rebuilds and failures.
+          if (metrics.blocks <= 3 || took > 25) {
+            log(
+              `block ${startRow}-${endRow} -> ${result.rowData.length} rows in ${ms(took)}` +
+                `${result.rowCount === undefined ? '' : ` (rowCount ${result.rowCount})`}`,
+            );
+          }
           renderStats();
           params.success(result);
         },
@@ -171,7 +209,14 @@ async function main() {
   gridApi = createGrid(document.getElementById('grid'), {
     theme: dark ? themeQuartz.withPart(colorSchemeDarkBlue) : themeQuartz,
     columnDefs,
-    defaultColDef: { sortable: true, resizable: true, filter: true },
+    defaultColDef: {
+      sortable: true,
+      resizable: true,
+      filter: true,
+      // Ticks are the point; without the flash a re-read is invisible.
+      enableCellChangeFlash: true,
+    },
+    cellFlashDuration: 600,
     rowModelType: 'serverSide',
     serverSideDatasource: datasource,
     // 100 rows is the window size every measurement in ARCHITECTURE.md used.
@@ -199,36 +244,30 @@ async function main() {
   // driver script) without clicking through column menus.
   globalThis.__blotter = { api: gridApi, views, host, metrics };
 
-  wireControls(gridApi, host, views);
-}
-
-function wireControls(api, host, views) {
+  // The feed is host-wide: if another window already started it, this window
+  // is already receiving updates and its button must say so.
   const tickButton = document.getElementById('tick');
   let ticking = false;
   tickButton.onclick = () => {
     ticking = !ticking;
     host.send({ cmd: 'tick', on: ticking, rows: 500, everyMs: 200 });
+    log(ticking ? 'feed on — 500 rows / 200ms (host-wide)' : 'feed off');
+  };
+  host.onMessage((message) => {
+    if (message?.type !== 'tick') return;
+    ticking = message.on;
     tickButton.textContent = ticking ? 'stop feed' : 'start feed';
-    log(ticking ? 'feed on — 500 rows / 200ms' : 'feed off');
+  });
+
+  const liveButton = document.getElementById('live');
+  liveButton.textContent = 'live: on';
+  liveButton.onclick = () => {
+    live = !live;
+    liveButton.textContent = live ? 'live: on' : 'live: off';
+    if (live) scheduleRefresh();
   };
 
-  // The feed writes to the Table; the grid only learns about it when blocks
-  // are re-read. Refreshing without purge keeps the scroll position and
-  // re-requests just the loaded blocks.
-  const refreshButton = document.getElementById('autoRefresh');
-  let refreshTimer = null;
-  refreshButton.onclick = () => {
-    if (refreshTimer !== null) {
-      clearInterval(refreshTimer);
-      refreshTimer = null;
-      refreshButton.textContent = 'auto-refresh: off';
-      return;
-    }
-    refreshTimer = setInterval(() => api.refreshServerSide({ purge: false }), 1_000);
-    refreshButton.textContent = 'auto-refresh: 1s';
-  };
-
-  document.getElementById('scrollTest').onclick = () => void scrollTest(api);
+  document.getElementById('scrollTest').onclick = () => void scrollTest(gridApi);
 }
 
 /**
