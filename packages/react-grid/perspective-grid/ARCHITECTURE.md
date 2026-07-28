@@ -140,6 +140,38 @@ replaced mid-flight re-reads from the current View instead: settling short
 would cap the store, and AG discards the rows anyway because a sort or filter
 change purges the store.
 
+## The profile the app can actually request — and the one it gets
+
+**Correction to the section below.** Those numbers were measured with STOMP
+headers (`live-mode: sparse`, `updates-per-tick: 100`) that the production
+provider **cannot send**: `startStomp` publishes `{ destination, body }` only
+(`stomp.ts`, `client.publish(...)`), and `StompProviderConfig` has no field for
+request headers. So the sparse profile is reachable from a probe script and not
+from an app.
+
+What an app gets instead is the broker's default legacy sweep. Measured from
+`apps/demos/perspective-blotter` against the same server:
+
+| | sparse (probe only) | broker default (what the app gets) |
+|---|---|---|
+| Frame size | ~100 rows, ~4 of 52 fields | **20,000 rows — the whole book** |
+| Frequency | 5.1 / s | 0.3 / s |
+| Throughput | 514 rows/s | **6,000 rows/s** |
+| Block round trip | **p50 3 ms** | **p50 877 ms**, worst 944 ms |
+
+The pull path stays *correct* under the sweep — 0 failed blocks, the Table
+holds at 20,000 rows, the grid renders and ticks — but read latency is
+dominated by ingesting a full book every ~3 s, because a `table.update()`
+blocks reads while it applies. This is the write path starving the read path,
+at a scale the sparse profile never showed.
+
+**The follow-up this implies is not optional**: `StompProviderConfig` needs
+request headers (or an equivalent) so a provider can ask for partial deltas.
+Without it the pull path is measured against a feed shape no deployment would
+choose, and the 2nd/3rd-blotter claim rests on the wrong load. Until then,
+treat the sparse numbers as the engine's capability and the sweep numbers as
+today's default.
+
 ## The real feed, measured
 
 Against the in-repo STOMP view server (`apps/demos/stomp-view-server`,

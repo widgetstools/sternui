@@ -18,7 +18,15 @@ export const BOOK_TABLE = 'positions';
 /** Perspective's index — what makes `update()` an upsert instead of an append. */
 export const KEY_COLUMN = 'positionId';
 
-const CLIENT = 'TRADER001';
+/**
+ * The demo's own client id.
+ *
+ * The broker keys a snapshot+live stream by this, and anyone who triggers the
+ * same id joins the same stream — so sharing `TRADER001` with ad-hoc probe
+ * scripts had this app receiving their re-triggered snapshots as if they were
+ * live deltas (~20,000 rows a "frame" instead of ~100).
+ */
+const CLIENT = 'PERSPECTIVE-DEMO';
 
 export const stompConfig = {
   providerType: 'stomp',

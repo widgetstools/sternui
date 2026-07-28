@@ -36,7 +36,11 @@ document.getElementById('three')!.onclick = () => {
 // the one that matters on a desk.
 const host = createHostHandle();
 host.onMessage((message) => {
-  if (message?.type === 'stage') line('run', `worker: ${String(message.stage)}`);
+  // `connected` matters as much as `stage`: stages are broadcast on
+  // TRANSITIONS, so a page that arrives after the worker has booted would
+  // otherwise sit blank looking broken while everything is in fact fine.
+  if (message?.type === 'connected') line('ok', `worker already up — ${String(message.stage)}`);
+  else if (message?.type === 'stage') line('run', `worker: ${String(message.stage)}`);
   else if (message?.type === 'error') line('bad', `worker error — ${String(message.detail)}`);
   else if (message?.type === 'status') {
     const stats = message.stats as Record<string, number>;
