@@ -87,6 +87,8 @@ const { dataHubClientMock } = vi.hoisted(() => {
 const lastMarketsGridProps: { current: any } = { current: null };
 
 vi.mock('@starui/grid', () => ({
+  resolveUseSsrm: (opts: { useSSRM?: boolean; rowModel?: 'client' | 'server' }) =>
+    opts.useSSRM !== undefined ? Boolean(opts.useSSRM) : opts.rowModel === 'server',
   useGeneralSettingsSnapshot: () => undefined,
   MarketsGrid: (props: any) => {
     lastMarketsGridProps.current = props;

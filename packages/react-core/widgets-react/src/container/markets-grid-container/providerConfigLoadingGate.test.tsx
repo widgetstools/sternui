@@ -21,6 +21,8 @@ const liveProviderRow = {
 const lastMarketsGridProps: { current: unknown } = { current: null };
 
 vi.mock('@starui/grid', () => ({
+  resolveUseSsrm: (opts: { useSSRM?: boolean; rowModel?: 'client' | 'server' }) =>
+    opts.useSSRM !== undefined ? Boolean(opts.useSSRM) : opts.rowModel === 'server',
   useGeneralSettingsSnapshot: () => undefined,
   MarketsGrid: (props: unknown) => {
     lastMarketsGridProps.current = props;
