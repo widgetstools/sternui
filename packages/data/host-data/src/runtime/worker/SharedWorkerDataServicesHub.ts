@@ -64,12 +64,14 @@ import type {
   HubReadyRequest,
   ListConfigsRequest,
   RefreshProviderRequest,
+  PerspectiveAttachRequest,
   HubIntrospectRequest,
   HubIntrospectSnapshot,
   HubProviderIntrospectRow,
   HubSubscriberIntrospectRow,
 } from '../protocol.js';
 import { startProvider } from '../providers/registry.js';
+import { createPerspectiveHost, type PerspectiveHost } from '../perspective/perspectiveHost.js';
 import { diffTopLevel } from '../wire/rowDiff.js';
 import type { ProviderEmit, ProviderEmitEvent, ProviderHandle } from '../providers/Provider.js';
 import { WorkerAppDataStore } from './WorkerAppDataStore.js';
@@ -135,6 +137,9 @@ export class SharedWorkerDataServicesHub {
   private readonly configCatalog: ConfigCatalogCache | null;
   private readonly connectedPorts = new Set<PortLike>();
 
+  /** One engine + one Table per provider, or null when no loader was given. */
+  private readonly perspectiveHost: PerspectiveHost | null;
+
   private readonly statsIntervalMs: number;
   private readonly setTimer: (cb: () => void, ms: number) => unknown;
   private readonly clearTimer: (handle: unknown) => void;
@@ -144,6 +149,16 @@ export class SharedWorkerDataServicesHub {
   private subscriberSweepTimer: unknown = null;
 
   constructor(opts: SharedWorkerDataServicesHubOpts = {}) {
+    // One engine and one Table per provider for the whole worker. Created
+    // only when a worker entry supplied a loader — see the option's docs for
+    // why the default entry does not.
+    this.perspectiveHost = opts.loadPerspective
+      ? createPerspectiveHost({
+          loadPerspective: opts.loadPerspective as never,
+          onError: (stage, error) =>
+            console.error(`[data-services] perspective ${stage} failed`, error),
+        })
+      : null;
     this.statsIntervalMs = opts.statsIntervalMs ?? 1000;
     this.setTimer = opts.setTimer ?? ((cb, ms) => setInterval(cb, ms));
     this.clearTimer = opts.clearTimer ?? ((h) => clearInterval(h as ReturnType<typeof setInterval>));
@@ -192,6 +207,7 @@ export class SharedWorkerDataServicesHub {
       case 'list-configs': this.handleListConfigs(port, req); return;
       case 'config-invalidate': void this.handleConfigInvalidate(port, req); return;
       case 'refresh-provider': this.handleRefreshProvider(req); return;
+      case 'perspective-attach': void this.handlePerspectiveAttach(port, req); return;
       case 'hub-introspect': this.handleHubIntrospect(port, req); return;
     }
   }
@@ -849,6 +865,60 @@ export class SharedWorkerDataServicesHub {
   }
 
   /** Replay hub cache to one subscriber — no upstream `restart`. */
+  /**
+   * Bind one window to a provider's Perspective Table.
+   *
+   * The provider is started if it is not already running — attaching is what
+   * a blotter does on open, and it must not depend on something else having
+   * subscribed to the push path first.
+   *
+   * Answers `ok:false` rather than hanging when there is no Table to attach
+   * to: a caller left waiting on a provider that will never have one looks
+   * identical to a slow broker, and the honest answer lets it fall back to
+   * the push path immediately.
+   */
+  private async handlePerspectiveAttach(
+    port: PortLike,
+    req: PerspectiveAttachRequest,
+  ): Promise<void> {
+    const reply = (ok: boolean, extra: { tableName?: string; reason?: string } = {}) =>
+      port.postMessage({ kind: 'perspective-attached', subId: req.subId, ok, ...extra });
+
+    const framePort = (req as unknown as { ports?: readonly MessagePort[] }).ports?.[0]
+      ?? (req as unknown as { port?: MessagePort }).port;
+
+    if (!this.perspectiveHost) {
+      reply(false, { reason: 'this worker was built without a Perspective loader' });
+      return;
+    }
+    if (!framePort) {
+      reply(false, { reason: 'perspective-attach requires a transferred MessagePort' });
+      return;
+    }
+
+    let slot = this.providers.get(req.providerId);
+    if (!slot) {
+      const cfg = this.configCatalog?.getProviderConfig(req.providerId);
+      if (!cfg) {
+        reply(false, { reason: `no provider config for '${req.providerId}'` });
+        return;
+      }
+      slot = this.createProvider(req.providerId, cfg);
+    }
+
+    const tableName =
+      (slot.handle as unknown as { tableName?: string }).tableName ?? undefined;
+    if (!tableName) {
+      reply(false, {
+        reason: `provider '${req.providerId}' is ${slot.cfg.providerType}, which holds no Table`,
+      });
+      return;
+    }
+
+    await this.perspectiveHost.attach(framePort);
+    reply(true, { tableName });
+  }
+
   private handleRefreshProvider(req: RefreshProviderRequest): void {
     const slot = this.providers.get(req.providerId);
     if (!slot) return;
@@ -1057,6 +1127,9 @@ export class SharedWorkerDataServicesHub {
     try {
       slot.handle = startProvider(cfg, emit, {
         appDataLookup: (name, key) => this.appData.get(name, key),
+        // `stomp-perspective` builds its Table on this; every other provider
+        // type ignores it.
+        perspectiveHost: this.perspectiveHost ?? undefined,
       });
     } catch (err) {
       this.providers.delete(providerId);

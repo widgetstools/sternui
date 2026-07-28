@@ -178,6 +178,20 @@ export interface ConfigInvalidateRequest {
 }
 
 /** Replay hub row cache to one subscriber without upstream I/O. */
+/**
+ * Bind a window to a provider's Perspective Table.
+ *
+ * The client transfers a MessagePort with this request; the worker binds a
+ * ProxySession to it, and the window's Perspective Client speaks protocol
+ * frames over it. No rows cross this port on attach — the window opens a View
+ * and reads only what its viewport asks for.
+ */
+export interface PerspectiveAttachRequest {
+  kind: 'perspective-attach';
+  subId: string;
+  providerId: string;
+}
+
 export interface RefreshProviderRequest {
   kind: 'refresh-provider';
   subId: string;
@@ -325,6 +339,7 @@ export type Request =
   | ListConfigsRequest
   | ConfigInvalidateRequest
   | RefreshProviderRequest
+  | PerspectiveAttachRequest
   | HubIntrospectRequest;
 
 // ─── Worker → Client events ────────────────────────────────────────
@@ -466,6 +481,22 @@ export interface SubscriptionLostEvent {
   reason: 'stale' | 'port-dead';
 }
 
+/**
+ * Answer to {@link PerspectiveAttachRequest}.
+ *
+ * `tableName` is what the window passes to `client.open_table(...)`. `ok:false`
+ * means this provider has no Table — it is not a `stomp-perspective` provider,
+ * the worker was built without a Perspective loader, or its `keyColumn` cannot
+ * index one. Callers should fall back to the push path rather than wait.
+ */
+export interface PerspectiveAttachedEvent {
+  subId: string;
+  kind: 'perspective-attached';
+  ok: boolean;
+  tableName?: string;
+  reason?: string;
+}
+
 export type Event =
   | DeltaEvent
   | DeltaBinEvent
@@ -474,6 +505,7 @@ export type Event =
   | StatusEvent
   | StatsEvent
   | RowsReceivedEvent
+  | PerspectiveAttachedEvent
   | SubscriptionLostEvent;
 
 /** Detail payload for {@link CatalogReadyEvent} broadcasts. */

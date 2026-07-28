@@ -206,6 +206,20 @@ export interface SharedWorkerDataServicesHubOpts {
    */
   configCatalog?: ConfigCatalogCache;
 
+  /**
+   * Loads the Perspective module for `stomp-perspective` providers.
+   *
+   * Injected, and OMITTED by the default worker entry on purpose: the inline
+   * build carries its wasm as base64 and the entry is a single bundled asset
+   * that every app loads, so importing it there would cost megabytes to
+   * workers that never open a blotter. A worker that wants the pull path
+   * passes `() => import('@perspective-dev/client/inline')`.
+   *
+   * Without it, `stomp-perspective` providers still run — they just serve the
+   * classic push path and build no Table.
+   */
+  loadPerspective?: () => Promise<unknown>;
+
   /** Tick interval for the stats sampler (default 1000ms). */
   statsIntervalMs?: number;
   /** Inject the timer for tests. Default: setInterval. */
