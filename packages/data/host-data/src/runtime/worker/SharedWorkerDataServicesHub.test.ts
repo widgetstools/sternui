@@ -141,6 +141,36 @@ describe('SharedWorkerDataServicesHub — attach lifecycle', () => {
     expect(port.messages[1]).toMatchObject({ subId: 's1', kind: 'delta', replace: true, rows: [] });
   });
 
+  it('does NOT recreate the provider when a late-joiner attaches with an identical cfg (P1a multi-blotter)', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    // Blotter 1 creates the provider.
+    hub.handleRequest(makePort(), { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg('p', { host: 'a' }) });
+    const first = controllers.get('p')!;
+
+    // Blotter 2 attaches with the SAME cfg (+ a restart overlay). Since P1a the
+    // window supplies cfg on EVERY attach — an identical cfg must NOT tear down
+    // and redial the shared provider (N blotters would cost N re-snapshots).
+    hub.handleRequest(makePort(), { kind: 'attach', subId: 's2', providerId: 'p1', mode: 'data', cfg: cfg('p', { host: 'a' }), extra: { asOfDate: '2026-01-01' } });
+
+    expect(first.stopCount).toBe(0); // never recreated / redialed
+    expect(controllers.get('p')).toBe(first); // same provider instance
+    expect(first.restartLog).toContainEqual({ asOfDate: '2026-01-01' }); // just a plain restart on the same handle
+  });
+
+  it('DOES recreate the provider when the attached cfg actually changed (editor edit)', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    hub.handleRequest(makePort(), { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg('p', { host: 'a' }) });
+    const first = controllers.get('p')!;
+
+    // A genuinely different cfg (host a → b) rebuilds the slot.
+    hub.handleRequest(makePort(), { kind: 'attach', subId: 's2', providerId: 'p1', mode: 'data', cfg: cfg('p', { host: 'b' }), extra: { asOfDate: '2026-01-01' } });
+
+    expect(first.stopCount).toBe(1); // old provider stopped (recreated)
+    const rebuilt = controllers.get('p')!;
+    expect(rebuilt).not.toBe(first); // fresh instance from the new cfg
+    expect(rebuilt.restartLog).toContainEqual({ asOfDate: '2026-01-01' });
+  });
+
   it('rejects with status:error if the providerId is not running and no cfg supplied', () => {
     const hub = new SharedWorkerDataServicesHub();
     const port = makePort();

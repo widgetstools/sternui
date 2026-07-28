@@ -66,3 +66,16 @@ export function restartExtrasEqual(
   if (!active) return false;
   return JSON.stringify(active) === JSON.stringify(incoming);
 }
+
+/**
+ * Stable compare for provider configs. Since P1a the window supplies `cfg`
+ * on EVERY attach (not just the editor's Restart) — so a late-joining
+ * subscriber carrying the same cfg the running provider already holds must
+ * NOT trigger a recreate/redial; only a genuine cfg change (an editor edit)
+ * should. Mirrors {@link restartExtrasEqual}: JSON-stable because both cfgs
+ * originate from the same catalog row shape, so key order matches.
+ */
+export function providerCfgEqual(active: unknown, incoming: unknown): boolean {
+  if (active == null) return false;
+  return JSON.stringify(active) === JSON.stringify(incoming);
+}

@@ -104,6 +104,7 @@ import {
   keyOf,
   restartClickLatency,
   restartExtrasEqual,
+  providerCfgEqual,
 } from './hubHelpers.js';
 import type { FanOutWorkerPool } from './FanOutWorkerPool.js';
 
@@ -603,14 +604,19 @@ export class SharedWorkerDataServicesHub {
       }
     } else if (req.extra) {
       // Existing provider + restart payload. When the caller supplies a
-      // cfg (the provider editor's Restart button always sends the current
-      // draft), the connection / column / behaviour settings may have been
-      // edited since the slot was created — the running provider captured
-      // the OLD cfg, so a plain restart() would reconnect with stale
-      // values. Rebuild the slot from the new cfg first. Normal grid
-      // subscribers omit cfg and just get a plain restart(extra) (e.g. the
-      // historical `asOfDate` overlay), which keeps the existing config.
-      if (req.cfg) {
+      // cfg that DIFFERS from the running slot's (the provider editor's
+      // Restart button sends the current draft after a connection / column /
+      // behaviour edit), the running provider captured the OLD cfg, so a
+      // plain restart() would reconnect with stale values — rebuild the slot
+      // from the new cfg first.
+      //
+      // Since P1a the window supplies cfg on EVERY attach, so a late-joining
+      // grid subscriber carries the SAME cfg the provider already holds. That
+      // must NOT recreate/redial (N blotters would cost N re-snapshots instead
+      // of 1 create + N-1 cheap late-joins) — `providerCfgEqual` gates the
+      // rebuild on a genuine content change, so an unchanged cfg falls through
+      // to the plain restart(extra) / late-join path below.
+      if (req.cfg && !providerCfgEqual(slot.cfg, req.cfg)) {
         this.traceStompAttachCfg('hub.attach RESTART+RECONFIG (running provider)', req.providerId, req.cfg, req.extra);
         // eslint-disable-next-line no-console
         console.log(`[v2/hub][trace] attach RESTART+RECONFIG provider=${req.providerId} extra=${JSON.stringify(req.extra)} ${restartClickLatency(req.extra)}`);
