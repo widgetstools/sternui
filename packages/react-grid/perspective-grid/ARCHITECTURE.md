@@ -211,12 +211,46 @@ rule since Perspective is flat.
 
 ### Where the Table is fed
 
-`startStomp(cfg, emit)` already emits exactly what a Table needs:
-`{ rows, replace: true }` for snapshot chunks and `{ rows }` for live deltas
-(`packages/data/host-data/src/runtime/providers/Provider.ts`). So the Table is
-fed by **decorating `ProviderEmit`** — no change to the provider, and the
-sparse partial rows map straight onto `table.update()`, which upserts by index
-and leaves omitted columns alone.
+`startStomp(cfg, emit)` already emits what a Table needs, so the Table is fed
+by **decorating `ProviderEmit`** — no change to the provider, and the sparse
+partial rows map straight onto `table.update()`, which upserts by index and
+leaves omitted columns alone. `createPerspectiveTableFeed` in
+`packages/data/host-data/src/runtime/perspective/` is that decorator.
+
+The exact emit sequence, read off the transport rather than assumed
+(`stomp.ts`: `emit({ rows: chunk, replace: offset === 0 })`):
+
+```
+{ rows: [],     replace: true }   empty clear — a snapshot is starting
+{ rows: chunk0, replace: true }   ONLY the first chunk is flagged
+{ rows: chunk1 }  …  { rows: chunkN }   the rest ride as plain deltas
+{ status: 'ready' }
+{ rows: … }                        live deltas from here
+```
+
+Three consequences, each of which was a bug before the real transport was run:
+
+- **The unflagged chunks are still snapshot.** Buffering only the flagged one
+  would derive the schema from 1,000 rows instead of 20,000.
+- **An empty `replace` is not a no-op.** It is the signal that a fresh book is
+  coming, and the ONLY signal when the new book turns out to be empty — treat
+  it as one and a stale book stays on screen forever.
+- **A `replace` must discard staged rows unconditionally**, not just when a
+  Table already exists. A restart landing while an earlier snapshot is still
+  buffering leaves no Table to check, and merging the abandoned rows into the
+  new book is silent corruption.
+
+Two ordering rules keep it safe in front of the hub: the wrapped emit is called
+**synchronously and unmodified first** (the existing push path must not wait on
+Perspective or change shape because it is present), and all Table work is
+serialized on one promise chain (`update()` is async and `emit` is not, so
+without a queue the first live deltas overtake a slow snapshot load and are
+overwritten by it).
+
+Verified against the real transport and the real engine
+(`scripts/providerToTableProbe.mjs`): schema derived from all 20,000 rows,
+52 columns, 0 integer, Table holding 20,000 rows and **still 20,000 after
+137,360 delta rows** — deltas upsert rather than append.
 
 ## Row grouping and totals
 

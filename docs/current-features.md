@@ -1429,6 +1429,14 @@ modules).
 - `validateIndexColumn(schema, index, observations, rowsObserved?)` — reject an
   index that is absent, null, non-scalar or missing from rows, since the index
   is what makes `table.update()` an upsert. **Internal**
+- `createPerspectiveTableFeed({ keyColumn, createTable, ... })` — feeds a
+  Perspective Table by decorating `ProviderEmit`: buffers the snapshot (whose
+  chunks after the first arrive unflagged), derives the schema and builds the
+  Table on `status: 'ready'`, then applies each live frame in one
+  `table.update()`. Forwards every event synchronously and unmodified so the
+  push path is unaffected, serializes all Table work so deltas cannot overtake
+  the snapshot load, rebuilds on restart, and refuses to build on an invalid
+  index rather than letting `update()` append. **Internal**
 - `InferOptions` — inference behaviour controls
 - Used by editor Test-Connection / Infer-Fields flows
 
