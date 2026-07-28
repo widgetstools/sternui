@@ -6,6 +6,13 @@
  */
 export const PROVIDER_TYPES = {
   STOMP: 'stomp',
+  /**
+   * STOMP delivered through a Perspective Table held once in the worker.
+   * Same wire settings as `stomp`; the difference is where the book LIVES —
+   * every window opens a View against the one Table instead of receiving its
+   * own copy of the rows.
+   */
+  STOMP_PERSPECTIVE: 'stomp-perspective',
   REST: 'rest',
   WEBSOCKET: 'websocket',
   SOCKETIO: 'socketio',
@@ -20,6 +27,7 @@ export type ProviderType = typeof PROVIDER_TYPES[keyof typeof PROVIDER_TYPES];
  */
 export const PROVIDER_TYPE_TO_COMPONENT_SUBTYPE: Record<ProviderType, string> = {
   [PROVIDER_TYPES.STOMP]: 'stomp',
+  [PROVIDER_TYPES.STOMP_PERSPECTIVE]: 'stomp-perspective',
   [PROVIDER_TYPES.REST]: 'rest',
   [PROVIDER_TYPES.WEBSOCKET]: 'websocket',
   [PROVIDER_TYPES.SOCKETIO]: 'socketio',
@@ -32,6 +40,7 @@ export const PROVIDER_TYPE_TO_COMPONENT_SUBTYPE: Record<ProviderType, string> = 
  */
 export const COMPONENT_SUBTYPE_TO_PROVIDER_TYPE: Record<string, ProviderType> = {
   'stomp': PROVIDER_TYPES.STOMP,
+  'stomp-perspective': PROVIDER_TYPES.STOMP_PERSPECTIVE,
   'rest': PROVIDER_TYPES.REST,
   'websocket': PROVIDER_TYPES.WEBSOCKET,
   'socketio': PROVIDER_TYPES.SOCKETIO,
@@ -239,6 +248,51 @@ export interface StompProviderConfig {
 }
 
 /**
+ * STOMP-over-Perspective Provider Configuration
+ *
+ * Every wire setting is inherited from {@link StompProviderConfig} — same
+ * broker, same destinations, same snapshot handshake. What changes is where
+ * the book lives: the worker loads it into a Perspective Table once, and each
+ * window opens a View against that Table instead of receiving its own copy of
+ * the rows. A second and third blotter therefore cost a View, not a replay.
+ *
+ * The fanout/conflation settings (`throttleMs`, `conflateByKey`) still apply
+ * to the classic push path when something subscribes to it; the Table is fed
+ * from the same emit stream regardless.
+ */
+export interface StompPerspectiveProviderConfig
+  extends Omit<StompProviderConfig, 'providerType'> {
+  providerType: 'stomp-perspective';
+  /**
+   * Name the Table is hosted under; windows open it by this id. Defaults to
+   * the provider id, which is what makes one Table per provider.
+   */
+  tableName?: string;
+  /**
+   * Columns to declare `integer` rather than the default `float`.
+   *
+   * OPT-IN ONLY, and rarely worth it. Perspective silently TRUNCATES a float
+   * that lands in an integer column, and one row in 20,000 is enough to make
+   * a sampled type wrong — measured on a real book, `totalValue` was integral
+   * in exactly one row of 20,000. A double represents every integer up to
+   * 2^53 exactly, so `float` costs nothing and is the safe default.
+   */
+  integerColumns?: string[];
+  /**
+   * Map ISO date / datetime strings onto Perspective `date` / `datetime`
+   * instead of `string`. Default true — leaving them as strings loses
+   * server-side date sorting and range filtering.
+   */
+  inferDates?: boolean;
+  /**
+   * Build the Table after this many buffered rows even if the snapshot never
+   * completes. Only applies to feeds with no end token, where every frame
+   * arrives as a delta and `ready` never comes.
+   */
+  buildAfterRows?: number;
+}
+
+/**
  * REST Provider Configuration
  */
 export interface RestProviderConfig {
@@ -398,6 +452,7 @@ export interface AppDataProviderConfig {
  */
 export type ProviderConfig =
   | StompProviderConfig
+  | StompPerspectiveProviderConfig
   | RestProviderConfig
   | WebSocketProviderConfig
   | SocketIOProviderConfig
@@ -514,6 +569,28 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, Partial<ProviderConf
     },
     inferredFields: [],
     columnDefinitions: []
+  },
+  'stomp-perspective': {
+    providerType: 'stomp-perspective',
+    listenerTopic: '',
+    websocketUrl: '',
+    snapshotEndToken: 'Success',
+    requestBody: 'START',
+    snapshotTimeoutMs: 60000,
+    manualTopics: false,
+    dataType: 'positions',
+    messageRate: 1000,
+    autoStart: false,
+    heartbeat: {
+      outgoing: 4000,
+      incoming: 4000
+    },
+    inferredFields: [],
+    columnDefinitions: [],
+    // Numeric columns are float unless a column is named here; see the
+    // interface docs for why inference must not choose `integer`.
+    integerColumns: [],
+    inferDates: true
   },
   rest: {
     providerType: 'rest',

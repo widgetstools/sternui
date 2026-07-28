@@ -10,8 +10,10 @@
 
 import { Button, ScrollArea } from '@starui/ui';
 import { CheckCircle2, Loader2, Plug, XCircle } from 'lucide-react';
-import type { ProviderConfig, StompProviderConfig, RestProviderConfig, MockProviderConfig, AppDataProviderConfig } from '@starui/shared-types';
+import type { ProviderConfig, StompProviderConfig,
+  StompPerspectiveProviderConfig, RestProviderConfig, MockProviderConfig, AppDataProviderConfig } from '@starui/shared-types';
 import { StompFields } from '../transports/StompFields.js';
+import { StompPerspectiveFields } from '../transports/StompPerspectiveFields.js';
 import { RestFields } from '../transports/RestFields.js';
 import { MockFields } from '../transports/MockFields.js';
 import { AppDataFields } from '../transports/AppDataFields.js';
@@ -24,7 +26,12 @@ export interface ConnectionTabProps {
 }
 
 export function ConnectionTab({ cfg, onCfgChange, probe }: ConnectionTabProps) {
-  const showTest = cfg.providerType === 'stomp' || cfg.providerType === 'rest';
+  // The connection test dials the broker, which a perspective provider does
+  // identically — it is the same wire.
+  const showTest =
+    cfg.providerType === 'stomp' ||
+    cfg.providerType === 'stomp-perspective' ||
+    cfg.providerType === 'rest';
   // AppData owns its own internal layout (form + AG-Grid that fills height),
   // so it must not be wrapped in a ScrollArea — that collapses the grid to 0.
   const isAppData = cfg.providerType === 'appdata';
@@ -60,6 +67,8 @@ function Fields({ cfg, onChange }: { cfg: ProviderConfig; onChange(next: Partial
   switch (cfg.providerType) {
     case 'stomp':
       return <StompFields cfg={cfg as StompProviderConfig} onChange={onChange as (n: Partial<StompProviderConfig>) => void} />;
+    case 'stomp-perspective':
+      return <StompPerspectiveFields cfg={cfg as StompPerspectiveProviderConfig} onChange={onChange as (n: Partial<StompPerspectiveProviderConfig>) => void} />;
     case 'rest':
       return <RestFields cfg={cfg as RestProviderConfig} onChange={onChange as (n: Partial<RestProviderConfig>) => void} />;
     case 'mock':

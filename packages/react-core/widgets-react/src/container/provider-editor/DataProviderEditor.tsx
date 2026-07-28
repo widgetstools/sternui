@@ -36,6 +36,11 @@ import { EditorForm } from './EditorForm.js';
 
 const PROVIDER_TYPE_META: Record<ProviderType, { label: string; description: string; icon: typeof Database }> = {
   stomp: { label: 'STOMP', description: 'WebSocket streaming with snapshot + delta semantics.', icon: Radio },
+  'stomp-perspective': {
+    label: 'STOMP (Perspective)',
+    description: 'Same STOMP feed, held once in the worker as a Perspective Table — each blotter reads only its viewport.',
+    icon: Radio,
+  },
   rest: { label: 'REST', description: 'One-shot HTTP fetch — no live updates.', icon: Globe },
   websocket: { label: 'WebSocket', description: 'Raw WebSocket, framed by you.', icon: Radio },
   socketio: { label: 'Socket.IO', description: 'Socket.IO event-driven channel.', icon: Radio },
@@ -43,7 +48,7 @@ const PROVIDER_TYPE_META: Record<ProviderType, { label: string; description: str
   appdata: { label: 'AppData', description: 'Key/value store referenced by other providers via {{name.key}}.', icon: Database },
 };
 
-const SUPPORTED_TYPES: ProviderType[] = ['stomp', 'rest', 'mock', 'appdata'];
+const SUPPORTED_TYPES: ProviderType[] = ['stomp', 'stomp-perspective', 'rest', 'mock', 'appdata'];
 
 export interface DataProviderEditorProps {
   userId: string;
