@@ -126,6 +126,7 @@ module or a different package provides it.
 
 - `generateUnifiedCSS()` — emit CSS custom properties from semantic tokens (dark + clinical + paper blocks); also on `./shadcn` as `generateShadcnCSS` / `getShadcnTokens`
 - Theme switching is DOM-attribute driven (`applyTheme()` sets `data-theme` / `data-variant` / `data-cvd`); WCAG contrast helpers live in `src/internal/wcag.ts` (not exported)
+- **Scrollbar styling** (`styles/scrollbar.css`) — thin, theme-aware scrollbars app-wide, **with an AG Grid viewport carve-out**: `.ag-root-wrapper` and descendants keep `scrollbar-width: auto` + a native `scrollbar-color`, so Chromium paints grid scrollbars on the compositor thread instead of the styled main-thread path — restores GPU-composited grid scrolling under streaming load on Windows
 
 #### Framework adapters
 
@@ -475,7 +476,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
   Row Grouping, Cell Editor, **Cell Renderer** (band 10 — picks any
   registered renderer from `@starui/design-system/cell-renderers-registry`
   and authors its per-renderer config)
-- **Conditional styling** — themed style rules (dark/light); per-rule bands for cell/row style, **flash on match** (`FlashConfig` — colour/mode/duration), **indicator** badge (`RuleIndicator`), value formatter, and **animate value** (`AnimationConfig` — `spin` / `spin-reverse` / `pulse`, cell-scope only). Animate spins the matching cell's value glyph via CSS keyframes scoped to `.ag-cell-value` (shipped once as `ds-anim-*`), e.g. an Excel value format maps `1 → 🔄` and a `value = 1` rule spins it — the no-code "in progress" spinner. Header flash/indicator painting (`headerPainter`, `hasHeaderPaintRules`) skips row scans when no header-targeted rules are enabled and is not invoked on live ticks unless header paint rules exist
+- **Conditional styling** — themed style rules (dark/light); per-rule bands for cell/row style, **flash on match** (`FlashConfig` — colour/mode/duration), **indicator** badge (`RuleIndicator`), value formatter, and **animate value** (`AnimationConfig` — `spin` / `spin-reverse` / `pulse`, cell-scope only). Animate spins the matching cell's value glyph via CSS keyframes scoped to `.ag-cell-value` (shipped once as `ds-anim-*`), e.g. an Excel value format maps `1 → 🔄` and a `value = 1` rule spins it — the no-code "in progress" spinner. Header flash/indicator painting (`headerPainter`, `hasHeaderPaintRules`) skips row scans when no header-targeted rules are enabled and is not invoked on live ticks unless header paint rules exist. The full-grid restyle scheduler (`createRefreshScheduler`) is **scroll-aware** — it defers `refreshCells({ force: true })` while the grid body is scrolling (`bodyScroll` / `bodyScrollEnd`, 120ms settle) and flushes once on settle, so restyle repaints don't fight the scroll compositor; data keeps flowing and cellSelection / filters are left untouched
 - **Visual Excel** — WYSIWYG `.xlsx` export preserving display formatters and
   conditional style-rule colours. Engine: `buildVisualExcelStyles`,
   `applyFormatExcelClasses`, `exportVisualExcel` (via `api.exportDataAsExcel` +
@@ -658,7 +659,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `useInteropChannel` (+ `isInteropAvailable`) — **primary** link transport: OpenFin interop facade (`fin.me.interop.setContext` / `addContextHandler`), shape-compatible with `useFdc3Channel`. Used because the dock "Link" joins **interop context groups** that `window.fdc3`'s channel tracking doesn't reliably reflect; `HostedMarketsGrid` prefers it and falls back to `useFdc3Channel` only when interop is absent
 - `useGridLinkNotifications` + `gridLinkNotifications` helpers (`buildSelectionNotification`, `buildAckNotification`, `summarizeCriteria`, `summarizeLinkContext`) — post OpenFin Notification Center messages for link traffic (a "sent" on broadcast, an "acknowledged" on receive) via `@starui/host-openfin`; gated by `contextLink.notify`, no-op outside OpenFin
 - `useTabsHidden` — tab visibility detection
-- `useViewTabTitle` (+ `ViewTabTitle` type) — two-way binding between the grid caption and the host OpenFin view's tab name: seeds from `customData.savedTitle`, polls for external "Save Tab As…" renames, and `setTitle` writes back `document.title` + `savedTitle`. No-op (local-only) outside OpenFin
+- `useViewTabTitle` (+ `ViewTabTitle` type) — two-way binding between the grid caption and the host OpenFin view's tab name: seeds from `customData.savedTitle`, catches external "Save Tab As…" renames via the OpenFin `options-changed` event (with a **visible-only** interval fallback that skips hidden/background tabs so they stop polling the broker), and `setTitle` writes back `document.title` + `savedTitle`. No-op (local-only) outside OpenFin
 - `useWorkspaceSaveEvent` — workspace save callback
 - Window options — hosted hooks use `subscribeWindowOptions` from `@starui/host-openfin` internally (not re-exported from `./hosted`)
 - `useAgGridTheme` — AG Grid theme resolution
@@ -1264,7 +1265,7 @@ modules).
   - Snapshot phase → `snapshotEndToken` → buffered `{ rowsReceived }` progress, then chunked cache replace
   - Live phase → keyed deltas via `applyTransactionAsync`
   - Snapshot flush chunking (`cfg.snapshotChunkSize`, default `SNAPSHOT_CHUNK_SIZE = 500`) to stay under 50 ms long-task budget — configurable in code or the provider editor
-  - Live conflation + trailing-edge throttle (`cfg.throttleMs` window; `cfg.conflateByKey` upsert key, defaults to `keyColumn`) via `bufferedDispatch()` — coalesces same-key ticks in the worker before fanout; `throttleMs` unset = immediate passthrough; probe path bypasses it. Two explicit master switches (default ON): `cfg.throttleEnabled: false` fans out every delta immediately while keeping the `throttleMs` value; `cfg.conflateEnabled: false` disables conflation even when `keyColumn` could supply a key (the off-switch the `?? keyColumn` fallback otherwise prevented)
+  - Live conflation + trailing-edge throttle (`cfg.throttleMs` window; `cfg.conflateByKey` upsert key, defaults to `keyColumn`) via `bufferedDispatch()` — coalesces same-key ticks in the worker before fanout; `throttleMs` unset now **defaults to 200ms** (`DEFAULT_LIVE_THROTTLE_MS`), so live throttle + conflation are on out of the box (the master switches already defaulted ON; the ms was previously undefined → passthrough); probe path bypasses it. Two explicit master switches (default ON): `cfg.throttleEnabled: false` fans out every delta immediately while keeping the `throttleMs` value; `cfg.conflateEnabled: false` disables conflation even when `keyColumn` could supply a key (the off-switch the `?? keyColumn` fallback otherwise prevented)
   - Field projection (`cfg.projectFields`, default off): each incoming row is pruned at frame-parse time to the `columnDefinitions[].field` paths + `keyColumn` (`createFieldProjector` / `collectProjectionPaths` in `fieldProjection.ts`) — wide upstream objects (e.g. 2000 fields when the blotter shows 200) never reach the snapshot buffer, hub cache, or any window; nested `a.b.c` paths copy just the needed subtree, prefix paths win over longer ones; changing visible fields requires a provider Restart; `probeStomp` (Infer Fields) always sees raw rows
   - Thin field-level deltas (`cfg.thinDeltas`, default off) and columnar wire format (`cfg.wireFormat: 'json' | 'columnar'`, default json) — hub fan-out knobs honoured by `SharedWorkerDataServicesHub` for any keyed provider (see "SharedWorker data services" below); both require a provider Restart to change
   - Restart overlay (`extra`) for historical `asOfDate`; internal `__`-prefixed overlay keys (e.g. the Restart button's `__refresh` cache-buster) are stripped before the trigger body reaches the broker
@@ -1473,7 +1474,7 @@ modules).
 
 #### Runtime integration
 
-- `OpenFinRuntime` — `RuntimePort` wrapping `fin.*` APIs (window, view, app identity, messaging)
+- `OpenFinRuntime` — `RuntimePort` wrapping `fin.*` APIs (window, view, app identity, messaging); the per-view customData watcher prefers the `options-changed` event over a forever-poll (visible-only interval fallback), so hidden views stop polling the broker
 - `OpenFinRuntimeOptions` — parent window name, container name, custom settings
 - `resolveOpenFinIdentity()` — current window/view identity (name, uuid, instance id)
 - `isOpenFin` — environment detection boolean
