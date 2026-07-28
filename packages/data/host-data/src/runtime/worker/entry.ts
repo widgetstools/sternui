@@ -130,8 +130,10 @@ export async function installSharedWorkerHub(opts: InstallOpts = {}): Promise<In
 
   // Register onconnect BEFORE async hydration. Browsers fire `connect`
   // as soon as the main thread constructs `new SharedWorker(...)` —
-  // if we only set this handler after `await hub.hydrateAppData()`,
-  // the first port is dropped and `appData.ready()` hangs forever.
+  // if we only set this handler after hydration completes,
+  // the first port is dropped and attachments hang.
+  // Data provider attaches can proceed immediately (inline cfg); only
+  // AppData attaches wait for hydration via a gate in handleAppDataAttach.
   if ('onconnect' in globalRef) {
     (globalRef as SharedWorkerLike).onconnect = (ev) => {
       const port = ev.ports[0];
@@ -141,17 +143,20 @@ export async function installSharedWorkerHub(opts: InstallOpts = {}): Promise<In
     };
   }
 
-  // Hydrate catalog + AppData from IndexedDB before handling port traffic.
-  // No-op when no ConfigManager was supplied (e.g. test installs that
-  // don't exercise persistence).
-  if (opts.configManager) {
-    await hub.hydrateCatalog();
-    await hub.hydrateAppData(opts.hydrateUserId ?? 'worker');
-  }
-
+  // Start accepting ports immediately. Hydration proceeds in the background.
+  // Data provider attaches can proceed right away with inline cfg.
+  // AppData attaches are gated in handleAppDataAttach to ensure IndexedDB wins.
   attachPort = attach;
   for (const port of pendingPorts) attach(port);
   pendingPorts.length = 0;
+
+  // Hydrate catalog + AppData from IndexedDB in the background.
+  // No-op when no ConfigManager was supplied (e.g. test installs that
+  // don't exercise persistence).
+  if (opts.configManager) {
+    void hub.hydrateCatalog();
+    void hub.hydrateAppData(opts.hydrateUserId ?? 'worker');
+  }
 
   // Dedicated Worker path — the worker's own message channel.
   if ('onmessage' in globalRef && 'postMessage' in globalRef) {

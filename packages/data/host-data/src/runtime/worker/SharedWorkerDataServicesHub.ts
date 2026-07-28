@@ -133,6 +133,8 @@ export class SharedWorkerDataServicesHub {
   private readonly appDataStore: AppDataConfigStore | null;
   private readonly configCatalog: ConfigCatalogCache | null;
   private readonly connectedPorts = new Set<PortLike>();
+  private appDataHydrationGate: Promise<void> = Promise.resolve();
+  private isHydratingAppData = false;
 
   private readonly statsIntervalMs: number;
   private readonly setTimer: (cb: () => void, ms: number) => unknown;
@@ -330,19 +332,32 @@ export class SharedWorkerDataServicesHub {
   async hydrateAppData(userId = 'worker'): Promise<void> {
     if (!this.appDataStore) return;
     if (this.appData.isHydrated()) return;
-    let configs: AppDataConfig[];
+    this.isHydratingAppData = true;
+    // Create a new gate promise that tracks this specific hydration.
+    let resolveGate!: () => void;
+    this.appDataHydrationGate = new Promise<void>((resolve) => {
+      resolveGate = resolve;
+    });
     try {
-      configs = await this.appDataStore.list(userId);
-    } catch (err) {
-      // Hydration failure is non-fatal — store stays un-hydrated and
-      // first-attach mirrors send seeds (back-compat path). Log so
-      // operators can see the issue in worker DevTools.
-      // eslint-disable-next-line no-console
-      console.error('[hub] AppData hydrate failed', err);
-      return;
+      let configs: AppDataConfig[];
+      try {
+        configs = await this.appDataStore.list(userId);
+      } catch (err) {
+        // Hydration failure is non-fatal — store stays un-hydrated and
+        // first-attach mirrors send seeds (back-compat path). Log so
+        // operators can see the issue in worker DevTools.
+        // eslint-disable-next-line no-console
+        console.error('[hub] AppData hydrate failed', err);
+        return;
+      }
+      const rows: AppDataRow[] = configs.map(toAppDataRow);
+      this.appData.hydrate(rows);
+    } finally {
+      // Always resolve the gate once we're done, whether hydration succeeded or failed.
+      // This prevents AppData attaches from hanging forever.
+      this.isHydratingAppData = false;
+      resolveGate();
     }
-    const rows: AppDataRow[] = configs.map(toAppDataRow);
-    this.appData.hydrate(rows);
   }
 
   /**
@@ -885,11 +900,31 @@ export class SharedWorkerDataServicesHub {
 
   // ─── AppData handlers (Step 2) ─────────────────────────────────
 
-  private async handleAppDataAttach(port: PortLike, req: AppDataAttachRequest): Promise<void> {
+  private handleAppDataAttach(port: PortLike, req: AppDataAttachRequest): void {
+    // If AppData hydration is in progress, queue the attach to happen after
+    // hydration completes. Otherwise, proceed immediately.
+    // This ensures that IndexedDB data always wins over client seeds.
+    if (this.isHydratingAppData) {
+      // Queue the attach to happen after hydration gate resolves.
+      void this.appDataHydrationGate.then(() => {
+        void this.completeAppDataAttach(port, req);
+      });
+    } else {
+      // Proceed immediately. completeAppDataAttach is async but we fire-and-forget
+      // because it handles its own completion (posting message to port).
+      void this.completeAppDataAttach(port, req);
+    }
+  }
+
+  private async completeAppDataAttach(port: PortLike, req: AppDataAttachRequest): Promise<void> {
     // SharedWorkers survive page reloads. Re-read IndexedDB before
     // serving the snapshot so editor-saved AppData providers appear
-    // without requiring a worker restart.
+    // without requiring a worker restart. This is especially important
+    // for reattaches where rows may have been persisted externally while
+    // the worker was alive — they must be included in the snapshot.
     if (this.appDataStore && this.appData.isHydrated()) {
+      // Always resync to catch any externally-persisted rows. This is
+      // required to ensure snapshots include the current state.
       await this.resyncAppDataFromStore();
     } else if (req.seed && !this.appData.isHydrated()) {
       this.appData.hydrate(req.seed);
