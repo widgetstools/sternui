@@ -103,7 +103,7 @@ import {
   resetProviderStats,
   keyOf,
   restartClickLatency,
-  restartExtrasEqual,
+  restartOverlayChanged,
   providerCfgEqual,
 } from './hubHelpers.js';
 import type { FanOutWorkerPool } from './FanOutWorkerPool.js';
@@ -624,7 +624,7 @@ export class SharedWorkerDataServicesHub {
         void slot.handle.restart(req.extra);
         slot.activeRestartExtra = req.extra;
         isRestartAttach = true;
-      } else if (!restartExtrasEqual(slot.activeRestartExtra, req.extra)) {
+      } else if (restartOverlayChanged(slot.activeRestartExtra, req.extra)) {
         this.traceStompAttachCfg('hub.attach RESTART (running provider)', req.providerId, slot.cfg, req.extra);
         // eslint-disable-next-line no-console
         console.log(`[v2/hub][trace] attach RESTART provider=${req.providerId} extra=${JSON.stringify(req.extra)} ${restartClickLatency(req.extra)}`);
@@ -1216,6 +1216,13 @@ export class SharedWorkerDataServicesHub {
       // clones. Small conflated ticks stay as plain object deltas.
       const binary =
         !slot.snapshotReady || broadcastRows.length >= LIVE_BIN_MIN_ROWS;
+      if (slot.snapshotReady && ((this as unknown as { __bt?: number }).__bt ?? 0) < 6) {
+        const h = this as unknown as { __bt?: number };
+        h.__bt = (h.__bt ?? 0) + 1;
+        const r0 = broadcastRows[0] as Record<string, unknown> | undefined;
+        // eslint-disable-next-line no-console
+        console.log('[BLANK-TRACE][2-hub-fanout] provider=%s binary=%s n=%d keys=%o', providerId, String(binary), broadcastRows.length, r0 && typeof r0 === 'object' ? Object.keys(r0) : r0);
+      }
       if (binary && broadcastRows.length > 0) {
         // Encode in ≤ LATE_JOIN_CHUNK_SIZE slices so each port message
         // decodes under the receiver's long-task budget (STOMP already
