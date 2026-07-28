@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Perspective blotter</title>
+    <link rel="stylesheet" href="./harness.css" />
+    <style>
+      body {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        padding: 10px;
+      }
+      #grid {
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      #log {
+        flex: 0 0 auto;
+        max-height: 6.2em;
+        overflow: auto;
+        margin-top: 8px;
+        color: var(--h-muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bar">
+      <span class="stat" id="who">connecting…</span>
+      <button id="tick">start feed</button>
+      <button id="autoRefresh">auto-refresh: off</button>
+      <button id="scrollTest">scroll test</button>
+      <span class="stat" id="stats"></span>
+    </div>
+    <div id="grid"></div>
+    <div id="log"></div>
+    <script type="module" src="./blotter.mjs"></script>
+  </body>
+</html>

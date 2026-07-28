@@ -1,70 +1,82 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Perspective in SharedWorker — proof</title>
-    <style>
-      body { font: 13px ui-monospace, monospace; background: #111; color: #ddd; padding: 16px; }
-      #out { white-space: pre-wrap; line-height: 1.6; }
-      .ok { color: #4ade80; }
-      .bad { color: #f87171; }
-      h1 { font-size: 14px; color: #7dd3fc; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>perspective-grid harness</title>
+    <link rel="stylesheet" href="./harness.css" />
   </head>
   <body>
-    <h1>Perspective wasm inside a SharedWorker</h1>
-    <div id="out">running…</div>
+    <header>
+      <h1>perspective-grid harness — Milestone 1</h1>
+      <p class="sub">
+        One SharedWorker holds the Perspective engine and a 20,000 &times; 52 mock book. Every
+        window opened from here attaches to it over a ProxySession and reads only the rows its
+        viewport asks for. The claim under test: the 2nd and 3rd blotter open as fast as the 1st.
+      </p>
+    </header>
+    <main>
+      <div class="bar">
+        <button id="plumbing">1 · plumbing proof</button>
+        <button id="one">2 · open one blotter</button>
+        <button id="three">3 · open three blotters</button>
+        <button id="status">host status</button>
+      </div>
+      <ol id="steps"></ol>
+    </main>
     <script type="module">
-      const out = document.getElementById('out');
-      const log = (ok, step, detail) => {
-        const line = `${ok ? 'OK  ' : 'FAIL'}  ${step} — ${detail}`;
-        out.innerHTML += `<div class="${ok ? 'ok' : 'bad'}">${line}</div>`;
-        console.log(`[PSP-SW] ${line}`);
+      import { createHostHandle } from './hostClient.mjs';
+
+      const steps = document.getElementById('steps');
+      const line = (className, text) => {
+        const li = document.createElement('li');
+        li.className = className;
+        li.textContent = text;
+        steps.prepend(li);
       };
 
-      // Two ports => the production shape: one SharedWorker, many windows.
-      const mk = () =>
-        new SharedWorker(new URL('./pspSharedWorker.mjs', import.meta.url), {
-          type: 'module',
-          name: 'psp-proof',
-        });
+      // Windows are opened, not iframed: separate windows are what the desktop
+      // actually does, and iframes would share this page's main thread.
+      const openBlotter = (index) =>
+        window.open(
+          './blotter.html',
+          `blotter-${index}-${Date.now()}`,
+          'width=1280,height=760,noopener=no',
+        );
 
-      const a = mk();
-      const b = mk();
+      document.getElementById('plumbing').onclick = () => window.open('./plumbing.html', '_blank');
 
-      const pending = [];
-      const wire = (w, id) => {
-        w.port.onmessage = (e) => {
-          const { ok, step, detail } = e.data;
-          log(ok, `${step}`, detail);
-          const next = pending.shift();
-          if (next) next();
-        };
-        w.port.start();
-        return w.port;
+      document.getElementById('one').onclick = () => {
+        const at = performance.now();
+        openBlotter(1);
+        line('ok', `opened 1 blotter at ${at.toFixed(0)}ms — read its own "first rows" timing.`);
       };
 
-      const pa = wire(a, 'A');
-      const pb = wire(b, 'B');
+      document.getElementById('three').onclick = () => {
+        for (let i = 1; i <= 3; i++) openBlotter(i);
+        line(
+          'ok',
+          'opened 3 blotters in one gesture. Each reports its own time-to-first-rows; ' +
+            'the host boot cost is paid once, by whichever window got there first.',
+        );
+      };
 
-      // Sequence the probes so timings are not fighting each other.
-      const steps = [
-        () => pa.postMessage({ cmd: 'introspect' }),
-        () => pa.postMessage({ cmd: 'bind' }),
-        () => pa.postMessage({ cmd: 'init' }),
-        () => pa.postMessage({ cmd: 'view', start: 0, portId: 'A' }),
-        () => pb.postMessage({ cmd: 'view', start: 10000, portId: 'B (2nd window)' }),
-        () => pa.postMessage({ cmd: 'concurrentViews', n: 6 }),
-        () => pa.postMessage({ cmd: 'liveUpdate', views: 0 }),
-        () => pa.postMessage({ cmd: 'liveUpdate', views: 6 }),
-        () => log(true, 'DONE', 'all probes completed'),
-      ];
-      pending.push(...steps.slice(1));
-      // connect messages arrive first (2 of them); kick off after a beat.
-      setTimeout(() => steps[0](), 250);
+      const host = createHostHandle();
+      host.onMessage((message) => {
+        if (message.type === 'status') {
+          const t = message.timings;
+          line(
+            'ok',
+            `host — ${message.rows.toLocaleString()} rows, ${message.attached} window(s) attached; ` +
+              `boot: engine ${t.clientMs.toFixed(0)}ms, table ${t.tableMs.toFixed(0)}ms, ` +
+              `generate ${t.generateMs.toFixed(0)}ms, load ${t.loadMs.toFixed(0)}ms.`,
+          );
+        } else if (message.type === 'error') {
+          line('bad', `host error — ${message.detail}`);
+        }
+      });
 
-      window.onerror = (m) => log(false, 'window.onerror', String(m));
-      window.onunhandledrejection = (e) => log(false, 'unhandledrejection', String(e.reason));
+      document.getElementById('status').onclick = () => host.send({ cmd: 'status' });
     </script>
   </body>
 </html>

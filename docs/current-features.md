@@ -569,6 +569,34 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - **Toolbar visibility** — show/hide toolbar items
 - **Grid state** — serialise/restore AG Grid state
 
+### 3.2 `@starui/perspective-grid`
+
+**Path:** `packages/react-grid/perspective-grid`
+**Purpose:** Perspective-backed row-supply engine for MarketsGrid — one Table
+hosted in a SharedWorker, one virtualized View per blotter window, AG Grid
+retained as the surface. Design, measured numbers and the non-optional
+lifecycle rules live in the package's `ARCHITECTURE.md`.
+**Status:** private (not in the propagate buckets); barrel-only, no subpath exports.
+
+- `createPerspectiveDatasource({ getView, getGeneration?, onError? })` — AG Grid
+  server-side datasource reading a window out of a Perspective View. Settles
+  every `getRows` exactly once (a leaked call wedges the grid permanently) and
+  never claims a `rowCount` it did not measure
+- `columnsToRows(columns)` — pivots Perspective's columnar window into AG row
+  objects; row count taken from the longest column
+- `cloneRequest(request)` — snapshots `sortModel` / `filterModel`, which AG
+  mutates in place
+- `createSafeView(view)` — deletion-safe View wrapper: `read()` refcounts
+  in-flight reads and `close()` drains them before deleting. **Mandatory for all
+  View disposal** — deleting under a read throws an uncatchable wasm borrow
+  error that can take the SharedWorker down
+- `toPerspectiveViewConfig(state)` — AG sort/filter/group/aggregate state into a
+  Perspective view config, with `toPerspectiveSort`, `toPerspectiveFilter`,
+  `toPerspectiveFilterClauses`, `toPerspectiveAggregate` available individually;
+  unmappable filters emit no clause rather than a narrower book
+- `viewConfigKey(config)` — stable identity so an unchanged request reuses the
+  live View instead of rebuilding it
+
 ---
 
 ## 4. React Core

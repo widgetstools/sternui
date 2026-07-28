@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ProxySession plumbing — end-to-end proof</title>
+    <link rel="stylesheet" href="./harness.css" />
+  </head>
+  <body>
+    <header>
+      <h1>ProxySession plumbing — end-to-end</h1>
+      <p class="sub">
+        One engine + one 20,000 &times; 52 Table in the SharedWorker. This window holds only a
+        Client and reads windows out of a View. Open this page in a second and third window —
+        the book is not rebuilt or replayed.
+      </p>
+    </header>
+    <main>
+      <ol id="steps"></ol>
+      <p class="sub" id="footnote"></p>
+    </main>
+    <script type="module" src="./plumbing.mjs"></script>
+  </body>
+</html>

@@ -1,0 +1,126 @@
+/* Harness-only styling. Deliberately dependency-free: this page has to boot
+   before anything else in the repo is built, so it cannot pull in the
+   design-system CSS bundle. Colours go through variables and both schemes are
+   defined, so the same rule as the product holds — no bare hex at use sites. */
+:root {
+  --h-bg: #ffffff;
+  --h-fg: #1f2430;
+  --h-muted: #5b6478;
+  --h-line: #dde1e9;
+  --h-panel: #f5f7fa;
+  --h-accent: #1b6ac9;
+  --h-ok: #1a7f45;
+  --h-bad: #b3261e;
+  --h-warn: #8a5a00;
+  --h-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --h-bg: #0f1218;
+    --h-fg: #dfe4ee;
+    --h-muted: #939cb0;
+    --h-line: #242b38;
+    --h-panel: #161b24;
+    --h-accent: #6db3ff;
+    --h-ok: #4ade80;
+    --h-bad: #f87171;
+    --h-warn: #fbbf24;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 20px;
+  background: var(--h-bg);
+  color: var(--h-fg);
+  font: 13px/1.55 var(--h-mono);
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  color: var(--h-accent);
+}
+
+.sub {
+  margin: 0 0 14px;
+  max-width: 78ch;
+  color: var(--h-muted);
+}
+
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  padding: 7px 10px;
+  border-left: 3px solid var(--h-line);
+  background: var(--h-panel);
+  margin-bottom: 4px;
+  white-space: pre-wrap;
+}
+
+li.ok {
+  border-left-color: var(--h-ok);
+}
+li.bad {
+  border-left-color: var(--h-bad);
+}
+li.run {
+  border-left-color: var(--h-warn);
+  color: var(--h-muted);
+}
+
+.label {
+  color: var(--h-fg);
+}
+li.ok .label {
+  color: var(--h-ok);
+}
+li.bad .label {
+  color: var(--h-bad);
+}
+
+button {
+  font: inherit;
+  color: var(--h-fg);
+  background: var(--h-panel);
+  border: 1px solid var(--h-line);
+  border-radius: 4px;
+  padding: 5px 11px;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--h-accent);
+  color: var(--h-accent);
+}
+
+a {
+  color: var(--h-accent);
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--h-line);
+  margin-bottom: 10px;
+}
+
+.stat {
+  color: var(--h-muted);
+}
+.stat b {
+  color: var(--h-fg);
+  font-weight: 600;
+}
