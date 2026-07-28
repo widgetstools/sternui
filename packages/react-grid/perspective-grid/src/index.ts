@@ -28,6 +28,15 @@ export {
 } from './perspectiveDatasource.js';
 export { createSafeView, type SafeView, type DeletableView } from './safeView.js';
 export {
+  createPerspectiveRowEngine,
+  GRAND_TOTAL_ROW_ID,
+  GRAND_TOTAL_FLAG,
+  type PerspectiveRowEngine,
+  type PerspectiveRowEngineOpts,
+  type GridApiLike,
+  type GridNodeLike,
+} from './perspectiveRowEngine.js';
+export {
   createViewManager,
   type ViewManager,
   type ViewManagerOpts,

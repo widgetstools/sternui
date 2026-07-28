@@ -594,6 +594,14 @@ lifecycle rules live in the package's `ARCHITECTURE.md`.
   the children AG asked for. Row 0 of the result is that level's own total
 - `toGroupColumns(columns, groupColId)` — remaps Perspective's `__ROW_PATH__`
   onto the group column that AG builds its group rows from
+- `createPerspectiveRowEngine({ table, keyColumn, refreshMs?, onEvent?, onError? })` —
+  everything a grid needs to run on a worker-held Table, in one object: the
+  `datasource`, the root row count, the throttled re-read when the Table moves,
+  a refresh of **every expanded group level** (`refreshServerSide` does not
+  cascade into child stores), and the grand-total transaction (`grandTotalData`
+  creates that row but never updates it). `setApi` connects the grid,
+  `setLive` pauses re-reads, `close` tears the Views down. Describes the grid
+  api structurally, so the package still has no AG Grid dependency
 - `createViewManager({ table, onEvent?, onUpdate?, maxViews? })` — per-window View
   lifecycle: a keyed map of live Views (one per open group level, LRU-capped),
   `getView(request)` resolving the View a block should read from,

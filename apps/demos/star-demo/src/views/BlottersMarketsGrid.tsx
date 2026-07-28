@@ -57,7 +57,6 @@ function BlottersMarketsGrid(): ReactNode {
       defaultColDef={DEFAULT_COL_DEF}
       // CustomSSRMGrid (RowMirror) — snapshot via React rowData, ticks via
       // applyDataTransactionAsync (see MarketsGridContainer / lab).
-      useSSRM
       // OpenFin colour-based grid linking: dock-link two blotters to the same
       // colour to share row selection (see docs/OPENFIN_GRID_LINKING.md).
       // `rowIdField` auto-derives from the active provider's key column.

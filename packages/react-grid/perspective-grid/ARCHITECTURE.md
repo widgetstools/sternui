@@ -467,8 +467,19 @@ it never runs — `getCompiledClientWasm()` is the fix, still outstanding.
 | Harness blotter, 3 windows | **done — see Milestone 1 above** |
 | Live ticks (pull, via `on_update`) | **done** |
 | Row grouping + per-level and grand totals | **done — see "Row grouping and totals"** |
-| STOMP feed into the worker-held Table | not started |
-| MarketsGridContainer wiring | not started |
+| Schema derivation from provider rows | **done** (`host-data`, 23 tests) |
+| Feed: provider emit -> Table | **done** (`host-data`, 22 tests) |
+| Worker-side engine + Table hosting | **done** (`host-data`, 19 tests) |
+| Real STOMP feed in a browser | **done** — `apps/demos/perspective-blotter` |
+| Row engine (datasource + refresh + totals) | **done**, 11 tests |
+| MarketsGridContainer wiring | not started — see below |
+
+`MarketsGrid` currently has two surfaces: CSRM, and an SSRM one that always
+mounts the hand-rolled `CustomSSRMGrid`. Its `ssrmEngine?: 'custom' |
+'perspective' | 'auto'` prop is **documented as deprecated and ignored** — a
+vestige, not a seam. Wiring the container therefore needs a real third surface
+mounting AG Grid on `createPerspectiveRowEngine`, plus a flag on the container
+to choose it with CSRM left intact for side-by-side comparison.
 
 Run it: `npx vite build packages/react-grid/perspective-grid/harness` then
 serve `dist/` (launch config `psp-harness-preview`, port 5200).

@@ -26,7 +26,9 @@ import {
   ServerSideRowModelApiModule,
   ServerSideRowModelModule,
 } from 'ag-grid-enterprise';
-import { createPerspectiveDatasource, createViewManager } from '@starui/perspective-grid';
+// `GRAND_TOTAL_ROW_ID` comes from AG Grid itself — the engine exports its own
+// copy only so it can stay free of an AG Grid dependency.
+import { createPerspectiveRowEngine, GRAND_TOTAL_FLAG } from '@starui/perspective-grid';
 import { createHostHandle } from './hostClient';
 import { BOOK_TABLE, KEY_COLUMN } from './feedConfig';
 
@@ -102,15 +104,21 @@ function columnDefsFrom(schema: Record<string, string>) {
 async function main() {
   const started = performance.now();
   const host = createHostHandle();
+  // Stage messages narrate the wait; once this window has its own numbers they
+  // stop overwriting them.
+  let settled = false;
   host.onMessage((message) => {
-    if (message?.type === 'stage') who.textContent = `worker: ${message.stage}`;
+    if (message?.type === 'stage' && !settled) who.textContent = `worker: ${message.stage}`;
     else if (message?.type === 'error') log(`WORKER ERROR — ${String(message.detail)}`);
   });
 
   const client = (await host.client) as {
     open_table(name: string): Promise<{ schema(): Promise<Record<string, string>> }>;
   };
+  // Resolves only once the worker HAS the Table. Opening it earlier throws
+  // `Unknown table`, which is what a window arriving mid-snapshot would hit.
   const attached = await host.attached;
+  settled = true;
   const attachedAt = performance.now();
 
   const table = await client.open_table(BOOK_TABLE);
@@ -123,79 +131,18 @@ async function main() {
   let gridApi: GridApi | null = null;
   let grouping: string[] = [];
 
-  const publishRowCount = (rows: number | null) => {
-    // `setRowCount` raises AG error #28 while grouping, silently without
-    // ValidationModule.
-    if (!gridApi || rows === null || grouping.length > 0) return;
-    gridApi.setRowCount(rows);
-  };
-
-  const REFRESH_MS = 250;
-  let live = true;
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  let pending = false;
-
-  const scheduleRefresh = () => {
-    if (!live || !gridApi) return;
-    pending = true;
-    if (timer !== null) return;
-    timer = setTimeout(() => {
-      timer = null;
-      if (!pending || !live) return;
-      pending = false;
-      metrics.refreshes += 1;
-      refreshEveryLevel();
-      void pushGrandTotal();
-    }, REFRESH_MS);
-  };
-
-  /** `refreshServerSide` does NOT cascade into child stores — each expanded
-   *  level is its own store, and refreshing only the root leaves the rows
-   *  under it frozen while the totals above them tick. */
-  const refreshEveryLevel = () => {
-    if (!gridApi) return;
-    gridApi.refreshServerSide({ purge: false });
-    const routes: string[][] = [];
-    gridApi.forEachNode((node) => {
-      if (!node.group || !node.expanded) return;
-      const route: string[] = [];
-      for (let n: typeof node | null = node; n && n.level >= 0; n = n.parent) route.unshift(n.key!);
-      routes.push(route);
-    });
-    for (const route of routes) gridApi.refreshServerSide({ route, purge: false });
-  };
-
-  const views = createViewManager({
+  // Everything the grid needs to run on a worker-held Table — the row count,
+  // the per-level refresh, the grand-total transaction and the throttle — is
+  // the row engine's job, not this page's. This app previously hand-rolled it
+  // all, which is exactly why it moved into the package.
+  const engine = createPerspectiveRowEngine({
     table: table as never,
-    onUpdate: scheduleRefresh,
+    keyColumn: KEY_COLUMN,
     onEvent: (event) => {
       if (event.type !== 'view') return;
       const where = event.groupColId === null ? 'leaf' : `group by ${event.groupColId}`;
       log(`view built in ${ms(event.ms!)} — depth ${event.depth} · ${where} · ${event.rows!.toLocaleString()} rows`);
-      if (event.depth === 0) publishRowCount(event.rows ?? null);
     },
-  });
-
-  const getGrandTotal = async (request: Parameters<typeof views.readGrandTotal>[0]) => {
-    const total = await views.readGrandTotal(request);
-    if (!total) return null;
-    return { ...total, [KEY_COLUMN]: 'GRAND TOTAL', __grandTotal: true };
-  };
-
-  /** `grandTotalData` CREATES the row and updates it after a purge, but a
-   *  non-purge refresh does not apply it — keeping it live needs a
-   *  transaction whose row id is `GRAND_TOTAL_ROW_ID`. */
-  let lastRootRequest: Record<string, unknown> = {};
-  const pushGrandTotal = async () => {
-    if (!gridApi || !gridApi.getRowNode(GRAND_TOTAL_ROW_ID)) return;
-    const total = await getGrandTotal(lastRootRequest as never);
-    if (total) gridApi.applyServerSideTransaction({ update: [total] });
-  };
-
-  const inner = createPerspectiveDatasource({
-    getView: (request) => views.getView(request),
-    getGeneration: () => views.getGeneration(),
-    getGrandTotal,
     onError: (err) => log(`BLOCK FAILED — ${String((err as Error)?.message ?? err)}`),
   });
 
@@ -210,8 +157,7 @@ async function main() {
     serverSideDatasource: {
       getRows(params) {
         const begun = performance.now();
-        if (!params.request.groupKeys?.length) lastRootRequest = { ...params.request };
-        inner.getRows({
+        engine.datasource.getRows({
           request: params.request as never,
           needsGrandTotal: params.needsGrandTotal,
           success: (result) => {
@@ -243,7 +189,7 @@ async function main() {
     // collide across every group at a level (AG warn 205 turns the block into
     // a failure), so the id is the path.
     getRowId: ({ level, parentKeys = [], data, api }) => {
-      if ((data as Record<string, unknown>)?.__grandTotal) return GRAND_TOTAL_ROW_ID;
+      if ((data as Record<string, unknown>)?.[GRAND_TOTAL_FLAG]) return GRAND_TOTAL_ROW_ID;
       const groupCols = api.getRowGroupColumns?.() ?? [];
       if (level < groupCols.length) {
         const field = groupCols[level].getColDef().field!;
@@ -259,8 +205,8 @@ async function main() {
     },
   });
 
-  publishRowCount(views.rowsAtRoot);
-  (globalThis as Record<string, unknown>).__blotter = { api: gridApi, views, host, metrics };
+  engine.setApi(gridApi as never);
+  (globalThis as Record<string, unknown>).__blotter = { api: gridApi, engine, host, metrics };
 
   const groupButton = document.getElementById('group') as HTMLButtonElement;
   let groupIndex = 0;
@@ -278,9 +224,8 @@ async function main() {
 
   const liveButton = document.getElementById('live') as HTMLButtonElement;
   liveButton.onclick = () => {
-    live = !live;
-    liveButton.textContent = live ? 'live: on' : 'live: off';
-    if (live) scheduleRefresh();
+    engine.setLive(!engine.live);
+    liveButton.textContent = engine.live ? 'live: on' : 'live: off';
   };
 }
 

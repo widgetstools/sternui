@@ -107,7 +107,17 @@ async function onControl(port: ControlPort, event: MessageEvent): Promise<void> 
     if (message.cmd === 'attach') {
       const framePort = event.ports[0];
       if (!framePort) throw new Error('attach requires a transferred MessagePort');
+
+      // Bind the frame port immediately — the window's Client handshake is
+      // already in flight and must not be left waiting.
       await host.attach(framePort);
+
+      // Answer only once the Table EXISTS. A window that opens it any earlier
+      // gets `Unknown table` and dies: on a warm worker the table is always
+      // there, so this only shows up when a window arrives during the
+      // 18-second snapshot — which is the common case on a cold desk.
+      await feed.whenReady();
+
       port.postMessage({
         type: 'attached',
         table: BOOK_TABLE,
