@@ -21,6 +21,7 @@ await esbuild.build({
   entryPoints: [
     path.join(pkgRoot, 'src/runtime/worker/defaultEntry.ts'),
     path.join(pkgRoot, 'src/runtime/worker/fanOutWorkerEntry.ts'),
+    path.join(pkgRoot, 'src/runtime/worker/perspectiveEntry.ts'),
   ],
   outdir: outDir,
   entryNames: '[name]',
@@ -43,6 +44,7 @@ await esbuild.build({
 const RENAMES = [
   ['defaultEntry.js', 'data-services-worker.mjs'],
   ['fanOutWorkerEntry.js', 'data-services-fanout-worker.mjs'],
+  ['perspectiveEntry.js', 'data-services-perspective-worker.mjs'],
 ];
 
 for (const [srcName, destName] of RENAMES) {

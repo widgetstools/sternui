@@ -401,20 +401,26 @@ export function auditSourceModePaths(appDir, opts = {}) {
   return { broken, requiresBuild, ok };
 }
 
+// Matches any SharedWorker asset host-data ships, capturing which one. There
+// are three (`data-services-worker`, `-perspective-worker`, `-fanout-worker`)
+// and apps choose between them by changing a single import, so this must not
+// hardcode a single name.
 const HOST_DATA_WORKER_ASSET_RE =
-  /^@starui\/(?:data\/)?host-data\/assets\/data-services-worker\.mjs\?url$/;
+  /^@starui\/(?:data\/)?host-data\/assets\/(data-services[a-z-]*\.mjs)\?url$/;
 
-/** Resolve `@starui/host-data/assets/data-services-worker.mjs?url` for Vite. */
+/** Resolve `@starui/host-data/assets/<worker>.mjs?url` for Vite. */
 export function resolveHostDataWorkerAssetUrl(source, appDir) {
-  if (!HOST_DATA_WORKER_ASSET_RE.test(source)) return null;
+  const match = HOST_DATA_WORKER_ASSET_RE.exec(source);
+  if (!match) return null;
+  const assetName = match[1];
 
   const candidates = [
-    join(REPO_ROOT, 'packages/data/host-data/dist/assets/data-services-worker.mjs'),
+    join(REPO_ROOT, `packages/data/host-data/dist/assets/${assetName}`),
   ];
   for (const root of collectStaruiInstallRoots(appDir)) {
     candidates.push(
-      join(root, 'node_modules/@starui/host-data/dist/assets/data-services-worker.mjs'),
-      join(root, 'node_modules/@starui/data/host-data/dist/assets/data-services-worker.mjs'),
+      join(root, `node_modules/@starui/host-data/dist/assets/${assetName}`),
+      join(root, `node_modules/@starui/data/host-data/dist/assets/${assetName}`),
     );
   }
   const workerPath = candidates.find((p) => existsSync(p));

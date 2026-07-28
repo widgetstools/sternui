@@ -32,6 +32,7 @@
       "import": "./dist/runtime/worker/defaultEntry.js"
     },
     "./assets/data-services-worker.mjs": "./dist/assets/data-services-worker.mjs",
+    "./assets/data-services-perspective-worker.mjs": "./dist/assets/data-services-perspective-worker.mjs",
     "./assets/data-services-fanout-worker.mjs": "./dist/assets/data-services-fanout-worker.mjs"
   },
   "files": [
@@ -61,6 +62,7 @@
     "esbuild": "^0.28.0",
     "rimraf": "^6.0.1",
     "typescript": "~5.9.3",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.4",
+    "@perspective-dev/client": "4.5.2"
   }
 }
