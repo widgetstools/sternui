@@ -1,6 +1,12 @@
 import { RowMirror } from "../ssrm/rowMirror.js";
 import { aggregateMirrorTotals } from "../ssrm/mirrorGroupAgg.js";
 import { materializeCalcColumns } from "./materializeCalcColumns";
+
+/** Reused collator for filter-value lists — see note in rowMirror.ts. */
+const VALUE_COLLATOR = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base",
+});
 import type { SsrmEngine } from "./types";
 import type {
   AggregateRequest,
@@ -123,10 +129,7 @@ export function createCustomEngine(): SsrmEngine & {
         out.push(key);
       }
       out.sort((a, b) =>
-        String(a ?? "").localeCompare(String(b ?? ""), undefined, {
-          numeric: true,
-          sensitivity: "base",
-        }),
+        VALUE_COLLATOR.compare(String(a ?? ""), String(b ?? "")),
       );
       return out;
     },

@@ -1,8 +1,8 @@
 import {
   filterPlanIsMainThreadSafe,
   mapFilterModel,
+  parseQuickFilterTokens,
   rowMatchesFilterPlan,
-  rowMatchesQuickFilter,
   type PerspectiveFilter,
 } from "../filters/ssrmFilters.js";
 import {
@@ -11,6 +11,18 @@ import {
   type MirrorValueCol,
 } from "./mirrorGroupAgg";
 import { compileKeepPredicate } from "../engine/materializeCalcColumns.js";
+
+/**
+ * Single reused collator for the sort fallback. Constructing collation options
+ * per comparison (the previous `localeCompare(a, b, undefined, {...})` form) is
+ * one of the widest Mac-vs-Windows/V8 performance gaps — a 50k-row sort makes
+ * ~n·log(n) comparisons, so reusing one Intl.Collator is a large win on slower
+ * Intel cores while preserving identical ordering.
+ */
+const SORT_COLLATOR = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base",
+});
 
 export type MirrorGetRowsRequest = {
   startRow: number;
@@ -332,10 +344,24 @@ export class RowMirror {
       ancestorFilters.push([field, "==", groupKeys[i]!]);
     }
 
-    const qFields = req.quickFilterFields;
     const keep = req.rowKeepExpression?.trim()
       ? compileKeepPredicate(req.rowKeepExpression)
       : null;
+
+    // Hoist all quick-filter setup out of the per-row loop. The previous code
+    // re-tokenized the needle (a regex-exec loop) and rebuilt the default field
+    // list for every one of ~50k rows on each filter rebuild — invisible on M4,
+    // a hard stall on a slower Intel core. Books are single-schema, so resolving
+    // the default field list once from the first row matches per-row behavior.
+    const qTokens = parseQuickFilterTokens(req.quickFilterText);
+    const qActive = qTokens.length > 0;
+    const explicitQFields = req.quickFilterFields;
+    const qFields =
+      qActive
+        ? explicitQFields && explicitQFields.length > 0
+          ? explicitQFields
+          : Object.keys(this.all[0] ?? {}).filter((k) => k !== this.idField)
+        : null;
 
     return this.all.filter((row) => {
       for (const f of ancestorFilters) {
@@ -343,11 +369,18 @@ export class RowMirror {
       }
       if (!rowMatchesFilterPlan(plan, row)) return false;
       if (keep && !keep(row)) return false;
-      const fields =
-        qFields && qFields.length > 0
-          ? qFields
-          : Object.keys(row).filter((k) => k !== this.idField);
-      if (!rowMatchesQuickFilter(row, req.quickFilterText, fields)) return false;
+      if (qActive && qFields) {
+        for (const tok of qTokens) {
+          let hit = false;
+          for (const f of qFields) {
+            if (String(row[f] ?? "").toLowerCase().includes(tok)) {
+              hit = true;
+              break;
+            }
+          }
+          if (!hit) return false;
+        }
+      }
       return true;
     });
   }
@@ -385,10 +418,7 @@ export class RowMirror {
         if (typeof av === "number" && typeof bv === "number") {
           cmp = av - bv;
         } else {
-          cmp = String(av).localeCompare(String(bv), undefined, {
-            numeric: true,
-            sensitivity: "base",
-          });
+          cmp = SORT_COLLATOR.compare(String(av), String(bv));
         }
         if (cmp !== 0) return s.sort === "desc" ? -cmp : cmp;
       }
