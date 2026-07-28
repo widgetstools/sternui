@@ -199,6 +199,88 @@ export function toPerspectiveSchema(
   return { schema, nested, mixed, unknown, integral };
 }
 
+/** The shapes a provider config already describes its columns with. */
+export interface DeclaredField {
+  /** `FieldInfo.path` or `ColumnDefinition.field`. */
+  path?: string;
+  field?: string;
+  /** `FieldInfo.type`. */
+  type?: string;
+  /** `ColumnDefinition.cellDataType`. */
+  cellDataType?: string;
+  children?: Record<string, unknown>;
+}
+
+/**
+ * Build a schema from what the provider config ALREADY declares, without
+ * waiting for a single row.
+ *
+ * This is what lets a blotter paint immediately. Deriving the schema from
+ * observed rows means the Table cannot exist until the snapshot has arrived —
+ * ~18 seconds on the measured feed — and until the Table exists there is
+ * nothing for a window to open, so the grid sits blank behind a spinner. A
+ * provider row carries `inferredFields` / `columnDefinitions` precisely so the
+ * columns are known up front; the Table can be created empty and filled as
+ * rows arrive.
+ *
+ * Types follow the same rules as the observed path — every numeric column is
+ * `float`, nested columns are dropped — for the same measured reasons. What
+ * the declaration cannot tell us is whether a `date`-ish column is a date or a
+ * datetime, so it maps to `datetime`, which holds both.
+ */
+export function toPerspectiveSchemaFromFields(
+  fields: readonly DeclaredField[],
+  options: SchemaOptions = {},
+): DerivedSchema {
+  const { integerColumns = [], inferDates = true } = options;
+  const forceInteger = new Set(integerColumns);
+
+  const schema: PerspectiveSchema = {};
+  const nested: string[] = [];
+  const unknown: string[] = [];
+
+  for (const field of fields) {
+    const column = field.path ?? field.field;
+    if (!column) continue;
+    // A dotted path is a nested value flattened by the provider's projection;
+    // Perspective is flat, so only top-level columns become Table columns.
+    if (column.includes('.')) continue;
+
+    const declared = (field.type ?? field.cellDataType ?? '').toLowerCase();
+
+    if (declared === 'object' || declared === 'array' || field.children) {
+      nested.push(column);
+      continue;
+    }
+    if (declared === 'number') {
+      schema[column] = forceInteger.has(column) ? 'integer' : 'float';
+      continue;
+    }
+    if (declared === 'boolean') {
+      schema[column] = 'boolean';
+      continue;
+    }
+    if (declared === 'date' && inferDates) {
+      // A declaration says "date-like" but not which; `datetime` holds both,
+      // whereas `date` would truncate a timestamp.
+      schema[column] = 'datetime';
+      continue;
+    }
+    if (declared === 'datestring' || declared === 'text' || declared === 'string') {
+      schema[column] = 'string';
+      continue;
+    }
+    if (declared === '') {
+      unknown.push(column);
+      schema[column] = 'string';
+      continue;
+    }
+    schema[column] = 'string';
+  }
+
+  return { schema, nested, mixed: [], unknown, integral: [] };
+}
+
 /**
  * Check a column is usable as the Table's `index`.
  *

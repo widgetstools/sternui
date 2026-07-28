@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   observeRows,
   toPerspectiveSchema,
+  toPerspectiveSchemaFromFields,
   validateIndexColumn,
   type ColumnObservation,
 } from './perspectiveSchema.js';
@@ -211,5 +212,92 @@ describe('ColumnObservation', () => {
     const { schema, integral } = toPerspectiveSchema(new Map([['n', o]]));
     expect(schema.n).toBe('float');
     expect(integral).toEqual(['n']);
+  });
+});
+
+describe('toPerspectiveSchemaFromFields', () => {
+  // THE reason this exists: deriving a schema from observed rows means the
+  // Table cannot exist until the snapshot lands (~18s on the measured feed),
+  // and until it exists a window has nothing to open, so the blotter sits
+  // blank. A provider row already declares its columns.
+  it('builds a schema with no rows at all', () => {
+    const { schema } = toPerspectiveSchemaFromFields([
+      { path: 'positionId', type: 'string' },
+      { path: 'quantity', type: 'number' },
+      { path: 'settled', type: 'boolean' },
+    ]);
+    expect(schema).toEqual({ positionId: 'string', quantity: 'float', settled: 'boolean' });
+  });
+
+  it('accepts ColumnDefinition shape as well as FieldInfo', () => {
+    const { schema } = toPerspectiveSchemaFromFields([
+      { field: 'cusip', cellDataType: 'text' },
+      { field: 'pnl', cellDataType: 'number' },
+    ]);
+    expect(schema).toEqual({ cusip: 'string', pnl: 'float' });
+  });
+
+  it('keeps numeric columns float, exactly as the observed path does', () => {
+    const { schema } = toPerspectiveSchemaFromFields([{ path: 'totalValue', type: 'number' }]);
+    expect(schema.totalValue).toBe('float');
+  });
+
+  it('honours an explicit integer opt-in', () => {
+    const { schema } = toPerspectiveSchemaFromFields([{ path: 'couponFrequency', type: 'number' }], {
+      integerColumns: ['couponFrequency'],
+    });
+    expect(schema.couponFrequency).toBe('integer');
+  });
+
+  it('maps a declared date to datetime, which holds both', () => {
+    // The declaration says "date-like" but not which; `date` would truncate a
+    // timestamp, `datetime` carries a plain date fine.
+    const { schema } = toPerspectiveSchemaFromFields([{ path: 'asOfDate', type: 'date' }]);
+    expect(schema.asOfDate).toBe('datetime');
+  });
+
+  it('leaves declared dates as text when inference is off', () => {
+    const { schema } = toPerspectiveSchemaFromFields([{ path: 'asOfDate', type: 'date' }], {
+      inferDates: false,
+    });
+    expect(schema.asOfDate).toBe('string');
+  });
+
+  it('drops nested columns, since Perspective is flat', () => {
+    const result = toPerspectiveSchemaFromFields([
+      { path: 'id', type: 'string' },
+      { path: 'analytics', type: 'object' },
+      { path: 'legs', type: 'array' },
+      { path: 'nestedByChildren', children: { a: {} } },
+    ]);
+    expect(result.nested.sort()).toEqual(['analytics', 'legs', 'nestedByChildren']);
+    expect(Object.keys(result.schema)).toEqual(['id']);
+  });
+
+  it('skips dotted paths — a flattened nested value is not a top-level column', () => {
+    const { schema } = toPerspectiveSchemaFromFields([
+      { path: 'id', type: 'string' },
+      { path: 'analytics.dv01', type: 'number' },
+    ]);
+    expect(Object.keys(schema)).toEqual(['id']);
+  });
+
+  it('types an undeclared column string and reports it, rather than guessing', () => {
+    const result = toPerspectiveSchemaFromFields([{ path: 'mystery' }]);
+    expect(result.schema.mystery).toBe('string');
+    expect(result.unknown).toEqual(['mystery']);
+  });
+
+  it('ignores entries with no column name at all', () => {
+    expect(Object.keys(toPerspectiveSchemaFromFields([{ type: 'string' }]).schema)).toEqual([]);
+  });
+
+  it('produces an index-valid schema for the declared key column', () => {
+    const { schema } = toPerspectiveSchemaFromFields([
+      { path: 'positionId', type: 'string' },
+      { path: 'pnl', type: 'number' },
+    ]);
+    // No observations exist yet, so the index check is schema-only here.
+    expect(validateIndexColumn(schema, 'positionId', observeRows([{ positionId: 'p1' }]), 1)).toBeNull();
   });
 });

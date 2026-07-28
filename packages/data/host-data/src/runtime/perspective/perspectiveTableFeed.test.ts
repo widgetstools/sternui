@@ -11,10 +11,14 @@ function makeHarness(overrides: Partial<Parameters<typeof createPerspectiveTable
   const created: { schema: PerspectiveSchema; index: string }[] = [];
   const diagnostics: FeedDiagnostic[] = [];
   let deleted = 0;
+  let cleared = 0;
 
   const table: FeedTable = {
     update: vi.fn(async (rows) => {
       updates.push([...rows]);
+    }),
+    clear: vi.fn(async () => {
+      cleared += 1;
     }),
     delete: vi.fn(async () => {
       deleted += 1;
@@ -44,6 +48,9 @@ function makeHarness(overrides: Partial<Parameters<typeof createPerspectiveTable
     table,
     get deleted() {
       return deleted;
+    },
+    get cleared() {
+      return cleared;
     },
   };
 }
@@ -382,5 +389,85 @@ describe('createPerspectiveTableFeed — stop', () => {
     h.emit({ rows: [{ positionId: 'p1' }] });
     await h.feed.drain();
     expect(h.updates).toHaveLength(1);
+  });
+});
+
+describe('createPerspectiveTableFeed — declared schema', () => {
+  const declaredSchema = { positionId: 'string', pnl: 'float' } as const;
+
+  // THE reason this exists: without it the Table cannot exist until the
+  // snapshot completes (~18s measured), and a window has nothing to open, so
+  // the blotter sits blank behind a spinner.
+  it('creates the Table immediately, before a single row arrives', async () => {
+    const h = makeHarness({ declaredSchema });
+    await h.feed.drain();
+
+    expect(h.created).toHaveLength(1);
+    expect(h.created[0].schema).toEqual(declaredSchema);
+    expect(h.created[0].index).toBe('positionId');
+  });
+
+  it('resolves whenReady without any rows', async () => {
+    const h = makeHarness({ declaredSchema });
+    await expect(h.feed.whenReady()).resolves.toBe(h.table);
+  });
+
+  it('fills the Table that already exists rather than building a second one', async () => {
+    const h = makeHarness({ declaredSchema });
+    await h.feed.drain();
+
+    h.emit({ rows: snapshotRows(5), replace: true });
+    h.emit({ status: 'ready' });
+    await h.feed.drain();
+
+    expect(h.created).toHaveLength(1);
+    expect(h.updates.flat()).toHaveLength(5);
+  });
+
+  it('lands rows that arrived while the Table was still being created', async () => {
+    const h = makeHarness({ declaredSchema });
+    // No drain first: emit into the window where creation is still queued.
+    h.emit({ rows: snapshotRows(3), replace: true });
+    await h.feed.drain();
+
+    expect(h.updates.flat()).toHaveLength(3);
+  });
+
+  it('CLEARS on a restart instead of recreating, so attached Views survive', async () => {
+    const h = makeHarness({ declaredSchema });
+    await h.feed.drain();
+    h.emit({ rows: snapshotRows(2), replace: true }); // first book
+    await h.feed.drain();
+
+    // The schema is known independently of the data, so the Table itself
+    // survives. `clear()` keeps the schema, the index and every registered
+    // View — attached windows keep reading instead of watching their table
+    // vanish for the length of a snapshot.
+    h.emit({ rows: [], replace: true }); // restart
+    await h.feed.drain();
+
+    expect(h.created).toHaveLength(1);
+    expect(h.deleted).toBe(0);
+    expect(h.cleared).toBe(2); // one per `replace`
+    expect(h.feed.table).not.toBeNull();
+  });
+
+  it('refuses a declared schema that lacks the index column', async () => {
+    const h = makeHarness({ declaredSchema: { pnl: 'float' } as never });
+    await h.feed.drain();
+
+    expect(h.created).toHaveLength(0);
+    expect(h.diagnostics.some((d) => d.kind === 'index-invalid')).toBe(true);
+  });
+
+  it('still infers from rows when no schema was declared', async () => {
+    const h = makeHarness();
+    await h.feed.drain();
+    expect(h.created).toHaveLength(0);
+
+    h.emit({ rows: snapshotRows(3), replace: true });
+    h.emit({ status: 'ready' });
+    await h.feed.drain();
+    expect(h.created).toHaveLength(1);
   });
 });

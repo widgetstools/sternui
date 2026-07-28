@@ -187,3 +187,76 @@ describe('startStompPerspective', () => {
     expect(handle.feed?.schema?.couponFrequency).toBe('integer');
   });
 });
+
+describe('startStompPerspective — schema from config', () => {
+  // The blotter should paint on open. Inferring from rows means no Table until
+  // the snapshot completes (~18s measured), and no Table means a window has
+  // nothing to attach to.
+  it('builds the Table before any rows when the config declares its fields', async () => {
+    reset();
+    const { host, tables } = makeHost();
+    const handle = startStompPerspective(
+      baseCfg({
+        inferredFields: [
+          { path: 'positionId', type: 'string', nullable: false },
+          { path: 'pnl', type: 'number', nullable: false },
+        ] as never,
+      }),
+      () => {},
+      { perspectiveHost: host },
+    );
+
+    await handle.feed?.drain();
+    expect(tables).toHaveLength(1);
+    await expect(handle.feed!.whenReady()).resolves.toBeDefined();
+  });
+
+  it('falls back to columnDefinitions when there are no inferredFields', async () => {
+    reset();
+    const { host, tables } = makeHost();
+    const handle = startStompPerspective(
+      baseCfg({
+        columnDefinitions: [
+          { field: 'positionId', headerName: 'Id', cellDataType: 'text' },
+          { field: 'pnl', headerName: 'PnL', cellDataType: 'number' },
+        ] as never,
+      }),
+      () => {},
+      { perspectiveHost: host },
+    );
+
+    await handle.feed?.drain();
+    expect(tables).toHaveLength(1);
+  });
+
+  it('infers from rows when the declaration does not cover the index column', async () => {
+    // An unindexable Table is worse than a late one: update() would append
+    // instead of upsert and every tick would grow the book.
+    reset();
+    const { host, tables } = makeHost();
+    const handle = startStompPerspective(
+      baseCfg({
+        inferredFields: [{ path: 'pnl', type: 'number', nullable: false }] as never,
+      }),
+      () => {},
+      { perspectiveHost: host },
+    );
+
+    await handle.feed?.drain();
+    expect(tables).toHaveLength(0);
+
+    stompCalls[0].emit({ rows: [{ positionId: 'p1', pnl: 1 }], replace: true });
+    stompCalls[0].emit({ status: 'ready' });
+    await handle.feed?.drain();
+    expect(tables).toHaveLength(1);
+  });
+
+  it('waits for rows when the config declares nothing', async () => {
+    reset();
+    const { host, tables } = makeHost();
+    const handle = startStompPerspective(baseCfg(), () => {}, { perspectiveHost: host });
+
+    await handle.feed?.drain();
+    expect(tables).toHaveLength(0);
+  });
+});

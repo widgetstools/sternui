@@ -35,6 +35,12 @@ import {
 /** The slice of a Perspective `Table` this needs. */
 export interface FeedTable {
   update(rows: readonly unknown[]): Promise<void>;
+  /**
+   * Drop every row but keep the schema, the index, and — crucially — any
+   * Views already registered against it. That is what lets a restart happen
+   * under attached windows without their Views dying.
+   */
+  clear?(): Promise<void>;
   delete?(): Promise<void>;
 }
 
@@ -47,6 +53,18 @@ export type FeedDiagnostic =
 export interface PerspectiveTableFeedOpts {
   /** Index column, from the provider config's `keyColumn`. */
   keyColumn: string;
+  /**
+   * Schema declared by the provider config, built by
+   * `toPerspectiveSchemaFromFields`.
+   *
+   * When present the Table is created IMMEDIATELY and empty, instead of
+   * waiting for enough rows to infer types from. That is what lets a blotter
+   * paint on open: inferring means no Table until the snapshot completes
+   * (~18s on the measured feed), and no Table means a window has nothing to
+   * open, so the grid sits blank behind a spinner. Rows then fill a Table
+   * that already exists.
+   */
+  declaredSchema?: PerspectiveSchema;
   /** Build the Table once the schema is known. */
   createTable(schema: PerspectiveSchema, index: string): Promise<FeedTable>;
   /** Columns to declare `integer` rather than the default `float`. */
@@ -83,6 +101,7 @@ export function createPerspectiveTableFeed(
   const {
     keyColumn,
     createTable,
+    declaredSchema,
     integerColumns,
     buildAfterRows = 2_000,
     onDiagnostic = () => {},
@@ -112,6 +131,52 @@ export function createPerspectiveTableFeed(
       });
     });
   };
+
+  /**
+   * Create the Table from the config's declared schema, before any rows.
+   *
+   * The whole point is that this can run at construction: a window can open
+   * the Table and the grid can paint while the snapshot is still arriving.
+   */
+  async function buildDeclaredTable(): Promise<void> {
+    if (stopped || table !== null || !declaredSchema) return;
+    if (!(keyColumn in declaredSchema)) {
+      onDiagnostic({
+        kind: 'index-invalid',
+        reason: `declared schema has no index column "${keyColumn}"`,
+      });
+      return;
+    }
+
+    onDiagnostic({
+      kind: 'schema',
+      schema: declaredSchema,
+      rows: 0,
+      nested: [],
+      mixed: [],
+    });
+
+    try {
+      table = await createTable(declaredSchema, keyColumn);
+    } catch (err) {
+      onDiagnostic({
+        kind: 'error',
+        stage: 'create',
+        message: String((err as Error)?.message ?? err),
+      });
+      return;
+    }
+
+    schema = declaredSchema;
+    known = new Set(Object.keys(declaredSchema));
+
+    // Anything buffered while the Table was being created still has to land.
+    const staged = buffer;
+    buffer = [];
+    if (staged.length > 0) await table.update(staged);
+    resolveReady?.(table);
+    resolveReady = null;
+  }
 
   async function buildTable(): Promise<void> {
     if (stopped || table !== null || buffer.length === 0) return;
@@ -206,9 +271,20 @@ export function createPerspectiveTableFeed(
       buffer = [];
       observations = new Map();
 
-      if (table !== null) {
-        // Drop the old Table rather than upserting into it, or rows deleted
-        // upstream would linger in the book forever.
+      if (table !== null && declaredSchema && typeof table.clear === 'function') {
+        // The schema is known independently of the data, so the Table itself
+        // survives a restart: CLEAR it instead of deleting it. `clear()` keeps
+        // the schema, the index and every registered View, so attached
+        // windows keep reading across the restart rather than watching their
+        // table disappear for the length of a snapshot.
+        const live = table;
+        enqueue(async () => {
+          await live.clear!();
+        });
+      } else if (table !== null) {
+        // Inferred schema: the new book may not have the same shape, so the
+        // Table has to go. Dropping it beats upserting into it — rows deleted
+        // upstream would otherwise linger in the book forever.
         const old = table;
         table = null;
         schema = null;
@@ -246,6 +322,11 @@ export function createPerspectiveTableFeed(
       await table!.update(rows);
     });
   }
+
+  // Create the Table NOW when the config declared its columns — not on the
+  // first rows, and not on `ready`. This is what a window opens while the
+  // snapshot is still streaming.
+  if (declaredSchema) enqueue(buildDeclaredTable);
 
   return {
     get table() {

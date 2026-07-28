@@ -24,6 +24,10 @@ import {
   type PerspectiveTableFeed,
 } from '../../perspective/perspectiveTableFeed.js';
 import type { PerspectiveHost } from '../../perspective/perspectiveHost.js';
+import {
+  toPerspectiveSchemaFromFields,
+  type DeclaredField,
+} from '../../perspective/perspectiveSchema.js';
 
 export interface StompPerspectiveOpts extends StompOpts {
   /**
@@ -62,9 +66,29 @@ export function startStompPerspective(
   let taps: ProviderEmit = emit;
 
   if (host && keyColumn) {
+    // Columns the config already declares. With them the Table is created
+    // EMPTY and immediately, so a blotter paints on open instead of waiting
+    // ~18s for the snapshot to arrive before there is anything to attach to.
+    // `inferredFields` is preferred over `columnDefinitions`: it carries real
+    // types, where a column def carries a cell renderer hint.
+    const declared = cfg.inferredFields?.length
+      ? cfg.inferredFields
+      : cfg.columnDefinitions ?? [];
+    const declaredSchema = declared.length
+      ? toPerspectiveSchemaFromFields(declared as DeclaredField[], {
+          integerColumns: cfg.integerColumns,
+          inferDates: cfg.inferDates,
+        }).schema
+      : undefined;
+
     feed = createPerspectiveTableFeed({
       keyColumn,
       createTable: host.tableFactoryFor(tableName),
+      // Only usable when the declaration actually covers the index; otherwise
+      // fall back to inferring from rows rather than build an unindexable
+      // Table.
+      declaredSchema:
+        declaredSchema && keyColumn in declaredSchema ? declaredSchema : undefined,
       integerColumns: cfg.integerColumns,
       buildAfterRows: cfg.buildAfterRows,
       onDiagnostic: (diagnostic) => opts.onDiagnostic?.(diagnostic),
