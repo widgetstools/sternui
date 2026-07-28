@@ -11,6 +11,10 @@
  * AG Grid is retained as the surface (the MarketsGrid customizer, cell
  * renderers, conditional styling and column defs are all built on it);
  * Perspective replaces only the row-supply engine underneath.
+ *
+ * Views MUST be closed through `createSafeView` — deleting one while a
+ * read is in flight throws an uncatchable wasm borrow error that can take
+ * the whole SharedWorker down. See `safeView.ts`.
  */
 export {
   createPerspectiveDatasource,
@@ -22,3 +26,4 @@ export {
   type SsrmRequestLike,
   type SsrmGetRowsParamsLike,
 } from './perspectiveDatasource.js';
+export { createSafeView, type SafeView, type DeletableView } from './safeView.js';
