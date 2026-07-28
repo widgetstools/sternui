@@ -5,7 +5,20 @@
  * ONE Table lives in the SharedWorker and is fed by the STOMP provider;
  * each blotter window opens its own View and renders only the rows in
  * its viewport. A window therefore never materializes the full book —
- * the measured cost of a 100-row window read is ~2-6ms regardless of
- * scroll depth, against ~1.3ms per extra live View per tick.
+ * a 100-row window read measured ~2-6ms flat with scroll depth, against
+ * ~1.3ms per extra live View per tick.
+ *
+ * AG Grid is retained as the surface (the MarketsGrid customizer, cell
+ * renderers, conditional styling and column defs are all built on it);
+ * Perspective replaces only the row-supply engine underneath.
  */
-export const PERSPECTIVE_GRID_PACKAGE = '@starui/perspective-grid';
+export {
+  createPerspectiveDatasource,
+  columnsToRows,
+  cloneRequest,
+  type PerspectiveDatasource,
+  type PerspectiveDatasourceOpts,
+  type PerspectiveViewLike,
+  type SsrmRequestLike,
+  type SsrmGetRowsParamsLike,
+} from './perspectiveDatasource.js';
