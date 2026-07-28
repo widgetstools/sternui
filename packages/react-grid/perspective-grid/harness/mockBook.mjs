@@ -88,15 +88,23 @@ export function makeBookColumns(rows = BOOK_ROWS, seed = 1) {
     const spread = price * (0.0002 + rand() * 0.001);
     const pnl = (rand() - 0.5) * 250_000;
 
+    // Categorical dimensions are DRAWN, not derived from `i`. Any arithmetic
+    // on the index locks them together: `SECTORS` and `BOOKS` are both length
+    // 6, so `i % 6` and `(i * 5 + 2) % 6` are the same partition permuted —
+    // every sector would hold exactly one book, and a multi-level group-by
+    // would look like it worked while having nothing to cross-tabulate.
+    // The PRNG is seeded, so this is still identical run to run.
+    const pick = (list) => list[Math.floor(rand() * list.length)];
+
     columns.positionId[i] = `POS-${String(i).padStart(6, '0')}`;
-    columns.symbol[i] = SYMBOLS[i % SYMBOLS.length];
+    columns.symbol[i] = pick(SYMBOLS);
     columns.side[i] = qty >= 0 ? 'Buy' : 'Sell';
-    columns.trader[i] = TRADERS[i % TRADERS.length];
-    columns.book[i] = BOOKS[i % BOOKS.length];
-    columns.currency[i] = CURRENCIES[i % CURRENCIES.length];
-    columns.sector[i] = SECTORS[i % SECTORS.length];
-    columns.exchange[i] = EXCHANGES[i % EXCHANGES.length];
-    columns.status[i] = STATUSES[i % STATUSES.length];
+    columns.trader[i] = pick(TRADERS);
+    columns.book[i] = pick(BOOKS);
+    columns.currency[i] = pick(CURRENCIES);
+    columns.sector[i] = pick(SECTORS);
+    columns.exchange[i] = pick(EXCHANGES);
+    columns.status[i] = pick(STATUSES);
 
     columns.quantity[i] = qty;
     columns.price[i] = price;

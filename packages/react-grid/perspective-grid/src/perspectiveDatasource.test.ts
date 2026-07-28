@@ -67,6 +67,32 @@ describe('cloneRequest', () => {
     expect(snapshot.sortModel).toEqual([{ colId: 'price', sort: 'asc' }]);
     expect(snapshot.filterModel).toEqual({ price: { type: 'greaterThan', filter: 5 } });
   });
+
+  it('deep-copies the group fields, which the group levels are rebuilt from', () => {
+    const rowGroupCols = [{ id: 'sector' }, { id: 'book' }];
+    const valueCols = [{ id: 'pnl', aggFunc: 'sum' }];
+    const groupKeys = ['Energy'];
+    const snapshot = cloneRequest({ startRow: 0, endRow: 10, rowGroupCols, valueCols, groupKeys });
+
+    rowGroupCols[0].id = 'trader';
+    rowGroupCols.length = 1;
+    valueCols[0].aggFunc = 'avg';
+    groupKeys[0] = 'Technology';
+
+    expect(snapshot.rowGroupCols).toEqual([
+      { id: 'sector', field: undefined, displayName: undefined },
+      { id: 'book', field: undefined, displayName: undefined },
+    ]);
+    expect(snapshot.valueCols).toEqual([{ id: 'pnl', field: undefined, aggFunc: 'sum' }]);
+    expect(snapshot.groupKeys).toEqual(['Energy']);
+  });
+
+  it('leaves the group fields undefined when the request has none (flat blotter)', () => {
+    const snapshot = cloneRequest({ startRow: 0, endRow: 10 });
+    expect(snapshot.rowGroupCols).toBeUndefined();
+    expect(snapshot.valueCols).toBeUndefined();
+    expect(snapshot.groupKeys).toBeUndefined();
+  });
 });
 
 describe('createPerspectiveDatasource', () => {
@@ -173,5 +199,69 @@ describe('createPerspectiveDatasource', () => {
       );
       expect(params.success.mock.calls.length + params.fail.mock.calls.length).toBe(1);
     }
+  });
+});
+
+describe('createPerspectiveDatasource — grand total', () => {
+  it('attaches grandTotalData to a root-level block', async () => {
+    const view = makeView(1000);
+    const params = makeParams({ startRow: 0, endRow: 100, groupKeys: [] });
+    const datasource = createPerspectiveDatasource({
+      getView: async () => view,
+      getGrandTotal: async () => ({ pnl: 42 }),
+    });
+
+    datasource.getRows(params);
+    await vi.waitFor(() => expect(params.success).toHaveBeenCalled());
+
+    expect(params.success.mock.calls[0][0].grandTotalData).toEqual({ pnl: 42 });
+  });
+
+  it('does not ask for a total on a nested group level — there is only one', async () => {
+    const view = makeView(1000);
+    const getGrandTotal = vi.fn(async () => ({ pnl: 42 }));
+    const params = makeParams({ startRow: 0, endRow: 100, groupKeys: ['Energy'] });
+    const datasource = createPerspectiveDatasource({ getView: async () => view, getGrandTotal });
+
+    datasource.getRows(params);
+    await vi.waitFor(() => expect(params.success).toHaveBeenCalled());
+
+    expect(getGrandTotal).not.toHaveBeenCalled();
+    expect(params.success.mock.calls[0][0].grandTotalData).toBeUndefined();
+  });
+
+  it('still settles the rows when the total fails — a total must never cost a block', async () => {
+    const view = makeView(1000);
+    const onError = vi.fn();
+    const params = makeParams({ startRow: 0, endRow: 100 });
+    const datasource = createPerspectiveDatasource({
+      getView: async () => view,
+      getGrandTotal: async () => {
+        throw new Error('totals view died');
+      },
+      onError,
+    });
+
+    datasource.getRows(params);
+    await vi.waitFor(() => expect(params.success).toHaveBeenCalled());
+
+    expect(params.success).toHaveBeenCalledTimes(1);
+    expect(params.fail).not.toHaveBeenCalled();
+    expect(params.success.mock.calls[0][0].rowData).toHaveLength(100);
+    expect(params.success.mock.calls[0][0].grandTotalData).toBeUndefined();
+    expect(onError).toHaveBeenCalled();
+  });
+
+  it('omits grandTotalData when the supplier returns null, rather than sending null', async () => {
+    const view = makeView(1000);
+    const params = makeParams({ startRow: 0, endRow: 100 });
+    const datasource = createPerspectiveDatasource({
+      getView: async () => view,
+      getGrandTotal: async () => null,
+    });
+
+    datasource.getRows(params);
+    await vi.waitFor(() => expect(params.success).toHaveBeenCalled());
+    expect(params.success.mock.calls[0][0]).not.toHaveProperty('grandTotalData');
   });
 });

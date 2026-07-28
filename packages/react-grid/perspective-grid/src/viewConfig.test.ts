@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  toGroupColumns,
   toPerspectiveAggregate,
   toPerspectiveFilter,
   toPerspectiveFilterClauses,
+  toPerspectiveGroupLevel,
   toPerspectiveSort,
   toPerspectiveViewConfig,
   viewConfigKey,
@@ -225,5 +227,115 @@ describe('viewConfigKey', () => {
         filterModel: { desk: { filterType: 'text', type: 'equals', filter: 'RATES' } },
       });
     expect(viewConfigKey(make())).toBe(viewConfigKey(make()));
+  });
+});
+
+describe('toPerspectiveGroupLevel', () => {
+  const groups = [{ id: 'sector' }, { id: 'book' }];
+  const values = [{ id: 'pnl', aggFunc: 'sum' }];
+
+  it('groups by ONE column at the requested depth, not the whole tree', () => {
+    const root = toPerspectiveGroupLevel({ rowGroupCols: groups, valueCols: values, groupKeys: [] });
+    expect(root.config.group_by).toEqual(['sector']);
+    expect(root.groupColId).toBe('sector');
+    expect(root.depth).toBe(0);
+    expect(root.config.filter).toBeUndefined();
+  });
+
+  it('pushes ancestor keys down as filter clauses', () => {
+    const level = toPerspectiveGroupLevel({
+      rowGroupCols: groups,
+      valueCols: values,
+      groupKeys: ['Energy'],
+    });
+    expect(level.config.group_by).toEqual(['book']);
+    expect(level.config.filter).toEqual([['sector', '==', 'Energy']]);
+    expect(level.depth).toBe(1);
+  });
+
+  it('keeps the user filter and appends the ancestor clauses after it', () => {
+    const level = toPerspectiveGroupLevel({
+      rowGroupCols: groups,
+      groupKeys: ['Energy'],
+      filterModel: { quantity: { filterType: 'number', type: 'greaterThan', filter: 100 } },
+    });
+    expect(level.config.filter).toEqual([
+      ['quantity', '>', 100],
+      ['sector', '==', 'Energy'],
+    ]);
+  });
+
+  it('uses the null predicate for a blank group key — `== null` is not a comparison', () => {
+    const level = toPerspectiveGroupLevel({ rowGroupCols: groups, groupKeys: [null] });
+    expect(level.config.filter).toEqual([['sector', 'is null']]);
+  });
+
+  it('drops group_by at the leaf level so the View returns real rows', () => {
+    const leaf = toPerspectiveGroupLevel({
+      rowGroupCols: groups,
+      valueCols: values,
+      groupKeys: ['Energy', 'FI-GOVT'],
+    });
+    expect(leaf.config.group_by).toBeUndefined();
+    expect(leaf.groupColId).toBeNull();
+    expect(leaf.config.filter).toEqual([
+      ['sector', '==', 'Energy'],
+      ['book', '==', 'FI-GOVT'],
+    ]);
+  });
+
+  it('carries sort and aggregates into every level', () => {
+    const level = toPerspectiveGroupLevel({
+      rowGroupCols: groups,
+      valueCols: values,
+      groupKeys: ['Energy'],
+      sortModel: [{ colId: 'pnl', sort: 'desc' }],
+    });
+    expect(level.config.sort).toEqual([['pnl', 'desc']]);
+    expect(level.config.aggregates).toEqual({ pnl: 'sum' });
+  });
+
+  it('is a flat view when nothing is grouped', () => {
+    const flat = toPerspectiveGroupLevel({ sortModel: [{ colId: 'pnl', sort: 'desc' }] });
+    expect(flat.config.group_by).toBeUndefined();
+    expect(flat.groupColId).toBeNull();
+    expect(flat.depth).toBe(0);
+  });
+
+  it('gives each level a distinct view key so levels never share a View', () => {
+    const root = toPerspectiveGroupLevel({ rowGroupCols: groups, groupKeys: [] });
+    const child = toPerspectiveGroupLevel({ rowGroupCols: groups, groupKeys: ['Energy'] });
+    const sibling = toPerspectiveGroupLevel({ rowGroupCols: groups, groupKeys: ['Technology'] });
+    const keys = [root, child, sibling].map((l) => viewConfigKey(l.config));
+    expect(new Set(keys).size).toBe(3);
+  });
+});
+
+describe('toGroupColumns', () => {
+  it('moves the deepest __ROW_PATH__ entry onto the group column and drops the path', () => {
+    const columns = { __ROW_PATH__: [['Energy'], ['Technology']], pnl: [10, 20] };
+    expect(toGroupColumns(columns, 'sector')).toEqual({
+      sector: ['Energy', 'Technology'],
+      pnl: [10, 20],
+    });
+  });
+
+  it('takes the LAST path entry, so a nested level shows its own key', () => {
+    const columns = { __ROW_PATH__: [['Energy', 'FI-GOVT'], ['Energy', 'FX-SPOT']], pnl: [10, 20] };
+    expect(toGroupColumns(columns, 'book').book).toEqual(['FI-GOVT', 'FX-SPOT']);
+  });
+
+  it('overwrites the aggregated column of the same name with the group key', () => {
+    const columns = { __ROW_PATH__: [['Energy']], sector: ['whatever the agg produced'], pnl: [10] };
+    expect(toGroupColumns(columns, 'sector').sector).toEqual(['Energy']);
+  });
+
+  it('maps the grand-total row (empty path) to null rather than undefined', () => {
+    expect(toGroupColumns({ __ROW_PATH__: [[]], pnl: [1] }, 'sector').sector).toEqual([null]);
+  });
+
+  it('passes an ungrouped window through untouched', () => {
+    const columns = { positionId: ['a'], pnl: [1] };
+    expect(toGroupColumns(columns, 'sector')).toBe(columns);
   });
 });

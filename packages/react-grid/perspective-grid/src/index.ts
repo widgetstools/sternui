@@ -29,14 +29,18 @@ export {
 export { createSafeView, type SafeView, type DeletableView } from './safeView.js';
 export {
   toPerspectiveViewConfig,
+  toPerspectiveGroupLevel,
+  toGroupColumns,
   toPerspectiveSort,
   toPerspectiveFilter,
   toPerspectiveFilterClauses,
   toPerspectiveAggregate,
   viewConfigKey,
   type PerspectiveViewConfig,
+  type PerspectiveGroupLevel,
   type PerspectiveAggregate,
   type AgRequestState,
+  type AgGroupLevelState,
   type AgSortItem,
   type AgFilterItem,
 } from './viewConfig.js';

@@ -196,6 +196,96 @@ export function toPerspectiveViewConfig(state: AgRequestState): PerspectiveViewC
   return config;
 }
 
+export interface AgGroupLevelState extends AgRequestState {
+  /** Ancestor keys of the level being requested; its length is the depth. */
+  groupKeys?: readonly unknown[];
+}
+
+export interface PerspectiveGroupLevel {
+  config: PerspectiveViewConfig;
+  /**
+   * The column this level's rows are grouped by, or `null` at the leaf level
+   * (every group column already consumed by `groupKeys`), where the View
+   * returns real rows rather than group rows.
+   */
+  groupColId: string | null;
+  /** Depth of the requested level — `groupKeys.length`. */
+  depth: number;
+}
+
+/**
+ * Translate ONE level of an AG Grid group request into a View config.
+ *
+ * AG Grid pulls a group tree one level at a time: it asks for the children of
+ * a path, never for the whole tree. Perspective's `group_by` does the
+ * opposite — `group_by: ['sector','book']` returns the fully expanded tree
+ * with depth-1 and depth-2 rows interleaved, which is not what any single AG
+ * request wants.
+ *
+ * The mapping that fits both (verified against 4.5.2): group by exactly the
+ * ONE column at the requested depth, and push the ancestor keys down as
+ * filter clauses. `groupKeys: ['Energy']` over `[sector, book]` becomes
+ * `{ group_by: ['book'], filter: [['sector','==','Energy'], ...] }`, whose
+ * rows are exactly the children AG asked for.
+ *
+ * Row 0 of the result is ALWAYS the grand total for that filter
+ * (`__ROW_PATH__: []`), at every depth — so each level carries its own
+ * subtotal, and the root level's row 0 is the grand total of the whole book.
+ * Callers must skip it when serving AG a block of children.
+ */
+export function toPerspectiveGroupLevel(state: AgGroupLevelState): PerspectiveGroupLevel {
+  const groupCols = state.rowGroupCols ?? [];
+  const groupKeys = state.groupKeys ?? [];
+  const depth = groupKeys.length;
+
+  // Build the non-group parts first, then override `group_by`: this level
+  // groups by one column, not by all of them.
+  const config = toPerspectiveViewConfig({ ...state, rowGroupCols: undefined });
+
+  const ancestorClauses: unknown[][] = [];
+  for (let i = 0; i < depth && i < groupCols.length; i++) {
+    const colId = groupCols[i].id;
+    const key = groupKeys[i];
+    // AG represents a blank group as null; `== null` is not a Perspective
+    // comparison, so it has to become the null predicate instead.
+    ancestorClauses.push(key === null || key === undefined ? [colId, 'is null'] : [colId, '==', key]);
+  }
+  if (ancestorClauses.length > 0) {
+    config.filter = [...(config.filter ?? []), ...ancestorClauses];
+  }
+
+  const groupCol = depth < groupCols.length ? groupCols[depth] : undefined;
+  if (groupCol) config.group_by = [groupCol.id];
+
+  return { config, groupColId: groupCol?.id ?? null, depth };
+}
+
+/**
+ * Rewrite a grouped View window into the shape AG Grid builds group rows from.
+ *
+ * Perspective puts the group key in `__ROW_PATH__` — the full path, deepest
+ * last. AG reads the group value from the group column's own field, so without
+ * this remap every group row renders blank. Done columnar (rather than after
+ * pivoting to rows) so the datasource's `columnsToRows` stays untouched.
+ *
+ * The grouped View also returns an aggregated column under the group column's
+ * own name; overwriting it with the path key is exactly what is wanted.
+ */
+export function toGroupColumns(
+  columns: Record<string, unknown[]>,
+  groupColId: string,
+): Record<string, unknown[]> {
+  const paths = columns.__ROW_PATH__;
+  if (!Array.isArray(paths)) return columns;
+
+  const out = { ...columns };
+  delete out.__ROW_PATH__;
+  out[groupColId] = paths.map((path) =>
+    Array.isArray(path) && path.length > 0 ? path[path.length - 1] : null,
+  );
+  return out;
+}
+
 /**
  * Stable identity for a View config, so a block request that changes nothing
  * reuses the live View instead of rebuilding it (a rebuild costs a full

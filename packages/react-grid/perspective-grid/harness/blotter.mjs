@@ -15,6 +15,7 @@
 import {
   AllCommunityModule,
   createGrid,
+  GRAND_TOTAL_ROW_ID,
   ModuleRegistry,
   ValidationModule,
   themeQuartz,
@@ -23,6 +24,7 @@ import {
 import {
   ColumnMenuModule,
   ContextMenuModule,
+  RowGroupingModule,
   ServerSideRowModelApiModule,
   ServerSideRowModelModule,
 } from 'ag-grid-enterprise';
@@ -40,6 +42,7 @@ ModuleRegistry.registerModules([
   AllCommunityModule,
   ServerSideRowModelModule,
   ServerSideRowModelApiModule,
+  RowGroupingModule,
   ColumnMenuModule,
   ContextMenuModule,
   ...(import.meta.env.DEV ? [ValidationModule] : []),
@@ -83,6 +86,23 @@ const numberFormatter = (params) =>
     ? params.value.toLocaleString(undefined, { maximumFractionDigits: 2 })
     : '';
 
+/** The columns aggregated when grouping is on. Every numeric column COULD be,
+ *  and Perspective would not care, but a focused set keeps the group rows
+ *  readable and makes a wrong total obvious at a glance. */
+const AGGREGATED = {
+  quantity: 'sum',
+  notional: 'sum',
+  marketValue: 'sum',
+  pnl: 'sum',
+  dayPnl: 'sum',
+  exposure: 'sum',
+  var95: 'sum',
+  price: 'avg',
+};
+
+/** Group-by presets — the cycle the toolbar button walks through. */
+const GROUPINGS = [[], ['sector'], ['sector', 'book'], ['sector', 'book', 'trader']];
+
 const columnDefs = BOOK_COLUMNS.map(({ name, type }) =>
   type === 'string'
     ? {
@@ -90,6 +110,7 @@ const columnDefs = BOOK_COLUMNS.map(({ name, type }) =>
         filter: 'agTextColumnFilter',
         width: name === 'positionId' ? 150 : 110,
         pinned: name === 'positionId' ? 'left' : undefined,
+        enableRowGroup: true,
       }
     : {
         field: name,
@@ -97,6 +118,8 @@ const columnDefs = BOOK_COLUMNS.map(({ name, type }) =>
         type: 'numericColumn',
         width: 120,
         valueFormatter: numberFormatter,
+        enableValue: true,
+        aggFunc: AGGREGATED[name],
       },
 );
 
@@ -110,6 +133,7 @@ async function main() {
   log(`attached and opened '${BOOK_NAME}' at ${ms(performance.now())}`);
 
   let gridApi = null;
+  let grouping = [];
 
   /**
    * Perspective knows the exact row count of every View, and `num_rows()` is
@@ -118,9 +142,15 @@ async function main() {
    * the last short block still settles the count through
    * `success({rowCount})`, which is the shrink path that does not cap the
    * store (ARCHITECTURE.md, "Empty resolutions omit rowCount").
+   *
+   * Illegal while grouping: `setRowCount` raises AG error #28 whenever there
+   * is a row-group column, and the error is SILENT without ValidationModule.
+   * Grouped levels are small enough to discover by walking off the end anyway.
    */
   const publishRowCount = (rows) => {
-    if (gridApi && typeof rows === 'number') gridApi.setRowCount(rows);
+    if (!gridApi || typeof rows !== 'number') return;
+    if (grouping.length > 0) return;
+    gridApi.setRowCount(rows);
   };
 
   /**
@@ -148,24 +178,98 @@ async function main() {
       if (!pendingUpdate || !live) return;
       pendingUpdate = false;
       metrics.refreshes += 1;
-      gridApi.refreshServerSide({ purge: false });
+      refreshEveryLevel();
+      void pushGrandTotal();
     }, REFRESH_MS);
+  };
+
+  /**
+   * Refresh the root store AND every expanded group's store.
+   *
+   * MEASURED: `refreshServerSide({purge:false})` does NOT cascade into child
+   * stores. With `sector > book` expanded it refreshed the six sector rows and
+   * their footer, and left the six book rows underneath frozen at their
+   * opening values — aggregates that look live at the top level and are stale
+   * one row down, which is worse than obviously not updating. Each expanded
+   * level is its own store and needs its own route.
+   */
+  const refreshEveryLevel = () => {
+    gridApi.refreshServerSide({ purge: false });
+    const routes = [];
+    gridApi.forEachNode((node) => {
+      if (!node.group || !node.expanded) return;
+      const route = [];
+      for (let n = node; n && n.level >= 0; n = n.parent) route.unshift(n.key);
+      routes.push(route);
+    });
+    for (const route of routes) gridApi.refreshServerSide({ route, purge: false });
   };
 
   const views = createViewManager({
     table,
     onUpdate: scheduleRefresh,
     onEvent: (event) => {
-      if (event.type === 'view') {
-        log(`view rebuilt in ${ms(event.ms)} — ${event.rows.toLocaleString()} rows — ${event.key}`);
-        publishRowCount(event.rows);
-      }
+      if (event.type !== 'view') return;
+      const where = event.groupColId === null ? 'leaf' : `group by ${event.groupColId}`;
+      log(
+        `view built in ${ms(event.ms)} — depth ${event.depth} · ${where} · ` +
+          `${event.rows.toLocaleString()} rows`,
+      );
+      if (event.depth === 0) publishRowCount(event.rows);
     },
   });
+
+  /**
+   * The grand total, supplied through AG's own contract rather than a pinned
+   * row of our own: `grandTotalRow: 'pinnedBottom'` plus `grandTotalData` on
+   * the block response, whose row id the grid assigns itself
+   * (`GRAND_TOTAL_ROW_ID`). AG treats `needsGrandTotal` as a hint and accepts
+   * an update at any time, which is exactly what keeps the total live under a
+   * feed — every throttled refresh re-reads a root block and carries a fresh
+   * total with it.
+   *
+   * The number is Perspective's own `__ROW_PATH__: []` row, aggregated over
+   * the whole filtered book in the worker — NOT summed from the rows this
+   * window happens to be holding.
+   */
+  const getGrandTotal = async (request) => {
+    const total = await views.readGrandTotal(request);
+    if (!total) return null;
+    // The caption goes on `positionId`: it is pinned left and always visible,
+    // whereas AG hides a column as soon as it is grouped by. Its aggregated
+    // value here is a distinct count, which is not worth showing.
+    // `__grandTotal` is how `getRowId` recognises this row — see below.
+    return { ...total, positionId: 'GRAND TOTAL', __grandTotal: true };
+  };
+
+  /**
+   * Keep the grand total moving under the feed.
+   *
+   * MEASURED: `grandTotalData` on the block response CREATES the row and
+   * updates it after a purge, but a `refreshServerSide({purge:false})` does
+   * NOT apply it — supplying five distinct fresh totals over five refreshes
+   * left the row showing the first one. The documented path for updating an
+   * existing grand total is a transaction whose row id is
+   * `GRAND_TOTAL_ROW_ID`, so both mechanisms are used: `grandTotalData` to
+   * establish the row, a transaction to keep it live.
+   */
+  const pushGrandTotal = async () => {
+    if (!gridApi || !gridApi.getRowNode(GRAND_TOTAL_ROW_ID)) return;
+    try {
+      const total = await getGrandTotal(lastRootRequest);
+      if (total) gridApi.applyServerSideTransaction({ update: [total] });
+    } catch (err) {
+      log(`grand total update failed — ${String(err?.message ?? err)}`);
+    }
+  };
+
+  /** The last root-level request, so the live total matches the grid's shape. */
+  let lastRootRequest = {};
 
   const inner = createPerspectiveDatasource({
     getView: (request) => views.getView(request),
     getGeneration: () => views.getGeneration(),
+    getGrandTotal,
     onError: (err) => log(`BLOCK FAILED — ${String(err?.message ?? err)}`),
   });
 
@@ -176,8 +280,10 @@ async function main() {
     getRows(params) {
       const started = performance.now();
       const { startRow, endRow } = params.request;
+      if (!params.request.groupKeys?.length) lastRootRequest = { ...params.request };
       inner.getRows({
         request: params.request,
+        needsGrandTotal: params.needsGrandTotal,
         success: (result) => {
           const took = performance.now() - started;
           metrics.blocks += 1;
@@ -223,7 +329,29 @@ async function main() {
     cacheBlockSize: 100,
     maxBlocksInCache: 20,
     blockLoadDebounceMillis: 0,
-    getRowId: (params) => String(params.data.positionId),
+    autoGroupColumnDef: { headerName: 'Group', width: 240, pinned: 'left' },
+    // Aggregation at both levels the request asked about: `groupTotalRow`
+    // gives every expanded group its own subtotal footer, `grandTotalRow` the
+    // book-wide total. Both are fed by Perspective, never by AG summing rows
+    // it happens to hold — a window only ever holds a viewport.
+    groupTotalRow: 'bottom',
+    grandTotalRow: 'pinnedBottom',
+    suppressAggFuncInHeader: true,
+    // Group rows have no positionId — they are aggregates, not positions — so
+    // an id built from it would collide across every group at a level, and
+    // duplicate ids turn a successful block into a failed one (AG warn 205).
+    // The id has to be the path: parent keys plus this row's own key.
+    getRowId: ({ level, parentKeys = [], data, api }) => {
+      // The grand total row must carry AG's own id, or a transaction cannot
+      // find it to update.
+      if (data?.__grandTotal) return GRAND_TOTAL_ROW_ID;
+      const groupCols = api.getRowGroupColumns?.() ?? [];
+      if (level < groupCols.length) {
+        const field = groupCols[level].getColDef().field;
+        return [...parentKeys, data[field]].join('/');
+      }
+      return [...parentKeys, data.positionId].join('/');
+    },
     // `onFirstDataRendered` does not fire for the server-side row model when
     // the first block arrives, so time-to-rows is taken from the first model
     // update that actually has rows in it.
@@ -258,6 +386,25 @@ async function main() {
     ticking = message.on;
     tickButton.textContent = ticking ? 'stop feed' : 'start feed';
   });
+
+  // Grouping is applied through AG, not around it: setting the row-group
+  // columns makes AG issue level-by-level requests carrying `groupKeys`, and
+  // every aggregate in those levels is computed by Perspective in the worker.
+  const groupButton = document.getElementById('group');
+  let groupIndex = 0;
+  const applyGrouping = () => {
+    grouping = GROUPINGS[groupIndex];
+    groupButton.textContent = `group: ${grouping.length ? grouping.join(' > ') : 'none'}`;
+    gridApi.setRowGroupColumns(grouping);
+    gridApi.setValueColumns(grouping.length > 0 ? Object.keys(AGGREGATED) : []);
+    // Changing the grouping purges the store, so the root block AG re-requests
+    // brings a matching grand total with it.
+  };
+  groupButton.onclick = () => {
+    groupIndex = (groupIndex + 1) % GROUPINGS.length;
+    applyGrouping();
+  };
+  applyGrouping();
 
   const liveButton = document.getElementById('live');
   liveButton.textContent = 'live: on';

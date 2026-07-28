@@ -578,14 +578,22 @@ retained as the surface. Design, measured numbers and the non-optional
 lifecycle rules live in the package's `ARCHITECTURE.md`.
 **Status:** private (not in the propagate buckets); barrel-only, no subpath exports.
 
-- `createPerspectiveDatasource({ getView, getGeneration?, onError? })` — AG Grid
-  server-side datasource reading a window out of a Perspective View. Settles
-  every `getRows` exactly once (a leaked call wedges the grid permanently) and
-  never claims a `rowCount` it did not measure
+- `createPerspectiveDatasource({ getView, getGeneration?, getGrandTotal?, onError? })` —
+  AG Grid server-side datasource reading a window out of a Perspective View.
+  Settles every `getRows` exactly once (a leaked call wedges the grid
+  permanently) and never claims a `rowCount` it did not measure. `getGrandTotal`
+  is called for root-level requests only and attaches `grandTotalData` to the
+  response; a failure there never costs the block
 - `columnsToRows(columns)` — pivots Perspective's columnar window into AG row
   objects; row count taken from the longest column
-- `cloneRequest(request)` — snapshots `sortModel` / `filterModel`, which AG
-  mutates in place
+- `cloneRequest(request)` — snapshots `sortModel` / `filterModel` /
+  `rowGroupCols` / `valueCols` / `groupKeys`, all of which AG mutates in place
+- `toPerspectiveGroupLevel(state)` — one level of an AG group request into a
+  View config: groups by the single column at the requested depth and pushes the
+  ancestor `groupKeys` down as filter clauses, so each level's rows are exactly
+  the children AG asked for. Row 0 of the result is that level's own total
+- `toGroupColumns(columns, groupColId)` — remaps Perspective's `__ROW_PATH__`
+  onto the group column that AG builds its group rows from
 - `createSafeView(view)` — deletion-safe View wrapper: `read()` refcounts
   in-flight reads and `close()` drains them before deleting. **Mandatory for all
   View disposal** — deleting under a read throws an uncatchable wasm borrow

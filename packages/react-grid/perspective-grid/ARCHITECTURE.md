@@ -140,6 +140,76 @@ replaced mid-flight re-reads from the current View instead: settling short
 would cap the store, and AG discards the rows anyway because a sort or filter
 change purges the store.
 
+## Row grouping and totals
+
+AG Grid pulls a group tree **one level at a time** — it asks for the children
+of a path and never for the whole tree. Perspective's `group_by` does the
+opposite: `group_by: ['sector','book']` returns the fully expanded tree with
+depth-1 and depth-2 rows interleaved, which is not what any single request
+wants. The mapping that fits both, and what `toPerspectiveGroupLevel` builds:
+
+```
+AG   rowGroupCols [sector, book], groupKeys ['Energy']
+psp  { group_by: ['book'], filter: [ ...user filters, ['sector','==','Energy'] ] }
+```
+
+Group by exactly the ONE column at the requested depth; push the ancestor keys
+down as filter clauses. At the leaf depth (every group column consumed) the
+`group_by` is dropped and the View returns real rows.
+
+**Row 0 of every grouped View is that level's total** (`__ROW_PATH__: []`), at
+every depth. So a level's own subtotal is free, and the root level's row 0 is
+the grand total of the whole filtered book. Blocks of children are therefore
+read at `start_row + 1`, and `__ROW_PATH__` is remapped onto the group column
+because AG builds its group row from that field (`toGroupColumns`).
+
+An ungrouped View has no total row at all. One constant expression column
+(`{ __all__: "'ALL'" }` grouped by `__all__`) produces exactly one group, whose
+row 0 is the total over the whole filtered book — which is how a FLAT blotter
+gets a live grand total.
+
+### AG Grid 36 rules this exposed
+
+**`grandTotalData` creates the grand total row but does NOT update it.**
+Supplying it on the block response is the documented mechanism and works on
+first load and after a purge. Measured: across five `refreshServerSide({purge:
+false})` cycles, five distinct fresh totals were supplied and the row kept
+showing the first. Keeping it live needs the other documented path —
+`applyServerSideTransaction({ update: [total] })` with a `getRowId` that
+returns `GRAND_TOTAL_ROW_ID` for that row. Both are needed, for different
+moments.
+
+**`refreshServerSide` does not cascade into child stores.** Each expanded group
+level is its own store. Refreshing only the root left the six sector rows and
+their footer ticking while the six book rows underneath sat frozen at their
+opening values — aggregates that look live at the top and are stale one row
+down, which is worse than obviously not updating. Every expanded route must be
+refreshed by route.
+
+**`setRowCount` is illegal while grouping** — AG error #28 fires whenever a
+row-group column exists, and it is SILENT without `ValidationModule`.
+
+**`getRowId` must be path-based.** Group rows have no `positionId`; an id
+derived from it collides across every group at a level, and duplicate ids turn
+a successful block into a failed one (warn 205). The id is the parent keys plus
+the row's own key.
+
+**`forEachNode` does not traverse total rows.** Group footers and the grand
+total are only reachable through the displayed-row API or
+`api.getRowNode(GRAND_TOTAL_ROW_ID)` — a fact that made working footers look
+missing.
+
+### Consistency across levels
+
+Levels are read independently, so under a live feed a child level can be read a
+tick later than its parent and the two need not add up at that instant.
+Verified: against a static book all three levels reconcile EXACTLY (traders sum
+to their book footer, books to their sector footer, sectors to the grand
+total); with the feed running they drift by roughly one tick's worth. Every
+number is individually correct — none is a partial sum of the rows a window
+happens to hold — but a cross-level total taken mid-feed is a montage of
+instants, not a snapshot.
+
 ## Where expressions resolve
 
 | kind | resolves | why |
@@ -191,6 +261,13 @@ refreshes, 0 failed blocks. `purge:false` keeps scroll position and row nodes,
 so AG updates rows in place by id and `enableCellChangeFlash` marks them.
 The subscription belongs to the View and must be re-made on every swap.
 
+**Aggregation ticks at every level.** Grouped `sector > book > trader` with
+two levels expanded, under the 500-row/200 ms feed: all 22 displayed rows moved
+— 6 sector groups, 6 book groups, 8 trader groups, both group total footers and
+the grand total — with 0 failed blocks and 3 live Views. Aggregates are exact:
+against a static book the traders sum to their book footer, the books to their
+sector footer and the sectors to the grand total, to the unit.
+
 **Sort and filter, server-side, six permutations** (sort, sort+filter, filter
 swap, clear): every change rebuilt the right View — `sector == 'Energy'`
 3,333 rows, `quantity > 5000` 5,050 rows — every block settled, nothing
@@ -212,8 +289,10 @@ scroll is the one figure above still unmeasured for that reason.
 | View-config translation | done, 22 tests |
 | SharedWorker hosting | **done — plumbing proven end-to-end** |
 | Worker-held Table + per-window View | **done (mock book)** |
-| View manager | done in `harness/`, not yet promoted to `src/` |
+| View manager | done in `harness/` (multi-View, group-aware), not yet promoted to `src/` |
 | Harness blotter, 3 windows | **done — see Milestone 1 above** |
+| Live ticks (pull, via `on_update`) | **done** |
+| Row grouping + per-level and grand totals | **done — see "Row grouping and totals"** |
 | STOMP feed into the worker-held Table | not started |
 | MarketsGridContainer wiring | not started |
 

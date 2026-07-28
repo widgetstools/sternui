@@ -27,11 +27,35 @@ export interface SsrmRequestLike {
   endRow?: number;
   sortModel?: readonly { colId: string; sort: string }[];
   filterModel?: unknown;
+  /** Columns being grouped by, outermost first. */
+  rowGroupCols?: readonly { id: string; field?: string; displayName?: string }[];
+  /** Columns being aggregated, with the AG aggregate name. */
+  valueCols?: readonly { id: string; field?: string; aggFunc?: string | null }[];
+  /**
+   * Keys of the ancestors of the level being asked for; its length IS the
+   * depth. `[]` is the root level, `['Energy']` asks for the children of the
+   * Energy group. AG Grid pulls one level at a time — it never asks for a
+   * whole tree — which is why a Perspective view backing a request groups by
+   * exactly ONE column and pushes the ancestor keys into its filter.
+   */
+  groupKeys?: readonly unknown[];
 }
 
 export interface SsrmGetRowsParamsLike {
   request: SsrmRequestLike;
-  success(result: { rowData: Record<string, unknown>[]; rowCount?: number }): void;
+  /**
+   * AG's hint that it holds no cached grand total — true on first load and
+   * after any filter or aggregation change that purged it. Documented as a
+   * hint only: supplying `grandTotalData` when it is false UPDATES the
+   * existing grand total row, which is what keeps the total live under a feed.
+   */
+  needsGrandTotal?: boolean;
+  success(result: {
+    rowData: Record<string, unknown>[];
+    rowCount?: number;
+    /** The grid assigns this row's id itself (`GRAND_TOTAL_ROW_ID`). */
+    grandTotalData?: Record<string, unknown> | null;
+  }): void;
   fail(): void;
 }
 
@@ -66,11 +90,13 @@ export function columnsToRows(
 /**
  * Snapshot the mutable parts of an AG Grid request.
  *
- * `sortModel` / `filterModel` are references into ONE shared `ssrmParams`
- * object that AG mutates in place. Retaining them by reference corrupts the
- * `oldSortModel` that `findChangedColumnsInSort` diffs against, which yields
- * an empty `changedColumns` and silently stops refresh-on-sort at group
- * levels. Anything we keep past the synchronous call must be cloned.
+ * `sortModel` / `filterModel` / `rowGroupCols` / `valueCols` are references
+ * into ONE shared `ssrmParams` object that AG mutates in place. Retaining them
+ * by reference corrupts the `oldSortModel` that `findChangedColumnsInSort`
+ * diffs against, which yields an empty `changedColumns` and silently stops
+ * refresh-on-sort at group levels. Anything we keep past the synchronous call
+ * must be cloned — and the group fields especially, since they are what the
+ * group levels are rebuilt from.
  */
 export function cloneRequest(request: SsrmRequestLike): SsrmRequestLike {
   return {
@@ -81,6 +107,17 @@ export function cloneRequest(request: SsrmRequestLike): SsrmRequestLike {
       request.filterModel === undefined
         ? undefined
         : (JSON.parse(JSON.stringify(request.filterModel)) as unknown),
+    rowGroupCols: request.rowGroupCols?.map((c) => ({
+      id: c.id,
+      field: c.field,
+      displayName: c.displayName,
+    })),
+    valueCols: request.valueCols?.map((c) => ({
+      id: c.id,
+      field: c.field,
+      aggFunc: c.aggFunc,
+    })),
+    groupKeys: request.groupKeys === undefined ? undefined : [...request.groupKeys],
   };
 }
 
@@ -89,6 +126,17 @@ export interface PerspectiveDatasourceOpts {
   getView(request: SsrmRequestLike): Promise<PerspectiveViewLike | null>;
   /** Optional generation fence; a block whose generation is stale resolves empty, never silently. */
   getGeneration?(): number;
+  /**
+   * Supply the grand total row. Called for ROOT-level requests only (AG has
+   * exactly one grand total, and only a root-level load can carry it).
+   *
+   * Called on every root block rather than only when `needsGrandTotal` is set,
+   * because a live feed has to keep the total moving and AG accepts an update
+   * at any time. Perspective makes this nearly free: a grouped View's row 0 is
+   * already the grand total, so it is a one-row read from a View the grid is
+   * pulling anyway.
+   */
+  getGrandTotal?(request: SsrmRequestLike): Promise<Record<string, unknown> | null>;
   onError?(err: unknown): void;
 }
 
@@ -145,11 +193,24 @@ export function createPerspectiveDatasource(
           // `success({rowCount})` is correct; `setRowCount(n, true)` is the
           // sort-specific trap that leaves sorting permanently dead.
           const short = rowData.length < endRow - startRow;
-          params.success(
-            short
-              ? { rowData, rowCount: startRow + rowData.length }
-              : { rowData },
-          );
+          const result: {
+            rowData: Record<string, unknown>[];
+            rowCount?: number;
+            grandTotalData?: Record<string, unknown> | null;
+          } = short ? { rowData, rowCount: startRow + rowData.length } : { rowData };
+
+          // A missing total must never cost the block: this is a separate
+          // try/catch so a failure here still settles the rows (rule 1).
+          if (opts.getGrandTotal && !request.groupKeys?.length) {
+            try {
+              const grandTotalData = await opts.getGrandTotal(request);
+              if (grandTotalData) result.grandTotalData = grandTotalData;
+            } catch (err) {
+              opts.onError?.(err);
+            }
+          }
+
+          params.success(result);
         } catch (err) {
           opts.onError?.(err);
           // Failed blocks are never retried automatically — the caller must
