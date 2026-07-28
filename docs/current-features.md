@@ -1397,7 +1397,7 @@ modules).
 - `DataServicesProvider` — legacy wrapper over `DataServices` bootstrap result; exposes `appId` + `userId` React context
 - `usePlatformIdentityOrNull()` — read bootstrap `appId`/`userId` from `DataHubProvider` / `DataServicesProvider`
 
-- `DataServicesProvider` — `configStore` calls `client.invalidateConfig()` after editor `save`/`remove`
+- `DataServicesProvider` — context (`ContextValue`) exposes the window's `configStore` (which calls `client.invalidateConfig()` after editor `save`/`remove`) **and** `configManager` (the main-thread resolver the P1b read hooks source config from; `undefined` only in a manager-less bootstrap)
 
 **Public exports:** `.`, `./runtime`
 
@@ -1415,8 +1415,8 @@ modules).
 
 #### DataProvider config hooks
 
-- `useDataProviderConfig(providerId)` — single provider row from worker catalog cache (`getProviderConfig` RPC); stale-while-revalidate on scoped `catalog-ready` (same `providerId` or `full` only)
-- `useDataProvidersList(opts?)` — list platform provider rows from worker catalog cache (`listProviderConfigs` RPC); auto-refreshes on scoped `catalog-ready`; `refresh()` for manual re-pull
+- `useDataProviderConfig(providerId)` — single provider row read **window-side** (decouple P1b): via the context `configStore` over the window's own ConfigManager when present, ticking invalidation off `configManager.onConfigChanged` (matching `providerId`) — the same notifier whose constructor listener evicts `ConfigManager.rowCache` same-tab + cross-tab (BroadcastChannel), so re-reads are fresh without a hub round-trip. Falls back to the hub `getProviderConfig` RPC + scoped `catalog-ready` only in a manager-less bootstrap
+- `useDataProvidersList(opts?)` — list platform provider rows read **window-side** (decouple P1b): via `configStore.list` (always IndexedDB-fresh — no rowCache) when a manager is present, re-listing on any `configManager.onConfigChanged`. Falls back to the hub `listProviderConfigs` RPC + scoped `catalog-ready` only in a manager-less bootstrap; `refresh()` for manual re-pull
 
 #### DataProvider hook (preferred)
 
