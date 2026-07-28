@@ -27,3 +27,16 @@ export {
   type SsrmGetRowsParamsLike,
 } from './perspectiveDatasource.js';
 export { createSafeView, type SafeView, type DeletableView } from './safeView.js';
+export {
+  toPerspectiveViewConfig,
+  toPerspectiveSort,
+  toPerspectiveFilter,
+  toPerspectiveFilterClauses,
+  toPerspectiveAggregate,
+  viewConfigKey,
+  type PerspectiveViewConfig,
+  type PerspectiveAggregate,
+  type AgRequestState,
+  type AgSortItem,
+  type AgFilterItem,
+} from './viewConfig.js';
