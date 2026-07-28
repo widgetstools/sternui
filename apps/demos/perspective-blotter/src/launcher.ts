@@ -17,6 +17,11 @@ const line = (className: string, text: string) => {
 const openBlotter = (index: number) =>
   window.open('./blotter.html', `blotter-${index}-${Date.now()}`, 'width=1400,height=820');
 
+document.getElementById('marketsgrid')!.onclick = () => {
+  window.open('./marketsgrid.html', 'mg-' + Date.now(), 'width=1500,height=880');
+  line('ok', 'opened MarketsGrid on the pull path — same Table, full widget chrome.');
+};
+
 document.getElementById('one')!.onclick = () => {
   openBlotter(1);
   line('ok', 'opened 1 blotter — read its own time-to-first-rows.');

@@ -13,7 +13,8 @@
         One SharedWorker holds the STOMP connection and one Perspective Table; every window opens a
         View against it and reads only the rows its viewport asks for. The claim under test is that
         the 2nd and 3rd blotter open as fast as the 1st, because only the first pays for the
-        18-second snapshot.
+        18-second snapshot. <b>MarketsGrid</b> mounts the real widget — toolbar, customizer,
+        column defs — on the same worker-held Table; <b>raw AG Grid</b> is the minimal reference.
       </p>
       <p class="sub">
         Needs the broker: <code>cd apps/demos/stomp-view-server &amp;&amp; npm start</code>
@@ -21,7 +22,8 @@
     </header>
     <main>
       <div class="bar">
-        <button id="one">open one blotter</button>
+        <button id="marketsgrid">open MarketsGrid (full chrome)</button>
+        <button id="one">open raw AG Grid</button>
         <button id="three">open three blotters</button>
         <button id="status">worker status</button>
       </div>

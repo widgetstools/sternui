@@ -55,10 +55,28 @@ export interface MarketsGridProps<TData = unknown> {
    */
   ssrmExpectedRowCount?: number;
   /**
-   * Row-model alias for {@link MarketsGridProps.useSSRM}:
-   * `'server'` → SSRM, `'client'` → CSRM (default). Ignored when `useSSRM` is set.
+   * Which row engine to mount:
+   * `'client'` → CSRM (default), `'server'` → CustomSSRMGrid,
+   * `'perspective'` → a Table held once in a worker, this window reading only
+   * the blocks its viewport asks for. Ignored when `useSSRM` is set, EXCEPT
+   * for `'perspective'` — the boolean cannot express it.
+   *
+   * `'perspective'` requires {@link MarketsGridProps.perspectiveTable}.
    */
-  rowModel?: 'client' | 'server';
+  rowModel?: 'client' | 'server' | 'perspective';
+  /**
+   * The worker-held Perspective Table this window reads, opened by the host
+   * (`client.open_table(name)`). Required by `rowModel: 'perspective'`, and
+   * ignored otherwise. `rowData` is not used on that path — the point is that
+   * this window never holds the book.
+   */
+  perspectiveTable?: unknown;
+  /**
+   * Index column of {@link MarketsGridProps.perspectiveTable} — what makes an
+   * update an upsert, and what labels the grand total row. Defaults to
+   * {@link MarketsGridProps.rowIdField}.
+   */
+  perspectiveKeyColumn?: string;
   /**
    * When set and the grid is on CSRM with `rowData.length >=` this value,
    * show a dismissible banner suggesting SSRM. Does not auto-switch —

@@ -12,10 +12,14 @@
   "dependencies": {
     "@perspective-dev/client": "4.5.2",
     "ag-grid-community": "36.0.0",
-    "ag-grid-enterprise": "36.0.0"
+    "ag-grid-enterprise": "36.0.0",
+    "react": "~19.2.5",
+    "react-dom": "~19.2.5",
+    "ag-grid-react": "36.0.0"
   },
   "devDependencies": {
     "typescript": "~5.9.3",
-    "vite": "~7.3.2"
+    "vite": "~7.3.2",
+    "@vitejs/plugin-react": "~4.5.2"
   }
 }

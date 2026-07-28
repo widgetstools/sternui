@@ -43,6 +43,7 @@ import { ColumnSelectorDialog } from './column-selector';
 import { UnsavedSwitchDialog } from './UnsavedSwitchDialog';
 import { MarketsGridSurface } from './MarketsGridSurface';
 import { SsrmMarketsGridSurfaceConnected as SsrmMarketsGridSurface } from '../engine/SsrmMarketsGridSurfaceConnected';
+import { PerspectiveMarketsGridSurface } from '../engine/PerspectiveMarketsGridSurface.js';
 import { SsrmSuggestBanner } from '../engine/SsrmSuggestBanner.js';
 import { shouldSuggestSsrm } from '../engine/shouldSuggestSsrm.js';
 import type { SSRMColDef, SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
@@ -111,6 +112,9 @@ export interface MarketsGridHostProps<TData> {
   toolbarActionsLayout: 'inline' | 'overflow';
   includeAllStreamSafeFilters: boolean;
   useSSRM?: boolean;
+  /** Worker-held Table; when set, the Perspective surface is mounted. */
+  perspectiveTable?: unknown;
+  perspectiveKeyColumn?: string;
   suggestSsrmAbove?: number;
   onSuggestSsrm?: () => void;
   ssrmEngine?: 'custom' | 'perspective' | 'auto';
@@ -173,6 +177,8 @@ function MarketsGridHostInner<TData>({
   toolbarActionsLayout,
   includeAllStreamSafeFilters,
   useSSRM,
+  perspectiveTable,
+  perspectiveKeyColumn,
   suggestSsrmAbove,
   onSuggestSsrm,
   ssrmEngine,
@@ -418,7 +424,37 @@ function MarketsGridHostInner<TData>({
         </div>
       )}
 
-      {useSSRM ? (
+      {perspectiveTable ? (
+        // The book lives once in a worker; this window reads its viewport.
+        // Everything above this line — toolbar, formatting, customizer,
+        // profiles — is unchanged, which is the point: AG Grid stays the
+        // surface and only the row supply moves.
+        <PerspectiveMarketsGridSurface
+          table={perspectiveTable as never}
+          keyColumn={
+            perspectiveKeyColumn ?? (typeof rowIdField === 'string' ? rowIdField : 'id')
+          }
+          columnDefs={columnDefs}
+          theme={theme}
+          rowHeight={rowHeight}
+          headerHeight={headerHeight}
+          sideBar={sideBar}
+          statusBar={statusBar}
+          defaultColDef={defaultColDef as never}
+          includeAllStreamSafeFilters={includeAllStreamSafeFilters}
+          onGridReady={handleGridReady}
+          grandTotalRow={
+            gridOptions.grandTotalRow as
+              | boolean
+              | 'top'
+              | 'bottom'
+              | 'pinnedTop'
+              | 'pinnedBottom'
+              | undefined
+          }
+          groupTotalRow={gridOptions.groupTotalRow as 'top' | 'bottom' | undefined}
+        />
+      ) : useSSRM ? (
         <SsrmMarketsGridSurface
           ref={ssrmRef}
           rowData={ssrmRowData}

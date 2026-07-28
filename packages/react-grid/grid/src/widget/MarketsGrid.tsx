@@ -40,7 +40,7 @@ import { mergeDefaultColDef } from './mergeDefaultColDef';
 import { GeneralSettingsProvider } from './GeneralSettingsContext';
 import { MarketsGridSurface } from './MarketsGridSurface';
 import { SsrmMarketsGridSurfaceConnected as SsrmMarketsGridSurface } from '../engine/SsrmMarketsGridSurfaceConnected';
-import { resolveUseSsrm } from '../engine/resolveUseSsrm.js';
+import { resolvePerspective, resolveUseSsrm } from '../engine/resolveUseSsrm.js';
 import type { SSRMColDef, SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
 import { useSsrmCalcMaterialize, useSsrmColumnDefs } from '../engine/useSsrmColumnDefs.js';
 import { materializeCalcFields } from '../engine/ssrmCalcColumns.js';
@@ -292,6 +292,9 @@ function MarketsGridInner<TData = unknown>(
   } = props;
 
   const useSSRM = resolveUseSsrm({ useSSRM: useSSRMProp, rowModel });
+  // Gated on BOTH: a Table with no `rowModel: 'perspective'` is a caller
+  // pre-loading the seam, not asking for it yet.
+  const perspective = resolvePerspective({ rowModel }) && props.perspectiveTable !== undefined;
 
   const [internalToolbarDate, setInternalToolbarDate] = useState(todayIsoDate);
   const toolbarDate = toolbarDateProp ?? internalToolbarDate;
@@ -409,6 +412,8 @@ function MarketsGridInner<TData = unknown>(
         toolbarActionsLayout={toolbarActionsLayout}
         includeAllStreamSafeFilters={includeAllStreamSafeFilters ?? true}
         useSSRM={useSSRM}
+        perspectiveTable={perspective ? props.perspectiveTable : undefined}
+        perspectiveKeyColumn={props.perspectiveKeyColumn}
         suggestSsrmAbove={props.suggestSsrmAbove}
         onSuggestSsrm={props.onSuggestSsrm}
         ssrmEngine={props.ssrmEngine}

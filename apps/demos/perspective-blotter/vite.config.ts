@@ -1,5 +1,6 @@
 import { resolve } from 'node:path';
 import { defineConfig, mergeConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 import {
   staruiConsumerViteConfig,
   appDirFromConfig,
@@ -41,6 +42,7 @@ base.resolve.alias.unshift(
  */
 export default defineConfig(
   mergeConfig(base, {
+    plugins: [react()],
     server: { port: 5220 },
     preview: { port: 5221 },
     worker: { format: 'es' },
@@ -50,6 +52,7 @@ export default defineConfig(
         input: {
           index: resolve(appDir, 'index.html'),
           blotter: resolve(appDir, 'blotter.html'),
+          marketsgrid: resolve(appDir, 'marketsgrid.html'),
         },
       },
     },
