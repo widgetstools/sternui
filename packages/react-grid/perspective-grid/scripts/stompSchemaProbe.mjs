@@ -39,19 +39,24 @@ function parse(text) {
 const ISO_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** column -> observations */
+/** column -> observations, kept separately for snapshot and live deltas:
+ *  a column can be integral across the whole snapshot and still be repriced
+ *  with a fraction by the feed, which would truncate under an `integer` type. */
 const cols = new Map();
+const liveCols = new Map();
 let rows = 0;
+let liveRows = 0;
 let done = false;
 
-function observe(row) {
-  rows += 1;
+function observe(row, into = cols) {
+  if (into === cols) rows += 1;
+  else liveRows += 1;
   for (const [k, v] of Object.entries(row)) {
-    let c = cols.get(k);
+    let c = into.get(k);
     if (!c) {
       c = { seen: 0, nulls: 0, ints: 0, floats: 0, strings: 0, bools: 0, objects: 0,
             isoDate: 0, isoDateTime: 0, numericString: 0, min: Infinity, max: -Infinity };
-      cols.set(k, c);
+      into.set(k, c);
     }
     c.seen += 1;
     if (v === null || v === undefined) { c.nulls += 1; continue; }
@@ -89,11 +94,11 @@ ws.on('message', (data) => {
       );
       continue;
     }
-    if (msg.command !== 'MESSAGE' || done) continue;
-    if (msg.body.startsWith('Success:')) { done = true; report(); continue; }
+    if (msg.command !== 'MESSAGE') continue;
+    if (msg.body.startsWith('Success:')) { done = true; setTimeout(report, Number(process.env.LIVE_MS ?? 25000)); continue; }
     let parsed;
     try { parsed = JSON.parse(msg.body); } catch { continue; }
-    for (const row of Array.isArray(parsed) ? parsed : [parsed]) observe(row);
+    for (const row of Array.isArray(parsed) ? parsed : [parsed]) observe(row, done ? liveCols : cols);
   }
 });
 ws.on('error', (e) => { console.error('WS ERROR', e.message); process.exit(1); });
@@ -117,11 +122,25 @@ function report() {
     if (c.seen < rows) constant.push({ column: name, missingIn: rows - c.seen });
   }
   const intOnly = [...cols].filter(([, c]) => c.ints > 0 && c.floats === 0).map(([n]) => n);
+
+  // The decisive check: a column integral across the ENTIRE snapshot that the
+  // feed later reprices with a fraction would be truncated under `integer`.
+  const betrayedByLive = [];
+  for (const name of intOnly) {
+    const l = liveCols.get(name);
+    if (l && l.floats > 0) {
+      betrayedByLive.push({ column: name, liveInts: l.ints, liveFloats: l.floats });
+    }
+  }
+
   console.log(JSON.stringify({
     rowsScanned: rows,
+    liveRowsScanned: liveRows,
     columns: cols.size,
     mixedIntFloat: mixed,
     intOnlyAcrossWholeSnapshot: intOnly,
+    intInSnapshotButFractionalInLiveDeltas: betrayedByLive,
+    liveColumnsSeen: [...liveCols.keys()],
     dateLikeStrings: dates,
     nullable,
     notPresentInEveryRow: constant,

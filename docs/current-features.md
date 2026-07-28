@@ -1416,6 +1416,19 @@ modules).
 #### Inference
 
 - `inferFields()` — schema inference from row sample
+- `observeRows(rows, into?)` — accumulate per-column type evidence across
+  snapshot batches and live deltas (counts per column, so sparse deltas don't
+  read as gaps). **Internal** — not on the public barrel
+- `toPerspectiveSchema(observations, opts?)` — derive a Perspective table
+  schema. Numeric columns are always `float` (`integer` is opt-in via
+  `integerColumns`) because Perspective silently truncates a float landing in
+  an integer column and one row in 20,000 can flip the inference; ISO date /
+  datetime strings map to `date` / `datetime`; nested columns are dropped
+  (Perspective is flat) and disagreeing columns fall back to `string`. Reports
+  `nested` / `mixed` / `unknown` / `integral`. **Internal**
+- `validateIndexColumn(schema, index, observations, rowsObserved?)` — reject an
+  index that is absent, null, non-scalar or missing from rows, since the index
+  is what makes `table.update()` an upsert. **Internal**
 - `InferOptions` — inference behaviour controls
 - Used by editor Test-Connection / Infer-Fields flows
 

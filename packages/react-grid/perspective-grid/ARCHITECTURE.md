@@ -180,11 +180,27 @@ sample:
 
 A sampler that happens to see that one `totalValue` row types the column
 `integer` and truncates the other 19,999 values, permanently and silently, in
-every window. **Rule: a numeric column is `float` unless it is integral across
-the entire observed sample AND its live deltas.** Thirteen columns qualify
-here (`quantity`, `notionalAmount`, the six P&L columns, `couponFrequency`,
-and the four spread columns) — and even those need their live deltas checked,
-because the sparse feed reprices `pnl` and `spread`.
+every window.
+
+**Rule: every numeric column is `float`. `integer` is opt-in only.** Two facts
+force it. Sampling cannot distinguish the cases (one row in 20,000 decides it),
+and even a complete scan cannot, because the next live delta may carry the
+first fraction. What settles it is the asymmetry: an IEEE double represents
+every integer up to 2^53 exactly, so typing an integer column `float` loses
+nothing at these magnitudes, while typing a float column `integer` loses the
+fraction of every row. Float is lossless in both directions; integer is lossy
+in one. Thirteen columns here ARE integral across the whole snapshot and its
+deltas (`quantity`, `notionalAmount`, the six P&L columns, `couponFrequency`,
+the four spread columns) — they are reported as `integral` so a caller can opt
+in deliberately, and typed `float` anyway.
+
+Proven end to end against the real feed and the real engine
+(`scripts/stompToTableProbe.mjs`): schema derived from the 20,000-row
+snapshot alone (17 string, 3 date, 1 datetime, 31 float, **0 integer**; no
+nested, mixed or unknown columns), Table built and loaded, then **620,000
+numeric values read back and compared to what the feed sent — zero drifted**.
+8,463 sparse deltas then upserted without changing the row count, moved only
+the fields they carried, and left every other column intact.
 
 Four columns are date-like strings and consistent across all 20,000 rows:
 `asOfDate` is an ISO **datetime**, `maturityDate` / `issueDate` /
