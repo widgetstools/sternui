@@ -1437,6 +1437,18 @@ modules).
   push path is unaffected, serializes all Table work so deltas cannot overtake
   the snapshot load, rebuilds on restart, and refuses to build on an invalid
   index rather than letting `update()` append. **Internal**
+- `createPerspectiveHost({ loadPerspective, onError? })` — owns the Perspective
+  engine and its named Tables inside a worker. `tableFactoryFor(name)` plugs
+  into the feed's `createTable`; `attach(port)` binds one window's frame port to
+  a ProxySession (answering the vendor handshake with exactly one message,
+  serializing requests, and copying response buffers before transfer).
+  Deletion is idempotent because the feed and the host both own the Table and a
+  double free throws an uncatchable wasm error. The Perspective module is
+  injected so workers that never open a blotter don't carry its wasm.
+  **Internal**
+- `installCustomElementsShim(scope?)` — three-line stub that makes
+  `@perspective-dev/client` usable in a worker; `worker()` otherwise throws on
+  one unguarded `customElements.get(...)`. No-op in a window. **Internal**
 - `InferOptions` — inference behaviour controls
 - Used by editor Test-Connection / Infer-Fields flows
 

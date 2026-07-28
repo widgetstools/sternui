@@ -252,6 +252,38 @@ Verified against the real transport and the real engine
 52 columns, 0 integer, Table holding 20,000 rows and **still 20,000 after
 137,360 delta rows** — deltas upsert rather than append.
 
+### Hosting the Table
+
+`createPerspectiveHost` (same directory) owns the engine and the Tables and
+hands each window a ProxySession — the shape proven in `harness/pspHost.mjs`,
+now a module. Its `tableFactoryFor(name)` is shaped to be dropped straight into
+the feed's `createTable`, and the name is what a window passes to
+`open_table(name)`.
+
+The Perspective module is **injected**, not imported. The inline build carries
+its wasm as base64 and host-data's worker asset is a single esbuild bundle that
+every app loads, so importing it there statically would add megabytes to
+workers that never open a blotter. Injection keeps the cost with the entry that
+opts in — and makes the host testable without a wasm engine at all.
+
+**A hosted Table has two plausible owners, and freeing it twice is fatal.** The
+feed builds the Table and deletes it on restart; the host serves it by name and
+deletes it on shutdown. Both ran on teardown and the second `delete()` threw
+`null pointer passed to rust` from a wasm microtask — the uncatchable family
+that can take the whole worker down. Deletion is now idempotent and
+de-registers from the host's map, so whoever calls first wins.
+
+The whole path, proven in one process against the real feed and the real
+engine (`scripts/hostPullPathProbe.mjs`) — STOMP provider → feed → host-owned
+Table → ProxySession → a **second Client that never saw a row**:
+
+| | measured |
+|---|---|
+| Tables the window can see | `['positions']` — it created none of them |
+| `open_table` | 7 ms, reporting 20,000 rows |
+| Windowed reads | @0 9 ms · @10,000 6 ms · @19,900 5 ms — flat with depth |
+| While the feed ticks | book moved under the window; row count stayed 20,000 |
+
 ## Row grouping and totals
 
 AG Grid pulls a group tree **one level at a time** — it asks for the children
