@@ -424,6 +424,36 @@ Take these in a **visible** window. A background tab starves
 live-refresh throttle drops from 4 Hz to 1 Hz. Frame timing during a real
 scroll is the one figure above still unmeasured for that reason.
 
+## The real feed in a browser
+
+`apps/demos/perspective-blotter` is the pull path on the live STOMP book: the
+SharedWorker holds the connection, the feed and the engine; each window holds a
+Client. It is an **app**, not another harness page, because
+`perspective-grid/harness` may not import `host-data` — the boundary runs one
+way, and the mock harness only got away with it by having no provider.
+
+Measured on the production build against the running broker:
+
+| | measured |
+|---|---|
+| Table built from the broker | 20,000 rows, **52 columns**, 0 integer, nothing nested or mixed |
+| Window attach | 1.1 s / 2.6 s for windows 2 and 3, cold bundle |
+| Windowed reads under the live feed | **p50 3 ms, p90 4 ms** |
+| Read at depth | 2.7 ms @0 · 4.0 ms @10,000 — still flat |
+| Failed blocks | 0 |
+
+Two caveats worth keeping honest. A 1.4 s "steady state" reading was a
+**measurement artifact of my own making** — ten `purge:true` refreshes fired
+350 ms apart while the 250 ms live refresh also ran, so blocks queued behind
+each other and behind table updates. Sustained reads are 3–5 ms. And reads do
+stall a few hundred milliseconds while the engine applies a delta batch; that
+is the write path blocking the read path, not the read path being slow.
+
+The Perspective module is loaded by dynamic `import()`, so the worker chunk is
+**24 kB** with the 5 MB engine as a separate chunk fetched on demand. The
+window bundle still carries the whole inline build, including the server wasm
+it never runs — `getCompiledClientWasm()` is the fix, still outstanding.
+
 ## Status
 
 | step | state |

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Perspective blotter — launcher</title>
+    <link rel="stylesheet" href="./src/app.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Perspective pull path — live STOMP feed</h1>
+      <p class="sub">
+        One SharedWorker holds the STOMP connection and one Perspective Table; every window opens a
+        View against it and reads only the rows its viewport asks for. The claim under test is that
+        the 2nd and 3rd blotter open as fast as the 1st, because only the first pays for the
+        18-second snapshot.
+      </p>
+      <p class="sub">
+        Needs the broker: <code>cd apps/demos/stomp-view-server &amp;&amp; npm start</code>
+      </p>
+    </header>
+    <main>
+      <div class="bar">
+        <button id="one">open one blotter</button>
+        <button id="three">open three blotters</button>
+        <button id="status">worker status</button>
+      </div>
+      <ol id="steps"></ol>
+    </main>
+    <script type="module" src="./src/launcher.ts"></script>
+  </body>
+</html>

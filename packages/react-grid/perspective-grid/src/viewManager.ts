@@ -169,7 +169,6 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
     }
 
     entries.set(key, entry);
-    if (depth === 0) rowsAtRoot = entry.rows;
     evict();
     onEvent({
       type: 'view',
@@ -250,6 +249,12 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
       const key = viewConfigKey(level.config);
       const entry = await ensure(key, level.config, level.groupColId, level.depth);
       if (closed) return null;
+
+      // Only a View built for a BLOCK request counts as the root. The
+      // grand-total View is depth 0 too, and it holds exactly one group, so
+      // recording its count here published a row count of 1 to the grid and
+      // capped the store at a single row.
+      if (level.depth === 0) rowsAtRoot = entry.rows;
 
       const { groupColId } = entry;
       return {

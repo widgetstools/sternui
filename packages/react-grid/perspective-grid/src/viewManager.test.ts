@@ -307,3 +307,31 @@ describe('createViewManager — update subscription', () => {
     expect(onUpdate).not.toHaveBeenCalled();
   });
 });
+
+describe('createViewManager — rowsAtRoot', () => {
+  it('reports the root level, not the grand-total View', async () => {
+    const { table } = makeTable(20_000);
+    const views = createViewManager({ table });
+    const request = { startRow: 0, endRow: 100 };
+
+    await views.getView(request);
+    expect(views.rowsAtRoot).toBe(20_000);
+
+    // The grand-total View is depth 0 as well and holds exactly ONE group, so
+    // recording its count here published a row count of 1 to the grid and
+    // capped the store at a single row.
+    await views.readGrandTotal(request);
+    expect(views.rowsAtRoot).toBe(20_000);
+  });
+
+  it('follows the root level across a sort change', async () => {
+    const { table } = makeTable(500);
+    const views = createViewManager({ table });
+
+    await views.getView({ startRow: 0, endRow: 100 });
+    await views.readGrandTotal({ startRow: 0, endRow: 100 });
+    await views.getView({ startRow: 0, endRow: 100, sortModel: [{ colId: 'pnl', sort: 'desc' }] });
+
+    expect(views.rowsAtRoot).toBe(500);
+  });
+});

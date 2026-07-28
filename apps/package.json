@@ -17,6 +17,7 @@
     "demos/markets-ui-react-reference",
     "demos/marketsgrid-container-e2e",
     "demos/mockdata-provider",
+    "demos/perspective-blotter",
     "demos/platform-hooks-demo",
     "demos/star-demo",
     "demos/stomp",
@@ -40,6 +41,7 @@
     "ag-grid-react": "36.0.0"
   },
   "dependencies": {
-    "marketsui-platform": "file:.."
+    "marketsui-platform": "file:..",
+    "starui-apps": "file:"
   }
 }

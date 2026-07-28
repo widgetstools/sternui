@@ -23,6 +23,10 @@
       "types": "./dist/runtime/client/index.d.ts",
       "import": "./dist/runtime/client/index.js"
     },
+    "./runtime/perspective": {
+      "types": "./dist/runtime/perspective/index.d.ts",
+      "import": "./dist/runtime/perspective/index.js"
+    },
     "./runtime/worker/defaultEntry": {
       "types": "./dist/runtime/worker/defaultEntry.d.ts",
       "import": "./dist/runtime/worker/defaultEntry.js"

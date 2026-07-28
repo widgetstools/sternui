@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Perspective blotter — live STOMP</title>
+    <link rel="stylesheet" href="./src/app.css" />
+    <style>
+      body { display: flex; flex-direction: column; height: 100vh; padding: 10px; }
+      #grid { flex: 1 1 auto; min-height: 0; }
+      #log { flex: 0 0 auto; max-height: 6.2em; overflow: auto; margin-top: 8px; color: var(--h-muted); }
+    </style>
+  </head>
+  <body>
+    <div class="bar">
+      <span class="stat" id="who">connecting…</span>
+      <button id="group">group: none</button>
+      <button id="live">live: on</button>
+      <span class="stat" id="stats"></span>
+    </div>
+    <div id="grid"></div>
+    <div id="log"></div>
+    <script type="module" src="./src/blotter.ts"></script>
+  </body>
+</html>

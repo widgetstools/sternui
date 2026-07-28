@@ -1,0 +1,20 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["vite/client"],
+    "paths": {
+      "@starui/host-data/runtime/perspective": [
+        "../../../packages/data/host-data/src/runtime/perspective/index.ts"
+      ],
+      "@starui/host-data/runtime/providers/transports/stomp": [
+        "../../../packages/data/host-data/src/runtime/providers/transports/stomp.ts"
+      ],
+      "@starui/perspective-grid": [
+        "../../../packages/react-grid/perspective-grid/src/index.ts"
+      ]
+    }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

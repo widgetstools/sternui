@@ -1,0 +1,21 @@
+{
+  "name": "@starui/perspective-blotter",
+  "private": true,
+  "type": "module",
+  "description": "Proves the Perspective pull path against the REAL STOMP provider: one worker-held Table, N blotter windows reading only their viewport. The mock-book version lives in packages/react-grid/perspective-grid/harness — this one exists because that harness must not import host-data.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@perspective-dev/client": "4.5.2",
+    "ag-grid-community": "36.0.0",
+    "ag-grid-enterprise": "36.0.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vite": "~7.3.2"
+  }
+}

@@ -65,8 +65,12 @@ export interface PerspectiveHost {
    * The name is what a window passes to `client.open_table(name)`.
    */
   tableFactoryFor(name: string): (schema: unknown, index: string) => Promise<HostTableLike>;
-  /** Bind one window's frame port to a ProxySession onto the host Client. */
-  attach(port: FramePortLike): Promise<void>;
+  /**
+   * Bind one window's frame port to a ProxySession onto the host Client.
+   * Accepts a real `MessagePort` as well as the structural shape, so callers
+   * can hand over `event.ports[0]` without a cast of their own.
+   */
+  attach(port: FramePortLike | MessagePort): Promise<void>;
   hostedTableNames(): Promise<string[]>;
   readonly attachedPorts: number;
   stop(): Promise<void>;
@@ -148,8 +152,12 @@ export function createPerspectiveHost(opts: PerspectiveHostOpts): PerspectiveHos
       };
     },
 
-    async attach(port: FramePortLike): Promise<void> {
+    async attach(portLike: FramePortLike | MessagePort): Promise<void> {
       if (stopped) return;
+      // One cast here rather than one at every call site: a `MessagePort`'s
+      // `onmessage` is typed against the full DOM `MessageEvent`, which is not
+      // assignable to the structural handler under `strictFunctionTypes`.
+      const port = portLike as FramePortLike;
       let client: HostClientLike;
       try {
         client = await hostClient();
