@@ -32,6 +32,7 @@ export {
   GRAND_TOTAL_ROW_ID,
   GRAND_TOTAL_FLAG,
   type PerspectiveRowEngine,
+  type PerspectiveGridStatus,
   type PerspectiveRowEngineOpts,
   type GridApiLike,
   type GridNodeLike,

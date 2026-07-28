@@ -274,3 +274,111 @@ describe('createPerspectiveRowEngine — lifecycle', () => {
     await vi.waitFor(() => expect(success.mock.calls.length + fail.mock.calls.length).toBe(1));
   });
 });
+
+describe('createPerspectiveRowEngine — status', () => {
+  const tableWithSize = (bookRows: number, viewRows: number) => {
+    const { table, tick } = makeTable(viewRows);
+    return {
+      table: { ...table, size: vi.fn(async () => bookRows) } as typeof table,
+      tick,
+    };
+  };
+
+  it('reports the book total from the TABLE, not from the rows this window holds', async () => {
+    // A stock AG status panel counts loaded rows and would say "100".
+    const { table } = tableWithSize(20_000, 20_000);
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+
+    const seen: unknown[] = [];
+    engine.subscribe((s) => seen.push(s));
+    await settle();
+
+    expect(engine.status.bookRows).toBe(20_000);
+  });
+
+  it('separates the filtered count from the book, and flags that a filter is on', async () => {
+    const { table } = tableWithSize(20_000, 3_333);
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    engine.subscribe(() => {});
+
+    await engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100, filterModel: { desk: { filterType: 'text', type: 'equals', filter: 'Rates' } } },
+      success: () => {},
+      fail: () => {},
+    } as never);
+    await settle();
+
+    expect(engine.status).toMatchObject({ bookRows: 20_000, filteredRows: 3_333, filtered: true });
+  });
+
+  it('does not claim "filtered" before the book has been measured', async () => {
+    // Rendering "0 of N" from an unmeasured book is worse than rendering
+    // nothing — it reads as a real, alarming number.
+    const { table } = makeTable(500); // no size()
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    engine.subscribe(() => {});
+    await engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100 },
+      success: () => {},
+      fail: () => {},
+    } as never);
+    await settle();
+
+    expect(engine.status.bookRows).toBeNull();
+    expect(engine.status.filtered).toBe(false);
+  });
+
+  it('notifies subscribers when a new View changes the filtered count', async () => {
+    const { table } = tableWithSize(20_000, 20_000);
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    const seen: number[] = [];
+    engine.subscribe((s) => {
+      if (typeof s.filteredRows === 'number') seen.push(s.filteredRows);
+    });
+
+    await engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100 },
+      success: () => {},
+      fail: () => {},
+    } as never);
+    await settle();
+
+    expect(seen.length).toBeGreaterThan(0);
+  });
+
+  it('tracks live state and failed blocks', async () => {
+    const { table } = tableWithSize(10, 10);
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    engine.subscribe(() => {});
+
+    expect(engine.status.live).toBe(true);
+    engine.setLive(false);
+    expect(engine.status.live).toBe(false);
+    expect(engine.status.failedBlocks).toBe(0);
+  });
+
+  it('unsubscribes cleanly and stops notifying after close', async () => {
+    const { table } = tableWithSize(10, 10);
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    let calls = 0;
+    const off = engine.subscribe(() => {
+      calls += 1;
+    });
+    const afterSubscribe = calls;
+    off();
+    engine.setLive(false);
+    expect(calls).toBe(afterSubscribe);
+
+    await engine.close();
+  });
+
+  it('survives a Table whose size() rejects — a status figure must not break the grid', async () => {
+    const { table } = makeTable(100);
+    const failing = { ...table, size: vi.fn(async () => { throw new Error('worker busy'); }) };
+    const engine = createPerspectiveRowEngine({ table: failing as never, keyColumn: 'positionId' });
+    engine.subscribe(() => {});
+    await settle();
+
+    expect(engine.status.bookRows).toBeNull();
+  });
+});

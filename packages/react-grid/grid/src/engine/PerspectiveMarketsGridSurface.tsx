@@ -22,6 +22,7 @@ import {
   type PerspectiveTableLike,
 } from '@starui/perspective-grid';
 import { buildStreamSafeComponents } from '../widget/buildStreamSafeComponents.js';
+import { PerspectiveStatusPanel } from './PerspectiveStatusPanel.js';
 
 export interface PerspectiveMarketsGridSurfaceHandle {
   getApi(): GridApi | null;
@@ -115,6 +116,31 @@ export const PerspectiveMarketsGridSurface = forwardRef<
 
   const getRowId = useMemo(() => makeGetRowId(keyColumn), [keyColumn]);
 
+  /**
+   * The engine reaches the status panel through the grid `context`, which is
+   * how AG passes host state to a custom panel.
+   */
+  const context = useMemo(() => ({ perspectiveEngine: engine }), [engine]);
+
+  const components = useMemo(
+    () => ({ ...streamSafeComponents, perspectiveStatusPanel: PerspectiveStatusPanel }),
+    [streamSafeComponents],
+  );
+
+  /**
+   * Default to the Perspective status bar, but never override a host that
+   * asked for its own. AG's stock panels count the rows the CLIENT holds — on
+   * this path the loaded blocks — so they would report a confidently wrong
+   * total; ours reads the Table.
+   */
+  const statusBar = useMemo(
+    () =>
+      props.statusBar ?? {
+        statusPanels: [{ statusPanel: 'perspectiveStatusPanel', align: 'left' }],
+      },
+    [props.statusBar],
+  );
+
   // The shell still carries the legacy boolean form of this setting; AG Grid 36
   // takes a position only.
   const grandTotalRow =
@@ -135,6 +161,15 @@ export const PerspectiveMarketsGridSurface = forwardRef<
     [engine],
   );
 
+  // Do not mount the grid until the engine exists. AG reads `context` and
+  // `serverSideDatasource` when it CREATES the grid and instantiates status
+  // panels once — mounting a render earlier gave the status panel a null
+  // engine, and it then rendered nothing forever even though the engine
+  // arrived a tick later. One extra render is the whole cost.
+  if (engine === null) {
+    return <div style={{ flex: 1, minHeight: 0, width: '100%', height: props.height ?? '100%' }} />;
+  }
+
   return (
     <div style={{ flex: 1, minHeight: 0, width: '100%', height: props.height ?? '100%' }}>
       <AgGridReact
@@ -153,8 +188,9 @@ export const PerspectiveMarketsGridSurface = forwardRef<
         rowHeight={props.rowHeight}
         headerHeight={props.headerHeight}
         sideBar={props.sideBar as never}
-        statusBar={props.statusBar as never}
-        components={streamSafeComponents as Record<string, unknown>}
+        statusBar={statusBar as never}
+        components={components as Record<string, unknown>}
+        context={context}
         grandTotalRow={grandTotalRow}
         groupTotalRow={props.groupTotalRow}
         suppressAggFuncInHeader

@@ -40,6 +40,8 @@ export interface UpdatableView extends DeletableView {
 /** The slice of a Perspective `Table` this needs. */
 export interface PerspectiveTableLike {
   view(config: PerspectiveViewConfig): Promise<UpdatableView>;
+  /** Rows in the whole book, ignoring any View's filters. */
+  size?(): Promise<number>;
 }
 
 export interface ViewManagerEvent {

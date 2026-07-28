@@ -123,3 +123,25 @@ describe('PerspectiveMarketsGridSurface', () => {
     expect(() => ref.current!.setLive(false)).not.toThrow();
   });
 });
+
+describe('PerspectiveMarketsGridSurface — status bar', () => {
+  it('defaults to the Perspective panel, since AG stock panels count client rows', async () => {
+    const { last } = renderSurface();
+    await waitFor(() => expect(last().statusBar).toBeDefined());
+    expect(last().statusBar).toEqual({
+      statusPanels: [{ statusPanel: 'perspectiveStatusPanel', align: 'left' }],
+    });
+    expect(last().components.perspectiveStatusPanel).toBeDefined();
+  });
+
+  it('never overrides a status bar the host asked for', async () => {
+    const own = { statusPanels: [{ statusPanel: 'agSelectedRowCountComponent' }] };
+    const { last } = renderSurface({ statusBar: own });
+    await waitFor(() => expect(last().statusBar).toBe(own));
+  });
+
+  it('passes the engine through context, which is how the panel reaches it', async () => {
+    const { last } = renderSurface();
+    await waitFor(() => expect(last().context?.perspectiveEngine).toBeTruthy());
+  });
+});

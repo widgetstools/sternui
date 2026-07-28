@@ -62,12 +62,39 @@ export interface PerspectiveRowEngineOpts {
   onError?(error: unknown): void;
 }
 
+/**
+ * What a status bar can honestly say on the pull path.
+ *
+ * Every count comes from the worker-held Table, NOT from the rows this window
+ * is holding. A stock AG status panel would aggregate the ~100 rows in the
+ * loaded blocks and report a plausible, wrong number — which is the failure
+ * mode this whole migration keeps running into.
+ */
+export interface PerspectiveGridStatus {
+  /** Rows in the book, ignoring every filter. Null until measured. */
+  bookRows: number | null;
+  /** Rows after the server-side filters — what the grid is scrolling. */
+  filteredRows: number | null;
+  /** True when a filter is actually narrowing the book. */
+  filtered: boolean;
+  /** Re-reading on Table updates. */
+  live: boolean;
+  /** Live Views this window holds — one per open group level. */
+  liveViews: number;
+  /** Blocks that failed; AG never retries one on its own. */
+  failedBlocks: number;
+}
+
 export interface PerspectiveRowEngine {
   datasource: PerspectiveDatasource;
   /** Connect the grid once it exists; pass null to disconnect. */
   setApi(api: GridApiLike | null): void;
   /** Rows in the root level, for `setRowCount`. Null until a View is built. */
   readonly rowsAtRoot: number | null;
+  /** Current status — safe to call at any time. */
+  readonly status: PerspectiveGridStatus;
+  /** Subscribe to status changes. Returns an unsubscribe. */
+  subscribe(listener: (status: PerspectiveGridStatus) => void): () => void;
   /** Stop re-reading on Table updates without tearing anything down. */
   setLive(live: boolean): void;
   readonly live: boolean;
@@ -93,9 +120,55 @@ export function createPerspectiveRowEngine(
   /** Set once the root level has been grouped, so row count is not published. */
   let grouped = false;
 
+  let bookRows: number | null = null;
+  let failedBlocks = 0;
+  const listeners = new Set<(status: PerspectiveGridStatus) => void>();
+
+  function currentStatus(): PerspectiveGridStatus {
+    const filteredRows = views.rowsAtRoot;
+    return {
+      bookRows,
+      filteredRows,
+      // Only claim "filtered" once both numbers are known — an unmeasured
+      // book must not render as "0 of N".
+      filtered:
+        bookRows !== null && filteredRows !== null && filteredRows < bookRows,
+      live,
+      liveViews: views.liveViews,
+      failedBlocks,
+    };
+  }
+
+  function publishStatus(): void {
+    if (listeners.size === 0) return;
+    const snapshot = currentStatus();
+    for (const listener of listeners) listener(snapshot);
+  }
+
+  /** Measure the unfiltered book. Cheap, and the only figure a View cannot
+   *  give — a View only ever knows its own filtered row count. */
+  function measureBook(): void {
+    if (closed || typeof table.size !== 'function') return;
+    void table
+      .size()
+      .then((size) => {
+        if (closed || size === bookRows) return;
+        bookRows = size;
+        publishStatus();
+      })
+      .catch(() => {
+        /* a status figure must never break the grid */
+      });
+  }
+
   const views = createViewManager({
     table,
-    onUpdate: () => scheduleRefresh(),
+    onUpdate: () => {
+      // The book itself can grow or shrink under the feed, so the unfiltered
+      // total is re-measured on updates rather than read once at startup.
+      measureBook();
+      scheduleRefresh();
+    },
     onEvent: (event) => {
       onEvent?.(event);
       if (event.type !== 'view' || event.depth !== 0) return;
@@ -103,6 +176,9 @@ export function createPerspectiveRowEngine(
       // SILENT without ValidationModule. Grouped levels are small enough to
       // discover by walking off the end.
       if (!grouped && typeof event.rows === 'number') api?.setRowCount?.(event.rows);
+      // A new root View means a new filtered count — the figure the status bar
+      // exists to show.
+      publishStatus();
     },
   });
 
@@ -178,7 +254,11 @@ export function createPerspectiveRowEngine(
     },
     getGeneration: () => views.getGeneration(),
     getGrandTotal: grandTotalFor,
-    onError: (error) => onError?.(error),
+    onError: (error) => {
+      failedBlocks += 1;
+      publishStatus();
+      onError?.(error);
+    },
   });
 
   return {
@@ -189,10 +269,24 @@ export function createPerspectiveRowEngine(
       if (api !== null && !grouped && views.rowsAtRoot !== null) {
         api.setRowCount?.(views.rowsAtRoot);
       }
+      if (api !== null) measureBook();
     },
 
     get rowsAtRoot() {
       return views.rowsAtRoot;
+    },
+
+    get status() {
+      return currentStatus();
+    },
+
+    subscribe(listener: (status: PerspectiveGridStatus) => void) {
+      listeners.add(listener);
+      // Measure on first interest rather than at construction: a grid with no
+      // status bar should not pay for a figure nothing reads.
+      measureBook();
+      listener(currentStatus());
+      return () => listeners.delete(listener);
     },
 
     get liveViews() {
@@ -206,6 +300,7 @@ export function createPerspectiveRowEngine(
     setLive(next: boolean) {
       live = next;
       if (live) scheduleRefresh();
+      publishStatus();
     },
 
     refreshNow() {
@@ -219,6 +314,7 @@ export function createPerspectiveRowEngine(
       if (timer !== null) clearTimeout(timer);
       timer = null;
       api = null;
+      listeners.clear();
       await views.close();
     },
   };
