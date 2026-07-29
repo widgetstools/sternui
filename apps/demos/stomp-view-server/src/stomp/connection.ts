@@ -1,24 +1,52 @@
 import type { WebSocket } from "ws";
 import type { AppConfig, LiveMode } from "../config.js";
-import { clampSnapshotRows, clampUpdatesPerTick, parseLiveMode } from "../config.js";
+import { clampSnapshotRows, parseLiveMode } from "../config.js";
 import type { PositionRecord, TradeRecord } from "../data/fiRecords.js";
-import { buildSnapshot, stampPositionsAsOfDate } from "../data/fiRecords.js";
+import { buildSnapshotRow } from "../data/fiRecords.js";
 import {
-  mutatePosition,
-  mutateTrade,
-  touchPosition,
-  touchTrade,
-} from "../data/mutate.js";
+  sparseErraticTickPosition,
+  sparseErraticTickTrade,
+  type SparsePositionDelta,
+} from "../data/sparseTick.js";
 import * as protocol from "../protocol/contract.js";
 import { hashString } from "../util/hash.js";
-import { createLiveBatcher } from "./liveBatcher.js";
-import { createSparseLiveBatcher } from "./sparseLiveBatcher.js";
+import { createRateBudgetBatcher } from "./liveBatcher.js";
 
 export interface Subscription {
   destination: string;
   id: string;
   ack: string;
   updateInterval?: ReturnType<typeof setInterval>;
+}
+
+/**
+ * Skip snapshot pumping / live ticks while the socket's send buffer is
+ * backed up — a slow consumer must throttle the stream, not balloon
+ * server memory. The live batcher's elapsed-time budget catches up
+ * (bounded at 1 s worth) on the next healthy tick.
+ */
+const SOCKET_HIGH_WATER_BYTES = 16 * 1024 * 1024;
+
+/**
+ * Built snapshots cached per (dataType, seed, rowCount, profile) —
+ * rows are deterministic from the seed, so a re-trigger (provider
+ * restart, window reload, second client on the same topic) replays
+ * from memory instead of re-generating 20k records (~seconds of CPU).
+ * Live mutations tick the cached rows in place, so a cache-hit
+ * snapshot reflects CURRENT drifted state — exactly how a real feed's
+ * snapshot behaves. Bounded: oldest entry evicted past MAX entries.
+ */
+const snapshotCache = new Map<string, (PositionRecord | TradeRecord)[]>();
+const SNAPSHOT_CACHE_MAX_ENTRIES = 4;
+
+function cacheSnapshot(key: string, rows: (PositionRecord | TradeRecord)[]): void {
+  if (snapshotCache.has(key)) snapshotCache.delete(key);
+  snapshotCache.set(key, rows);
+  while (snapshotCache.size > SNAPSHOT_CACHE_MAX_ENTRIES) {
+    const oldest = snapshotCache.keys().next().value;
+    if (oldest === undefined) break;
+    snapshotCache.delete(oldest);
+  }
 }
 
 function headerCI(
@@ -191,15 +219,6 @@ export class StompConnection {
     return clampSnapshotRows(this.config, Number.isFinite(n) ? n : undefined);
   }
 
-  private parseUpdatesPerTick(headers: Record<string, string>): number {
-    const raw = headerCI(headers, protocol.HEADER_UPDATES_PER_TICK);
-    if (raw === undefined) return this.config.liveUpdatesPerTick;
-    const n = Number.parseInt(raw, 10);
-    return clampUpdatesPerTick(
-      Number.isFinite(n) ? n : this.config.liveUpdatesPerTick,
-    );
-  }
-
   private parseLiveMode(headers: Record<string, string>): LiveMode {
     return parseLiveMode(
       this.config,
@@ -207,28 +226,10 @@ export class StompConnection {
     );
   }
 
-  /** Rows per sparse live tick; falls back to `SPARSE_ROWS_PER_TICK`. */
-  private parseSparseRowsPerTick(
-    headers: Record<string, string>,
-    liveMode: LiveMode,
-  ): number {
-    const raw = headerCI(headers, protocol.HEADER_UPDATES_PER_TICK);
-    if (raw !== undefined) {
-      const n = Number.parseInt(raw, 10);
-      if (Number.isFinite(n)) return clampUpdatesPerTick(n);
-    }
-    if (liveMode === "sparse") return this.config.sparseRowsPerTick;
-    return this.parseUpdatesPerTick(headers);
-  }
-
   private handleSend(headers: Record<string, string>, body: string): void {
     const destination = headers.destination ?? "";
     const rowCount = this.parseSnapshotRows(headers);
     const liveMode = this.parseLiveMode(headers);
-    const updatesPerTick =
-      liveMode === "sparse"
-        ? this.parseSparseRowsPerTick(headers, liveMode)
-        : this.parseUpdatesPerTick(headers);
     const requestString =
       body && body.startsWith("/snapshot/") ? body : destination;
 
@@ -295,7 +296,6 @@ export class StompConnection {
           batchSize,
           subscription,
           rowCount,
-          updatesPerTick,
           liveMode,
         );
       } else {
@@ -337,7 +337,6 @@ export class StompConnection {
           subscription,
           rowCount,
           seedBase,
-          updatesPerTick,
           liveMode,
         );
       } else if (this.config.debug) {
@@ -350,6 +349,61 @@ export class StompConnection {
       console.log(`Unrecognized trigger pattern: ${requestString}`);
   }
 
+  private socketBackedUp(): boolean {
+    return this.ws.bufferedAmount > SOCKET_HIGH_WATER_BYTES;
+  }
+
+  /**
+   * Drain-paced snapshot pump with LAZY row generation. The first
+   * batch is generated + sent synchronously the moment the trigger is
+   * handled — the server starts returning snapshot data immediately
+   * instead of after the whole set is built (the old shape generated
+   * all 20k rows up-front, ~4 s of silence before the first byte, then
+   * added a fixed 10 ms delay between batches). Subsequent batches
+   * chain on `setImmediate`; the only wait state is socket
+   * backpressure. `onComplete` receives the fully-materialized rows
+   * (cache + live-update source).
+   */
+  private pumpSnapshotBatches(opts: {
+    total: number;
+    rowAt: (i: number) => PositionRecord | TradeRecord;
+    batchSize: number;
+    sendBatch: (batch: readonly (PositionRecord | TradeRecord)[], batchNumber: number) => void;
+    onComplete: (rows: (PositionRecord | TradeRecord)[]) => void;
+    label: string;
+  }): void {
+    const { total, rowAt, batchSize, sendBatch, onComplete, label } = opts;
+    const rows: (PositionRecord | TradeRecord)[] = [];
+    let batchNumber = 1;
+
+    const pump = (): void => {
+      try {
+        while (rows.length < total) {
+          if (this.socketBackedUp()) {
+            setTimeout(pump, protocol.SNAPSHOT_BACKPRESSURE_RETRY_MS);
+            return;
+          }
+          const startIndex = rows.length;
+          const endIndex = Math.min(startIndex + batchSize, total);
+          for (let i = startIndex; i < endIndex; i++) rows.push(rowAt(i));
+          sendBatch(rows.slice(startIndex, endIndex), batchNumber);
+          batchNumber++;
+          if (rows.length < total) {
+            // Yield between batches so other connections' frames and
+            // live ticks interleave, without adding measurable delay.
+            setImmediate(pump);
+            return;
+          }
+        }
+        onComplete(rows);
+      } catch (err) {
+        console.error(`[snapshot ${label}] client ${this.id}:`, err);
+      }
+    };
+
+    pump();
+  }
+
   private startDataDelivery(
     dataType: "positions" | "trades",
     rate: number,
@@ -357,45 +411,20 @@ export class StompConnection {
     subscription: Subscription,
     rowCount: number,
     seedBase: number,
-    updatesPerTick: number,
     liveMode: LiveMode,
   ): void {
-    const data = buildSnapshot(
-      dataType,
-      rowCount,
-      seedBase,
-      this.config.rowProfile,
-    );
-    let index = 0;
-    const snapshotBatchInterval = protocol.SNAPSHOT_BATCH_INTERVAL_MS;
-    const delivered: (PositionRecord | TradeRecord)[] = [];
+    const profile = this.config.rowProfile;
+    const cacheKey = `${dataType}|${seedBase}|${rowCount}|${profile}`;
+    const cached = snapshotCache.get(cacheKey);
 
-    const sendBatch = (): void => {
-      try {
-        if (index >= data.length) {
-          this.send(
-            "MESSAGE",
-            {
-              [protocol.HEADER.SUBSCRIPTION]: subscription.id,
-              [protocol.HEADER.MESSAGE_ID]: `msg-${Date.now()}`,
-              [protocol.HEADER.DESTINATION]: subscription.destination,
-            },
-            protocol.legacySnapshotCompleteText(data.length, dataType),
-          );
-          this.startLiveUpdates(
-            dataType,
-            rate,
-            subscription,
-            delivered,
-            updatesPerTick,
-            liveMode,
-          );
-          return;
-        }
-
-        const batch = data.slice(index, index + batchSize);
-        delivered.push(...batch.map((r) => structuredClone(r)));
-
+    this.pumpSnapshotBatches({
+      total: rowCount,
+      rowAt: cached
+        ? (i) => cached[i]!
+        : (i) => buildSnapshotRow(dataType, seedBase, i, profile),
+      batchSize,
+      label: `legacy ${dataType}`,
+      sendBatch: (batch) => {
         this.send(
           "MESSAGE",
           {
@@ -407,18 +436,25 @@ export class StompConnection {
           },
           JSON.stringify(batch),
         );
-
-        index += batchSize;
-        setTimeout(sendBatch, snapshotBatchInterval);
-      } catch (err) {
-        console.error(
-          `[snapshot legacy] client ${this.id} ${dataType}:`,
-          err,
+      },
+      onComplete: (rows) => {
+        // Live mutations tick the delivered rows in place; the cache
+        // shares the same row objects, so a later cache-hit snapshot
+        // shows current drifted state (real-feed semantics).
+        const live = cached ?? rows;
+        if (!cached) cacheSnapshot(cacheKey, rows);
+        this.send(
+          "MESSAGE",
+          {
+            [protocol.HEADER.SUBSCRIPTION]: subscription.id,
+            [protocol.HEADER.MESSAGE_ID]: `msg-${Date.now()}`,
+            [protocol.HEADER.DESTINATION]: subscription.destination,
+          },
+          protocol.legacySnapshotCompleteText(rows.length, dataType),
         );
-      }
-    };
-
-    sendBatch();
+        this.startLiveUpdates(dataType, rate, subscription, live, liveMode);
+      },
+    });
   }
 
   private startAsOfDateSnapshotDelivery(
@@ -430,44 +466,27 @@ export class StompConnection {
     rowCount: number,
   ): void {
     const seedBase = hashString(`${clientId}-positions-${asOfDateDisplay}`);
-    const data = stampPositionsAsOfDate(
-      buildSnapshot(
-        "positions",
-        rowCount,
-        seedBase,
-        this.config.rowProfile,
-      ) as PositionRecord[],
-      asOfDateIso,
-    );
-    let index = 0;
-    let batchNumber = 1;
-    const snapshotBatchInterval = protocol.SNAPSHOT_BATCH_INTERVAL_MS;
+    const profile = this.config.rowProfile;
+    const cacheKey = `asof|${seedBase}|${rowCount}|${profile}`;
+    const cached = snapshotCache.get(cacheKey);
 
-    const sendBatch = (): void => {
-      try {
-        if (index >= data.length) {
-          this.send(
-            "MESSAGE",
-            {
-              [protocol.HEADER.SUBSCRIPTION]: subscription.id,
-              [protocol.HEADER.MESSAGE_ID]: `msg-${Date.now()}`,
-              [protocol.HEADER.DESTINATION]: subscription.destination,
-              [protocol.HEADER.CLIENT_ID]: clientId,
-              [protocol.HEADER.MESSAGE_TYPE]:
-                protocol.MESSAGE_TYPE.SNAPSHOT_COMPLETE,
-            },
-            protocol.asOfDateSnapshotCompleteText(
-              data.length,
-              asOfDateDisplay,
-              clientId,
-            ),
-          );
-          return;
-        }
-
-        const endIndex = Math.min(index + batchSize, data.length);
-        const batch = data.slice(index, endIndex);
-
+    this.pumpSnapshotBatches({
+      total: rowCount,
+      rowAt: cached
+        ? (i) => cached[i]!
+        : (i) => {
+            const row = buildSnapshotRow(
+              "positions",
+              seedBase,
+              i,
+              profile,
+            ) as PositionRecord;
+            row.asOfDate = asOfDateIso;
+            return row;
+          },
+      batchSize,
+      label: `as-of ${clientId} ${asOfDateDisplay}`,
+      sendBatch: (batch, batchNumber) => {
         this.send(
           "MESSAGE",
           {
@@ -481,57 +500,80 @@ export class StompConnection {
           },
           JSON.stringify(batch),
         );
-
-        index = endIndex;
-        batchNumber++;
-        setTimeout(sendBatch, snapshotBatchInterval);
-      } catch (err) {
-        console.error(
-          `[snapshot as-of] ${clientId} ${asOfDateDisplay}:`,
-          err,
+      },
+      onComplete: (rows) => {
+        if (!cached) cacheSnapshot(cacheKey, rows);
+        this.send(
+          "MESSAGE",
+          {
+            [protocol.HEADER.SUBSCRIPTION]: subscription.id,
+            [protocol.HEADER.MESSAGE_ID]: `msg-${Date.now()}`,
+            [protocol.HEADER.DESTINATION]: subscription.destination,
+            [protocol.HEADER.CLIENT_ID]: clientId,
+            [protocol.HEADER.MESSAGE_TYPE]:
+              protocol.MESSAGE_TYPE.SNAPSHOT_COMPLETE,
+          },
+          protocol.asOfDateSnapshotCompleteText(
+            rows.length,
+            asOfDateDisplay,
+            clientId,
+          ),
         );
-      }
-    };
-
-    sendBatch();
-  }
-
-  private liveBatchFnFor(
-    dataType: "positions" | "trades",
-    records: (PositionRecord | TradeRecord)[],
-    updatesPerTick: number,
-    liveMode: LiveMode,
-  ): () => unknown[] {
-    if (liveMode === "sparse" && dataType === "positions") {
-      return createSparseLiveBatcher({
-        records: records as PositionRecord[],
-        rowsPerTick: updatesPerTick,
-      });
-    }
-    const isPositions = dataType === "positions";
-    return createLiveBatcher<PositionRecord | TradeRecord>({
-      records,
-      mutate: (base) =>
-        isPositions
-          ? mutatePosition(base as PositionRecord)
-          : mutateTrade(base as TradeRecord),
-      touch: (row) =>
-        isPositions
-          ? touchPosition(row as PositionRecord)
-          : touchTrade(row as TradeRecord),
-      updatesPerTick,
-      maxSweepRowsPerSec: this.config.maxSweepRowsPerSec,
+      },
     });
   }
 
   /**
-   * Skip a live tick while the socket's send buffer is backed up — a
-   * slow consumer must throttle the stream, not balloon server memory.
-   * The batcher's elapsed-time coverage floor catches the sweep up on
-   * the next healthy tick.
+   * Build the live frame source for one stream.
+   *
+   * The trigger `rate` is the target aggregate ROW-UPDATES PER SECOND,
+   * honoured exactly by the rate-budget batcher (clamped only by the
+   * `maxLiveRowsPerSec` safety cap). Rows are drawn uniformly at
+   * random; each drawn row mutates a random correlated subset of the
+   * ≤15 hot trading fields (see sparseTick.ts) — never the whole
+   * record, because real feeds don't re-mark every field at once.
+   *
+   *   - `legacy` → FULL rows on the wire (values changed in hot fields
+   *     only). The platform's whole-row cache contract holds and
+   *     `thinDeltas` diffing sees a realistic change ratio.
+   *   - `sparse` (positions only) → partial deltas (key + changed fields).
    */
-  private socketBackedUp(): boolean {
-    return this.ws.bufferedAmount > 16 * 1024 * 1024;
+  private liveBatchFnFor(
+    dataType: "positions" | "trades",
+    records: (PositionRecord | TradeRecord)[],
+    rate: number,
+    liveMode: LiveMode,
+  ): () => unknown[] {
+    const rowsPerSec = Math.min(rate, this.config.maxLiveRowsPerSec);
+    if (rowsPerSec < rate) {
+      console.log(
+        `[stomp-view-server] client ${this.id}: requested rate ${rate}/s clamped to ${rowsPerSec}/s (MAX_LIVE_ROWS_PER_SEC)`,
+      );
+    }
+    if (liveMode === "sparse" && dataType === "positions") {
+      const rows = records as PositionRecord[];
+      return createRateBudgetBatcher<SparsePositionDelta>({
+        rowCount: rows.length,
+        rowsPerSec,
+        maxRowsPerFrame: this.config.maxRowsPerFrame,
+        tickRow: (i) => sparseErraticTickPosition(rows[i]!),
+      });
+    }
+    const isPositions = dataType === "positions";
+    return createRateBudgetBatcher<PositionRecord | TradeRecord>({
+      rowCount: records.length,
+      rowsPerSec,
+      maxRowsPerFrame: this.config.maxRowsPerFrame,
+      tickRow: (i) => {
+        const row = records[i]!;
+        const changed = isPositions
+          ? sparseErraticTickPosition(row as PositionRecord)
+          : sparseErraticTickTrade(row as TradeRecord);
+        // Full-row wire: the frame is serialized synchronously in the
+        // same tick, so shipping the mutated row by reference is safe.
+        return changed ? row : null;
+      },
+    });
   }
 
   private startLiveUpdates(
@@ -539,15 +581,14 @@ export class StompConnection {
     rate: number,
     subscription: Subscription,
     deliveredRecords: (PositionRecord | TradeRecord)[],
-    updatesPerTick: number,
     liveMode: LiveMode,
   ): void {
-    const intervalMs = 1000 / rate;
+    if (rate < 1) return; // snapshot-only request
     let updateNumber = 1;
     const nextBatch = this.liveBatchFnFor(
       dataType,
       deliveredRecords,
-      updatesPerTick,
+      rate,
       liveMode,
     );
 
@@ -579,16 +620,15 @@ export class StompConnection {
             dataType === "positions"
               ? first.positionId
               : first.tradeId;
-          const fieldCount = Object.keys(first).length - 1;
           console.log(
-            `live update #${updateNumber} ${dataType} ${liveMode} ${batch.length} row(s) (e.g. ${String(rid)}, ~${fieldCount} field(s)/row)`,
+            `live update #${updateNumber} ${dataType} ${liveMode} ${batch.length} row(s) (e.g. ${String(rid)})`,
           );
         }
         updateNumber++;
       } catch (err) {
         console.error(`[live legacy] client ${this.id} ${dataType}:`, err);
       }
-    }, intervalMs);
+    }, this.config.liveTickMs);
 
     subscription.updateInterval = updateInterval;
   }
@@ -600,56 +640,21 @@ export class StompConnection {
     batchSize: number,
     subscription: Subscription,
     rowCount: number,
-    updatesPerTick: number,
     liveMode: LiveMode,
   ): void {
     const seedBase = hashString(`${clientId}-${dataType}`);
-    const data = buildSnapshot(
-      dataType,
-      rowCount,
-      seedBase,
-      this.config.rowProfile,
-    );
-    let index = 0;
-    let batchNumber = 1;
-    const snapshotBatchInterval = protocol.SNAPSHOT_BATCH_INTERVAL_MS;
-    const deliveredRecords: (PositionRecord | TradeRecord)[] = [];
+    const profile = this.config.rowProfile;
+    const cacheKey = `${dataType}|${seedBase}|${rowCount}|${profile}`;
+    const cached = snapshotCache.get(cacheKey);
 
-    const sendBatch = (): void => {
-      try {
-        if (index >= data.length) {
-          this.send(
-            "MESSAGE",
-            {
-              [protocol.HEADER.SUBSCRIPTION]: subscription.id,
-              [protocol.HEADER.MESSAGE_ID]: `msg-${Date.now()}`,
-              [protocol.HEADER.DESTINATION]: subscription.destination,
-              [protocol.HEADER.CLIENT_ID]: clientId,
-              [protocol.HEADER.MESSAGE_TYPE]:
-                protocol.MESSAGE_TYPE.SNAPSHOT_COMPLETE,
-            },
-            protocol.clientSnapshotCompleteText(
-              data.length,
-              dataType,
-              clientId,
-            ),
-          );
-          this.startClientSpecificLiveUpdates(
-            dataType,
-            clientId,
-            rate,
-            subscription,
-            deliveredRecords,
-            updatesPerTick,
-            liveMode,
-          );
-          return;
-        }
-
-        const endIndex = Math.min(index + batchSize, data.length);
-        const batch = data.slice(index, endIndex);
-        deliveredRecords.push(...batch.map((r) => structuredClone(r)));
-
+    this.pumpSnapshotBatches({
+      total: rowCount,
+      rowAt: cached
+        ? (i) => cached[i]!
+        : (i) => buildSnapshotRow(dataType, seedBase, i, profile),
+      batchSize,
+      label: `client ${clientId} ${dataType}`,
+      sendBatch: (batch, batchNumber) => {
         this.send(
           "MESSAGE",
           {
@@ -663,19 +668,36 @@ export class StompConnection {
           },
           JSON.stringify(batch),
         );
-
-        index = endIndex;
-        batchNumber++;
-        setTimeout(sendBatch, snapshotBatchInterval);
-      } catch (err) {
-        console.error(
-          `[snapshot client] ${clientId} ${dataType}:`,
-          err,
+      },
+      onComplete: (rows) => {
+        const live = cached ?? rows;
+        if (!cached) cacheSnapshot(cacheKey, rows);
+        this.send(
+          "MESSAGE",
+          {
+            [protocol.HEADER.SUBSCRIPTION]: subscription.id,
+            [protocol.HEADER.MESSAGE_ID]: `msg-${Date.now()}`,
+            [protocol.HEADER.DESTINATION]: subscription.destination,
+            [protocol.HEADER.CLIENT_ID]: clientId,
+            [protocol.HEADER.MESSAGE_TYPE]:
+              protocol.MESSAGE_TYPE.SNAPSHOT_COMPLETE,
+          },
+          protocol.clientSnapshotCompleteText(
+            rows.length,
+            dataType,
+            clientId,
+          ),
         );
-      }
-    };
-
-    sendBatch();
+        this.startClientSpecificLiveUpdates(
+          dataType,
+          clientId,
+          rate,
+          subscription,
+          live,
+          liveMode,
+        );
+      },
+    });
   }
 
   private startClientSpecificLiveUpdates(
@@ -684,16 +706,15 @@ export class StompConnection {
     rate: number,
     subscription: Subscription,
     deliveredRecords: (PositionRecord | TradeRecord)[],
-    updatesPerTick: number,
     liveMode: LiveMode,
   ): void {
+    if (rate < 1) return; // snapshot-only request
     let updateNumber = 1;
     const streamKey = `${dataType}-${clientId}`;
-    const intervalMs = 1000 / rate;
     const nextBatch = this.liveBatchFnFor(
       dataType,
       deliveredRecords,
-      updatesPerTick,
+      rate,
       liveMode,
     );
 
@@ -725,7 +746,7 @@ export class StompConnection {
       } catch (err) {
         console.error(`[live client] ${clientId} ${dataType}:`, err);
       }
-    }, intervalMs);
+    }, this.config.liveTickMs);
 
     this.liveUpdateIntervals.set(streamKey, updateInterval);
   }

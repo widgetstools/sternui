@@ -1,131 +1,108 @@
 import { describe, expect, it } from 'vitest';
-import { createLiveBatcher } from './liveBatcher.js';
+import { createRateBudgetBatcher } from './liveBatcher.js';
 
 /** Fake clock: each call to the batcher advances time by `stepMs`. */
 function clock(start: number, stepMs: number): () => number {
-  let t = start - stepMs; // first batcher-internal call lands on `start`
+  let t = start - stepMs; // batcher creation lands on `start - stepMs`; first tick on `start`
   return () => (t += stepMs);
 }
 
-const identity = (n: number): number => n;
-
 function batcher(
-  records: number[],
-  overrides: Partial<Parameters<typeof createLiveBatcher<number>>[0]> = {},
+  overrides: Partial<Parameters<typeof createRateBudgetBatcher<number>>[0]> = {},
 ) {
-  return createLiveBatcher<number>({
-    records,
-    mutate: identity,
-    touch: identity,
-    updatesPerTick: 1,
-    maxSweepRowsPerSec: 1_000_000,
+  return createRateBudgetBatcher<number>({
+    rowCount: 20_000,
+    rowsPerSec: 10_000,
+    maxRowsPerFrame: 2_000,
+    tickRow: (i) => i,
     ...overrides,
   });
 }
 
-describe('createLiveBatcher', () => {
-  it('sweeps the whole set within one second regardless of updatesPerTick', () => {
-    const records = Array.from({ length: 100 }, (_, i) => i);
-    // 10 ticks/sec, updatesPerTick=1 → coverage floor must dominate.
-    const next = batcher(records, { now: clock(0, 100) });
+describe('createRateBudgetBatcher', () => {
+  it('honours the requested aggregate rate exactly across ticks', () => {
+    // 10 000 rows/sec at 40 ms ticks → 400 rows per tick.
+    const next = batcher({ now: clock(0, 40) });
+    let total = 0;
+    for (let tick = 0; tick < 25; tick++) total += next().length; // 1 second
+    expect(total).toBe(10_000);
+  });
+
+  it('carries fractional budget instead of dropping it', () => {
+    // 30 rows/sec at 40 ms ticks → 1.2 rows/tick: 1,1,1,1,2 repeating.
+    const next = batcher({ rowsPerSec: 30, now: clock(0, 40) });
+    const sizes = Array.from({ length: 25 }, () => next().length);
+    expect(sizes.reduce((a, b) => a + b, 0)).toBe(30);
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(2);
+  });
+
+  it('emits nothing until the budget reaches one row', () => {
+    // 5 rows/sec at 40 ms ticks → a row roughly every 5 ticks.
+    const next = batcher({ rowsPerSec: 5, now: clock(0, 40) });
+    const sizes = Array.from({ length: 25 }, () => next().length);
+    expect(sizes.reduce((a, b) => a + b, 0)).toBe(5);
+    expect(sizes.filter((n) => n === 0).length).toBe(20);
+  });
+
+  it('caps a single frame at maxRowsPerFrame and carries the remainder', () => {
+    // One 1 s gap owes 10 000 rows; frames cap at 2 000.
+    const next = batcher({ now: clock(0, 1000) });
+    expect(next().length).toBe(2_000);
+    // The carried 8 000 plus the next second's accrual is still frame-capped.
+    expect(next().length).toBe(2_000);
+  });
+
+  it('caps catch-up after a stall at one second of updates', () => {
+    // 10 s gap must NOT replay 100 000 rows — budget caps at rowsPerSec.
+    const next = batcher({
+      maxRowsPerFrame: 50_000,
+      rowsPerSec: 3_000,
+      now: clock(0, 10_000),
+    });
+    expect(next().length).toBe(3_000);
+  });
+
+  it('spreads updates randomly across the whole row set', () => {
     const seen = new Set<number>();
+    const next = batcher({
+      rowCount: 1_000,
+      rowsPerSec: 5_000,
+      maxRowsPerFrame: 5_000,
+      tickRow: (i) => i,
+      now: clock(0, 200),
+    });
     for (let tick = 0; tick < 10; tick++) {
-      for (const r of next()) seen.add(r);
+      for (const i of next()) seen.add(i);
     }
-    expect(seen.size).toBe(100);
+    // 10 000 random draws over 1 000 rows — near-full coverage, and
+    // both halves of the index space are hit.
+    expect(seen.size).toBeGreaterThan(900);
+    expect([...seen].some((i) => i < 500)).toBe(true);
+    expect([...seen].some((i) => i >= 500)).toBe(true);
   });
 
-  it('honours updatesPerTick when it exceeds the coverage floor', () => {
-    const records = Array.from({ length: 100 }, (_, i) => i);
-    // 100 ms ticks → floor is 10 rows, but updatesPerTick asks for 25.
-    const next = batcher(records, { updatesPerTick: 25, now: clock(0, 100) });
-    expect(next().length).toBe(25);
-  });
-
-  it('sweeps in parity waves — evens first, then odds, wrapping (no row starved)', () => {
-    const next = batcher([0, 1, 2, 3, 4], {
-      updatesPerTick: 2,
-      now: clock(0, 1),
-    });
-    // Visit order: 0,2,4 (even wave) then 1,3 (odd wave), repeating.
-    expect(next()).toEqual([0, 2]);
-    expect(next()).toEqual([4, 1]);
-    expect(next()).toEqual([3, 0]);
-  });
-
-  it('alternates whole even and odd waves when a tick covers half the set', () => {
-    const records = Array.from({ length: 10 }, (_, i) => i);
-    // 500 ms ticks → floor = 5 rows = exactly one parity class per tick.
-    const next = batcher(records, { now: clock(0, 500) });
-    expect(next()).toEqual([0, 2, 4, 6, 8]);
-    expect(next()).toEqual([1, 3, 5, 7, 9]);
-    expect(next()).toEqual([0, 2, 4, 6, 8]);
-  });
-
-  it('emits the entire set when a tick is delayed a second or more', () => {
-    const records = Array.from({ length: 50 }, (_, i) => i);
-    const next = batcher(records, { now: clock(0, 5000) });
-    expect(next().length).toBe(50);
-  });
-
-  it('caps sweep-driven coverage at maxSweepRowsPerSec', () => {
-    const records = Array.from({ length: 20_000 }, (_, i) => i);
-    // 1 s ticks: uncapped floor would be 20 000 rows; budget caps at 5 000.
-    const next = batcher(records, {
-      maxSweepRowsPerSec: 5000,
+  it('never emits more distinct rows than exist', () => {
+    const next = batcher({
+      rowCount: 3,
+      rowsPerSec: 1_000,
       now: clock(0, 1000),
     });
-    expect(next().length).toBe(5000);
-    // Cursor still advances — the full set is covered across 4 ticks.
-    const seen = new Set<number>(next());
-    next().forEach((r) => seen.add(r));
-    next().forEach((r) => seen.add(r));
-    expect(seen.size).toBe(15_000);
+    expect(next().length).toBeLessThanOrEqual(3);
   });
 
-  it('uses full mutate for the head rows and touch for coverage rows', () => {
-    const records = Array.from({ length: 10 }, (_, i) => i);
-    const mutated: number[] = [];
-    const touched: number[] = [];
-    const next = createLiveBatcher<number>({
-      records,
-      mutate: (n) => {
-        mutated.push(n);
-        return n;
-      },
-      touch: (n) => {
-        touched.push(n);
-        return n;
-      },
-      updatesPerTick: 2,
-      maxSweepRowsPerSec: 1_000_000,
-      now: clock(0, 1000), // floor = whole set per tick
-    });
-    expect(next().length).toBe(10);
-    // Parity visit order: 0,2,4,6,8,1,3,5,7,9 — first two get full mutate.
-    expect(mutated).toEqual([0, 2]);
-    expect(touched).toEqual([4, 6, 8, 1, 3, 5, 7, 9]);
-  });
-
-  it('never exceeds the record count per tick', () => {
-    const next = batcher([0, 1, 2], { updatesPerTick: 1000, now: clock(0, 100) });
-    expect(next().length).toBe(3);
-  });
-
-  it('returns empty for an empty record set', () => {
-    const next = batcher([]);
-    expect(next()).toEqual([]);
-  });
-
-  it('applies the mutate function to emitted head rows', () => {
-    const next = createLiveBatcher<number>({
-      records: [1, 2],
-      mutate: (n) => n * 10,
-      touch: (n) => n * 100,
-      updatesPerTick: 1,
-      maxSweepRowsPerSec: 1_000_000,
+  it('skips rows whose tickRow returns null without failing the frame', () => {
+    const next = batcher({
+      rowCount: 100,
+      rowsPerSec: 100,
+      tickRow: (i) => (i % 2 === 0 ? i : null),
       now: clock(0, 1000),
     });
-    expect(next()).toEqual([10, 200]);
+    const frame = next();
+    expect(frame.every((i) => i % 2 === 0)).toBe(true);
+  });
+
+  it('returns empty for an empty record set or zero rate', () => {
+    expect(batcher({ rowCount: 0 })()).toEqual([]);
+    expect(batcher({ rowsPerSec: 0 })()).toEqual([]);
   });
 });

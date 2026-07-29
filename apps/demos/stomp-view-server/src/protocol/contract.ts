@@ -30,24 +30,22 @@ export const DEFAULT_AS_OF_DATE_BATCH_SIZE = 50;
 /** Subscription path /snapshot/{positions|trades}/{clientId} */
 export const CLIENT_TOPIC_REGEX = /^\/snapshot\/(positions|trades)\/[^/]+$/;
 
-export const SNAPSHOT_BATCH_INTERVAL_MS = 10;
+/**
+ * Snapshot batches are pumped back-to-back (setImmediate between
+ * batches) the moment the trigger arrives — there is no artificial
+ * inter-batch delay. This is only the retry delay while the socket's
+ * send buffer is above the backpressure high-water mark.
+ */
+export const SNAPSHOT_BACKPRESSURE_RETRY_MS = 5;
 
 /** Optional extension — existing clients do not send this; server uses env defaults. */
 export const HEADER_SNAPSHOT_ROWS = "snapshot-rows";
 
 /**
- * Optional extension — number of distinct rows mutated and shipped per
- * live-update frame. Omitted by existing clients; server falls back to the
- * `UPDATES_PER_TICK` env default. Lets a single SEND request a high-frequency
- * stream (N rows per tick) without changing the wire trigger format.
- */
-export const HEADER_UPDATES_PER_TICK = "updates-per-tick";
-
-/**
  * Optional extension — live update wire shape. `sparse` (alias
  * `sparse-erratic`) emits partial position deltas (headline fields
  * only, erratic subset per row). Omitted → env `LIVE_MODE` default
- * (`legacy` = full-row sweep batches).
+ * (`legacy` = full rows whose hot-field values changed).
  */
 export const HEADER_LIVE_MODE = "live-mode";
 
@@ -96,8 +94,14 @@ export function asOfDateSubscriptionDestination(
   return `/snapshot/positions/${clientId}/${asOfDateDisplay}`;
 }
 
+/**
+ * Snapshot batch size when the trigger omits `batchSize`. `rate` is the
+ * requested aggregate row-updates/sec, so scale with it but keep
+ * batches inside a sane band — snapshot delivery is drain-paced, not
+ * interval-paced, so the batch size only shapes frame granularity.
+ */
 export function defaultBatchSize(rate: number): number {
-  return Math.max(1, Math.floor(rate / 10));
+  return Math.min(2000, Math.max(100, Math.floor(rate / 10)));
 }
 
 export function legacySnapshotCompleteText(

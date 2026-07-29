@@ -46,9 +46,12 @@ export async function startServer(config: AppConfig): Promise<void> {
               optionalSendHeaders: [
                 "snapshot-rows",
                 "row-count (alias)",
-                "updates-per-tick",
                 "live-mode (sparse | sparse-erratic)",
               ],
+              rateSemantics:
+                "Trigger rate segment = aggregate row-updates/sec, honoured exactly (elapsed-time budget; clamped by MAX_LIVE_ROWS_PER_SEC). Rows are drawn uniformly at random; each update mutates a random correlated subset of ≤15 hot trading fields.",
+              snapshotDelivery:
+                "Batches pump back-to-back from the moment the trigger arrives (drain-paced; no inter-batch delay).",
               historicalTrigger:
                 "Subscribe /snapshot/positions/{clientId}/{asOfDate}; SEND /snapshot/positions/{clientId}/{asOfDate}[/{batchSize}] — snapshot only",
               description:
@@ -105,15 +108,15 @@ export async function startServer(config: AppConfig): Promise<void> {
   console.log(`STOMP FI View Server — http://localhost:${config.port}/health`);
   console.log(`WebSocket ws://localhost:${config.port}`);
   console.log(
-    `Snapshot rows: default ${config.defaultSnapshotRows} (range ${config.minSnapshotRows}–${config.maxSnapshotRows}); optional STOMP header snapshot-rows on SEND`,
+    `Snapshot rows: default ${config.defaultSnapshotRows} (range ${config.minSnapshotRows}–${config.maxSnapshotRows}); optional STOMP header snapshot-rows on SEND; batches pump drain-paced (no inter-batch delay)`,
   );
   console.log(
-    `Live updates/tick: default ${config.liveUpdatesPerTick} (env UPDATES_PER_TICK; optional STOMP header updates-per-tick on SEND) — aggregate rows/sec ≈ rate × this`,
+    `Live rate: trigger rate segment = aggregate row-updates/sec, honoured exactly (cap ${config.maxLiveRowsPerSec}/s via MAX_LIVE_ROWS_PER_SEC); tick ${config.liveTickMs} ms (LIVE_TICK_MS); ≤${config.maxRowsPerFrame} rows/frame (MAX_ROWS_PER_FRAME)`,
   );
   console.log(
-    `Live mode: default ${config.defaultLiveMode} (env LIVE_MODE=sparse; STOMP header live-mode: sparse); sparse rows/tick ${config.sparseRowsPerTick} (env SPARSE_ROWS_PER_TICK)`,
+    `Live shape: random rows, ≤15 hot trading fields per update; mode default ${config.defaultLiveMode} (env LIVE_MODE=sparse; STOMP header live-mode: sparse → partial deltas, positions only)`,
   );
   console.log(
-    `Row profile: ${config.rowProfile} (env ROW_PROFILE=wide|slim); live sweep cap ${config.maxSweepRowsPerSec} rows/s (env SWEEP_ROWS_PER_SEC)`,
+    `Row profile: ${config.rowProfile} (env ROW_PROFILE=wide|slim)`,
   );
 }

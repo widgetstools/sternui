@@ -587,6 +587,25 @@ export function slimRecord<T extends Record<string, unknown>>(record: T): T {
   return out as T;
 }
 
+/**
+ * Generate ONE snapshot row by index — deterministic from
+ * `(seedBase, i)`. The snapshot pump generates rows batch-by-batch
+ * with this so the first batch hits the wire in one batch's worth of
+ * generation time instead of after the whole set is built (20k rows ≈
+ * seconds of up-front generation otherwise).
+ */
+export function buildSnapshotRow(
+  dataType: "positions" | "trades",
+  seedBase: number,
+  i: number,
+  profile: RowProfile = "wide",
+): PositionRecord | TradeRecord {
+  const seed = seedBase + Math.imul(i, 1_000_003);
+  const record =
+    dataType === "positions" ? generatePosition(seed) : generateTrade(seed);
+  return profile === "slim" ? slimRecord(record) : record;
+}
+
 export function buildSnapshot(
   dataType: "positions" | "trades",
   rowCount: number,
@@ -595,23 +614,8 @@ export function buildSnapshot(
 ): (PositionRecord | TradeRecord)[] {
   const out: (PositionRecord | TradeRecord)[] = [];
   for (let i = 0; i < rowCount; i++) {
-    const seed = seedBase + Math.imul(i, 1_000_003);
-    const record =
-      dataType === "positions"
-        ? generatePosition(seed)
-        : generateTrade(seed);
-    out.push(profile === "slim" ? slimRecord(record) : record);
+    out.push(buildSnapshotRow(dataType, seedBase, i, profile));
   }
   return out;
 }
 
-export function stampPositionsAsOfDate(
-  records: PositionRecord[],
-  asOfDateIso: string,
-): PositionRecord[] {
-  return records.map((record) => {
-    const stamped = structuredClone(record);
-    stamped.asOfDate = asOfDateIso;
-    return stamped;
-  });
-}

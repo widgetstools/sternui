@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildSnapshot, slimRecord } from './fiRecords.js';
-import { touchPosition, touchTrade } from './mutate.js';
+import { sparseErraticTickPosition, sparseErraticTickTrade } from './sparseTick.js';
 import type { PositionRecord, TradeRecord } from './fiRecords.js';
 
 describe('slim row profile', () => {
@@ -26,15 +26,23 @@ describe('slim row profile', () => {
     expect(JSON.stringify(slim).length).toBeLessThan(JSON.stringify(wide).length / 4);
   });
 
-  it('touch mutations work on slim rows (in place, headline fields tick)', () => {
+  it('hot-field ticks work on slim rows (in place, headline fields move)', () => {
     const [pos] = buildSnapshot('positions', 1, 7, 'slim') as PositionRecord[];
-    const before = pos!.currentPrice;
-    expect(touchPosition(pos!)).toBe(pos);
-    expect(pos!.currentPrice).not.toBe(before);
+    const posBefore = JSON.stringify(pos);
+    let posDelta = null;
+    for (let i = 0; i < 10 && posDelta === null; i++) {
+      posDelta = sparseErraticTickPosition(pos!);
+    }
+    expect(posDelta).not.toBeNull();
+    expect(JSON.stringify(pos)).not.toBe(posBefore);
 
     const [trd] = buildSnapshot('trades', 1, 7, 'slim') as TradeRecord[];
-    const priceBefore = trd!.price;
-    expect(touchTrade(trd!)).toBe(trd);
-    expect(trd!.price).not.toBe(priceBefore);
+    const trdBefore = JSON.stringify(trd);
+    let trdDelta = null;
+    for (let i = 0; i < 10 && trdDelta === null; i++) {
+      trdDelta = sparseErraticTickTrade(trd!);
+    }
+    expect(trdDelta).not.toBeNull();
+    expect(JSON.stringify(trd)).not.toBe(trdBefore);
   });
 });

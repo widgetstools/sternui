@@ -8,8 +8,8 @@ export interface AppConfig {
   /**
    * Snapshot row width (env `ROW_PROFILE`): `slim` (default) = top-level
    * primitives only (~1.1 KB) — serialization stops being the bottleneck so
-   * the live sweep sustains 4x the row rate, the right shape for the default
-   * 20k high-frequency blotter. `wide` = full ~8.5 KB nested records.
+   * high aggregate live rates are sustainable, the right shape for the
+   * default 20k high-frequency blotter. `wide` = full ~8.5 KB nested records.
    */
   rowProfile: RowProfile;
   /** Rows delivered in snapshot unless overridden by STOMP header `snapshot-rows` */
@@ -17,37 +17,35 @@ export interface AppConfig {
   minSnapshotRows: number;
   maxSnapshotRows: number;
   /**
-   * Distinct rows mutated + sent per live-update tick unless overridden by
-   * STOMP header `updates-per-tick`. Default 200 (high-frequency stream for
-   * the 20k blotter) — aggregate row-updates/sec ≈ `rate × liveUpdatesPerTick`,
-   * capped by `maxSweepRowsPerSec`.
+   * Live tick cadence in ms (env `LIVE_TICK_MS`, default 40 → 25
+   * frames/sec). The trigger `rate` is honoured EXACTLY regardless of
+   * cadence — each tick emits `rate × elapsed / 1000` rows (fractional
+   * budget carried), so this knob only shapes frame size, not
+   * throughput: 10 000 rows/sec at 40 ms = ~400-row frames.
    */
-  liveUpdatesPerTick: number;
+  liveTickMs: number;
   /**
-   * Cap on sweep-driven coverage rows/sec per live stream (env
-   * `SWEEP_ROWS_PER_SEC`). The live loop sweeps the whole delivered set
-   * in parity waves (evens, then odds), targeting full coverage every
-   * second; above this cap it degrades to full coverage every
-   * rowCount/cap seconds instead of saturating the event loop. Default
-   * tracks the row profile's measured single-thread ceiling: `slim`
-   * rows (~1.1 KB, the default) serialize at ~60k rows/s → default 60000;
-   * `wide` rows (~8.5 KB) at ~12k rows/s → default 10000. Drop it back if
-   * running many simultaneous clients.
+   * Hard cap on rows in one live frame (env `MAX_ROWS_PER_FRAME`,
+   * default 2000). Keeps a single frame decodable within the
+   * receiver's long-task budget; leftover rate budget carries to the
+   * next tick.
    */
-  maxSweepRowsPerSec: number;
+  maxRowsPerFrame: number;
   /**
-   * Live update wire shape (env `LIVE_MODE`): `legacy` = full-row
-   * sweep batches; `sparse` = partial headline-field deltas for
-   * positions (positions only — trades stay legacy). Overridable per
-   * SEND via STOMP header `live-mode: sparse`.
+   * Safety cap on the requested live rate in rows/sec (env
+   * `MAX_LIVE_ROWS_PER_SEC`; legacy alias `SWEEP_ROWS_PER_SEC`).
+   * Requests above it are clamped. Default tracks the row profile's
+   * measured single-thread serialization ceiling: `slim` (~1.1 KB)
+   * → 60 000; `wide` (~8.5 KB) → 10 000.
+   */
+  maxLiveRowsPerSec: number;
+  /**
+   * Live update wire shape (env `LIVE_MODE`): `legacy` = full rows
+   * whose hot-field values changed; `sparse` = partial headline-field
+   * deltas for positions (positions only — trades stay full-row).
+   * Overridable per SEND via STOMP header `live-mode: sparse`.
    */
   defaultLiveMode: LiveMode;
-  /**
-   * Rows targeted per sparse live tick (env `SPARSE_ROWS_PER_TICK`).
-   * Actual count jitters ±35%. Overridden by STOMP `updates-per-tick`
-   * when `live-mode: sparse`.
-   */
-  sparseRowsPerTick: number;
   /** Verbose STOMP / per-tick logging */
   debug: boolean;
   /** Log outbound STOMP frames (CONNECTED + MESSAGE) to the terminal */
@@ -74,17 +72,20 @@ export function loadConfig(): AppConfig {
     maxSnapshotRows,
   );
 
-  const rawUpdatesPerTick = Number.parseInt(
-    process.env.UPDATES_PER_TICK ?? "200",
-    10,
-  );
-
   const rowProfile: RowProfile =
     process.env.ROW_PROFILE === "wide" ? "wide" : "slim";
 
-  const defaultSweepRows = rowProfile === "slim" ? 60_000 : 10_000;
-  const rawSweepRows = Number.parseInt(
-    process.env.SWEEP_ROWS_PER_SEC ?? String(defaultSweepRows),
+  const defaultMaxLiveRows = rowProfile === "slim" ? 60_000 : 10_000;
+  const rawMaxLiveRows = Number.parseInt(
+    process.env.MAX_LIVE_ROWS_PER_SEC ??
+      process.env.SWEEP_ROWS_PER_SEC ??
+      String(defaultMaxLiveRows),
+    10,
+  );
+
+  const rawTickMs = Number.parseInt(process.env.LIVE_TICK_MS ?? "40", 10);
+  const rawMaxRowsPerFrame = Number.parseInt(
+    process.env.MAX_ROWS_PER_FRAME ?? "2000",
     10,
   );
 
@@ -97,11 +98,6 @@ export function loadConfig(): AppConfig {
   const defaultLiveMode: LiveMode =
     process.env.LIVE_MODE === "sparse" ? "sparse" : "legacy";
 
-  const rawSparseRows = Number.parseInt(
-    process.env.SPARSE_ROWS_PER_TICK ?? "100",
-    10,
-  );
-
   return {
     port: Number.isFinite(port) ? port : 8081,
     nodeEnv: process.env.NODE_ENV ?? "development",
@@ -109,16 +105,17 @@ export function loadConfig(): AppConfig {
     defaultSnapshotRows,
     minSnapshotRows,
     maxSnapshotRows,
-    liveUpdatesPerTick: clampUpdatesPerTick(rawUpdatesPerTick),
-    maxSweepRowsPerSec:
-      Number.isFinite(rawSweepRows) && rawSweepRows >= 1
-        ? Math.min(rawSweepRows, 1_000_000)
-        : defaultSweepRows,
+    liveTickMs:
+      Number.isFinite(rawTickMs) ? clamp(rawTickMs, 10, 1000) : 40,
+    maxRowsPerFrame:
+      Number.isFinite(rawMaxRowsPerFrame)
+        ? clamp(rawMaxRowsPerFrame, 50, 50_000)
+        : 2000,
+    maxLiveRowsPerSec:
+      Number.isFinite(rawMaxLiveRows) && rawMaxLiveRows >= 1
+        ? Math.min(rawMaxLiveRows, 1_000_000)
+        : defaultMaxLiveRows,
     defaultLiveMode,
-    sparseRowsPerTick:
-      Number.isFinite(rawSparseRows) && rawSparseRows >= 1
-        ? Math.min(rawSparseRows, MAX_UPDATES_PER_TICK)
-        : 100,
     debug: process.env.DEBUG === "1" || process.env.DEBUG === "true",
     logOutbound:
       process.env.LOG_OUTBOUND !== "0" &&
@@ -129,15 +126,6 @@ export function loadConfig(): AppConfig {
         ? Math.min(logPreviewRaw, 50_000)
         : 400,
   };
-}
-
-/** Upper bound on rows-per-tick — a sanity cap, not a perf recommendation. */
-export const MAX_UPDATES_PER_TICK = 100_000;
-
-/** Clamp a requested rows-per-tick to `[1, MAX_UPDATES_PER_TICK]`; default 1. */
-export function clampUpdatesPerTick(requested: number | undefined): number {
-  if (requested === undefined || !Number.isFinite(requested)) return 1;
-  return Math.min(MAX_UPDATES_PER_TICK, Math.max(1, Math.floor(requested)));
 }
 
 export function clampSnapshotRows(
