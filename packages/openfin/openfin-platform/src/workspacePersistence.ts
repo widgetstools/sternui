@@ -31,6 +31,10 @@ import type {
 import type { ConfigManager, AppConfigRow } from '@starui/host-config';
 import { COMPONENT_TYPES } from '@starui/types';
 import { injectRenameMenuItem } from './internal/viewTabRename';
+import {
+  stripLegacyViewIsolationAffinity,
+  stripLegacyViewIsolationFromLayout,
+} from './stripLegacyViewIsolationAffinity';
 
 const WS_PREFIX = 'WS_';
 const SNAPSHOT_SUBTYPE = 'SNAPSHOT';
@@ -318,6 +322,39 @@ export function createWorkspacePersistenceOverride(
       // Sharing a renderer with visible views is what keeps a hidden view
       // scheduled. Do not reintroduce affinity stamping without solving the
       // background-freeze half first.
+      //
+      // The overrides below do the opposite: pages/workspaces SAVED while
+      // the isolation experiment was live carry persisted `view-iso-…`
+      // affinities in their layouts, so restoring them re-created the solo
+      // renderers (and the blank-tab freeze) long after the revert. Every
+      // restore path strips those legacy values back to the shared per-app
+      // group (platform uuid — the same group seed views use).
+
+      /** Shared per-app renderer group for cleaned legacy affinities. */
+      private legacySharedAffinity(): string | undefined {
+        try {
+          return (fin?.me?.identity?.uuid as string | undefined) ?? undefined;
+        } catch {
+          return undefined;
+        }
+      }
+
+      async createView(payload: any, callerIdentity?: any): Promise<any> {
+        if (payload?.opts) {
+          stripLegacyViewIsolationAffinity(payload.opts, this.legacySharedAffinity());
+        }
+        return super.createView(payload, callerIdentity);
+      }
+
+      async createWindow(payload: any, identity?: any): Promise<any> {
+        const shared = this.legacySharedAffinity();
+        stripLegacyViewIsolationFromLayout(payload?.layout, shared);
+        stripLegacyViewIsolationFromLayout(
+          (payload as { windowOptions?: { layout?: unknown } })?.windowOptions?.layout,
+          shared,
+        );
+        return super.createWindow(payload, identity);
+      }
 
       async createSavedWorkspace(req: any): Promise<void> {
         const ws = req?.workspace ?? req;

@@ -28,6 +28,18 @@
 > solve the background-freeze half first (e.g. keeping a hidden view's renderer
 > scheduled, or accepting a repaint-on-restore path), and must be tested by
 > leaving a blotter hidden for several minutes before restoring it.
+>
+> **Legacy cleanup (required by the revert):** pages/workspaces SAVED while the
+> experiment was live carry the stamped `view-iso-…` affinities inside their
+> persisted layouts, so restoring them kept re-creating solo renderers (and the
+> blank-inactive-tab freeze) after the revert — confirmed live via CDP:
+> restored views still reported `processAffinity: "view-iso-<uuid>"`, and one
+> frozen view didn't answer the debugger at all.
+> `stripLegacyViewIsolationAffinity.ts` normalizes any `view-iso-*` affinity
+> back to the shared per-app group (platform uuid) in the platform's
+> `createView` / `createWindow` restore paths, so contaminated snapshots
+> self-heal on their next restore. Non-legacy affinities pass through
+> untouched.
 
 ## TL;DR (as originally written — outcome superseded by the notice above)
 

@@ -1556,7 +1556,13 @@ of importing `@openfin/*` directly (architecture boundary).
 - `initWorkspace()` — bootstrap dock + home + context menu + notifications. `WorkspaceConfig.dock.excludeTools?: string[]` hides built-in Tools-menu items by action ID (e.g. `[ACTION_EXPORT_CONFIG, ACTION_IMPORT_CONFIG]`); applies to both dock2 and dock3, default shows all. Workspace chrome palettes (`CustomPaletteSet` dark/light) are resolved at init from loaded `@starui/design-system/css` OKLCH tokens (`buildOpenFinPalettesFromDesignSystem` in `openfinPalette.ts`) by flipping `<html data-theme>` while sampling each scheme — dock, browser tab bar, home/store, and modals follow StarUI light/dark ramps; `defaultWindowOptions.backgroundColor` matches the active scheme backfill. Dark-chrome-only finishing (`finalizeDarkChromePalette`): `borderNeutral` is forced to a light grey and the window header surfaces (`backgroundPrimary` + `background2`) are lifted ~10% toward the foreground so the title bar / tab strip is perceptible against a dark desktop (the design-system `--card`/`--background` tokens are untouched).
 - `WorkspacePlatformOverrideCallback` — workspace lifecycle hooks
 - `workspace.options` — platform settings (name, icon, theme, notifications, dock)
-- `workspacePersistence` — save/load workspace (pinned windows, dock, layouts)
+- `workspacePersistence` — save/load workspace (pinned windows, dock, layouts);
+  restore paths (`createView` / `createWindow`) strip legacy `view-iso-*`
+  `processAffinity` values persisted by the reverted per-view isolation
+  experiment back to the shared per-app renderer group
+  (`stripLegacyViewIsolationAffinity.ts`) — contaminated saved pages/workspaces
+  otherwise keep restoring solo renderers that Chromium freezes when the tab is
+  inactive (blank blotters)
 - Renderer process grouping is left to OpenFin/Chromium defaults — the platform
   override does **not** stamp `processAffinity`. Per-view isolation was tried and
   reverted: a view alone in its renderer is throttled and then frozen by Chromium
