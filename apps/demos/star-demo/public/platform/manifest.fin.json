@@ -3,7 +3,7 @@
   "$comment-ecoqos": "UseEcoQoSForBackgroundProcess disabled: Windows 11 EcoQoS throttles background Chromium renderers onto efficiency cores at reduced priority. Background blotters here are live trading views that must keep consuming their stream at full speed — visible in Task Manager as OpenFin processes stamped 'Efficiency mode' while sluggish.",
   "$comment-scrollbars": "FluentScrollbar/FluentOverlayScrollbar disabled: Win11 Fluent style renders native scrollbars as a thin hover-expanding pill. Disabling restores the classic full-thickness always-visible native scrollbar — wider thumb for trading grids — while staying on Chromium's composited (off-main-thread) scrollbar path. Arbitrary widths are only possible via ::-webkit-scrollbar styling, which forces main-thread painted scrollbars (see design-system styles/scrollbar.css — AG Grid is deliberately exempt from that). Note: all --disable-features values must live in ONE comma-separated flag.",
   "runtime": {
-    "arguments": "--enable-mesh --security-realm=star-demo --remote-debugging-port=9091 --disable-features=UseEcoQoSForBackgroundProcess,FluentScrollbar,FluentOverlayScrollbar",
+    "arguments": "--enable-mesh --security-realm=star-demo --remote-debugging-port=9091 --disable-features=UseEcoQoSForBackgroundProcess,FluentScrollbar,FluentOverlayScrollbar,OverlayScrollbar",
     "version": "43.142.101.2"
   },
   "$comment-devtools": "devtools_port + --remote-debugging-port together expose the OpenFin runtime to Chrome DevTools. Open chrome://inspect#devices in a separate Chrome window and click 'Configure...' → add 'localhost:9091', then SharedWorkers (data-services) appear under 'Other'.",
