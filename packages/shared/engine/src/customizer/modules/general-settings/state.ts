@@ -243,6 +243,16 @@ export interface GeneralSettingsState {
   statusBarShowAggregation: boolean;
 
   // ─── Performance overrides (advanced / collapsed) ────────────────────────
+  /**
+   * Batch DOM updates and apply them in chunks every N milliseconds.
+   * Batching decouples high-frequency provider updates (20k+/sec) from
+   * grid rendering frequency, reducing GC churn and browser repaints.
+   * Default 200ms = max 5 grid updates/sec. Increase to reduce CPU
+   * (e.g., 500ms = 2 updates/sec) or decrease for lower-latency feedback
+   * (e.g., 100ms = 10 updates/sec). Disable (0) to apply updates immediately.
+   * Live-editable. Requires ag-grid 33+.
+   */
+  batchUpdateWaitMillis: number;
   /** Live-editable. */
   rowBuffer: number;
   /** Live-editable. */
@@ -398,6 +408,10 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   statusBarShowAggregation: false,
 
   // Performance
+  // Batch updates every 200ms = max 5 grid updates/sec, independent of
+  // provider tick frequency (20k/sec). Reduces GC pressure and browser
+  // repaints while maintaining responsive feel for human-speed interactions.
+  batchUpdateWaitMillis: 200,
   rowBuffer: 10,
   suppressScrollOnNewData: false,
   suppressColumnVirtualisation: false,

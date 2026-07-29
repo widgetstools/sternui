@@ -161,6 +161,9 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
     return {
       ...opts,
 
+      // ── Performance ──
+      batchUpdateWaitMillis: s.batchUpdateWaitMillis,
+
       // ── Tier 1 ──
       rowHeight: s.rowHeight,
       headerHeight: s.headerHeight,
