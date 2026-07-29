@@ -353,15 +353,21 @@ export class RowMirror {
     // list for every one of ~50k rows on each filter rebuild — invisible on M4,
     // a hard stall on a slower Intel core. Books are single-schema, so resolving
     // the default field list once from the first row matches per-row behavior.
+    //
+    // An empty resolved field list must PASS every row, matching
+    // `rowMatchesQuickFilter`'s `if (fields.length === 0) return true`. The
+    // per-row loop below can only ever reject when it has no fields to test,
+    // so the "no fields" case is folded into `qActive` here rather than left
+    // to the loop.
     const qTokens = parseQuickFilterTokens(req.quickFilterText);
-    const qActive = qTokens.length > 0;
     const explicitQFields = req.quickFilterFields;
     const qFields =
-      qActive
+      qTokens.length > 0
         ? explicitQFields && explicitQFields.length > 0
           ? explicitQFields
           : Object.keys(this.all[0] ?? {}).filter((k) => k !== this.idField)
         : null;
+    const qActive = qFields !== null && qFields.length > 0;
 
     return this.all.filter((row) => {
       for (const f of ancestorFilters) {

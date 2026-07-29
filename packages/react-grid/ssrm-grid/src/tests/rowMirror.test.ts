@@ -122,6 +122,27 @@ describe("RowMirror", () => {
     });
   });
 
+  // Regression: hoisting quick-filter setup out of the per-row loop moved the
+  // "no fields to search" case from `rowMatchesQuickFilter` (which returns
+  // true) into a loop that can only reject. A row whose only key is the id
+  // field resolves an empty default field list, and every row was dropped.
+  it("quick filter passes every row when the default field list resolves empty", () => {
+    const mirror = new RowMirror();
+    mirror.replaceAll([{ id: "1" }, { id: "2" }], "id");
+    const slice = mirror.tryGetRows({
+      startRow: 0,
+      endRow: 100,
+      rowGroupCols: [],
+      groupKeys: [],
+      pivotMode: false,
+      filterModel: {},
+      sortModel: [],
+      quickFilterText: "nomatch",
+    });
+    expect(slice?.rowCount).toBe(2);
+    expect(slice?.rowData.map((r) => r.id)).toEqual(["1", "2"]);
+  });
+
   it("serves group header rows with aggregates synchronously", () => {
     const mirror = new RowMirror();
     mirror.replaceAll(
