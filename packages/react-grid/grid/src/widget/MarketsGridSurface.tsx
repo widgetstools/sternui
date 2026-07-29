@@ -134,14 +134,11 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
         cellSelection={true}
         suppressNoRowsOverlay={true}
         overlayNoRowsTemplate=" "
-        // Flush async transactions on the next animation frame instead of
-        // holding them for a fixed window. Transactions arriving within the
-        // same frame still coalesce into one render (the perf win of
-        // applyTransactionAsync), but we no longer add a 100ms latency floor
-        // on top of any worker-side throttle/conflation — so disabling the
-        // provider's throttle (StompProviderConfig.throttleEnabled) yields
-        // near-immediate grid updates end-to-end.
-        asyncTransactionWaitMillis={0}
+        // asyncTransactionWaitMillis is pipeline-owned: the
+        // general-settings module always emits it (MAX UPDATES / SEC in
+        // the grid options editor — default 8/sec → 125 ms batching,
+        // 0 = flush ASAP). It rides {...pipelineGridOptions} at mount
+        // and post-mount option sync on live edits, like rowBuffer.
         components={streamSafeComponents}
         getContextMenuItems={getContextMenuItems}
         onGridReady={onGridReady}

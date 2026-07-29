@@ -13,6 +13,8 @@
  * + Status Bar visibility toggles + their per-panel sub-toggles.
  * v4 adds `cellChangeFlashColor` (AG-Grid native flash tint swatches).
  * v5 adds `gridDensity` (ultra / compact / comfortable Quartz preset).
+ * v6 adds `maxGridUpdatesPerSecond` (grid refresh-rate cap →
+ * `asyncTransactionWaitMillis`; default 8/sec).
  */
 import type { GridOptions } from 'ag-grid-community';
 import type { Module, TransformContext } from '@starui/engine';
@@ -51,7 +53,7 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
   id: GENERAL_SETTINGS_MODULE_ID,
   name: 'Grid Options',
   code: '00',
-  schemaVersion: 5,
+  schemaVersion: 6,
   priority: 0,
 
   getInitialState: () => ({ ...INITIAL_GENERAL_SETTINGS }),
@@ -309,6 +311,14 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
       ...(statusBarOpt ? { statusBar: statusBarOpt } : {}),
 
       // ── Performance ──
+      // Grid refresh-rate cap: 8/sec → 125 ms async-transaction flush
+      // window. Streaming ticks accumulate between flushes and land
+      // with final values (flash fires once per flush). 0 = uncapped —
+      // flush ASAP, the pre-v6 surface behaviour.
+      asyncTransactionWaitMillis:
+        s.maxGridUpdatesPerSecond > 0
+          ? Math.round(1000 / s.maxGridUpdatesPerSecond)
+          : 0,
       rowBuffer: s.rowBuffer,
       suppressScrollOnNewData: s.suppressScrollOnNewData,
       suppressColumnVirtualisation: s.suppressColumnVirtualisation,

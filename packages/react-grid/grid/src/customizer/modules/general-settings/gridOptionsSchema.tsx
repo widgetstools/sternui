@@ -409,6 +409,7 @@ export const GRID_OPTIONS_SCHEMA: readonly BandSchema[] = [
     index: '10',
     title: 'PERFORMANCE (ADVANCED)',
     fields: [
+      { kind: 'num', key: 'maxGridUpdatesPerSecond', label: 'MAX UPDATES / SEC', hint: 'Cap grid refresh flushes per second · ticks batch and flash with final values · 0 = uncapped', testId: 'go-max-updates-per-sec', min: 0 },
       { kind: 'num', key: 'rowBuffer', label: 'ROW BUFFER', hint: 'Rows rendered outside viewport · 5-50 practical', testId: 'go-row-buffer', min: 0 },
       { kind: 'bool', key: 'suppressScrollOnNewData', label: 'NO SCROLL RESET', hint: 'Keep scroll position when new rowData arrives', testId: 'go-suppress-scroll-on-new-data' },
       { kind: 'bool', key: 'suppressColumnVirtualisation', label: 'NO COL VIRT', hint: 'Initial · remount required · 200+ col grids', testId: 'go-suppress-col-virt' },

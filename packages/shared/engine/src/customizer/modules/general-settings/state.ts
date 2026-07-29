@@ -243,6 +243,16 @@ export interface GeneralSettingsState {
   statusBarShowAggregation: boolean;
 
   // ─── Performance overrides (advanced / collapsed) ────────────────────────
+  /**
+   * Cap on grid refresh flushes per second — maps to AG-Grid
+   * `asyncTransactionWaitMillis` (`8` → 125 ms batching window).
+   * Ticks accumulate between flushes and land with FINAL values, so
+   * cell-change flash fires once per flush instead of strobing.
+   * `0` = uncapped (flush ASAP after each transaction). Live-editable.
+   * The load-bearing knob for many blotters on one machine: 10 windows
+   * × 8 flushes/s is bounded grid work regardless of feed rate.
+   */
+  maxGridUpdatesPerSecond: number;
   /** Live-editable. */
   rowBuffer: number;
   /** Live-editable. */
@@ -389,6 +399,9 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   statusBarShowAggregation: false,
 
   // Performance
+  // ≤8 visible refreshes/sec by default — trading-blotter operating
+  // point (multi-window fleets stay smooth; humans can't read faster).
+  maxGridUpdatesPerSecond: 8,
   rowBuffer: 10,
   suppressScrollOnNewData: false,
   suppressColumnVirtualisation: false,

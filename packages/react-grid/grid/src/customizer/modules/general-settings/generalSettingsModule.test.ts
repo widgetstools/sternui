@@ -41,6 +41,38 @@ describe('generalSettingsModule.transformColumnDefs', () => {
   });
 });
 
+describe('generalSettingsModule.transformGridOptions update-rate cap', () => {
+  const ctx = makeCtx();
+
+  it('maps the default 8/sec cap to a 125 ms async-transaction window', () => {
+    const opts = generalSettingsModule.transformGridOptions!(
+      {},
+      { ...INITIAL_GENERAL_SETTINGS },
+      ctx,
+    );
+    expect(INITIAL_GENERAL_SETTINGS.maxGridUpdatesPerSecond).toBe(8);
+    expect(opts.asyncTransactionWaitMillis).toBe(125);
+  });
+
+  it('maps 0 (uncapped) to a 0 ms window — flush ASAP', () => {
+    const opts = generalSettingsModule.transformGridOptions!(
+      {},
+      { ...INITIAL_GENERAL_SETTINGS, maxGridUpdatesPerSecond: 0 },
+      ctx,
+    );
+    expect(opts.asyncTransactionWaitMillis).toBe(0);
+  });
+
+  it('rounds arbitrary rates to the nearest millisecond window', () => {
+    const opts = generalSettingsModule.transformGridOptions!(
+      {},
+      { ...INITIAL_GENERAL_SETTINGS, maxGridUpdatesPerSecond: 3 },
+      ctx,
+    );
+    expect(opts.asyncTransactionWaitMillis).toBe(333);
+  });
+});
+
 describe('generalSettingsModule.transformGridOptions rowSelection', () => {
   const ctx = makeCtx();
 
