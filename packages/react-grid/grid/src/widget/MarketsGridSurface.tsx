@@ -8,20 +8,32 @@
  * View-only. The ref is forwarded from the parent; controller callbacks
  * (`onGridReady`, `onGridPreDestroyed`) are pre-bound by the parent and
  * passed straight through. The wrapping `<div style={{ flex: 1 }}>` is
- * intentional — AG-Grid requires a flex parent to size itself.
+ * intentional — AG-Grid requires a flex parent to size itself. The one
+ * behavioural hook here is `useRestoreCellFocusOnWindowFocus`, which
+ * needs exactly this div (the grid-owned focus scope) plus the grid api,
+ * so it lives at the surface rather than the host.
  *
  * Memo'd with referential equality: AgGridReact runs `useEffect([props])`
  * and re-processes every changed prop reference. Parent re-renders that
  * don't change pipeline outputs must not reach the grid.
  */
 
-import { memo, useMemo, type CSSProperties, type ReactElement, type RefObject } from 'react';
+import {
+  memo,
+  useCallback,
+  useMemo,
+  useRef,
+  type CSSProperties,
+  type ReactElement,
+  type RefObject,
+} from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import type { GetContextMenuItems, GridReadyEvent } from 'ag-grid-community';
 import type { MarketsGridProps } from './types';
 import { stripSurfaceManagedGridOptions } from './gridSurfaceOptions';
 import { buildStreamSafeComponents } from './buildStreamSafeComponents';
 import { measureNativeScrollbarWidth } from './nativeScrollbarWidth';
+import { useRestoreCellFocusOnWindowFocus } from './useRestoreCellFocusOnWindowFocus';
 
 export interface MarketsGridSurfaceProps<TData> {
   readonly gridRef: RefObject<AgGridReact<TData> | null>;
@@ -95,6 +107,14 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
     [gridOptions, hostOverrideKeys],
   );
 
+  // Alt-tab paste fix: OpenFin can drop DOM focus to <body> when the
+  // window regains OS focus, leaving the focused cell ring painted but
+  // unable to receive Ctrl+V until clicked. Restore real focus to the
+  // cell AG Grid still reports as focused.
+  const surfaceRootRef = useRef<HTMLDivElement | null>(null);
+  const getGridApi = useCallback(() => gridRef.current?.api ?? null, [gridRef]);
+  useRestoreCellFocusOnWindowFocus(surfaceRootRef, getGridApi);
+
   const streamSafeComponents = useMemo(
     () => buildStreamSafeComponents(
       columnDefs as Parameters<typeof buildStreamSafeComponents>[0],
@@ -123,7 +143,7 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
   ]);
 
   return (
-    <div style={SURFACE_STYLE}>
+    <div ref={surfaceRootRef} style={SURFACE_STYLE}>
       <AgGridReact
         ref={gridRef}
         {...pipelineGridOptions}

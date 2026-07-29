@@ -12,7 +12,7 @@ _Last inventory: 2026-06-13._
 
 | Suite | Config | Collected tests | Spec files | Runner |
 |---|---|---|---|---|
-| Main | [`playwright.config.ts`](../playwright.config.ts) | **384** | 48 | `npm run e2e` |
+| Main | [`playwright.config.ts`](../playwright.config.ts) | **398** | 51 | `npm run e2e` |
 | Container | [`playwright.container.config.ts`](../playwright.container.config.ts) | **16** | 5 (`container-*.spec.ts`) | `npm run e2e:container` |
 | OpenFin | [`e2e-openfin/playwright.config.ts`](../e2e-openfin/playwright.config.ts) | 4 spec files | 4 | `npm run e2e:openfin` (OpenFin runtime only) |
 
@@ -65,7 +65,7 @@ Grouped by area; every file lives under `e2e/`.
 `v2-profile-lifecycle`, `v2-profile-stress`,
 `v2-profile-isolation-structure`, `v2-profile-isolation-styling`,
 `v2-popout-window`, `v2-popout-toolbar`, `v2-popout-design-system`,
-`v2-perf`.
+`v2-perf`, `v2-window-focus-restore`.
 
 **Design system:** `design-system-smoke`, `design-system-theme-switch`.
 

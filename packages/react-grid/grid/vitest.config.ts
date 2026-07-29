@@ -23,6 +23,7 @@ export default defineConfig({
       { find: '@starui/grid', replacement: resolve(__dirname, 'src/index.ts') },
       { find: '@starui/engine', replacement: resolve(__dirname, '../../shared/engine/src/index.ts') },
       { find: '@starui/types', replacement: resolve(__dirname, '../../shared/types/src/index.ts') },
+      { find: '@starui/host-openfin', replacement: resolve(__dirname, '../../openfin/host-openfin/src/index.ts') },
       { find: '@starui/host', replacement: resolve(__dirname, '../../shared/host/src/index.ts') },
       { find: '@starui/ui', replacement: resolve(__dirname, '../../react-ui/ui/src/index.ts') },
     ],

@@ -16,6 +16,11 @@ export {
   __resetWindowOptionsSubscriptionForTests,
 } from './windowOptionsSubscription.js';
 export {
+  subscribeParentWindowFocused,
+  focusCurrentOpenFinHost,
+  __resetWindowFocusSubscriptionForTests,
+} from './windowFocusSubscription.js';
+export {
   isOpenFin as isOpenFinWindow,
   debugOpenFin,
   openFinWindowOpener,

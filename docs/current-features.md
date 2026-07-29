@@ -344,6 +344,7 @@ Per-renderer config types (`PillRendererConfig`,
 - `GeneralSettingsProvider` / `useGeneralSettingsFromContext` — single subscription for density/header-case reads
 - `GridChromeProvider` / `useGridChromeState` — isolates frequently-changing toolbar UI state
 - `buildGridContextMenuItems` — cell right-click menu builder; prepends **Settings** (opens the customizer on Column Settings with the right-clicked column pre-selected, via the controller's `openColumnSettings` + the settings sheet's `focusRequest` nonce) and **Remove from Grid** (hides the column via native `api.setColumnsVisible`, re-showable from the side bar's Columns panel and persisted on Save like any grid-state visibility change) ahead of AG Grid's stock items (Copy / Export / Auto-size …). Pure builder (params + handlers) wired through `MarketsGridHost` → `MarketsGridSurface` `getContextMenuItems`
+- `useRestoreCellFocusOnWindowFocus` — alt-tab paste fix wired into `MarketsGridSurface`: re-asserts real browser focus on the cell AG Grid still reports as focused (`api.setFocusedCell`) when window refocus left DOM focus on `<body>`, so Ctrl+V/typing works without re-clicking. Triggers on BOTH the DOM window `focus` event and the parent OpenFin window's `focused` event (`subscribeParentWindowFocused` — covers the runtime never re-focusing the view, calling `focusCurrentOpenFinHost()` to reclaim web-contents focus first); retries at 0/150/400 ms (OpenFin can drop focus after the focus event); guarded by surface focusin/focusout ownership (multi-grid safe), a shared-localStorage last-focused-document stamp (multi-view fleet safe), never steals focus restored outside the grid, skips open cell editors
 - `mergeDefaultColDef`, `gridOptionCompare`, `buildStreamSafeComponents` — reference-stable pipeline → surface wiring
 - `useGridHost`, `useMarketsGridController` — imperative grid control hooks (internal to `MarketsGrid`; not on package `.` barrel)
 - `useFilterModel` — filter-model persistence + mutation; per-pill counts use incremental `RowChangeBus` deltas on streaming ticks (full-grid recompute only on structural changes / cold mount)
@@ -1499,6 +1500,16 @@ modules).
 
 - `subscribeWindowOptions` — listen for `fin.me.getWindowOptions()` changes
 
+#### Window focus subscription
+
+- `subscribeParentWindowFocused(cb)` — fan-out subscription to the parent
+  OpenFin window's `focused` event (one runtime listener shared by all
+  subscribers, mirroring `subscribeWindowOptions`); the alt-tab signal that
+  fires even when the runtime never hands web-contents focus back to a view.
+  Noop dispose outside OpenFin
+- `focusCurrentOpenFinHost()` — `fin.me.focus()`: hand web-contents (keyboard)
+  focus back to the current view/window; noop outside OpenFin
+
 #### Cross-window theme sync
 
 - `subscribeThemeBroadcast(onTheme)` — subscribe a window to the dock theme
@@ -1546,16 +1557,13 @@ of importing `@openfin/*` directly (architecture boundary).
 - `WorkspacePlatformOverrideCallback` — workspace lifecycle hooks
 - `workspace.options` — platform settings (name, icon, theme, notifications, dock)
 - `workspacePersistence` — save/load workspace (pinned windows, dock, layouts)
-- **Per-view renderer process isolation** (`viewProcessIsolation.ts`) — the
-  platform override stamps a UNIQUE `processAffinity` on every view at
-  `createView` AND on every view embedded in a `createWindow` layout tree
-  (snapshot/seed restore), replacing any shared inbound affinity. Without it
-  Chromium packs all same-origin views into ONE renderer process — ten
-  streaming blotters sharing one main thread (fleet-wide sluggishness at low
-  aggregate CPU). Affinity key derives from the view name, so restored views
-  return to their own process. Child tool windows / popouts
-  (`fin.Window.create`) intentionally keep default grouping for the
-  React-portal pattern
+- Renderer process grouping is left to OpenFin/Chromium defaults — the platform
+  override does **not** stamp `processAffinity`. Per-view isolation was tried and
+  reverted: a view alone in its renderer is throttled and then frozen by Chromium
+  once hidden, occluded, or inactive for a while, so blotters returned blank or
+  with content lost. See [`openfin-process-isolation.md`](./openfin-process-isolation.md)
+  for the measurements and why the perf win did not survive contact with the
+  background lifecycle
 - `workspaceGc` — cleanup stale view/window instances
 
 #### Launch

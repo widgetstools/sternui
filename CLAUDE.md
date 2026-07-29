@@ -188,7 +188,7 @@ Manifest: `libs/manifest.json` maps `@starui/<bucket>` → tarball +
   excluding apps). Largest contributors: `grid` (546), `host-data` (355),
   `engine` (241), `design-system` (193), `widgets-react` (171).
 - Playwright 1.59 — main suite (`playwright.config.ts`, primary target
-  `apps/demos/demo-react`) collects **384 tests across 48 specs**; the
+  `apps/demos/demo-react`) collects **398 tests across 51 specs**; the
   container subsuite (`playwright.container.config.ts`) adds **16 across 5**.
   Topology, spec inventory, known-fragile specs, and how to capture a fresh
   pass/fail baseline live in [`docs/E2E_STATUS.md`](./docs/E2E_STATUS.md).
