@@ -17,6 +17,7 @@ export const SURFACE_FIXED_GRID_OPTION_KEYS = [
   'maintainColumnOrder',
   'suppressNoRowsOverlay',
   'overlayNoRowsTemplate',
+  'scrollbarWidth',
   'components',
   'onGridReady',
   'onGridPreDestroyed',

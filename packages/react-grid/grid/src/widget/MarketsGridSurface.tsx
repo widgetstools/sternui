@@ -21,6 +21,7 @@ import type { GetContextMenuItems, GridReadyEvent } from 'ag-grid-community';
 import type { MarketsGridProps } from './types';
 import { stripSurfaceManagedGridOptions } from './gridSurfaceOptions';
 import { buildStreamSafeComponents } from './buildStreamSafeComponents';
+import { measureNativeScrollbarWidth } from './nativeScrollbarWidth';
 
 export interface MarketsGridSurfaceProps<TData> {
   readonly gridRef: RefObject<AgGridReact<TData> | null>;
@@ -139,6 +140,13 @@ export const MarketsGridSurface = memo(function MarketsGridSurface<TData>({
         // the grid options editor — default 8/sec → 125 ms batching,
         // 0 = flush ASAP). It rides {...pipelineGridOptions} at mount
         // and post-mount option sync on live edits, like rowBuffer.
+        //
+        // scrollbarWidth: AG sizes its scroll gutters from a probe div
+        // in document.body, which gets the design-system's STYLED
+        // scrollbar while grid scrollers are exempt and render NATIVE —
+        // the mismatch clipped the native thumb. Measure native
+        // ourselves (exempt probe) and hand AG the true width.
+        scrollbarWidth={measureNativeScrollbarWidth()}
         components={streamSafeComponents}
         getContextMenuItems={getContextMenuItems}
         onGridReady={onGridReady}
