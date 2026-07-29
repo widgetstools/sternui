@@ -108,23 +108,8 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
     }
 
     let cancelled = false;
-    let applyLiveTicks = typeof document === 'undefined' || !document.hidden;
     const gridApply = createApplyProviderToGridState();
     const providerStatusRef = { current: 'loading' as 'loading' | 'ready' | 'error' };
-
-    const onVisibilityChange = () => {
-      const wasPaused = !applyLiveTicks;
-      applyLiveTicks = !document.hidden;
-      if (wasPaused && applyLiveTicks && !cancelled) {
-        void provider.refresh().catch((err: unknown) => {
-          if (cancelled) return;
-          (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
-        });
-      }
-    };
-    if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', onVisibilityChange);
-    }
 
     const unsubRows = provider.onRowsReceived((count) => {
       if (cancelled) return;
@@ -170,7 +155,13 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
 
     let updateBatchCount = 0;
     const unsubTick = provider.onTick((updateRows) => {
-      if (cancelled || updateRows.length === 0 || !applyLiveTicks) return;
+      // Live ticks apply regardless of document visibility: this is a
+      // trading platform — hidden/minimized blotters must stay current
+      // (window-local alerting, instant correctness on restore). The
+      // old hidden-pause + refresh-on-visible dormancy was removed
+      // deliberately; Chromium background throttling is disabled at the
+      // manifest level for the same reason.
+      if (cancelled || updateRows.length === 0) return;
       updateBatchCount += 1;
 
       if (!rowIdField) {
@@ -293,9 +284,6 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
 
     return () => {
       cancelled = true;
-      if (typeof document !== 'undefined') {
-        document.removeEventListener('visibilitychange', onVisibilityChange);
-      }
       unsubRows();
       unsubSnapshot();
       unsubTick();
