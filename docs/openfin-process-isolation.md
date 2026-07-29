@@ -1,9 +1,35 @@
-# OpenFin per-view renderer process isolation
+# OpenFin per-view renderer process isolation — REVERTED
 
-**Date:** 2026-07-29 · **Branch:** `perf/newenhancements` · **Commit:** `691cbfe7`
-**Code:** [`packages/openfin/openfin-platform/src/viewProcessIsolation.ts`](../packages/openfin/openfin-platform/src/viewProcessIsolation.ts)
+> ## ⚠️ This change was reverted. Do not reintroduce it as described here.
+>
+> **Shipped** 2026-07-29 (`691cbfe7`, branch `perf/newenhancements`) ·
+> **reverted** 2026-07-29 on the same branch.
+>
+> Giving every view its own renderer process delivered the CPU and memory
+> wins measured below, but broke the background lifecycle. A view alone in
+> its renderer has nothing visible sharing that process, so Chromium
+> throttles it and then freezes it once the view is hidden, occluded, or
+> merely inactive for a while. Observed: OpenFin windows not painting after
+> being hidden or inactive, blotters frozen, grid content lost.
+>
+> Sharing a renderer with visible content is what keeps a hidden view
+> scheduled. That is the mechanism the default grouping relies on, and it is
+> why `"processAffinity": "star-demo"` in `seed.json` — called out as part of
+> the problem below — was actually load-bearing.
+>
+> `viewProcessIsolation.ts`, its test, and the `createView` / `createWindow`
+> override hooks in `workspacePersistence.ts` are deleted. The seed is back on
+> the shared affinity and the manifest carries no scheduler-override flags.
+>
+> **The diagnostic content below is kept deliberately** — the "sluggish UI at
+> low aggregate CPU" signature and the per-process measurement technique are
+> still correct and still worth reaching for. What is *not* correct is the
+> conclusion that per-view affinity is a usable fix. Any future attempt has to
+> solve the background-freeze half first (e.g. keeping a hidden view's renderer
+> scheduled, or accepting a repaint-on-restore path), and must be tested by
+> leaving a blotter hidden for several minutes before restoring it.
 
-## TL;DR
+## TL;DR (as originally written — outcome superseded by the notice above)
 
 Every OpenFin platform view now gets its **own Chromium renderer process**,
 enforced by stamping a **unique `processAffinity`** per view in the platform

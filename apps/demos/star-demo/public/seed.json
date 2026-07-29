@@ -536,7 +536,7 @@
                           "componentName": "view",
                           "uuid": "star-demo",
                           "initialUrl": "http://localhost:5175/#/blotters/marketsgrid",
-                          "processAffinity": "view-iso-seed-1"
+                          "processAffinity": "star-demo"
                         },
                         "isClosable": true,
                         "reorderEnabled": true,
@@ -733,7 +733,7 @@
                               "componentName": "view",
                               "uuid": "star-demo",
                               "initialUrl": "http://localhost:5175/#/blotters/marketsgrid",
-                              "processAffinity": "view-iso-seed-2"
+                              "processAffinity": "star-demo"
                             },
                             "isClosable": true,
                             "reorderEnabled": true,
@@ -940,7 +940,7 @@
                                 "componentName": "view",
                                 "uuid": "star-demo",
                                 "initialUrl": "http://localhost:5175/#/blotters/marketsgrid",
-                                "processAffinity": "view-iso-seed-3"
+                                "processAffinity": "star-demo"
                               },
                               "isClosable": true,
                               "reorderEnabled": true,

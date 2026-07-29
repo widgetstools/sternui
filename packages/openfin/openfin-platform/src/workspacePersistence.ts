@@ -31,7 +31,6 @@ import type {
 import type { ConfigManager, AppConfigRow } from '@starui/host-config';
 import { COMPONENT_TYPES } from '@starui/types';
 import { injectRenameMenuItem } from './internal/viewTabRename';
-import { ensureViewProcessIsolation, isolateLayoutViews } from './viewProcessIsolation';
 
 const WS_PREFIX = 'WS_';
 const SNAPSHOT_SUBTYPE = 'SNAPSHOT';
@@ -309,31 +308,16 @@ export function createWorkspacePersistenceOverride(
 
   return async function overrideCallback(WorkspacePlatformProvider) {
     class MarketsUIWorkspaceProvider extends WorkspacePlatformProvider {
-      /**
-       * Every view gets its OWN renderer process. All platform views
-       * are same-origin, so Chromium would otherwise pack them into one
-       * renderer — ten streaming blotters sharing ONE main thread (the
-       * fleet-wide sluggishness at low aggregate CPU). Stamped here so
-       * every creation path (seed restore, workspace restore, page
-       * duplication, "+" tab, dock launches) is covered; replaces any
-       * shared affinity carried in from legacy seeds/snapshots. See
-       * viewProcessIsolation.ts for the full rationale.
-       */
-      async createView(payload: any, callerIdentity?: any): Promise<any> {
-        if (payload?.opts) ensureViewProcessIsolation(payload.opts);
-        return super.createView(payload, callerIdentity);
-      }
-
-      /**
-       * Snapshot/seed restore path: windows arrive with their views
-       * embedded in the layout tree instead of per-view createView
-       * calls — walk it and isolate each view there too.
-       */
-      async createWindow(payload: any, identity?: any): Promise<any> {
-        isolateLayoutViews(payload?.layout);
-        isolateLayoutViews((payload as { windowOptions?: { layout?: unknown } })?.windowOptions?.layout);
-        return super.createWindow(payload, identity);
-      }
+      // NOTE: `createView` / `createWindow` are deliberately NOT overridden to
+      // stamp a per-view `processAffinity`. An earlier attempt gave every view
+      // its own renderer process to spread ten streaming blotters across cores
+      // (see docs/openfin-process-isolation.md) — it did cut CPU and memory,
+      // but a view alone in its renderer gets throttled and then frozen by
+      // Chromium once it is hidden, occluded, or merely inactive for a while:
+      // blotters came back blank, unpainted, or with their content lost.
+      // Sharing a renderer with visible views is what keeps a hidden view
+      // scheduled. Do not reintroduce affinity stamping without solving the
+      // background-freeze half first.
 
       async createSavedWorkspace(req: any): Promise<void> {
         const ws = req?.workspace ?? req;
