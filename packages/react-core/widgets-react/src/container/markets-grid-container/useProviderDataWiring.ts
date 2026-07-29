@@ -159,8 +159,9 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
       // trading platform — hidden/minimized blotters must stay current
       // (window-local alerting, instant correctness on restore). The
       // old hidden-pause + refresh-on-visible dormancy was removed
-      // deliberately; Chromium background throttling is disabled at the
-      // manifest level for the same reason.
+      // deliberately. Chromium's own background timer throttling still
+      // applies to hidden windows (flush timers stretch toward 1s/1min)
+      // — an OS/runtime concern deliberately left at platform defaults.
       if (cancelled || updateRows.length === 0) return;
       updateBatchCount += 1;
 
