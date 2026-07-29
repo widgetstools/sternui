@@ -6,7 +6,7 @@
  */
 
 import type { ProviderConfig } from '@starui/types';
-import type { ProviderStatus, WireEncoding, AppDataEvent, SubscriberMeta, AttachRequest } from '../protocol.js';
+import type { ProviderStatus, WireEncoding, AppDataEvent, SubscriberMeta } from '../protocol.js';
 import type { ProviderHandle } from '../providers/Provider.js';
 import type { ConfigManager } from '@starui/host-config';
 import type { ConfigCatalogCache } from '../../hub/ConfigCatalogCache.js';
@@ -159,19 +159,6 @@ export interface ProviderSlot {
    * JSON per chunk for incompatible rows. Precomputed at slot creation.
    */
   columnar: boolean;
-  /**
-   * Pending attaches queued while the first snapshot is being fetched.
-   * When multiple blotters open simultaneously requesting the same provider,
-   * only the first makes the server request; others queue here and wait for
-   * the snapshot to arrive. Once snapshotReady, all queued attaches are
-   * processed together (single serialization, byte-copied to all ports).
-   * This reduces redundant server requests and GC pressure from repeated
-   * snapshot encoding when many windows attach in a burst.
-   */
-  pendingAttaches: Array<{
-    port: PortLike;
-    req: Pick<AttachRequest, 'providerId' | 'subId' | 'mode'>;
-  }>;
 }
 
 export interface DataListener {
