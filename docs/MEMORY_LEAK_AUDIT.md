@@ -1,11 +1,11 @@
 # Memory leak audit — MarketsGrid / host-data pipeline
 
 Proactive audit of the streaming blotter **data pipeline** (SharedWorker hub,
-fan-out workers, client adapters). For the **full MarketsGrid stack** (AG Grid,
-engine modules, container wiring), see
+client adapters). For the **full MarketsGrid stack** (AG Grid, engine modules,
+container wiring), see
 [`MARKETSGRID_PERF_AND_MEMORY_AUDIT.md`](./MARKETSGRID_PERF_AND_MEMORY_AUDIT.md).
 
-_Last reviewed: 2026-06-17._
+_Last reviewed: 2026-07-28 (fan-out worker pool removed; replay cache bucketed)._
 
 ---
 
@@ -13,8 +13,8 @@ _Last reviewed: 2026-06-17._
 
 | Area | Verdict |
 |------|---------|
-| **Fan-out worker lifecycle** | Sound — one worker per `subId`, terminated on detach / port close / pool dispose |
-| **Hub subscriber maps** | Sound — detach, port close, stale sweep, and dead-port prune all remove listeners |
+| **Fan-out worker lifecycle** | N/A — pool removed 2026-07 (`hub-fanout-optimizations.md` §12); zero nested workers by design |
+| **Hub subscriber maps** | Sound — detach, port close, stale sweep, and dead-port prune all remove listeners (O(1) via `SubscriberRegistry` subId index) |
 | **Client heartbeats** | Sound — `stopHeartbeat` on unsubscribe; `close()` detaches all subs |
 | **Provider idle teardown** | Sound — upstream stops when last data + stats subscriber leaves; cache cleared |
 | **Intentional retention** | Per-window AG Grid + thin-delta row mirrors scale with row count (not leaks) |
@@ -31,16 +31,13 @@ hardening. Remaining risk is **operational** (many long-lived windows,
 ```mermaid
 flowchart TB
     subgraph per_origin [One SharedWorker per origin]
-        HUB[Hub cache 1× per provider]
-        FO1[Fan-out worker subId A]
-        FO2[Fan-out worker subId B]
+        HUB[Hub cache 1× per provider<br/>+ bucketed replay chunks]
     end
     subgraph per_window [Per OpenFin window / renderer]
         CLIENT[Client + thinSubs mirror]
         GRID[AG Grid row model]
     end
-    HUB --> FO1 --> CLIENT
-    HUB --> FO2 --> CLIENT
+    HUB --> CLIENT
     CLIENT --> GRID
 ```
 
@@ -49,9 +46,8 @@ flowchart TB
 | Retained object | Scales with | Released when |
 |-----------------|-------------|---------------|
 | Hub provider cache | Row count × row width | Provider idle-stops (no subscribers) |
-| `replaySnapshot` encoded chunks | Cache generation | O(1) invalidation on cache mutation |
+| Replay cache encoded chunks (`slot.replay`) | Cache size (bucketed, ≤500 rows/chunk) | Reset on `replace`; per-bucket chunks nulled by the ticks that touch them; whole structure dropped with the slot on idle-stop |
 | `thinSubs` row `Map` | Visible row keys | `unsubscribe`, `sub-init`, client `close()` |
-| Fan-out worker | Active `subId` | `detach`, `onPortClosed`, eviction |
 | AG Grid nodes | Displayed rows | Component unmount |
 
 ---
@@ -60,26 +56,20 @@ flowchart TB
 
 ### `FanOutWorkerPool`
 
-| Check | Status |
-|-------|--------|
-| Worker `terminate()` on `unregisterSubscriber` | ✅ |
-| `pendingConnections` listeners removed on `unregisterClient` | ✅ |
-| `pendingJobs` cleared on timeout / `broadcast-done` / `dispose` | ✅ |
-| Shared `onWorkerMessage` removed per worker on destroy | ✅ |
+**Removed 2026-07** — the pool, its worker entry, and its tests were
+deleted (see `hub-fanout-optimizations.md` §12). No nested workers
+exist in the SharedWorker anymore; any that appear are a regression.
 
-Regression: `memoryLifecycle.test.ts` — 25 attach/detach cycles terminate all workers.
-
-### `SharedWorkerDataServicesHub`
+### `SharedWorkerDataServicesHub` (+ `SubscriberRegistry`)
 
 | Check | Status |
 |-------|--------|
-| `dataListeners` / `statsListeners` pruned on detach | ✅ |
+| Registry data/stats listeners + subId index pruned on detach | ✅ |
 | `onPortClosed` drops all subs for port + idle-stops providers | ✅ |
-| `evictStaleSubscriber` releases fan-out worker | ✅ |
 | `pruneDeadDataListeners` on `postMessage` throw | ✅ |
 | `subscriberSweepTimer` stopped when no subs | ✅ |
-| `statsSampler` stopped when no stats subs | ✅ |
-| `replaySnapshot` invalidated on cache mutation (not duplicated) | ✅ |
+| `statsSampler` stopped when no providers | ✅ |
+| Replay chunks invalidated per-bucket on cache mutation (not duplicated) | ✅ |
 
 ### `SharedWorkerDataServicesClient`
 
@@ -108,7 +98,7 @@ Regression: `memoryLifecycle.test.ts` — 25 attach/detach cycles terminate all 
 | `beforeunload` / `pagehide` / OpenFin `destroyed` removed on unmount | ✅ |
 | Provider `stop()` on wiring cleanup | ⚠️ Owned by `useDataProvider` lifecycle (container uses `autoStart: false` but separate stop effect) |
 
-### Inline fan-out path (`STARUI_FANOUT_POOL_SIZE=0`)
+### Inline fan-out path (the only path — fan-out worker pool removed 2026-07)
 
 | Check | Status |
 |-------|--------|
@@ -170,12 +160,15 @@ Provider editor → **Diagnostics** tab, or `hub-introspect` RPC:
 
 ### 5. Fan-out worker count
 
-With fan-out enabled (default), worker count ≈ **active data `subId`s**.
-After closing all windows, SharedWorker thread should show **zero**
-fan-out workers (terminated on last detach).
+**Removed 2026-07.** The per-subscriber fan-out worker pool was deleted
+(see `docs/hub-fanout-optimizations.md` §12) — the SharedWorker thread
+should show **zero** nested workers at all times. Any `Worker` spawned
+inside the SharedWorker is now a regression.
 
-Disable check: `localStorage.STARUI_FANOUT_POOL_SIZE = '0'` — falls back
-to inline hub fan-out (no extra workers).
+(Historical note: the old `localStorage.STARUI_FANOUT_POOL_SIZE = '0'`
+disable check never worked — `localStorage` doesn't exist inside a
+SharedWorker, so the pool ran unconditionally. A/B measurements taken
+with that knob compared the pool against itself.)
 
 ---
 

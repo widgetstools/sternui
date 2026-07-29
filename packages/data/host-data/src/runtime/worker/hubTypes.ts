@@ -50,6 +50,15 @@ export const SUBSCRIBER_PING_TIMEOUT_HIDDEN_MS = 180_000;
 export const SUBSCRIBER_SWEEP_INTERVAL_MS = 10_000;
 
 /**
+ * Minimum gap between AppData IndexedDB resyncs triggered by mirror
+ * attach. Editor saves resync eagerly via `config-invalidate`; the
+ * attach-time resync only guards against out-of-band writers, so a
+ * burst of opening windows must not serialize one Dexie table scan
+ * per window in front of its snapshot reply.
+ */
+export const APPDATA_RESYNC_MIN_INTERVAL_MS = 5_000;
+
+/**
  * Minimal port surface the hub posts to.
  *
  * CONTRACT: `postMessage` must consume (serialize/copy) the message
@@ -61,11 +70,9 @@ export const SUBSCRIBER_SWEEP_INTERVAL_MS = 10_000;
  */
 export interface PortLike {
   postMessage(message: unknown): void;
-  /** Set when a {@link FanOutWorkerPool} proxy owns the underlying port. */
-  fanOutClientId?: string;
   /**
-   * Optional teardown for raw `MessagePort` listeners (inline fan-out
-   * path). Called from {@link SharedWorkerDataServicesHub.onPortClosed}.
+   * Optional teardown for raw `MessagePort` listeners. Called from
+   * {@link SharedWorkerDataServicesHub.onPortClosed}.
    */
   dispose?: () => void;
 }
@@ -138,15 +145,12 @@ export interface ProviderSlot {
    */
   activeRestartExtra?: Record<string, unknown> | null;
   /**
-   * Lazily-built, pre-encoded snapshot replay chunks (JSON or columnar
-   * per `wireFormat`, ≤ LATE_JOIN_CHUNK_SIZE rows each). Built on the
-   * first late-join attach after a cache change and shared by every
-   * subsequent replay until the next cache mutation nulls it — so N
-   * windows attaching in a burst trigger ONE serialization instead of
-   * N object-graph clones. Updates never build this eagerly; they only
-   * invalidate (O(1)).
+   * Bucketed pre-encoded snapshot replay cache (see `replayCache.ts`).
+   * Live ticks dirty only the buckets they touch; late-join replay
+   * re-encodes dirty buckets and reuses every clean buffer, so attach
+   * cost tracks recent churn instead of cache size.
    */
-  replaySnapshot: EncodedChunk[] | null;
+  replay: import('./replayCache.js').ReplaySnapshotCache;
   /**
    * `cfg.thinDeltas` — post-ready live frames broadcast as field-level
    * `delta-patch` events (changed top-level fields only) instead of
@@ -212,17 +216,4 @@ export interface SharedWorkerDataServicesHubOpts {
   setTimer?: (cb: () => void, ms: number) => unknown;
   /** Inject the timer cancel for tests. Default: clearInterval. */
   clearTimer?: (handle: unknown) => void;
-
-  /**
-   * Optional fan-out worker pool — parallelizes data/stats broadcast
-   * postMessage loops across dedicated workers. Created by
-   * `installSharedWorkerHub` in production; omit in unit tests.
-   */
-  fanOutPool?: import('./FanOutWorkerPool.js').FanOutWorkerPool | null;
-
-  /**
-   * Minimum data/stats listeners before routing broadcast through the
-   * fan-out pool (default 1 — one worker per connected subscriber).
-   */
-  fanOutMinListeners?: number;
 }

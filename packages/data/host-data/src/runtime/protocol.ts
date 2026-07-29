@@ -251,6 +251,19 @@ export interface HubIntrospectRequest {
   reqId: string;
 }
 
+/**
+ * Scalar "is this provider running?" probe. Answers with a boolean
+ * only — unlike `hub-introspect`, which serializes the ENTIRE hub
+ * state (every provider cfg, every subscriber row, all AppData
+ * values). Window-open flows poll this while waiting for a peer
+ * window's attach to land, so it must stay O(1) on the hub thread.
+ */
+export interface ProviderRunningRequest {
+  kind: 'provider-running';
+  reqId: string;
+  providerId: string;
+}
+
 // ─── Client → Worker AppData requests ──────────────────────────────
 //
 // Separate union so existing provider request handling stays
@@ -325,7 +338,8 @@ export type Request =
   | ListConfigsRequest
   | ConfigInvalidateRequest
   | RefreshProviderRequest
-  | HubIntrospectRequest;
+  | HubIntrospectRequest
+  | ProviderRunningRequest;
 
 // ─── Worker → Client events ────────────────────────────────────────
 
@@ -502,6 +516,8 @@ export interface ConfigSnapshotEvent {
   configs?: readonly DataProviderConfig[];
   /** Response to `hub-introspect`. */
   introspect?: HubIntrospectSnapshot;
+  /** Response to `provider-running`. */
+  running?: boolean;
 }
 
 export type CatalogEvent = CatalogReadyEvent | ConfigSnapshotEvent;
@@ -563,7 +579,8 @@ export function isRequest(value: unknown): value is Request {
     k === 'list-configs' ||
     k === 'config-invalidate' ||
     k === 'refresh-provider' ||
-    k === 'hub-introspect'
+    k === 'hub-introspect' ||
+    k === 'provider-running'
   );
 }
 

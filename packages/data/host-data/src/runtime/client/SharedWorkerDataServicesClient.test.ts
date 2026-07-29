@@ -329,13 +329,17 @@ describe('SharedWorkerDataServicesClient', () => {
     controllers.get('c-1')!.emit({ rows: [{ id: 'r1', x: 3 }] });
     await flush();
 
-    // Register the handler — buffered updates flush in order.
+    // Register the handler — the whole backlog flushes as ONE
+    // coalesced call (one grid transaction), arrival order preserved
+    // so keyed last-write-wins yields the same final state.
     const seen: Array<readonly { id: string; x: number }[]> = [];
     handle.onUpdate((rows) => { seen.push(rows); });
 
-    expect(seen).toHaveLength(2);
-    expect(seen[0]).toEqual([{ id: 'r1', x: 2 }]);
-    expect(seen[1]).toEqual([{ id: 'r1', x: 3 }]);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toEqual([
+      { id: 'r1', x: 2 },
+      { id: 'r1', x: 3 },
+    ]);
 
     handle.unsubscribe();
   });

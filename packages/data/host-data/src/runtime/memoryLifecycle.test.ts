@@ -5,7 +5,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProviderConfig } from '@starui/types';
 import { SharedWorkerDataServicesClient } from './client/SharedWorkerDataServicesClient.js';
-import { FanOutWorkerPool, type WorkerLike } from './worker/FanOutWorkerPool.js';
 import { SharedWorkerDataServicesHub, type PortLike } from './worker/SharedWorkerDataServicesHub.js';
 import { registerProvider } from './providers/registry.js';
 import type { ProviderEmit, ProviderHandle } from './providers/Provider.js';
@@ -30,61 +29,6 @@ beforeEach(() => {
     controllers.set('default', ctrl);
     const handle: ProviderHandle = { stop() {}, restart() {} };
     return handle;
-  });
-});
-
-function makeRecordingWorker(): {
-  worker: WorkerLike;
-  terminateCount: number;
-} {
-  let terminateCount = 0;
-  const worker: WorkerLike = {
-    postMessage() {},
-    terminate() {
-      terminateCount += 1;
-    },
-    addEventListener() {},
-    removeEventListener() {},
-  };
-  return {
-    get worker() { return worker; },
-    get terminateCount() { return terminateCount; },
-  };
-}
-
-describe('memory lifecycle — FanOutWorkerPool', () => {
-  it('terminates all workers after repeated register/unregister churn', () => {
-    const created: ReturnType<typeof makeRecordingWorker>[] = [];
-    const pool = new FanOutWorkerPool({
-      workerUrl: 'fanout-test.mjs',
-      onClientDead: () => {},
-      createWorker: () => {
-        const rec = makeRecordingWorker();
-        created.push(rec);
-        return rec.worker;
-      },
-    });
-
-    const port = {
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      start: vi.fn(),
-      postMessage: vi.fn(),
-    } as unknown as MessagePort;
-
-    for (let i = 0; i < 25; i++) {
-      const clientId = `client-${i}`;
-      pool.registerPending(clientId, port, {
-        onMessage: () => {},
-        onError: () => {},
-      });
-      pool.activateSubscriber(`sub-${i}`, clientId);
-      pool.unregisterSubscriber(`sub-${i}`);
-      pool.unregisterClient(clientId);
-    }
-
-    pool.dispose();
-    expect(created.every((w) => w.terminateCount >= 1)).toBe(true);
   });
 });
 

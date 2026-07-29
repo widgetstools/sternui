@@ -18,10 +18,7 @@ const outDir = path.join(pkgRoot, 'dist', 'assets');
 fs.mkdirSync(outDir, { recursive: true });
 
 await esbuild.build({
-  entryPoints: [
-    path.join(pkgRoot, 'src/runtime/worker/defaultEntry.ts'),
-    path.join(pkgRoot, 'src/runtime/worker/fanOutWorkerEntry.ts'),
-  ],
+  entryPoints: [path.join(pkgRoot, 'src/runtime/worker/defaultEntry.ts')],
   outdir: outDir,
   entryNames: '[name]',
   bundle: true,
@@ -40,10 +37,7 @@ await esbuild.build({
 });
 
 // Stable public names for Vite ?url imports.
-const RENAMES = [
-  ['defaultEntry.js', 'data-services-worker.mjs'],
-  ['fanOutWorkerEntry.js', 'data-services-fanout-worker.mjs'],
-];
+const RENAMES = [['defaultEntry.js', 'data-services-worker.mjs']];
 
 for (const [srcName, destName] of RENAMES) {
   publishWorkerAsset(outDir, srcName, destName);

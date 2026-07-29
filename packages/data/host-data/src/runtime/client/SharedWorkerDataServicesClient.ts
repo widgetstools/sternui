@@ -38,6 +38,7 @@ import type {
   HubIntrospectSnapshot,
   HubReadyRequest,
   ListConfigsRequest,
+  ProviderRunningRequest,
   ProviderStats,
   ProviderStatus,
   Request,
@@ -97,8 +98,10 @@ export interface AttachOpts {
  *   2. register `onUpdate` — receive live ticks from now on.
  *
  * Updates that arrive between the snapshot resolving and `onUpdate`
- * being registered are buffered, then flushed in order on
- * registration — nothing is silently dropped.
+ * being registered are buffered, then flushed on registration as ONE
+ * coalesced batch (arrival order preserved) — nothing is silently
+ * dropped, and a window booting under a live firehose applies its
+ * catch-up in a single grid transaction.
  *
  * `onReset` fires when a `replace: true` delta arrives AFTER the
  * initial snapshot has settled — i.e. the provider re-snapshotted
@@ -330,11 +333,22 @@ export class SharedWorkerDataServicesClient {
     let refreshPending: Promise<readonly T[]> | null = null;
 
     const flushBuffered = () => {
-      if (!updateCb) return;
-      while (bufferedUpdates.length > 0) {
-        const next = bufferedUpdates.shift()!;
-        updateCb(next);
+      if (!updateCb || bufferedUpdates.length === 0) return;
+      // Coalesce the whole backlog into ONE callback (→ one grid
+      // transaction) instead of one per buffered batch. Arrival order
+      // is preserved within the merged array, so keyed last-write-wins
+      // application produces the same final state — but a window that
+      // booted under a live firehose applies its catch-up in a single
+      // pass instead of N transactions.
+      if (bufferedUpdates.length === 1) {
+        const only = bufferedUpdates.shift()!;
+        updateCb(only);
+        return;
       }
+      const merged: T[] = [];
+      for (const batch of bufferedUpdates) merged.push(...batch);
+      bufferedUpdates.length = 0;
+      updateCb(merged);
     };
 
     const emitRowsReceived = (reassemblerCount: number) => {
@@ -528,13 +542,16 @@ export class SharedWorkerDataServicesClient {
     };
   }
 
-  /** True when the hub already has a running slot for `providerId`. */
+  /**
+   * True when the hub already has a running slot for `providerId`.
+   * Scalar RPC — O(1) on the hub thread. Never rides `hub-introspect`,
+   * which serializes the entire hub state and is far too heavy for the
+   * window-open path that polls this.
+   */
   async isProviderRunning(providerId: string): Promise<boolean> {
     try {
-      const snap = await this.getHubIntrospect();
-      return snap.providers.some(
-        (row) => row.providerId === providerId && row.running,
-      );
+      const snap = await this.rpcCatalog({ kind: 'provider-running', providerId });
+      return Boolean(snap.running);
     } catch {
       return false;
     }
@@ -802,7 +819,8 @@ export class SharedWorkerDataServicesClient {
       | Omit<GetConfigRequest, 'reqId'>
       | Omit<ListConfigsRequest, 'reqId'>
       | Omit<ConfigInvalidateRequest, 'reqId'>
-      | Omit<HubIntrospectRequest, 'reqId'>,
+      | Omit<HubIntrospectRequest, 'reqId'>
+      | Omit<ProviderRunningRequest, 'reqId'>,
   ): Promise<ConfigSnapshotEvent> {
     if (this.closed) {
       return Promise.reject(new Error('[SharedWorkerDataServicesClient] client is closed'));

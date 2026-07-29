@@ -27,8 +27,7 @@
       "types": "./dist/runtime/worker/defaultEntry.d.ts",
       "import": "./dist/runtime/worker/defaultEntry.js"
     },
-    "./assets/data-services-worker.mjs": "./dist/assets/data-services-worker.mjs",
-    "./assets/data-services-fanout-worker.mjs": "./dist/assets/data-services-fanout-worker.mjs"
+    "./assets/data-services-worker.mjs": "./dist/assets/data-services-worker.mjs"
   },
   "files": [
     "dist"
