@@ -1,7 +1,8 @@
 {
   "licenseKey": "openfin-demo-license-key",
+  "$comment-ecoqos": "UseEcoQoSForBackgroundProcess disabled: Windows 11 EcoQoS throttles background Chromium renderers onto efficiency cores at reduced priority. Background blotters here are live trading views that must keep consuming their stream at full speed — visible in Task Manager as OpenFin processes stamped 'Efficiency mode' while sluggish.",
   "runtime": {
-    "arguments": "--enable-mesh --security-realm=star-demo --remote-debugging-port=9091",
+    "arguments": "--enable-mesh --security-realm=star-demo --remote-debugging-port=9091 --disable-features=UseEcoQoSForBackgroundProcess",
     "version": "43.142.101.2"
   },
   "$comment-devtools": "devtools_port + --remote-debugging-port together expose the OpenFin runtime to Chrome DevTools. Open chrome://inspect#devices in a separate Chrome window and click 'Configure...' → add 'localhost:9091', then SharedWorkers (data-services) appear under 'Other'.",

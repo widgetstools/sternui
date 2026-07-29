@@ -1545,6 +1545,16 @@ of importing `@openfin/*` directly (architecture boundary).
 - `WorkspacePlatformOverrideCallback` — workspace lifecycle hooks
 - `workspace.options` — platform settings (name, icon, theme, notifications, dock)
 - `workspacePersistence` — save/load workspace (pinned windows, dock, layouts)
+- **Per-view renderer process isolation** (`viewProcessIsolation.ts`) — the
+  platform override stamps a UNIQUE `processAffinity` on every view at
+  `createView` AND on every view embedded in a `createWindow` layout tree
+  (snapshot/seed restore), replacing any shared inbound affinity. Without it
+  Chromium packs all same-origin views into ONE renderer process — ten
+  streaming blotters sharing one main thread (fleet-wide sluggishness at low
+  aggregate CPU). Affinity key derives from the view name, so restored views
+  return to their own process. Child tool windows / popouts
+  (`fin.Window.create`) intentionally keep default grouping for the
+  React-portal pattern
 - `workspaceGc` — cleanup stale view/window instances
 
 #### Launch
