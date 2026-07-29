@@ -143,11 +143,19 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
   };
 }
 
-/** Mix two hex colors in sRGB space (`pctA` = percentage of `hexA`). */
+/**
+ * Mix two hex colors in sRGB space (`pctA` = percentage of `hexA`).
+ *
+ * A non-finite `pctA` used to propagate straight through the bit-packing
+ * below and emit the literal string `'#AN'` (`NaN.toString(16)` is `'NaN'`,
+ * sliced to `'aN'`), which OpenFin accepts into a palette and then renders
+ * as an undefined color. Clamp instead so a bad input degrades to one of
+ * the two endpoints rather than to garbage.
+ */
 function mixHex(hexA: string, hexB: string, pctA: number): string {
   const a = hexToRgb(hexA);
   const b = hexToRgb(hexB);
-  const t = pctA / 100;
+  const t = Number.isFinite(pctA) ? Math.max(0, Math.min(100, pctA)) / 100 : 1;
   const r = Math.round(a.r * t + b.r * (1 - t));
   const g = Math.round(a.g * t + b.g * (1 - t));
   const bl = Math.round(a.b * t + b.b * (1 - t));
@@ -333,9 +341,10 @@ function readColorExpression(scope: HTMLElement, expression: string): string {
     /color-mix\(in oklch, oklch\(var\(--([^)]+)\)\) (\d+)%,\s*oklch\(var\(--([^)]+)\)\) (\d+)%\)/,
   );
   if (mixMatch) {
+    // Groups: 1 = first var name, 2 = first pct, 3 = second var name, 4 = second pct.
     const hexA = readOklchTokenHex(scope, `--${mixMatch[1]}`);
-    const hexB = readOklchTokenHex(scope, `--${mixMatch[2]}`);
-    return mixHex(hexA, hexB, Number(mixMatch[3]));
+    const hexB = readOklchTokenHex(scope, `--${mixMatch[3]}`);
+    return mixHex(hexA, hexB, Number(mixMatch[2]));
   }
 
   const alphaMatch = expression.match(/oklch\(var\(--([^)]+)\)\s*\/\s*([\d.]+)\)/);

@@ -2,8 +2,9 @@
 declare const fin: any;
 import type OpenFin from "@openfin/core";
 import { Home, Storefront, type App } from "@openfin/workspace";
-import { init, getCurrentSync, type WorkspacePlatformOverrideCallback } from "@openfin/workspace-platform";
+import { init, getCurrentSync, ColorSchemeOptionType, type WorkspacePlatformOverrideCallback } from "@openfin/workspace-platform";
 import { createConfigManager, type ConfigManager } from "@starui/host-config";
+import { THEME_STORAGE_KEY } from "@starui/types";
 import {
   peekConfigManager,
   setConfigManager,
@@ -60,6 +61,12 @@ import {
  * Used by the theme toggle handlers to determine the current state
  * without depending on OpenFin's `platform.Theme.getSelectedScheme()`
  * (which can desync due to a known promise-never-resolves quirk).
+ *
+ * The storage fallback reads `THEME_STORAGE_KEY` — the same key
+ * `applyLocalDataTheme` below writes, and the one `applyTheme()` from
+ * `@starui/design-system` stamps at app boot. It previously read a bare
+ * `"theme"` key that nothing has ever written, so the fallback could only
+ * ever return "dark" and a persisted light theme was silently lost.
  */
 function readCurrentTheme(): "dark" | "light" {
   try {
@@ -67,8 +74,8 @@ function readCurrentTheme(): "dark" | "light" {
     if (attr === "light" || attr === "dark") return attr;
   } catch { /* non-browser */ }
   try {
-    const stored = localStorage.getItem("theme");
-    if (stored === "light") return "light";
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored === "light" || stored === "dark") return stored;
   } catch { /* storage unavailable */ }
   return "dark";
 }
@@ -119,10 +126,52 @@ function applyLocalDataTheme(isDark: boolean): void {
     document.body.dataset["agThemeMode"] = theme;
     // Canonical `starui:theme` key — same key the `RuntimePort`
     // implementations read/write so windows agree across reloads.
-    try { localStorage.setItem("starui:theme", theme); } catch { /* non-browser or locked */ }
+    try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch { /* non-browser or locked */ }
   } catch {
     /* not running in a DOM-capable context */
   }
+}
+
+/**
+ * Push the app's theme into OpenFin's colour scheme at boot.
+ *
+ * Two systems own "the theme" and nothing used to reconcile them:
+ *
+ *   • The app owns `[data-theme]` + `starui:theme` (stamped before first
+ *     paint by `applyTheme(getTheme())` in each app's entry module).
+ *   • OpenFin owns the dock / browser-chrome scheme and persists its own
+ *     selection. The `theme: [{ default: "dark" }]` passed to `init()`
+ *     only seeds that store on the very first run — on every later launch
+ *     OpenFin restores whatever the user last selected.
+ *
+ * So once a user had toggled to light, the dock came back light forever
+ * while every app window came back on the app's stored theme: a white
+ * dock bar against dark content, with the dock's white glyphs rendered
+ * invisible on it.
+ *
+ * The app theme is authoritative. Asserting it here — inside
+ * `platform-api-ready`, before the dock registers — means dock chrome and
+ * icon variants agree from the first paint.
+ *
+ * Fire-and-forget for the same reason the toggle handlers are (see the
+ * note in `internal/customActions.ts`): `setSelectedScheme` dispatches over
+ * `__of_workspace_protocol__`, which can hang in this setup. Awaiting it
+ * would stall dock registration behind a channel that may never answer.
+ */
+function syncPlatformColorScheme(): "dark" | "light" {
+  const theme = readCurrentTheme();
+  // Re-stamp locally so the attribute, the storage key and OpenFin all
+  // start from the same value even if this window never had `data-theme`.
+  applyLocalDataTheme(theme === "dark");
+  try {
+    const platform = getCurrentSync();
+    void platform.Theme.setSelectedScheme(
+      theme === "dark" ? ColorSchemeOptionType.Dark : ColorSchemeOptionType.Light,
+    );
+  } catch (schemeErr) {
+    console.warn("[initWorkspace] setSelectedScheme failed:", schemeErr);
+  }
+  return theme;
 }
 
 /**
@@ -275,6 +324,10 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
   const platform = fin.Platform.getCurrentSync();
   await platform.once("platform-api-ready", async () => {
     try {
+      // Must run before the dock registers: registration flattens icon
+      // variants against the live theme, so the scheme has to be settled
+      // first or the dock paints one scheme's glyphs on the other's bar.
+      log(`Colour scheme reconciled to '${syncPlatformColorScheme()}'`);
       await initializeWorkspaceComponents(
         settings.platformSettings,
         settings.customSettings,

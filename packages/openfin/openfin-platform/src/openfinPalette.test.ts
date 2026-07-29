@@ -81,6 +81,43 @@ describe('buildOpenFinPalettesFromDesignSystem', () => {
     expect(light.brandPrimaryFocused).toBe(light.brandPrimaryText);
   });
 
+  // Regression: `readColorExpression`'s color-mix branch read the regex
+  // capture groups off by one — it passed the percentage as the second var
+  // name and the var name as the percentage. `Number('foreground')` is NaN,
+  // and the bit-packing turned that into the literal string '#AN', which
+  // OpenFin accepts into a palette and renders as an undefined colour.
+  // Only the four color-mix-derived keys were affected, and no assertion
+  // covered them — hence this sweep over every key.
+  it('resolves every palette key to a valid hex colour in both schemes', () => {
+    const { dark, light } = buildOpenFinPalettesFromDesignSystem();
+    for (const [scheme, palette] of [['dark', dark], ['light', light]] as const) {
+      for (const [key, value] of Object.entries(palette)) {
+        expect(`${scheme}.${key}=${value}`).toMatch(/=#[0-9A-F]{6}$/);
+      }
+    }
+  });
+
+  it('derives hover/active states as a mix, not as an endpoint or a NaN artefact', () => {
+    const html = document.documentElement;
+    html.setAttribute('data-theme', 'dark');
+    const scope = document.createElement('div');
+    document.body.appendChild(scope);
+
+    const p = buildPaletteFromThemeScope(scope);
+    scope.remove();
+
+    // A mix of `--primary` toward `--foreground` lands near primary but not on
+    // it. The broken build produced '#AN'; a swapped-argument build would have
+    // produced '#000000' (the empty-token fallback for `--88`).
+    expect(p.brandPrimaryHover).not.toBe(p.brandPrimary);
+    expect(p.brandPrimaryHover).not.toBe('#000000');
+    expect(p.brandSecondaryHover).not.toBe(p.brandSecondary);
+    expect(p.brandSecondaryHover).not.toBe('#000000');
+    // 88% primary must stay closer to primary than the 82% active variant.
+    expect(paletteContrastRatio(p.brandPrimaryHover!, p.brandPrimary))
+      .toBeLessThan(paletteContrastRatio(p.brandPrimaryActive!, p.brandPrimary));
+  });
+
   it('dark chrome header (backgroundPrimary) is lighter than the page so the window frame is perceptible', () => {
     const { dark } = buildOpenFinPalettesFromDesignSystem();
     expect(dark.backgroundPrimary).toMatch(/^#[0-9A-F]{6}$/);

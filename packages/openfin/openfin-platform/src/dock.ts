@@ -9,6 +9,7 @@ import {
   type DockProvider,
   type DockProviderRegistration,
 } from "@openfin/workspace";
+import { THEME_STORAGE_KEY } from "@starui/types";
 import { loadDockConfig, saveDockConfig } from './db';
 import {
   appsToEditorConfig,
@@ -191,14 +192,22 @@ function recolorIconifyUrl(iconUrl: string, color: string): string {
 // re-runs this flatten on every theme toggle so the dock keeps the
 // correct icon variant after the user flips themes.
 
+/**
+ * Theme the dock's icon variants are flattened against. Mirrors
+ * `readCurrentTheme()` in workspace.ts — the storage fallback reads
+ * `THEME_STORAGE_KEY`, the key the toggle handlers actually write. It
+ * previously read a bare `"theme"` key that nothing writes, so on a
+ * window where `[data-theme]` was not yet stamped this always answered
+ * "dark" and the dock registered white glyphs onto a light bar.
+ */
 function readDockTheme(): "dark" | "light" {
   try {
     const attr = document.documentElement.getAttribute("data-theme");
     if (attr === "light" || attr === "dark") return attr;
   } catch { /* non-browser */ }
   try {
-    const stored = localStorage.getItem("theme");
-    if (stored === "light") return "light";
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored === "light" || stored === "dark") return stored;
   } catch { /* storage unavailable */ }
   return "dark";
 }
@@ -1057,7 +1066,7 @@ function buildDock3Override() {
             const themeStr = isDark ? "dark" : "light";
             try { document.documentElement.setAttribute("data-theme", themeStr); } catch { /* */ }
             try { document.body.dataset["agThemeMode"] = themeStr; } catch { /* */ }
-            try { localStorage.setItem("starui:theme", themeStr); } catch { /* */ }
+            try { localStorage.setItem(THEME_STORAGE_KEY, themeStr); } catch { /* */ }
             await applyDock3Config();
             console.log(`[Dock3 theme] About to publish IAB '${IAB_THEME_CHANGED}' with { theme: '${themeStr}', isDark: ${isDark} } from uuid='${fin.me?.identity?.uuid}'.`);
             try {
