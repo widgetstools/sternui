@@ -51,6 +51,19 @@ this AG Grid 36 DOM — query `.ag-row`.
   is gone before a read in window 2 lands. Two "the windows don't share a Table"
   findings came from this. Use an *insert* (`table.update` with a new
   `positionId`, then compare `size()`) instead of a mutation.
+- **A green unit test can pin a spelling the engine does not have.** Two of
+  them did. The `?:`-vs-`if()` one was harmless (both forms work); the `not(`
+  one was not — `not()` does not exist in 4.5.2 for any argument type, and
+  nested inside `and`/`or`/`if` it evaluates wrong while `validate_expressions`
+  reports it clean. Assert against a probe, not against what the compiler
+  currently emits.
+- **`avg("col")` is row-wise and looks like an aggregate.** It parses, never
+  errors, and answers the column's own values — so `"col" > avg("col")` is
+  false for every row, silently. There is no cross-row aggregate in the
+  expression language at all.
+- **A null matches `>` and `>=`.** In JavaScript — i.e. on CSRM — `null > 95`
+  is false. Any rule compiled to the worker needs an `is_null` guard or it
+  paints rows the control does not.
 - **A wide window sampled mid-feed is a montage of instants.** Blocks are read
   at different ticks, so grid rows 250–262 can be offset by one row from a
   single instantaneous truth read. Each block is internally correct. Not a

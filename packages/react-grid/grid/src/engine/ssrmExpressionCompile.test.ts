@@ -32,11 +32,48 @@ describe('ssrmExpressionCompile', () => {
     );
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.perspectiveExpression).toContain('not(');
       expect(r.perspectiveExpression).toContain(' and ');
       expect(r.perspectiveExpression).toContain(' or ');
       expect(r.perspectiveExpression).toContain('==');
     }
+  });
+
+  /**
+   * This asserted `not(` until 2026-07-30 and was green the whole time —
+   * pinning a spelling the engine does not have. MEASURED against 4.5.2
+   * (`perspective-grid/scripts/styleRuleProbe4.mjs`): `not(x)` aborts for
+   * every argument type when it is the whole expression, and — the reason
+   * this is not merely a broken column — evaluates SILENTLY WRONG when
+   * nested, with `validate_expressions` reporting it as a clean `boolean`.
+   */
+  it('never emits not() — it does not exist in 4.5.2 and fails silently when nested', () => {
+    const r = compileStarUiExpressionToPerspective('NOT([qty] > 10)');
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.perspectiveExpression).not.toContain('not(');
+      expect(r.perspectiveExpression).toBe('if("qty" > 10, false, true)');
+      expect(r.perspectiveType).toBe('boolean');
+    }
+  });
+
+  it('negates a nested NOT the same way', () => {
+    const r = compileStarUiExpressionToPerspective('NOT(NOT([qty] > 10))');
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.perspectiveExpression).toBe('if(if("qty" > 10, false, true), false, true)');
+    }
+  });
+
+  /**
+   * A non-boolean condition is ACCEPTED by `if()` and reads truthy —
+   * `if("qty", false, true)` answered false for every row of a column with no
+   * zeroes. So a NOT whose operand is not known to be boolean is refused
+   * rather than compiled into something that cannot fail loudly.
+   */
+  it('refuses NOT over a non-boolean operand rather than compiling it wrong', () => {
+    const r = compileStarUiExpressionToPerspective('NOT([qty])');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toMatch(/boolean/i);
   });
 
   it('compiles IF to Perspective if()', () => {

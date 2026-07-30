@@ -533,6 +533,68 @@ Also settled here: the compiler emits `if(cond, a, b)` and a unit test asserted 
 test was pinning one valid spelling rather than the behaviour — it now asserts
 the form the compiler actually produces.
 
+### `not()` does not exist, and says so only sometimes
+
+The same test file asserted the compiler emits `not(` for a StarUI `NOT`, and
+that assertion was green while being wrong. MEASURED (`scripts/styleRuleProbe3`
+and `4`): **`not()` aborts for every argument type in 4.5.2** — boolean,
+numeric, literal `true`, all of them give `Type Error - inputs do not resolve to
+a valid expression`.
+
+What makes it worse than a broken function is *where* it stays quiet:
+
+| form | `validate_expressions` | result |
+|---|---|---|
+| `not(q > 10)` | reports the error | View build aborts — loud |
+| `not(q > 10) and p > 95` | **clean `boolean`, no error** | false for every row |
+| `if(not(q > 10), 1, 0)` | **clean `boolean`, no error** | 1 for every row |
+
+So the pre-flight check that protects every other expression cannot protect
+this one. The only defence is never emitting it. `and` and `or` themselves are
+fine — that was checked separately, because an all-false answer first looked
+like `and` failing to compose two booleans.
+
+`if(x, false, true)` is the negation that works, and it composes when nested.
+It needs a genuinely boolean operand: a non-boolean condition is **accepted**
+and reads truthy (`if("qty", false, true)` answered false for every row of a
+column with no zeroes), so `NOT` over anything not inferred boolean is refused
+instead. Refusing costs the caller a server-side column; compiling costs them a
+wrong one, which is the trade this path keeps having to make in the same
+direction.
+
+### Comparisons against a null are not JavaScript's
+
+MEASURED on a float column holding `[110, 100, 90, null]`:
+
+| expression | null row answers |
+|---|---|
+| `"price" > 95`, `>= 95` | **true** |
+| `"price" < 95`, `<= 95` | false |
+| `"price" == 95` | false |
+| `"price" != 95` | true |
+
+A null therefore **matches `>`** — under CSRM the same rule evaluates in
+JavaScript, where `null > 95` coerces to `0 > 95` and is false. `is_null` /
+`is_not_null` both exist and work, so a rule that must not paint missing values
+is guarded with `if(is_null("col"), false, …)`.
+
+### `avg()` and `sum()` are row-wise, and look like aggregates
+
+`avg("price")` parses, returns no error, and answers `[110, 100, 90, null]` —
+the column's values, not its mean. They are scalar functions over their
+*arguments*: `avg("price", 0)` gives `[55, 50, 45, null]`. So
+`"price" > avg("price")` is false for every row, silently, and anything that
+maps StarUI's `AVG`/`SUM`/`MIN`/`MAX` onto the same-named Perspective functions
+produces a rule that never matches and never complains. `mean`, `stddev` and
+`count` do not exist at all (they abort, which is the safe failure).
+
+There is **no cross-row aggregate in the expression language**. "Above average"
+is therefore two steps, not one: measure the scalar with an aggregate View over
+the whole book (`group_by: ['__all__']`, `aggregates: { price: 'avg' }`), then
+substitute it into the expression as a literal. Verified end to end — the
+measured mean of 100 substituted as `"price" > 100` selected exactly the rows
+above it.
+
 Verified live on the 20,000-row book: `grossPnl = "currentPrice" * "quantity"`
 computed in the worker and delivered with the block (108.8162 x 7154 =
 778,471.09), server-side sort by it monotonic across the top of the book, a

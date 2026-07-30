@@ -71,7 +71,30 @@ function compileNode(node: ExpressionNode): string {
 
     case 'unary': {
       const operand = compileNode(node.operand);
-      if (node.operator === 'NOT') return `not(${operand})`;
+      if (node.operator === 'NOT') {
+        // `not()` does not exist in 4.5.2 — MEASURED (`scripts/styleRuleProbe4.mjs`):
+        // every argument type, boolean included, aborts with "Type Error - inputs
+        // do not resolve to a valid expression". Worse, it only aborts when it is
+        // the WHOLE expression. Nested inside `and`/`or`/`if` it validates clean
+        // as `boolean` and silently evaluates wrong — `not(q > 10) and p > 95`
+        // answered false for every row, and `if(not(q > 10), 1, 0)` answered 1 for
+        // every row. `validate_expressions` reports no error for either, so the
+        // pre-flight check cannot catch this: it has to never be emitted.
+        //
+        // `if(x, false, true)` is the negation that works, and it composes when
+        // nested (verified). It needs a genuinely boolean operand, because a
+        // non-boolean condition is accepted and reads truthy — `if("qty", false,
+        // true)` answered false for every row of a non-zero column. So a NOT over
+        // anything not known to be boolean is REFUSED rather than compiled into
+        // something that cannot fail loudly. Refusing costs the caller a
+        // server-side column; compiling costs them a wrong one.
+        if (inferPerspectiveType(node.operand) !== 'boolean') {
+          throw new CompileError(
+            'NOT requires a boolean operand (a comparison, AND, OR or NOT) to compile to Perspective',
+          );
+        }
+        return `if(${operand}, false, true)`;
+      }
       if (node.operator === '-') return `-${operand}`;
       throw new CompileError(`Unsupported unary operator: ${node.operator}`);
     }
