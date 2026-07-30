@@ -92,10 +92,47 @@ and a SharedWorker has no visible console, so boot progress is broadcast on the
 control port — without it a stall in the worker is an unexplained blank page.
 
 `getCompiledClientWasm()` returns a structured-cloneable `WebAssembly.Module`,
-so windows 2..N can be handed the already-compiled module by `postMessage` and
-skip both the 5MB transfer and the compile. Not yet used: every window
-currently imports the `inline` build, which carries the **server** wasm it never
-runs as well as the client wasm it does.
+so windows 2..N could be handed the already-compiled module by `postMessage` and
+skip both the 5MB transfer and the compile. Every window still imports the
+`inline` build, which carries the **server** wasm it never runs as well as the
+client wasm it does.
+
+### Attempted, reverted, and what it established
+
+Worth reading before anyone tries again, because most of it is good news and
+the blocker is narrow and specific.
+
+**The pieces all exist and fit.** `@perspective-dev/client` is **47.70 kB**
+against the inline build's **5,070 kB**, and both export `init_client` and
+`getCompiledClientWasm`. The package's own docs give the intended shape
+verbatim: `worker.postMessage({ kind: "init", clientWasm: mod }, [port])`.
+
+**The transfer is not the risk.** MEASURED in a real page: the Module is a
+genuine `WebAssembly.Module` with 103 exports, it survives a `MessageChannel`
+clone, and it survives a **round trip through a dedicated Worker** still
+holding all 103 exports. Structured cloning it is fine.
+
+**The blocker is calling it inside the SharedWorker.** With the host exposing
+`compiledClientWasm()` and the hub awaiting it before replying to
+`perspective-attach`, **the attach never replied**: the window loaded neither
+Perspective chunk, rendered 0 rows over a full Table, and logged nothing —
+the exact signature this path keeps producing. Adding a 1.5 s
+`Promise.race` timeout **did not rescue it**, which is the informative part: a
+pending promise would have lost that race, so `getCompiledClientWasm()` is not
+merely slow to settle in a SharedWorker, it appears to block the worker's event
+loop, taking the timer with it.
+
+So the remaining work is not plumbing — the plumbing was written and is
+straightforward. It is finding out whether the compiled module can be obtained
+in a SharedWorker at all: perhaps off the nested engine worker rather than the
+host scope, perhaps eagerly at boot before any attach can wait on it, perhaps
+only from a window. Establish that with a probe FIRST; everything downstream
+already checks out.
+
+Sequencing note for whoever picks this up: the worker asset is a prebuilt
+esbuild bundle, so a change to `host-data` source is invisible until
+`npm run build --workspace=@starui/host-data` runs. The first attempt measured
+the unchanged worker for a full cycle before that was spotted.
 
 `@perspective-dev/server` hoists to **5.0.0** in this workspace while the client
 is pinned at 4.5.2 (the client declares the dep with an empty version range).

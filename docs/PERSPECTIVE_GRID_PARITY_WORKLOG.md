@@ -69,6 +69,11 @@ this AG Grid 36 DOM — query `.ag-row`.
   master's row count and every book in the book — it looked exactly like
   master/detail ignoring its match clause. Use `api.forEachDetailGridInfo()`,
   AG's own registry of live detail grids.
+- **A `host-data` source change is invisible to a running app until the worker
+  asset is rebuilt.** It is a prebuilt esbuild bundle, so `vite build` on the
+  app copies whatever `packages/data/host-data/dist/assets/` already holds. A
+  full measure-and-diagnose cycle was spent on an unchanged worker before this
+  was spotted; `npm run build --workspace=@starui/host-data` first.
 - **A wide window sampled mid-feed is a montage of instants.** Blocks are read
   at different ticks, so grid rows 250–262 can be offset by one row from a
   single instantaneous truth read. Each block is internally correct. Not a
@@ -272,6 +277,21 @@ Ordered. **The e2e spec is done** — see the closed section above; what remains
   single cost on the path**: the timing measurement above puts ~900 ms of every
   window's ~1.1 s open squarely on bundle boot, against 191–315 ms for
   everything the row engine does.
+
+  **ATTEMPTED AND REVERTED — read this before retrying.** Most of it checks
+  out and the blocker is narrow. The slim build is **47.70 kB** against
+  5,070 kB and exports everything needed; the compiled Module is a real one
+  (103 exports) and **survives a round trip through a Worker**, so the
+  transfer is not the risk. What failed is calling `getCompiledClientWasm()`
+  **inside the SharedWorker**: the attach never replied, and the window sat at
+  0 rows over a full Table with nothing logged. A 1.5 s `Promise.race` did NOT
+  rescue it — which says it blocks the worker's event loop rather than merely
+  taking a long time. Next step is a probe answering "can the compiled module
+  be obtained in a SharedWorker at all, and from which scope" — not more
+  plumbing, which was written and worked. Full write-up in the package
+  ARCHITECTURE.md. Also: the worker asset is a prebuilt esbuild bundle, so
+  `npm run build --workspace=@starui/host-data` is required before any
+  host-data change is visible to a running app.
 - **`StompProviderConfig` cannot send request headers**, so an app only ever
   gets the broker's default 20,000-row sweep, never the sparse profile the
   probes used. Until then the pull path is measured against a feed shape no
