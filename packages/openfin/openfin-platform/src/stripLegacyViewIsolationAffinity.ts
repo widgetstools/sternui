@@ -23,6 +23,47 @@ interface AffinityCarrier {
   processAffinity?: string;
 }
 
+interface ThrottlingCarrier {
+  backgroundThrottling?: boolean;
+}
+
+/**
+ * Force `backgroundThrottling: false` on view/window creation options.
+ *
+ * Trading-platform policy: hidden / minimized / inactive-tab views must
+ * never be throttled or frozen (measured: Chromium freezes a hidden
+ * view's WebContents regardless of process sharing — blotters went
+ * blank until a tab switch). The manifest's `defaultViewOptions`
+ * carries the same value, but saved pages/workspaces persist each
+ * view's fully-RESOLVED options — layouts saved before the policy have
+ * `backgroundThrottling: true` baked in, and explicit per-view options
+ * beat launch defaults. Enforcing it at the platform override covers
+ * every path: defaults, restores, duplication.
+ */
+export function disableBackgroundThrottling<T extends ThrottlingCarrier>(opts: T): T {
+  opts.backgroundThrottling = false;
+  return opts;
+}
+
+/** Layout-tree twin of {@link disableBackgroundThrottling} (snapshot restore). */
+export function disableBackgroundThrottlingInLayout(layout: unknown): void {
+  if (!layout || typeof layout !== 'object') return;
+  const node = layout as Record<string, unknown>;
+
+  if (node.componentName === 'view' || 'backgroundThrottling' in node) {
+    (node as ThrottlingCarrier).backgroundThrottling = false;
+  }
+
+  const componentState = node.componentState;
+  if (componentState && typeof componentState === 'object') {
+    disableBackgroundThrottlingInLayout(componentState);
+  }
+  const content = node.content;
+  if (Array.isArray(content)) {
+    for (const child of content) disableBackgroundThrottlingInLayout(child);
+  }
+}
+
 function isLegacy(value: unknown): value is string {
   return (
     typeof value === 'string'

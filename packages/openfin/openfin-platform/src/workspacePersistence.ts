@@ -34,6 +34,8 @@ import { injectRenameMenuItem } from './internal/viewTabRename';
 import {
   stripLegacyViewIsolationAffinity,
   stripLegacyViewIsolationFromLayout,
+  disableBackgroundThrottling,
+  disableBackgroundThrottlingInLayout,
 } from './stripLegacyViewIsolationAffinity';
 
 const WS_PREFIX = 'WS_';
@@ -345,17 +347,25 @@ export function createWorkspacePersistenceOverride(
       async createView(payload: any, callerIdentity?: any): Promise<any> {
         if (payload?.opts) {
           stripLegacyViewIsolationAffinity(payload.opts, this.legacySharedAffinity());
+          // Manifest defaultViewOptions is NOT sufficient: saved layouts
+          // persist resolved options (backgroundThrottling: true baked
+          // in pre-policy) and explicit options beat launch defaults —
+          // measured live: views still reported true after a cold
+          // relaunch on the corrected manifest.
+          disableBackgroundThrottling(payload.opts);
         }
         return super.createView(payload, callerIdentity);
       }
 
       async createWindow(payload: any, identity?: any): Promise<any> {
         const shared = this.legacySharedAffinity();
+        const windowOptions = (payload as { windowOptions?: { layout?: unknown } })?.windowOptions;
         stripLegacyViewIsolationFromLayout(payload?.layout, shared);
-        stripLegacyViewIsolationFromLayout(
-          (payload as { windowOptions?: { layout?: unknown } })?.windowOptions?.layout,
-          shared,
-        );
+        stripLegacyViewIsolationFromLayout(windowOptions?.layout, shared);
+        disableBackgroundThrottlingInLayout(payload?.layout);
+        disableBackgroundThrottlingInLayout(windowOptions?.layout);
+        if (payload && typeof payload === 'object') disableBackgroundThrottling(payload);
+        if (windowOptions) disableBackgroundThrottling(windowOptions);
         return super.createWindow(payload, identity);
       }
 
