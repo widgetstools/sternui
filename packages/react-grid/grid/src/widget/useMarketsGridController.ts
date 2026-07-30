@@ -450,7 +450,17 @@ export function useMarketsGridController(
   const handleExportVisualExcel = useCallback(() => {
     if (!api) return;
     const state = platform.store.getModuleState<VisualExcelState>(VISUAL_EXCEL_MODULE_ID);
-    exportVisualExcel(api, state?.settings ?? { enabled: true, fileNamePrefix: 'markets-grid' });
+    exportVisualExcel(api, state?.settings ?? { enabled: true, fileNamePrefix: 'markets-grid' }, {
+      // On the Perspective path the book is read from the Table, so an export
+      // can fail for a reason the user could act on (too large, engine busy).
+      // Logged rather than silent — there is no toast channel on the platform
+      // event map, and a click that produces no file and no message reads as a
+      // broken button.
+      onError: (message) => {
+        // eslint-disable-next-line no-console
+        console.error(`[MarketsGrid] ${message}`);
+      },
+    });
   }, [api, platform]);
 
   exportVisualExcelRef.current = handleExportVisualExcel;
