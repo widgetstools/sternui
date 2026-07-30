@@ -38,6 +38,9 @@ import type {
   HubIntrospectSnapshot,
   HubReadyRequest,
   ListConfigsRequest,
+  PerspectiveAttachedEvent,
+  PerspectiveAttachRequest,
+  PerspectiveAttachResult,
   ProviderStats,
   ProviderStatus,
   Request,
@@ -185,6 +188,15 @@ export class SharedWorkerDataServicesClient {
   private readonly catalogPending = new Map<
     string,
     { resolve: (event: ConfigSnapshotEvent) => void; reject: (err: Error) => void }
+  >();
+  /** In-flight `attachPerspective` calls, keyed by the subId sent with each. */
+  private readonly perspectivePending = new Map<
+    string,
+    {
+      resolve: (result: PerspectiveAttachResult) => void;
+      reject: (err: Error) => void;
+      port: MessagePort;
+    }
   >();
   private readonly catalogReadyWaiters: Array<() => void> = [];
   private readonly catalogChangeListeners = new Set<(detail: CatalogChangeDetail) => void>();
@@ -686,6 +698,13 @@ export class SharedWorkerDataServicesClient {
       pending.reject(new Error('[SharedWorkerDataServicesClient] client closed'));
     }
     this.catalogPending.clear();
+    // An in-flight attach holds a live MessagePort; closing it here keeps a
+    // torn-down window from leaving a half-open channel behind.
+    for (const [, pending] of this.perspectivePending) {
+      try { pending.port.close(); } catch { /* idempotent */ }
+      pending.reject(new Error('[SharedWorkerDataServicesClient] client closed'));
+    }
+    this.perspectivePending.clear();
     for (const resolve of this.catalogReadyWaiters) resolve();
     this.catalogReadyWaiters.length = 0;
     this.catalogChangeListeners.clear();
@@ -797,6 +816,59 @@ export class SharedWorkerDataServicesClient {
     }
   }
 
+  /**
+   * Bind this window to a provider's Perspective Table.
+   *
+   * Returns the port a Perspective `Client` should be built on, plus the name
+   * to pass to `open_table`. No rows cross the port on attach — the window
+   * opens a View and reads only what its viewport asks for.
+   *
+   * Resolves `ok: false` with a reason rather than hanging when the provider
+   * holds no Table (wrong provider type, a worker built without the
+   * Perspective loader, or a `keyColumn` that cannot index one), so a caller
+   * can fall back to the push path immediately instead of waiting on
+   * something that will never arrive.
+   */
+  attachPerspective(providerId: string): Promise<PerspectiveAttachResult> {
+    if (this.closed) {
+      return Promise.reject(new Error('[SharedWorkerDataServicesClient] client is closed'));
+    }
+    const subId = crypto.randomUUID();
+    const channel = new MessageChannel();
+
+    return new Promise<PerspectiveAttachResult>((resolve, reject) => {
+      this.perspectivePending.set(subId, { resolve, reject, port: channel.port1 });
+      try {
+        // The worker keeps port2 and binds a ProxySession to it.
+        const req: PerspectiveAttachRequest = {
+          kind: 'perspective-attach',
+          subId,
+          providerId,
+        };
+        this.port.postMessage(req, [channel.port2]);
+      } catch (err) {
+        this.perspectivePending.delete(subId);
+        channel.port1.close();
+        reject(err instanceof Error ? err : new Error(String(err)));
+      }
+    });
+  }
+
+  private routePerspectiveAttached(event: PerspectiveAttachedEvent): void {
+    const pending = this.perspectivePending.get(event.subId);
+    if (!pending) return;
+    this.perspectivePending.delete(event.subId);
+
+    if (!event.ok || !event.tableName) {
+      // Close the unused port rather than leaking it — this window will never
+      // speak protocol frames over it.
+      pending.port.close();
+      pending.resolve({ ok: false, reason: event.reason ?? 'no Perspective Table' });
+      return;
+    }
+    pending.resolve({ ok: true, port: pending.port, tableName: event.tableName });
+  }
+
   private rpcCatalog(
     req: Omit<HubReadyRequest, 'reqId'>
       | Omit<GetConfigRequest, 'reqId'>
@@ -817,6 +889,12 @@ export class SharedWorkerDataServicesClient {
   private handleMessage = (ev: MessageEvent): void => {
     if (isCatalogEvent(ev.data)) {
       this.routeCatalogEvent(ev.data);
+      return;
+    }
+    // Routed before the subscription lookup below: an attach has no data
+    // subscription, so `subs.get(subId)` would drop it on the floor.
+    if ((ev.data as { kind?: string })?.kind === 'perspective-attached') {
+      this.routePerspectiveAttached(ev.data as PerspectiveAttachedEvent);
       return;
     }
     if (isAppDataEvent(ev.data)) {

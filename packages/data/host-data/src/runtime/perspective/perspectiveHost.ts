@@ -29,7 +29,10 @@ export interface PerspectiveModuleLike {
 }
 
 export interface HostClientLike {
-  table(schema: unknown, options: { index?: string; name?: string }): Promise<HostTableLike>;
+  table(
+    schema: unknown,
+    options: { index?: string; name?: string },
+  ): Promise<HostTableLike & { clear?(): Promise<void> }>;
   new_proxy_session(onResponse: (response: Uint8Array) => void): ProxySessionLike;
   get_hosted_table_names?(): Promise<string[]>;
 }
@@ -38,6 +41,12 @@ export interface HostTableLike {
   update(rows: unknown): Promise<void>;
   delete(): Promise<void>;
   size?(): Promise<number>;
+  /**
+   * Drop every row, keeping the schema, the index and every registered View.
+   * This is what lets a restart happen under attached windows — see the note
+   * on the wrapper in `tableFactoryFor`.
+   */
+  clear?(): Promise<void>;
 }
 
 export interface ProxySessionLike {
@@ -140,6 +149,13 @@ export function createPerspectiveHost(opts: PerspectiveHostOpts): PerspectiveHos
         const owned: HostTableLike = {
           update: (rows: unknown) => table.update(rows),
           size: table.size ? () => table.size!() : undefined,
+          // MEASURED: omitting this is not a missing convenience, it silently
+          // changes the restart path. The feed asks `typeof table.clear ===
+          // 'function'` to decide whether a declared-schema Table can survive
+          // a `replace` — without it every snapshot DELETED and rebuilt the
+          // Table, and each attached window was left holding a handle to the
+          // dead one, reading 0 rows forever with no error anywhere.
+          clear: table.clear ? () => table.clear!() : undefined,
           delete: async () => {
             if (deleted) return;
             deleted = true;

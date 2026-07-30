@@ -97,7 +97,7 @@ export async function installSharedWorkerHub(opts: InstallOpts = {}): Promise<In
       const clientId = crypto.randomUUID();
       portLike = fanOutPool.createPortProxy(clientId);
       const onMessage = (ev: MessageEvent) => {
-        if (isRequest(ev.data)) hub.handleRequest(portLike, ev.data);
+        if (isRequest(ev.data)) hub.handleRequest(portLike, ev.data, ev.ports);
         else if (isAppDataRequest(ev.data)) hub.handleAppDataRequest(portLike, ev.data);
       };
       const onError = () => {
@@ -107,7 +107,7 @@ export async function installSharedWorkerHub(opts: InstallOpts = {}): Promise<In
       fanOutPool.registerPending(clientId, port, { onMessage, onError });
     } else {
       const onMessage = (ev: MessageEvent) => {
-        if (isRequest(ev.data)) hub.handleRequest(portLike, ev.data);
+        if (isRequest(ev.data)) hub.handleRequest(portLike, ev.data, ev.ports);
         else if (isAppDataRequest(ev.data)) hub.handleAppDataRequest(portLike, ev.data);
       };
       const onError = () => hub.onPortClosed(portLike);
@@ -158,7 +158,7 @@ export async function installSharedWorkerHub(opts: InstallOpts = {}): Promise<In
     const dw = globalRef as DedicatedWorkerLike;
     const fakePort: PortLike = { postMessage: (m) => dw.postMessage(m) };
     dw.onmessage = (ev: MessageEvent) => {
-      if (isRequest(ev.data)) hub.handleRequest(fakePort, ev.data);
+      if (isRequest(ev.data)) hub.handleRequest(fakePort, ev.data, ev.ports);
       else if (isAppDataRequest(ev.data)) hub.handleAppDataRequest(fakePort, ev.data);
     };
   }

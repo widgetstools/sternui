@@ -497,6 +497,17 @@ export interface PerspectiveAttachedEvent {
   reason?: string;
 }
 
+/**
+ * Result of {@link SharedWorkerDataServicesClient.attachPerspective}.
+ *
+ * The failure case is a VALUE, not a rejection: 'this provider holds no
+ * Table' is a normal answer that a caller handles by using the push path,
+ * not an exception.
+ */
+export type PerspectiveAttachResult =
+  | { ok: true; port: MessagePort; tableName: string }
+  | { ok: false; reason: string };
+
 export type Event =
   | DeltaEvent
   | DeltaBinEvent
@@ -595,6 +606,7 @@ export function isRequest(value: unknown): value is Request {
     k === 'list-configs' ||
     k === 'config-invalidate' ||
     k === 'refresh-provider' ||
+    k === 'perspective-attach' ||
     k === 'hub-introspect'
   );
 }

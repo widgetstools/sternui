@@ -77,16 +77,21 @@ function attachPortToHub(hub: SharedWorkerDataServicesHub): (port: MessagePort) 
   return (port) => {
     const portLike: PortLike = { postMessage: (m) => port.postMessage(m) };
     port.addEventListener('message', (ev: MessageEvent) => {
-      if (isRequest(ev.data)) hub.handleRequest(portLike, ev.data);
+      // `ev.ports`, not `ev.data.ports` — a transferred port rides the event.
+      if (isRequest(ev.data)) hub.handleRequest(portLike, ev.data, ev.ports);
       else if (isAppDataRequest(ev.data)) hub.handleAppDataRequest(portLike, ev.data);
     });
     port.start();
   };
 }
 
-function wire(opts: { configManager?: ConfigManager } = {}): Wiring {
+function wire(opts: {
+  configManager?: ConfigManager;
+  loadPerspective?: () => Promise<unknown>;
+} = {}): Wiring {
   const hub = new SharedWorkerDataServicesHub({
     ...(opts.configManager ? { configManager: opts.configManager } : {}),
+    ...(opts.loadPerspective ? { loadPerspective: opts.loadPerspective as never } : {}),
   });
   const wiring = createInPageWiring(attachPortToHub(hub), { disablePageHideClose: true });
   return {
@@ -861,5 +866,163 @@ describe('SharedWorkerDataServicesClient — columnar wire format end-to-end', (
     expect(updates[0]).toHaveLength(100);
     expect(updates[0][99]).toEqual({ id: 'r99', x: 148.5 });
     handle.unsubscribe();
+  });
+});
+
+/**
+ * `attachPerspective` is the pull path's front door: a blotter asks a provider
+ * id for the Table behind it and gets back the port its own Perspective Client
+ * talks over. The behaviour that matters here is the failure shape — a window
+ * that asks the wrong provider must be told so, not left waiting.
+ */
+describe('SharedWorkerDataServicesClient — attachPerspective', () => {
+  const attached: unknown[] = [];
+
+  const fakePerspective = () =>
+    Promise.resolve({
+      worker: async () => ({
+        table: async () => ({ update: async () => {}, delete: async () => {} }),
+        new_proxy_session: (onResponse: (r: Uint8Array) => void) => {
+          attached.push(onResponse);
+          return { handle_request: async () => {}, close: async () => {} };
+        },
+      }),
+    });
+
+  /** Resolved by a test to say "the Table now exists". */
+  let releaseTable: (() => void) | null = null;
+
+  beforeEach(() => {
+    attached.length = 0;
+    releaseTable = null;
+    // A provider whose handle carries a `tableName` — the only thing the hub
+    // reads to decide whether there is a Table to attach to — and a `feed`
+    // whose `whenReady` says when that Table actually exists.
+    registerProvider('mock-perspective' as ProviderConfig['providerType'], (cfg, emit) => {
+      const ctrl: TestController = { emit, stops: 0, restarts: [] };
+      controllers.set((cfg as unknown as { __key?: string }).__key ?? 'mp', ctrl);
+      const ready = new Promise<void>((resolve) => { releaseTable = resolve; });
+      return {
+        stop() {},
+        restart() {},
+        tableName: 'positions',
+        feed: { whenReady: () => ready },
+      } as ProviderHandle;
+    });
+  });
+
+  /** A catalog row for a provider that holds a Table. */
+  const perspectiveRow = (id: string): AppConfigRow => ({
+    ...mockProviderRow(id, 'mp'),
+    componentSubType: 'mock-perspective',
+    payload: {
+      providerType: 'mock-perspective',
+      keyColumn: 'id',
+      __key: 'mp',
+      __providerMeta: { public: true },
+    },
+  });
+
+  /** Hub with a hydrated catalog — how a real blotter reaches a provider. */
+  async function wirePerspective(
+    rows: AppConfigRow[],
+    opts: { withLoader?: boolean } = {},
+  ): Promise<Wiring> {
+    const cm = stubConfigManager();
+    for (const row of rows) cm._rows.set(row.configId, row);
+    const w = wire({
+      configManager: cm,
+      ...(opts.withLoader === false ? {} : { loadPerspective: fakePerspective }),
+    });
+    await w.hub.hydrateCatalog();
+    return w;
+  }
+
+  // The provider is created BY the attach — a blotter opens on its own and
+  // must not depend on something else having subscribed to the push path.
+  it('starts the provider from the catalog and hands back a port + table name', async () => {
+    const w = await wirePerspective([perspectiveRow('p1')]);
+
+    const pending = w.client.attachPerspective('p1');
+    // The provider — and so its feed — is created BY the attach, so the
+    // release hook only exists once that has reached the worker.
+    await flush();
+    releaseTable!();
+    const result = await pending;
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.tableName).toBe('positions');
+      expect(result.port).toBeInstanceOf(MessagePort);
+    }
+    // The worker bound a ProxySession to the far side of that port.
+    expect(attached).toHaveLength(1);
+    w.close();
+  });
+
+  it('answers ok:false with a reason when the provider holds no Table', async () => {
+    const w = await wirePerspective([mockProviderRow('p1')]);
+
+    const result = await w.client.attachPerspective('p1');
+
+    // Waiting forever and "there is no Table" look identical to a caller, so
+    // the honest answer is what lets it fall back to the push path.
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toContain('mock');
+    w.close();
+  });
+
+  it('answers ok:false for a provider id the catalog does not know', async () => {
+    const w = await wirePerspective([]);
+    const result = await w.client.attachPerspective('nope');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toContain('nope');
+    w.close();
+  });
+
+  // MEASURED on the live feed: `open_table(name)` RESOLVES for a name the
+  // engine does not hold yet rather than throwing, so replying early handed
+  // the window a handle bound to nothing — it read 0 rows forever while every
+  // later attach read the full 20,000-row book, with no error anywhere.
+  it('waits for the Table to exist before answering', async () => {
+    const w = await wirePerspective([perspectiveRow('p1')]);
+    let settled = false;
+    const pending = w.client.attachPerspective('p1').then((r) => {
+      settled = true;
+      return r;
+    });
+
+    await flush();
+    expect(settled).toBe(false);
+    expect(attached).toHaveLength(0);
+
+    releaseTable!();
+    await expect(pending).resolves.toEqual(
+      expect.objectContaining({ ok: true, tableName: 'positions' }),
+    );
+    w.close();
+  });
+
+  it('answers ok:false when the worker was built without a Perspective loader', async () => {
+    const w = await wirePerspective([perspectiveRow('p1')], { withLoader: false });
+
+    const result = await w.client.attachPerspective('p1');
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toContain('without a Perspective loader');
+    w.close();
+  });
+
+  it('rejects once the client is closed', async () => {
+    const w = wire({ loadPerspective: fakePerspective });
+    w.close();
+    await expect(w.client.attachPerspective('p1')).rejects.toThrow(/closed/);
+  });
+
+  it('rejects an in-flight attach when the client closes under it', async () => {
+    const w = wire({ loadPerspective: fakePerspective });
+    const pending = w.client.attachPerspective('p1');
+    w.close();
+    await expect(pending).rejects.toThrow(/closed/);
   });
 });

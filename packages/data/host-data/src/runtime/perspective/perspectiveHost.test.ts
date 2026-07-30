@@ -15,10 +15,13 @@ function makePerspective() {
 
   const client: HostClientLike = {
     table: vi.fn(async (_schema, options) => {
-      const record = { name: options.name, index: options.index, deleted: false };
+      const record = { name: options.name, index: options.index, deleted: false, cleared: 0 };
       tables.push(record);
       const table: HostTableLike = {
         update: vi.fn(async () => {}),
+        clear: vi.fn(async () => {
+          record.cleared += 1;
+        }),
         delete: vi.fn(async () => {
           record.deleted = true;
         }),
@@ -141,6 +144,25 @@ describe('createPerspectiveHost — tables', () => {
     expect(p.tables).toHaveLength(2);
     expect(p.tables[0].deleted).toBe(true);
     expect(p.tables[1].deleted).toBe(false);
+  });
+
+  // MEASURED end to end on the live feed: the wrapper originally omitted
+  // `clear`, so the feed's `typeof table.clear === 'function'` check said no
+  // and every snapshot DELETED and rebuilt the declared-schema Table. Each
+  // attached window kept a handle to the dead one and read 0 rows forever —
+  // no error, no warning, just an empty grid over a full book.
+  it('forwards clear() — the feed uses its presence to decide a Table survives a restart', async () => {
+    const p = makePerspective();
+    const host = createPerspectiveHost({ loadPerspective: async () => p.module });
+    const table = await host.tableFactoryFor('positions')({}, 'id');
+
+    expect(typeof table.clear).toBe('function');
+    await table.clear!();
+
+    expect(p.tables[0].cleared).toBe(1);
+    // The point of clearing: the Table — and every View on it — is still there.
+    expect(p.tables[0].deleted).toBe(false);
+    expect(await host.hostedTableNames()).toContain('positions');
   });
 });
 

@@ -195,7 +195,13 @@ export class SharedWorkerDataServicesHub {
 
   // ─── Public surface ────────────────────────────────────────────
 
-  handleRequest(port: PortLike, req: Request): void {
+  /**
+   * @param transferred Ports that arrived with this message (`ev.ports`).
+   *   `postMessage` delivers transfers on the event, not on `ev.data`, so the
+   *   entry has to hand them across separately or a `perspective-attach`
+   *   would arrive without the channel it is entirely about.
+   */
+  handleRequest(port: PortLike, req: Request, transferred?: readonly MessagePort[]): void {
     this.trackPort(port);
     switch (req.kind) {
       case 'attach':  this.handleAttach(port, req); return;
@@ -207,7 +213,9 @@ export class SharedWorkerDataServicesHub {
       case 'list-configs': this.handleListConfigs(port, req); return;
       case 'config-invalidate': void this.handleConfigInvalidate(port, req); return;
       case 'refresh-provider': this.handleRefreshProvider(req); return;
-      case 'perspective-attach': void this.handlePerspectiveAttach(port, req); return;
+      case 'perspective-attach':
+        void this.handlePerspectiveAttach(port, req, transferred?.[0]);
+        return;
       case 'hub-introspect': this.handleHubIntrospect(port, req); return;
     }
   }
@@ -880,12 +888,10 @@ export class SharedWorkerDataServicesHub {
   private async handlePerspectiveAttach(
     port: PortLike,
     req: PerspectiveAttachRequest,
+    framePort: MessagePort | undefined,
   ): Promise<void> {
     const reply = (ok: boolean, extra: { tableName?: string; reason?: string } = {}) =>
       port.postMessage({ kind: 'perspective-attached', subId: req.subId, ok, ...extra });
-
-    const framePort = (req as unknown as { ports?: readonly MessagePort[] }).ports?.[0]
-      ?? (req as unknown as { port?: MessagePort }).port;
 
     if (!this.perspectiveHost) {
       reply(false, { reason: 'this worker was built without a Perspective loader' });
@@ -906,14 +912,28 @@ export class SharedWorkerDataServicesHub {
       slot = this.createProvider(req.providerId, cfg);
     }
 
-    const tableName =
-      (slot.handle as unknown as { tableName?: string }).tableName ?? undefined;
+    const handle = slot.handle as unknown as {
+      tableName?: string;
+      feed?: { whenReady(): Promise<unknown> } | null;
+    };
+    const tableName = handle.tableName ?? undefined;
     if (!tableName) {
       reply(false, {
         reason: `provider '${req.providerId}' is ${slot.cfg.providerType}, which holds no Table`,
       });
       return;
     }
+
+    // MEASURED: `open_table(name)` RESOLVES for a name the engine does not
+    // hold yet — it does not throw — and the window is then left holding a
+    // handle bound to nothing, reading 0 rows forever while every later
+    // attach reads the full book. So the reply waits for the Table to exist.
+    // With a declared schema that is immediate (the whole point of declaring
+    // one); without it, waiting out the snapshot is the honest answer, since
+    // there is genuinely nothing to attach to before then.
+    await handle.feed?.whenReady().catch(() => {
+      /* a feed that never builds is reported below, not thrown here */
+    });
 
     await this.perspectiveHost.attach(framePort);
     reply(true, { tableName });
