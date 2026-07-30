@@ -110,8 +110,14 @@ export function useRestoreCellFocusOnWindowFocus(
     };
 
     const onFocusIn = () => {
+      // Stamp only on OWNERSHIP TRANSITION. focusin bubbles from every
+      // cell focus change — every click and every arrow-key step during
+      // keyboard navigation (~30/sec on key-repeat) — and each
+      // localStorage write dispatches a `storage` event into every
+      // same-origin sibling view in the OpenFin fleet. Intra-grid focus
+      // moves keep ownership, so they must not write.
+      if (!ownsFocus) stampThisDocFocused();
       ownsFocus = true;
-      stampThisDocFocused();
     };
 
     const onFocusOut = (event: FocusEvent) => {

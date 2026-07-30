@@ -277,6 +277,19 @@ describe('useRestoreCellFocusOnWindowFocus', () => {
     expect(api.setFocusedCell).not.toHaveBeenCalled();
   });
 
+  it('intra-grid focus moves do not rewrite the localStorage stamp (fleet storage-event storm guard)', () => {
+    const view = renderView();
+    focusInOnCell(view); // ownership transition → stamps once
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    // Arrow-key navigation: focus moves cell→cell INSIDE the grid —
+    // ownership is retained, so no further writes may occur.
+    focusInOnCell(view);
+    focusInOnCell(view);
+    focusInOnCell(view);
+    expect(setItem).not.toHaveBeenCalled();
+    setItem.mockRestore();
+  });
+
   it('a real DOM window focus re-claims the last-focused stamp', () => {
     const api = makeFakeApi();
     const { bridge } = makeFakeBridge();
