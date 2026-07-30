@@ -13,6 +13,132 @@ instance of the same thing: *code that assumed the client holds the whole book*.
 When triaging anything new, ask that question first — it has predicted every
 gap found so far.
 
+---
+
+# WHAT IS LEFT
+
+Parity is done. Of the four engineering-debt items three are done; this is
+everything that remains, in priority order. Items 1 and 2 are work; item 3 is a
+decision only the product owner can make; items 4–6 are watch-list.
+
+Read [`## How to reproduce and verify`](#how-to-reproduce-and-verify) and
+[`### Traps that produced false findings`](#traps-that-produced-false-findings)
+before starting any of them. Both have already cost real time.
+
+## 1. `getCompiledClientWasm()` — blocked, needs a probe first · ~0.5 d to unblock
+
+**The largest single remaining cost on the path.** The multi-window measurement
+puts ~900 ms of every window's ~1.1 s open on bundle boot, against 191–315 ms
+for everything the row engine does. Every window imports the 5,070 kB inline
+build, including the **server** wasm it never runs.
+
+Implemented once and **reverted** — do not just re-apply it. What is already
+established (full write-up in the package ARCHITECTURE.md, "Attempted,
+reverted, and what it established"):
+
+- The slim build `@perspective-dev/client` is **47.70 kB**; both builds export
+  `init_client` and `getCompiledClientWasm`.
+- **The transfer is not the risk.** MEASURED in a page: the Module is real
+  (103 exports), survives a `MessageChannel` clone, and survives a round trip
+  through a dedicated Worker still holding all 103 exports.
+- **The blocker is calling it inside the SharedWorker.** The attach never
+  replied; the window loaded neither chunk and sat at 0 rows over a full Table
+  with nothing logged. A 1.5 s `Promise.race` did **not** rescue it — so it
+  appears to block the worker's event loop, taking the timer with it.
+
+**Do this first, before any plumbing:** a probe that answers *whether the
+compiled module can be obtained in a SharedWorker at all, and from which
+scope* — the host scope, the nested engine worker, eagerly at boot before any
+attach can wait on it, or only from a window. If a working scope exists, the
+plumbing is a re-apply of a diff that was already written and typechecked
+(host `compiledClientWasm()`, `PerspectiveAttachedEvent.clientWasm`, hub reply,
+window-side `resolveModule` picking the slim build with an inline fallback).
+
+If no scope works, the fallback design is for the WINDOW to compile once and
+share via `postMessage` to later windows, or to accept the cost and just drop
+the server wasm from the window bundle.
+
+**Acceptance:** a second window fetches the 47 kB chunk and NOT the 5,070 kB
+one (check `performance.getEntriesByType('resource')`), the book still reaches
+20,000 rows, and `npm run e2e:perspective` is green.
+
+## 2. Editing toolbar, smart edit, bulk update — e2e coverage · ~0.5 d
+
+The only thing the e2e spec does not cover. The plumbing is verified and
+coalesced (edits reach the worker-held Table, `flushEdits` on close), but the
+toolbars themselves have never been driven by real input — which is exactly the
+class of thing synthetic clicks were wrong about for the formatting toolbar.
+
+Now cheap: `e2e/perspective-surface.spec.ts` and
+`playwright.perspective.config.ts` exist, so this is new `test()` blocks, not
+new infrastructure. `showEditingToolbar` is already on in the demo.
+
+**Acceptance:** an edit committed through each toolbar survives a reload — the
+same shape as the existing "a formatting change survives a reload" test, which
+is the assertion that actually matters on this path.
+
+## 3. Cross-row context divergence — a DECISION, not a task
+
+`[price] > AVG([price])` now resolves correctly on the Perspective surface and
+is **false for every row on CSRM**, because the client-side style-rule evaluator
+never passes `allRows`. A divergence in the direction of correct — but the
+stated bar for this work is "behave exactly like the csrm ag-grid".
+
+Three options: bring CSRM up to it (pass `allRows` to the style-rule eval
+context, as `calculated-columns` already does via `getAllRowsSnapshot`); accept
+the divergence and document it as intended; or refuse the aggregate on the
+Perspective side too, for symmetry. **Do not pick one silently** — it changes
+what a saved rule means on one surface or the other.
+
+## 4. Pagination reports one extra row · watch-list
+
+201 pages against the control's 200; `paginationGetRowCount()` reads 20,001.
+Cause MEASURED, not inferred: AG counts the SSRM grand-total row as a store
+row, where the client-side model keeps the same `pinnedBottom` total outside
+the row model. Our datasource reports the exact 20,000 and
+`getDisplayedRowCount()` is 20,000. Left alone deliberately — pagination is off
+by default here and the fix means working around AG internals. Revisit only if
+a deployment turns pagination on.
+
+## 5. The audit is not exhaustive · ongoing
+
+This list came from code reading plus live measurement, not a sweep of every
+customizer module. Only the modules the toolbars touch have been traced —
+**both the alerts gap and the header-painter gap were found exactly that way**,
+and the second one was entirely dead rather than degraded. Expect one or two
+more of the same species.
+
+Fastest way to find them, in order:
+
+```bash
+rg "engineKind === 'ssrm'" packages/react-grid/grid/src
+rg "forEachNodeAfterFilter|forEachNode\b" packages/react-grid/grid/src
+```
+
+The first finds features that read the Perspective path as CSRM and silently
+disable themselves (`isServerSideEngine()` exists for exactly this). The second
+finds code that walks the row model expecting the whole book — note
+`forEachNodeAfterFilter` visits **0 nodes** under the server row model.
+
+## 6. `@starui/design-system` test flake · watch-list
+
+Failed twice under a full-parallel `npx turbo typecheck build test` and passed
+**13/13 files, 193/193 tests** in isolation both times. Not caused by this
+branch — the package was untouched — but it is not in the documented baseline
+either, so it reads as a regression to whoever hits it next. Load-related.
+
+## Gate baseline for this branch
+
+`npx turbo typecheck build test`. Pre-existing failures that are NOT yours:
+
+- `@starui/grid` — **4 failed test FILES, 0 failed tests** (collection/import
+  errors in `MarketsGrid.*`), 793 passing.
+- `@starui/widgets-react` — 2 `providerStaleState` cases.
+
+Both predate the branch. Verify by stashing if in doubt.
+
+---
+
 ## How to reproduce and verify
 
 Production builds only. Never the Vite dev server: it serves hundreds of
@@ -21,7 +147,29 @@ modules per window and a 3rd window never loads.
 ```bash
 npm run dev:stomp
 npm --prefix apps run build -w @starui/minimal-perspective-table
-npm --prefix apps run preview -w @starui/minimal-perspective-table
+cd apps/demos/minimal-perspective-table && npx vite preview --port 5273 --strictPort
+```
+
+Port 5273 rather than the app's default 5215, because that default collides
+with the container e2e app — and 5273 is what `playwright.perspective.config.ts`
+expects, so the same preview serves both a manual session and the spec.
+
+**Rebuild `host-data` before the app whenever worker-side source changed:**
+
+```bash
+npm run build --workspace=@starui/host-data
+```
+
+The SharedWorker asset is a PREBUILT esbuild bundle, so `vite build` on the app
+just copies whatever `packages/data/host-data/dist/assets/` already holds. A
+full measure-and-diagnose cycle was spent on an unchanged worker before this
+was spotted — the symptom is a source change that appears to have no effect
+whatsoever.
+
+The e2e suite builds and serves this itself:
+
+```bash
+npm run e2e:perspective
 ```
 
 **Always run the CSRM twin side by side.** `apps/demos/stomp-marketsgrid-minimal`
@@ -31,13 +179,18 @@ harness artifact:
 
 ```bash
 npm --prefix apps run build -w @starui/stomp-marketsgrid-minimal
-npm --prefix apps run preview -w @starui/stomp-marketsgrid-minimal
+cd apps/demos/stomp-marketsgrid-minimal && npx vite preview --port 5274 --strictPort
 ```
 
 Reach the grid api, engine and Table by walking `__reactFiber$` up from
 `.ag-root-wrapper`; the platform is the `{platform, engineKind}` context value
-on the same path. Note `.ag-center-cols-container .ag-row` does not exist in
-this AG Grid 36 DOM — query `.ag-row`.
+on the same path. Note `.ag-center-cols-container .ag-row` and
+`.ag-body-viewport .ag-row` both match ZERO elements in this AG Grid 36 DOM —
+query `.ag-row` / `.ag-cell`, and `.ag-grid-viewport` is the element that
+scrolls. Reach a DETAIL grid's api with `api.forEachDetailGridInfo()`, never by
+walking the fiber up from it — `.return` goes up into the MASTER grid, which
+reads as the whole book and looks exactly like master/detail ignoring its match
+clause.
 
 ### Traps that produced false findings
 
@@ -258,9 +411,10 @@ Two traps the spec had to encode, both of which cost time:
   reveals (`v2-settings-nav-menu-alerts`). The sheet's nav also needs a viewport
   taller than 800 px or it is clipped under its own header.
 
-## Engineering debt, not parity
+## Engineering debt, not parity — the record
 
-Ordered. **The e2e spec is done** — see the closed section above; what remains:
+All four items, kept for the measurements and the reasoning. The two that are
+still live are restated at the top of this file under **WHAT IS LEFT**.
 
 - ~~Multi-window timings on the product path are unmeasured.~~ **MEASURED**
   (`scripts/multiWindowTimingProbe.mjs`, two consecutive runs). Cold window to
