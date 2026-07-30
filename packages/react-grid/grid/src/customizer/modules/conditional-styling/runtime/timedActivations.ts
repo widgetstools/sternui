@@ -6,7 +6,7 @@
  *  - `processTimedActivations()` — bulk pass after `modelUpdated`. Walks
  *    every row, diffs against the previous-render snapshot per known
  *    column path, evaluates every timed rule whose triggers fired, and
- *    upserts cell/row activations into the module-scoped state.
+ *    upserts cell/row activations into this grid's TimedRuleStore.
  *
  *  - `attachCellValueChangedListener()` — per-tick path. Wires AG-Grid's
  *    `cellValueChanged` event to evaluate timed rules immediately for the
@@ -27,12 +27,7 @@
 import type { PlatformHandle, RowChange } from '@starui/engine';
 import type { GridApi } from 'ag-grid-community';
 import { getValueByPath } from '@starui/types';
-import {
-  pruneTimedRuleState,
-  upsertTimedCellActivation,
-  upsertTimedRowActivation,
-} from '../transforms';
-import type { DiffCacheByApi } from '../transforms';
+import type { DiffCacheByApi, TimedRuleStore } from '../transforms';
 import type { ConditionalStylingState } from '../state';
 import {
   buildColumnsContextFromDiffs,
@@ -45,6 +40,8 @@ import type { TriggerCache } from './triggerCache';
 import { hasHeaderPaintRules } from './headerPainter';
 
 export interface TimedActivationsDeps {
+  /** This grid's timed-activation store — per-grid, never module-shared. */
+  store: TimedRuleStore;
   triggers: TriggerCache;
   diffCacheByApi: DiffCacheByApi;
   scheduleRefresh: () => void;
@@ -191,7 +188,7 @@ export function createTimedActivations(
             match = false;
           }
           if (!match) continue;
-          upsertTimedRowActivation(rowId, rule.id, now + ttlMs);
+          deps.store.upsertRowActivation(rowId, rule.id, now + ttlMs);
           activatedThisPass = true;
           if (isTimedTraceOn()) traceTimed('row rule activated (model diff)', { rowId, ruleId: rule.id, until: now + ttlMs });
           continue;
@@ -228,7 +225,7 @@ export function createTimedActivations(
         }
         if (!match) continue;
         for (const colId of rule.scope.columns) {
-          upsertTimedCellActivation(rowId, rule.id, colId, now + ttlMs);
+          deps.store.upsertCellActivation(rowId, rule.id, colId, now + ttlMs);
           activatedThisPass = true;
           if (isTimedTraceOn()) traceTimed('cell rule activated (model diff)', { rowId, ruleId: rule.id, colId, until: now + ttlMs });
         }
@@ -262,7 +259,7 @@ export function createTimedActivations(
       for (const rowId of previousByRow.keys()) {
         if (!activeRowIds.has(rowId)) previousByRow.delete(rowId);
       }
-      pruneTimedRuleState(activeRowIds);
+      deps.store.prune(activeRowIds);
     }
 
     // Rearm coalesced expiry timer once per pass — cheaper than one
@@ -391,7 +388,7 @@ function onCellValueChangedHandler(
       if (!match) continue;
       const rowId = resolveRowId(node);
       if (!rowId) continue;
-      upsertTimedRowActivation(rowId, rule.id, now + ttlMs);
+      deps.store.upsertRowActivation(rowId, rule.id, now + ttlMs);
       if (trace) traceTimed('row rule activated', { rowId, ruleId: rule.id, until: now + ttlMs });
       activatedThisEvent = true;
       continue;
@@ -435,7 +432,7 @@ function onCellValueChangedHandler(
       if (!match) continue;
       const rowId = resolveRowId(node);
       if (!rowId) continue;
-      upsertTimedCellActivation(rowId, rule.id, scopedColId, now + ttlMs);
+      deps.store.upsertCellActivation(rowId, rule.id, scopedColId, now + ttlMs);
       if (trace) {
         traceTimed('cell rule activated', {
           rowId,

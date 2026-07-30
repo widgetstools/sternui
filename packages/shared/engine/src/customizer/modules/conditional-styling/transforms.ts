@@ -44,227 +44,253 @@ export type TimedRuleStateByApi = WeakMap<object, TimedRuleStateByRowId>;
 
 export const CONDITIONAL_DIFF_CACHE_KEY = 'conditional-styling:cell-diff-cache';
 export const CONDITIONAL_TIMED_RULE_CACHE_KEY = 'conditional-styling:timed-rule-cache';
-export const CONDITIONAL_TIMED_RULE_BUCKET_KEY = {} as const;
 const TRACE_PREFIX = '[conditional-styling:timed]';
-const timedRuleStateByRowId: TimedRuleStateByRowId = new Map();
-
-// Cached earliest pending expiry across the whole map. `null` means "no
-// entries pending"; `undefined` means "stale — recompute on next read".
-// Updated incrementally on insert (cheap O(1) min-check) and invalidated
-// wholesale on any prune (recomputed lazily via a single map walk when
-// `getNextTimedExpiry` is next called). Keeps `armNextExpiry` O(1) in
-// the hot insert path and bounds the walk to once per prune burst.
-let cachedNextExpiry: number | null | undefined = null;
-
-export function clearTimedRuleState(): void {
-  timedRuleStateByRowId.clear();
-  cachedNextExpiry = null;
-}
-
-function noteExpiryInserted(at: number): void {
-  if (cachedNextExpiry === undefined) return; // already stale
-  if (cachedNextExpiry === null || at < cachedNextExpiry) {
-    cachedNextExpiry = at;
-  }
-}
-
-function invalidateExpiryCache(): void {
-  cachedNextExpiry = undefined;
-}
-
-export function upsertTimedRowActivation(
-  rowId: string,
-  ruleId: string,
-  until: number,
-): void {
-  let byRule = timedRuleStateByRowId.get(rowId);
-  if (!byRule) {
-    byRule = new Map<string, { rowUntil?: number; cellsUntil: Map<string, number> }>();
-    timedRuleStateByRowId.set(rowId, byRule);
-  }
-  const prev = byRule.get(ruleId);
-  if (!prev) {
-    byRule.set(ruleId, { rowUntil: until, cellsUntil: new Map() });
-    noteExpiryInserted(until);
-    traceTimed('upsertTimedRowRule:new', { rowId, ruleId, until });
-    return;
-  }
-  prev.rowUntil = Math.max(prev.rowUntil ?? 0, until);
-  noteExpiryInserted(prev.rowUntil);
-  traceTimed('upsertTimedRowRule:update', { rowId, ruleId, until: prev.rowUntil });
-}
-
-export function upsertTimedCellActivation(
-  rowId: string,
-  ruleId: string,
-  colId: string,
-  until: number,
-): void {
-  let byRule = timedRuleStateByRowId.get(rowId);
-  if (!byRule) {
-    byRule = new Map<string, { rowUntil?: number; cellsUntil: Map<string, number> }>();
-    timedRuleStateByRowId.set(rowId, byRule);
-  }
-  const prev = byRule.get(ruleId);
-  if (!prev) {
-    byRule.set(ruleId, { cellsUntil: new Map([[colId, until]]) });
-    noteExpiryInserted(until);
-    traceTimed('upsertTimedCellRule:new', { rowId, ruleId, colId, until });
-    return;
-  }
-  prev.cellsUntil.set(colId, Math.max(prev.cellsUntil.get(colId) ?? 0, until));
-  noteExpiryInserted(prev.cellsUntil.get(colId) ?? until);
-  traceTimed('upsertTimedCellRule:update', {
-    rowId,
-    ruleId,
-    colId,
-    until: prev.cellsUntil.get(colId),
-  });
-}
 
 /**
- * Returns the earliest pending expiry timestamp (ms since epoch) across
- * all timed activations, or `null` if nothing is currently active.
+ * Per-grid timed-activation store. The runtime creates ONE per
+ * `activate()` and registers its `byRowId` map into the per-grid
+ * `TimedRuleStateByApi` resource cache (keyed by the GridApi) so the
+ * class-rule predicates can find it.
  *
- * Used by the coalesced expiry scheduler in `index.ts` to arm a single
- * timer for the nearest activation instead of one timer per activation
- * — keeps timer churn O(1) regardless of tick rate.
+ * This state used to be MODULE-SCOPED — one map shared by every grid in
+ * the renderer. With multiple grids showing the same provider (same row
+ * ids) and the same profile (same rule ids), any grid's activate()/
+ * teardown `clear()` wiped every other grid's activations, and one
+ * grid's prune (driven by ITS filter's visible-row set) deleted rows
+ * still active in another grid.
  */
-export function getNextTimedExpiry(): number | null {
-  // Fast path — cache valid → O(1).
-  if (cachedNextExpiry !== undefined) return cachedNextExpiry;
-  // Cold path — recompute by walking the map once.
-  let next: number | null = null;
-  for (const byRule of timedRuleStateByRowId.values()) {
-    for (const entry of byRule.values()) {
-      if (entry.rowUntil != null && (next == null || entry.rowUntil < next)) {
-        next = entry.rowUntil;
-      }
-      for (const expiry of entry.cellsUntil.values()) {
-        if (next == null || expiry < next) next = expiry;
-      }
-    }
-  }
-  cachedNextExpiry = next;
-  return next;
+export interface TimedRuleStore {
+  /** Row-id-keyed state — register into a `TimedRuleStateByApi` map. */
+  readonly byRowId: TimedRuleStateByRowId;
+  clear(): void;
+  upsertRowActivation(rowId: string, ruleId: string, until: number): void;
+  upsertCellActivation(rowId: string, ruleId: string, colId: string, until: number): void;
+  /**
+   * Earliest pending expiry timestamp (ms since epoch) across all timed
+   * activations, or `null` when nothing is active. Used by the coalesced
+   * expiry scheduler to arm a single timer for the nearest activation —
+   * keeps timer churn O(1) regardless of tick rate.
+   */
+  getNextExpiry(): number | null;
+  prune(activeRowIds: Set<string>): void;
+  /** Drop entries whose rule no longer exists (profile switch). */
+  pruneByRuleSet(activeTimedRuleIds: Set<string>): void;
+  /**
+   * Collect the (rowId, colIds) pairs whose entries are expired, then
+   * drop those entries — the expiry timer computes the targeted refresh
+   * surface AND clears state in one pass.
+   */
+  collectAndPruneExpired(): {
+    rowScope: Array<{ rowId: string }>;
+    cellScope: Array<{ rowId: string; colIds: string[] }>;
+  };
 }
 
-export function pruneTimedRuleState(activeRowIds: Set<string>): void {
-  const now = Date.now();
-  let mutated = false;
-  for (const [rowId, byRule] of timedRuleStateByRowId) {
-    if (!activeRowIds.has(rowId)) {
-      timedRuleStateByRowId.delete(rowId);
-      mutated = true;
-      continue;
+export function createTimedRuleStore(): TimedRuleStore {
+  const byRowId: TimedRuleStateByRowId = new Map();
+
+  // Cached earliest pending expiry across the whole map. `null` means "no
+  // entries pending"; `undefined` means "stale — recompute on next read".
+  // Updated incrementally on insert (cheap O(1) min-check) and invalidated
+  // wholesale on any prune (recomputed lazily via a single map walk when
+  // `getNextExpiry` is next called). Keeps `armNextExpiry` O(1) in
+  // the hot insert path and bounds the walk to once per prune burst.
+  let cachedNextExpiry: number | null | undefined = null;
+
+  const noteExpiryInserted = (at: number): void => {
+    if (cachedNextExpiry === undefined) return; // already stale
+    if (cachedNextExpiry === null || at < cachedNextExpiry) {
+      cachedNextExpiry = at;
     }
-    for (const [ruleId, entry] of byRule) {
-      if (entry.rowUntil != null && entry.rowUntil <= now) {
-        entry.rowUntil = undefined;
-        mutated = true;
+  };
+
+  const invalidateExpiryCache = (): void => {
+    cachedNextExpiry = undefined;
+  };
+
+  const clear = (): void => {
+    byRowId.clear();
+    cachedNextExpiry = null;
+  };
+
+  const upsertRowActivation = (rowId: string, ruleId: string, until: number): void => {
+    let byRule = byRowId.get(rowId);
+    if (!byRule) {
+      byRule = new Map<string, { rowUntil?: number; cellsUntil: Map<string, number> }>();
+      byRowId.set(rowId, byRule);
+    }
+    const prev = byRule.get(ruleId);
+    if (!prev) {
+      byRule.set(ruleId, { rowUntil: until, cellsUntil: new Map() });
+      noteExpiryInserted(until);
+      if (isTraceOn()) traceTimed('upsertTimedRowRule:new', { rowId, ruleId, until });
+      return;
+    }
+    prev.rowUntil = Math.max(prev.rowUntil ?? 0, until);
+    noteExpiryInserted(prev.rowUntil);
+    if (isTraceOn()) traceTimed('upsertTimedRowRule:update', { rowId, ruleId, until: prev.rowUntil });
+  };
+
+  const upsertCellActivation = (rowId: string, ruleId: string, colId: string, until: number): void => {
+    let byRule = byRowId.get(rowId);
+    if (!byRule) {
+      byRule = new Map<string, { rowUntil?: number; cellsUntil: Map<string, number> }>();
+      byRowId.set(rowId, byRule);
+    }
+    const prev = byRule.get(ruleId);
+    if (!prev) {
+      byRule.set(ruleId, { cellsUntil: new Map([[colId, until]]) });
+      noteExpiryInserted(until);
+      if (isTraceOn()) traceTimed('upsertTimedCellRule:new', { rowId, ruleId, colId, until });
+      return;
+    }
+    prev.cellsUntil.set(colId, Math.max(prev.cellsUntil.get(colId) ?? 0, until));
+    noteExpiryInserted(prev.cellsUntil.get(colId) ?? until);
+    if (isTraceOn()) {
+      traceTimed('upsertTimedCellRule:update', {
+        rowId,
+        ruleId,
+        colId,
+        until: prev.cellsUntil.get(colId),
+      });
+    }
+  };
+
+  const getNextExpiry = (): number | null => {
+    // Fast path — cache valid → O(1).
+    if (cachedNextExpiry !== undefined) return cachedNextExpiry;
+    // Cold path — recompute by walking the map once.
+    let next: number | null = null;
+    for (const byRule of byRowId.values()) {
+      for (const entry of byRule.values()) {
+        if (entry.rowUntil != null && (next == null || entry.rowUntil < next)) {
+          next = entry.rowUntil;
+        }
+        for (const expiry of entry.cellsUntil.values()) {
+          if (next == null || expiry < next) next = expiry;
+        }
       }
-      for (const [colId, expiry] of entry.cellsUntil) {
-        if (expiry <= now) {
-          entry.cellsUntil.delete(colId);
+    }
+    cachedNextExpiry = next;
+    return next;
+  };
+
+  const prune = (activeRowIds: Set<string>): void => {
+    const now = Date.now();
+    let mutated = false;
+    for (const [rowId, byRule] of byRowId) {
+      if (!activeRowIds.has(rowId)) {
+        byRowId.delete(rowId);
+        mutated = true;
+        continue;
+      }
+      for (const [ruleId, entry] of byRule) {
+        if (entry.rowUntil != null && entry.rowUntil <= now) {
+          entry.rowUntil = undefined;
+          mutated = true;
+        }
+        for (const [colId, expiry] of entry.cellsUntil) {
+          if (expiry <= now) {
+            entry.cellsUntil.delete(colId);
+            mutated = true;
+          }
+        }
+        if (!entry.rowUntil && entry.cellsUntil.size === 0) {
+          byRule.delete(ruleId);
           mutated = true;
         }
       }
-      if (!entry.rowUntil && entry.cellsUntil.size === 0) {
-        byRule.delete(ruleId);
+      if (byRule.size === 0) {
+        byRowId.delete(rowId);
         mutated = true;
       }
     }
-    if (byRule.size === 0) {
-      timedRuleStateByRowId.delete(rowId);
-      mutated = true;
-    }
-  }
-  if (mutated) invalidateExpiryCache();
-}
+    if (mutated) invalidateExpiryCache();
+  };
 
-/**
- * Drop timed-state entries whose rule no longer exists in the active set
- * (e.g. after a profile load that removes / replaces the prior profile's
- * rules). Without this, stale entries from the previous profile keep
- * `getNextTimedExpiry()` returning a non-null timestamp, the coalesced
- * expiry timer arms with delay 0/8 ms, fires, re-evaluates against an
- * empty rule set, and re-arms forever — visible in the console as a
- * tight `armNextExpiry` / `expiry refresh fired` loop.
- *
- * Pass the current set of timed rule ids (rules with `activeDurationMs`).
- * Any entry keyed by a rule outside that set is dropped wholesale.
- */
-export function pruneTimedRuleStateByRuleSet(activeTimedRuleIds: Set<string>): void {
-  let mutated = false;
-  for (const [rowId, byRule] of timedRuleStateByRowId) {
-    for (const ruleId of byRule.keys()) {
-      if (!activeTimedRuleIds.has(ruleId)) {
-        byRule.delete(ruleId);
-        mutated = true;
-      }
-    }
-    if (byRule.size === 0) {
-      timedRuleStateByRowId.delete(rowId);
-      mutated = true;
-    }
-  }
-  if (mutated) invalidateExpiryCache();
-}
-
-/**
- * Collect the (rowId, colIds) pairs whose entries are expired (until ≤
- * now), then drop those entries. Used by the expiry timer to compute
- * the targeted refresh surface AND clear the state in one pass —
- * cheaper than a follow-up `pruneTimedRuleState(activeRowIds)` walk.
- *
- * `rowScope` carries entries that had `rowUntil` set (row-scope rules);
- * the caller refreshes the entire row's currently visible cells.
- * `cellScope` carries entries that had `cellsUntil` set (cell-scope
- * rules); the caller refreshes the precise (rowId, colId) pairs.
- */
-export function collectAndPruneExpiredTimedEntries(): {
-  rowScope: Array<{ rowId: string }>;
-  cellScope: Array<{ rowId: string; colIds: string[] }>;
-} {
-  const now = Date.now();
-  const rowScope: Array<{ rowId: string }> = [];
-  const cellScope: Array<{ rowId: string; colIds: string[] }> = [];
-  let mutated = false;
-
-  for (const [rowId, byRule] of timedRuleStateByRowId) {
-    let rowExpiredForThisRow = false;
-    const cellColsExpiredForThisRow = new Set<string>();
-
-    for (const [ruleId, entry] of byRule) {
-      if (entry.rowUntil != null && entry.rowUntil <= now) {
-        rowExpiredForThisRow = true;
-        entry.rowUntil = undefined;
-        mutated = true;
-      }
-      for (const [colId, expiry] of entry.cellsUntil) {
-        if (expiry <= now) {
-          cellColsExpiredForThisRow.add(colId);
-          entry.cellsUntil.delete(colId);
+  // Drop timed-state entries whose rule no longer exists in the active
+  // set (e.g. after a profile load that removes / replaces the prior
+  // profile's rules). Without this, stale entries from the previous
+  // profile keep `getNextExpiry()` returning a non-null timestamp, the
+  // coalesced expiry timer arms with delay 0/8 ms, fires, re-evaluates
+  // against an empty rule set, and re-arms forever — visible in the
+  // console as a tight `armNextExpiry` / `expiry refresh fired` loop.
+  const pruneByRuleSet = (activeTimedRuleIds: Set<string>): void => {
+    let mutated = false;
+    for (const [rowId, byRule] of byRowId) {
+      for (const ruleId of byRule.keys()) {
+        if (!activeTimedRuleIds.has(ruleId)) {
+          byRule.delete(ruleId);
           mutated = true;
         }
       }
-      if (!entry.rowUntil && entry.cellsUntil.size === 0) {
-        byRule.delete(ruleId);
+      if (byRule.size === 0) {
+        byRowId.delete(rowId);
         mutated = true;
       }
     }
+    if (mutated) invalidateExpiryCache();
+  };
 
-    if (rowExpiredForThisRow) rowScope.push({ rowId });
-    if (cellColsExpiredForThisRow.size > 0) {
-      cellScope.push({ rowId, colIds: [...cellColsExpiredForThisRow] });
+  // `rowScope` carries entries that had `rowUntil` set (row-scope rules);
+  // the caller refreshes the entire row's currently visible cells.
+  // `cellScope` carries entries that had `cellsUntil` set (cell-scope
+  // rules); the caller refreshes the precise (rowId, colId) pairs.
+  const collectAndPruneExpired = (): {
+    rowScope: Array<{ rowId: string }>;
+    cellScope: Array<{ rowId: string; colIds: string[] }>;
+  } => {
+    const now = Date.now();
+    const rowScope: Array<{ rowId: string }> = [];
+    const cellScope: Array<{ rowId: string; colIds: string[] }> = [];
+    let mutated = false;
+
+    for (const [rowId, byRule] of byRowId) {
+      let rowExpiredForThisRow = false;
+      const cellColsExpiredForThisRow = new Set<string>();
+
+      for (const [ruleId, entry] of byRule) {
+        if (entry.rowUntil != null && entry.rowUntil <= now) {
+          rowExpiredForThisRow = true;
+          entry.rowUntil = undefined;
+          mutated = true;
+        }
+        for (const [colId, expiry] of entry.cellsUntil) {
+          if (expiry <= now) {
+            cellColsExpiredForThisRow.add(colId);
+            entry.cellsUntil.delete(colId);
+            mutated = true;
+          }
+        }
+        if (!entry.rowUntil && entry.cellsUntil.size === 0) {
+          byRule.delete(ruleId);
+          mutated = true;
+        }
+      }
+
+      if (rowExpiredForThisRow) rowScope.push({ rowId });
+      if (cellColsExpiredForThisRow.size > 0) {
+        cellScope.push({ rowId, colIds: [...cellColsExpiredForThisRow] });
+      }
+      if (byRule.size === 0) {
+        byRowId.delete(rowId);
+        mutated = true;
+      }
     }
-    if (byRule.size === 0) {
-      timedRuleStateByRowId.delete(rowId);
-      mutated = true;
-    }
-  }
-  if (mutated) invalidateExpiryCache();
-  return { rowScope, cellScope };
+    if (mutated) invalidateExpiryCache();
+    return { rowScope, cellScope };
+  };
+
+  return {
+    byRowId,
+    clear,
+    upsertRowActivation,
+    upsertCellActivation,
+    getNextExpiry,
+    prune,
+    pruneByRuleSet,
+    collectAndPruneExpired,
+  };
 }
 
 // ─── Flash palette + base keyframes (module-scoped, shipped once per grid) ─
@@ -840,7 +866,10 @@ export function applyCellRulesToDefs(
 ): AnyColDef[] {
   return defs.map((def) => {
     if ('children' in def && Array.isArray(def.children)) {
-      const next = applyCellRulesToDefs(def.children, cellRules, engine);
+      // Pass BOTH caches through — the old recursion dropped them, so
+      // cells under a column GROUP lost diff-driven (.old/.new) and
+      // timed-rule predicates entirely.
+      const next = applyCellRulesToDefs(def.children, cellRules, engine, diffCacheByApi, timedRuleStateByApi);
       const unchanged = next.length === def.children.length && next.every((c, i) => c === def.children[i]);
       return unchanged ? def : ({ ...def, children: next } as ColGroupDef);
     }
@@ -1032,15 +1061,18 @@ function normalizeActiveDuration(value: number | undefined): number | null {
 
 function getTimedRuleState(
   timedRuleStateByApi: TimedRuleStateByApi | undefined,
-  _api: unknown,
+  api: unknown,
   node: unknown,
 ): TimedRuleStateByRule | undefined {
-  if (!timedRuleStateByApi) {
-    // ignore cache identity issues; module-level state is the source of truth
-  }
+  // Per-grid isolation: the runtime registers its TimedRuleStore's map
+  // under the GridApi. No registration (grid not ready yet, or no timed
+  // runtime mounted) → no activations → inactive.
+  if (!timedRuleStateByApi || !api || typeof api !== 'object') return undefined;
+  const byRowId = timedRuleStateByApi.get(api as object);
+  if (!byRowId) return undefined;
   const rowId = resolveRowId(node);
   if (!rowId) return undefined;
-  return timedRuleStateByRowId.get(rowId);
+  return byRowId.get(rowId);
 }
 
 function isTimedCellRuleActive(
@@ -1050,29 +1082,30 @@ function isTimedCellRuleActive(
   ruleId: string,
   colId: string,
 ): boolean {
-  const rowId = resolveRowId(node);
+  const trace = isTraceOn();
+  const rowId = trace ? resolveRowId(node) : null;
   const stateByRule = getTimedRuleState(timedRuleStateByApi, api, node);
   if (!stateByRule) {
-    traceTimed('predicate:cell no state', { rowId, ruleId, colId });
+    if (trace) traceTimed('predicate:cell no state', { rowId, ruleId, colId });
     return false;
   }
   const entry = stateByRule.get(ruleId);
   if (!entry) {
-    traceTimed('predicate:cell no rule entry', { rowId, ruleId, colId });
+    if (trace) traceTimed('predicate:cell no rule entry', { rowId, ruleId, colId });
     return false;
   }
   const expiry = entry.cellsUntil.get(colId);
   if (!expiry) {
-    traceTimed('predicate:cell no column expiry', { rowId, ruleId, colId });
+    if (trace) traceTimed('predicate:cell no column expiry', { rowId, ruleId, colId });
     return false;
   }
   if (expiry > Date.now()) {
-    traceTimed('predicate:cell ACTIVE', { rowId, ruleId, colId, expiry });
+    if (trace) traceTimed('predicate:cell ACTIVE', { rowId, ruleId, colId, expiry });
     return true;
   }
   entry.cellsUntil.delete(colId);
   if (!entry.rowUntil && entry.cellsUntil.size === 0) stateByRule.delete(ruleId);
-  traceTimed('predicate:cell EXPIRED', { rowId, ruleId, colId, expiry });
+  if (trace) traceTimed('predicate:cell EXPIRED', { rowId, ruleId, colId, expiry });
   return false;
 }
 
@@ -1082,24 +1115,25 @@ function isTimedRowRuleActive(
   node: unknown,
   ruleId: string,
 ): boolean {
-  const rowId = resolveRowId(node);
+  const trace = isTraceOn();
+  const rowId = trace ? resolveRowId(node) : null;
   const stateByRule = getTimedRuleState(timedRuleStateByApi, api, node);
   if (!stateByRule) {
-    traceTimed('predicate:row no state', { rowId, ruleId });
+    if (trace) traceTimed('predicate:row no state', { rowId, ruleId });
     return false;
   }
   const entry = stateByRule.get(ruleId);
   if (!entry?.rowUntil) {
-    traceTimed('predicate:row no expiry', { rowId, ruleId });
+    if (trace) traceTimed('predicate:row no expiry', { rowId, ruleId });
     return false;
   }
   if (entry.rowUntil > Date.now()) {
-    traceTimed('predicate:row ACTIVE', { rowId, ruleId, expiry: entry.rowUntil });
+    if (trace) traceTimed('predicate:row ACTIVE', { rowId, ruleId, expiry: entry.rowUntil });
     return true;
   }
   entry.rowUntil = undefined;
   if (entry.cellsUntil.size === 0) stateByRule.delete(ruleId);
-  traceTimed('predicate:row EXPIRED', { rowId, ruleId });
+  if (trace) traceTimed('predicate:row EXPIRED', { rowId, ruleId });
   return false;
 }
 
@@ -1120,6 +1154,16 @@ function resolveRowId(node: unknown): string | null {
  * production. Opt in explicitly per session by setting
  * `window.__CS_TIMED_TRACE__ = true` in the DevTools console.
  */
+/** Cheap probe for gating trace CALL SITES — the payload object literals
+ *  are otherwise allocated per cell per paint even with tracing off. */
+function isTraceOn(): boolean {
+  try {
+    return (globalThis as { __CS_TIMED_TRACE__?: boolean }).__CS_TIMED_TRACE__ === true;
+  } catch {
+    return false;
+  }
+}
+
 function traceTimed(message: string, payload?: unknown): void {
   try {
     const flag = (globalThis as { __CS_TIMED_TRACE__?: boolean }).__CS_TIMED_TRACE__;

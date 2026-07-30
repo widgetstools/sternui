@@ -32,7 +32,9 @@ import {
   applyCellRulesToDefs,
   buildRowClassPredicate,
   CONDITIONAL_DIFF_CACHE_KEY,
+  CONDITIONAL_TIMED_RULE_CACHE_KEY,
   type DiffCacheByApi,
+  type TimedRuleStateByApi,
   reinjectAllRules,
 } from './transforms';
 import { cssEscapeColId } from '../column-customization/transforms';
@@ -75,12 +77,18 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
       .filter((r) => r.enabled && r.scope.type === 'cell')
       .sort((a, b) => a.priority - b.priority);
     if (cellRules.length === 0) return defs;
+    // Same per-grid cache instance the runtime registers its
+    // TimedRuleStore into (keyed by GridApi) — timed predicates read
+    // THIS grid's activations, never another grid's.
+    const timedStateByApi = ctx.resources.cache<object, object>(
+      CONDITIONAL_TIMED_RULE_CACHE_KEY,
+    ) as TimedRuleStateByApi;
     return applyCellRulesToDefs(
       defs,
       cellRules,
       ctx.resources.expression(),
       diffCacheByApi,
-      undefined,
+      timedStateByApi,
     );
   },
 
@@ -92,6 +100,9 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
     const diffCacheByApi = ctx.resources.cache<object, WeakMap<object, Map<string, { oldValue: unknown; newValue: unknown }>>>(
       CONDITIONAL_DIFF_CACHE_KEY,
     ) as DiffCacheByApi;
+    const timedStateByApi = ctx.resources.cache<object, object>(
+      CONDITIONAL_TIMED_RULE_CACHE_KEY,
+    ) as TimedRuleStateByApi;
     // Always emit rowClassRules so the host's setGridOption sync clears
     // stale predicates when a rule's scope flips row→cell.
     const rowClassRules: NonNullable<typeof opts.rowClassRules> = {
@@ -105,7 +116,7 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
           engine,
           rule,
           diffCacheByApi,
-          undefined,
+          timedStateByApi,
         );
     }
     return { ...opts, rowClassRules };

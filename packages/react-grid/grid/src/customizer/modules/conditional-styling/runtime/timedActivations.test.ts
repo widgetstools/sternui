@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearTimedRuleState } from '@starui/engine';
+import { describe, expect, it, vi } from 'vitest';
+import { createTimedRuleStore } from '@starui/engine';
 import { createTimedActivations } from './timedActivations.js';
 import type { TriggerCache } from './triggerCache.js';
 
@@ -47,6 +47,9 @@ function makeHarness(nodes: Node[]) {
   };
   const triggers = { get: () => new Set(['price']) } as unknown as TriggerCache;
   const deps = {
+    // Per-harness store — timed state is per-grid now, so tests don't
+    // need (and can't use) a global clear between cases.
+    store: createTimedRuleStore(),
     triggers,
     diffCacheByApi: new WeakMap(),
     scheduleRefresh: vi.fn(),
@@ -64,9 +67,6 @@ function makeHarness(nodes: Node[]) {
 }
 
 describe('processTimedActivations — delta vs full pass', () => {
-  beforeEach(() => clearTimedRuleState());
-  afterEach(() => clearTimedRuleState());
-
   it('delta pass touches ONLY delivered rows and never forEachNode-scans the model', () => {
     const nodes = [
       makeNode('a', { __id: 'a', price: 1 }),

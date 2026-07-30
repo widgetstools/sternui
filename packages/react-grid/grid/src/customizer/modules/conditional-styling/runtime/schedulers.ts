@@ -25,10 +25,7 @@
  */
 
 import type { PlatformHandle } from '@starui/engine';
-import {
-  collectAndPruneExpiredTimedEntries,
-  getNextTimedExpiry,
-} from '../transforms';
+import type { TimedRuleStore } from '../transforms';
 import type { ConditionalStylingState } from '../state';
 import { isTimedTraceOn, traceTimed } from './utils';
 
@@ -184,6 +181,8 @@ export function createTargetedRefreshScheduler(
 /* ─── coalesced expiry timer ───────────────────────────────────────── */
 
 export interface ExpirySchedulerDeps {
+  /** This grid's timed-activation store (expiries + expired-entry pruning). */
+  store: TimedRuleStore;
   /** Repaint the cell grid after expiry / activation (full refreshCells). */
   scheduleRefresh: () => void;
   /** Repaint specific rows/cols after a coalesced expiry fires. */
@@ -214,7 +213,7 @@ export function createExpiryScheduler(deps: ExpirySchedulerDeps): ExpirySchedule
   let expiryTimerFiresAt: number | null = null;
 
   const armNextExpiry = (): void => {
-    const nextAt = getNextTimedExpiry();
+    const nextAt = deps.store.getNextExpiry();
     if (nextAt == null) {
       if (expiryTimer != null) {
         clearTimeout(expiryTimer);
@@ -244,7 +243,7 @@ export function createExpiryScheduler(deps: ExpirySchedulerDeps): ExpirySchedule
       // Collect the exact (rowId, colIds) pairs that just expired,
       // prune them in one pass, then target-refresh just those rows
       // / columns instead of force-refreshing the entire grid.
-      const expired = collectAndPruneExpiredTimedEntries();
+      const expired = deps.store.collectAndPruneExpired();
       const rowIds = new Set<string>();
       const colIds = new Set<string>();
       for (const e of expired.rowScope) rowIds.add(e.rowId);

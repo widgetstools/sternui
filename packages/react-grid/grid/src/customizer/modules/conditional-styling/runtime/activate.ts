@@ -23,9 +23,10 @@
 import type { Module, PlatformHandle } from '@starui/engine';
 import {
   CONDITIONAL_DIFF_CACHE_KEY,
-  clearTimedRuleState,
-  pruneTimedRuleStateByRuleSet,
+  CONDITIONAL_TIMED_RULE_CACHE_KEY,
+  createTimedRuleStore,
 } from '../transforms';
+import type { TimedRuleStateByApi } from '../transforms';
 import type { ConditionalStylingState } from '../state';
 import { normalizeDuration } from './utils';
 import {
@@ -44,7 +45,17 @@ export function activateConditionalStyling(
   const diffCacheByApi = platform.resources.cache<object, WeakMap<object, Map<string, { oldValue: unknown; newValue: unknown }>>>(
     CONDITIONAL_DIFF_CACHE_KEY,
   );
-  clearTimedRuleState();
+  // Per-grid timed-activation store. Registered under the GridApi in the
+  // per-grid resource cache so the class-rule predicates (built in the
+  // transformers with the same cache) read THIS grid's activations.
+  // Previously this state was module-scoped — one map shared by every
+  // grid in the renderer — so any grid's activate/teardown wiped every
+  // other grid's timed activations, and one grid's liveness prune
+  // (driven by its own filter) deleted rows still active elsewhere.
+  const timedStore = createTimedRuleStore();
+  const timedStateByApi = platform.resources.cache<object, typeof timedStore.byRowId>(
+    CONDITIONAL_TIMED_RULE_CACHE_KEY,
+  ) as TimedRuleStateByApi;
 
   // Subsystems.
   const refresh = createRefreshScheduler(platform);
@@ -52,11 +63,13 @@ export function activateConditionalStyling(
   const triggers = createTriggerCache(platform);
   const headerPainter = createHeaderPainter(platform, diffCacheByApi);
   const expiry = createExpiryScheduler({
+    store: timedStore,
     scheduleRefresh: refresh.scheduleRefresh,
     scheduleTargetedRefresh: targetedRefresh.scheduleTargetedRefresh,
     evaluate: headerPainter.evaluate,
   });
   const timed = createTimedActivations(platform, {
+    store: timedStore,
     triggers,
     diffCacheByApi,
     scheduleRefresh: refresh.scheduleRefresh,
@@ -67,7 +80,10 @@ export function activateConditionalStyling(
 
   // Fire evaluate on every relevant data-side event — and once immediately
   // so profile loads paint without waiting for a first event.
-  disposers.push(platform.api.onReady(() => {
+  disposers.push(platform.api.onReady((api) => {
+    // Register BEFORE the first activation pass so predicates evaluated
+    // during the resulting repaint can already see the store.
+    timedStateByApi.set(api as object, timedStore.byRowId);
     timed.processTimedActivations();
     headerPainter.evaluate();
     refresh.scheduleRefresh();
@@ -98,8 +114,8 @@ export function activateConditionalStyling(
   // Rule-list changes: state subscription. Reconcile the timed-rule
   // state with the new rule set first — without this, a profile
   // switch that drops the previous profile's timed rules leaves
-  // stale `rowUntil` / `cellsUntil` entries in the module-scoped map.
-  // `getNextTimedExpiry()` keeps returning a non-null timestamp,
+  // stale `rowUntil` / `cellsUntil` entries in this grid's store.
+  // `getNextExpiry()` keeps returning a non-null timestamp,
   // the coalesced timer fires, re-arms with delay 8ms, and loops
   // forever — visible as repeated `armNextExpiry / expiry refresh
   // fired` traces with the same `firesAt` value.
@@ -111,7 +127,7 @@ export function activateConditionalStyling(
         activeTimedRuleIds.add(r.id);
       }
     }
-    pruneTimedRuleStateByRuleSet(activeTimedRuleIds);
+    timedStore.pruneByRuleSet(activeTimedRuleIds);
     triggers.rebuild(state.rules);
     expiry.armNextExpiry();
     headerPainter.evaluate();
@@ -142,7 +158,7 @@ export function activateConditionalStyling(
     safely('targetedRefresh.dispose', targetedRefresh.dispose);
     safely('expiry.dispose', expiry.dispose);
     safely('timed.dispose', timed.dispose);
-    safely('clearTimedRuleState', () => clearTimedRuleState());
+    safely('timedStore.clear', () => timedStore.clear());
     for (const d of disposers) { try { d(); } catch { /* swallow — per-disposer */ } }
     safely('remove header flash classes', () => {
       if (typeof document !== 'undefined') {
