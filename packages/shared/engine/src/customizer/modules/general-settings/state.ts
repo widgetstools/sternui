@@ -366,7 +366,12 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   // Cell content
   wrapText: false,
   autoHeight: false,
-  enableCellChangeFlash: false,
+  // ON by default — trading-blotter requirement (flash on value change
+  // is core ticker UX). The GridOptionsPanel swatch tests encode this
+  // default; it was `false` here for a while, which is why those two
+  // tests failed on every full-suite run. Perf is bounded by VISIBLE
+  // cell changes only (~tens/sec at random-spread feeds), not feed rate.
+  enableCellChangeFlash: true,
   // Row grouping / pivoting
   enableRowGroup: true,
   enablePivot: true,
