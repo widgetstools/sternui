@@ -24,10 +24,38 @@ export interface TopLevelDiff {
 }
 
 /**
+ * One-level compare for plain objects. Returns a definite verdict when
+ * every member resolves by `Object.is` (the dominant nested market-data
+ * shape: a flat bag of numbers/strings like `{ dv01, gamma, vega }`),
+ * or `null` when a member pair is itself object-vs-object — shallow
+ * can't decide those, the caller falls back to JSON.
+ */
+function shallowPlainEquals(
+  a: Record<string, unknown>,
+  b: Record<string, unknown>,
+): boolean | null {
+  const aKeys = Object.keys(a);
+  if (aKeys.length !== Object.keys(b).length) return false;
+  for (const key of aKeys) {
+    const av = a[key];
+    const bv = b[key];
+    if (Object.is(av, bv)) continue;
+    if (av !== null && bv !== null && typeof av === 'object' && typeof bv === 'object') {
+      return null;
+    }
+    return false;
+  }
+  return true;
+}
+
+/**
  * Value equality for diffing. `Object.is` covers primitives (the
  * dominant market-data shape); object values — born from `JSON.parse`,
- * so never reference-equal across frames — fall back to a JSON
- * stringify compare.
+ * so never reference-equal across frames — try a one-level shallow
+ * compare first (no serialization for the common flat nested bag) and
+ * fall back to a JSON stringify compare only for deeper nesting. This
+ * runs per top-level field per row per live frame, and unchanged
+ * nested objects previously stringified BOTH sides every time.
  */
 function valueEquals(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true;
@@ -35,6 +63,13 @@ function valueEquals(a: unknown, b: unknown): boolean {
     a !== null && b !== null
     && typeof a === 'object' && typeof b === 'object'
   ) {
+    if (!Array.isArray(a) && !Array.isArray(b)) {
+      const shallow = shallowPlainEquals(
+        a as Record<string, unknown>,
+        b as Record<string, unknown>,
+      );
+      if (shallow !== null) return shallow;
+    }
     try {
       return JSON.stringify(a) === JSON.stringify(b);
     } catch {

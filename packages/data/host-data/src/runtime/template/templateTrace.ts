@@ -159,7 +159,12 @@ export function traceWorkerAppDataSnapshot(
   phase: string,
   rows: ReadonlyArray<{ name: string; values: Record<string, unknown> }>,
 ): void {
-  if (!isTemplateTraceForced() && rows.length === 0) return;
+  // Forced-only: the old gate (`rows.length === 0` skip) was inverted —
+  // it logged one console.info + row/key mapping on EVERY provider
+  // start whenever ANY AppData existed, which is effectively always.
+  // Unresolved-token failures still surface un-forced via the
+  // token-gated cfg audits + the fail-closed assertAppDataResolved.
+  if (!isTemplateTraceForced()) return;
   // eslint-disable-next-line no-console
   console.info(`[starui/stomp-template] ${phase} — worker AppData snapshot`, {
     providerCount: rows.length,

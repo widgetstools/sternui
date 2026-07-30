@@ -260,16 +260,41 @@ function pickThemeColor(c: ThemeAwareColor | undefined, mode: ThemeMode): string
 /**
  * Watch `<html data-theme>` for changes and invoke `onChange` with
  * the new mode. Returns a disposer; callers store it and invoke
- * from `destroy()` so the observer doesn't outlive the cell.
+ * from `destroy()` so the subscription doesn't outlive the cell.
+ *
+ * ONE MutationObserver for the whole module — the old shape created
+ * one per cell instance, so a 52-column blotter with a handful of
+ * themed renderer columns ran thousands of observers all watching the
+ * same `<html data-theme>` attribute. Subscribers register in a Set;
+ * the observer disconnects when the last cell unsubscribes.
  */
+const themeSubscribers = new Set<(mode: ThemeMode) => void>();
+let themeObserver: MutationObserver | null = null;
+
 function watchThemeMode(onChange: (mode: ThemeMode) => void): () => void {
   if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') {
     return () => {};
   }
-  const root = document.documentElement;
-  const observer = new MutationObserver(() => onChange(readThemeMode()));
-  observer.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
-  return () => observer.disconnect();
+  if (!themeObserver) {
+    themeObserver = new MutationObserver(() => {
+      const mode = readThemeMode();
+      for (const cb of themeSubscribers) {
+        try { cb(mode); } catch { /* one broken cell must not break the rest */ }
+      }
+    });
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+  }
+  themeSubscribers.add(onChange);
+  return () => {
+    themeSubscribers.delete(onChange);
+    if (themeSubscribers.size === 0 && themeObserver) {
+      themeObserver.disconnect();
+      themeObserver = null;
+    }
+  };
 }
 
 /** Linearly interpolate between two #rrggbb hex colours by t in [0, 1]. */
