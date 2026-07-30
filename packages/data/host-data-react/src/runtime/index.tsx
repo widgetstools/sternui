@@ -178,6 +178,11 @@ export function useDataProviderConfig(providerId: string | null | undefined): Da
   const { client } = useDataServicesContext();
   const [view, setView] = useState<DataProviderConfigView>({ cfg: null, loading: Boolean(providerId) });
   const [tick, setTick] = useState(0);
+  // Which providerId the current `view.cfg` was actually loaded for.
+  // Without this, switching A → B kept A's cfg visible (with
+  // loading:false) until B's fetch landed — consumers attached
+  // provider B with provider A's cfg for a whole round-trip.
+  const loadedForIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     return client.onCatalogChange((detail) => {
@@ -190,16 +195,24 @@ export function useDataProviderConfig(providerId: string | null | undefined): Da
   useEffect(() => {
     let cancelled = false;
     if (!providerId) {
+      loadedForIdRef.current = null;
       setView({ cfg: null, loading: false });
       return;
     }
-    setView((prev) => ({
-      ...prev,
-      loading: prev.cfg === null,
-      error: undefined,
-    }));
+    if (loadedForIdRef.current === providerId) {
+      // Same provider (catalog-change refresh): keep the current cfg
+      // visible while the fresh row loads.
+      setView((prev) => ({ ...prev, loading: prev.cfg === null, error: undefined }));
+    } else {
+      // Provider switch: the previous cfg belongs to ANOTHER provider.
+      setView({ cfg: null, loading: true });
+    }
     client.getProviderConfig(providerId)
-      .then((cfg) => { if (!cancelled) setView({ cfg, loading: false }); })
+      .then((cfg) => {
+        if (cancelled) return;
+        loadedForIdRef.current = providerId;
+        setView({ cfg, loading: false });
+      })
       .catch((err: unknown) => {
         if (!cancelled) {
           setView((prev) => ({
