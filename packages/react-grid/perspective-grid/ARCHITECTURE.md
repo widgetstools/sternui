@@ -793,11 +793,34 @@ nothing. A rule nothing matches leaves it unlit. `avg` and `high` over
 above that mean was 10,000 on both sides. 25 successive counts cost 31 ms
 against 169 ms for one uncached, live Views unchanged at 2, 0 failed blocks.
 
+**The aggregate measures the WHOLE book, not the filtered one — DECIDED.**
+`aggregateScalar` deliberately drops the request's `filterModel` and the quick
+filter. The threshold is a property of the book, so an "above average" rule
+paints the same rows whatever the user has filtered to: Excel's
+conditional-formatting convention, where a filter hides rows without moving the
+threshold, rather than the SQL/BI convention of filtering first (which is what
+this did originally).
+
+The cost is stated here so nobody re-derives it as a bug: such a rule **can
+disagree with the average in the totals row on the same screen**, because group
+totals, the grand total and the status bar all DO follow the filter. If a
+filtered aggregate is ever wanted, pass `filterModel` through instead of
+dropping it — and restore the filter model to the engine's cache key, which no
+longer carries it.
+
+VERIFIED live with a filter active (`region = EMEA`, 6,669 of 20,000): the
+engine answered **25,019,360.33445**, which is the whole-book average to every
+decimal, against 25,010,520.70 for the EMEA rows alone. The two populations
+differ by 8,840, so the reading cannot be mistaken for either one.
+
 **Caveat worth keeping honest:** cross-row context is a new capability here, not
 restored parity. The client-side style-rule evaluator never passes `allRows`, so
 `AVG([price])` inside a rule resolves to that row's own price on CSRM too, and
 `[price] > AVG([price])` is false for every row there. This path answers it
-correctly; CSRM does not answer it at all.
+correctly; CSRM does not answer it at all. **DECIDED: that divergence stands and
+is intended** — CSRM is not being brought up to it. The consequence to know is
+that a profile carrying such a rule is not portable between the two surfaces:
+the same saved rule paints on one and silently paints nothing on the other.
 
 ## Multi-window timings on the PRODUCT path — measured
 

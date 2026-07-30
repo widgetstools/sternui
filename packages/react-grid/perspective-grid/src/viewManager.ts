@@ -688,7 +688,22 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
     },
 
     /**
-     * One column aggregate over the current filtered book.
+     * One column aggregate over the WHOLE book — filters deliberately dropped.
+     *
+     * Its only caller is a style rule comparing a row against the set
+     * (`[price] > AVG([price])`), and DECIDED for that use: the threshold is a
+     * property of the book, so the colours mean the same thing whatever the
+     * user has filtered to. That is Excel's conditional-formatting convention
+     * — a filter hides rows, it does not move the threshold — against the
+     * SQL/BI convention of filtering first, which is what this used to do.
+     *
+     * The cost of the choice, stated so nobody re-derives it as a bug: a rule
+     * reading "above average" can disagree with the average in the totals row
+     * on the same screen, because group totals, the grand total and the status
+     * bar all DO follow the filter. If a filtered aggregate is ever wanted
+     * here, pass the request's `filterModel` through instead of dropping it —
+     * and cache-key on it, which `aggregateScalar` in the engine no longer
+     * does.
      *
      * Same shape the grand total uses — one constant expression column gives a
      * flat View exactly one group, whose row 0 is the aggregate over
@@ -706,6 +721,10 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
         sortModel: undefined,
         rowGroupCols: undefined,
         groupKeys: [],
+        // The whole book, not the filtered one — see above. The quick filter
+        // goes with it: it is a filter the user typed, no different in kind.
+        filterModel: undefined,
+        quickFilterText: '',
       });
       const config: PerspectiveViewConfig = {
         ...level.config,

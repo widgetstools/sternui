@@ -744,7 +744,11 @@ export function createPerspectiveRowEngine(
     aggregateScalar(colId, aggregate) {
       if (closed || !colId) return Promise.resolve(null);
 
-      const key = `${colId} ${aggregate} ${JSON.stringify(lastRootRequest.filterModel ?? null)}`;
+      // NOT keyed on the filter model, because the answer no longer depends
+      // on it: this aggregate is measured over the WHOLE book by decision
+      // (see `viewManager.aggregateScalar`). Keying on it would miss the
+      // cache on every filter change and rebuild an identical View.
+      const key = `${colId} ${aggregate}`;
       const cached = scalars.get(key);
       if (cached) return cached;
 

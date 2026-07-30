@@ -922,14 +922,37 @@ describe('aggregateScalar', () => {
     expect(config.aggregates).toEqual({ price: 'avg' });
   });
 
-  it('measures under the filter the grid is showing, like the count does', async () => {
+  /**
+   * DECIDED, and the reverse of what this used to assert.
+   *
+   * The only caller is a style rule comparing a row against the set
+   * (`[price] > AVG([price])`). The threshold is a property of the book, so
+   * the colours mean the same thing whatever the user filters to — Excel's
+   * conditional-formatting convention, where a filter hides rows without
+   * moving the threshold. The cost is that such a rule can disagree with the
+   * average in the totals row on the same screen, since group totals, the
+   * grand total and the status bar all DO follow the filter.
+   */
+  it('measures the WHOLE book — a filter must not move the threshold', async () => {
     const { table, built } = makeAggTable(100);
     const views = createViewManager({ table });
 
     await views.aggregateScalar('price', 'avg', {
       filterModel: { sector: { filterType: 'set', values: ['Energy'] } },
     });
-    expect(built.at(-1)!.filter).toEqual([['sector', 'in', ['Energy']]]);
+    expect(built.at(-1)!.filter ?? []).toEqual([]);
+  });
+
+  it('drops the quick filter too — it is a filter the user typed', async () => {
+    const { table, built } = makeAggTable(100);
+    const views = createViewManager({ table });
+    views.setQuickFilter('energy', ['sector']);
+
+    await views.aggregateScalar('price', 'avg', {});
+
+    // A quick filter compiles to an expression column plus a clause on it;
+    // neither may narrow the population this measures.
+    expect(built.at(-1)!.filter ?? []).toEqual([]);
   });
 
   /** A non-numeric or absent aggregate is null rather than something a caller

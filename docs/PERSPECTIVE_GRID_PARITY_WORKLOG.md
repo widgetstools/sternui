@@ -17,28 +17,16 @@ gap found so far.
 
 # WHAT IS LEFT
 
-Parity is done. All four engineering-debt items are done and the e2e spec now
-covers every toolbar on this surface. What remains is **one decision** and a
-watch-list.
+Parity is done. All four engineering-debt items are done, the e2e spec covers
+every toolbar on this surface, and the cross-row-context decision has been
+taken (see **Decisions taken**). What remains is a **watch-list only** — none of
+it is scheduled work.
 
 Read [`## How to reproduce and verify`](#how-to-reproduce-and-verify) and
 [`### Traps that produced false findings`](#traps-that-produced-false-findings)
 before starting any of them. Both have already cost real time.
 
-## 1. Cross-row context divergence — a DECISION, not a task
-
-`[price] > AVG([price])` now resolves correctly on the Perspective surface and
-is **false for every row on CSRM**, because the client-side style-rule evaluator
-never passes `allRows`. A divergence in the direction of correct — but the
-stated bar for this work is "behave exactly like the csrm ag-grid".
-
-Three options: bring CSRM up to it (pass `allRows` to the style-rule eval
-context, as `calculated-columns` already does via `getAllRowsSnapshot`); accept
-the divergence and document it as intended; or refuse the aggregate on the
-Perspective side too, for symmetry. **Do not pick one silently** — it changes
-what a saved rule means on one surface or the other.
-
-## 2. Pagination reports one extra row · watch-list
+## 1. Pagination reports one extra row · watch-list
 
 201 pages against the control's 200; `paginationGetRowCount()` reads 20,001.
 Cause MEASURED, not inferred: AG counts the SSRM grand-total row as a store
@@ -48,7 +36,7 @@ the row model. Our datasource reports the exact 20,000 and
 by default here and the fix means working around AG internals. Revisit only if
 a deployment turns pagination on.
 
-## 3. The audit is not exhaustive · ongoing
+## 2. The audit is not exhaustive · ongoing
 
 This list came from code reading plus live measurement, not a sweep of every
 customizer module. Only the modules the toolbars touch have been traced —
@@ -68,24 +56,29 @@ disable themselves (`isServerSideEngine()` exists for exactly this). The second
 finds code that walks the row model expecting the whole book — note
 `forEachNodeAfterFilter` visits **0 nodes** under the server row model.
 
-## 4. `@starui/design-system` test flake — CAUSE FOUND, not fixed · watch-list
+## 3. Turbo runs tasks before the `dist/` they read exists — CAUSE FOUND, not fixed · watch-list
 
-Fails under a full-parallel `npx turbo typecheck build test` and passes
-**13/13 files, 193/193 tests** in isolation, every time. Not caused by this
-branch — the package was untouched.
+Presents as an intermittent `@starui/design-system` test failure, but it is
+**not specific to that package and not load-related**. It is a missing task
+dependency: `turbo.json` lets a task run before the `dist/` it reads has been
+built, and `build` scripts open with `rimraf dist`, so a concurrent build can
+also delete a directory out from under a task already running.
 
-**It is not load-related and not a flake.** It is a missing task dependency.
-`tests/styles/theme-bundle.test.ts` reads `dist/css/theme.css` at module scope
-and fails `ENOENT` when `design-system#test` is scheduled before or alongside
-`design-system#build`. In isolation the file is already on disk from an earlier
-build, which is the whole reason it looks intermittent. The failing suite
-reports **1 failed FILE, 0 failed tests** — the same signature as the
-`@starui/grid` baseline entry, and for the same kind of reason.
+Observed instances across runs on this branch, none of them caused by it:
 
-The fix is a `dependsOn` in `turbo.json` so `test` waits on that package's
-`build`; deliberately NOT done here, because it is a root pipeline change with
-no connection to this branch and it should land where it can be reviewed as
-such.
+| task | what it could not find |
+|---|---|
+| `@starui/design-system#test` | `dist/css/theme.css`, read at module scope by `tests/styles/theme-bundle.test.ts` |
+| `@starui/grid#typecheck` | `@starui/host-data/runtime` — TS2307, while host-data was rebuilding |
+| `@starui/host-wrapper-react#test`, `@starui/openfin-platform#test` | same shape; both pass alone |
+
+Every one of them passes in isolation, every time, which is the whole reason it
+reads as flakiness. **Re-run before believing any of them** — a clean re-run
+returns the documented baseline exactly.
+
+The fix is `dependsOn` entries in `turbo.json` so a task waits on the builds it
+reads; deliberately NOT done here, because it is a root pipeline change with no
+connection to this branch and it should land where it can be reviewed as such.
 
 ## Gate baseline for this branch
 
@@ -94,14 +87,13 @@ such.
 - `@starui/grid` — **4 failed test FILES, 0 failed tests** (collection/import
   errors in `MarketsGrid.*`), 793 passing.
 - `@starui/widgets-react` — 2 `providerStaleState` cases.
-- `@starui/design-system` — 1 failed FILE, 0 failed tests, and only under
-  full-parallel turbo. Cause found: see item 4. Passes 13/13 alone.
+Anything ELSE that fails is almost certainly the turbo ordering race in item 3
+— `@starui/design-system`, `@starui/grid#typecheck`, `@starui/host-wrapper-react`
+and `@starui/openfin-platform` have all been seen failing that way and all pass
+in isolation. Re-run before believing it; a clean run returns exactly the two
+entries above.
 
-`@starui/openfin-platform` has been seen failing the same way once and passing
-**16/16, 105/105** alone — likely the same species as the design-system one,
-not diagnosed.
-
-All of these predate the branch. Verify by stashing if in doubt. Run turbo with
+Both predate the branch. Verify by stashing if in doubt. Run turbo with
 `--continue`; the first failure otherwise stops the run before the rest report.
 
 ---
@@ -247,6 +239,29 @@ clause.
 
 ### Decisions taken
 
+- **Cross-row context: the CSRM divergence STANDS, and the aggregate measures
+  the WHOLE book.** Two decisions, taken together by the product owner
+  2026-07-30.
+
+  `[price] > AVG([price])` works on the Perspective surface and silently paints
+  nothing on CSRM, whose style-rule evaluator never passes `allRows`. CSRM is
+  **not** being brought up to it and the capability is **not** being removed
+  from Perspective for symmetry — the divergence is intended and documented.
+  The consequence to know: a profile carrying such a rule is not portable
+  between the two surfaces, and nothing on screen says so.
+
+  Separately, the aggregate now drops the grid's filter model and quick filter,
+  so it measures the whole book. The threshold is a property of the book —
+  Excel's conditional-formatting convention, where a filter hides rows without
+  moving the threshold — rather than the SQL/BI convention of filtering first,
+  which is what it did originally. Known cost, stated so it is not re-derived as
+  a bug: such a rule can disagree with the average in the totals row on the same
+  screen, because group totals, the grand total and the status bar all DO follow
+  the filter. VERIFIED live under `region = EMEA` (6,669 of 20,000): the engine
+  answered **25,019,360.33445**, the whole-book average to every decimal,
+  against 25,010,520.70 for the EMEA rows alone — populations 8,840 apart, so
+  the reading cannot be mistaken for either one.
+
 - **Set-filter value lists are all-or-nothing, ceiling 50,000.** CSRM shows
   every distinct value — AG virtualises the list and offers a mini-filter — so
   a lower cap would itself be a parity gap; `positionId` really does return
@@ -364,15 +379,12 @@ Measured live on the 20,000-row book, with the CSRM twin alongside.
   the extra row. Left as a recorded divergence rather than chased — pagination
   is off by default here, and the fix would be working around AG internals.
 
-### Open decision left by the style-rule work
+### ~~Open decision left by the style-rule work~~ — DECIDED 2026-07-30
 
-**Cross-row context is a new capability, not restored parity.** The mechanism is
-built and verified (measure the aggregate, substitute the literal), but the
-client-side evaluator never passes `allRows` to a style rule, so
-`[price] > AVG([price])` is false for every row on CSRM as well. The Perspective
-surface now answers it correctly and CSRM still does not — a divergence, in the
-direction of correct. Either bring CSRM up to it or decide the divergence is
-wanted; today it is neither, just noted.
+Cross-row context is a new capability, not restored parity, and it stays that
+way: the CSRM divergence is intended, and the aggregate measures the whole book
+rather than the filtered one. Full statement and the live numbers are under
+**Decisions taken**.
 
 ## ~~Unverified~~ — CLOSED by the e2e spec
 
