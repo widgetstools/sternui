@@ -24,7 +24,7 @@
  * to grab shared state.
  */
 
-import type { PlatformHandle } from '@starui/engine';
+import type { PlatformHandle, RowChange } from '@starui/engine';
 import type { GridApi } from 'ag-grid-community';
 import { getValueByPath } from '@starui/types';
 import {
@@ -57,8 +57,13 @@ export interface TimedActivationsDeps {
 }
 
 export interface TimedActivations {
-  /** Bulk pass — call from modelUpdated / onReady. */
-  processTimedActivations: () => void;
+  /**
+   * Row-change pass. With a non-`full` {@link RowChange}, touches ONLY
+   * the delivered added/updated rows (the streaming hot path); with no
+   * argument or `full: true`, walks the whole model and prunes
+   * liveness (onReady seed, sort/filter/setRowData).
+   */
+  processTimedActivations: (change?: RowChange) => void;
   /** Wire up the per-tick cellValueChanged path. Returns a disposer. */
   attachCellValueChangedListener: () => () => void;
   /** Drop all in-memory snapshots (used by the orchestrator at teardown). */
@@ -71,7 +76,7 @@ export function createTimedActivations(
 ): TimedActivations {
   const previousByRow = new Map<string, Map<string, unknown>>();
 
-  const processTimedActivations = (): void => {
+  const processTimedActivations = (change?: RowChange): void => {
     const api = platform.api.api;
     if (!api) return;
     const state = platform.getState();
@@ -79,7 +84,6 @@ export function createTimedActivations(
     const now = Date.now();
     const timedRules = state.rules.filter((r) => r.enabled && normalizeDuration(r.activeDurationMs) != null);
     if (timedRules.length === 0) return;
-    const activeRowIds = new Set<string>();
     let activatedThisPass = false;
 
     // Path-keyed diff surface. Drive change detection by AG-Grid's
@@ -117,20 +121,34 @@ export function createTimedActivations(
     }
 
     const rowDiffCache = deps.diffCacheByApi.get(api as object);
-    api.forEachNode((node) => {
+
+    // Per-node work, shared by the delta and full passes. Returns the
+    // row id (for full-pass liveness bookkeeping) or null when the node
+    // is unkeyable. Allocation discipline: the previous-values Map is
+    // MUTATED in place (only changed paths are rewritten) — the old
+    // shape allocated a fresh Map per row per pass, ~160k discarded
+    // Maps/sec at streaming rates, almost all for unchanged rows.
+    const processNode = (node: unknown): string | null => {
       const rowId = resolveRowId(node);
-      if (!rowId) return;
-      activeRowIds.add(rowId);
+      if (!rowId) return null;
       const data = (node as { data?: Record<string, unknown> }).data ?? {};
-      const prev = previousByRow.get(rowId) ?? new Map<string, unknown>();
+      let prev = previousByRow.get(rowId);
+      if (!prev) {
+        prev = new Map<string, unknown>();
+        previousByRow.set(rowId, prev);
+      }
       const changedKeys: string[] = [];
-      const currentByPath = new Map<string, unknown>();
+      const changedOld: unknown[] = [];
       for (const path of knownPaths) {
         const cur = getValueByPath(data, path);
-        currentByPath.set(path, cur);
-        if (!Object.is(prev.get(path), cur)) changedKeys.push(path);
+        const old = prev.get(path);
+        if (!Object.is(old, cur)) {
+          changedKeys.push(path);
+          changedOld.push(old);
+          prev.set(path, cur);
+        }
       }
-      if (changedKeys.length === 0) return;
+      if (changedKeys.length === 0) return rowId;
 
       // Keep diff context in sync for expressions that use .old/.new refs.
       // Path-keyed entries so `[x.z.price.old]` resolves through the
@@ -142,8 +160,9 @@ export function createTimedActivations(
           rowDiffs = new Map();
           rowDiffCache.set(node as object, rowDiffs);
         }
-        for (const path of changedKeys) {
-          rowDiffs.set(path, { oldValue: prev.get(path), newValue: currentByPath.get(path) });
+        for (let i = 0; i < changedKeys.length; i++) {
+          const path = changedKeys[i];
+          rowDiffs.set(path, { oldValue: changedOld[i], newValue: prev.get(path) });
         }
       }
 
@@ -213,18 +232,36 @@ export function createTimedActivations(
         }
       }
 
-      // Snapshot keyed by the same paths we just diffed against, so
-      // the next pass can detect deep-leaf changes (in-place or by
-      // object replacement) regardless of whether the parent ref
-      // moved.
-      previousByRow.set(rowId, currentByPath);
-    });
+      return rowId;
+    };
 
-    // Drop snapshots/timed activations for rows no longer present.
-    for (const rowId of previousByRow.keys()) {
-      if (!activeRowIds.has(rowId)) previousByRow.delete(rowId);
+    if (change !== undefined && !change.full) {
+      // Delta pass — the streaming hot path. The RowChangeBus already
+      // knows exactly which rows the flush touched; the old shape
+      // ignored that payload and forEachNode-scanned all 20k rows ×
+      // every known path per flush (~8M path reads/sec with one timed
+      // rule armed). Removed rows drop their snapshot immediately;
+      // timed-state entries for them expire via the timer / next full
+      // pass. No pruning here — a delta pass cannot know full liveness.
+      for (const node of change.updated) processNode(node);
+      for (const node of change.added) processNode(node);
+      for (const node of change.removed) {
+        const rowId = resolveRowId(node);
+        if (rowId) previousByRow.delete(rowId);
+      }
+    } else {
+      // Full pass — onReady seed and structural changes (sort/filter/
+      // setRowData). The only place liveness pruning is sound.
+      const activeRowIds = new Set<string>();
+      api.forEachNode((node) => {
+        const rowId = processNode(node);
+        if (rowId) activeRowIds.add(rowId);
+      });
+      for (const rowId of previousByRow.keys()) {
+        if (!activeRowIds.has(rowId)) previousByRow.delete(rowId);
+      }
+      pruneTimedRuleState(activeRowIds);
     }
-    pruneTimedRuleState(activeRowIds);
 
     // Rearm coalesced expiry timer once per pass — cheaper than one
     // setTimeout per cell activation, regardless of mutationsPerTick.
