@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GridOptions, GridReadyEvent } from 'ag-grid-community';
 import { GridPlatform, type AnyColDef, type AnyModule, type AppDataLookup } from '@starui/engine';
 import { shouldSkipGridOptionSync } from './gridSurfaceOptions';
@@ -196,15 +196,22 @@ export function useGridHost(opts: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [platform, tick, hostOverrideKeys]);
 
-  const onGridReady = (event: GridReadyEvent) => {
+  // Referentially stable: these are props on the memo'd
+  // MarketsGridHost/MarketsGridSurface chain — fresh functions per
+  // render defeated BOTH memo barriers, so every host re-render reached
+  // AgGridReact's props-processing effect (violating invariant #5 in
+  // this file's doc comment). `platform` is ref-backed and only changes
+  // identity on remount, so [platform] deps keep them stable for the
+  // grid instance's life.
+  const onGridReady = useCallback((event: GridReadyEvent) => {
     platform.onGridReady(event.api);
     setTick((n) => n + 1); // re-run transforms now that api is live
-  };
+  }, [platform]);
 
-  const onGridPreDestroyed = () => {
+  const onGridPreDestroyed = useCallback(() => {
     platform.destroy();
-    platformRef.current = null;
-  };
+    if (platformRef.current === platform) platformRef.current = null;
+  }, [platform]);
 
   return { platform, columnDefs, gridOptions, onGridReady, onGridPreDestroyed };
 }
