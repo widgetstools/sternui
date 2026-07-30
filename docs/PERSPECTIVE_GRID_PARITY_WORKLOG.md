@@ -94,6 +94,10 @@ this AG Grid 36 DOM — query `.ag-row`.
   spreadsheet is indistinguishable from a complete one once opened. The file is
   written through a detached client-side grid so AG's own Excel writer still
   produces the formatters and style colours.
+- **A calculated column is validated before it is published.** One bad
+  expression makes `table.view()` throw and blanks the WHOLE grid, not just its
+  own column, so `validate_expressions` pre-flights the map and the failures are
+  dropped and reported rather than allowed to take everything down.
 
 ## Done
 
@@ -107,6 +111,7 @@ this AG Grid 36 DOM — query `.ag-row`.
 | Set-filter value lists from the Table (`distinctValues` + `withPerspectiveSetFilterValues`) | 25 tests; live: `region` 3 · `desk` 8 · `instrumentType` 20 · `positionId` **20,000**; selecting a value filtered to 6,664 of 20,000 with 0 failed blocks, and the saved-filter pill it enabled reads `region: Americas 6664` |
 | Quick search compiled to an expression column (`toQuickFilterExpression`) | 22 tests + 4 engine probes; live: `Inflation` 3,369 · `Inflation EMEA` 1,136 with both tokens matching every loaded row · `(` 20,000 instead of a crash · cleared 20,000; 0 failed blocks |
 | Excel export reads the whole book (`readAllRows` + a detached export grid) | 17 tests; live: the grid held **100** rows of 20,000 (what the old export wrote); now 20,000 x 26 read in 547ms, and 6,669 rows all EMEA correctly sorted under a live filter+sort |
+| Calculated columns as Perspective expression columns (`usePerspectiveCalcColumns` + `setCalcExpressions`) | 17 tests + engine probe; live: `currentPrice * quantity` computed in the worker, server-side sort by it, a saved-filter count on it (869 of 20,000), and a broken expression alongside a good one leaving the grid rendering |
 
 Also verified live and working: server-side sort and filter, multi-level
 grouping with per-level and grand totals, live re-sort on value change (feed-
@@ -118,17 +123,7 @@ Cut / Copy / Export, status bar, 0 failed blocks throughout.
 
 Effort figures are rough.
 
-### 1. Calculated columns are absent — blocking · ~1 d
-
-The `expressions` map is plumbed through `toPerspectiveViewConfig` and
-expression columns are verified sortable, filterable and groupable, but nothing
-populates it from MarketsGrid's calculated-column definitions — so a calculated
-column simply is not there. Partly built: `engine/ssrmCalcColumns.ts` already
-produces a `perspectiveExpression` plan (one of its cases is in the
-pre-existing failing set). Also the first thing to check if sort or filter ever
-misbehaves: a column absent from the Table cannot be sorted server-side.
-
-### 2. Alerts have no full-book source · ~0.5 d
+### 1. Alerts have no full-book source · ~0.5 d
 
 `registerAlertsSsrmLeafFetcher` is gated on `useSSRM`
 (`widget/useMarketsGridController.ts:287`), so on this path it registers `null`.
@@ -136,13 +131,13 @@ Any alert needing rows beyond the viewport evaluates against nothing, silently.
 `AlertsPanel`'s `=== 'ssrm'` check was deliberately left alone during the
 `engineKind` change and needs revisiting with this.
 
-### 3. Style rules that must materialize worker-side · ~1 d
+### 2. Style rules that must materialize worker-side · ~1 d
 
 ARCHITECTURE assigns rules that are filtered/sorted on, or need cross-row
 context, to the worker as boolean expression columns. Nothing builds them.
 Presentation-only rules already resolve client-side over visible rows and work.
 
-### 4. Master/detail and tree data not wired · niche
+### 3. Master/detail and tree data not wired · niche
 
 Need `isServerSideGroup` / `getServerSideGroupKey` / `detailCellRendererParams`,
 which `CustomSSRMGrid` passes and the Perspective surface does not. Skip unless
