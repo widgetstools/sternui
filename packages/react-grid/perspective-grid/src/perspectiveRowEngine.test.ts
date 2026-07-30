@@ -842,3 +842,149 @@ describe('applyEdit', () => {
     await engine.close();
   });
 });
+
+describe('distinctValues', () => {
+  function makeGroupableTable(distinct = 3) {
+    let fire: (() => void) | null = null;
+    const grouped: PerspectiveViewConfig[] = [];
+    const table: PerspectiveTableLike = {
+      async size() {
+        return 1000;
+      },
+      view: vi.fn(async (config: PerspectiveViewConfig) => {
+        const isGrouped = (config.group_by?.length ?? 0) > 0;
+        if (isGrouped) grouped.push(config);
+        const rows = isGrouped ? distinct + 1 : 1000;
+        const view: UpdatableView = {
+          async to_columns(window) {
+            const start = window?.start_row ?? 0;
+            const n = Math.max(0, Math.min(window?.end_row ?? 0, rows) - start);
+            return {
+              __ROW_PATH__: Array.from({ length: n }, (_, i) =>
+                start + i === 0 ? [] : [`v${start + i}`],
+              ),
+              positionId: Array.from({ length: n }, (_, i) => `p${start + i}`),
+            };
+          },
+          async num_rows() {
+            return rows;
+          },
+          async delete() {},
+          async on_update(cb: () => void) {
+            fire = cb;
+            return 1;
+          },
+        };
+        return view;
+      }),
+    };
+    return { table, grouped, tick: () => fire?.() };
+  }
+
+  it('lists a column distinct values', async () => {
+    const { table } = makeGroupableTable(3);
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+
+    expect(await engine.distinctValues('region')).toEqual(['v1', 'v2', 'v3']);
+    await engine.close();
+  });
+
+  it('caches — a filter menu reopening must not rebuild a full-book View', async () => {
+    const { table, grouped } = makeGroupableTable(3);
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+
+    await engine.distinctValues('region');
+    await engine.distinctValues('region');
+    await engine.distinctValues('region');
+
+    expect(grouped.filter((c) => c.group_by?.[0] === 'region')).toHaveLength(1);
+    await engine.close();
+  });
+
+  it('holds its floor even after the Table moves', async () => {
+    // A column set of distinct values only changes when a row appears,
+    // disappears or changes category — never on a price tick.
+    vi.useFakeTimers();
+    try {
+      const { table, grouped, tick } = makeGroupableTable(3);
+      const engine = createPerspectiveRowEngine({
+        table,
+        keyColumn: 'positionId',
+        valuesMinIntervalMs: 30_000,
+      });
+      await engine.datasource.getRows({
+        request: { startRow: 0, endRow: 100 },
+        success: () => {},
+        fail: () => {},
+      } as never);
+
+      // The grand-total View is grouped too (by a constant expression column),
+      // so count only the ones built for this column.
+      const regionViews = () => grouped.filter((c) => c.group_by?.[0] === 'region').length;
+
+      await engine.distinctValues('region');
+      tick();
+      vi.advanceTimersByTime(5_000);
+      await engine.distinctValues('region');
+      expect(regionViews()).toBe(1);
+
+      vi.advanceTimersByTime(30_000);
+      await engine.distinctValues('region');
+      expect(regionViews()).toBe(2);
+
+      await engine.close();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('caches per column, not globally', async () => {
+    const { table, grouped } = makeGroupableTable(3);
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+
+    await engine.distinctValues('region');
+    await engine.distinctValues('desk');
+
+    expect(grouped.map((c) => c.group_by?.[0])).toEqual(['region', 'desk']);
+    await engine.close();
+  });
+
+  it('reports null past the ceiling and warns once', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const { table } = makeGroupableTable(20_000);
+      const engine = createPerspectiveRowEngine({
+        table,
+        keyColumn: 'positionId',
+        maxSetFilterValues: 500,
+      });
+
+      expect(await engine.distinctValues('positionId')).toBeNull();
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0][0])).toContain('positionId');
+      await engine.close();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('reports null rather than throwing when the read fails', async () => {
+    const table: PerspectiveTableLike = {
+      view: vi.fn(async () => {
+        throw new Error('engine busy');
+      }),
+    };
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+
+    expect(await engine.distinctValues('region')).toBeNull();
+    await engine.close();
+  });
+
+  it('reports null once closed, and for a blank column id', async () => {
+    const { table } = makeGroupableTable(3);
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    expect(await engine.distinctValues('')).toBeNull();
+    await engine.close();
+    expect(await engine.distinctValues('region')).toBeNull();
+  });
+});

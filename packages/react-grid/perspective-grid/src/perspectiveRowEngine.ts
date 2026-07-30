@@ -61,6 +61,15 @@ export interface PerspectiveRowEngineOpts {
   refreshMs?: number;
   /** Floor on how often a saved-filter count is recomputed. See `countMatching`. */
   countMinIntervalMs?: number;
+  /** Floor on how often a set filter's value list is rebuilt. */
+  valuesMinIntervalMs?: number;
+  /**
+   * Ceiling on a set filter's value list. Above it `distinctValues` answers
+   * null rather than a partial list — see its docs for why truncating is worse
+   * than refusing. Generous by default: CSRM shows every distinct value and AG
+   * virtualises the list, so a lower cap would itself be a parity gap.
+   */
+  maxSetFilterValues?: number;
   /** Coalesce cell edits made within this window into one Table write. */
   editFlushMs?: number;
   onEvent?(event: ViewManagerEvent): void;
@@ -124,6 +133,14 @@ export interface PerspectiveRowEngine {
     filterModel: Record<string, AgFilterItem> | null | undefined,
   ): Promise<number | null>;
   /**
+   * Every distinct value in a column, for an AG set filter's value list.
+   *
+   * Null means "no honest list": either the column has more distinct values
+   * than the configured ceiling, or the read failed. Callers must leave the
+   * filter empty rather than supply a partial list.
+   */
+  distinctValues(colId: string): Promise<unknown[] | null>;
+  /**
    * Persist a committed cell edit into the worker-held Table.
    *
    * Fire and forget — the grid has already painted the new value and the write
@@ -138,6 +155,59 @@ export interface PerspectiveRowEngine {
   close(): Promise<void>;
 }
 
+/**
+ * A keyed cache whose entries expire on two conditions at once: the Table has
+ * moved since the answer was taken, AND enough time has passed to justify
+ * paying for another one.
+ *
+ * Both users (filter counts, set-filter value lists) cost a View over the whole
+ * book and are driven by grid events that fire far faster than the answer
+ * meaningfully changes. Without the floor, AG's `modelUpdated` alone would
+ * queue a full-book View build per key per tick behind the read path.
+ *
+ * In-flight promises are cached too, so N callers asking at once pay once.
+ */
+interface StaleCache<T> {
+  /** Cached answer, or null when it must be recomputed. */
+  get(key: string): Promise<T> | null;
+  set(key: string, value: Promise<T>): void;
+  /** Mark every entry stale — the Table moved. */
+  invalidate(): void;
+  clear(): void;
+}
+
+function createStaleCache<T>(minIntervalMs: number, maxKeys = 32): StaleCache<T> {
+  const entries = new Map<string, { at: number; value: Promise<T> }>();
+  let staleAt = 0;
+
+  return {
+    get(key) {
+      const hit = entries.get(key);
+      if (!hit) return null;
+      // Strictly after, not at: an answer taken in the same millisecond as an
+      // invalidation cannot be ordered against it, so treat it as stale. The
+      // cost of being wrong that way is one extra recompute; the other way it
+      // would never expire.
+      const stillTrue = hit.at > staleAt;
+      const tooSoon = Date.now() - hit.at < minIntervalMs;
+      return stillTrue || tooSoon ? hit.value : null;
+    },
+    set(key, value) {
+      // Delete first so a recomputed key moves to the back of the Map's
+      // insertion order — that order is what the cap below evicts from.
+      entries.delete(key);
+      entries.set(key, { at: Date.now(), value });
+      if (entries.size > maxKeys) entries.delete(entries.keys().next().value as string);
+    },
+    invalidate() {
+      staleAt = Date.now();
+    },
+    clear() {
+      entries.clear();
+    },
+  };
+}
+
 export function createPerspectiveRowEngine(
   opts: PerspectiveRowEngineOpts,
 ): PerspectiveRowEngine {
@@ -146,6 +216,8 @@ export function createPerspectiveRowEngine(
     keyColumn,
     refreshMs = 250,
     countMinIntervalMs = 1000,
+    valuesMinIntervalMs = 30_000,
+    maxSetFilterValues = 50_000,
     editFlushMs = 0,
     onEvent,
     onError,
@@ -178,12 +250,16 @@ export function createPerspectiveRowEngine(
    * second is indistinguishable from a live one, and a grid that stutters is
    * not.
    */
-  const counts = new Map<string, { at: number; value: Promise<number | null> }>();
-  /** When the Table last moved. A count taken before this is stale. */
-  let countsStaleAt = 0;
-  /** Bound on distinct filter models remembered — editing a pill's JSON walks
-   *  through a new key per keystroke-save, and none of them recur. */
-  const MAX_COUNT_KEYS = 32;
+  const counts = createStaleCache<number | null>(countMinIntervalMs);
+
+  /**
+   * Set-filter value lists, cached the same way and for the same reason — one
+   * View over the whole book per column — but with a much longer floor. A
+   * column's set of distinct values is far more stable than its aggregates: it
+   * only moves when a row appears, disappears, or changes category, none of
+   * which the price-tick sweep does.
+   */
+  const values = createStaleCache<unknown[] | null>(valuesMinIntervalMs);
 
   // ─── Cell edits ────────────────────────────────────────────────────────────
   //
@@ -317,7 +393,8 @@ export function createPerspectiveRowEngine(
       // The book itself can grow or shrink under the feed, so the unfiltered
       // total is re-measured on updates rather than read once at startup.
       measureBook();
-      countsStaleAt = Date.now();
+      counts.invalidate();
+      values.invalidate();
       scheduleRefresh();
     },
     onEvent: (event) => {
@@ -518,24 +595,38 @@ export function createPerspectiveRowEngine(
       if (closed) return Promise.resolve(null);
 
       const key = JSON.stringify(filterModel ?? null);
-      const now = Date.now();
       const cached = counts.get(key);
-      // Reuse while the answer is still true (nothing has moved since it was
-      // taken) OR while it is too soon to pay for another one.
-      if (cached && (cached.at >= countsStaleAt || now - cached.at < countMinIntervalMs)) {
-        return cached.value;
-      }
+      if (cached) return cached;
 
-      // A count must never break the grid, and `useFilterModel` reads a
-      // rejection as zero — which is a wrong number, not a missing one.
+      // A count must never break the grid, and a rejection would be read as
+      // zero — a wrong number rather than a missing one.
       const value = views.countMatching(filterModel).catch(() => null);
-      // Delete first so a re-counted key moves to the back of the Map's
-      // insertion order — that order is what the cap below evicts from.
-      counts.delete(key);
-      counts.set(key, { at: now, value });
-      if (counts.size > MAX_COUNT_KEYS) {
-        counts.delete(counts.keys().next().value as string);
-      }
+      counts.set(key, value);
+      return value;
+    },
+
+    distinctValues(colId) {
+      if (closed || !colId) return Promise.resolve(null);
+
+      const cached = values.get(colId);
+      if (cached) return cached;
+
+      const value = views
+        .distinctValues(colId, maxSetFilterValues)
+        .then((list) => {
+          if (list === null) {
+            // Not a silent truncation: the filter list stays empty and the
+            // reason is stated once, rather than the user reading a partial
+            // list as the whole domain.
+            // eslint-disable-next-line no-console
+            console.warn(
+              `[perspective-grid] column "${colId}" has more than ${maxSetFilterValues} distinct values — its set filter is left empty rather than truncated.`,
+            );
+          }
+          return list;
+        })
+        .catch(() => null);
+      values.set(colId, value);
       return value;
     },
 
@@ -556,6 +647,7 @@ export function createPerspectiveRowEngine(
       api = null;
       listeners.clear();
       counts.clear();
+      values.clear();
       await views.close();
     },
   };

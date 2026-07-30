@@ -517,3 +517,104 @@ describe('countMatching', () => {
     expect(await views.countMatching(SET_ENERGY)).toBeNull();
   });
 });
+
+describe('distinctValues', () => {
+  /** A Table whose grouped Views report a configurable number of distinct
+   *  values, with row 0 as the level total. */
+  function makeGroupableTable(distinct: number) {
+    const built: PerspectiveViewConfig[] = [];
+    const deleted: PerspectiveViewConfig[] = [];
+    const table: PerspectiveTableLike = {
+      view: vi.fn(async (config: PerspectiveViewConfig) => {
+        built.push(config);
+        const grouped = (config.group_by?.length ?? 0) > 0;
+        const rows = grouped ? distinct + 1 : 1000;
+        const view: UpdatableView = {
+          async to_columns(window) {
+            const start = window?.start_row ?? 0;
+            const end = Math.min(window?.end_row ?? 0, rows);
+            const n = Math.max(0, end - start);
+            return {
+              // Row 0 is the level total: an EMPTY path, not a value.
+              __ROW_PATH__: Array.from({ length: n }, (_, i) =>
+                start + i === 0 ? [] : [`v${start + i}`],
+              ),
+            };
+          },
+          async num_rows() {
+            return rows;
+          },
+          async delete() {
+            deleted.push(config);
+          },
+          async on_update() {
+            return 1;
+          },
+        };
+        return view;
+      }),
+    };
+    return { table, built, deleted };
+  }
+
+  it('groups by the column and skips the level total row', async () => {
+    const { table, built } = makeGroupableTable(3);
+    const views = createViewManager({ table });
+
+    expect(await views.distinctValues('region', 1000)).toEqual(['v1', 'v2', 'v3']);
+    expect(built.at(-1)!.group_by).toEqual(['region']);
+  });
+
+  it('deletes its View — a value list must not leave one charged per tick', async () => {
+    const { table, deleted } = makeGroupableTable(3);
+    const views = createViewManager({ table });
+
+    await views.distinctValues('region', 1000);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(deleted).toHaveLength(1);
+  });
+
+  it('does NOT retire the Views the grid is scrolling', async () => {
+    const { table } = makeGroupableTable(3);
+    const views = createViewManager({ table });
+    await views.getView({ startRow: 0, endRow: 100 });
+    expect(views.liveViews).toBe(1);
+
+    await views.distinctValues('region', 1000);
+
+    expect(views.liveViews).toBe(1);
+  });
+
+  it('answers null past the ceiling rather than a truncated list', async () => {
+    // A set filter has no "there are more" affordance, so a partial list reads
+    // as the whole domain and its Select All silently excludes the rest.
+    const { table } = makeGroupableTable(20_000);
+    const views = createViewManager({ table });
+
+    expect(await views.distinctValues('positionId', 500)).toBeNull();
+  });
+
+  it('accepts a column exactly at the ceiling', async () => {
+    const { table } = makeGroupableTable(500);
+    const views = createViewManager({ table });
+
+    const list = await views.distinctValues('region', 500);
+    expect(list).toHaveLength(500);
+  });
+
+  it('handles a column with no values at all', async () => {
+    const { table } = makeGroupableTable(0);
+    const views = createViewManager({ table });
+
+    expect(await views.distinctValues('region', 500)).toEqual([]);
+  });
+
+  it('returns null once closed', async () => {
+    const { table } = makeGroupableTable(3);
+    const views = createViewManager({ table });
+    await views.close();
+
+    expect(await views.distinctValues('region', 500)).toBeNull();
+  });
+});

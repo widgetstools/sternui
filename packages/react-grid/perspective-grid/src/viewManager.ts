@@ -97,6 +97,13 @@ export interface ViewManager {
   countMatching(
     filterModel: Record<string, AgFilterItem> | null | undefined,
   ): Promise<number | null>;
+  /**
+   * Every distinct value in a column, for a set filter's value list.
+   *
+   * Returns null when the column has MORE than `limit` distinct values — see
+   * `distinctValues` in the implementation for why that is not a truncation.
+   */
+  distinctValues(colId: string, limit: number): Promise<unknown[] | null>;
   close(): Promise<void>;
 }
 
@@ -392,6 +399,51 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
       transient.add(safe);
       try {
         return await safe.rows();
+      } finally {
+        transient.delete(safe);
+        void safe.close();
+      }
+    },
+
+    /**
+     * Every distinct value in a column — an AG set filter's value list.
+     *
+     * `group_by: [colId]` gives exactly one row per distinct value, and row 0
+     * is the level total (an empty `__ROW_PATH__`), so the distinct count is
+     * `num_rows - 1`. Like `countMatching`, this builds its own View outside
+     * the keyed map: a value list is not the grid's current intent and must not
+     * retire the Views the viewport is reading from.
+     *
+     * **Over `limit`, this answers null rather than a partial list.** A set
+     * filter has no affordance for "there are more" — a truncated list renders
+     * as if it were the whole domain, and its Select All silently excludes
+     * everything omitted. Refusing to answer leaves the filter empty, which
+     * reads as "cannot filter here"; answering with 500 of 20,000 values reads
+     * as a complete list and is wrong. Same rule as `countMatching`: no
+     * confidently-wrong answers on this path.
+     */
+    async distinctValues(colId: string, limit: number): Promise<unknown[] | null> {
+      if (closed) return null;
+
+      const safe = createSafeView(await table.view({ group_by: [colId] }));
+      if (closed) {
+        void safe.close();
+        return null;
+      }
+      transient.add(safe);
+      try {
+        const total = await safe.rows();
+        if (total === null) return null;
+        // Row 0 is the level total, not a value.
+        const distinct = Math.max(0, total - 1);
+        if (distinct > limit) return null;
+
+        const columns = await safe.read({ start_row: 1, end_row: distinct + 1 });
+        const paths = columns?.__ROW_PATH__;
+        if (!Array.isArray(paths)) return null;
+        return paths.map((path) =>
+          Array.isArray(path) && path.length > 0 ? path[path.length - 1] : null,
+        );
       } finally {
         transient.delete(safe);
         void safe.close();

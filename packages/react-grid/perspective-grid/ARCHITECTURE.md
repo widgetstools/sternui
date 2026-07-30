@@ -496,6 +496,39 @@ commit cell by cell, and one proxied round trip per cell is hundreds of worker
 calls for one user action. `close()` flushes before tearing down, so a Table
 swap or an unmount cannot eat the last edit.
 
+## Set filters get their values from the Table
+
+A set filter's checkbox list is the values it found in the row data. Under CSRM
+that is the whole book. Here the client holds only the loaded blocks, so
+`getFilterKeys()` returned `[]` on every column: the column filter menus were
+empty and unusable, and because a saved-filter pill is captured from a live
+column filter, the count badges above were unreachable too.
+
+`distinctValues(colId)` answers it from a `group_by: [colId]` View — one row per
+distinct value, computed in the worker over the whole book. Row 0 is the level
+total (empty `__ROW_PATH__`), so the distinct count is `num_rows - 1`. Like
+`countMatching` it builds its View outside the keyed map: a value list is not
+the grid's current intent and must not retire the Views the viewport reads from.
+
+**All-or-nothing, ceiling 50,000.** Above the ceiling it answers null and the
+filter is left empty with one warning. A set filter has no "there are more"
+affordance, so a truncated list renders as the whole domain and its Select All
+silently excludes everything omitted — the same confidently-wrong failure this
+path keeps producing. The ceiling is deliberately generous because CSRM shows
+every distinct value and AG virtualises the list; measured on the live book,
+`positionId` returns all 20,000 and the filter works.
+
+Cached with a 30 s floor rather than the counts' 1 s: a column's set of distinct
+values only moves when a row appears, disappears or changes category, none of
+which the price-tick sweep does.
+
+`withPerspectiveSetFilterValues` attaches the provider to **every** leaf column,
+not only those declaring `filter: 'agSetColumnFilter'` — which is what
+`CustomSSRMGrid`'s equivalent checks, and it misses the common case, since a
+plain `filter: true` on `defaultColDef` also resolves to a set filter under AG
+Grid Enterprise. A filter type with no use for `filterParams.values` ignores it.
+An explicitly supplied `values` is never overwritten.
+
 ## Counting a saved filter
 
 The saved-filter pills carry a "matches N rows" badge, which `useFilterModel`
@@ -646,7 +679,7 @@ it never runs — `getCompiledClientWasm()` is the fix, still outstanding.
 | Saved-filter count badges | **done**, 18 tests |
 | Cell edits reaching the Table | **done**, 18 tests |
 | Toolbars/profiles reaching the platform | **done**, 6 tests — see "One grid per platform" |
-| Set-filter values (column filter menus) | **not started** — empty on this path |
+| Set-filter values (column filter menus) | **done**, 25 tests |
 | Calculated columns as expression columns | **not started** |
 | Style rules that must materialize worker-side | **not started** |
 | Multi-window timings through the product path | **not measured** |
