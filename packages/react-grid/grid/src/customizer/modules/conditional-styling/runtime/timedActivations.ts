@@ -36,6 +36,7 @@ import type { DiffCacheByApi } from '../transforms';
 import type { ConditionalStylingState } from '../state';
 import {
   buildColumnsContextFromDiffs,
+  isTimedTraceOn,
   normalizeDuration,
   resolveRowId,
   traceTimed,
@@ -192,7 +193,7 @@ export function createTimedActivations(
           if (!match) continue;
           upsertTimedRowActivation(rowId, rule.id, now + ttlMs);
           activatedThisPass = true;
-          traceTimed('row rule activated (model diff)', { rowId, ruleId: rule.id, until: now + ttlMs });
+          if (isTimedTraceOn()) traceTimed('row rule activated (model diff)', { rowId, ruleId: rule.id, until: now + ttlMs });
           continue;
         }
 
@@ -229,7 +230,7 @@ export function createTimedActivations(
         for (const colId of rule.scope.columns) {
           upsertTimedCellActivation(rowId, rule.id, colId, now + ttlMs);
           activatedThisPass = true;
-          traceTimed('cell rule activated (model diff)', { rowId, ruleId: rule.id, colId, until: now + ttlMs });
+          if (isTimedTraceOn()) traceTimed('cell rule activated (model diff)', { rowId, ruleId: rule.id, colId, until: now + ttlMs });
         }
       }
 
@@ -335,12 +336,17 @@ function onCellValueChangedHandler(
   const colId = getColId();
   if (!colId) return;
   const now = Date.now();
-  traceTimed('cellValueChanged', {
-    rowId: resolveRowId(node),
-    colId,
-    oldValue: event.oldValue,
-    newValue: event.newValue,
-  });
+  // One flag probe per event — every traceTimed below builds a payload
+  // object, and this handler runs per changed cell under live ticks.
+  const trace = isTimedTraceOn();
+  if (trace) {
+    traceTimed('cellValueChanged', {
+      rowId: resolveRowId(node),
+      colId,
+      oldValue: event.oldValue,
+      newValue: event.newValue,
+    });
+  }
   let rowDiffs = rowDiffCache.get(node as object);
   if (!rowDiffs) {
     rowDiffs = new Map();
@@ -356,11 +362,13 @@ function onCellValueChangedHandler(
     if (!rule.enabled) continue;
     const ttlMs = normalizeDuration(rule.activeDurationMs);
     if (ttlMs == null) continue;
-    traceTimed('evaluating timed rule', {
-      ruleId: rule.id,
-      scope: rule.scope.type,
-      ttlMs,
-    });
+    if (trace) {
+      traceTimed('evaluating timed rule', {
+        ruleId: rule.id,
+        scope: rule.scope.type,
+        ttlMs,
+      });
+    }
     if (rule.scope.type === 'row') {
       let match = false;
       try {
@@ -379,12 +387,12 @@ function onCellValueChangedHandler(
       } catch {
         match = false;
       }
-      traceTimed('row rule match result', { ruleId: rule.id, match });
+      if (trace) traceTimed('row rule match result', { ruleId: rule.id, match });
       if (!match) continue;
       const rowId = resolveRowId(node);
       if (!rowId) continue;
       upsertTimedRowActivation(rowId, rule.id, now + ttlMs);
-      traceTimed('row rule activated', { rowId, ruleId: rule.id, until: now + ttlMs });
+      if (trace) traceTimed('row rule activated', { rowId, ruleId: rule.id, until: now + ttlMs });
       activatedThisEvent = true;
       continue;
     }
@@ -411,7 +419,7 @@ function onCellValueChangedHandler(
       } catch {
         match = false;
       }
-      traceTimed('cell rule match result', { ruleId: rule.id, scopedColId, match });
+      if (trace) traceTimed('cell rule match result', { ruleId: rule.id, scopedColId, match });
       if ((globalThis as { __CS_CROSS_COL_TRACE__?: boolean }).__CS_CROSS_COL_TRACE__) {
         // eslint-disable-next-line no-console
         console.debug('[cs:cross-col] timed-rule cellValueChanged eval', {
@@ -428,12 +436,14 @@ function onCellValueChangedHandler(
       const rowId = resolveRowId(node);
       if (!rowId) continue;
       upsertTimedCellActivation(rowId, rule.id, scopedColId, now + ttlMs);
-      traceTimed('cell rule activated', {
-        rowId,
-        ruleId: rule.id,
-        scopedColId,
-        until: now + ttlMs,
-      });
+      if (trace) {
+        traceTimed('cell rule activated', {
+          rowId,
+          ruleId: rule.id,
+          scopedColId,
+          until: now + ttlMs,
+        });
+      }
       activatedThisEvent = true;
     }
   }

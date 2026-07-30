@@ -64,6 +64,22 @@ export function resolveRowId(node: unknown): string | null {
  * explicitly per session by setting
  * `window.__CS_TIMED_TRACE__ = true` in the DevTools console.
  */
+/**
+ * Cheap flag probe for gating trace CALL SITES. `traceTimed` already
+ * no-ops when the flag is off, but hot-path callers build a payload
+ * object literal per call just to pass it — dozens to hundreds of
+ * allocations per second under live ticks for a trace nobody reads.
+ * Wrap those sites in `if (isTimedTraceOn())` so the payload is only
+ * ever built when someone is actually watching.
+ */
+export function isTimedTraceOn(): boolean {
+  try {
+    return (globalThis as { __CS_TIMED_TRACE__?: boolean }).__CS_TIMED_TRACE__ === true;
+  } catch {
+    return false;
+  }
+}
+
 export function traceTimed(message: string, payload?: unknown): void {
   try {
     const flag = (globalThis as { __CS_TIMED_TRACE__?: boolean }).__CS_TIMED_TRACE__;

@@ -599,3 +599,67 @@ describe('nested-field contract — dot-path columns flow through the same surfa
     ).toBe(false);
   });
 });
+
+describe('row-rule diff sync — scoped to the columns the expression references', () => {
+  const engine = new ExpressionEngine();
+
+  const rowRule = (expression: string): ConditionalRule => ({
+    id: 'row-scoped-sync',
+    name: 'Row scoped sync',
+    enabled: true,
+    priority: 0,
+    scope: { type: 'row' },
+    expression,
+    style: {
+      light: { color: '#7f1d1d' },
+      dark: { color: '#fecaca' },
+    },
+  });
+
+  it('nested diff refs resolve — the old whole-row walk only synced top-level keys', () => {
+    const api = {} as object;
+    const node = {} as object;
+    const diffCacheByApi = new WeakMap<object, WeakMap<object, Map<string, { oldValue: unknown; newValue: unknown }>>>();
+    const predicate = buildRowClassPredicate(
+      engine as unknown as ExpressionEngineLike,
+      rowRule('[position.price.old] > [position.price.new]'),
+      diffCacheByApi as never,
+    );
+
+    // First observation seeds the baseline — no fire.
+    expect(
+      predicate({ data: { position: { price: 150 } }, node, api } as never),
+    ).toBe(false);
+    // Nested leaf dropped 150 → 100: the scoped getValueByPath sync
+    // sees it and the diff overlay serves .old/.new for the full path.
+    expect(
+      predicate({ data: { position: { price: 100 } }, node, api } as never),
+    ).toBe(true);
+    // Unchanged tick → the diff entry persists (it only shifts on a
+    // value change), so the last observed drop still matches.
+    expect(
+      predicate({ data: { position: { price: 100 } }, node, api } as never),
+    ).toBe(true);
+    // Leaf rises 100 → 200: diff shifts to old=100/new=200 → no match.
+    expect(
+      predicate({ data: { position: { price: 200 } }, node, api } as never),
+    ).toBe(false);
+  });
+
+  it('rules without diff refs skip the diff machinery entirely', () => {
+    const api = {} as object;
+    const node = {} as object;
+    const diffCacheByApi = new WeakMap<object, object>();
+    const predicate = buildRowClassPredicate(
+      engine as unknown as ExpressionEngineLike,
+      rowRule('[status] == "WARN"'),
+      diffCacheByApi as never,
+    );
+
+    expect(predicate({ data: { status: 'WARN' }, node, api } as never)).toBe(true);
+    expect(predicate({ data: { status: 'OK' }, node, api } as never)).toBe(false);
+    // No per-api diff store was ever created — the old shape allocated
+    // one and Object.entries-walked every data key per row per paint.
+    expect(diffCacheByApi.get(api)).toBeUndefined();
+  });
+});

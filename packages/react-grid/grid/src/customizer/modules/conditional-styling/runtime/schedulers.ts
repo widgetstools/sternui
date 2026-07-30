@@ -30,7 +30,7 @@ import {
   getNextTimedExpiry,
 } from '../transforms';
 import type { ConditionalStylingState } from '../state';
-import { traceTimed } from './utils';
+import { isTimedTraceOn, traceTimed } from './utils';
 
 /* ─── full-grid refresh ─────────────────────────────────────────────── */
 
@@ -236,7 +236,7 @@ export function createExpiryScheduler(deps: ExpirySchedulerDeps): ExpirySchedule
     if (expiryTimer != null) clearTimeout(expiryTimer);
     const delay = Math.max(0, nextAt - Date.now()) + 8;
     expiryTimerFiresAt = nextAt;
-    traceTimed('armNextExpiry', { delay, firesAt: nextAt });
+    if (isTimedTraceOn()) traceTimed('armNextExpiry', { delay, firesAt: nextAt });
     expiryTimer = setTimeout(() => {
       expiryTimer = null;
       expiryTimerFiresAt = null;

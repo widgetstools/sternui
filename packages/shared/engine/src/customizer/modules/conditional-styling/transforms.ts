@@ -17,6 +17,7 @@ import type {
   ExpressionNode,
 } from '@starui/engine';
 import { valueFormatterFromTemplate } from '@starui/engine';
+import { getValueByPath } from '@starui/types';
 import { cssEscapeColId } from '../column-customization/transforms';
 import type {
   AnimationKind,
@@ -728,6 +729,8 @@ function buildCellClassPredicate(
   // building the closure up front avoids even the per-cell cache lookup and is
   // behaviourally identical — see compileToFunction parity tests.)
   const evalRule = engine.compile(rule.expression);
+  // Rules without diff refs never read overlay keys → empty key list.
+  const diffKeys = hasDiffRefs ? buildRuleDiffKeys(engine, rule.expression) : [];
   return (params: CellClassParams) => {
     const data = params.data ?? {};
     const rowDiffs = getOrCreateRowDiffs(params.api, params.node, diffCacheByApi);
@@ -735,13 +738,15 @@ function buildCellClassPredicate(
       params.column && typeof params.column.getColId === 'function'
         ? params.column.getColId()
         : undefined;
+    // Own-column sync is unconditional — OTHER rules' `.old`/`.new`
+    // refs on this column depend on this predicate maintaining the
+    // diff continuity, not just this rule's own reads.
     if (rowDiffs && colId) {
       syncRowDiffEntry(rowDiffs, colId, params.value);
     }
-    const columns = buildColumnsContext(
-      data,
-      rowDiffs,
-    );
+    const columns = diffKeys !== null
+      ? buildScopedColumnsContext(data, rowDiffs, diffKeys)
+      : buildColumnsContext(data, rowDiffs);
     try {
       return Boolean(
         evalRule({
@@ -776,22 +781,39 @@ export function buildRowClassPredicate(
 
   // Compile once — reused for every row this rule paints.
   const evalRule = engine.compile(rule.expression);
+  const hasDiffRefs = /\.[ \t]*(old|new)\]/i.test(rule.expression);
+  const diffKeys = hasDiffRefs ? buildRuleDiffKeys(engine, rule.expression) : [];
   return (params: RowClassParams) => {
     const data = params.data ?? {};
-    const rowDiffs = getOrCreateRowDiffs(
-      (params as RowClassParams & { api?: unknown }).api,
-      params.node,
-      diffCacheByApi,
-    );
-    if (rowDiffs) {
-      for (const [key, value] of Object.entries(data)) {
-        syncRowDiffEntry(rowDiffs, key, value);
+    // Row rules have no per-column paint hook, so a diff-consuming rule
+    // syncs its OWN referenced columns before reading them. The old
+    // shape Object.entries-walked EVERY top-level data key per row per
+    // paint (52 entries + a per-call entries-array allocation on the
+    // reference blotter) — and still missed nested paths, which the
+    // getValueByPath sync now resolves correctly. Rules without diff
+    // refs skip the diff machinery entirely.
+    let rowDiffs: RowDiffMap | undefined;
+    if (hasDiffRefs) {
+      rowDiffs = getOrCreateRowDiffs(
+        (params as RowClassParams & { api?: unknown }).api,
+        params.node,
+        diffCacheByApi,
+      );
+      if (rowDiffs) {
+        if (diffKeys !== null) {
+          for (const k of diffKeys) {
+            syncRowDiffEntry(rowDiffs, k.base, getValueByPath(data, k.base));
+          }
+        } else {
+          for (const [key, value] of Object.entries(data)) {
+            syncRowDiffEntry(rowDiffs, key, value);
+          }
+        }
       }
     }
-    const columns = buildColumnsContext(
-      data,
-      rowDiffs,
-    );
+    const columns = diffKeys !== null
+      ? buildScopedColumnsContext(data, rowDiffs, diffKeys)
+      : buildColumnsContext(data, rowDiffs);
     try {
       return Boolean(
         evalRule({
@@ -943,6 +965,63 @@ function buildColumnsContext(
     out[`${colId}.new`] = diff.newValue;
   }
   return out;
+}
+
+/**
+ * Prebuilt diff-overlay keys for one rule — computed once at predicate
+ * build time so the per-cell/per-row path does zero string
+ * concatenation and overlays ONLY the diff entries the rule's
+ * expression references. The row diff map accumulates an entry for
+ * every column any predicate ever synced (bounded by column count, but
+ * on a 52-column blotter that meant 104 own-property writes + string
+ * concats per cell per paint for a rule that reads two columns).
+ */
+interface RuleDiffKeys {
+  base: string;
+  oldKey: string;
+  newKey: string;
+}
+
+/** `null` = expression unparseable — dependency set unknown, caller
+ *  falls back to the full overlay. */
+function buildRuleDiffKeys(
+  engine: ExpressionEngineLike,
+  expression: string,
+): RuleDiffKeys[] | null {
+  try {
+    const refs = extractTriggerColumns(engine.parse(expression) as ExpressionNode);
+    return [...refs].map((base) => ({
+      base,
+      oldKey: `${base}.old`,
+      newKey: `${base}.new`,
+    }));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Columns context overlaying only a rule's referenced diff entries.
+ * When nothing needs overlaying, returns `data` itself — expressions
+ * only READ the context, and plain `[col]` refs resolve identically
+ * against the row object (see the bare-nested-path characterisation
+ * tests), so the per-call `Object.create` is skipped entirely.
+ */
+function buildScopedColumnsContext(
+  data: Record<string, unknown>,
+  rowDiffs: RowDiffMap | undefined,
+  diffKeys: ReadonlyArray<RuleDiffKeys>,
+): Record<string, unknown> {
+  if (!rowDiffs || rowDiffs.size === 0 || diffKeys.length === 0) return data;
+  let out: Record<string, unknown> | null = null;
+  for (const k of diffKeys) {
+    const diff = rowDiffs.get(k.base);
+    if (!diff) continue;
+    if (out === null) out = Object.create(data) as Record<string, unknown>;
+    out[k.oldKey] = diff.oldValue;
+    out[k.newKey] = diff.newValue;
+  }
+  return out ?? data;
 }
 
 function normalizeActiveDuration(value: number | undefined): number | null {
