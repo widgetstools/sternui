@@ -6,7 +6,7 @@ View-lifecycle rules live in
 [`packages/react-grid/perspective-grid/ARCHITECTURE.md`](../packages/react-grid/perspective-grid/ARCHITECTURE.md);
 this file is the task list and the verification record.
 
-**Branch:** `feat/perspective-grid` · **Last verified:** 2026-07-30
+**Branch:** `feat/perspective-grid` · **Last verified:** 2026-07-30 · all work committed and pushed
 
 **The unifying pattern.** The row engine is done. Every remaining gap is one
 instance of the same thing: *code that assumed the client holds the whole book*.
@@ -149,12 +149,21 @@ pipeline untouched — **unverified**.
 
 ## Engineering debt, not parity
 
+Ordered. The e2e spec is first on purpose: it is the only thing that can close
+the "Unverified" section above, because every item there failed for the same
+reason — synthetic clicks do not drive the real controls, on EITHER surface.
+
 - **Multi-window timings on the product path are unmeasured.** The whole
   2nd/3rd-blotter thesis (414 ms vs 1135 ms) is measured only in the harness.
 - **`getCompiledClientWasm()`** — every window still carries the whole inline
   build (~5 MB), including the server wasm it never runs.
-- **No e2e spec** covers the Perspective surface. Worth building the
-  click-driven harness once; it would also close the two unverified items above.
+- **No e2e spec** covers the Perspective surface — do this FIRST of the debt
+  items. A Playwright spec drives real clicks, which is exactly what the
+  unverified items need: the formatting-toolbar buttons, the auto-formatter, and
+  the alerts "Rescan full book" button (whose settings section will not even
+  expand under a synthetic click). `e2e/` already has the harness conventions;
+  the container subsuite (`playwright.container.config.ts`) is the closest
+  existing shape.
 - **`StompProviderConfig` cannot send request headers**, so an app only ever
   gets the broker's default 20,000-row sweep, never the sparse profile the
   probes used. Until then the pull path is measured against a feed shape no
