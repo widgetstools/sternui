@@ -31,7 +31,11 @@ describe('ssrmCalcColumns', () => {
       expect(plan.kind).toBe('perspective');
       if (plan.kind === 'perspective') {
         expect(plan.perspectiveExpression).toContain('"price"');
-        expect(plan.perspectiveExpression).toContain('?');
+        // The compiler emits `if(cond, a, b)`, not a `?:` ternary. VERIFIED
+        // against 4.5.2 (`scripts/calcColumnProbe.mjs`): both forms compile and
+        // both yield [1,2,3] on the same book, so asserting the ternary was
+        // pinning one valid spelling rather than the behaviour.
+        expect(plan.perspectiveExpression).toContain('if(');
       }
     });
 

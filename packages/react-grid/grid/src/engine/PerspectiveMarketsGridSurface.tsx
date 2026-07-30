@@ -95,6 +95,13 @@ export interface PerspectiveMarketsGridSurfaceProps {
   gridRef?: RefObject<AgGridReact | null>;
   /** Cell right-click menu builder. Built with `useCallback` in the host. */
   getContextMenuItems?: GetContextMenuItems;
+  /**
+   * Calculated columns as Perspective expression source, keyed by column id.
+   * Published to the worker so their values feed sort, filter, group and
+   * aggregate — a calc column resolved client-side could do none of those,
+   * because this window holds only the blocks in view.
+   */
+  calcExpressions?: Record<string, string>;
   /** Profile / grid-state capture runs here; without it a layout is lost. */
   onGridPreDestroyed?: () => void;
 }
@@ -207,6 +214,14 @@ export const PerspectiveMarketsGridSurface = forwardRef<
    * fires `modelUpdated` again, which is why that comparison is load-bearing
    * rather than an optimisation: without it this would loop.
    */
+  // Republish the calculated columns whenever they change — including on the
+  // first engine, since an engine built before the customizer state was read
+  // starts with none.
+  useEffect(() => {
+    if (!engine) return;
+    void engine.setCalcExpressions(props.calcExpressions ?? {});
+  }, [engine, props.calcExpressions]);
+
   const lastQuickFilter = useRef('');
   const onModelUpdated = useCallback((event: { api: GridApi }) => {
     const next = (event.api.getGridOption('quickFilterText') ?? '') as string;

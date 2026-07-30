@@ -48,7 +48,11 @@ import { SsrmSuggestBanner } from '../engine/SsrmSuggestBanner.js';
 import { shouldSuggestSsrm } from '../engine/shouldSuggestSsrm.js';
 import type { SSRMColDef, SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
 import { useGridPlatform } from '../customizer/hooks/GridProvider.js';
-import { useSsrmCalcMaterialize, useSsrmColumnDefs } from '../engine/useSsrmColumnDefs.js';
+import {
+  usePerspectiveCalcColumns,
+  useSsrmCalcMaterialize,
+  useSsrmColumnDefs,
+} from '../engine/useSsrmColumnDefs.js';
 import { materializeCalcFields } from '../engine/ssrmCalcColumns.js';
 import { buildGridContextMenuItems } from './gridContextMenu';
 import { StaleDataBanner } from './StaleDataBanner';
@@ -200,6 +204,14 @@ function MarketsGridHostInner<TData>({
     dismissed: ssrmSuggestDismissed,
   });
   const platform = useGridPlatform();
+  // Calculated columns become Perspective expression columns on the pull path;
+  // without this they are absent entirely, since the planner only ran for SSRM.
+  const perspectiveCalc = usePerspectiveCalcColumns(
+    platform,
+    columnDefs as never,
+    Boolean(perspectiveTable),
+  );
+
   const ssrmColumnDefs = useSsrmColumnDefs(
     platform,
     columnDefs as SSRMColDef[],
@@ -471,7 +483,8 @@ function MarketsGridHostInner<TData>({
           keyColumn={
             perspectiveKeyColumn ?? (typeof rowIdField === 'string' ? rowIdField : 'id')
           }
-          columnDefs={columnDefs}
+          columnDefs={perspectiveCalc.defs}
+          calcExpressions={perspectiveCalc.expressions}
           theme={theme}
           rowHeight={rowHeight}
           headerHeight={headerHeight}
