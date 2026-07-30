@@ -616,6 +616,7 @@ lifecycle rules live in the package's `ARCHITECTURE.md`.
   (default 1000), because the recount is driven by AG's `modelUpdated` — several
   times a second — and each answer costs a full-book View in the engine the read
   path queues behind
+- `engine.setQuickFilter(text)` — the quick-search box, which did nothing at all on this path: `QuickSearch` pushes `setGridOption('quickFilterText', …)` and AG implements that for the **client-side row model only**. The text is compiled into one boolean expression column (`toQuickFilterExpression` / `sanitizeQuickFilterTerm`) plus a clause selecting on it, because AG's per-token OR across columns cannot be a Perspective clause list (they are conjunctive). Searches **text columns only** by default — one `match()` per column per token, recomputed on every Table update while the View lives, made 26 columns × 2 tokens unusable on a live 20,000-row book; `quickFilterAllColumns` opts back in. Input is **sanitized, not escaped**: `match()` takes a regex and a lone `(` aborts the View build even backslash-escaped, so anything with regex or quoting meaning becomes `.`. Always purges, since AG does not know this filter exists and would keep serving pre-search blocks
 - `engine.distinctValues(colId)` — every distinct value in a column, for an AG
   set filter's checkbox list. A set filter builds that list from the row data,
   and on this path the client holds only the loaded blocks, so
