@@ -30,6 +30,7 @@ import type {
   StatsListener,
 } from '@starui/host-data/runtime/client';
 import {
+  collectTemplateRefs,
   resolveCfg,
   type AppDataMirror,
 } from '@starui/host-data/runtime';
@@ -266,20 +267,61 @@ export function useDataProvidersList(
 // ─── Hook 4: template-resolved cfg ───────────────────────────────
 //
 // Walks any `{{name.key}}` tokens in the cfg's strings against the
-// current AppData snapshot. Returns a stable object that swaps when
-// any referenced AppData key changes, so downstream
-// `useProviderStream` deps can trigger a re-attach.
+// current AppData snapshot. Returns a stable object that swaps ONLY
+// when an AppData key the cfg actually references changes — so
+// downstream `useProviderStream` / `useDataProvider` deps re-attach
+// exactly when the resolved cfg could differ. (The old shape re-ran
+// resolveCfg on EVERY AppData version bump: any provider writing any
+// key minted a fresh cfg identity and cascaded a full detach/attach
+// through every consumer, even with zero templates in the cfg.)
 
 export function useResolvedCfg(cfg: ProviderConfig | null | undefined): ProviderConfig | null {
   const { store, version, loaded } = useAppDataStore();
 
+  // Template refs are a pure function of the cfg object.
+  const refs = useMemo(() => (cfg ? collectTemplateRefs(cfg) : []), [cfg]);
+
+  const lastRef = useRef<{
+    cfg: ProviderConfig;
+    values: unknown[];
+    resolved: ProviderConfig;
+  } | null>(null);
+
   return useMemo(() => {
-    if (!cfg) return null;
+    if (!cfg) {
+      lastRef.current = null;
+      return null;
+    }
     if (!loaded) return cfg; // pre-load, return as-is — caller usually waits for `loaded` anyway
-    return resolveCfg(cfg, (name, key) => store.get(name, key));
-    // `version` participates so any AppData mutation re-runs resolveCfg.
+    if (refs.length === 0) return cfg; // no templates → nothing to resolve, keep identity
+
+    // Snapshot the referenced values. For nested keys ({{name.a.b}})
+    // resolution may go through lookup(name, 'a') + object walk, so
+    // snapshot the head value too — a replaced head object must bust
+    // the memo even when lookup(name, 'a.b') stays undefined.
+    const values: unknown[] = [];
+    for (const { providerName, key } of refs) {
+      values.push(store.get(providerName, key));
+      const dot = key.indexOf('.');
+      values.push(dot >= 0 ? store.get(providerName, key.slice(0, dot)) : undefined);
+    }
+
+    const last = lastRef.current;
+    if (
+      last &&
+      last.cfg === cfg &&
+      last.values.length === values.length &&
+      last.values.every((v, i) => Object.is(v, values[i]))
+    ) {
+      return last.resolved;
+    }
+
+    const resolved = resolveCfg(cfg, (name, key) => store.get(name, key));
+    lastRef.current = { cfg, values, resolved };
+    return resolved;
+    // `version` participates so AppData mutations re-check the refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cfg, version, loaded, store]);
+  }, [cfg, refs, version, loaded, store]);
 }
 
 export {
