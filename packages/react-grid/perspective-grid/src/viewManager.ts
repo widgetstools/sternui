@@ -30,6 +30,7 @@ import {
   toPerspectiveGroupLevel,
   viewConfigKey,
   type AgFilterItem,
+  type PerspectiveAggregate,
   type PerspectiveViewConfig,
 } from './viewConfig.js';
 
@@ -110,6 +111,33 @@ export interface ViewManager {
     filterModel: Record<string, AgFilterItem> | null | undefined,
   ): Promise<number | null>;
   /**
+   * Rows of the CURRENT filtered book for which a Perspective boolean
+   * expression is true — what a style rule needs to know about a book this
+   * window does not hold.
+   *
+   * Counts against the grid's own filter and quick search (conjunctively), not
+   * against the raw book, because the client-side equivalent this replaces is
+   * `forEachNodeAfterFilter`. Null when the expression will not compile, so a
+   * caller reports nothing rather than "no row matches".
+   */
+  countMatchingExpression(
+    source: string,
+    request: SsrmRequestLike,
+  ): Promise<number | null>;
+  /**
+   * One aggregate over a whole column of the current filtered book.
+   *
+   * The expression language has NO cross-row aggregate — `avg("price")` parses
+   * and silently answers the column's own values, so "above average" cannot be
+   * one expression. This measures the scalar so a caller can substitute it as a
+   * literal. See ARCHITECTURE.md, "avg() and sum() are row-wise".
+   */
+  aggregateScalar(
+    colId: string,
+    aggregate: PerspectiveAggregate,
+    request: SsrmRequestLike,
+  ): Promise<number | null>;
+  /**
    * Every distinct value in a column, for a set filter's value list.
    *
    * Returns null when the column has MORE than `limit` distinct values — see
@@ -149,6 +177,9 @@ export interface ViewManager {
 
 /** Constant expression column that gives a FLAT view a grand-total row. */
 const TOTAL_GROUP = '__all__';
+
+/** Alias the style-rule boolean is published under in a transient count View. */
+const RULE_MATCH = '__ruleMatch__';
 
 /** Rows per read when draining the whole book for an export. One read of
  *  20,000 x 26 would cross the proxy as a single message. */
@@ -542,6 +573,116 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
           rows.push(...columnsToRows(columns));
         }
         return rows;
+      } finally {
+        transient.delete(safe);
+        void safe.close();
+      }
+    },
+
+    /**
+     * "Does any row in the book match this style rule, and how many?"
+     *
+     * The client-side answer is `forEachNodeAfterFilter`, which on this path
+     * walks the ~100 rows in the loaded blocks and calls a rule that matches
+     * 8,000 rows further down "no match". This asks the worker instead.
+     *
+     * Transient, like `countMatching` — and deliberately NOT added to the live
+     * Views. An expression column is recomputed on every Table update for as
+     * long as its View lives, which is what made a 26-column quick search
+     * unusable; a rule column in the viewport's View would charge that on every
+     * tick, forever, for something only the header painter reads. Here it is
+     * built, read once and dropped, and the caller throttles.
+     *
+     * The rule clause is appended to the grid's own filter clauses, which AND
+     * together — "rows the grid is showing that also match the rule", which is
+     * what the client-side original computes.
+     */
+    async countMatchingExpression(
+      source: string,
+      request: SsrmRequestLike,
+    ): Promise<number | null> {
+      if (closed || !source) return null;
+
+      // Flat and unsorted: grouping would interleave a tree and a sort cannot
+      // change a count, so neither is worth the engine work.
+      const level = toPerspectiveGroupLevel({
+        ...levelState(request, quick, expressions),
+        sortModel: undefined,
+        rowGroupCols: undefined,
+        groupKeys: [],
+      });
+      const config: PerspectiveViewConfig = {
+        ...level.config,
+        // Spread the rule LAST so a calculated column that happens to be named
+        // the same cannot take the alias out from under the clause below.
+        expressions: { ...(level.config.expressions ?? {}), [RULE_MATCH]: source },
+        filter: [...(level.config.filter ?? []), [RULE_MATCH, '==', true]],
+      };
+
+      let safe: SafeView;
+      try {
+        safe = createSafeView(await table.view(config));
+      } catch {
+        // A rule that does not compile takes only its own count down — the
+        // View is transient, so the grid never sees it. Null, not zero: "no
+        // row matches" is a claim, and this cannot make it.
+        return null;
+      }
+      if (closed) {
+        void safe.close();
+        return null;
+      }
+      transient.add(safe);
+      try {
+        return await safe.rows();
+      } finally {
+        transient.delete(safe);
+        void safe.close();
+      }
+    },
+
+    /**
+     * One column aggregate over the current filtered book.
+     *
+     * Same shape the grand total uses — one constant expression column gives a
+     * flat View exactly one group, whose row 0 is the aggregate over
+     * everything. Transient for the same reason as above.
+     */
+    async aggregateScalar(
+      colId: string,
+      aggregate: PerspectiveAggregate,
+      request: SsrmRequestLike,
+    ): Promise<number | null> {
+      if (closed || !colId) return null;
+
+      const level = toPerspectiveGroupLevel({
+        ...levelState(request, quick, expressions),
+        sortModel: undefined,
+        rowGroupCols: undefined,
+        groupKeys: [],
+      });
+      const config: PerspectiveViewConfig = {
+        ...level.config,
+        expressions: { ...(level.config.expressions ?? {}), [TOTAL_GROUP]: "'ALL'" },
+        group_by: [TOTAL_GROUP],
+        aggregates: { [colId]: aggregate },
+      };
+
+      let safe: SafeView;
+      try {
+        safe = createSafeView(await table.view(config));
+      } catch {
+        return null;
+      }
+      if (closed) {
+        void safe.close();
+        return null;
+      }
+      transient.add(safe);
+      try {
+        const columns = await safe.read({ start_row: 0, end_row: 1 });
+        const value = columns?.[colId]?.[0];
+        return typeof value === 'number' && Number.isFinite(value) ? value : null;
       } finally {
         transient.delete(safe);
         void safe.close();

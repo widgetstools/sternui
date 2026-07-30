@@ -46,6 +46,22 @@ export interface PerspectiveGridContext {
   ssrmCountMatching(
     filterModel: Record<string, unknown>,
   ): Promise<number | null>;
+  /**
+   * Rows of the current filtered book matching a Perspective boolean
+   * expression. This is how a style rule finds out whether ANY row in the book
+   * matches it — the client-side original walks the loaded blocks, which on
+   * this path is the viewport rather than the book.
+   *
+   * Null when the expression will not compile, so a caller paints nothing
+   * rather than reading a failure as "no match".
+   */
+  ssrmCountMatchingExpression?(source: string): Promise<number | null>;
+  /**
+   * One column aggregate over the current filtered book, for a rule with
+   * cross-row context. Separate from the expression because the expression
+   * language has no cross-row aggregate — see ARCHITECTURE.md.
+   */
+  ssrmAggregateScalar?(colId: string, aggregate: string): Promise<number | null>;
   /** True once an engine is attached and `ssrmCountMatching` can be believed. */
   readonly ssrmConfigured: boolean;
 }

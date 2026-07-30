@@ -193,6 +193,10 @@ export const PerspectiveMarketsGridSurface = forwardRef<
       perspectiveEngineHolder: holder,
       ssrmCountMatching: (filterModel) =>
         holder.get()?.countMatching(filterModel as never) ?? Promise.resolve(null),
+      ssrmCountMatchingExpression: (source) =>
+        holder.get()?.countMatchingExpression(source) ?? Promise.resolve(null),
+      ssrmAggregateScalar: (colId, aggregate) =>
+        holder.get()?.aggregateScalar(colId, aggregate as never) ?? Promise.resolve(null),
       get ssrmConfigured() {
         return holder.get() !== null;
       },

@@ -126,6 +126,8 @@ this AG Grid 36 DOM — query `.ag-row`.
 | Excel export reads the whole book (`readAllRows` + a detached export grid) | 17 tests; live: the grid held **100** rows of 20,000 (what the old export wrote); now 20,000 x 26 read in 547ms, and 6,669 rows all EMEA correctly sorted under a live filter+sort |
 | Calculated columns as Perspective expression columns (`usePerspectiveCalcColumns` + `setCalcExpressions`) | 17 tests + engine probe; live: `currentPrice * quantity` computed in the worker, server-side sort by it, a saved-filter count on it (869 of 20,000), and a broken expression alongside a good one leaving the grid rendering |
 | Alerts full-book rescan source | 8 tests; the leaf fetcher now registers for the Perspective path (backed by `readAllRows`) and the panel's rescan block shows for ANY server-side engine, not just `ssrm`. **Live UI click-through not confirmed** — the collapsed settings section does not open under synthetic clicks |
+| `NOT` no longer compiles to Perspective's `not()`, which does not exist | 3 tests + 2 engine probes; affected calculated columns on BOTH server-side paths. Nested in `and`/`or`/`if` it validates clean and evaluates wrong, so the pre-flight check could not catch it |
+| Style rules answered by the worker (`countMatchingExpression` + `aggregateScalar`) | 28 tests + 4 engine probes; live: a rule matching **1 row of 20,000** at a threshold no loaded block reaches lights the header, an impossible rule leaves it unlit, counts exactly match a JS pass over the same book (10,000 unfiltered · 3,339 under `region = EMEA` of 6,669 · 10,000 on clear), 25 counts in 31 ms against 169 ms uncached, live Views unchanged, 0 failed blocks |
 
 Also verified live and working: server-side sort and filter, multi-level
 grouping with per-level and grand totals, live re-sort on value change (feed-
@@ -137,19 +139,23 @@ Cut / Copy / Export, status bar, 0 failed blocks throughout.
 
 Effort figures are rough.
 
-### 1. Style rules that must materialize worker-side · ~1 d
-
-ARCHITECTURE assigns rules that are filtered/sorted on, or need cross-row
-context, to the worker as boolean expression columns. Nothing builds them.
-Presentation-only rules already resolve client-side over visible rows and work.
-
-### 2. Master/detail and tree data not wired · niche
+### 1. Master/detail and tree data not wired · niche
 
 Need `isServerSideGroup` / `getServerSideGroupKey` / `detailCellRendererParams`,
 which `CustomSSRMGrid` passes and the Perspective surface does not. Skip unless
 required. Pagination, row selection and charts are *not* in
 `PERSPECTIVE_SURFACE_OWNED_KEYS`, so they should pass through the module
 pipeline untouched — **unverified**.
+
+### Open decision left by the style-rule work
+
+**Cross-row context is a new capability, not restored parity.** The mechanism is
+built and verified (measure the aggregate, substitute the literal), but the
+client-side evaluator never passes `allRows` to a style rule, so
+`[price] > AVG([price])` is false for every row on CSRM as well. The Perspective
+surface now answers it correctly and CSRM still does not — a divergence, in the
+direction of correct. Either bring CSRM up to it or decide the divergence is
+wanted; today it is neither, just noted.
 
 ## Unverified — may or may not be gaps
 

@@ -601,6 +601,73 @@ computed in the worker and delivered with the block (108.8162 x 7154 =
 saved-filter count on it returning 869 of 20,000, and a deliberately broken
 expression alongside a good one leaving the grid rendering with 0 failed blocks.
 
+## Style rules the worker has to answer
+
+Most conditional styling is presentational and stays client-side: a rule paints
+the cells AG Grid is rendering, and those rows are in hand. What does not
+survive the move to a pull path is any question about the **book** rather than
+the viewport — and the runtime asks exactly one: `headerPainter`'s "does ANY row
+match this rule?", which decides whether a column header carries the rule's
+flash or its indicator badge.
+
+It turned out to be worse than the viewport-scoped answer the design predicted.
+MEASURED live, same grid, same book, against the CSRM twin:
+
+| | `forEachNodeAfterFilter` | `forEachNode` |
+|---|---|---|
+| CSRM | 20,000 | 20,000 |
+| Perspective | **0** | 100 (the loaded blocks) |
+
+`forEachNodeAfterFilter` visits **nothing at all** under the server row model.
+So header flash and header indicators were not degraded on this path, they were
+entirely dead — and silently, because a rule that paints no header looks exactly
+like a rule whose condition is false.
+
+`engine.countMatchingExpression(source)` answers it from the worker: the rule
+compiles to a Perspective boolean expression, and the count is of rows where it
+is true.
+
+**The rule columns are transient, never live.** An expression column is
+recomputed on every Table update for as long as its View lives — the property
+that made a 26-column quick search unusable. A rule column in the viewport's
+View would charge that on every tick, permanently, for something only the header
+painter reads. Each count builds its own View, reads it once and drops it, and
+the answers are cached on the same terms as the saved-filter counts (the painter
+re-evaluates on every row signal and every filter change).
+
+The count is scoped to the grid's own filter, because the client-side original
+is `forEachNodeAfterFilter` — a header must not light for rows the user has
+filtered away. Verified live: 10,000 matches unfiltered, 3,339 under
+`region = EMEA` (6,669 rows), back to 10,000 on clear, each exactly matching a
+JavaScript count over the same book.
+
+Rules that cannot be moved keep their client scan rather than compiling into
+something plausible: `.old` / `.new` refs (viewport-only by definition — the
+worker holds one value per cell, not a before and an after), expressions the
+compiler cannot express, and **timed rules**, whose activation is about what
+changed under the user's eyes and means nothing over a book.
+
+**Cross-row context is two steps, not one.** `avg("col")` is row-wise (see
+above), so "above average" measures the scalar with `aggregateScalar` and
+substitutes it into the expression as a literal. An aggregate that cannot be
+measured drops the rule's answer instead of defaulting it — an "above average"
+rule with no average is not a rule with a default.
+
+Verified live on the 20,000-row book: a rule matching **1 row of 20,000**, at a
+threshold no loaded block reaches (9,999 against a loaded maximum of 9,998),
+lights the header — where a client scan answers "no match" and in fact scans
+nothing. A rule nothing matches leaves it unlit. `avg` and `high` over
+`quantity` (a column the fixture does not random-walk) returned 5049.4706 and
+10,000, both exact against a JavaScript pass over the same rows, and the count
+above that mean was 10,000 on both sides. 25 successive counts cost 31 ms
+against 169 ms for one uncached, live Views unchanged at 2, 0 failed blocks.
+
+**Caveat worth keeping honest:** cross-row context is a new capability here, not
+restored parity. The client-side style-rule evaluator never passes `allRows`, so
+`AVG([price])` inside a rule resolves to that row's own price on CSRM too, and
+`[price] > AVG([price])` is false for every row there. This path answers it
+correctly; CSRM does not answer it at all.
+
 ## Exporting the whole book
 
 `api.exportDataAsExcel()` can only see the rows in the block cache. MEASURED on
@@ -759,8 +826,8 @@ the read path already queues behind.
 |---|---|---|
 | Calculated columns | **worker** (`expressions` map) | values feed sort/filter/group/agg |
 | Style rules (appearance only) | **client**, visible rows | presentational; ~100 rows not 20,000 |
-| Style rules filtered/sorted on | **worker** -> boolean expression column | filtering is server-side |
-| Style rules with cross-row context | **worker** | a window no longer holds the whole book |
+| Style rules asked about the whole book | **worker** -> transient boolean expression column | `forEachNodeAfterFilter` visits nothing here |
+| Style rules with cross-row context | **worker**, aggregate measured then substituted | there is no cross-row aggregate in the expression language |
 
 Expression columns are themselves sortable, filterable and groupable
 (verified), which keeps calculated columns first-class.
@@ -881,8 +948,7 @@ it never runs — `getCompiledClientWasm()` is the fix, still outstanding.
 | Excel export of the full book | **done**, 17 tests |
 | Calculated columns as expression columns | **done**, 17 tests + engine probe |
 | Alerts full-book rescan source | **done**, 8 tests |
-| Calculated columns as expression columns | **not started** |
-| Style rules that must materialize worker-side | **not started** |
+| Style rules that must materialize worker-side | **done**, 28 tests + 4 engine probes |
 | Multi-window timings through the product path | **not measured** |
 | e2e spec for the Perspective surface | **not started** |
 

@@ -733,3 +733,231 @@ describe('readAllRows', () => {
     expect(await views.readAllRows({ startRow: 0, endRow: 100 }, 200_000)).toEqual([]);
   });
 });
+
+describe('countMatchingExpression', () => {
+  /** Views that report how many rows a filter selects, and keep their config
+   *  so the rule clause and the grid's own clauses can be told apart. */
+  function makeRuleTable(matching = 42) {
+    const built: PerspectiveViewConfig[] = [];
+    const deleted: PerspectiveViewConfig[] = [];
+    let fail = false;
+    const table: PerspectiveTableLike = {
+      view: vi.fn(async (config: PerspectiveViewConfig) => {
+        if (fail) throw new Error('Value Error - Input column "nope" does not exist.');
+        built.push(config);
+        const rows = config.filter?.length ? matching : 1000;
+        const view: UpdatableView = {
+          async to_columns() {
+            return { positionId: [] };
+          },
+          async num_rows() {
+            return rows;
+          },
+          async delete() {
+            deleted.push(config);
+          },
+          async on_update() {
+            return 1;
+          },
+        };
+        return view;
+      }),
+    };
+    return {
+      table,
+      built,
+      deleted,
+      breakIt: () => {
+        fail = true;
+      },
+    };
+  }
+
+  it('publishes the rule as an expression column and selects on it', async () => {
+    const { table, built } = makeRuleTable();
+    const views = createViewManager({ table });
+
+    expect(await views.countMatchingExpression('"pnl" < 0', {})).toBe(42);
+    const config = built.at(-1)!;
+    expect(config.expressions).toMatchObject({ __ruleMatch__: '"pnl" < 0' });
+    expect(config.filter).toContainEqual(['__ruleMatch__', '==', true]);
+  });
+
+  /**
+   * The client-side original is `forEachNodeAfterFilter`, so the whole-book
+   * answer has to be scoped to the grid's filter too — otherwise a header
+   * would light for rows the user has filtered away.
+   */
+  it('ANDs the rule onto the own filter clauses the grid already has', async () => {
+    const { table, built } = makeRuleTable();
+    const views = createViewManager({ table });
+
+    await views.countMatchingExpression('"pnl" < 0', {
+      filterModel: { sector: { filterType: 'set', values: ['Energy'] } },
+    });
+    expect(built.at(-1)!.filter).toEqual([
+      ['sector', 'in', ['Energy']],
+      ['__ruleMatch__', '==', true],
+    ]);
+  });
+
+  /** Grouping would interleave a tree and a sort cannot change a count, so
+   *  neither is worth the engine work. */
+  it('drops grouping and sorting — neither can change a count', async () => {
+    const { table, built } = makeRuleTable();
+    const views = createViewManager({ table });
+
+    await views.countMatchingExpression('"pnl" < 0', {
+      rowGroupCols: [{ id: 'sector' }],
+      groupKeys: ['Energy'],
+      sortModel: [{ colId: 'pnl', sort: 'desc' }],
+    });
+    const config = built.at(-1)!;
+    expect(config.group_by ?? []).toEqual([]);
+    expect(config.sort ?? []).toEqual([]);
+  });
+
+  it('carries the calculated columns — a rule may well be on one', async () => {
+    const { table, built } = makeRuleTable();
+    const views = createViewManager({ table });
+    views.setExpressions({ grossPnl: '"price" * "qty"' });
+
+    await views.countMatchingExpression('"grossPnl" < 0', {});
+    expect(built.at(-1)!.expressions).toMatchObject({
+      grossPnl: '"price" * "qty"',
+      __ruleMatch__: '"grossPnl" < 0',
+    });
+  });
+
+  /** A calc column named the same must not take the alias out from under the
+   *  clause, which would count something else entirely. */
+  it('wins over a calculated column of the same name', async () => {
+    const { table, built } = makeRuleTable();
+    const views = createViewManager({ table });
+    views.setExpressions({ __ruleMatch__: '"decoy" > 0' });
+
+    await views.countMatchingExpression('"pnl" < 0', {});
+    expect(built.at(-1)!.expressions!.__ruleMatch__).toBe('"pnl" < 0');
+  });
+
+  it('deletes its View — a rule count must not leave one charged per tick', async () => {
+    const { table, deleted } = makeRuleTable();
+    const views = createViewManager({ table });
+
+    await views.countMatchingExpression('"pnl" < 0', {});
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(deleted).toHaveLength(1);
+  });
+
+  it('does not retire the Views the grid is scrolling', async () => {
+    const { table } = makeRuleTable();
+    const views = createViewManager({ table });
+
+    await views.getView({ startRow: 0, endRow: 100 });
+    const before = views.liveViews;
+    await views.countMatchingExpression('"pnl" < 0', {});
+    expect(views.liveViews).toBe(before);
+  });
+
+  /**
+   * Null, not zero. A rule whose expression will not compile has no answer,
+   * and "no row matches" is a claim this cannot make — it would silently
+   * un-light a header that should be lit.
+   */
+  it('answers null when the expression will not build a View', async () => {
+    const { table, breakIt } = makeRuleTable();
+    const views = createViewManager({ table });
+    breakIt();
+
+    expect(await views.countMatchingExpression('"nope" < 0', {})).toBeNull();
+  });
+
+  it('answers null for an empty expression and once closed', async () => {
+    const { table } = makeRuleTable();
+    const views = createViewManager({ table });
+
+    expect(await views.countMatchingExpression('', {})).toBeNull();
+    await views.close();
+    expect(await views.countMatchingExpression('"pnl" < 0', {})).toBeNull();
+  });
+});
+
+describe('aggregateScalar', () => {
+  function makeAggTable(value: unknown) {
+    const built: PerspectiveViewConfig[] = [];
+    const deleted: PerspectiveViewConfig[] = [];
+    const table: PerspectiveTableLike = {
+      view: vi.fn(async (config: PerspectiveViewConfig) => {
+        built.push(config);
+        const view: UpdatableView = {
+          async to_columns() {
+            // Row 0 of the single constant group is the aggregate over the
+            // whole filtered book.
+            return { __ROW_PATH__: [[]], price: [value] };
+          },
+          async num_rows() {
+            return 1;
+          },
+          async delete() {
+            deleted.push(config);
+          },
+          async on_update() {
+            return 1;
+          },
+        };
+        return view;
+      }),
+    };
+    return { table, built, deleted };
+  }
+
+  it('measures one aggregate over the whole filtered book', async () => {
+    const { table, built } = makeAggTable(100);
+    const views = createViewManager({ table });
+
+    expect(await views.aggregateScalar('price', 'avg', {})).toBe(100);
+    const config = built.at(-1)!;
+    expect(config.group_by).toEqual(['__all__']);
+    expect(config.aggregates).toEqual({ price: 'avg' });
+  });
+
+  it('measures under the filter the grid is showing, like the count does', async () => {
+    const { table, built } = makeAggTable(100);
+    const views = createViewManager({ table });
+
+    await views.aggregateScalar('price', 'avg', {
+      filterModel: { sector: { filterType: 'set', values: ['Energy'] } },
+    });
+    expect(built.at(-1)!.filter).toEqual([['sector', 'in', ['Energy']]]);
+  });
+
+  /** A non-numeric or absent aggregate is null rather than something a caller
+   *  would substitute into an expression as a literal. */
+  it('answers null when the aggregate is not a finite number', async () => {
+    for (const value of [null, undefined, 'n/a', Number.NaN, Number.POSITIVE_INFINITY]) {
+      const { table } = makeAggTable(value);
+      const views = createViewManager({ table });
+      expect(await views.aggregateScalar('price', 'avg', {})).toBeNull();
+    }
+  });
+
+  it('deletes its View', async () => {
+    const { table, deleted } = makeAggTable(100);
+    const views = createViewManager({ table });
+
+    await views.aggregateScalar('price', 'avg', {});
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(deleted).toHaveLength(1);
+  });
+
+  it('answers null for no column and once closed', async () => {
+    const { table } = makeAggTable(100);
+    const views = createViewManager({ table });
+
+    expect(await views.aggregateScalar('', 'avg', {})).toBeNull();
+    await views.close();
+    expect(await views.aggregateScalar('price', 'avg', {})).toBeNull();
+  });
+});

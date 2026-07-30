@@ -1296,3 +1296,176 @@ describe('setCalcExpressions', () => {
     await engine.close();
   });
 });
+
+describe('countMatchingExpression / aggregateScalar', () => {
+  /** A Table whose Views answer a rule count, an aggregate, or a block, and
+   *  which records every config it was asked to build. */
+  function makeRuleTable() {
+    let fire: (() => void) | null = null;
+    const built: PerspectiveViewConfig[] = [];
+    const table: PerspectiveTableLike = {
+      async size() {
+        return 1000;
+      },
+      view: vi.fn(async (config: PerspectiveViewConfig) => {
+        built.push(config);
+        const isRuleCount = Boolean(
+          config.filter?.some((clause) => clause[0] === '__ruleMatch__'),
+        );
+        const view: UpdatableView = {
+          async to_columns() {
+            return { __ROW_PATH__: [[]], price: [100] };
+          },
+          async num_rows() {
+            return isRuleCount ? 12 : 1000;
+          },
+          async delete() {},
+          async on_update(cb: () => void) {
+            fire = cb;
+            return 1;
+          },
+        };
+        return view;
+      }),
+    };
+    const ruleCounts = () =>
+      built.filter((c) => c.filter?.some((clause) => clause[0] === '__ruleMatch__'));
+    return { table, built, ruleCounts, tick: () => fire?.() };
+  }
+
+  it('counts a style rule against the whole book', async () => {
+    const { table } = makeRuleTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+
+    expect(await engine.countMatchingExpression('"pnl" < 0')).toBe(12);
+    await engine.close();
+  });
+
+  /**
+   * The header painter re-evaluates on the platform's row signal and on every
+   * filter change — several times a second under a live feed — and each answer
+   * is a View over the whole book in the engine the read path queues behind.
+   */
+  it('reuses a resolved rule count while nothing has moved', async () => {
+    const { table, ruleCounts } = makeRuleTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+
+    await engine.countMatchingExpression('"pnl" < 0');
+    await engine.countMatchingExpression('"pnl" < 0');
+    await engine.countMatchingExpression('"pnl" < 0');
+
+    expect(ruleCounts()).toHaveLength(1);
+    await engine.close();
+  });
+
+  it('keeps separate answers for separate rules', async () => {
+    const { table, ruleCounts } = makeRuleTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+
+    await engine.countMatchingExpression('"pnl" < 0');
+    await engine.countMatchingExpression('"price" > 100');
+
+    expect(ruleCounts()).toHaveLength(2);
+    await engine.close();
+  });
+
+  /**
+   * The count is scoped to the grid's filter, so the same rule under a
+   * different filter is a different question and must not be served the
+   * previous answer.
+   */
+  it('re-asks when the grid filter changes under the same rule', async () => {
+    const { table, ruleCounts } = makeRuleTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+
+    await engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100 },
+      success: () => {},
+      fail: () => {},
+    } as never);
+    await engine.countMatchingExpression('"pnl" < 0');
+    expect(ruleCounts()).toHaveLength(1);
+
+    await engine.datasource.getRows({
+      request: {
+        startRow: 0,
+        endRow: 100,
+        filterModel: { sector: { filterType: 'set', values: ['Energy'] } },
+      },
+      success: () => {},
+      fail: () => {},
+    } as never);
+    await engine.countMatchingExpression('"pnl" < 0');
+    expect(ruleCounts()).toHaveLength(2);
+
+    await engine.close();
+  });
+
+  it('recomputes once the Table has moved and the floor has passed', async () => {
+    vi.useFakeTimers();
+    try {
+      const { table, ruleCounts, tick } = makeRuleTable();
+      const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+      await engine.datasource.getRows({
+        request: { startRow: 0, endRow: 100 },
+        success: () => {},
+        fail: () => {},
+      } as never);
+
+      await engine.countMatchingExpression('"pnl" < 0');
+      expect(ruleCounts()).toHaveLength(1);
+
+      // Time alone proves nothing — the count is still true.
+      vi.advanceTimersByTime(5_000);
+      await engine.countMatchingExpression('"pnl" < 0');
+      expect(ruleCounts()).toHaveLength(1);
+
+      tick();
+      vi.advanceTimersByTime(1_500);
+      await engine.countMatchingExpression('"pnl" < 0');
+      expect(ruleCounts()).toHaveLength(2);
+
+      await engine.close();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('measures a column aggregate for a cross-row rule', async () => {
+    const { table } = makeRuleTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+
+    expect(await engine.aggregateScalar('price', 'avg')).toBe(100);
+    await engine.close();
+  });
+
+  it('answers null for an empty expression, an empty column and once closed', async () => {
+    const { table } = makeRuleTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+
+    expect(await engine.countMatchingExpression('')).toBeNull();
+    expect(await engine.aggregateScalar('', 'avg')).toBeNull();
+
+    await engine.close();
+    expect(await engine.countMatchingExpression('"pnl" < 0')).toBeNull();
+    expect(await engine.aggregateScalar('price', 'avg')).toBeNull();
+  });
+
+  /** A rejection must reach the caller as null, never as a thrown error or a
+   *  zero — a header badge cannot be allowed to break the grid. */
+  it('answers null rather than throwing when the View cannot be built', async () => {
+    const table: PerspectiveTableLike = {
+      async size() {
+        return 1000;
+      },
+      view: vi.fn(async () => {
+        throw new Error('Value Error - Input column "nope" does not exist.');
+      }),
+    };
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+
+    expect(await engine.countMatchingExpression('"nope" < 0')).toBeNull();
+    expect(await engine.aggregateScalar('nope', 'avg')).toBeNull();
+    await engine.close();
+  });
+});

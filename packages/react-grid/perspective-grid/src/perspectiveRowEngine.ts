@@ -26,7 +26,7 @@ import {
   type PerspectiveTableLike,
   type ViewManagerEvent,
 } from './viewManager.js';
-import type { AgFilterItem } from './viewConfig.js';
+import type { AgFilterItem, PerspectiveAggregate } from './viewConfig.js';
 import { coerceEditedValue } from './cellEdits.js';
 
 /** The slice of AG Grid's api the engine drives. */
@@ -155,6 +155,22 @@ export interface PerspectiveRowEngine {
   countMatching(
     filterModel: Record<string, AgFilterItem> | null | undefined,
   ): Promise<number | null>;
+  /**
+   * Rows of the current filtered book matching a Perspective boolean
+   * expression — for a style rule that has to know about rows this window
+   * does not hold.
+   *
+   * Null when the expression will not compile, so a caller reports nothing
+   * rather than the confidently-wrong "no row matches".
+   */
+  countMatchingExpression(source: string): Promise<number | null>;
+  /**
+   * One aggregate over a whole column of the current filtered book, so a rule
+   * with cross-row context ("above average") can substitute the scalar into
+   * its expression. There is no cross-row aggregate in the expression language
+   * itself — `avg("col")` is row-wise and silently answers the column.
+   */
+  aggregateScalar(colId: string, aggregate: PerspectiveAggregate): Promise<number | null>;
   /**
    * Every distinct value in a column, for an AG set filter's value list.
    *
@@ -312,6 +328,18 @@ export function createPerspectiveRowEngine(
    */
   const values = createStaleCache<unknown[] | null>(valuesMinIntervalMs);
 
+  /**
+   * Style-rule match counts, and the scalars a cross-row rule substitutes.
+   *
+   * Same shape and floor as the saved-filter counts — the header painter
+   * re-evaluates on the platform's row signal and on every filter change,
+   * which under a live feed is several times a second, and each answer is a
+   * View over the whole book. A header badge trailing the book by a second is
+   * indistinguishable from a live one.
+   */
+  const ruleCounts = createStaleCache<number | null>(countMinIntervalMs);
+  const scalars = createStaleCache<number | null>(countMinIntervalMs);
+
   // ─── Cell edits ────────────────────────────────────────────────────────────
   //
   // The write goes DIRECT from this window to the worker-held Table, not back
@@ -446,6 +474,8 @@ export function createPerspectiveRowEngine(
       measureBook();
       counts.invalidate();
       values.invalidate();
+      ruleCounts.invalidate();
+      scalars.invalidate();
       scheduleRefresh();
     },
     onEvent: (event) => {
@@ -656,6 +686,41 @@ export function createPerspectiveRowEngine(
       return value;
     },
 
+    countMatchingExpression(source) {
+      if (closed || !source) return Promise.resolve(null);
+
+      // Cached on the same terms as a saved-filter count, and for the same
+      // reason: the header painter re-evaluates on every `rows` notification
+      // and every filter change, several times a second, and each answer costs
+      // a View over the whole book in the engine the read path queues behind.
+      // The key carries the root request because the count is scoped to the
+      // grid's current filter — the same rule under a different filter is a
+      // different question.
+      const key = `${source} ${JSON.stringify(lastRootRequest.filterModel ?? null)}`;
+      const cached = ruleCounts.get(key);
+      if (cached) return cached;
+
+      const value = views
+        .countMatchingExpression(source, lastRootRequest)
+        .catch(() => null);
+      ruleCounts.set(key, value);
+      return value;
+    },
+
+    aggregateScalar(colId, aggregate) {
+      if (closed || !colId) return Promise.resolve(null);
+
+      const key = `${colId} ${aggregate} ${JSON.stringify(lastRootRequest.filterModel ?? null)}`;
+      const cached = scalars.get(key);
+      if (cached) return cached;
+
+      const value = views
+        .aggregateScalar(colId, aggregate, lastRootRequest)
+        .catch(() => null);
+      scalars.set(key, value);
+      return value;
+    },
+
     readAllRows() {
       if (closed) return Promise.resolve(null);
       // The last ROOT request carries the sort and filter the user is looking
@@ -771,6 +836,8 @@ export function createPerspectiveRowEngine(
       listeners.clear();
       counts.clear();
       values.clear();
+      ruleCounts.clear();
+      scalars.clear();
       await views.close();
     },
   };
