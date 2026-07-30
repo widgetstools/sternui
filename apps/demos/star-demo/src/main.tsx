@@ -4,7 +4,9 @@ import { HashRouter, Outlet, Route, Routes } from "react-router-dom";
 import App from "./App";
 import "./index.css";
 import { applyTheme, getTheme } from "@starui/design-system";
+import { installBootWatchdog } from "./bootWatchdog";
 applyTheme(getTheme());
+installBootWatchdog();
 
 import { StarGridApp } from "@starui/app";
 import { BrowserRuntime } from "@starui/host-browser";
