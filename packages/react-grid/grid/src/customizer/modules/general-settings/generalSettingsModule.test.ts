@@ -8,26 +8,13 @@ import {
   CELL_CHANGE_FLASH_CSS_RULE_ID,
 } from './cellChangeFlashCss';
 
-describe('generalSettingsModule.transformColumnDefs', () => {
-  const baseDefs = [
-    { field: 'cusip', headerName: 'CUSIP' },
-    { field: 'midPrice', headerName: 'Mid' },
-  ];
-
-  it('sets enableCellChangeFlash on every column from module state', () => {
-    const off = generalSettingsModule.transformColumnDefs!(
-      baseDefs,
-      { ...INITIAL_GENERAL_SETTINGS, enableCellChangeFlash: false },
-      {} as never,
-    );
-    expect(off.every((d) => d.enableCellChangeFlash === false)).toBe(true);
-
-    const on = generalSettingsModule.transformColumnDefs!(
-      baseDefs,
-      { ...INITIAL_GENERAL_SETTINGS, enableCellChangeFlash: true },
-      {} as never,
-    );
-    expect(on.every((d) => d.enableCellChangeFlash === true)).toBe(true);
+describe('generalSettingsModule cell-change flash wiring', () => {
+  it('defines NO transformColumnDefs — flash rides defaultColDef so colDef identity is preserved', () => {
+    // A per-colDef spread here would clone every colDef on every
+    // transform pass (this module runs first), breaking identity for
+    // the whole pipeline and re-triggering AG-Grid column-state
+    // reconciliation. Guard against it coming back.
+    expect(generalSettingsModule.transformColumnDefs).toBeUndefined();
   });
 
   it('includes enableCellChangeFlash in defaultColDef from transformGridOptions', () => {
@@ -38,6 +25,13 @@ describe('generalSettingsModule.transformColumnDefs', () => {
       ctx,
     );
     expect(opts.defaultColDef?.enableCellChangeFlash).toBe(true);
+
+    const off = generalSettingsModule.transformGridOptions!(
+      {},
+      { ...INITIAL_GENERAL_SETTINGS, enableCellChangeFlash: false },
+      makeCtx(),
+    );
+    expect(off.defaultColDef?.enableCellChangeFlash).toBe(false);
   });
 });
 

@@ -333,12 +333,14 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
     } as unknown as Partial<GridOptions>;
   },
 
-  transformColumnDefs(defs, s) {
-    return defs.map((colDef) => ({
-      ...colDef,
-      enableCellChangeFlash: s.enableCellChangeFlash,
-    }));
-  },
+  // No transformColumnDefs: `enableCellChangeFlash` rides
+  // `defaultColDef` (transformGridOptions above), which AG-Grid merges
+  // into every column. The old per-colDef spread cloned EVERY colDef on
+  // EVERY transform pass — since this module runs first (priority 0),
+  // that broke colDef identity for the whole pipeline on each pass and
+  // re-triggered AG-Grid column-state reconciliation downstream. It
+  // also clobbered any host-set per-column flash override, which the
+  // defaultColDef route correctly leaves in charge.
 
   SettingsPanel: GridOptionsPanel,
 };
