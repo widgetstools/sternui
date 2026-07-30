@@ -39,6 +39,8 @@ import {
 } from './evaluateCellDelta';
 import { createPreviousValuesStore } from './previousValues';
 
+type PartitionedRules = ReturnType<typeof partitionEnabledRules>;
+
 function resolveRowId(node: unknown): string | null {
   if (!node || typeof node !== 'object') return null;
   const candidate = (node as { id?: unknown }).id;
@@ -80,6 +82,25 @@ export function activateAlerts(
 
   let knownRowIds: Set<string> = new Set();
 
+  // Watched-column memo. Rules state is immutable, so a same-reference
+  // rules array yields the same rule-derived set; only the (rare)
+  // all-columns fallback depends on the live column list and is
+  // recomputed per pass.
+  let watchedMemoRules: AlertsState['rules'] | null = null;
+  let watchedMemoCols: Set<string> | null = null;
+  const getWatchedCols = (api: GridApi, rules: AlertsState['rules']): Set<string> => {
+    if (watchedMemoRules === rules && watchedMemoCols) return watchedMemoCols;
+    const { ids, stable } = collectWatchedColIds(api, rules, engine);
+    if (stable) {
+      watchedMemoRules = rules;
+      watchedMemoCols = ids;
+    } else {
+      watchedMemoRules = null;
+      watchedMemoCols = null;
+    }
+    return ids;
+  };
+
   const isEvaluationActive = (): boolean => {
     const settings = platform.getState().settings;
     return settings.enabled && settings.evaluationMode !== 'paused';
@@ -108,7 +129,7 @@ export function activateAlerts(
    */
   const scanNode = (
     node: RowNodeLike,
-    rules: AlertsState['rules'],
+    partitioned: PartitionedRules,
     watchedCols: ReadonlySet<string>,
   ): void => {
     const rowId = resolveRowId(node);
@@ -128,7 +149,8 @@ export function activateAlerts(
         prev,
         next,
         data,
-        rules,
+        dataChange: partitioned.dataChange,
+        relativeChange: partitioned.relativeChange,
         engine,
         dispatcher,
         prevValues,
@@ -158,16 +180,16 @@ export function activateAlerts(
       if (id) { knownRowIds.delete(id); prevValues.deleteRow(id); }
     }
 
-    const { dataChange, relativeChange } = partitionEnabledRules(rules);
-    if (dataChange.length === 0 && relativeChange.length === 0) return;
+    const partitioned = partitionEnabledRules(rules);
+    if (partitioned.dataChange.length === 0 && partitioned.relativeChange.length === 0) return;
     const api = platform.api.api;
     if (!api) return;
-    const watchedCols = collectWatchedColIds(api, rules);
+    const watchedCols = getWatchedCols(api, rules);
     if (watchedCols.size === 0) return;
 
-    for (const node of change.updated) scanNode(node, rules, watchedCols);
+    for (const node of change.updated) scanNode(node, partitioned, watchedCols);
     // New rows: seed baselines so their first subsequent tick compares cleanly.
-    for (const node of change.added) scanNode(node, rules, watchedCols);
+    for (const node of change.added) scanNode(node, partitioned, watchedCols);
   };
 
   /**
@@ -190,12 +212,12 @@ export function activateAlerts(
     for (const id of knownRowIds) if (!next.has(id)) prevValues.deleteRow(id);
     knownRowIds = next;
 
-    const { dataChange, relativeChange } = partitionEnabledRules(rules);
-    if (dataChange.length === 0 && relativeChange.length === 0) return;
-    const watchedCols = collectWatchedColIds(api, rules);
+    const partitioned = partitionEnabledRules(rules);
+    if (partitioned.dataChange.length === 0 && partitioned.relativeChange.length === 0) return;
+    const watchedCols = getWatchedCols(api, rules);
     if (watchedCols.size === 0) return;
     try {
-      api.forEachNode((node) => scanNode(node, rules, watchedCols));
+      api.forEachNode((node) => scanNode(node, partitioned, watchedCols));
     } catch {
       /* grid mid-teardown */
     }
@@ -213,6 +235,7 @@ export function activateAlerts(
     const data = evt.data ?? (node as { data?: Record<string, unknown> }).data ?? {};
     const newValue = evt.newValue;
     const prev = prevValues.get(rowId, colId);
+    const partitioned = partitionEnabledRules(platform.getState().rules);
 
     evaluateCellDelta({
       rowId,
@@ -220,7 +243,8 @@ export function activateAlerts(
       prev: prev ?? evt.oldValue,
       next: newValue,
       data,
-      rules: platform.getState().rules,
+      dataChange: partitioned.dataChange,
+      relativeChange: partitioned.relativeChange,
       engine,
       dispatcher,
       prevValues,
@@ -244,7 +268,7 @@ export function activateAlerts(
         const rules = platform.getState().rules;
         const { dataChange, relativeChange } = partitionEnabledRules(rules);
         if (dataChange.length > 0 || relativeChange.length > 0) {
-          const watchedCols = collectWatchedColIds(api, rules);
+          const watchedCols = getWatchedCols(api, rules);
           if (watchedCols.size > 0) {
             api.forEachNode((node) => {
               const id = resolveRowId(node);
