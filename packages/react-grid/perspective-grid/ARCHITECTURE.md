@@ -818,6 +818,7 @@ it never runs — `getCompiledClientWasm()` is the fix, still outstanding.
 | Quick search (`quickFilterText`) | **done**, 22 tests + 4 engine probes |
 | Excel export of the full book | **done**, 17 tests |
 | Calculated columns as expression columns | **done**, 17 tests + engine probe |
+| Alerts full-book rescan source | **done**, 8 tests |
 | Calculated columns as expression columns | **not started** |
 | Style rules that must materialize worker-side | **not started** |
 | Multi-window timings through the product path | **not measured** |

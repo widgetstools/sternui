@@ -112,6 +112,7 @@ this AG Grid 36 DOM — query `.ag-row`.
 | Quick search compiled to an expression column (`toQuickFilterExpression`) | 22 tests + 4 engine probes; live: `Inflation` 3,369 · `Inflation EMEA` 1,136 with both tokens matching every loaded row · `(` 20,000 instead of a crash · cleared 20,000; 0 failed blocks |
 | Excel export reads the whole book (`readAllRows` + a detached export grid) | 17 tests; live: the grid held **100** rows of 20,000 (what the old export wrote); now 20,000 x 26 read in 547ms, and 6,669 rows all EMEA correctly sorted under a live filter+sort |
 | Calculated columns as Perspective expression columns (`usePerspectiveCalcColumns` + `setCalcExpressions`) | 17 tests + engine probe; live: `currentPrice * quantity` computed in the worker, server-side sort by it, a saved-filter count on it (869 of 20,000), and a broken expression alongside a good one leaving the grid rendering |
+| Alerts full-book rescan source | 8 tests; the leaf fetcher now registers for the Perspective path (backed by `readAllRows`) and the panel's rescan block shows for ANY server-side engine, not just `ssrm`. **Live UI click-through not confirmed** — the collapsed settings section does not open under synthetic clicks |
 
 Also verified live and working: server-side sort and filter, multi-level
 grouping with per-level and grand totals, live re-sort on value change (feed-
@@ -123,21 +124,13 @@ Cut / Copy / Export, status bar, 0 failed blocks throughout.
 
 Effort figures are rough.
 
-### 1. Alerts have no full-book source · ~0.5 d
-
-`registerAlertsSsrmLeafFetcher` is gated on `useSSRM`
-(`widget/useMarketsGridController.ts:287`), so on this path it registers `null`.
-Any alert needing rows beyond the viewport evaluates against nothing, silently.
-`AlertsPanel`'s `=== 'ssrm'` check was deliberately left alone during the
-`engineKind` change and needs revisiting with this.
-
-### 2. Style rules that must materialize worker-side · ~1 d
+### 1. Style rules that must materialize worker-side · ~1 d
 
 ARCHITECTURE assigns rules that are filtered/sorted on, or need cross-row
 context, to the worker as boolean expression columns. Nothing builds them.
 Presentation-only rules already resolve client-side over visible rows and work.
 
-### 3. Master/detail and tree data not wired · niche
+### 2. Master/detail and tree data not wired · niche
 
 Need `isServerSideGroup` / `getServerSideGroupKey` / `detailCellRendererParams`,
 which `CustomSSRMGrid` passes and the Perspective surface does not. Skip unless
