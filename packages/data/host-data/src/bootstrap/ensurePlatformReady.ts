@@ -21,6 +21,7 @@ import {
   runAppDataBootstrap,
   type AppDataBootstrapHookRegistry,
 } from './appDataBootstrap.js';
+import { acquireBackgroundFreezeExemption } from './freezeExemptionLock.js';
 
 export interface EnsurePlatformReadyOpts {
   workerScriptUrl: string;
@@ -123,6 +124,10 @@ export async function ensurePlatformReady(
   opts: EnsurePlatformReadyOpts,
 ): Promise<ResolvedDataServicesHubBundle> {
   validateOrThrow(config);
+
+  // Any window running the data platform is a live-data window and must
+  // not be frozen while hidden/minimized (see freezeExemptionLock.ts).
+  acquireBackgroundFreezeExemption();
 
   const existing = platformPromises.get(config.appId);
   if (existing) return existing;
