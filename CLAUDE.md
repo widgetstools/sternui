@@ -189,7 +189,10 @@ Manifest: `libs/manifest.json` maps `@starui/<bucket>` → tarball +
   `engine` (241), `design-system` (193), `widgets-react` (171).
 - Playwright 1.59 — main suite (`playwright.config.ts`, primary target
   `apps/demos/demo-react`) collects **384 tests across 48 specs**; the
-  container subsuite (`playwright.container.config.ts`) adds **16 across 5**.
+  container subsuite (`playwright.container.config.ts`) adds **16 across 5**;
+  the Perspective subsuite (`playwright.perspective.config.ts`,
+  `npm run e2e:perspective`) adds **7 across 1** and runs against a
+  **production build** plus the STOMP fixture.
   Topology, spec inventory, known-fragile specs, and how to capture a fresh
   pass/fail baseline live in [`docs/E2E_STATUS.md`](./docs/E2E_STATUS.md).
 

@@ -14,10 +14,13 @@ _Last inventory: 2026-06-13._
 |---|---|---|---|---|
 | Main | [`playwright.config.ts`](../playwright.config.ts) | **384** | 48 | `npm run e2e` |
 | Container | [`playwright.container.config.ts`](../playwright.container.config.ts) | **16** | 5 (`container-*.spec.ts`) | `npm run e2e:container` |
+| Perspective | [`playwright.perspective.config.ts`](../playwright.perspective.config.ts) | **7** | 1 (`perspective-*.spec.ts`) | `npm run e2e:perspective` |
 | OpenFin | [`e2e-openfin/playwright.config.ts`](../e2e-openfin/playwright.config.ts) | 4 spec files | 4 | `npm run e2e:openfin` (OpenFin runtime only) |
 
 The main config sets `testIgnore: 'container-*.spec.ts'`, so the 53 spec
-files under `e2e/` split into **48 main + 5 container**. Counts above are
+files under `e2e/` split into **48 main + 5 container**, plus
+`perspective-surface.spec.ts` which only the Perspective config matches.
+Counts above are
 what `playwright test --list` collects, the authoritative figure (a single
 spec file can hold many `test()` blocks).
 
@@ -111,7 +114,16 @@ npm run e2e -- --reporter=line
 
 # 3. Container suite (separate config + mock host on :5215):
 npm run e2e:container -- --reporter=line
+
+# 4. Perspective suite (production build + the STOMP fixture on :8081):
+#    Slower than the others by design — it BUILDS the demo first, because the
+#    dev server's module count plus a 5 MB engine chunk can stop the page
+#    loading at all. ~1.2 min once the build is warm.
+npm run e2e:perspective -- --reporter=line
 ```
+
+**Perspective suite baseline (2026-07-30): 7 passed / 0 failed**, green on two
+consecutive runs.
 
 Record the resulting `N passed / M failed` here and update the baseline in
 [`CLAUDE.md`](../CLAUDE.md) in the same change. Per repo policy, never commit

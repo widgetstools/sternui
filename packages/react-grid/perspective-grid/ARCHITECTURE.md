@@ -1010,7 +1010,7 @@ it never runs — `getCompiledClientWasm()` is the fix, still outstanding.
 | Style rules that must materialize worker-side | **done**, 28 tests + 4 engine probes |
 | Tree data + master/detail | **done**, 24 tests; new API, not parity |
 | Multi-window timings through the product path | **not measured** |
-| e2e spec for the Perspective surface | **not started** |
+| e2e spec for the Perspective surface | **done**, 7 tests (`npm run e2e:perspective`) |
 
 `MarketsGrid` now has three surfaces: CSRM, the hand-rolled `CustomSSRMGrid`,
 and `PerspectiveMarketsGridSurface`. `rowModel: 'client' | 'server' |
@@ -1081,4 +1081,9 @@ names and nothing has built:
 - **`StompProviderConfig` cannot send request headers**, so an app only ever
   gets the broker's default 20,000-row sweep, never the sparse profile the
   probes used.
-- **No e2e spec** covers the Perspective surface.
+- **The e2e spec is done** — `e2e/perspective-surface.spec.ts`, 7 tests on a
+  production build against the live STOMP book. It closed the whole "unverified"
+  list: formatting-toolbar actions apply AND persist across a reload, Auto
+  Format re-applies the catalog, and the alerts full-book rescan reaches its
+  handler. Still uncovered there: the editing toolbar, smart edit and bulk
+  update end to end.

@@ -12,6 +12,14 @@ The suite has grown well past its original handful of specs. As of
 - **Container suite** (`playwright.container.config.ts`, the
   `container-*.spec.ts` files excluded from the main config) — **16 tests
   across 5 specs**, run with `npm run e2e:container`.
+- **Perspective suite** (`playwright.perspective.config.ts`, the
+  `perspective-*.spec.ts` files) — **7 tests across 1 spec**, run with
+  `npm run e2e:perspective`. Isolated because this surface needs a
+  **production build** (the dev server's module count plus a 5 MB engine chunk
+  can stop the page loading at all), an external STOMP book that takes ~18 s to
+  arrive, and **one worker** — every window shares one worker-held Table and
+  the Perspective SharedWorker survives page reloads, so parallel workers
+  contend for the same engine.
 
 `e2e/helpers/settingsSheet.ts` provides the shared harness
 (`bootCleanDemo`, `openPanel`, `forceNavigateToPanel`, `closeSettingsSheet`).

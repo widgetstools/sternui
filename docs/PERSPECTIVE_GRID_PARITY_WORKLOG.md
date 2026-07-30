@@ -213,32 +213,54 @@ surface now answers it correctly and CSRM still does not — a divergence, in th
 direction of correct. Either bring CSRM up to it or decide the divergence is
 wanted; today it is neither, just noted.
 
-## Unverified — may or may not be gaps
+## ~~Unverified~~ — CLOSED by the e2e spec
 
-- **Formatting toolbar button actions.** The buttons now enable correctly
-  (matching the control), but that clicking one applies and persists is unproven
-  — and unproven on CSRM too, because synthetic clicks do not drive those
-  handlers on either surface. Needs a real click or an e2e spec.
-- **Editing toolbar, smart edit, bulk update end to end.** The plumbing is
-  verified and coalesced; the toolbars themselves are not.
+`e2e/perspective-surface.spec.ts` (`npm run e2e:perspective`) — **7 tests, green
+twice in a row**. Playwright drives real input, which is the one thing that
+could settle these; every item here had failed for the same reason and it was
+never the feature.
+
+- **Formatting toolbar button actions — VERIFIED.** Bold applies `font-weight`
+  700, Right applies `text-align: right`, and a change **survives a reload**,
+  which is the claim that actually matters for a blotter and was the weaker of
+  the two.
+- **Auto Format — VERIFIED**, as a *restore*. Two wrong premises had to go
+  first: the demo's numeric columns already carry the catalog's format on load,
+  so a bare click has nothing to change; and AG virtualises columns, so at the
+  default viewport only the seven leading TEXT columns are in the DOM and no
+  numeric column is measurable at all. The spec widens the viewport to the
+  grid's full 5,050 px, breaks one column's alignment through the toolbar, and
+  requires Auto Format to put it back.
+- **Alerts full-book rescan — VERIFIED.** The collapsed settings band DOES open
+  under a real click, the full-book block is offered (so the
+  `isServerSideEngine` gating works here), and the button reaches its handler
+  and answers. The count is legitimately 0: `seedAlertBaselinesFromRows`
+  returns early with no enabled dataChange/relativeChange rule and this demo
+  seeds none.
+- **Editing toolbar, smart edit, bulk update end to end.** Still not covered —
+  the plumbing is verified and coalesced, the toolbars are not. The spec is now
+  the place to add it.
+
+Two traps the spec had to encode, both of which cost time:
+
+- **`.ag-body-viewport .ag-row` and `.ag-center-cols-container .ag-cell` match
+  ZERO elements** in this AG Grid 36 DOM. The shared demo specs use those forms
+  and would hang here forever. Query `.ag-row` / `.ag-cell`; the element that
+  scrolls is `.ag-grid-viewport`.
+- **`v2-settings-nav-alerts` is a 1×1 px `opacity-0` shim** sitting under the
+  settings sheet header, so clicking it is intercepted forever. The real path is
+  the group trigger (`v2-settings-nav-group-styling`) then the menu item it
+  reveals (`v2-settings-nav-menu-alerts`). The sheet's nav also needs a viewport
+  taller than 800 px or it is clipped under its own header.
 
 ## Engineering debt, not parity
 
-Ordered. The e2e spec is first on purpose: it is the only thing that can close
-the "Unverified" section above, because every item there failed for the same
-reason — synthetic clicks do not drive the real controls, on EITHER surface.
+Ordered. **The e2e spec is done** — see the closed section above; what remains:
 
 - **Multi-window timings on the product path are unmeasured.** The whole
   2nd/3rd-blotter thesis (414 ms vs 1135 ms) is measured only in the harness.
 - **`getCompiledClientWasm()`** — every window still carries the whole inline
   build (~5 MB), including the server wasm it never runs.
-- **No e2e spec** covers the Perspective surface — do this FIRST of the debt
-  items. A Playwright spec drives real clicks, which is exactly what the
-  unverified items need: the formatting-toolbar buttons, the auto-formatter, and
-  the alerts "Rescan full book" button (whose settings section will not even
-  expand under a synthetic click). `e2e/` already has the harness conventions;
-  the container subsuite (`playwright.container.config.ts`) is the closest
-  existing shape.
 - **`StompProviderConfig` cannot send request headers**, so an app only ever
   gets the broker's default 20,000-row sweep, never the sparse profile the
   probes used. Until then the pull path is measured against a feed shape no
