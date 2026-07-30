@@ -41,6 +41,7 @@ export class RowChangeBus implements RowChangeSignal {
   private readonly pendingRemoved = new Map<string, IRowNode>();
   private sawFlush = false;
   private sawStructural = false;
+  private sawExplicitStructural = false;
 
   constructor(private readonly api: ApiHub) {}
 
@@ -56,6 +57,16 @@ export class RowChangeBus implements RowChangeSignal {
     this.disposers.push(this.api.on('asyncTransactionsFlushed', (e) => this.onFlushed(e)));
     this.disposers.push(this.api.on('rowDataUpdated', () => this.onStructural()));
     this.disposers.push(this.api.on('modelUpdated', () => this.onStructural()));
+    // Sort / filter are DEFINITE structural changes and never fire from
+    // a transaction flush — track them separately so a sort/filter that
+    // lands in the same coalescing window as a streaming flush still
+    // classifies the emit as `full`. With the flush-only heuristic
+    // below, a user sorting a live blotter (10-40 flushes/sec) had a
+    // real chance of the structural pass being silently skipped —
+    // subscribers' liveness pruning / repaints then ran against a stale
+    // visible-row set until the next structural event.
+    this.disposers.push(this.api.on('sortChanged', () => this.onExplicitStructural()));
+    this.disposers.push(this.api.on('filterChanged', () => this.onExplicitStructural()));
   }
 
   /** Tear down listeners + any pending emit. Called by GridPlatform.destroy(). */
@@ -91,7 +102,16 @@ export class RowChangeBus implements RowChangeSignal {
     // `modelUpdated` / `rowDataUpdated` fire after a flush too — only treat the
     // frame as a `full` (structural) change when NO flush carried a delta. A
     // pure sort / filter / setRowData lands here with no preceding flush.
+    // (Sort/filter coinciding WITH a flush is covered by the explicit
+    // listeners; a `setRowData` replace coinciding with a flush in the same
+    // window remains delta-classified — the reload path that produces that
+    // shape resets its downstream state explicitly.)
     this.sawStructural = true;
+    this.schedule();
+  }
+
+  private onExplicitStructural(): void {
+    this.sawExplicitStructural = true;
     this.schedule();
   }
 
@@ -109,7 +129,7 @@ export class RowChangeBus implements RowChangeSignal {
   }
 
   private flush(): void {
-    const full = this.sawStructural && !this.sawFlush;
+    const full = this.sawExplicitStructural || (this.sawStructural && !this.sawFlush);
     const change: RowChange = {
       added: [...this.pendingAdded.values()],
       updated: [...this.pendingUpdated.values()],
@@ -129,5 +149,6 @@ export class RowChangeBus implements RowChangeSignal {
     this.pendingRemoved.clear();
     this.sawFlush = false;
     this.sawStructural = false;
+    this.sawExplicitStructural = false;
   }
 }

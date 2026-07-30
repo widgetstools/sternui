@@ -107,6 +107,7 @@ export type ApiEventName =
   | 'firstDataRendered'
   | 'modelUpdated'
   | 'rowDataUpdated'
+  | 'sortChanged'
   | 'asyncTransactionsFlushed'
   | 'rowValueChanged';
 

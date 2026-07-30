@@ -87,6 +87,37 @@ describe('RowChangeBus', () => {
     expect(got[0].updated).toHaveLength(0);
   });
 
+  it('a sort/filter coinciding with a flush in the same window still classifies as full', async () => {
+    const hub = new ApiHub();
+    const { api, fire } = makeFakeApi();
+    hub.attach(api);
+    const bus = new RowChangeBus(hub);
+    bus.start();
+    const got: RowChange[] = [];
+    bus.subscribe((c) => got.push(c));
+
+    // Streaming flush AND a user sort land in one coalescing window —
+    // the flush-only heuristic used to classify this as a mere delta,
+    // silently skipping subscribers' structural (liveness-pruning)
+    // pass against the re-sorted/re-filtered row set.
+    fire('asyncTransactionsFlushed', flushResult([{ id: 'a', data: { x: 1 } }]));
+    fire('sortChanged');
+    fire('modelUpdated');
+    await nextFrame();
+
+    expect(got).toHaveLength(1);
+    expect(got[0].full).toBe(true);
+    // The delta still rides along for subscribers that want it.
+    expect(got[0].updated.map((n) => n.id)).toEqual(['a']);
+
+    // A later plain flush goes back to delta classification.
+    fire('asyncTransactionsFlushed', flushResult([{ id: 'b', data: { x: 2 } }]));
+    fire('modelUpdated');
+    await nextFrame();
+    expect(got).toHaveLength(2);
+    expect(got[1].full).toBe(false);
+  });
+
   it('stops emitting and detaches listeners after dispose', async () => {
     const hub = new ApiHub();
     const { api, fire, listenerCount } = makeFakeApi();

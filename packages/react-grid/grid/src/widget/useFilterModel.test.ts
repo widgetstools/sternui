@@ -110,17 +110,23 @@ describe('useFilterModel — subscription lifecycle', () => {
     const fake = makeFakeApi();
     platform.onGridReady(fake.api);
 
+    // The PLATFORM itself holds filterChanged listeners past hook
+    // unmount (RowChangeBus structural classification) — the contract
+    // under test is that the HOOK's own listener is added and removed,
+    // so compare against the platform baseline, not absolute zero.
+    const baseline = fake.listenerCount('filterChanged');
+
     const { unmount } = renderHook(() => useFilterModel(), { wrapper: wrapper(platform) });
 
     // ApiHub.on('filterChanged', …) forwards to api.addEventListener.
-    expect(fake.listenerCount('filterChanged')).toBeGreaterThanOrEqual(1);
+    expect(fake.listenerCount('filterChanged')).toBe(baseline + 1);
 
     unmount();
 
     // ApiHub.detach disposes via removeEventListener — but it's only
     // called when the platform tears down. The hook's own effect cleanup
     // should also remove its listener.
-    expect(fake.listenerCount('filterChanged')).toBe(0);
+    expect(fake.listenerCount('filterChanged')).toBe(baseline);
   });
 
   it('does not throw when the platform has no grid api yet', () => {
