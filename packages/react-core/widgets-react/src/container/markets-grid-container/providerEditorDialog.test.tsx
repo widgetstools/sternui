@@ -25,6 +25,9 @@ vi.mock('./openFinRuntime.js', () => ({
 
 const lastMarketsGridProps: { current: any } = { current: null };
 vi.mock('@starui/grid', () => ({
+  // The pull path is off in these tests; the container still calls both.
+  resolvePerspective: (opts: { rowModel?: string }) => opts.rowModel === 'perspective',
+  usePerspectiveTable: () => ({ table: null, tableName: null, status: 'idle' }),
   resolveUseSsrm: (opts: { useSSRM?: boolean; rowModel?: 'client' | 'server' }) =>
     opts.useSSRM !== undefined ? Boolean(opts.useSSRM) : opts.rowModel === 'server',
   useGeneralSettingsSnapshot: () => undefined,

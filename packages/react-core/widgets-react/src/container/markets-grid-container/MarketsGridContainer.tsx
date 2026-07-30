@@ -24,7 +24,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, GridApi } from 'ag-grid-community';
-import { MarketsGrid, useGeneralSettingsSnapshot, resolveUseSsrm } from '@starui/grid';
+import {
+  MarketsGrid,
+  useGeneralSettingsSnapshot,
+  resolveUseSsrm,
+  resolvePerspective,
+  usePerspectiveTable,
+} from '@starui/grid';
 import { isHistoricalToolbarDate } from '@starui/grid/customizer';
 import type { MarketsGridProps, MarketsGridHandle, StorageAdapterFactory, ProviderGridHostApi, GridEventBindingsHostApi, MarketsGridEventHandlerRegistry, MarketsGridHandlerMeta } from '@starui/grid';
 import {
@@ -511,6 +517,31 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     rowModel: marketsGridProps.rowModel,
   });
 
+  // ── Perspective pull path ────────────────────────────────────────
+  //
+  // The book lives once in the worker as the provider's Table; this window
+  // opens a View and reads only the blocks its viewport asks for. Nothing
+  // else about the container changes — same catalog row, same column defs,
+  // same toolbar and profiles — because only the row supply moves.
+  const perspective = resolvePerspective({ rowModel: marketsGridProps.rowModel });
+  const {
+    table: perspectiveTable,
+    status: perspectiveStatus,
+    reason: perspectiveReason,
+  } = usePerspectiveTable(dataHubClient, perspective ? activeId : null, {
+    enabled: perspective,
+  });
+
+  // A provider with no Table is a real answer, not a failure to wait out —
+  // say so once rather than leave a grid that will never fill.
+  useEffect(() => {
+    if (perspectiveStatus === 'unavailable' || perspectiveStatus === 'error') {
+      (onError ?? defaultOnError)(
+        new Error(`[perspective] ${perspectiveReason ?? 'no Table for this provider'}`),
+      );
+    }
+  }, [perspectiveStatus, perspectiveReason, onError]);
+
   // Drop previous book when the provider/key identity changes (SSRM remount key).
   useEffect(() => {
     setSsrmSnapshotRows(null);
@@ -572,7 +603,13 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // disables cell editing until status returns to ready.
   const [providerDisconnected, setProviderDisconnected] = useState(false);
   const [disconnectDetail, setDisconnectDetail] = useState<string | undefined>();
-  const isLoadingSnapshot = subscriptionKey !== null && subscriptionKey !== resolvedSubKey;
+  // On the pull path there is no snapshot to wait for: the Table already
+  // exists (built from the provider's declared fields) and the grid paints as
+  // soon as it is attached. Keeping the snapshot gate would park the overlay
+  // over a working blotter forever, since nothing ever resolves the sub key.
+  const isLoadingSnapshot = perspective
+    ? perspectiveStatus === 'attaching'
+    : subscriptionKey !== null && subscriptionKey !== resolvedSubKey;
   const showLoadingOverlay = isLoadingSnapshot || isRefetching || isSavingProfile;
 
   const dataStaleMessage = disconnectDetail
@@ -630,7 +667,10 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   useProviderDataWiring<TData>({
     liveApi,
-    provider,
+    // Null on the pull path: this window consumes no push rows at all. The
+    // provider is still started — `attachPerspective` starts it hub-side —
+    // so a blotter opens without needing a push subscriber first.
+    provider: perspective ? null : provider,
     activeId,
     subscriptionKey,
     rowIdField,
@@ -954,6 +994,17 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
             {...(marketsGridProps as MarketsGridProps<TData>)}
             key={`${activeId}::${rowIdFieldKey}`}
             rowData={(useSSRM ? (ssrmSnapshotRows ?? EMPTY) : EMPTY) as TData[]}
+            // `null` while attaching, and it must stay `null`: MarketsGrid
+            // reads `null` as "asked for, not ready yet" and holds the grid
+            // slot empty, while `undefined` means "not using this seam" and
+            // falls through to CSRM. Collapsing the two with `?? undefined`
+            // mounted a throwaway CSRM grid for the length of the attach,
+            // whose teardown destroyed the GridPlatform — see
+            // `resolveGridSurface`.
+            perspectiveTable={perspective ? perspectiveTable : undefined}
+            perspectiveKeyColumn={
+              typeof rowIdField === 'string' ? rowIdField : undefined
+            }
             rowIdField={rowIdField}
             columnDefs={columnDefs}
             appData={appDataLookup}
