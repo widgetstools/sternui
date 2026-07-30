@@ -359,7 +359,9 @@ export function createWorkspacePersistenceOverride(
 
       async createWindow(payload: any, identity?: any): Promise<any> {
         const shared = this.legacySharedAffinity();
-        const windowOptions = (payload as { windowOptions?: { layout?: unknown } })?.windowOptions;
+        const windowOptions = (
+          payload as { windowOptions?: { layout?: unknown; backgroundThrottling?: boolean } }
+        )?.windowOptions;
         stripLegacyViewIsolationFromLayout(payload?.layout, shared);
         stripLegacyViewIsolationFromLayout(windowOptions?.layout, shared);
         disableBackgroundThrottlingInLayout(payload?.layout);
