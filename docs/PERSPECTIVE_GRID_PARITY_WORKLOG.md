@@ -6,7 +6,7 @@ View-lifecycle rules live in
 [`packages/react-grid/perspective-grid/ARCHITECTURE.md`](../packages/react-grid/perspective-grid/ARCHITECTURE.md);
 this file is the task list and the verification record.
 
-**Branch:** `feat/perspective-grid` · **Last verified:** 2026-07-29
+**Branch:** `feat/perspective-grid` · **Last verified:** 2026-07-30
 
 **The unifying pattern.** The row engine is done. Every remaining gap is one
 instance of the same thing: *code that assumed the client holds the whole book*.
@@ -69,6 +69,16 @@ this AG Grid 36 DOM — query `.ag-row`.
 - **The broker is slow and erratic.** A cold snapshot takes 18 s–2 min and
   sometimes wedges. Check the hub before concluding anything is broken.
 
+### Decisions taken
+
+- **Set-filter value lists are all-or-nothing, ceiling 50,000.** CSRM shows
+  every distinct value — AG virtualises the list and offers a mini-filter — so
+  a lower cap would itself be a parity gap; `positionId` really does return
+  20,000 and works. Above the ceiling `distinctValues` answers null and the
+  filter is left EMPTY with one warning, because a truncated list has no "there
+  are more" affordance: it renders as the whole domain and its Select All
+  silently excludes the rest.
+
 ## Done
 
 | item | evidence |
@@ -78,6 +88,7 @@ this AG Grid 36 DOM — query `.ag-row`.
 | Saved-filter count badges (`engine.countMatching`) | 18 tests; live: 6,664 ∧ 10,102 → 3,363, unmappable → `null`, `liveViews` unchanged |
 | Cell edits → `table.update()` | 18 tests; live: edit reached the worker-held Table |
 | **One grid per platform** (`resolveGridSurface`) — the root cause behind a dead formatting toolbar, auto-formatter, saved-filter "+" and profiles | 6 tests; live: `apiAttached`/`mountedGrid` true, profile round-trip restores hidden column + sort with the top row at the true maximum |
+| Set-filter value lists from the Table (`distinctValues` + `withPerspectiveSetFilterValues`) | 25 tests; live: `region` 3 · `desk` 8 · `instrumentType` 20 · `positionId` **20,000**; selecting a value filtered to 6,664 of 20,000 with 0 failed blocks, and the saved-filter pill it enabled reads `region: Americas 6664` |
 
 Also verified live and working: server-side sort and filter, multi-level
 grouping with per-level and grand totals, live re-sort on value change (feed-
@@ -89,22 +100,7 @@ Cut / Copy / Export, status bar, 0 failed blocks throughout.
 
 Effort figures are rough.
 
-### 1. Set-filter values are empty — blocking, largest gap · ~0.5 d
-
-`getFilterKeys()` returns `[]` on every column, so column filter menus are
-unusable and no saved-filter pill can be created — which makes the count badges
-above unreachable in practice. CSRM derives the list from client rows;
-`CustomSSRMGrid` rewires `filterParams.values` with an async provider
-(`packages/react-grid/ssrm-grid/src/custom/columnOverride.ts`, `getFilterValues`).
-The Perspective surface does neither.
-
-Answerable from a `group_by` View on the column. **Open decision: the
-cardinality cap** — `positionId` has 20,000 distinct values, and a silently
-truncated value list is the same class of confidently-wrong answer this path
-keeps producing. Options: cap and omit the list above it, or cap and log the
-truncation.
-
-### 2. Quick search does nothing — blocking · ~0.5 d
+### 1. Quick search does nothing — blocking · ~0.5 d
 
 `widget/QuickSearch.tsx` calls `api.setGridOption('quickFilterText', …)`, which
 AG Grid implements for the **client-side row model only**. `CustomSSRMGrid`
@@ -113,14 +109,14 @@ works around it by putting `quickFilterText` + parsed tokens on the grid
 no `quickFilterText` reference at all, so typing in the box is a no-op. Maps
 onto a Perspective `contains` clause across string columns.
 
-### 3. Excel export exports the wrong rows — blocking · ~0.5 d
+### 2. Excel export exports the wrong rows — blocking · ~0.5 d
 
 `customizer/modules/visual-excel/exportVisualExcel.ts` calls
 `api.exportDataAsExcel()`, which under a server row model only sees the loaded
 block cache. The user gets a few hundred rows instead of 20,000, with no
 warning. Needs a full-book read through a View.
 
-### 4. Calculated columns are absent — blocking · ~1 d
+### 3. Calculated columns are absent — blocking · ~1 d
 
 The `expressions` map is plumbed through `toPerspectiveViewConfig` and
 expression columns are verified sortable, filterable and groupable, but nothing
@@ -130,7 +126,7 @@ produces a `perspectiveExpression` plan (one of its cases is in the
 pre-existing failing set). Also the first thing to check if sort or filter ever
 misbehaves: a column absent from the Table cannot be sorted server-side.
 
-### 5. Alerts have no full-book source · ~0.5 d
+### 4. Alerts have no full-book source · ~0.5 d
 
 `registerAlertsSsrmLeafFetcher` is gated on `useSSRM`
 (`widget/useMarketsGridController.ts:287`), so on this path it registers `null`.
@@ -138,13 +134,13 @@ Any alert needing rows beyond the viewport evaluates against nothing, silently.
 `AlertsPanel`'s `=== 'ssrm'` check was deliberately left alone during the
 `engineKind` change and needs revisiting with this.
 
-### 6. Style rules that must materialize worker-side · ~1 d
+### 5. Style rules that must materialize worker-side · ~1 d
 
 ARCHITECTURE assigns rules that are filtered/sorted on, or need cross-row
 context, to the worker as boolean expression columns. Nothing builds them.
 Presentation-only rules already resolve client-side over visible rows and work.
 
-### 7. Master/detail and tree data not wired · niche
+### 6. Master/detail and tree data not wired · niche
 
 Need `isServerSideGroup` / `getServerSideGroupKey` / `detailCellRendererParams`,
 which `CustomSSRMGrid` passes and the Perspective surface does not. Skip unless
@@ -178,5 +174,5 @@ pipeline untouched — **unverified**.
 
 This list comes from code reading plus live measurement, not an exhaustive
 audit of every customizer module. Only the modules the toolbars touch have been
-traced; expect one or two more of the same species (item 5 was found exactly
-that way).
+traced; expect one or two more of the same species (the alerts item was found
+exactly that way).
