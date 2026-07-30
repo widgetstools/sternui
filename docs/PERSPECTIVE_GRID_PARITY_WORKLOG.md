@@ -129,7 +129,10 @@ this AG Grid 36 DOM — query `.ag-row`.
 | `NOT` no longer compiles to Perspective's `not()`, which does not exist | 3 tests + 2 engine probes; affected calculated columns on BOTH server-side paths. Nested in `and`/`or`/`if` it validates clean and evaluates wrong, so the pre-flight check could not catch it |
 | Style rules answered by the worker (`countMatchingExpression` + `aggregateScalar`) | 28 tests + 4 engine probes; live: a rule matching **1 row of 20,000** at a threshold no loaded block reaches lights the header, an impossible rule leaves it unlit, counts exactly match a JS pass over the same book (10,000 unfiltered · 3,339 under `region = EMEA` of 6,669 · 10,000 on clear), 25 counts in 31 ms against 169 ms uncached, live Views unchanged, 0 failed blocks |
 
-Also verified live and working: server-side sort and filter, multi-level
+Also verified live and working: row selection (3 nodes selected and cleared
+through the api), integrated charts (`createRangeChart` → 1 chart model, 1
+`.ag-chart`), pagination (201 pages navigable, rows render, 0 failed blocks —
+see the one-row note below), server-side sort and filter, multi-level
 grouping with per-level and grand totals, live re-sort on value change (feed-
 and edit-driven, DOM and row model, matching ground truth), density, row
 height, column hide/move/reorder, right-click Settings / Remove from Grid /
@@ -139,13 +142,55 @@ Cut / Copy / Export, status bar, 0 failed blocks throughout.
 
 Effort figures are rough.
 
-### 1. Master/detail and tree data not wired · niche
+### 1. Master/detail and tree data — NOT a parity gap · awaiting a decision
 
-Need `isServerSideGroup` / `getServerSideGroupKey` / `detailCellRendererParams`,
-which `CustomSSRMGrid` passes and the Perspective surface does not. Skip unless
-required. Pagination, row selection and charts are *not* in
-`PERSPECTIVE_SURFACE_OWNED_KEYS`, so they should pass through the module
-pipeline untouched — **unverified**.
+**MarketsGrid does not expose `masterDetail` or `treeFields` on ANY surface,
+CSRM included.** They are `CustomSSRMGrid` props — the hand-rolled surface that
+was discarded as buggy — and `MarketsGridProps` has neither. So wiring them into
+the Perspective surface is not restoring parity with the CSRM grid; it is adding
+new public API to MarketsGrid that the CSRM twin also lacks. That is the fact
+that should decide it, and it was not visible from the earlier code read.
+
+Cost if it is wanted anyway:
+
+- **Master/detail · ~0.5 d.** The surface takes a `masterDetail` prop and passes
+  `masterDetail` / `isRowMaster` / `detailCellRendererParams` (none are in
+  `PERSPECTIVE_SURFACE_OWNED_KEYS`, so nothing is stripping them — nothing
+  supplies them). Detail rows need one new engine operation: read the book's
+  rows matching a set of field values, which is a transient filtered View and
+  close kin to `countMatchingExpression`. `CustomSSRMGrid` gets them from its
+  mirror engine (`getDetailRows`), which does not exist here. Low risk — it
+  reuses proven machinery.
+- **Tree data · ~1–1.5 d.** Needs `isServerSideGroup` / `getServerSideGroupKey`
+  plus rows carrying a group flag and a tree key. `toPerspectiveGroupLevel`
+  already maps AG's one-level-at-a-time pull onto `group_by` + ancestor filter
+  clauses, which is the shape treeData wants, so the row engine is most of the
+  way there — but a self-referencing hierarchy (parent id → child id) is a
+  different query from `group_by` over columns, and `CustomSSRMGrid`'s
+  `treeFields` is really just fixed-order grouping. Higher risk, mostly in
+  deciding which of the two it should mean.
+
+### Verified: pagination, row selection and charts DO pass through
+
+Measured live on the 20,000-row book, with the CSRM twin alongside.
+
+- **Row selection — passes through, works.** The pipeline already supplies
+  `rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true }`
+  and it arrives identically on both surfaces. Selecting three nodes gave
+  `getSelectedRows().length === 3`; `deselectAll()` cleared it.
+- **Charts — pass through, work.** `enableCharts` sets, `createRangeChart` over
+  a 20-row × 2-column range built a chart: 1 chart model, 1 `.ag-chart` in the
+  DOM, 0 failed blocks.
+- **Pagination — passes through and works, with a one-row discrepancy.** 201
+  pages against the control's 200, and `paginationGetRowCount()` reads **20,001**
+  against 20,000. The cause is measured, not inferred: turning `grandTotalRow`
+  off drops it to exactly 20,000 / 200 pages and turning it back on restores
+  20,001. **AG counts the SSRM grand-total row as a store row**, where on the
+  client-side row model the same `grandTotalRow: 'pinnedBottom'` sits outside
+  the row model entirely. The datasource reports the exact 20,000 and
+  `getDisplayedRowCount()` is 20,000; only the store count and pagination see
+  the extra row. Left as a recorded divergence rather than chased — pagination
+  is off by default here, and the fix would be working around AG internals.
 
 ### Open decision left by the style-rule work
 
