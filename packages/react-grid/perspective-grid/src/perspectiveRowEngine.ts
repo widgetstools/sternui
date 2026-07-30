@@ -87,6 +87,12 @@ export interface PerspectiveRowEngineOpts {
    * CSRM behaviour, which searches every column's formatted value.
    */
   quickFilterAllColumns?: boolean;
+  /**
+   * Ceiling on an export. Above it `readAllRows` answers null rather than a
+   * short file, because an export that stopped early is indistinguishable from
+   * a complete one once it is open in Excel.
+   */
+  maxExportRows?: number;
   /** Coalesce cell edits made within this window into one Table write. */
   editFlushMs?: number;
   onEvent?(event: ViewManagerEvent): void;
@@ -166,6 +172,15 @@ export interface PerspectiveRowEngine {
    */
   setQuickFilter(text: string): Promise<void>;
   /**
+   * Every row of the current filtered, sorted book, flat — for an export.
+   *
+   * This is the one operation that legitimately wants the whole book, and the
+   * only place on this path that materializes it. Null when the book exceeds
+   * the configured ceiling, so a caller reports that rather than writing a file
+   * that looks complete and is not.
+   */
+  readAllRows(): Promise<Record<string, unknown>[] | null>;
+  /**
    * Persist a committed cell edit into the worker-held Table.
    *
    * Fire and forget — the grid has already painted the new value and the write
@@ -244,6 +259,7 @@ export function createPerspectiveRowEngine(
     valuesMinIntervalMs = 30_000,
     maxSetFilterValues = 50_000,
     quickFilterAllColumns = false,
+    maxExportRows = 200_000,
     editFlushMs = 0,
     onEvent,
     onError,
@@ -629,6 +645,13 @@ export function createPerspectiveRowEngine(
       const value = views.countMatching(filterModel).catch(() => null);
       counts.set(key, value);
       return value;
+    },
+
+    readAllRows() {
+      if (closed) return Promise.resolve(null);
+      // The last ROOT request carries the sort and filter the user is looking
+      // at; grouping is dropped inside, since an export wants leaf rows.
+      return views.readAllRows(lastRootRequest, maxExportRows).catch(() => null);
     },
 
     async setQuickFilter(text) {

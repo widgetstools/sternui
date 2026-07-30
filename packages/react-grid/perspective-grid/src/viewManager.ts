@@ -22,7 +22,7 @@
  * Views": a schema change, new calculated columns, a different Table.
  */
 import { createSafeView, type DeletableView, type SafeView } from './safeView.js';
-import type { PerspectiveViewLike, SsrmRequestLike } from './perspectiveDatasource.js';
+import { columnsToRows, type PerspectiveViewLike, type SsrmRequestLike } from './perspectiveDatasource.js';
 import {
   isFilterModelMappable,
   toGroupColumns,
@@ -113,11 +113,26 @@ export interface ViewManager {
    * row model never sees it.
    */
   setQuickFilter(text: string, columns: readonly string[]): boolean;
+  /**
+   * Every row of the current filtered, sorted book — for an export, which is
+   * the one operation that legitimately wants the whole thing.
+   *
+   * Null when the book is larger than `limit`: an export that silently stopped
+   * short would be taken for a complete one.
+   */
+  readAllRows(
+    request: SsrmRequestLike,
+    limit: number,
+  ): Promise<Record<string, unknown>[] | null>;
   close(): Promise<void>;
 }
 
 /** Constant expression column that gives a FLAT view a grand-total row. */
 const TOTAL_GROUP = '__all__';
+
+/** Rows per read when draining the whole book for an export. One read of
+ *  20,000 x 26 would cross the proxy as a single message. */
+const EXPORT_CHUNK_ROWS = 10_000;
 
 interface Entry {
   key: string;
@@ -446,6 +461,54 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
      * as a complete list and is wrong. Same rule as `countMatching`: no
      * confidently-wrong answers on this path.
      */
+    /**
+     * The whole current book, flat.
+     *
+     * Grouping is deliberately dropped: an export wants the leaf rows in the
+     * order the grid is showing them, not an interleaved group tree. Read in
+     * chunks rather than one call — a single `to_columns` over 20,000 x 26 has
+     * to cross the proxy as one message, and chunking keeps each transfer and
+     * each buffer copy bounded.
+     */
+    async readAllRows(
+      request: SsrmRequestLike,
+      limit: number,
+    ): Promise<Record<string, unknown>[] | null> {
+      if (closed) return null;
+
+      const level = toPerspectiveGroupLevel({
+        ...levelState(request, quick),
+        rowGroupCols: undefined,
+        groupKeys: [],
+      });
+
+      const safe = createSafeView(await table.view(level.config));
+      if (closed) {
+        void safe.close();
+        return null;
+      }
+      transient.add(safe);
+      try {
+        const total = await safe.rows();
+        if (total === null) return null;
+        if (total > limit) return null;
+
+        const rows: Record<string, unknown>[] = [];
+        for (let start = 0; start < total; start += EXPORT_CHUNK_ROWS) {
+          const columns = await safe.read({
+            start_row: start,
+            end_row: Math.min(start + EXPORT_CHUNK_ROWS, total),
+          });
+          if (columns === null) return null;
+          rows.push(...columnsToRows(columns));
+        }
+        return rows;
+      } finally {
+        transient.delete(safe);
+        void safe.close();
+      }
+    },
+
     setQuickFilter(text: string, columns: readonly string[]): boolean {
       const next = (text ?? '').trim();
       if (next === quick.text) return false;

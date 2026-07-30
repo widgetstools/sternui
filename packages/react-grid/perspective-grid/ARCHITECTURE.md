@@ -496,6 +496,36 @@ commit cell by cell, and one proxied round trip per cell is hundreds of worker
 calls for one user action. `close()` flushes before tearing down, so a Table
 swap or an unmount cannot eat the last edit.
 
+## Exporting the whole book
+
+`api.exportDataAsExcel()` can only see the rows in the block cache. MEASURED on
+the live demo: the grid held **100** rows of a 20,000-row book, so the export
+wrote 100 — a short file with nothing to say it was short, which once open in
+Excel is indistinguishable from a complete one. That is the worst shape a bug
+can take on this path.
+
+`readAllRows()` is the one operation that legitimately materializes the book. It
+builds a transient View from the current ROOT request — so the file carries the
+sort, the column filters and the quick search the user is looking at — reads it
+in 10,000-row chunks (a single `to_columns` over 20,000 x 26 would cross the
+proxy as one message) and drops the View. Grouping is deliberately flattened: an
+export wants leaf rows, not an interleaved group tree.
+
+Past `maxExportRows` (200,000) it answers **null** rather than truncating, and
+the caller reports instead of writing a file.
+
+The file itself is still written by AG's own Excel writer, through a **detached
+grid** that never enters the document: same column defs, same column state, but
+client-side and holding every row. That is what keeps the "visual" part —
+formatters, style-rule colours, column order — identical to the screen instead
+of hand-rolling a spreadsheet. It is destroyed in a `finally`, because leaking
+it leaks the book with it. An only-selected export keeps the original path:
+selection lives on the row nodes this grid holds, so it is already complete.
+
+Measured after the fix: 20,000 rows x 26 columns read in **547 ms**; with
+`region = EMEA` and `pnl desc` applied, 6,669 rows, all EMEA, correctly ordered
+— matching the engine's own filtered count.
+
 ## Quick search compiles to an expression column
 
 `QuickSearch` pushes text with `setGridOption('quickFilterText')`, which AG
@@ -743,6 +773,7 @@ it never runs — `getCompiledClientWasm()` is the fix, still outstanding.
 | Toolbars/profiles reaching the platform | **done**, 6 tests — see "One grid per platform" |
 | Set-filter values (column filter menus) | **done**, 25 tests |
 | Quick search (`quickFilterText`) | **done**, 22 tests + 4 engine probes |
+| Excel export of the full book | **done**, 17 tests |
 | Calculated columns as expression columns | **not started** |
 | Style rules that must materialize worker-side | **not started** |
 | Multi-window timings through the product path | **not measured** |

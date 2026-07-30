@@ -618,3 +618,118 @@ describe('distinctValues', () => {
     expect(await views.distinctValues('region', 500)).toBeNull();
   });
 });
+
+describe('readAllRows', () => {
+  function makeBookTable(total: number) {
+    const built: PerspectiveViewConfig[] = [];
+    const reads: { start_row: number; end_row: number }[] = [];
+    const table: PerspectiveTableLike = {
+      view: vi.fn(async (config: PerspectiveViewConfig) => {
+        built.push(config);
+        const view: UpdatableView = {
+          async to_columns(window) {
+            const start = window?.start_row ?? 0;
+            const end = Math.min(window?.end_row ?? 0, total);
+            reads.push({ start_row: start, end_row: end });
+            const n = Math.max(0, end - start);
+            return {
+              positionId: Array.from({ length: n }, (_, i) => `p${start + i}`),
+              pnl: Array.from({ length: n }, (_, i) => start + i),
+            };
+          },
+          async num_rows() {
+            return total;
+          },
+          async delete() {},
+          async on_update() {
+            return 1;
+          },
+        };
+        return view;
+      }),
+    };
+    return { table, built, reads };
+  }
+
+  it('returns every row as an object, in order', async () => {
+    const { table } = makeBookTable(2500);
+    const views = createViewManager({ table });
+
+    const rows = await views.readAllRows({ startRow: 0, endRow: 100 }, 200_000);
+    expect(rows).toHaveLength(2500);
+    expect(rows![0]).toEqual({ positionId: 'p0', pnl: 0 });
+    expect(rows![2499]).toEqual({ positionId: 'p2499', pnl: 2499 });
+  });
+
+  it('reads in chunks — one call for 20,000 rows would cross the proxy at once', async () => {
+    const { table, reads } = makeBookTable(25_000);
+    const views = createViewManager({ table });
+
+    await views.readAllRows({ startRow: 0, endRow: 100 }, 200_000);
+    expect(reads.length).toBeGreaterThan(1);
+    expect(Math.max(...reads.map((r) => r.end_row - r.start_row))).toBeLessThanOrEqual(10_000);
+  });
+
+  it('carries the current sort and filter, so the file matches the screen', async () => {
+    const { table, built } = makeBookTable(10);
+    const views = createViewManager({ table });
+
+    await views.readAllRows(
+      {
+        startRow: 0,
+        endRow: 100,
+        sortModel: [{ colId: 'pnl', sort: 'desc' }],
+        filterModel: { desk: { filterType: 'set', values: ['Rates'] } } as never,
+      },
+      200_000,
+    );
+
+    expect(built.at(-1)!.sort).toEqual([['pnl', 'desc']]);
+    expect(built.at(-1)!.filter).toEqual([['desk', 'in', ['Rates']]]);
+  });
+
+  it('drops grouping — an export wants leaf rows, not a group tree', async () => {
+    const { table, built } = makeBookTable(10);
+    const views = createViewManager({ table });
+
+    await views.readAllRows(
+      { startRow: 0, endRow: 100, rowGroupCols: [{ id: 'desk' }], groupKeys: [] },
+      200_000,
+    );
+
+    expect(built.at(-1)!.group_by).toBeUndefined();
+  });
+
+  it('answers null past the ceiling rather than a short file', async () => {
+    // A file that stopped early is indistinguishable from a complete one once
+    // it is open in Excel.
+    const { table } = makeBookTable(300_000);
+    const views = createViewManager({ table });
+
+    expect(await views.readAllRows({ startRow: 0, endRow: 100 }, 200_000)).toBeNull();
+  });
+
+  it('does not retire the Views the grid is scrolling', async () => {
+    const { table } = makeBookTable(100);
+    const views = createViewManager({ table });
+    await views.getView({ startRow: 0, endRow: 100 });
+    expect(views.liveViews).toBe(1);
+
+    await views.readAllRows({ startRow: 0, endRow: 100 }, 200_000);
+
+    expect(views.liveViews).toBe(1);
+  });
+
+  it('returns null once closed', async () => {
+    const { table } = makeBookTable(10);
+    const views = createViewManager({ table });
+    await views.close();
+    expect(await views.readAllRows({ startRow: 0, endRow: 100 }, 200_000)).toBeNull();
+  });
+
+  it('handles an empty book', async () => {
+    const { table } = makeBookTable(0);
+    const views = createViewManager({ table });
+    expect(await views.readAllRows({ startRow: 0, endRow: 100 }, 200_000)).toEqual([]);
+  });
+});
