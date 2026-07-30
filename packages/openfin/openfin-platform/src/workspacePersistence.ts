@@ -316,12 +316,15 @@ export function createWorkspacePersistenceOverride(
       // stamp a per-view `processAffinity`. An earlier attempt gave every view
       // its own renderer process to spread ten streaming blotters across cores
       // (see docs/openfin-process-isolation.md) — it did cut CPU and memory,
-      // but a view alone in its renderer gets throttled and then frozen by
-      // Chromium once it is hidden, occluded, or merely inactive for a while:
-      // blotters came back blank, unpainted, or with their content lost.
-      // Sharing a renderer with visible views is what keeps a hidden view
-      // scheduled. Do not reintroduce affinity stamping without solving the
-      // background-freeze half first.
+      // but it multiplied per-view process overhead and worsened background
+      // behaviour. NOTE the freeze itself later proved to be PER-WEBCONTENTS,
+      // not per-process: with clean shared affinities, hidden views still
+      // froze (measured — all views stopped answering CDP while the window
+      // was backgrounded). Keeping background views alive is handled by
+      // `backgroundThrottling: false` in the app manifest's
+      // defaultViewOptions / defaultWindowOptions, not by process topology.
+      // Do not reintroduce affinity stamping without re-measuring both
+      // halves (per-process overhead AND per-contents lifecycle).
       //
       // The overrides below do the opposite: pages/workspaces SAVED while
       // the isolation experiment was live carry persisted `view-iso-…`

@@ -40,6 +40,17 @@
 > `createView` / `createWindow` restore paths, so contaminated snapshots
 > self-heal on their next restore. Non-legacy affinities pass through
 > untouched.
+>
+> **Second correction (same day):** the freeze proved to be
+> **per-WebContents, not per-process**. After a clean rebuild with shared
+> affinities, all blotter views still froze while the window was backgrounded
+> (CDP `Runtime.evaluate` stopped answering in every view). "Sharing a
+> renderer with visible content keeps hidden views scheduled" — the revert's
+> original rationale — is wrong: Chromium freezes a hidden view's page
+> regardless of process cohabitation. The working fix is OpenFin's
+> per-contents `backgroundThrottling: false` in the app manifest's
+> `defaultViewOptions` / `defaultWindowOptions` (star-demo carries it).
+> The isolation revert itself remains correct for its cost reasons.
 
 ## TL;DR (as originally written — outcome superseded by the notice above)
 
