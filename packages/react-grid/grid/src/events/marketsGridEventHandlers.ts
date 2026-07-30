@@ -1,5 +1,5 @@
 import type { AppDataLookup } from '@starui/engine';
-import type { ProviderStatus } from '@starui/host-data/runtime';
+import type { ProviderStatus } from '@starui/types';
 import type { MarketsGridHandle } from '../widget/types.js';
 import type { ProviderGridHostMode } from '../customizer/providerGridHost/ProviderGridHostContext.js';
 

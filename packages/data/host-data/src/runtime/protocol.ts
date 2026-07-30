@@ -11,7 +11,7 @@
  * late-joiner race that v1 needed cache replay to patch over.
  */
 
-import type { DataProviderConfig, ProviderConfig, ProviderType } from '@starui/types';
+import type { DataProviderConfig, ProviderConfig, ProviderStatus, ProviderType } from '@starui/types';
 
 // ─── AppData row shape (mirrors AppDataConfig from probes/appdata) ─
 
@@ -87,7 +87,11 @@ export interface ProviderStats {
 
 // ─── Status enum ────────────────────────────────────────────────────
 
-export type ProviderStatus = 'loading' | 'ready' | 'error';
+// Moved to the foundation layer so UI packages (e.g. @starui/grid's
+// event-handler types) can use it without an undeclared dependency on
+// this package's dist — re-exported here so every existing consumer
+// keeps its import path.
+export type { ProviderStatus };
 
 // ─── Client → Worker requests ──────────────────────────────────────
 

@@ -584,6 +584,15 @@ export function validateProviderConfig(config: ProviderConfig): ProviderValidati
 export const COMPOSITE_KEY_SEPARATOR = '-';
 
 /**
+ * Provider lifecycle status as surfaced to subscribers (hub `status`
+ * events, `IDataProvider.onStatus`, grid loading overlays). Lives in
+ * the foundation layer so UI packages can type against it without a
+ * dependency edge on `@starui/host-data` (which re-exports it for its
+ * own consumers).
+ */
+export type ProviderStatus = 'loading' | 'ready' | 'error';
+
+/**
  * Normalize a `keyColumn` config value (single string OR array) into a
  * readonly array of column names. Empty / whitespace-only entries are
  * dropped. Returns `null` when no usable column is configured.
