@@ -113,6 +113,16 @@ export function createHeaderPainter(
     }
 
     const anyRowMatches = (rule: ConditionalRule): boolean => {
+      // Compile ONCE per rule per pass (cache-hit after the first) —
+      // `parseAndEvaluate` per row re-interprets the AST for every one
+      // of up to 20k filtered rows per rule per flush; the compiled
+      // closure is allocation-free per call.
+      let fn: ReturnType<typeof engine.compile>;
+      try {
+        fn = engine.compile(rule.expression);
+      } catch {
+        return false;
+      }
       let match = false;
       api.forEachNodeAfterFilter((node) => {
         if (match) return;
@@ -122,7 +132,7 @@ export function createHeaderPainter(
           rowDiffCache?.get(node as object),
         );
         try {
-          if (engine.parseAndEvaluate(rule.expression, { x: null, value: null, data, columns })) {
+          if (fn({ x: null, value: null, data, columns })) {
             match = true;
           }
         } catch { /* swallow per-row */ }

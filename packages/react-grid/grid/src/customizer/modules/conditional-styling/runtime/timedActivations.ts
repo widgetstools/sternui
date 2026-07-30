@@ -41,6 +41,7 @@ import {
   traceTimed,
 } from './utils';
 import type { TriggerCache } from './triggerCache';
+import { hasHeaderPaintRules } from './headerPainter';
 
 export interface TimedActivationsDeps {
   triggers: TriggerCache;
@@ -514,5 +515,9 @@ function onCellValueChangedHandler(
     }
   }
 
-  deps.evaluate();
+  // Header repaint only when header-paint rules exist — this handler
+  // fires per cellValueChanged (~30/sec under live edit/tick load) and
+  // deps.evaluate() runs the up-to-20k-row header-painter scan; the
+  // other call sites already gate on hasHeaderPaintRules.
+  if (hasHeaderPaintRules(state)) deps.evaluate();
 }
