@@ -698,6 +698,24 @@ lifecycle rules live in the package's `ARCHITECTURE.md`.
   is loaded dynamically — only windows that open a blotter fetch its wasm — and
   the client is described structurally so this package takes no dependency on
   `@starui/host-data`. Attaches are shared and ref-counted per (hub client, provider) with a linger before teardown: React StrictMode double-invokes the mount effect, and closing the frame port on the first cleanup orphaned the Table handle opened over it — it read 0 rows forever while every other client read the full book. Sharing is right on its own terms too, since two blotters on one provider then read over one port. Re-exported from `@starui/grid`
+- `loadPerspectiveClient()` — the window's engine module, loaded once per window
+  and **without the 5 MB inline build**. A window on this path never runs the
+  engine (it holds a Client proxying to the SharedWorker), yet it was importing
+  `@perspective-dev/client/inline`: one 5,070 kB JS chunk carrying both wasm
+  binaries as base64, including the 2,406 kB **server** binary it can never
+  execute. This loads the slim 47.70 kB build and points it at the client wasm
+  as a separate, HTTP-cacheable 521 kB asset. MEASURED on the product path: a
+  blotter window now fetches `perspective-*.js` 46.58 kB + `perspective-js-*.wasm`
+  509.09 kB and **does not fetch the 5,070 kB inline chunk at all**; a second
+  window takes both from cache (0.29 kB over the wire each). Both read the full
+  20,000 rows with 0 failed blocks. `init_server` is handed an EMPTY buffer with
+  stage 0 disabled — `get_server()` throws outright when nothing is registered,
+  but the host ignores the `args[0]` it ends up in, so nothing is ever compiled
+  or run. Falls back to the inline build if the wasm asset is missing (a slow
+  window beats a window with no grid). The vendor's documented
+  `getCompiledClientWasm()` route is NOT used and cannot be: the Module cannot
+  be deserialized outside the SharedWorker's agent cluster — see
+  `perspective-grid/ARCHITECTURE.md`
 
 ---
 

@@ -91,48 +91,80 @@ window keeps the SharedWorker port for control and transfers one end of a fresh
 and a SharedWorker has no visible console, so boot progress is broadcast on the
 control port — without it a stall in the worker is an unexplained blank page.
 
+## What the window loads — and why it is NOT the shared compiled module
+
+A window on this path never runs the engine. It holds a Client that proxies to
+the SharedWorker. Yet every window was importing `@perspective-dev/client/inline`:
+one **5,070 kB** JS chunk carrying both wasm binaries as base64, including the
+2,406 kB **server** binary it can never execute. MEASURED across three windows,
+that chunk is ~900 ms of every window's ~1.1 s open, against 191–315 ms for
+everything the row engine does — the largest single cost on the path.
+
 `getCompiledClientWasm()` returns a structured-cloneable `WebAssembly.Module`,
-so windows 2..N could be handed the already-compiled module by `postMessage` and
-skip both the 5MB transfer and the compile. Every window still imports the
-`inline` build, which carries the **server** wasm it never runs as well as the
-client wasm it does.
+so the obvious fix is to compile once in the worker and `postMessage` it to
+windows 2..N. **That does not work, and cannot be made to.** `loadPerspectiveClient`
+fetches the wasm instead.
 
-### Attempted, reverted, and what it established
+### The probe that settled it
 
-Worth reading before anyone tries again, because most of it is good news and
-the blocker is narrow and specific.
+`harness/wasmshare.html` (`npx vite build`/`preview` the harness, then open
+`/wasmshare.html`). It asks the getter question and the transfer question
+**separately**, because the previous attempt inferred one from the other and got
+both wrong. Each strategy ends at the same assertion — read 20,000 rows from the
+worker-held Table — and reports the bytes its own Worker fetched.
 
-**The pieces all exist and fit.** `@perspective-dev/client` is **47.70 kB**
-against the inline build's **5,070 kB**, and both export `init_client` and
-`getCompiledClientWasm`. The package's own docs give the intended shape
-verbatim: `worker.postMessage({ kind: "init", clientWasm: mod }, [port])`.
+| question | answer |
+|---|---|
+| `getCompiledClientWasm()` in a SharedWorker, before a client exists | **THREW in 2.0 ms** — "client wasm has not been compiled yet" |
+| ditto, after `perspective.worker()` | **RESOLVED in 0.2 ms**, 103 exports |
+| ditto, in a window after its client exists | **RESOLVED in 0.0 ms**, 103 exports |
+| `postMessage` the Module out of the SharedWorker | **REFUSED** — no throw at the sender; the window raised `messageerror` |
 
-**The transfer is not the risk.** MEASURED in a real page: the Module is a
-genuine `WebAssembly.Module` with 103 exports, it survives a `MessageChannel`
-clone, and it survives a **round trip through a dedicated Worker** still
-holding all 103 exports. Structured cloning it is fine.
+**It never blocked the worker's event loop.** It is a variable read — it answers
+`GLOBAL_CLIENT_MODULE`, which `compilerize()` only sets once the client wasm has
+finished compiling, and throws before that. The first attempt called it too
+early. A rejection at 2 ms loses no race with a 1.5 s timeout, it *settles
+first* — so "the `Promise.race` did not rescue it" was evidence of a fast
+rejection, not of a blocked loop. Scope was never the problem either; it works
+in both scopes.
 
-**The blocker is calling it inside the SharedWorker.** With the host exposing
-`compiledClientWasm()` and the hub awaiting it before replying to
-`perspective-attach`, **the attach never replied**: the window loaded neither
-Perspective chunk, rendered 0 rows over a full Table, and logged nothing —
-the exact signature this path keeps producing. Adding a 1.5 s
-`Promise.race` timeout **did not rescue it**, which is the informative part: a
-pending promise would have lost that race, so `getCompiledClientWasm()` is not
-merely slow to settle in a SharedWorker, it appears to block the worker's event
-loop, taking the timer with it.
+**The real blocker is agent clusters, and it is permanent.** A
+`WebAssembly.Module` is structured-cloneable but may not be *deserialized* in a
+different agent cluster. A dedicated Worker shares its owner's cluster — which is
+why the earlier "it survives a round trip through a Worker" result was true and
+proved nothing about this. A SharedWorker is its own cluster, so the Module
+cannot reach a window from one, by any route. No ordering, scope or plumbing
+change affects this.
 
-So the remaining work is not plumbing — the plumbing was written and is
-straightforward. It is finding out whether the compiled module can be obtained
-in a SharedWorker at all: perhaps off the nested engine worker rather than the
-host scope, perhaps eagerly at boot before any attach can wait on it, perhaps
-only from a window. Establish that with a probe FIRST; everything downstream
-already checks out.
+### What is done instead
 
-Sequencing note for whoever picks this up: the worker asset is a prebuilt
-esbuild bundle, so a change to `host-data` source is invisible until
-`npm run build --workspace=@starui/host-data` runs. The first attempt measured
-the unchanged worker for a full cycle before that was spotted.
+Fetching the wasm needs no transfer, so the agent-cluster rule is not in the
+picture. MEASURED in the probe, both reading 20,000 rows from the worker-held
+Table:
+
+| strategy | perspective bytes | worker time |
+|---|---|---|
+| `inline` (before) | 4,951.84 kB | 178.2 ms |
+| `fetch` (now) | 555.67 kB (509.09 wasm + 46.58 JS) | 36.3 ms |
+
+MEASURED again on the product path (`minimal-perspective-table`, production
+build): a blotter window fetches **only** those two chunks and never requests
+the 5,070 kB inline one; a second window takes both from the HTTP cache at
+0.29 kB over the wire each. Both read 20,000 rows, 0 failed blocks. The inline
+build stays in the bundle as a fallback chunk — emitted, not fetched.
+
+One consequence worth knowing: the slim build's `get_server()` **throws** when
+nothing was registered, so `loadPerspectiveClient` hands `init_server` an EMPTY
+buffer with stage 0 disabled. That is safe only because this window's Client is
+a pure proxy — the buffer's sole destination is the `args[0]` of the init
+handshake, which the host ignores outright (`perspectiveHost.ts`). A window that
+needed its own engine would need the real 2,406 kB binary and would not be on
+this path.
+
+Sequencing note that cost the first attempt a full cycle: the SharedWorker asset
+is a prebuilt esbuild bundle, so a change to `host-data` source is invisible
+until `npm run build --workspace=@starui/host-data` runs. (This change is
+window-side only and does not need it.)
 
 `@perspective-dev/server` hoists to **5.0.0** in this workspace while the client
 is pinned at 4.5.2 (the client declares the dep with an empty version range).

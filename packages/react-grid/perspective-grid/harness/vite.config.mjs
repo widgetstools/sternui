@@ -28,6 +28,7 @@ export default defineConfig({
         index: resolve(here, 'index.html'),
         plumbing: resolve(here, 'plumbing.html'),
         blotter: resolve(here, 'blotter.html'),
+        wasmshare: resolve(here, 'wasmshare.html'),
       },
     },
   },

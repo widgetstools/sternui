@@ -17,52 +17,15 @@ gap found so far.
 
 # WHAT IS LEFT
 
-Parity is done. Of the four engineering-debt items three are done; this is
-everything that remains, in priority order. Items 1 and 2 are work; item 3 is a
-decision only the product owner can make; items 4–6 are watch-list.
+Parity is done. Of the four engineering-debt items all four are now done; this
+is everything that remains, in priority order. Item 1 is work; item 2 is a
+decision only the product owner can make; items 3–5 are watch-list.
 
 Read [`## How to reproduce and verify`](#how-to-reproduce-and-verify) and
 [`### Traps that produced false findings`](#traps-that-produced-false-findings)
 before starting any of them. Both have already cost real time.
 
-## 1. `getCompiledClientWasm()` — blocked, needs a probe first · ~0.5 d to unblock
-
-**The largest single remaining cost on the path.** The multi-window measurement
-puts ~900 ms of every window's ~1.1 s open on bundle boot, against 191–315 ms
-for everything the row engine does. Every window imports the 5,070 kB inline
-build, including the **server** wasm it never runs.
-
-Implemented once and **reverted** — do not just re-apply it. What is already
-established (full write-up in the package ARCHITECTURE.md, "Attempted,
-reverted, and what it established"):
-
-- The slim build `@perspective-dev/client` is **47.70 kB**; both builds export
-  `init_client` and `getCompiledClientWasm`.
-- **The transfer is not the risk.** MEASURED in a page: the Module is real
-  (103 exports), survives a `MessageChannel` clone, and survives a round trip
-  through a dedicated Worker still holding all 103 exports.
-- **The blocker is calling it inside the SharedWorker.** The attach never
-  replied; the window loaded neither chunk and sat at 0 rows over a full Table
-  with nothing logged. A 1.5 s `Promise.race` did **not** rescue it — so it
-  appears to block the worker's event loop, taking the timer with it.
-
-**Do this first, before any plumbing:** a probe that answers *whether the
-compiled module can be obtained in a SharedWorker at all, and from which
-scope* — the host scope, the nested engine worker, eagerly at boot before any
-attach can wait on it, or only from a window. If a working scope exists, the
-plumbing is a re-apply of a diff that was already written and typechecked
-(host `compiledClientWasm()`, `PerspectiveAttachedEvent.clientWasm`, hub reply,
-window-side `resolveModule` picking the slim build with an inline fallback).
-
-If no scope works, the fallback design is for the WINDOW to compile once and
-share via `postMessage` to later windows, or to accept the cost and just drop
-the server wasm from the window bundle.
-
-**Acceptance:** a second window fetches the 47 kB chunk and NOT the 5,070 kB
-one (check `performance.getEntriesByType('resource')`), the book still reaches
-20,000 rows, and `npm run e2e:perspective` is green.
-
-## 2. Editing toolbar, smart edit, bulk update — e2e coverage · ~0.5 d
+## 1. Editing toolbar, smart edit, bulk update — e2e coverage · ~0.5 d
 
 The only thing the e2e spec does not cover. The plumbing is verified and
 coalesced (edits reach the worker-held Table, `flushEdits` on close), but the
@@ -77,7 +40,7 @@ new infrastructure. `showEditingToolbar` is already on in the demo.
 same shape as the existing "a formatting change survives a reload" test, which
 is the assertion that actually matters on this path.
 
-## 3. Cross-row context divergence — a DECISION, not a task
+## 2. Cross-row context divergence — a DECISION, not a task
 
 `[price] > AVG([price])` now resolves correctly on the Perspective surface and
 is **false for every row on CSRM**, because the client-side style-rule evaluator
@@ -90,7 +53,7 @@ the divergence and document it as intended; or refuse the aggregate on the
 Perspective side too, for symmetry. **Do not pick one silently** — it changes
 what a saved rule means on one surface or the other.
 
-## 4. Pagination reports one extra row · watch-list
+## 3. Pagination reports one extra row · watch-list
 
 201 pages against the control's 200; `paginationGetRowCount()` reads 20,001.
 Cause MEASURED, not inferred: AG counts the SSRM grand-total row as a store
@@ -100,7 +63,7 @@ the row model. Our datasource reports the exact 20,000 and
 by default here and the fix means working around AG internals. Revisit only if
 a deployment turns pagination on.
 
-## 5. The audit is not exhaustive · ongoing
+## 4. The audit is not exhaustive · ongoing
 
 This list came from code reading plus live measurement, not a sweep of every
 customizer module. Only the modules the toolbars touch have been traced —
@@ -120,12 +83,24 @@ disable themselves (`isServerSideEngine()` exists for exactly this). The second
 finds code that walks the row model expecting the whole book — note
 `forEachNodeAfterFilter` visits **0 nodes** under the server row model.
 
-## 6. `@starui/design-system` test flake · watch-list
+## 5. `@starui/design-system` test flake — CAUSE FOUND, not fixed · watch-list
 
-Failed twice under a full-parallel `npx turbo typecheck build test` and passed
-**13/13 files, 193/193 tests** in isolation both times. Not caused by this
-branch — the package was untouched — but it is not in the documented baseline
-either, so it reads as a regression to whoever hits it next. Load-related.
+Fails under a full-parallel `npx turbo typecheck build test` and passes
+**13/13 files, 193/193 tests** in isolation, every time. Not caused by this
+branch — the package was untouched.
+
+**It is not load-related and not a flake.** It is a missing task dependency.
+`tests/styles/theme-bundle.test.ts` reads `dist/css/theme.css` at module scope
+and fails `ENOENT` when `design-system#test` is scheduled before or alongside
+`design-system#build`. In isolation the file is already on disk from an earlier
+build, which is the whole reason it looks intermittent. The failing suite
+reports **1 failed FILE, 0 failed tests** — the same signature as the
+`@starui/grid` baseline entry, and for the same kind of reason.
+
+The fix is a `dependsOn` in `turbo.json` so `test` waits on that package's
+`build`; deliberately NOT done here, because it is a root pipeline change with
+no connection to this branch and it should land where it can be reviewed as
+such.
 
 ## Gate baseline for this branch
 
@@ -134,8 +109,11 @@ either, so it reads as a regression to whoever hits it next. Load-related.
 - `@starui/grid` — **4 failed test FILES, 0 failed tests** (collection/import
   errors in `MarketsGrid.*`), 793 passing.
 - `@starui/widgets-react` — 2 `providerStaleState` cases.
+- `@starui/design-system` — 1 failed FILE, 0 failed tests, and only under
+  full-parallel turbo. Cause found: see item 5. Passes 13/13 alone.
 
-Both predate the branch. Verify by stashing if in doubt.
+All three predate the branch. Verify by stashing if in doubt. Run turbo with
+`--continue`; the first failure otherwise stops the run before the rest report.
 
 ---
 
@@ -222,6 +200,20 @@ clause.
   master's row count and every book in the book — it looked exactly like
   master/detail ignoring its match clause. Use `api.forEachDetailGridInfo()`,
   AG's own registry of live detail grids.
+- **A promise that REJECTS fast beats a timeout, and reads as a hang.** The
+  `getCompiledClientWasm()` diagnosis was wrong for a full cycle because a 1.5 s
+  `Promise.race` "failed to rescue" a call that was actually rejecting in 2 ms.
+  The reasoning — "a pending promise would have lost that race, so it must be
+  blocking the loop" — only holds if the promise is pending, and nothing had
+  checked. An unhandled rejection in a SharedWorker is silent, so the symptom
+  was identical to a hang. Log the settled outcome; never infer pending from a
+  race that did not fire.
+- **A structured-clone success in a dedicated Worker says nothing about a
+  SharedWorker.** A dedicated Worker shares its owner's agent cluster; a
+  SharedWorker is its own. `WebAssembly.Module` clones fine within a cluster and
+  is refused across one — and the refusal arrives as `messageerror` on the
+  RECEIVER, not as a throw at the sender, so a `postMessage` that "worked" can
+  still deliver nothing. Listen for `messageerror` or the failure is silence.
 - **A `host-data` source change is invisible to a running app until the worker
   asset is rebuilt.** It is a prebuilt esbuild bundle, so `vite build` on the
   app copies whatever `packages/data/host-data/dist/assets/` already holds. A
@@ -291,6 +283,7 @@ clause.
 | Alerts full-book rescan source | 8 tests; the leaf fetcher now registers for the Perspective path (backed by `readAllRows`) and the panel's rescan block shows for ANY server-side engine, not just `ssrm`. **Live UI click-through not confirmed** — the collapsed settings section does not open under synthetic clicks |
 | `NOT` no longer compiles to Perspective's `not()`, which does not exist | 3 tests + 2 engine probes; affected calculated columns on BOTH server-side paths. Nested in `and`/`or`/`if` it validates clean and evaluates wrong, so the pre-flight check could not catch it |
 | Tree data + master/detail (`perspectiveTreeFields`, `masterDetail`) | 24 tests; live: 3 region parents → 8 desks under EMEA with path ids → leaf positions with `isServerSideGroup` false, 840 rows, 0 failed blocks; detail grid holding 200 rows all of the master's own book, agreeing exactly with `readMatchingRows`. **New API, not parity** — MarketsGrid had neither on any surface |
+| Window drops the 5 MB inline build (`loadPerspectiveClient`) | 5 tests + `harness/wasmshare.html`; live on the product path: a window fetches `perspective-*.js` 46.58 kB + `perspective-js-*.wasm` 509.09 kB and **never requests the 5,070 kB inline chunk**, a second window takes both from cache at 0.29 kB over the wire, both at 20,000 rows with 0 failed blocks; e2e:perspective 7/7 |
 | Style rules answered by the worker (`countMatchingExpression` + `aggregateScalar`) | 28 tests + 4 engine probes; live: a rule matching **1 row of 20,000** at a threshold no loaded block reaches lights the header, an impossible rule leaves it unlit, counts exactly match a JS pass over the same book (10,000 unfiltered · 3,339 under `region = EMEA` of 6,669 · 10,000 on clear), 25 counts in 31 ms against 169 ms uncached, live Views unchanged, 0 failed blocks |
 
 Also verified live and working: row selection (3 nodes selected and cleared
@@ -426,26 +419,40 @@ still live are restated at the top of this file under **WHAT IS LEFT**.
   The thesis holds on the product path, and the remaining per-window cost is
   the 5 MB bundle — which is precisely the next item. All three windows read
   20,000 rows with 0 failed blocks and agreed exactly.
-- **`getCompiledClientWasm()`** — every window still carries the whole inline
-  build (~5 MB), including the server wasm it never runs. **Now the largest
-  single cost on the path**: the timing measurement above puts ~900 ms of every
-  window's ~1.1 s open squarely on bundle boot, against 191–315 ms for
-  everything the row engine does.
+- ~~**`getCompiledClientWasm()`** — every window carries the whole inline build
+  (~5 MB), including the server wasm it never runs.~~ **DONE — but not the way
+  it was scoped, and the recorded diagnosis was wrong.**
 
-  **ATTEMPTED AND REVERTED — read this before retrying.** Most of it checks
-  out and the blocker is narrow. The slim build is **47.70 kB** against
-  5,070 kB and exports everything needed; the compiled Module is a real one
-  (103 exports) and **survives a round trip through a Worker**, so the
-  transfer is not the risk. What failed is calling `getCompiledClientWasm()`
-  **inside the SharedWorker**: the attach never replied, and the window sat at
-  0 rows over a full Table with nothing logged. A 1.5 s `Promise.race` did NOT
-  rescue it — which says it blocks the worker's event loop rather than merely
-  taking a long time. Next step is a probe answering "can the compiled module
-  be obtained in a SharedWorker at all, and from which scope" — not more
-  plumbing, which was written and worked. Full write-up in the package
-  ARCHITECTURE.md. Also: the worker asset is a prebuilt esbuild bundle, so
+  The probe (`harness/wasmshare.html`) asked the getter question and the
+  transfer question separately, which is what the first attempt had conflated.
+
+  - `getCompiledClientWasm()` **does not block the worker's event loop.** It is
+    a variable read: **0.2 ms, 103 exports** in the SharedWorker once a client
+    exists there, and **0.0 ms** in a window. Before a client exists it throws
+    in **2.0 ms** — and a rejection that fast *settles before* a 1.5 s
+    `Promise.race`, which is exactly what "the timeout did not rescue it" was.
+    The first attempt simply called it too early.
+  - **The Module cannot leave a SharedWorker, ever.** `postMessage` does not
+    throw; the window raises `messageerror` and nothing arrives. A
+    `WebAssembly.Module` may not be deserialized in another agent cluster, and
+    a SharedWorker is its own. (A dedicated Worker shares its owner's cluster —
+    so the earlier "it survives a round trip through a Worker" result was true
+    and proved nothing about this case.) No plumbing change reaches this.
+
+  So the window **fetches** the wasm instead, which needs no transfer at all:
+  `loadPerspectiveClient` loads the slim 47.70 kB build and points `init_client`
+  at the 521 kB wasm as a separate cacheable asset. Probe, both reading 20,000
+  rows from the worker-held Table: **4,951.84 kB / 178.2 ms → 555.67 kB /
+  36.3 ms**. On the product path a blotter window fetches only those two chunks
+  and never requests the 5,070 kB inline one; a **second window takes both from
+  cache at 0.29 kB over the wire**, both at 20,000 rows with 0 failed blocks.
+  5 unit tests; `npm run e2e:perspective` 7/7. The inline build remains in the
+  bundle as a fallback chunk — emitted, not fetched.
+
+  Also still true: the worker asset is a prebuilt esbuild bundle, so
   `npm run build --workspace=@starui/host-data` is required before any
-  host-data change is visible to a running app.
+  host-data change is visible to a running app. (This change is window-side
+  only and did not need it.)
 - ~~`StompProviderConfig` cannot send request headers.~~ **DONE.**
   `requestHeaders?: Record<string, string>` is published on the trigger frame
   (`sanitizeRequestHeaders` drops the three headers stompjs owns —

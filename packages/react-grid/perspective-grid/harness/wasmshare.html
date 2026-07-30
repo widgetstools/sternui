@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Client wasm sharing — can a window skip the 5 MB build?</title>
+    <link rel="stylesheet" href="./harness.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Client wasm sharing</h1>
+      <p class="sub">
+        Every blotter window imports the 5,070&nbsp;kB inline build, including the server wasm
+        it never runs — roughly 900&nbsp;ms of each window&rsquo;s ~1.1&nbsp;s open. This asks
+        whether the compiled client module can be obtained in a SharedWorker and shared, and
+        measures each candidate strategy by the only thing that settles it: a row count read
+        from the worker-held Table, and the bytes that window actually fetched.
+      </p>
+    </header>
+    <main>
+      <ol id="steps"></ol>
+      <p class="sub" id="footnote"></p>
+    </main>
+    <script type="module" src="./wasmShare.mjs"></script>
+  </body>
+</html>

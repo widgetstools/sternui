@@ -16,6 +16,7 @@
  * the layer rules, and the only thing it needs is one method.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { loadPerspectiveClient } from './loadPerspectiveClient.js';
 import type { PerspectiveTableLike } from './viewManager.js';
 
 /** Answer from `SharedWorkerDataServicesClient.attachPerspective`. */
@@ -44,9 +45,10 @@ export type PerspectiveTableStatus =
 
 export interface UsePerspectiveTableOpts {
   /**
-   * Resolve the Perspective module. Defaults to
-   * `import('@perspective-dev/client/inline')` — the build whose wasm is
-   * embedded, so no separate asset has to be served.
+   * Resolve the Perspective module. Defaults to `loadPerspectiveClient` — the
+   * slim 47.70 kB build pointed at the client wasm as a separate cacheable
+   * asset, rather than the 5,070 kB inline build that also carries the server
+   * binary this window can never run.
    */
   loadPerspective?: () => Promise<PerspectiveClientModuleLike>;
   /** Set false to hold off attaching (e.g. before a provider is chosen). */
@@ -62,8 +64,7 @@ export interface UsePerspectiveTableResult {
   reason?: string;
 }
 
-const defaultLoad = (): Promise<PerspectiveClientModuleLike> =>
-  import('@perspective-dev/client/inline') as unknown as Promise<PerspectiveClientModuleLike>;
+const defaultLoad = (): Promise<PerspectiveClientModuleLike> => loadPerspectiveClient();
 
 /**
  * One attach per (hub client, provider) in a window, ref-counted.

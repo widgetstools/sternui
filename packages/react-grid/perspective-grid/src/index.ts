@@ -60,6 +60,7 @@ export {
   type PerspectiveClientModuleLike,
   type PerspectiveTableStatus,
 } from './usePerspectiveTable.js';
+export { loadPerspectiveClient } from './loadPerspectiveClient.js';
 export {
   toPerspectiveViewConfig,
   toPerspectiveGroupLevel,
