@@ -386,6 +386,143 @@ number is individually correct — none is a partial sum of the rows a window
 happens to hold — but a cross-level total taken mid-feed is a montage of
 instants, not a snapshot.
 
+## Totals will NOT match the CSRM grid — the fixture guarantees it
+
+Put a Perspective blotter next to a CSRM one on the same broker and their
+grand totals differ by ~0.004% (measured: 500,371M vs 500,393M on
+`marketValue`). Neither is wrong, and no amount of work on either grid will
+close it.
+
+`stomp-view-server` gives **every subscription its own private book**.
+`connection.ts` declares `deliveredRecords` per subscription (line ~616) and
+fills it with `structuredClone(r)` per row (~651); live ticks then mutate *that
+clone* through `touchPosition`, which random-walks `currentPrice` ±3% per tick
+(`mutate.ts`). Two subscribers therefore start from the same snapshot and
+diverge on independent random walks, forever — there is no shared state to
+converge on.
+
+Proved by measurement rather than inference: **two CSRM windows disagree with
+each other by 20.0M**, the same magnitude as the CSRM-vs-Perspective gap. It is
+subscription vs subscription, not engine vs engine.
+
+The pull path is the *more* consistent of the two, and this is the one place to
+see it: every Perspective window reads the ONE worker-held Table, so N blotters
+always agree exactly. N CSRM windows hold N private books and never do.
+(Verified with a timing-immune probe — insert a synthetic row from window 1 and
+window 2's `size()` becomes 20,001. Do NOT try to prove this by mutating a
+field and reading it from the other window: the broker's full-book sweep
+rewrites every column every few seconds and will clobber the write before a
+cross-window read lands. That artifact produced two false "not shared"
+readings before the insert test settled it.)
+
+To compare the two engines' aggregation for real, run with live updates off so
+both hold identical data. Under the sweep the noise (~6M per few seconds on the
+total) is far larger than any plausible aggregation difference.
+
+## One grid per platform, once
+
+The single sharpest bug on the product path, and the one that made the whole
+surface look half-finished: **the formatting toolbar, the auto-formatter, the
+saved-filter "+" button and profile save/restore were all silently dead**,
+while grouping, sorting, the context menu and density all worked perfectly.
+
+Attaching to the worker-held Table is async, so `usePerspectiveTable` answers
+`null` for the first few hundred milliseconds. `MarketsGridHost` branched on
+the Table *object*, so during that window it fell through to the **CSRM
+surface**. That throwaway grid fired `onGridReady`, which attached the api to
+the `GridPlatform` and activated every module. When the Table landed the branch
+flipped, that grid unmounted, and its `onGridPreDestroyed` called
+`platform.destroy()` — which sets `destroyed` permanently and nulls the
+platform ref. The Perspective grid then mounted and fired its own
+`onGridReady` into the destroyed platform, where `GridPlatform.onGridReady`
+opens with `if (this.destroyed) return`. A fresh platform was built for the
+next render and never saw a grid at all — measured live: `api` null,
+`mountedGrid` false, not one module activated.
+
+That is the split that made it so hard to see. Every feature that talks to AG
+Grid directly kept working; every feature that goes through the platform was
+gone.
+
+The rule is now named and tested (`resolveGridSurface`): while the Table is
+attaching the host mounts **nothing**, so exactly one grid ever mounts per
+platform. `null` means "asked for, still attaching" and `undefined` means "not
+using this seam" — a caller that collapses the two (`?? undefined`) puts the
+bug straight back, which is exactly what `MarketsGridContainer` was doing.
+
+Verified after the fix, on the live 20,000-row book: platform attached to the
+real grid, and a hidden column plus a `pnl desc` sort survived a full reload
+with the top row reading the true maximum — so the restore re-drove the
+datasource, not just the column state.
+
+## Writes: edits go to the Table, direct from the window
+
+Under the server row model `cellValueChanged` still fires, but AG's write lands
+only on the block-cache row node. The next refresh re-reads that block from the
+Table and paints the old value back over it — an edit that appears to take and
+reverts a fraction of a second later, with nothing logged. So a committed edit
+is routed to `table.update([sparseRow])`, which upserts by index and leaves
+every omitted column alone.
+
+The write goes **direct from the window**, not back out through the provider.
+There is nowhere else for it to go: `startStomp` publishes only a subscribe
+frame and `StompProviderConfig` carries no write channel, so "through the
+provider" would mean a new hub RPC whose whole body is the same
+`table.update()` one process later. Direct is also what the other two surfaces
+do — CSRM writes into the row node it renders from, `CustomSSRMGrid` into its
+mirror engine; both put the edit into the store that supplies the grid, and
+here that store lives in the worker. The bonus is that peers get it for free:
+one Table, so every other blotter's View notifies and re-reads.
+
+**The Table is not a system of record.** A provider snapshot arrives as a
+`replace` and discards local edits — the same lifetime a CSRM edit has when the
+next full row for that key ticks in.
+
+Three rules the shared book forces, none of which apply to a client-side edit:
+
+- **Coerce against the declared type, and refuse what will not coerce.**
+  `table.update()` does not reject a wrong-typed value, it coerces it — the same
+  property that makes sampling a column's type unsafe. A cell editor with no
+  `valueParser` hands back a string, so `"1250"` would reach a float column and
+  be silently converted, in every window. `coerceEditedValue` refuses instead;
+  a refused edit reverts visibly on the next refresh, a mangled one does not.
+- **Refuse the whole row, not the columns that failed.** Half-applying an edit
+  the user made as one action is worse than dropping it.
+- **The index column cannot be edited.** An upsert with a changed key inserts a
+  second row and leaves the original, while every `getRowId` still points at
+  the old one.
+
+Edits are coalesced by row key on a 0 ms timer: smart edit and bulk update
+commit cell by cell, and one proxied round trip per cell is hundreds of worker
+calls for one user action. `close()` flushes before tearing down, so a Table
+swap or an unmount cannot eat the last edit.
+
+## Counting a saved filter
+
+The saved-filter pills carry a "matches N rows" badge, which `useFilterModel`
+fills from `ssrmCountMatching` on the grid `context` — a contract only
+`CustomSSRMGrid` provided, so on this path the badges were simply absent. The
+engine answers it now, with two constraints that shaped the implementation:
+
+**It must not go through `getView`.** That path reads every call as the grid's
+current intent and retires every live View whose shape differs. A count's shape
+(a bare filter, no sort, no grouping) differs from essentially every real
+request, so counting a pill would tear down the Views the grid is scrolling and
+rebuild them on the next block — a badge costing a full viewport re-read. The
+count builds its own View outside the keyed map, reads it once and drops it.
+
+**A count that cannot be exact reports nothing.** `toPerspectiveFilterClauses`
+drops what it cannot express, which is right for a View and wrong here: a
+dropped clause inflates the number silently, and a badge reading "matches
+20,000 rows" is exactly the confidently-wrong answer this path keeps producing.
+`isFilterModelMappable` gates it, and `null` travels all the way out to a pill
+with no badge.
+
+Counts are cached until the Table moves, and then no sooner than
+`countMinIntervalMs` (default 1 s). The recount is driven by AG's
+`modelUpdated`, which fires on every block load and every live refresh; at that
+rate it would put one full-book View build per pill per tick into the engine
+the read path already queues behind.
+
 ## Where expressions resolve
 
 | kind | resolves | why |
@@ -504,19 +641,90 @@ it never runs — `getCompiledClientWasm()` is the fix, still outstanding.
 | Worker-side engine + Table hosting | **done** (`host-data`, 19 tests) |
 | Real STOMP feed in a browser | **done** — `apps/demos/perspective-blotter` |
 | Row engine (datasource + refresh + totals) | **done**, 11 tests |
-| MarketsGridContainer wiring | not started — see below |
+| View manager promoted to `src/` | **done**, 21 tests |
+| MarketsGridContainer wiring | **done — Milestone 2, see below** |
+| Saved-filter count badges | **done**, 18 tests |
+| Cell edits reaching the Table | **done**, 18 tests |
+| Toolbars/profiles reaching the platform | **done**, 6 tests — see "One grid per platform" |
+| Set-filter values (column filter menus) | **not started** — empty on this path |
+| Calculated columns as expression columns | **not started** |
+| Style rules that must materialize worker-side | **not started** |
+| Multi-window timings through the product path | **not measured** |
+| e2e spec for the Perspective surface | **not started** |
 
-`MarketsGrid` currently has two surfaces: CSRM, and an SSRM one that always
-mounts the hand-rolled `CustomSSRMGrid`. Its `ssrmEngine?: 'custom' |
-'perspective' | 'auto'` prop is **documented as deprecated and ignored** — a
-vestige, not a seam. Wiring the container therefore needs a real third surface
-mounting AG Grid on `createPerspectiveRowEngine`, plus a flag on the container
-to choose it with CSRM left intact for side-by-side comparison.
+`MarketsGrid` now has three surfaces: CSRM, the hand-rolled `CustomSSRMGrid`,
+and `PerspectiveMarketsGridSurface`. `rowModel: 'client' | 'server' |
+'perspective'` picks between them (`resolveUseSsrm` / `resolvePerspective`);
+the older `useSSRM` boolean still wins where set but cannot express
+`perspective`. The `ssrmEngine?: 'custom' | 'perspective' | 'auto'` prop stays
+**deprecated and ignored** — it was never a seam.
+
+## Milestone 2 — the product path
+
+`stomp-perspective` provider → worker-held Table →
+`client.attachPerspective(providerId)` → `usePerspectiveTable` →
+`MarketsGridContainer` with `rowModel="perspective"` →
+`PerspectiveMarketsGridSurface`. Verified live on the STOMP fixture from a
+cold worker with no manual intervention: 20,000-row book, rows rendering,
+34 columns, toolbar and sidebar intact, status bar reading `20,000 rows ·
+live`. Demo: `apps/demos/minimal-perspective-table`.
+
+Getting there cost five separate bugs that ALL presented identically — a grid
+empty over a full Table, with nothing in any console:
+
+1. `perspectiveHost` dropped `clear()` from its owned Table wrapper. The feed
+   tests for it to decide whether a declared-schema Table survives a
+   `replace`, so every snapshot deleted and rebuilt the Table and orphaned
+   every attached window.
+2. `viewManager` captured `entry.rows` once at View build. A blotter opens
+   long before the book arrives, so its first View reported 0 forever — and AG
+   sizes its store from that number.
+3. AG never re-asks a store it believes is empty: with no blocks to
+   invalidate, `refreshServerSide({purge:false})` reloads nothing. Needs
+   `purge: true` in exactly that case, and only that case.
+4. AG requests its FIRST block before `onGridReady`, so a heal scheduled while
+   `api` was still null was dropped with nothing to re-arm it.
+5. `open_table(name)` **resolves** for a name the engine does not hold yet
+   rather than throwing. The hub attach now waits on `feed.whenReady()`.
+
+Two more of the same family, cosmetic rather than fatal: React StrictMode's
+double-invoked mount effect closed the frame port under the Table handle
+(attaches are now shared and ref-counted with a linger), and AG reads the
+`context` grid option once at grid creation while the engine is rebuilt
+whenever the Table changes (hence `PerspectiveEngineHolder`).
 
 Run it: `npx vite build packages/react-grid/perspective-grid/harness` then
 serve `dist/` (launch config `psp-harness-preview`, port 5200).
 `plumbing.html` is the 5-step proof, `blotter.html` is one blotter,
 `index.html` opens three.
 
-Next: promote `harness/viewManager.mjs` into `src/`, then feed the worker-held
-Table from STOMP.
+## What is left
+
+**The live task list is
+[`docs/PERSPECTIVE_GRID_PARITY_WORKLOG.md`](../../../docs/PERSPECTIVE_GRID_PARITY_WORKLOG.md)** —
+prioritised, with effort, the open decisions, the verification recipe (always
+run the CSRM twin as a control) and the traps that have already produced false
+findings. Keep it there rather than here, so there is one list instead of two
+that drift.
+
+No numbered milestone remains — the path is wired end to end. What the design
+names and nothing has built:
+
+- **Calculated columns are missing on this path.** The `expressions` map is
+  plumbed through `toPerspectiveViewConfig` and expression columns are
+  verified sortable, filterable and groupable — but nothing maps MarketsGrid's
+  calculated-column definitions into it, so a calculated column simply is not
+  there. Same for the style rules the table above assigns to the worker
+  (filtered/sorted on, or needing cross-row context).
+- **The multi-window claim is unmeasured on the product path.** Milestone 1
+  measured it in the harness — window 3 first rows in 414 ms against 1135 ms
+  for the cold first window. Milestone 2 verified ONE window through
+  `MarketsGridContainer`. The whole thesis is that the 2nd and 3rd blotter are
+  fast, so it needs re-measuring on `minimal-perspective-table`.
+- **`getCompiledClientWasm()`** — the window bundle still carries the whole
+  inline build (5,070 kB in the demo), including the server wasm it never
+  runs.
+- **`StompProviderConfig` cannot send request headers**, so an app only ever
+  gets the broker's default 20,000-row sweep, never the sparse profile the
+  probes used.
+- **No e2e spec** covers the Perspective surface.

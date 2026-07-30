@@ -152,6 +152,28 @@ export function toPerspectiveFilterClauses(colId: string, item: AgFilterItem): u
   return [[colId, op, item.filter]];
 }
 
+/**
+ * True when EVERY column entry in the model translates to at least one
+ * Perspective clause.
+ *
+ * `toPerspectiveFilterClauses` drops what it cannot express exactly, and for a
+ * VIEW that is the right trade — an unfiltered book beats a subtly wrong one,
+ * and the grid's own filter chips still say what the user asked for. A COUNT
+ * has no such consolation: a dropped clause makes the number silently too
+ * large, and a badge reading "matches 20,000 rows" is a confidently wrong
+ * answer of exactly the kind this path keeps producing. Callers that need
+ * exactness ask this first and report nothing when it is false.
+ */
+export function isFilterModelMappable(
+  filterModel: Record<string, AgFilterItem> | null | undefined,
+): boolean {
+  if (!filterModel) return true;
+  for (const colId of Object.keys(filterModel)) {
+    if (toPerspectiveFilterClauses(colId, filterModel[colId]).length === 0) return false;
+  }
+  return true;
+}
+
 export function toPerspectiveFilter(
   filterModel: Record<string, AgFilterItem> | null | undefined,
 ): unknown[][] | undefined {

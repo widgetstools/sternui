@@ -28,12 +28,18 @@ export {
 } from './perspectiveDatasource.js';
 export { createSafeView, type SafeView, type DeletableView } from './safeView.js';
 export {
+  coerceEditedValue,
+  type CoercedValue,
+  type PerspectiveColumnType,
+} from './cellEdits.js';
+export {
   createPerspectiveRowEngine,
   GRAND_TOTAL_ROW_ID,
   GRAND_TOTAL_FLAG,
   type PerspectiveRowEngine,
   type PerspectiveGridStatus,
   type PerspectiveRowEngineOpts,
+  type PerspectiveCellEdit,
   type GridApiLike,
   type GridNodeLike,
 } from './perspectiveRowEngine.js';
@@ -46,12 +52,22 @@ export {
   type UpdatableView,
 } from './viewManager.js';
 export {
+  usePerspectiveTable,
+  type UsePerspectiveTableOpts,
+  type UsePerspectiveTableResult,
+  type PerspectiveAttachClientLike,
+  type PerspectiveAttachOutcome,
+  type PerspectiveClientModuleLike,
+  type PerspectiveTableStatus,
+} from './usePerspectiveTable.js';
+export {
   toPerspectiveViewConfig,
   toPerspectiveGroupLevel,
   toGroupColumns,
   toPerspectiveSort,
   toPerspectiveFilter,
   toPerspectiveFilterClauses,
+  isFilterModelMappable,
   toPerspectiveAggregate,
   viewConfigKey,
   type PerspectiveViewConfig,

@@ -152,3 +152,60 @@ describe('createSafeView', () => {
     await p;
   });
 });
+
+/**
+ * `rows()` exists because the row count has to be re-read on a live View — the
+ * book grows under it while the snapshot streams. It borrows the same Rust
+ * value a concurrent `delete()` would take ownership of, so it is refcounted
+ * exactly like a read.
+ */
+describe('createSafeView — rows()', () => {
+  it('reads the count through to the underlying view', async () => {
+    const view: DeletableView = {
+      to_columns: vi.fn(async () => ({})),
+      num_rows: vi.fn(async () => 20_000),
+      delete: vi.fn(async () => {}),
+    };
+    await expect(createSafeView(view).rows()).resolves.toBe(20_000);
+  });
+
+  it('resolves null once closing, rather than starting a borrow mid-delete', async () => {
+    const view: DeletableView = {
+      to_columns: vi.fn(async () => ({})),
+      num_rows: vi.fn(async () => 5),
+      delete: vi.fn(async () => {}),
+    };
+    const safe = createSafeView(view);
+    const closing = safe.close();
+
+    await expect(safe.rows()).resolves.toBeNull();
+    expect(view.num_rows).not.toHaveBeenCalled();
+    await closing;
+  });
+
+  it('holds the delete until an in-flight count has drained', async () => {
+    const order: string[] = [];
+    let release: (() => void) | null = null;
+    const view: DeletableView = {
+      to_columns: vi.fn(async () => ({})),
+      num_rows: vi.fn(
+        () => new Promise<number>((resolve) => {
+          release = () => { order.push('rows-done'); resolve(1); };
+        }),
+      ),
+      delete: vi.fn(async () => { order.push('delete'); }),
+    };
+    const safe = createSafeView(view);
+
+    const counting = safe.rows();
+    const closing = safe.close();
+    expect(safe.pending).toBe(1);
+
+    release!();
+    await counting;
+    await closing;
+
+    // Deleting first is the uncatchable wasm borrow error.
+    expect(order).toEqual(['rows-done', 'delete']);
+  });
+});

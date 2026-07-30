@@ -26,6 +26,8 @@ import {
   type PerspectiveTableLike,
   type ViewManagerEvent,
 } from './viewManager.js';
+import type { AgFilterItem } from './viewConfig.js';
+import { coerceEditedValue } from './cellEdits.js';
 
 /** The slice of AG Grid's api the engine drives. */
 export interface GridApiLike {
@@ -57,6 +59,10 @@ export interface PerspectiveRowEngineOpts {
   keyColumn: string;
   /** Coalesce Table updates into at most one refresh per this many ms. */
   refreshMs?: number;
+  /** Floor on how often a saved-filter count is recomputed. See `countMatching`. */
+  countMinIntervalMs?: number;
+  /** Coalesce cell edits made within this window into one Table write. */
+  editFlushMs?: number;
   onEvent?(event: ViewManagerEvent): void;
   /** A block that failed. AG never retries one on its own. */
   onError?(error: unknown): void;
@@ -85,6 +91,15 @@ export interface PerspectiveGridStatus {
   failedBlocks: number;
 }
 
+/** One committed cell edit, as the grid reports it. */
+export interface PerspectiveCellEdit {
+  /** The edited row's value for the Table's index column. */
+  key: unknown;
+  /** Column being written — the Perspective column name. */
+  field: string;
+  value: unknown;
+}
+
 export interface PerspectiveRowEngine {
   datasource: PerspectiveDatasource;
   /** Connect the grid once it exists; pass null to disconnect. */
@@ -100,6 +115,24 @@ export interface PerspectiveRowEngine {
   readonly live: boolean;
   /** Refresh every level now, ignoring the throttle. */
   refreshNow(): void;
+  /**
+   * Rows the whole book matches under an AG filter model — what a saved-filter
+   * pill's badge shows. Null when the model cannot be translated exactly, so
+   * the badge is absent rather than wrong.
+   */
+  countMatching(
+    filterModel: Record<string, AgFilterItem> | null | undefined,
+  ): Promise<number | null>;
+  /**
+   * Persist a committed cell edit into the worker-held Table.
+   *
+   * Fire and forget — the grid has already painted the new value and the write
+   * comes back through the normal refresh. Coalesced, so a bulk update or a
+   * smart-edit patch lands as ONE write rather than one per cell.
+   */
+  applyEdit(edit: PerspectiveCellEdit): void;
+  /** Write any buffered edits now. Resolves once the Table has them. */
+  flushEdits(): Promise<void>;
   /** Number of live Views — diagnostics. */
   readonly liveViews: number;
   close(): Promise<void>;
@@ -108,7 +141,15 @@ export interface PerspectiveRowEngine {
 export function createPerspectiveRowEngine(
   opts: PerspectiveRowEngineOpts,
 ): PerspectiveRowEngine {
-  const { table, keyColumn, refreshMs = 250, onEvent, onError } = opts;
+  const {
+    table,
+    keyColumn,
+    refreshMs = 250,
+    countMinIntervalMs = 1000,
+    editFlushMs = 0,
+    onEvent,
+    onError,
+  } = opts;
 
   let api: GridApiLike | null = null;
   let live = true;
@@ -123,6 +164,109 @@ export function createPerspectiveRowEngine(
   let bookRows: number | null = null;
   let failedBlocks = 0;
   const listeners = new Set<(status: PerspectiveGridStatus) => void>();
+
+  /**
+   * Saved-filter badge counts, cached.
+   *
+   * Each answer costs a View over the whole book, and the recount is driven by
+   * AG's `modelUpdated` — which fires on every block load and every live
+   * refresh, several times a second. Recomputing at that rate would put one
+   * full-book View build per pill per tick into the same engine the read path
+   * queues behind, and on this path writes already block reads. So a resolved
+   * count is reused until the Table actually moves, and then no sooner than
+   * `countMinIntervalMs` after it was taken: a badge trailing the book by a
+   * second is indistinguishable from a live one, and a grid that stutters is
+   * not.
+   */
+  const counts = new Map<string, { at: number; value: Promise<number | null> }>();
+  /** When the Table last moved. A count taken before this is stale. */
+  let countsStaleAt = 0;
+  /** Bound on distinct filter models remembered — editing a pill's JSON walks
+   *  through a new key per keystroke-save, and none of them recur. */
+  const MAX_COUNT_KEYS = 32;
+
+  // ─── Cell edits ────────────────────────────────────────────────────────────
+  //
+  // The write goes DIRECT from this window to the worker-held Table, not back
+  // out through the provider. Three reasons, in order of weight:
+  //
+  //   - There is nowhere else for it to go. The STOMP provider is one-way:
+  //     `startStomp` publishes only a subscribe frame, and `StompProviderConfig`
+  //     carries no write channel at all. "Through the provider" would mean a new
+  //     hub RPC whose entire body is the same `table.update()` one process
+  //     later, with an extra hop and a new way to fail.
+  //   - The Table IS the shared book. One write updates the single copy every
+  //     window reads, and each peer's View notifies it — so an edit propagates
+  //     to other blotters for free, which the push path never managed.
+  //   - It matches the other two surfaces. CSRM writes into the row node it
+  //     renders from; CustomSSRMGrid writes into its mirror engine. Both put
+  //     the edit into the store that supplies the grid, and here that store
+  //     lives in the worker.
+  //
+  // What this is NOT: the Table is not a system of record. A provider snapshot
+  // arrives as a `replace` and discards local edits — the same lifetime a CSRM
+  // edit has when the next full row for that key ticks in.
+  /** Edited rows awaiting a write, keyed by index value so repeated touches of
+   *  the same row merge into one sparse row rather than N writes. */
+  const pendingEdits = new Map<string, Record<string, unknown>>();
+  let editTimer: ReturnType<typeof setTimeout> | null = null;
+  let editFlush: Promise<void> = Promise.resolve();
+  /** Declared column types, fetched once. Null when the Table cannot report
+   *  them, in which case values are written as the grid produced them. */
+  let schemaPromise: Promise<Record<string, string> | null> | null = null;
+
+  function tableSchema(): Promise<Record<string, string> | null> {
+    schemaPromise ??=
+      typeof table.schema === 'function'
+        ? table.schema().catch(() => null)
+        : Promise.resolve(null);
+    return schemaPromise;
+  }
+
+  async function writePendingEdits(): Promise<void> {
+    if (closed || pendingEdits.size === 0) return;
+    const staged = [...pendingEdits.values()];
+    pendingEdits.clear();
+
+    if (typeof table.update !== 'function') {
+      onError?.(new Error('perspective: this Table is read-only — edit discarded'));
+      return;
+    }
+
+    const schema = await tableSchema();
+    const rows: Record<string, unknown>[] = [];
+    for (const staging of staged) {
+      const row: Record<string, unknown> = {};
+      let usable = true;
+      for (const field of Object.keys(staging)) {
+        const coerced = coerceEditedValue(schema?.[field], staging[field]);
+        if (!coerced.ok) {
+          // Refuse the whole row: writing the columns that did coerce would
+          // half-apply an edit the user made as one action.
+          onError?.(new Error(`perspective: cannot write ${field} — ${coerced.reason}`));
+          usable = false;
+          break;
+        }
+        row[field] = coerced.value;
+      }
+      if (usable) rows.push(row);
+    }
+    if (rows.length === 0 || closed) return;
+
+    try {
+      await table.update(rows);
+    } catch (error) {
+      onError?.(error);
+    }
+  }
+
+  function scheduleEditFlush(): void {
+    if (editTimer !== null || closed) return;
+    editTimer = setTimeout(() => {
+      editTimer = null;
+      editFlush = editFlush.then(writePendingEdits);
+    }, editFlushMs);
+  }
 
   function currentStatus(): PerspectiveGridStatus {
     const filteredRows = views.rowsAtRoot;
@@ -152,9 +296,15 @@ export function createPerspectiveRowEngine(
     void table
       .size()
       .then((size) => {
-        if (closed || size === bookRows) return;
+        if (closed) return;
+        const changed = size !== bookRows;
         bookRows = size;
-        publishStatus();
+        if (changed) publishStatus();
+        // A non-empty book under a grid showing nothing is the signature of a
+        // store that settled before the rows existed — the normal case for a
+        // blotter that opened during the snapshot. Nothing else will nudge it:
+        // AG does not re-ask a store it believes is empty.
+        if (size > 0 && views.rowsAtRoot === 0) scheduleRefresh();
       })
       .catch(() => {
         /* a status figure must never break the grid */
@@ -167,6 +317,7 @@ export function createPerspectiveRowEngine(
       // The book itself can grow or shrink under the feed, so the unfiltered
       // total is re-measured on updates rather than read once at startup.
       measureBook();
+      countsStaleAt = Date.now();
       scheduleRefresh();
     },
     onEvent: (event) => {
@@ -193,7 +344,14 @@ export function createPerspectiveRowEngine(
    */
   function refreshEveryLevel(): void {
     if (api === null) return;
-    api.refreshServerSide({ purge: false });
+    // MEASURED on the live feed: a root store that settled at ZERO rows never
+    // re-asks on a non-purging refresh — there are no blocks to invalidate, so
+    // there is nothing to reload. That is precisely the state a blotter opens
+    // in when it attaches before the snapshot lands: the Table then fills to
+    // 20,000 rows and the grid stays empty forever, reporting "0 of 20,000".
+    // Purge ONLY in that case — purging a populated store would throw away the
+    // user's scroll position on every tick.
+    api.refreshServerSide({ purge: views.rowsAtRoot === 0 });
     const routes: string[][] = [];
     api.forEachNode((node) => {
       if (!node.group || !node.expanded) return;
@@ -234,8 +392,13 @@ export function createPerspectiveRowEngine(
   }
 
   function scheduleRefresh(): void {
-    if (!live || api === null || closed) return;
+    if (!live || closed) return;
     pendingUpdate = true;
+    // MEASURED: AG requests its FIRST block before `onGridReady` fires, so the
+    // grid is not connected yet when that block settles empty and asks for a
+    // heal. Dropping the intent here left the store permanently at zero rows
+    // over a full book. Remember it; `setApi` flushes it on connect.
+    if (api === null) return;
     if (timer !== null) return;
     timer = setTimeout(() => {
       timer = null;
@@ -247,10 +410,21 @@ export function createPerspectiveRowEngine(
   }
 
   const datasource = createPerspectiveDatasource({
-    getView: (request) => {
+    getView: async (request) => {
       grouped = (request.rowGroupCols?.length ?? 0) > 0;
       if (!request.groupKeys?.length) lastRootRequest = request;
-      return views.getView(request);
+      const view = await views.getView(request);
+      // A root level that reads as empty is either a genuinely empty book or a
+      // store that raced the snapshot. `measureBook` tells the two apart and
+      // schedules the refresh when it was the race — the loop terminates
+      // because the answer stops being zero as soon as rows exist.
+      if (!grouped && views.rowsAtRoot === 0) measureBook();
+      // The `view` event fires only when a View is BUILT. A cached View that
+      // was re-measured — the normal case once the book has settled — changes
+      // the filtered count without one, and the status bar was left showing
+      // "0 of 20,000" over a grid that had just filled.
+      publishStatus();
+      return view;
     },
     getGeneration: () => views.getGeneration(),
     getGrandTotal: grandTotalFor,
@@ -266,10 +440,13 @@ export function createPerspectiveRowEngine(
 
     setApi(next: GridApiLike | null) {
       api = next;
-      if (api !== null && !grouped && views.rowsAtRoot !== null) {
+      if (api === null) return;
+      if (!grouped && views.rowsAtRoot !== null) {
         api.setRowCount?.(views.rowsAtRoot);
       }
-      if (api !== null) measureBook();
+      measureBook();
+      // Anything that asked for a refresh while the grid was unconnected.
+      if (pendingUpdate) scheduleRefresh();
     },
 
     get rowsAtRoot() {
@@ -309,12 +486,76 @@ export function createPerspectiveRowEngine(
       void pushGrandTotal();
     },
 
+    applyEdit(edit) {
+      if (closed) return;
+      const { key, field, value } = edit;
+      if (key === null || key === undefined || !field) return;
+      // Rewriting the index column is not an edit, it is a re-key: the upsert
+      // would insert a second row and leave the original behind, and every
+      // `getRowId` in the grid still points at the old one.
+      if (field === keyColumn) {
+        onError?.(new Error(`perspective: "${keyColumn}" is the index column and cannot be edited`));
+        return;
+      }
+
+      const id = String(key);
+      const staged = pendingEdits.get(id) ?? { [keyColumn]: key };
+      staged[field] = value;
+      pendingEdits.set(id, staged);
+      scheduleEditFlush();
+    },
+
+    async flushEdits() {
+      if (editTimer !== null) {
+        clearTimeout(editTimer);
+        editTimer = null;
+      }
+      editFlush = editFlush.then(writePendingEdits);
+      await editFlush;
+    },
+
+    countMatching(filterModel) {
+      if (closed) return Promise.resolve(null);
+
+      const key = JSON.stringify(filterModel ?? null);
+      const now = Date.now();
+      const cached = counts.get(key);
+      // Reuse while the answer is still true (nothing has moved since it was
+      // taken) OR while it is too soon to pay for another one.
+      if (cached && (cached.at >= countsStaleAt || now - cached.at < countMinIntervalMs)) {
+        return cached.value;
+      }
+
+      // A count must never break the grid, and `useFilterModel` reads a
+      // rejection as zero — which is a wrong number, not a missing one.
+      const value = views.countMatching(filterModel).catch(() => null);
+      // Delete first so a re-counted key moves to the back of the Map's
+      // insertion order — that order is what the cap below evicts from.
+      counts.delete(key);
+      counts.set(key, { at: now, value });
+      if (counts.size > MAX_COUNT_KEYS) {
+        counts.delete(counts.keys().next().value as string);
+      }
+      return value;
+    },
+
     async close() {
+      // Edits first, and BEFORE `closed` is set: an engine is closed whenever
+      // the Table is swapped or the grid unmounts, and a cell committed in the
+      // last frame before that would otherwise be dropped without a trace.
+      if (editTimer !== null) {
+        clearTimeout(editTimer);
+        editTimer = null;
+      }
+      editFlush = editFlush.then(writePendingEdits);
+      await editFlush;
+
       closed = true;
       if (timer !== null) clearTimeout(timer);
       timer = null;
       api = null;
       listeners.clear();
+      counts.clear();
       await views.close();
     },
   };

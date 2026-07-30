@@ -34,6 +34,13 @@ export interface SafeView {
    * callers must treat that as "settle empty", never as "skip settling".
    */
   read(window: { start_row: number; end_row: number }): Promise<Record<string, unknown[]> | null>;
+  /**
+   * Current row count. Resolves `null` when the view is closing/closed.
+   *
+   * Refcounted for the same reason `read` is: `num_rows()` borrows the same
+   * Rust value a concurrent `delete()` would take ownership of.
+   */
+  rows(): Promise<number | null>;
   /** Drain in-flight reads, then delete exactly once. Safe to call repeatedly. */
   close(): Promise<void>;
   readonly closed: boolean;
@@ -71,6 +78,18 @@ export function createSafeView(view: DeletableView): SafeView {
       pending += 1;
       try {
         return await view.to_columns(window);
+      } finally {
+        pending -= 1;
+        settleDrain();
+      }
+    },
+
+    async rows() {
+      if (closing) return null;
+
+      pending += 1;
+      try {
+        return await view.num_rows();
       } finally {
         pending -= 1;
         settleDrain();

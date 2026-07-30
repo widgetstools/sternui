@@ -24,7 +24,9 @@
 import { createSafeView, type DeletableView, type SafeView } from './safeView.js';
 import type { PerspectiveViewLike, SsrmRequestLike } from './perspectiveDatasource.js';
 import {
+  isFilterModelMappable,
   toGroupColumns,
+  toPerspectiveFilter,
   toPerspectiveGroupLevel,
   viewConfigKey,
   type AgFilterItem,
@@ -42,6 +44,14 @@ export interface PerspectiveTableLike {
   view(config: PerspectiveViewConfig): Promise<UpdatableView>;
   /** Rows in the whole book, ignoring any View's filters. */
   size?(): Promise<number>;
+  /**
+   * Upsert by the Table's index column. Sparse rows leave every omitted
+   * column alone — which is what makes a single edited cell a legal write.
+   * Optional so a read-only Table (and every test fake) still satisfies this.
+   */
+  update?(rows: Record<string, unknown>[]): Promise<void>;
+  /** Declared column types. Used to coerce an edited value before writing it. */
+  schema?(): Promise<Record<string, string>>;
 }
 
 export interface ViewManagerEvent {
@@ -79,6 +89,14 @@ export interface ViewManager {
   getView(request: SsrmRequestLike): Promise<PerspectiveViewLike | null>;
   /** The grand total row, or null when unavailable. */
   readGrandTotal(request: SsrmRequestLike): Promise<Record<string, unknown> | null>;
+  /**
+   * Rows the whole book matches under an AG filter model, independent of what
+   * the grid is currently showing. Null when the model cannot be translated
+   * exactly, or once closed — never a guess.
+   */
+  countMatching(
+    filterModel: Record<string, AgFilterItem> | null | undefined,
+  ): Promise<number | null>;
   close(): Promise<void>;
 }
 
@@ -122,6 +140,13 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
   const entries = new Map<string, Entry>();
   /** Creation in flight, so two blocks cannot build the same View twice. */
   const building = new Map<string, Promise<Entry>>();
+  /**
+   * Views built to answer a question rather than to serve a block — they are
+   * read once and dropped. Tracked only so `close()` can drain them: a
+   * transient View outliving the manager is a live View charged on every tick
+   * that nothing will ever retire.
+   */
+  const transient = new Set<SafeView>();
   let shape: string | null = null;
   let generation = 0;
   let rowsAtRoot: number | null = null;
@@ -184,6 +209,25 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
     return entry;
   }
 
+  /**
+   * Re-read a live View's row count.
+   *
+   * MEASURED on the live feed: `rows` used to be captured once at build time
+   * and never revisited, so a blotter that attached during the snapshot — the
+   * normal case, since a window opens long before ~20,000 rows arrive — held a
+   * View that reported 0 forever. The book filled underneath it, the status
+   * bar read "0 of 20,000", and no amount of refreshing helped: every refresh
+   * re-used the same cached count. The count is what AG sizes its store from,
+   * so it has to be as live as the rows are.
+   */
+  async function remeasure(entry: Entry): Promise<Entry> {
+    const total = await entry.safe.rows();
+    if (total !== null) {
+      entry.rows = entry.groupColId === null ? total : Math.max(0, total - 1);
+    }
+    return entry;
+  }
+
   function ensure(
     key: string,
     config: PerspectiveViewConfig,
@@ -193,7 +237,7 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
     const existing = entries.get(key);
     if (existing) {
       existing.usedAt = Date.now();
-      return Promise.resolve(existing);
+      return remeasure(existing);
     }
     const inFlight = building.get(key);
     if (inFlight) return inFlight;
@@ -310,12 +354,61 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
       return total;
     },
 
+    /**
+     * Count a filter model against the whole book.
+     *
+     * Deliberately NOT routed through `getView`. That path treats every call
+     * as the grid's current intent: it retires every live View whose shape
+     * differs, and the count's shape (a bare filter, no sort, no grouping)
+     * differs from essentially every real request. Counting a saved-filter
+     * pill would therefore tear down the Views the grid is scrolling and
+     * rebuild them on the next block — a badge costing a full re-read of the
+     * viewport. So the count builds its own View outside `entries`, reads it
+     * once, and drops it.
+     */
+    async countMatching(
+      filterModel: Record<string, AgFilterItem> | null | undefined,
+    ): Promise<number | null> {
+      if (closed) return null;
+      if (!isFilterModelMappable(filterModel)) return null;
+
+      const filter = toPerspectiveFilter(filterModel);
+      const config: PerspectiveViewConfig = filter ? { filter } : {};
+
+      // A live View already answers this exact question — an unsorted,
+      // ungrouped grid under the same filter is the common case for a pill the
+      // user just activated. Reading it costs nothing extra.
+      const existing = entries.get(viewConfigKey(config));
+      if (existing && existing.groupColId === null) {
+        existing.usedAt = Date.now();
+        return existing.safe.rows();
+      }
+
+      const safe = createSafeView(await table.view(config));
+      if (closed) {
+        void safe.close();
+        return null;
+      }
+      transient.add(safe);
+      try {
+        return await safe.rows();
+      } finally {
+        transient.delete(safe);
+        void safe.close();
+      }
+    },
+
     async close(): Promise<void> {
       closed = true;
       const live = [...entries.values()];
       entries.clear();
       for (const entry of live) onEvent({ type: 'retire', key: entry.key, why: 'close' });
-      await Promise.all(live.map((entry) => entry.safe.close()));
+      const pending = [...transient];
+      transient.clear();
+      await Promise.all([
+        ...live.map((entry) => entry.safe.close()),
+        ...pending.map((safe) => safe.close()),
+      ]);
     },
   };
 }

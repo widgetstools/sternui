@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  isFilterModelMappable,
   toGroupColumns,
   toPerspectiveAggregate,
   toPerspectiveFilter,
@@ -150,6 +151,55 @@ describe('toPerspectiveFilter', () => {
     expect(toPerspectiveFilter(null)).toBeUndefined();
     expect(toPerspectiveFilter({})).toBeUndefined();
     expect(toPerspectiveFilter({ a: { type: 'startsWith', filter: 'z' } })).toBeUndefined();
+  });
+});
+
+describe('isFilterModelMappable', () => {
+  it('accepts a model whose every column contributes a clause', () => {
+    expect(
+      isFilterModelMappable({
+        sector: { filterType: 'set', values: ['Energy'] },
+        quantity: { filterType: 'number', type: 'greaterThan', filter: 5000 },
+      }),
+    ).toBe(true);
+  });
+
+  it('accepts an empty or absent model — nothing to get wrong', () => {
+    expect(isFilterModelMappable(null)).toBe(true);
+    expect(isFilterModelMappable(undefined)).toBe(true);
+    expect(isFilterModelMappable({})).toBe(true);
+  });
+
+  it('rejects an OR compound — the clause list would narrow, not widen', () => {
+    // Perspective clause lists are conjunctive. `toPerspectiveFilterClauses`
+    // drops the whole entry rather than render OR as AND, so a count taken
+    // from it would report the unfiltered book.
+    expect(
+      isFilterModelMappable({
+        sector: {
+          operator: 'OR',
+          conditions: [
+            { filterType: 'text', type: 'equals', filter: 'Energy' },
+            { filterType: 'text', type: 'equals', filter: 'Tech' },
+          ],
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it('rejects an operator with no Perspective equivalent', () => {
+    expect(
+      isFilterModelMappable({ cusip: { filterType: 'text', type: 'startsWith', filter: 'US' } }),
+    ).toBe(false);
+  });
+
+  it('rejects when ANY column is unmappable, not just when all are', () => {
+    expect(
+      isFilterModelMappable({
+        sector: { filterType: 'set', values: ['Energy'] },
+        cusip: { filterType: 'text', type: 'endsWith', filter: '9' },
+      }),
+    ).toBe(false);
   });
 });
 

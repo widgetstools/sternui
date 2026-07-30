@@ -335,3 +335,185 @@ describe('createViewManager — rowsAtRoot', () => {
     expect(views.rowsAtRoot).toBe(500);
   });
 });
+
+/**
+ * A blotter opens long before ~20,000 rows have arrived, so its first View is
+ * built against a Table that is still filling. Everything here is about that
+ * View reporting what the Table holds NOW rather than what it held at build.
+ */
+describe('createViewManager — a book that grows under a live View', () => {
+  function makeGrowingTable() {
+    let total = 0;
+    const table: PerspectiveTableLike = {
+      view: vi.fn(async (config: PerspectiveViewConfig) => {
+        const grouped = (config.group_by?.length ?? 0) > 0;
+        const view: UpdatableView = {
+          async to_columns(window) {
+            const start = window?.start_row ?? 0;
+            const n = Math.max(0, Math.min(window?.end_row ?? 0, total) - start);
+            const cols: Record<string, unknown[]> = {
+              positionId: Array.from({ length: n }, (_, i) => `p${start + i}`),
+            };
+            if (grouped) {
+              cols.__ROW_PATH__ = Array.from({ length: n }, (_, i) =>
+                start + i === 0 ? [] : [`g${start + i}`],
+              );
+            }
+            return cols;
+          },
+          async num_rows() {
+            return total;
+          },
+          async delete() {},
+          async on_update() {
+            return 1;
+          },
+        };
+        return view;
+      }),
+    };
+    return { table, fill: (rows: number) => { total = rows; } };
+  }
+
+  // MEASURED on the live feed: the count was captured once at build time, so a
+  // View created during the snapshot reported 0 forever. AG sizes its store
+  // from that number — the grid stayed empty over a full book and refreshing
+  // could not help, because every refresh re-used the same cached count.
+  it('re-measures the row count each time the cached View is handed out', async () => {
+    const { table, fill } = makeGrowingTable();
+    const views = createViewManager({ table });
+
+    const first = await views.getView({ startRow: 0, endRow: 100 });
+    expect(await first!.num_rows()).toBe(0);
+    expect(views.rowsAtRoot).toBe(0);
+
+    fill(20_000);
+    const second = await views.getView({ startRow: 0, endRow: 100 });
+
+    // Same View — re-measured, not rebuilt.
+    expect(table.view).toHaveBeenCalledTimes(1);
+    expect(await second!.num_rows()).toBe(20_000);
+    expect(views.rowsAtRoot).toBe(20_000);
+  });
+
+  it('keeps the group-level offset when re-measuring', async () => {
+    const { table, fill } = makeGrowingTable();
+    const views = createViewManager({ table });
+    const base = { startRow: 0, endRow: 100, rowGroupCols: GROUPS, groupKeys: [] };
+
+    await views.getView(base);
+    fill(51);
+    const view = await views.getView(base);
+
+    // Row 0 of a grouped View is that level's own total, not a child AG asked for.
+    expect(await view!.num_rows()).toBe(50);
+  });
+});
+
+describe('countMatching', () => {
+  /** Views whose row count depends on the filter, so a count can be told apart
+   *  from the unfiltered book. */
+  function makeFilterableTable() {
+    const built: PerspectiveViewConfig[] = [];
+    const deleted: PerspectiveViewConfig[] = [];
+    const table: PerspectiveTableLike = {
+      view: vi.fn(async (config: PerspectiveViewConfig) => {
+        built.push(config);
+        const rows = config.filter?.length ? 37 : 1000;
+        const view: UpdatableView = {
+          async to_columns() {
+            return { positionId: [] };
+          },
+          async num_rows() {
+            return rows;
+          },
+          async delete() {
+            deleted.push(config);
+          },
+          async on_update() {
+            return 1;
+          },
+        };
+        return view;
+      }),
+    };
+    return { table, built, deleted };
+  }
+
+  const SET_ENERGY = { sector: { filterType: 'set', values: ['Energy'] } };
+
+  it('counts the whole book under the filter, not what the grid is showing', async () => {
+    const { table, built } = makeFilterableTable();
+    const views = createViewManager({ table });
+
+    expect(await views.countMatching(SET_ENERGY)).toBe(37);
+    expect(built.at(-1)!.filter).toEqual([['sector', 'in', ['Energy']]]);
+  });
+
+  it('deletes its View — a count must not leave one charged on every tick', async () => {
+    const { table, deleted } = makeFilterableTable();
+    const views = createViewManager({ table });
+
+    await views.countMatching(SET_ENERGY);
+    // The delete is fire-and-forget behind the drain; let it settle.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(deleted).toHaveLength(1);
+  });
+
+  it('does NOT retire the Views the grid is scrolling', async () => {
+    // The whole reason this bypasses `getView`: that path reads every call as
+    // the grid's current intent and retires every View of a different shape.
+    // A pill badge must not cost the viewport a full re-read.
+    const { table } = makeFilterableTable();
+    const views = createViewManager({ table });
+
+    await views.getView({ startRow: 0, endRow: 100, sortModel: [{ colId: 'pnl', sort: 'asc' }] });
+    expect(views.liveViews).toBe(1);
+
+    await views.countMatching(SET_ENERGY);
+
+    expect(views.liveViews).toBe(1);
+    expect(table.view).toHaveBeenCalledTimes(2);
+  });
+
+  it('answers null — not a number — for a model it cannot express exactly', async () => {
+    const { table } = makeFilterableTable();
+    const views = createViewManager({ table });
+
+    const count = await views.countMatching({
+      sector: {
+        operator: 'OR',
+        conditions: [
+          { filterType: 'text', type: 'equals', filter: 'Energy' },
+          { filterType: 'text', type: 'equals', filter: 'Tech' },
+        ],
+      },
+    });
+
+    // Dropping the OR would have counted the unfiltered book and reported it
+    // as the pill's match count.
+    expect(count).toBeNull();
+    expect(table.view).not.toHaveBeenCalled();
+  });
+
+  it('reads a live View that already has exactly this config', async () => {
+    const { table } = makeFilterableTable();
+    const views = createViewManager({ table });
+
+    // A flat grid filtered by the pill the user just activated.
+    await views.getView({ startRow: 0, endRow: 100, filterModel: SET_ENERGY as never });
+    expect(table.view).toHaveBeenCalledTimes(1);
+
+    expect(await views.countMatching(SET_ENERGY)).toBe(37);
+    expect(table.view).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns null once closed rather than building a View nothing will retire', async () => {
+    const { table } = makeFilterableTable();
+    const views = createViewManager({ table });
+    await views.close();
+
+    expect(await views.countMatching(SET_ENERGY)).toBeNull();
+  });
+});
