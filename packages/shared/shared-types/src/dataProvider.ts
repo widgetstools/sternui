@@ -117,6 +117,23 @@ export interface StompProviderConfig {
   listenerTopic: string;
   requestMessage?: string;
   requestBody?: string;
+  /**
+   * STOMP headers sent with the request (trigger) frame.
+   *
+   * Without these a provider can only ever ask for whatever the broker does by
+   * default. MEASURED against the in-repo fixture: the default is a **full
+   * 20,000-row sweep every ~3 s**, where the same broker will serve ~100-row
+   * sparse deltas at 5/s given `live-mode: sparse` and `updates-per-tick: 100`
+   * — a difference of 6,000 rows/s versus 514 rows/s, and of a p50 block round
+   * trip of 877 ms versus 3 ms on the Perspective pull path. Every measurement
+   * of the sparse profile had to be taken from a probe script rather than from
+   * an app, because `startStomp` published `{ destination, body }` only.
+   *
+   * Values are sent verbatim. Reserved STOMP headers (`destination`,
+   * `content-length`, `receipt`) are dropped rather than allowed to corrupt
+   * the frame — see `sanitizeRequestHeaders`.
+   */
+  requestHeaders?: Record<string, string>;
   snapshotEndToken?: string;
   /**
    * Unique-row identity. A SINGLE column name keys rows by that one

@@ -32,7 +32,7 @@ const listenerTopic = `/snapshot/positions/${TAG}`;
 const requestMessage = `/snapshot/positions/${TAG}/1000/50`;
 
 /** Bump so App re-persists the catalog row when anything below changes. */
-export const PERSPECTIVE_PROVIDER_CFG_VERSION = 1;
+export const PERSPECTIVE_PROVIDER_CFG_VERSION = 2;
 
 /**
  * Deterministic catalog id — `configStore.save()` upserts by `providerId`, so
@@ -132,6 +132,23 @@ const perspectiveCfg: StompPerspectiveProviderConfig = {
   requestMessage,
   requestBody: '',
   snapshotEndToken: 'Success',
+  /**
+   * Ask the broker for SPARSE live deltas instead of its default full-book
+   * sweep. MEASURED difference on this fixture: ~100-row partial deltas at
+   * 5/s (514 rows/s) against a 20,000-row rewrite every ~3 s (6,000 rows/s),
+   * and a p50 block round trip of 3 ms against 877 ms on the pull path —
+   * because a `table.update()` blocks reads while it applies, so the sweep is
+   * the write path starving the read path.
+   *
+   * This was unreachable from an app until `StompProviderConfig` gained
+   * `requestHeaders`: `startStomp` published `{ destination, body }` only, so
+   * every sparse measurement had to come from a probe script. The snapshot is
+   * unaffected — the book is still 20,000 rows.
+   */
+  requestHeaders: {
+    'live-mode': 'sparse',
+    'updates-per-tick': '100',
+  },
   snapshotTimeoutMs: 60_000,
   dataType: 'positions',
   keyColumn: KEY_COLUMN,

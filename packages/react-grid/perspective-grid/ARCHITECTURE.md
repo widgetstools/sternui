@@ -179,12 +179,28 @@ change purges the store.
 
 ## The profile the app can actually request — and the one it gets
 
-**Correction to the section below.** Those numbers were measured with STOMP
+**Correction, now itself corrected.** Those numbers were measured with STOMP
 headers (`live-mode: sparse`, `updates-per-tick: 100`) that the production
-provider **cannot send**: `startStomp` publishes `{ destination, body }` only
-(`stomp.ts`, `client.publish(...)`), and `StompProviderConfig` has no field for
-request headers. So the sparse profile is reachable from a probe script and not
-from an app.
+provider could not send: `startStomp` published `{ destination, body }` only
+and `StompProviderConfig` had no field for request headers, so the sparse
+profile was reachable from a probe script and not from an app.
+
+**`StompProviderConfig.requestHeaders` closes that.** Headers go on the trigger
+frame verbatim; `sanitizeRequestHeaders` drops the three stompjs owns on a SEND
+frame (`destination`, `content-length`, `receipt`), because supplying those is
+not a customization but a corruption — `destination` would redirect the frame
+and `content-length` would truncate or overrun the body. When no headers are
+configured the field is omitted entirely rather than sent as `{}`, so an
+existing provider produces a byte-identical frame.
+
+Proving it took two attempts, and the first one is the instructive one. Table
+churn under `live-mode: sparse` measured ~186 rows/s — but the CONTROL, the
+same build with the header removed, gave ~235 rows/s. **No difference**: the
+fixture instance that happened to be running was already sparse-like, so the
+metric could not tell treatment from control and the number meant nothing.
+`snapshot-rows` settled it instead, because its signal is unmistakable: the
+book went from **20,000 rows to 1,000**. `minimal-perspective-table` now ships
+the sparse headers.
 
 What an app gets instead is the broker's default legacy sweep. Measured from
 `apps/demos/perspective-blotter` against the same server:
@@ -202,12 +218,9 @@ dominated by ingesting a full book every ~3 s, because a `table.update()`
 blocks reads while it applies. This is the write path starving the read path,
 at a scale the sparse profile never showed.
 
-**The follow-up this implies is not optional**: `StompProviderConfig` needs
-request headers (or an equivalent) so a provider can ask for partial deltas.
-Without it the pull path is measured against a feed shape no deployment would
-choose, and the 2nd/3rd-blotter claim rests on the wrong load. Until then,
-treat the sparse numbers as the engine's capability and the sweep numbers as
-today's default.
+**That follow-up is now done** — see `requestHeaders` above. An app can ask for
+partial deltas, so the pull path no longer has to be measured against a feed
+shape no deployment would choose.
 
 ## The real feed, measured
 

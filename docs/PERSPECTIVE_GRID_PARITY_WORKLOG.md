@@ -292,10 +292,23 @@ Ordered. **The e2e spec is done** — see the closed section above; what remains
   ARCHITECTURE.md. Also: the worker asset is a prebuilt esbuild bundle, so
   `npm run build --workspace=@starui/host-data` is required before any
   host-data change is visible to a running app.
-- **`StompProviderConfig` cannot send request headers**, so an app only ever
-  gets the broker's default 20,000-row sweep, never the sparse profile the
-  probes used. Until then the pull path is measured against a feed shape no
-  deployment would choose.
+- ~~`StompProviderConfig` cannot send request headers.~~ **DONE.**
+  `requestHeaders?: Record<string, string>` is published on the trigger frame
+  (`sanitizeRequestHeaders` drops the three headers stompjs owns —
+  `destination`, `content-length`, `receipt` — rather than let them corrupt
+  the frame). Omitted entirely when empty, so a provider that sets none
+  produces a byte-identical frame to before. 15 tests.
+
+  **Proved end to end with a header that could not be mistaken.** The first
+  attempt measured Table churn with `live-mode: sparse` and got ~186 rows/s —
+  but the CONTROL, with the header removed, gave ~235 rows/s. No difference:
+  the running fixture instance was already sparse-like, so churn could not
+  tell treatment from control and the reading meant nothing. Swapping to
+  `snapshot-rows` settled it — the book went from **20,000 rows to 1,000**.
+  (Not the literal 500 requested; the fixture resolves the count against the
+  destination path too. The point is the unmistakable change.) That is the
+  control-vs-treatment difference the churn measurement failed to produce.
+  `minimal-perspective-table` now ships the sparse headers.
 
 ## Scope note
 
