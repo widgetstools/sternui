@@ -30,6 +30,14 @@ import type { VirtualColumnDef } from './state';
 /** Shape stored in ResourceScope.cache<GridApi, AllRowsEntry>. */
 export interface AllRowsEntry {
   rows: Record<string, unknown>[];
+  /**
+   * Memoized per-column value arrays for aggregate expansion
+   * (`SUM([price])`). Lives and dies with `rows` — cleared on every
+   * snapshot rebuild/invalidation so it can never serve stale values.
+   * Without it, every rendered cell of an aggregate column re-mapped
+   * the full row set per refresh.
+   */
+  columnArrays: Map<string, unknown[]>;
 }
 
 export function getAllRowsSnapshot(
@@ -40,7 +48,7 @@ export function getAllRowsSnapshot(
   let entry = cache.get(api);
   if (entry && entry.rows.length) return entry.rows;
   if (!entry) {
-    entry = { rows: [] };
+    entry = { rows: [], columnArrays: new Map() };
     cache.set(api, entry);
   }
   try {
@@ -52,7 +60,17 @@ export function getAllRowsSnapshot(
   } catch {
     entry.rows = [];
   }
+  entry.columnArrays.clear();
   return entry.rows;
+}
+
+/** Column-array memo tied to the CURRENT snapshot generation. */
+export function getAllRowsColumnCache(
+  api: GridApi | null | undefined,
+  cache: WeakMap<GridApi, AllRowsEntry>,
+): Map<string, unknown[]> | undefined {
+  if (!api) return undefined;
+  return cache.get(api)?.columnArrays;
 }
 
 export function invalidateAllRowsCache(
@@ -61,7 +79,10 @@ export function invalidateAllRowsCache(
 ): void {
   if (!api) return;
   const entry = cache.get(api);
-  if (entry) entry.rows = [];
+  if (entry) {
+    entry.rows = [];
+    entry.columnArrays.clear();
+  }
 }
 
 export function buildVirtualColDef(
@@ -120,6 +141,15 @@ export function buildVirtualColDef(
           // aggregateColumnRefs functions never pay the cache cost.
           get allRows() {
             return getAllRowsSnapshot(params.api as GridApi, cache);
+          },
+          // Same-generation column-array memo: the FIRST aggregate cell
+          // maps the snapshot once; every other rendered cell of the
+          // column reuses the array until the next invalidation.
+          get allRowsColumnCache() {
+            // Ensure the snapshot (and thus generation) is current
+            // before handing out its memo.
+            getAllRowsSnapshot(params.api as GridApi, cache);
+            return getAllRowsColumnCache(params.api as GridApi, cache);
           },
         });
       } catch {

@@ -110,6 +110,15 @@ export interface EvaluationContext {
    * the current row's price scalar. Falls back to scalar when omitted.
    */
   allRows?: ReadonlyArray<Record<string, unknown>>;
+  /**
+   * Optional companion to {@link allRows}: memoizes the per-column
+   * value arrays that aggregate expansion (`SUM([price])` →
+   * `allRows.map(getValueByPath)`) builds. Without it every RENDERED
+   * CELL of an aggregate calculated column re-mapped the full row set
+   * (20k-element array + 20k path reads per cell per refresh). The
+   * supplier owns invalidation — clear it whenever `allRows` changes.
+   */
+  allRowsColumnCache?: Map<string, unknown[]>;
 }
 
 // ─── Function Registry ───────────────────────────────────────────────────────

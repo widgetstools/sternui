@@ -109,7 +109,11 @@ export function buildCallArgs(
   if (fn.aggregateColumnRefs && ctx.allRows) {
     return argNodes.map((arg, i) => {
       if (arg.type === 'columnRef') {
-        return ctx.allRows!.map((row) => getValueByPath(row, arg.columnId) ?? null);
+        const cached = ctx.allRowsColumnCache?.get(arg.columnId);
+        if (cached) return cached;
+        const values = ctx.allRows!.map((row) => getValueByPath(row, arg.columnId) ?? null);
+        ctx.allRowsColumnCache?.set(arg.columnId, values);
+        return values;
       }
       return evalArg(arg, i);
     });

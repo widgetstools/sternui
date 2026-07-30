@@ -112,6 +112,8 @@ export {
   parse,
   Evaluator,
   tryCompileToAgString,
+  astUsesAggregateFunctions,
+  getAggregateFunctionNames,
 } from './expression';
 export type {
   ExpressionNode,

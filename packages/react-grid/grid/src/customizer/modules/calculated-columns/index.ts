@@ -12,6 +12,7 @@ import {
   type CalculatedColumnsState,
   type VirtualColumnDef,
 } from './state';
+import { astUsesAggregateFunctions } from '@starui/engine';
 import {
   buildVirtualColDef,
   invalidateAllRowsCache,
@@ -62,20 +63,60 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
    * (column-wide aggregates like `SUM([price])` depend on the full row
    * snapshot). AG-Grid only re-runs the edited cell's row by default.
    *
-   * `refreshCells({ columns: virtualIds, force: true })` re-runs every
-   * virtual valueGetter, which reads from the invalidated snapshot.
+   * Two throttles keep this off the live-tick hot path:
+   * - The forced `refreshCells` only runs when at least one virtual
+   *   column actually CALLS an aggregate function. Row-local columns
+   *   (`[price] * [qty]`) re-run through AG-Grid's own change detection
+   *   for exactly the rows a transaction touched — force-refreshing
+   *   every rendered virtual cell per flush repainted the whole
+   *   viewport 10-40×/sec for nothing.
+   * - The refresh is rAF-coalesced: many flushes per frame collapse to
+   *   one repaint. Snapshot INVALIDATION stays synchronous so any
+   *   read between flush and repaint (sort, filter, export) sees fresh
+   *   data; only the repaint is deferred. rAF suspending on hidden
+   *   windows is fine here — a hidden grid repaints on reveal.
    */
   activate(platform: PlatformHandle<CalculatedColumnsState>): () => void {
     const cache = platform.resources.cache<GridApi, AllRowsEntry>(ALL_ROWS_CACHE_KEY);
+    const engine = platform.resources.expression();
+
+    // Memoized by the virtualColumns array reference — state is
+    // immutable, so a same-reference array cannot have new expressions.
+    let aggMemoFor: VirtualColumnDef[] | null = null;
+    let anyAggregate = false;
+    const hasAggregateColumns = (): boolean => {
+      const cols = platform.getState().virtualColumns;
+      if (cols !== aggMemoFor) {
+        aggMemoFor = cols;
+        anyAggregate = cols.some((v) => {
+          try { return astUsesAggregateFunctions(engine.parse(v.expression)); }
+          catch { return false; }
+        });
+      }
+      return anyAggregate;
+    };
+
+    let rafHandle: number | null = null;
+    const flushRefresh = () => {
+      rafHandle = null;
+      const api = platform.api.api;
+      if (!api) return;
+      const ids = platform.getState().virtualColumns.map((v) => v.colId);
+      if (ids.length === 0) return;
+      try { api.refreshCells({ columns: ids, force: true }); }
+      catch { /* teardown window */ }
+    };
 
     const onDataEvent = () => {
       const api = platform.api.api;
       if (!api) return;
       invalidateAllRowsCache(api, cache);
-      const ids = platform.getState().virtualColumns.map((v) => v.colId);
-      if (ids.length === 0) return;
-      try { api.refreshCells({ columns: ids, force: true }); }
-      catch { /* teardown window */ }
+      if (platform.getState().virtualColumns.length === 0) return;
+      if (!hasAggregateColumns()) return;
+      if (rafHandle !== null) return;
+      rafHandle = typeof requestAnimationFrame === 'function'
+        ? requestAnimationFrame(flushRefresh)
+        : (setTimeout(flushRefresh, 16) as unknown as number);
     };
 
     const disposers = [
@@ -83,7 +124,13 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
       platform.api.on('rowValueChanged', onDataEvent),
       platform.api.on('rowDataUpdated', onDataEvent),
     ];
-    return () => disposers.forEach((d) => { try { d(); } catch { /* */ } });
+    return () => {
+      if (rafHandle !== null && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(rafHandle);
+        rafHandle = null;
+      }
+      disposers.forEach((d) => { try { d(); } catch { /* */ } });
+    };
   },
 
   transformColumnDefs(defs, state, ctx) {
