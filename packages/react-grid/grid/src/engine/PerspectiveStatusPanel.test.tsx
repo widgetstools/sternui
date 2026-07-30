@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { PerspectiveStatusPanel } from './PerspectiveStatusPanel.js';
+import { createPerspectiveEngineHolder } from './perspectiveEngineHolder.js';
 import type { PerspectiveGridStatus } from '@starui/perspective-grid';
 
 function makeEngine(initial: Partial<PerspectiveGridStatus> = {}) {
@@ -32,8 +33,19 @@ function makeEngine(initial: Partial<PerspectiveGridStatus> = {}) {
   };
 }
 
-const renderPanel = (engine: unknown, api?: Record<string, unknown>) =>
-  render(<PerspectiveStatusPanel context={{ perspectiveEngine: engine as never }} api={api as never} />);
+function renderPanel(engine: unknown, api?: Record<string, unknown>) {
+  const holder = createPerspectiveEngineHolder();
+  holder.set(engine as never);
+  return {
+    holder,
+    ...render(
+      <PerspectiveStatusPanel
+        context={{ perspectiveEngineHolder: holder }}
+        api={api as never}
+      />,
+    ),
+  };
+}
 
 describe('PerspectiveStatusPanel', () => {
   it('shows the book total from the Table, not the loaded blocks', () => {
@@ -102,5 +114,37 @@ describe('PerspectiveStatusPanel', () => {
     const { unmount } = renderPanel(engine);
     unmount();
     expect(unsubscribe).toHaveBeenCalled();
+  });
+});
+
+/**
+ * The engine is not stable — a provider restart hands over a new Table and the
+ * surface rebuilds around it. AG hands this panel the context object the grid
+ * was CREATED with, so the swap has to reach it through that object or the bar
+ * spends the rest of the session reporting a closed engine.
+ */
+describe('PerspectiveStatusPanel — engine swaps', () => {
+  it('follows the engine when the holder swaps it', async () => {
+    const first = makeEngine({ bookRows: 20_000, filteredRows: 20_000 });
+    const { holder } = renderPanel(first.engine);
+    expect(screen.getByText('20,000')).toBeTruthy();
+
+    const second = makeEngine({ bookRows: 512, filteredRows: 512 });
+    holder.set(second.engine as never);
+
+    await waitFor(() => expect(screen.getByText('512')).toBeTruthy());
+  });
+
+  it('drops the old subscription when the engine is swapped', async () => {
+    const first = makeEngine();
+    const { holder } = renderPanel(first.engine);
+    const second = makeEngine({ bookRows: 7, filteredRows: 7 });
+    holder.set(second.engine as never);
+    await waitFor(() => expect(screen.getByText('7')).toBeTruthy());
+
+    // A closed engine must not be able to repaint the bar.
+    first.push({ filteredRows: 999, bookRows: 999 });
+    await waitFor(() => expect(screen.getByText('7')).toBeTruthy());
+    expect(screen.queryByText('999')).toBeNull();
   });
 });

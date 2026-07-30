@@ -14,6 +14,7 @@
  */
 import { useEffect, useState } from 'react';
 import type { PerspectiveGridStatus, PerspectiveRowEngine } from '@starui/perspective-grid';
+import type { PerspectiveEngineHolder } from './perspectiveEngineHolder.js';
 
 /** What AG passes a custom status panel. `context` is our own grid option. */
 export interface PerspectiveStatusPanelParams {
@@ -22,20 +23,33 @@ export interface PerspectiveStatusPanelParams {
     addEventListener?(type: string, listener: () => void): void;
     removeEventListener?(type: string, listener: () => void): void;
   };
-  context?: { perspectiveEngine?: PerspectiveRowEngine };
+  context?: { perspectiveEngineHolder?: PerspectiveEngineHolder };
 }
 
 const count = (n: number) => n.toLocaleString();
 
 export function PerspectiveStatusPanel(params: PerspectiveStatusPanelParams) {
-  const engine = params.context?.perspectiveEngine;
+  const holder = params.context?.perspectiveEngineHolder;
+  // Tracked as state, not read once: AG hands this panel the context object it
+  // was created with, and the engine behind it is swapped on a provider
+  // restart. Reading it once left the bar reporting a closed engine forever.
+  const [engine, setEngine] = useState<PerspectiveRowEngine | null>(
+    holder?.get() ?? null,
+  );
   const [status, setStatus] = useState<PerspectiveGridStatus | null>(
     engine ? engine.status : null,
   );
   const [selected, setSelected] = useState(0);
 
   useEffect(() => {
+    if (!holder) return;
+    setEngine(holder.get());
+    return holder.subscribe(setEngine);
+  }, [holder]);
+
+  useEffect(() => {
     if (!engine) return;
+    setStatus(engine.status);
     return engine.subscribe(setStatus);
   }, [engine]);
 
@@ -47,6 +61,19 @@ export function PerspectiveStatusPanel(params: PerspectiveStatusPanelParams) {
     update();
     return () => api.removeEventListener?.('selectionChanged', update);
   }, [params.api]);
+
+  // Belt to the holder's braces. AG constructs this panel once, during grid
+  // creation, and that can land in the narrow window before the surface's
+  // engine settles — React StrictMode builds one engine, closes it, and builds
+  // another. `modelUpdated` fires whenever the store changes, which is exactly
+  // when a bar reading a closed engine would be visibly wrong.
+  useEffect(() => {
+    const api = params.api;
+    if (!api?.addEventListener || !holder) return;
+    const resync = () => setEngine(holder.get());
+    api.addEventListener('modelUpdated', resync);
+    return () => api.removeEventListener?.('modelUpdated', resync);
+  }, [params.api, holder]);
 
   if (!status) return null;
 

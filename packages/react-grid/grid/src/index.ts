@@ -72,6 +72,23 @@ export {
   type PerspectiveMarketsGridSurfaceProps,
   type PerspectiveMarketsGridSurfaceHandle,
 } from './engine/PerspectiveMarketsGridSurface.js';
-export { resolveUseSsrm, type MarketsGridRowModel } from './engine/resolveUseSsrm.js';
+export {
+  resolveUseSsrm,
+  resolvePerspective,
+  resolveGridSurface,
+  type MarketsGridRowModel,
+  type GridSurfaceChoice,
+} from './engine/resolveUseSsrm.js';
+/**
+ * Re-exported so a host wires the pull path with the one grid dep it already
+ * has, instead of taking a second one on `@starui/perspective-grid`.
+ */
+export {
+  usePerspectiveTable,
+  type UsePerspectiveTableOpts,
+  type UsePerspectiveTableResult,
+  type PerspectiveAttachClientLike,
+  type PerspectiveTableStatus,
+} from '@starui/perspective-grid';
 export { shouldSuggestSsrm } from './engine/shouldSuggestSsrm.js';
 export { CURRENT_SSRM_PHASE, isSsrmCapabilityEnabled } from './engine/ssrmCapabilities.js';

@@ -40,7 +40,7 @@ import { mergeDefaultColDef } from './mergeDefaultColDef';
 import { GeneralSettingsProvider } from './GeneralSettingsContext';
 import { MarketsGridSurface } from './MarketsGridSurface';
 import { SsrmMarketsGridSurfaceConnected as SsrmMarketsGridSurface } from '../engine/SsrmMarketsGridSurfaceConnected';
-import { resolvePerspective, resolveUseSsrm } from '../engine/resolveUseSsrm.js';
+import { resolveGridSurface, resolvePerspective, resolveUseSsrm } from '../engine/resolveUseSsrm.js';
 import type { SSRMColDef, SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
 import { useSsrmCalcMaterialize, useSsrmColumnDefs } from '../engine/useSsrmColumnDefs.js';
 import { materializeCalcFields } from '../engine/ssrmCalcColumns.js';
@@ -355,7 +355,7 @@ function MarketsGridInner<TData = unknown>(
   return (
     <ProviderGridHostProvider value={providerGridHost ?? null}>
     <GridEventBindingsHostProvider value={gridEventBindingsHost ?? null}>
-      <GridProvider platform={shell.platform} engineKind={useSSRM ? 'ssrm' : 'csrm'}>
+      <GridProvider platform={shell.platform} engineKind={perspective ? 'perspective' : useSSRM ? 'ssrm' : 'csrm'}>
       <GeneralSettingsProvider value={shell.generalSettings}>
       <MarketsGridHost
         rowData={rowData}
@@ -413,6 +413,17 @@ function MarketsGridInner<TData = unknown>(
         includeAllStreamSafeFilters={includeAllStreamSafeFilters ?? true}
         useSSRM={useSSRM}
         perspectiveTable={perspective ? props.perspectiveTable : undefined}
+        // `null` is `usePerspectiveTable`'s "attaching" answer, and it is the
+        // ONLY way to tell it apart from `undefined` ("not using this seam").
+        // The host must not mount a stand-in grid in that window — see its
+        // render branch for what mounting two grids costs.
+        perspectivePending={
+          resolveGridSurface({
+            rowModel,
+            useSSRM: useSSRMProp,
+            perspectiveTable: props.perspectiveTable,
+          }) === 'pending'
+        }
         perspectiveKeyColumn={props.perspectiveKeyColumn}
         suggestSsrmAbove={props.suggestSsrmAbove}
         onSuggestSsrm={props.onSuggestSsrm}
@@ -451,6 +462,7 @@ function MarketsGridCoreInner<TData = unknown>(
   } = props;
 
   const useSSRM = resolveUseSsrm({ useSSRM: useSSRMProp, rowModel });
+  const perspective = resolvePerspective({ rowModel }) && props.perspectiveTable !== undefined;
 
   const gridRef = useRef<AgGridReact<TData>>(null);
   const ssrmRef = useRef<SSRMGridHandle>(null);
@@ -477,7 +489,7 @@ function MarketsGridCoreInner<TData = unknown>(
   }, [rowData, useSSRM, ssrmCalcMaterialize]);
 
   return (
-    <GridProvider platform={shell.platform} engineKind={useSSRM ? 'ssrm' : 'csrm'}>
+    <GridProvider platform={shell.platform} engineKind={perspective ? 'perspective' : useSSRM ? 'ssrm' : 'csrm'}>
       <GeneralSettingsProvider value={shell.generalSettings}>
         <div className={className} style={shell.rootStyle} data-grid-id={gridId}>
           {useSSRM ? (

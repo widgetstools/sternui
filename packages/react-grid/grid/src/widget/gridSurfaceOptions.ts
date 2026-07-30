@@ -75,6 +75,37 @@ export function stripSurfaceManagedGridOptions(
   return out;
 }
 
+/**
+ * Row-supply mechanics the Perspective surface owns outright.
+ *
+ * Everything else the module pipeline emits is spread through, so a grid
+ * option set in the customizer reaches this surface like any other. These are
+ * the keys that would not customize the grid but detach it from the Table:
+ * the row model, the datasource, the id function and the block geometry are
+ * how the window reads its viewport, not preferences.
+ */
+export const PERSPECTIVE_SURFACE_OWNED_KEYS = [
+  'rowModelType',
+  'serverSideDatasource',
+  'serverSideInitialRowCount',
+  'getRowId',
+  'cacheBlockSize',
+  'maxBlocksInCache',
+  'blockLoadDebounceMillis',
+  'context',
+] as const;
+
+export function stripPerspectiveManagedGridOptions(
+  opts: Record<string, unknown>,
+  hostOverrideKeys: ReadonlySet<string>,
+): Record<string, unknown> {
+  const out = stripSurfaceManagedGridOptions(opts, hostOverrideKeys);
+  for (const key of PERSPECTIVE_SURFACE_OWNED_KEYS) {
+    delete out[key];
+  }
+  return out;
+}
+
 export function shouldSkipGridOptionSync(
   key: string,
   hostOverrideKeys: ReadonlySet<string>,

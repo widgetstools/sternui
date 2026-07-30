@@ -114,6 +114,11 @@ export interface MarketsGridHostProps<TData> {
   useSSRM?: boolean;
   /** Worker-held Table; when set, the Perspective surface is mounted. */
   perspectiveTable?: unknown;
+  /**
+   * `rowModel: 'perspective'` was asked for and the Table has not attached
+   * yet. NOTHING may mount a grid in this window — see the render branch.
+   */
+  perspectivePending?: boolean;
   perspectiveKeyColumn?: string;
   suggestSsrmAbove?: number;
   onSuggestSsrm?: () => void;
@@ -178,6 +183,7 @@ function MarketsGridHostInner<TData>({
   includeAllStreamSafeFilters,
   useSSRM,
   perspectiveTable,
+  perspectivePending,
   perspectiveKeyColumn,
   suggestSsrmAbove,
   onSuggestSsrm,
@@ -424,13 +430,44 @@ function MarketsGridHostInner<TData>({
         </div>
       )}
 
-      {perspectiveTable ? (
+      {!perspectiveTable && perspectivePending ? (
+        /*
+         * Perspective was asked for and the Table has not attached yet. Hold
+         * the slot EMPTY rather than falling through to the CSRM surface.
+         *
+         * MEASURED, and the cause of three separate "the toolbar is dead"
+         * bugs: attaching to the worker-held Table is async, so this branch
+         * used to render `MarketsGridSurface` for the first few hundred ms.
+         * That grid fired `onGridReady`, which attached the api to the
+         * platform and activated every module. When the Table arrived the
+         * branch flipped, THAT grid unmounted, and `onGridPreDestroyed` ran
+         * `platform.destroy()` — which sets `destroyed` permanently and nulls
+         * the platform ref. The Perspective grid then mounted and fired its
+         * own `onGridReady` into the destroyed platform, where it is a no-op
+         * (`GridPlatform.onGridReady` opens with `if (this.destroyed) return`).
+         * A fresh platform was built for the next render and never saw a grid
+         * at all: `api` null, `mountedGrid` false, no module ever activated.
+         *
+         * Everything that talks to AG Grid directly kept working — grouping,
+         * sorting, the context menu, density — so the grid looked healthy.
+         * Everything that goes through the platform was dead: the formatting
+         * toolbar and auto-formatter (`useActiveColumns` reads
+         * `platform.api`), the saved-filter "+" button, and profile
+         * save/restore (the grid-state module never activated, so nothing was
+         * captured and nothing restored).
+         *
+         * One grid mounts per platform, once. That is the invariant.
+         */
+        <div style={{ flex: 1, minHeight: 0, width: '100%' }} data-testid="perspective-attach-pending" />
+      ) : perspectiveTable ? (
         // The book lives once in a worker; this window reads its viewport.
         // Everything above this line — toolbar, formatting, customizer,
         // profiles — is unchanged, which is the point: AG Grid stays the
         // surface and only the row supply moves.
         <PerspectiveMarketsGridSurface
           table={perspectiveTable as never}
+          gridOptions={gridOptions}
+          hostOverrideKeys={hostOverrideKeys}
           keyColumn={
             perspectiveKeyColumn ?? (typeof rowIdField === 'string' ? rowIdField : 'id')
           }
@@ -442,7 +479,10 @@ function MarketsGridHostInner<TData>({
           statusBar={statusBar}
           defaultColDef={defaultColDef as never}
           includeAllStreamSafeFilters={includeAllStreamSafeFilters}
+          gridRef={gridRef as never}
+          getContextMenuItems={getContextMenuItems}
           onGridReady={handleGridReady}
+          onGridPreDestroyed={onGridPreDestroyed}
           grandTotalRow={
             gridOptions.grandTotalRow as
               | boolean

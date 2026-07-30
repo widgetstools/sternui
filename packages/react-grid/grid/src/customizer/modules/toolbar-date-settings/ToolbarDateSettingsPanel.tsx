@@ -18,6 +18,7 @@ import { ExpressionEngine } from '@starui/engine';
 import { ChromeButton } from '../../ui/ChromeButton';
 import { ExpressionEditor } from '../../ui/ExpressionEditor';
 import { useGridColumns } from '../../hooks/useGridColumns';
+import { isServerSideEngine } from '../../../engine/types.js';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
 import { useGridEngineKind } from '../../hooks/GridProvider';
 import {
@@ -196,7 +197,7 @@ function SectionAnchor({
 
 export function ToolbarDateSettingsPanel(): ReactElement {
   const engineKind = useGridEngineKind();
-  const rowExclusionSsrmNote = engineKind === 'ssrm';
+  const rowExclusionSsrmNote = isServerSideEngine(engineKind);
   const {
     draft,
     setDraft,

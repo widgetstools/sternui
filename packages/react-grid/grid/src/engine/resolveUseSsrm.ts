@@ -31,3 +31,43 @@ export function resolvePerspective(opts: {
   // one, so it must not veto an explicit `rowModel: 'perspective'`.
   return opts.rowModel === 'perspective';
 }
+
+/** Which surface the host mounts — `'pending'` mounts none at all. */
+export type GridSurfaceChoice = 'perspective' | 'pending' | 'ssrm' | 'csrm';
+
+/**
+ * Pick the surface, given the row model and whether the worker-held Table has
+ * attached yet.
+ *
+ * The rule that matters is `'pending'`, and it exists because **exactly one
+ * grid may mount per `GridPlatform`, ever**. Attaching to the Table is async,
+ * so `rowModel: 'perspective'` used to fall through to the CSRM surface for
+ * the first few hundred milliseconds. That stand-in grid fired `onGridReady`
+ * (attaching the api and activating every module) and then unmounted when the
+ * Table arrived — and its `onGridPreDestroyed` called `platform.destroy()`,
+ * which is permanent. The real grid's `onGridReady` then landed on a destroyed
+ * platform, where `GridPlatform.onGridReady` returns immediately.
+ *
+ * The result was a grid that looked healthy — grouping, sorting, the context
+ * menu and density all talk to AG Grid directly — while every platform-driven
+ * feature was silently dead: the formatting toolbar, the auto-formatter, the
+ * saved-filter "+" button, and profile save/restore.
+ *
+ * `null` vs `undefined` carries the distinction: `usePerspectiveTable` returns
+ * `null` while attaching, and `undefined` means the caller is not using this
+ * seam at all.
+ */
+export function resolveGridSurface(opts: {
+  rowModel?: MarketsGridRowModel;
+  useSSRM?: boolean;
+  /** `null` = attaching; `undefined` = not using the Perspective seam. */
+  perspectiveTable?: unknown;
+}): GridSurfaceChoice {
+  if (resolvePerspective({ rowModel: opts.rowModel })) {
+    if (opts.perspectiveTable) return 'perspective';
+    if (opts.perspectiveTable === null) return 'pending';
+  }
+  return resolveUseSsrm({ useSSRM: opts.useSSRM, rowModel: opts.rowModel })
+    ? 'ssrm'
+    : 'csrm';
+}

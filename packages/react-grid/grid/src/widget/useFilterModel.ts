@@ -42,6 +42,7 @@ import {
 } from './filtersToolbarLogic';
 import type { SavedFilter } from './types';
 import { useGridEngineKind } from '@starui/grid/customizer';
+import { isServerSideEngine } from '../engine/types.js';
 
 // ─── AG-Grid v35 shape repair ──────────────────────────────────────────
 //
@@ -313,22 +314,27 @@ function useFilterCounts(filters: readonly SavedFilter[]): Record<string, number
             | {
                 ssrmCountMatching?: (
                   filterModel: Record<string, unknown>,
-                ) => Promise<number>;
+                ) => Promise<number | null>;
                 ssrmConfigured?: boolean;
               }
             | undefined;
           const countMatching = ctx?.ssrmCountMatching;
           if (!countMatching || !ctx?.ssrmConfigured) {
-            // Perspective not ready yet — retry via firstDataRendered / ssrmConfigured.
+            // Engine not ready yet — retry via firstDataRendered / ssrmConfigured.
             return;
           }
           const next: Record<string, number> = {};
           await Promise.all(
             filters.map(async (f) => {
               try {
-                next[f.id] = await countMatching(f.filterModel);
+                const count = await countMatching(f.filterModel);
+                // A null answer means the engine cannot count this model
+                // exactly. Leave the key out so the pill shows no badge — the
+                // toolbar already renders a count only when one is present,
+                // and a wrong number is worse than none.
+                if (typeof count === 'number') next[f.id] = count;
               } catch {
-                next[f.id] = 0;
+                /* no honest count — same as above, show no badge */
               }
             }),
           );
@@ -338,7 +344,7 @@ function useFilterCounts(filters: readonly SavedFilter[]): Record<string, number
         };
 
         const fullRecompute = () => {
-          if (engineKind === 'ssrm') {
+          if (isServerSideEngine(engineKind)) {
             void fullRecomputeSsrm();
             return;
           }
@@ -346,7 +352,7 @@ function useFilterCounts(filters: readonly SavedFilter[]): Record<string, number
         };
 
         const applyRowChange = (change: RowChange) => {
-          if (engineKind === 'ssrm') {
+          if (isServerSideEngine(engineKind)) {
             // Deltas under SSRM don't cover the full book — recount via Perspective.
             void fullRecomputeSsrm();
             return;
