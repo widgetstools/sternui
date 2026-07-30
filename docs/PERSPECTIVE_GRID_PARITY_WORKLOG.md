@@ -257,10 +257,21 @@ Two traps the spec had to encode, both of which cost time:
 
 Ordered. **The e2e spec is done** — see the closed section above; what remains:
 
-- **Multi-window timings on the product path are unmeasured.** The whole
-  2nd/3rd-blotter thesis (414 ms vs 1135 ms) is measured only in the harness.
+- ~~Multi-window timings on the product path are unmeasured.~~ **MEASURED**
+  (`scripts/multiWindowTimingProbe.mjs`, two consecutive runs). Cold window to
+  first rows 2,297 ms; windows 2 and 3, 1,056 ms and 1,248 ms. The headline
+  1.8x understates it and the decomposition says why: **mount — bundle fetch,
+  parse, React boot — is ~865–976 ms and is paid identically by every window**,
+  cold or not, so it is not the row engine's cost at all. Strip it and a later
+  blotter attaches and paints in **191–315 ms against 1,370 ms cold, 4.3x**.
+  The thesis holds on the product path, and the remaining per-window cost is
+  the 5 MB bundle — which is precisely the next item. All three windows read
+  20,000 rows with 0 failed blocks and agreed exactly.
 - **`getCompiledClientWasm()`** — every window still carries the whole inline
-  build (~5 MB), including the server wasm it never runs.
+  build (~5 MB), including the server wasm it never runs. **Now the largest
+  single cost on the path**: the timing measurement above puts ~900 ms of every
+  window's ~1.1 s open squarely on bundle boot, against 191–315 ms for
+  everything the row engine does.
 - **`StompProviderConfig` cannot send request headers**, so an app only ever
   gets the broker's default 20,000-row sweep, never the sparse profile the
   probes used. Until then the pull path is measured against a feed shape no

@@ -668,6 +668,42 @@ restored parity. The client-side style-rule evaluator never passes `allRows`, so
 `[price] > AVG([price])` is false for every row there. This path answers it
 correctly; CSRM does not answer it at all.
 
+## Multi-window timings on the PRODUCT path — measured
+
+Milestone 1 measured the 2nd/3rd-blotter claim in `harness/` (window 3 at
+414 ms against 1135 ms cold) against a **mock book already in memory**. The
+whole thesis of this migration rests on that number and it had never been taken
+through `MarketsGridContainer` against the real feed.
+`scripts/multiWindowTimingProbe.mjs` does it: production build, three visible
+windows, one fresh browser profile so window 1 gets a genuinely fresh
+SharedWorker.
+
+Two consecutive runs, `minimal-perspective-table` on the live STOMP book:
+
+| window | mount (bundle) | attach + first rows | total | full book |
+|---|---|---|---|---|
+| 1 (cold) | 928 ms | **1,370 ms** | 2,297 ms | 3,136 ms |
+| 2 | 864 ms | **191 ms** | 1,056 ms | 1,097 ms |
+| 3 | 933 ms | **315 ms** | 1,248 ms | 1,252 ms |
+
+**The headline 1.8x understates it, and the decomposition says why.** Mount —
+bundle fetch, parse and React boot — is ~865–976 ms and is paid *identically by
+every window*, cold or not. It is not the row engine's cost at all; it is the
+5 MB inline build, which is exactly what `getCompiledClientWasm()` would
+attack. Strip it and the part this migration actually owns is **191–315 ms for
+a later blotter against 1,370 ms cold — 4.3x**. The thesis holds on the product
+path; the remaining per-window cost is bundle, not book.
+
+All three windows reported **20,000 rows and 0 failed blocks**, agreeing
+exactly — the property N CSRM windows can never have, since each holds its own
+independently random-walked copy.
+
+One caveat kept honest: the cold window reached a full book in ~3.1 s here,
+against the 18.4 s snapshot recorded under "The real feed, measured". The
+broker is erratic (18 s–2 min, and it sometimes wedges), so the cold figure
+tracks the broker's mood rather than anything in this code. The windows 2 and 3
+figures do not depend on it — that is the point of them.
+
 ## Tree data and master/detail
 
 Both are AG features that read something the client is assumed to hold, so both
@@ -1009,7 +1045,7 @@ it never runs — `getCompiledClientWasm()` is the fix, still outstanding.
 | Alerts full-book rescan source | **done**, 8 tests |
 | Style rules that must materialize worker-side | **done**, 28 tests + 4 engine probes |
 | Tree data + master/detail | **done**, 24 tests; new API, not parity |
-| Multi-window timings through the product path | **not measured** |
+| Multi-window timings through the product path | **measured** — 4.3x on attach, see above |
 | e2e spec for the Perspective surface | **done**, 7 tests (`npm run e2e:perspective`) |
 
 `MarketsGrid` now has three surfaces: CSRM, the hand-rolled `CustomSSRMGrid`,
@@ -1070,11 +1106,10 @@ that drift.
 No numbered milestone remains — the path is wired end to end. What the design
 names and nothing has built:
 
-- **The multi-window claim is unmeasured on the product path.** Milestone 1
-  measured it in the harness — window 3 first rows in 414 ms against 1135 ms
-  for the cold first window. Milestone 2 verified ONE window through
-  `MarketsGridContainer`. The whole thesis is that the 2nd and 3rd blotter are
-  fast, so it needs re-measuring on `minimal-perspective-table`.
+- ~~The multi-window claim is unmeasured on the product path.~~ **MEASURED** —
+  see "Multi-window timings on the PRODUCT path" above. A later blotter attaches
+  and paints in 191–315 ms against 1,370 ms cold (4.3x); the ~900 ms that
+  remains per window is bundle boot, not the row engine.
 - **`getCompiledClientWasm()`** — the window bundle still carries the whole
   inline build (5,070 kB in the demo), including the server wasm it never
   runs.
