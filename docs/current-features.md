@@ -667,7 +667,7 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - `useInteropChannel` (+ `isInteropAvailable`) — **primary** link transport: OpenFin interop facade (`fin.me.interop.setContext` / `addContextHandler`), shape-compatible with `useFdc3Channel`. Used because the dock "Link" joins **interop context groups** that `window.fdc3`'s channel tracking doesn't reliably reflect; `HostedMarketsGrid` prefers it and falls back to `useFdc3Channel` only when interop is absent
 - `useGridLinkNotifications` + `gridLinkNotifications` helpers (`buildSelectionNotification`, `buildAckNotification`, `summarizeCriteria`, `summarizeLinkContext`) — post OpenFin Notification Center messages for link traffic (a "sent" on broadcast, an "acknowledged" on receive) via `@starui/host-openfin`; gated by `contextLink.notify`, no-op outside OpenFin
 - `useTabsHidden` — tab visibility detection
-- `useViewTabTitle` (+ `ViewTabTitle` type) — two-way binding between the grid caption and the host OpenFin view's tab name: seeds from `customData.savedTitle`, polls for external "Save Tab As…" renames, and `setTitle` writes back `document.title` + `savedTitle`. No-op (local-only) outside OpenFin
+- `useViewTabTitle` (+ `ViewTabTitle` type) — two-way binding between the grid caption and the host OpenFin view's tab name: seeds from `customData.savedTitle`, picks up external "Save Tab As…" renames via the view's `options-changed` event (1 s `getOptions` poll only as fallback for runtimes without the event API), and `setTitle` writes back `document.title` + `savedTitle`. No-op (local-only) outside OpenFin
 - `useWorkspaceSaveEvent` — workspace save callback
 - Window options — hosted hooks use `subscribeWindowOptions` from `@starui/host-openfin` internally (not re-exported from `./hosted`)
 - `useAgGridTheme` — AG Grid theme resolution
@@ -862,11 +862,11 @@ modules).
 - `GridPlatform` — per-grid singleton (store, api, events, rows, resources, pipeline)
 - `EventBus<T>` — typed pub-sub (`emit`, `on`, `off`)
 - `ApiHub` — reactive `GridApi` (`attach`, `whenReady`, event subscriptions; `on` forwards the AG event object)
-- `RowChangeBus` (`platform.rows`, type `RowChangeSignal`) — shared, timer-coalesced row-change emitter. Reads the exact changed nodes from AG `asyncTransactionsFlushed` and emits one `RowChange` (`added`/`updated`/`removed` deltas, or `full` for sort/filter/`setRowData`) per frame, so data-reactive modules (alerts, conditional-styling, filter counts) evaluate only changed rows instead of walking the whole grid on every streaming tick. Filter pill badge counts (`useFilterCounts` in `useFilterModel`) maintain per-filter row-id sets and adjust counts incrementally on delta emits
+- `RowChangeBus` (`platform.rows`, type `RowChangeSignal`) — shared, timer-coalesced row-change emitter. Reads the exact changed nodes from AG `asyncTransactionsFlushed` and emits one `RowChange` (`added`/`updated`/`removed` deltas, or `full` for sort/filter/`setRowData`; explicit `sortChanged`/`filterChanged` listeners keep the `full` classification even when the sort/filter shares a coalescing window with a streaming flush) per frame, so data-reactive modules (alerts, conditional-styling, filter counts) evaluate only changed rows instead of walking the whole grid on every streaming tick. Filter pill badge counts (`useFilterCounts` in `useFilterModel`) maintain per-filter row-id sets and adjust counts incrementally on delta emits
 - `ResourceScope` — `CssInjector` + `ExpressionEngine` + WeakMap caches
 - `PipelineRunner` — cached transform pipeline for `colDef` + `gridOptions`; per-module memo plus output structural sharing (returns previous refs when shallow-equal)
 - `topoSortModules()` — topological module-dependency sort
-- `CssInjector` — dynamic CSS injection
+- `CssInjector` — dynamic CSS injection; rule upserts are microtask-coalesced into one style-element write per burst, and unchanged rule text skips the DOM entirely
 - `GridPlatformOptions` — `gridId, modules, rowIdField, appData`
 
 #### Store & state
@@ -1273,7 +1273,7 @@ modules).
   - Snapshot phase → `snapshotEndToken` → buffered `{ rowsReceived }` progress, then chunked cache replace
   - Live phase → keyed deltas via `applyTransactionAsync`
   - Snapshot flush chunking (`cfg.snapshotChunkSize`, default `SNAPSHOT_CHUNK_SIZE = 500`) to stay under 50 ms long-task budget — configurable in code or the provider editor
-  - Live conflation + trailing-edge throttle (`cfg.throttleMs` window; `cfg.conflateByKey` upsert key, defaults to `keyColumn`) via `bufferedDispatch()` — coalesces same-key ticks in the worker before fanout; `throttleMs` unset = immediate passthrough; probe path bypasses it. Two explicit master switches (default ON): `cfg.throttleEnabled: false` fans out every delta immediately while keeping the `throttleMs` value; `cfg.conflateEnabled: false` disables conflation even when `keyColumn` could supply a key (the off-switch the `?? keyColumn` fallback otherwise prevented)
+  - Live conflation + trailing-edge throttle (`cfg.throttleMs` window; `cfg.conflateByKey` upsert key, defaults to `keyColumn`) via `bufferedDispatch()` — coalesces same-key ticks in the worker before fanout; `throttleMs` unset defaults to a 25 ms window (explicit `0` or `throttleEnabled: false` = immediate passthrough); conflation-map batches emit with `uniqueKeys: true` so the hub skips its per-batch duplicate-key Set; probe path bypasses it. Two explicit master switches (default ON): `cfg.throttleEnabled: false` fans out every delta immediately while keeping the `throttleMs` value; `cfg.conflateEnabled: false` disables conflation even when `keyColumn` could supply a key (the off-switch the `?? keyColumn` fallback otherwise prevented)
   - Field projection (`cfg.projectFields`, default off): each incoming row is pruned at frame-parse time to the `columnDefinitions[].field` paths + `keyColumn` (`createFieldProjector` / `collectProjectionPaths` in `fieldProjection.ts`) — wide upstream objects (e.g. 2000 fields when the blotter shows 200) never reach the snapshot buffer, hub cache, or any window; nested `a.b.c` paths copy just the needed subtree, prefix paths win over longer ones; changing visible fields requires a provider Restart; `probeStomp` (Infer Fields) always sees raw rows
   - Thin field-level deltas (`cfg.thinDeltas`, default off) and columnar wire format (`cfg.wireFormat: 'json' | 'columnar'`, default json) — hub fan-out knobs honoured by `SharedWorkerDataServicesHub` for any keyed provider (see "SharedWorker data services" below); both require a provider Restart to change
   - Restart overlay (`extra`) for historical `asOfDate`; internal `__`-prefixed overlay keys (e.g. the Restart button's `__refresh` cache-buster) are stripped before the trigger body reaches the broker
@@ -1423,19 +1423,19 @@ modules).
 
 #### DataProvider config hooks
 
-- `useDataProviderConfig(providerId)` — single provider row from worker catalog cache (`getProviderConfig` RPC); stale-while-revalidate on scoped `catalog-ready` (same `providerId` or `full` only)
+- `useDataProviderConfig(providerId)` — single provider row from worker catalog cache (`getProviderConfig` RPC); stale-while-revalidate on scoped `catalog-ready` (same `providerId` or `full` only); switching `providerId` drops the previous provider's cfg immediately (`cfg: null, loading: true`) instead of exposing it during the new fetch
 - `useDataProvidersList(opts?)` — list platform provider rows from worker catalog cache (`listProviderConfigs` RPC); auto-refreshes on scoped `catalog-ready`; `refresh()` for manual re-pull
 
 #### DataProvider hook (preferred)
 
 - `useDataProvider(providerId, opts?)` — hub-backed `IDataProvider` wrapper (`ProviderClientAdapter`); preferred over `useProviderStream` for production grids
-  - `UseDataProviderOpts`: `inlineCfg` (unsaved editor draft), `autoStart` (default `true`)
+  - `UseDataProviderOpts`: `inlineCfg` (unsaved editor draft), `autoStart` (default `true`), `trackStatus` (default `true`; `false` skips status/error state mirroring for callers that consume provider events directly)
   - `UseDataProviderResult`: `provider`, `status`, `error`, `start()`, `refresh()`, `restart(extra?)`
   - Subscribes to `onStatus` and `onError` from the adapter
 
 #### Stream & template hooks
 
-- `useResolvedCfg(cfg)` — apply `{{name.key}}` templates, returns stable cfg
+- `useResolvedCfg(cfg)` — apply `{{name.key}}` templates; resolved identity swaps ONLY when an AppData key the cfg references changes (template-free cfgs keep their own identity), so unrelated AppData writes never cascade provider re-attaches
 - `useProviderStream(providerId, cfg, listener, opts?)` — auto-detaching subscription **Deprecated.** use `useDataProvider` for catalogued providers; keep cfg only for unsaved editor drafts
   - Listener: `onDelta(rows, replace)`, `onStatus(status, error)`
   - `refresh(extra)` re-attaches with overlay
