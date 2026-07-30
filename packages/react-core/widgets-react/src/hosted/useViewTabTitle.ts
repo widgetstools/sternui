@@ -17,8 +17,11 @@ declare const fin: any;
  * Behaviour:
  *   - Seeds the caption from `customData.savedTitle`, falling back to
  *     `fallback` (the component name) when no tab name has been chosen.
- *   - Polls `savedTitle` so an external "Save Tab As…" rename flows back
- *     into the caption within ~1s.
+ *   - Listens for the view's `options-changed` event so an external
+ *     "Save Tab As…" rename flows back into the caption immediately —
+ *     no standing IPC. Runtimes without the event API fall back to a
+ *     1 s `getOptions` poll (one IPC round-trip per second per view,
+ *     which is why the event path is preferred).
  *   - `setTitle` writes BOTH `document.title` (drives the tabstrip
  *     immediately) and `customData.savedTitle` (persistence), mirroring
  *     the rename popout's own write — so a caption edit seeds the tab
@@ -57,19 +60,44 @@ export function useViewTabTitle(fallback: string): ViewTabTitle {
     if (!isOpenFin() || typeof fin?.me?.getOptions !== 'function') return;
     let cancelled = false;
 
+    const applySaved = (customData: unknown): void => {
+      const saved = readSavedTitle(customData);
+      if (cancelled || !saved || saved === lastSeenRef.current) return;
+      lastSeenRef.current = saved;
+      setTitleState(saved);
+    };
+
     const sync = async (): Promise<void> => {
       try {
         const opts = await fin.me.getOptions();
-        const saved = readSavedTitle(opts?.customData);
-        if (cancelled || !saved || saved === lastSeenRef.current) return;
-        lastSeenRef.current = saved;
-        setTitleState(saved);
+        applySaved(opts?.customData);
       } catch {
-        /* view not reachable yet — the next tick retries */
+        /* view not reachable yet — the next event/tick retries */
       }
     };
 
     void sync();
+
+    // Event-driven path: `options-changed` fires with the updated
+    // options whenever anything (the rename popout, workspace restore)
+    // writes them — zero standing IPC.
+    if (typeof fin?.me?.on === 'function' && typeof fin?.me?.removeListener === 'function') {
+      const handler = (evt: { options?: { customData?: unknown } }): void => {
+        const customData = evt?.options?.customData;
+        if (customData !== undefined) applySaved(customData);
+        else void sync();
+      };
+      try {
+        fin.me.on('options-changed', handler);
+        return () => {
+          cancelled = true;
+          try { fin.me.removeListener('options-changed', handler); } catch { /* view gone */ }
+        };
+      } catch {
+        /* subscription unsupported — fall through to the poll */
+      }
+    }
+
     const timer = setInterval(() => void sync(), POLL_MS);
     return () => {
       cancelled = true;

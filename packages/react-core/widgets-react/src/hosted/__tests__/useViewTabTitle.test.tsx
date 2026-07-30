@@ -67,6 +67,37 @@ describe('useViewTabTitle — under OpenFin', () => {
     expect(getByTestId('title').textContent).toBe('Renamed Externally');
   });
 
+  it('prefers the options-changed event over polling when the runtime supports it', async () => {
+    let optionsHandler: ((evt: { options?: { customData?: unknown } }) => void) | null = null;
+    const on = vi.fn((event: string, cb: (evt: { options?: { customData?: unknown } }) => void) => {
+      if (event === 'options-changed') optionsHandler = cb;
+    });
+    const removeListener = vi.fn();
+    (globalThis as any).fin = { me: { getOptions, updateOptions, on, removeListener } };
+
+    const { getByTestId, unmount } = render(<Harness fallback="Markets" />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(on).toHaveBeenCalledWith('options-changed', expect.any(Function));
+
+    // External rename delivered via the event — no timer advance needed.
+    act(() => {
+      optionsHandler!({ options: { customData: { savedTitle: 'Renamed Via Event' } } });
+    });
+    expect(getByTestId('title').textContent).toBe('Renamed Via Event');
+
+    // No poll was armed: advancing time issues no further getOptions.
+    getOptions.mockClear();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(getOptions).not.toHaveBeenCalled();
+
+    unmount();
+    expect(removeListener).toHaveBeenCalledWith('options-changed', expect.any(Function));
+  });
+
   it('setTitle writes document.title and persists savedTitle to customData', async () => {
     const { getByTestId } = render(<Harness fallback="Markets" />);
     await act(async () => {

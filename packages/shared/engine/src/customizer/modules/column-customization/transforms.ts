@@ -594,6 +594,16 @@ export function applyAssignments(
   const hasGlobalCellStyle = state.globalCellStyle !== undefined;
   const hasGlobalHeaderStyle = state.globalHeaderStyle !== undefined;
 
+  // Hoisted ONCE per pass: the templates state + global style flags are
+  // identical for every column, and the old per-column signature
+  // re-stringified the WHOLE templates state once per column per
+  // transform pass (52× the same JSON on the reference blotter).
+  const sharedSignature = JSON.stringify({
+    t: templatesState,
+    s: hasGlobalCellStyle,
+    h: hasGlobalHeaderStyle,
+  });
+
   return defs.map((def) => {
     if ('children' in def && Array.isArray(def.children)) {
       const next = applyAssignments(def.children, state, templatesState, engine, appData);
@@ -660,19 +670,16 @@ export function applyAssignments(
       return def;
     }
     // Per-column memo — recompute only when the inputs that affect the
-    // emitted colDef change. Signature includes the per-column
-    // assignment, the templates state (chain resolution depends on it),
-    // and the global signals that the helper consumes. JSON-stringify
-    // is fine because the inputs are plain JSON; the resulting string
-    // is small (one column's slice of state).
-    const signature = computeSignature(
+    // emitted colDef change. Signature = the pass-level shared part
+    // (templates state + global style flags, stringified once above)
+    // plus this column's slice (assignment, effective global formatter,
+    // cellDataType). JSON-stringify is fine because the inputs are
+    // plain JSON.
+    const signature = `${sharedSignature}|${JSON.stringify({
       a,
-      templatesState,
-      effectiveGlobalFormatter,
-      hasGlobalCellStyle,
-      hasGlobalHeaderStyle,
-      colDef.cellDataType,
-    );
+      g: effectiveGlobalFormatter,
+      c: colDef.cellDataType,
+    })}`;
     const cached = COL_DEF_MEMO.get(colDef);
     if (cached && cached.signature === signature) {
       return cached.output;
@@ -692,32 +699,6 @@ export function applyAssignments(
     );
     COL_DEF_MEMO.set(colDef, { signature, output });
     return output;
-  });
-}
-
-/**
- * Cheap structural signature for the inputs that affect a column's
- * emitted colDef. Same inputs → same string → memo hit.
- */
-function computeSignature(
-  a: ColumnAssignment | undefined,
-  templatesState: ColumnTemplatesState,
-  globalFormatter: ValueFormatterTemplate | undefined,
-  hasGlobalCellStyle: boolean,
-  hasGlobalHeaderStyle: boolean,
-  cellDataType: unknown,
-): string {
-  // Templates state is a single object reference per profile; JSON of
-  // its content captures changes when the user edits a template chain.
-  // The helper has no other input variability (engine / appData are
-  // grid-level singletons and don't drift mid-session).
-  return JSON.stringify({
-    a,
-    t: templatesState,
-    g: globalFormatter,
-    s: hasGlobalCellStyle,
-    h: hasGlobalHeaderStyle,
-    c: cellDataType,
   });
 }
 

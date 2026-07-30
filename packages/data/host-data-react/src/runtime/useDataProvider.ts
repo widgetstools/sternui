@@ -9,6 +9,14 @@ export interface UseDataProviderOpts {
   inlineCfg?: ProviderConfig;
   /** Automatically call `start()` when `providerId` is set. Default `true`. */
   autoStart?: boolean;
+  /**
+   * Mirror provider status/error into React state (one re-render per
+   * transition). Set `false` when the caller ignores `status`/`error`
+   * — e.g. wiring hooks that consume provider events directly — so
+   * status churn doesn't re-render the host component. `status` stays
+   * 'loading' and `error` undefined in that case. Default `true`.
+   */
+  trackStatus?: boolean;
 }
 
 export interface UseDataProviderResult<T = Record<string, unknown>> {
@@ -29,7 +37,7 @@ export function useDataProvider<T = Record<string, unknown>>(
   opts: UseDataProviderOpts = {},
 ): UseDataProviderResult<T> {
   const { client } = useDataServicesContext();
-  const { inlineCfg, autoStart = true } = opts;
+  const { inlineCfg, autoStart = true, trackStatus = true } = opts;
 
   const [status, setStatus] = useState<ProviderStatus>('loading');
   const [error, setError] = useState<string | undefined>(undefined);
@@ -44,9 +52,16 @@ export function useDataProvider<T = Record<string, unknown>>(
 
   useEffect(() => {
     if (!provider) {
-      setStatus('loading');
-      setError(undefined);
+      if (trackStatus) {
+        setStatus('loading');
+        setError(undefined);
+      }
       return;
+    }
+
+    if (!trackStatus) {
+      // Lifecycle only — no status mirroring, no per-transition renders.
+      return () => { void provider.stop(); };
     }
 
     const unsubStatus = provider.onStatus((s: ProviderStatus, err?: string) => {
@@ -63,7 +78,7 @@ export function useDataProvider<T = Record<string, unknown>>(
       unsubError();
       void provider.stop();
     };
-  }, [provider]);
+  }, [provider, trackStatus]);
 
   const start = useCallback(async () => {
     const active = providerRef.current;

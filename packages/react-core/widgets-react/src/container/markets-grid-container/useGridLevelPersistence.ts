@@ -29,6 +29,30 @@ import {
 
 const DEFAULT_SELECTION = DEFAULT_PROVIDER_SELECTION;
 
+/** Structural compare for the event-bindings map — replaces a
+ *  JSON.stringify of both sides per save-check, and is key-order
+ *  insensitive where the JSON compare wasn't. */
+function eventBindingsEqual(
+  a: Record<string, string[]> | undefined,
+  b: Record<string, string[]> | undefined,
+): boolean {
+  const ax = a ?? {};
+  const bx = b ?? {};
+  if (ax === bx) return true;
+  const aKeys = Object.keys(ax);
+  if (aKeys.length !== Object.keys(bx).length) return false;
+  for (const key of aKeys) {
+    const av = ax[key];
+    const bv = bx[key];
+    if (av === bv) continue;
+    if (!Array.isArray(av) || !Array.isArray(bv) || av.length !== bv.length) return false;
+    for (let i = 0; i < av.length; i++) {
+      if (av[i] !== bv[i]) return false;
+    }
+  }
+  return true;
+}
+
 /** True when two serialized grid-level blobs carry identical persisted fields. */
 function gridLevelEqual(a: GridLevelStateV1 | null, b: GridLevelStateV1): boolean {
   if (!a) return false;
@@ -37,7 +61,7 @@ function gridLevelEqual(a: GridLevelStateV1 | null, b: GridLevelStateV1): boolea
     && a.provider.historicalProviderId === b.provider.historicalProviderId
     && a.provider.mode === b.provider.mode
     && a.caption === b.caption
-    && JSON.stringify(a.eventBindings ?? {}) === JSON.stringify(b.eventBindings ?? {})
+    && eventBindingsEqual(a.eventBindings, b.eventBindings)
   );
 }
 

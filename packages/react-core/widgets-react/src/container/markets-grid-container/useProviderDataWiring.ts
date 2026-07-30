@@ -132,9 +132,26 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
     const gridApply = createApplyProviderToGridState();
     const providerStatusRef = { current: 'loading' as 'loading' | 'ready' | 'error' };
 
+    // rAF-coalesced: progressive snapshot counts arrive per streamed
+    // chunk (dozens per second on a fast feed) and each setLoadRowCount
+    // re-rendered the whole container. One state write per frame is
+    // plenty for a loading counter; the final count still lands via
+    // onSnapshotData's own setLoadRowCount(rows.length).
+    let pendingRowCount: number | undefined;
+    let rowCountRaf: number | null = null;
     const unsubRows = provider.onRowsReceived((count) => {
       if (cancelled) return;
-      setLoadRowCount(count);
+      pendingRowCount = count;
+      if (rowCountRaf !== null) return;
+      const schedule: (cb: () => void) => number =
+        typeof requestAnimationFrame === 'function'
+          ? (cb) => requestAnimationFrame(cb)
+          : (cb) => setTimeout(cb, 50) as unknown as number;
+      rowCountRaf = schedule(() => {
+        rowCountRaf = null;
+        if (cancelled) return;
+        setLoadRowCount(pendingRowCount);
+      });
     });
 
     const unsubSnapshot = provider.onSnapshotData((rows) => {
@@ -306,6 +323,10 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
 
     return () => {
       cancelled = true;
+      if (rowCountRaf !== null && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(rowCountRaf);
+        rowCountRaf = null;
+      }
       unsubRows();
       unsubSnapshot();
       unsubTick();

@@ -322,11 +322,15 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const activeRow = useDataProviderConfig(activeId);
   const activeCfg = useResolvedCfg(activeRow.cfg?.config ?? null);
 
-  // List of available providers per slot. Subtype filter could be
-  // tightened (live=stomp, historical=rest) but keeping it open is
-  // friendlier — the user might want a Mock for either slot in dev.
-  const liveList = useDataProvidersList();
-  const histList = useDataProvidersList();
+  // List of available providers — ONE fetch + catalog subscription
+  // serves both slots (they were two identical hook instances, each
+  // with its own fetch, state, and catalog-change listener). Subtype
+  // filter could be tightened (live=stomp, historical=rest) but
+  // keeping it open is friendlier — the user might want a Mock for
+  // either slot in dev.
+  const providersList = useDataProvidersList();
+  const liveList = providersList;
+  const histList = providersList;
 
   // Log active provider name on change so it's easy to confirm which
   // provider a given grid is bound to at runtime.
@@ -664,23 +668,27 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         },
       );
     }
-    // eslint-disable-next-line no-console
-    console.log('[refresh] %c1. Reload from source clicked%c provider=%s mode=%s asOfDate=%s extra=%s',
-      'color:#ec4899;font-weight:bold', '',
-      activeId, selection.mode, asOfDate ?? '—', JSON.stringify(extra));
+    if (DEBUG) {
+      // eslint-disable-next-line no-console
+      console.log('[refresh] %c1. Reload from source clicked%c provider=%s mode=%s asOfDate=%s extra=%s',
+        'color:#ec4899;font-weight:bold', '',
+        activeId, selection.mode, asOfDate ?? '—', JSON.stringify(extra));
+    }
     if (liveApi) {
       try {
-        const beforeFlush = liveApi.getDisplayedRowCount();
         liveApi.flushAsyncTransactions();
-        const afterFlush = liveApi.getDisplayedRowCount();
-        // eslint-disable-next-line no-console
-        console.log(
-          '[refresh] %c3a. flushAsyncTransactions drained old queue%c rows %d → %d',
-          'color:#ec4899', '', beforeFlush, afterFlush,
-        );
+        if (DEBUG) {
+          // eslint-disable-next-line no-console
+          console.log(
+            '[refresh] %c3a. flushAsyncTransactions drained old queue%c rows now %d',
+            'color:#ec4899', '', liveApi.getDisplayedRowCount(),
+          );
+        }
         liveApi.setGridOption('rowData', []);
-        // eslint-disable-next-line no-console
-        console.log('[refresh] %c3b. Grid cleared (setGridOption rowData=[])%c', 'color:#ec4899', '');
+        if (DEBUG) {
+          // eslint-disable-next-line no-console
+          console.log('[refresh] %c3b. Grid cleared (setGridOption rowData=[])%c', 'color:#ec4899', '');
+        }
       } catch (e) {
         // eslint-disable-next-line no-console
         console.warn('[refresh]    Grid clear failed:', e);
