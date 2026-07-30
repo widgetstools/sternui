@@ -390,6 +390,44 @@ export function toGroupColumns(
 }
 
 /**
+ * Fields a tree row carries so AG can recognise it as a parent and key it.
+ *
+ * AG Grid's SSRM tree mode does not use `rowGroupCols` at all — there are no
+ * group columns, and the hierarchy is read off the DATA through
+ * `isServerSideGroup(data)` and `getServerSideGroupKey(data)`. Perspective has
+ * nothing to say about either, so the row engine stamps them on.
+ *
+ * Namespaced with the same `__` convention as `__ROW_PATH__` and
+ * `__grandTotal`, and stripped from nothing — a detail/tree consumer reads
+ * them, and a column of that name in a real book would be pathological.
+ */
+export const TREE_KEY_FIELD = '__treeKey';
+export const TREE_GROUP_FIELD = '__treeGroup';
+
+/**
+ * A grouped window rewritten as TREE rows.
+ *
+ * Same remap `toGroupColumns` does — `__ROW_PATH__` onto the level's own
+ * column — plus the two markers AG reads the hierarchy from. Every row of a
+ * grouped View is a parent by construction: the leaf level is served by an
+ * UNgrouped View, which never reaches here, so `__treeGroup` is unconditionally
+ * true rather than derived.
+ */
+export function toTreeColumns(
+  columns: Record<string, unknown[]>,
+  groupColId: string,
+): Record<string, unknown[]> {
+  const out = toGroupColumns(columns, groupColId);
+  const keys = out[groupColId];
+  if (!Array.isArray(keys)) return out;
+  return {
+    ...out,
+    [TREE_KEY_FIELD]: keys.map((key) => (key === null || key === undefined ? '' : String(key))),
+    [TREE_GROUP_FIELD]: keys.map(() => true),
+  };
+}
+
+/**
  * Stable identity for a View config, so a block request that changes nothing
  * reuses the live View instead of rebuilding it (a rebuild costs a full
  * recompute AND a delete, and delete is the dangerous operation here).

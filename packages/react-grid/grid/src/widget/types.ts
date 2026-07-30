@@ -3,6 +3,9 @@ import type { AnyModule, AppDataLookup, GridPlatform, MarketsGridLocalStorageCon
 import type { GridHostContext } from '@starui/host';
 import type { UseProfileManagerResult, VisualExcelExportOptions, ProviderGridHostApi, GridEventBindingsHostApi } from '@starui/grid/customizer';
 import type { SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
+import type { PerspectiveMasterDetail } from '../engine/PerspectiveMarketsGridSurface.js';
+
+export type { PerspectiveMasterDetail } from '../engine/PerspectiveMarketsGridSurface.js';
 
 export type { ProviderGridHostApi, ProviderGridHostMode, GridEventBindingsHostApi } from '@starui/grid/customizer';
 export type { MarketsGridLocalStorageConfig, StorageAdapterFactory, StorageAdapterFactoryOpts } from '@starui/engine';
@@ -77,6 +80,28 @@ export interface MarketsGridProps<TData = unknown> {
    * {@link MarketsGridProps.rowIdField}.
    */
   perspectiveKeyColumn?: string;
+  /**
+   * Tree hierarchy fields, outermost first — AG's SSRM **tree** mode instead of
+   * its row-group mode. Each level is served from the worker exactly as a group
+   * level is (`group_by` on the one column at that depth, ancestor keys pushed
+   * down as filter clauses), and the parent rows carry the markers AG reads a
+   * hierarchy from.
+   *
+   * **`rowModel: 'perspective'` only.** Set on another surface it warns in dev
+   * rather than doing nothing quietly — see {@link MarketsGridProps.masterDetail}.
+   */
+  perspectiveTreeFields?: readonly string[];
+  /**
+   * Master/detail: expand a row onto a detail grid of its children, read from
+   * the same worker-held book (`matchFields` maps a detail column id to the
+   * master column whose value it must equal). Supply `getDetailRowData` to
+   * fetch them yourself instead.
+   *
+   * **`rowModel: 'perspective'` only.** The CSRM and CustomSSRMGrid surfaces do
+   * not read this, and setting it there warns in dev — a prop that silently
+   * does nothing is the failure mode this path has produced repeatedly.
+   */
+  masterDetail?: PerspectiveMasterDetail;
   /**
    * When set and the grid is on CSRM with `rowData.length >=` this value,
    * show a dismissible banner suggesting SSRM. Does not auto-switch —

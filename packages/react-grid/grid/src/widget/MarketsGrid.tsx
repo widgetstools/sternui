@@ -425,6 +425,8 @@ function MarketsGridInner<TData = unknown>(
           }) === 'pending'
         }
         perspectiveKeyColumn={props.perspectiveKeyColumn}
+        perspectiveTreeFields={props.perspectiveTreeFields}
+        masterDetail={props.masterDetail}
         suggestSsrmAbove={props.suggestSsrmAbove}
         onSuggestSsrm={props.onSuggestSsrm}
         ssrmEngine={props.ssrmEngine}

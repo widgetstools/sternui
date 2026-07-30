@@ -13,6 +13,40 @@ import {
 const CFG_VERSION_KEY = 'minimal-perspective-table.cfg-version';
 
 /**
+ * Opt-in surfaces for the two features that have no default UI to reach them.
+ *
+ * `?tree=region,desk` mounts AG's SSRM tree mode over that hierarchy;
+ * `?detail=1` makes every leaf row expandable onto the other positions in its
+ * book. Both are read from the same worker-held Table, so they are exactly the
+ * thing worth demonstrating — a hierarchy and a detail grid over a book this
+ * window does not hold. Query-param rather than always-on because the default
+ * demo is deliberately the plainest possible blotter.
+ */
+function readSearchFlags() {
+  const params = new URLSearchParams(
+    typeof window === 'undefined' ? '' : window.location.search,
+  );
+  const tree = (params.get('tree') ?? '')
+    .split(',')
+    .map((field) => field.trim())
+    .filter(Boolean);
+  return { tree, detail: params.get('detail') === '1' };
+}
+
+const MASTER_DETAIL = {
+  detailColumnDefs: [
+    { field: 'positionId', headerName: 'Position' },
+    { field: 'ticker', headerName: 'Ticker' },
+    { field: 'trader', headerName: 'Trader' },
+    { field: 'quantity', headerName: 'Quantity' },
+    { field: 'pnl', headerName: 'P&L' },
+  ],
+  // Detail column id -> master column id. Every position in the same book.
+  matchFields: { bookName: 'bookName' },
+  detailLimit: 200,
+};
+
+/**
  * Seed the catalog row, then hand its id to the grid.
  *
  * Deliberately the SAME shape as `stomp-marketsgrid-minimal`: seed a provider,
@@ -29,6 +63,7 @@ export function App() {
   const { configStore } = useDataServices();
   const userId = useUserIdFromContext();
   const [providerId, setProviderId] = useState<string | null>(null);
+  const [flags] = useState(readSearchFlags);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,6 +98,8 @@ export function App() {
       // toolbar, formatting, customizer, profiles and column defs are the ones
       // every other MarketsGrid gets.
       rowModel="perspective"
+      perspectiveTreeFields={flags.tree.length > 0 ? flags.tree : undefined}
+      masterDetail={flags.detail ? MASTER_DETAIL : undefined}
       withStorage
       configManager={getPlatform().configManager}
       gridEventHandlers={gridEventHandlers}

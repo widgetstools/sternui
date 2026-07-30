@@ -28,6 +28,7 @@ import {
   toGroupColumns,
   toPerspectiveFilter,
   toPerspectiveGroupLevel,
+  toTreeColumns,
   viewConfigKey,
   type AgFilterItem,
   type PerspectiveAggregate,
@@ -88,6 +89,18 @@ export interface ViewManagerOpts {
   onUpdate?(): void;
   /** Cap on simultaneously live Views. */
   maxViews?: number;
+  /**
+   * Column ids forming a tree hierarchy, outermost first. Present means the
+   * grid runs in AG's SSRM **tree** mode rather than its row-group mode.
+   *
+   * The two are the same pull shape — AG asks for the children of a path and
+   * the level maps onto `group_by: [one column]` plus ancestor clauses — so
+   * this reuses `toPerspectiveGroupLevel` by standing in for `rowGroupCols`,
+   * which AG does not send in tree mode. What differs is the OUTPUT: tree rows
+   * have to carry `__treeKey` and `__treeGroup`, because AG reads the hierarchy
+   * off the data instead of off group columns.
+   */
+  treeFields?: readonly string[];
 }
 
 export interface ViewManager {
@@ -137,6 +150,19 @@ export interface ViewManager {
     aggregate: PerspectiveAggregate,
     request: SsrmRequestLike,
   ): Promise<number | null>;
+  /**
+   * The book's rows whose columns equal every entry of `match` — the child
+   * rows behind an expanded master row.
+   *
+   * Deliberately NOT scoped to the grid's filter or sort: a detail grid shows
+   * what belongs to its master, and hiding a child because the master list is
+   * filtered would make the same master expand differently depending on what
+   * else is on screen.
+   */
+  readMatchingRows(
+    match: Record<string, unknown>,
+    limit: number,
+  ): Promise<Record<string, unknown>[] | null>;
   /**
    * Every distinct value in a column, for a set filter's value list.
    *
@@ -240,7 +266,19 @@ function levelState(
 }
 
 export function createViewManager(opts: ViewManagerOpts): ViewManager {
-  const { table, onEvent = () => {}, onUpdate, maxViews = 24 } = opts;
+  const { table, onEvent = () => {}, onUpdate, maxViews = 24, treeFields } = opts;
+
+  const tree = treeFields ?? [];
+  /**
+   * Stand the tree fields in for `rowGroupCols`, which AG does not send in tree
+   * mode. A request that DOES carry group columns is left alone: the user has
+   * dragged a column into the group panel, and that intent wins over the
+   * configured hierarchy rather than silently merging with it.
+   */
+  const withTreeLevels = (request: SsrmRequestLike): SsrmRequestLike =>
+    tree.length > 0 && !(request.rowGroupCols?.length)
+      ? { ...request, rowGroupCols: tree.map((id) => ({ id })) }
+      : request;
 
   const entries = new Map<string, Entry>();
   /** Creation in flight, so two blocks cannot build the same View twice. */
@@ -393,16 +431,18 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
     async getView(request: SsrmRequestLike): Promise<PerspectiveViewLike | null> {
       if (closed) return null;
 
+      const levelled = withTreeLevels(request);
+
       // A new sort/filter/grouping makes every existing View garbage. Retire
       // them now rather than waiting for the LRU: they would otherwise keep
       // charging the engine on every tick for a shape nothing will ask for.
-      const nextShape = shapeOf(request, quick, expressions);
+      const nextShape = shapeOf(levelled, quick, expressions);
       if (shape !== null && shape !== nextShape) {
         for (const entry of [...entries.values()]) retire(entry, 'shape');
       }
       shape = nextShape;
 
-      const level = toPerspectiveGroupLevel(levelState(request, quick, expressions));
+      const level = toPerspectiveGroupLevel(levelState(levelled, quick, expressions));
       const key = viewConfigKey(level.config);
       const entry = await ensure(key, level.config, level.groupColId, level.depth);
       if (closed) return null;
@@ -423,7 +463,13 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
             start_row: (window?.start_row ?? 0) + offset,
             end_row: (window?.end_row ?? 0) + offset,
           });
-          return groupColId === null ? columns : toGroupColumns(columns, groupColId);
+          if (groupColId === null) return columns;
+          // In tree mode the rows also carry the markers AG reads the
+          // hierarchy from; a leaf level is ungrouped and never reaches here,
+          // which is why every row this produces is a parent.
+          return tree.length > 0
+            ? toTreeColumns(columns, groupColId)
+            : toGroupColumns(columns, groupColId);
         },
         num_rows: () => Promise.resolve(entry.rows),
       };
@@ -683,6 +729,59 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
         const columns = await safe.read({ start_row: 0, end_row: 1 });
         const value = columns?.[colId]?.[0];
         return typeof value === 'number' && Number.isFinite(value) ? value : null;
+      } finally {
+        transient.delete(safe);
+        void safe.close();
+      }
+    },
+
+    /**
+     * The child rows behind an expanded master row.
+     *
+     * Transient like every other question-shaped read: built, drained, dropped.
+     * The clause shape is the one `toPerspectiveGroupLevel` already uses for
+     * ancestor keys, including the null case — `== null` matches nothing in
+     * Perspective, so a null match value has to become `is null` or a master
+     * row keyed on a missing value would open onto an empty detail grid.
+     */
+    async readMatchingRows(
+      match: Record<string, unknown>,
+      limit: number,
+    ): Promise<Record<string, unknown>[] | null> {
+      if (closed) return null;
+      const entries = Object.entries(match ?? {});
+      // No clauses would select the WHOLE book as one row's children, which is
+      // never what a master row means.
+      if (entries.length === 0) return [];
+
+      const config: PerspectiveViewConfig = {
+        filter: entries.map(([colId, value]) =>
+          value === null || value === undefined ? [colId, 'is null'] : [colId, '==', value],
+        ),
+        ...(Object.keys(expressions).length > 0 ? { expressions } : {}),
+      };
+
+      let safe: SafeView;
+      try {
+        safe = createSafeView(await table.view(config));
+      } catch {
+        return null;
+      }
+      if (closed) {
+        void safe.close();
+        return null;
+      }
+      transient.add(safe);
+      try {
+        const total = await safe.rows();
+        if (total === null) return null;
+        // A detail grid is a fixed-height panel, so this truncates rather than
+        // refusing — unlike an export, where a short file is indistinguishable
+        // from a complete one. The caller states the limit it chose.
+        const wanted = Math.min(total, limit);
+        if (wanted === 0) return [];
+        const columns = await safe.read({ start_row: 0, end_row: wanted });
+        return columns === null ? null : columnsToRows(columns);
       } finally {
         transient.delete(safe);
         void safe.close();

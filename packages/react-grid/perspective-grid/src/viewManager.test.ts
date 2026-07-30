@@ -961,3 +961,228 @@ describe('aggregateScalar', () => {
     expect(await views.aggregateScalar('price', 'avg', {})).toBeNull();
   });
 });
+
+describe('readMatchingRows — the child rows behind a master row', () => {
+  function makeDetailTable(total = 3) {
+    const built: PerspectiveViewConfig[] = [];
+    const deleted: PerspectiveViewConfig[] = [];
+    let fail = false;
+    const table: PerspectiveTableLike = {
+      view: vi.fn(async (config: PerspectiveViewConfig) => {
+        if (fail) throw new Error('Value Error - Input column "nope" does not exist.');
+        built.push(config);
+        const view: UpdatableView = {
+          async to_columns(window) {
+            const start = window?.start_row ?? 0;
+            const end = Math.min(window?.end_row ?? 0, total);
+            const n = Math.max(0, end - start);
+            return {
+              leg: Array.from({ length: n }, (_, i) => `L${start + i}`),
+              notional: Array.from({ length: n }, (_, i) => (start + i) * 100),
+            };
+          },
+          async num_rows() {
+            return total;
+          },
+          async delete() {
+            deleted.push(config);
+          },
+          async on_update() {
+            return 1;
+          },
+        };
+        return view;
+      }),
+    };
+    return { table, built, deleted, breakIt: () => { fail = true; } };
+  }
+
+  it('selects the book rows matching every field of the master', async () => {
+    const { table, built } = makeDetailTable();
+    const views = createViewManager({ table });
+
+    const rows = await views.readMatchingRows({ tradeId: 'T1', book: 'RATES' }, 500);
+    expect(rows).toHaveLength(3);
+    expect(rows![0]).toEqual({ leg: 'L0', notional: 0 });
+    expect(built.at(-1)!.filter).toEqual([
+      ['tradeId', '==', 'T1'],
+      ['book', '==', 'RATES'],
+    ]);
+  });
+
+  /** `== null` matches nothing in Perspective, so a master keyed on a missing
+   *  value would open onto an empty detail grid. */
+  it('uses the null predicate for a null match value', async () => {
+    const { table, built } = makeDetailTable();
+    const views = createViewManager({ table });
+
+    await views.readMatchingRows({ book: null, desk: undefined }, 500);
+    expect(built.at(-1)!.filter).toEqual([
+      ['book', 'is null'],
+      ['desk', 'is null'],
+    ]);
+  });
+
+  /**
+   * Deliberately NOT scoped to the grid's sort or filter — a master row must
+   * expand onto the same children whatever else is on screen.
+   */
+  it('carries no sort and no grid filter', async () => {
+    const { table, built } = makeDetailTable();
+    const views = createViewManager({ table });
+
+    await views.readMatchingRows({ tradeId: 'T1' }, 500);
+    const config = built.at(-1)!;
+    expect(config.sort ?? []).toEqual([]);
+    expect(config.group_by ?? []).toEqual([]);
+    expect(config.filter).toEqual([['tradeId', '==', 'T1']]);
+  });
+
+  it('carries the calculated columns — a detail column may be one', async () => {
+    const { table, built } = makeDetailTable();
+    const views = createViewManager({ table });
+    views.setExpressions({ grossPnl: '"price" * "qty"' });
+
+    await views.readMatchingRows({ tradeId: 'T1' }, 500);
+    expect(built.at(-1)!.expressions).toMatchObject({ grossPnl: '"price" * "qty"' });
+  });
+
+  /** Truncates rather than refusing — a detail panel is a bounded surface the
+   *  user is looking at, not a file that will be read later. */
+  it('truncates to the limit', async () => {
+    const { table } = makeDetailTable(1000);
+    const views = createViewManager({ table });
+
+    const rows = await views.readMatchingRows({ tradeId: 'T1' }, 5);
+    expect(rows).toHaveLength(5);
+  });
+
+  /** No clauses would select the WHOLE book as one row's children. */
+  it('answers empty for an empty match rather than the whole book', async () => {
+    const { table, built } = makeDetailTable();
+    const views = createViewManager({ table });
+
+    expect(await views.readMatchingRows({}, 500)).toEqual([]);
+    expect(built).toHaveLength(0);
+  });
+
+  it('answers empty when nothing matches', async () => {
+    const { table } = makeDetailTable(0);
+    const views = createViewManager({ table });
+    expect(await views.readMatchingRows({ tradeId: 'T1' }, 500)).toEqual([]);
+  });
+
+  it('deletes its View', async () => {
+    const { table, deleted } = makeDetailTable();
+    const views = createViewManager({ table });
+
+    await views.readMatchingRows({ tradeId: 'T1' }, 500);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(deleted).toHaveLength(1);
+  });
+
+  it('answers null when the View cannot be built, and once closed', async () => {
+    const { table, breakIt } = makeDetailTable();
+    const views = createViewManager({ table });
+    breakIt();
+    expect(await views.readMatchingRows({ tradeId: 'T1' }, 500)).toBeNull();
+
+    const fresh = makeDetailTable();
+    const other = createViewManager({ table: fresh.table });
+    await other.close();
+    expect(await other.readMatchingRows({ tradeId: 'T1' }, 500)).toBeNull();
+  });
+});
+
+describe('tree mode', () => {
+  const TREE = ['sector', 'book'];
+
+  it('stands the tree fields in for the rowGroupCols AG does not send', async () => {
+    const { table, views: built } = makeTable(500);
+    const views = createViewManager({ table, treeFields: TREE });
+
+    await views.getView({ startRow: 0, endRow: 100 });
+    // Root level groups by the OUTERMOST field only — one level at a time.
+    expect(built.at(-1)!.config.group_by).toEqual(['sector']);
+  });
+
+  it('pushes ancestor keys down as filter clauses, level by level', async () => {
+    const { table, views: built } = makeTable(500);
+    const views = createViewManager({ table, treeFields: TREE });
+
+    await views.getView({ startRow: 0, endRow: 100, groupKeys: ['Energy'] });
+    const config = built.at(-1)!.config;
+    expect(config.group_by).toEqual(['book']);
+    expect(config.filter).toContainEqual(['sector', '==', 'Energy']);
+  });
+
+  /** Every group column consumed — the level is real rows, not parents. */
+  it('serves the leaf level from an UNgrouped View', async () => {
+    const { table, views: built } = makeTable(500);
+    const views = createViewManager({ table, treeFields: TREE });
+
+    await views.getView({ startRow: 0, endRow: 100, groupKeys: ['Energy', 'GOVT'] });
+    const config = built.at(-1)!.config;
+    expect(config.group_by ?? []).toEqual([]);
+    expect(config.filter).toContainEqual(['sector', '==', 'Energy']);
+    expect(config.filter).toContainEqual(['book', '==', 'GOVT']);
+  });
+
+  /**
+   * AG reads a tree hierarchy off the DATA — there are no group columns to
+   * read it from — so the parent rows have to carry the markers.
+   */
+  it('stamps __treeKey and __treeGroup onto parent rows', async () => {
+    const { table } = makeTable(500);
+    const views = createViewManager({ table, treeFields: TREE });
+
+    const view = await views.getView({ startRow: 0, endRow: 3 });
+    const columns = await view!.to_columns({ start_row: 0, end_row: 3 });
+    expect(columns.__treeGroup).toEqual([true, true, true]);
+    expect(columns.__treeKey).toEqual(['g1', 'g2', 'g3']);
+    // And the level's own column still carries the key, as grouping does.
+    expect(columns.sector).toEqual(['g1', 'g2', 'g3']);
+  });
+
+  it('leaves leaf rows unmarked, so isServerSideGroup answers false', async () => {
+    const { table } = makeTable(500);
+    const views = createViewManager({ table, treeFields: TREE });
+
+    const view = await views.getView({
+      startRow: 0,
+      endRow: 3,
+      groupKeys: ['Energy', 'GOVT'],
+    });
+    const columns = await view!.to_columns({ start_row: 0, end_row: 3 });
+    expect(columns.__treeGroup).toBeUndefined();
+    expect(columns.__treeKey).toBeUndefined();
+    expect(columns.positionId).toEqual(['p0', 'p1', 'p2']);
+  });
+
+  /**
+   * A column dragged into the group panel is an explicit user intent and wins
+   * over the configured hierarchy, rather than silently merging with it.
+   */
+  it('lets an explicit rowGroupCols request win over the tree fields', async () => {
+    const { table, views: built } = makeTable(500);
+    const views = createViewManager({ table, treeFields: TREE });
+
+    await views.getView({ startRow: 0, endRow: 100, rowGroupCols: [{ id: 'region' }] });
+    expect(built.at(-1)!.config.group_by).toEqual(['region']);
+  });
+
+  it('does not mark rows when no tree fields are configured', async () => {
+    const { table } = makeTable(500);
+    const views = createViewManager({ table });
+
+    const view = await views.getView({
+      startRow: 0,
+      endRow: 3,
+      rowGroupCols: [{ id: 'sector' }],
+    });
+    const columns = await view!.to_columns({ start_row: 0, end_row: 3 });
+    expect(columns.__treeGroup).toBeUndefined();
+    expect(columns.sector).toEqual(['g1', 'g2', 'g3']);
+  });
+});

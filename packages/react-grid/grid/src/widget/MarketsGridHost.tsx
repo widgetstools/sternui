@@ -124,6 +124,8 @@ export interface MarketsGridHostProps<TData> {
    */
   perspectivePending?: boolean;
   perspectiveKeyColumn?: string;
+  perspectiveTreeFields?: readonly string[];
+  masterDetail?: MarketsGridProps<TData>['masterDetail'];
   suggestSsrmAbove?: number;
   onSuggestSsrm?: () => void;
   ssrmEngine?: 'custom' | 'perspective' | 'auto';
@@ -189,6 +191,8 @@ function MarketsGridHostInner<TData>({
   perspectiveTable,
   perspectivePending,
   perspectiveKeyColumn,
+  perspectiveTreeFields,
+  masterDetail,
   suggestSsrmAbove,
   onSuggestSsrm,
   ssrmEngine,
@@ -204,6 +208,32 @@ function MarketsGridHostInner<TData>({
     dismissed: ssrmSuggestDismissed,
   });
   const platform = useGridPlatform();
+
+  /**
+   * `masterDetail` / `perspectiveTreeFields` are read by the Perspective
+   * surface only. Say so out loud.
+   *
+   * A prop that silently does nothing on the surface it was set on is the
+   * exact failure this path keeps producing — it is how the saved-filter
+   * counts, the alerts rescan and the header badges all came to be missing
+   * without a single warning anywhere. A dev-only console warning costs
+   * nothing and makes the next one a five-second diagnosis.
+   */
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    if (perspectiveTable || perspectivePending) return;
+    const unsupported: string[] = [];
+    if (masterDetail) unsupported.push('masterDetail');
+    if (perspectiveTreeFields?.length) unsupported.push('perspectiveTreeFields');
+    if (unsupported.length === 0) return;
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[MarketsGrid] ${unsupported.join(' and ')} ${
+        unsupported.length > 1 ? 'are' : 'is'
+      } read by the Perspective surface only, and this grid is not on it. ` +
+        "Set rowModel='perspective' with a perspectiveTable, or remove the prop.",
+    );
+  }, [masterDetail, perspectiveTreeFields, perspectiveTable, perspectivePending]);
   // Calculated columns become Perspective expression columns on the pull path;
   // without this they are absent entirely, since the planner only ran for SSRM.
   const perspectiveCalc = usePerspectiveCalcColumns(
@@ -485,6 +515,8 @@ function MarketsGridHostInner<TData>({
           }
           columnDefs={perspectiveCalc.defs}
           calcExpressions={perspectiveCalc.expressions}
+          treeFields={perspectiveTreeFields}
+          masterDetail={masterDetail}
           theme={theme}
           rowHeight={rowHeight}
           headerHeight={headerHeight}

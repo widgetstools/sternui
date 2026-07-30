@@ -668,6 +668,65 @@ restored parity. The client-side style-rule evaluator never passes `allRows`, so
 `[price] > AVG([price])` is false for every row there. This path answers it
 correctly; CSRM does not answer it at all.
 
+## Tree data and master/detail
+
+Both are AG features that read something the client is assumed to hold, so both
+needed a worker-side source. Neither existed on MarketsGrid at all before this —
+they were `CustomSSRMGrid` props — so this is new public API
+(`perspectiveTreeFields`, `masterDetail`), not restored parity.
+
+**Tree mode is the same pull shape as grouping.** AG asks for the children of a
+path either way, and `toPerspectiveGroupLevel` already maps that onto
+`group_by: [the one column at this depth]` plus ancestor keys as filter clauses.
+So tree mode reuses it exactly, by standing the configured fields in for the
+`rowGroupCols` AG does **not** send in tree mode. A request that carries real
+group columns wins instead — the user dragged a column into the group panel, and
+that intent should not silently merge with a configured hierarchy.
+
+What actually differs is the output. AG reads a tree hierarchy off the **data**
+(`isServerSideGroup(data)`, `getServerSideGroupKey(data)`) because there are no
+group columns to read it from, and Perspective has nothing to say about either.
+So parent rows are stamped with `__treeKey` and `__treeGroup`. Every row of a
+grouped View is a parent by construction — the leaf level is served by an
+UNgrouped View and never passes through the stamp — so the marker is
+unconditional rather than derived.
+
+Two consequences worth naming:
+
+- **`getRowId` cannot use the group-column test in tree mode.** There are no row
+  group columns, so `level < groupCols.length` is false at every depth and every
+  parent would be keyed off the leaf column it does not have — duplicate ids,
+  which AG turns into failed blocks (warn 205). Tree rows are recognised by the
+  marker instead.
+- **Tree mode counts as grouped from the first block.** `setRowCount` raises AG
+  error #28 whenever a row-group column exists and the error is SILENT without
+  `ValidationModule`; a tree level is a group level by another name, so `grouped`
+  starts true rather than being discovered from the first request.
+
+**Master/detail reads the detail rows from the same Table.** `CustomSSRMGrid`
+answers this from its client-side mirror engine, which holds every row; here
+`readMatchingRows(match, limit)` builds a transient filtered View. Deliberately
+**not** scoped to the grid's sort or filter: a master row must expand onto the
+same children whatever else is on screen. A null match value becomes `is null`,
+because `== null` matches nothing in Perspective and a master keyed on a missing
+value would otherwise open onto an empty detail grid. An empty match answers
+empty rather than selecting the whole book as one row's children. It truncates
+at the limit rather than refusing — unlike an export, a detail panel is a
+bounded surface the user is looking at.
+
+Verified live on the 20,000-row book (`?tree=region,desk` and `?detail=1` on the
+demo): three region parents at the root, eight desks under EMEA with path ids
+(`EMEA/EM Debt`), leaf positions at depth 2 with `isServerSideGroup` false and
+full-path ids, 840 displayed rows, 0 failed blocks. Master/detail: one detail
+grid holding 200 rows (the configured limit), every one of them the master's own
+book, exactly the five configured detail columns, agreeing precisely with
+`readMatchingRows` called directly.
+
+One measurement trap this produced: walking `__reactFiber$` up from a detail
+grid's `.ag-root-wrapper` reaches the **master** grid's api, so the detail grid
+reads as 20,001 rows spanning every book. Use `api.forEachDetailGridInfo()`,
+which is AG's own registry of live detail grids.
+
 ## Exporting the whole book
 
 `api.exportDataAsExcel()` can only see the rows in the block cache. MEASURED on
@@ -949,6 +1008,7 @@ it never runs — `getCompiledClientWasm()` is the fix, still outstanding.
 | Calculated columns as expression columns | **done**, 17 tests + engine probe |
 | Alerts full-book rescan source | **done**, 8 tests |
 | Style rules that must materialize worker-side | **done**, 28 tests + 4 engine probes |
+| Tree data + master/detail | **done**, 24 tests; new API, not parity |
 | Multi-window timings through the product path | **not measured** |
 | e2e spec for the Perspective surface | **not started** |
 

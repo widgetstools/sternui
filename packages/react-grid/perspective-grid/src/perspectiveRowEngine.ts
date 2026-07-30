@@ -93,6 +93,19 @@ export interface PerspectiveRowEngineOpts {
    * a complete one once it is open in Excel.
    */
   maxExportRows?: number;
+  /**
+   * Ceiling on one master row's detail grid. Truncates rather than refusing,
+   * unlike an export: a detail panel is a bounded surface the user is looking
+   * at, not a file that will be read later with no way to tell it is short.
+   */
+  maxDetailRows?: number;
+  /**
+   * Column ids forming a tree hierarchy, outermost first — AG's SSRM **tree**
+   * mode rather than its row-group mode. The rows served for a non-leaf level
+   * carry `__treeKey` / `__treeGroup`, which is how AG reads a hierarchy off
+   * the data when there are no group columns to read it from.
+   */
+  treeFields?: readonly string[];
   /** Coalesce cell edits made within this window into one Table write. */
   editFlushMs?: number;
   onEvent?(event: ViewManagerEvent): void;
@@ -171,6 +184,17 @@ export interface PerspectiveRowEngine {
    * itself — `avg("col")` is row-wise and silently answers the column.
    */
   aggregateScalar(colId: string, aggregate: PerspectiveAggregate): Promise<number | null>;
+  /**
+   * The child rows behind an expanded master row — the book's rows whose
+   * columns equal every entry of `match`.
+   *
+   * Not scoped to the grid's filter: a master row must expand onto the same
+   * children whatever else is on screen.
+   */
+  readMatchingRows(
+    match: Record<string, unknown>,
+    limit?: number,
+  ): Promise<Record<string, unknown>[] | null>;
   /**
    * Every distinct value in a column, for an AG set filter's value list.
    *
@@ -285,6 +309,8 @@ export function createPerspectiveRowEngine(
     maxSetFilterValues = 50_000,
     quickFilterAllColumns = false,
     maxExportRows = 200_000,
+    maxDetailRows = 500,
+    treeFields,
     editFlushMs = 0,
     onEvent,
     onError,
@@ -297,8 +323,14 @@ export function createPerspectiveRowEngine(
   let closed = false;
   /** The most recent root-level request, so the total matches the grid shape. */
   let lastRootRequest: SsrmRequestLike = {};
-  /** Set once the root level has been grouped, so row count is not published. */
-  let grouped = false;
+  /**
+   * Set once the root level has been grouped, so row count is not published.
+   *
+   * Tree mode counts as grouped from the start: `setRowCount` raises AG error
+   * #28 whenever a row-group column exists, the error is SILENT without
+   * ValidationModule, and a tree level is a group level by another name.
+   */
+  let grouped = (treeFields?.length ?? 0) > 0;
 
   let bookRows: number | null = null;
   let failedBlocks = 0;
@@ -468,6 +500,7 @@ export function createPerspectiveRowEngine(
 
   const views = createViewManager({
     table,
+    treeFields,
     onUpdate: () => {
       // The book itself can grow or shrink under the feed, so the unfiltered
       // total is re-measured on updates rather than read once at startup.
@@ -569,7 +602,8 @@ export function createPerspectiveRowEngine(
 
   const datasource = createPerspectiveDatasource({
     getView: async (request) => {
-      grouped = (request.rowGroupCols?.length ?? 0) > 0;
+      grouped =
+        (request.rowGroupCols?.length ?? 0) > 0 || (treeFields?.length ?? 0) > 0;
       if (!request.groupKeys?.length) lastRootRequest = request;
       const view = await views.getView(request);
       // A root level that reads as empty is either a genuinely empty book or a
@@ -719,6 +753,15 @@ export function createPerspectiveRowEngine(
         .catch(() => null);
       scalars.set(key, value);
       return value;
+    },
+
+    readMatchingRows(match, limit = maxDetailRows) {
+      if (closed) return Promise.resolve(null);
+      // Deliberately uncached: a detail grid is opened by a click, not by a
+      // per-tick paint, so there is no burst to absorb — and a cached answer
+      // would be the wrong trade, since the rows are shown next to a master
+      // row the user just expanded and expects to be current.
+      return views.readMatchingRows(match, limit).catch(() => null);
     },
 
     readAllRows() {

@@ -64,6 +64,11 @@ this AG Grid 36 DOM — query `.ag-row`.
 - **A null matches `>` and `>=`.** In JavaScript — i.e. on CSRM — `null > 95`
   is false. Any rule compiled to the worker needs an `is_null` guard or it
   paints rows the control does not.
+- **Walking `__reactFiber$` up from a DETAIL grid reaches the MASTER grid.**
+  `.return` goes up the tree, so a detail grid read that way reports the
+  master's row count and every book in the book — it looked exactly like
+  master/detail ignoring its match clause. Use `api.forEachDetailGridInfo()`,
+  AG's own registry of live detail grids.
 - **A wide window sampled mid-feed is a montage of instants.** Blocks are read
   at different ticks, so grid rows 250–262 can be offset by one row from a
   single instantaneous truth read. Each block is internally correct. Not a
@@ -127,6 +132,7 @@ this AG Grid 36 DOM — query `.ag-row`.
 | Calculated columns as Perspective expression columns (`usePerspectiveCalcColumns` + `setCalcExpressions`) | 17 tests + engine probe; live: `currentPrice * quantity` computed in the worker, server-side sort by it, a saved-filter count on it (869 of 20,000), and a broken expression alongside a good one leaving the grid rendering |
 | Alerts full-book rescan source | 8 tests; the leaf fetcher now registers for the Perspective path (backed by `readAllRows`) and the panel's rescan block shows for ANY server-side engine, not just `ssrm`. **Live UI click-through not confirmed** — the collapsed settings section does not open under synthetic clicks |
 | `NOT` no longer compiles to Perspective's `not()`, which does not exist | 3 tests + 2 engine probes; affected calculated columns on BOTH server-side paths. Nested in `and`/`or`/`if` it validates clean and evaluates wrong, so the pre-flight check could not catch it |
+| Tree data + master/detail (`perspectiveTreeFields`, `masterDetail`) | 24 tests; live: 3 region parents → 8 desks under EMEA with path ids → leaf positions with `isServerSideGroup` false, 840 rows, 0 failed blocks; detail grid holding 200 rows all of the master's own book, agreeing exactly with `readMatchingRows`. **New API, not parity** — MarketsGrid had neither on any surface |
 | Style rules answered by the worker (`countMatchingExpression` + `aggregateScalar`) | 28 tests + 4 engine probes; live: a rule matching **1 row of 20,000** at a threshold no loaded block reaches lights the header, an impossible rule leaves it unlit, counts exactly match a JS pass over the same book (10,000 unfiltered · 3,339 under `region = EMEA` of 6,669 · 10,000 on clear), 25 counts in 31 ms against 169 ms uncached, live Views unchanged, 0 failed blocks |
 
 Also verified live and working: row selection (3 nodes selected and cleared
@@ -142,7 +148,12 @@ Cut / Copy / Export, status bar, 0 failed blocks throughout.
 
 Effort figures are rough.
 
-### 1. Master/detail and tree data — NOT a parity gap · awaiting a decision
+### ~~1. Master/detail and tree data~~ — BUILT (confirmed wanted, 2026-07-30)
+
+Built despite not being a parity gap; the note below is kept because it is why
+this is **new MarketsGrid API**, not a restored behaviour. Live evidence and the
+design are in the package ARCHITECTURE.md. Reachable on the demo with
+`?tree=region,desk` and `?detail=1`.
 
 **MarketsGrid does not expose `masterDetail` or `treeFields` on ANY surface,
 CSRM included.** They are `CustomSSRMGrid` props — the hand-rolled surface that

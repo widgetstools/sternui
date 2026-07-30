@@ -1469,3 +1469,108 @@ describe('countMatchingExpression / aggregateScalar', () => {
     await engine.close();
   });
 });
+
+describe('master/detail and tree mode', () => {
+  function makeDetailTable(total = 3) {
+    const built: PerspectiveViewConfig[] = [];
+    const table: PerspectiveTableLike = {
+      async size() {
+        return 1000;
+      },
+      view: vi.fn(async (config: PerspectiveViewConfig) => {
+        built.push(config);
+        const view: UpdatableView = {
+          async to_columns(window) {
+            const start = window?.start_row ?? 0;
+            const n = Math.max(0, Math.min(window?.end_row ?? 0, total) - start);
+            return { leg: Array.from({ length: n }, (_, i) => `L${start + i}`) };
+          },
+          async num_rows() {
+            return total;
+          },
+          async delete() {},
+          async on_update() {
+            return 1;
+          },
+        };
+        return view;
+      }),
+    };
+    return { table, built };
+  }
+
+  it('reads a master row\'s children from the book', async () => {
+    const { table, built } = makeDetailTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+
+    const rows = await engine.readMatchingRows({ tradeId: 'T1' });
+    expect(rows).toHaveLength(3);
+    expect(built.at(-1)!.filter).toEqual([['tradeId', '==', 'T1']]);
+    await engine.close();
+  });
+
+  it('applies the configured detail ceiling by default', async () => {
+    const { table } = makeDetailTable(1000);
+    const engine = createPerspectiveRowEngine({
+      table,
+      keyColumn: 'positionId',
+      maxDetailRows: 7,
+    });
+
+    expect(await engine.readMatchingRows({ tradeId: 'T1' })).toHaveLength(7);
+    // An explicit limit still wins.
+    expect(await engine.readMatchingRows({ tradeId: 'T1' }, 2)).toHaveLength(2);
+    await engine.close();
+  });
+
+  it('answers null once closed rather than throwing', async () => {
+    const { table } = makeDetailTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    await engine.close();
+    expect(await engine.readMatchingRows({ tradeId: 'T1' })).toBeNull();
+  });
+
+  /**
+   * `setRowCount` raises AG error #28 whenever a row-group column exists, and
+   * the error is SILENT without ValidationModule. A tree level is a group
+   * level by another name, so tree mode must count as grouped from the very
+   * first block — including the one AG requests before `onGridReady`.
+   */
+  it('never publishes a row count in tree mode', async () => {
+    const { table } = makeTable(20_000);
+    const engine = createPerspectiveRowEngine({
+      table,
+      keyColumn: 'positionId',
+      treeFields: ['sector', 'book'],
+    });
+    const grid = makeApi();
+    engine.setApi(grid.api);
+
+    await engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100 },
+      success: () => {},
+      fail: () => {},
+    } as never);
+    await settle();
+
+    expect(grid.rowCounts).toEqual([]);
+  });
+
+  /** The flat control: without tree fields the same request DOES publish it,
+   *  so the assertion above is about tree mode and not about the fixture. */
+  it('still publishes a row count when flat', async () => {
+    const { table } = makeTable(20_000);
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    const grid = makeApi();
+    engine.setApi(grid.api);
+
+    await engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100 },
+      success: () => {},
+      fail: () => {},
+    } as never);
+    await settle();
+
+    expect(grid.rowCounts).toContain(20_000);
+  });
+});
