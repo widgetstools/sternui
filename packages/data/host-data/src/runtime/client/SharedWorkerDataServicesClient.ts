@@ -695,6 +695,14 @@ export class SharedWorkerDataServicesClient {
         this.sendAppData({ kind: 'appdata-detach', subId });
       } catch { /* port may already be dead */ }
     }
+    // Explicit port goodbye — the hub cannot otherwise detect a clean
+    // close (dead-port postMessage is a silent no-op, messageerror only
+    // fires on deserialization failures), so without this the worker
+    // retains this window's PortLike + closures forever and clones every
+    // catalog broadcast into the void per dead port.
+    try {
+      this.send({ kind: 'port-close' });
+    } catch { /* port may already be dead */ }
     this.closed = true;
     this.subs.clear();
     this.thinSubs.clear();

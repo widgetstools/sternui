@@ -125,6 +125,20 @@ export interface DetachRequest {
   subId: string;
 }
 
+/**
+ * Explicit port goodbye, sent by `SharedWorkerDataServicesClient.close()`.
+ * Without it the hub can never learn a window closed CLEANLY:
+ * `postMessage` to a disentangled MessagePort does not throw (it
+ * serializes, then silently discards) and `messageerror` only fires on
+ * deserialization failures — so `connectedPorts` (and AppData
+ * listeners, which have no heartbeat) grew forever across a day of
+ * window open/close cycles, and every catalog broadcast was cloned
+ * once per dead port.
+ */
+export interface PortCloseRequest {
+  kind: 'port-close';
+}
+
 /** Optional client metadata carried on subscriber heartbeats (introspect only). */
 export interface SubscriberMeta {
   /** Human-readable attach site, e.g. component or hook name. */
@@ -331,6 +345,7 @@ export type AppDataRequest =
 export type Request =
   | AttachRequest
   | DetachRequest
+  | PortCloseRequest
   | PingRequest
   | StopRequest
   | HubReadyRequest
@@ -572,6 +587,7 @@ export function isRequest(value: unknown): value is Request {
   return (
     k === 'attach' ||
     k === 'detach' ||
+    k === 'port-close' ||
     k === 'ping' ||
     k === 'stop' ||
     k === 'hub-ready' ||

@@ -128,6 +128,10 @@ export class SharedWorkerDataServicesHub {
     switch (req.kind) {
       case 'attach':  this.handleAttach(port, req); return;
       case 'detach':  this.handleDetach(req); return;
+      // Clean window close: postMessage to a dead port never throws and
+      // messageerror never fires, so this explicit goodbye is the ONLY
+      // way connectedPorts / AppData listeners get released.
+      case 'port-close': this.onPortClosed(port); return;
       case 'ping':    this.subscribers.ping(req.subId, req.meta); return;
       case 'stop':    this.handleStop(req); return;
       case 'hub-ready': handleHubReady(this.catalogRpcCtx, port, req); return;

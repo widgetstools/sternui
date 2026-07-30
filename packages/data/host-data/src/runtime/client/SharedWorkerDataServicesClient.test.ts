@@ -126,6 +126,48 @@ function wireTwoClients(opts: { configManager?: ConfigManager } = {}): DualClien
   };
 }
 
+describe('port-close protocol — clean window close releases the hub-side port', () => {
+  it('client.close() sends port-close; the hub drops the port from connectedPorts', async () => {
+    const hub = new SharedWorkerDataServicesHub({});
+    const attach = attachPortToHub(hub);
+    const wiringA = createInPageWiring(attach, { disablePageHideClose: true });
+    const wiringB = createInPageWiring(attach, { disablePageHideClose: true });
+
+    // Both ports register on first traffic.
+    await wiringA.client.isCatalogReady();
+    await wiringB.client.isCatalogReady();
+    expect(hub.buildIntrospectSnapshot().connectedPorts).toBe(2);
+
+    // Clean close: without the explicit port-close goodbye the hub can
+    // never learn (dead-port postMessage is a silent no-op), and
+    // connectedPorts grew forever across a day of window cycles.
+    wiringA.client.close();
+    await flush();
+    expect(hub.buildIntrospectSnapshot().connectedPorts).toBe(1);
+
+    wiringB.client.close();
+    await flush();
+    expect(hub.buildIntrospectSnapshot().connectedPorts).toBe(0);
+    await hub.dispose();
+  });
+
+  it('port-close also releases AppData listeners (no heartbeat covers them)', async () => {
+    const hub = new SharedWorkerDataServicesHub({});
+    const attach = attachPortToHub(hub);
+    const wiring = createInPageWiring(attach, { disablePageHideClose: true });
+
+    const mirror = wiring.client.attachAppData({ userId: 'u1' });
+    await mirror.attach();
+    await flush();
+    expect(hub.buildIntrospectSnapshot().appData.listenerCount).toBe(1);
+
+    wiring.client.close();
+    await flush();
+    expect(hub.buildIntrospectSnapshot().appData.listenerCount).toBe(0);
+    await hub.dispose();
+  });
+});
+
 function stubConfigManager(): ConfigManager & { _rows: Map<string, AppConfigRow> } {
   const rows = new Map<string, AppConfigRow>();
   return {
