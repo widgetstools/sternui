@@ -41,7 +41,13 @@ export interface ProviderHandle {
 export type ProviderEmit = (event: ProviderEmitEvent) => void;
 
 export type ProviderEmitEvent =
-  | { rows: readonly unknown[]; replace?: boolean }
+  /**
+   * `uniqueKeys: true` asserts the batch's rows are already unique by
+   * the provider's key column — set by transports whose conflation map
+   * (bufferedDispatch with a conflate key) produced the batch. Lets the
+   * hub skip its per-batch duplicate-key Set on the live hot path.
+   */
+  | { rows: readonly unknown[]; replace?: boolean; uniqueKeys?: boolean }
   | { status: ProviderStatus; error?: string }
   | { byteSize: number }
   | { rowsReceived: number }

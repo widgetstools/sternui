@@ -346,7 +346,12 @@ export class SharedWorkerDataServicesClient {
         return;
       }
       const merged: T[] = [];
-      for (const batch of bufferedUpdates) merged.push(...batch);
+      // Indexed push — arg-spread copies each batch onto the call
+      // stack and overflows past ~65k rows (catch-up batches after a
+      // hidden boot can be full-snapshot sized).
+      for (const batch of bufferedUpdates) {
+        for (let i = 0; i < batch.length; i++) merged.push(batch[i]);
+      }
       bufferedUpdates.length = 0;
       updateCb(merged);
     };

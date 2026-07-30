@@ -342,12 +342,22 @@ export function startStomp(
           ? composeRowId(row as Record<string, unknown>, conflateColumns)
           : null
     : undefined;
+  // Default 25 ms conflation window: an unconfigured provider on a
+  // 10k msg/sec feed otherwise ran bufferedDispatch in passthrough
+  // mode — one emit → encode → fan-out PER MESSAGE.
+  const liveThrottleMs = throttleEnabled ? (cfg.throttleMs ?? 25) : 0;
+  // `uniqueKeys` only when the conflation MAP actually builds the
+  // batch — with a zero window, bufferedDispatch passes rows through
+  // un-conflated and the claim would be false.
+  const liveConflated = typeof conflateKeyFn === 'function' && liveThrottleMs > 0;
   const liveDispatch = opts.passthroughSnapshot
     ? null
     : bufferedDispatch<unknown>({
         conflateKeyFn,
-        throttleMs: throttleEnabled ? cfg.throttleMs : 0,
-        flush: (rows) => emit({ rows }),
+        throttleMs: liveThrottleMs,
+        flush: liveConflated
+          ? (rows) => emit({ rows, uniqueKeys: true })
+          : (rows) => emit({ rows }),
         setTimer: opts.setTimer,
         clearTimer: opts.clearTimer,
       });
@@ -517,7 +527,9 @@ export function startStomp(
       if (rows.length > 0) {
         state.receivingSnapshot = true;
       }
-      state.snapshotBuffer.push(...rows);
+      // Indexed push — arg-spread (`push(...rows)`) copies the batch
+      // onto the call stack and overflows past ~65k rows.
+      for (let i = 0; i < rows.length; i++) state.snapshotBuffer.push(rows[i]);
       emit({ rowsReceived: state.snapshotBuffer.length });
       emit({ byteSize });
       return;

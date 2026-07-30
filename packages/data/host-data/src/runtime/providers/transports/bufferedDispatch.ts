@@ -92,7 +92,9 @@ export function bufferedDispatch<TRow>(
         else map.set(key, row); // last write wins (upsert)
       }
     } else {
-      list.push(...rows);
+      // Indexed push — arg-spread copies the batch onto the call stack
+      // and overflows past ~65k rows.
+      for (let i = 0; i < rows.length; i++) list.push(rows[i]);
     }
     scheduleFlush();
   };

@@ -173,6 +173,21 @@ function applyRows(
       slot.cache.set(k, row);
       markReplayUpsert(replay, k);
     }
+  } else if (event.uniqueKeys) {
+    // Transport-conflated batch: upstream's conflation map already
+    // guarantees per-batch key uniqueness — no dup-detection Set on
+    // the live hot path (this branch runs per flush at streaming
+    // rates).
+    for (const row of event.rows) {
+      const k = keyOf(row, keyColumn);
+      if (k === null) {
+        if (dropped === 0) droppedSample = row;
+        dropped += 1;
+        continue;
+      }
+      slot.cache.set(k, row);
+      markReplayUpsert(replay, k);
+    }
   } else {
     // Incremental batch: a key already present in the cache is a
     // legit update (size doesn't grow), so the size trick can't

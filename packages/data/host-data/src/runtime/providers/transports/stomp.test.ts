@@ -278,7 +278,9 @@ describe('startStomp', () => {
   it('treats post-Success frames as live updates (no replace, no new status)', async () => {
     const events: ProviderEmitEvent[] = [];
     const ctrl = makeFakeClient();
-    startStomp(cfg(), (e) => events.push(e), { createClient: () => ctrl.client });
+    // throttleEnabled:false → immediate fan-out; the default 25 ms
+    // conflation window would otherwise buffer the live frame.
+    startStomp(cfg({ throttleEnabled: false }), (e) => events.push(e), { createClient: () => ctrl.client });
     await Promise.resolve();
     ctrl.fireConnect();
     ctrl.deliver('Success');
@@ -351,6 +353,7 @@ describe('startStomp', () => {
     startStomp(
       cfg({
         projectFields: true,
+        throttleEnabled: false, // immediate live fan-out (default window is 25 ms)
         keyColumn: 'id',
         columnDefinitions: [
           { field: 'px', headerName: 'Price' },
@@ -735,20 +738,34 @@ describe('startStomp — live conflation + throttle', () => {
     expect(events.filter((e) => 'rows' in e)).toHaveLength(0);
   });
 
-  it('passes live deltas straight through when throttleMs is unset', async () => {
+  it('defaults to a 25 ms conflation window when throttleMs is unset', async () => {
+    // A 10k msg/sec feed against an unconfigured provider must NOT get
+    // one emit per message — unset throttleMs now means a 25 ms
+    // trailing-edge window with key conflation (keyColumn 'id').
     const events: ProviderEmitEvent[] = [];
     const ctrl = makeFakeClient();
-    startStomp(cfg(), (e) => events.push(e), { createClient: () => ctrl.client });
+    const t = fakeTimer();
+    startStomp(cfg(), (e) => events.push(e), {
+      createClient: () => ctrl.client,
+      setTimer: t.setTimer,
+      clearTimer: t.clearTimer,
+    });
     await Promise.resolve();
     ctrl.fireConnect();
     ctrl.deliver('Success');
     events.length = 0;
 
     ctrl.deliver(JSON.stringify({ id: 'r1', price: 9 }));
+    ctrl.deliver(JSON.stringify({ id: 'r1', price: 10 })); // conflated over price 9
+    expect(events.filter((e) => 'rows' in e)).toHaveLength(0); // buffered, not passthrough
+    expect(t.pending).toBe(true);
+    t.fire();
 
-    const deltas = events.filter((e): e is { rows: readonly unknown[] } => 'rows' in e);
+    const deltas = events.filter((e): e is { rows: readonly unknown[]; uniqueKeys?: boolean } => 'rows' in e);
     expect(deltas).toHaveLength(1);
-    expect(deltas[0].rows).toEqual([{ id: 'r1', price: 9 }]);
+    expect(deltas[0].rows).toEqual([{ id: 'r1', price: 10 }]);
+    // Conflation-map batches assert per-batch key uniqueness to the hub.
+    expect(deltas[0].uniqueKeys).toBe(true);
   });
 
   it('conflateEnabled:false keeps same-key deltas (still throttled, not collapsed)', async () => {
