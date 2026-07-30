@@ -378,4 +378,27 @@ describe('PerspectiveMarketsGridSurface — parity with the CSRM surface', () =>
       expect(updates).toHaveLength(0);
     });
   });
+  describe('set-filter values', () => {
+    it('routes a column values callback to the engine through the holder', async () => {
+      // Without this every column filter menu is empty: the client holds only
+      // the loaded blocks, so AG has no values to build a checkbox list from.
+      const { last } = renderSurface();
+      await waitFor(() => expect(last().serverSideDatasource).toBeDefined());
+
+      const defs = last().columnDefs as Record<string, unknown>[];
+      const pnl = defs.find((d) => d.field === 'pnl')!;
+      const params = pnl.filterParams as {
+        values: (p: { success(v: unknown[]): void }) => void;
+        suppressClearModelOnRefreshValues: boolean;
+      };
+      expect(typeof params.values).toBe('function');
+      expect(params.suppressClearModelOnRefreshValues).toBe(true);
+
+      // The fake Table reports one group row (the level total), so the engine
+      // finds no distinct values — and an empty list must still settle.
+      await expect(
+        new Promise((resolve) => params.values({ success: resolve })),
+      ).resolves.toEqual([]);
+    });
+  });
 });

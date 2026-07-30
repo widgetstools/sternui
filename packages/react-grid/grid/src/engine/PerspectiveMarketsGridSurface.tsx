@@ -47,6 +47,7 @@ import {
   type PerspectiveGridContext,
 } from './perspectiveEngineHolder.js';
 import { PerspectiveStatusPanel } from './PerspectiveStatusPanel.js';
+import { withPerspectiveSetFilterValues } from './perspectiveSetFilterValues.js';
 
 const NO_HOST_OVERRIDES: ReadonlySet<string> = new Set<string>();
 
@@ -191,6 +192,20 @@ export const PerspectiveMarketsGridSurface = forwardRef<
     };
   }, []);
 
+  /**
+   * Set filters get their checkbox list from the Table, not from the rows this
+   * window holds — it holds only the loaded blocks, so without this every
+   * column filter menu is empty. Read through the holder so the list still
+   * resolves after an engine swap.
+   */
+  const columnDefs = useMemo(
+    () =>
+      withPerspectiveSetFilterValues(props.columnDefs, (colId) =>
+        holderRef.current?.get()?.distinctValues(colId) ?? Promise.resolve(null),
+      ),
+    [props.columnDefs],
+  );
+
   const components = useMemo(
     () => ({ ...streamSafeComponents, perspectiveStatusPanel: PerspectiveStatusPanel }),
     [streamSafeComponents],
@@ -319,7 +334,7 @@ export const PerspectiveMarketsGridSurface = forwardRef<
         {...hostOverrides}
         theme={props.theme}
         loadThemeGoogleFonts={false}
-        columnDefs={props.columnDefs as never}
+        columnDefs={columnDefs as never}
         // Parity with the CSRM surface, which sets all four unconditionally.
         // They are in SURFACE_FIXED_GRID_OPTION_KEYS, so the pipeline's copies
         // are stripped and the surface owns them — omitting them here left
