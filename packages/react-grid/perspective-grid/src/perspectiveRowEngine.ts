@@ -70,6 +70,23 @@ export interface PerspectiveRowEngineOpts {
    * virtualises the list, so a lower cap would itself be a parity gap.
    */
   maxSetFilterValues?: number;
+  /**
+   * Search numeric and date columns too, not just text.
+   *
+   * MEASURED (`scripts/quickFilterProbe4.mjs`), 20,000 rows: the compiled
+   * expression costs one `match()` per column per token, and that cost is
+   * linear — 5 columns 188ms, 11 columns 307ms, 26 columns 993ms, and 26
+   * columns x 2 tokens 2,408ms. Worse, an expression column is recomputed on
+   * every Table update for as long as the View lives, so on a ticking book the
+   * charge repeats. In the browser, over the proxied session and against the
+   * live feed, 26 columns x 2 tokens was effectively unusable.
+   *
+   * Text columns are what a typed search is nearly always aiming at, and on the
+   * demo book they are 11 of 26 — so the default halves the cost and keeps
+   * multi-token searches responsive. Set true to accept the cost and match AG's
+   * CSRM behaviour, which searches every column's formatted value.
+   */
+  quickFilterAllColumns?: boolean;
   /** Coalesce cell edits made within this window into one Table write. */
   editFlushMs?: number;
   onEvent?(event: ViewManagerEvent): void;
@@ -140,6 +157,14 @@ export interface PerspectiveRowEngine {
    * filter empty rather than supply a partial list.
    */
   distinctValues(colId: string): Promise<unknown[] | null>;
+  /**
+   * Apply the quick search across every column of the book.
+   *
+   * AG's own `quickFilterText` is a client-side-row-model option and does
+   * nothing under a server row model, so the text has to be handed here and
+   * compiled into the View.
+   */
+  setQuickFilter(text: string): Promise<void>;
   /**
    * Persist a committed cell edit into the worker-held Table.
    *
@@ -218,6 +243,7 @@ export function createPerspectiveRowEngine(
     countMinIntervalMs = 1000,
     valuesMinIntervalMs = 30_000,
     maxSetFilterValues = 50_000,
+    quickFilterAllColumns = false,
     editFlushMs = 0,
     onEvent,
     onError,
@@ -603,6 +629,31 @@ export function createPerspectiveRowEngine(
       const value = views.countMatching(filterModel).catch(() => null);
       counts.set(key, value);
       return value;
+    },
+
+    async setQuickFilter(text) {
+      if (closed) return;
+
+      // Text columns only by default — the cost is one `match()` per column
+      // per token, recharged on every Table update while the View lives, and
+      // searching all 26 columns of the demo book was unusable at two tokens.
+      // `string()` in the compiled expression means opting in to the rest still
+      // works; see `quickFilterAllColumns`.
+      const schema = await tableSchema();
+      if (closed) return;
+      const columns = schema
+        ? Object.keys(schema).filter(
+            (col) => quickFilterAllColumns || schema[col] === 'string',
+          )
+        : [];
+      if (!views.setQuickFilter(text ?? '', columns)) return;
+
+      // AG does not know this filter exists, so nothing invalidates its store:
+      // it would keep serving the pre-search blocks and its row count. A quick
+      // search changes the row count drastically, so this is the one case that
+      // always purges — `refreshEveryLevel` only purges an empty store.
+      api?.refreshServerSide({ purge: true });
+      void pushGrandTotal();
     },
 
     distinctValues(colId) {

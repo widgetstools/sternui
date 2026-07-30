@@ -496,6 +496,68 @@ commit cell by cell, and one proxied round trip per cell is hundreds of worker
 calls for one user action. `close()` flushes before tearing down, so a Table
 swap or an unmount cannot eat the last edit.
 
+## Quick search compiles to an expression column
+
+`QuickSearch` pushes text with `setGridOption('quickFilterText')`, which AG
+implements for the **client-side row model only** — under `serverSide` it is
+stored and otherwise ignored, so the search box did nothing at all. Everything
+below is measured (`scripts/quickFilterProbe1-4.mjs`), and most of it is a
+finding rather than a design choice.
+
+**It cannot be filter clauses.** AG's quick filter matches a row when every
+whitespace token is found in *some* column. Clause lists are conjunctive, so the
+per-token OR across columns is inexpressible. It has to be a boolean expression
+column plus one clause selecting on it.
+
+**`match(lower(string("col")), 'term')` is the only usable primitive.**
+`index_of`, `search`, `like` and `ilike` do not exist in 4.5.2. `string()` wraps
+every column so the same codegen serves text and numeric alike, and a null row
+neither matches nor poisons the expression.
+
+**`or` and `and` are the operators — `|` is a trap.** `|` parses happily and
+then matched *every* row in the probe: a silently-wrong filter, which is worse
+than no filter.
+
+**`match` takes a REGEX, and the term cannot be escaped.** A bare `.` is already
+a wildcard. A lone `(` aborts the whole View build — and `\(` fails identically,
+so there is no escaping strategy available. A literal quote breaks the
+single-quoted literal too, and `''` is a parse error. So user input is
+**sanitized, not escaped**: every character with regex or quoting meaning becomes
+`.`, which matches itself and anything else. That over-matches slightly (`3.5`
+also finds `3x5`), which is the right trade for a quick search — it can never
+throw and never mis-parse. Verified live: typing `(` filters to the whole book
+instead of blanking the grid.
+
+**Lookahead is not supported, and fails SILENTLY.** `(?=.*a)(?=.*b)` would have
+put all tokens in one `match` per column and made cost independent of token
+count. It parses and returns **zero rows** — no error. Do not reach for it.
+
+**Cost is linear in columns × tokens, and recharged on every tick.** Measured on
+20,000 rows: 5 columns 188 ms, 11 columns 307 ms, 26 columns 993 ms, 26 columns
+× 2 tokens 2,408 ms. An expression column is recomputed on every Table update
+for as long as the View lives, so on a ticking book that charge repeats — and in
+the browser, over the proxied session and against the live sweep, 26 columns ×
+2 tokens was effectively unusable. Hence **text columns only by default**
+(`quickFilterAllColumns` opts back in): 11 of 26 on the demo book, and a typed
+search is nearly always aiming at text anyway.
+
+**The bridge hooks `modelUpdated`, not `filterChanged`.** Measured: changing
+`quickFilterText` under `serverSide` fires `modelUpdated` only. Since that also
+fires on every block load and live refresh, the handler compares against the
+last value it acted on — load-bearing, because the engine answers by purging,
+which fires `modelUpdated` again.
+
+**A quick-filter change always purges.** AG does not know this filter exists, so
+nothing invalidates its store; it would keep serving pre-search blocks and the
+old row count.
+
+Verified live on the 20,000-row book: `Inflation` → 3,369 rows; `Inflation EMEA`
+→ 1,136, with every loaded row matching both tokens; `(` → 20,000; cleared →
+20,000. Zero failed blocks throughout. One caveat worth knowing when testing: a
+saturated engine takes a long time to drain, and the Perspective SharedWorker
+**survives page reloads** — an expensive View built by mistake keeps starving
+every later page until every port to that origin is closed.
+
 ## Set filters get their values from the Table
 
 A set filter's checkbox list is the values it found in the row data. Under CSRM
@@ -680,6 +742,7 @@ it never runs — `getCompiledClientWasm()` is the fix, still outstanding.
 | Cell edits reaching the Table | **done**, 18 tests |
 | Toolbars/profiles reaching the platform | **done**, 6 tests — see "One grid per platform" |
 | Set-filter values (column filter menus) | **done**, 25 tests |
+| Quick search (`quickFilterText`) | **done**, 22 tests + 4 engine probes |
 | Calculated columns as expression columns | **not started** |
 | Style rules that must materialize worker-side | **not started** |
 | Multi-window timings through the product path | **not measured** |

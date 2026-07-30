@@ -63,6 +63,72 @@ export interface AgRequestState {
   valueCols?: readonly { id: string; aggFunc?: string | null }[];
   /** Calc columns: alias -> Perspective expression source. */
   expressions?: Record<string, string>;
+  /** Quick-search text. Whitespace splits it into tokens that all must match. */
+  quickFilterText?: string;
+  /** Columns the quick search spans — every Table column, normally. */
+  quickFilterColumns?: readonly string[];
+}
+
+/** Alias of the boolean expression column the quick filter compiles into. */
+export const QUICK_FILTER_COLUMN = '__quick__';
+
+/**
+ * Make a user's quick-search token safe to embed in a Perspective `match()`.
+ *
+ * MEASURED (`scripts/quickFilterProbe*.mjs`), and every part of this is a
+ * finding rather than a precaution:
+ *
+ * - `match()` takes a **regex**, so a bare `.` is already a wildcard and a
+ *   lone `(` is a syntax error that aborts the whole View build. A user typing
+ *   `(` into the search box would blank the grid.
+ * - Backslash-escaping does NOT rescue it: `'\('` fails the same way as `'('`.
+ *   So there is no escaping strategy available — the input has to be rewritten.
+ * - The term also sits inside a single-quoted literal, and a quote cannot be
+ *   escaped reliably either (`''` is a parse error).
+ *
+ * So every character with regex or quoting meaning becomes `.`, which matches
+ * itself along with anything else. That over-matches slightly — searching
+ * `3.5` also finds `3x5` — which is the right trade for a quick search: it can
+ * never throw, never mis-parse, and never silently match nothing.
+ */
+export function sanitizeQuickFilterTerm(term: string): string {
+  return term.toLowerCase().replace(/[^\p{L}\p{N} _-]/gu, '.');
+}
+
+/**
+ * Compile quick-search text into one boolean expression column.
+ *
+ * AG's quick filter matches a row when EVERY whitespace-separated token is
+ * found in SOME column. Perspective clause lists are conjunctive, so the
+ * per-token OR cannot be expressed as filter clauses at all — it has to be an
+ * expression. Hence `(a or b or c) and (a or b or c)`, one group per token.
+ *
+ * Two shapes here are measured, not chosen:
+ * - `string("col")` wraps every column, so the same codegen works for text and
+ *   numeric columns alike and a null never poisons the row.
+ * - `or` / `and` are the operators. `|` parses but is NOT a logical or — it
+ *   matched every row in the probe, which is exactly the kind of silently-wrong
+ *   filter that is worse than no filter.
+ *
+ * Returns null when there is nothing to apply, so callers can omit the
+ * expression entirely rather than build a View that differs by a no-op clause.
+ */
+export function toQuickFilterExpression(
+  columns: readonly string[],
+  text: string | undefined | null,
+): string | null {
+  const tokens = (text ?? '').trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0 || columns.length === 0) return null;
+
+  return tokens
+    .map((token) => {
+      const term = sanitizeQuickFilterTerm(token);
+      const anyColumn = columns
+        .map((col) => `match(lower(string("${col}")), '${term}')`)
+        .join(' or ');
+      return `(${anyColumn})`;
+    })
+    .join(' and ');
 }
 
 /** AG sort -> Perspective sort. Unknown directions are dropped, not guessed. */
@@ -201,6 +267,18 @@ export function toPerspectiveViewConfig(state: AgRequestState): PerspectiveViewC
   const filter = toPerspectiveFilter(state.filterModel);
   if (filter) config.filter = filter;
 
+  // The quick filter rides as a boolean expression column plus one clause,
+  // because its per-token OR across columns cannot be a clause list. It ANDs
+  // with the column filters, which is what AG does too.
+  const quick = toQuickFilterExpression(
+    state.quickFilterColumns ?? [],
+    state.quickFilterText,
+  );
+  if (quick) {
+    config.expressions = { ...config.expressions, [QUICK_FILTER_COLUMN]: quick };
+    config.filter = [...(config.filter ?? []), [QUICK_FILTER_COLUMN, '==', true]];
+  }
+
   const groupBy = state.rowGroupCols?.map((c) => c.id) ?? [];
   if (groupBy.length > 0) config.group_by = groupBy;
 
@@ -211,8 +289,11 @@ export function toPerspectiveViewConfig(state: AgRequestState): PerspectiveViewC
   }
   if (Object.keys(aggregates).length > 0) config.aggregates = aggregates;
 
+  // MERGED, not assigned: the quick filter may already have put its own
+  // expression column here, and overwriting it would drop the filter while
+  // leaving the clause that references it — a View that cannot build.
   if (state.expressions && Object.keys(state.expressions).length > 0) {
-    config.expressions = { ...state.expressions };
+    config.expressions = { ...config.expressions, ...state.expressions };
   }
 
   return config;

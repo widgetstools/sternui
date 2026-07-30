@@ -104,6 +104,15 @@ export interface ViewManager {
    * `distinctValues` in the implementation for why that is not a truncation.
    */
   distinctValues(colId: string, limit: number): Promise<unknown[] | null>;
+  /**
+   * Set the quick search. Returns true when it actually changed, so a caller
+   * only pays for a purge when there is something to purge for.
+   *
+   * Held here rather than taken off the AG request because AG does not carry
+   * it — `quickFilterText` is a client-side-row-model option and the server
+   * row model never sees it.
+   */
+  setQuickFilter(text: string, columns: readonly string[]): boolean;
   close(): Promise<void>;
 }
 
@@ -122,22 +131,34 @@ interface Entry {
 }
 
 /** The parts of a request that decide which Views are still relevant. */
-function shapeOf(request: SsrmRequestLike): string {
+function shapeOf(request: SsrmRequestLike, quick: QuickFilter): string {
   return JSON.stringify({
     sort: request.sortModel ?? null,
     filter: request.filterModel ?? null,
     groups: request.rowGroupCols?.map((c) => c.id) ?? null,
     values: request.valueCols?.map((c) => [c.id, c.aggFunc]) ?? null,
+    // The quick filter is NOT part of the AG request — it is held here — but it
+    // changes which rows a View contains, so it has to change the shape or
+    // every live View would survive a search with the wrong rows in it.
+    quick: quick.text || null,
   });
 }
 
-function levelState(request: SsrmRequestLike) {
+/** Quick-search text plus the columns it spans. */
+interface QuickFilter {
+  text: string;
+  columns: readonly string[];
+}
+
+function levelState(request: SsrmRequestLike, quick: QuickFilter) {
   return {
     sortModel: request.sortModel,
     filterModel: request.filterModel as Record<string, AgFilterItem> | null | undefined,
     rowGroupCols: request.rowGroupCols,
     valueCols: request.valueCols,
     groupKeys: request.groupKeys,
+    quickFilterText: quick.text,
+    quickFilterColumns: quick.columns,
   };
 }
 
@@ -158,6 +179,9 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
   let generation = 0;
   let rowsAtRoot: number | null = null;
   let closed = false;
+  /** Quick search. Held here rather than read off the request, because AG does
+   *  not carry it: `quickFilterText` is a client-side-row-model option. */
+  let quick: QuickFilter = { text: '', columns: [] };
 
   function retire(entry: Entry, why: 'lru' | 'shape' | 'close'): void {
     entries.delete(entry.key);
@@ -292,13 +316,13 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
       // A new sort/filter/grouping makes every existing View garbage. Retire
       // them now rather than waiting for the LRU: they would otherwise keep
       // charging the engine on every tick for a shape nothing will ask for.
-      const nextShape = shapeOf(request);
+      const nextShape = shapeOf(request, quick);
       if (shape !== null && shape !== nextShape) {
         for (const entry of [...entries.values()]) retire(entry, 'shape');
       }
       shape = nextShape;
 
-      const level = toPerspectiveGroupLevel(levelState(request));
+      const level = toPerspectiveGroupLevel(levelState(request, quick));
       const key = viewConfigKey(level.config);
       const entry = await ensure(key, level.config, level.groupColId, level.depth);
       if (closed) return null;
@@ -337,7 +361,7 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
     async readGrandTotal(request: SsrmRequestLike): Promise<Record<string, unknown> | null> {
       if (closed) return null;
 
-      const level = toPerspectiveGroupLevel({ ...levelState(request), groupKeys: [] });
+      const level = toPerspectiveGroupLevel({ ...levelState(request, quick), groupKeys: [] });
       let config = level.config;
       let groupColId = level.groupColId;
       if (groupColId === null) {
@@ -422,6 +446,17 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
      * as a complete list and is wrong. Same rule as `countMatching`: no
      * confidently-wrong answers on this path.
      */
+    setQuickFilter(text: string, columns: readonly string[]): boolean {
+      const next = (text ?? '').trim();
+      if (next === quick.text) return false;
+      quick = { text: next, columns };
+      // Do NOT retire here. `getView` retires on shape change, and the shape
+      // now includes the quick text — so the next block request drops the stale
+      // Views itself. Retiring now would delete Views with reads still in
+      // flight from the request that is about to be superseded.
+      return true;
+    },
+
     async distinctValues(colId: string, limit: number): Promise<unknown[] | null> {
       if (closed) return null;
 

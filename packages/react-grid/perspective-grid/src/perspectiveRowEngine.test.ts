@@ -988,3 +988,150 @@ describe('distinctValues', () => {
     expect(await engine.distinctValues('region')).toBeNull();
   });
 });
+
+describe('setQuickFilter', () => {
+  /** Records the View configs built, and reports a mixed-type schema. */
+  function makeSearchableTable() {
+    const configs: PerspectiveViewConfig[] = [];
+    const table: PerspectiveTableLike = {
+      async size() {
+        return 1000;
+      },
+      async schema() {
+        return { positionId: 'string', desk: 'string', quantity: 'float', asOf: 'datetime' };
+      },
+      view: vi.fn(async (config: PerspectiveViewConfig) => {
+        configs.push(config);
+        const view: UpdatableView = {
+          async to_columns() {
+            return { positionId: [] };
+          },
+          async num_rows() {
+            return 1000;
+          },
+          async delete() {},
+          async on_update() {
+            return 1;
+          },
+        };
+        return view;
+      }),
+    };
+    return { table, configs };
+  }
+
+  const block = (engine: { datasource: { getRows(p: unknown): unknown } }) =>
+    engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100 },
+      success: () => {},
+      fail: () => {},
+    } as never);
+
+  it('compiles the text into an expression column and a clause', async () => {
+    const { table, configs } = makeSearchableTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    const grid = makeApi();
+    engine.setApi(grid.api);
+
+    await engine.setQuickFilter('mike');
+    await block(engine);
+    await settle();
+
+    const withQuick = configs.find((c) => c.expressions?.__quick__);
+    expect(withQuick).toBeDefined();
+    expect(withQuick!.filter).toContainEqual(['__quick__', '==', true]);
+    await engine.close();
+  });
+
+  it('searches TEXT columns only by default', async () => {
+    // MEASURED: one match() per column per token, recharged on every Table
+    // update while the View lives — 26 columns x 2 tokens was unusable.
+    const { table, configs } = makeSearchableTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    engine.setApi(makeApi().api);
+
+    await engine.setQuickFilter('mike');
+    await block(engine);
+    await settle();
+
+    const expr = configs.find((c) => c.expressions?.__quick__)!.expressions!.__quick__;
+    expect(expr).toContain('"positionId"');
+    expect(expr).toContain('"desk"');
+    expect(expr).not.toContain('"quantity"');
+    expect(expr).not.toContain('"asOf"');
+    await engine.close();
+  });
+
+  it('includes every column when asked to', async () => {
+    const { table, configs } = makeSearchableTable();
+    const engine = createPerspectiveRowEngine({
+      table,
+      keyColumn: 'positionId',
+      quickFilterAllColumns: true,
+    });
+    engine.setApi(makeApi().api);
+
+    await engine.setQuickFilter('mike');
+    await block(engine);
+    await settle();
+
+    const expr = configs.find((c) => c.expressions?.__quick__)!.expressions!.__quick__;
+    expect(expr).toContain('"quantity"');
+    expect(expr).toContain('"asOf"');
+    await engine.close();
+  });
+
+  it('purges — AG does not know this filter exists, so it would not', async () => {
+    const { table } = makeSearchableTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    const grid = makeApi();
+    engine.setApi(grid.api);
+    grid.refreshes.length = 0;
+
+    await engine.setQuickFilter('mike');
+
+    expect(grid.refreshes).toContainEqual({ purge: true });
+    await engine.close();
+  });
+
+  it('does nothing when the text has not actually changed', async () => {
+    const { table } = makeSearchableTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    const grid = makeApi();
+    engine.setApi(grid.api);
+
+    await engine.setQuickFilter('mike');
+    grid.refreshes.length = 0;
+    await engine.setQuickFilter('mike');
+    await engine.setQuickFilter('  mike  ');
+
+    // Load-bearing: the purge fires modelUpdated, which is what re-invokes the
+    // bridge. Without this guard the pair would loop.
+    expect(grid.refreshes).toHaveLength(0);
+    await engine.close();
+  });
+
+  it('clearing the text removes the expression entirely', async () => {
+    const { table, configs } = makeSearchableTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    engine.setApi(makeApi().api);
+
+    await engine.setQuickFilter('mike');
+    await block(engine);
+    await settle();
+    configs.length = 0;
+    await engine.setQuickFilter('');
+    await block(engine);
+    await settle();
+
+    expect(configs.every((c) => c.expressions?.__quick__ === undefined)).toBe(true);
+    await engine.close();
+  });
+
+  it('is a no-op once closed', async () => {
+    const { table } = makeSearchableTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    await engine.close();
+    await expect(engine.setQuickFilter('mike')).resolves.toBeUndefined();
+  });
+});

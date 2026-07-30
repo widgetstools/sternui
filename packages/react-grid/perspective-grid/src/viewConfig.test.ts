@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   isFilterModelMappable,
+  sanitizeQuickFilterTerm,
+  toQuickFilterExpression,
+  QUICK_FILTER_COLUMN,
   toGroupColumns,
   toPerspectiveAggregate,
   toPerspectiveFilter,
@@ -387,5 +390,121 @@ describe('toGroupColumns', () => {
   it('passes an ungrouped window through untouched', () => {
     const columns = { positionId: ['a'], pnl: [1] };
     expect(toGroupColumns(columns, 'sector')).toBe(columns);
+  });
+});
+
+describe('sanitizeQuickFilterTerm', () => {
+  it('lowercases, because the compiled haystack is lowered', () => {
+    expect(sanitizeQuickFilterTerm('MiKe')).toBe('mike');
+  });
+
+  it('turns regex metacharacters into wildcards rather than escaping them', () => {
+    // MEASURED: `match()` takes a regex, and a lone `(` aborts the View build
+    // even when backslash-escaped — so there is no escaping strategy to use.
+    expect(sanitizeQuickFilterTerm('(ann)')).toBe('.ann.');
+    expect(sanitizeQuickFilterTerm('(')).toBe('.');
+    expect(sanitizeQuickFilterTerm('a|b')).toBe('a.b');
+    expect(sanitizeQuickFilterTerm('a*b+c?')).toBe('a.b.c.');
+    expect(sanitizeQuickFilterTerm('^a$')).toBe('.a.');
+  });
+
+  it('neutralises the quote and backslash that would break the literal', () => {
+    expect(sanitizeQuickFilterTerm("o'brien")).toBe('o.brien');
+    // A literal backslash: it both breaks the quoted literal and can leave a
+    // dangling escape in the regex.
+    expect(sanitizeQuickFilterTerm(`a${String.fromCharCode(92)}b`)).toBe('a.b');
+  });
+
+  it('keeps letters, digits, spaces, underscore and hyphen', () => {
+    expect(sanitizeQuickFilterTerm('BOOK_002-x 9')).toBe('book_002-x 9');
+  });
+
+  it('keeps non-ASCII letters and digits', () => {
+    expect(sanitizeQuickFilterTerm('Müller')).toBe('müller');
+  });
+});
+
+describe('toQuickFilterExpression', () => {
+  const COLS = ['desk', 'trader'];
+
+  it('ORs across every column for a single token', () => {
+    expect(toQuickFilterExpression(COLS, 'mike')).toBe(
+      "(match(lower(string(\"desk\")), 'mike') or match(lower(string(\"trader\")), 'mike'))",
+    );
+  });
+
+  it('ANDs the tokens — AG needs every token to match SOME column', () => {
+    const expr = toQuickFilterExpression(COLS, 'mike rates')!;
+    expect(expr.split(' and ')).toHaveLength(2);
+    expect(expr).toContain("'mike'");
+    expect(expr).toContain("'rates'");
+  });
+
+  it('wraps every column in string(), so numerics and nulls are searchable', () => {
+    // MEASURED: `string()` works on both string and float columns, and a null
+    // row neither matches nor poisons the expression.
+    expect(toQuickFilterExpression(['quantity'], '20')).toContain('string("quantity")');
+  });
+
+  it('uses `or`, never `|`', () => {
+    // MEASURED: `|` parses but is not a logical or — it matched every row.
+    expect(toQuickFilterExpression(COLS, 'x')).not.toContain('|');
+  });
+
+  it('returns null when there is nothing to apply', () => {
+    expect(toQuickFilterExpression(COLS, '')).toBeNull();
+    expect(toQuickFilterExpression(COLS, '   ')).toBeNull();
+    expect(toQuickFilterExpression(COLS, undefined)).toBeNull();
+    expect(toQuickFilterExpression([], 'mike')).toBeNull();
+  });
+
+  it('collapses runs of whitespace rather than emitting an empty token', () => {
+    // An empty term is an empty regex, which matches every row.
+    const expr = toQuickFilterExpression(COLS, '  mike   rates  ')!;
+    expect(expr.split(' and ')).toHaveLength(2);
+    expect(expr).not.toContain("''");
+  });
+
+  it('sanitizes the term it embeds', () => {
+    expect(toQuickFilterExpression(['desk'], "o'brien")).toContain("'o.brien'");
+  });
+});
+
+describe('toPerspectiveViewConfig — quick filter', () => {
+  it('adds the expression column AND the clause that selects on it', () => {
+    const config = toPerspectiveViewConfig({
+      quickFilterText: 'mike',
+      quickFilterColumns: ['trader'],
+    });
+    expect(config.expressions?.[QUICK_FILTER_COLUMN]).toContain('match(');
+    expect(config.filter).toEqual([[QUICK_FILTER_COLUMN, '==', true]]);
+  });
+
+  it('ANDs with the column filters instead of replacing them', () => {
+    const config = toPerspectiveViewConfig({
+      filterModel: { sector: { filterType: 'set', values: ['Energy'] } },
+      quickFilterText: 'mike',
+      quickFilterColumns: ['trader'],
+    });
+    expect(config.filter).toHaveLength(2);
+    expect(config.filter).toContainEqual(['sector', 'in', ['Energy']]);
+  });
+
+  it('MERGES with calculated-column expressions rather than clobbering them', () => {
+    // Assigning would drop the quick expression while leaving the clause that
+    // references it — a View that cannot build at all.
+    const config = toPerspectiveViewConfig({
+      expressions: { calc: '"a" * 2' },
+      quickFilterText: 'mike',
+      quickFilterColumns: ['trader'],
+    });
+    expect(config.expressions?.calc).toBe('"a" * 2');
+    expect(config.expressions?.[QUICK_FILTER_COLUMN]).toBeDefined();
+  });
+
+  it('emits nothing at all when there is no quick text', () => {
+    const config = toPerspectiveViewConfig({ quickFilterColumns: ['trader'] });
+    expect(config.expressions).toBeUndefined();
+    expect(config.filter).toBeUndefined();
   });
 });
