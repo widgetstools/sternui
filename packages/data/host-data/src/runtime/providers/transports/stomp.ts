@@ -302,6 +302,7 @@ export function startStomp(
   // buffering — they want frames as they arrive.
   const hasEndToken = Boolean(cfg.snapshotEndToken);
   const buffering = hasEndToken && !opts.passthroughSnapshot;
+  const endTokenRe = buildEndTokenMatcher(cfg.snapshotEndToken);
 
   // Snapshot flush chunk size — `cfg.snapshotChunkSize` overrides the
   // default (settable in code or via the provider editor).
@@ -481,7 +482,7 @@ export function startStomp(
     const byteSize = body.length;
 
     // End-of-snapshot token (case-insensitive substring match).
-    if (matchesEndToken(trimmed, cfg.snapshotEndToken)) {
+    if (endTokenRe !== null && endTokenRe.test(trimmed)) {
       // eslint-disable-next-line no-console
       console.log(
         `[v2/stomp] end-token matched: "${cfg.snapshotEndToken}" — closing snapshot phase ` +
@@ -915,9 +916,17 @@ export async function connectStomp(
 
 // ─── helpers ───────────────────────────────────────────────────────
 
-function matchesEndToken(body: string, token: string | undefined): boolean {
-  if (!token) return false;
-  return body.toLowerCase().includes(token.toLowerCase());
+/**
+ * Build the end-of-snapshot matcher ONCE per provider start. The old
+ * shape (`body.toLowerCase().includes(token.toLowerCase())`) allocated
+ * and scanned a full lowercased COPY of every frame body — several
+ * MB/sec of garbage at streaming rates, paid on every live frame. A
+ * precompiled case-insensitive regex is a single pass with zero copies
+ * and identical substring semantics.
+ */
+function buildEndTokenMatcher(token: string | undefined): RegExp | null {
+  if (!token) return null;
+  return new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
 }
 
 /**
