@@ -278,7 +278,9 @@ describe('useRestoreCellFocusOnWindowFocus', () => {
   });
 
   it('intra-grid focus moves do not rewrite the localStorage stamp (fleet storage-event storm guard)', () => {
-    const view = renderView();
+    const api = makeFakeApi();
+    const fake = makeFakeBridge();
+    const view = renderHarness(api, fake.bridge);
     focusInOnCell(view); // ownership transition → stamps once
     const setItem = vi.spyOn(Storage.prototype, 'setItem');
     // Arrow-key navigation: focus moves cell→cell INSIDE the grid —
