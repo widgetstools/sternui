@@ -1,16 +1,50 @@
 /** Separator used when composing row ids from multiple key columns. */
 export const COMPOSITE_KEY_SEPARATOR = '-';
 
-export function normalizeKeyColumns(
-  keyColumn: string | readonly string[] | null | undefined,
+// Memoized: `composeRowId` runs per ROW on every hot path in the system
+// (hub cache upsert, STOMP conflation key, AG Grid getRowId, provider
+// row splitting) while `keyColumn` is config that never changes — the
+// un-memoized version allocated ~4 throwaway arrays per row (~80k+/sec
+// at 10k updates/sec). String inputs are config-cardinality (bounded
+// cache, defensive cap); array inputs memoize by reference (WeakMap),
+// so an unstable caller-built array degrades to the old behaviour
+// rather than breaking.
+const NORMALIZED_BY_STRING = new Map<string, readonly string[] | null>();
+const NORMALIZED_BY_ARRAY = new WeakMap<readonly string[], readonly string[] | null>();
+const NORMALIZED_STRING_CACHE_MAX = 1000;
+
+function normalizeKeyColumnsUncached(
+  arr: readonly unknown[],
 ): readonly string[] | null {
-  if (keyColumn == null) return null;
-  const arr = Array.isArray(keyColumn) ? keyColumn : [keyColumn];
   const cleaned = arr
     .filter((c): c is string => typeof c === 'string')
     .map((c) => c.trim())
     .filter((c) => c.length > 0);
   return cleaned.length > 0 ? cleaned : null;
+}
+
+export function normalizeKeyColumns(
+  keyColumn: string | readonly string[] | null | undefined,
+): readonly string[] | null {
+  if (keyColumn == null) return null;
+  if (typeof keyColumn === 'string') {
+    let cached = NORMALIZED_BY_STRING.get(keyColumn);
+    if (cached === undefined) {
+      cached = normalizeKeyColumnsUncached([keyColumn]);
+      if (NORMALIZED_BY_STRING.size >= NORMALIZED_STRING_CACHE_MAX) {
+        NORMALIZED_BY_STRING.clear();
+      }
+      NORMALIZED_BY_STRING.set(keyColumn, cached);
+    }
+    return cached;
+  }
+  if (!Array.isArray(keyColumn)) return null;
+  let cached = NORMALIZED_BY_ARRAY.get(keyColumn);
+  if (cached === undefined) {
+    cached = normalizeKeyColumnsUncached(keyColumn);
+    NORMALIZED_BY_ARRAY.set(keyColumn, cached);
+  }
+  return cached;
 }
 
 export function getValueByPath(row: unknown, path: string): unknown {
