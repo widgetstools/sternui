@@ -17,30 +17,15 @@ gap found so far.
 
 # WHAT IS LEFT
 
-Parity is done. Of the four engineering-debt items all four are now done; this
-is everything that remains, in priority order. Item 1 is work; item 2 is a
-decision only the product owner can make; items 3–5 are watch-list.
+Parity is done. All four engineering-debt items are done and the e2e spec now
+covers every toolbar on this surface. What remains is **one decision** and a
+watch-list.
 
 Read [`## How to reproduce and verify`](#how-to-reproduce-and-verify) and
 [`### Traps that produced false findings`](#traps-that-produced-false-findings)
 before starting any of them. Both have already cost real time.
 
-## 1. Editing toolbar, smart edit, bulk update — e2e coverage · ~0.5 d
-
-The only thing the e2e spec does not cover. The plumbing is verified and
-coalesced (edits reach the worker-held Table, `flushEdits` on close), but the
-toolbars themselves have never been driven by real input — which is exactly the
-class of thing synthetic clicks were wrong about for the formatting toolbar.
-
-Now cheap: `e2e/perspective-surface.spec.ts` and
-`playwright.perspective.config.ts` exist, so this is new `test()` blocks, not
-new infrastructure. `showEditingToolbar` is already on in the demo.
-
-**Acceptance:** an edit committed through each toolbar survives a reload — the
-same shape as the existing "a formatting change survives a reload" test, which
-is the assertion that actually matters on this path.
-
-## 2. Cross-row context divergence — a DECISION, not a task
+## 1. Cross-row context divergence — a DECISION, not a task
 
 `[price] > AVG([price])` now resolves correctly on the Perspective surface and
 is **false for every row on CSRM**, because the client-side style-rule evaluator
@@ -53,7 +38,7 @@ the divergence and document it as intended; or refuse the aggregate on the
 Perspective side too, for symmetry. **Do not pick one silently** — it changes
 what a saved rule means on one surface or the other.
 
-## 3. Pagination reports one extra row · watch-list
+## 2. Pagination reports one extra row · watch-list
 
 201 pages against the control's 200; `paginationGetRowCount()` reads 20,001.
 Cause MEASURED, not inferred: AG counts the SSRM grand-total row as a store
@@ -63,7 +48,7 @@ the row model. Our datasource reports the exact 20,000 and
 by default here and the fix means working around AG internals. Revisit only if
 a deployment turns pagination on.
 
-## 4. The audit is not exhaustive · ongoing
+## 3. The audit is not exhaustive · ongoing
 
 This list came from code reading plus live measurement, not a sweep of every
 customizer module. Only the modules the toolbars touch have been traced —
@@ -83,7 +68,7 @@ disable themselves (`isServerSideEngine()` exists for exactly this). The second
 finds code that walks the row model expecting the whole book — note
 `forEachNodeAfterFilter` visits **0 nodes** under the server row model.
 
-## 5. `@starui/design-system` test flake — CAUSE FOUND, not fixed · watch-list
+## 4. `@starui/design-system` test flake — CAUSE FOUND, not fixed · watch-list
 
 Fails under a full-parallel `npx turbo typecheck build test` and passes
 **13/13 files, 193/193 tests** in isolation, every time. Not caused by this
@@ -110,9 +95,13 @@ such.
   errors in `MarketsGrid.*`), 793 passing.
 - `@starui/widgets-react` — 2 `providerStaleState` cases.
 - `@starui/design-system` — 1 failed FILE, 0 failed tests, and only under
-  full-parallel turbo. Cause found: see item 5. Passes 13/13 alone.
+  full-parallel turbo. Cause found: see item 4. Passes 13/13 alone.
 
-All three predate the branch. Verify by stashing if in doubt. Run turbo with
+`@starui/openfin-platform` has been seen failing the same way once and passing
+**16/16, 105/105** alone — likely the same species as the design-system one,
+not diagnosed.
+
+All of these predate the branch. Verify by stashing if in doubt. Run turbo with
 `--continue`; the first failure otherwise stops the run before the rest report.
 
 ---
@@ -224,6 +213,16 @@ clause.
   single instantaneous truth read. Each block is internally correct. Not a
   mis-sort.
 
+- **A demo that never enables editing hides every editing bug.** Every column
+  in BOTH demos ships `editable: false`, so smart edit and bulk update had
+  nothing to target and nobody noticed they wrote nothing. The e2e spec unlocks
+  a column through the formatting toolbar's own pill rather than changing demo
+  config — the product affordance, not a test-only door.
+- **Read a key and its value in ONE `page.evaluate`.** Widening the viewport
+  re-virtualises columns, and a row sampled between two reads can be gone by the
+  second: the key came back fine and the value came back null. Same for
+  re-reading after an `expect.poll` succeeds — keep what the poll SAW.
+
 ### Fixture properties that look like bugs
 
 - **Totals will never match the CSRM grid.** `stomp-view-server` gives every
@@ -232,8 +231,17 @@ clause.
   (`touchPosition`, ±3%/tick). Measured: two *CSRM* windows disagree with each
   other by 20.0M — the same magnitude as the CSRM-vs-Perspective gap. To
   compare aggregation for real, run with live updates off.
-- **An edit survives ~6.5 s.** The sweep overwrites it. A raw `table.update()`
-  bypassing all our code is erased identically.
+- **An edit survives ~6.5 s.** The sweep overwrites it — but only on the five
+  columns it touches (`currentPrice`, `marketValue`, `totalValue`, `pnl`,
+  `asOfDate`, per `touchPosition`). `quantity` and the rest are left alone, which
+  is what makes an edit test possible at all. A raw `table.update()` bypassing
+  all our code is erased identically.
+- **An edit does not survive a reload of the SOLE window.** MEASURED: with a
+  peer window open it survives intact; alone, the reload drops the provider to
+  zero attachments, the next attach restarts it and re-snapshots the book, and
+  the edit reverts to the broker's pristine value (987,654 -> 7,154). Provider
+  lifecycle, not the edit path — any Table content goes the same way. A test
+  asserting persistence must keep a second page open across the reload.
 - **The broker is slow and erratic.** A cold snapshot takes 18 s–2 min and
   sometimes wedges. Check the hub before concluding anything is broken.
 
@@ -283,6 +291,8 @@ clause.
 | Alerts full-book rescan source | 8 tests; the leaf fetcher now registers for the Perspective path (backed by `readAllRows`) and the panel's rescan block shows for ANY server-side engine, not just `ssrm`. **Live UI click-through not confirmed** — the collapsed settings section does not open under synthetic clicks |
 | `NOT` no longer compiles to Perspective's `not()`, which does not exist | 3 tests + 2 engine probes; affected calculated columns on BOTH server-side paths. Nested in `and`/`or`/`if` it validates clean and evaluates wrong, so the pre-flight check could not catch it |
 | Tree data + master/detail (`perspectiveTreeFields`, `masterDetail`) | 24 tests; live: 3 region parents → 8 desks under EMEA with path ids → leaf positions with `isServerSideGroup` false, 840 rows, 0 failed blocks; detail grid holding 200 rows all of the master's own book, agreeing exactly with `readMatchingRows`. **New API, not parity** — MarketsGrid had neither on any surface |
+| **Smart edit / bulk update / history undo-redo reach the Table** (`toPerspectiveEdits` + `setEngineDataTransactionApplier`) | 9 tests + 2 wiring tests; live matched pair, same column and operand: Perspective 30,053,717 -> **30,053,717** before, -> 60,107,434 after, against CSRM 4,215,482 -> 8,430,964 throughout. Found by writing the e2e coverage — the toolbars had never been driven |
+| Editing toolbar e2e coverage | 3 tests in `perspective-surface.spec.ts` (10 total, green twice); an edit is read by a PEER window and survives a reload |
 | Window drops the 5 MB inline build (`loadPerspectiveClient`) | 5 tests + `harness/wasmshare.html`; live on the product path: a window fetches `perspective-*.js` 46.58 kB + `perspective-js-*.wasm` 509.09 kB and **never requests the 5,070 kB inline chunk**, a second window takes both from cache at 0.29 kB over the wire, both at 20,000 rows with 0 failed blocks; e2e:perspective 7/7 |
 | Style rules answered by the worker (`countMatchingExpression` + `aggregateScalar`) | 28 tests + 4 engine probes; live: a rule matching **1 row of 20,000** at a threshold no loaded block reaches lights the header, an impossible rule leaves it unlit, counts exactly match a JS pass over the same book (10,000 unfiltered · 3,339 under `region = EMEA` of 6,669 · 10,000 on clear), 25 counts in 31 ms against 169 ms uncached, live Views unchanged, 0 failed blocks |
 
@@ -366,8 +376,8 @@ wanted; today it is neither, just noted.
 
 ## ~~Unverified~~ — CLOSED by the e2e spec
 
-`e2e/perspective-surface.spec.ts` (`npm run e2e:perspective`) — **7 tests, green
-twice in a row**. Playwright drives real input, which is the one thing that
+`e2e/perspective-surface.spec.ts` (`npm run e2e:perspective`) — **10 tests,
+green twice in a row**. Playwright drives real input, which is the one thing that
 could settle these; every item here had failed for the same reason and it was
 never the feature.
 
@@ -388,9 +398,16 @@ never the feature.
   and answers. The count is legitimately 0: `seedAlertBaselinesFromRows`
   returns early with no enabled dataChange/relativeChange rule and this demo
   seeds none.
-- **Editing toolbar, smart edit, bulk update end to end.** Still not covered —
-  the plumbing is verified and coalesced, the toolbars are not. The spec is now
-  the place to add it.
+- **Editing toolbar, smart edit, bulk update end to end — VERIFIED, and it
+  found a real gap.** Driving the toolbars for the first time showed that smart
+  edit and bulk update wrote NOTHING on this surface: they hand a transaction to
+  `GridPlatform.applyDataTransaction`, the host routes it to
+  `GridApi.applyTransactionAsync`, and that is not a write path under the server
+  row model. The toolbar reported the right cell count, enabled its buttons and
+  ran its handler, silently. `toPerspectiveEdits` maps the transaction onto
+  `applyEdit` and the surface registers it as the ENGINE applier, which outranks
+  the host's. Three tests now cover it; the reload assertion needs a peer page
+  (see the provider-lifetime note below).
 
 Two traps the spec had to encode, both of which cost time:
 

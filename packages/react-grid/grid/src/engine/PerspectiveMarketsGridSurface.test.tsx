@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { createRef } from 'react';
+import { GridProvider } from '../customizer/hooks/GridProvider.js';
 import {
   PerspectiveMarketsGridSurface,
   type PerspectiveMarketsGridSurfaceHandle,
@@ -449,6 +450,47 @@ describe('PerspectiveMarketsGridSurface — parity with the CSRM surface', () =>
       const { setText, fireModelUpdated } = await readyWithQuickFilter();
       setText('mike');
       expect(() => fireModelUpdated()).not.toThrow();
+    });
+  });
+  /**
+   * The write path that is NOT the cell editor.
+   *
+   * Smart edit, bulk update and history undo/redo hand a transaction to
+   * `GridPlatform.applyDataTransaction`; the host routes that to
+   * `GridApi.applyTransactionAsync`, which the server row model ignores. Every
+   * one of them was a silent no-op on this surface until the engine applier
+   * landed, so what is pinned here is that the registration happens at all —
+   * the mapping itself is `toPerspectiveEdits` in `@starui/perspective-grid`.
+   */
+  describe('engine data-transaction applier', () => {
+    const stubPlatform = () => ({
+      setEngineDataTransactionApplier: vi.fn(),
+      api: { api: null },
+      rows: null,
+    });
+
+    it('registers with the platform, and clears it on unmount', () => {
+      const platform = stubPlatform();
+      const { unmount } = render(
+        <GridProvider platform={platform as never} engineKind="perspective">
+          <PerspectiveMarketsGridSurface
+            table={table as never}
+            keyColumn="positionId"
+            columnDefs={[{ field: 'positionId' }, { field: 'pnl' }]}
+          />
+        </GridProvider>,
+      );
+
+      expect(platform.setEngineDataTransactionApplier).toHaveBeenCalledTimes(1);
+      expect(typeof platform.setEngineDataTransactionApplier.mock.calls[0][0]).toBe('function');
+
+      unmount();
+      // Left registered, it would outlive the grid it writes through.
+      expect(platform.setEngineDataTransactionApplier).toHaveBeenLastCalledWith(null);
+    });
+
+    it('mounts without a provider — the characterisation tests render it bare', () => {
+      expect(() => renderSurface()).not.toThrow();
     });
   });
 });

@@ -578,6 +578,55 @@ commit cell by cell, and one proxied round trip per cell is hundreds of worker
 calls for one user action. `close()` flushes before tearing down, so a Table
 swap or an unmount cannot eat the last edit.
 
+### The second write path — and why it was silently dead
+
+`cellValueChanged` is only ONE of the two ways an edit is made. Smart edit,
+bulk update and history undo/redo never touch the cell editor: they build a
+patch list and hand it to `GridPlatform.applyDataTransaction` as a transaction
+of full row objects. The host routes that to `GridApi.applyTransactionAsync`,
+which is the client-side row model's write path and is **not** a write path
+under `serverSide`.
+
+So every one of those modules was a no-op here — and a convincing one. MEASURED
+with the identical flow on both surfaces, same column, same operand: CSRM
+4,215,482 → 8,430,964; Perspective 30,053,717 → **30,053,717**. The toolbar
+reported the right cell count, enabled its buttons and ran its handler. Nothing
+logged. It went unnoticed because nothing had ever driven those toolbars — the
+grid's own `editable: false` columns mean a demo does not exercise them by
+accident, and synthetic clicks do not drive the pills.
+
+`toPerspectiveEdits` maps the transaction onto `applyEdit`, registered via
+`GridPlatform.setEngineDataTransactionApplier`, which **outranks** the host
+applier. The precedence is explicit rather than left to effect order, and effect
+order says the wrong thing here: the surface is a CHILD of the host, so its
+effect runs first and the host's registration would overwrite it.
+
+Two rules the mapping has to get right:
+
+- **Only CHANGED fields may be written.** A transaction row is the whole row,
+  rebuilt from the node's current data with the patched fields overwritten.
+  Upserting all of it would write this window's copy of every other column back
+  into the shared Table — including the ones the feed is sweeping — so a
+  one-cell edit would rewind prices for every peer window. The incoming row is
+  diffed against the node.
+- **`add` and `remove` are ignored.** Membership of the book belongs to the
+  provider filling the Table. A delete here would delete it for every blotter
+  on the desk, and it would return on the next snapshot anyway.
+
+### An edit outlives the window, but not the provider
+
+MEASURED, and worth knowing before writing a test against it. An edit written to
+the Table is visible in a peer window immediately (one Table), and survives a
+reload of the window that made it — **as long as some window still holds the
+provider**. Reloading as the SOLE window drops the attachment count to zero; the
+next attach restarts the provider, which re-snapshots the book and reverts the
+edit to the broker's pristine value (987,654 → 7,154 measured on `quantity`).
+
+That is provider lifecycle, not the edit path: any Table content goes the same
+way, a raw `table.update()` included. It is consistent with "the Table is not a
+system of record" above — this just names the second thing that ends a Table's
+contents, alongside the sweep.
+
 ## Calculated columns resolve in the worker
 
 The `expressions` map was plumbed through `toPerspectiveViewConfig` from the

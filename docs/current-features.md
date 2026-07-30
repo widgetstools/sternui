@@ -698,6 +698,23 @@ lifecycle rules live in the package's `ARCHITECTURE.md`.
   is loaded dynamically — only windows that open a blotter fetch its wasm — and
   the client is described structurally so this package takes no dependency on
   `@starui/host-data`. Attaches are shared and ref-counted per (hub client, provider) with a linger before teardown: React StrictMode double-invokes the mount effect, and closing the frame port on the first cleanup orphaned the Table handle opened over it — it read 0 rows forever while every other client read the full book. Sharing is right on its own terms too, since two blotters on one provider then read over one port. Re-exported from `@starui/grid`
+- `toPerspectiveEdits(tx, keyColumn, opts?)` — maps an AG Grid data transaction
+  to Table edits, which is how **smart edit, bulk update and history
+  undo/redo** reach the book. They never touch the cell editor: they build a
+  patch list and hand it to `GridPlatform.applyDataTransaction`, which the host
+  routes to `GridApi.applyTransactionAsync` — not a write path under the server
+  row model. MEASURED before the fix: smart edit on the Perspective surface
+  reported the right cell count, enabled its buttons, ran its handler and
+  changed **nothing**, while the identical flow on the CSRM twin doubled the
+  value (30,053,717 → 30,053,717 against 4,215,482 → 8,430,964). Emits **only
+  fields that differ** from the row the grid holds — a transaction row is the
+  whole row, so writing all of it would push this window's copy of every swept
+  column back into the shared Table and rewind the feed for every peer. Never
+  emits the key column (a re-key upserts a second row and orphans the first),
+  skips the grand-total row, and ignores `add`/`remove` outright because
+  membership of the book belongs to the provider, not to an editing module in
+  one window. `PerspectiveMarketsGridSurface` registers it through
+  `GridPlatform.setEngineDataTransactionApplier`
 - `loadPerspectiveClient()` — the window's engine module, loaded once per window
   and **without the 5 MB inline build**. A window on this path never runs the
   engine (it holds a Client proxying to the SharedWorker), yet it was importing
@@ -1004,6 +1021,7 @@ modules).
 - `EventBus<T>` — typed pub-sub (`emit`, `on`, `off`)
 - `ApiHub` — reactive `GridApi` (`attach`, `whenReady`, event subscriptions; `on` forwards the AG event object)
 - `RowChangeBus` (`platform.rows`, type `RowChangeSignal`) — shared, timer-coalesced row-change emitter. Reads the exact changed nodes from AG `asyncTransactionsFlushed` and emits one `RowChange` (`added`/`updated`/`removed` deltas, or `full` for sort/filter/`setRowData`) per frame, so data-reactive modules (alerts, conditional-styling, filter counts) evaluate only changed rows instead of walking the whole grid on every streaming tick. Filter pill badge counts (`useFilterCounts` in `useFilterModel`) maintain per-filter row-id sets and adjust counts incrementally on delta emits
+- `GridPlatform.applyDataTransaction(tx)` — the write path for editing modules that never touch the cell editor (smart edit, bulk update, history undo/redo). Resolves in a fixed order: the **engine** applier (`setEngineDataTransactionApplier`, registered by the mounted row surface), then the **host** applier (`setDataTransactionApplier`, MarketsGrid's `applyDataTransactionAsync`), then raw `GridApi`. The precedence is explicit rather than left to effect order, and effect order says the wrong thing: a surface is a CHILD of the host, so its effect runs first and the host's registration would overwrite it. Added because the Perspective surface's writes were falling through to `GridApi.applyTransactionAsync`, which the server row model ignores — every one of those modules was a silent no-op there
 - `ResourceScope` — `CssInjector` + `ExpressionEngine` + WeakMap caches
 - `PipelineRunner` — cached transform pipeline for `colDef` + `gridOptions`; per-module memo plus output structural sharing (returns previous refs when shallow-equal)
 - `topoSortModules()` — topological module-dependency sort

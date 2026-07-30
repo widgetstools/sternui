@@ -79,6 +79,27 @@ export class GridPlatform {
         remove?: unknown[];
       }) => void)
     | null = null;
+  /**
+   * Applier owned by the mounted ROW ENGINE, which outranks the host's.
+   *
+   * Both are legitimate and both register on mount, so precedence cannot be
+   * left to effect order — and effect order says the wrong thing here: the
+   * surface is a child of the host, so its effect runs FIRST and the host's
+   * registration would overwrite it.
+   *
+   * MEASURED, and the reason this exists: on the Perspective surface the host
+   * applier routed to `GridApi.applyTransactionAsync`, which the server-side
+   * row model ignores. Smart edit and bulk update reported the right cell
+   * count, enabled their buttons, ran their handlers — and changed nothing,
+   * silently. The same flow on the CSRM twin doubled the value.
+   */
+  private engineDataTransactionApplier:
+    | ((tx: {
+        add?: unknown[];
+        update?: unknown[];
+        remove?: unknown[];
+      }) => void)
+    | null = null;
 
   constructor(opts: GridPlatformOptions) {
     this.gridId = opts.gridId;
@@ -196,14 +217,34 @@ export class GridPlatform {
   }
 
   /**
-   * Prefer the host applier (Perspective + RowChangeBus under SSRM). Falls
-   * back to GridApi when the host has not registered yet.
+   * The mounted row engine's own applier. Outranks {@link setDataTransactionApplier}
+   * — see the field's note for why this is explicit rather than ordering.
+   */
+  setEngineDataTransactionApplier(
+    fn:
+      | ((tx: {
+          add?: unknown[];
+          update?: unknown[];
+          remove?: unknown[];
+        }) => void)
+      | null,
+  ): void {
+    this.engineDataTransactionApplier = fn;
+  }
+
+  /**
+   * Engine applier first, then the host applier (Perspective + RowChangeBus
+   * under SSRM), then GridApi when neither has registered yet.
    */
   applyDataTransaction(tx: {
     add?: unknown[];
     update?: unknown[];
     remove?: unknown[];
   }): void {
+    if (this.engineDataTransactionApplier) {
+      this.engineDataTransactionApplier(tx);
+      return;
+    }
     if (this.dataTransactionApplier) {
       this.dataTransactionApplier(tx);
       return;

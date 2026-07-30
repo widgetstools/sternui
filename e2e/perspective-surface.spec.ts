@@ -86,6 +86,15 @@ async function openFormattingToolbar(page: Page): Promise<void> {
   await expect(toolbar).toBeVisible({ timeout: 10_000 });
 }
 
+/** Open the pinned EditingToolbar via the View menu. Idempotent. */
+async function openEditingToolbar(page: Page): Promise<void> {
+  const toolbar = page.locator('[data-testid="editing-toolbar-pinned"]');
+  if (await toolbar.isVisible().catch(() => false)) return;
+  await openViewMenu(page);
+  await page.locator('[data-testid="editing-toolbar-toggle"]').click();
+  await expect(toolbar).toBeVisible({ timeout: 10_000 });
+}
+
 /** The column id of the first data cell — whichever column the demo puts first. */
 async function firstDataColId(page: Page): Promise<string> {
   const colId = await page.evaluate(() => {
@@ -104,6 +113,122 @@ async function selectCell(page: Page, colId: string, rowIndex = 0): Promise<void
   await page.locator(`.ag-row[row-index="${rowIndex}"] .ag-cell[col-id="${colId}"]`).click();
   // `useActiveColumns` subscribes through the ApiHub; let React batch.
   await expect(page.getByRole('button', { name: 'Bold' })).toBeEnabled({ timeout: 10_000 });
+}
+
+/**
+ * The rendered text of a cell, addressed by its ROW KEY rather than its index.
+ *
+ * Index addressing is not safe across a reload on this surface: the row model
+ * is rebuilt from the worker-held Table and nothing promises the same row lands
+ * at the same index. `positionId` is the Table's index column, so it is the one
+ * handle that means the same row before and after.
+ */
+async function cellTextByKey(page: Page, key: string, colId: string): Promise<string | null> {
+  return page.evaluate(
+    ({ k, id }) => {
+      for (const row of document.querySelectorAll('.ag-row')) {
+        const keyCell = row.querySelector('.ag-cell[col-id="positionId"]');
+        if (keyCell?.textContent?.trim() !== k) continue;
+        // The row is split across pinned/centre containers, so the key and the
+        // target column can live in DIFFERENT `.ag-row` elements sharing a
+        // row-index. Fall back to the index once the key has identified it.
+        const inSameRow = row.querySelector(`.ag-cell[col-id="${id}"]`);
+        if (inSameRow) return inSameRow.textContent?.trim() ?? '';
+        const rowIndex = row.getAttribute('row-index');
+        const cell = document.querySelector(
+          `.ag-row[row-index="${rowIndex}"] .ag-cell[col-id="${id}"]`,
+        );
+        return cell?.textContent?.trim() ?? '';
+      }
+      return null;
+    },
+    { k: key, id: colId },
+  );
+}
+
+/**
+ * Widen until `colId` is actually in the DOM.
+ *
+ * AG virtualises columns, so at the default viewport only the leading TEXT
+ * columns render and a numeric one is not queryable at all. Resizing starts a
+ * re-virtualisation that a fixed wait sometimes loses to — waiting on the cell
+ * itself is the only form of this that does not flake.
+ */
+async function widenUntilRendered(page: Page, colId: string): Promise<void> {
+  // 5,200px clears the grid's full 5,050px scrollWidth on this demo.
+  await page.setViewportSize({ width: 5200, height: 900 });
+  await page
+    .locator(`.ag-row .ag-cell[col-id="${colId}"]`)
+    .first()
+    .waitFor({ state: 'attached', timeout: 30_000 });
+}
+
+/**
+ * The key AND the value at `rowIndex`, read in ONE pass over the DOM.
+ *
+ * Two separate reads are not equivalent and did flake: widening the viewport
+ * re-virtualises, and a row sampled between the two reads can be gone by the
+ * second — the key came back fine and the value came back null. One evaluate is
+ * one snapshot, so the pair is always consistent or absent together.
+ */
+async function readRowAt(
+  page: Page,
+  rowIndex: number,
+  colId: string,
+): Promise<{ key: string; text: string } | null> {
+  return page.evaluate(
+    ({ row, id }) => {
+      const sel = `.ag-row[row-index="${row}"]`;
+      const key = document.querySelector(`${sel} .ag-cell[col-id="positionId"]`)?.textContent?.trim();
+      const text = document.querySelector(`${sel} .ag-cell[col-id="${id}"]`)?.textContent?.trim();
+      return key && text ? { key, text } : null;
+    },
+    { row: rowIndex, id: colId },
+  );
+}
+
+/** Poll `readRowAt` until the grid holds still long enough to answer both. */
+async function pickRow(
+  page: Page,
+  rowIndex: number,
+  colId: string,
+): Promise<{ key: string; text: string }> {
+  // Keep what the poll SAW. Re-reading after it succeeds is another sample of a
+  // grid that is still repainting under the feed, and it can miss — which is
+  // the same mistake as reading the key and the value separately, one level up.
+  let seen: { key: string; text: string } | null = null;
+  await expect
+    .poll(
+      async () => {
+        seen = await readRowAt(page, rowIndex, colId);
+        return seen;
+      },
+      { timeout: 30_000 },
+    )
+    .not.toBeNull();
+  expect(seen, `no ${colId} rendered at row ${rowIndex}`).not.toBeNull();
+  return seen!;
+}
+
+/**
+ * Unlock a column for editing through the formatting toolbar's own pill.
+ *
+ * NEITHER demo ships an editable column — MEASURED on both, every colDef in
+ * this app and in the CSRM twin carries `editable: false`. So the editing
+ * toolbars have nothing to target until something unlocks a column, and
+ * `collectTargetCells` skips a non-editable one outright. Doing it through the
+ * pill rather than by changing demo config keeps this a test of the product's
+ * own affordance, and it is the flow a user actually has.
+ */
+async function unlockColumnForEditing(page: Page, colId: string): Promise<void> {
+  await openFormattingToolbar(page);
+  await selectCell(page, colId);
+  const toggle = page.locator('[data-testid="formatting-toggle-editable"]');
+  await expect(toggle).toBeEnabled({ timeout: 10_000 });
+  // `Pill` reports its state as `aria-pressed`; it has no `data-active`.
+  if ((await toggle.getAttribute('aria-pressed')) === 'true') return;
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true', { timeout: 10_000 });
 }
 
 async function cellStyle(
@@ -239,6 +364,166 @@ test.describe('Perspective surface', () => {
     await closeViewMenu(page).catch(() => {});
 
     await expect.poll(alignOf, { timeout: 20_000 }).toBe('right');
+  });
+
+  /**
+   * ── Editing toolbar ────────────────────────────────────────────────────
+   *
+   * The last item the spec did not cover. The write plumbing was already
+   * verified (edits reach the worker-held Table, coalesced, flushed on close);
+   * what had never been driven is the toolbars themselves — the same class of
+   * thing synthetic clicks were wrong about for the formatting toolbar.
+   *
+   * Three properties of this path make the reload assertion possible at all,
+   * and all three are load-bearing:
+   *
+   *   - **The sweep does not touch `quantity`.** `touchPosition` rewrites
+   *     exactly `currentPrice`, `marketValue`, `totalValue`, `pnl` and
+   *     `asOfDate` every few seconds. An edit to any of those is erased in
+   *     ~6.5 s — a raw `table.update()` bypassing all our code is erased
+   *     identically — so a "survives a reload" test on one of them would be
+   *     testing the fixture. `quantity` is numeric, which smart edit requires,
+   *     and untouched.
+   *   - **The Table outlives the window**, so a reload re-attaches to the same
+   *     book rather than refetching one.
+   *   - **…but only while SOME window holds it.** MEASURED, and the reason
+   *     these tests open a peer page: reloading as the *sole* window drops the
+   *     provider to zero attachments, and the next attach restarts it and
+   *     re-snapshots the book — the edit reverts to the broker's pristine value
+   *     (987,654 → 7,154). With a peer page open across the reload it survives
+   *     intact. That is provider lifecycle, not the edit path: ANY Table
+   *     content goes the same way, including a raw `table.update()`. The peer
+   *     is not scaffolding to make a test pass — holding the book open is what
+   *     a desk with more than one blotter actually does, and the peer reading
+   *     the edit is the stronger claim of the two.
+   *
+   * Every column in this demo — and in the CSRM twin — ships `editable: false`,
+   * so each test unlocks its column through the formatting toolbar first. Both
+   * modules' `confirmThreshold` is 50, so the cell counts below apply without a
+   * confirmation dialog; a dialog appearing means a default changed.
+   */
+  test('the editing toolbar offers smart edit and bulk update on this surface', async ({
+    page,
+  }) => {
+    await openEditingToolbar(page);
+
+    await expect(page.locator('[data-testid="smart-edit-toolbar"]')).toBeVisible();
+    await expect(page.locator('[data-testid="bulk-update-toolbar"]')).toBeVisible();
+    // Smart edit is gated on an SSRM capability phase. If the gate read this
+    // surface as under-provisioned it would render a tooltip stub in place of
+    // the controls, so the operand input's presence is the assertion.
+    await expect(page.locator('[data-testid="se-ssrm-gate-message"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="smart-edit-operand"]')).toBeVisible();
+  });
+
+  test('smart edit reaches the shared book, and the edit survives a reload', async ({
+    page,
+    context,
+  }) => {
+    const COL = 'quantity';
+    await widenUntilRendered(page, COL);
+
+    const { key, text: before } = await pickRow(page, 0, COL);
+
+    await unlockColumnForEditing(page, COL);
+    await openEditingToolbar(page);
+
+    // Re-select after opening the toolbar: mounting it shifts the grid, and
+    // smart edit acts on the CURRENT selection, not the one that unlocked it.
+    await selectCell(page, COL);
+    await expect(page.locator('[data-testid="smart-edit-op-multiply"]')).toBeEnabled({
+      timeout: 10_000,
+    });
+
+    await page.locator('[data-testid="smart-edit-operand"]').fill('2');
+    await page.locator('[data-testid="smart-edit-op-multiply"]').click();
+
+    await expect
+      .poll(() => cellTextByKey(page, key, COL), { timeout: 20_000 })
+      .not.toBe(before);
+    const after = await cellTextByKey(page, key, COL);
+
+    // A peer blotter on the same SharedWorker. This is the claim that matters
+    // for a shared book: a window that never saw the edit reads the edited
+    // value, because there is one Table and this wrote to it. Until the engine
+    // applier landed, smart edit changed nothing at all here — it reported the
+    // right cell count and ran its handler, silently.
+    const peer = await context.newPage();
+    await peer.goto('/');
+    await waitForPerspectiveGrid(peer);
+    await widenUntilRendered(peer, COL);
+    await expect.poll(() => cellTextByKey(peer, key, COL), { timeout: 30_000 }).toBe(after);
+
+    // …and survives this window going away and coming back. The peer stays
+    // open across the reload deliberately — see the block comment above.
+    await page.reload();
+    await waitForPerspectiveGrid(page);
+    await widenUntilRendered(page, COL);
+    await expect.poll(() => cellTextByKey(page, key, COL), { timeout: 30_000 }).toBe(after);
+
+    await peer.close();
+  });
+
+  test('bulk update sets a range, and the edit survives a reload', async ({ page, context }) => {
+    const COL = 'quantity';
+    await widenUntilRendered(page, COL);
+
+    const picked = [
+      await pickRow(page, 0, COL),
+      await pickRow(page, 1, COL),
+      await pickRow(page, 2, COL),
+    ];
+    const keys = picked.map((r) => r.key);
+    const before = picked[0]!.text;
+
+    await unlockColumnForEditing(page, COL);
+    await openEditingToolbar(page);
+
+    // A three-row range in ONE column — both modules enforce single-column
+    // selection by default, and a multi-column range disables Apply instead of
+    // narrowing silently.
+    await page.locator(`.ag-row[row-index="0"] .ag-cell[col-id="${COL}"]`).first().click();
+    await page
+      .locator(`.ag-row[row-index="2"] .ag-cell[col-id="${COL}"]`)
+      .first()
+      .click({ modifiers: ['Shift'] });
+    await expect(page.locator('[data-testid="bulk-update-count"]')).toContainText('3 selected', {
+      timeout: 10_000,
+    });
+
+    await page.locator('[data-testid="bulk-update-value-input"]').fill('4242');
+    const apply = page.locator('[data-testid="bulk-update-apply"]');
+    await expect(apply).toBeEnabled({ timeout: 10_000 });
+    await apply.click();
+
+    // Asserted as CONVERGENCE rather than against the literal, so the test does
+    // not depend on the column's number format: three independently random rows
+    // arriving at one identical value is the signal a bulk set leaves, and only
+    // a bulk set leaves it.
+    await expect
+      .poll(() => cellTextByKey(page, keys[0]!, COL), { timeout: 20_000 })
+      .not.toBe(before);
+    const applied = await cellTextByKey(page, keys[0]!, COL);
+    for (const key of keys.slice(1)) {
+      await expect.poll(() => cellTextByKey(page, key, COL), { timeout: 20_000 }).toBe(applied);
+    }
+
+    const peer = await context.newPage();
+    await peer.goto('/');
+    await waitForPerspectiveGrid(peer);
+    await widenUntilRendered(peer, COL);
+
+    await page.reload();
+    await waitForPerspectiveGrid(page);
+    await widenUntilRendered(page, COL);
+
+    // All three rows, not just the one that proved the write landed — a bulk
+    // update that persisted one cell of three would be worse than none.
+    for (const key of keys) {
+      await expect.poll(() => cellTextByKey(page, key, COL), { timeout: 30_000 }).toBe(applied);
+    }
+
+    await peer.close();
   });
 
   /**

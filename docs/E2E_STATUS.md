@@ -14,7 +14,7 @@ _Last inventory: 2026-06-13._
 |---|---|---|---|---|
 | Main | [`playwright.config.ts`](../playwright.config.ts) | **384** | 48 | `npm run e2e` |
 | Container | [`playwright.container.config.ts`](../playwright.container.config.ts) | **16** | 5 (`container-*.spec.ts`) | `npm run e2e:container` |
-| Perspective | [`playwright.perspective.config.ts`](../playwright.perspective.config.ts) | **7** | 1 (`perspective-*.spec.ts`) | `npm run e2e:perspective` |
+| Perspective | [`playwright.perspective.config.ts`](../playwright.perspective.config.ts) | **10** | 1 (`perspective-*.spec.ts`) | `npm run e2e:perspective` |
 | OpenFin | [`e2e-openfin/playwright.config.ts`](../e2e-openfin/playwright.config.ts) | 4 spec files | 4 | `npm run e2e:openfin` (OpenFin runtime only) |
 
 The main config sets `testIgnore: 'container-*.spec.ts'`, so the 53 spec
@@ -122,8 +122,10 @@ npm run e2e:container -- --reporter=line
 npm run e2e:perspective -- --reporter=line
 ```
 
-**Perspective suite baseline (2026-07-30): 7 passed / 0 failed**, green on two
-consecutive runs.
+**Perspective suite baseline (2026-07-30): 10 passed / 0 failed**, green on two
+consecutive runs. The three editing-toolbar cases open a PEER page and keep it
+open across the reload — an edit does not survive a reload of the sole window,
+because that drops the provider and the next attach re-snapshots the book.
 
 Record the resulting `N passed / M failed` here and update the baseline in
 [`CLAUDE.md`](../CLAUDE.md) in the same change. Per repo policy, never commit

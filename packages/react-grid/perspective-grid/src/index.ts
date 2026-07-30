@@ -62,6 +62,11 @@ export {
 } from './usePerspectiveTable.js';
 export { loadPerspectiveClient } from './loadPerspectiveClient.js';
 export {
+  toPerspectiveEdits,
+  type GridDataTransaction,
+  type ToPerspectiveEditsOpts,
+} from './editTransactions.js';
+export {
   toPerspectiveViewConfig,
   toPerspectiveGroupLevel,
   toGroupColumns,
