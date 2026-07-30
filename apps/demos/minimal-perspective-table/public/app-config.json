@@ -1,0 +1,12 @@
+{
+  "appId": "minimal-perspective-table",
+  "userId": "dev1",
+  "useRest": false,
+  "appDataBootstrap": {
+    "onHubReady": ["session-context"],
+    "runPolicy": "if-missing",
+    "targets": {
+      "session-context": ["SessionContext"]
+    }
+  }
+}

@@ -81,7 +81,9 @@
     "verify:apps": "node scripts/verify-apps.mjs",
     "check:deps": "node scripts/check-package-cycles.mjs",
     "check:deps:strict": "node scripts/check-package-cycles.mjs --strict",
-    "clean": "rimraf -g node_modules apps/node_modules packages/*/*/node_modules packages/*/*/dist apps/demos/*/node_modules .turbo"
+    "clean": "rimraf -g node_modules apps/node_modules packages/*/*/node_modules packages/*/*/dist apps/demos/*/node_modules .turbo",
+    "dev:minimal-perspective-table": "npm --prefix apps run dev -w @starui/minimal-perspective-table",
+    "preview:minimal-perspective-table": "npm --prefix apps run preview -w @starui/minimal-perspective-table"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

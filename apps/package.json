@@ -16,6 +16,7 @@
     "demos/markets-grid-lab",
     "demos/markets-ui-react-reference",
     "demos/marketsgrid-container-e2e",
+    "demos/minimal-perspective-table",
     "demos/mockdata-provider",
     "demos/perspective-blotter",
     "demos/platform-hooks-demo",
