@@ -12,7 +12,7 @@
  * array, same eslint-disable. The container owns the state; this hook
  * just receives the inputs + setters it needs.
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { GridApi } from 'ag-grid-community';
 import type { IDataProvider } from '@starui/host-data';
 import { isHistoricalToolbarDate } from '@starui/grid/customizer';
@@ -82,6 +82,27 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
     setResolvedSubKey,
     setIsRefetching,
   } = params;
+
+  // Ref-bridge values the effect only READS (start branch one-shots,
+  // status emissions, error reporting) so they never re-run it. Before
+  // this, any toolbar-date interaction — including live-mode picks that
+  // trigger no reload — tore down all five provider listeners
+  // mid-stream and, worse, discarded the fresh
+  // createApplyProviderToGridState(): the snapshot row-id index was
+  // lost, silently downgrading every subsequent tick's classification
+  // from O(1) Set.has to a per-row gridApi.getRowNode() fallback until
+  // the next snapshot commit, and re-opening the duplicate-add window
+  // against in-flight async transactions. Historical date changes do
+  // NOT rely on this effect re-running: they flow through
+  // pendingToolbarReloadRef + provider-id / mode-driven remounts.
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const asOfDateRef = useRef(asOfDate);
+  asOfDateRef.current = asOfDate;
+  const toolbarDateRef = useRef(toolbarDate);
+  toolbarDateRef.current = toolbarDate;
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
 
   useEffect(() => {
     if (!liveApi || !provider || !activeId) {
@@ -217,7 +238,7 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
         setDisconnectDetail(err);
         setResolvedSubKey(thisSubKey);
         setIsRefetching(false);
-        (onError ?? defaultOnError)(new Error(err));
+        (onErrorRef.current ?? defaultOnError)(new Error(err));
         return;
       }
 
@@ -229,7 +250,7 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
         if (wasDisconnected) {
           void provider.refresh().catch((refreshErr: unknown) => {
             if (cancelled) return;
-            (onError ?? defaultOnError)(
+            (onErrorRef.current ?? defaultOnError)(
               refreshErr instanceof Error ? refreshErr : new Error(String(refreshErr)),
             );
           });
@@ -250,14 +271,14 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
       if (cancelled) return;
       setResolvedSubKey(thisSubKey);
       setIsRefetching(false);
-      (onError ?? defaultOnError)(err);
+      (onErrorRef.current ?? defaultOnError)(err);
     });
 
     void (async () => {
       try {
         let running = await dataHubClient.isProviderRunning(activeId);
-        const asOfForRestart = mode === 'historical'
-          ? (asOfDate ?? (isHistoricalToolbarDate(toolbarDate) ? toolbarDate : null))
+        const asOfForRestart = modeRef.current === 'historical'
+          ? (asOfDateRef.current ?? (isHistoricalToolbarDate(toolbarDateRef.current) ? toolbarDateRef.current : null))
           : null;
         // Live cold start connects immediately — hub attach dedupes concurrent
         // windows. Historical restore waits briefly so a peer with the same
@@ -279,7 +300,7 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
       } catch (err: unknown) {
         if (cancelled) return;
         setResolvedSubKey(thisSubKey);
-        (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
+        (onErrorRef.current ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
       }
     })();
 
@@ -297,5 +318,5 @@ export function useProviderDataWiring<TData extends Record<string, unknown>>(
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveApi, provider, activeId, rowIdFieldKey, onError, dataHubClient, mode, asOfDate, toolbarDate, restartProvider]);
+  }, [liveApi, provider, activeId, rowIdFieldKey, dataHubClient, restartProvider]);
 }
