@@ -52,6 +52,18 @@ export interface PerspectiveTableLike {
   update?(rows: Record<string, unknown>[]): Promise<void>;
   /** Declared column types. Used to coerce an edited value before writing it. */
   schema?(): Promise<Record<string, string>>;
+  /**
+   * Pre-flight expression check. Returns the columns that compiled under
+   * `expression_schema` and the ones that did not under `errors`.
+   *
+   * MEASURED: a single bad expression makes `table.view()` throw and takes the
+   * WHOLE View down — so one broken calculated column would blank the entire
+   * grid. Optional, because a Table that cannot check is still usable.
+   */
+  validate_expressions?(expressions: Record<string, string>): Promise<{
+    expression_schema?: Record<string, string>;
+    errors?: Record<string, { error_message?: string }>;
+  }>;
 }
 
 export interface ViewManagerEvent {
@@ -114,6 +126,14 @@ export interface ViewManager {
    */
   setQuickFilter(text: string, columns: readonly string[]): boolean;
   /**
+   * Calculated columns, as Perspective expression source keyed by column id.
+   *
+   * Held here for the same reason the quick filter is: AG's request does not
+   * carry them, and they change what a View contains. Returns true when the map
+   * actually changed.
+   */
+  setExpressions(expressions: Record<string, string>): boolean;
+  /**
    * Every row of the current filtered, sorted book — for an export, which is
    * the one operation that legitimately wants the whole thing.
    *
@@ -146,7 +166,11 @@ interface Entry {
 }
 
 /** The parts of a request that decide which Views are still relevant. */
-function shapeOf(request: SsrmRequestLike, quick: QuickFilter): string {
+function shapeOf(
+  request: SsrmRequestLike,
+  quick: QuickFilter,
+  expressionsForShape: Record<string, string>,
+): string {
   return JSON.stringify({
     sort: request.sortModel ?? null,
     filter: request.filterModel ?? null,
@@ -156,6 +180,8 @@ function shapeOf(request: SsrmRequestLike, quick: QuickFilter): string {
     // changes which rows a View contains, so it has to change the shape or
     // every live View would survive a search with the wrong rows in it.
     quick: quick.text || null,
+    // A changed calc column makes every live View stale in the same way.
+    exprs: Object.keys(expressionsForShape).sort().map((k) => [k, expressionsForShape[k]]),
   });
 }
 
@@ -165,7 +191,11 @@ interface QuickFilter {
   columns: readonly string[];
 }
 
-function levelState(request: SsrmRequestLike, quick: QuickFilter) {
+function levelState(
+  request: SsrmRequestLike,
+  quick: QuickFilter,
+  exprs: Record<string, string>,
+) {
   return {
     sortModel: request.sortModel,
     filterModel: request.filterModel as Record<string, AgFilterItem> | null | undefined,
@@ -174,6 +204,7 @@ function levelState(request: SsrmRequestLike, quick: QuickFilter) {
     groupKeys: request.groupKeys,
     quickFilterText: quick.text,
     quickFilterColumns: quick.columns,
+    expressions: exprs,
   };
 }
 
@@ -197,6 +228,9 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
   /** Quick search. Held here rather than read off the request, because AG does
    *  not carry it: `quickFilterText` is a client-side-row-model option. */
   let quick: QuickFilter = { text: '', columns: [] };
+  /** Calculated columns. Every View built here carries them, so a calc column
+   *  is sortable, filterable and groupable like any real one. */
+  let expressions: Record<string, string> = {};
 
   function retire(entry: Entry, why: 'lru' | 'shape' | 'close'): void {
     entries.delete(entry.key);
@@ -331,13 +365,13 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
       // A new sort/filter/grouping makes every existing View garbage. Retire
       // them now rather than waiting for the LRU: they would otherwise keep
       // charging the engine on every tick for a shape nothing will ask for.
-      const nextShape = shapeOf(request, quick);
+      const nextShape = shapeOf(request, quick, expressions);
       if (shape !== null && shape !== nextShape) {
         for (const entry of [...entries.values()]) retire(entry, 'shape');
       }
       shape = nextShape;
 
-      const level = toPerspectiveGroupLevel(levelState(request, quick));
+      const level = toPerspectiveGroupLevel(levelState(request, quick, expressions));
       const key = viewConfigKey(level.config);
       const entry = await ensure(key, level.config, level.groupColId, level.depth);
       if (closed) return null;
@@ -376,7 +410,7 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
     async readGrandTotal(request: SsrmRequestLike): Promise<Record<string, unknown> | null> {
       if (closed) return null;
 
-      const level = toPerspectiveGroupLevel({ ...levelState(request, quick), groupKeys: [] });
+      const level = toPerspectiveGroupLevel({ ...levelState(request, quick, expressions), groupKeys: [] });
       let config = level.config;
       let groupColId = level.groupColId;
       if (groupColId === null) {
@@ -419,7 +453,12 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
       if (!isFilterModelMappable(filterModel)) return null;
 
       const filter = toPerspectiveFilter(filterModel);
-      const config: PerspectiveViewConfig = filter ? { filter } : {};
+      // Carry the calc columns: a saved filter may well be ON one, and a
+      // View that omits them cannot resolve the clause at all.
+      const config: PerspectiveViewConfig = {
+        ...(filter ? { filter } : {}),
+        ...(Object.keys(expressions).length > 0 ? { expressions } : {}),
+      };
 
       // A live View already answers this exact question — an unsorted,
       // ungrouped grid under the same filter is the common case for a pill the
@@ -477,7 +516,7 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
       if (closed) return null;
 
       const level = toPerspectiveGroupLevel({
-        ...levelState(request, quick),
+        ...levelState(request, quick, expressions),
         rowGroupCols: undefined,
         groupKeys: [],
       });
@@ -509,6 +548,19 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
       }
     },
 
+    setExpressions(next: Record<string, string>): boolean {
+      const keys = Object.keys(next).sort();
+      const same =
+        keys.length === Object.keys(expressions).length &&
+        keys.every((k) => expressions[k] === next[k]);
+      if (same) return false;
+      expressions = { ...next };
+      // Like the quick filter: `getView` retires on shape change, and the shape
+      // now includes these — so the next block request drops the stale Views
+      // rather than deleting Views with reads still in flight.
+      return true;
+    },
+
     setQuickFilter(text: string, columns: readonly string[]): boolean {
       const next = (text ?? '').trim();
       if (next === quick.text) return false;
@@ -523,7 +575,14 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
     async distinctValues(colId: string, limit: number): Promise<unknown[] | null> {
       if (closed) return null;
 
-      const safe = createSafeView(await table.view({ group_by: [colId] }));
+      // The column may itself be a calculated one, so the View has to carry
+      // the expressions or the group_by names a column that does not exist.
+      const safe = createSafeView(
+        await table.view({
+          group_by: [colId],
+          ...(Object.keys(expressions).length > 0 ? { expressions } : {}),
+        }),
+      );
       if (closed) {
         void safe.close();
         return null;

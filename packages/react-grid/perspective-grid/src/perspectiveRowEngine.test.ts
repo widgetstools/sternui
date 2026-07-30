@@ -1135,3 +1135,164 @@ describe('setQuickFilter', () => {
     await expect(engine.setQuickFilter('mike')).resolves.toBeUndefined();
   });
 });
+
+describe('setCalcExpressions', () => {
+  function makeExprTable(validator?: (e: Record<string, string>) => unknown) {
+    const configs: PerspectiveViewConfig[] = [];
+    const table: PerspectiveTableLike = {
+      async size() {
+        return 1000;
+      },
+      async schema() {
+        return { positionId: 'string', price: 'float' };
+      },
+      ...(validator ? { validate_expressions: async (e: Record<string, string>) => validator(e) as never } : {}),
+      view: vi.fn(async (config: PerspectiveViewConfig) => {
+        configs.push(config);
+        const view: UpdatableView = {
+          async to_columns() {
+            return { positionId: [] };
+          },
+          async num_rows() {
+            return 1000;
+          },
+          async delete() {},
+          async on_update() {
+            return 1;
+          },
+        };
+        return view;
+      }),
+    };
+    return { table, configs };
+  }
+
+  const block = (engine: { datasource: { getRows(p: unknown): unknown } }) =>
+    engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100 },
+      success: () => {},
+      fail: () => {},
+    } as never);
+
+  it('publishes calc columns into the View config', async () => {
+    const { table, configs } = makeExprTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    engine.setApi(makeApi().api);
+
+    await engine.setCalcExpressions({ grossPnl: '"price" * "quantity"' });
+    await block(engine);
+    await settle();
+
+    expect(configs.some((c) => c.expressions?.grossPnl === '"price" * "quantity"')).toBe(true);
+    await engine.close();
+  });
+
+  it('drops an expression that does not compile, and reports it', async () => {
+    // MEASURED: one bad expression makes table.view() throw and takes the WHOLE
+    // View down, so a typo in one calculated column would blank the grid.
+    const errors: unknown[] = [];
+    const { table, configs } = makeExprTable(() => ({
+      expression_schema: { good: 'float' },
+      errors: { bad: { error_message: 'Input column "nope" does not exist.' } },
+    }));
+    const engine = createPerspectiveRowEngine({
+      table,
+      keyColumn: 'positionId',
+      onError: (e) => errors.push(e),
+    });
+    engine.setApi(makeApi().api);
+
+    await engine.setCalcExpressions({ good: '"price" * 2', bad: '"nope" * 2' });
+    await block(engine);
+    await settle();
+
+    // Every View carries the good one and none carries the bad one. (Checked
+    // per-key rather than by deep-equal: the grand-total View adds its own
+    // `__all__` constant expression alongside these.)
+    const withExprs = configs.filter((c) => c.expressions);
+    expect(withExprs.length).toBeGreaterThan(0);
+    expect(withExprs.every((c) => c.expressions!.good === '"price" * 2')).toBe(true);
+    expect(withExprs.some((c) => 'bad' in c.expressions!)).toBe(false);
+    expect(errors).toHaveLength(1);
+    expect(String(errors[0])).toContain('bad');
+    await engine.close();
+  });
+
+  it('keeps every expression when the validator itself fails', async () => {
+    // A broken check must not cost the user all of their calculated columns.
+    const errors: unknown[] = [];
+    const { table, configs } = makeExprTable(() => {
+      throw new Error('validator exploded');
+    });
+    const engine = createPerspectiveRowEngine({
+      table,
+      keyColumn: 'positionId',
+      onError: (e) => errors.push(e),
+    });
+    engine.setApi(makeApi().api);
+
+    await engine.setCalcExpressions({ a: '"price" * 2' });
+    await block(engine);
+    await settle();
+
+    expect(configs.some((c) => c.expressions?.a)).toBe(true);
+    expect(errors).toHaveLength(1);
+    await engine.close();
+  });
+
+  it('works on a Table with no validator at all', async () => {
+    const { table, configs } = makeExprTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    engine.setApi(makeApi().api);
+
+    await engine.setCalcExpressions({ a: '"price" * 2' });
+    await block(engine);
+    await settle();
+
+    expect(configs.some((c) => c.expressions?.a)).toBe(true);
+    await engine.close();
+  });
+
+  it('purges, since AG cannot know a calc column changed', async () => {
+    const { table } = makeExprTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    const grid = makeApi();
+    engine.setApi(grid.api);
+    grid.refreshes.length = 0;
+
+    await engine.setCalcExpressions({ a: '"price" * 2' });
+
+    expect(grid.refreshes).toContainEqual({ purge: true });
+    await engine.close();
+  });
+
+  it('does nothing when the map has not changed', async () => {
+    const { table } = makeExprTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    const grid = makeApi();
+    engine.setApi(grid.api);
+
+    await engine.setCalcExpressions({ a: '"price" * 2' });
+    grid.refreshes.length = 0;
+    await engine.setCalcExpressions({ a: '"price" * 2' });
+
+    expect(grid.refreshes).toHaveLength(0);
+    await engine.close();
+  });
+
+  it('carries calc columns into a saved-filter count', async () => {
+    // A saved filter may well be ON a calculated column; a View that omits the
+    // expressions cannot resolve the clause at all.
+    const { table, configs } = makeExprTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    engine.setApi(makeApi().api);
+
+    await engine.setCalcExpressions({ grossPnl: '"price" * 2' });
+    await engine.countMatching({
+      grossPnl: { filterType: 'number', type: 'greaterThan', filter: 10 },
+    });
+
+    expect(configs.some((c) => c.expressions?.grossPnl && c.filter)).toBe(true);
+    await engine.close();
+  });
+});

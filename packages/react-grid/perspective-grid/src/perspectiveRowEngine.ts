@@ -170,6 +170,15 @@ export interface PerspectiveRowEngine {
    * nothing under a server row model, so the text has to be handed here and
    * compiled into the View.
    */
+  /**
+   * Publish the calculated columns as Perspective expression columns, so their
+   * values feed sort, filter, group and aggregate server-side.
+   *
+   * Expressions are VALIDATED first and the broken ones dropped: a single bad
+   * expression makes every `table.view()` throw, which would blank the grid
+   * rather than hide one column. Each drop is reported through `onError`.
+   */
+  setCalcExpressions(expressions: Record<string, string>): Promise<void>;
   setQuickFilter(text: string): Promise<void>;
   /**
    * Every row of the current filtered, sorted book, flat — for an export.
@@ -652,6 +661,46 @@ export function createPerspectiveRowEngine(
       // The last ROOT request carries the sort and filter the user is looking
       // at; grouping is dropped inside, since an export wants leaf rows.
       return views.readAllRows(lastRootRequest, maxExportRows).catch(() => null);
+    },
+
+    async setCalcExpressions(next) {
+      if (closed) return;
+
+      let usable = next ?? {};
+      // MEASURED: one bad expression takes the whole View down, not just its
+      // own column — so a typo in a calculated column would blank the grid.
+      // Check first and keep only what compiles.
+      if (Object.keys(usable).length > 0 && typeof table.validate_expressions === 'function') {
+        try {
+          const report = await table.validate_expressions(usable);
+          if (closed) return;
+          const errors = report?.errors ?? {};
+          if (Object.keys(errors).length > 0) {
+            const kept: Record<string, string> = {};
+            for (const [colId, source] of Object.entries(usable)) {
+              if (!errors[colId]) kept[colId] = source;
+              else {
+                onError?.(
+                  new Error(
+                    `perspective: calculated column "${colId}" did not compile — ${
+                      errors[colId]?.error_message ?? 'unknown error'
+                    }`,
+                  ),
+                );
+              }
+            }
+            usable = kept;
+          }
+        } catch (error) {
+          // The check itself failing must not cost the user every calc column.
+          onError?.(error);
+        }
+      }
+
+      if (!views.setExpressions(usable)) return;
+      // Same reasoning as the quick filter: AG cannot know these changed.
+      api?.refreshServerSide({ purge: true });
+      void pushGrandTotal();
     },
 
     async setQuickFilter(text) {

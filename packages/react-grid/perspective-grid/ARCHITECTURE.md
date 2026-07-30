@@ -496,6 +496,49 @@ commit cell by cell, and one proxied round trip per cell is hundreds of worker
 calls for one user action. `close()` flushes before tearing down, so a Table
 swap or an unmount cannot eat the last edit.
 
+## Calculated columns resolve in the worker
+
+The `expressions` map was plumbed through `toPerspectiveViewConfig` from the
+start and expression columns were verified first-class — but nothing populated
+it, so a calculated column was simply absent from this path. The planner already
+existed (`planSsrmCalcColumns` compiles a StarUI expression to Perspective
+source) and ran only when `useSSRM` was true.
+
+`usePerspectiveCalcColumns` now runs it for this surface, and
+`engine.setCalcExpressions` publishes the result. VERIFIED against 4.5.2
+(`scripts/calcColumnProbe.mjs`) that an expression column really is first-class:
+read, **sort**, **filter**, **group by** and **aggregate** all work on one.
+
+Only `kind: 'perspective'` plans can be served here. A `materialize` plan needs a
+client-side pass over whole rows (`.old`/`.new` refs and the like) and this
+window holds only the blocks in view, so those keep their client `valueGetter`
+rather than being silently dropped.
+
+**One bad expression takes the WHOLE View down, not just its own column.**
+Measured: `table.view()` throws `Value Error - Input column "nope" does not
+exist`, so a typo in one calculated column would blank the entire grid rather
+than hide one column. `table.validate_expressions()` reports per-expression
+errors without building a View, so the engine checks first, keeps what compiles,
+and reports each drop through `onError`. A validator that itself fails keeps
+everything — a broken check must not cost the user every calc column.
+
+The expressions ride in `shapeOf`, so changing a calculated column retires the
+Views built without it, and they are carried into the transient Views built by
+`countMatching` and `distinctValues` too: a saved filter or a set filter may
+well be ON a calculated column, and a View that omits the expressions cannot
+resolve the clause at all.
+
+Also settled here: the compiler emits `if(cond, a, b)` and a unit test asserted a
+`?:` ternary. Both forms compile in 4.5.2 and both yield the same values, so the
+test was pinning one valid spelling rather than the behaviour — it now asserts
+the form the compiler actually produces.
+
+Verified live on the 20,000-row book: `grossPnl = "currentPrice" * "quantity"`
+computed in the worker and delivered with the block (108.8162 x 7154 =
+778,471.09), server-side sort by it monotonic across the top of the book, a
+saved-filter count on it returning 869 of 20,000, and a deliberately broken
+expression alongside a good one leaving the grid rendering with 0 failed blocks.
+
 ## Exporting the whole book
 
 `api.exportDataAsExcel()` can only see the rows in the block cache. MEASURED on
@@ -774,6 +817,7 @@ it never runs — `getCompiledClientWasm()` is the fix, still outstanding.
 | Set-filter values (column filter menus) | **done**, 25 tests |
 | Quick search (`quickFilterText`) | **done**, 22 tests + 4 engine probes |
 | Excel export of the full book | **done**, 17 tests |
+| Calculated columns as expression columns | **done**, 17 tests + engine probe |
 | Calculated columns as expression columns | **not started** |
 | Style rules that must materialize worker-side | **not started** |
 | Multi-window timings through the product path | **not measured** |
@@ -837,12 +881,6 @@ that drift.
 No numbered milestone remains — the path is wired end to end. What the design
 names and nothing has built:
 
-- **Calculated columns are missing on this path.** The `expressions` map is
-  plumbed through `toPerspectiveViewConfig` and expression columns are
-  verified sortable, filterable and groupable — but nothing maps MarketsGrid's
-  calculated-column definitions into it, so a calculated column simply is not
-  there. Same for the style rules the table above assigns to the worker
-  (filtered/sorted on, or needing cross-row context).
 - **The multi-window claim is unmeasured on the product path.** Milestone 1
   measured it in the harness — window 3 first rows in 414 ms against 1135 ms
   for the cold first window. Milestone 2 verified ONE window through
