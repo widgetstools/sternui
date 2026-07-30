@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GridOptions, GridReadyEvent } from 'ag-grid-community';
 import { GridPlatform, type AnyColDef, type AnyModule, type AppDataLookup } from '@starui/engine';
 import { shouldSkipGridOptionSync } from './gridSurfaceOptions';
-import { gridOptionValuesEqual } from './gridOptionCompare';
+import { functionOptionValuesEqual, gridOptionValuesEqual } from './gridOptionCompare';
 
 /**
  * AG-Grid options that can ONLY be set at construction time. Calling
@@ -169,6 +169,14 @@ export function useGridHost(opts: {
       if (shouldSkipGridOptionSync(key, hostOverrideKeys)) continue;
       if (containsFunction(value)) {
         if (lastFuncSynced.current[key] === value) continue;
+        // Shallow member compare (functions by reference, never JSON):
+        // carriers whose closures are hoisted to stable references —
+        // e.g. general-settings' defaultColDef — skip the push when
+        // only their object identity churned.
+        if (functionOptionValuesEqual(lastFuncSynced.current[key], value)) {
+          lastFuncSynced.current[key] = value;
+          continue;
+        }
         lastFuncSynced.current[key] = value;
       } else {
         // Fast: same reference → definitely unchanged.
@@ -187,6 +195,14 @@ export function useGridHost(opts: {
         lastSyncedRef.current[key] = value;
         lastSyncedJson.current[key] = json;
       }
+      // Final gate: consult the LIVE option value. On the first
+      // post-mount sync every cache above is empty, but AgGridReact
+      // already received this exact gridOptions object via the
+      // `{...gridOptions}` spread — re-pushing each key re-triggers
+      // AG-Grid's option-changed handlers (class-rule re-evaluation,
+      // layout passes) across the whole surface for nothing.
+      const getLive = (api as { getGridOption?: (k: string) => unknown }).getGridOption;
+      if (typeof getLive === 'function' && Object.is(getLive.call(api, key), value)) continue;
       (api.setGridOption as (k: string, v: unknown) => void)(key, value);
     }
     // Reason: `gridOptions` is the value driving this effect, but its

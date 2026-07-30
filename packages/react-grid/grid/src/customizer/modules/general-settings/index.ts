@@ -28,6 +28,23 @@ import {
 
 export const GENERAL_SETTINGS_MODULE_ID = 'general-settings';
 
+/**
+ * Module-level constant so `defaultColDef` carries the SAME function
+ * reference across transform passes. An inline closure here minted a
+ * fresh function per pass, which made every defaultColDef object
+ * incomparable in useGridHost's post-mount sync — one setGridOption
+ * ('defaultColDef') push (and the column-def re-evaluation it
+ * triggers) per store tick, even with zero settings changes.
+ * Returning `null` for empty cells suppresses the tooltip (AG-Grid
+ * also skips `undefined`/`null`/'' on its own).
+ */
+const RAW_VALUE_TOOLTIP_GETTER = (params: { value: unknown }): string | null => {
+  const { value } = params;
+  if (value == null) return null;
+  const str = String(value);
+  return str === '' ? null : str;
+};
+
 /** Materialise persisted row-selection mode into AG Grid 35 `RowSelectionOptions`. */
 function buildRowSelectionOptions(
   mode: NonNullable<GeneralSettingsState['rowSelection']>,
@@ -285,17 +302,8 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
         // (the unformatted datum, not `params.valueFormatted`), so the full
         // content is visible regardless of any currency/date `valueFormatter`.
         // Pairs with `tooltipShowMode: 'whenTruncated'` so the tooltip only
-        // appears when the rendered text is clipped. Returning `null` for
-        // empty cells suppresses the tooltip (AG-Grid also skips
-        // `undefined`/`null`/'' on its own).
-        tooltipValueGetter: s.showCellTooltips
-          ? (params: { value: unknown }) => {
-              const { value } = params;
-              if (value == null) return null;
-              const str = String(value);
-              return str === '' ? null : str;
-            }
-          : undefined,
+        // appears when the rendered text is clipped.
+        tooltipValueGetter: s.showCellTooltips ? RAW_VALUE_TOOLTIP_GETTER : undefined,
         ...opts.defaultColDef,
       },
 

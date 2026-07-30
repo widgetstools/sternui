@@ -4,6 +4,30 @@
  * but content is unchanged.
  */
 
+/**
+ * Comparator for FUNCTION-CARRYING option values (defaultColDef,
+ * rowClassRules, …). Strictly shallow: object members — including the
+ * functions — compare by `Object.is`, never by JSON (JSON.stringify
+ * silently drops functions, which would call two rule-sets with
+ * different predicates "equal"). Modules that hoist their closures to
+ * stable references make their carrier objects skippable; modules that
+ * legitimately rebuild closures (fresh predicates) fail the compare
+ * and push, as they must.
+ */
+export function functionOptionValuesEqual(prev: unknown, next: unknown): boolean {
+  if (Object.is(prev, next)) return true;
+  if (
+    prev && next
+    && typeof prev === 'object'
+    && typeof next === 'object'
+    && !Array.isArray(prev)
+    && !Array.isArray(next)
+  ) {
+    return shallowRecordEqual(prev as Record<string, unknown>, next as Record<string, unknown>);
+  }
+  return false;
+}
+
 function shallowRecordEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
   const aKeys = Object.keys(a);
   const bKeys = Object.keys(b);
