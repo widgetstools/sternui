@@ -339,6 +339,11 @@ Per-renderer config types (`PillRendererConfig`,
   override or general-settings pipeline) into the theme via `theme.withParams`,
   keeping `--ag-row-height` in sync with the live row height so cell text stays
   vertically centered at any height (parameter-based; no CSS overrides)
+- `PerspectiveMarketsGridSurface` — third row-supply surface, peer to `MarketsGridSurface` (CSRM) and `SsrmMarketsGridSurface`. Mounts AG Grid on a worker-held Table via `createPerspectiveRowEngine`: path-based `getRowId` (a leaf key collides across groups), 100-row blocks, and a one-render wait for the engine so the status panel is not instantiated against a null one. Spreads the module-pipeline `gridOptions` like the CSRM surface — pagination, grouping, selection and the rest reach it unchanged — minus `PERSPECTIVE_SURFACE_OWNED_KEYS` (`rowModelType`, `serverSideDatasource`, `getRowId`, `cacheBlockSize`, `maxBlocksInCache`, `blockLoadDebounceMillis`, `context`, `serverSideInitialRowCount`), which would detach the grid from the Table rather than customize it. Host props are applied only when passed, so an omitted one does not blank a pipeline value. Its grid `context` also carries the `ssrmCountMatching` / `ssrmConfigured` pair `useFilterModel` needs for saved-filter count badges — a contract only `CustomSSRMGrid` used to answer, so the badges were silently absent on the pull path — read through the holder at call time so an engine swap does not strand them. Commits `cellValueChanged` into the Table through the engine, registered with `addEventListener` rather than the `onCellValueChanged` grid option so it composes with alerts, conditional styling, data-change history and smart edit instead of taking the slot from a pipeline-supplied handler; the grand total and group rows are skipped, being aggregates rather than rows of the book
+- `PerspectiveStatusPanel` — default status bar on the Perspective surface, reading the Table's own row counts. AG's stock panels count the rows the CLIENT holds — on this path only the loaded blocks — and would report a confidently wrong total. Reaches the engine through a `PerspectiveEngineHolder` on the grid `context` rather than the engine itself: AG reads `context` when it CREATES the grid and hands that value to every panel it instantiates, while the engine is rebuilt whenever the Table changes, so a bare reference froze the bar against a closed engine
+- `createPerspectiveEngineHolder()` / `PerspectiveEngineHolder` — stable handle to a swappable row engine; `subscribe` replays the current engine immediately, so a subscriber that arrives after the swap it cared about is not left waiting for a second one
+- `resolveUseSsrm` / `resolvePerspective` — pick the row engine from `rowModel` (`client` | `server` | `perspective`); the legacy `useSSRM` boolean still wins where set but cannot express `perspective`
+- `resolveGridSurface({ rowModel, useSSRM, perspectiveTable })` → `'perspective' | 'pending' | 'ssrm' | 'csrm'` — which surface the host mounts. `'pending'` mounts **none**, and enforces the invariant that **exactly one grid may mount per `GridPlatform`, ever**. Attaching to the worker-held Table is async, so `rowModel: 'perspective'` used to fall through to the CSRM surface for the length of the attach; that stand-in grid fired `onGridReady` (attaching the api, activating every module) and then unmounted when the Table landed, and its `onGridPreDestroyed` ran `platform.destroy()` — which is permanent. The real grid's `onGridReady` then hit `if (this.destroyed) return` and a fresh platform was built that never saw a grid at all. Everything talking to AG Grid directly still worked (grouping, sorting, context menu, density), so the grid looked healthy while every platform-driven feature was dead: formatting toolbar, auto-formatter, saved-filter "+" button, and profile save/restore. `null` (attaching) vs `undefined` (not using the seam) is what carries the distinction — `MarketsGridContainer` must pass the `null` through rather than collapsing it with `?? undefined`
 - `LazySettingsSheet` — code-split settings drawer (loads `SettingsSheet` + `grid-chrome.css` on first open); public-barrel `SettingsSheet` export aliases this wrapper (same props/ref contract) so the inner sheet never lands in a consumer's main chunk
 - `preloadSettingsSheet()` — warms the sheet chunk ahead of first open; `MarketsGridHost` calls it on idle, the ⋯ overflow menu on open, the inline settings button on pointer-enter
 - `GeneralSettingsProvider` / `useGeneralSettingsFromContext` — single subscription for density/header-case reads
@@ -594,7 +599,7 @@ lifecycle rules live in the package's `ARCHITECTURE.md`.
   the children AG asked for. Row 0 of the result is that level's own total
 - `toGroupColumns(columns, groupColId)` — remaps Perspective's `__ROW_PATH__`
   onto the group column that AG builds its group rows from
-- `createPerspectiveRowEngine({ table, keyColumn, refreshMs?, onEvent?, onError? })` —
+- `createPerspectiveRowEngine({ table, keyColumn, refreshMs?, countMinIntervalMs?, editFlushMs?, onEvent?, onError? })` —
   everything a grid needs to run on a worker-held Table, in one object: the
   `datasource`, the root row count, the throttled re-read when the Table moves,
   a refresh of **every expanded group level** (`refreshServerSide` does not
@@ -602,13 +607,36 @@ lifecycle rules live in the package's `ARCHITECTURE.md`.
   creates that row but never updates it). `setApi` connects the grid,
   `setLive` pauses re-reads, `close` tears the Views down. Describes the grid
   api structurally, so the package still has no AG Grid dependency
+- `engine.countMatching(filterModel)` — rows the whole book matches under an AG
+  filter model, for the saved-filter pills' count badges. Resolves **null**, not
+  a number, when the model has a clause Perspective cannot express exactly, so
+  the badge is absent rather than confidently wrong. Cached: a resolved count is
+  reused until the Table moves and then no sooner than `countMinIntervalMs`
+  (default 1000), because the recount is driven by AG's `modelUpdated` — several
+  times a second — and each answer costs a full-book View in the engine the read
+  path queues behind
+- `engine.applyEdit({ key, field, value })` / `engine.flushEdits()` — persist a
+  committed cell edit into the worker-held Table. Under the server row model
+  AG's write lands only on the block-cache row node and the next refresh paints
+  the old value back over it; routing it to `table.update()` makes the edit
+  stick **and** propagates it to every peer window, since they all read the one
+  Table. Coalesced by row key so a bulk update or smart-edit patch is one write,
+  not one per cell; values are coerced against the declared column type first
+  and a row that cannot be coerced is refused via `onError` rather than written
+  (Perspective coerces silently, and the book is shared). Editing the index
+  column is refused — the upsert would insert a second row. `close()` flushes
+  first, so a Table swap cannot eat the last edit
 - `createViewManager({ table, onEvent?, onUpdate?, maxViews? })` — per-window View
   lifecycle: a keyed map of live Views (one per open group level, LRU-capped),
   `getView(request)` resolving the View a block should read from,
   `readGrandTotal(request)`, `invalidate()` and `close()`. Skips the level total
   row on grouped reads, re-opens a View retired under an in-flight block rather
-  than settling short, and never moves the generation on a request-driven swap
-- `createSafeView(view)` — deletion-safe View wrapper: `read()` refcounts
+  than settling short, and never moves the generation on a request-driven swap.
+  `countMatching(filterModel)` answers a filter count from its own transient
+  View **outside** the keyed map — `getView` reads every call as the grid's
+  current intent and retires every View of a different shape, so counting
+  through it would tear down the viewport the grid is scrolling
+- `createSafeView(view)` — deletion-safe View wrapper: `read()` and `rows()` refcount
   in-flight reads and `close()` drains them before deleting. **Mandatory for all
   View disposal** — deleting under a read throws an uncatchable wasm borrow
   error that can take the SharedWorker down
@@ -616,8 +644,25 @@ lifecycle rules live in the package's `ARCHITECTURE.md`.
   Perspective view config, with `toPerspectiveSort`, `toPerspectiveFilter`,
   `toPerspectiveFilterClauses`, `toPerspectiveAggregate` available individually;
   unmappable filters emit no clause rather than a narrower book
+- `isFilterModelMappable(filterModel)` — true when every column entry yields at
+  least one clause. Dropping what cannot be expressed is right for a **View**
+  (an unfiltered book beats a wrong one) and wrong for a **count**, where it
+  silently inflates the number; callers that need exactness gate on this
+- `coerceEditedValue(type, value)` — coerce an edited cell to a Perspective
+  column's declared type, returning `{ ok: false, reason }` rather than a
+  guess. Exists because `table.update()` coerces instead of rejecting, and a
+  cell editor with no `valueParser` hands back the string the user typed
 - `viewConfigKey(config)` — stable identity so an unchanged request reuses the
   live View instead of rebuilding it
+- `usePerspectiveTable(client, providerId, opts?)` — window side of the pull
+  path: asks the hub to bind a ProxySession to a fresh `MessagePort`, builds
+  this window's Perspective `Client` on it and opens the provider's Table by
+  name. Returns `{ table, tableName, status, reason }`, where `unavailable`
+  (with a reason) is a normal answer for a provider that holds no Table so a
+  caller can fall back to the push path instead of waiting. The engine module
+  is loaded dynamically — only windows that open a blotter fetch its wasm — and
+  the client is described structurally so this package takes no dependency on
+  `@starui/host-data`. Attaches are shared and ref-counted per (hub client, provider) with a linger before teardown: React StrictMode double-invokes the mount effect, and closing the frame port on the first cleanup orphaned the Table handle opened over it — it read 0 rows forever while every other client read the full book. Sharing is right on its own terms too, since two blotters on one provider then read over one port. Re-exported from `@starui/grid`
 
 ---
 
@@ -668,6 +713,7 @@ lifecycle rules live in the package's `ARCHITECTURE.md`.
 - `MarketsGridContainer` — grid + two-provider picker + mode toggle (`Alt+Shift+P` /
   grid-level provider persistence; provider pickers live in grid customizer → Custom Settings (`providerGridHost`)
 - `MarketsGridContainer` — hub data via `useDataProvider` + `applyProviderToGrid` (no direct `client.subscribe` / cfg pass-through); optional `defaultLiveProviderId` for single-provider demos; live mode cold-starts STOMP immediately (hub attach dedupes concurrent windows); historical restore late-joins a running hub provider via `isProviderRunning` / `waitForProviderRunning` (≤2s) + `provider.start()` instead of `restartProvider` (avoids peer grid refresh and duplicate STOMP when several windows open at once)
+- `MarketsGridContainer` — `rowModel="perspective"` mounts the pull path: `usePerspectiveTable(client, activeId)` attaches to the provider's worker-held Table and hands it to `MarketsGrid` as `perspectiveTable`, keyed by the provider's `keyColumn`. The push wiring is bypassed entirely (this window receives no rows), the snapshot overlay follows the attach instead of a subscription key (there is no snapshot to wait for — the Table is built from the provider's declared fields), and a provider that holds no Table reports through `onError` rather than leaving a grid that will never fill. Everything else — catalog row, column defs, toolbar, profiles, persistence — is unchanged
 - `useProviderDataWiring` — provider→grid hot path inside `MarketsGridContainer`; pauses live-tick `applyTransactionAsync` while `document.hidden` (background OpenFin views) and runs one `provider.refresh()` cache replay when the view becomes visible again; on STOMP auto-reconnect (`error` → `ready`) clears the stale banner and triggers `provider.refresh()` so every blotter replays the hub cache without a manual Reload
 - `MarketsGridContainer` — when an active provider id is chosen but `useDataProviderConfig` is still loading, renders a lightweight placeholder (no throwaway `MarketsGrid` / AG Grid shell); the `__no_provider__` shell path is unchanged when no provider is selected or cfg is loaded but missing key/columns
 - `applyProviderToGrid` — live-tick add/update split with pending-add coalescing (`createApplyProviderToGridState`, `splitProviderRowsForGrid`, `splitProviderRowsWithResolver`); after snapshot commit, `markSnapshotLoaded` indexes row ids so live ticks avoid O(n) `getRowNode`; ticks for ids still in an async add queue retain the latest payload instead of being dropped so peer grids on the same hub provider stay row-count aligned; internal to `MarketsGridContainer` / `useBlotterDataConnection` (not on public barrel)
@@ -1278,6 +1324,7 @@ modules).
 #### Runtime architecture
 
 - `SharedWorkerDataServicesClient` — main-thread client routing events to listeners; catalog RPC (`waitForCatalogReady`, `getProviderConfig`, `listProviderConfigs`, `invalidateConfig`, `getHubIntrospect`, `isProviderRunning`, `waitForProviderRunning`, `onCatalogChange(detail)`); scoped `catalog-ready` broadcasts carry `providerId` (single row) or `full` (whole catalog); **Deprecated.** passing `cfg` on `attach` / `subscribe` for catalogued providers — use cfg-free attach
+- `SharedWorkerDataServicesClient.attachPerspective(providerId)` — binds this window to a provider's Perspective Table: transfers a fresh `MessagePort` to the worker, which starts the provider from its catalog row if it is not already running (a blotter opens on its own, without needing a push subscriber first) and binds a ProxySession to the port. Resolves `{ ok: true, port, tableName }` for the window's Perspective `Client` to speak over, or `{ ok: false, reason }` — a value, not a rejection — when the provider holds no Table (wrong provider type, a worker built without the Perspective loader, or a `keyColumn` that cannot index one), so a caller falls back to the push path immediately. The reply WAITS for the Table to exist (`feed.whenReady()`): `open_table(name)` resolves for a name the engine does not hold yet rather than throwing, and a window handed that handle reads 0 rows forever while every later attach reads the full book. With a declared schema the wait is immediate. The unused port is closed on failure and on `client.close()`
 - `wireWorkerCatalogSync()` / `isCatalogConfigRow()` — `ensurePlatformReady` wires `ConfigManager.onConfigChanged` → `client.invalidateConfig` only for `data-provider` / `appdata` rows (grid profile saves do not fan out `catalog-ready`)
 - `ensurePlatformReady` attach bootstrap — when cached seed identity (localStorage, cross-window) + `isPlatformWarm(appId)` (a prior window completed full bootstrap) hold, child views skip `seedConfigUrl` and run `ConfigManager.init({ mode: 'attach' })`; no worker round-trip — seeding lives in IndexedDB, which outlives windows and worker; every completed full bootstrap sets `markPlatformWarm(appId)` in localStorage
 - `ensureConfigReady()` — config-only bootstrap (attach resolution + ConfigManager init, no hub connect / AppData snapshot / catalog preload); idempotent per `appId`; `ensurePlatformReady` builds on it, so a window upgrades from config-only to full reusing the same ConfigManager
@@ -1453,7 +1500,10 @@ modules).
   Deletion is idempotent because the feed and the host both own the Table and a
   double free throws an uncatchable wasm error. The Perspective module is
   injected so workers that never open a blotter don't carry its wasm.
-  **Internal**
+  `clear()` is forwarded on the owned wrapper — the feed reads its presence to
+  decide whether a declared-schema Table survives a `replace`, and omitting it
+  silently made every snapshot delete and rebuild the Table, orphaning every
+  attached window. **Internal**
 - `installCustomElementsShim(scope?)` — three-line stub that makes
   `@perspective-dev/client` usable in a worker; `worker()` otherwise throws on
   one unguarded `customElements.get(...)`. No-op in a window. **Internal**
@@ -1813,7 +1863,7 @@ of importing `@openfin/*` directly (architecture boundary).
 
 ### Apps — platform bootstrap pilot
 
-**19 demos** under `apps/demos/` (nested `apps/package.json` workspace). Apps build **from source** — Vite + `tsc` resolve every `@starui/*` import out of `packages/` (apps declare no `@starui/*` deps and require no `libs/*.tgz`); `npm run propagate` packs tarballs for external Artifactory consumers only (see `apps/demos/README.md`).
+**21 demos** under `apps/demos/` (nested `apps/package.json` workspace). Apps build **from source** — Vite + `tsc` resolve every `@starui/*` import out of `packages/` (apps declare no `@starui/*` deps and require no `libs/*.tgz`); `npm run propagate` packs tarballs for external Artifactory consumers only (see `apps/demos/README.md`).
 
 | App | Role |
 |-----|------|
@@ -1824,6 +1874,8 @@ of importing `@openfin/*` directly (architecture boundary).
 | `markets-ui-react-reference` | Full OpenFin reference shell; `ensurePlatformReady` + `DataHubProvider` |
 | `demo-stomp-markets-grid` | Minimal STOMP + MarketsGrid (web + OpenFin); `defaultLiveProviderId` |
 | `stomp-marketsgrid-minimal` | Lean STOMP → MarketsGrid dev track |
+| `minimal-perspective-table` | **SSRM performance with CSRM features.** `stomp-marketsgrid-minimal` cloned onto the Perspective pull path — same bootstrap, same catalog seeding, same `HostedMarketsGrid`; three lines differ (the `data-services-perspective-worker.mjs` asset, a `stomp-perspective` provider, `rowModel="perspective"`). The book lives once in the worker and this window reads only its viewport, so a second blotter costs a View rather than a 20,000-row replay. The provider declares `inferredFields`, which is what lets the Table exist — and the grid paint — before the snapshot lands (port 5214 dev / 5215 preview) |
+| `perspective-blotter` | Perspective pull path against the REAL STOMP provider, N windows on one worker-held Table (ports 5220/5221) |
 | `markets-grid-lab` | Developer-onboarding feature lab: Home landing + grouped sidebar nav + per-feature Inspector drawer; scenario rail + importable profiles |
 | `design-system` (`@starui/design-system-demo`) | FI trading terminal + live component/token reference, fully styled by `@starui/design-system` + `@starui/ui` (port 5310) |
 | `platform-hooks-demo` | AppData bootstrap hooks + grid event callback bindings (port 5214) |
