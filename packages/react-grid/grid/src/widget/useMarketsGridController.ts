@@ -283,24 +283,45 @@ export function useMarketsGridController(
     [useSSRM, ssrmRef],
   );
 
+  // Alerts evaluate on live deltas, which only ever carry the rows this window
+  // holds. Seeding `relativeChange` baselines needs the whole filtered book, and
+  // under ANY server-side engine the client does not have it — so the panel's
+  // "Rescan full book" needs a fetcher that can go and get it.
   useEffect(() => {
-    if (!useSSRM) {
-      registerAlertsSsrmLeafFetcher(platform, null);
-      return;
-    }
     const rowId =
       typeof rowIdField === 'string'
         ? rowIdField
         : Array.isArray(rowIdField)
           ? rowIdField[0] ?? 'id'
           : 'id';
-    registerAlertsSsrmLeafFetcher(platform, {
-      rowIdField: rowId,
-      fetch: () =>
-        getSsrmHandle()?.getGroupLeafRows({ groupKeys: [] }) ?? Promise.resolve([]),
-    });
-    return () => registerAlertsSsrmLeafFetcher(platform, null);
-  }, [platform, useSSRM, getSsrmHandle, rowIdField]);
+
+    if (useSSRM) {
+      registerAlertsSsrmLeafFetcher(platform, {
+        rowIdField: rowId,
+        fetch: () =>
+          getSsrmHandle()?.getGroupLeafRows({ groupKeys: [] }) ?? Promise.resolve([]),
+      });
+      return () => registerAlertsSsrmLeafFetcher(platform, null);
+    }
+
+    // The Perspective path reads it straight off the worker-held Table. This
+    // registration was previously skipped entirely, so a rescan there found no
+    // fetcher and silently seeded nothing.
+    const holder = (
+      api?.getGridOption('context') as
+        | { perspectiveEngineHolder?: { get(): { readAllRows(): Promise<Record<string, unknown>[] | null> } | null } }
+        | undefined
+    )?.perspectiveEngineHolder;
+    if (holder) {
+      registerAlertsSsrmLeafFetcher(platform, {
+        rowIdField: rowId,
+        fetch: async () => (await holder.get()?.readAllRows()) ?? [],
+      });
+      return () => registerAlertsSsrmLeafFetcher(platform, null);
+    }
+
+    registerAlertsSsrmLeafFetcher(platform, null);
+  }, [platform, useSSRM, getSsrmHandle, rowIdField, api]);
   const bundleAdapter =
     adapterRef.current instanceof LocalStorageBundleAdapter ? adapterRef.current : null;
   const bundleHandle = bundleAdapter

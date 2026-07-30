@@ -46,6 +46,7 @@ import {
   type RelativeChangeMode,
 } from '@starui/engine';
 import { useGridEngineKind, useGridPlatform } from '../../hooks/GridProvider';
+import { isServerSideEngine } from '../../../engine/types.js';
 import { useModuleState } from '../../hooks/useModuleState';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
 import { useSsrmCapabilityGate } from '../../hooks/useSsrmCapabilityGate';
@@ -169,7 +170,7 @@ export function AlertsSettingsBand({ settings, onChange }: AlertsSettingsBandPro
               data-testid="alerts-enabled-switch"
             />
           </div>
-          {engineKind === 'ssrm' && !alertsBlocked ? (
+          {isServerSideEngine(engineKind) && !alertsBlocked ? (
             <div className="space-y-1.5 py-1" data-testid="alerts-ssrm-fullbook">
               <p className="text-[11px] leading-relaxed text-[color:var(--ds-text-muted)]">
                 Day-to-day alerts use live deltas. Rescan seeds relativeChange
