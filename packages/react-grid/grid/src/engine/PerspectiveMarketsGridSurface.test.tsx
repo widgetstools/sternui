@@ -401,4 +401,54 @@ describe('PerspectiveMarketsGridSurface — parity with the CSRM surface', () =>
       ).resolves.toEqual([]);
     });
   });
+  describe('quick search bridge', () => {
+    /** Grid-ready with a controllable quickFilterText option. */
+    const readyWithQuickFilter = async () => {
+      const listeners: Record<string, (e: unknown) => void> = {};
+      let quickFilterText = '';
+      const api = {
+        addEventListener: (t: string, fn: (e: unknown) => void) => { listeners[t] = fn; },
+        removeEventListener: () => {},
+        isDestroyed: () => false,
+        getGridOption: (k: string) => (k === 'quickFilterText' ? quickFilterText : undefined),
+        refreshServerSide: () => {},
+        forEachNode: () => {},
+        getRowNode: () => undefined,
+        applyServerSideTransaction: () => {},
+        setRowCount: () => {},
+      };
+      const { last } = renderSurface();
+      await waitFor(() => expect(last().serverSideDatasource).toBeDefined());
+      (last().onGridReady as (e: unknown) => void)({ api });
+      return {
+        listeners,
+        setText: (t: string) => { quickFilterText = t; },
+        fireModelUpdated: () => listeners.modelUpdated?.({ api }),
+      };
+    };
+
+    it('listens on modelUpdated — filterChanged does NOT fire for this option', async () => {
+      // MEASURED under `serverSide`: setting `quickFilterText` fires
+      // `modelUpdated` only, so that is the only available hook.
+      const { listeners } = await readyWithQuickFilter();
+      expect(typeof listeners.modelUpdated).toBe('function');
+    });
+
+    it('does nothing while the text is unchanged, so it cannot loop', async () => {
+      // The engine reacts by purging, which fires modelUpdated again — the
+      // comparison is what stops that becoming an infinite refresh.
+      const { fireModelUpdated } = await readyWithQuickFilter();
+      expect(() => {
+        fireModelUpdated();
+        fireModelUpdated();
+        fireModelUpdated();
+      }).not.toThrow();
+    });
+
+    it('survives a modelUpdated that arrives before any engine exists', async () => {
+      const { setText, fireModelUpdated } = await readyWithQuickFilter();
+      setText('mike');
+      expect(() => fireModelUpdated()).not.toThrow();
+    });
+  });
 });

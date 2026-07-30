@@ -193,6 +193,29 @@ export const PerspectiveMarketsGridSurface = forwardRef<
   }, []);
 
   /**
+   * Bridge the quick search into the engine.
+   *
+   * `QuickSearch` pushes the text with `setGridOption('quickFilterText')`, which
+   * AG implements for the CLIENT-side row model only — under `serverSide` it is
+   * stored and otherwise ignored, so the box did nothing at all on this path.
+   *
+   * MEASURED: changing that option under `serverSide` fires **`modelUpdated`
+   * only** — not `filterChanged`, which is the event you would reach for. So
+   * that is the hook, and since `modelUpdated` also fires on every block load
+   * and every live refresh, the handler compares against the last value it
+   * acted on and does nothing the rest of the time. The engine's own purge then
+   * fires `modelUpdated` again, which is why that comparison is load-bearing
+   * rather than an optimisation: without it this would loop.
+   */
+  const lastQuickFilter = useRef('');
+  const onModelUpdated = useCallback((event: { api: GridApi }) => {
+    const next = (event.api.getGridOption('quickFilterText') ?? '') as string;
+    if (next === lastQuickFilter.current) return;
+    lastQuickFilter.current = next;
+    void holderRef.current?.get()?.setQuickFilter(next);
+  }, []);
+
+  /**
    * Set filters get their checkbox list from the Table, not from the rows this
    * window holds — it holds only the loaded blocks, so without this every
    * column filter menu is empty. Read through the holder so the list still
@@ -245,10 +268,12 @@ export const PerspectiveMarketsGridSurface = forwardRef<
       const liveApi = apiRef.current;
       if (liveApi && !liveApi.isDestroyed?.()) {
         liveApi.removeEventListener('cellValueChanged', onCellValueChanged);
+        liveApi.removeEventListener('modelUpdated', onModelUpdated);
       }
     },
-    [onCellValueChanged],
+    [onCellValueChanged, onModelUpdated],
   );
+
 
   /**
    * Default to the Perspective status bar, but never override a host that
@@ -362,6 +387,7 @@ export const PerspectiveMarketsGridSurface = forwardRef<
           apiRef.current = event.api;
           engine?.setApi(event.api as never);
           event.api.addEventListener('cellValueChanged', onCellValueChanged);
+          event.api.addEventListener('modelUpdated', onModelUpdated);
           props.onGridReady?.(event);
         }}
         onGridPreDestroyed={props.onGridPreDestroyed}
