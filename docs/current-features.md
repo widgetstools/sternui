@@ -486,7 +486,15 @@ Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are
 - **Visual Excel** — WYSIWYG `.xlsx` export preserving display formatters and
   conditional style-rule colours. Engine: `buildVisualExcelStyles`,
   `applyFormatExcelClasses`, `exportVisualExcel` (via `api.exportDataAsExcel` +
-  `processCellCallback`). Primary toolbar spreadsheet icon when enabled.
+  `processCellCallback`). On the **Perspective** path that api can only see the
+  block cache — measured at 100 rows of a 20,000-row book — so the export reads
+  the book with `engine.readAllRows()` and writes it through a **detached
+  client-side grid** carrying the same column defs and column state, keeping
+  AG's own Excel writer (and therefore the formatters and style colours) while
+  covering every row. Destroyed in a `finally`; an only-selected export keeps the
+  original path, since selection lives on the row nodes this grid holds. A book
+  past the export ceiling is reported via `onError` rather than written short.
+  Primary toolbar spreadsheet icon when enabled.
   Settings panel: **Visual Excel**. Lab: **Visual Excel** tab (`lab-visual-excel-v1`).
 - **Editing family (overview)** — five customizer modules share a cell-patch
   journal (`EditJournal` in `@starui/engine`). React wiring: `recordEdit.ts`
@@ -616,6 +624,7 @@ lifecycle rules live in the package's `ARCHITECTURE.md`.
   (default 1000), because the recount is driven by AG's `modelUpdated` — several
   times a second — and each answer costs a full-book View in the engine the read
   path queues behind
+- `engine.readAllRows()` — every row of the current filtered, sorted book, flat; the one operation on this path that materializes the whole thing, for Excel export. Builds a transient View from the last **root** request so the file carries the sort, column filters and quick search on screen, reads it in 10,000-row chunks (a single `to_columns` over 20,000 × 26 would cross the proxy as one message), and flattens grouping — an export wants leaf rows, not a group tree. Past `maxExportRows` (default 200,000) it resolves **null** rather than truncating, because a short spreadsheet is indistinguishable from a complete one once opened
 - `engine.setQuickFilter(text)` — the quick-search box, which did nothing at all on this path: `QuickSearch` pushes `setGridOption('quickFilterText', …)` and AG implements that for the **client-side row model only**. The text is compiled into one boolean expression column (`toQuickFilterExpression` / `sanitizeQuickFilterTerm`) plus a clause selecting on it, because AG's per-token OR across columns cannot be a Perspective clause list (they are conjunctive). Searches **text columns only** by default — one `match()` per column per token, recomputed on every Table update while the View lives, made 26 columns × 2 tokens unusable on a live 20,000-row book; `quickFilterAllColumns` opts back in. Input is **sanitized, not escaped**: `match()` takes a regex and a lone `(` aborts the View build even backslash-escaped, so anything with regex or quoting meaning becomes `.`. Always purges, since AG does not know this filter exists and would keep serving pre-search blocks
 - `engine.distinctValues(colId)` — every distinct value in a column, for an AG
   set filter's checkbox list. A set filter builds that list from the row data,
