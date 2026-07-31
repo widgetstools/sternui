@@ -132,17 +132,28 @@ export function useLabPerspectiveRows(
     { enabled: seeded },
   );
 
-  // Row count reads the Table, because this window does not hold the book.
+  /**
+   * Row count reads the Table, because this window does not hold the book.
+   *
+   * Polled SLOWLY and on purpose. Every `size()` is a round trip on the same
+   * ProxySession the block reads use, and the engine serializes requests — a
+   * one-second poll puts a call in front of the blocks a scroll is waiting on,
+   * for a number that only changes when the provider restarts. The Demo
+   * Console reads it through `getRowCount()` on demand as well, so a stale
+   * few seconds costs nothing visible.
+   */
   useEffect(() => {
     if (!table) return;
     let live = true;
     const read = () => {
       void Promise.resolve(table.size?.()).then((n) => {
+        // Identical values bail out of React's update, so a steady book does
+        // not re-render the tab at all.
         if (live && typeof n === 'number') setRowCount(n);
       });
     };
     read();
-    const timer = setInterval(read, 1_000);
+    const timer = setInterval(read, 10_000);
     return () => {
       live = false;
       clearInterval(timer);
