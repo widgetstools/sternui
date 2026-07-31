@@ -5,7 +5,6 @@ import { InspectorDrawer } from '../components/InspectorDrawer';
 import { defaultColDef } from '../data/columns';
 import { useLabDemoProfiles } from '../data/useLabDemoProfiles';
 import { labStorage } from '../data/storage';
-import { useLabDemoRegistry } from '../demo/LabDemoContext';
 import { useLabRows } from '../demo/useLabRows';
 import { getFeatureGuide } from '../guides/featureGuides';
 import { buildConfigBlocks } from '../guides/buildConfigBlocks';
@@ -22,7 +21,6 @@ export interface LabFeatureTabProps {
  * drawer (What/Why · Try · Config · Props) sourced from the feature guide.
  */
 export function LabFeatureTab({ config }: LabFeatureTabProps) {
-  const { useSSRM, setUseSSRM } = useLabDemoRegistry();
   const onProfilesReady = useLabDemoProfiles(
     config.gridId,
     config.profiles,
@@ -49,19 +47,12 @@ export function LabFeatureTab({ config }: LabFeatureTabProps) {
     : config.subtitle;
 
   const grid = config.grid ?? {};
-  const suggestAbove =
-    config.tabId === 'stress' ? 10_000 : undefined;
-
   return (
     <TabContainer title={config.title} subtitle={subtitle} help={config.help}>
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col">
           <MarketsGrid
-            key={useSSRM ? 'ssrm' : 'csrm'}
             gridId={config.gridId}
-            useSSRM={useSSRM}
-            suggestSsrmAbove={suggestAbove}
-            onSuggestSsrm={() => setUseSSRM(true)}
             componentName={config.componentName}
             rowData={rowData}
             columnDefs={columnDefs}
@@ -80,8 +71,7 @@ export function LabFeatureTab({ config }: LabFeatureTabProps) {
             showEditHistoryToolbar={grid.showEditHistoryToolbar}
             showVisualExcelExport={grid.showVisualExcelExport}
             sideBar={grid.sideBar}
-            // Under SSRM omit so SSRMGrid's native-looking server count panels are used.
-            statusBar={useSSRM ? undefined : (grid.statusBar ?? LAB_STATUS_BAR)}
+            statusBar={grid.statusBar ?? LAB_STATUS_BAR}
             rowHeight={grid.rowHeight}
             animateRows={grid.animateRows}
           />

@@ -315,8 +315,6 @@ export const FEATURE_GUIDES: Record<string, FeatureGuide> = {
       { name: 'stream.rowCount', type: 'number', default: '50000', note: 'Mock FI positions snapshot size.' },
       { name: 'stream.enableUpdates', type: 'boolean', default: 'true', note: 'High-tick stress (Phase 4c).' },
       { name: 'stream.updateIntervalMs', type: 'number', default: '200', note: 'Tick interval; Demo Console can override.' },
-      { name: 'useSSRM', type: 'boolean', default: 'false', note: 'Header toggle — remounts MarketsGrid on SSRMGrid.' },
-      { name: 'rowModel', type: "'client' | 'server'", default: "'client'", note: 'Alias for useSSRM (server ≡ true).' },
       { name: 'sideBar', type: "{ toolPanels: ['columns','filters'] }", note: 'Columns + Filters tool panels.' },
       showProfileSelector, showSaveButton, showSettingsButton,
     ],

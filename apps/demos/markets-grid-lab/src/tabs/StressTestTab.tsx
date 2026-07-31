@@ -10,7 +10,6 @@ import {
 } from '../data/stressColumns';
 import { useLabDemoProfiles } from '../data/useLabDemoProfiles';
 import { labStorage } from '../data/storage';
-import { useLabDemoRegistry } from '../demo/LabDemoContext';
 import { useLabRows } from '../demo/useLabRows';
 import { getFeatureGuide } from '../guides/featureGuides';
 import { buildConfigBlocks } from '../guides/buildConfigBlocks';
@@ -34,7 +33,7 @@ type StressSurface =
   | 'markets';
 
 const VARIANTS = [
-  { id: 'markets-50k40', label: 'MarketsGrid SSRM · 50k × 40' },
+  { id: 'markets-50k40', label: 'MarketsGrid · 50k × 40' },
   { id: 'plain-20k40', label: 'Plain AG Grid · 20k × 40' },
   { id: 'perspective-20k40', label: 'Perspective · 20k × 40' },
   { id: 'plain-50k400', label: 'Plain AG Grid · 50k × 400' },
@@ -48,7 +47,6 @@ const VARIANTS = [
 export function StressTestTab() {
   const config = STRESS_TEST_FEATURE;
   const [surface, setSurface] = useState<StressSurface>('markets-50k40');
-  const { useSSRM, setUseSSRM } = useLabDemoRegistry();
 
   const onProfilesReady = useLabDemoProfiles(
     config.gridId,
@@ -132,7 +130,7 @@ export function StressTestTab() {
   const subtitle = (() => {
     switch (surface) {
       case 'markets-50k40':
-        return `MarketsGrid CustomSSRM · ${CUSTOM_STRESS_ROWS.toLocaleString()} × ${CUSTOM_STRESS_COLS} · ticks off · scroll focus`;
+        return `MarketsGrid CSRM · ${CUSTOM_STRESS_ROWS.toLocaleString()} × ${CUSTOM_STRESS_COLS} · ticks off · scroll focus`;
       case 'perspective-20k40':
         return `FINOS Perspective viewer · ${BASELINE_ROWS.toLocaleString()} × ${BASELINE_COLS} · ticks off`;
       case 'plain-20k40':
@@ -145,14 +143,10 @@ export function StressTestTab() {
   })();
 
   const grid = config.grid ?? {};
-  const suggestAbove = 10_000;
 
   const onVariantChange = useCallback((id: string) => {
-    if (VARIANTS.some((v) => v.id === id)) {
-      setSurface(id as StressSurface);
-      if (id === 'markets-50k40') setUseSSRM(true);
-    }
-  }, [setUseSSRM]);
+    if (VARIANTS.some((v) => v.id === id)) setSurface(id as StressSurface);
+  }, []);
 
   return (
     <TabContainer
@@ -184,11 +178,7 @@ export function StressTestTab() {
           )}
           {isMarkets && (
             <MarketsGrid
-              key={`${surface}-${useSSRM ? 'ssrm' : 'csrm'}`}
               gridId={isMarkets50k40 ? `${config.gridId}-50k40` : config.gridId}
-              useSSRM={useSSRM}
-              suggestSsrmAbove={suggestAbove}
-              onSuggestSsrm={() => setUseSSRM(true)}
               componentName={config.componentName}
               rowData={rowData}
               columnDefs={columnDefs}
@@ -217,7 +207,7 @@ export function StressTestTab() {
               showEditHistoryToolbar={grid.showEditHistoryToolbar}
               showVisualExcelExport={isMarkets50k40 ? false : grid.showVisualExcelExport}
               sideBar={isMarkets50k40 ? false : grid.sideBar}
-              statusBar={useSSRM ? undefined : (grid.statusBar ?? LAB_STATUS_BAR)}
+              statusBar={grid.statusBar ?? LAB_STATUS_BAR}
               rowHeight={grid.rowHeight}
               animateRows={false}
             />

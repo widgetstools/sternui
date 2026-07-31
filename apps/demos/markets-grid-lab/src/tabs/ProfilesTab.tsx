@@ -5,7 +5,6 @@ import { Button } from '@starui/ui';
 import { TabContainer } from '../components/TabContainer';
 import { defaultColDef } from '../data/columns';
 import { useLabDemoProfiles } from '../data/useLabDemoProfiles';
-import { useLabDemoRegistry } from '../demo/LabDemoContext';
 import { useLabRows } from '../demo/useLabRows';
 import { labStorage } from '../data/storage';
 import { HELP } from '../help';
@@ -86,7 +85,6 @@ function PresetGridView({
   preset: ProfilePreset;
   onBack: () => void;
 }) {
-  const { useSSRM } = useLabDemoRegistry();
   const stream = preset.stream ?? {};
   const installDemoProfiles = useLabDemoProfiles(
     preset.id,
@@ -128,9 +126,7 @@ function PresetGridView({
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <MarketsGrid
-          key={`${preset.id}-${useSSRM ? 'ssrm' : 'csrm'}`}
           gridId={preset.id}
-          useSSRM={useSSRM}
           componentName={preset.name}
           rowData={rowData}
           columnDefs={columnDefs}
@@ -145,7 +141,7 @@ function PresetGridView({
           showProfileSelector
           showSaveButton
           showSettingsButton
-          statusBar={useSSRM ? undefined : LAB_STATUS_BAR}
+          statusBar={LAB_STATUS_BAR}
         />
       </div>
     </TabContainer>
