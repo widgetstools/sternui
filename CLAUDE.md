@@ -60,7 +60,7 @@ architecture buckets (see
 > `ANGULAR_MEMBERS`), and skipped by `scripts/build-app-track.mjs`
 > (`isAngularApp`). The source dirs still exist; re-add the workspace globs to
 > bring Angular back. `build:packages` builds 23 packages; `build:apps` builds
-> 16 apps.
+> 17 apps.
 
 **Apps** live under `apps/` and consume libraries via npm
 workspace `"*"` deps.

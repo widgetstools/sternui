@@ -1,0 +1,6 @@
+{
+  "appId": "perspective-ssrm-lab",
+  "userId": "dev1",
+  "useRest": false,
+  "seedConfigUrl": "/seed-config.json"
+}

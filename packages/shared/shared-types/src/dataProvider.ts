@@ -17,6 +17,13 @@ export const PROVIDER_TYPES = {
   WEBSOCKET: 'websocket',
   SOCKETIO: 'socketio',
   MOCK: 'mock',
+  /**
+   * The generated mock book delivered through a Perspective Table, standing to
+   * `mock` as `stomp-perspective` stands to `stomp`. Lets the Perspective row
+   * engine be driven with no broker, so an app and its CSRM twin can run the
+   * same columns and profiles over the same data.
+   */
+  MOCK_PERSPECTIVE: 'mock-perspective',
   APPDATA: 'appdata'
 } as const;
 
@@ -32,6 +39,7 @@ export const PROVIDER_TYPE_TO_COMPONENT_SUBTYPE: Record<ProviderType, string> = 
   [PROVIDER_TYPES.WEBSOCKET]: 'websocket',
   [PROVIDER_TYPES.SOCKETIO]: 'socketio',
   [PROVIDER_TYPES.MOCK]: 'mock',
+  [PROVIDER_TYPES.MOCK_PERSPECTIVE]: 'mock-perspective',
   [PROVIDER_TYPES.APPDATA]: 'appdata'
 };
 
@@ -45,6 +53,7 @@ export const COMPONENT_SUBTYPE_TO_PROVIDER_TYPE: Record<string, ProviderType> = 
   'websocket': PROVIDER_TYPES.WEBSOCKET,
   'socketio': PROVIDER_TYPES.SOCKETIO,
   'mock': PROVIDER_TYPES.MOCK,
+  'mock-perspective': PROVIDER_TYPES.MOCK_PERSPECTIVE,
   'appdata': PROVIDER_TYPES.APPDATA,
   // Capitalized (backward compatibility)
   'Stomp': PROVIDER_TYPES.STOMP,
@@ -430,6 +439,51 @@ export interface MockProviderConfig {
 }
 
 /**
+ * Mock-over-Perspective Provider Configuration
+ *
+ * The same generated book as {@link MockProviderConfig} — same universe, same
+ * tick behaviour — teed into a Perspective Table that lives once in the
+ * worker. Stands to `mock` exactly as `stomp-perspective` stands to `stomp`.
+ *
+ * It exists so the Perspective row engine can be exercised against a book the
+ * app already understands, without a broker. That makes a Perspective app and
+ * its CSRM twin a genuine A/B pair: same columns, same profiles, same
+ * scenarios, so any difference between them is the engine and nothing else.
+ *
+ * **Rows reaching a Table must be FLAT**, because a Perspective schema is a
+ * flat map of typed columns. The mock positions row is deeply nested (ratings,
+ * key-rate durations, exposure breakdowns), so `rowShape: 'ssrm'` and
+ * `columnDefinitions` are effectively required here — the transport defaults
+ * `rowShape` to `'ssrm'` for exactly this reason.
+ */
+export interface MockPerspectiveProviderConfig
+  extends Omit<MockProviderConfig, 'providerType'> {
+  providerType: 'mock-perspective';
+  /**
+   * Name the Table is hosted under; windows open it by this id. Defaults to
+   * the provider id, which is what makes one Table per provider.
+   */
+  tableName?: string;
+  /** Columns to declare `integer` rather than `float` — see the STOMP twin. */
+  integerColumns?: string[];
+  /** Map ISO date/datetime strings onto Perspective date types. Default true. */
+  inferDates?: boolean;
+  /**
+   * Declared column types, preferred over `columnDefinitions` when present:
+   * a `FieldInfo` carries a real type where a column def carries a renderer
+   * hint. With it the Table is created EMPTY and immediately, so a blotter
+   * paints on open instead of waiting for the first snapshot.
+   */
+  inferredFields?: FieldInfo[];
+  /**
+   * Build the Table after this many buffered rows even if no snapshot end
+   * token arrives. The mock provider always sends one, so this is only a
+   * backstop.
+   */
+  buildAfterRows?: number;
+}
+
+/**
  * AppData Variable
  */
 export interface AppDataVariable {
@@ -474,6 +528,7 @@ export type ProviderConfig =
   | WebSocketProviderConfig
   | SocketIOProviderConfig
   | MockProviderConfig
+  | MockPerspectiveProviderConfig
   | AppDataProviderConfig;
 
 /**
@@ -639,6 +694,23 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, Partial<ProviderConf
     updateInterval: 2000,
     rowCount: 20,
     enableUpdates: true
+  },
+  'mock-perspective': {
+    providerType: 'mock-perspective',
+    dataType: 'positions',
+    updateInterval: 2000,
+    rowCount: 20,
+    enableUpdates: true,
+    // A Perspective schema is a flat map of typed columns and the mock
+    // positions row is deeply nested, so the flatten is not optional here —
+    // see the interface docs. `columnDefinitions` must be supplied for it.
+    rowShape: 'ssrm',
+    columnDefinitions: [],
+    inferredFields: [],
+    // Numeric columns are float unless named here; inference must not choose
+    // `integer`, which silently truncates.
+    integerColumns: [],
+    inferDates: true
   },
   appdata: {
     providerType: 'appdata',

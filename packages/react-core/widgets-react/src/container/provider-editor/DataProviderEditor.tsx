@@ -45,6 +45,12 @@ const PROVIDER_TYPE_META: Record<ProviderType, { label: string; description: str
   websocket: { label: 'WebSocket', description: 'Raw WebSocket, framed by you.', icon: Radio },
   socketio: { label: 'Socket.IO', description: 'Socket.IO event-driven channel.', icon: Radio },
   mock: { label: 'Mock', description: 'In-memory dummy stream — for dev/tests.', icon: TestTube2 },
+  'mock-perspective': {
+    label: 'Mock (Perspective)',
+    description:
+      'Same generated stream, held once in the worker as a Perspective Table — each blotter reads only its viewport. No broker needed.',
+    icon: TestTube2,
+  },
   appdata: { label: 'AppData', description: 'Key/value store referenced by other providers via {{name.key}}.', icon: Database },
 };
 
