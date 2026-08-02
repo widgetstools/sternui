@@ -37,7 +37,7 @@ if (variant) {
 }
 await page.waitForSelector('.ag-row', { timeout: 180_000 });
 // Let the book settle and any first-render churn finish.
-await page.waitForTimeout(8000);
+await page.waitForTimeout(Number(opt('settle', '8000')));
 
 const installed = await page.evaluate((noBadge) => {
   const el = document.querySelector('.ag-root-wrapper');
@@ -59,6 +59,47 @@ const installed = await page.evaluate((noBadge) => {
   const log = [];
   const t = () => Math.round(performance.now());
   window.__probe = { log, api, t0: null };
+
+  // The Perspective Table itself, so a View BUILD can be told apart from the
+  // read that follows it — `viewManager` reports that split through `onEvent`,
+  // which nothing on this surface subscribes to.
+  let table = null;
+  for (let g = el[k]; g && !table; g = g.return) {
+    const cand = g.memoizedProps?.table;
+    if (cand && typeof cand.view === 'function') table = cand;
+  }
+  if (table && !table.__probeWrapped) {
+    const view = table.view.bind(table);
+    table.view = async (config) => {
+      const s = performance.now();
+      const shape = `by=[${(config?.group_by || []).join('+')}] f=[${(config?.filter || []).map((c) => `${c[0]}${c[1]}${c[2] ?? ''}`).join('+')}] agg=${Object.keys(config?.aggregates || {}).length} ex=${Object.keys(config?.expressions || {}).join('+')}`;
+      const stack = (new Error().stack || '').split(String.fromCharCode(10)).slice(2, 6).map((l) => l.trim().replace(/^at /, '').split(' ')[0]).join('<');
+      log.push({ at: t(), ev: 'view:start', shape, stack });
+      const v = await view(config);
+      const built = Math.round(performance.now() - s);
+      log.push({ at: t(), ev: 'view:built', ms: built, shape });
+      if (typeof v?.num_rows === 'function') {
+        const nr = v.num_rows.bind(v);
+        v.num_rows = async () => {
+          const s2 = performance.now();
+          const n = await nr();
+          log.push({ at: t(), ev: 'view:num_rows', ms: Math.round(performance.now() - s2), n });
+          return n;
+        };
+      }
+      if (typeof v?.to_columns === 'function') {
+        const tc = v.to_columns.bind(v);
+        v.to_columns = async (w) => {
+          const s2 = performance.now();
+          const c = await tc(w);
+          log.push({ at: t(), ev: 'view:to_columns', ms: Math.round(performance.now() - s2) });
+          return c;
+        };
+      }
+      return v;
+    };
+    table.__probeWrapped = true;
+  }
 
   for (const ev of ['filterChanged', 'modelUpdated', 'storeRefreshed', 'storeUpdated']) {
     try {
@@ -184,5 +225,26 @@ for (const e of out.log) {
     .join(' ');
   console.log(`${String(rel).padStart(6)}  ${e.ev.padEnd(16)} ${extra}`);
 }
+
+// ─── Summary — the numbers the three candidates are told apart by ──────────
+const first = (pred) => out.log.find(pred);
+const rel = (e) => (e ? e.at - t0 : null);
+const filterChanged = first((e) => e.ev === 'filterChanged');
+const dsStart = first((e) => e.ev === 'getRows:start');
+const dsDone = first((e) => e.ev === 'getRows:success');
+// The paint that matters is the burst after the store was refilled, not the
+// one-row churn a live tick causes before the filter has even been pushed.
+const paint = out.log.find((e) => e.ev === 'rows+' && e.n > 3 && dsDone && e.at >= dsDone.at);
+const countsInWindow = out.log.filter(
+  (e) => e.ev === 'count:end' && (!paint || e.at <= paint.at),
+);
+const countMs = countsInWindow.reduce((a, e) => a + (e.ms ?? 0), 0);
+
+console.log('\n=== summary (ms after the click) ===');
+console.log(`  toolbar debounce   click -> filterChanged   ${rel(filterChanged)}`);
+console.log(`  first block asked  click -> getRows:start   ${rel(dsStart)}`);
+console.log(`  View + read        getRows ms               ${dsDone?.ms ?? null} (${dsDone?.rows ?? '?'} rows of ${dsDone?.rowCount ?? '?'})`);
+console.log(`  rows on screen     click -> paint burst     ${rel(paint)}`);
+console.log(`  badge engine work  sum of countMatching ms  ${countMs} over ${countsInWindow.length} calls`);
 
 await browser.close();

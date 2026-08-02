@@ -615,14 +615,29 @@ lifecycle rules live in the package's `ARCHITECTURE.md`.
   cascade into child stores), and the grand-total transaction (`grandTotalData`
   creates that row but never updates it). `setApi` connects the grid,
   `setLive` pauses re-reads, `close` tears the Views down. Describes the grid
-  api structurally, so the package still has no AG Grid dependency
+  api structurally, so the package still has no AG Grid dependency.
+  **Block reads have priority over every other question.** The engine counts
+  blocks in flight and holds `countMatching` / `countMatchingExpression` /
+  `aggregateScalar` / `distinctValues` until the grid is idle (capped at 1.5 s,
+  or a live feed's four-a-second re-reads would starve every badge). MEASURED on
+  a 50k x 400 grouped book, one saved-filter pill click: the block the user is
+  waiting for settled in **1,044 ms against 5,031 ms**, and badge engine work
+  over the same window fell from **41.7 s to 1.8 s**, because a pill badge, a
+  checkbox list and a rule count are answers ABOUT the book that can trail it
+  while rows arriving late cannot. Two costs on the same critical path went with
+  it: a block whose root request has been superseded now carries no grand total
+  (the datasource hands `getGrandTotal` the same object it handed `getView`, so
+  identity against the current root request is an exact staleness test), and the
+  throttled total push reads `liveOnly` — it will not BUILD a View for a shape
+  the grid has moved off
 - `engine.countMatching(filterModel)` — rows the whole book matches under an AG
   filter model, for the saved-filter pills' count badges. Resolves **null**, not
   a number, when the model has a clause Perspective cannot express exactly, so
   the badge is absent rather than confidently wrong. Cached: a resolved count is
   reused until the Table moves and then no sooner than `countMinIntervalMs`
-  (default 1000), because the recount is driven by AG's `modelUpdated` — several
-  times a second — and each answer costs a full-book View in the engine the read
+  (default **5000**), because the recount is driven by AG's `modelUpdated` —
+  several times a second — and each answer costs a full-book View in the engine
+  the read
   path queues behind
 - Alerts **full-book rescan** now has a source on the Perspective path. Alerts evaluate on live deltas, which only carry the rows a window holds, so seeding `relativeChange` baselines needs the whole filtered book — and `registerAlertsSsrmLeafFetcher` was gated on `useSSRM`, registering `null` here, so a rescan found no fetcher and silently seeded nothing. It now registers a fetcher backed by `engine.readAllRows()`, and `AlertsPanel`'s rescan block is gated on `isServerSideEngine(engineKind)` rather than `=== 'ssrm'`, so it appears for both server-side engines
 - `engine.setCalcExpressions(map)` — publishes MarketsGrid's calculated columns as Perspective expression columns, so their values feed **sort, filter, group and aggregate** server-side (all verified first-class against 4.5.2). The map was plumbed through `toPerspectiveViewConfig` from the start but nothing populated it, so a calculated column was simply absent on this path. Expressions are **validated first** via `table.validate_expressions()` and the failures dropped and reported through `onError` — one bad expression makes `table.view()` throw and blanks the *whole* grid rather than hiding one column. A validator that itself fails keeps everything. Carried into `shapeOf` (so changing a calc column retires the Views built without it) and into the transient Views behind `countMatching` / `distinctValues`, since a saved or set filter may be on a calculated column

@@ -59,7 +59,15 @@ export interface PerspectiveRowEngineOpts {
   keyColumn: string;
   /** Coalesce Table updates into at most one refresh per this many ms. */
   refreshMs?: number;
-  /** Floor on how often a saved-filter count is recomputed. See `countMatching`. */
+  /**
+   * Floor on how often a saved-filter count is recomputed. See `countMatching`.
+   *
+   * MEASURED on the 50k x 400 stress book: one count costs a whole-book View of
+   * 0.7-1.0 s, six pills are recounted together on every filter change, and a
+   * one-second floor let 24 of them run in a six-second window — 14 s of engine
+   * work, in the engine the block reads queue behind. A pill badge is context,
+   * not a number anyone acts on per tick, so the floor is generous.
+   */
   countMinIntervalMs?: number;
   /** Floor on how often a set filter's value list is rebuilt. */
   valuesMinIntervalMs?: number;
@@ -304,7 +312,7 @@ export function createPerspectiveRowEngine(
     table,
     keyColumn,
     refreshMs = 250,
-    countMinIntervalMs = 1000,
+    countMinIntervalMs = 5000,
     valuesMinIntervalMs = 30_000,
     maxSetFilterValues = 50_000,
     quickFilterAllColumns = false,
@@ -567,14 +575,42 @@ export function createPerspectiveRowEngine(
   async function pushGrandTotal(): Promise<void> {
     if (api === null || closed) return;
     if (!api.getRowNode(GRAND_TOTAL_ROW_ID)) return;
-    const total = await grandTotalFor(lastRootRequest);
-    if (total && api !== null) api.applyServerSideTransaction({ update: [total] });
+    // `liveOnly`: keeping an existing total moving is worth reading a View the
+    // grid already holds, and nothing more. Building one costs the same as a
+    // block on a wide book, and a shape that has no live View is one the grid
+    // has moved off — its next block brings the total with it.
+    const request = lastRootRequest;
+    const total = await grandTotalFor(request, true);
+    // The purge that follows a filter change destroys this row (MEASURED:
+    // absent 50 ms after the filter, back at ~1 s when the block arrives), so
+    // re-check rather than transacting against a row that is gone.
+    if (
+      total &&
+      api !== null &&
+      request === lastRootRequest &&
+      api.getRowNode(GRAND_TOTAL_ROW_ID)
+    ) {
+      api.applyServerSideTransaction({ update: [total] });
+    }
   }
 
   async function grandTotalFor(
     request: SsrmRequestLike,
+    liveOnly = false,
   ): Promise<Record<string, unknown> | null> {
-    const total = await views.readGrandTotal(request);
+    // A superseded root request gets no total.
+    //
+    // MEASURED on the 50k x 400 stress book: clicking a filter pill left a
+    // block from the OUTGOING filter still in flight, and that block's grand
+    // total built a whole extra View — `by=[assetClass] f=[] agg=7`, 1,310 ms —
+    // for a row the grid was about to replace, in the same serialized engine
+    // the block the user is actually waiting for had to queue behind. The
+    // datasource passes the very object it handed `getView`, so identity
+    // against `lastRootRequest` is an exact test for "a newer root block has
+    // since arrived" — no shape comparison needed. `pushGrandTotal` passes
+    // `lastRootRequest` itself and is therefore never refused.
+    if (request !== lastRootRequest) return null;
+    const total = await views.readGrandTotal(request, { liveOnly });
     if (!total) return null;
     // The caption goes on the key column: it is the one AG never hides, while
     // a grouped column disappears and the auto-group column renders nothing
@@ -600,7 +636,65 @@ export function createPerspectiveRowEngine(
     }, refreshMs);
   }
 
-  const datasource = createPerspectiveDatasource({
+  /**
+   * Block reads come first; every other question waits for a gap.
+   *
+   * MEASURED on the 50k x 400 stress book, one filter-pill click: the block the
+   * user is waiting for built its own View in 745 ms and did not settle for
+   * 3,045 ms, because a set-filter value list (680 ms) and a stale grand total
+   * (1,310 ms) were building in the same engine — which serializes every
+   * request over one ProxySession. The badge counts are the same story at
+   * scale: 24 whole-book Views in a six-second window, 14 s of engine work.
+   *
+   * None of those are what the user is looking at. A pill badge, a checkbox
+   * list and a style-rule count are all answers ABOUT the book that can trail
+   * it by a beat without anyone noticing; rows arriving late are noticed
+   * immediately. This is the same trade the scroll-pause already makes in
+   * `PerspectiveMarketsGridSurface`, applied to the other direction of
+   * contention.
+   *
+   * Bounded, because a live feed re-reads its blocks four times a second and a
+   * strict "wait for idle" would starve every badge on this surface forever.
+   * After the cap the question is asked anyway.
+   *
+   * **What this does NOT cover, measured rather than assumed:** a badge asked
+   * for BEFORE the block exists. Clicking a pill re-renders the toolbar and all
+   * six counts are requested at **6 ms**, while AG does not issue the block for
+   * the new filter until **39 ms** — so the gate is open when they ask. That
+   * gap is closed by the count floor instead (`countMinIntervalMs`), not by a
+   * look-ahead delay here: an unconditional wait before every background read
+   * makes an idle blotter slower to draw its badges for no gain.
+   */
+  const BACKGROUND_MAX_WAIT_MS = 1500;
+  let blocksInFlight = 0;
+  const idleWaiters = new Set<() => void>();
+
+  function blockSettled(): void {
+    blocksInFlight = Math.max(0, blocksInFlight - 1);
+    if (blocksInFlight > 0) return;
+    const waiting = [...idleWaiters];
+    idleWaiters.clear();
+    for (const resolve of waiting) resolve();
+  }
+
+  function untilIdle(maxWaitMs: number): Promise<void> {
+    if (blocksInFlight === 0 || closed) return Promise.resolve();
+    return new Promise((resolve) => {
+      const release = () => {
+        clearTimeout(timer);
+        idleWaiters.delete(release);
+        resolve();
+      };
+      const timer = setTimeout(release, maxWaitMs);
+      idleWaiters.add(release);
+    });
+  }
+
+  function whenBlocksIdle(): Promise<void> {
+    return untilIdle(BACKGROUND_MAX_WAIT_MS);
+  }
+
+  const rawDatasource = createPerspectiveDatasource({
     getView: async (request) => {
       grouped =
         (request.rowGroupCols?.length ?? 0) > 0 || (treeFields?.length ?? 0) > 0;
@@ -626,6 +720,38 @@ export function createPerspectiveRowEngine(
       onError?.(error);
     },
   });
+
+  /**
+   * Count blocks in flight, so background reads can yield to them.
+   *
+   * Wrapping rather than reporting from inside the datasource keeps RULE 1
+   * where it belongs: the wrapper settles exactly when the inner one does,
+   * because it only decorates the two callbacks that can end a block.
+   */
+  const datasource: PerspectiveDatasource = {
+    getRows(params) {
+      blocksInFlight += 1;
+      let settled = false;
+      const once = () => {
+        if (settled) return false;
+        settled = true;
+        blockSettled();
+        return true;
+      };
+      const { success, fail } = params;
+      rawDatasource.getRows({
+        ...params,
+        success: (result) => {
+          once();
+          success(result);
+        },
+        fail: () => {
+          once();
+          fail();
+        },
+      });
+    },
+  };
 
   return {
     datasource,
@@ -715,7 +841,9 @@ export function createPerspectiveRowEngine(
 
       // A count must never break the grid, and a rejection would be read as
       // zero — a wrong number rather than a missing one.
-      const value = views.countMatching(filterModel).catch(() => null);
+      const value = whenBlocksIdle()
+        .then(() => (closed ? null : views.countMatching(filterModel)))
+        .catch(() => null);
       counts.set(key, value);
       return value;
     },
@@ -734,8 +862,8 @@ export function createPerspectiveRowEngine(
       const cached = ruleCounts.get(key);
       if (cached) return cached;
 
-      const value = views
-        .countMatchingExpression(source, lastRootRequest)
+      const value = whenBlocksIdle()
+        .then(() => (closed ? null : views.countMatchingExpression(source, lastRootRequest)))
         .catch(() => null);
       ruleCounts.set(key, value);
       return value;
@@ -752,8 +880,8 @@ export function createPerspectiveRowEngine(
       const cached = scalars.get(key);
       if (cached) return cached;
 
-      const value = views
-        .aggregateScalar(colId, aggregate, lastRootRequest)
+      const value = whenBlocksIdle()
+        .then(() => (closed ? null : views.aggregateScalar(colId, aggregate, lastRootRequest)))
         .catch(() => null);
       scalars.set(key, value);
       return value;
@@ -846,8 +974,8 @@ export function createPerspectiveRowEngine(
       const cached = values.get(colId);
       if (cached) return cached;
 
-      const value = views
-        .distinctValues(colId, maxSetFilterValues)
+      const value = whenBlocksIdle()
+        .then(() => (closed ? null : views.distinctValues(colId, maxSetFilterValues)))
         .then((list) => {
           if (list === null) {
             // Not a silent truncation: the filter list stays empty and the

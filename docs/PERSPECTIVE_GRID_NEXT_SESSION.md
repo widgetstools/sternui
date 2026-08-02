@@ -43,13 +43,25 @@ The first three came from the user in one message and are **unstarted**. Each
 needs MEASUREMENT before any code change; see "Method" below for why that is not
 optional advice.
 
-## 1. Filter pill takes a while to apply · smallest, start here
+## 1. Filter pill takes a while to apply · DONE
 
-**Symptom:** clicking a saved-filter pill in the lab has a visible lag before
-the grid updates.
+**MEASURED and fixed.** On the 50k x 400 stress tab the block that shows the
+filtered rows settled in **5,031 ms**; it now settles in **1,044 ms**, and badge
+engine work over the same window fell from **41.7 s to 1.8 s**. On a 500-row tab
+the click was 83 ms before and 110 ms after — there was never anything to see
+there, which is why this only reproduced on the stress tab.
 
-**Not yet measured.** Candidates, which need separating rather than guessing
-between:
+None of the three candidates below was the answer on its own. What the timeline
+showed is that everything crosses ONE serialized engine, and the block the user
+waits for was queued behind a set-filter value list (680 ms), a grand total for
+the filter being replaced (1,310 ms) and six pill badges. Fixes: background
+questions yield to blocks (capped at 1.5 s), a superseded root request gets no
+grand total, the throttled total push will not BUILD a View, and the count floor
+went 1 s -> 5 s. Full table in the package
+[`ARCHITECTURE.md`](../packages/react-grid/perspective-grid/ARCHITECTURE.md),
+"One engine, one queue".
+
+The original candidate list, kept because ruling them out is the finding:
 
 - the store purge plus a fresh View build for the new filter (a View is not
   free — see the cost curve in the package ARCHITECTURE);

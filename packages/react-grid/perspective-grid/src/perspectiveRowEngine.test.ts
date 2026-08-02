@@ -222,6 +222,40 @@ describe('createPerspectiveRowEngine — grand total', () => {
     expect((grid.transactions[0][0] as Record<string, unknown>)[GRAND_TOTAL_FLAG]).toBe(true);
   });
 
+  it('gives no total to a root block a newer one has superseded', async () => {
+    // MEASURED on the 50k x 400 stress book: a filter-pill click left the
+    // OUTGOING filter's block in flight, and its grand total built a whole
+    // extra View (1,310 ms) for a row the grid was about to replace — in the
+    // engine the block the user was waiting for had to queue behind.
+    const { table } = makeTable();
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    const first = vi.fn();
+    const second = vi.fn();
+
+    engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100 },
+      success: first,
+      fail: () => {},
+    } as never);
+    // A newer ROOT request — a different filter — arrives before the first
+    // block has settled.
+    engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100, filterModel: { assetClass: { filterType: 'set', values: ['Rates'] } } },
+      success: second,
+      fail: () => {},
+    } as never);
+
+    await vi.waitFor(() => {
+      expect(first).toHaveBeenCalled();
+      expect(second).toHaveBeenCalled();
+    });
+
+    // Both blocks still settle exactly once (rule 1); only the current one
+    // carries a total.
+    expect(first.mock.calls[0][0].grandTotalData).toBeUndefined();
+    expect(second.mock.calls[0][0].grandTotalData?.[GRAND_TOTAL_FLAG]).toBe(true);
+  });
+
   it('skips the transaction when the grid has no total row', async () => {
     const { table, tick } = makeTable();
     const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId', refreshMs: 1 });
@@ -554,6 +588,51 @@ describe('countMatching', () => {
     const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
 
     expect(await engine.countMatching(SET_ENERGY)).toBe(37);
+    await engine.close();
+  });
+
+  it('waits for a block in flight before asking the engine anything else', async () => {
+    // MEASURED on the 50k x 400 stress book: the block a filter-pill click was
+    // waiting on built its own View in 745 ms and did not settle for 3,045 ms,
+    // because a set-filter value list and a stale grand total were building in
+    // the same engine — Perspective serializes every request over one
+    // ProxySession. Rows the user is looking at come first; a badge can trail.
+    let release: (() => void) | null = null;
+    const gate = new Promise<void>((r) => { release = r; });
+    const { table } = makeCountableTable();
+    const view = table.view as unknown as ReturnType<typeof vi.fn>;
+
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    const success = vi.fn();
+    // Hold the block open by stalling the read it is waiting on.
+    const original = view.getMockImplementation()!;
+    view.mockImplementation(async (config: PerspectiveViewConfig) => {
+      const built = await original(config);
+      const rows = built.to_columns.bind(built);
+      built.to_columns = async (w: never) => { await gate; return rows(w); };
+      return built;
+    });
+
+    engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100 },
+      success,
+      fail: () => {},
+    } as never);
+    await new Promise((r) => setTimeout(r, 0));
+
+    const viewsBeforeCount = view.mock.calls.length;
+    let counted = false;
+    const count = engine.countMatching(SET_ENERGY).then((v) => { counted = true; return v; });
+    await new Promise((r) => setTimeout(r, 20));
+
+    // The block has not settled, so the count has asked the engine for nothing.
+    expect(success).not.toHaveBeenCalled();
+    expect(counted).toBe(false);
+    expect(view.mock.calls.length).toBe(viewsBeforeCount);
+
+    release!();
+    await vi.waitFor(() => expect(success).toHaveBeenCalled());
+    expect(await count).toBe(37);
     await engine.close();
   });
 

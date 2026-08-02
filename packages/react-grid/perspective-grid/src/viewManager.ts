@@ -114,8 +114,21 @@ export interface ViewManager {
   readonly rowsAtRoot: number | null;
   readonly liveViews: number;
   getView(request: SsrmRequestLike): Promise<PerspectiveViewLike | null>;
-  /** The grand total row, or null when unavailable. */
-  readGrandTotal(request: SsrmRequestLike): Promise<Record<string, unknown> | null>;
+  /**
+   * The grand total row, or null when unavailable.
+   *
+   * `liveOnly` refuses to BUILD a View for it and answers null when the one it
+   * would read is not already live. The throttled refresh uses that: MEASURED
+   * on the 50k x 400 stress book, a push scheduled a few milliseconds before a
+   * filter change found its View retired by the shape swap and built a fresh
+   * one — 1,310 ms of engine work, in front of the block the user was waiting
+   * for, for a total row the purge had already destroyed. A block request
+   * passes `liveOnly: false`, because there the total is the point.
+   */
+  readGrandTotal(
+    request: SsrmRequestLike,
+    opts?: { liveOnly?: boolean },
+  ): Promise<Record<string, unknown> | null>;
   /**
    * Rows the whole book matches under an AG filter model, independent of what
    * the grid is currently showing. Null when the model cannot be translated
@@ -512,7 +525,10 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
      * is just rows; one constant expression column produces exactly one group,
      * whose row 0 is the total over the whole filtered book.
      */
-    async readGrandTotal(request: SsrmRequestLike): Promise<Record<string, unknown> | null> {
+    async readGrandTotal(
+      request: SsrmRequestLike,
+      opts?: { liveOnly?: boolean },
+    ): Promise<Record<string, unknown> | null> {
       if (closed) return null;
 
       const level = toPerspectiveGroupLevel({ ...levelState(request, quick, expressions), groupKeys: [] });
@@ -528,6 +544,7 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
       }
 
       const key = viewConfigKey(config);
+      if (opts?.liveOnly && !entries.has(key)) return null;
       const entry = await ensure(key, config, groupColId, 0);
       const raw = await readFrom(entry, { start_row: 0, end_row: 1 });
       // Same rule as a group row: a text column with no aggFunc is blank, not

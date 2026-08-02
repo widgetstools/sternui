@@ -270,6 +270,34 @@ describe('createViewManager — grand total', () => {
     expect(views.liveViews).toBe(1);
   });
 
+  it('liveOnly answers null rather than building a View for a retired shape', async () => {
+    // MEASURED on the 50k x 400 stress book: the throttled refresh's total was
+    // scheduled a few milliseconds before a filter change, found its View
+    // retired by the shape swap, and BUILT a fresh one — 1,310 ms of engine
+    // work ahead of the block the user was waiting for, for a total row the
+    // purge had already destroyed.
+    const { table } = makeTable();
+    const views = createViewManager({ table });
+    const request = { startRow: 0, endRow: 100, rowGroupCols: GROUPS, groupKeys: [] };
+
+    await views.getView(request);
+    const builtForTheGrid = (table.view as ReturnType<typeof vi.fn>).mock.calls.length;
+
+    // A new filter is a new shape: `getView` retires every live View.
+    await views.getView({ ...request, filterModel: { sector: { filterType: 'set', values: ['Energy'] } } });
+    const afterSwap = (table.view as ReturnType<typeof vi.fn>).mock.calls.length;
+
+    // The shape the grid has moved off has no live View, so there is nothing
+    // to read and nothing worth building.
+    expect(await views.readGrandTotal(request, { liveOnly: true })).toBeNull();
+    expect((table.view as ReturnType<typeof vi.fn>).mock.calls.length).toBe(afterSwap);
+    expect(afterSwap).toBeGreaterThan(builtForTheGrid);
+
+    // Without the flag it builds, which is what a block request needs.
+    expect(await views.readGrandTotal(request)).not.toBeNull();
+    expect((table.view as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(afterSwap);
+  });
+
   it('adds a constant-expression group when flat, because plain rows have no total', async () => {
     const { table } = makeTable();
     const views = createViewManager({ table });

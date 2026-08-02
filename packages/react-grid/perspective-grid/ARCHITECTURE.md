@@ -412,6 +412,58 @@ Table → ProxySession → a **second Client that never saw a row**:
 | Windowed reads | @0 9 ms · @10,000 6 ms · @19,900 5 ms — flat with depth |
 | While the feed ticks | book moved under the window; row count stayed 20,000 |
 
+## One engine, one queue — block reads come first
+
+Every request from every window crosses ONE ProxySession per Table, and the
+engine serializes them. So the question is never "is this View cheap" but "what
+is it queued in front of".
+
+MEASURED on the 50k x 400 stress book, one saved-filter pill click, before any
+of this was addressed:
+
+| what | cost |
+|---|---|
+| level View the block needs · build | 745–1,035 ms |
+| its `num_rows()` | 438–1,463 ms |
+| its `to_columns()` | 320–864 ms |
+| set-filter value list, rebuilt on the filter change | 680–1,000 ms |
+| grand total for the OUTGOING filter | 1,310–1,986 ms |
+| six pill badges, 24 calls in a six-second window | 41.7 s summed |
+| **block settled** | **5,031 ms** |
+
+The rows were read at ~3.2 s and AG was not given them until 5.0 s. Note what is
+NOT on that list: nothing was slow because of the row model. Every avoidable
+millisecond was another question asked of the same engine at the same moment.
+
+Three changes, and the same click re-measured:
+
+- **Background questions yield to blocks.** `countMatching`,
+  `countMatchingExpression`, `aggregateScalar` and `distinctValues` wait for no
+  block to be in flight, capped at 1.5 s — a live feed re-reads its blocks four
+  times a second, so a strict wait would starve every badge on the surface.
+- **A superseded block gets no grand total.** The datasource hands
+  `getGrandTotal` the very object it handed `getView`, so identity against
+  `lastRootRequest` tests staleness exactly.
+- **The throttled total push is `liveOnly`.** Keeping an existing total moving is
+  worth reading a View the grid already holds and nothing more; a shape with no
+  live View is one the grid has moved off, and its next block brings a total.
+
+| | before | after |
+|---|---|---|
+| block settled after the click | 5,031 ms | **1,044 ms** |
+| badge engine work in the window | 41.7 s | **1.8 s** |
+
+**What the gate does NOT cover, measured rather than assumed.** Clicking a pill
+re-renders the toolbar and asks for all six badge counts at **6 ms**, while AG
+does not issue the block for the new filter until **39 ms** — so the gate is
+open when they ask. That gap is closed by the count floor
+(`countMinIntervalMs`, raised 1 s -> 5 s) rather than by delaying every
+background read, which would only make an idle blotter slower to draw its
+badges.
+
+On a 500-row tab the same click is 110 ms end to end, which is why none of this
+was visible until the stress tab was measured.
+
 ## Row grouping and totals
 
 AG Grid pulls a group tree **one level at a time** — it asks for the children
