@@ -247,6 +247,34 @@ feed, at `table.update()` time. That shape already exists elsewhere
 this on the CustomSSRM path), so it is not new ground, but it is the part that
 needs design rather than wiring.
 
+#### The shape of (b): evaluate in the worker, push EVENTS
+
+Confirmed as the intended direction. Worth writing down because it is better
+than parity, not merely a repair:
+
+- **Push events, never rows.** What crosses back to a window is an alert event
+  — rule id, row key, the values that tripped it. Bytes, not a book, so the
+  pull-path property is intact.
+- **One evaluation serves every window.** On CSRM, N blotters each scan the
+  whole book independently, N times over. Worker-side the book is scanned once
+  and the event fans out — the same economics as the Table itself, where the
+  second blotter costs a subscription rather than a replay.
+- **Rules have to reach the worker.** They are authored per profile in a
+  window, so the window publishes its rule set the way calculated columns
+  already do (`setCalcExpressions` → `usePerspectiveCalcColumns`). Same seam,
+  same lifecycle.
+- **The rules split in two, and only one half is hard.** Threshold /
+  expression rules (`bid > 110`) are a filtered count over current values,
+  which `countMatchingExpression` already does for style rules using
+  `compileStarUiExpressionToPerspective` — existing machinery. `dataChange` /
+  `relativeChange` need a previous value an upsert Table does not keep, so they
+  must be evaluated at `table.update()` time in the feed, where the incoming
+  row and the stored row both exist.
+- **Keep debounce, rate limiting and channel dispatch in the window.** Those
+  are about how much noise a USER sees, not about the data. Two windows on one
+  book may want different throttling, and a muted window must not suppress
+  another's toast.
+
 **Constraint on either route:** it lands on the block-read hot path, which was
 just optimised (see the scroll work in the parity worklog). A per-row diff on
 every tick is exactly the cost that produced a 2,533 ms frame. Gate it on an
