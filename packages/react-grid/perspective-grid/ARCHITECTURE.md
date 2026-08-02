@@ -380,6 +380,20 @@ every app loads, so importing it there statically would add megabytes to
 workers that never open a blotter. Injection keeps the cost with the entry that
 opts in — and makes the host testable without a wasm engine at all.
 
+**An attach must resolve the provider row on demand, not from the cache.**
+MEASURED on `perspective-ssrm-lab` with a fresh browser profile: the Stress tab
+never attached — `no provider config for 'perspective-ssrm-lab:mock-positions-stress-50k40'`
+— while switching variants away and back attached instantly. That gap is the
+whole diagnosis: the row WAS on disk, and `handlePerspectiveAttach` was reading
+the worker catalog cache synchronously. A window's `configStore.save` reaches
+that cache only through `wireWorkerCatalogSync`, an async fire-and-forget
+invalidate, so any window that seeds its own provider and attaches straight
+after loses a race it cannot see — and nothing re-attaches, so the tab stays
+dead. The attach now `await`s `ConfigCatalogCache.ensure(providerId)` (cached
+row, else a one-row read), which is what the push path's `get-config` already
+did. Anything that seeds a provider and opens a blotter in the same breath —
+every demo seed, a provider editor's first Save — was exposed to this.
+
 **A hosted Table has two plausible owners, and freeing it twice is fatal.** The
 feed builds the Table and deletes it on restart; the host serves it by name and
 deletes it on shutdown. Both ran on teardown and the second `delete()` threw

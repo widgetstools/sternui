@@ -904,12 +904,30 @@ export class SharedWorkerDataServicesHub {
 
     let slot = this.providers.get(req.providerId);
     if (!slot) {
-      const cfg = this.configCatalog?.getProviderConfig(req.providerId);
+      // Resolve ON DEMAND, not from the cache alone.
+      //
+      // MEASURED: a window that writes its provider row and attaches straight
+      // after — which is what a demo seed and a provider editor's first Save
+      // both do — loses a race it cannot see. `configStore.save` reaches the
+      // worker catalog only through `wireWorkerCatalogSync`, an async
+      // fire-and-forget invalidate, so the synchronous cache read below missed
+      // a row that was already on disk and the attach answered "no provider
+      // config for '<id>'" permanently. The Stress tab of
+      // `perspective-ssrm-lab` never attached on a fresh browser profile;
+      // switching away and back attached instantly, which is what identified
+      // the race rather than a missing write.
+      //
+      // `ensure` is a cached lookup plus, on a miss, a one-row ConfigManager
+      // read — the same thing `handleGetConfig` already does on the push path.
+      const row = await this.configCatalog?.ensure(req.providerId);
+      const cfg = row?.config;
       if (!cfg) {
         reply(false, { reason: `no provider config for '${req.providerId}'` });
         return;
       }
-      slot = this.createProvider(req.providerId, cfg);
+      // The await above yields, so another attach for the same provider may
+      // have created the slot while this one was reading.
+      slot = this.providers.get(req.providerId) ?? this.createProvider(req.providerId, cfg);
     }
 
     const handle = slot.handle as unknown as {

@@ -64,6 +64,15 @@ path at all.
 
 ## 2. Stress tab, 50k × 400 · two distinct problems
 
+**Prerequisite, now FIXED — the tab did not attach at all on a fresh profile.**
+`no provider config for 'perspective-ssrm-lab:mock-positions-stress-50k40'`:
+`handlePerspectiveAttach` read the worker catalog cache synchronously, and a
+window that saves its provider row and attaches straight after beats the async
+`wireWorkerCatalogSync` invalidate. It now resolves on demand
+(`ConfigCatalogCache.ensure`), as the push path already did. MEASURED after the
+fix, fresh profile: first row at **12 s** on the default variant and **15 s**
+on the 50k × 400 modules variant, against never.
+
 **Symptoms:** (a) rows take a while to appear after scrolling STOPS; (b)
 grouping and ungrouping are slow.
 

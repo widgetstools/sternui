@@ -1480,6 +1480,54 @@ describe('SharedWorkerDataServicesHub — config catalog', () => {
     expect(cache.get('p1')?.providerId).toBe('p1');
   });
 
+  it('perspective-attach resolves a provider row written after the catalog preloaded', async () => {
+    // The regression: a window that saves its provider row and attaches straight
+    // after reaches the worker catalog only through an async invalidate
+    // broadcast, so a SYNCHRONOUS cache read answered "no provider config" for a
+    // row that was already on disk — permanently, since nothing re-attaches.
+    const rows = new Map<string, AppConfigRow>();
+    const cm = {
+      async getAllConfigsUnfiltered() { return [...rows.values()]; },
+      async getConfigsByComponentTypesUnfiltered(types: string[]) {
+        return [...rows.values()].filter((r) => types.includes(r.componentType));
+      },
+      async getConfig(id: string) { return rows.get(id); },
+    } as unknown as ConfigManager;
+
+    const cache = new ConfigCatalogCache(cm);
+    await cache.loadAll();
+    expect(cache.get('late')).toBeNull();
+
+    const hub = new SharedWorkerDataServicesHub({
+      configCatalog: cache,
+      // Non-null so the attach reaches the catalog lookup. Never invoked: the
+      // provider below holds no Table, so the reply lands before any engine
+      // work — which is exactly what makes it a usable assertion here.
+      loadPerspective: (async () => ({ worker: async () => ({}) })) as never,
+    });
+    const port = makeAnyPort();
+    const { port1 } = new MessageChannel();
+
+    // Written AFTER the preload, as `configStore.save` does.
+    rows.set('late', mockProviderRow('late'));
+
+    hub.handleRequest(
+      port,
+      { kind: 'perspective-attach', subId: 'pa-1', providerId: 'late' },
+      [port1],
+    );
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    const reply = port.messages.find(
+      (m) => (m as { kind?: string }).kind === 'perspective-attached',
+    ) as { ok: boolean; reason?: string } | undefined;
+    expect(reply).toBeDefined();
+    // The row RESOLVED — this fake provider is a plain `mock`, so the honest
+    // refusal is "holds no Table", never "no provider config".
+    expect(reply?.reason ?? '').not.toContain('no provider config');
+    expect(reply?.reason ?? '').toContain('holds no Table');
+  });
+
   it('config-invalidate reloads an updated row from ConfigManager', async () => {
     const rows = new Map([['p1', { ...mockProviderRow('p1'), displayText: 'Original' }]]);
     const cm = {
