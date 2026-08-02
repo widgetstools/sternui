@@ -132,8 +132,20 @@ export interface PerspectiveRowEngineOpts {
 export interface PerspectiveGridStatus {
   /** Rows in the book, ignoring every filter. Null until measured. */
   bookRows: number | null;
-  /** Rows after the server-side filters — what the grid is scrolling. */
+  /**
+   * Rows the grid's ROOT LEVEL holds — what AG sizes its store from, and under
+   * grouping the number of top-level GROUPS rather than of rows.
+   *
+   * For "how many rows is the user looking at", use {@link leafRows}. Reading
+   * this one in a status bar produced "9 of 50,000" over an unfiltered book
+   * grouped into nine asset classes.
+   */
   filteredRows: number | null;
+  /**
+   * Rows of the filtered book, ignoring grouping. Null until measured — a
+   * status bar shows nothing rather than a guess.
+   */
+  leafRows: number | null;
   /** True when a filter is actually narrowing the book. */
   filtered: boolean;
   /** Re-reading on Table updates. */
@@ -341,6 +353,10 @@ export function createPerspectiveRowEngine(
   let grouped = (treeFields?.length ?? 0) > 0;
 
   let bookRows: number | null = null;
+  let leafRows: number | null = null;
+  /** Quick-search text, mirrored so the leaf count keys on it — the engine
+   *  holds it inside `viewManager` and the AG request never carries it. */
+  let quickFilterKey = '';
   let failedBlocks = 0;
   const listeners = new Set<(status: PerspectiveGridStatus) => void>();
 
@@ -379,6 +395,8 @@ export function createPerspectiveRowEngine(
    */
   const ruleCounts = createStaleCache<number | null>(countMinIntervalMs);
   const scalars = createStaleCache<number | null>(countMinIntervalMs);
+  /** The status bar's row count, on the same terms — one whole-book View each. */
+  const leafCounts = createStaleCache<number | null>(countMinIntervalMs);
 
   // ─── Cell edits ────────────────────────────────────────────────────────────
   //
@@ -465,13 +483,18 @@ export function createPerspectiveRowEngine(
 
   function currentStatus(): PerspectiveGridStatus {
     const filteredRows = views.rowsAtRoot;
+    // "Filtered" is a claim about ROWS, so it is made from the leaf count when
+    // one exists. Made from `rowsAtRoot` it was true of every grouped grid —
+    // nine asset classes out of 50,000 rows reads as a filter that is not
+    // there. Falls back only while the leaf count is still unmeasured.
+    const rows = leafRows ?? filteredRows;
     return {
       bookRows,
       filteredRows,
+      leafRows,
       // Only claim "filtered" once both numbers are known — an unmeasured
       // book must not render as "0 of N".
-      filtered:
-        bookRows !== null && filteredRows !== null && filteredRows < bookRows,
+      filtered: bookRows !== null && rows !== null && rows < bookRows,
       live,
       liveViews: views.liveViews,
       failedBlocks,
@@ -506,6 +529,48 @@ export function createPerspectiveRowEngine(
       });
   }
 
+  /**
+   * Rows of the filtered book, ignoring grouping — the figure a status bar
+   * means by "rows".
+   *
+   * Measured rather than derived, because nothing the grid holds knows it under
+   * grouping: `rowsAtRoot` is the count AG sizes its store from, which is the
+   * number of top-level GROUPS. Treated as a background question like every
+   * other whole-book count — cached on the same floor and behind the same idle
+   * gate, since a row count trailing the book by a beat is invisible while a
+   * block arriving late is not.
+   */
+  function measureLeafRows(): void {
+    if (closed) return;
+    // Ungrouped, `rowsAtRoot` IS the leaf count — the grid's root level is the
+    // rows. Measuring separately would build a second View of the same shape
+    // for a number already in hand, on every flat grid, which is the common
+    // case. Only a grouped root hides the figure.
+    if (!grouped) {
+      const rows = views.rowsAtRoot;
+      if (rows !== leafRows) {
+        leafRows = rows;
+        publishStatus();
+      }
+      return;
+    }
+    const key = JSON.stringify({
+      f: lastRootRequest.filterModel ?? null,
+      q: quickFilterKey,
+    });
+    const cached = leafCounts.get(key);
+    if (cached) return;
+    const value = whenBlocksIdle()
+      .then(() => (closed ? null : views.countFilteredRows(lastRootRequest)))
+      .catch(() => null);
+    leafCounts.set(key, value);
+    void value.then((rows) => {
+      if (closed || rows === null || rows === leafRows) return;
+      leafRows = rows;
+      publishStatus();
+    });
+  }
+
   const views = createViewManager({
     table,
     treeFields,
@@ -513,6 +578,8 @@ export function createPerspectiveRowEngine(
       // The book itself can grow or shrink under the feed, so the unfiltered
       // total is re-measured on updates rather than read once at startup.
       measureBook();
+      leafCounts.invalidate();
+      measureLeafRows();
       counts.invalidate();
       values.invalidate();
       ruleCounts.invalidate();
@@ -733,6 +800,9 @@ export function createPerspectiveRowEngine(
       // schedules the refresh when it was the race — the loop terminates
       // because the answer stops being zero as soon as rows exist.
       if (!grouped && views.rowsAtRoot === 0) measureBook();
+      // The filter may have changed with this request; the leaf count keys on
+      // it, so a changed filter misses the cache and is re-measured.
+      measureLeafRows();
       // The `view` event fires only when a View is BUILT. A cached View that
       // was re-measured — the normal case once the book has settled — changes
       // the filtered count without one, and the status bar was left showing
@@ -805,6 +875,7 @@ export function createPerspectiveRowEngine(
 
     subscribe(listener: (status: PerspectiveGridStatus) => void) {
       listeners.add(listener);
+      measureLeafRows();
       // Measure on first interest rather than at construction: a grid with no
       // status bar should not pay for a figure nothing reads.
       measureBook();
@@ -987,6 +1058,8 @@ export function createPerspectiveRowEngine(
           )
         : [];
       if (!views.setQuickFilter(text ?? '', columns)) return;
+      quickFilterKey = (text ?? '').trim();
+      measureLeafRows();
 
       // AG does not know this filter exists, so nothing invalidates its store:
       // it would keep serving the pre-search blocks and its row count. A quick
@@ -1041,6 +1114,7 @@ export function createPerspectiveRowEngine(
       values.clear();
       ruleCounts.clear();
       scalars.clear();
+      leafCounts.clear();
       await views.close();
     },
   };

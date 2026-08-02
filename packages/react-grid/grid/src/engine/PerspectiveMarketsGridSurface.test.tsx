@@ -135,8 +135,33 @@ describe('PerspectiveMarketsGridSurface — status bar', () => {
     expect(last().components.perspectiveStatusPanel).toBeDefined();
   });
 
-  it('never overrides a status bar the host asked for', async () => {
-    const own = { statusPanels: [{ statusPanel: 'agSelectedRowCountComponent' }] };
+  it("keeps the host's status bar, with the row-count panels it can answer", async () => {
+    // MEASURED on both labs: AG's own row-count panels render NOTHING under the
+    // server row model and select-all answers `?`, because the rows they would
+    // count were never sent to this window. So the host's panels are kept —
+    // order, alignment and everything else — and only the names of the ones AG
+    // cannot serve here are rewritten. `agAggregationComponent` is left alone:
+    // it aggregates the selected cell RANGE, which this window holds.
+    const own = {
+      statusPanels: [
+        { statusPanel: 'agSelectedRowCountComponent', align: 'center' },
+        { statusPanel: 'agAggregationComponent', align: 'right' },
+      ],
+    };
+    const { last } = renderSurface({ statusBar: own });
+    await waitFor(() =>
+      expect(last().statusBar).toEqual({
+        statusPanels: [
+          { statusPanel: 'perspectiveSelectedRowCount', align: 'center' },
+          { statusPanel: 'agAggregationComponent', align: 'right' },
+        ],
+      }),
+    );
+    expect(last().components.perspectiveSelectedRowCount).toBeDefined();
+  });
+
+  it('passes a status bar it has nothing to add to straight through', async () => {
+    const own = { statusPanels: [{ statusPanel: 'someHostPanel' }] };
     const { last } = renderSurface({ statusBar: own });
     await waitFor(() => expect(last().statusBar).toBe(own));
   });

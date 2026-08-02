@@ -314,6 +314,44 @@ describe('createPerspectiveRowEngine — grand total', () => {
   });
 });
 
+describe('createPerspectiveRowEngine — rows the status bar means', () => {
+  it('takes the leaf count from the root level when the grid is flat', async () => {
+    const { table } = makeTable(20_000);
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    await engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100 },
+      success: () => {},
+      fail: () => {},
+    } as never);
+    await settle();
+
+    // No second View for a number already in hand: the root level IS the rows.
+    expect(engine.status.leafRows).toBe(20_000);
+    await engine.close();
+  });
+
+  it('measures the leaf count separately while grouped, where rowsAtRoot is GROUPS', async () => {
+    // MEASURED on the stress tab before this: an unfiltered 50,000-row book
+    // grouped into nine asset classes reported "Rows : 9 of 50,000", because
+    // `rowsAtRoot` is what AG sizes its store from — the top-level groups.
+    const { table } = makeTable(9);
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    await engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100, rowGroupCols: [{ id: 'desk' }], groupKeys: [] },
+      success: () => {},
+      fail: () => {},
+    } as never);
+    await vi.waitFor(() => expect(engine.status.leafRows).not.toBeNull());
+
+    // The fake answers 9 for every View, so the assertion that matters is that
+    // a SEPARATE measurement happened at all: the grouped root reports 8 rows
+    // (9 minus its own total row) while the leaf count is the View's own 9.
+    expect(engine.status.filteredRows).toBe(8);
+    expect(engine.status.leafRows).toBe(9);
+    await engine.close();
+  });
+});
+
 describe('createPerspectiveRowEngine — lifecycle', () => {
   it('stops refreshing after close', async () => {
     const { table, tick } = makeTable();

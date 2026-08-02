@@ -138,6 +138,16 @@ export interface ViewManager {
     filterModel: Record<string, AgFilterItem> | null | undefined,
   ): Promise<number | null>;
   /**
+   * Rows the current filtered book holds, ignoring grouping — what a status bar
+   * means by "rows".
+   *
+   * `rowsAtRoot` cannot answer this: it is the count AG sizes its store from, so
+   * under grouping it is the number of ROOT GROUPS. A status bar reading it
+   * said "9 of 50,000" over an unfiltered book grouped into nine asset classes,
+   * which is the confidently-wrong species this path keeps producing.
+   */
+  countFilteredRows(request: SsrmRequestLike): Promise<number | null>;
+  /**
    * Rows of the CURRENT filtered book for which a Perspective boolean
    * expression is true — what a style rule needs to know about a book this
    * window does not hold.
@@ -695,6 +705,45 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
      * together — "rows the grid is showing that also match the rule", which is
      * what the client-side original computes.
      */
+    async countFilteredRows(request: SsrmRequestLike): Promise<number | null> {
+      if (closed) return null;
+
+      // Flat, unsorted and ungrouped: a count does not care about order, and
+      // grouping is exactly what this exists to see past.
+      const level = toPerspectiveGroupLevel({
+        ...levelState(request, quick, expressions),
+        sortModel: undefined,
+        rowGroupCols: undefined,
+        groupKeys: [],
+      });
+
+      // A live View of the same shape already knows — an ungrouped grid under
+      // the same filter is the common case, and reading it costs nothing.
+      const existing = entries.get(viewConfigKey(level.config));
+      if (existing && existing.groupColId === null) {
+        existing.usedAt = Date.now();
+        return existing.safe.rows();
+      }
+
+      let safe: SafeView;
+      try {
+        safe = createSafeView(await table.view(level.config));
+      } catch {
+        return null;
+      }
+      if (closed) {
+        void safe.close();
+        return null;
+      }
+      transient.add(safe);
+      try {
+        return await safe.rows();
+      } finally {
+        transient.delete(safe);
+        void safe.close();
+      }
+    },
+
     async countMatchingExpression(
       source: string,
       request: SsrmRequestLike,

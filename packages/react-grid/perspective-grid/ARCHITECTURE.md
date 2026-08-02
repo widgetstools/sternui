@@ -505,6 +505,43 @@ that lands in the middle of that burst pays for it: the slowest measured
 grouping change served its first block at 1,449 ms, behind six badge Views of
 134–394 ms each.
 
+## What the status bar can honestly say
+
+MEASURED on both labs with AG's four stock panels, same book:
+
+| panel | CSRM :5300 | Perspective :5301, before |
+|---|---|---|
+| `total-and-filtered-row-count` | `Rows : 53,127` | **nothing rendered** |
+| `filtered-row-count` | `Filtered : 53,127` | **nothing rendered** |
+| `selected-row-count` | `Selected : 50,000` | `Selected : ?` |
+| `aggregations` | `Count : 15` | `Count : 3` (its own range) |
+
+The row counts were not wrong, they were ABSENT — AG's own components have no
+book to count under a server row model — and select-all answers `?` for the same
+reason. `withPerspectiveStatusPanels` (in `@starui/grid`) rewrites those three
+stock names to panels that read the worker-held Table, keeping the host's order
+and alignment, so a `statusBar` written for the CSRM grid means the same thing
+here.
+
+**The aggregation panel needs no worker, which is not what was expected.**
+MEASURED: it aggregates the selected CELL RANGE, not the row selection —
+select-all left it showing the earlier drag on BOTH surfaces — and a dragged
+range is rows this window holds. Its one divergence, NOT addressed: a range
+dragged past the loaded blocks silently omits the unloaded rows.
+
+### `rowsAtRoot` is not "rows"
+
+Fixing the panels surfaced the defect underneath. The status bar had been
+reading `filteredRows`, which is `rowsAtRoot` — the count AG sizes its STORE
+from. Under grouping that is the number of top-level GROUPS, so an unfiltered
+50,000-row book grouped into nine asset classes reported **"Rows : 9 of
+50,000"**, and `filtered` was true of every grouped grid.
+
+`status.leafRows` is the filtered book measured flat, and only while grouping is
+on: ungrouped, the root level already IS the leaf count and a second View of the
+same shape would be pure waste. Cached on `countMinIntervalMs` and behind the
+same idle gate as every other whole-book question.
+
 ## Row grouping and totals
 
 AG Grid pulls a group tree **one level at a time** — it asks for the children

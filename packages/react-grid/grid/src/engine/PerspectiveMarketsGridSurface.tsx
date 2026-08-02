@@ -51,6 +51,10 @@ import {
   type PerspectiveGridContext,
 } from './perspectiveEngineHolder.js';
 import { PerspectiveStatusPanel } from './PerspectiveStatusPanel.js';
+import {
+  PERSPECTIVE_STATUS_PANEL_COMPONENTS,
+  withPerspectiveStatusPanels,
+} from './PerspectiveStatusPanels.js';
 import { withPerspectiveSetFilterValues } from './perspectiveSetFilterValues.js';
 
 const NO_HOST_OVERRIDES: ReadonlySet<string> = new Set<string>();
@@ -347,7 +351,11 @@ export const PerspectiveMarketsGridSurface = forwardRef<
   );
 
   const components = useMemo(
-    () => ({ ...streamSafeComponents, perspectiveStatusPanel: PerspectiveStatusPanel }),
+    () => ({
+      ...streamSafeComponents,
+      perspectiveStatusPanel: PerspectiveStatusPanel,
+      ...PERSPECTIVE_STATUS_PANEL_COMPONENTS,
+    }),
     [streamSafeComponents],
   );
 
@@ -532,14 +540,21 @@ export const PerspectiveMarketsGridSurface = forwardRef<
 
 
   /**
-   * Default to the Perspective status bar, but never override a host that
-   * asked for its own. AG's stock panels count the rows the CLIENT holds — on
-   * this path the loaded blocks — so they would report a confidently wrong
-   * total; ours reads the Table.
+   * Default to the Perspective status bar; a host that asked for its own keeps
+   * its panels, order and alignment — with the row-count ones served by
+   * components that can answer on this path.
+   *
+   * MEASURED on both labs: AG's own row-count panels render NOTHING under the
+   * server row model, and select-all answers `Selected : ?`, because the rows
+   * they would count were never sent to this window. Rewriting the names rather
+   * than asking hosts to use ours is what lets a `statusBar` written for the
+   * CSRM grid mean the same thing here. `agAggregationComponent` is left alone
+   * on purpose — it aggregates the selected cell RANGE, which this window does
+   * hold (see `PerspectiveStatusPanels`).
    */
   const statusBar = useMemo(
     () =>
-      props.statusBar ?? {
+      withPerspectiveStatusPanels(props.statusBar) ?? {
         statusPanels: [{ statusPanel: 'perspectiveStatusPanel', align: 'left' }],
       },
     [props.statusBar],

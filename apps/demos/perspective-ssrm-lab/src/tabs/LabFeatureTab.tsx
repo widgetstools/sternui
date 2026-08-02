@@ -7,6 +7,7 @@ import { useLabDemoProfiles } from '../data/useLabDemoProfiles';
 import { labStorage } from '../data/storage';
 import { useLabPerspectiveRows } from '../demo/useLabPerspectiveRows';
 import { getFeatureGuide } from '../guides/featureGuides';
+import { LAB_STATUS_BAR } from './labStatusBar';
 import { buildConfigBlocks } from '../guides/buildConfigBlocks';
 import type { LabFeatureConfig } from './labFeatureConfigs';
 import { PerspectiveAttachNotice } from '../components/PerspectiveAttachNotice';
@@ -97,10 +98,12 @@ export function LabFeatureTab({ config }: LabFeatureTabProps) {
               showEditHistoryToolbar={grid.showEditHistoryToolbar}
               showVisualExcelExport={grid.showVisualExcelExport}
               sideBar={grid.sideBar}
-              // Deliberately not `LAB_STATUS_BAR`: the Perspective surface's
-              // own panel reads the Table, where AG's stock panels count only
-              // the rows this window holds.
-              statusBar={grid.statusBar}
+              // `LAB_STATUS_BAR` now means the same thing here as on the CSRM
+              // twin: the surface rewrites AG's stock row-count panels to ones
+              // that read the worker-held Table, so a tab that asks for the
+              // lab's four-panel bar gets it instead of nothing. Tabs with
+              // their own `grid.statusBar` keep theirs.
+              statusBar={grid.statusBar ?? LAB_STATUS_BAR}
               rowHeight={grid.rowHeight}
               animateRows={grid.animateRows}
             />

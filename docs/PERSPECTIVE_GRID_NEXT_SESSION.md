@@ -121,17 +121,39 @@ path.
 **Ask:** the Perspective status bar should match the CSRM one in look, feel AND
 features.
 
-**This is feature work, not polish.** CSRM's panels (Average / Count / Min /
-Max / Sum over the selection, plus row counts) are computed from rows the client
-holds. This window holds only its viewport, so those have to be answered by the
-WORKER — exactly the move already made for style rules
-(`aggregateScalar`, `countMatchingExpression`). The machinery exists; the
-plumbing and the selection-scoped variant do not.
+**DONE, and smaller than it looked — the premise above was wrong.** MEASURED on
+both labs with AG's four stock panels:
 
-Today the surface supplies its own `PerspectiveStatusPanel`, and
-`LabFeatureTab` deliberately does not pass `LAB_STATUS_BAR`, because AG's stock
-panels count the rows this window holds — a few hundred of the book — which
-reads as a bug.
+| panel | CSRM :5300 | Perspective :5301, before |
+|---|---|---|
+| total-and-filtered | `Rows : 53,127` | **nothing rendered** |
+| filtered | `Filtered : 53,127` | **nothing rendered** |
+| selected | `Selected : 50,000` | `Selected : ?` |
+| aggregations | `Count : 15` | `Count : 3` (its own range) |
+
+The row counts were not wrong, they were ABSENT: AG's own components have no
+book to count under a server row model. And **the aggregation panel needed no
+worker at all** — it aggregates the selected CELL RANGE, not the row selection
+(select-all left it showing the earlier drag on BOTH surfaces), and a dragged
+range is rows this window holds. So Average/Count/Min/Max/Sum were already
+right.
+
+Shipped: `withPerspectiveStatusPanels` rewrites AG's stock row-count panel names
+to worker-backed ones, keeping order and alignment, so `LAB_STATUS_BAR` now
+means the same thing on both surfaces and `LabFeatureTab` passes it. Markup is
+AG's own, copied from its rendered DOM. Select-all is answered from
+`getServerSideSelectionState()` against the engine's row count.
+
+Fixing it surfaced a real defect underneath: the status bar had been reading
+`filteredRows`, which is what AG sizes its STORE from — under grouping, the
+number of top-level groups. An unfiltered 50,000-row book grouped into nine
+asset classes read **"Rows : 9 of 50,000"**. `engine.status.leafRows` now
+measures the filtered book flat (only while grouped; ungrouped the root level
+already is the leaf count).
+
+**Not done, stated so it is not mistaken for parity:** a cell range dragged past
+the loaded blocks aggregates only the rows this window holds, silently. That one
+does need worker-side range aggregation.
 
 ## 4. Known issue: seeded layouts missing from the layout selector
 
@@ -209,6 +231,15 @@ npm run build --workspace=@starui/host-data
 npx turbo typecheck build test --continue
 npm run e2e:perspective
 ```
+
+**`npm run e2e:perspective` — 9 of 10 pass; the failure is NOT from this
+work.** `mounts over the whole worker-held book` waits for the status bar to
+read `20,000 rows` and gets `0 rows`: the STOMP fixture's book never reaches the
+Table. VERIFIED by checking out `35e8784c` — the commit this session started
+from, recorded as green — and running the same spec, which fails identically.
+Bisected further with the refresh deferral disabled: same failure. Treat it as
+the documented broker behaviour ("a cold snapshot takes 18 s-2 min and sometimes
+wedges") until someone reproduces it against a warm fixture.
 
 **Pre-existing failures that are NOT yours:** `@starui/grid` (4 failed test
 FILES, 0 failed tests) and `@starui/widgets-react` (2 `providerStaleState`
