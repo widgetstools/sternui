@@ -374,6 +374,69 @@ export function toPerspectiveGroupLevel(state: AgGroupLevelState): PerspectiveGr
  * The grouped View also returns an aggregated column under the group column's
  * own name; overwriting it with the path key is exactly what is wanted.
  */
+/** Perspective types that carry a meaningful default aggregate. */
+const NUMERIC_SCHEMA_TYPES = new Set(['integer', 'float']);
+
+/**
+ * Blank the aggregate cell of every NON-NUMERIC column the user did not ask to
+ * aggregate.
+ *
+ * AG Grid leaves a column empty in a group or total row unless it has an
+ * `aggFunc`. Perspective does the opposite: a column with no entry in
+ * `aggregates` still gets that type's DEFAULT aggregate, and for a string
+ * column that is a distinct-count — so a text column renders a number under a
+ * group header, and the grand total row reads like data. Restoring the AG
+ * behaviour is what this does.
+ *
+ * NUMERIC columns are left alone deliberately. Perspective's default for them
+ * is a sum, which is what a totals row is for and what a user expects to see
+ * without configuring anything.
+ *
+ * Opting back in is just an `aggFunc` on the column — `first` and `last` map
+ * straight through `toPerspectiveAggregate` and are the two that mean anything
+ * for text, so a user who wants "the desk of the first row in this group" can
+ * still have it.
+ *
+ * `keep` covers the columns that are structure rather than aggregate: the
+ * group column (which holds the path key), `__ROW_PATH__`, and the tree
+ * markers. Blanking those would erase the group label itself.
+ */
+export function blankUnaggregatedNonNumeric(
+  columns: Record<string, unknown[]>,
+  opts: {
+    /** Column -> Perspective type, from `table.schema()`. */
+    schema: Record<string, string> | null | undefined;
+    /** Columns the view config aggregates explicitly. */
+    aggregates?: Record<string, PerspectiveAggregate>;
+    /** Structural columns that must survive untouched. */
+    keep?: readonly (string | null)[];
+  },
+): Record<string, unknown[]> {
+  const { schema, aggregates, keep } = opts;
+  // No schema means no way to tell numeric from text. Leave everything alone
+  // rather than blank a column that was carrying a real total.
+  if (!schema) return columns;
+
+  const protectedCols = new Set<string>(['__ROW_PATH__']);
+  for (const k of keep ?? []) if (k) protectedCols.add(k);
+
+  let changed = false;
+  const out: Record<string, unknown[]> = { ...columns };
+  for (const name of Object.keys(columns)) {
+    if (protectedCols.has(name)) continue;
+    if (aggregates && name in aggregates) continue;
+    const type = schema[name];
+    // Unknown to the schema means an expression column (quick filter, a
+    // calculated column) — not something to guess about.
+    if (type === undefined || NUMERIC_SCHEMA_TYPES.has(type)) continue;
+    const col = columns[name];
+    if (!Array.isArray(col)) continue;
+    out[name] = col.map(() => null);
+    changed = true;
+  }
+  return changed ? out : columns;
+}
+
 export function toGroupColumns(
   columns: Record<string, unknown[]>,
   groupColId: string,

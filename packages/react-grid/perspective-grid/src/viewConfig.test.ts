@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  blankUnaggregatedNonNumeric,
   isFilterModelMappable,
   sanitizeQuickFilterTerm,
   toQuickFilterExpression,
@@ -506,5 +507,78 @@ describe('toPerspectiveViewConfig — quick filter', () => {
     const config = toPerspectiveViewConfig({ quickFilterColumns: ['trader'] });
     expect(config.expressions).toBeUndefined();
     expect(config.filter).toBeUndefined();
+  });
+});
+
+describe('blankUnaggregatedNonNumeric', () => {
+  const schema = {
+    positionId: 'string',
+    desk: 'string',
+    asOf: 'datetime',
+    active: 'boolean',
+    quantity: 'integer',
+    pnl: 'float',
+  };
+
+  it('blanks a text column the user did not ask to aggregate', () => {
+    // AG leaves an un-aggregated column empty in a group row. Perspective
+    // fills it with the type's default — a distinct-count for a string — so a
+    // text column renders a number under a group header.
+    const out = blankUnaggregatedNonNumeric(
+      { desk: [3, 2], quantity: [10, 20] },
+      { schema },
+    );
+    expect(out.desk).toEqual([null, null]);
+  });
+
+  it('leaves numeric columns alone — a totals row is what they are for', () => {
+    const out = blankUnaggregatedNonNumeric(
+      { quantity: [10, 20], pnl: [1.5, 2.5] },
+      { schema },
+    );
+    expect(out.quantity).toEqual([10, 20]);
+    expect(out.pnl).toEqual([1.5, 2.5]);
+  });
+
+  it('keeps a non-numeric column the user DID aggregate', () => {
+    // `first` / `last` are the two that mean anything for text, and opting in
+    // is the whole escape hatch.
+    const out = blankUnaggregatedNonNumeric(
+      { desk: ['Rates', 'Credit'] },
+      { schema, aggregates: { desk: 'first' } },
+    );
+    expect(out.desk).toEqual(['Rates', 'Credit']);
+  });
+
+  it('blanks dates and booleans too, not just strings', () => {
+    const out = blankUnaggregatedNonNumeric(
+      { asOf: [1, 2], active: [2, 1] },
+      { schema },
+    );
+    expect(out.asOf).toEqual([null, null]);
+    expect(out.active).toEqual([null, null]);
+  });
+
+  it('never blanks the structural columns', () => {
+    // The group column carries the path key; blanking it erases the group
+    // label itself.
+    const out = blankUnaggregatedNonNumeric(
+      { desk: ['Rates'], __ROW_PATH__: [['Rates']] },
+      { schema, keep: ['desk'] },
+    );
+    expect(out.desk).toEqual(['Rates']);
+    expect(out.__ROW_PATH__).toEqual([['Rates']]);
+  });
+
+  it('leaves columns the schema does not know — expression columns', () => {
+    // Quick-filter and calculated columns are not in `table.schema()`; guessing
+    // about them would blank a calculated total.
+    const out = blankUnaggregatedNonNumeric({ calc_pnlPct: [1, 2] }, { schema });
+    expect(out.calc_pnlPct).toEqual([1, 2]);
+  });
+
+  it('changes nothing without a schema', () => {
+    const columns = { desk: [3, 2] };
+    expect(blankUnaggregatedNonNumeric(columns, { schema: null })).toBe(columns);
   });
 });

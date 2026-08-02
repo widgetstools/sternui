@@ -25,6 +25,7 @@ import { createSafeView, type DeletableView, type SafeView } from './safeView.js
 import { columnsToRows, type PerspectiveViewLike, type SsrmRequestLike } from './perspectiveDatasource.js';
 import {
   isFilterModelMappable,
+  blankUnaggregatedNonNumeric,
   toGroupColumns,
   toPerspectiveFilter,
   toPerspectiveGroupLevel,
@@ -268,6 +269,24 @@ function levelState(
 export function createViewManager(opts: ViewManagerOpts): ViewManager {
   const { table, onEvent = () => {}, onUpdate, maxViews = 24, treeFields } = opts;
 
+  /**
+   * Column -> Perspective type, read once.
+   *
+   * Only used to decide which columns are numeric when blanking aggregate
+   * cells. A failure answers null, and `blankUnaggregatedNonNumeric` then
+   * leaves every column alone — degrading to the old behaviour rather than
+   * blanking something that was carrying a real total.
+   */
+  let schemaPromise: Promise<Record<string, string> | null> | null = null;
+  function tableSchema(): Promise<Record<string, string> | null> {
+    schemaPromise ??=
+      typeof (table as { schema?: () => Promise<Record<string, string>> }).schema === 'function'
+        ? (table as { schema: () => Promise<Record<string, string>> }).schema().catch(() => null)
+        : Promise.resolve(null);
+    return schemaPromise;
+  }
+
+
   const tree = treeFields ?? [];
   /**
    * Stand the tree fields in for `rowGroupCols`, which AG does not send in tree
@@ -464,12 +483,21 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
             end_row: (window?.end_row ?? 0) + offset,
           });
           if (groupColId === null) return columns;
+          // A non-numeric column the user did not ask to aggregate is BLANK in
+          // a group row, as it is on AG's own row model. Without this,
+          // Perspective's per-type default fills text columns with a
+          // distinct-count and a group header reads like data.
+          const blanked = blankUnaggregatedNonNumeric(columns, {
+            schema: await tableSchema(),
+            aggregates: entry.config?.aggregates,
+            keep: [groupColId],
+          });
           // In tree mode the rows also carry the markers AG reads the
           // hierarchy from; a leaf level is ungrouped and never reaches here,
           // which is why every row this produces is a parent.
           return tree.length > 0
-            ? toTreeColumns(columns, groupColId)
-            : toGroupColumns(columns, groupColId);
+            ? toTreeColumns(blanked, groupColId)
+            : toGroupColumns(blanked, groupColId);
         },
         num_rows: () => Promise.resolve(entry.rows),
       };
@@ -501,7 +529,14 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
 
       const key = viewConfigKey(config);
       const entry = await ensure(key, config, groupColId, 0);
-      const columns = await readFrom(entry, { start_row: 0, end_row: 1 });
+      const raw = await readFrom(entry, { start_row: 0, end_row: 1 });
+      // Same rule as a group row: a text column with no aggFunc is blank, not
+      // a distinct-count.
+      const columns = blankUnaggregatedNonNumeric(raw, {
+        schema: await tableSchema(),
+        aggregates: config.aggregates,
+        keep: [groupColId],
+      });
 
       const total: Record<string, unknown> = {};
       for (const name of Object.keys(columns)) {
