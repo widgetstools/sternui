@@ -618,6 +618,15 @@ export function createPerspectiveRowEngine(
     return { ...total, [keyColumn]: 'GRAND TOTAL', [GRAND_TOTAL_FLAG]: true };
   }
 
+  /**
+   * How long the live re-read may be held off by blocks still in flight before
+   * it goes anyway. A grid busy enough never to be idle would otherwise stop
+   * moving its grand total, which is the one figure a block response cannot
+   * update on its own.
+   */
+  const REFRESH_DEFER_MAX_MS = 2000;
+  let deferringSince = Date.now();
+
   function scheduleRefresh(): void {
     if (!live || closed) return;
     pendingUpdate = true;
@@ -630,6 +639,25 @@ export function createPerspectiveRowEngine(
     timer = setTimeout(() => {
       timer = null;
       if (!pendingUpdate || !live || closed) return;
+      /**
+       * Never re-read a block that is still being read.
+       *
+       * MEASURED on the 50k x 400 stress book: one 100-row block costs
+       * **900–1,670 ms** to read, because a read carries every column of the
+       * View and there are 400 of them. The refresh invalidates EVERY loaded
+       * block, so at the 250 ms throttle the engine was asked to re-read three
+       * blocks four times a second while each one took a second — the same
+       * ranges were re-requested five and six times over, and the queue never
+       * drained. A scroll then had to wait behind ~1 s of work it did not ask
+       * for. Deferring here is not a lost update: `pendingUpdate` stays set and
+       * the blocks that settle carry the fresh values anyway, since each one is
+       * read from the live View at the moment it is served.
+       */
+      if (blocksInFlight > 0 && Date.now() - deferringSince < REFRESH_DEFER_MAX_MS) {
+        scheduleRefresh();
+        return;
+      }
+      deferringSince = Date.now();
       pendingUpdate = false;
       refreshEveryLevel();
       void pushGrandTotal();

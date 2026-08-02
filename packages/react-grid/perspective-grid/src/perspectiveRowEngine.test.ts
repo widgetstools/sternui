@@ -143,6 +143,45 @@ describe('createPerspectiveRowEngine — refreshing on a Table update', () => {
     expect(grid.refreshes.filter((r) => r.route === undefined)).toHaveLength(1);
   });
 
+  it('does not re-read blocks that are still being read', async () => {
+    // MEASURED on the 50k x 400 stress book: one 100-row block costs
+    // 900-1,670 ms, because a read carries every column of the View. The
+    // refresh invalidates every loaded block, so at the 250 ms throttle the
+    // same ranges were re-requested five and six times over and the queue never
+    // drained — a scroll then waited behind a second of work it did not ask for.
+    let release: (() => void) | null = null;
+    const gate = new Promise<void>((r) => { release = r; });
+    const { table, tick } = makeTable();
+    const view = table.view as unknown as ReturnType<typeof vi.fn>;
+    const original = view.getMockImplementation()!;
+    view.mockImplementation(async (config: PerspectiveViewConfig) => {
+      const built = await original(config);
+      const rows = built.to_columns.bind(built);
+      built.to_columns = async (w: never) => { await gate; return rows(w); };
+      return built;
+    });
+
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId', refreshMs: 1 });
+    const grid = makeApi();
+    engine.setApi(grid.api);
+    const success = vi.fn();
+    engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100 },
+      success,
+      fail: () => {},
+    } as never);
+    await settle();
+
+    tick();
+    await new Promise((r) => setTimeout(r, 40));
+    expect(grid.refreshes).toHaveLength(0);
+
+    release!();
+    await vi.waitFor(() => expect(success).toHaveBeenCalled());
+    await vi.waitFor(() => expect(grid.refreshes.length).toBeGreaterThan(0));
+    await engine.close();
+  });
+
   it('stops refreshing when live is off, and catches up when it returns', async () => {
     const { table, tick } = makeTable();
     const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId', refreshMs: 5 });

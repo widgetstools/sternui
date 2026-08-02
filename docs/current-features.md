@@ -629,7 +629,12 @@ lifecycle rules live in the package's `ARCHITECTURE.md`.
   (the datasource hands `getGrandTotal` the same object it handed `getView`, so
   identity against the current root request is an exact staleness test), and the
   throttled total push reads `liveOnly` — it will not BUILD a View for a shape
-  the grid has moved off
+  the grid has moved off. The live re-read also **defers while blocks are in
+  flight** (re-arming, capped at 2 s so the grand total still moves): a 100-row
+  block of a 400-column book costs 0.9–2.3 s to read and the refresh invalidates
+  every loaded block, so at the 250 ms throttle the same ranges were re-requested
+  five and six times over and a scroll waited behind them. MEASURED: rows paint
+  **43–57 ms** after the last wheel notch, against 317–607 ms
 - `engine.countMatching(filterModel)` — rows the whole book matches under an AG
   filter model, for the saved-filter pills' count badges. Resolves **null**, not
   a number, when the model has a clause Perspective cannot express exactly, so

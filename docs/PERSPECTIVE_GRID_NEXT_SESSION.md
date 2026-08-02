@@ -85,19 +85,31 @@ window that saves its provider row and attaches straight after beats the async
 fix, fresh profile: first row at **12 s** on the default variant and **15 s**
 on the 50k × 400 modules variant, against never.
 
-**Symptoms:** (a) rows take a while to appear after scrolling STOPS; (b)
-grouping and ungrouping are slow.
+**(a) rows late after scrolling stops · MEASURED and fixed.** Rows now paint
+**43–57 ms** after the last wheel notch, against **317–607 ms**.
 
-(a) is plausibly the scroll-pause added this session — `bodyScroll` sets
-`setLive(false)` and resumes 150 ms after the last event
-(`SCROLL_RESUME_MS` in `PerspectiveMarketsGridSurface`) — interacting with block
-fetches, OR the read cost of a 400-column block. **Those are different fixes.**
-Separate them by timing `getRows` against the resume timer; try a larger/smaller
-`SCROLL_RESUME_MS` and see whether the delay tracks it.
+It was NOT the scroll-pause: `live` returns 154 ms after the last scroll event
+and the rows for the block already in flight painted before that, so
+`SCROLL_RESUME_MS` was never on the critical path. It was the live refresh
+re-reading blocks that were still being read — one 100-row block costs
+**900–2,341 ms** here because a read carries all 400 columns, and invalidating
+every loaded block four times a second meant the same ranges were re-requested
+five and six times over. `scheduleRefresh` now defers while blocks are in
+flight (re-arming, capped at 2 s so the grand total keeps moving).
 
-(b) is a different thing again: every group level is a fresh View, and
-ungrouping rebuilds the root. Look at `toPerspectiveGroupLevel` and the LRU in
-`createViewManager` (`maxViews`, default 24).
+**(b) grouping/ungrouping · MEASURED, not a separate defect.**
+`setRowGroupColumns` to first block served is **122–421 ms** and the level View
+is one build. What follows is 18–20 Views in fifteen seconds, all but one or two
+of them saved-filter badge counts — the same contention as item 1, which is why
+the slowest grouping change served its first block at 1,449 ms. No View-per-level
+problem was found; the LRU never came near its cap.
+
+**Still open here, and the biggest remaining number on this surface:** a
+400-column block read is 0.9–2.3 s. A View carries every column it was built
+with, and AG renders about fifteen of them. Restricting a View to the columns
+the grid actually asks for is the obvious next lever and has NOT been tried —
+it needs a rebuild when the user scrolls horizontally, so it is a design step,
+not a tweak.
 
 Note the Stress tab keeps a client-side row supply for its plain-AG-Grid and
 FINOS-viewer baselines — deliberately, since feeding those from a Table would

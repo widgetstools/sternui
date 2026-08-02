@@ -464,6 +464,47 @@ badges.
 On a 500-row tab the same click is 110 ms end to end, which is why none of this
 was visible until the stress tab was measured.
 
+## Scrolling a 400-column book
+
+MEASURED on the 50k x 400 stress tab, real wheel scrolls in a Playwright
+viewport (the preview pane reports `visibilityState: 'hidden'`, so rAF never
+fires and every frame reading comes back zero).
+
+**The scroll-pause is not what makes rows late.** `bodyScroll` sets
+`setLive(false)` and `SCROLL_RESUME_MS` resumes 150 ms after the last event:
+measured, `paused` fires within one frame of the first notch and `live` returns
+**154 ms** after the last one — while the rows for the block already in flight
+painted BEFORE that. Changing the timer moves nothing that matters.
+
+**What made rows late was re-reading blocks that were still being read.** One
+100-row block costs **900–2,341 ms** on this book, because a read carries every
+column of the View and there are 400 of them. The live refresh invalidates EVERY
+loaded block, so at the 250 ms throttle the engine was asked to re-read three
+blocks four times a second while each read took about a second: the same ranges
+were re-requested five and six times over, the queue never drained, and a scroll
+landing on a fresh block waited behind work nobody asked for.
+
+`scheduleRefresh` now defers while `blocksInFlight > 0`, re-arming rather than
+dropping the intent — capped at 2 s so a permanently busy grid still moves its
+grand total, which is the one figure a block response cannot update on its own.
+Nothing is lost by waiting: each block is read from the live View at the moment
+it is served, so a block that settles during the deferral carries the fresh
+values anyway.
+
+| after the last wheel notch | before | after |
+|---|---|---|
+| rows painted, run 1 | 317 ms | **43 ms** |
+| rows painted, run 2 | 607 ms | **57 ms** |
+
+**Grouping and ungrouping are not separately slow.** Measured on the same tab:
+`setRowGroupColumns` to the first block served is **122–421 ms**, and the level
+View is one build. What follows a shape change is 18–20 Views in fifteen
+seconds, and all but one or two are the saved-filter badge counts — the same
+contention as "One engine, one queue" above, not a cost of grouping. A block
+that lands in the middle of that burst pays for it: the slowest measured
+grouping change served its first block at 1,449 ms, behind six badge Views of
+134–394 ms each.
+
 ## Row grouping and totals
 
 AG Grid pulls a group tree **one level at a time** — it asks for the children
