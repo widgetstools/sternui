@@ -166,3 +166,95 @@ while (f) {
 
 Fixed = `count: 7` **and** `active: 'ov-00-kitchen-sink'`. Either alone is not
 the fix.
+
+---
+
+## 2. Alerts never fire on the Perspective surface
+
+**Status:** open · root cause MEASURED, not fixed · nothing committed.
+
+**Severity:** the whole Alerts feature is dead on this row model. Live rules
+(dataChange, relativeChange, threshold-on-tick) never evaluate, so the Alerts
+lab tab shows a ticking book and an empty bell.
+
+### Measured
+
+Alerts tab on both labs, book ticking, nothing touched for 12 s. The counters
+are a direct subscription to `platform.rows`, the signal alerts evaluate from:
+
+| lab | `rowModelType` | `full` changes | `delta` changes | rows in deltas |
+|---|---|---|---|---|
+| `perspective-ssrm-lab` | `serverSide` | **40** | **0** | **0** |
+| `markets-grid-lab` | `clientSide` | 0 | 20 | 107 |
+
+### Root cause
+
+Two facts that are individually reasonable and fatal together.
+
+1. The alerts subscriber **deliberately discards `full` changes under a
+   server-side row model**
+   ([`alerts/runtime/activate.ts`](../packages/react-grid/grid/src/customizer/modules/alerts/runtime/activate.ts),
+   ~line 293): *"SSRM fires modelUpdated often without a meaningful book-wide
+   delta. Alert deltas are published explicitly via publishExternalDelta."*
+   Sound — a full pass per tick over a server-side book would be ruinous.
+
+2. **Nothing publishes an explicit delta on the Perspective path.**
+   `publishSsrmTransactionDelta`
+   ([`ssrmRowChangeBridge.ts`](../packages/react-grid/grid/src/engine/ssrmRowChangeBridge.ts))
+   has exactly two callers: `routeDataTransactionAsync`, gated on `useSSRM` —
+   which is **false** here, since `resolveUseSsrm` only answers true for
+   `rowModel: 'server'` — and `applyTickToSsrm`, the CustomSSRMGrid tick path.
+   Neither runs on this surface.
+
+So alerts are promised a delta that this row model never sends. Ticks arrive as
+`table.update()` in the worker → engine refresh → `refreshServerSide` → block
+re-read → AG replaces the rows. No transaction, no publish, and the only thing
+that does reach the bus (`full`) is thrown away by rule 1.
+
+This is the recurring species on this branch: **code that assumed the client
+holds the whole book**, here in the form of assuming client-side row plumbing.
+
+### The fix — where the delta has to come from
+
+The Perspective row engine is the only place that knows a row changed. When a
+block is re-read it has the fresh rows and could diff them against what the
+grid already held for those ids, then `publishExternalDelta({ updated })`.
+
+Two constraints on any implementation, both learned the hard way on this
+branch:
+
+- **It is on the block-read hot path**, which was just optimised (see the
+  scroll work in the parity worklog). A per-row diff on every block read of
+  every tick is exactly the kind of cost that produced a 2,533 ms frame. It
+  should be gated on there being an enabled rule at all — the alerts subscriber
+  already gates that way — and must not run while the user is scrolling.
+- **A diff needs the previous values**, which this window only has for rows in
+  loaded blocks. That is the honest boundary: alerts on this surface can only
+  ever see rows this window holds. The full-book rescan
+  (`alertsFullBookRescan`, already wired to `readAllRows`) is the answer for
+  anything wider, and that distinction should be stated in the Alerts panel
+  rather than left for a user to infer from an empty bell.
+
+### Possible compounding factor — not confirmed
+
+The probe read `alertRulesEnabled: 0` on BOTH labs, which would mean no rules
+are loaded at all. That reading is **unreliable** — it looked for rules on
+`platform.getState()`, and module state is keyed by module id, so it was
+probably looking in the wrong place. Worth re-checking, because if the seeded
+alert profile is not being applied then issue 1 above is also in play and both
+have to be fixed before the tab demonstrates anything.
+
+### How to reproduce
+
+Open the Alerts tab on :5301, reach `platform` by walking `__reactFiber$` up
+from `.ag-root-wrapper` to the `{ platform, engineKind }` context value, then:
+
+```js
+let full = 0, delta = 0;
+platform.rows.subscribe((c) => { c.full ? full++ : delta++; });
+// wait ~12s while the book ticks
+console.log({ full, delta });   // perspective: 40 / 0 · CSRM: 0 / 20
+```
+
+Fixed = `delta > 0` on the Perspective surface with an enabled rule, and a
+firing bell badge.
