@@ -214,26 +214,48 @@ that does reach the bus (`full`) is thrown away by rule 1.
 This is the recurring species on this branch: **code that assumed the client
 holds the whole book**, here in the form of assuming client-side row plumbing.
 
-### The fix — where the delta has to come from
+### The fix — and the tempting wrong one
 
-The Perspective row engine is the only place that knows a row changed. When a
-block is re-read it has the fresh rows and could diff them against what the
-grid already held for those ids, then `publishExternalDelta({ updated })`.
+**Start from what an alert means.** A rule is about the DATA, not about what is
+rendered: "bid above 110" must fire whether or not that row is on screen. On
+CSRM that is automatic — the client holds the whole book, so "rows this window
+has" and "the whole book" are the same set, and nobody ever had to distinguish
+them. On the pull path they are different sets, and that difference is the
+whole issue.
 
-Two constraints on any implementation, both learned the hard way on this
-branch:
+**(a) Publish a delta for each re-read block — the tempting wrong fix.** The
+engine has the fresh rows on a block read and could diff them against what the
+grid held for those ids, then `publishExternalDelta({ updated })`. It is cheap,
+it fits the existing delta path, and alerts would visibly start firing.
 
-- **It is on the block-read hot path**, which was just optimised (see the
-  scroll work in the parity worklog). A per-row diff on every block read of
-  every tick is exactly the kind of cost that produced a 2,533 ms frame. It
-  should be gated on there being an enabled rule at all — the alerts subscriber
-  already gates that way — and must not run while the user is scrolling.
-- **A diff needs the previous values**, which this window only has for rows in
-  loaded blocks. That is the honest boundary: alerts on this surface can only
-  ever see rows this window holds. The full-book rescan
-  (`alertsFullBookRescan`, already wired to `readAllRows`) is the answer for
-  anything wider, and that distinction should be stated in the Alerts panel
-  rather than left for a user to infer from an empty bell.
+Do not stop there. It scopes evaluation to LOADED BLOCKS, so whether a rule
+fires depends on where the user happened to scroll. A silently viewport-scoped
+alert is worse than a dead one: the dead one is obvious.
+
+**(b) Evaluate in the worker, over the whole Table — the consistent fix.** This
+is the pattern the branch already established for the same reason one module
+over: style rules were moved into the worker because `forEachNodeAfterFilter`
+visits **0 nodes** under the server row model where CSRM visits all 20,000 (see
+`countMatchingExpression` / `aggregateScalar` in the perspective-grid
+ARCHITECTURE). Alerts are that problem again.
+
+The complication specific to alerts: `dataChange` and `relativeChange` need a
+PREVIOUS value, and a Perspective Table is an upsert store holding current
+values only. So the diff has to be taken where old and new both exist — the
+feed, at `table.update()` time. That shape already exists elsewhere
+(`oldNewDiff` is an SSRM capability, and `recordSsrmTickDiffs` does exactly
+this on the CustomSSRM path), so it is not new ground, but it is the part that
+needs design rather than wiring.
+
+**Constraint on either route:** it lands on the block-read hot path, which was
+just optimised (see the scroll work in the parity worklog). A per-row diff on
+every tick is exactly the cost that produced a 2,533 ms frame. Gate it on an
+enabled rule existing — the alerts subscriber already gates that way — and do
+not run it while the user is scrolling.
+
+The on-demand full-book rescan (`alertsFullBookRescan`, already wired to
+`readAllRows`) stays useful for seeding baselines, but it is not a substitute
+for live evaluation and should not be presented as one.
 
 ### Possible compounding factor — not confirmed
 
