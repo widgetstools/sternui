@@ -155,7 +155,55 @@ already is the leaf count).
 the loaded blocks aggregates only the rows this window holds, silently. That one
 does need worker-side range aggregation.
 
-## 4. Known issue: seeded layouts missing from the layout selector
+## 4. The 50k x 400 tab throws inside the engine · REPORTED BY THE USER, diagnosed, not fixed
+
+**Symptom as reported:** the 50k x 400 stress tab "crashes abruptly, sometimes
+during load and sometimes during normal operations".
+
+**What is MEASURED so far.** Driving the tab under CDP (raw browser WebSocket —
+Playwright's page session cannot see SharedWorkers) for ~15 minutes of scroll,
+sort, filter, group and reload churn: the renderer heap is FLAT at 470-530 MB,
+no page crash, no worker crash. So no hard crash reproduced yet.
+
+What DOES reproduce, every run, is an unhandled rejection inside the worker,
+once per boot and before any window has sent a frame:
+
+```
+TypeError: Cannot perform DataView.prototype.getInt32 on a detached or
+out-of-bounds ArrayBuffer
+  at B (...)  at async x.handle_request (...)  at async Object.W (...)
+```
+
+| | throws per worker boot |
+|---|---|
+| 500-row tab | **0** |
+| 50k x 400 tab | **1**, every run |
+| 50k x 400, write chunked to 5,000 rows | **6** — reverted |
+
+That stack is inside the engine's own transport; its protocol buffers are views
+over the wasm `HEAPU8`, which detaches when wasm memory grows. The chunking row
+is the informative one: bounding each write made it strictly worse, one throw
+per growth event, so the trigger is growth itself. Every frame WE hand
+`handle_request` was verified intact at handle time, so it is not our copy rule.
+
+**Why this is the prime suspect for "crashes".** An unhandled rejection in a
+SharedWorker is invisible — nothing reaches any window's console and whatever
+awaited that promise never settles. A blotter cannot tell that from a hang.
+`bootWorkerEntry` now reports these, so the next occurrence is attributable
+instead of silent.
+
+**Next steps, in order:**
+1. Ask what "crashes" looks like — tab gone, grid blank, whole app frozen, or
+   Chrome's "Aw, Snap". Each points somewhere different and the probes above
+   rule out two of them already.
+2. Reproduce with the reporting build and read the SharedWorker console
+   (DevTools > inspect the shared worker, or
+   `packages/react-grid/perspective-grid/scripts/workerCrashProbe.mjs`).
+3. Probe `@perspective-dev/client` **5.0.0** (published 2026-07-28, never
+   probed here) against `deleteRaceProbe.mjs` + a large-book growth case. The
+   fix for this one has to come from the engine.
+
+## 5. Known issue: seeded layouts missing from the layout selector
 
 Full write-up in [`perspective-grid-issuetobefixed.md`](./perspective-grid-issuetobefixed.md)
 §1. **Not Perspective-specific — reproduces identically on the CSRM lab.**
@@ -167,7 +215,7 @@ Three ordering fixes were tried and **reverted**; the doc lists them so they are
 not repeated. The fix is package-level (`@starui/engine` + `@starui/grid`), no
 app change.
 
-## 5. Known issue residual: alerts evaluate per window
+## 6. Known issue residual: alerts evaluate per window
 
 Alerts were dead on this surface and are now FIXED for live evaluation (commit
 `0c242a4c`) via a throttled whole-book pass. But each pass is a `readAllRows`

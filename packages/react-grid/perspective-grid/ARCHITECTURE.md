@@ -172,6 +172,43 @@ The `inline` build embeds its own version-matched server wasm, so going through
 it is safe; importing `@perspective-dev/server/dist/wasm/*` directly would pair
 a 5.0.0 binary with a 4.5.2 protocol.
 
+## The engine throws on its own buffers when memory grows
+
+**MEASURED, reproducible, and NOT fixable from this side.** On the 50k x 400 lab
+book the worker throws, once per boot and before any window has sent a frame:
+
+```
+TypeError: Cannot perform DataView.prototype.getInt32 on a detached or
+out-of-bounds ArrayBuffer
+  at B (...)  at async x.handle_request (...)  at async Object.W (...)
+```
+
+That stack is entirely inside the engine's own client-to-server transport. Its
+protocol buffers are views over the wasm `HEAPU8`, which DETACHES when wasm
+memory grows, and a book that size forces exactly that growth mid-request.
+
+| | detached-buffer throws per worker boot |
+|---|---|
+| 500-row tab | **0** |
+| 50k x 400 tab | **1**, every run |
+| 50k x 400 with the write chunked to 5,000 rows | **6** |
+
+The chunking row is the useful one: bounding each write made it strictly WORSE,
+one throw per growth event, so the trigger is growth itself and not the size of
+any single call. That experiment was reverted.
+
+**It is not our frames.** Every buffer handed to `handle_request` was checked at
+handle time — `byteLength` unchanged, never detached — so the copy rule is being
+honoured on both directions of the port.
+
+**Why it matters more than an error usually would:** an unhandled rejection in a
+SharedWorker is invisible. Nothing reaches any window's console, the worker
+keeps running, and whatever awaited that promise never settles — from a blotter
+that is indistinguishable from a hang, which is what "it crashed" usually means
+here. `bootWorkerEntry` now installs `unhandledrejection` / `error` listeners so
+the failure is at least attributable. Recovering from it needs the engine: the
+next lever is the 5.0.0 line (published 2026-07-28, unprobed).
+
 ## Rules that are not optional
 
 **Never delete a View with a read in flight.** Measured on 4.5.2

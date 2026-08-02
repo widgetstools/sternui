@@ -61,8 +61,52 @@ export interface BootWorkerEntryOpts {
   label?: string;
 }
 
+/**
+ * Surface what a SharedWorker otherwise swallows.
+ *
+ * An unhandled rejection inside a SharedWorker is INVISIBLE: nothing reaches
+ * any window's console, the worker keeps running, and whatever awaited the
+ * rejected promise simply never settles. From a blotter that is
+ * indistinguishable from a hang.
+ *
+ * MEASURED, and the reason this exists: on the 50k x 400 lab book the
+ * Perspective engine throws
+ * `TypeError: Cannot perform DataView.prototype.getInt32 on a detached or
+ * out-of-bounds ArrayBuffer` from inside its own transport, once per worker
+ * boot, before any window has asked for anything — its protocol buffers are
+ * views over the wasm `HEAPU8`, which detaches when wasm memory grows, and a
+ * book that size forces exactly that growth mid-request. The same book at 500
+ * rows never throws. Chunking the write made it WORSE (1 -> 6, one per growth
+ * event), so the trigger is growth itself, not the size of any one call.
+ *
+ * Nothing here fixes that — it is inside the engine. What it does is make the
+ * failure attributable instead of silent, so "the grid stopped" can be told
+ * apart from "the grid is slow".
+ */
+function reportUnhandled(label: string): void {
+  const scope = self as unknown as {
+    addEventListener?(type: string, listener: (event: unknown) => void): void;
+  };
+  if (typeof scope.addEventListener !== 'function') return;
+
+  scope.addEventListener('unhandledrejection', (event: unknown) => {
+    const reason = (event as { reason?: unknown }).reason;
+    // eslint-disable-next-line no-console
+    console.error(
+      `[${label}] unhandled rejection — a promise something is awaiting will never settle:`,
+      reason instanceof Error ? (reason.stack ?? reason.message) : reason,
+    );
+  });
+  scope.addEventListener('error', (event: unknown) => {
+    const e = event as { message?: string; filename?: string; lineno?: number };
+    // eslint-disable-next-line no-console
+    console.error(`[${label}] uncaught error: ${e.message ?? String(event)} (${e.filename ?? '?'}:${e.lineno ?? '?'})`);
+  });
+}
+
 export async function bootWorkerEntry(opts: BootWorkerEntryOpts = {}): Promise<void> {
   const label = opts.label ?? '@starui/host-data worker';
+  reportUnhandled(label);
   const { configServiceRestUrl, appId, userId, seedConfigUrl, seedConfigReload } =
     readWorkerBootstrapParams();
 

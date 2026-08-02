@@ -54,6 +54,22 @@ export interface ProxySessionLike {
   close?(): Promise<void>;
 }
 
+/**
+ * KNOWN, MEASURED, and not fixable from this side: on a large book the engine
+ * throws `TypeError: Cannot perform DataView.prototype.getInt32 on a detached
+ * or out-of-bounds ArrayBuffer` from inside its OWN transport, once per worker
+ * boot, before any window has sent a frame. Its protocol buffers are views over
+ * the wasm `HEAPU8`, which detaches when wasm memory grows, and a 50,000 x 400
+ * book forces that growth mid-request. Measured: 1 per boot at 50k x 400, ZERO
+ * at 500 rows, and chunking the write made it 6 (one per growth event) rather
+ * than fewer — so the trigger is growth itself, not the size of a single call.
+ *
+ * Every frame WE hand `handle_request` was verified intact at handle time
+ * (`byteLength` unchanged, never detached), so the copy rule below is being
+ * honoured on both directions of this port. `bootWorkerEntry` reports the
+ * rejection so it is at least visible; recovering from it needs the engine.
+ */
+
 /** Enough of a `MessagePort` to carry protocol frames. */
 export interface FramePortLike {
   postMessage(message: unknown, transfer?: Transferable[]): void;
