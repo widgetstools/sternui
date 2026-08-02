@@ -114,7 +114,8 @@ not a tweak.
 Note the Stress tab keeps a client-side row supply for its plain-AG-Grid and
 FINOS-viewer baselines — deliberately, since feeding those from a Table would
 measure the Table instead of them. Only the MarketsGrid surfaces are on the pull
-path.
+path, and since the OOM fix (item 4) only the ACTIVE surface's supply is
+subscribed at all.
 
 ## 3. Status bar parity · largest, own session
 
@@ -155,10 +156,39 @@ already is the leaf count).
 the loaded blocks aggregates only the rows this window holds, silently. That one
 does need worker-side range aggregation.
 
-## 4. The 50k x 400 tab throws inside the engine · REPORTED BY THE USER, diagnosed, not fixed
+## 4. The 50k x 400 tab died with "Aw, Snap · Out of Memory" · FIXED
 
-**Symptom as reported:** the 50k x 400 stress tab "crashes abruptly, sometimes
-during load and sometimes during normal operations".
+**Symptom as reported:** the tab "crashes abruptly, sometimes during load and
+sometimes during normal operations", with Chrome's *Aw, Snap! Error code: Out of
+Memory*. That is the RENDERER dying — so not the worker, and not the engine
+throw described below.
+
+**Cause, MEASURED.** `StressTestTab` called BOTH row supplies unconditionally.
+`useLabRows` was passed `enableUpdates: false` on the MarketsGrid variants,
+which stops the ticks but NOT the snapshot — so a window whose grid reads from
+the worker-held Table was also holding the whole book. The fiber tree had two
+live arrays of **50,000 rows x 256 fields** (`rows` and `rowsRef`), rendered by
+nothing. The comment above the call claimed the inactive supply "costs nothing".
+
+**Fix:** `StreamOptions.enabled` — a null `providerId` is how
+`useProviderStream` is told not to subscribe at all — plus releasing the rows
+when the subscription is dropped, since detaching stops new rows arriving but
+does not drop the ones already held.
+
+| | before | after |
+|---|---|---|
+| JS heap, tab idle | 481 MB | **74 MB** |
+| JS heap over 8 rounds of scroll/group/filter | 470-530 MB | **56-113 MB**, returning to ~57 |
+| 50,000-row arrays in the window | 2 | **0** |
+
+**Residual, measured and NOT fixed:** after visiting a *client-side baseline*
+variant (Plain AG Grid 50k x 400, which holds the book by design), switching
+back to the pull-path variant leaves **~640 MB** held even after a forced GC.
+The React arrays are gone — the retention is elsewhere, and
+`ProviderClientAdapter` keeping "the last snapshot commit by reference" is the
+first place to look. Only reachable by exploring variants, but it is real.
+
+## 5. The engine throws on its own buffers when memory grows · diagnosed, not fixed
 
 **What is MEASURED so far.** Driving the tab under CDP (raw browser WebSocket —
 Playwright's page session cannot see SharedWorkers) for ~15 minutes of scroll,
@@ -203,7 +233,7 @@ instead of silent.
    probed here) against `deleteRaceProbe.mjs` + a large-book growth case. The
    fix for this one has to come from the engine.
 
-## 5. Known issue: seeded layouts missing from the layout selector
+## 6. Known issue: seeded layouts missing from the layout selector
 
 Full write-up in [`perspective-grid-issuetobefixed.md`](./perspective-grid-issuetobefixed.md)
 §1. **Not Perspective-specific — reproduces identically on the CSRM lab.**
@@ -215,7 +245,7 @@ Three ordering fixes were tried and **reverted**; the doc lists them so they are
 not repeated. The fix is package-level (`@starui/engine` + `@starui/grid`), no
 app change.
 
-## 6. Known issue residual: alerts evaluate per window
+## 7. Known issue residual: alerts evaluate per window
 
 Alerts were dead on this surface and are now FIXED for live evaluation (commit
 `0c242a4c`) via a throttled whole-book pass. But each pass is a `readAllRows`

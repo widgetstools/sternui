@@ -95,18 +95,29 @@ export function StressTestTab() {
       : config.providerId;
 
   /**
-   * TWO row supplies, deliberately.
+   * TWO row supplies, and only the active surface's one is SUBSCRIBED.
    *
    * The baseline surfaces (plain AG Grid, the FINOS Perspective viewer) are
    * client-side by construction — that is what makes them controls. Feeding
    * them from a worker-held Table would measure the Table instead of them.
-   * MarketsGrid takes the pull path, which is what this lab is for. Only the
-   * one the active surface needs is enabled, so the other costs nothing.
+   * MarketsGrid takes the pull path, which is what this lab is for.
+   *
+   * `enabled` and not just `enableUpdates`, and this cost a renderer:
+   * `enableUpdates: false` stops the TICKS but the snapshot still arrives, so
+   * this window held the whole 50,000-row book while showing a grid that reads
+   * from the worker. MEASURED — two live arrays of 50,000 rows x 256 fields in
+   * hook state (`rows` and `rowsRef`), rendered by nothing — and the tab died
+   * with "Aw, Snap! Error code: Out of Memory". A pull-path window holding the
+   * book is the one thing this lab exists to disprove.
    */
   const { rowData, onReady: onBaselineReady, tickMs } = useLabRows(
     config.tabId,
     providerId,
-    { ...stream, enableUpdates: isMarkets ? false : stream.enableUpdates },
+    {
+      ...stream,
+      enabled: !isMarkets,
+      enableUpdates: isMarkets ? false : stream.enableUpdates,
+    },
     undefined,
   );
   const {

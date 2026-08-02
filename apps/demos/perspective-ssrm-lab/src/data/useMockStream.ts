@@ -55,7 +55,12 @@ export function useMockStream(
   opts: StreamOptions = {},
   bindings: MockStreamBindings,
 ): MockStreamResult {
-  const { rowCount = 500, updateIntervalMs = 500, enableUpdates = true } = opts;
+  const {
+    rowCount = 500,
+    updateIntervalMs = 500,
+    enableUpdates = true,
+    enabled = true,
+  } = opts;
   const { gridApiRef, applyTxRef, transformDelta } = bindings;
 
   const cfg = useMemo<MockProviderConfig>(
@@ -136,10 +141,31 @@ export function useMockStream(
     }
   }, []);
 
-  const { refresh, status } = useProviderStream<LabRow>(providerId, cfg, {
-    onDelta: applyIncoming,
-    onStatus,
-  });
+  // A null providerId is how `useProviderStream` is told not to subscribe. This
+  // is the difference between "do not tick" and "do not hold the book": see
+  // `StreamOptions.enabled`.
+  const { refresh, status } = useProviderStream<LabRow>(
+    enabled ? providerId : null,
+    enabled ? cfg : null,
+    { onDelta: applyIncoming, onStatus },
+  );
+
+  /**
+   * Let the book go when the subscription does.
+   *
+   * Detaching stops new rows arriving; it does not drop the ones already here.
+   * MEASURED on the Stress tab: switching from a client-side baseline to the
+   * pull-path surface left the previous variant's 50,000 rows in this hook's
+   * state, and the window sat at ~700 MB while showing a grid that reads from
+   * the worker. Every variant switch added another book.
+   */
+  useEffect(() => {
+    if (enabled) return;
+    rowsRef.current = [];
+    snapshotReadyRef.current = false;
+    setRows([]);
+    setSnapshotRowCount(0);
+  }, [enabled]);
 
   // Debounce interval changes while the slider is dragged — each step used to
   // call provider.restart() and replace all rowData (full grid reload).

@@ -4,6 +4,16 @@ export interface LabStreamOptions {
   rowCount?: number;
   updateIntervalMs?: number;
   enableUpdates?: boolean;
+  /**
+   * Subscribe at all. Default true.
+   *
+   * Distinct from `enableUpdates`, which only stops the ticks: the snapshot
+   * still arrives and the window still holds it. A tab whose active surface
+   * reads from the worker-held Table sets this false, or it materializes the
+   * whole book for nothing — see `StreamOptions.enabled` in `data/types.ts`
+   * for the measurement that produced this option.
+   */
+  enabled?: boolean;
 }
 
 export interface LabScenario {
