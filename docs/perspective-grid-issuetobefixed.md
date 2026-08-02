@@ -171,7 +171,30 @@ the fix.
 
 ## 2. Alerts never fire on the Perspective surface
 
-**Status:** open · root cause MEASURED, not fixed · nothing committed.
+**Status:** **FIXED** for live evaluation · the worker-side design below remains
+the better end state and is NOT done.
+
+**What shipped:** where a whole-book fetcher is registered (the Perspective path
+registers one), a `full` row-change now runs a throttled **whole-book** alert
+pass instead of being discarded
+([`alerts/runtime/activate.ts`](../packages/react-grid/grid/src/customizer/modules/alerts/runtime/activate.ts),
+`runServerSideWholeBookPass`). VERIFIED live on the Alerts tab: rule history
+grew 1 → 4 over 20 s of ticking with entries named `Bid > $110`, where before it
+never grew at all.
+
+Deliberately whole-book, not viewport — see "the tempting wrong fix" below;
+scoping to loaded blocks would make a rule fire based on where the user
+scrolled. Cost is bounded three ways: the caller already gates on an enabled
+rule existing, passes are throttled to 1 s, and a pass in flight suppresses the
+next rather than queueing.
+
+**Still open — the residual cost.** Every pass is a `readAllRows`, measured at
+~547 ms for 20,000 rows. Fine for a lab book and defensible for a real one at
+1 Hz, but it is per-window: N blotters each read the whole book. The worker-side
+design below removes that (evaluate once, push events) and is the reason this
+entry stays in the file.
+
+**Original status:** open · root cause MEASURED · nothing committed.
 
 **Severity:** the whole Alerts feature is dead on this row model. Live rules
 (dataChange, relativeChange, threshold-on-tick) never evaluate, so the Alerts

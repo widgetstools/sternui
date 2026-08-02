@@ -38,7 +38,10 @@ import {
   partitionEnabledRules,
 } from './evaluateCellDelta';
 import { createPreviousValuesStore } from './previousValues';
-import { registerAlertsBaselineSeedBinding } from './alertsFullBookRescan';
+import {
+  getAlertsLeafFetcher,
+  registerAlertsBaselineSeedBinding,
+} from './alertsFullBookRescan';
 
 function resolveRowId(node: unknown): string | null {
   if (!node || typeof node !== 'object') return null;
@@ -281,6 +284,85 @@ export function activateAlerts(
     }),
   );
 
+  /**
+   * Whole-book evaluation for server-side row models.
+   *
+   * MEASURED (`docs/perspective-grid-issuetobefixed.md`): on the Perspective
+   * surface the row-change bus emits ONLY `full` changes — 40 of them over 12 s
+   * of ticking, and 0 deltas — because ticks reach the grid as a worker
+   * `table.update()` then a block re-read, with no transaction for
+   * `publishSsrmTransactionDelta` to publish from. The `full` branch below
+   * discarded those, so alerts received 40 signals and used none: every live
+   * rule was silently dead.
+   *
+   * Evaluated from the WHOLE book, not from the loaded blocks. Scoping it to
+   * what this window happens to hold would make a rule fire or not depending
+   * on where the user last scrolled — worse than not firing, because the dead
+   * one is at least obvious.
+   *
+   * Cost is controlled three ways, since a whole-book read is not free (~547 ms
+   * for 20,000 rows on the measured book): the caller has already gated on an
+   * enabled rule existing, passes are throttled to `SERVER_SIDE_PASS_MIN_MS`,
+   * and a pass in flight suppresses the next rather than queueing behind it.
+   */
+  const SERVER_SIDE_PASS_MIN_MS = 1_000;
+  let lastServerSidePassAt = 0;
+  let serverSidePassInFlight = false;
+
+  const runServerSideWholeBookPass = (): void => {
+    const fetcher = getAlertsLeafFetcher(platform);
+    if (!fetcher) return;
+    if (serverSidePassInFlight) return;
+    const now = Date.now();
+    if (now - lastServerSidePassAt < SERVER_SIDE_PASS_MIN_MS) return;
+    lastServerSidePassAt = now;
+    serverSidePassInFlight = true;
+
+    void fetcher
+      .fetch()
+      .then((rows) => {
+        if (!isEvaluationActive()) return;
+        // Re-read: a profile switch may have changed the rules mid-fetch.
+        const current = platform.getState().rules;
+        if (!current.some((r) => r.enabled)) return;
+
+        // Node-shaped, because `scanNode` / `resolveRowId` read `id` + `data`.
+        // The id MUST match the grid's own row ids, or baselines would be kept
+        // under a second key and every row would look new on every pass.
+        const nodes: Array<{ id: string; data: Record<string, unknown> }> = [];
+        for (const row of rows) {
+          const raw = (row as Record<string, unknown>)[fetcher.rowIdField];
+          const id = raw == null ? '' : String(raw);
+          if (id) nodes.push({ id, data: row as Record<string, unknown> });
+        }
+
+        const next = new Set(nodes.map((n) => n.id));
+        if (hasEnabledRowChangeRules(current)) {
+          const added: Array<{ id: string }> = [];
+          const removed: Array<{ id: string }> = [];
+          for (const id of next) if (!knownRowIds.has(id)) added.push({ id });
+          for (const id of knownRowIds) if (!next.has(id)) removed.push({ id });
+          dispatchRowChanges(added, removed, current);
+        }
+        for (const id of knownRowIds) if (!next.has(id)) prevValues.deleteRow(id);
+        knownRowIds = next;
+
+        const { dataChange, relativeChange } = partitionEnabledRules(current);
+        if (dataChange.length === 0 && relativeChange.length === 0) return;
+        const api = platform.api.api;
+        if (!api) return;
+        const watchedCols = collectWatchedColIds(api, current);
+        if (watchedCols.size === 0) return;
+        for (const node of nodes) scanNode(node as never, current, watchedCols);
+      })
+      .catch(() => {
+        /* a failed read must not take the subscription down */
+      })
+      .finally(() => {
+        serverSidePassInFlight = false;
+      });
+  };
+
   // The shared, rAF-coalesced row-change signal replaces the per-tick
   // `modelUpdated` + `forEachNode` scan. GATE: no enabled rules → no work.
   disposers.push(
@@ -289,11 +371,17 @@ export function activateAlerts(
       const rules = platform.getState().rules;
       if (!rules.some((r) => r.enabled)) return;
       if (change.full) {
-        // SSRM fires modelUpdated often without a meaningful book-wide delta.
-        // Alert deltas are published explicitly via publishExternalDelta.
+        // A client-side full pass here would scan the few hundred rows THIS
+        // window holds and call it the book. Where a whole-book fetcher is
+        // registered (the Perspective path registers one), evaluate from that
+        // instead; otherwise fall through, which stays correct on CSRM because
+        // there the client really does hold the whole book.
         try {
           const api = platform.api.api;
-          if (api?.getGridOption?.('rowModelType') === 'serverSide') return;
+          if (api?.getGridOption?.('rowModelType') === 'serverSide') {
+            runServerSideWholeBookPass();
+            return;
+          }
         } catch {
           /* ignore */
         }

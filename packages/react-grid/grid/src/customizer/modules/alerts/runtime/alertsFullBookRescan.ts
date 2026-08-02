@@ -55,6 +55,24 @@ export function registerAlertsBaselineSeedBinding(
 }
 
 /**
+ * The registered whole-book fetcher for this grid, if any.
+ *
+ * Exposed because live evaluation needs it too, not just the on-demand seed.
+ * Under a server-side row model this window holds only its viewport, so the
+ * row-delta signal alerts normally evaluate from either never arrives or would
+ * cover a few hundred rows of the book — see
+ * `docs/perspective-grid-issuetobefixed.md`. The fetcher is the only handle on
+ * the WHOLE book, which is the scope an alert is actually about.
+ */
+export function getAlertsLeafFetcher(
+  platform: { gridId: string } | object,
+): { fetch: LeafFetcher; rowIdField: string } | null {
+  const id = gridIdOf(platform);
+  if (!id) return null;
+  return leafFetchers.get(id) ?? null;
+}
+
+/**
  * Fetch all filtered leaves via Perspective and seed alert baselines.
  * Day-to-day evaluation stays on publishExternalDelta — this is on-demand.
  */
