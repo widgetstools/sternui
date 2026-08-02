@@ -34,6 +34,10 @@ else**. Always run the control — it has caught several false findings.
   false findings"**. That section has repeatedly saved hours.
 - [`packages/react-grid/perspective-grid/ARCHITECTURE.md`](../packages/react-grid/perspective-grid/ARCHITECTURE.md)
   — design, measured 4.5.2 engine numbers, non-optional View-lifecycle rules.
+- [`docs/PERSPECTIVE_GRID_BRANCH_INVENTORY.md`](./PERSPECTIVE_GRID_BRANCH_INVENTORY.md)
+  — every file this branch adds, changes or removes under `packages/` and
+  `apps/`, generated from the diff. Useful for a review pass or a PR
+  description; regenerate with the command at the top of it.
 
 ---
 
