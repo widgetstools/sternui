@@ -177,7 +177,24 @@ evaluation pushing EVENTS to every window — design pinned in
 
 ---
 
-# What was done this session
+# What was done in the session after that
+
+Four commits, `4d4076f4..fede323d`:
+
+| commit | what |
+|---|---|
+| `4d4076f4` | **The Stress tab attaches at all.** `handlePerspectiveAttach` read the worker catalog cache synchronously and lost a race with the window's own `configStore.save`. Fresh profile: first row at 12 s, against never. |
+| `6bef6397` | **Filter pill 5,031 ms -> 1,044 ms** on 50k x 400. Background questions yield to blocks; a superseded root request gets no grand total; the total push will not BUILD a View; count floor 1 s -> 5 s. |
+| `e5c6df0b` | **Rows after a scroll stops 317-607 ms -> 43-57 ms.** The scroll-pause was never the cause; the live refresh was re-reading blocks that were still being read. |
+| `fede323d` | **Status bar parity.** AG's row-count panels render nothing here; ours read the Table. Found and fixed "Rows : 9 of 50,000" under grouping. |
+
+**The one habit that produced all four:** measure, then look at what the
+measurement says rather than at what the plan said. Three recorded premises were
+wrong this session — the pill's badge was not the filter-pill cost, the
+scroll-pause was not the scroll cost, and the aggregation panel needed no worker
+at all.
+
+# What was done in the session before that
 
 Fourteen commits on `feat/perspective-grid`, `695d2d5c..8f009e88`:
 
