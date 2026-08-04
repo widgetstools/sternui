@@ -25,6 +25,10 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
   testMatch: 'perspective-*.spec.ts',
+  // `perspective-column-window.spec.ts` matches that glob and belongs to a
+  // different app on a different port with no broker — see
+  // `playwright.perspective-lab.config.ts`.
+  testIgnore: 'perspective-column-window.spec.ts',
   // The snapshot alone is ~18 s and a cold worker boot adds to it.
   timeout: 120_000,
   retries: 0,

@@ -48,6 +48,7 @@ export {
   type ViewManager,
   type ViewManagerOpts,
   type ViewManagerEvent,
+  type PerspectiveColumnWindow,
   type PerspectiveTableLike,
   type UpdatableView,
 } from './viewManager.js';

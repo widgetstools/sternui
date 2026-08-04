@@ -488,43 +488,167 @@ Table → ProxySession → a **second Client that never saw a row**:
 | Windowed reads | @0 9 ms · @10,000 6 ms · @19,900 5 ms — flat with depth |
 | While the feed ticks | book moved under the window; row count stayed 20,000 |
 
-## The cost is the COLUMNS, not the round trip
+## The cost is NOT the columns — the 284x was a contaminated measurement
 
-The question worth settling before optimising anything on this path: when a
-block read is slow, is it the asynchrony — the proxy session, the awaits, the
-message passing — or is it what comes back?
+**This section previously read "The cost is the COLUMNS, not the round trip" and
+reported a 284x gap. That figure is WITHDRAWN.** It is kept in outline because
+how it went wrong is more useful than the number ever was, and because two
+separate probes had to be rewritten before the real answer appeared.
 
-MEASURED, same 50,000-row book, same engine, same browser build, same 100-row
-block size, flat and ungrouped, jumping to ten fixed row offsets. Only the
-column count differs:
+### What was claimed
 
-| `getRows`, end to end | 40 columns | 404 columns | ratio |
-|---|---|---|---|
-| median | **5 ms** | **1,420 ms** | **284x** |
-| min | 3 ms | 876 ms | 292x |
-| p90 | 49 ms | 2,447 ms | 50x |
+`getRows` median **5 ms at 40 columns against 1,420 ms at 404** — 284x for 10.1x
+the columns, hence "the cost per column is ~28x higher" and "the lever is
+narrowing the payload". Every piece of work planned around wide books rested on
+it.
 
-**The transport is not the bottleneck.** A block round trip at 40 columns is 5
-ms — the same proxy session, the same awaits, the same everything. Whatever
-costs seconds at 404 columns is the payload.
+### Why it was wrong — twice
 
-**And it is super-linear:** 10.1x the columns for 284x the time, so the cost
-PER COLUMN is ~28x higher at 404. Widening a View does not cost proportionally.
+**First, the pause switch does not mean what it says.** The comparison needed the
+live feed off on both sides, and the probe read `aria-checked` on the Demo
+Console's "Live ticks" switch. `useLabPerspectiveRows` initialises `paused` from
+`opts.enableUpdates` in a `useState` INITIALISER, which runs once for the tab —
+and the Stress tab swaps its variant without remounting the hook. Switching from
+the 40-column variant (`enableUpdates: false`) to the 400-column one
+(`enableUpdates ?? true`) therefore leaves the switch reading "paused" over a
+provider that is ticking, and the effect that would push the state to the worker
+is deliberately skipped on mount. The recorded `false -> false` on both variants
+was the symptom, and it was written down at the time as "could not certify".
 
-Cross-run figures, because a single run would overstate the precision: the
-404-column median came out 1,151 / 1,420 / 3,160 ms over three runs with
-differing live-tick state, while 40 columns was 4-5 ms every time. The exact
-multiplier is a range; the order of magnitude is not.
+**Second, the fix for that was itself unfalsifiable.** The rewritten probe
+verified the feed against the BOOK instead of the UI: sample the rendered cells,
+wait, sample again. It sampled the first 120 `.ag-cell` elements — and AG
+virtualises COLUMNS, so at the default scroll position those are the leading TEXT
+columns (cusip, ticker, description, assetClass), which a price feed never
+touches. The check could not fail. It reported "still" and produced a 3 ms vs
+4 ms comparison, wrong in the opposite direction.
 
-**What this licenses, and what it does not.** It says the lever is narrowing the
-payload, not speeding up the plumbing. It does NOT say column-window fetching is
-free to build — AG's SSRM request carries no column window (`startRow`,
-`endRow`, `rowGroupCols`, `valueCols`, `pivotCols`, `groupKeys`, `filterModel`,
-`sortModel`, and nothing else), so a narrowed View means rows already cached
-lack the new columns, and AG's only remedy is `refreshServerSide({purge:true})`
-— throwing away every loaded block. Done naively that trades a 1.4 s read for a
-full cache purge per horizontal scroll. See the handoff for the shape that would
-have to be designed around it.
+The sampler now scrolls a price column into view, watches only
+`midPrice`/`bidPrice`/`askPrice`/`lastPrice`/`priceChange`, and REFUSES outright
+if no such cell is in the DOM to watch.
+
+### What is actually true
+
+MEASURED with `scripts/columnCleanCostProbe.mjs`, feed verified still on both
+sides, book verified at 50,000 rows on both sides, flat and ungrouped, ten fixed
+row offsets, 100-row blocks:
+
+| `getRows`, end to end | 40 AG columns | 404 AG columns |
+|---|---|---|
+| median | **9 ms** | **123 ms** |
+| min | 3 ms | 4 ms |
+| p90 | 307 ms | 320 ms |
+| max | 847 ms | 430 ms |
+
+So there is a real gap in the median — about 14x — it is nothing like 284x, and
+the tails are indistinguishable.
+
+### And the gap is not the payload either
+
+The decisive measurement, `scripts/columnPayloadProbe.mjs`, which reads the keys
+of a row the datasource actually returned:
+
+| | `50k × 40` | `50k × 400` |
+|---|---|---|
+| AG columns | 40 | 404 |
+| **columns in a returned row** | **53** | **56** |
+| AG columns with no Table field | 7 | **368** |
+
+**"400 columns" is AG's column count, not the book's.** Every lab Table is built
+from one declared schema (`TABLE_FIELDS` in the lab's `perspectiveProvider.ts`),
+and 368 of the wide variant's 404 columns are synthetic `sNNN` **value getters**
+computed in the window from `id` and `midPrice`. The two variants' block payloads
+differ by THREE columns. Whatever costs 123 ms instead of 9 ms, it is not the
+number of columns crossing the proxy — it is the cost of a 404-column AG grid
+around the read.
+
+**Consequence for column-window fetching**, which is built and correct and
+described next: there is no book in this repo wide enough to show it working.
+Narrowing a 56-field payload to ~20 is the entire available headroom here, and
+the 368 value-getter columns are not fetched in any case. Proving it needs a
+provider that DECLARES hundreds of fields; the Stress tab is not one.
+
+One thing the ticking control could not settle: the same variant with the feed
+verified RUNNING. Toggling the switch back on does restart the provider, but the
+book did not resume moving inside a 180 s budget, so the probe refused to report
+rather than guess. The original 1,420 ms therefore has no confirmed explanation —
+only a confirmed disqualification.
+
+## Column-window fetching — built, opt-in, and off
+
+A Perspective View carries every column it was built with. Where a Table really
+is wide, AG renders a fraction of what every block fetches, and
+`viewManager.setColumnWindow` narrows it.
+
+**Where the state lives.** Beside the quick filter and the calculated columns,
+and for the same reason: AG's SSRM request carries no column window at all. The
+whole request is `startRow`, `endRow`, `rowGroupCols`, `valueCols`, `pivotCols`,
+`pivotMode`, `groupKeys`, `filterModel`, `sortModel`. Column virtualisation is
+purely a RENDERING optimisation over row data AG already holds, so nothing in the
+protocol says "the user scrolled right". Like those two, it participates in
+`shapeOf()` — a change retires stale Views on the NEXT block rather than deleting
+Views with reads in flight.
+
+**Scope.** The block View and the grand total only, which share a View key so a
+grouped grid's total stays free. `readAllRows` (an export wants everything) and
+every question-shaped read are left whole; `aggregateScalar` in particular reads
+a column by name that a window would be free to omit.
+
+**What a window carries without being asked**, each one a silent failure
+otherwise:
+
+- the key column and the tree fields — `getRowId` reads them, and a block whose
+  rows all key the same is DISCARDED by AG (warn 205), not rendered wrong;
+- every value column with an `aggFunc` — an aggregate is present in the output
+  ONLY when its column is listed, so the totals row would empty;
+- **every Table field that no grid column binds** — value-getter inputs,
+  style-rule inputs, anything the book carries that nothing renders. The lab's
+  KRD sparkline reads five such fields and the seeded curriculum names six more.
+
+**What it does NOT need to carry, MEASURED rather than assumed**
+(`scripts/columnWindowProbe.mjs`, against 4.5.2):
+
+- a `filter` clause on a column outside `columns` is applied exactly (25,398 of
+  50,000 rows), so the grid's filters, the quick search's clause and a group
+  level's ancestor clauses all survive;
+- `sort` on a column outside `columns` orders the View correctly;
+- `group_by` on a column outside `columns` still returns `__ROW_PATH__`, which is
+  where `toGroupColumns` reads the group key from anyway;
+- an `expressions` entry not listed in `columns` is evaluated, is filterable, and
+  stays OUT of the payload — which is what keeps `__quick__` off every block.
+
+**Two hard rules from the same probe.** An id the Table does not have makes
+`table.view()` throw `Invalid column '…' found in View columns` and takes the
+whole View down, so the window is intersected with `table.schema()` first and no
+window is applied at all without one. And `columns: []` is ACCEPTED, producing a
+View with zero columns — so an empty window is never emitted.
+
+**A widen does not purge.** AG's documented remedy for cached rows whose columns
+changed is `refreshServerSide({ purge: true })`, which would discard the scroll
+position and every expanded group on each horizontal scroll. It is not needed:
+the live re-read on this path already establishes that
+`refreshServerSide({ purge: false })` invalidates and re-requests every loaded
+block (see "Scrolling a 400-column book"), so a widen fills the new columns in
+place.
+
+**The hysteresis is in the surface.** A band of `pad` columns (25 by default)
+either side of the visible run, replaced only when the visible set LEAVES it,
+debounced 150 ms — so an ordinary nudge costs nothing. Sourced from
+`getAllDisplayedVirtualColumns()` on `virtualColumnsChanged`, which carries
+`afterScroll` and is **not** deprecated in AG Grid 36 (the `@deprecated v32.2`
+note beside it in `events.d.ts` belongs to `ColumnEverythingChangedEvent`), plus
+`displayedColumnsChanged` for hide/show/move/pin. The window array is sorted
+before it reaches `viewConfigKey`, so moving a column does not rebuild every View
+for an identical set.
+
+**Off by default, and it should stay off until a wide book proves it.** Every
+failure mode above is silent: a forgotten column renders BLANK, and a value
+getter or style rule reading a forgotten field gets `undefined` and reports
+nothing. A slow blotter is recoverable; a confidently blank one is not.
+Correctness is covered by `e2e/perspective-column-window.spec.ts`
+(`npm run e2e:perspective-lab`, 4 tests): scroll out of the band and back and
+assert real values, a value getter over pinned columns, grouping plus the totals
+row, and an export that still carries every field.
 
 ## One engine, one queue — block reads come first
 

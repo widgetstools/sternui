@@ -1730,3 +1730,93 @@ describe('master/detail and tree mode', () => {
     expect(grid.rowCounts).toContain(20_000);
   });
 });
+
+describe('createPerspectiveRowEngine — column window', () => {
+  function makeSchemaTable(fields: Record<string, string>, totalRows = 1000) {
+    const made = makeTable(totalRows);
+    return { ...made, table: { ...made.table, schema: async () => fields } };
+  }
+
+  const BOOK = { positionId: 'string', desk: 'string', pnl: 'float' };
+
+  it('pins the key column, whatever the window says', async () => {
+    // `getRowId` reads it. Without it every row in a block keys the same and AG
+    // DISCARDS the block (warn 205) rather than rendering it wrong.
+    const { table } = makeSchemaTable(BOOK);
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    engine.setApi(makeApi().api);
+
+    engine.setColumnWindow({ columns: ['pnl'] });
+    await engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100 },
+      success: () => {},
+      fail: () => {},
+    } as never);
+    await settle();
+
+    const config = (table.view as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0];
+    expect(config.columns).toEqual(['pnl', 'positionId']);
+  });
+
+  it('pins the tree fields too', async () => {
+    const { table } = makeSchemaTable({ ...BOOK, region: 'string' });
+    const engine = createPerspectiveRowEngine({
+      table,
+      keyColumn: 'positionId',
+      treeFields: ['region'],
+    });
+    engine.setApi(makeApi().api);
+
+    engine.setColumnWindow({ columns: ['pnl'] });
+    await engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100, groupKeys: [] },
+      success: () => {},
+      fail: () => {},
+    } as never);
+    await settle();
+
+    // The BLOCK View, found by its group_by rather than by position: a grouped
+    // grid also measures its leaf row count, and that transient View is
+    // deliberately un-narrowed, so it is the last call made.
+    const configs = (table.view as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
+    const block = configs.find((c) => c.group_by?.[0] === 'region');
+    expect(block?.columns).toContain('region');
+  });
+
+  it('re-reads the loaded blocks WITHOUT purging', async () => {
+    // A purge is what AG's own documentation points at, and it would throw away
+    // the scroll position and every expanded group on each horizontal scroll.
+    // A non-purging refresh invalidates and re-requests the loaded blocks, so a
+    // widened window fills the new columns in place.
+    const { table } = makeSchemaTable(BOOK);
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    const grid = makeApi();
+    engine.setApi(grid.api);
+
+    await engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100 },
+      success: () => {},
+      fail: () => {},
+    } as never);
+    await settle();
+    grid.refreshes.length = 0;
+
+    engine.setColumnWindow({ columns: ['pnl'] });
+
+    expect(grid.refreshes.length).toBeGreaterThan(0);
+    expect(grid.refreshes.every((r) => r.purge !== true)).toBe(true);
+  });
+
+  it('does nothing at all when the window has not changed', async () => {
+    const { table } = makeSchemaTable(BOOK);
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    const grid = makeApi();
+    engine.setApi(grid.api);
+
+    engine.setColumnWindow({ columns: ['pnl'] });
+    grid.refreshes.length = 0;
+    engine.setColumnWindow({ columns: ['pnl'] });
+
+    expect(grid.refreshes).toEqual([]);
+  });
+});

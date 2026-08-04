@@ -582,3 +582,57 @@ describe('blankUnaggregatedNonNumeric', () => {
     expect(blankUnaggregatedNonNumeric(columns, { schema: null })).toBe(columns);
   });
 });
+
+describe('toPerspectiveViewConfig — the column window', () => {
+  it('emits nothing when no window is set — every column, as before', () => {
+    expect(toPerspectiveViewConfig({}).columns).toBeUndefined();
+  });
+
+  it('never emits an empty array', () => {
+    // MEASURED against 4.5.2: `columns: []` is ACCEPTED and produces a View
+    // with zero columns, so an empty window has to mean "every column" or an
+    // unresolvable one would blank the grid instead of degrading.
+    expect(toPerspectiveViewConfig({ columns: [] }).columns).toBeUndefined();
+  });
+
+  it('sorts, so a column MOVE does not rebuild every View', () => {
+    // AG hands its columns back in display order and `viewConfigKey` hashes
+    // this array.
+    const a = toPerspectiveViewConfig({ columns: ['pnl', 'desk', 'id'] });
+    const b = toPerspectiveViewConfig({ columns: ['id', 'pnl', 'desk'] });
+    expect(a.columns).toEqual(['desk', 'id', 'pnl']);
+    expect(viewConfigKey(a)).toBe(viewConfigKey(b));
+  });
+
+  it('carries every aggregated value column, wherever the band is', () => {
+    // A value column's aggregate is present only when the column is listed, so
+    // without this the totals row silently empties for anything scrolled past.
+    const config = toPerspectiveViewConfig({
+      columns: ['id'],
+      valueCols: [{ id: 'pnl', aggFunc: 'sum' }, { id: 'notional', aggFunc: 'avg' }],
+    });
+    expect(config.columns).toEqual(['id', 'notional', 'pnl']);
+  });
+
+  it('does NOT carry a value column whose aggFunc is unmappable', () => {
+    // It gets no `aggregates` entry either, so there is nothing to preserve.
+    const config = toPerspectiveViewConfig({
+      columns: ['id'],
+      valueCols: [{ id: 'pnl', aggFunc: 'stddev' }],
+    });
+    expect(config.columns).toEqual(['id']);
+  });
+
+  it('leaves sort, filter and group columns out — measured as unnecessary', () => {
+    // `columnWindowProbe.mjs` against 4.5.2: a filter clause, a sort and a
+    // group_by all resolve correctly against columns the View does not carry.
+    // Pinning them would be payload for nothing.
+    const config = toPerspectiveViewConfig({
+      columns: ['id'],
+      sortModel: [{ colId: 'pnl', sort: 'desc' }],
+      filterModel: { desk: { filterType: 'text', type: 'equals', filter: 'Rates' } },
+      rowGroupCols: [{ id: 'sector' }],
+    });
+    expect(config.columns).toEqual(['id']);
+  });
+});

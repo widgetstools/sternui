@@ -35,7 +35,8 @@ type StressSurface =
   | 'perspective-20k40'
   | 'plain-50k400'
   | 'markets-50k40'
-  | 'markets';
+  | 'markets'
+  | 'markets-window';
 
 const VARIANTS = [
   { id: 'markets-50k40', label: 'MarketsGrid SSRM · 50k × 40' },
@@ -43,7 +44,30 @@ const VARIANTS = [
   { id: 'perspective-20k40', label: 'Perspective · 20k × 40' },
   { id: 'plain-50k400', label: 'Plain AG Grid · 50k × 400' },
   { id: 'markets', label: 'MarketsGrid · 50k × 400 (modules)' },
+  { id: 'markets-window', label: 'MarketsGrid · 50k × 400 (column window)' },
 ] as const;
+
+/**
+ * Column-window fetching, on.
+ *
+ * Identical to the `markets` variant in every other respect — same provider,
+ * same columns, same grid id and therefore the same seeded profiles — so the
+ * pair is a controlled A/B and any difference between them is the window.
+ *
+ * **What this pair does NOT show, stated so nobody re-derives it as a win.**
+ * MEASURED (`perspective-grid/scripts/columnPayloadProbe.mjs`): a block on this
+ * tab carries **56 columns**, not 400. Every lab Table is built from one
+ * ~53-field declared schema, and 368 of the 404 AG columns are the synthetic
+ * `sNNN` value getters computed in this window from `id` and `midPrice`. So
+ * there is almost nothing here for a window to narrow; this variant exists to
+ * prove the feature CORRECT, not fast.
+ *
+ * `midPrice` is pinned because the value getters read it and it sits at the far
+ * left of the display order — a band centred anywhere to the right would drop
+ * it, and the sparklines would draw a wrong value with nothing logged. `id` is
+ * the key column and the engine pins that itself.
+ */
+const COLUMN_WINDOW = { enabled: true, pinned: ['midPrice'] } as const;
 
 /**
  * Stress Test — A/B AG Grid vs Perspective on the same mock stream so
@@ -63,7 +87,8 @@ export function StressTestTab() {
     surface === 'plain-20k40' || surface === 'perspective-20k40';
   const isPlainAg = surface === 'plain-20k40' || surface === 'plain-50k400';
   const isMarkets50k40 = surface === 'markets-50k40';
-  const isMarkets = surface === 'markets' || isMarkets50k40;
+  const isColumnWindow = surface === 'markets-window';
+  const isMarkets = surface === 'markets' || isMarkets50k40 || isColumnWindow;
 
   const stream = useMemo(() => {
     if (isBaseline) {
@@ -173,6 +198,8 @@ export function StressTestTab() {
         return `Plain AG Grid 36 CSRM · ${BASELINE_ROWS.toLocaleString()} × ${BASELINE_COLS} · ticks off`;
       case 'plain-50k400':
         return `Plain AG Grid 36 CSRM · 50k × 400 · ${tickMs} ms ticks`;
+      case 'markets-window':
+        return `${config.subtitle} · ${tickMs} ms tick · column window ON`;
       default:
         return `${config.subtitle} · ${tickMs} ms tick · CustomSSRMGrid`;
     }
@@ -226,6 +253,7 @@ export function StressTestTab() {
               rowData={NO_ROWS}
               rowModel="perspective"
               perspectiveTable={table}
+              perspectiveColumnWindow={isColumnWindow ? COLUMN_WINDOW : undefined}
               componentName={config.componentName}
               columnDefs={columnDefs}
               defaultColDef={
@@ -259,7 +287,7 @@ export function StressTestTab() {
             />
           )}
         </div>
-        {guide && surface === 'markets' && (
+        {guide && (surface === 'markets' || isColumnWindow) && (
           <InspectorDrawer guide={guide} configBlocks={configBlocks} fullDocs={config.help} />
         )}
       </div>

@@ -67,6 +67,17 @@ export interface AgRequestState {
   quickFilterText?: string;
   /** Columns the quick search spans — every Table column, normally. */
   quickFilterColumns?: readonly string[];
+  /**
+   * Columns the View must carry — the column window. Already resolved against
+   * the Table's schema by the caller; see `viewManager.setColumnWindow`.
+   *
+   * Undefined or empty means EVERY column, which is what this path did before
+   * the window existed. The empty case is not a convenience: MEASURED
+   * (`scripts/columnWindowProbe.mjs`), `columns: []` is accepted by 4.5.2 and
+   * produces a View with ZERO columns, so emitting one for an empty window
+   * would blank the grid rather than fall back.
+   */
+  columns?: readonly string[];
 }
 
 /** Alias of the boolean expression column the quick filter compiles into. */
@@ -294,6 +305,37 @@ export function toPerspectiveViewConfig(state: AgRequestState): PerspectiveViewC
   // leaving the clause that references it — a View that cannot build.
   if (state.expressions && Object.keys(state.expressions).length > 0) {
     config.expressions = { ...config.expressions, ...state.expressions };
+  }
+
+  /**
+   * The column window, plus the one thing it must never omit.
+   *
+   * MEASURED (`scripts/columnWindowProbe.mjs`) against 4.5.2, because every
+   * one of these fails silently if it is not true:
+   *
+   *   - a `filter` clause on a column NOT in `columns` is applied correctly
+   *     (25,398 of 50,000 rows, exact) — so the grid's filters, the quick
+   *     search's clause and a group level's ancestor clauses all survive a
+   *     window that excludes them, and none of them needs pinning;
+   *   - `sort` on a column not in `columns` orders the View correctly;
+   *   - `group_by` on a column not in `columns` still returns `__ROW_PATH__`,
+   *     which is where `toGroupColumns` reads the group key from anyway;
+   *   - an `expressions` entry that is not listed in `columns` is evaluated,
+   *     is filterable, and stays OUT of the output — which is what keeps the
+   *     quick filter's `__quick__` from riding along on every block.
+   *
+   * An AGGREGATE is the exception, and the reason for the union below: a value
+   * column's aggregate is present only when the column is listed, so a totals
+   * row would silently empty for any aggregated column scrolled off screen.
+   *
+   * Sorted, because `viewConfigKey` hashes this array and AG hands its columns
+   * back in DISPLAY order — moving a column would otherwise rebuild every View
+   * for an identical set.
+   */
+  if (state.columns && state.columns.length > 0) {
+    const wanted = new Set(state.columns);
+    for (const id of Object.keys(aggregates)) wanted.add(id);
+    config.columns = [...wanted].sort();
   }
 
   return config;

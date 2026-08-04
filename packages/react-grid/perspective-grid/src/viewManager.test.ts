@@ -1237,3 +1237,154 @@ describe('tree mode', () => {
     expect(columns.sector).toEqual(['g1', 'g2', 'g3']);
   });
 });
+
+/**
+ * A Table that reports a schema, which the column window cannot resolve
+ * without: an id the Table does not have makes `table.view()` THROW and takes
+ * the whole View down (MEASURED — `columnWindowProbe.mjs`), so the window is
+ * intersected with the schema before it is ever sent.
+ */
+function makeSchemaTable(fields: Record<string, string>, totalRows = 1000) {
+  const made = makeTable(totalRows);
+  return {
+    ...made,
+    table: { ...made.table, schema: async () => fields } as PerspectiveTableLike,
+  };
+}
+
+const BOOK = {
+  positionId: 'string',
+  desk: 'string',
+  pnl: 'float',
+  notional: 'float',
+  krd1Y: 'float',
+  krd5Y: 'float',
+};
+
+describe('createViewManager — column window', () => {
+  it('narrows the block View to the window', async () => {
+    const { table, views: made } = makeSchemaTable(BOOK);
+    const views = createViewManager({ table });
+
+    views.setColumnWindow({ columns: ['positionId', 'pnl'] });
+    await views.getView({ startRow: 0, endRow: 100 });
+
+    expect(made.at(-1)!.config.columns).toEqual(['pnl', 'positionId']);
+  });
+
+  it('drops ids the Table does not have', async () => {
+    // AG has columns Perspective does not: the auto-group column, a
+    // client-side-only calculated column. Sending one throws
+    // `Invalid column '…' found in View columns` and blanks the grid.
+    const { table, views: made } = makeSchemaTable(BOOK);
+    const views = createViewManager({ table });
+
+    views.setColumnWindow({ columns: ['positionId', 'ag-Grid-AutoColumn'] });
+    await views.getView({ startRow: 0, endRow: 100 });
+
+    expect(made.at(-1)!.config.columns).toEqual(['positionId']);
+  });
+
+  it('always carries a Table field no grid column binds', async () => {
+    // The sharpest silent failure in this feature: a value getter reading an
+    // unfetched field gets `undefined` and draws a flat line, with no error
+    // anywhere. The lab's KRD sparkline computes from exactly such fields.
+    const { table, views: made } = makeSchemaTable(BOOK);
+    const views = createViewManager({ table });
+
+    views.setColumnWindow({
+      columns: ['positionId'],
+      gridColumns: ['positionId', 'desk', 'pnl', 'notional'],
+    });
+    await views.getView({ startRow: 0, endRow: 100 });
+
+    expect(made.at(-1)!.config.columns).toEqual(['krd1Y', 'krd5Y', 'positionId']);
+  });
+
+  it('applies no window at all when the Table cannot report a schema', async () => {
+    // Without one there is no way to tell a real column from an AG-only id,
+    // and guessing wrong throws.
+    const { table, views: made } = makeTable();
+    const views = createViewManager({ table });
+
+    views.setColumnWindow({ columns: ['positionId'] });
+    await views.getView({ startRow: 0, endRow: 100 });
+
+    expect(made.at(-1)!.config.columns).toBeUndefined();
+  });
+
+  it('applies no window when nothing in it survives the schema', async () => {
+    const { table, views: made } = makeSchemaTable(BOOK);
+    const views = createViewManager({ table });
+
+    views.setColumnWindow({ columns: ['ag-Grid-AutoColumn'] });
+    await views.getView({ startRow: 0, endRow: 100 });
+
+    expect(made.at(-1)!.config.columns).toBeUndefined();
+  });
+
+  it('reports an unchanged window as unchanged, whatever the order', async () => {
+    const { table } = makeSchemaTable(BOOK);
+    const views = createViewManager({ table });
+
+    expect(views.setColumnWindow({ columns: ['pnl', 'positionId'] })).toBe(true);
+    expect(views.setColumnWindow({ columns: ['positionId', 'pnl'] })).toBe(false);
+    expect(views.setColumnWindow({ columns: ['positionId'] })).toBe(true);
+    expect(views.setColumnWindow(null)).toBe(true);
+    expect(views.setColumnWindow(null)).toBe(false);
+  });
+
+  it('retires the live Views on the NEXT block, not on the call', async () => {
+    // Same seam as the quick filter: retiring inside the setter would delete
+    // Views with reads still in flight, which is the one operation the engine
+    // can be killed by.
+    const { table, views: made } = makeSchemaTable(BOOK);
+    const views = createViewManager({ table });
+
+    views.setColumnWindow({ columns: ['positionId', 'pnl'] });
+    await views.getView({ startRow: 0, endRow: 100 });
+    expect(views.liveViews).toBe(1);
+
+    views.setColumnWindow({ columns: ['positionId', 'notional'] });
+    expect(made[0].deleted).toBe(false);
+
+    await views.getView({ startRow: 0, endRow: 100 });
+    expect(made[0].deleted).toBe(true);
+    expect(views.liveViews).toBe(1);
+    expect(made.at(-1)!.config.columns).toEqual(['notional', 'positionId']);
+  });
+
+  it('does NOT narrow an export — every column, always', async () => {
+    const { table, views: made } = makeSchemaTable(BOOK, 10);
+    const views = createViewManager({ table });
+
+    views.setColumnWindow({ columns: ['positionId'] });
+    await views.readAllRows({ startRow: 0, endRow: 10 }, 1000);
+
+    expect(made.at(-1)!.config.columns).toBeUndefined();
+  });
+
+  it('does NOT narrow a set-filter value list', async () => {
+    const { table, views: made } = makeSchemaTable(BOOK, 5);
+    const views = createViewManager({ table });
+
+    views.setColumnWindow({ columns: ['positionId'] });
+    await views.distinctValues('desk', 1000);
+
+    expect(made.at(-1)!.config.columns).toBeUndefined();
+  });
+
+  it('gives the grand total the SAME window, so it shares the level View', async () => {
+    const { table } = makeSchemaTable(BOOK);
+    const views = createViewManager({ table });
+    const request = { startRow: 0, endRow: 100, rowGroupCols: [{ id: 'desk' }], groupKeys: [] };
+
+    views.setColumnWindow({ columns: ['positionId', 'pnl'] });
+    await views.getView(request);
+    const built = (table.view as ReturnType<typeof vi.fn>).mock.calls.length;
+    await views.readGrandTotal(request);
+
+    // A different window would key differently and cost a second whole View.
+    expect((table.view as ReturnType<typeof vi.fn>).mock.calls.length).toBe(built);
+  });
+});

@@ -69,6 +69,38 @@ export interface PerspectiveTableLike {
   }>;
 }
 
+/**
+ * The columns a window's grid actually needs.
+ *
+ * Held here rather than taken off the AG request for the same reason the quick
+ * filter is: AG's SSRM request carries NO column window. The whole request is
+ * `startRow`, `endRow`, `rowGroupCols`, `valueCols`, `pivotCols`, `pivotMode`,
+ * `groupKeys`, `filterModel`, `sortModel` — column virtualisation is purely a
+ * RENDERING optimisation over row data AG already holds, so nothing in the
+ * protocol says "the user scrolled right".
+ */
+export interface PerspectiveColumnWindow {
+  /**
+   * Column ids whose values the grid needs — the visible band plus whatever
+   * the host pinned. Ids the Table does not have are dropped: MEASURED, an
+   * unknown id makes `table.view()` throw `Invalid column '…' found in View
+   * columns` and takes the WHOLE View down, which would blank the grid rather
+   * than lose a column.
+   */
+  columns: readonly string[];
+  /**
+   * Every column id the GRID has, whether displayed or not.
+   *
+   * Table fields absent from this list are always carried, and that single rule
+   * covers the sharpest hazard in this feature: a value getter, style rule,
+   * formatter or alert reading a field no column binds gets `undefined` from a
+   * narrowed View and reports nothing, with no error anywhere. The lab's KRD
+   * sparkline computes from five such fields (`VALUE_GETTER_INPUTS`), and the
+   * seeded curriculum names six more. Omit the list to carry nothing extra.
+   */
+  gridColumns?: readonly string[];
+}
+
 export interface ViewManagerEvent {
   type: 'view' | 'retire';
   key: string;
@@ -212,6 +244,26 @@ export interface ViewManager {
    */
   setExpressions(expressions: Record<string, string>): boolean;
   /**
+   * Narrow every BLOCK View to the columns the grid needs. Null restores the
+   * default, which is every column.
+   *
+   * Held here for the same reason the quick filter and the calculated columns
+   * are, and it takes the same seam: it changes what a View contains, AG's
+   * request cannot carry it, and it participates in `shapeOf()` so a change
+   * retires stale Views on the next block instead of deleting Views with reads
+   * in flight. Returns true when it actually changed.
+   *
+   * **Scope, and it is deliberately narrow.** Only `getView` and
+   * `readGrandTotal` are narrowed — the two that serve the grid, and they share
+   * a View key so the total is free when grouping is on. `readAllRows` is NOT:
+   * an export wants every column, always. The question-shaped reads
+   * (`countMatching`, `countFilteredRows`, `countMatchingExpression`,
+   * `aggregateScalar`, `distinctValues`, `readMatchingRows`) are not narrowed
+   * either — they build their own minimal transient Views, and `aggregateScalar`
+   * in particular reads a column by name that a window would be free to omit.
+   */
+  setColumnWindow(window: PerspectiveColumnWindow | null): boolean;
+  /**
    * Every row of the current filtered, sorted book — for an export, which is
    * the one operation that legitimately wants the whole thing.
    *
@@ -251,6 +303,7 @@ function shapeOf(
   request: SsrmRequestLike,
   quick: QuickFilter,
   expressionsForShape: Record<string, string>,
+  columns: readonly string[] | undefined,
 ): string {
   return JSON.stringify({
     sort: request.sortModel ?? null,
@@ -263,6 +316,11 @@ function shapeOf(
     quick: quick.text || null,
     // A changed calc column makes every live View stale in the same way.
     exprs: Object.keys(expressionsForShape).sort().map((k) => [k, expressionsForShape[k]]),
+    // A widened or narrowed column window makes every live View stale the same
+    // way again — the rows are right and the columns are not. Retiring on it is
+    // also what keeps the LRU from filling with one View per band the user has
+    // scrolled through.
+    columns: columns ?? null,
   });
 }
 
@@ -276,6 +334,9 @@ function levelState(
   request: SsrmRequestLike,
   quick: QuickFilter,
   exprs: Record<string, string>,
+  /** The resolved column window. Omitted everywhere the View must be whole —
+   *  an export, and every question-shaped read. */
+  columns?: readonly string[],
 ) {
   return {
     sortModel: request.sortModel,
@@ -286,6 +347,7 @@ function levelState(
     quickFilterText: quick.text,
     quickFilterColumns: quick.columns,
     expressions: exprs,
+    columns,
   };
 }
 
@@ -342,6 +404,60 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
   /** Calculated columns. Every View built here carries them, so a calc column
    *  is sortable, filterable and groupable like any real one. */
   let expressions: Record<string, string> = {};
+  /** The column window, as the host stated it. Null means every column. */
+  let columnWindow: PerspectiveColumnWindow | null = null;
+  /** The window resolved against the schema, memoized on what it derives from
+   *  — the resolution needs `table.schema()`, and `getView` runs per block. */
+  let resolvedWindow: { key: string; columns: readonly string[] | undefined } | null = null;
+
+  /** Identity of a window, so an unchanged one is not re-resolved and does not
+   *  churn the shape. Sorted, because the caller hands these back in AG's
+   *  DISPLAY order and a column move must not read as a new window. */
+  function windowKey(window: PerspectiveColumnWindow | null): string {
+    if (window === null) return 'all';
+    return JSON.stringify([
+      [...window.columns].sort(),
+      window.gridColumns ? [...window.gridColumns].sort() : null,
+    ]);
+  }
+
+  /**
+   * The window the engine can actually be given.
+   *
+   * Two things happen here and both are load-bearing:
+   *
+   *   1. **Intersect with the schema.** MEASURED: `table.view({columns:['x']})`
+   *      for an `x` the Table does not have THROWS `Invalid column 'x' found in
+   *      View columns` — and it takes the whole View with it, so one AG-only
+   *      column id (the auto-group column, a client-side calc column) would
+   *      blank the grid instead of being ignored. Without a schema no window is
+   *      applied at all, for the same reason.
+   *   2. **Add back every Table field no grid column binds.** Those are exactly
+   *      the fields nothing can report as missing: a value getter reading one
+   *      gets `undefined` and draws a flat line, a style rule reading one never
+   *      matches. Carrying them costs a handful of columns out of hundreds.
+   */
+  async function effectiveColumns(): Promise<readonly string[] | undefined> {
+    if (columnWindow === null) return undefined;
+    const key = `${windowKey(columnWindow)}|${Object.keys(expressions).sort().join(',')}`;
+    if (resolvedWindow?.key === key) return resolvedWindow.columns;
+
+    const schema = await tableSchema();
+    let columns: readonly string[] | undefined;
+    if (schema) {
+      const known = new Set([...Object.keys(schema), ...Object.keys(expressions)]);
+      const out = new Set<string>();
+      for (const id of columnWindow.columns) if (known.has(id)) out.add(id);
+      if (columnWindow.gridColumns) {
+        const bound = new Set(columnWindow.gridColumns);
+        for (const field of Object.keys(schema)) if (!bound.has(field)) out.add(field);
+      }
+      // An empty array is a View with ZERO columns, not a fallback (MEASURED).
+      columns = out.size > 0 ? [...out].sort() : undefined;
+    }
+    resolvedWindow = { key, columns };
+    return columns;
+  }
 
   function retire(entry: Entry, why: 'lru' | 'shape' | 'close'): void {
     entries.delete(entry.key);
@@ -474,17 +590,19 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
       if (closed) return null;
 
       const levelled = withTreeLevels(request);
+      const columns = await effectiveColumns();
+      if (closed) return null;
 
       // A new sort/filter/grouping makes every existing View garbage. Retire
       // them now rather than waiting for the LRU: they would otherwise keep
       // charging the engine on every tick for a shape nothing will ask for.
-      const nextShape = shapeOf(levelled, quick, expressions);
+      const nextShape = shapeOf(levelled, quick, expressions, columns);
       if (shape !== null && shape !== nextShape) {
         for (const entry of [...entries.values()]) retire(entry, 'shape');
       }
       shape = nextShape;
 
-      const level = toPerspectiveGroupLevel(levelState(levelled, quick, expressions));
+      const level = toPerspectiveGroupLevel(levelState(levelled, quick, expressions, columns));
       const key = viewConfigKey(level.config);
       const entry = await ensure(key, level.config, level.groupColId, level.depth);
       if (closed) return null;
@@ -541,7 +659,16 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
     ): Promise<Record<string, unknown> | null> {
       if (closed) return null;
 
-      const level = toPerspectiveGroupLevel({ ...levelState(request, quick, expressions), groupKeys: [] });
+      // The SAME window the blocks use, so a grouped grid's total resolves to
+      // the root level's own View key and costs nothing extra. Narrowing it is
+      // also what it means for the total to be honest here: a column the window
+      // does not carry has no value anywhere on screen to total.
+      const windowColumns = await effectiveColumns();
+      if (closed) return null;
+      const level = toPerspectiveGroupLevel({
+        ...levelState(request, quick, expressions, windowColumns),
+        groupKeys: [],
+      });
       let config = level.config;
       let groupColId = level.groupColId;
       if (groupColId === null) {
@@ -918,6 +1045,16 @@ export function createViewManager(opts: ViewManagerOpts): ViewManager {
       // Like the quick filter: `getView` retires on shape change, and the shape
       // now includes these — so the next block request drops the stale Views
       // rather than deleting Views with reads still in flight.
+      return true;
+    },
+
+    setColumnWindow(next: PerspectiveColumnWindow | null): boolean {
+      if (windowKey(next) === windowKey(columnWindow)) return false;
+      columnWindow = next;
+      // Do NOT retire here, for the same reason `setQuickFilter` does not:
+      // `getView` retires on shape change and the shape now includes the
+      // resolved window, so the next block request drops the stale Views
+      // itself. Retiring now would delete Views with reads still in flight.
       return true;
     },
 

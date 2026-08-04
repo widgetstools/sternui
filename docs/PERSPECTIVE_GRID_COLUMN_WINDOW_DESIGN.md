@@ -1,6 +1,35 @@
 # Column-window fetching — design
 
-**Status:** designed, NOT built. Nothing is committed for this.
+**Status: BUILT — and the measurements this design rested on were WRONG.**
+
+The feature exists, is opt-in and off by default, is unit-tested and has its own
+e2e spec (`npm run e2e:perspective-lab`). What did not survive contact with a
+clean measurement is the JUSTIFICATION. This document is kept, with the
+corrections inline, because the way the premise failed is the useful part.
+
+| claim below | what a clean measurement says |
+|---|---|
+| `getRows` 5 ms at 40 columns vs **1,420 ms** at 404 | **9 ms vs 123 ms**, feed verified off on both sides |
+| "the cost per column is ~28x higher at 404" | ~1.4x — a 14x median gap for 10.1x the AG columns |
+| "~96% of every block read is fetched and discarded" | the block payload is **53 and 56 columns**. 368 of the wide variant's 404 AG columns are client-side value getters that are never fetched at all |
+| "AG's only remedy is `refreshServerSide({purge:true})`" | `purge: false` re-requests every loaded block, so a widen fills in place and keeps scroll and expansion |
+| "pin every column a sort or filter names" | measured unnecessary — a filter, a sort and a `group_by` all resolve against columns the View does not carry |
+
+The full account, including the two probe defects that produced the 284x, is in
+the package
+[`ARCHITECTURE.md`](../packages/react-grid/perspective-grid/ARCHITECTURE.md),
+"The cost is NOT the columns" and "Column-window fetching — built, opt-in, and
+off".
+
+**What it would take to prove this feature.** A provider that DECLARES hundreds
+of fields. Every Table in these labs is built from one ~53-field schema
+(`TABLE_FIELDS` in `perspectiveProvider.ts`), so nothing here has a payload wide
+enough for a window to shrink meaningfully. Until such a book exists, leave it
+off.
+
+---
+
+## The original design follows, unedited except where marked
 
 The next substantial piece of work on `feat/perspective-grid`. It is the single
 lever on both remaining problems — read latency and the renderer's memory — and

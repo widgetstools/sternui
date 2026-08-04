@@ -71,6 +71,7 @@ export {
   PerspectiveMarketsGridSurface,
   type PerspectiveMarketsGridSurfaceProps,
   type PerspectiveMarketsGridSurfaceHandle,
+  type PerspectiveColumnWindowOptions,
 } from './engine/PerspectiveMarketsGridSurface.js';
 export {
   resolveUseSsrm,

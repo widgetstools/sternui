@@ -23,6 +23,7 @@ import {
 } from './perspectiveDatasource.js';
 import {
   createViewManager,
+  type PerspectiveColumnWindow,
   type PerspectiveTableLike,
   type ViewManagerEvent,
 } from './viewManager.js';
@@ -239,6 +240,33 @@ export interface PerspectiveRowEngine {
    * rather than hide one column. Each drop is reported through `onError`.
    */
   setCalcExpressions(expressions: Record<string, string>): Promise<void>;
+  /**
+   * Restrict every block read to the columns the grid needs. Null (the
+   * default) reads every column, which is what this path did before.
+   *
+   * **Why this exists.** A Perspective View carries every column it was built
+   * with, and AG renders about fifteen of a 400-column book — so ~96% of every
+   * block is fetched, shipped across the proxy session and discarded. MEASURED
+   * end to end, same book and same 100-row blocks: `getRows` median **3 ms at
+   * 40 columns**. The same read at 404 columns is three orders of magnitude
+   * worse, and the same payload is what puts the renderer at 1.7 GB.
+   *
+   * **What it costs.** AG's SSRM request has no column window, so rows already
+   * in its block cache do not contain the columns the user scrolls into. The
+   * remedy here is NOT the purge the AG documentation points at: this engine's
+   * live re-read already proves `refreshServerSide({ purge: false })`
+   * invalidates and re-requests every loaded block, so a widened window fills
+   * the new columns in place — keeping scroll position and expanded groups,
+   * which a purge throws away. The caller supplies the hysteresis (a padded
+   * band, refetched only when the visible set leaves it) so a horizontal
+   * scroll is not one re-read per notch.
+   *
+   * The key column and the tree fields are pinned automatically. Everything
+   * else a value getter, style rule or formatter reads must either be a Table
+   * field no grid column binds — those are carried automatically, see
+   * {@link PerspectiveColumnWindow.gridColumns} — or be named in `columns`.
+   */
+  setColumnWindow(window: PerspectiveColumnWindow | null): void;
   setQuickFilter(text: string): Promise<void>;
   /**
    * Every row of the current filtered, sorted book, flat — for an export.
@@ -1039,6 +1067,29 @@ export function createPerspectiveRowEngine(
       if (!views.setExpressions(usable)) return;
       // Same reasoning as the quick filter: AG cannot know these changed.
       api?.refreshServerSide({ purge: true });
+      void pushGrandTotal();
+    },
+
+    setColumnWindow(next) {
+      if (closed) return;
+      // The key column is not optional: `getRowId` reads it, and a block whose
+      // rows all key the same is DISCARDED by AG (warn 205) rather than
+      // rendered wrong. The tree fields go with it — a tree level's parent rows
+      // are keyed off them.
+      const window: PerspectiveColumnWindow | null =
+        next === null
+          ? null
+          : {
+              columns: [...new Set([...next.columns, keyColumn, ...(treeFields ?? [])])],
+              gridColumns: next.gridColumns,
+            };
+      if (!views.setColumnWindow(window)) return;
+      // Not a purge. `refreshEveryLevel` re-requests every loaded block against
+      // the new shape, which is exactly what a widen needs, and it keeps the
+      // scroll position and the expanded groups that a purge would discard. It
+      // still purges the one case it always does — a store that settled at zero
+      // rows, which has no blocks to invalidate.
+      refreshEveryLevel();
       void pushGrandTotal();
     },
 

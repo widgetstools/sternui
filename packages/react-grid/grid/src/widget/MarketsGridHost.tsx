@@ -125,6 +125,7 @@ export interface MarketsGridHostProps<TData> {
   perspectivePending?: boolean;
   perspectiveKeyColumn?: string;
   perspectiveTreeFields?: readonly string[];
+  perspectiveColumnWindow?: MarketsGridProps<TData>['perspectiveColumnWindow'];
   masterDetail?: MarketsGridProps<TData>['masterDetail'];
   suggestSsrmAbove?: number;
   onSuggestSsrm?: () => void;
@@ -192,6 +193,7 @@ function MarketsGridHostInner<TData>({
   perspectivePending,
   perspectiveKeyColumn,
   perspectiveTreeFields,
+  perspectiveColumnWindow,
   masterDetail,
   suggestSsrmAbove,
   onSuggestSsrm,
@@ -225,6 +227,7 @@ function MarketsGridHostInner<TData>({
     const unsupported: string[] = [];
     if (masterDetail) unsupported.push('masterDetail');
     if (perspectiveTreeFields?.length) unsupported.push('perspectiveTreeFields');
+    if (perspectiveColumnWindow?.enabled) unsupported.push('perspectiveColumnWindow');
     if (unsupported.length === 0) return;
     // eslint-disable-next-line no-console
     console.warn(
@@ -233,7 +236,13 @@ function MarketsGridHostInner<TData>({
       } read by the Perspective surface only, and this grid is not on it. ` +
         "Set rowModel='perspective' with a perspectiveTable, or remove the prop.",
     );
-  }, [masterDetail, perspectiveTreeFields, perspectiveTable, perspectivePending]);
+  }, [
+    masterDetail,
+    perspectiveTreeFields,
+    perspectiveColumnWindow,
+    perspectiveTable,
+    perspectivePending,
+  ]);
   // Calculated columns become Perspective expression columns on the pull path;
   // without this they are absent entirely, since the planner only ran for SSRM.
   const perspectiveCalc = usePerspectiveCalcColumns(
@@ -516,6 +525,7 @@ function MarketsGridHostInner<TData>({
           columnDefs={perspectiveCalc.defs}
           calcExpressions={perspectiveCalc.expressions}
           treeFields={perspectiveTreeFields}
+          columnWindow={perspectiveColumnWindow}
           masterDetail={masterDetail}
           theme={theme}
           rowHeight={rowHeight}

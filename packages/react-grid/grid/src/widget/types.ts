@@ -3,9 +3,15 @@ import type { AnyModule, AppDataLookup, GridPlatform, MarketsGridLocalStorageCon
 import type { GridHostContext } from '@starui/host';
 import type { UseProfileManagerResult, VisualExcelExportOptions, ProviderGridHostApi, GridEventBindingsHostApi } from '@starui/grid/customizer';
 import type { SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
-import type { PerspectiveMasterDetail } from '../engine/PerspectiveMarketsGridSurface.js';
+import type {
+  PerspectiveColumnWindowOptions,
+  PerspectiveMasterDetail,
+} from '../engine/PerspectiveMarketsGridSurface.js';
 
-export type { PerspectiveMasterDetail } from '../engine/PerspectiveMarketsGridSurface.js';
+export type {
+  PerspectiveColumnWindowOptions,
+  PerspectiveMasterDetail,
+} from '../engine/PerspectiveMarketsGridSurface.js';
 
 export type { ProviderGridHostApi, ProviderGridHostMode, GridEventBindingsHostApi } from '@starui/grid/customizer';
 export type { MarketsGridLocalStorageConfig, StorageAdapterFactory, StorageAdapterFactoryOpts } from '@starui/engine';
@@ -102,6 +108,24 @@ export interface MarketsGridProps<TData = unknown> {
    * does nothing is the failure mode this path has produced repeatedly.
    */
   masterDetail?: PerspectiveMasterDetail;
+  /**
+   * Fetch only the columns the grid is showing, instead of every column the
+   * book has. Off unless `enabled` is set.
+   *
+   * A Perspective View carries every column it was built with and AG renders
+   * about fifteen of a 400-column book, so almost all of every block read is
+   * fetched and discarded. This narrows it to a padded band around the visible
+   * columns, re-read only when the visible set leaves that band.
+   *
+   * **Read {@link PerspectiveColumnWindowOptions} before enabling it.** Every
+   * way of getting the column list wrong is silent — a missing column renders
+   * blank, and a value getter or style rule reading a missing field reports
+   * nothing rather than failing.
+   *
+   * **`rowModel: 'perspective'` only.** Set on another surface it warns in dev
+   * rather than doing nothing quietly — see {@link MarketsGridProps.masterDetail}.
+   */
+  perspectiveColumnWindow?: PerspectiveColumnWindowOptions;
   /**
    * When set and the grid is on CSRM with `rowData.length >=` this value,
    * show a dismissible banner suggesting SSRM. Does not auto-switch —

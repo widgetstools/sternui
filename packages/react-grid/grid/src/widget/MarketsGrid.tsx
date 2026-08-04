@@ -426,6 +426,7 @@ function MarketsGridInner<TData = unknown>(
         }
         perspectiveKeyColumn={props.perspectiveKeyColumn}
         perspectiveTreeFields={props.perspectiveTreeFields}
+        perspectiveColumnWindow={props.perspectiveColumnWindow}
         masterDetail={props.masterDetail}
         suggestSsrmAbove={props.suggestSsrmAbove}
         onSuggestSsrm={props.onSuggestSsrm}

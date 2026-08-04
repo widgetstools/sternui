@@ -48,6 +48,7 @@
     "e2e:ui": "playwright test --ui",
     "e2e:container": "playwright test -c playwright.container.config.ts",
     "e2e:perspective": "playwright test -c playwright.perspective.config.ts",
+    "e2e:perspective-lab": "playwright test -c playwright.perspective-lab.config.ts",
     "dev": "npm run dev:demo-react",
     "dev:demo-react": "npm --prefix apps run dev -w @starui/demo-react",
     "dev:demo-configservice-react": "npm --prefix apps run dev -w @starui/demo-configservice-react",

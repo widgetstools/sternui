@@ -24,6 +24,7 @@ import {
 import { AgGridReact } from 'ag-grid-react';
 import type {
   CellValueChangedEvent,
+  Column,
   GetContextMenuItems,
   GetRowIdParams,
   GridApi,
@@ -65,6 +66,36 @@ const NO_HOST_OVERRIDES: ReadonlySet<string> = new Set<string>();
  * live immediately.
  */
 const SCROLL_RESUME_MS = 150;
+
+/**
+ * Columns fetched either side of the visible band.
+ *
+ * One viewport's worth, so an ordinary nudge scroll stays inside the loaded
+ * band and costs nothing. Bigger trades payload for fewer re-reads; the point
+ * of a pad at all is that a re-read is the expensive event, not a column.
+ */
+const DEFAULT_COLUMN_WINDOW_PAD = 25;
+
+/**
+ * Coalesce band recalculation. AG fires `virtualColumnsChanged` per scroll
+ * frame, so a horizontal fling across the whole book must produce ONE widen
+ * rather than one per frame — the same reason `blockLoadDebounceMillis`
+ * debounces row loads.
+ */
+const COLUMN_WINDOW_DEBOUNCE_MS = 150;
+
+/**
+ * The Table column a grid column reads.
+ *
+ * `colId` and `field` are the same string for every column in these demos, and
+ * are NOT required to be: AG defaults `colId` to `field` but a colDef may set
+ * either. The engine indexes the Table by field, so field wins where there is
+ * one — a calculated column has only a colId, which is also its Perspective
+ * expression alias.
+ */
+function tableField(column: Column): string {
+  return column.getColDef().field ?? column.getColId();
+}
 
 /**
  * Blank stub cells instead of AG's "Loading...".
@@ -177,8 +208,54 @@ export interface PerspectiveMarketsGridSurfaceProps {
    * anything extra.
    */
   masterDetail?: PerspectiveMasterDetail;
+  /**
+   * Fetch only the columns the grid is showing. Off unless `enabled` is set.
+   *
+   * See {@link PerspectiveColumnWindowOptions} — and read its `pinned` note
+   * before turning this on, because every way of getting the list wrong is
+   * silent.
+   */
+  columnWindow?: PerspectiveColumnWindowOptions;
   /** Profile / grid-state capture runs here; without it a layout is lost. */
   onGridPreDestroyed?: () => void;
+}
+
+/**
+ * Column-window fetching — opt-in, and off by default on purpose.
+ *
+ * A Perspective View carries every column it was built with, and AG renders
+ * about fifteen of a 400-column book, so ~96% of every block read is fetched,
+ * shipped and discarded. Narrowing the View is the one lever on both the read
+ * latency and the renderer memory that go with that.
+ *
+ * It is off by default because AG's SSRM request carries no column window, so
+ * this window state is invented here and the ways it can be wrong do not
+ * announce themselves: a column left out renders BLANK, and a value getter or
+ * style rule reading a left-out field gets `undefined` and quietly reports
+ * nothing. A slow blotter is recoverable; a confidently blank one is not.
+ *
+ * What is carried without being asked for:
+ *   - the key column and the tree fields (the engine pins them — a block whose
+ *     rows all key the same is discarded by AG, not rendered wrong);
+ *   - every value column with an `aggFunc`, or the totals row empties;
+ *   - **every Table field no grid column binds at all** — value-getter inputs,
+ *     style-rule inputs, anything the book carries that nothing renders.
+ *
+ * What is NOT, and is what `pinned` is for: a field that IS a grid column but
+ * is read by something other than its own cell — a value getter computing from
+ * a neighbouring column, a style rule keyed on a hidden one.
+ *
+ * Sort, filter and grouping need no pinning at all. MEASURED against 4.5.2
+ * (`columnWindowProbe.mjs` in the perspective-grid package): a filter clause,
+ * a sort and a `group_by` all resolve correctly against columns the View does
+ * not carry.
+ */
+export interface PerspectiveColumnWindowOptions {
+  enabled?: boolean;
+  /** Columns fetched either side of the visible band. Defaults to 25. */
+  pad?: number;
+  /** Columns that are always fetched, wherever the band is. */
+  pinned?: readonly string[];
 }
 
 export interface PerspectiveMasterDetail {
@@ -234,6 +311,12 @@ export const PerspectiveMarketsGridSurface = forwardRef<
   const { table, keyColumn, refreshMs, onError } = props;
   const apiRef = useRef<GridApi | null>(null);
   const [engine, setEngine] = useState<PerspectiveRowEngine | null>(null);
+  /**
+   * State as well as the ref, because the column-window effect has to run
+   * AFTER the grid exists and a ref never re-runs an effect. One extra render
+   * at mount; `AgGridReact` re-renders with identical props and does nothing.
+   */
+  const [gridApi, setGridApi] = useState<GridApi | null>(null);
 
   // Joined so a caller passing a fresh array literal every render does not
   // rebuild the engine — which would tear down every live View per render.
@@ -336,6 +419,96 @@ export const PerspectiveMarketsGridSurface = forwardRef<
     if (!engine) return;
     void engine.setCalcExpressions(props.calcExpressions ?? {});
   }, [engine, props.calcExpressions]);
+
+  /**
+   * Keep the engine's column window over the band the user is looking at.
+   *
+   * Two events, and both are needed. `virtualColumnsChanged` is what a
+   * HORIZONTAL SCROLL fires — it carries `afterScroll` and is not deprecated in
+   * AG Grid 36 (the `@deprecated v32.2` note nearby belongs to
+   * `ColumnEverythingChangedEvent`, which is a different event and cost a
+   * reading of the type file to establish). `displayedColumnsChanged` covers
+   * everything that changes the column set without scrolling: hide, show, move,
+   * pin, and the auto-group column appearing when the user groups.
+   *
+   * The hysteresis is the whole design. Recomputing the band on every event
+   * would be one full re-read per scroll frame; instead the band is only
+   * replaced when the VISIBLE set has left it, so ordinary nudges inside the
+   * pad cost nothing at all.
+   */
+  // Flattened to scalars for the dep list, the same way `treeFieldsKey` is: a
+  // host passing a fresh object literal every render would otherwise tear the
+  // listeners down and reset the band on every render.
+  const columnWindowOn = props.columnWindow?.enabled === true;
+  const columnWindowPad = props.columnWindow?.pad ?? DEFAULT_COLUMN_WINDOW_PAD;
+  const columnWindowPinned = (props.columnWindow?.pinned ?? []).join(' ');
+  useEffect(() => {
+    if (!engine || !gridApi || !columnWindowOn) return;
+    const pad = columnWindowPad;
+    const pinned = columnWindowPinned ? columnWindowPinned.split(' ') : [];
+
+    let band: Set<string> | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const visibleFields = () =>
+      gridApi.getAllDisplayedVirtualColumns().map(tableField);
+
+    const apply = () => {
+      // Order matters and it is AG's, not ours: the pad is a slice of the
+      // DISPLAYED columns around the visible run, so a user who moved a column
+      // to the front pads around where it now is.
+      const displayed = gridApi.getAllDisplayedColumns();
+      const visible = new Set(visibleFields());
+      if (visible.size === 0) return;
+      let lo = displayed.length;
+      let hi = -1;
+      displayed.forEach((column, index) => {
+        if (!visible.has(tableField(column))) return;
+        lo = Math.min(lo, index);
+        hi = Math.max(hi, index);
+      });
+      if (hi < 0) return;
+
+      // Still inside the loaded band: nothing to fetch, and re-reading every
+      // loaded block for a two-column nudge is exactly what the pad prevents.
+      if (band && [...visible].every((field) => band!.has(field))) return;
+
+      const next = new Set<string>(pinned);
+      for (const column of displayed.slice(Math.max(0, lo - pad), hi + pad + 1)) {
+        next.add(tableField(column));
+      }
+      band = next;
+      engine.setColumnWindow({
+        columns: [...next],
+        // Every grid column, hidden ones included — the engine carries Table
+        // fields that appear in NO grid column, which is how a value getter's
+        // inputs survive a window that has never heard of them.
+        gridColumns: (gridApi.getColumns() ?? []).map(tableField),
+      });
+    };
+
+    const schedule = () => {
+      if (timer !== null) return;
+      timer = setTimeout(() => {
+        timer = null;
+        apply();
+      }, COLUMN_WINDOW_DEBOUNCE_MS);
+    };
+
+    apply();
+    gridApi.addEventListener('virtualColumnsChanged', schedule);
+    gridApi.addEventListener('displayedColumnsChanged', schedule);
+    return () => {
+      if (timer !== null) clearTimeout(timer);
+      if (!gridApi.isDestroyed?.()) {
+        gridApi.removeEventListener('virtualColumnsChanged', schedule);
+        gridApi.removeEventListener('displayedColumnsChanged', schedule);
+      }
+      // Back to every column. A surface that turns this off mid-life, or an
+      // engine about to be replaced, must not leave a narrowed View behind.
+      engine.setColumnWindow(null);
+    };
+  }, [engine, gridApi, columnWindowOn, columnWindowPad, columnWindowPinned]);
 
   const lastQuickFilter = useRef('');
   const onModelUpdated = useCallback((event: { api: GridApi }) => {
@@ -704,6 +877,7 @@ export const PerspectiveMarketsGridSurface = forwardRef<
         overlayNoRowsTemplate=" "
         onGridReady={(event) => {
           apiRef.current = event.api;
+          setGridApi(event.api);
           engine?.setApi(event.api as never);
           event.api.addEventListener('cellValueChanged', onCellValueChanged);
           event.api.addEventListener('modelUpdated', onModelUpdated);
