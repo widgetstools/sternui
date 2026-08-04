@@ -38,14 +38,55 @@ else**. Always run the control — it has caught several false findings.
   — every file this branch adds, changes or removes under `packages/` and
   `apps/`, generated from the diff. Useful for a review pass or a PR
   description; regenerate with the command at the top of it.
+- [`docs/PERSPECTIVE_GRID_COLUMN_WINDOW_DESIGN.md`](./PERSPECTIVE_GRID_COLUMN_WINDOW_DESIGN.md)
+  — **the next substantial piece of work**, designed and not built. Read it
+  before starting item A below.
 
 ---
 
-# WHAT NEEDS DOING — in this order
+# START HERE — the next session's order
 
-The first three came from the user in one message and are **unstarted**. Each
-needs MEASUREMENT before any code change; see "Method" below for why that is not
-optional advice.
+Items 1-3 below were the previous ask and are **done**; they are kept because
+what was ruled out is as useful as what was fixed. The live work is A and B.
+
+## A. Column-window fetching · designed, not built · the main event
+
+Full design in
+[`PERSPECTIVE_GRID_COLUMN_WINDOW_DESIGN.md`](./PERSPECTIVE_GRID_COLUMN_WINDOW_DESIGN.md).
+
+**Why it is first:** it is the one lever on BOTH remaining problems. A View
+carries every column it was built with and AG renders ~15 of 400, so ~96% of
+every block read is fetched and discarded. MEASURED: `getRows` median **5 ms at
+40 columns vs 1,420 ms at 404** — 284x for 10x the columns, so cost per column
+is ~28x worse. The same payload drives the renderer's memory (1,026 MB idle at
+40 columns, 1,748 MB at 404, against Chrome's ~4 GB ceiling).
+
+**Why it is not a tweak:** AG's SSRM request carries no column window, so
+narrowing a View means cached rows lack the columns scrolled into, and AG's only
+remedy is a full purge. Naively that trades a 1.4 s read for a cache purge per
+horizontal scroll. The design exists to avoid that, and the list of columns that
+must be pinned (key column, group/value columns, anything a sort, filter,
+expression, value getter or style rule reads) is the part that fails SILENTLY if
+gotten wrong.
+
+`PerspectiveViewConfig.columns` already exists and nothing sets it — the engine
+half is one field. The window state takes the same seam as `setQuickFilter` /
+`setExpressions`.
+
+## B. The Stress tab still dies with "Aw, Snap · Out of Memory"
+
+Reported twice, still open. One real cause was found and fixed (item 4 below,
+481 MB -> 74 MB of JS heap), and it was not enough: the tab runs at 1.0-3.3 GB
+depending on variant. Full table in item 4. **A is the main remedy**; the
+other two candidates there (the plain-AG baseline at 3.3 GB, and the ~640 MB
+retained after visiting it) are cheaper and independent.
+
+---
+
+# WHAT WAS ASKED LAST TIME — all three done
+
+Each needed MEASUREMENT before any code change; see "Method" below for why that
+is not optional advice.
 
 ## 1. Filter pill takes a while to apply · DONE
 
