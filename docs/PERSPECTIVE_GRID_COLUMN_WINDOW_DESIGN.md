@@ -21,11 +21,20 @@ the package
 "The cost is NOT the columns" and "Column-window fetching — built, opt-in, and
 off".
 
-**What it would take to prove this feature.** A provider that DECLARES hundreds
-of fields. Every Table in these labs is built from one ~53-field schema
-(`TABLE_FIELDS` in `perspectiveProvider.ts`), so nothing here has a payload wide
-enough for a window to shrink meaningfully. Until such a book exists, leave it
-off.
+**It has now been proved, and the answer is no.** The Stress tab was rebuilt as
+50,000 x 120 REAL columns (a provider declaring 121 fields, no value getters), so
+the block payload finally matches the column count. Same book, same feed verified
+still, window off against on:
+
+| | OFF | ON |
+|---|---|---|
+| columns in a returned row | **123** | **80** |
+| `getRows` median | 8 ms | 8 ms |
+| p90 | 16 ms | **44 ms** |
+
+The window does exactly what it was built to do — 35% less payload — and buys
+nothing, because an 8 ms read has nothing to give back. The tail is worse with it
+on, since a band leaving its pad re-reads every loaded block. **Leave it off.**
 
 ---
 

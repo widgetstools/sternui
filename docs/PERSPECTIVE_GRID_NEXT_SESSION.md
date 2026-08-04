@@ -17,7 +17,7 @@ Do NOT start a new branch. Everything below continues on `feat/perspective-grid`
 
 | app | port | what it is |
 |---|---|---|
-| `apps/demos/perspective-ssrm-lab` | **5301** | The feature lab on `rowModel="perspective"`. Where the open issues show up. |
+| `apps/demos/perspective-ssrm-lab` | **5301** | The feature lab on `rowModel="perspective"`. Its Stress tab is now ONE surface — 50k x 120 REAL columns, no variants, no client-side baselines. |
 | `apps/demos/markets-grid-lab` | **5300** | The CSRM twin. **The control** — now genuinely `clientSide`, the SSRM toggle was removed this session. |
 | `apps/demos/minimal-perspective-table` | **5273** | Product-path demo against the STOMP fixture. What `npm run e2e:perspective` drives. |
 
@@ -50,105 +50,134 @@ else**. Always run the control — it has caught several false findings.
 Items 1-7 below were earlier asks and are **done or diagnosed**; they are kept
 because what was ruled out is as useful as what was fixed.
 
-## A. Column-window fetching · BUILT, opt-in, OFF — and its justification is gone
+## A. Column-window fetching · BUILT, opt-in, OFF · MEASURED and not worth turning on
 
 The feature ships. `MarketsGridProps.perspectiveColumnWindow`
 (`{ enabled, pad?, pinned? }`) narrows every block read to a padded band around
 the visible columns; `viewManager.setColumnWindow` holds the state on the same
 seam as `setQuickFilter` / `setExpressions`. 293 unit tests in
-`@starui/perspective-grid` and a dedicated e2e spec
-(`npm run e2e:perspective-lab`, 4 tests, all passing). Full design notes and the
-non-obvious engine rules are in the package
+`@starui/perspective-grid`, and 4 e2e tests via `npm run e2e:perspective-lab`,
+all passing. Engine rules and the full account are in the package
 [`ARCHITECTURE.md`](../packages/react-grid/perspective-grid/ARCHITECTURE.md),
 "Column-window fetching — built, opt-in, and off".
 
-**What did NOT survive the redone measurement — read this before planning any
-more work on wide books.** The 284x figure that motivated the whole item is
-WITHDRAWN.
+**The verdict, on a book that is finally wide enough to test it.** Same book,
+same feed verified still, window off against on:
 
-| claim | clean measurement |
-|---|---|
-| `getRows` 5 ms at 40 columns vs **1,420 ms** at 404 | **9 ms vs 123 ms** |
-| cost per column ~28x higher at 404 | ~1.4x |
-| "~96% of every block is fetched and discarded" | the block payload is **53 and 56 columns** — not 40 and 404 |
+| | OFF | ON |
+|---|---|---|
+| columns in a returned row | **123** | **80** |
+| `getRows` median | 8 ms | 8 ms |
+| p90 | 16 ms | **44 ms** |
+| max | 245 ms | **299 ms** |
 
-**The Stress tab's "50k × 400" is a 56-field book behind 404 AG columns.** 368 of
-them are synthetic `sNNN` **value getters** computed in the window from `id` and
-`midPrice`; they are not columns of the Table and are never fetched. Every lab
-Table comes from one ~53-field declared schema (`TABLE_FIELDS` in
-`perspectiveProvider.ts`). So the two variants' payloads differ by three columns,
-and the 14x median gap is the cost of a 404-column AG grid around the read, not
-of the read.
+It does exactly what it was built to do — 35% less payload — and buys nothing,
+because an 8 ms read has nothing to give back. The tail is worse with it on: a
+band that leaves its pad re-reads every loaded block. **Leave it off.** The
+payload row is what makes the rest admissible; without it this would be a
+comparison of two runs that were secretly identical.
 
-**Consequence: nothing in this repo can demonstrate this feature, and it must
-stay off until something can.** Proving it needs a provider that DECLARES
-hundreds of fields. That is the concrete next step if wide-book performance
-matters — generate ~400 field declarations in `perspectiveProvider.ts`, bump
-`LAB_PROVIDER_CFG_VERSION`, and add a Stress variant on it. Then
-`columnCleanCostProbe.mjs` and `columnPayloadProbe.mjs` will finally be measuring
-what their names say.
+Turn it on for a run with `?columnWindow=1` — a URL flag on the one Stress test,
+not a second variant that could drift from it. That is how the e2e spec drives
+the surface's banding and hysteresis.
 
-**Two probe defects produced the 284x, and both are now fixed in
-`columnCleanCostProbe.mjs`. They are the transferable lesson:**
+### The 284x is withdrawn, and how it happened is the transferable part
 
-1. **The pause switch does not mean what it says.** `useLabPerspectiveRows`
-   initialises `paused` in a `useState` INITIALISER, which runs once for the tab,
-   and the Stress tab swaps variants without remounting the hook. Switching from
-   the 40-column variant (`enableUpdates: false`) to the 400-column one
-   (`enableUpdates ?? true`) leaves the switch reading "paused" over a ticking
-   provider, and the effect that would push the state to the worker is skipped on
-   mount. The recorded `false -> false` was that, and the earlier session wrote
-   it down as "could not certify" without acting on it.
-2. **The fix for (1) was itself unfalsifiable.** Verifying against the BOOK — 
+The figure that motivated this whole item — `getRows` 5 ms at 40 columns against
+**1,420 ms** at 404, "~96% of every block fetched and discarded" — was wrong
+three times over. Each error was the same species: **a check that could not
+fail.**
+
+1. **The pause switch lies.** `useLabPerspectiveRows` sets `paused` in a
+   `useState` INITIALISER, which runs once per tab, and the old Stress tab
+   swapped variants without remounting the hook. So it read "paused" over a
+   ticking provider, and the effect that would tell the worker is skipped on
+   mount. The previous session recorded the symptom (`false -> false`) as "could
+   not certify" and reported anyway.
+2. **The fix for (1) was itself unfalsifiable.** Verifying against the BOOK —
    sample cells, wait, sample again — sampled the first 120 `.ag-cell` elements,
-   and AG virtualises COLUMNS, so those are the leading TEXT columns that a price
-   feed never touches. The check could not fail, reported "still", and produced a
-   3 ms vs 4 ms comparison that was wrong the other way.
+   and AG virtualises COLUMNS, so those are the leading TEXT columns a price feed
+   never touches. It reported "still" and produced a 3 ms vs 4 ms comparison,
+   wrong the other way. The sampler now watches price columns and REFUSES if none
+   is in the DOM.
+3. **The "400 columns" were not columns.** `columnPayloadProbe.mjs` reads the
+   keys of a row the datasource actually returned: the old wide variant put 404
+   columns on screen while a block carried **56**. 368 of them were synthetic
+   `sNNN` `valueGetter` columns computed in the window from `id` and `midPrice`
+   — never fetched, never in the book.
 
-   A verification must be able to FAIL. The sampler now scrolls a price column
-   into view, watches only price columns, and refuses if none is in the DOM.
+Clean numbers on the old shape, feed verified still: **9 ms at 40 AG columns,
+123 ms at 404** — and since both payloads were ~55 columns, even that 14x was the
+cost of a 404-column AG GRID, not of a read.
 
-**Still unsettled:** the ticking control. Toggling the switch back on restarts the
-provider, but the book did not resume moving inside 180 s, so the probe refused to
-report. The original 1,420 ms therefore has a confirmed disqualification and no
-confirmed explanation.
+**Rule.** Before trusting any wide-book number here, check the PAYLOAD
+(`columnPayloadProbe.mjs`), not `api.getColumns().length`. And when writing a
+precondition, ask: if the thing I am checking for were false, would this actually
+say so?
+
+### The Stress tab is one test now
+
+50,000 rows x **120 real columns**, no variant dropdown, no client-side
+baselines. `stressColumns.ts` builds one column per declared field and the unit
+tests pin the invariant that makes the tab honest — column count, Table width and
+block width are ONE number, and nothing computes.
+
+Consequences worth knowing before touching it:
+
+- **New provider id** (`mock-positions-stress-50k120`) and
+  `LAB_PROVIDER_CFG_VERSION` is 3. The SharedWorker outlives the page and holds a
+  Table built from whatever schema its provider first started with, so reusing
+  the old id would have attached this wide book to the ~53-field Table the old
+  variant left behind, silently.
+- **`LabStreamOptions.fields`** lets one provider declare a different schema.
+  It REPLACES the shared list rather than adding to it, so a wide tab cannot
+  widen every other tab's Table.
+- **The seeded profile still opens GROUPED** (asset class, then sector). Any
+  probe or spec that wants leaf rows must `setRowGroupColumns([])` first — it has
+  now cost two separate runs.
+- **AG virtualises columns**, so `.ag-cell[col-id="x"]` does not exist unless `x`
+  is on screen. Scroll it in first. This cost two more runs, in a file whose own
+  header documents the trap.
+- **The variant-driving probes are historical.** About twenty scripts in
+  `perspective-grid/scripts/` open a combobox and pick a variant label; there is
+  no dropdown any more. `columnCleanCostProbe.mjs` and `columnPayloadProbe.mjs`
+  were rewritten for the single surface. The rest need their variant-selection
+  step removed before reuse — they are kept for the measurements recorded in
+  their headers.
+- **Deleted with the variants**, since nothing else used them: `useLabRows`,
+  `useMockStream`, `applyLabStreamDelta`, `applyDelta`, `PlainStressAgGrid`,
+  `PerspectiveStressGrid`, `altFieldColumns`. The client-side row supply is gone
+  from this lab entirely; it is a pull-path lab now.
 
 ## B. The Stress tab still dies with "Aw, Snap · Out of Memory"
 
-Reported twice, still open, and **A is no longer a candidate remedy** — see
-above. The measured picture is unchanged: MarketsGrid 50k × 40 = 1,026 MB idle /
-1,425 after scroll; MarketsGrid 50k × 400 = 1,748 / 2,038; Plain AG 50k × 400 =
-2,580 / 3,349, against Chrome's ~4 GB per-renderer ceiling.
+**A is not a remedy** — see above. What has changed is that the two biggest
+consumers are gone rather than gated: the plain-AG 50k x 400 client-side control
+(2,580 MB idle / 3,349 MB after scrolling, the closest thing here to Chrome's
+~4 GB renderer ceiling) and the 404-column AG grid. The tab now mounts one
+120-column pull-path surface and nothing else.
 
-**Done this session:** the plain-AG 50k × 400 baseline — the worst of the three
-and the closest to the ceiling — no longer loads itself. It is held behind an
-explicit "Load the 50k × 400 client-side baseline" button
-(`data-testid="stress-arm-heavy-baseline"`), and while held its row supply is not
-even SUBSCRIBED, so stepping through the variant list no longer parks 2.6 GB in
-the process. Re-arming is per visit.
+**Re-measure before doing anything.** Every memory figure on record was taken
+against a shape that no longer exists. `rendererProcessProbe.mjs` reads the real
+working set; `performance.memory` is the JS heap only and missed ~95% of this
+process (61 MB against 1.7 GB), so `variantRetentionProbe.mjs` is blind by
+construction.
 
 **What is left, in order:**
 
-1. **The ~640 MB retained after visiting a baseline.** Measured previously,
-   survives a forced GC with the React arrays released. The recorded first
-   suspect — `ProviderClientAdapter` keeping "the last snapshot commit by
-   reference" — is **wrong**: `detach()` already sets `snapshotRows = []`
-   (`packages/data/host-data/src/provider/ProviderClientAdapter.ts`). Look
-   elsewhere, and measure with `rendererProcessProbe.mjs`, never
-   `performance.memory` (`variantRetentionProbe.mjs` reads the JS heap and is
-   blind to ~95% of this process).
-2. **The 400-column AG grid itself.** Now that the payload is known to be ~56
-   columns, the 722 MB between the 40- and 400-column MarketsGrid variants is AG
-   Grid's own column machinery plus 368 value getters — not row data. That is
-   where to look next, and it is an AG-side question, not a Perspective one.
+1. **Take a fresh renderer working-set figure for the 120-column tab.** If it is
+   comfortable, this item may simply be closed by the rebuild.
+2. **The ~640 MB retained after visiting a baseline** — there is no baseline to
+   visit any more, so this may be moot. The recorded first suspect was wrong in
+   any case: `ProviderClientAdapter.detach()` already clears `snapshotRows`.
 
-## NEW — found while measuring, not yet chased
+## NEW — found while measuring, not chased
 
-- **The Stress tab's 400-column variant opens GROUPED** from its seeded profile
-  (`filteredRows: 9`, nine asset classes; `getDisplayedRowCount()` reads 10).
-  Harmless, but it invalidates any probe that assumes a flat grid — and it cost
-  an e2e run to notice. `columnCleanCostProbe.mjs` calls `setRowGroupColumns([])`
-  before measuring for this reason; the e2e spec now does the same.
+- **The seeded stress profiles were authored against the 400-column book.**
+  `STRESS_GRID_ID` moved to `lab-stress-v2` so localStorage reinstalls, but the
+  layouts themselves were only checked to the extent that the e2e spec exercises
+  them (grouping, aggregation, a filter, an export). A pass over the seeded
+  formatters and rules against the new field list is unfinished business.
 
 ---
 

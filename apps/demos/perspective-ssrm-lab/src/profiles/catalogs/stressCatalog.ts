@@ -12,9 +12,11 @@ import { STRESS_COL_COUNT, STRESS_ROW_COUNT } from '../../data/stressColumns';
 
 /**
  * Bump when the stress profile changes so first-mount reinstalls localStorage.
- * v1: 50k × 400 kitchen-sink stress book.
+ * v1: 50k × 400 kitchen-sink stress book (366 of those columns were value
+ *     getters, not columns of the book — see `stressColumns.ts`).
+ * v2: 50k × 120, every column a real field.
  */
-export const STRESS_GRID_ID = 'lab-stress-v1';
+export const STRESS_GRID_ID = 'lab-stress-v2';
 
 const STRESS_GROUPING_CC: ColumnCustomizationState = {
   assignments: {

@@ -602,9 +602,13 @@ export const EDITING_FEATURE: LabFeatureConfig = {
 
 export const STRESS_TEST_FEATURE: LabFeatureConfig = {
   tabId: 'stress',
-  providerId: 'mock-positions-stress-50k',
-  title: 'Stress Test — 50k × 400',
-  subtitle: `${STRESS_DEMO_PROFILES.length} profiles · ${STRESS_ROW_COUNT.toLocaleString()} rows · ${STRESS_COL_COUNT} cols · high-tick live · grouping · CSRM/SSRM`,
+  // A NEW id, deliberately. The SharedWorker outlives the page and holds a
+  // Table built from whatever schema its provider first started with, so
+  // reusing the old id would attach this wide book to the ~53-field Table the
+  // 400-column variant left behind — and nothing would say so.
+  providerId: 'mock-positions-stress-50k120',
+  title: 'Stress Test — 50k × 120',
+  subtitle: `${STRESS_DEMO_PROFILES.length} profiles · ${STRESS_ROW_COUNT.toLocaleString()} rows · ${STRESS_COL_COUNT} REAL cols · high-tick live · grouping`,
   help: HELP.stressTest,
   gridId: STRESS_GRID_ID,
   componentName: 'StressTest',
@@ -616,7 +620,7 @@ export const STRESS_TEST_FEATURE: LabFeatureConfig = {
     updateIntervalMs: 200,
     enableUpdates: true,
   },
-  getColumnDefs: () => buildStressColumnDefs(STRESS_COL_COUNT),
+  getColumnDefs: () => buildStressColumnDefs(),
   defaultColDef: stressDefaultColDef,
   grid: {
     showFiltersToolbar: true,

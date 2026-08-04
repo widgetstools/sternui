@@ -14,6 +14,20 @@ export interface LabStreamOptions {
    * for the measurement that produced this option.
    */
   enabled?: boolean;
+  /**
+   * Declare a DIFFERENT set of Table fields for this provider, as
+   * `field -> type`. Omit for the shared lab book.
+   *
+   * Only the Stress tab uses it, and only because the point of that tab is a
+   * WIDE book: it declares 121 fields where every other tab declares ~53. It
+   * is a whole schema rather than an addition, so a wide tab cannot silently
+   * widen the shared one.
+   *
+   * Changing this changes the Table, and the SharedWorker outlives the page —
+   * so `LAB_PROVIDER_CFG_VERSION` has to move with it or a reload attaches to
+   * the Table built from the old declaration, however many times you reload.
+   */
+  fields?: Record<string, 'string' | 'number'>;
 }
 
 export interface LabScenario {

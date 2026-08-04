@@ -562,11 +562,10 @@ differ by THREE columns. Whatever costs 123 ms instead of 9 ms, it is not the
 number of columns crossing the proxy — it is the cost of a 404-column AG grid
 around the read.
 
-**Consequence for column-window fetching**, which is built and correct and
-described next: there is no book in this repo wide enough to show it working.
-Narrowing a 56-field payload to ~20 is the entire available headroom here, and
-the 368 value-getter columns are not fetched in any case. Proving it needs a
-provider that DECLARES hundreds of fields; the Stress tab is not one.
+**Consequence, and it has since been acted on.** The Stress tab was rebuilt as
+50,000 x 120 REAL columns — a provider that declares 121 fields, no value
+getters — so the tab finally measures the book rather than the grid. The
+column-window numbers taken on it are in the next section.
 
 One thing the ticking control could not settle: the same variant with the feed
 verified RUNNING. Toggling the switch back on does restart the provider, but the
@@ -641,10 +640,46 @@ note beside it in `events.d.ts` belongs to `ColumnEverythingChangedEvent`), plus
 before it reaches `viewConfigKey`, so moving a column does not rebuild every View
 for an identical set.
 
-**Off by default, and it should stay off until a wide book proves it.** Every
-failure mode above is silent: a forgotten column renders BLANK, and a value
-getter or style rule reading a forgotten field gets `undefined` and reports
-nothing. A slow blotter is recoverable; a confidently blank one is not.
+### Measured at last, on a book that is actually wide
+
+The Stress tab is now **50,000 rows x 120 columns, every one of them a real
+field of the Table** — no `valueGetter` columns, so column count, Table width
+and block width are one number. VERIFIED with `columnPayloadProbe.mjs`: 124 AG
+columns (120 + the auto-group column + the seeded calculated columns), **123
+columns in a returned row**, and **0** rendered columns computed in the window.
+
+So the comparison that means something is finally available: the same book, the
+same feed (verified still on both sides), with the window off and on.
+
+| | window OFF | window ON |
+|---|---|---|
+| **columns in a returned row** | **123** | **80** |
+| `getRows` median | 8 ms | 8 ms |
+| p90 | 16 ms | **44 ms** |
+| max | 245 ms | **299 ms** |
+
+**The window works and buys nothing here.** It narrows the payload by 35% — that
+is the feature doing exactly what it was built to do, and the payload figure is
+what makes the rest of the row admissible rather than a comparison of two runs
+that were secretly identical. The read is 8 ms either way, and the TAIL is
+worse with it on, because a band that leaves its pad re-reads every loaded block.
+
+Why 80 and not 20: the pad is 25 columns either side of a visible run of about
+twelve, so at 120 columns the pad is most of the book. A smaller pad narrows
+further and there is no reason to try — nothing is waiting on an 8 ms read.
+
+**Where this leaves the feature.** Off, and it should stay off until someone has
+a book where a block read is actually slow. Everything measured on this path now
+says the same thing: at 40, 56, 80, 120 and 123 columns a block read is single-
+digit milliseconds, and every large number ever recorded here came from
+somewhere else — a ticking feed, a 404-column AG grid, or a queue behind
+background questions.
+
+**Off by default, and the measurement above is why it stays off.** Every failure
+mode is silent: a forgotten column renders BLANK, and a value getter or style
+rule reading a forgotten field gets `undefined` and reports nothing. A slow
+blotter is recoverable; a confidently blank one is not — and there is no speed
+to trade for that risk at any width measured here.
 Correctness is covered by `e2e/perspective-column-window.spec.ts`
 (`npm run e2e:perspective-lab`, 4 tests): scroll out of the band and back and
 assert real values, a value getter over pinned columns, grouping plus the totals

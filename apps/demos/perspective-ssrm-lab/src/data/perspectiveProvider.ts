@@ -169,7 +169,7 @@ const columnDefinitions: ColumnDefinition[] = TABLE_FIELDS.map((field) => ({
  * Bump when anything above changes, so the app re-persists every catalog row
  * instead of attaching to a Table built from a stale declaration.
  */
-export const LAB_PROVIDER_CFG_VERSION = 2;
+export const LAB_PROVIDER_CFG_VERSION = 3;
 
 /** Deterministic per-tab provider id — `configStore.save()` upserts by it. */
 export function labProviderId(tabProviderId: string): string {
@@ -183,6 +183,38 @@ export function labProviderId(tabProviderId: string): string {
  * turn ticking off, and on this path that matters more, not less — a sweep
  * would overwrite an edit in the shared Table that every peer window reads.
  */
+/**
+ * The field declaration a provider is built from.
+ *
+ * `stream.fields` replaces the shared list entirely rather than adding to it —
+ * the Stress tab needs a WIDE book (121 fields against the shared ~53) and a
+ * merge would make every other tab pay for it. The flattener projects each mock
+ * row onto exactly these paths and drops the rest, so this is also precisely
+ * what a block carries.
+ */
+function declarationFor(fields?: Record<string, 'string' | 'number'>): {
+  inferredFields: FieldInfo[];
+  columnDefinitions: ColumnDefinition[];
+} {
+  if (!fields) return { inferredFields, columnDefinitions };
+  const paths = Object.keys(fields);
+  if (!paths.includes(KEY_COLUMN)) {
+    // A Table with no index column cannot be indexed, and the transport falls
+    // back to inferring from rows rather than saying so. Fail here instead.
+    throw new Error(
+      `[perspective-ssrm-lab] a custom field list must declare the index column '${KEY_COLUMN}'`,
+    );
+  }
+  return {
+    inferredFields: paths.map((path) => ({ path, type: fields[path], nullable: true })),
+    columnDefinitions: paths.map((field) => ({
+      field,
+      headerName: field,
+      cellDataType: fields[field] === 'number' ? ('number' as const) : ('text' as const),
+    })),
+  };
+}
+
 export function buildLabPerspectiveProvider(
   tabProviderId: string,
   stream: LabStreamOptions = {},
@@ -200,8 +232,7 @@ export function buildLabPerspectiveProvider(
     // reason is visible at the call site.
     rowShape: 'ssrm',
     tableName: providerId,
-    inferredFields,
-    columnDefinitions,
+    ...declarationFor(stream.fields),
     // Every numeric stays `float`. See the note at the top of this file.
     integerColumns: [],
     inferDates: true,

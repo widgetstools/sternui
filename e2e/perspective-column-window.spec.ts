@@ -12,8 +12,13 @@ import { test, expect, type Page } from '@playwright/test';
  *
  * It runs against `perspective-ssrm-lab` on **5301**, not the 5273 demo the
  * rest of `perspective-*.spec.ts` uses: the window only means anything over a
- * wide book, and the lab's Stress tab is the only wide one that needs no
- * broker. The config starts both.
+ * wide book, and the lab's Stress tab is the only wide one that needs no broker.
+ *
+ * That tab is now a SINGLE surface — 50,000 rows x 120 columns, every one of
+ * them bound to a real Table field (VERIFIED by `columnPayloadProbe.mjs`: 123
+ * columns in a returned row, 0 computed in the window). The column window ships
+ * off, so the spec enables it with `?columnWindow=1`, which is a run-time flag
+ * on the same test rather than a second variant that could drift from it.
  *
  * DOM notes for this AG Grid 36 surface, both of which cost time before they
  * were written down:
@@ -23,10 +28,14 @@ import { test, expect, type Page } from '@playwright/test';
  *     on screen. Every assertion below scrolls its column into view first.
  */
 
-const LAB_URL = 'http://localhost:5301';
+/** The Stress tab with column-window fetching switched on for this run. */
+const LAB_URL = 'http://localhost:5301/?columnWindow=1';
 
-/** The A/B pair. Same provider, same book, same grid id — only the window differs. */
-const WINDOW_VARIANT = 'MarketsGrid · 50k × 400 (column window)';
+/**
+ * A column far to the RIGHT of the leading band — 100+ columns along, so a
+ * 25-column pad cannot reach it and the band really is replaced.
+ */
+const FAR_RIGHT_COLUMN = 'distanceToDefault';
 
 /**
  * Reach the grid api the way every probe on this path does: walk `__reactFiber$`
@@ -65,15 +74,6 @@ async function openWindowVariant(page: Page): Promise<void> {
   await installApiBridge(page);
   await page.goto(LAB_URL, { waitUntil: 'domcontentloaded' });
   await page.click('[data-testid="lab-tab-stress"]');
-  await page.waitForTimeout(2000);
-  await page.click('button[role="combobox"]');
-  await page.waitForTimeout(400);
-  for (const option of await page.$$('[role="option"]')) {
-    if (((await option.textContent()) ?? '').trim() === WINDOW_VARIANT) {
-      await option.click();
-      break;
-    }
-  }
   // The 50,000-row book is generated in the worker; first rows take ~12-15 s on
   // a cold profile.
   await page.waitForSelector('.ag-row', { timeout: 180_000 });
@@ -93,6 +93,18 @@ async function openWindowVariant(page: Page): Promise<void> {
       .__labApi()
       .setRowGroupColumns([]);
   });
+
+  /**
+   * Scroll it into view before asserting on it — the trap named at the top of
+   * this file, which the readiness check itself walked into.
+   *
+   * AG virtualises COLUMNS, so `.ag-cell[col-id="cusip"]` does not exist unless
+   * `cusip` is on screen. On a 120-column book it sits around the tenth
+   * displayed column, which at this viewport is just outside the rendered run —
+   * so the assertion failed with "element(s) not found", which reads exactly
+   * like the column window having blanked the grid and is nothing of the kind.
+   */
+  await scrollToColumn(page, 'cusip');
   await expect(page.locator('.ag-cell[col-id="cusip"]').first()).not.toHaveText('', {
     timeout: 120_000,
   });
@@ -119,10 +131,10 @@ test.describe('Perspective column window', () => {
 
     // Far right — well past a 25-column pad, so the band is replaced and the
     // leading columns are no longer fetched.
-    await scrollToColumn(page, 's350');
-    await expect(page.locator('.ag-cell[col-id="s350"]').first()).not.toHaveText('', {
-      timeout: 60_000,
-    });
+    await scrollToColumn(page, FAR_RIGHT_COLUMN);
+    await expect(
+      page.locator(`.ag-cell[col-id="${FAR_RIGHT_COLUMN}"]`).first(),
+    ).not.toHaveText('', { timeout: 60_000 });
 
     // Back. This is the assertion the whole feature turns on: a column the
     // window dropped must come back with REAL values, not blanks.
@@ -139,17 +151,23 @@ test.describe('Perspective column window', () => {
     });
   });
 
-  test('a value getter reading a pinned column still computes', async ({ page }) => {
+  test('a far-right column reads a real number, not a blank', async ({ page }) => {
     await openWindowVariant(page);
 
-    // The synthetic `sNNN` columns compute from `id` (the key column, pinned by
-    // the engine) and `midPrice` (pinned by the lab). Both are far to the LEFT
-    // of s350, so this only paints a number if pinning works — a window that
-    // forgot them would draw a flat, wrong value with nothing logged.
-    await scrollToColumn(page, 's350');
-    const value = await page.locator('.ag-cell[col-id="s350"]').first().textContent();
+    // Every column on this tab is a column of the BOOK, so a value here can only
+    // have come from a fetch that included it. A window that failed to widen
+    // would paint an empty cell with nothing logged anywhere.
+    //
+    // WAIT for it rather than reading once: a widen re-reads the loaded blocks,
+    // and the cell is legitimately blank until they land. Reading immediately
+    // after the scroll made this fail intermittently while the assertion in the
+    // test above — which retries — passed on the same behaviour.
+    const cell = page.locator(`.ag-cell[col-id="${FAR_RIGHT_COLUMN}"]`).first();
+    await scrollToColumn(page, FAR_RIGHT_COLUMN);
+    await expect(cell).not.toHaveText('', { timeout: 60_000 });
+    const value = await cell.textContent();
     expect((value ?? '').trim()).not.toBe('');
-    expect(Number((value ?? '').trim())).not.toBeNaN();
+    expect(Number((value ?? '').trim().replace(/,/g, ''))).not.toBeNaN();
   });
 
   test('grouping still aggregates, with the band far from the grouped column', async ({
@@ -166,6 +184,12 @@ test.describe('Perspective column window', () => {
       api.setColumnAggFunc('marketValue', 'sum');
     });
     await page.waitForTimeout(6000);
+
+    // Back to the left edge. `openWindowVariant` scrolled `cusip` into view, so
+    // the auto-group column — which AG inserts at display index 0 — is off
+    // screen and its cells are not in the DOM at all. Same virtualisation trap
+    // as the readiness check.
+    await scrollToColumn(page, 'ag-Grid-AutoColumn');
 
     // The group key comes from `__ROW_PATH__`, which a narrowed View still
     // returns (measured in `columnWindowProbe.mjs`) — but only the painted cell
@@ -215,9 +239,10 @@ test.describe('Perspective column window', () => {
       return rows && rows.length > 0 ? Object.keys(rows[0]).length : 0;
     }, cusip);
 
-    // Every field the Table declares — the lab's book is ~50 wide, and the
-    // window at this scroll position is a fraction of that. An export narrowed
-    // to the window would come back in the teens.
-    expect(width).toBeGreaterThan(40);
+    // Every field the Table declares — 121 for this book, plus the calculated
+    // columns the seeded profile publishes as expression columns. The window at
+    // this scroll position is a fraction of that, so an export narrowed to it
+    // would come back around 30.
+    expect(width).toBeGreaterThan(100);
   });
 });
