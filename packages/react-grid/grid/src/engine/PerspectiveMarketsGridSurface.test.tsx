@@ -54,6 +54,24 @@ describe('PerspectiveMarketsGridSurface', () => {
     expect(last().cacheBlockSize).toBe(100);
   });
 
+  it('renders a BLANK stub, and reaches the renderer that makes it blank', () => {
+    // Both halves, because the first attempt shipped inert with only one:
+    // AG's server row model paints a FULL-WIDTH loading row (a spinner and the
+    // word "Loading..." spanning the row) and consults the colDef
+    // `loadingCellRenderer` ONLY when the suppress flag is set. MEASURED with
+    // the flag missing: 33 of 34 rows read "Loading..." mid-scroll and 22 were
+    // still showing it after the grid settled.
+    const { last } = renderSurface();
+    expect(last().suppressServerSideFullWidthLoadingRow).toBe(true);
+    expect((last().defaultColDef as Record<string, unknown>).loadingCellRenderer).toBeDefined();
+  });
+
+  it('lets a host keep its own loading renderer', () => {
+    const mine = function Mine() { return null; };
+    const { last } = renderSurface({ defaultColDef: { loadingCellRenderer: mine } });
+    expect((last().defaultColDef as Record<string, unknown>).loadingCellRenderer).toBe(mine);
+  });
+
   describe('getRowId', () => {
     const rowId = (
       getRowId: (params: Record<string, unknown>) => string,

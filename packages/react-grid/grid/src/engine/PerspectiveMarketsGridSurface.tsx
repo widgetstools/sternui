@@ -82,6 +82,15 @@ const SCROLL_RESUME_MS = 150;
  * Imperative rather than a function component: AG frequently creates the stub
  * before `rowIndex` is assigned, and a functional cell that returns once would
  * never repaint.
+ *
+ * **This renderer does nothing on its own, which is how it shipped inert the
+ * first time.** AG's server row model paints a FULL-WIDTH loading row — a
+ * spinner and the word "Loading..." spanning the whole row — and reaches for
+ * the colDef `loadingCellRenderer` ONLY when
+ * `suppressServerSideFullWidthLoadingRow` is set. Setting the renderer without
+ * that flag changes nothing visible, which is exactly what happened: the word
+ * kept flickering down the grid on every drag. The flag is set where the other
+ * server-row-model options are, on the grid element below.
  */
 class BlankLoadingCellRenderer {
   private readonly eGui: HTMLElement;
@@ -665,8 +674,28 @@ export const PerspectiveMarketsGridSurface = forwardRef<
         // 100 rows is the window size every measurement in the package's
         // ARCHITECTURE.md used, and the depth at which reads stay flat.
         cacheBlockSize={100}
-        maxBlocksInCache={20}
-        blockLoadDebounceMillis={0}
+        /**
+         * Generous, and the trade is explicit: a block is 100 rows of EVERY
+         * column the View carries, so on the 400-column book each one is real
+         * memory in a renderer already measured at 1.7-2.0 GB against Chrome's
+         * ~4 GB ceiling. Bigger means fewer re-fetches when the user scrolls
+         * back over ground they have already seen; it does not make any single
+         * read cheaper.
+         */
+        maxBlocksInCache={100}
+        /**
+         * Do not fetch what the user is scrolling PAST. AG issues a block
+         * request per viewport change; debouncing collapses a fast drag across
+         * a dozen blocks into a request for the one it lands on. The stub cells
+         * are blank (see `BlankLoadingCellRenderer`), so the gap costs nothing
+         * visible.
+         */
+        blockLoadDebounceMillis={100}
+        // Without this the blank stub renderer below is never reached: AG's
+        // server row model paints a FULL-WIDTH loading row by default and only
+        // consults the colDef `loadingCellRenderer` when this is on. See the
+        // note on `BlankLoadingCellRenderer`.
+        suppressServerSideFullWidthLoadingRow
         statusBar={statusBar as never}
         components={components as Record<string, unknown>}
         context={context}

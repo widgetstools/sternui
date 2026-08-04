@@ -209,6 +209,45 @@ here. `bootWorkerEntry` now installs `unhandledrejection` / `error` listeners so
 the failure is at least attributable. Recovering from it needs the engine: the
 next lever is the 5.0.0 line (published 2026-07-28, unprobed).
 
+## The stub cell, and the option that makes it reachable
+
+AG's server row model paints a **full-width loading row** — a spinner and the
+word "Loading..." spanning the row — for every row it has asked for and not yet
+received. On a book this window scrolls through continuously that is the word
+flickering down the grid on every drag.
+
+`loadingCellRenderer` on `defaultColDef` does NOT change it on its own, and
+shipping it alone was a silent no-op for a release: AG consults the colDef
+renderer **only** when `suppressServerSideFullWidthLoadingRow` is set. MEASURED
+with the flag missing, ungrouped 50k x 400, 90 samples during a fast drag:
+
+| | with flag missing | with it set |
+|---|---|---|
+| rows reading "Loading..." at the peak | **33 of 34** | **0** |
+| still reading it after the grid settled | 22 | 0 |
+| samples containing the word | 89 of 90 | 0 of 90 |
+
+Both halves are asserted in `PerspectiveMarketsGridSurface.test.tsx`, because
+either one alone looks correct in review and does nothing on screen.
+
+Two settings go with it:
+
+- **`blockLoadDebounceMillis: 100`** — do not fetch what the user is scrolling
+  PAST. AG issues a block request per viewport change; debouncing collapses a
+  fast drag across a dozen blocks into a request for the one it lands on. The
+  stubs are blank, so the gap costs nothing visible.
+- **`maxBlocksInCache: 100`** (was 20) — fewer re-fetches over ground already
+  seen. It does not make any single read cheaper, and the trade is real on a
+  wide book: a block is 100 rows of every column the View carries. MEASURED at
+  400 columns, idle renderer **1,748 MB -> 1,791 MB**. That +43 MB is a floor,
+  not a ceiling: the measurement scrolls a fraction of the book, so far fewer
+  than 100 blocks are ever resident. Someone who scrolls the whole 50,000 rows
+  holds 10,000 rows x 400 columns instead of 2,000 — against a renderer already
+  near Chrome's ~4 GB limit (see the memory table in the handoff).
+
+**Do not reach for CSS** (`.ag-loading { display: none }`): it survives AG
+upgrades poorly and the row still occupies layout.
+
 ## Rules that are not optional
 
 **Never delete a View with a read in flight.** Measured on 4.5.2
