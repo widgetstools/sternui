@@ -488,6 +488,44 @@ Table → ProxySession → a **second Client that never saw a row**:
 | Windowed reads | @0 9 ms · @10,000 6 ms · @19,900 5 ms — flat with depth |
 | While the feed ticks | book moved under the window; row count stayed 20,000 |
 
+## The cost is the COLUMNS, not the round trip
+
+The question worth settling before optimising anything on this path: when a
+block read is slow, is it the asynchrony — the proxy session, the awaits, the
+message passing — or is it what comes back?
+
+MEASURED, same 50,000-row book, same engine, same browser build, same 100-row
+block size, flat and ungrouped, jumping to ten fixed row offsets. Only the
+column count differs:
+
+| `getRows`, end to end | 40 columns | 404 columns | ratio |
+|---|---|---|---|
+| median | **5 ms** | **1,420 ms** | **284x** |
+| min | 3 ms | 876 ms | 292x |
+| p90 | 49 ms | 2,447 ms | 50x |
+
+**The transport is not the bottleneck.** A block round trip at 40 columns is 5
+ms — the same proxy session, the same awaits, the same everything. Whatever
+costs seconds at 404 columns is the payload.
+
+**And it is super-linear:** 10.1x the columns for 284x the time, so the cost
+PER COLUMN is ~28x higher at 404. Widening a View does not cost proportionally.
+
+Cross-run figures, because a single run would overstate the precision: the
+404-column median came out 1,151 / 1,420 / 3,160 ms over three runs with
+differing live-tick state, while 40 columns was 4-5 ms every time. The exact
+multiplier is a range; the order of magnitude is not.
+
+**What this licenses, and what it does not.** It says the lever is narrowing the
+payload, not speeding up the plumbing. It does NOT say column-window fetching is
+free to build — AG's SSRM request carries no column window (`startRow`,
+`endRow`, `rowGroupCols`, `valueCols`, `pivotCols`, `groupKeys`, `filterModel`,
+`sortModel`, and nothing else), so a narrowed View means rows already cached
+lack the new columns, and AG's only remedy is `refreshServerSide({purge:true})`
+— throwing away every loaded block. Done naively that trades a 1.4 s read for a
+full cache purge per horizontal scroll. See the handoff for the shape that would
+have to be designed around it.
+
 ## One engine, one queue — block reads come first
 
 Every request from every window crosses ONE ProxySession per Table, and the
