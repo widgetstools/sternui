@@ -606,7 +606,7 @@ export const STRESS_TEST_FEATURE: LabFeatureConfig = {
   // Table built from whatever schema its provider first started with, so
   // reusing the old id would attach this wide book to the ~53-field Table the
   // 400-column variant left behind — and nothing would say so.
-  providerId: 'mock-positions-stress-50k120',
+  providerId: 'mock-positions-stress-20k120',
   title: 'Stress Test — 50k × 120',
   subtitle: `${STRESS_DEMO_PROFILES.length} profiles · ${STRESS_ROW_COUNT.toLocaleString()} rows · ${STRESS_COL_COUNT} REAL cols · high-tick live · grouping`,
   help: HELP.stressTest,

@@ -149,27 +149,59 @@ Consequences worth knowing before touching it:
   `PerspectiveStressGrid`, `altFieldColumns`. The client-side row supply is gone
   from this lab entirely; it is a pull-path lab now.
 
-## B. The Stress tab still dies with "Aw, Snap · Out of Memory"
+## B. "Aw, Snap · Out of Memory" — CAUSE FOUND, and it is not what anyone assumed
 
-**A is not a remedy** — see above. What has changed is that the two biggest
-consumers are gone rather than gated: the plain-AG 50k x 400 client-side control
-(2,580 MB idle / 3,349 MB after scrolling, the closest thing here to Chrome's
-~4 GB renderer ceiling) and the 404-column AG grid. The tab now mounts one
-120-column pull-path surface and nothing else.
+**The SharedWorker holding the Table runs in the SAME PROCESS as the page.**
+VERIFIED with CDP `SystemInfo.getProcessInfo`: the browser reports
+`browser`, two `renderer`, `GPU`, `network` and `storage` processes and **no
+worker process at all**. So the book, the mock generator's row objects, AG Grid
+and the page all compete for the ~4 GB Chrome allows one renderer.
 
-**Re-measure before doing anything.** Every memory figure on record was taken
-against a shape that no longer exists. `rendererProcessProbe.mjs` reads the real
-working set; `performance.memory` is the JS heap only and missed ~95% of this
-process (61 MB against 1.7 GB), so `variantRetentionProbe.mjs` is blind by
-construction.
+Every "the worker holds the book, so the window is cheap" statement on this path
+is true about ownership and false about MEMORY. That is why the tab has been
+dying since long before any of this session's work.
 
-**What is left, in order:**
+MEASURED with `rendererProcessProbe.mjs` (the OS working set — `performance.memory`
+reports ~60 MB against these):
 
-1. **Take a fresh renderer working-set figure for the 120-column tab.** If it is
-   comfortable, this item may simply be closed by the rebuild.
-2. **The ~640 MB retained after visiting a baseline** — there is no baseline to
-   visit any more, so this may be moot. The recorded first suspect was wrong in
-   any case: `ProviderClientAdapter.detach()` already clears `snapshotRows`.
+| | renderer, one minute after opening the tab |
+|---|---|
+| the app with no grid open | **140 MB** |
+| a 500-row lab tab | 136 MB |
+| stress, 50,000 x 120 | **1,909 MB** |
+| stress, 20,000 x 120 | **1,286 MB** |
+
+**Fixed by taking the book to 20,000 rows.** It is still a wide, real, 120-column
+stress book; it simply fits. Raising it is one constant (`STRESS_ROW_COUNT`) and
+anyone who does should re-run that probe rather than assume the headroom.
+
+### What was ruled out on the way, each with a measurement
+
+- **Column data is not the cost.** The 120-column payload is ~124 values a row
+  and the JS heap sits at 60 MB while the process is at 1.6 GB.
+- **String columns are not the cost either — in the browser.** In NODE they
+  dominate absolutely: 50,000 x 121 costs **1,015 MB** with 53 string columns
+  against **69 MB** with 12. The book was rebuilt numeric-first on the strength
+  of that (101 numerics, 19 dimension strings, one index column) and the browser
+  process moved by **45 MB**. Worth keeping — a 15x difference will matter on a
+  bigger book — but it was not this.
+- **Column-window fetching is not a remedy** (item A). It narrows the payload and
+  the payload is not what is large.
+
+### Still open, and the likeliest reason a warm browser crashes sooner
+
+A provider's Table lives as long as the SharedWorker, and the worker outlives
+every page. Nothing retires an idle one. So a browser that has run this lab
+across several schema changes can be holding SEVERAL 20-50k books at once —
+`mock-positions-stress-50k`, `-50k40`, `-50k120`, `-20k120` — in that one shared
+process. **This is a hypothesis, not a measurement**: it follows from the
+ownership model and from the process finding above, and it has NOT been
+confirmed with a persistent profile. Confirming it needs a probe against a
+`launchPersistentContext`, comparing the process working set on a cold profile
+against one that has attached to several providers.
+
+If it holds, the fix is worker-side: retire a provider slot with no subscribers
+after a grace period. That is a `host-data` change, not a grid one.
 
 ## NEW — found while measuring, not chased
 

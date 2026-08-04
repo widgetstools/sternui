@@ -9,8 +9,9 @@
  * PIDs come from CDP `SystemInfo.getProcessInfo`; the working set comes from the
  * OS, because CDP does not report per-process memory.
  *
- * Drives the axis never tested before: HORIZONTAL scroll across 400 columns, on
- * a large viewport.
+ * Drives the axis that costs most: HORIZONTAL scroll across the whole book, on
+ * a large viewport. The Stress tab is a single surface now, so there is no
+ * variant to select.
  *
  *   node rendererProcessProbe.mjs [--minutes 6] [--width 2560] [--height 1400]
  */
@@ -20,7 +21,6 @@ import { execSync } from 'node:child_process';
 const args = process.argv.slice(2);
 const opt = (n, d) => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i + 1] : d; };
 const url = opt('url', 'http://localhost:5301');
-const variant = opt('variant', 'MarketsGrid · 50k × 400 (modules)');
 const minutes = Number(opt('minutes', '6'));
 const width = Number(opt('width', '2560'));
 const height = Number(opt('height', '1400'));
@@ -79,12 +79,6 @@ try {
   phase = 'load';
   await page.goto(url, { waitUntil: 'domcontentloaded' });
   await page.click('[data-testid="lab-tab-stress"]');
-  await page.waitForTimeout(3000);
-  await page.click('button[role="combobox"]');
-  await page.waitForTimeout(400);
-  for (const o of await page.$$('[role="option"]')) {
-    if (((await o.textContent()) ?? '').trim() === variant) { await o.click(); break; }
-  }
   phase = 'attach';
   await page.waitForSelector('.ag-row', { timeout: 180_000 });
   phase = 'settle';

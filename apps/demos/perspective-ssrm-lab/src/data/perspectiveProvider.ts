@@ -169,7 +169,7 @@ const columnDefinitions: ColumnDefinition[] = TABLE_FIELDS.map((field) => ({
  * Bump when anything above changes, so the app re-persists every catalog row
  * instead of attaching to a Table built from a stale declaration.
  */
-export const LAB_PROVIDER_CFG_VERSION = 3;
+export const LAB_PROVIDER_CFG_VERSION = 4;
 
 /** Deterministic per-tab provider id — `configStore.save()` upserts by it. */
 export function labProviderId(tabProviderId: string): string {

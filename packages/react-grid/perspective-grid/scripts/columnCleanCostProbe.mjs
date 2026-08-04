@@ -15,7 +15,7 @@
  *     `columnPayloadProbe.mjs`, a block on that variant carried 56 columns; 368
  *     of the 404 were `valueGetter` columns computed in the window.
  *
- * The Stress tab is now ONE surface of 50,000 rows x 120 columns, every one of
+ * The Stress tab is now ONE surface of 20,000 rows x 120 columns, every one of
  * them a real Table field, so the comparison that means something is the same
  * book with the column window off and on. `?columnWindow=1` is the flag.
  *
@@ -149,14 +149,14 @@ async function measure(label, query) {
       };
     })()`);
 
-    if (typeof info.bookRows === 'number' && info.bookRows < 40_000) {
-      throw new Error(`book is ${info.bookRows} rows, not ~50,000 — refusing to report`);
+    if (typeof info.bookRows === 'number' && info.bookRows < 15_000) {
+      throw new Error(`book is ${info.bookRows} rows, not ~20,000 — refusing to report`);
     }
 
     await page.waitForTimeout(6000);
     await page.evaluate(() => { window.__cc.rec.length = 0; });
 
-    for (const row of [500, 5000, 12000, 20000, 30000, 41000, 8000, 25000, 47000, 15000]) {
+    for (const row of [200, 2000, 4800, 8000, 12000, 16400, 3200, 10000, 18800, 6000]) {
       await page.evaluate((r) => window.__cc.api.ensureIndexVisible(r, 'top'), row);
       await page.waitForTimeout(3500);
     }

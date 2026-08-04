@@ -8,6 +8,16 @@ import {
   STRESS_ROW_COUNT,
 } from './stressColumns';
 
+/** Mirrors the GROUPABLE set in `stressColumns.ts`, plus the two identifiers a
+ *  blotter is unusable without. */
+const GROUPABLE_FOR_TEST = new Set([
+  'cusip', 'ticker', 'assetClass', 'assetSubClass', 'issuerSector',
+  'issuerSubSector', 'issuerCountryCode', 'currency', 'compositeRating',
+  'ratingsBucket', 'securityType', 'seniority', 'couponType', 'exchange',
+  'accountName', 'portfolio', 'strategy', 'desk', 'book', 'trader', 'region',
+  'side', 'positionStatus', 'liquidityTier',
+]);
+
 /**
  * These assertions exist because the previous stress book measured something
  * other than what it claimed. It put 404 columns on screen over a Table of ~53
@@ -75,7 +85,25 @@ describe('the stress book', () => {
   });
 
   it('exposes the documented stress book size', () => {
-    expect(STRESS_ROW_COUNT).toBe(50_000);
+    // 20,000 rather than 50,000, and MEASURED rather than chosen: the
+    // SharedWorker holding the Table runs in the SAME process as the page, and
+    // the 50,000-row book put that process at 1,909 MB against the ~4 GB Chrome
+    // allows a renderer. See the note on STRESS_ROW_COUNT.
+    expect(STRESS_ROW_COUNT).toBe(20_000);
     expect(STRESS_COL_COUNT).toBe(120);
+  });
+
+  it('keeps the book mostly NUMERIC, and every string a dimension', () => {
+    // A float column is 8 dense bytes; a high-cardinality string column is an
+    // entry per row. MEASURED at 50,000 x 121: 53 strings cost 1,015 MB against
+    // 69 MB for 12. Only the index column is allowed to be per-row unique.
+    const strings = Object.entries(STRESS_FIELD_TYPES).filter(([, t]) => t === 'string');
+    expect(strings.length).toBeLessThanOrEqual(20);
+    for (const [field] of strings) {
+      expect(
+        field === STRESS_KEY_FIELD || GROUPABLE_FOR_TEST.has(field),
+        `${field} is a string but not a grouping dimension — high-cardinality strings are what this book cannot afford`,
+      ).toBe(true);
+    }
   });
 });

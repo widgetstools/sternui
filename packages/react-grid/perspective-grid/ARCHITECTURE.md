@@ -488,6 +488,41 @@ Table → ProxySession → a **second Client that never saw a row**:
 | Windowed reads | @0 9 ms · @10,000 6 ms · @19,900 5 ms — flat with depth |
 | While the feed ticks | book moved under the window; row count stayed 20,000 |
 
+## The worker is not a separate process, and the memory is not elsewhere
+
+The topology above says the book lives once in a SharedWorker and each window
+reads its viewport. That is true about OWNERSHIP and it is not true about
+memory.
+
+VERIFIED with CDP `SystemInfo.getProcessInfo` against the lab: Chrome reports
+`browser`, two `renderer`, `GPU`, `network` and `storage` processes and **no
+worker process**. The SharedWorker is hosted inside the page's renderer, so the
+Table, the provider's row objects, AG Grid and the page share the ~4 GB Chrome
+allows one renderer.
+
+MEASURED with `scripts/rendererProcessProbe.mjs`, one minute after opening the
+tab (`performance.memory` reports ~60 MB against every one of these — it is the
+JS heap only):
+
+| | renderer working set |
+|---|---|
+| the app with no grid open | **140 MB** |
+| a 500-row pull-path tab | 136 MB |
+| a 20,000 x 120 book | **1,286 MB** |
+| a 50,000 x 120 book | **1,909 MB** |
+
+So "the window never materializes the book" buys latency and a second blotter
+opening fast; it does NOT buy the window a smaller process. Anything that sizes
+a book on this path has to be sized against that ceiling, which is why the lab's
+stress book is 20,000 rows rather than 50,000.
+
+**One thing that is true in Node and did NOT transfer.** A high-cardinality
+string column is an entry per row where a float is 8 dense bytes: 50,000 x 121
+measured **1,015 MB** with 53 string columns against **69 MB** with 12. The lab
+book was rebuilt numeric-first on that basis and the browser process moved by
+45 MB. Keep the shape — the ratio is real and will matter on a larger book — but
+it was not what was filling this process.
+
 ## The cost is NOT the columns — the 284x was a contaminated measurement
 
 **This section previously read "The cost is the COLUMNS, not the round trip" and

@@ -22,21 +22,63 @@ import { defaultColDef, fmt } from './columns';
  * a computed column costs the renderer and nothing else, which is the opposite
  * of what a stress book is for.
  *
- * ## Choosing the fields
+ * ## Choosing the fields — and why they are mostly numeric
  *
  * `buildPosition` emits 274 flat paths, of which 109 are numbers and 93 are
- * strings. The list below is the first 121 top-level scalars, with the fields
- * the seeded profiles, style rules and alerts name hoisted to the front so they
- * cannot be lost by a later trim — a rule naming a field the Table does not
- * carry does not fail, it silently answers null.
+ * strings. The first cut of this file took the first 121 scalars, which came
+ * out 53 strings to 68 numbers, and **the tab died with "Aw, Snap! Out of
+ * Memory" within seconds of opening.**
+ *
+ * MEASURED, 50,000 rows x 121 columns, the same shape either way:
+ *
+ * | | resident memory |
+ * |---|---|
+ * | 53 string / 68 float | **1,015 MB** |
+ * | 12 string / 109 float | **69 MB** |
+ *
+ * A float column is 8 dense bytes; a high-cardinality string column is an
+ * entry per row in a dictionary that never repeats. So `isin`, `sedol`, `figi`,
+ * `instrumentDescription` and the ISO timestamps were costing roughly 20 MB
+ * EACH, and they are not what a stress book is for.
+ *
+ * What is here instead: every numeric field the row has (101 of them), plus 19
+ * strings that are all DIMENSIONS — things a user groups, filters or pivots by.
+ * The index column is the one unavoidable per-row string.
+ *
+ * That matters more here than in most apps because **the SharedWorker holding
+ * the Table runs in the SAME process as the page** — VERIFIED with
+ * `SystemInfo.getProcessInfo`, which reports no separate worker process — so
+ * the book competes with the grid for the ~4 GB Chrome allows a renderer.
  *
  * Dotted paths (`ratings.sp.rating`, `keyRateDurations.1Y`) are excluded on
  * purpose: a dot in a Perspective column name is a needless hazard and every
  * one of them has a flat twin (`spRating`, `krd1Y`).
  */
 
-/** Rows in the stress book. */
-export const STRESS_ROW_COUNT = 50_000;
+/**
+ * Rows in the stress book.
+ *
+ * 20,000 rather than the 50,000 this tab used to carry, and the reason is the
+ * process budget rather than taste. MEASURED with
+ * `perspective-grid/scripts/rendererProcessProbe.mjs` (the OS working set —
+ * `performance.memory` is the JS heap only and reports ~60 MB against this):
+ *
+ * | book | renderer, one minute after opening the tab |
+ * |---|---|
+ * | 50,000 x 120 | **1,909 MB** |
+ * | 20,000 x 120 | **1,286 MB** |
+ * | the app with no grid open | 140 MB |
+ *
+ * The number that makes those alarming: **the SharedWorker holding the Table
+ * runs in the SAME process as the page.** VERIFIED with CDP
+ * `SystemInfo.getProcessInfo`, which reports no separate worker process at all —
+ * so the book, the mock generator's row objects, AG Grid and the page all share
+ * the ~4 GB Chrome allows one renderer, and the 50,000-row book was dying of it.
+ *
+ * Raising it is one constant, and anyone who does should re-run that probe
+ * rather than assume the headroom is there.
+ */
+export const STRESS_ROW_COUNT = 20_000;
 
 /** RENDERED columns. The Table carries these plus {@link STRESS_KEY_FIELD}. */
 export const STRESS_COL_COUNT = 120;
@@ -55,58 +97,31 @@ export const STRESS_KEY_FIELD = 'id';
  */
 export const STRESS_FIELD_TYPES: Record<string, 'string' | 'number'> = {
   id: 'string',
-  assetClass: 'string',
-  issuerSector: 'string',
-  marketValue: 'number',
-  dailyPnL: 'number',
-  unrealizedPnL: 'number',
-  quantityFace: 'number',
-  oas: 'number',
-  dv01: 'number',
-  modifiedDuration: 'number',
-  positionKey: 'string',
   cusip: 'string',
-  isin: 'string',
-  sedol: 'string',
   ticker: 'string',
-  figi: 'string',
-  internalId: 'string',
-  issuerName: 'string',
-  issuerLei: 'string',
-  issuerCountry: 'string',
-  issuerCountryCode: 'string',
-  issuerSubSector: 'string',
-  issuerIndustryGroup: 'string',
-  ultimateParent: 'string',
-  issuerType: 'string',
-  esgScore: 'number',
-  securityType: 'string',
-  securitySubType: 'string',
+  assetClass: 'string',
   assetSubClass: 'string',
+  issuerSector: 'string',
+  issuerSubSector: 'string',
+  issuerCountryCode: 'string',
   currency: 'string',
-  issueDate: 'string',
-  firstSettleDate: 'string',
-  maturityDate: 'string',
-  originalMaturity: 'number',
-  workoutDate: 'string',
-  workoutPrice: 'number',
+  compositeRating: 'string',
+  ratingsBucket: 'string',
+  securityType: 'string',
   seniority: 'string',
-  instrumentDescription: 'string',
-  cfiCode: 'string',
-  micCode: 'string',
-  exchange: 'string',
-  listingStatus: 'string',
   couponType: 'string',
+  exchange: 'string',
+  accountName: 'string',
+  portfolio: 'string',
+  strategy: 'string',
+  desk: 'string',
+  book: 'string',
+  esgScore: 'number',
+  originalMaturity: 'number',
+  workoutPrice: 'number',
   couponRate: 'number',
   couponFrequency: 'number',
-  dayCount: 'string',
-  accrualBasis: 'string',
-  businessDayConvention: 'string',
   paymentDelay: 'number',
-  interestAccrualMethod: 'string',
-  firstCouponDate: 'string',
-  nextCouponDate: 'string',
-  lastCouponDate: 'string',
   exDivDays: 'number',
   bidPrice: 'number',
   askPrice: 'number',
@@ -117,10 +132,6 @@ export const STRESS_FIELD_TYPES: Record<string, 'string' | 'number'> = {
   openPrice: 'number',
   highPrice: 'number',
   lowPrice: 'number',
-  priceDate: 'string',
-  priceTime: 'string',
-  priceSource: 'string',
-  priceQuality: 'string',
   bidYield: 'number',
   askYield: 'number',
   midYield: 'number',
@@ -141,12 +152,12 @@ export const STRESS_FIELD_TYPES: Record<string, 'string' | 'number'> = {
   iSpread: 'number',
   assetSwapSpread: 'number',
   gSpread: 'number',
+  oas: 'number',
   nominalSpread: 'number',
-  benchmark: 'string',
   benchmarkPrice: 'number',
   benchmarkYield: 'number',
   benchmarkSpreadBps: 'number',
-  benchmarkTenor: 'string',
+  modifiedDuration: 'number',
   macaulayDuration: 'number',
   effectiveDuration: 'number',
   spreadDuration: 'number',
@@ -154,6 +165,7 @@ export const STRESS_FIELD_TYPES: Record<string, 'string' | 'number'> = {
   oac: 'number',
   convexity: 'number',
   effectiveConvexity: 'number',
+  dv01: 'number',
   pv01: 'number',
   cs01: 'number',
   ir01: 'number',
@@ -164,17 +176,47 @@ export const STRESS_FIELD_TYPES: Record<string, 'string' | 'number'> = {
   krd5Y: 'number',
   krd10Y: 'number',
   krd30Y: 'number',
-  compositeRating: 'string',
-  ratingsBucket: 'string',
-  impliedRating: 'string',
-  ratingDate: 'string',
-  ratingOutlook: 'string',
-  watchStatus: 'string',
   probabilityOfDefault: 'number',
   lossGivenDefault: 'number',
   recoveryRate: 'number',
   distanceToDefault: 'number',
-  moodysRating: 'string',
+  quantityFace: 'number',
+  originalFace: 'number',
+  factor: 'number',
+  currentFace: 'number',
+  cleanPrice: 'number',
+  dirtyPrice: 'number',
+  accruedInterest: 'number',
+  marketValue: 'number',
+  bookValue: 'number',
+  amortizedCost: 'number',
+  avgCost: 'number',
+  unrealizedPnL: 'number',
+  realizedPnL: 'number',
+  dailyPnL: 'number',
+  mtdPnL: 'number',
+  ytdPnL: 'number',
+  inceptionPnL: 'number',
+  daysHeld: 'number',
+  concentrationLimit: 'number',
+  concentrationUsed: 'number',
+  concentrationPctUsed: 'number',
+  haircut: 'number',
+  weightInPortfolio: 'number',
+  activeWeight: 'number',
+  benchmarkWeight: 'number',
+  contributionToDuration: 'number',
+  contributionToSpreadDuration: 'number',
+  contributionToYield: 'number',
+  contributionToPnL: 'number',
+  avgDailyVolume30d: 'number',
+  tradingVolumeMtd: 'number',
+  liquidityScore: 'number',
+  bidAskBps: 'number',
+  amihudIlliquidity: 'number',
+  depthBid: 'number',
+  depthAsk: 'number',
+  lastUpdate: 'number',
 };
 
 /** The 120 rendered fields, in display order. */
@@ -193,23 +235,20 @@ const GROUPABLE = new Set([
   'issuerSector',
   'issuerSubSector',
   'issuerCountryCode',
-  'issuerCountry',
   'currency',
   'compositeRating',
   'ratingsBucket',
   'securityType',
-  'securitySubType',
   'seniority',
-  'issuerType',
   'couponType',
   'exchange',
-  'listingStatus',
-  'priceSource',
-  'priceQuality',
-  'benchmark',
-  'ratingOutlook',
-  'watchStatus',
-  'moodysRating',
+  'accountName',
+  'portfolio',
+  'strategy',
+  'desk',
+  'book',
+  'trader',
+  'region',
 ]);
 
 /** Fields that read as a date rather than a number or a name. */

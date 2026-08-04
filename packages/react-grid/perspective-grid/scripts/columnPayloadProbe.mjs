@@ -48,7 +48,7 @@ async function measure(page) {
     // GROUPED, and a group row is not a row of the book — sampling one reports
     // the aggregate shape rather than the payload.
     api.setRowGroupColumns([]);
-    api.ensureIndexVisible(25_000, 'top');
+    api.ensureIndexVisible(10_000, 'top');
   });
   await page.waitForTimeout(8000);
 
@@ -111,7 +111,7 @@ try {
   console.log(`  columns in a returned ROW      ${r.payloadColumns}   <- the block payload`);
   console.log(`  AG columns with no Table field ${r.agColumnsWithNoTableField}  e.g. ${JSON.stringify(r.firstUnbacked)}`);
   console.log(`  payload starts                 ${JSON.stringify(r.firstPayload)}`);
-  console.log(`  book ${r.bookRows} rows · grid shows ${r.displayedRows} after a jump to row 25,000`);
+  console.log(`  book ${r.bookRows} rows · grid shows ${r.displayedRows} after a jump to row 10,000`);
   console.log('');
   console.log(
     r.agColumnsWithNoTableField === 0
