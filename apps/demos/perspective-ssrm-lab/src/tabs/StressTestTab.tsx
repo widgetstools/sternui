@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { MarketsGrid } from '@starui/grid';
+import { Button } from '@starui/ui';
 import { TabContainer } from '../components/TabContainer';
 import { InspectorDrawer } from '../components/InspectorDrawer';
 import { defaultColDef } from '../data/columns';
@@ -76,6 +77,23 @@ const COLUMN_WINDOW = { enabled: true, pinned: ['midPrice'] } as const;
 export function StressTestTab() {
   const config = STRESS_TEST_FEATURE;
   const [surface, setSurface] = useState<StressSurface>('markets-50k40');
+  /**
+   * The 50k x 400 client-side baseline is not mounted until it is ASKED for.
+   *
+   * MEASURED with the renderer's real working set (`rendererProcessProbe.mjs`;
+   * `performance.memory` reports the JS heap only and misses ~95% of this
+   * process): that variant idles at **2,580 MB** and reaches **3,349 MB** after
+   * scrolling, against Chrome's ~4 GB per-renderer ceiling — the closest to the
+   * edge of anything in this lab, and the reason the tab has died with
+   * "Aw, Snap! Error code: Out of Memory".
+   *
+   * It materializes 50,000 rows in the window BY DESIGN — that is what makes it
+   * a control, and it is not something to fix. What it should not do is load
+   * itself because someone stepped through the variant list, which is how it
+   * came to be sitting in the process during unrelated measurements. One click
+   * to arm it, and switching away disarms it again.
+   */
+  const [heavyBaselineArmed, setHeavyBaselineArmed] = useState(false);
 
   const onProfilesReady = useLabDemoProfiles(
     config.gridId,
@@ -85,7 +103,10 @@ export function StressTestTab() {
 
   const isBaseline =
     surface === 'plain-20k40' || surface === 'perspective-20k40';
-  const isPlainAg = surface === 'plain-20k40' || surface === 'plain-50k400';
+  const isHeavyBaseline = surface === 'plain-50k400';
+  const heavyBaselineHeld = isHeavyBaseline && !heavyBaselineArmed;
+  const isPlainAg =
+    surface === 'plain-20k40' || (isHeavyBaseline && heavyBaselineArmed);
   const isMarkets50k40 = surface === 'markets-50k40';
   const isColumnWindow = surface === 'markets-window';
   const isMarkets = surface === 'markets' || isMarkets50k40 || isColumnWindow;
@@ -140,7 +161,10 @@ export function StressTestTab() {
     providerId,
     {
       ...stream,
-      enabled: !isMarkets,
+      // Not merely "not rendered" — NOT SUBSCRIBED. A supply that is attached
+      // holds the whole book whether anything reads it or not, which is the
+      // 480 MB this tab already lost once.
+      enabled: !isMarkets && !heavyBaselineHeld,
       enableUpdates: isMarkets ? false : stream.enableUpdates,
     },
     undefined,
@@ -210,7 +234,11 @@ export function StressTestTab() {
   // No engine escalation: every MarketsGrid surface here is already on the
   // server row model, so there is nothing to suggest or switch to.
   const onVariantChange = useCallback((id: string) => {
-    if (VARIANTS.some((v) => v.id === id)) setSurface(id as StressSurface);
+    if (!VARIANTS.some((v) => v.id === id)) return;
+    // Re-arming is per visit: leaving the heavy baseline and coming back should
+    // be a deliberate act both times.
+    setHeavyBaselineArmed(false);
+    setSurface(id as StressSurface);
   }, []);
 
   return (
@@ -230,6 +258,25 @@ export function StressTestTab() {
               rowData={rowData}
               columnDefs={columnDefs}
             />
+          )}
+          {heavyBaselineHeld && (
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+              <p className="max-w-xl text-sm text-[color:var(--ds-text-secondary)]">
+                This baseline materializes all 50,000 rows in this window, which is
+                what makes it a control rather than a blotter. MEASURED renderer
+                working set: <strong>2,580 MB</strong> idle and{' '}
+                <strong>3,349 MB</strong> after scrolling, against Chrome&rsquo;s
+                ~4 GB per-renderer ceiling. Nothing else is loaded until you ask
+                for it.
+              </p>
+              <Button
+                size="sm"
+                onClick={() => setHeavyBaselineArmed(true)}
+                data-testid="stress-arm-heavy-baseline"
+              >
+                Load the 50k × 400 client-side baseline
+              </Button>
+            </div>
           )}
           {isPlainAg && (
             <PlainStressAgGrid

@@ -39,47 +39,116 @@ else**. Always run the control — it has caught several false findings.
   `apps/`, generated from the diff. Useful for a review pass or a PR
   description; regenerate with the command at the top of it.
 - [`docs/PERSPECTIVE_GRID_COLUMN_WINDOW_DESIGN.md`](./PERSPECTIVE_GRID_COLUMN_WINDOW_DESIGN.md)
-  — **the next substantial piece of work**, designed and not built. Read it
-  before starting item A below.
+  — the column-window design. **Built; its premises were measured and found
+  wrong, and the corrections are at the top.** Read those before trusting
+  anything below them.
 
 ---
 
 # START HERE — the next session's order
 
-Items 1-3 below were the previous ask and are **done**; they are kept because
-what was ruled out is as useful as what was fixed. The live work is A and B.
+Items 1-7 below were earlier asks and are **done or diagnosed**; they are kept
+because what was ruled out is as useful as what was fixed.
 
-## A. Column-window fetching · designed, not built · the main event
+## A. Column-window fetching · BUILT, opt-in, OFF — and its justification is gone
 
-Full design in
-[`PERSPECTIVE_GRID_COLUMN_WINDOW_DESIGN.md`](./PERSPECTIVE_GRID_COLUMN_WINDOW_DESIGN.md).
+The feature ships. `MarketsGridProps.perspectiveColumnWindow`
+(`{ enabled, pad?, pinned? }`) narrows every block read to a padded band around
+the visible columns; `viewManager.setColumnWindow` holds the state on the same
+seam as `setQuickFilter` / `setExpressions`. 293 unit tests in
+`@starui/perspective-grid` and a dedicated e2e spec
+(`npm run e2e:perspective-lab`, 4 tests, all passing). Full design notes and the
+non-obvious engine rules are in the package
+[`ARCHITECTURE.md`](../packages/react-grid/perspective-grid/ARCHITECTURE.md),
+"Column-window fetching — built, opt-in, and off".
 
-**Why it is first:** it is the one lever on BOTH remaining problems. A View
-carries every column it was built with and AG renders ~15 of 400, so ~96% of
-every block read is fetched and discarded. MEASURED: `getRows` median **5 ms at
-40 columns vs 1,420 ms at 404** — 284x for 10x the columns, so cost per column
-is ~28x worse. The same payload drives the renderer's memory (1,026 MB idle at
-40 columns, 1,748 MB at 404, against Chrome's ~4 GB ceiling).
+**What did NOT survive the redone measurement — read this before planning any
+more work on wide books.** The 284x figure that motivated the whole item is
+WITHDRAWN.
 
-**Why it is not a tweak:** AG's SSRM request carries no column window, so
-narrowing a View means cached rows lack the columns scrolled into, and AG's only
-remedy is a full purge. Naively that trades a 1.4 s read for a cache purge per
-horizontal scroll. The design exists to avoid that, and the list of columns that
-must be pinned (key column, group/value columns, anything a sort, filter,
-expression, value getter or style rule reads) is the part that fails SILENTLY if
-gotten wrong.
+| claim | clean measurement |
+|---|---|
+| `getRows` 5 ms at 40 columns vs **1,420 ms** at 404 | **9 ms vs 123 ms** |
+| cost per column ~28x higher at 404 | ~1.4x |
+| "~96% of every block is fetched and discarded" | the block payload is **53 and 56 columns** — not 40 and 404 |
 
-`PerspectiveViewConfig.columns` already exists and nothing sets it — the engine
-half is one field. The window state takes the same seam as `setQuickFilter` /
-`setExpressions`.
+**The Stress tab's "50k × 400" is a 56-field book behind 404 AG columns.** 368 of
+them are synthetic `sNNN` **value getters** computed in the window from `id` and
+`midPrice`; they are not columns of the Table and are never fetched. Every lab
+Table comes from one ~53-field declared schema (`TABLE_FIELDS` in
+`perspectiveProvider.ts`). So the two variants' payloads differ by three columns,
+and the 14x median gap is the cost of a 404-column AG grid around the read, not
+of the read.
+
+**Consequence: nothing in this repo can demonstrate this feature, and it must
+stay off until something can.** Proving it needs a provider that DECLARES
+hundreds of fields. That is the concrete next step if wide-book performance
+matters — generate ~400 field declarations in `perspectiveProvider.ts`, bump
+`LAB_PROVIDER_CFG_VERSION`, and add a Stress variant on it. Then
+`columnCleanCostProbe.mjs` and `columnPayloadProbe.mjs` will finally be measuring
+what their names say.
+
+**Two probe defects produced the 284x, and both are now fixed in
+`columnCleanCostProbe.mjs`. They are the transferable lesson:**
+
+1. **The pause switch does not mean what it says.** `useLabPerspectiveRows`
+   initialises `paused` in a `useState` INITIALISER, which runs once for the tab,
+   and the Stress tab swaps variants without remounting the hook. Switching from
+   the 40-column variant (`enableUpdates: false`) to the 400-column one
+   (`enableUpdates ?? true`) leaves the switch reading "paused" over a ticking
+   provider, and the effect that would push the state to the worker is skipped on
+   mount. The recorded `false -> false` was that, and the earlier session wrote
+   it down as "could not certify" without acting on it.
+2. **The fix for (1) was itself unfalsifiable.** Verifying against the BOOK — 
+   sample cells, wait, sample again — sampled the first 120 `.ag-cell` elements,
+   and AG virtualises COLUMNS, so those are the leading TEXT columns that a price
+   feed never touches. The check could not fail, reported "still", and produced a
+   3 ms vs 4 ms comparison that was wrong the other way.
+
+   A verification must be able to FAIL. The sampler now scrolls a price column
+   into view, watches only price columns, and refuses if none is in the DOM.
+
+**Still unsettled:** the ticking control. Toggling the switch back on restarts the
+provider, but the book did not resume moving inside 180 s, so the probe refused to
+report. The original 1,420 ms therefore has a confirmed disqualification and no
+confirmed explanation.
 
 ## B. The Stress tab still dies with "Aw, Snap · Out of Memory"
 
-Reported twice, still open. One real cause was found and fixed (item 4 below,
-481 MB -> 74 MB of JS heap), and it was not enough: the tab runs at 1.0-3.3 GB
-depending on variant. Full table in item 4. **A is the main remedy**; the
-other two candidates there (the plain-AG baseline at 3.3 GB, and the ~640 MB
-retained after visiting it) are cheaper and independent.
+Reported twice, still open, and **A is no longer a candidate remedy** — see
+above. The measured picture is unchanged: MarketsGrid 50k × 40 = 1,026 MB idle /
+1,425 after scroll; MarketsGrid 50k × 400 = 1,748 / 2,038; Plain AG 50k × 400 =
+2,580 / 3,349, against Chrome's ~4 GB per-renderer ceiling.
+
+**Done this session:** the plain-AG 50k × 400 baseline — the worst of the three
+and the closest to the ceiling — no longer loads itself. It is held behind an
+explicit "Load the 50k × 400 client-side baseline" button
+(`data-testid="stress-arm-heavy-baseline"`), and while held its row supply is not
+even SUBSCRIBED, so stepping through the variant list no longer parks 2.6 GB in
+the process. Re-arming is per visit.
+
+**What is left, in order:**
+
+1. **The ~640 MB retained after visiting a baseline.** Measured previously,
+   survives a forced GC with the React arrays released. The recorded first
+   suspect — `ProviderClientAdapter` keeping "the last snapshot commit by
+   reference" — is **wrong**: `detach()` already sets `snapshotRows = []`
+   (`packages/data/host-data/src/provider/ProviderClientAdapter.ts`). Look
+   elsewhere, and measure with `rendererProcessProbe.mjs`, never
+   `performance.memory` (`variantRetentionProbe.mjs` reads the JS heap and is
+   blind to ~95% of this process).
+2. **The 400-column AG grid itself.** Now that the payload is known to be ~56
+   columns, the 722 MB between the 40- and 400-column MarketsGrid variants is AG
+   Grid's own column machinery plus 368 value getters — not row data. That is
+   where to look next, and it is an AG-side question, not a Perspective one.
+
+## NEW — found while measuring, not yet chased
+
+- **The Stress tab's 400-column variant opens GROUPED** from its seeded profile
+  (`filteredRows: 9`, nine asset classes; `getDisplayedRowCount()` reads 10).
+  Harmless, but it invalidates any probe that assumes a flat grid — and it cost
+  an e2e run to notice. `columnCleanCostProbe.mjs` calls `setRowGroupColumns([])`
+  before measuring for this reason; the e2e spec now does the same.
 
 ---
 
@@ -149,12 +218,12 @@ of them saved-filter badge counts — the same contention as item 1, which is wh
 the slowest grouping change served its first block at 1,449 ms. No View-per-level
 problem was found; the LRU never came near its cap.
 
-**Still open here, and the biggest remaining number on this surface:** a
-400-column block read is 0.9–2.3 s. A View carries every column it was built
-with, and AG renders about fifteen of them. Restricting a View to the columns
-the grid actually asks for is the obvious next lever and has NOT been tried —
-it needs a rebuild when the user scrolls horizontally, so it is a design step,
-not a tweak.
+**CORRECTED — the "0.9–2.3 s block read" and the lever it implied are both
+gone.** Re-measured with the feed provably off, a 404-column block read is a
+**123 ms** median, and the block PAYLOAD is 56 columns rather than 400 (368 of
+the AG columns are client-side value getters that are never fetched). Restricting
+the View was built anyway and is off by default; see item A at the top for the
+whole account.
 
 Note the Stress tab keeps a client-side row supply for its plain-AG-Grid and
 FINOS-viewer baselines — deliberately, since feeding those from a Table would
@@ -253,11 +322,12 @@ The block cache is NOT the culprit and is already bounded — the surface sets
 `cacheBlockSize: 100`, `maxBlocksInCache: 20`.
 
 **What is left to try, in order of expected effect:**
-1. **Restrict a View to the columns AG actually renders.** A View carries every
-   column it was built with; AG renders about fifteen of 400. This is the same
-   lever already flagged for the 0.9-2.3 s block read, and it is now also the
-   memory lever on the pull path.
-2. **Reduce what the baselines cost** — the plain-AG control at 3.3 GB is the
+1. ~~**Restrict a View to the columns AG actually renders.**~~ **RULED OUT as a
+   remedy here.** It was built (item A), but the block payload on this tab is 56
+   columns, not 400, so there is almost nothing to narrow. The 722 MB between the
+   40- and 400-column MarketsGrid variants is AG Grid's own column machinery plus
+   368 value getters, not row data.
+2. **Reduce what the baselines cost** — DONE, see item B at the top — the plain-AG control at 3.3 GB is the
    nearest to the ceiling. Either lower its row count or make it explicitly
    opt-in, since it exists to be compared against, not to be lived in.
 3. **The ~640 MB retained after visiting a baseline** (measured, survives a
@@ -403,6 +473,16 @@ npm run build --workspace=@starui/host-data
 npx turbo typecheck build test --continue
 npm run e2e:perspective
 ```
+
+```bash
+npm run e2e:perspective-lab
+```
+
+The lab suite (`playwright.perspective-lab.config.ts`, 4 tests) covers
+column-window correctness against the wide-book Stress tab. It needs no broker
+and is separate from `e2e:perspective` for that reason: coupling it to the STOMP
+fixture would give it a documented pre-existing failure to inherit. **4 of 4
+pass.**
 
 **`npm run e2e:perspective` — 9 of 10 pass; the failure is NOT from this
 work.** `mounts over the whole worker-held book` waits for the status bar to
