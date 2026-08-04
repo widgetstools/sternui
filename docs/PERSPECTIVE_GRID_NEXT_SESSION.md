@@ -185,12 +185,44 @@ does not drop the ones already held.
 | JS heap over 8 rounds of scroll/group/filter | 470-530 MB | **56-113 MB**, returning to ~57 |
 | 50,000-row arrays in the window | 2 | **0** |
 
-**Residual, measured and NOT fixed:** after visiting a *client-side baseline*
-variant (Plain AG Grid 50k x 400, which holds the book by design), switching
-back to the pull-path variant leaves **~640 MB** held even after a forced GC.
-The React arrays are gone — the retention is elsewhere, and
-`ProviderClientAdapter` keeping "the last snapshot commit by reference" is the
-first place to look. Only reachable by exploring variants, but it is real.
+**STILL CRASHES after that fix — the tab is inherently near the ceiling.**
+Reported again, same "Out of Memory". The fix above removed 480 MB of genuinely
+wasted memory; it was not enough, and the reason every earlier measurement said
+otherwise is that **`JSHeapUsedSize` / `performance.memory` report the JS heap
+ONLY**. WebAssembly, DOM and compositor are not in it, and this window runs its
+own Perspective client. MEASURED with the renderer's real working set (PIDs from
+CDP `SystemInfo.getProcessInfo`, working set from `tasklist`), each variant in a
+FRESH browser so the previous one's retention is not counted against it:
+
+| variant | renderer idle | after scrolling | JS heap |
+|---|---|---|---|
+| MarketsGrid 50k x **40** (pull path) | 1,026 MB | 1,425 MB | 138 MB |
+| MarketsGrid 50k x **400** (pull path) | 1,748 MB | 2,038 MB | 61 MB |
+| **Plain AG Grid 50k x 400** (client-side control) | **2,580 MB** | **3,349 MB** | 906 MB |
+
+Chrome kills a renderer around **4 GB**. So every variant of this tab runs
+between 1.0 and 3.3 GB, and the WORST is the plain-AG client-side control, not
+the Perspective path — that control materializes 50,000 x 400 in the window by
+design, which is what makes it a control. Note the 400-column pull-path row: 61
+MB of JS heap against a 1.7 GB process. Any probe reading the JS heap on this
+tab is blind to ~95% of it; use `scripts/rendererProcessProbe.mjs` or
+`scripts/columnCostProbe.mjs`.
+
+The block cache is NOT the culprit and is already bounded — the surface sets
+`cacheBlockSize: 100`, `maxBlocksInCache: 20`.
+
+**What is left to try, in order of expected effect:**
+1. **Restrict a View to the columns AG actually renders.** A View carries every
+   column it was built with; AG renders about fifteen of 400. This is the same
+   lever already flagged for the 0.9-2.3 s block read, and it is now also the
+   memory lever on the pull path.
+2. **Reduce what the baselines cost** — the plain-AG control at 3.3 GB is the
+   nearest to the ceiling. Either lower its row count or make it explicitly
+   opt-in, since it exists to be compared against, not to be lived in.
+3. **The ~640 MB retained after visiting a baseline** (measured, survives a
+   forced GC, React arrays already released). `ProviderClientAdapter` keeping
+   "the last snapshot commit by reference" is the first suspect. Only reachable
+   by exploring variants, but it stacks on top of the above.
 
 ## 5. The engine throws on its own buffers when memory grows · diagnosed, not fixed
 
