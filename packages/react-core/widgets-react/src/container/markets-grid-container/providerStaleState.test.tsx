@@ -1,6 +1,21 @@
 /**
  * MarketsGridContainer — stale-data banner wiring from provider status
  * events (disconnect → banner + dataStale; loading/ready → clear).
+ *
+ * MUTATION-TESTED after these were repaired, because both had been failing long
+ * enough to be quoted as a gate baseline and a test nobody has seen go red for
+ * the right reason is not evidence. Deliberately breaking the wiring catches:
+ * the disconnect not setting the stale flag, the disconnect detail being
+ * dropped, the `ready` branch not running, the auto-refresh after a disconnect,
+ * and `onError` never being told — 5 of 6.
+ *
+ * **The one that survives is worth knowing**: killing the `loading` branch
+ * entirely changes nothing here, because `ready` also clears staleness and the
+ * loading branch's own effects (`isRefetching` → the snapshot overlay, and
+ * `clearPendingAdds`) are not observable through the props asserted below —
+ * `MarketsGridLoadingOverlay` is mocked to null in this file. So these cover the
+ * stale FLAG and the auto-refresh, not the refetching overlay. Asserting it
+ * would mean un-mocking the overlay, which is a different test.
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as React from 'react';
@@ -219,7 +234,22 @@ describe('MarketsGridContainer — provider stale state', () => {
       />,
     );
 
-    await waitFor(() => expect(latestProvider?.start).toHaveBeenCalled(), { timeout: 3000 });
+    // Wait for the container to SUBSCRIBE, not for the provider to be started.
+    //
+    // This gate used to be `expect(latestProvider?.start).toHaveBeenCalled()`
+    // and could never pass: `MarketsGridContainer` calls `useDataProvider` with
+    // `autoStart: false` and destructures only `provider` / `refresh` /
+    // `restart`, so nothing ever calls `provider.start()`. Starting is the
+    // hook's job, and the hook is mocked here — so the assertion pinned a
+    // spelling the consumer does not have, which is the trap this repo has
+    // recorded three times in the other direction (a GREEN test pinning a
+    // spelling the engine lacks). It arrived with the god-object decomposition
+    // that introduced `autoStart: false` and was never re-read.
+    //
+    // `onStatus` is the right gate because it is the subscription every
+    // assertion below depends on: `emitStatus` reaches nobody until the
+    // container has registered its handler.
+    await waitFor(() => expect(latestProvider?.onStatus).toHaveBeenCalled(), { timeout: 3000 });
 
     await act(async () => {
       latestProvider!.emitStatus('loading');
@@ -274,7 +304,22 @@ describe('MarketsGridContainer — provider stale state', () => {
       />,
     );
 
-    await waitFor(() => expect(latestProvider?.start).toHaveBeenCalled(), { timeout: 3000 });
+    // Wait for the container to SUBSCRIBE, not for the provider to be started.
+    //
+    // This gate used to be `expect(latestProvider?.start).toHaveBeenCalled()`
+    // and could never pass: `MarketsGridContainer` calls `useDataProvider` with
+    // `autoStart: false` and destructures only `provider` / `refresh` /
+    // `restart`, so nothing ever calls `provider.start()`. Starting is the
+    // hook's job, and the hook is mocked here — so the assertion pinned a
+    // spelling the consumer does not have, which is the trap this repo has
+    // recorded three times in the other direction (a GREEN test pinning a
+    // spelling the engine lacks). It arrived with the god-object decomposition
+    // that introduced `autoStart: false` and was never re-read.
+    //
+    // `onStatus` is the right gate because it is the subscription every
+    // assertion below depends on: `emitStatus` reaches nobody until the
+    // container has registered its handler.
+    await waitFor(() => expect(latestProvider?.onStatus).toHaveBeenCalled(), { timeout: 3000 });
 
     latestProvider!.refresh = vi.fn().mockImplementation(async () => {
       latestProvider!.emitSnapshot(refreshedRows);
