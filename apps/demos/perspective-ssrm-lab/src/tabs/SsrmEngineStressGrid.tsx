@@ -25,10 +25,10 @@ import { STRESS_BOOK_ID } from '../data/stressBook';
  * rather than only the arithmetic.
  */
 const CALC_EXPRESSIONS = [
-  { colId: 'calc_pnlPct', expression: 'IF([marketValue] > 0, ([dailyPnL] / [marketValue]) * 100, null)' },
-  { colId: 'calc_dollarDur', expression: '[marketValue] * [modifiedDuration] / 100' },
-  { colId: 'calc_band', expression: 'IFS([midPrice] >= 105, "rich", [midPrice] >= 95, "fair", "cheap")' },
-  { colId: 'calc_notional', expression: '[quantityFace] * [midPrice] / 100' },
+  { colId: 'calc_pnlPct', filter: 'agNumberColumnFilter', expression: 'IF([marketValue] > 0, ([dailyPnL] / [marketValue]) * 100, null)' },
+  { colId: 'calc_dollarDur', filter: 'agNumberColumnFilter', expression: '[marketValue] * [modifiedDuration] / 100' },
+  { colId: 'calc_band', filter: 'agTextColumnFilter', expression: 'IFS([midPrice] >= 105, "rich", [midPrice] >= 95, "fair", "cheap")' },
+  { colId: 'calc_notional', filter: 'agNumberColumnFilter', expression: '[quantityFace] * [midPrice] / 100' },
 ];
 
 /**
@@ -117,7 +117,22 @@ export function SsrmEngineStressGrid({
               field: column.colId,
               headerName: column.colId,
               sortable: true,
-              filter: true,
+              /**
+               * The filter TYPE, never a bare `filter: true`.
+               *
+               * Under AG 36 enterprise `filter: true` resolves to
+               * `agSetColumnFilter`, and a set filter under a SERVER row model
+               * has no values to offer — AG's own list is built from the rows
+               * the client model holds, and here it holds a hundred. Opening
+               * one threw `r.values is not iterable` out of AG's own filter
+               * validation and took the filter menu with it. `buildStressColumnDefs`
+               * already picks the filter per column type for the stored
+               * columns; these have to do the same. Wiring the engine's
+               * `distinctValues` into a set filter is session 6's job.
+               */
+              filter:
+                CALC_EXPRESSIONS.find((c) => c.colId === column.colId)?.filter ??
+                'agNumberColumnFilter',
               enableRowGroup: true,
               enableValue: true,
               width: 130,
