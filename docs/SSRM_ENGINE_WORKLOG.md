@@ -144,14 +144,22 @@ names let the graph reach a wasm Vite denies (now aliased in
 where the host reads context by relative path and the barrel's passthrough never
 established it (now the real provider, real hooks and a real `GridPlatform`).
 
-**What remains: 2 `providerStaleState` cases in `@starui/widgets-react`**, and
-they are NOT a mock problem — `latestProvider.start` is a spy that is never
-called, so the container constructs a provider and does not start it. That may
-be a genuine regression in `MarketsGridContainer`'s provider lifecycle and
-deserves its own investigation rather than a fixture patch.
+**The `@starui/widgets-react` baseline is gone too — 48 files / 235 passed / 1
+skipped.** The 2 `providerStaleState` cases waited on
+`expect(latestProvider.start).toHaveBeenCalled()`, which cannot pass:
+`MarketsGridContainer` uses `autoStart: false` and never calls
+`provider.start()`. The gate is now `onStatus`, the subscription those tests
+actually depend on, and the wiring is mutation-tested 5 ways.
 
-Anything else is usually the turbo ordering race — re-run in isolation from the
-REPO ROOT before believing it. Plus the probes named per session.
+**And the turbo ordering race is fixed**, which was two bugs in one costume:
+`typecheck`/`test` depended only on `^build` (dependencies' builds, never the
+package's OWN — and `@starui/design-system`'s test reads its own
+`dist/css/theme.css`), and `@starui/grid` imported `@starui/host-data/runtime`
+without declaring it, so turbo could not see the edge at all.
+
+**So the gate is 73/73 with nothing excused.** If something fails, it is real —
+there is no longer a documented list of failures to wave it past. Plus the
+probes named per session.
 
 ---
 

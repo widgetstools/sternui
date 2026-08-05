@@ -56,7 +56,7 @@ disable themselves (`isServerSideEngine()` exists for exactly this). The second
 finds code that walks the row model expecting the whole book — note
 `forEachNodeAfterFilter` visits **0 nodes** under the server row model.
 
-## 3. Turbo runs tasks before the `dist/` they read exists — CAUSE FOUND, not fixed · watch-list
+## 3. Turbo runs tasks before the `dist/` they read exists — **FIXED**
 
 Presents as an intermittent `@starui/design-system` test failure, but it is
 **not specific to that package and not load-related**. It is a missing task
@@ -72,13 +72,28 @@ Observed instances across runs on this branch, none of them caused by it:
 | `@starui/grid#typecheck` | `@starui/host-data/runtime` — TS2307, while host-data was rebuilding |
 | `@starui/host-wrapper-react#test`, `@starui/openfin-platform#test` | same shape; both pass alone |
 
-Every one of them passes in isolation, every time, which is the whole reason it
-reads as flakiness. **Re-run before believing any of them** — a clean re-run
-returns the documented baseline exactly.
+Every one of them passed in isolation, every time, which is the whole reason it
+read as flakiness.
 
-The fix is `dependsOn` entries in `turbo.json` so a task waits on the builds it
-reads; deliberately NOT done here, because it is a root pipeline change with no
-connection to this branch and it should land where it can be reviewed as such.
+**Fixed, and it was TWO bugs wearing one costume.**
+
+1. **`turbo.json` only had `dependsOn: ["^build"]` on `typecheck` and `test`.**
+   `^build` means "build my DEPENDENCIES" — it says nothing about a package's
+   own build. `@starui/design-system`'s theme-bundle test reads
+   `dist/css/theme.css`, which its OWN build emits, so it had no ordering
+   guarantee whatsoever; combined with `rimraf dist` at the head of every build
+   script, it could be reading a directory that was mid-deletion. Both tasks now
+   depend on `["^build", "build"]`.
+2. **`@starui/grid` imported `@starui/host-data/runtime` without declaring it**
+   (`marketsGridEventHandlers.ts`). An undeclared dependency is invisible to
+   `^build`, so no amount of dependency ordering could have helped that one —
+   turbo did not know the edge existed. Now declared in its `package.json`.
+
+Verified with **three consecutive `--force` runs at 73/73 tasks**, against two
+failures in the four forced runs taken just before the change. A race cannot be
+proved absent by sampling, and that is not the claim: what changed is that the
+ordering edge now exists where there was none, and the one dependency turbo
+could not see is declared.
 
 ## Gate baseline for this branch
 

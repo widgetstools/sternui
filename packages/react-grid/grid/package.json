@@ -33,6 +33,7 @@
     "@starui/engine": "*",
     "@starui/host": "*",
     "@starui/host-openfin": "*",
+    "@starui/host-data": "*",
     "@starui/types": "*",
     "@starui/design-system": "*",
     "@starui/ui": "*",
