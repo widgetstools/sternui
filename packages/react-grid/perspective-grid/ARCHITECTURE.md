@@ -209,6 +209,48 @@ here. `bootWorkerEntry` now installs `unhandledrejection` / `error` listeners so
 the failure is at least attributable. Recovering from it needs the engine: the
 next lever is the 5.0.0 line (published 2026-07-28, unprobed).
 
+## Sorting collapsed the grid to two rows — the grand total was being read as the store size
+
+Reported from a desk: "when the user sorts it almost becomes empty — 2-4 rows at
+the top, then it literally paints the screen from top to bottom."
+
+**Cause.** `readGrandTotal` builds its View at **depth 0**, exactly like a root
+block View, and it holds ONE group — a single constant expression column over the
+whole book — so it reports `rows: 1`. The engine's `onEvent` published any
+depth-0 view event through `api.setRowCount`, so every purge told AG the book was
+one row long. One row plus the grand-total row is the two the desk saw.
+
+`viewManager` already guards `rowsAtRoot` against this exact confusion, with a
+comment saying so. The engine's `setRowCount` path never got the same guard, and
+the two are 300 lines apart.
+
+MEASURED with `scripts/sortRecoveryProbe.mjs` on the 20k x 120 book, sorting one
+column:
+
+| | before | after |
+|---|---|---|
+| lowest reported row count | **2** | **20,001** (never drops) |
+| how long it stayed there | ~700 ms | — |
+
+It fired on every purge, so a filter, a quick search and a calculated-column
+change all did it too.
+
+**The fix is the distinction the two paths disagreed on:** a flat root block View
+has `groupColId === null`; the grand-total View names its synthetic group column.
+
+**What the fix does NOT remove.** The first block after a sort still takes
+0.4-1.1 s, because the engine has to build a new sorted View — Perspective view
+configs are immutable, so a sort is always a fresh View. What changes is that the
+grid keeps its full height, scrollbar and row count while it waits, filling
+skeleton rows in place instead of appearing to have emptied and then growing.
+
+A wrong hypothesis was tried first and is worth recording: `serverSideInitialRowCount`
+defaults to 1, which looked like an exact match for the symptom. Setting it to a
+viewport's worth did NOT fix it — the count still fell to 2 — which is what
+pointed at the grand total. It is kept anyway, because a purged store showing a
+screen of skeletons beats one showing a single row, and it is not a managed grid
+option in AG Grid 36 so it cannot be updated as the real count becomes known.
+
 ## Blank rows on a blotter — the stub is now a skeleton, and the real lever is latency
 
 Reported by a trading desk: blank cells make traders nervous. They are right to

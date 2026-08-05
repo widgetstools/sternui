@@ -858,6 +858,31 @@ export const PerspectiveMarketsGridSurface = forwardRef<
                 : {}),
             }
           : {})}
+        /**
+         * How many rows a PURGED store claims until the first block answers.
+         *
+         * AG's default is 1, so a sort, filter or quick search leaves the grid
+         * momentarily reporting a one-row book while the engine builds the new
+         * View. A viewport's worth of skeleton rows (see
+         * `SkeletonLoadingCellRenderer`) reads as "loading" rather than "the book
+         * emptied". It is an ESTIMATE, and AG corrects it from the first response
+         * — shrinking through `success({ rowCount })` is the sanctioned
+         * direction here, where forcing 0 would cap the store permanently.
+         *
+         * **This is NOT what caused the reported "sorting collapses the grid to
+         * 2-4 rows".** It was added on that hypothesis and MEASURED not to fix
+         * it: the count still fell to 2. The real cause was the engine
+         * publishing the GRAND-TOTAL View's row count — that View is depth 0
+         * like a root block View but holds one synthetic group, so it reports
+         * `rows: 1` — and it is fixed in `perspectiveRowEngine`'s `onEvent`.
+         * Kept because a purged store showing a screen of skeletons is still
+         * better than one showing a single row.
+         *
+         * Not settable later: `serverSideInitialRowCount` is not a managed grid
+         * option in AG Grid 36, so `setGridOption` rejects it and the real count
+         * cannot be fed back as it becomes known.
+         */
+        serverSideInitialRowCount={100}
         // 100 rows is the window size every measurement in the package's
         // ARCHITECTURE.md used, and the depth at which reads stay flat.
         cacheBlockSize={100}

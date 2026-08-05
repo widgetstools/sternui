@@ -617,6 +617,31 @@ export function createPerspectiveRowEngine(
     onEvent: (event) => {
       onEvent?.(event);
       if (event.type !== 'view' || event.depth !== 0) return;
+      /**
+       * Only a View built for a BLOCK request describes the root store.
+       *
+       * The grand-total View is depth 0 as well, and it holds exactly ONE
+       * group — one constant expression column over the whole book — so it
+       * reports `rows: 1`. Publishing that told the grid the book was one row
+       * long. `viewManager` already guards `rowsAtRoot` against this exact
+       * confusion; this path did not, and the symptom was reported from a desk:
+       * sorting a column collapsed the grid to "2-4 rows at the top" (the one
+       * row plus the grand-total row) and then painted downward as the real
+       * blocks arrived.
+       *
+       * MEASURED with `scripts/sortRecoveryProbe.mjs` on the 20k x 120 book:
+       * one sort took the reported count from 20,001 to **2**, and it stayed
+       * there ~700 ms — most of the time the engine needed to build the sorted
+       * View. It happens on every purge, so a filter, a quick search and a
+       * calculated-column change all did it too.
+       *
+       * A flat root block View has `groupColId === null`; the grand-total one
+       * names its synthetic group column. That is the exact distinction.
+       */
+      if (event.groupColId !== null) {
+        publishStatus();
+        return;
+      }
       // `setRowCount` raises AG error #28 while grouping, and the error is
       // SILENT without ValidationModule. Grouped levels are small enough to
       // discover by walking off the end.

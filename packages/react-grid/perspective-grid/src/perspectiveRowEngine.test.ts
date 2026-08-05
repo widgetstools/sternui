@@ -1820,3 +1820,30 @@ describe('createPerspectiveRowEngine — column window', () => {
     expect(grid.refreshes).toEqual([]);
   });
 });
+
+describe('createPerspectiveRowEngine — the grand total is not the row count', () => {
+  it('never publishes the grand-total View as the store size', async () => {
+    // Reported from a desk: sorting collapsed the grid to "2-4 rows at the top".
+    // The grand-total View is depth 0 like a root block View, but it holds ONE
+    // synthetic group, so it reports `rows: 1` — and publishing that told AG the
+    // book was one row long. 1 row + the grand-total row is the 2 rows seen.
+    const { table } = makeTable(20_000);
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId' });
+    const grid = makeApi();
+    engine.setApi(grid.api);
+
+    await engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100 },
+      success: () => {},
+      fail: () => {},
+    } as never);
+    await settle();
+    // Building the grand total is what a purge triggers alongside the block.
+    engine.refreshNow();
+    await settle();
+    await settle();
+
+    expect(grid.rowCounts).toContain(20_000);
+    expect(grid.rowCounts.filter((n) => n < 20_000)).toEqual([]);
+  });
+});
