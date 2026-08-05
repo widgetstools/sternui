@@ -16,6 +16,12 @@
  */
 export { createSsrmEngine, SsrmEngine } from './engine.js';
 export type { SsrmEngineOptions, SsrmDelta, SsrmDeltaListener } from './engine.js';
+export { createSsrmDatasource, makeSsrmGetRowId } from './datasource.js';
+export type {
+  SsrmDatasourceLike,
+  SsrmDatasourceOptions,
+  SsrmGetRowsParamsLike,
+} from './datasource.js';
 export { ColumnStore } from './columnStore.js';
 export { compileFilter, compileQuickFilter, type RowPredicate } from './filter.js';
 export { sortIndex, lowerBound } from './sort.js';

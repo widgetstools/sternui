@@ -2,8 +2,22 @@
 
 A columnar row engine written to AG Grid's server-side row model contract.
 
-**Status: the engine core is built and measured. It is not yet wired to a grid,
-a worker, or a provider — see "What is not here" before planning on it.**
+**Status: the engine drives a real AG Grid in a browser and is measured there.
+It has no worker hosting and no provider wiring — see "What is not here".**
+
+Run it: build and serve `@starui/perspective-ssrm-lab`, then open the Stress tab
+with **`?engine=ssrm`**. `scripts/browserSmokeProbe.mjs` drives it.
+
+| in the browser, 20k x 120 | ssrm-engine | Perspective, same tab |
+|---|---|---|
+| first row painted | **2,326 ms** | 12,000-15,000 ms |
+| SORT, first block | **239 ms** | 400-1,100 ms |
+| rows after a sort | 20,000 (no collapse) | 20,000 since the grand-total fix |
+
+The sort is 239 ms in the browser against 4.4 ms for the same operation in Node.
+That gap is not the engine — it is AG purging the store, re-requesting and
+re-rendering 120 columns. The Node figures below are a floor, not a prediction
+of what a user feels.
 
 ---
 

@@ -13,6 +13,7 @@ import { useLabDemoProfiles } from '../data/useLabDemoProfiles';
 import { labStorage } from '../data/storage';
 import { useLabPerspectiveRows } from '../demo/useLabPerspectiveRows';
 import { PerspectiveAttachNotice } from '../components/PerspectiveAttachNotice';
+import { SsrmEngineStressGrid } from './SsrmEngineStressGrid';
 import { getFeatureGuide } from '../guides/featureGuides';
 import { buildConfigBlocks } from '../guides/buildConfigBlocks';
 import { STRESS_TEST_FEATURE } from './labFeatureConfigs';
@@ -65,6 +66,20 @@ export function StressTestTab() {
    * measurement or an e2e run can enable it without the tab growing a variant
    * whose seeded profiles could drift from the default one's.
    */
+  /**
+   * `?engine=ssrm` runs the same book on `@starui/ssrm-engine` instead of the
+   * Perspective pull path — a like-for-like comparison of the row supply, with
+   * the same rows, columns, types and tick rate, so the probes apply unchanged.
+   *
+   * A run-time flag rather than a variant, for the same reason `?columnWindow=1`
+   * is: one test surface, no second set of seeded profiles to drift from the
+   * first.
+   */
+  const useSsrmEngine = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return new URLSearchParams(window.location.search).get('engine') === 'ssrm';
+  }, []);
+
   const columnWindow = useMemo(() => {
     if (typeof window === 'undefined') return undefined;
     const on = new URLSearchParams(window.location.search).get('columnWindow') === '1';
@@ -106,15 +121,22 @@ export function StressTestTab() {
       title={config.title}
       subtitle={`${STRESS_ROW_COUNT.toLocaleString()} × ${STRESS_COL_COUNT} real columns · ${tickMs} ms tick${
         columnWindow ? ' · column window ON' : ''
-      }`}
+      }${useSsrmEngine ? ' · @starui/ssrm-engine (in-window book)' : ''}`}
       help={config.help}
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col">
-          {!table && (
+          {useSsrmEngine && (
+            <SsrmEngineStressGrid
+              columnDefs={columnDefs}
+              rowHeight={grid.rowHeight ?? 28}
+              tickMs={config.stream?.updateIntervalMs ?? 200}
+            />
+          )}
+          {!useSsrmEngine && !table && (
             <PerspectiveAttachNotice status={attachStatus} reason={attachReason} />
           )}
-          {table && (
+          {!useSsrmEngine && table && (
             <MarketsGrid
               gridId={config.gridId}
               // `rowData` is required by the props type and UNUSED on this path:

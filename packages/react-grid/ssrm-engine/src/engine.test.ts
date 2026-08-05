@@ -431,3 +431,58 @@ describe('SsrmEngine — set filter values and counts', () => {
     expect(engine.countFiltered(request)).toBe(5);
   });
 });
+
+describe('createSsrmDatasource — the AG boundary', () => {
+  it('settles exactly once on success', async () => {
+    const { createSsrmDatasource } = await import('./datasource.js');
+    const engine = engineWithBook();
+    const ds = createSsrmDatasource(engine);
+    let calls = 0;
+    ds.getRows({
+      request: { startRow: 0, endRow: 10 },
+      success: () => { calls += 1; },
+      fail: () => { calls += 1; },
+    });
+    expect(calls).toBe(1);
+  });
+
+  it('FAILS rather than leaking when the engine throws', async () => {
+    // RULE 1: `outboundRequests` is grid-global and only decremented in
+    // success/fail, with a default limit of 2. A datasource that throws without
+    // calling back wedges the grid permanently and no purge recovers it.
+    const { createSsrmDatasource } = await import('./datasource.js');
+    const engine = engineWithBook();
+    const errors: unknown[] = [];
+    const ds = createSsrmDatasource(engine, { onError: (e) => errors.push(e) });
+    // A sort model naming a getter that throws is the closest reachable
+    // failure; force it directly instead.
+    const boom = new Error('engine exploded');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (engine as any).getRows = () => { throw boom; };
+    let failed = 0;
+    let succeeded = 0;
+    ds.getRows({
+      request: { startRow: 0, endRow: 10 },
+      success: () => { succeeded += 1; },
+      fail: () => { failed += 1; },
+    });
+    expect(failed).toBe(1);
+    expect(succeeded).toBe(0);
+    expect(errors).toEqual([boom]);
+  });
+
+  it('keys a GROUP row by its path, and a leaf by its key', async () => {
+    const { makeSsrmGetRowId } = await import('./datasource.js');
+    const getRowId = makeSsrmGetRowId('id');
+    const engine = engineWithBook();
+    const groups = engine.getRows({
+      rowGroupCols: [{ id: 'desk' }, { id: 'sector' }],
+      groupKeys: ['Credit'],
+    });
+    const ids = groups.rowData.map((data) => getRowId({ data }));
+    expect(ids).toEqual(['g:Credit/HY', 'g:Credit/IG']);
+    // Distinct ids across levels is the whole point — a leaf key would collide.
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(getRowId({ data: engine.getRows({ startRow: 0, endRow: 1 }).rowData[0] })).toBe('a');
+  });
+});
