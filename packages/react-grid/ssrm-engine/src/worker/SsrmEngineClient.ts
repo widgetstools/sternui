@@ -13,6 +13,8 @@
  * not a fresh question, and if the worker stops talking it stops moving.
  */
 import type { SsrmDelta } from '../engine.js';
+import type { SsrmCalcDiagnostic } from '../calc.js';
+import type { SsrmCalcColumnDef } from '../calcAst.js';
 import type {
   SsrmGetRowsRequest,
   SsrmGetRowsResult,
@@ -177,6 +179,30 @@ export class SsrmEngineClient {
 
   setQuickFilter(text: string): Promise<boolean> {
     return this.rpc.call('setQuickFilter', { bookId: this.bookId, text });
+  }
+
+  /**
+   * Install the book's calculated columns, as expression ASTs.
+   *
+   * The AST crosses as plain data; the parse stays in the window with
+   * `@starui/engine`, and the evaluation happens where the book is. Answers
+   * whether anything changed, so a caller only purges the grid when it did.
+   */
+  setCalcColumns(columns: SsrmCalcColumnDef[]): Promise<boolean> {
+    return this.rpc.call('setCalcColumns', { bookId: this.bookId, columns });
+  }
+
+  /**
+   * What the worker's calculated columns did — refusals, runtime failures, and
+   * fields an expression named that the book does not have.
+   *
+   * Worth a round trip because a SharedWorker's `console.warn` reaches nobody:
+   * without this, a refused column is a column of blanks with no way to ask
+   * why, which is the exact ambiguity between "no value" and "went wrong" that
+   * this project has already paid for once.
+   */
+  calcDiagnostics(): Promise<SsrmCalcDiagnostic[]> {
+    return this.rpc.call('calcDiagnostics', { bookId: this.bookId });
   }
 
   /**

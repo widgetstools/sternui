@@ -22,6 +22,7 @@ import type { SsrmRow, SsrmSchema } from '../types.js';
 import {
   SSRM_STALE_MS,
   SSRM_SWEEP_MS,
+  type SsrmCalcColumnsParams,
   type SsrmFieldParams,
   type SsrmGetRowsParams,
   type SsrmIntrospectResult,
@@ -422,6 +423,17 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
         case 'setQuickFilter': {
           const { bookId, text } = raw as SsrmQuickFilterParams;
           return (await engineFor(bookId)).setQuickFilter(text);
+        }
+        case 'setCalcColumns': {
+          const { bookId, columns } = raw as SsrmCalcColumnsParams;
+          return (await engineFor(bookId)).setCalcColumns(columns ?? []);
+        }
+        case 'calcDiagnostics': {
+          // Read back rather than pushed, because `console.warn` in a
+          // SharedWorker reaches no console anywhere: without this a refused
+          // calculated column is a column of blanks and no way to ask why.
+          const { bookId } = raw as SsrmOpenParams;
+          return [...(await engineFor(bookId)).calcDiagnostics()];
         }
         case 'size':
           return (await engineFor((raw as SsrmOpenParams).bookId)).size;

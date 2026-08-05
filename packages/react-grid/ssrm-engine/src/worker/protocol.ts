@@ -22,6 +22,8 @@
  *    nothing on the Perspective path. Both ends listen for it and turn it into
  *    an error rather than a lost reply.
  */
+import type { SsrmCalcColumnDef } from '../calcAst.js';
+import type { SsrmCalcDiagnostic } from '../calc.js';
 import type {
   SsrmGetRowsRequest,
   SsrmGetRowsResult,
@@ -38,6 +40,8 @@ export type SsrmRpcMethod =
   | 'countFiltered'
   | 'distinctValues'
   | 'setQuickFilter'
+  | 'setCalcColumns'
+  | 'calcDiagnostics'
   | 'applyUpdate'
   | 'applySnapshot'
   | 'applyRemove'
@@ -150,6 +154,24 @@ export interface SsrmQuickFilterParams {
   bookId: string;
   text: string;
 }
+
+/**
+ * Calculated columns, sent to the worker that holds the book.
+ *
+ * This method is why the expression AST is taken STRUCTURALLY rather than
+ * imported (see `calcAst.ts`). A compiled closure could not be here at all — a
+ * function is not structured-cloneable — and the value has to be produced where
+ * the book is, because session 5 sorts, filters and groups on it. What crosses
+ * is a tree of plain objects, which clones unchanged; the parse stays in the
+ * window, where `@starui/engine` already is.
+ */
+export interface SsrmCalcColumnsParams {
+  bookId: string;
+  columns: SsrmCalcColumnDef[];
+}
+
+/** What `calcDiagnostics` answers — refusals and runtime failures, with counts. */
+export type SsrmCalcDiagnosticsResult = SsrmCalcDiagnostic[];
 
 /** What a write answers — the engine's delta plus the new book size. */
 export interface SsrmWriteResult {

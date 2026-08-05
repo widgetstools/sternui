@@ -27,10 +27,11 @@ with the book in a **SharedWorker** since session 1:
 The full AG SSRM request is answered: `startRow`/`endRow`, `sortModel`,
 `filterModel` (text, number, date, set, blank, compound AND/OR, multi-filter),
 `rowGroupCols`, `valueCols`, `groupKeys`, `pivotCols`/`pivotMode`, plus tree
-data, quick filter, distinct values, grand total and a changed-key delta.
-102 unit tests including two differential fuzzes — one over the engine's query
-shapes, one over the whole push path from a write in the worker to the rows AG
-holds.
+data, quick filter, distinct values, grand total and a changed-key delta — and
+since session 4, **calculated columns as values**, compiled per expression to a
+closure over the columnar store. 124 unit tests including two differential
+fuzzes — one over the engine's query shapes (now including calculated cells),
+one over the whole push path from a write in the worker to the rows AG holds.
 
 **What session 1 settled, and what it did not.** The book is out of the window,
 the boundary costs 2.2 ms per block against 0.6 ms in-process, and the topology
@@ -92,10 +93,28 @@ and 10 are new and both came from defects session 3's fuzz found.
    shipped in the branch nobody re-read. Session 3 found it by adding NaN to the
    fuzz's tick generator, not by reading the code.
 
+11. **A check that passes on the inputs you have proves only that.** Session 4's
+   twin probe reported 200,000 identical cells over the lab's seeded curriculum
+   and then let TWO core mutations through — `x / 0` answering `Infinity` and
+   NaN made falsy — because nothing in the curriculum divides by a variable
+   outside a guard, and nothing in it puts a non-boolean in a condition. The way
+   to find that out is **mutation testing**: put the bug in deliberately and
+   require the check to go red. Session 3 did the same thing by reverting its
+   fixes; do it for every new check, not only after a real defect.
+
+12. **A refusal can make a check vacuous.** The same session's fuzz generated a
+   call the compiler correctly refuses, so the column was never installed and
+   30,000 assertions compared `undefined` to `undefined` and passed. Whenever a
+   path can decline to produce a value, assert that it produced one.
+
 **Gates for every session:** `npx turbo typecheck build test --continue` (the
-documented baseline is 4 failed test FILES / 0 failed tests in `@starui/grid`
-and 2 `providerStaleState` cases in `@starui/widgets-react` — anything else is
-usually the turbo ordering race, re-run before believing it), plus the probes
+documented baseline is `@starui/grid` failing test FILES with 0 failed tests,
+plus 2 `providerStaleState` cases in `@starui/widgets-react` — the grid figure
+has been seen as both **4 files / 807 passing** (sessions 1-2, and again in
+session 4) and 6 files / 765 passing (session 3); it is a collection error in an
+`ag-grid-enterprise` mock missing `ServerSideRowModelModule`, so the count moves
+with which files import it. Anything else is usually the turbo ordering race —
+re-run in isolation from the REPO ROOT before believing it), plus the probes
 named per session.
 
 ---
@@ -274,26 +293,103 @@ re-taken.
 
 ---
 
-## Session 4 — calculated columns, part 1: the evaluator
+## Session 4 — calculated columns, part 1: the evaluator · **DONE**
 
-**The single largest remaining piece.** Costed at 4-6 person-weeks in the July
-evaluation; treat that as the estimate until something contradicts it.
+Built: `src/calcAst.ts` (the StarUI expression AST restated structurally),
+`src/calcOps.ts` (the operator and function semantics, mirroring
+`@starui/engine`'s `evalOps.ts` and `functions.ts`), `src/calc.ts`
+(`compileCalcColumns` — one closure per expression, taking a row OFFSET),
+`ColumnStore.reader(field)`, `engine.setCalcColumns` / `calcEvaluator` /
+`calcDiagnostics`, the `setCalcColumns` / `calcDiagnostics` RPC pair, calculated
+columns inside `engine.fuzz.test.ts`, `src/calc.test.ts`, and
+`scripts/calcTwinProbe.mjs`. **124 engine tests** (was 102).
 
-**Build**
+**No new language and no second parser.** `tokenize` and `parse` stay in
+`@starui/engine`; the customizer already emits that AST and
+`ssrmExpressionCompile.ts` already compiles it to Perspective. This is a THIRD
+BACKEND for the same tree.
 
-- reuse the existing StarUI expression AST rather than inventing a language —
-  `compileStarUiExpressionToPerspective` already exists and the customizer emits
-  that AST today;
-- a JS evaluator over the columnar store, compiled per expression to a closure
-  taking a row offset;
-- null semantics that match the grid, NOT the previous engine's. Recorded on the
-  Perspective path: `null > 95` is false in JavaScript and true in Perspective's
-  expression language, and the same rule painted different rows on the two
-  surfaces. Follow JavaScript.
+**The import decision, made rather than defaulted.** The AST is taken
+STRUCTURALLY. A compiled closure is not merely undesirable but impossible — the
+value must be produced where the book is, which is a SharedWorker, and a
+function is not structured-cloneable. Importing `@starui/engine` is legal under
+`docs/ARCHITECTURE.md` and costs a bundle: it is the grid platform behind one
+entry, with `zustand`, `ssf` and three `ag-grid-*` peers, dragged into worker
+entries that today have zero runtime dependencies. `setCalcColumns` puts an AST
+on a real `MessageChannel` in `worker/host.test.ts`, so the cloneability the
+decision rests on is asserted rather than assumed.
 
-**Verify** against the CSRM twin: the same expression over the same book must
-paint the same rows. That comparison has already caught several "Perspective
-bugs" that were present identically on the client-side model.
+**Null semantics follow the GRID, which is JavaScript.** `null > 95` is false,
+`null > -1` is **true**, `null == 0` is false. Three places the grid is not
+plain JavaScript are copied anyway: `x / 0` is null while `x / null` is
+Infinity; `isTruthy(NaN)` is TRUE; and `IF` (JavaScript truthy) disagrees with
+`IFS` (`isTruthy`) about NaN. **An expression producing NaN is stamped as NaN**,
+never folded into null — the store keeps it, `blank` does not match it, an
+aggregate skips it, and it sorts with the nulls, all of which a null would get
+wrong.
+
+**Errors never reach a block read.** A compile failure falls back to the field
+binding; a runtime failure falls back to the field value, caught by one
+try/catch at the top of the column, warned once per expression. Diagnostics are
+RETAINED as well as warned, because `console.warn` in a SharedWorker reaches no
+console anywhere.
+
+**Measured.**
+
+| | |
+|---|---|
+| CSRM twin, `calcTwinProbe.mjs` | **520,000 calculated cells, zero disagreements** |
+| fuzz cell comparisons per run | ~30,000 over 750 generated expression shapes |
+| block read, warm index, 0 -> 4 calc columns | 0.7 -> 0.9 ms (**~0.2 ms per 400 cells**) |
+| the closures alone, 80,000 cells | 11.4-11.8 ms (~145 ns/cell) |
+| AST reads during 5,000 evaluations | **0** — compiled, not walked (counting Proxy) |
+| `workerBoundaryProbe` block round trip | **2.10 ms** — identical to session 3 |
+| `browserSmokeProbe` first row / sort | 1,475-1,556 ms / 60-62 ms |
+| `providerBookProbe` attach, w1 vs w2 | 1,086 ms vs 1 ms |
+
+**The fuzz found no defect in the evaluator, and that is the honest headline.**
+Everything this session cost was spent on two checks that could not have failed.
+
+1. **The fuzz's own first draft was vacuous.** The generator emitted
+   `MIN([px], [qty])`, the compiler refused it as a cross-row aggregate, the
+   column was never stamped, and 30,000 comparisons became `undefined` against
+   `undefined`. The refusal was right and the generator was wrong.
+2. **The twin probe's first version proved less than it looked.** Run over the
+   lab's seeded curriculum alone it reported 200,000 identical cells — then
+   MUTATION TESTING put eleven deliberate bugs in the evaluator and **two
+   survived**: `x / 0` answering `Infinity`, and NaN made falsy. Neither is
+   observable through the curriculum, because every division in it is by a
+   literal or inside a guard discarded on exactly the zero rows, and every
+   condition in it is already a comparison so a NaN never reaches a truthiness
+   test. Sixteen adversarial expressions were added; both are now caught at
+   named rows. Nine of the other mutations were caught first time; the one
+   remaining "survivor" is a semantically equivalent rewrite (a TypeScript cast
+   is erased at runtime) rather than a gap.
+
+**One finding, in the lab rather than the engine.** The seeded curriculum
+authors `LOG10([avgDailyVolume30d])` and **`LOG10` does not exist in
+`@starui/engine`**. On CSRM `buildVirtualColDef` catches the "Unknown function"
+and returns null for every row, silently — that column has been rendering blank.
+This backend refuses it with the function named, which is how it was noticed.
+
+**Not done, and stated in the README:** a calc column produces VALUES only —
+it cannot be sorted, filtered, grouped or aggregated on, which is session 5, and
+`calcEvaluator(colId)` is the seam it needs. A calc column also **does not
+tick**: `host.publish` broadcasts the writer's sparse patch verbatim, so a tick
+that moves `dailyPnL` reaches the window without the `calc_pnlTotal` that
+depends on it, and the cell stays stale until AG re-reads that block. Fixing it
+changes `publish` and belongs behind the delta-path fuzz, so it goes with
+session 5. Nothing wires calc columns to a surface yet.
+
+**Two documented figures re-measured, both worth noting.** `browserSmokeProbe`'s
+first run after starting a fresh preview read **12,496 ms** to first row against
+a 1,475-1,556 ms steady state across the next three — a cold bundle fetch, not a
+regression, and the same first-run artifact that makes `providerBookProbe`
+bimodal. And the `@starui/grid` gate baseline came back as **4 failed test FILES
+/ 0 failed tests / 807 passing**, i.e. the worklog's OLDER figure, not session
+3's "6 files / 765 passing". Both numbers have now been seen; the failure is a
+collection error in an `ag-grid-enterprise` mock missing
+`ServerSideRowModelModule`.
 
 ---
 
@@ -302,11 +398,28 @@ bugs" that were present identically on the client-side model.
 **Build**
 
 - a calc column must be sortable, filterable, groupable and aggregatable, which
-  means the evaluator feeds `materialise` and not just the row output;
+  means the evaluator feeds `materialise` and not just the row output. The seam
+  session 4 left is `engine.calcEvaluator(colId)` — a `(offset) => unknown`
+  closure, which is exactly "evaluate it for these offsets";
+- **a calc column must TICK.** `host.publish` broadcasts the writer's sparse
+  patch verbatim, so a tick that moves `dailyPnL` reaches the window without the
+  `calc_pnlTotal` that depends on it and the cell stays stale until AG re-reads
+  the block. Everything needed is present; it changes `publish`, so it goes
+  behind the delta-path fuzz;
 - decide and DOCUMENT whether calc values are materialised into the store
   (memory, staleness on tick) or computed per read (CPU per block). Measure both
-  before choosing;
+  before choosing — session 4's `benchProbe` numbers are the per-read side:
+  **~0.2 ms per 400-cell block, ~145 ns/cell, 11.4 ms for 80,000 cells**, which
+  is what materialising would pay per WRITE instead;
 - wire to the customizer's calculated-column module.
+
+**Two decisions session 4 made that this one inherits rather than revisits.**
+Cross-row reducers (`SUM([col])` and friends) are REFUSED, because "every row"
+against a server row model means the filtered book and depends on the request
+rather than the row — if this session wants them, it is a new mechanism, not a
+relaxation. And `NOW`/`TODAY` are refused because a value that changes on its
+own makes the materialise-vs-compute decision meaningless; that refusal should
+be revisited only alongside it.
 
 **Done when** a seeded calc column from the lab's curriculum sorts, filters and
 groups identically to the CSRM twin.

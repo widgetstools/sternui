@@ -445,6 +445,57 @@ describe('the per-subscriber viewport', () => {
     expect(heard).toEqual([['P-15']]);
     await client.close();
   });
+
+  /**
+   * The claim the structural AST rests on, put on a real port rather than
+   * asserted.
+   *
+   * `calcAst.ts` argues that an expression can only reach a worker-held book as
+   * DATA: a compiled closure is not structured-cloneable, so the alternative
+   * design cannot cross this boundary at all, and the value has to be produced
+   * where the book is because session 5 sorts and filters on it. A structured
+   * clone that is REFUSED is silent at the sender — it surfaces as
+   * `messageerror` on the receiver and as nothing at all on the side that
+   * posted — so "it seemed to work" is not evidence. This asserts the value
+   * that came back.
+   */
+  it('carries an expression AST across the port and evaluates it in the worker', async () => {
+    const host = createSsrmWorkerHost({ openBook: () => ({ engine: book() }) });
+    const client = await SsrmEngineClient.open(connect(host), 'stress');
+
+    const changed = await client.setCalcColumns([
+      {
+        colId: 'calc_doubled',
+        ast: {
+          type: 'binary',
+          operator: '*',
+          left: { type: 'columnRef', columnId: 'value' },
+          right: { type: 'literal', value: 2 },
+        },
+      },
+      // Refused on the far side, and the reason has to come back: a
+      // SharedWorker's `console.warn` reaches no console anywhere, so without
+      // `calcDiagnostics` this is a column of blanks and no way to ask why.
+      {
+        colId: 'calc_broken',
+        ast: { type: 'call', name: 'LOG10', args: [{ type: 'columnRef', columnId: 'value' }] },
+      },
+    ]);
+    expect(changed).toBe(true);
+
+    const result = await client.getRows({ startRow: 0, endRow: 3 });
+    expect(result.rowData.map((r) => r.calc_doubled)).toEqual([0, 20, 40]);
+    // A refused column is not stamped at all — the field binding, which for a
+    // colId naming no field is nothing.
+    expect(result.rowData.every((r) => r.calc_broken === undefined)).toBe(true);
+
+    const diagnostics = await client.calcDiagnostics();
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]).toMatchObject({ colId: 'calc_broken', phase: 'compile' });
+    expect(diagnostics[0].message).toContain("unknown function 'LOG10'");
+
+    await client.close();
+  });
 });
 
 /**

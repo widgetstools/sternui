@@ -405,7 +405,7 @@ the same shape as the lab's Stress tab:
 
 ## Correctness
 
-102 tests, of which the important ones are the two **differential fuzzes**:
+124 tests, of which the important ones are the two **differential fuzzes**:
 `engine.fuzz.test.ts` (250 mutation frames plus a churn run, comparing every
 query shape against a deliberately stupid brute-force oracle built from plain
 objects) and `worker/deltaPath.fuzz.test.ts` (260 frames through the whole push
@@ -446,6 +446,110 @@ Its own smoke test printed identical ticks with those defects present and fixed.
 - **a viewport narrowed on one side of the write.** See below. Both of the last
   two were found by the delta-path fuzz within a minute of it first running, and
   neither would have shown on screen as anything but a stale-looking blotter.
+
+### Calculated columns are inside the same fuzz — and it found nothing
+
+The mutation loop in `engine.fuzz.test.ts` now installs **three freshly
+generated expression trees per frame** — 750 shapes over 250 frames, over a book
+being mutated underneath them — and compares **every calculated cell of every
+returned row** against a tree-walking oracle written from `evalOps.ts`, the
+module the grid's own `valueGetter` calls. One run makes **~30,000 cell
+comparisons**, and a counter asserts they happened: a run in which every column
+was refused would pass everything and check nothing.
+
+**It found no defect in the evaluator, and that is stated rather than left to
+imply.** Everything the session cost was spent on the two things below.
+
+The pools are chosen so the named cases are reached rather than hoped for:
+`qty` is null ~10% and can be exactly 0, `px` is null ~15% and NaN ~4% of ticks,
+a literal `0` divisor is always in the pool, `nope` is a column the book does
+not have, and the string columns meet the numeric ones under `+` and `CONCAT`. A
+second assertion covers the case a fuzz would otherwise miss entirely: **a row's
+calculated value must not change when a filter does**, checked by reading the
+same row under the filtered and unfiltered requests — if stamping ever read the
+wrong offset, a filtered read is where it would show, because the index is a
+different permutation of the same book.
+
+**What the fuzz DID catch was its own first draft.** The generator emitted
+`MIN([px], [qty])`, the compiler refused it as cross-row, the column was never
+stamped, and every comparison became `undefined` against `undefined` — 30,000
+assertions that could not fail. The refusal is right and the generator was
+wrong; the reducers are now excluded from generation with a comment saying why,
+and refusals are asserted explicitly in `calc.test.ts` instead.
+
+**The fuzz was then MUTATION-TESTED, which is the part that establishes it can
+fail.** Eleven deliberate bugs were put into the evaluator one at a time:
+
+| bug | |
+|---|---|
+| `x / 0` answers `Infinity` | caught |
+| NaN made falsy | caught |
+| `IF` switched to `isTruthy` | caught |
+| `IFS` switched to JavaScript truthiness | caught |
+| `==` made loose | caught |
+| `+` coerces both sides to `Number` | caught |
+| `AND` answers a boolean instead of the operand | caught |
+| a missing column reads `undefined` instead of null | caught |
+| **an expression producing NaN stamped as null** | caught |
+| `-0` collapsed to `0` | caught |
+| the `+` string branch DELETED | **survived — and it is not a gap** |
+
+The survivor is worth the line. Deleting
+`typeof left === 'string' ? \`${left}${right}\`` leaves
+`(left as number) + (right as number)`, and a TypeScript cast is erased at
+runtime — so `'FX' + 4.5` is still `'FX4.5'`. It is a semantically equivalent
+rewrite, not a mutation, which the sharper version (`Number(left) + Number(right)`)
+confirms by being caught immediately.
+
+### The CSRM twin, row by row — 520,000 cells
+
+`scripts/calcTwinProbe.mjs` is session 4's pass condition and it is a
+differential against the real thing rather than a plausibility check. The
+control is `@starui/engine`'s own `ExpressionEngine`, evaluating the same parsed
+AST over plain row objects, called exactly the way `buildVirtualColDef`'s
+`valueGetter` calls it — including its try/catch, because reproducing that is
+the difference between measuring the grid and measuring an idealised version of
+it. Everything real is imported: the book is the lab's Stress book (20,000 x
+121) and the expressions are the lab's seeded curriculum, authored strings
+parsed by the real `tokenize`/`parse`.
+
+```
+node node_modules/tsx/dist/cli.mjs \
+  packages/react-grid/ssrm-engine/scripts/calcTwinProbe.mjs
+```
+
+| | |
+|---|---|
+| seeded expressions compared | 10 of 11, every row identical |
+| adversarial expressions compared | 16, every row identical |
+| **calculated cells compared** | **520,000, zero disagreements** |
+| `calc_liquidityScore` (`LOG10`) | refused here; **the twin is null on all 20,000 rows too** |
+
+**The adversarial group exists because of a measurement, and this is the useful
+part.** The first version ran the seeded curriculum alone, reported 200,000
+identical cells, and was then mutation-tested — and **two core mutations
+survived it**: `x / 0` answering `Infinity`, and NaN made falsy. Neither is
+observable through the curriculum. Every division in it is by a literal (`/ 100`,
+`/ 1000000`) or sits inside an `IF(... > 0, ...)` guard whose result is
+discarded on exactly the rows where the divisor is zero, and every condition in
+it is already a comparison, so a NaN never reaches a truthiness test. **The
+curriculum agreeing proves the curriculum agrees and nothing about the rules
+underneath it.** Sixteen ordinary expressions were added to reach them, and both
+mutations are now caught at named rows.
+
+The probe REFUSES TO REPORT rather than pass when it could not have failed: if
+fewer than the whole book was read, if any expression compared zero rows, if
+none of the injected null/NaN/zero rows were among those compared, if any
+column read the same value on every row (a constant column agrees with
+anything), or if `IF` and `IFS` agreed everywhere — which would mean no NaN
+reached a truthiness test, the exact hole that let the second mutation survive.
+The generated stress book has no nulls, no NaN and no zeros, so a deterministic
+bad tick is applied to every 97th row first.
+
+One reporting defect was found and fixed on the way: `JSON.stringify(Infinity)`
+and `JSON.stringify(NaN)` both answer the STRING `"null"`, so the first
+divide-by-zero disagreement it caught printed as `engine null vs twin null`. A
+diagnostic that misdescribes the failure it just caught is worse than none.
 
 ### The delta path is fuzzed as a path, not as an engine
 
@@ -503,6 +607,177 @@ is no state to get out of step. It costs single-digit milliseconds here. If a
 book ever makes it matter, the incremental version goes behind that fuzz — and
 note `min`/`max` are not reversible, so "just subtract" has no counterpart for
 them.
+
+## Calculated columns — the evaluator
+
+An expression is compiled ONCE into a closure `(offset: number) => unknown` over
+the columnar store. The tree is walked at compile time; a `[px]` reference
+resolves to that column's reader then, so evaluating a cell is a chain of direct
+calls over typed arrays with no dispatch on node type and no lookup by field
+name. A per-cell tree walk would give back exactly what the columnar store buys.
+**MEASURED that it is a compiled closure and not a walk**, by wrapping the AST in
+a counting Proxy: 5,000 cells cost **0 reads of the tree** after compilation.
+
+**A row offset, not a row object**, and that is the shape session 5 needs:
+sorting, filtering, grouping and aggregating a calculated column all mean
+"evaluate it for these offsets", which is this closure called over an index.
+Had it taken a row object, feeding `materialise` would have meant building
+20,000 row objects to sort one column.
+
+### No second language, and no second parser
+
+`tokenize` and `parse` are `@starui/engine`'s and stay there. The customizer
+already emits that AST, `ssrmExpressionCompile.ts` already compiles it to
+Perspective's expression language, and this is a THIRD BACKEND for the same
+tree.
+
+**The AST is taken structurally rather than imported, and the alternatives lose
+for different reasons.** A compiled closure is not merely undesirable, it is
+impossible: the value has to be produced where the BOOK is, which is a
+SharedWorker, and a function is not structured-cloneable. Importing
+`@starui/engine` is legal under `docs/ARCHITECTURE.md` — it sits below the grid
+packages — and costs a bundle: it is the grid platform behind one entry, with
+`zustand` and `ssf` as dependencies and three `ag-grid-*` peers, dragged into
+worker entries that today have **zero runtime dependencies** and into
+`host-data`'s data-services worker, which injects the engine precisely so a
+worker that never opens a blotter does not carry it. The AST is plain data, so
+it clones; `client.setCalcColumns` puts one on a real `MessageChannel` in
+`worker/host.test.ts` and asserts the value that comes back, because a refused
+structured clone is silent at the sender.
+
+### Nulls: this engine is JavaScript, because the grid is
+
+The values a calc column shows on the client-side row model come from
+`@starui/engine`'s `evalOps.ts`. Everything here is written to those rules
+operator for operator — which surface holds the book has to be invisible.
+
+**`null > 95` is FALSE in JavaScript and TRUE in Perspective's expression
+language, and the same authored rule painted different rows on the two
+surfaces.** That is recorded on the parity path and it is why this is stated
+rather than assumed. null coerces to 0 in a relational comparison, so:
+
+| | |
+|---|---|
+| `null > 95` | **false** |
+| `null > -1` | **true** — the half that surprises people |
+| `null >= 0` | true |
+| `null == 0` | **false** — `==` is `===` |
+
+"Nulls never match a comparison" is the wrong summary of the rule.
+
+**Three places the grid is not plain JavaScript, copied anyway:**
+
+1. **`x / 0` is `null`, not `Infinity`** — `applyBinary` guards it. But `x /
+   null` is NOT guarded (null is not `=== 0`), so it answers `Infinity`. Divide
+   by zero and divide by an absent value differ, and both are fuzzed;
+2. **`isTruthy(NaN)` is TRUE.** The falsy set is exactly
+   `null | undefined | false | 0 | ''`;
+3. **`IF` and `IFS` disagree about NaN.** `IF` is an ordinary function whose
+   body is `cond ? t : f`, so it uses JavaScript truthiness and answers the
+   false branch; `IFS` calls `isTruthy` and answers the first. Reproduced, not
+   tidied — tidying it would make this engine disagree with the surface beside
+   it.
+
+### NaN is a value; an expression that produces one keeps it
+
+Session 3 settled what NaN is here and nothing weakens it: the store keeps it,
+`blank` does not match it, an aggregate skips it, and it sorts with the nulls
+because it has no position on the number line — last in BOTH directions.
+**`SQRT(-1)` is stamped as NaN, never folded into null.** A null means "no value
+here", so a cell that renders blank because an expression went wrong is
+indistinguishable from a genuine absence — the same ambiguity the skeleton
+renderer was built for on the other path. A NaN is visibly a NaN, sorts where an
+unorderable value belongs, and is skipped by an aggregate: three behaviours a
+null would get wrong.
+
+### Errors never reach a block read
+
+Every `getRows` settles exactly once, so a calculated column that throws inside
+a block read does not blank a column — it WEDGES THE GRID (`outboundRequests` is
+grid-global, limit 2, and purging does not recover it). Two guards, matching the
+convention `buildColumnDefs` already set:
+
+- **a compile failure falls back to the FIELD BINDING.** The column is not
+  installed, so a returned row keeps whatever the store holds under that name;
+- **a runtime failure falls back to the field VALUE**, per cell, caught by ONE
+  try/catch at the top of the column rather than per node, and warned once per
+  expression rather than once per row.
+
+Two conventions exist in this repo and they differ. `buildColumnDefs` falls back
+to the field and warns; `buildVirtualColDef` — the calculated-columns module,
+and therefore the CSRM twin this is measured against — returns **null silently**
+for both. They coincide for every genuine calc column, because a colId like
+`calc_pnlTotal` names no field and the field binding IS null; they differ only
+for an expression whose colId OVERRIDES a real column, where this engine shows
+the underlying value. The louder one is chosen on purpose.
+
+**`console.warn` in a SharedWorker reaches no console anywhere**, so a
+warn-once that only warns is invisible in the topology this engine runs in.
+Every diagnostic is also retained: `engine.calcDiagnostics()` /
+`client.calcDiagnostics()` answers refusals, runtime failures and columns an
+expression named that the book does not have, each with a hit count. That is
+what makes "the column compiled" an assertion a probe can fail on.
+
+### What is REFUSED, and why refusing beats answering
+
+A refusal is loud and falls back; a wrong answer is neither.
+
+- **a cross-row reducer over a bare column.** `SUM`, `COUNT`, `AVG`, `MIN`,
+  `MAX`, `MEDIAN`, `STDEV`, `VARIANCE` and `DISTINCT_COUNT` are marked
+  `aggregateColumnRefs` upstream: given a direct `[col]` argument they expand it
+  to EVERY ROW from `ctx.allRows`, which the calculated-columns module supplies
+  from `api.forEachNode`. There is no honest per-offset equivalent — "every row"
+  against a server row model means the FILTERED BOOK, which depends on the
+  request rather than the row. Answering it row-wise is the trap the parity
+  worklog already records once: `avg("col")` in Perspective is row-wise, parses,
+  never errors, and makes `"col" > avg("col")` false for every row, silently. A
+  COMPUTED argument is not refused — `MAX([bid] * 1, [ask] * 1)` is row-wise on
+  both surfaces;
+- **`NOW` / `TODAY`** — they answer the wall clock, so the same expression over
+  the same book differs per read and cannot be compared to the surface beside
+  it. Session 5 has to decide whether calc values are materialised; a value that
+  goes stale on its own would make that decision meaningless;
+- **any other unknown function, by name.** Which turned up a finding: the lab's
+  own seeded curriculum authors `LOG10([avgDailyVolume30d])` and **`LOG10` does
+  not exist in `@starui/engine`** — so on CSRM `buildVirtualColDef` catches the
+  "Unknown function" and returns null for every row, silently. That column has
+  been rendering blank. It is refused here with the function named, which is how
+  it was noticed;
+- **`.old` / `.new` column refs, `data` / `row` / `oldValue` / `newValue`, and
+  member access** — the book holds current values only and is flat and columnar;
+  there is no row object to hand an expression.
+
+A column the expression names that the book does NOT have is **not** an error:
+it reads null, exactly as `resolveColumnRef` does on the grid. It is counted and
+named anyway, because a column of nulls produced by a typo looks exactly like a
+column of genuine nulls.
+
+### What it cost the read path
+
+MEASURED with `scripts/benchProbe.mjs`, 20,000 x 121, four calculated columns
+(a three-column sum, a guarded division, a nested `IFS`, a string `CONCAT`),
+two runs agreeing:
+
+| | |
+|---|---|
+| block read, warm index, no calculated columns | 0.7 ms |
+| block read, warm index, 4 calculated columns | 0.9 ms |
+| => 400 calculated cells on one block | **~0.2 ms** |
+| the closures alone, 80,000 cells | **11.4-11.8 ms** (~145 ns/cell) |
+
+A WARM index on both sides, deliberately, and that is not the cache trap this
+file warns about elsewhere: a calculated value is not cached at all — it is
+recomputed on every read, which is the property being measured — so holding the
+index warm ISOLATES the calc cost instead of burying it under a 5 ms
+re-materialisation whose run-to-run spread is larger. The first version of this
+measurement subtracted two COLD medians and reported 1.4 ms for 400 cells, which
+is 3.5 us per cell and was noise.
+
+**The browser boundary did not move**: `workerBoundaryProbe` reads **2.10 ms**
+median per block across two runs, identical to session 3, with 0 failed, 0 timed
+out, 0 late and 0 pending. That is with no calculated columns installed, which
+is what the lab does today — `stampCalc` over an empty list is the cost of a
+`for` loop that does not run.
 
 ## What IS here
 
@@ -563,6 +838,13 @@ them.
 - **a provider-driven book** — `@starui/host-data`'s `./runtime/ssrm`
   (`createSsrmBookFeed`, `createSsrmHost`) and the hub's `ssrm-attach`, with the
   engine injected so host-data gains no dependency on this package
+- **calculated columns, as VALUES** — `engine.setCalcColumns(defs)` /
+  `client.setCalcColumns(defs)` taking StarUI expression ASTs, compiled once per
+  expression to a closure over the columnar store and stamped onto every leaf
+  row a block read returns; `engine.calcEvaluator(colId)` for the per-offset
+  closure, and `calcDiagnostics()` for refusals, runtime failures and named
+  columns the book does not have. **The AST is the only thing that crosses the
+  port** — see the section above for what that decides and what it does not
 
 ## What is NOT here
 
@@ -581,8 +863,27 @@ Stated plainly so nobody plans around a gap:
   on a sort or filter change. What is not covered is a write landing while a
   block for the OLD shape is still in flight; `asyncDatasource.test.ts` covers
   the settle-once half of that by construction, not the row-correctness half
-- **no calculated columns.** The expression engine is the single largest missing
-  piece and was costed at 4-6 person-weeks in the earlier evaluation
+- **calculated columns produce VALUES and nothing else yet.** They are stamped
+  onto the rows a block read returns, and that is all: a calc column cannot be
+  SORTED, FILTERED, GROUPED or AGGREGATED on, because none of those paths knows
+  about it — `sortIndex`, `compileFilter` and `aggregateMembers` all read the
+  store by field name and a calculated column is not a field. That is session
+  5, and `engine.calcEvaluator(colId)` is the seam it needs
+- **a calculated column does not TICK.** `host.publish` broadcasts the sparse
+  patch the writer applied, verbatim, so a tick that moves `dailyPnL` reaches
+  the window without the `calc_pnlTotal` that depends on it, and the calculated
+  cell keeps its old value until AG re-reads that block. Everything needed to
+  fix it is here — the patch keys are known and `calcEvaluator` answers per
+  offset — but it changes `publish`, so it belongs with session 5 and behind
+  the delta-path fuzz rather than beside it
+- **calculated columns are not wired to a surface.** Nothing in the lab
+  installs one; `client.setCalcColumns` is reachable and unused. The
+  customizer's calculated-column module is session 5's job
+- **`NOW` / `TODAY` are refused**, and every function outside the 45 listed in
+  `calcOps.ts`. Refusals are by name and readable through `calcDiagnostics()`
+- **no cross-row aggregates.** `SUM([px])` reads EVERY row on the grid and
+  there is no per-offset equivalent; that call site is refused rather than
+  answered row-wise. See below
 - **no incremental index maintenance.** Any write clears the query cache and the
   next read re-materialises. At 20k rows that is 1.5-15 ms; it is the first
   thing to change if a book gets large

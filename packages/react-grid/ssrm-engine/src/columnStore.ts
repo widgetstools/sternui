@@ -270,6 +270,45 @@ export class ColumnStore {
     }
   }
 
+  /**
+   * A reader for ONE column, resolved once — `valueAt` without the per-call
+   * `Map` lookup and type switch.
+   *
+   * This is what makes a compiled expression cheap: `[px] * [qty]` resolves
+   * both columns at COMPILE time and the per-row work is two typed-array
+   * indexes. Going back through `valueAt` per cell would put a `Map.get` and a
+   * `switch` in front of every read, which is the per-cell AST walk the
+   * compiler exists to remove, moved down a layer.
+   *
+   * **It captures the column, never `column.data`.** `grow()` REPLACES the
+   * typed array when the book passes its capacity, so a closure holding the
+   * buffer would keep reading the old, short copy — silently, and only on books
+   * large enough to have grown, which is exactly the ones nobody tests on.
+   *
+   * Returns `undefined` for a field the store does not have, so a caller can
+   * tell "no such column" from "this cell is null".
+   */
+  reader(field: string): ((offset: number) => unknown) | undefined {
+    const column = this.columns.get(field);
+    if (column === undefined) return undefined;
+    switch (column.type) {
+      case 'string':
+        return (offset) =>
+          column.nulls[offset] === 1
+            ? null
+            : (column.values![(column.data as Int32Array)[offset]] ?? null);
+      case 'boolean':
+        return (offset) =>
+          column.nulls[offset] === 1 ? null : (column.data as Uint8Array)[offset] === 1;
+      case 'date':
+        return (offset) =>
+          column.nulls[offset] === 1 ? null : new Date((column.data as Float64Array)[offset]);
+      default:
+        return (offset) =>
+          column.nulls[offset] === 1 ? null : (column.data as Float64Array)[offset];
+    }
+  }
+
   /** Materialise one row. Only called for rows actually being returned. */
   rowAt(offset: number, fields?: readonly string[]): SsrmRow {
     const out: SsrmRow = {};

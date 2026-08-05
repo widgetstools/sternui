@@ -41,6 +41,8 @@ export {
   SSRM_STALE_MS,
   SSRM_SWEEP_MS,
   type SsrmBookReport,
+  type SsrmCalcColumnsParams,
+  type SsrmCalcDiagnosticsResult,
   type SsrmDeltaPush,
   type SsrmFaultPush,
   type SsrmFrame,

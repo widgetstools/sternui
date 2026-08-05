@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createSsrmEngine } from './engine.js';
+import type { SsrmCalcColumnDef, SsrmExpressionNode } from './calcAst.js';
 import {
   SSRM_CHILD_COUNT,
   SSRM_TREE_GROUP,
@@ -291,6 +292,244 @@ class Oracle {
   }
 }
 
+/**
+ * ─── The calculated-column oracle ────────────────────────────────────────────
+ *
+ * A tree walk over PLAIN OBJECTS, written the stupid way: no compilation, no
+ * column readers, no store. The engine compiles the same AST once into a
+ * closure over the columnar book and evaluates it by row OFFSET; if the two
+ * ever disagree, the compiler is wrong.
+ *
+ * It is written from `@starui/engine`'s `evalOps.ts` — the module the grid's
+ * own `valueGetter` calls — rather than from the engine's `calcOps.ts`. That is
+ * the point: an oracle copied off the implementation checks that the code does
+ * what the code does. The three rules most likely to be got wrong are exactly
+ * the ones a hand-written test would never think to assert:
+ *
+ *   - `null > 95` is FALSE and `null > -1` is TRUE (null coerces to 0);
+ *   - `x / 0` is null, but `x / null` is Infinity — only the literal zero is
+ *     guarded;
+ *   - NaN is TRUTHY, so `IFS(NaN, a, b)` takes the first branch while
+ *     `IF(NaN, a, b)` — which uses JavaScript truthiness — takes the second.
+ */
+function oracleTruthy(value: unknown): boolean {
+  return !(value === null || value === undefined || value === false || value === 0 || value === '');
+}
+
+function oracleNum(value: unknown): number {
+  if (typeof value === 'number') return value;
+  const n = Number(value);
+  return Number.isNaN(n) ? 0 : n;
+}
+
+function oracleStr(value: unknown): string {
+  return value === null || value === undefined ? '' : String(value);
+}
+
+function oracleCall(name: string, args: unknown[]): unknown {
+  switch (name) {
+    case 'IF':
+      return args[0] ? args[1] : args[2];
+    case 'IFS': {
+      const hasDefault = args.length % 2 === 1;
+      for (let i = 0; i < Math.floor(args.length / 2); i++) {
+        if (oracleTruthy(args[i * 2])) return args[i * 2 + 1];
+      }
+      return hasDefault ? args[args.length - 1] : null;
+    }
+    case 'SWITCH': {
+      const rest = args.slice(1);
+      const hasDefault = rest.length % 2 === 1;
+      for (let i = 0; i < Math.floor(rest.length / 2); i++) {
+        if (args[0] === rest[i * 2]) return rest[i * 2 + 1];
+      }
+      return hasDefault ? rest[rest.length - 1] : null;
+    }
+    case 'ISNULL':
+      return args[0] === null || args[0] === undefined ? args[1] : args[0];
+    case 'ISNOTNULL':
+      return args[0] !== null && args[0] !== undefined;
+    case 'ABS':
+      return Math.abs(oracleNum(args[0]));
+    case 'ROUND': {
+      const f = 10 ** (args[1] !== undefined ? oracleNum(args[1]) : 0);
+      return Math.round(oracleNum(args[0]) * f) / f;
+    }
+    case 'SQRT':
+      return Math.sqrt(oracleNum(args[0]));
+    case 'MIN':
+      return Math.min(...args.flat().map(oracleNum));
+    case 'MAX':
+      return Math.max(...args.flat().map(oracleNum));
+    case 'CONCAT':
+      return args.map(oracleStr).join('');
+    case 'LEN':
+      return oracleStr(args[0]).length;
+    case 'UPPER':
+      return oracleStr(args[0]).toUpperCase();
+    default:
+      throw new Error(`oracle has no function '${name}'`);
+  }
+}
+
+function oracleEval(node: SsrmExpressionNode, row: SsrmRow): unknown {
+  switch (node.type) {
+    case 'literal':
+      return node.value;
+    case 'columnRef':
+      // `resolveColumnRef` answers null for a field the row does not carry, so
+      // a column the book does not have is a null, never an error.
+      return row[node.columnId] ?? null;
+    case 'array':
+      return node.elements.map((el) => oracleEval(el, row));
+    case 'unary': {
+      const value = oracleEval(node.operand, row);
+      return node.operator === 'NOT' ? !oracleTruthy(value) : -(value as number);
+    }
+    case 'ternary':
+      return oracleTruthy(oracleEval(node.condition, row))
+        ? oracleEval(node.consequent, row)
+        : oracleEval(node.alternate, row);
+    case 'call':
+      return oracleCall(node.name.toUpperCase(), node.args.map((arg) => oracleEval(arg, row)));
+    case 'binary': {
+      // AND/OR short-circuit and answer the OPERAND, not a boolean.
+      if (node.operator === 'AND') {
+        const left = oracleEval(node.left, row);
+        return oracleTruthy(left) ? oracleEval(node.right, row) : left;
+      }
+      if (node.operator === 'OR') {
+        const left = oracleEval(node.left, row);
+        return oracleTruthy(left) ? left : oracleEval(node.right, row);
+      }
+      const l = oracleEval(node.left, row) as number;
+      const r = oracleEval(node.right, row) as number;
+      switch (node.operator) {
+        case '+':
+          if (typeof l === 'string' || typeof r === 'string') return `${l}${r}`;
+          return l + r;
+        case '-': return l - r;
+        case '*': return l * r;
+        case '/': return r === 0 ? null : l / r;
+        case '%': return l % r;
+        case '>': return l > r;
+        case '<': return l < r;
+        case '>=': return l >= r;
+        case '<=': return l <= r;
+        case '==': return (l as unknown) === (r as unknown);
+        case '!=': return (l as unknown) !== (r as unknown);
+        case 'IN': return Array.isArray(r) && (r as unknown[]).includes(l);
+        default:
+          throw new Error(`oracle has no operator '${node.operator}'`);
+      }
+    }
+    default:
+      throw new Error(`oracle has no node '${(node as { type: string }).type}'`);
+  }
+}
+
+const lit = (value: number | string | boolean | null): SsrmExpressionNode => ({
+  type: 'literal',
+  value,
+});
+const col = (columnId: string): SsrmExpressionNode => ({ type: 'columnRef', columnId });
+const bin = (
+  operator: string,
+  left: SsrmExpressionNode,
+  right: SsrmExpressionNode,
+): SsrmExpressionNode => ({ type: 'binary', operator, left, right });
+const call = (name: string, ...args: SsrmExpressionNode[]): SsrmExpressionNode => ({
+  type: 'call',
+  name,
+  args,
+});
+
+/**
+ * Expression trees generated per frame.
+ *
+ * The pools are chosen so the cases the session named are reached rather than
+ * hoped for: `qty` is null ~10% and can be exactly 0, `px` is null ~15% and NaN
+ * ~4% of ticks, `nope` is a column the book does NOT have, the string columns
+ * meet the numeric ones under `+` and `CONCAT`, and a literal `0` divisor is in
+ * the pool so divide-by-zero is hit on every frame rather than when a random
+ * quantity happens to land on it.
+ */
+const NUMERIC_LEAVES: SsrmExpressionNode[] = [
+  col('px'), col('qty'), col('nope'), lit(0), lit(1), lit(-1), lit(95), lit(null), lit(2.5),
+];
+const STRING_LEAVES: SsrmExpressionNode[] = [col('desk'), col('sector'), col('id'), lit('Rates'), lit('')];
+const BINARY_OPS = ['+', '-', '*', '/', '%', '>', '<', '>=', '<=', '==', '!=', 'AND', 'OR'];
+
+function generateExpression(random: () => number, depth: number): SsrmExpressionNode {
+  if (depth <= 0 || random() < 0.3) {
+    const pool = random() < 0.7 ? NUMERIC_LEAVES : STRING_LEAVES;
+    return pool[Math.floor(random() * pool.length)];
+  }
+  const roll = random();
+  if (roll < 0.5) {
+    return bin(
+      BINARY_OPS[Math.floor(random() * BINARY_OPS.length)],
+      generateExpression(random, depth - 1),
+      generateExpression(random, depth - 1),
+    );
+  }
+  if (roll < 0.6) {
+    return { type: 'unary', operator: random() < 0.5 ? 'NOT' : '-', operand: generateExpression(random, depth - 1) };
+  }
+  if (roll < 0.7) {
+    return {
+      type: 'ternary',
+      condition: generateExpression(random, depth - 1),
+      consequent: generateExpression(random, depth - 1),
+      alternate: generateExpression(random, depth - 1),
+    };
+  }
+  if (roll < 0.78) return call('IF', generateExpression(random, depth - 1), generateExpression(random, depth - 1), generateExpression(random, depth - 1));
+  if (roll < 0.84) return call('IFS', generateExpression(random, depth - 1), generateExpression(random, depth - 1), generateExpression(random, depth - 1));
+  if (roll < 0.88) return call('ISNULL', generateExpression(random, depth - 1), generateExpression(random, depth - 1));
+  if (roll < 0.91) return call('ISNOTNULL', generateExpression(random, depth - 1));
+  if (roll < 0.94) return call('ABS', generateExpression(random, depth - 1));
+  if (roll < 0.96) return call('SQRT', generateExpression(random, depth - 1));
+  if (roll < 0.98) return call('CONCAT', generateExpression(random, depth - 1), generateExpression(random, depth - 1));
+  // `MIN`/`SUM`/`AVG` and the rest of the reducers are NOT generated here, and
+  // the first run of this fuzz is why: given a bare `[column]` argument they
+  // are CROSS-ROW on the grid, so the compiler refuses that call site and the
+  // column is never stamped — every comparison below would then have been
+  // `undefined` against `undefined` and passed. The refusal is covered
+  // explicitly in `calc.test.ts`, where it can be asserted rather than
+  // silently making a fuzz vacuous.
+  return call('LEN', generateExpression(random, depth - 1));
+}
+
+/**
+ * Exact, including NaN and -0.
+ *
+ * `Object.is` rather than `===` or `toBeCloseTo`: both sides run the same IEEE
+ * doubles through the same operations, so any difference at all is a real
+ * disagreement, and NaN must compare EQUAL to NaN here — a NaN silently turned
+ * into null is one of the two failures this fuzz exists to catch.
+ */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (Array.isArray(a) || Array.isArray(b)) return JSON.stringify(a) === JSON.stringify(b);
+  return Object.is(a, b);
+}
+
+/**
+ * Non-finite numbers go through `String`, not `JSON.stringify`, which answers
+ * the STRING `"null"` for both `Infinity` and `NaN` and `"0"` for `-0`. A
+ * failure message reading `engine null vs oracle null` describes nothing.
+ */
+function show(value: unknown): string {
+  if (typeof value === 'number') {
+    if (Number.isNaN(value)) return 'NaN';
+    if (!Number.isFinite(value)) return String(value);
+    if (Object.is(value, -0)) return '-0';
+    return String(value);
+  }
+  if (value === undefined) return 'undefined';
+  return JSON.stringify(value) ?? String(value);
+}
+
 const FILTERS: SsrmGetRowsRequest['filterModel'][] = [
   null,
   { desk: { filterType: 'set', values: ['Rates', 'Credit'] } },
@@ -312,7 +551,13 @@ const SORTS: SsrmGetRowsRequest['sortModel'][] = [
 describe('SsrmEngine — differential fuzz against a brute-force oracle', () => {
   it('agrees on every query shape across 250 mutation frames', () => {
     const random = rng(0xC0FFEE);
-    const engine = createSsrmEngine({ schema: SCHEMA });
+    // Warnings go to a sink rather than the console: the generator names a
+    // column the book does not have on purpose, and 250 frames of that would
+    // bury a real failure in noise. The information is not lost — it is
+    // asserted through `calcDiagnostics()` below, which is the channel that
+    // works in a SharedWorker anyway.
+    const calcWarnings: string[] = [];
+    const engine = createSsrmEngine({ schema: SCHEMA, onCalcWarning: (m) => calcWarnings.push(m) });
     /**
      * The same book under TREE mode, fed identically.
      *
@@ -333,6 +578,16 @@ describe('SsrmEngine — differential fuzz against a brute-force oracle', () => 
       treeEngine.applyRemove(keys);
       oracle.remove(keys);
     };
+
+    /**
+     * How many calculated cells were actually compared.
+     *
+     * Asserted non-trivial at the end, because a run in which every column was
+     * refused, or in which the flat window came back empty, would pass every
+     * check above and verify nothing — the same guard the delta-path fuzz needs
+     * for the rows it deliberately excuses.
+     */
+    let calcComparisons = 0;
 
     const ids: string[] = [];
     const seed: SsrmRow[] = [];
@@ -390,6 +645,23 @@ describe('SsrmEngine — differential fuzz against a brute-force oracle', () => 
       const filterModel = FILTERS[frame % FILTERS.length];
       const sortModel = SORTS[frame % SORTS.length];
 
+      // ── calculated columns, regenerated every frame ────────────────────
+      // Three fresh expression trees per frame, so 250 frames is 750 distinct
+      // shapes over a book that is being mutated underneath them.
+      const calcDefs: SsrmCalcColumnDef[] = [0, 1, 2].map((n) => ({
+        colId: `calc${n}`,
+        ast: generateExpression(random, 3),
+      }));
+      engine.setCalcColumns(calcDefs);
+      // A refusal here would make every comparison below vacuous — the column
+      // simply would not be stamped and `undefined === undefined` would pass
+      // 30,000 times. The generator only emits supported constructs, so any
+      // diagnostic at all is a defect in the compiler, not in the input.
+      expect(
+        engine.calcDiagnostics().filter((d) => d.phase === 'compile'),
+        `frame ${frame} calc refusals`,
+      ).toEqual([]);
+
       // ── flat ──────────────────────────────────────────────────────────
       const flat: SsrmGetRowsRequest = { filterModel, sortModel, startRow: 0, endRow: 40 };
       const flatGot = engine.getRows(flat);
@@ -398,6 +670,45 @@ describe('SsrmEngine — differential fuzz against a brute-force oracle', () => 
       expect(flatGot.rowData.map((r) => String(r.id)), `frame ${frame} flat rows`).toEqual(
         flatWant.ids,
       );
+
+      // ── the calculated value of every returned row, against the oracle ──
+      for (const row of flatGot.rowData) {
+        const source = oracle.rows.get(String(row.id));
+        expect(source, `frame ${frame} oracle has row ${String(row.id)}`).toBeDefined();
+        for (const def of calcDefs) {
+          const want = oracleEval(def.ast, source!);
+          const got = row[def.colId];
+          calcComparisons += 1;
+          if (!sameValue(got, want)) {
+            throw new Error(
+              `frame ${frame} ${def.colId} on ${String(row.id)}: engine ${show(got)}, oracle ` +
+                `${show(want)} — ast ${JSON.stringify(def.ast)} row ${JSON.stringify(source)}`,
+            );
+          }
+        }
+      }
+
+      // ── a row's calculated value does not depend on the query ──────────
+      // The named case is an expression evaluated over a row a FILTER EXCLUDES.
+      // A calculated value is a property of the row, so the same row read under
+      // a different filter must carry the same value — if stamping ever read
+      // the wrong offset, a filtered read is where it would show, because the
+      // index is a different permutation of the same book.
+      const unfilteredGot = engine.getRows({ sortModel, startRow: 0, endRow: 40 });
+      const byId = new Map(flatGot.rowData.map((r) => [String(r.id), r]));
+      for (const row of unfilteredGot.rowData) {
+        const filtered = byId.get(String(row.id));
+        if (filtered === undefined) continue;
+        for (const def of calcDefs) {
+          calcComparisons += 1;
+          if (!sameValue(row[def.colId], filtered[def.colId])) {
+            throw new Error(
+              `frame ${frame} ${def.colId} on ${String(row.id)} moved with the filter: ` +
+                `${show(filtered[def.colId])} filtered vs ${show(row[def.colId])} unfiltered`,
+            );
+          }
+        }
+      }
 
       // ── a deep window, which is where an off-by-one hides ──────────────
       const deep: SsrmGetRowsRequest = { filterModel, sortModel, startRow: 37, endRow: 61 };
@@ -560,6 +871,14 @@ describe('SsrmEngine — differential fuzz against a brute-force oracle', () => 
       if (wantTotal === null) expect(total.qty, `frame ${frame} grand total`).toBeNull();
       else expect(total.qty as number, `frame ${frame} grand total`).toBeCloseTo(wantTotal, 6);
     }
+
+    expect(calcComparisons, 'calculated cells actually compared').toBeGreaterThan(10_000);
+    // The generator names `nope` on purpose, so the "names a field the book
+    // does not have" diagnostic must have fired — a run where it never did
+    // would mean that leaf was never generated and that case went untested.
+    expect(calcWarnings.some((m) => m.includes('nope')), 'missing-column warning reached the sink').toBe(
+      true,
+    );
   });
 
   /**

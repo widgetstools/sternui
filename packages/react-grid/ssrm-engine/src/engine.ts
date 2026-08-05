@@ -2,6 +2,8 @@ import { ColumnStore } from './columnStore.js';
 import { compileFilter, compileQuickFilter, type RowPredicate } from './filter.js';
 import { sortIndex } from './sort.js';
 import { activeAggregations, aggregateMembers } from './aggregate.js';
+import { compileCalcColumns, type SsrmCalcColumn, type SsrmCalcDiagnostic } from './calc.js';
+import type { SsrmCalcColumnDef } from './calcAst.js';
 import {
   SSRM_CHILD_COUNT,
   SSRM_GROUP_FLAG,
@@ -79,6 +81,20 @@ export interface SsrmEngineOptions {
    * `serverSidePivotResultFieldSeparator`, whose default is `_`.
    */
   pivotResultFieldSeparator?: string;
+  /**
+   * Calculated columns, as StarUI expression ASTs. Equivalent to calling
+   * {@link SsrmEngine.setCalcColumns} straight after construction.
+   */
+  calcColumns?: readonly SsrmCalcColumnDef[];
+  /**
+   * Where a calculated column's refusal or runtime failure is reported.
+   *
+   * Defaults to `console.warn`, which in a SharedWorker reaches no console
+   * anywhere — a host that wants to see one should route this to its fault
+   * channel. Whether or not it does, every diagnostic is retained and readable
+   * through {@link SsrmEngine.calcDiagnostics}.
+   */
+  onCalcWarning?(message: string, detail?: unknown): void;
 }
 
 /** What changed in the last apply, so a host can push rather than invalidate. */
@@ -121,6 +137,19 @@ export class SsrmEngine {
    * primitive for doing it incrementally when a measurement says it is needed.
    */
   private readonly indexCache = new Map<string, Int32Array>();
+  /**
+   * Calculated columns, compiled against this store.
+   *
+   * State on the ENGINE rather than on the request, and that is forced rather
+   * than chosen: AG's SSRM request carries no calculated columns at all — the
+   * whole of it is `startRow`, `endRow`, `rowGroupCols`, `valueCols`,
+   * `pivotCols`, `pivotMode`, `groupKeys`, `filterModel`, `sortModel`. The same
+   * is true of the quick filter and of the column window on the Perspective
+   * path, and all three live in the same place for the same reason.
+   */
+  private calcColumnDefs: readonly SsrmCalcColumnDef[] = [];
+  private calc: SsrmCalcColumn[] = [];
+  private calcRuntimeDiagnostics: SsrmCalcDiagnostic[] = [];
 
   constructor(options: SsrmEngineOptions) {
     this.store = new ColumnStore(options.schema);
@@ -130,6 +159,74 @@ export class SsrmEngine {
     this.maxSetFilterValues = options.maxSetFilterValues ?? 50_000;
     this.treeFields = options.treeFields ?? [];
     this.pivotSeparator = options.pivotResultFieldSeparator ?? '_';
+    this.calcWarn = options.onCalcWarning;
+    if (options.calcColumns !== undefined) this.setCalcColumns(options.calcColumns);
+  }
+
+  private readonly calcWarn: SsrmEngineOptions['onCalcWarning'];
+
+  /**
+   * Install the calculated columns, compiling each once.
+   *
+   * Returns whether anything changed, so a caller only purges when there is
+   * something to purge for — the same contract as {@link setQuickFilter}.
+   *
+   * The index cache is cleared even though a calculated value does not yet
+   * affect any index. It will: session 5 makes these columns sortable,
+   * filterable, groupable and aggregatable, at which point an index
+   * materialised under the previous set of expressions is stale. Clearing now
+   * costs a re-materialise on a change nobody makes per frame, and leaving it
+   * to be remembered later is how a cache outlives the thing it was keyed on.
+   */
+  setCalcColumns(defs: readonly SsrmCalcColumnDef[]): boolean {
+    const next = JSON.stringify(defs);
+    if (next === JSON.stringify(this.calcColumnDefs)) return false;
+    this.calcColumnDefs = defs.map((def) => ({ ...def }));
+    const result = compileCalcColumns(
+      this.store,
+      this.calcColumnDefs,
+      this.calcWarn ?? ((message, detail) => console.warn(message, detail)),
+    );
+    this.calc = result.columns;
+    this.calcRuntimeDiagnostics = result.diagnostics;
+    this.indexCache.clear();
+    return true;
+  }
+
+  /**
+   * What the calculated columns did — refusals, runtime failures, and fields an
+   * expression named that the book does not have, each with a hit count.
+   *
+   * Public because `console.warn` in a SharedWorker reaches NO console
+   * anywhere: a warn-once that only warns is invisible in the topology this
+   * engine runs in. This is what makes "the column compiled" an assertion a
+   * test or a probe can fail on rather than something read off a screen.
+   */
+  calcDiagnostics(): readonly SsrmCalcDiagnostic[] {
+    return this.calcRuntimeDiagnostics;
+  }
+
+  /**
+   * One calculated column's compiled reader, or undefined when it was refused.
+   *
+   * This is the seam session 5 needs: sorting, filtering, grouping and
+   * aggregating a calculated column all mean "evaluate it for these offsets",
+   * which is this closure called over an index.
+   */
+  calcEvaluator(colId: string): ((offset: number) => unknown) | undefined {
+    return this.calc.find((column) => column.colId === colId)?.evaluate;
+  }
+
+  /** Stamp every installed calculated column onto a materialised row. */
+  private stampCalc(row: SsrmRow, offset: number): SsrmRow {
+    for (const column of this.calc) {
+      // A refused column is not stamped AT ALL, which is precisely the "falls
+      // back to the field binding" rule: whatever `rowAt` already put under
+      // that name stays, and for a colId naming no field there is nothing.
+      if (column.evaluate === undefined) continue;
+      row[column.colId] = column.evaluate(offset);
+    }
+    return row;
   }
 
   /**
@@ -288,7 +385,7 @@ export class SsrmEngine {
     if (depth >= groupCols.length) {
       const slice: SsrmRow[] = [];
       for (let i = start; i < Math.min(end, index.length); i++) {
-        slice.push(this.store.rowAt(index[i]));
+        slice.push(this.stampCalc(this.store.rowAt(index[i]), index[i]));
       }
       return {
         rowData: slice,
