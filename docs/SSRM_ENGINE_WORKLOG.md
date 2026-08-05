@@ -10,7 +10,8 @@ first — it holds the current numbers and the caveats attached to them.
 
 ## Where this stands
 
-Built, tested and running in a browser on the lab's Stress tab (`?engine=ssrm`),
+Built, tested and running in a browser on the lab's Stress tab (`?engine=ssrm`
+for a generated book, `?engine=ssrm&book=provider` for one fed by a provider),
 with the book in a **SharedWorker** since session 1:
 
 | | ssrm-engine | Perspective, same tab |
@@ -27,7 +28,7 @@ The full AG SSRM request is answered: `startRow`/`endRow`, `sortModel`,
 `filterModel` (text, number, date, set, blank, compound AND/OR, multi-filter),
 `rowGroupCols`, `valueCols`, `groupKeys`, `pivotCols`/`pivotMode`, plus tree
 data, quick filter, distinct values, grand total and a changed-key delta.
-80 unit tests including a differential fuzz.
+99 unit tests including a differential fuzz.
 
 **What session 1 settled, and what it did not.** The book is out of the window,
 the boundary costs 2.2 ms per block against 0.6 ms in-process, and the topology
@@ -63,6 +64,18 @@ These cost real time when ignored, all of them in this repo's history.
 6. **AG Grid 36 gates its API behind modules.** A partial registration leaves
    methods present and inert — `getDisplayedRowCount()` returning undefined on a
    live grid with 28 rows painted.
+7. **Playwright's `browser.newPage()` opens a NEW BrowserContext per page.**
+   Separate storage partition, therefore a separate SharedWorker — so a
+   multi-window probe written that way measures N independent apps and reports
+   it as sharing. Use one `browser.newContext()` and `context.newPage()`. Caught
+   in session 2 by a check that refused to report until exactly one
+   `shared_worker` was live; the renderer table it would otherwise have produced
+   scaled at 2.86x and looked entirely plausible.
+8. **A decision that is queued must be MADE synchronously.** `ProviderEmit` is
+   synchronous and a work queue is not, so a flag flipped inside queued work is
+   still unflipped for everything enqueued behind it. Session 2's feed decided
+   snapshot-vs-update that way and every chunk of a snapshot believed it was the
+   first, leaving the book holding only the last one.
 
 **Gates for every session:** `npx turbo typecheck build test --continue` (the
 documented baseline is 4 failed test FILES / 0 failed tests in `@starui/grid`
@@ -127,38 +140,63 @@ keep that separation.
 
 ---
 
-## Session 2 — many windows, one book, and a real feed
+## Session 2 — many windows, one book, and a real feed · **DONE**
 
-**Build**
+Built: the stale-port reaper (`pagehide` beacon + client heartbeat +
+`host.sweep()`), per-subscriber viewport push (`engine.visibleKeys`,
+`client.setViewport`, narrowing in `host.publish`), `createSsrmRowPump`
+(conflation keyed by row id + a `sliceBudgetMs` slice), `client.introspect()`,
+and the provider feed: `@starui/host-data/runtime/ssrm` (`createSsrmBookFeed`,
+`createSsrmHost`), the hub's `loadSsrm` + `ssrm-attach`, and
+`client.attachSsrm`. The lab's grid surface split into `SsrmEngineGrid` (shared)
+with `SsrmEngineStressGrid` (generated book) and `SsrmProviderGrid` (fed book,
+`?engine=ssrm&book=provider`) as wrappers. 99 engine tests, 537 in host-data.
 
-- refcounted book subscriptions. Session 1 landed the first half — N ports on one
-  engine, retired on the last `close` — and what is missing is everything a hard
-  kill breaks: a SharedWorker port has no disconnect event, so a window that dies
-  without sending `close` leaks its book until the worker is collected, and the
-  SharedWorker outlives the page. That is exactly how the lab accumulated several
-  20-50k books in one process. A heartbeat or a `pagehide` beacon is the lever;
-- integrate with `host-data`: take provider rows instead of a generated book, so
-  `applySnapshot` / `applyUpdate` are driven by the real feed;
-- per-subscriber viewport push: each window tells the worker its visible range,
-  the worker sends only the dirty rows inside it, the window applies them with
-  `applyServerSideTransaction`. The client half of this already exists on the
-  Perspective surface and measured 176 -> 33 block requests;
-- per-frame conflation keyed by row id, and a `sliceBudgetMs` time slice. Both
-  were flagged as worth porting in the July evaluation and never done.
+**Which worker holds the book — decided.** A FED book lives in the
+**data-services worker**, where the provider's rows already are. There is no
+route between two SharedWorkers that does not pass through a window, so hosting
+it in the app's book worker would mean forwarding every row per window: a second
+copy of the feed. A GENERATED book has no provider and stays in the app's own
+`ssrmBookWorker`. A worker must never be given both `loadSsrm` and
+`loadPerspective`.
 
-**Verify**
+**Measured**, `multiWindowProbe.mjs`, three runs, production build:
 
-- three windows on one book: `rendererProcessProbe.mjs` per window. Do not expect
-  the worker to have its own process — it does not, measured for this engine in
-  session 1 and for Perspective before it, so the book competes with every grid
-  for one renderer's ~4 GB. Three windows on one book should therefore show up as
-  ONE copy of the book and three block caches, and the block caches are the part
-  that scales;
-- `stubVisibilityProbe.mjs` for blank exposure under a live feed. Perspective
-  after its fix: 13% of samples, 248 ms longest on a normal scroll;
-- an edit or a tick in window 1 appears in window 2.
+| | measured |
+|---|---|
+| shared workers / books / clients | **1 / 1 / 3** |
+| an INSERT in window 1, seen and readable in window 3 | yes |
+| getting the book — w1 vs w2/w3 | **318-379 ms** vs **10-15 ms** |
+| time to first row — every window | 1,485-1,893 ms, **no material difference** |
+| renderer total, 1 window -> 3 windows | 287-294 MB -> 674-695 MB = **2.36-2.39x** |
+| rows pushed per tick, viewport ON vs OFF | **0.8 vs 200 — 267x** |
+| block round trip, after all of it | **2.10 / 2.30 ms** across two runs (session 1: 2.20) |
 
-**Done when** three blotters share one book and the memory total is recorded.
+**The prediction held and the session's own pass condition did not.** One book,
+three block caches: 2.36-2.39x rather than 3x, with window 1's renderer ~72-94 MB
+above the others at the same instant. But "windows 2 and 3 must open materially
+faster" is FALSE on the generated book — 1.02x, 0.95x, 0.91x — because time to
+first row is app bundle, React and AG Grid, which every window pays whatever
+holds the book. The part sharing can touch is getting the book, and there it is
+~30x. The engine builds 20,000 x 121 in ~350 ms, so there was only ~350 ms in the
+whole open for sharing to remove; Perspective's equivalent is 18.4 s, which is
+why the same property is worth so much more there. On the PROVIDER-fed book,
+where window 1 waits for a real snapshot, it does show end to end: **2,894 ms vs
+1,632 ms to first row, attach 1,386 ms -> 3 ms.**
+
+**Two traps caught by probes rather than review.** Playwright's
+`browser.newPage()` opens each page in a NEW BrowserContext — a separate storage
+partition and therefore a separate SharedWorker; the first run reported 3 shared
+workers and a total scaling at 2.86x, which is what three independent books look
+like. And the feed decided snapshot-vs-update inside its queued work, so every
+chunk of a snapshot was enqueued before the first ran, all believed they were the
+first, and the book held only the LAST chunk. Both were found because the check
+could fail; neither would have shown on screen.
+
+**Not done, and stated in the README:** the feed has only been run against the
+lab's mock provider (same emit sequence as STOMP, not the same broker), and the
+reaper has no browser-level test — nothing yet kills a real window and watches
+the book go.
 
 ---
 
@@ -288,8 +326,11 @@ something, say so.
 - **How large is the real book?** Everything above is sized for 20k x 120. At
   millions of rows session 7 becomes mandatory and a Rust/WASM port is worth
   re-opening. At this size neither is.
-- **How many concurrent blotters?** This is the question the July evaluation
-  said to answer before re-deciding, and it is still unanswered.
+- **How many concurrent blotters?** The question the July evaluation said to
+  answer before re-deciding. Three now run on one book and cost 2.36-2.39x a
+  single window's renderer, so the marginal blotter is roughly a block cache and
+  its DOM — but the deployment's actual number is still not known, and it is what
+  decides whether that marginal cost matters.
 - **Does anything need pivot on a book the window cannot hold?** Pivot combos
   are currently taken per level; a whole-book pivot domain would need a
   different pass.

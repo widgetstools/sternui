@@ -20,14 +20,19 @@ import type { ColumnStore } from '../columnStore.js';
 import type { SsrmEngine } from '../engine.js';
 import type { SsrmRow, SsrmSchema } from '../types.js';
 import {
+  SSRM_STALE_MS,
+  SSRM_SWEEP_MS,
   type SsrmFieldParams,
   type SsrmGetRowsParams,
+  type SsrmIntrospectResult,
   type SsrmOpenParams,
   type SsrmOpenResult,
   type SsrmPushFrame,
   type SsrmQuickFilterParams,
   type SsrmRemoveParams,
   type SsrmRpcMethod,
+  type SsrmViewport,
+  type SsrmViewportParams,
   type SsrmWriteParams,
   type SsrmWriteResult,
 } from './protocol.js';
@@ -48,6 +53,12 @@ export interface SsrmWorkerHostOptions {
   openBook(bookId: string, options?: unknown): SsrmBook | Promise<SsrmBook>;
   /** Anything that failed outside a call. Also pushed to every client. */
   onFault?(error: unknown, bookId?: string): void;
+  /** Silence after which a port is presumed gone. See {@link SSRM_STALE_MS}. */
+  staleMs?: number;
+  /** How often {@link SsrmWorkerHost.sweep} runs on its own. 0 disables the timer. */
+  sweepMs?: number;
+  /** Injectable clock, so the reaper is testable without waiting 90 seconds. */
+  now?(): number;
 }
 
 export interface SsrmWorkerHost {
@@ -66,6 +77,18 @@ export interface SsrmWorkerHost {
   clientCount(bookId: string): number;
   /** Report a worker-side failure to `onFault` and to every affected client. */
   fault(error: unknown, bookId?: string): void;
+  /**
+   * Detach every port that has not spoken within `staleMs`, and retire the
+   * books that leaves empty. Returns how many ports were reaped.
+   *
+   * Public because the interval that calls it is the wrong thing to test
+   * against: a test drives this directly with an injected clock.
+   */
+  sweep(): number;
+  /** What the host holds — the check a "these windows share a book" claim needs. */
+  introspect(): SsrmIntrospectResult;
+  /** Stop the sweep timer. For tests and for a host being torn down. */
+  dispose(): void;
 }
 
 interface BookEntry {
@@ -73,6 +96,21 @@ interface BookEntry {
   opening: Promise<SsrmBook>;
   book?: SsrmBook;
   clients: Set<MessagePort>;
+  /**
+   * What each client can see, when it has said. Absent means "send me
+   * everything" — the honest default, because a window that has not declared a
+   * viewport is not one whose updates may be dropped.
+   */
+  viewports: Map<MessagePort, SsrmViewport>;
+  /**
+   * Book size as each client last heard it.
+   *
+   * A client's `size` is a mirror moved by delta pushes, and narrowing can
+   * leave a port with nothing to send — so a row inserted outside every
+   * viewport would change the book and never reach anyone's mirror. Tracked per
+   * port so an otherwise-empty frame is sent exactly when the count moved.
+   */
+  sizes: Map<MessagePort, number>;
 }
 
 /** Rebuilt from the store rather than repeated by the caller. */
@@ -87,6 +125,13 @@ function schemaOf(store: ColumnStore): SsrmSchema {
 
 export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorkerHost {
   const books = new Map<string, BookEntry>();
+  const staleMs = options.staleMs ?? SSRM_STALE_MS;
+  const sweepMs = options.sweepMs ?? SSRM_SWEEP_MS;
+  const clock = options.now ?? (() => Date.now());
+  /** Last time each attached port said anything. Any call counts. */
+  const lastSeen = new Map<MessagePort, number>();
+  let reaped = 0;
+  let sweepTimer: ReturnType<typeof setInterval> | undefined;
 
   const allPorts = (): Set<MessagePort> => {
     const ports = new Set<MessagePort>();
@@ -116,6 +161,8 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
     if (existing !== undefined) return existing;
     const entry: BookEntry = {
       clients: new Set(),
+      viewports: new Map(),
+      sizes: new Map(),
       opening: Promise.resolve().then(() => options.openBook(bookId, bookOptions)),
     };
     entry.opening.then(
@@ -145,15 +192,20 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
    *
    * A SharedWorker OUTLIVES its pages, so a book nobody retires survives a
    * reload and the next load builds a second one beside it — which is how the
-   * lab accumulated several 20-50k books in one process. There is no reliable
-   * disconnect event for a SharedWorker port, so this depends on the client
-   * saying `close`; a window killed outright leaks its book until the worker
-   * itself is collected. Session 2 makes this a real refcount across providers.
+   * lab accumulated several 20-50k books in one process.
+   *
+   * There are two ways in. `close` is the clean one and covers unmount and a
+   * normal navigation. The other is {@link sweep}, because **a SharedWorker
+   * port has no disconnect event**: a window killed outright — crashed, task-
+   * managed, or unplugged — sends nothing, and without a reaper its book lives
+   * as long as the worker does.
    */
   const detach = (bookId: string, port: MessagePort) => {
     const entry = books.get(bookId);
     if (entry === undefined) return;
     entry.clients.delete(port);
+    entry.viewports.delete(port);
+    entry.sizes.delete(port);
     if (entry.clients.size > 0) return;
     books.delete(bookId);
     try {
@@ -161,21 +213,108 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
     } catch (error) {
       fault(error, bookId);
     }
+    stopSweepIfIdle();
+  };
+
+  /** Ports the host still believes in but has not heard from. */
+  const sweep = (): number => {
+    const cutoff = clock() - staleMs;
+    const stale: MessagePort[] = [];
+    for (const port of allPorts()) {
+      const seen = lastSeen.get(port);
+      if (seen === undefined || seen <= cutoff) stale.push(port);
+    }
+    for (const port of stale) {
+      lastSeen.delete(port);
+      reaped += 1;
+      for (const bookId of [...books.keys()]) detach(bookId, port);
+      try {
+        port.close();
+      } catch {
+        /* a port that is already gone is the case this exists for */
+      }
+    }
+    return stale.length;
+  };
+
+  /**
+   * The timer runs only while something is attached.
+   *
+   * A SharedWorker with a live interval is a SharedWorker that cannot be
+   * collected, so a reaper left running after the last book closed would keep
+   * the whole worker resident to watch nothing.
+   */
+  function startSweep(): void {
+    if (sweepTimer !== undefined || sweepMs <= 0) return;
+    sweepTimer = setInterval(() => {
+      try {
+        sweep();
+      } catch (error) {
+        fault(error);
+      }
+    }, sweepMs);
+    // No-op in a worker; in Node it stops the sweep from being the reason a
+    // test run never exits.
+    (sweepTimer as unknown as { unref?(): void }).unref?.();
+  }
+
+  function stopSweepIfIdle(): void {
+    if (sweepTimer === undefined || books.size > 0) return;
+    clearInterval(sweepTimer);
+    sweepTimer = undefined;
+  }
+
+  /**
+   * Narrow a patch to what one subscriber can see.
+   *
+   * `null` means "send it all", and it is the answer for a port with no
+   * declared viewport AND for a grouped request — under grouping a position in
+   * one level's index is not a displayed row index, so filtering by it would
+   * drop updates for rows that ARE on screen. Silently pushing at the wrong
+   * rows is the failure mode this refuses.
+   */
+  const visibleFilter = (entry: BookEntry, port: MessagePort): Set<unknown> | null => {
+    const viewport = entry.viewports.get(port);
+    if (viewport === undefined || entry.book === undefined) return null;
+    let keys: unknown[] | null;
+    try {
+      keys = entry.book.engine.visibleKeys(viewport.request, viewport.startRow, viewport.endRow);
+    } catch (error) {
+      // A viewport the engine cannot answer must not cost the window its
+      // updates. Report it, then fall back to the whole patch.
+      fault(error);
+      return null;
+    }
+    return keys === null ? null : new Set(keys);
   };
 
   const publish: SsrmWorkerHost['publish'] = (bookId, rows, removed = [], origin) => {
     const entry = books.get(bookId);
     if (entry === undefined || entry.book === undefined) return;
     if (rows.length === 0 && removed.length === 0) return;
-    const frame: SsrmPushFrame = {
-      push: 'delta',
-      bookId,
-      rows,
-      removed,
-      size: entry.book.engine.size,
-    };
+    const size = entry.book.engine.size;
+    const keyField = entry.book.engine.store.keyField;
+
     for (const port of entry.clients) {
       if (port === origin) continue;
+      const visible = visibleFilter(entry, port);
+      // Removals are never narrowed. A row that left the book has to leave
+      // every window that holds it, and "holds it" is AG's block cache — which
+      // is far larger than a viewport.
+      const narrowed =
+        visible === null ? rows : rows.filter((row) => visible.has(row[keyField]));
+      // Nothing to say only when the count has not moved either — see `sizes`.
+      if (narrowed.length === 0 && removed.length === 0 && entry.sizes.get(port) === size) {
+        continue;
+      }
+      entry.sizes.set(port, size);
+      const frame: SsrmPushFrame = {
+        push: 'delta',
+        bookId,
+        rows: narrowed,
+        removed,
+        size,
+      };
       try {
         port.postMessage(frame);
       } catch (error) {
@@ -189,14 +328,33 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
     const opened = new Set<string>();
 
     const dispatch = async (method: SsrmRpcMethod, raw: unknown): Promise<unknown> => {
+      // Every call is a heartbeat. A window driving a grid never needs to send
+      // one; the dedicated method is for a window that is attached and idle,
+      // which is what a background blotter is.
+      lastSeen.set(port, clock());
+
       switch (method) {
+        case 'heartbeat':
+          return null;
+        case 'introspect':
+          return introspect();
+        case 'setViewport': {
+          const { bookId, viewport } = raw as SsrmViewportParams;
+          const entry = books.get(bookId);
+          if (entry === undefined) throw new Error(`book '${bookId}' is not open on this port`);
+          if (viewport === null) entry.viewports.delete(port);
+          else entry.viewports.set(port, viewport);
+          return null;
+        }
         case 'open': {
           const { bookId, options: bookOptions } = raw as SsrmOpenParams;
           if (typeof bookId !== 'string' || bookId === '') throw new Error('open needs a bookId');
           const entry = entryFor(bookId, bookOptions);
           const book = await entry.opening;
           entry.clients.add(port);
+          entry.sizes.set(port, book.engine.size);
           opened.add(bookId);
+          startSweep();
           return {
             bookId,
             size: book.engine.size,
@@ -208,6 +366,7 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
           const { bookId } = raw as SsrmOpenParams;
           opened.delete(bookId);
           detach(bookId, port);
+          if (opened.size === 0) lastSeen.delete(port);
           return null;
         }
         case 'getRows': {
@@ -261,12 +420,31 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
     serveSsrmRpc(port, dispatch);
   };
 
+  function introspect(): SsrmIntrospectResult {
+    const report: SsrmIntrospectResult['books'] = [];
+    for (const [bookId, entry] of books) {
+      report.push({
+        bookId,
+        clients: entry.clients.size,
+        size: entry.book?.engine.size ?? 0,
+        viewports: entry.viewports.size,
+      });
+    }
+    return { books: report, reaped, staleMs, sweepMs };
+  }
+
   return {
     connect,
     publish,
     fault,
+    sweep,
+    introspect,
     books: () => [...books.keys()],
     clientCount: (bookId) => books.get(bookId)?.clients.size ?? 0,
+    dispose() {
+      if (sweepTimer !== undefined) clearInterval(sweepTimer);
+      sweepTimer = undefined;
+    },
   };
 }
 

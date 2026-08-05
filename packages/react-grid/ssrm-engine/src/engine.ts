@@ -471,6 +471,34 @@ export class SsrmEngine {
     if (values.length > this.maxSetFilterValues) return null;
     return values;
   }
+
+  /**
+   * Keys a subscriber can SEE, so a pushed tick can be narrowed to them.
+   *
+   * `[start, end)` are display positions under this request's own filter, quick
+   * search and sort — which is why the request shape has to come with them. The
+   * result is keys and nothing else: the caller already holds the values it
+   * wants to push, and materialising 100 rows x 121 columns to answer "which
+   * rows are on screen" would cost more than the push it is trying to shrink.
+   *
+   * **Answers `null` for a GROUP level, and that is not a shortcut.** Under
+   * grouping the displayed rows span several levels, each with its own offsets,
+   * so a position in one level's index is not a displayed row index — narrowing
+   * by it would push updates at the wrong rows. The same rule the Perspective
+   * path's tick path is bound by, reached here for the same reason. A caller
+   * that gets `null` must fall back to sending the whole patch.
+   */
+  visibleKeys(request: SsrmGetRowsRequest, start: number, end: number): unknown[] | null {
+    const groupCols = this.groupColumnsFor(request);
+    const depth = (request.groupKeys ?? []).length;
+    if (depth < groupCols.length) return null;
+    const index = this.materialise(request);
+    const from = Math.max(0, start);
+    const to = Math.min(end, index.length);
+    const keys: unknown[] = [];
+    for (let i = from; i < to; i++) keys.push(this.store.valueAt(this.store.keyField, index[i]));
+    return keys;
+  }
 }
 
 /**

@@ -192,6 +192,20 @@ export interface PerspectiveAttachRequest {
   providerId: string;
 }
 
+/**
+ * Bind a window to a provider's SSRM book.
+ *
+ * The peer of {@link PerspectiveAttachRequest}, and the same shape for the same
+ * reason: the client transfers a MessagePort, the worker's engine host serves
+ * RPC on it, and no rows cross on attach — the window pulls the blocks its
+ * viewport asks for and is PUSHED the cells that tick.
+ */
+export interface SsrmAttachRequest {
+  kind: 'ssrm-attach';
+  subId: string;
+  providerId: string;
+}
+
 export interface RefreshProviderRequest {
   kind: 'refresh-provider';
   subId: string;
@@ -340,6 +354,7 @@ export type Request =
   | ConfigInvalidateRequest
   | RefreshProviderRequest
   | PerspectiveAttachRequest
+  | SsrmAttachRequest
   | HubIntrospectRequest;
 
 // ─── Worker → Client events ────────────────────────────────────────
@@ -508,6 +523,26 @@ export type PerspectiveAttachResult =
   | { ok: true; port: MessagePort; tableName: string }
   | { ok: false; reason: string };
 
+/**
+ * Answer to {@link SsrmAttachRequest}.
+ *
+ * `bookId` is what the window passes to `SsrmEngineClient.open(port, bookId)`.
+ * `ok:false` means this provider has no book — the worker was built without an
+ * SSRM loader, or the provider's `keyColumn` cannot index one.
+ */
+export interface SsrmAttachedEvent {
+  subId: string;
+  kind: 'ssrm-attached';
+  ok: boolean;
+  bookId?: string;
+  reason?: string;
+}
+
+/** Result of {@link SharedWorkerDataServicesClient.attachSsrm}. A failure is a VALUE. */
+export type SsrmAttachResult =
+  | { ok: true; port: MessagePort; bookId: string }
+  | { ok: false; reason: string };
+
 export type Event =
   | DeltaEvent
   | DeltaBinEvent
@@ -517,6 +552,7 @@ export type Event =
   | StatsEvent
   | RowsReceivedEvent
   | PerspectiveAttachedEvent
+  | SsrmAttachedEvent
   | SubscriptionLostEvent;
 
 /** Detail payload for {@link CatalogReadyEvent} broadcasts. */
@@ -607,6 +643,7 @@ export function isRequest(value: unknown): value is Request {
     k === 'config-invalidate' ||
     k === 'refresh-provider' ||
     k === 'perspective-attach' ||
+    k === 'ssrm-attach' ||
     k === 'hub-introspect'
   );
 }

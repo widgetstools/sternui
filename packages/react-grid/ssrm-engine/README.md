@@ -2,13 +2,15 @@
 
 A columnar row engine written to AG Grid's server-side row model contract.
 
-**Status: the book lives in a SharedWorker, the engine drives a real AG Grid
-from there, and both are measured in a browser. No provider wiring yet — see
-"What is not here".**
+**Status: the book lives in a SharedWorker, three windows have been measured on
+one of it, and it can be driven by a real provider through `host-data`. See
+"What is not here" for what remains.**
 
 Run it: build and serve `@starui/perspective-ssrm-lab`, then open the Stress tab
-with **`?engine=ssrm`**. `scripts/browserSmokeProbe.mjs` and
-`scripts/workerBoundaryProbe.mjs` drive it.
+with **`?engine=ssrm`** for the generated book, or **`?engine=ssrm&book=provider`**
+for one fed by a provider. `scripts/browserSmokeProbe.mjs`,
+`scripts/workerBoundaryProbe.mjs`, `scripts/multiWindowProbe.mjs` and
+`scripts/providerBookProbe.mjs` drive it.
 
 The remaining work is split into sessions in
 [`docs/SSRM_ENGINE_WORKLOG.md`](../../../docs/SSRM_ENGINE_WORKLOG.md).
@@ -21,6 +23,8 @@ The remaining work is split into sessions in
 | renderer working set, settled | **390 MB** | 1,286 MB |
 | rows after a sort | 20,000 (no collapse) | 20,000 since the grand-total fix |
 | pivot, desk x currency | 8 groups, **8 generated columns** | not implemented |
+| 3 windows on one book, renderer total | **2.36-2.39x** one window | not measured |
+| getting the book, window 2 of 3 | **10-15 ms** (window 1: 318-379 ms) | an 18.4 s snapshot per window |
 
 Every figure in that column is with the book in a SharedWorker, which is the
 topology Perspective's column was measured on. Before that move the same
@@ -123,6 +127,167 @@ its heap. Do not read the worker as the reason.
 cannot have: one book with N windows reading it, a tick applied once instead of
 per window, and a page that can be closed and reopened against a book that is
 already loaded. The Perspective path's own 18.4 s snapshot is the case in point.
+That claim is now measured — see the next section, including the part of it that
+did not come out the way the session predicted.
+
+## Three windows, one book — measured, including what it did NOT buy
+
+MEASURED with `scripts/multiWindowProbe.mjs`, production build, 20k x 120,
+three windows in ONE browser context, **three runs**:
+
+| | measured |
+|---|---|
+| `shared_worker` targets running `ssrmBookWorker` | **1** |
+| books the worker reports / clients on it | **1 / 3** |
+| an INSERT in window 1, seen in windows 2 and 3 | **yes**, and readable there |
+| getting the book — window 1 | **318-379 ms** (it builds it) |
+| getting the book — windows 2 and 3 | **10-15 ms** |
+| time to first row painted — every window | **1,485-1,893 ms**, no material difference |
+| renderer working set, 1 window | 287-294 MB |
+| renderer working set, 3 windows | 674-695 MB — **2.36-2.39x**, not 3x |
+| rows pushed per tick, viewport ON vs OFF | **0.8 vs 200 — 267x** |
+
+**The prediction was one book and three block caches, and that is what the
+numbers say.** 2.36-2.39x rather than 3x, with the first window's renderer
+sitting ~72-94 MB above the other two at the same instant. That gap is the size
+of one copy of the book plus whatever else the window that created the worker
+uniquely holds; this probe does not separate those two, so do not quote it as
+"the book is 72 MB".
+
+**The session's own failure condition was "a second and third window must open
+materially faster", and on the GENERATED book they do not — 1.02x, 0.95x,
+0.91x.** That is a real result and it is not a defect. Time to first row is app
+bundle, React, AG Grid and column defs, which every window pays whatever holds
+the book. The part sharing can touch is getting the book, and there the second
+window is **~30x faster** because the first one built it. The engine builds
+20,000 x 121 in ~350 ms, so there is only ~350 ms in the whole window open for
+sharing to remove. Perspective's equivalent is an 18.4 s snapshot, which is why
+the same property is worth so much more there — and on the PROVIDER-fed book,
+where window 1 waits for a real snapshot, the effect shows up end to end:
+**2,894 ms to first row for window 1 against 1,632 ms for window 2**, with the
+attach itself going 1,386 ms -> 3 ms.
+
+**One trap caught by the probe rather than by review.** Playwright's
+`browser.newPage()` opens each page in a NEW BrowserContext — a separate storage
+partition, and therefore a separate SharedWorker. The first run of this probe
+reported **3** shared workers and a renderer total scaling at 2.86x, which is
+what three independent books look like. The check that refuses to report until
+exactly one `shared_worker` is live is what caught it; without it the memory
+table above would have been published as a finding about sharing.
+
+## The book can be driven by a real provider
+
+`applySnapshot` / `applyUpdate` are no longer only reachable from a generator.
+`@starui/host-data`'s `createSsrmBookFeed` fills a book by **decorating
+`ProviderEmit`** — the same seam `createPerspectiveTableFeed` uses, so no
+transport changes and any provider drives it.
+
+**Which worker holds the book, decided and not negotiable.** A fed book lives in
+the **data-services worker**, where the provider's rows already are. The
+alternative — feed in one SharedWorker, book in another — has no route between
+the two that does not pass through a window, so it would be one forwarding copy
+of every row PER WINDOW. A GENERATED book has no provider and lives wherever its
+generator does, which is why the lab's Stress book stays in the app's own
+`ssrmBookWorker`. The engine has no opinion either way: `createSsrmWorkerHost`
+serves ports and knows nothing about who mounted it.
+
+The engine is INJECTED into the hub (`loadSsrm`), not imported, for the reason
+`loadPerspective` is plus one more: `@starui/host-data` must not depend on a
+`react-grid` package. **A worker must never be given both loaders** — it would
+tee one provider into two engines and every figure taken on it would be of two
+engines recorded as one, which has already happened once here at 1,114 MB
+instead of 411 MB.
+
+MEASURED with `scripts/providerBookProbe.mjs`, which refuses to report unless
+`dataServicesSsrmWorker` is live, `ssrmBookWorker` is NOT, and rows are still
+arriving:
+
+| | measured |
+|---|---|
+| rows the fed book holds / AG displays | **20,000 / 20,000**, 120 columns |
+| rows pushed in 6 s (viewport narrowed) | 56, all applied, 0 dropped |
+| two windows / books the worker holds | **2 clients / 1 book** |
+
+### The emit sequence bites here too
+
+`stomp.ts` emits `{ rows: chunk, replace: offset === 0 }`, so a snapshot is an
+empty `replace:true` clear, then a FLAGGED first chunk, then unflagged chunks
+that are still snapshot. The three consequences recorded on the Perspective path
+apply unchanged, and a **fourth** turned up here: the snapshot-vs-update decision
+has to be made SYNCHRONOUSLY in `emit`, not inside the queued work. `emit` is
+synchronous and the queue is not, so every chunk of a snapshot was enqueued
+before the first one ran, all of them believed they were the first, and the book
+ended up holding only the LAST chunk. The unit test for it fails loudly; nothing
+on screen would have.
+
+## A tick reaches only the windows that can see it
+
+Each window tells the worker its visible range and the query shape it is pulling
+with; the worker answers `engine.visibleKeys` and sends that window only the
+dirty rows inside it.
+
+MEASURED with an A/B on ONE window against ONE feed (comparing two different
+windows would compare two viewports and two scroll positions as well):
+
+| rows pushed to one window | per tick |
+|---|---|
+| viewport declared | **0.8** |
+| viewport cleared | 200.0 |
+
+**267x fewer rows on the wire, and the read path did not pay for it** — the
+block round trip measured 2.10 and 2.30 ms median across two runs of
+`workerBoundaryProbe.mjs` after this landed, against 2.20 ms in session 1. That
+is not an improvement and is not meant to read as one; it is the same number,
+which is the thing being checked. A viewport push that cost the read path would
+be a bad trade.
+
+Two rules the narrowing does not break. A GROUPED request is answered `null` and
+the whole patch is sent: under grouping a position in one level's index is not a
+displayed row index, so narrowing by it would push updates at the wrong rows —
+the same constraint the Perspective tick path is bound by. And **removals are
+never narrowed**, because AG's block cache is far larger than a viewport and a
+row deleted upstream would otherwise sit off-screen forever and reappear on
+scroll. The size mirror is kept live for a narrowed client too: a row inserted
+outside every viewport still moves the count, which is exactly the insert a
+cross-window sharing check depends on.
+
+## The window applies a tick on a budget
+
+`createSsrmRowPump` sits between the pushed delta and
+`applyServerSideTransaction`, and does the two things the July evaluation flagged
+and nobody built:
+
+- **conflation keyed by row id** — a MERGE, not a replace, because the patches
+  are sparse: a frame naming `bid` and a frame naming `ask` are two cells of one
+  row, and taking the later frame whole would discard the earlier cell;
+- **a `sliceBudgetMs` time slice** (4 ms) — a burst degrades into latency instead
+  of a dropped frame, and the remainder is re-scheduled by the flush itself, so
+  a feed that goes quiet does not leave the grid permanently behind.
+
+A patch for a row the grid does not hold is DROPPED and counted, never turned
+into a fetch: AG ignores a transaction for a row outside its block cache, and
+asking the engine for it would invent a read the user never scrolled to. A
+`dropped` that dwarfs `applied` means the worker is pushing rows nobody is
+looking at, which is what the viewport above exists to fix.
+
+## The refcount survives a window that is killed
+
+`close` covers unmount and navigation. It does not cover a window that is
+crashed, task-managed or unplugged, and **a SharedWorker port has no disconnect
+event** — so that window's book stayed attached for as long as the worker lived,
+and the worker outlives the page. That is how the lab accumulated several 20-50k
+books in one process.
+
+Two levers now: a `pagehide` beacon, and a client heartbeat with a worker-side
+`sweep()` that detaches ports which have stopped speaking.
+
+**The stale window is 90 seconds because of timer throttling, not caution.**
+Chrome throttles `setInterval` in a hidden tab to roughly once a minute, so a
+20-second window would reap a blotter that was merely in a background tab — this
+failure inverted, and worse. The cost of the margin is that a hard-killed window
+leaks its book for at most `staleMs + sweepMs`, which is bounded where the leak
+it replaces was not. The sweep timer runs only while a book is open: a
+SharedWorker with a live interval is one that can never be collected.
 
 ### Rules this path is built on
 
@@ -192,7 +357,7 @@ the same shape as the lab's Stress tab:
 
 ## Correctness
 
-80 tests, of which the important ones are the **differential fuzz** in
+99 tests, of which the important ones are the **differential fuzz** in
 `engine.fuzz.test.ts`: 250 mutation frames and a churn run, comparing every
 query shape against a deliberately stupid brute-force oracle built from plain
 objects.
@@ -273,18 +438,34 @@ them.
   book size and a subscription to pushed writes; and
   `createAsyncSsrmDatasource`, which is where "every `getRows` settles exactly
   once" becomes load-bearing rather than defensive
+- **per-subscriber viewport push** — `client.setViewport({request, startRow,
+  endRow})`, `engine.visibleKeys`, and a host that narrows each tick to what
+  that window can see. Grouped requests fall back to the whole patch, and
+  removals are never narrowed
+- **`createSsrmRowPump`** — per-frame conflation keyed by row id and a
+  `sliceBudgetMs` time slice, with the grid typed structurally so this package
+  still holds no AG Grid import
+- **a refcount that survives a hard kill** — a `pagehide` beacon plus a client
+  heartbeat and a worker-side `sweep()`, because a SharedWorker port has no
+  disconnect event
+- **`client.introspect()`** — books, clients, viewports and the reaper's count.
+  The thing that makes a multi-window sharing claim falsifiable
+- **a provider-driven book** — `@starui/host-data`'s `./runtime/ssrm`
+  (`createSsrmBookFeed`, `createSsrmHost`) and the hub's `ssrm-attach`, with the
+  engine injected so host-data gains no dependency on this package
 
 ## What is NOT here
 
 Stated plainly so nobody plans around a gap:
 
-- **no provider wiring.** The worker's `openBook` builds the lab's generated
-  book; nothing yet feeds it from `host-data`, so `applySnapshot`/`applyUpdate`
-  are not driven by a real feed
-- **one client, in practice.** The host serves N ports on one engine and the
-  tests cover two, but nothing has yet run three windows on one book, and the
-  per-subscriber viewport push (each window telling the worker its visible range)
-  is not built
+- **the provider feed is proven on a MOCK provider.** `createSsrmBookFeed`
+  decorates `ProviderEmit` and is transport-agnostic by construction, and the
+  measured run above is the lab's `mock-perspective` provider — which follows
+  the same emit sequence STOMP does. It has NOT been run against a live broker
+- **the reaper has no browser-level test.** The heartbeat, the `pagehide` beacon
+  and `sweep()` are covered by unit tests under an injected clock; nothing yet
+  kills a real window and watches the book go. `introspect().reaped` is the
+  counter that would show it
 - **the pivot/tree fuzz gap.** The differential fuzz covers flat, sort, filter,
   grouping and aggregation. Pivot and tree are covered by unit tests only, and
   the oracle should grow to cover them

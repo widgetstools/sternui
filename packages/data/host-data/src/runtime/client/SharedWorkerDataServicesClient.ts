@@ -41,6 +41,9 @@ import type {
   PerspectiveAttachedEvent,
   PerspectiveAttachRequest,
   PerspectiveAttachResult,
+  SsrmAttachedEvent,
+  SsrmAttachRequest,
+  SsrmAttachResult,
   ProviderStats,
   ProviderStatus,
   Request,
@@ -194,6 +197,15 @@ export class SharedWorkerDataServicesClient {
     string,
     {
       resolve: (result: PerspectiveAttachResult) => void;
+      reject: (err: Error) => void;
+      port: MessagePort;
+    }
+  >();
+  /** In-flight `attachSsrm` calls, keyed by the subId sent with each. */
+  private readonly ssrmPending = new Map<
+    string,
+    {
+      resolve: (result: SsrmAttachResult) => void;
       reject: (err: Error) => void;
       port: MessagePort;
     }
@@ -854,6 +866,54 @@ export class SharedWorkerDataServicesClient {
     });
   }
 
+  /**
+   * Bind this window to a provider's SSRM book.
+   *
+   * Returns the port an `SsrmEngineClient` should be opened on, plus the book
+   * id to pass it. No rows cross the port on attach: the window pulls the
+   * blocks its viewport asks for, and the worker pushes the cells that tick.
+   *
+   * Resolves `ok: false` with a reason rather than hanging when the provider
+   * holds no book (a worker built without the SSRM loader, or a `keyColumn`
+   * that cannot index one), so a caller can fall back immediately instead of
+   * waiting on something that will never arrive.
+   */
+  attachSsrm(providerId: string): Promise<SsrmAttachResult> {
+    if (this.closed) {
+      return Promise.reject(new Error('[SharedWorkerDataServicesClient] client is closed'));
+    }
+    const subId = crypto.randomUUID();
+    const channel = new MessageChannel();
+
+    return new Promise<SsrmAttachResult>((resolve, reject) => {
+      this.ssrmPending.set(subId, { resolve, reject, port: channel.port1 });
+      try {
+        // The worker keeps port2 and serves engine RPC on it.
+        const req: SsrmAttachRequest = { kind: 'ssrm-attach', subId, providerId };
+        this.port.postMessage(req, [channel.port2]);
+      } catch (err) {
+        this.ssrmPending.delete(subId);
+        channel.port1.close();
+        reject(err instanceof Error ? err : new Error(String(err)));
+      }
+    });
+  }
+
+  private routeSsrmAttached(event: SsrmAttachedEvent): void {
+    const pending = this.ssrmPending.get(event.subId);
+    if (!pending) return;
+    this.ssrmPending.delete(event.subId);
+
+    if (!event.ok || !event.bookId) {
+      // Close the unused port rather than leaking it — this window will never
+      // speak to the engine over it.
+      pending.port.close();
+      pending.resolve({ ok: false, reason: event.reason ?? 'no SSRM book' });
+      return;
+    }
+    pending.resolve({ ok: true, port: pending.port, bookId: event.bookId });
+  }
+
   private routePerspectiveAttached(event: PerspectiveAttachedEvent): void {
     const pending = this.perspectivePending.get(event.subId);
     if (!pending) return;
@@ -895,6 +955,10 @@ export class SharedWorkerDataServicesClient {
     // subscription, so `subs.get(subId)` would drop it on the floor.
     if ((ev.data as { kind?: string })?.kind === 'perspective-attached') {
       this.routePerspectiveAttached(ev.data as PerspectiveAttachedEvent);
+      return;
+    }
+    if ((ev.data as { kind?: string })?.kind === 'ssrm-attached') {
+      this.routeSsrmAttached(ev.data as SsrmAttachedEvent);
       return;
     }
     if (isAppDataEvent(ev.data)) {

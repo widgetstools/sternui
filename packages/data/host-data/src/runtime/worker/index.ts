@@ -11,6 +11,13 @@ export {
 } from './SharedWorkerDataServicesHub.js';
 export { WorkerAppDataStore, type AppDataListener } from './WorkerAppDataStore.js';
 export { installSharedWorkerHub, type InstallOpts, type InstalledWorker } from './entry.js';
+/**
+ * The shared boot the shipped entries use. Exported so an APP can own an entry
+ * that injects a loader host-data must not depend on — which is how the SSRM
+ * book reaches the worker the providers already live in without
+ * `@starui/host-data` gaining a dependency on a `react-grid` package.
+ */
+export { bootWorkerEntry, reportBootFailure, type BootWorkerEntryOpts } from './bootWorkerEntry.js';
 export { registerProvider, startProvider, type ProviderFactory } from '../providers/registry.js';
 export { startMock, type MockProviderOpts } from '../providers/transports/mock.js';
 export {

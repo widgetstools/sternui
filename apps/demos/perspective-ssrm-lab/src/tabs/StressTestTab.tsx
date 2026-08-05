@@ -16,6 +16,7 @@ import { useLabPerspectiveRows } from '../demo/useLabPerspectiveRows';
 import type { LabStreamOptions } from '../demo/types';
 import { PerspectiveAttachNotice } from '../components/PerspectiveAttachNotice';
 import { SsrmEngineStressGrid } from './SsrmEngineStressGrid';
+import { SsrmProviderGrid } from './SsrmProviderGrid';
 import { getFeatureGuide } from '../guides/featureGuides';
 import { buildConfigBlocks } from '../guides/buildConfigBlocks';
 import { STRESS_TEST_FEATURE } from './labFeatureConfigs';
@@ -82,6 +83,17 @@ export function StressTestTab() {
     return new URLSearchParams(window.location.search).get('engine') === 'ssrm';
   }, []);
 
+  /**
+   * `&book=provider` runs the SSRM branch over a book fed by the REAL provider
+   * instead of the generated one — the same engine, the same grid, rows from
+   * `host-data`. A flag rather than a variant, for the same reason as the two
+   * above: one test surface, no second set of seeded profiles to drift.
+   */
+  const providerBook = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return new URLSearchParams(window.location.search).get('book') === 'provider';
+  }, []);
+
   const columnWindow = useMemo(() => {
     if (typeof window === 'undefined') return undefined;
     const on = new URLSearchParams(window.location.search).get('columnWindow') === '1';
@@ -117,12 +129,19 @@ export function StressTestTab() {
       title={config.title}
       subtitle={`${STRESS_ROW_COUNT.toLocaleString()} × ${STRESS_COL_COUNT} real columns · ${tickMs} ms tick${
         columnWindow ? ' · column window ON' : ''
-      }${useSsrmEngine ? ' · @starui/ssrm-engine (in-window book)' : ''}`}
+      }${useSsrmEngine ? ` · @starui/ssrm-engine (${providerBook ? 'provider-fed book, data-services worker' : 'generated book, app worker'})` : ''}`}
       help={config.help}
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col">
-          {useSsrmEngine ? (
+          {useSsrmEngine && providerBook ? (
+            <SsrmProviderGrid
+              columnDefs={columnDefs}
+              rowHeight={grid.rowHeight ?? 28}
+              tabProviderId={config.providerId}
+              stream={stream}
+            />
+          ) : useSsrmEngine ? (
             <SsrmEngineStressGrid
               columnDefs={columnDefs}
               rowHeight={grid.rowHeight ?? 28}

@@ -220,6 +220,24 @@ export interface SharedWorkerDataServicesHubOpts {
    */
   loadPerspective?: () => Promise<unknown>;
 
+  /**
+   * Loads `@starui/ssrm-engine`, so providers also fill an SSRM book.
+   *
+   * Injected for the same reasons as `loadPerspective`, plus one that is
+   * specific to it: `@starui/host-data` must not depend on a `react-grid`
+   * package, and injection is what keeps that true while still letting the
+   * book live where the provider's rows already are.
+   *
+   * **Do not supply this AND `loadPerspective` in a worker you intend to
+   * measure.** Both would tee off the same provider and build two engines over
+   * one feed — the contamination that made a renderer figure taken on
+   * `?engine=ssrm` read 1,114 MB instead of 411 MB, because two engines were
+   * recorded as one.
+   *
+   * Without it, providers behave exactly as before and build no book.
+   */
+  loadSsrm?: () => Promise<unknown>;
+
   /** Tick interval for the stats sampler (default 1000ms). */
   statsIntervalMs?: number;
   /** Inject the timer for tests. Default: setInterval. */

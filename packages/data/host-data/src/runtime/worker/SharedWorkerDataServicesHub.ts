@@ -65,6 +65,7 @@ import type {
   ListConfigsRequest,
   RefreshProviderRequest,
   PerspectiveAttachRequest,
+  SsrmAttachRequest,
   HubIntrospectRequest,
   HubIntrospectSnapshot,
   HubProviderIntrospectRow,
@@ -72,6 +73,13 @@ import type {
 } from '../protocol.js';
 import { startProvider } from '../providers/registry.js';
 import { createPerspectiveHost, type PerspectiveHost } from '../perspective/perspectiveHost.js';
+import { createSsrmHost, type SsrmHost } from '../ssrm/ssrmHost.js';
+import {
+  createSsrmBookFeed,
+  type SsrmBookFeed,
+  type SsrmFieldLike,
+  type SsrmSchemaLike,
+} from '../ssrm/ssrmBookFeed.js';
 import { diffTopLevel } from '../wire/rowDiff.js';
 import type { ProviderEmit, ProviderEmitEvent, ProviderHandle } from '../providers/Provider.js';
 import { WorkerAppDataStore } from './WorkerAppDataStore.js';
@@ -140,6 +148,11 @@ export class SharedWorkerDataServicesHub {
   /** One engine + one Table per provider, or null when no loader was given. */
   private readonly perspectiveHost: PerspectiveHost | null;
 
+  /** One SSRM book per provider, or null when no loader was given. */
+  private readonly ssrmHost: SsrmHost | null;
+  /** Book feeds by providerId — the tee that fills them off `ProviderEmit`. */
+  private readonly ssrmFeeds = new Map<string, SsrmBookFeed>();
+
   private readonly statsIntervalMs: number;
   private readonly setTimer: (cb: () => void, ms: number) => unknown;
   private readonly clearTimer: (handle: unknown) => void;
@@ -157,6 +170,14 @@ export class SharedWorkerDataServicesHub {
           loadPerspective: opts.loadPerspective as never,
           onError: (stage, error) =>
             console.error(`[data-services] perspective ${stage} failed`, error),
+        })
+      : null;
+    // Same shape, same reason. See `loadSsrm` for why supplying both loaders in
+    // one worker makes every memory figure taken on it meaningless.
+    this.ssrmHost = opts.loadSsrm
+      ? createSsrmHost({
+          loadSsrm: opts.loadSsrm as never,
+          onError: (stage, error) => console.error(`[data-services] ssrm ${stage} failed`, error),
         })
       : null;
     this.statsIntervalMs = opts.statsIntervalMs ?? 1000;
@@ -215,6 +236,9 @@ export class SharedWorkerDataServicesHub {
       case 'refresh-provider': this.handleRefreshProvider(req); return;
       case 'perspective-attach':
         void this.handlePerspectiveAttach(port, req, transferred?.[0]);
+        return;
+      case 'ssrm-attach':
+        void this.handleSsrmAttach(port, req, transferred?.[0]);
         return;
       case 'hub-introspect': this.handleHubIntrospect(port, req); return;
     }
@@ -957,6 +981,136 @@ export class SharedWorkerDataServicesHub {
     reply(true, { tableName });
   }
 
+  /**
+   * Build the SSRM tee for a provider, or nothing.
+   *
+   * `keyColumn` is required and must be a single column: an upsert has one
+   * thing to match on, and a composite key has no equivalent. Rather than
+   * silently indexing on the first column — which makes unrelated rows collide
+   * and overwrite each other — the book is skipped and the push path carries on
+   * exactly as it did.
+   */
+  private buildSsrmFeed(providerId: string, cfg: ProviderConfig): SsrmBookFeed | null {
+    if (!this.ssrmHost) return null;
+    const declared = cfg as {
+      keyColumn?: string | readonly string[];
+      inferredFields?: readonly { path?: string; field?: string; type?: string }[];
+      columnDefinitions?: readonly { field?: string; cellDataType?: string }[];
+      buildAfterRows?: number;
+    };
+    const keyColumn = typeof declared.keyColumn === 'string' ? declared.keyColumn : undefined;
+    if (!keyColumn) return null;
+
+    // `inferredFields` before `columnDefinitions`: it carries real types where a
+    // column def carries a cell-renderer hint.
+    const fields: SsrmFieldLike[] = [];
+    const source = declared.inferredFields?.length
+      ? declared.inferredFields
+      : (declared.columnDefinitions ?? []);
+    for (const entry of source) {
+      const field =
+        (entry as { path?: string }).path ?? (entry as { field?: string }).field ?? undefined;
+      // A dotted path is a nested value flattened by the provider's projection;
+      // the store is flat, so only top-level columns become columns.
+      if (!field || field.includes('.')) continue;
+      const raw = (
+        (entry as { type?: string }).type ??
+        (entry as { cellDataType?: string }).cellDataType ??
+        ''
+      ).toLowerCase();
+      fields.push({
+        field,
+        type:
+          raw === 'number' || raw === 'integer' || raw === 'float' || raw === 'double'
+            ? 'number'
+            : raw === 'boolean'
+              ? 'boolean'
+              : raw === 'date' || raw === 'datetime'
+                ? 'date'
+                : 'string',
+      });
+    }
+
+    const declaredSchema: SsrmSchemaLike | undefined = fields.some((f) => f.field === keyColumn)
+      ? { keyField: keyColumn, fields }
+      : undefined;
+
+    return createSsrmBookFeed({
+      keyColumn,
+      createBook: this.ssrmHost.bookFactoryFor(providerId),
+      ...(declaredSchema ? { declaredSchema } : {}),
+      ...(declared.buildAfterRows === undefined
+        ? {}
+        : { buildAfterRows: declared.buildAfterRows }),
+      onDiagnostic: (diagnostic) => {
+        if (diagnostic.kind === 'error' || diagnostic.kind === 'index-invalid') {
+          console.error(`[data-services] ssrm book '${providerId}'`, diagnostic);
+        }
+      },
+    });
+  }
+
+  /**
+   * Bind a window's port to a provider's SSRM book.
+   *
+   * The peer of `handlePerspectiveAttach`, including the part that looks like
+   * over-caution and is not: the provider is resolved ON DEMAND rather than
+   * from the catalog cache alone, because a window that writes its provider row
+   * and attaches straight after loses a race it cannot see — `configStore.save`
+   * reaches the worker catalog through an async fire-and-forget invalidate, so
+   * the synchronous cache read misses a row already on disk. That produced a
+   * permanent "no provider config" on a fresh browser profile.
+   */
+  private async handleSsrmAttach(
+    port: PortLike,
+    req: SsrmAttachRequest,
+    framePort: MessagePort | undefined,
+  ): Promise<void> {
+    const reply = (ok: boolean, extra: { bookId?: string; reason?: string } = {}) =>
+      port.postMessage({ kind: 'ssrm-attached', subId: req.subId, ok, ...extra });
+
+    if (!this.ssrmHost) {
+      reply(false, { reason: 'this worker was built without an SSRM loader' });
+      return;
+    }
+    if (!framePort) {
+      reply(false, { reason: 'ssrm-attach requires a transferred MessagePort' });
+      return;
+    }
+
+    let slot = this.providers.get(req.providerId);
+    if (!slot) {
+      const row = await this.configCatalog?.ensure(req.providerId);
+      const cfg = row?.config;
+      if (!cfg) {
+        reply(false, { reason: `no provider config for '${req.providerId}'` });
+        return;
+      }
+      // The await above yields, so another attach may have created the slot.
+      slot = this.providers.get(req.providerId) ?? this.createProvider(req.providerId, cfg);
+    }
+
+    const feed = this.ssrmFeeds.get(req.providerId);
+    if (!feed) {
+      reply(false, {
+        reason: `provider '${req.providerId}' has no SSRM book (it needs a single-column keyColumn)`,
+      });
+      return;
+    }
+
+    // Wait for the book to EXIST before answering. `open` on a name the host
+    // does not hold is answered with an error, and a window that got one would
+    // fall back to the push path for a book that was about to appear. With a
+    // declared schema this is immediate — that is the whole point of declaring
+    // one; without it, waiting out the snapshot is the honest answer.
+    await feed.whenReady().catch(() => {
+      /* a feed that never builds is reported by the open below, not thrown here */
+    });
+
+    await this.ssrmHost.attach(framePort);
+    reply(true, { bookId: req.providerId });
+  }
+
   private handleRefreshProvider(req: RefreshProviderRequest): void {
     const slot = this.providers.get(req.providerId);
     if (!slot) return;
@@ -972,6 +1126,10 @@ export class SharedWorkerDataServicesHub {
     // Drop from the registry first so late STOMP frames cannot fan-out
     // while deactivate() is still in flight.
     this.providers.delete(providerId);
+    // The book feed goes with the provider, and after the registry drop for the
+    // same reason: nothing can arrive for a book that is on its way out.
+    void this.ssrmFeeds.get(providerId)?.stop();
+    this.ssrmFeeds.delete(providerId);
 
     const dataListeners = this.dataListeners.get(providerId);
     if (dataListeners) {
@@ -1150,9 +1308,25 @@ export class SharedWorkerDataServicesHub {
       columnar: flags.wireFormat !== 'json',
     };
 
-    const emit: ProviderEmit = (event: ProviderEmitEvent) => {
+    let emit: ProviderEmit = (event: ProviderEmitEvent) => {
       this.applyEmit(providerId, slot, event);
     };
+
+    /**
+     * Tee the emit stream into an SSRM book.
+     *
+     * Done HERE rather than inside a transport, because the shape a book needs
+     * is `ProviderEmit` and every transport already speaks it — so this is one
+     * place instead of one per provider type, and a provider type added later
+     * gets a book for free. The wrapper forwards synchronously and unmodified
+     * first (see `createSsrmBookFeed`), so the push path is unchanged whether
+     * the tee is present or not.
+     */
+    const bookFeed = this.buildSsrmFeed(providerId, cfg);
+    if (bookFeed) {
+      this.ssrmFeeds.set(providerId, bookFeed);
+      emit = bookFeed.tap(emit);
+    }
 
     // Register BEFORE starting the provider: transports emit
     // `status: loading` synchronously inside the factory call, and
@@ -1171,6 +1345,7 @@ export class SharedWorkerDataServicesHub {
       });
     } catch (err) {
       this.providers.delete(providerId);
+      this.ssrmFeeds.delete(providerId);
       throw err;
     }
     return slot;
@@ -1190,6 +1365,11 @@ export class SharedWorkerDataServicesHub {
     // currently-registered slot, so any in-flight frames from the old
     // connection are ignored the moment it stops being that slot.
     this.providers.delete(providerId);
+    // The old feed goes with its slot. `createProvider` builds a fresh one and
+    // a fresh book: a recreate is what happens when the CONFIG changed, so the
+    // schema the book was built from may no longer be the right one.
+    void this.ssrmFeeds.get(providerId)?.stop();
+    this.ssrmFeeds.delete(providerId);
     if (old) void old.handle.stop();
     // createProvider registers the fresh slot before starting it, so its
     // synchronous `loading` emission reaches every existing listener.

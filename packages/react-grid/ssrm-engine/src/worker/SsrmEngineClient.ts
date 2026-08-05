@@ -19,7 +19,14 @@ import type {
   SsrmRow,
   SsrmSchema,
 } from '../types.js';
-import type { SsrmDeltaPush, SsrmOpenResult, SsrmWriteResult } from './protocol.js';
+import {
+  SSRM_HEARTBEAT_MS,
+  type SsrmDeltaPush,
+  type SsrmIntrospectResult,
+  type SsrmOpenResult,
+  type SsrmViewport,
+  type SsrmWriteResult,
+} from './protocol.js';
 import {
   createSsrmRpcClient,
   type SsrmRpcClient,
@@ -39,6 +46,19 @@ export interface SsrmEngineClientOptions {
    * book. Ignored when the book is already open — see {@link SsrmOpenParams}.
    */
   bookOptions?: unknown;
+  /**
+   * How often an idle client says it is still there. 0 disables it.
+   *
+   * The other half of the refcount. `close` covers unmount and navigation; this
+   * covers the window that never gets to send one, because a SharedWorker port
+   * has NO disconnect event and the worker outlives the page.
+   */
+  heartbeatMs?: number;
+  /**
+   * Send the detach on `pagehide` as well as on `close()`. On by default in a
+   * window, and a no-op anywhere without one.
+   */
+  detachOnPagehide?: boolean;
 }
 
 export class SsrmEngineClient {
@@ -50,6 +70,8 @@ export class SsrmEngineClient {
   private readonly rpc: SsrmRpcClient;
   private readonly listeners = new Set<SsrmDeltaPushListener>();
   private mirroredSize: number;
+  private heartbeat: ReturnType<typeof setInterval> | undefined;
+  private detachPagehide: (() => void) | undefined;
 
   private constructor(rpc: SsrmRpcClient, opened: SsrmOpenResult) {
     this.rpc = rpc;
@@ -78,7 +100,47 @@ export class SsrmEngineClient {
       ...(options.bookOptions === undefined ? {} : { options: options.bookOptions }),
     });
     self = new SsrmEngineClient(rpc, opened);
+    self.startLiveness(options);
     return self;
+  }
+
+  /**
+   * The two halves of "this window is still here".
+   *
+   * `pagehide` is the fast path and fires for a close, a navigation and a
+   * bfcache eviction alike; it is best-effort because a crashed or killed
+   * renderer never runs it. The heartbeat is the backstop that covers exactly
+   * that case, and it is why the worker's stale window has to clear Chrome's
+   * background-tab timer throttling — see {@link SSRM_STALE_MS}.
+   */
+  private startLiveness(options: SsrmEngineClientOptions): void {
+    const every = options.heartbeatMs ?? SSRM_HEARTBEAT_MS;
+    if (every > 0) {
+      this.heartbeat = setInterval(() => {
+        // A failed heartbeat is not worth reporting: whatever killed it will
+        // fail the next real call loudly, and a rejected promise nobody
+        // handles in a worker context reaches no console at all.
+        void this.heartbeatOnce().catch(() => {});
+      }, every);
+      // No-op in a browser; in Node it stops a liveness timer from being the
+      // reason a test run or a script never exits.
+      (this.heartbeat as unknown as { unref?(): void }).unref?.();
+    }
+
+    const wantsPagehide = options.detachOnPagehide ?? true;
+    const scope = globalThis as unknown as {
+      addEventListener?: (type: string, fn: () => void) => void;
+      removeEventListener?: (type: string, fn: () => void) => void;
+    };
+    if (!wantsPagehide || typeof scope.addEventListener !== 'function') return;
+    const beacon = () => {
+      // NOT `close()` — that awaits a reply this page will not live to read.
+      // `postMessage` hands the frame to the port synchronously, which is the
+      // most a page being torn down can do.
+      void this.rpc.call('close', { bookId: this.bookId }).catch(() => {});
+    };
+    scope.addEventListener('pagehide', beacon);
+    this.detachPagehide = () => scope.removeEventListener?.('pagehide', beacon);
   }
 
   /** The worker's last reported book size. See the note on this class. */
@@ -115,6 +177,27 @@ export class SsrmEngineClient {
 
   setQuickFilter(text: string): Promise<boolean> {
     return this.rpc.call('setQuickFilter', { bookId: this.bookId, text });
+  }
+
+  /**
+   * Tell the worker what this window can see, so a tick sends only those rows.
+   *
+   * `null` clears it and restores "send me everything", which is also the state
+   * of a client that never calls this — a window whose viewport is unknown must
+   * not have its updates dropped.
+   */
+  setViewport(viewport: SsrmViewport | null): Promise<void> {
+    return this.rpc.call('setViewport', { bookId: this.bookId, viewport });
+  }
+
+  /** What the worker holds: books, clients per book, and the reaper's count. */
+  introspect(): Promise<SsrmIntrospectResult> {
+    return this.rpc.call('introspect', {});
+  }
+
+  /** One liveness ping. The interval calls this; a test calls it directly. */
+  heartbeatOnce(): Promise<void> {
+    return this.rpc.call('heartbeat', { bookId: this.bookId });
   }
 
   applyUpdate(rows: SsrmRow[]): Promise<SsrmDelta> {
@@ -155,6 +238,10 @@ export class SsrmEngineClient {
    */
   async close(): Promise<void> {
     this.listeners.clear();
+    if (this.heartbeat !== undefined) clearInterval(this.heartbeat);
+    this.heartbeat = undefined;
+    this.detachPagehide?.();
+    this.detachPagehide = undefined;
     try {
       await this.rpc.call('close', { bookId: this.bookId });
     } catch {

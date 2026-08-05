@@ -41,7 +41,10 @@ export type SsrmRpcMethod =
   | 'applyUpdate'
   | 'applySnapshot'
   | 'applyRemove'
-  | 'size';
+  | 'size'
+  | 'heartbeat'
+  | 'setViewport'
+  | 'introspect';
 
 export interface SsrmRequestFrame {
   id: number;
@@ -156,6 +159,69 @@ export interface SsrmWriteResult {
 }
 
 export type SsrmGetRowsReply = SsrmGetRowsResult;
+
+/**
+ * What one subscriber can currently SEE, so a pushed tick can be narrowed.
+ *
+ * The range alone is meaningless — position 300 under one window's sort is a
+ * different row from position 300 under another's — so the query shape rides
+ * with it. It is the shape that window's grid is currently pulling blocks with,
+ * which the host already has to be able to answer.
+ */
+export interface SsrmViewport {
+  request: SsrmGetRowsRequest;
+  /** Inclusive display position of the first visible row. */
+  startRow: number;
+  /** EXCLUSIVE display position past the last visible row. */
+  endRow: number;
+}
+
+export interface SsrmViewportParams {
+  bookId: string;
+  /** `null` clears it: the port goes back to receiving every pushed row. */
+  viewport: SsrmViewport | null;
+}
+
+/** One book as the host holds it. The answer to "do these windows share it?" */
+export interface SsrmBookReport {
+  bookId: string;
+  /** Ports attached. A window that shares a book adds one; a second book does not. */
+  clients: number;
+  size: number;
+  /** Of those clients, how many have declared a viewport. */
+  viewports: number;
+}
+
+export interface SsrmIntrospectResult {
+  books: SsrmBookReport[];
+  /** Ports reaped by the stale sweep since the worker started. */
+  reaped: number;
+  staleMs: number;
+  sweepMs: number;
+}
+
+/**
+ * How often a client says it is still there.
+ *
+ * Any call counts — the heartbeat only exists for a window that is attached and
+ * idle, which is what a background blotter is.
+ */
+export const SSRM_HEARTBEAT_MS = 5_000;
+
+/**
+ * How long a silent port is kept before its book is released.
+ *
+ * **90 seconds because of timer throttling, not caution.** Chrome throttles
+ * `setInterval` in a hidden tab to roughly once a minute, so a 20-second window
+ * would reap a blotter that is merely in a background tab — the failure this
+ * sweep exists to prevent, inverted and worse. It has to clear 60 s with margin.
+ * The cost of the margin is that a hard-killed window leaks its book for up to
+ * `staleMs + sweepMs`, which is bounded where the leak it replaces was not.
+ */
+export const SSRM_STALE_MS = 90_000;
+
+/** How often the host looks for stale ports. Idle when no book is open. */
+export const SSRM_SWEEP_MS = 15_000;
 
 /**
  * Default ceiling on a single call.

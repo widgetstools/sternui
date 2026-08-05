@@ -27,6 +27,10 @@
       "types": "./dist/runtime/perspective/index.d.ts",
       "import": "./dist/runtime/perspective/index.js"
     },
+    "./runtime/ssrm": {
+      "types": "./dist/runtime/ssrm/index.d.ts",
+      "import": "./dist/runtime/ssrm/index.js"
+    },
     "./runtime/worker/defaultEntry": {
       "types": "./dist/runtime/worker/defaultEntry.d.ts",
       "import": "./dist/runtime/worker/defaultEntry.js"

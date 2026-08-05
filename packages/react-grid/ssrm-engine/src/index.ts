@@ -24,6 +24,14 @@ export type {
 } from './datasource.js';
 export { createAsyncSsrmDatasource, SSRM_BLOCK_TIMEOUT_MS } from './asyncDatasource.js';
 export type { AsyncSsrmDatasourceOptions, AsyncSsrmSource } from './asyncDatasource.js';
+export { createSsrmRowPump } from './rowPump.js';
+export type {
+  SsrmRowPump,
+  SsrmRowPumpFlush,
+  SsrmRowPumpGrid,
+  SsrmRowPumpOptions,
+  SsrmRowPumpStats,
+} from './rowPump.js';
 export { ColumnStore } from './columnStore.js';
 export { compileFilter, compileQuickFilter, type RowPredicate } from './filter.js';
 export { sortIndex, lowerBound } from './sort.js';
