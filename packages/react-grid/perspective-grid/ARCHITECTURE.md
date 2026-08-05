@@ -209,6 +209,62 @@ here. `bootWorkerEntry` now installs `unhandledrejection` / `error` listeners so
 the failure is at least attributable. Recovering from it needs the engine: the
 next lever is the 5.0.0 line (published 2026-07-28, unprobed).
 
+## A live tick PUSHES; it does not invalidate
+
+AG's server row model is **pull for LOADING and push for MUTATION**. The
+datasource answers `getRows` for a block AG asked for, and nothing can hand it
+rows it did not ask for — but `applyServerSideTransaction` writes rows straight
+into the block cache by row id, and `setRowCount` sets the store size.
+
+This engine used the push side for exactly one row — the grand total, which no
+refresh will update — while expressing every price tick as
+`refreshServerSide({ purge: false })`. That marks EVERY loaded block dirty and
+makes AG re-request all of them. A tick that moved three prices was "discard what
+you hold and ask me again", four times a second, through a session that
+serializes every request.
+
+MEASURED with `scripts/stubVisibilityProbe.mjs` on the 20k x 120 book, real wheel
+events, live feed:
+
+| | invalidate per tick | push per tick |
+|---|---|---|
+| block requests in one scroll pass | **176** | **33** |
+| normal scroll: longest fully-blank viewport | **3,555 ms** | **248 ms** |
+| normal scroll: samples with a dataless row | 33-40% | **13%** |
+| fast fling: longest | 5,762 ms | 4,136 ms |
+
+And with `sortRecoveryProbe.mjs`, after a sort settles: block requests fell from
+one every 300-900 ms costing 34-823 ms each, to one every ~5 s costing 5-21 ms.
+The engine is idle between resyncs instead of permanently re-reading ground the
+grid already holds.
+
+**The shape.** Two cadences instead of one:
+
+- **the tick** (`refreshMs`, 250 ms) reads the rows between
+  `getFirstDisplayedRowIndex` and `getLastDisplayedRowIndex` from the live root
+  View and applies them with `applyServerSideTransaction`. About 35 rows, no
+  invalidation, and therefore no stub state — the values change in place;
+- **the resync** (`resyncMs`, 5 s) is the old whole-store `refreshEveryLevel`,
+  kept as the backstop for blocks that are loaded but off screen, which the tick
+  path deliberately leaves alone. Still deferred while blocks are in flight.
+
+**FLAT ONLY, and that is not a shortcut.** Under grouping the visible rows span
+several levels with their own offsets and `__ROW_PATH__` remaps, so a row index
+in the root View is not a displayed index — reading `[first, last]` out of it
+would update the wrong rows. Grouped grids keep the resync and nothing else.
+
+**An empty store still heals at the tick rate.** A store that settled at zero
+rows never re-asks on its own (there are no blocks to invalidate) and that is
+exactly how a blotter opens when it attaches before the snapshot. `measureBook`
+spots it and the resync runs at `refreshMs` rather than `resyncMs` in that one
+case — there is nothing to preserve, and waiting five seconds over a full book is
+the failure the heal exists to prevent.
+
+**What is still slow, and is not this.** The first block after a sort or filter
+costs 0.4-1.1 s, because a sort is a new View and Perspective view configs are
+immutable. A fast fling into never-loaded rows still shows skeletons for a few
+seconds: that is a genuine fetch, and it is now honest rather than blank.
+
 ## Sorting collapsed the grid to two rows — the grand total was being read as the store size
 
 Reported from a desk: "when the user sorts it almost becomes empty — 2-4 rows at

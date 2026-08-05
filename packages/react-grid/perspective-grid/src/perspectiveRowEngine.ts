@@ -17,6 +17,7 @@
  * unit-tested without one.
  */
 import {
+  columnsToRows,
   createPerspectiveDatasource,
   type PerspectiveDatasource,
   type SsrmRequestLike,
@@ -37,6 +38,10 @@ export interface GridApiLike {
   getRowNode(id: string): unknown;
   applyServerSideTransaction(transaction: { update?: unknown[] }): void;
   setRowCount?(rows: number): void;
+  /** Viewport bounds, so a tick can re-read what the user is looking at
+   *  instead of invalidating every loaded block. */
+  getFirstDisplayedRowIndex?(): number;
+  getLastDisplayedRowIndex?(): number;
 }
 
 export interface GridNodeLike {
@@ -58,8 +63,23 @@ export interface PerspectiveRowEngineOpts {
   table: PerspectiveTableLike;
   /** Index column — labels the grand total row where it is always visible. */
   keyColumn: string;
-  /** Coalesce Table updates into at most one refresh per this many ms. */
+  /**
+   * Coalesce Table updates into at most one live TICK per this many ms.
+   *
+   * A tick pushes the visible rows into the grid as a transaction. It is cheap
+   * — one read of the ~35 rows on screen — so this can stay fast.
+   */
   refreshMs?: number;
+  /**
+   * How often the whole store is re-read, as a backstop for rows that are
+   * loaded but off screen.
+   *
+   * The tick path only refreshes what the user can see, so a block scrolled
+   * past keeps the values it was loaded with until this fires. Far less often
+   * than the tick: this is the expensive operation, and nobody is looking at
+   * those rows.
+   */
+  resyncMs?: number;
   /**
    * Floor on how often a saved-filter count is recomputed. See `countMatching`.
    *
@@ -352,6 +372,7 @@ export function createPerspectiveRowEngine(
     table,
     keyColumn,
     refreshMs = 250,
+    resyncMs = 5000,
     countMinIntervalMs = 5000,
     valuesMinIntervalMs = 30_000,
     maxSetFilterValues = 50_000,
@@ -368,6 +389,11 @@ export function createPerspectiveRowEngine(
   let live = true;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let pendingUpdate = false;
+  /** Full-store resync, the backstop behind the per-tick transaction. */
+  let resyncTimer: ReturnType<typeof setTimeout> | null = null;
+  let pendingResync = false;
+  /** A visible-row read already in flight; a second one would just queue. */
+  let tickInFlight = false;
   let closed = false;
   /** The most recent root-level request, so the total matches the grid shape. */
   let lastRootRequest: SsrmRequestLike = {};
@@ -747,41 +773,119 @@ export function createPerspectiveRowEngine(
   const REFRESH_DEFER_MAX_MS = 2000;
   let deferringSince = Date.now();
 
+  /**
+   * A tick pushes the VISIBLE rows into the grid. It does not invalidate a
+   * thing.
+   *
+   * This used to be `refreshServerSide({ purge: false })`, which marks every
+   * loaded block dirty and makes AG re-request all of them. On a live feed that
+   * is the single most expensive thing on this surface, and it is self-inflicted:
+   * a tick that moved three prices was expressed as "discard what you have and
+   * ask me again", four times a second, through a session that serializes every
+   * request.
+   *
+   * MEASURED with `scripts/stubVisibilityProbe.mjs` on the 20k x 120 book: one
+   * scroll pass issued **176 block requests**, and the SAME read that costs 8 ms
+   * with the feed paused had a **119-145 ms median** while it ticked, p90 494 ms.
+   * The blocks were queued behind re-reads of ground the grid already held.
+   *
+   * AG's server row model is pull for LOADING and push for MUTATION —
+   * `applyServerSideTransaction` writes rows straight into the block cache by
+   * row id. The engine already used it for the grand total, one row per tick,
+   * while re-pulling thousands. This is the same call for the rows a user can
+   * actually see: one read of the ~35 rows on screen, applied in place, no
+   * invalidation and therefore no stub state.
+   *
+   * FLAT ONLY. Under grouping the visible rows span several levels with their
+   * own offsets and `__ROW_PATH__` remaps, and a row index in the root View is
+   * not a displayed index — so grouping keeps the whole-store resync below and
+   * nothing else.
+   */
+  async function pushVisibleRows(): Promise<void> {
+    if (api === null || closed || grouped || tickInFlight) return;
+    const first = api.getFirstDisplayedRowIndex?.();
+    const last = api.getLastDisplayedRowIndex?.();
+    if (typeof first !== 'number' || typeof last !== 'number') return;
+    if (last < first || first < 0) return;
+
+    tickInFlight = true;
+    try {
+      // The same request the blocks use, so this resolves to the live View the
+      // grid is already reading from rather than building one of its own.
+      const view = await views.getView(lastRootRequest);
+      if (!view || closed || api === null) return;
+      const columns = await view.to_columns({ start_row: first, end_row: last + 1 });
+      if (closed || api === null) return;
+      const rows = columnsToRows(columns);
+      if (rows.length === 0) return;
+      api.applyServerSideTransaction({ update: rows });
+    } catch (error) {
+      // A tick must never break the grid. The resync below is the backstop.
+      onError?.(error);
+    } finally {
+      tickInFlight = false;
+    }
+  }
+
   function scheduleRefresh(): void {
     if (!live || closed) return;
     pendingUpdate = true;
+    pendingResync = true;
     // MEASURED: AG requests its FIRST block before `onGridReady` fires, so the
     // grid is not connected yet when that block settles empty and asks for a
     // heal. Dropping the intent here left the store permanently at zero rows
     // over a full book. Remember it; `setApi` flushes it on connect.
     if (api === null) return;
-    if (timer !== null) return;
+    scheduleTick();
+    scheduleResync();
+  }
+
+  /** The cheap path: repaint what is on screen. */
+  function scheduleTick(): void {
+    if (timer !== null || !live || closed || api === null) return;
     timer = setTimeout(() => {
       timer = null;
       if (!pendingUpdate || !live || closed) return;
-      /**
-       * Never re-read a block that is still being read.
-       *
-       * MEASURED on the 50k x 400 stress book: one 100-row block costs
-       * **900–1,670 ms** to read, because a read carries every column of the
-       * View and there are 400 of them. The refresh invalidates EVERY loaded
-       * block, so at the 250 ms throttle the engine was asked to re-read three
-       * blocks four times a second while each one took a second — the same
-       * ranges were re-requested five and six times over, and the queue never
-       * drained. A scroll then had to wait behind ~1 s of work it did not ask
-       * for. Deferring here is not a lost update: `pendingUpdate` stays set and
-       * the blocks that settle carry the fresh values anyway, since each one is
-       * read from the live View at the moment it is served.
-       */
+      pendingUpdate = false;
+      void pushVisibleRows();
+      void pushGrandTotal();
+    }, refreshMs);
+  }
+
+  /**
+   * The backstop: re-read the whole store, including blocks that are loaded but
+   * off screen, which the tick path deliberately leaves alone.
+   *
+   * Still deferred while blocks are in flight, for the reason it always was —
+   * re-requesting a range that is already being read makes the queue longer and
+   * the answer no fresher. Capped so a permanently busy grid still resyncs.
+   */
+  function scheduleResync(): void {
+    if (resyncTimer !== null || !live || closed || api === null) return;
+    /**
+     * An EMPTY store heals at the tick rate, not the resync rate.
+     *
+     * A store that settled at zero rows never re-asks on its own — there are no
+     * blocks to invalidate — which is exactly the state a blotter opens in when
+     * it attaches before the snapshot lands. `measureBook` spots it and calls
+     * here, and making that wait for the slow backstop would leave the grid
+     * blank over a full book for seconds. There is also nothing to preserve:
+     * the expensive part of a resync is discarding work, and an empty store has
+     * none.
+     */
+    const delay = views.rowsAtRoot === 0 ? refreshMs : resyncMs;
+    resyncTimer = setTimeout(() => {
+      resyncTimer = null;
+      if (!pendingResync || !live || closed) return;
       if (blocksInFlight > 0 && Date.now() - deferringSince < REFRESH_DEFER_MAX_MS) {
-        scheduleRefresh();
+        scheduleResync();
         return;
       }
       deferringSince = Date.now();
-      pendingUpdate = false;
+      pendingResync = false;
       refreshEveryLevel();
       void pushGrandTotal();
-    }, refreshMs);
+    }, delay);
   }
 
   /**
@@ -1184,6 +1288,8 @@ export function createPerspectiveRowEngine(
       closed = true;
       if (timer !== null) clearTimeout(timer);
       timer = null;
+      if (resyncTimer !== null) clearTimeout(resyncTimer);
+      resyncTimer = null;
       api = null;
       listeners.clear();
       counts.clear();

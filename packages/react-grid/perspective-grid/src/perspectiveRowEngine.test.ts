@@ -44,7 +44,13 @@ function makeTable(totalRows = 1000) {
   return { table, tick: () => fire?.() };
 }
 
-function makeApi(nodes: GridNodeLike[] = [], hasTotalRow = true) {
+function makeApi(
+  nodes: GridNodeLike[] = [],
+  hasTotalRow = true,
+  /** Viewport bounds. Absent by default: without them the tick path does
+   *  nothing, which keeps every other test asserting on transactions clean. */
+  viewport?: { first: number; last: number },
+) {
   const refreshes: { route?: string[]; purge?: boolean }[] = [];
   const transactions: unknown[][] = [];
   const rowCounts: number[] = [];
@@ -54,6 +60,12 @@ function makeApi(nodes: GridNodeLike[] = [], hasTotalRow = true) {
     getRowNode: (id) => (hasTotalRow && id === GRAND_TOTAL_ROW_ID ? {} : undefined),
     applyServerSideTransaction: (tx) => transactions.push(tx.update ?? []),
     setRowCount: (rows) => rowCounts.push(rows),
+    ...(viewport
+      ? {
+          getFirstDisplayedRowIndex: () => viewport.first,
+          getLastDisplayedRowIndex: () => viewport.last,
+        }
+      : {}),
   };
   return { api, refreshes, transactions, rowCounts };
 }
@@ -94,7 +106,14 @@ describe('createPerspectiveRowEngine — row count', () => {
   });
 });
 
-describe('createPerspectiveRowEngine — refreshing on a Table update', () => {
+/**
+ * These characterise the RESYNC path — the whole-store re-read that backstops
+ * rows loaded but off screen. It is no longer what a tick does: a tick pushes
+ * the visible rows in as a transaction and invalidates nothing (see
+ * `pushVisibleRows`), so every test here sets a short `resyncMs` to reach the
+ * behaviour it is about.
+ */
+describe('createPerspectiveRowEngine — resyncing the whole store', () => {
   it('refreshes the root and EVERY expanded level, not just the root', async () => {
     // MEASURED: `refreshServerSide` does not cascade into child stores, so a
     // root-only refresh leaves the rows under an expanded group frozen while
@@ -104,7 +123,7 @@ describe('createPerspectiveRowEngine — refreshing on a Table update', () => {
     const collapsed: GridNodeLike = { group: true, expanded: false, level: 0, key: 'Credit', parent: null };
 
     const { table, tick } = makeTable();
-    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId', refreshMs: 1 });
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId', refreshMs: 1, resyncMs: 1 });
     const grid = makeApi([parent, child, collapsed]);
     engine.setApi(grid.api);
 
@@ -127,7 +146,7 @@ describe('createPerspectiveRowEngine — refreshing on a Table update', () => {
 
   it('coalesces a burst of updates into one refresh', async () => {
     const { table, tick } = makeTable();
-    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId', refreshMs: 20 });
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId', refreshMs: 20, resyncMs: 20 });
     const grid = makeApi();
     engine.setApi(grid.api);
     await engine.datasource.getRows({
@@ -161,7 +180,7 @@ describe('createPerspectiveRowEngine — refreshing on a Table update', () => {
       return built;
     });
 
-    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId', refreshMs: 1 });
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId', refreshMs: 1, resyncMs: 1 });
     const grid = makeApi();
     engine.setApi(grid.api);
     const success = vi.fn();
@@ -184,7 +203,7 @@ describe('createPerspectiveRowEngine — refreshing on a Table update', () => {
 
   it('stops refreshing when live is off, and catches up when it returns', async () => {
     const { table, tick } = makeTable();
-    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId', refreshMs: 5 });
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId', refreshMs: 5, resyncMs: 5 });
     const grid = makeApi();
     engine.setApi(grid.api);
     await engine.datasource.getRows({
@@ -206,7 +225,7 @@ describe('createPerspectiveRowEngine — refreshing on a Table update', () => {
 
   it('does not refresh before a grid is connected', async () => {
     const { table, tick } = makeTable();
-    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId', refreshMs: 1 });
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId', refreshMs: 1, resyncMs: 1 });
     await engine.datasource.getRows({
       request: { startRow: 0, endRow: 100 },
       success: () => {},
@@ -564,7 +583,7 @@ describe('createPerspectiveRowEngine — a Table that fills after the grid attac
   it('does not purge once the store holds rows', async () => {
     const { table, fill } = makeGrowingTable();
     fill(20_000);
-    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId', refreshMs: 1 });
+    const engine = createPerspectiveRowEngine({ table, keyColumn: 'positionId', refreshMs: 1, resyncMs: 1 });
     const grid = makeApi([], false);
     engine.setApi(grid.api);
 
@@ -1845,5 +1864,76 @@ describe('createPerspectiveRowEngine — the grand total is not the row count', 
 
     expect(grid.rowCounts).toContain(20_000);
     expect(grid.rowCounts.filter((n) => n < 20_000)).toEqual([]);
+  });
+});
+
+describe('createPerspectiveRowEngine — a live tick pushes, it does not invalidate', () => {
+  it('applies the VISIBLE rows as a transaction and refreshes nothing', async () => {
+    // AG's server row model is pull for LOADING and push for MUTATION. A tick
+    // used to be `refreshServerSide({purge:false})`, which marks every loaded
+    // block dirty and makes AG re-request all of them — MEASURED at 176 block
+    // requests in one scroll pass, with the same read costing 8 ms paused and a
+    // 119-145 ms median while ticking. A tick is now one read of the rows on
+    // screen, written straight into the block cache by row id.
+    const { table, tick } = makeTable(20_000);
+    const engine = createPerspectiveRowEngine({
+      table,
+      keyColumn: 'positionId',
+      refreshMs: 1,
+      // Long enough that the backstop cannot fire inside this test.
+      resyncMs: 60_000,
+    });
+    const grid = makeApi([], true, { first: 0, last: 9 });
+    engine.setApi(grid.api);
+
+    await engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100 },
+      success: () => {},
+      fail: () => {},
+    } as never);
+    await settle();
+    grid.refreshes.length = 0;
+    grid.transactions.length = 0;
+
+    tick();
+    await vi.waitFor(() => expect(grid.transactions.length).toBeGreaterThan(0));
+
+    // Ten visible rows, pushed by id. Nothing invalidated.
+    const rows = grid.transactions.flat() as Record<string, unknown>[];
+    const dataRows = rows.filter((r) => !r[GRAND_TOTAL_FLAG]);
+    expect(dataRows).toHaveLength(10);
+    expect(dataRows[0].positionId).toBe('p0');
+    expect(grid.refreshes).toEqual([]);
+  });
+
+  it('pushes nothing while grouped — a root row index is not a displayed one', async () => {
+    // Under grouping the visible rows span levels with their own offsets and
+    // `__ROW_PATH__` remaps, so reading [first, last] out of the ROOT view would
+    // update the wrong rows. Grouping keeps the whole-store resync and nothing
+    // else.
+    const { table, tick } = makeTable(20_000);
+    const engine = createPerspectiveRowEngine({
+      table,
+      keyColumn: 'positionId',
+      refreshMs: 1,
+      resyncMs: 60_000,
+    });
+    const grid = makeApi([], true, { first: 0, last: 9 });
+    engine.setApi(grid.api);
+
+    await engine.datasource.getRows({
+      request: { startRow: 0, endRow: 100, rowGroupCols: [{ id: 'desk' }], groupKeys: [] },
+      success: () => {},
+      fail: () => {},
+    } as never);
+    await settle();
+    grid.transactions.length = 0;
+
+    tick();
+    await new Promise((r) => setTimeout(r, 30));
+
+    const dataRows = (grid.transactions.flat() as Record<string, unknown>[])
+      .filter((r) => !r[GRAND_TOTAL_FLAG]);
+    expect(dataRows).toEqual([]);
   });
 });
