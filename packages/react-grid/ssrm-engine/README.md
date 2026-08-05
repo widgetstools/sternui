@@ -8,6 +8,9 @@ It has no worker hosting and no provider wiring — see "What is not here".**
 Run it: build and serve `@starui/perspective-ssrm-lab`, then open the Stress tab
 with **`?engine=ssrm`**. `scripts/browserSmokeProbe.mjs` drives it.
 
+The remaining work is split into sessions in
+[`docs/SSRM_ENGINE_WORKLOG.md`](../../../docs/SSRM_ENGINE_WORKLOG.md).
+
 | in the browser, 20k x 120 | ssrm-engine | Perspective, same tab |
 |---|---|---|
 | first row painted | **2,326 ms** | 12,000-15,000 ms |

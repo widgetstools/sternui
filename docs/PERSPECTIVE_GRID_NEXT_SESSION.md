@@ -38,6 +38,11 @@ else**. Always run the control — it has caught several false findings.
   — every file this branch adds, changes or removes under `packages/` and
   `apps/`, generated from the diff. Useful for a review pass or a PR
   description; regenerate with the command at the top of it.
+- [`docs/SSRM_ENGINE_WORKLOG.md`](./SSRM_ENGINE_WORKLOG.md) — the columnar
+  TypeScript engine built as a candidate replacement for the Perspective row
+  supply, and the sessions still ahead of it. **Read it before planning more
+  work on the Perspective path**: the two are alternatives, and session 8 is the
+  decision between them.
 - [`docs/PERSPECTIVE_GRID_COLUMN_WINDOW_DESIGN.md`](./PERSPECTIVE_GRID_COLUMN_WINDOW_DESIGN.md)
   — the column-window design. **Built; its premises were measured and found
   wrong, and the corrections are at the top.** Read those before trusting
