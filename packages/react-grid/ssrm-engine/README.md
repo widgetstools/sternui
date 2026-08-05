@@ -83,7 +83,7 @@ the same shape as the lab's Stress tab:
 
 ## Correctness
 
-41 tests, of which the important ones are the **differential fuzz** in
+44 tests, of which the important ones are the **differential fuzz** in
 `engine.fuzz.test.ts`: 250 mutation frames and a churn run, comparing every
 query shape against a deliberately stupid brute-force oracle built from plain
 objects.
@@ -132,6 +132,11 @@ them.
 - sparse upsert by key, remove, snapshot-replace, and a delta of changed and
   removed keys for the push path
 - `lowerBound` for incremental re-positioning under sort
+- `createSsrmDatasource` — the AG boundary, owning the rule the engine cannot:
+  **every `getRows` settles exactly once.** `outboundRequests` is grid-global,
+  decremented only in success/fail, default limit 2, so a datasource that throws
+  without calling back wedges the grid permanently
+- `makeSsrmGetRowId` — path-based ids for group rows, leaf keys for the rest
 
 ## What is NOT here
 
@@ -140,9 +145,6 @@ Stated plainly so nobody plans around a gap:
 - **no worker hosting.** The engine is synchronous and in-process. Putting it
   behind a `SharedWorker` + `MessagePort` is the next piece, and is what makes
   the book shared across windows
-- **no AG datasource adapter.** Nothing yet turns `getRows` into
-  `params.success(...)`, and that boundary is where the settle-exactly-once rule
-  has to live
 - **no pivot.** `pivotCols`/`pivotMode` are accepted in the request type and
   ignored
 - **no tree data** (`isServerSideGroup` / `getServerSideGroupKey`)
