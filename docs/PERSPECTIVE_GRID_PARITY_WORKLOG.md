@@ -84,9 +84,14 @@ connection to this branch and it should land where it can be reviewed as such.
 
 `npx turbo typecheck build test`. Pre-existing failures that are NOT yours:
 
-- `@starui/grid` — **4 failed test FILES, 0 failed tests** (collection/import
-  errors in `MarketsGrid.*`), 793 passing.
-- `@starui/widgets-react` — 2 `providerStaleState` cases.
+- ~~`@starui/grid` — **4 failed test FILES, 0 failed tests**~~ — **FIXED.** Now
+  101 files / 855 tests / 0 failed. The zero failed tests was the tell: none of
+  those four files ran at all, so 42 assertions were reported as a known-good
+  baseline while checking nothing. See the SSRM engine worklog's gate section
+  for the three causes.
+- `@starui/widgets-react` — 2 `providerStaleState` cases. Still failing, and
+  worth knowing they are not a fixture problem: `latestProvider.start` is never
+  called, so the container builds a provider and does not start it.
 Anything ELSE that fails is almost certainly the turbo ordering race in item 3
 — `@starui/design-system`, `@starui/grid#typecheck`, `@starui/host-wrapper-react`
 and `@starui/openfin-platform` have all been seen failing that way and all pass

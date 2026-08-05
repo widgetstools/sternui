@@ -130,15 +130,28 @@ that looked like a 6x regression and was the metric.
    on identical code, exactly as `providerBookProbe` already was. A/B by
    alternating, never by batching.
 
-**Gates for every session:** `npx turbo typecheck build test --continue` (the
-documented baseline is `@starui/grid` failing test FILES with 0 failed tests,
-plus 2 `providerStaleState` cases in `@starui/widgets-react` — the grid figure
-has been seen as both **4 files / 807 passing** (sessions 1-2, and again in
-session 4) and 6 files / 765 passing (session 3); it is a collection error in an
-`ag-grid-enterprise` mock missing `ServerSideRowModelModule`, so the count moves
-with which files import it. Anything else is usually the turbo ordering race —
-re-run in isolation from the REPO ROOT before believing it), plus the probes
-named per session.
+**Gates for every session:** `npx turbo typecheck build test --continue`.
+
+**The `@starui/grid` baseline is GONE — it is 101 files / 855 tests / 0 failed.**
+It was carried for four sessions as "4 failed test FILES, 0 failed tests", and
+the zero was the tell: none of those files ran, so 42 assertions about the
+widget were reported as known-good while checking nothing. Three causes, all
+fixed: a per-file `ag-grid-enterprise` stub with 2 of the 21 names
+`modules.ts` imports (now a shared Proxy stub that cannot drift); the fact that
+the stub was never the real graph cut — the THROWN error was, and satisfying the
+names let the graph reach a wasm Vite denies (now aliased in
+`vitest.config.ts`); and mocks predating the MarketsGrid/MarketsGridHost split,
+where the host reads context by relative path and the barrel's passthrough never
+established it (now the real provider, real hooks and a real `GridPlatform`).
+
+**What remains: 2 `providerStaleState` cases in `@starui/widgets-react`**, and
+they are NOT a mock problem — `latestProvider.start` is a spy that is never
+called, so the container constructs a provider and does not start it. That may
+be a genuine regression in `MarketsGridContainer`'s provider lifecycle and
+deserves its own investigation rather than a fixture patch.
+
+Anything else is usually the turbo ordering race — re-run in isolation from the
+REPO ROOT before believing it. Plus the probes named per session.
 
 ---
 
