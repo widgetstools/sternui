@@ -18,6 +18,7 @@ import plusMinus from './plus-minus.md?raw';
 import shortcuts from './shortcuts.md?raw';
 import visualExcel from './visual-excel.md?raw';
 import stressTest from './stress-test.md?raw';
+import ssrmEngine from './ssrm-engine.md?raw';
 
 export const HELP = {
   overview,
@@ -39,4 +40,5 @@ export const HELP = {
   shortcuts,
   visualExcel,
   stressTest,
+  ssrmEngine,
 } as const;

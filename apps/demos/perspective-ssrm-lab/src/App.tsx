@@ -23,6 +23,7 @@ const ShortcutsTab = lazy(() => import('./tabs/ShortcutsTab').then((m) => ({ def
 const ProfilesTab = lazy(() => import('./tabs/ProfilesTab').then((m) => ({ default: m.ProfilesTab })));
 const VisualExcelTab = lazy(() => import('./tabs/VisualExcelTab').then((m) => ({ default: m.VisualExcelTab })));
 const StressTestTab = lazy(() => import('./tabs/StressTestTab').then((m) => ({ default: m.StressTestTab })));
+const SsrmEngineTab = lazy(() => import('./tabs/SsrmEngineTab').then((m) => ({ default: m.SsrmEngineTab })));
 
 interface TabEntry {
   id: string;
@@ -51,6 +52,7 @@ const TABS: TabEntry[] = [
   { id: 'shortcuts', label: 'Shortcuts', hint: 'Letter-key arithmetic', Component: ShortcutsTab },
   { id: 'profiles', label: 'Profiles', hint: 'Pre-baked configurations', Component: ProfilesTab },
   { id: 'stress', label: 'Stress Test', hint: '20k rows × 120 real cols', Component: StressTestTab },
+  { id: 'ssrm-engine', label: 'SSRM Engine', hint: 'Calculated columns, server-side', Component: SsrmEngineTab },
 ];
 
 // Sidebar items include Home (synthetic) plus every real tab.

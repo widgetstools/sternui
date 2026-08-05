@@ -1,35 +1,10 @@
 import { useCallback, useMemo } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { SsrmEngineClient } from '@starui/ssrm-engine/worker';
-import {
-  planSsrmCalcColumns,
-  ssrmEngineCalcColumnDefs,
-} from '@starui/grid/engine/ssrmCalcColumns';
-import { SsrmEngineGrid } from './SsrmEngineGrid';
+import { SsrmEngineGrid, type SsrmEngineGridHandle } from './SsrmEngineGrid';
 import { STRESS_KEY_FIELD, STRESS_ROW_COUNT } from '../data/stressColumns';
 import { STRESS_BOOK_ID } from '../data/stressBook';
-
-/**
- * Calculated columns for `?engine=ssrm&calc=1`, authored as STRINGS and parsed
- * by the real customizer planner.
- *
- * Authored strings rather than hand-built ASTs on purpose: the path being
- * exercised is the one a user takes — `tokenize` / `parse` in
- * `@starui/engine`, `planSsrmCalcColumns` in the customizer, and the AST across
- * the SharedWorker port — and a hand-built tree would skip the two stages most
- * likely to be wrong. The expressions are the lab's own curriculum shapes over
- * fields the stress book actually has.
- *
- * `calc_ratio` is the one to sort and filter on when measuring: it is null on
- * exactly the rows where the guard fails, so it exercises the absent-last rule
- * rather than only the arithmetic.
- */
-const CALC_EXPRESSIONS = [
-  { colId: 'calc_pnlPct', filter: 'agNumberColumnFilter', expression: 'IF([marketValue] > 0, ([dailyPnL] / [marketValue]) * 100, null)' },
-  { colId: 'calc_dollarDur', filter: 'agNumberColumnFilter', expression: '[marketValue] * [modifiedDuration] / 100' },
-  { colId: 'calc_band', filter: 'agTextColumnFilter', expression: 'IFS([midPrice] >= 105, "rich", [midPrice] >= 95, "fair", "cheap")' },
-  { colId: 'calc_notional', filter: 'agNumberColumnFilter', expression: '[quantityFace] * [midPrice] / 100' },
-];
+import { buildLabCalcColumnDefs, labCalcColumnDefs } from '../data/ssrmCalcColumns';
 
 /**
  * The GENERATED Stress book, in the app's own SharedWorker.
@@ -49,12 +24,22 @@ export interface SsrmEngineStressGridProps {
   rowHeight?: number;
   /** Live tick interval, applied in the worker. 0 disables ticking. */
   tickMs?: number;
+  /**
+   * Install the calculated columns. Omit to read `&calc=1` from the URL, which
+   * is what the Stress tab does and what every documented boundary figure was
+   * taken against — the SSRM Engine tab passes `true` explicitly instead.
+   */
+  calc?: boolean;
+  /** Handed the grid api and client once mounted, for a surface that drives them. */
+  onSurfaceReady?: (handle: SsrmEngineGridHandle) => void;
 }
 
 export function SsrmEngineStressGrid({
   columnDefs,
   rowHeight = 28,
   tickMs = 200,
+  calc: calcOverride,
+  onSurfaceReady,
 }: SsrmEngineStressGridProps) {
   /**
    * `new URL(..., import.meta.url)` is what makes Vite emit the worker as its
@@ -87,17 +72,18 @@ export function SsrmEngineStressGrid({
    * neither is worth silently replacing with the other.
    */
   const calc = useMemo(() => {
-    if (typeof window === 'undefined') return undefined;
-    if (new URLSearchParams(window.location.search).get('calc') !== '1') return undefined;
-    const plans = planSsrmCalcColumns(CALC_EXPRESSIONS, { backend: 'ssrm-engine' });
-    for (const plan of plans) {
-      if (plan.kind === 'unsupported') {
-        // eslint-disable-next-line no-console
-        console.warn(`[lab] ${plan.colId} did not parse: ${plan.reason}`);
-      }
+    const wanted =
+      calcOverride ??
+      (typeof window !== 'undefined' &&
+        new URLSearchParams(window.location.search).get('calc') === '1');
+    if (!wanted) return undefined;
+    const { defs, unsupported } = buildLabCalcColumnDefs();
+    for (const entry of unsupported) {
+      // eslint-disable-next-line no-console
+      console.warn(`[lab] ${entry.colId} did not parse: ${entry.reason}`);
     }
-    return ssrmEngineCalcColumnDefs(plans);
-  }, []);
+    return defs;
+  }, [calcOverride]);
 
   /**
    * The calculated columns' colDefs carry NO `valueGetter`: the engine stamps
@@ -110,34 +96,7 @@ export function SsrmEngineStressGrid({
     () =>
       calc === undefined
         ? columnDefs
-        : [
-            ...columnDefs,
-            ...calc.map((column) => ({
-              colId: column.colId,
-              field: column.colId,
-              headerName: column.colId,
-              sortable: true,
-              /**
-               * The filter TYPE, never a bare `filter: true`.
-               *
-               * Under AG 36 enterprise `filter: true` resolves to
-               * `agSetColumnFilter`, and a set filter under a SERVER row model
-               * has no values to offer — AG's own list is built from the rows
-               * the client model holds, and here it holds a hundred. Opening
-               * one threw `r.values is not iterable` out of AG's own filter
-               * validation and took the filter menu with it. `buildStressColumnDefs`
-               * already picks the filter per column type for the stored
-               * columns; these have to do the same. Wiring the engine's
-               * `distinctValues` into a set filter is session 6's job.
-               */
-              filter:
-                CALC_EXPRESSIONS.find((c) => c.colId === column.colId)?.filter ??
-                'agNumberColumnFilter',
-              enableRowGroup: true,
-              enableValue: true,
-              width: 130,
-            })),
-          ],
+        : [...columnDefs, ...labCalcColumnDefs(calc.map((c) => c.colId))],
     [columnDefs, calc],
   );
 
@@ -148,6 +107,7 @@ export function SsrmEngineStressGrid({
       keyField={STRESS_KEY_FIELD}
       openClient={openClient}
       calcColumns={calc}
+      onSurfaceReady={onSurfaceReady}
     />
   );
 }

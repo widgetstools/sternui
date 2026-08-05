@@ -322,6 +322,45 @@ export const FEATURE_GUIDES: Record<string, FeatureGuide> = {
     ],
   },
 
+  'ssrm-engine': {
+    id: 'ssrm-engine',
+    category: 'performance',
+    summary:
+      '`@starui/ssrm-engine` over a worker-held 20k × 120 book, with four CALCULATED columns that sort, filter, group, aggregate and tick like stored ones.',
+    whatWhy:
+      'The `calc_*` columns are **expressions, not fields** — authored as strings, parsed by `@starui/engine`, planned by the customizer\'s `planSsrmCalcColumns(..., { backend: "ssrm-engine" })`, and sent across the SharedWorker port as an **AST**. The AST is the only thing that crosses: a compiled closure is not structured-cloneable, and the value has to be produced where the book is.  **This tab exists because the capability is invisible both ways.** `sortIndex`, `compileFilter` and `aggregateMembers` each used to open by skipping a column the store did not have — and a calculated column is not a field — so sorting or filtering one was a **silent no-op**: no error, no effect, a grid that looked like it ignored the click. A demo that asks you to notice an absence is not a demo, so the toolbar buttons DO the thing and the strip above the grid reports what the engine says rather than what the screen suggests.  It mounts a plain `AgGridReact`, and that is scope rather than oversight: the MarketsGrid surface (set-filter values served from the engine, quick search bridged through `modelUpdated`, status-bar panels, cell-edit commit, export) is the next session\'s work and each piece was a separate bug on the Perspective path. The Stress tab is untouched and still defaults calc columns OFF, because every documented boundary figure (2.40 ms median per block) was taken that way.',
+    trySteps: [
+      {
+        text: 'Press "Sort by P&L %" — a calculated column — then scroll to the bottom.',
+        hint: 'Rows whose guard failed hold a calculated NULL and sort LAST IN BOTH DIRECTIONS. AG\'s own comparator puts nulls first ascending; this engine does not, because a NaN price above the best bid is worse.',
+      },
+      {
+        text: 'Press "Filter > 500" and watch "AG displays" drop while "Book" stays 20,000.',
+        hint: 'The expression is evaluated over the whole book in the worker, not over the block in view.',
+      },
+      {
+        text: 'Press "Group by band" — grouping by a calculated STRING, aggregating a calculated number.',
+        hint: '`calc_band` is an IFS over midPrice; `calc_notional` is summed per group. Neither is stored.',
+      },
+      {
+        text: 'Leave it running and watch which calculated cells move.',
+        hint: '`calc_notional` depends on midPrice so it ticks; `calc_dollarDur` does not and stays put. A tick re-stamps only the calculated cells whose inputs it names, because AG flashes a cell it is told changed.',
+      },
+      {
+        text: 'Open the filter menu on a calc_ column — it is a TYPED filter, never a bare `filter: true`.',
+        hint: 'A bare `true` resolves to AG\'s set filter, which under a server row model builds its list from the one block the client holds. Serving it from the engine\'s `distinctValues` is next session.',
+      },
+    ],
+    props: [
+      { name: 'book', type: '20,000 × 120', note: 'Held in a SharedWorker; this window has a port, a datasource and AG\'s block cache.' },
+      { name: 'calc columns', type: 'StarUI expression AST', note: 'Compiled once per expression to a closure over the columnar store, evaluated by row OFFSET.' },
+      { name: 'calc_pnlPct', type: 'number | null', note: 'IF([marketValue] > 0, ([dailyPnL] / [marketValue]) * 100, null) — the shape that yields a real calculated null.' },
+      { name: 'calc_band', type: 'string', note: 'IFS over midPrice. Group by this one.' },
+      { name: 'calc_notional', type: 'number', note: 'Depends on midPrice, so it moves on every price tick.' },
+      { name: 'tickMs', type: 'number', default: '200', note: 'Applied in the worker; the delta is pushed, not re-pulled.' },
+    ],
+  },
+
 };
 
 export function getFeatureGuide(id: string): FeatureGuide | undefined {

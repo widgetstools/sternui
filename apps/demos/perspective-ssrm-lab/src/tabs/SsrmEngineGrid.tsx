@@ -106,6 +106,31 @@ export interface SsrmEngineGridProps {
    * Must be stable across renders — it is an effect dependency.
    */
   calcColumns?: readonly { colId: string; ast: unknown }[];
+  /**
+   * Handed the same handle `__ssrmEngineGrid` carries, once the grid is ready.
+   *
+   * The global exists for PROBES, which run outside React and cannot be handed
+   * anything. A surface rendered inside the app should not have to read a
+   * global to drive its own grid, so it gets a callback — and both go through
+   * the same object, because two handles that drift is how a probe ends up
+   * measuring something the screen is not doing.
+   */
+  onSurfaceReady?: (handle: SsrmEngineGridHandle) => void;
+}
+
+/** What a surface (and every probe) can do with the mounted grid. */
+export interface SsrmEngineGridHandle {
+  api: GridApi;
+  client: SsrmEngineClient;
+  engine: { readonly size: number };
+  blocks: () => { ms: number[]; served: number; failed: number };
+  rpc: () => ReturnType<SsrmEngineClient['stats']>;
+  pump: () => ReturnType<SsrmRowPump['stats']> | null;
+  open: () => { ms: number; clientsAtOpen: number } | null;
+  viewportReporting: (on: boolean) => void;
+  introspect: () => ReturnType<SsrmEngineClient['introspect']>;
+  /** What the engine made of the installed expressions. Empty is the good case. */
+  calcDiagnostics: () => unknown[];
 }
 
 export function SsrmEngineGrid({
@@ -114,6 +139,7 @@ export function SsrmEngineGrid({
   keyField,
   openClient,
   calcColumns,
+  onSurfaceReady,
 }: SsrmEngineGridProps) {
   const apiRef = useRef<GridApi | null>(null);
   const blocksRef = useRef<{ ms: number[]; served: number; failed: number }>({
@@ -411,7 +437,23 @@ export function SsrmEngineGrid({
               },
               /** What the WORKER says it holds. The multi-window check. */
               introspect: () => client.introspect(),
+              /**
+               * What the engine made of the installed expressions.
+               *
+               * Read back rather than assumed: a REFUSED column is not
+               * installed at all, so it renders as a column of blanks, and
+               * `console.warn` inside a SharedWorker reaches no console
+               * anywhere. An empty array is the good case and a surface should
+               * be able to say so out loud.
+               */
+              calcDiagnostics: () =>
+                (globalThis as Record<string, unknown>).__ssrmCalcDiagnostics ?? [],
             };
+            // The same object the probes read — see `onSurfaceReady`.
+            onSurfaceReady?.(
+              (globalThis as Record<string, unknown>)
+                .__ssrmEngineGrid as SsrmEngineGridHandle,
+            );
           }}
         />
       )}
