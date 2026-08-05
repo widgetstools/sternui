@@ -25,12 +25,21 @@ rather than what the screen suggests.
 
 ## Try this
 
-- **Sort by P&L %** — a calculated column. Scroll to the bottom: the rows whose
-  guard failed (`marketValue > 0` false) hold a calculated **null**, and they
-  sort **last in both directions**. Click the header to flip it; they stay last.
-  That rule is not AG's — AG's own comparator puts nulls *first* ascending. This
-  engine puts null and NaN last both ways, because a NaN price sorting above the
-  best bid is worse than either.
+- **Sort by Carry** — `calc_richCarry`, a calculated column that is **null**
+  wherever its guard (`midPrice >= 105`) fails, which is thousands of rows.
+  Scroll to the bottom: the nulls are there. Click the header to flip the
+  direction; they are **still** at the bottom.
+
+  That rule is not AG's. AG's own `_defaultComparator` returns `-1` for a null
+  and the grid multiplies by the direction, so on the client-side row model
+  nulls sort **first** ascending. This engine puts null *and* NaN last in both
+  directions, because a NaN price sorting above the best bid is worse than
+  either — a defect this engine shipped once and had fixed twice, in the null
+  branch and then again in the NaN branch that shared its reasoning.
+
+  Note that `calc_pnlPct` guards on `marketValue > 0`, which is true for every
+  row of this generated book, so that column has no nulls to show. That is why
+  the button points at Carry.
 - **Filter > 500** — the engine evaluates the expression over the whole book,
   not over the block in view. Watch "AG displays" drop while "Book" stays
   20,000.

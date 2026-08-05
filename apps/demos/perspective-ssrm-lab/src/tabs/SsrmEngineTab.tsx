@@ -50,7 +50,16 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
   );
 }
 
-const SORTED = { colId: 'calc_pnlPct', sort: 'desc' as const };
+/**
+ * The sort demo points at the column that actually HAS nulls.
+ *
+ * `calc_pnlPct` guards on `marketValue > 0`, which is true for all 20,000 rows
+ * of the generated book — so sorting by it demonstrates ordering but not the
+ * rule worth showing, and the first version of this tab told the reader to
+ * scroll to the bottom for nulls that were not there. `calc_richCarry` is null
+ * wherever `midPrice >= 105` is false, which is thousands of rows.
+ */
+const SORTED = { colId: 'calc_richCarry', sort: 'desc' as const };
 const FILTER_THRESHOLD = 500;
 
 export function SsrmEngineTab() {
@@ -180,7 +189,7 @@ export function SsrmEngineTab() {
       actions={
         <div className="flex flex-wrap items-center gap-1.5">
           <Button size="sm" variant={active === 'sort' ? 'default' : 'outline'} onClick={doSort} disabled={!ready} data-testid="ssrm-demo-sort">
-            Sort by P&amp;L %
+            Sort by Carry
           </Button>
           <Button size="sm" variant={active === 'filter' ? 'default' : 'outline'} onClick={doFilter} disabled={!ready} data-testid="ssrm-demo-filter">
             Filter &gt; {FILTER_THRESHOLD}

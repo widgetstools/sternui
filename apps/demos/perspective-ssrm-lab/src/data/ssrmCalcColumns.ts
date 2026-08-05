@@ -67,6 +67,30 @@ export const LAB_SSRM_CALC_COLUMNS: LabCalcColumn[] = [
     filter: 'agNumberColumnFilter',
     note: 'Depends on midPrice, so it moves on every price tick.',
   },
+  /**
+   * A guard that ACTUALLY FAILS on this book, which is the whole reason it is
+   * here.
+   *
+   * `calc_pnlPct` above guards on `marketValue > 0` — realistic, and on the
+   * generated stress book it is true for all 20,000 rows, so that column never
+   * produces a calculated null. The first version of the SSRM Engine tab told
+   * the reader to sort by it and "scroll to the bottom to see the nulls last".
+   * There were none: the bottom rows read 0.002, 0.009, 0.016. Documentation
+   * promising a behaviour the running demo cannot show is worse than not
+   * mentioning it.
+   *
+   * `midPrice >= 105` is false for the ~15% of rows the price bands call
+   * "cheap" and "fair", so this column is genuinely null on thousands of rows —
+   * without poisoning the book, which is shared with the Stress tab and with
+   * every documented measurement taken on it.
+   */
+  {
+    colId: 'calc_richCarry',
+    headerName: 'Carry (rich only)',
+    expression: 'IF([midPrice] >= 105, [yieldToMaturity] / [modifiedDuration], null)',
+    filter: 'agNumberColumnFilter',
+    note: 'NULL wherever the guard fails — sort by this one to see nulls last in both directions.',
+  },
 ];
 
 /**
