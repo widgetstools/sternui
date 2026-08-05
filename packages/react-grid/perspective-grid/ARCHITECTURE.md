@@ -209,6 +209,51 @@ here. `bootWorkerEntry` now installs `unhandledrejection` / `error` listeners so
 the failure is at least attributable. Recovering from it needs the engine: the
 next lever is the 5.0.0 line (published 2026-07-28, unprobed).
 
+## Blank rows on a blotter — the stub is now a skeleton, and the real lever is latency
+
+Reported by a trading desk: blank cells make traders nervous. They are right to
+be, and the reason is sharper than "it looks unfinished" — **an empty cell is
+exactly how this grid renders a genuine null**, so a stub is indistinguishable
+from "this position has no bid". The stub was made blank deliberately (over AG's
+flickering "Loading..."), on the reasoning that "this window does not hold the
+book, so blank is the only honest stub". That reasoning was wrong: blank is not
+honest, it is ambiguous.
+
+MEASURED with `scripts/stubVisibilityProbe.mjs` on the 20k x 120 book, real
+wheel events at three speeds, live feed running. A row is counted when
+`node.data` is undefined — which is exactly what paints as a stub:
+
+| pass | samples with a dataless row | worst | longest unbroken |
+|---|---|---|---|
+| slow read | 1-3% | 26% of the viewport | 66-313 ms |
+| normal scroll | 17-40% | **100%** | **1.6-3.7 s** |
+| fast fling | 37-45% | **100%** | **4.3-6.6 s** |
+
+An entirely dataless blotter for seconds at a time.
+
+**What it is not.** `blockLoadDebounceMillis` was 100 ms, justified by "do not
+fetch what the user is scrolling PAST — the stub cells are blank, so the gap
+costs nothing visible". Both halves are false: a block read is 8 ms with the feed
+paused, and the gap is the most visible thing here. But changing it does not fix
+the blanks either. Over four runs at three settings — 0 ms, 40 ms and 100 ms,
+with concurrency at 2 and 6 — run-to-run variance on an IDENTICAL build (17% of
+samples against 34%) was as large as the difference between settings. It is left
+at 40 ms for the one effect that is measurable: a fling issues 92 block requests
+instead of 176, with no observed cost.
+
+**What it is.** The same read is **8 ms with the feed paused and a 119-145 ms
+median while it ticks**. `table.update()` blocks reads while it applies, and
+every request crosses one serialized ProxySession, so during a live feed a
+viewport's worth of blocks queues behind the write path. 176 requests settled at
+a 145 ms median in one pass; none leaked. That is a worker-side problem — batch
+or yield the write path, or give reads priority — and it cannot be fixed from the
+surface.
+
+**What shipped.** `SkeletonLoadingCellRenderer` paints a muted bar (from
+`currentColor` at 15% opacity, so it themes in both schemes) instead of nothing.
+Nothing in the book renders as a grey rectangle, so it can only mean "not here
+yet" — the ambiguity with a real null is gone even while the latency is not.
+
 ## The stub cell, and the option that makes it reachable
 
 AG's server row model paints a **full-width loading row** — a spinner and the

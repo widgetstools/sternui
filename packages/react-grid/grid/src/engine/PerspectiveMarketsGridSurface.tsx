@@ -98,17 +98,27 @@ function tableField(column: Column): string {
 }
 
 /**
- * Blank stub cells instead of AG's "Loading...".
+ * A stub cell is a SKELETON, not a blank — and not the word "Loading...".
  *
- * Under the server row model AG paints a stub for every row it has asked for
- * and not yet received, and the default renderer writes "Loading..." into it.
- * On a book this window scrolls through continuously that is a word flickering
- * down the leftmost column on every drag — noise, not information, and the
- * grid already signals loading through the status bar.
+ * Under the server row model AG commits a scroll immediately and paints a stub
+ * for every row whose block has not arrived. What that stub looks like is a
+ * correctness question on a blotter, not a cosmetic one, and this renderer has
+ * now been wrong in both directions:
  *
- * `CustomSSRMGrid` answers this differently, painting the real value from its
- * main-thread row mirror. There is no mirror here on purpose: this window does
- * not hold the book, so blank is the only honest stub.
+ *   - AG's default writes **"Loading..."** into the cell. On a book scrolled
+ *     continuously that is a word flickering down the leftmost column on every
+ *     drag — noise, and it only appears in one column.
+ *   - So it was made **blank**, on the reasoning that "this window does not hold
+ *     the book, so blank is the only honest stub". That reasoning is wrong. An
+ *     empty cell is exactly how this grid renders a genuine null, so a stub is
+ *     indistinguishable from "this position has no bid". A trader reading a
+ *     blank price cell on a live blotter has no way to tell "not fetched yet"
+ *     from "the value is gone", and the second one is alarming.
+ *
+ * A muted bar is unambiguous: nothing in the book renders as a grey rectangle,
+ * so it can only mean "not here yet". It is drawn from `currentColor` at low
+ * opacity rather than any palette value, so it themes with the cell in both
+ * light and dark without reaching for a token the grid package does not own.
  *
  * Imperative rather than a function component: AG frequently creates the stub
  * before `rowIndex` is assigned, and a functional cell that returns once would
@@ -119,15 +129,19 @@ function tableField(column: Column): string {
  * spinner and the word "Loading..." spanning the whole row — and reaches for
  * the colDef `loadingCellRenderer` ONLY when
  * `suppressServerSideFullWidthLoadingRow` is set. Setting the renderer without
- * that flag changes nothing visible, which is exactly what happened: the word
- * kept flickering down the grid on every drag. The flag is set where the other
- * server-row-model options are, on the grid element below.
+ * that flag changes nothing visible, which is exactly what happened. The flag is
+ * set where the other server-row-model options are, on the grid element below.
  */
-class BlankLoadingCellRenderer {
+class SkeletonLoadingCellRenderer {
   private readonly eGui: HTMLElement;
 
   constructor() {
     this.eGui = document.createElement('span');
+    this.eGui.className = 'starui-loading-cell';
+    this.eGui.setAttribute('aria-label', 'loading');
+    this.eGui.style.cssText =
+      'display:inline-block;width:62%;height:0.7em;border-radius:2px;' +
+      'background:currentColor;opacity:0.15;vertical-align:middle';
   }
 
   init(): void {}
@@ -774,7 +788,7 @@ export const PerspectiveMarketsGridSurface = forwardRef<
     // Merged rather than assigned: a host's defaultColDef must survive, and a
     // host that sets its own `loadingCellRenderer` still wins.
     out.defaultColDef = {
-      loadingCellRenderer: BlankLoadingCellRenderer,
+      loadingCellRenderer: SkeletonLoadingCellRenderer,
       ...((props.defaultColDef as Record<string, unknown>) ?? {}),
     };
     if (grandTotalRow !== undefined) out.grandTotalRow = grandTotalRow;
@@ -857,17 +871,39 @@ export const PerspectiveMarketsGridSurface = forwardRef<
          */
         maxBlocksInCache={100}
         /**
-         * Do not fetch what the user is scrolling PAST. AG issues a block
-         * request per viewport change; debouncing collapses a fast drag across
-         * a dozen blocks into a request for the one it lands on. The stub cells
-         * are blank (see `BlankLoadingCellRenderer`), so the gap costs nothing
-         * visible.
+         * Coalesce block requests during a drag — modestly, and this number is
+         * the honest end of an investigation rather than a tuned optimum.
+         *
+         * It was 100 ms, justified by "do not fetch what the user is scrolling
+         * PAST … the stub cells are blank, so the gap costs nothing visible".
+         * Both halves were measured false: a 120-column block read is 8 ms with
+         * the feed paused, and the gap is the most visible thing on the surface.
+         * MEASURED with `stubVisibilityProbe.mjs` on the 20k x 120 book, real
+         * wheel events, live feed: a NORMAL scroll leaves the WHOLE viewport
+         * dataless for seconds at a time.
+         *
+         * What the same probe then established, over four runs at three
+         * settings, is that this knob is NOT the lever. Going to 0 issued 176
+         * block requests where 40 ms issues 92, and the blank exposure did not
+         *improve — run-to-run variance on an identical build (17% of samples
+         * against 34%) is as large as the difference between settings.
+         *
+         * The lever is read latency under a live feed: the SAME read is **8 ms
+         * paused and a 119-145 ms median while the feed ticks**, because a
+         * `table.update()` blocks reads while it applies and everything crosses
+         * one serialized ProxySession. That is a worker-side problem and it is
+         * not fixable from here.
+         *
+         * So this stays at a small value for the one thing that IS measured —
+         * halving the requests a fling issues, with no observed cost — and the
+         * user-facing half of the problem is answered by the stub renderer
+         * above, which no longer lets "not loaded" look like "null".
          */
-        blockLoadDebounceMillis={100}
+        blockLoadDebounceMillis={40}
         // Without this the blank stub renderer below is never reached: AG's
         // server row model paints a FULL-WIDTH loading row by default and only
         // consults the colDef `loadingCellRenderer` when this is on. See the
-        // note on `BlankLoadingCellRenderer`.
+        // note on `SkeletonLoadingCellRenderer`.
         suppressServerSideFullWidthLoadingRow
         statusBar={statusBar as never}
         components={components as Record<string, unknown>}

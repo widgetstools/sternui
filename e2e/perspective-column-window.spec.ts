@@ -14,8 +14,8 @@ import { test, expect, type Page } from '@playwright/test';
  * rest of `perspective-*.spec.ts` uses: the window only means anything over a
  * wide book, and the lab's Stress tab is the only wide one that needs no broker.
  *
- * That tab is now a SINGLE surface — 50,000 rows x 120 columns, every one of
- * them bound to a real Table field (VERIFIED by `columnPayloadProbe.mjs`: 123
+ * That tab is now a SINGLE surface — 20,000 rows x 120 columns, every one of
+ * them bound to a real Table field (VERIFIED by `columnPayloadProbe.mjs`: 124
  * columns in a returned row, 0 computed in the window). The column window ships
  * off, so the spec enables it with `?columnWindow=1`, which is a run-time flag
  * on the same test rather than a second variant that could drift from it.
@@ -42,7 +42,7 @@ const FAR_RIGHT_COLUMN = 'distanceToDefault';
  * up from `.ag-root-wrapper`, installed once per page as `window.__labApi()`.
  *
  * Not a shortcut around the UI — it is how a test drives grouping and column
- * scrolling deterministically on a 400-column grid, where the equivalent user
+ * scrolling deterministically on a 120-column grid, where the equivalent user
  * gestures are a drag into the row-group panel and an unbounded number of wheel
  * notches. Everything ASSERTED below is read from the painted DOM.
  */
@@ -74,8 +74,8 @@ async function openWindowVariant(page: Page): Promise<void> {
   await installApiBridge(page);
   await page.goto(LAB_URL, { waitUntil: 'domcontentloaded' });
   await page.click('[data-testid="lab-tab-stress"]');
-  // The 50,000-row book is generated in the worker; first rows take ~12-15 s on
-  // a cold profile.
+  // The book is generated in the worker; first rows take ~12-15 s on a cold
+  // profile.
   await page.waitForSelector('.ag-row', { timeout: 180_000 });
 
   /**
@@ -126,8 +126,12 @@ test.describe('Perspective column window', () => {
   test('columns scrolled out of the band and back still carry values', async ({ page }) => {
     await openWindowVariant(page);
 
-    const before = await page.locator('.ag-cell[col-id="cusip"]').first().textContent();
-    expect((before ?? '').trim()).not.toBe('');
+    // Retrying, not a one-shot read. Under a live feed a row can drop back to
+    // a stub at any moment — a refresh invalidates loaded blocks — so reading
+    // `textContent()` once races the very thing this surface does continuously.
+    await expect(page.locator('.ag-cell[col-id="cusip"]').first()).not.toHaveText('', {
+      timeout: 60_000,
+    });
 
     // Far right — well past a 25-column pad, so the band is replaced and the
     // leading columns are no longer fetched.

@@ -50,7 +50,7 @@ const TABS: TabEntry[] = [
   { id: 'plus-minus', label: 'Plus / Minus', hint: 'Keyboard nudge rules', Component: PlusMinusTab },
   { id: 'shortcuts', label: 'Shortcuts', hint: 'Letter-key arithmetic', Component: ShortcutsTab },
   { id: 'profiles', label: 'Profiles', hint: 'Pre-baked configurations', Component: ProfilesTab },
-  { id: 'stress', label: 'Stress Test', hint: '50k rows × 120 real cols', Component: StressTestTab },
+  { id: 'stress', label: 'Stress Test', hint: '20k rows × 120 real cols', Component: StressTestTab },
 ];
 
 // Sidebar items include Home (synthetic) plus every real tab.
