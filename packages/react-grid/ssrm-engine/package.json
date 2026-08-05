@@ -1,0 +1,22 @@
+{
+  "name": "@starui/ssrm-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Columnar TypeScript row engine built to AG Grid's server-side row model contract (StarUI framework)",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "echo '@starui/ssrm-engine: consumed as source (no emit)'"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.4"
+  }
+}
