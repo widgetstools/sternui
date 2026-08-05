@@ -15,14 +15,34 @@ import type { SsrmSortModelItem } from './types.js';
  */
 
 /**
- * Compare two NON-NULL cells. Nulls are handled by the caller, and that split
- * is the whole point.
+ * A cell with no position on the number line: null, or NaN.
  *
- * A null verdict must NOT be multiplied by the sort direction — doing so put
- * nulls first on a descending sort, which on a price column means "no quote"
- * sorts above the best bid. Caught by the test asserting nulls last in BOTH
- * directions; the direction multiplier now only ever touches a comparison
+ * Both are handled by the CALLER, above the direction multiplier, and that
+ * split is the whole point — see `compareValues`. NaN is not null (the store
+ * keeps it as a value, `blank` does not match it and an aggregate skips it),
+ * but it cannot be ordered against a number, so for sorting it is absent.
+ */
+function isAbsent(store: ColumnStore, field: string, offset: number, isString: boolean): boolean {
+  if (store.isNull(field, offset)) return true;
+  return !isString && Number.isNaN(store.rawAt(field, offset));
+}
+
+/**
+ * Compare two cells that are both present. Absent cells are handled by the
+ * caller, and that split is the whole point.
+ *
+ * An "absent" verdict must NOT be multiplied by the sort direction — doing so
+ * put nulls first on a descending sort, which on a price column means "no
+ * quote" sorts above the best bid. Caught by the test asserting nulls last in
+ * BOTH directions; the direction multiplier now only ever touches a comparison
  * between two real values.
+ *
+ * **The same bug survived in the NaN branch for a release**, because that
+ * branch lived HERE and returned an ordinary comparison result: `cmp * dir`
+ * inverted it and a NaN price sorted first on a descending sort. The
+ * differential fuzz caught it on frame 6 once NaN was added to the tick
+ * generator. The branch below is now a backstop for a caller that forgot the
+ * guard, not the place the rule is enforced.
  */
 function compareValues(
   store: ColumnStore,
@@ -43,9 +63,6 @@ function compareValues(
   const x = store.rawAt(field, a);
   const y = store.rawAt(field, b);
   if (x === y) return 0;
-  // NaN is a value a feed can send. Order it with the nulls rather than letting
-  // it poison the comparator, which would make the sort non-transitive and, in
-  // V8, silently produce a garbled order rather than throwing.
   if (Number.isNaN(x)) return Number.isNaN(y) ? 0 : 1;
   if (Number.isNaN(y)) return -1;
   return x < y ? -1 : 1;
@@ -79,10 +96,10 @@ export function sortIndex(
   const scratch = Array.from(index);
   scratch.sort((a, b) => {
     for (const spec of specs) {
-      const aNull = store.isNull(spec.field, a);
-      const bNull = store.isNull(spec.field, b);
+      const aNull = isAbsent(store, spec.field, a, spec.isString);
+      const bNull = isAbsent(store, spec.field, b, spec.isString);
       if (aNull || bNull) {
-        // Both null: this column cannot separate them, so fall through to the
+        // Both absent: this column cannot separate them, so fall through to the
         // next sort column rather than declaring a tie.
         if (aNull && bNull) continue;
         // Direction-independent, deliberately. See `compareValues`.
@@ -122,12 +139,12 @@ export function lowerBound(
 
   const before = (candidate: number): boolean => {
     for (const spec of specs) {
-      const aNull = store.isNull(spec.field, candidate);
-      const bNull = store.isNull(spec.field, offset);
+      const aNull = isAbsent(store, spec.field, candidate, spec.isString);
+      const bNull = isAbsent(store, spec.field, offset, spec.isString);
       if (aNull || bNull) {
         if (aNull && bNull) continue;
-        // Nulls sort last whatever the direction, so a null candidate is never
-        // before a non-null one.
+        // Absent sorts last whatever the direction, so an absent candidate is
+        // never before a present one.
         return !aNull;
       }
       const cmp = compareValues(store, spec.field, candidate, offset, spec.isString);

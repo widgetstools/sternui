@@ -268,6 +268,184 @@ describe('the SSRM book feed', () => {
   });
 });
 
+/**
+ * The emit sequence as a SEQUENCE, not as a handful of examples.
+ *
+ * The cases above are the ones somebody thought of, and rule 8 of the worklog
+ * exists because the one nobody thought of shipped: the snapshot-vs-update
+ * decision was being made inside queued work rather than synchronously in
+ * `emit`, so every chunk of a snapshot was enqueued before the first one ran,
+ * all of them believed they were the first, and the book ended up holding only
+ * the LAST chunk. Nothing on screen would have shown it.
+ *
+ * The oracle is deliberately not a model of the feed. It is one rule:
+ *
+ *   **a `replace` clears the book, and every batch after it upserts.**
+ *
+ * That is what "the last complete snapshot plus the deltas after it" means, and
+ * it is independent of how the feed decides which call to make. Rows carry
+ * every field, so `applySnapshot` replacing a row and `applyUpdate` merging one
+ * are indistinguishable — otherwise the oracle would have to know which of the
+ * two the feed chose, which is the thing under test.
+ */
+function rng(seed: number): () => number {
+  let state = (seed * 2654435761) >>> 0;
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 0x1_0000_0000;
+  };
+}
+
+describe('the SSRM book feed — emit sequence fuzz', () => {
+  /** Full rows, from a small pool of keys so batches overlap and re-write. */
+  function chunk(random: () => number): Array<Record<string, unknown>> {
+    const rows: Array<Record<string, unknown>> = [];
+    const count = 1 + Math.floor(random() * 3);
+    for (let i = 0; i < count; i++) {
+      rows.push({
+        id: `K${Math.floor(random() * 6)}`,
+        price: Math.round(random() * 1000) / 10,
+        size: Math.floor(random() * 100),
+      });
+    }
+    return rows;
+  }
+
+  it('holds the last replace plus the batches after it, over 200 random sequences', async () => {
+    for (let seed = 1; seed <= 200; seed++) {
+      const random = rng(seed);
+      const s = sink();
+      const diagnostics: unknown[] = [];
+      const feed = createSsrmBookFeed({
+        keyColumn: 'id',
+        createBook: async () => s.book,
+        declaredSchema: DECLARED,
+        onDiagnostic: (d) => diagnostics.push(d),
+      });
+      const emit = feed.tap(() => {});
+
+      const expected = new Map<string, Record<string, unknown>>();
+      const script: string[] = [];
+      const check = async (where: string) => {
+        await feed.drain();
+        expect(
+          [...s.rows.entries()]
+            .map(([id, row]) => [String(id), row] as const)
+            .sort((a, b) => (a[0] < b[0] ? -1 : 1)),
+          `seed ${seed} at ${where} after [${script.join(', ')}]`,
+        ).toEqual([...expected.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)));
+      };
+
+      const steps = 6 + Math.floor(random() * 12);
+      for (let i = 0; i < steps; i++) {
+        const roll = random();
+        if (roll < 0.16) {
+          // The empty clear that opens a snapshot — and, when nothing follows
+          // it, the ONLY signal that the new book is empty.
+          emit({ rows: [], replace: true });
+          expected.clear();
+          script.push('clear');
+        } else if (roll < 0.44) {
+          // The flagged first chunk. A restart landing here is a restart
+          // landing mid-snapshot, which is the case that must not merge the
+          // abandoned rows into the new book.
+          const rows = chunk(random);
+          emit({ rows, replace: true });
+          expected.clear();
+          for (const row of rows) expected.set(String(row.id), { ...row });
+          script.push('flagged');
+        } else if (roll < 0.78) {
+          // Unflagged: a later snapshot chunk and a live delta are the same
+          // event on the wire, and the feed cannot tell them apart.
+          const rows = chunk(random);
+          emit({ rows });
+          for (const row of rows) expected.set(String(row.id), { ...expected.get(String(row.id)), ...row });
+          script.push('chunk');
+        } else if (roll < 0.88) {
+          emit({ status: 'ready' } as ProviderEmitEvent);
+          script.push('ready');
+        } else {
+          // A drain mid-sequence changes everything: it decides whether the
+          // next event meets a book that exists or one still being built, and
+          // those are different paths through `ingest`.
+          await check(`step ${i}`);
+          script.push('drain');
+        }
+      }
+
+      await check('the end');
+      // A swallowed failure would leave a book that looks merely stale.
+      expect(diagnostics.filter((d) => (d as { kind: string }).kind === 'error')).toEqual([]);
+    }
+  }, 30_000);
+
+  /**
+   * The same sequences without a declared schema — the path that BUFFERS.
+   *
+   * A restart here lands while rows are staged and no book exists to check
+   * against, and the book is discarded and rebuilt rather than replaced in
+   * place. `createBook` hands back a fresh sink each time so an orphaned book
+   * cannot be mistaken for the live one.
+   */
+  it('rebuilds from the last replace when the schema is inferred', async () => {
+    for (let seed = 1; seed <= 60; seed++) {
+      const random = rng(seed * 7);
+      const books: ReturnType<typeof sink>[] = [];
+      const feed = createSsrmBookFeed({
+        keyColumn: 'id',
+        createBook: async () => {
+          const next = sink();
+          books.push(next);
+          return next.book;
+        },
+        // High enough that only `ready` builds: the threshold is for providers
+        // with no snapshot phase, and these have one.
+        buildAfterRows: 10_000,
+      });
+      const emit = feed.tap(() => {});
+
+      const expected = new Map<string, Record<string, unknown>>();
+      const script: string[] = [];
+
+      const steps = 6 + Math.floor(random() * 10);
+      for (let i = 0; i < steps; i++) {
+        const roll = random();
+        if (roll < 0.2) {
+          emit({ rows: [], replace: true });
+          expected.clear();
+          script.push('clear');
+        } else if (roll < 0.5) {
+          const rows = chunk(random);
+          emit({ rows, replace: true });
+          expected.clear();
+          for (const row of rows) expected.set(String(row.id), { ...row });
+          script.push('flagged');
+        } else if (roll < 0.85) {
+          const rows = chunk(random);
+          emit({ rows });
+          for (const row of rows) expected.set(String(row.id), { ...expected.get(String(row.id)), ...row });
+          script.push('chunk');
+        } else {
+          emit({ status: 'ready' } as ProviderEmitEvent);
+          script.push('ready');
+          await feed.drain();
+        }
+      }
+
+      emit({ status: 'ready' } as ProviderEmitEvent);
+      await feed.drain();
+      script.push('ready');
+
+      const live = books.at(-1);
+      const held = feed.book === null ? new Map() : live!.rows;
+      expect(
+        [...held.entries()].map(([id, row]) => [String(id), row] as const).sort((a, b) => (a[0] < b[0] ? -1 : 1)),
+        `seed ${seed} after [${script.join(', ')}]`,
+      ).toEqual([...expected.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)));
+    }
+  }, 30_000);
+});
+
 describe('inferSsrmSchema', () => {
   /**
    * Every value, not a sample. Sampling row types on the Perspective path

@@ -164,8 +164,9 @@ window is **~30x faster** because the first one built it. The engine builds
 sharing to remove. Perspective's equivalent is an 18.4 s snapshot, which is why
 the same property is worth so much more there — and on the PROVIDER-fed book,
 where window 1 waits for a real snapshot, the effect shows up end to end:
-**2,894 ms to first row for window 1 against 1,632 ms for window 2**, with the
-attach itself going 1,386 ms -> 3 ms.
+the attach itself going 1,386 ms -> 3 ms. (Session 2 also quoted 2,894 ms to
+first row for window 1 against 1,632 ms for window 2. That one is **withdrawn**
+— the measurement is bimodal on identical code; see the provider section below.)
 
 **One trap caught by the probe rather than by review.** Playwright's
 `browser.newPage()` opens each page in a NEW BrowserContext — a separate storage
@@ -208,6 +209,21 @@ arriving:
 | rows pushed in 6 s (viewport narrowed) | 56, all applied, 0 dropped |
 | two windows / books the worker holds | **2 clients / 1 book** |
 
+**The "time to first row" on this probe is BIMODAL, and the 2,894 ms recorded in
+session 2 is one of its two modes.** Eight runs across two builds — five with
+session 3's changes, three with them reverted and rebuilt as a control — land at
+either ~3.0 s or ~13.6 s with nothing in between, on identical code:
+
+| | samples |
+|---|---|
+| with session 3's fixes | 13,471 · 13,453 · 13,925 · 3,164 · 3,045 ms |
+| the same build with them reverted | 13,718 · 2,972 · 13,637 ms |
+
+So a single run of it says nothing, and the A/B that looked like a 4x regression
+was the metric. What is stable across all eight is the number the sharing claim
+actually rests on — **attach: 1,408-1,485 ms for window 1 against 2-12 ms for
+window 2** — and that is what to quote.
+
 ### The emit sequence bites here too
 
 `stomp.ts` emits `{ rows: chunk, replace: offset === 0 }`, so a snapshot is an
@@ -241,7 +257,32 @@ is not an improvement and is not meant to read as one; it is the same number,
 which is the thing being checked. A viewport push that cost the read path would
 be a bad trade.
 
-Two rules the narrowing does not break. A GROUPED request is answered `null` and
+### It has to be narrowed on BOTH sides of the write
+
+The host narrows by the union of what the window could see BEFORE the write and
+what it can see after it, and the second half was missing until the delta-path
+fuzz found it.
+
+A tick that changes a SORT KEY moves the row across the viewport boundary, so
+the visible set after a write is not the set before it — and AG does not
+re-order on a transaction, so a row that has just left the range is still the
+row the user is looking at, at the position it was already painted. Narrowing by
+the post-write set alone dropped exactly that update: on a descending price
+sort, a price that falls hard is the tick that goes missing, and the stale value
+sits there until the block is re-read. `frame 26 sorted: r291.px is 108.18, book
+says 159.15 (in view before the write: true, after: false)`.
+
+It costs no extra compute. The pre-write set is not recomputed — a write clears
+the engine's index cache, so it could not be — it is the set the PREVIOUS
+publish already computed and kept, and nothing but a write moves a row's
+position. `setViewport` seeds it so the first tick after a scroll has one too.
+
+It does put a few more rows on the wire, and the **0.8 rows per tick above was
+measured before this landed**. The union can only add rows that were on screen
+and left, so the ceiling is one viewport, but that figure has not been taken
+again — do not quote it as if it had.
+
+Two more rules the narrowing does not break. A GROUPED request is answered `null` and
 the whole patch is sent: under grouping a position in one level's index is not a
 displayed row index, so narrowing by it would push updates at the wrong rows —
 the same constraint the Perspective tick path is bound by. And **removals are
@@ -263,6 +304,13 @@ and nobody built:
 - **a `sliceBudgetMs` time slice** (4 ms) — a burst degrades into latency instead
   of a dropped frame, and the remainder is re-scheduled by the flush itself, so
   a feed that goes quiet does not leave the grid permanently behind.
+
+A removal is sent as ROW DATA, not as a key. AG 36 maps every entry of a
+transaction's `remove` through the grid's own `getRowId`
+(`transaction.remove.map((data) => idFunc({ data }))`), so a bare key resolved to
+`"undefined"`, matched no node, and **removed nothing** — a deleted row left on
+screen until its block was re-read, which is the ghost row this path exists to
+prevent. The unit test asserting the old spelling passed the whole time.
 
 A patch for a row the grid does not hold is DROPPED and counted, never turned
 into a fetch: AG ignores a transaction for a row outside its block cache, and
@@ -357,10 +405,11 @@ the same shape as the lab's Stress tab:
 
 ## Correctness
 
-99 tests, of which the important ones are the **differential fuzz** in
-`engine.fuzz.test.ts`: 250 mutation frames and a churn run, comparing every
+102 tests, of which the important ones are the two **differential fuzzes**:
+`engine.fuzz.test.ts` (250 mutation frames plus a churn run, comparing every
 query shape against a deliberately stupid brute-force oracle built from plain
-objects.
+objects) and `worker/deltaPath.fuzz.test.ts` (260 frames through the whole push
+path — see below).
 
 That harness exists because of a documented failure on this project. A
 hand-rolled columnar SSRM engine was evaluated here and had three critical
@@ -370,14 +419,71 @@ path missing its membership guard let a filtered-out row corrupt a group's sum;
 an anti-drift recompute that ignored pending work was off by 1.65M by frame 436.
 Its own smoke test printed identical ticks with those defects present and fixed.
 
-The fuzz has already earned its place twice in this engine:
+### What the fuzz has caught, in order
 
-- it caught a **descending sort putting nulls first**, because the direction
-  multiplier was being applied to the null verdict. On a price column that puts
-  "no quote" above the best bid;
-- it caught a **tie-break disagreement** on frame 1, which turned out to be the
-  oracle's fault rather than the engine's — the engine ties on original row
-  order, which is what AG's client-side model does.
+- a **descending sort putting nulls first**, because the direction multiplier
+  was being applied to the null verdict. On a price column that puts "no quote"
+  above the best bid;
+- a **tie-break disagreement** on frame 1, which turned out to be the oracle's
+  fault rather than the engine's — the engine ties on original row order, which
+  is what AG's client-side model does;
+- **the same bug again, in the NaN branch** — found the frame after NaN was
+  added to the tick generator. The fix above moved the NULL verdict above the
+  direction multiplier and left the NaN verdict inside `compareValues`, where
+  `cmp * dir` still inverted it, so a NaN price sorted FIRST on a descending
+  sort. NaN is not null (the store keeps it, `blank` does not match it, an
+  aggregate skips it) but it has no position on the number line, so it belongs
+  with the nulls: last in both directions. A fix that does not generalise is a
+  bug that comes back in the branch nobody re-read;
+- **removals that removed nothing.** The pump sent a transaction's `remove` as
+  bare keys. AG 36 resolves them with
+  `transaction.remove.map((data) => idFunc({ data }))` — every entry is ROW
+  DATA — so `makeSsrmGetRowId` read `data[keyField]` off a string, produced
+  `"undefined"`, matched no node, and left every deleted row on screen until its
+  block was re-read. `rowPump.test.ts` asserted `['X', 'Y']` and passed
+  throughout: a green unit test pinning a spelling the grid does not have, which
+  is a trap the parity worklog records twice;
+- **a viewport narrowed on one side of the write.** See below. Both of the last
+  two were found by the delta-path fuzz within a minute of it first running, and
+  neither would have shown on screen as anything but a stale-looking blotter.
+
+### The delta path is fuzzed as a path, not as an engine
+
+Sessions 1 and 2 put three lossy stages between a write and the screen — the
+port, the viewport narrowing, the pump — and the engine fuzz watches none of
+them. `worker/deltaPath.fuzz.test.ts` runs 260 frames through all of it: a real
+`MessageChannel` (which is what a SharedWorker port is), the real host, the real
+client, the real pump, into a grid model built from **AG 36's own transaction
+code** rather than from what the pump happened to emit. One window writes,
+another is the grid, and the frames are adversarial on purpose — removal-only
+frames, keys re-added from a graveyard, ticks landing on filtered-out rows, NaN,
+sort keys changing under an active sort, and bursts of two or three writes
+between flushes.
+
+One run: 3,197 patch rows received, 1,130 applied, 1,828 dropped, 101 removed,
+892 flushes of which **758 stopped on the slice budget**, and 17,166 row-vs-book
+comparisons.
+
+**What it may assert is the interesting part.** The pump DROPS a patch for a row
+AG does not hold, deliberately, so the comparison is over the rows the grid
+HOLDS and never over the book — getting that wrong makes a correct engine look
+broken. The viewport is the second honest loss: a row in AG's block cache but
+outside the declared range is not sent, by design, so those are tracked and
+excluded — from the ENGINE's own `visibleKeys`, never from what the host chose
+to send, or the oracle could not catch the host sending too little. A counter
+asserts that 2,000+ comparisons actually happened, because a run in which every
+held row was excused would pass everything above and check nothing.
+
+Reverting either fix it found turns it red at a named frame with the row, the
+field, both values and whether the row was in view before and after the write:
+the removal payload at `frame 7 flat: ghost row r31`, the narrowing at
+`frame 26 sorted: r291.px is 108.18, book says 159.15 (in view before the write:
+true, after: false)`.
+
+**And it found nothing wrong with the engine's own incremental path.** That was
+the expected result — aggregation is a full pass and the index cache is cleared
+wholesale, so there is no state to get out of step — but it is worth saying
+plainly rather than letting a green run imply more than it proved.
 
 The worker path is tested over a real `MessageChannel`, which is what a
 SharedWorker port is — no worker is needed to prove any of it, and needing one
@@ -429,7 +535,11 @@ them.
   mismatch does not error, it carves the name in the wrong place
 - **tree data**: `treeFields` stands in for `rowGroupCols`, which AG does not
   send in tree mode, and parent rows carry `SSRM_TREE_KEY` / `SSRM_TREE_GROUP`
-  because AG reads the hierarchy off the DATA. An explicit `rowGroupCols` wins
+  because AG reads the hierarchy off the DATA. An explicit `rowGroupCols` wins.
+  Both pivot and tree are in the differential fuzz as of session 3: a pivot
+  level is checked cell by cell against an independently computed combination
+  set, and a tree level against the equivalent GROUP level plus the markers,
+  including that a leaf row does not claim to be a parent
 - **worker hosting** (`@starui/ssrm-engine/worker`): a `{id, method, params}` /
   `{id, ok, result | error}` wire with one in-flight map per port and a timeout
   that FAILS a call rather than leaving it pending; `serveSsrmEngineWorker`,
@@ -466,9 +576,11 @@ Stated plainly so nobody plans around a gap:
   and `sweep()` are covered by unit tests under an injected clock; nothing yet
   kills a real window and watches the book go. `introspect().reaped` is the
   counter that would show it
-- **the pivot/tree fuzz gap.** The differential fuzz covers flat, sort, filter,
-  grouping and aggregation. Pivot and tree are covered by unit tests only, and
-  the oracle should grow to cover them
+- **nothing yet fuzzes a CHANGE of query shape mid-flight.** Both fuzzes rotate
+  shapes between frames and purge the grid when they do, which is what AG does
+  on a sort or filter change. What is not covered is a write landing while a
+  block for the OLD shape is still in flight; `asyncDatasource.test.ts` covers
+  the settle-once half of that by construction, not the row-correctness half
 - **no calculated columns.** The expression engine is the single largest missing
   piece and was costed at 4-6 person-weeks in the earlier evaluation
 - **no incremental index maintenance.** Any write clears the query cache and the

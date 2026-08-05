@@ -145,9 +145,17 @@ export function createSsrmRowPump(
     // Removals first and whole. A row that left the book must leave every
     // window that holds it, and deferring one under a budget would leave a
     // deleted row on screen for as long as the backlog lasts.
+    //
+    // Sent as ROW DATA, not as keys. AG 36 maps every entry of a transaction's
+    // `remove` through the grid's own `getRowId`
+    // (`transaction.remove.map((data) => idFunc({ data }))`), so a bare key
+    // resolves to `String(undefined)` and removes NOTHING — a deleted row that
+    // stays on screen until its block is re-read, which is the ghost row this
+    // path exists to prevent. Caught by the delta-path fuzz, whose grid model
+    // is built from AG's transaction code rather than from what this emitted.
     let remove: unknown[] | undefined;
     if (removing.size > 0) {
-      remove = [...removing];
+      remove = [...removing].map((key) => ({ [keyField]: key }));
       removing.clear();
       stats.removed += remove.length;
     }

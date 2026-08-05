@@ -28,7 +28,9 @@ The full AG SSRM request is answered: `startRow`/`endRow`, `sortModel`,
 `filterModel` (text, number, date, set, blank, compound AND/OR, multi-filter),
 `rowGroupCols`, `valueCols`, `groupKeys`, `pivotCols`/`pivotMode`, plus tree
 data, quick filter, distinct values, grand total and a changed-key delta.
-99 unit tests including a differential fuzz.
+102 unit tests including two differential fuzzes — one over the engine's query
+shapes, one over the whole push path from a write in the worker to the rows AG
+holds.
 
 **What session 1 settled, and what it did not.** The book is out of the window,
 the boundary costs 2.2 ms per block against 0.6 ms in-process, and the topology
@@ -43,7 +45,8 @@ engine, not of hosting. Details in the README.
 
 ## Rules carried into every session
 
-These cost real time when ignored, all of them in this repo's history.
+These cost real time when ignored, all of them in this repo's history. Rules 9
+and 10 are new and both came from defects session 3's fuzz found.
 
 1. **Measure before theorising, and check the probe can fail.** Three separate
    figures on the Perspective path were withdrawn after a clean re-measurement.
@@ -76,6 +79,18 @@ These cost real time when ignored, all of them in this repo's history.
    still unflipped for everything enqueued behind it. Session 2's feed decided
    snapshot-vs-update that way and every chunk of a snapshot believed it was the
    first, leaving the book holding only the last one.
+
+9. **A test double that lies about the thing it doubles is its own trap.** The
+   pump's grid stub accepted whatever the pump emitted, so a removal payload AG
+   could not resolve passed for a release with a green test pinning it. The
+   delta fuzz's grid model is written from AG 36's own transaction code
+   (`transaction.remove.map((data) => idFunc({ data }))`) and it failed on frame
+   7. When a boundary is a contract with somebody else's code, read their code.
+10. **A fix has to generalise to every branch that shares its reasoning.** Nulls
+   were moved above the sort's direction multiplier and NaN, which the same
+   comment says belongs with them, was left below it — so the identical bug
+   shipped in the branch nobody re-read. Session 3 found it by adding NaN to the
+   fuzz's tick generator, not by reading the code.
 
 **Gates for every session:** `npx turbo typecheck build test --continue` (the
 documented baseline is 4 failed test FILES / 0 failed tests in `@starui/grid`
@@ -181,8 +196,10 @@ holds the book. The part sharing can touch is getting the book, and there it is
 ~30x. The engine builds 20,000 x 121 in ~350 ms, so there was only ~350 ms in the
 whole open for sharing to remove; Perspective's equivalent is 18.4 s, which is
 why the same property is worth so much more there. On the PROVIDER-fed book,
-where window 1 waits for a real snapshot, it does show end to end: **2,894 ms vs
-1,632 ms to first row, attach 1,386 ms -> 3 ms.**
+where window 1 waits for a real snapshot, the attach shows it plainly:
+**1,386 ms -> 3 ms.** (This entry also quoted 2,894 ms vs 1,632 ms to first row.
+Session 3 withdrew that: the measurement is bimodal on identical code — see
+session 3's own entry.)
 
 **Two traps caught by probes rather than review.** Playwright's
 `browser.newPage()` opens each page in a NEW BrowserContext — a separate storage
@@ -200,24 +217,60 @@ the book go.
 
 ---
 
-## Session 3 — the fuzz grows to cover pivot and tree
+## Session 3 — the fuzz grows to cover pivot, tree and the push path · **DONE**
 
-**Why here:** sessions 1 and 2 add a network boundary and incremental push. Both
-are exactly the kind of change that breaks something the current oracle does not
-watch, and pivot and tree are currently unit-tested only.
+Built: pivot and tree levels in `engine.fuzz.test.ts` (a pivot level checked
+cell by cell against an independently computed combination set, a tree level
+against the equivalent GROUP level plus the markers, and group-row ORDER as well
+as count); `worker/deltaPath.fuzz.test.ts`, 260 frames through the whole push
+path — a real `MessageChannel`, the host's narrowing, the pump's conflation and
+slice, into a grid model built from **AG 36's own transaction code**; and an
+emit-SEQUENCE fuzz for the feed in `host-data` (260 random interleavings against
+one independent rule: a `replace` clears the book and every batch after it
+upserts). 102 engine tests, 539 in host-data.
 
-**Build**
+**Three defects, all silent, none of them in the engine's incremental path.**
 
-- extend the brute-force oracle to pivot and tree levels;
-- fuzz the DELTA path: apply a random mutation, push only the delta, and assert
-  the grid's row set equals a full re-read. This is the incremental-vs-full
-  divergence that produced ghost rows and corrupted sums in July;
-- adversarial frames on purpose: removal-only frames, re-adding a removed key,
-  ticks landing on filtered-out rows, NaN, and a sort key changing under an
-  active sort.
+| found | what it was |
+|---|---|
+| `engine.fuzz`, frame 6 | a **NaN price sorted FIRST** on a descending sort. The null fix moved the null verdict above the direction multiplier and left the NaN verdict inside `compareValues`, where `cmp * dir` inverted it. A fix that does not generalise is a bug waiting in the branch nobody re-read |
+| `deltaPath.fuzz`, frame 7 | **removals removed nothing.** The pump sent bare keys; AG 36 maps a transaction's `remove` through `getRowId`, so each one resolved to `"undefined"` and matched no node. Every deleted row stayed on screen until its block was re-read. `rowPump.test.ts` asserted the old spelling and passed throughout |
+| `deltaPath.fuzz`, frame 26 | **the viewport was narrowed on one side of the write.** A tick that changes a sort key moves the row out of the range, and AG does not re-order on a transaction — so the row is still on screen and its update was dropped. On a descending price sort that is a price that falls hard. Fixed by narrowing on the union of before and after, which costs nothing: the pre-write set is the one the previous publish already computed |
 
-**Done when** 250+ frames pass across every query shape including pivot and
-tree, and the delta path agrees with a full re-read every frame.
+**And it found nothing wrong with the engine's own incremental path**, which is
+the expected result and is stated rather than left to imply — aggregation is a
+full pass and the index cache is cleared wholesale, so there is no state to get
+out of step. Everything this session caught was in what sessions 1 and 2 put
+between the engine and the grid.
+
+**Every fix was checked by putting the bug back.** Reverting the narrowing turns
+the fuzz red at `frame 26 sorted: r291.px is 108.18, book says 159.15 (in view
+before the write: true, after: false)`; reverting the removal payload at
+`frame 7 flat: ghost row r31`; reintroducing rule 8's queued decision fails the
+feed fuzz at a named seed with the event script printed. One run of the delta
+fuzz: 3,197 patch rows received, 1,130 applied, 1,828 dropped, 101 removed, 892
+flushes of which **758 stopped on the slice budget**, 17,166 row-vs-book
+comparisons.
+
+**The probes still pass and the boundary did not move**: `browserSmokeProbe`
+1,761 ms to first row and a 63 ms sort (session 2: 1,813 / 59);
+`workerBoundaryProbe` **2.10 ms** median per block, 0 failed, 0 timed out, 0
+late, 0 pending; `providerBookProbe` 20,000 rows through the data-services
+worker with `ssrmBookWorker` confirmed absent.
+
+**One session-2 figure withdrawn as a single-run number.** The provider probe's
+"time to first row" looked like a 4x regression, so it was A/B'd against a
+rebuild with this session's changes reverted — and it is **bimodal on identical
+code**: ~3.0 s or ~13.6 s with nothing between, in both configurations (five
+samples with the fixes, three without). Session 2's 2,894 ms is the fast mode
+reported from one run. The stable number on that probe is the ATTACH — 1,408 to
+1,485 ms for window 1 against 2-12 ms for window 2 — and that is the one the
+sharing claim rests on anyway.
+
+**Not done, and stated in the README:** nothing yet fuzzes a write landing while
+a block for the PREVIOUS query shape is still in flight. The 0.8-rows-per-tick
+figure for viewport narrowing was measured before the union fix and has not been
+re-taken.
 
 ---
 

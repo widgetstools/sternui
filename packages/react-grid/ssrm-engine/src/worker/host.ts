@@ -103,6 +103,18 @@ interface BookEntry {
    */
   viewports: Map<MessagePort, SsrmViewport>;
   /**
+   * The keys each client is CURRENTLY SHOWING — the visible set as it was
+   * computed for the last write, or when the viewport was declared.
+   *
+   * A write clears the engine's index cache, so by the time `publish` runs the
+   * pre-write index is gone; this is how it is recovered without recomputing
+   * anything. Nothing but a write moves a row's position, so the set left here
+   * by the previous publish IS the set that was on screen when this one
+   * started. `null` means "everything", which is what an undeclared viewport
+   * and a grouped request both mean.
+   */
+  showing: Map<MessagePort, Set<unknown> | null>;
+  /**
    * Book size as each client last heard it.
    *
    * A client's `size` is a mirror moved by delta pushes, and narrowing can
@@ -162,6 +174,7 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
     const entry: BookEntry = {
       clients: new Set(),
       viewports: new Map(),
+      showing: new Map(),
       sizes: new Map(),
       opening: Promise.resolve().then(() => options.openBook(bookId, bookOptions)),
     };
@@ -205,6 +218,7 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
     if (entry === undefined) return;
     entry.clients.delete(port);
     entry.viewports.delete(port);
+    entry.showing.delete(port);
     entry.sizes.delete(port);
     if (entry.clients.size > 0) return;
     books.delete(bookId);
@@ -297,12 +311,28 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
 
     for (const port of entry.clients) {
       if (port === origin) continue;
+      // BOTH sides of the write, and that is not belt-and-braces.
+      //
+      // A tick that changes a SORT KEY moves the row across the viewport
+      // boundary, so the visible set after the write is not the one before it —
+      // and AG does not re-order on a transaction, so a row that just left the
+      // range is still the row the user is looking at. Narrowing by the
+      // post-write set alone dropped exactly that update: on a descending price
+      // sort, a price that falls hard is the tick that goes missing, and the
+      // stale one stays on screen until the block is re-read. Found by the
+      // delta-path fuzz, which asserts over the rows the grid HOLDS.
+      const wasShowing = entry.showing.get(port);
       const visible = visibleFilter(entry, port);
+      entry.showing.set(port, visible);
       // Removals are never narrowed. A row that left the book has to leave
       // every window that holds it, and "holds it" is AG's block cache — which
       // is far larger than a viewport.
       const narrowed =
-        visible === null ? rows : rows.filter((row) => visible.has(row[keyField]));
+        visible === null || wasShowing === null
+          ? rows
+          : rows.filter(
+              (row) => visible.has(row[keyField]) || wasShowing?.has(row[keyField]) === true,
+            );
       // Nothing to say only when the count has not moved either — see `sizes`.
       if (narrowed.length === 0 && removed.length === 0 && entry.sizes.get(port) === size) {
         continue;
@@ -344,6 +374,10 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
           if (entry === undefined) throw new Error(`book '${bookId}' is not open on this port`);
           if (viewport === null) entry.viewports.delete(port);
           else entry.viewports.set(port, viewport);
+          // Computed NOW rather than left for the first write to discover:
+          // "what this window is showing" has to be known before the write that
+          // moves it, and a scroll is the other thing that changes it.
+          entry.showing.set(port, visibleFilter(entry, port));
           return null;
         }
         case 'open': {

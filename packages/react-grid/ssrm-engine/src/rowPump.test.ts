@@ -137,7 +137,33 @@ describe('the row pump', () => {
     pump.push({ rows: [{ id: 'A', bid: 1 }, { id: 'B', bid: 2 }], removed: ['X', 'Y'] });
     clock.run();
 
-    expect(applied[0].remove).toEqual(['X', 'Y']);
+    // ROW DATA, not keys — see below.
+    expect(applied[0].remove).toEqual([{ id: 'X' }, { id: 'Y' }]);
+  });
+
+  /**
+   * The removal payload has to survive AG's own `getRowId`.
+   *
+   * AG 36 resolves a transaction's removals with
+   * `transaction.remove.map((data) => idFunc({ data }))`, so every entry is ROW
+   * DATA. This test asserted `['X', 'Y']` for a release — a green test pinning
+   * a spelling the grid does not have, which is the failure the parity worklog
+   * records twice. `makeSsrmGetRowId` reads `data[keyField]`, so a bare key
+   * resolved to the string "undefined", `removeRowNodes` matched nothing, and
+   * every deleted row stayed on screen until its block was re-read.
+   */
+  it('emits removals AG can resolve through getRowId', () => {
+    const { grid, applied } = stubGrid(['A']);
+    const clock = manualSchedule();
+    const pump = createSsrmRowPump(grid, { keyField: 'positionId', schedule: clock.schedule });
+
+    pump.push({ rows: [], removed: ['P-1'] });
+    clock.run();
+
+    const getRowId = (params: { data: Record<string, unknown> }) => String(params.data.positionId);
+    expect((applied[0].remove as Array<{ data: never }>).map((data) => getRowId({ data: data as never }))).toEqual([
+      'P-1',
+    ]);
   });
 
   it('drops a pending update for a row that is then removed', () => {
@@ -150,7 +176,7 @@ describe('the row pump', () => {
     clock.run();
 
     expect(applied[0].update).toBeUndefined();
-    expect(applied[0].remove).toEqual(['A']);
+    expect(applied[0].remove).toEqual([{ id: 'A' }]);
   });
 
   it('takes back a removal when the key is re-added in the same frame', () => {
