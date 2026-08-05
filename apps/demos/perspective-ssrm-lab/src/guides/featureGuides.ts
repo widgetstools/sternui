@@ -343,8 +343,8 @@ export const FEATURE_GUIDES: Record<string, FeatureGuide> = {
         hint: '`calc_band` is an IFS over midPrice; `calc_notional` is summed per group. Neither is stored.',
       },
       {
-        text: 'Leave it running and watch which calculated cells move.',
-        hint: '`calc_notional` depends on midPrice so it ticks; `calc_dollarDur` does not and stays put. A tick re-stamps only the calculated cells whose inputs it names, because AG flashes a cell it is told changed.',
+        text: 'Leave it running and watch "Live Sum" — the only calculated column here that moves.',
+        hint: 'This book ticks exactly two fields, `esgScore` and `originalMaturity`. `calc_liveSum` reads both so every frame re-stamps it; the other five read midPrice / marketValue / dailyPnL, which this generated book never ticks, so they correctly hold still. A tick re-stamps only the calculated cells whose inputs the frame names — AG flashes a cell it is told changed.',
       },
       {
         text: 'Open the filter menu on a calc_ column — it is a TYPED filter, never a bare `filter: true`.',

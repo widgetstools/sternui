@@ -30,6 +30,8 @@ export interface SsrmEngineStressGridProps {
    * taken against — the SSRM Engine tab passes `true` explicitly instead.
    */
   calc?: boolean;
+  /** Pin the calculated columns left — see `labCalcColumnDefs`. */
+  pinCalc?: boolean;
   /** Handed the grid api and client once mounted, for a surface that drives them. */
   onSurfaceReady?: (handle: SsrmEngineGridHandle) => void;
 }
@@ -39,6 +41,7 @@ export function SsrmEngineStressGrid({
   rowHeight = 28,
   tickMs = 200,
   calc: calcOverride,
+  pinCalc = false,
   onSurfaceReady,
 }: SsrmEngineStressGridProps) {
   /**
@@ -96,8 +99,8 @@ export function SsrmEngineStressGrid({
     () =>
       calc === undefined
         ? columnDefs
-        : [...columnDefs, ...labCalcColumnDefs(calc.map((c) => c.colId))],
-    [columnDefs, calc],
+        : [...columnDefs, ...labCalcColumnDefs(calc.map((c) => c.colId), { pinned: pinCalc })],
+    [columnDefs, calc, pinCalc],
   );
 
   return (

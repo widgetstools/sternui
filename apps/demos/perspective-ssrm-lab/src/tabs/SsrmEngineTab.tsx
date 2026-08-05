@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@starui/ui';
 import { TabContainer } from '../components/TabContainer';
 import { HELP } from '../help';
@@ -81,6 +81,19 @@ export function SsrmEngineTab() {
     handleRef.current = handle;
     setReady(true);
   }, []);
+
+  const grid = useMemo(
+    () => (
+      <SsrmEngineStressGrid
+        columnDefs={columnDefs}
+        calc
+        pinCalc
+        tickMs={200}
+        onSurfaceReady={onSurfaceReady}
+      />
+    ),
+    [columnDefs, onSurfaceReady],
+  );
 
   /**
    * Poll the handle rather than subscribe.
@@ -219,14 +232,14 @@ export function SsrmEngineTab() {
           <Stat label="Rows pushed" value={stats.pushed.toLocaleString()} hint="live ticks received" />
         </div>
 
-        <div className="flex min-h-0 flex-1">
-          <SsrmEngineStressGrid
-            columnDefs={columnDefs}
-            calc
-            tickMs={200}
-            onSurfaceReady={onSurfaceReady}
-          />
-        </div>
+        {/*
+          * Memoised so the 500 ms stats poll does not re-render the grid.
+          *
+          * Belt to the braces of hoisting `sideBar` out of JSX: even with
+          * stable grid options, re-rendering an `AgGridReact` twice a second to
+          * update a number beside it is work nobody asked for.
+          */}
+        <div className="flex min-h-0 flex-1">{grid}</div>
 
         <div className="flex flex-wrap gap-x-5 gap-y-1 px-1 text-[11px] text-[color:var(--ds-text-secondary)]">
           {LAB_SSRM_CALC_COLUMNS.map((c) => (

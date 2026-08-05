@@ -61,6 +61,20 @@ import { SsrmEngineClient } from '@starui/ssrm-engine/worker';
  */
 ModuleRegistry.registerModules([AllEnterpriseModule]);
 
+/**
+ * Grid options that never change, hoisted to MODULE scope.
+ *
+ * Not tidiness — a bug. An object literal in JSX is a fresh identity on every
+ * render, and AG Grid 36 treats a new `sideBar` value as a changed grid option
+ * and REBUILDS the side bar, closing whatever panel the user had open. It was
+ * invisible while nothing re-rendered this component; the SSRM Engine tab polls
+ * its stats strip every 500 ms, so the tool panel shut itself the moment anyone
+ * clicked it. The prop was always wrong; the poll only made it observable.
+ */
+const SIDE_BAR = { toolPanels: ['columns', 'filters'] };
+
+const getChildCount = (data: SsrmRow) => data?.[SSRM_CHILD_COUNT] as number;
+
 /** Block round trips, kept for the probes. Bounded — this runs for minutes. */
 const BLOCK_SAMPLE_CAP = 4_000;
 
@@ -387,10 +401,10 @@ export function SsrmEngineGrid({
            * name in the wrong place and produces columns named after fragments.
            */
           serverSidePivotResultFieldSeparator="_"
-          sideBar={{ toolPanels: ['columns', 'filters'] }}
+          sideBar={SIDE_BAR}
           rowGroupPanelShow="always"
           pivotPanelShow="always"
-          getChildCount={(data: SsrmRow) => data?.[SSRM_CHILD_COUNT] as number}
+          getChildCount={getChildCount}
           onGridReady={(event) => {
             apiRef.current = event.api;
             /**

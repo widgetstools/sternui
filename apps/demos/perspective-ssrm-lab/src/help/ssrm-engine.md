@@ -46,10 +46,19 @@ rather than what the screen suggests.
 - **Group by band** — `calc_band` is a calculated **string** (`IFS` over
   `midPrice`), and `calc_notional` is summed per group. Both are expressions;
   neither is stored.
-- **Leave it running.** `calc_notional` depends on `midPrice`, so it moves on
-  every price tick. `calc_dollarDur` does not depend on `midPrice` and stays
-  put — a tick re-stamps only the calculated cells whose inputs it names,
-  because AG flashes a cell it is told changed.
+- **Leave it running and watch `Live Sum`.** It is the only calculated column
+  here that moves, and the contrast is the point.
+
+  This book's tick moves exactly two fields — `esgScore` and `originalMaturity`
+  (`stressTickPatch` writes `NUMERIC_FIELDS[0]` and `[1]`). `calc_liveSum` reads
+  both, so every frame re-stamps it. The other five read `midPrice`,
+  `marketValue`, `dailyPnL` and friends, which this generated book never ticks,
+  so they hold still — correctly. A tick re-stamps only the calculated cells
+  whose inputs the frame names, because AG flashes a cell it is told changed and
+  a P&L total flashing on a tick that did not move it is a lie you can see.
+
+  The calculated columns are **pinned left** on this tab so they are visible
+  without scrolling past 120 stored columns.
 
 ## What is NOT on this tab
 

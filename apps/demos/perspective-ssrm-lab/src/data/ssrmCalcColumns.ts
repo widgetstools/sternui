@@ -91,6 +91,31 @@ export const LAB_SSRM_CALC_COLUMNS: LabCalcColumn[] = [
     filter: 'agNumberColumnFilter',
     note: 'NULL wherever the guard fails — sort by this one to see nulls last in both directions.',
   },
+  /**
+   * The ONLY calculated column on this book that actually ticks — and the
+   * reason it exists is a claim that was false without it.
+   *
+   * `stressTickPatch` moves exactly two fields, `NUMERIC_FIELDS[0]` and `[1]`,
+   * which on this schema are `esgScore` and `originalMaturity`. Not one of the
+   * columns above reads either, so none of them recomputes on a tick — while
+   * the tab's help said "calc_notional depends on midPrice, so it moves on
+   * every price tick". True of the expression, false of this book, and stated
+   * to a reader watching a grid that was not moving.
+   *
+   * Built over the fields the book DOES tick, this makes the dependency rule
+   * visible as a contrast rather than an assertion: this column moves, the
+   * other five hold, and the difference is exactly which fields the frame
+   * names. That is what `engine.calcPatch` decides per frame — AG flashes a
+   * cell it is told changed, so re-stamping every calculated column on every
+   * tick would paint a lie.
+   */
+  {
+    colId: 'calc_liveSum',
+    headerName: 'Live Sum (ticks)',
+    expression: 'ROUND([esgScore] + [originalMaturity], 2)',
+    filter: 'agNumberColumnFilter',
+    note: 'Reads the two fields this book ticks — the only one that moves. Watch it against the others.',
+  },
 ];
 
 /**
@@ -123,7 +148,10 @@ export function buildLabCalcColumnDefs(): {
  * the window what the block already carries, and would answer null on every
  * group row.
  */
-export function labCalcColumnDefs(colIds: readonly string[]): ColDef[] {
+export function labCalcColumnDefs(
+  colIds: readonly string[],
+  options?: { pinned?: boolean },
+): ColDef[] {
   const byId = new Map(LAB_SSRM_CALC_COLUMNS.map((c) => [c.colId, c]));
   return colIds.map((colId) => {
     const spec = byId.get(colId);
@@ -136,7 +164,17 @@ export function labCalcColumnDefs(colIds: readonly string[]): ColDef[] {
       enableRowGroup: true,
       enableValue: true,
       width: 150,
-      cellClass: 'lab-calc-cell',
+      /**
+       * PINNED LEFT on the tab whose subject they are.
+       *
+       * They are appended after the book's 120 stored columns, so unpinned they
+       * sit off the right edge and a reader arriving at a tab about calculated
+       * columns sees none of them without scrolling — which is how "I don't see
+       * any ticking" happens even when the ticking is real. The Stress tab
+       * leaves them unpinned: there the 120 stored columns are the subject and
+       * the calculated ones are a measured overhead.
+       */
+      ...(options?.pinned ? { pinned: 'left' as const } : {}),
     };
   });
 }
