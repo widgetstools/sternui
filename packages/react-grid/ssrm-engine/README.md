@@ -13,6 +13,7 @@ with **`?engine=ssrm`**. `scripts/browserSmokeProbe.mjs` drives it.
 | first row painted | **2,326 ms** | 12,000-15,000 ms |
 | SORT, first block | **239 ms** | 400-1,100 ms |
 | rows after a sort | 20,000 (no collapse) | 20,000 since the grand-total fix |
+| pivot, desk x currency | 8 groups, **8 generated columns** | not implemented |
 
 The sort is 239 ms in the browser against 4.4 ms for the same operation in Node.
 That gap is not the engine — it is AG purging the store, re-requesting and
@@ -83,7 +84,7 @@ the same shape as the lab's Stress tab:
 
 ## Correctness
 
-44 tests, of which the important ones are the **differential fuzz** in
+57 tests, of which the important ones are the **differential fuzz** in
 `engine.fuzz.test.ts`: 250 mutation frames and a churn run, comparing every
 query shape against a deliberately stupid brute-force oracle built from plain
 objects.
@@ -137,6 +138,13 @@ them.
   decremented only in success/fail, default limit 2, so a datasource that throws
   without calling back wedges the grid permanently
 - `makeSsrmGetRowId` — path-based ids for group rows, leaf keys for the rest
+- **pivot mode**: `pivotCols` x `valueCols` per group, with the generated field
+  names returned as `pivotResultFields` so AG can build its secondary columns.
+  The separator must match the grid's `serverSidePivotResultFieldSeparator` — a
+  mismatch does not error, it carves the name in the wrong place
+- **tree data**: `treeFields` stands in for `rowGroupCols`, which AG does not
+  send in tree mode, and parent rows carry `SSRM_TREE_KEY` / `SSRM_TREE_GROUP`
+  because AG reads the hierarchy off the DATA. An explicit `rowGroupCols` wins
 
 ## What is NOT here
 
@@ -144,10 +152,11 @@ Stated plainly so nobody plans around a gap:
 
 - **no worker hosting.** The engine is synchronous and in-process. Putting it
   behind a `SharedWorker` + `MessagePort` is the next piece, and is what makes
-  the book shared across windows
-- **no pivot.** `pivotCols`/`pivotMode` are accepted in the request type and
-  ignored
-- **no tree data** (`isServerSideGroup` / `getServerSideGroupKey`)
+  the book shared across windows — until then this holds the book in the window,
+  which is the memory shape the Perspective path exists to avoid
+- **the pivot/tree fuzz gap.** The differential fuzz covers flat, sort, filter,
+  grouping and aggregation. Pivot and tree are covered by unit tests only, and
+  the oracle should grow to cover them
 - **no calculated columns.** The expression engine is the single largest missing
   piece and was costed at 4-6 person-weeks in the earlier evaluation
 - **no incremental index maintenance.** Any write clears the query cache and the

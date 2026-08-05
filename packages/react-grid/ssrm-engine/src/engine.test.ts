@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { createSsrmEngine } from './engine.js';
-import { SSRM_CHILD_COUNT, SSRM_GROUP_FLAG, SSRM_GROUP_PATH, type SsrmSchema } from './types.js';
+import {
+  SSRM_CHILD_COUNT,
+  SSRM_GROUP_FLAG,
+  SSRM_GROUP_PATH,
+  SSRM_TREE_GROUP,
+  SSRM_TREE_KEY,
+  type SsrmSchema,
+} from './types.js';
 
 const SCHEMA: SsrmSchema = {
   keyField: 'id',
@@ -484,5 +491,154 @@ describe('createSsrmDatasource — the AG boundary', () => {
     // Distinct ids across levels is the whole point — a leaf key would collide.
     expect(new Set(ids).size).toBe(ids.length);
     expect(getRowId({ data: engine.getRows({ startRow: 0, endRow: 1 }).rowData[0] })).toBe('a');
+  });
+});
+
+describe('SsrmEngine — pivot mode', () => {
+  const pivotRequest = {
+    rowGroupCols: [{ id: 'desk' }],
+    groupKeys: [],
+    pivotCols: [{ id: 'sector' }],
+    pivotMode: true,
+    valueCols: [{ id: 'qty', aggFunc: 'sum' }],
+  };
+
+  it('produces one field per pivot value per value column', () => {
+    const engine = engineWithBook();
+    const result = engine.getRows(pivotRequest);
+    // Sectors are Gov, IG, HY; one value column.
+    expect(result.pivotResultFields?.sort()).toEqual(['Gov_qty', 'HY_qty', 'IG_qty']);
+  });
+
+  it('aggregates each cell over the rows in BOTH the group and the pivot value', () => {
+    const engine = engineWithBook();
+    const result = engine.getRows(pivotRequest);
+    const rates = result.rowData.find((r) => r.desk === 'Rates')!;
+    // Rates is a=Gov/10 and b=Gov/20; nothing in IG or HY.
+    expect(rates.Gov_qty).toBe(30);
+    expect(rates.IG_qty).toBeNull();
+    expect(rates.HY_qty).toBeNull();
+
+    const credit = result.rowData.find((r) => r.desk === 'Credit')!;
+    expect(credit.IG_qty).toBe(5);
+    expect(credit.HY_qty).toBe(7);
+    expect(credit.Gov_qty).toBeNull();
+  });
+
+  it('names fields so AG can split them on the separator', () => {
+    // AG rebuilds its secondary columns by splitting on
+    // `serverSidePivotResultFieldSeparator`, so the separator has to be the one
+    // the grid is configured with.
+    const engine = createSsrmEngine({ schema: SCHEMA, pivotResultFieldSeparator: '|' });
+    engine.applySnapshot(BOOK);
+    const result = engine.getRows(pivotRequest);
+    expect(result.pivotResultFields?.sort()).toEqual(['Gov|qty', 'HY|qty', 'IG|qty']);
+  });
+
+  it('pivots the totals row too', () => {
+    const engine = engineWithBook();
+    const result = engine.getRows(pivotRequest);
+    expect(result.groupLevelInfo?.Gov_qty).toBe(30);
+    expect(result.groupLevelInfo?.HY_qty).toBe(10);
+  });
+
+  it('is inert without pivotMode, so a stale pivotCols cannot reshape the grid', () => {
+    const engine = engineWithBook();
+    const result = engine.getRows({ ...pivotRequest, pivotMode: false });
+    expect(result.pivotResultFields).toBeUndefined();
+    expect(result.rowData[0].qty).toBeDefined();
+  });
+
+  it('ignores a pivot column the store does not have', () => {
+    const engine = engineWithBook();
+    const result = engine.getRows({ ...pivotRequest, pivotCols: [{ id: 'gone' }] });
+    expect(result.pivotResultFields).toBeUndefined();
+  });
+});
+
+describe('SsrmEngine — tree data', () => {
+  const treeEngine = () => {
+    const engine = createSsrmEngine({
+      schema: SCHEMA,
+      treeFields: ['desk', 'sector'],
+    });
+    engine.applySnapshot(BOOK);
+    return engine;
+  };
+
+  it('stands the hierarchy in for rowGroupCols, which AG does not send', () => {
+    const engine = treeEngine();
+    const level0 = engine.getRows({ groupKeys: [] });
+    expect(level0.rowCount).toBe(3);
+    expect(level0.rowData.every((r) => r[SSRM_TREE_GROUP] === true)).toBe(true);
+  });
+
+  it('stamps the key AG reads the hierarchy from', () => {
+    const engine = treeEngine();
+    const rows = engine.getRows({ groupKeys: [] }).rowData;
+    const keys = rows.map((r) => r[SSRM_TREE_KEY]);
+    expect(new Set(keys)).toEqual(new Set(['Rates', 'Credit', '']));
+  });
+
+  it('descends a path and serves LEAF rows at the bottom', () => {
+    const engine = treeEngine();
+    const level1 = engine.getRows({ groupKeys: ['Rates'] });
+    expect(level1.rowData.map((r) => r[SSRM_TREE_KEY])).toEqual(['Gov']);
+    const leaves = engine.getRows({ groupKeys: ['Rates', 'Gov'] });
+    expect(leaves.rowCount).toBe(2);
+    expect(leaves.rowData.every((r) => r[SSRM_TREE_GROUP] === undefined)).toBe(true);
+  });
+
+  it('lets an explicit rowGroupCols WIN over the configured hierarchy', () => {
+    // The user dragged a column into the group panel; that intent beats a
+    // configured tree rather than silently merging with it.
+    const engine = treeEngine();
+    const result = engine.getRows({ rowGroupCols: [{ id: 'sector' }], groupKeys: [] });
+    expect(result.rowCount).toBe(3);
+    expect(result.rowData.every((r) => r[SSRM_TREE_GROUP] === undefined)).toBe(true);
+    expect(new Set(result.rowData.map((r) => r.sector))).toEqual(new Set(['Gov', 'IG', 'HY']));
+  });
+
+  it('still counts the filtered book flat', () => {
+    const engine = treeEngine();
+    expect(engine.countFiltered({ groupKeys: [] })).toBe(5);
+  });
+});
+
+describe('createSsrmDatasource — pivot passthrough', () => {
+  it('forwards pivotResultFields, which AG needs to build secondary columns', async () => {
+    // Dropping them fails SILENTLY: the rows arrive with pivoted cells that no
+    // column renders, so the grid shows a correct hierarchy with nothing in it.
+    // The browser probe caught this as "8 rows · 0 generated columns" after the
+    // unit tests were all green.
+    const { createSsrmDatasource } = await import('./datasource.js');
+    const engine = engineWithBook();
+    const ds = createSsrmDatasource(engine);
+    let got: { pivotResultFields?: string[] } | null = null;
+    ds.getRows({
+      request: {
+        rowGroupCols: [{ id: 'desk' }],
+        groupKeys: [],
+        pivotCols: [{ id: 'sector' }],
+        pivotMode: true,
+        valueCols: [{ id: 'qty', aggFunc: 'sum' }],
+      },
+      success: (r) => { got = r; },
+      fail: () => {},
+    });
+    expect(got!.pivotResultFields?.sort()).toEqual(['Gov_qty', 'HY_qty', 'IG_qty']);
+  });
+
+  it('omits the field entirely when not pivoting', async () => {
+    const { createSsrmDatasource } = await import('./datasource.js');
+    const engine = engineWithBook();
+    const ds = createSsrmDatasource(engine);
+    let got: { pivotResultFields?: string[] } | null = null;
+    ds.getRows({
+      request: { startRow: 0, endRow: 5 },
+      success: (r) => { got = r; },
+      fail: () => {},
+    });
+    expect(got!.pivotResultFields).toBeUndefined();
   });
 });

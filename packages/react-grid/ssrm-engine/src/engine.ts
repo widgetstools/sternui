@@ -6,6 +6,9 @@ import {
   SSRM_CHILD_COUNT,
   SSRM_GROUP_FLAG,
   SSRM_GROUP_PATH,
+  SSRM_TREE_GROUP,
+  SSRM_TREE_KEY,
+  type SsrmColumnVO,
   type SsrmGetRowsRequest,
   type SsrmGetRowsResult,
   type SsrmRow,
@@ -56,6 +59,26 @@ export interface SsrmEngineOptions {
   /** Cap on a set filter's value list; above it `distinctValues` answers null
    *  rather than a partial list, which reads as the whole domain. */
   maxSetFilterValues?: number;
+  /**
+   * Columns forming a TREE hierarchy, outermost first — AG's SSRM tree mode
+   * rather than its row-group mode.
+   *
+   * The pull shape is identical (AG asks for the children of a path), so this
+   * stands in for `rowGroupCols`, which AG does not send in tree mode. What
+   * differs is the OUTPUT: parent rows carry {@link SSRM_TREE_KEY} and
+   * {@link SSRM_TREE_GROUP}, because AG reads the hierarchy off the data.
+   *
+   * A request that DOES carry `rowGroupCols` wins: the user has dragged a
+   * column into the group panel, and that intent beats a configured hierarchy
+   * rather than silently merging with it.
+   */
+  treeFields?: readonly string[];
+  /**
+   * Separator between the pivot values and the value column in a generated
+   * pivot field name. Must match the grid's
+   * `serverSidePivotResultFieldSeparator`, whose default is `_`.
+   */
+  pivotResultFieldSeparator?: string;
 }
 
 /** What changed in the last apply, so a host can push rather than invalidate. */
@@ -85,6 +108,8 @@ export class SsrmEngine {
   private readonly quickFields: readonly string[];
   private readonly maxSetFilterValues: number;
   private quickFilterText = '';
+  private readonly treeFields: readonly string[];
+  private readonly pivotSeparator: string;
   private readonly listeners = new Set<SsrmDeltaListener>();
   /**
    * Cached index per query shape.
@@ -103,6 +128,24 @@ export class SsrmEngine {
       options.quickFilterFields ??
       options.schema.fields.filter((f) => f.type === 'string').map((f) => f.field);
     this.maxSetFilterValues = options.maxSetFilterValues ?? 50_000;
+    this.treeFields = options.treeFields ?? [];
+    this.pivotSeparator = options.pivotResultFieldSeparator ?? '_';
+  }
+
+  /**
+   * The columns this request groups by.
+   *
+   * Tree mode stands the configured hierarchy in for `rowGroupCols`, which AG
+   * does not send when `treeData` is on. An explicit `rowGroupCols` wins.
+   */
+  private groupColumnsFor(request: SsrmGetRowsRequest): SsrmColumnVO[] {
+    const explicit = request.rowGroupCols ?? [];
+    if (explicit.length > 0) return explicit;
+    return this.treeFields.map((id) => ({ id }));
+  }
+
+  private isTreeRequest(request: SsrmGetRowsRequest): boolean {
+    return this.treeFields.length > 0 && (request.rowGroupCols?.length ?? 0) === 0;
   }
 
   /** Rows in the book, ignoring every filter. */
@@ -204,7 +247,7 @@ export class SsrmEngine {
    * and can arrive as either on the way back.
    */
   private ancestorPredicate(request: SsrmGetRowsRequest): RowPredicate {
-    const groupCols = request.rowGroupCols ?? [];
+    const groupCols = this.groupColumnsFor(request);
     const groupKeys = request.groupKeys ?? [];
     if (groupKeys.length === 0) return () => true;
 
@@ -234,7 +277,7 @@ export class SsrmEngine {
    */
   getRows(request: SsrmGetRowsRequest): SsrmGetRowsResult {
     const index = this.materialise(request);
-    const groupCols = request.rowGroupCols ?? [];
+    const groupCols = this.groupColumnsFor(request);
     const depth = (request.groupKeys ?? []).length;
     const aggregations = activeAggregations(this.store, request.valueCols);
 
@@ -261,7 +304,7 @@ export class SsrmEngine {
       const offset = index[i];
       const isNull = this.store.isNull(field, offset);
       const value = isNull ? null : this.store.valueAt(field, offset);
-      const bucketKey = isNull ? ' null' : String(value);
+      const bucketKey = isNull ? ' null' : String(value);
       let bucket = buckets.get(bucketKey);
       if (bucket === undefined) {
         bucket = { key: value, members: [] };
@@ -271,6 +314,9 @@ export class SsrmEngine {
     }
 
     const ancestors = request.groupKeys ?? [];
+    const tree = this.isTreeRequest(request);
+    const pivot = this.buildPivot(request, index);
+
     const groups: SsrmRow[] = [];
     for (const bucket of buckets.values()) {
       const row: SsrmRow = {
@@ -280,8 +326,18 @@ export class SsrmEngine {
         // collide across groups at the same level and AG discards the block.
         [SSRM_GROUP_PATH]: [...ancestors, bucket.key],
         [SSRM_CHILD_COUNT]: bucket.members.length,
-        ...aggregateMembers(this.store, bucket.members, aggregations),
+        ...(pivot === null
+          ? aggregateMembers(this.store, bucket.members, aggregations)
+          : this.pivotCells(pivot, bucket.members, aggregations)),
       };
+      if (tree) {
+        // AG reads a tree hierarchy off the DATA — there are no group columns
+        // to read it from — so the markers are stamped on here. Every row of a
+        // grouped level is a parent by construction: the leaf level is served
+        // by the branch above and never reaches this code.
+        row[SSRM_TREE_GROUP] = true;
+        row[SSRM_TREE_KEY] = bucket.key === null || bucket.key === undefined ? '' : String(bucket.key);
+      }
       groups.push(row);
     }
 
@@ -290,8 +346,91 @@ export class SsrmEngine {
     return {
       rowData: groups.slice(start, end === undefined ? undefined : end),
       rowCount: groups.length,
-      groupLevelInfo: aggregateMembers(this.store, index, aggregations),
+      groupLevelInfo:
+        pivot === null
+          ? aggregateMembers(this.store, index, aggregations)
+          : this.pivotCells(pivot, Array.from(index), aggregations),
+      ...(pivot === null ? {} : { pivotResultFields: pivot.fields }),
     };
+  }
+
+  /**
+   * The pivot columns this level will produce, or null when not pivoting.
+   *
+   * The combinations are taken from THIS LEVEL's members rather than the whole
+   * book. AG unions the `pivotResultFields` it is given as blocks arrive, so a
+   * combination that only exists deeper in the tree appears when that level is
+   * expanded — which is the behaviour a user expects and is far cheaper than
+   * scanning the book for every request.
+   */
+  private buildPivot(
+    request: SsrmGetRowsRequest,
+    index: Int32Array,
+  ): { combos: { key: string; values: unknown[] }[]; fields: string[]; cols: SsrmColumnVO[] } | null {
+    const pivotCols = (request.pivotCols ?? []).filter((c) =>
+      this.store.hasField(c.field ?? c.id),
+    );
+    if (request.pivotMode !== true || pivotCols.length === 0) return null;
+
+    const aggregations = activeAggregations(this.store, request.valueCols);
+    const seen = new Map<string, unknown[]>();
+    for (let i = 0; i < index.length; i++) {
+      const offset = index[i];
+      const values = pivotCols.map((col) => {
+        const field = col.field ?? col.id;
+        return this.store.isNull(field, offset) ? null : this.store.valueAt(field, offset);
+      });
+      const key = values.map((v) => (v === null || v === undefined ? '' : String(v))).join(
+        this.pivotSeparator,
+      );
+      if (!seen.has(key)) seen.set(key, values);
+    }
+
+    const combos = [...seen.entries()]
+      .map(([key, values]) => ({ key, values }))
+      .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+
+    const fields: string[] = [];
+    for (const combo of combos) {
+      for (const { field } of aggregations) {
+        fields.push(`${combo.key}${this.pivotSeparator}${field}`);
+      }
+    }
+    return { combos, fields, cols: pivotCols };
+  }
+
+  /** One group row's pivoted cells: every combination x every value column. */
+  private pivotCells(
+    pivot: { combos: { key: string; values: unknown[] }[]; cols: SsrmColumnVO[] },
+    members: readonly number[],
+    aggregations: readonly { field: string; agg: import('./types.js').SsrmAggFunc }[],
+  ): Record<string, unknown> {
+    if (aggregations.length === 0) return {};
+
+    // Partition the members ONCE per group rather than re-scanning per
+    // combination, which would be O(combos x members).
+    const byCombo = new Map<string, number[]>();
+    for (const offset of members) {
+      const key = pivot.cols
+        .map((col) => {
+          const field = col.field ?? col.id;
+          return this.store.isNull(field, offset) ? '' : String(this.store.valueAt(field, offset));
+        })
+        .join(this.pivotSeparator);
+      const bucket = byCombo.get(key);
+      if (bucket === undefined) byCombo.set(key, [offset]);
+      else bucket.push(offset);
+    }
+
+    const out: Record<string, unknown> = {};
+    for (const combo of pivot.combos) {
+      const bucket = byCombo.get(combo.key) ?? [];
+      const aggregated = aggregateMembers(this.store, bucket, aggregations);
+      for (const { field } of aggregations) {
+        out[`${combo.key}${this.pivotSeparator}${field}`] = aggregated[field] ?? null;
+      }
+    }
+    return out;
   }
 
   /**
@@ -302,7 +441,7 @@ export class SsrmEngine {
    * confidently wrong number sitting under the rows that contradict it.
    */
   grandTotal(request: SsrmGetRowsRequest): Record<string, unknown> {
-    const flat: SsrmGetRowsRequest = { ...request, rowGroupCols: [], groupKeys: [] };
+    const flat: SsrmGetRowsRequest = { ...request, rowGroupCols: [], groupKeys: [], pivotMode: false };
     const index = this.materialise(flat);
     return aggregateMembers(this.store, index, activeAggregations(this.store, request.valueCols));
   }

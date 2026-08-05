@@ -119,6 +119,43 @@ try {
   console.log(`\n  GROUP by assetClass + sum    ${grouped.count} rows`);
   for (const r of grouped.rows) console.log(`    ${String(r.group).padEnd(12)} ${r.sum}`);
 
+  // PIVOT — the secondary columns AG builds from `pivotResultFields`.
+  const pivot = await page.evaluate(async () => {
+    const api = window.__ssrmEngineGrid.api;
+    api.setRowGroupColumns(['desk']);
+    api.setPivotColumns(['currency']);
+    api.setValueColumns(['marketValue']);
+    api.setColumnAggFunc('marketValue', 'sum');
+    // AG 36 has no `setPivotMode`; it is a managed grid option.
+    api.setGridOption('pivotMode', true);
+    await new Promise((r) => setTimeout(r, 3000));
+    // Pivot result columns are SECONDARY columns — `getColumns()` returns the
+    // primary ones and will always report zero here.
+    const secondary = (api.getPivotResultColumns?.() ?? []).map((c) => c.getColId());
+    let sample = null;
+    api.forEachNode((n) => { if (!sample && n.data) sample = n.data; });
+    /**
+     * Show a POPULATED cell.
+     *
+     * The lab's generated book correlates its dimensions — every row with
+     * desk=Alpha also has currency=Golf — so most cells of a pivot row are
+     * legitimately null, and printing the first two makes a working pivot look
+     * broken.
+     */
+    const named = sample ? Object.entries(sample).filter(([k]) => !k.startsWith('__')) : [];
+    const populated = named.filter(([k, v]) => k.includes('_') && v !== null);
+    const cells = [...named.slice(0, 1), ...populated.slice(0, 2)];
+    return {
+      rows: api.getDisplayedRowCount(),
+      secondaryCount: secondary.length,
+      secondary: secondary.slice(0, 4),
+      cell: cells,
+    };
+  });
+  console.log(`\n  PIVOT desk x currency        ${pivot.rows} rows · ${pivot.secondaryCount} generated columns`);
+  console.log(`    e.g. ${JSON.stringify(pivot.secondary)}`);
+  console.log(`    pivoted cells: ${JSON.stringify(pivot.cell)}`);
+
   console.log(`\n  console errors               ${errors.length === 0 ? 'none' : errors.length}`);
   for (const e of errors.slice(0, 5)) console.log(`    ${e}`);
 

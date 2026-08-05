@@ -178,6 +178,16 @@ export function SsrmEngineStressGrid({
         blockLoadDebounceMillis={40}
         animateRows={false}
         suppressAggFuncInHeader
+        /**
+         * Must match the engine's `pivotResultFieldSeparator`. AG rebuilds its
+         * secondary columns by SPLITTING each `pivotResultFields` entry on this,
+         * so a mismatch does not error — it silently carves the field name in
+         * the wrong place and produces columns named after fragments.
+         */
+        serverSidePivotResultFieldSeparator="_"
+        sideBar={{ toolPanels: ['columns', 'filters'] }}
+        rowGroupPanelShow="always"
+        pivotPanelShow="always"
         getChildCount={(data: SsrmRow) => data?.[SSRM_CHILD_COUNT] as number}
         onGridReady={(event) => {
           apiRef.current = event.api;

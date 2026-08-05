@@ -22,7 +22,19 @@ import {
 /** The subset of AG's `IServerSideGetRowsParams` this needs. */
 export interface SsrmGetRowsParamsLike {
   request: SsrmGetRowsRequest;
-  success(result: { rowData: SsrmRow[]; rowCount: number }): void;
+  success(result: {
+    rowData: SsrmRow[];
+    rowCount: number;
+    /**
+     * Pivot mode only. AG builds its secondary columns from these, so DROPPING
+     * them is silent: the rows arrive carrying pivoted cells that no column
+     * renders, and the grid shows a correct group hierarchy with nothing in it.
+     * That is exactly what this adapter did until the browser probe reported
+     * "8 rows · 0 generated columns" — the engine had produced the fields all
+     * along and the boundary was throwing them away.
+     */
+    pivotResultFields?: string[];
+  }): void;
   fail(): void;
 }
 
@@ -48,7 +60,11 @@ export function createSsrmDatasource(
   return {
     getRows(params) {
       let settled = false;
-      const succeed = (result: { rowData: SsrmRow[]; rowCount: number }) => {
+      const succeed = (result: {
+        rowData: SsrmRow[];
+        rowCount: number;
+        pivotResultFields?: string[];
+      }) => {
         if (settled) return;
         settled = true;
         params.success(result);
@@ -63,7 +79,11 @@ export function createSsrmDatasource(
       try {
         const result = engine.getRows(params.request);
         if (result.groupLevelInfo) options.onLevelTotals?.(result.groupLevelInfo, params.request);
-        succeed({ rowData: result.rowData, rowCount: result.rowCount });
+        succeed({
+          rowData: result.rowData,
+          rowCount: result.rowCount,
+          ...(result.pivotResultFields ? { pivotResultFields: result.pivotResultFields } : {}),
+        });
       } catch (error) {
         giveUp(error);
       }

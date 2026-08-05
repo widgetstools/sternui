@@ -30,6 +30,8 @@ export {
   SSRM_GROUP_FLAG,
   SSRM_GROUP_PATH,
   SSRM_CHILD_COUNT,
+  SSRM_TREE_GROUP,
+  SSRM_TREE_KEY,
   type SsrmAggFunc,
   type SsrmColumnVO,
   type SsrmFieldDef,

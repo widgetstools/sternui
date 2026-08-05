@@ -80,6 +80,16 @@ export interface SsrmGetRowsResult {
   rowCount: number;
   /** Aggregates for the requested level, for AG's group footer / totals row. */
   groupLevelInfo?: Record<string, unknown>;
+  /**
+   * Pivot mode only: every generated column name in this result.
+   *
+   * AG builds its secondary (pivot result) columns from these, splitting each
+   * on `serverSidePivotResultFieldSeparator` — default `_` — to recover the
+   * pivot values and the value column. So a name is
+   * `<pivotValue>[<sep><pivotValue>...]<sep><valueColId>` and the separator must
+   * not appear inside a pivot value, or AG will split it in the wrong place.
+   */
+  pivotResultFields?: string[];
 }
 
 /** Column types the store can hold. */
@@ -113,6 +123,15 @@ export type SsrmAggFunc =
 
 /** Marks a row the engine produced as a group row rather than a leaf. */
 export const SSRM_GROUP_FLAG = '__ssrmGroup';
+/**
+ * Tree mode markers.
+ *
+ * AG's SSRM **tree** mode has no row-group columns at all: the hierarchy is read
+ * off the DATA through `isServerSideGroup(data)` and `getServerSideGroupKey(data)`.
+ * Nothing in a book says which rows are parents, so the engine stamps it on.
+ */
+export const SSRM_TREE_GROUP = '__ssrmTreeGroup';
+export const SSRM_TREE_KEY = '__ssrmTreeKey';
 /** The full ancestor path of a group row, outermost first. */
 export const SSRM_GROUP_PATH = '__ssrmPath';
 /** Leaf rows beneath a group row — what AG shows as the group's child count. */
