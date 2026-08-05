@@ -65,7 +65,22 @@ const mocks = vi.hoisted(() => {
       exportProfile: vi.fn(async () => ({ profile: { name: 'sample' } })),
       importProfile: vi.fn(async () => {}),
     },
-    api: { sizeColumnsToFit: vi.fn() } as any,
+    /**
+     * The GridApi double, built by a FACTORY because `beforeEach` rebuilds it.
+     * `sizeColumnsToFit` was the whole of it, which held only while these tests
+     * were failing at collection and never rendering — and the reset below is
+     * where an enriched copy silently went missing the first time.
+     */
+    makeApi: () => ({
+      sizeColumnsToFit: vi.fn(),
+      getGridOption: vi.fn(() => undefined),
+      setGridOption: vi.fn(),
+      stopEditing: vi.fn(),
+      isDestroyed: vi.fn(() => false),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }),
+    api: null as any,
     captureGridStateInto: vi.fn(),
     profileSelectorPropsRef: { current: null as any },
     useGridHostInvocations: { count: 0 },
@@ -80,10 +95,21 @@ vi.mock('ag-grid-react', () => ({
   )),
 }));
 
-vi.mock('ag-grid-enterprise', () => ({
-  AllEnterpriseModule: {},
-  ModuleRegistry: { registerModules: () => {} },
-}));
+/**
+ * The enterprise bundle is stubbed to CUT the module graph, not merely to
+ * satisfy the names: importing it for real reaches `@perspective-dev/client`'s
+ * wasm, which Vite refuses to serve. The stub is shared and answers ANY named
+ * export, because four copies of a two-property literal is exactly what broke
+ * all four of these files at collection time when `modules.ts` grew its 21st
+ * import.
+ *
+ * The factory is async and imports the stub ITSELF — `vi.mock` factories are
+ * hoisted above imports, so a module-scope binding is not initialised yet when
+ * this runs.
+ */
+vi.mock('ag-grid-enterprise', async () =>
+  (await import('../test/agGridEnterpriseMock.js')).agGridEnterpriseMock(),
+);
 
 vi.mock('../customizer/hooks/useModuleState.js', () => ({
   useModuleState: () => [undefined, vi.fn()],
@@ -101,12 +127,18 @@ vi.mock('@starui/engine', async (importOriginal) => {
   };
 });
 
-vi.mock('@starui/grid/customizer', () => ({
-  GridProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+vi.mock('@starui/grid/customizer', async () => ({
+  /**
+   * The REAL provider and hooks. `MarketsGridHost` reads the platform context
+   * by RELATIVE path while `MarketsGrid` sets it through this barrel, so a
+   * passthrough shell here renders children without ever establishing the
+   * context — and a thin `useGridPlatform` stub hands components a platform
+   * missing most of the class, one missing member surfacing at a time.
+   */
+  ...(await import('../customizer/hooks/GridProvider.js')),
   ProviderGridHostProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   GridEventBindingsHostProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useGridApi: () => mocks.api,
-  useGridPlatform: () => ({ store: {}, gridId: 'test-grid', events: { on: () => () => {}, emit: () => {} } }),
   useModuleState: () => [undefined, vi.fn()],
   GENERAL_SETTINGS_MODULE_ID: 'general-settings',
   useProfileManager: (opts: any) => {
@@ -165,18 +197,39 @@ vi.mock('@starui/grid/customizer', () => ({
   toolbarDateSettingsModule: {},
 }));
 
-vi.mock('./useGridHost', () => ({
-  useGridHost: (_opts: any) => {
-    mocks.useGridHostInvocations.count += 1;
-    return {
-      platform: { store: {}, api: { api: null } },
-      columnDefs: [],
-      gridOptions: {},
-      onGridReady: vi.fn(),
-      onGridPreDestroyed: vi.fn(),
-    };
-  },
-}));
+/**
+ * A REAL `GridPlatform`, not a hand-rolled double.
+ *
+ * The old stub was `{ store: {}, api: { api: null } }`, which sufficed only
+ * because these tests never rendered — they died at collection. Once they ran,
+ * the component wanted `platform.api.onReady`, `platform.store.getModuleState`
+ * and `platform.setDataTransactionApplier`; chasing those one at a time means
+ * inventing the contract instead of reading it. `GridPlatform` is an ordinary
+ * class that takes an empty module list, so the honest double is the real thing.
+ */
+vi.mock('./useGridHost', async () => {
+  const { GridPlatform } = await import('@starui/engine');
+  const platform = new GridPlatform({ gridId: 'test-grid', modules: [] });
+  // Attach the SAME GridApi double the assertions use. `useGridApi` now
+  // resolves to the real hook (the barrel re-exports the real module), so the
+  // hub is what serves it — returning the double only from the barrel would
+  // hand the component something different from what the tests inspect.
+  // The hub reads through to the CURRENT double, because `beforeEach` swaps
+  // `mocks.api` per test (and one test sets it to null on purpose).
+  Object.defineProperty(platform.api, 'api', { get: () => mocks.api, configurable: true });
+  return {
+    useGridHost: (_opts: any) => {
+      mocks.useGridHostInvocations.count += 1;
+      return {
+        platform,
+        columnDefs: [],
+        gridOptions: {},
+        onGridReady: vi.fn(),
+        onGridPreDestroyed: vi.fn(),
+      };
+    },
+  };
+});
 
 vi.mock('../customizer/modules/toolbar-date-settings/useToolbarDateSettingsBridge.js', () => ({
   useToolbarDateSettingsBridge: ({
@@ -230,7 +283,7 @@ function resetMocks() {
   mocks.profile.discardActiveProfile = vi.fn(async () => {});
   mocks.profile.exportProfile = vi.fn(async () => ({ profile: { name: 'sample' } }));
   mocks.profile.importProfile = vi.fn(async () => {});
-  mocks.api = { sizeColumnsToFit: vi.fn() };
+  mocks.api = mocks.makeApi();
   mocks.captureGridStateInto = vi.fn();
   mocks.profileSelectorPropsRef.current = null;
   mocks.useGridHostInvocations.count = 0;

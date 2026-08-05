@@ -7,6 +7,17 @@ export default defineConfig({
   resolve: {
     dedupe: ['react', 'react-dom'],
     alias: [
+      /**
+       * Vite refuses this id under vitest — it is outside the project root and
+       * carries a `?url` suffix — and it is reached TRANSITIVELY: `MarketsGrid`
+       * imports `CustomSSRMGrid`, which imports `agGrid/modules.ts`, whose
+       * graph reaches the Perspective client. The failure is at collection
+       * time, so it takes the whole file rather than one test.
+       */
+      {
+        find: '@perspective-dev/client/dist/wasm/perspective-js.wasm?url',
+        replacement: resolve(__dirname, 'src/test/perspectiveWasmUrlStub.ts'),
+      },
       {
         find: '@starui/design-system/adapters/ag-grid',
         replacement: resolve(__dirname, '../../design-system/design-system/dist/adapters/agGrid.js'),

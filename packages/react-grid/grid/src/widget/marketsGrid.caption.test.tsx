@@ -19,10 +19,21 @@ vi.mock('ag-grid-react', () => ({
   )),
 }));
 
-vi.mock('ag-grid-enterprise', () => ({
-  AllEnterpriseModule: {},
-  ModuleRegistry: { registerModules: () => {} },
-}));
+/**
+ * The enterprise bundle is stubbed to CUT the module graph, not merely to
+ * satisfy the names: importing it for real reaches `@perspective-dev/client`'s
+ * wasm, which Vite refuses to serve. The stub is shared and answers ANY named
+ * export, because four copies of a two-property literal is exactly what broke
+ * all four of these files at collection time when `modules.ts` grew its 21st
+ * import.
+ *
+ * The factory is async and imports the stub ITSELF — `vi.mock` factories are
+ * hoisted above imports, so a module-scope binding is not initialised yet when
+ * this runs.
+ */
+vi.mock('ag-grid-enterprise', async () =>
+  (await import('../test/agGridEnterpriseMock.js')).agGridEnterpriseMock(),
+);
 
 vi.mock('../customizer/hooks/useModuleState.js', () => ({
   useModuleState: () => [undefined, vi.fn()],
@@ -42,14 +53,21 @@ vi.mock('@starui/engine', async (importOriginal) => {
 // React shells from @starui/grid/customizer — hooks, panel primitives,
 // shadcn primitives, and module registry exports.
 vi.mock('@starui/grid/customizer', async () => {
-  const actual: any = {};
+  /**
+   * The REAL provider and hooks. `MarketsGridHost` reads the platform context
+   * by RELATIVE path while `MarketsGrid` sets it through this barrel, so a
+   * passthrough shell here renders children without ever establishing the
+   * context — and a thin `useGridPlatform` stub hands components a platform
+   * missing most of the class, one missing member surfacing at a time.
+   */
+  const provider = await import('../customizer/hooks/GridProvider.js');
   return {
-    ...actual,
-    GridProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    GridProvider: provider.GridProvider,
+    useGridPlatform: provider.useGridPlatform,
+    useOptionalGridPlatform: provider.useOptionalGridPlatform,
     ProviderGridHostProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     GridEventBindingsHostProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     useGridApi: () => null,
-    useGridPlatform: () => ({ events: { on: () => () => {}, emit: () => {} } }),
     useModuleState: () => [undefined, vi.fn()],
     GENERAL_SETTINGS_MODULE_ID: 'general-settings',
     useProfileManager: () => ({
@@ -122,15 +140,37 @@ vi.mock('../customizer/modules/toolbar-date-settings/useToolbarDateSettingsBridg
   }),
 }));
 
-vi.mock('./useGridHost', () => ({
-  useGridHost: () => ({
-    platform: { api: { api: null } },
-    columnDefs: [],
-    gridOptions: {},
-    onGridReady: vi.fn(),
-    onGridPreDestroyed: vi.fn(),
-  }),
-}));
+/**
+ * A REAL `GridPlatform`, not a hand-rolled double.
+ *
+ * The old stub was `{ api: { api: null } }`, which sufficed only because these
+ * tests never rendered — they died at collection. Once they ran, the component
+ * wanted `platform.api.onReady`, `platform.store.getModuleState` and
+ * `platform.setDataTransactionApplier`; chasing those one at a time means
+ * inventing the contract instead of reading it. `GridPlatform` is an ordinary
+ * class that takes an empty module list, so the honest double is the real thing.
+ */
+vi.mock('./useGridHost', async () => {
+  const { GridPlatform } = await import('@starui/engine');
+  const platform = new GridPlatform({ gridId: 'caption-test', modules: [] });
+  platform.api.attach({
+    setGridOption: () => {},
+    stopEditing: () => {},
+    sizeColumnsToFit: () => {},
+    isDestroyed: () => false,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  } as never);
+  return {
+    useGridHost: () => ({
+      platform,
+      columnDefs: [],
+      gridOptions: {},
+      onGridReady: vi.fn(),
+      onGridPreDestroyed: vi.fn(),
+    }),
+  };
+});
 
 vi.mock('./FiltersToolbar', () => ({ FiltersToolbar: () => null }));
 vi.mock('./FormattingToolbar', () => ({
@@ -178,12 +218,21 @@ describe('MarketsGrid — caption', () => {
     const node = container.querySelector('[data-grid-caption]');
     expect(node).not.toBeNull();
     expect(getByTestId('grid-caption-text').textContent).toBe('Markets Blotter');
-    // The caption must be the FIRST child of the primary toolbar row
-    // so it lands at the left edge, before the filters carousel.
-    const toolbar = container.querySelector(
-      '[data-grid-id="caption-test"] > .ds-toolbar-primary',
+    // The caption sits at the left edge, before the filters carousel — but
+    // AFTER the density pill, which `PrimaryToolbar` now renders ahead of it in
+    // a row whose own class says so (`ds-primary-row--with-density`). That is
+    // an intended layout change, not drift: this assertion used to require the
+    // caption to be the toolbar's FIRST child and was never re-read, because
+    // the file had been failing at collection.
+    const toolbar = container.querySelector('.ds-toolbar-primary');
+    expect(toolbar).not.toBeNull();
+    const children = [...(toolbar?.children ?? [])];
+    expect(children[0]?.className).toContain('density-pill');
+    expect(children[1]).toBe(node);
+    // Still ahead of the filters carousel, which is the point of the rule.
+    expect(children.indexOf(node!)).toBeLessThan(
+      children.findIndex((c) => c.className.includes('ds-primary-filters')),
     );
-    expect(toolbar?.firstElementChild).toBe(node);
   });
 
   it('reveals an inline input when the edit button is clicked, commits on Enter, and fires onCaptionChange', () => {

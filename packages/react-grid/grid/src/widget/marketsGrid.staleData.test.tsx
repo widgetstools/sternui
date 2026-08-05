@@ -7,8 +7,12 @@ import * as React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 
-const setGridOption = vi.fn();
-const stopEditing = vi.fn();
+// Hoisted: the `useGridHost` factory below is lifted above this file's
+// statements, so plain `const` spies are not initialised when it runs.
+const { setGridOption, stopEditing } = vi.hoisted(() => ({
+  setGridOption: vi.fn(),
+  stopEditing: vi.fn(),
+}));
 
 vi.mock('ag-grid-react', () => ({
   AgGridReact: React.forwardRef<unknown, any>(() => (
@@ -16,10 +20,21 @@ vi.mock('ag-grid-react', () => ({
   )),
 }));
 
-vi.mock('ag-grid-enterprise', () => ({
-  AllEnterpriseModule: {},
-  ModuleRegistry: { registerModules: () => {} },
-}));
+/**
+ * The enterprise bundle is stubbed to CUT the module graph, not merely to
+ * satisfy the names: importing it for real reaches `@perspective-dev/client`'s
+ * wasm, which Vite refuses to serve. The stub is shared and answers ANY named
+ * export, because four copies of a two-property literal is exactly what broke
+ * all four of these files at collection time when `modules.ts` grew its 21st
+ * import.
+ *
+ * The factory is async and imports the stub ITSELF — `vi.mock` factories are
+ * hoisted above imports, so a module-scope binding is not initialised yet when
+ * this runs.
+ */
+vi.mock('ag-grid-enterprise', async () =>
+  (await import('../test/agGridEnterpriseMock.js')).agGridEnterpriseMock(),
+);
 
 vi.mock('../customizer/hooks/useModuleState.js', () => ({
   useModuleState: () => [undefined, vi.fn()],
@@ -38,14 +53,23 @@ vi.mock('@starui/engine', async (importOriginal) => {
 });
 
 vi.mock('@starui/grid/customizer', async () => {
-  const actual: any = {};
+  /**
+   * The REAL provider, so the context `MarketsGridHost` reads by relative path
+   * is the one `MarketsGrid` sets through this barrel. A passthrough shell here
+   * renders children without ever establishing the context, which is why the
+   * host threw `useGridPlatform() must be used inside <GridProvider>` the
+   * moment these tests started running.
+   */
+  const provider = await import('../customizer/hooks/GridProvider.js');
   return {
-    ...actual,
-    GridProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    GridProvider: provider.GridProvider,
+    // The real hooks too: a thin stub here hands components a platform that is
+    // missing most of the class, and each missing member surfaces one at a time.
+    useGridPlatform: provider.useGridPlatform,
+    useOptionalGridPlatform: provider.useOptionalGridPlatform,
     ProviderGridHostProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     GridEventBindingsHostProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     useGridApi: () => null,
-    useGridPlatform: () => ({ events: { on: () => () => {}, emit: () => {} } }),
     useModuleState: () => [undefined, vi.fn()],
     GENERAL_SETTINGS_MODULE_ID: 'general-settings',
     useProfileManager: () => ({
@@ -118,23 +142,40 @@ vi.mock('../customizer/modules/toolbar-date-settings/useToolbarDateSettingsBridg
   }),
 }));
 
-vi.mock('./useGridHost', () => ({
-  useGridHost: () => ({
-    platform: {
-      api: {
-        api: {
-          setGridOption,
-          stopEditing,
-          isDestroyed: () => false,
-        },
-      },
-    },
-    columnDefs: [],
-    gridOptions: {},
-    onGridReady: vi.fn(),
-    onGridPreDestroyed: vi.fn(),
-  }),
-}));
+/**
+ * A REAL `GridPlatform`, not a hand-rolled double.
+ *
+ * The previous stub was `{ api: { api: {...} } }` and nothing more, which was
+ * enough only because these tests never actually rendered — they died at
+ * collection. Once they ran, the component wanted `platform.api.onReady`,
+ * `platform.store.getModuleState` and `platform.setDataTransactionApplier`,
+ * and chasing those one at a time would have meant inventing the contract
+ * instead of reading it.
+ *
+ * `GridPlatform` is an ordinary class and takes an empty module list, so the
+ * honest double is the real thing: it cannot drift from the interface, and
+ * `api.attach()` is the same call the host makes on `onGridReady`.
+ */
+vi.mock('./useGridHost', async () => {
+  const { GridPlatform } = await import('@starui/engine');
+  const platform = new GridPlatform({ gridId: 'stale-test', modules: [] });
+  platform.api.attach({
+    setGridOption,
+    stopEditing,
+    isDestroyed: () => false,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  } as never);
+  return {
+    useGridHost: () => ({
+      platform,
+      columnDefs: [],
+      gridOptions: {},
+      onGridReady: vi.fn(),
+      onGridPreDestroyed: vi.fn(),
+    }),
+  };
+});
 
 vi.mock('./FiltersToolbar', () => ({ FiltersToolbar: () => null }));
 vi.mock('./FormattingToolbar', () => ({
