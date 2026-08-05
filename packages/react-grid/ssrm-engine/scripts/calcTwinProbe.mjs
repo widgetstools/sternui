@@ -194,6 +194,8 @@ for (const entry of cases) {
   entry.poisonRowsSeen = 0;
   entry.firstMismatch = null;
   entry.twinNonNull = 0;
+  /** The twin's value per row id, for the sort/filter/group parity below. */
+  entry.twinByRow = new Map();
 }
 
 // ── read the whole book through getRows and compare every cell ─────────────
@@ -215,6 +217,7 @@ for (let start = 0; start < ROWS; start += BLOCK) {
     if (row.adv_ifTruthy !== row.adv_ifsTruthy) truthinessSplits += 1;
     for (const entry of cases) {
       const want = twinValue(entry.ast, row);
+      entry.twinByRow.set(row.id, want);
       if (want !== null && want !== undefined) entry.twinNonNull += 1;
       if (entry.refusal !== null || entry.parseError !== null) continue;
       const got = row[entry.colId];
@@ -229,8 +232,196 @@ for (let start = 0; start < ROWS; start += BLOCK) {
   }
 }
 
+// ═══ session 5: does a calculated column SORT, FILTER and GROUP like the twin?
+//
+// The values above are a differential against `@starui/engine`'s own evaluator.
+// These are a differential against what a grid holding those values would DO
+// with them: the control is the twin's value for each row, and the question is
+// whether the engine's ordering, its filtered set and its buckets are the ones
+// those values imply.
+//
+// **Where AG's own comparator is the authority and where it is not**, stated
+// rather than blurred. For two PRESENT values the rule is AG Grid's
+// `_defaultComparator` (`ag-stack`), reproduced here from its source — greater
+// is 1, less is -1, and a pair where neither holds is 0. For an ABSENT value it
+// is NOT: AG's comparator answers -1 for a null, and the grid then multiplies
+// by the direction, so on the client-side row model **nulls sort FIRST
+// ascending and last descending**. This engine puts null and NaN last in BOTH
+// directions — session 3 settled that after a NaN price sorted above the best
+// bid — so the two genuinely differ on absent rows, deliberately, and the
+// present rows are where the differential has force. The divergence is asserted
+// below rather than hidden inside a comparator that quietly agrees with itself.
+const ORIGINAL_ORDER = new Map();
+{
+  let n = 0;
+  for (let start = 0; start < ROWS; start += BLOCK) {
+    for (const row of engine.getRows({ startRow: start, endRow: start + BLOCK }).rowData) {
+      ORIGINAL_ORDER.set(row.id, n++);
+    }
+  }
+}
+
+/** AG Grid's `_defaultComparator`, for two values that are both present. */
+function agCompare(x, y) {
+  if (x > y) return 1;
+  if (x < y) return -1;
+  return 0;
+}
+
+/** Null, undefined and NaN alike: no position on the number line. */
+function absent(value) {
+  return value === null || value === undefined || (typeof value === 'number' && Number.isNaN(value));
+}
+
+const parity = [];
+const record = (colId, check, ok, detail) => parity.push({ colId, check, ok, detail });
+
+/** Columns whose ORDER, filtered set and buckets are put to the twin. */
+const UNDER_TEST = ['calc_carryRisk', 'calc_pnlTotal', 'adv_nanTimes', 'calc_riskBucket', 'trafficlight'];
+
+/**
+ * How many columns actually reached each rule, so the run can refuse when one
+ * was never exercised at all.
+ *
+ * Scoped to the WHOLE run rather than to each column, and the first draft got
+ * that wrong: it demanded absent rows of every column under test and then
+ * refused to report because `calc_pnlTotal` has none — correctly, since
+ * `[a]+[b]+[c]` over nulls is a number in JavaScript, and `calc_riskBucket`'s
+ * IF chain always returns a string. A rule has to be exercised somewhere;
+ * insisting every column exercise every rule fails on the arithmetic rather
+ * than on the engine.
+ */
+const exercised = { absent: 0, filter: 0, group: 0 };
+
+for (const colId of UNDER_TEST) {
+  const entry = cases.find((c) => c.colId === colId);
+  if (entry === undefined || entry.refusal !== null || entry.parseError !== null) {
+    record(colId, 'sort/filter/group', false, 'not installed — nothing was compared');
+    continue;
+  }
+  const twin = entry.twinByRow;
+  const ids = [...twin.keys()];
+  const present = ids.filter((id) => !absent(twin.get(id)));
+  const missing = ids.filter((id) => absent(twin.get(id)));
+
+  // ── SORT ────────────────────────────────────────────────────────────────
+  for (const dir of ['asc', 'desc']) {
+    const sign = dir === 'desc' ? -1 : 1;
+    const expected = [
+      ...present.slice().sort((a, b) => {
+        const cmp = agCompare(twin.get(a), twin.get(b)) * sign;
+        return cmp !== 0 ? cmp : ORIGINAL_ORDER.get(a) - ORIGINAL_ORDER.get(b);
+      }),
+      // Absent rows all tie on the sort column, so the engine's offset
+      // tie-break leaves them in the book's own order.
+      ...missing.slice().sort((a, b) => ORIGINAL_ORDER.get(a) - ORIGINAL_ORDER.get(b)),
+    ];
+    const got = engine
+      .getRows({ sortModel: [{ colId, sort: dir }], startRow: 0, endRow: ROWS })
+      .rowData.map((r) => r.id);
+    let firstDiff = -1;
+    for (let i = 0; i < expected.length; i++) {
+      if (got[i] !== expected[i]) {
+        firstDiff = i;
+        break;
+      }
+    }
+    record(
+      colId,
+      `sort ${dir}`,
+      firstDiff === -1,
+      firstDiff === -1
+        ? `${present.length.toLocaleString()} ordered, ${missing.length} absent last`
+        : `row ${firstDiff}: engine ${got[firstDiff]} (${show(twin.get(got[firstDiff]))}), ` +
+          `twin order says ${expected[firstDiff]} (${show(twin.get(expected[firstDiff]))})`,
+    );
+    // The absent rows must be at the END whichever way the arrow points, and
+    // this is the half where the engine and AG deliberately differ.
+    if (missing.length > 0) {
+      exercised.absent += 1;
+      const tail = new Set(got.slice(ROWS - missing.length));
+      record(
+        colId,
+        `absent last, ${dir}`,
+        missing.every((id) => tail.has(id)),
+        `${missing.length} null/NaN rows, all last (AG's own comparator would put them FIRST on asc)`,
+      );
+    }
+  }
+
+  // ── FILTER ──────────────────────────────────────────────────────────────
+  const numeric = present.filter((id) => typeof twin.get(id) === 'number');
+  if (numeric.length > 0) {
+    const sorted = numeric.map((id) => twin.get(id)).sort((a, b) => a - b);
+    const threshold = sorted[Math.floor(sorted.length / 2)];
+    const expected = new Set(numeric.filter((id) => twin.get(id) > threshold));
+    const got = new Set(
+      engine
+        .getRows({
+          filterModel: { [colId]: { filterType: 'number', type: 'greaterThan', filter: threshold } },
+          startRow: 0,
+          endRow: ROWS,
+        })
+        .rowData.map((r) => r.id),
+    );
+    const only = [...got].filter((id) => !expected.has(id));
+    const missed = [...expected].filter((id) => !got.has(id));
+    if (expected.size > 0 && expected.size < ROWS) exercised.filter += 1;
+    record(
+      colId,
+      `filter > ${threshold}`,
+      only.length === 0 && missed.length === 0 && expected.size > 0 && expected.size < ROWS,
+      expected.size === 0 || expected.size === ROWS
+        ? `the threshold kept ${expected.size} of ${ROWS} — not a strict subset, so it proves nothing`
+        : `${expected.size.toLocaleString()} rows${only.length + missed.length === 0 ? '' : `, ${only.length} extra / ${missed.length} missing (e.g. ${only[0] ?? missed[0]})`}`,
+    );
+  }
+
+  // ── GROUP ───────────────────────────────────────────────────────────────
+  const buckets = new Map();
+  for (const id of ids) {
+    const value = twin.get(id);
+    const key = value === null || value === undefined ? ' null' : String(value);
+    buckets.set(key, (buckets.get(key) ?? 0) + 1);
+  }
+  if (buckets.size > 1 && buckets.size <= 64) {
+    const level = engine.getRows({ rowGroupCols: [{ id: colId }], groupKeys: [] });
+    const got = new Map(
+      level.rowData.map((r) => [
+        r[colId] === null || r[colId] === undefined ? ' null' : String(r[colId]),
+        r.__ssrmChildCount,
+      ]),
+    );
+    const wrong = [...buckets.entries()].filter(([key, count]) => got.get(key) !== count);
+    exercised.group += 1;
+    record(
+      colId,
+      'group',
+      wrong.length === 0 && got.size === buckets.size,
+      wrong.length === 0 && got.size === buckets.size
+        ? `${buckets.size} buckets, every child count identical`
+        : `${wrong.length} bucket(s) differ, e.g. ${wrong[0]?.[0]} wants ${wrong[0]?.[1]} and got ${got.get(wrong[0]?.[0])}`,
+    );
+  }
+}
+
 // ── the refusals to report ─────────────────────────────────────────────────
 const refusalsToReport = [];
+for (const entry of parity) {
+  if (!entry.ok) refusalsToReport.push(`${entry.colId} ${entry.check}: ${entry.detail}`);
+}
+if (parity.length === 0) refusalsToReport.push('no sort/filter/group parity was checked at all');
+// Each of the three rules has to have been reached by SOMETHING, or its green
+// line above is a rule nobody ran.
+if (exercised.absent === 0) {
+  refusalsToReport.push('no column under test had a null or NaN — the absent-last rule was never exercised');
+}
+if (exercised.filter === 0) {
+  refusalsToReport.push('no filter cut the book to a strict subset — the filter path proved nothing');
+}
+if (exercised.group === 0) {
+  refusalsToReport.push('no column under test grouped into buckets — the group path proved nothing');
+}
 if (rowsCompared !== ROWS) {
   refusalsToReport.push(`read ${rowsCompared} rows of ${ROWS} — the comparison is not over the book`);
 }
@@ -295,6 +486,11 @@ for (const entry of cases) {
     verdict = 'identical';
   }
   console.log(`  ${pad(entry.colId, 22)}${pad(entry.compared, 8)}${pad(entry.mismatches, 12)}${verdict}`);
+}
+
+console.log(`\n  ${'-'.repeat(72)}\n  sort / filter / group, against the same twin values`);
+for (const entry of parity) {
+  console.log(`  ${pad(entry.colId, 22)}${pad(entry.check, 20)}${entry.ok ? 'ok' : 'FAILED'} — ${entry.detail}`);
 }
 
 console.log('');

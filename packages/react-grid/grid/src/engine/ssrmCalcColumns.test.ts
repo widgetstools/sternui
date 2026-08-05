@@ -6,6 +6,7 @@ import {
   materializeCalcFields,
   planSsrmCalcColumn,
   planSsrmCalcColumns,
+  ssrmEngineCalcColumnDefs,
 } from './ssrmCalcColumns.js';
 
 describe('ssrmCalcColumns', () => {
@@ -60,6 +61,82 @@ describe('ssrmCalcColumns', () => {
       if (plan.kind === 'unsupported') {
         expect(plan.reason).toMatch(/SUM|unsupported|function/i);
       }
+    });
+  });
+
+  /**
+   * The `ssrm-engine` backend: `@starui/ssrm-engine` evaluates the AST where
+   * the book is, so the plan carries the tree and nothing else.
+   */
+  describe('planSsrmCalcColumn — backend: ssrm-engine', () => {
+    it('hands over the parsed AST rather than a string', () => {
+      const plan = planSsrmCalcColumn(
+        { colId: 'grossPnl', expression: '[price] * [quantity]' },
+        { backend: 'ssrm-engine' },
+      );
+      expect(plan.kind).toBe('ssrm-engine');
+      // Plain data, because the AST is the only thing that crosses the
+      // SharedWorker port — a compiled closure is not structured-cloneable.
+      expect(JSON.parse(JSON.stringify(plan))).toEqual(plan);
+      expect(plan.kind === 'ssrm-engine' && plan.ast.type).toBe('binary');
+    });
+
+    it('takes an expression the PERSPECTIVE backend cannot compile', () => {
+      // A ternary is not Perspective-compilable and is not in the materialize
+      // set either, so this same expression is `unsupported` on the default
+      // backend. Losing that is the point of adding this one.
+      const expression = '[price] > 100 ? "rich" : "cheap"';
+      expect(planSsrmCalcColumn({ colId: 'band', expression }).kind).toBe('unsupported');
+      expect(
+        planSsrmCalcColumn({ colId: 'band', expression }, { backend: 'ssrm-engine' }).kind,
+      ).toBe('ssrm-engine');
+    });
+
+    it('reports a PARSE failure as unsupported, with the parser message', () => {
+      const plan = planSsrmCalcColumn(
+        { colId: 'broken', expression: '[price] * * 2' },
+        { backend: 'ssrm-engine' },
+      );
+      expect(plan.kind).toBe('unsupported');
+      expect(plan.kind === 'unsupported' && plan.reason.length).toBeGreaterThan(0);
+    });
+
+    it('does NOT re-implement the engine refusal list', () => {
+      // `SUM([col])` is a cross-row aggregate the engine refuses BY NAME and
+      // records in `calcDiagnostics()`. The planner deliberately does not
+      // duplicate that list — a second copy is a second thing to keep in step,
+      // and this repo already has two calculated-column error conventions that
+      // differ. It parses, so it is planned; the engine has the last word.
+      expect(
+        planSsrmCalcColumn({ colId: 'total', expression: 'SUM([price])' }, { backend: 'ssrm-engine' })
+          .kind,
+      ).toBe('ssrm-engine');
+    });
+
+    it('collects the defs the engine is handed', () => {
+      const plans = planSsrmCalcColumns(
+        [
+          { colId: 'a', expression: '[price] * 2' },
+          { colId: 'bad', expression: '[price] * * 2' },
+        ],
+        { backend: 'ssrm-engine' },
+      );
+      const defs = ssrmEngineCalcColumnDefs(plans);
+      expect(defs.map((d) => d.colId)).toEqual(['a']);
+      expect(defs[0].ast).toBeDefined();
+    });
+
+    it('binds the FIELD and drops the valueGetter, which is what the twin reads', () => {
+      // `buildVirtualColDef`'s own getter falls back to `data[colId]` on a
+      // group row with the comment "SSRM stamps the folded agg onto
+      // data[field]". The engine stamps there, so binding the field lands the
+      // value where that code looks.
+      const defs: SSRMColDef[] = [{ colId: 'a', valueGetter: () => 1 }];
+      const out = applyPerspectivePlansToColDefs(defs, [
+        { kind: 'ssrm-engine', colId: 'a', expression: '[price] * 2', ast: { type: 'literal', value: 1 } as never },
+      ]);
+      expect(out[0].valueGetter).toBeUndefined();
+      expect(out[0].field).toBe('a');
     });
   });
 

@@ -28,10 +28,13 @@ The full AG SSRM request is answered: `startRow`/`endRow`, `sortModel`,
 `filterModel` (text, number, date, set, blank, compound AND/OR, multi-filter),
 `rowGroupCols`, `valueCols`, `groupKeys`, `pivotCols`/`pivotMode`, plus tree
 data, quick filter, distinct values, grand total and a changed-key delta — and
-since session 4, **calculated columns as values**, compiled per expression to a
-closure over the columnar store. 124 unit tests including two differential
-fuzzes — one over the engine's query shapes (now including calculated cells),
-one over the whole push path from a write in the worker to the rows AG holds.
+since session 5, **calculated columns that behave like real ones**: compiled per
+expression to a closure over the columnar store, and sortable, filterable,
+groupable, pivotable and aggregatable through one column accessor that cannot
+tell them from a stored field. They tick, too. 150 unit tests including two
+differential fuzzes — one over the engine's query shapes (calculated cells and
+calculated query shapes included), one over the whole push path from a write in
+the worker to the rows AG holds.
 
 **What session 1 settled, and what it did not.** The book is out of the window,
 the boundary costs 2.2 ms per block against 0.6 ms in-process, and the topology
@@ -46,8 +49,10 @@ engine, not of hosting. Details in the README.
 
 ## Rules carried into every session
 
-These cost real time when ignored, all of them in this repo's history. Rules 9
-and 10 are new and both came from defects session 3's fuzz found.
+These cost real time when ignored, all of them in this repo's history. Rules 13
+and 14 are new and both came from session 5 — the first from a check that would
+have been green over the bug it was written for, the second from a measurement
+that looked like a 6x regression and was the metric.
 
 1. **Measure before theorising, and check the probe can fail.** Three separate
    figures on the Perspective path were withdrawn after a clean re-measurement.
@@ -106,6 +111,24 @@ and 10 are new and both came from defects session 3's fuzz found.
    call the compiler correctly refuses, so the column was never installed and
    30,000 assertions compared `undefined` to `undefined` and passed. Whenever a
    path can decline to produce a value, assert that it produced one.
+
+13. **A check that agrees with the oracle by DOING NOTHING is the same trap.** A
+   sort that did not sort, a filter that excluded nothing and a group of one
+   bucket all match a correct oracle perfectly — and "did nothing, silently" is
+   precisely the defect session 5 existed to remove, so the check would have
+   been green over the bug it was written for. Every new query path now carries
+   a counter asserting it was SEEN TO CHANGE THE ANSWER on a substantial number
+   of frames. Session 5's first run failed one of those at 29 frames of 250,
+   which was the counter working: the fix is a better input, never a lower
+   threshold.
+
+14. **Two consecutive runs of one configuration is not a control.** Session 5
+   read 12,620 and 12,661 ms to first row with calculated columns against 1,869
+   and 1,981 ms without, and that is a clean, reproducible-looking 6x
+   regression. Interleaving the two URLs in ONE series put the baseline at
+   12,715 ms and the calculated run at 1,925 ms. `browserSmokeProbe` is bimodal
+   on identical code, exactly as `providerBookProbe` already was. A/B by
+   alternating, never by batching.
 
 **Gates for every session:** `npx turbo typecheck build test --continue` (the
 documented baseline is `@starui/grid` failing test FILES with 0 failed tests,
@@ -393,36 +416,89 @@ collection error in an `ag-grid-enterprise` mock missing
 
 ---
 
-## Session 5 — calculated columns, part 2: they behave like real columns
+## Session 5 — calculated columns, part 2: they behave like real columns · **DONE**
 
-**Build**
+Built: `src/columnAccess.ts` (`SsrmColumnAccess`, `createColumnResolver`,
+`orderKeyOfValue`, `numericOrderKey`), `sort.ts` rewritten around
+`compareOrderKeys` and a decorated key, `filter.ts` and `aggregate.ts` moved off
+the store onto the accessor, `engine.calcPatch` plus the `writeVersion` stamp,
+`host.publish` stamping the patch, `ColumnStore.resolveColumn`, the
+`ssrm-engine` plan kind in `grid/src/engine/ssrmCalcColumns.ts` with
+`ssrmEngineCalcColumnDefs`, `src/calcQuery.test.ts` (26 cases), calculated
+columns inside both fuzzes, and sort/filter/group parity in `calcTwinProbe.mjs`.
+The lab installs four of them on `?engine=ssrm&calc=1`. **150 engine tests**
+(was 124).
 
-- a calc column must be sortable, filterable, groupable and aggregatable, which
-  means the evaluator feeds `materialise` and not just the row output. The seam
-  session 4 left is `engine.calcEvaluator(colId)` — a `(offset) => unknown`
-  closure, which is exactly "evaluate it for these offsets";
-- **a calc column must TICK.** `host.publish` broadcasts the writer's sparse
-  patch verbatim, so a tick that moves `dailyPnL` reaches the window without the
-  `calc_pnlTotal` that depends on it and the cell stays stale until AG re-reads
-  the block. Everything needed is present; it changes `publish`, so it goes
-  behind the delta-path fuzz;
-- decide and DOCUMENT whether calc values are materialised into the store
-  (memory, staleness on tick) or computed per read (CPU per block). Measure both
-  before choosing — session 4's `benchProbe` numbers are the per-read side:
-  **~0.2 ms per 400-cell block, ~145 ns/cell, 11.4 ms for 80,000 cells**, which
-  is what materialising would pay per WRITE instead;
-- wire to the customizer's calculated-column module.
+**One accessor, not three, and rule 10 is why.** `sortIndex`, `compileFilter`
+and `aggregateMembers` each opened by skipping a column the store does not have,
+so a sort, filter or aggregation on a calculated column was a SILENT NO-OP. The
+fix could have been three branches; it is one interface that answers a store
+column and a compiled expression identically, consumed by sort, filter,
+aggregate, group, pivot, the ancestor predicate and distinct values. Adding
+pivot and set-filter values afterwards was one line each. There is now one
+comparator in the package and one definition of "no position on the number
+line".
 
-**Two decisions session 4 made that this one inherits rather than revisits.**
-Cross-row reducers (`SUM([col])` and friends) are REFUSED, because "every row"
-against a server row model means the filtered book and depends on the request
-rather than the row — if this session wants them, it is a new mechanism, not a
-relaxation. And `NOW`/`TODAY` are refused because a value that changes on its
-own makes the materialise-vs-compute decision meaningless; that refusal should
-be revisited only alongside it.
+**Three defects, and two of them were never about calculated columns.**
 
-**Done when** a seeded calc column from the lab's curriculum sorts, filters and
-groups identically to the CSRM twin.
+| found | what it was |
+|---|---|
+| `engine.fuzz`, frame 0 | an aggregate **COERCED a non-number instead of skipping it**. AG's own `aggSum`/`aggMin`/`aggMax` require `typeof value === 'number'`. A calculated boolean column summed to the count of its TRUE rows — and a stored STRING column summed its DICTIONARY CODES, reachable the whole time by dragging a text column into the values panel |
+| `engine.fuzz`, frame 11 | **Kahan compensation poisoned a group once a non-finite value entered it.** `Infinity - 0 - Infinity` is NaN and every later `value - compensation` inherits it, so one `x / null` turned a total into NaN and kept it NaN after the Infinity cancelled out. Reachable on a stored column too: a feed can send one |
+| mutation testing | **group rows still had their own comparator**, with the direction multiplier applied to an unorderable verdict — a NaN group key sorted FIRST on a descending group. Rule 10 exactly: the leaf sort was fixed for this twice and the branch that shares its reasoning was never re-read. It survived every value comparison in the suite |
+
+**Sixteen deliberate bugs, 16 caught, 0 survived.** Every new path was
+mutation-tested by a throwaway script that edits the source and requires the
+suite to go red. Three anti-vacuous counters were added because a sort that did
+nothing, a filter that excluded nothing and a group of one bucket all agree with
+the oracle trivially — which is the state the engine was in before this session.
+The first run failed one of them at 29 frames of 250; a deterministic `[qty] % 3`
+column was added rather than the threshold lowered.
+
+**The materialise decision — made, and it is neither option.** Both sides
+measured on the same book. A sort evaluates its key TWICE PER COMPARISON and a
+scattered key costs **254,515 comparisons**, so naive per-read was **34.0 ms
+against 3.3 ms** stored. A per-generation value cache took it to 16.0 ms, at
+which point the cost was the cache LOOKUP; hoisting the key into a decorated
+array took it to **11.0 ms**, with this book's structured key at 3.5 ms —
+**1.0x a stored sort**. Filter 1.5x, group+aggregate 2.5x, 0.1 ms per 400-cell
+block. Materialising would pay **11.3 ms per snapshot, 0.1 ms per 200-row tick**
+(doubling it) and **625 kB** for four columns.
+
+**Decided: computed per read, cached per write, sort key decorated.** It is
+close on read cost and that is said plainly — so the tie-break is correctness: a
+materialised value must be re-derived on exactly the writes touching its inputs
+and is silently stale when that is wrong, where a write stamp compared on every
+read cannot be. Revisit if a sort ever exceeds ~100 ms.
+
+**Probes.** `calcTwinProbe` 520,000 cells identical plus sort/filter/group
+parity across five columns (52 null/NaN rows last in both directions; four
+mutations turn it red at named rows). `workerBoundaryProbe` **2.40 ms baseline
+vs 2.60-3.00 ms with four calculated columns**, 0 failed / 0 timed out / 0 late
+/ 0 pending. `browserSmokeProbe` 1,887-1,981 ms and a 65-74 ms sort either way,
+125 columns confirming installation. `providerBookProbe` attach 1,391 ms vs 2 ms.
+
+**One reading withdrawn.** The first calc-enabled smoke runs read 12,620-12,661
+ms to first row against 1,869 ms baseline, twice each — a clean 6x regression.
+Interleaving the two URLs in one series put the BASELINE at 12,715 ms and the
+calculated run at 1,925 ms: bimodal on identical code, the artifact already
+documented for `providerBookProbe`. Two consecutive runs of one configuration is
+not a control.
+
+**Two decisions inherited from session 4 rather than revisited.** Cross-row
+reducers stay REFUSED — "every row" against a server row model means the
+filtered book and depends on the request rather than the row. `NOW`/`TODAY`
+stay refused, and the materialise decision above does not change that: the
+value cache is invalidated by writes, and a value that changes on its own has no
+write to hang off.
+
+**Not done, and stated in the README:** a window that writes through its own
+client does not get its own calculated cells back (the host does not echo to the
+author; cell-edit commit is session 6). The planner does not pre-validate
+against the engine's refusal list — deliberately, to avoid a second copy — so an
+author sees "unsupported" only for a parse error. A calculated column has not
+been exercised as a `treeFields` hierarchy. And nothing lets a user AUTHOR one
+on a product surface: that is session 6.
 
 ---
 

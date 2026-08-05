@@ -4,6 +4,15 @@ import type { ExpressionNode } from '@starui/engine';
 import type { SSRMColDef } from './ssrmgrid-entry.js';
 import { compileStarUiExpressionToPerspective } from './ssrmExpressionCompile.js';
 
+/**
+ * Which server-side engine a calculated column is being planned FOR.
+ *
+ * `perspective` is the original target and stays the default, so every existing
+ * caller keeps its behaviour. `ssrm-engine` is `@starui/ssrm-engine`, which
+ * evaluates the StarUI AST itself, in the worker, over the columnar book.
+ */
+export type SsrmCalcBackend = 'perspective' | 'ssrm-engine';
+
 export type SsrmCalcPlan =
   | {
       kind: 'perspective';
@@ -11,6 +20,25 @@ export type SsrmCalcPlan =
       perspectiveExpression: string;
       perspectiveType?: 'float' | 'integer' | 'string' | 'boolean';
     }
+  /**
+   * The expression goes to `@starui/ssrm-engine` as an AST, and the engine
+   * computes it where the book is.
+   *
+   * A plan KIND rather than a second planner, deliberately. The three existing
+   * kinds already answer one question — "who computes this column" — and a
+   * parallel `planSsrmEngineCalcColumn` would mean two functions to keep in
+   * step, two shapes for a caller to switch on, and a third one the day another
+   * backend appears. `applyPerspectivePlansToColDefs` handles this kind in one
+   * added branch, which is the property being bought.
+   *
+   * It differs from `materialize` in where the work happens, and that is the
+   * whole point: `materialize` evaluates in the WINDOW over the rows a block
+   * already returned, so the column can be displayed but never sorted,
+   * filtered or grouped on — the engine is asked for rows in an order it
+   * computed without knowing the value. This kind is computed inside the
+   * engine, so a sort, a filter, a group and an aggregation all see it.
+   */
+  | { kind: 'ssrm-engine'; colId: string; expression: string; ast: ExpressionNode }
   | { kind: 'materialize'; colId: string; expression: string }
   | { kind: 'unsupported'; colId: string; reason: string };
 
@@ -55,10 +83,48 @@ function canMaterializeExpression(
   }
 }
 
-export function planSsrmCalcColumn(col: {
-  colId: string;
-  expression: string;
-}): SsrmCalcPlan {
+/**
+ * Plan one calculated column for a backend.
+ *
+ * **For `ssrm-engine` this only PARSES, and that is a decision rather than an
+ * omission.** The engine has a refusal list — cross-row reducers over a bare
+ * `[col]`, `NOW`/`TODAY`, unknown functions by name, member access, `.old` /
+ * `.new` — and re-stating it here would be a second copy that drifts from the
+ * one that actually runs. This repo already records the cost of that: two error
+ * conventions exist for calculated columns and they differ, and a green unit
+ * test pinning a spelling the real consumer does not have has caught nobody out
+ * three separate times. The engine refuses BY NAME and retains every refusal in
+ * `calcDiagnostics()`, which is the channel session 4 built precisely because
+ * `console.warn` in a SharedWorker reaches no console anywhere.
+ *
+ * So a parse failure is `unsupported` with the parser's own message — the
+ * planner does own that, since it is the thing doing the parsing — and
+ * everything that parses is handed over.
+ */
+export function planSsrmCalcColumn(
+  col: {
+    colId: string;
+    expression: string;
+  },
+  options?: { backend?: SsrmCalcBackend },
+): SsrmCalcPlan {
+  if (options?.backend === 'ssrm-engine') {
+    try {
+      return {
+        kind: 'ssrm-engine',
+        colId: col.colId,
+        expression: col.expression,
+        ast: parse(tokenize(col.expression)),
+      };
+    } catch (err) {
+      return {
+        kind: 'unsupported',
+        colId: col.colId,
+        reason: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
   const compiled = compileStarUiExpressionToPerspective(col.expression);
   if (compiled.ok) {
     return {
@@ -87,8 +153,26 @@ export function planSsrmCalcColumn(col: {
 
 export function planSsrmCalcColumns(
   cols: readonly { colId: string; expression: string }[],
+  options?: { backend?: SsrmCalcBackend },
 ): SsrmCalcPlan[] {
-  return cols.map((col) => planSsrmCalcColumn(col));
+  return cols.map((col) => planSsrmCalcColumn(col, options));
+}
+
+/**
+ * The `{ colId, ast }` pairs `@starui/ssrm-engine` takes — what
+ * `engine.setCalcColumns` / `client.setCalcColumns` are given.
+ *
+ * The AST and nothing else crosses the port: it is plain data, so it
+ * structured-clones, where a compiled closure could not cross at all and
+ * importing the whole expression platform into a worker entry would drag the
+ * grid platform in with it.
+ */
+export function ssrmEngineCalcColumnDefs(
+  plans: readonly SsrmCalcPlan[],
+): { colId: string; ast: ExpressionNode }[] {
+  return plans
+    .filter((plan): plan is Extract<SsrmCalcPlan, { kind: 'ssrm-engine' }> => plan.kind === 'ssrm-engine')
+    .map((plan) => ({ colId: plan.colId, ast: plan.ast }));
 }
 
 export function filterMaterializePlans(
@@ -133,6 +217,23 @@ export function applyPerspectivePlansToColDefs(
       };
     }
 
+    /**
+     * `ssrm-engine` and `materialize` both bind the FIELD and drop the
+     * `valueGetter`, for the same reason and with one difference worth stating.
+     *
+     * The engine stamps the calculated value onto `data[colId]` of every leaf
+     * row it returns, and an aggregation over the column onto `data[colId]` of
+     * every group row — which is what `buildVirtualColDef`'s own getter falls
+     * back to, with the comment "SSRM stamps the folded agg onto data[field]".
+     * That fallback is a contract with somebody else's code and this matches
+     * what it READS rather than what would have been convenient: binding the
+     * field lands the value in exactly the place that getter looks.
+     *
+     * Keeping the `valueGetter` instead would re-evaluate the expression in the
+     * window over a row that already carries the answer, and would return null
+     * on a group row unless AG happened to have populated `aggData` — which
+     * under a server row model it does not.
+     */
     const { valueGetter: _vg, perspectiveExpression: _pe, ...rest } = def;
     return {
       ...rest,

@@ -22,8 +22,18 @@ import type { SsrmFieldType, SsrmRow, SsrmSchema } from './types.js';
  * value is the difference between kilobytes and megabytes.
  */
 
-/** A column's storage. `codes` indexes `values` for strings. */
-interface StoredColumn {
+/**
+ * A column's storage. `codes` indexes `values` for strings.
+ *
+ * Exported so `columnAccess.ts` can resolve a column ONCE and build closures
+ * over it — the same thing {@link ColumnStore.reader} does, generalised to the
+ * whole read surface a sort, a filter and an aggregate need. **A consumer must
+ * capture this OBJECT and never `column.data`**: {@link ColumnStore.grow}
+ * replaces the typed array when the book outgrows its capacity, so a closure
+ * holding the buffer keeps reading the old, short copy — silently, and only on
+ * books large enough to have grown.
+ */
+export interface StoredColumn {
   type: SsrmFieldType;
   /** number | date -> Float64Array; boolean -> Uint8Array; string -> Int32Array codes. */
   data: Float64Array | Uint8Array | Int32Array;
@@ -307,6 +317,17 @@ export class ColumnStore {
         return (offset) =>
           column.nulls[offset] === 1 ? null : (column.data as Float64Array)[offset];
     }
+  }
+
+  /**
+   * One column's storage, resolved once.
+   *
+   * The seam `columnAccess.ts` builds its store-backed accessor over. Returns
+   * the live {@link StoredColumn} — not a copy and not its buffers — because
+   * `grow()` swaps the typed arrays out from under a caller that captured them.
+   */
+  resolveColumn(field: string): StoredColumn | undefined {
+    return this.columns.get(field);
   }
 
   /** Materialise one row. Only called for rows actually being returned. */

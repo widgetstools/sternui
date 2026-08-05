@@ -101,9 +101,37 @@ function reduce(rows: readonly SsrmRow[], field: string, fn: 'sum' | 'max'): num
   return max;
 }
 
+/**
+ * Compare two PRESENT sort keys, written from AG Grid's own
+ * `_defaultComparator` (`ag-stack`) rather than from the engine.
+ *
+ * The reason it is not `x < y ? -1 : 1` — which is what this oracle used while
+ * only store columns were sortable — is that a CALCULATED column has no type.
+ * `IF([px] > 4, [desk], [px])` is a string on some rows and a number on others,
+ * and AG answers **0** for such a pair because both `>` and `<` are false. The
+ * engine reproduces that so the same expression orders identically on the
+ * client-side row model; the oracle has to know it independently or every
+ * cross-type pair is a spurious disagreement.
+ */
+function agCompare(x: unknown, y: unknown): number {
+  if ((x as number) > (y as number)) return 1;
+  if ((x as number) < (y as number)) return -1;
+  return 0;
+}
+
 /** The oracle: the whole book as plain objects, queried the obvious way. */
 class Oracle {
   rows = new Map<string, SsrmRow>();
+  /**
+   * The calculated columns currently installed, stamped onto every row before
+   * a query touches it.
+   *
+   * That is the whole of what session 5 means: a calculated column is not a
+   * special case in a filter or a sort, it is a value the row has. The oracle
+   * models it the stupid way — evaluate it onto a copy of the row and then run
+   * exactly the same filter, sort, bucket and aggregate code as before.
+   */
+  calcDefs: readonly SsrmCalcColumnDef[] = [];
 
   upsert(batch: readonly SsrmRow[]): void {
     for (const row of batch) {
@@ -116,8 +144,23 @@ class Oracle {
     for (const key of keys) this.rows.delete(key);
   }
 
+  /** Every row with its calculated cells on it. */
+  private stamped(): SsrmRow[] {
+    const out: SsrmRow[] = [];
+    for (const row of this.rows.values()) {
+      if (this.calcDefs.length === 0) {
+        out.push(row);
+        continue;
+      }
+      const copy = { ...row };
+      for (const def of this.calcDefs) copy[def.colId] = oracleEval(def.ast, row);
+      out.push(copy);
+    }
+    return out;
+  }
+
   private filtered(request: SsrmGetRowsRequest): SsrmRow[] {
-    let out = [...this.rows.values()];
+    let out = this.stamped();
     const model = request.filterModel ?? {};
     for (const field of Object.keys(model)) {
       const item = model[field];
@@ -174,10 +217,10 @@ class Oracle {
           if (xNull && yNull) continue;
           return xNull ? 1 : -1;
         }
-        if (x !== y) {
-          const cmp = x < y ? -1 : 1;
-          return spec.sort === 'desc' ? -cmp : cmp;
-        }
+        const cmp = agCompare(x, y);
+        // 0 means this column could not separate them — equal, or a cross-type
+        // pair AG ties — so fall through to the next sort column.
+        if (cmp !== 0) return spec.sort === 'desc' ? -cmp : cmp;
       }
       return (order.get(String(a.id)) ?? 0) - (order.get(String(b.id)) ?? 0);
     });
@@ -230,11 +273,14 @@ class Oracle {
 
     const entry = (request.sortModel ?? []).find((s) => s.colId === field);
     const dir = entry?.sort === 'desc' ? -1 : 1;
+    // Absent — null OR NaN — last in BOTH directions, and never multiplied by
+    // the direction. A calculated group key can be a NaN, and the comparator
+    // this replaced put one at the TOP of a descending group.
     return [...map.values()].sort((a, b) => {
-      if (a.key === b.key) return 0;
-      if (a.key === null) return 1;
-      if (b.key === null) return -1;
-      return ((a.key as never) < (b.key as never) ? -1 : 1) * dir;
+      const x = unordered(a.key);
+      const y = unordered(b.key);
+      if (x || y) return x && y ? 0 : x ? 1 : -1;
+      return agCompare(a.key, b.key) * dir;
     });
   }
 
@@ -588,6 +634,17 @@ describe('SsrmEngine — differential fuzz against a brute-force oracle', () => 
      * for the rows it deliberately excuses.
      */
     let calcComparisons = 0;
+    /**
+     * The anti-vacuous counters for session 5's three new query paths.
+     *
+     * A sort that did nothing, a filter that excluded nothing and a group that
+     * produced one bucket all AGREE WITH THE ORACLE trivially, which is exactly
+     * the state the engine was in before this session — silently. So the run is
+     * required to have seen each of them actually do something.
+     */
+    let calcSortsThatMoved = 0;
+    let calcFiltersThatCut = 0;
+    let calcGroupsWithSplit = 0;
 
     const ids: string[] = [];
     const seed: SsrmRow[] = [];
@@ -652,7 +709,21 @@ describe('SsrmEngine — differential fuzz against a brute-force oracle', () => 
         colId: `calc${n}`,
         ast: generateExpression(random, 3),
       }));
+      /**
+       * One DETERMINISTIC calculated column beside the three generated ones.
+       *
+       * The generated expressions are the differential's whole point, but they
+       * make a poor filter subject: most of them are booleans or strings, so a
+       * numeric threshold either keeps every row or none, and the run's own
+       * anti-vacuous counter reported the calculated filter cutting to a strict
+       * subset on only 29 frames of 250. That is the counter doing its job.
+       * `[qty] % 3` splits the book three ways on every frame, so the filter
+       * path is genuinely exercised — and it is compared cell by cell with the
+       * others, so it is not a free pass either.
+       */
+      calcDefs.push({ colId: 'calc3', ast: bin('%', col('qty'), lit(3)) });
       engine.setCalcColumns(calcDefs);
+      oracle.calcDefs = calcDefs;
       // A refusal here would make every comparison below vacuous — the column
       // simply would not be stamped and `undefined === undefined` would pass
       // 30,000 times. The generator only emits supported constructs, so any
@@ -708,6 +779,91 @@ describe('SsrmEngine — differential fuzz against a brute-force oracle', () => 
             );
           }
         }
+      }
+
+      // ── a calculated column SORTS, FILTERS, GROUPS and AGGREGATES ──────
+      //
+      // Session 5's whole subject. Until it, `sortIndex`, `compileFilter` and
+      // `aggregateMembers` each skipped a column the store did not have, so
+      // every request below was answered as if the calculated entry were not
+      // there — no error, no effect. The oracle stamps the same expressions
+      // onto plain rows and then runs the SAME filter, sort and bucket code it
+      // has always run, which is the point: a calculated column is not a
+      // special case, it is a value the row has.
+      const calcSorted: SsrmGetRowsRequest = {
+        filterModel,
+        sortModel: [{ colId: 'calc0', sort: frame % 2 === 0 ? 'asc' : 'desc' }],
+        startRow: 0,
+        endRow: 40,
+      };
+      const calcSortGot = engine.getRows(calcSorted).rowData.map((r) => String(r.id));
+      expect(calcSortGot, `frame ${frame} sort by calc0`).toEqual(oracle.getRows(calcSorted).ids);
+      // A calculated column whose value never varies would make the assertion
+      // above agree with anything, exactly as a sort that did nothing would.
+      if (calcSortGot.join() !== engine.getRows({ filterModel, startRow: 0, endRow: 40 }).rowData.map((r) => String(r.id)).join()) {
+        calcSortsThatMoved += 1;
+      }
+
+      const calcFilterModel = [
+        { calc1: { type: 'blank' } },
+        { calc1: { filterType: 'number', type: 'greaterThan', filter: 0 } },
+        { calc3: { filterType: 'number', type: 'greaterThan', filter: 0 } },
+        { calc3: { filterType: 'number', type: 'lessThan', filter: 2 } },
+      ][frame % 4];
+      const calcFiltered: SsrmGetRowsRequest = {
+        filterModel: calcFilterModel,
+        sortModel,
+        startRow: 0,
+        endRow: 40,
+      };
+      const calcFilterGot = engine.getRows(calcFiltered);
+      const calcFilterWant = oracle.getRows(calcFiltered);
+      expect(calcFilterGot.rowCount, `frame ${frame} filter on calc1 rowCount`).toBe(
+        calcFilterWant.rowCount,
+      );
+      expect(
+        calcFilterGot.rowData.map((r) => String(r.id)),
+        `frame ${frame} filter on calc1`,
+      ).toEqual(calcFilterWant.ids);
+      if (calcFilterGot.rowCount > 0 && calcFilterGot.rowCount < oracle.rows.size) {
+        calcFiltersThatCut += 1;
+      }
+
+      const calcGrouped: SsrmGetRowsRequest = {
+        filterModel,
+        sortModel: [{ colId: 'calc2', sort: frame % 2 === 0 ? 'asc' : 'desc' }],
+        rowGroupCols: [{ id: 'calc2' }],
+        groupKeys: [],
+        valueCols: [{ id: 'calc0', aggFunc: 'sum' }],
+      };
+      const calcGroupGot = engine.getRows(calcGrouped);
+      const calcGroupWant = oracle.buckets(calcGrouped, 'calc2');
+      expect(calcGroupGot.rowCount, `frame ${frame} group by calc2 count`).toBe(
+        calcGroupWant.length,
+      );
+      expect(
+        calcGroupGot.rowData.map((r) =>
+          r.calc2 === null || r.calc2 === undefined ? ' null' : String(r.calc2),
+        ),
+        `frame ${frame} group by calc2 order`,
+      ).toEqual(calcGroupWant.map((b) => b.bucketKey));
+      if (calcGroupGot.rowCount > 1) calcGroupsWithSplit += 1;
+
+      // The aggregate of a CALCULATED value column, per calculated group,
+      // computed independently — null and NaN skipped rather than zeroed.
+      for (let g = 0; g < calcGroupGot.rowData.length; g++) {
+        const bucket = calcGroupWant[g];
+        const want = reduce(bucket.members, 'calc0', 'sum');
+        const got = calcGroupGot.rowData[g].calc0 as number | null;
+        if (want === null) {
+          expect(got, `frame ${frame} sum of calc0 over ${bucket.bucketKey}`).toBeNull();
+        } else {
+          expect(got as number, `frame ${frame} sum of calc0 over ${bucket.bucketKey}`).toBeCloseTo(
+            want,
+            6,
+          );
+        }
+        calcComparisons += 1;
       }
 
       // ── a deep window, which is where an off-by-one hides ──────────────
@@ -873,13 +1029,37 @@ describe('SsrmEngine — differential fuzz against a brute-force oracle', () => 
     }
 
     expect(calcComparisons, 'calculated cells actually compared').toBeGreaterThan(10_000);
+    // Each of the three new paths must have been seen to CHANGE the answer.
+    // Agreeing with the oracle about a sort that did not sort is what the
+    // engine did before this session, and it did it silently.
+    expect(calcSortsThatMoved, 'no frame sorted by a calculated column into a different order').toBeGreaterThan(
+      50,
+    );
+    expect(calcFiltersThatCut, 'no frame filtered a calculated column down to a strict subset').toBeGreaterThan(
+      50,
+    );
+    expect(calcGroupsWithSplit, 'no frame grouped a calculated column into more than one bucket').toBeGreaterThan(
+      50,
+    );
     // The generator names `nope` on purpose, so the "names a field the book
     // does not have" diagnostic must have fired — a run where it never did
     // would mean that leaf was never generated and that case went untested.
     expect(calcWarnings.some((m) => m.includes('nope')), 'missing-column warning reached the sink').toBe(
       true,
     );
-  });
+    /**
+     * An explicit timeout, matching the one `deltaPath.fuzz.test.ts` already
+     * carries.
+     *
+     * This run takes ~2.5 s alone and vitest's default is 5 s, which sounds
+     * like headroom and is not: session 5 added three more query shapes per
+     * frame, and under `npx turbo typecheck build test --continue` — where the
+     * whole workspace compiles and runs at once — it timed out at 5,000 ms,
+     * reproducibly, and only there. A fuzz that goes red on a loaded machine
+     * and green on an idle one is a fuzz nobody will believe the next time it
+     * goes red for a real reason.
+     */
+  }, 60_000);
 
   /**
    * The minimal case behind a fuzz failure on frame 6, reduced by hand so the

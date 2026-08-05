@@ -94,6 +94,18 @@ export interface SsrmEngineGridProps {
    * unstable one would re-open the book on every render.
    */
   openClient: () => Promise<SsrmEngineClient>;
+  /**
+   * Calculated columns to install in the worker, as StarUI expression ASTs.
+   *
+   * The AST and nothing else crosses the port: it is plain data, so it
+   * structured-clones, where a compiled closure could not cross at all. The
+   * engine computes the value where the BOOK is, which is what lets a
+   * calculated column be sorted, filtered, grouped and aggregated on rather
+   * than only displayed.
+   *
+   * Must be stable across renders — it is an effect dependency.
+   */
+  calcColumns?: readonly { colId: string; ast: unknown }[];
 }
 
 export function SsrmEngineGrid({
@@ -101,6 +113,7 @@ export function SsrmEngineGrid({
   rowHeight = 28,
   keyField,
   openClient,
+  calcColumns,
 }: SsrmEngineGridProps) {
   const apiRef = useRef<GridApi | null>(null);
   const blocksRef = useRef<{ ms: number[]; served: number; failed: number }>({
@@ -169,6 +182,47 @@ export function SsrmEngineGrid({
       void opened?.close();
     };
   }, [openClient]);
+
+  /**
+   * Install the calculated columns BEFORE the grid mounts, and read back what
+   * the engine made of them.
+   *
+   * The read-back is not decoration. A refused column is not installed at all —
+   * it falls back to its field binding, which for a colId naming no field is a
+   * column of blanks — and `console.warn` inside a SharedWorker reaches no
+   * console anywhere, so without `calcDiagnostics()` a refusal is a blank
+   * column and no way to ask why. That is how `LOG10` was found to not exist
+   * upstream after rendering empty on the CSRM surface for months.
+   */
+  const [calcReady, setCalcReady] = useState(calcColumns === undefined);
+  useEffect(() => {
+    if (!client) return;
+    if (calcColumns === undefined || calcColumns.length === 0) {
+      setCalcReady(true);
+      return;
+    }
+    let cancelled = false;
+    void client
+      .setCalcColumns(calcColumns as never)
+      .then(() => client.calcDiagnostics())
+      .then((diagnostics) => {
+        if (cancelled) return;
+        for (const entry of diagnostics) {
+          // eslint-disable-next-line no-console
+          console.warn(`[ssrm-engine] ${entry.colId} (${entry.phase} x${entry.count}): ${entry.message}`);
+        }
+        (globalThis as Record<string, unknown>).__ssrmCalcDiagnostics = diagnostics;
+        setCalcReady(true);
+      })
+      .catch((error: unknown) => {
+        // eslint-disable-next-line no-console
+        console.error('[ssrm-engine] could not install the calculated columns', error);
+        if (!cancelled) setCalcReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [client, calcColumns]);
 
   const datasource = useMemo(() => {
     if (!client) return null;
@@ -288,7 +342,7 @@ export function SsrmEngineGrid({
           The worker-held book did not open: {fault}
         </div>
       )}
-      {datasource && client && (
+      {datasource && client && calcReady && (
         <AgGridReact
           columnDefs={columnDefs}
           rowModelType="serverSide"

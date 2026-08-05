@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createSsrmEngine } from '../engine.js';
+import type { SsrmCalcColumnDef } from '../calcAst.js';
 import { makeSsrmGetRowId } from '../datasource.js';
 import { createSsrmRowPump, type SsrmRowPump } from '../rowPump.js';
 import type { SsrmGetRowsRequest, SsrmRow, SsrmSchema } from '../types.js';
@@ -39,6 +40,21 @@ import { SsrmEngineClient } from './SsrmEngineClient.js';
  * excludes them — and it is computed from the ENGINE's own `visibleKeys`, not
  * from what the host chose to send, so it cannot excuse a row the host should
  * have pushed and did not.
+ *
+ * ## Session 5: calculated columns are compared too, and one shape SORTS by one
+ *
+ * A patch is sparse — the two cells that moved — so a calculated column that
+ * depends on one of them reached the window with its OLD value and sat there
+ * until AG re-read the block. `host.publish` now re-stamps exactly the
+ * calculated cells whose inputs the frame names, and the comparison below reads
+ * every calculated cell of every held row against the engine, per frame.
+ *
+ * The `calc-sorted` shape is the reason this belongs here rather than in a unit
+ * test. Frame 26 of session 3 found that narrowing a push by the POST-write
+ * visible set alone drops the update for a row whose sort key just moved it out
+ * of range — and the fix, narrowing by the union of both sides, has to keep
+ * holding when the sort key is COMPUTED, where "the row moved" is a
+ * consequence of an expression rather than of the cell that was written.
  */
 
 const SCHEMA: SsrmSchema = {
@@ -161,12 +177,49 @@ const SHAPES: { name: string; request: SsrmGetRowsRequest; grouped?: boolean }[]
     },
   },
   {
+    // A COMPUTED sort key. `cBoth` moves whenever either half of a tick lands,
+    // so a row crosses the viewport boundary for a reason no single written
+    // cell names — which is frame 26's failure with one more level of
+    // indirection between the write and the row's position.
+    name: 'calc-sorted',
+    request: { sortModel: [{ colId: 'cBoth', sort: 'desc' }] },
+  },
+  {
     name: 'grouped',
     grouped: true,
     request: {
       rowGroupCols: [{ id: 'desk' }],
       groupKeys: [],
       valueCols: [{ id: 'qty', aggFunc: 'sum' }],
+    },
+  },
+];
+
+const lit = (value: number | string | boolean | null) => ({ type: 'literal' as const, value });
+const col = (columnId: string) => ({ type: 'columnRef' as const, columnId });
+
+/**
+ * The calculated columns this fuzz carries, chosen for what they DEPEND on.
+ *
+ * `cBoth` moves on either half of a tick; `cQty` moves only on the qty half, so
+ * a price frame must NOT re-stamp it (a cell AG is told changed flashes, and a
+ * quantity flashing on a price tick is a lie the user can see); `cPx` carries
+ * the null and the NaN through, because those are the two values a patch is
+ * most likely to lose on the way.
+ */
+const CALC: SsrmCalcColumnDef[] = [
+  { colId: 'cBoth', ast: { type: 'binary', operator: '+', left: col('px'), right: col('qty') } },
+  { colId: 'cQty', ast: { type: 'binary', operator: '*', left: col('qty'), right: lit(2) } },
+  {
+    colId: 'cPx',
+    ast: {
+      type: 'call',
+      name: 'IF',
+      args: [
+        { type: 'call', name: 'ISNOTNULL', args: [col('px')] },
+        { type: 'binary', operator: '*', left: col('px'), right: lit(10) },
+        lit(null),
+      ],
     },
   },
 ];
@@ -195,6 +248,12 @@ describe('the delta path — engine, port, viewport narrowing and pump', () => {
       seed.push(makeRow(random, id));
     }
     engine.applySnapshot(seed);
+    engine.setCalcColumns(CALC);
+    // A REFUSED column is stamped nowhere and read nowhere, so every calculated
+    // comparison below would be `undefined` against `undefined` and pass. That
+    // is not hypothetical: session 4's first fuzz did exactly this for 30,000
+    // assertions.
+    expect(engine.calcDiagnostics().filter((d) => d.phase === 'compile')).toEqual([]);
 
     // Two windows: one applies the writes, one is the grid. The host never
     // echoes a write back to its author, so the viewer is the only one that can
@@ -223,6 +282,8 @@ describe('the delta path — engine, port, viewport narrowing and pump', () => {
     let viewportRows = BLOCK;
     /** Row-vs-book comparisons made. A fuzz that compared nothing is green. */
     let compared = 0;
+    /** Calculated-cell comparisons. Same reason, and the same trap. */
+    let calcCompared = 0;
 
     /**
      * The keys this window can SEE, asked of the engine directly.
@@ -356,6 +417,25 @@ describe('the delta path — engine, port, viewport narrowing and pump', () => {
               `after: ${String(after?.has(rowId) ?? 'all')})`,
           ).toBe(true);
         }
+
+        // ── the CALCULATED cells the grid is holding ────────────────────
+        // Against the engine's own evaluator at this row's offset, which is
+        // the value a fresh block read would return. A calculated cell that
+        // the patch failed to carry shows up here as a stale number and
+        // nowhere else — on screen it is simply a plausible P&L.
+        for (const def of CALC) {
+          const evaluate = engine.calcEvaluator(def.colId);
+          expect(evaluate, `${def.colId} was refused`).toBeDefined();
+          const want = evaluate!(offset!);
+          const got = data[def.colId];
+          calcCompared += 1;
+          expect(
+            Object.is(got, want),
+            `frame ${frame} ${shape.name}: ${rowId}.${def.colId} is ${String(got)}, the ` +
+              `expression says ${String(want)} (in view before the write: ` +
+              `${String(before?.has(rowId) ?? 'all')}, after: ${String(after?.has(rowId) ?? 'all')})`,
+          ).toBe(true);
+        }
       }
     }
 
@@ -373,6 +453,7 @@ describe('the delta path — engine, port, viewport narrowing and pump', () => {
     // The one that makes the rest mean something: a run in which every held row
     // happened to be excused would pass every assertion above and check nothing.
     expect(compared, 'the grid was barely compared against the book').toBeGreaterThan(2_000);
+    expect(calcCompared, 'no calculated cell was ever compared').toBeGreaterThan(6_000);
 
     pump.dispose();
     await writer.close();

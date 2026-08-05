@@ -203,6 +203,149 @@ time('the closures alone, 4 x 20,000 = 80,000 cells', () => {
   }
   return sink;
 }, 7);
+
+console.log('\n  --- session 5: a calculated column SORTS, FILTERS and GROUPS ---');
+/**
+ * The same operation over a STORE column and over a CALCULATED one.
+ *
+ * This is the measurement the materialise-vs-compute decision rests on, and the
+ * pairs are deliberately identical in every respect but which column they name:
+ * same book, same perturbation, same number of rows through the same code, so
+ * the difference between the two rows IS the cost of computing the value rather
+ * than reading it.
+ *
+ * Every case perturbs its request, because the engine caches a materialised
+ * index per query shape and the first version of this whole file reported a
+ * sort as 0.8 ms for exactly that reason. `c_sum` is the CHEAPEST calculated
+ * column in the set — two additions over three columns — so these are a floor;
+ * `c_bucket` (a nested IFS) is measured beside it to show the spread.
+ */
+/**
+ * How many comparisons a sort of THIS book actually performs — and it is not
+ * the `n log n` the ratios below would otherwise be read against.
+ *
+ * The generated values are `(r * 7 + i * 13) % 100000 / 100`, a sawtooth, so
+ * V8's TimSort finds long ascending runs and settles in ~32,000 comparisons
+ * rather than the ~285,000 random data would cost. A calculated sort key is
+ * evaluated TWICE PER COMPARISON, so that difference is the difference between
+ * ~64,000 and ~570,000 evaluations — and the second is what a real blotter's
+ * unsorted book would pay. Both are printed so the ratio below is read with the
+ * right ceiling in mind rather than quoted as the worst case.
+ */
+function countComparisons(key) {
+  const scratch = Array.from(engine.store.liveOffsets());
+  let comparisons = 0;
+  scratch.sort((a, b) => {
+    comparisons += 1;
+    const x = key(a);
+    const y = key(b);
+    return x < y ? -1 : x > y ? 1 : 0;
+  });
+  return comparisons;
+}
+const structuredKey = engine.calcEvaluator('c_sum');
+// A well-mixed key over the same columns: a multiply-and-modulo scatters the
+// sawtooth, so TimSort finds no runs and pays the full n log n.
+engine.setCalcColumns([...CALC_SET, { colId: 'c_scatter', ast: { type: 'binary', operator: '%', left: { type: 'binary', operator: '*', left: { type: 'columnRef', columnId: 'n0' }, right: { type: 'literal', value: 7919 } }, right: { type: 'literal', value: 997 } } }]);
+const scatterKey = engine.calcEvaluator('c_scatter');
+console.log(
+  `  ${'comparisons — this book vs a scattered key'.padEnd(46)} ` +
+    `${countComparisons(structuredKey).toLocaleString()} vs ${countComparisons(scatterKey).toLocaleString()}`,
+);
+const sortScatter = time('SORT on a calculated column   (c_scatter)', (i) =>
+  engine.getRows({
+    filterModel: { n3: { filterType: 'number', type: 'greaterThan', filter: i } },
+    sortModel: [{ colId: 'c_scatter', sort: 'desc' }], startRow: 0, endRow: 100,
+  }));
+engine.setCalcColumns(CALC_SET);
+
+const sortStore = time('SORT on a stored column       (n9)', (i) =>
+  engine.getRows({
+    filterModel: { n3: { filterType: 'number', type: 'greaterThan', filter: i } },
+    sortModel: [{ colId: 'n9', sort: 'desc' }], startRow: 0, endRow: 100,
+  }));
+const sortCalc = time('SORT on a calculated column   (c_sum)', (i) =>
+  engine.getRows({
+    filterModel: { n3: { filterType: 'number', type: 'greaterThan', filter: i } },
+    sortModel: [{ colId: 'c_sum', sort: 'desc' }], startRow: 0, endRow: 100,
+  }));
+time('SORT on a calculated column   (c_bucket, IFS)', (i) =>
+  engine.getRows({
+    filterModel: { n3: { filterType: 'number', type: 'greaterThan', filter: i } },
+    sortModel: [{ colId: 'c_bucket', sort: 'desc' }], startRow: 0, endRow: 100,
+  }));
+console.log(`  ${'=> a sort costs'.padEnd(46)} ${(sortCalc / sortStore).toFixed(1)}x a stored sort`);
+console.log(
+  `  ${'=> the same sort on a SCATTERED key'.padEnd(46)} ${ms(sortScatter)} — the honest ceiling`,
+);
+
+const filterStore = time('FILTER on a stored column     (n9 > x)', (i) =>
+  engine.getRows({
+    filterModel: { n9: { filterType: 'number', type: 'greaterThan', filter: 400 + i } },
+    startRow: 0, endRow: 100,
+  }));
+const filterCalc = time('FILTER on a calculated column (c_sum > x)', (i) =>
+  engine.getRows({
+    filterModel: { c_sum: { filterType: 'number', type: 'greaterThan', filter: 400 + i } },
+    startRow: 0, endRow: 100,
+  }));
+console.log(`  ${'=> a filter costs'.padEnd(46)} ${(filterCalc / filterStore).toFixed(1)}x a stored filter`);
+
+const groupStore = time('GROUP by stored + sum stored', (i) =>
+  engine.getRows({
+    rowGroupCols: [{ id: 'desk' }], groupKeys: [],
+    filterModel: { n3: { filterType: 'number', type: 'greaterThan', filter: i } },
+    valueCols: [{ id: 'n0', aggFunc: 'sum' }],
+  }));
+const groupCalc = time('GROUP by calculated + sum calculated', (i) =>
+  engine.getRows({
+    rowGroupCols: [{ id: 'c_bucket' }], groupKeys: [],
+    filterModel: { n3: { filterType: 'number', type: 'greaterThan', filter: i } },
+    valueCols: [{ id: 'c_sum', aggFunc: 'sum' }],
+  }));
+console.log(`  ${'=> a group + agg costs'.padEnd(46)} ${(groupCalc / groupStore).toFixed(1)}x`);
+
+console.log('\n  --- session 5: MATERIALISE, the other side of the trade ---');
+/**
+ * What materialising would pay INSTEAD, on the same book.
+ *
+ * Materialising means evaluating every calculated column for every affected row
+ * at WRITE time and keeping the result in the store, so a read is an ordinary
+ * typed-array index. The cost is therefore: evaluate + store, per row touched
+ * by a write, plus the memory to hold it.
+ *
+ * Measured as the work itself rather than as a feature nobody has built —
+ * `evaluate(offset)` then a `Float64Array` write is exactly what a materialised
+ * column's writer would do, and adding an unused code path to the engine to
+ * time it would be measuring the timing harness.
+ */
+const materialised = CALC_SET.map(() => new Float64Array(engine.store.extent));
+time('MATERIALISE the whole book, 4 x 20,000 cells', () => {
+  for (let c = 0; c < evaluators.length; c++) {
+    const evaluate = evaluators[c];
+    const into = materialised[c];
+    for (let i = 0; i < offsets.length; i++) {
+      const value = evaluate(offsets[i]);
+      into[offsets[i]] = typeof value === 'number' ? value : Number.NaN;
+    }
+  }
+}, 7);
+const tickOffsets = [];
+for (let i = 0; i < 200; i++) tickOffsets.push(engine.store.offsetOf(`POS-${(i * 37) % ROWS}`));
+time('MATERIALISE a 200-row tick, 4 x 200 cells', () => {
+  for (let c = 0; c < evaluators.length; c++) {
+    const evaluate = evaluators[c];
+    const into = materialised[c];
+    for (const offset of tickOffsets) {
+      const value = evaluate(offset);
+      into[offset] = typeof value === 'number' ? value : Number.NaN;
+    }
+  }
+}, 15);
+console.log(
+  `  ${'memory, 4 materialised columns'.padEnd(46)} ` +
+    `${Math.round((materialised.length * engine.store.extent * 8) / 1024)} kB of Float64Array`,
+);
 engine.setCalcColumns([]);
 
 console.log('\n  --- the live path ---');

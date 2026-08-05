@@ -9,6 +9,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./customizer": "./src/customizer/index.ts",
+    "./engine/ssrmCalcColumns": "./src/engine/ssrmCalcColumns.ts",
     "./styles.css": "./src/widget/styles/marketsGrid.css",
     "./styles/core.css": "./src/widget/styles/marketsGrid-core.css",
     "./styles/chrome.css": "./src/widget/styles/marketsGrid-chrome.css",

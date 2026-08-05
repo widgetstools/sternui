@@ -89,6 +89,22 @@ export interface SsrmCalcColumn {
   evaluate?: SsrmCalcEvaluator;
   /** Why it was refused, if it was. */
   error?: string;
+  /**
+   * Every field name the expression READS, resolved or not.
+   *
+   * This is what makes a calculated column tick. `host.publish` broadcasts the
+   * writer's SPARSE patch — a frame naming `dailyPnL` and nothing else — so a
+   * calculated column depending on it is stale in the window until AG re-reads
+   * the block. Knowing the inputs turns that into a decidable question: a
+   * calculated cell is re-stamped onto a patch row exactly when the patch names
+   * one of these, and a column whose inputs did not move is left alone rather
+   * than pushed at the grid as a change it did not make. A cell AG is told
+   * changed flashes, so "re-stamp everything" is not a free simplification.
+   *
+   * A column the book does not have is included: it reads null today, and if
+   * a feed ever starts sending it the dependency is already declared.
+   */
+  reads: readonly string[];
 }
 
 class CalcCompileError extends Error {}
@@ -134,6 +150,8 @@ interface CompileContext {
   store: ColumnStore;
   /** Fields the expression named that the book does not have. */
   missing: Set<string>;
+  /** Every field the expression reads — see {@link SsrmCalcColumn.reads}. */
+  reads: Set<string>;
 }
 
 function compileNode(node: SsrmExpressionNode, ctx: CompileContext): SsrmCalcEvaluator {
@@ -153,6 +171,7 @@ function compileNode(node: SsrmExpressionNode, ctx: CompileContext): SsrmCalcEva
           `[${id}] is viewport-only (.old/.new): the book holds current values only`,
         );
       }
+      ctx.reads.add(id);
       const reader = ctx.store.reader(id);
       if (reader === undefined) {
         // NOT an error. `resolveColumnRef` on the grid answers null for a field
@@ -180,6 +199,7 @@ function compileNode(node: SsrmExpressionNode, ctx: CompileContext): SsrmCalcEva
       if (name === 'oldValue' || name === 'newValue') {
         throw new CalcCompileError(`'${name}' is viewport-only: the book holds current values only`);
       }
+      ctx.reads.add(name);
       const reader = ctx.store.reader(name);
       if (reader === undefined) {
         ctx.missing.add(name);
@@ -333,7 +353,7 @@ export function compileCalcColumns(
   };
 
   for (const def of defs) {
-    const ctx: CompileContext = { store, missing: new Set() };
+    const ctx: CompileContext = { store, missing: new Set(), reads: new Set() };
     let compiled: SsrmCalcEvaluator;
     try {
       compiled = compileNode(def.ast, ctx);
@@ -344,7 +364,10 @@ export function compileCalcColumns(
         `[ssrm-engine] calculated column '${def.colId}' refused — falling back to its field binding:`,
         message,
       );
-      columns.push({ colId: def.colId, error: message });
+      // A refused column reads NOTHING, so no tick ever re-stamps it. That is
+      // the same fall-back-to-the-field rule the row path applies, restated for
+      // the push path rather than left to be inferred.
+      columns.push({ colId: def.colId, error: message, reads: [] });
       continue;
     }
 
@@ -379,7 +402,7 @@ export function compileCalcColumns(
       }
     };
 
-    columns.push({ colId: def.colId, evaluate });
+    columns.push({ colId: def.colId, evaluate, reads: [...ctx.reads] });
   }
 
   return { columns, diagnostics };

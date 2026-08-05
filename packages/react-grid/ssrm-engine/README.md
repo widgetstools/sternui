@@ -405,7 +405,7 @@ the same shape as the lab's Stress tab:
 
 ## Correctness
 
-124 tests, of which the important ones are the two **differential fuzzes**:
+150 tests, of which the important ones are the two **differential fuzzes**:
 `engine.fuzz.test.ts` (250 mutation frames plus a churn run, comparing every
 query shape against a deliberately stupid brute-force oracle built from plain
 objects) and `worker/deltaPath.fuzz.test.ts` (260 frames through the whole push
@@ -494,7 +494,42 @@ fail.** Eleven deliberate bugs were put into the evaluator one at a time:
 | `-0` collapsed to `0` | caught |
 | the `+` string branch DELETED | **survived — and it is not a gap** |
 
-The survivor is worth the line. Deleting
+**Session 5 put the calculated columns into the QUERY SHAPES too — and this
+time the fuzz found three defects.** The generated expressions are now sorted
+by, filtered on, grouped by and aggregated, against an oracle that stamps the
+same expressions onto plain rows and then runs the filter, sort and bucket code
+it has always run. Two of the three are not specific to calculated columns at
+all; they were simply unreachable until an expression could produce the values
+that trigger them.
+
+| found | what it was |
+|---|---|
+| frame 0 | **an aggregate COERCED a non-number instead of skipping it.** AG's own `aggSum`/`aggMin`/`aggMax` require `typeof value === 'number'`, so a boolean, a string or a Date contributes nothing to a total on the client-side row model. This engine read `rawAt`, so a calculated boolean column summed to the count of its TRUE rows — and a stored STRING column summed its dictionary CODES, which was reachable the whole time by dragging a text column into the values panel |
+| frame 11 | **Kahan compensation poisoned a whole group once a non-finite value entered it.** `Infinity - 0 - Infinity` is NaN, and every subsequent `value - compensation` inherits it — so one `x / null` anywhere in a group turned the total into NaN and kept it NaN even after the Infinity was cancelled out. Also reachable on a stored column: a feed can send one |
+| mutation testing | **group rows still had their own comparator**, with the direction multiplier applied to an unorderable verdict. A NaN group key is neither `===`, nor `<`, nor `>`, so it fell through to `1 * dir` and sorted FIRST on a descending group. This is rule 10 exactly — the leaf sort was fixed for this twice and the group path, which shares the reasoning, was never re-read. It survived every value comparison in the suite and was found only by putting the old comparator back |
+
+**Sixteen deliberate bugs, all caught.** Every path session 5 added was
+mutation-tested by a throwaway script that edits the source, runs the suite, and
+requires it to go red: the sort skipping a calculated column (the session-4
+behaviour), the absent verdict multiplied by the direction, a NaN counting as
+blank, a NaN made orderable, an aggregate zeroing a NaN, aggregation dropping a
+calculated value column, the filter skipping one, grouping reading the store
+instead of the resolver, a tick re-stamping everything, a tick re-stamping
+nothing, a write not invalidating the value cache, the decorated sort key built
+over the wrong rows, the group comparator reverted, a calculated column losing
+to a store field of the same name, the Kahan guard removed, and the aggregate
+coercion restored. **16 caught, 0 survived.**
+
+Three counters make the new paths non-vacuous, because a sort that did nothing,
+a filter that excluded nothing and a group of one bucket all agree with the
+oracle trivially — which is precisely the state the engine was in before this
+session. The run asserts each was seen to change the answer on 50+ frames. The
+first version failed that assertion at 29 frames for the filter, correctly: the
+generated expressions are mostly booleans and strings, so a numeric threshold
+kept everything or nothing. A deterministic `[qty] % 3` column was added beside
+the generated ones rather than the threshold being lowered.
+
+The session-4 survivor is worth the line. Deleting
 `typeof left === 'string' ? \`${left}${right}\`` leaves
 `(left as number) + (right as number)`, and a TypeScript cast is erased at
 runtime — so `'FX' + 4.5` is still `'FX4.5'`. It is a semantically equivalent
@@ -524,6 +559,41 @@ node node_modules/tsx/dist/cli.mjs \
 | adversarial expressions compared | 16, every row identical |
 | **calculated cells compared** | **520,000, zero disagreements** |
 | `calc_liquidityScore` (`LOG10`) | refused here; **the twin is null on all 20,000 rows too** |
+
+**Session 5 added the other half: does the engine DO with those values what a
+grid holding them would do?** Five columns are sorted both ways, filtered at
+their own median and grouped, and the control is the twin's value per row.
+
+| | |
+|---|---|
+| sort, both directions, per column | every row in the twin's order, ties broken on original row order |
+| null / NaN rows | 52 per column, **last in both directions** |
+| filter at the median | 3,072-9,999 rows, exactly the set the twin's values imply |
+| group | 3 and 4 buckets, every child count identical |
+
+**Where AG is the authority and where it deliberately is not, stated rather
+than blurred.** For two PRESENT values the rule is AG Grid's own
+`_defaultComparator`, reproduced from its source — which is also why a MIXED
+string/number pair ties here (both `>` and `<` are false) instead of being
+forced into an order. For an ABSENT value it is not: AG's comparator answers -1
+for a null and the grid then multiplies by the direction, so on the
+client-side row model **nulls sort FIRST ascending**. This engine puts null and
+NaN last in both directions, which session 3 settled after a NaN price sorted
+above the best bid. The probe asserts that divergence rather than hiding it
+inside a comparator that quietly agrees with itself.
+
+Four mutations were put in to prove it can go red — the sort skipping a
+calculated column, the filter skipping one, the absent verdict multiplied by the
+direction, and grouping resolved from the store — and each turns it red at a
+named row (`row 0: engine POS-0 (null), twin order says POS-97 (0)`), with the
+restored build passing.
+
+Its first draft REFUSED TO REPORT for a reason that was its own fault: it
+demanded null or NaN rows of every column under test, and `calc_pnlTotal` has
+none, because `[a]+[b]+[c]` over nulls is a NUMBER in JavaScript. That is worth
+knowing on its own — **an arithmetic expression over a missing quote produces a
+confident zero, not a blank, on both surfaces**. The rule now has to be
+exercised somewhere rather than everywhere.
 
 **The adversarial group exists because of a measurement, and this is the useful
 part.** The first version ran the seeded curriculum alone, reported 200,000
@@ -752,6 +822,97 @@ it reads null, exactly as `resolveColumnRef` does on the grid. It is counted and
 named anyway, because a column of nulls produced by a typo looks exactly like a
 column of genuine nulls.
 
+### A calculated column behaves like a real one
+
+`sortIndex`, `compileFilter` and `aggregateMembers` each opened with the same
+line: skip a column the store does not have. A calculated column is not a field,
+so a sort, a filter or an aggregation on one was a **silent no-op** — no error,
+no effect, and a grid that looked like it had ignored the click.
+
+**One accessor, not three, and that was the decision rather than the default.**
+`columnAccess.ts` resolves a column id to five reads (`isNull`, `numberAt`,
+`numberOrNull`, `stringAt`, `valueAt`) plus an `orderKey`, and answers a store
+column and a compiled expression identically. Sort, filter, aggregate, group,
+pivot, the ancestor predicate and distinct values all go through it and none of
+them can tell the two apart. Three parallel "if it is calculated, do this
+instead" branches would have been a smaller diff and the wrong shape: the rule
+this repo has already paid for is that **a fix has to generalise to every branch
+that shares its reasoning**, and the fourth call site then has to remember to
+grow a fourth branch. Adding calculated columns to pivot and to set-filter
+values afterwards was one line each, which is the property being bought.
+
+`orderKey` is where the null rule lives, once. A cell with no position on the
+number line — null, undefined, or NaN — answers `null`, and `compareOrderKeys`
+puts a null key LAST IN BOTH DIRECTIONS without ever multiplying it by the sort
+direction. There is one comparator in the package.
+
+**A calculated column also TICKS now.** `host.publish` still broadcasts the
+writer's sparse patch — the two cells that moved, not the row, because
+re-reading 200 rows to broadcast 400 changed cells would be 24,200 values five
+times a second per window — but `engine.calcPatch` adds back exactly the
+calculated cells whose inputs that frame names. Not all of them: `calc.ts`
+records the fields each expression READS, and a cell AG is told changed flashes,
+so re-stamping a P&L total on a tick that did not move it is a lie the user can
+see. It is stamped once above the per-port loop, since the values are the same
+for every window.
+
+### Materialise or compute per read — decided, with both sides measured
+
+Session 4 measured the per-read side and deliberately did not choose. Both sides
+are now measured on the same book (`benchProbe.mjs`, 20,000 x 121, four
+calculated columns), and **the answer is neither of the two options the question
+was posed with.**
+
+The measurement that decided it: a sort evaluates the key **twice per
+comparison**, and a sort of 20,000 rows on a key with no ascending runs in it
+performs **254,515 comparisons** — half a million evaluations to order 20,000
+distinct values.
+
+| | naive per read | + per-generation cache | + decorated sort key |
+|---|---|---|---|
+| SORT, this book's structured key | 5.8 ms (1.7x) | 4.6 ms | **3.5 ms (1.0x)** |
+| SORT, a SCATTERED key | 34.0 ms | 16.0 ms | **11.0 ms** |
+| FILTER | 2.9 ms (2.4x) | 1.8 ms | **1.7 ms (1.5x)** |
+| GROUP + aggregate | 11.0 ms (4.9x) | 4.9 ms | **4.0 ms (2.5x)** |
+| block read, 400 calculated cells | 0.2 ms | 0.1 ms | **0.1 ms** |
+
+against the stored-column baselines of 3.3 ms, 1.2 ms and 1.6 ms, and against
+what MATERIALISING would pay instead: **11.3 ms per full snapshot** (4 columns x
+20,000), **0.1 ms per 200-row tick** — which doubles a tick, itself 0.1 ms — and
+**625 kB** of `Float64Array` for four columns.
+
+**Decided: computed per read, with a per-generation value cache and a decorated
+sort key. Not materialised into the store.** The reasoning, in order:
+
+1. **it is close on the read side, and that is said plainly.** 1.0x, 1.5x and
+   2.5x, all single-digit milliseconds. Materialising buys at most ~2.4 ms on a
+   grouped read of this book. The engine's headline is a 3.1 ms block read
+   against Perspective's 119-145 ms, so the compute is not the constraint;
+2. **so the tie-break is correctness, and only one option can be wrong.** A
+   materialised value has to be re-derived on exactly the writes that touch its
+   inputs, and getting that wrong is a silently stale column — the failure mode
+   this engine's aggregation is a deliberate full pass to avoid. The cache here
+   carries a write stamp that is compared on **every** read, so a write
+   invalidates every cached cell by incrementing one number. It cannot go stale;
+3. **it costs nothing on a book nobody queries.** A calculated column is
+   evaluated only for the offsets something reads, where materialising pays for
+   the whole book on every snapshot.
+
+**What would move it:** a sort that a user waits on for more than ~100 ms, which
+at this cost curve is a few hundred thousand rows on a scattered calculated key,
+or an expression far more expensive than these (a `REGEX_MATCH` chain). At that
+point materialise — and it goes behind the same fuzz as session 7's incremental
+index, for the same reason.
+
+**Two caveats on the numbers above.** The generated book is a sawtooth, so V8's
+TimSort finds long runs and settles a sort in **31,692 comparisons against
+254,515** for a scattered key; the ratios are like-for-like but the absolute
+sort figures are a floor, which is why the scattered case is measured beside
+them. And the decorated key is deliberately NOT built for a stored column — the
+key there already is a typed-array index, the cheapest read in the engine — nor
+for `lowerBound`, which is one binary search and would be building a
+20,000-entry array to serve fifteen comparisons.
+
 ### What it cost the read path
 
 MEASURED with `scripts/benchProbe.mjs`, 20,000 x 121, four calculated columns
@@ -773,11 +934,31 @@ re-materialisation whose run-to-run spread is larger. The first version of this
 measurement subtracted two COLD medians and reported 1.4 ms for 400 cells, which
 is 3.5 us per cell and was noise.
 
-**The browser boundary did not move**: `workerBoundaryProbe` reads **2.10 ms**
-median per block across two runs, identical to session 3, with 0 failed, 0 timed
-out, 0 late and 0 pending. That is with no calculated columns installed, which
-is what the lab does today — `stampCalc` over an empty list is the cost of a
-`for` loop that does not run.
+**The browser boundary did not move.** `workerBoundaryProbe`, interleaved
+baseline and `?engine=ssrm&calc=1` runs against one production build:
+
+| | block round trip, median |
+|---|---|
+| no calculated columns | **2.40 ms**, 2.40 ms |
+| four calculated columns (125 columns per row) | **3.00 ms**, 2.60 ms |
+
+0 failed, 0 timed out, 0 late and 0 pending in all four runs. Today's baseline
+reads 2.40 ms where sessions 3 and 4 read 2.10 ms, so the ~0.2-0.6 ms the
+calculated columns add is quoted against the baseline taken beside it rather
+than against the older figure. It is the right size: ~0.2 ms of evaluation for
+400 cells plus four more columns to structured-clone per row.
+
+`browserSmokeProbe` reads **1,887-1,981 ms to first row and a 65-74 ms sort**,
+with and without the calculated columns, and 125 columns in a returned row
+confirms they were installed rather than quietly refused.
+
+**One withdrawn reading, recorded because it looked like a finding.** The first
+calc-enabled runs read **12,620-12,661 ms** to first row against 1,869 ms for
+the baseline, twice each — which reads as a 6x regression on the calculated
+path. Interleaving the two URLs in one series showed the plain baseline reading
+**12,715 ms** and the calculated run **1,925 ms** in the same series: the metric
+is bimodal on identical code, the same artifact already documented for
+`providerBookProbe`. Two consecutive runs of one configuration is not a control.
 
 ## What IS here
 
@@ -838,13 +1019,21 @@ is what the lab does today — `stampCalc` over an empty list is the cost of a
 - **a provider-driven book** — `@starui/host-data`'s `./runtime/ssrm`
   (`createSsrmBookFeed`, `createSsrmHost`) and the hub's `ssrm-attach`, with the
   engine injected so host-data gains no dependency on this package
-- **calculated columns, as VALUES** — `engine.setCalcColumns(defs)` /
+- **calculated columns, as REAL COLUMNS** — `engine.setCalcColumns(defs)` /
   `client.setCalcColumns(defs)` taking StarUI expression ASTs, compiled once per
-  expression to a closure over the columnar store and stamped onto every leaf
-  row a block read returns; `engine.calcEvaluator(colId)` for the per-offset
-  closure, and `calcDiagnostics()` for refusals, runtime failures and named
-  columns the book does not have. **The AST is the only thing that crosses the
-  port** — see the section above for what that decides and what it does not
+  expression to a closure over the columnar store; `engine.calcEvaluator(colId)`
+  for the per-offset closure, and `calcDiagnostics()` for refusals, runtime
+  failures and named columns the book does not have. **The AST is the only thing
+  that crosses the port** — see the section above for what that decides and what
+  it does not. A calculated column can be SORTED, FILTERED, GROUPED, PIVOTED and
+  AGGREGATED on, answers a set filter's distinct values, is reachable through
+  the quick filter, and TICKS: `engine.calcPatch(rows)` adds back the calculated
+  cells a sparse patch made stale, and only those
+- **one column accessor for the whole engine** (`columnAccess.ts`) —
+  `createColumnResolver(store, calc, version)` answers a store field and a
+  compiled expression through the same six reads, and every query path consumes
+  it. One comparator, one definition of "no position on the number line", one
+  place a calculated column has to be taught about
 
 ## What is NOT here
 
@@ -863,22 +1052,36 @@ Stated plainly so nobody plans around a gap:
   on a sort or filter change. What is not covered is a write landing while a
   block for the OLD shape is still in flight; `asyncDatasource.test.ts` covers
   the settle-once half of that by construction, not the row-correctness half
-- **calculated columns produce VALUES and nothing else yet.** They are stamped
-  onto the rows a block read returns, and that is all: a calc column cannot be
-  SORTED, FILTERED, GROUPED or AGGREGATED on, because none of those paths knows
-  about it — `sortIndex`, `compileFilter` and `aggregateMembers` all read the
-  store by field name and a calculated column is not a field. That is session
-  5, and `engine.calcEvaluator(colId)` is the seam it needs
-- **a calculated column does not TICK.** `host.publish` broadcasts the sparse
-  patch the writer applied, verbatim, so a tick that moves `dailyPnL` reaches
-  the window without the `calc_pnlTotal` that depends on it, and the calculated
-  cell keeps its old value until AG re-reads that block. Everything needed to
-  fix it is here — the patch keys are known and `calcEvaluator` answers per
-  offset — but it changes `publish`, so it belongs with session 5 and behind
-  the delta-path fuzz rather than beside it
-- **calculated columns are not wired to a surface.** Nothing in the lab
-  installs one; `client.setCalcColumns` is reachable and unused. The
-  customizer's calculated-column module is session 5's job
+- **a calculated column is not editable, and a window that writes does not get
+  its own calculated cells back.** `host.publish` skips the port that caused a
+  write, because that window has already rendered its own edit — but it has not
+  rendered the calculated columns that depend on it, so a window-originated
+  `applyUpdate` leaves its own derived cells stale until the block is re-read.
+  No live surface does this today (the lab's writes come from the provider
+  inside the worker, which has no origin port), so it is recorded rather than
+  fixed: cell-edit commit is session 6's, and that is where it should land
+- **a calculated column cannot be a TREE field or a `groupKeys` ancestor that
+  the request did not group by.** Grouping BY one works, and so does reading its
+  children; `treeFields` is a construction option naming store fields and has
+  not been exercised with an expression
+- **calculated columns are wired to the PLANNER, not to a product surface.**
+  `planSsrmCalcColumn(col, { backend: 'ssrm-engine' })` produces a plan carrying
+  the AST, `ssrmEngineCalcColumnDefs` collects them, and the lab's Stress tab
+  installs four of them on `?engine=ssrm&calc=1`. What does NOT exist is the
+  MarketsGrid surface that lets a user author one and see it — that is session
+  6, along with set-filter values, status-bar panels, quick search and export
+- **the planner does not pre-validate against the engine's refusal list**, and
+  that is deliberate. It parses; everything that parses is planned; the engine
+  refuses BY NAME and retains the reason in `calcDiagnostics()`. A second copy
+  of the refusal list in `@starui/grid` would be a second thing to keep in step,
+  and `@starui/grid` does not depend on `@starui/ssrm-engine` today. The cost is
+  that an author sees "unsupported" only for a PARSE error; anything the engine
+  refuses shows up as a blank column plus a diagnostic
+- **the value cache is per WRITE, not incremental.** A write invalidates every
+  calculated cell in the book by incrementing one number, so the next read
+  recomputes the rows it touches. That is the correct trade at this size and it
+  is the same trade the index cache makes; a book where it is not is a book that
+  needs session 7
 - **`NOW` / `TODAY` are refused**, and every function outside the 45 listed in
   `calcOps.ts`. Refusals are by name and readable through `calcDiagnostics()`
 - **no cross-row aggregates.** `SUM([px])` reads EVERY row on the grid and

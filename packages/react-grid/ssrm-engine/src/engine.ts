@@ -1,7 +1,13 @@
 import { ColumnStore } from './columnStore.js';
+import {
+  createColumnResolver,
+  orderKeyOfValue,
+  type SsrmColumnAccess,
+  type SsrmColumnResolver,
+} from './columnAccess.js';
 import { compileFilter, compileQuickFilter, type RowPredicate } from './filter.js';
-import { sortIndex } from './sort.js';
-import { activeAggregations, aggregateMembers } from './aggregate.js';
+import { compareOrderKeys, sortIndex } from './sort.js';
+import { activeAggregations, aggregateMembers, type SsrmAggregation } from './aggregate.js';
 import { compileCalcColumns, type SsrmCalcColumn, type SsrmCalcDiagnostic } from './calc.js';
 import type { SsrmCalcColumnDef } from './calcAst.js';
 import {
@@ -138,6 +144,15 @@ export class SsrmEngine {
    */
   private readonly indexCache = new Map<string, Int32Array>();
   /**
+   * Bumped by every write. The invalidation stamp for a calculated column's
+   * per-generation value cache — see `columnAccess.ts`.
+   *
+   * It lives beside the index cache and is invalidated in the same statement,
+   * deliberately: a write is the only thing that can move either, and two
+   * invalidation rules that have to agree is one more than can be relied on.
+   */
+  private writeVersion = 0;
+  /**
    * Calculated columns, compiled against this store.
    *
    * State on the ENGINE rather than on the request, and that is forced rather
@@ -150,9 +165,20 @@ export class SsrmEngine {
   private calcColumnDefs: readonly SsrmCalcColumnDef[] = [];
   private calc: SsrmCalcColumn[] = [];
   private calcRuntimeDiagnostics: SsrmCalcDiagnostic[] = [];
+  /**
+   * How every path in here reads a column — store field or calculated column,
+   * through one interface that cannot tell them apart.
+   *
+   * Rebuilt only by {@link setCalcColumns}. A store accessor captures the
+   * column OBJECT, which `grow()` mutates in place, so it survives the book
+   * outgrowing its capacity; a calc accessor captures the compiled evaluator,
+   * which nothing but `setCalcColumns` replaces.
+   */
+  private columns: SsrmColumnResolver;
 
   constructor(options: SsrmEngineOptions) {
     this.store = new ColumnStore(options.schema);
+    this.columns = createColumnResolver(this.store, this.calc, () => this.writeVersion);
     this.quickFields =
       options.quickFilterFields ??
       options.schema.fields.filter((f) => f.type === 'string').map((f) => f.field);
@@ -171,12 +197,13 @@ export class SsrmEngine {
    * Returns whether anything changed, so a caller only purges when there is
    * something to purge for — the same contract as {@link setQuickFilter}.
    *
-   * The index cache is cleared even though a calculated value does not yet
-   * affect any index. It will: session 5 makes these columns sortable,
-   * filterable, groupable and aggregatable, at which point an index
-   * materialised under the previous set of expressions is stale. Clearing now
-   * costs a re-materialise on a change nobody makes per frame, and leaving it
-   * to be remembered later is how a cache outlives the thing it was keyed on.
+   * **The index cache must be cleared, and since session 5 that is load-bearing
+   * rather than precautionary.** A calculated column can be sorted, filtered,
+   * grouped and aggregated on, so an index materialised under the previous set
+   * of expressions is a permutation of the book by values that no longer exist.
+   * The cache is keyed on the REQUEST shape, which carries no calculated
+   * columns at all — AG's request has no field for them — so nothing in the key
+   * would ever change to invalidate it.
    */
   setCalcColumns(defs: readonly SsrmCalcColumnDef[]): boolean {
     const next = JSON.stringify(defs);
@@ -189,6 +216,7 @@ export class SsrmEngine {
     );
     this.calc = result.columns;
     this.calcRuntimeDiagnostics = result.diagnostics;
+    this.columns = createColumnResolver(this.store, this.calc, () => this.writeVersion);
     this.indexCache.clear();
     return true;
   }
@@ -209,22 +237,83 @@ export class SsrmEngine {
   /**
    * One calculated column's compiled reader, or undefined when it was refused.
    *
-   * This is the seam session 5 needs: sorting, filtering, grouping and
-   * aggregating a calculated column all mean "evaluate it for these offsets",
-   * which is this closure called over an index.
+   * The seam the whole of session 5 is built on: sorting, filtering, grouping
+   * and aggregating a calculated column all mean "evaluate it for these
+   * offsets", which is this closure called over an index. `columnAccess.ts`
+   * wraps it into the same five reads a store column answers, and nothing in
+   * `sort.ts`, `filter.ts` or `aggregate.ts` can tell the two apart.
    */
   calcEvaluator(colId: string): ((offset: number) => unknown) | undefined {
     return this.calc.find((column) => column.colId === colId)?.evaluate;
   }
 
-  /** Stamp every installed calculated column onto a materialised row. */
+  /**
+   * Re-stamp the calculated cells a SPARSE PATCH has just made stale.
+   *
+   * `host.publish` broadcasts the writer's patch verbatim — the two cells that
+   * moved, not the row — because re-reading 200 rows out of the store to
+   * broadcast 400 changed cells would be 24,200 values five times a second per
+   * window. That is the right trade and it is exactly why a calculated column
+   * did not tick: a frame naming `dailyPnL` reaches the window without the
+   * `calc_pnlTotal` that depends on it, and the cell keeps its old value until
+   * AG re-reads the block.
+   *
+   * A calculated cell is re-stamped exactly when the patch names one of the
+   * fields its expression READS. Not "always": AG flashes a cell it is told
+   * changed, so re-stamping every calculated column on every frame would paint
+   * a P&L total flashing on a tick that did not move it.
+   *
+   * Returns the SAME array when there is nothing to add, so a book with no
+   * calculated columns pays a length check and no allocation. A patch row is
+   * copied rather than mutated: it belongs to the caller, and `publish` hands
+   * the same array to every attached port.
+   */
+  calcPatch(rows: readonly SsrmRow[]): readonly SsrmRow[] {
+    const active = this.calc.filter((column) => column.evaluate !== undefined && column.reads.length > 0);
+    if (active.length === 0 || rows.length === 0) return rows;
+
+    const keyField = this.store.keyField;
+    let stamped = false;
+    const out = rows.map((row) => {
+      // A row the book no longer holds — removed between the write and the
+      // broadcast — has no offset to evaluate at. Left exactly as it came.
+      const offset = this.store.offsetOf(row[keyField]);
+      if (offset === undefined) return row;
+      let next = row;
+      for (const column of active) {
+        let dirty = false;
+        for (const field of column.reads) {
+          if (Object.prototype.hasOwnProperty.call(row, field)) {
+            dirty = true;
+            break;
+          }
+        }
+        if (!dirty) continue;
+        if (next === row) {
+          next = { ...row };
+          stamped = true;
+        }
+        next[column.colId] = column.evaluate!(offset);
+      }
+      return next;
+    });
+    return stamped ? out : rows;
+  }
+
+  /**
+   * Stamp every installed calculated column onto a materialised row.
+   *
+   * Through the RESOLVER rather than the raw evaluator, so a block read served
+   * after a sort or a filter on the same column answers from the values that
+   * pass already computed instead of computing them a second time.
+   */
   private stampCalc(row: SsrmRow, offset: number): SsrmRow {
     for (const column of this.calc) {
       // A refused column is not stamped AT ALL, which is precisely the "falls
       // back to the field binding" rule: whatever `rowAt` already put under
       // that name stays, and for a colId naming no field there is nothing.
       if (column.evaluate === undefined) continue;
-      row[column.colId] = column.evaluate(offset);
+      row[column.colId] = this.columns.get(column.colId)!.valueAt(offset);
     }
     return row;
   }
@@ -257,7 +346,11 @@ export class SsrmEngine {
 
   private emit(delta: SsrmDelta): void {
     if (delta.changed.length === 0 && delta.removed.length === 0) return;
+    // ONE statement, two caches. A write is the only thing that can invalidate
+    // either a materialised index or a calculated value, and separating them
+    // would be two rules that have to stay in step.
     this.indexCache.clear();
+    this.writeVersion += 1;
     for (const listener of this.listeners) listener(delta);
   }
 
@@ -316,8 +409,8 @@ export class SsrmEngine {
     const cached = this.indexCache.get(key);
     if (cached !== undefined) return cached;
 
-    const filter = compileFilter(this.store, request.filterModel);
-    const quick = compileQuickFilter(this.store, this.quickFilterText, this.quickFields);
+    const filter = compileFilter(this.columns, request.filterModel);
+    const quick = compileQuickFilter(this.columns, this.quickFilterText, this.quickFields);
     const ancestors = this.ancestorPredicate(request);
 
     const live = this.store.liveOffsets();
@@ -330,7 +423,7 @@ export class SsrmEngine {
       kept.push(offset);
     }
 
-    const index = sortIndex(this.store, Int32Array.from(kept), request.sortModel);
+    const index = sortIndex(this.columns, Int32Array.from(kept), request.sortModel);
     this.indexCache.set(key, index);
     return index;
   }
@@ -348,20 +441,21 @@ export class SsrmEngine {
     const groupKeys = request.groupKeys ?? [];
     if (groupKeys.length === 0) return () => true;
 
-    const clauses: { field: string; key: unknown }[] = [];
+    const clauses: { access: SsrmColumnAccess; key: unknown }[] = [];
     for (let depth = 0; depth < groupKeys.length && depth < groupCols.length; depth++) {
       const field = groupCols[depth].field ?? groupCols[depth].id;
-      if (!this.store.hasField(field)) continue;
-      clauses.push({ field, key: groupKeys[depth] });
+      const access = this.columns.get(field);
+      if (access === undefined) continue;
+      clauses.push({ access, key: groupKeys[depth] });
     }
     if (clauses.length === 0) return () => true;
 
     return (offset) =>
-      clauses.every(({ field, key }) => {
-        const isNull = this.store.isNull(field, offset);
+      clauses.every(({ access, key }) => {
+        const isNull = access.isNull(offset);
         if (key === null || key === undefined || key === '') return isNull;
         if (isNull) return false;
-        return String(this.store.valueAt(field, offset)) === String(key);
+        return String(access.valueAt(offset)) === String(key);
       });
   }
 
@@ -376,7 +470,7 @@ export class SsrmEngine {
     const index = this.materialise(request);
     const groupCols = this.groupColumnsFor(request);
     const depth = (request.groupKeys ?? []).length;
-    const aggregations = activeAggregations(this.store, request.valueCols);
+    const aggregations = activeAggregations(this.columns, request.valueCols);
 
     const start = Math.max(0, request.startRow ?? 0);
     const end = request.endRow ?? index.length;
@@ -390,17 +484,22 @@ export class SsrmEngine {
       return {
         rowData: slice,
         rowCount: index.length,
-        groupLevelInfo: aggregateMembers(this.store, index, aggregations),
+        groupLevelInfo: aggregateMembers(index, aggregations),
       };
     }
 
     // ── group level ───────────────────────────────────────────────────────
+    // Resolved through the accessor, so GROUPING BY a calculated column works
+    // for the same reason sorting and filtering by one does. A column the
+    // engine cannot resolve buckets everything under one null group rather
+    // than throwing, which is what a stale group model has always done here.
     const field = groupCols[depth].field ?? groupCols[depth].id;
+    const groupBy = this.columns.get(field);
     const buckets = new Map<string, { key: unknown; members: number[] }>();
     for (let i = 0; i < index.length; i++) {
       const offset = index[i];
-      const isNull = this.store.isNull(field, offset);
-      const value = isNull ? null : this.store.valueAt(field, offset);
+      const isNull = groupBy === undefined || groupBy.isNull(offset);
+      const value = isNull ? null : groupBy.valueAt(offset);
       const bucketKey = isNull ? ' null' : String(value);
       let bucket = buckets.get(bucketKey);
       if (bucket === undefined) {
@@ -424,7 +523,7 @@ export class SsrmEngine {
         [SSRM_GROUP_PATH]: [...ancestors, bucket.key],
         [SSRM_CHILD_COUNT]: bucket.members.length,
         ...(pivot === null
-          ? aggregateMembers(this.store, bucket.members, aggregations)
+          ? aggregateMembers(bucket.members, aggregations)
           : this.pivotCells(pivot, bucket.members, aggregations)),
       };
       if (tree) {
@@ -445,7 +544,7 @@ export class SsrmEngine {
       rowCount: groups.length,
       groupLevelInfo:
         pivot === null
-          ? aggregateMembers(this.store, index, aggregations)
+          ? aggregateMembers(index, aggregations)
           : this.pivotCells(pivot, Array.from(index), aggregations),
       ...(pivot === null ? {} : { pivotResultFields: pivot.fields }),
     };
@@ -463,20 +562,22 @@ export class SsrmEngine {
   private buildPivot(
     request: SsrmGetRowsRequest,
     index: Int32Array,
-  ): { combos: { key: string; values: unknown[] }[]; fields: string[]; cols: SsrmColumnVO[] } | null {
-    const pivotCols = (request.pivotCols ?? []).filter((c) =>
-      this.store.hasField(c.field ?? c.id),
-    );
+  ): { combos: { key: string; values: unknown[] }[]; fields: string[]; cols: SsrmColumnAccess[] } | null {
+    // Resolved through the accessor, so a calculated column can be a PIVOT
+    // column too. This is the fourth call site, and it was one line — which is
+    // the property the single resolver was chosen for.
+    const pivotCols = (request.pivotCols ?? [])
+      .map((c) => this.columns.get(c.field ?? c.id))
+      .filter((access): access is SsrmColumnAccess => access !== undefined);
     if (request.pivotMode !== true || pivotCols.length === 0) return null;
 
-    const aggregations = activeAggregations(this.store, request.valueCols);
+    const aggregations = activeAggregations(this.columns, request.valueCols);
     const seen = new Map<string, unknown[]>();
     for (let i = 0; i < index.length; i++) {
       const offset = index[i];
-      const values = pivotCols.map((col) => {
-        const field = col.field ?? col.id;
-        return this.store.isNull(field, offset) ? null : this.store.valueAt(field, offset);
-      });
+      const values = pivotCols.map((access) =>
+        access.isNull(offset) ? null : access.valueAt(offset),
+      );
       const key = values.map((v) => (v === null || v === undefined ? '' : String(v))).join(
         this.pivotSeparator,
       );
@@ -498,9 +599,9 @@ export class SsrmEngine {
 
   /** One group row's pivoted cells: every combination x every value column. */
   private pivotCells(
-    pivot: { combos: { key: string; values: unknown[] }[]; cols: SsrmColumnVO[] },
+    pivot: { combos: { key: string; values: unknown[] }[]; cols: SsrmColumnAccess[] },
     members: readonly number[],
-    aggregations: readonly { field: string; agg: import('./types.js').SsrmAggFunc }[],
+    aggregations: readonly SsrmAggregation[],
   ): Record<string, unknown> {
     if (aggregations.length === 0) return {};
 
@@ -509,10 +610,7 @@ export class SsrmEngine {
     const byCombo = new Map<string, number[]>();
     for (const offset of members) {
       const key = pivot.cols
-        .map((col) => {
-          const field = col.field ?? col.id;
-          return this.store.isNull(field, offset) ? '' : String(this.store.valueAt(field, offset));
-        })
+        .map((access) => (access.isNull(offset) ? '' : String(access.valueAt(offset))))
         .join(this.pivotSeparator);
       const bucket = byCombo.get(key);
       if (bucket === undefined) byCombo.set(key, [offset]);
@@ -522,7 +620,7 @@ export class SsrmEngine {
     const out: Record<string, unknown> = {};
     for (const combo of pivot.combos) {
       const bucket = byCombo.get(combo.key) ?? [];
-      const aggregated = aggregateMembers(this.store, bucket, aggregations);
+      const aggregated = aggregateMembers(bucket, aggregations);
       for (const { field } of aggregations) {
         out[`${combo.key}${this.pivotSeparator}${field}`] = aggregated[field] ?? null;
       }
@@ -540,7 +638,7 @@ export class SsrmEngine {
   grandTotal(request: SsrmGetRowsRequest): Record<string, unknown> {
     const flat: SsrmGetRowsRequest = { ...request, rowGroupCols: [], groupKeys: [], pivotMode: false };
     const index = this.materialise(flat);
-    return aggregateMembers(this.store, index, activeAggregations(this.store, request.valueCols));
+    return aggregateMembers(index, activeAggregations(this.columns, request.valueCols));
   }
 
   /**
@@ -563,9 +661,16 @@ export class SsrmEngine {
    * domain and its Select All silently excludes everything omitted.
    */
   distinctValues(field: string): unknown[] | null {
-    if (!this.store.hasField(field)) return null;
-    const values = this.store.distinct(field);
-    if (values.length > this.maxSetFilterValues) return null;
+    const access = this.columns.get(field);
+    if (access === undefined) return null;
+    // A store column answers from the DICTIONARY where it can — a walk of the
+    // domain rather than of the book. A calculated column has no dictionary, so
+    // its values are scanned; that is the honest cost of a set filter over an
+    // expression and it is bounded by the same ceiling.
+    const values = access.calculated
+      ? distinctCalcValues(access, this.store.liveOffsets(), this.maxSetFilterValues)
+      : this.store.distinct(field);
+    if (values === null || values.length > this.maxSetFilterValues) return null;
     return values;
   }
 
@@ -599,12 +704,42 @@ export class SsrmEngine {
 }
 
 /**
+ * Every distinct value of a calculated column, or null once past the ceiling.
+ *
+ * Bails as soon as the ceiling is passed rather than collecting the whole
+ * domain and discarding it: a calculated column over a high-cardinality field
+ * can be 20,000 distinct values, and the caller is going to answer null for it
+ * anyway.
+ */
+function distinctCalcValues(
+  access: SsrmColumnAccess,
+  offsets: Int32Array,
+  ceiling: number,
+): unknown[] | null {
+  const seen = new Set<unknown>();
+  for (let i = 0; i < offsets.length; i++) {
+    const offset = offsets[i];
+    seen.add(access.isNull(offset) ? null : access.valueAt(offset));
+    if (seen.size > ceiling) return null;
+  }
+  return [...seen];
+}
+
+/**
  * Group rows are ordered by the sort entry naming the GROUP column, or by the
  * group key when the user has not sorted on it.
  *
  * A sort on a leaf column cannot order groups — the group has no single value
  * for it — so those entries are ignored here rather than silently applied to
  * whatever the aggregate happened to be.
+ *
+ * **Through the same comparator the leaf sort uses.** This function used to
+ * carry its own: nulls last, everything else `(x < y ? -1 : 1) * dir`. That is
+ * the direction multiplier applied to an unorderable verdict, which is exactly
+ * the defect the leaf sort was fixed for twice — and it was reachable, because
+ * a NaN group key is neither `===`, nor `<`, nor `>`, so it fell through to
+ * `1 * dir` and sorted FIRST on a descending group. Grouping by a calculated
+ * column makes a NaN key ordinary rather than exotic. One comparator now.
  */
 function sortGroupRows(
   rows: SsrmRow[],
@@ -613,14 +748,7 @@ function sortGroupRows(
 ): void {
   const entry = sortModel?.find((s) => s.colId === field);
   const dir = entry?.sort === 'desc' ? -1 : 1;
-  rows.sort((a, b) => {
-    const x = a[field];
-    const y = b[field];
-    if (x === y) return 0;
-    if (x === null || x === undefined) return 1;
-    if (y === null || y === undefined) return -1;
-    return (x < y ? -1 : 1) * dir;
-  });
+  rows.sort((a, b) => compareOrderKeys(orderKeyOfValue(a[field]), orderKeyOfValue(b[field]), dir));
 }
 
 export function createSsrmEngine(options: SsrmEngineOptions): SsrmEngine {

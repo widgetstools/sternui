@@ -1,4 +1,4 @@
-import type { ColumnStore } from './columnStore.js';
+import type { SsrmColumnAccess, SsrmColumnResolver } from './columnAccess.js';
 import type { SsrmAggFunc, SsrmColumnVO } from './types.js';
 
 /**
@@ -31,6 +31,15 @@ import type { SsrmAggFunc, SsrmColumnVO } from './types.js';
  * requires knowing the runner-up, so an incremental implementation needs a
  * multiset per group per column, and the naive "just subtract" that works for
  * sum has no counterpart here.
+ *
+ * ## A calculated column aggregates like any other
+ *
+ * `activeAggregations` used to drop a value column the store did not have,
+ * which made an aggregation on a calculated column a silent no-op — the group
+ * row simply carried nothing under that id. It now resolves through
+ * {@link SsrmColumnResolver}, and the loop below reads the accessor rather than
+ * the store, so there is ONE skip rule (null and NaN, never counted as zero)
+ * and one Kahan-compensated sum for both kinds of column.
  */
 
 export function toAggFunc(name: string | null | undefined): SsrmAggFunc | null {
@@ -48,18 +57,26 @@ export function toAggFunc(name: string | null | undefined): SsrmAggFunc | null {
   }
 }
 
+/** One value column resolved to what it aggregates and how. */
+export interface SsrmAggregation {
+  field: string;
+  agg: SsrmAggFunc;
+  access: SsrmColumnAccess;
+}
+
 /** The value columns AG asked to aggregate, with unmappable ones dropped. */
 export function activeAggregations(
-  store: ColumnStore,
+  columns: SsrmColumnResolver,
   valueCols: readonly SsrmColumnVO[] | undefined,
-): { field: string; agg: SsrmAggFunc }[] {
-  const out: { field: string; agg: SsrmAggFunc }[] = [];
+): SsrmAggregation[] {
+  const out: SsrmAggregation[] = [];
   for (const col of valueCols ?? []) {
     const agg = toAggFunc(col.aggFunc);
     if (agg === null) continue;
     const field = col.field ?? col.id;
-    if (!store.hasField(field)) continue;
-    out.push({ field, agg });
+    const access = columns.get(field);
+    if (access === undefined) continue;
+    out.push({ field, agg, access });
   }
   return out;
 }
@@ -77,14 +94,13 @@ export function activeAggregations(
  * `count` means, so it does not skip.
  */
 export function aggregateMembers(
-  store: ColumnStore,
   members: Int32Array | readonly number[],
-  aggregations: readonly { field: string; agg: SsrmAggFunc }[],
+  aggregations: readonly SsrmAggregation[],
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (aggregations.length === 0) return out;
 
-  for (const { field, agg } of aggregations) {
+  for (const { field, agg, access } of aggregations) {
     if (agg === 'count') {
       out[field] = members.length;
       continue;
@@ -95,7 +111,7 @@ export function aggregateMembers(
         continue;
       }
       const offset = agg === 'first' ? members[0] : members[members.length - 1];
-      out[field] = store.valueAt(field, offset);
+      out[field] = access.isNull(offset) ? null : access.valueAt(offset);
       continue;
     }
 
@@ -110,14 +126,33 @@ export function aggregateMembers(
 
     for (let i = 0; i < members.length; i++) {
       const offset = members[i];
-      if (store.isNull(field, offset)) continue;
-      const value = store.rawAt(field, offset);
-      if (Number.isNaN(value)) continue;
+      // Two skips, two different reasons, and neither is "treat it as zero".
+      //
+      // NOT A NUMBER — null, a string, a boolean, a Date — contributes nothing,
+      // which is what AG's own `aggSum`/`aggMin`/`aggMax` do (`typeof value ===
+      // 'number'`). This engine used to COERCE instead, so a calculated boolean
+      // column summed to the count of its true rows and a string column summed
+      // its dictionary codes. Found by the differential fuzz on frame 0.
+      //
+      // NaN is a number and is skipped anyway, which is where this deliberately
+      // parts company with AG: AG's sum of a column holding one NaN is NaN, and
+      // one bad tick taking out a desk's whole total is worse than one row of
+      // it going missing. Session 3 settled that and nothing here weakens it.
+      const value = access.numberOrNull(offset);
+      if (value === null || Number.isNaN(value)) continue;
       seen += 1;
       if (agg === 'sum' || agg === 'avg') {
         const y = value - compensation;
         const t = sum + y;
-        compensation = t - sum - y;
+        // The compensation is only meaningful while the running total is
+        // FINITE. `Infinity - 0 - Infinity` is NaN, and once the compensation
+        // is NaN every subsequent `value - compensation` is NaN too — so one
+        // Infinity anywhere in a group turned the whole total into NaN, and it
+        // stayed NaN even if the Infinity was later cancelled out. Caught by
+        // the differential fuzz on frame 11 (`x / null` is Infinity, which is
+        // an ordinary result of an ordinary expression); reachable on a stored
+        // column too, because a feed can send one.
+        compensation = Number.isFinite(t) ? t - sum - y : 0;
         sum = t;
       } else if (agg === 'min') {
         if (value < min) min = value;

@@ -309,6 +309,24 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
     if (rows.length === 0 && removed.length === 0) return;
     const size = entry.book.engine.size;
     const keyField = entry.book.engine.store.keyField;
+    /**
+     * A CALCULATED COLUMN TICKS, and this line is where.
+     *
+     * The patch below is the writer's sparse frame — the two cells that moved —
+     * so a column computed from `dailyPnL` reached the window without the
+     * `calc_pnlTotal` that depends on it and sat stale until AG re-read the
+     * block. `calcPatch` adds back exactly the calculated cells whose inputs
+     * this frame names, leaving the rest alone so the grid does not flash a
+     * total that did not move.
+     *
+     * Stamped ONCE, above the per-port loop: the values are the same for every
+     * window, and evaluating them per port would multiply the cost by the
+     * number of blotters. It is done before narrowing rather than after because
+     * the narrowing filters this array by key, and a row is only copied when it
+     * actually gains a cell — a book with no calculated columns gets the same
+     * array back and pays a length check.
+     */
+    const patch = entry.book.engine.calcPatch(rows);
 
     for (const port of entry.clients) {
       if (port === origin) continue;
@@ -330,8 +348,8 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
       // is far larger than a viewport.
       const narrowed =
         visible === null || wasShowing === null
-          ? rows
-          : rows.filter(
+          ? patch
+          : patch.filter(
               (row) => visible.has(row[keyField]) || wasShowing?.has(row[keyField]) === true,
             );
       // Nothing to say only when the count has not moved either — see `sizes`.
@@ -342,7 +360,7 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
       const frame: SsrmPushFrame = {
         push: 'delta',
         bookId,
-        rows: narrowed,
+        rows: [...narrowed],
         removed,
         size,
       };

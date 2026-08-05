@@ -33,6 +33,13 @@ export type {
   SsrmRowPumpStats,
 } from './rowPump.js';
 export { ColumnStore } from './columnStore.js';
+export type { StoredColumn } from './columnStore.js';
+export {
+  createColumnResolver,
+  numericOrderKey,
+  orderKeyOfValue,
+} from './columnAccess.js';
+export type { SsrmColumnAccess, SsrmColumnResolver } from './columnAccess.js';
 export { compileCalcColumns } from './calc.js';
 export type {
   SsrmCalcColumn,
@@ -56,8 +63,9 @@ export type {
   SsrmVariableNode,
 } from './calcAst.js';
 export { compileFilter, compileQuickFilter, type RowPredicate } from './filter.js';
-export { sortIndex, lowerBound } from './sort.js';
+export { sortIndex, lowerBound, compareOrderKeys } from './sort.js';
 export { aggregateMembers, activeAggregations, toAggFunc } from './aggregate.js';
+export type { SsrmAggregation } from './aggregate.js';
 export {
   SSRM_GROUP_FLAG,
   SSRM_GROUP_PATH,
