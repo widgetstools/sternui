@@ -4,33 +4,29 @@ import { ModuleRegistry } from 'ag-grid-community';
 import type { ColDef, GridApi } from 'ag-grid-community';
 import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import {
-  createSsrmDatasource,
-  createSsrmEngine,
+  createAsyncSsrmDatasource,
   makeSsrmGetRowId,
   SSRM_CHILD_COUNT,
   type SsrmRow,
 } from '@starui/ssrm-engine';
-import {
-  STRESS_COLUMN_FIELDS,
-  STRESS_FIELD_TYPES,
-  STRESS_KEY_FIELD,
-  STRESS_ROW_COUNT,
-} from '../data/stressColumns';
+import { SsrmEngineClient } from '@starui/ssrm-engine/worker';
+import { STRESS_KEY_FIELD, STRESS_ROW_COUNT } from '../data/stressColumns';
+import { STRESS_BOOK_ID } from '../data/stressBook';
 
 /**
- * The Stress book on `@starui/ssrm-engine`, for a like-for-like comparison with
- * the Perspective surface beside it.
+ * The Stress book on `@starui/ssrm-engine`, hosted in a **SharedWorker**.
  *
  * Reached with `?engine=ssrm`. Same row count, same 120 columns, same types and
- * the same tick rate as the default surface, so the probes that measure the
- * Perspective path — `sortRecoveryProbe.mjs`, `stubVisibilityProbe.mjs` — apply
- * here unchanged and the numbers line up.
+ * the same tick rate as the Perspective surface beside it, so the probes that
+ * measure that path — `rendererProcessProbe.mjs`, `stubVisibilityProbe.mjs` —
+ * apply here unchanged and the numbers line up.
  *
- * **The book is generated IN THIS WINDOW**, deliberately and as a limitation.
- * The engine has no worker hosting yet, so this demonstrates the engine and the
- * AG contract, NOT the multi-window shared-book topology that the Perspective
- * path exists to provide. A renderer memory figure taken here is therefore not
- * comparable: this window holds the whole book by construction.
+ * **The book is not in this window.** It was, until session 1: the engine was
+ * synchronous and in-process, which is the memory shape that produced "Aw,
+ * Snap · Out of Memory" on the Perspective path and made every figure recorded
+ * for this engine a figure against a topology Perspective was never competing
+ * on. What this window now holds is a port, an async datasource and AG's own
+ * block cache.
  *
  * Plain `AgGridReact` rather than `MarketsGrid`: the customizer, profiles,
  * toolbars and alerts all bind to the platform, and none of that is wired to
@@ -62,30 +58,13 @@ import {
  */
 ModuleRegistry.registerModules([AllEnterpriseModule]);
 
-/** Deterministic, so two runs of a probe measure the same book. */
-function generateBook(rows: number): SsrmRow[] {
-  const dimensions = STRESS_COLUMN_FIELDS.filter((f) => STRESS_FIELD_TYPES[f] === 'string');
-  const numerics = STRESS_COLUMN_FIELDS.filter((f) => STRESS_FIELD_TYPES[f] === 'number');
-  const values = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel'];
-
-  const book: SsrmRow[] = [];
-  for (let r = 0; r < rows; r++) {
-    const row: SsrmRow = { [STRESS_KEY_FIELD]: `POS-${r}` };
-    dimensions.forEach((field, d) => {
-      row[field] = values[(r + d) % values.length];
-    });
-    numerics.forEach((field, n) => {
-      row[field] = ((r * 7 + n * 13) % 100_000) / 100;
-    });
-    book.push(row);
-  }
-  return book;
-}
+/** Block round trips, kept for the probes. Bounded — this runs for minutes. */
+const BLOCK_SAMPLE_CAP = 4_000;
 
 export interface SsrmEngineStressGridProps {
   columnDefs: ColDef[];
   rowHeight?: number;
-  /** Live tick interval. 0 disables ticking. */
+  /** Live tick interval, applied in the worker. 0 disables ticking. */
   tickMs?: number;
 }
 
@@ -95,129 +74,172 @@ export function SsrmEngineStressGrid({
   tickMs = 200,
 }: SsrmEngineStressGridProps) {
   const apiRef = useRef<GridApi | null>(null);
-  const [ready, setReady] = useState(false);
+  const blocksRef = useRef<{ ms: number[]; served: number; failed: number }>({
+    ms: [],
+    served: 0,
+    failed: 0,
+  });
+  const [client, setClient] = useState<SsrmEngineClient | null>(null);
+  const [fault, setFault] = useState<string | null>(null);
 
-  const engine = useMemo(() => {
-    const built = createSsrmEngine({
-      schema: {
-        keyField: STRESS_KEY_FIELD,
-        fields: [
-          { field: STRESS_KEY_FIELD, type: 'string' },
-          ...STRESS_COLUMN_FIELDS.map((field) => ({
-            field,
-            type: STRESS_FIELD_TYPES[field],
-          })),
-        ],
+  /**
+   * Open the book.
+   *
+   * `new URL(..., import.meta.url)` is what makes Vite emit the worker as its
+   * own chunk; a string path would be shipped verbatim and 404 in a production
+   * build. `name` matters too — a SharedWorker is identified by script URL AND
+   * name, so every window naming the same pair lands on ONE worker, which is
+   * the entire point.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    let opened: SsrmEngineClient | null = null;
+
+    const worker = new SharedWorker(new URL('../workers/ssrmBookWorker.ts', import.meta.url), {
+      type: 'module',
+      name: 'starui-ssrm-book',
+    });
+
+    SsrmEngineClient.open(worker.port, STRESS_BOOK_ID, {
+      bookOptions: { rows: STRESS_ROW_COUNT, tickMs },
+      onFault: (error) => {
+        // eslint-disable-next-line no-console
+        console.error('[ssrm-engine worker]', error);
+      },
+    }).then(
+      (next) => {
+        if (cancelled) {
+          void next.close();
+          return;
+        }
+        opened = next;
+        setClient(next);
+      },
+      (error: unknown) => {
+        // A book that never opens is a blank tab. Say why, on the surface and
+        // in the console — this is the failure a SharedWorker hides best.
+        // eslint-disable-next-line no-console
+        console.error('[ssrm-engine] could not open the book', error);
+        if (!cancelled) setFault(String(error));
+      },
+    );
+
+    return () => {
+      cancelled = true;
+      // The worker OUTLIVES this page. A book nobody detaches from survives a
+      // reload, and the next load builds a second one beside it.
+      void opened?.close();
+    };
+  }, [tickMs]);
+
+  const datasource = useMemo(() => {
+    if (!client) return null;
+    return createAsyncSsrmDatasource(client, {
+      onError: (error) => {
+        // eslint-disable-next-line no-console
+        console.error('[ssrm-engine] block failed', error);
+      },
+      onBlock: (ms, outcome) => {
+        const blocks = blocksRef.current;
+        if (outcome === 'ok') blocks.served += 1;
+        else blocks.failed += 1;
+        if (blocks.ms.length < BLOCK_SAMPLE_CAP) blocks.ms.push(ms);
       },
     });
-    built.applySnapshot(generateBook(STRESS_ROW_COUNT));
-    return built;
-  }, []);
-
-  const datasource = useMemo(
-    () =>
-      createSsrmDatasource(engine, {
-        // eslint-disable-next-line no-console
-        onError: (error) => console.error('[ssrm-engine] block failed', error),
-      }),
-    [engine],
-  );
+  }, [client]);
 
   const getRowId = useMemo(() => makeSsrmGetRowId(STRESS_KEY_FIELD), []);
 
   /**
-   * The live path: PUSH the rows that changed, do not invalidate blocks.
+   * The live path: the worker PUSHES what changed, this window applies it.
    *
-   * This is the whole point of the engine reporting a delta. The Perspective
-   * surface had to re-read its viewport every tick because `on_update` does not
-   * say which rows moved; here the changed keys come back from `applyUpdate`,
-   * so a tick is one transaction of exactly the rows that ticked.
+   * The whole point of the engine reporting a delta. On the Perspective surface
+   * a tick had to re-read the viewport because `on_update` does not say which
+   * rows moved; here the worker sends the sparse patch it applied and a tick is
+   * one transaction of exactly the cells that ticked — no invalidation, no
+   * re-request, and therefore no stub rows.
    */
   useEffect(() => {
-    if (!ready || tickMs <= 0) return;
-    const numerics = STRESS_COLUMN_FIELDS.filter((f) => STRESS_FIELD_TYPES[f] === 'number');
-    let cursor = 0;
-
-    const timer = setInterval(() => {
-      const batch: SsrmRow[] = [];
-      for (let i = 0; i < 200; i++) {
-        cursor = (cursor + 37) % STRESS_ROW_COUNT;
-        batch.push({
-          [STRESS_KEY_FIELD]: `POS-${cursor}`,
-          [numerics[0]]: Math.round(Math.random() * 100_000) / 100,
-          [numerics[1]]: Math.round(Math.random() * 100_000) / 100,
-        });
-      }
-      const delta = engine.applyUpdate(batch);
+    if (!client) return;
+    return client.subscribe((delta) => {
       const api = apiRef.current;
       if (!api || api.isDestroyed?.()) return;
 
       // Only rows AG actually holds are worth pushing — a transaction for a row
       // outside the block cache is ignored, and building it is wasted work.
       const update: SsrmRow[] = [];
-      for (const key of delta.changed) {
-        const node = api.getRowNode(String(key));
-        if (node?.data) update.push({ ...(node.data as SsrmRow), ...engineRow(engine, key) });
+      for (const patch of delta.rows) {
+        const node = api.getRowNode(String(patch[STRESS_KEY_FIELD]));
+        if (node?.data) update.push({ ...(node.data as SsrmRow), ...patch });
       }
       if (update.length > 0) api.applyServerSideTransaction({ update });
-    }, tickMs);
-
-    return () => clearInterval(timer);
-  }, [ready, tickMs, engine]);
+    });
+  }, [client]);
 
   return (
     <div style={{ flex: 1, minHeight: 0, width: '100%' }} data-testid="ssrm-engine-grid">
-      <AgGridReact
-        columnDefs={columnDefs}
-        rowModelType="serverSide"
-        serverSideDatasource={datasource as never}
-        getRowId={getRowId as never}
-        rowHeight={rowHeight}
-        cacheBlockSize={100}
-        maxBlocksInCache={100}
-        blockLoadDebounceMillis={40}
-        animateRows={false}
-        suppressAggFuncInHeader
-        /**
-         * Must match the engine's `pivotResultFieldSeparator`. AG rebuilds its
-         * secondary columns by SPLITTING each `pivotResultFields` entry on this,
-         * so a mismatch does not error — it silently carves the field name in
-         * the wrong place and produces columns named after fragments.
-         */
-        serverSidePivotResultFieldSeparator="_"
-        sideBar={{ toolPanels: ['columns', 'filters'] }}
-        rowGroupPanelShow="always"
-        pivotPanelShow="always"
-        getChildCount={(data: SsrmRow) => data?.[SSRM_CHILD_COUNT] as number}
-        onGridReady={(event) => {
-          apiRef.current = event.api;
+      {fault && (
+        <div className="p-4 text-sm text-[var(--bn-status-negative,#b91c1c)]">
+          The worker-held book did not open: {fault}
+        </div>
+      )}
+      {datasource && client && (
+        <AgGridReact
+          columnDefs={columnDefs}
+          rowModelType="serverSide"
+          serverSideDatasource={datasource as never}
+          getRowId={getRowId as never}
+          rowHeight={rowHeight}
+          cacheBlockSize={100}
+          maxBlocksInCache={100}
+          blockLoadDebounceMillis={40}
+          animateRows={false}
+          suppressAggFuncInHeader
           /**
-           * A measurement handle, the same affordance `useLabPerspectiveRows`
-           * gives the MarketsGrid path through `__labGrid`.
-           *
-           * Unconditional rather than DEV-only: every measurement on this path
-           * is taken against a PRODUCTION build (the dev server serves hundreds
-           * of modules per window and a third window never finishes loading), so
-           * a DEV-gated handle is a handle that no probe can ever reach. Walking
-           * `__reactFiber$` finds the api on the MarketsGrid surface but not on a
-           * plain `AgGridReact`, which is what made this necessary.
+           * Must match the engine's `pivotResultFieldSeparator`. AG rebuilds its
+           * secondary columns by SPLITTING each `pivotResultFields` entry on
+           * this, so a mismatch does not error — it silently carves the field
+           * name in the wrong place and produces columns named after fragments.
            */
-          (globalThis as Record<string, unknown>).__ssrmEngineGrid = {
-            api: event.api,
-            engine,
-          };
-          setReady(true);
-        }}
-      />
+          serverSidePivotResultFieldSeparator="_"
+          sideBar={{ toolPanels: ['columns', 'filters'] }}
+          rowGroupPanelShow="always"
+          pivotPanelShow="always"
+          getChildCount={(data: SsrmRow) => data?.[SSRM_CHILD_COUNT] as number}
+          onGridReady={(event) => {
+            apiRef.current = event.api;
+            /**
+             * A measurement handle, the same affordance `useLabPerspectiveRows`
+             * gives the MarketsGrid path through `__labGrid`.
+             *
+             * Unconditional rather than DEV-only: every measurement on this path
+             * is taken against a PRODUCTION build (the dev server serves hundreds
+             * of modules per window and a third window never finishes loading), so
+             * a DEV-gated handle is a handle that no probe can ever reach. Walking
+             * `__reactFiber$` finds the api on the MarketsGrid surface but not on a
+             * plain `AgGridReact`, which is what made this necessary.
+             *
+             * `engine` is a SHIM, and deliberately a live one: the book is in the
+             * worker, so `size` is the worker's last word rather than a local
+             * count. It is set by `open` and moved by every delta push, so a
+             * worker that stopped answering shows a size that stops moving —
+             * which is the honest thing for it to show.
+             */
+            (globalThis as Record<string, unknown>).__ssrmEngineGrid = {
+              api: event.api,
+              engine: {
+                get size() {
+                  return client.size;
+                },
+              },
+              client,
+              /** Boundary cost: entry to `getRows` until AG is answered. */
+              blocks: () => ({ ...blocksRef.current, ms: [...blocksRef.current.ms] }),
+              rpc: () => client.stats(),
+            };
+          }}
+        />
+      )}
     </div>
   );
-}
-
-/** The engine's current row for a key, as a plain object. */
-function engineRow(
-  engine: ReturnType<typeof createSsrmEngine>,
-  key: unknown,
-): SsrmRow {
-  const offset = engine.store.offsetOf(key);
-  return offset === undefined ? {} : engine.store.rowAt(offset);
 }

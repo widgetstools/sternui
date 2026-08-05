@@ -2,26 +2,32 @@
 
 A columnar row engine written to AG Grid's server-side row model contract.
 
-**Status: the engine drives a real AG Grid in a browser and is measured there.
-It has no worker hosting and no provider wiring — see "What is not here".**
+**Status: the book lives in a SharedWorker, the engine drives a real AG Grid
+from there, and both are measured in a browser. No provider wiring yet — see
+"What is not here".**
 
 Run it: build and serve `@starui/perspective-ssrm-lab`, then open the Stress tab
-with **`?engine=ssrm`**. `scripts/browserSmokeProbe.mjs` drives it.
+with **`?engine=ssrm`**. `scripts/browserSmokeProbe.mjs` and
+`scripts/workerBoundaryProbe.mjs` drive it.
 
 The remaining work is split into sessions in
 [`docs/SSRM_ENGINE_WORKLOG.md`](../../../docs/SSRM_ENGINE_WORKLOG.md).
 
 | in the browser, 20k x 120 | ssrm-engine | Perspective, same tab |
 |---|---|---|
-| first row painted | **2,326 ms** | 12,000-15,000 ms |
-| SORT, first block | **239 ms** | 400-1,100 ms |
+| first row painted | **1,813 ms** | 12,000-15,000 ms |
+| SORT, first block | **59 ms** | 400-1,100 ms |
+| block read, feed live | **3.1 ms** (AG end to end) | 119-145 ms |
+| renderer working set, settled | **390 MB** | 1,286 MB |
 | rows after a sort | 20,000 (no collapse) | 20,000 since the grand-total fix |
 | pivot, desk x currency | 8 groups, **8 generated columns** | not implemented |
 
-The sort is 239 ms in the browser against 4.4 ms for the same operation in Node.
-That gap is not the engine — it is AG purging the store, re-requesting and
-re-rendering 120 columns. The Node figures below are a floor, not a prediction
-of what a user feels.
+Every figure in that column is with the book in a SharedWorker, which is the
+topology Perspective's column was measured on. Before that move the same
+surface read 1,629-2,326 ms to first row and 60-239 ms to the first sorted
+block; the boundary did not cost either of them.
+
+The Node figures below are a floor, not a prediction of what a user feels.
 
 ---
 
@@ -47,6 +53,105 @@ the three things that caused those numbers:
 3. **the engine knows which rows changed**, so a live tick can be PUSHED to the
    grid as `applyServerSideTransaction` rather than invalidating blocks and
    making AG re-pull them.
+
+## The book is in a SharedWorker, and what that did and did not buy
+
+The engine was synchronous and in-process, which is the memory shape that
+produced "Aw, Snap · Out of Memory" on the Perspective path. Until it moved,
+every figure recorded here was against a topology Perspective was never
+competing on. It has moved: `src/worker/` is the wire protocol, the host, the
+client and the async AG boundary, and the lab's Stress tab runs entirely from it.
+
+```
+SharedWorker   serveSsrmEngineWorker({ openBook })   one SsrmEngine per book id
+               host.publish(bookId, patch)           a tick, pushed
+
+Window         SsrmEngineClient.open(port, bookId)   the same surface, async
+               createAsyncSsrmDatasource(client)     the AG boundary
+```
+
+### The boundary is cheap
+
+MEASURED with `scripts/workerBoundaryProbe.mjs`, production build, live feed,
+80 rounds each at perturbed offsets:
+
+| | median | p90 | max |
+|---|---|---|---|
+| port round trip, no engine work (`size`) | **0.00 ms** | 0.10 ms | 0.30 ms |
+| block round trip, 100 rows x 121 columns | **2.20 ms** | 2.70 ms | 23.70 ms |
+| AG `getRows` end to end, under a real scroll | **3.10 ms** | 3.40 ms | 5.50 ms |
+
+Against 0.6 ms for the same block in Node, in-process. **The session that built
+this said it failed above ~10 ms per block; it is 2.2.** The port itself is
+free — a call that does no engine work is unmeasurable at this resolution — so
+what the 1.6 ms of difference buys is materialising the block and
+structured-cloning 12,100 values back. 22 blocks served under the scroll, **0
+failed, 0 timed out, 0 late, 0 left pending.**
+
+### The memory it saved is ~20 MB, and that is the honest headline
+
+MEASURED with `perspective-grid/scripts/rendererProcessProbe.mjs`, same book,
+same build, only the hosting changed:
+
+| renderer working set, 20k x 120 | in-window book | worker-held book | Perspective |
+|---|---|---|---|
+| settled, ~40 s after the first row | 411 MB | **390 MB** | **1,286 MB** |
+| after 3 minutes of horizontal and vertical scrolling | 570-700 MB | 560-740 MB | — |
+
+**Moving the book did not move the memory, and two measurements say why.**
+
+First, Chrome hosts the SharedWorker **inside a renderer process**. The same
+probe run reports `{browser:1, renderer:2, GPU:1, network:1, storage:1}` and no
+worker process of any kind — the identical finding recorded for Perspective's
+worker, arrived at independently here. The second renderer sits at 31-33 MB
+with the book in the window and with it in the worker alike, so it is not
+holding one; the book is in the page's own renderer either way.
+
+Second, and more usefully: **the engine's book was never what filled the
+renderer.** 20,000 rows x 121 columns of dictionary-encoded columnar storage is
+tens of megabytes, which is exactly the size of the difference above. What
+fills a 700 MB renderer here is AG Grid's own block cache — `maxBlocksInCache:
+100` at `cacheBlockSize: 100` is up to 1.21M cells held as JS row objects — plus
+its DOM. That is in the window whatever holds the book, and it is the first
+place to look if this ever needs to be smaller.
+
+So the 390 MB against Perspective's 1,286 MB is a real difference and it is a
+difference of ENGINE, not of hosting: a columnar store against a wasm Table and
+its heap. Do not read the worker as the reason.
+
+**What the move IS worth** is the thing sessions 2 onward need and a window
+cannot have: one book with N windows reading it, a tick applied once instead of
+per window, and a page that can be closed and reopened against a book that is
+already loaded. The Perspective path's own 18.4 s snapshot is the case in point.
+
+### Rules this path is built on
+
+- **Every `getRows` settles exactly once**, now for real. Against a synchronous
+  engine a leak needed a bug; across a port it needs only a worker that is busy
+  or gone, and AG's `outboundRequests` limit is 2. `createAsyncSsrmDatasource`
+  latches the block and there are two independent timers — the RPC timeout that
+  names the method, and a longer block-level backstop that holds even if the RPC
+  layer itself misbehaves. A timeout that FAILS beats one that waits: AG paints
+  a failed block and the user can scroll off it, where a pending one takes the
+  grid.
+- **A refused structured clone is silent at the sender.** It arrives as
+  `messageerror` on the receiver and as nothing at all on the side that posted.
+  Both ends listen for it; an uncloneable RESULT is answered as an error frame
+  rather than dropped, because dropping it costs the caller a full timeout for a
+  failure that is already known.
+- **A tick broadcasts the sparse patch, not the rows.** Two prices on 200 rows
+  is 400 cells; re-reading those rows out of the store would be 24,200, five
+  times a second, per window.
+- **A SharedWorker outlives its pages.** A book nobody detaches from survives a
+  reload and the next load builds a second one beside it — which is how the lab
+  once accumulated several 20-50k books in one process. The host retires a book
+  with its last client, and the client sends `close` on unmount. There is no
+  reliable disconnect event for a SharedWorker port, so a window killed outright
+  still leaks its book until the worker is collected.
+- **An unhandled rejection in a SharedWorker reaches no console anywhere.** The
+  worker keeps running and whatever awaited that promise never settles, which
+  from a window is indistinguishable from a hang. Every fault is pushed to the
+  attached clients.
 
 ## Measured
 
@@ -87,7 +192,7 @@ the same shape as the lab's Stress tab:
 
 ## Correctness
 
-57 tests, of which the important ones are the **differential fuzz** in
+80 tests, of which the important ones are the **differential fuzz** in
 `engine.fuzz.test.ts`: 250 mutation frames and a churn run, comparing every
 query shape against a deliberately stupid brute-force oracle built from plain
 objects.
@@ -108,6 +213,18 @@ The fuzz has already earned its place twice in this engine:
 - it caught a **tie-break disagreement** on frame 1, which turned out to be the
   oracle's fault rather than the engine's — the engine ties on original row
   order, which is what AG's client-side model does.
+
+The worker path is tested over a real `MessageChannel`, which is what a
+SharedWorker port is — no worker is needed to prove any of it, and needing one
+would have left it untested. Every case in `worker/rpc.test.ts` is a way a reply
+can go MISSING, because across a port that is the failure that matters: a
+handler that throws, one that rejects, one that never answers, a result that
+will not clone, params that will not clone, a reply that arrives after its
+timeout, and a disposed client. Each asserts the promise settles; what it
+settles with is secondary. `asyncDatasource.test.ts` does the same for AG's
+callback, including the one that is easy to get backwards — a source that
+answers AFTER the block timed out must NOT then be handed to a grid that was
+already told it failed.
 
 Aggregation is a **full pass over the level's members**, not incremental. That
 is a deliberate trade and the reason the three defects above cannot recur: there
@@ -148,15 +265,26 @@ them.
 - **tree data**: `treeFields` stands in for `rowGroupCols`, which AG does not
   send in tree mode, and parent rows carry `SSRM_TREE_KEY` / `SSRM_TREE_GROUP`
   because AG reads the hierarchy off the DATA. An explicit `rowGroupCols` wins
+- **worker hosting** (`@starui/ssrm-engine/worker`): a `{id, method, params}` /
+  `{id, ok, result | error}` wire with one in-flight map per port and a timeout
+  that FAILS a call rather than leaving it pending; `serveSsrmEngineWorker`,
+  hosting one engine per book id and retiring a book with its last client;
+  `SsrmEngineClient`, the same surface asynchronously, with a live mirror of the
+  book size and a subscription to pushed writes; and
+  `createAsyncSsrmDatasource`, which is where "every `getRows` settles exactly
+  once" becomes load-bearing rather than defensive
 
 ## What is NOT here
 
 Stated plainly so nobody plans around a gap:
 
-- **no worker hosting.** The engine is synchronous and in-process. Putting it
-  behind a `SharedWorker` + `MessagePort` is the next piece, and is what makes
-  the book shared across windows — until then this holds the book in the window,
-  which is the memory shape the Perspective path exists to avoid
+- **no provider wiring.** The worker's `openBook` builds the lab's generated
+  book; nothing yet feeds it from `host-data`, so `applySnapshot`/`applyUpdate`
+  are not driven by a real feed
+- **one client, in practice.** The host serves N ports on one engine and the
+  tests cover two, but nothing has yet run three windows on one book, and the
+  per-subscriber viewport push (each window telling the worker its visible range)
+  is not built
 - **the pivot/tree fuzz gap.** The differential fuzz covers flat, sort, filter,
   grouping and aggregation. Pivot and tree are covered by unit tests only, and
   the oracle should grow to cover them

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { MarketsGrid } from '@starui/grid';
+import type { ColDef } from 'ag-grid-community';
+import { MarketsGrid, type MarketsGridHandle } from '@starui/grid';
 import { TabContainer } from '../components/TabContainer';
 import { InspectorDrawer } from '../components/InspectorDrawer';
 import {
@@ -12,6 +13,7 @@ import {
 import { useLabDemoProfiles } from '../data/useLabDemoProfiles';
 import { labStorage } from '../data/storage';
 import { useLabPerspectiveRows } from '../demo/useLabPerspectiveRows';
+import type { LabStreamOptions } from '../demo/types';
 import { PerspectiveAttachNotice } from '../components/PerspectiveAttachNotice';
 import { SsrmEngineStressGrid } from './SsrmEngineStressGrid';
 import { getFeatureGuide } from '../guides/featureGuides';
@@ -98,13 +100,7 @@ export function StressTestTab() {
     [config.stream],
   );
 
-  const {
-    table,
-    status: attachStatus,
-    reason: attachReason,
-    onReady,
-    tickMs,
-  } = useLabPerspectiveRows(config.tabId, config.providerId, stream, onProfilesReady);
+  const tickMs = config.stream?.updateIntervalMs ?? 200;
 
   const columnDefs = useMemo(() => buildStressColumnDefs(), []);
 
@@ -126,46 +122,18 @@ export function StressTestTab() {
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col">
-          {useSsrmEngine && (
+          {useSsrmEngine ? (
             <SsrmEngineStressGrid
               columnDefs={columnDefs}
               rowHeight={grid.rowHeight ?? 28}
-              tickMs={config.stream?.updateIntervalMs ?? 200}
+              tickMs={tickMs}
             />
-          )}
-          {!useSsrmEngine && !table && (
-            <PerspectiveAttachNotice status={attachStatus} reason={attachReason} />
-          )}
-          {!useSsrmEngine && table && (
-            <MarketsGrid
-              gridId={config.gridId}
-              // `rowData` is required by the props type and UNUSED on this path:
-              // the rows come from the worker-held Table. A stable empty array
-              // rather than a literal, so it is not a new reference every render.
-              rowData={NO_ROWS}
-              rowModel="perspective"
-              perspectiveTable={table}
-              perspectiveColumnWindow={columnWindow}
-              componentName={config.componentName}
+          ) : (
+            <PerspectiveStressSurface
               columnDefs={columnDefs}
-              defaultColDef={stressDefaultColDef}
-              rowIdField="id"
-              storage={labStorage}
-              onReady={onReady}
-              showProfileSelector={grid.showProfileSelector ?? true}
-              showSaveButton={grid.showSaveButton ?? true}
-              showSettingsButton={grid.showSettingsButton ?? true}
-              showFiltersToolbar={grid.showFiltersToolbar}
-              showFormattingToolbar={grid.showFormattingToolbar}
-              showEditingToolbar={grid.showEditingToolbar}
-              showSmartEditToolbar={grid.showSmartEditToolbar}
-              showBulkUpdateToolbar={grid.showBulkUpdateToolbar}
-              showEditHistoryToolbar={grid.showEditHistoryToolbar}
-              showVisualExcelExport={grid.showVisualExcelExport}
-              sideBar={grid.sideBar}
-              statusBar={grid.statusBar}
-              rowHeight={grid.rowHeight}
-              animateRows={false}
+              columnWindow={columnWindow}
+              onProfilesReady={onProfilesReady}
+              stream={stream}
             />
           )}
         </div>
@@ -174,5 +142,73 @@ export function StressTestTab() {
         )}
       </div>
     </TabContainer>
+  );
+}
+
+/**
+ * The Perspective pull path — its own component so that its hook does not run
+ * on the `?engine=ssrm` branch.
+ *
+ * That separation is a MEASUREMENT requirement, not tidiness. `useLabPerspectiveRows`
+ * seeds the provider and attaches a ProxySession as a side effect of being
+ * called, and a hook cannot be called conditionally — so while both surfaces
+ * lived in one component, `?engine=ssrm` built the whole 20,000 x 120
+ * Perspective Table in the SharedWorker as well as the engine's own book.
+ * MEASURED that way, the renderer settled at 1,114 MB before a single scroll
+ * and plateaued near 1,700 MB: a figure for two engines, recorded against one.
+ */
+function PerspectiveStressSurface({
+  columnDefs,
+  columnWindow,
+  onProfilesReady,
+  stream,
+}: {
+  columnDefs: ColDef[];
+  columnWindow: { enabled: boolean } | undefined;
+  onProfilesReady: (handle: MarketsGridHandle) => void;
+  stream: LabStreamOptions;
+}) {
+  const config = STRESS_TEST_FEATURE;
+  const grid = config.grid ?? {};
+  const {
+    table,
+    status: attachStatus,
+    reason: attachReason,
+    onReady,
+  } = useLabPerspectiveRows(config.tabId, config.providerId, stream, onProfilesReady);
+
+  if (!table) return <PerspectiveAttachNotice status={attachStatus} reason={attachReason} />;
+
+  return (
+    <MarketsGrid
+      gridId={config.gridId}
+      // `rowData` is required by the props type and UNUSED on this path: the
+      // rows come from the worker-held Table. A stable empty array rather than
+      // a literal, so it is not a new reference every render.
+      rowData={NO_ROWS}
+      rowModel="perspective"
+      perspectiveTable={table}
+      perspectiveColumnWindow={columnWindow}
+      componentName={config.componentName}
+      columnDefs={columnDefs}
+      defaultColDef={stressDefaultColDef}
+      rowIdField="id"
+      storage={labStorage}
+      onReady={onReady}
+      showProfileSelector={grid.showProfileSelector ?? true}
+      showSaveButton={grid.showSaveButton ?? true}
+      showSettingsButton={grid.showSettingsButton ?? true}
+      showFiltersToolbar={grid.showFiltersToolbar}
+      showFormattingToolbar={grid.showFormattingToolbar}
+      showEditingToolbar={grid.showEditingToolbar}
+      showSmartEditToolbar={grid.showSmartEditToolbar}
+      showBulkUpdateToolbar={grid.showBulkUpdateToolbar}
+      showEditHistoryToolbar={grid.showEditHistoryToolbar}
+      showVisualExcelExport={grid.showVisualExcelExport}
+      sideBar={grid.sideBar}
+      statusBar={grid.statusBar}
+      rowHeight={grid.rowHeight}
+      animateRows={false}
+    />
   );
 }
