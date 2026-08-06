@@ -767,6 +767,66 @@ on the winning path and is not the row supply.
 - **the team being unable to own the engine.** That is the trade being made,
   and it is not a measurement.
 
+### FOUND AFTER THE DECISION: grouped aggregates do not tick
+
+Asked as a follow-up question — "what about live ticks at group, subgroup and
+grand-total level?" — and it is the one blotter behaviour session 8 did not
+measure. `sortRecoveryProbe` calls `setRowGroupColumns([])` before it measures,
+so every sort and block figure above was taken **ungrouped**.
+
+`scripts/groupedTickProbe.mjs` groups by two levels, expands one of each,
+aggregates a field the book ACTUALLY ticks, and watches every row on screen.
+MEASURED on the ssrm MarketsGrid surface at 50,000, aggregating `esgScore`
+over 25 s:
+
+| | moved | of |
+|---|---|---|
+| grand total | 20 changes | 1 |
+| group rows (`assetClass`) | **0** | 9 |
+| subgroup rows (`issuerSector`) | **0** | 2 |
+| leaf rows | 1 | 101 |
+| **pump** | received 34,447 · applied **0** · **DROPPED 34,447** | |
+
+**Every pushed row is dropped, and the pump counter says so outright.** The
+cause is a row-id mismatch this surface introduced: `getRowId` under grouping
+returns the PATH (`Alpha/Energy/POS-123`) — it has to, because a leaf key
+collides across groups and AG discards the block — while `createSsrmRowPump`
+looks a node up by the bare key (`POS-123`) taken from the sparse patch. A
+sparse patch does not carry the group columns, so the pump cannot construct the
+path even in principle.
+
+Consequences, in order of how bad they are:
+
+1. **under grouping, no leaf updates at all.** The one leaf that moved of 101
+   did so via a block re-read, not the push path;
+2. **group and subgroup aggregates never refresh.** There is no per-route
+   refresh here. Perspective has `refreshExpandedRoutes` for exactly this,
+   because `refreshServerSide` does NOT cascade into child stores — every
+   expanded route must be refreshed by route, and this engine's row engine
+   refreshes the root only;
+3. **only the grand total ticks**, because `pushGrandTotal` addresses AG's own
+   grand-total row id, which does match.
+
+**The fix is not a patch to the pump.** Under grouping the right behaviour is
+the one the Perspective path already uses: stop pushing transactions and
+refresh the affected routes on a throttle instead. That fixes both the frozen
+leaves and the frozen aggregates with one mechanism, and it is a session, not a
+drive-by.
+
+**Does the decision change? No, and here is the reasoning rather than an
+assertion.** The gap is in this repo's ~200-line surface glue, not in the
+engine — `engine.getRows` returns correct aggregates for every level, which is
+what `engine.fuzz.test.ts` has checked cell by cell for five sessions. The
+losing engine's problems were 3 GB of renderer and 2.2-2.7 s block reads, and
+neither is fixable from the grid side.
+
+**And Perspective was NOT shown to be better here.** The same probe on the
+Perspective surface moved NOTHING — not the grand total, not the groups, not
+one leaf of 101 — so it refused to report, which is the correct outcome and not
+a result. Whether that is the feed, the surface's live-refresh, or the probe was
+not established. **Do not read "0 vs 0" as parity; read it as one measured
+defect and one unmeasured surface.**
+
 ### Not measured, and not claimed
 
 - **the two books are filled differently.** Perspective's is provider-fed

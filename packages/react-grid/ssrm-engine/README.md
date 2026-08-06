@@ -1308,6 +1308,21 @@ Stated plainly so nobody plans around a gap:
   on a sort or filter change. What is not covered is a write landing while a
   block for the OLD shape is still in flight; `asyncDatasource.test.ts` covers
   the settle-once half of that by construction, not the row-correctness half
+- **grouped aggregates DO NOT TICK, and under grouping nothing ticks except the
+  grand total.** MEASURED with `scripts/groupedTickProbe.mjs` at 50,000 rows,
+  two group levels, aggregating a field the book really moves: the grand total
+  changed 20 times in 25 s, group rows 0 of 9, subgroup rows 0 of 2, leaf rows 1
+  of 101 — and the pump reported **received 34,447, applied 0, dropped 34,447**.
+  The cause is a row-id mismatch in the SURFACE, not the engine: `getRowId` under
+  grouping must return the PATH (a leaf key collides across groups and AG
+  discards the block), while `createSsrmRowPump` looks a node up by the bare key
+  from the sparse patch — which does not carry the group columns, so the path
+  cannot be reconstructed. The fix is not a patch to the pump: under grouping the
+  right behaviour is to stop pushing transactions and refresh the expanded routes
+  on a throttle, the way the Perspective path does, since `refreshServerSide`
+  does not cascade into child stores. `engine.getRows` returns correct aggregates
+  for every level throughout — this is surface glue, and the fuzz has checked the
+  engine side cell by cell for five sessions
 - **a calculated column cannot be a TREE field or a `groupKeys` ancestor that
   the request did not group by.** Grouping BY one works, and so does reading its
   children; `treeFields` is a construction option naming store fields and has
