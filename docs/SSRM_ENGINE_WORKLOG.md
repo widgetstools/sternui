@@ -10,12 +10,37 @@ first — it holds the current numbers and the caveats attached to them.
 
 ## Where this stands
 
+**DECIDED (session 8): `@starui/ssrm-engine` ships.** Measured against
+Perspective at 50,000 x 120, both under MarketsGrid, sharing one seeded
+profile: a 24-27 ms first block after a sort against 4,830-5,274 ms, a 15-46 ms
+block read against 2,162-2,688 ms, 0 blocks that never settled against 1 in 12,
+and a **389-501 MB renderer against 3,068 MB and climbing**. The full table,
+the cost column and where Perspective wins are in "Session 8" below.
+
 Built, tested and running in a browser on the lab's Stress tab (`?engine=ssrm`
 for a generated book, `?engine=ssrm&book=provider` for one fed by a provider),
 with the book in a **SharedWorker** since session 1 — and, since session 6, as a
 **MarketsGrid surface** (`rowModel="ssrm-engine"`) on the lab's **SSRM Engine ·
 MarketsGrid** tab, with the plain-`AgGridReact` tab kept beside it as the
 control:
+
+**At 50,000 x 120, both under MarketsGrid** (session 8 — the numbers the
+decision rests on):
+
+| | ssrm-engine | Perspective |
+|---|---|---|
+| SORT, first block | **24-27 ms** | 4,830-5,274 ms |
+| block read, median, live feed + real scroll | **15-46 ms** | 2,162-2,688 ms |
+| blocks that never settled | 0 of 25 | 1 of 12, twice |
+| normal scroll, longest unbroken blank viewport | 156-157 ms | 6,954-7,004 ms |
+| renderer after 2 min of scrolling | **389-501 MB** | 3,068 MB, climbing |
+| pivot `desk x currency` | 8 groups, 8 generated columns | not implemented |
+| master/detail, tree data, cross-row style rules | not built | built |
+
+**At 20,000 x 120, ssrm on a plain `AgGridReact` against Perspective on
+MarketsGrid** — the older pairing, kept because most of the README is written
+against it, and NOT a like-for-like (it compares a row supply and a platform
+together, which is what session 8 exists to have stopped doing):
 
 | | ssrm-engine | Perspective, same tab |
 |---|---|---|
@@ -24,7 +49,6 @@ control:
 | block read, AG end to end, live feed | 3.1 ms | 8 ms paused, 119-145 ms live |
 | block read (Node, engine only) | 0.6 ms warm / 4.4 ms cold sort | — |
 | renderer working set, settled | 390 MB | 1,286 MB |
-| pivot `desk x currency` | 8 groups, 8 generated columns | not implemented |
 | rows after a sort | 20,000, no collapse | 20,000 |
 
 The full AG SSRM request is answered: `startRow`/`endRow`, `sortModel`,
@@ -631,7 +655,16 @@ substitute and this line is here so nobody reads its absence as coverage.
 
 ## Session 7 — incremental index maintenance, only if measured
 
-**Do not start this without a measurement demanding it.** Any write currently
+**Do not start this without a measurement demanding it — and session 8 did NOT
+open the gate.** At 50,000 rows on the product surface the ssrm block read is a
+15-46 ms median and the sort's first block is 24-27 ms, while the visible cost
+on that path is the MarketsGrid platform (a 56-110 ms p90, in the window). The
+rebuild this session would remove is not what anyone is waiting for.
+
+What DID change: the deployment's book is 50k-500k, so this is now the first
+thing to re-measure if the book moves toward the top of that range.
+
+Any write currently
 clears the query cache and the next read re-materialises: 1.5-15 ms at 20k rows.
 It is the first thing to change if a book gets large, and the last thing to
 change otherwise — this is where engines go silently wrong.
@@ -648,7 +681,108 @@ change otherwise — this is where engines go silently wrong.
 
 ---
 
-## Session 8 — the decision
+## Session 8 — the decision · **DONE: ship `@starui/ssrm-engine`**
+
+**Decided on the numbers, at the size the deployment stated, on the surface that
+ships.** The product owner's answers gated this and were asked before anything
+was measured: the real book is **50k-500k rows**, users keep **3-6 blotters**
+open, and there are no constraints outside the measurements.
+
+### The comparison is only now possible, and the old figures were not it
+
+Every ssrm-vs-Perspective number ever recorded compared a **plain `AgGridReact`
+against a MarketsGrid** — Perspective has had a product surface since its own
+migration and this engine only got one in session 6. That comparison adds a row
+supply and a platform together and reports the sum as an engine difference.
+
+So the Stress tab now serves BOTH from one seeded profile. `?engine=ssrm&surface=marketsgrid`
+mounts the ssrm MarketsGrid surface on the same `gridId`, the same conditional
+styling, column groups, calculated columns, saved filters, grouping and totals,
+the same column defs and the same grid options as the Perspective branch. **The
+only thing that differs is `rowModel`.** The plain branch stays as the control.
+
+The book went back to **50,000 rows**, and that is a deliberate reversal: it had
+been cut to 20,000 *because Perspective was dying of memory at 50,000*. A
+decision taken at 20,000 would have been taken below the size the loser fails
+at.
+
+### Measured, 50,000 x 120, both on MarketsGrid, alternating
+
+| | Perspective | `@starui/ssrm-engine` |
+|---|---|---|
+| SORT, first block | **4,830 / 5,274 ms** | **24 / 27 ms** |
+| root-block requests in the 20 s after a sort | 4, at 1.9-2.5 s each | 1 |
+| viewport painted in the 5 s after a sort | **0 of 22 rows** | 22 of 22 |
+| block read, median (live feed, real scroll) | **2,162 / 2,688 ms** | **15 / 46 ms** |
+| block read, p90 / max | 3,013-3,473 / 4,027 ms | 130-181 / 304 ms |
+| blocks that NEVER settled | **1 of 12, both runs** | 0 of 25 |
+| normal scroll: samples showing a blank row | **97-98%** | 9% |
+| normal scroll: longest unbroken blank | **6,954-7,004 ms** | 156-157 ms |
+| fast fling: longest unbroken blank | 6,742-7,155 ms | 3,445-3,668 ms |
+| renderer after 2 min of scrolling | **3,068 MB, still climbing** | **389-501 MB** |
+| JS heap at that moment | 107 MB | 87 MB |
+
+That last pair is why `performance.memory` is banned here: both report under
+110 MB while one process is at 3 GB.
+
+**Nothing in that table is close, and the memory row is the one that decides
+it.** 3 GB in a renderer against Chrome's ~4 GB ceiling is a blotter one
+scroll away from "Aw, Snap", and the stated deployment is 3-6 of them. The ssrm
+engine holds the same book in ~400 MB.
+
+**The honest entries against the winner:** its fast fling still leaves the
+viewport blank for 3.4-3.7 s, which is better than 6.7-7.2 s and is not good;
+and the MarketsGrid platform costs its block path 1.4-4.3x the median and ~20x
+the p90 over a plain grid (session 6), which is now the largest remaining cost
+on the winning path and is not the row supply.
+
+### Where Perspective wins, stated because a clean sweep is not believable
+
+- **master/detail and tree data** are wired on its surface and on neither other
+  surface in the repo, ssrm's included;
+- **cross-row style rules** (`[price] > AVG([price])`) work there and have no
+  seam here — this engine has no expression language to compile a rule into, so
+  the context omits it rather than stubbing it;
+- it is **somebody else's code to maintain**, which is a real cost this
+  decision takes on. `@starui/ssrm-engine` is ~5,000 lines this team now owns,
+  in the place these engines go silently wrong — the reason it carries two
+  differential fuzzes, 182 tests and a mutation-testing habit.
+
+### The cost column, which no probe produces
+
+| | Perspective | `@starui/ssrm-engine` |
+|---|---|---|
+| maintained by | upstream; **3.8 is EOL** | this team, ~5,000 lines |
+| known fatal defect | the 4.5.2 view-delete borrow race is **uncatchable and process-fatal** — in a SharedWorker it takes down every blotter. Not fixed since 3.8; `createSafeView` is a mitigation | none known; every fault is caught and pushed to the client |
+| headroom on a re-sort | **none** — view configs are immutable, so a sort is a fresh View by construction | 1.5-15 ms of cache rebuild, with a known un-taken path to less (session 7) |
+| missing | pivot, a mutable index, a push-based tick | master/detail, tree data, cross-row style rules |
+
+### What would change this decision
+
+- **a book at the small end.** At 20,000 rows Perspective's block read was
+  119-145 ms live and its renderer 1,286 MB — bad but survivable. Everything
+  above is at 50,000, and the gap is not linear;
+- **master/detail or tree data becoming required.** Both exist on the
+  Perspective surface today and would have to be built here;
+- **the team being unable to own the engine.** That is the trade being made,
+  and it is not a measurement.
+
+### Not measured, and not claimed
+
+- **the two books are filled differently.** Perspective's is provider-fed
+  through `host-data`'s mock provider; ssrm's is generated inside its worker.
+  Both tick at 200 ms. That is a fair confound for the block-read median under
+  a live feed — it is NOT one for the sort (a View rebuild) or the memory;
+- **500k was not run.** The stated range is 50k-500k and this is its floor. The
+  winner has headroom; the loser does not, so the ordering is unlikely to
+  reverse, but the figures above are 50k figures;
+- `sortRecoveryProbe`'s **"viewport fully painted" line is not trustworthy** and
+  is not quoted: it fires before the purge, while the previous rows are still
+  on screen. The block-settle times and the painted table are the real numbers.
+
+---
+
+## Session 8 — the brief, as it was written
 
 **Build nothing.** Run both engines on the SAME topology and write up which
 survives:

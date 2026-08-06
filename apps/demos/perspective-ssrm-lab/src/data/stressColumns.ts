@@ -58,10 +58,13 @@ import { defaultColDef, fmt } from './columns';
 /**
  * Rows in the stress book.
  *
- * 20,000 rather than the 50,000 this tab used to carry, and the reason is the
- * process budget rather than taste. MEASURED with
- * `perspective-grid/scripts/rendererProcessProbe.mjs` (the OS working set —
- * `performance.memory` is the JS heap only and reports ~60 MB against this):
+ * **50,000, and it has been 20,000 and 50,000 before — read this before
+ * changing it again.**
+ *
+ * It was cut to 20,000 because the PERSPECTIVE path was dying of memory at
+ * 50,000. MEASURED with `perspective-grid/scripts/rendererProcessProbe.mjs`
+ * (the OS working set — `performance.memory` is the JS heap only and reports
+ * ~60 MB against this):
  *
  * | book | renderer, one minute after opening the tab |
  * |---|---|
@@ -73,12 +76,20 @@ import { defaultColDef, fmt } from './columns';
  * runs in the SAME process as the page.** VERIFIED with CDP
  * `SystemInfo.getProcessInfo`, which reports no separate worker process at all —
  * so the book, the mock generator's row objects, AG Grid and the page all share
- * the ~4 GB Chrome allows one renderer, and the 50,000-row book was dying of it.
+ * the ~4 GB Chrome allows one renderer.
  *
- * Raising it is one constant, and anyone who does should re-run that probe
- * rather than assume the headroom is there.
+ * It is back at 50,000 for session 8, and NOT because the headroom appeared.
+ * The deployment's stated book is 50k-500k rows with 3-6 blotters open, so a
+ * decision between the two engines taken at 20,000 would be taken below the
+ * size the loser fails at — which is the one thing that decision must not do.
+ * Both engines are now measured here, and the memory table above is re-taken
+ * against both rather than inherited.
+ *
+ * If Perspective cannot hold this, that is a finding and not a reason to lower
+ * the constant back. Lower it only for a demo that has to run on a small
+ * machine, and re-run the probe either way.
  */
-export const STRESS_ROW_COUNT = 20_000;
+export const STRESS_ROW_COUNT = 50_000;
 
 /** RENDERED columns. The Table carries these plus {@link STRESS_KEY_FIELD}. */
 export const STRESS_COL_COUNT = 120;

@@ -15,6 +15,27 @@ gap found so far.
 
 ---
 
+# THE ENGINE DECISION WENT THE OTHER WAY — 2026-08-06
+
+**Session 8 chose `@starui/ssrm-engine`.** Parity on this surface is still done
+and everything recorded below is still true; what changed is that the pull path
+the product takes is the other one. Measured at 50,000 x 120 with BOTH engines
+under MarketsGrid on one seeded profile — a comparison only possible since the
+ssrm engine got a surface of its own — Perspective read a block in 2,162-2,688 ms
+against 15-46 ms, left the viewport blank for up to 7 s on a normal scroll
+against 157 ms, failed to settle 1 block in 12, and sat at **3,068 MB of
+renderer against 389-501 MB**. The stated deployment is 50k-500k rows with 3-6
+blotters.
+
+This file keeps its value as the record of WHAT A SERVER-SIDE SURFACE HAS TO DO —
+the parity checklist, and especially
+[`Traps that produced false findings`](#traps-that-produced-false-findings),
+which the winning surface was verified against and which caught two real defects
+while it was. Full write-up:
+[`SSRM_ENGINE_WORKLOG.md`](./SSRM_ENGINE_WORKLOG.md), session 8.
+
+---
+
 # WHAT IS LEFT
 
 Parity is done. All four engineering-debt items are done, the e2e spec covers

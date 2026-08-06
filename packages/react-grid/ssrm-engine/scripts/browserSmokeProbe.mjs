@@ -38,7 +38,12 @@ const url = opt('url', 'http://localhost:5301/?engine=ssrm');
  */
 const tab = opt('tab', 'stress');
 /** The surface container's testid — it differs per tab, the handle does not. */
-const grid = opt('grid', tab === 'stress' ? 'ssrm-engine-grid' : 'ssrm-engine-marketsgrid');
+const grid = opt(
+  'grid',
+  tab !== 'stress' || url.includes('surface=marketsgrid')
+    ? 'ssrm-engine-marketsgrid'
+    : 'ssrm-engine-grid',
+);
 
 /** The AG trial watermark and the app's own seed 404 are not failures. */
 const benign = (text) =>

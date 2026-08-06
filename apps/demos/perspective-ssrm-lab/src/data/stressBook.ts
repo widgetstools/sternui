@@ -1,5 +1,10 @@
 import type { SsrmRow } from '@starui/ssrm-engine';
-import { STRESS_COLUMN_FIELDS, STRESS_FIELD_TYPES, STRESS_KEY_FIELD } from './stressColumns';
+import {
+  STRESS_COLUMN_FIELDS,
+  STRESS_FIELD_TYPES,
+  STRESS_KEY_FIELD,
+  STRESS_ROW_COUNT,
+} from './stressColumns';
 
 /**
  * The stress book's contents, separated from the surface that renders them.
@@ -10,8 +15,17 @@ import { STRESS_COLUMN_FIELDS, STRESS_FIELD_TYPES, STRESS_KEY_FIELD } from './st
  * scope, with no console anywhere to say so.
  */
 
-/** One book, shared by every window. */
-export const STRESS_BOOK_ID = 'stress';
+/**
+ * One book, shared by every window — and KEYED BY ITS ROW COUNT.
+ *
+ * The worker memoises a book per id and hands the existing one to the next
+ * client that asks, ignoring its `bookOptions`. So a fixed id means that after
+ * `STRESS_ROW_COUNT` changes, any window landing on a worker that is still
+ * alive from before gets the OLD size, silently, with the right row count on
+ * screen for the wrong reason. A SharedWorker outlives its pages, so "still
+ * alive from before" is the normal case during a measurement session.
+ */
+export const STRESS_BOOK_ID = `stress-${STRESS_ROW_COUNT}`;
 
 const DIMENSION_VALUES = [
   'Alpha',

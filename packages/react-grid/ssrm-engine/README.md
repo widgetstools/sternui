@@ -2,10 +2,13 @@
 
 A columnar row engine written to AG Grid's server-side row model contract.
 
-**Status: the book lives in a SharedWorker, three windows have been measured on
-one of it, it can be driven by a real provider through `host-data`, and it runs
-as a MarketsGrid surface (`rowModel="ssrm-engine"`). See "A MarketsGrid
-surface" for what that cost, and "What is NOT here" for what remains.**
+**Status: CHOSEN. Session 8 measured this engine against Perspective at
+50,000 x 120, both under MarketsGrid and sharing one seeded profile, and this
+is the engine that ships — see "The decision" below for the table, the cost
+column and where Perspective wins. The book lives in a SharedWorker, three
+windows have been measured on one of it, it can be driven by a real provider
+through `host-data`, and it runs as a MarketsGrid surface
+(`rowModel="ssrm-engine"`). See "What is NOT here" for what remains.**
 
 Run it: build and serve `@starui/perspective-ssrm-lab`, then open the Stress tab
 with **`?engine=ssrm`** for the generated book, or **`?engine=ssrm&book=provider`**
@@ -965,6 +968,67 @@ path. Interleaving the two URLs in one series showed the plain baseline reading
 **12,715 ms** and the calculated run **1,925 ms** in the same series: the metric
 is bimodal on identical code, the same artifact already documented for
 `providerBookProbe`. Two consecutive runs of one configuration is not a control.
+
+## The decision — measured at 50,000, on the surface that ships
+
+Every earlier ssrm-vs-Perspective figure in this file compares a plain
+`AgGridReact` against a MarketsGrid, because Perspective had a product surface
+and this engine did not until session 6. Session 8 removed that: the lab's
+Stress tab serves both from ONE seeded profile on
+`?engine=ssrm&surface=marketsgrid` — same `gridId`, same conditional styling,
+column groups, calculated columns, saved filters, grouping and totals, same
+column defs, same grid options. Only `rowModel` differs.
+
+The book went back to **50,000 rows** for it, reversing a cut that had been made
+*because Perspective was dying of memory at that size*. A decision taken at
+20,000 would have been taken below the size the loser fails at.
+
+| 50,000 x 120, both on MarketsGrid | Perspective | this engine |
+|---|---|---|
+| SORT, first block | **4,830 / 5,274 ms** | **24 / 27 ms** |
+| root-block requests in the 20 s after a sort | 4, at 1.9-2.5 s each | 1 |
+| viewport painted in the 5 s after a sort | **0 of 22 rows** | 22 of 22 |
+| block read, median (live feed, real scroll) | **2,162 / 2,688 ms** | **15 / 46 ms** |
+| block read, p90 / max | 3,013-3,473 / 4,027 ms | 130-181 / 304 ms |
+| blocks that NEVER settled | **1 of 12, both runs** | 0 of 25 |
+| normal scroll: samples showing a blank row | **97-98%** | 9% |
+| normal scroll: longest unbroken blank | **6,954-7,004 ms** | 156-157 ms |
+| fast fling: longest unbroken blank | 6,742-7,155 ms | 3,445-3,668 ms |
+| renderer after 2 min of scrolling | **3,068 MB, still climbing** | **389-501 MB** |
+| JS heap at that moment | 107 MB | 87 MB |
+
+That last row is why `performance.memory` is banned here: both report under
+110 MB while one process sits at 3 GB.
+
+**The memory row decides it.** The stated deployment is 50k-500k rows with 3-6
+blotters open, and 3 GB in a renderer against Chrome's ~4 GB ceiling is one
+scroll from "Aw, Snap". This engine holds the same book in ~400 MB.
+
+**Against the winner, honestly:** its fast fling still leaves the viewport blank
+for 3.4-3.7 s — better than 6.7-7.2 s and not good; and the MarketsGrid platform
+costs its block path 1.4-4.3x the median and ~20x the p90 over a plain grid,
+which is now the largest remaining cost on this path and is not the row supply.
+
+**Where Perspective wins**, because a clean sweep is not believable: master/detail
+and tree data are wired on its surface and on no other in the repo; cross-row
+style rules work there and have no seam here; and it is somebody else's code to
+maintain, where this is ~5,000 lines this team now owns, in the place these
+engines go silently wrong. Against that: Perspective 3.8 is EOL, the 4.5.2
+view-delete borrow race is uncatchable and process-fatal — in a SharedWorker it
+takes down every blotter — and a re-sort there has NO headroom either, since
+view configs are immutable and a sort is a fresh View by construction.
+
+**What would change it:** a book at the small end (at 20,000 Perspective was bad
+but survivable), master/detail or tree data becoming required, or the team being
+unable to own the engine.
+
+**Not measured, not claimed.** The two books are filled differently —
+Perspective's is provider-fed through `host-data`, this one is generated in its
+worker, both ticking at 200 ms. That is a fair confound for the block-read
+median under a live feed; it is NOT one for the sort (a View rebuild) or the
+memory. 500k was not run — this is the floor of the stated range. And
+`sortRecoveryProbe`'s "viewport fully painted" line is quoted nowhere above:
+it fires before the purge, while the previous rows are still on screen.
 
 ## A MarketsGrid surface
 

@@ -1,40 +1,30 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import {
   MarketsGrid,
   type MarketsGridHandle,
+  type MarketsGridProps,
   type SsrmEngineMarketsGridSurfaceHandle,
 } from '@starui/grid';
-import { SsrmEngineClient } from '@starui/ssrm-engine/worker';
-import { STRESS_KEY_FIELD, STRESS_ROW_COUNT } from '../data/stressColumns';
-import { STRESS_BOOK_ID } from '../data/stressBook';
+import { STRESS_KEY_FIELD } from '../data/stressColumns';
+import { useStressSsrmClient } from '../data/useStressSsrmClient';
 
 /**
- * The SAME generated Stress book, on the SAME engine, under **MarketsGrid**.
+ * The generated Stress book under **MarketsGrid**, on `@starui/ssrm-engine`.
  *
- * The SSRM Engine tab beside this one mounts a plain `AgGridReact`, and it stays
- * that way: it is the CONTROL. This is the treatment — identical book, identical
- * worker, identical tick rate, with the whole MarketsGrid platform (customizer,
- * toolbars, profiles, status bar, export) on top.
+ * Two tabs mount this:
  *
- * **Two tabs rather than a toggle inside one**, and that is a measurement
- * requirement rather than a layout preference. The A/B that answers "what does
- * the platform cost the read path" has to ALTERNATE two addresses in one series
- * — both `browserSmokeProbe` and `providerBookProbe` are bimodal on identical
- * code, and two consecutive runs of one configuration is not a control. A
- * toggle gives a probe one page to load and no second address to interleave
- * with.
+ *   - **SSRM Engine · MarketsGrid** — the discoverable showcase, with the six
+ *     calculated columns seeded as customizer state;
+ *   - **Stress Test** on `?engine=ssrm&surface=marketsgrid` — the bake-off
+ *     branch, which shares the Perspective branch's profile, columns and grid
+ *     options so the ONLY difference between them is `rowModel`.
  *
- * Both tabs open the same book id on the same named SharedWorker, so they SHARE
- * one book. That removes "a second book was built" from the list of things a
- * difference between them could be.
- *
- * **The calculated columns are NOT passed in here.** They are seeded as
- * customizer state and travel the path a user's own column takes: the
- * calculated-columns module builds the colDefs, `useSsrmEngineCalcColumns`
- * plans them for the `ssrm-engine` backend, and the AST crosses the port. A
- * pre-built list handed to the surface would demonstrate the wiring and skip
- * the two stages most likely to be wrong.
+ * The second one is why every piece of chrome is a prop rather than a constant.
+ * The Stress tab's seeded profile carries conditional styling, column groups,
+ * calculated columns, saved filters, grouping and totals; comparing that
+ * against a bare grid would measure the profiles and report it as an engine
+ * difference, which is the confound session 8 exists to remove.
  */
 
 /** Stable empty array — `rowData` is required by the props type and unused here. */
@@ -45,15 +35,20 @@ const BLOCK_SAMPLE_CAP = 4_000;
 
 export interface SsrmEngineMarketsGridProps {
   columnDefs: ColDef[];
+  gridId: string;
   rowHeight?: number;
   /** Live tick interval, applied in the worker. 0 disables ticking. */
   tickMs?: number;
-  statusBar?: unknown;
-  sideBar?: unknown;
-  storage?: unknown;
-  gridId: string;
   defaultColDef?: ColDef;
-  /** Seeded demo profiles — this is how the calculated columns get installed. */
+  componentName?: string;
+  /**
+   * Everything else MarketsGrid takes — the toolbars, the side bar, the status
+   * bar, the storage adapter. Passed as one object so a caller can hand over
+   * the same `config.grid` the Perspective branch uses without this component
+   * growing a prop per flag and drifting from it.
+   */
+  chrome?: Partial<MarketsGridProps>;
+  /** Seeded demo profiles — how the calculated columns get installed. */
   onProfilesReady?: (handle: MarketsGridHandle) => void;
   /** Told once the client is open and the measurement handle is published. */
   onReady?: () => void;
@@ -61,13 +56,12 @@ export interface SsrmEngineMarketsGridProps {
 
 export function SsrmEngineMarketsGrid({
   columnDefs,
+  gridId,
   rowHeight = 28,
   tickMs = 200,
-  statusBar,
-  sideBar,
-  storage,
-  gridId,
   defaultColDef,
+  componentName = 'SSRM Engine (MarketsGrid)',
+  chrome,
   onProfilesReady,
   onReady,
 }: SsrmEngineMarketsGridProps) {
@@ -78,63 +72,13 @@ export function SsrmEngineMarketsGrid({
    * real grid lands on a destroyed platform with every platform-driven feature
    * silently dead. Three separate "the toolbar is broken" bugs came from that.
    */
-  const [client, setClient] = useState<SsrmEngineClient | null>(null);
-  const [fault, setFault] = useState<string | null>(null);
+  const { client, fault, openCost } = useStressSsrmClient(tickMs);
   const surfaceRef = useRef<SsrmEngineMarketsGridSurfaceHandle | null>(null);
   const blocksRef = useRef<{ ms: number[]; served: number; failed: number }>({
     ms: [],
     served: 0,
     failed: 0,
   });
-  const openRef = useRef<{ ms: number; clientsAtOpen: number } | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    let opened: SsrmEngineClient | null = null;
-    /**
-     * `new URL(..., import.meta.url)` is what makes Vite emit the worker as its
-     * own chunk. `name` matters too — a SharedWorker is identified by script
-     * URL AND name, so this window lands on the same worker the control tab
-     * opens, which is the point.
-     */
-    const worker = new SharedWorker(new URL('../workers/ssrmBookWorker.ts', import.meta.url), {
-      type: 'module',
-      name: 'starui-ssrm-book',
-    });
-    const startedAt = performance.now();
-    SsrmEngineClient.open(worker.port, STRESS_BOOK_ID, {
-      bookOptions: { rows: STRESS_ROW_COUNT, tickMs },
-      onFault: (error) => {
-        // eslint-disable-next-line no-console
-        console.error('[ssrm-engine worker]', error);
-      },
-    }).then(
-      (next) => {
-        if (cancelled) {
-          void next.close();
-          return;
-        }
-        opened = next;
-        openRef.current = {
-          ms: performance.now() - startedAt,
-          // 1 means this window is the one that BUILT the book.
-          clientsAtOpen: next.clientsAtOpen,
-        };
-        setClient(next);
-      },
-      (error: unknown) => {
-        // eslint-disable-next-line no-console
-        console.error('[ssrm-engine] could not open the book', error);
-        if (!cancelled) setFault(String(error));
-      },
-    );
-    return () => {
-      cancelled = true;
-      // The worker OUTLIVES this page. A book nobody detaches from survives a
-      // reload, and the next load builds a second one beside it.
-      void opened?.close();
-    };
-  }, [tickMs]);
 
   const onBlock = useCallback((ms: number, outcome: 'ok' | 'fail') => {
     const blocks = blocksRef.current;
@@ -144,21 +88,21 @@ export function SsrmEngineMarketsGrid({
   }, []);
 
   /**
-   * The measurement handle, under the SAME global the control publishes.
+   * The measurement handle, under the SAME global the plain surface publishes.
    *
    * That is what lets `browserSmokeProbe` and `workerBoundaryProbe` run against
-   * either tab unchanged, which is what an alternating A/B needs. Unconditional
-   * rather than DEV-only, because every measurement here is taken against a
-   * PRODUCTION build and a DEV-gated handle is one no probe can ever reach.
+   * any of the three surfaces unchanged, which is what an alternating A/B
+   * needs. Unconditional rather than DEV-only, because every measurement here
+   * is taken against a PRODUCTION build and a DEV-gated handle is one no probe
+   * can ever reach.
    *
    * `viewportReporting` is deliberately ABSENT rather than a no-op: it is the
-   * switch a viewport A/B flips, and a stub that silently did nothing would make
-   * that comparison agree with itself. A probe needing it fails loudly here.
+   * switch a viewport A/B flips, and a stub that silently did nothing would
+   * make that comparison agree with itself.
    */
   useEffect(() => {
     if (!client) return;
     (globalThis as Record<string, unknown>).__ssrmEngineGrid = {
-      /** Read through the surface handle: the api arrives after the client. */
       get api() {
         return surfaceRef.current?.getApi() ?? null;
       },
@@ -168,18 +112,18 @@ export function SsrmEngineMarketsGrid({
         },
       },
       client,
-      /** Which of the two tabs answered. A probe that cannot tell is a probe
-       *  that can report the control's numbers as the treatment's. */
+      /** Which surface answered. A probe that cannot tell is a probe that can
+       *  report the control's numbers as the treatment's. */
       surface: 'marketsgrid',
       blocks: () => ({ ...blocksRef.current, ms: [...blocksRef.current.ms] }),
       rpc: () => client.stats(),
       pump: () => surfaceRef.current?.pumpStats() ?? null,
-      open: () => openRef.current,
+      open: () => openCost(),
       introspect: () => client.introspect(),
       calcDiagnostics: () => surfaceRef.current?.calcDiagnostics() ?? Promise.resolve([]),
     };
     onReady?.();
-  }, [client, onReady]);
+  }, [client, onReady, openCost]);
 
   const gridDefaults = useMemo(
     () => defaultColDef ?? { sortable: true, filter: true, resizable: true },
@@ -197,6 +141,7 @@ export function SsrmEngineMarketsGrid({
   return (
     <div style={{ flex: 1, minHeight: 0, width: '100%' }} data-testid="ssrm-engine-marketsgrid">
       <MarketsGrid
+        {...(chrome as MarketsGridProps)}
         gridId={gridId}
         // Required by the props type and UNUSED on this path: the rows come
         // from the worker-held book.
@@ -206,20 +151,13 @@ export function SsrmEngineMarketsGrid({
         ssrmEngineKeyColumn={STRESS_KEY_FIELD}
         ssrmEngineOnBlock={onBlock}
         ssrmEngineSurfaceRef={surfaceRef}
-        componentName="SSRM Engine (MarketsGrid)"
+        componentName={componentName}
         columnDefs={columnDefs}
         defaultColDef={gridDefaults}
         rowIdField={STRESS_KEY_FIELD}
         rowHeight={rowHeight}
         animateRows={false}
-        sideBar={sideBar as never}
-        statusBar={statusBar as never}
-        storage={storage as never}
         onReady={onProfilesReady}
-        showProfileSelector
-        showSaveButton
-        showSettingsButton
-        showVisualExcelExport
       />
     </div>
   );

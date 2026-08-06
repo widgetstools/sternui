@@ -105,9 +105,15 @@ export function SsrmEngineMarketsGridTab() {
             gridId={GRID_ID}
             columnDefs={columnDefs}
             tickMs={200}
-            statusBar={LAB_STATUS_BAR}
-            sideBar={{ toolPanels: ['columns', 'filters'] }}
-            storage={labStorage}
+            chrome={{
+              statusBar: LAB_STATUS_BAR,
+              sideBar: { toolPanels: ['columns', 'filters'] },
+              storage: labStorage,
+              showProfileSelector: true,
+              showSaveButton: true,
+              showSettingsButton: true,
+              showVisualExcelExport: true,
+            }}
             onProfilesReady={onProfilesReady}
             onReady={() => setReady(true)}
           />

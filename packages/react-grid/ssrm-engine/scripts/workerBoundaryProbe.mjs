@@ -49,7 +49,12 @@ const url = opt('url', 'http://localhost:5301/?engine=ssrm');
  */
 const tab = opt('tab', 'stress');
 /** The surface container's testid — it differs per tab, the handle does not. */
-const grid = opt('grid', tab === 'stress' ? 'ssrm-engine-grid' : 'ssrm-engine-marketsgrid');
+const grid = opt(
+  'grid',
+  tab !== 'stress' || url.includes('surface=marketsgrid')
+    ? 'ssrm-engine-marketsgrid'
+    : 'ssrm-engine-grid',
+);
 const rounds = Number(opt('rounds', '80'));
 const PORT = 9335;
 

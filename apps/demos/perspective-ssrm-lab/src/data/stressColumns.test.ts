@@ -7,6 +7,7 @@ import {
   STRESS_KEY_FIELD,
   STRESS_ROW_COUNT,
 } from './stressColumns';
+import { STRESS_BOOK_ID } from './stressBook';
 
 /** Mirrors the GROUPABLE set in `stressColumns.ts`, plus the two identifiers a
  *  blotter is unusable without. */
@@ -85,12 +86,23 @@ describe('the stress book', () => {
   });
 
   it('exposes the documented stress book size', () => {
-    // 20,000 rather than 50,000, and MEASURED rather than chosen: the
-    // SharedWorker holding the Table runs in the SAME process as the page, and
-    // the 50,000-row book put that process at 1,909 MB against the ~4 GB Chrome
-    // allows a renderer. See the note on STRESS_ROW_COUNT.
-    expect(STRESS_ROW_COUNT).toBe(20_000);
+    // 50,000 for session 8, and it has been both. It was cut to 20,000 because
+    // the PERSPECTIVE path was dying of memory here — the SharedWorker holding
+    // the Table runs in the SAME process as the page, and 50,000 x 120 put that
+    // process at 1,909 MB against the ~4 GB Chrome allows a renderer. It is
+    // back because the deployment's stated book is 50k-500k with 3-6 blotters,
+    // and an engine decision taken at 20,000 would be taken below the size the
+    // loser fails at. See the note on STRESS_ROW_COUNT before changing it.
+    expect(STRESS_ROW_COUNT).toBe(50_000);
     expect(STRESS_COL_COUNT).toBe(120);
+  });
+
+  it('keys the book id by its row count', () => {
+    // The worker memoises a book per id and ignores a later client's
+    // `bookOptions`, and a SharedWorker outlives its pages — so a fixed id
+    // hands a window the previous size, silently, with a plausible row count on
+    // screen for the wrong reason.
+    expect(STRESS_BOOK_ID).toContain(String(STRESS_ROW_COUNT));
   });
 
   it('keeps the book mostly NUMERIC, and every string a dimension', () => {

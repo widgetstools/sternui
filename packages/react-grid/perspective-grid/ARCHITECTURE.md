@@ -3,6 +3,39 @@
 Everything here was established by probing `@perspective-dev/client` 4.5.2
 directly (`scripts/*.mjs`, `harness/`), not from documentation.
 
+## NOT the engine that ships — decided 2026-08-06
+
+**Session 8 chose `@starui/ssrm-engine` over this one.** Everything below still
+describes a working, measured surface and the rules it is built on are still
+load-bearing — several are inherited by the engine that won — but the pull path
+this package implements is not the one the product takes.
+
+The comparison was taken at **50,000 x 120 with both engines under MarketsGrid,
+sharing one seeded profile**, which had never been possible before: this package
+had a product surface and the other did not until session 6, so every earlier
+figure compared a MarketsGrid against a plain `AgGridReact`.
+
+| 50,000 x 120, both on MarketsGrid | Perspective | `@starui/ssrm-engine` |
+|---|---|---|
+| SORT, first block | 4,830 / 5,274 ms | 24 / 27 ms |
+| block read, median, live feed | 2,162 / 2,688 ms | 15 / 46 ms |
+| blocks that never settled | 1 of 12, twice | 0 of 25 |
+| normal scroll, longest unbroken blank | 6,954-7,004 ms | 156-157 ms |
+| renderer after 2 min scrolling | **3,068 MB, climbing** | 389-501 MB |
+
+The memory row decided it, against a stated deployment of 50k-500k rows and 3-6
+blotters: 3 GB in a renderer against Chrome's ~4 GB ceiling is one scroll from
+"Aw, Snap".
+
+**What this package still wins on, and what would bring it back:** master/detail
+and tree data are wired here and on no other surface in the repo, and cross-row
+style rules (`[price] > AVG([price])`) work here and have no seam there. If
+either becomes required, or the book turns out to be at the small end, re-open
+it. Full write-up, cost column and caveats:
+[`docs/SSRM_ENGINE_WORKLOG.md`](../../../docs/SSRM_ENGINE_WORKLOG.md), session 8.
+
+---
+
 ## Why
 
 MarketsGrid on CSRM materializes the whole book in **every** window —

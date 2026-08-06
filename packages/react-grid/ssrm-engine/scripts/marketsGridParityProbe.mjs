@@ -298,33 +298,53 @@ try {
   stage = 'cell edit';
   // ── 6. A cell edit reaches the book AND brings its calculated cells back ─
   const edit = await page.evaluate(async () => {
-    const h = window.__ssrmEngineGrid;
-    const api = h.api;
+    const api = window.__ssrmEngineGrid.api;
     const settle = (ms) => new Promise((r) => setTimeout(r, ms));
-    let node = null;
+    let picked = null;
     api.forEachNode((n) => {
-      if (!node && n.data && typeof n.data.esgScore === 'number') node = n;
+      if (!picked && n.data && typeof n.data.esgScore === 'number') picked = n;
     });
-    if (!node) return { fatal: 'no leaf row with esgScore in the block cache' };
-    const key = node.id;
-    const before = { esg: node.data.esgScore, live: node.data.calc_liveSum };
-    // Straight through the surface's own committed-edit listener — the same
-    // event a cell editor raises.
-    const wrote = Math.round((Number(before.esg) + 11) * 100) / 100;
-    node.setDataValue('esgScore', wrote);
-    await settle(3000);
-    const after = api.getRowNode(key)?.data ?? {};
-    // What the BOOK holds, asked rather than assumed: the row node could be
-    // showing an optimistic local write that never landed.
-    const fromBook = (await h.client.getRows({ startRow: 0, endRow: 0 })) && null;
-    void fromBook;
-    return {
-      before,
-      wrote,
-      afterEsg: after.esgScore ?? null,
-      afterMaturity: after.originalMaturity ?? null,
-      afterLive: after.calc_liveSum ?? null,
-    };
+    if (!picked) return { fatal: 'no leaf row with esgScore in the block cache' };
+    const key = picked.id;
+
+    /**
+     * Up to three attempts, and the retry is the honest part.
+     *
+     * This book TICKS `esgScore`, so a tick landing on the row between the
+     * write and the read-back replaces the value — and the check deliberately
+     * requires `esgScore` to still be exactly what was written, because
+     * without that a tick would move `calc_liveSum` on its own and the whole
+     * assertion would pass without the echo existing. Interference is
+     * therefore a RETRY, not a pass and not a failure.
+     *
+     * The value is also re-read from the node immediately before writing. The
+     * first version captured it from the `forEachNode` walk, and at 50,000 rows
+     * that read was stale by the time the write went out — reported as
+     * `esgScore 0 -> 974.82 (wrote 11)`, which looks like a broken edit path
+     * and was a broken measurement.
+     */
+    let last = null;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const fresh = api.getRowNode(key)?.data;
+      if (!fresh || typeof fresh.esgScore !== 'number') continue;
+      const before = { esg: fresh.esgScore, live: fresh.calc_liveSum };
+      const wrote = Math.round((before.esg + 11) * 100) / 100;
+      // Straight through the surface's own committed-edit listener — the same
+      // event a cell editor raises.
+      api.getRowNode(key).setDataValue('esgScore', wrote);
+      await settle(2500);
+      const after = api.getRowNode(key)?.data ?? {};
+      last = {
+        attempt,
+        before,
+        wrote,
+        afterEsg: after.esgScore ?? null,
+        afterMaturity: after.originalMaturity ?? null,
+        afterLive: after.calc_liveSum ?? null,
+      };
+      if (last.afterEsg === wrote) return last;
+    }
+    return { ...(last ?? {}), interfered: true };
   });
   if (edit.fatal) {
     check('cell edit reaches the book', false, edit.fatal);
@@ -332,7 +352,9 @@ try {
     check(
       'cell edit reaches the book',
       edit.afterEsg === edit.wrote,
-      `esgScore ${edit.before.esg} -> ${edit.afterEsg} (wrote ${edit.wrote})`,
+      `esgScore ${edit.before?.esg} -> ${edit.afterEsg} (wrote ${edit.wrote})` +
+        `${edit.attempt > 1 ? `, attempt ${edit.attempt}` : ''}` +
+        `${edit.interfered ? ' — a tick landed on the row three times running' : ''}`,
     );
     /**
      * The gap session 5 recorded: the worker skips the port that caused a

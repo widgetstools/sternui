@@ -16,6 +16,7 @@ import { useLabPerspectiveRows } from '../demo/useLabPerspectiveRows';
 import type { LabStreamOptions } from '../demo/types';
 import { PerspectiveAttachNotice } from '../components/PerspectiveAttachNotice';
 import { SsrmEngineStressGrid } from './SsrmEngineStressGrid';
+import { SsrmEngineMarketsGrid } from './SsrmEngineMarketsGrid';
 import { SsrmProviderGrid } from './SsrmProviderGrid';
 import { getFeatureGuide } from '../guides/featureGuides';
 import { buildConfigBlocks } from '../guides/buildConfigBlocks';
@@ -94,6 +95,26 @@ export function StressTestTab() {
     return new URLSearchParams(window.location.search).get('book') === 'provider';
   }, []);
 
+  /**
+   * `&surface=marketsgrid` runs the SSRM branch under **MarketsGrid** instead of
+   * a plain `AgGridReact`, and it is the whole point of this tab for session 8.
+   *
+   * The Perspective branch below has always been a MarketsGrid. Comparing it
+   * against a plain grid — which is what every ssrm-vs-Perspective figure ever
+   * recorded did — compares a row supply AND a platform, and reports the sum as
+   * an engine difference. On this flag the two branches share ONE seeded
+   * profile (conditional styling, column groups, calculated columns, saved
+   * filters, grouping, totals), one set of column defs, one grid config and one
+   * gridId. The only thing that differs is `rowModel`.
+   *
+   * The plain branch stays reachable without the flag, as the control that
+   * isolates what the platform itself costs.
+   */
+  const marketsGridSurface = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return new URLSearchParams(window.location.search).get('surface') === 'marketsgrid';
+  }, []);
+
   const columnWindow = useMemo(() => {
     if (typeof window === 'undefined') return undefined;
     const on = new URLSearchParams(window.location.search).get('columnWindow') === '1';
@@ -129,7 +150,7 @@ export function StressTestTab() {
       title={config.title}
       subtitle={`${STRESS_ROW_COUNT.toLocaleString()} × ${STRESS_COL_COUNT} real columns · ${tickMs} ms tick${
         columnWindow ? ' · column window ON' : ''
-      }${useSsrmEngine ? ` · @starui/ssrm-engine (${providerBook ? 'provider-fed book, data-services worker' : 'generated book, app worker'})` : ''}`}
+      }${useSsrmEngine ? ` · @starui/ssrm-engine (${providerBook ? 'provider-fed book, data-services worker' : 'generated book, app worker'}${marketsGridSurface ? ', MarketsGrid surface' : ', plain AgGridReact'})` : ' · Perspective, MarketsGrid surface'}`}
       help={config.help}
     >
       <div className="flex min-h-0 flex-1 flex-col">
@@ -140,6 +161,23 @@ export function StressTestTab() {
               rowHeight={grid.rowHeight ?? 28}
               tabProviderId={config.providerId}
               stream={stream}
+            />
+          ) : useSsrmEngine && marketsGridSurface ? (
+            /*
+             * The bake-off branch. Same gridId, same seeded profile, same
+             * column defs and the same `config.grid` chrome the Perspective
+             * branch below receives — so a difference measured between them is
+             * the row supply and nothing else.
+             */
+            <SsrmEngineMarketsGrid
+              gridId={config.gridId}
+              columnDefs={columnDefs}
+              defaultColDef={stressDefaultColDef}
+              componentName={config.componentName}
+              rowHeight={grid.rowHeight ?? 28}
+              tickMs={tickMs}
+              chrome={{ ...grid, storage: labStorage } as never}
+              onProfilesReady={onProfilesReady}
             />
           ) : useSsrmEngine ? (
             <SsrmEngineStressGrid
