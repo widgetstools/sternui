@@ -46,7 +46,7 @@ interface SetFilterValuesParams {
  * no "there are more" affordance, so a truncated list reads as the whole domain
  * and its Select All silently excludes the rest.
  */
-export function withPerspectiveSetFilterValues<T>(
+export function withServerSetFilterValues<T>(
   columnDefs: readonly T[],
   getValues: (colId: string) => Promise<unknown[] | null>,
 ): T[] {

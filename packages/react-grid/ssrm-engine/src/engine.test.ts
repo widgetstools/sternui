@@ -642,3 +642,51 @@ describe('createSsrmDatasource — pivot passthrough', () => {
     expect(got!.pivotResultFields).toBeUndefined();
   });
 });
+
+/**
+ * The index cache keys EMPTY and ABSENT the same.
+ *
+ * `countFiltered` and `grandTotal` strip grouping to `[]` where a plain block
+ * request omits it, so an identical row set was keyed twice and materialised
+ * twice — on a ticking book, where every write clears the cache, that is a
+ * second whole-book pass in front of the block the user is scrolling towards.
+ *
+ * What this file can assert is the correctness half: the two spellings answer
+ * the same, and a request that is genuinely different still does not. The other
+ * hazard of a shared key — two DIFFERENT requests colliding onto one index — is
+ * what `engine.fuzz.test.ts` covers, since it rotates request shapes over a
+ * book being mutated underneath them.
+ */
+describe('SsrmEngine — request-shape identity', () => {
+  it('answers an omitted and an EMPTY grouping identically', () => {
+    const engine = engineWithBook();
+    const omitted = engine.getRows({ startRow: 0, endRow: 10 });
+    const empty = engine.getRows({ startRow: 0, endRow: 10, rowGroupCols: [], groupKeys: [] });
+    expect(empty.rowCount).toBe(omitted.rowCount);
+    expect(empty.rowData.map((r) => r.id)).toEqual(omitted.rowData.map((r) => r.id));
+  });
+
+  it('answers an omitted and an EMPTY filter model identically', () => {
+    const engine = engineWithBook();
+    expect(engine.countFiltered({ filterModel: {} })).toBe(engine.countFiltered({}));
+  });
+
+  // The check that stops the one above being satisfied by an engine that
+  // ignores the request entirely.
+  it('still separates a request that is genuinely different', () => {
+    const engine = engineWithBook();
+    const all = engine.getRows({ startRow: 0, endRow: 10 });
+    const grouped = engine.getRows({
+      startRow: 0,
+      endRow: 10,
+      rowGroupCols: [{ id: 'desk' }],
+      groupKeys: [],
+    });
+    expect(grouped.rowCount).toBeLessThan(all.rowCount);
+    expect(
+      engine.countFiltered({
+        filterModel: { desk: { filterType: 'set', values: ['Rates'] } },
+      }),
+    ).toBeLessThan(engine.countFiltered({}));
+  });
+});

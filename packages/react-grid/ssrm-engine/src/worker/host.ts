@@ -126,6 +126,9 @@ interface BookEntry {
   sizes: Map<MessagePort, number>;
 }
 
+/** Shared empty list, so the origin's frame allocates nothing. */
+const EMPTY_KEYS: unknown[] = [];
+
 /** Rebuilt from the store rather than repeated by the caller. */
 function schemaOf(store: ColumnStore): SsrmSchema {
   const fields = [];
@@ -327,9 +330,26 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
      * array back and pays a length check.
      */
     const patch = entry.book.engine.calcPatch(rows);
+    /**
+     * The window that WROTE gets its calculated cells back, and only those.
+     *
+     * It is skipped for the raw patch because it has already rendered its own
+     * edit — but it has not rendered the columns computed FROM that edit, so a
+     * window-originated write left its own derived cells stale until AG re-read
+     * the block. That was recorded as a gap when calculated columns learned to
+     * tick and no live surface hit it (the lab's writes come from the provider
+     * INSIDE the worker, which has no origin port); a cell editor on a
+     * MarketsGrid surface is a window-originated write, which is what makes it
+     * reachable.
+     *
+     * Only the calculated cells: echoing the raw ones back would make AG flash
+     * a cell the user just typed into. Computed lazily, so a book nobody writes
+     * to from a window pays nothing.
+     */
+    let echo: readonly SsrmRow[] | undefined;
 
     for (const port of entry.clients) {
-      if (port === origin) continue;
+      const isOrigin = port === origin;
       // BOTH sides of the write, and that is not belt-and-braces.
       //
       // A tick that changes a SORT KEY moves the row across the viewport
@@ -342,18 +362,27 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
       // delta-path fuzz, which asserts over the rows the grid HOLDS.
       const wasShowing = entry.showing.get(port);
       const visible = visibleFilter(entry, port);
+      // Updated for the origin port too. It is the "before the write" half of
+      // the narrowing above, and a port whose bookkeeping is skipped on the
+      // writes it causes carries a stale set into the next tick it receives.
       entry.showing.set(port, visible);
+      if (isOrigin && echo === undefined) {
+        echo = entry.book.engine.calcPatch(rows, 'calcOnly');
+      }
+      const source = isOrigin ? echo! : patch;
       // Removals are never narrowed. A row that left the book has to leave
       // every window that holds it, and "holds it" is AG's block cache — which
-      // is far larger than a viewport.
+      // is far larger than a viewport. The origin is told nothing here: it
+      // issued the removal and has applied it.
+      const outgoingRemoved = isOrigin ? EMPTY_KEYS : removed;
       const narrowed =
         visible === null || wasShowing === null
-          ? patch
-          : patch.filter(
+          ? source
+          : source.filter(
               (row) => visible.has(row[keyField]) || wasShowing?.has(row[keyField]) === true,
             );
       // Nothing to say only when the count has not moved either — see `sizes`.
-      if (narrowed.length === 0 && removed.length === 0 && entry.sizes.get(port) === size) {
+      if (narrowed.length === 0 && outgoingRemoved.length === 0 && entry.sizes.get(port) === size) {
         continue;
       }
       entry.sizes.set(port, size);
@@ -361,7 +390,7 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
         push: 'delta',
         bookId,
         rows: [...narrowed],
-        removed,
+        removed: outgoingRemoved,
         size,
       };
       try {

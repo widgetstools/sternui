@@ -15,7 +15,12 @@
  * cannot depend on AG internals that move between majors.
  */
 export { createSsrmEngine, SsrmEngine } from './engine.js';
-export type { SsrmEngineOptions, SsrmDelta, SsrmDeltaListener } from './engine.js';
+export type {
+  SsrmEngineOptions,
+  SsrmDelta,
+  SsrmDeltaListener,
+  SsrmCalcPatchMode,
+} from './engine.js';
 export { createSsrmDatasource, makeSsrmGetRowId } from './datasource.js';
 export type {
   SsrmDatasourceLike,
@@ -24,6 +29,19 @@ export type {
 } from './datasource.js';
 export { createAsyncSsrmDatasource, SSRM_BLOCK_TIMEOUT_MS } from './asyncDatasource.js';
 export type { AsyncSsrmDatasourceOptions, AsyncSsrmSource } from './asyncDatasource.js';
+export {
+  createSsrmEngineRowEngine,
+  SSRM_GRAND_TOTAL_FLAG,
+  SSRM_GRAND_TOTAL_ROW_ID,
+} from './rowEngine.js';
+export type {
+  SsrmCellEdit,
+  SsrmEngineClientLike,
+  SsrmEngineRowEngine,
+  SsrmEngineRowEngineOpts,
+  SsrmGridApiLike,
+  SsrmGridStatus,
+} from './rowEngine.js';
 export { createSsrmRowPump } from './rowPump.js';
 export type {
   SsrmRowPump,

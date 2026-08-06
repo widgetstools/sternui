@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { PerspectiveStatusPanel } from './PerspectiveStatusPanel.js';
-import { createPerspectiveEngineHolder } from './perspectiveEngineHolder.js';
+import { ServerStatusPanel } from './ServerStatusPanel.js';
+import { createServerEngineHolder } from './serverEngineHolder.js';
 import type { PerspectiveGridStatus } from '@starui/perspective-grid';
 
 function makeEngine(initial: Partial<PerspectiveGridStatus> = {}) {
@@ -34,20 +34,20 @@ function makeEngine(initial: Partial<PerspectiveGridStatus> = {}) {
 }
 
 function renderPanel(engine: unknown, api?: Record<string, unknown>) {
-  const holder = createPerspectiveEngineHolder();
+  const holder = createServerEngineHolder();
   holder.set(engine as never);
   return {
     holder,
     ...render(
-      <PerspectiveStatusPanel
-        context={{ perspectiveEngineHolder: holder }}
+      <ServerStatusPanel
+        context={{ serverEngineHolder: holder }}
         api={api as never}
       />,
     ),
   };
 }
 
-describe('PerspectiveStatusPanel', () => {
+describe('ServerStatusPanel', () => {
   it('shows the book total from the Table, not the loaded blocks', () => {
     // AG's own panels would say "100" here — the rows the client holds.
     const { engine } = makeEngine({ bookRows: 20_000, filteredRows: 20_000 });
@@ -104,7 +104,7 @@ describe('PerspectiveStatusPanel', () => {
   });
 
   it('renders nothing without an engine rather than throwing', () => {
-    const { container } = render(<PerspectiveStatusPanel context={{}} />);
+    const { container } = render(<ServerStatusPanel context={{}} />);
     expect(container.textContent).toBe('');
   });
 
@@ -123,7 +123,7 @@ describe('PerspectiveStatusPanel', () => {
  * was CREATED with, so the swap has to reach it through that object or the bar
  * spends the rest of the session reporting a closed engine.
  */
-describe('PerspectiveStatusPanel — engine swaps', () => {
+describe('ServerStatusPanel — engine swaps', () => {
   it('follows the engine when the holder swaps it', async () => {
     const first = makeEngine({ bookRows: 20_000, filteredRows: 20_000 });
     const { holder } = renderPanel(first.engine);

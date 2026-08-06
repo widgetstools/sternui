@@ -84,7 +84,7 @@ export function stripSurfaceManagedGridOptions(
  * the row model, the datasource, the id function and the block geometry are
  * how the window reads its viewport, not preferences.
  */
-export const PERSPECTIVE_SURFACE_OWNED_KEYS = [
+export const SERVER_SURFACE_OWNED_KEYS = [
   'rowModelType',
   'serverSideDatasource',
   'serverSideInitialRowCount',
@@ -95,12 +95,12 @@ export const PERSPECTIVE_SURFACE_OWNED_KEYS = [
   'context',
 ] as const;
 
-export function stripPerspectiveManagedGridOptions(
+export function stripServerSurfaceManagedGridOptions(
   opts: Record<string, unknown>,
   hostOverrideKeys: ReadonlySet<string>,
 ): Record<string, unknown> {
   const out = stripSurfaceManagedGridOptions(opts, hostOverrideKeys);
-  for (const key of PERSPECTIVE_SURFACE_OWNED_KEYS) {
+  for (const key of SERVER_SURFACE_OWNED_KEYS) {
     delete out[key];
   }
   return out;

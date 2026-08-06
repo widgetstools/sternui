@@ -40,6 +40,16 @@ import WebSocket from 'ws';
 const args = process.argv.slice(2);
 const opt = (n, d) => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i + 1] : d; };
 const url = opt('url', 'http://localhost:5301/?engine=ssrm');
+/**
+ * `--tab` picks the surface: `stress` (the default) is the plain `AgGridReact`
+ * control, `ssrm-engine-mg` is the same book under MarketsGrid. Both publish
+ * the same `__ssrmEngineGrid` handle, which is what makes the A/B a flag change
+ * rather than a second probe — and the A/B must be run by ALTERNATING them in
+ * one series, because this metric is bimodal on identical code.
+ */
+const tab = opt('tab', 'stress');
+/** The surface container's testid — it differs per tab, the handle does not. */
+const grid = opt('grid', tab === 'stress' ? 'ssrm-engine-grid' : 'ssrm-engine-marketsgrid');
 const rounds = Number(opt('rounds', '80'));
 const PORT = 9335;
 
@@ -81,8 +91,8 @@ page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));
 
 try {
   await page.goto(url, { waitUntil: 'domcontentloaded' });
-  await page.click('[data-testid="lab-tab-stress"]');
-  await page.waitForSelector('[data-testid="ssrm-engine-grid"] .ag-row', { timeout: 180_000 });
+  await page.click(`[data-testid="lab-tab-${tab}"]`);
+  await page.waitForSelector(`[data-testid="${grid}"] .ag-row`, { timeout: 180_000 });
   await page.waitForTimeout(4000);
 
   // ── 1. Is the book actually in a worker? ────────────────────────────────

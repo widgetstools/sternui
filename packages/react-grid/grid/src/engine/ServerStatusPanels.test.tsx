@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import {
-  PerspectiveFilteredRowCountPanel,
-  PerspectiveSelectedRowCountPanel,
-  PerspectiveTotalAndFilteredRowCountPanel,
-  withPerspectiveStatusPanels,
-} from './PerspectiveStatusPanels.js';
-import { createPerspectiveEngineHolder } from './perspectiveEngineHolder.js';
+  ServerFilteredRowCountPanel,
+  ServerSelectedRowCountPanel,
+  ServerTotalAndFilteredRowCountPanel,
+  withServerStatusPanels,
+} from './ServerStatusPanels.js';
+import { createServerEngineHolder } from './serverEngineHolder.js';
 import type { PerspectiveGridStatus } from '@starui/perspective-grid';
 
 function makeEngine(initial: Partial<PerspectiveGridStatus> = {}) {
@@ -35,11 +35,11 @@ function renderPanel(
   engine: unknown,
   api?: Record<string, unknown>,
 ) {
-  const holder = createPerspectiveEngineHolder();
+  const holder = createServerEngineHolder();
   holder.set(engine as never);
   return render(
     <Panel
-      {...({ context: { perspectiveEngineHolder: holder }, api } as never)}
+      {...({ context: { serverEngineHolder: holder }, api } as never)}
     />,
   );
 }
@@ -65,18 +65,18 @@ function makeApi(state?: { selectAll: boolean; toggledNodes: string[] } | null) 
   };
 }
 
-describe('PerspectiveStatusPanels — row counts AG cannot answer here', () => {
+describe('ServerStatusPanels — row counts AG cannot answer here', () => {
   it('reports the book total from the Table, where AG renders nothing at all', () => {
     // MEASURED on both labs: AG's own row-count components render NOTHING under
     // the server row model.
-    renderPanel(PerspectiveTotalAndFilteredRowCountPanel, makeEngine());
+    renderPanel(ServerTotalAndFilteredRowCountPanel, makeEngine());
     expect(screen.getByText('50,000')).toBeTruthy();
     expect(screen.getByText('Rows')).toBeTruthy();
   });
 
   it('reads "N of M" while a server-side filter narrows the book', () => {
     renderPanel(
-      PerspectiveTotalAndFilteredRowCountPanel,
+      ServerTotalAndFilteredRowCountPanel,
       makeEngine({ filteredRows: 12_585, filtered: true }),
     );
     expect(screen.getByText('12,585 of 50,000')).toBeTruthy();
@@ -84,7 +84,7 @@ describe('PerspectiveStatusPanels — row counts AG cannot answer here', () => {
 
   it('hides rather than omits the panel before the first View exists', () => {
     const { container } = renderPanel(
-      PerspectiveTotalAndFilteredRowCountPanel,
+      ServerTotalAndFilteredRowCountPanel,
       makeEngine({ filteredRows: null, bookRows: null }),
     );
     const panel = container.querySelector('.ag-status-panel-total-and-filtered-row-count');
@@ -93,20 +93,20 @@ describe('PerspectiveStatusPanels — row counts AG cannot answer here', () => {
   });
 
   it('shows Filtered only while a filter is on, as AG does', () => {
-    const off = renderPanel(PerspectiveFilteredRowCountPanel, makeEngine());
+    const off = renderPanel(ServerFilteredRowCountPanel, makeEngine());
     expect(
       off.container.querySelector('.ag-status-panel-filtered-row-count')?.classList.contains('ag-hidden'),
     ).toBe(true);
 
     const on = renderPanel(
-      PerspectiveFilteredRowCountPanel,
+      ServerFilteredRowCountPanel,
       makeEngine({ filteredRows: 6_669, filtered: true }),
     );
     expect(on.getByText('6,669')).toBeTruthy();
   });
 });
 
-describe('PerspectiveStatusPanels — selection', () => {
+describe('ServerStatusPanels — selection', () => {
   it('answers select-all with a number, where AG answers "?"', async () => {
     // MEASURED: `Selected : ?` on the pull path after the header checkbox,
     // because the rows it would count were never sent to this window. The
@@ -114,7 +114,7 @@ describe('PerspectiveStatusPanels — selection', () => {
     // filtered count turns that into a number.
     const { api, fire } = makeApi({ selectAll: true, toggledNodes: ['a', 'b'] });
     renderPanel(
-      PerspectiveSelectedRowCountPanel,
+      ServerSelectedRowCountPanel,
       makeEngine({ filteredRows: 50_000, filtered: false }),
       api,
     );
@@ -124,25 +124,25 @@ describe('PerspectiveStatusPanels — selection', () => {
 
   it('counts the toggled rows when the user has not selected everything', async () => {
     const { api, fire } = makeApi({ selectAll: false, toggledNodes: ['a', 'b', 'c'] });
-    renderPanel(PerspectiveSelectedRowCountPanel, makeEngine(), api);
+    renderPanel(ServerSelectedRowCountPanel, makeEngine(), api);
     fire('selectionChanged');
     await waitFor(() => expect(screen.getByText('3')).toBeTruthy());
   });
 
   it('hides itself with nothing selected', () => {
     const { api } = makeApi({ selectAll: false, toggledNodes: [] });
-    const { container } = renderPanel(PerspectiveSelectedRowCountPanel, makeEngine(), api);
+    const { container } = renderPanel(ServerSelectedRowCountPanel, makeEngine(), api);
     expect(
       container.querySelector('.ag-status-panel-selected-row-count')?.classList.contains('ag-hidden'),
     ).toBe(true);
   });
 });
 
-describe('withPerspectiveStatusPanels', () => {
+describe('withServerStatusPanels', () => {
   it('rewrites the stock row-count panels and leaves aggregation alone', () => {
     // A `statusBar` written for the CSRM grid has to mean the same thing here,
     // which is why the names are rewritten rather than the hosts changed.
-    const out = withPerspectiveStatusPanels({
+    const out = withServerStatusPanels({
       statusPanels: [
         { statusPanel: 'agTotalAndFilteredRowCountComponent', align: 'left' },
         { statusPanel: 'agFilteredRowCountComponent', align: 'left' },
@@ -152,9 +152,9 @@ describe('withPerspectiveStatusPanels', () => {
     }) as { statusPanels: { statusPanel: string; align: string }[] };
 
     expect(out.statusPanels.map((p) => p.statusPanel)).toEqual([
-      'perspectiveTotalAndFilteredRowCount',
-      'perspectiveFilteredRowCount',
-      'perspectiveSelectedRowCount',
+      'serverTotalAndFilteredRowCount',
+      'serverFilteredRowCount',
+      'serverSelectedRowCount',
       // Untouched: it aggregates the selected cell RANGE, which this window
       // holds.
       'agAggregationComponent',
@@ -165,7 +165,7 @@ describe('withPerspectiveStatusPanels', () => {
 
   it('passes through anything it has no answer for', () => {
     const custom = { statusPanels: [{ statusPanel: 'myOwnPanel' }] };
-    expect(withPerspectiveStatusPanels(custom)).toBe(custom);
-    expect(withPerspectiveStatusPanels(undefined)).toBeUndefined();
+    expect(withServerStatusPanels(custom)).toBe(custom);
+    expect(withServerStatusPanels(undefined)).toBeUndefined();
   });
 });

@@ -34,18 +34,22 @@
  * appear.
  */
 import { useEffect, useState } from 'react';
-import type { PerspectiveGridStatus, PerspectiveRowEngine } from '@starui/perspective-grid';
-import type { PerspectiveEngineHolder } from './perspectiveEngineHolder.js';
+
+import type {
+  ServerEngineHolder,
+  ServerGridStatus,
+  ServerRowEngineLike,
+} from './serverEngineHolder.js';
 
 /** What AG passes a custom status panel. `context` is our own grid option. */
-export interface PerspectiveStatusPanelParams {
+export interface ServerStatusPanelParams {
   api?: {
     getSelectedNodes?(): unknown[];
     getServerSideSelectionState?(): unknown;
     addEventListener?(type: string, listener: () => void): void;
     removeEventListener?(type: string, listener: () => void): void;
   };
-  context?: { perspectiveEngineHolder?: PerspectiveEngineHolder };
+  context?: { serverEngineHolder?: ServerEngineHolder };
 }
 
 const count = (n: number) => n.toLocaleString();
@@ -55,10 +59,10 @@ const count = (n: number) => n.toLocaleString();
  * hands a panel the context object the grid was CREATED with, and the engine
  * behind it is swapped on a provider restart.
  */
-function useEngineStatus(params: PerspectiveStatusPanelParams): PerspectiveGridStatus | null {
-  const holder = params.context?.perspectiveEngineHolder;
-  const [engine, setEngine] = useState<PerspectiveRowEngine | null>(holder?.get() ?? null);
-  const [status, setStatus] = useState<PerspectiveGridStatus | null>(
+function useEngineStatus(params: ServerStatusPanelParams): ServerGridStatus | null {
+  const holder = params.context?.serverEngineHolder;
+  const [engine, setEngine] = useState<ServerRowEngineLike | null>(holder?.get() ?? null);
+  const [status, setStatus] = useState<ServerGridStatus | null>(
     engine ? engine.status : null,
   );
 
@@ -97,7 +101,7 @@ function useEngineStatus(params: PerspectiveStatusPanelParams): PerspectiveGridS
  * is still being measured, and to null rather than a guess before either
  * exists.
  */
-function rowsOf(status: PerspectiveGridStatus | null): number | null {
+function rowsOf(status: ServerGridStatus | null): number | null {
   if (!status) return null;
   return status.leafRows ?? status.filteredRows;
 }
@@ -133,7 +137,7 @@ function NameValue({
  * this window holds are its loaded blocks and counting those is how AG's own
  * panel would produce a confidently wrong number.
  */
-export function PerspectiveTotalAndFilteredRowCountPanel(params: PerspectiveStatusPanelParams) {
+export function ServerTotalAndFilteredRowCountPanel(params: ServerStatusPanelParams) {
   const status = useEngineStatus(params);
   const rows = rowsOf(status);
   if (rows === null) {
@@ -156,7 +160,7 @@ export function PerspectiveTotalAndFilteredRowCountPanel(params: PerspectiveStat
 
 /** `Filtered : N` — hidden unless a filter is actually narrowing the book, as
  *  AG's own panel is. */
-export function PerspectiveFilteredRowCountPanel(params: PerspectiveStatusPanelParams) {
+export function ServerFilteredRowCountPanel(params: ServerStatusPanelParams) {
   const status = useEngineStatus(params);
   const rows = rowsOf(status);
   const show = !!status && status.filtered && rows !== null;
@@ -179,7 +183,7 @@ export function PerspectiveFilteredRowCountPanel(params: PerspectiveStatusPanelP
  * "everything, except these" — and the filtered count from the engine turns
  * that into a number.
  */
-export function PerspectiveSelectedRowCountPanel(params: PerspectiveStatusPanelParams) {
+export function ServerSelectedRowCountPanel(params: ServerStatusPanelParams) {
   const status = useEngineStatus(params);
   const [selected, setSelected] = useState(0);
 
@@ -223,10 +227,10 @@ export function PerspectiveSelectedRowCountPanel(params: PerspectiveStatusPanelP
 }
 
 /** Names the surface registers these under. */
-export const PERSPECTIVE_STATUS_PANEL_COMPONENTS = {
-  perspectiveTotalAndFilteredRowCount: PerspectiveTotalAndFilteredRowCountPanel,
-  perspectiveFilteredRowCount: PerspectiveFilteredRowCountPanel,
-  perspectiveSelectedRowCount: PerspectiveSelectedRowCountPanel,
+export const SERVER_STATUS_PANEL_COMPONENTS = {
+  serverTotalAndFilteredRowCount: ServerTotalAndFilteredRowCountPanel,
+  serverFilteredRowCount: ServerFilteredRowCountPanel,
+  serverSelectedRowCount: ServerSelectedRowCountPanel,
 } as const;
 
 /**
@@ -236,10 +240,10 @@ export const PERSPECTIVE_STATUS_PANEL_COMPONENTS = {
  * selected cell range, which this window holds.
  */
 const REPLACEMENTS: Record<string, string> = {
-  agTotalRowCountComponent: 'perspectiveTotalAndFilteredRowCount',
-  agTotalAndFilteredRowCountComponent: 'perspectiveTotalAndFilteredRowCount',
-  agFilteredRowCountComponent: 'perspectiveFilteredRowCount',
-  agSelectedRowCountComponent: 'perspectiveSelectedRowCount',
+  agTotalRowCountComponent: 'serverTotalAndFilteredRowCount',
+  agTotalAndFilteredRowCountComponent: 'serverTotalAndFilteredRowCount',
+  agFilteredRowCountComponent: 'serverFilteredRowCount',
+  agSelectedRowCountComponent: 'serverSelectedRowCount',
 };
 
 interface StatusPanelDef {
@@ -256,7 +260,7 @@ interface StatusPanelDef {
  * this surface, which is what "behaves exactly like the CSRM grid" has to mean
  * for a status bar. A panel we have no answer for is passed through untouched.
  */
-export function withPerspectiveStatusPanels(statusBar: unknown): unknown {
+export function withServerStatusPanels(statusBar: unknown): unknown {
   if (!statusBar || typeof statusBar !== 'object') return statusBar;
   const panels = (statusBar as { statusPanels?: StatusPanelDef[] }).statusPanels;
   if (!Array.isArray(panels)) return statusBar;

@@ -17,7 +17,7 @@ export interface VisualExcelExportOptions {
 /** What the Perspective surface puts on the grid `context`. Structural, so this
  *  module takes no dependency on the row engine. */
 interface PerspectiveExportContext {
-  perspectiveEngineHolder?: {
+  serverEngineHolder?: {
     get(): { readAllRows(): Promise<Record<string, unknown>[] | null> } | null;
   };
 }
@@ -47,7 +47,7 @@ export function exportVisualExcel(
   // lives on the row nodes this grid holds, so an only-selected export is
   // already correct and complete here.
   const engine = (api.getGridOption('context') as PerspectiveExportContext | undefined)
-    ?.perspectiveEngineHolder?.get();
+    ?.serverEngineHolder?.get();
   if (engine && !excelOptions.onlySelected) {
     void exportViaDetachedGrid(api, engine, excelOptions, options.onError);
     return;

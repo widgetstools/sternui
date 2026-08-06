@@ -13,6 +13,7 @@ import {
   applyPerspectivePlansToColDefs,
   buildSsrmCalcMaterializeContext,
   planSsrmCalcColumns,
+  ssrmEngineCalcColumnDefs,
   type SsrmCalcMaterializeContext,
 } from './ssrmCalcColumns.js';
 import { applySsrmTrafficLightToColumnDefs } from './ssrmTrafficLightAgg.js';
@@ -94,6 +95,55 @@ export function usePerspectiveCalcColumns(
       // renders the value the worker computed rather than recomputing it.
       defs: applyPerspectivePlansToColDefs(columnDefs as SSRMColDef[], plans),
       expressions,
+    };
+  }, [platform, columnDefs, enabled]);
+}
+
+/** Calc columns for the ssrm-engine surface: the ColDefs plus the ASTs. */
+export interface SsrmEngineCalcColumns {
+  defs: SSRMColDef[];
+  /** `{colId, ast}` pairs — the only thing that crosses the worker port. */
+  calcColumns: { colId: string; ast: unknown }[];
+}
+
+const EMPTY_CALC_COLUMNS: { colId: string; ast: unknown }[] = [];
+
+/**
+ * Plan MarketsGrid's calculated columns for `@starui/ssrm-engine`.
+ *
+ * The SAME planner both other server-side paths use, with a different backend:
+ * `planSsrmCalcColumns(cols, { backend: 'ssrm-engine' })` parses the authored
+ * string into the StarUI AST and hands it over. It deliberately does NOT
+ * pre-validate against the engine's refusal list — cross-row reducers,
+ * `NOW`/`TODAY`, unknown functions — because a second copy of that list is a
+ * second thing to keep in step. The engine refuses BY NAME and retains the
+ * reason in `calcDiagnostics()`, which is the channel that exists because
+ * `console.warn` in a SharedWorker reaches no console anywhere.
+ *
+ * A `materialize` plan cannot be served here for the same reason it cannot be
+ * served on the Perspective surface: it needs a client-side pass over whole
+ * rows, and this window holds only the blocks in view. Those keep their client
+ * `valueGetter` rather than being silently dropped.
+ */
+export function useSsrmEngineCalcColumns(
+  platform: GridPlatform,
+  columnDefs: readonly SSRMColDef[],
+  enabled: boolean,
+): SsrmEngineCalcColumns {
+  return useMemo(() => {
+    if (!enabled) {
+      return { defs: columnDefs as SSRMColDef[], calcColumns: EMPTY_CALC_COLUMNS };
+    }
+    const calc = platform.store.getModuleState<CalculatedColumnsState>(
+      CALCULATED_COLUMNS_MODULE_ID,
+    );
+    const plans = planSsrmCalcColumns(calc?.virtualColumns ?? [], { backend: 'ssrm-engine' });
+    return {
+      // Drops the client `valueGetter` for engine-resolved columns and binds
+      // the field, which is where the engine stamps the value — on a leaf row
+      // and, for an aggregation over it, on a group row too.
+      defs: applyPerspectivePlansToColDefs(columnDefs as SSRMColDef[], plans),
+      calcColumns: ssrmEngineCalcColumnDefs(plans),
     };
   }, [platform, columnDefs, enabled]);
 }

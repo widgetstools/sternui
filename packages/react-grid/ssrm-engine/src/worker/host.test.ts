@@ -499,6 +499,92 @@ describe('the per-subscriber viewport', () => {
 });
 
 /**
+ * The window that WROTE gets its own calculated cells back.
+ *
+ * `publish` skips the origin port because that window has already rendered its
+ * edit — and until session 6 that meant it did not render the columns computed
+ * FROM the edit either, so its own derived cells sat stale until AG re-read the
+ * block. No live surface reached it while the lab's only writes came from the
+ * provider inside the worker (no origin port); a cell editor on a MarketsGrid
+ * surface is exactly a window-originated write.
+ */
+describe('the author of a write and its calculated columns', () => {
+  const DOUBLE = {
+    colId: 'calc_doubled',
+    ast: {
+      type: 'binary' as const,
+      operator: '*',
+      left: { type: 'columnRef' as const, columnId: 'value' },
+      right: { type: 'literal' as const, value: 2 },
+    },
+  };
+
+  it('echoes the calculated cells to the author, and NOT the cell it wrote', async () => {
+    const host = createSsrmWorkerHost({ openBook: () => ({ engine: book() }) });
+    const author = await SsrmEngineClient.open(connect(host), 'stress');
+    const peer = await SsrmEngineClient.open(connect(host), 'stress');
+    await author.setCalcColumns([DOUBLE]);
+
+    const seenByAuthor: SsrmRow[][] = [];
+    const seenByPeer: SsrmRow[][] = [];
+    author.subscribe((delta) => seenByAuthor.push(delta.rows));
+    peer.subscribe((delta) => seenByPeer.push(delta.rows));
+
+    await author.applyUpdate([{ id: 'P-1', value: 50 }]);
+    await settle();
+
+    // The author already painted `value`; what it could not paint is this.
+    expect(seenByAuthor).toEqual([[{ id: 'P-1', calc_doubled: 100 }]]);
+    // Every other window still gets the whole frame.
+    expect(seenByPeer).toEqual([[{ id: 'P-1', value: 50, calc_doubled: 100 }]]);
+
+    await author.close();
+    await peer.close();
+  });
+
+  it('tells the author nothing when no calculated column depends on the write', async () => {
+    // The pre-session-6 behaviour, and still correct in this case: a frame the
+    // author has fully rendered is a frame it must not be sent, or AG flashes
+    // the cell the user just typed into.
+    const host = createSsrmWorkerHost({ openBook: () => ({ engine: book() }) });
+    const author = await SsrmEngineClient.open(connect(host), 'stress');
+    await author.setCalcColumns([DOUBLE]);
+
+    const seenByAuthor: SsrmRow[][] = [];
+    author.subscribe((delta) => seenByAuthor.push(delta.rows));
+
+    // `desk` is read by nothing calculated.
+    await author.applyUpdate([{ id: 'P-1', desk: 'Charlie' }]);
+    await settle();
+    expect(seenByAuthor).toEqual([]);
+
+    await author.close();
+  });
+
+  it('does not echo the removal the author itself issued', async () => {
+    const host = createSsrmWorkerHost({ openBook: () => ({ engine: book() }) });
+    const author = await SsrmEngineClient.open(connect(host), 'stress');
+    const peer = await SsrmEngineClient.open(connect(host), 'stress');
+
+    const removedByAuthor: unknown[][] = [];
+    const removedByPeer: unknown[][] = [];
+    author.subscribe((delta) => removedByAuthor.push(delta.removed));
+    peer.subscribe((delta) => removedByPeer.push(delta.removed));
+
+    await author.applyRemove(['P-2']);
+    await settle();
+
+    expect(removedByPeer).toEqual([['P-2']]);
+    // The author's own frames carry no removals; the size mirror is what may
+    // still reach it, and it must not carry a key it already dropped.
+    expect(removedByAuthor.flat()).toEqual([]);
+
+    await author.close();
+    await peer.close();
+  });
+});
+
+/**
  * Ports deliver on a macrotask, and N ports do not all deliver on the SAME one.
  *
  * A single `setTimeout(0)` was enough while this file was small and became

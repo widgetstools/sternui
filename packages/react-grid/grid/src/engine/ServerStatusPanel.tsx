@@ -13,30 +13,34 @@
  * grid.
  */
 import { useEffect, useState } from 'react';
-import type { PerspectiveGridStatus, PerspectiveRowEngine } from '@starui/perspective-grid';
-import type { PerspectiveEngineHolder } from './perspectiveEngineHolder.js';
+
+import type {
+  ServerEngineHolder,
+  ServerGridStatus,
+  ServerRowEngineLike,
+} from './serverEngineHolder.js';
 
 /** What AG passes a custom status panel. `context` is our own grid option. */
-export interface PerspectiveStatusPanelParams {
+export interface ServerStatusPanelParams {
   api?: {
     getSelectedNodes?(): unknown[];
     addEventListener?(type: string, listener: () => void): void;
     removeEventListener?(type: string, listener: () => void): void;
   };
-  context?: { perspectiveEngineHolder?: PerspectiveEngineHolder };
+  context?: { serverEngineHolder?: ServerEngineHolder };
 }
 
 const count = (n: number) => n.toLocaleString();
 
-export function PerspectiveStatusPanel(params: PerspectiveStatusPanelParams) {
-  const holder = params.context?.perspectiveEngineHolder;
+export function ServerStatusPanel(params: ServerStatusPanelParams) {
+  const holder = params.context?.serverEngineHolder;
   // Tracked as state, not read once: AG hands this panel the context object it
   // was created with, and the engine behind it is swapped on a provider
   // restart. Reading it once left the bar reporting a closed engine forever.
-  const [engine, setEngine] = useState<PerspectiveRowEngine | null>(
+  const [engine, setEngine] = useState<ServerRowEngineLike | null>(
     holder?.get() ?? null,
   );
-  const [status, setStatus] = useState<PerspectiveGridStatus | null>(
+  const [status, setStatus] = useState<ServerGridStatus | null>(
     engine ? engine.status : null,
   );
   const [selected, setSelected] = useState(0);

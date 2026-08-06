@@ -27,7 +27,7 @@ function makeApi(
     getGridOption: (k: string) =>
       k === 'context'
         ? engine
-          ? { perspectiveEngineHolder: { get: () => engine } }
+          ? { serverEngineHolder: { get: () => engine } }
           : {}
         : undefined,
     exportDataAsExcel: (o: Record<string, unknown>) => ownExports.push(o),

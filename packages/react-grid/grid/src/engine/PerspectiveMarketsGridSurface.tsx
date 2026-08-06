@@ -45,18 +45,19 @@ import {
 } from '@starui/perspective-grid';
 import { useOptionalGridPlatform } from '../customizer/hooks/GridProvider.js';
 import { buildStreamSafeComponents } from '../widget/buildStreamSafeComponents.js';
-import { stripPerspectiveManagedGridOptions } from '../widget/gridSurfaceOptions.js';
+import { stripServerSurfaceManagedGridOptions } from '../widget/gridSurfaceOptions.js';
 import {
-  createPerspectiveEngineHolder,
-  type PerspectiveEngineHolder,
-  type PerspectiveGridContext,
-} from './perspectiveEngineHolder.js';
-import { PerspectiveStatusPanel } from './PerspectiveStatusPanel.js';
+  createServerEngineHolder,
+  type ServerEngineHolder,
+  type ServerGridContext,
+} from './serverEngineHolder.js';
+import { ServerStatusPanel } from './ServerStatusPanel.js';
 import {
-  PERSPECTIVE_STATUS_PANEL_COMPONENTS,
-  withPerspectiveStatusPanels,
-} from './PerspectiveStatusPanels.js';
-import { withPerspectiveSetFilterValues } from './perspectiveSetFilterValues.js';
+  SERVER_STATUS_PANEL_COMPONENTS,
+  withServerStatusPanels,
+} from './ServerStatusPanels.js';
+import { withServerSetFilterValues } from './serverSetFilterValues.js';
+import { SkeletonLoadingCellRenderer } from './serverLoadingCellRenderer.js';
 
 const NO_HOST_OVERRIDES: ReadonlySet<string> = new Set<string>();
 
@@ -97,66 +98,6 @@ function tableField(column: Column): string {
   return column.getColDef().field ?? column.getColId();
 }
 
-/**
- * A stub cell is a SKELETON, not a blank — and not the word "Loading...".
- *
- * Under the server row model AG commits a scroll immediately and paints a stub
- * for every row whose block has not arrived. What that stub looks like is a
- * correctness question on a blotter, not a cosmetic one, and this renderer has
- * now been wrong in both directions:
- *
- *   - AG's default writes **"Loading..."** into the cell. On a book scrolled
- *     continuously that is a word flickering down the leftmost column on every
- *     drag — noise, and it only appears in one column.
- *   - So it was made **blank**, on the reasoning that "this window does not hold
- *     the book, so blank is the only honest stub". That reasoning is wrong. An
- *     empty cell is exactly how this grid renders a genuine null, so a stub is
- *     indistinguishable from "this position has no bid". A trader reading a
- *     blank price cell on a live blotter has no way to tell "not fetched yet"
- *     from "the value is gone", and the second one is alarming.
- *
- * A muted bar is unambiguous: nothing in the book renders as a grey rectangle,
- * so it can only mean "not here yet". It is drawn from `currentColor` at low
- * opacity rather than any palette value, so it themes with the cell in both
- * light and dark without reaching for a token the grid package does not own.
- *
- * Imperative rather than a function component: AG frequently creates the stub
- * before `rowIndex` is assigned, and a functional cell that returns once would
- * never repaint.
- *
- * **This renderer does nothing on its own, which is how it shipped inert the
- * first time.** AG's server row model paints a FULL-WIDTH loading row — a
- * spinner and the word "Loading..." spanning the whole row — and reaches for
- * the colDef `loadingCellRenderer` ONLY when
- * `suppressServerSideFullWidthLoadingRow` is set. Setting the renderer without
- * that flag changes nothing visible, which is exactly what happened. The flag is
- * set where the other server-row-model options are, on the grid element below.
- */
-class SkeletonLoadingCellRenderer {
-  private readonly eGui: HTMLElement;
-
-  constructor() {
-    this.eGui = document.createElement('span');
-    this.eGui.className = 'starui-loading-cell';
-    this.eGui.setAttribute('aria-label', 'loading');
-    this.eGui.style.cssText =
-      'display:inline-block;width:62%;height:0.7em;border-radius:2px;' +
-      'background:currentColor;opacity:0.15;vertical-align:middle';
-  }
-
-  init(): void {}
-
-  getGui(): HTMLElement {
-    return this.eGui;
-  }
-
-  refresh(): boolean {
-    return true;
-  }
-
-  destroy(): void {}
-}
-
 export interface PerspectiveMarketsGridSurfaceHandle {
   getApi(): GridApi | null;
   /** Re-read every level now — used after an out-of-band change. */
@@ -189,7 +130,7 @@ export interface PerspectiveMarketsGridSurfaceProps {
    * Module-pipeline grid options, same object the CSRM surface receives.
    * Spread FIRST so the explicit props below still win — everything a user
    * sets in the customizer reaches this surface too, minus the row-supply
-   * mechanics listed in `PERSPECTIVE_SURFACE_OWNED_KEYS`.
+   * mechanics listed in `SERVER_SURFACE_OWNED_KEYS`.
    */
   gridOptions?: Record<string, unknown>;
   /** Keys the host passed explicitly; the pipeline must not fight them. */
@@ -380,8 +321,11 @@ export const PerspectiveMarketsGridSurface = forwardRef<
    * The engine reaches the status panel through the grid `context`. The holder
    * is what makes that survive an engine swap — see its own docs.
    */
-  const holderRef = useRef<PerspectiveEngineHolder | null>(null);
-  holderRef.current ??= createPerspectiveEngineHolder();
+  // Parameterised with the full Perspective engine: this surface uses methods
+  // no other engine has (`readMatchingRows`, `countMatchingExpression`), while
+  // the shared status panels and the export see only `ServerRowEngineLike`.
+  const holderRef = useRef<ServerEngineHolder<PerspectiveRowEngine> | null>(null);
+  holderRef.current ??= createServerEngineHolder<PerspectiveRowEngine>();
   // In a layout effect, not during render: `set` notifies its subscribers
   // synchronously, and one of them is a status panel — updating it mid-render
   // is the "cannot update a component while rendering another" warning. Layout
@@ -395,10 +339,10 @@ export const PerspectiveMarketsGridSurface = forwardRef<
    * grid. Everything engine-dependent therefore reads through the holder at
    * call time instead of closing over an engine that will be swapped out.
    */
-  const context = useMemo<PerspectiveGridContext>(() => {
+  const context = useMemo<ServerGridContext>(() => {
     const holder = holderRef.current!;
     return {
-      perspectiveEngineHolder: holder,
+      serverEngineHolder: holder,
       ssrmCountMatching: (filterModel) =>
         holder.get()?.countMatching(filterModel as never) ?? Promise.resolve(null),
       ssrmCountMatchingExpression: (source) =>
@@ -540,7 +484,7 @@ export const PerspectiveMarketsGridSurface = forwardRef<
    */
   const columnDefs = useMemo(
     () =>
-      withPerspectiveSetFilterValues(props.columnDefs, (colId) =>
+      withServerSetFilterValues(props.columnDefs, (colId) =>
         holderRef.current?.get()?.distinctValues(colId) ?? Promise.resolve(null),
       ),
     [props.columnDefs],
@@ -549,8 +493,8 @@ export const PerspectiveMarketsGridSurface = forwardRef<
   const components = useMemo(
     () => ({
       ...streamSafeComponents,
-      perspectiveStatusPanel: PerspectiveStatusPanel,
-      ...PERSPECTIVE_STATUS_PANEL_COMPONENTS,
+      serverStatusPanel: ServerStatusPanel,
+      ...SERVER_STATUS_PANEL_COMPONENTS,
     }),
     [streamSafeComponents],
   );
@@ -746,12 +690,12 @@ export const PerspectiveMarketsGridSurface = forwardRef<
    * than asking hosts to use ours is what lets a `statusBar` written for the
    * CSRM grid mean the same thing here. `agAggregationComponent` is left alone
    * on purpose — it aggregates the selected cell RANGE, which this window does
-   * hold (see `PerspectiveStatusPanels`).
+   * hold (see `ServerStatusPanels`).
    */
   const statusBar = useMemo(
     () =>
-      withPerspectiveStatusPanels(props.statusBar) ?? {
-        statusPanels: [{ statusPanel: 'perspectiveStatusPanel', align: 'left' }],
+      withServerStatusPanels(props.statusBar) ?? {
+        statusPanels: [{ statusPanel: 'serverStatusPanel', align: 'left' }],
       },
     [props.statusBar],
   );
@@ -767,7 +711,7 @@ export const PerspectiveMarketsGridSurface = forwardRef<
 
   const pipelineGridOptions = useMemo(
     () =>
-      stripPerspectiveManagedGridOptions(
+      stripServerSurfaceManagedGridOptions(
         props.gridOptions ?? {},
         props.hostOverrideKeys ?? NO_HOST_OVERRIDES,
       ),

@@ -19,6 +19,7 @@ import shortcuts from './shortcuts.md?raw';
 import visualExcel from './visual-excel.md?raw';
 import stressTest from './stress-test.md?raw';
 import ssrmEngine from './ssrm-engine.md?raw';
+import ssrmEngineMarketsGrid from './ssrm-engine-marketsgrid.md?raw';
 
 export const HELP = {
   overview,
@@ -41,4 +42,5 @@ export const HELP = {
   visualExcel,
   stressTest,
   ssrmEngine,
+  ssrmEngineMarketsGrid,
 } as const;

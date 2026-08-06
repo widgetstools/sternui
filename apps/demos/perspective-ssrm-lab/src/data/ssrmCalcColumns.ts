@@ -24,14 +24,21 @@ export interface LabCalcColumn {
   headerName: string;
   expression: string;
   /**
-   * The filter TYPE, never a bare `filter: true`.
+   * The filter TYPE, never a bare `filter: true` — **on the CONTROL surface**.
    *
    * Under AG 36 enterprise `filter: true` resolves to `agSetColumnFilter`, and a
-   * set filter under a SERVER row model has no values to offer — AG builds its
+   * set filter under a SERVER row model has no values to offer: AG builds its
    * list from the rows the client model holds, which here is one block. Opening
    * one threw `r.values is not iterable` out of AG's own filter validation and
-   * took the filter menu with it. Wiring the engine's `distinctValues` into a
-   * real set filter is session 6's job.
+   * took the filter menu with it.
+   *
+   * The MarketsGrid surface does not need this and does not use it. There the
+   * calculated columns come from the customizer, `buildVirtualColDef` gives them
+   * `filter: true`, and `withServerSetFilterValues` hands every column a values
+   * callback backed by `engine.distinctValues` — which answers a CALCULATED
+   * column too, by scanning, and refuses above its ceiling rather than
+   * truncating. The plain-`AgGridReact` control has no such wiring, so it keeps
+   * the explicit filter type.
    */
   filter: 'agNumberColumnFilter' | 'agTextColumnFilter';
   /** Short note shown in the tab's legend, so the demo explains itself. */
@@ -138,6 +145,73 @@ export function buildLabCalcColumnDefs(): {
       .map((plan) => ({ colId: plan.colId, reason: plan.reason })),
   };
 }
+
+/**
+ * The SAME expressions as CUSTOMIZER state — what the MarketsGrid surface uses.
+ *
+ * This is the round trip session 6 has to prove, and it is a different path
+ * from the control tab's: the calculated-columns MODULE holds these, its
+ * pipeline stage builds the colDefs, `useSsrmEngineCalcColumns` plans them for
+ * the `ssrm-engine` backend, and the AST crosses the worker port. Nothing here
+ * is hand-built — the same authored strings, the same planner, one list.
+ *
+ * `position` puts them after the book's 120 stored columns; the pinning is a
+ * column-customization assignment below, because that is where a user pinning a
+ * column in the UI would put it.
+ */
+export const LAB_SSRM_VIRTUAL_COLUMNS = LAB_SSRM_CALC_COLUMNS.map((column, index) => ({
+  colId: column.colId,
+  headerName: column.headerName,
+  expression: column.expression,
+  cellDataType: column.filter === 'agTextColumnFilter' ? ('string' as const) : ('number' as const),
+  position: 500 + index,
+  initialWidth: 150,
+}));
+
+/**
+ * Filter kind, row grouping and pinning — set the way the UI sets them.
+ *
+ * `buildVirtualColDef` gives a calculated column `sortable: true` and
+ * `filter: true` and nothing else, and all three of those defaults need
+ * amending for this demo:
+ *
+ * - **the filter kind.** `filter: true` resolves to `agSetColumnFilter` under
+ *   AG Enterprise, and a set filter is the wrong control for a continuous
+ *   number — worse, applying a NUMBER filter model to a column whose filter is
+ *   a set filter throws `values is not iterable` out of AG's own validation.
+ *   That surfaced here as a page error while the rows were nonetheless filtered
+ *   correctly, because the ENGINE reads the model and AG's column filter is
+ *   only the UI for it. `calc_band` keeps the set filter deliberately: it is a
+ *   calculated STRING column, and its checkbox list is the thing the engine's
+ *   `distinctValues` has to answer by scanning;
+ * - **row grouping.** Without `enableRowGroup` a user cannot DRAG one into the
+ *   row-group or values panel, and "group it from the grid's own UI" is the
+ *   claim being demonstrated;
+ * - **pinning.** Appended after 120 stored columns they sit off the right edge,
+ *   so a reader arriving at a tab about calculated columns sees none of them.
+ */
+export const LAB_SSRM_CALC_CUSTOMIZATION = {
+  assignments: Object.fromEntries(
+    LAB_SSRM_CALC_COLUMNS.map((column) => [
+      column.colId,
+      {
+        colId: column.colId,
+        initialPinned: 'left' as const,
+        filter: {
+          enabled: true,
+          kind:
+            column.filter === 'agTextColumnFilter'
+              ? ('agSetColumnFilter' as const)
+              : ('agNumberColumnFilter' as const),
+        },
+        rowGrouping: {
+          enableRowGroup: true,
+          enableValue: true,
+        },
+      },
+    ]),
+  ),
+};
 
 /**
  * AG column defs for the calculated columns.

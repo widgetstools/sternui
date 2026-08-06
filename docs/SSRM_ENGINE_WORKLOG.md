@@ -12,7 +12,10 @@ first — it holds the current numbers and the caveats attached to them.
 
 Built, tested and running in a browser on the lab's Stress tab (`?engine=ssrm`
 for a generated book, `?engine=ssrm&book=provider` for one fed by a provider),
-with the book in a **SharedWorker** since session 1:
+with the book in a **SharedWorker** since session 1 — and, since session 6, as a
+**MarketsGrid surface** (`rowModel="ssrm-engine"`) on the lab's **SSRM Engine ·
+MarketsGrid** tab, with the plain-`AgGridReact` tab kept beside it as the
+control:
 
 | | ssrm-engine | Perspective, same tab |
 |---|---|---|
@@ -31,7 +34,7 @@ data, quick filter, distinct values, grand total and a changed-key delta — and
 since session 5, **calculated columns that behave like real ones**: compiled per
 expression to a closure over the columnar store, and sortable, filterable,
 groupable, pivotable and aggregatable through one column accessor that cannot
-tell them from a stored field. They tick, too. 150 unit tests including two
+tell them from a stored field. They tick, too. 182 unit tests including two
 differential fuzzes — one over the engine's query shapes (calculated cells and
 calculated query shapes included), one over the whole push path from a write in
 the worker to the rows AG holds.
@@ -50,9 +53,11 @@ engine, not of hosting. Details in the README.
 ## Rules carried into every session
 
 These cost real time when ignored, all of them in this repo's history. Rules 13
-and 14 are new and both came from session 5 — the first from a check that would
-have been green over the bug it was written for, the second from a measurement
-that looked like a 6x regression and was the metric.
+and 14 came from session 5 — the first from a check that would have been green
+over the bug it was written for, the second from a measurement that looked like
+a 6x regression and was the metric. Rule 15 is new, from session 6: an event
+that was correctly identified and then not measured in the one state where it
+does not fire.
 
 1. **Measure before theorising, and check the probe can fail.** Three separate
    figures on the Perspective path were withdrawn after a clean re-measurement.
@@ -130,9 +135,19 @@ that looked like a 6x regression and was the metric.
    on identical code, exactly as `providerBookProbe` already was. A/B by
    alternating, never by batching.
 
+15. **An event you are bridging may not fire in the state that matters.** The
+   quick-search bridge listened to `modelUpdated`, which is the only event AG
+   raises for `quickFilterText` under `serverSide` — MEASURED, and correct as
+   far as it goes. What was not measured was the EMPTY grid: with a term that
+   matches nothing, clearing the box fires nothing at all (not `modelUpdated`,
+   `filterChanged`, `storeUpdated` or `gridOptionChanged`), because AG has no
+   rows and no store to update. The search box was unclearable from exactly
+   the state a user most needs to escape. Measure the event in the degenerate
+   state, not only the ordinary one.
+
 **Gates for every session:** `npx turbo typecheck build test --continue`.
 
-**The `@starui/grid` baseline is GONE — it is 101 files / 855 tests / 0 failed.**
+**The `@starui/grid` baseline is GONE — it is 103 files / 889 tests / 0 failed.**
 It was carried for four sessions as "4 failed test FILES, 0 failed tests", and
 the zero was the tell: none of those files ran, so 42 assertions about the
 widget were reported as known-good while checking nothing. Three causes, all
@@ -157,7 +172,7 @@ package's OWN — and `@starui/design-system`'s test reads its own
 `dist/css/theme.css`), and `@starui/grid` imported `@starui/host-data/runtime`
 without declaring it, so turbo could not see the edge at all.
 
-**So the gate is 73/73 with nothing excused.** If something fails, it is real —
+**So the gate is 73/73 with nothing excused** — re-verified at the end of session 6. If something fails, it is real —
 there is no longer a documented list of failures to wave it past. Plus the
 probes named per session.
 
@@ -523,27 +538,94 @@ on a product surface: that is session 6.
 
 ---
 
-## Session 6 — a MarketsGrid surface
+## Session 6 — a MarketsGrid surface · **DONE**
 
-Until now the engine has run under a plain `AgGridReact`. This is the session
-that makes it a product surface.
+Built: `src/rowEngine.ts` (`createSsrmEngineRowEngine`, peer to
+`createPerspectiveRowEngine`), `engine.calcPatch(rows, 'calcOnly')` plus the
+origin echo in `host.publish`, and in `@starui/grid`
+`SsrmEngineMarketsGridSurface`, `serverEngineHolder.ts`,
+`serverLoadingCellRenderer.ts`, `useSsrmEngineCalcColumns`, the
+`rowModel: 'ssrm-engine'` branch through `MarketsGrid` → `MarketsGridHost`, and
+the rename of the shared server-side modules. The lab gains an **SSRM Engine ·
+MarketsGrid** tab beside the control. **182 engine tests** (was 150),
+`@starui/grid` **103 files / 889 tests** (was 101 / 855).
 
-**Build**
+**One copy of everything shared, and that is what the rename bought.** The
+set-filter wrapper, the status panels, the Excel export, the alerts full-book
+rescan and the saved-filter count already read the engine off one grid `context`
+key. It was called `perspectiveEngineHolder`; it is now `serverEngineHolder`,
+because two engines put an engine there and the alternative was a second key
+with a second copy of four consumers. The holder is generic in the engine type,
+so a surface keeps its own full engine while those consumers see four methods.
 
-- `SsrmEngineMarketsGridSurface`, peer to `PerspectiveMarketsGridSurface`;
-- the pieces that surface needed and are easy to forget, each of which was a
-  separate bug on the Perspective path: set-filter values from the engine (AG's
-  own list is empty under a server row model), quick search bridged through
-  `modelUpdated` (AG's `quickFilterText` is client-side only), status-bar panels
-  that can answer at all (AG's stock row-count panels render NOTHING here),
-  cell-edit commit, the grand-total row transaction, and export via a whole-book
-  read;
-- `getRowId` for group rows by PATH (warn 205 discards the block otherwise).
+**The parity probe failed 7 of 17 items on its first run, and the split is the
+point: two were the feature, five were the probe.**
 
-**Verify** the parity checklist in
-[`PERSPECTIVE_GRID_PARITY_WORKLOG.md`](./PERSPECTIVE_GRID_PARITY_WORKLOG.md),
-and read its "Traps that produced false findings" section first — several
-"broken" findings there were the test technique, not the feature.
+| found | what it was |
+|---|---|
+| the feature | **the quick search could not be cleared from an empty grid.** The bridge listened only to `modelUpdated`, and MEASURED by subscribing to `modelUpdated`, `filterChanged`, `storeUpdated` and `gridOptionChanged` at once: setting a term that matches nothing fires ten events, and clearing it fires **zero**. AG has no rows and no store to update, so the box was unclearable from exactly the state a user most needs to escape. It now also reconciles on the viewport timer, through the same one function |
+| the feature, and not this session's | **conditional styling's timed activations called `getColId` UNBOUND.** `const f = event.column?.getColId; f()` throws `Cannot read properties of undefined (reading 'colId')` from inside AG's minified code, out of its async queue, on EVERY committed cell edit on any grid with that module mounted — with no frame naming the file. Fixed, with a regression test whose column stub reads `this`, because `{ getColId: () => 'x' }` passes either way |
+| the probe, x5 | a set filter read before its async values landed; a set filter asked for on a column this book does not have; a search term matching nothing, so "cleared" could not be told from "still filtered"; and export + cell edit measured while the grid was still empty from that term |
+
+**Two duplicate whole-book passes removed, and one of them was most of what the
+platform appeared to cost.** The grand total was fetched on every ROOT block
+whether or not the grid HAD a totals row — a whole-book aggregate awaited before
+the rows settle, taking the end-to-end median to 6.6-12.2 ms with a 69 ms p90
+for a row that does not exist. The engine now asks the grid rather than being
+told. The status bar's `leafRows` and the store's row count are the same number
+and were two RPCs; one now. And in the engine, `countFiltered` strips grouping
+to `[]` where a block request omits it, so an identical index was keyed twice —
+`queryKey` normalises empty to absent, which is correct and made no measurable
+difference, stated rather than counted as a win.
+
+**What the platform costs the read path — MEASURED, alternating the two tabs in
+one series over three rounds.** Same book, same worker, same book id.
+
+| | plain `AgGridReact` | MarketsGrid |
+|---|---|---|
+| block round trip through the port | **2.1-2.4 ms** | **2.3-2.4 ms** |
+| AG `getRows` end to end, real scroll | **2.6-2.7 ms** median | **3.6-11.2 ms** median |
+| the same, p90 | 3.1-4.6 ms | **56-110 ms** |
+| first row painted | 1,708-1,763 ms | 2,452-2,489 ms |
+| SORT, first block | 59-72 ms | 115-140 ms |
+
+**The boundary is untouched and the window is not.** The port costs the same on
+both, so the platform costs the worker path nothing; AG's end-to-end block read
+is 1.4-4.3x on the median and roughly 20x at p90, and since the two differ only
+in what runs in the WINDOW, that is the platform's own per-block work delaying
+the continuation. Round 3 read 12,439 and 13,112 ms to first row on BOTH tabs in
+the same round — the documented bimodality, appearing on both at once, which is
+why the series alternates.
+
+**The set-filter ceiling stays at 50,000, now for a measured reason.** At 20,000
+distinct values the whole round trip is 3.2 ms (stored, dictionary walk) or
+8.1 ms (calculated, a scan), and AG virtualises the list — so lowering it would
+cost parity to save nothing. What the measurement changed is the understanding:
+a stored column's cost tracks CARDINALITY and a calculated one's tracks the
+BOOK, flat at 4.2-5.8 ms whether the answer is 8 values or 20,000. The ceiling
+does not bound the cost that grows.
+
+**Probes.** `marketsGridParityProbe` 17/17 including a cell edit reaching the
+book and the author's own `calc_liveSum` following it as an exact identity
+(1151.85 → 1162.85). `browserSmokeProbe`, `workerBoundaryProbe`,
+`providerBookProbe` and `calcTwinProbe` all pass unchanged; the control tab
+still shows 6 calculated columns pinned left, 0 refusals, working demo buttons,
+and **46 of 100 loaded rows moving `calc_liveSum` in 12 s while 0 rows moved any
+of the other five** — the dependency rule, shown rather than asserted.
+
+**Not done, and stated in the README:** no cross-row style-rule seam (this
+engine has no expression language to compile a rule into, so the context omits
+it rather than stubbing it), no master/detail or tree data on this surface, and
+the browser-side render cost of a large set-filter list was not separately
+timed.
+
+**And one thing NOT done that the post-implementation checklist asks for.** The
+interaction on this surface is covered by `marketsGridParityProbe.mjs` — real
+Playwright input against a production build, committed, and reproducible from
+the README — but it is not a spec under `e2e/`. Adding one means a fourth
+Playwright config with its own web server for the lab, which the perspective
+subsuite already has for `minimal-perspective-table`. The probe is the honest
+substitute and this line is here so nobody reads its absence as coverage.
 
 ---
 

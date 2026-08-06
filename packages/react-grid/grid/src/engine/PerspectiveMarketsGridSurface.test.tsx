@@ -148,9 +148,9 @@ describe('PerspectiveMarketsGridSurface — status bar', () => {
     const { last } = renderSurface();
     await waitFor(() => expect(last().statusBar).toBeDefined());
     expect(last().statusBar).toEqual({
-      statusPanels: [{ statusPanel: 'perspectiveStatusPanel', align: 'left' }],
+      statusPanels: [{ statusPanel: 'serverStatusPanel', align: 'left' }],
     });
-    expect(last().components.perspectiveStatusPanel).toBeDefined();
+    expect(last().components.serverStatusPanel).toBeDefined();
   });
 
   it("keeps the host's status bar, with the row-count panels it can answer", async () => {
@@ -170,12 +170,12 @@ describe('PerspectiveMarketsGridSurface — status bar', () => {
     await waitFor(() =>
       expect(last().statusBar).toEqual({
         statusPanels: [
-          { statusPanel: 'perspectiveSelectedRowCount', align: 'center' },
+          { statusPanel: 'serverSelectedRowCount', align: 'center' },
           { statusPanel: 'agAggregationComponent', align: 'right' },
         ],
       }),
     );
-    expect(last().components.perspectiveSelectedRowCount).toBeDefined();
+    expect(last().components.serverSelectedRowCount).toBeDefined();
   });
 
   it('passes a status bar it has nothing to add to straight through', async () => {
@@ -187,7 +187,7 @@ describe('PerspectiveMarketsGridSurface — status bar', () => {
   it('passes the engine through context, which is how the panel reaches it', async () => {
     const { last } = renderSurface();
     await waitFor(() =>
-      expect(last().context?.perspectiveEngineHolder?.get()).toBeTruthy(),
+      expect(last().context?.serverEngineHolder?.get()).toBeTruthy(),
     );
   });
 
@@ -196,9 +196,9 @@ describe('PerspectiveMarketsGridSurface — status bar', () => {
   // has to outlive the engine it points at.
   it('keeps ONE context object across engine rebuilds', async () => {
     const { last, result } = renderSurface();
-    await waitFor(() => expect(last().context?.perspectiveEngineHolder?.get()).toBeTruthy());
+    await waitFor(() => expect(last().context?.serverEngineHolder?.get()).toBeTruthy());
     const first = last().context;
-    const engineBefore = last().context.perspectiveEngineHolder.get();
+    const engineBefore = last().context.serverEngineHolder.get();
 
     // A provider restart hands over a different Table.
     result.rerender(
@@ -209,7 +209,7 @@ describe('PerspectiveMarketsGridSurface — status bar', () => {
       />,
     );
     await waitFor(() =>
-      expect(last().context.perspectiveEngineHolder.get()).not.toBe(engineBefore),
+      expect(last().context.serverEngineHolder.get()).not.toBe(engineBefore),
     );
     expect(last().context).toBe(first);
   });

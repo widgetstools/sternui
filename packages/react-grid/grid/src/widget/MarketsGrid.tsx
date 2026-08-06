@@ -40,7 +40,12 @@ import { mergeDefaultColDef } from './mergeDefaultColDef';
 import { GeneralSettingsProvider } from './GeneralSettingsContext';
 import { MarketsGridSurface } from './MarketsGridSurface';
 import { SsrmMarketsGridSurfaceConnected as SsrmMarketsGridSurface } from '../engine/SsrmMarketsGridSurfaceConnected';
-import { resolveGridSurface, resolvePerspective, resolveUseSsrm } from '../engine/resolveUseSsrm.js';
+import {
+  resolveGridSurface,
+  resolvePerspective,
+  resolveSsrmEngine,
+  resolveUseSsrm,
+} from '../engine/resolveUseSsrm.js';
 import type { SSRMColDef, SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
 import { useSsrmCalcMaterialize, useSsrmColumnDefs } from '../engine/useSsrmColumnDefs.js';
 import { materializeCalcFields } from '../engine/ssrmCalcColumns.js';
@@ -295,6 +300,10 @@ function MarketsGridInner<TData = unknown>(
   // Gated on BOTH: a Table with no `rowModel: 'perspective'` is a caller
   // pre-loading the seam, not asking for it yet.
   const perspective = resolvePerspective({ rowModel }) && props.perspectiveTable !== undefined;
+  // Same gate, same reason: a client with no `rowModel: 'ssrm-engine'` is a
+  // caller pre-loading the seam, not asking for it yet.
+  const ssrmEngineOn =
+    resolveSsrmEngine({ rowModel }) && props.ssrmEngineClient !== undefined;
 
   const [internalToolbarDate, setInternalToolbarDate] = useState(todayIsoDate);
   const toolbarDate = toolbarDateProp ?? internalToolbarDate;
@@ -422,9 +431,14 @@ function MarketsGridInner<TData = unknown>(
             rowModel,
             useSSRM: useSSRMProp,
             perspectiveTable: props.perspectiveTable,
+            ssrmEngineClient: props.ssrmEngineClient,
           }) === 'pending'
         }
         perspectiveKeyColumn={props.perspectiveKeyColumn}
+        ssrmEngineClient={ssrmEngineOn ? props.ssrmEngineClient : undefined}
+        ssrmEngineKeyColumn={props.ssrmEngineKeyColumn}
+        ssrmEngineOnBlock={props.ssrmEngineOnBlock}
+        ssrmEngineSurfaceRef={props.ssrmEngineSurfaceRef}
         perspectiveTreeFields={props.perspectiveTreeFields}
         perspectiveColumnWindow={props.perspectiveColumnWindow}
         masterDetail={props.masterDetail}

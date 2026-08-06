@@ -292,9 +292,14 @@ function onCellValueChangedHandler(
   deps: TimedActivationsDeps,
 ): void {
   const node = event.node;
-  const getColId = event.column?.getColId;
-  if (!node || typeof node !== 'object' || typeof getColId !== 'function') return;
-  const colId = getColId();
+  // Called ON the column, not as a detached reference. AG's `getColId()` is
+  // `return this.colId`, so `const f = column.getColId; f()` throws
+  // "Cannot read properties of undefined (reading 'colId')" from inside AG —
+  // an error with no mention of this file in the top frame, raised out of AG's
+  // async event queue on EVERY committed cell edit. The `typeof` guard was
+  // right and the call was not.
+  if (!node || typeof node !== 'object' || typeof event.column?.getColId !== 'function') return;
+  const colId = event.column.getColId();
   if (!colId) return;
   const now = Date.now();
   traceTimed('cellValueChanged', {

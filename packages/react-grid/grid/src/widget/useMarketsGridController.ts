@@ -309,9 +309,9 @@ export function useMarketsGridController(
     // fetcher and silently seeded nothing.
     const holder = (
       api?.getGridOption('context') as
-        | { perspectiveEngineHolder?: { get(): { readAllRows(): Promise<Record<string, unknown>[] | null> } | null } }
+        | { serverEngineHolder?: { get(): { readAllRows(): Promise<Record<string, unknown>[] | null> } | null } }
         | undefined
-    )?.perspectiveEngineHolder;
+    )?.serverEngineHolder;
     if (holder) {
       registerAlertsSsrmLeafFetcher(platform, {
         rowIdField: rowId,

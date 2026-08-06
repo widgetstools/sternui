@@ -20,6 +20,9 @@
       ],
       "@starui/perspective-grid": [
         "../perspective-grid/src/index.ts"
+      ],
+      "@starui/ssrm-engine": [
+        "../ssrm-engine/src/index.ts"
       ]
     },
     "noEmit": true

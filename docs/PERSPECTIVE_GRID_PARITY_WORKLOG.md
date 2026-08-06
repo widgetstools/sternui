@@ -36,6 +36,29 @@ the row model. Our datasource reports the exact 20,000 and
 by default here and the fix means working around AG internals. Revisit only if
 a deployment turns pagination on.
 
+## 1a. A second engine now shares these modules · done, watch the names
+
+`@starui/ssrm-engine` gained a MarketsGrid surface in its own session 6, and it
+does NOT have a second copy of anything here. The set-filter wrapper, the
+row-count status panels, the Excel export, the alerts full-book rescan and the
+saved-filter count all reach their engine through one grid `context` key, which
+has been renamed from `perspectiveEngineHolder` to **`serverEngineHolder`** —
+along with `withPerspectiveStatusPanels` → `withServerStatusPanels`,
+`withPerspectiveSetFilterValues` → `withServerSetFilterValues`, the
+`perspective*` status-panel component names → `server*`, and
+`PERSPECTIVE_SURFACE_OWNED_KEYS` → `SERVER_SURFACE_OWNED_KEYS`.
+`e2e/perspective-column-window.spec.ts` reads the key directly and was updated
+with them. Nothing about the Perspective surface's behaviour changed.
+
+**Driving the second surface found a defect in a module BOTH use.** Conditional
+styling's timed activations read `const getColId = event.column?.getColId` and
+called it unbound; AG's `getColId()` is `return this.colId`, so it threw
+`Cannot read properties of undefined (reading 'colId')` from inside AG's
+minified code on every committed cell edit, on any grid with that module
+mounted — including this one. Fixed, with a regression test whose column stub
+reads `this`. It is the species this file's scope note predicts: found by
+exercising a path, not by reading it.
+
 ## 2. The audit is not exhaustive · ongoing
 
 This list came from code reading plus live measurement, not a sweep of every
@@ -97,24 +120,23 @@ could not see is declared.
 
 ## Gate baseline for this branch
 
-`npx turbo typecheck build test`. Pre-existing failures that are NOT yours:
+`npx turbo typecheck build test --continue` is **73/73 with nothing excused.**
+Every entry that used to sit here is gone:
 
-- ~~`@starui/grid` — **4 failed test FILES, 0 failed tests**~~ — **FIXED.** Now
-  101 files / 855 tests / 0 failed. The zero failed tests was the tell: none of
+- ~~`@starui/grid` — 4 failed test FILES, 0 failed tests~~ — **FIXED.** Now
+  103 files / 889 tests / 0 failed. The zero failed tests was the tell: none of
   those four files ran at all, so 42 assertions were reported as a known-good
   baseline while checking nothing. See the SSRM engine worklog's gate section
   for the three causes.
-- `@starui/widgets-react` — 2 `providerStaleState` cases. Still failing, and
-  worth knowing they are not a fixture problem: `latestProvider.start` is never
-  called, so the container builds a provider and does not start it.
-Anything ELSE that fails is almost certainly the turbo ordering race in item 3
-— `@starui/design-system`, `@starui/grid#typecheck`, `@starui/host-wrapper-react`
-and `@starui/openfin-platform` have all been seen failing that way and all pass
-in isolation. Re-run before believing it; a clean run returns exactly the two
-entries above.
+- ~~`@starui/widgets-react` — 2 `providerStaleState` cases~~ — **FIXED.** They
+  waited on `expect(latestProvider.start).toHaveBeenCalled()`, which cannot
+  pass: `MarketsGridContainer` uses `autoStart: false` and never calls it. The
+  gate is now `onStatus`.
+- ~~Anything else is the turbo ordering race~~ — **FIXED**, and it was two bugs
+  in one costume (item 3 above).
 
-Both predate the branch. Verify by stashing if in doubt. Run turbo with
-`--continue`; the first failure otherwise stops the run before the rest report.
+So a failure now is real. Run turbo with `--continue`; the first failure
+otherwise stops the run before the rest report.
 
 ---
 
@@ -234,6 +256,24 @@ clause.
   re-virtualises columns, and a row sampled between two reads can be gone by the
   second: the key came back fine and the value came back null. Same for
   re-reading after an `expect.poll` succeeds — keep what the poll SAW.
+- **A set filter's values arrive ASYNCHRONOUSLY, so `getFilterKeys()` straight
+  after `getColumnFilterInstance()` reports `[]` for a filter that is about to
+  be populated.** That is the probe agreeing with a bug the surface does not
+  have. Wait, then read.
+- **A "cleared" check needs a term the book DOES match, or it cannot tell
+  "cleared" from "still filtered".** A quick-search probe run with a term
+  matching nothing read 0 rows filtered and 0 rows cleared, and both readings
+  were true of a working bridge and of a broken one. It then left the grid
+  empty, so the export and cell-edit checks after it failed for a reason that
+  was three steps upstream. Use a term whose match count you can predict — the
+  key column's own prefix is one.
+- **Applying a NUMBER filter model to a column whose AG filter is a SET filter
+  throws `values is not iterable`, while the rows filter correctly.** The ENGINE
+  reads the filter model and AG's column filter is only the UI for it, so the
+  grid does the right thing and the page raises an error nobody attributes to
+  it. A calculated column gets `filter: true` from `buildVirtualColDef`, which
+  resolves to a set filter under Enterprise — give a numeric one a number
+  filter.
 
 ### Fixture properties that look like bugs
 

@@ -229,7 +229,7 @@ test.describe('Perspective column window', () => {
           __labApi(): {
             setFilterModel(m: unknown): void;
             getGridOption(k: string): {
-              perspectiveEngineHolder?: {
+              serverEngineHolder?: {
                 get(): { readAllRows(): Promise<Record<string, unknown>[] | null> } | null;
               };
             };
@@ -238,7 +238,7 @@ test.describe('Perspective column window', () => {
       ).__labApi();
       api.setFilterModel({ cusip: { filterType: 'text', type: 'equals', filter: id } });
       await new Promise((r) => setTimeout(r, 4000));
-      const engine = api.getGridOption('context')?.perspectiveEngineHolder?.get?.();
+      const engine = api.getGridOption('context')?.serverEngineHolder?.get?.();
       const rows = await engine?.readAllRows();
       return rows && rows.length > 0 ? Object.keys(rows[0]).length : 0;
     }, cusip);

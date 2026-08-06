@@ -74,8 +74,21 @@ export {
   type PerspectiveColumnWindowOptions,
 } from './engine/PerspectiveMarketsGridSurface.js';
 export {
+  SsrmEngineMarketsGridSurface,
+  type SsrmEngineMarketsGridSurfaceProps,
+  type SsrmEngineMarketsGridSurfaceHandle,
+} from './engine/SsrmEngineMarketsGridSurface.js';
+export {
+  createServerEngineHolder,
+  type ServerEngineHolder,
+  type ServerGridContext,
+  type ServerGridStatus,
+  type ServerRowEngineLike,
+} from './engine/serverEngineHolder.js';
+export {
   resolveUseSsrm,
   resolvePerspective,
+  resolveSsrmEngine,
   resolveGridSurface,
   type MarketsGridRowModel,
   type GridSurfaceChoice,

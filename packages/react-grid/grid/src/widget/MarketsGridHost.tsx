@@ -44,12 +44,14 @@ import { UnsavedSwitchDialog } from './UnsavedSwitchDialog';
 import { MarketsGridSurface } from './MarketsGridSurface';
 import { SsrmMarketsGridSurfaceConnected as SsrmMarketsGridSurface } from '../engine/SsrmMarketsGridSurfaceConnected';
 import { PerspectiveMarketsGridSurface } from '../engine/PerspectiveMarketsGridSurface.js';
+import { SsrmEngineMarketsGridSurface } from '../engine/SsrmEngineMarketsGridSurface.js';
 import { SsrmSuggestBanner } from '../engine/SsrmSuggestBanner.js';
 import { shouldSuggestSsrm } from '../engine/shouldSuggestSsrm.js';
 import type { SSRMColDef, SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
 import { useGridPlatform } from '../customizer/hooks/GridProvider.js';
 import {
   usePerspectiveCalcColumns,
+  useSsrmEngineCalcColumns,
   useSsrmCalcMaterialize,
   useSsrmColumnDefs,
 } from '../engine/useSsrmColumnDefs.js';
@@ -124,6 +126,11 @@ export interface MarketsGridHostProps<TData> {
    */
   perspectivePending?: boolean;
   perspectiveKeyColumn?: string;
+  /** Worker-held columnar book; when set, the ssrm-engine surface is mounted. */
+  ssrmEngineClient?: unknown;
+  ssrmEngineKeyColumn?: string;
+  ssrmEngineOnBlock?: MarketsGridProps<TData>['ssrmEngineOnBlock'];
+  ssrmEngineSurfaceRef?: MarketsGridProps<TData>['ssrmEngineSurfaceRef'];
   perspectiveTreeFields?: readonly string[];
   perspectiveColumnWindow?: MarketsGridProps<TData>['perspectiveColumnWindow'];
   masterDetail?: MarketsGridProps<TData>['masterDetail'];
@@ -192,6 +199,10 @@ function MarketsGridHostInner<TData>({
   perspectiveTable,
   perspectivePending,
   perspectiveKeyColumn,
+  ssrmEngineClient,
+  ssrmEngineKeyColumn,
+  ssrmEngineOnBlock,
+  ssrmEngineSurfaceRef,
   perspectiveTreeFields,
   perspectiveColumnWindow,
   masterDetail,
@@ -249,6 +260,14 @@ function MarketsGridHostInner<TData>({
     platform,
     columnDefs as never,
     Boolean(perspectiveTable),
+  );
+  // Same planner, third backend: the expression becomes a StarUI AST and the
+  // engine evaluates it where the book is, so it sorts, filters, groups and
+  // aggregates like a stored column.
+  const ssrmEngineCalc = useSsrmEngineCalcColumns(
+    platform,
+    columnDefs as never,
+    Boolean(ssrmEngineClient),
   );
 
   const ssrmColumnDefs = useSsrmColumnDefs(
@@ -527,6 +546,46 @@ function MarketsGridHostInner<TData>({
           treeFields={perspectiveTreeFields}
           columnWindow={perspectiveColumnWindow}
           masterDetail={masterDetail}
+          theme={theme}
+          rowHeight={rowHeight}
+          headerHeight={headerHeight}
+          sideBar={sideBar}
+          statusBar={statusBar}
+          defaultColDef={defaultColDef as never}
+          includeAllStreamSafeFilters={includeAllStreamSafeFilters}
+          gridRef={gridRef as never}
+          getContextMenuItems={getContextMenuItems}
+          onGridReady={handleGridReady}
+          onGridPreDestroyed={onGridPreDestroyed}
+          grandTotalRow={
+            gridOptions.grandTotalRow as
+              | boolean
+              | 'top'
+              | 'bottom'
+              | 'pinnedTop'
+              | 'pinnedBottom'
+              | undefined
+          }
+          groupTotalRow={gridOptions.groupTotalRow as 'top' | 'bottom' | undefined}
+        />
+      ) : ssrmEngineClient ? (
+        /*
+         * `@starui/ssrm-engine`'s columnar book, held once in a SharedWorker.
+         * Everything above this line — toolbar, formatting, customizer,
+         * profiles — is unchanged, which is the point: AG Grid stays the
+         * surface and only the row supply moves.
+         */
+        <SsrmEngineMarketsGridSurface
+          ref={ssrmEngineSurfaceRef as never}
+          onBlock={ssrmEngineOnBlock}
+          client={ssrmEngineClient as never}
+          gridOptions={gridOptions}
+          hostOverrideKeys={hostOverrideKeys}
+          keyColumn={
+            ssrmEngineKeyColumn ?? (typeof rowIdField === 'string' ? rowIdField : 'id')
+          }
+          columnDefs={ssrmEngineCalc.defs}
+          calcColumns={ssrmEngineCalc.calcColumns as never}
           theme={theme}
           rowHeight={rowHeight}
           headerHeight={headerHeight}

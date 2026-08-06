@@ -24,6 +24,7 @@ const ProfilesTab = lazy(() => import('./tabs/ProfilesTab').then((m) => ({ defau
 const VisualExcelTab = lazy(() => import('./tabs/VisualExcelTab').then((m) => ({ default: m.VisualExcelTab })));
 const StressTestTab = lazy(() => import('./tabs/StressTestTab').then((m) => ({ default: m.StressTestTab })));
 const SsrmEngineTab = lazy(() => import('./tabs/SsrmEngineTab').then((m) => ({ default: m.SsrmEngineTab })));
+const SsrmEngineMarketsGridTab = lazy(() => import('./tabs/SsrmEngineMarketsGridTab').then((m) => ({ default: m.SsrmEngineMarketsGridTab })));
 
 interface TabEntry {
   id: string;
@@ -53,6 +54,7 @@ const TABS: TabEntry[] = [
   { id: 'profiles', label: 'Profiles', hint: 'Pre-baked configurations', Component: ProfilesTab },
   { id: 'stress', label: 'Stress Test', hint: '20k rows × 120 real cols', Component: StressTestTab },
   { id: 'ssrm-engine', label: 'SSRM Engine', hint: 'Calculated columns, server-side', Component: SsrmEngineTab },
+  { id: 'ssrm-engine-mg', label: 'SSRM Engine · MarketsGrid', hint: 'The same book under the full platform', Component: SsrmEngineMarketsGridTab },
 ];
 
 // Sidebar items include Home (synthetic) plus every real tab.

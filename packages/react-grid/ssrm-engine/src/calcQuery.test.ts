@@ -360,6 +360,65 @@ describe('a calculated column TICKS', () => {
   });
 });
 
+/**
+ * The window that WROTE gets the calculated cells back, and nothing else.
+ *
+ * `host.publish` skips the origin port because it has already rendered its own
+ * edit — but not the columns computed from it. `'calcOnly'` is that frame.
+ */
+describe("calcPatch('calcOnly') — the author's own derived cells", () => {
+  it('answers the key and the re-stamped calculated cells, and no raw cell', () => {
+    const engine = engineWith(ROWS, [
+      DOUBLE,
+      { colId: 'calcQty', ast: bin('*', col('qty'), lit(3)) },
+    ]);
+    engine.applyUpdate([{ id: 'a', px: 7 }]);
+    const echo = engine.calcPatch([{ id: 'a', px: 7 }], 'calcOnly');
+
+    // The raw `px` would be an echo of the cell the user just typed into, and
+    // AG flashes every cell a transaction names.
+    expect(echo).toEqual([{ id: 'a', calcPx: 14 }]);
+  });
+
+  it('drops a row entirely when nothing calculated depends on the frame', () => {
+    const engine = engineWith(ROWS, [{ colId: 'calcQty', ast: bin('*', col('qty'), lit(3)) }]);
+    // Nothing reads `px`, so there is no derived cell to send back — and an
+    // empty frame is what stops the author being told anything at all.
+    expect(engine.calcPatch([{ id: 'a', px: 7 }], 'calcOnly')).toEqual([]);
+  });
+
+  it('is empty on a book with no calculated columns', () => {
+    const engine = engineWith(ROWS, []);
+    expect(engine.calcPatch([{ id: 'a', px: 7 }], 'calcOnly')).toEqual([]);
+  });
+
+  it('skips a row the book no longer holds — there is no offset to evaluate at', () => {
+    const engine = engineWith(ROWS);
+    expect(engine.calcPatch([{ id: 'gone', px: 7 }], 'calcOnly')).toEqual([]);
+  });
+
+  it('re-stamps exactly the columns the MERGE mode does', () => {
+    // One definition of "which calculated cells this frame made stale", checked
+    // rather than asserted twice: two copies of that rule is the shape of the
+    // defects rule 10 records.
+    const engine = engineWith(ROWS, [
+      DOUBLE,
+      { colId: 'calcQty', ast: bin('*', col('qty'), lit(3)) },
+    ]);
+    // Names BOTH inputs, so both calculated columns are dirty and the check is
+    // over a set rather than over one entry.
+    const frame = { id: 'a', px: 7, qty: 4 };
+    engine.applyUpdate([frame]);
+    const merged = engine.calcPatch([frame])[0];
+    const echoed = engine.calcPatch([frame], 'calcOnly')[0];
+
+    const calcKeys = (row: Record<string, unknown>) =>
+      Object.keys(row).filter((k) => k.startsWith('calc')).sort();
+    expect(calcKeys(echoed)).toEqual(calcKeys(merged));
+    for (const key of calcKeys(echoed)) expect(echoed[key]).toBe(merged[key]);
+  });
+});
+
 describe('the value cache cannot outlive a write', () => {
   /**
    * A calculated value is computed at most once per row per WRITE and answered

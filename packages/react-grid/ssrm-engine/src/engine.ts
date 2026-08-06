@@ -113,14 +113,41 @@ export interface SsrmDelta {
 
 export type SsrmDeltaListener = (delta: SsrmDelta) => void;
 
-/** Identity of a materialised index — everything that changes its contents. */
+/**
+ * What {@link SsrmEngine.calcPatch} returns.
+ *
+ * `merge` — the caller's patch with the stale calculated cells added back, for
+ * every window except the one that wrote.
+ * `calcOnly` — the key plus those calculated cells and nothing else, for the
+ * window that DID write and has already painted the raw ones.
+ */
+export type SsrmCalcPatchMode = 'merge' | 'calcOnly';
+
+/**
+ * Identity of a materialised index — everything that changes its contents.
+ *
+ * **Empty and absent are the SAME key**, and that is worth stating because it
+ * was not. `countFiltered` and `grandTotal` build their request by stripping
+ * grouping to `[]`, where a plain block request simply omits it — so an
+ * identical row set was keyed as `groups: []` and `groups: null` and
+ * materialised TWICE. On a ticking book, where every write clears the cache,
+ * that is a second whole-book pass in front of the block the user is scrolling
+ * towards, several times a second. MEASURED as part of what the MarketsGrid
+ * surface appeared to cost the read path.
+ *
+ * An empty filter model is normalised for the same reason: `{}` and absent
+ * select the same rows.
+ */
 function queryKey(request: SsrmGetRowsRequest, quick: string): string {
+  const list = <T>(value: readonly T[] | undefined, map: (item: T) => unknown) =>
+    value === undefined || value.length === 0 ? null : value.map(map);
+  const filter = request.filterModel;
   return JSON.stringify({
-    filter: request.filterModel ?? null,
-    sort: request.sortModel ?? null,
-    groups: request.rowGroupCols?.map((c) => c.id) ?? null,
-    values: request.valueCols?.map((c) => [c.id, c.aggFunc]) ?? null,
-    keys: request.groupKeys ?? null,
+    filter: filter && Object.keys(filter).length > 0 ? filter : null,
+    sort: list(request.sortModel, (s) => [s.colId, s.sort]),
+    groups: list(request.rowGroupCols, (c) => c.id),
+    values: list(request.valueCols, (c) => [c.id, c.aggFunc]),
+    keys: list(request.groupKeys, (k) => k),
     quick,
   });
 }
@@ -267,36 +294,47 @@ export class SsrmEngine {
    * calculated columns pays a length check and no allocation. A patch row is
    * copied rather than mutated: it belongs to the caller, and `publish` hands
    * the same array to every attached port.
+   *
+   * **`'calcOnly'` answers the WINDOW THAT WROTE.** `host.publish` skips the
+   * port that caused a write, because that window has already rendered its own
+   * edit — but it has not rendered the calculated columns computed FROM it, so
+   * its own derived cells sat stale until AG re-read the block. That mode
+   * returns the key and the re-stamped calculated cells and nothing else: the
+   * raw cells would be an echo of what the window just painted, and AG flashes
+   * every cell a transaction names.
+   *
+   * One method with a mode rather than two, because the interesting part — WHICH
+   * calculated cells this frame made stale — must have exactly one definition.
+   * Two copies of that rule is the shape of every defect rule 10 records.
    */
-  calcPatch(rows: readonly SsrmRow[]): readonly SsrmRow[] {
+  calcPatch(rows: readonly SsrmRow[], mode: SsrmCalcPatchMode = 'merge'): readonly SsrmRow[] {
     const active = this.calc.filter((column) => column.evaluate !== undefined && column.reads.length > 0);
-    if (active.length === 0 || rows.length === 0) return rows;
+    if (active.length === 0 || rows.length === 0) return mode === 'merge' ? rows : [];
 
     const keyField = this.store.keyField;
     let stamped = false;
-    const out = rows.map((row) => {
+    const out: SsrmRow[] = [];
+    for (const row of rows) {
       // A row the book no longer holds — removed between the write and the
       // broadcast — has no offset to evaluate at. Left exactly as it came.
       const offset = this.store.offsetOf(row[keyField]);
-      if (offset === undefined) return row;
-      let next = row;
+      if (offset === undefined) {
+        if (mode === 'merge') out.push(row);
+        continue;
+      }
+      let next: SsrmRow | null = null;
       for (const column of active) {
-        let dirty = false;
-        for (const field of column.reads) {
-          if (Object.prototype.hasOwnProperty.call(row, field)) {
-            dirty = true;
-            break;
-          }
-        }
-        if (!dirty) continue;
-        if (next === row) {
-          next = { ...row };
+        if (!namesAny(row, column.reads)) continue;
+        if (next === null) {
+          next = mode === 'merge' ? { ...row } : { [keyField]: row[keyField] };
           stamped = true;
         }
         next[column.colId] = column.evaluate!(offset);
       }
-      return next;
-    });
+      if (next !== null) out.push(next);
+      else if (mode === 'merge') out.push(row);
+    }
+    if (mode === 'calcOnly') return out;
     return stamped ? out : rows;
   }
 
@@ -701,6 +739,14 @@ export class SsrmEngine {
     for (let i = from; i < to; i++) keys.push(this.store.valueAt(this.store.keyField, index[i]));
     return keys;
   }
+}
+
+/** Does this sparse patch row carry any of the fields an expression reads? */
+function namesAny(row: SsrmRow, fields: readonly string[]): boolean {
+  for (const field of fields) {
+    if (Object.prototype.hasOwnProperty.call(row, field)) return true;
+  }
+  return false;
 }
 
 /**

@@ -3,6 +3,7 @@ import type { AnyModule, AppDataLookup, GridPlatform, MarketsGridLocalStorageCon
 import type { GridHostContext } from '@starui/host';
 import type { UseProfileManagerResult, VisualExcelExportOptions, ProviderGridHostApi, GridEventBindingsHostApi } from '@starui/grid/customizer';
 import type { SSRMGridHandle } from '../engine/ssrmgrid-entry.js';
+import type { MarketsGridRowModel } from '../engine/resolveUseSsrm.js';
 import type {
   PerspectiveColumnWindowOptions,
   PerspectiveMasterDetail,
@@ -67,12 +68,15 @@ export interface MarketsGridProps<TData = unknown> {
    * Which row engine to mount:
    * `'client'` → CSRM (default), `'server'` → CustomSSRMGrid,
    * `'perspective'` → a Table held once in a worker, this window reading only
-   * the blocks its viewport asks for. Ignored when `useSSRM` is set, EXCEPT
-   * for `'perspective'` — the boolean cannot express it.
+   * the blocks its viewport asks for, `'ssrm-engine'` → `@starui/ssrm-engine`'s
+   * columnar book, also worker-held and also read a block at a time. Ignored
+   * when `useSSRM` is set, EXCEPT for the two worker-held models — the boolean
+   * cannot express either.
    *
-   * `'perspective'` requires {@link MarketsGridProps.perspectiveTable}.
+   * `'perspective'` requires {@link MarketsGridProps.perspectiveTable};
+   * `'ssrm-engine'` requires {@link MarketsGridProps.ssrmEngineClient}.
    */
-  rowModel?: 'client' | 'server' | 'perspective';
+  rowModel?: MarketsGridRowModel;
   /**
    * The worker-held Perspective Table this window reads, opened by the host
    * (`client.open_table(name)`). Required by `rowModel: 'perspective'`, and
@@ -86,6 +90,39 @@ export interface MarketsGridProps<TData = unknown> {
    * {@link MarketsGridProps.rowIdField}.
    */
   perspectiveKeyColumn?: string;
+  /**
+   * The window's handle on a book held by `@starui/ssrm-engine` in a
+   * SharedWorker — an `SsrmEngineClient`. Reached with `rowModel:
+   * 'ssrm-engine'`.
+   *
+   * `null` while the book is being opened, which is a distinct state from
+   * `undefined` ("not using this seam"): the host must mount NO grid at all in
+   * that window rather than a CSRM stand-in, because a stand-in fires
+   * `onGridReady`, then `onGridPreDestroyed` → `platform.destroy()`, and the
+   * real grid lands on a destroyed platform with every platform-driven feature
+   * silently dead.
+   */
+  ssrmEngineClient?: unknown;
+  /**
+   * Index column of {@link MarketsGridProps.ssrmEngineClient}'s book — what
+   * makes an update an upsert, and what labels the grand total row. Defaults to
+   * {@link MarketsGridProps.rowIdField}.
+   */
+  ssrmEngineKeyColumn?: string;
+  /**
+   * Every block round trip on the `ssrm-engine` surface, measured at the
+   * boundary AG actually waits on: entry to `getRows` until `success`/`fail`.
+   *
+   * A MEASUREMENT seam, not a feature. It exists because "what does the
+   * MarketsGrid platform cost the read path" can only be answered by taking the
+   * same number at the same point on a MarketsGrid and on a plain
+   * `AgGridReact`, and a probe cannot reach inside the surface to install one.
+   */
+  ssrmEngineOnBlock?: (ms: number, outcome: 'ok' | 'fail', request: unknown) => void;
+  /** The surface's own handle — refresh, live control, calc diagnostics. */
+  ssrmEngineSurfaceRef?: {
+    current: import('../engine/SsrmEngineMarketsGridSurface.js').SsrmEngineMarketsGridSurfaceHandle | null;
+  };
   /**
    * Tree hierarchy fields, outermost first — AG's SSRM **tree** mode instead of
    * its row-group mode. Each level is served from the worker exactly as a group

@@ -3,14 +3,20 @@
 A columnar row engine written to AG Grid's server-side row model contract.
 
 **Status: the book lives in a SharedWorker, three windows have been measured on
-one of it, and it can be driven by a real provider through `host-data`. See
-"What is not here" for what remains.**
+one of it, it can be driven by a real provider through `host-data`, and it runs
+as a MarketsGrid surface (`rowModel="ssrm-engine"`). See "A MarketsGrid
+surface" for what that cost, and "What is NOT here" for what remains.**
 
 Run it: build and serve `@starui/perspective-ssrm-lab`, then open the Stress tab
 with **`?engine=ssrm`** for the generated book, or **`?engine=ssrm&book=provider`**
 for one fed by a provider. `scripts/browserSmokeProbe.mjs`,
 `scripts/workerBoundaryProbe.mjs`, `scripts/multiWindowProbe.mjs` and
-`scripts/providerBookProbe.mjs` drive it.
+`scripts/providerBookProbe.mjs` drive it — the first two take `--tab` so they
+can be pointed at either surface.
+
+The **MarketsGrid** surface is the lab's `SSRM Engine · MarketsGrid` tab, driven
+by `scripts/marketsGridParityProbe.mjs`. The plain-`AgGridReact` `SSRM Engine`
+tab is kept beside it as the control.
 
 The remaining work is split into sessions in
 [`docs/SSRM_ENGINE_WORKLOG.md`](../../../docs/SSRM_ENGINE_WORKLOG.md).
@@ -405,7 +411,7 @@ the same shape as the lab's Stress tab:
 
 ## Correctness
 
-150 tests, of which the important ones are the two **differential fuzzes**:
+182 tests, of which the important ones are the two **differential fuzzes**:
 `engine.fuzz.test.ts` (250 mutation frames plus a churn run, comparing every
 query shape against a deliberately stupid brute-force oracle built from plain
 objects) and `worker/deltaPath.fuzz.test.ts` (260 frames through the whole push
@@ -960,6 +966,183 @@ path. Interleaving the two URLs in one series showed the plain baseline reading
 is bimodal on identical code, the same artifact already documented for
 `providerBookProbe`. Two consecutive runs of one configuration is not a control.
 
+## A MarketsGrid surface
+
+Until session 6 this engine ran under a plain `AgGridReact`.
+`SsrmEngineMarketsGridSurface` in `@starui/grid` is the product surface, reached
+with `rowModel="ssrm-engine"` and an `ssrmEngineClient`; everything with a rule
+behind it lives in `createSsrmEngineRowEngine` here, exactly as the Perspective
+surface pushes its rules into `createPerspectiveRowEngine`.
+
+**Nothing about it is shared by copy.** The set-filter wrapper, the status
+panels, the export path, the alerts full-book fetcher and the saved-filter count
+are the SAME modules the Perspective surface uses, reached through one grid
+`context` key. That key used to be called `perspectiveEngineHolder` and is now
+`serverEngineHolder`: two engines put an engine there, every consumer reads it
+structurally, and the alternative was a second key with a second copy of four
+consumers.
+
+### The parity run, and what it caught
+
+`scripts/marketsGridParityProbe.mjs` drives the lab's **SSRM Engine ·
+MarketsGrid** tab and checks every item on the parity list against the running
+grid. It refuses to report rather than pass when it could not have failed: a
+compile refusal is fatal (a refused column stamps nothing, so every assertion
+about it compares `undefined` to `undefined`), and every query asserts it was
+seen to CHANGE the answer.
+
+Its first run failed **seven of seventeen items**, and the split is the useful
+part — **two were the feature and five were the probe**:
+
+| found | which |
+|---|---|
+| **the quick search could not be cleared from an empty grid** | the feature, and the more interesting of the two |
+| **a detached `getColId` threw on every committed edit** | the feature — see below |
+| a set filter read before its async values arrived | the probe |
+| a set filter asked for on a column this book does not have | the probe |
+| a search term that matches nothing, so "cleared" could not be told from "still filtered" | the probe |
+| export and cell edit measured while the grid was still empty from the term above | the probe, twice |
+
+**The quick search bridge listened only to `modelUpdated`, and that event does
+not fire when the grid is empty.** MEASURED by subscribing to `modelUpdated`,
+`filterChanged`, `storeUpdated` and `gridOptionChanged` at once and setting
+`quickFilterText` to a term matching nothing: **ten events on the way in, zero
+on the way out.** AG has no rows and no store to update, so nothing happens —
+and the box becomes unclearable from exactly the state a user most needs to
+escape. The reconciliation now also runs on the timer that reports the viewport;
+both call one function with one comparison, so the event is the fast path and
+the timer is the one that works when there is nothing on screen.
+
+**And a defect that was not this session's at all.** Conditional styling's timed
+activations read `const getColId = event.column?.getColId` and called it
+unbound. AG's `getColId()` is `return this.colId`, so it threw *"Cannot read
+properties of undefined (reading 'colId')"* from inside AG's minified code, out
+of its async event queue, on EVERY committed cell edit on any grid with that
+module mounted — with no frame naming the file. Nothing downstream complained
+loudly enough for anyone to notice; a probe that treats a page error as a
+failure did. Fixed, with a regression test whose column stub reads `this`,
+because a plain `{ getColId: () => 'x' }` passes whether the call is bound or
+not.
+
+Everything passes now:
+
+```
+node packages/react-grid/ssrm-engine/scripts/marketsGridParityProbe.mjs
+```
+
+| | |
+|---|---|
+| calculated columns installed, refusals | **6 / 0**, authored in the customizer |
+| set-filter values, stored / calculated column | 8 values / `["cheap","fair","rich"]` |
+| sort a calculated column, asc vs desc top row | 0.0117 vs 33,278 |
+| filter a calculated column | 3 of 20,000, cleared back to 20,000 |
+| group by a calculated column | 3 buckets |
+| quick search | 20,000 → 11 → 20,000, and clearable from 0 rows |
+| export | **20,000 rows**, carrying the calculated cells |
+| cell edit → the book | `esgScore` 318.33 → 329.33 |
+| the author's own calculated cell | `calc_liveSum` 1151.85 → **1162.85**, the exact identity |
+| blocks failed / rpc timed out / late / pending | **0 / 0 / 0 / 0** |
+
+The last row of that table is the gap session 5 recorded closing: `host.publish`
+skips the port that caused a write, so a window that edited did not get the
+columns computed FROM its edit. It now gets a **calc-only echo** — the key and
+the re-stamped calculated cells and nothing else, because echoing the raw cell
+back would make AG flash the cell the user just typed into. It is asserted as an
+identity over the row's own post-edit values rather than as "the number moved":
+this book ticks `esgScore`, so a tick landing on that row would move
+`calc_liveSum` on its own and a did-it-change check would pass without the echo
+existing at all.
+
+### What the platform costs the read path — measured
+
+The question this session owns. Both surfaces run the SAME book in the SAME
+SharedWorker under the same book id, so they share one book and "a second book
+was built" is not on the list of things a difference could be. Three rounds,
+**alternating the two tabs in one series** (rule 14: this metric is bimodal on
+identical code):
+
+| | plain `AgGridReact` | MarketsGrid |
+|---|---|---|
+| block round trip through the port | **2.1-2.4 ms** | **2.3-2.4 ms** |
+| AG `getRows` end to end, under a real scroll | **2.6-2.7 ms** median | **3.6-11.2 ms** median |
+| the same, p90 | 3.1-4.6 ms | **56-110 ms** |
+| first row painted | 1,708-1,763 ms | 2,452-2,489 ms |
+| SORT, first block | 59-72 ms | 115-140 ms |
+| columns | 120 | 126 |
+
+**The boundary is untouched and the window is not.** The port round trip is the
+same number on both — the platform costs the worker path nothing — while AG's
+end-to-end block read is 1.4-4.3x on the median and roughly 20x at p90. Since
+the two differ only in what runs in the WINDOW, that gap is the platform's own
+per-block and per-cell work delaying the continuation that answers AG, not the
+row supply. First row costs a consistent **~700 ms** more and a sort about 2x.
+
+That is the finding, and it is worth more than the feature: a blotter that needs
+the last millisecond of block latency should know the chrome is where it goes.
+
+**Round 3 of that series read 12,439 ms and 13,112 ms to first row on the two
+tabs in the same round** — the documented bimodality, appearing on both surfaces
+at once, which is exactly why the series alternates rather than batches.
+
+**Two duplicate whole-book passes were found and removed on the way, and the
+honest note is that neither was the tail.**
+
+1. The grand total was fetched on every ROOT block whether or not the grid had a
+   totals row — a whole-book materialise and aggregate, awaited before the rows
+   settle, for a row that does not exist. It took the end-to-end median to
+   6.6-12.2 ms with a **69 ms p90**. The engine now asks the grid
+   (`getGridOption('grandTotalRow')`) rather than being told, so it cannot drift
+   from what is on screen.
+2. The status bar's `leafRows` and the store's row count are the SAME number —
+   `countFiltered` strips grouping itself — and were issuing two identical RPCs
+   per tick. One now.
+3. And in the engine: `countFiltered`/`grandTotal` build their request by
+   stripping grouping to `[]` where a block request omits it, so `groups: []`
+   and `groups: null` keyed two cache entries for an identical index. On a
+   ticking book, where every write clears the cache, that is a second whole-book
+   pass in front of the block the user is scrolling towards. `queryKey` now
+   normalises empty to absent.
+
+The third made no measurable difference to the figures above, and is recorded as
+a correctness-of-cost fix rather than as a win.
+
+### Where the set-filter ceiling should sit — measured
+
+`distinctValues` refuses above `maxSetFilterValues` rather than truncating. The
+default was 50,000, inherited from the Perspective decision. What a user
+actually waits for, on the 20,000-row book
+(`scripts/distinctValuesProbe.mjs`, medians, value cache invalidated between
+runs):
+
+| distinct values | STORED (dictionary walk) | CALCULATED (scan of the book) | across the port |
+|---|---|---|---|
+| 8 | 0.21 ms | 5.64 ms | 0.43 ms |
+| 100 | 0.21 ms | 4.88 ms | — |
+| 1,000 | 0.29 ms | 4.20 ms | 0.46 ms |
+| 5,000 | 0.59 ms | 4.62 ms | — |
+| 20,000 (every row distinct) | **1.47 ms** | **5.83 ms** | **3.21 / 8.11 ms** |
+
+**Decided: the ceiling stays at 50,000, and now for a measured reason.** The
+whole round trip at 20,000 distinct values is 3.2 ms for a stored column and
+8.1 ms for a calculated one — one block read — and AG virtualises the checkbox
+list, so the row count does not drive its render either. Lowering it would cost
+parity (CSRM shows every distinct value) to save nothing.
+
+**What the measurement changed is the understanding of what the ceiling
+protects.** The two columns of that table have different shapes: a stored
+column's cost tracks CARDINALITY, because it walks the dictionary, while a
+calculated column's tracks the BOOK, because it scans and evaluates per row —
+flat at 4.2-5.8 ms whether the answer is 8 values or 20,000. So the ceiling
+does not bound the cost that actually grows. At 20k rows a calculated set filter
+is ~5 ms; at a million it is the number to watch, and no ceiling on the VALUE
+count will help. A refusal is at least cheap: the calculated path bails the
+moment it passes the ceiling rather than collecting the domain and discarding
+it — 0.64 ms to refuse 20,000 values at a 1,000 ceiling.
+
+Not measured: the browser-side cost of AG rendering the list itself. The
+parity run opens both filters with no perceptible delay and the Perspective path
+has `positionId` at 20,000 working live, but neither is a timing.
+
 ## What IS here
 
 - the full `IServerSideGetRowsRequest` contract: `startRow`/`endRow`,
@@ -1034,6 +1217,15 @@ is bimodal on identical code, the same artifact already documented for
   compiled expression through the same six reads, and every query path consumes
   it. One comparator, one definition of "no position on the number line", one
   place a calculated column has to be taught about
+- **`createSsrmEngineRowEngine`** (`rowEngine.ts`) — the row engine a MarketsGrid
+  surface mounts, peer to `createPerspectiveRowEngine` and deliberately much
+  smaller: status counts from the worker, the grand total created one way and
+  updated another, the quick search, set-filter values, a whole-book export that
+  refuses above a ceiling, coalesced cell edits, and the viewport report. AG Grid
+  is typed structurally, so it is testable with three methods and no grid
+- **`SsrmEngineMarketsGridSurface`** in `@starui/grid` — the mount, reached with
+  `rowModel="ssrm-engine"` and an `ssrmEngineClient`. See "A MarketsGrid surface"
+  below
 
 ## What is NOT here
 
@@ -1052,24 +1244,21 @@ Stated plainly so nobody plans around a gap:
   on a sort or filter change. What is not covered is a write landing while a
   block for the OLD shape is still in flight; `asyncDatasource.test.ts` covers
   the settle-once half of that by construction, not the row-correctness half
-- **a calculated column is not editable, and a window that writes does not get
-  its own calculated cells back.** `host.publish` skips the port that caused a
-  write, because that window has already rendered its own edit — but it has not
-  rendered the calculated columns that depend on it, so a window-originated
-  `applyUpdate` leaves its own derived cells stale until the block is re-read.
-  No live surface does this today (the lab's writes come from the provider
-  inside the worker, which has no origin port), so it is recorded rather than
-  fixed: cell-edit commit is session 6's, and that is where it should land
 - **a calculated column cannot be a TREE field or a `groupKeys` ancestor that
   the request did not group by.** Grouping BY one works, and so does reading its
   children; `treeFields` is a construction option naming store fields and has
   not been exercised with an expression
-- **calculated columns are wired to the PLANNER, not to a product surface.**
-  `planSsrmCalcColumn(col, { backend: 'ssrm-engine' })` produces a plan carrying
-  the AST, `ssrmEngineCalcColumnDefs` collects them, and the lab's Stress tab
-  installs four of them on `?engine=ssrm&calc=1`. What does NOT exist is the
-  MarketsGrid surface that lets a user author one and see it — that is session
-  6, along with set-filter values, status-bar panels, quick search and export
+- **there is no cross-row STYLE-RULE seam on the MarketsGrid surface.** A rule
+  like `[price] > AVG([price])` needs the engine to answer a boolean expression
+  and a scalar aggregate over the whole filtered book, and this engine has no
+  expression language of its own to compile a rule into. The surface therefore
+  omits `ssrmCountMatchingExpression` and `ssrmAggregateScalar` from the grid
+  context rather than stubbing them: a caller that finds them absent paints
+  nothing, where one that always answered `null` would be read as "no row
+  matches". The Perspective surface has both
+- **`masterDetail` and `treeFields` are Perspective-surface props.** Neither is
+  wired on this one, and neither is MarketsGrid parity — the CSRM surface has
+  them on no path either
 - **the planner does not pre-validate against the engine's refusal list**, and
   that is deliberate. It parses; everything that parses is planned; the engine
   refuses BY NAME and retains the reason in `calcDiagnostics()`. A second copy

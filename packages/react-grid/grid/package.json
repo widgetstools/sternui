@@ -50,7 +50,8 @@
     "tailwind-merge": "^3.5.0",
     "zustand": "^5.0.12",
     "@starui/ssrm-grid": "*",
-    "@starui/perspective-grid": "*"
+    "@starui/perspective-grid": "*",
+    "@starui/ssrm-engine": "*"
   },
   "devDependencies": {
     "@starui/design-system": "*",

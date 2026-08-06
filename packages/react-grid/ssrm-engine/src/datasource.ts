@@ -34,6 +34,16 @@ export interface SsrmGetRowsParamsLike {
      * along and the boundary was throwing them away.
      */
     pivotResultFields?: string[];
+    /**
+     * The pinned grand total row, on a ROOT block only.
+     *
+     * AG CREATES that row from this and does not UPDATE it — five fresh totals
+     * over five non-purging refreshes left the row showing the first. Keeping
+     * it live needs the other documented path, a transaction whose row id is
+     * the grand total's, so both are needed and they answer different moments.
+     * See `rowEngine.ts`.
+     */
+    grandTotalData?: Record<string, unknown>;
   }): void;
   fail(): void;
 }

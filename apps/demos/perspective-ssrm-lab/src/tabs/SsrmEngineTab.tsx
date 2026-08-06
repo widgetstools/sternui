@@ -22,13 +22,19 @@ import { LAB_SSRM_CALC_COLUMNS } from '../data/ssrmCalcColumns';
  * viewer to notice an absence is not a demo, so the buttons below DO the thing
  * and the panel says what the engine reports.
  *
- * It mounts a plain `AgGridReact`, exactly as the Stress tab does. That is a
- * statement about scope, not an oversight: the MarketsGrid surface
- * (`SsrmEngineMarketsGridSurface`, set-filter values served from the engine,
- * quick search bridged through `modelUpdated`, status-bar panels, cell-edit
- * commit, export) is session 6, and every one of those was a separate bug on
- * the Perspective path. Showing a MarketsGrid here before those exist would
- * demonstrate a surface that does not work yet.
+ * It mounts a plain `AgGridReact`, exactly as the Stress tab does, and it keeps
+ * doing so now that `SsrmEngineMarketsGridSurface` exists: **this tab is the
+ * CONTROL.** The `SSRM Engine · MarketsGrid` tab runs the same book, in the same
+ * SharedWorker, under the same book id, with the whole platform on top — and the
+ * A/B that answers "what does the platform cost the read path" needs two
+ * addresses to alternate between in one series, because the metric is bimodal
+ * on identical code. Both publish the same `__ssrmEngineGrid` handle, which is
+ * what makes the comparison a `--tab` flag rather than a second probe.
+ *
+ * The buttons stay here for the same reason: a plain AG Grid has no customizer
+ * to author a calculated column in, so the demo has to drive the API. The
+ * MarketsGrid tab deliberately has none — there, the header menus and the
+ * row-group panel are the point.
  *
  * The Stress tab is untouched and still defaults to calc columns OFF, because
  * every documented boundary figure (2.40 ms median per block) was taken with
