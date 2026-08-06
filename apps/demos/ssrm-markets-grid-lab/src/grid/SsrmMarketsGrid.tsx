@@ -51,9 +51,9 @@ export interface SsrmMarketsGridProps {
  * desk -> book. Two levels, so a child level is a route rather than a leaf.
  *
  * Both are REAL fields of this book, and that is not a detail: the first draft
- * used , which this book does not have — the engine bucketed all
- * 50,000 rows into one null group, AG showed a single empty-keyed root, and it
- * looked exactly like a broken hierarchy rather than a mistyped field name.
+ * used `region`, which this book does not have — the engine bucketed all 50,000
+ * rows into one null group, AG showed a single empty-keyed root, and it looked
+ * exactly like a broken hierarchy rather than a mistyped field name.
  */
 const TREE_FIELDS = ['desk', 'book'] as const;
 
