@@ -63,6 +63,9 @@ import { GridChromeProvider } from './GridChromeContext';
 import { useGeneralSettingsFromContext } from './GeneralSettingsContext';
 import { useProfileSelectorActions } from './useProfileSelectorActions';
 
+/** Stable empty array, so an absent hierarchy is not a new identity per render. */
+const EMPTY_TREE_FIELDS: readonly string[] = [];
+
 export interface MarketsGridHostProps<TData> {
   rowData: TData[];
   columnDefs: unknown[];
@@ -132,6 +135,7 @@ export interface MarketsGridHostProps<TData> {
   ssrmEngineOnBlock?: MarketsGridProps<TData>['ssrmEngineOnBlock'];
   ssrmEngineSurfaceRef?: MarketsGridProps<TData>['ssrmEngineSurfaceRef'];
   perspectiveTreeFields?: readonly string[];
+  treeFields?: readonly string[];
   perspectiveColumnWindow?: MarketsGridProps<TData>['perspectiveColumnWindow'];
   masterDetail?: MarketsGridProps<TData>['masterDetail'];
   suggestSsrmAbove?: number;
@@ -204,6 +208,7 @@ function MarketsGridHostInner<TData>({
   ssrmEngineOnBlock,
   ssrmEngineSurfaceRef,
   perspectiveTreeFields,
+  treeFields: treeFieldsProp,
   perspectiveColumnWindow,
   masterDetail,
   suggestSsrmAbove,
@@ -223,8 +228,22 @@ function MarketsGridHostInner<TData>({
   const platform = useGridPlatform();
 
   /**
-   * `masterDetail` / `perspectiveTreeFields` are read by the Perspective
-   * surface only. Say so out loud.
+   * ONE hierarchy, whichever name the caller used.
+   *
+   * `perspectiveTreeFields` predates `rowModel: 'ssrm-engine'` supporting the
+   * same thing, and a prop whose name says one engine while both read it is
+   * exactly the drift this repo keeps paying for. The new name wins; the old
+   * one keeps working.
+   */
+  const treeFields = treeFieldsProp ?? perspectiveTreeFields ?? EMPTY_TREE_FIELDS;
+
+  /**
+   * `masterDetail` / `treeFields` are read by the WORKER-HELD surfaces —
+   * Perspective and `ssrm-engine` both. Say so out loud on the others.
+   *
+   * They were Perspective-only until the ssrm surface grew them, and this
+   * warning said exactly that. A warning that is itself out of date is worse
+   * than none: it sends the reader to change the one thing already right.
    *
    * A prop that silently does nothing on the surface it was set on is the
    * exact failure this path keeps producing — it is how the saved-filter
@@ -235,21 +254,26 @@ function MarketsGridHostInner<TData>({
   useEffect(() => {
     if (process.env.NODE_ENV === 'production') return;
     if (perspectiveTable || perspectivePending) return;
+    // The ssrm surface reads both of these now, so a grid on it is not one to
+    // warn at.
+    if (ssrmEngineClient) return;
     const unsupported: string[] = [];
     if (masterDetail) unsupported.push('masterDetail');
-    if (perspectiveTreeFields?.length) unsupported.push('perspectiveTreeFields');
+    if (treeFields.length) unsupported.push('treeFields');
     if (perspectiveColumnWindow?.enabled) unsupported.push('perspectiveColumnWindow');
     if (unsupported.length === 0) return;
     // eslint-disable-next-line no-console
     console.warn(
       `[MarketsGrid] ${unsupported.join(' and ')} ${
         unsupported.length > 1 ? 'are' : 'is'
-      } read by the Perspective surface only, and this grid is not on it. ` +
-        "Set rowModel='perspective' with a perspectiveTable, or remove the prop.",
+      } read by the worker-held surfaces only, and this grid is on neither. ` +
+        "Set rowModel='perspective' with a perspectiveTable, or " +
+        "rowModel='ssrm-engine' with an ssrmEngineClient, or remove the prop.",
     );
   }, [
     masterDetail,
-    perspectiveTreeFields,
+    treeFields,
+    ssrmEngineClient,
     perspectiveColumnWindow,
     perspectiveTable,
     perspectivePending,
@@ -543,7 +567,7 @@ function MarketsGridHostInner<TData>({
           }
           columnDefs={perspectiveCalc.defs}
           calcExpressions={perspectiveCalc.expressions}
-          treeFields={perspectiveTreeFields}
+          treeFields={treeFields}
           columnWindow={perspectiveColumnWindow}
           masterDetail={masterDetail}
           theme={theme}
@@ -586,6 +610,8 @@ function MarketsGridHostInner<TData>({
           }
           columnDefs={ssrmEngineCalc.defs}
           calcColumns={ssrmEngineCalc.calcColumns as never}
+          treeFields={treeFields}
+          masterDetail={masterDetail as never}
           theme={theme}
           rowHeight={rowHeight}
           headerHeight={headerHeight}

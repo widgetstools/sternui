@@ -592,3 +592,122 @@ describe('SsrmEngineMarketsGridSurface — parity with the CSRM surface', () => 
     });
   });
 });
+
+/**
+ * ══ TREE DATA AND MASTER/DETAIL — new MarketsGrid API ══
+ *
+ * Neither is CSRM parity: the CSRM surface exposes them on no path, and they
+ * were `CustomSSRMGrid` props on a surface that was discarded as buggy. They
+ * existed on the Perspective surface and nowhere else, which made them one of
+ * the three entries in the losing engine's column of the session-8 decision.
+ */
+describe('SsrmEngineMarketsGridSurface — tree data', () => {
+  it('turns AG tree mode on and reads the hierarchy off the DATA', async () => {
+    const { last } = renderSurface({ treeFields: ['region', 'desk'] });
+    await waitFor(() => expect(last().serverSideDatasource).toBeDefined());
+    const options = last();
+    expect(options.treeData).toBe(true);
+    // AG sends no `rowGroupCols` in tree mode and asks these two instead —
+    // nothing in a book says which rows are parents, so the engine stamps the
+    // markers and these read them back.
+    expect(options.isServerSideGroup({ __ssrmTreeGroup: true })).toBe(true);
+    expect(options.isServerSideGroup({ __ssrmTreeGroup: undefined })).toBe(false);
+    expect(options.getServerSideGroupKey({ __ssrmTreeKey: 'EMEA' })).toBe('EMEA');
+  });
+
+  it('does NOT set treeData when there is no hierarchy', async () => {
+    // Spread as `{}` rather than `treeData: false`: an explicit false is still
+    // a value and would beat a pipeline-supplied option from the customizer.
+    const { last } = renderSurface();
+    await waitFor(() => expect(last().serverSideDatasource).toBeDefined());
+    expect(last().treeData).toBeUndefined();
+  });
+
+  it('stamps the hierarchy onto every request the datasource sends', async () => {
+    // Without this the engine sees a flat request and answers the leaf level —
+    // a tree that renders every row at depth 0 with no parents at all.
+    const { last, client } = renderSurface({ treeFields: ['region', 'desk'] });
+    await waitFor(() => expect(last().serverSideDatasource).toBeDefined());
+    await new Promise<void>((resolve, reject) => {
+      last().serverSideDatasource.getRows({
+        request: { startRow: 0, endRow: 100 },
+        success: () => resolve(),
+        fail: () => reject(new Error('block failed')),
+      });
+    });
+    const [request] = (client.getRows as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(request.treeFields).toEqual(['region', 'desk']);
+  });
+});
+
+describe('SsrmEngineMarketsGridSurface — master/detail', () => {
+  const md = {
+    detailColumnDefs: [{ field: 'positionId' }],
+    matchFields: { desk: 'desk' },
+  };
+
+  it('reads a master row’s children from the BOOK, not from the block cache', async () => {
+    const { last, client } = renderSurface({ masterDetail: md });
+    await waitFor(() => expect(last().serverSideDatasource).toBeDefined());
+    const options = last();
+    expect(options.masterDetail).toBe(true);
+
+    const rows = await new Promise<Record<string, unknown>[]>((resolve) => {
+      options.detailCellRendererParams.getDetailRowData({
+        data: { desk: 'Rates' },
+        successCallback: resolve,
+      });
+    });
+    expect(rows).toEqual([{ positionId: 'p0' }]);
+    // Matched by EQUALITY on the mapped field, and deliberately NOT scoped to
+    // the grid's own filter: a master row expands onto the same children
+    // whatever else is on screen.
+    const call = (client.getRows as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0];
+    expect(call.filterModel).toEqual({
+      desk: { filterType: 'text', type: 'equals', filter: 'Rates' },
+    });
+  });
+
+  it('answers NOTHING for an empty match rather than the whole book', async () => {
+    // 50,000 rows in a detail panel is a hung tab, not a degraded answer.
+    const { last, client } = renderSurface({
+      masterDetail: { detailColumnDefs: [], matchFields: {} },
+    });
+    await waitFor(() => expect(last().serverSideDatasource).toBeDefined());
+    const before = (client.getRows as ReturnType<typeof vi.fn>).mock.calls.length;
+    const rows = await new Promise<Record<string, unknown>[]>((resolve) => {
+      last().detailCellRendererParams.getDetailRowData({ data: {}, successCallback: resolve });
+    });
+    expect(rows).toEqual([]);
+    expect((client.getRows as ReturnType<typeof vi.fn>).mock.calls.length).toBe(before);
+  });
+
+  it('calls back with NO ROWS when the read fails, rather than never calling back', async () => {
+    // AG's contract is a callback called exactly once. A rejection that reached
+    // it as nothing spins the detail grid forever.
+    const client = fakeClient({
+      getRows: vi.fn(async () => {
+        throw new Error('the book said no');
+      }),
+    });
+    const { last } = renderSurface({ masterDetail: md, client });
+    await waitFor(() => expect(last().serverSideDatasource).toBeDefined());
+    const rows = await new Promise<Record<string, unknown>[]>((resolve) => {
+      last().detailCellRendererParams.getDetailRowData({
+        data: { desk: 'Rates' },
+        successCallback: resolve,
+      });
+    });
+    expect(rows).toEqual([]);
+  });
+
+  it('a TREE PARENT and the grand total are never masters', async () => {
+    const { last } = renderSurface({ masterDetail: md, treeFields: ['desk'] });
+    await waitFor(() => expect(last().serverSideDatasource).toBeDefined());
+    const isRowMaster = last().isRowMaster;
+    expect(isRowMaster({ positionId: 'p0' })).toBe(true);
+    expect(isRowMaster({ __ssrmTreeGroup: true })).toBe(false);
+    expect(isRowMaster({ __grandTotal: true })).toBe(false);
+    expect(isRowMaster(undefined)).toBe(false);
+  });
+});

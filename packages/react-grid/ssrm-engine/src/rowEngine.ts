@@ -173,6 +173,15 @@ export interface SsrmEngineRowEngineOpts {
   /** Rows of slack either side of the declared viewport. See the surface. */
   viewportSlackRows?: number;
   /**
+   * TREE DATA — the hierarchy this window views the book through.
+   *
+   * Stamped onto every request the datasource sends, because AG sends no
+   * `rowGroupCols` in tree mode and the engine needs something to stand in for
+   * them. On the request rather than on the engine so two windows can view one
+   * worker-held book through different hierarchies; see `types.ts`.
+   */
+  treeFields?: readonly string[];
+  /**
    * Floor on how often the expanded routes are re-read WHILE GROUPING.
    *
    * The push path is off under grouping (see {@link SsrmEngineRowEngine.groupRefreshStats}),
@@ -257,6 +266,22 @@ export interface SsrmEngineRowEngine {
    * because a short file reads as a complete one.
    */
   readAllRows(): Promise<Record<string, unknown>[] | null>;
+  /**
+   * Rows of the book matching a set of field values — MASTER/DETAIL.
+   *
+   * `CustomSSRMGrid` answers this from a client-side mirror that holds every
+   * row; this window holds only the blocks in view, so it has to ask the book.
+   *
+   * **Deliberately NOT scoped to the grid's filter or its sort.** A master row
+   * expands onto the same children whatever else is on screen — filtering the
+   * parent grid to EMEA must not silently empty a detail panel, and a detail
+   * grid has its own column state and its own ordering. That is the same
+   * decision the Perspective surface took, for the same reason.
+   */
+  readMatchingRows(
+    match: Record<string, unknown>,
+    limit?: number,
+  ): Promise<Record<string, unknown>[]>;
   /** A committed cell edit. Coalesced per row so one keystroke is one write. */
   applyEdit(edit: SsrmCellEdit): void;
   /** Tell the worker what this window can see, so a tick carries only those rows. */
@@ -355,9 +380,30 @@ export function createSsrmEngineRowEngine(
     for (const listener of listeners) listener(status);
   }
 
-  /** True while the request is asking for a level below the root. */
+  /**
+   * True while the grid is showing a TREE OF LEVELS rather than a flat list —
+   * by row grouping OR by tree data.
+   *
+   * **Tree data counts, and leaving it out was a defect with four separate
+   * symptoms.** AG sends no `rowGroupCols` at all in tree mode, so a predicate
+   * that reads only that field calls a tree "flat", and everything gated on it
+   * then does the wrong thing:
+   *
+   *   1. `setRowCount` — illegal while grouping (AG error #28, SILENT without
+   *      ValidationModule) and equally illegal here. MEASURED: it set 50,000 on
+   *      a tree store and the grid rendered 50,001 flat rows with no hierarchy
+   *      at all, while `treeData` was on and the engine was returning correct
+   *      parent rows;
+   *   2. the PUSH PATH — a leaf id under a tree is its path, exactly as it is
+   *      under grouping, so a pushed patch cannot name one;
+   *   3. the viewport's `pushRows` declaration, which follows the push path;
+   *   4. `filteredRows`, which under any tree is a count of top-level nodes and
+   *      not of rows.
+   */
   function grouped(request: SsrmGetRowsRequest): boolean {
-    return (request.rowGroupCols?.length ?? 0) > 0;
+    return (
+      (request.rowGroupCols?.length ?? 0) > 0 || (request.treeFields?.length ?? 0) > 0
+    );
   }
 
   /**
@@ -533,10 +579,20 @@ export function createSsrmEngineRowEngine(
     },
   });
 
+  const treeFields = opts.treeFields ?? [];
+
   const datasource: SsrmDatasourceLike = {
     getRows(params) {
-      const request = params.request;
+      /**
+       * The tree hierarchy is stamped on HERE, once, rather than by every
+       * caller. AG sends no `rowGroupCols` in tree mode, so without this the
+       * engine sees a flat request and answers the leaf level — a tree that
+       * renders every row at depth 0 and no parents at all.
+       */
+      const request: SsrmGetRowsRequest =
+        treeFields.length > 0 ? { ...params.request, treeFields } : params.request;
       const isRoot = (request.groupKeys?.length ?? 0) === 0;
+      params = { ...params, request };
       // Counted HERE rather than in `onBlock`, which only fires on completion.
       // Decremented in both settle paths below, and the async datasource
       // guarantees exactly one of them runs — which is the rule that makes a
@@ -971,6 +1027,34 @@ export function createSsrmEngineRowEngine(
       } catch (error) {
         opts.onError?.(error);
         return null;
+      }
+    },
+
+    async readMatchingRows(match, limit = 500) {
+      const fields = Object.entries(match);
+      // An empty match would select the WHOLE BOOK and hand it to a detail
+      // grid. Answer nothing instead: a master row with no match fields has no
+      // children by definition, and 50,000 rows in a detail panel is not a
+      // degraded answer, it is a hung tab.
+      if (fields.length === 0) return [];
+      const filterModel: SsrmFilterModel = {};
+      for (const [field, value] of fields) {
+        filterModel[field] =
+          value === null || value === undefined
+            ? { type: 'blank' }
+            : typeof value === 'number'
+              ? { filterType: 'number', type: 'equals', filter: value }
+              : { filterType: 'text', type: 'equals', filter: String(value) };
+      }
+      try {
+        const result = await client.getRows({ filterModel, startRow: 0, endRow: limit });
+        return result.rowData;
+      } catch (error) {
+        opts.onError?.(error);
+        // AG's detail callback must be called exactly once, and a rejection
+        // that reached it as nothing would spin the panel forever. The empty
+        // list is the honest answer here and the error is reported separately.
+        return [];
       }
     },
 

@@ -61,6 +61,21 @@ export interface SsrmGetRowsRequest {
   groupKeys?: unknown[];
   filterModel?: SsrmFilterModel | null;
   sortModel?: SsrmSortModelItem[];
+  /**
+   * TREE DATA: the hierarchy this window is viewing the book through.
+   *
+   * On the REQUEST rather than only on the engine, and that is the whole point.
+   * AG sends no `rowGroupCols` in tree mode, so something has to stand in for
+   * them — but the book is held ONCE in a SharedWorker and read by N windows,
+   * so a hierarchy configured on the engine would be a hierarchy every window
+   * shared. One blotter viewing `region -> desk` while another views the same
+   * book flat is the ordinary case, and it is the case sort, filter and
+   * grouping already support by travelling on the request.
+   *
+   * The engine's own `treeFields` construction option remains as the default
+   * for a book that has one shape; this WINS over it when present.
+   */
+  treeFields?: readonly string[];
 }
 
 export type SsrmRow = Record<string, unknown>;

@@ -825,6 +825,837 @@ free of any AG Grid import) and `./worker`.
 - `engine.countMatchingExpression(ast, request?)` / `engine.aggregateScalar(field, aggregate)` (+ the `client` pair and the RPC) — **the whole-book expression seam** a conditional-styling rule needs, and the reason a column header can light for a row no block has loaded. `headerPainter` asks "does ANY row match?", implemented client-side as `api.forEachNodeAfterFilter`, which visits **zero** nodes under a server row model — so on this surface the painter was not degraded but DEAD, and silently. The two have deliberately OPPOSITE scopes: the count follows the request’s filter (a header must not light for rows the user filtered away), the aggregate drops it and measures the whole book (an "above average" threshold is a property of the book — Excel’s convention, matched from the Perspective path rather than re-litigated, with the same known cost that such a rule can disagree with the totals row on the same screen). The **AST** crosses the port, never source: one language, one parser, and a compiled closure is not structured-cloneable. Truthiness is `calcOps.ts`’s, where `isTruthy(NaN)` is TRUE. A rule may name a CALCULATED column, because on this engine a calculated column is a column. A refused expression answers `null`, which is NOT 0 — the caller falls back to its client scan rather than unlighting the header. `aggregateScalar` takes the STYLE RULE’s vocabulary (`sum`/`avg`/`median`/`count`/`high`/`low`) so there is one vocabulary on the wire; `median` is implemented here because `aggregate.ts` has none (AG’s `valueCols` cannot ask for one)
 - `scripts/styleRuleHeaderProbe.mjs` — the seam driven live against rules SEEDED into the lab profile, 14/14. The rule is `[esgScore] > 999` — 36-46 of 50,000 rows, **none of them loaded** — and the probe re-checks that every 250 ms and REFUSES to report if a loaded row reaches the threshold, because a rule the client scan could answer would light the header with no seam at all. Cells are the control: the cross-book rule paints NO cell and still paints its header; an impossible rule paints neither; a rule every row matches paints both. The whole-book average under a filter leaving 24,687 of 50,000 rows read 491.88 where that population’s own average is 745.21 — 255 apart, against 3.95 of drift on a ticking book. Two earlier versions of it were worthless and both are recorded in the file: a rule written into module state with `store.setModuleState` reaches the store and never reaches the grid
 - `scripts/groupedParityProbe.mjs` — CSRM parity for a live GROUPED grid, 13/14. The expanded tree, the selection and the scroll position survive a refresh; an edit made while grouped reaches the book keyed by path; sort and filter work at depth including on a calculated column; group footers exist and agree with their group to the cent with the feed off (~0.95% out with it on, which is one tick and is the fixture). The one failure is recorded rather than worked around: **a changed cell does not FLASH**, grouped or flat — the platform row signal carried 30 `full` changes and not one per-row delta on this surface, which the surface now fixes by publishing every pushed transaction onto it (`onTransaction`), leaving conditional styling’s timed activation as the remaining half
+- **TREE DATA on the ssrm MarketsGrid surface** (`treeFields`) — a self-referencing hierarchy served a level at a time. The hierarchy travels on the REQUEST, not on the engine: the book is held once in a SharedWorker and read by N windows, so a hierarchy fixed at construction would be one every window shared, and one blotter viewing `desk -> book` while another views the same book flat is the ordinary case — the case sort, filter and grouping already support by travelling on the request. It is in the index key too, because two hierarchies that can produce the same group key would otherwise share one materialised index and the second read would be served the first one's rows. AG sends NO `rowGroupCols` in tree mode and reads the hierarchy off the DATA, so the engine stamps `SSRM_TREE_GROUP` / `SSRM_TREE_KEY` and the surface's `isServerSideGroup` / `getServerSideGroupKey` read them back. **New MarketsGrid API, not restored parity** — the CSRM surface exposes it on no path
+- **MASTER/DETAIL on the ssrm MarketsGrid surface** (`masterDetail`) — expand a row onto a detail grid of its children, read from the same worker-held book by equality on `matchFields`. Deliberately NOT scoped to the grid's filter or sort: a master row expands onto the same children whatever else is on screen. An empty match answers NOTHING rather than the whole book (50,000 rows in a detail panel is a hung tab, not a degraded answer), and a failed read calls AG's callback with no rows rather than never calling it, because AG's contract is a callback invoked exactly once and a rejection that reached it as nothing spins the panel forever. Also new API rather than parity
+- **`grouped()` counts a TREE as grouped**, and leaving it out was a defect with four symptoms. AG sends no `rowGroupCols` in tree mode, so a predicate reading only that field calls a tree flat — and then `setRowCount` fires (illegal while grouping, AG error #28, SILENT without ValidationModule), the push path stays on (a leaf id under a tree is its path, exactly as under grouping), the viewport declares `pushRows: true`, and `filteredRows` counts top-level nodes as rows. MEASURED: it set 50,000 on a tree store and the grid rendered **50,001 flat rows with no hierarchy at all**, while `treeData` was on and the engine was returning correct parent rows
+- `scripts/treeMasterDetailProbe.mjs` — both features driven live against the dedicated lab, 14/14. Each check refuses what would satisfy a broken version: a tree that never reached the engine renders every row at depth 0 and still looks like a working grid, so the probe expands to the LEAF level and asserts every leaf carries BOTH ancestors' values (a level-1 row is itself a parent and carries only its own field, so checking it proves nothing — and a key-overlap check fails outright on this book, which draws `desk` and `book` from the same alphabet); a detail grid showing the whole book is what an empty match produces, so the count is asserted smaller than the book and every child checked against the master. Detail grids are found through `api.forEachDetailGridInfo` — AG's own registry — because walking `__reactFiber# Current Features — `starui` MarketsUI Platform
+
+> **Living inventory** of every implemented capability across `packages/`,
+> grouped by architecture bucket and then by functional area. Update this file
+> in the same change that adds, modifies, or removes a feature — same rule as
+> `docs/IMPLEMENTED_FEATURES.md`. Treat omissions as a code-review blocker.
+>
+> Last reconciled: 2026-06-09 (sourced directly from `packages/` source.)
+
+## Document conventions
+
+- **Granular bullets** — one bullet per distinct capability (component, hook,
+  manager, util, IPC topic, transport, schema, etc.). If a class exposes
+  several public APIs that callers consume independently, list them
+  individually.
+- **Sub-headings** group features inside a package by functional area.
+- **Public subpath exports** (`package.json` `exports`) are called out per
+  package so consumers can find the public surface at a glance.
+- **Status tags** (`scaffold`, `deprecated`) appear inline where applicable.
+- **Skip tests/fixtures**. Skip private implementation details that aren't
+  importable.
+
+### Public vs internal
+
+A capability belongs in this inventory when a consumer **can import it** without
+reaching into package internals. Visibility is determined in this order:
+
+1. **`package.json` `"exports"`** — the authoritative public surface. If a
+   subpath isn't listed, it isn't public (even if source files exist).
+2. **Package root / subpath barrel** (`src/index.ts`, `customizer/index.ts`, …)
+   — symbols re-exported here are public for that subpath. Source files that
+   exist but aren't re-exported are **internal**.
+3. **Cross-package re-exports** — only list a symbol under the package that
+   actually exports it. If `@starui/engine` owns `StorageAdapter`, don't imply
+   it ships from `@starui/grid` unless the grid barrel re-exports it.
+
+**How to tag visibility in bullets:**
+
+| Tag | When to use | Example phrasing |
+|-----|-------------|------------------|
+| *(none)* | On a public barrel or documented subpath export | `- useDataProvider()` — hub-backed …` |
+| **Internal** | Implemented and user-visible at runtime, but not importable | `- applyProviderToGrid` — … **Internal** — not on public barrel` |
+| **Deprecated.** | Still exported; callers should migrate | `- useProviderStream` — … **Deprecated.** use `useDataProvider`` |
+
+**Common internal patterns** (list the behavior, tag if not importable):
+
+- **Composition internals** — toolbar shells, profile dialogs, and editor tabs
+  composed inside a parent (`MarketsGrid`, `DataProviderEditor`, `WorkspaceSetup`)
+  without their own barrel export.
+- **Runtime-only wiring** — scope migration, GC, and workspace init helpers that
+  run inside `initWorkspace()` but aren't on any public barrel.
+- **Type-only exposure** — interfaces used in public prop types but defined in
+  another package (document under the owning package; cross-reference elsewhere).
+
+**Review rule:** before adding a bullet, grep the package's `index.ts` (and
+`package.json` `exports`). If the symbol isn't there, either mark it **Internal**
+or omit it. Never document a symbol as a public export when only an internal
+module or a different package provides it.
+
+---
+
+## Bucket index
+
+1. [UI Design System](#1-ui-design-system) — `packages/design-system/`
+2. [React UI Controls](#2-react-ui-controls) — `packages/react-ui/`
+3. [React Grid](#3-react-grid) — `packages/react-grid/`
+4. [React Core](#4-react-core) — `packages/react-core/`
+5. [Shared / Core](#5-shared--core) — `packages/shared/`
+6. [Data Utilities](#6-data-utilities) — `packages/data/`
+7. [OpenFin Utils](#7-openfin-utils) — `packages/openfin/`
+8. [Angular UI Controls](#8-angular-ui-controls) — `packages/angular-ui/` *(scaffold)*
+9. [Angular Grid](#9-angular-grid) — `packages/angular-grid/` *(scaffold)*
+10. [Angular Core](#10-angular-core) — `packages/angular-core/` *(scaffold)*
+
+---
+
+## 1. UI Design System
+
+### 1.1 `@starui/design-system`
+
+**Path:** `packages/design-system/design-system`
+**Purpose:** Design tokens, theme runtime, CSS variable generation, and framework adapters for the MarketsUI platform.
+
+**Upgrade guide:** [`docs/guides/design-system-upgrade-and-openfin-palette.md`](../../docs/guides/design-system-upgrade-and-openfin-palette.md) — StarUI v1 OKLCH tokens, shadcn/AG Grid alignment, OpenFin palette bridge.
+
+**Public exports:**
+
+- `.` — root (tokens, adapters, `applyTheme`, cell renderers)
+- `./css` — bundled theme stylesheet
+- `./tailwind` — Tailwind preset
+- `./primeng` — PrimeNG theme preset
+- `./shadcn` — shadcn token generator
+- `./adapters/ag-grid` — AG Grid Quartz theme params + baked `Theme` objects (`agGridDarkTheme`, `agGridLightTheme`, comfort/blotter variants); `GridDensity` presets (`gridDensityStructuralParams`, `applyGridDensityToTheme`, `resolveGridDensity`) for ultra/compact/comfortable `spacing`, row/header heights, cell/header `fontSize`, and `iconSize` per AG Grid compactness theming (cached `withParams` per base theme)
+- `./tokens`, `./tokens/primitives`, `./tokens/semantic`, `./tokens/components`, `./tokens/controls`
+- `./cell-renderers` — bundled AG Grid cell renderer classes
+- `./cell-renderers-registry` — `cellRendererCatalogue`, `cellRendererComponents`, `getCellRendererEntry`, `CONFIGURABLE_RENDERER_IDS`, `CellRendererConfig` discriminated union
+
+#### Primitive tokens
+
+- Color palettes: paper, ink, graphite, teal, rose, amber, brand, cyan, purple, CVD-safe variants
+- Typography: font families, sizes, weights, letter-spacing, line-heights
+- Spacing scale, border radius, opacity scale, transition tokens, elevation/shadow scale
+- **StarUI v1 OKLCH tokens** (`tokens/starui-tokens.css`) — Azure accent, teal/rose buy/sell, FT paper light + blue-graphite dark; bare OKLCH components for alpha-friendly `oklch(var(--primary) / 0.12)` usage
+- **Compat bridge** (`adapters/compatCss.ts`) — `--ds-*`, `--bn-*`, `--p-*`, and surface scale aliases mapped from OKLCH source tokens for grid chrome and legacy consumers
+- **PrimeNG preset** — `definePreset(Aura, …)` Azure ramp + FI buy/sell semantics (`primeng/starui-primeng-preset` parity)
+- **AG Grid theme** — Quartz `staruiGridTheme` with light/dark `withParams` modes; OKLCH CSS vars; `data-ag-theme-mode` on `<html>` synced by `applyTheme` and runtime theme writers; density presets retained
+- **Tailwind preset** — OKLCH colors use `oklch(var(--token) / <alpha-value>)`; `fontSize` maps to `--text-*`; `h-control` / `size-control` map to `--control-h*` density tokens; shadcn opacity utilities resolve correctly in dark mode
+- **@starui/ui shadcn primitives** — aligned to StarUI v1 density (30px controls, 2px radius, semibold tracking-tight chrome, `shadow-card`/`shadow-overlay`, `bg-background` form surfaces, buy/sell badge variants)
+
+#### Semantic tokens
+
+- `ColorScheme` interface — primary, surface, text, border, accent, trade, action, state, overlay, chart, sidebar, CVD groups
+- `dark`, `light` (clinical), `lightPaper` (warm cream) schemes
+- Component tokens — per-component theming overrides
+- Control tokens — `ControlSize` and `ControlTier` for form-control variants
+
+#### Theme runtime
+
+- `applyTheme()` — toggle dark/light + CVD accessibility mode + light variant, persists to `localStorage`
+- `getTheme()` — read persisted theme with legacy key migration
+- `ThemeOptions` — `{ theme, cvd?, variant? }` shape; `variant`: `'clinical' | 'paper'` (light only; default `clinical`)
+- DOM: `data-theme="dark|light"`, optional `data-variant="clinical|paper"`, optional `data-cvd="on"`
+- Storage keys: `starui:theme` (canonical), `starui:cvd`, `starui:variant`, with `@starui/theme` legacy migration
+
+#### CSS generation
+
+- `generateUnifiedCSS()` — emit CSS custom properties from semantic tokens (dark + clinical + paper blocks); also on `./shadcn` as `generateShadcnCSS` / `getShadcnTokens`
+- Theme switching is DOM-attribute driven (`applyTheme()` sets `data-theme` / `data-variant` / `data-cvd`); WCAG contrast helpers live in `src/internal/wcag.ts` (not exported)
+- **Scrollbar styling** (`styles/scrollbar.css`) — thin, theme-aware scrollbars app-wide, **with an AG Grid viewport carve-out**: `.ag-root-wrapper` and descendants keep `scrollbar-width: auto` + a native `scrollbar-color`, so Chromium paints grid scrollbars on the compositor thread instead of the styled main-thread path — restores GPU-composited grid scrolling under streaming load on Windows
+
+#### Framework adapters
+
+- Tailwind preset — `darkMode: ['selector', '[data-theme="dark"]']`, HSL channel variables, surface scale 50–950, radius, font families
+- shadcn adapter — Radix/shadcn color-name unification + `--st-*` STARUI bridge
+- PrimeNG adapter — PrimeUI-compatible color mapping via `var(--ds-*)`
+- AG Grid adapters — `dark`, `light`, `comfort`, `blotter` variants; STARUI token colors (JetBrains Mono headers/cells, Inter chrome, 2px radii, 12px cell padding)
+
+#### AG Grid cell renderers
+
+Vanilla TS classes implementing `ICellRendererComp` — framework-agnostic
+(React + Angular), CSS-variable themed. Registered by string id in
+`cellRendererRegistry.ts` and wired into AG Grid via
+`gridOptions.components` (see `cellRendererComponents` map). The
+column-customization band 10 ("Cell Renderer") in the React grid lets
+end users pick any of these per column and author the config for the
+configurable ones.
+
+Zero-config built-ins:
+
+- `SideCellRenderer` (id `side`) — Buy/Sell badges
+- `StatusBadgeRenderer` (id `status-badge`) — Filled / Partial / Pending / Cancelled
+- `ColoredValueRenderer` (id `colored-value`) — sign-coloured numbers
+- `OasValueRenderer` (id `oas-value`) — threshold-driven (>80 = warning)
+- `SignedValueRenderer` (id `signed-value`) — always-show `+/-` prefix
+- `TickerCellRenderer` (id `ticker`) — bold cyan ticker symbols
+- `RatingBadgeRenderer` (id `rating-badge`) — credit/risk rating badges
+- `PnlValueRenderer` (id `pnl-value`) — P&L colouring + formatting
+- `FilledAmountRenderer` (id `filled-amount`) — fill qty / % rendering
+- `BookNameRenderer` (id `book-name`) — order-book identity
+- `ChangeValueRenderer` (id `change-value`) — price/rate delta
+- `YtdValueRenderer` (id `ytd-value`) — year-to-date performance
+- `RfqStatusRenderer` (id `rfq-status`) — RFQ state
+
+Configurable renderers (read `cellRendererParams` for user-authored
+config; theme-aware via `ThemeAwareColor = { dark?, light? }` slots
+with auto re-paint on `data-theme` change via `MutationObserver`):
+
+- `PillCellRenderer` (id `pill`) — exact-string-match rules
+  (value → bg / fg / border) with fallback style + pill/square shape
+- `HeatmapCellRenderer` (id `heatmap`) — numeric value → 2- or 3-stop
+  colour gradient, optional explicit domain
+- `PercentBarCellRenderer` (id `percent-bar`) — proportional horizontal
+  bar; `max` may be a literal or a sibling-field reference; optional
+  percent/value overlay
+- `TrendArrowCellRenderer` (id `trend-arrow`) — up/down/flat arrow with
+  delta value, configurable threshold dead-band and decimals
+- `SparklineCellRenderer` (id `sparkline`) — inline SVG line / area /
+  bar chart from an array-of-numbers cell value
+- `MultiLineCellRenderer` (id `multi-line`) — primary value + secondary
+  text from a sibling field (configurable size + colour)
+- `IconTextCellRenderer` (id `icon-text`) — leading or trailing icon
+  (full SVG markup resolved at write time from
+  `@starui/icons-svg/all-icons`) + cell text
+- `CountryFlagCellRenderer` (id `country-flag`) — 2-letter ISO code →
+  regional-indicator emoji flag + optional label
+- `RatingDeltaCellRenderer` (id `rating-delta`) — credit-rating cell
+  with up/down arrow vs. a previous-rating sibling field; configurable
+  ordered scale (defaults to S&P)
+- `TimeSinceCellRenderer` (id `time-since`) — auto-refreshing relative
+  time ("5m ago"); refresh cadence + future-colour override
+- `AllocationBarCellRenderer` (id `allocation-bar`) — stacked
+  horizontal bar with key→colour map and optional legend
+
+Per-renderer config types (`PillRendererConfig`,
+`HeatmapRendererConfig`, …) plus the discriminated-union
+`CellRendererConfig` envelope (`{ kind, config }`) live in
+`cellRendererRegistry.ts` and are exported from the package root.
+
+---
+
+### 1.2 `@starui/icons-svg`
+
+**Path:** `packages/design-system/icons-svg`
+**Purpose:** Framework-agnostic SVG icon catalogue (113 icons) for trading UIs.
+
+**Public exports:**
+
+- `.` — `ICON_PATHS`, `ICON_META`, helpers
+- `./react` — curated `lucide-react` re-exports + `DynamicIcon` (id → Lucide component)
+- `./angular` — `@lucide/angular` bindings: `LucideComponent`, `provideLucideIcons`, `provideLucideConfig`, `LUCIDE_ICONS`, `LUCIDE_CONFIG`, and per-icon standalone components (aliased to friendly names, e.g. `FileText`, `Home`)
+- `./all-icons` — `MARKET_ICON_SVGS`, `svgToDataUrl`, `marketIconToDataUrl`, named SVG constants, plus full icon-id enumeration
+- `./svg/*` — direct SVG file access
+
+#### Catalogue (grouped by domain)
+
+- **Trading (21):** bond, candlestick, coupon, credit-rating, duration, execute-trade, interest-rate, IPO, live-feed, market-depth, maturity, order-book, portfolio, position, price-alert, spread, stock, ticker, trade-ticket, watchlist, yield-curve
+- **Blotters (18):** allocation-blotter, audit-blotter, block-trade-blotter, cash-blotter, commodities-blotter, derivatives-blotter, equity-blotter, execution-blotter, fi-blotter, fx-blotter, order-blotter, pending-blotter, pnl-blotter, position-blotter, rejected-blotter, risk-blotter, settlement-blotter, trade-blotter
+- **Charts (6):** area-chart, bar-chart, blotter, heatmap, line-chart, waterfall
+- **Risk (11):** compliance, counterparty, drawdown, exposure-map, hedging, limits, risk, risk-gauge, scenarios, stress-test, volatility
+- **General (16):** alert, analytics, bank, calculator, clock, currency, dashboard, globe, market-data, notifications, percentage, P&L, reports, settings, trending-down, trending-up
+- **System (8):** code, download, eye, moon, refresh, sun, upload, wrench
+- **Trading actions (14):** buy, sell, execute, new-order, cancel-order, fill-report, options, futures, FX, crypto, equity, commodity, settlement, trades, algo
+- **Extended risk (9):** exposure, VaR, loss, profit, take-profit, stop-loss, liquidity, greeks, positions
+- **Extended general (6):** audit, export, filter, search, news, connectivity
+- **Extended charts (3):** depth-chart, indicator, volume
+
+#### Metadata APIs
+
+- `ICON_PATHS` — id → SVG path map
+- `ICON_META` — id → `{ name, category }`
+- `ICON_NAMES` — ordered id list (`MarketIconName` keys)
+- `ICON_CATEGORIES` — grouped by category
+- `getIconsByCategory()` — category filter
+
+#### SVG conventions
+
+- 24×24 viewBox, `currentColor` strokes/fills, no hardcoded colour, framework-neutral.
+
+---
+
+## 2. React UI Controls
+
+### 2.1 `@starui/ui`
+
+**Path:** `packages/react-ui/ui`
+**Purpose:** shadcn/Radix React primitives themed via `@starui/design-system`. Mandatory for any React UI in the monorepo (`<input>`/`<select>`/`<textarea>` forbidden — use these instead).
+
+**Public exports:**
+
+- `.` — all components except `Chart`
+- `./chart` — lazy-loaded Recharts wrapper
+- `./tailwind-config` — Tailwind preset to consume in app `tailwind.config`
+
+#### Layout & containers
+
+- `Accordion`, `AspectRatio`, `Card`, `Collapsible`, `ResizablePanelGroup`, `ResizablePanel`, `ResizableHandle`, `ScrollArea`, `Separator`, `Sheet`, `Tabs`
+
+#### Navigation
+
+- `Breadcrumb`, `DropdownMenu`, `Menubar`, `NavigationMenu`, `Pagination`, `ContextMenu`, `Command` (palette/combobox)
+
+#### Forms & inputs
+
+- `Button` (variants: default, outline, ghost, link, destructive)
+- `ButtonGroup` — styled cluster wrapper (no built-in toggle API; use `ToggleGroup` for toggles)
+- `Checkbox`, `Form` (`Form` aliases `FormProvider` from react-hook-form; exports `useFormField`, `FormField`, `FormItem`, `FormLabel`, `FormControl`, `FormDescription`, `FormMessage` — import `useForm` from `react-hook-form` directly)
+- `Input`, `InputOTP`, `Label`, `RadioGroup`, `Select`, `Slider`, `Switch`, `Textarea`
+- `Toggle`, `ToggleGroup`
+
+#### Data display
+
+- `Avatar`, `Badge`, `Calendar` (react-day-picker)
+- `Carousel` (Embla)
+- `Progress`, `Skeleton`, `Table` (semantic HTML rows/cells/headers/footers)
+- `Chart` primitives (`ChartContainer`, `ChartTooltip`, `ChartLegend`, …) — import via `@starui/ui/chart` subpath (not re-exported from root, to avoid pulling recharts into every consumer)
+
+#### Feedback & overlays
+
+- `Alert`, `AlertDialog`, `Dialog`, `Drawer` (vaul), `HoverCard`, `Popover`, `Tooltip` (`TooltipProvider`, `TooltipTrigger`, `TooltipContent`)
+- `Toast`, `Toaster`, `useToast` (Radix/sonner)
+- `SonnerToaster` — sonner provider
+
+#### Trading-specific composites
+
+- `CollapsibleToolbar` — sectioned toolbar with collapse
+- `ToolbarContainer` — toolbar layout wrapper
+- `VirtualizedList` — virtualised scroller
+
+#### Utilities & providers
+
+- `cn()` — clsx + tailwind-merge classname helper
+- `ThemeProvider` + `useTheme` — `next-themes` integration
+- `PortalContainerProvider`, `usePortalContainer`, `useResolvedPortalContainer` — popout/OpenFin portal targeting
+
+---
+
+## 3. React Grid
+
+### 3.1 `@starui/grid`
+
+**Path:** `packages/react-grid/grid`
+**Purpose:** Merged MarketsGrid product surface — AG Grid-backed React grid with the full customizer (formatters, conditional styles, calculated columns, saved filters, templates) and profile management.
+
+**Public exports:**
+
+- `.` — `MarketsGrid` component, toolbars, storage helpers, types
+- `./customizer` — hooks (`useEditJournal`, `useModuleState`, `useProfileManager`,
+  `useGridPlatform`, `useGridApi`, `useModuleDraft`, `useActiveThemeMode`, …),
+  module definitions, settings-panel primitives (`SettingsPanel`, `ExpressionEditor`,
+  `StyleEditor`, `FormatterPicker`, `CellRendererBand` + per-renderer config editors),
+  editing helpers (`resolveEditRecording`, `journalUndo`/`journalRedo`, `withJournalApplyGuard`),
+  grid-state capture/restore (`captureGridState`, `applyGridState`),
+  toolbar-date bridge (`ToolbarDateSettingsPanel`, `applyHistoricalToolbarDateToAppData`),
+  `ChromeButton` (shadcn `Button` with chrome CSS resets for legacy `.ds-*` / `.fx-*` styling)
+- `./styles.css` — widget stylesheet (barrel: `@import` of core + chrome splits)
+- `./styles/core.css` — filter-pill tokens + toolbar button theme layer
+- `./styles/chrome.css` — primary toolbar, filters row, banners, density pill layout
+- `./runtime/openfin` — OpenFin popout helpers
+
+#### Core grid
+
+- `MarketsGrid` — main grid component (host integration, column defs, real-time rows)
+- `MarketsGridCore` — grid platform + memo'd AG Grid surface only (no toolbar/settings/profile chrome); same pipeline as `MarketsGrid`
+- `MarketsGridHandle` — imperative ref (grid API + platform methods, `exportVisualExcel`)
+- `MarketsGridProps` — host context, storage factory, module overrides, callbacks;
+  perf props: `sizeColumnsToFitOnReady` (default `false`), `includeAllStreamSafeFilters` (default `true`),
+  `agGridModules` (optional subset registration; default full enterprise);
+  streaming: keep `rowData` referentially stable and push live deltas via `applyTransactionAsync`;
+  editing chrome: `showEditingToolbar`, legacy `showSmartEditToolbar` /
+  `showBulkUpdateToolbar` / `showEditHistoryToolbar`, `showVisualExcelExport`,
+  `headerExtras`, `toolbarDate` / `onToolbarDateChange`, `showToolbarDatePicker`,
+  `toolbarDateHistoryEnabled` (when `false`, only today is selectable);
+  `showColumnSelector` (default `true`) — toolbar Columns button + dual-list reorder dialog
+- `DEFAULT_MODULES` — ordered customizer-module pipeline (full feature set)
+- `MINIMAL_MODULES` — lightweight embed preset (general-settings, saved-filters, grid-state)
+- `gridSurfaceOptions` — AG Grid defaults, DOM options, row styling, cell renderers
+- `GridDensityPill` — center-top primary-toolbar chip; Ultra / Compact / Comfortable presets (persists `gridDensity` + matching `rowHeight`/`headerHeight` in general-settings; `applyGridDensityLive` pushes heights immediately with row animation suppressed)
+- `MarketsGridSurface` — memo'd AgGridReact boundary; `buildStreamSafeComponents` optionally omits date floating filter when unused; folds the effective `rowHeight`/`headerHeight` (host
+  override or general-settings pipeline) into the theme via `theme.withParams`,
+  keeping `--ag-row-height` in sync with the live row height so cell text stays
+  vertically centered at any height (parameter-based; no CSS overrides)
+- `PerspectiveMarketsGridSurface` — third row-supply surface, peer to `MarketsGridSurface` (CSRM) and `SsrmMarketsGridSurface`. Mounts AG Grid on a worker-held Table via `createPerspectiveRowEngine`: path-based `getRowId` (a leaf key collides across groups), 100-row blocks, and a one-render wait for the engine so the status panel is not instantiated against a null one. Spreads the module-pipeline `gridOptions` like the CSRM surface — pagination, grouping, selection and the rest reach it unchanged — minus `SERVER_SURFACE_OWNED_KEYS` (`rowModelType`, `serverSideDatasource`, `getRowId`, `cacheBlockSize`, `maxBlocksInCache`, `blockLoadDebounceMillis`, `context`, `serverSideInitialRowCount`), which would detach the grid from the Table rather than customize it. Host props are applied only when passed, so an omitted one does not blank a pipeline value. Its grid `context` also carries the `ssrmCountMatching` / `ssrmConfigured` pair `useFilterModel` needs for saved-filter count badges — a contract only `CustomSSRMGrid` used to answer, so the badges were silently absent on the pull path — read through the holder at call time so an engine swap does not strand them. Commits `cellValueChanged` into the Table through the engine, registered with `addEventListener` rather than the `onCellValueChanged` grid option so it composes with alerts, conditional styling, data-change history and smart edit instead of taking the slot from a pipeline-supplied handler; the grand total and group rows are skipped, being aggregates rather than rows of the book
+- `SsrmEngineMarketsGridSurface` — **fourth row-supply surface**, peer to the three above, reached with `rowModel="ssrm-engine"` and an `ssrmEngineClient` (the window's handle on a book held by `@starui/ssrm-engine` in a SharedWorker). Everything with a rule behind it lives in `createSsrmEngineRowEngine`; this is the mount plus the four bridges that can only be built where AG's API is, each of which was a SEPARATE bug on the Perspective path: the quick search (AG's `quickFilterText` is a client-side-row-model option and does nothing here), set-filter value lists (AG builds them from the rows the client holds, which is one block, and a bare `filter: true` handed nothing throws `values is not iterable`), the committed cell edit, and the transaction applier smart edit / bulk update / history undo-redo hand their patches to. `getRowId` is the group PATH, the tree marker, or AG's own grand-total id. It uses the SAME shared modules the Perspective surface does rather than copies. **The quick-search bridge listens on `modelUpdated` AND reconciles on the viewport timer**, because MEASURED: with a term that matches nothing, clearing the box fires NO event at all — not `modelUpdated`, `filterChanged`, `storeUpdated` or `gridOptionChanged` — so the box was unclearable from an empty grid, which is the state a user most needs to escape. It offers no `ssrmCountMatchingExpression` / `ssrmAggregateScalar`: this engine has no expression language to compile a cross-row style rule into, and an absent seam paints nothing where a null-returning one reads as "no row matches"
+- `createServerEngineHolder()` + `ServerGridContext` / `ServerRowEngineLike` / `ServerGridStatus` (`serverEngineHolder.ts`) — the stable handle a swappable server-side row engine is reached through, and the grid `context` shape the platform reads it from (`serverEngineHolder`, plus the `ssrmCountMatching` / `ssrmConfigured` pair). AG reads `context` when it CREATES the grid and hands that exact value to every status panel, while the engine is rebuilt whenever its source changes — so the identity never moves and what it points at does. Generic in the engine type, so a surface holds its own full engine while the shared consumers (the Excel export, the alerts full-book rescan, the row-count panels, the saved-filter count) see only the four methods they use. **Renamed from `perspectiveEngineHolder`**: two engines now put one there and every consumer reads it structurally, so a second key would have meant a second copy of four consumers
+- `SkeletonLoadingCellRenderer` (`serverLoadingCellRenderer.ts`) — the stub cell both server-side surfaces use, and the reasoning behind it is why it is shared rather than copied: AG's default writes "Loading..." (a word flickering down one column on every drag) and a blank is worse, because an empty cell is exactly how this grid renders a genuine null, so a stub becomes indistinguishable from "this position has no bid". A muted bar drawn from `currentColor` can only mean "not here yet", and themes with the cell. It does NOTHING without `suppressServerSideFullWidthLoadingRow`, which is how it first shipped inert
+- `useSsrmEngineCalcColumns(platform, columnDefs, enabled)` — MarketsGrid's calculated columns planned for the `ssrm-engine` backend: the same `planSsrmCalcColumns` the other two server-side paths use, producing `{colId, ast}` pairs for the worker and colDefs with the client `valueGetter` dropped so AG renders the value the engine stamped. It deliberately does NOT pre-validate against the engine's refusal list — the engine refuses BY NAME and retains the reason in `calcDiagnostics()`, and a second copy of that list is a second thing to keep in step
+- `withServerStatusPanels(statusBar)` + `ServerTotalAndFilteredRowCountPanel` / `ServerFilteredRowCountPanel` / `ServerSelectedRowCountPanel` — **CSRM parity for a host-supplied status bar, on EITHER server-side surface.** MEASURED on both labs with AG's four stock panels: on CSRM `Rows : 53,127` / `Filtered : 53,127` / `Selected : 50,000`; on the pull path the two row-count panels rendered **nothing at all** (AG's own components have no book to count under a server row model) and select-all answered `Selected : ?`. The surface now REWRITES the stock panel names to these — order, alignment and every other panel untouched — so a `statusBar` written for the CSRM grid means the same thing here, which is what parity has to mean for a config. Markup is AG's own, copied from its rendered DOM (`ag-status-name-value ag-status-panel ag-status-panel-<kind>`, label/value spans, `ag-hidden` + `aria-hidden` for a panel with nothing to say). Counts come from the worker-held Table via `engine.status.leafRows`; select-all is answered from `getServerSideSelectionState()` ("everything except these") against that count. **`agAggregationComponent` is deliberately NOT replaced** — MEASURED, it aggregates the selected CELL RANGE rather than the row selection (select-all left it showing the earlier drag on both surfaces), and a dragged range is rows this window holds, so it is already correct here. Its one divergence, not addressed: a range dragged past the loaded blocks silently omits the unloaded rows
+- **Not built, designed:** column-window fetching — a View carries every column it was built with and AG renders ~15 of 400. MEASURED `getRows` median **5 ms at 40 columns vs 1,420 ms at 404** (284x for 10x the columns; ~28x worse per column), and the same payload drives the renderer's memory. `PerspectiveViewConfig.columns` already exists and nothing sets it. Blocked on AG carrying no column window in its SSRM request, so a narrowed View means cached rows lack the columns scrolled into — design and the pinned-column list in [`docs/PERSPECTIVE_GRID_COLUMN_WINDOW_DESIGN.md`](./PERSPECTIVE_GRID_COLUMN_WINDOW_DESIGN.md)
+- **Blank stubs while scrolling** — `suppressServerSideFullWidthLoadingRow` + a blank `loadingCellRenderer` on `defaultColDef` (a host's own still wins). AG's server row model paints a full-width "Loading..." row for every row asked for and not yet received; the colDef renderer is consulted ONLY when that flag is set, so setting the renderer alone is a silent no-op. MEASURED ungrouped at 50k x 400 over 90 samples of a fast drag: **33 of 34 rows read "Loading..." at the peak and 22 still did after the grid settled; both are now 0**. With it: `blockLoadDebounceMillis: 100` (do not fetch what the user is scrolling past) and `maxBlocksInCache: 100`, up from 20 — fewer re-fetches over ground already seen, at 1,748 MB -> 1,791 MB idle on the 400-column book
+- `PerspectiveStatusPanel` — default status bar on the Perspective surface, reading the Table's own row counts. AG's stock panels count the rows the CLIENT holds — on this path only the loaded blocks — and would report a confidently wrong total. Reaches the engine through a `PerspectiveEngineHolder` on the grid `context` rather than the engine itself: AG reads `context` when it CREATES the grid and hands that value to every panel it instantiates, while the engine is rebuilt whenever the Table changes, so a bare reference froze the bar against a closed engine
+- `withServerSetFilterValues(columnDefs, getValues)` — attaches an async `filterParams.values` provider (plus `suppressClearModelOnRefreshValues`, so refreshing the list does not wipe a selection) to every leaf column def, walking column-group children. Applied to **every** column rather than only those declaring `filter: 'agSetColumnFilter'` — which is what `CustomSSRMGrid`'s equivalent checks, and it misses the common case, since a plain `filter: true` on `defaultColDef` also resolves to a set filter under AG Grid Enterprise; a filter type with no use for `values` ignores it. Never overwrites an explicitly supplied `values`, and a null or rejected answer resolves EMPTY rather than leaving AG on a perpetual loading spinner
+- `createPerspectiveEngineHolder()` / `PerspectiveEngineHolder` — stable handle to a swappable row engine; `subscribe` replays the current engine immediately, so a subscriber that arrives after the swap it cared about is not left waiting for a second one
+- `resolveUseSsrm` / `resolvePerspective` — pick the row engine from `rowModel` (`client` | `server` | `perspective`); the legacy `useSSRM` boolean still wins where set but cannot express `perspective`
+- `resolveEngineKind({ rowModel, useSSRM, perspectiveTable, ssrmEngineClient })` → `'csrm' | 'ssrm' | 'perspective' | 'ssrm-engine'` — ONE definition of which engine the customizer modules are told they are running on, and it fixed a defect rather than tidying one. Both MarketsGrid mounts computed `perspective ? 'perspective' : useSSRM ? 'ssrm' : 'csrm'` inline and neither consulted `resolveSsrmEngine`, so `rowModel: 'ssrm-engine'` — the surface that SHIPS — reported `'csrm'`: a grid holding ~100 rows of a 50,000-row book, declaring it held the whole thing. Every feature gated on `isServerSideEngine()` then took the client-side branch, and the measurable consequence was in `useFilterModel`, where a saved-filter pill's badge counted the LOADED BLOCKS via `forEachNode` instead of asking the worker. `GridEngineKind` gained the fourth value; a second consequence is that this surface now gets the server-side capability gates it previously escaped
+- `resolveGridSurface({ rowModel, useSSRM, perspectiveTable })` → `'perspective' | 'pending' | 'ssrm' | 'csrm'` — which surface the host mounts. `'pending'` mounts **none**, and enforces the invariant that **exactly one grid may mount per `GridPlatform`, ever**. Attaching to the worker-held Table is async, so `rowModel: 'perspective'` used to fall through to the CSRM surface for the length of the attach; that stand-in grid fired `onGridReady` (attaching the api, activating every module) and then unmounted when the Table landed, and its `onGridPreDestroyed` ran `platform.destroy()` — which is permanent. The real grid's `onGridReady` then hit `if (this.destroyed) return` and a fresh platform was built that never saw a grid at all. Everything talking to AG Grid directly still worked (grouping, sorting, context menu, density), so the grid looked healthy while every platform-driven feature was dead: formatting toolbar, auto-formatter, saved-filter "+" button, and profile save/restore. `null` (attaching) vs `undefined` (not using the seam) is what carries the distinction — `MarketsGridContainer` must pass the `null` through rather than collapsing it with `?? undefined`
+- `LazySettingsSheet` — code-split settings drawer (loads `SettingsSheet` + `grid-chrome.css` on first open); public-barrel `SettingsSheet` export aliases this wrapper (same props/ref contract) so the inner sheet never lands in a consumer's main chunk
+- `preloadSettingsSheet()` — warms the sheet chunk ahead of first open; `MarketsGridHost` calls it on idle, the ⋯ overflow menu on open, the inline settings button on pointer-enter
+- `GeneralSettingsProvider` / `useGeneralSettingsFromContext` — single subscription for density/header-case reads
+- `GridChromeProvider` / `useGridChromeState` — isolates frequently-changing toolbar UI state
+- `buildGridContextMenuItems` — cell right-click menu builder; prepends **Settings** (opens the customizer on Column Settings with the right-clicked column pre-selected, via the controller's `openColumnSettings` + the settings sheet's `focusRequest` nonce) and **Remove from Grid** (hides the column via native `api.setColumnsVisible`, re-showable from the side bar's Columns panel and persisted on Save like any grid-state visibility change) ahead of AG Grid's stock items (Copy / Export / Auto-size …). Pure builder (params + handlers) wired through `MarketsGridHost` → `MarketsGridSurface` `getContextMenuItems`
+- `mergeDefaultColDef`, `gridOptionCompare`, `buildStreamSafeComponents` — reference-stable pipeline → surface wiring
+- `useGridHost`, `useMarketsGridController` — imperative grid control hooks (internal to `MarketsGrid`; not on package `.` barrel)
+- `useFilterModel` — filter-model persistence + mutation; per-pill counts use incremental `RowChangeBus` deltas on streaming ticks (full-grid recompute only on structural changes / cold mount)
+- `useGridTheme` — resolves AG Grid theme from `data-theme`
+- `grid-chrome.css` — container/toolbar layout
+
+#### Storage & persistence
+
+- `createMarketsGridLocalStorageStorage()` — browser localStorage adapter factory
+- `isMarketsGridLocalStorageStorageFactory()` — type guard
+- `StorageAdapter` — load/save profile + grid-level data contract (type from `@starui/engine`)
+- `StorageAdapterFactory` / `StorageAdapterFactoryOpts` — runtime-injectable factory pattern (exported from `@starui/grid` types)
+
+#### Grid event system (public on `.` barrel)
+
+- `MARKETS_GRID_EVENT_CATALOG`, `isMarketsGridEventId`, `marketsGridEventCatalogByCategory` — typed event-id catalogue for provider/toolbar lifecycle hooks
+- `createMarketsGridContainerEventBus`, `useMarketsGridEventBridge` — wire container events (`providerSwitched`, `toolbarDateChanged`, `providerDataStale`, …) to handler registries staged in Custom Settings
+
+#### Toolbars
+
+Most toolbar shells (`PrimaryToolbar`, `EditingToolbar`, `QuickSearch`, …) are composed inside `MarketsGrid` and are **not** on the package `.` barrel. Public toolbar exports: `FiltersToolbar`, `FormattingToolbar`, `DraggableFloat`, `SettingsSheet`, `ProfileSelector`, `HelpPanel`.
+
+- `PrimaryToolbar` — actions, admin, export/import, Visual Excel spreadsheet export; center-top `GridDensityPill` (Ultra / Compact / Comfortable spacing presets via AG Grid `theme.withParams` + general-settings persistence)
+  settings sheet toggle, always-visible inline editable caption (bound two-way to the OpenFin tab name via `useViewTabTitle`); the four view tools (Columns, Auto Format, Formatting toolbar, Editing toolbar) are consolidated into a single `ViewMenu` (`SlidersHorizontal` trigger) in the right cluster to keep the toolbar uncluttered;
+  secondary actions in ⋯ overflow menu by default (`toolbarActionsLayout`: `overflow` | `inline`); shadcn `ToolbarDatePicker` on the right edge (defaults to today; `showToolbarDatePicker`; `historyEnabled` gates past dates)
+- `ViewMenu` — single primary-toolbar dropdown (`toolbar-view-menu-trigger`) consolidating the grid's view tools so the toolbar stays calm: **Columns…** (opens `ColumnSelectorDialog`), **Auto Format** (action), then **Formatting toolbar** / **Editing toolbar** checkbox toggles reflecting their open state. Each item is gated by its feature flag (`showColumnSelector` / `showAutoFormat` / `showFormattingToolbar` / `showEditingToolbar`); the menu renders nothing when all are off. Test-ids match the former standalone buttons (`column-selector-open`, `auto-format-btn`, `style-toolbar-toggle`, `editing-toolbar-toggle`) so they stay addressable inside the menu. shadcn `DropdownMenu` + tokens (light/dark safe)
+- `ColumnSelectorDialog` — opened from the `ViewMenu` **Columns…** item (gated by `MarketsGrid.showColumnSelector`, default `true`); a shadcn `Dialog` with two searchable lists — **Available** (hidden columns) and **Visible** (shown columns). Transfer buttons (add/remove selected + add-all/remove-all, honouring the active search) and double-click move columns between lists; multi-select via click / Cmd-Ctrl-toggle / Shift-range; the Visible list is dnd-kit sortable (single or multi-selected rows drag together; reorder disabled while a search filter narrows the list). **Apply** reorders the live grid via `api.applyColumnState({ applyOrder: true })` to `[...visible, ...available]` with available columns hidden — so the customizer's Column Settings list reflects the same order (it reads `api.getColumns()`); persistence rides the normal Save (grid-state). Pure logic in `columnSelectorModel` (unit-tested); AG-Grid glue isolated in `gridColumnAdapter`; 100% shadcn primitives + design-system tokens (light/dark safe). `colDef.lockVisible` columns stay visible and can't be removed
+- `QuickSearch` — primary-toolbar search icon that expands into a compact field on hover/focus (or click-to-pin via `data-open`) and drives AG-Grid's quick filter across all columns (`setGridOption('quickFilterText')`); self-contained (reaches `GridApi` via `useGridApi`, like `AlertsBadge`); Escape clears + collapses, an inline ✕ clears, and an active term keeps the field open and lights the icon (`data-has-text`)
+- `AutoFormatButton` / `useAutoFormatAction` — "Auto Format" lives in the `ViewMenu` (gated via `PrimaryToolbar.showAutoFormat`, defaulted to `showFormattingToolbar`); the action is the reusable `useAutoFormatAction()` hook (`{ run, confirmed, available }`), with `AutoFormatButton` a thin standalone wrapper around it. Reads every grid column, resolves a plan from `FIELD_FORMAT_CATALOG` via `buildAutoFormatPlan`, and applies **native formatting only** — number/date value formatters, sign-coloured P&L/change via `excelFormat` `[Green]`/`[Red]` tags, right-alignment for numerics, localised dates, centred categoricals, and bold tickers — in one profile-persisted update via `applyAutoFormatPlanReducer`. No opaque cell renderers, so every auto-applied aspect is fully editable from the formatter toolbar and round-trips through profile persistence. **Overwrite mode** (`onlyUnstyled: false`): re-applies the catalog to every matched column, replacing prior formatting and clearing any prior `cellRendererId`/`cellRendererConfig`; the user then overrides individual columns afterward in the formatter toolbar (manual edits win until Auto Format is clicked again). The reducer leaves catalog-unowned fields (colours/borders/header rename, and any typography the catalog doesn't set) intact. `applyFormatterReducer` (the formatter toolbar's format picker) also clears any `cellRendererId`/`cellRendererConfig` when it writes a per-column template, so a manual format applied over a renderer column shows instead of being painted over. Self-contained (optional platform + module store); flashes a check on apply
+- `FiltersToolbar` — quick filter, saved filter recall, server-side expression
+  (shadcn `ChromeButton` / `Input` / `Textarea` controls)
+- `FormattingToolbar` — cell/header styling, conditional formats, value formatters (with popout); horizontal strip is **two rows** — row 1: Scope / Type / Paint; row 2: Format / Edit / Group / Templates / Clear (Format moved off row 1 so the wide format cluster no longer wraps alone onto a third line)
+  formatter pills use shadcn `Button` via `Pill` / `PillButton`; enum pickers use shadcn `Select` via `ToolbarSelect`; horizontal strip uses flat labeled groups (no enclosing boxes around control clusters)
+- `ModuleGrouping` ("Group" segment, `fmt-module-grouping`) — sets row-grouping on the selected column(s): **Enable Row Group** pill (`fmt-enable-row-group`) toggles `rowGrouping.enableRowGroup` (capability flag only — makes the column groupable / draggable to the row-group panel; does NOT group the grid), and an **Agg Function** dropdown (`fmt-agg-func`: None · sum · min · max · count · avg · first · last) sets `rowGrouping.aggFunc` **and** `enableValue` (None clears both). Writes to the column-customization assignment via `applyRowGroupingReducer`, so it rides the formatter's undo/redo + Save and persists to the active profile and any column-template snapshot. Custom agg expressions stay in the full Column Settings `RowGroupingEditor`. The segment also hosts a **Grouping options popover** (`fmt-grouping-options`, shadcn `Popover`) for the **grid-wide** grouping/total settings — always enabled (not selection-gated): **Hide Agg in Header** (`suppressAggFuncInHeader`, `fmt-hide-agg-in-header`), **Group Sub-Total Row** (`groupTotalRow`: Off/Top/Bottom, `fmt-group-total-row`), **Grand Total Row** (`grandTotalRow`: Off/Top/Bottom/Pinned Top/Pinned Bottom, `fmt-grand-total-row`), **Group Display** (`groupDisplayType`, `fmt-group-display`), **Row Group Panel** (`rowGroupPanelShow`, `fmt-row-group-panel`). These write to `general-settings` via `setGeneralSettingsState` (no undo/redo — same as the toolbar's other general-settings toggles), applied live by `transformGridOptions` and saved with the active profile
+- `EditingToolbar` — unified editing row (history undo/redo, Smart Edit ops, Bulk Update apply, keyboard hints dropdown); primary-row pencil toggle (`editing-toolbar-toggle`); segments gated by `resolveEditingToolbarAllow()` + module `settings.enabled`; `editingToolbar.css` + shadcn ghost pills aligned with formatter toolbar (labeled clusters, hairline separators, no boxed button groups)
+- `EditingToolbarKeyboardMenu` — read-only dropdown listing active plus/minus nudges and letter shortcuts (keys handled by module runtime, not the menu)
+- `SmartEditToolbarBody` — operand input, op buttons (× ÷ + −), **Set…** dialog, preview confirm/cancel
+- `BulkUpdateToolbarBody` — text input for custom values, optional distinct-value picker (fills input), check-icon apply control
+- `EditHistoryToolbarBody` — global undo/redo + stack entry count
+- `SmartEditToolbar` — legacy standalone toolbar export (superseded by `EditingToolbar` segment)
+- `providerGridHost` prop — optional runtime API for data-provider controls in the grid customizer → Custom Settings panel (`MarketsGridContainer` wires live/historical pickers, refresh, reload, edit)
+- `resolveEditingToolbarAllow()` — maps `showEditingToolbar` and legacy per-segment props to host allow-list
+- `AdminActionButtons` — admin grid operations (shadcn `ChromeButton`)
+- `GridInfoButton` — grid identity popover trigger (`ChromeButton`)
+- `PrimaryToolbarOverflowMenu` / `PrimaryToolbarInlineActions` — secondary toolbar actions (`ChromeButton` triggers); overflow ⋯ menu includes dark/light theme toggle (`applyTheme` + `useActiveThemeMode`) and grid info
+
+#### Profile management UI
+
+- `ProfileSelector` — switch/create/rename/delete profiles
+- `TemplateManager` — column-template library (save/apply/manage). Compact (toolbar popover) variant is a scrolling row list; **panel (popped-out) variant is a shadcn `Select`** (pick = apply) + an action cluster (update / rename / delete) for the chosen template, so the Templates section stays a fixed-height control as templates accumulate instead of growing
+- `UnsavedSwitchDialog` — guard for dirty profile switch
+- `SettingsSheet` — shadcn right-rail `Drawer` host for all customizer modules;
+  opens on **Grid Options** (`general-settings`) by default; module navigation
+  is a grouped shadcn **Menubar** (`SettingsModuleMenubar`): five stable
+  categories (Options / Columns / Styling / Editing / Data) each opening a
+  menu of module items, plus a trailing More menu for host-registered module
+  ids outside the category map and an active-module breadcrumb
+  (`GROUP ▸ MODULE`) on the bar's right edge — the bar never overflows
+  regardless of module count; menus portal above the drawer
+  via `.ds-settings-module-popover` / `.ds-sheet-v2` z-index in `grid-chrome.css`;
+  flat `SettingsPanel` modules (Grid Options) fill the editor pane without an
+  outer `ds-editor-scroll` so the band sidebar stays fixed while only the
+  right-hand fields scroll; two-phase open — chrome + structural wrappers
+  commit first so the drawer slide-in starts immediately, the active module
+  panel mounts one deferred render behind (`useDeferredValue(open, false)`;
+  popped OS-window mode bypasses the gate); the vaul `Drawer` root stays
+  mounted with controlled `open` so closes play the slide-out animation and
+  sheet-local state (active module, per-module selection) survives reopen
+- Grid Options bands mount progressively — first commit mounts only the
+  first 3 bands (≈ one viewport), the rest fill in one-per-`requestIdleCallback`
+  slice (200ms timeout cap) so the heavy ~93-control mount never lands inside
+  the drawer slide-in animation; sidebar nav clicks force-mount their target
+  band, an active search filter mounts all matching bands, and environments
+  without `requestIdleCallback` (jsdom) mount everything up front; unmounted
+  bands hold a fixed-height placeholder and mounted off-screen bands still
+  use `content-visibility: auto` to skip paint work
+- `DEFAULT AGG` select (Pivot · Totals · Aggregation band) maps to AG-Grid's
+  `defaultColDef.defaultAggFunc` — the agg function pre-selected when a column
+  is dragged into the values panel (built-ins `sum`/`avg`/`min`/`max`/`count`/
+  `first`/`last`); unlike `aggFunc` it does **not** force columns to aggregate
+- Default profile (`INITIAL_GENERAL_SETTINGS`) ships aggregation-ready: pivot
+  panel `always`, grand-total `pinnedBottom`, group-total `bottom`,
+  `suppressAggFuncInHeader`, `enablePivot`/`enableValue` on, `defaultAggFunc`
+  `sum`, plus `floatingFilter` + `autoHeaderHeight` on the default ColDef and
+  cell-change-flash on in `emerald`
+
+#### Help, status & overlays
+
+- `HelpPanel` — sections for Overview, Expressions, Excel, Trading, Traffic-light, Emoji
+- `GridInfoButton` — contextual help popover trigger
+- `DraggableFloat` — draggable/resizable popout (used by FormattingToolbar)
+- `EditableCaption` — inline-editable grid title
+- `StaleDataBanner` — data-staleness indicator (real-time disconnect / asOfDate)
+
+#### Floating filters (toolbar)
+
+- `StreamSafeTextFloatingFilter` — base floating-filter bridge (`streamSafeFloatingFilter.ts`)
+- `StreamSafeNumberFloatingFilter` — number variant
+- `StreamSafeDateFloatingFilter` — date-range variant with calendar; smart parsing of ISO/slash/dot/month-name/quarter/epoch dates, comparator + relative keyword (`>= today`, `< yesterday`), and relative trailing windows (`last 10 minutes`, `last six months`, `last year`). `parseDateExpression(input, locale, now)` exported for testing.
+- `filtersToolbarLogic` — filter parsing + AG Grid model translation
+- `installAgGridSetFilterValidateGuard()` — set-filter dataset-size guard
+
+#### Formatting pipeline
+
+- `FormatterToolbar` / `FormatterPanel` — formatting orchestrator (toolbar or panel orientation; composed by `FormattingToolbar`)
+- `ModuleType` — data-type picker (number, date, duration, currency, percentage, …)
+- `ModuleFormat` — quick number-format controls: currency select (full-opacity tinted `$` affordance), %, thousands, **decimals ± with a live precision readout** (`fmt-decimals-readout` shows the current decimal count via `templateDecimals`), tick select (`1/32` glyph + "Tick" label), and the `FormatterPicker`
+- `FormatterPicker` — value-format selector. Compact (toolbar) presentation is a **vertical shadcn `Tabs` rail** grouping presets by category, showing only the categories that fit the column's data type (`categoriesForDataType`) plus an always-on **Custom** tab; each preset row renders a **live sample** from the real cell value, and the Custom tab folds the Excel-format input + full reference examples inline (no nested popover). A **search box** (`filterPresets`) flattens the tabs into a matching result list across label / hint / format code. Inline (editor) presentation unchanged. Picking a preset / swatch dismisses the popover (discrete-commit close)
+- `formatCategories` — `FormatCategory` union, `CATEGORY_LABELS`, `categoriesForDataType()` (data-type → ordered rail categories; `custom` appended by the UI)
+- `presetsForDataType` exports — `ALL_PRESETS` (master catalog, each preset tagged with a `category`), `presetsForCategory()`, `presetsForDataType()`, `findMatchingPreset()`, `defaultSampleValue()`. Catalog now includes promoted formats (no-thousands, red-only, directional ▲▼ conditional, thresholds, prefix text) and an expanded **Text** category (UPPERCASE / lowercase / Title Case / camelCase / Capitalize / Trim / prefix / suffix)
+- `ModulePaint` — cell background/text colour editor
+- `ModuleLibrary` — preset library, add-to-library, delete
+- `ModuleEditorFilter` — column-target picker
+- `ModuleContext` — applied-column summary + copy-to-all; hosts the `FormatReadout` (`scopeSummary`) — a plain-language status line stating target + scope ("Cells · 3 columns") with a live value sample, doubling as the empty-state invitation ("Select a column to format"). Renders in both toolbar and popout
+- `FormatReadout` / `scopeSummary` — turns `(target, scope, selection)` into words + a live sample; empty-state guidance when nothing is selected
+- `ModuleClear` — clear selected / clear-all formatting; fires immediately (no confirm dialog), flashes a check on success, reversible via undo/redo
+- `formatterPresets` — built-in numeric, date, currency, % presets; traffic-light / emoji patterns documented in `HelpPanel` and authored via Excel value-format strings in conditional styling
+- `formattingToolbarHooks` — `useFormatter` state + actions; `resolveToolbarPickerDataType()` maps `dateString` / `dateTimeString` (and `date` columns whose sample values include time) to datetime FormatterPicker presets so **Date + time** tiles (ISO with time, US short) appear in the toolbar
+
+#### Customizer modules (under `./customizer`)
+
+- **General settings** — grid behaviour toggles; defaults `animateRows: false` and
+  `debounceVerticalScrollbar: true` for streaming-friendly grids; row selection maps to AG Grid 35
+  `RowSelectionOptions` (`singleRow` / `multiRow`; checkbox column optional — when
+  off, click-to-select with no selection column); **Default ColDef** band includes
+  flash-on-change with theme-aware colour swatches (shown when enabled)
+- **Column templates** — reusable column-state bundles
+- **Column customization** — 10 bands per column: Header, Layout,
+  Templates, Cell Style, Header Style, Value Format, Filter,
+  Row Grouping, Cell Editor, **Cell Renderer** (band 10 — picks any
+  registered renderer from `@starui/design-system/cell-renderers-registry`
+  and authors its per-renderer config)
+- **Conditional styling** — themed style rules (dark/light); per-rule bands for cell/row style, **flash on match** (`FlashConfig` — colour/mode/duration), **indicator** badge (`RuleIndicator`), value formatter, and **animate value** (`AnimationConfig` — `spin` / `spin-reverse` / `pulse`, cell-scope only). Animate spins the matching cell's value glyph via CSS keyframes scoped to `.ag-cell-value` (shipped once as `ds-anim-*`), e.g. an Excel value format maps `1 → 🔄` and a `value = 1` rule spins it — the no-code "in progress" spinner. Header flash/indicator painting (`headerPainter`, `hasHeaderPaintRules`) skips row scans when no header-targeted rules are enabled and is not invoked on live ticks unless header paint rules exist. The painter **reconciles its header classes against the DOM** rather than against a cache of what it believed it had painted: AG virtualises COLUMNS, so a header cell not scrolled into view is not in the document, and the differential version recorded a rule as painted the first time it decided so — with `querySelectorAll` having matched nothing — and never re-applied. MEASURED on a 50,000 x 120 book: the worker answered 50,000 matching rows, the painter recorded the rule as lit, and **zero** header cells carried the class. Re-adding a class already present is a no-op and does not restart a CSS animation, so the anti-flicker property the cache existed for is kept. It also distinguishes a REFUSED whole-book answer (`null`) from a measured zero: a refusal forgets the entry so the rule falls back to its client scan, where a zero unlights the header. The full-grid restyle scheduler (`createRefreshScheduler`) is **scroll-aware** — it defers `refreshCells({ force: true })` while the grid body is scrolling (`bodyScroll` / `bodyScrollEnd`, 120ms settle) and flushes once on settle, so restyle repaints don't fight the scroll compositor; data keeps flowing and cellSelection / filters are left untouched
+- **Visual Excel** — WYSIWYG `.xlsx` export preserving display formatters and
+  conditional style-rule colours. Engine: `buildVisualExcelStyles`,
+  `applyFormatExcelClasses`, `exportVisualExcel` (via `api.exportDataAsExcel` +
+  `processCellCallback`). On the **Perspective** path that api can only see the
+  block cache — measured at 100 rows of a 20,000-row book — so the export reads
+  the book with `engine.readAllRows()` and writes it through a **detached
+  client-side grid** carrying the same column defs and column state, keeping
+  AG's own Excel writer (and therefore the formatters and style colours) while
+  covering every row. Destroyed in a `finally`; an only-selected export keeps the
+  original path, since selection lives on the row nodes this grid holds. A book
+  past the export ceiling is reported via `onError` rather than written short.
+  Primary toolbar spreadsheet icon when enabled.
+  Settings panel: **Visual Excel**. Lab: **Visual Excel** tab (`lab-visual-excel-v1`).
+- **Editing family (overview)** — five customizer modules share a cell-patch
+  journal (`EditJournal` in `@starui/engine`). React wiring: `recordEdit.ts`
+  (`resolveEditRecording`), `useEditJournal`, `journalUndoRedo`,
+  `journalApplyGuard`, `editJournalScope`. Unified **`EditingToolbar`** row
+  composes edit-history, smart-edit, and bulk-update segments plus
+  `EditingToolbarKeyboardMenu` hints; plus/minus and shortcuts are keyboard-only
+  (settings panels, no toolbar segment). Host opt-in: `showEditingToolbar`
+  (all three segments) or legacy `showSmartEditToolbar` /
+  `showBulkUpdateToolbar` / `showEditHistoryToolbar` (per-segment allow-list;
+  row visible when any legacy prop is true). Default module pipeline order in
+  `DEFAULT_MODULES`: … → smart-edit → bulk-update → plus-minus → shortcuts →
+  data-change-history → alerts → … → grid-state (last). E2e: 45 Playwright
+  specs (`e2e/v2-editing-family.spec.ts`, `v2-editing`, `v2-smart-edit`,
+  `v2-bulk-update`, `v2-edit-history`, `v2-plus-minus`, `v2-shortcuts`);
+  shared helpers in `e2e/helpers/labEditing.ts` and `e2e/helpers/editingToolbar.ts`.
+- **Smart Edit** — bulk update, arithmetic across cell selections (× ÷ + −),
+  toolbar **Set…** dialog, +/- keyboard increment, and K/M/B magnitude shortcuts
+  via `valueParser` on editable numeric columns. Single-column guard, optional
+  preview-before-apply, and cell-patch journal recording for undo (via shared
+  `EditJournal`). Framework-agnostic ops in `@starui/engine`; React module +
+  `SmartEditToolbarBody` in `@starui/grid`. Settings panel: **Smart Edit**.
+  Lab: unified **Editing** tab (`lab-editing`, 12 profiles); focused Smart Edit
+  profiles under `public/lab-profiles/smart-edit/`.
+- **Edit History** — session-scoped undo/redo journal consumed by all editing
+  modules. Monitor panel lists entries (time, source, label, cell count) with
+  per-entry undo in a fixed-height virtualized scroll rail pinned to the bottom
+  of the settings sheet (cascade-undoes that entry and all newer edits; Undo
+  disabled for entries already reversed via toolbar); `EditHistoryToolbarBody`
+  exposes global Undo/Redo and an undo-stack entry count (decrements on toolbar
+  or monitor undo, increments on redo).
+  Settings: suspend recording, max stack depth, unify undo (disables AG Grid
+  `undoRedoCellEditing`), per-source record toggles (cell editor on by default).
+  In-cell edits are journaled via wrapped `valueSetter` on editable columns (AG Grid
+  35 may omit `cellValueChanged` on inline commit); `cellValueChanged` remains a
+  fallback listener when the event fires.
+  Settings panel: **Edit History**. Lab: **Editing** tab (`lab-editing`);
+  Smart Edit–only history demo in `public/lab-profiles/smart-edit/se-04-history.json`.
+- **Bulk Update** — replace all selected cells in one column with the same
+  value (text, number, date). Distinct-value dropdown, confirm threshold,
+  single-column guard, journal integration. Settings panel: **Bulk Update**.
+  Lab: **Bulk Update** tab (`lab-bulk-update`) and unified **Editing** tab.
+- **Plus / Minus** — keyboard +/- nudge rules with per-column increment/decrement
+  steps and optional expression gates. Takes over +/- keys from Smart Edit when
+  enabled; `suppressKeyboardEvent` on editable numeric columns prevents inline
+  edit from consuming +/- keys. Keyboard only — no toolbar segment. Journal
+  integration via `recordHistory`. Settings panel: **Plus / Minus**.
+  Lab: **Plus / Minus** tab (`lab-plus-minus`).
+- **Shortcuts** — letter-key arithmetic (× ÷ + −) with per-shortcut operand and
+  column scope. Distinct from Smart Edit K/M/B magnitude parsing in the cell editor.
+  Keyboard only — no toolbar segment. Journal integration via `recordHistory`.
+  Settings panel: **Shortcuts**. Lab: **Shortcuts** tab (`lab-shortcuts`).
+- **Alerts** — expression-driven notifications (dataChange / relativeChange /
+  rowChange triggers) with toast, toolbar bell badge, and OpenFin Notification
+  Centre channels. Runtime evaluates on `cellValueChanged` and on
+  `modelUpdated` / `rowDataUpdated` cell diffs (host `rowData` streams).
+  Customizer editor: collapsible **Global settings** band in a two-column
+  layout (Alerts + Frequency | Channels + History) plus per-rule editor with
+  fixed RESET/SAVE header (`ds-editor-header`) and scrollable rule body.
+  Per-rule editor uses `useModuleDraft` and reuses the shared `ExpressionBand`
+  / Monaco editor for `dataChange` triggers. OpenFin channel auto-detects
+  `window.fin` and dynamic-imports `@openfin/workspace/notifications` so
+  non-OpenFin apps pay zero runtime cost. `AlertsBadge` mounts in
+  `PrimaryToolbar` (shadcn `Popover` + `ScrollArea`; history list scrolls
+  with theme-aware dividers/scrollbar via `ds-sheet-v2`); `useAlertsToastBridge` + `useAlertsOpenFinBridge`
+  auto-wire when the badge is present. Demo: `apps/demos/markets-grid-lab`
+  (`npm run dev:markets-grid-lab`) — Overview, Conditional Styling, Calculated Columns,
+  Formatting, Column Groups, Quick Filters (saved filter pills + `FiltersToolbar`),
+  Live Updates, Alerts, **Visual Excel** (styled `.xlsx` export), **Editing** (Smart Edit + Bulk Update + Plus/Minus + Shortcuts +
+  History), Bulk Update, Plus / Minus, Shortcuts, Cell Renderers, and Formatter Toolbar tabs. Each feature tab ships multiple toolbar profiles (catalogs in
+  `apps/demos/markets-grid-lab/src/profiles/catalogs/`, importable JSON under
+  `apps/demos/markets-grid-lab/public/lab-profiles/`). **Demo console** right rail
+  (`LabScenarioRail`, `LabDemoProvider`, `useLabRows`) injects scenario patches
+  (bid spike, P&L loss, mid ticks, OAS heat, etc.) and shared stream controls
+  (pause/play, tick interval) across all grid tabs;   mock ticks use
+  `applyTransactionAsync` after the initial snapshot (not per-tick `rowData`
+  swaps) via `useMockStream` / `applyLabStreamDelta`; scenario overlays apply
+  sparse field patches per tick and `clearScenario` forces a provider refresh;
+  feature tabs share `LabFeatureTab` + `labFeatureConfigs` with lazy-loaded tab
+  chunks in `App.tsx`; parity doc:
+  `docs/MARKETSGRID_VS_ADAPTABLE_GAP_ANALYSIS.md` §2.
+- **Column groups** — nested column-group headers with border/style overlays (`composeGroups`, `groupHeaderBorderOverlayCSS`)
+- **Toolbar date settings** (`toolbar-date-settings`) — Custom Settings panel for toolbar date, data-provider pickers, event-callback bindings, and row-exclusion expression (wired via `providerGridHost` / `gridEventBindingsHost` from `MarketsGridContainer`)
+- **Calculated columns** — virtual cols from expressions
+- **Saved filters** — named filter-model presets
+- **Toolbar visibility** — show/hide toolbar items
+- **Grid state** — serialise/restore AG Grid state
+
+### 3.2 `@starui/perspective-grid`
+
+**Path:** `packages/react-grid/perspective-grid`
+**Purpose:** Perspective-backed row-supply engine for MarketsGrid — one Table
+hosted in a SharedWorker, one virtualized View per blotter window, AG Grid
+retained as the surface. Design, measured numbers and the non-optional
+lifecycle rules live in the package's `ARCHITECTURE.md`.
+**Decision (2026-08-06): NOT the engine that ships.** Session 8 measured it against `@starui/ssrm-engine` at 50,000 x 120 with both under MarketsGrid and sharing one seeded profile — a comparison only possible since the ssrm engine got a surface of its own. Perspective read a block in 2,162-2,688 ms against 15-46 ms, left the viewport blank up to 7 s on a normal scroll against 157 ms, failed to settle 1 block in 12, and sat at **3,068 MB of renderer against 389-501 MB** — decisive against a stated deployment of 50k-500k rows and 3-6 blotters. It still wins on master/detail, tree data and cross-row style rules, none of which the other surface has. Everything below is still accurate and still built.
+
+**Status:** private (not in the propagate buckets); barrel-only, no subpath exports.
+
+- `createPerspectiveDatasource({ getView, getGeneration?, getGrandTotal?, onError? })` —
+  AG Grid server-side datasource reading a window out of a Perspective View.
+  Settles every `getRows` exactly once (a leaked call wedges the grid
+  permanently) and never claims a `rowCount` it did not measure. `getGrandTotal`
+  is called for root-level requests only and attaches `grandTotalData` to the
+  response; a failure there never costs the block
+- `columnsToRows(columns)` — pivots Perspective's columnar window into AG row
+  objects; row count taken from the longest column
+- `cloneRequest(request)` — snapshots `sortModel` / `filterModel` /
+  `rowGroupCols` / `valueCols` / `groupKeys`, all of which AG mutates in place
+- `toPerspectiveGroupLevel(state)` — one level of an AG group request into a
+  View config: groups by the single column at the requested depth and pushes the
+  ancestor `groupKeys` down as filter clauses, so each level's rows are exactly
+  the children AG asked for. Row 0 of the result is that level's own total
+- `toGroupColumns(columns, groupColId)` — remaps Perspective's `__ROW_PATH__`
+  onto the group column that AG builds its group rows from
+- `createPerspectiveRowEngine({ table, keyColumn, refreshMs?, countMinIntervalMs?, editFlushMs?, onEvent?, onError? })` —
+  everything a grid needs to run on a worker-held Table, in one object: the
+  `datasource`, the root row count, the throttled re-read when the Table moves,
+  a refresh of **every expanded group level** (`refreshServerSide` does not
+  cascade into child stores), and the grand-total transaction (`grandTotalData`
+  creates that row but never updates it). `setApi` connects the grid,
+  `setLive` pauses re-reads, `close` tears the Views down. Describes the grid
+  api structurally, so the package still has no AG Grid dependency.
+  **Block reads have priority over every other question.** The engine counts
+  blocks in flight and holds `countMatching` / `countMatchingExpression` /
+  `aggregateScalar` / `distinctValues` until the grid is idle (capped at 1.5 s,
+  or a live feed's four-a-second re-reads would starve every badge). MEASURED on
+  a 50k x 400 grouped book, one saved-filter pill click: the block the user is
+  waiting for settled in **1,044 ms against 5,031 ms**, and badge engine work
+  over the same window fell from **41.7 s to 1.8 s**, because a pill badge, a
+  checkbox list and a rule count are answers ABOUT the book that can trail it
+  while rows arriving late cannot. Two costs on the same critical path went with
+  it: a block whose root request has been superseded now carries no grand total
+  (the datasource hands `getGrandTotal` the same object it handed `getView`, so
+  identity against the current root request is an exact staleness test), and the
+  throttled total push reads `liveOnly` — it will not BUILD a View for a shape
+  the grid has moved off. The live re-read also **defers while blocks are in
+  flight** (re-arming, capped at 2 s so the grand total still moves): a 100-row
+  block of a 400-column book costs 0.9–2.3 s to read and the refresh invalidates
+  every loaded block, so at the 250 ms throttle the same ranges were re-requested
+  five and six times over and a scroll waited behind them. MEASURED: rows paint
+  **43–57 ms** after the last wheel notch, against 317–607 ms
+- `engine.status.leafRows` — rows of the FILTERED book ignoring grouping, which
+  is what a status bar means by "rows". `filteredRows` is what AG sizes its store
+  from, so under grouping it is the number of top-level GROUPS: reading it in a
+  status bar reported **"Rows : 9 of 50,000"** over an unfiltered 50,000-row book
+  grouped into nine asset classes, and made `filtered` true of every grouped
+  grid. Measured with a flat transient View only while grouping is on — ungrouped,
+  the root level already IS the leaf count — cached on `countMinIntervalMs` and
+  behind the same idle gate as the other whole-book questions
+- `engine.countMatching(filterModel)` — rows the whole book matches under an AG
+  filter model, for the saved-filter pills' count badges. Resolves **null**, not
+  a number, when the model has a clause Perspective cannot express exactly, so
+  the badge is absent rather than confidently wrong. Cached: a resolved count is
+  reused until the Table moves and then no sooner than `countMinIntervalMs`
+  (default **5000**), because the recount is driven by AG's `modelUpdated` —
+  several times a second — and each answer costs a full-book View in the engine
+  the read
+  path queues behind
+- Alerts **full-book rescan** now has a source on the Perspective path. Alerts evaluate on live deltas, which only carry the rows a window holds, so seeding `relativeChange` baselines needs the whole filtered book — and `registerAlertsSsrmLeafFetcher` was gated on `useSSRM`, registering `null` here, so a rescan found no fetcher and silently seeded nothing. It now registers a fetcher backed by `engine.readAllRows()`, and `AlertsPanel`'s rescan block is gated on `isServerSideEngine(engineKind)` rather than `=== 'ssrm'`, so it appears for both server-side engines
+- `engine.setCalcExpressions(map)` — publishes MarketsGrid's calculated columns as Perspective expression columns, so their values feed **sort, filter, group and aggregate** server-side (all verified first-class against 4.5.2). The map was plumbed through `toPerspectiveViewConfig` from the start but nothing populated it, so a calculated column was simply absent on this path. Expressions are **validated first** via `table.validate_expressions()` and the failures dropped and reported through `onError` — one bad expression makes `table.view()` throw and blanks the *whole* grid rather than hiding one column. A validator that itself fails keeps everything. Carried into `shapeOf` (so changing a calc column retires the Views built without it) and into the transient Views behind `countMatching` / `distinctValues`, since a saved or set filter may be on a calculated column
+- `compileStarUiExpressionToPerspective` **never emits `not(…)`** — it compiles StarUI `NOT(x)` to `if(x, false, true)`, and refuses a `NOT` whose operand is not known to be boolean. MEASURED against 4.5.2 (`perspective-grid/scripts/styleRuleProbe4.mjs`): `not()` does not exist for *any* argument type, and its absence is silent rather than loud. As a whole expression it aborts the View build; **nested inside `and` / `or` / `if` it evaluates wrong and `validate_expressions` reports it as a clean `boolean`** — `not(q > 10) and p > 95` answered false for every row and `if(not(q > 10), 1, 0)` answered 1 for every row, with no error anywhere. So the pre-flight validator cannot catch it and it has to never be emitted. Affected every calculated column using `NOT` on both server-side paths; a unit test asserting `not(` had been green throughout. The operand check exists because a non-boolean `if()` condition is *accepted* and reads truthy (`if("qty", false, true)` answered false for every row of a non-zero column) — refusing costs a server-side column, compiling costs a wrong one
+- `planSsrmCalcColumn(col, { backend })` / `planSsrmCalcColumns(cols, { backend })` / `ssrmEngineCalcColumnDefs(plans)` (`engine/ssrmCalcColumns.ts`, exported as `@starui/grid/engine/ssrmCalcColumns`) — the planner gains **`@starui/ssrm-engine` as a fourth plan KIND**, `{ kind: 'ssrm-engine', colId, expression, ast }`, carrying the parsed StarUI AST. A plan kind rather than a second planner: the existing kinds already answer one question — who computes this column — and a parallel planner would be two functions to keep in step and a third shape for callers to switch on. `backend` defaults to `'perspective'`, so every existing caller is unchanged. It differs from `materialize` in WHERE the work happens, which is the whole point: `materialize` evaluates in the window over rows a block already returned, so the column can be displayed but never sorted, filtered or grouped on; `ssrm-engine` computes it inside the engine where the book is, so all of those see it. **It only PARSES** — a parse failure is `unsupported` with the parser's message, and everything that parses is handed over, because the engine has a refusal list (cross-row reducers, `NOW`/`TODAY`, unknown functions, member access, `.old`/`.new`) that it applies BY NAME and retains in `calcDiagnostics()`; a second copy here would be a second thing to keep in step, and `@starui/grid` does not depend on `@starui/ssrm-engine`. `applyPerspectivePlansToColDefs` handles the kind in one added branch, binding the FIELD and dropping the `valueGetter` — which matches what `buildVirtualColDef`'s own getter READS on a group row ("SSRM stamps the folded agg onto data[field]") rather than what would have been convenient
+- `usePerspectiveCalcColumns(platform, columnDefs, enabled)` — runs the existing `planSsrmCalcColumns` planner for the Perspective surface (it previously ran only when `useSSRM` was true) and returns `{ defs, expressions }`: the ColDefs with the client `valueGetter` stripped from server-resolved columns, plus the expression map the engine publishes. Only `kind: 'perspective'` plans are served; a `materialize` plan needs a client pass over whole rows and this window holds only the blocks in view, so those keep their client `valueGetter`
+- `StompProviderConfig.requestHeaders` — STOMP headers on the request (trigger) frame, which `startStomp` previously could not send at all (`client.publish({ destination, body })`). Without them a provider could only ever get whatever the broker does by default; every sparse-profile measurement on the pull path had to come from a probe script rather than an app. `sanitizeRequestHeaders` drops the three headers stompjs owns on a SEND frame (`destination`, `content-length`, `receipt`) with a warning — supplying those is not a customization but a corruption — trims names, stringifies values, and the field is omitted entirely when empty so an existing provider produces a byte-identical frame. Verified end to end against the fixture: `snapshot-rows` took the book from **20,000 rows to 1,000**. (An earlier attempt to prove it via `live-mode: sparse` and Table churn was worthless — the control with no header measured the same, because the running fixture was already sparse-like)
+- `engine.countMatchingExpression(source)` / `engine.aggregateScalar(colId, agg)` — whole-book answers for **style rules**, and the reason header flash and header indicator badges were not merely degraded on this path but entirely dead. `headerPainter` decides whether a column header carries a rule's badge by asking "does ANY row match?", implemented as `api.forEachNodeAfterFilter` — and MEASURED live on the same book, that visits **0 nodes** under the server row model where CSRM visits all 20,000 (`forEachNode` visits the 100 loaded rows). The rule now compiles to a Perspective boolean expression and the worker counts it. Scoped to the grid's own filter, since the client-side original is *after filter* and a header must not light for rows the user filtered away. The expression columns are **transient, never live** — an expression column is recomputed on every Table update while its View lives, so a rule column in the viewport's View would charge that per tick forever for something only the painter reads; each count builds its own View, reads it once and drops it, cached on the same terms as the saved-filter counts
+- `planPerspectiveStyleRules(rules, dialect?)` / `substituteAggregates(plan, measured, dialect?)` (`engine/perspectiveStyleRules.ts`) — `dialect` is `'perspective'` (the default, and what it meant when there was one surface) or `'starui'`, which leaves the rule in StarUI source for `@starui/ssrm-engine` to parse into the AST it already evaluates for calculated columns. The surface DECLARES which through `ssrmExpressionDialect` on the grid context rather than either end sniffing it: both dialects are plain strings, and a mismatch is silent — the worker would refuse every rule and the header would simply never light, which is indistinguishable from a rule nothing matches. The aggregate PLACEHOLDER differs with the dialect too (`"__agg0__"` compiled, `[__agg0__]` uncompiled) and substituting the wrong form misses silently. — plans only the rules the painter consults (header flash / header indicator; a cell-only rule is answered by the cells on screen). Refuses, and leaves to the client scan, rules using `.old`/`.new` (viewport-only by definition — the worker holds one value per cell, not a before and an after), rules the compiler cannot express, rules that do not compile to a **boolean** (filtering `== true` against a float is accepted and answers false — a rule that silently never matches), and **timed** rules, whose activation is about what changed under the user's eyes. Cross-row context ("above average") is two steps: `AVG([col])` is lifted out into a placeholder, measured by `aggregateScalar`, and substituted as a literal — Perspective's own `avg("col")` is row-wise and would make the rule false for every row silently. An unmeasurable aggregate drops the rule's answer rather than defaulting it. The aggregate is measured over the **whole book, not the filtered one** — DECIDED: the threshold is a property of the book, so an "above average" rule paints the same rows whatever the user filters to (Excel's conditional-formatting convention, rather than the SQL/BI convention of filtering first). Verified live under `region = EMEA` (6,669 of 20,000): the engine answered 25,019,360.33445, the whole-book average to every decimal, against 25,010,520.70 for the EMEA rows alone. Known cost: such a rule can disagree with the average in the totals row on the same screen, since group totals, the grand total and the status bar all DO follow the filter. **Note this is a new capability, not restored parity:** the client-side style-rule evaluator never passes `allRows`, so `[price] > AVG([price])` is false for every row on CSRM too — **DECIDED: that divergence stands and is intended**, CSRM is not being brought up to it, so a profile carrying such a rule is not portable between the two surfaces
+- `engine.readMatchingRows(match, limit)` + `MarketsGridProps.masterDetail` — expand a row onto a detail grid of its children, read from the same worker-held book (`matchFields` maps a detail column id to the master column whose value it must equal). `CustomSSRMGrid` answers this from its client-side mirror engine, which holds every row; here it is a transient filtered View. Deliberately **not** scoped to the grid's sort or filter — a master row must expand onto the same children whatever else is on screen. A null match value becomes `is null` (`== null` matches nothing in Perspective, so a master keyed on a missing value would open onto an empty detail grid); an empty match answers empty rather than selecting the whole book as one row's children; over `detailLimit` it truncates rather than refusing, because a detail panel is a bounded surface the user is looking at, unlike an export
+- `MarketsGridProps.perspectiveTreeFields` — AG's SSRM **tree** mode over a fixed hierarchy, served from the worker. Tree and row-group are the same pull shape (AG asks for the children of a path), so this reuses `toPerspectiveGroupLevel` by standing the configured fields in for the `rowGroupCols` AG does not send in tree mode; a request carrying real group columns wins instead. What differs is the output: AG reads a hierarchy off the **data**, so parent rows are stamped with `__treeKey` / `__treeGroup` (`toTreeColumns`). Two consequences — `getRowId` cannot use the `level < groupCols.length` test (there are no group columns, so every parent would key off the leaf column it lacks, and duplicate ids become failed blocks), and tree mode counts as **grouped from the first block** so `setRowCount` never fires AG's silent error #28
+- Both are **`rowModel: 'perspective'` only, and say so**: setting either on another surface logs a dev warning naming the prop. A prop that silently does nothing is the failure this path has produced repeatedly. Note they are **new MarketsGrid API rather than CSRM parity** — `MarketsGridProps` previously had neither on any surface; they existed only on `CustomSSRMGrid`
+- `engine.readAllRows()` — every row of the current filtered, sorted book, flat; the one operation on this path that materializes the whole thing, for Excel export. Builds a transient View from the last **root** request so the file carries the sort, column filters and quick search on screen, reads it in 10,000-row chunks (a single `to_columns` over 20,000 × 26 would cross the proxy as one message), and flattens grouping — an export wants leaf rows, not a group tree. Past `maxExportRows` (default 200,000) it resolves **null** rather than truncating, because a short spreadsheet is indistinguishable from a complete one once opened
+- `engine.setQuickFilter(text)` — the quick-search box, which did nothing at all on this path: `QuickSearch` pushes `setGridOption('quickFilterText', …)` and AG implements that for the **client-side row model only**. The text is compiled into one boolean expression column (`toQuickFilterExpression` / `sanitizeQuickFilterTerm`) plus a clause selecting on it, because AG's per-token OR across columns cannot be a Perspective clause list (they are conjunctive). Searches **text columns only** by default — one `match()` per column per token, recomputed on every Table update while the View lives, made 26 columns × 2 tokens unusable on a live 20,000-row book; `quickFilterAllColumns` opts back in. Input is **sanitized, not escaped**: `match()` takes a regex and a lone `(` aborts the View build even backslash-escaped, so anything with regex or quoting meaning becomes `.`. Always purges, since AG does not know this filter exists and would keep serving pre-search blocks
+- `engine.distinctValues(colId)` — every distinct value in a column, for an AG
+  set filter's checkbox list. A set filter builds that list from the row data,
+  and on this path the client holds only the loaded blocks, so
+  `getFilterKeys()` returned `[]` on every column: filter menus were unusable
+  and — since a saved-filter pill is captured from a live column filter — the
+  count badges were unreachable. Answered from a `group_by` View (row 0 is the
+  level total, so distinct is `num_rows - 1`), built outside the keyed View map
+  so a value list cannot retire the Views the viewport is reading. **All or
+  nothing**: past `maxSetFilterValues` (default 50,000) it resolves null and the
+  filter is left empty with one warning, because a truncated list has no "there
+  are more" affordance — it renders as the whole domain and its Select All
+  silently excludes the rest. Cached with a 30 s floor (`valuesMinIntervalMs`),
+  far longer than the counts', since a column's value set only changes when a
+  row appears, disappears or changes category
+- `engine.applyEdit({ key, field, value })` / `engine.flushEdits()` — persist a
+  committed cell edit into the worker-held Table. Under the server row model
+  AG's write lands only on the block-cache row node and the next refresh paints
+  the old value back over it; routing it to `table.update()` makes the edit
+  stick **and** propagates it to every peer window, since they all read the one
+  Table. Coalesced by row key so a bulk update or smart-edit patch is one write,
+  not one per cell; values are coerced against the declared column type first
+  and a row that cannot be coerced is refused via `onError` rather than written
+  (Perspective coerces silently, and the book is shared). Editing the index
+  column is refused — the upsert would insert a second row. `close()` flushes
+  first, so a Table swap cannot eat the last edit
+- `createViewManager({ table, onEvent?, onUpdate?, maxViews? })` — per-window View
+  lifecycle: a keyed map of live Views (one per open group level, LRU-capped),
+  `getView(request)` resolving the View a block should read from,
+  `readGrandTotal(request)`, `invalidate()` and `close()`. Skips the level total
+  row on grouped reads, re-opens a View retired under an in-flight block rather
+  than settling short, and never moves the generation on a request-driven swap.
+  `countMatching(filterModel)` answers a filter count from its own transient
+  View **outside** the keyed map — `getView` reads every call as the grid's
+  current intent and retires every View of a different shape, so counting
+  through it would tear down the viewport the grid is scrolling
+- `engine.setColumnWindow({ columns, gridColumns? })` / `viewManager.setColumnWindow(window)` — **column-window fetching: restrict every block read to the columns the grid needs.** Opt-in through `MarketsGridProps.perspectiveColumnWindow` (`{ enabled, pad?, pinned? }`) and **off by default**, because every failure mode is silent: a forgotten column renders BLANK and a value getter or style rule reading a forgotten field gets `undefined` and reports nothing. Held in `viewManager` beside the quick filter and the calculated columns, for the same reason — AG's SSRM request carries NO column window (`startRow`, `endRow`, `rowGroupCols`, `valueCols`, `pivotCols`, `groupKeys`, `filterModel`, `sortModel`, and nothing else) — and participates in `shapeOf()`, so a change retires stale Views on the next block instead of deleting Views with reads in flight. Applied to the block View and the grand total ONLY, which share a View key so a grouped grid's total stays free; an export (`readAllRows`) and every question-shaped read are deliberately whole. What is carried without being asked for: the key column and the tree fields (a block whose rows all key the same is DISCARDED by AG, warn 205), every value column with an `aggFunc` (an aggregate is present only when its column is listed, so a totals row would otherwise empty), and **every Table field that no grid column binds at all** — value-getter inputs, style-rule inputs, anything the book carries that nothing renders. MEASURED against 4.5.2 (`perspective-grid/scripts/columnWindowProbe.mjs`), each one a silent failure if wrong: a `filter` clause, a `sort` and a `group_by` all resolve correctly against columns the View does NOT carry (so none of them needs pinning, and `__ROW_PATH__` still comes back); an `expressions` entry not listed in `columns` is still evaluated and filterable and stays OUT of the payload (which is what keeps the quick filter's `__quick__` off every block); an id the Table does not have **throws `Invalid column '…' found in View columns` and takes the whole View down**, so the window is intersected with `table.schema()` first and no window at all is applied without one; and `columns: []` is accepted and yields a View with ZERO columns, so an empty window is never emitted
+- **MEASURED on a book that is actually wide, and the verdict is "leave it off".** The lab's Stress tab was rebuilt as 50,000 x **120 REAL** columns — a provider declaring 121 fields, no `valueGetter` columns — so column count, Table width and block width are one number (VERIFIED by `columnPayloadProbe.mjs`: 124 AG columns, **123 columns in a returned row**, 0 computed in the window). Same book, same feed verified still, window off against on: the payload goes **123 -> 80 columns** while the `getRows` median stays at **8 ms**, and the tail gets WORSE (p90 16 -> 44 ms, max 245 -> 299 ms) because a band leaving its pad re-reads every loaded block. The feature does exactly what it was built to do and there is nothing to win by it at this width; the payload figure is what makes that admissible rather than a comparison of two runs that were secretly identical. Everything measured on this path now agrees: at 40, 56, 80, 120 and 123 columns a block read is single-digit milliseconds, and every large number ever recorded came from a ticking feed, a 404-column AG grid, or a queue behind background questions
+- **The SharedWorker holding the Table is NOT a separate process.** VERIFIED with CDP `SystemInfo.getProcessInfo` against the lab: Chrome reports `browser`, two `renderer`, `GPU`, `network` and `storage`, and **no worker process** — the worker is hosted inside the page's renderer. So "the book lives once in the worker and the window only reads its viewport" is true about OWNERSHIP and false about MEMORY: the Table, the provider's row objects, AG Grid and the page all share the ~4 GB Chrome allows one renderer, which is why this surface has been dying of "Aw, Snap! Out of Memory". MEASURED with `rendererProcessProbe.mjs` one minute after opening the tab (`performance.memory` reports ~60 MB against every one of these, being the JS heap only): the app with no grid open **140 MB**, a 500-row pull-path tab 136 MB, a 20,000 × 120 book **1,286 MB**, a 50,000 × 120 book **1,909 MB**. Anything sizing a book on this path has to be sized against that ceiling. Related and measured in NODE, where it dominates absolutely but did not transfer to the browser: a high-cardinality string column costs an entry per row where a float is 8 dense bytes — 50,000 × 121 measured **1,015 MB** with 53 string columns against **69 MB** with 12
+- **A widened window re-reads without purging.** AG's own remedy for rows whose columns changed is `refreshServerSide({ purge: true })`, which would discard the scroll position and every expanded group on each horizontal scroll. It is not needed: this engine's live re-read already establishes that `refreshServerSide({ purge: false })` invalidates and re-requests every loaded block, so a widen fills the new columns in place. The surface supplies the hysteresis — a band of `pad` columns (25 by default) either side of the visible run, replaced only when the visible set LEAVES it, debounced 150 ms — so an ordinary nudge costs nothing. Sourced from `getAllDisplayedVirtualColumns()` on `virtualColumnsChanged` (which carries `afterScroll` and is **not** deprecated in AG Grid 36 — the `@deprecated v32.2` note next to it belongs to `ColumnEverythingChangedEvent`) plus `displayedColumnsChanged` for hide/show/move/pin. The window array is SORTED before it reaches `viewConfigKey`, so moving a column does not rebuild every View for an identical set
+- `createSafeView(view)` — deletion-safe View wrapper: `read()` and `rows()` refcount
+  in-flight reads and `close()` drains them before deleting. **Mandatory for all
+  View disposal** — deleting under a read throws an uncatchable wasm borrow
+  error that can take the SharedWorker down
+- `toPerspectiveViewConfig(state)` — AG sort/filter/group/aggregate state into a
+  Perspective view config, with `toPerspectiveSort`, `toPerspectiveFilter`,
+  `toPerspectiveFilterClauses`, `toPerspectiveAggregate` available individually;
+  unmappable filters emit no clause rather than a narrower book
+- `isFilterModelMappable(filterModel)` — true when every column entry yields at
+  least one clause. Dropping what cannot be expressed is right for a **View**
+  (an unfiltered book beats a wrong one) and wrong for a **count**, where it
+  silently inflates the number; callers that need exactness gate on this
+- `coerceEditedValue(type, value)` — coerce an edited cell to a Perspective
+  column's declared type, returning `{ ok: false, reason }` rather than a
+  guess. Exists because `table.update()` coerces instead of rejecting, and a
+  cell editor with no `valueParser` hands back the string the user typed
+- `viewConfigKey(config)` — stable identity so an unchanged request reuses the
+  live View instead of rebuilding it
+- `usePerspectiveTable(client, providerId, opts?)` — window side of the pull
+  path: asks the hub to bind a ProxySession to a fresh `MessagePort`, builds
+  this window's Perspective `Client` on it and opens the provider's Table by
+  name. Returns `{ table, tableName, status, reason }`, where `unavailable`
+  (with a reason) is a normal answer for a provider that holds no Table so a
+  caller can fall back to the push path instead of waiting. The engine module
+  is loaded dynamically — only windows that open a blotter fetch its wasm — and
+  the client is described structurally so this package takes no dependency on
+  `@starui/host-data`. Attaches are shared and ref-counted per (hub client, provider) with a linger before teardown: React StrictMode double-invokes the mount effect, and closing the frame port on the first cleanup orphaned the Table handle opened over it — it read 0 rows forever while every other client read the full book. Sharing is right on its own terms too, since two blotters on one provider then read over one port. Re-exported from `@starui/grid`
+- **A live tick PUSHES the visible rows; it no longer invalidates every loaded block.** AG's server row model is pull for LOADING and push for MUTATION — `applyServerSideTransaction` writes rows into the block cache by row id. This engine used that for exactly one row (the grand total) while expressing every price tick as `refreshServerSide({purge:false})`, which marks EVERY loaded block dirty and makes AG re-request all of them, four times a second, through a session that serializes every request. Now two cadences: the **tick** (`refreshMs`, 250 ms) reads the rows between `getFirstDisplayedRowIndex` and `getLastDisplayedRowIndex` from the live root View and applies them as a transaction — ~35 rows, no invalidation, so no stub state and the values change in place; the **resync** (`resyncMs`, 5 s) keeps the old whole-store `refreshEveryLevel` as a backstop for blocks loaded but off screen. FLAT ONLY, and not as a shortcut: under grouping the visible rows span levels with their own offsets and `__ROW_PATH__` remaps, so a root-View row index is not a displayed index and reading `[first, last]` from it would update the wrong rows. An empty store still heals at the tick rate, since it never re-asks on its own. MEASURED on a 20,000 × 120 book with real wheel events and a live feed: block requests in one scroll pass **176 → 33**, the longest fully-blank viewport on a normal scroll **3,555 ms → 248 ms**, samples showing a dataless row 33-40% → **13%**; after a sort settles, requests fell from one every 300-900 ms costing 34-823 ms each to one every ~5 s costing 5-21 ms
+- **A sort no longer collapses the grid to two rows.** Reported from a desk: sorting "almost empties it — 2-4 rows at the top, then it paints the screen from top to bottom". `readGrandTotal` builds its View at **depth 0**, exactly like a root block View, and it holds ONE group (a constant expression column over the whole book), so it reports `rows: 1` — and the engine published any depth-0 view event through `api.setRowCount`. One row plus the grand-total row is the two that were seen, and it fired on EVERY purge, so a filter, a quick search and a calculated-column change all did it too. `viewManager` already guards `rowsAtRoot` against this exact confusion; the engine's `setRowCount` path never got the same guard. The distinction the two paths disagreed on: a flat root block View has `groupColId === null`, the grand-total View names its synthetic group column. MEASURED with `sortRecoveryProbe.mjs` on a 20,000 × 120 book: the lowest reported row count across a sort went from **2 (held ~700 ms) to 20,001 — it no longer drops at all**. The first block after a sort still takes 0.4-1.1 s because a sort is always a fresh View (Perspective view configs are immutable); what changed is that the grid keeps its height, scrollbar and count while it waits
+- **Stub cells are a SKELETON — not blank, and not "Loading…".** Reported by a trading desk: blank cells make traders nervous, and the reason is sharper than aesthetics — an empty cell is exactly how the grid renders a genuine null, so a stub is indistinguishable from "this position has no bid". `SkeletonLoadingCellRenderer` paints a muted bar drawn from `currentColor` at 15% opacity (so it themes in light and dark without a palette value); nothing in a book renders as a grey rectangle, so it can only mean "not here yet". MEASURED with `stubVisibilityProbe.mjs` on a 20,000 × 120 book with real wheel events and a live feed, counting rows whose `node.data` is undefined: a slow read shows one 1-3% of samples (worst 26% of the viewport, ≤313 ms), while a **normal scroll leaves the ENTIRE viewport dataless for 1.6-3.7 s** and a fling for up to 6.6 s. `blockLoadDebounceMillis` is NOT the lever — over four runs at 0/40/100 ms and concurrency 2/6, run-to-run variance on an identical build (17% of samples against 34%) was as large as the difference between settings; it sits at 40 ms for the one measurable effect, a fling issuing 92 block requests instead of 176. The lever is read latency under load: the same read is **8 ms with the feed paused and a 119-145 ms median while it ticks**, because `table.update()` blocks reads while it applies and everything crosses one serialized ProxySession — a worker-side problem, not a surface one
+- **Stub cells are BLANK, not "Loading…".** Under the server row model AG paints a stub for every row it has asked for and not yet received, and its default renderer writes "Loading…" into the leftmost column — a word flickering down the screen on every drag. `CustomSSRMGrid` answers this by painting the real value from its main-thread row mirror; there is no mirror on the Perspective path by design, so blank is the only honest stub. Merged into `defaultColDef` so a host's own `defaultColDef` survives and a host setting its own `loadingCellRenderer` still wins. Imperative rather than a function component, because AG often creates the stub before `rowIndex` is assigned and a functional cell that returns once would never repaint. VERIFIED: 0 cells showing "Loading" across 40 wheel samples of a fast scroll
+- `blankUnaggregatedNonNumeric(columns, { schema, aggregates, keep })` — **a non-numeric column with no `aggFunc` is BLANK in group, subgroup and grand-total rows**, which is what AG Grid does on its own row model. Perspective does the opposite: a column absent from `aggregates` still gets its type's default, and for a string that is a distinct-count — so a text column rendered a NUMBER under a group header and the grand total row read like data. Numeric columns are deliberately untouched, because Perspective's default for them is a sum and that is what a totals row is for. Opting back in is just an `aggFunc` on the column: `first` and `last` map straight through `toPerspectiveAggregate` and are the two that mean anything for text. Applied at both aggregate-row sites in `viewManager` (group/tree level reads and `readGrandTotal`), keyed off `table.schema()`; a schema that cannot be read leaves every column alone rather than blanking one that was carrying a real total, and columns the schema does not know (quick-filter and calculated expression columns) are never touched. 7 tests; VERIFIED live grouped by `issuerSector`: `cusip` / `ticker` / `currency` / `compositeRating` null in both the group row and the grand total, `marketValue` / `quantityFace` still aggregating
+- **Alerts evaluate over the WHOLE book under a server-side row model.** A `full` row-change used to be discarded outright when `rowModelType === 'serverSide'`, on the reasoning that deltas arrive explicitly via `publishExternalDelta`. Nothing publishes one on the Perspective path — ticks arrive as a worker `table.update()` then a block re-read, with no transaction to publish from — so alerts were silently dead there. MEASURED over 12 s of ticking: the row-change bus emitted **40 `full` changes and 0 deltas** on the Perspective surface against 0 and 20 on the client-side twin, so alerts received 40 signals and used none. `runServerSideWholeBookPass` now answers a `full` change from the registered whole-book fetcher (`getAlertsLeafFetcher`, the same `readAllRows`-backed binding the on-demand rescan uses). Deliberately whole-book rather than the loaded blocks: scoping to what a window happens to hold would make a rule fire or not depending on where the user last scrolled, which is worse than not firing since the dead one is at least obvious. Gated on an enabled rule existing, throttled to 1 s, and a pass in flight suppresses the next. VERIFIED live: alert history grew 1 → 4 over 20 s with a seeded `Bid > $110` rule, where it had never grown
+- **A cell rule no longer clones the row it is testing.** `buildCellClassPredicate` ran `{ ...params.data }` on every invocation — per cell, PER RULE — solely to overlay `params.value` for group/footer rows whose `data` lacks the column. On a leaf row that overlay is never needed, so the clone is now conditional. It matters because AG virtualises columns, so horizontal scrolling creates cells continuously: MEASURED on a 25-column grid with 6 cell rules and ~50 fields per row, a 40-notch horizontal sweep creates ~315 cells and the spread was running ~1,900 times for nothing. That sweep went from p99 50.1 ms / worst 66.6 ms / **291 ms of long tasks to p99 33.4 / worst 33.4 / ZERO long tasks** on the Perspective surface — the same cost as a tab with no rules at all. Column virtualisation is untouched; the cells are simply no longer expensive to create. Benefits every surface, CSRM included
+- **Live re-reads pause while the user scrolls** (`PerspectiveMarketsGridSurface`, `bodyScroll` + a 150 ms settle). The live re-read calls `api.refreshServerSide({ purge: false })`, which invalidates EVERY loaded block and re-requests it — four times a second at the default 250 ms throttle. Scrolling needs the same worker for the blocks it is moving onto and the engine serializes requests, so the two fought. MEASURED on a 500-row book, 40 real wheel events at 1600x900, against the lab's server-side twin: vertical scroll went from p50 33.3 ms / **max 2,533 ms** / 7,721 ms of long tasks to p50 16.7 / max 83.5 / 2,201 — where the twin is p50 16.7 / max 266.7 / 6,158. Horizontal went from p99 83.4 / 1,226 ms to p99 50.0 / 564 ms against the twin's 66.7 / 979. So the pull path is now **2.8-3.3x better than the client-side twin on scroll**, where it had been worse. Resuming schedules an immediate refresh, so the grid is current the moment the user stops
+- `toPerspectiveEdits(tx, keyColumn, opts?)` — maps an AG Grid data transaction
+  to Table edits, which is how **smart edit, bulk update and history
+  undo/redo** reach the book. They never touch the cell editor: they build a
+  patch list and hand it to `GridPlatform.applyDataTransaction`, which the host
+  routes to `GridApi.applyTransactionAsync` — not a write path under the server
+  row model. MEASURED before the fix: smart edit on the Perspective surface
+  reported the right cell count, enabled its buttons, ran its handler and
+  changed **nothing**, while the identical flow on the CSRM twin doubled the
+  value (30,053,717 → 30,053,717 against 4,215,482 → 8,430,964). Emits **only
+  fields that differ** from the row the grid holds — a transaction row is the
+  whole row, so writing all of it would push this window's copy of every swept
+  column back into the shared Table and rewind the feed for every peer. Never
+  emits the key column (a re-key upserts a second row and orphans the first),
+  skips the grand-total row, and ignores `add`/`remove` outright because
+  membership of the book belongs to the provider, not to an editing module in
+  one window. `PerspectiveMarketsGridSurface` registers it through
+  `GridPlatform.setEngineDataTransactionApplier`
+- `loadPerspectiveClient()` — the window's engine module, loaded once per window
+  and **without the 5 MB inline build**. A window on this path never runs the
+  engine (it holds a Client proxying to the SharedWorker), yet it was importing
+  `@perspective-dev/client/inline`: one 5,070 kB JS chunk carrying both wasm
+  binaries as base64, including the 2,406 kB **server** binary it can never
+  execute. This loads the slim 47.70 kB build and points it at the client wasm
+  as a separate, HTTP-cacheable 521 kB asset. MEASURED on the product path: a
+  blotter window now fetches `perspective-*.js` 46.58 kB + `perspective-js-*.wasm`
+  509.09 kB and **does not fetch the 5,070 kB inline chunk at all**; a second
+  window takes both from cache (0.29 kB over the wire each). Both read the full
+  20,000 rows with 0 failed blocks. `init_server` is handed an EMPTY buffer with
+  stage 0 disabled — `get_server()` throws outright when nothing is registered,
+  but the host ignores the `args[0]` it ends up in, so nothing is ever compiled
+  or run. Falls back to the inline build if the wasm asset is missing (a slow
+  window beats a window with no grid). The vendor's documented
+  `getCompiledClientWasm()` route is NOT used and cannot be: the Module cannot
+  be deserialized outside the SharedWorker's agent cluster — see
+  `perspective-grid/ARCHITECTURE.md`
+
+### 3.3 `@starui/ssrm-engine`
+
+**Path:** `packages/react-grid/ssrm-engine`
+**Purpose:** A columnar TypeScript row engine written to AG Grid's server-side
+row model contract — one store, N query-shaped views, the book held in a
+SharedWorker. The alternative to Perspective for the pull path; measured
+numbers, caveats and the worker-hosting findings live in the package README.
+**Status:** **CHOSEN as the product row engine (session 8, 2026-08-06)** — see
+the package README's "The decision" for the table, the cost column and where
+Perspective wins. Private, consumed as source. Two entry points: `.` (engine,
+free of any AG Grid import) and `./worker`.
+
+- `createSsrmEngine({ schema, quickFilterFields?, maxSetFilterValues?, treeFields?, pivotResultFieldSeparator?, calcColumns?, onCalcWarning? })` — the store and its queries. Answers the whole `IServerSideGetRowsRequest`: `startRow`/`endRow`, `sortModel`, `filterModel` (text, number, date, set, `blank`/`notBlank`, compound AND/OR, multi-filter, with AG's null semantics where only `blank` matches a null), `rowGroupCols`, `valueCols`, `groupKeys`, `pivotCols`/`pivotMode`. Grouping to any depth with path-based identity, aggregations (`sum`/`min`/`max`/`avg`/`count`/`first`/`last`, Kahan-compensated, nulls skipped not zeroed), grand total, quick filter, distinct values that REFUSE above a ceiling rather than truncating, sparse upsert / remove / snapshot-replace, and a changed-and-removed-key delta for the push path. The index is MUTABLE — a re-sort permutes an `Int32Array` rather than rebuilding — and writes do not block reads
+- `createColumnResolver(store, calc, version)` + `SsrmColumnAccess` (`columnAccess.ts`) — **the one way this engine reads a column.** Resolves a column id to `isNull` / `numberAt` / `numberOrNull` / `stringAt` / `valueAt` / `orderKey`, answering a store field and a compiled expression identically; `sortIndex`, `lowerBound`, `compileFilter`, `compileQuickFilter`, `activeAggregations`, the group level, the pivot level, the ancestor predicate and `distinctValues` all consume it and none can tell the two apart. ONE abstraction rather than three parallel "if it is calculated" branches, deliberately: a fix has to generalise to every branch that shares its reasoning, and the fourth call site otherwise has to remember to grow a fourth. `orderKey` is the single definition of "no position on the number line" — null, undefined and NaN all answer `null`, and `compareOrderKeys` puts a null key LAST IN BOTH DIRECTIONS without ever multiplying it by the sort direction. A calculated column WINS over a store field of the same id, matching what a returned row shows. Accessors are built once per column and cached; a store accessor captures the column OBJECT because `grow()` swaps the typed arrays out
+- `engine.setCalcColumns(defs)` / `client.setCalcColumns(defs)` — **calculated columns, as real columns.** Takes StarUI expression ASTs (`SsrmCalcColumnDef[]`), compiles each ONCE into a closure `(offset) => unknown` over the columnar store, and stamps the result onto every leaf row a block read returns. Returns whether anything changed, so a caller only purges when there is something to purge for. No new language: `tokenize`/`parse` stay in `@starui/engine`, the customizer already emits this AST, and `ssrmExpressionCompile.ts` is the sibling backend that compiles the same tree to Perspective. **The AST is taken STRUCTURALLY, not imported** — a compiled closure is not structured-cloneable so it cannot reach a worker-held book at all, and importing `@starui/engine` would drag the grid platform (zustand, ssf, three `ag-grid-*` peers) into worker entries that have zero runtime dependencies. Compiled per expression rather than walked per cell, VERIFIED with a counting Proxy: 0 reads of the tree across 5,000 evaluations
+- **A calculated column SORTS, FILTERS, GROUPS, PIVOTS and AGGREGATES.** All of it through the accessor above, so the rules are inherited rather than restated: a calculated null and a calculated NaN sort last in BOTH directions, `blank` matches the null and NOT the NaN (a bad tick and a missing quote are different facts), and an aggregate skips both rather than counting them as zero, Kahan-compensated. `distinctValues` answers a set filter over a calculated column by scanning (no dictionary to walk) and refuses above the same ceiling; the quick filter spans one if it is named in `quickFilterFields`. A mixed string/number pair TIES, matching AG Grid's own `_defaultComparator`, so an untyped expression orders the same way on the client-side row model. Note that a calculated column has no declared type and `[px] * 2` over a null is **0**, not null — the grid is JavaScript, so getting a calculated null takes an explicit one (`IF(ISNOTNULL([px]), [px] * 2, null)`)
+- `engine.calcPatch(rows)` — **a calculated column TICKS.** `host.publish` broadcasts the writer's SPARSE patch (400 cells for a 200-row two-price tick, against 24,200 for re-reading those rows), so a column computed from `dailyPnL` used to reach the window without its own new value and sit stale until AG re-read the block. `calc.ts` records the fields each expression READS, and this re-stamps exactly the calculated cells whose inputs the frame names — not all of them, because AG flashes a cell it is told changed and a P&L total flashing on a tick that did not move it is a lie the user can see. Returns the SAME array when nothing is stale, copies a row rather than mutating it (the patch belongs to the caller and goes to every port), and skips a row the book no longer holds. Stamped ONCE above the per-port loop
+- `compileCalcColumns(store, defs, warn?)`, `engine.calcEvaluator(colId)`, `engine.calcDiagnostics()` / `client.calcDiagnostics()` — the compiler, the per-offset closure (the seam sorting/filtering/grouping a calc column needs), and the retained record of refusals, runtime failures and columns an expression named that the book does not have. Retained as well as warned because `console.warn` in a SharedWorker reaches no console anywhere
+- **Null semantics follow the GRID, which is JavaScript** (`@starui/engine`'s `evalOps.ts`, the module the client-side `valueGetter` calls). `null > 95` is false, `null > -1` is **true**, `null == 0` is false — the same authored rule painted different rows on the two surfaces when one of them was Perspective, where `null > 95` is true. Three places the grid is not plain JavaScript are copied anyway: `x / 0` is null while `x / null` is `Infinity`; `isTruthy(NaN)` is TRUE; and `IF` (JavaScript truthy) disagrees with `IFS` (`isTruthy`) about NaN. **An expression producing NaN is stamped as NaN**, never folded into null — a null means "no value here", and a blank cell caused by a bad expression is indistinguishable from a genuine absence
+- **Errors never reach a block read**, because every `getRows` settles exactly once and a throw inside one wedges the grid. A compile failure falls back to the FIELD BINDING (the column is not stamped); a runtime failure falls back to the field VALUE, caught by ONE try/catch at the top of the column, warned once per expression and counted every time. REFUSED at compile with the reason named: cross-row reducers over a bare `[col]` (`SUM`/`AVG`/`MIN`/… expand to every row on the grid and have no per-offset equivalent — answering row-wise is the `avg("col")` trap the parity worklog records), `NOW`/`TODAY` (wall-clock values cannot be compared to the surface beside them), any other unknown function by name, `.old`/`.new` refs, `data`/`row` variables and member access. A column the expression names that the book does not have is NOT an error — it reads null, as it does on the grid — but it is counted and named
+- `createSsrmEngineRowEngine({ client, keyColumn, maxExportRows?, countMinIntervalMs?, viewportSlackRows?, groupRefreshMinIntervalMs?, onBlock?, onTransaction?, onError? })` (`rowEngine.ts`) — **the row engine a MarketsGrid surface mounts**, peer to `createPerspectiveRowEngine` and deliberately much smaller: there is no per-tick re-read (the engine PUSHES the sparse patch, so a tick is one transaction rather than an invalidate-and-refetch of every loaded block), no `rowCount` guesswork (the book is held, so every level answers its exact size and the "a 0 caps the store forever" failure cannot arise), and no View lifecycle. What it does own is everything the platform asks a server-side engine for: `status` + `subscribe` (whole-book counts, `leafRows` from `countFiltered` and NOT a grouped level's row count), the grand total CREATED with `grandTotalData` on a root block and UPDATED by a transaction addressed to AG's grand-total row id, `countMatching` for a saved-filter badge, `distinctValues`, `setQuickFilter` (purging only when the engine says the text moved), `readAllRows` for an export that REFUSES above a ceiling rather than truncating, `applyEdit` coalesced per row onto one worker write, `reportViewport`, and the push pump. The grid is typed structurally — this package still holds no AG Grid import. It asks the grid `getGridOption('grandTotalRow')` rather than being told whether a totals row exists, because a whole-book aggregate awaited before the rows settle is not something to pay for a row that is not there
+- `SSRM_GRAND_TOTAL_ROW_ID` / `SSRM_GRAND_TOTAL_FLAG` — AG's own id for the grand total row, and the marker `getRowId` recognises it by. Both are needed: the id is the only way a transaction can reach that row, and the flag is the only thing on the DATA that says which row it is
+- `engine.calcPatch(rows, 'calcOnly')` — **the author's own calculated cells.** `host.publish` skips the port that caused a write because that window has already rendered its edit, and until session 6 that meant it did not render the columns computed FROM the edit either. The origin port now gets the key plus the re-stamped calculated cells and nothing else — echoing the raw cell back would make AG flash the cell the user just typed into. One method with a mode rather than two, so "which calculated cells this frame made stale" has exactly one definition
+- `scripts/marketsGridParityProbe.mjs` — the MarketsGrid surface driven in a real browser against the parity checklist: calculated columns installed and stamped, set-filter values for a stored AND a calculated column, sort/filter/group on a calculated column each asserted to have CHANGED the answer, quick search including that it is clearable from an EMPTY grid, a whole-book export, a cell edit reaching the book, and the author's own derived cell following it as an exact identity. It refuses to report rather than pass when it could not have failed. Its first run failed 7 of 17 items — two the feature, five the probe; see the README
+- `scripts/distinctValuesProbe.mjs` — what a set filter costs at each cardinality, which is what the `maxSetFilterValues` ceiling should be set against. A STORED column walks the dictionary so its cost tracks CARDINALITY (0.21 ms at 8 distinct, 1.47 ms at 20,000); a CALCULATED column has no dictionary so it scans the book and its cost tracks ROWS — flat at 4.2-5.8 ms whether the answer is 8 values or 20,000. Across the port, 20,000 distinct values is 3.2 ms stored and 8.1 ms calculated. The ceiling stays at 50,000, now measured rather than inherited
+- `createSsrmDatasource(engine, { onError?, onLevelTotals? })` — the AG boundary for an in-process engine, owning the rule the engine cannot: every `getRows` settles exactly once
+- `createAsyncSsrmDatasource(source, { timeoutMs?, onError?, onLevelTotals?, onBlock? })` — the same boundary when the book is behind a port. Two independent timers: the RPC timeout that names the method, and a longer block-level backstop that holds even if the RPC layer misbehaves. A block that times out FAILS rather than staying pending — AG's `outboundRequests` is grid-global with a default limit of 2, so two leaked calls wedge the grid permanently and no purge recovers it. A source that answers after the timeout is discarded, not handed to a grid already told it failed. `onBlock` reports entry-to-settle per block, which is how the worker boundary is measured
+- `makeSsrmGetRowId(keyField)` (`rowId.ts`) — **ONE definition of a row id**, used by the MarketsGrid surface, the plain-grid lab surface, the push pump and both fuzzes. AG Grid’s own documented form: `parentKeys` prefixes a LEAF as well as a group, and a group row is keyed by its path (a leaf key collides across groups and AG discards the block, warn 205). There used to be TWO — this one with a `g:` prefix and a bare leaf key, and the surface’s own — and the delta-path fuzz ran 260 adversarial frames against the one the product does not use, missing a defect that dropped 100% of pushed rows under grouping. What follows from the surviving definition is the grouped design below: under grouping a leaf id is its PATH, a pushed patch is sparse, and the path is not reconstructible from it even in principle
+- `engine.visibleKeys(request, start, end)` — the keys a subscriber can SEE under its own filter, quick search and sort, so a pushed tick can be narrowed to them. Answers `null` for a GROUP level and that is not a shortcut: under grouping the displayed rows span several levels with their own offsets, so a position in one level's index is not a displayed row index and narrowing by it would push updates at the wrong rows. A caller that gets `null` must send the whole patch. The host narrows by the visible set on BOTH SIDES of the write — a tick that changes a sort key moves the row across the viewport boundary, and AG does not re-order on a transaction, so a row that just left the range is still the row on screen; narrowing by the post-write set alone dropped exactly that update
+- `createSsrmRowPump(grid, { keyField, sliceBudgetMs?, schedule?, onFlush? })` — the window half of the push path. **Conflates by row id** (a MERGE, because patches are sparse: a frame naming `bid` and a frame naming `ask` are two cells of one row, not two versions of it) and spends at most `sliceBudgetMs` per flush (4 ms default), so a burst becomes latency rather than a dropped frame. Removals are never deferred, and they are emitted as ROW DATA (`{ [keyField]: key }`), because AG 36 resolves a transaction's removals through the grid's own `getRowId` — a bare key resolved to the string `"undefined"`, matched no node, and left every deleted row on screen until its block was re-read. A patch for a row the grid does not hold is DROPPED and counted, never turned into a fetch. The grid is typed structurally — three methods, no AG Grid import
+- `@starui/ssrm-engine/worker` — `serveSsrmEngineWorker({ openBook, onFault?, staleMs?, sweepMs?, now? })` mounts a host on `self.onconnect`: one `SsrmEngine` per book id, N ports per book, retired when the last client detaches. `host.publish(bookId, rows, removed?, origin?)` broadcasts a write as the SPARSE patch that was applied, never as whole rows, narrowed per subscriber to that window's declared viewport. `SsrmEngineClient.open(port, bookId, { timeoutMs?, onFault?, bookOptions?, heartbeatMs?, detachOnPagehide? })` is the window's handle — the same surface asynchronously, with a live mirror of the book size, `subscribe` for pushed writes, `setViewport`/`introspect`, and the liveness the refcount needs. The wire is `{id, method, params}` / `{id, ok, result | error}` with one in-flight map per port; an uncloneable result is answered as an error frame rather than dropped, and `messageerror` fails every in-flight call, because a refused structured clone is SILENT at the sender
+- **The refcount survives a hard kill.** A SharedWorker port has NO disconnect event and the worker outlives the page, so a window that dies without sending `close` leaks its book — which is how the lab once accumulated several 20-50k books in one process. Two levers: a `pagehide` beacon for the ordinary cases, and a client heartbeat with a worker-side `sweep()` for the ones that never get to send anything. The stale window is **90 s because Chrome throttles `setInterval` in a hidden tab to roughly once a minute** — a 20 s window would reap a blotter that was merely in a background tab, which is this failure inverted and worse. The sweep timer runs only while a book is open, or the worker could never be collected
+- `client.introspect()` — books, clients per book, viewports per book, and the reaper's count. This is what makes "these windows share a book" a claim that can FAIL rather than an assertion
+- `scripts/calcTwinProbe.mjs` — the calculated-column evaluator against the CSRM twin, row by row. The control is `@starui/engine`'s own `ExpressionEngine` over plain row objects, called the way `buildVirtualColDef`'s `valueGetter` calls it (try/catch included); the book is the lab's Stress book and the expressions are its seeded curriculum, parsed by the real `tokenize`/`parse`. **520,000 calculated cells, zero disagreements.** It also puts the engine's SORT, FILTER and GROUP to the same twin values across five columns — every row in the twin's order both ways, 52 null/NaN rows last in both directions, the filtered set exactly what the values imply, and every group child count identical. Where AG is the authority and where it is not is stated rather than blurred: two PRESENT values compare by AG's own `_defaultComparator` (which is why a mixed string/number pair ties), but AG puts a null FIRST ascending and this engine puts null and NaN last in BOTH directions, so the divergence is asserted rather than hidden. Four mutations turn it red at named rows. It REFUSES TO REPORT rather than pass when it could not have failed — fewer rows read than the book, any expression comparing zero rows, none of the injected null/NaN/zero rows reached, a column constant on every row, or `IF` and `IFS` agreeing everywhere. Sixteen adversarial expressions sit beside the curriculum because MUTATION TESTING showed the curriculum alone let two core bugs through (`x / 0` answering `Infinity`, and NaN made falsy): nothing in it divides by a variable outside a guard, and nothing in it puts a non-boolean in a condition. It also found that the lab's seeded `LOG10([avgDailyVolume30d])` names a function `@starui/engine` does not define — so that column renders blank on CSRM, silently
+- **Calculated values are COMPUTED PER READ, not materialised into the store — decided with both sides measured** (`benchProbe.mjs`, 20,000 x 121, four calculated columns). A sort evaluates its key twice per comparison and a scattered key costs 254,515 comparisons, so a naive per-read sort was 34.0 ms against 3.3 ms stored; a per-generation value cache (a write stamp compared on every read) took it to 16.0 ms and hoisting the key out of the comparator into a decorated array took it to 11.0 ms, with the structured key at 3.5 ms — 1.0x a stored sort. Filter 1.5x, group+aggregate 2.5x, 0.1 ms per 400-cell block. MATERIALISING would pay 11.3 ms per full snapshot, 0.1 ms per 200-row tick (doubling it) and 625 kB for four columns. It is CLOSE on read cost and that is stated plainly; the tie-break is that a materialised value must be re-derived on exactly the writes touching its inputs and is silently stale when that is wrong, where a stamp compared on every read cannot be. Revisit if a sort ever exceeds ~100 ms. The decorated key is deliberately NOT built for a stored column (already a typed-array index) nor for `lowerBound` (one binary search)
+- **Under GROUPING the push path is OFF and the EXPANDED ROUTES are re-read**, on a throttle, and `groupRefreshStats()` reports it (`writes` / `refreshes` / `routes` / `deferred` / `lastMs`). MEASURED before it existed (`scripts/groupedTickProbe.mjs`, 50,000 rows, two levels, 25 s): the grand total ticked 20 times and **group rows 0 of 9, subgroups 0 of 2, leaves 1 of 101**, with the pump reporting received 34,447 · applied 0 · **dropped 34,447**. After: **9 of 9 groups, 2 of 2 subgroups, 51 of 101 leaves, 32 total changes.** The pump was never the thing to fix — a leaf id under grouping is its PATH and a sparse patch cannot carry one, and a leaf transaction would not move the group row above it in any case, because under a server row model an aggregate is whatever the last block for that level said. Four AG rules bound the design and each is load-bearing: `refreshServerSide` does NOT cascade into child stores (so every expanded route is refreshed BY ROUTE — refreshing the root alone leaves the rows under an expanded group frozen while their group row ticks), `forEachNode` does not traverse total rows (it enumerates routes here and nothing counts with it — MEASURED, it sees **0 of the 3 footers** on screen), `setRowCount` is illegal while grouping, and `grandTotalData` creates the total but does not update it. One pass costs **3 blocks settled in 171 ms** at 50,000 with two levels expanded and the feed off, so a pass DEFERS while the previous one’s blocks are in flight, capped at 2 s
+- **`SsrmViewport.pushRows: false`** — the grouped surface declares that it applies no pushed row, and the worker then sends that port the size mirror and the write signal and no rows at all. The alternative, dropping them on arrival, costs the same wire and the same structured clone; this says it once in a message the port already sends. 34,447 rows per 25 s stopped crossing the port
+- `engine.countMatchingExpression(ast, request?)` / `engine.aggregateScalar(field, aggregate)` (+ the `client` pair and the RPC) — **the whole-book expression seam** a conditional-styling rule needs, and the reason a column header can light for a row no block has loaded. `headerPainter` asks "does ANY row match?", implemented client-side as `api.forEachNodeAfterFilter`, which visits **zero** nodes under a server row model — so on this surface the painter was not degraded but DEAD, and silently. The two have deliberately OPPOSITE scopes: the count follows the request’s filter (a header must not light for rows the user filtered away), the aggregate drops it and measures the whole book (an "above average" threshold is a property of the book — Excel’s convention, matched from the Perspective path rather than re-litigated, with the same known cost that such a rule can disagree with the totals row on the same screen). The **AST** crosses the port, never source: one language, one parser, and a compiled closure is not structured-cloneable. Truthiness is `calcOps.ts`’s, where `isTruthy(NaN)` is TRUE. A rule may name a CALCULATED column, because on this engine a calculated column is a column. A refused expression answers `null`, which is NOT 0 — the caller falls back to its client scan rather than unlighting the header. `aggregateScalar` takes the STYLE RULE’s vocabulary (`sum`/`avg`/`median`/`count`/`high`/`low`) so there is one vocabulary on the wire; `median` is implemented here because `aggregate.ts` has none (AG’s `valueCols` cannot ask for one)
+- `scripts/styleRuleHeaderProbe.mjs` — the seam driven live against rules SEEDED into the lab profile, 14/14. The rule is `[esgScore] > 999` — 36-46 of 50,000 rows, **none of them loaded** — and the probe re-checks that every 250 ms and REFUSES to report if a loaded row reaches the threshold, because a rule the client scan could answer would light the header with no seam at all. Cells are the control: the cross-book rule paints NO cell and still paints its header; an impossible rule paints neither; a rule every row matches paints both. The whole-book average under a filter leaving 24,687 of 50,000 rows read 491.88 where that population’s own average is 745.21 — 255 apart, against 3.95 of drift on a ticking book. Two earlier versions of it were worthless and both are recorded in the file: a rule written into module state with `store.setModuleState` reaches the store and never reaches the grid
+- `scripts/groupedParityProbe.mjs` — CSRM parity for a live GROUPED grid, 13/14. The expanded tree, the selection and the scroll position survive a refresh; an edit made while grouped reaches the book keyed by path; sort and filter work at depth including on a calculated column; group footers exist and agree with their group to the cent with the feed off (~0.95% out with it on, which is one tick and is the fixture). The one failure is recorded rather than worked around: **a changed cell does not FLASH**, grouped or flat — the platform row signal carried 30 `full` changes and not one per-row delta on this surface, which the surface now fixes by publishing every pushed transaction onto it (`onTransaction`), leaving conditional styling’s timed activation as the remaining half
+ up from a detail grid reaches the MASTER grid and looks exactly like a match clause being ignored. It also records what AG really marks a tree parent with: **neither `node.group` nor `node.expandable`** — both read false on a correct tree root while AG takes the key from `getServerSideGroupKey` and expands it happily
 - `scripts/styleClassScan.mjs` — which `ds-*` classes reach the DOM on any lab tab. A discriminator rather than a measurement: it is what showed that a missing header class was NOT an ssrm-surface fault, because the Perspective branch painted exactly the same nothing
 - 199 tests, including TWO differential fuzzes. `engine.fuzz.test.ts` compares every query shape — flat, sorted, filtered, grouped, **pivot and tree** — against a brute-force oracle over 250 mutation frames; it caught a NaN price sorting FIRST under a descending sort, because the "no position on the number line" verdict was being multiplied by the sort direction (the same bug the null path was fixed for, surviving in the NaN branch). The same loop now installs **three freshly generated expression trees per frame** and compares every calculated cell of every returned row against a tree-walking oracle written from `evalOps.ts` — ~30,000 cell comparisons per run, plus the check that a row's calculated value does not change when a filter does. It found no defect in the evaluator; what it caught was its own first draft, where a correctly-refused generated call left the column unstamped and 30,000 assertions compared `undefined` to `undefined`. Those expressions are now SORTED BY, FILTERED ON, GROUPED BY and AGGREGATED too, and that found three defects — an aggregate COERCING a non-number instead of skipping it (AG's own `aggSum` requires `typeof value === 'number'`, so a calculated boolean column summed to the count of its true rows and a stored STRING column summed its dictionary codes), Kahan compensation poisoning a whole group once an `Infinity` entered it (`Infinity - 0 - Infinity` is NaN and every later term inherits it), and group rows still carrying their own comparator with the direction multiplier applied to a NaN key, so a NaN group sorted FIRST on a descending group. The last was found only by MUTATION TESTING; three counters assert the new paths were seen to change the answer, since a sort that did nothing agrees with the oracle trivially. Sixteen deliberate bugs, 16 caught, 0 survived. `worker/deltaPath.fuzz.test.ts` runs 312 frames through the WHOLE push path — including GROUPED shapes at one and two levels, with the levels and parent keys AG assigns (read out of the installed `ag-grid-enterprise` build: `RowNode.setId` supplies both, and a routeless transaction is mapped through the ROOT store’s identity, which is how a pushed bare key can land on a group row whose key matches). Two grouped assertions, both shown to go RED by removing the fix: no row may be pushed at a window that cannot apply one, and a group row may never be merged with a leaf; the fixture carries a desk named `r7` so the second can fail at all — — a real `MessageChannel`, the host's viewport narrowing, the pump's conflation and slice — into a grid model built from AG 36's own transaction code, and asserts the grid equals a full re-read of the book over the rows it HOLDS; it caught the removal payload and the one-sided viewport narrowing above. Plus the worker path over a real `MessageChannel` (every case there is a way a reply can go missing), the reaper under an injected clock, and viewport narrowing including its grouped fallback
 

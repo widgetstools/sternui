@@ -848,3 +848,107 @@ describe('SsrmEngine — whole-book style-rule questions', () => {
     expect(engine.countMatchingExpression(gt('notional', 13))).toBe(3);
   });
 });
+
+/**
+ * ══ TREE DATA, ON THE REQUEST RATHER THAN ON THE ENGINE ══
+ *
+ * AG's SSRM tree mode sends no `rowGroupCols` at all, so something has to stand
+ * in for them. The engine has had a `treeFields` CONSTRUCTION option since
+ * session 3 and it is in the differential fuzz — but a construction option is a
+ * property of the BOOK, and the book is held once in a SharedWorker and read by
+ * N windows. One blotter viewing `desk -> sector` while another views the same
+ * book flat is the ordinary case, and it is the case sort, filter and grouping
+ * already support by travelling on the request.
+ */
+describe('SsrmEngine — tree data comes from the REQUEST', () => {
+  it('builds a hierarchy the engine was never constructed with', () => {
+    const engine = engineWithBook();
+    const roots = engine.getRows({ treeFields: ['desk'], groupKeys: [] });
+    expect(roots.rowData.every((r) => r[SSRM_TREE_GROUP] === true)).toBe(true);
+    expect(roots.rowData.map((r) => r[SSRM_TREE_KEY]).sort()).toEqual(['', 'Credit', 'Rates']);
+  });
+
+  it('walks to a leaf level, and a leaf does NOT claim to be a parent', () => {
+    const engine = engineWithBook();
+    const leaves = engine.getRows({ treeFields: ['desk'], groupKeys: ['Rates'] });
+    expect(leaves.rowData.map((r) => r.id).sort()).toEqual(['a', 'b']);
+    expect(leaves.rowData.some((r) => r[SSRM_TREE_GROUP])).toBe(false);
+  });
+
+  it('a REQUEST hierarchy wins over the engine construction option', () => {
+    // The two must not be able to disagree silently: a window asking through
+    // `sector` must not be served the book's default `desk` levels.
+    const engine = createSsrmEngine({ schema: SCHEMA, treeFields: ['desk'] });
+    engine.applySnapshot(BOOK);
+    const bySector = engine.getRows({ treeFields: ['sector'], groupKeys: [] });
+    expect(bySector.rowData.map((r) => r[SSRM_TREE_KEY]).sort()).toEqual(['Gov', 'HY', 'IG']);
+    // And the construction option still answers a request that names none.
+    const byDesk = engine.getRows({ groupKeys: [] });
+    expect(byDesk.rowData.map((r) => r[SSRM_TREE_KEY]).sort()).toEqual(['', 'Credit', 'Rates']);
+  });
+
+  it('keys its index separately, so two hierarchies cannot share one', () => {
+    /**
+     * The failure this prevents is silent and total: an index materialised for
+     * one hierarchy, reused for another, applies the first one's ancestor
+     * predicate to the second one's levels.
+     *
+     * Compared by KEY rather than by row count — both hierarchies happen to
+     * produce three top-level rows on this book, so a count comparison passes
+     * whatever the cache does. Interleaved, so the second read cannot simply
+     * be the first one repeated: desk, then sector, then desk again, and the
+     * two desk reads must agree with each other and not with the sector one.
+     */
+    const engine = engineWithBook();
+    const keys = (request: Parameters<typeof engine.getRows>[0]) =>
+      engine.getRows(request).rowData.map((r) => String(r[SSRM_TREE_KEY])).sort();
+
+    const desk = keys({ treeFields: ['desk'], groupKeys: [] });
+    const sector = keys({ treeFields: ['sector'], groupKeys: [] });
+    const deskAgain = keys({ treeFields: ['desk'], groupKeys: [] });
+
+    expect(desk).toEqual(['', 'Credit', 'Rates']);
+    expect(sector).toEqual(['Gov', 'HY', 'IG']);
+    expect(deskAgain).toEqual(desk);
+  });
+
+  it('and a CHILD level of one hierarchy is never served from another’s index', () => {
+    /**
+     * The collision the index key exists to prevent, made REACHABLE.
+     *
+     * At the root level the index is the same whatever the hierarchy — the
+     * ancestor predicate is a no-op at depth 0 — so no root-level comparison
+     * can catch a missing key component, and the first version of this test
+     * passed with `treeFields` dropped from the key entirely. It only matters
+     * one level down, where the predicate is built from the tree fields, and
+     * only when two hierarchies can produce the SAME group key.
+     *
+     * So the book below puts the value `X` in both columns: without
+     * `treeFields` in the query key, `groupKeys: ['X']` through `desk` and
+     * through `sector` are the same cache entry, and the second read is served
+     * the first one's rows.
+     */
+    const engine = createSsrmEngine({ schema: SCHEMA });
+    engine.applySnapshot([
+      { id: 'p', desk: 'X', sector: 'Gov', price: 1, qty: 1 },
+      { id: 'q', desk: 'Rates', sector: 'X', price: 2, qty: 2 },
+    ]);
+    const byDesk = engine.getRows({ treeFields: ['desk'], groupKeys: ['X'] });
+    const bySector = engine.getRows({ treeFields: ['sector'], groupKeys: ['X'] });
+    expect(byDesk.rowData.map((r) => r.id)).toEqual(['p']);
+    expect(bySector.rowData.map((r) => r.id)).toEqual(['q']);
+  });
+
+  it('an explicit rowGroupCols still WINS over a tree hierarchy', () => {
+    // Grouping is a user action on the grid; a tree is how the surface is
+    // configured. A row-group column the user dragged in has to beat it.
+    const engine = engineWithBook();
+    const grouped = engine.getRows({
+      treeFields: ['desk'],
+      rowGroupCols: [{ id: 'sector' }],
+      groupKeys: [],
+    });
+    expect(grouped.rowData.some((r) => r[SSRM_TREE_GROUP])).toBe(false);
+    expect(grouped.rowData.every((r) => r[SSRM_GROUP_FLAG] === true)).toBe(true);
+  });
+});

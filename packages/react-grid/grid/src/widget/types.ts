@@ -130,8 +130,16 @@ export interface MarketsGridProps<TData = unknown> {
    * down as filter clauses), and the parent rows carry the markers AG reads a
    * hierarchy from.
    *
-   * **`rowModel: 'perspective'` only.** Set on another surface it warns in dev
-   * rather than doing nothing quietly — see {@link MarketsGridProps.masterDetail}.
+   * **Either worker-held surface** — `rowModel: 'perspective'` or
+   * `rowModel: 'ssrm-engine'`. Set on the CSRM or CustomSSRMGrid surface it
+   * warns in dev rather than doing nothing quietly.
+   */
+  treeFields?: readonly string[];
+  /**
+   * @deprecated Use {@link MarketsGridProps.treeFields}. The Perspective-
+   * prefixed name predates `rowModel: 'ssrm-engine'` supporting the same
+   * hierarchy, and a name that says one engine on a prop both engines read is
+   * the drift this repo keeps paying for. Still honoured; `treeFields` wins.
    */
   perspectiveTreeFields?: readonly string[];
   /**
@@ -140,9 +148,10 @@ export interface MarketsGridProps<TData = unknown> {
    * master column whose value it must equal). Supply `getDetailRowData` to
    * fetch them yourself instead.
    *
-   * **`rowModel: 'perspective'` only.** The CSRM and CustomSSRMGrid surfaces do
-   * not read this, and setting it there warns in dev — a prop that silently
-   * does nothing is the failure mode this path has produced repeatedly.
+   * **Either worker-held surface** — `rowModel: 'perspective'` or
+   * `rowModel: 'ssrm-engine'`. The CSRM and CustomSSRMGrid surfaces do not read
+   * this, and setting it there warns in dev — a prop that silently does nothing
+   * is the failure mode this path has produced repeatedly.
    */
   masterDetail?: PerspectiveMasterDetail;
   /**

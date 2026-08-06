@@ -38,10 +38,26 @@ const GRID_ID = 'ssrm-markets-grid-lab';
 export interface SsrmMarketsGridProps {
   /** Live tick interval applied in the worker. 0 disables ticking. */
   tickMs?: number;
+  /**
+   * Which row shape to mount. Tree data and master/detail are NEW MarketsGrid
+   * API rather than restored parity — the CSRM surface exposes neither, and
+   * until this session they existed only on the Perspective surface.
+   */
+  mode?: 'flat' | 'tree' | 'detail';
   onReady?: () => void;
 }
 
-export function SsrmMarketsGrid({ tickMs = 200, onReady }: SsrmMarketsGridProps) {
+/**
+ * desk -> book. Two levels, so a child level is a route rather than a leaf.
+ *
+ * Both are REAL fields of this book, and that is not a detail: the first draft
+ * used , which this book does not have — the engine bucketed all
+ * 50,000 rows into one null group, AG showed a single empty-keyed root, and it
+ * looked exactly like a broken hierarchy rather than a mistyped field name.
+ */
+const TREE_FIELDS = ['desk', 'book'] as const;
+
+export function SsrmMarketsGrid({ tickMs = 200, mode = 'flat', onReady }: SsrmMarketsGridProps) {
   const { client, fault, openCost } = useSsrmBook(tickMs);
   const surfaceRef = useRef<SsrmEngineMarketsGridSurfaceHandle | null>(null);
   const blocksRef = useRef<{ ms: number[]; served: number; failed: number }>({
@@ -123,6 +139,24 @@ export function SsrmMarketsGrid({ tickMs = 200, onReady }: SsrmMarketsGridProps)
         animateRows={false}
         storage={labStorage}
         statusBar={LAB_STATUS_BAR}
+        {...(mode === 'tree' ? { treeFields: TREE_FIELDS } : {})}
+        {...(mode === 'detail'
+          ? {
+              masterDetail: {
+                // The detail grid shows the OTHER positions on the same desk,
+                // read from the book by equality — deliberately not scoped to
+                // whatever the parent grid is filtered to.
+                detailColumnDefs: [
+                  { field: 'id', headerName: 'Position' },
+                  { field: 'ticker' },
+                  { field: 'assetClass' },
+                  { field: 'esgScore' },
+                ],
+                matchFields: { desk: 'desk' },
+                detailLimit: 100,
+              },
+            }
+          : {})}
         {...SSRM_LAB_SEED}
         onReady={onProfilesReady}
       />

@@ -455,6 +455,7 @@ function MarketsGridInner<TData = unknown>(
         ssrmEngineOnBlock={props.ssrmEngineOnBlock}
         ssrmEngineSurfaceRef={props.ssrmEngineSurfaceRef}
         perspectiveTreeFields={props.perspectiveTreeFields}
+        treeFields={props.treeFields}
         perspectiveColumnWindow={props.perspectiveColumnWindow}
         masterDetail={props.masterDetail}
         suggestSsrmAbove={props.suggestSsrmAbove}

@@ -1453,6 +1453,25 @@ losing engine, and closing it is session 9's work rather than a nicety.
   fuzzes. It is AG Grid's own documented form: `parentKeys` prefixes a LEAF as
   well as a group. There used to be two, and the tested one was not the shipped
   one — see "Grouped ticks"
+- **TREE DATA** — `treeFields` on the surface, a self-referencing hierarchy
+  served a level at a time. The hierarchy travels on the REQUEST rather than on
+  the engine, because the book is held once and read by N windows: one blotter
+  viewing `desk -> book` while another views the same book flat is the ordinary
+  case, and it is the case sort, filter and grouping already support. AG sends
+  no `rowGroupCols` at all in tree mode and reads the hierarchy off the DATA, so
+  the engine stamps `SSRM_TREE_GROUP` / `SSRM_TREE_KEY` and the surface's
+  `isServerSideGroup` / `getServerSideGroupKey` read them back. VERIFIED live at
+  50,000 rows, two levels deep: 8 roots, and every LEAF under `Alpha/Bravo`
+  carries both ancestors' values — which is the ancestor predicate having been
+  applied at each level, and the only check that means anything here (a level-1
+  row is itself a parent and carries only its own field)
+- **MASTER/DETAIL** — `masterDetail` on the surface, with the children read from
+  the book by equality on `matchFields`. Deliberately NOT scoped to the grid's
+  filter or sort: a master row expands onto the same children whatever else is
+  on screen. An empty match answers NOTHING rather than the whole book, and a
+  failed read calls AG's callback with no rows rather than never calling it —
+  a rejection that reached it as nothing spins the detail grid forever.
+  VERIFIED live: 100 detail rows of 50,000, every one on the master's desk
 - **`SsrmEngineMarketsGridSurface`** in `@starui/grid` — the mount, reached with
   `rowModel="ssrm-engine"` and an `ssrmEngineClient`. See "A MarketsGrid surface"
   below
@@ -1503,9 +1522,9 @@ Stated plainly so nobody plans around a gap:
   alert engine into the worker is an architectural change rather than an
   addition, and it is its own session. Read plainly: **nothing on this surface
   makes alerts whole-book by default**
-- **`masterDetail` and `treeFields` are Perspective-surface props.** Neither is
-  wired on this one, and neither is MarketsGrid parity — the CSRM surface has
-  them on no path either
+- **a calculated column cannot be a TREE FIELD.** `treeFields` names store
+  fields; a hierarchy level built from an expression has not been exercised and
+  the engine's column resolver is not consulted for it
 - **the planner does not pre-validate against the engine's refusal list**, and
   that is deliberate. It parses; everything that parses is planned; the engine
   refuses BY NAME and retains the reason in `calcDiagnostics()`. A second copy

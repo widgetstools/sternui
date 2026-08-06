@@ -150,6 +150,11 @@ function queryKey(request: SsrmGetRowsRequest, quick: string): string {
     groups: list(request.rowGroupCols, (c) => c.id),
     values: list(request.valueCols, (c) => [c.id, c.aggFunc]),
     keys: list(request.groupKeys, (k) => k),
+    // A tree hierarchy selects and ORDERS rows exactly as `rowGroupCols` does,
+    // so leaving it out of the key would let two windows viewing one book
+    // through different hierarchies share an index — the ancestor predicate of
+    // one applied to the other's levels.
+    tree: list(request.treeFields, (f) => f),
     quick,
   });
 }
@@ -367,11 +372,29 @@ export class SsrmEngine {
   private groupColumnsFor(request: SsrmGetRowsRequest): SsrmColumnVO[] {
     const explicit = request.rowGroupCols ?? [];
     if (explicit.length > 0) return explicit;
-    return this.treeFields.map((id) => ({ id }));
+    return this.treeFieldsFor(request).map((id) => ({ id }));
+  }
+
+  /**
+   * The hierarchy THIS REQUEST is asking through.
+   *
+   * A request's own `treeFields` wins over the engine's construction option,
+   * because the book is held once and read by N windows: a hierarchy fixed on
+   * the engine would be one every window shared, and one blotter viewing
+   * `region -> desk` while another views the same book flat is the ordinary
+   * case. The construction option remains the default for a book that has one
+   * shape.
+   */
+  private treeFieldsFor(request: SsrmGetRowsRequest): readonly string[] {
+    return request.treeFields !== undefined && request.treeFields.length > 0
+      ? request.treeFields
+      : this.treeFields;
   }
 
   private isTreeRequest(request: SsrmGetRowsRequest): boolean {
-    return this.treeFields.length > 0 && (request.rowGroupCols?.length ?? 0) === 0;
+    return (
+      this.treeFieldsFor(request).length > 0 && (request.rowGroupCols?.length ?? 0) === 0
+    );
   }
 
   /** Rows in the book, ignoring every filter. */

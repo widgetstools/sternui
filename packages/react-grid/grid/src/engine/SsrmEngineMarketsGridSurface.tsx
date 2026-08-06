@@ -49,6 +49,8 @@ import {
   createSsrmEngineRowEngine,
   makeSsrmGetRowId,
   SSRM_GRAND_TOTAL_FLAG,
+  SSRM_TREE_GROUP,
+  SSRM_TREE_KEY,
   type SsrmCalcColumnDef,
   type SsrmCalcDiagnostic,
   type SsrmEngineClientLike,
@@ -166,6 +168,43 @@ export interface SsrmEngineMarketsGridSurfaceProps {
   onGridPreDestroyed?: () => void;
   /** Block round trips — for a probe or a stats strip. */
   onBlock?: (ms: number, outcome: 'ok' | 'fail', request: unknown) => void;
+  /**
+   * TREE DATA — a self-referencing hierarchy, outermost field first.
+   *
+   * AG's SSRM tree mode sends no `rowGroupCols` at all and reads the hierarchy
+   * off the DATA, through `isServerSideGroup` / `getServerSideGroupKey`. Nothing
+   * in a book says which rows are parents, so the engine stamps the two markers
+   * this surface then reads back.
+   *
+   * **New MarketsGrid API, not restored parity** — the CSRM surface exposes
+   * neither this nor `masterDetail` on any path. They are `CustomSSRMGrid`
+   * props, and that surface was discarded as buggy.
+   */
+  treeFields?: readonly string[];
+  /**
+   * MASTER/DETAIL — an expandable child grid per row, read from the same
+   * worker-held book.
+   */
+  masterDetail?: SsrmMasterDetail;
+}
+
+export interface SsrmMasterDetail {
+  /** Column defs for the detail grid. */
+  detailColumnDefs: unknown[];
+  /**
+   * `{ detailField: masterField }` — the equality the children are found by.
+   *
+   * An empty map answers NO rows rather than the whole book: a master row with
+   * no match fields has no children by definition, and 50,000 rows in a detail
+   * panel is a hung tab rather than a degraded answer.
+   */
+  matchFields?: Record<string, string>;
+  /** Ceiling on the children of one master row. */
+  detailLimit?: number;
+  /** Override the read entirely — for a detail set that is not a book query. */
+  getDetailRowData?(master: Record<string, unknown>): Promise<Record<string, unknown>[]>;
+  /** Which rows expand. Every leaf row by default. */
+  isRowMaster?(row: Record<string, unknown>): boolean;
 }
 
 export const SsrmEngineMarketsGridSurface = forwardRef<
@@ -185,6 +224,8 @@ export const SsrmEngineMarketsGridSurface = forwardRef<
   const platform = useOptionalGridPlatform();
   const platformRef = useRef(platform);
   platformRef.current = platform;
+
+  const treeFieldsKey = (props.treeFields ?? []).join(' ');
 
   useEffect(() => {
     const next = createSsrmEngineRowEngine({
@@ -208,11 +249,15 @@ export const SsrmEngineMarketsGridSurface = forwardRef<
        */
       onTransaction: (tx) =>
         publishSsrmTransactionDelta(platformRef.current?.rows, tx, keyColumn),
+      // Flattened to a string for the dep list, so a caller building the array
+      // inline does not rebuild the engine — and with it the pump, the
+      // subscription and every coalescing timer — on every render.
+      ...(treeFieldsKey ? { treeFields: treeFieldsKey.split(' ') } : {}),
     });
     if (apiRef.current) next.setApi(apiRef.current as never);
     setEngine(next);
     return () => next.close();
-  }, [client, keyColumn, props.maxExportRows, onError]);
+  }, [client, keyColumn, props.maxExportRows, onError, treeFieldsKey]);
 
   useImperativeHandle(
     ref,
@@ -522,6 +567,79 @@ export const SsrmEngineMarketsGridSurface = forwardRef<
     [props.statusBar],
   );
 
+  /**
+   * TREE DATA. AG reads the hierarchy off the DATA in this mode, not off
+   * column state — nothing in a book says which rows are parents, so the engine
+   * stamps the two markers and these two callbacks read them back.
+   *
+   * Spread as `{}` when there is no hierarchy rather than passing
+   * `treeData: false`: an explicit `false` is still a value, and it would beat
+   * a pipeline-supplied option from the customizer.
+   */
+  const treeProps = useMemo(() => {
+    if (!treeFieldsKey) return {};
+    return {
+      treeData: true,
+      isServerSideGroup: (data: Record<string, unknown>) => data[SSRM_TREE_GROUP] === true,
+      getServerSideGroupKey: (data: Record<string, unknown>) =>
+        String(data[SSRM_TREE_KEY] ?? ''),
+    };
+  }, [treeFieldsKey]);
+
+  /**
+   * MASTER/DETAIL, read from the same worker-held book.
+   *
+   * `CustomSSRMGrid` answers this from a client-side mirror holding every row;
+   * this window holds only the blocks in view, so the children come from a
+   * filtered read of the book — deliberately NOT scoped to the grid's own
+   * filter, because a master row expands onto the same children whatever else
+   * is on screen.
+   */
+  const md = props.masterDetail;
+  const detailCellRendererParams = useMemo(() => {
+    if (!md) return undefined;
+    const fetchDetail = async (
+      master: Record<string, unknown>,
+    ): Promise<Record<string, unknown>[]> => {
+      if (md.getDetailRowData) return md.getDetailRowData(master);
+      const match: Record<string, unknown> = {};
+      for (const [detailField, masterField] of Object.entries(md.matchFields ?? {})) {
+        match[detailField] = master[masterField] ?? null;
+      }
+      return (
+        (await holderRef.current?.get()?.readMatchingRows(match, md.detailLimit)) ?? []
+      );
+    };
+    return {
+      detailGridOptions: {
+        columnDefs: md.detailColumnDefs,
+        defaultColDef: { flex: 1, minWidth: 90 },
+      },
+      // AG's contract is a CALLBACK called exactly once, not a promise. A
+      // rejection still has to call it — with no rows — or the detail grid
+      // spins forever on a book that simply had none.
+      getDetailRowData: (p: {
+        data: Record<string, unknown>;
+        successCallback: (rows: Record<string, unknown>[]) => void;
+      }) => {
+        void fetchDetail(p.data)
+          .then((rows) => p.successCallback(rows))
+          .catch(() => p.successCallback([]));
+      },
+    };
+  }, [md]);
+
+  const isRowMaster = useMemo(() => {
+    if (!md) return undefined;
+    return (data: Record<string, unknown> | undefined) => {
+      if (!data) return false;
+      // Neither a tree parent nor the grand total is a row of the book, so
+      // neither has children to show.
+      if (data[SSRM_GRAND_TOTAL_FLAG] || data[SSRM_TREE_GROUP]) return false;
+      return md.isRowMaster ? md.isRowMaster(data) : true;
+    };
+  }, [md]);
+
   // The shell still carries the legacy boolean form of this setting; AG Grid 36
   // takes a position only.
   const grandTotalRow =
@@ -625,6 +743,8 @@ export const SsrmEngineMarketsGridSurface = forwardRef<
         // paints a FULL-WIDTH loading row by default and only consults the
         // colDef `loadingCellRenderer` when this is on.
         suppressServerSideFullWidthLoadingRow
+        {...treeProps}
+        {...(md ? { masterDetail: true, isRowMaster, detailCellRendererParams } : {})}
         statusBar={statusBar as never}
         components={components as Record<string, unknown>}
         context={context}
