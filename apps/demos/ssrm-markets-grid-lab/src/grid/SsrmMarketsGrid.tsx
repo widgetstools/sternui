@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MarketsGrid, type SsrmEngineMarketsGridSurfaceHandle } from '@starui/grid';
+import { parse, tokenize } from '@starui/engine';
 import { buildStressColumnDefs, stressDefaultColDef, STRESS_KEY_FIELD } from '../data/stressColumns';
 import { useSsrmBook } from '../data/useSsrmBook';
 import { labStorage } from '../data/storage';
@@ -102,6 +103,16 @@ export function SsrmMarketsGrid({ tickMs = 200, mode = 'flat', onReady }: SsrmMa
       open: () => openCost(),
       introspect: () => client.introspect(),
       calcDiagnostics: () => surfaceRef.current?.calcDiagnostics() ?? Promise.resolve([]),
+      /**
+       * StarUI source → the AST the engine takes, for probes that publish a
+       * calculated column directly.
+       *
+       * The SAME `tokenize`/`parse` the surface uses, deliberately: a probe
+       * that hand-built an AST would be measuring its own idea of the tree
+       * rather than the one the product sends, and the shapes only have to
+       * agree for the probe to keep passing after they stop agreeing.
+       */
+      parse: (source: string) => parse(tokenize(source)),
     };
     setStatus('ready');
     onReady?.();

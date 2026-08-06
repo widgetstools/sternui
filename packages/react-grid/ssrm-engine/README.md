@@ -797,6 +797,45 @@ Every diagnostic is also retained: `engine.calcDiagnostics()` /
 expression named that the book does not have, each with a hit count. That is
 what makes "the column compiled" an assertion a probe can fail on.
 
+### Telling the AUTHOR, without a second copy of the refusal list
+
+Retaining a reason nobody reads is not much better than warning into a console
+that does not exist. Until session 9 the author of a calculated column got the
+planner's verdict and nothing else — and the planner only ever answers "does
+this PARSE". Everything the engine refused (a cross-row `SUM([px])`, `NOW()`, a
+function outside the 45, a `.old`/`.new` ref) reached the grid as a blank
+column, which is indistinguishable from an expression that evaluates to null.
+
+The fix reads the reasons BACK rather than restating them. `ServerGridContext`
+gained an optional `ssrmCalcDiagnostics()` alongside the two expression seams,
+the ssrm surface answers it from the holder, and the calculated-columns editor
+renders the entries for the column being edited:
+
+| phase | shown as | meaning |
+|---|---|---|
+| `compile` | ENGINE REFUSED | the column is not installed; it reads its field binding |
+| `runtime` | FAILED WHILE EVALUATING | threw on some cell, which fell back — with a count |
+| `column` | UNKNOWN FIELD | names a field the book does not have; every row reads null |
+
+Three properties of this are load-bearing:
+
+- **the list still lives in one place.** `@starui/grid` holds no copy and takes
+  no dependency on this package; the seam is structural, the way
+  `serverEngineHolder` already is;
+- **absence renders NOTHING, and does not claim the expression is fine.** On
+  CSRM, before an engine attaches, and on an engine with no such list, the strip
+  is simply not there. "No problems found" would be a claim none of those three
+  can support;
+- **`column` is reported but is not an error.** It is the quietest way a
+  calculated column goes wrong — a whole column of nulls from one transposed
+  letter — so it is shown in the warning colour rather than the negative one.
+
+Measured live by `scripts/calcDiagnosticsProbe.mjs`, which publishes a refused
+column, a clean one and a typo'd one and demands the right answer for each. The
+clean control matters: the first draft named `price`, which this book does not
+have, so the control drew a diagnostic of its own and the probe went red on a
+correct product.
+
 ### What is REFUSED, and why refusing beats answering
 
 A refusal is loud and falls back; a wrong answer is neither.
@@ -1529,9 +1568,10 @@ Stated plainly so nobody plans around a gap:
   that is deliberate. It parses; everything that parses is planned; the engine
   refuses BY NAME and retains the reason in `calcDiagnostics()`. A second copy
   of the refusal list in `@starui/grid` would be a second thing to keep in step,
-  and `@starui/grid` does not depend on `@starui/ssrm-engine` today. The cost is
-  that an author sees "unsupported" only for a PARSE error; anything the engine
-  refuses shows up as a blank column plus a diagnostic
+  and `@starui/grid` does not depend on `@starui/ssrm-engine` today. Its cost —
+  that an author saw "unsupported" only for a PARSE error, and everything the
+  engine refused arrived as a blank column — is **paid off** by reading the
+  reasons back rather than by duplicating them; see below
 - **the value cache is per WRITE, not incremental.** A write invalidates every
   calculated cell in the book by incrementing one number, so the next read
   recomputes the rows it touches. That is the correct trade at this size and it

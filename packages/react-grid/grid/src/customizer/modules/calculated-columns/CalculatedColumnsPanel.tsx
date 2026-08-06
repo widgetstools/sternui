@@ -31,6 +31,7 @@ import { useDirty } from '../../hooks/useDirty';
 import { useGridColumns } from '../../hooks/useGridColumns';
 import { useSsrmCapabilityGate } from '../../hooks/useSsrmCapabilityGate';
 import { planSsrmCalcColumn } from '../../../engine/ssrmCalcColumns.js';
+import { useServerCalcDiagnostics } from './useServerCalcDiagnostics';
 import {
   Band,
   Caps,
@@ -251,6 +252,14 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
         : null,
     [draft],
   );
+  /**
+   * The other half of the story the planner cannot tell.
+   *
+   * `calcPlan` above answers "does this PARSE" and nothing more, by design —
+   * see {@link useServerCalcDiagnostics}. This is what the engine that holds
+   * the book actually did with it, and it is empty on every client-side path.
+   */
+  const serverDiagnostics = useServerCalcDiagnostics(colId);
   const expressionUnsupported = calcPlan?.kind === 'unsupported';
   const unsupportedReason =
     calcPlan?.kind === 'unsupported' ? calcPlan.reason : undefined;
@@ -380,6 +389,50 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
               data-testid={`cc-virtual-expr-${colId}`}
             />
           </div>
+          {/*
+            What the ENGINE made of this expression, when a server-side one
+            holds the book. Below the editor rather than beside the save
+            button because it is not a save blocker: `compile` means the
+            column is already saved and already blank, which is exactly the
+            state that had no explanation before.
+          */}
+          {serverDiagnostics.length > 0 && (
+            <div
+              className="mt-2 flex flex-col gap-1"
+              data-testid={`cc-virtual-engine-diagnostics-${colId}`}
+            >
+              {serverDiagnostics.map((d) => (
+                <div
+                  key={`${d.phase}:${d.message}`}
+                  data-phase={d.phase}
+                  style={{
+                    borderLeft: `2px solid ${
+                      d.phase === 'compile'
+                        ? 'var(--ds-accent-negative)'
+                        : 'var(--ds-accent-warning)'
+                    }`,
+                    background:
+                      d.phase === 'compile'
+                        ? 'var(--ds-overlay-negative-soft)'
+                        : 'var(--ds-overlay-warning-soft)',
+                    padding: '4px 8px',
+                    fontSize: 11,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  <span className="uppercase tracking-[0.06em] opacity-70">
+                    {d.phase === 'compile'
+                      ? 'ENGINE REFUSED'
+                      : d.phase === 'runtime'
+                        ? 'FAILED WHILE EVALUATING'
+                        : 'UNKNOWN FIELD'}
+                    {d.count > 1 ? ` · ${d.count.toLocaleString()}×` : ''}
+                  </span>
+                  <div>{d.message}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </Band>
 
         <Band index="02" title="VALUE FORMATTER">

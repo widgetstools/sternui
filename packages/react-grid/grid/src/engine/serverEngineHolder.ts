@@ -142,8 +142,47 @@ export interface ServerGridContext {
    * simply never light, which is indistinguishable from a rule nothing matches.
    */
   readonly ssrmExpressionDialect?: 'perspective' | 'starui';
+  /**
+   * What the engine made of the authored calculated columns — refusals, runtime
+   * failures, and fields the book does not have, each with a count.
+   *
+   * This exists so an AUTHOR can be told why a column came back blank. The
+   * planner in `@starui/grid` deliberately holds no copy of the engine's refusal
+   * list: it parses, and everything that parses is planned, because a second
+   * copy of that list here is a second thing to keep in step. The engine refuses
+   * by name and retains the reason; this is the seam that reads it back. One
+   * definition of what is refused, and it stays in the engine.
+   *
+   * Optional for the same reason the two above are: an engine whose calculated
+   * columns are compiled by someone else's language has no such list, and a
+   * caller must render nothing rather than report "no problems".
+   */
+  ssrmCalcDiagnostics?(): Promise<ServerCalcDiagnostic[]>;
   /** True once an engine is attached and `ssrmCountMatching` can be believed. */
   readonly ssrmConfigured: boolean;
+}
+
+/**
+ * One thing an engine has to say about one authored expression.
+ *
+ * Structurally identical to `@starui/ssrm-engine`'s `SsrmCalcDiagnostic` and
+ * deliberately NOT imported from it: `@starui/grid` does not depend on that
+ * package, and the whole point of this seam is that a second engine can answer
+ * it without either package knowing this interface exists.
+ */
+export interface ServerCalcDiagnostic {
+  colId: string;
+  /**
+   * `compile` — refused, the column is not installed at all;
+   * `runtime`  — threw while evaluating a cell, which then fell back;
+   * `column`   — names a field the book does not have. Not an error: it reads
+   *              null exactly as it does on the grid. Reported because a whole
+   *              column of nulls from a typo is the quietest way this goes wrong.
+   */
+  phase: 'compile' | 'runtime' | 'column';
+  message: string;
+  /** How many times it was hit. Warned once, counted always. */
+  count: number;
 }
 
 export function createServerEngineHolder<

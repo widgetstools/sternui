@@ -1015,6 +1015,43 @@ changes, 10 of 10 groups, 2 of 2 subgroups, 94 of 101 leaves. So this was a real
 gap against the losing engine. The probe now NAMES the columns a book moves
 before it measures anything, and warns when `--value` is not among them.
 
+### The author was never told why a column was blank
+
+The planner in `@starui/grid` deliberately holds no copy of the engine's refusal
+list — it parses, everything that parses is planned, and the engine refuses BY
+NAME. That decision is right and it stands. What was wrong was its recorded
+cost: an author saw "unsupported" only for a PARSE error, so a cross-row
+`SUM([midPrice])`, a `NOW()`, an unknown function or a transposed field name all
+arrived as a **blank column** — which is exactly what a working expression that
+evaluates to null looks like. The reason existed the whole time, retained in
+`calcDiagnostics()`, and nothing read it. `console.warn` in a SharedWorker
+reaches no console anywhere, so there was nowhere to look either.
+
+Closed by reading the reasons back rather than restating them.
+`ServerGridContext` gained an optional `ssrmCalcDiagnostics()` beside the two
+expression seams, the ssrm surface answers it from the holder, and
+`useServerCalcDiagnostics(colId)` renders the entries for the column being
+edited — ENGINE REFUSED, FAILED WHILE EVALUATING (with a count), UNKNOWN FIELD.
+One definition of what is refused, still in the engine.
+
+Three things this deliberately does NOT do: claim anything when the seam is
+absent (CSRM, an unattached engine, and an engine with no such list all render
+nothing — "no problems found" is a claim none of them can support); treat
+`column` as an error (it is not, it reads null exactly as the grid does, and it
+is shown in the warning colour because a whole column of nulls from one
+transposed letter is the quietest failure here); or block SAVE (a `compile`
+refusal describes a column that is already saved and already blank).
+
+Five unit tests over the real panel, and the two that matter most were **proven
+red by mutation**: dropping the per-colId filter puts a stranger's refusal under
+this editor (1 red), and stubbing the seam read to never answer (3 red).
+`calcDiagnosticsProbe` 5/5 live, which is where the wiring from worker → RPC →
+row engine → context is real. It went red first on a correct product: the clean
+CONTROL column named `price`, which this book does not have, so it drew an
+"unknown field" diagnostic of its own — the same fixture mistake `region` made
+in the tree probe one session earlier, and the second time a wrong field name
+has read as a broken feature.
+
 ### Probes and the gate
 
 `marketsGridParityProbe` 17/17 unchanged. `workerBoundaryProbe` 2.60 ms median
@@ -1022,6 +1059,8 @@ block round trip (2.3-2.4 in session 6), 0 failed / 0 timed out / 0 late / 0
 pending. `browserSmokeProbe` 2,765 ms to first row, 63 ms sort, 50,000 rows
 after it, pivot 8 x 8. `providerBookProbe` 56 rows pushed in 6 s with 54
 applied, attach 2,868 ms vs 1 ms. `calcTwinProbe` 520,000 cells identical.
+`calcDiagnosticsProbe` 5/5. `treeMasterDetailProbe` 14/14. `cellFlashProbe` 7/7.
+`e2e/ssrm-marketsgrid.spec.ts` 6/6.
 `npx turbo typecheck build test --continue` **73/73**.
 
 ---

@@ -337,6 +337,11 @@ export const SsrmEngineMarketsGridSurface = forwardRef<
       },
       ssrmAggregateScalar: (colId, aggregate) =>
         holder.get()?.aggregateScalar(colId, aggregate as never) ?? Promise.resolve(null),
+      // Read back so the AUTHOR of a calculated column can be told why it came
+      // back blank. `[]` while no engine is attached — an empty list renders
+      // nothing, which is the same thing the panel does when it has no seam at
+      // all, and neither is a claim that the expression is fine.
+      ssrmCalcDiagnostics: async () => [...((await holder.get()?.calcDiagnostics()) ?? [])],
       get ssrmConfigured() {
         return holder.get() !== null;
       },
