@@ -9,13 +9,15 @@ import { compileFilter, compileQuickFilter, type RowPredicate } from './filter.j
 import { compareOrderKeys, sortIndex } from './sort.js';
 import { activeAggregations, aggregateMembers, type SsrmAggregation } from './aggregate.js';
 import { compileCalcColumns, type SsrmCalcColumn, type SsrmCalcDiagnostic } from './calc.js';
-import type { SsrmCalcColumnDef } from './calcAst.js';
+import { isTruthy } from './calcOps.js';
+import type { SsrmCalcColumnDef, SsrmExpressionNode } from './calcAst.js';
 import {
   SSRM_CHILD_COUNT,
   SSRM_GROUP_FLAG,
   SSRM_GROUP_PATH,
   SSRM_TREE_GROUP,
   SSRM_TREE_KEY,
+  type SsrmAggFunc,
   type SsrmColumnVO,
   type SsrmGetRowsRequest,
   type SsrmGetRowsResult,
@@ -713,6 +715,107 @@ export class SsrmEngine {
   }
 
   /**
+   * ══ THE WHOLE-BOOK EXPRESSION SEAM ══
+   *
+   * How many rows of the FILTERED book satisfy a boolean expression.
+   *
+   * What it exists for: `headerPainter`'s "does ANY row match this rule?", which
+   * decides whether a column header carries a conditional-styling rule's flash
+   * or its indicator badge. On the client that question is
+   * `api.forEachNodeAfterFilter`, and under a server row model that visits
+   * **zero** nodes — so on this surface the painter was not degraded, it was
+   * entirely dead, and silently: a rule that lights no header looks exactly like
+   * a rule whose condition is false.
+   *
+   * **The AST crosses the port, not a source string.** Perspective's equivalent
+   * takes `source: string` because its worker compiles its own expression
+   * language; there is no second language here and there must be no second
+   * parser. The window parses with `@starui/engine`'s `tokenize`/`parse` — the
+   * same tree calculated columns already send — and a compiled closure could not
+   * cross at all, since a function is not structured-cloneable.
+   *
+   * **Truthiness is `calcOps.ts`'s and nowhere else.** `isTruthy(NaN)` is TRUE
+   * here and the falsy set is exactly `null | undefined | false | 0 | ''`. A
+   * second definition of it in this method is the drift this package keeps
+   * paying for, so it is imported rather than written.
+   *
+   * Scoped to the request's FILTER, deliberately, because the client-side
+   * original is `forEachNodeAfterFilter`: a header must not light for rows the
+   * user has filtered away. That is the opposite of {@link aggregateScalar},
+   * which measures the whole book — see its note for why the two differ.
+   *
+   * `null` when the expression is REFUSED (a cross-row aggregate, `.old`/`.new`,
+   * an unknown function). Null and 0 must not be conflated: 0 means "no row
+   * matches" and null means "not answerable", and the caller paints nothing for
+   * one and unlights the header for the other.
+   */
+  countMatchingExpression(
+    ast: SsrmExpressionNode,
+    request: SsrmGetRowsRequest = {},
+  ): number | null {
+    const compiled = compileCalcColumns(
+      this.store,
+      [{ colId: SSRM_RULE_COLUMN, ast }],
+      // A rule is authored in a customizer and refused answers are RETURNED, so
+      // a console the SharedWorker does not have is not where this goes.
+      () => {},
+      // A rule may name a CALCULATED column, because on this engine a
+      // calculated column is a column — it sorts, filters, groups and
+      // aggregates through one accessor, and a style rule that could not see
+      // one would be the only path that could tell them apart.
+      (colId) => this.calcEvaluator(colId),
+    );
+    const evaluate = compiled.columns[0]?.evaluate;
+    if (evaluate === undefined) return null;
+    // Grouping stripped: "how many rows match" is a question about rows, and a
+    // grouped index answers with the same leaves in a different order anyway.
+    const index = this.materialise({
+      ...request,
+      rowGroupCols: [],
+      groupKeys: [],
+      pivotMode: false,
+    });
+    let matched = 0;
+    for (let i = 0; i < index.length; i++) {
+      if (isTruthy(evaluate(index[i]))) matched += 1;
+    }
+    return matched;
+  }
+
+  /**
+   * One column's aggregate over the **WHOLE BOOK** — no filter model, no quick
+   * search, no group keys.
+   *
+   * **DECIDED, and not to be re-litigated:** the threshold in a rule like
+   * `[price] > AVG([price])` is a property of the BOOK, so a filter hides rows
+   * without moving it. That is Excel's conditional-formatting convention rather
+   * than the SQL/BI one, it is the behaviour the Perspective surface shipped,
+   * and this matches it exactly.
+   *
+   * The known cost, stated here so nobody re-derives it as a bug: such a rule
+   * **can disagree with the average in the totals row on the same screen**,
+   * because group totals, the grand total and the status bar all DO follow the
+   * filter.
+   *
+   * Answers `null` for a column the book does not have, and for a column with no
+   * numeric value in it at all — an "above average" rule with no average is not
+   * a rule with a default, and the caller drops it rather than substituting one.
+   */
+  aggregateScalar(field: string, aggregate: SsrmScalarAggregate): number | null {
+    const access = this.columns.get(field);
+    if (access === undefined) return null;
+    // The whole book: every live offset, in store order. `materialise` is not
+    // used because every one of its inputs is something this deliberately drops.
+    const offsets = this.store.liveOffsets();
+    if (aggregate === 'median') return medianOf(access, offsets);
+    // Through the ONE aggregation implementation, so "nulls are skipped, not
+    // counted as zero" and the Kahan compensation have a single definition.
+    const agg = SCALAR_TO_AGG_FUNC[aggregate];
+    const value = aggregateMembers(offsets, [{ field, agg, access }])[field];
+    return typeof value === 'number' && !Number.isNaN(value) ? value : null;
+  }
+
+  /**
    * Keys a subscriber can SEE, so a pushed tick can be narrowed to them.
    *
    * `[start, end)` are display positions under this request's own filter, quick
@@ -739,6 +842,54 @@ export class SsrmEngine {
     for (let i = from; i < to; i++) keys.push(this.store.valueAt(this.store.keyField, index[i]));
     return keys;
   }
+}
+
+/**
+ * The column id a style rule is compiled under.
+ *
+ * A transient name, never installed: `countMatchingExpression` compiles into a
+ * throwaway result and reads its evaluator, so nothing about this reaches the
+ * resolver, the index cache or a block. It is spelled distinctly so a book that
+ * really does have a column called `rule` cannot collide with it.
+ */
+const SSRM_RULE_COLUMN = '__ssrmRuleExpression';
+
+/**
+ * Scalar aggregates a style rule can ask for, in the names the STYLE RULE uses.
+ *
+ * `high`/`low` rather than `max`/`min` because that is what the shared planner
+ * emits — it was written against Perspective's View aggregate names, and one
+ * vocabulary on the wire beats a translation at each end.
+ */
+export type SsrmScalarAggregate = 'sum' | 'avg' | 'median' | 'count' | 'high' | 'low';
+
+const SCALAR_TO_AGG_FUNC: Record<Exclude<SsrmScalarAggregate, 'median'>, SsrmAggFunc> = {
+  sum: 'sum',
+  avg: 'avg',
+  count: 'count',
+  high: 'max',
+  low: 'min',
+};
+
+/**
+ * The median of a column's numeric values.
+ *
+ * The one aggregate `aggregate.ts` does not have, and it is here rather than
+ * there because a median is not a group aggregation on this engine — nothing in
+ * AG's `valueCols` can ask for one. Same skip rule as every other aggregate:
+ * a non-number and a NaN contribute nothing, they are not counted as zero.
+ */
+function medianOf(access: SsrmColumnAccess, offsets: Int32Array): number | null {
+  const values: number[] = [];
+  for (let i = 0; i < offsets.length; i++) {
+    const value = access.numberOrNull(offsets[i]);
+    if (value === null || Number.isNaN(value)) continue;
+    values.push(value);
+  }
+  if (values.length === 0) return null;
+  values.sort((a, b) => a - b);
+  const middle = values.length >> 1;
+  return values.length % 2 === 1 ? values[middle] : (values[middle - 1] + values[middle]) / 2;
 }
 
 /** Does this sparse patch row carry any of the fields an expression reads? */

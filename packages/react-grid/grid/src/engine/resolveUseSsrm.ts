@@ -45,6 +45,37 @@ export function resolveSsrmEngine(opts: {
   return opts.rowModel === 'ssrm-engine';
 }
 
+/**
+ * Which engine the customizer modules are told they are running on — ONE
+ * definition, because there are two mounts and they must not disagree.
+ *
+ * **Session 9 fixed a defect here rather than tidying one.** Both mounts
+ * computed `perspective ? 'perspective' : useSSRM ? 'ssrm' : 'csrm'` inline,
+ * and nothing consulted {@link resolveSsrmEngine} — so `rowModel:
+ * 'ssrm-engine'`, the surface that SHIPS, reported `'csrm'`. Every feature
+ * gated on `isServerSideEngine()` then treated a grid holding ~100 rows of a
+ * 50,000-row book as one that holds the whole thing.
+ *
+ * The gates are the same three-state ones the surface choice uses: a client or
+ * a Table that has not arrived yet is a caller pre-loading the seam, and while
+ * that is true no grid is mounted at all (`'pending'`), so the kind reported
+ * during it is not read by anything.
+ */
+export function resolveEngineKind(opts: {
+  rowModel?: MarketsGridRowModel;
+  useSSRM?: boolean;
+  perspectiveTable?: unknown;
+  ssrmEngineClient?: unknown;
+}): 'csrm' | 'ssrm' | 'perspective' | 'ssrm-engine' {
+  if (resolvePerspective({ rowModel: opts.rowModel }) && opts.perspectiveTable !== undefined) {
+    return 'perspective';
+  }
+  if (resolveSsrmEngine({ rowModel: opts.rowModel }) && opts.ssrmEngineClient !== undefined) {
+    return 'ssrm-engine';
+  }
+  return resolveUseSsrm({ useSSRM: opts.useSSRM, rowModel: opts.rowModel }) ? 'ssrm' : 'csrm';
+}
+
 /** Which surface the host mounts — `'pending'` mounts none at all. */
 export type GridSurfaceChoice =
   | 'perspective'

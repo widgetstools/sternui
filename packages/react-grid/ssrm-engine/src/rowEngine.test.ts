@@ -624,3 +624,254 @@ describe('viewport reporting', () => {
     engine.close();
   });
 });
+
+/**
+ * ══ THE GROUPED LIVE PATH ══
+ *
+ * MEASURED before this existed (`scripts/groupedTickProbe.mjs`, 50,000 rows,
+ * two group levels, 25 s): the pump received 34,447 rows, applied 0 and dropped
+ * 34,447; group and subgroup aggregates never moved.
+ *
+ * The decision these cases pin is that under grouping the push path is OFF and
+ * the expanded routes are re-read instead. Not because the pump is broken —
+ * because a leaf id under grouping is its PATH and a sparse patch cannot carry
+ * one, and because a leaf transaction would not move the group row above it
+ * even if it could.
+ */
+describe('grouping — the routes are refreshed, and nothing is pushed', () => {
+  const GROUPED: SsrmGetRowsRequest = {
+    rowGroupCols: [{ id: 'assetClass' }, { id: 'issuerSector' }],
+    groupKeys: [],
+    valueCols: [{ id: 'esgScore', aggFunc: 'sum' }],
+  };
+
+  /** A grid holding two expanded groups, one inside the other. */
+  function groupedApi() {
+    const alpha = { group: true, expanded: true, level: 0, key: 'Alpha', parent: null };
+    const energy = { group: true, expanded: true, level: 1, key: 'Energy', parent: alpha };
+    const closed = { group: true, expanded: false, level: 0, key: 'Beta', parent: null };
+    const leaf = { group: false, expanded: false, level: 2, key: null, parent: energy };
+    return fakeApi({
+      forEachNode: (callback) => {
+        for (const node of [alpha, energy, closed, leaf]) callback(node);
+      },
+    });
+  }
+
+  it('pushes NOTHING at the grid while grouped, and refreshes every expanded route', async () => {
+    const client = fakeClient();
+    const engine = createSsrmEngineRowEngine({
+      client,
+      keyColumn: 'positionId',
+      groupRefreshMinIntervalMs: 1,
+    });
+    const grid = groupedApi();
+    engine.setApi(grid.api);
+    // The served request is what tells the engine it is grouped — read off the
+    // block the datasource actually answered, never reconstructed from column
+    // state, because the served shape is the one the worker's index is keyed on.
+    await readBlock(engine, { ...GROUPED, startRow: 0, endRow: 100 });
+    const transactionsAfterBlock = grid.transactions.length;
+    const refreshesAfterBlock = grid.refreshes.length;
+
+    client.push({ rows: [{ positionId: 'POS-1', esgScore: 5 }], removed: [], size: 20_000 });
+    await new Promise((r) => setTimeout(r, 20));
+
+    // Not one transaction carrying a book row — a leaf transaction cannot name
+    // a grouped node and would not move the aggregate above it in any case.
+    const pushed = grid.transactions
+      .slice(transactionsAfterBlock)
+      .filter((tx) =>
+        tx.update?.some((row) => (row as Record<string, unknown>).positionId === 'POS-1'),
+      );
+    expect(pushed).toEqual([]);
+    // The sharp form: the pump was never HANDED the frame. `applied === 0`
+    // alone would pass on an engine that pushed and had every row dropped,
+    // which is precisely the state the probe measured — 34,447 received,
+    // 34,447 dropped, and it looked like nothing was happening either way.
+    expect(engine.pumpStats()?.received ?? -1).toBe(0);
+    expect(engine.pumpStats()?.applied ?? 0).toBe(0);
+
+    // The root, then EVERY expanded route — `refreshServerSide` does not
+    // cascade into child stores, so refreshing the root alone leaves the rows
+    // under an expanded group frozen while their group row ticks.
+    const routes = grid.refreshes.slice(refreshesAfterBlock);
+    expect(routes.some((r) => r.route === undefined && r.purge === false)).toBe(true);
+    expect(routes.map((r) => r.route).filter(Boolean)).toEqual([
+      ['Alpha'],
+      ['Alpha', 'Energy'],
+    ]);
+    // A COLLAPSED group is not refreshed: nothing under it is on screen, and
+    // re-reading it would cost a block per tick for rows nobody can see.
+    expect(routes.some((r) => r.route?.includes('Beta'))).toBe(false);
+
+    const stats = engine.groupRefreshStats();
+    expect(stats.writes).toBeGreaterThan(0);
+    expect(stats.refreshes).toBeGreaterThan(0);
+    expect(stats.routes).toBeGreaterThan(0);
+    engine.close();
+  });
+
+  it('declares pushRows:false so the worker stops putting patches on the wire', async () => {
+    const viewports: unknown[] = [];
+    const client = fakeClient({
+      async setViewport(viewport) {
+        viewports.push(viewport);
+      },
+    });
+    const engine = createSsrmEngineRowEngine({ client, keyColumn: 'positionId' });
+    engine.setApi(
+      fakeApi({
+        getFirstDisplayedRowIndex: () => 0,
+        getLastDisplayedRowIndex: () => 30,
+      }).api,
+    );
+
+    await readBlock(engine, { startRow: 0, endRow: 100 });
+    engine.reportViewport();
+    expect((viewports.at(-1) as { pushRows?: boolean }).pushRows).toBeUndefined();
+
+    await readBlock(engine, { ...GROUPED, startRow: 0, endRow: 100 });
+    engine.reportViewport();
+    expect((viewports.at(-1) as { pushRows?: boolean }).pushRows).toBe(false);
+    engine.close();
+  });
+
+  it('STILL pushes the grand total while grouped — it names AG own row id', async () => {
+    const client = fakeClient();
+    const engine = createSsrmEngineRowEngine({
+      client,
+      keyColumn: 'positionId',
+      countMinIntervalMs: 1,
+      groupRefreshMinIntervalMs: 1,
+    });
+    const grid = groupedApi();
+    grid.nodes.set(SSRM_GRAND_TOTAL_ROW_ID, { data: {} });
+    engine.setApi(grid.api);
+    await readBlock(engine, { ...GROUPED, startRow: 0, endRow: 100 });
+    const before = grid.transactions.length;
+
+    client.push({ rows: [{ positionId: 'POS-1', esgScore: 5 }], removed: [], size: 20_000 });
+    await new Promise((r) => setTimeout(r, 40));
+
+    const totals = grid.transactions
+      .slice(before)
+      .filter((tx) =>
+        tx.update?.some((row) => (row as Record<string, unknown>)[SSRM_GRAND_TOTAL_FLAG] === true),
+      );
+    expect(totals.length).toBeGreaterThan(0);
+    engine.close();
+  });
+
+  it('never calls setRowCount while grouping — AG error #28, and SILENT', async () => {
+    const client = fakeClient();
+    const engine = createSsrmEngineRowEngine({
+      client,
+      keyColumn: 'positionId',
+      countMinIntervalMs: 1,
+    });
+    const grid = groupedApi();
+    engine.setApi(grid.api);
+    await readBlock(engine, { ...GROUPED, startRow: 0, endRow: 100 });
+    client.push({ rows: [{ positionId: 'POS-1' }], removed: [], size: 19_999 });
+    await new Promise((r) => setTimeout(r, 40));
+    expect(grid.rowCounts).toEqual([]);
+    engine.close();
+  });
+
+  it('resumes pushing the moment the grid is UNGROUPED again', async () => {
+    const client = fakeClient();
+    const engine = createSsrmEngineRowEngine({
+      client,
+      keyColumn: 'positionId',
+      groupRefreshMinIntervalMs: 1,
+    });
+    const grid = groupedApi();
+    grid.nodes.set('POS-1', { data: { positionId: 'POS-1', esgScore: 1 } });
+    engine.setApi(grid.api);
+
+    await readBlock(engine, { ...GROUPED, startRow: 0, endRow: 100 });
+    client.push({ rows: [{ positionId: 'POS-1', esgScore: 5 }], removed: [], size: 20_000 });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(engine.pumpStats()?.applied ?? 0).toBe(0);
+
+    // The user drags the grouping off. The next block is flat, and the push
+    // path is live again — a leaf id is the bare key once more.
+    await readBlock(engine, { startRow: 0, endRow: 100 });
+    client.push({ rows: [{ positionId: 'POS-1', esgScore: 9 }], removed: [], size: 20_000 });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(engine.pumpStats()?.applied ?? 0).toBeGreaterThan(0);
+    engine.close();
+  });
+});
+
+/**
+ * The whole-book style-rule seam, and the one thing about it that is easy to
+ * get backwards: the COUNT follows the grid filter and the AGGREGATE does not.
+ */
+describe('whole-book style-rule answers', () => {
+  const rule = { type: 'literal' as const, value: true };
+
+  it('passes the grid FILTER to the count and NOTHING to the aggregate', async () => {
+    const counts: { request: SsrmGetRowsRequest }[] = [];
+    const aggregates: unknown[] = [];
+    const client = fakeClient({
+      async countMatchingExpression(_ast, request) {
+        counts.push({ request: request ?? {} });
+        return 7;
+      },
+      async aggregateScalar(field, aggregate) {
+        aggregates.push({ field, aggregate });
+        return 12.5;
+      },
+    });
+    const engine = createSsrmEngineRowEngine({ client, keyColumn: 'positionId' });
+    engine.setApi(fakeApi().api);
+    const filterModel = { region: { filterType: 'set', values: ['EMEA'] } };
+    await readBlock(engine, { startRow: 0, endRow: 100, filterModel });
+
+    expect(await engine.countMatchingExpression(rule)).toBe(7);
+    // The COUNT follows the filter, because its client-side original is
+    // `forEachNodeAfterFilter` and a header must not light for rows the user
+    // has filtered away.
+    expect(counts[0].request.filterModel).toEqual(filterModel);
+
+    expect(await engine.aggregateScalar('price', 'avg')).toBe(12.5);
+    // The AGGREGATE does not — the threshold is a property of the BOOK. Excel's
+    // convention, and the one the Perspective surface shipped.
+    expect(aggregates).toEqual([{ field: 'price', aggregate: 'avg' }]);
+    engine.close();
+  });
+
+  it('caches on the AST AND the filter, so a different filter is a different question', async () => {
+    let asked = 0;
+    const client = fakeClient({
+      async countMatchingExpression() {
+        asked += 1;
+        return asked;
+      },
+    });
+    const engine = createSsrmEngineRowEngine({
+      client,
+      keyColumn: 'positionId',
+      countMinIntervalMs: 10_000,
+    });
+    engine.setApi(fakeApi().api);
+    await readBlock(engine, { startRow: 0, endRow: 100 });
+
+    await engine.countMatchingExpression(rule);
+    await engine.countMatchingExpression(rule);
+    expect(asked).toBe(1);
+
+    // A filter change is a new question and must not be answered from the old
+    // one — the painter would keep lighting a header for rows now hidden.
+    await readBlock(engine, {
+      startRow: 0,
+      endRow: 100,
+      filterModel: { region: { filterType: 'set', values: ['EMEA'] } },
+    });
+    await engine.countMatchingExpression(rule);
+    expect(asked).toBe(2);
+    engine.close();
+  });
+});

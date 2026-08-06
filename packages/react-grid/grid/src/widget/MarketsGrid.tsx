@@ -42,6 +42,7 @@ import { MarketsGridSurface } from './MarketsGridSurface';
 import { SsrmMarketsGridSurfaceConnected as SsrmMarketsGridSurface } from '../engine/SsrmMarketsGridSurfaceConnected';
 import {
   resolveGridSurface,
+  resolveEngineKind,
   resolvePerspective,
   resolveSsrmEngine,
   resolveUseSsrm,
@@ -304,6 +305,20 @@ function MarketsGridInner<TData = unknown>(
   // caller pre-loading the seam, not asking for it yet.
   const ssrmEngineOn =
     resolveSsrmEngine({ rowModel }) && props.ssrmEngineClient !== undefined;
+  /**
+   * What the customizer modules are told they are running on.
+   *
+   * ONE definition, in `resolveEngineKind`. This used to be an inline
+   * `perspective ? … : useSSRM ? … : 'csrm'` in two places, neither of which
+   * knew about `rowModel: 'ssrm-engine'` — so the product surface identified
+   * itself as a grid that holds its whole book.
+   */
+  const engineKind = resolveEngineKind({
+    rowModel,
+    useSSRM: useSSRMProp,
+    perspectiveTable: props.perspectiveTable,
+    ssrmEngineClient: props.ssrmEngineClient,
+  });
 
   const [internalToolbarDate, setInternalToolbarDate] = useState(todayIsoDate);
   const toolbarDate = toolbarDateProp ?? internalToolbarDate;
@@ -364,7 +379,7 @@ function MarketsGridInner<TData = unknown>(
   return (
     <ProviderGridHostProvider value={providerGridHost ?? null}>
     <GridEventBindingsHostProvider value={gridEventBindingsHost ?? null}>
-      <GridProvider platform={shell.platform} engineKind={perspective ? 'perspective' : useSSRM ? 'ssrm' : 'csrm'}>
+      <GridProvider platform={shell.platform} engineKind={engineKind}>
       <GeneralSettingsProvider value={shell.generalSettings}>
       <MarketsGridHost
         rowData={rowData}
@@ -480,6 +495,13 @@ function MarketsGridCoreInner<TData = unknown>(
 
   const useSSRM = resolveUseSsrm({ useSSRM: useSSRMProp, rowModel });
   const perspective = resolvePerspective({ rowModel }) && props.perspectiveTable !== undefined;
+  // Same one definition the host mount uses — see `resolveEngineKind`.
+  const engineKind = resolveEngineKind({
+    rowModel,
+    useSSRM: useSSRMProp,
+    perspectiveTable: props.perspectiveTable,
+    ssrmEngineClient: props.ssrmEngineClient,
+  });
 
   const gridRef = useRef<AgGridReact<TData>>(null);
   const ssrmRef = useRef<SSRMGridHandle>(null);
@@ -506,7 +528,7 @@ function MarketsGridCoreInner<TData = unknown>(
   }, [rowData, useSSRM, ssrmCalcMaterialize]);
 
   return (
-    <GridProvider platform={shell.platform} engineKind={perspective ? 'perspective' : useSSRM ? 'ssrm' : 'csrm'}>
+    <GridProvider platform={shell.platform} engineKind={engineKind}>
       <GeneralSettingsProvider value={shell.generalSettings}>
         <div className={className} style={shell.rootStyle} data-grid-id={gridId}>
           {useSSRM ? (

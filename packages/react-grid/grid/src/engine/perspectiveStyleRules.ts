@@ -35,10 +35,21 @@ import { parse, tokenize } from '@starui/engine';
 import type { ConditionalRule } from '../customizer/modules/conditional-styling/state.js';
 import { compileStarUiExpressionToPerspective } from './ssrmExpressionCompile.js';
 
+/**
+ * Which expression language the worker on the other side of this speaks.
+ *
+ * `'perspective'` compiles to Perspective source, because that worker owns a
+ * second expression language. `'starui'` leaves the rule in StarUI source and
+ * the surface parses it to an AST — `@starui/ssrm-engine` evaluates the SAME
+ * tree calculated columns already send it, so there is one language and one
+ * parser, and a compiled closure could not cross a port in any case.
+ */
+export type ServerStyleRuleDialect = 'perspective' | 'starui';
+
 /** A rule the worker can answer, and the expression it answers with. */
 export interface PerspectiveStyleRulePlan {
   ruleId: string;
-  /** Perspective source, boolean-valued. */
+  /** Source in the plan's dialect, boolean-valued. */
   expression: string;
   /**
    * Column aggregates the expression needs resolved to literals before it can
@@ -134,6 +145,7 @@ function extractAggregates(
  */
 export function planPerspectiveStyleRules(
   rules: readonly ConditionalRule[] | undefined,
+  dialect: ServerStyleRuleDialect = 'perspective',
 ): PerspectiveStyleRulePlans {
   if (!rules || rules.length === 0) return EMPTY;
 
@@ -155,6 +167,29 @@ export function planPerspectiveStyleRules(
     const extracted = extractAggregates(rule.expression);
     if (!extracted) {
       refusals.push({ ruleId: rule.id, reason: 'expression does not parse' });
+      continue;
+    }
+
+    if (dialect === 'starui') {
+      // No compilation at all: `@starui/ssrm-engine` evaluates this tree. What
+      // it CANNOT evaluate it refuses by name at the port, and the painter
+      // falls back to its client scan for that rule — which is why there is no
+      // second copy of the engine's refusal list here.
+      //
+      // `.old` / `.new` are the exception and are refused up front, because
+      // they are viewport-only BY DEFINITION on every backend: the book holds
+      // one value per cell, not a before and an after. Refusing them here keeps
+      // the rule on its client scan, where it is still correct for the rows on
+      // screen, instead of spending a port round trip to be told so.
+      if (/\[[^\]]*\.(old|new)\]/i.test(extracted.rewritten)) {
+        refusals.push({ ruleId: rule.id, reason: '.old/.new refs are viewport-only' });
+        continue;
+      }
+      plans.push({
+        ruleId: rule.id,
+        expression: extracted.rewritten,
+        aggregates: extracted.aggregates,
+      });
       continue;
     }
 
@@ -210,6 +245,7 @@ export function needsWorkerAnswer(rule: ConditionalRule): boolean {
 export function substituteAggregates(
   plan: PerspectiveStyleRulePlan,
   measured: ReadonlyMap<string, number | null>,
+  dialect: ServerStyleRuleDialect = 'perspective',
 ): string | null {
   if (plan.aggregates.length === 0) return plan.expression;
 
@@ -217,9 +253,15 @@ export function substituteAggregates(
   for (const ref of plan.aggregates) {
     const value = measured.get(ref.token);
     if (value === null || value === undefined || !Number.isFinite(value)) return null;
-    // The compiler renders a column reference as `"name"`, so that is the form
-    // the token is wearing by the time it reaches here.
-    out = out.split(`"${ref.token}"`).join(String(value));
+    // The form the token is WEARING differs by dialect, and getting it wrong is
+    // silent: the substitution simply does not happen and the expression goes
+    // out still naming a column nothing has. The Perspective compiler renders a
+    // column reference as `"name"`; StarUI source keeps it as `[name]`, because
+    // no compilation happened.
+    out =
+      dialect === 'starui'
+        ? out.split(`[${ref.token}]`).join(String(value))
+        : out.split(`"${ref.token}"`).join(String(value));
   }
   return out;
 }

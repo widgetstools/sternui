@@ -30,26 +30,36 @@
 import { createAsyncSsrmDatasource } from './asyncDatasource.js';
 import { createSsrmRowPump, type SsrmRowPump, type SsrmRowPumpStats } from './rowPump.js';
 import type { SsrmDatasourceLike } from './datasource.js';
-import type { SsrmCalcColumnDef } from './calcAst.js';
+import type { SsrmCalcColumnDef, SsrmExpressionNode } from './calcAst.js';
 import type { SsrmCalcDiagnostic } from './calc.js';
-import type {
-  SsrmFilterModel,
-  SsrmGetRowsRequest,
-  SsrmGetRowsResult,
-  SsrmRow,
+import type { SsrmScalarAggregate } from './engine.js';
+import {
+  SSRM_GRAND_TOTAL_FLAG,
+  SSRM_GRAND_TOTAL_ROW_ID,
+  type SsrmFilterModel,
+  type SsrmGetRowsRequest,
+  type SsrmGetRowsResult,
+  type SsrmRow,
 } from './types.js';
 
 /**
- * AG's own id for the grand total row.
- *
- * The same literal `@starui/perspective-grid` exports, and it is AG's rather
- * than either package's — a transaction can only reach that row by naming it,
- * so `getRowId` has to answer this exact string for it.
+ * AG's own id for the grand total row, and the flag that marks the row the
+ * engine builds as one. Defined in `types.ts` and re-exported here, where every
+ * consumer already imports them from.
  */
-export const SSRM_GRAND_TOTAL_ROW_ID = 'rowGroupFooter_ROOT_NODE_ID';
+export { SSRM_GRAND_TOTAL_FLAG, SSRM_GRAND_TOTAL_ROW_ID };
 
-/** Marks the row the engine builds as the grand total, so `getRowId` knows it. */
-export const SSRM_GRAND_TOTAL_FLAG = '__grandTotal';
+/** One expanded group's route — the ancestor keys, outermost first. */
+export type SsrmRefreshRoute = string[];
+
+/** A group node, as much of one as the route walk reads. */
+export interface SsrmGroupNodeLike {
+  group?: boolean;
+  expanded?: boolean;
+  level?: number;
+  key?: string | null;
+  parent?: SsrmGroupNodeLike | null;
+}
 
 /** The slice of AG's `GridApi` this engine drives. */
 export interface SsrmGridApiLike {
@@ -63,6 +73,15 @@ export interface SsrmGridApiLike {
   getLastDisplayedRowIndex?(): number;
   /** Read rather than mirrored — see {@link SsrmEngineRowEngine} on the total. */
   getGridOption?(key: string): unknown;
+  /**
+   * Enumerates the row nodes this window holds — used to find the EXPANDED
+   * ROUTES, and for nothing else.
+   *
+   * Never as the source of a count: it visits the loaded blocks, not the book,
+   * and it does not traverse total rows at all. Every figure on this surface
+   * comes from the worker.
+   */
+  forEachNode?(callback: (node: SsrmGroupNodeLike) => void): void;
 }
 
 /** What the window's handle on the worker-held book must provide. */
@@ -75,7 +94,20 @@ export interface SsrmEngineClientLike {
   setQuickFilter(text: string): Promise<boolean>;
   setCalcColumns(columns: SsrmCalcColumnDef[]): Promise<boolean>;
   calcDiagnostics(): Promise<SsrmCalcDiagnostic[]>;
-  setViewport(viewport: { request: SsrmGetRowsRequest; startRow: number; endRow: number } | null): Promise<void>;
+  countMatchingExpression(
+    ast: SsrmExpressionNode,
+    request?: SsrmGetRowsRequest,
+  ): Promise<number | null>;
+  aggregateScalar(field: string, aggregate: SsrmScalarAggregate): Promise<number | null>;
+  setViewport(
+    viewport: {
+      request: SsrmGetRowsRequest;
+      startRow: number;
+      endRow: number;
+      /** Absent means yes — see the protocol's `SsrmViewport`. */
+      pushRows?: boolean;
+    } | null,
+  ): Promise<void>;
   applyUpdate(rows: SsrmRow[]): Promise<{ changed: unknown[]; removed: unknown[] }>;
   subscribe(listener: (delta: { rows: SsrmRow[]; removed: unknown[]; size: number }) => void): () => void;
 }
@@ -140,8 +172,34 @@ export interface SsrmEngineRowEngineOpts {
   countMinIntervalMs?: number;
   /** Rows of slack either side of the declared viewport. See the surface. */
   viewportSlackRows?: number;
+  /**
+   * Floor on how often the expanded routes are re-read WHILE GROUPING.
+   *
+   * The push path is off under grouping (see {@link SsrmEngineRowEngine.groupRefreshStats}),
+   * so this is the only thing keeping a grouped grid alive, and it re-reads one
+   * block per expanded route plus the root. MEASURED on this engine at 50,000
+   * rows: see the README. Perspective's equivalent throttles far harder because
+   * a root block costs it 1.9-2.5 s; here it is milliseconds, which is the whole
+   * reason a route refresh is an acceptable mechanism at all.
+   */
+  groupRefreshMinIntervalMs?: number;
   /** Block round trips, for a probe or a stats strip. */
   onBlock?(ms: number, outcome: 'ok' | 'fail', request: SsrmGetRowsRequest): void;
+  /**
+   * Every transaction the PUSH PATH hands AG, as it hands it.
+   *
+   * The seam a host needs to put the same rows on the platform's shared
+   * row-change signal. Without it that signal carries only `full` changes on
+   * this surface — MEASURED, 30 signals in 5 s and not one of them a delta —
+   * and everything keyed on knowing WHICH cells moved is inert: the
+   * conditional-styling timed activations (which is where the flash lives),
+   * the alerts delta path, the incremental saved-filter counts.
+   *
+   * Ungrouped only, necessarily: under grouping this engine pushes no
+   * transaction at all, so there is nothing to report and the flash is a cost
+   * of the route-refresh mechanism rather than something withheld.
+   */
+  onTransaction?(transaction: { update?: unknown[]; remove?: unknown[] }): void;
   onError?(error: unknown): void;
 }
 
@@ -170,6 +228,21 @@ export interface SsrmEngineRowEngine {
   /** Every distinct value in a column, for a set filter. Null = no honest list. */
   distinctValues(colId: string): Promise<unknown[] | null>;
   /**
+   * Rows of the FILTERED book matching a boolean expression — a conditional-
+   * styling rule's "does any row match?", which decides a header badge.
+   *
+   * Throttled and cached here rather than in the worker: the painter re-asks on
+   * every row signal, and on a ticking book that is five times a second per
+   * rule for an answer nobody reads that fast. `null` means REFUSED and is not
+   * 0 — a caller must paint nothing rather than unlight the header.
+   */
+  countMatchingExpression(ast: SsrmExpressionNode): Promise<number | null>;
+  /**
+   * One column's aggregate over the WHOLE book, filter and quick search
+   * deliberately dropped. See the engine for the decision and its known cost.
+   */
+  aggregateScalar(colId: string, aggregate: SsrmScalarAggregate): Promise<number | null>;
+  /**
    * The quick search. AG's `quickFilterText` is a client-side-row-model option
    * and does nothing under `serverSide`, so the text has to be handed here.
    * Purges only when the engine says something changed.
@@ -190,7 +263,37 @@ export interface SsrmEngineRowEngine {
   reportViewport(): void;
   /** Pump counters — how much the push path did. */
   pumpStats(): SsrmRowPumpStats | null;
+  /**
+   * The GROUPED live path's counters, which are a different mechanism from the
+   * pump's and have to be readable separately.
+   *
+   * `writes` is frames that arrived while grouping — each one a write the pump
+   * did NOT see, because under grouping this engine stops pushing transactions
+   * and re-reads the expanded routes instead. A `writes` climbing with
+   * `refreshes` flat means the throttle is holding; `refreshes` at 0 with
+   * `writes` climbing means the refresh path is not running at all.
+   */
+  groupRefreshStats(): SsrmGroupRefreshStats;
   close(): void;
+}
+
+export interface SsrmGroupRefreshStats {
+  /** Writes that arrived while grouping — every one of them skipped the pump. */
+  writes: number;
+  /** Route-refresh passes actually run. */
+  refreshes: number;
+  /** Expanded routes refreshed, summed over every pass. The root is extra. */
+  routes: number;
+  /** Milliseconds the last pass spent issuing its refreshes. */
+  lastMs: number;
+  /**
+   * Passes held off because the previous one's blocks were still in flight.
+   *
+   * A `deferred` that climbs with `refreshes` flat means the pass costs more
+   * than its floor allows and the grid is saturated — the number to watch if a
+   * deployment opens many routes at once.
+   */
+  deferred: number;
 }
 
 const EMPTY_REQUEST: SsrmGetRowsRequest = {};
@@ -207,6 +310,7 @@ export function createSsrmEngineRowEngine(
   const maxExportRows = opts.maxExportRows ?? 200_000;
   const countMinIntervalMs = opts.countMinIntervalMs ?? 500;
   const viewportSlack = opts.viewportSlackRows ?? 50;
+  const groupRefreshMs = opts.groupRefreshMinIntervalMs ?? 250;
 
   let api: SsrmGridApiLike | null = null;
   let closed = false;
@@ -407,6 +511,18 @@ export function createSsrmEngineRowEngine(
    * The AG boundary, with the two things a host has to add around it: the
    * served request shape, and the grand total a root block CREATES.
    */
+  /**
+   * Blocks AG has asked for and not yet been answered.
+   *
+   * Used by the grouped refresh to defer rather than pile on: MEASURED at
+   * 50,000 rows with two levels expanded, one route-refresh pass issues 3
+   * blocks that settle in 171 ms, against a 250 ms floor — so a pass and its
+   * successor very nearly overlap, and every additional expanded route makes
+   * that worse linearly. Re-requesting a range already in flight makes the
+   * queue longer and the answer no fresher.
+   */
+  let blocksInFlight = 0;
+
   const inner = createAsyncSsrmDatasource(client, {
     ...(opts.onError ? { onError: (error: unknown) => opts.onError?.(error) } : {}),
     onBlock: (ms, outcome, request) => {
@@ -421,9 +537,25 @@ export function createSsrmEngineRowEngine(
     getRows(params) {
       const request = params.request;
       const isRoot = (request.groupKeys?.length ?? 0) === 0;
+      // Counted HERE rather than in `onBlock`, which only fires on completion.
+      // Decremented in both settle paths below, and the async datasource
+      // guarantees exactly one of them runs — which is the rule that makes a
+      // counter like this safe rather than a slow leak into a wedged grid.
+      blocksInFlight += 1;
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        blocksInFlight = Math.max(0, blocksInFlight - 1);
+      };
       inner.getRows({
         ...params,
+        fail: () => {
+          done();
+          params.fail();
+        },
         success: (result) => {
+          done();
           // The root level of an UNGROUPED request is the only level whose row
           // count is a count of rows; grouped, it is the number of top-level
           // groups, and calling that "rows" is what produced "9 of 50,000".
@@ -447,10 +579,121 @@ export function createSsrmEngineRowEngine(
             },
           );
         },
-        fail: params.fail,
       });
     },
   };
+
+  /**
+   * ══ UNDER GROUPING THE PUSH PATH IS OFF, AND THE ROUTES ARE RE-READ ══
+   *
+   * MEASURED (`scripts/groupedTickProbe.mjs`, 50,000 rows, two group levels,
+   * 25 s): the pump received 34,447 rows, applied 0 and DROPPED 34,447, group
+   * and subgroup aggregates never moved, and one leaf of 101 moved — by a block
+   * re-read, not by the push.
+   *
+   * The cause is not a bug in the pump and cannot be fixed inside it. A row id
+   * under grouping is the PATH (`Alpha/Energy/POS-123`, AG's own documented
+   * form — see `rowId.ts`), and a pushed patch is SPARSE: the cells that moved
+   * plus the key, with no group columns in it. The path is not reconstructible
+   * from the frame, so the pump cannot name the node even in principle.
+   *
+   * And even if it could, it would fix half the problem: a leaf transaction does
+   * not move the GROUP row above it. Under a server row model an aggregate is
+   * whatever the last block for that level said, so the only thing that moves it
+   * is re-reading that level.
+   *
+   * So: one mechanism for both. Every EXPANDED ROUTE is refreshed, on a
+   * throttle. Four AG rules bound it and all four are load-bearing:
+   *
+   *   - **`refreshServerSide` does NOT cascade into child stores.** Refreshing
+   *     the root alone leaves the group rows ticking and the book rows under
+   *     them frozen — an aggregate that looks live at the top and is stale one
+   *     row down, which is worse than obviously not updating. Hence
+   *     {@link expandedRoutes};
+   *   - **`forEachNode` does not traverse total rows**, and is used here for
+   *     ROUTE ENUMERATION only. Nothing counts with it;
+   *   - **`setRowCount` is illegal while grouping** (AG error #28, SILENT
+   *     without ValidationModule) — {@link syncRowCount} already refuses;
+   *   - **`grandTotalData` CREATES the grand total and does not UPDATE it**, so
+   *     {@link pushGrandTotal}'s transaction stays exactly as it was. That path
+   *     already works under grouping, because it addresses AG's own row id.
+   */
+  const groupStats: SsrmGroupRefreshStats = { writes: 0, refreshes: 0, routes: 0, lastMs: 0, deferred: 0 };
+  let groupRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+  let groupRefreshPending = false;
+
+  /** Every expanded group's route, outermost key first. */
+  function expandedRoutes(): SsrmRefreshRoute[] {
+    const routes: SsrmRefreshRoute[] = [];
+    api?.forEachNode?.((node) => {
+      if (node.group !== true || node.expanded !== true) return;
+      const route: string[] = [];
+      let walk: SsrmGroupNodeLike | null | undefined = node;
+      while (walk && (walk.level ?? -1) >= 0) {
+        if (typeof walk.key === 'string') route.unshift(walk.key);
+        walk = walk.parent;
+      }
+      routes.push(route);
+    });
+    return routes;
+  }
+
+  /**
+   * Re-read the root level and every expanded route.
+   *
+   * `purge: false` throughout: a purge discards the store, and with it the
+   * user's scroll position, the expanded tree and the selection — which is worse
+   * than the stale aggregate it would fix.
+   */
+  function refreshExpandedRoutes(): void {
+    if (api === null || closed) return;
+    const started = Date.now();
+    api.refreshServerSide({ purge: false });
+    const routes = expandedRoutes();
+    for (const route of routes) api.refreshServerSide({ route, purge: false });
+    groupStats.refreshes += 1;
+    groupStats.routes += routes.length;
+    groupStats.lastMs = Date.now() - started;
+  }
+
+  /**
+   * How long a pass may be held off by blocks still in flight before it goes
+   * anyway.
+   *
+   * Bounded for the same reason the Perspective path bounds its own: a grid
+   * busy enough never to be idle would otherwise stop refreshing altogether,
+   * which is the failure this whole mechanism exists to remove.
+   */
+  const GROUP_REFRESH_DEFER_MAX_MS = 2_000;
+  let groupRefreshDeferringSince = 0;
+
+  function scheduleGroupRefresh(): void {
+    if (closed || api === null) return;
+    if (groupRefreshTimer !== null) {
+      groupRefreshPending = true;
+      return;
+    }
+    groupRefreshTimer = setTimeout(() => {
+      groupRefreshTimer = null;
+      const again = groupRefreshPending;
+      groupRefreshPending = false;
+      // DEFER while the previous pass is still being answered. MEASURED at
+      // 50,000 rows with two levels expanded: one pass issues 3 blocks that
+      // settle in 171 ms against a 250 ms floor, so the two very nearly
+      // overlap — and each additional expanded route adds a block. Piling a
+      // second pass on top makes the queue longer and the answer no fresher.
+      if (blocksInFlight > 0 && Date.now() - groupRefreshDeferringSince < GROUP_REFRESH_DEFER_MAX_MS) {
+        groupStats.deferred += 1;
+        groupRefreshPending = true;
+        scheduleGroupRefresh();
+        return;
+      }
+      groupRefreshDeferringSince = Date.now();
+      if (live) refreshExpandedRoutes();
+      if (again) scheduleGroupRefresh();
+    }, groupRefreshMs);
+    (groupRefreshTimer as unknown as { unref?(): void }).unref?.();
+  }
 
   /**
    * The live path: the worker PUSHES what changed, this window applies it.
@@ -459,21 +702,39 @@ export function createSsrmEngineRowEngine(
    * conflates by row id so several frames touching one row are one transaction,
    * and spends at most `sliceBudgetMs` per flush so a burst becomes latency
    * instead of a dropped frame.
+   *
+   * Grouped, the frame carries no rows at all: the surface declares
+   * `pushRows: false` on its viewport, so the worker stops putting patches on
+   * the wire for this port and sends the size mirror alone. That is the decision
+   * taken over "drop them on arrival" — 34,447 rows were being structured-cloned
+   * across the port per 25 s to be discarded, and the client can say so once
+   * instead of paying for it per tick.
    */
   function attachPump(): void {
     detachPump();
     pump = createSsrmRowPump(
       {
         getRowNode: (id) => api?.getRowNode(id) ?? null,
-        applyServerSideTransaction: (tx) => api?.applyServerSideTransaction(tx) ?? null,
+        applyServerSideTransaction: (tx) => {
+          const result = api?.applyServerSideTransaction(tx) ?? null;
+          // Reported AFTER AG has it, so a host publishing this to the shared
+          // row signal cannot describe a transaction that was refused.
+          opts.onTransaction?.(tx);
+          return result;
+        },
         isDestroyed: () => api === null || api.isDestroyed?.() === true,
       },
       { keyField: keyColumn, sliceBudgetMs: 4 },
     );
     unsubscribeDelta = client.subscribe((delta) => {
       if (!live) return;
-      pump?.push(delta);
       bookRows = delta.size;
+      if (grouped(lastRequest)) {
+        groupStats.writes += 1;
+        scheduleGroupRefresh();
+      } else {
+        pump?.push(delta);
+      }
       // A write moves the counts and the total, and neither is carried by the
       // patch. Coalesced rather than asked per frame.
       scheduleWholeBookReads();
@@ -518,6 +779,11 @@ export function createSsrmEngineRowEngine(
       request: { ...lastRequest, startRow: 0, endRow: 0 },
       startRow: Math.max(0, first - viewportSlack),
       endRow: last + 1 + viewportSlack,
+      // Grouped, this window applies no pushed row at all — see `attachPump`.
+      // Declaring it stops the worker cloning patches across the port for a
+      // consumer that has none, while the size mirror and the write signal keep
+      // arriving.
+      ...(grouped(lastRequest) ? { pushRows: false } : {}),
     };
     const signature = JSON.stringify(viewport);
     if (signature === lastViewport) return;
@@ -532,6 +798,34 @@ export function createSsrmEngineRowEngine(
   function purge(): void {
     if (api === null || closed) return;
     api.refreshServerSide({ purge: true });
+  }
+
+  /**
+   * Whole-book style-rule answers, cached per question and floored in time.
+   *
+   * `headerPainter` re-asks on every row signal and every filter change, which
+   * on a ticking book is several times a second per rule — and each answer is a
+   * pass over the filtered index evaluating a compiled expression, in the same
+   * worker the block the user is scrolling towards has to come out of. The floor
+   * is the same one the status counts use, for the same reason.
+   *
+   * Bounded rather than unbounded: the key carries the filter model, so a user
+   * clicking through saved filters would otherwise accumulate an entry per
+   * filter per rule for the life of the grid.
+   */
+  const RULE_CACHE_MAX = 64;
+  const ruleCache = new Map<string, { at: number; value: Promise<number | null> }>();
+  function ruleAnswer(key: string, ask: () => Promise<number | null>): Promise<number | null> {
+    const at = Date.now();
+    const held = ruleCache.get(key);
+    if (held !== undefined && at - held.at < countMinIntervalMs) return held.value;
+    const value = ask().catch((error: unknown) => {
+      opts.onError?.(error);
+      return null;
+    });
+    if (ruleCache.size >= RULE_CACHE_MAX) ruleCache.clear();
+    ruleCache.set(key, { at, value });
+    return value;
   }
 
   return {
@@ -573,7 +867,11 @@ export function createSsrmEngineRowEngine(
     },
 
     refreshNow() {
-      api?.refreshServerSide({ purge: false });
+      // Every level, not just the root — `refreshServerSide` does not cascade,
+      // and an out-of-band change moves a group's aggregate as readily as a
+      // leaf's cell. Ungrouped there are no expanded routes and this is the
+      // single root refresh it always was.
+      refreshExpandedRoutes();
       scheduleWholeBookReads();
     },
 
@@ -595,6 +893,26 @@ export function createSsrmEngineRowEngine(
         opts.onError?.(error);
         return null;
       }
+    },
+
+    countMatchingExpression(ast) {
+      // Cached on the AST **and the filter model**: the same rule under a
+      // different filter is a different question, and the count is the one half
+      // of this seam that follows the filter.
+      const key = `${JSON.stringify(ast)} ${JSON.stringify(lastRequest.filterModel ?? null)} ${quickFilterText}`;
+      return ruleAnswer(key, () =>
+        client.countMatchingExpression(
+          ast,
+          lastRequest.filterModel ? { filterModel: lastRequest.filterModel } : {},
+        ),
+      );
+    },
+
+    aggregateScalar(field, aggregate) {
+      // No filter in the key, because there is none in the question.
+      return ruleAnswer(`agg ${field} ${aggregate}`, () =>
+        client.aggregateScalar(field, aggregate),
+      );
     },
 
     async setQuickFilter(text) {
@@ -673,13 +991,18 @@ export function createSsrmEngineRowEngine(
 
     pumpStats: () => pump?.stats() ?? null,
 
+    groupRefreshStats: () => ({ ...groupStats }),
+
     close() {
       closed = true;
       detachPump();
       if (countTimer !== null) clearTimeout(countTimer);
       countTimer = null;
+      if (groupRefreshTimer !== null) clearTimeout(groupRefreshTimer);
+      groupRefreshTimer = null;
       listeners.clear();
       pendingEdits.clear();
+      ruleCache.clear();
       api = null;
     },
   };

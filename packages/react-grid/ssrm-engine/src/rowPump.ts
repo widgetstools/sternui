@@ -30,6 +30,7 @@
  * The grid is structural, not `GridApi`: this package holds no AG Grid import,
  * and the pump is testable against three methods and no grid at all.
  */
+import { makeSsrmUngroupedRowId } from './rowId.js';
 import type { SsrmRow } from './types.js';
 
 /** The slice of AG's `GridApi` this needs. */
@@ -111,6 +112,16 @@ export function createSsrmRowPump(
   const { keyField } = options;
   const budgetMs = options.sliceBudgetMs ?? 4;
   const schedule = options.schedule ?? defaultSchedule;
+  /**
+   * The grid's own row id, for the only shape a sparse patch can name.
+   *
+   * THE definition, imported rather than restated as `String(key)` — the two
+   * spellings of a row id are exactly what let a 100%-drop defect through 260
+   * fuzz frames. Ungrouped by construction: under grouping an id is the group
+   * path, which this frame does not carry, and the row engine stops feeding this
+   * pump entirely rather than letting it guess one.
+   */
+  const rowIdOf = makeSsrmUngroupedRowId(keyField);
 
   /** Conflated patches, insertion-ordered so the oldest row flushes first. */
   const pending = new Map<string, SsrmRow>();
@@ -211,12 +222,12 @@ export function createSsrmRowPump(
         removing.add(key);
         // A row removed after a pending update is removed, not updated. The
         // reverse case — re-added after a removal — is handled below.
-        pending.delete(String(key));
+        pending.delete(rowIdOf({ [keyField]: key }));
       }
       for (const row of delta.rows) {
         const raw = row[keyField];
         if (raw === undefined || raw === null) continue;
-        const id = String(raw);
+        const id = rowIdOf(row);
         removing.delete(raw);
         stats.received += 1;
         const held = pending.get(id);

@@ -1,10 +1,5 @@
 import type { SsrmEngine } from './engine.js';
-import {
-  SSRM_GROUP_FLAG,
-  SSRM_GROUP_PATH,
-  type SsrmGetRowsRequest,
-  type SsrmRow,
-} from './types.js';
+import type { SsrmGetRowsRequest, SsrmRow } from './types.js';
 
 /**
  * The boundary between the engine and AG Grid.
@@ -102,20 +97,12 @@ export function createSsrmDatasource(
 }
 
 /**
- * Row identity for AG.
+ * Row identity for AG — ONE definition, and it lives in `rowId.ts`.
  *
- * **RULE 3 — a group row is identified by its PATH, not a leaf key.** Group rows
- * carry no key column of their own, so an id derived from one collides across
- * every group at a level, and duplicate ids make AG DISCARD the block (warn 205)
- * rather than warn visibly. The engine stamps the full path on; this reads it.
+ * Re-exported from here because this module is where the AG boundary is and
+ * every existing caller imports it from here. It used to be a SECOND definition
+ * (group path with a `g:` prefix, a bare leaf key) while the MarketsGrid surface
+ * carried its own — so the fuzz tested a spelling the product does not use. See
+ * `rowId.ts` for what that cost.
  */
-export function makeSsrmGetRowId(keyField: string) {
-  return (params: { data: SsrmRow }): string => {
-    const row = params.data;
-    const path = row[SSRM_GROUP_PATH];
-    if (row[SSRM_GROUP_FLAG] === true && Array.isArray(path)) {
-      return `g:${path.map((k) => (k === null || k === undefined ? '' : String(k))).join('/')}`;
-    }
-    return String(row[keyField]);
-  };
-}
+export { makeSsrmGetRowId } from './rowId.js';

@@ -1207,6 +1207,146 @@ Not measured: the browser-side cost of AG rendering the list itself. The
 parity run opens both filters with no perceptible delay and the Perspective path
 has `positionId` at 20,000 working live, but neither is a timing.
 
+## The whole-book expression seam — a header lights for a row no block holds
+
+`headerPainter` asks "does ANY row match this rule?" and decides a column
+header's flash or indicator badge on the answer. Its client-side implementation
+is `api.forEachNodeAfterFilter`, which under a server row model visits **zero**
+nodes — so on this surface the painter was not degraded but DEAD, and silently:
+a header that never lights is indistinguishable from a rule nothing matches.
+
+Two engine methods answer it, with deliberately OPPOSITE scopes:
+
+- `countMatchingExpression(ast, request)` follows the request's **filter**,
+  because that is what the client-side original did;
+- `aggregateScalar(field, aggregate)` measures the **whole book**, dropping the
+  filter model and the quick search. DECIDED on the Perspective path and
+  matched here rather than re-litigated: an "above average" threshold is a
+  property of the book, so a filter hides rows without moving it (Excel's
+  conditional-formatting convention). Its known cost is that such a rule can
+  disagree with the average in the totals row on the same screen, because group
+  totals, the grand total and the status bar all DO follow the filter.
+
+**The AST crosses the port, not source.** Perspective's equivalent takes a
+source string because its worker compiles a second expression language; there is
+none here. The window parses with `@starui/engine`'s `tokenize`/`parse` — the
+same tree calculated columns already send — and the surface declares
+`ssrmExpressionDialect: 'starui'` so the shared planner leaves the rule
+uncompiled. Truthiness is `calcOps.ts`'s and nowhere else: `isTruthy(NaN)` is
+TRUE and the falsy set is exactly `null | undefined | false | 0 | ''`.
+
+A refused expression answers `null`, and `null` is not `0`: the painter forgets
+the entry and the rule falls back to its client scan, which is partial and
+better than a header that is confidently dark.
+
+### Verified live, on a rule the loaded blocks cannot answer
+
+`scripts/styleRuleHeaderProbe.mjs`, against two rules seeded into the lab's
+stress profile:
+
+| | |
+|---|---|
+| rule | `[esgScore] > 999` — 36-46 of 50,000 rows, **none of them loaded** |
+| loaded maximum, re-checked every 250 ms | 978-995, always below the threshold |
+| the seam's count vs an independent pass | 37 vs 36 (a ticking book moves it by a row) |
+| header lit / cells painted | **1 / 0** — the seam doing what nothing local can |
+| the impossible rule (`> 100000`) | header 0, cells 0 |
+| the control (`> -1`) | header 1, cells 23 |
+| whole-book AVG under a filter leaving 24,687 of 50,000 | 491.88, where that population's OWN average is **745.21** |
+| whole-book AVG drift over the same window | 3.95, against a 255-point gap to the filtered population |
+
+The probe REFUSES to report if a loaded row ever reaches the threshold — a rule
+the client scan could answer would light the header with no seam at all.
+
+### And a defect in the painter that the seam exposed
+
+The seam answered 50,000 matching rows, the painter recorded the rule as lit,
+and **zero header cells carried the class**. `applyHeaderClassDelta` was a
+difference-only pass keyed on what the painter BELIEVED it had already painted —
+and AG virtualises COLUMNS, so a header cell not scrolled into view is not in the
+document. It recorded the rule as painted the first time it decided so, with
+`querySelectorAll` having matched nothing, and never re-applied. The header
+stayed dark for the rest of the session however far the user scrolled.
+
+It now reconciles against the DOM. Re-adding a class already present is a no-op
+in `classList` and does not restart a CSS animation, so the property the
+differential version existed for is kept. **Not row-model specific** — that
+module serves every surface, including CSRM.
+
+## Grouped ticks, and the two row ids that hid the defect
+
+MEASURED before any of this, `scripts/groupedTickProbe.mjs`, 50,000 rows, two
+group levels, aggregating a field the book really moves, 25 s:
+
+| | moved | of |
+|---|---|---|
+| grand total | 20 changes | 1 |
+| group rows | **0** | 9 |
+| subgroup rows | **0** | 2 |
+| leaf rows | 1 | 101 |
+| **pump** | received 34,447 · applied **0** · **DROPPED 34,447** | |
+
+**Two definitions of a row id, and the tested one was not the shipped one.**
+`datasource.ts` had `makeSsrmGetRowId` — group path with a `g:` prefix, a BARE
+key for a leaf — and the MarketsGrid surface had its own, built from AG's
+`level` / `parentKeys` and prefixing a LEAF with the path too. The surface's is
+AG Grid's own documented form and is the one running at 50,000 with 0 failed
+blocks; the package's is the one `deltaPath.fuzz.test.ts` ran 260 adversarial
+frames against. So the fuzz modelled the UNGROUPED id only and proved nothing
+about the state in which 100% of pushed rows were dropped.
+
+There is now one definition (`rowId.ts`), and what follows from it is the whole
+fix. Under grouping a leaf id is `Alpha/Energy/POS-123`; a pushed patch is
+SPARSE — the cells that moved plus the key — so it cannot carry the group
+columns and the path is not reconstructible from it **even in principle**. The
+pump cannot name the node. And if it could, it would fix half the problem: a
+leaf transaction does not move the GROUP row above it, because under a server
+row model an aggregate is whatever the last block for that level said.
+
+**So under grouping the push path is off and the expanded routes are re-read.**
+One mechanism for both halves. The four AG rules it is bound by are in
+`rowEngine.ts` beside the code.
+
+**The 34,447 rows are not dropped in the window, they are not sent.** The
+viewport declaration gained `pushRows: false`; the worker then sends that port
+the size mirror and the write signal and no rows at all. The alternative — drop
+them on arrival — costs the same wire and the same structured clone. The client
+says it once, in a message it already sends.
+
+### What it measures now
+
+Same probe, same book, same 25 s:
+
+| | moved | of |
+|---|---|---|
+| grand total | 32 changes | 1 |
+| group rows (`assetClass`) | **9** | 9 |
+| subgroup rows (`issuerSector`) | **2** | 2 |
+| leaf rows | 51 | 101 |
+| **pump** | received 462 · applied 37 · dropped 425 | (all of it in the flat control phase) |
+
+The probe now takes an **UNGROUPED CONTROL first** — 29 of 101 leaf rows moving,
+37 rows applied — because without it "applied 0" cannot be told from "the push
+path does not work", and session 8's reading was ambiguous between the two for
+exactly that reason. It also NAMES THE COLUMNS THE BOOK MOVES before it starts,
+which is how the other half of session 8's open question got answered (below).
+
+**What a route-refresh pass costs, MEASURED at 50,000 with two levels expanded
+and the feed OFF: 3 blocks, settled in 171 ms.** Against a 250 ms floor that is
+close, and each additional expanded route adds a block — so a pass is DEFERRED
+while the previous one's blocks are still in flight, capped at 2 s so a
+permanently busy grid still refreshes. Over a 45 s grouped run: 412 writes, 310
+passes, 380 routes refreshed, 4 deferred.
+
+**And Perspective DOES tick grouped aggregates — the "0 vs 0" is withdrawn.**
+Session 8 recorded that the same probe on the Perspective surface moved nothing
+and refused to report, and said plainly that this was not a result. It was the
+probe: that book moves `bidPrice`/`askPrice`/`midPrice`/`lastPrice`/`evalPrice`/
+`bidYield` and **not `esgScore`**, which is what the ssrm book moves. Pointed at
+`midPrice`, Perspective moved every level — grand total 37 changes, 10 of 10
+groups, 2 of 2 subgroups, 94 of 101 leaves. So this was a real gap against the
+losing engine, and closing it is session 9's work rather than a nicety.
+
 ## What IS here
 
 - the full `IServerSideGetRowsRequest` contract: `startRow`/`endRow`,
@@ -1287,6 +1427,32 @@ has `positionId` at 20,000 working live, but neither is a timing.
   updated another, the quick search, set-filter values, a whole-book export that
   refuses above a ceiling, coalesced cell edits, and the viewport report. AG Grid
   is typed structurally, so it is testable with three methods and no grid
+- **a GROUPED grid ticks at every level** — grand total, group, subgroup and
+  leaf. Under grouping the push path is OFF and the EXPANDED ROUTES are re-read
+  on a throttle instead, which is the only mechanism that moves a group row's
+  aggregate at all: under a server row model an aggregate is whatever the last
+  block for that level said. Bound by four AG rules, each load-bearing —
+  `refreshServerSide` does not cascade into child stores (so every expanded
+  route is refreshed by route), `forEachNode` does not traverse total rows (so
+  it is used for route enumeration and nothing counts with it), `setRowCount` is
+  illegal while grouping, and `grandTotalData` creates the total but does not
+  update it. See "Grouped ticks" below for what it cost and what it measured
+- **`engine.countMatchingExpression(ast, request?)` and
+  `engine.aggregateScalar(field, aggregate)`** — the WHOLE-BOOK expression seam
+  a conditional-styling rule needs, and the reason a column header can light for
+  a row no block has loaded. The count follows the request's FILTER (its
+  client-side original is `forEachNodeAfterFilter`, and a header must not light
+  for rows the user filtered away); the aggregate deliberately does NOT, because
+  an "above average" threshold is a property of the book. The **AST** crosses
+  the port, never source — one language, one parser — and truthiness is
+  `calcOps.ts`'s, where `isTruthy(NaN)` is TRUE. A refused expression answers
+  `null`, which is not 0: the caller falls back to its client scan rather than
+  unlighting the header
+- **`makeSsrmGetRowId`** (`rowId.ts`) — ONE definition of a row id, used by the
+  MarketsGrid surface, the plain-grid lab surface, the push pump and both
+  fuzzes. It is AG Grid's own documented form: `parentKeys` prefixes a LEAF as
+  well as a group. There used to be two, and the tested one was not the shipped
+  one — see "Grouped ticks"
 - **`SsrmEngineMarketsGridSurface`** in `@starui/grid` — the mount, reached with
   `rowModel="ssrm-engine"` and an `ssrmEngineClient`. See "A MarketsGrid surface"
   below
@@ -1308,33 +1474,35 @@ Stated plainly so nobody plans around a gap:
   on a sort or filter change. What is not covered is a write landing while a
   block for the OLD shape is still in flight; `asyncDatasource.test.ts` covers
   the settle-once half of that by construction, not the row-correctness half
-- **grouped aggregates DO NOT TICK, and under grouping nothing ticks except the
-  grand total.** MEASURED with `scripts/groupedTickProbe.mjs` at 50,000 rows,
-  two group levels, aggregating a field the book really moves: the grand total
-  changed 20 times in 25 s, group rows 0 of 9, subgroup rows 0 of 2, leaf rows 1
-  of 101 — and the pump reported **received 34,447, applied 0, dropped 34,447**.
-  The cause is a row-id mismatch in the SURFACE, not the engine: `getRowId` under
-  grouping must return the PATH (a leaf key collides across groups and AG
-  discards the block), while `createSsrmRowPump` looks a node up by the bare key
-  from the sparse patch — which does not carry the group columns, so the path
-  cannot be reconstructed. The fix is not a patch to the pump: under grouping the
-  right behaviour is to stop pushing transactions and refresh the expanded routes
-  on a throttle, the way the Perspective path does, since `refreshServerSide`
-  does not cascade into child stores. `engine.getRows` returns correct aggregates
-  for every level throughout — this is surface glue, and the fuzz has checked the
-  engine side cell by cell for five sessions
+- **a changed cell does not FLASH on this surface** — grouped or flat, and it is
+  neither new nor a grouping regression. MEASURED with
+  `scripts/groupedParityProbe.mjs`: 0 cells wearing a flash class at any sample
+  over 10 s ungrouped and 12 s grouped, on a rule whose column the book really
+  moves. Half of it is fixed and measured: the platform's shared row-change
+  signal carried **30 `full` changes and not one per-row delta** on this surface
+  (the pump writes through `applyServerSideTransaction`, which raises no
+  `asyncTransactionsFlushed`, so `RowChangeBus` only ever saw `modelUpdated`),
+  and the surface now publishes every pushed transaction onto it — 3 of 7
+  signals carry a delta after the change. What still does not paint is
+  conditional styling's TIMED ACTIVATION, which is where the flash lives; that
+  is a shared module and its own session. Under grouping there is a second
+  reason on top: a route refresh does not say which cells moved, so a deployment
+  that wants flashing there has AG's own `enableCellChangeFlash`, which the lab
+  deliberately turns off in favour of the module
 - **a calculated column cannot be a TREE field or a `groupKeys` ancestor that
   the request did not group by.** Grouping BY one works, and so does reading its
   children; `treeFields` is a construction option naming store fields and has
   not been exercised with an expression
-- **there is no cross-row STYLE-RULE seam on the MarketsGrid surface.** A rule
-  like `[price] > AVG([price])` needs the engine to answer a boolean expression
-  and a scalar aggregate over the whole filtered book, and this engine has no
-  expression language of its own to compile a rule into. The surface therefore
-  omits `ssrmCountMatchingExpression` and `ssrmAggregateScalar` from the grid
-  context rather than stubbing them: a caller that finds them absent paints
-  nothing, where one that always answered `null` would be read as "no row
-  matches". The Perspective surface has both
+- **ALERTS see the WINDOW, not the book, except on a manual rescan.** Alert
+  rules (`dataChange`, `relativeChange`, baselines) evaluate over the rows this
+  window holds — roughly 100 of 50,000 — because the rule engine runs in the
+  window and that is what it can reach. The panel's "Rescan full book" button
+  does read the whole book (the fetcher is registered through the same
+  `serverEngineHolder` key the export uses, verified present on this surface),
+  so a whole-book pass is available on demand and not automatic. Moving the
+  alert engine into the worker is an architectural change rather than an
+  addition, and it is its own session. Read plainly: **nothing on this surface
+  makes alerts whole-book by default**
 - **`masterDetail` and `treeFields` are Perspective-surface props.** Neither is
   wired on this one, and neither is MarketsGrid parity — the CSRM surface has
   them on no path either

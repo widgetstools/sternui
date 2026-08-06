@@ -38,12 +38,17 @@ import type {
   Theme,
 } from 'ag-grid-community';
 import type { RefObject } from 'react';
+/**
+ * The window parses; the worker evaluates. One language, one parser — the same
+ * decision calculated columns took, and for the same two reasons: a compiled
+ * closure is not structured-cloneable, and a second parser is a second thing to
+ * keep in step with the customizer that authors these expressions.
+ */
+import { parse, tokenize } from '@starui/engine';
 import {
   createSsrmEngineRowEngine,
+  makeSsrmGetRowId,
   SSRM_GRAND_TOTAL_FLAG,
-  SSRM_GRAND_TOTAL_ROW_ID,
-  SSRM_TREE_GROUP,
-  SSRM_TREE_KEY,
   type SsrmCalcColumnDef,
   type SsrmCalcDiagnostic,
   type SsrmEngineClientLike,
@@ -76,6 +81,7 @@ import {
   withServerStatusPanels,
 } from './ServerStatusPanels.js';
 import { withServerSetFilterValues } from './serverSetFilterValues.js';
+import { publishSsrmTransactionDelta } from './ssrmRowChangeBridge.js';
 import { SkeletonLoadingCellRenderer } from './serverLoadingCellRenderer.js';
 
 const NO_HOST_OVERRIDES: ReadonlySet<string> = new Set<string>();
@@ -100,6 +106,11 @@ export interface SsrmEngineMarketsGridSurfaceHandle {
   calcDiagnostics(): Promise<SsrmCalcDiagnostic[]>;
   /** Pump counters — how much the push path did. Null before the grid exists. */
   pumpStats(): unknown;
+  /**
+   * The grouped live path's counters — a DIFFERENT mechanism from the pump's.
+   * Under grouping the pump is fed nothing and this is what moves the grid.
+   */
+  groupRefreshStats(): unknown;
 }
 
 export interface SsrmEngineMarketsGridSurfaceProps {
@@ -157,38 +168,6 @@ export interface SsrmEngineMarketsGridSurfaceProps {
   onBlock?: (ms: number, outcome: 'ok' | 'fail', request: unknown) => void;
 }
 
-/**
- * Row ids must be the group PATH, not a leaf key.
- *
- * A group row carries no key column of its own, so an id derived from it
- * collides across every group at a level — and duplicate ids turn a successful
- * block into a FAILED one (AG warn 205) rather than warning visibly.
- *
- * Tree rows need the same treatment and cannot get it the same way: in tree
- * mode there are no row-group columns at all, so the `level < groupCols.length`
- * test is false at every depth and every parent would be keyed off the leaf
- * column it does not have. They are recognised by the marker the engine stamps
- * on instead.
- *
- * The grand total is named explicitly, because the transaction that keeps it
- * live can only reach that row by AG's own id for it.
- */
-function makeGetRowId(keyColumn: string) {
-  return ({ level, parentKeys = [], data, api }: GetRowIdParams): string => {
-    const row = data as Record<string, unknown> | undefined;
-    if (row?.[SSRM_GRAND_TOTAL_FLAG]) return SSRM_GRAND_TOTAL_ROW_ID;
-    if (row?.[SSRM_TREE_GROUP]) {
-      return [...parentKeys, row?.[SSRM_TREE_KEY]].join('/');
-    }
-    const groupCols = api.getRowGroupColumns?.() ?? [];
-    if (level < groupCols.length) {
-      const field = groupCols[level].getColDef().field ?? groupCols[level].getColId();
-      return [...parentKeys, field ? row?.[field] : undefined].join('/');
-    }
-    return [...parentKeys, row?.[keyColumn]].join('/');
-  };
-}
-
 export const SsrmEngineMarketsGridSurface = forwardRef<
   SsrmEngineMarketsGridSurfaceHandle,
   SsrmEngineMarketsGridSurfaceProps
@@ -203,6 +182,10 @@ export const SsrmEngineMarketsGridSurface = forwardRef<
   // One engine per client. Rebuilt when the client changes (a provider restart
   // hands over a new book) and always closed — it holds a pump, a subscription
   // and a coalescing timer.
+  const platform = useOptionalGridPlatform();
+  const platformRef = useRef(platform);
+  platformRef.current = platform;
+
   useEffect(() => {
     const next = createSsrmEngineRowEngine({
       client,
@@ -210,6 +193,21 @@ export const SsrmEngineMarketsGridSurface = forwardRef<
       ...(props.maxExportRows === undefined ? {} : { maxExportRows: props.maxExportRows }),
       ...(onError === undefined ? {} : { onError }),
       onBlock: (ms, outcome, request) => onBlockRef.current?.(ms, outcome, request),
+      /**
+       * Put every pushed transaction on the platform's shared row-change
+       * signal, the way the CSRM path's `asyncTransactionsFlushed` does.
+       *
+       * MEASURED before this existed: that signal fired 30 times in 5 s on this
+       * surface and **every one was a `full` change** — the pump writes through
+       * `applyServerSideTransaction`, which raises no `asyncTransactionsFlushed`,
+       * so `RowChangeBus` only ever saw `modelUpdated`. Everything keyed on
+       * WHICH cells moved was therefore inert here: conditional styling's timed
+       * activations (which is where a tick FLASH lives), the alerts delta path,
+       * and the incremental saved-filter counts. Not a grouping problem and not
+       * new — it was true of this surface from the day it was built.
+       */
+      onTransaction: (tx) =>
+        publishSsrmTransactionDelta(platformRef.current?.rows, tx, keyColumn),
     });
     if (apiRef.current) next.setApi(apiRef.current as never);
     setEngine(next);
@@ -224,6 +222,7 @@ export const SsrmEngineMarketsGridSurface = forwardRef<
       setLive: (live: boolean) => engine?.setLive(live),
       calcDiagnostics: () => engine?.calcDiagnostics() ?? Promise.resolve([]),
       pumpStats: () => engine?.pumpStats() ?? null,
+      groupRefreshStats: () => engine?.groupRefreshStats() ?? null,
     }),
     [engine],
   );
@@ -248,11 +247,28 @@ export const SsrmEngineMarketsGridSurface = forwardRef<
    * holder at CALL time rather than closing over an engine that will be
    * swapped out.
    *
-   * `ssrmCountMatchingExpression` and `ssrmAggregateScalar` are deliberately
-   * absent: they are the cross-row style-rule seam, and this engine has no
-   * expression language of its own to compile a rule into. A caller that finds
-   * them missing paints nothing, which is the honest answer — offering one that
-   * returned null on every call would look like "no row matches".
+   * ## The whole-book expression seam
+   *
+   * `ssrmCountMatchingExpression` and `ssrmAggregateScalar` are what
+   * `headerPainter` asks, and until session 9 this surface omitted both — so on
+   * the surface that SHIPS the header painter was not degraded but DEAD, and
+   * silently, because a rule that lights no header looks exactly like a rule
+   * whose condition is false. (`forEachNodeAfterFilter`, its client-side
+   * original, visits **zero** nodes under a server row model.)
+   *
+   * Two things about the contract are not obvious and both are declared rather
+   * than inferred:
+   *
+   *   - the dialect is **StarUI source**, not Perspective's. It is parsed HERE,
+   *     with `@starui/engine`'s `tokenize`/`parse` — the same tree calculated
+   *     columns already send this engine — because a closure is not
+   *     structured-cloneable and there must not be a second parser;
+   *   - the AGGREGATE measures the **whole book**, dropping the grid's filter
+   *     model and quick filter, while the COUNT follows them. That asymmetry is
+   *     deliberate and inherited: an "above average" threshold is a property of
+   *     the book (Excel's convention), and a header must not light for rows the
+   *     user has filtered away. Its known cost is that such a rule can disagree
+   *     with the average in the totals row on the same screen.
    */
   const context = useMemo<ServerGridContext>(() => {
     const holder = holderRef.current!;
@@ -260,6 +276,22 @@ export const SsrmEngineMarketsGridSurface = forwardRef<
       serverEngineHolder: holder,
       ssrmCountMatching: (filterModel) =>
         holder.get()?.countMatching(filterModel as never) ?? Promise.resolve(null),
+      ssrmExpressionDialect: 'starui',
+      ssrmCountMatchingExpression: async (source) => {
+        const engine = holder.get();
+        if (!engine) return null;
+        let ast: SsrmCalcColumnDef['ast'];
+        try {
+          ast = parse(tokenize(source)) as SsrmCalcColumnDef['ast'];
+        } catch {
+          // A rule that does not parse is not a rule the worker can be asked.
+          // Null routes it back to the client scan rather than unlighting it.
+          return null;
+        }
+        return engine.countMatchingExpression(ast);
+      },
+      ssrmAggregateScalar: (colId, aggregate) =>
+        holder.get()?.aggregateScalar(colId, aggregate as never) ?? Promise.resolve(null),
       get ssrmConfigured() {
         return holder.get() !== null;
       },
@@ -363,7 +395,20 @@ export const SsrmEngineMarketsGridSurface = forwardRef<
     [streamSafeComponents],
   );
 
-  const getRowId = useMemo(() => makeGetRowId(keyColumn), [keyColumn]);
+  /**
+   * ONE definition of a row id, imported from the package that owns it.
+   *
+   * This file used to carry its own — group path from AG's `level` /
+   * `parentKeys` — while `@starui/ssrm-engine`'s `makeSsrmGetRowId` had a
+   * different one, and the fuzz that guards the push path tested the second.
+   * Two spellings of an id let a defect that dropped 100% of pushed rows under
+   * grouping through 260 adversarial frames. `makeSsrmGetRowId` IS this
+   * definition now, and the pump and the fuzz are bound by the same function.
+   */
+  const getRowId = useMemo(
+    () => makeSsrmGetRowId(keyColumn) as unknown as (params: GetRowIdParams) => string,
+    [keyColumn],
+  );
 
   /**
    * Committed edits go to the BOOK, or they do not survive.
@@ -411,7 +456,6 @@ export const SsrmEngineMarketsGridSurface = forwardRef<
    * a CHILD of the host and its effect runs first, so ordering alone would give
    * the wrong answer.
    */
-  const platform = useOptionalGridPlatform();
   useEffect(() => {
     if (!platform) return;
     platform.setEngineDataTransactionApplier((tx) => {

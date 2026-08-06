@@ -118,6 +118,25 @@ export function SsrmEngineMarketsGrid({
       blocks: () => ({ ...blocksRef.current, ms: [...blocksRef.current.ms] }),
       rpc: () => client.stats(),
       pump: () => surfaceRef.current?.pumpStats() ?? null,
+      /**
+       * The GROUPED live path's counters, which are a different mechanism from
+       * the pump's: under grouping this surface pushes nothing and re-reads the
+       * expanded routes instead. A probe that read only `pump` would report a
+       * grouped grid as dead.
+       */
+      groupRefresh: () => surfaceRef.current?.groupRefreshStats() ?? null,
+      /**
+       * One route-refresh pass, on demand. What a probe times to find out what
+       * the grouped live path COSTS on this book — the number the throttle has
+       * to be chosen against, and one that cannot be carried over from 20k.
+       */
+      refresh: () => surfaceRef.current?.refresh(),
+      /**
+       * Pause applying pushed writes — which under grouping also stops the
+       * automatic route refresh. Without it, timing one pass is impossible: the
+       * feed keeps triggering more and the block count never goes quiet.
+       */
+      setLive: (live: boolean) => surfaceRef.current?.setLive(live),
       open: () => openCost(),
       introspect: () => client.introspect(),
       calcDiagnostics: () => surfaceRef.current?.calcDiagnostics() ?? Promise.resolve([]),

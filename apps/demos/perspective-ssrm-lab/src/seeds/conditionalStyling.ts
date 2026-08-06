@@ -350,3 +350,87 @@ export const LIVE_TAB_CS_RULES: ConditionalRule[] = [
     activeDurationMs: 2000,
   },
 ];
+
+// ─── Stress tab — the WHOLE-BOOK header rules ───────────────────────
+//
+// Two rules that exist to be MEASURED rather than looked at, and they are
+// seeded rather than installed at runtime for a reason worth recording: a rule
+// written straight into module state with `store.setModuleState` reaches the
+// store and never reaches the grid — the column defs carrying `cellClassRules`
+// are rebuilt by the React pipeline, which does not re-run for that write. A
+// probe that installed a rule that way measured a header that could not have
+// lit, on either surface.
+//
+// `[esgScore] > 999` matches roughly one row in a thousand, so of the ~100 rows
+// a block cache holds, none does. That is the whole point: `forEachNodeAfterFilter`
+// visits ZERO nodes under a server row model, so the header can only light if
+// the worker was asked about the BOOK. `styleRuleHeaderProbe.mjs` re-checks the
+// "none loaded" half at run time and REFUSES to report if a loaded row ever
+// reaches the threshold — a rule the client scan could answer proves nothing.
+//
+// The second rule is the control for the first: nothing can match it, so its
+// header must stay dark. A seam that lit every header would pass the first
+// check and fail this one.
+export const STRESS_WHOLE_BOOK_CS_RULES: ConditionalRule[] = [
+  {
+    id: 'esg-leaders-whole-book',
+    name: 'ESG leaders (whole book)',
+    enabled: true,
+    priority: 40,
+    scope: { type: 'cell', columns: ['esgScore'] },
+    expression: '[esgScore] > 999',
+    style: styleEmeraldBg,
+    indicator: { icon: 'flame', position: 'top-left', target: 'cells+headers', color: '#7fdf9b' },
+  },
+  {
+    // The POSITIVE control, and the reason it is here rather than in the probe:
+    // a rule every row matches must paint cells AND a header. Without it, "the
+    // header did not light" cannot be told from "conditional styling paints
+    // nothing on this tab", and those are different faults with different fixes.
+    id: 'esg-any',
+    name: 'ESG present (control)',
+    enabled: true,
+    priority: 39,
+    scope: { type: 'cell', columns: ['esgScore'] },
+    expression: '[esgScore] > -1',
+    style: styleAmberBg,
+    indicator: { icon: 'flame', position: 'top-left', target: 'cells+headers', color: '#f0a576' },
+  },
+  {
+    /**
+     * "A CHANGED CELL FLASHES", made measurable on THIS book.
+     *
+     * Same shape as `price-changed`: a TIMED activation, so the rule's class is
+     * on the cell for `activeDurationMs` after its value moves and the flash
+     * animation plays. The seeded flash rules all target price columns, and the
+     * stress book ticks `esgScore` and `originalMaturity` and nothing else — a
+     * "does a changed cell flash?" check written against them would watch
+     * columns the book never moves and report a dead surface.
+     */
+    id: 'esg-tick',
+    name: 'ESG tick flash',
+    enabled: true,
+    priority: 38,
+    scope: { type: 'cell', columns: ['esgScore'] },
+    expression: 'value != null',
+    style: { dark: {}, light: {} },
+    flash: { enabled: true, target: 'cells', mode: 'oneShot', color: 'sky', durationMs: 600 },
+    activeDurationMs: 600,
+  },
+  {
+    id: 'esg-impossible',
+    name: 'ESG impossible (control)',
+    enabled: true,
+    priority: 41,
+    scope: { type: 'cell', columns: ['esgScore'] },
+    expression: '[esgScore] > 100000',
+    style: styleRoseBg,
+    indicator: { icon: 'alert-triangle', position: 'top-left', target: 'cells+headers', color: '#ee8e8e' },
+  },
+];
+
+/** Everything the Stress tab carries: the kitchen sink plus the two above. */
+export const STRESS_CS_RULES: ConditionalRule[] = [
+  ...OVERVIEW_CS_RULES,
+  ...STRESS_WHOLE_BOOK_CS_RULES,
+];

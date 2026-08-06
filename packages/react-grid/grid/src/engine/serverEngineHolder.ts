@@ -128,6 +128,20 @@ export interface ServerGridContext {
    * ARCHITECTURE.md, where `avg("col")` is row-wise and looks like one.
    */
   ssrmAggregateScalar?(colId: string, aggregate: string): Promise<number | null>;
+  /**
+   * Which language `ssrmCountMatchingExpression` takes.
+   *
+   * `'perspective'` (the default, and what it meant when there was only one
+   * surface) is Perspective source, compiled in the window from the rule's
+   * StarUI expression. `'starui'` is the rule's own source, left alone —
+   * `@starui/ssrm-engine` parses it to the SAME AST calculated columns already
+   * send it, so there is one language and one parser on that path.
+   *
+   * Declared rather than sniffed, because the two are both plain strings and a
+   * mismatch is silent: the worker would refuse every rule and the header would
+   * simply never light, which is indistinguishable from a rule nothing matches.
+   */
+  readonly ssrmExpressionDialect?: 'perspective' | 'starui';
   /** True once an engine is attached and `ssrmCountMatching` can be believed. */
   readonly ssrmConfigured: boolean;
 }

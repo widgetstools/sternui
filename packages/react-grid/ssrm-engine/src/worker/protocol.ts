@@ -22,8 +22,9 @@
  *    nothing on the Perspective path. Both ends listen for it and turn it into
  *    an error rather than a lost reply.
  */
-import type { SsrmCalcColumnDef } from '../calcAst.js';
+import type { SsrmCalcColumnDef, SsrmExpressionNode } from '../calcAst.js';
 import type { SsrmCalcDiagnostic } from '../calc.js';
+import type { SsrmScalarAggregate } from '../engine.js';
 import type {
   SsrmGetRowsRequest,
   SsrmGetRowsResult,
@@ -42,6 +43,8 @@ export type SsrmRpcMethod =
   | 'setQuickFilter'
   | 'setCalcColumns'
   | 'calcDiagnostics'
+  | 'countMatchingExpression'
+  | 'aggregateScalar'
   | 'applyUpdate'
   | 'applySnapshot'
   | 'applyRemove'
@@ -173,6 +176,32 @@ export interface SsrmCalcColumnsParams {
 /** What `calcDiagnostics` answers — refusals and runtime failures, with counts. */
 export type SsrmCalcDiagnosticsResult = SsrmCalcDiagnostic[];
 
+/**
+ * A whole-book style-rule count.
+ *
+ * The **AST** crosses, not a source string. Perspective's equivalent takes
+ * source because its worker owns a second expression language; there is none
+ * here, the window already parses this tree for calculated columns, and a
+ * compiled closure is not structured-cloneable. One parser, one language.
+ */
+export interface SsrmCountExpressionParams {
+  bookId: string;
+  ast: SsrmExpressionNode;
+  /**
+   * The grid's filter model, because a header must not light for rows the user
+   * has filtered away — the client-side original is `forEachNodeAfterFilter`.
+   * Note this is the OPPOSITE scope from `aggregateScalar`; see the engine.
+   */
+  request?: SsrmGetRowsRequest;
+}
+
+/** One column's aggregate over the WHOLE book — no filter. See the engine. */
+export interface SsrmAggregateScalarParams {
+  bookId: string;
+  field: string;
+  aggregate: SsrmScalarAggregate;
+}
+
 /** What a write answers — the engine's delta plus the new book size. */
 export interface SsrmWriteResult {
   changed: unknown[];
@@ -196,6 +225,22 @@ export interface SsrmViewport {
   startRow: number;
   /** EXCLUSIVE display position past the last visible row. */
   endRow: number;
+  /**
+   * Whether this port wants pushed ROWS at all. Absent means yes.
+   *
+   * A window whose grid is GROUPED applies none of them: a row id under grouping
+   * is the group path, a sparse patch cannot carry one, and a leaf transaction
+   * would not move the group aggregate above it anyway — so that surface stops
+   * pushing and re-reads the expanded routes instead (`rowEngine.ts`).
+   *
+   * MEASURED before this existed: **34,447 patch rows crossed the port in 25 s
+   * to be dropped on arrival, every one of them structured-cloned.** The
+   * alternative was to drop them in the window, which costs the same wire and
+   * the same clone; this says so once, in the declaration the port already
+   * sends. The size mirror and the write signal keep arriving, because the
+   * refresh is driven by knowing a write happened.
+   */
+  pushRows?: boolean;
 }
 
 export interface SsrmViewportParams {

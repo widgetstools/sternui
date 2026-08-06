@@ -28,6 +28,8 @@ function fakeClient(overrides: Record<string, unknown> = {}) {
     setCalcColumns: vi.fn(async () => true),
     calcDiagnostics: vi.fn(async () => []),
     setViewport: vi.fn(async () => {}),
+    countMatchingExpression: vi.fn(async () => 3),
+    aggregateScalar: vi.fn(async () => 12.5),
     applyUpdate: vi.fn(async () => ({ changed: [], removed: [] })),
     subscribe: vi.fn(() => () => {}),
     ...overrides,
@@ -336,15 +338,45 @@ describe('SsrmEngineMarketsGridSurface — parity with the CSRM surface', () => 
       expect(client.countFiltered).toHaveBeenCalled();
     });
 
-    it('offers no expression seam, rather than one that always answers null', async () => {
-      // A style rule with cross-row context needs an expression language the
-      // engine can compile; this one has none. Absent means "paint nothing",
-      // where a null-returning stub reads as "no row matches".
-      const { last } = renderSurface();
+    /**
+     * The whole-book expression seam, which this surface used to OMIT.
+     *
+     * Omitting it was the right call while there was nothing behind it — an
+     * absent seam paints nothing, where a stub that always answered null reads
+     * as "no row matches". It stopped being the right call the moment this
+     * engine replaced the one that HAD the capability: `headerPainter` was then
+     * entirely dead here, and silently.
+     */
+    it('answers the whole-book expression seam, in the STARUI dialect', async () => {
+      const { last, client } = renderSurface();
       await waitFor(() => expect(last().serverSideDatasource).toBeDefined());
-      const context = last().context as Record<string, unknown>;
-      expect(context.ssrmCountMatchingExpression).toBeUndefined();
-      expect(context.ssrmAggregateScalar).toBeUndefined();
+      const context = last().context as {
+        ssrmCountMatchingExpression(source: string): Promise<number | null>;
+        ssrmAggregateScalar(colId: string, aggregate: string): Promise<number | null>;
+        ssrmExpressionDialect: string;
+      };
+      // Declared rather than sniffed: both dialects are plain strings, and a
+      // mismatch would refuse every rule and simply never light a header.
+      expect(context.ssrmExpressionDialect).toBe('starui');
+
+      await expect(context.ssrmCountMatchingExpression('[qty] > 5')).resolves.toBe(3);
+      // The AST crosses the port, never the source — one language, one parser,
+      // and a compiled closure could not cross at all.
+      const [ast] = (client.countMatchingExpression as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(ast).toMatchObject({ type: 'binary', operator: '>' });
+
+      await expect(context.ssrmAggregateScalar('qty', 'avg')).resolves.toBe(12.5);
+    });
+
+    it('answers NULL for a rule that does not parse, so it falls back to the client scan', async () => {
+      const { last, client } = renderSurface();
+      await waitFor(() => expect(last().serverSideDatasource).toBeDefined());
+      const context = last().context as {
+        ssrmCountMatchingExpression(source: string): Promise<number | null>;
+      };
+      await expect(context.ssrmCountMatchingExpression('[qty] >')).resolves.toBeNull();
+      // Not a wasted round trip either: it never reached the port.
+      expect(client.countMatchingExpression).not.toHaveBeenCalled();
     });
   });
 

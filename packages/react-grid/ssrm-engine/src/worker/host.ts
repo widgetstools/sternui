@@ -22,7 +22,9 @@ import type { SsrmRow, SsrmSchema } from '../types.js';
 import {
   SSRM_STALE_MS,
   SSRM_SWEEP_MS,
+  type SsrmAggregateScalarParams,
   type SsrmCalcColumnsParams,
+  type SsrmCountExpressionParams,
   type SsrmFieldParams,
   type SsrmGetRowsParams,
   type SsrmIntrospectResult,
@@ -350,6 +352,32 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
 
     for (const port of entry.clients) {
       const isOrigin = port === origin;
+      /**
+       * A port that has declared `pushRows: false` gets the SIGNAL and the size,
+       * and no rows at all.
+       *
+       * Sent unconditionally rather than only when the size moved: it is what
+       * tells a grouped surface a write happened, and on a ticking book the size
+       * never moves — so the `sizes` short-circuit below would silence the one
+       * message that mechanism runs on. Two empty arrays and a number is a
+       * fraction of the 34,447 rows this replaces.
+       */
+      if (entry.viewports.get(port)?.pushRows === false) {
+        entry.sizes.set(port, size);
+        entry.showing.set(port, null);
+        try {
+          port.postMessage({
+            push: 'delta',
+            bookId,
+            rows: [],
+            removed: EMPTY_KEYS,
+            size,
+          } satisfies SsrmPushFrame);
+        } catch (error) {
+          fault(error, bookId);
+        }
+        continue;
+      }
       // BOTH sides of the write, and that is not belt-and-braces.
       //
       // A tick that changes a SORT KEY moves the row across the viewport
@@ -474,6 +502,14 @@ export function createSsrmWorkerHost(options: SsrmWorkerHostOptions): SsrmWorker
         case 'setCalcColumns': {
           const { bookId, columns } = raw as SsrmCalcColumnsParams;
           return (await engineFor(bookId)).setCalcColumns(columns ?? []);
+        }
+        case 'countMatchingExpression': {
+          const { bookId, ast, request } = raw as SsrmCountExpressionParams;
+          return (await engineFor(bookId)).countMatchingExpression(ast, request ?? {});
+        }
+        case 'aggregateScalar': {
+          const { bookId, field, aggregate } = raw as SsrmAggregateScalarParams;
+          return (await engineFor(bookId)).aggregateScalar(field, aggregate);
         }
         case 'calcDiagnostics': {
           // Read back rather than pushed, because `console.warn` in a

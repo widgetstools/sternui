@@ -89,6 +89,7 @@ export {
   resolveUseSsrm,
   resolvePerspective,
   resolveSsrmEngine,
+  resolveEngineKind,
   resolveGridSurface,
   type MarketsGridRowModel,
   type GridSurfaceChoice,

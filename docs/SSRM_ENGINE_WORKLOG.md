@@ -10,6 +10,15 @@ first — it holds the current numbers and the caveats attached to them.
 
 ## Where this stands
 
+**Session 9 closed the grouped-tick gap** the decision was taken beside: every
+level now ticks on the ssrm surface (9 of 9 group rows, 2 of 2 subgroups, 51 of
+101 leaves against 0/0/1), the 34,447 rows that crossed the port to be dropped
+are no longer sent, the whole-book style-rule seam is built and verified live,
+and `engineKind` no longer reports the product surface as `csrm`. It also
+withdrew the "Perspective moved nothing either" non-result: Perspective ticks
+grouped aggregates correctly, and the earlier reading was a probe pointed at a
+column that book never moves. Full entry below.
+
 **DECIDED (session 8): `@starui/ssrm-engine` ships.** Measured against
 Perspective at 50,000 x 120, both under MarketsGrid, sharing one seeded
 profile: a 24-27 ms first block after a sort against 4,830-5,274 ms, a 15-46 ms
@@ -168,6 +177,29 @@ does not fire.
    rows and no store to update. The search box was unclearable from exactly
    the state a user most needs to escape. Measure the event in the degenerate
    state, not only the ordinary one.
+
+16. **A check that names a column the book does not move measures nothing, and
+   it will not say so.** Session 8's grouped probe on the Perspective surface
+   reported that NOTHING ticked — not a level, not a leaf — and refused to
+   report, which was the right outcome and was read as "unmeasured". It was
+   pointed at `esgScore`, which the ssrm book moves and the Perspective book
+   does not (that one moves the price columns). Session 9 pointed it at
+   `midPrice` and every level moved. The probe now enumerates the columns a book
+   MOVES before it measures anything and warns when the chosen one is absent —
+   the rule is old (rule 1), and what changed is that the probe enforces it.
+17. **Two spellings of an identity make a fuzz prove nothing.** The delta-path
+   fuzz ran 260 adversarial frames against `datasource.ts`'s row id while the
+   product ran the surface's own, and missed a defect that dropped **100%** of
+   pushed rows under grouping. Its grid model also called `getRowId({ data })`
+   with no `level` and no `parentKeys` — a shape AG never produces. When a
+   boundary is an identity shared with somebody else's code, there must be ONE
+   definition and the test must use the shipped one.
+18. **A cache of "what I painted" is not a cache of what is on screen.**
+   `headerPainter` recorded a rule as painted the first time it decided so — and
+   AG virtualises COLUMNS, so the header cell did not exist yet and
+   `querySelectorAll` matched nothing. It never re-applied. The class of bug:
+   any differential repaint keyed on intent rather than on the DOM is wrong the
+   moment the DOM is virtualised.
 
 **Gates for every session:** `npx turbo typecheck build test --continue`.
 
@@ -839,6 +871,158 @@ defect and one unmeasured surface.**
 - `sortRecoveryProbe`'s **"viewport fully painted" line is not trustworthy** and
   is not quoted: it fires before the purge, while the previous rows are still
   on screen. The block-settle times and the painted table are the real numbers.
+
+---
+
+## Session 9 — the grouped live path, and the whole-book seam · **DONE**
+
+Built: `src/rowId.ts` (ONE row-id definition), the grouped route-refresh path in
+`rowEngine.ts` with `pushRows: false` on the viewport declaration,
+`engine.countMatchingExpression` / `engine.aggregateScalar` plus their RPC pair
+and the surface's `ssrmExpressionDialect: 'starui'` seam, `resolveEngineKind` in
+`@starui/grid`, the row-delta bridge from the pump to `platform.rows`, grouped
+frames in `worker/deltaPath.fuzz.test.ts`, and three probes
+(`styleRuleHeaderProbe`, `groupedParityProbe`, `styleClassScan`). **199 engine
+tests** (was 182), `@starui/grid` **103 files / 904 tests** (was 889).
+
+### Every level ticks, and 34,447 rows stopped crossing the port
+
+| `groupedTickProbe`, 50,000 x 120, two levels, 25 s | before | after |
+|---|---|---|
+| grand total | 20 changes | 32 changes |
+| group rows | **0 of 9** | **9 of 9** |
+| subgroup rows | **0 of 2** | **2 of 2** |
+| leaf rows | 1 of 101 | 51 of 101 |
+| pump | received 34,447 · applied 0 · **dropped 34,447** | received 462 · applied 37 — and all of it in the flat control phase |
+
+**The pump was never the thing to fix.** Under grouping a leaf id is its PATH
+(`Alpha/Energy/POS-123`, AG's own documented form) and a pushed patch is sparse,
+so the path is not reconstructible from it even in principle — and a leaf
+transaction would not move the group row above it in any case, because under a
+server row model an aggregate is whatever the last block for that level said. So
+the push path is OFF while grouping and the EXPANDED ROUTES are re-read instead:
+one mechanism for the frozen leaves and the frozen aggregates both.
+
+The rows are not dropped in the window either. The viewport declaration gained
+`pushRows: false`; the worker sends that port the size mirror and the write
+signal and no rows. Dropping them on arrival costs the same wire and the same
+structured clone — the client says it once, in a message it already sends.
+
+**What a pass costs, MEASURED at 50,000 with two levels expanded and the feed
+OFF: 3 blocks, settled in 171 ms.** Against a 250 ms floor that is close and
+each extra expanded route adds a block, so a pass DEFERS while the previous
+one's blocks are in flight, capped at 2 s. Over a 45 s run: 412 writes, 310
+passes, 380 routes, 4 deferred.
+
+### The fuzz missed it because it tested an id the product does not have
+
+There were TWO row-id definitions — `datasource.ts`'s (group path with a `g:`
+prefix, bare leaf key) and the MarketsGrid surface's own (AG's form, path on the
+leaf too) — and `deltaPath.fuzz.test.ts` ran its 260 adversarial frames against
+the first while the product ran the second. Its grid model also called
+`getRowId({ data })` with **no `level` and no `parentKeys`**, a shape AG never
+uses: `RowNode.setId` always supplies both.
+
+One definition now (`rowId.ts`), used by the surface, the plain-grid lab
+surface, the pump and both fuzzes. The fuzz gained grouped shapes at one and two
+levels, with the levels and parent keys AG assigns — read out of the installed
+`ag-grid-enterprise` build rather than assumed, which is where the other half of
+this came from: **a routeless transaction is mapped through the ROOT store's
+identity**, `LazyCache.getRowId` using `store.getRowDetails().level` and
+`store.getParentNode().getRoute()`. So under grouping a pushed bare key can
+resolve onto a GROUP ROW whose key happens to match, and merge a leaf into it.
+
+Both new assertions were shown to go RED by removing the fix: the wire
+assertion at `frame 104 grouped: rows were pushed at a window that cannot apply
+one — expected 701 to be 663`, and the corruption assertion at `frame 144
+grouped-deep: group row r7 was merged with a LEAF`. The fixture carries a desk
+called `r7` for exactly that reason — without a key collision that assertion
+would be true for reasons that have nothing to do with the code.
+
+### `engineKind` said `csrm` on the surface that ships
+
+`MarketsGrid` computed `perspective ? 'perspective' : useSSRM ? 'ssrm' : 'csrm'`
+inline in two places and nothing consulted `resolveSsrmEngine`, so
+`rowModel: 'ssrm-engine'` reported `'csrm'` — a grid holding ~100 rows of a
+50,000-row book, declaring it held the whole thing. One definition now
+(`resolveEngineKind`), and `GridEngineKind` gained the fourth value.
+
+**The sweep, and what each hit turned out to be:**
+
+| hit | verdict |
+|---|---|
+| `useFilterModel.ts` `fullRecomputeCsrm` → `liveApi.forEachNode` | **the defect.** With `engineKind: 'csrm'` a saved-filter pill's badge counted the LOADED BLOCKS instead of calling `ssrmCountMatching`. Fixed by the kind |
+| `useFilterModel.ts:407` `engineKind === 'ssrm'` | fine. It subscribes to `ssrmConfigured`, which only `CustomSSRMGrid` emits; this surface recomputes on `firstDataRendered` and the row signal |
+| `useSsrmCapabilityGate` `engineKind === 'csrm'` | a behaviour CHANGE, not a defect: under the bug this surface had no capability gating at all. It now gets the server-side gates, and the parity probe still passes 17/17 |
+| `alerts/runtime/activate.ts` x3 `forEachNode` | fine, and fine for the right reason — gated on `getGridOption('rowModelType') === 'serverSide'` rather than on `engineKind`, which is why it survived the bug |
+| `conditional-styling/timedActivations.ts` `forEachNode` | fine. A timed activation is about what changed under the user's eyes, so viewport scope is the correct scope |
+| `headerPainter.ts` `forEachNodeAfterFilter` | the fallback scan, now backed by the whole-book seam and reached only when the worker refuses a rule |
+| `perspectiveStyleRules.ts`, `SsrmEngineMarketsGridSurface.tsx`, `ssrmShareOfTotal.ts` | comments |
+
+### The whole-book expression seam, and a painter defect it exposed
+
+Built `countMatchingExpression(ast, request)` (follows the filter) and
+`aggregateScalar(field, aggregate)` (whole book, filter dropped — Excel's
+convention, matched rather than re-litigated). The **AST** crosses the port, not
+source: one language, one parser, and a closure is not structured-cloneable.
+Truthiness is `calcOps.ts`'s. A refusal answers `null`, which is NOT 0 — the
+painter forgets the entry and the rule falls back to its client scan.
+
+VERIFIED LIVE (`styleRuleHeaderProbe`, 14/14) on a rule seeded into the lab
+profile at `[esgScore] > 999` — 36-46 of 50,000 rows and **none of them loaded**,
+re-checked every 250 ms so a rule the client scan could answer refuses to report:
+the header lights, no cell paints, the impossible rule stays dark, the seam's
+count matches an independent pass (37 vs 36 on a ticking book), and the
+whole-book average under a filter leaving 24,687 rows read 491.88 where that
+population's own average is 745.21 — 255 apart, against 3.95 of drift.
+
+**And the painter was painting nothing at all.** `applyHeaderClassDelta` was a
+difference-only pass keyed on what it BELIEVED it had painted, and AG virtualises
+columns — so it recorded a rule as painted the first time it decided so, with
+`querySelectorAll` having matched nothing, and never re-applied. It now
+reconciles against the DOM. Not row-model specific: that module serves CSRM too.
+
+Two earlier versions of that probe were worthless and both are recorded in it: a
+rule written straight into module state with `store.setModuleState` reaches the
+store and never reaches the grid, and it measured a header that could not have lit
+on EITHER surface — which is how it was caught.
+
+### CSRM parity, grouped and live — 13 of 14
+
+`groupedParityProbe`: the expanded tree, the selection and the scroll position
+all survive a refresh; an edit made while grouped reaches the book keyed by
+path; sort and filter at depth work, including on a calculated column; group
+footers exist and agree with their group **to the cent with the feed off** (and
+by ~0.95% with it on, which is one tick and is the fixture). `forEachNode` sees
+**0 of the 3 footers** — measured, and the reason nothing counts with it.
+
+The one failure is honest and is recorded rather than worked around: **a changed
+cell does not FLASH**, grouped or flat. Half of it is fixed — the platform's
+shared row signal carried 30 `full` changes and **not one per-row delta** on this
+surface, and the surface now publishes every pushed transaction onto it (3 of 7
+signals carry a delta after the change). What still does not paint is
+conditional styling's timed activation, which is a shared module and its own
+session.
+
+### And the other half of session 8's measurement
+
+**Perspective DOES tick grouped aggregates; the "0 vs 0" is withdrawn.** Session
+8 recorded that the probe moved nothing there and said plainly it was not a
+result. It was the probe: that book moves `bidPrice`/`askPrice`/`midPrice`/
+`lastPrice`/`evalPrice`/`bidYield` and **not `esgScore`**, which is what the ssrm
+book moves. Pointed at `midPrice`, Perspective moved every level — 37 total
+changes, 10 of 10 groups, 2 of 2 subgroups, 94 of 101 leaves. So this was a real
+gap against the losing engine. The probe now NAMES the columns a book moves
+before it measures anything, and warns when `--value` is not among them.
+
+### Probes and the gate
+
+`marketsGridParityProbe` 17/17 unchanged. `workerBoundaryProbe` 2.60 ms median
+block round trip (2.3-2.4 in session 6), 0 failed / 0 timed out / 0 late / 0
+pending. `browserSmokeProbe` 2,765 ms to first row, 63 ms sort, 50,000 rows
+after it, pivot 8 x 8. `providerBookProbe` 56 rows pushed in 6 s with 54
+applied, attach 2,868 ms vs 1 ms. `calcTwinProbe` 520,000 cells identical.
+`npx turbo typecheck build test --continue` **73/73**.
 
 ---
 

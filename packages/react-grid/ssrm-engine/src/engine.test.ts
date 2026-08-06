@@ -478,19 +478,51 @@ describe('createSsrmDatasource — the AG boundary', () => {
     expect(errors).toEqual([boom]);
   });
 
-  it('keys a GROUP row by its path, and a leaf by its key', async () => {
+  /**
+   * ONE definition of a row id, and this is it — AG's own documented form,
+   * where `parentKeys` prefixes a LEAF as well as a group.
+   *
+   * This test used to call `getRowId({ data })` with no level and no parent
+   * keys, which is a shape AG never uses (`RowNode.setId` always supplies both)
+   * and which the shipped MarketsGrid surface never produced. It therefore
+   * pinned a spelling the product did not have — the same defect that let a
+   * 100%-drop bug through 260 frames of the delta-path fuzz.
+   */
+  it('keys a GROUP row by its path, and a leaf by its path too', async () => {
     const { makeSsrmGetRowId } = await import('./datasource.js');
     const getRowId = makeSsrmGetRowId('id');
+    const groupFields = ['desk', 'sector'];
     const engine = engineWithBook();
     const groups = engine.getRows({
       rowGroupCols: [{ id: 'desk' }, { id: 'sector' }],
       groupKeys: ['Credit'],
     });
-    const ids = groups.rowData.map((data) => getRowId({ data }));
-    expect(ids).toEqual(['g:Credit/HY', 'g:Credit/IG']);
+    // A block answering `groupKeys: ['Credit']` is level 1 with those parent
+    // keys — which is exactly what AG hands `getRowId` for every row in it.
+    const ids = groups.rowData.map((data) =>
+      getRowId({ data, level: 1, parentKeys: ['Credit'], groupFields }),
+    );
+    expect(ids).toEqual(['Credit/HY', 'Credit/IG']);
     // Distinct ids across levels is the whole point — a leaf key would collide.
     expect(new Set(ids).size).toBe(ids.length);
-    expect(getRowId({ data: engine.getRows({ startRow: 0, endRow: 1 }).rowData[0] })).toBe('a');
+
+    // A leaf UNDER those groups carries the path as well, and that is what a
+    // sparse patch cannot reconstruct: it has the key and no group columns.
+    const leaf = engine.getRows({
+      rowGroupCols: [{ id: 'desk' }, { id: 'sector' }],
+      groupKeys: ['Credit', 'HY'],
+      startRow: 0,
+      endRow: 1,
+    }).rowData[0];
+    expect(getRowId({ data: leaf, level: 2, parentKeys: ['Credit', 'HY'], groupFields })).toBe(
+      `Credit/HY/${String(leaf.id)}`,
+    );
+
+    // Ungrouped, the same function answers the bare key — which is the only id
+    // the push path can build, and why it is off while grouping.
+    expect(
+      getRowId({ data: engine.getRows({ startRow: 0, endRow: 1 }).rowData[0], level: 0, groupFields: [] }),
+    ).toBe('a');
   });
 });
 
@@ -688,5 +720,131 @@ describe('SsrmEngine — request-shape identity', () => {
         filterModel: { desk: { filterType: 'set', values: ['Rates'] } },
       }),
     ).toBeLessThan(engine.countFiltered({}));
+  });
+});
+
+/**
+ * The whole-book expression seam — what `headerPainter` asks and no window can
+ * answer, because `forEachNodeAfterFilter` visits ZERO nodes under a server row
+ * model.
+ *
+ * Two questions with deliberately OPPOSITE scopes, which is the part worth
+ * pinning: the count follows the grid's filter (its client-side original is
+ * `forEachNodeAfterFilter`, and a header must not light for rows the user has
+ * filtered away), while the aggregate measures the whole book (the threshold in
+ * "above average" is a property of the book — Excel's convention).
+ */
+describe('SsrmEngine — whole-book style-rule questions', () => {
+  const col = (columnId: string) => ({ type: 'columnRef' as const, columnId });
+  const lit = (value: number | string | boolean | null) => ({
+    type: 'literal' as const,
+    value,
+  });
+  const gt = (columnId: string, value: number) => ({
+    type: 'binary' as const,
+    operator: '>',
+    left: col(columnId),
+    right: lit(value),
+  });
+
+  it('counts the rows a boolean expression matches', () => {
+    const engine = engineWithBook();
+    // qty over 6: a(10), b(20), d(7) — and NOT c(5) or e(3).
+    expect(engine.countMatchingExpression(gt('qty', 6))).toBe(3);
+    // A rule nothing matches leaves the header unlit, and that is 0, not null.
+    expect(engine.countMatchingExpression(gt('qty', 10_000))).toBe(0);
+  });
+
+  it('FOLLOWS the grid filter, because the client-side original does', () => {
+    const engine = engineWithBook();
+    const filterModel = { desk: { filterType: 'set' as const, values: ['Rates'] } };
+    // Rates holds a(10) and b(20); both are over 6, and d(7) is filtered away.
+    expect(engine.countMatchingExpression(gt('qty', 6), { filterModel })).toBe(2);
+    // The check that stops the one above passing on an engine ignoring filters.
+    expect(engine.countMatchingExpression(gt('qty', 6))).toBe(3);
+  });
+
+  it('uses the ENGINE truthiness, where NaN is TRUE and 0 is not', () => {
+    const engine = engineWithBook();
+    // `price - price` is 0 for every row with a price and NaN for the null one
+    // (`null - null` is 0 in JavaScript, so force a NaN through arithmetic on
+    // the null price instead). `isTruthy(NaN)` is TRUE here and false in
+    // JavaScript — a second definition of truthiness in the count would show up
+    // exactly here and nowhere else.
+    const zero = { type: 'binary' as const, operator: '-', left: col('qty'), right: col('qty') };
+    expect(engine.countMatchingExpression(zero)).toBe(0);
+    const nan = {
+      type: 'binary' as const,
+      operator: '*',
+      left: { type: 'binary' as const, operator: '/', left: col('price'), right: lit(0) },
+      right: lit(0),
+    };
+    // `price / 0` is null on this engine and `null * 0` is 0 — so still falsy,
+    // and the row with a NULL price divides null by zero to the same place.
+    expect(engine.countMatchingExpression(nan)).toBe(0);
+    // SQRT(-1) is a real NaN, and every row of the book is then truthy.
+    const sqrtOfNegative = {
+      type: 'call' as const,
+      name: 'SQRT',
+      args: [lit(-1)],
+    };
+    expect(engine.countMatchingExpression(sqrtOfNegative)).toBe(BOOK.length);
+  });
+
+  it('answers NULL for a refused expression, which is not the same as 0', () => {
+    const engine = engineWithBook();
+    // A cross-row aggregate is refused by name — `SUM([qty])` reads every row
+    // and there is no per-offset equivalent.
+    const crossRow = { type: 'call' as const, name: 'SUM', args: [col('qty')] };
+    expect(engine.countMatchingExpression(crossRow)).toBeNull();
+    // `.old` / `.new` are viewport-only: the book holds one value per cell.
+    expect(engine.countMatchingExpression(gt('qty.old', 1))).toBeNull();
+  });
+
+  it('aggregates a scalar over the WHOLE book, dropping the filter', () => {
+    const engine = engineWithBook();
+    const qty = [10, 20, 5, 7, 3];
+    const mean = qty.reduce((a, b) => a + b, 0) / qty.length;
+    expect(engine.aggregateScalar('qty', 'avg')).toBe(mean);
+    expect(engine.aggregateScalar('qty', 'sum')).toBe(45);
+    expect(engine.aggregateScalar('qty', 'high')).toBe(20);
+    expect(engine.aggregateScalar('qty', 'low')).toBe(3);
+    expect(engine.aggregateScalar('qty', 'count')).toBe(5);
+    expect(engine.aggregateScalar('qty', 'median')).toBe(7);
+    // A quick filter narrowing the book must NOT move it — the whole point.
+    engine.setQuickFilter('Rates');
+    expect(engine.countFiltered({})).toBe(2);
+    expect(engine.aggregateScalar('qty', 'avg')).toBe(mean);
+    engine.setQuickFilter('');
+  });
+
+  it('skips nulls rather than counting them as zero, and refuses what it cannot measure', () => {
+    const engine = engineWithBook();
+    // `price` has a null — 101.5, 99.25, 105, 88 — so the mean is over four.
+    expect(engine.aggregateScalar('price', 'avg')).toBeCloseTo((101.5 + 99.25 + 105 + 88) / 4, 10);
+    // A column the book does not have has no honest answer. An "above average"
+    // rule with no average is not a rule with a default.
+    expect(engine.aggregateScalar('nope', 'avg')).toBeNull();
+    // Nor does a column with no numeric value in it at all.
+    expect(engine.aggregateScalar('desk', 'avg')).toBeNull();
+  });
+
+  it('answers a CALCULATED column too, through the one accessor', () => {
+    const engine = engineWithBook();
+    engine.setCalcColumns([
+      {
+        colId: 'notional',
+        ast: {
+          type: 'binary',
+          operator: '*',
+          left: { type: 'columnRef', columnId: 'qty' },
+          right: { type: 'literal', value: 2 },
+        },
+      },
+    ]);
+    expect(engine.calcDiagnostics().filter((d) => d.phase === 'compile')).toEqual([]);
+    expect(engine.aggregateScalar('notional', 'sum')).toBe(90);
+    // qty x 2 is 20, 40, 10, 14, 6 — three of them over 13.
+    expect(engine.countMatchingExpression(gt('notional', 13))).toBe(3);
   });
 });

@@ -20,13 +20,16 @@ export type {
   SsrmDelta,
   SsrmDeltaListener,
   SsrmCalcPatchMode,
+  SsrmScalarAggregate,
 } from './engine.js';
-export { createSsrmDatasource, makeSsrmGetRowId } from './datasource.js';
+export { createSsrmDatasource } from './datasource.js';
 export type {
   SsrmDatasourceLike,
   SsrmDatasourceOptions,
   SsrmGetRowsParamsLike,
 } from './datasource.js';
+export { makeSsrmGetRowId, makeSsrmUngroupedRowId } from './rowId.js';
+export type { SsrmGetRowIdParams } from './rowId.js';
 export { createAsyncSsrmDatasource, SSRM_BLOCK_TIMEOUT_MS } from './asyncDatasource.js';
 export type { AsyncSsrmDatasourceOptions, AsyncSsrmSource } from './asyncDatasource.js';
 export {
@@ -41,6 +44,9 @@ export type {
   SsrmEngineRowEngineOpts,
   SsrmGridApiLike,
   SsrmGridStatus,
+  SsrmGroupNodeLike,
+  SsrmGroupRefreshStats,
+  SsrmRefreshRoute,
 } from './rowEngine.js';
 export { createSsrmRowPump } from './rowPump.js';
 export type {

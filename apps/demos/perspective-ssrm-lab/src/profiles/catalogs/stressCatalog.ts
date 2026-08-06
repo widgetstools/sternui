@@ -5,7 +5,7 @@ import {
   HEAVY_FLASH,
   OVERVIEW_CALC_COLUMNS,
   OVERVIEW_COLUMN_GROUPS,
-  OVERVIEW_CS_RULES,
+  STRESS_CS_RULES,
   QUICK_FILTERS_CURRICULUM,
 } from '../../seeds';
 import { STRESS_COL_COUNT, STRESS_ROW_COUNT } from '../../data/stressColumns';
@@ -101,7 +101,7 @@ const STRESS_GROUPING_CC: ColumnCustomizationState = {
 };
 
 const FULL_STRESS_SEED: LabDemoProfileEntry['seed'] = {
-  'conditional-styling': { rules: OVERVIEW_CS_RULES },
+  'conditional-styling': { rules: STRESS_CS_RULES },
   'column-customization': STRESS_GROUPING_CC,
   'column-groups': {
     groups: OVERVIEW_COLUMN_GROUPS,
@@ -153,7 +153,7 @@ export const STRESS_DEMO_PROFILES: LabDemoProfileEntry[] = [
     name: '01 · Flat wide',
     blurb: 'No row groups — stress horizontal scroll + formatters + CS only.',
     seed: {
-      'conditional-styling': { rules: OVERVIEW_CS_RULES },
+      'conditional-styling': { rules: STRESS_CS_RULES },
       'column-customization': {
         assignments: FORMATTING_ASSIGNMENTS,
         globalCellNumberFormatter: STRESS_GROUPING_CC.globalCellNumberFormatter,

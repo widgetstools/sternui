@@ -134,5 +134,15 @@ export const SSRM_TREE_GROUP = '__ssrmTreeGroup';
 export const SSRM_TREE_KEY = '__ssrmTreeKey';
 /** The full ancestor path of a group row, outermost first. */
 export const SSRM_GROUP_PATH = '__ssrmPath';
+/**
+ * AG's own id for the grand total row.
+ *
+ * AG's rather than this package's — a transaction can only reach that row by
+ * naming it, so `getRowId` has to answer this exact string for it. The same
+ * literal `@starui/perspective-grid` exports.
+ */
+export const SSRM_GRAND_TOTAL_ROW_ID = 'rowGroupFooter_ROOT_NODE_ID';
+/** Marks the row the engine builds as the grand total, so `getRowId` knows it. */
+export const SSRM_GRAND_TOTAL_FLAG = '__grandTotal';
 /** Leaf rows beneath a group row — what AG shows as the group's child count. */
 export const SSRM_CHILD_COUNT = '__ssrmChildCount';

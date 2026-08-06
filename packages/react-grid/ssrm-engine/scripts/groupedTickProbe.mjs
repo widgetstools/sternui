@@ -71,6 +71,92 @@ try {
       const api = eval(`(${fnSrc})`)();
       const settle = (ms) => new Promise((r) => setTimeout(r, ms));
 
+      /**
+       * ── THE UNGROUPED CONTROL, taken FIRST ──
+       *
+       * Without it the pump counters below cannot be read. Session 8's run
+       * reported `received 34,447 · applied 0` over a window whose first 20 s
+       * were ungrouped, and "applied 0" was attributed entirely to grouping —
+       * which left it ambiguous whether the push path worked at all. This
+       * measures the flat grid on its own, so the grouped numbers are read
+       * against a control rather than against an assumption.
+       */
+      // The grid may open ALREADY GROUPED: MarketsGrid persists column state,
+      // so a previous run of this very probe is saved in the profile. The first
+      // reading taken without this clearing step watched **1** "leaf row" — the
+      // grand total — and reported a dead feed for a grid that was working.
+      api.applyColumnState({ defaultState: { rowGroup: false } });
+      await settle(6000);
+
+      const flatSample = () => {
+        const m = new Map();
+        for (let i = 0; i < api.getDisplayedRowCount(); i += 1) {
+          const n = api.getDisplayedRowAtIndex(i);
+          if (!n || n.id === undefined || n.group || !n.data) continue;
+          m.set(n.id, n.data[valueCol]);
+        }
+        return m;
+      };
+      /**
+       * WHICH COLUMNS DOES THIS BOOK ACTUALLY MOVE?
+       *
+       * Rule 1, made part of the probe rather than left to the reader. The
+       * first run of this file aggregated `marketValue` and reported a dead
+       * feed; the same trap caught the PERSPECTIVE surface, whose book moves a
+       * different set of columns from the ssrm one. A probe that names the
+       * movers cannot be pointed at a column nothing touches without saying so.
+       */
+      const moversOf = async (ms) => {
+        const counts = new Map();
+        const snap = () => {
+          const m = new Map();
+          for (let i = 0; i < api.getDisplayedRowCount(); i += 1) {
+            const n = api.getDisplayedRowAtIndex(i);
+            if (!n || n.group || !n.data || n.id === undefined) continue;
+            m.set(n.id, n.data);
+          }
+          return m;
+        };
+        let prev = snap();
+        const until = performance.now() + ms;
+        while (performance.now() < until) {
+          await settle(400);
+          const now = snap();
+          for (const [id, row] of now) {
+            const was = prev.get(id);
+            if (!was) continue;
+            for (const field of Object.keys(row)) {
+              if (typeof row[field] !== 'number') continue;
+              if (was[field] !== row[field]) counts.set(field, (counts.get(field) ?? 0) + 1);
+            }
+          }
+          prev = now;
+        }
+        return [...counts].sort((a, b) => b[1] - a[1]).slice(0, 6);
+      };
+      const movers = await moversOf(8000);
+
+      const pumpBefore = window.__ssrmEngineGrid?.pump?.() ?? null;
+      let flatPrev = flatSample();
+      const flatMoved = new Set();
+      const flatT0 = performance.now();
+      while (performance.now() - flatT0 < 8000) {
+        await settle(500);
+        const now = flatSample();
+        for (const [id, v] of now) {
+          const was = flatPrev.get(id);
+          if (was !== undefined && was !== v) flatMoved.add(id);
+        }
+        flatPrev = now;
+      }
+      const control = {
+        watched: flatPrev.size,
+        moved: flatMoved.size,
+        pump: window.__ssrmEngineGrid?.pump?.() ?? null,
+        pumpBefore,
+        movers,
+      };
+
       // Two grouping levels, and the value column aggregated, set the way the
       // row-group panel sets them.
       api.applyColumnState({
@@ -155,10 +241,60 @@ try {
       // dwarfing `applied` is the sharpest available signal that pushed rows
       // are not finding their nodes.
       const pump = window.__ssrmEngineGrid?.pump?.() ?? null;
+      // The GROUPED path's counters — a different mechanism entirely. Under
+      // grouping the push path is off (a leaf id is its PATH and a sparse patch
+      // cannot carry one) and the expanded routes are re-read instead, so a
+      // probe reading only `pump` would report a working grouped grid as dead.
+      const groupRefresh = window.__ssrmEngineGrid?.groupRefresh?.() ?? null;
+      /**
+       * What one route-refresh pass actually COSTS on THIS book — the number
+       * the throttle has to be chosen against, and one that has to be measured
+       * rather than carried over from 20k.
+       *
+       * NOT the time to issue it: `refreshServerSide` returns immediately and
+       * the blocks are read asynchronously, so an issue timing reads 0.0 ms and
+       * means nothing. This waits until the block count stops climbing, which
+       * is when the refreshed levels have actually landed.
+       */
+      const refreshCost = await (async () => {
+        const handle = window.__ssrmEngineGrid;
+        if (!handle?.blocks || !handle.refresh || !handle.setLive) return null;
+        // The feed has to be OFF for this. With it running, every write
+        // schedules another route refresh and the block count never goes quiet
+        // — the first attempt at this measurement simply ran into its own 5 s
+        // cap and reported it as a settle time.
+        handle.setLive(false);
+        await settle(1500);
+        const before = handle.blocks();
+        const started = performance.now();
+        handle.refresh();
+        let served = before.served;
+        let quietSince = performance.now();
+        while (performance.now() - started < 5000) {
+          await settle(50);
+          const now = handle.blocks();
+          if (now.served !== served) {
+            served = now.served;
+            quietSince = performance.now();
+          } else if (performance.now() - quietSince > 300) break;
+        }
+        const after = handle.blocks();
+        handle.setLive(true);
+        return {
+          blocks: after.served - before.served,
+          failed: after.failed - before.failed,
+          settledMs: Math.max(0, quietSince - started),
+          cappedOut: performance.now() - started >= 5000,
+        };
+      })();
 
       const size = (m) => m.size;
       return {
+        control,
+        movers: control.movers,
         pump,
+        groupRefresh,
+        refreshCost,
         counts: {
           total: totalChanges,
           group0: moved.group0.size,
@@ -181,6 +317,28 @@ try {
   if (result.fatal) throw new Error(result.fatal);
 
   console.log(`\n=== do aggregates tick? ${url}\n`);
+  if (result.movers) {
+    console.log(
+      `  columns this book MOVES (8 s): ` +
+        (result.movers.length === 0
+          ? 'NONE — nothing on screen changed, so no verdict about anything is available'
+          : result.movers.map(([f, n]) => `${f} x${n}`).join(', ')),
+    );
+    if (result.movers.length > 0 && !result.movers.some(([f]) => f === valueCol)) {
+      console.log(
+        `  WARNING: '${valueCol}' is NOT among them. Re-run with --value ${result.movers[0][0]}.`,
+      );
+    }
+    console.log('');
+  }
+  if (result.control) {
+    const c = result.control;
+    console.log(
+      `  UNGROUPED control, 8 s: ${c.moved} of ${c.watched} leaf rows moved` +
+        `${c.pump ? `, pump applied ${c.pump.applied} of ${c.pump.received} received` : ''}` +
+        `\n  (the flat push path, measured on its own so the grouped counters below can be read)\n`,
+    );
+  }
   console.log(`  aggregating ${valueCol}, grouped by ${level0} then ${level1}, over ${seconds}s\n`);
   const row = (label, key) =>
     console.log(
@@ -199,6 +357,31 @@ try {
         ` DROPPED ${result.pump.dropped}` +
         ` — a dropped that dwarfs applied means pushed rows are not finding their nodes`,
     );
+  }
+  if (result.groupRefresh) {
+    const g = result.groupRefresh;
+    console.log(
+      `  grouped path: ${g.writes} writes, ${g.refreshes} route-refresh passes,` +
+        ` ${g.routes} routes refreshed, ${g.deferred} deferred behind in-flight blocks`,
+    );
+    if (result.refreshCost) {
+      const r = result.refreshCost;
+      console.log(
+        `  ONE route-refresh pass, feed OFF: ${r.blocks} blocks, settled in` +
+          ` ${r.settledMs.toFixed(0)} ms, ${r.failed} failed` +
+          `${r.cappedOut ? ' — HIT THE 5 s CAP, so this is not a settle time' : ''}` +
+          ` — what the throttle has to be chosen against`,
+      );
+    }
+    // A pump that received nothing while grouping is the DESIGN, not a fault:
+    // the surface declares `pushRows: false` and the worker stops cloning
+    // patches across the port. Said out loud so a reader does not diagnose it.
+    if (result.pump && result.pump.received === 0 && g.writes > 0) {
+      console.log(
+        `  (the pump received 0 while grouped, and that is the design: the port carried` +
+          ` ${g.writes} write signals and no rows)`,
+      );
+    }
   }
 
   // The anti-vacuous gate. "The aggregate did not change" is only a finding if

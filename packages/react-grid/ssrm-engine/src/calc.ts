@@ -152,6 +152,8 @@ interface CompileContext {
   missing: Set<string>;
   /** Every field the expression reads — see {@link SsrmCalcColumn.reads}. */
   reads: Set<string>;
+  /** Columns that are not store fields — an already-compiled calculated one. */
+  resolveExtra?: (colId: string) => SsrmCalcEvaluator | undefined;
 }
 
 function compileNode(node: SsrmExpressionNode, ctx: CompileContext): SsrmCalcEvaluator {
@@ -172,7 +174,13 @@ function compileNode(node: SsrmExpressionNode, ctx: CompileContext): SsrmCalcEva
         );
       }
       ctx.reads.add(id);
-      const reader = ctx.store.reader(id);
+      // A CALCULATED column is a column. `resolveExtra` is what a style rule
+      // passes so `[price] > [calc_spread]` reads the compiled expression
+      // rather than a field the store does not have — the same "one accessor,
+      // nothing can tell them apart" rule `columnAccess.ts` enforces for sort,
+      // filter, group and aggregate. Consulted AFTER the store, so a stored
+      // field always wins and a calculated column cannot shadow one.
+      const reader = ctx.store.reader(id) ?? ctx.resolveExtra?.(id);
       if (reader === undefined) {
         // NOT an error. `resolveColumnRef` on the grid answers null for a field
         // the row does not carry, so this does too — but it is counted, because
@@ -328,6 +336,16 @@ export function compileCalcColumns(
   defs: readonly SsrmCalcColumnDef[],
   warn: (message: string, detail?: unknown) => void = (message, detail) =>
     console.warn(message, detail),
+  /**
+   * Columns to resolve that are not store fields.
+   *
+   * The engine passes its own installed calculated columns when it compiles a
+   * STYLE RULE, so a rule may name one. Not passed when compiling the
+   * calculated columns themselves: a calc column reading another calc column
+   * would depend on the order they were installed in, and an ordering-dependent
+   * expression is the quietest way a column goes wrong.
+   */
+  resolveExtra?: (colId: string) => SsrmCalcEvaluator | undefined,
 ): SsrmCalcCompileResult {
   const diagnostics: SsrmCalcDiagnostic[] = [];
   const columns: SsrmCalcColumn[] = [];
@@ -353,7 +371,12 @@ export function compileCalcColumns(
   };
 
   for (const def of defs) {
-    const ctx: CompileContext = { store, missing: new Set(), reads: new Set() };
+    const ctx: CompileContext = {
+      store,
+      missing: new Set(),
+      reads: new Set(),
+      ...(resolveExtra === undefined ? {} : { resolveExtra }),
+    };
     let compiled: SsrmCalcEvaluator;
     try {
       compiled = compileNode(def.ast, ctx);

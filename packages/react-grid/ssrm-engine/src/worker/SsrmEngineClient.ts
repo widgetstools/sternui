@@ -12,9 +12,9 @@
  * push, so it is live rather than cached — but it is the worker's last word,
  * not a fresh question, and if the worker stops talking it stops moving.
  */
-import type { SsrmDelta } from '../engine.js';
+import type { SsrmDelta, SsrmScalarAggregate } from '../engine.js';
 import type { SsrmCalcDiagnostic } from '../calc.js';
-import type { SsrmCalcColumnDef } from '../calcAst.js';
+import type { SsrmCalcColumnDef, SsrmExpressionNode } from '../calcAst.js';
 import type {
   SsrmGetRowsRequest,
   SsrmGetRowsResult,
@@ -203,6 +203,33 @@ export class SsrmEngineClient {
    */
   calcDiagnostics(): Promise<SsrmCalcDiagnostic[]> {
     return this.rpc.call('calcDiagnostics', { bookId: this.bookId });
+  }
+
+  /**
+   * How many rows of the FILTERED book satisfy a boolean expression — the
+   * whole-book question `headerPainter` asks and no window can answer.
+   *
+   * The AST crosses, not source: one language, one parser, and a closure could
+   * not cross at all. `null` means REFUSED, which is not 0 — see the engine.
+   */
+  countMatchingExpression(
+    ast: SsrmExpressionNode,
+    request?: SsrmGetRowsRequest,
+  ): Promise<number | null> {
+    return this.rpc.call('countMatchingExpression', {
+      bookId: this.bookId,
+      ast,
+      ...(request === undefined ? {} : { request }),
+    });
+  }
+
+  /**
+   * One column's aggregate over the WHOLE book — the filter model and the quick
+   * search are deliberately dropped, so an "above average" threshold does not
+   * move when the user filters. See the engine for the decision and its cost.
+   */
+  aggregateScalar(field: string, aggregate: SsrmScalarAggregate): Promise<number | null> {
+    return this.rpc.call('aggregateScalar', { bookId: this.bookId, field, aggregate });
   }
 
   /**

@@ -186,3 +186,62 @@ describe('substituteAggregates', () => {
     expect(substituteAggregates(plan, new Map([['__agg0__', -12.5]]))).toBe('"price" > -12.5');
   });
 });
+
+/**
+ * The STARUI dialect — for `@starui/ssrm-engine`, which has no expression
+ * language of its own and evaluates the StarUI AST directly.
+ *
+ * Nothing is compiled: the plan carries the rule's own source, the surface
+ * parses it, and the AST crosses the port. One language, one parser.
+ */
+describe('planPerspectiveStyleRules — the starui dialect', () => {
+  it('leaves the expression in StarUI source', () => {
+    const { plans, refusals } = planPerspectiveStyleRules([rule()], 'starui');
+    expect(refusals).toEqual([]);
+    expect(plans[0].expression).toBe('[pnl] < 0');
+  });
+
+  it('plans what the Perspective compiler REFUSES, because this engine may not', () => {
+    // A function with no Perspective equivalent is a refusal there and an
+    // ordinary call here. The engine refuses by name at the port if it cannot
+    // do it, and the painter falls back to the client scan for that rule —
+    // which is why there is no second copy of a refusal list in the planner.
+    const expression = 'ROUND([pnl], 2) < 0';
+    expect(planPerspectiveStyleRules([rule({ expression })], 'perspective').plans).toEqual([]);
+    expect(planPerspectiveStyleRules([rule({ expression })], 'starui').plans[0].expression).toBe(
+      expression,
+    );
+  });
+
+  it('still refuses .old/.new and timed rules — viewport-only on EVERY backend', () => {
+    expect(
+      planPerspectiveStyleRules([rule({ expression: '[pnl.new] < [pnl.old]' })], 'starui').plans,
+    ).toEqual([]);
+    expect(
+      planPerspectiveStyleRules([rule({ activeDurationMs: 3000 })], 'starui').plans,
+    ).toEqual([]);
+    expect(planPerspectiveStyleRules([rule({ expression: '[pnl] <' })], 'starui').plans).toEqual([]);
+  });
+
+  it('extracts a cross-row aggregate as a STARUI column placeholder', () => {
+    const { plans } = planPerspectiveStyleRules(
+      [rule({ expression: '[price] > AVG([price])' })],
+      'starui',
+    );
+    expect(plans[0].aggregates).toEqual([
+      { token: '__agg0__', colId: 'price', aggregate: 'avg' },
+    ]);
+    expect(plans[0].expression).toBe('[price] > [__agg0__]');
+    // And the substitution has to match that form. Getting it wrong is silent:
+    // the replace simply misses and the expression goes out still naming a
+    // column the book does not have.
+    expect(substituteAggregates(plans[0], new Map([['__agg0__', 42.5]]), 'starui')).toBe(
+      '[price] > 42.5',
+    );
+    // The Perspective form against a starui plan is exactly that silent miss —
+    // pinned so the two are never assumed interchangeable.
+    expect(substituteAggregates(plans[0], new Map([['__agg0__', 42.5]]))).toBe(
+      '[price] > [__agg0__]',
+    );
+  });
+});
