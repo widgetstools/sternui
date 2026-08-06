@@ -42,6 +42,36 @@ import {
 } from './utils';
 import type { TriggerCache } from './triggerCache';
 
+/**
+ * Does this expression read the CELL's own value?
+ *
+ * `value` and `x` are the two documented spellings (see the seeds' header
+ * comment), and they are what `cellClassRules` binds when AG paints. A timed
+ * activation used to bind both to `null`, which made every rule written that
+ * way — `value < 0`, `value > 8`, `value != null` — false for every row.
+ *
+ * A source-text test rather than a walk of the parsed tree, deliberately: this
+ * only chooses an EVALUATION STRATEGY, so a false positive costs one extra
+ * evaluation per scoped column and a false negative is impossible for any
+ * expression that really names one. `\\b` keeps `maxValue` and `xRate` out of
+ * it. The parsed tree is not available here without parsing twice, and the
+ * answer would be the same.
+ */
+const CELL_VALUE_REF = /\b(?:value|x)\b/;
+
+/** Memoised per expression — this runs per rule per row per tick. */
+const readsCellValueCache = new Map<string, boolean>();
+function readsCellValue(expression: string): boolean {
+  const held = readsCellValueCache.get(expression);
+  if (held !== undefined) return held;
+  const answer = CELL_VALUE_REF.test(expression);
+  // Bounded: an author editing an expression produces a new string per
+  // keystroke, and this map would otherwise grow for the life of the page.
+  if (readsCellValueCache.size > 256) readsCellValueCache.clear();
+  readsCellValueCache.set(expression, answer);
+  return answer;
+}
+
 export interface TimedActivationsDeps {
   triggers: TriggerCache;
   diffCacheByApi: DiffCacheByApi;
@@ -192,21 +222,47 @@ export function createTimedActivations(
           !triggers || triggers.size === 0 ||
           changedKeys.some((k) => triggers.has(k));
         if (!hasRelevantChange) continue;
-        let match = false;
-        try {
-          match = Boolean(
-            engine.parseAndEvaluate(rule.expression, {
-              x: null,
-              value: null,
-              data,
-              columns,
-            }),
-          );
-        } catch {
-          match = false;
-        }
-        if (!match) continue;
+
+        /**
+         * **`value` / `x` are the CELL's value, and binding them to null made
+         * every rule that reads one dead.**
+         *
+         * The cross-column contract above is why this used to evaluate once
+         * per row with `value: null` — there is no single "current cell" for a
+         * row-level predicate. But `value` is the documented way to write a
+         * cell rule (`value < 0`, `value > 8`, `value != null`), it is what
+         * `cellClassRules` binds when AG paints, and against `null` every one
+         * of those predicates is false. So a timed rule written that way never
+         * activated, on ANY surface: MEASURED on the lab's 50,000-row book,
+         * where a rule reading `value` flashed 0 cells and the identical rule
+         * written as `[esgScore] != null` flashed 11.
+         *
+         * The fix keeps the contract for every expression that does not read a
+         * cell value — those still evaluate ONCE and light every scoped column,
+         * including ones whose own value did not move. An expression that DOES
+         * read one is evaluated per scoped column with that column's value
+         * bound, which is the only answer that can be right: the predicate is
+         * about a cell, so it has to be asked about each cell.
+         */
+        const perColumn = readsCellValue(rule.expression);
+        const evaluateFor = (cellValue: unknown): boolean => {
+          try {
+            return Boolean(
+              engine.parseAndEvaluate(rule.expression, {
+                x: cellValue,
+                value: cellValue,
+                data,
+                columns,
+              }),
+            );
+          } catch {
+            return false;
+          }
+        };
+
+        if (!perColumn && !evaluateFor(null)) continue;
         for (const colId of rule.scope.columns) {
+          if (perColumn && !evaluateFor(getValueByPath(data, colId))) continue;
           upsertTimedCellActivation(rowId, rule.id, colId, now + ttlMs);
           activatedThisPass = true;
           traceTimed('cell rule activated (model diff)', { rowId, ruleId: rule.id, colId, until: now + ttlMs });

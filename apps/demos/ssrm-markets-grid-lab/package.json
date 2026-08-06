@@ -1,0 +1,29 @@
+{
+  "name": "@starui/ssrm-markets-grid-lab",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "//note": "No @finos/perspective here, and that is the point of this app: one engine, no switch. The 5 MB inline Perspective chunk the bake-off lab emits is absent from this bundle entirely.",
+  "dependencies": {
+    "ag-grid-community": "36.0.0",
+    "ag-grid-enterprise": "36.0.0",
+    "ag-grid-react": "36.0.0",
+    "lucide-react": "^0.554.0",
+    "react": "~19.2.5",
+    "react-dom": "~19.2.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "~4.5.2",
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.9",
+    "tailwindcss": "3.4.1",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "~5.9.3",
+    "vite": "~7.3.2"
+  }
+}

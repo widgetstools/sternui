@@ -15,6 +15,7 @@
     "demos/e2e-openfin-workspace",
     "demos/markets-grid-lab",
     "demos/perspective-ssrm-lab",
+    "demos/ssrm-markets-grid-lab",
     "demos/markets-ui-react-reference",
     "demos/marketsgrid-container-e2e",
     "demos/minimal-perspective-table",
