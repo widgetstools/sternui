@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MarketsGrid, type SsrmEngineMarketsGridSurfaceHandle } from '@starui/grid';
 import { parse, tokenize } from '@starui/engine';
-import { buildStressColumnDefs, stressDefaultColDef, STRESS_KEY_FIELD } from '../data/stressColumns';
+import {
+  buildStressColumnDefs,
+  stressDefaultColDef,
+  STRESS_KEY_FIELD,
+  STRESS_ROW_COUNT,
+} from '../data/stressColumns';
 import { useSsrmBook } from '../data/useSsrmBook';
 import { labStorage } from '../data/storage';
 import { SSRM_LAB_PROFILES, SSRM_LAB_SEED } from '../profiles/seed';
@@ -12,12 +17,17 @@ import { LAB_STATUS_BAR } from './labStatusBar';
  * The product surface, and the only grid in this app.
  *
  * `rowModel="ssrm-engine"` with a client onto the worker-held book. There is no
- * engine switch here and no query parameter that changes what is mounted —
- * which is the whole reason this app exists. The bake-off lab
+ * engine switch here and nothing that changes WHICH ENGINE is mounted — which
+ * is the whole reason this app exists. The bake-off lab
  * (`@starui/perspective-ssrm-lab`) puts two engines behind `?engine=`, and a
  * reader could not tell from the screen which one they were looking at; two
  * measurements in session 9 were taken on the wrong assumption before a probe
  * was written that could tell them apart.
+ *
+ * `?rows=` and `?tick=` do not reintroduce that. They size the ONE book and set
+ * its tick rate; the size is printed in the header, carried in the book id, and
+ * reported on the measurement handle, so all three would have to agree on a lie
+ * for a reader to be misled about what they are looking at.
  *
  * `client` is `null` while the book is opening, and the host reads that as
  * "mount NO grid". That is not a nicety: exactly one grid may mount per
@@ -40,6 +50,11 @@ export interface SsrmMarketsGridProps {
   /** Live tick interval applied in the worker. 0 disables ticking. */
   tickMs?: number;
   /**
+   * Rows in the book. The book id carries it, so two sizes are two books and a
+   * still-running worker cannot hand back the previous one.
+   */
+  rows?: number;
+  /**
    * Which row shape to mount. Tree data and master/detail are NEW MarketsGrid
    * API rather than restored parity — the CSRM surface exposes neither, and
    * until this session they existed only on the Perspective surface.
@@ -58,8 +73,13 @@ export interface SsrmMarketsGridProps {
  */
 const TREE_FIELDS = ['desk', 'book'] as const;
 
-export function SsrmMarketsGrid({ tickMs = 200, mode = 'flat', onReady }: SsrmMarketsGridProps) {
-  const { client, fault, openCost } = useSsrmBook(tickMs);
+export function SsrmMarketsGrid({
+  tickMs = 200,
+  rows = STRESS_ROW_COUNT,
+  mode = 'flat',
+  onReady,
+}: SsrmMarketsGridProps) {
+  const { client, fault, openCost } = useSsrmBook(tickMs, rows);
   const surfaceRef = useRef<SsrmEngineMarketsGridSurfaceHandle | null>(null);
   const blocksRef = useRef<{ ms: number[]; served: number; failed: number }>({
     ms: [],
@@ -94,6 +114,11 @@ export function SsrmMarketsGrid({ tickMs = 200, mode = 'flat', onReady }: SsrmMa
       },
       client,
       surface: 'ssrm-markets-grid-lab',
+      // The SIZE the window asked for, so a probe can assert it got the book it
+      // meant to measure. The worker memoises per id and would otherwise serve
+      // a previous size with a plausible row count and no complaint.
+      rows,
+      tickMs,
       blocks: () => ({ ...blocksRef.current, ms: [...blocksRef.current.ms] }),
       rpc: () => client.stats(),
       pump: () => surfaceRef.current?.pumpStats() ?? null,
@@ -116,7 +141,7 @@ export function SsrmMarketsGrid({ tickMs = 200, mode = 'flat', onReady }: SsrmMa
     };
     setStatus('ready');
     onReady?.();
-  }, [client, onReady, openCost]);
+  }, [client, onReady, openCost, rows, tickMs]);
 
   const onProfilesReady = useLabDemoProfiles(GRID_ID, SSRM_LAB_PROFILES, SSRM_LAB_PROFILES[0].id);
 

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { SsrmEngineClient } from '@starui/ssrm-engine/worker';
-import { STRESS_BOOK_ID } from './stressBook';
-import { STRESS_ROW_COUNT } from './stressColumns';
+import { stressBookId } from './stressBook';
 
 /**
  * Open the generated Stress book in the app's own SharedWorker.
@@ -23,7 +22,7 @@ export interface SsrmBookHandle {
   openCost(): { ms: number; clientsAtOpen: number } | null;
 }
 
-export function useSsrmBook(tickMs: number): SsrmBookHandle {
+export function useSsrmBook(tickMs: number, rows: number): SsrmBookHandle {
   const [client, setClient] = useState<SsrmEngineClient | null>(null);
   const [fault, setFault] = useState<string | null>(null);
   const openRef = useRef<{ ms: number; clientsAtOpen: number } | null>(null);
@@ -46,8 +45,13 @@ export function useSsrmBook(tickMs: number): SsrmBookHandle {
       name: 'starui-ssrm-marketsgrid-lab',
     });
     const startedAt = performance.now();
-    SsrmEngineClient.open(worker.port, STRESS_BOOK_ID, {
-      bookOptions: { rows: STRESS_ROW_COUNT, tickMs },
+    // The id carries the SIZE. The worker memoises a book per id and hands the
+    // existing one to the next client that asks, ignoring its `bookOptions` —
+    // so a fixed id would serve the previous size to a window that asked for
+    // 500,000, silently, with a plausible row count on screen. A SharedWorker
+    // outlives its pages, which makes that the normal case mid-measurement.
+    SsrmEngineClient.open(worker.port, stressBookId(rows), {
+      bookOptions: { rows, tickMs },
       onFault: (error) => {
         // eslint-disable-next-line no-console
         console.error('[ssrm-engine worker]', error);
@@ -78,7 +82,7 @@ export function useSsrmBook(tickMs: number): SsrmBookHandle {
       // reload, and the next load builds a second one beside it.
       void opened?.close();
     };
-  }, [tickMs]);
+  }, [tickMs, rows]);
 
   return { client, fault, openCost: () => openRef.current };
 }

@@ -25,7 +25,12 @@ import {
  * screen for the wrong reason. A SharedWorker outlives its pages, so "still
  * alive from before" is the normal case during a measurement session.
  */
-export const STRESS_BOOK_ID = `stress-${STRESS_ROW_COUNT}`;
+export function stressBookId(rows: number): string {
+  return `stress-${rows}`;
+}
+
+/** The default-size book's id. `stressBookId(rows)` for any other size. */
+export const STRESS_BOOK_ID = stressBookId(STRESS_ROW_COUNT);
 
 const DIMENSION_VALUES = [
   'Alpha',

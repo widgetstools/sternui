@@ -874,6 +874,104 @@ defect and one unmeasured surface.**
 
 ---
 
+## Session 10 — the 500k run, and what it says about session 7 · **DONE**
+
+Built nothing in the engine. `?rows=` / `?tick=` on the ssrm lab (the book id
+carries the size, so a still-running worker cannot hand back the previous one)
+and `scripts/bookScaleProbe.mjs`, which answers ONE question: **is the engine's
+"any write clears the query cache and the index" trade still the right one at
+500,000 rows?**
+
+### The measurement is a DIFFERENCE, and it has to be
+
+Two identical read series over the same book — `?tick=0` (nothing writes, so a
+sort's index is built once and read back) and `?tick=200` (a write lands between
+reads, so each block rebuilds what the last one built). **The gap between them
+is what session 7 would remove.** An absolute block time cannot separate that
+from the cost of the book simply being bigger, and a probe reporting only the
+live number would credit session 7 with work it cannot avoid.
+
+Two guards, because without them the comparison is unfalsifiable. The book id
+carries the row count but **not the tick rate**, and the worker memoises per id
+and ignores a later client's `bookOptions` — so a worker outliving the first run
+would hand the live run a book that is not ticking, and the probe would report
+that writes are free, with clean-looking numbers. So each run asserts it BUILT
+its own book (`clientsAtOpen === 1`) and that the live run actually saw writes
+while the other saw none (`pump().received` 408-471 vs 0).
+
+### Reads scale. Writes do not.
+
+Warm block reads, p50, **range across three runs** at each size:
+
+| | 50,000 | 500,000 |
+|---|---|---|
+| sorted, **no writes** | 4.3-5.1 ms | 9.5-11.5 ms |
+| sorted, **live at 200 ms** | 11.5-16.0 ms | 42.1-49.1 ms |
+| sorted + filtered, no writes | 3.7-6.9 ms | 6.0-17.4 ms |
+| sorted + filtered, **live** | 7.4-30.5 ms | 46.0-64.1 ms |
+| grouped, no writes | 6.0-10.2 ms | 5.7-9.9 ms |
+| grouped, **live** | 6.2-27.6 ms | 45.9-74.3 ms |
+| book build | 0.82-0.90 s | 7.8-8.1 s |
+| p95 under live | 46-128 ms | 112-208 ms (max 284) |
+
+**With ticking off, a 10x bigger book reads in about the same time** — single
+digits to low teens at both sizes. That is the columnar store and the block
+window doing their job, and it is the result that makes the rest of the table
+meaningful. Under a live feed the same reads go from ~10-15 ms to ~45-50 ms, and
+p95 reaches 200 ms: visible jank while scrolling a live book.
+
+Ranges rather than point estimates on purpose. The RATIO between the two columns
+swung 1.1x-9.7x across seven runs and **must not be quoted to two figures** —
+several of the wider multiples come from an unusually fast ticking-off sample,
+not a slower live one. What is stable across every run is the pair of absolutes,
+and that is the finding: **the no-write cost barely moves with book size; the
+live cost moves with it.**
+
+Build cost is linear (10x rows → ~9x build) and one-time. No failed blocks, no
+crash and no page error at either size, across all runs.
+
+### Verdict on session 7
+
+**Justified at 500,000; still not needed at 50,000.** The defect session 7 names
+is exactly what the table shows — the per-write full discard is invisible at
+50k and is the dominant read cost at 500k. Nothing else moved: no failed blocks
+at either size, no crash, and the build cost is linear and one-time.
+
+**The book's memory is NOT measured, and the number that looked like it was is
+withdrawn.** A SharedWorker shares the renderer PROCESS but has its own V8
+ISOLATE, so `Runtime.getHeapUsage` against the page returns the grid's heap and
+**not one byte of the book**. The first draft reported that 99-138 MB figure as
+the cost of a 500,000-row book, which was both reassuring and meaningless. The
+probe now labels it `grid heap` and reports the book's separately — except that
+the worker target stays unreachable through `Target.getTargets` even with
+discovery enabled, so it prints `BOOK heap unread`. Unread is the honest word;
+it is not zero and it is not small.
+
+What IS known about 500k memory: the tab survived every run with no crash and no
+page error, and the grid-side heap stayed at 82-184 MB. **If a size limit is
+going to be quoted to anyone, this number has to be obtained first** — the
+likely route is asking the worker for `performance.memory` over its own RPC
+rather than fighting CDP for a target Chromium does not want to list.
+
+### What was nearly measured instead
+
+Two probe defects that each produced a confident, wrong-shaped result, both
+found only because a check was written to disagree with them:
+
+- **the grouped warm series was EMPTY at first.** Every string field in this book
+  has exactly 8 distinct values, so a grouped root is 8 rows and scrolling it
+  asks for no further blocks. An empty series reads identically to "grouping
+  costs nothing". Fixed by expanding a group first, which puts ~1/8th of the
+  book under it;
+- **attaching to the worker's CDP target hung the whole probe.**
+  `Target.attachToTarget` against a SharedWorker leaves it suspended and can
+  return a promise that never settles — a `try` block does not catch a hang. The
+  first run passed, the SECOND never served a row, and the symptom at 500k was
+  indistinguishable from a book too large to build. Every CDP call is now raced
+  against a deadline and the session is always detached.
+
+---
+
 ## Session 9 — the grouped live path, and the whole-book seam · **DONE**
 
 Built: `src/rowId.ts` (ONE row-id definition), the grouped route-refresh path in

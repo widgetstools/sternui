@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { SsrmMarketsGrid } from './grid/SsrmMarketsGrid';
-import { STRESS_COL_COUNT, STRESS_ROW_COUNT } from './data/stressColumns';
+import { STRESS_COL_COUNT } from './data/stressColumns';
+import { readLabParams } from './data/labParams';
 
 /**
  * One app, one engine, one grid.
@@ -36,14 +37,21 @@ const MODES: { id: Mode; label: string; hint: string }[] = [
 export function App() {
   const [ready, setReady] = useState(false);
   const [mode, setMode] = useState<Mode>('flat');
+  /**
+   * Read ONCE, and above the grid, so the size on screen and the size in the
+   * book id come from the same read. Two reads is how a header comes to
+   * disagree with the book it describes.
+   */
+  const params = useMemo(() => readLabParams(), []);
 
   return (
     <div className="flex h-screen flex-col bg-[color:var(--ds-bg-primary)] text-[color:var(--ds-text-primary)]">
       <header className="flex shrink-0 items-baseline gap-3 border-b border-[color:var(--ds-border-subtle)] px-4 py-2">
         <h1 className="text-[15px] font-semibold tracking-tight">SSRM MarketsGrid</h1>
         <p className="text-[11px] text-[color:var(--ds-text-secondary)]">
-          {STRESS_ROW_COUNT.toLocaleString()} × {STRESS_COL_COUNT}, held once in a SharedWorker.
+          {params.rows.toLocaleString()} × {STRESS_COL_COUNT}, held once in a SharedWorker.
           This window reads only the blocks its viewport asks for.
+          {params.tickMs === 0 ? ' Ticking OFF.' : ` Ticking every ${params.tickMs} ms.`}
         </p>
         <div className="ml-auto flex items-center gap-3">
           <div className="flex gap-1" role="radiogroup" aria-label="Row shape">
@@ -86,7 +94,8 @@ export function App() {
         <SsrmMarketsGrid
           key={mode}
           mode={mode}
-          tickMs={200}
+          rows={params.rows}
+          tickMs={params.tickMs}
           onReady={() => setReady(true)}
         />
       </main>

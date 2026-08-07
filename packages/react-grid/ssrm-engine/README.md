@@ -1574,14 +1574,23 @@ Stated plainly so nobody plans around a gap:
   reasons back rather than by duplicating them; see below
 - **the value cache is per WRITE, not incremental.** A write invalidates every
   calculated cell in the book by incrementing one number, so the next read
-  recomputes the rows it touches. That is the correct trade at this size and it
-  is the same trade the index cache makes; a book where it is not is a book that
-  needs session 7
+  recomputes the rows it touches. That is the correct trade at 50k and it is the
+  same trade the index cache makes — and the index cache is now measured at 500k,
+  where it is no longer the right one. See the bullet below
 - **`NOW` / `TODAY` are refused**, and every function outside the 45 listed in
   `calcOps.ts`. Refusals are by name and readable through `calcDiagnostics()`
 - **no cross-row aggregates.** `SUM([px])` reads EVERY row on the grid and
   there is no per-offset equivalent; that call site is refused rather than
   answered row-wise. See below
 - **no incremental index maintenance.** Any write clears the query cache and the
-  next read re-materialises. At 20k rows that is 1.5-15 ms; it is the first
-  thing to change if a book gets large
+  next read re-materialises. **MEASURED at three sizes** by
+  `scripts/bookScaleProbe.mjs`, which runs the same read series twice — once
+  with nothing writing, once under a 200 ms feed — because the DIFFERENCE is
+  the cost of this trade and an absolute block time cannot separate it from the
+  cost of a bigger book. With ticking off, a warm block read is single digits to
+  low teens of ms at BOTH 50,000 and 500,000 rows: reads scale. Under a live
+  feed the same read goes from ~10-15 ms at 50k to **~45-50 ms at 500k, p95
+  ~200 ms**. So this is the correct trade at 50k and the dominant read cost at
+  500k, and it is the first thing to change if a book gets large — which is
+  session 7. Do not quote the RATIO: it swung 1.1x-9.7x across seven runs, and
+  the stable finding is the pair of absolutes
